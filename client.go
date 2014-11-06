@@ -122,3 +122,25 @@ func (c *Client) Create(name string, distro string, release string, arch string)
 	}
 	return data, err
 }
+
+// Call a function in the lxd API by name (i.e. this has nothing to do with
+// the parameter passing schemed :)
+func (c *Client) CallByName(function string, name string) (string, error) {
+	data, err := c.getstr("/"+function, map[string]string{"name": name})
+	if err != nil {
+		return "", err
+	}
+	return data, err
+}
+
+func (c *Client) Delete(name string) (string, error) {
+	return c.CallByName("delete", name)
+}
+
+func (c *Client) Start(name string) (string, error) {
+	return c.CallByName("start", name)
+}
+
+func (c *Client) Stop(name string) (string, error) {
+	return c.CallByName("stop", name)
+}
