@@ -109,3 +109,16 @@ func (c *Client) Ping() error {
 	Debugf("pong received")
 	return nil
 }
+
+func (c *Client) Create(name string, distro string, release string, arch string) (string, error) {
+	data, err := c.getstr("/create", map[string]string{
+		"name":    name,
+		"distro":  distro,
+		"release": release,
+		"arch":    arch,
+	})
+	if err != nil {
+		return "fail", err
+	}
+	return data, err
+}

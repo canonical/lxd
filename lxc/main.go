@@ -58,6 +58,7 @@ var commands = map[string]command{
 	"version": &versionCmd{},
 	"help":    &helpCmd{},
 	"ping":    &pingCmd{},
+	"create":  &createCmd{},
 }
 
 var errArgs = fmt.Errorf("too many subcommand arguments")
