@@ -69,6 +69,7 @@ possible.
 
 Command     | Description
 :------     | :----------
+ping        | Ping the lxd instance to see if it is online.
 start       | Create and/or start a container (option for ephemeral)
 stop        | Stop a container
 status      | Show the status of a resource (host, container, snapshot, ...)
@@ -83,6 +84,19 @@ shell       | Spawn a shell within the container (or any other command)
 file        | Transfer files in and out of the container
 remote      | Add a remote resource (host, image server or other equipment)
 publish     | Publish a local snapshot or container as a bundled image
+
+* * *
+
+## ping
+
+**Arguments**
+
+    [resource]
+
+**Description**
+
+Sends a ping to the lxd instance, and wait for the daemon's version number as a
+response.
 
 * * *
 
