@@ -15,7 +15,8 @@ will have both a server and client plugin.
 This means that the list of commands in this document only covers the core
 commands and their default arguments.  Extra commands and arguments to existing
 commands may then be added by the plugins.
-Remote operations
+
+# Remote operations
 
 The lxc command line tool is designed to manage lxd hosts as well as connect
 to a variety of remote resources.
