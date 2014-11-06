@@ -15,6 +15,7 @@ type Daemon struct {
 	tomb    tomb.Tomb
 	unixl   net.Listener
 	tcpl    net.Listener
+	id_map  *Idmap
 	lxcpath string
 	mux     *http.ServeMux
 }
@@ -24,8 +25,18 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d := &Daemon{}
 	d.mux = http.NewServeMux()
 	d.mux.HandleFunc("/ping", d.servePing)
+	d.mux.HandleFunc("/create", d.serveCreate)
 
 	var err error
+	d.id_map, err = NewIdmap()
+	if err != nil {
+		return nil, err
+	}
+	lxd.Debugf("idmap is %d %d %d %d\n",
+		d.id_map.Uidmin,
+		d.id_map.Uidrange,
+		d.id_map.Gidmin,
+		d.id_map.Gidrange)
 
 	d.lxcpath = lxd.VarPath("lxc")
 	err = os.MkdirAll(lxd.VarPath("/"), 0755)
@@ -95,4 +106,3 @@ func (d *Daemon) Stop() error {
 //
 // Together, these ideas ensure that we have a proper daemon, and a proper client,
 // which can both be used independently and also embedded into other applications.
-
