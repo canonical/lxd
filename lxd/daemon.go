@@ -48,7 +48,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.unixl = unixl
 
 	if listenAddr != "" {
-		// Watch out. Threre's a listener active which must be closed on errors.
+		// Watch out. There's a listener active which must be closed on errors.
 		tcpAddr, err := net.ResolveTCPAddr("tcp", listenAddr)
 		if err != nil {
 			d.unixl.Close()
