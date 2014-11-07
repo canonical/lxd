@@ -28,6 +28,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.mux.HandleFunc("/ping", d.servePing)
 	d.mux.HandleFunc("/create", d.serveCreate)
 	d.mux.HandleFunc("/shell", d.serveShell)
+	d.mux.HandleFunc("/list", d.serveList)
 	d.mux.HandleFunc("/start", buildByNameServe("start", func(c *lxc.Container) error { return c.Start() }, d))
 	d.mux.HandleFunc("/stop", buildByNameServe("stop", func(c *lxc.Container) error { return c.Stop() }, d))
 	d.mux.HandleFunc("/delete", buildByNameServe("delete", func(c *lxc.Container) error { return c.Destroy() }, d))
