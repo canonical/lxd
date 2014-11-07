@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"gopkg.in/tomb.v2"
+	"gopkg.in/lxc/go-lxc.v2"
 	"github.com/lxc/lxd"
 )
 
@@ -15,6 +16,7 @@ type Daemon struct {
 	tomb    tomb.Tomb
 	unixl   net.Listener
 	tcpl    net.Listener
+	id_map  *Idmap
 	lxcpath string
 	mux     *http.ServeMux
 }
@@ -24,8 +26,21 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d := &Daemon{}
 	d.mux = http.NewServeMux()
 	d.mux.HandleFunc("/ping", d.servePing)
+	d.mux.HandleFunc("/create", d.serveCreate)
+	d.mux.HandleFunc("/start", buildByNameServe("start", func(c *lxc.Container) error { return c.Start() }, d))
+	d.mux.HandleFunc("/stop", buildByNameServe("stop", func(c *lxc.Container) error { return c.Stop() }, d))
+	d.mux.HandleFunc("/delete", buildByNameServe("delete", func(c *lxc.Container) error { return c.Destroy() }, d))
 
 	var err error
+	d.id_map, err = NewIdmap()
+	if err != nil {
+		return nil, err
+	}
+	lxd.Debugf("idmap is %d %d %d %d\n",
+		d.id_map.Uidmin,
+		d.id_map.Uidrange,
+		d.id_map.Gidmin,
+		d.id_map.Gidrange)
 
 	d.lxcpath = lxd.VarPath("lxc")
 	err = os.MkdirAll(lxd.VarPath("/"), 0755)
@@ -95,4 +110,3 @@ func (d *Daemon) Stop() error {
 //
 // Together, these ideas ensure that we have a proper daemon, and a proper client,
 // which can both be used independently and also embedded into other applications.
-
