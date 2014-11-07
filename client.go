@@ -134,8 +134,8 @@ func (c *Client) Create(name string, distro string, release string, arch string)
 func (c *Client) Shell(name string, cmd string, secret string) (string, error) {
 	data, err := c.getstr("/shell", map[string]string{
 		"name":    name,
-		"command":  cmd,
-		"secret": secret,
+		"command": cmd,
+		"secret":  secret,
 	})
 	if err != nil {
 		return "fail", err
