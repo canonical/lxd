@@ -1,8 +1,9 @@
 # Introduction
 Remote communications with the lxd daemon happen using JSON over HTTPS.
-The only supported protocol should be TLS1.2 with perfect
-forward secrecy, ciphers should be limited to strong elliptic curve ones
-(such as ECDHE-RSA or ECDHE-ECDSA).
+The supported protocol must be TLS1.2 or better.
+All communications must use perfect forward secrecy and ciphers must be
+limited to strong elliptic curve ones (such as ECDHE-RSA or
+ECDHE-ECDSA).
 
 Any generated key should be at least 4096bit RSA and when using
 signatures, only SHA-2 signatures should be trusted.
