@@ -24,7 +24,7 @@ var listenAddr = gnuflag.String("tcp", "", "TCP address to listen on in addition
 
 func run() error {
 	gnuflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s\n\nOptions:\n\n--tcp <addr:port>       Bind to addr:port.")
+		fmt.Fprintf(os.Stderr, "Usage: lxd [options]\n\nOptions:\n\n    --tcp <addr:port>\n        Bind to addr:port.\n")
 		gnuflag.PrintDefaults()
 	}
 
