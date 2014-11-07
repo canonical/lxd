@@ -23,7 +23,7 @@
 
 	Flag parsing stops after the terminator "--", or just before the first
 	non-flag argument ("-" is a non-flag argument) if the interspersed
-	argument to Parse is false. 
+	argument to Parse is false.
 */
 package gnuflag
 

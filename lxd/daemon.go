@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"gopkg.in/tomb.v2"
-	"gopkg.in/lxc/go-lxc.v2"
 	"github.com/lxc/lxd"
+	"gopkg.in/lxc/go-lxc.v2"
+	"gopkg.in/tomb.v2"
 )
 
 // A Daemon can respond to requests from a lxd client.

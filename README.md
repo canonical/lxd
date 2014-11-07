@@ -1,4 +1,4 @@
-# lxd
+# lxd [![Build Status](https://travis-ci.org/lxc/lxd.svg?branch=master)](https://travis-ci.org/lxc/lxd)
 
 REST API, command line tool and OpenStack integration plugin for LXC.
 
