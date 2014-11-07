@@ -21,14 +21,9 @@ func (c *listCmd) usage() string {
 
 func (c *listCmd) flags() {}
 
-func (c *listCmd) run(args []string) error {
+func (c *listCmd) run(config *lxd.Config, args []string) error {
 	if len(args) > 1 {
 		return errArgs
-	}
-
-	config, err := lxd.LoadConfig()
-	if err != nil {
-		return err
 	}
 
 	var remote string
