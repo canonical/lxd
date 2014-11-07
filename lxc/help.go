@@ -28,7 +28,7 @@ func (c *helpCmd) run(args []string) error {
 		return errArgs
 	}
 
-	fmt.Println("Usage: lxd [subcommand] [options]\n")
+	fmt.Println("Usage: lxc [subcommand] [options]\n")
 	fmt.Println("Available commands:\n")
 	var names []string
 	for name, _ := range commands {
