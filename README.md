@@ -1,5 +1,8 @@
 # lxd
 
+[![Gobuild Download](http://gobuild.io/badge/github.com/lxc/lxd/downloads.svg)](http://gobuild.io/github.com/lxc/lxd)
+[![Go Walker](http://gowalker.org/api/v1/badge)](https://gowalker.org/github.com/lxc/lxd)
+
 REST API, command line tool and OpenStack integration plugin for LXC.
 
 LXD is pronounced lex-dee.
