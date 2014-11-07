@@ -8,9 +8,9 @@ import (
 type createCmd struct{}
 
 const createUsage = `
-lxc create images:ubuntu/$release/$arch
+lxc create images:ubuntu <name>
 
-Creates a container using the specified release and arch
+Creates a container using the specified image and name
 `
 
 func (c *createCmd) usage() string {
@@ -29,7 +29,7 @@ func (c *createCmd) run(args []string) error {
 	}
 
 	if args[0] != "images:ubuntu" {
-		return fmt.Errorf("only the default ubuntu image is supported currently.")
+		return fmt.Errorf("Only the default ubuntu image is supported. Try `lxc create images:ubuntu foo`.")
 	}
 
 	var containerRef string
