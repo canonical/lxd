@@ -42,7 +42,7 @@ func main() {
 		}
 		return nil
 	}
-	app.Run(os.Args)
+	app.RunAndExitOnError()
 }
 
 /* vim: set noet ts=4 sw=4 sts=4: */

@@ -2,7 +2,6 @@ package commands
 
 import (
 	"errors"
-	"log"
 
 	"github.com/codegangsta/cli"
 
@@ -19,20 +18,20 @@ var Ping = cli.Command{
 	Name:  "ping",
 	Usage: "Pings the lxd instance",
 	Description: "Check if the lxd instance is up and working.",
-	Action: runPing,
+	Before: runPing,
 	Flags:  []cli.Flag{},
 }
 
-func runPing(ctx *cli.Context) {
+func runPing(ctx *cli.Context) error {
 	args := ctx.Args()
 
 	if len(args) > 1 {
-		log.Fatal(ErrPingArgs)
+		return ErrPingArgs
 	}
 
 	config, err := lxd.LoadConfig()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	var remote string
@@ -44,7 +43,7 @@ func runPing(ctx *cli.Context) {
 
 	// NewClient will ping the server to test the connection before returning.
 	_, _, err = lxd.NewClient(config, remote)
-	log.Fatal(err)
+	return err
 }
 
 /* vim: set noet ts=4 sw=4 sts=4: */
