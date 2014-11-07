@@ -113,7 +113,9 @@ create is used to create a new container, based on an existing container,
 container snapshot or image.
 
 If the resource is read-only (an image or snapshot for example), a copy of it
-will be made using a random name (UUID).  profile is used to apply a
+will be made using a random name.  The random name may be a UUID,
+or may be a more memorable word combination such as a random adjective
+followed by a random noun.  profile is used to apply a
 configuration profile (or multiple ones if passed multiple times) to the newly
 created container.
 
