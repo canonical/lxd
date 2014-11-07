@@ -7,6 +7,8 @@ import (
 	"sort"
 
 	"strings"
+
+	"github.com/lxc/lxd"
 )
 
 type helpCmd struct{}
@@ -23,7 +25,7 @@ func (c *helpCmd) usage() string {
 
 func (c *helpCmd) flags() {}
 
-func (c *helpCmd) run(args []string) error {
+func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 	if len(args) > 0 {
 		return errArgs
 	}

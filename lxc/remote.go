@@ -26,14 +26,9 @@ func (c *remoteCmd) usage() string {
 
 func (c *remoteCmd) flags() {}
 
-func (c *remoteCmd) run(args []string) error {
+func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 1 {
 		return errArgs
-	}
-
-	config, err := lxd.LoadConfig()
-	if err != nil {
-		return err
 	}
 
 	switch args[0] {
@@ -118,5 +113,5 @@ func (c *remoteCmd) run(args []string) error {
 		return nil
 	}
 
-	return lxd.SaveConfig(config)
+	return lxd.SaveConfig(*configPath, config)
 }

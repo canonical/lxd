@@ -19,7 +19,7 @@ func (c *createCmd) usage() string {
 
 func (c *createCmd) flags() {}
 
-func (c *createCmd) run(args []string) error {
+func (c *createCmd) run(config *lxd.Config, args []string) error {
 	if len(args) > 2 {
 		return errArgs
 	}
@@ -38,11 +38,6 @@ func (c *createCmd) run(args []string) error {
 	} else {
 		// TODO: come up with a random name a. la. juju/maas
 		containerRef = "foo"
-	}
-
-	config, err := lxd.LoadConfig()
-	if err != nil {
-		return err
 	}
 
 	d, name, err := lxd.NewClient(config, containerRef)
