@@ -17,7 +17,7 @@ type Config struct {
 	// DefaultRemote holds the remote daemon name from the Remotes map
 	// that the client should communicate with by default.
 	// If empty it defaults to "local".
-	DefaultRemote  string `yaml:"default-remote"`
+	DefaultRemote string `yaml:"default-remote"`
 
 	// Remotes defines a map of remote daemon names to the details for
 	// communication with the named daemon.
