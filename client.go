@@ -123,6 +123,18 @@ func (c *Client) Create(name string, distro string, release string, arch string)
 	return data, err
 }
 
+func (c *Client) Shell(name string, cmd string, secret string) (string, error) {
+	data, err := c.getstr("/shell", map[string]string{
+		"name":    name,
+		"command":  cmd,
+		"secret": secret,
+	})
+	if err != nil {
+		return "fail", err
+	}
+	return data, err
+}
+
 // Call a function in the lxd API by name (i.e. this has nothing to do with
 // the parameter passing schemed :)
 func (c *Client) CallByName(function string, name string) (string, error) {

@@ -59,6 +59,7 @@ var commands = map[string]command{
 	"help":    &helpCmd{},
 	"ping":    &pingCmd{},
 	"create":  &createCmd{},
+	"shell":   &shellCmd{},
 	"start": &byNameCmd{
 		"start",
 		func(c *lxd.Client, name string) (string, error) { return c.Start(name) },
