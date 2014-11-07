@@ -259,9 +259,9 @@ lxc list c1:        | Shows the entry for the local container "c1" as well as an
 
     get <resource> <key>
     set <resource> <key> <value>
-    set-profile <resource> <profile name>[,<second profile name>, ...]
     show <resource>
     unset <resource> <key>
+    profile apply <resource> <profile name>[,<second profile name>, ...]
     profile create <profile name>
     profile copy <source profile name> <target profile name>
     profile delete <profile name>
@@ -280,7 +280,7 @@ image or any other kind of supported resource. It also allows creating
 profiles, profiles are a set of configuration keys which aren’t directly tied
 to a container or any other resource. Instead it’s the profile itself which is
 tied to the resource it’s configuring. Multiple profiles may be applied to a
-container, they override each other in the order they are provided and
+container, they override each other in the order they are applied and
 container-specific settings override any that value coming from a profile.
 get/set/show/unset can be run on a remote resource by using the usual syntax.
 
@@ -303,8 +303,8 @@ lxc config profile set loop-mount lxc.aa\_profile=lxc-default-with-mounting     
 lxc config profile copy loop-mount dakara:                                      | Copy the resulting profile over to "dakara".
 lxc config profile show loop-mount                                              | Show all the options associated with the loop-mount profile and all the containers using it.
 lxc config show c1                                                              | Show the configuration of the c1 container, starting by the list of profiles it’s based on, then the container specific settings and finally the resulting overall configuration.
-lxc config set-profile c1 loop-mount,nesting                                    | Set the profiles for container c1 to be loop-mount followed by nesting.
-lxc config set-profile c1 ""                                                    | Unset any assigned profile for container "c1".
+lxc config profile apply c1 loop-mount,nesting                                  | Set the profiles for container c1 to be loop-mount followed by nesting.
+lxc config profile apply c1 ""                                                  | Unset any assigned profile for container "c1".
 
 * * *
 
