@@ -14,4 +14,3 @@ func (d *Daemon) servePing(w http.ResponseWriter, r *http.Request) {
 	lxd.Debugf("responding to ping from %s", remoteAddr)
 	w.Write([]byte(lxd.Version))
 }
-

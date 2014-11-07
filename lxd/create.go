@@ -86,4 +86,3 @@ func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "success!")
 	}
 }
-
