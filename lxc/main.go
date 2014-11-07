@@ -1,63 +1,48 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
-	"strings"
+
+	"github.com/codegangsta/cli"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/internal/gnuflag"
+	"github.com/lxc/lxd/lxc/commands"
+	"github.com/lxc/lxd/lxc/modules/settings"
 )
 
+var (
+	APP_VER = "0.0.1"
+
+	globalFlags = []cli.Flag{
+		cli.BoolFlag{"verbose, V", "Enable verbose mode", ""},
+		cli.BoolFlag{"debug, d", "Enable debug mode", ""},
+	}
+)
+
+func init() {
+	settings.Appver = APP_VER
+}
+
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	app := cli.NewApp()
+	app.Name = "lxd"
+	app.Usage = "lxd (pronounced lex-dee) is a REST API, command line tool and OpenStack plugin based on liblxc"
+	app.Version = APP_VER
+	app.Commands = []cli.Command{
+		commands.Ping,
 	}
+	app.Flags = append(app.Flags, globalFlags...)
+	app.Before = func(c *cli.Context) error {
+		settings.Verbose = c.GlobalBool("verbose")
+		settings.Debug = c.GlobalBool("debug")
+		if settings.Verbose || settings.Debug {
+			lxd.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
+			lxd.SetDebug(settings.Debug)
+		}
+		return nil
+	}
+	app.Run(os.Args)
 }
 
-var verbose = gnuflag.Bool("v", false, "Enables verbose mode.")
-var debug = gnuflag.Bool("debug", false, "Enables debug mode.")
-
-func run() error {
-	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
-		os.Args[1] = "help"
-	}
-	if len(os.Args) < 2 || os.Args[1] == "" || os.Args[1][0] == '-' {
-		return fmt.Errorf("missing subcommand")
-	}
-	name := os.Args[1]
-	cmd, ok := commands[name]
-	if !ok {
-		return fmt.Errorf("unknown command: %s", name)
-	}
-	cmd.flags()
-	gnuflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s\n\nOptions:\n\n", strings.TrimSpace(cmd.usage()))
-		gnuflag.PrintDefaults()
-	}
-
-	os.Args = os.Args[1:]
-	gnuflag.Parse(true)
-
-	if *verbose || *debug {
-		lxd.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
-		lxd.SetDebug(*debug)
-	}
-	return cmd.run(gnuflag.Args())
-}
-
-type command interface {
-	usage() string
-	flags()
-	run(args []string) error
-}
-
-var commands = map[string]command{
-	"version": &versionCmd{},
-	"help":    &helpCmd{},
-	"ping":    &pingCmd{},
-}
-
-var errArgs = fmt.Errorf("too many subcommand arguments")
+/* vim: set noet ts=4 sw=4 sts=4: */
