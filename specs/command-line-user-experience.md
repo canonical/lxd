@@ -71,12 +71,12 @@ possible.
 Command     | Description
 :------     | :----------
 ping        | Ping the lxd instance to see if it is online.
+create      | Create a container without starting it
 start       | Create and/or start a container (option for ephemeral)
 stop        | Stop a container
 status      | Show the status of a resource (host, container, snapshot, ...)
 list        | Lists available resources (containers, snapshots, remotes, ...)
 config      | Change container settings (quotas, notes, OS metadata, ...)
-copy        | Make a copy of a container, image or snapshot
 move        | Move a container or image either to rename it or to migrate it
 delete      | Delete a resource (container, snapshot, image, ...)
 snapshot    | Make a snapshot (stateful or not) of a container
@@ -101,6 +101,33 @@ response.
 
 * * *
 
+## create
+
+**Arguments**
+
+    <resource> [new resource] [--profile|-p <profile>...]
+
+**Description**
+
+create is used to create a new container, based on an existing container,
+container snapshot or image.
+
+If the resource is read-only (an image or snapshot for example), a copy of it
+will be made using a random name (UUID).  profile is used to apply a
+configuration profile (or multiple ones if passed multiple times) to the newly
+created container.
+
+**Examples**
+
+Command                                        | Result
+:------                                        | :-----
+lxc create images:ubuntu/trusty/amd64          | Create a new local container using a UUID as its name based on the Ubuntu 14.04 amd64 image.
+lxc create images:ubuntu/precise/i386 dakara:  | Create a new remote container on "dakara" using a UUID as its name based on the Ubuntu 14.04 i386 image.
+lxc create dakara:c2/yesterday c3              | Create a new local container called "c3" based on the remote container snapshot "yesterday" of "c2" from "dakara".
+lxc create images:ubuntu c1 -p with-nesting    | Create a new local container called "c1" based on the recommended Ubuntu image for this host (latest LTS, same architecture) and run it with a profile allowing container nesting.
+
+* * *
+
 ## start
 
 **Arguments**
@@ -109,8 +136,9 @@ response.
 
 **Description**
 
-start is used to start a container, either an existing one or
-creating a new one based on an existing container, container snapshot or image.
+start is used to start a container.  If the container does not yet exist,
+it will be created (based on an existing container, container snapshot, or
+image) and then started.
 
 If the resource is read-only (an image or snapshot for example), a copy of it
 will be made using a random name (UUID) before starting it. Passing --ephemeral
@@ -275,31 +303,6 @@ lxc config profile show loop-mount                                              
 lxc config show c1                                                              | Show the configuration of the c1 container, starting by the list of profiles it’s based on, then the container specific settings and finally the resulting overall configuration.
 lxc config set-profile c1 loop-mount,nesting                                    | Set the profiles for container c1 to be loop-mount followed by nesting.
 lxc config set-profile c1 ""                                                    | Unset any assigned profile for container "c1".
-
-* * *
-
-## copy
-
-**Arguments**
-
-    <source resource> <destination resource>
-
-**Description**
-
-Creates a copy of a resource, this typically only applies to
-containers where it’s used to clone a container into another one, either on the
-same host or remotely. It can also be used to turn an image or a snapshot into
-a container without starting it (so similar to what start does in that regard
-except for the configuration and startup step).
-
-**Examples**
-
-Command                                 | Result
-:------                                 | :-----
-lxc copy c1 c2                          | Create a container called "c2" which is a copy of container "c1" with its hostname changed and a fresh MAC address.
-lxc copy c1 dakara:                     | Copy container "c1" to remote host "dakara" still keeping the name "c1" on the target. A copy c1 new MAC address will be generated for the copy.
-lxc copy c1 dakara: c2                  | Same as above but also rename the container and change its hostname.
-lxc copy images:ubuntu/trusty/amd64 c1  | Copies a read-only image of Ubuntu 14.04 64bit as container "c1". This is very similar to the equivalent start command except that in this instance the container won’t start.
 
 * * *
 
