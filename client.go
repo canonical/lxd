@@ -22,9 +22,9 @@ type Client struct {
 func NewClient(config *Config, raw string) (*Client, string, error) {
 	c := Client{
 		config: *config,
-		http: http.Client{
-			// Added on Go 1.3. Wait until it's more popular.
-			//Timeout: 10 * time.Second,
+		http:   http.Client{
+		// Added on Go 1.3. Wait until it's more popular.
+		//Timeout: 10 * time.Second,
 		},
 	}
 
