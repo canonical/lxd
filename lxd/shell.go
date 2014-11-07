@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -7,8 +6,8 @@ import (
 	"net"
 	"net/http"
 
-	"gopkg.in/lxc/go-lxc.v2"
 	"github.com/kr/pty"
+	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd"
 )
@@ -134,4 +133,3 @@ func (d *Daemon) serveShell(w http.ResponseWriter, r *http.Request) {
 		lxd.Debugf("RunCommand exited, stopping console")
 	}(l, name, command, secret)
 }
-

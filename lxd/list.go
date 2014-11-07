@@ -16,4 +16,3 @@ func (d *Daemon) serveList(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%d: %s (%s)\n", i, c[i].Name(), c[i].State())
 	}
 }
-
