@@ -1,0 +1,17 @@
+language: go
+
+# only golang>=1.2 are supported
+# TODO: support building/testing with both golang and gccgo?
+go:
+  - 1.2
+  - 1.3
+
+before_install:
+  - sudo apt-add-repository -y ppa:ubuntu-lxc/daily
+  - sudo apt-get update
+
+install:
+  - sudo apt-get install lxc lxc-dev
+  - go get -v -d ./...
+
+script: "make check"
