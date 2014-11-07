@@ -32,7 +32,7 @@ func runPing(ctx *cli.Context) error {
 
 	config, err := lxd.LoadConfig()
 	if err != nil {
-		//return err
+		return err
 	}
 
 	var remote string
@@ -44,6 +44,8 @@ func runPing(ctx *cli.Context) error {
 
 	// NewClient will ping the server to test the connection before returning.
 	_, _, err = lxd.NewClient(config, remote)
+	return err
+
 	return nil
 }
 
