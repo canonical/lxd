@@ -110,12 +110,32 @@ func (c *Client) Ping() error {
 	return nil
 }
 
+func (c *Client) List() (string, error) {
+	data, err := c.getstr("/list", nil)
+	if err != nil {
+		return "fail", err
+	}
+	return data, err
+}
+
 func (c *Client) Create(name string, distro string, release string, arch string) (string, error) {
 	data, err := c.getstr("/create", map[string]string{
 		"name":    name,
 		"distro":  distro,
 		"release": release,
 		"arch":    arch,
+	})
+	if err != nil {
+		return "fail", err
+	}
+	return data, err
+}
+
+func (c *Client) Shell(name string, cmd string, secret string) (string, error) {
+	data, err := c.getstr("/shell", map[string]string{
+		"name":    name,
+		"command":  cmd,
+		"secret": secret,
 	})
 	if err != nil {
 		return "fail", err
