@@ -40,7 +40,6 @@ func checkmap(fname string, username string) (uint, uint, error) {
 	idrange = 0
 	for scanner.Scan() {
 		s := strings.Split(scanner.Text(), ":")
-		fmt.Println(s)
 		if len(s) < 3 {
 			return 0, 0, fmt.Errorf("unexpected values in %q: %q", fname, s)
 		}
