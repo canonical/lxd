@@ -58,6 +58,19 @@ var commands = map[string]command{
 	"version": &versionCmd{},
 	"help":    &helpCmd{},
 	"ping":    &pingCmd{},
+	"create":  &createCmd{},
+	"start": &byNameCmd{
+		"start",
+		func(c *lxd.Client, name string) (string, error) { return c.Start(name) },
+	},
+	"stop": &byNameCmd{
+		"stop",
+		func(c *lxd.Client, name string) (string, error) { return c.Stop(name) },
+	},
+	"delete": &byNameCmd{
+		"delete",
+		func(c *lxd.Client, name string) (string, error) { return c.Delete(name) },
+	},
 }
 
 var errArgs = fmt.Errorf("too many subcommand arguments")
