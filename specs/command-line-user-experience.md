@@ -446,10 +446,12 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
 **Arguments**
 
     add <name> <URI> [--always-relay]
-    delete <name>
+    rm <name>
     list
     rename <old name> <new name>
+    set-url <name> <new URI>
     set-default <name>
+    get-default
 
 **Description**
 Manages remote resources. Those will typically be either lxd
