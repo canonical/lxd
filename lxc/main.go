@@ -1,13 +1,14 @@
 package main
 
 import (
-	"os"
 	"log"
+	"os"
 
 	"github.com/codegangsta/cli"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/lxc/commands"
+	"github.com/lxc/lxd/lxc/modules/settings"
 )
 
 var (
@@ -18,6 +19,11 @@ var (
 		cli.BoolFlag{"debug, d", "Enable debug mode", ""},
 	}
 )
+
+func init() {
+	settings.Appver = APP_VER
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "lxd"
@@ -28,11 +34,11 @@ func main() {
 	}
 	app.Flags = append(app.Flags, globalFlags...)
 	app.Before = func(c *cli.Context) error {
-		verbose := c.GlobalBool("verbose")
-		debug := c.GlobalBool("debug")
-		if verbose || debug {
+		settings.Verbose = c.GlobalBool("verbose")
+		settings.Debug = c.GlobalBool("debug")
+		if settings.Verbose || settings.Debug {
 			lxd.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
-			lxd.SetDebug(debug)
+			lxd.SetDebug(settings.Debug)
 		}
 		return nil
 	}
