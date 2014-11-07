@@ -4,6 +4,9 @@ The only supported protocol should be TLS1.2 with perfect
 forward secrecy, ciphers should be limited to strong elliptic curve ones
 (such as ECDHE-RSA or ECDHE-ECDSA).
 
+Any generated key should be at least 4096bit RSA and when using
+signatures, only SHA-2 signatures should be trusted.
+
 Since we control both client and server, there is no reason to support
 any backward compatibility to broken protocol or ciphers.
 
