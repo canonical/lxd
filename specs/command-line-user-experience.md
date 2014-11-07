@@ -445,7 +445,7 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
 
 **Arguments**
 
-    add <name> <URI>
+    add <name> <URI> [--always-relay]
     delete <name>
     list
     rename <old name> <new name>
@@ -480,6 +480,14 @@ default.
 
 Protocol auto-detection will happen so that adding a source solely based on its
 name will work too, assuming it doesn’t support multiple protocols.
+
+The "--always-relay" flag of "remote add" can mean one of two things:
+ * If it's an image server, that this server is only reachable by the
+   client and that the client needs to act as a relay and transfer the
+   image over to the server.
+ * If it's a lxd server, that this server has limited connectivity which
+   prevents it from accessing the image servers and that the client needs
+   to act as a relay for it.
 
 **Examples**
 
