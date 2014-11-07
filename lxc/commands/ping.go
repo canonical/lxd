@@ -19,6 +19,7 @@ var Ping = cli.Command{
 	Usage: "Pings the lxd instance",
 	Description: "Check if the lxd instance is up and working.",
 	Before: runPing,
+	Action: func(ctx *cli.Context) {},
 	Flags:  []cli.Flag{},
 }
 
@@ -31,7 +32,7 @@ func runPing(ctx *cli.Context) error {
 
 	config, err := lxd.LoadConfig()
 	if err != nil {
-		return err
+		//return err
 	}
 
 	var remote string
@@ -43,7 +44,7 @@ func runPing(ctx *cli.Context) error {
 
 	// NewClient will ping the server to test the connection before returning.
 	_, _, err = lxd.NewClient(config, remote)
-	return err
+	return nil
 }
 
 /* vim: set noet ts=4 sw=4 sts=4: */
