@@ -12,9 +12,9 @@ type byNameCmd struct {
 
 func (c *byNameCmd) usage() string {
 	return fmt.Sprintf(`
-lxd %s
-
 Creates a container using the specified release and arch
+
+lxd %s <name>
 `, c.function)
 }
 

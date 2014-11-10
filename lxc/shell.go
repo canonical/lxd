@@ -14,9 +14,9 @@ import (
 type shellCmd struct{}
 
 const shellUsage = `
-lxc shell container [command]
-
 Start a shell or specified command (NOT IMPLEMENTED) in a container.
+
+lxc shell container [command]
 `
 
 func (c *shellCmd) usage() string {
