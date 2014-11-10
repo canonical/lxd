@@ -14,9 +14,9 @@ import (
 type helpCmd struct{}
 
 const helpUsage = `
-lxd help
-
 Presents details on how to use lxd.
+
+lxd help
 `
 
 func (c *helpCmd) usage() string {
@@ -45,17 +45,15 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 	return nil
 }
 
-// summaryLine returns the first non-empty line immediately after the first
-// line. Conventionally, this should be a one-line command summary, potentially
-// followed by a longer explanation.
+// summaryLine returns the first line of the help text. Conventionally, this
+// should be a one-line command summary, potentially followed by a longer
+// explanation.
 func summaryLine(usage string) string {
 	usage = strings.TrimSpace(usage)
 	s := bufio.NewScanner(bytes.NewBufferString(usage))
 	if s.Scan() {
-		for s.Scan() {
-			if len(s.Text()) > 1 {
-				return s.Text()
-			}
+		if len(s.Text()) > 1 {
+			return s.Text()
 		}
 	}
 	return "Missing summary."

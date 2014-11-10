@@ -10,14 +10,14 @@ type remoteCmd struct {
 }
 
 const remoteUsage = `
+Manage remote lxc servers.
+
 lxc remote add <name> <url>        Add the remote <name> at <url>.
 lxc remote rm <name>               Remove the remote <name>.
 lxc remote list                    List all remotes.
 lxc remote rename <old> <new>      Rename remote <old> to <new>.
 lxc remote set-url <name> <url>    Update <name>'s url to <url>.
 lxc remote set-default <name>      Set the default remote.
-
-Manage remote lxc servers.
 `
 
 func (c *remoteCmd) usage() string {

@@ -9,9 +9,9 @@ type pingCmd struct {
 }
 
 const pingUsage = `
-lxcping
-
 Pings the lxd instance to check if it is up and working.
+
+lxc ping <remote>
 `
 
 func (c *pingCmd) usage() string {

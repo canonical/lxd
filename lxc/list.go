@@ -8,9 +8,10 @@ import (
 type listCmd struct{}
 
 const listUsage = `
+Lists the available resources.
+
 lxc list [resource]
 
-Lists the available resources.
 Currently resource must be a defined remote, and list only lists
 the defined containers.
 `
