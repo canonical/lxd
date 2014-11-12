@@ -312,7 +312,7 @@ lxc config profile apply c1 ""                                                  
 
 **Arguments**
 
-    <source resource> <destination resource> [--stateful]
+    <source resource> <destination resource>
 
 **Description**
 
@@ -325,11 +325,9 @@ destination (for local stateful rename or for remote live migration).
 
 Command                         | Result
 :------                         | :-----
-lxc move c1 c2                  | Rename container c1 into c2, this requires c1 to be offline and will update its hostname.
-lxc move c1 dakara:             | Move c1 to "dakara" in a stateless manner. This requires c1 to be offline.
-lxc move c1 dakara:c2           | Move c1 to dakara as "c2" in a stateless manner. The hostname will be updated. Requires c1 to be offline.
-lxc move c1 c2 --stateful       | Rename container c1 into c2 while it’s running. This will dump its state to disk, kill the container, rename it, update its hostname and restore the container state.
-lxc move c1 dakara: --stateful  | Live migrates container c1 to dakara. This will first stream the filesystem content over to dakara, then dump the container state to disk, sync the state and the delta of the filesystem, restore the container on the remote host and then wipe it from the source host.
+lxc move c1 c2                  | Rename container c1 to c2.
+lxc move c1 dakara:             | Move c1 to "dakara". If the container is stopped, this simply moves the container and its configuration to "dakara". If it is running, this live migrates container c1 to dakara. This will first stream the filesystem content over to dakara, then dump the container state to disk, sync the state and the delta of the filesystem, restore the container on the remote host and then wipe it from the source host.
+lxc move c1 dakara:c2           | Move c1 to dakara as "c2".
 
 * * *
 
