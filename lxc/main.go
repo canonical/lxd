@@ -81,6 +81,10 @@ var commands = map[string]command{
 		"delete",
 		func(c *lxd.Client, name string) (string, error) { return c.Delete(name) },
 	},
+	"restart": &byNameCmd{
+		"restart",
+		func(c *lxd.Client, name string) (string, error) { return c.Restart(name) },
+	},
 }
 
 var errArgs = fmt.Errorf("too many subcommand arguments")

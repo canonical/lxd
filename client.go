@@ -164,3 +164,7 @@ func (c *Client) Start(name string) (string, error) {
 func (c *Client) Stop(name string) (string, error) {
 	return c.CallByName("stop", name)
 }
+
+func (c *Client) Restart(name string) (string, error) {
+	return c.CallByName("restart", name)
+}

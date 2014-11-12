@@ -39,7 +39,16 @@ func checkmap(fname string, username string) (uint, uint, error) {
 	min = 0
 	idrange = 0
 	for scanner.Scan() {
-		s := strings.Split(scanner.Text(), ":")
+		/*
+		 * /etc/sub{gu}id allow comments in the files, so ignore
+		 * everything after a '#'
+		 */
+		s := strings.Split(scanner.Text(), "#")
+		if len(s[0]) == 0 {
+			continue
+		}
+
+		s = strings.Split(s[0], ":")
 		if len(s) < 3 {
 			return 0, 0, fmt.Errorf("unexpected values in %q: %q", fname, s)
 		}

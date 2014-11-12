@@ -74,6 +74,7 @@ ping        | Ping the lxd instance to see if it is online.
 create      | Create a container without starting it
 start       | Create and/or start a container (option for ephemeral)
 stop        | Stop a container
+restart     | Restart a container.
 status      | Show the status of a resource (host, container, snapshot, ...)
 list        | Lists available resources (containers, snapshots, remotes, ...)
 config      | Change container settings (quotas, notes, OS metadata, ...)
@@ -184,6 +185,26 @@ Command                     | Result
 lxc stop c1                 | Do a clean shutdown of local container "c1"
 lxc stop dakara:c1 -t 10    | Do a clean shutdown of remote container "c1" on "dakara" with a reduced timeout of 10s
 lxc stop dakara:c1 -k       | Kill the remote container "c1" on "dakara"
+
+## restart
+
+**Arguments**
+
+    <resource> [--kill|-k] [--timeout|-t]
+
+**Description**
+
+Restarts the container. The flags have the same behavior as the 'stop' command.
+Restart will fail on ephemeral containers, as they cannot be booted after they
+are stopped.
+
+**Examples**
+
+Command                     | Result
+:------                     | :-----
+lxc restart c1              | Do a clean restart of local container "c1"
+lxc restart dakara:c1 -t 10 | Do a clean restart of remote container "c1" on "dakara" with a reduced timeout of 10s
+lxc restart dakara:c1 -k    | Kill and restart the remote container "c1" on "dakara"
  
 * * *
 
