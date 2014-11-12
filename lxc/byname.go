@@ -12,22 +12,17 @@ type byNameCmd struct {
 
 func (c *byNameCmd) usage() string {
 	return fmt.Sprintf(`
-lxd %s
-
 Creates a container using the specified release and arch
+
+lxd %s <name>
 `, c.function)
 }
 
 func (c *byNameCmd) flags() {}
 
-func (c *byNameCmd) run(args []string) error {
+func (c *byNameCmd) run(config *lxd.Config, args []string) error {
 	if len(args) != 1 {
 		return errArgs
-	}
-
-	config, err := lxd.LoadConfig()
-	if err != nil {
-		return err
 	}
 
 	d, name, err := lxd.NewClient(config, args[0])

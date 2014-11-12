@@ -36,11 +36,17 @@ type RemoteConfig struct {
 	Addr string `yaml:"addr"`
 }
 
-var configPath = "$HOME/.lxd/config.yaml"
+func renderConfigPath(path string) string {
+	if path == "" {
+		path = "$HOME/.lxd/config.yaml"
+	}
 
-// LoadConfig reads the configuration from $HOME/.lxd/config.yaml.
-func LoadConfig() (*Config, error) {
-	data, err := ioutil.ReadFile(os.ExpandEnv(configPath))
+	return os.ExpandEnv(path)
+}
+
+// LoadConfig reads the configuration from the config path.
+func LoadConfig(configPath string) (*Config, error) {
+	data, err := ioutil.ReadFile(renderConfigPath(configPath))
 	if os.IsNotExist(err) {
 		// A missing file is equivalent to the default configuration.
 		return &Config{}, nil
@@ -60,9 +66,9 @@ func LoadConfig() (*Config, error) {
 	return &c, nil
 }
 
-// SaveConfig writes the provided configuration to $HOME/.lxd/config.yaml.
-func SaveConfig(c *Config) error {
-	fname := os.ExpandEnv(configPath)
+// SaveConfig writes the provided configuration to the config path.
+func SaveConfig(configPath string, c *Config) error {
+	fname := renderConfigPath(configPath)
 
 	// Ignore errors on these two calls. Create will report any problems.
 	os.Remove(fname + ".new")
