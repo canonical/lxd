@@ -9,9 +9,9 @@ import (
 type versionCmd struct{}
 
 const versionUsage = `
-lxd version
-
 Prints the version number of lxd.
+
+lxd version
 `
 
 func (c *versionCmd) usage() string {
@@ -21,7 +21,7 @@ func (c *versionCmd) usage() string {
 func (c *versionCmd) flags() {
 }
 
-func (c *versionCmd) run(args []string) error {
+func (c *versionCmd) run(_ *lxd.Config, args []string) error {
 	if len(args) > 0 {
 		return errArgs
 	}

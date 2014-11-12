@@ -19,6 +19,7 @@ func main() {
 
 var verbose = gnuflag.Bool("v", false, "Enables verbose mode.")
 var debug = gnuflag.Bool("debug", false, "Enables debug mode.")
+var configPath = gnuflag.String("config", "", "Alternate config path.")
 
 func run() error {
 	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
@@ -45,13 +46,19 @@ func run() error {
 		lxd.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
 		lxd.SetDebug(*debug)
 	}
-	return cmd.run(gnuflag.Args())
+
+	config, err := lxd.LoadConfig(*configPath)
+	if err != nil {
+		return err
+	}
+
+	return cmd.run(config, gnuflag.Args())
 }
 
 type command interface {
 	usage() string
 	flags()
-	run(args []string) error
+	run(config *lxd.Config, args []string) error
 }
 
 var commands = map[string]command{
@@ -61,6 +68,7 @@ var commands = map[string]command{
 	"create":  &createCmd{},
 	"list":    &listCmd{},
 	"shell":   &shellCmd{},
+	"remote":  &remoteCmd{},
 	"start": &byNameCmd{
 		"start",
 		func(c *lxd.Client, name string) (string, error) { return c.Start(name) },

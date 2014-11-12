@@ -14,9 +14,9 @@ import (
 type shellCmd struct{}
 
 const shellUsage = `
-lxc shell container [command]
-
 Start a shell or specified command (NOT IMPLEMENTED) in a container.
+
+lxc shell container [command]
 `
 
 func (c *shellCmd) usage() string {
@@ -25,13 +25,9 @@ func (c *shellCmd) usage() string {
 
 func (c *shellCmd) flags() {}
 
-func (c *shellCmd) run(args []string) error {
+func (c *shellCmd) run(config *lxd.Config, args []string) error {
 	if len(args) > 1 {
 		return errArgs
-	}
-	config, err := lxd.LoadConfig()
-	if err != nil {
-		return err
 	}
 
 	d, name, err := lxd.NewClient(config, args[0])
