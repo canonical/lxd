@@ -3,6 +3,13 @@ All the communications between lxd and its clients happen using a
 RESTful API over http which is then encapsulated over either SSL for
 remote operations or a unix socket for local operations.
 
+Not all of the REST interface requires authentication:
+
+ * PUT to /1.0/trust is allowed for everyone with a client certificate
+ * GET to /1.0/images/\* is allowed for everyone but only returns public images for unauthenticated users
+
+Unauthenticated endpoints are clearly identified as such below.
+
 # Return values
 There are three standard return types:
  * Standard return value
@@ -110,6 +117,36 @@ Cancel an operation. Calling this will change the state to "cancelling"
 rather than actually removing the entry.
 
 Uses a standard return value.
+
+## /1.0/trust
+### GET
+Return a list of URLs for trusted certificates.
+
+### PUT (unauthenticated)
+Add a new trusted certificate.
+
+    {
+        'type': "client",                       # Certificate type (keyring), currently only client
+        'certificate': "BASE64",                # If provided, a valid x509 certificate. If not, the client certificate of the connection will be used
+        'password': "server-trust-password"     # The trust password for that server
+    }
+
+This is a sync operation.
+
+## /1.0/trust/\<fingerprint\>
+### GET
+Return detailed information about a certificate.
+
+    {
+        'type': "client",
+        'certificate': "BASE64"
+    }
+
+### DELETE
+
+Remove a trusted certificate.
+
+This is a sync operation.
 
 ## /1.0/longpoll
 This URL isn't a standard REST object, instead it's a longpoll service
