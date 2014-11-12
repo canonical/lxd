@@ -26,6 +26,11 @@ fingerprint which they can manually check by connecting to or asking
 someone with access to the server to run the status command and compare
 the fingerprints.
 
+After that, the user must enter the trust password for that server, if
+it matches, the client certificate is added to the server's trust store
+and the client can now connect to the server without having to provide
+any additional credentials.
+
 This is a workflow that's very similar to that of ssh where an initial
 connection to an unknown server triggers a prompt.
 
@@ -47,9 +52,51 @@ The CA certificate is also added to all lxc clients and lxd daemons.
 A CRL may also accompany the CA certificate.
 
 In that mode, any connection to a lxd daemon will be done using the
-preseed CA certificate. If the server certificate isn't signed by the
+preseeded CA certificate. If the server certificate isn't signed by the
 CA, or if it has been revoked, the connection will simply fail with no
 way obvious way for the user to bypass this.
 
 If the server certificate is valid and signed by the CA, then the
-connection continues without ever prompting the user.
+connection continues without prompting the user for the certificate.
+
+After that, the user must enter the trust password for that server, if
+it matches, the client certificate is added to the server's trust store
+and the client can now connect to the server without having to provide
+any additional credentials.
+
+# Failure scenari
+## Server certificate changes
+This will typically happen in two cases:
+
+ * The server was fully reinstalled and so changed certificate
+ * The connection is being intercepted (MITM)
+
+In such cases the client will refuse to connect to the server since the
+certificate fringerprint will not match that in the config for this
+remote.
+
+This is a fatal error and so the client shouldn't attempt to recover
+from it. Instead it must print a message to the console saying that the
+server certificate changed and that this may either be due to the server
+having been reinstalled or because the communication is being
+intercepted.
+
+That message can also tell the user that if this is expected, they can
+resolve the situation by removing the remote and adding it again (the
+message should include the two commands required to achieve that in a
+copy/pastable manner).
+
+
+## Server trust relationship revoked
+In this case, the server still uses the same certificate but all API
+calls return a 403 with an error indicating that the client isn't
+trusted.
+
+This happens if another trusted client or the local server administrator
+removed the trust entry on the server.
+
+As with the other failure scenario, this is a fatal error. A message
+must be displayed to the user explaining that this client isn't trusted
+by the server and that to re-establish the trust relationship, the user
+must remove the remote and add it again (and as above, provide the
+commands to do so).

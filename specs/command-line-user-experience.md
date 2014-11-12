@@ -278,10 +278,10 @@ lxc list c1:        | Shows the entry for the local container "c1" as well as an
 
 **Arguments**
 
-    get <resource> <key>
-    set <resource> <key> <value>
-    show <resource>
-    unset <resource> <key>
+    get [resource] <key>
+    set [resource] <key> <value>
+    show [resource]
+    unset [resource] <key>
     profile apply <resource> <profile name>[,<second profile name>, ...]
     profile create <profile name>
     profile copy <source profile name> <target profile name>
@@ -292,6 +292,9 @@ lxc list c1:        | Shows the entry for the local container "c1" as well as an
     profile set <profile name> <key> <value>
     profile show <profile name>
     profile unset <profile name> <key>
+    trust add [remote] <certificate>
+    trust delete [remote] <fingerprint>
+    trust list [remote]
 
 **Description**
 
@@ -313,19 +316,34 @@ moved around alongside the containers.
 Also note that removing a profile or moving it off the host will fail if any
 local container still references it.
 
+The trust sub-command is there to manage the server's trust store. It
+can list the certificates which the server currently trusts, delete
+entries (based on their fingerprint) and add new entries using a
+provided certificate.
+
 **Examples**
 
 Command                                                                         | Result
 :------                                                                         | :-----
-lxc config c1 set lxc.aa\_profile=unconfined                                    | Set the apparmor profile of local container c1 to "unconfined".
+lxc config show                                                                 | Show the local server's configuration
+lxc config show dakara:                                                         | Show "dakara"'s server' configuration
+lxc config set password new-trust-password                                      | Set the local server's trust password to "new-trust-password"
+lxc config c1 set lxc.aa\_profile unconfined                                    | Set the apparmor profile of local container c1 to "unconfined".
 lxc config profile create loop-mount                                            | Create a new "loop-mount" profile.
 lxc config profile set loop-mount lxc.cgroup.devices.allow "c 7:\* rwm"         | Allow access to /dev/loop.
-lxc config profile set loop-mount lxc.aa\_profile=lxc-default-with-mounting     | Set an appropriate apparmor profile.
+lxc config profile set loop-mount lxc.aa\_profile lxc-default-with-mounting     | Set an appropriate apparmor profile.
+lxc config profile unset dakara:loop-mount lxc.aa\_profile                      | Unset lxc.aa\_profile in the loop-mount profile on "dakara"
 lxc config profile copy loop-mount dakara:                                      | Copy the resulting profile over to "dakara".
 lxc config profile show loop-mount                                              | Show all the options associated with the loop-mount profile and all the containers using it.
 lxc config show c1                                                              | Show the configuration of the c1 container, starting by the list of profiles it’s based on, then the container specific settings and finally the resulting overall configuration.
 lxc config profile apply c1 loop-mount,nesting                                  | Set the profiles for container c1 to be loop-mount followed by nesting.
 lxc config profile apply c1 ""                                                  | Unset any assigned profile for container "c1".
+lxc config trust add new-client-cert.pem                                        | Add new-client-cert.pem to the default remote's trust store
+lxc config trust add dakara: new-client-cert.pem                                | Add new-client-cert.pem to the "dakara"'s trust store
+lxc config trust list                                                           | List all the trusted certificates on the local server
+lxc config trust dakara: list                                                   | List all the trusted certificates on "dakara"
+lxc config trust delete \<cert fingerprint\>                                    | Remove a certificate from the local trust store
+lxc config trust delete dakara: \<cert fingerprint\>                            | Remove a certificate from "dakara"'s trust store
 
 * * *
 
@@ -347,8 +365,8 @@ destination (for local stateful rename or for remote live migration).
 Command                         | Result
 :------                         | :-----
 lxc move c1 c2                  | Rename container c1 to c2.
-lxc move c1 dakara:             | Move c1 to "dakara". If the container is stopped, this simply moves the container and its configuration to "dakara". If it is running, this live migrates container c1 to dakara. This will first stream the filesystem content over to dakara, then dump the container state to disk, sync the state and the delta of the filesystem, restore the container on the remote host and then wipe it from the source host.
-lxc move c1 dakara:c2           | Move c1 to dakara as "c2".
+lxc move c1 dakara:             | Move c1 to "dakara". If the container is stopped, this simply moves the container and its configuration to "dakara". If it is running, this live migrates container c1 to "dakara". This will first stream the filesystem content over to "dakara", then dump the container state to disk, sync the state and the delta of the filesystem, restore the container on the remote host and then wipe it from the source host.
+lxc move c1 dakara:c2           | Move c1 to "dakara" as "c2".
 
 * * *
 
@@ -465,7 +483,7 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
 **Arguments**
 
     add <name> <URI> [--always-relay]
-    rm <name>
+    delete <name>
     list
     rename <old name> <new name>
     set-url <name> <new URI>
