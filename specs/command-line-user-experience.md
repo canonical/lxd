@@ -108,7 +108,7 @@ stop        | Stop a container
     profile show <profile name>
     profile unset <profile name> <key>
     trust add [remote] <certificate>
-    trust delete [remote] <fingerprint>
+    trust remove [remote] <fingerprint>
     trust list [remote]
 
 **Description**
@@ -157,8 +157,8 @@ lxc config trust add new-client-cert.pem                                        
 lxc config trust add dakara: new-client-cert.pem                                | Add new-client-cert.pem to the "dakara"'s trust store
 lxc config trust list                                                           | List all the trusted certificates on the local server
 lxc config trust dakara: list                                                   | List all the trusted certificates on "dakara"
-lxc config trust delete \<cert fingerprint\>                                    | Remove a certificate from the local trust store
-lxc config trust delete dakara: \<cert fingerprint\>                            | Remove a certificate from "dakara"'s trust store
+lxc config trust remove \<cert fingerprint\>                                    | Remove a certificate from the local trust store
+lxc config trust remove dakara: \<cert fingerprint\>                            | Remove a certificate from "dakara"'s trust store
 
 * * *
 
@@ -332,7 +332,7 @@ lxc publish c2 dakara:demo-images/c2 --public   | Publish local container "c2" a
 **Arguments**
 
     add <name> <URI> [--always-relay]
-    delete <name>
+    remove <name>
     list
     rename <old name> <new name>
     set-url <name> <new URI>
