@@ -10,6 +10,16 @@ Not all of the REST interface requires authentication:
 
 Unauthenticated endpoints are clearly identified as such below.
 
+# API versioning
+The list of supported major API versions can be retrieved using GET /.
+
+The reason for a major API bump is if the API breaks backward compatibility.
+
+Feature additions done without breaking backward compatibility only
+result in a bump of the compat version which can be used by the client
+to check if a given feature is supported by the server.
+
+
 # Return values
 There are three standard return types:
  * Standard return value
@@ -50,6 +60,10 @@ wrong, in those cases, the following return value is used:
 HTTP code must be one of of 400, 401, 403, 404 or 500.
 
 # Basic structure
+## /
+### GET (unauthenticated)
+Return a list of supported API URLs (by default ['/1.0']).
+
 ## /1.0/containers
 ### GET
 Return a list of URLs for images this server publishes.
@@ -93,6 +107,16 @@ Update image metadata. (WIP)
 
 ### POST
 Used to rename/move the image. (WIP)
+
+## /1.0/ping
+### GET (unauthenticated)
+Returns what's needed for an initial handshake with the server
+
+    {
+        'auth': "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
+        'api_compat': 0,                        # Used to determine API functionality
+        'version': "0.3"                        # Only visible if authenticated, full server version string
+    }
 
 ## /1.0/operations
 ### GET
