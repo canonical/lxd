@@ -70,22 +70,22 @@ possible.
 
 Command     | Description
 :------     | :----------
-ping        | Ping the lxd instance to see if it is online.
-create      | Create a container without starting it
-start       | Create and/or start a container (option for ephemeral)
-stop        | Stop a container
-restart     | Restart a container.
-status      | Show the status of a resource (host, container, snapshot, ...)
-list        | Lists available resources (containers, snapshots, remotes, ...)
 config      | Change container settings (quotas, notes, OS metadata, ...)
-move        | Move a container or image either to rename it or to migrate it
+create      | Create a container without starting it
 delete      | Delete a resource (container, snapshot, image, ...)
-snapshot    | Make a snapshot (stateful or not) of a container
+file        | Transfer files in and out of the container
+list        | Lists available resources (containers, snapshots, remotes, ...)
+move        | Move a container or image either to rename it or to migrate it
+ping        | Ping the lxd instance to see if it is online.
+publish     | Publish a local snapshot or container as a bundled image
+remote      | Add a remote resource (host, image server or other equipment)
+restart     | Restart a container.
 restore     | Restore a snapshot of a container
 shell       | Spawn a shell within the container (or any other command)
-file        | Transfer files in and out of the container
-remote      | Add a remote resource (host, image server or other equipment)
-publish     | Publish a local snapshot or container as a bundled image
+snapshot    | Make a snapshot (stateful or not) of a container
+start       | Create and/or start a container (option for ephemeral)
+status      | Show the status of a resource (host, container, snapshot, ...)
+stop        | Stop a container
 
 * * *
 
