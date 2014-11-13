@@ -331,7 +331,7 @@ lxc publish c2 dakara:demo-images/c2 --public   | Publish local container "c2" a
 
 **Arguments**
 
-    add <name> <URI> [--always-relay]
+    add <name> <URI> [--always-relay] [--password=PASSWORD]
     remove <name>
     list
     rename <old name> <new name>
@@ -382,6 +382,7 @@ The "--always-relay" flag of "remote add" can mean one of two things:
 Command                                                         | Result
 :------                                                         | :-----
 lxc remote add dakara dakara.local                              | Add a new remote called "dakara" using its avahi DNS record and protocol auto-detection.
+lxc remote add dakara dakara.local --password=BLAH              | Add a new remote called "dakara" using its avahi DNS record and protocol auto-detection and providing the password in advance.
 lxc remote add vorash https+lxc://vorash.srv.dcmtl.stgraber.net | Add remote "vorash" pointing to a remote lxc instance using the full URI.
 lxc remote set-default vorash                                   | Mark it as the default remote.
 lxc start c1                                                    | Start container "c1" on it.

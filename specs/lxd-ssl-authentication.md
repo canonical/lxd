@@ -1,4 +1,7 @@
 # Introduction
+Local communications over the UNIX socket happen over a cleartext HTTP
+socket and access is restricted by socket ownership and mode.
+
 Remote communications with the lxd daemon happen using JSON over HTTPS.
 The supported protocol must be TLS1.2 or better.
 All communications must use perfect forward secrecy and ciphers must be
@@ -63,6 +66,19 @@ After that, the user must enter the trust password for that server, if
 it matches, the client certificate is added to the server's trust store
 and the client can now connect to the server without having to provide
 any additional credentials.
+
+# Password prompt
+To establish a new trust relationship, a password must be set on the
+server and send by the client when adding itself.
+
+A remote add operation should therefore go like this:
+ 1. Call GET /1.0/ping
+ 2. If we're not in a PKI setup with a ca.crt, ask the user to confirm the fingerprint.
+ 3. Look at the dict we received back from the server. If "auth" is
+    "untrusted", ask the user for the server's password and do a PUT to
+    /1.0/trust, then call /1.0/ping again to check that we're indeed
+    trusted.
+ 4. Remote is now ready
 
 # Failure scenari
 ## Server certificate changes
