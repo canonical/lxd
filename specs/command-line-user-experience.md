@@ -70,207 +70,22 @@ possible.
 
 Command     | Description
 :------     | :----------
-ping        | Ping the lxd instance to see if it is online.
-create      | Create a container without starting it
-start       | Create and/or start a container (option for ephemeral)
-stop        | Stop a container
-restart     | Restart a container.
-status      | Show the status of a resource (host, container, snapshot, ...)
-list        | Lists available resources (containers, snapshots, remotes, ...)
 config      | Change container settings (quotas, notes, OS metadata, ...)
-move        | Move a container or image either to rename it or to migrate it
+create      | Create a container without starting it
 delete      | Delete a resource (container, snapshot, image, ...)
-snapshot    | Make a snapshot (stateful or not) of a container
+file        | Transfer files in and out of the container
+list        | Lists available resources (containers, snapshots, remotes, ...)
+move        | Move a container or image either to rename it or to migrate it
+ping        | Ping the lxd instance to see if it is online.
+publish     | Publish a local snapshot or container as a bundled image
+remote      | Add a remote resource (host, image server or other equipment)
+restart     | Restart a container.
 restore     | Restore a snapshot of a container
 shell       | Spawn a shell within the container (or any other command)
-file        | Transfer files in and out of the container
-remote      | Add a remote resource (host, image server or other equipment)
-publish     | Publish a local snapshot or container as a bundled image
-
-* * *
-
-## ping
-
-**Arguments**
-
-    [resource]
-
-**Description**
-
-Sends a ping to the lxd instance, and wait for the daemon's version number as a
-response.
-
-* * *
-
-## create
-
-**Arguments**
-
-    <resource> [new resource] [--profile|-p <profile>...]
-
-**Description**
-
-create is used to create a new container, based on an existing container,
-container snapshot or image.
-
-If the resource is read-only (an image or snapshot for example), a copy of it
-will be made using a random name.  The random name may be a UUID,
-or may be a more memorable word combination such as a random adjective
-followed by a random noun.  profile is used to apply a
-configuration profile (or multiple ones if passed multiple times) to the newly
-created container.
-
-**Examples**
-
-Command                                        | Result
-:------                                        | :-----
-lxc create images:ubuntu/trusty/amd64          | Create a new local container using a UUID as its name based on the Ubuntu 14.04 amd64 image.
-lxc create images:ubuntu/precise/i386 dakara:  | Create a new remote container on "dakara" using a UUID as its name based on the Ubuntu 14.04 i386 image.
-lxc create dakara:c2/yesterday c3              | Create a new local container called "c3" based on the remote container snapshot "yesterday" of "c2" from "dakara".
-lxc create images:ubuntu c1 -p with-nesting    | Create a new local container called "c1" based on the recommended Ubuntu image for this host (latest LTS, same architecture) and run it with a profile allowing container nesting.
-
-* * *
-
-## start
-
-**Arguments**
-
-    <resource> [new resource] [--ephemeral|-e] [--profile|-p <profile>...]
-
-**Description**
-
-start is used to start a container.  If the container does not yet exist,
-it will be created (based on an existing container, container snapshot, or
-image) and then started.
-
-If the resource is read-only (an image or snapshot for example), a copy of it
-will be made using a random name (UUID) before starting it. Passing --ephemeral
-will make lxd create a temporary container which will be destroyed when
-shutdown, if passed with an existing container, a copy of it will be made. --
-profile is used to apply a configuration profile (or multiple ones if passed
-multiple times) to the newly created container, when passed with an existing
-container, it will only append the configuration profile for that run.
-
-**Examples**
-
-Command                                        | Result
-:------                                        | :-----
-lxc start images:ubuntu/trusty/amd64           | Create a new local container using a UUID as its name based on the Ubuntu 14.04 amd64 image.
-lxc start images:ubuntu/precise/i386 dakara:   | Create a new remote container on "dakara" using a UUID as its name based on the Ubuntu 14.04 i386 image.
-lxc start dakara:c2/yesterday c3               | Create a new local container called "c3" based on the remote container snapshot "yesterday" of "c2" from "dakara".
-lxc start c2                                   | Start local container "c2"
-lxc start c2 c3 -e                             | Create a new local container called "c3" based on local container "c2" and have it disappear on exit.
-lxc start images:ubuntu c1 -p with-nesting     | Create a new local container called "c1" based on the recommended Ubuntu image for this host (latest LTS, same architecture) and run it with a profile allowing container nesting.
-
-* * *
-
-## stop
-
-**Arguments**
-
-    <resource> [--kill|-k] [--timeout|-t]
-
-**Description**
-
-Stops the container. By default does a clean shutdown by sending
-SIGPWR to the container’s init process if after 30s the container is still
-running, an error is displayed. The 30s timeout can be overridden using --
-timeout. Alternatively, --kill can be passed which will cause the container to
-be immediately killed (timeout is meaningless in this case).
-
-**Examples**
-
-Command                     | Result
-:------                     | :-----
-lxc stop c1                 | Do a clean shutdown of local container "c1"
-lxc stop dakara:c1 -t 10    | Do a clean shutdown of remote container "c1" on "dakara" with a reduced timeout of 10s
-lxc stop dakara:c1 -k       | Kill the remote container "c1" on "dakara"
-
-## restart
-
-**Arguments**
-
-    <resource> [--kill|-k] [--timeout|-t]
-
-**Description**
-
-Restarts the container. The flags have the same behavior as the 'stop' command.
-Restart will fail on ephemeral containers, as they cannot be booted after they
-are stopped.
-
-**Examples**
-
-Command                     | Result
-:------                     | :-----
-lxc restart c1              | Do a clean restart of local container "c1"
-lxc restart dakara:c1 -t 10 | Do a clean restart of remote container "c1" on "dakara" with a reduced timeout of 10s
-lxc restart dakara:c1 -k    | Kill and restart the remote container "c1" on "dakara"
- 
-* * *
-
-## status
-
-**Arguments**
-
-    [resource]
-
-**Description**
-
-Prints information about any resource. If run against a host it
-will print its lxd version, kernel version, LXC version, disk usage and any
-other information relevant to the host (extendable by plugins). When run
-against a container, its status will be shown, if running, IP addresses will be
-displayed alongside resource consumption. When run against a snapshot, the
-snapshot tree will be shown (if relevant to the backing store) as well as the
-name and description of the snapshot and its size. If run against an image, the
-description, image metadata, image source and cache status will be displayed.
-
-**Examples**
-
-Command                                         | Result
-:------                                         | :-----
-lxc status                                      | Displays local host status
-lxc status dakara:                              | Displays the host status of remote host "dakara"
-lxc status c1                                   | Displays the status of local container "c1"
-lxc status dakara:c2                            | Displays the status of remote container "c2" on "dakara"
-lxc status dakara:c2/yesterday                  | Displays the status of snapshot "yesterday" for remote container "c2" on "dakara"
-lxc status images:ubuntu/trusty/amd64/20140910  | Displays the status of the Ubuntu 14.04 64bit image made on the 10th of September 2014
-lxc status images:ubuntu/trusty                 | Displays the status of the default Ubuntu 14.04 image available from the image store "images".
-
-* * *
-
-## list
-**Arguments**
-
-    [resource] [filters] [format]
-
-**Description**
-
-Lists all the available resources. By default it will list the
-local containers, snapshots and images. Each comes with some minimal status
-information (status, addresses, ... configurable if needed by passing a list of
-fields to display).
-
-For containers, a reasonable default would be to show the name, state, ipv4
-addresses, ipv6 addresses, memory and disk consumption.
-Snapshots would be displayed below their parent containers and would re-use the
-name, state and disk consumption field, the others wouldn’t be relevant and
-will be displayed as "-".
-
-Images aren’t tied to containers so those will be displayed in a separate table
-after the containers, relevant fields for images would be their name (e.g
-ubuntu/trusty/amd64/20140915), description (e.g. Ubuntu 14.04 LTS 64bit),
-source (e.g. images.linuxcontainers.org) and status (available, cached, ...).
-
-**Examples**
-
-Command             | Result
-:------             | :-----
-lxc list            | Shows the list of local containers, snapshots and images.
-lxc list images:    | Shows the list of available images from the "images" remote.
-lxc list dakara:    | Shows the list of remote containers, snapshots and images on "dakara".
-lxc list c1:        | Shows the entry for the local container "c1" as well as any snapshot it may have.
-
+snapshot    | Make a snapshot (stateful or not) of a container
+start       | Create and/or start a container (option for ephemeral)
+status      | Show the status of a resource (host, container, snapshot, ...)
+stop        | Stop a container
 
 * * *
 
@@ -293,7 +108,7 @@ lxc list c1:        | Shows the entry for the local container "c1" as well as an
     profile show <profile name>
     profile unset <profile name> <key>
     trust add [remote] <certificate>
-    trust delete [remote] <fingerprint>
+    trust remove [remote] <fingerprint>
     trust list [remote]
 
 **Description**
@@ -342,8 +157,112 @@ lxc config trust add new-client-cert.pem                                        
 lxc config trust add dakara: new-client-cert.pem                                | Add new-client-cert.pem to the "dakara"'s trust store
 lxc config trust list                                                           | List all the trusted certificates on the local server
 lxc config trust dakara: list                                                   | List all the trusted certificates on "dakara"
-lxc config trust delete \<cert fingerprint\>                                    | Remove a certificate from the local trust store
-lxc config trust delete dakara: \<cert fingerprint\>                            | Remove a certificate from "dakara"'s trust store
+lxc config trust remove \<cert fingerprint\>                                    | Remove a certificate from the local trust store
+lxc config trust remove dakara: \<cert fingerprint\>                            | Remove a certificate from "dakara"'s trust store
+
+* * *
+
+## create
+
+**Arguments**
+
+    <resource> [new resource] [--profile|-p <profile>...]
+
+**Description**
+
+create is used to create a new container, based on an existing container,
+container snapshot or image.
+
+If the resource is read-only (an image or snapshot for example), a copy of it
+will be made using a random name.  The random name may be a UUID,
+or may be a more memorable word combination such as a random adjective
+followed by a random noun.  profile is used to apply a
+configuration profile (or multiple ones if passed multiple times) to the newly
+created container.
+
+**Examples**
+
+Command                                        | Result
+:------                                        | :-----
+lxc create images:ubuntu/trusty/amd64          | Create a new local container using a UUID as its name based on the Ubuntu 14.04 amd64 image.
+lxc create images:ubuntu/precise/i386 dakara:  | Create a new remote container on "dakara" using a UUID as its name based on the Ubuntu 14.04 i386 image.
+lxc create dakara:c2/yesterday c3              | Create a new local container called "c3" based on the remote container snapshot "yesterday" of "c2" from "dakara".
+lxc create images:ubuntu c1 -p with-nesting    | Create a new local container called "c1" based on the recommended Ubuntu image for this host (latest LTS, same architecture) and run it with a profile allowing container nesting.
+
+* * *
+
+## delete
+
+**Arguments**
+
+    <resource>
+
+**Description**
+Destroy a resource (e.g. container) and any attached data
+(configuration, snapshots, ...). This requires the resource in question be unused
+at the time.
+
+**Examples**
+
+Command                         | Result
+:------                         | :-----
+lxc delete c1                   | Removes the c1 container, its configuration and any snapshot it may have.
+lxc delete c1/yesterday         | Removes the "yesterday" snapshot of "c1".
+lxc delete dakara:c2/yesterday  | Removes the "yesterday" snapshot for "c2" on remote host "dakara".
+
+* * *
+
+## file
+
+**Arguments**
+
+    file push [-R] [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
+    file pull [-R] <source> [<source>...] <target>
+
+**Description**
+Copies file to or from the container. Supports rewriting the uid/gid/mode and recursive transfer.
+
+**Examples**
+
+Command                                                 | Result
+:------                                                 | :-----
+lxc file push -R test c1/root/                          | Recursively copy the directory called "test" into the "c1" container in /root/
+lxc file push --uid=0 --gid=0 test.sh dakara:c2/root/   | Push test.sh as /root/test.sh inside container "c2" on host "dakara", rewrite the uid/gid to 0/0.
+lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from container "c2" on "dakara" and write it as /tmp/hosts on the client.
+
+* * *
+
+## list
+**Arguments**
+
+    [resource] [filters] [format]
+
+**Description**
+
+Lists all the available resources. By default it will list the
+local containers, snapshots and images. Each comes with some minimal status
+information (status, addresses, ... configurable if needed by passing a list of
+fields to display).
+
+For containers, a reasonable default would be to show the name, state, ipv4
+addresses, ipv6 addresses, memory and disk consumption.
+Snapshots would be displayed below their parent containers and would re-use the
+name, state and disk consumption field, the others wouldn’t be relevant and
+will be displayed as "-".
+
+Images aren’t tied to containers so those will be displayed in a separate table
+after the containers, relevant fields for images would be their name (e.g
+ubuntu/trusty/amd64/20140915), description (e.g. Ubuntu 14.04 LTS 64bit),
+source (e.g. images.linuxcontainers.org) and status (available, cached, ...).
+
+**Examples**
+
+Command             | Result
+:------             | :-----
+lxc list            | Shows the list of local containers, snapshots and images.
+lxc list images:    | Shows the list of available images from the "images" remote.
+lxc list dakara:    | Shows the list of remote containers, snapshots and images on "dakara".
+lxc list c1:        | Shows the entry for the local container "c1" as well as any snapshot it may have.
 
 * * *
 
@@ -370,111 +289,41 @@ lxc move c1 dakara:c2           | Move c1 to "dakara" as "c2".
 
 * * *
 
-## delete
+## ping
 
 **Arguments**
 
-    <resource>
+    [resource]
 
 **Description**
-Destroy a resource (e.g. container) and any attached data
-(configuration, snapshots, ...). This requires the resource in question be unused
-at the time.
 
-**Examples**
-
-Command                         | Result
-:------                         | :-----
-lxc delete c1                   | Removes the c1 container, its configuration and any snapshot it may have.
-lxc delete c1/yesterday         | Removes the "yesterday" snapshot of "c1".
-lxc delete dakara:c2/yesterday  | Removes the "yesterday" snapshot for "c2" on remote host "dakara".
+Sends a ping to the lxd instance, and wait for the daemon's version number as a
+response.
 
 * * *
 
-## snapshot
+## publish
 
 **Arguments**
 
-    <resource> <snapshot name> [--stateful]
+    <resource> <target> [--public]
 
 **Description**
+Takes an existing container or container snapshot and makes a
+compressed image out of it. By default the image will be private, that is,
+it’ll only be accessible locally or remotely by authenticated clients. If --
+public is passed, then anyone can pull the image so long as lxd is running.
 
-Makes a read-only snapshot of a resource (typically a container).
-For a container this will be a snapshot of the container’s filesystem,
-configuration and if --stateful is passed, its current running state.
+It will also be possible for some image stores to allow users to push new
+images to them using that command, though the two image stores that will come
+pre-configured will be read-only.
 
 **Examples**
 
 Command                                         | Result
 :------                                         | :-----
-lxc snapshot c1 it-works                        | Creates "it-works" snapshot of container c1.
-lxc snapshot dakara:c1 pre-upgrade --stateful   | Make a pre-dist-upgrade snapshot of container "c1" running on "dakara". Allows for a very fast recovery time in case of problem.
-
-* * *
-
-## restore
-
-**Arguments**
-
-    <resource> <snapshot name> [--stateful]
-
-**Description**
-
-Set the current state of a resource back to what it was when it
-was snapshotted. All snapshots are kept as they are, only the current state is
-discarded and replaced by that from the snapshot. This requires the container
-be stopped unless --stateful is passed and the snapshot contained a running
-container state in which case the container will be killed, reset to the
-snapshot and the container’s state restored.
-
-**Examples**
-
-Command                                         | Result
-:------                                         | :-----
-lxc restore c1 it-works                         | Restores the c1 container back to its "it-works" snapshot state.
-lxc restore dakara:c1 pre-upgrade --stateful    | Restores a pre-dist-upgrade snapshot of container "c1" running on "dakara". Allows for a very fast recovery time in case of problem.
-
-* * *
-
-## shell
-
-**Arguments**
-
-    <container> [command...]
-
-**Description**
-
-Without any argument, this command will simply spawn a shell
-inside the container. Alternatively if a command line is passed, then this one
-will be executed instead of the default shell. This command may grow extra
-arguments to allow controlling the default environment, uid/gid, ...
-
-**Examples**
-
-Command                                                 | Result
-:------                                                 | :-----
-lxc shell c1                                            | Spawns /bin/bash in local container c1
-tar xcf - /opt/myapp \| lxc shell dakara:c2 tar xvf -   | Makes a tarball of /opt/myapp with the stream going out to stdout, then have that piped into lxc shell connecting to a receiving tar command in container running on remote host "dakara".
-
-* * *
-
-## file
-
-**Arguments**
-
-    file push [-R] [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
-    file pull [-R] <source> [<source>...] <target>
-
-**Description**
-Copies file to or from the container. Supports rewriting the uid/gid/mode and recursive transfer.
-
-**Examples**
-
-Command                                                 | Result
-:------                                                 | :-----
-lxc file push -R test c1/root/                          | Recursively copy the directory called "test" into the "c1" container in /root/
-lxc file push --uid=0 --gid=0 test.sh dakara:c2/root/   | Push test.sh as /root/test.sh inside container "c2" on host "dakara", rewrite the uid/gid to 0/0.
-lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from container "c2" on "dakara" and write it as /tmp/hosts on the client.
+lxc publish c1/yesterday dakara:prod-images/c1  | Publish the "yesterday" snapshot of container "c1" as an image called "prod-images/c1" on remote host "dakara".
+lxc publish c2 dakara:demo-images/c2 --public   | Publish local container "c2" as an image called "demo-images/c2" on remote host "dakara" and make it available to unauthenticated users.
 
 * * *
 
@@ -483,7 +332,7 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
 **Arguments**
 
     add <name> <URI> [--always-relay]
-    delete <name>
+    remove <name>
     list
     rename <old name> <new name>
     set-url <name> <new URI>
@@ -539,25 +388,177 @@ lxc start c1                                                    | Start containe
 
 * * *
 
-## publish
+## restart
 
 **Arguments**
 
-    <resource> <target> [--public]
+    <resource> [--kill|-k] [--timeout|-t]
 
 **Description**
-Takes an existing container or container snapshot and makes a
-compressed image out of it. By default the image will be private, that is,
-it’ll only be accessible locally or remotely by authenticated clients. If --
-public is passed, then anyone can pull the image so long as lxd is running.
 
-It will also be possible for some image stores to allow users to push new
-images to them using that command, though the two image stores that will come
-pre-configured will be read-only.
+Restarts the container. The flags have the same behavior as the 'stop' command.
+Restart will fail on ephemeral containers, as they cannot be booted after they
+are stopped.
+
+**Examples**
+
+Command                     | Result
+:------                     | :-----
+lxc restart c1              | Do a clean restart of local container "c1"
+lxc restart dakara:c1 -t 10 | Do a clean restart of remote container "c1" on "dakara" with a reduced timeout of 10s
+lxc restart dakara:c1 -k    | Kill and restart the remote container "c1" on "dakara"
+ 
+* * *
+
+## restore
+
+**Arguments**
+
+    <resource> <snapshot name> [--stateful]
+
+**Description**
+
+Set the current state of a resource back to what it was when it
+was snapshotted. All snapshots are kept as they are, only the current state is
+discarded and replaced by that from the snapshot. This requires the container
+be stopped unless --stateful is passed and the snapshot contained a running
+container state in which case the container will be killed, reset to the
+snapshot and the container’s state restored.
 
 **Examples**
 
 Command                                         | Result
 :------                                         | :-----
-lxc publish c1/yesterday dakara:prod-images/c1  | Publish the "yesterday" snapshot of container "c1" as an image called "prod-images/c1" on remote host "dakara".
-lxc publish c2 dakara:demo-images/c2 --public   | Publish local container "c2" as an image called "demo-images/c2" on remote host "dakara" and make it available to unauthenticated users.
+lxc restore c1 it-works                         | Restores the c1 container back to its "it-works" snapshot state.
+lxc restore dakara:c1 pre-upgrade --stateful    | Restores a pre-dist-upgrade snapshot of container "c1" running on "dakara". Allows for a very fast recovery time in case of problem.
+
+* * *
+
+## shell
+
+**Arguments**
+
+    <container> [command...]
+
+**Description**
+
+Without any argument, this command will simply spawn a shell
+inside the container. Alternatively if a command line is passed, then this one
+will be executed instead of the default shell. This command may grow extra
+arguments to allow controlling the default environment, uid/gid, ...
+
+**Examples**
+
+Command                                                 | Result
+:------                                                 | :-----
+lxc shell c1                                            | Spawns /bin/bash in local container c1
+tar xcf - /opt/myapp \| lxc shell dakara:c2 tar xvf -   | Makes a tarball of /opt/myapp with the stream going out to stdout, then have that piped into lxc shell connecting to a receiving tar command in container running on remote host "dakara".
+
+* * *
+
+## snapshot
+
+**Arguments**
+
+    <resource> <snapshot name> [--stateful]
+
+**Description**
+
+Makes a read-only snapshot of a resource (typically a container).
+For a container this will be a snapshot of the container’s filesystem,
+configuration and if --stateful is passed, its current running state.
+
+**Examples**
+
+Command                                         | Result
+:------                                         | :-----
+lxc snapshot c1 it-works                        | Creates "it-works" snapshot of container c1.
+lxc snapshot dakara:c1 pre-upgrade --stateful   | Make a pre-dist-upgrade snapshot of container "c1" running on "dakara". Allows for a very fast recovery time in case of problem.
+
+* * *
+
+## start
+
+**Arguments**
+
+    <resource> [new resource] [--ephemeral|-e] [--profile|-p <profile>...]
+
+**Description**
+
+start is used to start a container.  If the container does not yet exist,
+it will be created (based on an existing container, container snapshot, or
+image) and then started.
+
+If the resource is read-only (an image or snapshot for example), a copy of it
+will be made using a random name (UUID) before starting it. Passing --ephemeral
+will make lxd create a temporary container which will be destroyed when
+shutdown, if passed with an existing container, a copy of it will be made. --
+profile is used to apply a configuration profile (or multiple ones if passed
+multiple times) to the newly created container, when passed with an existing
+container, it will only append the configuration profile for that run.
+
+**Examples**
+
+Command                                        | Result
+:------                                        | :-----
+lxc start images:ubuntu/trusty/amd64           | Create a new local container using a UUID as its name based on the Ubuntu 14.04 amd64 image.
+lxc start images:ubuntu/precise/i386 dakara:   | Create a new remote container on "dakara" using a UUID as its name based on the Ubuntu 14.04 i386 image.
+lxc start dakara:c2/yesterday c3               | Create a new local container called "c3" based on the remote container snapshot "yesterday" of "c2" from "dakara".
+lxc start c2                                   | Start local container "c2"
+lxc start c2 c3 -e                             | Create a new local container called "c3" based on local container "c2" and have it disappear on exit.
+lxc start images:ubuntu c1 -p with-nesting     | Create a new local container called "c1" based on the recommended Ubuntu image for this host (latest LTS, same architecture) and run it with a profile allowing container nesting.
+
+* * *
+
+## status
+
+**Arguments**
+
+    [resource]
+
+**Description**
+
+Prints information about any resource. If run against a host it
+will print its lxd version, kernel version, LXC version, disk usage and any
+other information relevant to the host (extendable by plugins). When run
+against a container, its status will be shown, if running, IP addresses will be
+displayed alongside resource consumption. When run against a snapshot, the
+snapshot tree will be shown (if relevant to the backing store) as well as the
+name and description of the snapshot and its size. If run against an image, the
+description, image metadata, image source and cache status will be displayed.
+
+**Examples**
+
+Command                                         | Result
+:------                                         | :-----
+lxc status                                      | Displays local host status
+lxc status dakara:                              | Displays the host status of remote host "dakara"
+lxc status c1                                   | Displays the status of local container "c1"
+lxc status dakara:c2                            | Displays the status of remote container "c2" on "dakara"
+lxc status dakara:c2/yesterday                  | Displays the status of snapshot "yesterday" for remote container "c2" on "dakara"
+lxc status images:ubuntu/trusty/amd64/20140910  | Displays the status of the Ubuntu 14.04 64bit image made on the 10th of September 2014
+lxc status images:ubuntu/trusty                 | Displays the status of the default Ubuntu 14.04 image available from the image store "images".
+
+* * *
+
+## stop
+
+**Arguments**
+
+    <resource> [--kill|-k] [--timeout|-t]
+
+**Description**
+
+Stops the container. By default does a clean shutdown by sending
+SIGPWR to the container’s init process if after 30s the container is still
+running, an error is displayed. The 30s timeout can be overridden using --
+timeout. Alternatively, --kill can be passed which will cause the container to
+be immediately killed (timeout is meaningless in this case).
+
+**Examples**
+
+Command                     | Result
+:------                     | :-----
+lxc stop c1                 | Do a clean shutdown of local container "c1"
+lxc stop dakara:c1 -t 10    | Do a clean shutdown of remote container "c1" on "dakara" with a reduced timeout of 10s
+lxc stop dakara:c1 -k       | Kill the remote container "c1" on "dakara"
