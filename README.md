@@ -4,14 +4,51 @@ REST API, command line tool and OpenStack integration plugin for LXC.
 
 LXD is pronounced lex-dee.
 
-## Obtaining the code
+## Installing the dependencies
+
+We have exeperienced some problems using gccgo, so for now we recommend using
+the golang compiler. We also require that a 1.0+ version of lxc and lxc-dev be
+installed. Additionally, some of LXD's dependencies are grabbed from `go get`
+via mercurial, so you'll need to have `hg` in your path as well. You can get
+these on Ubuntu via:
+
+    sudo apt-get install lxc lxc-dev golang mercurial
+
+
+## Building the tools
+
+LXD consists of two binaries, a client called `lxc` and a server called `lxd`.
+These live in the source tree in the `lxc/` and `lxd/` dirs, respectively. To
+get the code, set up your go environment:
+
+    mkdir -p ~/go
+    export GOPATH=~/go
+
+And then download it as usual:
 
     go get github.com/lxc/lxd
-
-## Running the tool
-
     cd $GOPATH/src/github.com/lxc/lxd
-    go build
+    go get -v -d ./...
+    make
+
+And you should have two binaries, one at `/lxc/lxc`, and one at `/lxd/lxd`.
+
+## Running
+
+Right now lxd uses a hardcoded path for all its containers. This will change in
+the future, but for now you need to let the user running lxd own /var/lib/lxd:
+
+    sudo mkdir -p /var/lib/lxd
+    sudo chown $USER:$USER /var/lib/lxd
+
+Now you can run the daemon:
+
+    ./lxd/lxd &
+
+And connect to it via lxc:
+
+    ./lxc/lxc create foo
+    ./lxc/lxc start foo
 
 ## Bug reports
 
