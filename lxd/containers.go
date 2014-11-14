@@ -3,49 +3,79 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"encoding/json"
 
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd"
 )
 
-func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {
+func containersPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	lxd.Debugf("responding to create")
 
 	if !d.isTrustedClient(r) {
 		lxd.Debugf("Create request from untrusted client")
+		Forbidden(w)
 		return
 	}
 
-	name := r.FormValue("name")
-	if name == "" {
-		fmt.Fprintf(w, "failed parsing name")
+	raw := lxd.Jmap{}
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		BadRequest(w, err)
 		return
 	}
 
-	distro := r.FormValue("distro")
-	if distro == "" {
-		fmt.Fprintf(w, "failed parsing distro")
+	name, err := raw.GetString("name")
+	if err != nil {
+		/* TODO: namegen code here */
+		name = "foo"
+	}
+
+	source, err := raw.GetMap("source")
+	if err != nil {
+		BadRequest(w, err)
 		return
 	}
 
-	release := r.FormValue("release")
-	if release == "" {
-		fmt.Fprintf(w, "failed parsing release")
+	type_, err := source.GetString("type")
+	if err != nil {
+		BadRequest(w, err)
 		return
 	}
 
-	arch := r.FormValue("arch")
-	if arch == "" {
-		fmt.Fprintf(w, "failed parsing arch")
+	url, err := source.GetString("url")
+	if err != nil {
+		BadRequest(w, err)
+		return
+	}
+
+	imageName, err := source.GetString("name")
+	if err != nil {
+		BadRequest(w, err)
+		return
+	}
+
+	/* TODO: support other options here */
+	if type_ != "remote" {
+		NotImplemented(w)
+		return
+	}
+
+	if url != "https+lxc-images://images.linuxcontainers.org" {
+		NotImplemented(w)
+		return
+	}
+
+	if imageName != "lxc-images/ubuntu/trusty/amd64" {
+		NotImplemented(w)
 		return
 	}
 
 	opts := lxc.TemplateOptions{
 		Template: "download",
-		Distro:   distro,
-		Release:  release,
-		Arch:     arch,
+		Distro:   "ubuntu",
+		Release:  "trusty",
+		Arch:     "amd64",
 	}
 
 	c, err := lxc.NewContainer(name, d.lxcpath)
@@ -86,8 +116,10 @@ func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {
 	 */
 	err = c.Create(opts)
 	if err != nil {
-		fmt.Fprintf(w, "fail!")
+		InternalError(w, err)
 	} else {
-		fmt.Fprintf(w, "success!")
+		SyncResponse(true, nil, w)
 	}
 }
+
+var containersCmd = Command{"containers", nil, nil, containersPost, nil}
