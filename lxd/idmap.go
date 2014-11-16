@@ -57,12 +57,12 @@ func checkmap(fname string, username string) (uint, uint, error) {
 			if err != nil {
 				continue
 			}
-			biGidrange, err := strconv.ParseUint(s[2], 10, 32)
+			bigIdrange, err := strconv.ParseUint(s[2], 10, 32)
 			if err != nil {
 				continue
 			}
 			min = uint(bigmin)
-			idrange = uint(biGidrange)
+			idrange = uint(bigIdrange)
 			return min, idrange, nil
 		}
 	}
