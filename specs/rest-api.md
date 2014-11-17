@@ -62,14 +62,36 @@ HTTP code must be one of of 400, 401, 403, 404 or 500.
 # Basic structure
 ## /
 ### GET (unauthenticated)
-Return a list of supported API URLs (by default ['/1.0']).
+Return a list of supported API endpoint URLs (by default ['/1.0']).
 
 ## /1.0/containers
 ### GET
 Return a list of URLs for images this server publishes.
 
 ### PUT
-Create a new container. (WIP)
+Create a new container.
+
+    {
+        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        'profiles': ["default"],                                            # List of profiles
+        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'config': [{'key': 'lxc.aa_profile',                                # Config override. List of dicts to respect ordering and allow flexibility.
+                    'value': 'lxc-container-default-with-nesting'},
+                   {'key': 'lxc.mount.auto',
+                    'value': 'cgroup'}],
+        'source': {'type': "remote",                                        # Can be: local (source is a local image, container or snapshot), remote (requires a provided remote config) or proxy (requires a provided ssl socket info)
+                   'url': 'https+lxc-images://images.linuxcontainers.org",  # URL for the remote
+                   'name': "lxc-images/ubuntu/trusty/amd64",                # Name of the image or container on the remote
+                   'metadata': {'gpg_key': "GPG KEY BASE64"}},              # Metadata to setup the remote
+    }
+
+    {
+        'name': "my-new-container",
+        'profiles': ["default"],
+        'source': {'type': "local",
+                   'name': "a/b"}                                           # Use snapshot "b" of container "a" as the source
+    }
+
 
 ## /1.0/containers/\<name\>
 ### GET
