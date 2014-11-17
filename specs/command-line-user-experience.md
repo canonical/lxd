@@ -76,7 +76,7 @@ delete      | Delete a resource (container, snapshot, image, ...)
 file        | Transfer files in and out of the container
 list        | Lists available resources (containers, snapshots, remotes, ...)
 move        | Move a container or image either to rename it or to migrate it
-publish     | Publish a local snapshot or container as a bundled image
+publish     | Publish a local snapshot or container as a bundled image
 remote      | Add a remote resource (host, image server or other equipment)
 restart     | Restart a container.
 restore     | Restore a snapshot of a container
