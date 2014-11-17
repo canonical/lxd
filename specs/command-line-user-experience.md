@@ -76,7 +76,6 @@ delete      | Delete a resource (container, snapshot, image, ...)
 file        | Transfer files in and out of the container
 list        | Lists available resources (containers, snapshots, remotes, ...)
 move        | Move a container or image either to rename it or to migrate it
-ping        | Ping the lxd instance to see if it is online.
 publish     | Publish a local snapshot or container as a bundled image
 remote      | Add a remote resource (host, image server or other equipment)
 restart     | Restart a container.
@@ -286,19 +285,6 @@ Command                         | Result
 lxc move c1 c2                  | Rename container c1 to c2.
 lxc move c1 dakara:             | Move c1 to "dakara". If the container is stopped, this simply moves the container and its configuration to "dakara". If it is running, this live migrates container c1 to "dakara". This will first stream the filesystem content over to "dakara", then dump the container state to disk, sync the state and the delta of the filesystem, restore the container on the remote host and then wipe it from the source host.
 lxc move c1 dakara:c2           | Move c1 to "dakara" as "c2".
-
-* * *
-
-## ping
-
-**Arguments**
-
-    [resource]
-
-**Description**
-
-Sends a ping to the lxd instance, and wait for the daemon's version number as a
-response.
 
 * * *
 
