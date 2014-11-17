@@ -273,10 +273,9 @@ lxc list c1:        | Shows the entry for the local container "c1" as well as an
 
 **Description**
 
-Moves a resource, either locally (rename) or remotely (migration).
-This requires the container to be offline, unless --stateful is passed in which
-case the container’s state will be dumped prior to the move and then restore on
-destination (for local stateful rename or for remote live migration).
+Moves a resource either locally (rename) or remotely (migration). If the
+container is running, this will do a live migration, otherwise it will simply
+move the on-disk container data.
 
 **Examples**
 
