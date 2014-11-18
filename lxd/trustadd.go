@@ -22,7 +22,7 @@ func (d *Daemon) serveTrustAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !d.verify_admin_password(password) {
+	if !d.verifyAdminPwd(password) {
 		http.Error(w, "Bad admin password", 401)
 		return
 	}

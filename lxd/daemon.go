@@ -38,7 +38,7 @@ func readMyCert() (string, string, error) {
 	return certf, keyf, err
 }
 
-func read_saved_client_calist(d *Daemon) {
+func readSavedClientCAList(d *Daemon) {
 	dirpath := lxd.VarPath("clientcerts")
 	d.clientCerts = make(map[string]x509.Certificate)
 	fil, err := ioutil.ReadDir(dirpath)
@@ -62,7 +62,7 @@ func read_saved_client_calist(d *Daemon) {
 	}
 }
 
-func (d *Daemon) is_trusted_client(r *http.Request) bool {
+func (d *Daemon) isTrustedClient(r *http.Request) bool {
 	if r.RemoteAddr == "@" {
 		// Unix socket
 		return true
@@ -100,7 +100,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.keyf = keyf
 
 	// TODO load known client certificates
-	read_saved_client_calist(d)
+	readSavedClientCAList(d)
 
 	d.mux = http.NewServeMux()
 	d.mux.HandleFunc("/ping", d.servePing)

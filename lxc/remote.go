@@ -27,7 +27,7 @@ func (c *remoteCmd) usage() string {
 
 func (c *remoteCmd) flags() {}
 
-func do_add_server(config *lxd.Config, server string) error {
+func addServer(config *lxd.Config, server string) error {
 	lxd.Debugf("connecting to %s", server)
 	s2 := fmt.Sprintf("%s:x", server)
 	lxd.Debugf("trying to %s", s2)
@@ -75,7 +75,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		config.Remotes[args[1]] = lxd.RemoteConfig{args[2]}
 
 		// todo - we'll need to check whether this is a lxd remote that handles /list/add
-		err := do_add_server(config, args[1])
+		err := addServer(config, args[1])
 		if err != nil {
 			// todo - remove from config.Remotes since we failed
 			return err

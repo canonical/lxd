@@ -15,7 +15,7 @@ func buildByNameServe(function string, f byname, d *Daemon) func(http.ResponseWr
 	return func(w http.ResponseWriter, r *http.Request) {
 		lxd.Debugf("responding to %s", function)
 
-		if !d.is_trusted_client(r) {
+		if !d.isTrustedClient(r) {
 			lxd.Debugf("%s request from untrusted client", function)
 			return
 		}
