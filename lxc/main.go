@@ -65,6 +65,7 @@ var commands = map[string]command{
 	"version": &versionCmd{},
 	"help":    &helpCmd{},
 	"ping":    &pingCmd{},
+	"config":  &configCmd{},
 	"create":  &createCmd{},
 	"list":    &listCmd{},
 	"shell":   &shellCmd{},
