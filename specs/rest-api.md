@@ -400,6 +400,84 @@ Input (wait for the operation to succeed):
         'result_code': 1
     }
 
+## /1.0/profiles
+### GET
+Authentication: trusted
+Operation: sync
+Return: list of URLs to defined profiles
+Description: List of configuration profiles
+
+### PUT
+Authentication: trusted
+Operation: sync
+Return: standard return value or standard error
+Description: define a new profile
+
+Input:
+
+    {
+        'name': "my-profile'name",
+        'config': [{'key': "resources.memory",
+                    'value': "2GB"},
+                   {'key': "network.0.bridge",
+                    'value': "lxcbr0"}]
+    }
+
+## /1.0/profiles/\<name\>
+### GET
+Authentication: trusted
+Operation: sync
+Return: dict representing the profile content
+Description: profile configuration
+
+    {
+        'name': "my-profile'name",
+        'config': [{'key': "resources.memory",
+                    'value': "2GB"},
+                   {'key': "network.0.bridge",
+                    'value': "lxcbr0"}]
+    }
+
+### PUT
+Authentication: trusted
+Operation: sync
+Return: standard return value or standard error
+Description: update the profile
+
+Input:
+
+Same dict as used for initial creation and coming from GET. The name
+property can't be changed (see POST for that).
+
+
+### POST
+Authentication: trusted
+Operation: sync
+Return: standard return value or standard error
+Description: rename or move a profile
+
+Input (rename a profile):
+
+    {
+        'name': "new-name"
+    }
+
+
+TODO: move profile to another host
+
+
+### DELETE
+Authentication: trusted
+Operation: sync
+Return: standard return value or standard error
+Description: remove a profile
+
+Input (none at present):
+
+    {
+    }
+
+
 ## /1.0/trust
 ### GET
 Authentication: trusted
