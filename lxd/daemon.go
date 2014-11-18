@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -13,19 +17,110 @@ import (
 
 // A Daemon can respond to requests from a lxd client.
 type Daemon struct {
-	tomb    tomb.Tomb
-	unixl   net.Listener
-	tcpl    net.Listener
-	id_map  *Idmap
-	lxcpath string
-	mux     *http.ServeMux
+	tomb          tomb.Tomb
+	unixl         net.Listener
+	tcpl         net.Listener
+	id_map        *Idmap
+	lxcpath       string
+	certf         string
+	keyf          string
+	mux           *http.ServeMux
+	clientCerts   map[string]x509.Certificate
+}
+
+func read_my_cert() (string, string, error) {
+	certf := lxd.VarPath("cert.pem")
+	keyf := lxd.VarPath("key.pem")
+	lxd.Debugf("looking for existing certificates: %s %s", certf, keyf)
+
+	_, err := os.Stat(certf)
+	_, err2 := os.Stat(keyf)
+	if err == nil && err2 == nil {
+		return certf, keyf, nil
+	}
+	if err == nil {
+		lxd.Debugf("%s already exists", certf)
+		return "", "", err2
+	}
+	if err2 == nil {
+		lxd.Debugf("%s already exists", keyf)
+		return "", "", err
+	}
+	err = lxd.GenCert(certf, keyf)
+	if err != nil {
+		return "", "", err
+	}
+	return certf,  keyf, nil
+}
+
+func read_saved_client_calist(d *Daemon) {
+	dirpath := lxd.VarPath("clientcerts")
+	d.clientCerts = make(map[string]x509.Certificate)
+	fil, err := ioutil.ReadDir(dirpath)
+	if err != nil {
+		return
+	}
+	for i := range fil {
+		n := fil[i].Name()
+		fnam := fmt.Sprintf("%s/%s", dirpath, n)
+		cf, err := ioutil.ReadFile(fnam)
+		if err != nil {
+			continue
+		}
+
+		cert, err := x509.ParseCertificate(cf)
+		if err != nil {
+			continue
+		}
+		d.clientCerts[n] = *cert
+		lxd.Debugf("Loaded cert %s", fnam)
+	}
+}
+
+func (d *Daemon) is_trusted_client(r *http.Request) bool {
+	if r.RemoteAddr == "@" {
+		// Unix socket
+		return true
+	}
+	if r.TLS == nil {
+		return false
+	}
+	for i := range r.TLS.PeerCertificates {
+		if d.CheckTrustState(*r.TLS.PeerCertificates[i]) {
+			return true
+		}
+	}
+	return false
 }
 
 // StartDaemon starts the lxd daemon with the provided configuration.
 func StartDaemon(listenAddr string) (*Daemon, error) {
 	d := &Daemon{}
+
+	d.lxcpath = lxd.VarPath("lxc")
+	err := os.MkdirAll(lxd.VarPath("/"), 0755)
+	if err != nil {
+		return nil, err
+	}
+	err = os.MkdirAll(d.lxcpath, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	certf, keyf, err := read_my_cert()
+	if err != nil {
+		return nil, err
+	}
+	d.certf = certf
+	d.keyf = keyf
+
+	// TODO load known client certificates
+	read_saved_client_calist(d)
+
 	d.mux = http.NewServeMux()
 	d.mux.HandleFunc("/ping", d.servePing)
+	d.mux.HandleFunc("/trust", d.serveTrust)
+	d.mux.HandleFunc("/trust/add", d.serveTrustAdd)
 	d.mux.HandleFunc("/create", d.serveCreate)
 	d.mux.HandleFunc("/shell", d.serveShell)
 	d.mux.HandleFunc("/list", d.serveList)
@@ -34,7 +129,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.mux.HandleFunc("/delete", buildByNameServe("delete", func(c *lxc.Container) error { return c.Destroy() }, d))
 	d.mux.HandleFunc("/restart", buildByNameServe("restart", func(c *lxc.Container) error { return c.Reboot() }, d))
 
-	var err error
 	d.id_map, err = NewIdmap()
 	if err != nil {
 		return nil, err
@@ -44,16 +138,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		d.id_map.Uidrange,
 		d.id_map.Gidmin,
 		d.id_map.Gidrange)
-
-	d.lxcpath = lxd.VarPath("lxc")
-	err = os.MkdirAll(lxd.VarPath("/"), 0755)
-	if err != nil {
-		return nil, err
-	}
-	err = os.MkdirAll(d.lxcpath, 0755)
-	if err != nil {
-		return nil, err
-	}
 
 	unixAddr, err := net.ResolveUnixAddr("unix", lxd.VarPath("unix.socket"))
 	if err != nil {
@@ -67,12 +151,15 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	if listenAddr != "" {
 		// Watch out. There's a listener active which must be closed on errors.
-		tcpAddr, err := net.ResolveTCPAddr("tcp", listenAddr)
+		mycert, err := tls.LoadX509KeyPair(d.certf, d.keyf)
 		if err != nil {
-			d.unixl.Close()
-			return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
+			return nil, err
 		}
-		tcpl, err := net.ListenTCP("tcp", tcpAddr)
+		config := tls.Config{Certificates: []tls.Certificate{mycert},
+			ClientAuth: tls.RequireAnyClientCert,
+			MinVersion: tls.VersionTLS12,
+			MaxVersion: tls.VersionTLS12,}
+		tcpl, err := tls.Listen("tcp", listenAddr, &config)
 		if err != nil {
 			d.unixl.Close()
 			return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
@@ -83,6 +170,18 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.tomb.Go(func() error { return http.Serve(d.unixl, d.mux) })
 	return d, nil
+}
+
+func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
+	for k, v := range d.clientCerts {
+		if bytes.Compare(cert.Raw, v.Raw) == 0 {
+			lxd.Debugf("found cert for %s", k)
+			return true
+		} else {
+			lxd.Debugf("client cert != key for %s", k)
+		}
+	}
+	return false
 }
 
 var errStop = fmt.Errorf("requested stop")

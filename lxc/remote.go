@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/lxc/lxd"
+	"code.google.com/p/go.crypto/ssh/terminal"
 )
 
 type remoteCmd struct {
@@ -26,6 +27,33 @@ func (c *remoteCmd) usage() string {
 
 func (c *remoteCmd) flags() {}
 
+func do_add_server(config *lxd.Config, server string) error {
+	lxd.Debugf("connecting to %s", server)
+	s2 := fmt.Sprintf("%s:x", server)
+	lxd.Debugf("trying to %s", s2)
+	c, _, err := lxd.NewClient(config, s2)
+	if err != nil {
+		return err
+	}
+
+	if c.AmTrusted() {
+		// server already has our cert, so we're done
+		return nil
+	}
+
+	fmt.Printf("Admin password for %s: ", server)
+	pwd, err := terminal.ReadPassword(0)
+	if err != nil {
+		return err
+	}
+	_, err = c.AddCertToServer(string(pwd))
+	if err != nil {
+		return err
+	}
+	fmt.Println("Client certificate stored at server: ", server)
+	return nil
+}
+
 func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 1 {
 		return errArgs
@@ -45,6 +73,14 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			config.Remotes = make(map[string]lxd.RemoteConfig)
 		}
 		config.Remotes[args[1]] = lxd.RemoteConfig{args[2]}
+
+		// todo - we'll need to check whether this is a lxd remote that handles /list/add
+		err := do_add_server(config, args[1])
+		if err != nil {
+			// todo - remove from config.Remotes since we failed
+			return err
+		}
+
 	case "rm":
 		if len(args) != 2 {
 			return errArgs
@@ -57,6 +93,8 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		if config.DefaultRemote == args[1] {
 			config.DefaultRemote = ""
 		}
+
+		// TODO - remove stored server certificate
 
 		delete(config.Remotes, args[1])
 	case "list":
@@ -111,7 +149,44 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 		fmt.Println(config.DefaultRemote)
 		return nil
+	case "set":
+		if len(args) != 4 && len(args) != 3 {
+			return errArgs
+		}
+
+
+		action := args[1]
+		if len(args) == 4 {
+			action = args[2]
+		}
+		if action == "password" {
+			server := ""
+			password := args[2]
+			if len(args) == 4 {
+				servername := fmt.Sprintf("%s:", args[1])
+				r, ok := config.Remotes[servername]
+				if ! ok {
+					return fmt.Errorf("remote .%s. doesn't exist", servername)
+				}
+				server = r.Addr
+				fmt.Printf("using servername .%s.", servername)
+				password = args[3]
+			}
+
+			c, _, err := lxd.NewClient(config, server)
+			if err != nil {
+				return fmt.Errorf("failed to create client object: %q", err)
+				return err
+			}
+
+			_, err = c.SetRemotePwd(password)
+			return err
+		}
+
+		return fmt.Errorf("Only 'password' can be set currently")
+
 	}
+
 
 	return lxd.SaveConfig(*configPath, config)
 }
