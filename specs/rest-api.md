@@ -62,7 +62,34 @@ wrong, in those cases, the following return value is used:
 
 HTTP code must be one of of 400, 401, 403, 404 or 500.
 
-# Basic structure
+# API structure
+ * /
+   * /1.0
+     * /1.0/containers
+       * /1.0/containers/\<name\>
+         * /1.0/containers/\<name\>/files
+         * /1.0/containers/\<name\>/freeze
+         * /1.0/containers/\<name\>/restart
+         * /1.0/containers/\<name\>/shell
+         * /1.0/containers/\<name\>/snapshots
+         * /1.0/containers/\<name\>/snapshots/\<name\>
+         * /1.0/containers/\<name\>/start
+         * /1.0/containers/\<name\>/stop
+         * /1.0/containers/\<name\>/unfreeze
+     * /1.0/images
+       * /1.0/images/\<name\>
+         * /1.0/images/\<name\>
+     * /1.0/longpoll
+     * /1.0/operations
+       * /1.0/operations/\<id\>
+         * /1.0/operations/\<id\>/wait
+     * /1.0/ping
+     * /1.0/profiles
+       * /1.0/profiles/\<name\>
+     * /1.0/trust
+       * /1.0/trust/\<fingerprint\>
+
+# API details
 ## /
 ### GET
  * Authentication: guest
@@ -271,6 +298,81 @@ Input (none at present):
 
     {
     }
+
+## /1.0/containers/\<name\>/files
+### POST
+ * Authentication: trusted
+ * Operation: sync
+ * Return: background operation + websocket information or standard error
+ * Description: upload or download files from the server
+
+TODO: examples
+
+## /1.0/containers/\<name\>/snapshots
+### GET
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs for snapshots for this container
+ * Description: List of snapshots
+
+### PUT
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: create a new snapshot
+
+Input:
+
+    {
+        'name': "my-snapshot",          # Name of the snapshot
+        'stateful': True                # Whether to include state too
+    }
+
+## /1.0/containers/\<name\>/snapshots/\<name\>
+### GET
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the snapshot
+ * Description: Snapshot information
+
+Return:
+
+    {
+        'name': "my-snapshot",
+        'stateful': True
+    }
+
+### POST
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: used to rename the snapshot
+
+Input:
+
+    {
+        'name': "new-name"
+    }
+
+### DELETE
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: remove the snapshot
+
+Input (none at present):
+
+    {
+    }
+
+## /1.0/containers/\<name\>/shell
+### POST
+ * Authentication: trusted
+ * Operation: sync
+ * Return: background operation + websocket information or standard error
+ * Description: run a remote command and (optionally) attach to the remote shell
+
+TODO: examples
 
 ## /1.0/images
 ### GET
