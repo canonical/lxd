@@ -68,7 +68,7 @@ Return a list of supported API endpoint URLs (by default ['/1.0']).
 ### GET
 Return a list of URLs for images this server publishes.
 
-### PUT
+### POST
 Create a new container.
 
     {
@@ -95,18 +95,62 @@ Create a new container.
 
 ## /1.0/containers/\<name\>
 ### GET
-Return detailed information about the container. (WIP)
+Return detailed information about the container.
+
+The dict is identical to that used to create the container with PUT.
 
 ### PUT
-Update container metadata. (WIP)
+Update container metadata.
+
+Takes the same input as the initial POST and as returned by GET but doesn't allow name changes (see POST for that).
+
+Sync operation, returns standard return value.
 
 ### POST
-Used to rename/move the container. (WIP)
+Used to rename/move the container.
+
+Simple rename with:
+
+    {
+        'name': "new-name"
+    }
+
+
+This is an async operation.
 
 ### DELETE
 Remove the container.
 
 Background operation.
+
+## /1.0/containers/\<name\>/start
+
+### POST
+Starts the container.
+
+No arguments required.
+
+This is an async operation.
+
+## /1.0/containers/\<name\>/stop
+Stops the container.
+
+{
+    'timeout': 30,          # Timeout in seconds before failing container stop
+    'kill': False           # Whether to kill the container rather than doing a clean shutdown
+}
+
+This is an async operation.
+
+## /1.0/containers/\<name\>/restart
+Restart the container (sends the restart signal).
+
+{
+    'timeout': 30,          # Timeout in seconds before failing container restart
+    'kill': False           # Whether to kill and respawn the container rather than waiting for a clean reboot
+}
+
+This is an async operation.
 
 ## /1.0/images
 ### GET
