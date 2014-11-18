@@ -8,10 +8,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/lxc/lxd"
 	"code.google.com/p/go.crypto/scrypt"
+	"github.com/lxc/lxd"
 )
-
 
 const (
 	PW_SALT_BYTES = 32
@@ -53,7 +52,7 @@ func (d *Daemon) verify_admin_password(password string) bool {
 		return false
 	}
 	defer passOut.Close()
-	buff := make([]byte, PW_SALT_BYTES + PW_HASH_BYTES)
+	buff := make([]byte, PW_SALT_BYTES+PW_HASH_BYTES)
 	_, err = passOut.Read(buff)
 	if err != nil {
 		lxd.Debugf("failed to read the saved admin pasword for verification")
@@ -65,7 +64,7 @@ func (d *Daemon) verify_admin_password(password string) bool {
 		lxd.Debugf("failed to create hash to check")
 		return false
 	}
-	if ! bytes.Equal(hash, buff[PW_SALT_BYTES:]) {
+	if !bytes.Equal(hash, buff[PW_SALT_BYTES:]) {
 		lxd.Debugf("Bad password received")
 		return false
 	}
@@ -80,7 +79,7 @@ func (d *Daemon) verify_admin_password(password string) bool {
 func (d *Daemon) serveTrust(w http.ResponseWriter, r *http.Request) {
 	lxd.Debugf("responding to list")
 
-	if ! d.is_trusted_client(r) {
+	if !d.is_trusted_client(r) {
 		lxd.Debugf("Trust request from untrusted client")
 		return
 	}

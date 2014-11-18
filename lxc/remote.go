@@ -1,9 +1,9 @@
 package main
 
 import (
+	"code.google.com/p/go.crypto/ssh/terminal"
 	"fmt"
 	"github.com/lxc/lxd"
-	"code.google.com/p/go.crypto/ssh/terminal"
 )
 
 type remoteCmd struct {
@@ -154,7 +154,6 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-
 		action := args[1]
 		if len(args) == 4 {
 			action = args[2]
@@ -165,7 +164,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			if len(args) == 4 {
 				servername := fmt.Sprintf("%s:", args[1])
 				r, ok := config.Remotes[servername]
-				if ! ok {
+				if !ok {
 					return fmt.Errorf("remote .%s. doesn't exist", servername)
 				}
 				server = r.Addr
@@ -186,7 +185,6 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		return fmt.Errorf("Only 'password' can be set currently")
 
 	}
-
 
 	return lxd.SaveConfig(*configPath, config)
 }
