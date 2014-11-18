@@ -272,6 +272,81 @@ Input (none at present):
     {
     }
 
+## /1.0/containers/\<name\>/files
+### POST
+ * Authentication: trusted
+ * Operation: sync
+ * Return: background operation + websocket information or standard error
+ * Description: upload or download files from the server
+
+TODO: examples
+
+## /1.0/containers/\<name\>/snapshots
+### GET
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs for snapshots for this container
+ * Description: List of snapshots
+
+### PUT
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: create a new snapshot
+
+Input:
+
+    {
+        'name': "my-snapshot",          # Name of the snapshot
+        'stateful': True                # Whether to include state too
+    }
+
+## /1.0/containers/\<name\>/snapshots/\<name\>
+### GET
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the snapshot
+ * Description: Snapshot information
+
+Return:
+
+    {
+        'name': "my-snapshot",
+        'stateful': True
+    }
+
+### POST
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: used to rename the snapshot
+
+Input:
+
+    {
+        'name': "new-name"
+    }
+
+### DELETE
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: remove the snapshot
+
+Input (none at present):
+
+    {
+    }
+
+## /1.0/containers/\<name\>/shell
+### POST
+ * Authentication: trusted
+ * Operation: sync
+ * Return: background operation + websocket information or standard error
+ * Description: run a remote command and (optionally) attach to the remote shell
+
+TODO: examples
+
 ## /1.0/images
 ### GET
  * Authentication: guest or trusted
