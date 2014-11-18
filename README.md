@@ -41,6 +41,10 @@ the future, but for now you need to let the user running lxd own /var/lib/lxd:
     sudo mkdir -p /var/lib/lxd
     sudo chown $USER:$USER /var/lib/lxd
 
+You'll also need sub{u,g}ids for the user that lxd is going to run as:
+
+    echo "$USER:1000000:65536" | sudo tee -a /etc/subuid /etc/subgid
+
 Now you can run the daemon:
 
     ./lxd/lxd &
