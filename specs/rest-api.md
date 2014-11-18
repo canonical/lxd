@@ -62,7 +62,34 @@ wrong, in those cases, the following return value is used:
 
 HTTP code must be one of of 400, 401, 403, 404 or 500.
 
-# Basic structure
+# API structure
+ * /
+   * /1.0
+     * /1.0/containers
+       * /1.0/containers/\<name\>
+         * /1.0/containers/\<name\>/files
+         * /1.0/containers/\<name\>/freeze
+         * /1.0/containers/\<name\>/restart
+         * /1.0/containers/\<name\>/shell
+         * /1.0/containers/\<name\>/snapshots
+         * /1.0/containers/\<name\>/snapshots/\<name\>
+         * /1.0/containers/\<name\>/start
+         * /1.0/containers/\<name\>/stop
+         * /1.0/containers/\<name\>/unfreeze
+     * /1.0/images
+       * /1.0/images/\<name\>
+         * /1.0/images/\<name\>
+     * /1.0/longpoll
+     * /1.0/operations
+       * /1.0/operations/\<id\>
+         * /1.0/operations/\<id\>/wait
+     * /1.0/ping
+     * /1.0/profiles
+       * /1.0/profiles/\<name\>
+     * /1.0/trust
+       * /1.0/trust/\<fingerprint\>
+
+# API details
 ## /
 ### GET
  * Authentication: guest
