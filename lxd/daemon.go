@@ -17,27 +17,35 @@ import (
 
 // A Daemon can respond to requests from a lxd client.
 type Daemon struct {
-	tomb          tomb.Tomb
-	unixl         net.Listener
-	tcpl         net.Listener
-	id_map        *Idmap
-	lxcpath       string
-	certf         string
-	keyf          string
-	mux           *http.ServeMux
-	clientCerts   map[string]x509.Certificate
+	tomb        tomb.Tomb
+	unixl       net.Listener
+	tcpl        net.Listener
+	id_map      *Idmap
+	lxcpath     string
+	certf       string
+	keyf        string
+	mux         *http.ServeMux
+	clientCerts map[string]x509.Certificate
 }
 
-func read_my_cert() (string, string, error) {
+func readMyCert() (string, string, error) {
 	certf := lxd.VarPath("cert.pem")
 	keyf := lxd.VarPath("key.pem")
 	lxd.Debugf("looking for existing certificates: %s %s", certf, keyf)
 
 	_, err := os.Stat(certf)
 	_, err2 := os.Stat(keyf)
+
+	/*
+	 * If both stat's succeded, then the cert and pubkey already
+	 * exist.
+	 */
 	if err == nil && err2 == nil {
 		return certf, keyf, nil
 	}
+
+	/* If one of the stats succeeded and one failed, then there's
+	 * a configuration problem, return an error */
 	if err == nil {
 		lxd.Debugf("%s already exists", certf)
 		return "", "", err2
@@ -46,11 +54,14 @@ func read_my_cert() (string, string, error) {
 		lxd.Debugf("%s already exists", keyf)
 		return "", "", err
 	}
+
+	/* If neither stat succeeded, then this is our first run and we
+	 * need to generate cert and privkey */
 	err = lxd.GenCert(certf, keyf)
 	if err != nil {
 		return "", "", err
 	}
-	return certf,  keyf, nil
+	return certf, keyf, nil
 }
 
 func read_saved_client_calist(d *Daemon) {
@@ -107,7 +118,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		return nil, err
 	}
 
-	certf, keyf, err := read_my_cert()
+	certf, keyf, err := readMyCert()
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +169,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		config := tls.Config{Certificates: []tls.Certificate{mycert},
 			ClientAuth: tls.RequireAnyClientCert,
 			MinVersion: tls.VersionTLS12,
-			MaxVersion: tls.VersionTLS12,}
+			MaxVersion: tls.VersionTLS12}
 		tcpl, err := tls.Listen("tcp", listenAddr, &config)
 		if err != nil {
 			d.unixl.Close()

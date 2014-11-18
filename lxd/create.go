@@ -12,7 +12,7 @@ import (
 func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {
 	lxd.Debugf("responding to create")
 
-	if ! d.is_trusted_client(r) {
+	if !d.is_trusted_client(r) {
 		lxd.Debugf("Create request from untrusted client")
 		return
 	}

@@ -22,7 +22,7 @@ func (d *Daemon) serveTrustAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ! d.verify_admin_password(password) {
+	if !d.verify_admin_password(password) {
 		http.Error(w, "Bad admin password", 401)
 		return
 	}
@@ -41,7 +41,7 @@ func (d *Daemon) serveTrustAdd(w http.ResponseWriter, r *http.Request) {
 		}
 		_, err = certout.Write(r.TLS.PeerCertificates[i].Raw)
 		certout.Close()
-		if err !=  nil {
+		if err != nil {
 			lxd.Debugf("Error writing client certificate: %q", err)
 		}
 		d.clientCerts[r.TLS.ServerName] = *r.TLS.PeerCertificates[i]
