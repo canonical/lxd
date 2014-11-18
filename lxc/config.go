@@ -53,7 +53,6 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 			c, _, err := lxd.NewClient(config, server)
 			if err != nil {
-				return fmt.Errorf("failed to create client object: %q", err)
 				return err
 			}
 
