@@ -364,7 +364,7 @@ Description: background operation
         'updated_at': 1415639996,               # Last update timestamp
         'status': "running",                    # Status string ("pending", "running", "done", "cancelling", "cancelled")
         'status_code': 2,                       # Status code
-        'result': "success",                    # Result string ("success", "failure")
+        'result': "",                           # Result string ("success", "failure")
         'result_code': 0,                       # Result code
         'resource_url': '/1.0/containers/1',    # Affected resource
         'metadata': {},                         # Extra information about the operation (action, target, ...)
@@ -380,6 +380,24 @@ Description: cancel an operation. Calling this will change the state to "cancell
 Input (none at present):
 
     {
+    }
+
+## /1.0/operations/\<id\>/wait
+### GET
+Authentication: trusted
+Operation: sync
+Return: dict of the operation once its state changes to the request state
+Description: Wait for an operation to finish
+
+Input (wait for any event):
+
+    {
+    }
+
+Input (wait for the operation to succeed):
+
+    {
+        'result_code': 1
     }
 
 ## /1.0/trust
