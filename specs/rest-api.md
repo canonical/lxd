@@ -65,52 +65,54 @@ HTTP code must be one of of 400, 401, 403, 404 or 500.
 # Basic structure
 ## /
 ### GET
-Authentication: guest
-Operation: sync
-Return: list of supported API endpoint URLs (by default ['/1.0'])
-Description: List of supported APIs
+ * Authentication: guest
+ * Operation: sync
+ * Return: list of supported API endpoint URLs (by default ['/1.0'])
+ * Description: List of supported APIs
 
 ## /1.0/
 ### GET
-Authentication: trusted
-Operation: sync
-Return: Dict representing server state
-Description: Server configuration and environment information
+ * Authentication: trusted
+ * Operation: sync
+ * Return: Dict representing server state
+ * Description: Server configuration and environment information
 
-{
-    'config': [{'key': "trust-password",            # Host configuration
-                'value': "my-password"}],
-    'environment': {'kernel_version': "3.16",       # Various information about the host (OS, kernel, ...)
-                    'lxc_version': "1.0.6",
-                    'driver': "lxc",
-                    'backing_fs': "ext4"}
-}
+Return value:
+
+    {
+        'config': [{'key': "trust-password",            # Host configuration
+                    'value': "my-password"}],
+        'environment': {'kernel_version': "3.16",       # Various information about the host (OS, kernel, ...)
+                        'lxc_version': "1.0.6",
+                        'driver': "lxc",
+                        'backing_fs': "ext4"}
+    }
 
 ### PUT
-Authentication: trusted
-Operation: sync
-Return: standard return value or standard error
-Description: Updates the server configuration or other properties
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+ * Description: Updates the server configuration or other properties
 
 Input:
 
-{
-    'config': [{'key': "trust-password",
-                'value': "my-password"}]
-}
+    {
+        'config': [{'key': "trust-password",
+                    'value': "my-password"}]
+    }
 
 ## /1.0/containers
 ### GET
-Authentication: trusted
-Operation: sync
-Return: list of URLs for images this server publishes
-Description: List of containers
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs for images this server publishes
+ * Description: List of containers
 
 ### POST
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: Create a new container
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: Create a new container
 
 Input (container based on remote image):
 
@@ -141,10 +143,10 @@ Input (clone of a local snapshot):
 
 ## /1.0/containers/\<name\>
 ### GET
-Authentication: trusted
-Operation: sync
-Return: dict of the container configuration and current state
-Description: Container information
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict of the container configuration and current state
+ * Description: Container information
 
 Input:
 
@@ -167,10 +169,10 @@ Input:
 
 
 ### PUT
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: update container configuration
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: update container configuration
 
 Input:
 
@@ -179,10 +181,10 @@ changes (see POST below) or changes to the status sub-dict (since that's
 read-only).
 
 ### POST
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: used to rename/migrate the container
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: used to rename/migrate the container
 
 Input (simple rename):
 
@@ -195,10 +197,10 @@ TODO: Cross host rename/migration.
 
 
 ### DELETE
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: remove the container
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: remove the container
 
 Input (none at present):
 
@@ -207,10 +209,10 @@ Input (none at present):
 
 ## /1.0/containers/\<name\>/freeze
 ### POST
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: freeze all processes in the container
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: freeze all processes in the container
 
 Input (none at present):
 
@@ -219,10 +221,10 @@ Input (none at present):
 
 ## /1.0/containers/\<name\>/restart
 ### POST
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: restart the container (sends the restart signal)
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: restart the container (sends the restart signal)
 
 Input:
 
@@ -234,10 +236,10 @@ Input:
 
 ## /1.0/containers/\<name\>/start
 ### POST
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: start the container
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: start the container
 
 Input (none at present):
 
@@ -246,10 +248,10 @@ Input (none at present):
 
 ## /1.0/containers/\<name\>/stop
 ### POST
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: stop the container
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: stop the container
 
 Input:
 
@@ -260,10 +262,10 @@ Input:
 
 ## /1.0/containers/\<name\>/unfreeze
 ### POST
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: unfreeze all the processes in the container
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: unfreeze all the processes in the container
 
 Input (none at present):
 
@@ -272,16 +274,16 @@ Input (none at present):
 
 ## /1.0/images
 ### GET
-Authentication: guest or trusted
-Operation: sync
-Return: list of URLs for images this server publishes
-Description: list of images (public or private)
+ * Authentication: guest or trusted
+ * Operation: sync
+ * Return: list of URLs for images this server publishes
+ * Description: list of images (public or private)
 
 ### PUT
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: create and publish a new image
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: create and publish a new image
 
 Input:
 
@@ -289,18 +291,18 @@ TODO: examples
 
 ## /1.0/images/\<name\>
 ### GET
-Authentication: trusted
-Operation: sync
-Return: dict representing an image description and metadata
-Description: Image description and metadata
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing an image description and metadata
+ * Description: Image description and metadata
 
 TODO: examples
 
 ### DELETE
-Authentication: trusted
-Operation: async
-Return: background operaton or standard error
-Description: Remove an image
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operaton or standard error
+ * Description: Remove an image
 
 Input (none at present):
 
@@ -308,20 +310,20 @@ Input (none at present):
     }
 
 ### PUT
-Authentication: trusted
-Operation: sync
-Return: standard return value or standard error
-Description: Updates the image metadata
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+ * Description: Updates the image metadata
 
 Input:
 
 TODO: examples
 
 ### POST
-Authentication: trusted
-Operation: async
-Return: background operation or standard error
-Description: rename or move an image
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+ * Description: rename or move an image
 
 Input (rename an image):
 
@@ -333,10 +335,12 @@ TODO: move to remote host
 
 ## /1.0/ping
 ### GET
-Authentication: guest, untrusted or trusted
-Operation: sync
-Return: dict of basic API and auth information
-Description: returns what's needed for an initial handshake
+ * Authentication: guest, untrusted or trusted
+ * Operation: sync
+ * Return: dict of basic API and auth information
+ * Description: returns what's needed for an initial handshake
+
+Return:
 
     {
         'auth': "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
@@ -347,17 +351,19 @@ Additional information about the server can then be pulled from /1.0 once authen
 
 ## /1.0/operations
 ### GET
-Authentication: trusted
-Operation: sync
-Return: list of URLs for operations that are currently going on/queued
-Description: List of operations
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs for operations that are currently going on/queued
+ * Description: List of operations
 
 ## /1.0/operations/\<id\>
 ### GET
-Authentication: trusted
-Operation: sync
-Return: dict representing a background operation
-Description: background operation
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing a background operation
+ * Description: background operation
+
+Return:
 
     {
         'created_at': 1415639996,               # Creation timestamp
@@ -372,10 +378,10 @@ Description: background operation
     }
 
 ### DELETE
-Authentication: trusted
-Operation: sync
-Return: standard return value or standard error
-Description: cancel an operation. Calling this will change the state to "cancelling" rather than actually removing the entry.
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+ * Description: cancel an operation. Calling this will change the state to "cancelling" rather than actually removing the entry.
 
 Input (none at present):
 
@@ -383,11 +389,11 @@ Input (none at present):
     }
 
 ## /1.0/operations/\<id\>/wait
-### GET
-Authentication: trusted
-Operation: sync
-Return: dict of the operation once its state changes to the request state
-Description: Wait for an operation to finish
+### POST
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict of the operation once its state changes to the request state
+ * Description: Wait for an operation to finish
 
 Input (wait for any event):
 
@@ -402,16 +408,16 @@ Input (wait for the operation to succeed):
 
 ## /1.0/profiles
 ### GET
-Authentication: trusted
-Operation: sync
-Return: list of URLs to defined profiles
-Description: List of configuration profiles
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs to defined profiles
+ * Description: List of configuration profiles
 
 ### PUT
-Authentication: trusted
-Operation: sync
-Return: standard return value or standard error
-Description: define a new profile
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+ * Description: define a new profile
 
 Input:
 
@@ -425,10 +431,12 @@ Input:
 
 ## /1.0/profiles/\<name\>
 ### GET
-Authentication: trusted
-Operation: sync
-Return: dict representing the profile content
-Description: profile configuration
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the profile content
+ * Description: profile configuration
+
+Output:
 
     {
         'name': "my-profile'name",
@@ -439,10 +447,10 @@ Description: profile configuration
     }
 
 ### PUT
-Authentication: trusted
-Operation: sync
-Return: standard return value or standard error
-Description: update the profile
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+ * Description: update the profile
 
 Input:
 
@@ -451,10 +459,10 @@ property can't be changed (see POST for that).
 
 
 ### POST
-Authentication: trusted
-Operation: sync
-Return: standard return value or standard error
-Description: rename or move a profile
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+ * Description: rename or move a profile
 
 Input (rename a profile):
 
@@ -467,10 +475,10 @@ TODO: move profile to another host
 
 
 ### DELETE
-Authentication: trusted
-Operation: sync
-Return: standard return value or standard error
-Description: remove a profile
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+ * Description: remove a profile
 
 Input (none at present):
 
@@ -480,16 +488,16 @@ Input (none at present):
 
 ## /1.0/trust
 ### GET
-Authentication: trusted
-Operation: sync
-Return: list of URLs for trusted certificates
-Description: list of trusted certificates
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs for trusted certificates
+ * Description: list of trusted certificates
 
 ### PUT
-Authentication: trusted or untrusted
-Operation: sync
-Return: standard return value or standard error
-Description: add a new trusted certificate
+ * Authentication: trusted or untrusted
+ * Operation: sync
+ * Return: standard return value or standard error
+ * Description: add a new trusted certificate
 
 Input:
 
@@ -501,10 +509,12 @@ Input:
 
 ## /1.0/trust/\<fingerprint\>
 ### GET
-Authentication: trusted
-Operation: sync
-Return: dict representing a trusted certificate
-Description: trusted certificate information
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing a trusted certificate
+ * Description: trusted certificate information
+
+Output:
 
     {
         'type': "client",
@@ -512,10 +522,10 @@ Description: trusted certificate information
     }
 
 ### DELETE
-Authentication: trusted
-Operation: sync
-Return: standard return value or standard error
-Description: Remove a trusted certificate
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+ * Description: Remove a trusted certificate
 
 Input (none at present):
 
@@ -530,10 +540,10 @@ changes state.
 The same mechanism may also be used for some live logging output.
 
 ### POST
-Authentication: trusted
-Operation: sync
-Return: none (never ending flow of events)
-Description: long-poll API
+ * Authentication: trusted
+ * Operation: sync
+ * Return: none (never ending flow of events)
+ * Description: long-poll API
 
 POST is the only supported method for this endpoint.
 
