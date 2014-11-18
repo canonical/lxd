@@ -1,11 +1,13 @@
 package lxd
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strings"
 )
@@ -16,17 +18,79 @@ type Client struct {
 	Remote  *RemoteConfig
 	http    http.Client
 	baseURL string
+	certf   string
+	keyf    string
+	cert    tls.Certificate
+}
+
+func read_my_cert() (string, string, error) {
+	homedir := os.Getenv("HOME")
+	if homedir == "" {
+		return "", "", fmt.Errorf("Failed to find homedir")
+	}
+	certf := fmt.Sprintf("%s/.config/lxd/%s", homedir, "cert.pem")
+	keyf := fmt.Sprintf("%s/.config/lxd/%s", homedir, "key.pem")
+
+	_, err := os.Stat(certf)
+	_, err2 := os.Stat(keyf)
+	if err == nil && err2 == nil {
+		return certf, keyf, nil
+	}
+	if err == nil {
+		Debugf("%s already exists", certf)
+		return "", "", err2
+	}
+	if err2 == nil {
+		Debugf("%s already exists", keyf)
+		return "", "", err
+	}
+	dir := fmt.Sprintf("%s/.config/lxd", homedir)
+	err = os.MkdirAll(dir, 0750)
+	if err != nil {
+		return "", "", err
+	}
+
+	Debugf("creating cert: %s %s", certf, keyf)
+	err = GenCert(certf, keyf)
+	if err != nil {
+		return "", "", err
+	}
+	return certf, keyf, nil
 }
 
 // NewClient returns a new lxd client.
 func NewClient(config *Config, raw string) (*Client, string, error) {
+	certf, keyf, err := read_my_cert()
+	if err != nil {
+		return nil, "", err
+	}
+	cert, err := tls.LoadX509KeyPair(certf, keyf)
+	if err != nil {
+		return nil, "", err
+	}
+
+	tlsconfig := &tls.Config{InsecureSkipVerify: true,
+		ClientAuth:   tls.RequireAnyClientCert,
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+		MaxVersion:   tls.VersionTLS12}
+	tlsconfig.BuildNameToCertificate()
+
+	tr := &http.Transport{
+		TLSClientConfig: tlsconfig,
+	}
 	c := Client{
 		config: *config,
-		http:   http.Client{
-		// Added on Go 1.3. Wait until it's more popular.
-		//Timeout: 10 * time.Second,
+		http: http.Client{
+			Transport: tr,
+			// Added on Go 1.3. Wait until it's more popular.
+			//Timeout: 10 * time.Second,
 		},
 	}
+
+	c.certf = certf
+	c.keyf = keyf
+	c.cert = cert
 
 	result := strings.SplitN(raw, ":", 2)
 	var remote string
@@ -46,7 +110,7 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 		c.baseURL = "http://unix.socket"
 		c.http.Transport = &unixTransport
 	} else if r, ok := config.Remotes[remote]; ok {
-		c.baseURL = "http://" + r.Addr
+		c.baseURL = "https://" + r.Addr
 		c.Remote = &r
 	} else {
 		return nil, "", fmt.Errorf("unknown remote name: %q", config.DefaultRemote)
@@ -71,7 +135,9 @@ func (c *Client) getstr(base string, args map[string]string) (string, error) {
 }
 
 func (c *Client) get(elem ...string) ([]byte, error) {
-	resp, err := c.http.Get(c.url(elem...))
+	url := c.url(elem...)
+	Debugf("url is %s", url)
+	resp, err := c.http.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -103,15 +169,40 @@ func (c *Client) Ping() error {
 	if err != nil {
 		return err
 	}
-	if data != Version {
-		return fmt.Errorf("version mismatch: mine: %q, daemon: %q", Version, data)
+
+	datav := strings.Split(string(data), " ")
+	if datav[0] != Version {
+		return fmt.Errorf("version mismatch: mine: %q, daemon: %q", Version, datav[0])
 	}
 	Debugf("pong received")
 	return nil
 }
 
+func (c *Client) AmTrusted() bool {
+	data, err := c.getstr("/ping", nil)
+	if err != nil {
+		return false
+	}
+
+	datav := strings.Split(string(data), " ")
+	if datav[1] == "trusted" {
+		return true
+	}
+	return false
+}
+
 func (c *Client) List() (string, error) {
 	data, err := c.getstr("/list", nil)
+	if err != nil {
+		return "fail", err
+	}
+	return data, err
+}
+
+func (c *Client) AddCertToServer(pwd string) (string, error) {
+	data, err := c.getstr("/trust/add", map[string]string{
+		"password": pwd,
+	})
 	if err != nil {
 		return "fail", err
 	}
@@ -167,4 +258,10 @@ func (c *Client) Stop(name string) (string, error) {
 
 func (c *Client) Restart(name string) (string, error) {
 	return c.CallByName("restart", name)
+}
+
+func (c *Client) SetRemotePwd(password string) (string, error) {
+	return c.getstr("/trust", map[string]string{
+		"password": password,
+	})
 }
