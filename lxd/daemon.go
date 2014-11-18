@@ -33,35 +33,9 @@ func readMyCert() (string, string, error) {
 	keyf := lxd.VarPath("key.pem")
 	lxd.Debugf("looking for existing certificates: %s %s", certf, keyf)
 
-	_, err := os.Stat(certf)
-	_, err2 := os.Stat(keyf)
+	err := lxd.FindOrGenCert(certf, keyf)
 
-	/*
-	 * If both stat's succeded, then the cert and pubkey already
-	 * exist.
-	 */
-	if err == nil && err2 == nil {
-		return certf, keyf, nil
-	}
-
-	/* If one of the stats succeeded and one failed, then there's
-	 * a configuration problem, return an error */
-	if err == nil {
-		lxd.Debugf("%s already exists", certf)
-		return "", "", err2
-	}
-	if err2 == nil {
-		lxd.Debugf("%s already exists", keyf)
-		return "", "", err
-	}
-
-	/* If neither stat succeeded, then this is our first run and we
-	 * need to generate cert and privkey */
-	err = lxd.GenCert(certf, keyf)
-	if err != nil {
-		return "", "", err
-	}
-	return certf, keyf, nil
+	return certf, keyf, err
 }
 
 func read_saved_client_calist(d *Daemon) {

@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -32,10 +33,53 @@ func mynames() (*string, error) {
 	return &h, nil
 }
 
+func FindOrGenCert(certf string, keyf string) error {
+	_, err := os.Stat(certf)
+	_, err2 := os.Stat(keyf)
+
+	/*
+	 * If both stat's succeded, then the cert and pubkey already
+	 * exist.
+	 */
+	if err == nil && err2 == nil {
+		return nil
+	}
+
+	/* If one of the stats succeeded and one failed, then there's
+	 * a configuration problem, return an error */
+	if err == nil {
+		return err2
+	}
+	if err2 == nil {
+		return err
+	}
+
+	/* If neither stat succeeded, then this is our first run and we
+	 * need to generate cert and privkey */
+	err = GenCert(certf, keyf)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GenCert(certf string, keyf string) error {
 	privk, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		log.Fatalf("failed to generate key")
+		return err
+	}
+
+	/* Create the basenames if needed */
+	dir := path.Dir(certf)
+	err = os.MkdirAll(dir, 0750)
+	if err != nil {
+		return err
+	}
+	dir = path.Dir(keyf)
+	err = os.MkdirAll(dir, 0750)
+	if err != nil {
 		return err
 	}
 

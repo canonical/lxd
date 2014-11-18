@@ -31,39 +31,9 @@ func readMyCert() (string, string, error) {
 	certf := fmt.Sprintf("%s/.config/lxd/%s", homedir, "cert.pem")
 	keyf := fmt.Sprintf("%s/.config/lxd/%s", homedir, "key.pem")
 
-	_, err := os.Stat(certf)
-	_, err2 := os.Stat(keyf)
-	/*
-	 * If both stat's succeded, then the cert and pubkey already
-	 * exist.
-	 */
-	if err == nil && err2 == nil {
-		return certf, keyf, nil
-	}
-	/* If one of the stats succeeded and one failed, then there's
-	 * a configuration problem, return an error */
-	if err == nil {
-		Debugf("%s already exists", certf)
-		return "", "", err2
-	}
-	if err2 == nil {
-		Debugf("%s already exists", keyf)
-		return "", "", err
-	}
-	/* If neither stat succeeded, then this is our first run and we
-	 * need to generate cert and privkey */
-	dir := fmt.Sprintf("%s/.config/lxd", homedir)
-	err = os.MkdirAll(dir, 0750)
-	if err != nil {
-		return "", "", err
-	}
+	err := FindOrGenCert(certf, keyf)
 
-	Debugf("creating cert: %s %s", certf, keyf)
-	err = GenCert(certf, keyf)
-	if err != nil {
-		return "", "", err
-	}
-	return certf, keyf, nil
+	return certf, keyf, err
 }
 
 // NewClient returns a new lxd client.
