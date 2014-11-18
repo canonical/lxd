@@ -32,6 +32,7 @@ For a standard synchronous operation, the following dict is returned:
     {
         'type': "sync",
         'result': "success",                    # Result string ("success", "failure")
+        'result_code': 200,                     # Integer value (recommended over result)
         'metadata': {}                          # Extra resource/action specific metadata
     }
 
@@ -42,7 +43,8 @@ For an async operation, the following dict is returned:
 
     {
         'type': "async",
-        'operation': "/1.0/operations/<id>",    # URL to the background operation
+        'operation': "/1.0/operations/<id>",            # URL to the background operation
+        'resource': "/1.0/containers/my-container"      # Affected resource
     }
 
 HTTP code must be 200.
@@ -53,23 +55,64 @@ wrong, in those cases, the following return value is used:
 
     {
         'type': "error",
-        'code': 500,        # HTTP error code
-        'metadata': {}      # More details about the error
+        'error': "server error",        # Error string
+        'error_code': 500,              # HTTP error code
+        'metadata': {}                  # More details about the error
     }
 
 HTTP code must be one of of 400, 401, 403, 404 or 500.
 
 # Basic structure
 ## /
-### GET (unauthenticated)
-Return a list of supported API endpoint URLs (by default ['/1.0']).
+### GET
+Authentication: guest
+Operation: sync
+Return: list of supported API endpoint URLs (by default ['/1.0'])
+Description: List of supported APIs
+
+## /1.0/
+### GET
+Authentication: trusted
+Operation: sync
+Return: Dict representing server state
+Description: Server configuration and environment information
+
+{
+    'config': [{'key': "trust-password",            # Host configuration
+                'value': "my-password"}],
+    'environment': {'kernel_version': "3.16",       # Various information about the host (OS, kernel, ...)
+                    'lxc_version': "1.0.6",
+                    'driver': "lxc",
+                    'backing_fs': "ext4"}
+}
+
+### PUT
+Authentication: trusted
+Operation: sync
+Return: standard return value or standard error
+Description: Updates the server configuration or other properties
+
+Input:
+
+{
+    'config': [{'key': "trust-password",
+                'value': "my-password"}]
+}
 
 ## /1.0/containers
 ### GET
-Return a list of URLs for images this server publishes.
+Authentication: trusted
+Operation: sync
+Return: list of URLs for images this server publishes
+Description: List of containers
 
 ### POST
-Create a new container.
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: Create a new container
+
+Input (container based on remote image):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
@@ -85,147 +128,287 @@ Create a new container.
                    'metadata': {'gpg_key': "GPG KEY BASE64"}},              # Metadata to setup the remote
     }
 
+Input (clone of a local snapshot):
+
     {
         'name': "my-new-container",
         'profiles': ["default"],
         'source': {'type': "local",
-                   'name': "a/b"}                                           # Use snapshot "b" of container "a" as the source
+                   'name': "a/b"},                                          # Use snapshot "b" of container "a" as the source
+        'userdata': "BASE64 of userdata"                                    # Userdata exposed over /dev/lxd and used by cloud-init or equivalent tools
     }
 
 
 ## /1.0/containers/\<name\>
 ### GET
-Return detailed information about the container.
+Authentication: trusted
+Operation: sync
+Return: dict of the container configuration and current state
+Description: Container information
 
-The dict is identical to that used to create the container with PUT.
+Input:
+
+    {
+        'name': "my-container",
+        'profiles': ["default"],
+        'config': [{'key': "resources.memory",
+                    'value': "50%"}],
+        'userdata': "SOME BASE64 BLOB",
+        'status': {
+                    'state': "running",
+                    'state_code': 2,
+                    'ips': [{'interface': "eth0",
+                             'protocol': "INET6",
+                             'address': "2001:470:b368:1020:1::2"},
+                            {'interface': "eth0",
+                             'protocol': "INET",
+                             'address': "172.16.15.30"}]}
+    }
+
 
 ### PUT
-Update container metadata.
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: update container configuration
 
-Takes the same input as the initial POST and as returned by GET but doesn't allow name changes (see POST for that).
+Input:
 
-Sync operation, returns standard return value.
+Takes the same structure as that returned by GET but doesn't allow name
+changes (see POST below) or changes to the status sub-dict (since that's
+read-only).
 
 ### POST
-Used to rename/move the container.
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: used to rename/migrate the container
 
-Simple rename with:
+Input (simple rename):
 
     {
         'name': "new-name"
     }
 
 
-This is an async operation.
+TODO: Cross host rename/migration.
+
 
 ### DELETE
-Remove the container.
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: remove the container
 
-Background operation.
+Input (none at present):
 
-## /1.0/containers/\<name\>/start
+    {
+    }
 
+## /1.0/containers/\<name\>/freeze
 ### POST
-Starts the container.
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: freeze all processes in the container
 
-No arguments required.
+Input (none at present):
 
-This is an async operation.
-
-## /1.0/containers/\<name\>/stop
-Stops the container.
-
-{
-    'timeout': 30,          # Timeout in seconds before failing container stop
-    'kill': False           # Whether to kill the container rather than doing a clean shutdown
-}
-
-This is an async operation.
+    {
+    }
 
 ## /1.0/containers/\<name\>/restart
-Restart the container (sends the restart signal).
+### POST
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: restart the container (sends the restart signal)
 
-{
-    'timeout': 30,          # Timeout in seconds before failing container restart
-    'kill': False           # Whether to kill and respawn the container rather than waiting for a clean reboot
-}
+Input:
 
-This is an async operation.
+    {
+        'timeout': 30,          # Timeout in seconds before failing container restart
+        'kill': False           # Whether to kill and respawn the container rather than waiting for a clean reboot
+    }
+
+
+## /1.0/containers/\<name\>/start
+### POST
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: start the container
+
+Input (none at present):
+
+    {
+    }
+
+## /1.0/containers/\<name\>/stop
+### POST
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: stop the container
+
+Input:
+
+    {
+        'timeout': 30,          # Timeout in seconds before failing container stop
+        'kill': False           # Whether to kill the container rather than doing a clean shutdown
+    }
+
+## /1.0/containers/\<name\>/unfreeze
+### POST
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: unfreeze all the processes in the container
+
+Input (none at present):
+
+    {
+    }
 
 ## /1.0/images
 ### GET
-Return a list of URLs for images this server publishes.
+Authentication: guest or trusted
+Operation: sync
+Return: list of URLs for images this server publishes
+Description: list of images (public or private)
 
 ### PUT
-Publish a new image based on an existing container or snapshot. (WIP)
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: create and publish a new image
+
+Input:
+
+TODO: examples
 
 ## /1.0/images/\<name\>
 ### GET
-Return detailed information about the image. (WIP)
+Authentication: trusted
+Operation: sync
+Return: dict representing an image description and metadata
+Description: Image description and metadata
+
+TODO: examples
 
 ### DELETE
-Remove the image.
+Authentication: trusted
+Operation: async
+Return: background operaton or standard error
+Description: Remove an image
 
-Background operation.
+Input (none at present):
+
+    {
+    }
 
 ### PUT
-Update image metadata. (WIP)
+Authentication: trusted
+Operation: sync
+Return: standard return value or standard error
+Description: Updates the image metadata
+
+Input:
+
+TODO: examples
 
 ### POST
-Used to rename/move the image. (WIP)
+Authentication: trusted
+Operation: async
+Return: background operation or standard error
+Description: rename or move an image
+
+Input (rename an image):
+
+    {
+        'name': "new-name"
+    }
+
+TODO: move to remote host
 
 ## /1.0/ping
-### GET (unauthenticated)
-Returns what's needed for an initial handshake with the server
+### GET
+Authentication: guest, untrusted or trusted
+Operation: sync
+Return: dict of basic API and auth information
+Description: returns what's needed for an initial handshake
 
     {
         'auth': "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
         'api_compat': 0,                        # Used to determine API functionality
-        'version': "0.3"                        # Only visible if authenticated, full server version string
     }
+
+Additional information about the server can then be pulled from /1.0 once authenticated.
 
 ## /1.0/operations
 ### GET
-Return a list of URLs to every active operations.
+Authentication: trusted
+Operation: sync
+Return: list of URLs for operations that are currently going on/queued
+Description: List of operations
 
 ## /1.0/operations/\<id\>
 ### GET
-Get the detail about the operation.
+Authentication: trusted
+Operation: sync
+Return: dict representing a background operation
+Description: background operation
 
     {
         'created_at': 1415639996,               # Creation timestamp
         'updated_at': 1415639996,               # Last update timestamp
         'status': "running",                    # Status string ("pending", "running", "done", "cancelling", "cancelled")
-        'resullt': "",                          # Result string ("success", "failure")
+        'status_code': 2,                       # Status code
+        'result': "success",                    # Result string ("success", "failure")
+        'result_code': 0,                       # Result code
         'resource_url': '/1.0/containers/1',    # Affected resource
         'metadata': {},                         # Extra information about the operation (action, target, ...)
         'may_cancel': True                      # Whether it's possible to cancel the operation
     }
 
 ### DELETE
-Cancel an operation. Calling this will change the state to "cancelling"
-rather than actually removing the entry.
+Authentication: trusted
+Operation: sync
+Return: standard return value or standard error
+Description: cancel an operation. Calling this will change the state to "cancelling" rather than actually removing the entry.
 
-Uses a standard return value.
+Input (none at present):
+
+    {
+    }
 
 ## /1.0/trust
 ### GET
-Return a list of URLs for trusted certificates.
+Authentication: trusted
+Operation: sync
+Return: list of URLs for trusted certificates
+Description: list of trusted certificates
 
-### PUT (unauthenticated)
-Add a new trusted certificate.
+### PUT
+Authentication: trusted or untrusted
+Operation: sync
+Return: standard return value or standard error
+Description: add a new trusted certificate
+
+Input:
 
     {
         'type': "client",                       # Certificate type (keyring), currently only client
         'certificate': "BASE64",                # If provided, a valid x509 certificate. If not, the client certificate of the connection will be used
-        'password': "server-trust-password"     # The trust password for that server
+        'password': "server-trust-password"     # The trust password for that server (only required if untrusted)
     }
-
-This is a sync operation.
 
 ## /1.0/trust/\<fingerprint\>
 ### GET
-Return detailed information about a certificate.
+Authentication: trusted
+Operation: sync
+Return: dict representing a trusted certificate
+Description: trusted certificate information
 
     {
         'type': "client",
@@ -233,10 +416,15 @@ Return detailed information about a certificate.
     }
 
 ### DELETE
+Authentication: trusted
+Operation: sync
+Return: standard return value or standard error
+Description: Remove a trusted certificate
 
-Remove a trusted certificate.
+Input (none at present):
 
-This is a sync operation.
+    {
+    }
 
 ## /1.0/longpoll
 This URL isn't a standard REST object, instead it's a longpoll service
@@ -246,6 +434,11 @@ changes state.
 The same mechanism may also be used for some live logging output.
 
 ### POST
+Authentication: trusted
+Operation: sync
+Return: none (never ending flow of events)
+Description: long-poll API
+
 POST is the only supported method for this endpoint.
 
 The following JSON dict must be passed as argument:
