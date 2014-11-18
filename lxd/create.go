@@ -12,6 +12,11 @@ import (
 func (d *Daemon) serveCreate(w http.ResponseWriter, r *http.Request) {
 	lxd.Debugf("responding to create")
 
+	if !d.isTrustedClient(r) {
+		lxd.Debugf("Create request from untrusted client")
+		return
+	}
+
 	name := r.FormValue("name")
 	if name == "" {
 		fmt.Fprintf(w, "failed parsing name")
