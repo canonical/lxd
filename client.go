@@ -299,13 +299,13 @@ func (c *Client) Ping() error {
 		return err
 	}
 
-	serverApiVersion, err := resp.Metadata.GetString("api_compat")
+	serverApiCompat, err := resp.Metadata.GetInt("api_compat")
 	if err != nil {
 		return err
 	}
 
-	if serverApiVersion != ApiVersion {
-		return fmt.Errorf("api version mismatch: mine: %q, daemon: %q", ApiVersion, serverApiVersion)
+	if serverApiCompat != ApiCompat {
+		return fmt.Errorf("api version mismatch: mine: %q, daemon: %q", ApiCompat, serverApiCompat)
 	}
 	Debugf("pong received")
 	return nil

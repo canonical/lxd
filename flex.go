@@ -11,10 +11,11 @@ import (
 var Version = "0.0.1"
 
 /*
- * Please increment the version number every time you change the API.
+ * Please increment the api compat number every time you change the API.
  *
  * Version 1.0: ping
  */
+var ApiCompat = 1
 var ApiVersion = "1.0"
 
 // VarPath returns the provided path elements joined by a slash and

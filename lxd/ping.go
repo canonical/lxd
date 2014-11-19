@@ -13,7 +13,7 @@ func pingGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	}
 	lxd.Debugf("responding to ping from %s", remoteAddr)
 
-	resp := lxd.Jmap{"auth": "guest", "api_compat": lxd.ApiVersion}
+	resp := lxd.Jmap{"auth": "guest", "api_compat": lxd.ApiCompat}
 
 	if d.isTrustedClient(r) {
 		resp["auth"] = "trusted"
