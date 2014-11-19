@@ -4,6 +4,7 @@
 package lxd
 
 import (
+	"bufio"
 	"os"
 	"path/filepath"
 )
@@ -28,4 +29,13 @@ func VarPath(path ...string) string {
 	items := []string{varDir}
 	items = append(items, path...)
 	return filepath.Join(items...)
+}
+
+func ReadStdin() (string, error) {
+	buf := bufio.NewReader(os.Stdin)
+	line, _, err := buf.ReadLine()
+	if err != nil {
+		return nil, err
+	}
+	return line, nil
 }
