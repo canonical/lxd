@@ -55,6 +55,13 @@ func addServer(config *lxd.Config, server string) error {
 		}
 		pwd = line
 	}
+	fmt.Printf("\n")
+
+	err = c.UserAuthServerCert()
+	if err != nil {
+		return err
+	}
+
 	_, err = c.AddCertToServer(string(pwd))
 	if err != nil {
 		return err

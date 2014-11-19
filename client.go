@@ -1,7 +1,9 @@
 package lxd
 
 import (
+	"bufio"
 	"bytes"
+	"crypto/sha1"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -23,6 +25,9 @@ type Client struct {
 	certf   string
 	keyf    string
 	cert    tls.Certificate
+
+	scert_digest		[sha1.Size]byte	// fingerprint of server certificate
+	scert_digest_set	bool		// whether we've stored the fingerprint
 }
 
 type ResponseType string
@@ -242,6 +247,11 @@ func (c *Client) get(base string) (*Response, error) {
 		return nil, err
 	}
 
+	if c.scert_digest_set == false && resp.TLS != nil {
+		c.scert_digest = sha1.Sum(resp.TLS.PeerCertificates[0].Raw)
+		c.scert_digest_set = true
+	}
+
 	return ParseResponse(resp)
 }
 
@@ -330,6 +340,24 @@ func (c *Client) List() (string, error) {
 		return "fail", err
 	}
 	return data, err
+}
+
+func (c *Client) UserAuthServerCert() error {
+	if ! c.scert_digest_set {
+		return fmt.Errorf("No certificate on this connection")
+	}
+
+	fmt.Printf("Certificate fingerprint: % x\n", c.scert_digest)
+	fmt.Printf("ok (y/n)?")
+	buf := bufio.NewReader(os.Stdin)
+	line, _, err := buf.ReadLine()
+	if err != nil {
+		return err
+	}
+	if line[0] != 'y' && line[0] != 'Y' {
+		return fmt.Errorf("Server certificate NACKed by user")
+	}
+	return nil
 }
 
 func (c *Client) AddCertToServer(pwd string) (string, error) {
