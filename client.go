@@ -27,11 +27,11 @@ type Client struct {
 	keyf    string
 	cert    tls.Certificate
 
-	scert			*x509.Certificate // the cert stored on disk
+	scert *x509.Certificate // the cert stored on disk
 
-	scert_wire		*x509.Certificate // the cert from the tls connection
-	scert_digest		[sha1.Size]byte	// fingerprint of server cert from connection
-	scert_digest_set	bool		// whether we've stored the fingerprint
+	scert_wire       *x509.Certificate // the cert from the tls connection
+	scert_digest     [sha1.Size]byte   // fingerprint of server cert from connection
+	scert_digest_set bool              // whether we've stored the fingerprint
 }
 
 type ResponseType string
@@ -285,7 +285,7 @@ func (c *Client) get(base string) (*Response, error) {
 	}
 
 	if c.scert != nil && resp.TLS != nil {
-		if ! bytes.Equal(resp.TLS.PeerCertificates[0].Raw, c.scert.Raw) {
+		if !bytes.Equal(resp.TLS.PeerCertificates[0].Raw, c.scert.Raw) {
 			return nil, fmt.Errorf("Server certificate has changed")
 		}
 	}
@@ -393,7 +393,7 @@ func (c *Client) List() (string, error) {
 }
 
 func (c *Client) UserAuthServerCert() error {
-	if ! c.scert_digest_set {
+	if !c.scert_digest_set {
 		return fmt.Errorf("No certificate on this connection")
 	}
 
