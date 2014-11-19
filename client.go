@@ -28,26 +28,26 @@ type Client struct {
 type ResponseType string
 
 const (
-	Sync = "sync"
+	Sync  = "sync"
 	Async = "async"
 	Error = "error"
 )
 
 type Response struct {
-	Type		ResponseType
+	Type ResponseType
 
 	/* Valid only for Sync responses */
-	Result		bool
+	Result bool
 
 	/* Valid only for Async responses */
-	Operation	string
+	Operation string
 
 	/* Valid only for Error responses */
-	Code		int
-	Error		string
+	Code  int
+	Error string
 
 	/* Valid for Sync and Error responses */
-	Metadata	Jmap
+	Metadata Jmap
 }
 
 func ParseResponse(r *http.Response) (*Response, error) {
