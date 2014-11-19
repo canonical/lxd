@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"code.google.com/p/go.crypto/ssh/terminal"
 	"fmt"
 	"os"
 	"github.com/lxc/lxd"
-	"os"
 )
 
 type remoteCmd struct {
@@ -49,12 +47,10 @@ func addServer(config *lxd.Config, server string) error {
 	if err != nil {
 		/* We got an error, maybe this isn't a terminal, let's try to
 		 * read it as a file */
-		buf := bufio.NewReader(os.Stdin)
-		line, _, err := buf.ReadLine()
+		pwd, err = lxd.ReadStdin()
 		if err != nil {
 			return err
 		}
-		pwd = line
 	}
 	fmt.Printf("\n")
 

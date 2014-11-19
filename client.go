@@ -1,7 +1,6 @@
 package lxd
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/sha1"
 	"crypto/tls"
@@ -400,8 +399,7 @@ func (c *Client) UserAuthServerCert() error {
 
 	fmt.Printf("Certificate fingerprint: % x\n", c.scert_digest)
 	fmt.Printf("ok (y/n)?")
-	buf := bufio.NewReader(os.Stdin)
-	line, _, err := buf.ReadLine()
+	line, err := ReadStdin()
 	if err != nil {
 		return err
 	}
