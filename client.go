@@ -1,8 +1,11 @@
 package lxd
 
 import (
+	"bufio"
 	"bytes"
+	"crypto/sha1"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -18,11 +21,18 @@ import (
 type Client struct {
 	config  Config
 	Remote  *RemoteConfig
+	name    string
 	http    http.Client
 	baseURL string
 	certf   string
 	keyf    string
 	cert    tls.Certificate
+
+	scert			*x509.Certificate // the cert stored on disk
+
+	scert_wire		*x509.Certificate // the cert from the tls connection
+	scert_digest		[sha1.Size]byte	// fingerprint of server cert from connection
+	scert_digest_set	bool		// whether we've stored the fingerprint
 }
 
 type ResponseType string
@@ -151,6 +161,33 @@ func readMyCert() (string, string, error) {
 	return certf, keyf, err
 }
 
+/*
+ * load the server cert from disk
+ */
+func (c *Client) loadServerCert() {
+	homedir := os.Getenv("HOME")
+	if homedir == "" {
+		return
+	}
+	dnam := fmt.Sprintf("%s/.config/lxd/servercerts", homedir)
+	err := os.MkdirAll(dnam, 0750)
+	if err != nil {
+		return
+	}
+	fnam := fmt.Sprintf("%s/%s.cert", dnam, c.name)
+	cf, err := ioutil.ReadFile(fnam)
+	if err != nil {
+		return
+	}
+
+	cert, err := x509.ParseCertificate(cf)
+	if err != nil {
+		fmt.Printf("Error reading the server certificate for %s\n", c.name)
+		return
+	}
+	c.scert = cert
+}
+
 // NewClient returns a new lxd client.
 func NewClient(config *Config, raw string) (*Client, string, error) {
 	certf, keyf, err := readMyCert()
@@ -196,21 +233,27 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 		remote = result[0]
 		container = result[1]
 	}
+	c.name = remote
 
 	// TODO: Here, we don't support configurable local remotes, we only
 	// support the default local lxd at /var/lib/lxd/unix.socket.
 	if remote == "" {
 		c.baseURL = "http://unix.socket"
 		c.http.Transport = &unixTransport
+	} else if remote[0:5] == "unix:" {
+		c.baseURL = "http://unix.socket"
+		c.http.Transport = &unixTransport
 	} else if r, ok := config.Remotes[remote]; ok {
 		c.baseURL = "https://" + r.Addr
 		c.Remote = &r
+		c.loadServerCert()
 	} else {
 		return nil, "", fmt.Errorf("unknown remote name: %q", config.DefaultRemote)
 	}
 	if err := c.Ping(); err != nil {
 		return nil, "", err
 	}
+
 	return &c, container, nil
 }
 
@@ -240,6 +283,18 @@ func (c *Client) get(base string) (*Response, error) {
 	resp, err := c.http.Get(uri)
 	if err != nil {
 		return nil, err
+	}
+
+	if c.scert != nil && resp.TLS != nil {
+		if ! bytes.Equal(resp.TLS.PeerCertificates[0].Raw, c.scert.Raw) {
+			return nil, fmt.Errorf("Server certificate has changed")
+		}
+	}
+
+	if c.scert_digest_set == false && resp.TLS != nil {
+		c.scert_wire = resp.TLS.PeerCertificates[0]
+		c.scert_digest = sha1.Sum(resp.TLS.PeerCertificates[0].Raw)
+		c.scert_digest_set = true
 	}
 
 	return ParseResponse(resp)
@@ -280,12 +335,18 @@ func (c *Client) url(elem ...string) string {
 
 var unixTransport = http.Transport{
 	Dial: func(network, addr string) (net.Conn, error) {
-		if addr != "unix.socket:80" {
-			return nil, fmt.Errorf("non-unix-socket addresses not supported yet")
-		}
-		raddr, err := net.ResolveUnixAddr("unix", VarPath("unix.socket"))
-		if err != nil {
-			return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
+		var raddr *net.UnixAddr
+		var err error
+		if addr == "unix.socket:80" {
+			raddr, err = net.ResolveUnixAddr("unix", VarPath("unix.socket"))
+			if err != nil {
+				return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
+			}
+		} else {
+			raddr, err = net.ResolveUnixAddr("unix", addr)
+			if err != nil {
+				return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
+			}
 		}
 		return net.DialUnix("unix", nil, raddr)
 	},
@@ -330,6 +391,42 @@ func (c *Client) List() (string, error) {
 		return "fail", err
 	}
 	return data, err
+}
+
+func (c *Client) UserAuthServerCert() error {
+	if ! c.scert_digest_set {
+		return fmt.Errorf("No certificate on this connection")
+	}
+
+	fmt.Printf("Certificate fingerprint: % x\n", c.scert_digest)
+	fmt.Printf("ok (y/n)?")
+	buf := bufio.NewReader(os.Stdin)
+	line, _, err := buf.ReadLine()
+	if err != nil {
+		return err
+	}
+	if line[0] != 'y' && line[0] != 'Y' {
+		return fmt.Errorf("Server certificate NACKed by user")
+	}
+
+	// User acked the cert, now add it to our store
+	homedir := os.Getenv("HOME")
+	if homedir == "" {
+		return fmt.Errorf("Could not find homedir")
+	}
+	dnam := fmt.Sprintf("%s/.config/lxd/servercerts", homedir)
+	err = os.MkdirAll(dnam, 0750)
+	if err != nil {
+		return fmt.Errorf("Could not create server cert dir")
+	}
+	certf := fmt.Sprintf("%s/%s.cert", dnam, c.name)
+	certOut, err := os.Create(certf)
+	if err != nil {
+		return err
+	}
+	_, err = certOut.Write(c.scert_wire.Raw)
+	certOut.Close()
+	return err
 }
 
 func (c *Client) AddCertToServer(pwd string) (string, error) {
