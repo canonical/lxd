@@ -29,29 +29,14 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 	switch args[0] {
 
 	case "set":
-		if len(args) != 4 && len(args) != 3 {
-			return errArgs
-		}
-
 		action := args[1]
-		if len(args) == 4 {
-			action = args[2]
-		}
 		if action == "password" {
-			server := ""
-			password := args[2]
-			if len(args) == 4 {
-				servername := fmt.Sprintf("%s:", args[1])
-				r, ok := config.Remotes[servername]
-				if !ok {
-					return fmt.Errorf("remote .%s. doesn't exist", servername)
-				}
-				server = r.Addr
-				fmt.Printf("using servername .%s.", servername)
-				password = args[3]
+			if len(args) != 3 {
+				return errArgs
 			}
 
-			c, _, err := lxd.NewClient(config, server)
+			password := args[2]
+			c, _, err := lxd.NewClient(config, "")
 			if err != nil {
 				return err
 			}
