@@ -33,7 +33,7 @@ allocations for the "lxd" user and on first start, set the default
 profile to use the first 65536 uids and gids from that range.
 
 If the range is shorter than 65536 (which includes no range at all),
-then lxd will fail to create any container until this is corrected.
+then lxd will fail to create or start any container until this is corrected.
 
 If some but not all of /etc/subuid, /etc/subgid, newuidmap (path lookup)
 and newgidmap (path lookup) can't be found on the system, lxd will fail

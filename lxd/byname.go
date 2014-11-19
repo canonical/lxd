@@ -15,6 +15,11 @@ func buildByNameServe(function string, f byname, d *Daemon) func(http.ResponseWr
 	return func(w http.ResponseWriter, r *http.Request) {
 		lxd.Debugf("responding to %s", function)
 
+		if d.id_map == nil {
+			BadRequest(w, fmt.Errorf("lxd's user has no subuids"))
+			return
+		}
+
 		if !d.isTrustedClient(r) {
 			lxd.Debugf("%s request from untrusted client", function)
 			return
