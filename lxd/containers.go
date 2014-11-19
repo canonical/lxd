@@ -113,12 +113,7 @@ func containersPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	/*
 	 * Actually create the container
 	 */
-	err = c.Create(opts)
-	if err != nil {
-		InternalError(w, err)
-	} else {
-		SyncResponse(true, nil, w)
-	}
+	AsyncResponse(func() error { return c.Create(opts) }, nil, w)
 }
 
 var containersCmd = Command{"containers", false, nil, nil, containersPost, nil}

@@ -47,7 +47,7 @@ func (c *createCmd) run(config *lxd.Config, args []string) error {
 	// TODO: implement the syntax for supporting other image types/remotes
 	l, err := d.Create(name)
 	if err == nil {
-		fmt.Println(l)
+		fmt.Println("create successful, operation id: %s", l)
 	}
 	return err
 }

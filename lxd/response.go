@@ -17,14 +17,23 @@ func SyncResponse(success bool, metadata lxd.Jmap, w http.ResponseWriter) {
 	err := json.NewEncoder(w).Encode(lxd.Jmap{"type": lxd.Sync, "result": result, "metadata": metadata})
 
 	if err != nil {
-		ErrorResponse(500, "Error encoding sync response", w)
+		InternalError(w, err)
+		return
 	}
 }
 
-func AsyncResponse(id string, w http.ResponseWriter) {
-	err := json.NewEncoder(w).Encode(lxd.Jmap{"type": lxd.Async, "operation": id})
+func AsyncResponse(run func() error, cancel func() error, w http.ResponseWriter) {
+	op := CreateOperation(nil, run, cancel)
+	err := StartOperation(op)
 	if err != nil {
-		ErrorResponse(500, "Error encoding async response", w)
+		InternalError(w, err)
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(lxd.Jmap{"type": lxd.Async, "operation": op})
+	if err != nil {
+		InternalError(w, err)
+		return
 	}
 }
 
@@ -33,6 +42,7 @@ func ErrorResponse(code int, msg string, w http.ResponseWriter) {
 	err := json.NewEncoder(&buf).Encode(lxd.Jmap{"type": lxd.Error, "error": msg, "error_code": code})
 
 	if err != nil {
+		/* Can't use InternalError here */
 		http.Error(w, "Error encoding error response!", 500)
 		return
 	}
