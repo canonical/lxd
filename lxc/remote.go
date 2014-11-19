@@ -72,7 +72,7 @@ func removeCertificate(remote string) {
 	if homedir == "" {
 		return
 	}
-	certf := fmt.Sprintf("%s/.config/lxd/servercerts/%s", homedir, remote)
+	certf := fmt.Sprintf("%s/.config/lxd/servercerts/%s.cert", homedir, remote)
 	lxd.Debugf("Trying to remove %s\n", certf)
 
 	os.Remove(certf)
