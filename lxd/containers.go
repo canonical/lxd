@@ -13,12 +13,6 @@ import (
 func containersPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	lxd.Debugf("responding to create")
 
-	if !d.isTrustedClient(r) {
-		lxd.Debugf("Create request from untrusted client")
-		Forbidden(w)
-		return
-	}
-
 	if d.id_map == nil {
 		BadRequest(w, fmt.Errorf("lxd's user has no subuids"))
 		return
@@ -127,4 +121,4 @@ func containersPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var containersCmd = Command{"containers", nil, nil, containersPost, nil}
+var containersCmd = Command{"containers", false, nil, nil, containersPost, nil}
