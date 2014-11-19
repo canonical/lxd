@@ -1,7 +1,9 @@
 package lxd
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -21,6 +23,119 @@ type Client struct {
 	certf   string
 	keyf    string
 	cert    tls.Certificate
+}
+
+type ResponseType string
+
+const (
+	Sync  = "sync"
+	Async = "async"
+	Error = "error"
+)
+
+type Response struct {
+	Type ResponseType
+
+	/* Valid only for Sync responses */
+	Result bool
+
+	/* Valid only for Async responses */
+	Operation string
+
+	/* Valid only for Error responses */
+	Code  int
+	Error string
+
+	/* Valid for Sync and Error responses */
+	Metadata Jmap
+}
+
+func ParseResponse(r *http.Response) (*Response, error) {
+	defer r.Body.Close()
+	ret := Response{}
+	raw := Jmap{}
+
+	/* We could potentially remove this later, but it is quite handy for
+	 * debugging what is actually going on in the client */
+	s, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	Debugf("raw response: %s", string(s))
+
+	if err := json.NewDecoder(bytes.NewReader(s)).Decode(&raw); err != nil {
+		return nil, err
+	}
+
+	Debugf("response: %s", raw)
+
+	if key, ok := raw["type"]; !ok {
+		return nil, fmt.Errorf("Response was missing `type`")
+	} else if key == Sync {
+		ret.Type = Sync
+
+		if result, err := raw.GetString("result"); err != nil {
+			return nil, err
+		} else if result == "success" {
+			ret.Result = true
+		} else if result == "failure" {
+			ret.Result = false
+		} else {
+			return nil, fmt.Errorf("Invalid result %s", result)
+		}
+
+		if raw["metadata"] == nil {
+			ret.Metadata = nil
+		} else {
+			ret.Metadata = raw["metadata"].(map[string]interface{})
+		}
+
+	} else if key == Async {
+		ret.Type = Async
+
+		if operation, err := raw.GetString("operation"); err != nil {
+			return nil, err
+		} else {
+			ret.Operation = operation
+		}
+
+	} else if key == Error {
+		ret.Type = Error
+
+		if code, err := raw.GetInt("error_code"); err != nil {
+			return nil, err
+		} else {
+			ret.Code = code
+			if ret.Code != r.StatusCode {
+				return nil, fmt.Errorf("response codes don't match! %d %d", ret.Code, r.StatusCode)
+			}
+		}
+
+		errorStr, err := raw.GetString("error")
+		if err != nil {
+			return nil, fmt.Errorf("response didn't have error")
+		}
+		ret.Error = errorStr
+
+		if raw["metadata"] != nil {
+			ret.Metadata = raw["metadata"].(map[string]interface{})
+		} else {
+			ret.Metadata = nil
+		}
+
+	} else {
+		return nil, fmt.Errorf("Bad response type")
+	}
+
+	return &ret, nil
+}
+
+func ParseError(r *Response) error {
+	if r.Type == Error {
+		return fmt.Errorf(r.Error)
+	}
+
+	return nil
 }
 
 func readMyCert() (string, string, error) {
@@ -99,32 +214,68 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 	return &c, container, nil
 }
 
+/* This will be deleted once everything is ported to the new Response framework */
 func (c *Client) getstr(base string, args map[string]string) (string, error) {
 	vs := url.Values{}
 	for k, v := range args {
 		vs.Set(k, v)
 	}
 
-	data, err := c.get(base + "?" + vs.Encode())
+	resp, err := c.getRawLegacy(base + "?" + vs.Encode())
 	if err != nil {
 		return "", err
 	}
-	return string(data), nil
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(body), nil
 }
 
-func (c *Client) get(elem ...string) ([]byte, error) {
+func (c *Client) get(base string) (*Response, error) {
+	uri := c.url(ApiVersion, base)
+
+	resp, err := c.http.Get(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	return ParseResponse(resp)
+}
+
+func (c *Client) post(base string, args Jmap) (*Response, error) {
+	uri := c.url(ApiVersion, base)
+
+	buf := bytes.Buffer{}
+	err := json.NewEncoder(&buf).Encode(args)
+	if err != nil {
+		return nil, err
+	}
+
+	Debugf("posting %s to %s", buf.String(), uri)
+
+	resp, err := c.http.Post(uri, "application/json", &buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return ParseResponse(resp)
+}
+
+func (c *Client) getRawLegacy(elem ...string) (*http.Response, error) {
 	url := c.url(elem...)
 	Debugf("url is %s", url)
 	resp, err := c.http.Get(url)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return resp, nil
 }
 
 func (c *Client) url(elem ...string) string {
-	return c.baseURL + path.Join(elem...)
+	return c.baseURL + "/" + path.Join(elem...)
 }
 
 var unixTransport = http.Transport{
@@ -143,14 +294,18 @@ var unixTransport = http.Transport{
 // Ping pings the daemon to see if it is up listening and working.
 func (c *Client) Ping() error {
 	Debugf("pinging the daemon")
-	data, err := c.getstr("/ping", nil)
+	resp, err := c.get("ping")
 	if err != nil {
 		return err
 	}
 
-	datav := strings.Split(string(data), " ")
-	if datav[0] != Version {
-		return fmt.Errorf("version mismatch: mine: %q, daemon: %q", Version, datav[0])
+	serverApiCompat, err := resp.Metadata.GetInt("api_compat")
+	if err != nil {
+		return err
+	}
+
+	if serverApiCompat != ApiCompat {
+		return fmt.Errorf("api version mismatch: mine: %q, daemon: %q", ApiCompat, serverApiCompat)
 	}
 	Debugf("pong received")
 	return nil
@@ -187,17 +342,25 @@ func (c *Client) AddCertToServer(pwd string) (string, error) {
 	return data, err
 }
 
-func (c *Client) Create(name string, distro string, release string, arch string) (string, error) {
-	data, err := c.getstr("/create", map[string]string{
-		"name":    name,
-		"distro":  distro,
-		"release": release,
-		"arch":    arch,
-	})
-	if err != nil {
-		return "fail", err
+func (c *Client) Create(name string) (string, error) {
+
+	source := Jmap{"type": "remote", "url": "https+lxc-images://images.linuxcontainers.org", "name": "lxc-images/ubuntu/trusty/amd64"}
+	body := Jmap{"source": source}
+
+	if name != "" {
+		body["name"] = name
 	}
-	return data, err
+
+	resp, err := c.post("containers", body)
+	if err != nil {
+		return "", err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return "", err
+	}
+
+	return resp.Operation, nil
 }
 
 func (c *Client) Shell(name string, cmd string, secret string) (string, error) {

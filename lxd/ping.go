@@ -6,18 +6,23 @@ import (
 	"github.com/lxc/lxd"
 )
 
-func (d *Daemon) servePing(w http.ResponseWriter, r *http.Request) {
+func pingGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	remoteAddr := r.RemoteAddr
 	if remoteAddr == "@" {
 		remoteAddr = "unix socket"
 	}
 	lxd.Debugf("responding to ping from %s", remoteAddr)
-	w.Write([]byte(lxd.Version))
-	// TODO - need to add 'guest' mode
-	// (my local copy of the specs don't yet have that)
+
+	resp := lxd.Jmap{"auth": "guest", "api_compat": lxd.ApiCompat}
+
 	if d.isTrustedClient(r) {
-		w.Write([]byte(" trusted"))
+		resp["auth"] = "trusted"
+		resp["version"] = lxd.Version
 	} else {
-		w.Write([]byte(" untrusted"))
+		resp["auth"] = "untrusted"
 	}
+
+	SyncResponse(true, resp, w)
 }
+
+var pingCmd = Command{"ping", pingGet, nil, nil, nil}
