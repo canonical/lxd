@@ -161,13 +161,15 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.id_map, err = NewIdmap()
 	if err != nil {
-		return nil, err
+		lxd.Logf("error reading idmap: %s", err.Error())
+		lxd.Logf("operations requiring idmap will not be available")
+	} else {
+		lxd.Debugf("idmap is %d %d %d %d\n",
+			d.id_map.Uidmin,
+			d.id_map.Uidrange,
+			d.id_map.Gidmin,
+			d.id_map.Gidrange)
 	}
-	lxd.Debugf("idmap is %d %d %d %d\n",
-		d.id_map.Uidmin,
-		d.id_map.Uidrange,
-		d.id_map.Gidmin,
-		d.id_map.Gidrange)
 
 	unixAddr, err := net.ResolveUnixAddr("unix", lxd.VarPath("unix.socket"))
 	if err != nil {
