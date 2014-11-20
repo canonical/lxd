@@ -8,18 +8,31 @@ import (
 	"github.com/lxc/lxd"
 )
 
-func SyncResponse(success bool, metadata lxd.Jmap, w http.ResponseWriter) {
+type resp struct {
+	Type     string      `json:"type"`
+	Result   string      `json:"result"`
+	Metadata interface{} `json:"metadata"`
+}
+
+func SyncResponse(success bool, metadata interface{}, w http.ResponseWriter) {
 	result := "success"
 	if !success {
 		result = "failure"
 	}
 
-	err := json.NewEncoder(w).Encode(lxd.Jmap{"type": lxd.Sync, "result": result, "metadata": metadata})
-
+	r := resp{Type: lxd.Sync, Result: result, Metadata: metadata}
+	enc, err := json.Marshal(&r)
 	if err != nil {
 		InternalError(w, err)
 		return
 	}
+	lxd.Debugf(string(enc))
+
+	w.Write(enc)
+}
+
+func EmptySyncResponse(w http.ResponseWriter) {
+	SyncResponse(true, make(map[string]interface{}), w)
 }
 
 func AsyncResponse(run func() error, cancel func() error, w http.ResponseWriter) {

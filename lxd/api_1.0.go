@@ -4,4 +4,6 @@ var api10 = []Command{
 	pingCmd,
 	containersCmd,
 	operationsCmd,
+	operationCmd,
+	operationWait,
 }

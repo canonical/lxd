@@ -43,97 +43,51 @@ const (
 )
 
 type Response struct {
-	Type ResponseType
+	Type ResponseType `json:"type"`
 
 	/* Valid only for Sync responses */
-	Result bool
+	Result Result `json:"result"`
 
 	/* Valid only for Async responses */
-	Operation string
+	Operation string `json:"operation"`
 
 	/* Valid only for Error responses */
-	Code  int
-	Error string
+	Code  int    `json:"error_code"`
+	Error string `json:"error"`
 
 	/* Valid for Sync and Error responses */
-	Metadata Jmap
+	Metadata json.RawMessage `json:"metadata"`
+}
+
+func (r *Response) MetadataAsMap() (*Jmap, error) {
+	ret := Jmap{}
+	if err := json.Unmarshal(r.Metadata, &ret); err != nil {
+		return nil, err
+	}
+	return &ret, nil
+}
+
+func (r *Response) MetadataAsOperation() (*Operation, error) {
+	op := Operation{}
+	if err := json.Unmarshal(r.Metadata, &op); err != nil {
+		return nil, err
+	}
+
+	return &op, nil
 }
 
 func ParseResponse(r *http.Response) (*Response, error) {
 	defer r.Body.Close()
 	ret := Response{}
-	raw := Jmap{}
 
-	/* We could potentially remove this later, but it is quite handy for
-	 * debugging what is actually going on in the client */
 	s, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
 	Debugf("raw response: %s", string(s))
 
-	if err := json.NewDecoder(bytes.NewReader(s)).Decode(&raw); err != nil {
+	if err := json.Unmarshal(s, &ret); err != nil {
 		return nil, err
-	}
-
-	Debugf("response: %s", raw)
-
-	if key, ok := raw["type"]; !ok {
-		return nil, fmt.Errorf("Response was missing `type`")
-	} else if key == Sync {
-		ret.Type = Sync
-
-		if result, err := raw.GetString("result"); err != nil {
-			return nil, err
-		} else if result == "success" {
-			ret.Result = true
-		} else if result == "failure" {
-			ret.Result = false
-		} else {
-			return nil, fmt.Errorf("Invalid result %s", result)
-		}
-
-		if raw["metadata"] == nil {
-			ret.Metadata = nil
-		} else {
-			ret.Metadata = raw["metadata"].(map[string]interface{})
-		}
-
-	} else if key == Async {
-		ret.Type = Async
-
-		if operation, err := raw.GetString("operation"); err != nil {
-			return nil, err
-		} else {
-			ret.Operation = operation
-		}
-
-	} else if key == Error {
-		ret.Type = Error
-
-		if code, err := raw.GetInt("error_code"); err != nil {
-			return nil, err
-		} else {
-			ret.Code = code
-			if ret.Code != r.StatusCode {
-				return nil, fmt.Errorf("response codes don't match! %d %d", ret.Code, r.StatusCode)
-			}
-		}
-
-		errorStr, err := raw.GetString("error")
-		if err != nil {
-			return nil, fmt.Errorf("response didn't have error")
-		}
-		ret.Error = errorStr
-
-		if raw["metadata"] != nil {
-			ret.Metadata = raw["metadata"].(map[string]interface{})
-		} else {
-			ret.Metadata = nil
-		}
-
-	} else {
-		return nil, fmt.Errorf("Bad response type")
 	}
 
 	return &ret, nil
@@ -359,7 +313,12 @@ func (c *Client) Ping() error {
 		return err
 	}
 
-	serverApiCompat, err := resp.Metadata.GetInt("api_compat")
+	jmap, err := resp.MetadataAsMap()
+	if err != nil {
+		return err
+	}
+
+	serverApiCompat, err := jmap.GetInt("api_compat")
 	if err != nil {
 		return err
 	}
@@ -437,7 +396,7 @@ func (c *Client) AddCertToServer(pwd string) (string, error) {
 	return data, err
 }
 
-func (c *Client) Create(name string) (string, error) {
+func (c *Client) Create(name string) (*Response, error) {
 
 	source := Jmap{"type": "remote", "url": "https+lxc-images://images.linuxcontainers.org", "name": "lxc-images/ubuntu/trusty/amd64"}
 	body := Jmap{"source": source}
@@ -448,18 +407,18 @@ func (c *Client) Create(name string) (string, error) {
 
 	resp, err := c.post("containers", body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if err := ParseError(resp); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if resp.Type != Async {
-		return "", fmt.Errorf("Non-async response from create!")
+		return nil, fmt.Errorf("Non-async response from create!")
 	}
 
-	return resp.Operation, nil
+	return resp, nil
 }
 
 func (c *Client) Shell(name string, cmd string, secret string) (string, error) {
@@ -504,4 +463,19 @@ func (c *Client) SetRemotePwd(password string) (string, error) {
 	return c.getstr("/trust", map[string]string{
 		"password": password,
 	})
+}
+
+/* Wait for an operation */
+func (c *Client) WaitFor(id string) (*Operation, error) {
+	waitURL := fmt.Sprintf("operations/%s/wait", id)
+	resp, err := c.post(waitURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	return resp.MetadataAsOperation()
 }
