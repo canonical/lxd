@@ -1,7 +1,7 @@
 test_remote() {
   rm -f testconf || true
 
-  echo 'foo' | lxc remote --config ./testconf add local 127.0.0.1:5555
+  (echo foo;  sleep 3;  echo y) |  lxc remote --config ./testconf add local 127.0.0.1:5555 --debug
   lxc remote --config ./testconf list | grep 'local'
 
   lxc remote --config ./testconf set-default local
