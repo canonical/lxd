@@ -3,8 +3,8 @@ package main
 import (
 	"code.google.com/p/go.crypto/ssh/terminal"
 	"fmt"
-	"os"
 	"github.com/lxc/lxd"
+	"os"
 )
 
 type remoteCmd struct {
