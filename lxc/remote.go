@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"code.google.com/p/go.crypto/ssh/terminal"
 	"fmt"
 	"github.com/lxc/lxd"
@@ -48,19 +47,35 @@ func addServer(config *lxd.Config, server string) error {
 	if err != nil {
 		/* We got an error, maybe this isn't a terminal, let's try to
 		 * read it as a file */
-		buf := bufio.NewReader(os.Stdin)
-		line, _, err := buf.ReadLine()
+		pwd, err = lxd.ReadStdin()
 		if err != nil {
 			return err
 		}
-		pwd = line
 	}
+	fmt.Printf("\n")
+
+	err = c.UserAuthServerCert()
+	if err != nil {
+		return err
+	}
+
 	_, err = c.AddCertToServer(string(pwd))
 	if err != nil {
 		return err
 	}
 	fmt.Println("Client certificate stored at server: ", server)
 	return nil
+}
+
+func removeCertificate(remote string) {
+	homedir := os.Getenv("HOME")
+	if homedir == "" {
+		return
+	}
+	certf := fmt.Sprintf("%s/.config/lxd/servercerts/%s.cert", homedir, remote)
+	lxd.Debugf("Trying to remove %s\n", certf)
+
+	os.Remove(certf)
 }
 
 func (c *remoteCmd) run(config *lxd.Config, args []string) error {
@@ -103,9 +118,10 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			config.DefaultRemote = ""
 		}
 
-		// TODO - remove stored server certificate
-
 		delete(config.Remotes, args[1])
+
+		removeCertificate(args[1])
+
 	case "list":
 		for name, rc := range config.Remotes {
 			fmt.Println(fmt.Sprintf("%s <%s>", name, rc.Addr))
