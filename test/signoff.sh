@@ -9,6 +9,6 @@ test_commits_signed_off() {
   git fetch --depth=1 lxc master
   for i in $(git cherry lxc/master | grep '^+' | cut -d' ' -f2); do
     git show "$i" | grep -q 'Signed-off-by' || \
-        ( echo "Commit without sign-off:" ; git show "$1" ; false )
+        ( echo "Commit without sign-off:" ; git show "$i" ; false )
   done
 }
