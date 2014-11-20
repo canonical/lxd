@@ -81,6 +81,8 @@ HTTP code must be one of of 400, 401, 403, 404 or 500.
        * /1.0/images/\<name\>
          * /1.0/images/\<name\>
      * /1.0/longpoll
+     * /1.0/networks
+       * /1.0/networks/\<name\>
      * /1.0/operations
        * /1.0/operations/\<id\>
          * /1.0/operations/\<id\>/wait
@@ -451,11 +453,36 @@ Input (rename an image):
 
 TODO: move to remote host
 
+## /1.0/networks
+### GET
+ * Authentication: trusted
+ * Operation: sync
+ * Description: list of networks
+ * Return: list of URLs for networks that are current defined on the host
+
+    [
+        "/1.0/networks/eth0",
+        "/1.0/networks/lxcbr0"
+    ]
+
+## /1.0/networks/\<name\>
+### GET
+ * Authentication: trusted
+ * Operation: sync
+ * Description: information about a network
+ * Return: dict representing a network
+
+    {
+        'name': "lxcbr0",
+        'type': "bridge",
+        'members': ["/1.0/containers/blah"]
+    }
+
 ## /1.0/operations
 ### GET
  * Authentication: trusted
  * Operation: sync
- * Description: List of operations
+ * Description: list of operations
  * Return: list of URLs for operations that are currently going on/queued
 
     [
