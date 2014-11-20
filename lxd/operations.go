@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 )
 
 var lock sync.Mutex
-var operations map[string]lxd.Operation = make(map[string]lxd.Operation)
+var operations map[string]*lxd.Operation = make(map[string]*lxd.Operation)
 
 func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error) string {
 	op := lxd.Operation{}
@@ -26,7 +27,7 @@ func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error) s
 	op.Cancel = cancel
 
 	lock.Lock()
-	operations[op.ResourceUrl] = op
+	operations[op.ResourceUrl] = &op
 	lock.Unlock()
 	return op.ResourceUrl
 }
@@ -39,10 +40,11 @@ func StartOperation(uri string) error {
 		return fmt.Errorf("operation %s doesn't exist", uri)
 	}
 
-	go func(op lxd.Operation) {
+	go func(op *lxd.Operation) {
 		err := op.Run()
 
 		lock.Lock()
+		op.SetStatus(lxd.Done)
 		op.SetResult(err)
 		lock.Unlock()
 	}(op)
@@ -80,3 +82,22 @@ func CancelOperation(uri string) error {
 
 	return err
 }
+
+func operationsGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	ops := lxd.Jmap{"pending": make([]string, 0, 0), "running": make([]string, 0, 0)}
+
+	lock.Lock()
+	for k, v := range operations {
+		switch v.Status {
+		case lxd.Pending:
+			ops["pending"] = append(ops["pending"].([]string), k)
+		case lxd.Running:
+			ops["running"] = append(ops["running"].([]string), k)
+		}
+	}
+	lock.Unlock()
+
+	SyncResponse(true, ops, w)
+}
+
+var operationsCmd = Command{"operations", false, operationsGet, nil, nil, nil}
