@@ -12,7 +12,7 @@ installed. Additionally, some of LXD's dependencies are grabbed from `go get`
 via mercurial, so you'll need to have `hg` in your path as well. You can get
 these on Ubuntu via:
 
-    sudo apt-get install lxc lxc-dev golang mercurial
+    sudo apt-get install lxc lxc-dev golang mercurial git pkg-config
 
 
 ## Building the tools
