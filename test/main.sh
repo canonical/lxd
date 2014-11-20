@@ -12,7 +12,7 @@ cleanup() {
     echo "Test result: $RESULT"
 }
 
-set -eu
+set -e
 
 trap cleanup EXIT HUP INT TERM
 
@@ -38,4 +38,4 @@ test_remote
 echo "TEST: commit sign-off"
 test_commits_signed_off
 
-RESULT=succes
+RESULT=success
