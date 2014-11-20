@@ -5,7 +5,7 @@ default:
 
 .PHONY: check
 check: default
-	test -z "$(shell go fmt ./...)"
+	test -z "$(shell go fmt ./...)" || { git diff; false; }
 	cd test && ./main.sh
 
 .PHONY: clean
