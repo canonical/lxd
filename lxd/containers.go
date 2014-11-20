@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"gopkg.in/lxc/go-lxc.v2"
-
+	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
+	"gopkg.in/lxc/go-lxc.v2"
 )
 
 func containersPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
@@ -117,3 +117,16 @@ func containersPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 }
 
 var containersCmd = Command{"containers", false, nil, nil, containersPost, nil}
+
+func containerGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	c, err := lxc.NewContainer(name, d.lxcpath)
+	if err != nil {
+		NotFound(w)
+		return
+	}
+
+	SyncResponse(true, lxd.CtoD(c), w)
+}
+
+var containerCmd = Command{"containers/{name}", false, containerGet, nil, nil, nil}
