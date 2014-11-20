@@ -5,15 +5,15 @@ test_remote() {
   lxc remote --config ./testconf list | grep 'local'
 
   lxc remote --config ./testconf set-default local
-  [ "$(lxc remote --config ./testconf get-default)" == "local" ]
+  [ "$(lxc remote --config ./testconf get-default)" = "local" ]
 
   lxc remote --config ./testconf rename local foo
   lxc remote --config ./testconf list | grep 'foo'
   lxc remote --config ./testconf list | grep -v 'local'
-  [ "$(lxc remote --config ./testconf get-default)" == "foo" ]
+  [ "$(lxc remote --config ./testconf get-default)" = "foo" ]
 
   lxc remote --config ./testconf rm foo
-  [ "$(lxc remote --config ./testconf get-default)" == "" ]
+  [ "$(lxc remote --config ./testconf get-default)" = "" ]
 
   rm -f testconf || true
 }
