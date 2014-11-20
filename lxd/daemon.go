@@ -170,6 +170,10 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		d.createCmd("1.0", c)
 	}
 
+	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		NotFound(w)
+	})
+
 	d.id_map, err = NewIdmap()
 	if err != nil {
 		lxd.Logf("error reading idmap: %s", err.Error())
