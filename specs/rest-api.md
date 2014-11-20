@@ -455,8 +455,12 @@ Additional information about the server can then be pulled from /1.0 once authen
 ### GET
  * Authentication: trusted
  * Operation: sync
- * Return: list of URLs for operations that are currently going on/queued
  * Description: List of operations
+ * Return: list of URLs for operations that are currently going on/queued
+    {
+        'pending': [ '/1.0/operations/<uuid1>', '/1.0/operations/<uuid2>' ]
+        'running': [ '/1.0/operations/<uuid3>', '/1.0/operations/<uuid4>' ]
+    }
 
 ## /1.0/operations/\<id\>
 ### GET
