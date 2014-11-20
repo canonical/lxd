@@ -76,14 +76,16 @@ HTTP code must be one of of 400, 401, 403, 404 or 500.
          * /1.0/containers/\<name\>/start
          * /1.0/containers/\<name\>/stop
          * /1.0/containers/\<name\>/unfreeze
+     * /1.0/finger
      * /1.0/images
        * /1.0/images/\<name\>
          * /1.0/images/\<name\>
      * /1.0/longpoll
+     * /1.0/networks
+       * /1.0/networks/\<name\>
      * /1.0/operations
        * /1.0/operations/\<id\>
          * /1.0/operations/\<id\>/wait
-     * /1.0/ping
      * /1.0/profiles
        * /1.0/profiles/\<name\>
      * /1.0/trust
@@ -374,6 +376,22 @@ Input (none at present):
 
 TODO: examples
 
+## /1.0/finger
+### GET
+ * Authentication: guest, untrusted or trusted
+ * Operation: sync
+ * Return: dict of basic API and auth information
+ * Description: returns what's needed for an initial handshake
+
+Return:
+
+    {
+        'auth': "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
+        'api_compat': 0,                        # Used to determine API functionality
+    }
+
+Additional information about the server can then be pulled from /1.0 once authenticated.
+
 ## /1.0/images
 ### GET
  * Authentication: guest or trusted
@@ -435,34 +453,44 @@ Input (rename an image):
 
 TODO: move to remote host
 
-## /1.0/ping
+## /1.0/networks
 ### GET
- * Authentication: guest, untrusted or trusted
+ * Authentication: trusted
  * Operation: sync
- * Return: dict of basic API and auth information
- * Description: returns what's needed for an initial handshake
+ * Description: list of networks
+ * Return: list of URLs for networks that are current defined on the host
 
-Return:
+    [
+        "/1.0/networks/eth0",
+        "/1.0/networks/lxcbr0"
+    ]
+
+## /1.0/networks/\<name\>
+### GET
+ * Authentication: trusted
+ * Operation: sync
+ * Description: information about a network
+ * Return: dict representing a network
 
     {
-        'auth': "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
-        'api_compat': 0,                        # Used to determine API functionality
+        'name': "lxcbr0",
+        'type': "bridge",
+        'members': ["/1.0/containers/blah"]
     }
-
-Additional information about the server can then be pulled from /1.0 once authenticated.
 
 ## /1.0/operations
 ### GET
  * Authentication: trusted
  * Operation: sync
- * Description: List of operations
+ * Description: list of operations
  * Return: list of URLs for operations that are currently going on/queued
-    {
-        'pending': [ '/1.0/operations/<uuid1>', '/1.0/operations/<uuid2>' ]
-        'running': [ '/1.0/operations/<uuid3>', '/1.0/operations/<uuid4>' ]
-    }
 
-## /1.0/operations/\<id\>
+    [
+        "/1.0/operations/c0fc0d0d-a997-462b-842b-f8bd0df82507",
+        "/1.0/operations/092a8755-fd90-4ce4-bf91-9f87d03fd5bc"
+    ]
+
+## /1.0/operations/\<uuid\>
 ### GET
  * Authentication: trusted
  * Operation: sync
@@ -494,7 +522,7 @@ Input (none at present):
     {
     }
 
-## /1.0/operations/\<id\>/wait
+## /1.0/operations/\<uuid\>/wait
 ### POST
  * Authentication: trusted
  * Operation: sync
