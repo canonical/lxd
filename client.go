@@ -239,7 +239,7 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 	if remote == "" {
 		c.baseURL = "http://unix.socket"
 		c.http.Transport = &unixTransport
-	} else if remote[0:5] == "unix:" {
+	} else if len(remote) > 6 && remote[0:5] == "unix:" {
 		c.baseURL = "http://unix.socket"
 		c.http.Transport = &unixTransport
 	} else if r, ok := config.Remotes[remote]; ok {
