@@ -76,6 +76,7 @@ HTTP code must be one of of 400, 401, 403, 404 or 500.
          * /1.0/containers/\<name\>/start
          * /1.0/containers/\<name\>/stop
          * /1.0/containers/\<name\>/unfreeze
+     * /1.0/finger
      * /1.0/images
        * /1.0/images/\<name\>
          * /1.0/images/\<name\>
@@ -83,7 +84,6 @@ HTTP code must be one of of 400, 401, 403, 404 or 500.
      * /1.0/operations
        * /1.0/operations/\<id\>
          * /1.0/operations/\<id\>/wait
-     * /1.0/ping
      * /1.0/profiles
        * /1.0/profiles/\<name\>
      * /1.0/trust
@@ -374,6 +374,22 @@ Input (none at present):
 
 TODO: examples
 
+## /1.0/finger
+### GET
+ * Authentication: guest, untrusted or trusted
+ * Operation: sync
+ * Return: dict of basic API and auth information
+ * Description: returns what's needed for an initial handshake
+
+Return:
+
+    {
+        'auth': "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
+        'api_compat': 0,                        # Used to determine API functionality
+    }
+
+Additional information about the server can then be pulled from /1.0 once authenticated.
+
 ## /1.0/images
 ### GET
  * Authentication: guest or trusted
@@ -434,22 +450,6 @@ Input (rename an image):
     }
 
 TODO: move to remote host
-
-## /1.0/ping
-### GET
- * Authentication: guest, untrusted or trusted
- * Operation: sync
- * Return: dict of basic API and auth information
- * Description: returns what's needed for an initial handshake
-
-Return:
-
-    {
-        'auth': "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
-        'api_compat': 0,                        # Used to determine API functionality
-    }
-
-Additional information about the server can then be pulled from /1.0 once authenticated.
 
 ## /1.0/operations
 ### GET
