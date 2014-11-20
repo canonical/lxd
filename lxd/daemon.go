@@ -29,11 +29,12 @@ type Daemon struct {
 }
 
 type Command struct {
-	name   string
-	GET    func(d *Daemon, w http.ResponseWriter, r *http.Request)
-	PUT    func(d *Daemon, w http.ResponseWriter, r *http.Request)
-	POST   func(d *Daemon, w http.ResponseWriter, r *http.Request)
-	DELETE func(d *Daemon, w http.ResponseWriter, r *http.Request)
+	name         string
+	untrustedGet bool
+	GET          func(d *Daemon, w http.ResponseWriter, r *http.Request)
+	PUT          func(d *Daemon, w http.ResponseWriter, r *http.Request)
+	POST         func(d *Daemon, w http.ResponseWriter, r *http.Request)
+	DELETE       func(d *Daemon, w http.ResponseWriter, r *http.Request)
 }
 
 func readMyCert() (string, string, error) {
@@ -90,7 +91,16 @@ func (d *Daemon) createCmd(version string, c Command) {
 	uri := fmt.Sprintf("/%s/%s", version, c.name)
 	d.mux.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 
-		lxd.Debugf("handling %s %s", r.Method, r.URL.RequestURI())
+		if d.isTrustedClient(r) {
+			lxd.Debugf("handling %s %s", r.Method, r.URL.RequestURI())
+		} else if r.Method == "GET" && c.untrustedGet {
+			lxd.Debugf("allowing untrusted GET to %s", r.URL.RequestURI())
+		} else {
+			lxd.Debugf("rejecting request from untrusted client")
+			Forbidden(w)
+			return
+		}
+
 		switch r.Method {
 		case "GET":
 			if c.GET == nil {

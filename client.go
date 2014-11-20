@@ -360,6 +360,10 @@ func (c *Client) Create(name string) (string, error) {
 		return "", err
 	}
 
+	if resp.Type != Async {
+		return "", fmt.Errorf("Non-async response from create!")
+	}
+
 	return resp.Operation, nil
 }
 

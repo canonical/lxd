@@ -25,4 +25,4 @@ func pingGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	SyncResponse(true, resp, w)
 }
 
-var pingCmd = Command{"ping", pingGet, nil, nil, nil}
+var pingCmd = Command{"ping", true, pingGet, nil, nil, nil}
