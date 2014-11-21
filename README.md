@@ -82,7 +82,7 @@ this by:
 
     lxc config set password foo
     lxc remote add local 127.0.0.1:443
-    wget --no-check-certificate https://127.0.0.1:443/1.0/finger --certificate=$HOME/.config/lxc/cert.pem --private-key=$HOME/.config/lxc/key.pem -O - -q
+    wget --no-check-certificate https://127.0.0.1:443/1.0/finger --certificate=$HOME/.config/lxc/client.crt --private-key=$HOME/.config/lxc/client.key -O - -q
 
 ## Support and discussions
 

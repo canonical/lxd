@@ -38,8 +38,8 @@ type Command struct {
 }
 
 func readMyCert() (string, string, error) {
-	certf := lxd.VarPath("cert.pem")
-	keyf := lxd.VarPath("key.pem")
+	certf := lxd.VarPath("server.crt")
+	keyf := lxd.VarPath("server.key")
 	lxd.Debugf("looking for existing certificates: %s %s", certf, keyf)
 
 	err := lxd.FindOrGenCert(certf, keyf)
