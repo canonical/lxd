@@ -247,7 +247,7 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 		c.Remote = &r
 		c.loadServerCert()
 	} else {
-		return nil, "", fmt.Errorf("unknown remote name: %q", config.DefaultRemote)
+		return nil, "", fmt.Errorf("unknown remote name: %q", remote)
 	}
 	if err := c.Ping(); err != nil {
 		return nil, "", err
