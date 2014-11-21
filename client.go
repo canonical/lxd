@@ -199,7 +199,7 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 	} else {
 		return nil, "", fmt.Errorf("unknown remote name: %q", remote)
 	}
-	if err := c.Ping(); err != nil {
+	if err := c.Finger(); err != nil {
 		return nil, "", err
 	}
 
@@ -301,10 +301,9 @@ var unixTransport = http.Transport{
 	},
 }
 
-// Ping pings the daemon to see if it is up listening and working.
-func (c *Client) Ping() error {
-	Debugf("pinging the daemon")
-	resp, err := c.get("ping")
+func (c *Client) Finger() error {
+	Debugf("fingering the daemon")
+	resp, err := c.get("finger")
 	if err != nil {
 		return err
 	}

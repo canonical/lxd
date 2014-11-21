@@ -26,7 +26,7 @@ lxd_pid=$!
 echo "Confirming lxd is responsive"
 alive=0
 while [ $alive -eq 0 ]; do
-  lxc ping && alive=1 || true
+  lxc finger && alive=1 || true
 done
 
 echo "Setting trust password"
