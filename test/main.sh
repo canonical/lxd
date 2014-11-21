@@ -20,7 +20,7 @@ trap cleanup EXIT HUP INT TERM
 . ./signoff.sh
 
 echo "Spawning lxd"
-lxd --tcp 127.0.0.1:5555 &
+lxd --tcp 127.0.0.1:8443 &
 lxd_pid=$!
 
 echo "Confirming lxd is responsive"
