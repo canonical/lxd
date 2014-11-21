@@ -12,8 +12,16 @@ installed. Additionally, some of LXD's dependencies are grabbed from `go get`
 via mercurial, so you'll need to have `hg` in your path as well. You can get
 these on Ubuntu via:
 
-    sudo apt-get install lxc lxc-dev golang mercurial git pkg-config
+    sudo apt-get install lxc lxc-dev mercurial git pkg-config
+        
+## Installing Go
 
+LXD requires Golang 1.3 or later to work, and that is unfortunately not yet
+packaged for Ubuntu. The official instructions for installing golang can be
+found on golang.org, but for Ubuntu, the following should work:
+
+    (Go to https://golang.org/dl/ and download the tarball relevant to you)
+    sudo tar -C /usr/local -xzf go$VERSION.$OS-$ARCH.tar.gz
 
 ## Building the tools
 
