@@ -37,6 +37,11 @@ func addServer(config *lxd.Config, server string) error {
 		return err
 	}
 
+	err = c.UserAuthServerCert()
+	if err != nil {
+		return err
+	}
+
 	if c.AmTrusted() {
 		// server already has our cert, so we're done
 		return nil
@@ -53,11 +58,6 @@ func addServer(config *lxd.Config, server string) error {
 		}
 	}
 	fmt.Printf("\n")
-
-	err = c.UserAuthServerCert()
-	if err != nil {
-		return err
-	}
 
 	_, err = c.AddCertToServer(string(pwd))
 	if err != nil {
