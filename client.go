@@ -466,9 +466,20 @@ func (c *Client) SetRemotePwd(password string) (string, error) {
 }
 
 /* Wait for an operation */
-func (c *Client) WaitFor(id string) (*Operation, error) {
-	waitURL := fmt.Sprintf("operations/%s/wait", id)
-	resp, err := c.post(waitURL, nil)
+func (c *Client) WaitFor(waitURL string) (*Operation, error) {
+	/* For convenience, waitURL is expected to be in the form of a
+	 * Response.Operation string, i.e. it already has
+	 * "/<version>/operations/" in it; we chop off the leading / and pass
+	 * it to url directly.
+	 */
+	uri := c.url(waitURL[1:], "wait")
+	Debugf(uri)
+	raw, err := c.http.Post(uri, "application/json", strings.NewReader("{}"))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := ParseResponse(raw)
 	if err != nil {
 		return nil, err
 	}
