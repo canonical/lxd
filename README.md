@@ -16,12 +16,14 @@ these on Ubuntu via:
         
 ## Installing Go
 
-LXD requires Golang 1.3 or later to work, and that is unfortunately not yet
-packaged for Ubuntu. The official instructions for installing golang can be
-found on golang.org, but for Ubuntu, the following should work:
+LXD requires Golang 1.3 or later to work.
 
-    (Go to https://golang.org/dl/ and download the tarball relevant to you)
-    sudo tar -C /usr/local -xzf go$VERSION.$OS-$ARCH.tar.gz
+If running Ubuntu, the easiest way to get it is to use the lxc PPA:
+
+    sudo apt-get install software-properties-common
+    sudo add-apt-repository ppa:ubuntu-lxc/lxd-daily
+    sudo apt-get update
+    sudo apt-get install golang
 
 ## Building the tools
 
