@@ -67,8 +67,8 @@ HTTP code must be one of of 400, 401, 403, 404 or 500.
    * /1.0
      * /1.0/containers
        * /1.0/containers/\<name\>
+         * /1.0/containers/\<name\>/exec
          * /1.0/containers/\<name\>/files
-         * /1.0/containers/\<name\>/shell
          * /1.0/containers/\<name\>/snapshots
          * /1.0/containers/\<name\>/snapshots/\<name\>
          * /1.0/containers/\<name\>/state
@@ -332,22 +332,17 @@ Input (none at present):
     {
     }
 
-## /1.0/containers/\<name\>/shell
+## /1.0/containers/\<name\>/exec
 ### POST
  * Authentication: trusted
  * Operation: sync
  * Return: background operation + websocket information or standard error
- * Description: run a remote command and (optionally) attach to the remote shell
+ * Description: run a remote command
 
-Input (spawn a shell):
-
-    {
-    }
-
-Input (run ps aux):
+Input (run bash):
 
     {
-        'command': ["ps", "aux"]
+        'command': ["/bin/bash"]
     }
 
 ## /1.0/finger
