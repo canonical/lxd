@@ -73,6 +73,7 @@ Command     | Description
 config      | Change container settings (quotas, notes, OS metadata, ...)
 create      | Create a container without starting it
 delete      | Delete a resource (container, snapshot, image, ...)
+exec        | Spawn a command within the container
 file        | Transfer files in and out of the container
 list        | Lists available resources (containers, snapshots, remotes, ...)
 move        | Move a container or image either to rename it or to migrate it
@@ -80,7 +81,6 @@ publish     | Publish a local snapshot or container as a bundled image
 remote      | Add a remote resource (host, image server or other equipment)
 restart     | Restart a container.
 restore     | Restore a snapshot of a container
-shell       | Spawn a shell within the container (or any other command)
 snapshot    | Make a snapshot (stateful or not) of a container
 start       | Create and/or start a container (option for ephemeral)
 status      | Show the status of a resource (host, container, snapshot, ...)
@@ -208,6 +208,25 @@ Command                         | Result
 lxc delete c1                   | Removes the c1 container, its configuration and any snapshot it may have.
 lxc delete c1/yesterday         | Removes the "yesterday" snapshot of "c1".
 lxc delete dakara:c2/yesterday  | Removes the "yesterday" snapshot for "c2" on remote host "dakara".
+
+* * *
+
+## exec
+
+**Arguments**
+
+    <container> command...
+
+**Description**
+
+Execute a command inside the remote container.
+
+**Examples**
+
+Command                                                 | Result
+:------                                                 | :-----
+lxc exec c1 /bin/bash                                   | Spawns /bin/bash in local container c1
+tar xcf - /opt/myapp \| lxc exec dakara:c2 tar xvf -    | Makes a tarball of /opt/myapp with the stream going out to stdout, then have that piped into lxc exec connecting to a receiving tar command in container running on remote host "dakara".
 
 * * *
 
@@ -417,28 +436,6 @@ Command                                         | Result
 :------                                         | :-----
 lxc restore c1 it-works                         | Restores the c1 container back to its "it-works" snapshot state.
 lxc restore dakara:c1 pre-upgrade --stateful    | Restores a pre-dist-upgrade snapshot of container "c1" running on "dakara". Allows for a very fast recovery time in case of problem.
-
-* * *
-
-## shell
-
-**Arguments**
-
-    <container> [command...]
-
-**Description**
-
-Without any argument, this command will simply spawn a shell
-inside the container. Alternatively if a command line is passed, then this one
-will be executed instead of the default shell. This command may grow extra
-arguments to allow controlling the default environment, uid/gid, ...
-
-**Examples**
-
-Command                                                 | Result
-:------                                                 | :-----
-lxc shell c1                                            | Spawns /bin/bash in local container c1
-tar xcf - /opt/myapp \| lxc shell dakara:c2 tar xvf -   | Makes a tarball of /opt/myapp with the stream going out to stdout, then have that piped into lxc shell connecting to a receiving tar command in container running on remote host "dakara".
 
 * * *
 
