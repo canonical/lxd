@@ -30,9 +30,9 @@ func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error) s
 	op.Chan = make(chan bool, 1)
 
 	lock.Lock()
-	operations[id] = &op
+	operations[op.ResourceURL] = &op
 	lock.Unlock()
-	return id
+	return op.ResourceURL
 }
 
 func StartOperation(id string) error {
@@ -79,7 +79,7 @@ func operationsGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 var operationsCmd = Command{"operations", false, operationsGet, nil, nil, nil}
 
 func operationGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	id := lxd.OperationsURL(mux.Vars(r)["id"])
 
 	lock.Lock()
 	op, ok := operations[id]
@@ -95,7 +95,7 @@ func operationGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 
 func operationDelete(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	lock.Lock()
-	id := mux.Vars(r)["id"]
+	id := lxd.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
 	if !ok {
 		lock.Unlock()
@@ -131,7 +131,7 @@ var operationCmd = Command{"operations/{id}", false, operationGet, nil, nil, ope
 
 func operationWaitPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	lock.Lock()
-	id := mux.Vars(r)["id"]
+	id := lxd.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
 	if !ok {
 		lock.Unlock()
