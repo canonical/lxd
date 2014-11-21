@@ -148,12 +148,8 @@ func ParseError(r *Response) error {
 }
 
 func readMyCert() (string, string, error) {
-	homedir := os.Getenv("HOME")
-	if homedir == "" {
-		return "", "", fmt.Errorf("Failed to find homedir")
-	}
-	certf := fmt.Sprintf("%s/.config/lxd/%s", homedir, "cert.pem")
-	keyf := fmt.Sprintf("%s/.config/lxd/%s", homedir, "key.pem")
+	certf := configPath("cert.pem")
+	keyf := configPath("key.pem")
 
 	err := FindOrGenCert(certf, keyf)
 
