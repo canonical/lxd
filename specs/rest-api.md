@@ -43,7 +43,7 @@ For an async operation, the following dict is returned:
 
     {
         'type': "async",
-        'operation': "/1.0/operations/<id>",            # URL to the background operation
+        'operation': "/1.0/containers/<id>",            # URL to the background operation
         'resource': "/1.0/containers/my-container"      # Affected resource
     }
 

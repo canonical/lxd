@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/tomb.v2"
@@ -24,7 +25,7 @@ type Daemon struct {
 	lxcpath     string
 	certf       string
 	keyf        string
-	mux         *http.ServeMux
+	mux         *mux.Router
 	clientCerts map[string]x509.Certificate
 }
 
@@ -154,7 +155,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	// TODO load known client certificates
 	readSavedClientCAList(d)
 
-	d.mux = http.NewServeMux()
+	d.mux = mux.NewRouter()
 
 	d.mux.HandleFunc("/trust", d.serveTrust)
 	d.mux.HandleFunc("/trust/add", d.serveTrustAdd)
@@ -168,6 +169,10 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	for _, c := range api10 {
 		d.createCmd("1.0", c)
 	}
+
+	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		NotFound(w)
+	})
 
 	d.id_map, err = NewIdmap()
 	if err != nil {
