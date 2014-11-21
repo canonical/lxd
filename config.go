@@ -36,9 +36,13 @@ type RemoteConfig struct {
 	Addr string `yaml:"addr"`
 }
 
+func configPath(file string) string {
+	return os.ExpandEnv(fmt.Sprintf("$HOME/.config/lxc/%s", file))
+}
+
 func renderConfigPath(path string) string {
 	if path == "" {
-		path = "$HOME/.lxd/config.yaml"
+		path = configPath("config.yml")
 	}
 
 	return os.ExpandEnv(path)
