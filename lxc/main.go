@@ -64,7 +64,7 @@ type command interface {
 var commands = map[string]command{
 	"version": &versionCmd{},
 	"help":    &helpCmd{},
-	"ping":    &pingCmd{},
+	"finger":  &fingerCmd{},
 	"config":  &configCmd{},
 	"create":  &createCmd{},
 	"list":    &listCmd{},

@@ -1,7 +1,7 @@
 package main
 
 var api10 = []Command{
-	pingCmd,
+	fingerCmd,
 	containersCmd,
 	containerCmd,
 	operationsCmd,
