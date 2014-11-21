@@ -45,9 +45,19 @@ func (c *createCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	// TODO: implement the syntax for supporting other image types/remotes
-	l, err := d.Create(name)
-	if err == nil {
-		fmt.Println("create successful, operation id", l)
+	resp, err := d.Create(name)
+	if err != nil {
+		return err
 	}
-	return err
+
+	op, err := d.WaitFor(resp.Operation)
+	if err != nil {
+		return err
+	}
+
+	if op.Result == lxd.Success {
+		return nil
+	} else {
+		return fmt.Errorf("Operation %s", op.Result)
+	}
 }

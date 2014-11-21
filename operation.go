@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -41,12 +42,16 @@ type Operation struct {
 	StatusCode  int             `json:"status_code"`
 	Result      Result          `json:"result"`
 	ResultCode  int             `json:"result_code"`
-	ResourceUrl string          `json:"resource_url"`
+	ResourceURL string          `json:"resource_url"`
 	Metadata    Jmap            `json:"metadata"`
 	MayCancel   bool            `json:"may_cancel"`
 
-	Run    func() error
-	Cancel func() error
+	Run    func() error `json:"-"`
+	Cancel func() error `json:"-"`
+
+	/* This channel receives exactly one value, when the event is done and
+	 * the status is updated */
+	Chan chan bool `json:"-"`
 }
 
 func (o *Operation) SetStatus(status OperationStatus) {
@@ -64,4 +69,8 @@ func (o *Operation) SetResult(err error) {
 		o.ResultCode = ResultCodes[Failure]
 	}
 	o.UpdatedAt = time.Now()
+}
+
+func OperationsURL(id string) string {
+	return fmt.Sprintf("/%s/operations/%s", ApiVersion, id)
 }

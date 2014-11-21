@@ -6,7 +6,7 @@ test_commits_signed_off() {
   fi
 
   git remote add lxc https://github.com/lxc/lxd
-  git fetch --depth=1 lxc master
+  git fetch lxc master
   for i in $(git cherry lxc/master | grep '^+' | cut -d' ' -f2); do
     git show "$i" | grep -q 'Signed-off-by' || \
         ( echo "Commit without sign-off:" ; git show "$i" ; false )
