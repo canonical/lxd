@@ -2,7 +2,7 @@ package lxd
 
 import (
 	"bytes"
-	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -30,7 +30,7 @@ type Client struct {
 	scert *x509.Certificate // the cert stored on disk
 
 	scert_wire       *x509.Certificate // the cert from the tls connection
-	scert_digest     [sha1.Size]byte   // fingerprint of server cert from connection
+	scert_digest     [sha256.Size]byte // fingerprint of server cert from connection
 	scert_digest_set bool              // whether we've stored the fingerprint
 }
 
@@ -242,7 +242,7 @@ func (c *Client) get(base string) (*Response, error) {
 
 	if c.scert_digest_set == false && resp.TLS != nil {
 		c.scert_wire = resp.TLS.PeerCertificates[0]
-		c.scert_digest = sha1.Sum(resp.TLS.PeerCertificates[0].Raw)
+		c.scert_digest = sha256.Sum256(resp.TLS.PeerCertificates[0].Raw)
 		c.scert_digest_set = true
 	}
 
