@@ -6,12 +6,12 @@ import (
 	"github.com/lxc/lxd"
 )
 
-func pingGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func fingerGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	remoteAddr := r.RemoteAddr
 	if remoteAddr == "@" {
 		remoteAddr = "unix socket"
 	}
-	lxd.Debugf("responding to ping from %s", remoteAddr)
+	lxd.Debugf("responding to finger from %s", remoteAddr)
 
 	resp := lxd.Jmap{"auth": "guest", "api_compat": lxd.ApiCompat}
 
@@ -25,4 +25,4 @@ func pingGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	SyncResponse(true, resp, w)
 }
 
-var pingCmd = Command{"ping", true, pingGet, nil, nil, nil}
+var fingerCmd = Command{"finger", true, fingerGet, nil, nil, nil}
