@@ -68,14 +68,10 @@ HTTP code must be one of of 400, 401, 403, 404 or 500.
      * /1.0/containers
        * /1.0/containers/\<name\>
          * /1.0/containers/\<name\>/files
-         * /1.0/containers/\<name\>/freeze
-         * /1.0/containers/\<name\>/restart
          * /1.0/containers/\<name\>/shell
          * /1.0/containers/\<name\>/snapshots
          * /1.0/containers/\<name\>/snapshots/\<name\>
-         * /1.0/containers/\<name\>/start
-         * /1.0/containers/\<name\>/stop
-         * /1.0/containers/\<name\>/unfreeze
+         * /1.0/containers/\<name\>/state
      * /1.0/finger
      * /1.0/images
        * /1.0/images/\<name\>
@@ -236,79 +232,48 @@ Input (none at present):
     {
     }
 
-## /1.0/containers/\<name\>/freeze
-### POST
+## /1.0/containers/\<name\>/state
+### GET
  * Authentication: trusted
- * Operation: async
- * Return: background operation or standard error
- * Description: freeze all processes in the container
-
-Input (none at present):
+ * Operation: sync
+ * Return: dict representing current state
+ * Description: current state
 
     {
+        'state': "running",
+        'state_code': 1
     }
 
-## /1.0/containers/\<name\>/restart
-### POST
+### PUT
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: restart the container (sends the restart signal)
+ * Description: change the container state
 
 Input:
 
     {
-        'timeout': 30,          # Timeout in seconds before failing container restart
-        'kill': False           # Whether to kill and respawn the container rather than waiting for a clean reboot
-    }
-
-
-## /1.0/containers/\<name\>/start
-### POST
- * Authentication: trusted
- * Operation: async
- * Return: background operation or standard error
- * Description: start the container
-
-Input (none at present):
-
-    {
-    }
-
-## /1.0/containers/\<name\>/stop
-### POST
- * Authentication: trusted
- * Operation: async
- * Return: background operation or standard error
- * Description: stop the container
-
-Input:
-
-    {
-        'timeout': 30,          # Timeout in seconds before failing container stop
-        'kill': False           # Whether to kill the container rather than doing a clean shutdown
-    }
-
-## /1.0/containers/\<name\>/unfreeze
-### POST
- * Authentication: trusted
- * Operation: async
- * Return: background operation or standard error
- * Description: unfreeze all the processes in the container
-
-Input (none at present):
-
-    {
+        'action': "stop",       # State change action (stop, start, restart, freeze or unfreeze)
+        'timeout': 30           # A timeout after which the state change is considered as failed
     }
 
 ## /1.0/containers/\<name\>/files
-### POST
+### GET (?path=/path/inside/the/container)
  * Authentication: trusted
  * Operation: sync
  * Return: background operation + websocket information or standard error
- * Description: upload or download files from the server
+ * Description: download a file from the container
 
-TODO: examples
+### PUT
+ * Authentication: trusted
+ * Operation: sync
+ * Return: background operation + websocket information or standard error
+ * Description: upload a file to the container
+
+    {
+        'path': "/path/inside/the/container"
+    }
+
 
 ## /1.0/containers/\<name\>/snapshots
 ### GET
@@ -374,7 +339,16 @@ Input (none at present):
  * Return: background operation + websocket information or standard error
  * Description: run a remote command and (optionally) attach to the remote shell
 
-TODO: examples
+Input (spawn a shell):
+
+    {
+    }
+
+Input (run ps aux):
+
+    {
+        'command': ["ps", "aux"]
+    }
 
 ## /1.0/finger
 ### GET
