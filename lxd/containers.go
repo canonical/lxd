@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
@@ -130,3 +131,70 @@ func containerGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 }
 
 var containerCmd = Command{"containers/{name}", false, containerGet, nil, nil, nil}
+
+func containerStateGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	c, err := lxc.NewContainer(name, d.lxcpath)
+	if err != nil {
+		NotFound(w)
+		return
+	}
+
+	SyncResponse(true, lxd.CtoD(c).Status, w)
+}
+
+func containerStatePut(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+
+	raw := lxd.Jmap{}
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		BadRequest(w, err)
+		return
+	}
+
+	action, err := raw.GetString("action")
+	if err != nil {
+		BadRequest(w, err)
+		return
+	}
+
+	timeout, err := raw.GetInt("timeout")
+	if err != nil {
+		timeout = -1
+	}
+
+	force, err := raw.GetBool("force")
+	if err != nil {
+		force = false
+	}
+
+	c, err := lxc.NewContainer(name, d.lxcpath)
+	if err != nil {
+		NotFound(w)
+		return
+	}
+
+	var do func() error
+	switch action {
+	case string(lxd.Start):
+		do = c.Start
+	case string(lxd.Stop):
+		if timeout == 0 || force {
+			do = c.Stop
+		} else {
+			do = func() error { return c.Shutdown(time.Duration(timeout)) }
+		}
+	case string(lxd.Restart):
+		do = c.Reboot
+	case string(lxd.Freeze):
+		do = c.Freeze
+	case string(lxd.Unfreeze):
+		do = c.Unfreeze
+	default:
+		BadRequest(w, fmt.Errorf("unknown action %s", action))
+	}
+
+	AsyncResponse(do, nil, w)
+}
+
+var containerStateCmd = Command{"containers/{name}/state", false, containerStateGet, containerStatePut, nil, nil}
