@@ -35,3 +35,13 @@ func (m Jmap) GetInt(key string) (int, error) {
 		return int(val), nil
 	}
 }
+
+func (m Jmap) GetBool(key string) (bool, error) {
+	if val, ok := m[key]; !ok {
+		return false, fmt.Errorf("Response was missing `%s`", key)
+	} else if val, ok := val.(bool); !ok {
+		return false, fmt.Errorf("`%s` was not an int", key)
+	} else {
+		return val, nil
+	}
+}

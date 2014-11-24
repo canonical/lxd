@@ -9,10 +9,10 @@ type OperationStatus string
 
 const (
 	Pending    OperationStatus = "pending"
-	Running                    = "running"
-	Done                       = "done"
-	Cancelling                 = "cancelling"
-	Cancelled                  = "cancelled"
+	Running    OperationStatus = "running"
+	Done       OperationStatus = "done"
+	Cancelling OperationStatus = "cancelling"
+	Cancelled  OperationStatus = "cancelled"
 )
 
 var StatusCodes = map[OperationStatus]int{
@@ -27,7 +27,7 @@ type Result string
 
 const (
 	Success Result = "success"
-	Failure        = "failure"
+	Failure Result = "failure"
 )
 
 var ResultCodes = map[Result]int{
@@ -58,6 +58,9 @@ func (o *Operation) SetStatus(status OperationStatus) {
 	o.Status = status
 	o.StatusCode = StatusCodes[status]
 	o.UpdatedAt = time.Now()
+	if status == Done || status == Cancelling || status == Cancelled {
+		o.MayCancel = false
+	}
 }
 
 func (o *Operation) SetResult(err error) {

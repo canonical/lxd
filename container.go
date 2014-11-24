@@ -28,3 +28,13 @@ func CtoD(c *lxc.Container) Container {
 	d.Status = NewStatus(c.State())
 	return d
 }
+
+type ContainerAction string
+
+const (
+	Stop     ContainerAction = "stop"
+	Start    ContainerAction = "start"
+	Restart  ContainerAction = "restart"
+	Freeze   ContainerAction = "freeze"
+	Unfreeze ContainerAction = "unfreeze"
+)

@@ -12,7 +12,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
-	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/tomb.v2"
 )
 
@@ -161,10 +160,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.mux.HandleFunc("/trust/add", d.serveTrustAdd)
 	d.mux.HandleFunc("/shell", d.serveShell)
 	d.mux.HandleFunc("/list", d.serveList)
-	d.mux.HandleFunc("/start", buildByNameServe("start", func(c *lxc.Container) error { return c.Start() }, d))
-	d.mux.HandleFunc("/stop", buildByNameServe("stop", func(c *lxc.Container) error { return c.Stop() }, d))
-	d.mux.HandleFunc("/delete", buildByNameServe("delete", func(c *lxc.Container) error { return c.Destroy() }, d))
-	d.mux.HandleFunc("/restart", buildByNameServe("restart", func(c *lxc.Container) error { return c.Reboot() }, d))
 
 	for _, c := range api10 {
 		d.createCmd("1.0", c)
