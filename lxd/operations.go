@@ -104,8 +104,13 @@ func operationDelete(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if op.Cancel == nil {
-		op.SetStatus(lxd.Done)
-		lock.Unlock()
+		BadRequest(w, fmt.Errorf("Can't cancel %s!", id))
+		return
+	}
+
+	if op.Status == lxd.Done || op.Status == lxd.Cancelling || op.Status == lxd.Cancelled {
+		/* the user has already requested a cancel */
+		EmptySyncResponse(w)
 		return
 	}
 

@@ -58,6 +58,9 @@ func (o *Operation) SetStatus(status OperationStatus) {
 	o.Status = status
 	o.StatusCode = StatusCodes[status]
 	o.UpdatedAt = time.Now()
+	if status == Done || status == Cancelling || status == Cancelled {
+		o.MayCancel = false
+	}
 }
 
 func (o *Operation) SetResult(err error) {
