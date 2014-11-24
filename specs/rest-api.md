@@ -254,7 +254,8 @@ Input:
 
     {
         'action': "stop",       # State change action (stop, start, restart, freeze or unfreeze)
-        'timeout': 30           # A timeout after which the state change is considered as failed
+        'timeout': 30,          # A timeout after which the state change is considered as failed
+        'force': True           # Force the state change (currently only valid for stop and restart where it means killing the container)
     }
 
 ## /1.0/containers/\<name\>/files
