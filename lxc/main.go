@@ -62,30 +62,19 @@ type command interface {
 }
 
 var commands = map[string]command{
-	"version": &versionCmd{},
-	"help":    &helpCmd{},
-	"finger":  &fingerCmd{},
-	"config":  &configCmd{},
-	"create":  &createCmd{},
-	"list":    &listCmd{},
-	"shell":   &shellCmd{},
-	"remote":  &remoteCmd{},
-	"start": &byNameCmd{
-		"start",
-		func(c *lxd.Client, name string) (string, error) { return c.Start(name) },
-	},
-	"stop": &byNameCmd{
-		"stop",
-		func(c *lxd.Client, name string) (string, error) { return c.Stop(name) },
-	},
-	"delete": &byNameCmd{
-		"delete",
-		func(c *lxd.Client, name string) (string, error) { return c.Delete(name) },
-	},
-	"restart": &byNameCmd{
-		"restart",
-		func(c *lxd.Client, name string) (string, error) { return c.Restart(name) },
-	},
+	"version":  &versionCmd{},
+	"help":     &helpCmd{},
+	"finger":   &fingerCmd{},
+	"config":   &configCmd{},
+	"create":   &createCmd{},
+	"list":     &listCmd{},
+	"shell":    &shellCmd{},
+	"remote":   &remoteCmd{},
+	"stop":     &actionCmd{lxd.Stop},
+	"start":    &actionCmd{lxd.Start},
+	"restart":  &actionCmd{lxd.Restart},
+	"freeze":   &actionCmd{lxd.Freeze},
+	"unfreeze": &actionCmd{lxd.Unfreeze},
 }
 
 var errArgs = fmt.Errorf("too many subcommand arguments")

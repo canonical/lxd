@@ -37,9 +37,9 @@ type Client struct {
 type ResponseType string
 
 const (
-	Sync  = "sync"
-	Async = "async"
-	Error = "error"
+	Sync  ResponseType = "sync"
+	Async ResponseType = "async"
+	Error ResponseType = "error"
 )
 
 type Response struct {
@@ -249,6 +249,31 @@ func (c *Client) get(base string) (*Response, error) {
 	return ParseResponse(resp)
 }
 
+func (c *Client) put(base string, args Jmap) (*Response, error) {
+	uri := c.url(ApiVersion, base)
+
+	buf := bytes.Buffer{}
+	err := json.NewEncoder(&buf).Encode(args)
+	if err != nil {
+		return nil, err
+	}
+
+	Debugf("putting %s to %s", buf.String(), uri)
+
+	req, err := http.NewRequest("PUT", uri, &buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return ParseResponse(resp)
+}
+
 func (c *Client) post(base string, args Jmap) (*Response, error) {
 	uri := c.url(ApiVersion, base)
 
@@ -428,30 +453,18 @@ func (c *Client) Shell(name string, cmd string, secret string) (string, error) {
 	return data, err
 }
 
-// Call a function in the lxd API by name (i.e. this has nothing to do with
-// the parameter passing schemed :)
-func (c *Client) CallByName(function string, name string) (string, error) {
-	data, err := c.getstr("/"+function, map[string]string{"name": name})
+func (c *Client) Action(name string, action ContainerAction, timeout int, force bool) (*Response, error) {
+	body := Jmap{"action": action, "timeout": timeout, "force": force}
+	resp, err := c.put(fmt.Sprintf("containers/%s/state", name), body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return data, err
-}
 
-func (c *Client) Delete(name string) (string, error) {
-	return c.CallByName("delete", name)
-}
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
 
-func (c *Client) Start(name string) (string, error) {
-	return c.CallByName("start", name)
-}
-
-func (c *Client) Stop(name string) (string, error) {
-	return c.CallByName("stop", name)
-}
-
-func (c *Client) Restart(name string) (string, error) {
-	return c.CallByName("restart", name)
+	return resp, nil
 }
 
 func (c *Client) SetRemotePwd(password string) (string, error) {
