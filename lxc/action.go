@@ -11,10 +11,10 @@ type actionCmd struct {
 
 func (c *actionCmd) usage() string {
 	return fmt.Sprintf(`
-Creates a container using the specified release and arch
+Changes a containers state to %s.
 
 lxd %s <name>
-`, c.action)
+`, c.action, c.action)
 }
 
 func (c *actionCmd) flags() {}
