@@ -20,7 +20,7 @@ func SyncResponse(success bool, metadata interface{}, w http.ResponseWriter) {
 		result = "failure"
 	}
 
-	r := resp{Type: lxd.Sync, Result: result, Metadata: metadata}
+	r := resp{Type: string(lxd.Sync), Result: result, Metadata: metadata}
 	enc, err := json.Marshal(&r)
 	if err != nil {
 		InternalError(w, err)

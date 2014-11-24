@@ -37,9 +37,9 @@ type Client struct {
 type ResponseType string
 
 const (
-	Sync  = "sync"
-	Async = "async"
-	Error = "error"
+	Sync  ResponseType = "sync"
+	Async ResponseType = "async"
+	Error ResponseType = "error"
 )
 
 type Response struct {
