@@ -8,4 +8,6 @@ var api10 = []Command{
 	operationsCmd,
 	operationCmd,
 	operationWait,
+	networksCmd,
+	networkCmd,
 }
