@@ -80,7 +80,9 @@ Contributions to this project should be sent as pull requests on github.
 Sometimes it is useful to view the raw response that LXD sends; you can do
 this by:
 
-    wget --no-check-certificate https://127.0.0.1:443/1.0/finger --certificate=/home/tycho/.config/lxd/cert.pem --private-key=/home/tycho/.config/lxd/key.pem -O - -q
+    lxc config set password foo
+    lxc remote add local 127.0.0.1:443
+    wget --no-check-certificate https://127.0.0.1:443/1.0/finger --certificate=$HOME/.config/lxc/cert.pem --private-key=$HOME/.config/lxc/key.pem -O - -q
 
 ## Support and discussions
 
