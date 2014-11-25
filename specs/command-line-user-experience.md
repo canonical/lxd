@@ -198,8 +198,8 @@ lxc create images:ubuntu c1 -p with-nesting    | Create a new local container ca
 
 **Description**
 Destroy a resource (e.g. container) and any attached data
-(configuration, snapshots, ...). This requires the resource in question be unused
-at the time.
+(configuration, snapshots, ...). This will destroy the resource (container)
+even if it is currently in use.
 
 **Examples**
 
