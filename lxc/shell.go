@@ -68,13 +68,13 @@ func (c *shellCmd) run(config *lxd.Config, args []string) error {
 	go func() {
 		_, err := io.Copy(conn, os.Stdin)
 		if err != nil {
-			fmt.Println("Stdin read error: %s", err.Error())
+			fmt.Printf("Stdin read error: %s\n", err.Error())
 			return
 		}
 	}()
 	_, err = io.Copy(os.Stdout, conn)
 	if err != nil {
-		fmt.Println("Connection read error: %s", err.Error())
+		fmt.Printf("Connection read error: %s\n", err.Error())
 		return err
 	}
 

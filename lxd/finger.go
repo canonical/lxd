@@ -13,7 +13,7 @@ func fingerGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	}
 	lxd.Debugf("responding to finger from %s", remoteAddr)
 
-	resp := lxd.Jmap{"auth": "guest", "api_compat": lxd.ApiCompat}
+	resp := lxd.Jmap{"auth": "guest", "api_compat": lxd.APICompat}
 
 	if d.isTrustedClient(r) {
 		resp["auth"] = "trusted"
