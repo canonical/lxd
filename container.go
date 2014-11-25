@@ -21,6 +21,10 @@ type Container struct {
 	Status   ContainerStatus `json:"status"`
 }
 
+func (c *Container) State() lxc.State {
+	return lxc.StateMap[c.Status.State]
+}
+
 func CtoD(c *lxc.Container) Container {
 	d := Container{}
 
