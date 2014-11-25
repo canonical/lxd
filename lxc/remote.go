@@ -97,7 +97,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		if config.Remotes == nil {
 			config.Remotes = make(map[string]lxd.RemoteConfig)
 		}
-		config.Remotes[args[1]] = lxd.RemoteConfig{args[2]}
+		config.Remotes[args[1]] = lxd.RemoteConfig{Addr: args[2]}
 
 		// todo - we'll need to check whether this is a lxd remote that handles /list/add
 		err := addServer(config, args[1])
@@ -158,7 +158,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		if !ok {
 			return fmt.Errorf("remote %s doesn't exist", args[1])
 		}
-		config.Remotes[args[1]] = lxd.RemoteConfig{args[2]}
+		config.Remotes[args[1]] = lxd.RemoteConfig{Addr: args[2]}
 	case "set-default":
 		if len(args) != 2 {
 			return errArgs
