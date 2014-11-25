@@ -152,8 +152,8 @@ lxc config profile show loop-mount                                              
 lxc config show c1                                                              | Show the configuration of the c1 container, starting by the list of profiles it’s based on, then the container specific settings and finally the resulting overall configuration.
 lxc config profile apply c1 loop-mount,nesting                                  | Set the profiles for container c1 to be loop-mount followed by nesting.
 lxc config profile apply c1 ""                                                  | Unset any assigned profile for container "c1".
-lxc config trust add new-client-cert.pem                                        | Add new-client-cert.pem to the default remote's trust store
-lxc config trust add dakara: new-client-cert.pem                                | Add new-client-cert.pem to the "dakara"'s trust store
+lxc config trust add new-client-cert.crt                                        | Add new-client-cert.pem to the default remote's trust store
+lxc config trust add dakara: new-client-cert.crt                                | Add new-client-cert.pem to the "dakara"'s trust store
 lxc config trust list                                                           | List all the trusted certificates on the local server
 lxc config trust dakara: list                                                   | List all the trusted certificates on "dakara"
 lxc config trust remove \<cert fingerprint\>                                    | Remove a certificate from the local trust store
