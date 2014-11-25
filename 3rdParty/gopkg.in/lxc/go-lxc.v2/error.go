@@ -52,7 +52,7 @@ var (
 	ErrSettingKMemoryLimitFailed     = NewError("setting kernel memory limit for the container failed")
 	ErrSettingMemoryLimitFailed      = NewError("setting memory limit for the container failed")
 	ErrSettingSoftMemoryLimitFailed  = NewError("setting soft memory limit for the container failed")
-	ErrSettingMemorySwapLimitFailed  = NewError("setting memroy+swap limit for the container failed")
+	ErrSettingMemorySwapLimitFailed  = NewError("setting memory+swap limit for the container failed")
 	ErrShutdownFailed                = NewError("shutting down the container failed")
 	ErrStartFailed                   = NewError("starting the container failed")
 	ErrStopFailed                    = NewError("stopping the container failed")

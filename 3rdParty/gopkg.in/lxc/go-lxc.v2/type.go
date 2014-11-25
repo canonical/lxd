@@ -109,7 +109,7 @@ const (
 	THAWED
 )
 
-var stateMap = map[string]State{
+var StateMap = map[string]State{
 	"STOPPED":  STOPPED,
 	"STARTING": STARTING,
 	"RUNNING":  RUNNING,

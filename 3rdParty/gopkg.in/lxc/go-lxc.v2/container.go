@@ -210,7 +210,7 @@ func (c *Container) State() State {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return stateMap[C.GoString(C.go_lxc_state(c.container))]
+	return StateMap[C.GoString(C.go_lxc_state(c.container))]
 }
 
 // InitPid returns the process ID of the container's init process

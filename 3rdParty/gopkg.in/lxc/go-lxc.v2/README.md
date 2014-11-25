@@ -4,7 +4,7 @@ This package implements [Go](http://golang.org) bindings for the [LXC](http://li
 
 ## Requirements
 
-This package requires [LXC 1.x](https://github.com/lxc/lxc/releases) and its development package to be installed. Works with [Go 1.x](https://code.google.com/p/go/downloads/list).
+This package requires [LXC 1.x](https://github.com/lxc/lxc/releases) and its development package to be installed. Works with [Go 1.x](http://golang.org/dl).
 
 ## Installing
 
