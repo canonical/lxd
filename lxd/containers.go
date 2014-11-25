@@ -130,7 +130,34 @@ func containerGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	SyncResponse(true, lxd.CtoD(c), w)
 }
 
-var containerCmd = Command{"containers/{name}", false, containerGet, nil, nil, nil}
+func containerDelete(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	c, err := lxc.NewContainer(name, d.lxcpath)
+	if err != nil {
+		NotFound(w)
+		return
+	}
+
+	do := func() error {
+		if c.State() == lxc.STARTING || c.State() == lxc.RUNNING {
+			err := c.Stop()
+			if err != nil {
+				return err
+			}
+		}
+
+		err := c.Destroy()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	AsyncResponse(do, nil, w)
+}
+
+var containerCmd = Command{"containers/{name}", false, containerGet, nil, nil, containerDelete}
 
 func containerStateGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]

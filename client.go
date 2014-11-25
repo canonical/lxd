@@ -293,6 +293,31 @@ func (c *Client) post(base string, args Jmap) (*Response, error) {
 	return ParseResponse(resp)
 }
 
+func (c *Client) delete_(base string, args Jmap) (*Response, error) {
+	uri := c.url(ApiVersion, base)
+
+	buf := bytes.Buffer{}
+	err := json.NewEncoder(&buf).Encode(args)
+	if err != nil {
+		return nil, err
+	}
+
+	Debugf("deleting %s to %s", buf.String(), uri)
+
+	req, err := http.NewRequest("DELETE", uri, &buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return ParseResponse(resp)
+}
+
 func (c *Client) getRawLegacy(elem ...string) (*http.Response, error) {
 	url := c.url(elem...)
 	Debugf("url is %s", url)
@@ -468,6 +493,23 @@ func (c *Client) Action(name string, action ContainerAction, timeout int, force 
 
 	if err := ParseError(resp); err != nil {
 		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (c *Client) Delete(name string) (*Response, error) {
+	resp, err := c.delete_(fmt.Sprintf("containers/%s", name), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Async {
+		return nil, fmt.Errorf("got non-async response from delete!")
 	}
 
 	return resp, nil

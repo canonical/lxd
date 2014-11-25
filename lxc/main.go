@@ -75,6 +75,7 @@ var commands = map[string]command{
 	"restart":  &actionCmd{lxd.Restart},
 	"freeze":   &actionCmd{lxd.Freeze},
 	"unfreeze": &actionCmd{lxd.Unfreeze},
+	"delete":   &deleteCmd{},
 }
 
 var errArgs = fmt.Errorf("too many subcommand arguments")
