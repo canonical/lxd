@@ -30,8 +30,8 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	fmt.Println("Usage: lxc [subcommand] [options]\n")
-	fmt.Println("Available commands:\n")
+	fmt.Println("Usage: lxc [subcommand] [options]")
+	fmt.Println("Available commands:")
 	var names []string
 	for name := range commands {
 		names = append(names, name)
