@@ -102,8 +102,8 @@ func ParseError(r *Response) error {
 }
 
 func readMyCert() (string, string, error) {
-	certf := configPath("cert.pem")
-	keyf := configPath("key.pem")
+	certf := configPath("client.crt")
+	keyf := configPath("client.key")
 
 	err := FindOrGenCert(certf, keyf)
 
@@ -118,12 +118,12 @@ func (c *Client) loadServerCert() {
 	if homedir == "" {
 		return
 	}
-	dnam := fmt.Sprintf("%s/.config/lxd/servercerts", homedir)
+	dnam := fmt.Sprintf("%s/.config/lxc/servercerts", homedir)
 	err := os.MkdirAll(dnam, 0750)
 	if err != nil {
 		return
 	}
-	fnam := fmt.Sprintf("%s/%s.cert", dnam, c.name)
+	fnam := fmt.Sprintf("%s/%s.crt", dnam, c.name)
 	cf, err := ioutil.ReadFile(fnam)
 	if err != nil {
 		return
@@ -397,12 +397,12 @@ func (c *Client) UserAuthServerCert() error {
 	if homedir == "" {
 		return fmt.Errorf("Could not find homedir")
 	}
-	dnam := fmt.Sprintf("%s/.config/lxd/servercerts", homedir)
+	dnam := fmt.Sprintf("%s/.config/lxc/servercerts", homedir)
 	err = os.MkdirAll(dnam, 0750)
 	if err != nil {
 		return fmt.Errorf("Could not create server cert dir")
 	}
-	certf := fmt.Sprintf("%s/%s.cert", dnam, c.name)
+	certf := fmt.Sprintf("%s/%s.crt", dnam, c.name)
 	certOut, err := os.Create(certf)
 	if err != nil {
 		return err
