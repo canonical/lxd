@@ -138,23 +138,7 @@ func containerDelete(d *Daemon, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	do := func() error {
-		if c.State() == lxc.STARTING || c.State() == lxc.RUNNING {
-			err := c.Stop()
-			if err != nil {
-				return err
-			}
-		}
-
-		err := c.Destroy()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	AsyncResponse(do, nil, w)
+	AsyncResponse(c.Destroy, nil, w)
 }
 
 var containerCmd = Command{"containers/{name}", false, containerGet, nil, nil, containerDelete}

@@ -515,6 +515,29 @@ func (c *Client) Delete(name string) (*Response, error) {
 	return resp, nil
 }
 
+func (c *Client) ContainerStatus(name string) (*Container, error) {
+	ct := Container{}
+
+	resp, err := c.get(fmt.Sprintf("containers/%s", name))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf("got non-sync response from containers get!")
+	}
+
+	if err := json.Unmarshal(resp.Metadata, &ct); err != nil {
+		return nil, err
+	}
+
+	return &ct, nil
+}
+
 func (c *Client) SetRemotePwd(password string) (string, error) {
 	return c.getstr("/trust", map[string]string{
 		"password": password,
