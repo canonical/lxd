@@ -15,5 +15,9 @@ test_remote() {
   lxc remote --config ./testconf rm foo
   [ "$(lxc remote --config ./testconf get-default)" = "" ]
 
+  # This is a test for #91, we expect this to hang asking for a password if we
+  # tried to re-add our cert.
+  echo y | lxc remote --config ./testconf add local 127.0.0.1:8443 --debug
+
   rm -f testconf || true
 }
