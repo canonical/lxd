@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"gopkg.in/lxc/go-lxc.v2"
+	"github.com/lxc/lxd/3rdParty/gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd"
 )

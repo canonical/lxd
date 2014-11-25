@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd"
-	"golang.org/x/crypto/scrypt"
+	"github.com/lxc/lxd/3rdParty/golang.org/x/crypto/scrypt"
 )
 
 const (

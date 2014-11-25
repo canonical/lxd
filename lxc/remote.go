@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd"
-	"golang.org/x/crypto/ssh/terminal"
+	"github.com/lxc/lxd/3rdParty/golang.org/x/crypto/ssh/terminal"
 )
 
 type remoteCmd struct {

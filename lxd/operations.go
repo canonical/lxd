@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"code.google.com/p/go-uuid/uuid"
-	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/3rdParty/code.google.com/p/go-uuid/uuid"
+	"github.com/lxc/lxd/3rdParty/github.com/gorilla/mux"
 )
 
 var lock sync.Mutex
