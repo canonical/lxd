@@ -7,13 +7,14 @@ package gnuflag_test
 import (
 	"bytes"
 	"fmt"
-	. "launchpad.net/gnuflag"
 	"os"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	. "launchpad.net/gnuflag"
 )
 
 var (

@@ -7,8 +7,8 @@ import (
 	"os"
 	"syscall"
 
-	"code.google.com/p/go.crypto/ssh/terminal"
 	"github.com/lxc/lxd"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type shellCmd struct{}
