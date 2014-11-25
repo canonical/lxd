@@ -1,10 +1,11 @@
 package main
 
 import (
-	"code.google.com/p/go.crypto/ssh/terminal"
 	"fmt"
-	"github.com/lxc/lxd"
 	"os"
+
+	"github.com/lxc/lxd"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type remoteCmd struct {

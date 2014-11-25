@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"os"
 
-	"code.google.com/p/go.crypto/scrypt"
 	"github.com/lxc/lxd"
+	"golang.org/x/crypto/scrypt"
 )
 
 const (
