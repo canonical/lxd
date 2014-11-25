@@ -16,8 +16,8 @@ var Version = "0.0.1"
  *
  * Version 1.0: ping
  */
-var ApiCompat = 1
-var ApiVersion = "1.0"
+var APICompat = 1
+var APIVersion = "1.0"
 
 // VarPath returns the provided path elements joined by a slash and
 // appended to the end of $LXD_DIR, which defaults to /var/lib/lxd.

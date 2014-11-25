@@ -58,7 +58,6 @@ func (c *createCmd) run(config *lxd.Config, args []string) error {
 
 	if op.Result == lxd.Success {
 		return nil
-	} else {
-		return fmt.Errorf("Operation %s", op.Result)
 	}
+	return fmt.Errorf("Operation %s", op.Result)
 }
