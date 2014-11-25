@@ -106,7 +106,7 @@ Return value:
 
     {
         'config': [{'key': "trust-password",            # Host configuration
-                    'value': "my-password"}],
+                    'value': True}],                    # In the case of passwords, their value is returned as True if set
         'environment': {'kernel_version': "3.16",       # Various information about the host (OS, kernel, ...)
                         'lxc_version': "1.0.6",
                         'driver': "lxc",
@@ -123,7 +123,7 @@ Input:
 
     {
         'config': [{'key': "trust-password",
-                    'value': "my-password"}]
+                    'value': "my-new-password"}]
     }
 
 ## /1.0/containers
