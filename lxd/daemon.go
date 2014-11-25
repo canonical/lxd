@@ -88,7 +88,13 @@ func (d *Daemon) isTrustedClient(r *http.Request) bool {
 }
 
 func (d *Daemon) createCmd(version string, c Command) {
-	uri := fmt.Sprintf("/%s/%s", version, c.name)
+	var uri string
+	if c.name == "" {
+		uri = fmt.Sprintf("/%s", version)
+	} else {
+		uri = fmt.Sprintf("/%s/%s", version, c.name)
+	}
+
 	d.mux.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 
 		if d.isTrustedClient(r) {
