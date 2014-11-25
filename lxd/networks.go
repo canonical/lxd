@@ -8,9 +8,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
-	"gopkg.in/lxc/go-lxc.v2"
+	"github.com/lxc/lxd/3rdParty/github.com/gorilla/mux"
+	"github.com/lxc/lxd/3rdParty/gopkg.in/lxc/go-lxc.v2"
 )
 
 const (

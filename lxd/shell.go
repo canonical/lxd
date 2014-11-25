@@ -6,8 +6,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/kr/pty"
-	"gopkg.in/lxc/go-lxc.v2"
+	"github.com/lxc/lxd/3rdParty/github.com/kr/pty"
+	"github.com/lxc/lxd/3rdParty/gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd"
 )

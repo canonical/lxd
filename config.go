@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/yaml.v2"
+	"github.com/lxc/lxd/3rdParty/gopkg.in/yaml.v2"
 )
 
 // Config holds settings to be used by a client or daemon.

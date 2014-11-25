@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
-	"gopkg.in/tomb.v2"
+	"github.com/lxc/lxd/3rdParty/github.com/gorilla/mux"
+	"github.com/lxc/lxd/3rdParty/gopkg.in/tomb.v2"
 )
 
 // A Daemon can respond to requests from a lxd client.
