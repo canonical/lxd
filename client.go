@@ -394,12 +394,26 @@ func (c *Client) AmTrusted() bool {
 	return auth == "trusted"
 }
 
-func (c *Client) List() (string, error) {
-	data, err := c.getstr("/list", nil)
+func (c *Client) ListContainers() ([]string, error) {
+	resp, err := c.get("list")
 	if err != nil {
-		return "fail", err
+		return nil, err
 	}
-	return data, err
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf("bad response type from list!")
+	}
+	result := make([]string, 0)
+
+	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (c *Client) UserAuthServerCert() error {
