@@ -29,9 +29,9 @@ type Client struct {
 
 	scert *x509.Certificate // the cert stored on disk
 
-	scert_wire       *x509.Certificate // the cert from the tls connection
-	scert_digest     [sha256.Size]byte // fingerprint of server cert from connection
-	scert_digest_set bool              // whether we've stored the fingerprint
+	scertWire      *x509.Certificate // the cert from the tls connection
+	scertDigest    [sha256.Size]byte // fingerprint of server cert from connection
+	scertDigestSet bool              // whether we've stored the fingerprint
 }
 
 type ResponseType string
@@ -227,7 +227,7 @@ func (c *Client) getstr(base string, args map[string]string) (string, error) {
 }
 
 func (c *Client) get(base string) (*Response, error) {
-	uri := c.url(ApiVersion, base)
+	uri := c.url(APIVersion, base)
 
 	resp, err := c.http.Get(uri)
 	if err != nil {
@@ -240,17 +240,17 @@ func (c *Client) get(base string) (*Response, error) {
 		}
 	}
 
-	if c.scert_digest_set == false && resp.TLS != nil {
-		c.scert_wire = resp.TLS.PeerCertificates[0]
-		c.scert_digest = sha256.Sum256(resp.TLS.PeerCertificates[0].Raw)
-		c.scert_digest_set = true
+	if c.scertDigestSet == false && resp.TLS != nil {
+		c.scertWire = resp.TLS.PeerCertificates[0]
+		c.scertDigest = sha256.Sum256(resp.TLS.PeerCertificates[0].Raw)
+		c.scertDigestSet = true
 	}
 
 	return ParseResponse(resp)
 }
 
 func (c *Client) put(base string, args Jmap) (*Response, error) {
-	uri := c.url(ApiVersion, base)
+	uri := c.url(APIVersion, base)
 
 	buf := bytes.Buffer{}
 	err := json.NewEncoder(&buf).Encode(args)
@@ -275,7 +275,7 @@ func (c *Client) put(base string, args Jmap) (*Response, error) {
 }
 
 func (c *Client) post(base string, args Jmap) (*Response, error) {
-	uri := c.url(ApiVersion, base)
+	uri := c.url(APIVersion, base)
 
 	buf := bytes.Buffer{}
 	err := json.NewEncoder(&buf).Encode(args)
@@ -338,13 +338,13 @@ func (c *Client) Finger() error {
 		return err
 	}
 
-	serverApiCompat, err := jmap.GetInt("api_compat")
+	serverAPICompat, err := jmap.GetInt("api_compat")
 	if err != nil {
 		return err
 	}
 
-	if serverApiCompat != ApiCompat {
-		return fmt.Errorf("api version mismatch: mine: %q, daemon: %q", ApiCompat, serverApiCompat)
+	if serverAPICompat != APICompat {
+		return fmt.Errorf("api version mismatch: mine: %q, daemon: %q", APICompat, serverAPICompat)
 	}
 	Debugf("pong received")
 	return nil
@@ -378,11 +378,11 @@ func (c *Client) List() (string, error) {
 }
 
 func (c *Client) UserAuthServerCert() error {
-	if !c.scert_digest_set {
+	if !c.scertDigestSet {
 		return fmt.Errorf("No certificate on this connection")
 	}
 
-	fmt.Printf("Certificate fingerprint: % x\n", c.scert_digest)
+	fmt.Printf("Certificate fingerprint: % x\n", c.scertDigest)
 	fmt.Printf("ok (y/n)?")
 	line, err := ReadStdin()
 	if err != nil {
@@ -407,7 +407,7 @@ func (c *Client) UserAuthServerCert() error {
 	if err != nil {
 		return err
 	}
-	_, err = certOut.Write(c.scert_wire.Raw)
+	_, err = certOut.Write(c.scertWire.Raw)
 	certOut.Close()
 	return err
 }

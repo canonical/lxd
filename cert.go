@@ -137,7 +137,7 @@ func GenCert(certf string, keyf string) error {
 
 	keyOut, err := os.OpenFile(keyf, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		log.Print("failed to open %s for writing:", keyf, err)
+		log.Printf("failed to open %s for writing: %s", keyf, err)
 		return err
 	}
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privk)})

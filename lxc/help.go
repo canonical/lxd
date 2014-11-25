@@ -33,7 +33,7 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 	fmt.Println("Usage: lxc [subcommand] [options]\n")
 	fmt.Println("Available commands:\n")
 	var names []string
-	for name, _ := range commands {
+	for name := range commands {
 		names = append(names, name)
 	}
 	sort.Strings(names)
