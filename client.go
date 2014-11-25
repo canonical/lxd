@@ -294,7 +294,7 @@ func (c *Client) post(base string, args Jmap) (*Response, error) {
 }
 
 func (c *Client) delete_(base string, args Jmap) (*Response, error) {
-	uri := c.url(ApiVersion, base)
+	uri := c.url(APIVersion, base)
 
 	buf := bytes.Buffer{}
 	err := json.NewEncoder(&buf).Encode(args)
