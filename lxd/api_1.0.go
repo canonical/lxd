@@ -19,6 +19,7 @@ var api10 = []Command{
 	networksCmd,
 	networkCmd,
 	api10Cmd,
+	listCmd,
 }
 
 /* Some interesting filesystems */

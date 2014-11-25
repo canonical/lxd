@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"gopkg.in/lxc/go-lxc.v2"
@@ -9,15 +8,17 @@ import (
 	"github.com/lxc/lxd"
 )
 
-func (d *Daemon) serveList(w http.ResponseWriter, r *http.Request) {
+func listGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	lxd.Debugf("responding to list")
-	if !d.isTrustedClient(r) {
-		lxd.Debugf("List request from untrusted client")
-		return
+
+	result := make([]string, 0)
+
+	containers := lxc.DefinedContainers(d.lxcpath)
+	for _, c := range containers {
+		result = append(result, c.Name())
 	}
 
-	c := lxc.DefinedContainers(d.lxcpath)
-	for i := range c {
-		fmt.Fprintf(w, "%d: %s (%s)\n", i, c[i].Name(), c[i].State())
-	}
+	SyncResponse(true, result, w)
 }
+
+var listCmd = Command{"list", false, listGet, nil, nil, nil}
