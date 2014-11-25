@@ -161,6 +161,10 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.mux.HandleFunc("/shell", d.serveShell)
 	d.mux.HandleFunc("/list", d.serveList)
 
+	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		SyncResponse(true, []string{"/1.0"}, w)
+	})
+
 	for _, c := range api10 {
 		d.createCmd("1.0", c)
 	}
