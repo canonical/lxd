@@ -11,6 +11,7 @@ before_install:
 
 install:
   - sudo apt-get install lxc lxc-dev
+  - go get code.google.com/p/go.tools/cmd/vet
   - mkdir -p $GOPATH/github.com/lxc
   - go get -v -d ./...
   - rsync -az ${TRAVIS_BUILD_DIR}/ $HOME/gopath/src/github.com/lxc/lxd/
