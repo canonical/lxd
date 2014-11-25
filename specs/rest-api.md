@@ -130,7 +130,7 @@ Input:
 ### GET
  * Authentication: trusted
  * Operation: sync
- * Return: list of URLs for images this server publishes
+ * Return: list of URLs for containers this server publishes
  * Description: List of containers
 
 ### POST
