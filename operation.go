@@ -75,5 +75,5 @@ func (o *Operation) SetResult(err error) {
 }
 
 func OperationsURL(id string) string {
-	return fmt.Sprintf("/%s/operations/%s", ApiVersion, id)
+	return fmt.Sprintf("/%s/operations/%s", APIVersion, id)
 }

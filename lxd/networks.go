@@ -26,7 +26,7 @@ func networksGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 
 	result := make([]string, 0)
 	for _, iface := range ifs {
-		result = append(result, fmt.Sprintf("/%s/networks/%s", lxd.ApiVersion, iface.Name))
+		result = append(result, fmt.Sprintf("/%s/networks/%s", lxd.APIVersion, iface.Name))
 	}
 
 	SyncResponse(true, result, w)
