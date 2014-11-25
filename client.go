@@ -351,16 +351,22 @@ func (c *Client) Finger() error {
 }
 
 func (c *Client) AmTrusted() bool {
-	data, err := c.getstr("/ping", nil)
+	resp, err := c.get("finger")
 	if err != nil {
 		return false
 	}
 
-	datav := strings.Split(string(data), " ")
-	if datav[1] == "trusted" {
-		return true
+	jmap, err := resp.MetadataAsMap()
+	if err != nil {
+		return false
 	}
-	return false
+
+	auth, err := jmap.GetString("auth")
+	if err != nil {
+		return false
+	}
+
+	return auth == "trusted"
 }
 
 func (c *Client) List() (string, error) {
