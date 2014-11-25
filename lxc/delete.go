@@ -38,15 +38,19 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	if ct.State() == lxc.STARTING || ct.State() == lxc.RUNNING {
+	if ct.State() != lxc.STOPPED {
 		resp, err := d.Action(name, lxd.Stop, -1, true)
 		if err != nil {
 			return err
 		}
 
-		_, err = d.WaitFor(resp.Operation)
+		op, err := d.WaitFor(resp.Operation)
 		if err != nil {
 			return err
+		}
+
+		if op.Result == lxd.Failure {
+			return fmt.Errorf("Stopping container failed!")
 		}
 	}
 
