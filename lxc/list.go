@@ -40,10 +40,13 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	l, err := d.List()
+	cts, err := d.ListContainers()
 	if err != nil {
 		return err
 	}
-	fmt.Println(l)
-	return err
+
+	for _, ct := range cts {
+		fmt.Println(ct)
+	}
+	return nil
 }

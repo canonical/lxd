@@ -165,7 +165,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.mux.HandleFunc("/trust", d.serveTrust)
 	d.mux.HandleFunc("/trust/add", d.serveTrustAdd)
 	d.mux.HandleFunc("/shell", d.serveShell)
-	d.mux.HandleFunc("/list", d.serveList)
 
 	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		SyncResponse(true, []string{"/1.0"}, w)
