@@ -44,6 +44,12 @@ func (d *Daemon) saveNewPwd(password string) {
 	lxd.Debugf("Saved new admin password")
 }
 
+func (d *Daemon) hasPwd() bool {
+	passfname := lxd.VarPath("adminpwd")
+	_, err := os.Open(passfname)
+	return err == nil
+}
+
 func (d *Daemon) verifyAdminPwd(password string) bool {
 	passfname := lxd.VarPath("adminpwd")
 	passOut, err := os.Open(passfname)

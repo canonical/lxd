@@ -88,7 +88,13 @@ func (d *Daemon) isTrustedClient(r *http.Request) bool {
 }
 
 func (d *Daemon) createCmd(version string, c Command) {
-	uri := fmt.Sprintf("/%s/%s", version, c.name)
+	var uri string
+	if c.name == "" {
+		uri = fmt.Sprintf("/%s", version)
+	} else {
+		uri = fmt.Sprintf("/%s/%s", version, c.name)
+	}
+
 	d.mux.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 
 		if d.isTrustedClient(r) {
@@ -160,6 +166,10 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.mux.HandleFunc("/trust/add", d.serveTrustAdd)
 	d.mux.HandleFunc("/shell", d.serveShell)
 	d.mux.HandleFunc("/list", d.serveList)
+
+	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		SyncResponse(true, []string{"/1.0"}, w)
+	})
 
 	for _, c := range api10 {
 		d.createCmd("1.0", c)
