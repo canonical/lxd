@@ -215,17 +215,16 @@ lxc delete dakara:c2/yesterday  | Removes the "yesterday" snapshot for "c2" on r
 
 **Arguments**
 
-    file push [-R] [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
-    file pull [-R] <source> [<source>...] <target>
+    file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
+    file pull <source> [<source>...] <target>
 
 **Description**
-Copies file to or from the container. Supports rewriting the uid/gid/mode and recursive transfer.
+Copies file to or from the container. Supports rewriting the uid/gid/mode.
 
 **Examples**
 
 Command                                                 | Result
 :------                                                 | :-----
-lxc file push -R test c1/root/                          | Recursively copy the directory called "test" into the "c1" container in /root/
 lxc file push --uid=0 --gid=0 test.sh dakara:c2/root/   | Push test.sh as /root/test.sh inside container "c2" on host "dakara", rewrite the uid/gid to 0/0.
 lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from container "c2" on "dakara" and write it as /tmp/hosts on the client.
 
