@@ -21,6 +21,7 @@ lxc remote list                    List all remotes.
 lxc remote rename <old> <new>      Rename remote <old> to <new>.
 lxc remote set-url <name> <url>    Update <name>'s url to <url>.
 lxc remote set-default <name>      Set the default remote.
+lxc remote get-default             Print the default remote.
 `
 
 func (c *remoteCmd) usage() string {
