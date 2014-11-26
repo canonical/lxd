@@ -283,26 +283,11 @@ func containerFileGet(w http.ResponseWriter, r *http.Request, path string) {
 
 func containerFilePut(w http.ResponseWriter, r *http.Request, p string) {
 
-	uid, err := strconv.Atoi(r.Header.Get("X-LXD-uid"))
+	uid, gid, mode, err := lxd.ParseLXDFileHeaders(r.Header)
 	if err != nil {
 		BadRequest(w, err)
 		return
 	}
-
-	gid, err := strconv.Atoi(r.Header.Get("X-LXD-gid"))
-	if err != nil {
-		BadRequest(w, err)
-		return
-	}
-
-	/* Allow people to send stuff with a leading 0 for octal or a regular
-	 * int that represents the perms when redered in octal. */
-	rawMode, err := strconv.ParseInt(r.Header.Get("X-LXD-mode"), 0, 0)
-	if err != nil {
-		BadRequest(w, err)
-		return
-	}
-	mode := os.FileMode(rawMode)
 
 	err = os.MkdirAll(path.Dir(p), mode)
 	if err != nil {
