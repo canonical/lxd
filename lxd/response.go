@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"os"
 
 	"github.com/lxc/lxd"
 )
@@ -82,4 +83,18 @@ func BadRequest(w http.ResponseWriter, err error) {
 
 func InternalError(w http.ResponseWriter, err error) {
 	ErrorResponse(500, err.Error(), w)
+}
+
+/*
+ * Write the right error message based on err.
+ */
+func SmartError(w http.ResponseWriter, err error) {
+	switch err {
+	case os.ErrNotExist:
+		NotFound(w)
+	case os.ErrPermission:
+		Forbidden(w)
+	default:
+		InternalError(w, err)
+	}
 }
