@@ -262,19 +262,31 @@ Input:
 ### GET (?path=/path/inside/the/container)
  * Authentication: trusted
  * Operation: sync
- * Return: background operation + websocket information or standard error
+ * Return: Raw file or standard error
  * Description: download a file from the container
+
+The following headers will be set (on top of standard size and mimetype headers):
+ * X-LXD-uid: 0
+ * X-LXD-gid: 0
+ * X-LXD-mode: 0700
+
+This is designed to be easily usable from the command line or even a web browser.
 
 ### PUT
  * Authentication: trusted
  * Operation: sync
- * Return: background operation + websocket information or standard error
+ * Return: standard return value  or standard error
  * Description: upload a file to the container
 
-    {
-        'path': "/path/inside/the/container"
-    }
+Input:
+ * Standard http file upload
 
+The following headers may be set by the client:
+ * X-LXD-uid: 0
+ * X-LXD-gid: 0
+ * X-LXD-mode: 0700
+
+This is designed to be easily usable from the command line or even a web browser.
 
 ## /1.0/containers/\<name\>/snapshots
 ### GET
