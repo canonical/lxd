@@ -20,11 +20,11 @@ func main() {
 
 var verbose = gnuflag.Bool("v", false, "Enables verbose mode.")
 var debug = gnuflag.Bool("debug", false, "Enables debug mode.")
-var listenAddr = gnuflag.String("tcp", "", "TCP address to listen on in addition to the unix socket")
+var listenAddr = gnuflag.String("tcp", "", "TCP address <addr:port> to listen on in addition to the unix socket (e.g., 127.0.0.1:443)")
 
 func run() error {
 	gnuflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: lxd [options]\n\nOptions:\n\n    --tcp <addr:port>\n        Bind to addr:port.\n")
+		fmt.Fprintf(os.Stderr, "Usage: lxd [options]\n\nOptions:\n\n")
 		gnuflag.PrintDefaults()
 	}
 
