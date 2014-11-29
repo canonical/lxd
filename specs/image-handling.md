@@ -24,10 +24,10 @@ the server also provides a copy of all the keys referenced in the index.
 The structure is:
  - /1.0/index.json
  - /1.0/index.json.asc
- - /keys/<GPG long ID>
- - /keys/<GPG long ID>.asc
- - /certs/<SHA-256 fingerprint>
- - /certs/<SHA-256 fingerprint>.asc
+ - /keys/\<GPG long ID\>
+ - /keys/\<GPG long ID\>.asc
+ - /certs/\<SHA-256 fingerprint\>
+ - /certs/\<SHA-256 fingerprint\>.asc
 
 The structure of the json will be as follow:
 
