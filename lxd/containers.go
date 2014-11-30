@@ -123,6 +123,11 @@ func containerGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	c, err := lxc.NewContainer(name, d.lxcpath)
 	if err != nil {
+		InternalError(w, err)
+		return
+	}
+
+	if !c.Defined() {
 		NotFound(w)
 		return
 	}
@@ -134,6 +139,11 @@ func containerDelete(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	c, err := lxc.NewContainer(name, d.lxcpath)
 	if err != nil {
+		InternalError(w, err)
+		return
+	}
+
+	if !c.Defined() {
 		NotFound(w)
 		return
 	}
@@ -147,6 +157,11 @@ func containerStateGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	c, err := lxc.NewContainer(name, d.lxcpath)
 	if err != nil {
+		InternalError(w, err)
+		return
+	}
+
+	if !c.Defined() {
 		NotFound(w)
 		return
 	}
@@ -181,6 +196,11 @@ func containerStatePut(d *Daemon, w http.ResponseWriter, r *http.Request) {
 
 	c, err := lxc.NewContainer(name, d.lxcpath)
 	if err != nil {
+		InternalError(w, err)
+		return
+	}
+
+	if !c.Defined() {
 		NotFound(w)
 		return
 	}
