@@ -12,7 +12,7 @@ test_remote() {
   lxc remote --config ./testconf list | grep -v 'local'
   [ "$(lxc remote --config ./testconf get-default)" = "foo" ]
 
-  lxc remote --config ./testconf rm foo
+  lxc remote --config ./testconf remove foo
   [ "$(lxc remote --config ./testconf get-default)" = "" ]
 
   # This is a test for #91, we expect this to hang asking for a password if we

@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -129,7 +130,9 @@ func (c *Client) loadServerCert() {
 		return
 	}
 
-	cert, err := x509.ParseCertificate(cf)
+	cert_block, _ := pem.Decode(cf)
+
+	cert, err := x509.ParseCertificate(cert_block.Bytes)
 	if err != nil {
 		fmt.Printf("Error reading the server certificate for %s\n", c.name)
 		return
@@ -446,7 +449,9 @@ func (c *Client) UserAuthServerCert() error {
 	if err != nil {
 		return err
 	}
-	_, err = certOut.Write(c.scertWire.Raw)
+
+	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: c.scertWire.Raw})
+
 	certOut.Close()
 	return err
 }
