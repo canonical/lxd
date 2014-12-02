@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -62,7 +63,9 @@ func readSavedClientCAList(d *Daemon) {
 			continue
 		}
 
-		cert, err := x509.ParseCertificate(cf)
+		cert_block, _ := pem.Decode(cf)
+
+		cert, err := x509.ParseCertificate(cert_block.Bytes)
 		if err != nil {
 			continue
 		}

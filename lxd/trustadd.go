@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
@@ -33,14 +34,16 @@ func (d *Daemon) serveTrustAdd(w http.ResponseWriter, r *http.Request) {
 		// TODO - do we need to sanity-check the server name to avoid arbitrary writes to fs?
 		dirname := lxd.VarPath("clientcerts")
 		err := os.MkdirAll(dirname, 0755)
-		filename := fmt.Sprintf("%s/%s", dirname, r.TLS.ServerName)
-		certout, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		filename := fmt.Sprintf("%s/%s.crt", dirname, r.TLS.ServerName)
+		certOut, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
 			lxd.Debugf("Error opening file for  client certificate: %q", err)
 			continue
 		}
-		_, err = certout.Write(r.TLS.PeerCertificates[i].Raw)
-		certout.Close()
+
+		pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: r.TLS.PeerCertificates[i].Raw})
+
+		certOut.Close()
 		if err != nil {
 			lxd.Debugf("Error writing client certificate: %q", err)
 		}
