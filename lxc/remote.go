@@ -16,7 +16,7 @@ const remoteUsage = `
 Manage remote lxc servers.
 
 lxc remote add <name> <url>        Add the remote <name> at <url>.
-lxc remote rm <name>               Remove the remote <name>.
+lxc remote remove <name>           Remove the remote <name>.
 lxc remote list                    List all remotes.
 lxc remote rename <old> <new>      Rename remote <old> to <new>.
 lxc remote set-url <name> <url>    Update <name>'s url to <url>.
@@ -107,7 +107,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-	case "rm":
+	case "remove":
 		if len(args) != 2 {
 			return errArgs
 		}
@@ -131,6 +131,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		/* Here, we don't need to save since we didn't actually modify
 		 * anything, so just return. */
 		return nil
+
 	case "rename":
 		if len(args) != 3 {
 			return errArgs
@@ -151,6 +152,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		if config.DefaultRemote == args[1] {
 			config.DefaultRemote = args[2]
 		}
+
 	case "set-url":
 		if len(args) != 3 {
 			return errArgs
@@ -160,6 +162,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf("remote %s doesn't exist", args[1])
 		}
 		config.Remotes[args[1]] = lxd.RemoteConfig{Addr: args[2]}
+
 	case "set-default":
 		if len(args) != 2 {
 			return errArgs
@@ -170,6 +173,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf("remote %s doesn't exist", args[1])
 		}
 		config.DefaultRemote = args[1]
+
 	case "get-default":
 		if len(args) != 1 {
 			return errArgs
