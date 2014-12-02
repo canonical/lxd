@@ -14,8 +14,8 @@ func listGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	result := make([]string, 0)
 
 	containers := lxc.DefinedContainers(d.lxcpath)
-	for _, c := range containers {
-		result = append(result, c.Name())
+	for i := range containers {
+		result = append(result, containers[i].Name())
 	}
 
 	SyncResponse(true, result, w)
