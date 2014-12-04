@@ -43,8 +43,11 @@ For an async operation, the following dict is returned:
 
     {
         'type': "async",
-        'operation': "/1.0/containers/<id>",            # URL to the background operation
-        'resource': "/1.0/containers/my-container"      # Affected resource
+        'operation': "/1.0/containers/<id>",                    # URL to the background operation
+        'resources': {
+            'containers': ["/1.0/containers/my-container"]      # List of affected resources
+        },
+        'metadata': {}                                          # Metadata relevant to the operation
     }
 
 HTTP code must be 200.
@@ -482,15 +485,15 @@ TODO: move to remote host
 Return:
 
     {
-        'created_at': 1415639996,               # Creation timestamp
-        'updated_at': 1415639996,               # Last update timestamp
-        'status': "running",                    # Status string ("pending", "running", "done", "cancelling", "cancelled")
-        'status_code': 2,                       # Status code
-        'result': "",                           # Result string ("success", "failure")
-        'result_code': 0,                       # Result code
-        'resource_url': '/1.0/containers/1',    # Affected resource
-        'metadata': {},                         # Extra information about the operation (action, target, ...)
-        'may_cancel': True                      # Whether it's possible to cancel the operation
+        'created_at': 1415639996,                   # Creation timestamp
+        'updated_at': 1415639996,                   # Last update timestamp
+        'status': "running",                        # Status string ("pending", "running", "succeeded", "failed", "cancelling", "cancelled")
+        'status_code': 1,                           # Status code
+        'resources': {
+            'containers': ['/1.0/containers/1']     # List of affected resources
+        },
+        'metadata': {},                             # Extra information about the operation (action, target, ...)
+        'may_cancel': True                          # Whether it's possible to cancel the operation
     }
 
 ### DELETE
@@ -519,7 +522,8 @@ Input (wait for any event):
 Input (wait for the operation to succeed):
 
     {
-        'result_code': 1
+        'status_code': 2,       # Wait for status to be "succeeded"
+        'timeout': 30           # Timeout after 30s if status wasn't reached
     }
 
 ## /1.0/profiles
