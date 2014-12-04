@@ -38,7 +38,7 @@ func FindOrGenCert(certf string, keyf string) error {
 	_, err2 := os.Stat(keyf)
 
 	/*
-	 * If both stat's succeded, then the cert and pubkey already
+	 * If both stat's succeeded, then the cert and pubkey already
 	 * exist.
 	 */
 	if err == nil && err2 == nil {

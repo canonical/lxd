@@ -117,7 +117,7 @@ To add a new system-image remote, do:
     lxc remote add local-si-erver https+system-image://system-image-server.local
 
 This will also ask you for the certificate and GPG key if needed but
-additionaly will also ask for a base channel.
+additionally will also ask for a base channel.
 
 Once added, the following will work:
 
