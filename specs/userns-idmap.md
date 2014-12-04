@@ -94,6 +94,6 @@ In the other cases, the source host uid and gid range will be compared
 to that of the destination host. If it happens to be identical, then the
 filesystem will be transferred as-is.
 
-Otherwise, the filesystem will be transfered and a uid/gid remap
+Otherwise, the filesystem will be transferred and a uid/gid remap
 operation will then happen to convert all the uids and gids to the right
 range.
