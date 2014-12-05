@@ -354,14 +354,14 @@ unix+lxd://Unix         | socket (or abstract if leading @) access to lxd
 https+lxd://            | Communication with lxd over the network (https)
 https+system-image://   | Communication with a system-image server
 https+lxc-images://     | Communication with a LXC image server
+https+registry://       | Communication with a LXD registry
 
 By default lxc would come with the following remotes:
 
 Name        | URI                                               | Description
 :---        | :--                                               | :----------
 local       | unix+lxd:///var/lib/lxd/sock                      | Communication to the local lxd (hidden if not present)
-images      | https+system-image://images.linuxcontainers.org   | Main server for official lxd images, provided with delta support
-lxc-images  | https+lxc-images://images.linuxcontainers.org     | The existing LXC image server providing basic system container images for most supported distributions and architectures.
+images      | https+registry://registry.linuxcontainers.org     | Registry of all trusted image servers (initially only images.linuxcontainers.org)
 
 The default remote is "local", this allows simple operations with local
 resources without having to specify local: in front of all of their names. This
