@@ -231,11 +231,16 @@ func containerFileHandler(d *Daemon, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*
-	 * TODO: We should ask LXC about whether or not this rootfs is a block
-	 * device, and if it is, whether or not it is actually mounted.
-	 */
-	rootfs := c.ConfigItem("lxc.rootfs")[0]
+	var rootfs string
+	if c.Running() {
+		rootfs = fmt.Sprintf("/proc/%d/root", c.InitPid())
+	} else {
+		/*
+		 * TODO: We should ask LXC about whether or not this rootfs is a block
+		 * device, and if it is, whether or not it is actually mounted.
+		 */
+		rootfs = c.ConfigItem("lxc.rootfs")[0]
+	}
 
 	/*
 	 * Make sure someone didn't pass in ../../../etc/shadow or something.
