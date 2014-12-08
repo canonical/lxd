@@ -589,6 +589,15 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 		return 0, 0, 0, nil, err
 	}
 
+	if r.StatusCode != 200 {
+		resp, err := ParseResponse(r)
+		if err != nil {
+			return 0, 0, 0, nil, err
+		}
+
+		return 0, 0, 0, nil, ParseError(resp)
+	}
+
 	uid, gid, mode, err := ParseLXDFileHeaders(r.Header)
 	if err != nil {
 		return 0, 0, 0, nil, err
