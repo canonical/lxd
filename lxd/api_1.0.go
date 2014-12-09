@@ -13,6 +13,7 @@ var api10 = []Command{
 	containersCmd,
 	containerCmd,
 	containerStateCmd,
+	containerFileCmd,
 	operationsCmd,
 	operationCmd,
 	operationWait,

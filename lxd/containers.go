@@ -3,7 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -229,3 +236,116 @@ func containerStatePut(d *Daemon, w http.ResponseWriter, r *http.Request) {
 }
 
 var containerStateCmd = Command{"containers/{name}/state", false, containerStateGet, containerStatePut, nil, nil}
+
+func containerFileHandler(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	c, err := lxc.NewContainer(name, d.lxcpath)
+	if err != nil {
+		NotFound(w)
+		return
+	}
+
+	targetPath := r.FormValue("path")
+	if targetPath == "" {
+		BadRequest(w, fmt.Errorf("missing path argument"))
+		return
+	}
+
+	var rootfs string
+	if c.Running() {
+		rootfs = fmt.Sprintf("/proc/%d/root", c.InitPid())
+	} else {
+		/*
+		 * TODO: We should ask LXC about whether or not this rootfs is a block
+		 * device, and if it is, whether or not it is actually mounted.
+		 */
+		rootfs = c.ConfigItem("lxc.rootfs")[0]
+	}
+
+	/*
+	 * Make sure someone didn't pass in ../../../etc/shadow or something.
+	 */
+	p := path.Clean(path.Join(rootfs, targetPath))
+	if !strings.HasPrefix(p, path.Clean(rootfs)) {
+		BadRequest(w, fmt.Errorf("%s is not in the container's rootfs", p))
+		return
+	}
+
+	switch r.Method {
+	case "GET":
+		containerFileGet(w, r, p)
+	case "PUT":
+		containerFilePut(w, r, p)
+	}
+}
+
+func containerFileGet(w http.ResponseWriter, r *http.Request, path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		SmartError(w, err)
+		return
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		InternalError(w, err)
+		return
+	}
+
+	/*
+	 * Unfortunately, there's no portable way to do this:
+	 * https://groups.google.com/forum/#!topic/golang-nuts/tGYjYyrwsGM
+	 * https://groups.google.com/forum/#!topic/golang-nuts/ywS7xQYJkHY
+	 */
+	sb := fi.Sys().(*syscall.Stat_t)
+	w.Header().Set("X-LXD-uid", strconv.FormatUint(uint64(sb.Uid), 10))
+	w.Header().Set("X-LXD-gid", strconv.FormatUint(uint64(sb.Gid), 10))
+	w.Header().Set("X-LXD-mode", fmt.Sprintf("%04o", fi.Mode()&os.ModePerm))
+
+	http.ServeContent(w, r, filepath.Base(path), fi.ModTime(), f)
+}
+
+func containerFilePut(w http.ResponseWriter, r *http.Request, p string) {
+
+	uid, gid, mode, err := lxd.ParseLXDFileHeaders(r.Header)
+	if err != nil {
+		BadRequest(w, err)
+		return
+	}
+
+	err = os.MkdirAll(path.Dir(p), mode)
+	if err != nil {
+		SmartError(w, err)
+		return
+	}
+
+	f, err := os.Create(p)
+	if err != nil {
+		SmartError(w, err)
+		return
+	}
+	defer f.Close()
+
+	err = f.Chmod(mode)
+	if err != nil {
+		InternalError(w, err)
+		return
+	}
+
+	err = f.Chown(uid, gid)
+	if err != nil {
+		InternalError(w, err)
+		return
+	}
+
+	_, err = io.Copy(f, r.Body)
+	if err != nil {
+		InternalError(w, err)
+		return
+	}
+
+	EmptySyncResponse(w)
+}
+
+var containerFileCmd = Command{"containers/{name}/files", false, containerFileHandler, containerFileHandler, nil, nil}

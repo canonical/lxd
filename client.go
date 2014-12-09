@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -555,6 +557,58 @@ func (c *Client) ContainerStatus(name string) (*Container, error) {
 	}
 
 	return &ct, nil
+}
+
+func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.FileMode, buf io.ReadSeeker) error {
+	query := url.Values{"path": []string{p}}
+	uri := c.url(APIVersion, "containers", container, "files") + "?" + query.Encode()
+
+	req, err := http.NewRequest("PUT", uri, buf)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode))
+	req.Header.Set("X-LXD-uid", strconv.FormatUint(uint64(uid), 10))
+	req.Header.Set("X-LXD-gid", strconv.FormatUint(uint64(gid), 10))
+
+	raw, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+
+	resp, err := ParseResponse(raw)
+	if err != nil {
+		return err
+	}
+
+	return ParseError(resp)
+}
+
+func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io.ReadCloser, error) {
+	uri := c.url(APIVersion, "containers", container, "files")
+	query := url.Values{"path": []string{p}}
+
+	r, err := c.http.Get(uri + "?" + query.Encode())
+	if err != nil {
+		return 0, 0, 0, nil, err
+	}
+
+	if r.StatusCode != 200 {
+		resp, err := ParseResponse(r)
+		if err != nil {
+			return 0, 0, 0, nil, err
+		}
+
+		return 0, 0, 0, nil, ParseError(resp)
+	}
+
+	uid, gid, mode, err := ParseLXDFileHeaders(r.Header)
+	if err != nil {
+		return 0, 0, 0, nil, err
+	}
+
+	return uid, gid, mode, r.Body, nil
 }
 
 func (c *Client) SetRemotePwd(password string) (string, error) {
