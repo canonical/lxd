@@ -17,18 +17,21 @@ import (
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/websocket"
 )
 
 // Client can talk to a lxd daemon.
 type Client struct {
-	config  Config
-	Remote  *RemoteConfig
-	name    string
-	http    http.Client
-	baseURL string
-	certf   string
-	keyf    string
-	cert    tls.Certificate
+	config          Config
+	Remote          *RemoteConfig
+	name            string
+	http            http.Client
+	baseURL         string
+	certf           string
+	keyf            string
+	cert            tls.Certificate
+	websocketDialer websocket.Dialer
 
 	scert *x509.Certificate // the cert stored on disk
 
@@ -175,6 +178,10 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 	c.certf = certf
 	c.keyf = keyf
 	c.cert = cert
+	c.websocketDialer = websocket.Dialer{
+		NetDial:         unixDial,
+		TLSClientConfig: tlsconfig,
+	}
 
 	result := strings.SplitN(raw, ":", 2)
 	var remote string
@@ -323,6 +330,33 @@ func (c *Client) delete_(base string, args Jmap) (*Response, error) {
 	return ParseResponse(resp)
 }
 
+func (c *Client) websocket(operation string, secret string) (*websocket.Conn, error) {
+	addr := "unix.socket"
+	if c.Remote != nil {
+		addr = c.Remote.Addr
+	}
+
+	// TODO: this should be synchronized with above in NewClient somehow
+	query := url.Values{"secret": []string{secret}}
+	url := "ws://" + path.Join(addr, operation, "websocket") + "?" + query.Encode()
+	conn, raw, err := c.websocketDialer.Dial(url, http.Header{})
+	if err != nil {
+		resp, err2 := ParseResponse(raw)
+		if err2 != nil {
+			/* The response isn't one we understand, so return
+			 * whatever the original error was. */
+			return nil, err
+		}
+
+		if err2 := ParseError(resp); err2 != nil {
+			return nil, err2
+		}
+
+		return nil, err
+	}
+	return conn, err
+}
+
 func (c *Client) getRawLegacy(elem ...string) (*http.Response, error) {
 	url := c.url(elem...)
 	Debugf("url is %s", url)
@@ -337,23 +371,25 @@ func (c *Client) url(elem ...string) string {
 	return c.baseURL + "/" + path.Join(elem...)
 }
 
-var unixTransport = http.Transport{
-	Dial: func(network, addr string) (net.Conn, error) {
-		var raddr *net.UnixAddr
-		var err error
-		if addr == "unix.socket:80" {
-			raddr, err = net.ResolveUnixAddr("unix", VarPath("unix.socket"))
-			if err != nil {
-				return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
-			}
-		} else {
-			raddr, err = net.ResolveUnixAddr("unix", addr)
-			if err != nil {
-				return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
-			}
+func unixDial(networ, addr string) (net.Conn, error) {
+	var raddr *net.UnixAddr
+	var err error
+	if addr == "unix.socket:80" {
+		raddr, err = net.ResolveUnixAddr("unix", VarPath("unix.socket"))
+		if err != nil {
+			return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
 		}
-		return net.DialUnix("unix", nil, raddr)
-	},
+	} else {
+		raddr, err = net.ResolveUnixAddr("unix", addr)
+		if err != nil {
+			return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
+		}
+	}
+	return net.DialUnix("unix", nil, raddr)
+}
+
+var unixTransport = http.Transport{
+	Dial: unixDial,
 }
 
 func (c *Client) Finger() error {
@@ -506,6 +542,39 @@ func (c *Client) Shell(name string, cmd string, secret string) (string, error) {
 		return "fail", err
 	}
 	return data, err
+}
+
+func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.WriteCloser, stderr io.WriteCloser) error {
+	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), Jmap{"command": cmd})
+	if err != nil {
+		return err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return err
+	}
+
+	if resp.Type != Async {
+		return fmt.Errorf("got bad response type from exec")
+	}
+
+	md, err := resp.MetadataAsMap()
+	if err != nil {
+		return err
+	}
+
+	secret, err := md.GetString("websocket_secret")
+	if err != nil {
+		return err
+	}
+
+	conn, err := c.websocket(resp.Operation, secret)
+	if err != nil {
+		return err
+	}
+
+	WebsocketMirror(conn, stdout, stdin)
+	return c.WaitForSuccess(resp.Operation)
 }
 
 func (c *Client) Action(name string, action ContainerAction, timeout int, force bool) (*Response, error) {

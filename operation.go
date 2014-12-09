@@ -3,7 +3,10 @@ package lxd
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 type OperationStatus string
@@ -36,6 +39,17 @@ var ResultCodes = map[Result]int{
 	Success: 1,
 }
 
+var WebsocketUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
+}
+
+type OperationSocket interface {
+	Secret() string
+	Do(conn *websocket.Conn)
+}
+
 type Operation struct {
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
@@ -47,12 +61,22 @@ type Operation struct {
 	Metadata    json.RawMessage `json:"metadata"`
 	MayCancel   bool            `json:"may_cancel"`
 
-	Run    func() error `json:"-"`
+	/* The fields below are for use on the server side. */
+	Run func() error `json:"-"`
+
+	/* If this is not nil, the operation can be cancelled by calling this
+	 * function */
 	Cancel func() error `json:"-"`
 
 	/* This channel receives exactly one value, when the event is done and
 	 * the status is updated */
 	Chan chan bool `json:"-"`
+
+	/* If this is not nil, users can connect to a websocket for this
+	 * operation. The flag indicates whether or not this socket has already
+	 * been used: websockets can be connected to exactly once. */
+	WebsocketConnected bool            `json:"-"`
+	Websocket          OperationSocket `json:"-"`
 }
 
 func (o *Operation) GetError() error {

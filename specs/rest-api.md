@@ -572,8 +572,8 @@ Input:
 ## /1.0/operations/\<uuid\>/websocket
 ### GET (?secret=...)
  * Authentication: trusted
- * Operation: N/A
- * Return: N/A
+ * Operation: sync
+ * Return: websocket stream or standard error
  * Description: This connection is upgraded into a websocket connection
    speaking the protocol defined by the operation type. For example, in the
    case of an exec operation, the websocket is the bidirectional pipe for

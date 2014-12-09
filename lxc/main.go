@@ -78,6 +78,7 @@ var commands = map[string]command{
 	"delete":   &deleteCmd{},
 	"file":     &fileCmd{},
 	"snapshot": &snapshotCmd{},
+	"exec":     &execCmd{},
 }
 
 var errArgs = fmt.Errorf("too many subcommand arguments")
