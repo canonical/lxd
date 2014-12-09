@@ -78,7 +78,6 @@ HTTP code must be one of of 400, 401, 403, 404 or 500.
      * /1.0/finger
      * /1.0/images
        * /1.0/images/\<name\>
-         * /1.0/images/\<name\>
      * /1.0/longpoll
      * /1.0/networks
        * /1.0/networks/\<name\>
