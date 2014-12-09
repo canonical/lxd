@@ -65,6 +65,22 @@ wrong, in those cases, the following return value is used:
 
 HTTP code must be one of of 400, 401, 403, 404 or 500.
 
+# Safety for concurrent updates
+The API uses the HTTP ETAG to prevent potential problems when a resource
+changes on the server between the time it was accessed by the client and
+the time it is sent back for update.
+
+All GET queries come with an Etag HTTP header which is a short hash of
+the content that is relevant for an update. Any information which is
+read-only, shouldn't be included in the hash.
+
+On update (PUT), the same Etag field can be set by the client in its
+request. If it's set, the server will then compute the current Etag for
+the resource and compare the two. The update will then only be done if
+the two match. If they don't, an error will be returned instead.
+
+For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
+
 # API structure
  * /
    * /1.0
