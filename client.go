@@ -611,10 +611,18 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 	return uid, gid, mode, r.Body, nil
 }
 
-func (c *Client) SetRemotePwd(password string) (string, error) {
-	return c.getstr("/trust", map[string]string{
-		"password": password,
-	})
+func (c *Client) SetRemotePwd(password string) (*Response, error) {
+	body := Jmap{"config": []Jmap{Jmap{"key": "trust-password", "value": password}}}
+	resp, err := c.put("", body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 /* Wait for an operation */

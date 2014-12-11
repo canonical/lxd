@@ -165,7 +165,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.mux = mux.NewRouter()
 
-	d.mux.HandleFunc("/trust", d.serveTrust)
 	d.mux.HandleFunc("/trust/add", d.serveTrustAdd)
 	d.mux.HandleFunc("/shell", d.serveShell)
 
