@@ -628,7 +628,7 @@ Input (none at present):
  * Return: list of URLs for trusted certificates
  * Description: list of trusted certificates
 
-### PUT
+### POST
  * Authentication: trusted or untrusted
  * Operation: sync
  * Return: standard return value or standard error
