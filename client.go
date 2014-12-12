@@ -386,6 +386,8 @@ func (c *Client) AmTrusted() bool {
 		return false
 	}
 
+	Debugf("%s", resp)
+
 	jmap, err := resp.MetadataAsMap()
 	if err != nil {
 		return false
@@ -458,14 +460,15 @@ func (c *Client) UserAuthServerCert() error {
 	return err
 }
 
-func (c *Client) AddCertToServer(pwd string) (string, error) {
-	data, err := c.getstr("/trust/add", map[string]string{
-		"password": pwd,
-	})
+func (c *Client) AddCertToServer(pwd string) error {
+	body := Jmap{"type": "client", "password": pwd}
+
+	raw, err := c.post("trust", body)
 	if err != nil {
-		return "fail", err
+		return err
 	}
-	return data, err
+
+	return ParseError(raw)
 }
 
 func (c *Client) Create(name string) (*Response, error) {

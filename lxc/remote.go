@@ -61,7 +61,7 @@ func addServer(config *lxd.Config, server string) error {
 	}
 	fmt.Printf("\n")
 
-	_, err = c.AddCertToServer(string(pwd))
+	err = c.AddCertToServer(string(pwd))
 	if err != nil {
 		return err
 	}
