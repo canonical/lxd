@@ -1,6 +1,9 @@
 package lxd
 
 import (
+	"encoding/json"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -27,4 +30,14 @@ func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMod
 	mode = os.FileMode(rawMode)
 
 	return uid, gid, mode, nil
+}
+
+func ReadToJson(r io.Reader, req interface{}) error {
+
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(buf, req)
 }

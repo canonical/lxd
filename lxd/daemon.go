@@ -30,12 +30,13 @@ type Daemon struct {
 }
 
 type Command struct {
-	name         string
-	untrustedGet bool
-	GET          func(d *Daemon, w http.ResponseWriter, r *http.Request)
-	PUT          func(d *Daemon, w http.ResponseWriter, r *http.Request)
-	POST         func(d *Daemon, w http.ResponseWriter, r *http.Request)
-	DELETE       func(d *Daemon, w http.ResponseWriter, r *http.Request)
+	name          string
+	untrustedGet  bool
+	untrustedPost bool
+	GET           func(d *Daemon, w http.ResponseWriter, r *http.Request)
+	PUT           func(d *Daemon, w http.ResponseWriter, r *http.Request)
+	POST          func(d *Daemon, w http.ResponseWriter, r *http.Request)
+	DELETE        func(d *Daemon, w http.ResponseWriter, r *http.Request)
 }
 
 func readMyCert() (string, string, error) {
@@ -104,6 +105,8 @@ func (d *Daemon) createCmd(version string, c Command) {
 			lxd.Debugf("handling %s %s", r.Method, r.URL.RequestURI())
 		} else if r.Method == "GET" && c.untrustedGet {
 			lxd.Debugf("allowing untrusted GET to %s", r.URL.RequestURI())
+		} else if r.Method == "POST" && c.untrustedPost {
+			lxd.Debugf("allowing untrusted POST to %s", r.URL.RequestURI())
 		} else {
 			lxd.Debugf("rejecting request from untrusted client")
 			Forbidden(w)
@@ -165,7 +168,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.mux = mux.NewRouter()
 
-	d.mux.HandleFunc("/trust/add", d.serveTrustAdd)
 	d.mux.HandleFunc("/shell", d.serveShell)
 
 	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

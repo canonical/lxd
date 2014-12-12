@@ -25,4 +25,4 @@ func fingerGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	SyncResponse(true, resp, w)
 }
 
-var fingerCmd = Command{"finger", true, fingerGet, nil, nil, nil}
+var fingerCmd = Command{"finger", true, false, fingerGet, nil, nil, nil}

@@ -2,9 +2,7 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"syscall"
@@ -27,6 +25,7 @@ var api10 = []Command{
 	networkCmd,
 	api10Cmd,
 	listCmd,
+	trustCmd,
 }
 
 /* Some interesting filesystems */
@@ -103,13 +102,8 @@ const (
 
 func api10Put(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	req := apiPut{}
-	buf, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		InternalError(w, err)
-		return
-	}
 
-	if err := json.Unmarshal(buf, &req); err != nil {
+	if err := lxd.ReadToJson(r.Body, &req); err != nil {
 		BadRequest(w, err)
 		return
 	}
@@ -164,4 +158,4 @@ func api10Put(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	EmptySyncResponse(w)
 }
 
-var api10Cmd = Command{"", true, api10Get, api10Put, nil, nil}
+var api10Cmd = Command{"", true, false, api10Get, api10Put, nil, nil}
