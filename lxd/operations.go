@@ -76,7 +76,7 @@ func operationsGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	SyncResponse(true, ops, w)
 }
 
-var operationsCmd = Command{"operations", false, operationsGet, nil, nil, nil}
+var operationsCmd = Command{"operations", false, false, operationsGet, nil, nil, nil}
 
 func operationGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	id := lxd.OperationsURL(mux.Vars(r)["id"])
@@ -132,7 +132,7 @@ func operationDelete(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var operationCmd = Command{"operations/{id}", false, operationGet, nil, nil, operationDelete}
+var operationCmd = Command{"operations/{id}", false, false, operationGet, nil, nil, operationDelete}
 
 func operationWaitPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	lock.Lock()
@@ -157,4 +157,4 @@ func operationWaitPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	lock.Unlock()
 }
 
-var operationWait = Command{"operations/{id}/wait", false, nil, nil, operationWaitPost, nil}
+var operationWait = Command{"operations/{id}/wait", false, false, nil, nil, operationWaitPost, nil}

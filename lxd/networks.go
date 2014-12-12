@@ -32,7 +32,7 @@ func networksGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	SyncResponse(true, result, w)
 }
 
-var networksCmd = Command{"networks", false, networksGet, nil, nil, nil}
+var networksCmd = Command{"networks", false, false, networksGet, nil, nil, nil}
 
 type network struct {
 	Name    string   `json:"name"`
@@ -119,4 +119,4 @@ func networkGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	SyncResponse(true, &n, w)
 }
 
-var networkCmd = Command{"networks/{name}", false, networkGet, nil, nil, nil}
+var networkCmd = Command{"networks/{name}", false, false, networkGet, nil, nil, nil}
