@@ -1,7 +1,10 @@
 package lxd
 
 import (
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -40,4 +43,8 @@ func ReadToJson(r io.Reader, req interface{}) error {
 	}
 
 	return json.Unmarshal(buf, req)
+}
+
+func GenerateFingerprint(cert *x509.Certificate) string {
+	return fmt.Sprintf("% x", sha256.Sum256(cert.Raw))
 }

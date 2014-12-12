@@ -26,6 +26,7 @@ var api10 = []Command{
 	api10Cmd,
 	listCmd,
 	trustCmd,
+	trustFingerprintCmd,
 }
 
 /* Some interesting filesystems */

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -10,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
 	"golang.org/x/crypto/scrypt"
 )
@@ -51,7 +51,7 @@ func (d *Daemon) verifyAdminPwd(password string) bool {
 func trustGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	body := make([]lxd.Jmap, 0)
 	for host, cert := range d.clientCerts {
-		fingerprint := fmt.Sprintf("%:x", sha256.Sum256(cert.Raw))
+		fingerprint := lxd.GenerateFingerprint(&cert)
 		body = append(body, lxd.Jmap{"host": host, "fingerprint": fingerprint})
 	}
 
@@ -121,3 +121,20 @@ func trustPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 }
 
 var trustCmd = Command{"trust", false, true, trustGet, nil, trustPost, nil}
+
+func trustFingerprintGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	fingerprint := mux.Vars(r)["fingerprint"]
+
+	for _, cert := range d.clientCerts {
+		if fingerprint == lxd.GenerateFingerprint(&cert) {
+			b64 := base64.StdEncoding.EncodeToString(cert.Raw)
+			body := lxd.Jmap{"type": "client", "certificate": b64}
+			SyncResponse(true, body, w)
+			return
+		}
+	}
+
+	NotFound(w)
+}
+
+var trustFingerprintCmd = Command{"trust/{fingerprint}", false, false, trustFingerprintGet, nil, nil, nil}
