@@ -124,7 +124,7 @@ func containersPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	AsyncResponse(func() error { return c.Create(opts) }, nil, w)
 }
 
-var containersCmd = Command{"containers", false, nil, nil, containersPost, nil}
+var containersCmd = Command{"containers", false, false, nil, nil, containersPost, nil}
 
 func containerGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
@@ -158,7 +158,7 @@ func containerDelete(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	AsyncResponse(c.Destroy, nil, w)
 }
 
-var containerCmd = Command{"containers/{name}", false, containerGet, nil, nil, containerDelete}
+var containerCmd = Command{"containers/{name}", false, false, containerGet, nil, nil, containerDelete}
 
 func containerStateGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
@@ -235,7 +235,7 @@ func containerStatePut(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	AsyncResponse(do, nil, w)
 }
 
-var containerStateCmd = Command{"containers/{name}/state", false, containerStateGet, containerStatePut, nil, nil}
+var containerStateCmd = Command{"containers/{name}/state", false, false, containerStateGet, containerStatePut, nil, nil}
 
 func containerFileHandler(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
@@ -348,4 +348,4 @@ func containerFilePut(w http.ResponseWriter, r *http.Request, p string) {
 	EmptySyncResponse(w)
 }
 
-var containerFileCmd = Command{"containers/{name}/files", false, containerFileHandler, containerFileHandler, nil, nil}
+var containerFileCmd = Command{"containers/{name}/files", false, false, containerFileHandler, containerFileHandler, nil, nil}

@@ -21,4 +21,4 @@ func listGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	SyncResponse(true, result, w)
 }
 
-var listCmd = Command{"list", false, listGet, nil, nil, nil}
+var listCmd = Command{"list", false, false, listGet, nil, nil, nil}

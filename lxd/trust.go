@@ -2,47 +2,17 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 
+	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
 	"golang.org/x/crypto/scrypt"
 )
-
-const (
-	PW_SALT_BYTES = 32
-	PW_HASH_BYTES = 64
-)
-
-func (d *Daemon) saveNewPwd(password string) {
-	lxd.Debugf("Called to set new admin password")
-	salt := make([]byte, PW_SALT_BYTES)
-	_, err := io.ReadFull(rand.Reader, salt)
-	if err != nil {
-		lxd.Debugf("failed to get random bytes")
-		return
-	}
-
-	hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, PW_HASH_BYTES)
-	if err != nil {
-		lxd.Debugf("failed to create hash")
-		return
-	}
-
-	passfname := lxd.VarPath("adminpwd")
-	passOut, err := os.OpenFile(passfname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		lxd.Debugf("Failed to open password file")
-		return
-	}
-	passOut.Write(salt)
-	passOut.Write(hash)
-	passOut.Close()
-	lxd.Debugf("Saved new admin password")
-}
 
 func (d *Daemon) hasPwd() bool {
 	passfname := lxd.VarPath("adminpwd")
@@ -78,23 +48,93 @@ func (d *Daemon) verifyAdminPwd(password string) bool {
 	return true
 }
 
-/*
- * this will need to be made to conform to the rest api.  That
- * switch will come after we get basic certificates supported
- */
-func (d *Daemon) serveTrust(w http.ResponseWriter, r *http.Request) {
-	lxd.Debugf("responding to list")
-
-	if !d.isTrustedClient(r) {
-		lxd.Debugf("Trust request from untrusted client")
-		return
+func trustGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	body := make([]lxd.Jmap, 0)
+	for host, cert := range d.clientCerts {
+		fingerprint := lxd.GenerateFingerprint(&cert)
+		body = append(body, lxd.Jmap{"host": host, "fingerprint": fingerprint})
 	}
 
-	password := r.FormValue("password")
-	if password == "" {
-		fmt.Fprintf(w, "failed parsing password")
-		return
-	}
-
-	d.saveNewPwd(password)
+	SyncResponse(true, body, w)
 }
+
+type trustPostBody struct {
+	Type        string `json:"type"`
+	Certificate string `json:"certificate"`
+	Password    string `json:"password"`
+}
+
+func saveCert(host string, cert *x509.Certificate) error {
+	// TODO - do we need to sanity-check the server name to avoid arbitrary writes to fs?
+	dirname := lxd.VarPath("clientcerts")
+	err := os.MkdirAll(dirname, 0755)
+	filename := fmt.Sprintf("%s/%s.crt", dirname, host)
+	certOut, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return err
+	}
+	defer certOut.Close()
+
+	err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func trustPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	req := trustPostBody{}
+
+	if err := lxd.ReadToJson(r.Body, &req); err != nil {
+		BadRequest(w, err)
+		return
+	}
+
+	var cert *x509.Certificate
+	if req.Certificate != "" {
+
+		data, err := base64.StdEncoding.DecodeString(req.Certificate)
+		if err != nil {
+			BadRequest(w, err)
+			return
+		}
+
+		cert, err = x509.ParseCertificate(data)
+		if err != nil {
+			BadRequest(w, err)
+		}
+
+	} else {
+		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
+	}
+
+	err := saveCert(r.TLS.ServerName, cert)
+	if err != nil {
+		InternalError(w, err)
+		return
+	}
+
+	d.clientCerts[r.TLS.ServerName] = *cert
+
+	EmptySyncResponse(w)
+}
+
+var trustCmd = Command{"trust", false, true, trustGet, nil, trustPost, nil}
+
+func trustFingerprintGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	fingerprint := mux.Vars(r)["fingerprint"]
+
+	for _, cert := range d.clientCerts {
+		if fingerprint == lxd.GenerateFingerprint(&cert) {
+			b64 := base64.StdEncoding.EncodeToString(cert.Raw)
+			body := lxd.Jmap{"type": "client", "certificate": b64}
+			SyncResponse(true, body, w)
+			return
+		}
+	}
+
+	NotFound(w)
+}
+
+var trustFingerprintCmd = Command{"trust/{fingerprint}", false, false, trustFingerprintGet, nil, nil, nil}

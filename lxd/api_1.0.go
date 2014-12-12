@@ -1,10 +1,14 @@
 package main
 
 import (
+	"crypto/rand"
+	"io"
 	"net/http"
+	"os"
 	"syscall"
 
 	"github.com/lxc/lxd"
+	"golang.org/x/crypto/scrypt"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
@@ -21,6 +25,8 @@ var api10 = []Command{
 	networkCmd,
 	api10Cmd,
 	listCmd,
+	trustCmd,
+	trustFingerprintCmd,
 }
 
 /* Some interesting filesystems */
@@ -86,4 +92,71 @@ func api10Get(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	SyncResponse(true, body, w)
 }
 
-var api10Cmd = Command{"", true, api10Get, nil, nil, nil}
+type apiPut struct {
+	Config []lxd.Jmap `json:"config"`
+}
+
+const (
+	PW_SALT_BYTES = 32
+	PW_HASH_BYTES = 64
+)
+
+func api10Put(d *Daemon, w http.ResponseWriter, r *http.Request) {
+	req := apiPut{}
+
+	if err := lxd.ReadToJson(r.Body, &req); err != nil {
+		BadRequest(w, err)
+		return
+	}
+
+	for _, elt := range req.Config {
+		key, err := elt.GetString("key")
+		if err != nil {
+			continue
+		}
+		if key == "trust-password" {
+			password, err := elt.GetString("value")
+			if err != nil {
+				continue
+			}
+
+			lxd.Debugf("setting new password")
+			salt := make([]byte, PW_SALT_BYTES)
+			_, err = io.ReadFull(rand.Reader, salt)
+			if err != nil {
+				InternalError(w, err)
+				return
+			}
+
+			hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, PW_HASH_BYTES)
+			if err != nil {
+				InternalError(w, err)
+				return
+			}
+
+			passfname := lxd.VarPath("adminpwd")
+			passOut, err := os.OpenFile(passfname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+			defer passOut.Close()
+			if err != nil {
+				InternalError(w, err)
+				return
+			}
+
+			_, err = passOut.Write(salt)
+			if err != nil {
+				InternalError(w, err)
+				return
+			}
+
+			_, err = passOut.Write(hash)
+			if err != nil {
+				InternalError(w, err)
+				return
+			}
+		}
+	}
+
+	EmptySyncResponse(w)
+}
+
+var api10Cmd = Command{"", true, false, api10Get, api10Put, nil, nil}

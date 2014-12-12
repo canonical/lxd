@@ -1,6 +1,12 @@
 package lxd
 
 import (
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -27,4 +33,18 @@ func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMod
 	mode = os.FileMode(rawMode)
 
 	return uid, gid, mode, nil
+}
+
+func ReadToJson(r io.Reader, req interface{}) error {
+
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(buf, req)
+}
+
+func GenerateFingerprint(cert *x509.Certificate) string {
+	return fmt.Sprintf("% x", sha256.Sum256(cert.Raw))
 }
