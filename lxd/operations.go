@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -14,7 +15,7 @@ import (
 var lock sync.Mutex
 var operations map[string]*lxd.Operation = make(map[string]*lxd.Operation)
 
-func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error) string {
+func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error) (string, error) {
 	id := uuid.New()
 	op := lxd.Operation{}
 	op.CreatedAt = time.Now()
@@ -22,7 +23,13 @@ func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error) s
 	op.SetStatus(lxd.Pending)
 	op.StatusCode = lxd.StatusCodes[op.Status]
 	op.ResourceURL = lxd.OperationsURL(id)
-	op.Metadata = metadata
+
+	md, err := json.Marshal(metadata)
+	if err != nil {
+		return "", err
+	}
+	op.Metadata = md
+
 	op.MayCancel = cancel != nil
 
 	op.Run = run
@@ -32,7 +39,7 @@ func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error) s
 	lock.Lock()
 	operations[op.ResourceURL] = &op
 	lock.Unlock()
-	return op.ResourceURL
+	return op.ResourceURL, nil
 }
 
 func StartOperation(id string) error {
