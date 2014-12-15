@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -43,7 +44,7 @@ type Operation struct {
 	Result      Result          `json:"result"`
 	ResultCode  int             `json:"result_code"`
 	ResourceURL string          `json:"resource_url"`
-	Metadata    Jmap            `json:"metadata"`
+	Metadata    json.RawMessage `json:"metadata"`
 	MayCancel   bool            `json:"may_cancel"`
 
 	Run    func() error `json:"-"`
@@ -52,6 +53,19 @@ type Operation struct {
 	/* This channel receives exactly one value, when the event is done and
 	 * the status is updated */
 	Chan chan bool `json:"-"`
+}
+
+func (o *Operation) GetError() error {
+	if o.Result == Failure {
+		var s string
+		if err := json.Unmarshal(o.Metadata, &s); err != nil {
+			return err
+		}
+
+		return fmt.Errorf(s)
+	} else {
+		return nil
+	}
 }
 
 func (o *Operation) SetStatus(status OperationStatus) {
@@ -70,6 +84,13 @@ func (o *Operation) SetResult(err error) {
 	} else {
 		o.Result = Failure
 		o.ResultCode = ResultCodes[Failure]
+		md, err := json.Marshal(err.Error())
+
+		/* This isn't really fatal, it'll just be annoying for users */
+		if err != nil {
+			Debugf("error converting %s to json", err)
+		}
+		o.Metadata = md
 	}
 	o.UpdatedAt = time.Now()
 }
