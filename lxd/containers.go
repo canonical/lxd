@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -330,3 +331,181 @@ func containerFilePut(r *http.Request, p string) Response {
 }
 
 var containerFileCmd = Command{"containers/{name}/files", false, false, containerFileHandler, containerFileHandler, nil, nil}
+
+func snapshotsDir(c *lxc.Container) string {
+	return lxd.VarPath("lxc", c.Name(), "snapshots")
+}
+
+func snapshotDir(c *lxc.Container, name string) string {
+	return path.Join(snapshotsDir(c), name)
+}
+
+func snapshotStateDir(c *lxc.Container, name string) string {
+	return path.Join(snapshotDir(c, name), "state")
+}
+
+func snapshotRootfsDir(c *lxc.Container, name string) string {
+	return path.Join(snapshotDir(c, name), "rootfs")
+}
+
+func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
+
+	name := mux.Vars(r)["name"]
+	c, err := lxc.NewContainer(name, d.lxcpath)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !c.Defined() {
+		return NotFound
+	}
+
+	files, err := ioutil.ReadDir(snapshotsDir(c))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return SyncResponse(true, []lxd.Jmap{})
+		} else {
+			return InternalError(err)
+		}
+	}
+
+	body := make([]string, 0)
+
+	for _, file := range files {
+		if file.IsDir() {
+			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", lxd.APIVersion, c.Name(), path.Base(file.Name()))
+			body = append(body, url)
+		}
+	}
+
+	return SyncResponse(true, body)
+}
+
+func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	c, err := lxc.NewContainer(name, d.lxcpath)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !c.Defined() {
+		return NotFound
+	}
+
+	raw := lxd.Jmap{}
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		return BadRequest(err)
+	}
+
+	snapshotName, err := raw.GetString("name")
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	stateful, err := raw.GetBool("stateful")
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	snapshot := func() error {
+
+		if stateful {
+			dir := snapshotStateDir(c, snapshotName)
+			err := os.MkdirAll(dir, 0700)
+			if err != nil {
+				return err
+			}
+
+			opts := lxc.CheckpointOptions{Directory: dir, Stop: true, Verbose: true}
+			if err := c.Checkpoint(opts); err != nil {
+				return err
+			}
+		}
+
+		/*
+		 * TODO: Giving the Best backend here doesn't work, but that's
+		 * what we want. So for now we use the default, which is just
+		 * the directory backend.
+		 */
+		opts := lxc.CloneOptions{ConfigPath: snapshotsDir(c), KeepName: false, KeepMAC: true}
+		return c.Clone(snapshotName, opts)
+	}
+
+	return AsyncResponse(snapshot, nil)
+}
+
+var containerSnapshotsCmd = Command{"containers/{name}/snapshots", false, false, containerSnapshotsGet, nil, containerSnapshotsPost, nil}
+
+func snapshotHandler(d *Daemon, r *http.Request) Response {
+	containerName := mux.Vars(r)["name"]
+	c, err := lxc.NewContainer(containerName, d.lxcpath)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !c.Defined() {
+		return NotFound
+	}
+
+	snapshotName := mux.Vars(r)["snapshotName"]
+	dir := snapshotDir(c, snapshotName)
+
+	_, err = os.Stat(dir)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	switch r.Method {
+	case "GET":
+		return snapshotGet(c, snapshotName)
+	case "POST":
+		return snapshotPost(r, c, snapshotName)
+	case "DELETE":
+		return snapshotDelete(c, snapshotName)
+	default:
+		return NotFound
+	}
+}
+
+func snapshotGet(c *lxc.Container, name string) Response {
+	_, err := os.Stat(snapshotStateDir(c, name))
+	body := lxd.Jmap{"name": name, "stateful": err == nil}
+	return SyncResponse(true, body)
+}
+
+func snapshotPost(r *http.Request, c *lxc.Container, oldName string) Response {
+	raw := lxd.Jmap{}
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		return BadRequest(err)
+	}
+
+	newName, err := raw.GetString("name")
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	oldDir := snapshotDir(c, oldName)
+	newDir := snapshotDir(c, newName)
+
+	_, err = os.Stat(newDir)
+	if !os.IsNotExist(err) {
+		return InternalError(err)
+	} else if err == nil {
+		return BadRequest(fmt.Errorf("snapshot already exists"))
+	}
+
+	/*
+	 * TODO: do we need to do something more intelligent here? We probably
+	 * shouldn't do anything for stateful snapshots, since changing the fs
+	 * out from under criu will cause it to fail, but it may be useful to
+	 * do something for stateless ones.
+	 */
+	return AsyncResponse(func() error { return os.Rename(oldDir, newDir) }, nil)
+}
+
+func snapshotDelete(c *lxc.Container, name string) Response {
+	dir := snapshotDir(c, name)
+	return AsyncResponse(func() error { return os.RemoveAll(dir) }, nil)
+}
+
+var containerSnapshotCmd = Command{"containers/{name}/snapshots/{snapshotName}", false, false, snapshotHandler, nil, snapshotHandler, snapshotHandler}

@@ -313,7 +313,7 @@ This is designed to be easily usable from the command line or even a web browser
  * Return: list of URLs for snapshots for this container
  * Description: List of snapshots
 
-### PUT
+### POST
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error

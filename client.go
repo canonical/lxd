@@ -653,3 +653,34 @@ func (c *Client) WaitFor(waitURL string) (*Operation, error) {
 
 	return resp.MetadataAsOperation()
 }
+
+func (c *Client) WaitForSuccess(waitURL string) error {
+	op, err := c.WaitFor(waitURL)
+	if err != nil {
+		return err
+	}
+
+	if op.Result == Success {
+		return nil
+	}
+
+	return op.GetError()
+}
+
+func (c *Client) Snapshot(container string, snapshotName string, stateful bool) (*Response, error) {
+	body := Jmap{"name": snapshotName, "stateful": stateful}
+	resp, err := c.post(fmt.Sprintf("containers/%s/snapshots", container), body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Async {
+		return nil, fmt.Errorf("Non-async response from snapshot!")
+	}
+
+	return resp, nil
+}
