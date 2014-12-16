@@ -6,7 +6,7 @@ import (
 	"github.com/lxc/lxd"
 )
 
-func fingerGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func fingerGet(d *Daemon, r *http.Request) Response {
 	remoteAddr := r.RemoteAddr
 	if remoteAddr == "@" {
 		remoteAddr = "unix socket"
@@ -22,7 +22,7 @@ func fingerGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 		resp["auth"] = "untrusted"
 	}
 
-	SyncResponse(true, resp, w)
+	return SyncResponse(true, resp)
 }
 
 var fingerCmd = Command{"finger", true, false, fingerGet, nil, nil, nil}

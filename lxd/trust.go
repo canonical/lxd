@@ -48,14 +48,14 @@ func (d *Daemon) verifyAdminPwd(password string) bool {
 	return true
 }
 
-func trustGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func trustGet(d *Daemon, r *http.Request) Response {
 	body := make([]lxd.Jmap, 0)
 	for host, cert := range d.clientCerts {
 		fingerprint := lxd.GenerateFingerprint(&cert)
 		body = append(body, lxd.Jmap{"host": host, "fingerprint": fingerprint})
 	}
 
-	SyncResponse(true, body, w)
+	return SyncResponse(true, body)
 }
 
 type trustPostBody struct {
@@ -83,12 +83,11 @@ func saveCert(host string, cert *x509.Certificate) error {
 	return nil
 }
 
-func trustPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func trustPost(d *Daemon, r *http.Request) Response {
 	req := trustPostBody{}
 
 	if err := lxd.ReadToJson(r.Body, &req); err != nil {
-		BadRequest(w, err)
-		return
+		return BadRequest(err)
 	}
 
 	var cert *x509.Certificate
@@ -96,13 +95,12 @@ func trustPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 
 		data, err := base64.StdEncoding.DecodeString(req.Certificate)
 		if err != nil {
-			BadRequest(w, err)
-			return
+			return BadRequest(err)
 		}
 
 		cert, err = x509.ParseCertificate(data)
 		if err != nil {
-			BadRequest(w, err)
+			return BadRequest(err)
 		}
 
 	} else {
@@ -111,30 +109,28 @@ func trustPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 
 	err := saveCert(r.TLS.ServerName, cert)
 	if err != nil {
-		InternalError(w, err)
-		return
+		return InternalError(err)
 	}
 
 	d.clientCerts[r.TLS.ServerName] = *cert
 
-	EmptySyncResponse(w)
+	return EmptySyncResponse
 }
 
 var trustCmd = Command{"trust", false, true, trustGet, nil, trustPost, nil}
 
-func trustFingerprintGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func trustFingerprintGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	for _, cert := range d.clientCerts {
 		if fingerprint == lxd.GenerateFingerprint(&cert) {
 			b64 := base64.StdEncoding.EncodeToString(cert.Raw)
 			body := lxd.Jmap{"type": "client", "certificate": b64}
-			SyncResponse(true, body, w)
-			return
+			return SyncResponse(true, body)
 		}
 	}
 
-	NotFound(w)
+	return NotFound
 }
 
 var trustFingerprintCmd = Command{"trust/{fingerprint}", false, false, trustFingerprintGet, nil, nil, nil}
