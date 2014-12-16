@@ -15,86 +15,102 @@ type resp struct {
 	Metadata interface{} `json:"metadata"`
 }
 
-func SyncResponse(success bool, metadata interface{}, w http.ResponseWriter) {
+type Response interface {
+	Render(w http.ResponseWriter) error
+}
+
+type syncResponse struct {
+	success  bool
+	metadata interface{}
+}
+
+func (r *syncResponse) Render(w http.ResponseWriter) error {
 	result := "success"
-	if !success {
+	if !r.success {
 		result = "failure"
 	}
 
-	r := resp{Type: string(lxd.Sync), Result: result, Metadata: metadata}
-	enc, err := json.Marshal(&r)
+	resp := resp{Type: string(lxd.Sync), Result: result, Metadata: r.metadata}
+	enc, err := json.Marshal(&resp)
 	if err != nil {
-		InternalError(w, err)
-		return
+		return err
 	}
 	lxd.Debugf(string(enc))
 
-	w.Write(enc)
+	_, err = w.Write(enc)
+	return err
 }
 
-func EmptySyncResponse(w http.ResponseWriter) {
-	SyncResponse(true, make(map[string]interface{}), w)
+/*
+ * This function and AsyncResponse are simply wrappers for the response so
+ * users don't have to remember whether to use {}s or ()s when building
+ * responses.
+ */
+func SyncResponse(success bool, metadata interface{}) Response {
+	return &syncResponse{success, metadata}
 }
 
-func AsyncResponse(run func() error, cancel func() error, w http.ResponseWriter) {
-	op := CreateOperation(nil, run, cancel)
+var EmptySyncResponse = &syncResponse{true, make(map[string]interface{})}
+
+type asyncResponse struct {
+	run    func() error
+	cancel func() error
+}
+
+func (r *asyncResponse) Render(w http.ResponseWriter) error {
+	op := CreateOperation(nil, r.run, r.cancel)
 	err := StartOperation(op)
 	if err != nil {
-		InternalError(w, err)
-		return
+		return err
 	}
 
-	err = json.NewEncoder(w).Encode(lxd.Jmap{"type": lxd.Async, "operation": op})
-	if err != nil {
-		InternalError(w, err)
-		return
-	}
+	return json.NewEncoder(w).Encode(lxd.Jmap{"type": lxd.Async, "operation": op})
 }
 
-func ErrorResponse(code int, msg string, w http.ResponseWriter) {
+func AsyncResponse(run func() error, cancel func() error) Response {
+	return &asyncResponse{run, cancel}
+}
+
+type ErrorResponse struct {
+	code int
+	msg  string
+}
+
+func (r *ErrorResponse) Render(w http.ResponseWriter) error {
 	buf := bytes.Buffer{}
-	err := json.NewEncoder(&buf).Encode(lxd.Jmap{"type": lxd.Error, "error": msg, "error_code": code})
+	err := json.NewEncoder(&buf).Encode(lxd.Jmap{"type": lxd.Error, "error": r.msg, "error_code": r.code})
 
 	if err != nil {
-		/* Can't use InternalError here */
-		http.Error(w, "Error encoding error response!", 500)
-		return
+		return err
 	}
 
-	http.Error(w, buf.String(), code)
+	http.Error(w, buf.String(), r.code)
+	return nil
 }
 
 /* Some standard responses */
-func NotImplemented(w http.ResponseWriter) {
-	ErrorResponse(501, "not implemented", w)
+var NotImplemented = &ErrorResponse{501, "not implemented"}
+var NotFound = &ErrorResponse{404, "not found"}
+var Forbidden = &ErrorResponse{403, "not authorized"}
+
+func BadRequest(err error) Response {
+	return &ErrorResponse{400, err.Error()}
 }
 
-func NotFound(w http.ResponseWriter) {
-	ErrorResponse(404, "not found", w)
-}
-
-func Forbidden(w http.ResponseWriter) {
-	ErrorResponse(403, "not authorized", w)
-}
-
-func BadRequest(w http.ResponseWriter, err error) {
-	ErrorResponse(400, err.Error(), w)
-}
-
-func InternalError(w http.ResponseWriter, err error) {
-	ErrorResponse(500, err.Error(), w)
+func InternalError(err error) Response {
+	return &ErrorResponse{500, err.Error()}
 }
 
 /*
  * Write the right error message based on err.
  */
-func SmartError(w http.ResponseWriter, err error) {
+func SmartError(err error) Response {
 	switch err {
 	case os.ErrNotExist:
-		NotFound(w)
+		return NotFound
 	case os.ErrPermission:
-		Forbidden(w)
+		return Forbidden
 	default:
-		InternalError(w, err)
+		return InternalError(err)
 	}
 }
