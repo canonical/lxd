@@ -33,10 +33,10 @@ type Command struct {
 	name          string
 	untrustedGet  bool
 	untrustedPost bool
-	GET           func(d *Daemon, w http.ResponseWriter, r *http.Request)
-	PUT           func(d *Daemon, w http.ResponseWriter, r *http.Request)
-	POST          func(d *Daemon, w http.ResponseWriter, r *http.Request)
-	DELETE        func(d *Daemon, w http.ResponseWriter, r *http.Request)
+	GET           func(d *Daemon, r *http.Request) Response
+	PUT           func(d *Daemon, r *http.Request) Response
+	POST          func(d *Daemon, r *http.Request) Response
+	DELETE        func(d *Daemon, r *http.Request) Response
 }
 
 func readMyCert() (string, string, error) {
@@ -109,34 +109,44 @@ func (d *Daemon) createCmd(version string, c Command) {
 			lxd.Debugf("allowing untrusted POST to %s", r.URL.RequestURI())
 		} else {
 			lxd.Debugf("rejecting request from untrusted client")
-			Forbidden(w)
+			Forbidden.Render(w)
 			return
 		}
 
+		var resp Response
 		switch r.Method {
 		case "GET":
 			if c.GET == nil {
-				NotImplemented(w)
+				resp = NotImplemented
 			} else {
-				c.GET(d, w, r)
+				resp = c.GET(d, r)
 			}
 		case "PUT":
 			if c.PUT == nil {
-				NotImplemented(w)
+				resp = NotImplemented
 			} else {
-				c.PUT(d, w, r)
+				resp = c.PUT(d, r)
 			}
 		case "POST":
 			if c.POST == nil {
-				NotImplemented(w)
+				resp = NotImplemented
 			} else {
-				c.POST(d, w, r)
+				resp = c.POST(d, r)
 			}
 		case "DELETE":
 			if c.DELETE == nil {
-				NotImplemented(w)
+				resp = NotImplemented
 			} else {
-				c.DELETE(d, w, r)
+				resp = c.DELETE(d, r)
+			}
+		default:
+			resp = NotFound
+		}
+
+		if err := resp.Render(w); err != nil {
+			err := InternalError(err).Render(w)
+			if err != nil {
+				lxd.Debugf("failed writing error for error, giving up.")
 			}
 		}
 	})
@@ -171,7 +181,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.mux.HandleFunc("/shell", d.serveShell)
 
 	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		SyncResponse(true, []string{"/1.0"}, w)
+		SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
 	for _, c := range api10 {
@@ -179,7 +189,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	}
 
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		NotFound(w)
+		NotFound.Render(w)
 	})
 
 	d.id_map, err = NewIdmap()

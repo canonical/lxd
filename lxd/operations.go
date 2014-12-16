@@ -59,7 +59,7 @@ func StartOperation(id string) error {
 	return nil
 }
 
-func operationsGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func operationsGet(d *Daemon, r *http.Request) Response {
 	ops := lxd.Jmap{"pending": make([]string, 0, 0), "running": make([]string, 0, 0)}
 
 	lock.Lock()
@@ -73,45 +73,40 @@ func operationsGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	}
 	lock.Unlock()
 
-	SyncResponse(true, ops, w)
+	return SyncResponse(true, ops)
 }
 
 var operationsCmd = Command{"operations", false, false, operationsGet, nil, nil, nil}
 
-func operationGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func operationGet(d *Daemon, r *http.Request) Response {
 	id := lxd.OperationsURL(mux.Vars(r)["id"])
 
 	lock.Lock()
+	defer lock.Unlock()
 	op, ok := operations[id]
 	if !ok {
-		lock.Unlock()
-		NotFound(w)
-		return
+		return NotFound
 	}
 
-	SyncResponse(true, op, w)
-	lock.Unlock()
+	return SyncResponse(true, op)
 }
 
-func operationDelete(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func operationDelete(d *Daemon, r *http.Request) Response {
 	lock.Lock()
 	id := lxd.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
 	if !ok {
 		lock.Unlock()
-		NotFound(w)
-		return
+		return NotFound
 	}
 
 	if op.Cancel == nil {
-		BadRequest(w, fmt.Errorf("Can't cancel %s!", id))
-		return
+		return BadRequest(fmt.Errorf("Can't cancel %s!", id))
 	}
 
 	if op.Status == lxd.Done || op.Status == lxd.Cancelling || op.Status == lxd.Cancelled {
 		/* the user has already requested a cancel */
-		EmptySyncResponse(w)
-		return
+		return EmptySyncResponse
 	}
 
 	cancel := op.Cancel
@@ -126,22 +121,21 @@ func operationDelete(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	lock.Unlock()
 
 	if err != nil {
-		InternalError(w, err)
+		return InternalError(err)
 	} else {
-		EmptySyncResponse(w)
+		return EmptySyncResponse
 	}
 }
 
 var operationCmd = Command{"operations/{id}", false, false, operationGet, nil, nil, operationDelete}
 
-func operationWaitPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func operationWaitPost(d *Daemon, r *http.Request) Response {
 	lock.Lock()
 	id := lxd.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
 	if !ok {
 		lock.Unlock()
-		NotFound(w)
-		return
+		return NotFound
 	}
 
 	status := op.Status
@@ -153,8 +147,8 @@ func operationWaitPost(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	}
 
 	lock.Lock()
-	SyncResponse(true, op, w)
-	lock.Unlock()
+	defer lock.Unlock()
+	return SyncResponse(true, op)
 }
 
 var operationWait = Command{"operations/{id}/wait", false, false, nil, nil, operationWaitPost, nil}

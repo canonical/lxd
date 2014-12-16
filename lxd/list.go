@@ -8,7 +8,7 @@ import (
 	"github.com/lxc/lxd"
 )
 
-func listGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func listGet(d *Daemon, r *http.Request) Response {
 	lxd.Debugf("responding to list")
 
 	result := make([]string, 0)
@@ -18,7 +18,7 @@ func listGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 		result = append(result, containers[i].Name())
 	}
 
-	SyncResponse(true, result, w)
+	return SyncResponse(true, result)
 }
 
 var listCmd = Command{"list", false, false, listGet, nil, nil, nil}
