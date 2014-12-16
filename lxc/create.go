@@ -51,13 +51,5 @@ func (c *createCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	op, err := d.WaitFor(resp.Operation)
-	if err != nil {
-		return err
-	}
-
-	if op.Result == lxd.Success {
-		return nil
-	}
-	return fmt.Errorf("Operation %s", op.Result)
+	return d.WaitForSuccess(resp.Operation)
 }
