@@ -54,17 +54,15 @@ func CharsToString(ca [65]int8) string {
 	return string(s[0:lens])
 }
 
-func api10Get(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func api10Get(d *Daemon, r *http.Request) Response {
 	uname := syscall.Utsname{}
 	if err := syscall.Uname(&uname); err != nil {
-		InternalError(w, err)
-		return
+		return InternalError(err)
 	}
 
 	fs := syscall.Statfs_t{}
 	if err := syscall.Statfs(d.lxcpath, &fs); err != nil {
-		InternalError(w, err)
-		return
+		return InternalError(err)
 	}
 
 	env := lxd.Jmap{"lxc_version": lxc.Version(), "driver": "lxc"}
@@ -89,7 +87,7 @@ func api10Get(d *Daemon, w http.ResponseWriter, r *http.Request) {
 	config := []lxd.Jmap{lxd.Jmap{"key": "trust-password", "value": d.hasPwd()}}
 	body := lxd.Jmap{"config": config, "environment": env}
 
-	SyncResponse(true, body, w)
+	return SyncResponse(true, body)
 }
 
 type apiPut struct {
@@ -101,12 +99,11 @@ const (
 	PW_HASH_BYTES = 64
 )
 
-func api10Put(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func api10Put(d *Daemon, r *http.Request) Response {
 	req := apiPut{}
 
 	if err := lxd.ReadToJson(r.Body, &req); err != nil {
-		BadRequest(w, err)
-		return
+		return BadRequest(err)
 	}
 
 	for _, elt := range req.Config {
@@ -124,39 +121,34 @@ func api10Put(d *Daemon, w http.ResponseWriter, r *http.Request) {
 			salt := make([]byte, PW_SALT_BYTES)
 			_, err = io.ReadFull(rand.Reader, salt)
 			if err != nil {
-				InternalError(w, err)
-				return
+				return InternalError(err)
 			}
 
 			hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, PW_HASH_BYTES)
 			if err != nil {
-				InternalError(w, err)
-				return
+				return InternalError(err)
 			}
 
 			passfname := lxd.VarPath("adminpwd")
 			passOut, err := os.OpenFile(passfname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 			defer passOut.Close()
 			if err != nil {
-				InternalError(w, err)
-				return
+				return InternalError(err)
 			}
 
 			_, err = passOut.Write(salt)
 			if err != nil {
-				InternalError(w, err)
-				return
+				return InternalError(err)
 			}
 
 			_, err = passOut.Write(hash)
 			if err != nil {
-				InternalError(w, err)
-				return
+				return InternalError(err)
 			}
 		}
 	}
 
-	EmptySyncResponse(w)
+	return EmptySyncResponse
 }
 
 var api10Cmd = Command{"", true, false, api10Get, api10Put, nil, nil}

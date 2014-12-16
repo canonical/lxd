@@ -17,11 +17,10 @@ const (
 	SYS_CLASS_NET = "/sys/class/net"
 )
 
-func networksGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func networksGet(d *Daemon, r *http.Request) Response {
 	ifs, err := net.Interfaces()
 	if err != nil {
-		InternalError(w, err)
-		return
+		return InternalError(err)
 	}
 
 	result := make([]string, 0)
@@ -29,7 +28,7 @@ func networksGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 		result = append(result, fmt.Sprintf("/%s/networks/%s", lxd.APIVersion, iface.Name))
 	}
 
-	SyncResponse(true, result, w)
+	return SyncResponse(true, result)
 }
 
 var networksCmd = Command{"networks", false, false, networksGet, nil, nil, nil}
@@ -84,13 +83,12 @@ func isOnBridge(c *lxc.Container, bridge string) bool {
 	return false
 }
 
-func networkGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
+func networkGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
-		InternalError(w, err)
-		return
+		return InternalError(err)
 	}
 
 	n := network{}
@@ -104,8 +102,7 @@ func networkGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 		for _, ct := range lxc.ActiveContainerNames(d.lxcpath) {
 			c, err := lxc.NewContainer(ct, d.lxcpath)
 			if err != nil {
-				InternalError(w, err)
-				return
+				return InternalError(err)
 			}
 
 			if isOnBridge(c, n.Name) {
@@ -116,7 +113,7 @@ func networkGet(d *Daemon, w http.ResponseWriter, r *http.Request) {
 		n.Type = "unknown"
 	}
 
-	SyncResponse(true, &n, w)
+	return SyncResponse(true, &n)
 }
 
 var networkCmd = Command{"networks/{name}", false, false, networkGet, nil, nil, nil}
