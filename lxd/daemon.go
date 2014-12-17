@@ -178,8 +178,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.mux = mux.NewRouter()
 
-	d.mux.HandleFunc("/shell", d.serveShell)
-
 	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
