@@ -218,26 +218,6 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 	return &c, container, nil
 }
 
-/* This will be deleted once everything is ported to the new Response framework */
-func (c *Client) getstr(base string, args map[string]string) (string, error) {
-	vs := url.Values{}
-	for k, v := range args {
-		vs.Set(k, v)
-	}
-
-	resp, err := c.getRawLegacy(base + "?" + vs.Encode())
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	return string(body), nil
-}
-
 func (c *Client) get(base string) (*Response, error) {
 	uri := c.url(APIVersion, base)
 
@@ -355,16 +335,6 @@ func (c *Client) websocket(operation string, secret string) (*websocket.Conn, er
 		return nil, err
 	}
 	return conn, err
-}
-
-func (c *Client) getRawLegacy(elem ...string) (*http.Response, error) {
-	url := c.url(elem...)
-	Debugf("url is %s", url)
-	resp, err := c.http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
 }
 
 func (c *Client) url(elem ...string) string {
@@ -530,18 +500,6 @@ func (c *Client) Create(name string) (*Response, error) {
 	}
 
 	return resp, nil
-}
-
-func (c *Client) Shell(name string, cmd string, secret string) (string, error) {
-	data, err := c.getstr("/shell", map[string]string{
-		"name":    name,
-		"command": cmd,
-		"secret":  secret,
-	})
-	if err != nil {
-		return "fail", err
-	}
-	return data, err
 }
 
 func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.WriteCloser, stderr io.WriteCloser) error {

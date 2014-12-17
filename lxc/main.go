@@ -68,7 +68,6 @@ var commands = map[string]command{
 	"config":   &configCmd{},
 	"create":   &createCmd{},
 	"list":     &listCmd{},
-	"shell":    &shellCmd{},
 	"remote":   &remoteCmd{},
 	"stop":     &actionCmd{lxd.Stop},
 	"start":    &actionCmd{lxd.Start},
