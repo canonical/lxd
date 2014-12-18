@@ -409,6 +409,11 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	err = os.MkdirAll(snapshotDir(c, snapshotName), 0700)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	snapshot := func() error {
 
 		if stateful {
