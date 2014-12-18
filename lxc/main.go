@@ -52,7 +52,12 @@ func run() error {
 		return err
 	}
 
-	return cmd.run(config, gnuflag.Args())
+	err = cmd.run(config, gnuflag.Args())
+	if err == errArgs {
+		fmt.Fprintf(os.Stderr, "error: %v\n%s", err, cmd.usage())
+		os.Exit(1)
+	}
+	return err
 }
 
 type command interface {
@@ -80,4 +85,4 @@ var commands = map[string]command{
 	"exec":     &execCmd{},
 }
 
-var errArgs = fmt.Errorf("too many subcommand arguments")
+var errArgs = fmt.Errorf("wrong number of subcommand arguments")
