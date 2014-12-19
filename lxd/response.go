@@ -55,23 +55,34 @@ var EmptySyncResponse = &syncResponse{true, make(map[string]interface{})}
 type asyncResponse struct {
 	run    func() error
 	cancel func() error
+	ws     lxd.OperationSocket
 }
 
 func (r *asyncResponse) Render(w http.ResponseWriter) error {
-	op, err := CreateOperation(nil, r.run, r.cancel)
+	op, err := CreateOperation(nil, r.run, r.cancel, r.ws)
 	if err != nil {
 		return err
 	}
+
 	err = StartOperation(op)
 	if err != nil {
 		return err
 	}
 
-	return json.NewEncoder(w).Encode(lxd.Jmap{"type": lxd.Async, "operation": op})
+	body := lxd.Jmap{"type": lxd.Async, "operation": op}
+	if r.ws != nil {
+		body["metadata"] = lxd.Jmap{"websocket_secret": r.ws.Secret()}
+	}
+
+	return json.NewEncoder(w).Encode(body)
 }
 
 func AsyncResponse(run func() error, cancel func() error) Response {
-	return &asyncResponse{run, cancel}
+	return AsyncResponseWithWs(run, cancel, nil)
+}
+
+func AsyncResponseWithWs(run func() error, cancel func() error, ws lxd.OperationSocket) Response {
+	return &asyncResponse{run, cancel, ws}
 }
 
 type ErrorResponse struct {

@@ -15,7 +15,7 @@ import (
 var lock sync.Mutex
 var operations map[string]*lxd.Operation = make(map[string]*lxd.Operation)
 
-func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error) (string, error) {
+func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error, ws lxd.OperationSocket) (string, error) {
 	id := uuid.New()
 	op := lxd.Operation{}
 	op.CreatedAt = time.Now()
@@ -35,6 +35,8 @@ func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error) (
 	op.Run = run
 	op.Cancel = cancel
 	op.Chan = make(chan bool, 1)
+	op.WebsocketConnected = false
+	op.Websocket = ws
 
 	lock.Lock()
 	operations[op.ResourceURL] = &op
@@ -159,3 +161,58 @@ func operationWaitPost(d *Daemon, r *http.Request) Response {
 }
 
 var operationWait = Command{"operations/{id}/wait", false, false, nil, nil, operationWaitPost, nil}
+
+type websocketServe struct {
+	req *http.Request
+	ws  lxd.OperationSocket
+}
+
+func (r *websocketServe) Render(w http.ResponseWriter) error {
+	conn, err := lxd.WebsocketUpgrader.Upgrade(w, r.req, nil)
+	if err != nil {
+		return err
+	}
+
+	r.ws.Do(conn)
+	conn.Close()
+
+	return nil
+}
+
+func operationWebsocketGet(d *Daemon, r *http.Request) Response {
+	lock.Lock()
+	defer lock.Unlock()
+	id := lxd.OperationsURL(mux.Vars(r)["id"])
+	op, ok := operations[id]
+	if !ok {
+		return NotFound
+	}
+
+	ws := op.Websocket
+	if ws == nil {
+		return BadRequest(fmt.Errorf("operation has no websocket protocol"))
+	}
+
+	secret := r.FormValue("secret")
+	if secret == "" {
+		return BadRequest(fmt.Errorf("missing secret"))
+	}
+
+	if secret != ws.Secret() {
+		return Forbidden
+	}
+
+	if op.Status == lxd.Done || op.Status == lxd.Cancelling || op.Status == lxd.Cancelled {
+		return BadRequest(fmt.Errorf("status is %s, can't connect", op.Status))
+	}
+
+	if op.WebsocketConnected {
+		return BadRequest(fmt.Errorf("websocket already connected"))
+	}
+
+	op.WebsocketConnected = true
+
+	return &websocketServe{r, ws}
+}
+
+var operationWebsocket = Command{"operations/{id}/websocket", false, false, operationWebsocketGet, nil, nil, nil}
