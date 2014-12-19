@@ -80,7 +80,7 @@ A remote add operation should therefore go like this:
     trusted.
  4. Remote is now ready
 
-# Failure scenari
+# Failure scenarios
 ## Server certificate changes
 This will typically happen in two cases:
 
