@@ -70,11 +70,7 @@ func addServer(config *lxd.Config, server string) error {
 }
 
 func removeCertificate(remote string) {
-	homedir := os.Getenv("HOME")
-	if homedir == "" {
-		return
-	}
-	certf := fmt.Sprintf("%s/.config/lxc/servercerts/%s.crt", homedir, remote)
+	certf := lxd.ServerCertPath(remote)
 	lxd.Debugf("Trying to remove %s\n", certf)
 
 	os.Remove(certf)
@@ -182,5 +178,5 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		return nil
 	}
 
-	return lxd.SaveConfig(*configPath, config)
+	return lxd.SaveConfig(config)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 
 	"gopkg.in/yaml.v2"
@@ -36,21 +37,20 @@ type RemoteConfig struct {
 	Addr string `yaml:"addr"`
 }
 
+var ConfigDir = "$HOME/.config/lxc"
+var configFileName = "config.yml"
+
 func configPath(file string) string {
-	return os.ExpandEnv(fmt.Sprintf("$HOME/.config/lxc/%s", file))
+	return os.ExpandEnv(path.Join(ConfigDir, file))
 }
 
-func renderConfigPath(path string) string {
-	if path == "" {
-		path = configPath("config.yml")
-	}
-
-	return os.ExpandEnv(path)
+func ServerCertPath(name string) string {
+	return path.Join(configPath("servercerts"), fmt.Sprintf("%s.crt", name))
 }
 
 // LoadConfig reads the configuration from the config path.
-func LoadConfig(configPath string) (*Config, error) {
-	data, err := ioutil.ReadFile(renderConfigPath(configPath))
+func LoadConfig() (*Config, error) {
+	data, err := ioutil.ReadFile(configPath(configFileName))
 	if os.IsNotExist(err) {
 		// A missing file is equivalent to the default configuration.
 		return &Config{}, nil
@@ -70,9 +70,9 @@ func LoadConfig(configPath string) (*Config, error) {
 	return &c, nil
 }
 
-// SaveConfig writes the provided configuration to the config path.
-func SaveConfig(configPath string, c *Config) error {
-	fname := renderConfigPath(configPath)
+// SaveConfig writes the provided configuration to the config file.
+func SaveConfig(c *Config) error {
+	fname := configPath(configFileName)
 
 	// Ignore errors on these two calls. Create will report any problems.
 	os.Remove(fname + ".new")

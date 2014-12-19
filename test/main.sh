@@ -1,9 +1,11 @@
 #!/bin/sh
-export PATH=../lxc:../lxd:$PATH
+export PATH=../lxd:$PATH
 
 # /tmp isn't moutned exec on most systems, so we can't actually start
-# contianers that are created there.
+# containers that are created there.
 export LXD_DIR=$(mktemp -d -p $(pwd))
+chmod 777 "${LXD_DIR}"
+export LXD_CONF=$(mktemp -d)
 RESULT=failure
 lxd_pid=0
 
@@ -12,6 +14,7 @@ echo "Running the LXD testsuite"
 cleanup() {
     [ "${lxd_pid}" -gt "0" ] && kill -9 ${lxd_pid}
     rm -Rf ${LXD_DIR}
+    rm -Rf ${LXD_CONF}
     echo "Test result: $RESULT"
 }
 
@@ -30,12 +33,16 @@ lxd_pid=$!
 
 BASEURL=https://127.0.0.1:8443
 my_curl() {
-  curl -k -s --cert ~/.config/lxc/client.crt --key ~/.config/lxc/client.key $@
+  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" $@ > /dev/null
 }
 
 wait_for() {
   op=$($@ | jq -r .operation)
   my_curl -X POST $BASEURL$op/wait
+}
+
+lxc() {
+  ../lxc/lxc $@ --config "${LXD_CONF}"
 }
 
 echo "Confirming lxd is responsive"
