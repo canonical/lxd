@@ -19,9 +19,10 @@ func main() {
 
 var verbose = gnuflag.Bool("v", false, "Enables verbose mode.")
 var debug = gnuflag.Bool("debug", false, "Enables debug mode.")
-var configPath = gnuflag.String("config", "", "Alternate config path.")
 
 func run() error {
+	gnuflag.StringVar(&lxd.ConfigDir, "config", lxd.ConfigDir, "Alternate config directory.")
+
 	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
 		os.Args[1] = "help"
 	}
@@ -47,7 +48,7 @@ func run() error {
 		lxd.SetDebug(*debug)
 	}
 
-	config, err := lxd.LoadConfig(*configPath)
+	config, err := lxd.LoadConfig()
 	if err != nil {
 		return err
 	}
