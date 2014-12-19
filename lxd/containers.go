@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	"github.com/kr/pty"
 	"github.com/lxc/lxd"
 	"gopkg.in/lxc/go-lxc.v2"
 )
@@ -509,3 +511,84 @@ func snapshotDelete(c *lxc.Container, name string) Response {
 }
 
 var containerSnapshotCmd = Command{"containers/{name}/snapshots/{snapshotName}", false, false, snapshotHandler, nil, snapshotHandler, snapshotHandler}
+
+type execWs struct {
+	PTY    *os.File
+	TTY    *os.File
+	secret string
+}
+
+func (s *execWs) Secret() string {
+	return s.secret
+}
+
+func (s *execWs) Do(conn *websocket.Conn) {
+	/*
+	 * The pty will be passed to the container's Attach.  The two
+	 * below goroutines will copy output from the socket to the
+	 * pty.stdin, and from pty.std{out,err} to the socket
+	 * If the RunCommand exits, we want ourselves (the gofunc) and
+	 * the copy-goroutines to exit.  If the connection closes, we
+	 * also want to exit
+	 */
+	lxd.WebsocketMirror(conn, s.PTY, s.PTY)
+}
+
+type commandPostContent struct {
+	Command []string `json:"command"`
+}
+
+func containerExecPost(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	c, err := lxc.NewContainer(name, d.lxcpath)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !c.Defined() {
+		return NotFound
+	}
+
+	post := commandPostContent{}
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	if err := json.Unmarshal(buf, &post); err != nil {
+		return BadRequest(err)
+	}
+
+	ws := &execWs{}
+	ws.PTY, ws.TTY, err = pty.Open()
+	ws.secret, err = lxd.RandomCryptoString()
+	if err != nil {
+		return InternalError(err)
+	}
+
+	run := func() error {
+		options := lxc.DefaultAttachOptions
+		defer ws.TTY.Close()
+		defer ws.PTY.Close()
+
+		options.StdinFd = ws.TTY.Fd()
+		options.StdoutFd = ws.TTY.Fd()
+		options.StderrFd = ws.TTY.Fd()
+
+		options.ClearEnv = true
+
+		_, err = c.RunCommand(post.Command, options)
+		if err != nil {
+			lxd.Debugf("Failed starting shell in %q: %q", name, err.Error())
+			return err
+		}
+
+		lxd.Debugf("done running command")
+
+		return nil
+	}
+
+	return AsyncResponseWithWs(run, nil, ws)
+}
+
+var containerExecCmd = Command{"containers/{name}/exec", false, false, nil, nil, containerExecPost, nil}

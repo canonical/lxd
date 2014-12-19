@@ -68,7 +68,6 @@ var commands = map[string]command{
 	"config":   &configCmd{},
 	"create":   &createCmd{},
 	"list":     &listCmd{},
-	"shell":    &shellCmd{},
 	"remote":   &remoteCmd{},
 	"stop":     &actionCmd{lxd.Stop},
 	"start":    &actionCmd{lxd.Start},
@@ -78,6 +77,7 @@ var commands = map[string]command{
 	"delete":   &deleteCmd{},
 	"file":     &fileCmd{},
 	"snapshot": &snapshotCmd{},
+	"exec":     &execCmd{},
 }
 
 var errArgs = fmt.Errorf("too many subcommand arguments")

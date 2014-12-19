@@ -47,7 +47,11 @@ For an async operation, the following dict is returned:
         'resources': {
             'containers': ["/1.0/containers/my-container"]      # List of affected resources
         },
-        'metadata': {}                                          # Metadata relevant to the operation
+        'metadata': {                                           # Metadata relevant to the operation
+            'websocket_secret': 'theparadiserocks'              # The secret string used to connect to a websocket.
+                                                                # This is optional, depending on whether or not
+                                                                # the operation has a websocket you can connect to.
+         }
     }
 
 HTTP code must be 200.
@@ -100,6 +104,7 @@ For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
      * /1.0/operations
        * /1.0/operations/\<id\>
          * /1.0/operations/\<id\>/wait
+         * /1.0/operations/\<id\>/websocket
      * /1.0/profiles
        * /1.0/profiles/\<name\>
      * /1.0/trust
@@ -563,6 +568,19 @@ Input:
                    {'key': "network.0.bridge",
                     'value': "lxcbr0"}]
     }
+
+## /1.0/operations/\<uuid\>/websocket
+### GET (?secret=...)
+ * Authentication: trusted
+ * Operation: sync
+ * Return: websocket stream or standard error
+ * Description: This connection is upgraded into a websocket connection
+   speaking the protocol defined by the operation type. For example, in the
+   case of an exec operation, the websocket is the bidirectional pipe for
+   stdin/stdout/stderr to flow to and from the process inside the container.
+   In the case of migration, it will be the primary interface over which the
+   migration information is communicated. The secret here is the one that was
+   provided when the operation was created.
 
 ## /1.0/profiles/\<name\>
 ### GET
