@@ -26,13 +26,15 @@ func run() error {
 	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
 		os.Args[1] = "help"
 	}
-	if len(os.Args) < 2 || os.Args[1] == "" || os.Args[1][0] == '-' {
-		return fmt.Errorf("missing subcommand")
+	if len(os.Args) < 2 {
+		os.Args = append(os.Args, "help")
 	}
 	name := os.Args[1]
 	cmd, ok := commands[name]
 	if !ok {
-		return fmt.Errorf("unknown command: %s", name)
+		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", name)
+		commands["help"].run(nil, nil)
+		os.Exit(1)
 	}
 	cmd.flags()
 	gnuflag.Usage = func() {
