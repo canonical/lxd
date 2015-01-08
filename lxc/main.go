@@ -27,7 +27,8 @@ func run() error {
 		os.Args[1] = "help"
 	}
 	if len(os.Args) < 2 {
-		os.Args = append(os.Args, "help")
+		commands["help"].run(nil, nil)
+		os.Exit(1)
 	}
 	name := os.Args[1]
 	cmd, ok := commands[name]
