@@ -120,16 +120,7 @@ func readMyCert() (string, string, error) {
  * load the server cert from disk
  */
 func (c *Client) loadServerCert() {
-	homedir := os.Getenv("HOME")
-	if homedir == "" {
-		return
-	}
-	dnam := fmt.Sprintf("%s/.config/lxc/servercerts", homedir)
-	err := os.MkdirAll(dnam, 0750)
-	if err != nil {
-		return
-	}
-	fnam := fmt.Sprintf("%s/%s.crt", dnam, c.name)
+	fnam := ServerCertPath(c.name)
 	cf, err := ioutil.ReadFile(fnam)
 	if err != nil {
 		return
@@ -445,11 +436,7 @@ func (c *Client) UserAuthServerCert() error {
 	}
 
 	// User acked the cert, now add it to our store
-	homedir := os.Getenv("HOME")
-	if homedir == "" {
-		return fmt.Errorf("Could not find homedir")
-	}
-	dnam := fmt.Sprintf("%s/.config/lxc/servercerts", homedir)
+	dnam := configPath("servercerts")
 	err = os.MkdirAll(dnam, 0750)
 	if err != nil {
 		return fmt.Errorf("Could not create server cert dir")
