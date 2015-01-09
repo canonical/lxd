@@ -19,19 +19,23 @@ func main() {
 
 var verbose = gnuflag.Bool("v", false, "Enables verbose mode.")
 var debug = gnuflag.Bool("debug", false, "Enables debug mode.")
-var configPath = gnuflag.String("config", "", "Alternate config path.")
 
 func run() error {
+	gnuflag.StringVar(&lxd.ConfigDir, "config", lxd.ConfigDir, "Alternate config directory.")
+
 	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
 		os.Args[1] = "help"
 	}
-	if len(os.Args) < 2 || os.Args[1] == "" || os.Args[1][0] == '-' {
-		return fmt.Errorf("missing subcommand")
+	if len(os.Args) < 2 {
+		commands["help"].run(nil, nil)
+		os.Exit(1)
 	}
 	name := os.Args[1]
 	cmd, ok := commands[name]
 	if !ok {
-		return fmt.Errorf("unknown command: %s", name)
+		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", name)
+		commands["help"].run(nil, nil)
+		os.Exit(1)
 	}
 	cmd.flags()
 	gnuflag.Usage = func() {
@@ -47,12 +51,17 @@ func run() error {
 		lxd.SetDebug(*debug)
 	}
 
-	config, err := lxd.LoadConfig(*configPath)
+	config, err := lxd.LoadConfig()
 	if err != nil {
 		return err
 	}
 
-	return cmd.run(config, gnuflag.Args())
+	err = cmd.run(config, gnuflag.Args())
+	if err == errArgs {
+		fmt.Fprintf(os.Stderr, "error: %v\n%s", err, cmd.usage())
+		os.Exit(1)
+	}
+	return err
 }
 
 type command interface {
@@ -80,4 +89,4 @@ var commands = map[string]command{
 	"exec":     &execCmd{},
 }
 
-var errArgs = fmt.Errorf("too many subcommand arguments")
+var errArgs = fmt.Errorf("wrong number of subcommand arguments")
