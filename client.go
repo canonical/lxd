@@ -435,7 +435,7 @@ func (c *Client) UserAuthServerCert() error {
 	}
 
 	fmt.Printf("Certificate fingerprint: % x\n", c.scertDigest)
-	fmt.Printf("ok (y/n)?")
+	fmt.Printf("ok (y/n)? ")
 	line, err := ReadStdin()
 	if err != nil {
 		return err
