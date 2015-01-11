@@ -83,6 +83,9 @@ func (r *Response) MetadataAsOperation() (*Operation, error) {
 }
 
 func ParseResponse(r *http.Response) (*Response, error) {
+	if r == nil {
+		return nil, fmt.Errorf("no response!")
+	}
 	defer r.Body.Close()
 	ret := Response{}
 
