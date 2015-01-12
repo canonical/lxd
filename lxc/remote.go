@@ -176,6 +176,8 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 		fmt.Println(config.DefaultRemote)
 		return nil
+	default:
+		return fmt.Errorf("Unknown remote subcommand %s", args[0])
 	}
 
 	return lxd.SaveConfig(config)
