@@ -263,7 +263,7 @@ type fileServe struct {
 	req     *http.Request
 	path    string
 	fi      os.FileInfo
-	content io.ReadSeeker
+	content *os.File
 }
 
 func (r *fileServe) Render(w http.ResponseWriter) error {
@@ -278,6 +278,7 @@ func (r *fileServe) Render(w http.ResponseWriter) error {
 	w.Header().Set("X-LXD-mode", fmt.Sprintf("%04o", r.fi.Mode()&os.ModePerm))
 
 	http.ServeContent(w, r.req, r.path, r.fi.ModTime(), r.content)
+	r.content.Close()
 	return nil
 }
 
@@ -286,7 +287,6 @@ func containerFileGet(r *http.Request, path string) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	defer f.Close()
 
 	fi, err := f.Stat()
 	if err != nil {
