@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
@@ -49,10 +50,11 @@ func (d *Daemon) verifyAdminPwd(password string) bool {
 }
 
 func trustGet(d *Daemon, r *http.Request) Response {
-	body := make([]lxd.Jmap, 0)
+	body := lxd.Jmap{}
 	for host, cert := range d.clientCerts {
 		fingerprint := lxd.GenerateFingerprint(&cert)
-		body = append(body, lxd.Jmap{"host": host, "fingerprint": fingerprint})
+		hostname, _ := lxd.SplitExt(host)
+		body[hostname] = fingerprint
 	}
 
 	return SyncResponse(true, body)
@@ -61,6 +63,7 @@ func trustGet(d *Daemon, r *http.Request) Response {
 type trustPostBody struct {
 	Type        string `json:"type"`
 	Certificate string `json:"certificate"`
+	Name        string `json:"name"`
 	Password    string `json:"password"`
 }
 
@@ -90,7 +93,12 @@ func trustPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	if req.Type != "client" {
+		return BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
+	}
+
 	var cert *x509.Certificate
+	var name string
 	if req.Certificate != "" {
 
 		data, err := base64.StdEncoding.DecodeString(req.Certificate)
@@ -102,17 +110,19 @@ func trustPost(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return BadRequest(err)
 		}
+		name = req.Name
 
 	} else {
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
+		name = r.TLS.ServerName
 	}
 
-	err := saveCert(r.TLS.ServerName, cert)
+	err := saveCert(name, cert)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	d.clientCerts[r.TLS.ServerName] = *cert
+	d.clientCerts[name] = *cert
 
 	return EmptySyncResponse
 }
@@ -133,4 +143,22 @@ func trustFingerprintGet(d *Daemon, r *http.Request) Response {
 	return NotFound
 }
 
-var trustFingerprintCmd = Command{"trust/{fingerprint}", false, false, trustFingerprintGet, nil, nil, nil}
+func trustFingerprintDelete(d *Daemon, r *http.Request) Response {
+	fingerprint := mux.Vars(r)["fingerprint"]
+	for name, cert := range d.clientCerts {
+		if fingerprint == lxd.GenerateFingerprint(&cert) {
+			delete(d.clientCerts, name)
+			fpath := path.Join(lxd.VarPath("clientcerts"), fmt.Sprintf("%s.crt", name))
+			err := os.Remove(fpath)
+			if err != nil {
+				return SmartError(err)
+			} else {
+				return EmptySyncResponse
+			}
+		}
+	}
+
+	return NotFound
+}
+
+var trustFingerprintCmd = Command{"trust/{fingerprint}", false, false, trustFingerprintGet, nil, nil, trustFingerprintDelete}
