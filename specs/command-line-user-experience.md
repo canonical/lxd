@@ -154,9 +154,9 @@ lxc config profile apply c1 loop-mount,nesting                                  
 lxc config profile apply c1 ""                                                  | Unset any assigned profile for container "c1".
 lxc config trust add new-client-cert.crt                                        | Add new-client-cert.pem to the default remote's trust store
 lxc config trust add dakara: new-client-cert.crt                                | Add new-client-cert.pem to the "dakara"'s trust store
-lxc config trust list                                                           | List all the trusted certificates on the local server
-lxc config trust dakara: list                                                   | List all the trusted certificates on "dakara"
-lxc config trust remove \<cert fingerprint\>                                    | Remove a certificate from the local trust store
+lxc config trust list                                                           | List all the trusted certificates on the default remote
+lxc config trust list dakara:                                                   | List all the trusted certificates on "dakara"
+lxc config trust remove [name|\<cert fingerprint\>]                             | Remove a certificate from the default remote
 lxc config trust remove dakara: \<cert fingerprint\>                            | Remove a certificate from "dakara"'s trust store
 
 * * *
