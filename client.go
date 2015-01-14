@@ -129,9 +129,9 @@ func (c *Client) loadServerCert() {
 		return
 	}
 
-	cert_block, _ := pem.Decode(cf)
+	certBlock, _ := pem.Decode(cf)
 
-	cert, err := x509.ParseCertificate(cert_block.Bytes)
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
 		fmt.Printf("Error reading the server certificate for %s\n", c.name)
 		return
@@ -279,7 +279,7 @@ func (c *Client) post(base string, args Jmap) (*Response, error) {
 	return ParseResponse(resp)
 }
 
-func (c *Client) delete_(base string, args Jmap) (*Response, error) {
+func (c *Client) delete(base string, args Jmap) (*Response, error) {
 	uri := c.url(APIVersion, base)
 
 	buf := bytes.Buffer{}
@@ -414,7 +414,7 @@ func (c *Client) ListContainers() ([]string, error) {
 	if resp.Type != Sync {
 		return nil, fmt.Errorf("bad response type from list!")
 	}
-	result := make([]string, 0)
+	var result []string
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
@@ -540,7 +540,7 @@ func (c *Client) Action(name string, action ContainerAction, timeout int, force 
 }
 
 func (c *Client) Delete(name string) (*Response, error) {
-	resp, err := c.delete_(fmt.Sprintf("containers/%s", name), nil)
+	resp, err := c.delete(fmt.Sprintf("containers/%s", name), nil)
 	if err != nil {
 		return nil, err
 	}
