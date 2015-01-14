@@ -106,7 +106,7 @@ const (
 func api10Put(d *Daemon, r *http.Request) Response {
 	req := apiPut{}
 
-	if err := lxd.ReadToJson(r.Body, &req); err != nil {
+	if err := lxd.ReadToJSON(r.Body, &req); err != nil {
 		return BadRequest(err)
 	}
 
