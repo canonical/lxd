@@ -86,7 +86,7 @@ func saveCert(host string, cert *x509.Certificate) error {
 func trustPost(d *Daemon, r *http.Request) Response {
 	req := trustPostBody{}
 
-	if err := lxd.ReadToJson(r.Body, &req); err != nil {
+	if err := lxd.ReadToJSON(r.Body, &req); err != nil {
 		return BadRequest(err)
 	}
 

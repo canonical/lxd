@@ -87,9 +87,8 @@ func (o *Operation) GetError() error {
 		}
 
 		return fmt.Errorf(s)
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func (o *Operation) SetStatus(status OperationStatus) {
