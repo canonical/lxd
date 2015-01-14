@@ -39,7 +39,7 @@ func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMod
 	return uid, gid, mode, nil
 }
 
-func ReadToJson(r io.Reader, req interface{}) error {
+func ReadToJSON(r io.Reader, req interface{}) error {
 
 	buf, err := ioutil.ReadAll(r)
 	if err != nil {
