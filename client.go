@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -123,19 +124,12 @@ func readMyCert() (string, string, error) {
  * load the server cert from disk
  */
 func (c *Client) loadServerCert() {
-	fnam := ServerCertPath(c.name)
-	cf, err := ioutil.ReadFile(fnam)
-	if err != nil {
-		return
-	}
-
-	certBlock, _ := pem.Decode(cf)
-
-	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	cert, err := ReadCert(ServerCertPath(c.name))
 	if err != nil {
 		fmt.Printf("Error reading the server certificate for %s\n", c.name)
 		return
 	}
+
 	c.scert = cert
 }
 
@@ -456,7 +450,25 @@ func (c *Client) UserAuthServerCert() error {
 	return err
 }
 
-func (c *Client) AddCertToServer(pwd string) error {
+func (c *Client) TrustList() (map[string]string, error) {
+	raw, err := c.get("trust")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(raw); err != nil {
+		return nil, err
+	}
+
+	ret := make(map[string]string)
+	if err := json.Unmarshal(raw.Metadata, &ret); err != nil {
+		return nil, err
+	}
+
+	return ret, nil
+}
+
+func (c *Client) AddMyCertToServer(pwd string) error {
 	body := Jmap{"type": "client", "password": pwd}
 
 	raw, err := c.post("trust", body)
@@ -464,6 +476,24 @@ func (c *Client) AddCertToServer(pwd string) error {
 		return err
 	}
 
+	return ParseError(raw)
+}
+
+func (c *Client) TrustAdd(cert *x509.Certificate, name string) error {
+	b64 := base64.StdEncoding.EncodeToString(cert.Raw)
+	raw, err := c.post("trust", Jmap{"type": "client", "certificate": b64, "name": name})
+	if err != nil {
+		return err
+	}
+
+	return ParseError(raw)
+}
+
+func (c *Client) TrustRemove(fingerprint string) error {
+	raw, err := c.delete(fmt.Sprintf("trust/%s", fingerprint), nil)
+	if err != nil {
+		return err
+	}
 	return ParseError(raw)
 }
 

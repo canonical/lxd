@@ -47,7 +47,87 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		return fmt.Errorf("Only 'password' can be set currently")
-	}
-	return fmt.Errorf("Only admin password setting can be done currently")
+	case "trust":
+		switch args[1] {
+		case "list":
+			var remote string
+			if len(args) == 3 {
+				remote = args[2]
+			} else {
+				remote = config.DefaultRemote
+			}
 
+			d, _, err := lxd.NewClient(config, remote)
+			if err != nil {
+				return err
+			}
+
+			trust, err := d.TrustList()
+			if err != nil {
+				return err
+			}
+
+			for host, fingerprint := range trust {
+				fmt.Println(fmt.Sprintf("%s: %s", host, fingerprint))
+			}
+
+			return nil
+		case "add":
+			var remote string
+			if len(args) < 3 {
+				return fmt.Errorf("No cert provided to add")
+			} else if len(args) == 4 {
+				remote = args[2]
+			} else {
+				remote = config.DefaultRemote
+			}
+
+			d, _, err := lxd.NewClient(config, remote)
+			if err != nil {
+				return err
+			}
+
+			fname := args[len(args)-1]
+			cert, err := lxd.ReadCert(fname)
+			if err != nil {
+				return err
+			}
+
+			name, _ := lxd.SplitExt(fname)
+			return d.TrustAdd(cert, name)
+		case "remove":
+			var remote string
+			if len(args) < 3 {
+				return fmt.Errorf("No fingerprint specified.")
+			} else if len(args) == 4 {
+				remote = args[2]
+			} else {
+				remote = config.DefaultRemote
+			}
+
+			d, _, err := lxd.NewClient(config, remote)
+			if err != nil {
+				return err
+			}
+
+			toRemove := args[len(args)-1]
+			trust, err := d.TrustList()
+			if err != nil {
+				return err
+			}
+
+			/* Try to remove by hostname first. */
+			for host, fingerprint := range trust {
+				if host == toRemove {
+					return d.TrustRemove(fingerprint)
+				}
+			}
+
+			return d.TrustRemove(args[len(args)-1])
+		default:
+			return fmt.Errorf("Unkonwn config trust command %s", args[1])
+		}
+	default:
+		return fmt.Errorf("Unknown config command %s", args[0])
+	}
 }
