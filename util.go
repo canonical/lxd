@@ -6,11 +6,13 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 
 	"github.com/gorilla/websocket"
@@ -151,4 +153,20 @@ func RandomCryptoString() (string, error) {
 	}
 
 	return base64.StdEncoding.EncodeToString(buf), nil
+}
+
+func ReadCert(fpath string) (*x509.Certificate, error) {
+	cf, err := ioutil.ReadFile(fpath)
+	if err != nil {
+		return nil, err
+	}
+
+	certBlock, _ := pem.Decode(cf)
+	return x509.ParseCertificate(certBlock.Bytes)
+}
+
+func SplitExt(fpath string) (string, string) {
+	b := path.Base(fpath)
+	ext := path.Ext(fpath)
+	return b[:len(b)-len(ext)], ext
 }
