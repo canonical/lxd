@@ -36,6 +36,10 @@ func (c *fileCmd) flags() {
 }
 
 func (c *fileCmd) push(config *lxd.Config, args []string) error {
+	if len(args) < 2 {
+		return errArgs
+	}
+
 	target := args[len(args)-1]
 	pathSpec := strings.SplitAfterN(target, "/", 2)
 
@@ -95,6 +99,10 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 }
 
 func (c *fileCmd) pull(config *lxd.Config, args []string) error {
+	if len(args) < 2 {
+		return errArgs
+	}
+
 	target := args[len(args)-1]
 	targetIsDir := false
 	sb, err := os.Stat(target)
@@ -163,6 +171,9 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 }
 
 func (c *fileCmd) run(config *lxd.Config, args []string) error {
+	if len(args) < 1 {
+		return errArgs
+	}
 
 	switch args[0] {
 	case "push":
