@@ -5,7 +5,7 @@ remote operations or a unix socket for local operations.
 
 Not all of the REST interface requires authentication:
 
- * PUT to /1.0/trust is allowed for everyone with a client certificate
+ * POST to /1.0/certificates is allowed for everyone with a client certificate
  * GET to /1.0/images/\* is allowed for everyone but only returns public images for unauthenticated users
 
 Unauthenticated endpoints are clearly identified as such below.
@@ -145,8 +145,8 @@ For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
          * /1.0/operations/\<id\>/websocket
      * /1.0/profiles
        * /1.0/profiles/\<name\>
-     * /1.0/trust
-       * /1.0/trust/\<fingerprint\>
+     * /1.0/certificates
+       * /1.0/certificates/\<fingerprint\>
 
 # API details
 ## /
@@ -673,7 +673,7 @@ Input (none at present):
     }
 
 
-## /1.0/trust
+## /1.0/certificates
 ### GET
  * Authentication: trusted
  * Operation: sync
@@ -695,7 +695,7 @@ Input:
         'password': "server-trust-password"     # The trust password for that server (only required if untrusted)
     }
 
-## /1.0/trust/\<fingerprint\>
+## /1.0/certificates/\<fingerprint\>
 ### GET
  * Authentication: trusted
  * Operation: sync

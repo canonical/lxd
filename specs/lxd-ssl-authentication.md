@@ -75,8 +75,8 @@ A remote add operation should therefore go like this:
  1. Call GET /1.0
  2. If we're not in a PKI setup with a ca.crt, ask the user to confirm the fingerprint.
  3. Look at the dict we received back from the server. If "auth" is
-    "untrusted", ask the user for the server's password and do a PUT to
-    /1.0/trust, then call /1.0 again to check that we're indeed
+    "untrusted", ask the user for the server's password and do a POST to
+    /1.0/certificates, then call /1.0 again to check that we're indeed
     trusted.
  4. Remote is now ready
 
