@@ -134,7 +134,6 @@ For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
          * /1.0/containers/\<name\>/snapshots
          * /1.0/containers/\<name\>/snapshots/\<name\>
          * /1.0/containers/\<name\>/state
-     * /1.0/finger
      * /1.0/images
        * /1.0/images/\<name\>
      * /1.0/longpoll
@@ -159,20 +158,29 @@ For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
 
 ## /1.0/
 ### GET
- * Authentication: trusted
+ * Authentication: guest, untrusted or trusted
  * Operation: sync
  * Return: Dict representing server state
  * Description: Server configuration and environment information
 
-Return value:
+Return value (if trusted):
 
     {
+        'auth': "trusted"      ,                        # Authentication state, one of "guest", "untrusted" or "trusted"
+        'api_compat': 0,                                # Used to determine API functionality
         'config': [{'key': "trust-password",            # Host configuration
                     'value': True}],                    # In the case of passwords, their value is returned as True if set
         'environment': {'kernel_version': "3.16",       # Various information about the host (OS, kernel, ...)
                         'lxc_version': "1.0.6",
                         'driver': "lxc",
                         'backing_fs': "ext4"}
+    }
+
+Return value (if guest or untrusted):
+
+    {
+        'auth': "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
+        'api_compat': 0,                        # Used to determine API functionality
     }
 
 ### PUT
@@ -423,22 +431,6 @@ Input (run bash):
     {
         'command': ["/bin/bash"]
     }
-
-## /1.0/finger
-### GET
- * Authentication: guest, untrusted or trusted
- * Operation: sync
- * Return: dict of basic API and auth information
- * Description: returns what's needed for an initial handshake
-
-Return:
-
-    {
-        'auth': "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
-        'api_compat': 0,                        # Used to determine API functionality
-    }
-
-Additional information about the server can then be pulled from /1.0 once authenticated.
 
 ## /1.0/images
 ### GET

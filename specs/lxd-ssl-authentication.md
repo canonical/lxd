@@ -72,11 +72,11 @@ To establish a new trust relationship, a password must be set on the
 server and send by the client when adding itself.
 
 A remote add operation should therefore go like this:
- 1. Call GET /1.0/finger
+ 1. Call GET /1.0
  2. If we're not in a PKI setup with a ca.crt, ask the user to confirm the fingerprint.
  3. Look at the dict we received back from the server. If "auth" is
     "untrusted", ask the user for the server's password and do a PUT to
-    /1.0/trust, then call /1.0/finger again to check that we're indeed
+    /1.0/trust, then call /1.0 again to check that we're indeed
     trusted.
  4. Remote is now ready
 
