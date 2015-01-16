@@ -410,7 +410,7 @@ Input (none at present):
 ## /1.0/containers/\<name\>/exec
 ### POST
  * Authentication: trusted
- * Operation: sync
+ * Operation: async
  * Return: background operation + websocket information or standard error
  * Description: run a remote command
 
