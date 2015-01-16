@@ -73,7 +73,7 @@ wrong, in those cases, the following return value is used:
         'metadata': {}                      # More details about the error
     }
 
-HTTP code must be one of of 400, 401, 403, 404 or 500.
+HTTP code must be one of of 400, 401, 403, 404, 409 or 500.
 
 # Status codes
 The LXD REST API often has to return status information, be that the
@@ -280,6 +280,8 @@ Input (simple rename):
     }
 
 
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
+
 TODO: Cross host rename/migration.
 
 
@@ -396,6 +398,8 @@ Input:
         'name': "new-name"
     }
 
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
+
 ### DELETE
  * Authentication: trusted
  * Operation: async
@@ -494,6 +498,8 @@ Input (rename an image):
     {
         'name': "new-name"
     }
+
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
 
 TODO: move to remote host
 
@@ -657,6 +663,8 @@ Input (rename a profile):
 
 HTTP return value must be 204 (No content) and Location must point to
 the renamed resource.
+
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
 
 TODO: move profile to another host
 
