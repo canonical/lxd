@@ -5,6 +5,8 @@ remote operations or a unix socket for local operations.
 
 Not all of the REST interface requires authentication:
 
+ * GET to / is allowed for everyone (lists the API endpoints)
+ * GET to /1.0 is allowed for everyone (but result varies)
  * POST to /1.0/certificates is allowed for everyone with a client certificate
  * GET to /1.0/images/\* is allowed for everyone but only returns public images for unauthenticated users
 
