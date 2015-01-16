@@ -568,6 +568,8 @@ Input (none at present):
     {
     }
 
+HTTP code for this should be 202 (Accepted).
+
 ## /1.0/operations/\<uuid\>/wait
 ### GET (?status\_code=200&timeout=30)
  * Description: Wait for an operation to finish
