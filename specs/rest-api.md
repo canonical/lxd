@@ -655,6 +655,9 @@ Input (rename a profile):
     }
 
 
+HTTP return value must be 204 (No content) and Location must point to
+the renamed resource.
+
 TODO: move profile to another host
 
 
