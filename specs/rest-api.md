@@ -153,17 +153,17 @@ For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
 # API details
 ## /
 ### GET
+ * Description: List of supported APIs
  * Authentication: guest
  * Operation: sync
  * Return: list of supported API endpoint URLs (by default ['/1.0'])
- * Description: List of supported APIs
 
 ## /1.0/
 ### GET
+ * Description: Server configuration and environment information
  * Authentication: guest, untrusted or trusted
  * Operation: sync
  * Return: Dict representing server state
- * Description: Server configuration and environment information
 
 Return value (if trusted):
 
@@ -186,10 +186,10 @@ Return value (if guest or untrusted):
     }
 
 ### PUT
+ * Description: Updates the server configuration or other properties
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
- * Description: Updates the server configuration or other properties
 
 Input:
 
@@ -200,16 +200,16 @@ Input:
 
 ## /1.0/containers
 ### GET
+ * Description: List of containers
  * Authentication: trusted
  * Operation: sync
  * Return: list of URLs for containers this server publishes
- * Description: List of containers
 
 ### POST
+ * Description: Create a new container
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: Create a new container
 
 Input (container based on remote image):
 
@@ -240,10 +240,10 @@ Input (clone of a local snapshot):
 
 ## /1.0/containers/\<name\>
 ### GET
+ * Description: Container information
  * Authentication: trusted
  * Operation: sync
  * Return: dict of the container configuration and current state
- * Description: Container information
 
 Output:
 
@@ -266,10 +266,10 @@ Output:
 
 
 ### PUT
+ * Description: update container configuration
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: update container configuration
 
 Input:
 
@@ -278,10 +278,10 @@ changes (see POST below) or changes to the status sub-dict (since that's
 read-only).
 
 ### POST
+ * Description: used to rename/migrate the container
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: used to rename/migrate the container
 
 Input (simple rename):
 
@@ -296,10 +296,10 @@ TODO: Cross host rename/migration.
 
 
 ### DELETE
+ * Description: remove the container
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: remove the container
 
 Input (none at present):
 
@@ -308,10 +308,10 @@ Input (none at present):
 
 ## /1.0/containers/\<name\>/state
 ### GET
+ * Description: current state
  * Authentication: trusted
  * Operation: sync
  * Return: dict representing current state
- * Description: current state
 
     {
         'status': "Running",
@@ -319,10 +319,10 @@ Input (none at present):
     }
 
 ### PUT
+ * Description: change the container state
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: change the container state
 
 Input:
 
@@ -334,10 +334,10 @@ Input:
 
 ## /1.0/containers/\<name\>/files
 ### GET (?path=/path/inside/the/container)
+ * Description: download a file from the container
  * Authentication: trusted
  * Operation: sync
  * Return: Raw file or standard error
- * Description: download a file from the container
 
 The following headers will be set (on top of standard size and mimetype headers):
  * X-LXD-uid: 0
@@ -347,10 +347,10 @@ The following headers will be set (on top of standard size and mimetype headers)
 This is designed to be easily usable from the command line or even a web browser.
 
 ### PUT
+ * Description: upload a file to the container
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value  or standard error
- * Description: upload a file to the container
 
 Input:
  * Standard http file upload
@@ -364,16 +364,16 @@ This is designed to be easily usable from the command line or even a web browser
 
 ## /1.0/containers/\<name\>/snapshots
 ### GET
+ * Description: List of snapshots
  * Authentication: trusted
  * Operation: sync
  * Return: list of URLs for snapshots for this container
- * Description: List of snapshots
 
 ### POST
+ * Description: create a new snapshot
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: create a new snapshot
 
 Input:
 
@@ -384,10 +384,10 @@ Input:
 
 ## /1.0/containers/\<name\>/snapshots/\<name\>
 ### GET
+ * Description: Snapshot information
  * Authentication: trusted
  * Operation: sync
  * Return: dict representing the snapshot
- * Description: Snapshot information
 
 Return:
 
@@ -397,10 +397,10 @@ Return:
     }
 
 ### POST
+ * Description: used to rename the snapshot
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: used to rename the snapshot
 
 Input:
 
@@ -411,10 +411,10 @@ Input:
 Renaming to an existing name must return the 409 (Conflict) HTTP code.
 
 ### DELETE
+ * Description: remove the snapshot
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: remove the snapshot
 
 Input (none at present):
 
@@ -423,10 +423,10 @@ Input (none at present):
 
 ## /1.0/containers/\<name\>/exec
 ### POST
+ * Description: run a remote command
  * Authentication: trusted
  * Operation: async
  * Return: background operation + websocket information or standard error
- * Description: run a remote command
 
 Input (run bash):
 
@@ -436,16 +436,16 @@ Input (run bash):
 
 ## /1.0/images
 ### GET
+ * Description: list of images (public or private)
  * Authentication: guest or trusted
  * Operation: sync
  * Return: list of URLs for images this server publishes
- * Description: list of images (public or private)
 
 ### PUT
+ * Description: create and publish a new image
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: create and publish a new image
 
 Input:
 
@@ -453,18 +453,18 @@ TODO: examples
 
 ## /1.0/images/\<name\>
 ### GET
+ * Description: Image description and metadata
  * Authentication: trusted
  * Operation: sync
  * Return: dict representing an image description and metadata
- * Description: Image description and metadata
 
 TODO: examples
 
 ### DELETE
+ * Description: Remove an image
  * Authentication: trusted
  * Operation: async
  * Return: background operaton or standard error
- * Description: Remove an image
 
 Input (none at present):
 
@@ -472,20 +472,20 @@ Input (none at present):
     }
 
 ### PUT
+ * Description: Updates the image metadata
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
- * Description: Updates the image metadata
 
 Input:
 
 TODO: examples
 
 ### POST
+ * Description: rename or move an image
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
- * Description: rename or move an image
 
 Input (rename an image):
 
@@ -499,9 +499,9 @@ TODO: move to remote host
 
 ## /1.0/networks
 ### GET
+ * Description: list of networks
  * Authentication: trusted
  * Operation: sync
- * Description: list of networks
  * Return: list of URLs for networks that are current defined on the host
 
     [
@@ -511,9 +511,9 @@ TODO: move to remote host
 
 ## /1.0/networks/\<name\>
 ### GET
+ * Description: information about a network
  * Authentication: trusted
  * Operation: sync
- * Description: information about a network
  * Return: dict representing a network
 
     {
@@ -524,9 +524,9 @@ TODO: move to remote host
 
 ## /1.0/operations
 ### GET
+ * Description: list of operations
  * Authentication: trusted
  * Operation: sync
- * Description: list of operations
  * Return: list of URLs for operations that are currently going on/queued
 
     [
@@ -536,10 +536,10 @@ TODO: move to remote host
 
 ## /1.0/operations/\<uuid\>
 ### GET
+ * Description: background operation
  * Authentication: trusted
  * Operation: sync
  * Return: dict representing a background operation
- * Description: background operation
 
 Return:
 
@@ -556,10 +556,10 @@ Return:
     }
 
 ### DELETE
+ * Description: cancel an operation. Calling this will change the state to "cancelling" rather than actually removing the entry.
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
- * Description: cancel an operation. Calling this will change the state to "cancelling" rather than actually removing the entry.
 
 Input (none at present):
 
@@ -568,10 +568,10 @@ Input (none at present):
 
 ## /1.0/operations/\<uuid\>/wait
 ### GET (?status\_code=200&timeout=30)
+ * Description: Wait for an operation to finish
  * Authentication: trusted
  * Operation: sync
  * Return: dict of the operation once its state changes to the request state
- * Description: Wait for an operation to finish
 
 Input (wait for any event): no argument
 
@@ -579,9 +579,6 @@ Input (wait for the operation to succeed or timeout): ?status\_code=200&timeout=
 
 ## /1.0/operations/\<uuid\>/websocket
 ### GET (?secret=...)
- * Authentication: trusted
- * Operation: sync
- * Return: websocket stream or standard error
  * Description: This connection is upgraded into a websocket connection
    speaking the protocol defined by the operation type. For example, in the
    case of an exec operation, the websocket is the bidirectional pipe for
@@ -589,19 +586,22 @@ Input (wait for the operation to succeed or timeout): ?status\_code=200&timeout=
    In the case of migration, it will be the primary interface over which the
    migration information is communicated. The secret here is the one that was
    provided when the operation was created.
+ * Authentication: trusted
+ * Operation: sync
+ * Return: websocket stream or standard error
 
 ## /1.0/profiles
 ### GET
+ * Description: List of configuration profiles
  * Authentication: trusted
  * Operation: sync
  * Return: list of URLs to defined profiles
- * Description: List of configuration profiles
 
 ### PUT
+ * Description: define a new profile
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
- * Description: define a new profile
 
 Input:
 
@@ -615,10 +615,10 @@ Input:
 
 ## /1.0/profiles/\<name\>
 ### GET
+ * Description: profile configuration
  * Authentication: trusted
  * Operation: sync
  * Return: dict representing the profile content
- * Description: profile configuration
 
 Output:
 
@@ -631,10 +631,10 @@ Output:
     }
 
 ### PUT
+ * Description: update the profile
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
- * Description: update the profile
 
 Input:
 
@@ -643,10 +643,10 @@ property can't be changed (see POST for that).
 
 
 ### POST
+ * Description: rename or move a profile
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
- * Description: rename or move a profile
 
 Input (rename a profile):
 
@@ -664,10 +664,10 @@ TODO: move profile to another host
 
 
 ### DELETE
+ * Description: remove a profile
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
- * Description: remove a profile
 
 Input (none at present):
 
@@ -677,16 +677,16 @@ Input (none at present):
 
 ## /1.0/certificates
 ### GET
+ * Description: list of trusted certificates
  * Authentication: trusted
  * Operation: sync
  * Return: list of URLs for trusted certificates
- * Description: list of trusted certificates
 
 ### POST
+ * Description: add a new trusted certificate
  * Authentication: trusted or untrusted
  * Operation: sync
  * Return: standard return value or standard error
- * Description: add a new trusted certificate
 
 Input:
 
@@ -699,10 +699,10 @@ Input:
 
 ## /1.0/certificates/\<fingerprint\>
 ### GET
+ * Description: trusted certificate information
  * Authentication: trusted
  * Operation: sync
  * Return: dict representing a trusted certificate
- * Description: trusted certificate information
 
 Output:
 
@@ -712,10 +712,10 @@ Output:
     }
 
 ### DELETE
+ * Description: Remove a trusted certificate
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
- * Description: Remove a trusted certificate
 
 Input (none at present):
 
@@ -730,10 +730,10 @@ changes state.
 The same mechanism may also be used for some live logging output.
 
 ### POST
+ * Description: long-poll API
  * Authentication: trusted
  * Operation: sync
  * Return: none (never ending flow of events)
- * Description: long-poll API
 
 POST is the only supported method for this endpoint.
 
