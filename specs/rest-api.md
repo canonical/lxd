@@ -551,6 +551,19 @@ Input (wait for the operation to succeed):
         'timeout': 30           # Timeout after 30s if status wasn't reached
     }
 
+## /1.0/operations/\<uuid\>/websocket
+### GET (?secret=...)
+ * Authentication: trusted
+ * Operation: sync
+ * Return: websocket stream or standard error
+ * Description: This connection is upgraded into a websocket connection
+   speaking the protocol defined by the operation type. For example, in the
+   case of an exec operation, the websocket is the bidirectional pipe for
+   stdin/stdout/stderr to flow to and from the process inside the container.
+   In the case of migration, it will be the primary interface over which the
+   migration information is communicated. The secret here is the one that was
+   provided when the operation was created.
+
 ## /1.0/profiles
 ### GET
  * Authentication: trusted
@@ -573,19 +586,6 @@ Input:
                    {'key': "network.0.bridge",
                     'value': "lxcbr0"}]
     }
-
-## /1.0/operations/\<uuid\>/websocket
-### GET (?secret=...)
- * Authentication: trusted
- * Operation: sync
- * Return: websocket stream or standard error
- * Description: This connection is upgraded into a websocket connection
-   speaking the protocol defined by the operation type. For example, in the
-   case of an exec operation, the websocket is the bidirectional pipe for
-   stdin/stdout/stderr to flow to and from the process inside the container.
-   In the case of migration, it will be the primary interface over which the
-   migration information is communicated. The secret here is the one that was
-   provided when the operation was created.
 
 ## /1.0/profiles/\<name\>
 ### GET
