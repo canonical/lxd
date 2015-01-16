@@ -567,23 +567,15 @@ Input (none at present):
     }
 
 ## /1.0/operations/\<uuid\>/wait
-### POST
+### GET (?status\_code=200&timeout=30)
  * Authentication: trusted
  * Operation: sync
  * Return: dict of the operation once its state changes to the request state
  * Description: Wait for an operation to finish
 
-Input (wait for any event):
+Input (wait for any event): no argument
 
-    {
-    }
-
-Input (wait for the operation to succeed):
-
-    {
-        'status_code': 200,     # Wait for status to be "Success"
-        'timeout': 30           # Timeout after 30s if status wasn't reached
-    }
+Input (wait for the operation to succeed or timeout): ?status\_code=200&timeout=30
 
 ## /1.0/operations/\<uuid\>/websocket
 ### GET (?secret=...)
