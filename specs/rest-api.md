@@ -39,7 +39,10 @@ For a standard synchronous operation, the following dict is returned:
 HTTP code must be 200.
 
 ### Background operation
-For an async operation, the following dict is returned:
+When a request results in a background operation, the HTTP code is set to 202 (Accepted)
+and the Location HTTP header is set to the operation URL.
+
+The body is a dict with the following structure:
 
     {
         'type': "async",
@@ -54,7 +57,9 @@ For an async operation, the following dict is returned:
          }
     }
 
-HTTP code must be 200.
+The body is mostly provided as a user friendly way of seeing what's
+going on without having to pull the target operation, all information in
+the body can also be retrieved from the background operation URL.
 
 ### Error
 There are various situations in which something may immediately go
