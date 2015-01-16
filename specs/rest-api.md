@@ -75,7 +75,7 @@ wrong, in those cases, the following return value is used:
         'metadata': {}                      # More details about the error
     }
 
-HTTP code must be one of of 400, 401, 403, 404, 409 or 500.
+HTTP code must be one of of 400, 401, 403, 404, 409, 412 or 500.
 
 # Status codes
 The LXD REST API often has to return status information, be that the
@@ -120,9 +120,11 @@ the content that is relevant for an update. Any information which is
 read-only, shouldn't be included in the hash.
 
 On update (PUT), the same Etag field can be set by the client in its
-request. If it's set, the server will then compute the current Etag for
-the resource and compare the two. The update will then only be done if
-the two match. If they don't, an error will be returned instead.
+request alongside a If-Match header.. If it's set, the server will
+then compute the current Etag for the resource and compare the two.
+The update will then only be done if the two match.
+If they don't, an error will be returned instead using HTTP error code
+412 (Precondition failed).
 
 For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
 
