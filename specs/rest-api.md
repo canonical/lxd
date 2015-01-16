@@ -662,7 +662,7 @@ Input:
     {
         'type': "client",                       # Certificate type (keyring), currently only client
         'certificate': "BASE64",                # If provided, a valid x509 certificate. If not, the client certificate of the connection will be used
-	'name': "foo"                           # An optional name for the certificate. If nothing is provided, the host in the TLS header for the request is used.
+        'name': "foo"                           # An optional name for the certificate. If nothing is provided, the host in the TLS header for the request is used.
         'password': "server-trust-password"     # The trust password for that server (only required if untrusted)
     }
 
