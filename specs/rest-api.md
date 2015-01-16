@@ -19,7 +19,6 @@ Feature additions done without breaking backward compatibility only
 result in a bump of the compat version which can be used by the client
 to check if a given feature is supported by the server.
 
-
 # Return values
 There are three standard return types:
  * Standard return value
@@ -31,8 +30,8 @@ For a standard synchronous operation, the following dict is returned:
 
     {
         'type': "sync",
-        'result': "success",                    # Result string ("success", "failure")
-        'result_code': 200,                     # Integer value (recommended over result)
+        'status': "Success",
+        'status_code': 200,
         'metadata': {}                          # Extra resource/action specific metadata
     }
 
@@ -46,6 +45,8 @@ The body is a dict with the following structure:
 
     {
         'type': "async",
+        'status': "OK",
+        'status_code': 100,
         'operation': "/1.0/containers/<id>",                    # URL to the background operation
         'resources': {
             'containers': ["/1.0/containers/my-container"]      # List of affected resources
@@ -54,7 +55,7 @@ The body is a dict with the following structure:
             'websocket_secret': 'theparadiserocks'              # The secret string used to connect to a websocket.
                                                                 # This is optional, depending on whether or not
                                                                 # the operation has a websocket you can connect to.
-         }
+        }
     }
 
 The body is mostly provided as a user friendly way of seeing what's
@@ -67,12 +68,45 @@ wrong, in those cases, the following return value is used:
 
     {
         'type': "error",
-        'error': "server error",        # Error string
-        'error_code': 500,              # HTTP error code
-        'metadata': {}                  # More details about the error
+        'status': "Failure",
+        'status_code': 400,
+        'metadata': {}                      # More details about the error
     }
 
 HTTP code must be one of of 400, 401, 403, 404 or 500.
+
+# Status codes
+The LXD REST API often has to return status information, be that the
+reason for an error, the current state of an operation or the state of
+the various resources it exports.
+
+To make it simple to debug, all of those are always doubled. There is a
+numeric representation of the state which is guaranteed never to change
+and can be relied on by API clients. Then there is a text version meant
+to make it easier for people manually using the API to figure out what's
+happening.
+
+In most cases, those will be called status and status\_code, the former
+being the user-friendly string representation and the latter the fixed
+numeric value.
+
+The codes are always 3 digits, with the following ranges:
+ * 100 to 199: resource state (started, stopped, ready, ...)
+ * 200 to 399: positive action result
+ * 400 to 599: negative action result
+ * 600 to 999: future use
+
+## List of current status codes
+
+Code  | Meaning
+:---  | :------
+100   | OK
+101   | Started
+102   | Stopped
+103   | Running
+200   | Success
+400   | Failure
+
 
 # Safety for concurrent updates
 The API uses the HTTP ETAG to prevent potential problems when a resource
@@ -210,8 +244,8 @@ Input:
                     'value': "50%"}],
         'userdata': "SOME BASE64 BLOB",
         'status': {
-                    'state': "running",
-                    'state_code': 2,
+                    'status': "Running",
+                    'status_code': 103,
                     'ips': [{'interface': "eth0",
                              'protocol': "INET6",
                              'address': "2001:470:b368:1020:1::2"},
@@ -268,8 +302,8 @@ Input (none at present):
  * Description: current state
 
     {
-        'state': "running",
-        'state_code': 1
+        'status': "Running",
+        'status_code': 103
     }
 
 ### PUT
@@ -512,8 +546,8 @@ Return:
     {
         'created_at': 1415639996,                   # Creation timestamp
         'updated_at': 1415639996,                   # Last update timestamp
-        'status': "running",                        # Status string ("pending", "running", "succeeded", "failed", "cancelling", "cancelled")
-        'status_code': 1,                           # Status code
+        'status': "Running",
+        'status_code': 103,
         'resources': {
             'containers': ['/1.0/containers/1']     # List of affected resources
         },
@@ -547,7 +581,7 @@ Input (wait for any event):
 Input (wait for the operation to succeed):
 
     {
-        'status_code': 2,       # Wait for status to be "succeeded"
+        'status_code': 200,     # Wait for status to be "Success"
         'timeout': 30           # Timeout after 30s if status wasn't reached
     }
 
