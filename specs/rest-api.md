@@ -235,7 +235,7 @@ Input (clone of a local snapshot):
  * Return: dict of the container configuration and current state
  * Description: Container information
 
-Input:
+Output:
 
     {
         'name': "my-container",
