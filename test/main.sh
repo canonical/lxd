@@ -33,7 +33,7 @@ lxd_pid=$!
 
 BASEURL=https://127.0.0.1:8443
 my_curl() {
-  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" $@ > /dev/null
+  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" $@
 }
 
 wait_for() {
