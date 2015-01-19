@@ -74,6 +74,8 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 		body["metadata"] = lxd.Jmap{"websocket_secret": r.ws.Secret()}
 	}
 
+	w.Header().Set("Location", op)
+	w.WriteHeader(202)
 	return json.NewEncoder(w).Encode(body)
 }
 
