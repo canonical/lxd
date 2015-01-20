@@ -53,7 +53,8 @@ type Response struct {
 	Type ResponseType `json:"type"`
 
 	/* Valid only for Sync responses */
-	Result Result `json:"result"`
+	Status     string `json:"status"`
+	StatusCode int    `json:"status_code"`
 
 	/* Valid only for Async responses */
 	Operation string `json:"operation"`
@@ -718,7 +719,7 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 		return err
 	}
 
-	if op.Result == Success {
+	if op.StatusCode == Success {
 		return nil
 	}
 
