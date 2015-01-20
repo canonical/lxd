@@ -187,6 +187,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	}
 
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lxd.Debugf("sending top level 404: %s", r.URL)
 		NotFound.Render(w)
 	})
 

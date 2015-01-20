@@ -49,7 +49,7 @@ func (d *Daemon) verifyAdminPwd(password string) bool {
 	return true
 }
 
-func trustGet(d *Daemon, r *http.Request) Response {
+func certificatesGet(d *Daemon, r *http.Request) Response {
 	body := lxd.Jmap{}
 	for host, cert := range d.clientCerts {
 		fingerprint := lxd.GenerateFingerprint(&cert)
@@ -60,7 +60,7 @@ func trustGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, body)
 }
 
-type trustPostBody struct {
+type certificatesPostBody struct {
 	Type        string `json:"type"`
 	Certificate string `json:"certificate"`
 	Name        string `json:"name"`
@@ -86,8 +86,8 @@ func saveCert(host string, cert *x509.Certificate) error {
 	return nil
 }
 
-func trustPost(d *Daemon, r *http.Request) Response {
-	req := trustPostBody{}
+func certificatesPost(d *Daemon, r *http.Request) Response {
+	req := certificatesPostBody{}
 
 	if err := lxd.ReadToJSON(r.Body, &req); err != nil {
 		return BadRequest(err)
@@ -127,15 +127,15 @@ func trustPost(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var trustCmd = Command{"trust", false, true, trustGet, nil, trustPost, nil}
+var certificatesCmd = Command{"certificates", false, true, certificatesGet, nil, certificatesPost, nil}
 
-func trustFingerprintGet(d *Daemon, r *http.Request) Response {
+func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	for _, cert := range d.clientCerts {
 		if fingerprint == lxd.GenerateFingerprint(&cert) {
 			b64 := base64.StdEncoding.EncodeToString(cert.Raw)
-			body := lxd.Jmap{"type": "client", "certificate": b64}
+			body := lxd.Jmap{"type": "client", "certificates": b64}
 			return SyncResponse(true, body)
 		}
 	}
@@ -143,7 +143,7 @@ func trustFingerprintGet(d *Daemon, r *http.Request) Response {
 	return NotFound
 }
 
-func trustFingerprintDelete(d *Daemon, r *http.Request) Response {
+func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 	for name, cert := range d.clientCerts {
 		if fingerprint == lxd.GenerateFingerprint(&cert) {
@@ -161,4 +161,4 @@ func trustFingerprintDelete(d *Daemon, r *http.Request) Response {
 	return NotFound
 }
 
-var trustFingerprintCmd = Command{"trust/{fingerprint}", false, false, trustFingerprintGet, nil, nil, trustFingerprintDelete}
+var certificateFingerprintCmd = Command{"certificates/{fingerprint}", false, false, certificateFingerprintGet, nil, nil, certificateFingerprintDelete}

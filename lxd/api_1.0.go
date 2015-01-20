@@ -13,7 +13,6 @@ import (
 )
 
 var api10 = []Command{
-	fingerCmd,
 	containersCmd,
 	containerCmd,
 	containerStateCmd,
@@ -29,8 +28,8 @@ var api10 = []Command{
 	networkCmd,
 	api10Cmd,
 	listCmd,
-	trustCmd,
-	trustFingerprintCmd,
+	certificatesCmd,
+	certificateFingerprintCmd,
 }
 
 /* Some interesting filesystems */
@@ -59,37 +58,45 @@ func CharsToString(ca [65]int8) string {
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {
-	uname := syscall.Utsname{}
-	if err := syscall.Uname(&uname); err != nil {
-		return InternalError(err)
+	body := lxd.Jmap{"api_compat": lxd.APICompat}
+
+	if d.isTrustedClient(r) {
+		body["auth"] = "trusted"
+
+		uname := syscall.Utsname{}
+		if err := syscall.Uname(&uname); err != nil {
+			return InternalError(err)
+		}
+
+		fs := syscall.Statfs_t{}
+		if err := syscall.Statfs(d.lxcpath, &fs); err != nil {
+			return InternalError(err)
+		}
+
+		env := lxd.Jmap{"lxc_version": lxc.Version(), "driver": "lxc"}
+
+		switch fs.Type {
+		case BTRFS_SUPER_MAGIC:
+			env["backing_fs"] = "btrfs"
+		case TMPFS_MAGIC:
+			env["backing_fs"] = "tmpfs"
+		case EXT4_SUPER_MAGIC:
+			env["backing_fs"] = "ext4"
+		case XFS_SUPER_MAGIC:
+			env["backing_fs"] = "xfs"
+		case NFS_SUPER_MAGIC:
+			env["backing_fs"] = "nfs"
+		default:
+			env["backing_fs"] = fs.Type
+		}
+
+		env["kernel_version"] = CharsToString(uname.Release)
+		body["environment"] = env
+		config := []lxd.Jmap{lxd.Jmap{"key": "trust-password", "value": d.hasPwd()}}
+		body["config"] = config
+	} else {
+		body["auth"] = "untrusted"
 	}
-
-	fs := syscall.Statfs_t{}
-	if err := syscall.Statfs(d.lxcpath, &fs); err != nil {
-		return InternalError(err)
-	}
-
-	env := lxd.Jmap{"lxc_version": lxc.Version(), "driver": "lxc"}
-
-	switch fs.Type {
-	case BTRFS_SUPER_MAGIC:
-		env["backing_fs"] = "btrfs"
-	case TMPFS_MAGIC:
-		env["backing_fs"] = "tmpfs"
-	case EXT4_SUPER_MAGIC:
-		env["backing_fs"] = "ext4"
-	case XFS_SUPER_MAGIC:
-		env["backing_fs"] = "xfs"
-	case NFS_SUPER_MAGIC:
-		env["backing_fs"] = "nfs"
-	default:
-		env["backing_fs"] = fs.Type
-	}
-
-	env["kernel_version"] = CharsToString(uname.Release)
-
-	config := []lxd.Jmap{lxd.Jmap{"key": "trust-password", "value": d.hasPwd()}}
-	body := lxd.Jmap{"config": config, "environment": env}
 
 	return SyncResponse(true, body)
 }

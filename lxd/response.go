@@ -74,6 +74,8 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 		body["metadata"] = lxd.Jmap{"websocket_secret": r.ws.Secret()}
 	}
 
+	w.Header().Set("Location", op)
+	w.WriteHeader(202)
 	return json.NewEncoder(w).Encode(body)
 }
 
@@ -103,16 +105,17 @@ func (r *ErrorResponse) Render(w http.ResponseWriter) error {
 }
 
 /* Some standard responses */
-var NotImplemented = &ErrorResponse{501, "not implemented"}
-var NotFound = &ErrorResponse{404, "not found"}
-var Forbidden = &ErrorResponse{403, "not authorized"}
+var NotImplemented = &ErrorResponse{http.StatusNotImplemented, "not implemented"}
+var NotFound = &ErrorResponse{http.StatusNotFound, "not found"}
+var Forbidden = &ErrorResponse{http.StatusForbidden, "not authorized"}
+var Conflict = &ErrorResponse{http.StatusConflict, "already exists"}
 
 func BadRequest(err error) Response {
-	return &ErrorResponse{400, err.Error()}
+	return &ErrorResponse{http.StatusBadRequest, err.Error()}
 }
 
 func InternalError(err error) Response {
-	return &ErrorResponse{500, err.Error()}
+	return &ErrorResponse{http.StatusInternalServerError, err.Error()}
 }
 
 /*
