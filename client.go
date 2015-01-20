@@ -354,9 +354,22 @@ var unixTransport = http.Transport{
 	Dial: unixDial,
 }
 
+func (c *Client) GetConfig() (*Response, error) {
+	resp, err := c.baseGet(c.url(APIVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
 func (c *Client) Finger() error {
 	Debugf("fingering the daemon")
-	resp, err := c.get("finger")
+	resp, err := c.GetConfig()
 	if err != nil {
 		return err
 	}
@@ -379,7 +392,7 @@ func (c *Client) Finger() error {
 }
 
 func (c *Client) AmTrusted() bool {
-	resp, err := c.get("finger")
+	resp, err := c.GetConfig()
 	if err != nil {
 		return false
 	}

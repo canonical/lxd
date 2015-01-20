@@ -65,6 +65,11 @@ func addServer(config *lxd.Config, server string) error {
 	if err != nil {
 		return err
 	}
+
+	if !c.AmTrusted() {
+		return fmt.Errorf("Server doesn't trust us after adding our cert")
+	}
+
 	fmt.Println("Client certificate stored at server: ", server)
 	return nil
 }
@@ -96,10 +101,9 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 		config.Remotes[args[1]] = lxd.RemoteConfig{Addr: args[2]}
 
-		// todo - we'll need to check whether this is a lxd remote that handles /list/add
 		err := addServer(config, args[1])
 		if err != nil {
-			// todo - remove from config.Remotes since we failed
+			delete(config.Remotes, args[1])
 			return err
 		}
 
