@@ -28,8 +28,8 @@ var api10 = []Command{
 	networkCmd,
 	api10Cmd,
 	listCmd,
-	trustCmd,
-	trustFingerprintCmd,
+	certificatesCmd,
+	certificateFingerprintCmd,
 }
 
 /* Some interesting filesystems */
