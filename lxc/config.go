@@ -62,7 +62,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 				return err
 			}
 
-			trust, err := d.TrustList()
+			trust, err := d.CertificateList()
 			if err != nil {
 				return err
 			}
@@ -94,7 +94,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			}
 
 			name, _ := lxd.SplitExt(fname)
-			return d.TrustAdd(cert, name)
+			return d.CertificateAdd(cert, name)
 		case "remove":
 			var remote string
 			if len(args) < 3 {
@@ -111,7 +111,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			}
 
 			toRemove := args[len(args)-1]
-			trust, err := d.TrustList()
+			trust, err := d.CertificateList()
 			if err != nil {
 				return err
 			}
@@ -119,11 +119,11 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			/* Try to remove by hostname first. */
 			for host, fingerprint := range trust {
 				if host == toRemove {
-					return d.TrustRemove(fingerprint)
+					return d.CertificateRemove(fingerprint)
 				}
 			}
 
-			return d.TrustRemove(args[len(args)-1])
+			return d.CertificateRemove(args[len(args)-1])
 		default:
 			return fmt.Errorf("Unkonwn config trust command %s", args[1])
 		}

@@ -467,8 +467,8 @@ func (c *Client) UserAuthServerCert() error {
 	return err
 }
 
-func (c *Client) TrustList() (map[string]string, error) {
-	raw, err := c.get("trust")
+func (c *Client) CertificateList() (map[string]string, error) {
+	raw, err := c.get("certificates")
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +488,7 @@ func (c *Client) TrustList() (map[string]string, error) {
 func (c *Client) AddMyCertToServer(pwd string) error {
 	body := Jmap{"type": "client", "password": pwd}
 
-	raw, err := c.post("trust", body)
+	raw, err := c.post("certificates", body)
 	if err != nil {
 		return err
 	}
@@ -496,9 +496,9 @@ func (c *Client) AddMyCertToServer(pwd string) error {
 	return ParseError(raw)
 }
 
-func (c *Client) TrustAdd(cert *x509.Certificate, name string) error {
+func (c *Client) CertificateAdd(cert *x509.Certificate, name string) error {
 	b64 := base64.StdEncoding.EncodeToString(cert.Raw)
-	raw, err := c.post("trust", Jmap{"type": "client", "certificate": b64, "name": name})
+	raw, err := c.post("certificates", Jmap{"type": "client", "certificate": b64, "name": name})
 	if err != nil {
 		return err
 	}
@@ -506,8 +506,8 @@ func (c *Client) TrustAdd(cert *x509.Certificate, name string) error {
 	return ParseError(raw)
 }
 
-func (c *Client) TrustRemove(fingerprint string) error {
-	raw, err := c.delete(fmt.Sprintf("trust/%s", fingerprint), nil)
+func (c *Client) CertificateRemove(fingerprint string) error {
+	raw, err := c.delete(fmt.Sprintf("certificates/%s", fingerprint), nil)
 	if err != nil {
 		return err
 	}
