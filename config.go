@@ -56,7 +56,7 @@ func LoadConfig() (*Config, error) {
 
 	if _, err := os.Stat("/var/lib/lxd/unix.socket"); err == nil {
 		//lxd is present on local machine.
-		defaultRemotes["local"] = RemoteConfig{"http+lxd://var/lib/lxd/unix.socket"}
+		defaultRemotes["local"] = RemoteConfig{"http+lxd://unix.socket"}
 	}
 	//Create a default config setting.
 	defaultConfig := &Config{TestOption: "",
