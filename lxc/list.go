@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"github.com/lxc/lxd"
+	"strings"
 )
 
 type listCmd struct{}
