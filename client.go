@@ -209,7 +209,11 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 func (c *Client) get(base string) (*Response, error) {
 	uri := c.url(APIVersion, base)
 
-	resp, err := c.http.Get(uri)
+	return c.baseGet(uri)
+}
+
+func (c *Client) baseGet(url string) (*Response, error) {
+	resp, err := c.http.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -682,14 +686,8 @@ func (c *Client) WaitFor(waitURL string) (*Operation, error) {
 	 * "/<version>/operations/" in it; we chop off the leading / and pass
 	 * it to url directly.
 	 */
-	uri := c.url(waitURL[1:], "wait")
-	Debugf(uri)
-	raw, err := c.http.Post(uri, "application/json", strings.NewReader("{}"))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := ParseResponse(raw)
+	Debugf(path.Join(waitURL[1:], "wait"))
+	resp, err := c.baseGet(c.url(waitURL, "wait"))
 	if err != nil {
 		return nil, err
 	}
