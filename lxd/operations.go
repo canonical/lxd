@@ -21,7 +21,6 @@ func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error, w
 	op.CreatedAt = time.Now()
 	op.UpdatedAt = op.CreatedAt
 	op.SetStatus(lxd.Pending)
-	op.StatusCode = lxd.StatusCodes[op.Status]
 	op.ResourceURL = lxd.OperationsURL(id)
 
 	md, err := json.Marshal(metadata)
@@ -56,8 +55,7 @@ func StartOperation(id string) error {
 		err := op.Run()
 
 		lock.Lock()
-		op.SetStatus(lxd.Done)
-		op.SetResult(err)
+		op.SetStatusByErr(err)
 		op.Chan <- true
 		lock.Unlock()
 	}(op)
@@ -73,7 +71,7 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 
 	lock.Lock()
 	for k, v := range operations {
-		switch v.Status {
+		switch v.StatusCode {
 		case lxd.Pending:
 			ops["pending"] = append(ops["pending"].([]string), k)
 		case lxd.Running:
@@ -113,8 +111,9 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Can't cancel %s!", id))
 	}
 
-	if op.Status == lxd.Done || op.Status == lxd.Cancelling || op.Status == lxd.Cancelled {
-		/* the user has already requested a cancel */
+	if op.StatusCode == lxd.Cancelling || op.StatusCode.IsFinal() {
+		/* the user has already requested a cancel, or the status is
+		 * in a final state. */
 		return EmptySyncResponse
 	}
 
@@ -125,8 +124,7 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 	err := cancel()
 
 	lock.Lock()
-	op.SetStatus(lxd.Cancelled)
-	op.SetResult(err)
+	op.SetStatusByErr(err)
 	lock.Unlock()
 
 	if err != nil {
@@ -147,10 +145,10 @@ func operationWaitGet(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
-	status := op.Status
+	status := op.StatusCode
 	lock.Unlock()
 
-	targetStatus, err := lxd.AtoiEmptyDefault(r.FormValue("status_code"), lxd.StatusCodes[lxd.Done])
+	targetStatus, err := lxd.AtoiEmptyDefault(r.FormValue("status_code"), int(lxd.Success))
 	if err != nil {
 		return InternalError(err)
 	}
@@ -160,8 +158,7 @@ func operationWaitGet(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	statusInt := lxd.StatusCodes[status]
-	if statusInt != targetStatus && status == lxd.Pending || status == lxd.Running {
+	if int(status) != targetStatus && status == lxd.Pending || status == lxd.Running {
 		if timeout >= 0 {
 			select {
 			case <-op.Chan:
@@ -221,7 +218,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) Response {
 		return Forbidden
 	}
 
-	if op.Status == lxd.Done || op.Status == lxd.Cancelling || op.Status == lxd.Cancelled {
+	if op.StatusCode.IsFinal() {
 		return BadRequest(fmt.Errorf("status is %s, can't connect", op.Status))
 	}
 
