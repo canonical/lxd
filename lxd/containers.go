@@ -498,7 +498,7 @@ func snapshotPost(r *http.Request, c *lxc.Container, oldName string) Response {
 	if !os.IsNotExist(err) {
 		return InternalError(err)
 	} else if err == nil {
-		return BadRequest(fmt.Errorf("snapshot already exists"))
+		return Conflict
 	}
 
 	/*
