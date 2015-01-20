@@ -19,6 +19,9 @@ cleanup() {
 }
 
 set -e
+if [ -n "$LXD_DEBUG" ]; then
+    set -x
+fi
 
 trap cleanup EXIT HUP INT TERM
 
@@ -27,8 +30,12 @@ trap cleanup EXIT HUP INT TERM
 . ./basic.sh
 . ./snapshots.sh
 
+if [ -n "$LXD_DEBUG" ]; then
+    debug=--debug
+fi
+
 echo "Spawning lxd"
-lxd --tcp 127.0.0.1:8443 &
+lxd --debug --tcp 127.0.0.1:8443 &
 lxd_pid=$!
 
 BASEURL=https://127.0.0.1:8443
@@ -42,7 +49,7 @@ wait_for() {
 }
 
 lxc() {
-  ../lxc/lxc $@ --config "${LXD_CONF}"
+  ../lxc/lxc $@ --config "${LXD_CONF}" $debug
 }
 
 echo "Confirming lxd is responsive"
