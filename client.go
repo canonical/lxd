@@ -209,7 +209,11 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 func (c *Client) get(base string) (*Response, error) {
 	uri := c.url(APIVersion, base)
 
-	resp, err := c.http.Get(uri)
+	return c.baseGet(uri)
+}
+
+func (c *Client) baseGet(url string) (*Response, error) {
+	resp, err := c.http.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -350,9 +354,22 @@ var unixTransport = http.Transport{
 	Dial: unixDial,
 }
 
+func (c *Client) GetConfig() (*Response, error) {
+	resp, err := c.baseGet(c.url(APIVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
 func (c *Client) Finger() error {
 	Debugf("fingering the daemon")
-	resp, err := c.get("finger")
+	resp, err := c.GetConfig()
 	if err != nil {
 		return err
 	}
@@ -375,7 +392,7 @@ func (c *Client) Finger() error {
 }
 
 func (c *Client) AmTrusted() bool {
-	resp, err := c.get("finger")
+	resp, err := c.GetConfig()
 	if err != nil {
 		return false
 	}
@@ -450,8 +467,8 @@ func (c *Client) UserAuthServerCert() error {
 	return err
 }
 
-func (c *Client) TrustList() (map[string]string, error) {
-	raw, err := c.get("trust")
+func (c *Client) CertificateList() (map[string]string, error) {
+	raw, err := c.get("certificates")
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +488,7 @@ func (c *Client) TrustList() (map[string]string, error) {
 func (c *Client) AddMyCertToServer(pwd string) error {
 	body := Jmap{"type": "client", "password": pwd}
 
-	raw, err := c.post("trust", body)
+	raw, err := c.post("certificates", body)
 	if err != nil {
 		return err
 	}
@@ -479,9 +496,9 @@ func (c *Client) AddMyCertToServer(pwd string) error {
 	return ParseError(raw)
 }
 
-func (c *Client) TrustAdd(cert *x509.Certificate, name string) error {
+func (c *Client) CertificateAdd(cert *x509.Certificate, name string) error {
 	b64 := base64.StdEncoding.EncodeToString(cert.Raw)
-	raw, err := c.post("trust", Jmap{"type": "client", "certificate": b64, "name": name})
+	raw, err := c.post("certificates", Jmap{"type": "client", "certificate": b64, "name": name})
 	if err != nil {
 		return err
 	}
@@ -489,8 +506,8 @@ func (c *Client) TrustAdd(cert *x509.Certificate, name string) error {
 	return ParseError(raw)
 }
 
-func (c *Client) TrustRemove(fingerprint string) error {
-	raw, err := c.delete(fmt.Sprintf("trust/%s", fingerprint), nil)
+func (c *Client) CertificateRemove(fingerprint string) error {
+	raw, err := c.delete(fmt.Sprintf("certificates/%s", fingerprint), nil)
 	if err != nil {
 		return err
 	}
@@ -682,14 +699,8 @@ func (c *Client) WaitFor(waitURL string) (*Operation, error) {
 	 * "/<version>/operations/" in it; we chop off the leading / and pass
 	 * it to url directly.
 	 */
-	uri := c.url(waitURL[1:], "wait")
-	Debugf(uri)
-	raw, err := c.http.Post(uri, "application/json", strings.NewReader("{}"))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := ParseResponse(raw)
+	Debugf(path.Join(waitURL[1:], "wait"))
+	resp, err := c.baseGet(c.url(waitURL, "wait"))
 	if err != nil {
 		return nil, err
 	}
