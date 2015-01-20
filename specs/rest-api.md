@@ -106,8 +106,11 @@ Code  | Meaning
 101   | Started
 102   | Stopped
 103   | Running
+104   | Cancelling
+105   | Pending
 200   | Success
 400   | Failure
+401   | Cancelled
 
 
 # Safety for concurrent updates

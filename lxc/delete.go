@@ -49,7 +49,7 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		if op.Result == lxd.Failure {
+		if op.StatusCode == lxd.Failure {
 			return fmt.Errorf("Stopping container failed!")
 		}
 	}
@@ -64,9 +64,9 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	if op.Result == lxd.Success {
+	if op.StatusCode == lxd.Success {
 		return nil
 	} else {
-		return fmt.Errorf("Operation %s", op.Result)
+		return fmt.Errorf("Operation %s", op.Status)
 	}
 }
