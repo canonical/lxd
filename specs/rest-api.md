@@ -308,6 +308,8 @@ Input (none at present):
     {
     }
 
+HTTP code for this should be 202 (Accepted).
+
 ## /1.0/containers/\<name\>/state
 ### GET
  * Description: current state
@@ -423,6 +425,8 @@ Input (none at present):
     {
     }
 
+HTTP code for this should be 202 (Accepted).
+
 ## /1.0/containers/\<name\>/exec
 ### POST
  * Description: run a remote command
@@ -472,6 +476,8 @@ Input (none at present):
 
     {
     }
+
+HTTP code for this should be 202 (Accepted).
 
 ### PUT
  * Description: Updates the image metadata
@@ -678,6 +684,7 @@ Input (none at present):
     {
     }
 
+HTTP code for this should be 202 (Accepted).
 
 ## /1.0/certificates
 ### GET
@@ -725,6 +732,8 @@ Input (none at present):
 
     {
     }
+
+HTTP code for this should be 202 (Accepted).
 
 ## /1.0/longpoll
 This URL isn't a standard REST object, instead it's a longpoll service
