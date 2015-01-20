@@ -138,7 +138,7 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 
 var operationCmd = Command{"operations/{id}", false, false, operationGet, nil, nil, operationDelete}
 
-func operationWaitPost(d *Daemon, r *http.Request) Response {
+func operationWaitGet(d *Daemon, r *http.Request) Response {
 	lock.Lock()
 	id := lxd.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
@@ -150,9 +150,28 @@ func operationWaitPost(d *Daemon, r *http.Request) Response {
 	status := op.Status
 	lock.Unlock()
 
-	if status == lxd.Pending || status == lxd.Running {
-		/* Wait until the routine is done */
-		<-op.Chan
+	targetStatus, err := lxd.AtoiEmptyDefault(r.FormValue("status_code"), lxd.StatusCodes[lxd.Done])
+	if err != nil {
+		return InternalError(err)
+	}
+
+	timeout, err := lxd.AtoiEmptyDefault(r.FormValue("timeout"), -1)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	statusInt := lxd.StatusCodes[status]
+	if statusInt != targetStatus && status == lxd.Pending || status == lxd.Running {
+		if timeout >= 0 {
+			select {
+			case <-op.Chan:
+				break
+			case <-time.After(time.Duration(timeout) * time.Second):
+				break
+			}
+		} else {
+			<-op.Chan
+		}
 	}
 
 	lock.Lock()
@@ -160,7 +179,7 @@ func operationWaitPost(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, op)
 }
 
-var operationWait = Command{"operations/{id}/wait", false, false, nil, nil, operationWaitPost, nil}
+var operationWait = Command{"operations/{id}/wait", false, false, operationWaitGet, nil, nil, nil}
 
 type websocketServe struct {
 	req *http.Request

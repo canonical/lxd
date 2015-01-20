@@ -45,7 +45,7 @@ my_curl() {
 
 wait_for() {
   op=$($@ | jq -r .operation)
-  my_curl -X POST $BASEURL$op/wait
+  my_curl $BASEURL$op/wait
 }
 
 lxc() {
