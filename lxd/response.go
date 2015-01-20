@@ -108,6 +108,7 @@ func (r *ErrorResponse) Render(w http.ResponseWriter) error {
 var NotImplemented = &ErrorResponse{http.StatusNotImplemented, "not implemented"}
 var NotFound = &ErrorResponse{http.StatusNotFound, "not found"}
 var Forbidden = &ErrorResponse{http.StatusForbidden, "not authorized"}
+var Conflict = &ErrorResponse{http.StatusConflict, "already exists"}
 
 func BadRequest(err error) Response {
 	return &ErrorResponse{http.StatusBadRequest, err.Error()}
