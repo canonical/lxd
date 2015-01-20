@@ -82,6 +82,18 @@ func (r *Response) MetadataAsOperation() (*Operation, error) {
 	return &op, nil
 }
 
+func getURITokens(uri string, token string, count int) []string {
+	result := strings.SplitN(uri, token, count)
+	return result
+}
+
+func (c *Client) getRemoteURL(remote string) string {
+	url_token := getURITokens(remote, ":", 2)
+	header_token := getURITokens(url_token[0], "+", 2)
+	url := header_token[0] + ":" + url_token[1]
+	return url
+}
+
 func ParseResponse(r *http.Response) (*Response, error) {
 	if r == nil {
 		return nil, fmt.Errorf("no response!")
@@ -196,10 +208,10 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 		c.baseURL = "http://unix.socket"
 		c.http.Transport = &unixTransport
 	} else if len(remote) > 6 && remote[0:5] == "unix:" {
-		c.baseURL = "http://unix.socket"
+		c.baseURL = c.getRemoteURL(config.Remotes["local"].Addr)
 		c.http.Transport = &unixTransport
 	} else if r, ok := config.Remotes[remote]; ok {
-		c.baseURL = "https://" + r.Addr
+		c.baseURL = c.getRemoteURL(r.Addr)
 		c.Remote = &r
 		c.loadServerCert()
 	} else {
