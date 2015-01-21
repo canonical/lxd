@@ -31,10 +31,8 @@ func (c *remoteCmd) usage() string {
 func (c *remoteCmd) flags() {}
 
 func addServer(config *lxd.Config, server string) error {
-	lxd.Debugf("connecting to %s", server)
-	s2 := fmt.Sprintf("%s:x", server)
-	lxd.Debugf("trying to %s", s2)
-	c, _, err := lxd.NewClient(config, s2)
+	remote := config.ParseRemote(server)
+	c, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}

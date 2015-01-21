@@ -17,7 +17,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/websocket"
 )
@@ -134,14 +133,14 @@ func (c *Client) loadServerCert() {
 }
 
 // NewClient returns a new lxd client.
-func NewClient(config *Config, raw string) (*Client, string, error) {
+func NewClient(config *Config, remote string) (*Client, error) {
 	certf, keyf, err := readMyCert()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	cert, err := tls.LoadX509KeyPair(certf, keyf)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	tlsconfig := &tls.Config{InsecureSkipVerify: true,
@@ -171,17 +170,6 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 		TLSClientConfig: tlsconfig,
 	}
 
-	result := strings.SplitN(raw, ":", 2)
-	var remote string
-	var container string
-
-	if len(result) == 1 {
-		remote = config.DefaultRemote
-		container = result[0]
-	} else {
-		remote = result[0]
-		container = result[1]
-	}
 	c.name = remote
 
 	// TODO: Here, we don't support configurable local remotes, we only
@@ -197,13 +185,13 @@ func NewClient(config *Config, raw string) (*Client, string, error) {
 		c.Remote = &r
 		c.loadServerCert()
 	} else {
-		return nil, "", fmt.Errorf("unknown remote name: %q", remote)
+		return nil, fmt.Errorf("unknown remote name: %q", remote)
 	}
 	if err := c.Finger(); err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
-	return &c, container, nil
+	return &c, nil
 }
 
 func (c *Client) get(base string) (*Response, error) {

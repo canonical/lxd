@@ -27,7 +27,9 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	d, name, err := lxd.NewClient(config, args[0])
+	remote, name := config.ParseRemoteAndContainer(args[0])
+
+	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
