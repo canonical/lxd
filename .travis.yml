@@ -6,7 +6,7 @@ go:
 
 before_install:
   - sudo apt-add-repository -y ppa:ubuntu-lxc/daily
-  - sudo apt-get update
+  - sudo apt-get update -qq
 
 install:
   - sudo apt-get install lxc lxc-dev
@@ -16,3 +16,8 @@ install:
   - rsync -az ${TRAVIS_BUILD_DIR}/ $HOME/gopath/src/github.com/lxc/lxd/
 
 script: "make check"
+notifications:
+  irc:
+    channels:
+      - "chat.freenode.net#lxcontainers"
+    use_notice: true
