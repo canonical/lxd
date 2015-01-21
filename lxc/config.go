@@ -37,7 +37,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			}
 
 			password := args[2]
-			c, _, err := lxd.NewClient(config, "")
+			c, err := lxd.NewClient(config, "")
 			if err != nil {
 				return err
 			}
@@ -52,12 +52,12 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		case "list":
 			var remote string
 			if len(args) == 3 {
-				remote = args[2]
+				remote = config.ParseRemote(args[2])
 			} else {
 				remote = config.DefaultRemote
 			}
 
-			d, _, err := lxd.NewClient(config, remote)
+			d, err := lxd.NewClient(config, remote)
 			if err != nil {
 				return err
 			}
@@ -77,12 +77,12 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			if len(args) < 3 {
 				return fmt.Errorf("No cert provided to add")
 			} else if len(args) == 4 {
-				remote = args[2]
+				remote = config.ParseRemote(args[2])
 			} else {
 				remote = config.DefaultRemote
 			}
 
-			d, _, err := lxd.NewClient(config, remote)
+			d, err := lxd.NewClient(config, remote)
 			if err != nil {
 				return err
 			}
@@ -100,12 +100,12 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			if len(args) < 3 {
 				return fmt.Errorf("No fingerprint specified.")
 			} else if len(args) == 4 {
-				remote = args[2]
+				remote = config.ParseRemote(args[2])
 			} else {
 				remote = config.DefaultRemote
 			}
 
-			d, _, err := lxd.NewClient(config, remote)
+			d, err := lxd.NewClient(config, remote)
 			if err != nil {
 				return err
 			}

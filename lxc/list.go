@@ -30,12 +30,12 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 
 	var remote string
 	if len(args) == 1 {
-		remote = args[0]
+		remote = config.ParseRemote(args[0])
 	} else {
 		remote = config.DefaultRemote
 	}
 
-	d, _, err := lxd.NewClient(config, remote)
+	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -98,4 +99,17 @@ func SaveConfig(c *Config) error {
 		return fmt.Errorf("cannot rename temporary config file: %v", err)
 	}
 	return nil
+}
+
+func (c *Config) ParseRemoteAndContainer(raw string) (string, string) {
+	result := strings.SplitN(raw, ":", 2)
+	if len(result) == 1 {
+		return c.DefaultRemote, result[0]
+	} else {
+		return result[0], result[1]
+	}
+}
+
+func (c *Config) ParseRemote(raw string) string {
+	return strings.SplitN(raw, ":", 2)[0]
 }

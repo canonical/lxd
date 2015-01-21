@@ -33,14 +33,16 @@ func (c *createCmd) run(config *lxd.Config, args []string) error {
 		return fmt.Errorf("Only the default ubuntu image is supported. Try `lxc create images:ubuntu foo`.")
 	}
 
-	var resourceRef string
+	var name string
+	var remote string
 	if len(args) == 2 {
-		resourceRef = args[1]
+		remote, name = config.ParseRemoteAndContainer(args[1])
 	} else {
-		resourceRef = ""
+		name = ""
+		remote = ""
 	}
 
-	d, name, err := lxd.NewClient(config, resourceRef)
+	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}

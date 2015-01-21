@@ -27,12 +27,12 @@ func (c *fingerCmd) run(config *lxd.Config, args []string) error {
 
 	var remote string
 	if len(args) == 1 {
-		remote = args[0]
+		remote = config.ParseRemote(args[0])
 	} else {
 		remote = config.DefaultRemote
 	}
 
 	// NewClient will finger the server to test the connection before returning.
-	_, _, err := lxd.NewClient(config, remote)
+	_, err := lxd.NewClient(config, remote)
 	return err
 }

@@ -117,6 +117,21 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		name = r.TLS.ServerName
 	}
 
+	fingerprint := lxd.GenerateFingerprint(cert)
+	for existingName, existingCert := range d.clientCerts {
+		if name == existingName {
+			if fingerprint == lxd.GenerateFingerprint(&existingCert) {
+				return EmptySyncResponse
+			} else {
+				return Conflict
+			}
+		}
+	}
+
+	if !d.isTrustedClient(r) && !d.verifyAdminPwd(req.Password) {
+		return Forbidden
+	}
+
 	err := saveCert(name, cert)
 	if err != nil {
 		return InternalError(err)
