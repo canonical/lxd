@@ -48,8 +48,9 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 	}
 
 	targetPath := pathSpec[1]
+	remote, container := config.ParseRemoteAndContainer(pathSpec[0])
 
-	d, container, err := lxd.NewClient(config, pathSpec[0])
+	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
@@ -138,7 +139,8 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 			return fmt.Errorf("Invalid source %s", f)
 		}
 
-		d, container, err := lxd.NewClient(config, pathSpec[0])
+		remote, container := config.ParseRemoteAndContainer(pathSpec[0])
+		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
