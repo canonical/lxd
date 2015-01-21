@@ -1,4 +1,11 @@
 test_remote() {
+  bad=0
+  (echo y;  sleep 3;  echo bad) | lxc remote add badpass 127.0.0.1:8443 --debug || true
+  lxc list badpass && bad=1 || true
+  if [ "$bad" -eq 1 ]; then
+      echo "bad password accepted" && false
+  fi
+
   (echo y;  sleep 3;  echo foo) |  lxc remote add local 127.0.0.1:8443 --debug
   lxc remote list | grep 'local'
 
