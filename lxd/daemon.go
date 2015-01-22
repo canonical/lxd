@@ -70,6 +70,7 @@ func readSavedClientCAList(d *Daemon) {
 		if err != nil {
 			continue
 		}
+		n, _ = lxd.SplitExt(n)
 		d.clientCerts[n] = *cert
 		lxd.Debugf("Loaded cert %s", fnam)
 	}
