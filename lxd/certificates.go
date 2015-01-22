@@ -53,8 +53,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 	body := lxd.Jmap{}
 	for host, cert := range d.clientCerts {
 		fingerprint := lxd.GenerateFingerprint(&cert)
-		hostname, _ := lxd.SplitExt(host)
-		body[hostname] = fingerprint
+		body[host] = fingerprint
 	}
 
 	return SyncResponse(true, body)
