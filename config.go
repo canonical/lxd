@@ -51,10 +51,24 @@ func ServerCertPath(name string) string {
 
 // LoadConfig reads the configuration from the config path.
 func LoadConfig() (*Config, error) {
+	defaultRemotes := map[string]RemoteConfig{
+		"images": RemoteConfig{"https+registry://registry.linuxcontainers.org"},
+	}
+
+	if _, err := os.Stat("/var/lib/lxd/unix.socket"); err == nil {
+		//lxd is present on local machine.
+		defaultRemotes["local"] = RemoteConfig{"http+lxd://unix.socket"}
+	}
+	//Create a default config setting.
+	defaultConfig := &Config{TestOption: "",
+		DefaultRemote: "",
+		Remotes:       defaultRemotes,
+		ListenAddr:    ""}
+
 	data, err := ioutil.ReadFile(configPath(configFileName))
 	if os.IsNotExist(err) {
 		// A missing file is equivalent to the default configuration.
-		return &Config{}, nil
+		return defaultConfig, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file: %v", err)
