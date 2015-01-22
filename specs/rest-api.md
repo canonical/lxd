@@ -147,9 +147,9 @@ For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
      * /1.0/networks
        * /1.0/networks/\<name\>
      * /1.0/operations
-       * /1.0/operations/\<id\>
-         * /1.0/operations/\<id\>/wait
-         * /1.0/operations/\<id\>/websocket
+       * /1.0/operations/\<uuid\>
+         * /1.0/operations/\<uuid\>/wait
+         * /1.0/operations/\<uuid\>/websocket
      * /1.0/profiles
        * /1.0/profiles/\<name\>
      * /1.0/certificates
@@ -776,7 +776,7 @@ This never returns. Each notification is sent as a separate JSON dict:
     {
         'timestamp': 1415639996,                # Current timestamp
         'type': "operations",                   # Notification type
-        'resource': "/1.0/operations/<id>",     # Resource URL
+        'resource': "/1.0/operations/<uuid>",   # Resource URL
         'metadata': {}                          # Extra resource or type specific metadata
     }
 
