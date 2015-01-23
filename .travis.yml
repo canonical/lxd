@@ -19,5 +19,5 @@ script: "make check"
 notifications:
   irc:
     channels:
-      - "chat.freenode.net#lxcontainers"
+      - secure: "ttPu6Gd8AzVc0jWG1FNobE13ImbfMdSovLXA8IZ2YEeJO/LAG+EpurUWtOq2rrTZ6iCF+Id1S3muFl8ycQMQdLffmTflSQxosZYI2yEHfDhGkmrcW6LqeUAQo3gGGhsHb2WyOdR5XLjsPNmgy1WnJpt1862pocA/iwyOoRfgpV4="
     use_notice: true
