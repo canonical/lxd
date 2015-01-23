@@ -167,7 +167,6 @@ func NewClient(config *Config, remote string) (*Client, error) {
 	c.keyf = keyf
 	c.cert = cert
 	c.websocketDialer = websocket.Dialer{
-		NetDial:         unixDial,
 		TLSClientConfig: tlsconfig,
 	}
 
@@ -178,9 +177,11 @@ func NewClient(config *Config, remote string) (*Client, error) {
 	if remote == "" {
 		c.baseURL = "http://unix.socket"
 		c.http.Transport = &unixTransport
+		c.websocketDialer.NetDial = unixDial
 	} else if len(remote) > 6 && remote[0:5] == "unix:" {
 		c.baseURL = "http://unix.socket"
 		c.http.Transport = &unixTransport
+		c.websocketDialer.NetDial = unixDial
 	} else if r, ok := config.Remotes[remote]; ok {
 		c.baseURL = "https://" + r.Addr
 		c.Remote = &r
