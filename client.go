@@ -28,6 +28,7 @@ type Client struct {
 	name            string
 	http            http.Client
 	baseURL         string
+	baseWSURL       string
 	certf           string
 	keyf            string
 	cert            tls.Certificate
@@ -176,14 +177,23 @@ func NewClient(config *Config, remote string) (*Client, error) {
 	// support the default local lxd at /var/lib/lxd/unix.socket.
 	if remote == "" {
 		c.baseURL = "http://unix.socket"
+		c.baseWSURL = "ws://unix.socket"
 		c.http.Transport = &unixTransport
 		c.websocketDialer.NetDial = unixDial
 	} else if len(remote) > 6 && remote[0:5] == "unix:" {
+		/*
+		 * TODO: I suspect this doesn't work, since unixTransport
+		 * hardcodes VarPath("unix.socket"); we should figure out
+		 * whether or not unix: is really in the spec, and pass this
+		 * down accordingly if it is.
+		 */
 		c.baseURL = "http://unix.socket"
+		c.baseWSURL = "ws://unix.socket"
 		c.http.Transport = &unixTransport
 		c.websocketDialer.NetDial = unixDial
 	} else if r, ok := config.Remotes[remote]; ok {
 		c.baseURL = "https://" + r.Addr
+		c.baseWSURL = "wss://" + r.Addr
 		c.Remote = &r
 		c.loadServerCert()
 	} else {
@@ -293,14 +303,8 @@ func (c *Client) delete(base string, args Jmap) (*Response, error) {
 }
 
 func (c *Client) websocket(operation string, secret string) (*websocket.Conn, error) {
-	addr := "unix.socket"
-	if c.Remote != nil {
-		addr = c.Remote.Addr
-	}
-
-	// TODO: this should be synchronized with above in NewClient somehow
 	query := url.Values{"secret": []string{secret}}
-	url := "ws://" + path.Join(addr, operation, "websocket") + "?" + query.Encode()
+	url := c.baseWSURL + path.Join(operation, "websocket") + "?" + query.Encode()
 	conn, raw, err := c.websocketDialer.Dial(url, http.Header{})
 	if err != nil {
 		resp, err2 := ParseResponse(raw)
