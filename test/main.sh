@@ -20,6 +20,7 @@ fi
 
 echo "==> Running the LXD testsuite"
 
+BASEURL=https://127.0.0.1:8443
 my_curl() {
   curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" $@
 }
@@ -61,6 +62,7 @@ fi
 . ./basic.sh
 . ./database.sh
 . ./fuidshift.sh
+. ./migration.sh
 . ./remote.sh
 . ./signoff.sh
 . ./snapshots.sh
@@ -71,25 +73,36 @@ if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
 fi
 
+spawn_lxd() {
+  echo "==> Spawning lxd on $1 in $2"
+  LXD_DIR=$2 lxd $debug --tcp $1 &
+
+  echo "==> Confirming lxd on $1 is responsive"
+  alive=0
+  while [ $alive -eq 0 ]; do
+    [ -e "${2}/unix.socket" ] && LXD_DIR=$2 lxc finger && alive=1
+    sleep 1s
+  done
+
+  echo "==> Setting trust password"
+  LXD_DIR=$2 lxc config set password foo
+}
+
+spawn_lxd 127.0.0.1:8443 $LXD_DIR
+lxd_pid=$!
+
+# allow for running a specific set of tests
+if [ "$#" -gt 0 ]; then
+  test_$1
+  RESULT=success
+  exit
+fi
+
 echo "==> TEST: commit sign-off"
 test_commits_signed_off
 
 echo "==> TEST: doing static analysis of commits"
 static_analysis
-
-echo "==> Spawning lxd"
-lxd $debug --tcp 127.0.0.1:8443 &
-lxd_pid=$!
-
-echo "==> Confirming lxd is responsive"
-alive=0
-while [ $alive -eq 0 ]; do
-  [ -e "${LXD_DIR}/unix.socket" ] && lxc finger && alive=1
-  sleep 1
-done
-
-echo "==> Setting trust password"
-lxc config set password foo
 
 echo "==> TEST: lxc remote"
 test_remote
@@ -108,5 +121,13 @@ test_fuidshift
 
 echo "==> TEST: database lock"
 test_database_lock
+
+# Anything below this will not get run inside Travis-CI
+if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+  return
+fi
+
+echo "==> TEST: migration"
+test_migration
 
 RESULT=success

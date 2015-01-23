@@ -220,16 +220,13 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	var tcpListen func() error
 	if listenAddr != "" {
-		// Watch out. There's a listener active which must be closed on errors.
-		mycert, err := tls.LoadX509KeyPair(d.certf, d.keyf)
+		config, err := shared.GetTLSConfig(d.certf, d.keyf)
 		if err != nil {
+			d.unixl.Close()
 			return nil, err
 		}
-		config := tls.Config{Certificates: []tls.Certificate{mycert},
-			ClientAuth: tls.RequireAnyClientCert,
-			MinVersion: tls.VersionTLS12,
-			MaxVersion: tls.VersionTLS12}
-		tcpl, err := tls.Listen("tcp", listenAddr, &config)
+
+		tcpl, err := tls.Listen("tcp", listenAddr, config)
 		if err != nil {
 			d.unixl.Close()
 			return nil, fmt.Errorf("cannot listen on unix socket: %v", err)

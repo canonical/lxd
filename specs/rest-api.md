@@ -382,17 +382,22 @@ Input (restore snapshot):
  * Operation: async
  * Return: background operation or standard error
 
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
+
 Input (simple rename):
 
     {
         'name': "new-name"
     }
 
+Input (migration across lxd instances):
+    {
+        "migration": true,
+        "name": "new-name"
+    }
 
-Renaming to an existing name must return the 409 (Conflict) HTTP code.
-
-TODO: Cross host rename/migration.
-
+The migration does not actually start until someone (i.e. another lxd instance)
+connects to the websocket with the secret.
 
 ### DELETE
  * Description: remove the container
@@ -846,8 +851,9 @@ Input (wait for the operation to succeed or timeout): ?status\_code=200&timeout=
    stdin/stdout/stderr to flow to and from the process inside the container.
    In the case of migration, it will be the primary interface over which the
    migration information is communicated. The secret here is the one that was
-   provided when the operation was created.
- * Authentication: trusted
+   provided when the operation was created. Guests are allowed to connect
+   provided they have the right secret.
+ * Authentication: guest or trusted
  * Operation: sync
  * Return: websocket stream or standard error
 

@@ -221,4 +221,4 @@ func operationWebsocketGet(d *Daemon, r *http.Request) Response {
 	return &websocketServe{r, secret, op}
 }
 
-var operationWebsocket = Command{name: "operations/{id}/websocket", get: operationWebsocketGet}
+var operationWebsocket = Command{name: "operations/{id}/websocket", untrustedGet: true, get: operationWebsocketGet}

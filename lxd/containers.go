@@ -19,6 +19,7 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/lxc/go-lxc.v2"
@@ -53,10 +54,16 @@ func containersGet(d *Daemon, r *http.Request) Response {
 }
 
 type containerImageSource struct {
-	Type        string `json:"type"`
-	URL         string `json:"url"`
+	Type string `json:"type"`
+
+	/* for "image" type */
 	Alias       string `json:"alias"`
 	Fingerprint string `json:"fingerprint"`
+
+	/* for "migration" type */
+	Mode       string            `json:"mode"`
+	Operation  string            `json:"operation"`
+	Websockets map[string]string `json:"secrets"`
 }
 
 type containerPostReq struct {
@@ -129,6 +136,51 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 	return &asyncResponse{run: run, containers: []string{req.Name}}
 }
 
+func createFromMigration(d *Daemon, req *containerPostReq) Response {
+
+	if req.Source.Mode != "pull" {
+		return NotImplemented
+	}
+
+	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config)
+	if err != nil {
+		if err == DbErrAlreadyDefined {
+			return Conflict
+		}
+		return InternalError(err)
+	}
+
+	c, err := newLxdContainer(req.Name, d)
+	if err != nil {
+		removeContainer(d, req.Name)
+		return InternalError(err)
+	}
+
+	config, err := shared.GetTLSConfig(d.certf, d.keyf)
+	if err != nil {
+		removeContainer(d, req.Name)
+		return InternalError(err)
+	}
+
+	dialer := websocket.Dialer{TLSClientConfig: config}
+
+	sink, err := migration.NewMigrationSink(req.Source.Operation, dialer, c.c, req.Source.Websockets)
+	if err != nil {
+		removeContainer(d, req.Name)
+		return BadRequest(err)
+	}
+
+	run := func() shared.OperationResult {
+		err := sink()
+		if err != nil {
+			removeContainer(d, req.Name)
+		}
+		return shared.OperationError(err)
+	}
+
+	return &asyncResponse{run: run, containers: []string{req.Name}}
+}
+
 func containersPost(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to create")
 
@@ -152,7 +204,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	case "none":
 		return createFromNone(d, &req)
 	case "migration":
-		return NotImplemented
+		return createFromMigration(d, &req)
 	default:
 		return BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
 	}
@@ -167,13 +219,12 @@ func removeContainerPath(d *Daemon, name string) {
 	}
 }
 
-func extractShiftRootfs(uuid string, name string, d *Daemon) error {
-	cleanup := func(err error) error {
-		removeContainerPath(d, name)
-		dbRemoveContainer(d, name)
-		return err
-	}
+func removeContainer(d *Daemon, name string) {
+	removeContainerPath(d, name)
+	dbRemoveContainer(d, name)
+}
 
+func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	/*
 	 * We want to use archive/tar for this, but that doesn't appear
 	 * to be working for us (see lxd/images.go)
@@ -187,7 +238,8 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	compression, err := detectCompression(imagefile)
 	if err != nil {
 		fmt.Printf("Unkown compression type: %s", err)
-		return cleanup(err)
+		removeContainer(d, name)
+		return err
 	}
 
 	args := []string{"-C", dpath, "--numeric-owner"}
@@ -208,14 +260,16 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	output, err := exec.Command("tar", args...).Output()
 	if err != nil {
 		fmt.Printf("Untar of image: Output %s\nError %s\n", output, err)
-		return cleanup(err)
+		removeContainer(d, name)
+		return err
 	}
 
 	rpath := shared.VarPath("lxc", name, "rootfs")
 	err = d.id_map.ShiftRootfs(rpath)
 	if err != nil {
 		fmt.Printf("Shift of rootfs %s failed: %s\n", rpath, err)
-		return cleanup(err)
+		removeContainer(d, name)
+		return err
 	}
 
 	/* Set an acl so the container root can descend the container dir */
@@ -227,6 +281,8 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 
 	return nil
 }
+
+var DbErrAlreadyDefined = fmt.Errorf("already exists")
 
 func dbRemoveContainer(d *Daemon, name string) {
 	_, _ = d.db.Exec("DELETE FROM containers WHERE name=?", name)
@@ -269,7 +325,7 @@ func dbGetContainerId(db *sql.DB, name string) (int, error) {
 func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[string]string) (int, error) {
 	id, err := dbGetContainerId(d.db, name)
 	if err == nil {
-		return 0, fmt.Errorf("%s already defined in database", name)
+		return 0, DbErrAlreadyDefined
 	}
 
 	tx, err := d.db.Begin()
@@ -523,6 +579,45 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	return AsyncResponse(shared.OperationWrap(do), nil)
 }
 
+type containerPostBody struct {
+	Host string `json:"host"`
+	Name string `json:"name"`
+}
+
+func containerPost(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	c, err := newLxdContainer(name, d)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	body := containerPostBody{}
+	if err := json.Unmarshal(buf, &body); err != nil {
+		return BadRequest(err)
+	}
+
+	if body.Host != "" {
+		if !c.c.Running() {
+			return BadRequest(fmt.Errorf("only live migrations supported right now"))
+		}
+
+		ws, err := migration.NewMigrationSource(c.c)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		return AsyncResponseWithWs(ws, nil)
+	} else {
+		run := func() error { return c.c.Rename(body.Name) }
+		return AsyncResponse(shared.OperationWrap(run), nil)
+	}
+}
+
 func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	fmt.Printf("delete: called with name %s\n", name)
@@ -547,7 +642,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	return AsyncResponse(shared.OperationWrap(rmdir), nil)
 }
 
-var containerCmd = Command{name: "containers/{name}", get: containerGet, put: containerPut, delete: containerDelete}
+var containerCmd = Command{name: "containers/{name}", get: containerGet, put: containerPut, delete: containerDelete, post: containerPost}
 
 func containerStateGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
@@ -1268,8 +1363,8 @@ func (s *execWs) Connect(secret string, r *http.Request, w http.ResponseWriter) 
 			if err != nil {
 				return err
 			}
-			s.conns[fd] = conn
 
+			s.conns[fd] = conn
 			for _, c := range s.conns {
 				if c == nil {
 					return nil
@@ -1446,6 +1541,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 		return runCommand(c.c, post.Command, opts)
 	}
+
 	return AsyncResponse(run, nil)
 }
 
