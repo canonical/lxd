@@ -3,7 +3,6 @@ package lxd
 import (
 	"bytes"
 	"crypto/sha256"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -36,7 +35,6 @@ type Client struct {
 	baseWSURL       string
 	certf           string
 	keyf            string
-	cert            tls.Certificate
 	websocketDialer websocket.Dialer
 
 	scert *x509.Certificate // the cert stored on disk
@@ -181,17 +179,11 @@ func NewClient(config *Config, remote string) (*Client, error) {
 		if err != nil {
 			return nil, err
 		}
-		cert, err := tls.LoadX509KeyPair(certf, keyf)
+
+		tlsconfig, err := shared.GetTLSConfig(certf, keyf)
 		if err != nil {
 			return nil, err
 		}
-
-		tlsconfig := &tls.Config{InsecureSkipVerify: true,
-			ClientAuth:   tls.RequireAnyClientCert,
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
-			MaxVersion:   tls.VersionTLS12}
-		tlsconfig.BuildNameToCertificate()
 
 		tr := &http.Transport{
 			TLSClientConfig: tlsconfig,
@@ -203,7 +195,6 @@ func NewClient(config *Config, remote string) (*Client, error) {
 
 		c.certf = certf
 		c.keyf = keyf
-		c.cert = cert
 
 		c.baseURL = "https://" + r.Addr
 		c.baseWSURL = "wss://" + r.Addr
@@ -319,22 +310,7 @@ func (c *Client) delete(base string, args shared.Jmap) (*Response, error) {
 func (c *Client) websocket(operation string, secret string) (*websocket.Conn, error) {
 	query := url.Values{"secret": []string{secret}}
 	url := c.baseWSURL + path.Join(operation, "websocket") + "?" + query.Encode()
-	conn, raw, err := c.websocketDialer.Dial(url, http.Header{})
-	if err != nil {
-		resp, err2 := ParseResponse(raw)
-		if err2 != nil {
-			/* The response isn't one we understand, so return
-			 * whatever the original error was. */
-			return nil, err
-		}
-
-		if err2 := ParseError(resp); err2 != nil {
-			return nil, err2
-		}
-
-		return nil, err
-	}
-	return conn, err
+	return WebsocketDial(c.websocketDialer, url)
 }
 
 func (c *Client) url(elem ...string) string {
@@ -942,6 +918,50 @@ func (c *Client) SetRemotePwd(password string) (*Response, error) {
 	return resp, nil
 }
 
+func (c *Client) MigrateTo(container string, target *Client) (*Response, error) {
+	body := shared.Jmap{"host": target.Remote.Addr}
+
+	resp, err := c.post(fmt.Sprintf("containers/%s", container), body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Async {
+		return nil, fmt.Errorf(gettext.Gettext("got non-async response!"))
+	}
+
+	return resp, nil
+}
+
+func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string) (*Response, error) {
+	source := shared.Jmap{
+		"type":      "migration",
+		"mode":      "pull",
+		"operation": operation,
+		"secrets":   secrets,
+	}
+	body := shared.Jmap{"source": source, "name": name}
+
+	resp, err := c.post("containers", body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Async {
+		return nil, fmt.Errorf(gettext.Gettext("got non-async response!"))
+	}
+
+	return resp, nil
+}
+
 /* Wait for an operation */
 func (c *Client) WaitFor(waitURL string) (*shared.Operation, error) {
 	if len(waitURL) < 1 {
@@ -1367,6 +1387,28 @@ func (c *Client) ProfileListDevices(profile string) ([]string, error) {
 		devs = append(devs, fmt.Sprintf("%s: %s", n, d["type"]))
 	}
 	return devs, nil
+
+}
+
+// WebsocketDial attempts to dial a websocket to a LXD instance, parsing
+// LXD-style errors and returning them as go errors.
+func WebsocketDial(dialer websocket.Dialer, url string) (*websocket.Conn, error) {
+	conn, raw, err := dialer.Dial(url, http.Header{})
+	if err != nil {
+		resp, err2 := ParseResponse(raw)
+		if err2 != nil {
+			/* The response isn't one we understand, so return
+			 * whatever the original error was. */
+			return nil, err
+		}
+
+		if err2 := ParseError(resp); err2 != nil {
+			return nil, err2
+		}
+
+		return nil, err
+	}
+	return conn, err
 }
 
 func (c *Client) ProfileCopy(name, newname string, dest *Client) error {

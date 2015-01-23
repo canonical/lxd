@@ -68,9 +68,11 @@ type asyncResponse struct {
 	cancel     func() error
 	ws         shared.OperationWebsocket
 	containers []string
+	done       chan shared.OperationResult
 }
 
 func (r *asyncResponse) Render(w http.ResponseWriter) error {
+
 	op, err := CreateOperation(nil, r.run, r.cancel, r.ws)
 	if err != nil {
 		return err
