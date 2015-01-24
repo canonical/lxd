@@ -433,6 +433,11 @@ func (c *Client) UserAuthServerCert() error {
 		return fmt.Errorf("No certificate on this connection")
 	}
 
+	if c.scert != nil {
+		fmt.Printf("Certificate already stored.\n")
+		return nil
+	}
+
 	fmt.Printf("Certificate fingerprint: % x\n", c.scertDigest)
 	fmt.Printf("ok (y/n)? ")
 	line, err := ReadStdin()
