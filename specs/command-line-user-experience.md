@@ -92,14 +92,22 @@ stop        | Stop a container
 
 **Arguments**
 
+    edit [resource]
     get [resource] <key>
     set [resource] <key> <value>
     show [resource]
     unset [resource] <key>
+    device add <resource> <device name> <type> [key=value]...
+    device remove <resource> <device name>
+    device list <resource>
+    profile device add <profile name> <device name> <type> [key=value]...
+    profile device remove <profile name> <device name>
+    profile device list <profile name>
     profile apply <resource> <profile name>[,<second profile name>, ...]
     profile create <profile name>
     profile copy <source profile name> <target profile name>
     profile delete <profile name>
+    profile edit <profile name>
     profile list [remote] [filters]
     profile get <profile name> <key>
     profile move <profile name> <new profile name>
@@ -134,6 +142,11 @@ The trust sub-command is there to manage the server's trust store. It
 can list the certificates which the server currently trusts, delete
 entries (based on their fingerprint) and add new entries using a
 provided certificate.
+
+The edit commands are there to offer a more convenient user interface by
+opening a text editor in which the current configuration is displayed
+alongside a set of useful examples. The user can then edit things in
+place and when saved, all changes will be committed.
 
 **Examples**
 
