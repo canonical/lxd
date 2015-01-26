@@ -435,12 +435,24 @@ HTTP code for this should be 202 (Accepted).
  * Description: run a remote command
  * Authentication: trusted
  * Operation: async
- * Return: background operation + websocket information or standard error
+ * Return: background operation + optional websocket information or standard error
 
 Input (run bash):
 
     {
-        'command': ["/bin/bash"]
+        'command': ["/bin/bash"],
+        'wait-for-websocket': false
+    }
+
+`wait-for-websocket` indicates whether the operation should block and wait for
+a websocket connection to start (so that users can pass stdin and read
+stdout), or simply run to completion with /dev/null as stdin and stdout.
+
+When the exec command finishes, its exit status is avaialabe from the
+operation's metadata:
+
+    {
+        'status': 0
     }
 
 ## /1.0/images

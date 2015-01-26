@@ -54,6 +54,23 @@ type OperationSocket interface {
 	Do(conn *websocket.Conn)
 }
 
+type OperationResult struct {
+	Metadata json.RawMessage
+	Error    error
+}
+
+func OperationWrap(f func() error) func() OperationResult {
+	return func() OperationResult { return OperationError(f()) }
+}
+
+func OperationError(err error) OperationResult {
+	jsonNil, err := json.Marshal(nil)
+	if err != nil {
+		Debugf("failed marshaling nil, something went wrong :(")
+	}
+	return OperationResult{jsonNil, err}
+}
+
 type Operation struct {
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
@@ -64,7 +81,7 @@ type Operation struct {
 	MayCancel   bool            `json:"may_cancel"`
 
 	/* The fields below are for use on the server side. */
-	Run func() error `json:"-"`
+	Run func() OperationResult `json:"-"`
 
 	/* If this is not nil, the operation can be cancelled by calling this
 	 * function */

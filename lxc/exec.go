@@ -42,5 +42,7 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		defer terminal.Restore(cfd, oldttystate)
 	}
 
+	// TODO: we should exit with the same exit code as the command in the
+	// container.
 	return d.Exec(name, args[1:], os.Stdin, os.Stdout, os.Stderr)
 }
