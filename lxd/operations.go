@@ -15,7 +15,7 @@ import (
 var lock sync.Mutex
 var operations map[string]*lxd.Operation = make(map[string]*lxd.Operation)
 
-func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error, ws lxd.OperationSocket) (string, error) {
+func CreateOperation(metadata lxd.Jmap, run func() lxd.OperationResult, cancel func() error, ws lxd.OperationSocket) (string, error) {
 	id := uuid.New()
 	op := lxd.Operation{}
 	op.CreatedAt = time.Now()
@@ -52,10 +52,11 @@ func StartOperation(id string) error {
 	}
 
 	go func(op *lxd.Operation) {
-		err := op.Run()
+		result := op.Run()
 
 		lock.Lock()
-		op.SetStatusByErr(err)
+		op.SetStatusByErr(result.Error)
+		op.Metadata = result.Metadata
 		op.Chan <- true
 		lock.Unlock()
 	}(op)
@@ -137,6 +138,16 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 var operationCmd = Command{"operations/{id}", false, false, operationGet, nil, nil, operationDelete}
 
 func operationWaitGet(d *Daemon, r *http.Request) Response {
+	targetStatus, err := lxd.AtoiEmptyDefault(r.FormValue("status_code"), int(lxd.Success))
+	if err != nil {
+		return InternalError(err)
+	}
+
+	timeout, err := lxd.AtoiEmptyDefault(r.FormValue("timeout"), -1)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	lock.Lock()
 	id := lxd.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
@@ -148,17 +159,8 @@ func operationWaitGet(d *Daemon, r *http.Request) Response {
 	status := op.StatusCode
 	lock.Unlock()
 
-	targetStatus, err := lxd.AtoiEmptyDefault(r.FormValue("status_code"), int(lxd.Success))
-	if err != nil {
-		return InternalError(err)
-	}
+	if int(status) != targetStatus && (status == lxd.Pending || status == lxd.Running) {
 
-	timeout, err := lxd.AtoiEmptyDefault(r.FormValue("timeout"), -1)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	if int(status) != targetStatus && status == lxd.Pending || status == lxd.Running {
 		if timeout >= 0 {
 			select {
 			case <-op.Chan:

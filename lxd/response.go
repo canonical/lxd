@@ -53,7 +53,7 @@ func SyncResponse(success bool, metadata interface{}) Response {
 var EmptySyncResponse = &syncResponse{true, make(map[string]interface{})}
 
 type asyncResponse struct {
-	run    func() error
+	run    func() lxd.OperationResult
 	cancel func() error
 	ws     lxd.OperationSocket
 }
@@ -79,11 +79,11 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 	return json.NewEncoder(w).Encode(body)
 }
 
-func AsyncResponse(run func() error, cancel func() error) Response {
+func AsyncResponse(run func() lxd.OperationResult, cancel func() error) Response {
 	return AsyncResponseWithWs(run, cancel, nil)
 }
 
-func AsyncResponseWithWs(run func() error, cancel func() error, ws lxd.OperationSocket) Response {
+func AsyncResponseWithWs(run func() lxd.OperationResult, cancel func() error, ws lxd.OperationSocket) Response {
 	return &asyncResponse{run, cancel, ws}
 }
 
