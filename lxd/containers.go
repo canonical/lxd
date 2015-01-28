@@ -544,7 +544,7 @@ func runCommand(container *lxc.Container, command []string, fd uintptr) lxd.Oper
 		return lxd.OperationError(err)
 	}
 
-	metadata, err := json.Marshal(lxd.Jmap{"status": status})
+	metadata, err := json.Marshal(lxd.Jmap{"return": status})
 	if err != nil {
 		return lxd.OperationError(err)
 	}

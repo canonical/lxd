@@ -452,7 +452,7 @@ When the exec command finishes, its exit status is avaialabe from the
 operation's metadata:
 
     {
-        'status': 0
+        'return': 0
     }
 
 ## /1.0/images
