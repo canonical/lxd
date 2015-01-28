@@ -112,7 +112,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	/*
 	 * Actually create the container
 	 */
-	return AsyncResponse(func() error { return c.Create(opts) }, nil)
+	return AsyncResponse(lxd.OperationWrap(func() error { return c.Create(opts) }), nil)
 }
 
 var containersCmd = Command{"containers", false, false, nil, nil, containersPost, nil}
@@ -142,7 +142,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
-	return AsyncResponse(c.Destroy, nil)
+	return AsyncResponse(lxd.OperationWrap(c.Destroy), nil)
 }
 
 var containerCmd = Command{"containers/{name}", false, false, containerGet, nil, nil, containerDelete}
@@ -213,7 +213,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("unknown action %s", action))
 	}
 
-	return AsyncResponse(do, nil)
+	return AsyncResponse(lxd.OperationWrap(do), nil)
 }
 
 var containerStateCmd = Command{"containers/{name}/state", false, false, containerStateGet, containerStatePut, nil, nil}
@@ -438,7 +438,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return c.Clone(snapshotName, opts)
 	}
 
-	return AsyncResponse(snapshot, nil)
+	return AsyncResponse(lxd.OperationWrap(snapshot), nil)
 }
 
 var containerSnapshotsCmd = Command{"containers/{name}/snapshots", false, false, containerSnapshotsGet, nil, containerSnapshotsPost, nil}
@@ -507,27 +507,65 @@ func snapshotPost(r *http.Request, c *lxc.Container, oldName string) Response {
 	 * out from under criu will cause it to fail, but it may be useful to
 	 * do something for stateless ones.
 	 */
-	return AsyncResponse(func() error { return os.Rename(oldDir, newDir) }, nil)
+	rename := func() error { return os.Rename(oldDir, newDir) }
+	return AsyncResponse(lxd.OperationWrap(rename), nil)
 }
 
 func snapshotDelete(c *lxc.Container, name string) Response {
 	dir := snapshotDir(c, name)
-	return AsyncResponse(func() error { return os.RemoveAll(dir) }, nil)
+	remove := func() error { return os.RemoveAll(dir) }
+	return AsyncResponse(lxd.OperationWrap(remove), nil)
 }
 
 var containerSnapshotCmd = Command{"containers/{name}/snapshots/{snapshotName}", false, false, snapshotHandler, nil, snapshotHandler, snapshotHandler}
 
 type execWs struct {
-	PTY    *os.File
-	TTY    *os.File
-	secret string
+	command   []string
+	container *lxc.Container
+	secret    string
+	done      chan lxd.OperationResult
 }
 
 func (s *execWs) Secret() string {
 	return s.secret
 }
 
+func runCommand(container *lxc.Container, command []string, fd uintptr) lxd.OperationResult {
+
+	options := lxc.DefaultAttachOptions
+	options.StdinFd = fd
+	options.StdoutFd = fd
+	options.StderrFd = fd
+	options.ClearEnv = true
+
+	status, err := container.RunCommandStatus(command, options)
+	if err != nil {
+		lxd.Debugf("Failed running command: %q", err.Error())
+		return lxd.OperationError(err)
+	}
+
+	metadata, err := json.Marshal(lxd.Jmap{"return": status})
+	if err != nil {
+		return lxd.OperationError(err)
+	}
+
+	return lxd.OperationResult{Metadata: metadata, Error: nil}
+}
+
 func (s *execWs) Do(conn *websocket.Conn) {
+	pty, tty, err := pty.Open()
+	if err != nil {
+		s.done <- lxd.OperationError(err)
+		return
+	}
+
+	go func() {
+		result := runCommand(s.container, s.command, tty.Fd())
+		pty.Close()
+		tty.Close()
+		s.done <- result
+	}()
+
 	/*
 	 * The pty will be passed to the container's Attach.  The two
 	 * below goroutines will copy output from the socket to the
@@ -536,11 +574,12 @@ func (s *execWs) Do(conn *websocket.Conn) {
 	 * the copy-goroutines to exit.  If the connection closes, we
 	 * also want to exit
 	 */
-	lxd.WebsocketMirror(conn, s.PTY, s.PTY)
+	lxd.WebsocketMirror(conn, pty, pty)
 }
 
 type commandPostContent struct {
-	Command []string `json:"command"`
+	Command   []string `json:"command"`
+	WaitForWS bool     `json:"wait-for-websocket"`
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
@@ -564,36 +603,34 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	ws := &execWs{}
-	ws.PTY, ws.TTY, err = pty.Open()
-	ws.secret, err = lxd.RandomCryptoString()
-	if err != nil {
-		return InternalError(err)
-	}
-
-	run := func() error {
-		options := lxc.DefaultAttachOptions
-		defer ws.TTY.Close()
-		defer ws.PTY.Close()
-
-		options.StdinFd = ws.TTY.Fd()
-		options.StdoutFd = ws.TTY.Fd()
-		options.StderrFd = ws.TTY.Fd()
-
-		options.ClearEnv = true
-
-		_, err = c.RunCommand(post.Command, options)
+	if post.WaitForWS {
+		ws := &execWs{}
+		ws.secret, err = lxd.RandomCryptoString()
 		if err != nil {
-			lxd.Debugf("Failed starting shell in %q: %q", name, err.Error())
-			return err
+			return InternalError(err)
+		}
+		ws.command = post.Command
+		ws.container = c
+		ws.done = make(chan (lxd.OperationResult))
+
+		run := func() lxd.OperationResult {
+			return <-ws.done
 		}
 
-		lxd.Debugf("done running command")
+		return AsyncResponseWithWs(run, nil, ws)
+	} else {
+		run := func() lxd.OperationResult {
 
-		return nil
+			nullDev, err := os.OpenFile(os.DevNull, os.O_RDWR, 0666)
+			if err != nil {
+				return lxd.OperationError(err)
+			}
+			defer nullDev.Close()
+
+			return runCommand(c, post.Command, nullDev.Fd())
+		}
+		return AsyncResponse(run, nil)
 	}
-
-	return AsyncResponseWithWs(run, nil, ws)
 }
 
 var containerExecCmd = Command{"containers/{name}/exec", false, false, nil, nil, containerExecPost, nil}

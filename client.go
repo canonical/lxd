@@ -539,7 +539,8 @@ func (c *Client) Create(name string) (*Response, error) {
 }
 
 func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.WriteCloser, stderr io.WriteCloser) error {
-	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), Jmap{"command": cmd})
+	body := Jmap{"command": cmd, "wait-for-websocket": true}
+	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body)
 	if err != nil {
 		return err
 	}
