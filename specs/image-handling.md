@@ -63,7 +63,38 @@ The structure of the json will be as follow:
                 "trusted_keys": ["/keys/0x0BFB847F3F272F5B"],                                                   # Trusted keys (mandatory for protocols using GPG validation)
             },
 
-        ]
+        ],
+
+        "aliases": {    # Short aliases.
+            "ubuntu": {
+                "remote": "lxc-images",
+                "arguments": {
+                    "distribution": "ubuntu",
+                    "release": "trusty",
+                    "variant": "default"}
+            },
+            "ubuntu/devel": {
+                "remote": "lxc-images",
+                "arguments": {
+                    "distribution": "ubuntu",
+                    "release": "vivid",
+                    "variant": "default"}
+            },
+            "ubuntu/lts": {
+                "remote": "lxc-images",
+                "arguments": {
+                    "distribution": "ubuntu",
+                    "release": "trusty",
+                    "variant": "default"}
+            },
+            "ubuntu/stable": {
+                "remote": "lxc-images",
+                "arguments": {
+                    "distribution": "ubuntu",
+                    "release": "utopic",
+                    "variant": "default"}
+            }
+        }
     }
 
 
