@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
 	"sort"
 
 	"strings"
@@ -27,7 +28,15 @@ func (c *helpCmd) flags() {}
 
 func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 	if len(args) > 0 {
-		return errArgs
+		for _, name := range args {
+			cmd, ok := commands[name]
+			if !ok {
+				fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", name)
+			} else {
+				fmt.Fprintf(os.Stderr, cmd.usage())
+			}
+		}
+		return nil
 	}
 
 	fmt.Println("Usage: lxc [subcommand] [options]")
