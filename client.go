@@ -87,7 +87,7 @@ func (r *Response) MetadataAsOperation() (*Operation, error) {
 
 func ParseResponse(r *http.Response) (*Response, error) {
 	if r == nil {
-		return nil, fmt.Errorf("no response!")
+		return nil, fmt.Errorf(gettext.Gettext("no response!"))
 	}
 	defer r.Body.Close()
 	ret := Response{}
@@ -198,7 +198,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 		c.Remote = &r
 		c.loadServerCert()
 	} else {
-		return nil, fmt.Errorf("unknown remote name: %q", remote)
+		return nil, fmt.Errorf(gettext.Gettext("unknown remote name: %q"), remote)
 	}
 	if err := c.Finger(); err != nil {
 		return nil, err
@@ -221,7 +221,7 @@ func (c *Client) baseGet(url string) (*Response, error) {
 
 	if c.scert != nil && resp.TLS != nil {
 		if !bytes.Equal(resp.TLS.PeerCertificates[0].Raw, c.scert.Raw) {
-			return nil, fmt.Errorf("Server certificate has changed")
+			return nil, fmt.Errorf(gettext.Gettext("Server certificate has changed"))
 		}
 	}
 
@@ -334,12 +334,12 @@ func unixDial(networ, addr string) (net.Conn, error) {
 	if addr == "unix.socket:80" {
 		raddr, err = net.ResolveUnixAddr("unix", VarPath("unix.socket"))
 		if err != nil {
-			return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
+			return nil, fmt.Errorf(gettext.Gettext("cannot resolve unix socket address: %v"), err)
 		}
 	} else {
 		raddr, err = net.ResolveUnixAddr("unix", addr)
 		if err != nil {
-			return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
+			return nil, fmt.Errorf(gettext.Gettext("cannot resolve unix socket address: %v"), err)
 		}
 	}
 	return net.DialUnix("unix", nil, raddr)
@@ -380,7 +380,7 @@ func (c *Client) Finger() error {
 	}
 
 	if serverAPICompat != APICompat {
-		return fmt.Errorf("api version mismatch: mine: %q, daemon: %q", APICompat, serverAPICompat)
+		return fmt.Errorf(gettext.Gettext("api version mismatch: mine: %q, daemon: %q"), APICompat, serverAPICompat)
 	}
 	Debugf("pong received")
 	return nil
@@ -418,7 +418,7 @@ func (c *Client) ListContainers() ([]string, error) {
 	}
 
 	if resp.Type != Sync {
-		return nil, fmt.Errorf("bad response type from list!")
+		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
 	}
 	var result []string
 
@@ -431,7 +431,7 @@ func (c *Client) ListContainers() ([]string, error) {
 
 func (c *Client) UserAuthServerCert() error {
 	if !c.scertDigestSet {
-		return fmt.Errorf("No certificate on this connection")
+		return fmt.Errorf(gettext.Gettext("No certificate on this connection"))
 	}
 
 	if c.scert != nil {
@@ -446,14 +446,14 @@ func (c *Client) UserAuthServerCert() error {
 		return err
 	}
 	if line[0] != 'y' && line[0] != 'Y' {
-		return fmt.Errorf("Server certificate NACKed by user")
+		return fmt.Errorf(gettext.Gettext("Server certificate NACKed by user"))
 	}
 
 	// User acked the cert, now add it to our store
 	dnam := configPath("servercerts")
 	err = os.MkdirAll(dnam, 0750)
 	if err != nil {
-		return fmt.Errorf("Could not create server cert dir")
+		return fmt.Errorf(gettext.Gettext("Could not create server cert dir"))
 	}
 	certf := fmt.Sprintf("%s/%s.crt", dnam, c.name)
 	certOut, err := os.Create(certf)
@@ -533,7 +533,7 @@ func (c *Client) Create(name string) (*Response, error) {
 	}
 
 	if resp.Type != Async {
-		return nil, fmt.Errorf("Non-async response from create!")
+		return nil, fmt.Errorf(gettext.Gettext("Non-async response from create!"))
 	}
 
 	return resp, nil
@@ -551,7 +551,7 @@ func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.
 	}
 
 	if resp.Type != Async {
-		return -1, fmt.Errorf("got bad response type from exec")
+		return -1, fmt.Errorf(gettext.Gettext("got bad response type from exec"))
 	}
 
 	md, err := resp.MetadataAsMap()
@@ -608,7 +608,7 @@ func (c *Client) Delete(name string) (*Response, error) {
 	}
 
 	if resp.Type != Async {
-		return nil, fmt.Errorf("got non-async response from delete!")
+		return nil, fmt.Errorf(gettext.Gettext("got non-async response from delete!"))
 	}
 
 	return resp, nil
@@ -627,7 +627,7 @@ func (c *Client) ContainerStatus(name string) (*Container, error) {
 	}
 
 	if resp.Type != Sync {
-		return nil, fmt.Errorf("got non-sync response from containers get!")
+		return nil, fmt.Errorf(gettext.Gettext("got non-sync response from containers get!"))
 	}
 
 	if err := json.Unmarshal(resp.Metadata, &ct); err != nil {
@@ -748,7 +748,7 @@ func (c *Client) Snapshot(container string, snapshotName string, stateful bool) 
 	}
 
 	if resp.Type != Async {
-		return nil, fmt.Errorf("Non-async response from snapshot!")
+		return nil, fmt.Errorf(gettext.Gettext("Non-async response from snapshot!"))
 	}
 
 	return resp, nil
