@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -12,20 +13,17 @@ type remoteCmd struct {
 	httpAddr string
 }
 
-const remoteUsage = `
-Manage remote lxc servers.
-
-lxc remote add <name> <url>        Add the remote <name> at <url>.
-lxc remote remove <name>           Remove the remote <name>.
-lxc remote list                    List all remotes.
-lxc remote rename <old> <new>      Rename remote <old> to <new>.
-lxc remote set-url <name> <url>    Update <name>'s url to <url>.
-lxc remote set-default <name>      Set the default remote.
-lxc remote get-default             Print the default remote.
-`
-
 func (c *remoteCmd) usage() string {
-	return remoteUsage
+	return gettext.Gettext(
+		"Manage remote lxc servers.\n" +
+			"\n" +
+			"lxc remote add <name> <url>        Add the remote <name> at <url>.\n" +
+			"lxc remote remove <name>           Remove the remote <name>.\n" +
+			"lxc remote list                    List all remotes.\n" +
+			"lxc remote rename <old> <new>      Rename remote <old> to <new>.\n" +
+			"lxc remote set-url <name> <url>    Update <name>'s url to <url>.\n" +
+			"lxc remote set-default <name>      Set the default remote.\n" +
+			"lxc remote get-default             Print the default remote.\n")
 }
 
 func (c *remoteCmd) flags() {}
@@ -47,7 +45,7 @@ func addServer(config *lxd.Config, server string) error {
 		return nil
 	}
 
-	fmt.Printf("Admin password for %s: ", server)
+	fmt.Printf(gettext.Gettext("Admin password for %s: "), server)
 	pwd, err := terminal.ReadPassword(0)
 	if err != nil {
 		/* We got an error, maybe this isn't a terminal, let's try to
@@ -65,10 +63,10 @@ func addServer(config *lxd.Config, server string) error {
 	}
 
 	if !c.AmTrusted() {
-		return fmt.Errorf("Server doesn't trust us after adding our cert")
+		return fmt.Errorf(gettext.Gettext("Server doesn't trust us after adding our cert"))
 	}
 
-	fmt.Println("Client certificate stored at server: ", server)
+	fmt.Println(gettext.Gettext("Client certificate stored at server: "), server)
 	return nil
 }
 
@@ -91,7 +89,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if rc, ok := config.Remotes[args[1]]; ok {
-			return fmt.Errorf("remote %s exists as <%s>", args[1], rc.Addr)
+			return fmt.Errorf(gettext.Gettext("remote %s exists as <%s>"), args[1], rc.Addr)
 		}
 
 		if config.Remotes == nil {
@@ -111,7 +109,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if _, ok := config.Remotes[args[1]]; !ok {
-			return fmt.Errorf("remote %s doesn't exist", args[1])
+			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
 		}
 
 		if config.DefaultRemote == args[1] {
@@ -137,11 +135,11 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 
 		rc, ok := config.Remotes[args[1]]
 		if !ok {
-			return fmt.Errorf("remote %s doesn't exist", args[1])
+			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
 		}
 
 		if _, ok := config.Remotes[args[2]]; ok {
-			return fmt.Errorf("remote %s already exists", args[2])
+			return fmt.Errorf(gettext.Gettext("remote %s already exists"), args[2])
 		}
 
 		config.Remotes[args[2]] = rc
@@ -157,7 +155,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 		_, ok := config.Remotes[args[1]]
 		if !ok {
-			return fmt.Errorf("remote %s doesn't exist", args[1])
+			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
 		}
 		config.Remotes[args[1]] = lxd.RemoteConfig{Addr: args[2]}
 
@@ -168,7 +166,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 
 		_, ok := config.Remotes[args[1]]
 		if !ok {
-			return fmt.Errorf("remote %s doesn't exist", args[1])
+			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
 		}
 		config.DefaultRemote = args[1]
 
@@ -179,7 +177,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		fmt.Println(config.DefaultRemote)
 		return nil
 	default:
-		return fmt.Errorf("Unknown remote subcommand %s", args[0])
+		return fmt.Errorf(gettext.Gettext("Unknown remote subcommand %s"), args[0])
 	}
 
 	return lxd.SaveConfig(config)
