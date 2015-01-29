@@ -110,6 +110,14 @@ func (o *Operation) GetError() error {
 	return nil
 }
 
+func (r *Operation) MetadataAsMap() (*Jmap, error) {
+	ret := Jmap{}
+	if err := json.Unmarshal(r.Metadata, &ret); err != nil {
+		return nil, err
+	}
+	return &ret, nil
+}
+
 func (o *Operation) SetStatus(status OperationStatus) {
 	o.Status = status.String()
 	o.StatusCode = status

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"syscall"
 
@@ -32,15 +33,30 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	cfd := syscall.Stdout
+	var oldttystate *terminal.State = nil
 	if terminal.IsTerminal(cfd) {
-		oldttystate, err := terminal.MakeRaw(cfd)
+		oldttystate, err = terminal.MakeRaw(cfd)
 		if err != nil {
 			return err
 		}
 		defer terminal.Restore(cfd, oldttystate)
 	}
 
-	// TODO: we should exit with the same exit code as the command in the
-	// container.
-	return d.Exec(name, args[1:], os.Stdin, os.Stdout, os.Stderr)
+	ret, err := d.Exec(name, args[1:], os.Stdin, os.Stdout, os.Stderr)
+	if err != nil {
+		return err
+	}
+
+	/* A bit of a special case here: we want to exit with the same code as
+	 * the process inside the container, so we explicitly exit here
+	 * instead of returning an error.
+	 *
+	 * Additionally, since os.Exit() exits without running deferred
+	 * functions, we restore the terminal explicitly.
+	 */
+	terminal.Restore(cfd, oldttystate)
+
+	/* we get the result of waitpid() here so we need to transform it */
+	os.Exit(ret >> 8)
+	return fmt.Errorf(gettext.Gettext("unreachable return reached"))
 }
