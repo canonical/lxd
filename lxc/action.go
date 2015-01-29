@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 )
 
@@ -11,11 +12,10 @@ type actionCmd struct {
 }
 
 func (c *actionCmd) usage() string {
-	return fmt.Sprintf(`
-Changes a containers state to %s.
-
-lxd %s <name>
-`, c.action, c.action)
+	return fmt.Sprintf(gettext.Gettext(
+		"Changes a containers state to %s.\n"+
+			"\n"+
+			"lxd %s <name>\n"), c.action, c.action)
 }
 
 func (c *actionCmd) flags() {}
