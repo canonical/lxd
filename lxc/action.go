@@ -5,11 +5,16 @@ import (
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/internal/gnuflag"
 )
 
 type actionCmd struct {
-	action lxd.ContainerAction
+	action     lxd.ContainerAction
+	hasTimeout bool
 }
+
+var timeout = -1
+var force = false
 
 func (c *actionCmd) usage() string {
 	return fmt.Sprintf(gettext.Gettext(
@@ -18,7 +23,12 @@ func (c *actionCmd) usage() string {
 			"lxd %s <name>\n"), c.action, c.action)
 }
 
-func (c *actionCmd) flags() {}
+func (c *actionCmd) flags() {
+	if c.hasTimeout {
+		gnuflag.IntVar(&timeout, "timeout", -1, gettext.Gettext("Time to wait for the container before killing it."))
+		gnuflag.BoolVar(&force, "force", false, gettext.Gettext("Force the container to shutdown."))
+	}
+}
 
 func (c *actionCmd) run(config *lxd.Config, args []string) error {
 	if len(args) != 1 {
@@ -31,7 +41,6 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	// TODO: implement --force and --timeout where necessary
-	_, err = d.Action(name, c.action, -1, false)
+	_, err = d.Action(name, c.action, timeout, force)
 	return err
 }
