@@ -3,19 +3,17 @@ package main
 import (
 	"fmt"
 
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 )
 
 type createCmd struct{}
 
-const createUsage = `
-lxc create images:ubuntu <name>
-
-Creates a container using the specified image and name
-`
-
 func (c *createCmd) usage() string {
-	return createUsage
+	return gettext.Gettext(
+		"lxc create images:ubuntu <name>\n" +
+			"\n" +
+			"Creates a container using the specified image and name\n")
 }
 
 func (c *createCmd) flags() {}
@@ -30,7 +28,7 @@ func (c *createCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if args[0] != "images:ubuntu" {
-		return fmt.Errorf("Only the default ubuntu image is supported. Try `lxc create images:ubuntu foo`.")
+		return fmt.Errorf(gettext.Gettext("Only the default ubuntu image is supported. Try `lxc create images:ubuntu foo`."))
 	}
 
 	var name string

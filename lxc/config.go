@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 )
 
@@ -10,14 +11,11 @@ type configCmd struct {
 	httpAddr string
 }
 
-const configUsage = `
-Manage configuration.
-
-lxc config set [remote] password <newpwd>        Set admin password
-`
-
 func (c *configCmd) usage() string {
-	return configUsage
+	return gettext.Gettext(
+		"Manage configuration.\n" +
+			"\n" +
+			"lxc config set [remote] password <newpwd>        Set admin password\n")
 }
 
 func (c *configCmd) flags() {}
@@ -46,7 +44,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		return fmt.Errorf("Only 'password' can be set currently")
+		return fmt.Errorf(gettext.Gettext("Only 'password' can be set currently"))
 	case "trust":
 		switch args[1] {
 		case "list":
@@ -75,7 +73,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		case "add":
 			var remote string
 			if len(args) < 3 {
-				return fmt.Errorf("No cert provided to add")
+				return fmt.Errorf(gettext.Gettext("No cert provided to add"))
 			} else if len(args) == 4 {
 				remote = config.ParseRemote(args[2])
 			} else {
@@ -98,7 +96,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		case "remove":
 			var remote string
 			if len(args) < 3 {
-				return fmt.Errorf("No fingerprint specified.")
+				return fmt.Errorf(gettext.Gettext("No fingerprint specified."))
 			} else if len(args) == 4 {
 				remote = config.ParseRemote(args[2])
 			} else {
@@ -125,9 +123,9 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 			return d.CertificateRemove(args[len(args)-1])
 		default:
-			return fmt.Errorf("Unkonwn config trust command %s", args[1])
+			return fmt.Errorf(gettext.Gettext("Unkonwn config trust command %s"), args[1])
 		}
 	default:
-		return fmt.Errorf("Unknown config command %s", args[0])
+		return fmt.Errorf(gettext.Gettext("Unknown config command %s"), args[0])
 	}
 }

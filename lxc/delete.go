@@ -3,21 +3,19 @@ package main
 import (
 	"fmt"
 
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
 type deleteCmd struct{}
 
-const deleteUsage = `
-lxc delete <resource>
-
-Destroy a resource (e.g. container) and any attached data (configuration,
-snapshots, ...).
-`
-
 func (c *deleteCmd) usage() string {
-	return deleteUsage
+	return gettext.Gettext(
+		"lxc delete <resource>\n" +
+			"\n" +
+			"Destroy a resource (e.g. container) and any attached data (configuration,\n" +
+			"snapshots, ...).\n")
 }
 
 func (c *deleteCmd) flags() {}
@@ -52,7 +50,7 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if op.StatusCode == lxd.Failure {
-			return fmt.Errorf("Stopping container failed!")
+			return fmt.Errorf(gettext.Gettext("Stopping container failed!"))
 		}
 	}
 
@@ -69,6 +67,6 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 	if op.StatusCode == lxd.Success {
 		return nil
 	} else {
-		return fmt.Errorf("Operation %s", op.Status)
+		return fmt.Errorf(gettext.Gettext("Operation %s"), op.Status)
 	}
 }

@@ -1,0 +1,230 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid   ""
+msgstr  "Project-Id-Version: PACKAGE VERSION\n"
+        "Report-Msgid-Bugs-To: \n"
+        "POT-Creation-Date: 2015-01-29 11:45+0100\n"
+        "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+        "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+        "Language-Team: LANGUAGE <LL@li.org>\n"
+        "Language: \n"
+        "MIME-Version: 1.0\n"
+        "Content-Type: text/plain; charset=CHARSET\n"
+        "Content-Transfer-Encoding: 8bit\n"
+
+#: lxc/remote.go:48
+#, c-format
+msgid   "Admin password for %s: "
+msgstr  ""
+
+#: lxc/main.go:28
+msgid   "Alternate config directory."
+msgstr  ""
+
+#: client.go:438
+msgid   "Certificate already stored.\n"
+msgstr  ""
+
+#: client.go:442
+#, c-format
+msgid   "Certificate fingerprint: % x\n"
+msgstr  ""
+
+#: lxc/remote.go:69
+msgid   "Client certificate stored at server: "
+msgstr  ""
+
+#: lxc/snapshot.go:15
+msgid   "Create a read-only snapshot of a container.\n"
+msgstr  ""
+
+#: lxc/main.go:26
+msgid   "Enables debug mode."
+msgstr  ""
+
+#: lxc/main.go:25
+msgid   "Enables verbose mode."
+msgstr  ""
+
+#: client.go:131
+#, c-format
+msgid   "Error reading the server certificate for %s\n"
+msgstr  ""
+
+#: lxc/finger.go:17
+msgid   "Fingers the lxd instance to check if it is up and working.\n"
+msgstr  ""
+
+#: lxc/file.go:137
+#, c-format
+msgid   "Invalid source %s"
+msgstr  ""
+
+#: lxc/file.go:45
+#, c-format
+msgid   "Invalid target %s"
+msgstr  ""
+
+#: lxc/list.go:14
+msgid   "Lists the available resources.\n"
+msgstr  ""
+
+#: lxc/config.go:20
+msgid   "Manage configuration.\n"
+msgstr  ""
+
+#: lxc/file.go:24
+msgid   "Manage files on a container.\n"
+msgstr  ""
+
+#: lxc/remote.go:18
+msgid   "Manage remote lxc servers.\n"
+msgstr  ""
+
+#: lxc/help.go:67
+msgid   "Missing summary."
+msgstr  ""
+
+#: lxc/file.go:123
+msgid   "More than one file to download, but target is not a directory"
+msgstr  ""
+
+#: lxc/config.go:80
+msgid   "No cert provided to add"
+msgstr  ""
+
+#: lxc/config.go:103
+msgid   "No fingerprint specified."
+msgstr  ""
+
+#: lxc/config.go:51
+msgid   "Only 'password' can be set currently"
+msgstr  ""
+
+#: lxc/create.go:31
+msgid   "Only the default ubuntu image is supported. Try `lxc create images:"
+        "ubuntu foo`."
+msgstr  ""
+
+#: lxc/delete.go:73
+#, c-format
+msgid   "Operation %s"
+msgstr  ""
+
+#: lxc/help.go:22
+msgid   "Presents details on how to use lxd.\n"
+msgstr  ""
+
+#: lxc/version.go:14
+msgid   "Prints the version number of lxd.\n"
+msgstr  ""
+
+#: lxc/remote.go:66
+msgid   "Server doesn't trust us after adding our cert"
+msgstr  ""
+
+#: lxc/file.go:32
+msgid   "Set the file's gid on push"
+msgstr  ""
+
+#: lxc/file.go:33
+msgid   "Set the file's perms on push"
+msgstr  ""
+
+#: lxc/file.go:31
+msgid   "Set the file's uid on push"
+msgstr  ""
+
+#: lxc/delete.go:56
+msgid   "Stopping container failed!"
+msgstr  ""
+
+#: lxc/config.go:133
+#, c-format
+msgid   "Unknown config command %s"
+msgstr  ""
+
+#: lxc/remote.go:180
+#, c-format
+msgid   "Unknown remote subcommand %s"
+msgstr  ""
+
+#: lxc/config.go:130
+#, c-format
+msgid   "Unkonwn config trust command %s"
+msgstr  ""
+
+#: lxc/main.go:46
+#, c-format
+msgid   "Usage: %s\n"
+        "\n"
+        "Options:\n"
+        "\n"
+msgstr  ""
+
+#: lxc/help.go:42
+msgid   "Usage: lxc [subcommand] [options]\n"
+        "Available commands:\n"
+msgstr  ""
+
+#: lxc/snapshot.go:21
+msgid   "Whether or not to snapshot the container's running state"
+msgstr  ""
+
+#: lxc/main.go:16
+msgid   "error: %v\n"
+msgstr  ""
+
+#: lxc/main.go:65
+msgid   "error: %v\n"
+        "%s"
+msgstr  ""
+
+#: lxc/help.go:34 lxc/main.go:40
+#, c-format
+msgid   "error: unknown command: %s\n"
+msgstr  ""
+
+#: lxc/exec.go:16
+msgid   "exec specified command in a container.\n"
+msgstr  ""
+
+#: lxc/file.go:184
+#, c-format
+msgid   "invalid argument %s"
+msgstr  ""
+
+#: lxc/create.go:14
+msgid   "lxc create images:ubuntu <name>\n"
+msgstr  ""
+
+#: lxc/delete.go:18
+msgid   "lxc delete <resource>\n"
+msgstr  ""
+
+#: client.go:443
+msgid   "ok (y/n)? "
+msgstr  ""
+
+#: lxc/remote.go:142
+#, c-format
+msgid   "remote %s already exists"
+msgstr  ""
+
+#: lxc/remote.go:112 lxc/remote.go:138 lxc/remote.go:158 lxc/remote.go:169
+#, c-format
+msgid   "remote %s doesn't exist"
+msgstr  ""
+
+#: lxc/remote.go:92
+#, c-format
+msgid   "remote %s exists as <%s>"
+msgstr  ""
+
+#: lxc/main.go:96
+msgid   "wrong number of subcommand arguments"
+msgstr  ""

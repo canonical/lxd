@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 )
 
@@ -8,14 +9,11 @@ type fingerCmd struct {
 	httpAddr string
 }
 
-const fingerUsage = `
-Fingers the lxd instance to check if it is up and working.
-
-lxc finger <remote>
-`
-
 func (c *fingerCmd) usage() string {
-	return fingerUsage
+	return gettext.Gettext(
+		"Fingers the lxd instance to check if it is up and working.\n" +
+			"\n" +
+			"lxc finger <remote>\n")
 }
 
 func (c *fingerCmd) flags() {}
