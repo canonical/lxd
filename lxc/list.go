@@ -3,22 +3,21 @@ package main
 import (
 	"fmt"
 
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 )
 
 type listCmd struct{}
 
-const listUsage = `
-Lists the available resources.
-
-lxc list [resource]
-
-Currently resource must be a defined remote, and list only lists
-the defined containers.
-`
-
 func (c *listCmd) usage() string {
-	return listUsage
+	return gettext.Gettext(
+		"Lists the available resources.\n" +
+			"\n" +
+			"lxc list [resource]\n" +
+			"\n" +
+			"Currently resource must be a defined remote, and list only lists\n" +
+			"the defined containers.\n")
+
 }
 
 func (c *listCmd) flags() {}

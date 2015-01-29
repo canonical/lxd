@@ -19,6 +19,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/websocket"
+	"github.com/gosexy/gettext"
 )
 
 // Client can talk to a lxd daemon.
@@ -127,7 +128,7 @@ func readMyCert() (string, string, error) {
 func (c *Client) loadServerCert() {
 	cert, err := ReadCert(ServerCertPath(c.name))
 	if err != nil {
-		fmt.Printf("Error reading the server certificate for %s\n", c.name)
+		fmt.Printf(gettext.Gettext("Error reading the server certificate for %s\n"), c.name)
 		return
 	}
 
@@ -434,12 +435,12 @@ func (c *Client) UserAuthServerCert() error {
 	}
 
 	if c.scert != nil {
-		fmt.Printf("Certificate already stored.\n")
+		fmt.Printf(gettext.Gettext("Certificate already stored.\n"))
 		return nil
 	}
 
-	fmt.Printf("Certificate fingerprint: % x\n", c.scertDigest)
-	fmt.Printf("ok (y/n)? ")
+	fmt.Printf(gettext.Gettext("Certificate fingerprint: % x\n"), c.scertDigest)
+	fmt.Printf(gettext.Gettext("ok (y/n)? "))
 	line, err := ReadStdin()
 	if err != nil {
 		return err

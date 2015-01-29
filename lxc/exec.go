@@ -4,20 +4,18 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
 type execCmd struct{}
 
-const execUsage = `
-exec specified command in a container.
-
-lxc exec container [command]
-`
-
 func (c *execCmd) usage() string {
-	return execUsage
+	return gettext.Gettext(
+		"exec specified command in a container.\n" +
+			"\n" +
+			"lxc exec container [command]\n")
 }
 
 func (c *execCmd) flags() {}

@@ -29,3 +29,7 @@ dist:
 	git archive --output=../$(ARCHIVE) HEAD
 	tar -uf ../$(ARCHIVE) --exclude-vcs ./dist
 	gzip ../$(ARCHIVE)
+
+.PHONY: i18n
+i18n:
+	xgettext -d lxd -s client.go lxc/*.go -o po/lxd.pot -L c++ -i --keyword=Gettext
