@@ -539,38 +539,48 @@ func (c *Client) Create(name string) (*Response, error) {
 	return resp, nil
 }
 
-func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.WriteCloser, stderr io.WriteCloser) error {
+func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.WriteCloser, stderr io.WriteCloser) (int, error) {
 	body := Jmap{"command": cmd, "wait-for-websocket": true}
 	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	if err := ParseError(resp); err != nil {
-		return err
+		return -1, err
 	}
 
 	if resp.Type != Async {
-		return fmt.Errorf("got bad response type from exec")
+		return -1, fmt.Errorf("got bad response type from exec")
 	}
 
 	md, err := resp.MetadataAsMap()
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	secret, err := md.GetString("websocket_secret")
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	conn, err := c.websocket(resp.Operation, secret)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	WebsocketMirror(conn, stdout, stdin)
-	return c.WaitForSuccess(resp.Operation)
+	op, err := c.WaitFor(resp.Operation)
+	if err != nil {
+		return -1, err
+	}
+
+	md, err = op.MetadataAsMap()
+	if err != nil {
+		return -1, err
+	}
+
+	return md.GetInt("return")
 }
 
 func (c *Client) Action(name string, action ContainerAction, timeout int, force bool) (*Response, error) {
