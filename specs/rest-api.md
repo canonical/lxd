@@ -220,12 +220,11 @@ Input (container based on remote image):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        'architecture': "x86_64",
+        'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
-        'config': [{'key': 'lxc.aa_profile',                                # Config override. List of dicts to respect ordering and allow flexibility.
-                    'value': 'lxc-container-default-with-nesting'},
-                   {'key': 'lxc.mount.auto',
-                    'value': 'cgroup'}],
+        'config': {'resources.cpus': "2"},                                  # Config override.
         'source': {'type': "remote",                                        # Can be: local (source is a local image, container or snapshot), remote (requires a provided remote config) or proxy (requires a provided ssl socket info)
                    'url': 'https+lxc-images://images.linuxcontainers.org",  # URL for the remote
                    'name': "lxc-images/ubuntu/trusty/amd64",                # Name of the image or container on the remote
@@ -236,6 +235,7 @@ Input (clone of a local snapshot):
 
     {
         'name': "my-new-container",
+        'hostname': "my-container",
         'profiles': ["default"],
         'source': {'type': "local",
                    'name': "a/b"},                                          # Use snapshot "b" of container "a" as the source
@@ -255,8 +255,16 @@ Output:
     {
         'name': "my-container",
         'profiles': ["default"],
-        'config': [{'key': "resources.memory",
-                    'value': "50%"}],
+        'architecture': "x86_64",
+        'hostname': "my-container",
+        'config': {"resources.cpus": "3"},
+        'devices': {
+            'rootfs': {
+                'type': "disk",
+                'path': "/",
+                'source': "UUID=8f7fdf5e-dc60-4524-b9fe-634f82ac2fb6"}
+            }
+        },
         'userdata': "SOME BASE64 BLOB",
         'status': {
                     'status': "Running",
