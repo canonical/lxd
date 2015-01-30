@@ -67,28 +67,28 @@ The structure of the json will be as follow:
 
         "aliases": {    # Short aliases.
             "ubuntu": {
-                "remote": "lxc-images",
+                "server": "lxc-images",
                 "arguments": {
                     "distribution": "ubuntu",
                     "release": "trusty",
                     "variant": "default"}
             },
             "ubuntu/devel": {
-                "remote": "lxc-images",
+                "server": "lxc-images",
                 "arguments": {
                     "distribution": "ubuntu",
                     "release": "vivid",
                     "variant": "default"}
             },
             "ubuntu/lts": {
-                "remote": "lxc-images",
+                "server": "lxc-images",
                 "arguments": {
                     "distribution": "ubuntu",
                     "release": "trusty",
                     "variant": "default"}
             },
             "ubuntu/stable": {
-                "remote": "lxc-images",
+                "server": "lxc-images",
                 "arguments": {
                     "distribution": "ubuntu",
                     "release": "utopic",
