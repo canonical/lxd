@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/kr/pty"
@@ -35,8 +36,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 
 	name, err := raw.GetString("name")
 	if err != nil {
-		/* TODO: namegen code here */
-		name = "foo"
+		name = strings.ToLower(petname.Generate(2, "-"))
 	}
 
 	source, err := raw.GetMap("source")
