@@ -593,6 +593,10 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
+	if !c.Running() {
+		return BadRequest(fmt.Errorf("Container is not running."))
+	}
+
 	post := commandPostContent{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
