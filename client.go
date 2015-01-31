@@ -128,7 +128,7 @@ func readMyCert() (string, string, error) {
 func (c *Client) loadServerCert() {
 	cert, err := ReadCert(ServerCertPath(c.name))
 	if err != nil {
-		fmt.Printf(gettext.Gettext("Error reading the server certificate for %s\n"), c.name)
+		Debugf("Error reading the server certificate for %s: %v\n", c.name, err)
 		return
 	}
 
