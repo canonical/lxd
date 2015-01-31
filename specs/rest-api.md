@@ -141,9 +141,9 @@ For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
          * /1.0/containers/\<name\>/snapshots
          * /1.0/containers/\<name\>/snapshots/\<name\>
          * /1.0/containers/\<name\>/state
+     * /1.0/events
      * /1.0/images
        * /1.0/images/\<name\>
-     * /1.0/longpoll
      * /1.0/networks
        * /1.0/networks/\<name\>
      * /1.0/operations
@@ -463,6 +463,41 @@ operation's metadata:
         'return': 0
     }
 
+## /1.0/events
+This URL isn't a real REST API endpoint, instead doing a GET query on it
+will upgrade the connection to a websocket on which notifications will
+be sent.
+
+### GET
+ * Description: websocket upgrade
+ * Authentication: trusted
+ * Operation: sync
+ * Return: none (never ending flow of events)
+
+Supported arguments are:
+ * type: comma separated list of notifications to subscribe to (defaults to all)
+
+The notification types are:
+ * operations
+ * logging
+
+This never returns. Each notification is sent as a separate JSON dict:
+
+    {
+        'timestamp': 1415639996,                # Current timestamp
+        'type': "operations",                   # Notification type
+        'resource': "/1.0/operations/<uuid>",   # Resource URL
+        'metadata': {}                          # Extra resource or type specific metadata
+    }
+
+    {
+        'timestamp': 1415639996,
+        'type': "logging",
+        'resource': "/1.0",
+        'metadata' {'message': "Service started"}
+    }
+
+
 ## /1.0/images
 ### GET
  * Description: list of images (public or private)
@@ -757,44 +792,6 @@ Input (none at present):
     }
 
 HTTP code for this should be 202 (Accepted).
-
-## /1.0/longpoll
-This URL isn't a standard REST object, instead it's a longpoll service
-which will send notifications to the client when a background operation
-changes state.
-
-The same mechanism may also be used for some live logging output.
-
-### POST
- * Description: long-poll API
- * Authentication: trusted
- * Operation: sync
- * Return: none (never ending flow of events)
-
-POST is the only supported method for this endpoint.
-
-The following JSON dict must be passed as argument:
-
-    {
-        'type': [], # List of notification types (initially "operations" or "logging").
-    }
-
-This never returns. Each notification is sent as a separate JSON dict:
-
-    {
-        'timestamp': 1415639996,                # Current timestamp
-        'type': "operations",                   # Notification type
-        'resource': "/1.0/operations/<uuid>",   # Resource URL
-        'metadata': {}                          # Extra resource or type specific metadata
-    }
-
-    {
-        'timestamp': 1415639996,
-        'type': "logging",
-        'resource': "/1.0",
-        'metadata' {'message': "Service started"}
-    }
-
 
 # Async operations
 Any operation which may take more than a second to be done must be done
