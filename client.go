@@ -575,6 +575,14 @@ func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.
 		return -1, err
 	}
 
+	if op.StatusCode == Failure {
+		return -1, op.GetError()
+	}
+
+	if op.StatusCode != Success {
+		return -1, fmt.Errorf(gettext.Gettext("got bad op status %s"), op.Status)
+	}
+
 	md, err = op.MetadataAsMap()
 	if err != nil {
 		return -1, err
