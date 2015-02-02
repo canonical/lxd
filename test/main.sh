@@ -6,6 +6,8 @@ export PATH=$GOPATH/bin:$PATH
 export LXD_DIR=$(mktemp -d -p $(pwd))
 chmod 777 "${LXD_DIR}"
 export LXD_CONF=$(mktemp -d)
+export LXD_FUIDMAP_DIR=${LXD_DIR}/fuidmap
+mkdir -p ${LXD_FUIDMAP_DIR}
 RESULT=failure
 lxd_pid=0
 
@@ -29,6 +31,7 @@ trap cleanup EXIT HUP INT TERM
 . ./signoff.sh
 . ./basic.sh
 . ./snapshots.sh
+. ./fuidshift.sh
 
 if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
@@ -79,5 +82,8 @@ test_basic_usage
 
 echo "TEST: snapshots"
 test_snapshots
+
+echo "TEST: uidshift"
+test_fuidshift
 
 RESULT=success
