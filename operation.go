@@ -64,11 +64,7 @@ func OperationWrap(f func() error) func() OperationResult {
 }
 
 func OperationError(err error) OperationResult {
-	jsonNil, err := json.Marshal(nil)
-	if err != nil {
-		Debugf("failed marshaling nil, something went wrong :(")
-	}
-	return OperationResult{jsonNil, err}
+	return OperationResult{nil, err}
 }
 
 type Operation struct {
