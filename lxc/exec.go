@@ -47,14 +47,16 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	/* A bit of a special case here: we want to exit with the same code as
-	 * the process inside the container, so we explicitly exit here
-	 * instead of returning an error.
-	 *
-	 * Additionally, since os.Exit() exits without running deferred
-	 * functions, we restore the terminal explicitly.
-	 */
-	terminal.Restore(cfd, oldttystate)
+	if oldttystate != nil {
+		/* A bit of a special case here: we want to exit with the same code as
+		 * the process inside the container, so we explicitly exit here
+		 * instead of returning an error.
+		 *
+		 * Additionally, since os.Exit() exits without running deferred
+		 * functions, we restore the terminal explicitly.
+		 */
+		terminal.Restore(cfd, oldttystate)
+	}
 
 	/* we get the result of waitpid() here so we need to transform it */
 	os.Exit(ret >> 8)
