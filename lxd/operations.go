@@ -56,7 +56,9 @@ func StartOperation(id string) error {
 
 		lock.Lock()
 		op.SetStatusByErr(result.Error)
-		op.Metadata = result.Metadata
+		if result.Metadata != nil {
+			op.Metadata = result.Metadata
+		}
 		op.Chan <- true
 		lock.Unlock()
 	}(op)

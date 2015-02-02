@@ -35,7 +35,6 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	if err != nil {
 		return err
 	}
-	lxd.Debugf(string(enc))
 
 	_, err = w.Write(enc)
 	return err
