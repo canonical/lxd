@@ -2,6 +2,7 @@
 default:
 	make -C lxc
 	make -C lxd
+	make -C fuidshift
 
 .PHONY: check
 check: default
