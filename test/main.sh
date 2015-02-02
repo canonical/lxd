@@ -1,5 +1,5 @@
 #!/bin/sh
-export PATH=../lxd:$PATH
+export PATH=$GOPATH/bin:$PATH
 
 # /tmp isn't moutned exec on most systems, so we can't actually start
 # containers that are created there.
@@ -49,7 +49,7 @@ wait_for() {
 }
 
 lxc() {
-  ../lxc/lxc $@ --config "${LXD_CONF}" $debug
+  `which lxc` $@ --config "${LXD_CONF}" $debug
 }
 
 echo "Confirming lxd is responsive"
