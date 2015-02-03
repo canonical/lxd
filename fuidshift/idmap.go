@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 /*
@@ -11,10 +11,10 @@ import (
  * uid or gid mappings.
  */
 type idmapEntry struct {
-	isuid bool
-	isgid bool
-	srcid int
-	destid int
+	isuid    bool
+	isgid    bool
+	srcid    int
+	destid   int
 	maprange int
 }
 
@@ -49,7 +49,7 @@ func (e *idmapEntry) parse(s string) error {
 	}
 
 	// wraparound
-	if e.srcid + e.maprange < e.srcid || e.destid + e.maprange < e.destid {
+	if e.srcid+e.maprange < e.srcid || e.destid+e.maprange < e.destid {
 		return fmt.Errorf("Bad mapping: id wraparound")
 	}
 
@@ -60,7 +60,7 @@ func (e *idmapEntry) parse(s string) error {
  * Convert an id from host id to mapped container id
  */
 func (i *idmapEntry) shift_into_ns(id int) (int, error) {
-	if id < i.srcid || id >= i.srcid + i.maprange {
+	if id < i.srcid || id >= i.srcid+i.maprange {
 		// this mapping doesn't apply
 		return 0, fmt.Errorf("N/A")
 	}
@@ -82,7 +82,6 @@ func extend(slice []idmapEntry, element idmapEntry) []idmapEntry {
 	slice[n] = element
 	return slice
 }
-
 
 type Idmap struct {
 	idmap []idmapEntry
