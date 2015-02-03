@@ -9,10 +9,6 @@ check: default
 	git diff --exit-code
 	cd test && ./main.sh
 
-.PHONY: clean
-clean:
-	-rm -f lxc/lxc lxd/lxd
-
 # dist is primarily for use when packaging; for development we still manage
 # dependencies via `go get` explicitly.
 # TODO: use git describe for versioning
