@@ -1,3 +1,6 @@
+// +build linux
+// +build cgo
+
 package lxd
 
 import (
@@ -14,9 +17,27 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"syscall"
 
 	"github.com/gorilla/websocket"
+	"github.com/gosexy/gettext"
 )
+
+/*
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <grp.h>
+
+// This is an adaption from https://codereview.appspot.com/4589049, to be
+// included in the stdlib with the stdlib's license.
+
+static int mygetgrgid_r(int gid, struct group *grp,
+	char *buf, size_t buflen, struct group **result) {
+	return getgrgid_r(gid, grp, buf, buflen, result);
+}
+*/
+import "C"
 
 func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMode, err error) {
 
@@ -177,4 +198,68 @@ func AtoiEmptyDefault(s string, def int) (int, error) {
 	}
 
 	return strconv.Atoi(s)
+}
+
+// GroupName is an adaption from https://codereview.appspot.com/4589049.
+func GroupName(gid int) (string, error) {
+	var grp C.struct_group
+	var result *C.struct_group
+
+	bufSize := C.size_t(C.sysconf(C._SC_GETGR_R_SIZE_MAX))
+	buf := C.malloc(bufSize)
+	if buf == nil {
+		return "", fmt.Errorf(gettext.Gettext("allocation failed"))
+	}
+	defer C.free(buf)
+
+	// mygetgrgid_r is a wrapper around getgrgid_r to
+	// to avoid using gid_t because C.gid_t(gid) for
+	// unknown reasons doesn't work on linux.
+	rv := C.mygetgrgid_r(C.int(gid),
+		&grp,
+		(*C.char)(buf),
+		bufSize,
+		&result)
+
+	if rv != 0 {
+		return "", fmt.Errorf(gettext.Gettext("failed group lookup: %s"), syscall.Errno(rv))
+	}
+
+	if result == nil {
+		return "", fmt.Errorf(gettext.Gettext("unknown group %s"), gid)
+	}
+
+	return C.GoString(result.gr_name), nil
+}
+
+// GroupId is an adaption from https://codereview.appspot.com/4589049.
+func GroupId(name string) (int, error) {
+	var grp C.struct_group
+	var result *C.struct_group
+
+	bufSize := C.size_t(C.sysconf(C._SC_GETGR_R_SIZE_MAX))
+	buf := C.malloc(bufSize)
+	if buf == nil {
+		return -1, fmt.Errorf(gettext.Gettext("allocation failed"))
+	}
+	defer C.free(buf)
+
+	// mygetgrgid_r is a wrapper around getgrgid_r to
+	// to avoid using gid_t because C.gid_t(gid) for
+	// unknown reasons doesn't work on linux.
+	rv := C.getgrnam_r(C.CString(name),
+		&grp,
+		(*C.char)(buf),
+		bufSize,
+		&result)
+
+	if rv != 0 {
+		return -1, fmt.Errorf(gettext.Gettext("failed group lookup: %s"), syscall.Errno(rv))
+	}
+
+	if result == nil {
+		return -1, fmt.Errorf(gettext.Gettext("unknown group %s"), name)
+	}
+
+	return int(C.int(result.gr_gid)), nil
 }
