@@ -27,6 +27,10 @@ fi
 
 trap cleanup EXIT HUP INT TERM
 
+if [ -z "`which lxc`" ]; then
+    echo "couldn't find lxc" && false
+fi
+
 . ./remote.sh
 . ./signoff.sh
 . ./basic.sh

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"path/filepath"
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 )
 
@@ -83,7 +83,7 @@ func fileExists(p string) bool {
 }
 
 func Uidshift(dir string, idmap Idmap, testmode bool) error {
-	convert := func (path string, fi os.FileInfo, err error) (e error) {
+	convert := func(path string, fi os.FileInfo, err error) (e error) {
 		uid, gid, err := getOwner(path)
 		if err != nil {
 			return err
@@ -106,7 +106,7 @@ func Uidshift(dir string, idmap Idmap, testmode bool) error {
 		return nil
 	}
 
-	if ! fileExists(dir) {
+	if !fileExists(dir) {
 		return fmt.Errorf("No such file or directory: %q", dir)
 	}
 	return filepath.Walk(dir, convert)

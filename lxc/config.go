@@ -15,7 +15,10 @@ func (c *configCmd) usage() string {
 	return gettext.Gettext(
 		"Manage configuration.\n" +
 			"\n" +
-			"lxc config set [remote] password <newpwd>        Set admin password\n")
+			"lxc config set [remote] password <newpwd>        Set admin password\n" +
+			"lxc trust list [remote]                          List all trusted certs.\n" +
+			"lxc trust add [remote] [certfile.crt]            Add certfile.crt to trusted hosts.\n" +
+			"lxc trust remove [remote] [hostname|fingerprint] Remove the cert from trusted hosts.\n")
 }
 
 func (c *configCmd) flags() {}

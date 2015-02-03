@@ -204,7 +204,8 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 			d.id_map.Gidrange)
 	}
 
-	unixAddr, err := net.ResolveUnixAddr("unix", lxd.VarPath("unix.socket"))
+	localSocket := lxd.VarPath("unix.socket")
+	unixAddr, err := net.ResolveUnixAddr("unix", localSocket)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
 	}
@@ -213,6 +214,19 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
 	}
 	d.unixl = unixl
+
+	if err := os.Chmod(localSocket, 0775); err != nil {
+		return nil, err
+	}
+
+	gid, err := lxd.GroupId(*group)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := os.Chown(localSocket, os.Getuid(), gid); err != nil {
+		return nil, err
+	}
 
 	if listenAddr != "" {
 		// Watch out. There's a listener active which must be closed on errors.
