@@ -115,29 +115,23 @@ func (d *Daemon) createCmd(version string, c Command) {
 		}
 
 		var resp Response
+		resp = NotImplemented
+
 		switch r.Method {
 		case "GET":
-			if c.GET == nil {
-				resp = NotImplemented
-			} else {
+			if c.GET != nil {
 				resp = c.GET(d, r)
 			}
 		case "PUT":
-			if c.PUT == nil {
-				resp = NotImplemented
-			} else {
+			if c.PUT != nil {
 				resp = c.PUT(d, r)
 			}
 		case "POST":
-			if c.POST == nil {
-				resp = NotImplemented
-			} else {
+			if c.POST != nil {
 				resp = c.POST(d, r)
 			}
 		case "DELETE":
-			if c.DELETE == nil {
-				resp = NotImplemented
-			} else {
+			if c.DELETE != nil {
 				resp = c.DELETE(d, r)
 			}
 		default:

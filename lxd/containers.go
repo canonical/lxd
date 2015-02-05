@@ -194,20 +194,20 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	}
 
 	var do func() error
-	switch action {
-	case string(lxd.Start):
+	switch lxd.ContainerAction(action) {
+	case lxd.Start:
 		do = c.Start
-	case string(lxd.Stop):
+	case lxd.Stop:
 		if timeout == 0 || force {
 			do = c.Stop
 		} else {
 			do = func() error { return c.Shutdown(time.Duration(timeout) * time.Second) }
 		}
-	case string(lxd.Restart):
+	case lxd.Restart:
 		do = c.Reboot
-	case string(lxd.Freeze):
+	case lxd.Freeze:
 		do = c.Freeze
-	case string(lxd.Unfreeze):
+	case lxd.Unfreeze:
 		do = c.Unfreeze
 	default:
 		return BadRequest(fmt.Errorf("unknown action %s", action))
