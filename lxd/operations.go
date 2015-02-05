@@ -86,7 +86,7 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, ops)
 }
 
-var operationsCmd = Command{"operations", false, false, operationsGet, nil, nil, nil}
+var operationsCmd = Command{name: "operations", get: operationsGet}
 
 func operationGet(d *Daemon, r *http.Request) Response {
 	id := shared.OperationsURL(mux.Vars(r)["id"])
@@ -137,7 +137,7 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 	}
 }
 
-var operationCmd = Command{"operations/{id}", false, false, operationGet, nil, nil, operationDelete}
+var operationCmd = Command{name: "operations/{id}", get: operationGet, delete: operationDelete}
 
 func operationWaitGet(d *Daemon, r *http.Request) Response {
 	targetStatus, err := shared.AtoiEmptyDefault(r.FormValue("status_code"), int(shared.Success))
@@ -180,7 +180,7 @@ func operationWaitGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, op)
 }
 
-var operationWait = Command{"operations/{id}/wait", false, false, operationWaitGet, nil, nil, nil}
+var operationWait = Command{name: "operations/{id}/wait", get: operationWaitGet}
 
 type websocketServe struct {
 	req *http.Request
@@ -235,4 +235,4 @@ func operationWebsocketGet(d *Daemon, r *http.Request) Response {
 	return &websocketServe{r, ws}
 }
 
-var operationWebsocket = Command{"operations/{id}/websocket", false, false, operationWebsocketGet, nil, nil, nil}
+var operationWebsocket = Command{name: "operations/{id}/websocket", get: operationWebsocketGet}

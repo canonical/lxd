@@ -33,10 +33,10 @@ type Command struct {
 	name          string
 	untrustedGet  bool
 	untrustedPost bool
-	GET           func(d *Daemon, r *http.Request) Response
-	PUT           func(d *Daemon, r *http.Request) Response
-	POST          func(d *Daemon, r *http.Request) Response
-	DELETE        func(d *Daemon, r *http.Request) Response
+	get           func(d *Daemon, r *http.Request) Response
+	put           func(d *Daemon, r *http.Request) Response
+	post          func(d *Daemon, r *http.Request) Response
+	delete        func(d *Daemon, r *http.Request) Response
 }
 
 func readMyCert() (string, string, error) {
@@ -119,20 +119,20 @@ func (d *Daemon) createCmd(version string, c Command) {
 
 		switch r.Method {
 		case "GET":
-			if c.GET != nil {
-				resp = c.GET(d, r)
+			if c.get != nil {
+				resp = c.get(d, r)
 			}
 		case "PUT":
-			if c.PUT != nil {
-				resp = c.PUT(d, r)
+			if c.put != nil {
+				resp = c.put(d, r)
 			}
 		case "POST":
-			if c.POST != nil {
-				resp = c.POST(d, r)
+			if c.post != nil {
+				resp = c.post(d, r)
 			}
 		case "DELETE":
-			if c.DELETE != nil {
-				resp = c.DELETE(d, r)
+			if c.delete != nil {
+				resp = c.delete(d, r)
 			}
 		default:
 			resp = NotFound

@@ -115,7 +115,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	return AsyncResponse(shared.OperationWrap(func() error { return c.Create(opts) }), nil)
 }
 
-var containersCmd = Command{"containers", false, false, nil, nil, containersPost, nil}
+var containersCmd = Command{name: "containers", post: containersPost}
 
 func containerGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
@@ -145,7 +145,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	return AsyncResponse(shared.OperationWrap(c.Destroy), nil)
 }
 
-var containerCmd = Command{"containers/{name}", false, false, containerGet, nil, nil, containerDelete}
+var containerCmd = Command{name: "containers/{name}", get: containerGet, delete: containerDelete}
 
 func containerStateGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
@@ -216,7 +216,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	return AsyncResponse(shared.OperationWrap(do), nil)
 }
 
-var containerStateCmd = Command{"containers/{name}/state", false, false, containerStateGet, containerStatePut, nil, nil}
+var containerStateCmd = Command{name: "containers/{name}/state", get: containerStateGet, put: containerStatePut}
 
 func containerFileHandler(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
@@ -332,7 +332,7 @@ func containerFilePut(r *http.Request, p string) Response {
 	return EmptySyncResponse
 }
 
-var containerFileCmd = Command{"containers/{name}/files", false, false, containerFileHandler, containerFileHandler, nil, nil}
+var containerFileCmd = Command{name: "containers/{name}/files", get: containerFileHandler, put: containerFileHandler}
 
 func snapshotsDir(c *lxc.Container) string {
 	return shared.VarPath("lxc", c.Name(), "snapshots")
@@ -441,7 +441,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	return AsyncResponse(shared.OperationWrap(snapshot), nil)
 }
 
-var containerSnapshotsCmd = Command{"containers/{name}/snapshots", false, false, containerSnapshotsGet, nil, containerSnapshotsPost, nil}
+var containerSnapshotsCmd = Command{name: "containers/{name}/snapshots", get: containerSnapshotsGet, post: containerSnapshotsPost}
 
 func snapshotHandler(d *Daemon, r *http.Request) Response {
 	containerName := mux.Vars(r)["name"]
@@ -517,7 +517,7 @@ func snapshotDelete(c *lxc.Container, name string) Response {
 	return AsyncResponse(shared.OperationWrap(remove), nil)
 }
 
-var containerSnapshotCmd = Command{"containers/{name}/snapshots/{snapshotName}", false, false, snapshotHandler, nil, snapshotHandler, snapshotHandler}
+var containerSnapshotCmd = Command{name: "containers/{name}/snapshots/{snapshotName}", get: snapshotHandler, post: snapshotHandler, delete: snapshotHandler}
 
 type execWs struct {
 	command   []string
@@ -637,4 +637,4 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	}
 }
 
-var containerExecCmd = Command{"containers/{name}/exec", false, false, nil, nil, containerExecPost, nil}
+var containerExecCmd = Command{name: "containers/{name}/exec", post: containerExecPost}

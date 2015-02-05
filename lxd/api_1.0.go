@@ -162,4 +162,4 @@ func api10Put(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var api10Cmd = Command{"", true, false, api10Get, api10Put, nil, nil}
+var api10Cmd = Command{name: "", untrustedGet: true, get: api10Get, put: api10Put}
