@@ -18,18 +18,18 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/kr/pty"
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
 func containersPost(d *Daemon, r *http.Request) Response {
-	lxd.Debugf("responding to create")
+	shared.Debugf("responding to create")
 
 	if d.id_map == nil {
-		return BadRequest(fmt.Errorf("lxd's user has no subuids"))
+		return BadRequest(fmt.Errorf("shared's user has no subuids"))
 	}
 
-	raw := lxd.Jmap{}
+	raw := shared.Jmap{}
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		return BadRequest(err)
 	}
@@ -91,13 +91,13 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	 * on Domain.id_map
 	 */
 	if d.id_map != nil {
-		lxd.Debugf("setting custom idmap")
+		shared.Debugf("setting custom idmap")
 		err = c.SetConfigItem("lxc.id_map", "")
 		if err != nil {
-			lxd.Debugf("Failed to clear id mapping, continuing")
+			shared.Debugf("Failed to clear id mapping, continuing")
 		}
 		uidstr := fmt.Sprintf("u 0 %d %d\n", d.id_map.Uidmin, d.id_map.Uidrange)
-		lxd.Debugf("uidstr is %s\n", uidstr)
+		shared.Debugf("uidstr is %s\n", uidstr)
 		err = c.SetConfigItem("lxc.id_map", uidstr)
 		if err != nil {
 			return InternalError(err)
@@ -112,7 +112,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	/*
 	 * Actually create the container
 	 */
-	return AsyncResponse(lxd.OperationWrap(func() error { return c.Create(opts) }), nil)
+	return AsyncResponse(shared.OperationWrap(func() error { return c.Create(opts) }), nil)
 }
 
 var containersCmd = Command{"containers", false, false, nil, nil, containersPost, nil}
@@ -128,7 +128,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
-	return SyncResponse(true, lxd.CtoD(c))
+	return SyncResponse(true, shared.CtoD(c))
 }
 
 func containerDelete(d *Daemon, r *http.Request) Response {
@@ -142,7 +142,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
-	return AsyncResponse(lxd.OperationWrap(c.Destroy), nil)
+	return AsyncResponse(shared.OperationWrap(c.Destroy), nil)
 }
 
 var containerCmd = Command{"containers/{name}", false, false, containerGet, nil, nil, containerDelete}
@@ -158,13 +158,13 @@ func containerStateGet(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
-	return SyncResponse(true, lxd.CtoD(c).Status)
+	return SyncResponse(true, shared.CtoD(c).Status)
 }
 
 func containerStatePut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	raw := lxd.Jmap{}
+	raw := shared.Jmap{}
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		return BadRequest(err)
 	}
@@ -194,26 +194,26 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	}
 
 	var do func() error
-	switch lxd.ContainerAction(action) {
-	case lxd.Start:
+	switch shared.ContainerAction(action) {
+	case shared.Start:
 		do = c.Start
-	case lxd.Stop:
+	case shared.Stop:
 		if timeout == 0 || force {
 			do = c.Stop
 		} else {
 			do = func() error { return c.Shutdown(time.Duration(timeout) * time.Second) }
 		}
-	case lxd.Restart:
+	case shared.Restart:
 		do = c.Reboot
-	case lxd.Freeze:
+	case shared.Freeze:
 		do = c.Freeze
-	case lxd.Unfreeze:
+	case shared.Unfreeze:
 		do = c.Unfreeze
 	default:
 		return BadRequest(fmt.Errorf("unknown action %s", action))
 	}
 
-	return AsyncResponse(lxd.OperationWrap(do), nil)
+	return AsyncResponse(shared.OperationWrap(do), nil)
 }
 
 var containerStateCmd = Command{"containers/{name}/state", false, false, containerStateGet, containerStatePut, nil, nil}
@@ -298,7 +298,7 @@ func containerFileGet(r *http.Request, path string) Response {
 
 func containerFilePut(r *http.Request, p string) Response {
 
-	uid, gid, mode, err := lxd.ParseLXDFileHeaders(r.Header)
+	uid, gid, mode, err := shared.ParseLXDFileHeaders(r.Header)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -335,7 +335,7 @@ func containerFilePut(r *http.Request, p string) Response {
 var containerFileCmd = Command{"containers/{name}/files", false, false, containerFileHandler, containerFileHandler, nil, nil}
 
 func snapshotsDir(c *lxc.Container) string {
-	return lxd.VarPath("lxc", c.Name(), "snapshots")
+	return shared.VarPath("lxc", c.Name(), "snapshots")
 }
 
 func snapshotDir(c *lxc.Container, name string) string {
@@ -365,7 +365,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	files, err := ioutil.ReadDir(snapshotsDir(c))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return SyncResponse(true, []lxd.Jmap{})
+			return SyncResponse(true, []shared.Jmap{})
 		} else {
 			return InternalError(err)
 		}
@@ -375,7 +375,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	for _, file := range files {
 		if file.IsDir() {
-			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", lxd.APIVersion, c.Name(), path.Base(file.Name()))
+			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, c.Name(), path.Base(file.Name()))
 			body = append(body, url)
 		}
 	}
@@ -394,7 +394,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
-	raw := lxd.Jmap{}
+	raw := shared.Jmap{}
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		return BadRequest(err)
 	}
@@ -438,7 +438,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return c.Clone(snapshotName, opts)
 	}
 
-	return AsyncResponse(lxd.OperationWrap(snapshot), nil)
+	return AsyncResponse(shared.OperationWrap(snapshot), nil)
 }
 
 var containerSnapshotsCmd = Command{"containers/{name}/snapshots", false, false, containerSnapshotsGet, nil, containerSnapshotsPost, nil}
@@ -476,12 +476,12 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 
 func snapshotGet(c *lxc.Container, name string) Response {
 	_, err := os.Stat(snapshotStateDir(c, name))
-	body := lxd.Jmap{"name": name, "stateful": err == nil}
+	body := shared.Jmap{"name": name, "stateful": err == nil}
 	return SyncResponse(true, body)
 }
 
 func snapshotPost(r *http.Request, c *lxc.Container, oldName string) Response {
-	raw := lxd.Jmap{}
+	raw := shared.Jmap{}
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		return BadRequest(err)
 	}
@@ -508,13 +508,13 @@ func snapshotPost(r *http.Request, c *lxc.Container, oldName string) Response {
 	 * do something for stateless ones.
 	 */
 	rename := func() error { return os.Rename(oldDir, newDir) }
-	return AsyncResponse(lxd.OperationWrap(rename), nil)
+	return AsyncResponse(shared.OperationWrap(rename), nil)
 }
 
 func snapshotDelete(c *lxc.Container, name string) Response {
 	dir := snapshotDir(c, name)
 	remove := func() error { return os.RemoveAll(dir) }
-	return AsyncResponse(lxd.OperationWrap(remove), nil)
+	return AsyncResponse(shared.OperationWrap(remove), nil)
 }
 
 var containerSnapshotCmd = Command{"containers/{name}/snapshots/{snapshotName}", false, false, snapshotHandler, nil, snapshotHandler, snapshotHandler}
@@ -523,14 +523,14 @@ type execWs struct {
 	command   []string
 	container *lxc.Container
 	secret    string
-	done      chan lxd.OperationResult
+	done      chan shared.OperationResult
 }
 
 func (s *execWs) Secret() string {
 	return s.secret
 }
 
-func runCommand(container *lxc.Container, command []string, fd uintptr) lxd.OperationResult {
+func runCommand(container *lxc.Container, command []string, fd uintptr) shared.OperationResult {
 
 	options := lxc.DefaultAttachOptions
 	options.StdinFd = fd
@@ -540,22 +540,22 @@ func runCommand(container *lxc.Container, command []string, fd uintptr) lxd.Oper
 
 	status, err := container.RunCommandStatus(command, options)
 	if err != nil {
-		lxd.Debugf("Failed running command: %q", err.Error())
-		return lxd.OperationError(err)
+		shared.Debugf("Failed running command: %q", err.Error())
+		return shared.OperationError(err)
 	}
 
-	metadata, err := json.Marshal(lxd.Jmap{"return": status})
+	metadata, err := json.Marshal(shared.Jmap{"return": status})
 	if err != nil {
-		return lxd.OperationError(err)
+		return shared.OperationError(err)
 	}
 
-	return lxd.OperationResult{Metadata: metadata, Error: nil}
+	return shared.OperationResult{Metadata: metadata, Error: nil}
 }
 
 func (s *execWs) Do(conn *websocket.Conn) {
 	pty, tty, err := pty.Open()
 	if err != nil {
-		s.done <- lxd.OperationError(err)
+		s.done <- shared.OperationError(err)
 		return
 	}
 
@@ -574,7 +574,7 @@ func (s *execWs) Do(conn *websocket.Conn) {
 	 * the copy-goroutines to exit.  If the connection closes, we
 	 * also want to exit
 	 */
-	lxd.WebsocketMirror(conn, pty, pty)
+	shared.WebsocketMirror(conn, pty, pty)
 }
 
 type commandPostContent struct {
@@ -609,25 +609,25 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 	if post.WaitForWS {
 		ws := &execWs{}
-		ws.secret, err = lxd.RandomCryptoString()
+		ws.secret, err = shared.RandomCryptoString()
 		if err != nil {
 			return InternalError(err)
 		}
 		ws.command = post.Command
 		ws.container = c
-		ws.done = make(chan (lxd.OperationResult))
+		ws.done = make(chan (shared.OperationResult))
 
-		run := func() lxd.OperationResult {
+		run := func() shared.OperationResult {
 			return <-ws.done
 		}
 
 		return AsyncResponseWithWs(run, nil, ws)
 	} else {
-		run := func() lxd.OperationResult {
+		run := func() shared.OperationResult {
 
 			nullDev, err := os.OpenFile(os.DevNull, os.O_RDWR, 0666)
 			if err != nil {
-				return lxd.OperationError(err)
+				return shared.OperationError(err)
 			}
 			defer nullDev.Close()
 

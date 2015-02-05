@@ -20,6 +20,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/gosexy/gettext"
+	"github.com/lxc/lxd/shared"
 )
 
 // Client can talk to a lxd daemon.
@@ -68,16 +69,16 @@ type Response struct {
 	Metadata json.RawMessage `json:"metadata"`
 }
 
-func (r *Response) MetadataAsMap() (*Jmap, error) {
-	ret := Jmap{}
+func (r *Response) MetadataAsMap() (*shared.Jmap, error) {
+	ret := shared.Jmap{}
 	if err := json.Unmarshal(r.Metadata, &ret); err != nil {
 		return nil, err
 	}
 	return &ret, nil
 }
 
-func (r *Response) MetadataAsOperation() (*Operation, error) {
-	op := Operation{}
+func (r *Response) MetadataAsOperation() (*shared.Operation, error) {
+	op := shared.Operation{}
 	if err := json.Unmarshal(r.Metadata, &op); err != nil {
 		return nil, err
 	}
@@ -96,7 +97,7 @@ func ParseResponse(r *http.Response) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	Debugf("raw response: %s", string(s))
+	shared.Debugf("raw response: %s", string(s))
 
 	if err := json.Unmarshal(s, &ret); err != nil {
 		return nil, err
@@ -117,7 +118,7 @@ func readMyCert() (string, string, error) {
 	certf := configPath("client.crt")
 	keyf := configPath("client.key")
 
-	err := FindOrGenCert(certf, keyf)
+	err := shared.FindOrGenCert(certf, keyf)
 
 	return certf, keyf, err
 }
@@ -126,9 +127,9 @@ func readMyCert() (string, string, error) {
  * load the server cert from disk
  */
 func (c *Client) loadServerCert() {
-	cert, err := ReadCert(ServerCertPath(c.name))
+	cert, err := shared.ReadCert(ServerCertPath(c.name))
 	if err != nil {
-		Debugf("Error reading the server certificate for %s: %v\n", c.name, err)
+		shared.Debugf("Error reading the server certificate for %s: %v\n", c.name, err)
 		return
 	}
 
@@ -208,7 +209,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 }
 
 func (c *Client) get(base string) (*Response, error) {
-	uri := c.url(APIVersion, base)
+	uri := c.url(shared.APIVersion, base)
 
 	return c.baseGet(uri)
 }
@@ -234,8 +235,8 @@ func (c *Client) baseGet(url string) (*Response, error) {
 	return ParseResponse(resp)
 }
 
-func (c *Client) put(base string, args Jmap) (*Response, error) {
-	uri := c.url(APIVersion, base)
+func (c *Client) put(base string, args shared.Jmap) (*Response, error) {
+	uri := c.url(shared.APIVersion, base)
 
 	buf := bytes.Buffer{}
 	err := json.NewEncoder(&buf).Encode(args)
@@ -243,7 +244,7 @@ func (c *Client) put(base string, args Jmap) (*Response, error) {
 		return nil, err
 	}
 
-	Debugf("putting %s to %s", buf.String(), uri)
+	shared.Debugf("putting %s to %s", buf.String(), uri)
 
 	req, err := http.NewRequest("PUT", uri, &buf)
 	if err != nil {
@@ -259,8 +260,8 @@ func (c *Client) put(base string, args Jmap) (*Response, error) {
 	return ParseResponse(resp)
 }
 
-func (c *Client) post(base string, args Jmap) (*Response, error) {
-	uri := c.url(APIVersion, base)
+func (c *Client) post(base string, args shared.Jmap) (*Response, error) {
+	uri := c.url(shared.APIVersion, base)
 
 	buf := bytes.Buffer{}
 	err := json.NewEncoder(&buf).Encode(args)
@@ -268,7 +269,7 @@ func (c *Client) post(base string, args Jmap) (*Response, error) {
 		return nil, err
 	}
 
-	Debugf("posting %s to %s", buf.String(), uri)
+	shared.Debugf("posting %s to %s", buf.String(), uri)
 
 	resp, err := c.http.Post(uri, "application/json", &buf)
 	if err != nil {
@@ -278,8 +279,8 @@ func (c *Client) post(base string, args Jmap) (*Response, error) {
 	return ParseResponse(resp)
 }
 
-func (c *Client) delete(base string, args Jmap) (*Response, error) {
-	uri := c.url(APIVersion, base)
+func (c *Client) delete(base string, args shared.Jmap) (*Response, error) {
+	uri := c.url(shared.APIVersion, base)
 
 	buf := bytes.Buffer{}
 	err := json.NewEncoder(&buf).Encode(args)
@@ -287,7 +288,7 @@ func (c *Client) delete(base string, args Jmap) (*Response, error) {
 		return nil, err
 	}
 
-	Debugf("deleting %s to %s", buf.String(), uri)
+	shared.Debugf("deleting %s to %s", buf.String(), uri)
 
 	req, err := http.NewRequest("DELETE", uri, &buf)
 	if err != nil {
@@ -332,7 +333,7 @@ func unixDial(networ, addr string) (net.Conn, error) {
 	var raddr *net.UnixAddr
 	var err error
 	if addr == "unix.socket:80" {
-		raddr, err = net.ResolveUnixAddr("unix", VarPath("unix.socket"))
+		raddr, err = net.ResolveUnixAddr("unix", shared.VarPath("unix.socket"))
 		if err != nil {
 			return nil, fmt.Errorf(gettext.Gettext("cannot resolve unix socket address: %v"), err)
 		}
@@ -350,7 +351,7 @@ var unixTransport = http.Transport{
 }
 
 func (c *Client) GetConfig() (*Response, error) {
-	resp, err := c.baseGet(c.url(APIVersion))
+	resp, err := c.baseGet(c.url(shared.APIVersion))
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +364,7 @@ func (c *Client) GetConfig() (*Response, error) {
 }
 
 func (c *Client) Finger() error {
-	Debugf("fingering the daemon")
+	shared.Debugf("fingering the daemon")
 	resp, err := c.GetConfig()
 	if err != nil {
 		return err
@@ -379,10 +380,10 @@ func (c *Client) Finger() error {
 		return err
 	}
 
-	if serverAPICompat != APICompat {
-		return fmt.Errorf(gettext.Gettext("api version mismatch: mine: %q, daemon: %q"), APICompat, serverAPICompat)
+	if serverAPICompat != shared.APICompat {
+		return fmt.Errorf(gettext.Gettext("api version mismatch: mine: %q, daemon: %q"), shared.APICompat, serverAPICompat)
 	}
-	Debugf("pong received")
+	shared.Debugf("pong received")
 	return nil
 }
 
@@ -392,7 +393,7 @@ func (c *Client) AmTrusted() bool {
 		return false
 	}
 
-	Debugf("%s", resp)
+	shared.Debugf("%s", resp)
 
 	jmap, err := resp.MetadataAsMap()
 	if err != nil {
@@ -441,7 +442,7 @@ func (c *Client) UserAuthServerCert() error {
 
 	fmt.Printf(gettext.Gettext("Certificate fingerprint: % x\n"), c.scertDigest)
 	fmt.Printf(gettext.Gettext("ok (y/n)? "))
-	line, err := ReadStdin()
+	line, err := shared.ReadStdin()
 	if err != nil {
 		return err
 	}
@@ -486,7 +487,7 @@ func (c *Client) CertificateList() (map[string]string, error) {
 }
 
 func (c *Client) AddMyCertToServer(pwd string) error {
-	body := Jmap{"type": "client", "password": pwd}
+	body := shared.Jmap{"type": "client", "password": pwd}
 
 	raw, err := c.post("certificates", body)
 	if err != nil {
@@ -498,7 +499,7 @@ func (c *Client) AddMyCertToServer(pwd string) error {
 
 func (c *Client) CertificateAdd(cert *x509.Certificate, name string) error {
 	b64 := base64.StdEncoding.EncodeToString(cert.Raw)
-	raw, err := c.post("certificates", Jmap{"type": "client", "certificate": b64, "name": name})
+	raw, err := c.post("certificates", shared.Jmap{"type": "client", "certificate": b64, "name": name})
 	if err != nil {
 		return err
 	}
@@ -516,8 +517,8 @@ func (c *Client) CertificateRemove(fingerprint string) error {
 
 func (c *Client) Create(name string) (*Response, error) {
 
-	source := Jmap{"type": "remote", "url": "https+lxc-images://images.linuxcontainers.org", "name": "lxc-images/ubuntu/trusty/amd64"}
-	body := Jmap{"source": source}
+	source := shared.Jmap{"type": "remote", "url": "https+lxc-images://images.linuxcontainers.org", "name": "lxc-images/ubuntu/trusty/amd64"}
+	body := shared.Jmap{"source": source}
 
 	if name != "" {
 		body["name"] = name
@@ -540,7 +541,7 @@ func (c *Client) Create(name string) (*Response, error) {
 }
 
 func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.WriteCloser, stderr io.WriteCloser) (int, error) {
-	body := Jmap{"command": cmd, "wait-for-websocket": true}
+	body := shared.Jmap{"command": cmd, "wait-for-websocket": true}
 	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body)
 	if err != nil {
 		return -1, err
@@ -569,17 +570,17 @@ func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.
 		return -1, err
 	}
 
-	WebsocketMirror(conn, stdout, stdin)
+	shared.WebsocketMirror(conn, stdout, stdin)
 	op, err := c.WaitFor(resp.Operation)
 	if err != nil {
 		return -1, err
 	}
 
-	if op.StatusCode == Failure {
+	if op.StatusCode == shared.Failure {
 		return -1, op.GetError()
 	}
 
-	if op.StatusCode != Success {
+	if op.StatusCode != shared.Success {
 		return -1, fmt.Errorf(gettext.Gettext("got bad op status %s"), op.Status)
 	}
 
@@ -591,8 +592,8 @@ func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.
 	return md.GetInt("return")
 }
 
-func (c *Client) Action(name string, action ContainerAction, timeout int, force bool) (*Response, error) {
-	body := Jmap{"action": action, "timeout": timeout, "force": force}
+func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool) (*Response, error) {
+	body := shared.Jmap{"action": action, "timeout": timeout, "force": force}
 	resp, err := c.put(fmt.Sprintf("containers/%s/state", name), body)
 	if err != nil {
 		return nil, err
@@ -622,8 +623,8 @@ func (c *Client) Delete(name string) (*Response, error) {
 	return resp, nil
 }
 
-func (c *Client) ContainerStatus(name string) (*Container, error) {
-	ct := Container{}
+func (c *Client) ContainerStatus(name string) (*shared.Container, error) {
+	ct := shared.Container{}
 
 	resp, err := c.get(fmt.Sprintf("containers/%s", name))
 	if err != nil {
@@ -647,7 +648,7 @@ func (c *Client) ContainerStatus(name string) (*Container, error) {
 
 func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.FileMode, buf io.ReadSeeker) error {
 	query := url.Values{"path": []string{p}}
-	uri := c.url(APIVersion, "containers", container, "files") + "?" + query.Encode()
+	uri := c.url(shared.APIVersion, "containers", container, "files") + "?" + query.Encode()
 
 	req, err := http.NewRequest("PUT", uri, buf)
 	if err != nil {
@@ -672,7 +673,7 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 }
 
 func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io.ReadCloser, error) {
-	uri := c.url(APIVersion, "containers", container, "files")
+	uri := c.url(shared.APIVersion, "containers", container, "files")
 	query := url.Values{"path": []string{p}}
 
 	r, err := c.http.Get(uri + "?" + query.Encode())
@@ -689,7 +690,7 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 		return 0, 0, 0, nil, ParseError(resp)
 	}
 
-	uid, gid, mode, err := ParseLXDFileHeaders(r.Header)
+	uid, gid, mode, err := shared.ParseLXDFileHeaders(r.Header)
 	if err != nil {
 		return 0, 0, 0, nil, err
 	}
@@ -698,7 +699,7 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 }
 
 func (c *Client) SetRemotePwd(password string) (*Response, error) {
-	body := Jmap{"config": []Jmap{Jmap{"key": "trust-password", "value": password}}}
+	body := shared.Jmap{"config": []shared.Jmap{shared.Jmap{"key": "trust-password", "value": password}}}
 	resp, err := c.put("", body)
 	if err != nil {
 		return nil, err
@@ -712,13 +713,13 @@ func (c *Client) SetRemotePwd(password string) (*Response, error) {
 }
 
 /* Wait for an operation */
-func (c *Client) WaitFor(waitURL string) (*Operation, error) {
+func (c *Client) WaitFor(waitURL string) (*shared.Operation, error) {
 	/* For convenience, waitURL is expected to be in the form of a
 	 * Response.Operation string, i.e. it already has
 	 * "/<version>/operations/" in it; we chop off the leading / and pass
 	 * it to url directly.
 	 */
-	Debugf(path.Join(waitURL[1:], "wait"))
+	shared.Debugf(path.Join(waitURL[1:], "wait"))
 	resp, err := c.baseGet(c.url(waitURL, "wait"))
 	if err != nil {
 		return nil, err
@@ -737,7 +738,7 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 		return err
 	}
 
-	if op.StatusCode == Success {
+	if op.StatusCode == shared.Success {
 		return nil
 	}
 
@@ -745,7 +746,7 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 }
 
 func (c *Client) Snapshot(container string, snapshotName string, stateful bool) (*Response, error) {
-	body := Jmap{"name": snapshotName, "stateful": stateful}
+	body := shared.Jmap{"name": snapshotName, "stateful": stateful}
 	resp, err := c.post(fmt.Sprintf("containers/%s/snapshots", container), body)
 	if err != nil {
 		return nil, err

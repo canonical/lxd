@@ -1,4 +1,4 @@
-package lxd
+package shared
 
 import (
 	"gopkg.in/lxc/go-lxc.v2"

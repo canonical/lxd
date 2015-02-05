@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
+	"github.com/lxc/lxd/shared"
 )
 
 func main() {
@@ -21,27 +21,27 @@ func main() {
 var verbose = gnuflag.Bool("v", false, "Enables verbose mode.")
 var debug = gnuflag.Bool("debug", false, "Enables debug mode.")
 var listenAddr = gnuflag.String("tcp", "", "TCP address <addr:port> to listen on in addition to the unix socket (e.g., 127.0.0.1:8443)")
-var group = gnuflag.String("group", "", "Group which owns the lxd socket")
+var group = gnuflag.String("group", "", "Group which owns the shared socket")
 
 func init() {
-	myGroup, err := lxd.GroupName(os.Getgid())
+	myGroup, err := shared.GroupName(os.Getgid())
 	if err != nil {
-		lxd.Debugf("Problem finding default group %s", err)
+		shared.Debugf("Problem finding default group %s", err)
 	}
 	*group = myGroup
 }
 
 func run() error {
 	gnuflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: lxd [options]\n\nOptions:\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: shared [options]\n\nOptions:\n\n")
 		gnuflag.PrintDefaults()
 	}
 
 	gnuflag.Parse(true)
 
 	if *verbose || *debug {
-		lxd.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
-		lxd.SetDebug(*debug)
+		shared.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
+		shared.SetDebug(*debug)
 	}
 
 	d, err := StartDaemon(*listenAddr)

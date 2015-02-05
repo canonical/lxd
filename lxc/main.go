@@ -9,6 +9,7 @@ import (
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
+	"github.com/lxc/lxd/shared"
 )
 
 func main() {
@@ -51,8 +52,8 @@ func run() error {
 	gnuflag.Parse(true)
 
 	if *verbose || *debug {
-		lxd.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
-		lxd.SetDebug(*debug)
+		shared.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
+		shared.SetDebug(*debug)
 	}
 
 	config, err := lxd.LoadConfig()
@@ -82,11 +83,11 @@ var commands = map[string]command{
 	"create":   &createCmd{},
 	"list":     &listCmd{},
 	"remote":   &remoteCmd{},
-	"stop":     &actionCmd{lxd.Stop, true},
-	"start":    &actionCmd{lxd.Start, false},
-	"restart":  &actionCmd{lxd.Restart, true},
-	"freeze":   &actionCmd{lxd.Freeze, false},
-	"unfreeze": &actionCmd{lxd.Unfreeze, false},
+	"stop":     &actionCmd{shared.Stop, true},
+	"start":    &actionCmd{shared.Start, false},
+	"restart":  &actionCmd{shared.Restart, true},
+	"freeze":   &actionCmd{shared.Freeze, false},
+	"unfreeze": &actionCmd{shared.Unfreeze, false},
 	"delete":   &deleteCmd{},
 	"file":     &fileCmd{},
 	"snapshot": &snapshotCmd{},

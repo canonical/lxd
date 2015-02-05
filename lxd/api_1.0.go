@@ -7,7 +7,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 	"golang.org/x/crypto/scrypt"
 	"gopkg.in/lxc/go-lxc.v2"
 )
@@ -58,7 +58,7 @@ func CharsToString(ca [65]int8) string {
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {
-	body := lxd.Jmap{"api_compat": lxd.APICompat}
+	body := shared.Jmap{"api_compat": shared.APICompat}
 
 	if d.isTrustedClient(r) {
 		body["auth"] = "trusted"
@@ -73,7 +73,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		env := lxd.Jmap{"lxc_version": lxc.Version(), "driver": "lxc"}
+		env := shared.Jmap{"lxc_version": lxc.Version(), "driver": "lxc"}
 
 		switch fs.Type {
 		case BTRFS_SUPER_MAGIC:
@@ -92,7 +92,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 		env["kernel_version"] = CharsToString(uname.Release)
 		body["environment"] = env
-		config := []lxd.Jmap{lxd.Jmap{"key": "trust-password", "value": d.hasPwd()}}
+		config := []shared.Jmap{shared.Jmap{"key": "trust-password", "value": d.hasPwd()}}
 		body["config"] = config
 	} else {
 		body["auth"] = "untrusted"
@@ -102,7 +102,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 }
 
 type apiPut struct {
-	Config []lxd.Jmap `json:"config"`
+	Config []shared.Jmap `json:"config"`
 }
 
 const (
@@ -113,7 +113,7 @@ const (
 func api10Put(d *Daemon, r *http.Request) Response {
 	req := apiPut{}
 
-	if err := lxd.ReadToJSON(r.Body, &req); err != nil {
+	if err := shared.ReadToJSON(r.Body, &req); err != nil {
 		return BadRequest(err)
 	}
 
@@ -128,7 +128,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 				continue
 			}
 
-			lxd.Debugf("setting new password")
+			shared.Debugf("setting new password")
 			salt := make([]byte, PW_SALT_BYTES)
 			_, err = io.ReadFull(rand.Reader, salt)
 			if err != nil {
@@ -140,7 +140,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 				return InternalError(err)
 			}
 
-			passfname := lxd.VarPath("adminpwd")
+			passfname := shared.VarPath("adminpwd")
 			passOut, err := os.OpenFile(passfname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 			defer passOut.Close()
 			if err != nil {
