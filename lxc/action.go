@@ -41,6 +41,14 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	_, err = d.Action(name, c.action, timeout, force)
-	return err
+	resp, err := d.Action(name, c.action, timeout, force)
+	if err != nil {
+		return err
+	}
+
+	if resp.Type != lxd.Async {
+		return fmt.Errorf(gettext.Gettext("bad result type from action"))
+	}
+
+	return d.WaitForSuccess(resp.Operation)
 }
