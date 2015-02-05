@@ -21,8 +21,15 @@ func main() {
 var verbose = gnuflag.Bool("v", false, "Enables verbose mode.")
 var debug = gnuflag.Bool("debug", false, "Enables debug mode.")
 var listenAddr = gnuflag.String("tcp", "", "TCP address <addr:port> to listen on in addition to the unix socket (e.g., 127.0.0.1:8443)")
-var myGroup, err = lxd.GroupName(os.Getgid())
-var group = gnuflag.String("group", myGroup, "Group which owns the lxd socket")
+var group = gnuflag.String("group", "", "Group which owns the lxd socket")
+
+func init() {
+	myGroup, err := lxd.GroupName(os.Getgid())
+	if err != nil {
+		lxd.Debugf("Problem finding default group %s", err)
+	}
+	*group = myGroup
+}
 
 func run() error {
 	gnuflag.Usage = func() {
