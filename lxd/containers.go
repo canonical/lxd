@@ -201,7 +201,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		if timeout == 0 || force {
 			do = c.Stop
 		} else {
-			do = func() error { return c.Shutdown(time.Duration(timeout)) }
+			do = func() error { return c.Shutdown(time.Duration(timeout) * time.Second) }
 		}
 	case string(lxd.Restart):
 		do = c.Reboot
