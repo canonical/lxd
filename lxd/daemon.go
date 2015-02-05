@@ -278,16 +278,3 @@ func (d *Daemon) Stop() error {
 	}
 	return err
 }
-
-// None of the daemon methods should print anything to stdout or stderr. If
-// there's a local issue in the daemon that the admin should know about, it
-// should be logged using either Logf or Debugf.
-//
-// Then, all of those issues that prevent the request from being served properly
-// for any reason (bad parameters or any other local error) should be notified
-// back to the client by writing an error json document to w, which in turn will
-// be read by the client and returned via the API as an error result. These
-// errors then surface via the CLI (cmd/shared/*) in os.Stderr.
-//
-// Together, these ideas ensure that we have a proper daemon, and a proper client,
-// which can both be used independently and also embedded into other applications.
