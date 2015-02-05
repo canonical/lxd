@@ -6,6 +6,7 @@ import (
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -50,7 +51,7 @@ func addServer(config *lxd.Config, server string) error {
 	if err != nil {
 		/* We got an error, maybe this isn't a terminal, let's try to
 		 * read it as a file */
-		pwd, err = lxd.ReadStdin()
+		pwd, err = shared.ReadStdin()
 		if err != nil {
 			return err
 		}
@@ -72,7 +73,7 @@ func addServer(config *lxd.Config, server string) error {
 
 func removeCertificate(remote string) {
 	certf := lxd.ServerCertPath(remote)
-	lxd.Debugf("Trying to remove %s\n", certf)
+	shared.Debugf("Trying to remove %s\n", certf)
 
 	os.Remove(certf)
 }

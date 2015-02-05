@@ -5,6 +5,7 @@ import (
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 )
 
 type configCmd struct {
@@ -89,12 +90,12 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			}
 
 			fname := args[len(args)-1]
-			cert, err := lxd.ReadCert(fname)
+			cert, err := shared.ReadCert(fname)
 			if err != nil {
 				return err
 			}
 
-			name, _ := lxd.SplitExt(fname)
+			name, _ := shared.SplitExt(fname)
 			return d.CertificateAdd(cert, name)
 		case "remove":
 			var remote string

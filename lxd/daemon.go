@@ -12,11 +12,11 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 	"gopkg.in/tomb.v2"
 )
 
-// A Daemon can respond to requests from a lxd client.
+// A Daemon can respond to requests from a shared client.
 type Daemon struct {
 	tomb        tomb.Tomb
 	unixl       net.Listener
@@ -40,17 +40,17 @@ type Command struct {
 }
 
 func readMyCert() (string, string, error) {
-	certf := lxd.VarPath("server.crt")
-	keyf := lxd.VarPath("server.key")
-	lxd.Debugf("looking for existing certificates: %s %s", certf, keyf)
+	certf := shared.VarPath("server.crt")
+	keyf := shared.VarPath("server.key")
+	shared.Debugf("looking for existing certificates: %s %s", certf, keyf)
 
-	err := lxd.FindOrGenCert(certf, keyf)
+	err := shared.FindOrGenCert(certf, keyf)
 
 	return certf, keyf, err
 }
 
 func readSavedClientCAList(d *Daemon) {
-	dirpath := lxd.VarPath("clientcerts")
+	dirpath := shared.VarPath("clientcerts")
 	d.clientCerts = make(map[string]x509.Certificate)
 	fil, err := ioutil.ReadDir(dirpath)
 	if err != nil {
@@ -70,9 +70,9 @@ func readSavedClientCAList(d *Daemon) {
 		if err != nil {
 			continue
 		}
-		n, _ = lxd.SplitExt(n)
+		n, _ = shared.SplitExt(n)
 		d.clientCerts[n] = *cert
-		lxd.Debugf("Loaded cert %s", fnam)
+		shared.Debugf("Loaded cert %s", fnam)
 	}
 }
 
@@ -103,13 +103,13 @@ func (d *Daemon) createCmd(version string, c Command) {
 	d.mux.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 
 		if d.isTrustedClient(r) {
-			lxd.Debugf("handling %s %s", r.Method, r.URL.RequestURI())
+			shared.Debugf("handling %s %s", r.Method, r.URL.RequestURI())
 		} else if r.Method == "GET" && c.untrustedGet {
-			lxd.Debugf("allowing untrusted GET to %s", r.URL.RequestURI())
+			shared.Debugf("allowing untrusted GET to %s", r.URL.RequestURI())
 		} else if r.Method == "POST" && c.untrustedPost {
-			lxd.Debugf("allowing untrusted POST to %s", r.URL.RequestURI())
+			shared.Debugf("allowing untrusted POST to %s", r.URL.RequestURI())
 		} else {
-			lxd.Debugf("rejecting request from untrusted client")
+			shared.Debugf("rejecting request from untrusted client")
 			Forbidden.Render(w)
 			return
 		}
@@ -141,18 +141,18 @@ func (d *Daemon) createCmd(version string, c Command) {
 		if err := resp.Render(w); err != nil {
 			err := InternalError(err).Render(w)
 			if err != nil {
-				lxd.Debugf("failed writing error for error, giving up.")
+				shared.Debugf("failed writing error for error, giving up.")
 			}
 		}
 	})
 }
 
-// StartDaemon starts the lxd daemon with the provided configuration.
+// StartDaemon starts the shared daemon with the provided configuration.
 func StartDaemon(listenAddr string) (*Daemon, error) {
 	d := &Daemon{}
 
-	d.lxcpath = lxd.VarPath("lxc")
-	err := os.MkdirAll(lxd.VarPath("/"), 0755)
+	d.lxcpath = shared.VarPath("lxc")
+	err := os.MkdirAll(shared.VarPath("/"), 0755)
 	if err != nil {
 		return nil, err
 	}
@@ -182,23 +182,23 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	}
 
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		lxd.Debugf("sending top level 404: %s", r.URL)
+		shared.Debugf("sending top level 404: %s", r.URL)
 		NotFound.Render(w)
 	})
 
 	d.id_map, err = NewIdmap()
 	if err != nil {
-		lxd.Logf("error reading idmap: %s", err.Error())
-		lxd.Logf("operations requiring idmap will not be available")
+		shared.Logf("error reading idmap: %s", err.Error())
+		shared.Logf("operations requiring idmap will not be available")
 	} else {
-		lxd.Debugf("idmap is %d %d %d %d\n",
+		shared.Debugf("idmap is %d %d %d %d\n",
 			d.id_map.Uidmin,
 			d.id_map.Uidrange,
 			d.id_map.Gidmin,
 			d.id_map.Gidrange)
 	}
 
-	localSocket := lxd.VarPath("unix.socket")
+	localSocket := shared.VarPath("unix.socket")
 	unixAddr, err := net.ResolveUnixAddr("unix", localSocket)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
@@ -213,7 +213,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		return nil, err
 	}
 
-	gid, err := lxd.GroupId(*group)
+	gid, err := shared.GroupId(*group)
 	if err != nil {
 		return nil, err
 	}
@@ -248,10 +248,10 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 	for k, v := range d.clientCerts {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			lxd.Debugf("found cert for %s", k)
+			shared.Debugf("found cert for %s", k)
 			return true
 		} else {
-			lxd.Debugf("client cert != key for %s", k)
+			shared.Debugf("client cert != key for %s", k)
 		}
 	}
 	return false
@@ -259,7 +259,7 @@ func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 
 var errStop = fmt.Errorf("requested stop")
 
-// Stop stops the lxd daemon.
+// Stop stops the shared daemon.
 func (d *Daemon) Stop() error {
 	d.tomb.Kill(errStop)
 	d.unixl.Close()
@@ -281,7 +281,7 @@ func (d *Daemon) Stop() error {
 // for any reason (bad parameters or any other local error) should be notified
 // back to the client by writing an error json document to w, which in turn will
 // be read by the client and returned via the API as an error result. These
-// errors then surface via the CLI (cmd/lxd/*) in os.Stderr.
+// errors then surface via the CLI (cmd/shared/*) in os.Stderr.
 //
 // Together, these ideas ensure that we have a proper daemon, and a proper client,
 // which can both be used independently and also embedded into other applications.

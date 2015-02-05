@@ -1,4 +1,4 @@
-package lxd
+package shared
 
 import (
 	"fmt"

@@ -9,7 +9,7 @@ import (
 	"path"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
@@ -25,7 +25,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 
 	result := make([]string, 0)
 	for _, iface := range ifs {
-		result = append(result, fmt.Sprintf("/%s/networks/%s", lxd.APIVersion, iface.Name))
+		result = append(result, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))
 	}
 
 	return SyncResponse(true, result)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 )
 
 type versionCmd struct{}
@@ -23,6 +24,6 @@ func (c *versionCmd) run(_ *lxd.Config, args []string) error {
 	if len(args) > 0 {
 		return errArgs
 	}
-	fmt.Println(lxd.Version)
+	fmt.Println(shared.Version)
 	return nil
 }
