@@ -86,8 +86,6 @@ var commands = map[string]command{
 	"stop":     &actionCmd{shared.Stop, true},
 	"start":    &actionCmd{shared.Start, false},
 	"restart":  &actionCmd{shared.Restart, true},
-	"freeze":   &actionCmd{shared.Freeze, false},
-	"unfreeze": &actionCmd{shared.Unfreeze, false},
 	"delete":   &deleteCmd{},
 	"file":     &fileCmd{},
 	"snapshot": &snapshotCmd{},
