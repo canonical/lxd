@@ -161,27 +161,23 @@ func containerStateGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, shared.CtoD(c).Status)
 }
 
+type containerStatePutReq struct {
+	Action  string `json:"action"`
+	Timeout int    `json:"timeout"`
+	Force   bool   `json:"force"`
+}
+
 func containerStatePut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	raw := shared.Jmap{}
+	raw := containerStatePutReq{}
+
+	// We default to -1 (i.e. no timeout) here instead of 0 (instant
+	// timeout).
+	raw.Timeout = -1
+
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		return BadRequest(err)
-	}
-
-	action, err := raw.GetString("action")
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	timeout, err := raw.GetInt("timeout")
-	if err != nil {
-		timeout = -1
-	}
-
-	force, err := raw.GetBool("force")
-	if err != nil {
-		force = false
 	}
 
 	c, err := lxc.NewContainer(name, d.lxcpath)
@@ -194,14 +190,14 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	}
 
 	var do func() error
-	switch shared.ContainerAction(action) {
+	switch shared.ContainerAction(raw.Action) {
 	case shared.Start:
 		do = c.Start
 	case shared.Stop:
-		if timeout == 0 || force {
+		if raw.Timeout == 0 || raw.Force {
 			do = c.Stop
 		} else {
-			do = func() error { return c.Shutdown(time.Duration(timeout) * time.Second) }
+			do = func() error { return c.Shutdown(time.Duration(raw.Timeout) * time.Second) }
 		}
 	case shared.Restart:
 		do = c.Reboot
@@ -210,7 +206,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	case shared.Unfreeze:
 		do = c.Unfreeze
 	default:
-		return BadRequest(fmt.Errorf("unknown action %s", action))
+		return BadRequest(fmt.Errorf("unknown action %s", raw.Action))
 	}
 
 	return AsyncResponse(shared.OperationWrap(do), nil)
