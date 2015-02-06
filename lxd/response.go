@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 )
 
 type resp struct {
@@ -52,9 +53,9 @@ func SyncResponse(success bool, metadata interface{}) Response {
 var EmptySyncResponse = &syncResponse{true, make(map[string]interface{})}
 
 type asyncResponse struct {
-	run    func() lxd.OperationResult
+	run    func() shared.OperationResult
 	cancel func() error
-	ws     lxd.OperationSocket
+	ws     shared.OperationSocket
 }
 
 func (r *asyncResponse) Render(w http.ResponseWriter) error {
@@ -68,9 +69,9 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 		return err
 	}
 
-	body := lxd.Jmap{"type": lxd.Async, "operation": op}
+	body := shared.Jmap{"type": lxd.Async, "operation": op}
 	if r.ws != nil {
-		body["metadata"] = lxd.Jmap{"websocket_secret": r.ws.Secret()}
+		body["metadata"] = shared.Jmap{"websocket_secret": r.ws.Secret()}
 	}
 
 	w.Header().Set("Location", op)
@@ -78,11 +79,11 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 	return json.NewEncoder(w).Encode(body)
 }
 
-func AsyncResponse(run func() lxd.OperationResult, cancel func() error) Response {
+func AsyncResponse(run func() shared.OperationResult, cancel func() error) Response {
 	return AsyncResponseWithWs(run, cancel, nil)
 }
 
-func AsyncResponseWithWs(run func() lxd.OperationResult, cancel func() error, ws lxd.OperationSocket) Response {
+func AsyncResponseWithWs(run func() shared.OperationResult, cancel func() error, ws shared.OperationSocket) Response {
 	return &asyncResponse{run, cancel, ws}
 }
 
@@ -93,7 +94,7 @@ type ErrorResponse struct {
 
 func (r *ErrorResponse) Render(w http.ResponseWriter) error {
 	buf := bytes.Buffer{}
-	err := json.NewEncoder(&buf).Encode(lxd.Jmap{"type": lxd.Error, "error": r.msg, "error_code": r.code})
+	err := json.NewEncoder(&buf).Encode(shared.Jmap{"type": lxd.Error, "error": r.msg, "error_code": r.code})
 
 	if err != nil {
 		return err
