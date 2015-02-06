@@ -1,9 +1,10 @@
 // +build linux
 // +build cgo
 
-package lxd
+package shared
 
 import (
+	"bufio"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
@@ -16,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"syscall"
 
@@ -38,6 +40,18 @@ static int mygetgrgid_r(int gid, struct group *grp,
 }
 */
 import "C"
+
+// VarPath returns the provided path elements joined by a slash and
+// appended to the end of $LXD_DIR, which defaults to /var/lib/lxd.
+func VarPath(path ...string) string {
+	varDir := os.Getenv("LXD_DIR")
+	if varDir == "" {
+		varDir = "/var/lib/lxd"
+	}
+	items := []string{varDir}
+	items = append(items, path...)
+	return filepath.Join(items...)
+}
 
 func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMode, err error) {
 
@@ -262,4 +276,13 @@ func GroupId(name string) (int, error) {
 	}
 
 	return int(C.int(result.gr_gid)), nil
+}
+
+func ReadStdin() ([]byte, error) {
+	buf := bufio.NewReader(os.Stdin)
+	line, _, err := buf.ReadLine()
+	if err != nil {
+		return nil, err
+	}
+	return line, nil
 }

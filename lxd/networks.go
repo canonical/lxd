@@ -9,7 +9,7 @@ import (
 	"path"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
@@ -25,13 +25,13 @@ func networksGet(d *Daemon, r *http.Request) Response {
 
 	result := make([]string, 0)
 	for _, iface := range ifs {
-		result = append(result, fmt.Sprintf("/%s/networks/%s", lxd.APIVersion, iface.Name))
+		result = append(result, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))
 	}
 
 	return SyncResponse(true, result)
 }
 
-var networksCmd = Command{"networks", false, false, networksGet, nil, nil, nil}
+var networksCmd = Command{name: "networks", get: networksGet}
 
 type network struct {
 	Name    string   `json:"name"`
@@ -116,4 +116,4 @@ func networkGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, &n)
 }
 
-var networkCmd = Command{"networks/{name}", false, false, networkGet, nil, nil, nil}
+var networkCmd = Command{name: "networks/{name}", get: networkGet}

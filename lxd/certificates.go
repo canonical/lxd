@@ -11,48 +11,48 @@ import (
 	"path"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 	"golang.org/x/crypto/scrypt"
 )
 
 func (d *Daemon) hasPwd() bool {
-	passfname := lxd.VarPath("adminpwd")
+	passfname := shared.VarPath("adminpwd")
 	_, err := os.Open(passfname)
 	return err == nil
 }
 
 func (d *Daemon) verifyAdminPwd(password string) bool {
-	passfname := lxd.VarPath("adminpwd")
+	passfname := shared.VarPath("adminpwd")
 	passOut, err := os.Open(passfname)
 	if err != nil {
-		lxd.Debugf("verifyAdminPwd: no password is set")
+		shared.Debugf("verifyAdminPwd: no password is set")
 		return false
 	}
 	defer passOut.Close()
 	buff := make([]byte, PW_SALT_BYTES+PW_HASH_BYTES)
 	_, err = passOut.Read(buff)
 	if err != nil {
-		lxd.Debugf("failed to read the saved admin pasword for verification")
+		shared.Debugf("failed to read the saved admin pasword for verification")
 		return false
 	}
 	salt := buff[0:PW_SALT_BYTES]
 	hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, PW_HASH_BYTES)
 	if err != nil {
-		lxd.Debugf("failed to create hash to check")
+		shared.Debugf("failed to create hash to check")
 		return false
 	}
 	if !bytes.Equal(hash, buff[PW_SALT_BYTES:]) {
-		lxd.Debugf("Bad password received")
+		shared.Debugf("Bad password received")
 		return false
 	}
-	lxd.Debugf("Verified the admin password")
+	shared.Debugf("Verified the admin password")
 	return true
 }
 
 func certificatesGet(d *Daemon, r *http.Request) Response {
-	body := lxd.Jmap{}
+	body := shared.Jmap{}
 	for host, cert := range d.clientCerts {
-		fingerprint := lxd.GenerateFingerprint(&cert)
+		fingerprint := shared.GenerateFingerprint(&cert)
 		body[host] = fingerprint
 	}
 
@@ -68,7 +68,7 @@ type certificatesPostBody struct {
 
 func saveCert(host string, cert *x509.Certificate) error {
 	// TODO - do we need to sanity-check the server name to avoid arbitrary writes to fs?
-	dirname := lxd.VarPath("clientcerts")
+	dirname := shared.VarPath("clientcerts")
 	err := os.MkdirAll(dirname, 0755)
 	filename := fmt.Sprintf("%s/%s.crt", dirname, host)
 	certOut, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
@@ -88,7 +88,7 @@ func saveCert(host string, cert *x509.Certificate) error {
 func certificatesPost(d *Daemon, r *http.Request) Response {
 	req := certificatesPostBody{}
 
-	if err := lxd.ReadToJSON(r.Body, &req); err != nil {
+	if err := shared.ReadToJSON(r.Body, &req); err != nil {
 		return BadRequest(err)
 	}
 
@@ -116,10 +116,10 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		name = r.TLS.ServerName
 	}
 
-	fingerprint := lxd.GenerateFingerprint(cert)
+	fingerprint := shared.GenerateFingerprint(cert)
 	for existingName, existingCert := range d.clientCerts {
 		if name == existingName {
-			if fingerprint == lxd.GenerateFingerprint(&existingCert) {
+			if fingerprint == shared.GenerateFingerprint(&existingCert) {
 				return EmptySyncResponse
 			} else {
 				return Conflict
@@ -147,9 +147,9 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	for _, cert := range d.clientCerts {
-		if fingerprint == lxd.GenerateFingerprint(&cert) {
+		if fingerprint == shared.GenerateFingerprint(&cert) {
 			b64 := base64.StdEncoding.EncodeToString(cert.Raw)
-			body := lxd.Jmap{"type": "client", "certificates": b64}
+			body := shared.Jmap{"type": "client", "certificates": b64}
 			return SyncResponse(true, body)
 		}
 	}
@@ -160,9 +160,9 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 	for name, cert := range d.clientCerts {
-		if fingerprint == lxd.GenerateFingerprint(&cert) {
+		if fingerprint == shared.GenerateFingerprint(&cert) {
 			delete(d.clientCerts, name)
-			fpath := path.Join(lxd.VarPath("clientcerts"), fmt.Sprintf("%s.crt", name))
+			fpath := path.Join(shared.VarPath("clientcerts"), fmt.Sprintf("%s.crt", name))
 			err := os.Remove(fpath)
 			if err != nil {
 				return SmartError(err)
