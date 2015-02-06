@@ -22,6 +22,17 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
+type containerImageSource struct {
+	Type string `json:"type"`
+	Url  string `json:"url"`
+	Name string `json:"name"`
+}
+
+type containerPostReq struct {
+	Name   string               `json:"name"`
+	Source containerImageSource `json:"source"`
+}
+
 func containersPost(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to create")
 
@@ -29,46 +40,25 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("shared's user has no subuids"))
 	}
 
-	raw := shared.Jmap{}
-	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+	req := containerPostReq{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
 
-	name, err := raw.GetString("name")
-	if err != nil {
-		name = strings.ToLower(petname.Generate(2, "-"))
-	}
-
-	source, err := raw.GetMap("source")
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	type_, err := source.GetString("type")
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	url, err := source.GetString("url")
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	imageName, err := source.GetString("name")
-	if err != nil {
-		return BadRequest(err)
+	if req.Name == "" {
+		req.Name = strings.ToLower(petname.Generate(2, "-"))
 	}
 
 	/* TODO: support other options here */
-	if type_ != "remote" {
+	if req.Source.Type != "remote" {
 		return NotImplemented
 	}
 
-	if url != "https+lxc-images://images.linuxcontainers.org" {
+	if req.Source.Url != "https+lxc-images://images.linuxcontainers.org" {
 		return NotImplemented
 	}
 
-	if imageName != "lxc-images/ubuntu/trusty/amd64" {
+	if req.Source.Name != "lxc-images/ubuntu/trusty/amd64" {
 		return NotImplemented
 	}
 
@@ -79,7 +69,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		Arch:     "amd64",
 	}
 
-	c, err := lxc.NewContainer(name, d.lxcpath)
+	c, err := lxc.NewContainer(req.Name, d.lxcpath)
 	if err != nil {
 		return InternalError(err)
 	}
