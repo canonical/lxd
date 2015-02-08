@@ -222,6 +222,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		return nil, err
 	}
 
+	var tcpListen func() error
 	if listenAddr != "" {
 		// Watch out. There's a listener active which must be closed on errors.
 		mycert, err := tls.LoadX509KeyPair(d.certf, d.keyf)
@@ -238,10 +239,17 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 			return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
 		}
 		d.tcpl = tcpl
-		d.tomb.Go(func() error { return http.Serve(d.tcpl, d.mux) })
+		tcpListen = func() error { return http.Serve(d.tcpl, d.mux) }
 	}
 
-	d.tomb.Go(func() error { return http.Serve(d.unixl, d.mux) })
+	d.tomb.Go(func() error {
+		if tcpListen != nil {
+			d.tomb.Go(tcpListen)
+		}
+		d.tomb.Go(func() error { return http.Serve(d.unixl, d.mux) })
+		return nil
+	})
+
 	return d, nil
 }
 
