@@ -515,7 +515,7 @@ func (c *Client) CertificateRemove(fingerprint string) error {
 	return ParseError(raw)
 }
 
-func (c *Client) Create(name string) (*Response, error) {
+func (c *Client) Init(name string) (*Response, error) {
 
 	source := shared.Jmap{"type": "remote", "url": "https+lxc-images://images.linuxcontainers.org", "name": "lxc-images/ubuntu/trusty/amd64"}
 	body := shared.Jmap{"source": source}

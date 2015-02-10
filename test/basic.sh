@@ -1,5 +1,5 @@
 test_basic_usage() {
-  lxc create images:ubuntu foo
+  lxc init ubuntu foo
 
   # did it get created?
   lxc list | grep foo

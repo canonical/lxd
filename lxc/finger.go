@@ -9,6 +9,10 @@ type fingerCmd struct {
 	httpAddr string
 }
 
+func (c *fingerCmd) showByDefault() bool {
+	return true
+}
+
 func (c *fingerCmd) usage() string {
 	return gettext.Gettext(
 		"Fingers the lxd instance to check if it is up and working.\n" +

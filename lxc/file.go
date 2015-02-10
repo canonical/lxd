@@ -19,6 +19,10 @@ type fileCmd struct {
 	mode string
 }
 
+func (c *fileCmd) showByDefault() bool {
+	return true
+}
+
 func (c *fileCmd) usage() string {
 	return gettext.Gettext(
 		"Manage files on a container.\n" +
