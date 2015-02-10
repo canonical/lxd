@@ -106,12 +106,9 @@ stop        | Stop a container
 Probably one of the most complex commands, it allows querying and
 setting all the configuration options available for containers and lxd hosts.
 
-It also allows creating profiles, profiles are a set of configuration
-keys which aren’t directly tied to a container. Instead it’s the profile
-itself which is tied to the container it’s configuring. Multiple
-profiles may be applied to a container, they override each other in the
-order they are applied and container-specific settings override any that
-value coming from a profile.
+It also supports profiles which are used to group configuration settings
+(configurations keys and devices) and then apply the resulting set to a
+given container.
 
 It’s possible to create, delete, list and setup profiles on a remote
 host. The one limitation is that a container can only reference local
@@ -251,7 +248,7 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
     image delete <image>
     image edit <image>
     image export <image>
-    image import <tarball> [target] [--created-at=DATE] [--expires-at=DATE] [--fingerprint=HASH] [prop=value]
+    image import <tarball> [target] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]
     image info <image>
     image list [filter]
     image move <image> <destination name or host>
@@ -381,7 +378,7 @@ lxc launch ubuntu c1 -p with-nesting            | Create a new local container c
 Lists all the available containers. If a container is specified, then
 it'll list all the available snapshots for the container.
 
-Each comes with some minimal status information (status, addresses, ...
+Each comes with some minimal status information (status, addresses, ...)
 configurable if needed by passing a list of fields to display.
 
 For containers, a reasonable default would be to show the name, state, ipv4
@@ -426,7 +423,7 @@ lxc move c1 dakara:c2           | Move c1 to "dakara" as "c2"
 
 **Arguments**
 
-    <resource> [target] [--public] [--expire=DATE] [prop-key=prop-value]...
+    <resource> [target] [--public] [--expire=ISO-8601] [prop-key=prop-value]...
 
 **Description**
 Takes an existing container or container snapshot and makes a
@@ -552,7 +549,7 @@ lxc restore dakara:c1 pre-upgrade --stateful    | Restore a pre-dist-upgrade sna
 
 **Arguments**
 
-    <resource> [snapshot name] [--stateful] [--expire=DATE]
+    <resource> [snapshot name] [--stateful] [--expire=ISO-8601]
 
 **Description**
 
