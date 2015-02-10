@@ -52,6 +52,7 @@ limits.memory       | int           | 0 (all)           | Size in MB of the memo
 security.privileged | boolean       | false             | Runs the container in privileged mode
 raw.apparmor        | blob          | -                 | Apparmor profile entries to be appended to the generated profile
 raw.lxc             | blob          | -                 | Raw LXC configuration to be appended to the generated one
+user.\*             | string        | -                 | Free form user key/value storage (can be used in search)
 
 Note that while a type is defined above as a convenience, all values are
 stored as strings and should be exported over the REST API as strings
