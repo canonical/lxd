@@ -32,6 +32,10 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 	switch args[0] {
 
 	case "set":
+		if len(args) < 2 {
+			return errArgs
+		}
+
 		action := args[1]
 		if action == "password" {
 			if len(args) != 3 {
@@ -50,6 +54,10 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 		return fmt.Errorf(gettext.Gettext("Only 'password' can be set currently"))
 	case "trust":
+		if len(args) < 2 {
+			return errArgs
+		}
+
 		switch args[1] {
 		case "list":
 			var remote string
