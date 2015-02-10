@@ -12,9 +12,10 @@ import (
 )
 
 type resp struct {
-	Type     string      `json:"type"`
-	Result   string      `json:"result"`
-	Metadata interface{} `json:"metadata"`
+	Type       lxd.ResponseType       `json:"type"`
+	Status     string                 `json:"status"`
+	StatusCode shared.OperationStatus `json:"status_code"`
+	Metadata   interface{}            `json:"metadata"`
 }
 
 type Response interface {
@@ -27,12 +28,12 @@ type syncResponse struct {
 }
 
 func (r *syncResponse) Render(w http.ResponseWriter) error {
-	result := "success"
+	status := shared.Success
 	if !r.success {
-		result = "failure"
+		status = shared.Failure
 	}
 
-	resp := resp{Type: string(lxd.Sync), Result: result, Metadata: r.metadata}
+	resp := resp{Type: lxd.Sync, Status: status.String(), StatusCode: status, Metadata: r.metadata}
 	enc, err := json.Marshal(&resp)
 	if err != nil {
 		return err
