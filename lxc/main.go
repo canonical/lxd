@@ -84,6 +84,7 @@ var commands = map[string]command{
 	"finger":   &fingerCmd{},
 	"help":     &helpCmd{},
 	"init":     &initCmd{},
+	"launch":   &launchCmd{},
 	"list":     &listCmd{},
 	"remote":   &remoteCmd{},
 	"restart":  &actionCmd{shared.Restart, true},
