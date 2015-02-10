@@ -14,6 +14,10 @@ type remoteCmd struct {
 	httpAddr string
 }
 
+func (c *remoteCmd) showByDefault() bool {
+	return true
+}
+
 func (c *remoteCmd) usage() string {
 	return gettext.Gettext(
 		"Manage remote lxc servers.\n" +

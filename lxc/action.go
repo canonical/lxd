@@ -14,6 +14,10 @@ type actionCmd struct {
 	hasTimeout bool
 }
 
+func (c *actionCmd) showByDefault() bool {
+	return true
+}
+
 var timeout = -1
 var force = false
 

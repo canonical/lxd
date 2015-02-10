@@ -10,6 +10,10 @@ import (
 
 type versionCmd struct{}
 
+func (c *versionCmd) showByDefault() bool {
+	return true
+}
+
 func (c *versionCmd) usage() string {
 	return gettext.Gettext(
 		"Prints the version number of lxd.\n" +

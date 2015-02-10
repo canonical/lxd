@@ -1,5 +1,5 @@
 test_snapshots() {
-  lxc create images:ubuntu foo
+  lxc init ubuntu foo
 
   lxc snapshot foo tester
   [ -d "$LXD_DIR/lxc/foo/snapshots/tester" ]
