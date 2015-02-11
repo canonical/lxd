@@ -31,6 +31,11 @@ func run() error {
 	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
 		os.Args[1] = "help"
 	}
+
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		os.Args[1] = "version"
+	}
+
 	if len(os.Args) < 2 {
 		commands["help"].run(nil, nil)
 		os.Exit(1)
