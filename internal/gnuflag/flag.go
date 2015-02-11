@@ -871,6 +871,11 @@ func Parsed() bool {
 // The default set of command-line flags, parsed from os.Args.
 var commandLine = NewFlagSet(os.Args[0], ExitOnError)
 
+// SetOut sets the output writer for the default FlagSet.
+func SetOut(w io.Writer) {
+	commandLine.output = w
+}
+
 // NewFlagSet returns a new, empty flag set with the specified name and
 // error handling property.
 func NewFlagSet(name string, errorHandling ErrorHandling) *FlagSet {
