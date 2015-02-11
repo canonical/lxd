@@ -12,6 +12,10 @@ type configCmd struct {
 	httpAddr string
 }
 
+func (c *configCmd) showByDefault() bool {
+	return true
+}
+
 func (c *configCmd) usage() string {
 	return gettext.Gettext(
 		"Manage configuration.\n" +

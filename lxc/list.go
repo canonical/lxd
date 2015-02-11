@@ -9,6 +9,10 @@ import (
 
 type listCmd struct{}
 
+func (c *listCmd) showByDefault() bool {
+	return true
+}
+
 func (c *listCmd) usage() string {
 	return gettext.Gettext(
 		"Lists the available resources.\n" +

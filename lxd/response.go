@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -11,9 +12,10 @@ import (
 )
 
 type resp struct {
-	Type     string      `json:"type"`
-	Result   string      `json:"result"`
-	Metadata interface{} `json:"metadata"`
+	Type       lxd.ResponseType       `json:"type"`
+	Status     string                 `json:"status"`
+	StatusCode shared.OperationStatus `json:"status_code"`
+	Metadata   interface{}            `json:"metadata"`
 }
 
 type Response interface {
@@ -26,12 +28,12 @@ type syncResponse struct {
 }
 
 func (r *syncResponse) Render(w http.ResponseWriter) error {
-	result := "success"
+	status := shared.Success
 	if !r.success {
-		result = "failure"
+		status = shared.Failure
 	}
 
-	resp := resp{Type: string(lxd.Sync), Result: result, Metadata: r.metadata}
+	resp := resp{Type: lxd.Sync, Status: status.String(), StatusCode: status, Metadata: r.metadata}
 	enc, err := json.Marshal(&resp)
 	if err != nil {
 		return err
@@ -52,10 +54,20 @@ func SyncResponse(success bool, metadata interface{}) Response {
 
 var EmptySyncResponse = &syncResponse{true, make(map[string]interface{})}
 
+type async struct {
+	Type       lxd.ResponseType       `json:"type"`
+	Status     string                 `json:"status"`
+	StatusCode shared.OperationStatus `json:"status_code"`
+	Operation  string                 `json:"operation"`
+	Resources  map[string][]string    `json:"resources"`
+	Metadata   interface{}            `json:"metadata"`
+}
+
 type asyncResponse struct {
-	run    func() shared.OperationResult
-	cancel func() error
-	ws     shared.OperationSocket
+	run        func() shared.OperationResult
+	cancel     func() error
+	ws         shared.OperationSocket
+	containers []string
 }
 
 func (r *asyncResponse) Render(w http.ResponseWriter) error {
@@ -69,9 +81,19 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 		return err
 	}
 
-	body := shared.Jmap{"type": lxd.Async, "operation": op}
+	body := async{Type: lxd.Async, Status: shared.OK.String(), StatusCode: shared.OK, Operation: op}
 	if r.ws != nil {
-		body["metadata"] = shared.Jmap{"websocket_secret": r.ws.Secret()}
+		body.Metadata = shared.Jmap{"websocket_secret": r.ws.Secret()}
+	}
+
+	if r.containers != nil && len(r.containers) > 0 {
+		body.Resources = map[string][]string{}
+		containers := make([]string, 0)
+		for _, c := range r.containers {
+			containers = append(containers, fmt.Sprintf("/%s/containers/%s", shared.Version, c))
+		}
+
+		body.Resources["containers"] = containers
 	}
 
 	w.Header().Set("Location", op)
@@ -84,7 +106,7 @@ func AsyncResponse(run func() shared.OperationResult, cancel func() error) Respo
 }
 
 func AsyncResponseWithWs(run func() shared.OperationResult, cancel func() error, ws shared.OperationSocket) Response {
-	return &asyncResponse{run, cancel, ws}
+	return &asyncResponse{run, cancel, ws, nil}
 }
 
 type ErrorResponse struct {
