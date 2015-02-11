@@ -11,6 +11,10 @@ import (
 
 type deleteCmd struct{}
 
+func (c *deleteCmd) showByDefault() bool {
+	return true
+}
+
 func (c *deleteCmd) usage() string {
 	return gettext.Gettext(
 		"lxc delete <resource>\n" +

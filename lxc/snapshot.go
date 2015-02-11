@@ -10,6 +10,10 @@ type snapshotCmd struct {
 	stateful bool
 }
 
+func (c *snapshotCmd) showByDefault() bool {
+	return true
+}
+
 func (c *snapshotCmd) usage() string {
 	return gettext.Gettext(
 		"Create a read-only snapshot of a container.\n" +

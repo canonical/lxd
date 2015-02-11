@@ -10,18 +10,27 @@ import (
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/internal/gnuflag"
 )
 
 type helpCmd struct{}
+
+func (c *helpCmd) showByDefault() bool {
+	return true
+}
 
 func (c *helpCmd) usage() string {
 	return gettext.Gettext(
 		"Presents details on how to use lxd.\n" +
 			"\n" +
-			"lxd help\n")
+			"lxd help [--all]\n")
 }
 
-func (c *helpCmd) flags() {}
+var showAll bool
+
+func (c *helpCmd) flags() {
+	gnuflag.BoolVar(&showAll, "all", false, gettext.Gettext("Show all commands (not just interesting ones)"))
+}
 
 func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 	if len(args) > 0 {
@@ -44,7 +53,9 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 	sort.Strings(names)
 	for _, name := range names {
 		cmd := commands[name]
-		fmt.Printf("\t%-10s - %s\n", name, summaryLine(cmd.usage()))
+		if showAll || cmd.showByDefault() {
+			fmt.Printf("\t%-10s - %s\n", name, summaryLine(cmd.usage()))
+		}
 	}
 	fmt.Println()
 	return nil

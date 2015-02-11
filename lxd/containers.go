@@ -47,6 +47,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 
 	if req.Name == "" {
 		req.Name = strings.ToLower(petname.Generate(2, "-"))
+		shared.Debugf("no name provided, creating %s", req.Name)
 	}
 
 	/* TODO: support other options here */
@@ -102,7 +103,8 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	/*
 	 * Actually create the container
 	 */
-	return AsyncResponse(shared.OperationWrap(func() error { return c.Create(opts) }), nil)
+	run := shared.OperationWrap(func() error { return c.Create(opts) })
+	return &asyncResponse{run: run, containers: []string{req.Name}}
 }
 
 var containersCmd = Command{name: "containers", post: containersPost}

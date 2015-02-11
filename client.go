@@ -59,7 +59,8 @@ type Response struct {
 	StatusCode int    `json:"status_code"`
 
 	/* Valid only for Async responses */
-	Operation string `json:"operation"`
+	Operation string              `json:"operation"`
+	Resources map[string][]string `json:"resources"`
 
 	/* Valid only for Error responses */
 	Code  int    `json:"error_code"`
@@ -515,7 +516,7 @@ func (c *Client) CertificateRemove(fingerprint string) error {
 	return ParseError(raw)
 }
 
-func (c *Client) Create(name string) (*Response, error) {
+func (c *Client) Init(name string) (*Response, error) {
 
 	source := shared.Jmap{"type": "remote", "url": "https+lxc-images://images.linuxcontainers.org", "name": "lxc-images/ubuntu/trusty/amd64"}
 	body := shared.Jmap{"source": source}
@@ -714,6 +715,10 @@ func (c *Client) SetRemotePwd(password string) (*Response, error) {
 
 /* Wait for an operation */
 func (c *Client) WaitFor(waitURL string) (*shared.Operation, error) {
+	if len(waitURL) < 1 {
+		return nil, fmt.Errorf(gettext.Gettext("invalid wait url %s"), waitURL)
+	}
+
 	/* For convenience, waitURL is expected to be in the form of a
 	 * Response.Operation string, i.e. it already has
 	 * "/<version>/operations/" in it; we chop off the leading / and pass

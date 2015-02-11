@@ -72,24 +72,26 @@ func run() error {
 type command interface {
 	usage() string
 	flags()
+	showByDefault() bool
 	run(config *lxd.Config, args []string) error
 }
 
 var commands = map[string]command{
-	"version":  &versionCmd{},
-	"help":     &helpCmd{},
-	"finger":   &fingerCmd{},
 	"config":   &configCmd{},
-	"create":   &createCmd{},
+	"delete":   &deleteCmd{},
+	"exec":     &execCmd{},
+	"file":     &fileCmd{},
+	"finger":   &fingerCmd{},
+	"help":     &helpCmd{},
+	"init":     &initCmd{},
+	"launch":   &launchCmd{},
 	"list":     &listCmd{},
 	"remote":   &remoteCmd{},
-	"stop":     &actionCmd{shared.Stop, true},
-	"start":    &actionCmd{shared.Start, false},
 	"restart":  &actionCmd{shared.Restart, true},
-	"delete":   &deleteCmd{},
-	"file":     &fileCmd{},
 	"snapshot": &snapshotCmd{},
-	"exec":     &execCmd{},
+	"start":    &actionCmd{shared.Start, false},
+	"stop":     &actionCmd{shared.Stop, true},
+	"version":  &versionCmd{},
 }
 
 var errArgs = fmt.Errorf(gettext.Gettext("wrong number of subcommand arguments"))

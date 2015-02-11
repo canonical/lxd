@@ -4,9 +4,6 @@ default:
 
 .PHONY: check
 check: default
-	go fmt ./...
-	go vet ./...
-	git diff --exit-code
 	cd test && ./main.sh
 
 # dist is primarily for use when packaging; for development we still manage

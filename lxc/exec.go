@@ -12,6 +12,10 @@ import (
 
 type execCmd struct{}
 
+func (c *execCmd) showByDefault() bool {
+	return true
+}
+
 func (c *execCmd) usage() string {
 	return gettext.Gettext(
 		"exec specified command in a container.\n" +
