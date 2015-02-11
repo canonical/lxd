@@ -14,13 +14,15 @@ ARCHIVE=lxd-$(VERSION).tar
 
 .PHONY: dist
 dist:
-	mkdir -p dist
-	GOPATH=$(shell pwd)/dist go get -d -v ./...
-	rm -rf $(shell pwd)/dist/src/github.com/lxc/lxd
-	ln -s ../../../.. ./dist/src/github.com/lxc/lxd
-	git archive --output=../$(ARCHIVE) HEAD
-	tar -uf ../$(ARCHIVE) --exclude-vcs ./dist
-	gzip ../$(ARCHIVE)
+	rm -Rf lxd-$(VERSION) $(ARCHIVE) $(ARCHIVE).gz
+	mkdir -p lxd-$(VERSION)/dist
+	GOPATH=$(shell pwd)/lxd-$(VERSION)/dist go get -d -v ./...
+	rm -rf $(shell pwd)/lxd-$(VERSION)/dist/src/github.com/lxc/lxd
+	ln -s ../../../.. ./lxd-$(VERSION)/dist/src/github.com/lxc/lxd
+	git archive --prefix=lxd-$(VERSION)/ --output=$(ARCHIVE) HEAD
+	tar -uf $(ARCHIVE) --exclude-vcs lxd-$(VERSION)/
+	gzip -9 $(ARCHIVE)
+	rm -Rf dist lxd-$(VERSION) $(ARCHIVE)
 
 .PHONY: i18n
 i18n:
