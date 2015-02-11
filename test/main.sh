@@ -31,6 +31,7 @@ if [ -z "`which lxc`" ]; then
     echo "couldn't find lxc" && false
 fi
 
+. ./static_analysis.sh
 . ./remote.sh
 . ./signoff.sh
 . ./basic.sh
@@ -40,6 +41,12 @@ fi
 if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
 fi
+
+echo "TEST: commit sign-off"
+test_commits_signed_off
+
+echo "TEST: doing static analysis of commits"
+static_analysis
 
 echo "Spawning lxd"
 lxd --debug --tcp 127.0.0.1:8443 &
@@ -70,9 +77,6 @@ lxc config set password foo
 
 echo "TEST: lxc remote"
 test_remote
-
-echo "TEST: commit sign-off"
-test_commits_signed_off
 
 # Only run the tests below if we're not in travis, since travis itself is using
 # openvz containers and the full test suite won't work.
