@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-02-11 08:25-0700\n"
+        "POT-Creation-Date: 2015-02-11 15:56-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -199,7 +199,7 @@ msgstr  ""
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
 
-#: lxc/main.go:47
+#: lxc/main.go:52
 #, c-format
 msgid   "Usage: %s\n"
         "\n"
@@ -244,12 +244,12 @@ msgstr  ""
 msgid   "error: %v\n"
 msgstr  ""
 
-#: lxc/main.go:66
+#: lxc/main.go:71
 msgid   "error: %v\n"
         "%s"
 msgstr  ""
 
-#: lxc/help.go:40 lxc/main.go:41
+#: lxc/help.go:40 lxc/main.go:46
 #, c-format
 msgid   "error: unknown command: %s\n"
 msgstr  ""
@@ -332,6 +332,6 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:97
+#: lxc/main.go:102
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
