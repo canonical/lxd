@@ -1,5 +1,5 @@
 safe_pot_hash() {
-  grep -v POT-Creation-Date $toplevel/po/lxd.pot | md5sum | cut -f1 -d" "
+  grep ^msgid $toplevel/po/lxd.pot | md5sum | cut -f1 -d" "
 }
 
 static_analysis() {
