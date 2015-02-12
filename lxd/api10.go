@@ -34,11 +34,10 @@ var api10 = []Command{
 
 /* Some interesting filesystems */
 const (
-	BTRFS_SUPER_MAGIC = 0x9123683E
-	TMPFS_MAGIC       = 0x01021994
-	EXT4_SUPER_MAGIC  = 0xEF53
-	XFS_SUPER_MAGIC   = 0x58465342
-	NFS_SUPER_MAGIC   = 0x6969
+	tmpfsSuperMagic = 0x01021994
+	ext4SuperMagic  = 0xEF53
+	xfsSuperMagic   = 0x58465342
+	nfsSuperMagic   = 0x6969
 )
 
 /*
@@ -76,15 +75,15 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		env := shared.Jmap{"lxc_version": lxc.Version(), "driver": "lxc"}
 
 		switch fs.Type {
-		case BTRFS_SUPER_MAGIC:
+		case btrfsSuperMagic:
 			env["backing_fs"] = "btrfs"
-		case TMPFS_MAGIC:
+		case tmpfsSuperMagic:
 			env["backing_fs"] = "tmpfs"
-		case EXT4_SUPER_MAGIC:
+		case ext4SuperMagic:
 			env["backing_fs"] = "ext4"
-		case XFS_SUPER_MAGIC:
+		case xfsSuperMagic:
 			env["backing_fs"] = "xfs"
-		case NFS_SUPER_MAGIC:
+		case nfsSuperMagic:
 			env["backing_fs"] = "nfs"
 		default:
 			env["backing_fs"] = fs.Type
