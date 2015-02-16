@@ -187,12 +187,12 @@ Index: UNIQUE ON id AND fingerprint
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
-images\_id      | VARCHAR(255)  | -             | NOT NULL          | images.id FK
+image\_id       | VARCHAR(255)  | -             | NOT NULL          | images.id FK
 type            | INTEGER       | 0             | NOT NULL          | Property type (0 = string, 1 = text)
 key             | VARCHAR(255)  | -             | NOT NULL          | Property name
 value           | TEXT          | -             |                   | Property value (NULL for unset)
 
-Index: UNIQUE ON id AND images\_id + key
+Index: UNIQUE ON id
 
 Foreign keys: image\_id REFERENCES images(id)
 
@@ -203,7 +203,7 @@ Column          | Type          | Default       | Constraint        | Descriptio
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 name            | VARCHAR(255)  | -             | NOT NULL          | Alias name
-images\_id      | VARCHAR(255)  | -             | NOT NULL          | images.id FK
+image\_id       | VARCHAR(255)  | -             | NOT NULL          | images.id FK
 description     | VARCHAR(255)  | -             |                   | Description of the alias
 
 Index: UNIQUE ON id AND name
