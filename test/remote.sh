@@ -1,3 +1,14 @@
+gen_second_cert() {
+	[ -f $LXD_CONF/client2.crt ] && return
+	mv $LXD_CONF/client.crt $LXD_CONF/client.crt.bak
+	mv $LXD_CONF/client.key $LXD_CONF/client.key.bak
+	lxc list > /dev/null 2>&1
+	mv $LXD_CONF/client.crt $LXD_CONF/client2.crt
+	mv $LXD_CONF/client.key $LXD_CONF/client2.key
+	mv $LXD_CONF/client.crt.bak $LXD_CONF/client.crt
+	mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
+}
+
 test_remote() {
   bad=0
   (echo y;  sleep 3;  echo bad) | lxc remote add badpass 127.0.0.1:8443 --debug || true
@@ -26,7 +37,8 @@ test_remote() {
 
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
-  lxc config trust add "$LXD_CONF/client.crt"
-  lxc config trust list | grep client
-  lxc config trust remove client
+  gen_second_cert
+  lxc config trust add "$LXD_CONF/client2.crt"
+  lxc config trust list | grep client2
+  lxc config trust remove client2
 }

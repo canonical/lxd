@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-02-19 11:35-0800\n"
+        "POT-Creation-Date: 2015-02-20 16:45-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,6 +15,11 @@ msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "MIME-Version: 1.0\n"
         "Content-Type: text/plain; charset=CHARSET\n"
         "Content-Transfer-Encoding: 8bit\n"
+
+#: lxc/image.go:86
+#, c-format
+msgid   "(Bad image entry: %s\n"
+msgstr  ""
 
 #: lxc/remote.go:53
 #, c-format
@@ -25,11 +30,11 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: client.go:440
+#: client.go:495
 msgid   "Certificate already stored.\n"
 msgstr  ""
 
-#: client.go:444
+#: client.go:499
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -43,7 +48,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: client.go:458
+#: client.go:513
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -113,7 +118,7 @@ msgstr  ""
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:436
+#: client.go:491
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -121,26 +126,16 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: client.go:538
+#: client.go:593
 msgid   "Non-async response from create!"
 msgstr  ""
 
-#: client.go:765
+#: client.go:820
 msgid   "Non-async response from snapshot!"
 msgstr  ""
 
 #: lxc/config.go:59
 msgid   "Only 'password' can be set currently"
-msgstr  ""
-
-#: lxc/init.go:31
-msgid   "Only the default ubuntu image is supported. Try `lxc init ubuntu "
-        "foo`."
-msgstr  ""
-
-#: lxc/launch.go:34
-msgid   "Only the default ubuntu image is supported. Try `lxc launch ubuntu "
-        "foo`."
 msgstr  ""
 
 #: lxc/delete.go:75
@@ -156,7 +151,7 @@ msgstr  ""
 msgid   "Prints the version number of lxd.\n"
 msgstr  ""
 
-#: client.go:451
+#: client.go:506
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
@@ -197,6 +192,11 @@ msgstr  ""
 msgid   "Unknown config command %s"
 msgstr  ""
 
+#: lxc/image.go:93
+#, c-format
+msgid   "Unknown image command %s"
+msgstr  ""
+
 #: lxc/remote.go:185
 #, c-format
 msgid   "Unknown remote subcommand %s"
@@ -228,11 +228,11 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: lxc/launch.go:75
+#: lxc/launch.go:73
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:423
+#: client.go:423 client.go:478
 msgid   "bad response type from list!"
 msgstr  ""
 
@@ -244,7 +244,7 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: lxc/launch.go:59 lxc/launch.go:64
+#: lxc/launch.go:57 lxc/launch.go:62
 msgid   "didn't get any affected resources from server"
 msgstr  ""
 
@@ -262,24 +262,24 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:585
+#: client.go:640
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
 
-#: client.go:556
+#: client.go:611
 msgid   "got bad response type from exec"
 msgstr  ""
 
-#: lxc/launch.go:79
+#: lxc/launch.go:77
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:621
+#: client.go:676
 msgid   "got non-async response from delete!"
 msgstr  ""
 
-#: client.go:640
+#: client.go:695
 msgid   "got non-sync response from containers get!"
 msgstr  ""
 
@@ -288,12 +288,17 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:719
+#: client.go:774
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
 
-#: lxc/init.go:18
+#: lxc/image.go:18
+msgid   "lxc image import <tarball> [target] [--created-at=ISO-8601] [--"
+        "expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n"
+msgstr  ""
+
+#: lxc/init.go:16
 msgid   "lxc init ubuntu [<name>]\n"
 msgstr  ""
 
@@ -305,7 +310,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:445
+#: client.go:500
 msgid   "ok (y/n)? "
 msgstr  ""
 
@@ -332,6 +337,6 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:102
+#: lxc/main.go:103
 msgid   "wrong number of subcommand arguments"
 msgstr  ""

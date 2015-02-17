@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -47,33 +45,6 @@ func readMyCert() (string, string, error) {
 	err := shared.FindOrGenCert(certf, keyf)
 
 	return certf, keyf, err
-}
-
-func readSavedClientCAList(d *Daemon) {
-	dirpath := shared.VarPath("clientcerts")
-	d.clientCerts = make(map[string]x509.Certificate)
-	fil, err := ioutil.ReadDir(dirpath)
-	if err != nil {
-		return
-	}
-	for i := range fil {
-		n := fil[i].Name()
-		fnam := fmt.Sprintf("%s/%s", dirpath, n)
-		cf, err := ioutil.ReadFile(fnam)
-		if err != nil {
-			continue
-		}
-
-		certBlock, _ := pem.Decode(cf)
-
-		cert, err := x509.ParseCertificate(certBlock.Bytes)
-		if err != nil {
-			continue
-		}
-		n, _ = shared.SplitExt(n)
-		d.clientCerts[n] = *cert
-		shared.Debugf("Loaded cert %s", fnam)
-	}
 }
 
 func (d *Daemon) isTrustedClient(r *http.Request) bool {
@@ -168,7 +139,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.certf = certf
 	d.keyf = keyf
 
-	// TODO load known client certificates
 	readSavedClientCAList(d)
 
 	d.mux = mux.NewRouter()
