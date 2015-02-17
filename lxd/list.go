@@ -5,11 +5,11 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 )
 
 func listGet(d *Daemon, r *http.Request) Response {
-	lxd.Debugf("responding to list")
+	shared.Debugf("responding to list")
 
 	result := make([]string, 0)
 
@@ -21,4 +21,4 @@ func listGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, result)
 }
 
-var listCmd = Command{"list", false, false, listGet, nil, nil, nil}
+var listCmd = Command{name: "list", get: listGet}

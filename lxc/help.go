@@ -4,34 +4,48 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
 	"sort"
-
 	"strings"
 
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/internal/gnuflag"
 )
 
 type helpCmd struct{}
 
-const helpUsage = `
-Presents details on how to use lxd.
-
-lxd help
-`
-
-func (c *helpCmd) usage() string {
-	return helpUsage
+func (c *helpCmd) showByDefault() bool {
+	return true
 }
 
-func (c *helpCmd) flags() {}
+func (c *helpCmd) usage() string {
+	return gettext.Gettext(
+		"Presents details on how to use lxd.\n" +
+			"\n" +
+			"lxd help [--all]\n")
+}
+
+var showAll bool
+
+func (c *helpCmd) flags() {
+	gnuflag.BoolVar(&showAll, "all", false, gettext.Gettext("Show all commands (not just interesting ones)"))
+}
 
 func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 	if len(args) > 0 {
-		return errArgs
+		for _, name := range args {
+			cmd, ok := commands[name]
+			if !ok {
+				fmt.Fprintf(os.Stderr, gettext.Gettext("error: unknown command: %s\n"), name)
+			} else {
+				fmt.Fprintf(os.Stderr, cmd.usage())
+			}
+		}
+		return nil
 	}
 
-	fmt.Println("Usage: lxc [subcommand] [options]")
-	fmt.Println("Available commands:")
+	fmt.Println(gettext.Gettext("Usage: lxc [subcommand] [options]\nAvailable commands:\n"))
 	var names []string
 	for name := range commands {
 		names = append(names, name)
@@ -39,7 +53,9 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 	sort.Strings(names)
 	for _, name := range names {
 		cmd := commands[name]
-		fmt.Printf("\t%-10s - %s\n", name, summaryLine(cmd.usage()))
+		if showAll || cmd.showByDefault() {
+			fmt.Printf("\t%-10s - %s\n", name, summaryLine(cmd.usage()))
+		}
 	}
 	fmt.Println()
 	return nil
@@ -56,5 +72,5 @@ func summaryLine(usage string) string {
 			return s.Text()
 		}
 	}
-	return "Missing summary."
+	return gettext.Gettext("Missing summary.")
 }

@@ -1,7 +1,7 @@
 # we let go build figure out dependency changes
-.PHONY: lxc
+.PHONY: fuidmap
 lxc:
 	go build
 
 clean:
-	-rm -f lxc
+	-rm -f fuidshift

@@ -2,23 +2,27 @@ package main
 
 import (
 	"fmt"
+
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"strings"
 )
 
 type listCmd struct{}
 
-const listUsage = `
-Lists the available resources.
-
-lxc list [resource]
-
-Currently resource must be a defined remote, and list only lists
-the defined containers.
-`
+func (c *listCmd) showByDefault() bool {
+	return true
+}
 
 func (c *listCmd) usage() string {
-	return listUsage
+	return gettext.Gettext(
+		"Lists the available resources.\n" +
+			"\n" +
+			"lxc list [resource]\n" +
+			"\n" +
+			"Currently resource must be a defined remote, and list only lists\n" +
+			"the defined containers.\n")
+
 }
 
 func (c *listCmd) flags() {}
@@ -32,7 +36,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 	var remote string
 
 	if len(args) == 1 {
-		remote = args[0]
+		remote = config.ParseRemote(args[0])
 	} else {
 		remote = config.DefaultRemote
 	}
@@ -47,6 +51,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
+
 	} else {
 		var rm lxd.RegistryManager
 		rm.InitRegistryManager()
@@ -62,6 +67,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 			cts, err = rm.GetImageList(image_server[1])
 
 		}
+
 		if err != nil {
 			return err
 		}

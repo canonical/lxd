@@ -9,20 +9,19 @@ import (
 
 	"code.google.com/p/go-uuid/uuid"
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 )
 
 var lock sync.Mutex
-var operations map[string]*lxd.Operation = make(map[string]*lxd.Operation)
+var operations map[string]*shared.Operation = make(map[string]*shared.Operation)
 
-func CreateOperation(metadata lxd.Jmap, run func() error, cancel func() error, ws lxd.OperationSocket) (string, error) {
+func CreateOperation(metadata shared.Jmap, run func() shared.OperationResult, cancel func() error, ws shared.OperationSocket) (string, error) {
 	id := uuid.New()
-	op := lxd.Operation{}
+	op := shared.Operation{}
 	op.CreatedAt = time.Now()
 	op.UpdatedAt = op.CreatedAt
-	op.SetStatus(lxd.Pending)
-	op.StatusCode = lxd.StatusCodes[op.Status]
-	op.ResourceURL = lxd.OperationsURL(id)
+	op.SetStatus(shared.Pending)
+	op.ResourceURL = shared.OperationsURL(id)
 
 	md, err := json.Marshal(metadata)
 	if err != nil {
@@ -52,31 +51,33 @@ func StartOperation(id string) error {
 		return fmt.Errorf("operation %s doesn't exist", id)
 	}
 
-	go func(op *lxd.Operation) {
-		err := op.Run()
+	go func(op *shared.Operation) {
+		result := op.Run()
 
 		lock.Lock()
-		op.SetStatus(lxd.Done)
-		op.SetResult(err)
+		op.SetStatusByErr(result.Error)
+		if result.Metadata != nil {
+			op.Metadata = result.Metadata
+		}
 		op.Chan <- true
 		lock.Unlock()
 	}(op)
 
-	op.SetStatus(lxd.Running)
+	op.SetStatus(shared.Running)
 	lock.Unlock()
 
 	return nil
 }
 
 func operationsGet(d *Daemon, r *http.Request) Response {
-	ops := lxd.Jmap{"pending": make([]string, 0, 0), "running": make([]string, 0, 0)}
+	ops := shared.Jmap{"pending": make([]string, 0, 0), "running": make([]string, 0, 0)}
 
 	lock.Lock()
 	for k, v := range operations {
-		switch v.Status {
-		case lxd.Pending:
+		switch v.StatusCode {
+		case shared.Pending:
 			ops["pending"] = append(ops["pending"].([]string), k)
-		case lxd.Running:
+		case shared.Running:
 			ops["running"] = append(ops["running"].([]string), k)
 		}
 	}
@@ -85,10 +86,10 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, ops)
 }
 
-var operationsCmd = Command{"operations", false, false, operationsGet, nil, nil, nil}
+var operationsCmd = Command{name: "operations", get: operationsGet}
 
 func operationGet(d *Daemon, r *http.Request) Response {
-	id := lxd.OperationsURL(mux.Vars(r)["id"])
+	id := shared.OperationsURL(mux.Vars(r)["id"])
 
 	lock.Lock()
 	defer lock.Unlock()
@@ -102,7 +103,7 @@ func operationGet(d *Daemon, r *http.Request) Response {
 
 func operationDelete(d *Daemon, r *http.Request) Response {
 	lock.Lock()
-	id := lxd.OperationsURL(mux.Vars(r)["id"])
+	id := shared.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
 	if !ok {
 		lock.Unlock()
@@ -113,20 +114,20 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Can't cancel %s!", id))
 	}
 
-	if op.Status == lxd.Done || op.Status == lxd.Cancelling || op.Status == lxd.Cancelled {
-		/* the user has already requested a cancel */
+	if op.StatusCode == shared.Cancelling || op.StatusCode.IsFinal() {
+		/* the user has already requested a cancel, or the status is
+		 * in a final state. */
 		return EmptySyncResponse
 	}
 
 	cancel := op.Cancel
-	op.SetStatus(lxd.Cancelling)
+	op.SetStatus(shared.Cancelling)
 	lock.Unlock()
 
 	err := cancel()
 
 	lock.Lock()
-	op.SetStatus(lxd.Cancelled)
-	op.SetResult(err)
+	op.SetStatusByErr(err)
 	lock.Unlock()
 
 	if err != nil {
@@ -136,23 +137,42 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 	}
 }
 
-var operationCmd = Command{"operations/{id}", false, false, operationGet, nil, nil, operationDelete}
+var operationCmd = Command{name: "operations/{id}", get: operationGet, delete: operationDelete}
 
-func operationWaitPost(d *Daemon, r *http.Request) Response {
+func operationWaitGet(d *Daemon, r *http.Request) Response {
+	targetStatus, err := shared.AtoiEmptyDefault(r.FormValue("status_code"), int(shared.Success))
+	if err != nil {
+		return InternalError(err)
+	}
+
+	timeout, err := shared.AtoiEmptyDefault(r.FormValue("timeout"), -1)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	lock.Lock()
-	id := lxd.OperationsURL(mux.Vars(r)["id"])
+	id := shared.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
 	if !ok {
 		lock.Unlock()
 		return NotFound
 	}
 
-	status := op.Status
+	status := op.StatusCode
 	lock.Unlock()
 
-	if status == lxd.Pending || status == lxd.Running {
-		/* Wait until the routine is done */
-		<-op.Chan
+	if int(status) != targetStatus && (status == shared.Pending || status == shared.Running) {
+
+		if timeout >= 0 {
+			select {
+			case <-op.Chan:
+				break
+			case <-time.After(time.Duration(timeout) * time.Second):
+				break
+			}
+		} else {
+			<-op.Chan
+		}
 	}
 
 	lock.Lock()
@@ -160,15 +180,15 @@ func operationWaitPost(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, op)
 }
 
-var operationWait = Command{"operations/{id}/wait", false, false, nil, nil, operationWaitPost, nil}
+var operationWait = Command{name: "operations/{id}/wait", get: operationWaitGet}
 
 type websocketServe struct {
 	req *http.Request
-	ws  lxd.OperationSocket
+	ws  shared.OperationSocket
 }
 
 func (r *websocketServe) Render(w http.ResponseWriter) error {
-	conn, err := lxd.WebsocketUpgrader.Upgrade(w, r.req, nil)
+	conn, err := shared.WebsocketUpgrader.Upgrade(w, r.req, nil)
 	if err != nil {
 		return err
 	}
@@ -182,7 +202,7 @@ func (r *websocketServe) Render(w http.ResponseWriter) error {
 func operationWebsocketGet(d *Daemon, r *http.Request) Response {
 	lock.Lock()
 	defer lock.Unlock()
-	id := lxd.OperationsURL(mux.Vars(r)["id"])
+	id := shared.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
 	if !ok {
 		return NotFound
@@ -202,7 +222,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) Response {
 		return Forbidden
 	}
 
-	if op.Status == lxd.Done || op.Status == lxd.Cancelling || op.Status == lxd.Cancelled {
+	if op.StatusCode.IsFinal() {
 		return BadRequest(fmt.Errorf("status is %s, can't connect", op.Status))
 	}
 
@@ -215,4 +235,4 @@ func operationWebsocketGet(d *Daemon, r *http.Request) Response {
 	return &websocketServe{r, ws}
 }
 
-var operationWebsocket = Command{"operations/{id}/websocket", false, false, operationWebsocketGet, nil, nil, nil}
+var operationWebsocket = Command{name: "operations/{id}/websocket", get: operationWebsocketGet}

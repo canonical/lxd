@@ -1,4 +1,4 @@
-package lxd
+package shared
 
 import (
 	"encoding/json"
@@ -9,34 +9,38 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type OperationStatus string
+type OperationStatus int
 
 const (
-	Pending    OperationStatus = "pending"
-	Running    OperationStatus = "running"
-	Done       OperationStatus = "done"
-	Cancelling OperationStatus = "cancelling"
-	Cancelled  OperationStatus = "cancelled"
+	OK         OperationStatus = 100
+	Started    OperationStatus = 101
+	Stopped    OperationStatus = 102
+	Running    OperationStatus = 103
+	Cancelling OperationStatus = 104
+	Pending    OperationStatus = 105
+
+	Success OperationStatus = 200
+
+	Failure   OperationStatus = 400
+	Cancelled OperationStatus = 401
 )
 
-var StatusCodes = map[OperationStatus]int{
-	Pending:    0,
-	Running:    1,
-	Done:       2,
-	Cancelling: 3,
-	Cancelled:  4,
+func (o OperationStatus) String() string {
+	return map[OperationStatus]string{
+		OK:         "OK",
+		Started:    "Started",
+		Stopped:    "Stopped",
+		Running:    "Running",
+		Cancelling: "Cancelling",
+		Pending:    "Pending",
+		Success:    "Success",
+		Failure:    "Failure",
+		Cancelled:  "Cancelled",
+	}[o]
 }
 
-type Result string
-
-const (
-	Success Result = "success"
-	Failure Result = "failure"
-)
-
-var ResultCodes = map[Result]int{
-	Failure: 0,
-	Success: 1,
+func (o OperationStatus) IsFinal() bool {
+	return int(o) >= 200
 }
 
 var WebsocketUpgrader = websocket.Upgrader{
@@ -50,19 +54,30 @@ type OperationSocket interface {
 	Do(conn *websocket.Conn)
 }
 
+type OperationResult struct {
+	Metadata json.RawMessage
+	Error    error
+}
+
+func OperationWrap(f func() error) func() OperationResult {
+	return func() OperationResult { return OperationError(f()) }
+}
+
+func OperationError(err error) OperationResult {
+	return OperationResult{nil, err}
+}
+
 type Operation struct {
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
-	Status      OperationStatus `json:"status"`
-	StatusCode  int             `json:"status_code"`
-	Result      Result          `json:"result"`
-	ResultCode  int             `json:"result_code"`
+	Status      string          `json:"status"`
+	StatusCode  OperationStatus `json:"status_code"`
 	ResourceURL string          `json:"resource_url"`
 	Metadata    json.RawMessage `json:"metadata"`
 	MayCancel   bool            `json:"may_cancel"`
 
 	/* The fields below are for use on the server side. */
-	Run func() error `json:"-"`
+	Run func() OperationResult `json:"-"`
 
 	/* If this is not nil, the operation can be cancelled by calling this
 	 * function */
@@ -80,7 +95,7 @@ type Operation struct {
 }
 
 func (o *Operation) GetError() error {
-	if o.Result == Failure {
+	if o.StatusCode == Failure {
 		var s string
 		if err := json.Unmarshal(o.Metadata, &s); err != nil {
 			return err
@@ -91,22 +106,28 @@ func (o *Operation) GetError() error {
 	return nil
 }
 
+func (r *Operation) MetadataAsMap() (*Jmap, error) {
+	ret := Jmap{}
+	if err := json.Unmarshal(r.Metadata, &ret); err != nil {
+		return nil, err
+	}
+	return &ret, nil
+}
+
 func (o *Operation) SetStatus(status OperationStatus) {
-	o.Status = status
-	o.StatusCode = StatusCodes[status]
+	o.Status = status.String()
+	o.StatusCode = status
 	o.UpdatedAt = time.Now()
-	if status == Done || status == Cancelling || status == Cancelled {
+	if status.IsFinal() {
 		o.MayCancel = false
 	}
 }
 
-func (o *Operation) SetResult(err error) {
+func (o *Operation) SetStatusByErr(err error) {
 	if err == nil {
-		o.Result = Success
-		o.ResultCode = ResultCodes[Success]
+		o.SetStatus(Success)
 	} else {
-		o.Result = Failure
-		o.ResultCode = ResultCodes[Failure]
+		o.SetStatus(Failure)
 		md, err := json.Marshal(err.Error())
 
 		/* This isn't really fatal, it'll just be annoying for users */
@@ -115,7 +136,6 @@ func (o *Operation) SetResult(err error) {
 		}
 		o.Metadata = md
 	}
-	o.UpdatedAt = time.Now()
 }
 
 func OperationsURL(id string) string {

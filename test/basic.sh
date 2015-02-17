@@ -1,5 +1,10 @@
 test_basic_usage() {
-  lxc create images:ubuntu foo
+  lxc launch ubuntu foo
+  # should fail if foo isn't running
+  lxc stop foo
+  lxc delete foo
+
+  lxc init ubuntu foo
 
   # did it get created?
   lxc list | grep foo

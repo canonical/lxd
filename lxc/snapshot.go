@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
 )
@@ -9,18 +10,19 @@ type snapshotCmd struct {
 	stateful bool
 }
 
-const snapshotUsage = `
-Create a read-only snapshot of a container.
-
-lxc snapshot <source> <snapshot name> [--stateful]
-`
+func (c *snapshotCmd) showByDefault() bool {
+	return true
+}
 
 func (c *snapshotCmd) usage() string {
-	return snapshotUsage
+	return gettext.Gettext(
+		"Create a read-only snapshot of a container.\n" +
+			"\n" +
+			"lxc snapshot <source> <snapshot name> [--stateful]\n")
 }
 
 func (c *snapshotCmd) flags() {
-	gnuflag.BoolVar(&c.stateful, "stateful", false, "Whether or not to snapshot the container's running state")
+	gnuflag.BoolVar(&c.stateful, "stateful", false, gettext.Gettext("Whether or not to snapshot the container's running state"))
 }
 
 func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
@@ -28,7 +30,8 @@ func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	d, name, err := lxd.NewClient(config, args[0])
+	remote, name := config.ParseRemoteAndContainer(args[0])
+	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}

@@ -3,21 +3,24 @@ package main
 import (
 	"fmt"
 
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
 type deleteCmd struct{}
 
-const deleteUsage = `
-lxc delete <resource>
-
-Destroy a resource (e.g. container) and any attached data (configuration,
-snapshots, ...).
-`
+func (c *deleteCmd) showByDefault() bool {
+	return true
+}
 
 func (c *deleteCmd) usage() string {
-	return deleteUsage
+	return gettext.Gettext(
+		"lxc delete <resource>\n" +
+			"\n" +
+			"Destroy a resource (e.g. container) and any attached data (configuration,\n" +
+			"snapshots, ...).\n")
 }
 
 func (c *deleteCmd) flags() {}
@@ -27,7 +30,9 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	d, name, err := lxd.NewClient(config, args[0])
+	remote, name := config.ParseRemoteAndContainer(args[0])
+
+	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
@@ -39,7 +44,7 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if ct.State() != lxc.STOPPED {
-		resp, err := d.Action(name, lxd.Stop, -1, true)
+		resp, err := d.Action(name, shared.Stop, -1, true)
 		if err != nil {
 			return err
 		}
@@ -49,8 +54,8 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		if op.Result == lxd.Failure {
-			return fmt.Errorf("Stopping container failed!")
+		if op.StatusCode == shared.Failure {
+			return fmt.Errorf(gettext.Gettext("Stopping container failed!"))
 		}
 	}
 
@@ -64,9 +69,9 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	if op.Result == lxd.Success {
+	if op.StatusCode == shared.Success {
 		return nil
 	} else {
-		return fmt.Errorf("Operation %s", op.Result)
+		return fmt.Errorf(gettext.Gettext("Operation %s"), op.Status)
 	}
 }

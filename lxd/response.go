@@ -3,16 +3,19 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 )
 
 type resp struct {
-	Type     string      `json:"type"`
-	Result   string      `json:"result"`
-	Metadata interface{} `json:"metadata"`
+	Type       lxd.ResponseType       `json:"type"`
+	Status     string                 `json:"status"`
+	StatusCode shared.OperationStatus `json:"status_code"`
+	Metadata   interface{}            `json:"metadata"`
 }
 
 type Response interface {
@@ -25,17 +28,16 @@ type syncResponse struct {
 }
 
 func (r *syncResponse) Render(w http.ResponseWriter) error {
-	result := "success"
+	status := shared.Success
 	if !r.success {
-		result = "failure"
+		status = shared.Failure
 	}
 
-	resp := resp{Type: string(lxd.Sync), Result: result, Metadata: r.metadata}
+	resp := resp{Type: lxd.Sync, Status: status.String(), StatusCode: status, Metadata: r.metadata}
 	enc, err := json.Marshal(&resp)
 	if err != nil {
 		return err
 	}
-	lxd.Debugf(string(enc))
 
 	_, err = w.Write(enc)
 	return err
@@ -52,10 +54,20 @@ func SyncResponse(success bool, metadata interface{}) Response {
 
 var EmptySyncResponse = &syncResponse{true, make(map[string]interface{})}
 
+type async struct {
+	Type       lxd.ResponseType       `json:"type"`
+	Status     string                 `json:"status"`
+	StatusCode shared.OperationStatus `json:"status_code"`
+	Operation  string                 `json:"operation"`
+	Resources  map[string][]string    `json:"resources"`
+	Metadata   interface{}            `json:"metadata"`
+}
+
 type asyncResponse struct {
-	run    func() error
-	cancel func() error
-	ws     lxd.OperationSocket
+	run        func() shared.OperationResult
+	cancel     func() error
+	ws         shared.OperationSocket
+	containers []string
 }
 
 func (r *asyncResponse) Render(w http.ResponseWriter) error {
@@ -69,20 +81,32 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 		return err
 	}
 
-	body := lxd.Jmap{"type": lxd.Async, "operation": op}
+	body := async{Type: lxd.Async, Status: shared.OK.String(), StatusCode: shared.OK, Operation: op}
 	if r.ws != nil {
-		body["metadata"] = lxd.Jmap{"websocket_secret": r.ws.Secret()}
+		body.Metadata = shared.Jmap{"websocket_secret": r.ws.Secret()}
 	}
 
+	if r.containers != nil && len(r.containers) > 0 {
+		body.Resources = map[string][]string{}
+		containers := make([]string, 0)
+		for _, c := range r.containers {
+			containers = append(containers, fmt.Sprintf("/%s/containers/%s", shared.Version, c))
+		}
+
+		body.Resources["containers"] = containers
+	}
+
+	w.Header().Set("Location", op)
+	w.WriteHeader(202)
 	return json.NewEncoder(w).Encode(body)
 }
 
-func AsyncResponse(run func() error, cancel func() error) Response {
+func AsyncResponse(run func() shared.OperationResult, cancel func() error) Response {
 	return AsyncResponseWithWs(run, cancel, nil)
 }
 
-func AsyncResponseWithWs(run func() error, cancel func() error, ws lxd.OperationSocket) Response {
-	return &asyncResponse{run, cancel, ws}
+func AsyncResponseWithWs(run func() shared.OperationResult, cancel func() error, ws shared.OperationSocket) Response {
+	return &asyncResponse{run, cancel, ws, nil}
 }
 
 type ErrorResponse struct {
@@ -92,7 +116,7 @@ type ErrorResponse struct {
 
 func (r *ErrorResponse) Render(w http.ResponseWriter) error {
 	buf := bytes.Buffer{}
-	err := json.NewEncoder(&buf).Encode(lxd.Jmap{"type": lxd.Error, "error": r.msg, "error_code": r.code})
+	err := json.NewEncoder(&buf).Encode(shared.Jmap{"type": lxd.Error, "error": r.msg, "error_code": r.code})
 
 	if err != nil {
 		return err
@@ -103,16 +127,17 @@ func (r *ErrorResponse) Render(w http.ResponseWriter) error {
 }
 
 /* Some standard responses */
-var NotImplemented = &ErrorResponse{501, "not implemented"}
-var NotFound = &ErrorResponse{404, "not found"}
-var Forbidden = &ErrorResponse{403, "not authorized"}
+var NotImplemented = &ErrorResponse{http.StatusNotImplemented, "not implemented"}
+var NotFound = &ErrorResponse{http.StatusNotFound, "not found"}
+var Forbidden = &ErrorResponse{http.StatusForbidden, "not authorized"}
+var Conflict = &ErrorResponse{http.StatusConflict, "already exists"}
 
 func BadRequest(err error) Response {
-	return &ErrorResponse{400, err.Error()}
+	return &ErrorResponse{http.StatusBadRequest, err.Error()}
 }
 
 func InternalError(err error) Response {
-	return &ErrorResponse{500, err.Error()}
+	return &ErrorResponse{http.StatusInternalServerError, err.Error()}
 }
 
 /*

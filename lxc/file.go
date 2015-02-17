@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
 )
@@ -18,34 +19,40 @@ type fileCmd struct {
 	mode string
 }
 
-const fileUsage = `
-Manage files on a container.
-
-lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
-lxc file pull <source> [<source>...] <target>
-`
+func (c *fileCmd) showByDefault() bool {
+	return true
+}
 
 func (c *fileCmd) usage() string {
-	return fileUsage
+	return gettext.Gettext(
+		"Manage files on a container.\n" +
+			"\n" +
+			"lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>\n" +
+			"lxc file pull <source> [<source>...] <target>\n")
 }
 
 func (c *fileCmd) flags() {
-	gnuflag.IntVar(&c.uid, "uid", -1, "Set the file's uid on push")
-	gnuflag.IntVar(&c.gid, "gid", -1, "Set the file's gid on push")
-	gnuflag.StringVar(&c.mode, "mode", "0644", "Set the file's perms on push")
+	gnuflag.IntVar(&c.uid, "uid", -1, gettext.Gettext("Set the file's uid on push"))
+	gnuflag.IntVar(&c.gid, "gid", -1, gettext.Gettext("Set the file's gid on push"))
+	gnuflag.StringVar(&c.mode, "mode", "0644", gettext.Gettext("Set the file's perms on push"))
 }
 
 func (c *fileCmd) push(config *lxd.Config, args []string) error {
+	if len(args) < 2 {
+		return errArgs
+	}
+
 	target := args[len(args)-1]
 	pathSpec := strings.SplitAfterN(target, "/", 2)
 
 	if len(pathSpec) != 2 {
-		return fmt.Errorf("Invalid target %s", target)
+		return fmt.Errorf(gettext.Gettext("Invalid target %s"), target)
 	}
 
 	targetPath := pathSpec[1]
+	remote, container := config.ParseRemoteAndContainer(pathSpec[0])
 
-	d, container, err := lxd.NewClient(config, pathSpec[0])
+	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
@@ -95,6 +102,10 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 }
 
 func (c *fileCmd) pull(config *lxd.Config, args []string) error {
+	if len(args) < 2 {
+		return errArgs
+	}
+
 	target := args[len(args)-1]
 	targetIsDir := false
 	sb, err := os.Stat(target)
@@ -113,7 +124,7 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 
 		targetIsDir = sb.IsDir()
 		if !targetIsDir && len(args)-1 > 1 {
-			return fmt.Errorf("More than one file to download, but target is not a directory")
+			return fmt.Errorf(gettext.Gettext("More than one file to download, but target is not a directory"))
 		}
 
 	} else if strings.HasSuffix(target, string(os.PathSeparator)) || len(args)-1 > 1 {
@@ -127,10 +138,11 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 	for _, f := range args[:len(args)-1] {
 		pathSpec := strings.SplitN(f, "/", 2)
 		if len(pathSpec) != 2 {
-			return fmt.Errorf("Invalid source %s", f)
+			return fmt.Errorf(gettext.Gettext("Invalid source %s"), f)
 		}
 
-		d, container, err := lxd.NewClient(config, pathSpec[0])
+		remote, container := config.ParseRemoteAndContainer(pathSpec[0])
+		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
@@ -163,6 +175,9 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 }
 
 func (c *fileCmd) run(config *lxd.Config, args []string) error {
+	if len(args) < 1 {
+		return errArgs
+	}
 
 	switch args[0] {
 	case "push":
@@ -170,6 +185,6 @@ func (c *fileCmd) run(config *lxd.Config, args []string) error {
 	case "pull":
 		return c.pull(config, args[1:])
 	default:
-		return fmt.Errorf("invalid argument %s", args[0])
+		return fmt.Errorf(gettext.Gettext("invalid argument %s"), args[0])
 	}
 }
