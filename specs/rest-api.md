@@ -143,7 +143,10 @@ For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
          * /1.0/containers/\<name\>/state
      * /1.0/events
      * /1.0/images
-       * /1.0/images/\<name\>
+       * /1.0/images/\<fingerprint\>
+         * /1.0/images/\<fingerprint\>/export
+       * /1.0/images/aliases
+         * /1.0/images/aliases/\<name\>
      * /1.0/networks
        * /1.0/networks/\<name\>
      * /1.0/operations
@@ -498,12 +501,15 @@ This never returns. Each notification is sent as a separate JSON dict:
     }
 
 
-## /1.0/images
+## /1.0/images?key=value&key1=value1...
 ### GET
  * Description: list of images (public or private)
  * Authentication: guest or trusted
  * Operation: sync
  * Return: list of URLs for images this server publishes
+
+Filtering can be done by specifying a list of key and values in the
+query URL.
 
 ### PUT
  * Description: create and publish a new image
@@ -515,10 +521,10 @@ Input:
 
 TODO: examples
 
-## /1.0/images/\<name\>
+## /1.0/images/\<fingerprint\>
 ### GET
  * Description: Image description and metadata
- * Authentication: trusted
+ * Authentication: guest or trusted
  * Operation: sync
  * Return: dict representing an image description and metadata
 
@@ -538,7 +544,7 @@ Input (none at present):
 HTTP code for this should be 202 (Accepted).
 
 ### PUT
- * Description: Updates the image metadata
+ * Description: Updates the image properties
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
@@ -562,6 +568,86 @@ Input (rename an image):
 Renaming to an existing name must return the 409 (Conflict) HTTP code.
 
 TODO: move to remote host
+
+## /1.0/images/\<fingerprint\>/export
+### GET
+ * Description: Download the image tarball
+ * Authentication: guest or trusted
+ * Operation: sync
+ * Return: Raw file or standard error
+
+TODO: examples
+
+## /1.0/images/aliases
+### GET
+ * Description: list of aliases (public or private based on image visibility)
+ * Authentication: guest or trusted
+ * Operation: sync
+ * Return: list of URLs for aliases this server knows about
+
+### PUT
+ * Description: create a new alias
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        'description': "The alias description",
+        'target': "SHA-256"
+    }
+
+## /1.0/images/aliases/\<name\>
+### GET
+ * Description: Alias description and target
+ * Authentication: guest or trusted
+ * Operation: sync
+ * Return: dict representing an alias description and target
+
+Output:
+    {
+        'description': "The alias description",
+        'target': "SHA-256"
+    }
+
+### PUT
+ * Description: Updates the alias target or description
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        'description': "New description",
+        'target': "SHA-256"
+    }
+
+### POST
+ * Description: rename an alias
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        'name': "new-name"
+    }
+
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
+
+### DELETE
+ * Description: Remove an alias
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+    {
+    }
 
 ## /1.0/networks
 ### GET

@@ -107,7 +107,7 @@ Column          | Type          | Default       | Constraint        | Descriptio
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 name            | VARCHAR(255)  | -             | NOT NULL          | Container name
-architecture    | VARCHAR(255)  | -             | NOT NULL          | Container architecture
+architecture    | INTEGER       | -             | NOT NULL          | Container architecture
 type            | INTEGER       | 0             | NOT NULL          | Container type (0 = container, 1 = container snapshot)
 
 Index: UNIQUE ON id AND name
@@ -175,6 +175,8 @@ id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 fingerprint     | VARCHAR(255)  | -             | NOT NULL          | Tarball fingerprint
 filename        | VARCHAR(255)  | -             | NOT NULL          | Tarball filename
 size            | INTEGER       | -             | NOT NULL          | Tarball size
+public          | INTEGER       | 0             | NOT NULL          | Whether the image is public or not
+architecture    | INTEGER       | -             | NOT NULL          | Image architecture
 creation\_date  | DATETIME      | 0             |                   | Image creation date (user supplied, 0 = unknown)
 expiry\_date    | DATETIME      | 0             |                   | Image expiry (user supplied, 0 = never)
 upload\_date    | DATETIME      | now()         | NOT NULL          | Image entry creation date
