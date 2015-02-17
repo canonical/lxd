@@ -3,6 +3,7 @@ export PATH=$GOPATH/bin:$PATH
 
 # /tmp isn't moutned exec on most systems, so we can't actually start
 # containers that are created there.
+export SRC_DIR=$(pwd)
 export LXD_DIR=$(mktemp -d -p $(pwd))
 chmod 777 "${LXD_DIR}"
 export LXD_CONF=$(mktemp -d)

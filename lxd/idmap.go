@@ -8,6 +8,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/lxc/lxd/fuidshift"
 )
 
 /*
@@ -102,4 +104,19 @@ func NewIdmap() (*Idmap, error) {
 	m.Gidmin = gmin
 	m.Gidrange = grange
 	return m, nil
+}
+
+func (i *Idmap) ShiftRootfs(p string) error {
+	set := fuidshift.IdmapSet{}
+	uidstr := fmt.Sprintf("u:0:%d:%d", i.Uidmin, i.Uidrange)
+	gidstr := fmt.Sprintf("g:0:%d:%d", i.Gidmin, i.Gidrange)
+	set, err := set.Append(uidstr)
+	if err != nil {
+		return err
+	}
+	set, err = set.Append(gidstr)
+	if err != nil {
+		return err
+	}
+	return fuidshift.Uidshift(p, set, false)
 }

@@ -1,4 +1,4 @@
-package main
+package fuidshift
 
 import (
 	"fmt"
@@ -83,15 +83,15 @@ func extend(slice []idmapEntry, element idmapEntry) []idmapEntry {
 	return slice
 }
 
-type Idmap struct {
+type IdmapSet struct {
 	idmap []idmapEntry
 }
 
-func (m Idmap) Len() int {
+func (m IdmapSet) Len() int {
 	return len(m.idmap)
 }
 
-func (m Idmap) Append(s string) (Idmap, error) {
+func (m IdmapSet) Append(s string) (IdmapSet, error) {
 	e := idmapEntry{}
 	err := e.parse(s)
 	if err != nil {
@@ -101,7 +101,7 @@ func (m Idmap) Append(s string) (Idmap, error) {
 	return m, nil
 }
 
-func (m Idmap) Shift_into_ns(uid int, gid int) (int, int) {
+func (m IdmapSet) ShiftIntoNs(uid int, gid int) (int, int) {
 	u := -1
 	g := -1
 	for _, e := range m.idmap {

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -19,6 +21,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kr/pty"
 	"github.com/lxc/lxd/shared"
+	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
@@ -51,73 +54,207 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	/* TODO: support other options here */
-	if req.Source.Type != "remote" {
+	if req.Source.Type != "local" {
 		return NotImplemented
 	}
 
-	if req.Source.URL != "https+lxc-images://images.linuxcontainers.org" {
-		return NotImplemented
-	}
-
-	if req.Source.Name != "lxc-images/ubuntu/trusty/amd64" {
-		return NotImplemented
-	}
-
-	opts := lxc.TemplateOptions{
-		Template: "download",
-		Distro:   "ubuntu",
-		Release:  "trusty",
-		Arch:     "amd64",
-	}
-
-	c, err := lxc.NewContainer(req.Name, d.lxcpath)
+	image := req.Source.Name
+	_, uuid, err := dbGetImageId(image)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	/*
-	 * Set the id mapping. This may not be how we want to do it, but it's a
-	 * start.  First, we remove any id_map lines in the config which might
-	 * have come from ~/.config/lxc/default.conf.  Then add id mapping based
-	 * on Domain.id_map
-	 */
-	if d.id_map != nil {
-		shared.Debugf("setting custom idmap")
-		err = c.SetConfigItem("lxc.id_map", "")
-		if err != nil {
-			shared.Debugf("Failed to clear id mapping, continuing")
-		}
-		uidstr := fmt.Sprintf("u 0 %d %d\n", d.id_map.Uidmin, d.id_map.Uidrange)
-		shared.Debugf("uidstr is %s\n", uidstr)
-		err = c.SetConfigItem("lxc.id_map", uidstr)
-		if err != nil {
-			return InternalError(err)
-		}
-		gidstr := fmt.Sprintf("g 0 %d %d\n", d.id_map.Gidmin, d.id_map.Gidrange)
-		err = c.SetConfigItem("lxc.id_map", gidstr)
-		if err != nil {
-			return InternalError(err)
-		}
+	dpath := shared.VarPath("lxc", req.Name)
+	if shared.PathExists(dpath) {
+		return InternalError(fmt.Errorf("Container exists"))
+	}
+
+	rootfsPath := fmt.Sprintf("%s/rootfs", dpath)
+	err = os.MkdirAll(rootfsPath, 0700)
+	if err != nil {
+		return InternalError(fmt.Errorf("Error creating rootfs directory"))
+	}
+
+	name := req.Name
+	_, err = dbCreateContainer(name)
+	if err != nil {
+		removeContainerPath(name)
+		return InternalError(err)
 	}
 
 	/*
-	 * Actually create the container
+	 * extract the rootfs asynchronously
 	 */
-	run := shared.OperationWrap(func() error { return c.Create(opts) })
+	run := shared.OperationWrap(func() error { return extractShiftRootfs(uuid, name, d) })
 	return &asyncResponse{run: run, containers: []string{req.Name}}
+}
+
+func removeContainerPath(name string) {
+	cpath := shared.VarPath("lxc", name)
+	err := os.RemoveAll(cpath)
+	if err != nil {
+		shared.Debugf("Error cleaning up %s: %s\n", cpath, err)
+	}
+}
+
+func extractShiftRootfs(uuid string, name string, d *Daemon) error {
+	cleanup := func(err error) error {
+		removeContainerPath(name)
+		dbRemoveContainer(name)
+		return err
+	}
+
+	/*
+	 * We want to use archive/tar for this, but that doesn't appear
+	 * to be working for us (see lxd/images.go)
+	 * So for now, we extract the rootfs.tar.xz from the image
+	 * tarball to /var/lib/lxd/lxc/container/rootfs.tar.xz, then
+	 * extract that under /var/lib/lxd/lxc/container/rootfs/
+	 */
+	dpath := shared.VarPath("lxc", name)
+	fmt.Printf("uuid is %s\n", uuid)
+	imagefile := shared.VarPath("images", uuid)
+	output, err := exec.Command("tar", "-C", dpath, "-Jxf", imagefile, "rootfs.tar.xz").Output()
+	if err != nil {
+		fmt.Printf("Untar of image: Output %s\nError %s\n", output, err)
+		return cleanup(err)
+	}
+
+	rpath := shared.VarPath("lxc", name, "rootfs")
+	tarfile := shared.VarPath("lxc", name, "rootfs.tar.xz")
+	output, err = exec.Command("tar", "-C", rpath, "--numeric-owner", "-Jxpf", tarfile).Output()
+	if err != nil {
+		fmt.Printf("Untar of rootfs: Output %s\nError %s\n", output, err)
+		return cleanup(err)
+	}
+
+	err = d.id_map.ShiftRootfs(rpath)
+	if err != nil {
+		fmt.Printf("Shift of rootfs %s failed: %s\n", rpath, err)
+		return cleanup(err)
+	}
+
+	/* Set an acl so the container root can descend the container dir */
+	acl := fmt.Sprintf("%d:rx", d.id_map.Uidmin)
+	_, err = exec.Command("setfacl", "-m", acl, dpath).Output()
+	if err != nil {
+		fmt.Printf("Error adding acl for container root: start will likely fail\n")
+	}
+
+	return nil
+}
+
+func dbRemoveContainer(name string) {
+	certdbname := shared.VarPath("lxd.db")
+	db, err := sql.Open("sqlite3", certdbname)
+	if err != nil {
+		return
+	}
+	defer db.Close()
+
+	_, _ = db.Exec("DELETE FROM containers WHERE name=?", name)
+}
+
+func dbGetImageId(image string) (int, string, error) {
+	certdbname := shared.VarPath("lxd.db")
+	db, err := sql.Open("sqlite3", certdbname)
+	if err != nil {
+		return 0, "", err
+	}
+	defer db.Close()
+
+	/* todo - look at aliases */
+	rows, err := db.Query("SELECT id, fingerprint FROM images WHERE fingerprint=?", image)
+	if err != nil {
+		return 0, "", err
+	}
+	defer rows.Close()
+	id := -1
+	var uuid string
+	for rows.Next() {
+		rows.Scan(&id, &uuid)
+	}
+	if id == -1 {
+		return 0, "", fmt.Errorf("Unknown image")
+	}
+	return id, uuid, nil
+}
+
+func dbGetContainerId(db *sql.DB, name string) (int, error) {
+	rows, err := db.Query("SELECT id FROM containers WHERE name=?", name)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	id := -1
+	for rows.Next() {
+		rows.Scan(&id)
+		break
+	}
+	if id == -1 {
+		return 0, fmt.Errorf("Error finding container %s", name)
+	}
+	return id, nil
+}
+
+func dbCreateContainer(name string) (int, error) {
+	certdbname := shared.VarPath("lxd.db")
+	db, err := sql.Open("sqlite3", certdbname)
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+
+	id, err := dbGetContainerId(db, name)
+	if err == nil {
+		return 0, fmt.Errorf("%s already defined in database", name)
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	stmt, err := tx.Prepare("INSERT INTO containers (name, architecture, type) VALUES (?, 1, 0)")
+	if err != nil {
+		return 0, err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(name)
+	if err != nil {
+		return 0, err
+	}
+	tx.Commit()
+
+	id, err = dbGetContainerId(db, name)
+	if err != nil {
+		return 0, fmt.Errorf("Error inserting %s into database", name)
+	}
+
+	return id, nil
 }
 
 var containersCmd = Command{name: "containers", post: containersPost}
 
+func getContainerId(name string) (int, error) {
+	certdbname := shared.VarPath("lxd.db")
+	db, err := sql.Open("sqlite3", certdbname)
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+	return dbGetContainerId(db, name)
+}
+
 func containerGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+	//cId, err := getContainerId(name)  will need cId to get info
+	_, err := getContainerId(name)
+	if err != nil {
+		return NotFound
+	}
 	c, err := lxc.NewContainer(name, d.lxcpath)
 	if err != nil {
-		return InternalError(err)
-	}
-
-	if !c.Defined() {
-		return NotFound
+		InternalError(err)
 	}
 
 	return SyncResponse(true, shared.CtoD(c))
@@ -125,16 +262,19 @@ func containerGet(d *Daemon, r *http.Request) Response {
 
 func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := lxc.NewContainer(name, d.lxcpath)
+	fmt.Printf("delete: called with name %s\n", name)
+	_, err := getContainerId(name)
 	if err != nil {
-		return InternalError(err)
+		fmt.Printf("Delete: container %s not known", name)
+		// rootfs may still exist though, so try to delete it
 	}
-
-	if !c.Defined() {
-		return NotFound
+	dbRemoveContainer(name)
+	rmdir := func() error {
+		removeContainerPath(name)
+		return nil
 	}
-
-	return AsyncResponse(shared.OperationWrap(c.Destroy), nil)
+	fmt.Printf("running rmdir\n")
+	return AsyncResponse(shared.OperationWrap(rmdir), nil)
 }
 
 var containerCmd = Command{name: "containers/{name}", get: containerGet, delete: containerDelete}
@@ -159,6 +299,122 @@ type containerStatePutReq struct {
 	Force   bool   `json:"force"`
 }
 
+type lxdContainer struct {
+	c  *lxc.Container
+	id int
+}
+
+func (c *lxdContainer) Start() error {
+	return c.c.Start()
+}
+
+func (c *lxdContainer) Reboot() error {
+	return c.c.Reboot()
+}
+
+func (c *lxdContainer) Freeze() error {
+	return c.c.Freeze()
+}
+
+func (c *lxdContainer) Shutdown(timeout time.Duration) error {
+	return c.c.Shutdown(timeout)
+}
+
+func (c *lxdContainer) Stop() error {
+	return c.c.Stop()
+}
+
+func (c *lxdContainer) Unfreeze() error {
+	return c.Unfreeze()
+}
+
+func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
+	d := &lxdContainer{}
+
+	certdbname := shared.VarPath("lxd.db")
+	db, err := sql.Open("sqlite3", certdbname)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	rows, err := db.Query("SELECT id, architecture FROM containers WHERE name=?", name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	d.id = -1
+	arch := 0
+	for rows.Next() {
+		var id int
+		rows.Scan(&id, &arch)
+		d.id = id
+	}
+	if d.id == -1 {
+		return nil, fmt.Errorf("Unknown container")
+	}
+
+	c, err := lxc.NewContainer(name, daemon.lxcpath)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/ubuntu.common.conf")
+	if err != nil {
+		return nil, err
+	}
+
+	var txtarch string
+	switch arch {
+	case 0:
+		txtarch = "x86_64"
+	default:
+		txtarch = "x86_64"
+	}
+	err = c.SetConfigItem("lxc.arch", txtarch)
+	if err != nil {
+		return nil, err
+	}
+
+	/* todo - get and translate containers_config entries
+	 * for now we hardcode some sane entries */
+	rootfsPath := shared.VarPath("lxc", name, "rootfs")
+	err = c.SetConfigItem("lxc.rootfs", rootfsPath)
+	if err != nil {
+		return nil, err
+	}
+	err = c.SetConfigItem("lxc.devttydir", "")
+	if err != nil {
+		return nil, err
+	}
+	uidstr := fmt.Sprintf("u 0 %d %d\n", daemon.id_map.Uidmin, daemon.id_map.Uidrange)
+	err = c.SetConfigItem("lxc.id_map", uidstr)
+	if err != nil {
+		return nil, err
+	}
+	gidstr := fmt.Sprintf("g 0 %d %d\n", daemon.id_map.Gidmin, daemon.id_map.Gidrange)
+	err = c.SetConfigItem("lxc.id_map", gidstr)
+	if err != nil {
+		return nil, err
+	}
+	err = c.SetConfigItem("lxc.loglevel", "0")
+	if err != nil {
+		return nil, err
+	}
+	logfile := shared.VarPath("lxc", name, "log")
+	err = c.SetConfigItem("lxc.logfile", logfile)
+	if err != nil {
+		return nil, err
+	}
+	err = c.SetConfigItem("lxc.utsname", name)
+	if err != nil {
+		return nil, err
+	}
+
+	d.c = c
+
+	return d, nil
+}
+
 func containerStatePut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
@@ -172,13 +428,9 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	c, err := lxc.NewContainer(name, d.lxcpath)
+	c, err := newLxdContainer(name, d)
 	if err != nil {
-		return InternalError(err)
-	}
-
-	if !c.Defined() {
-		return NotFound
+		return BadRequest(err)
 	}
 
 	var do func() error
@@ -574,10 +826,6 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	c, err := lxc.NewContainer(name, d.lxcpath)
 	if err != nil {
 		return InternalError(err)
-	}
-
-	if !c.Defined() {
-		return NotFound
 	}
 
 	if !c.Running() {

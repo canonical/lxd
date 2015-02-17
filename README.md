@@ -35,6 +35,11 @@ If running Ubuntu, the easiest way to get it is to use the lxc PPA:
     sudo apt-get update
     sudo apt-get install golang
 
+In order to be able to extract images and create containers, a few more
+dependencies are xz, tar, and setfacl:
+
+    sudo apt-get install xz-utils tar acl
+
 ### Building the tools
 
 LXD consists of two binaries, a client called `lxc` and a server called `lxd`.
