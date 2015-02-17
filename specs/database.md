@@ -175,6 +175,7 @@ id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 fingerprint     | VARCHAR(255)  | -             | NOT NULL          | Tarball fingerprint
 filename        | VARCHAR(255)  | -             | NOT NULL          | Tarball filename
 size            | INTEGER       | -             | NOT NULL          | Tarball size
+public          | INTEGER       | 0             | NOT NULL          | Whether the image is public or not
 architecture    | INTEGER       | -             | NOT NULL          | Image architecture
 creation\_date  | DATETIME      | 0             |                   | Image creation date (user supplied, 0 = unknown)
 expiry\_date    | DATETIME      | 0             |                   | Image expiry (user supplied, 0 = never)
