@@ -1,3 +1,5 @@
+// +build amd64 ppc64le arm64
+
 package main
 
 const (
