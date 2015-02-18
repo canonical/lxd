@@ -118,7 +118,7 @@ Index: UNIQUE ON id AND name
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
-container\_id   | VARCHAR(255)  | -             |                   | containers.id FK
+container\_id   | INTEGER       | -             | NOT NULL          | containers.id FK
 key             | VARCHAR(255)  | -             | NOT NULL          | Configuration key
 value           | TEXT          | -             |                   | Configuration value (NULL for unset)
 
@@ -132,7 +132,7 @@ Foreign keys: container\_id REFERENCES containers(id)
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
-container\_id   | VARCHAR(255)  | -             |                   | containers.id FK
+container\_id   | INTEGER       | -             | NOT NULL          | containers.id FK
 name            | VARCHAR(255)  | -             | NOT NULL          | Container name
 type            | INTEGER       | 0             | NOT NULL          | Container type (0 = drive, 1 = network-interface, ...)
 
@@ -144,7 +144,7 @@ Index: UNIQUE ON id AND container\_id + name
 Column                  | Type          | Default       | Constraint        | Description
 :-----                  | :---          | :------       | :---------        | :----------
 id                      | INTEGER       | SERIAL        | NOT NULL          | SERIAL
-container\_device\_id   | VARCHAR(255)  | -             |                   | containers\_devices.id FK
+container\_device\_id   | INTEGER       | -             | NOT NULL          | containers\_devices.id FK
 key                     | VARCHAR(255)  | -             | NOT NULL          | Configuration key
 value                   | TEXT          | -             |                   | Configuration value (NULL for unset)
 
@@ -189,7 +189,7 @@ Index: UNIQUE ON id AND fingerprint
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
-image\_id       | VARCHAR(255)  | -             | NOT NULL          | images.id FK
+image\_id       | INTEGER       | -             | NOT NULL          | images.id FK
 type            | INTEGER       | 0             | NOT NULL          | Property type (0 = string, 1 = text)
 key             | VARCHAR(255)  | -             | NOT NULL          | Property name
 value           | TEXT          | -             |                   | Property value (NULL for unset)
@@ -205,7 +205,7 @@ Column          | Type          | Default       | Constraint        | Descriptio
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 name            | VARCHAR(255)  | -             | NOT NULL          | Alias name
-image\_id       | VARCHAR(255)  | -             | NOT NULL          | images.id FK
+image\_id       | INTEGER       | -             | NOT NULL          | images.id FK
 description     | VARCHAR(255)  | -             |                   | Description of the alias
 
 Index: UNIQUE ON id AND name
@@ -228,7 +228,7 @@ Index: UNIQUE on id AND name
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
-profile\_id     | VARCHAR(255)  | -             |                   | profiles.id FK
+profile\_id     | INTEGER       | -             | NOT NULL          | profiles.id FK
 key             | VARCHAR(255)  | -             | NOT NULL          | Configuration key
 value           | VARCHAR(255)  | -             |                   | Configuration value (NULL for unset)
 
@@ -242,7 +242,7 @@ Foreign keys: profile\_id REFERENCES profiles(id)
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
-profile\_id     | VARCHAR(255)  | -             |                   | profiles.id FK
+profile\_id     | INTEGER       | -             | NOT NULL          | profiles.id FK
 name            | VARCHAR(255)  | -             | NOT NULL          | Container name
 type            | INTEGER       | 0             | NOT NULL          | Container type (0 = drive, 1 = network-interface, ...)
 
@@ -254,7 +254,7 @@ Index: UNIQUE ON id AND profile\_id + name
 Column                  | Type          | Default       | Constraint        | Description
 :-----                  | :---          | :------       | :---------        | :----------
 id                      | INTEGER       | SERIAL        | NOT NULL          | SERIAL
-profile\_device\_id     | VARCHAR(255)  | -             |                   | profiles\_devices.id FK
+profile\_device\_id     | INTEGER       | -             | NOT NULL          | profiles\_devices.id FK
 key                     | VARCHAR(255)  | -             | NOT NULL          | Configuration key
 value                   | TEXT          | -             |                   | Configuration value (NULL for unset)
 
