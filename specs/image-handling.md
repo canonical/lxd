@@ -17,4 +17,19 @@ the following structure:
 The rootfs directory contains a full file system tree of what will become the container's /.
 
 metadata.yaml contains information relevant to running the image under
-lxd, at the moment, this is an empty yaml document.
+lxd, at the moment, this contains:
+
+    {
+        'architecture': "x86_64",
+        'creation_date': 1424284563,
+        'properties': {
+            'os': "Ubuntu",
+            'release': ["trusty", "14.04"],
+            'description': "Ubuntu 14.04 LTS Intel 64bit"},
+            'name': "ubuntu-14.04-amd64-20150218"
+    }
+
+The architecture and creation\_date fields are mandatory, the properties
+are just a set of default properties for the image. The os, release,
+name and description fields while not mandatory in any way, should be
+pretty common.
