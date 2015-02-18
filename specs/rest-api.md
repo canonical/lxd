@@ -368,7 +368,7 @@ This is designed to be easily usable from the command line or even a web browser
  * Description: upload a file to the container
  * Authentication: trusted
  * Operation: sync
- * Return: standard return value  or standard error
+ * Return: standard return value or standard error
 
 Input:
  * Standard http file upload
@@ -518,17 +518,32 @@ query URL.
  * Return: background operation or standard error
 
 Input:
+ * Standard http file upload
 
-TODO: examples
+The following headers may be set by the client:
+ * X-LXD-fingerprint: SHA-256 (if set, uploaded file must match)
+ * X-LXD-filename: FILENAME (used for export)
+ * X-LXD-public: true/false (defaults to false)
+ * X-LXD-properties: key=value; key1=value1 (optional properties)
+
+After the file is received by LXD, a background operation is started
+which will unpack the tarball, parse its metadata and possibly repack it
+in an optimized format.
 
 ## /1.0/images/\<fingerprint\>
 ### GET
  * Description: Image description and metadata
  * Authentication: guest or trusted
  * Operation: sync
- * Return: dict representing an image description and metadata
+ * Return: dict representing an image properties
 
-TODO: examples
+Input:
+
+    {
+        'properties': {
+            'key': 'value'
+        },
+    }
 
 ### DELETE
  * Description: Remove an image
