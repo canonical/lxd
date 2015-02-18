@@ -4,7 +4,17 @@ REST API, command line tool and OpenStack integration plugin for LXC.
 
 LXD is pronounced lex-dee.
 
-## Installing the dependencies
+## Getting started with LXD
+
+Since LXD development is happening at such a rapid pace, we only provide daily
+builds right now. They're available via:
+
+    sudo add-apt-repository ppa:ubuntu-lxc/lxd-daily && sudo apt-get update
+    sudo apt-get install lxd
+
+After you've got lxd installed, you can take your [first steps](#first-steps).
+
+## Building from source
 
 We have exeperienced some problems using gccgo, so for now we recommend using
 the golang compiler. We also require that a 1.0+ version of lxc and lxc-dev be
@@ -13,8 +23,8 @@ via mercurial, so you'll need to have `hg` in your path as well. You can get
 these on Ubuntu via:
 
     sudo apt-get install lxc lxc-dev mercurial git pkg-config
-        
-## Installing Go
+
+### Installing Go
 
 LXD requires Golang 1.3 or later to work.
 
@@ -25,7 +35,7 @@ If running Ubuntu, the easiest way to get it is to use the lxc PPA:
     sudo apt-get update
     sudo apt-get install golang
 
-## Building the tools
+### Building the tools
 
 LXD consists of two binaries, a client called `lxc` and a server called `lxd`.
 These live in the source tree in the `lxc/` and `lxd/` dirs, respectively. To
@@ -43,7 +53,7 @@ And then download it as usual:
 
 And you should have two binaries, one at `/lxc/lxc`, and one at `/lxd/lxd`.
 
-## Running
+### Machine Setup
 
 Right now lxd uses a hardcoded path for all its containers. This will change in
 the future, but for now you need to let the user running lxd own /var/lib/lxd:
@@ -59,10 +69,14 @@ Now you can run the daemon:
 
     ./lxd/lxd &
 
-And connect to it via lxc:
+## First steps
 
-    ./lxc/lxc create foo
-    ./lxc/lxc start foo
+LXD has two parts, the daemon (the `lxd` binary), and the client (the `lxc`
+binary). Now that the daemon is all configured and running (either via the
+packaging or via the from-source instructions above), you can start your first
+container:
+
+    lxc launch ubuntu
 
 ## Bug reports
 
