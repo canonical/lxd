@@ -40,22 +40,6 @@ const (
 	nfsSuperMagic   = 0x6969
 )
 
-/*
- * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
- * there is really no better way to do this, which is unfortunate.
- */
-func CharsToString(ca [65]int8) string {
-	s := make([]byte, len(ca))
-	var lens int
-	for ; lens < len(ca); lens++ {
-		if ca[lens] == 0 {
-			break
-		}
-		s[lens] = uint8(ca[lens])
-	}
-	return string(s[0:lens])
-}
-
 func api10Get(d *Daemon, r *http.Request) Response {
 	body := shared.Jmap{"api_compat": shared.APICompat}
 
@@ -89,7 +73,22 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			env["backing_fs"] = fs.Type
 		}
 
-		env["kernel_version"] = CharsToString(uname.Release)
+		/*
+		 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
+		 * there is really no better way to do this, which is
+		 * unfortunate. Also, we ditch the more accepted CharsToString
+		 * version in that thread, since it doesn't seem as portable,
+		 * viz. github issue #206.
+		 */
+		kernelVersion := ""
+		for _, c := range uname.Sysname {
+			if c == 0 {
+				break
+			}
+			kernelVersion += string(byte(c))
+		}
+
+		env["kernel_version"] = kernelVersion
 		body["environment"] = env
 		config := []shared.Jmap{shared.Jmap{"key": "trust-password", "value": d.hasPwd()}}
 		body["config"] = config
