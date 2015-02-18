@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/lxc/lxd/internal/gnuflag"
 	"github.com/lxc/lxd/shared"
@@ -31,6 +33,8 @@ func init() {
 		shared.Debugf("Problem finding default group %s", err)
 	}
 	*group = myGroup
+
+	rand.Seed(time.Now().UTC().UnixNano())
 }
 
 func run() error {
