@@ -17,7 +17,7 @@ func (c *deleteCmd) showByDefault() bool {
 
 func (c *deleteCmd) usage() string {
 	return gettext.Gettext(
-		"lxc delete <resource>\n" +
+		"Delete a container or container snapshot.\n" +
 			"\n" +
 			"Destroy a resource (e.g. container) and any attached data (configuration,\n" +
 			"snapshots, ...).\n")
