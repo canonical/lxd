@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-02-11 15:56-0700\n"
+        "POT-Creation-Date: 2015-02-19 11:35-0800\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -51,12 +51,20 @@ msgstr  ""
 msgid   "Create a read-only snapshot of a container.\n"
 msgstr  ""
 
+#: lxc/delete.go:20
+msgid   "Delete a container or container snapshot.\n"
+msgstr  ""
+
 #: lxc/main.go:27
 msgid   "Enables debug mode."
 msgstr  ""
 
 #: lxc/main.go:26
 msgid   "Enables verbose mode."
+msgstr  ""
+
+#: lxc/exec.go:21
+msgid   "Execute the specified command in a container.\n"
 msgstr  ""
 
 #: lxc/finger.go:18
@@ -254,10 +262,6 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: lxc/exec.go:21
-msgid   "exec specified command in a container.\n"
-msgstr  ""
-
 #: client.go:585
 #, c-format
 msgid   "got bad op status %s"
@@ -287,10 +291,6 @@ msgstr  ""
 #: client.go:719
 #, c-format
 msgid   "invalid wait url %s"
-msgstr  ""
-
-#: lxc/delete.go:20
-msgid   "lxc delete <resource>\n"
 msgstr  ""
 
 #: lxc/init.go:18
