@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	. "launchpad.net/gnuflag"
+	. "github.com/lxc/lxd/internal/gnuflag"
 )
 
 var (
@@ -103,8 +103,8 @@ func TestUsage(t *testing.T) {
 	if f.Parse(true, []string{"-x"}) == nil {
 		t.Error("parse did not fail for unknown flag")
 	}
-	if !called {
-		t.Error("did not call Usage for unknown flag")
+	if called {
+		t.Error("called Usage for unknown flag")
 	}
 }
 
@@ -535,14 +535,14 @@ func TestPrintDefaults(t *testing.T) {
 	f.SetOutput(nullWriter{})
 
 	expect :=
-		`-b, -x, --bal, --balalaika  (= false)
-    b usage
--c, --trapclap  (= 99)
-    c usage
--d (= "d default")
-    d usage
---elephant  (= 3.14)
-    elephant usage
+		`    -b, -x, --bal, --balalaika  (= false)
+        b usage
+    -c, --trapclap  (= 99)
+        c usage
+    -d (= "d default")
+        d usage
+    --elephant  (= 3.14)
+        elephant usage
 `
 	if buf.String() != expect {
 		t.Errorf("expect %q got %q", expect, buf.String())
