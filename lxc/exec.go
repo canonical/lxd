@@ -18,7 +18,7 @@ func (c *execCmd) showByDefault() bool {
 
 func (c *execCmd) usage() string {
 	return gettext.Gettext(
-		"exec specified command in a container.\n" +
+		"Execute the specified command in a container.\n" +
 			"\n" +
 			"lxc exec container [command]\n")
 }
