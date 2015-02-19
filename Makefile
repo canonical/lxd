@@ -4,6 +4,7 @@ default:
 
 .PHONY: check
 check: default
+	go test ./...
 	cd test && ./main.sh
 
 # dist is primarily for use when packaging; for development we still manage
