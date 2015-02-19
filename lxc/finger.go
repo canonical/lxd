@@ -10,7 +10,7 @@ type fingerCmd struct {
 }
 
 func (c *fingerCmd) showByDefault() bool {
-	return true
+	return false
 }
 
 func (c *fingerCmd) usage() string {
