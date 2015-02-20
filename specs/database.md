@@ -85,7 +85,7 @@ id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 fingerprint     | VARCHAR(255)  | -             | NOT NULL          | HEX encoded certificate fingerprint
 type            | INTEGER       | -             | NOT NULL          | Certificate type (0 = client)
 name            | VARCHAR(255)  | -             | NOT NULL          | Certificate name (defaults to CN)
-certificate     | BLOB          | -             | NOT NULL          | PEM encoded certificate
+certificate     | TEXT          | -             | NOT NULL          | PEM encoded certificate
 
 Index: UNIQUE ON id AND fingerprint
 
