@@ -177,9 +177,9 @@ filename        | VARCHAR(255)  | -             | NOT NULL          | Tarball fi
 size            | INTEGER       | -             | NOT NULL          | Tarball size
 public          | INTEGER       | 0             | NOT NULL          | Whether the image is public or not
 architecture    | INTEGER       | -             | NOT NULL          | Image architecture
-creation\_date  | DATETIME      | 0             |                   | Image creation date (user supplied, 0 = unknown)
-expiry\_date    | DATETIME      | 0             |                   | Image expiry (user supplied, 0 = never)
-upload\_date    | DATETIME      | now()         | NOT NULL          | Image entry creation date
+creation\_date  | DATETIME      | -             |                   | Image creation date (user supplied, 0 = unknown)
+expiry\_date    | DATETIME      | -             |                   | Image expiry (user supplied, 0 = never)
+upload\_date    | DATETIME      | -             | NOT NULL          | Image entry creation date
 
 Index: UNIQUE ON id AND fingerprint
 
@@ -269,6 +269,6 @@ Column          | Type          | Default       | Constraint        | Descriptio
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 version         | INTEGER       | -             | NOT NULL          | Schema version
-updated\_at     | DATETIME      | now()         | NOT NULL          | When the schema update was done
+updated\_at     | DATETIME      | -             | NOT NULL          | When the schema update was done
 
 Index: UNIQUE ON id AND version
