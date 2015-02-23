@@ -359,16 +359,22 @@ Output:
 
 
 ### PUT
- * Description: update container configuration
+ * Description: update container configuration or restore snapshot
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
 
-Input:
+Input (update container configuration):
 
 Takes the same structure as that returned by GET but doesn't allow name
 changes (see POST below) or changes to the status sub-dict (since that's
 read-only).
+
+Input (restore snapshot):
+
+    {
+        'restore': "snapshot-name"
+    }
 
 ### POST
  * Description: used to rename/migrate the container
