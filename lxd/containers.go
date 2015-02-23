@@ -26,9 +26,10 @@ import (
 )
 
 type containerType int
+
 const (
-	cTypeRegular    containerType = 0
-	cTypeSnapshot   containerType = 1
+	cTypeRegular  containerType = 0
+	cTypeSnapshot containerType = 1
 )
 
 type containerImageSource struct {
@@ -200,7 +201,7 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType) (int, error)
 		return 0, err
 	}
 	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type) VALUES (?, 1, %d)",
-			     ctype)
+		ctype)
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		return 0, err
@@ -229,12 +230,12 @@ func containerGet(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return NotFound
 	}
-	c, err := lxc.NewContainer(name, d.lxcpath)
+	c, err := newLxdContainer(name, d)
 	if err != nil {
 		InternalError(err)
 	}
 
-	return SyncResponse(true, shared.CtoD(c))
+	return SyncResponse(true, shared.CtoD(c.c))
 }
 
 func containerDelete(d *Daemon, r *http.Request) Response {
@@ -258,16 +259,12 @@ var containerCmd = Command{name: "containers/{name}", get: containerGet, delete:
 
 func containerStateGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := lxc.NewContainer(name, d.lxcpath)
+	c, err := newLxdContainer(name, d)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	if !c.Defined() {
-		return NotFound
-	}
-
-	return SyncResponse(true, shared.CtoD(c).Status)
+	return SyncResponse(true, shared.CtoD(c.c).Status)
 }
 
 type containerStatePutReq struct {
@@ -277,8 +274,8 @@ type containerStatePutReq struct {
 }
 
 type lxdContainer struct {
-	c  *lxc.Container
-	id int
+	c    *lxc.Container
+	id   int
 	name string
 }
 
@@ -570,7 +567,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	regexp := fmt.Sprintf("%s/", name)
 	length := len(regexp)
 	rows, err := d.db.Query("SELECT name FROM containers WHERE type=1 AND SUBSTR(name,1,%d)=%s*",
-			length, regexp)
+		length, regexp)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -657,8 +654,8 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			return fmt.Errorf("Error creating rootfs directory")
 		}
 		if stateful {
-			// TODO - shouldn't we freeze for the duration of rootfs snapshot below? 
-			if ! c.c.Running() {
+			// TODO - shouldn't we freeze for the duration of rootfs snapshot below?
+			if !c.c.Running() {
 				return fmt.Errorf("Container not running\n")
 			}
 			opts := lxc.CheckpointOptions{Directory: snapDir, Stop: true, Verbose: true}
