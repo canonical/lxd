@@ -30,9 +30,7 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	if args[0] != "ubuntu" {
-		return fmt.Errorf(gettext.Gettext("Only the default ubuntu image is supported. Try `lxc launch ubuntu foo`."))
-	}
+	image := args[0]
 
 	var name string
 	var remote string
@@ -49,7 +47,7 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	resp, err := d.Init(name)
+	resp, err := d.Init(name, image)
 	if err != nil {
 		return err
 	}
