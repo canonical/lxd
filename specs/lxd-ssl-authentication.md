@@ -15,8 +15,8 @@ Since we control both client and server, there is no reason to support
 any backward compatibility to broken protocol or ciphers.
 
 Both the client and the server will generate a keypair the first time
-they're launched. The server will use that for all connections to the
-https+lxd socket and the client will use its certificate as a client
+they're launched. The server will use that for all https connections to
+the lxd socket and the client will use its certificate as a client
 certificate for any client-server communication.
 
 # Adding a remote with a default setup

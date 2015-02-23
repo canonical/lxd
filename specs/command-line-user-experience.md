@@ -1,13 +1,13 @@
 # Introduction
 
-The "lxc" command is the main tool used by users to interact with lxd when
+The "lxc" command is the main tool used by users to interact with LXD when
 running it outside of OpenStack. The command is available to all users and can
 be used to manage any local or remote resources provided they have the
 credentials to do so.
 
 # Remote operations
 
-The lxc command line tool is designed to manage lxd hosts as well as connect
+The lxc command line tool is designed to manage LXD hosts as well as connect
 to a variety of remote resources.
 
 The list of remote servers and their credentials is only stored in the client,
@@ -26,14 +26,14 @@ The lxc command interacts with resources. Currently supported resources are:
  * images
  * container hosts
 
-lxc defaults to interacting with the local lxd daemon, remote operations
+lxc defaults to interacting with the local LXD daemon, remote operations
 must be prefixed with the remote server's name followed by a colon.
 
 Some examples with the "status" command:
 
 Command                               | Result
 :------                               | :-----
-lxc info                              | Show some information on the local lxd server
+lxc info                              | Show some information on the local LXD server
 lxc info dakara:                      | Same but against the remote "dakara" server
 lxc info c1                           | Show information about the "c1" container
 lxc images info ubuntu/trusty/amd64   | Show information about the "ubuntu/trusty/amd64" image (alias)
@@ -104,7 +104,7 @@ stop        | Stop a container
 **Description**
 
 Probably one of the most complex commands, it allows querying and
-setting all the configuration options available for containers and lxd hosts.
+setting all the configuration options available for containers and LXD hosts.
 
 It also supports profiles which are used to group configuration settings
 (configurations keys and devices) and then apply the resulting set to a
@@ -145,7 +145,7 @@ lxc config profile unset dakara:nano limits.memory                              
 lxc config show c1                                                              | Show the configuration of the "c1" container, starting by the list of profiles it’s based on, then the container specific settings and finally the resulting overall configuration.
 lxc config profile apply c1 micro,nesting                                       | Set the profiles for container "c1" to be "micro" followed by "nesting"
 lxc config profile apply c1 ""                                                  | Unset any assigned profile for container "c1"
-lxc config trust add new-client-cert.crt                                        | Add new-client-cert.pem to the default remote's trust store (typically local lxd)
+lxc config trust add new-client-cert.crt                                        | Add new-client-cert.pem to the default remote's trust store (typically local LXD)
 lxc config trust add dakara: new-client-cert.crt                                | Add new-client-cert.pem to the "dakara"'s trust store
 lxc config trust list                                                           | List all the trusted certificates on the default remote
 lxc config trust list dakara:                                                   | List all the trusted certificates on "dakara"
@@ -256,15 +256,15 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
     image unset <image> <key>
 
 **Description**
-Manage the lxd image store.
+Manage the LXD image store.
 
 Images can either be fed from an external tool using the API or manually
-imported into lxd using the import command. Attributes can then be set
+imported into LXD using the import command. Attributes can then be set
 on them and images can be copied/moved to other LXD hosts.
 
 The unique identifier of an image is the sha256 hash of its rootfs, as a
 result, it's only possible to have one copy of any given image on a
-given lxd host.
+given LXD host.
 
 
 There are 2 special properties which the lxc command line tool will look
@@ -284,7 +284,7 @@ also be used.
 
 Command                                                                                                                 | Result
 :------                                                                                                                 | :-----
-lxc image import centos-7-x86\_64.tar.gz --created-at=2014-12-10 --expires-at=2015-01-10 os=fedora release=7 arch=amd64 | Import a centos LXD image in the local lxd image store
+lxc image import centos-7-x86\_64.tar.gz --created-at=2014-12-10 --expires-at=2015-01-10 os=fedora release=7 arch=amd64 | Import a centos LXD image in the local LXD image store
 lxc image import debian-jessie\_amd64.tar.gz dakara:                                                                    | Import a debian LXD image in the lxc image store of remote host "dakara"
 lxc image alias create centos/7 \<hash\>                                                                                | Create an alias for centos/7 pointing to our centos 7 image
 
@@ -298,7 +298,7 @@ lxc image alias create centos/7 \<hash\>                                        
 
 **Description**
 
-Prints information about a container, snapshot or lxd host.
+Prints information about a container, snapshot or LXD host.
 
 **Examples**
 
@@ -324,7 +324,7 @@ init is used to create a new container from an image, but not start it.
 
 If the container name isn't specified, a random one will be used.
 
-Passing --ephemeral will make lxd create a temporary container which
+Passing --ephemeral will make LXD create a temporary container which
 will be destroyed when shutdown.
 
 --profile is used to apply a configuration profile (or multiple ones if passed
@@ -353,7 +353,7 @@ launch is used to create and start a new container from an image.
 
 If the container name isn't specified, a random one will be used.
 
-Passing --ephemeral will make lxd create a temporary container which
+Passing --ephemeral will make LXD create a temporary container which
 will be destroyed when shutdown.
 
 --profile is used to apply a configuration profile (or multiple ones if passed
@@ -429,7 +429,7 @@ lxc move c1 dakara:c2           | Move c1 to "dakara" as "c2"
 Takes an existing container or container snapshot and makes a
 compressed image out of it. By default the image will be private, that is,
 it’ll only be accessible locally or remotely by authenticated clients. If --
-public is passed, then anyone can pull the image so long as lxd is running.
+public is passed, then anyone can pull the image so long as LXD is running.
 
 It will also be possible for some image stores to allow users to push new
 images to them using that command, though the two image stores that will come
@@ -439,7 +439,7 @@ pre-configured will be read-only.
 
 Command                                         | Result
 :------                                         | :-----
-lxc publish c1/yesterday                        | Turn c1/yesterday into a private image for consumption by trusted lxd servers
+lxc publish c1/yesterday                        | Turn c1/yesterday into a private image for consumption by trusted LXD servers
 lxc publish c2 dakara: --public                 | Turn c2 into a public image on remote host "dakara"
 
 * * *
@@ -461,19 +461,19 @@ Manages remote LXD servers.
 
 Scheme                  | Description
 :-----                  | :----------
-unix+lxd://Unix         | socket (or abstract if leading @) access to lxd
-https+lxd://            | Communication with lxd over the network (https)
+unix://Unix             | socket (or abstract if leading @) access to LXD
+https://                | Communication with LXD over the network (https)
 
 By default lxc will have the following remotes defined:
 
 Name        | URI                                               | Description
 :---        | :--                                               | :----------
-local       | unix+lxd:///var/lib/lxd/sock                      | Communication to the local lxd (hidden if not present)
+local       | unix:///var/lib/lxd/sock                          | Communication to the local LXD daemon (hidden if not present)
 
 The default remote is "local", this allows simple operations with local
 resources without having to specify local: in front of all of their names. This
 behavior can be changed by using the set-default argument. On a system without
-a local lxd, the first manually added remote should be automatically set as
+a local LXD, the first manually added remote should be automatically set as
 default.
 
 Protocol auto-detection will happen so that adding a source solely based on its
@@ -483,7 +483,7 @@ The "--always-relay" flag of "remote add" can mean one of two things:
  * If it's an image server, that this server is only reachable by the
    client and that the client needs to act as a relay and transfer the
    image over to the server.
- * If it's a lxd server, that this server has limited connectivity which
+ * If it's a LXD server, that this server has limited connectivity which
    prevents it from accessing the image servers and that the client needs
    to act as a relay for it.
 
@@ -493,7 +493,7 @@ Command                                                         | Result
 :------                                                         | :-----
 lxc remote add dakara dakara.local                              | Add a new remote called "dakara" using its avahi DNS record and protocol auto-detection
 lxc remote add dakara dakara.local --password=BLAH              | Add a new remote called "dakara" using its avahi DNS record and protocol auto-detection and providing the password in advance
-lxc remote add vorash https+lxd://vorash.srv.dcmtl.stgraber.net | Add remote "vorash" pointing to a remote lxc instance using the full URI
+lxc remote add vorash https://vorash.srv.dcmtl.stgraber.net     | Add remote "vorash" pointing to a remote lxc instance using the full URI
 lxc remote set-default vorash                                   | Mark it as the default remote
 lxc start c1                                                    | Start container "c1" on it
 
