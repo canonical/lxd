@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-02-20 16:45-0600\n"
+        "POT-Creation-Date: 2015-02-23 12:49-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -78,6 +78,10 @@ msgstr  ""
 
 #: lxc/action.go:34
 msgid   "Force the container to shutdown."
+msgstr  ""
+
+#: lxc/main.go:76
+msgid   "Generating a client certificate. This may take a minute...\n"
 msgstr  ""
 
 #: lxc/file.go:141
@@ -252,7 +256,7 @@ msgstr  ""
 msgid   "error: %v\n"
 msgstr  ""
 
-#: lxc/main.go:71
+#: lxc/main.go:86
 msgid   "error: %v\n"
         "%s"
 msgstr  ""
@@ -337,6 +341,6 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:103
+#: lxc/main.go:118
 msgid   "wrong number of subcommand arguments"
 msgstr  ""

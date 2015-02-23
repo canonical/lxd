@@ -41,17 +41,17 @@ type RemoteConfig struct {
 var ConfigDir = "$HOME/.config/lxc"
 var configFileName = "config.yml"
 
-func configPath(file string) string {
+func ConfigPath(file string) string {
 	return os.ExpandEnv(path.Join(ConfigDir, file))
 }
 
 func ServerCertPath(name string) string {
-	return path.Join(configPath("servercerts"), fmt.Sprintf("%s.crt", name))
+	return path.Join(ConfigPath("servercerts"), fmt.Sprintf("%s.crt", name))
 }
 
 // LoadConfig reads the configuration from the config path.
 func LoadConfig() (*Config, error) {
-	data, err := ioutil.ReadFile(configPath(configFileName))
+	data, err := ioutil.ReadFile(ConfigPath(configFileName))
 	if os.IsNotExist(err) {
 		// A missing file is equivalent to the default configuration.
 		return &Config{}, nil
@@ -73,7 +73,7 @@ func LoadConfig() (*Config, error) {
 
 // SaveConfig writes the provided configuration to the config file.
 func SaveConfig(c *Config) error {
-	fname := configPath(configFileName)
+	fname := ConfigPath(configFileName)
 
 	// Ignore errors on these two calls. Create will report any problems.
 	os.Remove(fname + ".new")
