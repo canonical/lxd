@@ -13,7 +13,7 @@ import (
 )
 
 var lock sync.Mutex
-var operations map[string]*shared.Operation = make(map[string]*shared.Operation)
+var operations map[string]*shared.Operation
 
 func CreateOperation(metadata shared.Jmap, run func() shared.OperationResult, cancel func() error, ws shared.OperationSocket) (string, error) {
 	id := uuid.New()
@@ -132,9 +132,8 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 
 	if err != nil {
 		return InternalError(err)
-	} else {
-		return EmptySyncResponse
 	}
+	return EmptySyncResponse
 }
 
 var operationCmd = Command{name: "operations/{id}", get: operationGet, delete: operationDelete}

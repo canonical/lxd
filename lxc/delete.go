@@ -71,7 +71,6 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 
 	if op.StatusCode == shared.Success {
 		return nil
-	} else {
-		return fmt.Errorf(gettext.Gettext("Operation %s"), op.Status)
 	}
+	return fmt.Errorf(gettext.Gettext("Operation %s"), op.Status)
 }

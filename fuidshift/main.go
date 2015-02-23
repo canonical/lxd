@@ -36,7 +36,7 @@ func run() error {
 	idmap := Idmap{}
 	testmode := false
 
-	for pos := 2; pos < len(os.Args); pos += 1 {
+	for pos := 2; pos < len(os.Args); pos++ {
 
 		switch os.Args[pos] {
 		case "t", "-t", "--test", "test":

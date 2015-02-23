@@ -64,9 +64,9 @@ func readSavedClientCAList(d *Daemon) {
 			continue
 		}
 
-		cert_block, _ := pem.Decode(cf)
+		certBlock, _ := pem.Decode(cf)
 
-		cert, err := x509.ParseCertificate(cert_block.Bytes)
+		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
 			continue
 		}
@@ -258,9 +258,8 @@ func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
 			shared.Debugf("found cert for %s", k)
 			return true
-		} else {
-			shared.Debugf("client cert != key for %s", k)
 		}
+		shared.Debugf("client cert != key for %s", k)
 	}
 	return false
 }

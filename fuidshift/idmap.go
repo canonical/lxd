@@ -59,13 +59,13 @@ func (e *idmapEntry) parse(s string) error {
 /*
  * Convert an id from host id to mapped container id
  */
-func (i *idmapEntry) shift_into_ns(id int) (int, error) {
-	if id < i.srcid || id >= i.srcid+i.maprange {
+func (e *idmapEntry) shift_into_ns(id int) (int, error) {
+	if id < e.srcid || id >= e.srcid+e.maprange {
 		// this mapping doesn't apply
 		return 0, fmt.Errorf("N/A")
 	}
 
-	return id - i.srcid + i.destid, nil
+	return id - e.srcid + e.destid, nil
 }
 
 /* taken from http://blog.golang.org/slices (which is under BSD licence) */
