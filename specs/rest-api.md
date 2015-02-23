@@ -285,7 +285,7 @@ Input (using a public remote image):
         'config': {'resources.cpus': "2"},                                  # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration" or "none"
                    'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
-                   'source': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
+                   'server': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
                    'alias': "ubuntu/devel"},                                # Name of the alias
     }
 
@@ -301,7 +301,7 @@ Input (using a private remote image after having obtained a secret for that imag
         'config': {'resources.cpus': "2"},                                  # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration" or "none"
                    'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
-                   'source': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
+                   'server': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
                    'secret': "my-secret-string",                            # Secret to use to retrieve the image (pull mode only)
                    'alias': "ubuntu/devel"},                                # Name of the alias
     }
@@ -317,7 +317,7 @@ Input (using a remote container, sent over the migration websocket):
         'config': {'resources.cpus': "2"},                                              # Config override.
         'source': {'type': "migration",                                                 # Can be: "image", "migration" or "none"
                    'mode': "pull",                                                      # One of "pull" or "receive"
-                   'source_operation': "https://10.0.2.3:8443/1.0/operations/<UUID>",   # Full URL to the remote operation (pull mode only)
+                   'operation': "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
                    'secret': "my-secret-string"},                                       # Secret to use to retrieve the container (pull mode only)
     }
 
