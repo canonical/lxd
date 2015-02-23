@@ -13,7 +13,7 @@ import (
 )
 
 var lock sync.Mutex
-var operations map[string]*shared.Operation
+var operations map[string]*shared.Operation = make(map[string]*shared.Operation)
 
 func CreateOperation(metadata shared.Jmap, run func() shared.OperationResult, cancel func() error, ws shared.OperationSocket) (string, error) {
 	id := uuid.New()
