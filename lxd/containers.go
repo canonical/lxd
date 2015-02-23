@@ -24,7 +24,7 @@ import (
 
 type containerImageSource struct {
 	Type string `json:"type"`
-	Url  string `json:"url"`
+	URL  string `json:"url"`
 	Name string `json:"name"`
 }
 
@@ -55,7 +55,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		return NotImplemented
 	}
 
-	if req.Source.Url != "https+lxc-images://images.linuxcontainers.org" {
+	if req.Source.URL != "https+lxc-images://images.linuxcontainers.org" {
 		return NotImplemented
 	}
 
@@ -354,12 +354,11 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return SyncResponse(true, []shared.Jmap{})
-		} else {
-			return InternalError(err)
 		}
+		return InternalError(err)
 	}
 
-	body := make([]string, 0)
+	var body []string
 
 	for _, file := range files {
 		if file.IsDir() {
@@ -610,19 +609,18 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		}
 
 		return AsyncResponseWithWs(run, nil, ws)
-	} else {
-		run := func() shared.OperationResult {
-
-			nullDev, err := os.OpenFile(os.DevNull, os.O_RDWR, 0666)
-			if err != nil {
-				return shared.OperationError(err)
-			}
-			defer nullDev.Close()
-
-			return runCommand(c, post.Command, nullDev.Fd())
-		}
-		return AsyncResponse(run, nil)
 	}
+	run := func() shared.OperationResult {
+
+		nullDev, err := os.OpenFile(os.DevNull, os.O_RDWR, 0666)
+		if err != nil {
+			return shared.OperationError(err)
+		}
+		defer nullDev.Close()
+
+		return runCommand(c, post.Command, nullDev.Fd())
+	}
+	return AsyncResponse(run, nil)
 }
 
 var containerExecCmd = Command{name: "containers/{name}/exec", post: containerExecPost}

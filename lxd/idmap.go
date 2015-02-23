@@ -28,7 +28,7 @@ type Idmap struct {
 }
 
 const (
-	minIdRange = 65536
+	minIDRange = 65536
 )
 
 func checkmap(fname string, username string) (uint, uint, error) {
@@ -90,11 +90,11 @@ func NewIdmap() (*Idmap, error) {
 		return nil, err
 	}
 
-	if urange < minIdRange {
-		return nil, fmt.Errorf("uidrange less than %d", minIdRange)
+	if urange < minIDRange {
+		return nil, fmt.Errorf("uidrange less than %d", minIDRange)
 	}
-	if grange < minIdRange {
-		return nil, fmt.Errorf("gidrange less than %d", minIdRange)
+	if grange < minIDRange {
+		return nil, fmt.Errorf("gidrange less than %d", minIDRange)
 	}
 
 	m.Uidmin = umin
