@@ -88,7 +88,7 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 
 	if r.containers != nil && len(r.containers) > 0 {
 		body.Resources = map[string][]string{}
-		containers := make([]string, 0)
+		var containers []string
 		for _, c := range r.containers {
 			containers = append(containers, fmt.Sprintf("/%s/containers/%s", shared.Version, c))
 		}

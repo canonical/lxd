@@ -78,7 +78,7 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 
 	/* Make sure all of the files are accessible by us before trying to
 	 * push any of them. */
-	files := make([]*os.File, 0)
+	var files []*os.File
 	for _, f := range args[:len(args)-1] {
 		if !strings.HasPrefix(f, "--") {
 			file, err := os.Open(f)

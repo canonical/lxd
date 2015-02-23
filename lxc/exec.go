@@ -37,7 +37,7 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	cfd := syscall.Stdout
-	var oldttystate *terminal.State = nil
+	var oldttystate *terminal.State
 	if terminal.IsTerminal(cfd) {
 		oldttystate, err = terminal.MakeRaw(cfd)
 		if err != nil {
