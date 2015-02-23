@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"database/sql"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
+	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/tomb.v2"
 )
 
@@ -25,6 +27,7 @@ type Daemon struct {
 	keyf        string
 	mux         *mux.Router
 	clientCerts map[string]x509.Certificate
+	db          *sql.DB
 }
 
 type Command struct {
@@ -139,6 +142,11 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.certf = certf
 	d.keyf = keyf
 
+	err = initDb(d)
+	if err != nil {
+		return nil, err
+	}
+
 	readSavedClientCAList(d)
 
 	d.mux = mux.NewRouter()
@@ -242,6 +250,9 @@ func (d *Daemon) Stop() error {
 	d.unixl.Close()
 	if d.tcpl != nil {
 		d.tcpl.Close()
+	}
+	if d.db != nil {
+		d.db.Close()
 	}
 	err := d.tomb.Wait()
 	if err == errStop {
