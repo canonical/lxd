@@ -59,7 +59,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	image := req.Source.Name
-	_, uuid, err := dbGetImageId(image)
+	_, uuid, err := dbGetImageId(d, image)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -76,9 +76,9 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	name := req.Name
-	_, err = dbCreateContainer(name)
+	_, err = dbCreateContainer(d, name)
 	if err != nil {
-		removeContainerPath(name)
+		removeContainerPath(d, name)
 		return InternalError(err)
 	}
 
@@ -89,7 +89,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	return &asyncResponse{run: run, containers: []string{req.Name}}
 }
 
-func removeContainerPath(name string) {
+func removeContainerPath(d *Daemon, name string) {
 	cpath := shared.VarPath("lxc", name)
 	err := os.RemoveAll(cpath)
 	if err != nil {
@@ -99,8 +99,8 @@ func removeContainerPath(name string) {
 
 func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	cleanup := func(err error) error {
-		removeContainerPath(name)
-		dbRemoveContainer(name)
+		removeContainerPath(d, name)
+		dbRemoveContainer(d, name)
 		return err
 	}
 
@@ -144,27 +144,13 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	return nil
 }
 
-func dbRemoveContainer(name string) {
-	certdbname := shared.VarPath("lxd.db")
-	db, err := sql.Open("sqlite3", certdbname)
-	if err != nil {
-		return
-	}
-	defer db.Close()
-
-	_, _ = db.Exec("DELETE FROM containers WHERE name=?", name)
+func dbRemoveContainer(d *Daemon, name string) {
+	_, _ = d.db.Exec("DELETE FROM containers WHERE name=?", name)
 }
 
-func dbGetImageId(image string) (int, string, error) {
-	certdbname := shared.VarPath("lxd.db")
-	db, err := sql.Open("sqlite3", certdbname)
-	if err != nil {
-		return 0, "", err
-	}
-	defer db.Close()
-
+func dbGetImageId(d *Daemon, image string) (int, string, error) {
 	/* todo - look at aliases */
-	rows, err := db.Query("SELECT id, fingerprint FROM images WHERE fingerprint=?", image)
+	rows, err := d.db.Query("SELECT id, fingerprint FROM images WHERE fingerprint=?", image)
 	if err != nil {
 		return 0, "", err
 	}
@@ -197,20 +183,13 @@ func dbGetContainerId(db *sql.DB, name string) (int, error) {
 	return id, nil
 }
 
-func dbCreateContainer(name string) (int, error) {
-	certdbname := shared.VarPath("lxd.db")
-	db, err := sql.Open("sqlite3", certdbname)
-	if err != nil {
-		return 0, err
-	}
-	defer db.Close()
-
-	id, err := dbGetContainerId(db, name)
+func dbCreateContainer(d *Daemon, name string) (int, error) {
+	id, err := dbGetContainerId(d.db, name)
 	if err == nil {
 		return 0, fmt.Errorf("%s already defined in database", name)
 	}
 
-	tx, err := db.Begin()
+	tx, err := d.db.Begin()
 	if err != nil {
 		return 0, err
 	}
@@ -225,7 +204,7 @@ func dbCreateContainer(name string) (int, error) {
 	}
 	tx.Commit()
 
-	id, err = dbGetContainerId(db, name)
+	id, err = dbGetContainerId(d.db, name)
 	if err != nil {
 		return 0, fmt.Errorf("Error inserting %s into database", name)
 	}
@@ -235,20 +214,10 @@ func dbCreateContainer(name string) (int, error) {
 
 var containersCmd = Command{name: "containers", post: containersPost}
 
-func getContainerId(name string) (int, error) {
-	certdbname := shared.VarPath("lxd.db")
-	db, err := sql.Open("sqlite3", certdbname)
-	if err != nil {
-		return 0, err
-	}
-	defer db.Close()
-	return dbGetContainerId(db, name)
-}
-
 func containerGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	//cId, err := getContainerId(name)  will need cId to get info
-	_, err := getContainerId(name)
+	//cId, err := dbGetContainerId(d.db, name)  will need cId to get info
+	_, err := dbGetContainerId(d.db, name)
 	if err != nil {
 		return NotFound
 	}
@@ -263,14 +232,14 @@ func containerGet(d *Daemon, r *http.Request) Response {
 func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	fmt.Printf("delete: called with name %s\n", name)
-	_, err := getContainerId(name)
+	_, err := dbGetContainerId(d.db, name)
 	if err != nil {
 		fmt.Printf("Delete: container %s not known", name)
 		// rootfs may still exist though, so try to delete it
 	}
-	dbRemoveContainer(name)
+	dbRemoveContainer(d, name)
 	rmdir := func() error {
-		removeContainerPath(name)
+		removeContainerPath(d, name)
 		return nil
 	}
 	fmt.Printf("running rmdir\n")
@@ -331,13 +300,7 @@ func (c *lxdContainer) Unfreeze() error {
 func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	d := &lxdContainer{}
 
-	certdbname := shared.VarPath("lxd.db")
-	db, err := sql.Open("sqlite3", certdbname)
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-	rows, err := db.Query("SELECT id, architecture FROM containers WHERE name=?", name)
+	rows, err := daemon.db.Query("SELECT id, architecture FROM containers WHERE name=?", name)
 	if err != nil {
 		return nil, err
 	}
