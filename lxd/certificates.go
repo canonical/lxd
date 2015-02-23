@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"crypto/x509"
-	"database/sql"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
-	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -68,16 +66,8 @@ type certificatesPostBody struct {
 }
 
 func readSavedClientCAList(d *Daemon) {
-	certdbname := shared.VarPath("lxd.db")
-	db, err := sql.Open("sqlite3", certdbname)
-	if err != nil {
-		fmt.Printf("Error reading certificates from database: %s\n", err)
-		return
-	}
-	defer db.Close()
-
 	d.clientCerts = make(map[string]x509.Certificate)
-	rows, err := db.Query("SELECT fingerprint, type, name, certificate FROM certificates")
+	rows, err := d.db.Query("SELECT fingerprint, type, name, certificate FROM certificates")
 	if err != nil {
 		fmt.Printf("Error reading certificates from database: %s\n", err)
 		return
@@ -99,15 +89,8 @@ func readSavedClientCAList(d *Daemon) {
 	}
 }
 
-func saveCert(host string, cert *x509.Certificate) error {
-	certdbname := shared.VarPath("lxd.db")
-	db, err := sql.Open("sqlite3", certdbname)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	tx, err := db.Begin()
+func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
+	tx, err := d.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -171,7 +154,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		return Forbidden
 	}
 
-	err := saveCert(name, cert)
+	err := saveCert(d, name, cert)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -199,17 +182,10 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 
 func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
-	certdbname := shared.VarPath("lxd.db")
-	db, err := sql.Open("sqlite3", certdbname)
-	if err != nil {
-		return SmartError(err)
-	}
-	defer db.Close()
-
 	for name, cert := range d.clientCerts {
 		if fingerprint == shared.GenerateFingerprint(&cert) {
 			delete(d.clientCerts, name)
-			_, err = db.Exec("DELETE FROM certificates WHERE name=?", name)
+			_, err := d.db.Exec("DELETE FROM certificates WHERE name=?", name)
 			if err != nil {
 				return SmartError(err)
 			}

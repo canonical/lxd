@@ -3,7 +3,6 @@ package main
 import (
 	"archive/tar"
 	"crypto/sha256"
-	"database/sql"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,7 +13,6 @@ import (
 
 	//"github.com/uli-go/xz/lzma"
 	"github.com/lxc/lxd/shared"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func getSize(f *os.File) (int64, error) {
@@ -80,13 +78,7 @@ func imagesPut(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	certdbname := shared.VarPath("lxd.db")
-	db, err := sql.Open("sqlite3", certdbname)
-	if err != nil {
-		return InternalError(err)
-	}
-	defer db.Close()
-	tx, err := db.Begin()
+	tx, err := d.db.Begin()
 	if err != nil {
 		return InternalError(err)
 	}
@@ -172,14 +164,8 @@ func extractTar(fname string) (int, error) {
 
 func imagesGet(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to images:get")
-	certdbname := shared.VarPath("lxd.db")
-	db, err := sql.Open("sqlite3", certdbname)
-	if err != nil {
-		return BadRequest(err)
-	}
-	defer db.Close()
 
-	rows, err := db.Query("SELECT fingerprint FROM images")
+	rows, err := d.db.Query("SELECT fingerprint FROM images")
 	if err != nil {
 		return BadRequest(err)
 	}
