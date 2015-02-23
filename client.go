@@ -116,8 +116,8 @@ func ParseError(r *Response) error {
 }
 
 func readMyCert() (string, string, error) {
-	certf := configPath("client.crt")
-	keyf := configPath("client.key")
+	certf := ConfigPath("client.crt")
+	keyf := ConfigPath("client.key")
 
 	err := shared.FindOrGenCert(certf, keyf)
 
@@ -507,7 +507,7 @@ func (c *Client) UserAuthServerCert() error {
 	}
 
 	// User acked the cert, now add it to our store
-	dnam := configPath("servercerts")
+	dnam := ConfigPath("servercerts")
 	err = os.MkdirAll(dnam, 0750)
 	if err != nil {
 		return fmt.Errorf(gettext.Gettext("Could not create server cert dir"))
