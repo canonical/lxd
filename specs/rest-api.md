@@ -219,7 +219,7 @@ Input:
  * Operation: async
  * Return: background operation or standard error
 
-Input (container based on remote image):
+Input (container based on a local image with the "ubuntu/devel" alias):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
@@ -228,22 +228,99 @@ Input (container based on remote image):
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
         'config': {'resources.cpus': "2"},                                  # Config override.
-        'source': {'type': "remote",                                        # Can be: local (source is a local image, container or snapshot), remote (requires a provided remote config) or proxy (requires a provided ssl socket info)
-                   'url': 'https+lxc-images://images.linuxcontainers.org",  # URL for the remote
-                   'name': "lxc-images/ubuntu/trusty/amd64",                # Name of the image or container on the remote
-                   'metadata': {'gpg_key': "GPG KEY BASE64"}},              # Metadata to setup the remote
+        'source': {'type': "image",                                         # Can be: "image", "migration" or "none"
+                   'alias': "ubuntu/devel"},                                # Name of the alias
     }
 
-Input (clone of a local snapshot):
+Input (container based on a local image identified by its fingerprint):
 
     {
-        'name': "my-new-container",
+        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        'architecture': "x86_64",
         'hostname': "my-container",
-        'profiles': ["default"],
-        'source': {'type': "local",
-                   'name': "a/b"},                                          # Use snapshot "b" of container "a" as the source
-        'userdata': "BASE64 of userdata"                                    # Userdata exposed over /dev/lxd and used by cloud-init or equivalent tools
+        'profiles': ["default"],                                            # List of profiles
+        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'config': {'resources.cpus': "2"},                                  # Config override.
+        'source': {'type': "image",                                         # Can be: "image", "migration" or "none"
+                   'fingerprint': "SHA-256"},                               # Fingerprint
     }
+
+Input (container based on most recent match based on image properties):
+
+    {
+        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        'architecture': "x86_64",
+        'hostname': "my-container",
+        'profiles': ["default"],                                            # List of profiles
+        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'config': {'resources.cpus': "2"},                                  # Config override.
+        'source': {'type': "image",                                         # Can be: "image", "migration" or "none"
+                   'properties': {                                          # Properties
+                        'os': "ubuntu",
+                        'release': "14.04",
+                        'architecture': "x86_64"
+                    }},
+    }
+
+Input (container without a pre-populated rootfs, useful when attaching to an existing one):
+
+    {
+        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        'architecture': "x86_64",
+        'hostname': "my-container",
+        'profiles': ["default"],                                            # List of profiles
+        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'config': {'resources.cpus': "2"},                                  # Config override.
+        'source': {'type': "none"},                                         # Can be: "image", "migration" or "none"
+    }
+
+Input (using a public remote image):
+
+    {
+        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        'architecture': "x86_64",
+        'hostname': "my-container",
+        'profiles': ["default"],                                            # List of profiles
+        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'config': {'resources.cpus': "2"},                                  # Config override.
+        'source': {'type': "image",                                         # Can be: "image", "migration" or "none"
+                   'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
+                   'source': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
+                   'alias': "ubuntu/devel"},                                # Name of the alias
+    }
+
+
+Input (using a private remote image after having obtained a secret for that image):
+
+    {
+        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        'architecture': "x86_64",
+        'hostname': "my-container",
+        'profiles': ["default"],                                            # List of profiles
+        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'config': {'resources.cpus': "2"},                                  # Config override.
+        'source': {'type': "image",                                         # Can be: "image", "migration" or "none"
+                   'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
+                   'source': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
+                   'secret': "my-secret-string",                            # Secret to use to retrieve the image (pull mode only)
+                   'alias': "ubuntu/devel"},                                # Name of the alias
+    }
+
+Input (using a remote container, sent over the migration websocket):
+
+    {
+        'name': "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
+        'architecture': "x86_64",
+        'hostname': "my-container",
+        'profiles': ["default"],                                                        # List of profiles
+        'ephemeral': True,                                                              # Whether to destroy the container on shutdown
+        'config': {'resources.cpus': "2"},                                              # Config override.
+        'source': {'type': "migration",                                                 # Can be: "image", "migration" or "none"
+                   'mode': "pull",                                                      # One of "pull" or "receive"
+                   'source_operation': "https://10.0.2.3:8443/1.0/operations/<UUID>",   # Full URL to the remote operation (pull mode only)
+                   'secret': "my-secret-string"},                                       # Secret to use to retrieve the container (pull mode only)
+    }
+
 
 
 ## /1.0/containers/\<name\>
@@ -282,16 +359,22 @@ Output:
 
 
 ### PUT
- * Description: update container configuration
+ * Description: update container configuration or restore snapshot
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
 
-Input:
+Input (update container configuration):
 
 Takes the same structure as that returned by GET but doesn't allow name
 changes (see POST below) or changes to the status sub-dict (since that's
 read-only).
+
+Input (restore snapshot):
+
+    {
+        'restore': "snapshot-name"
+    }
 
 ### POST
  * Description: used to rename/migrate the container
