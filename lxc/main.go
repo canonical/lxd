@@ -88,6 +88,7 @@ var commands = map[string]command{
 	"file":     &fileCmd{},
 	"finger":   &fingerCmd{},
 	"help":     &helpCmd{},
+	"image":    &imageCmd{},
 	"init":     &initCmd{},
 	"launch":   &launchCmd{},
 	"list":     &listCmd{},

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 )
@@ -27,9 +25,8 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	if args[0] != "ubuntu" {
-		return fmt.Errorf(gettext.Gettext("Only the default ubuntu image is supported. Try `lxc init ubuntu foo`."))
-	}
+	/* TODO: image could also be a resource:name */
+	image := args[0]
 
 	var name string
 	var remote string
@@ -46,7 +43,7 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	// TODO: implement the syntax for supporting other image types/remotes
-	resp, err := d.Init(name)
+	resp, err := d.Init(name, image)
 	if err != nil {
 		return err
 	}

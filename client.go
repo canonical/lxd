@@ -431,6 +431,61 @@ func (c *Client) ListContainers() ([]string, error) {
 	return result, nil
 }
 
+func (c *Client) PutImage(filename string) (*Response, error) {
+	uri := c.url(shared.APIVersion, "images")
+
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	req, err := http.NewRequest("PUT", uri, f)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("X-LXD-filename", filename)
+	mode := 0 // private
+	req.Header.Set("X-LXD-public", fmt.Sprintf("%04o", mode))
+	//req.Header.Set("X-LXD-fingerprint", fmt.Sprintf("%04o", mode))
+	//req.Header.Set("X-LXD-properties", fmt.Sprintf("%04o", mode))
+
+	raw, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := ParseResponse(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (c *Client) ListImages() ([]string, error) {
+	resp, err := c.get("images")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
+	}
+	var result []string
+
+	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (c *Client) UserAuthServerCert() error {
 	if !c.scertDigestSet {
 		return fmt.Errorf(gettext.Gettext("No certificate on this connection"))
@@ -516,9 +571,9 @@ func (c *Client) CertificateRemove(fingerprint string) error {
 	return ParseError(raw)
 }
 
-func (c *Client) Init(name string) (*Response, error) {
+func (c *Client) Init(name string, image string) (*Response, error) {
 
-	source := shared.Jmap{"type": "remote", "url": "https+lxc-images://images.linuxcontainers.org", "name": "lxc-images/ubuntu/trusty/amd64"}
+	source := shared.Jmap{"type": "local", "name": image}
 	body := shared.Jmap{"source": source}
 
 	if name != "" {

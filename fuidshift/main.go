@@ -1,10 +1,12 @@
-package main
+package fuidshift
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/lxc/lxd/shared"
 )
 
 func help(me string, status int) {
@@ -33,7 +35,7 @@ func run() error {
 	}
 
 	directory := os.Args[1]
-	idmap := Idmap{}
+	idmap := IdmapSet{}
 	testmode := false
 
 	for pos := 2; pos < len(os.Args); pos++ {
@@ -74,21 +76,13 @@ func getOwner(path string) (int, int, error) {
 	return uid, gid, nil
 }
 
-func fileExists(p string) bool {
-	_, err := os.Lstat(p)
-	if err != nil && os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
-func Uidshift(dir string, idmap Idmap, testmode bool) error {
+func Uidshift(dir string, idmap IdmapSet, testmode bool) error {
 	convert := func(path string, fi os.FileInfo, err error) (e error) {
 		uid, gid, err := getOwner(path)
 		if err != nil {
 			return err
 		}
-		newuid, newgid := idmap.Shift_into_ns(uid, gid)
+		newuid, newgid := idmap.ShiftIntoNs(uid, gid)
 		if testmode {
 			fmt.Printf("I would shift %q to %d %d\n", path, newuid, newgid)
 		} else {
@@ -106,7 +100,7 @@ func Uidshift(dir string, idmap Idmap, testmode bool) error {
 		return nil
 	}
 
-	if !fileExists(dir) {
+	if !shared.PathExists(dir) {
 		return fmt.Errorf("No such file or directory: %q", dir)
 	}
 	return filepath.Walk(dir, convert)
