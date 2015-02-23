@@ -106,9 +106,9 @@ func (o *Operation) GetError() error {
 	return nil
 }
 
-func (r *Operation) MetadataAsMap() (*Jmap, error) {
+func (o *Operation) MetadataAsMap() (*Jmap, error) {
 	ret := Jmap{}
-	if err := json.Unmarshal(r.Metadata, &ret); err != nil {
+	if err := json.Unmarshal(o.Metadata, &ret); err != nil {
 		return nil, err
 	}
 	return &ret, nil

@@ -11,7 +11,7 @@ import (
 func listGet(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to list")
 
-	result := make([]string, 0)
+	var result []string
 
 	containers := lxc.DefinedContainers(d.lxcpath)
 	for i := range containers {

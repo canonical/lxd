@@ -121,9 +121,8 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		if name == existingName {
 			if fingerprint == shared.GenerateFingerprint(&existingCert) {
 				return EmptySyncResponse
-			} else {
-				return Conflict
 			}
+			return Conflict
 		}
 	}
 
@@ -166,9 +165,8 @@ func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 			err := os.Remove(fpath)
 			if err != nil {
 				return SmartError(err)
-			} else {
-				return EmptySyncResponse
 			}
+			return EmptySyncResponse
 		}
 	}
 

@@ -132,9 +132,8 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 
 	if err != nil {
 		return InternalError(err)
-	} else {
-		return EmptySyncResponse
 	}
+	return EmptySyncResponse
 }
 
 var operationCmd = Command{name: "operations/{id}", get: operationGet, delete: operationDelete}
