@@ -28,7 +28,6 @@ var api10 = []Command{
 	networksCmd,
 	networkCmd,
 	api10Cmd,
-	listCmd,
 	certificatesCmd,
 	certificateFingerprintCmd,
 }
