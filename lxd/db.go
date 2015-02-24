@@ -8,12 +8,13 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func createDb(p string) error {
+const DB_CURRENT_VERSION int = 1
+
+func createDb(p string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", p)
 	if err != nil {
-		return fmt.Errorf("Error creating database: %s\n", err)
+		return nil, fmt.Errorf("Error creating database: %s\n", err)
 	}
-	defer db.Close()
 	stmt := `
 CREATE TABLE certificates (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -57,31 +58,94 @@ CREATE TABLE images_properties (
     key VARCHAR(255) NOT NULL,
     value TEXT,
     FOREIGN KEY (image_id) REFERENCES images (id)
-);`
+);
+CREATE TABLE schema (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    version INTEGER NOT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE (version)
+);
+INSERT INTO schema (version, updated_at) values (?, "now");`
 
-	_, err = db.Exec(stmt)
+	_, err = db.Exec(stmt, DB_CURRENT_VERSION)
+	return db, err
+}
+
+func getSchema(db *sql.DB) (int, error) {
+	rows, err := db.Query("SELECT max(version) FROM schema")
+	if err != nil {
+		return 0, nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var v int
+		rows.Scan(&v)
+		return v, nil
+	}
+	return 0, nil
+}
+
+func updateFromV0(db *sql.DB) error {
+	// v0..v1 adds schema table
+	stmt := `
+CREATE TABLE schema (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    version INTEGER NOT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE (version)
+);
+INSERT INTO schema (version, updated_at) values (?, "now");`
+	_, err := db.Exec(stmt, 1)
 	return err
 }
 
-func initDb(d *Daemon) error {
-	dbpath := shared.VarPath("lxd.db")
-	if !shared.PathExists(dbpath) {
-		err := createDb(dbpath)
+func updateDb(db *sql.DB, prev_version int) error {
+	if prev_version < 0 || prev_version > DB_CURRENT_VERSION {
+		return fmt.Errorf("Bad database version: %d\n", prev_version)
+	}
+	if prev_version == DB_CURRENT_VERSION {
+		return nil
+	}
+	var err error
+	if prev_version == 0 {
+		err = updateFromV0(db)
 		if err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
-	/* TODO - scheck schema and update if necessary */
-
-	/* Open our persistant db connection */
-	db, err := sql.Open("sqlite3", dbpath)
-	if err != nil {
-		fmt.Printf("Error opening lxd database\n")
-		return err
+func initDb(d *Daemon) error {
+	dbpath := shared.VarPath("lxd.db")
+	var db *sql.DB
+	var err error
+	if !shared.PathExists(dbpath) {
+		db, err = createDb(dbpath)
+		if err != nil {
+			return err
+		}
+	} else {
+		db, err = sql.Open("sqlite3", dbpath)
+		if err != nil {
+			fmt.Printf("Error opening lxd database\n")
+			return err
+		}
 	}
 
 	d.db = db
+
+	v, err := getSchema(db)
+	if err != nil {
+		return fmt.Errorf("Bad database, or database too new for this lxd version")
+	}
+
+	if v != DB_CURRENT_VERSION {
+		err = updateDb(db, v)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
