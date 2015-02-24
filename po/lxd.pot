@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-02-23 20:38-0700\n"
+        "POT-Creation-Date: 2015-02-24 15:21-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,7 +16,12 @@ msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Content-Type: text/plain; charset=CHARSET\n"
         "Content-Transfer-Encoding: 8bit\n"
 
-#: lxc/image.go:86
+#: lxc/image.go:56
+#, c-format
+msgid   "(Bad alias entry: %s\n"
+msgstr  ""
+
+#: lxc/image.go:158
 #, c-format
 msgid   "(Bad image entry: %s\n"
 msgstr  ""
@@ -30,11 +35,11 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: client.go:518
+#: client.go:552
 msgid   "Certificate already stored.\n"
 msgstr  ""
 
-#: client.go:522
+#: client.go:556
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -48,7 +53,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: client.go:536
+#: client.go:570
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -122,7 +127,7 @@ msgstr  ""
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:514
+#: client.go:548
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -130,11 +135,11 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: client.go:616
+#: client.go:650
 msgid   "Non-async response from create!"
 msgstr  ""
 
-#: client.go:843
+#: client.go:877
 msgid   "Non-async response from snapshot!"
 msgstr  ""
 
@@ -155,7 +160,7 @@ msgstr  ""
 msgid   "Prints the version number of lxd.\n"
 msgstr  ""
 
-#: client.go:529
+#: client.go:563
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
@@ -196,7 +201,7 @@ msgstr  ""
 msgid   "Unknown config command %s"
 msgstr  ""
 
-#: lxc/image.go:93
+#: lxc/image.go:165
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -241,6 +246,10 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
+#: client.go:535
+msgid   "bad response type from image list!"
+msgstr  ""
+
 #: client.go:424 client.go:501
 msgid   "bad response type from list!"
 msgstr  ""
@@ -275,12 +284,12 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:663
+#: client.go:697
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
 
-#: client.go:634
+#: client.go:668
 msgid   "got bad response type from exec"
 msgstr  ""
 
@@ -288,11 +297,11 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:699
+#: client.go:733
 msgid   "got non-async response from delete!"
 msgstr  ""
 
-#: client.go:718
+#: client.go:752
 msgid   "got non-sync response from containers get!"
 msgstr  ""
 
@@ -301,7 +310,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:797
+#: client.go:831
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -323,7 +332,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:523
+#: client.go:557
 msgid   "ok (y/n)? "
 msgstr  ""
 
