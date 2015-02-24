@@ -509,6 +509,45 @@ func (c *Client) ListImages() ([]string, error) {
 	return result, nil
 }
 
+func (c *Client) DeleteImage(image string) error {
+	_, err := c.delete(fmt.Sprintf("images/%s", image), nil)
+	return err
+}
+
+func (c *Client) PostAlias(alias string, desc string, target string) error {
+	body := shared.Jmap{"description": desc, "target": target, "name": alias}
+
+	_, err := c.post("images/aliases", body)
+	return err
+}
+
+func (c *Client) DeleteAlias(alias string) error {
+	_, err := c.delete(fmt.Sprintf("images/aliases/%s", alias), nil)
+	return err
+}
+
+func (c *Client) ListAliases() ([]string, error) {
+	resp, err := c.get("images/aliases")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf(gettext.Gettext("bad response type from image list!"))
+	}
+	var result []string
+
+	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (c *Client) UserAuthServerCert() error {
 	if !c.scertDigestSet {
 		return fmt.Errorf(gettext.Gettext("No certificate on this connection"))
