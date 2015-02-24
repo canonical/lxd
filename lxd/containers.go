@@ -43,6 +43,27 @@ type containerPostReq struct {
 	Source containerImageSource `json:"source"`
 }
 
+func containersGet(d *Daemon, r *http.Request) Response {
+	q := fmt.Sprintf("SELECT name FROM containers")
+	rows, err := d.db.Query(q)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	result := []string{}
+	defer rows.Close()
+	for rows.Next() {
+		container := ""
+		if err := rows.Scan(&container); err != nil {
+			return InternalError(err)
+		}
+
+		result = append(result, fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container))
+	}
+
+	return SyncResponse(true, result)
+}
+
 func containersPost(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to create")
 
@@ -221,7 +242,7 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType) (int, error)
 	return id, nil
 }
 
-var containersCmd = Command{name: "containers", post: containersPost}
+var containersCmd = Command{name: "containers", get: containersGet, post: containersPost}
 
 func containerGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]

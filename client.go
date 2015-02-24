@@ -17,6 +17,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/gosexy/gettext"
@@ -410,7 +411,7 @@ func (c *Client) AmTrusted() bool {
 }
 
 func (c *Client) ListContainers() ([]string, error) {
-	resp, err := c.get("list")
+	resp, err := c.get("containers")
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +429,29 @@ func (c *Client) ListContainers() ([]string, error) {
 		return nil, err
 	}
 
-	return result, nil
+	names := []string{}
+
+	for _, url := range result {
+		toScan := strings.Replace(url, "/", " ", -1)
+		version := ""
+		name := ""
+		count, err := fmt.Sscanf(toScan, " %s containers %s", &version, &name)
+		if err != nil {
+			return nil, err
+		}
+
+		if count != 2 {
+			return nil, fmt.Errorf(gettext.Gettext("bad container url %s"), url)
+		}
+
+		if version != shared.APIVersion {
+			return nil, fmt.Errorf(gettext.Gettext("bad version in container url"))
+		}
+
+		names = append(names, name)
+	}
+
+	return names, nil
 }
 
 func (c *Client) PutImage(filename string) (*Response, error) {
