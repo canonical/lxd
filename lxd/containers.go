@@ -25,6 +25,13 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
+type containerType int
+
+const (
+	cTypeRegular  containerType = 0
+	cTypeSnapshot containerType = 1
+)
+
 type containerImageSource struct {
 	Type string `json:"type"`
 	URL  string `json:"url"`
@@ -76,7 +83,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	name := req.Name
-	_, err = dbCreateContainer(d, name)
+	_, err = dbCreateContainer(d, name, cTypeRegular)
 	if err != nil {
 		removeContainerPath(d, name)
 		return InternalError(err)
@@ -183,7 +190,7 @@ func dbGetContainerId(db *sql.DB, name string) (int, error) {
 	return id, nil
 }
 
-func dbCreateContainer(d *Daemon, name string) (int, error) {
+func dbCreateContainer(d *Daemon, name string, ctype containerType) (int, error) {
 	id, err := dbGetContainerId(d.db, name)
 	if err == nil {
 		return 0, fmt.Errorf("%s already defined in database", name)
@@ -193,7 +200,9 @@ func dbCreateContainer(d *Daemon, name string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	stmt, err := tx.Prepare("INSERT INTO containers (name, architecture, type) VALUES (?, 1, 0)")
+	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type) VALUES (?, 1, %d)",
+		ctype)
+	stmt, err := tx.Prepare(str)
 	if err != nil {
 		return 0, err
 	}
@@ -221,12 +230,12 @@ func containerGet(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return NotFound
 	}
-	c, err := lxc.NewContainer(name, d.lxcpath)
+	c, err := newLxdContainer(name, d)
 	if err != nil {
 		InternalError(err)
 	}
 
-	return SyncResponse(true, shared.CtoD(c))
+	return SyncResponse(true, shared.CtoD(c.c))
 }
 
 func containerDelete(d *Daemon, r *http.Request) Response {
@@ -250,16 +259,12 @@ var containerCmd = Command{name: "containers/{name}", get: containerGet, delete:
 
 func containerStateGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := lxc.NewContainer(name, d.lxcpath)
+	c, err := newLxdContainer(name, d)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	if !c.Defined() {
-		return NotFound
-	}
-
-	return SyncResponse(true, shared.CtoD(c).Status)
+	return SyncResponse(true, shared.CtoD(c.c).Status)
 }
 
 type containerStatePutReq struct {
@@ -269,8 +274,9 @@ type containerStatePutReq struct {
 }
 
 type lxdContainer struct {
-	c  *lxc.Container
-	id int
+	c    *lxc.Container
+	id   int
+	name string
 }
 
 func (c *lxdContainer) Start() error {
@@ -294,7 +300,7 @@ func (c *lxdContainer) Stop() error {
 }
 
 func (c *lxdContainer) Unfreeze() error {
-	return c.Unfreeze()
+	return c.c.Unfreeze()
 }
 
 func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
@@ -373,6 +379,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		return nil, err
 	}
 
+	d.name = name
 	d.c = c
 
 	return d, nil
@@ -423,7 +430,7 @@ var containerStateCmd = Command{name: "containers/{name}/state", get: containerS
 
 func containerFileHandler(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := lxc.NewContainer(name, d.lxcpath)
+	c, err := newLxdContainer(name, d)
 	if err != nil {
 		return NotFound
 	}
@@ -434,14 +441,14 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	}
 
 	var rootfs string
-	if c.Running() {
-		rootfs = fmt.Sprintf("/proc/%d/root", c.InitPid())
+	if c.c.Running() {
+		rootfs = fmt.Sprintf("/proc/%d/root", c.c.InitPid())
 	} else {
 		/*
 		 * TODO: We should ask LXC about whether or not this rootfs is a block
 		 * device, and if it is, whether or not it is actually mounted.
 		 */
-		rootfs = c.ConfigItem("lxc.rootfs")[0]
+		rootfs = shared.VarPath("lxc", name, "rootfs")
 	}
 
 	/*
@@ -537,63 +544,81 @@ func containerFilePut(r *http.Request, p string) Response {
 
 var containerFileCmd = Command{name: "containers/{name}/files", get: containerFileHandler, put: containerFileHandler}
 
-func snapshotsDir(c *lxc.Container) string {
-	return shared.VarPath("lxc", c.Name(), "snapshots")
+func snapshotsDir(c *lxdContainer) string {
+	return shared.VarPath("lxc", c.name, "snapshots")
 }
 
-func snapshotDir(c *lxc.Container, name string) string {
+func snapshotDir(c *lxdContainer, name string) string {
 	return path.Join(snapshotsDir(c), name)
 }
 
-func snapshotStateDir(c *lxc.Container, name string) string {
+func snapshotStateDir(c *lxdContainer, name string) string {
 	return path.Join(snapshotDir(c, name), "state")
 }
 
-func snapshotRootfsDir(c *lxc.Container, name string) string {
+func snapshotRootfsDir(c *lxdContainer, name string) string {
 	return path.Join(snapshotDir(c, name), "rootfs")
 }
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	name := mux.Vars(r)["name"]
-	c, err := lxc.NewContainer(name, d.lxcpath)
+
+	regexp := fmt.Sprintf("%s/", name)
+	length := len(regexp)
+	rows, err := d.db.Query("SELECT name FROM containers WHERE type=1 AND SUBSTR(name,1,%d)=%s*",
+		length, regexp)
 	if err != nil {
 		return InternalError(err)
 	}
-
-	if !c.Defined() {
-		return NotFound
-	}
-
-	files, err := ioutil.ReadDir(snapshotsDir(c))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return SyncResponse(true, []shared.Jmap{})
-		}
-		return InternalError(err)
-	}
+	defer rows.Close()
 
 	var body []string
 
-	for _, file := range files {
-		if file.IsDir() {
-			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, c.Name(), path.Base(file.Name()))
-			body = append(body, url)
-		}
+	for rows.Next() {
+		var name string
+		rows.Scan(&name)
+		url := fmt.Sprintf("/1.0/containers/%s", name)
+		body = append(body, url)
 	}
 
 	return SyncResponse(true, body)
 }
 
+/*
+ * Note, the code below doesn't deal with snapshots of snapshots.
+ * To do that, we'll need to weed out based on # slashes in names
+ */
+func nextSnapshot(d *Daemon, name string) int {
+	base := fmt.Sprintf("%s/", name)
+	length := len(base)
+	q := fmt.Sprintf("SELECT MAX(id) FROM containers WHERE type=1 AND SUBSTR(name,1,%d)=%s",
+		length, base)
+	rows, err := d.db.Query(q)
+	if err != nil {
+		return 0
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var tmp int
+		rows.Scan(&tmp)
+		return tmp
+	}
+	return 0
+}
+
 func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := lxc.NewContainer(name, d.lxcpath)
+
+	/*
+	 * snapshot is a three step operation:
+	 * 1. choose a new name
+	 * 2. copy the database info over
+	 * 3. copy over the rootfs
+	 */
+	c, err := newLxdContainer(name, d)
 	if err != nil {
 		return InternalError(err)
-	}
-
-	if !c.Defined() {
-		return NotFound
 	}
 
 	raw := shared.Jmap{}
@@ -603,7 +628,9 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	snapshotName, err := raw.GetString("name")
 	if err != nil {
-		return BadRequest(err)
+		// come up with a name
+		i := nextSnapshot(d, name)
+		snapshotName = fmt.Sprintf("%s/snap%d", name, i)
 	}
 
 	stateful, err := raw.GetBool("stateful")
@@ -618,26 +645,37 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	snapshot := func() error {
 
+		snapDir := snapshotStateDir(c, snapshotName)
+		if shared.PathExists(snapDir) {
+			return fmt.Errorf("Snapshot directory exists")
+		}
+		err = os.MkdirAll(snapDir, 0700)
+		if err != nil {
+			return fmt.Errorf("Error creating rootfs directory")
+		}
 		if stateful {
-			dir := snapshotStateDir(c, snapshotName)
-			err := os.MkdirAll(dir, 0700)
-			if err != nil {
-				return err
+			// TODO - shouldn't we freeze for the duration of rootfs snapshot below?
+			if !c.c.Running() {
+				return fmt.Errorf("Container not running\n")
 			}
-
-			opts := lxc.CheckpointOptions{Directory: dir, Stop: true, Verbose: true}
-			if err := c.Checkpoint(opts); err != nil {
+			opts := lxc.CheckpointOptions{Directory: snapDir, Stop: true, Verbose: true}
+			if err := c.c.Checkpoint(opts); err != nil {
 				return err
 			}
 		}
 
-		/*
-		 * TODO: Giving the Best backend here doesn't work, but that's
-		 * what we want. So for now we use the default, which is just
-		 * the directory backend.
-		 */
-		opts := lxc.CloneOptions{ConfigPath: snapshotsDir(c), KeepName: false, KeepMAC: true}
-		return c.Clone(snapshotName, opts)
+		/* Create the db info */
+		//cId, err := dbCreateContainer(d, snapshotName, cTypeSnapshot)
+		_, err := dbCreateContainer(d, snapshotName, cTypeSnapshot)
+
+		/* todo - copy over the container_config items */
+
+		/* Create the directory and rootfs, set perms */
+		/* Copy the rootfs */
+		oldPath := shared.VarPath("lxc", name, "rootfs")
+		newPath := fmt.Sprintf("%s/%s", snapDir, "rootfs")
+		err = exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
+		return err
 	}
 
 	return AsyncResponse(shared.OperationWrap(snapshot), nil)
@@ -647,13 +685,9 @@ var containerSnapshotsCmd = Command{name: "containers/{name}/snapshots", get: co
 
 func snapshotHandler(d *Daemon, r *http.Request) Response {
 	containerName := mux.Vars(r)["name"]
-	c, err := lxc.NewContainer(containerName, d.lxcpath)
+	c, err := newLxdContainer(containerName, d)
 	if err != nil {
 		return InternalError(err)
-	}
-
-	if !c.Defined() {
-		return NotFound
 	}
 
 	snapshotName := mux.Vars(r)["snapshotName"]
@@ -676,13 +710,13 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	}
 }
 
-func snapshotGet(c *lxc.Container, name string) Response {
+func snapshotGet(c *lxdContainer, name string) Response {
 	_, err := os.Stat(snapshotStateDir(c, name))
 	body := shared.Jmap{"name": name, "stateful": err == nil}
 	return SyncResponse(true, body)
 }
 
-func snapshotPost(r *http.Request, c *lxc.Container, oldName string) Response {
+func snapshotPost(r *http.Request, c *lxdContainer, oldName string) Response {
 	raw := shared.Jmap{}
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		return BadRequest(err)
@@ -713,7 +747,7 @@ func snapshotPost(r *http.Request, c *lxc.Container, oldName string) Response {
 	return AsyncResponse(shared.OperationWrap(rename), nil)
 }
 
-func snapshotDelete(c *lxc.Container, name string) Response {
+func snapshotDelete(c *lxdContainer, name string) Response {
 	dir := snapshotDir(c, name)
 	remove := func() error { return os.RemoveAll(dir) }
 	return AsyncResponse(shared.OperationWrap(remove), nil)

@@ -1,8 +1,4 @@
 test_snapshots() {
-# lxd/containers.go snapshot functions need to be converted
-# to using the db
-  return
-
   shasum=`sha256sum ubuntu*.xz | awk '{ print $1 }'`
 
   lxc init $shasum foo
