@@ -399,6 +399,23 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	if err != nil {
 		return nil, err
 	}
+	/* net config */
+	err = c.SetConfigItem("lxc.network.type", "veth")
+	if err != nil {
+		return nil, err
+	}
+	err = c.SetConfigItem("lxc.network.link", "lxcbr0")
+	if err != nil {
+		return nil, err
+	}
+	err = c.SetConfigItem("lxc.network.flags", "up")
+	if err != nil {
+		return nil, err
+	}
+	err = c.SetConfigItem("lxc.network.hwaddr", "00:16:3e:xx:xx:xx")
+	if err != nil {
+		return nil, err
+	}
 
 	d.name = name
 	d.c = c
