@@ -44,7 +44,7 @@ type containerPostReq struct {
 }
 
 func containersGet(d *Daemon, r *http.Request) Response {
-	q := fmt.Sprintf("SELECT name FROM containers")
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=%d", cTypeRegular)
 	rows, err := d.db.Query(q)
 	if err != nil {
 		return InternalError(err)
