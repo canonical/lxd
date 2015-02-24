@@ -693,7 +693,8 @@ Input:
 
     {
         'description': "The alias description",
-        'target': "SHA-256"
+        'target': "SHA-256",
+        'name': "alias-name"
     }
 
 ## /1.0/images/aliases/\<name\>
