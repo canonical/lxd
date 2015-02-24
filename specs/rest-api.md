@@ -447,7 +447,7 @@ The following headers will be set (on top of standard size and mimetype headers)
 
 This is designed to be easily usable from the command line or even a web browser.
 
-### PUT
+### POST
  * Description: upload a file to the container
  * Authentication: trusted
  * Operation: sync
@@ -584,8 +584,8 @@ This never returns. Each notification is sent as a separate JSON dict:
     }
 
 
-## /1.0/images?key=value&key1=value1...
-### GET
+## /1.0/images
+### GET (?key=value&key1=value1...)
  * Description: list of images (public or private)
  * Authentication: guest or trusted
  * Operation: sync
@@ -594,7 +594,7 @@ This never returns. Each notification is sent as a separate JSON dict:
 Filtering can be done by specifying a list of key and values in the
 query URL.
 
-### PUT
+### POST
  * Description: create and publish a new image
  * Authentication: trusted
  * Operation: async
@@ -683,7 +683,7 @@ TODO: examples
  * Operation: sync
  * Return: list of URLs for aliases this server knows about
 
-### PUT
+### POST
  * Description: create a new alias
  * Authentication: trusted
  * Operation: sync
@@ -849,7 +849,7 @@ Input (wait for the operation to succeed or timeout): ?status\_code=200&timeout=
  * Operation: sync
  * Return: list of URLs to defined profiles
 
-### PUT
+### POST
  * Description: define a new profile
  * Authentication: trusted
  * Operation: sync
