@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 
 	//"github.com/uli-go/xz/lzma"
+	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -83,12 +85,12 @@ func imagesPut(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	stmt, err := tx.Prepare("INSERT INTO images (fingerprint, filename, size, public, architecture, upload_date) VALUES (?, ?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, upload_date) VALUES (?, ?, ?, ?, ?, strftime("%s"))`)
 	if err != nil {
 		return InternalError(err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(uuid, tarname, size, public, arch, "now")
+	_, err = stmt.Exec(uuid, tarname, size, public, arch)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -182,3 +184,91 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 }
 
 var imagesCmd = Command{name: "images", put: imagesPut, get: imagesGet}
+
+func imageDelete(d *Daemon, r *http.Request) Response {
+	shared.Debugf("responding to image:delete")
+
+	uuid := mux.Vars(r)["name"]
+	uuidfname := shared.VarPath("images", uuid)
+	err := os.Remove(uuidfname)
+	if err != nil {
+		shared.Debugf("Error deleting image file %s: %s\n", uuidfname, err)
+	}
+
+	_, _ = d.db.Exec("DELETE FROM images WHERE fingerprint=?", uuid)
+
+	return EmptySyncResponse
+}
+
+var imageCmd = Command{name: "images/{name}", delete: imageDelete}
+
+type aliasPostReq struct {
+	Name        string `json:"name"`
+	Description string `json:"descriptoin"`
+	Target      string `json:"target"`
+}
+
+func aliasesPost(d *Daemon, r *http.Request) Response {
+	shared.Debugf("responding to images/aliases:put")
+
+	req := aliasPostReq{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	if req.Name == "" || req.Target == "" {
+		return BadRequest(fmt.Errorf("name and target are required"))
+	}
+	if req.Description == "" {
+		req.Description = req.Name
+	}
+
+	_, _, err := dbAliasGet(d, req.Name)
+	if err == nil {
+		return BadRequest(fmt.Errorf("alias exists"))
+	}
+
+	iId, err := dbImageGet(d, req.Target)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	err = dbAddAlias(d, req.Name, iId, req.Description)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	return EmptySyncResponse
+}
+
+func aliasesGet(d *Daemon, r *http.Request) Response {
+	shared.Debugf("responding to images/aliases:get")
+
+	rows, err := d.db.Query("SELECT name FROM images_aliases")
+	if err != nil {
+		return BadRequest(err)
+	}
+	defer rows.Close()
+	result := make([]string, 0)
+	for rows.Next() {
+		var name string
+		rows.Scan(&name)
+		url := fmt.Sprintf("/1.0/images/aliases/%s", name)
+		result = append(result, url)
+	}
+
+	return SyncResponse(true, result)
+}
+
+func aliasDelete(d *Daemon, r *http.Request) Response {
+	shared.Debugf("responding to images/aliases:delete")
+
+	name := mux.Vars(r)["name"]
+	_, _ = d.db.Exec("DELETE FROM images_aliases WHERE name=?", name)
+
+	return EmptySyncResponse
+}
+
+var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
+
+var aliasCmd = Command{name: "images/aliases/{name}", delete: aliasDelete}

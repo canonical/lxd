@@ -18,12 +18,79 @@ func (c *imageCmd) usage() string {
 		"lxc image import <tarball> [target] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n" +
 			"\n" +
 			"lxc image list [resource:] [filter]\n" +
+			"lxc image delete [resource:]<image>\n" +
 			"\n" +
 			"Lists the images at resource, or local images.\n" +
-			"Filters are not yet supported.\n")
+			"Filters are not yet supported.\n" +
+			"\n" +
+			"lxc image alias list [resource:]\n" +
+			"lxc image alias create <alias> <target>\n" +
+			"lxc image alias delete <alias>\n" +
+			"list, create, delete image aliases\n")
 }
 
 func (c *imageCmd) flags() {}
+
+func doImageAlias(config *lxd.Config, args []string) error {
+	var remote string
+	switch args[1] {
+	case "list":
+		/* alias list [<remote>:] */
+		if len(args) > 2 {
+			remote, _ = config.ParseRemoteAndContainer(args[2])
+		} else {
+			remote = ""
+		}
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+
+		resp, err := d.ListAliases()
+		if err != nil {
+			return err
+		}
+
+		for _, alias := range resp {
+			/* /1.0/images/aliases/ALIAS_NAME */
+			prefix := "/1.0/images/aliases/"
+			offset := len(prefix)
+			if len(alias) < offset+1 {
+				fmt.Printf(gettext.Gettext("(Bad alias entry: %s\n"), alias)
+			} else {
+				fmt.Println(alias[offset:])
+			}
+		}
+		return nil
+	case "create":
+		/* alias create [<remote>:]<alias> <target> */
+		if len(args) < 4 {
+			return errArgs
+		}
+		remote, alias := config.ParseRemoteAndContainer(args[2])
+		target := args[3]
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+		/* TODO - what about description? */
+		err = d.PostAlias(alias, alias, target)
+		return err
+	case "delete":
+		/* alias delete [<remote>:]<alias> */
+		if len(args) < 3 {
+			return errArgs
+		}
+		remote, alias := config.ParseRemoteAndContainer(args[2])
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+		err = d.DeleteAlias(alias)
+		return err
+	}
+	return errArgs
+}
 
 func (c *imageCmd) run(config *lxd.Config, args []string) error {
 	var remote string
@@ -33,6 +100,23 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	switch args[0] {
+	case "alias":
+		if len(args) < 2 {
+			return errArgs
+		}
+		return doImageAlias(config, args)
+	case "delete":
+		/* delete [<remote>:]<image> */
+		if len(args) < 2 {
+			return errArgs
+		}
+		remote, image := config.ParseRemoteAndContainer(args[1])
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+		err = d.DeleteImage(image)
+		return err
 	case "import":
 		if len(args) < 2 {
 			return errArgs
@@ -82,10 +166,13 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		for _, image := range resp {
-			if len(image) < 13 {
+			/* /1.0/images/IMAGE_NAME */
+			prefix := "/1.0/images/"
+			offset := len(prefix)
+			if len(image) < offset+1 {
 				fmt.Printf(gettext.Gettext("(Bad image entry: %s\n"), image)
 			} else {
-				fmt.Println(image[12:])
+				fmt.Println(image[offset:])
 			}
 		}
 		return nil

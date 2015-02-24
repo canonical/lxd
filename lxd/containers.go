@@ -177,7 +177,15 @@ func dbRemoveContainer(d *Daemon, name string) {
 }
 
 func dbGetImageId(d *Daemon, image string) (int, string, error) {
-	/* todo - look at aliases */
+	/* is image an alias/ */
+	_, iId, err := dbAliasGet(d, image)
+	if err == nil {
+		uuid, err := dbImageGetById(d, iId)
+		if err != nil {
+			return 0, "", fmt.Errorf("Stale alias")
+		}
+		return iId, uuid, nil
+	}
 	rows, err := d.db.Query("SELECT id, fingerprint FROM images WHERE fingerprint=?", image)
 	if err != nil {
 		return 0, "", err
