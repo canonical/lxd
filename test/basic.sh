@@ -29,4 +29,9 @@ test_basic_usage() {
   # cleanup
   lxc stop foo
   lxc delete foo
+
+  # now, make sure create type 'none' works
+  mkdir -p "${LXD_DIR}/lxc/nonetype"
+  wait_for my_curl -X POST $BASEURL/1.0/containers -d '{"name": "nonetype", "source": {"type": "none"}}'
+  rm -rf "${LXD_DIR}/lxc/nonetype"
 }
