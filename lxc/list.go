@@ -5,7 +5,7 @@ import (
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
-//	"github.com/olekukonko/tablewriter"
+	//	"github.com/olekukonko/tablewriter"
 )
 
 type listCmd struct{}
@@ -51,7 +51,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 
 	for _, ct := range cts {
 		// get more information
-		c , err := d.ContainerStatus(ct)
+		c, err := d.ContainerStatus(ct)
 		if err == nil {
 			fmt.Printf("%s: %s\n", ct, c.Status.State)
 		} else {
