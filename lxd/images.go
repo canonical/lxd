@@ -101,7 +101,11 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	 * containers_properties table
 	 */
 
-	return EmptySyncResponse
+	metadata := make(map[string]string)
+	metadata["fingerprint"] = uuid
+	metadata["size"] = strconv.FormatInt(size, 10)
+
+	return SyncResponse(true, metadata)
 }
 
 func xzReader(r io.Reader) io.ReadCloser {
