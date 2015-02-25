@@ -26,7 +26,7 @@ func getSize(f *os.File) (int64, error) {
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
-	shared.Debugf("responding to images:put")
+	shared.Debugf("responding to images:post")
 
 	public, err := strconv.Atoi(r.Header.Get("X-LXD-public"))
 	tarname := r.Header.Get("X-LXD-filename")
