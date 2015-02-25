@@ -884,3 +884,50 @@ func (c *Client) Snapshot(container string, snapshotName string, stateful bool) 
 
 	return resp, nil
 }
+
+func (c *Client) ListSnapshots(container string) ([]string, error) {
+	qUrl := fmt.Sprintf("containers/%s/snapshots", container)
+	resp, err := c.get(qUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
+	}
+	var result []string
+
+	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+		return nil, err
+	}
+
+	names := []string{}
+
+	for _, url := range result {
+		// /1.0/containers/name/snapshot
+		// snapshot can have '/' in it
+		apart := strings.SplitN(url, "/", 5)
+		if len(apart) < 4 {
+			return nil, fmt.Errorf(gettext.Gettext("bad container url %s"), url)
+		}
+		version := apart[1]
+		cname := apart[3]
+		name := apart[4]
+
+		if cname != container || apart[2] != "containers" {
+			return nil, fmt.Errorf(gettext.Gettext("bad container url %s"), url)
+		}
+
+		if version != shared.APIVersion {
+			return nil, fmt.Errorf(gettext.Gettext("bad version in container url"))
+		}
+
+		names = append(names, name)
+	}
+
+	return names, nil
+}
