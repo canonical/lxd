@@ -1,14 +1,20 @@
 test_basic_usage() {
-  if ! lxc image alias list | grep -q ^ubuntu$; then
-    ../scripts/lxd-images import lxc ubuntu trusty amd64 --alias ubuntu
+  if ! lxc image alias list | grep -q ^testimage$; then
+    if [ -e "$LXD_TEST_IMAGE" ]; then
+        IMAGE_SHA256=$(sha256sum "$LXD_TEST_IMAGE" | cut -d ' ' -f1)
+        lxc image import $LXD_TEST_IMAGE
+        lxc image alias create testimage $IMAGE_SHA256
+    else
+        ../scripts/lxd-images import lxc ubuntu trusty amd64 --alias testimage
+    fi
   fi
 
-  lxc launch ubuntu foo
+  lxc launch testimage foo
   # should fail if foo isn't running
   lxc stop foo
   lxc delete foo
 
-  lxc init ubuntu foo
+  lxc init testimage foo
 
   # did it get created?
   lxc list | grep foo
