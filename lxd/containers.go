@@ -226,11 +226,13 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType) (int, error)
 		ctype)
 	stmt, err := tx.Prepare(str)
 	if err != nil {
+		tx.Rollback()
 		return 0, err
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(name)
 	if err != nil {
+		tx.Rollback()
 		return 0, err
 	}
 	tx.Commit()
