@@ -87,11 +87,13 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, upload_date) VALUES (?, ?, ?, ?, ?, strftime("%s"))`)
 	if err != nil {
+		tx.Rollback()
 		return InternalError(err)
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(uuid, tarname, size, public, arch)
 	if err != nil {
+		tx.Rollback()
 		return InternalError(err)
 	}
 	tx.Commit()

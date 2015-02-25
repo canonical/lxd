@@ -216,6 +216,7 @@ func dbAliasGet(d *Daemon, name string) (int, int, error) {
 	if err != nil {
 		return 0, 0, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var id int
