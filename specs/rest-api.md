@@ -534,7 +534,8 @@ HTTP code for this should be 202 (Accepted).
 Input (run bash):
 
     {
-        'command': ["/bin/bash"],
+        'command': ["/bin/bash"],   # Command and arguments
+        'environment': {},          # Optional extra environment variables to set
         'wait-for-websocket': false
     }
 
