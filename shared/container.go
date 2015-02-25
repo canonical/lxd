@@ -5,8 +5,8 @@ import (
 )
 
 type ContainerStatus struct {
-	State     string    `json:"state"`
-	StateCode lxc.State `json:"state_code"`
+	State     string    `json:"status"`
+	StateCode lxc.State `json:"status_code"`
 }
 
 func NewStatus(state lxc.State) ContainerStatus {
