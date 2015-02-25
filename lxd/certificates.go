@@ -97,11 +97,13 @@ func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 	fingerprint := shared.GenerateFingerprint(cert)
 	stmt, err := tx.Prepare("INSERT INTO certificates (fingerprint,type,name,certificate) VALUES (?, ?, ?, ?)")
 	if err != nil {
+		tx.Rollback()
 		return err
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(fingerprint, 1, host, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
 	if err != nil {
+		tx.Rollback()
 		return err
 	}
 	tx.Commit()

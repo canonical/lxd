@@ -251,9 +251,6 @@ func (d *Daemon) Stop() error {
 	if d.tcpl != nil {
 		d.tcpl.Close()
 	}
-	if d.db != nil {
-		d.db.Close()
-	}
 	err := d.tomb.Wait()
 	if err == errStop {
 		return nil
