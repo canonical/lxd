@@ -113,51 +113,116 @@ func ReaderToChannel(r io.Reader) <-chan []byte {
 	return ch
 }
 
-func WebsocketMirror(conn *websocket.Conn, w io.Writer, r io.ReadCloser) {
-	done := make(chan bool, 1)
+func WebsocketSendStream(conn *websocket.Conn, r io.Reader) chan bool {
+	ch := make(chan bool)
 
-	go func() {
+	go func(conn *websocket.Conn, r io.Reader) {
+		in := ReaderToChannel(r)
 		for {
-			select {
-			case <-done:
-				return
-			default:
+			buf, ok := <-in
+			if !ok {
 				break
 			}
 
+			w, err := conn.NextWriter(websocket.BinaryMessage)
+			if err != nil {
+				Debugf("got error getting next writer %s", err)
+				break
+			}
+
+			_, err = w.Write(buf)
+			w.Close()
+			if err != nil {
+				Debugf("got err writing %s", err)
+				break
+			}
+		}
+		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+		conn.WriteMessage(websocket.CloseMessage, closeMsg)
+		ch <- true
+	}(conn, r)
+
+	return ch
+}
+
+func WebsocketRecvStream(w io.WriteCloser, conn *websocket.Conn) chan bool {
+	ch := make(chan bool)
+
+	go func(w io.WriteCloser, conn *websocket.Conn) {
+		for {
 			mt, r, err := conn.NextReader()
 			if mt == websocket.CloseMessage {
+				Debugf("got close message for reader")
 				break
 			}
 
 			if err != nil {
-				Debugf("got error getting next reader %s", err)
+				Debugf("got error getting next reader %s, %s", err, w)
 				break
 			}
-			_, err = io.Copy(w, r)
+
+			buf, err := ioutil.ReadAll(r)
 			if err != nil {
 				Debugf("got error writing to writer %s", err)
 				break
 			}
+
+			i, err := w.Write(buf)
+			if i != len(buf) {
+				Debugf("didn't write all of buf")
+				break
+			}
+			if err != nil {
+				Debugf("error writing buf %s", err)
+				break
+			}
 		}
+		ch <- true
+	}(w, conn)
 
-		done <- true
+	return ch
+}
+
+func WebsocketMirror(conn *websocket.Conn, w io.Writer, r io.ReadCloser) (chan bool, chan bool) {
+	readDone := make(chan bool)
+	writeDone := make(chan bool)
+
+	go func(conn *websocket.Conn, w io.Writer) {
+		for {
+			mt, r, err := conn.NextReader()
+			if mt == websocket.CloseMessage {
+				Debugf("got close message for reader")
+				break
+			}
+
+			if err != nil {
+				Debugf("got error getting next reader %s, %s", err, w)
+				break
+			}
+			buf, err := ioutil.ReadAll(r)
+			if err != nil {
+				Debugf("got error writing to writer %s", err)
+				break
+			}
+			i, err := w.Write(buf)
+			if i != len(buf) {
+				Debugf("didn't write all of buf")
+			}
+			if err != nil {
+				Debugf("error writing buf %s", err)
+			}
+		}
 		r.Close()
-		conn.Close()
-	}()
+		readDone <- true
+		close(readDone)
+	}(conn, w)
 
-	in := ReaderToChannel(r)
-
-	for {
-		select {
-		case <-done:
-			return
-		case buf, ok := <-in:
+	go func(conn *websocket.Conn, r io.ReadCloser) {
+		in := ReaderToChannel(r)
+		for {
+			buf, ok := <-in
 			if !ok {
-				done <- true
-				conn.WriteMessage(websocket.CloseMessage, []byte{})
-				conn.Close()
-				return
+				break
 			}
 			w, err := conn.NextWriter(websocket.BinaryMessage)
 			if err != nil {
@@ -172,7 +237,13 @@ func WebsocketMirror(conn *websocket.Conn, w io.Writer, r io.ReadCloser) {
 				break
 			}
 		}
-	}
+		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+		conn.WriteMessage(websocket.CloseMessage, closeMsg)
+		writeDone <- true
+		close(writeDone)
+	}(conn, r)
+
+	return readDone, writeDone
 }
 
 // Returns a random base64 encoded string from crypto/rand.
