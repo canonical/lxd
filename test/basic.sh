@@ -1,6 +1,6 @@
 test_basic_usage() {
   if ! lxc image alias list | grep -q ^ubuntu$; then
-    scripts/lxd-images import lxc ubuntu trusty amd64 --alias ubuntu
+    ../scripts/lxd-images import lxc ubuntu trusty amd64 --alias ubuntu
   fi
 
   lxc launch ubuntu foo
