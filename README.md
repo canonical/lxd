@@ -78,10 +78,15 @@ Now you can run the daemon:
 
 LXD has two parts, the daemon (the `lxd` binary), and the client (the `lxc`
 binary). Now that the daemon is all configured and running (either via the
-packaging or via the from-source instructions above), you can start your first
-container:
+packaging or via the from-source instructions above), you can import some images:
+
+    scripts/lxd-image import lxc ubuntu trusty amd64 --alias ubuntu --alias ubuntu/trusty --alias ubuntu/trusty/amd64
+    scripts/lxd-image import lxc debian wheezy amd64 --alias debian --alias debian/wheezy --alias debian/wheezy/amd64
+
+With those two images imported into LXD, you can now start containers:
 
     lxc launch ubuntu
+    lxc launch debian debian01
 
 ## Bug reports
 
