@@ -84,7 +84,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		 * viz. github issue #206.
 		 */
 		kernelVersion := ""
-		for _, c := range uname.Sysname {
+		for _, c := range uname.Release {
 			if c == 0 {
 				break
 			}
