@@ -25,7 +25,7 @@ func getSize(f *os.File) (int64, error) {
 	return fi.Size(), nil
 }
 
-func imagesPut(d *Daemon, r *http.Request) Response {
+func imagesPost(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to images:put")
 
 	public, err := strconv.Atoi(r.Header.Get("X-LXD-public"))
@@ -183,7 +183,7 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, result)
 }
 
-var imagesCmd = Command{name: "images", put: imagesPut, get: imagesGet}
+var imagesCmd = Command{name: "images", post: imagesPost, get: imagesGet}
 
 func imageDelete(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to image:delete")

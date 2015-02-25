@@ -454,7 +454,7 @@ func (c *Client) ListContainers() ([]string, error) {
 	return names, nil
 }
 
-func (c *Client) PutImage(filename string) (*Response, error) {
+func (c *Client) PostImage(filename string) (*Response, error) {
 	uri := c.url(shared.APIVersion, "images")
 
 	f, err := os.Open(filename)
@@ -463,7 +463,7 @@ func (c *Client) PutImage(filename string) (*Response, error) {
 	}
 	defer f.Close()
 
-	req, err := http.NewRequest("PUT", uri, f)
+	req, err := http.NewRequest("POST", uri, f)
 	if err != nil {
 		return nil, err
 	}
@@ -768,7 +768,7 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 	query := url.Values{"path": []string{p}}
 	uri := c.url(shared.APIVersion, "containers", container, "files") + "?" + query.Encode()
 
-	req, err := http.NewRequest("PUT", uri, buf)
+	req, err := http.NewRequest("POST", uri, buf)
 	if err != nil {
 		return err
 	}

@@ -140,7 +140,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		_, err = d.PutImage(imagefile)
+		_, err = d.PostImage(imagefile)
 		if err != nil {
 			return err
 		}
