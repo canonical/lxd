@@ -63,9 +63,15 @@ func run() error {
 	}
 
 	d, err := StartDaemon(*listenAddr)
+
 	if err != nil {
+		if d.db != nil {
+			d.db.Close()
+		}
 		return err
 	}
+
+	defer d.db.Close()
 
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT)
