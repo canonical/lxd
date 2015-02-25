@@ -1,17 +1,14 @@
 test_basic_usage() {
-  # import a tarball
-  if [ ! -f ubuntu-*.xz ]; then
-	  $SRC_DIR/../make_lxc_tarball.sh ubuntu trusty
-	  test -f ubuntu-*.xz
+  if ! lxc image alias list | grep -q ^ubuntu$; then
+    scripts/lxd-images import lxc ubuntu trusty amd64 --alias ubuntu
   fi
-  shasum=`sha256sum ubuntu*.xz | awk '{ print $1 }'`
-  lxc image import ubuntu*.xz
-  lxc launch $shasum foo
+
+  lxc launch ubuntu foo
   # should fail if foo isn't running
   lxc stop foo --force  # stop is hanging
   lxc delete foo
 
-  lxc init $shasum foo
+  lxc init ubuntu foo
 
   # did it get created?
   lxc list | grep foo
