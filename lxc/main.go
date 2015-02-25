@@ -104,6 +104,7 @@ var commands = map[string]command{
 	"finger":   &fingerCmd{},
 	"help":     &helpCmd{},
 	"image":    &imageCmd{},
+	"info":     &infoCmd{},
 	"init":     &initCmd{},
 	"launch":   &launchCmd{},
 	"list":     &listCmd{},
