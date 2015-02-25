@@ -635,7 +635,7 @@ func (c *Client) CertificateRemove(fingerprint string) error {
 
 func (c *Client) Init(name string, image string) (*Response, error) {
 
-	source := shared.Jmap{"type": "local", "name": image}
+	source := shared.Jmap{"type": "image", "name": image}
 	body := shared.Jmap{"source": source}
 
 	if name != "" {
