@@ -356,6 +356,11 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		return nil, err
 	}
 
+	err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/ubuntu.userns.conf")
+	if err != nil {
+		return nil, err
+	}
+
 	var txtarch string
 	switch arch {
 	case 0:
