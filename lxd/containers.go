@@ -508,7 +508,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	switch r.Method {
 	case "GET":
 		return containerFileGet(r, p)
-	case "PUT":
+	case "POST":
 		return containerFilePut(r, p)
 	default:
 		return NotFound
@@ -588,7 +588,7 @@ func containerFilePut(r *http.Request, p string) Response {
 	return EmptySyncResponse
 }
 
-var containerFileCmd = Command{name: "containers/{name}/files", get: containerFileHandler, put: containerFileHandler}
+var containerFileCmd = Command{name: "containers/{name}/files", get: containerFileHandler, post: containerFileHandler}
 
 func snapshotsDir(c *lxdContainer) string {
 	return shared.VarPath("lxc", c.name, "snapshots")

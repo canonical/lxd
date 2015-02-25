@@ -25,7 +25,7 @@ func getSize(f *os.File) (int64, error) {
 	return fi.Size(), nil
 }
 
-func imagesPut(d *Daemon, r *http.Request) Response {
+func imagesPost(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to images:put")
 
 	public, err := strconv.Atoi(r.Header.Get("X-LXD-public"))
@@ -101,7 +101,11 @@ func imagesPut(d *Daemon, r *http.Request) Response {
 	 * containers_properties table
 	 */
 
-	return EmptySyncResponse
+	metadata := make(map[string]string)
+	metadata["fingerprint"] = uuid
+	metadata["size"] = strconv.FormatInt(size, 10)
+
+	return SyncResponse(true, metadata)
 }
 
 func xzReader(r io.Reader) io.ReadCloser {
@@ -183,7 +187,7 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, result)
 }
 
-var imagesCmd = Command{name: "images", put: imagesPut, get: imagesGet}
+var imagesCmd = Command{name: "images", post: imagesPost, get: imagesGet}
 
 func imageDelete(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to image:delete")
@@ -195,6 +199,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		shared.Debugf("Error deleting image file %s: %s\n", uuidfname, err)
 	}
 
+	_, _ = d.db.Exec("DELETE FROM images_aliases WHERE image_id=(SELECT id FROM images WHERE fingerprint=?);", uuid)
 	_, _ = d.db.Exec("DELETE FROM images WHERE fingerprint=?", uuid)
 
 	return EmptySyncResponse
@@ -271,4 +276,4 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 
-var aliasCmd = Command{name: "images/aliases/{name}", delete: aliasDelete}
+var aliasCmd = Command{name: "images/aliases/{name:.*}", delete: aliasDelete}
