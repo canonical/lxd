@@ -275,4 +275,4 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 
-var aliasCmd = Command{name: "images/aliases/{name}", delete: aliasDelete}
+var aliasCmd = Command{name: "images/aliases/{name:.*}", delete: aliasDelete}
