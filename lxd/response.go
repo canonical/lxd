@@ -66,7 +66,7 @@ type async struct {
 type asyncResponse struct {
 	run        func() shared.OperationResult
 	cancel     func() error
-	ws         shared.OperationSocket
+	ws         shared.OperationWebsocket
 	containers []string
 }
 
@@ -83,7 +83,7 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 
 	body := async{Type: lxd.Async, Status: shared.OK.String(), StatusCode: shared.OK, Operation: op}
 	if r.ws != nil {
-		body.Metadata = shared.Jmap{"websocket_secret": r.ws.Secret()}
+		body.Metadata = r.ws.Metadata()
 	}
 
 	if r.containers != nil && len(r.containers) > 0 {
@@ -102,11 +102,11 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 }
 
 func AsyncResponse(run func() shared.OperationResult, cancel func() error) Response {
-	return AsyncResponseWithWs(run, cancel, nil)
+	return &asyncResponse{run: run, cancel: cancel}
 }
 
-func AsyncResponseWithWs(run func() shared.OperationResult, cancel func() error, ws shared.OperationSocket) Response {
-	return &asyncResponse{run, cancel, ws, nil}
+func AsyncResponseWithWs(ws shared.OperationWebsocket, cancel func() error) Response {
+	return &asyncResponse{run: ws.Do, cancel: cancel, ws: ws}
 }
 
 type ErrorResponse struct {
