@@ -58,5 +58,25 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 			fmt.Printf("%s: Unknown\n", ct)
 		}
 	}
+
+	// List snapshots
+	found_snapshots := false
+	fmt.Printf("\nSnapshots:")
+	for _, ct := range cts {
+		// get more information
+		snaps, err := d.ListSnapshots(ct)
+		if err != nil {
+			continue
+		}
+		for _, snap := range snaps {
+			fmt.Printf("\n  %s: %s", ct, snap)
+			found_snapshots = true
+		}
+	}
+
+	if !found_snapshots {
+		fmt.Printf(" (none)")
+	}
+	fmt.Printf("\n")
 	return nil
 }

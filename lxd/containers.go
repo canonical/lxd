@@ -603,11 +603,11 @@ func snapshotRootfsDir(c *lxdContainer, name string) string {
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
-	name := mux.Vars(r)["name"]
+	cname := mux.Vars(r)["name"]
 
-	regexp := fmt.Sprintf("%s/", name)
+	regexp := fmt.Sprintf("%s/", cname)
 	length := len(regexp)
-	rows, err := d.db.Query("SELECT name FROM containers WHERE type=1 AND SUBSTR(name,1,%d)=%s*",
+	rows, err := d.db.Query("SELECT name FROM containers WHERE type=1 AND SUBSTR(name,1,?)=?",
 		length, regexp)
 	if err != nil {
 		return InternalError(err)
@@ -619,7 +619,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	for rows.Next() {
 		var name string
 		rows.Scan(&name)
-		url := fmt.Sprintf("/1.0/containers/%s", name)
+		url := fmt.Sprintf("/1.0/containers/%s/%s", cname, name)
 		body = append(body, url)
 	}
 
