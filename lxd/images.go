@@ -199,6 +199,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		shared.Debugf("Error deleting image file %s: %s\n", uuidfname, err)
 	}
 
+	_, _ = d.db.Exec("DELETE FROM images_aliases WHERE image_id=(SELECT id FROM images WHERE fingerprint=?);", uuid)
 	_, _ = d.db.Exec("DELETE FROM images WHERE fingerprint=?", uuid)
 
 	return EmptySyncResponse
