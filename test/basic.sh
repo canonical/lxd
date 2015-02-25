@@ -23,6 +23,11 @@ test_basic_usage() {
 
   # Make sure it is the right version
   lxc exec foo /bin/cat /etc/issue | grep 14.04
+  echo foo | lxc exec foo tee /tmp/foo
+
+  # This is why we can't have nice things.
+  content=$(cat "${LXD_DIR}/lxc/foo/rootfs/tmp/foo")
+  [ "$content" = "foo" ]
 
   # cleanup
   lxc stop foo

@@ -802,22 +802,53 @@ func snapshotDelete(c *lxdContainer, name string) Response {
 var containerSnapshotCmd = Command{name: "containers/{name}/snapshots/{snapshotName}", get: snapshotHandler, post: snapshotHandler, delete: snapshotHandler}
 
 type execWs struct {
-	command   []string
-	container *lxc.Container
-	secret    string
-	done      chan shared.OperationResult
+	command      []string
+	container    *lxc.Container
+	conns        []*websocket.Conn
+	allConnected chan bool
+	done         chan shared.OperationResult
+	fds          map[int]string
 }
 
-func (s *execWs) Secret() string {
-	return s.secret
+func (s *execWs) Metadata() interface{} {
+	fds := shared.Jmap{}
+	for fd, secret := range s.fds {
+		fds[string(fd)] = secret
+	}
+
+	return shared.Jmap{"fds": fds}
 }
 
-func runCommand(container *lxc.Container, command []string, fd uintptr) shared.OperationResult {
+func (s *execWs) Connect(secret string, r *http.Request, w http.ResponseWriter) error {
+	for fd, fdSecret := range s.fds {
+		if secret == fdSecret {
+			conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+			if err != nil {
+				return err
+			}
+			s.conns[fd] = conn
+
+			for _, c := range s.conns {
+				if c == nil {
+					return nil
+				}
+			}
+			s.allConnected <- true
+			return nil
+		}
+	}
+
+	/* If we didn't find the right secret, the user provided a bad one,
+	 * which 403, not 404, since this operation actually exists */
+	return os.ErrPermission
+}
+
+func runCommand(container *lxc.Container, command []string, stdin uintptr, stdout uintptr, stderr uintptr) shared.OperationResult {
 
 	options := lxc.DefaultAttachOptions
-	options.StdinFd = fd
-	options.StdoutFd = fd
-	options.StderrFd = fd
+	options.StdinFd = stdin
+	options.StdoutFd = stdout
+	options.StderrFd = stderr
 	options.ClearEnv = true
 
 	status, err := container.RunCommandStatus(command, options)
@@ -834,29 +865,52 @@ func runCommand(container *lxc.Container, command []string, fd uintptr) shared.O
 	return shared.OperationResult{Metadata: metadata, Error: nil}
 }
 
-func (s *execWs) Do(conn *websocket.Conn) {
-	pty, tty, err := pty.Open()
-	if err != nil {
-		s.done <- shared.OperationError(err)
-		return
+func (s *execWs) Do() shared.OperationResult {
+	<-s.allConnected
+
+	ttys := make([]*os.File, 3)
+	ptys := make([]*os.File, 3)
+	var err error
+
+	for i := 0; i < 3; i++ {
+		ptys[i], ttys[i], err = pty.Open()
+		if err != nil {
+			return shared.OperationError(err)
+		}
 	}
 
 	go func() {
-		result := runCommand(s.container, s.command, tty.Fd())
-		pty.Close()
-		tty.Close()
+		for i := 0; i < 3; i++ {
+			go func(i int) {
+				if i == 0 {
+					<-shared.WebsocketRecvStream(ptys[i], s.conns[i])
+					ptys[i].Write([]byte{0x04})
+				} else {
+					shared.WebsocketSendStream(s.conns[i], ptys[i])
+				}
+			}(i)
+		}
+
+		result := runCommand(
+			s.container,
+			s.command,
+			ttys[0].Fd(),
+			ttys[1].Fd(),
+			ttys[2].Fd(),
+		)
+
+		for _, tty := range ttys {
+			tty.Close()
+		}
+
+		for _, pty := range ptys {
+			pty.Close()
+		}
+
 		s.done <- result
 	}()
 
-	/*
-	 * The pty will be passed to the container's Attach.  The two
-	 * below goroutines will copy output from the socket to the
-	 * pty.stdin, and from pty.std{out,err} to the socket
-	 * If the RunCommand exits, we want ourselves (the gofunc) and
-	 * the copy-goroutines to exit.  If the connection closes, we
-	 * also want to exit
-	 */
-	shared.WebsocketMirror(conn, pty, pty)
+	return <-s.done
 }
 
 type commandPostContent struct {
@@ -887,19 +941,21 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 	if post.WaitForWS {
 		ws := &execWs{}
-		ws.secret, err = shared.RandomCryptoString()
-		if err != nil {
-			return InternalError(err)
+		ws.fds = map[int]string{}
+		ws.conns = make([]*websocket.Conn, 3)
+		ws.allConnected = make(chan bool, 1)
+		ws.done = make(chan shared.OperationResult, 1)
+		for i := 0; i < 3; i++ {
+			ws.fds[i], err = shared.RandomCryptoString()
+			if err != nil {
+				return InternalError(err)
+			}
 		}
+
 		ws.command = post.Command
 		ws.container = c
-		ws.done = make(chan (shared.OperationResult))
 
-		run := func() shared.OperationResult {
-			return <-ws.done
-		}
-
-		return AsyncResponseWithWs(run, nil, ws)
+		return AsyncResponseWithWs(ws, nil)
 	}
 	run := func() shared.OperationResult {
 
@@ -908,8 +964,9 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			return shared.OperationError(err)
 		}
 		defer nullDev.Close()
+		nullfd := nullDev.Fd()
 
-		return runCommand(c, post.Command, nullDev.Fd())
+		return runCommand(c, post.Command, nullfd, nullfd, nullfd)
 	}
 	return AsyncResponse(run, nil)
 }

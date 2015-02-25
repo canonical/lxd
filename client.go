@@ -658,7 +658,11 @@ func (c *Client) Init(name string, image string) (*Response, error) {
 	return resp, nil
 }
 
-func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.WriteCloser, stderr io.WriteCloser) (int, error) {
+type execMd struct {
+	FDs map[string]string `json:"fds"`
+}
+
+func (c *Client) Exec(name string, cmd []string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error) {
 	body := shared.Jmap{"command": cmd, "wait-for-websocket": true}
 	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body)
 	if err != nil {
@@ -673,22 +677,48 @@ func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.
 		return -1, fmt.Errorf(gettext.Gettext("got bad response type from exec"))
 	}
 
-	md, err := resp.MetadataAsMap()
-	if err != nil {
+	md := execMd{}
+	if err := json.Unmarshal(resp.Metadata, &md); err != nil {
 		return -1, err
 	}
 
-	secret, err := md.GetString("websocket_secret")
-	if err != nil {
-		return -1, err
+	conns := make([]*websocket.Conn, 3)
+	dones := make([]chan bool, 3)
+	sources := []*os.File{stdin, stdout, stderr}
+
+	for i := 0; i < 3; i++ {
+		conns[i], err = c.websocket(resp.Operation, md.FDs[string(i)])
+		if err != nil {
+			return -1, err
+		}
+
+		if i == 0 {
+			dones[i] = shared.WebsocketSendStream(conns[i], sources[i])
+		} else {
+			dones[i] = shared.WebsocketRecvStream(sources[i], conns[i])
+		}
 	}
 
-	conn, err := c.websocket(resp.Operation, secret)
-	if err != nil {
-		return -1, err
+	/*
+	 * We'll get a read signal from each of stdout, stderr when they've
+	 * both died. We need to wait for these in addition to the operation,
+	 * because the server may indicate that the operation is done before we
+	 * can actually read the last bits of data off these sockets and print
+	 * it to the screen.
+	 *
+	 * We don't wait for stdin here, because if we're interactive, the user
+	 * may not have closed it (e.g. if the command exits but the user
+	 * didn't ^D).
+	 */
+	for i := 1; i < 3; i++ {
+		<-dones[i]
 	}
 
-	shared.WebsocketMirror(conn, stdout, stdin)
+	// Once we're done, we explicitly close stdin, to signal the websockets
+	// we're done.
+	sources[0].Close()
+
+	// Now, get the operation's status too.
 	op, err := c.WaitFor(resp.Operation)
 	if err != nil {
 		return -1, err
@@ -702,12 +732,12 @@ func (c *Client) Exec(name string, cmd []string, stdin io.ReadCloser, stdout io.
 		return -1, fmt.Errorf(gettext.Gettext("got bad op status %s"), op.Status)
 	}
 
-	md, err = op.MetadataAsMap()
+	opMd, err := op.MetadataAsMap()
 	if err != nil {
 		return -1, err
 	}
 
-	return md.GetInt("return")
+	return opMd.GetInt("return")
 }
 
 func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool) (*Response, error) {
