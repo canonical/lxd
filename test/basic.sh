@@ -8,7 +8,7 @@ test_basic_usage() {
   lxc image import ubuntu*.xz
   lxc launch $shasum foo
   # should fail if foo isn't running
-  lxc stop foo --force  # stop is hanging
+  lxc stop foo
   lxc delete foo
 
   lxc init $shasum foo
@@ -18,13 +18,13 @@ test_basic_usage() {
 
   # cycle it a few times
   lxc start foo
-  lxc stop foo  --force # stop is hanging
+  lxc stop foo
   lxc start foo
 
   # Make sure it is the right version
   lxc exec foo /bin/cat /etc/issue | grep 14.04
 
   # cleanup
-  lxc stop foo  --force # stop is hanging
+  lxc stop foo
   lxc delete foo
 }
