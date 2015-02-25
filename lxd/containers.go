@@ -142,20 +142,13 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	dpath := shared.VarPath("lxc", name)
 	fmt.Printf("uuid is %s\n", uuid)
 	imagefile := shared.VarPath("images", uuid)
-	output, err := exec.Command("tar", "-C", dpath, "-Jxf", imagefile, "rootfs.tar.xz").Output()
+	output, err := exec.Command("tar", "-C", dpath, "-Jxf", imagefile, "rootfs").Output()
 	if err != nil {
 		fmt.Printf("Untar of image: Output %s\nError %s\n", output, err)
 		return cleanup(err)
 	}
 
 	rpath := shared.VarPath("lxc", name, "rootfs")
-	tarfile := shared.VarPath("lxc", name, "rootfs.tar.xz")
-	output, err = exec.Command("tar", "-C", rpath, "--numeric-owner", "-Jxpf", tarfile).Output()
-	if err != nil {
-		fmt.Printf("Untar of rootfs: Output %s\nError %s\n", output, err)
-		return cleanup(err)
-	}
-
 	err = d.id_map.ShiftRootfs(rpath)
 	if err != nil {
 		fmt.Printf("Shift of rootfs %s failed: %s\n", rpath, err)
