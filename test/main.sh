@@ -16,6 +16,9 @@ echo "Running the LXD testsuite"
 
 cleanup() {
     [ "${lxd_pid}" -gt "0" ] && kill -9 ${lxd_pid}
+
+    # Apparently we need to wait a while for everything to die
+    sleep 3
     rm -Rf ${LXD_DIR}
     rm -Rf ${LXD_CONF}
     echo "Test result: $RESULT"
