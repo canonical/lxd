@@ -11,7 +11,7 @@ test_basic_usage() {
 
   lxc launch testimage foo
   # should fail if foo isn't running
-  lxc stop foo
+  lxc stop foo --force  # stop is hanging
   lxc delete foo
 
   lxc init testimage foo
@@ -21,7 +21,7 @@ test_basic_usage() {
 
   # cycle it a few times
   lxc start foo
-  lxc stop foo
+  lxc stop foo  --force # stop is hanging
   lxc start foo
 
   # Make sure it is the right version
@@ -33,7 +33,7 @@ test_basic_usage() {
   [ "$content" = "foo" ]
 
   # cleanup
-  lxc stop foo
+  lxc stop foo  --force # stop is hanging
   lxc delete foo
 
   # now, make sure create type 'none' works
