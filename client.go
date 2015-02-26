@@ -18,6 +18,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/gosexy/gettext"
@@ -149,39 +150,11 @@ func (c *Client) loadServerCert() {
 
 // NewClient returns a new lxd client.
 func NewClient(config *Config, remote string) (*Client, error) {
-	certf, keyf, err := readMyCert()
-	if err != nil {
-		return nil, err
-	}
-	cert, err := tls.LoadX509KeyPair(certf, keyf)
-	if err != nil {
-		return nil, err
-	}
-
-	tlsconfig := &tls.Config{InsecureSkipVerify: true,
-		ClientAuth:   tls.RequireAnyClientCert,
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS12,
-		MaxVersion:   tls.VersionTLS12}
-	tlsconfig.BuildNameToCertificate()
-
-	tr := &http.Transport{
-		TLSClientConfig: tlsconfig,
-	}
 	c := Client{
 		config: *config,
 		http: http.Client{
-			Transport: tr,
-			// Added on Go 1.3. Wait until it's more popular.
-			//Timeout: 10 * time.Second,
+			Timeout: 10 * time.Second,
 		},
-	}
-
-	c.certf = certf
-	c.keyf = keyf
-	c.cert = cert
-	c.websocketDialer = websocket.Dialer{
-		TLSClientConfig: tlsconfig,
 	}
 
 	c.name = remote
@@ -205,9 +178,38 @@ func NewClient(config *Config, remote string) (*Client, error) {
 		c.http.Transport = &unixTransport
 		c.websocketDialer.NetDial = unixDial
 	} else if r, ok := config.Remotes[remote]; ok {
+		certf, keyf, err := readMyCert()
+		if err != nil {
+			return nil, err
+		}
+		cert, err := tls.LoadX509KeyPair(certf, keyf)
+		if err != nil {
+			return nil, err
+		}
+
+		tlsconfig := &tls.Config{InsecureSkipVerify: true,
+			ClientAuth:   tls.RequireAnyClientCert,
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+			MaxVersion:   tls.VersionTLS12}
+		tlsconfig.BuildNameToCertificate()
+
+		tr := &http.Transport{
+			TLSClientConfig: tlsconfig,
+		}
+
+		c.websocketDialer = websocket.Dialer{
+			TLSClientConfig: tlsconfig,
+		}
+
+		c.certf = certf
+		c.keyf = keyf
+		c.cert = cert
+
 		c.baseURL = "https://" + r.Addr
 		c.baseWSURL = "wss://" + r.Addr
 		c.Remote = &r
+		c.http.Transport = tr
 		c.loadServerCert()
 	} else {
 		return nil, fmt.Errorf(gettext.Gettext("unknown remote name: %q"), remote)
