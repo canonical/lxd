@@ -665,7 +665,7 @@ func (c *Client) IsAlias(alias string) (bool, error) {
 // provide at least one.
 func (c *Client) Init(name string, image string) (*Response, error) {
 
-	source := shared.Jmap{"type": "image", "alias": alias, "fingerprint": fingerprint}
+	source := shared.Jmap{"type": "image"}
 
 	isAlias, err := c.IsAlias(image)
 	if err != nil {
@@ -673,9 +673,9 @@ func (c *Client) Init(name string, image string) (*Response, error) {
 	}
 
 	if isAlias {
-		source["alias"] = alias
+		source["alias"] = image
 	} else {
-		source["fingerprint"] = fingerprint
+		source["fingerprint"] = image
 	}
 
 	body := shared.Jmap{"source": source}
