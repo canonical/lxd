@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/internal/gnuflag"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -20,10 +22,29 @@ func (c *execCmd) usage() string {
 	return gettext.Gettext(
 		"Execute the specified command in a container.\n" +
 			"\n" +
-			"lxc exec container [command]\n")
+			"lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n")
 }
 
-func (c *execCmd) flags() {}
+type envFlag []string
+
+func (f *envFlag) String() string {
+	return fmt.Sprint(*f)
+}
+
+func (f *envFlag) Set(value string) error {
+	if f == nil {
+		*f = make(envFlag, 1)
+	} else {
+		*f = append(*f, value)
+	}
+	return nil
+}
+
+var envArgs envFlag
+
+func (c *execCmd) flags() {
+	gnuflag.Var(&envArgs, "env", "An environment variable of the form HOME=/home/foo")
+}
 
 func (c *execCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 2 {
@@ -36,6 +57,23 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
+	env := map[string]string{"HOME": "/root"}
+	myEnv := os.Environ()
+	for _, ent := range myEnv {
+		if strings.HasPrefix(ent, "TERM=") {
+			env["TERM"] = ent[len("TERM="):]
+		}
+	}
+
+	for _, arg := range envArgs {
+		pieces := strings.SplitN(arg, "=", 2)
+		value := ""
+		if len(pieces) > 1 {
+			value = pieces[1]
+		}
+		env[pieces[0]] = value
+	}
+
 	cfd := syscall.Stdout
 	var oldttystate *terminal.State
 	if terminal.IsTerminal(cfd) {
@@ -46,7 +84,7 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		defer terminal.Restore(cfd, oldttystate)
 	}
 
-	ret, err := d.Exec(name, args[1:], os.Stdin, os.Stdout, os.Stderr)
+	ret, err := d.Exec(name, args[1:], env, os.Stdin, os.Stdout, os.Stderr)
 	if err != nil {
 		return err
 	}
