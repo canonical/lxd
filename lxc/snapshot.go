@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
@@ -26,8 +28,15 @@ func (c *snapshotCmd) flags() {
 }
 
 func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		return errArgs
+	}
+
+	var snapname string
+	if len(args) < 2 {
+		snapname = ""
+	} else {
+		snapname = args[1]
 	}
 
 	remote, name := config.ParseRemoteAndContainer(args[0])
@@ -36,7 +45,12 @@ func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	resp, err := d.Snapshot(name, args[1], c.stateful)
+	// we don't allow '/' in snapshot names
+	if lxd.IsSnapshot(snapname) {
+		return fmt.Errorf(gettext.Gettext("'/' not allowed in snapshot name\n"))
+	}
+
+	resp, err := d.Snapshot(name, snapname, c.stateful)
 	if err != nil {
 		return err
 	}
