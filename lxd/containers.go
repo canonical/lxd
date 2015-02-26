@@ -62,6 +62,7 @@ type containerImageSource struct {
 type containerPostReq struct {
 	Name   string               `json:"name"`
 	Source containerImageSource `json:"source"`
+	Config map[string]string    `json:"config"`
 }
 
 func createFromImage(d *Daemon, req *containerPostReq) Response {
@@ -83,7 +84,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	}
 
 	name := req.Name
-	_, err = dbCreateContainer(d, name, cTypeRegular)
+	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config)
 	if err != nil {
 		removeContainerPath(d, name)
 		return InternalError(err)
@@ -98,7 +99,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
 
-	_, err := dbCreateContainer(d, req.Name, cTypeRegular)
+	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -233,7 +234,7 @@ func dbGetContainerId(db *sql.DB, name string) (int, error) {
 	return id, nil
 }
 
-func dbCreateContainer(d *Daemon, name string, ctype containerType) (int, error) {
+func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[string]string) (int, error) {
 	id, err := dbGetContainerId(d.db, name)
 	if err == nil {
 		return 0, fmt.Errorf("%s already defined in database", name)
@@ -251,19 +252,42 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType) (int, error)
 		return 0, err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(name)
+	result, err := stmt.Exec(name)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
-	if err := tx.Commit(); err != nil {
+	id64, err := result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return 0, fmt.Errorf("Error inserting %s into database", name)
+	}
+	// TODO: is this really int64? we should fix it everywhere if so
+	id = int(id64)
+
+	str = fmt.Sprintf("INSERT INTO containers_config (container_id, key, value) VALUES(?, ?, ?)")
+	insertConfig, err := tx.Prepare(str)
+	if err != nil {
+		tx.Rollback()
 		return 0, err
 	}
+	defer insertConfig.Close()
 
-	id, err = dbGetContainerId(d.db, name)
-	if err != nil {
-		return 0, fmt.Errorf("Error inserting %s into database", name)
+	for key, value := range config {
+		if key != "raw.lxc" {
+			tx.Rollback()
+			return 0, fmt.Errorf("only raw.lxc config is respected right now")
+		}
+		_, err := insertConfig.Exec(id, key, value)
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
 	}
 
 	return id, nil
@@ -283,7 +307,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 		InternalError(err)
 	}
 
-	return SyncResponse(true, shared.CtoD(c.c))
+	return SyncResponse(true, c.RenderState())
 }
 
 func containerDeleteSnapshots(d *Daemon, cname string) []string {
@@ -346,7 +370,7 @@ func containerStateGet(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	return SyncResponse(true, shared.CtoD(c.c).Status)
+	return SyncResponse(true, c.RenderState().Status)
 }
 
 type containerStatePutReq struct {
@@ -356,9 +380,20 @@ type containerStatePutReq struct {
 }
 
 type lxdContainer struct {
-	c    *lxc.Container
-	id   int
-	name string
+	c      *lxc.Container
+	id     int
+	name   string
+	config map[string]string
+}
+
+func (c *lxdContainer) RenderState() *shared.ContainerState {
+	return &shared.ContainerState{
+		Name:     c.name,
+		Profiles: []string{},
+		Config:   c.config,
+		Userdata: []byte{},
+		Status:   shared.NewStatus(c.c.State()),
+	}
 }
 
 func (c *lxdContainer) Start() error {
@@ -481,6 +516,27 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	err = c.SetConfigItem("lxc.network.hwaddr", "00:16:3e:xx:xx:xx")
 	if err != nil {
 		return nil, err
+	}
+
+	config, err := dbGetConfig(daemon, d)
+	if err != nil {
+		return nil, err
+	}
+	d.config = config
+
+	if lxcConfig, ok := config["raw.lxc"]; ok {
+		for _, line := range strings.Split(lxcConfig, "\n") {
+			contents := strings.SplitN(line, "=", 2)
+			key := contents[0]
+			value := ""
+			if len(contents) > 1 {
+				value = contents[1]
+			}
+
+			if err := c.SetConfigItem(key, value); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	d.name = name
@@ -780,9 +836,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		/* Create the db info */
 		//cId, err := dbCreateContainer(d, snapshotName, cTypeSnapshot)
-		_, err := dbCreateContainer(d, fullName, cTypeSnapshot)
-
-		/* todo - copy over the container_config items */
+		_, err := dbCreateContainer(d, fullName, cTypeSnapshot, c.config)
 
 		/* Create the directory and rootfs, set perms */
 		/* Copy the rootfs */

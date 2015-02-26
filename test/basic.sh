@@ -40,4 +40,9 @@ test_basic_usage() {
   mkdir -p "${LXD_DIR}/lxc/nonetype"
   wait_for my_curl -X POST $BASEURL/1.0/containers -d '{"name": "nonetype", "source": {"type": "none"}}'
   rm -rf "${LXD_DIR}/lxc/nonetype"
+
+  # and creating with a config
+  wait_for my_curl -X POST $BASEURL/1.0/containers -d "{\"name\":\"configtest\",\"config\":{\"raw.lxc\":\"lxc.hook.clone=/bin/true\"},\"source\":{\"type\":\"none\"}}"
+  [ "$(my_curl $BASEURL/1.0/containers/configtest | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
+  lxc delete configtest
 }
