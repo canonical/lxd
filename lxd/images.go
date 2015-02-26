@@ -185,7 +185,7 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 	for rows.Next() {
 		var name string
 		rows.Scan(&name)
-		url := fmt.Sprintf("/1.0/images/%s", name)
+		url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
 		result = append(result, url)
 	}
 
@@ -263,7 +263,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	for rows.Next() {
 		var name string
 		rows.Scan(&name)
-		url := fmt.Sprintf("/1.0/images/aliases/%s", name)
+		url := fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, name)
 		result = append(result, url)
 	}
 
