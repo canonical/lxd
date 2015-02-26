@@ -789,8 +789,8 @@ func (c *Client) Delete(name string) (*Response, error) {
 	return resp, nil
 }
 
-func (c *Client) ContainerStatus(name string) (*shared.Container, error) {
-	ct := shared.Container{}
+func (c *Client) ContainerStatus(name string) (*shared.ContainerState, error) {
+	ct := shared.ContainerState{}
 
 	resp, err := c.get(fmt.Sprintf("containers/%s", name))
 	if err != nil {

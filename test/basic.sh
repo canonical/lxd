@@ -11,7 +11,7 @@ test_basic_usage() {
 
   lxc launch testimage foo
   # should fail if foo isn't running
-  lxc stop foo
+  lxc stop foo --force  # stop is hanging
   lxc delete foo
 
   lxc init testimage foo
@@ -21,7 +21,7 @@ test_basic_usage() {
 
   # cycle it a few times
   lxc start foo
-  lxc stop foo
+  lxc stop foo  --force # stop is hanging
   lxc start foo
 
   # Make sure it is the right version
@@ -33,11 +33,16 @@ test_basic_usage() {
   [ "$content" = "foo" ]
 
   # cleanup
-  lxc stop foo
+  lxc stop foo  --force # stop is hanging
   lxc delete foo
 
   # now, make sure create type 'none' works
   mkdir -p "${LXD_DIR}/lxc/nonetype"
   wait_for my_curl -X POST $BASEURL/1.0/containers -d '{"name": "nonetype", "source": {"type": "none"}}'
   rm -rf "${LXD_DIR}/lxc/nonetype"
+
+  # and creating with a config
+  wait_for my_curl -X POST $BASEURL/1.0/containers -d "{\"name\":\"configtest\",\"config\":{\"raw.lxc\":\"lxc.hook.clone=/bin/true\"},\"source\":{\"type\":\"none\"}}"
+  [ "$(my_curl $BASEURL/1.0/containers/configtest | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
+  lxc delete configtest
 }
