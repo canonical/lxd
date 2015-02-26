@@ -54,9 +54,10 @@ func containersGet(d *Daemon, r *http.Request) Response {
 }
 
 type containerImageSource struct {
-	Type string `json:"type"`
-	URL  string `json:"url"`
-	Name string `json:"name"`
+	Type        string `json:"type"`
+	URL         string `json:"url"`
+	Alias       string `json:"alias"`
+	Fingerprint string `json:"fingerprint"`
 }
 
 type containerPostReq struct {
@@ -65,10 +66,30 @@ type containerPostReq struct {
 }
 
 func createFromImage(d *Daemon, req *containerPostReq) Response {
-	image := req.Source.Name
-	_, uuid, err := dbGetImageId(d, image)
-	if err != nil {
-		return InternalError(err)
+	var uuid string
+	if req.Source.Alias != "" {
+		_, iId, err := dbAliasGet(d, req.Source.Alias)
+		if err == nil {
+			uuid, err = dbImageGetById(d, iId)
+			if err != nil {
+				return InternalError(fmt.Errorf("Stale alias"))
+			}
+		} else {
+			return InternalError(err)
+		}
+
+	} else if req.Source.Fingerprint != "" {
+		/*
+		 * There must be a better way to do this given go's scoping,
+		 * but I'm not sure what it is.
+		 */
+		_, uuidLocal, err := dbGetImageId(d, req.Source.Fingerprint)
+		if err != nil {
+			return InternalError(err)
+		}
+		uuid = uuidLocal
+	} else {
+		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
 	}
 
 	dpath := shared.VarPath("lxc", req.Name)
@@ -77,7 +98,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	}
 
 	rootfsPath := fmt.Sprintf("%s/rootfs", dpath)
-	err = os.MkdirAll(rootfsPath, 0700)
+	err := os.MkdirAll(rootfsPath, 0700)
 	if err != nil {
 		return InternalError(fmt.Errorf("Error creating rootfs directory"))
 	}
@@ -191,15 +212,6 @@ func dbRemoveContainer(d *Daemon, name string) {
 }
 
 func dbGetImageId(d *Daemon, image string) (int, string, error) {
-	/* is image an alias/ */
-	_, iId, err := dbAliasGet(d, image)
-	if err == nil {
-		uuid, err := dbImageGetById(d, iId)
-		if err != nil {
-			return 0, "", fmt.Errorf("Stale alias")
-		}
-		return iId, uuid, nil
-	}
 	rows, err := d.db.Query("SELECT id, fingerprint FROM images WHERE fingerprint=?", image)
 	if err != nil {
 		return 0, "", err

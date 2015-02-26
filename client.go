@@ -644,9 +644,40 @@ func (c *Client) CertificateRemove(fingerprint string) error {
 	return ParseError(raw)
 }
 
+func (c *Client) IsAlias(alias string) (bool, error) {
+	resp, err := c.get(fmt.Sprintf("images/aliases/%s", alias))
+	if err != nil {
+		return false, err
+	}
+
+	if resp.Type == Error {
+		if resp.Code == http.StatusNotFound {
+			return false, nil
+		} else {
+			return false, ParseError(resp)
+		}
+	}
+
+	return true, nil
+}
+
+// Init creates a container from either a fingerprint or an alias; you must
+// provide at least one.
 func (c *Client) Init(name string, image string) (*Response, error) {
 
-	source := shared.Jmap{"type": "image", "name": image}
+	source := shared.Jmap{"type": "image", "alias": alias, "fingerprint": fingerprint}
+
+	isAlias, err := c.IsAlias(image)
+	if err != nil {
+		return nil, err
+	}
+
+	if isAlias {
+		source["alias"] = alias
+	} else {
+		source["fingerprint"] = fingerprint
+	}
+
 	body := shared.Jmap{"source": source}
 
 	if name != "" {
