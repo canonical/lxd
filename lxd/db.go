@@ -232,3 +232,24 @@ func dbAddAlias(d *Daemon, name string, tgt int, desc string) error {
 	_, err := d.db.Exec(stmt, name, tgt, desc)
 	return err
 }
+
+func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
+	q := `SELECT key, value FROM containers_config WHERE container_id=?`
+	rows, err := d.db.Query(q, c.id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	config := map[string]string{}
+
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, err
+		}
+		config[key] = value
+	}
+
+	return config, nil
+}
