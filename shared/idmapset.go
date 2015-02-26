@@ -1,9 +1,12 @@
-package fuidshift
+package shared
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 /*
@@ -120,4 +123,45 @@ func (m IdmapSet) ShiftIntoNs(uid int, gid int) (int, int) {
 	}
 
 	return u, g
+}
+
+func getOwner(path string) (int, int, error) {
+	var stat syscall.Stat_t
+	err := syscall.Lstat(path, &stat)
+	if err != nil {
+		return 0, 0, err
+	}
+	uid := int(stat.Uid)
+	gid := int(stat.Gid)
+	return uid, gid, nil
+}
+
+func Uidshift(dir string, idmap IdmapSet, testmode bool) error {
+	convert := func(path string, fi os.FileInfo, err error) (e error) {
+		uid, gid, err := getOwner(path)
+		if err != nil {
+			return err
+		}
+		newuid, newgid := idmap.ShiftIntoNs(uid, gid)
+		if testmode {
+			fmt.Printf("I would shift %q to %d %d\n", path, newuid, newgid)
+		} else {
+			err = os.Chown(path, int(newuid), int(newgid))
+			if err == nil {
+				m := fi.Mode()
+				if m&os.ModeSymlink == 0 {
+					err = os.Chmod(path, m)
+					if err != nil {
+						fmt.Printf("Error resetting mode on %q, continuing\n", path)
+					}
+				}
+			}
+		}
+		return nil
+	}
+
+	if !PathExists(dir) {
+		return fmt.Errorf("No such file or directory: %q", dir)
+	}
+	return filepath.Walk(dir, convert)
 }
