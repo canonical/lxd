@@ -304,7 +304,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 	}
 	c, err := newLxdContainer(name, d)
 	if err != nil {
-		InternalError(err)
+		return InternalError(err)
 	}
 
 	return SyncResponse(true, c.RenderState())
