@@ -25,6 +25,23 @@ func (c *deleteCmd) usage() string {
 
 func (c *deleteCmd) flags() {}
 
+func doDelete(d *lxd.Client, name string) error {
+	resp, err := d.Delete(name)
+	if err != nil {
+		return err
+	}
+
+	op, err := d.WaitFor(resp.Operation)
+	if err != nil {
+		return err
+	}
+
+	if op.StatusCode == shared.Success {
+		return nil
+	}
+	return fmt.Errorf(gettext.Gettext("Operation %s"), op.Status)
+}
+
 func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 	if len(args) != 1 {
 		return errArgs
@@ -40,7 +57,8 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 	ct, err := d.ContainerStatus(name)
 
 	if err != nil {
-		return err
+		// Could be a snapshot
+		return doDelete(d, name)
 	}
 
 	if ct.State() != lxc.STOPPED {
@@ -59,18 +77,5 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		}
 	}
 
-	resp, err := d.Delete(name)
-	if err != nil {
-		return err
-	}
-
-	op, err := d.WaitFor(resp.Operation)
-	if err != nil {
-		return err
-	}
-
-	if op.StatusCode == shared.Success {
-		return nil
-	}
-	return fmt.Errorf(gettext.Gettext("Operation %s"), op.Status)
+	return doDelete(d, name)
 }

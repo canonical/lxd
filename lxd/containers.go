@@ -286,6 +286,33 @@ func containerGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, shared.CtoD(c.c))
 }
 
+func containerDeleteSnapshots(d *Daemon, cname string) []string {
+	prefix := fmt.Sprintf("%s/", cname)
+	length := len(prefix)
+	rows, err := d.db.Query("SELECT name, id FROM containers WHERE type=? AND SUBSTR(name,1,?)=?",
+		cTypeSnapshot, length, prefix)
+	if err != nil {
+		return nil
+	}
+
+	var results []string
+	var ids []int
+
+	for rows.Next() {
+		var id int
+		var sname string
+		rows.Scan(&sname, &id)
+		ids = append(ids, id)
+		cdir := shared.VarPath("lxc", cname, "snapshots", sname)
+		results = append(results, cdir)
+	}
+	rows.Close()
+	for _, id := range ids {
+		_, _ = d.db.Exec("DELETE FROM containers WHERE id=?", id)
+	}
+	return results
+}
+
 func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	fmt.Printf("delete: called with name %s\n", name)
@@ -294,9 +321,16 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		fmt.Printf("Delete: container %s not known", name)
 		// rootfs may still exist though, so try to delete it
 	}
+	dirsToDelete := containerDeleteSnapshots(d, name)
 	dbRemoveContainer(d, name)
+	dirsToDelete = append(dirsToDelete, shared.VarPath("lxc", name))
 	rmdir := func() error {
-		removeContainerPath(d, name)
+		for _, dir := range dirsToDelete {
+			err := os.RemoveAll(dir)
+			if err != nil {
+				shared.Debugf("Error cleaning up %s: %s\n", dir, err)
+			}
+		}
 		return nil
 	}
 	fmt.Printf("running rmdir\n")
@@ -632,12 +666,12 @@ func snapshotRootfsDir(c *lxdContainer, name string) string {
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
-	name := mux.Vars(r)["name"]
+	cname := mux.Vars(r)["name"]
 
-	regexp := fmt.Sprintf("%s/", name)
+	regexp := fmt.Sprintf("%s/", cname)
 	length := len(regexp)
-	rows, err := d.db.Query("SELECT name FROM containers WHERE type=1 AND SUBSTR(name,1,%d)=%s*",
-		length, regexp)
+	rows, err := d.db.Query("SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?",
+		cTypeSnapshot, length, regexp)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -648,7 +682,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	for rows.Next() {
 		var name string
 		rows.Scan(&name)
-		url := fmt.Sprintf("/1.0/containers/%s", name)
+		url := fmt.Sprintf("/1.0/containers/%s/snapshots/%s", cname, name)
 		body = append(body, url)
 	}
 
@@ -660,21 +694,29 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
  * To do that, we'll need to weed out based on # slashes in names
  */
 func nextSnapshot(d *Daemon, name string) int {
-	base := fmt.Sprintf("%s/", name)
+	base := fmt.Sprintf("%s/snap", name)
 	length := len(base)
-	q := fmt.Sprintf("SELECT MAX(id) FROM containers WHERE type=1 AND SUBSTR(name,1,%d)=%s",
-		length, base)
-	rows, err := d.db.Query(q)
+	q := fmt.Sprintf("SELECT MAX(name) FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
+	rows, err := d.db.Query(q, cTypeSnapshot, length, base)
 	if err != nil {
 		return 0
 	}
 	defer rows.Close()
+	max := 0
 	for rows.Next() {
-		var tmp int
+		var tmp string
+		var num int
 		rows.Scan(&tmp)
-		return tmp
+		tmp2 := tmp[length:]
+		count, err := fmt.Sscanf(tmp2, "%d", &num)
+		if err != nil || count != 1 {
+			continue
+		}
+		if num >= max {
+			max = num + 1
+		}
 	}
-	return 0
+	return max
 }
 
 func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
@@ -697,10 +739,10 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	}
 
 	snapshotName, err := raw.GetString("name")
-	if err != nil {
+	if err != nil || snapshotName == "" {
 		// come up with a name
 		i := nextSnapshot(d, name)
-		snapshotName = fmt.Sprintf("%s/snap%d", name, i)
+		snapshotName = fmt.Sprintf("snap%d", i)
 	}
 
 	stateful, err := raw.GetBool("stateful")
@@ -708,18 +750,20 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = os.MkdirAll(snapshotDir(c, snapshotName), 0700)
+	fullName := fmt.Sprintf("%s/%s", name, snapshotName)
+	snapDir := snapshotDir(c, snapshotName)
+	err = os.MkdirAll(snapDir, 0700)
 	if err != nil {
 		return InternalError(err)
 	}
 
 	snapshot := func() error {
 
-		snapDir := snapshotStateDir(c, snapshotName)
-		if shared.PathExists(snapDir) {
+		StateDir := snapshotStateDir(c, snapshotName)
+		if shared.PathExists(StateDir) {
 			return fmt.Errorf("Snapshot directory exists")
 		}
-		err = os.MkdirAll(snapDir, 0700)
+		err = os.MkdirAll(StateDir, 0700)
 		if err != nil {
 			return fmt.Errorf("Error creating rootfs directory")
 		}
@@ -728,7 +772,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			if !c.c.Running() {
 				return fmt.Errorf("Container not running\n")
 			}
-			opts := lxc.CheckpointOptions{Directory: snapDir, Stop: true, Verbose: true}
+			opts := lxc.CheckpointOptions{Directory: StateDir, Stop: true, Verbose: true}
 			if err := c.c.Checkpoint(opts); err != nil {
 				return err
 			}
@@ -736,14 +780,15 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		/* Create the db info */
 		//cId, err := dbCreateContainer(d, snapshotName, cTypeSnapshot)
-		_, err := dbCreateContainer(d, snapshotName, cTypeSnapshot)
+		_, err := dbCreateContainer(d, fullName, cTypeSnapshot)
 
 		/* todo - copy over the container_config items */
 
 		/* Create the directory and rootfs, set perms */
 		/* Copy the rootfs */
-		oldPath := shared.VarPath("lxc", name, "rootfs")
-		newPath := fmt.Sprintf("%s/%s", snapDir, "rootfs")
+		oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", name, "rootfs"))
+		newPath := snapshotRootfsDir(c, snapshotName)
+		fmt.Printf("Running rsync -a --devices %s %s\n", oldPath, newPath)
 		err = exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
 		return err
 	}
@@ -752,6 +797,11 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 }
 
 var containerSnapshotsCmd = Command{name: "containers/{name}/snapshots", get: containerSnapshotsGet, post: containerSnapshotsPost}
+
+func dbRemoveSnapshot(d *Daemon, cname string, sname string) {
+	name := fmt.Sprintf("%s/%s", cname, sname)
+	_, _ = d.db.Exec("DELETE FROM containers WHERE type=? AND name=?", cTypeSnapshot, name)
+}
 
 func snapshotHandler(d *Daemon, r *http.Request) Response {
 	containerName := mux.Vars(r)["name"]
@@ -774,7 +824,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	case "POST":
 		return snapshotPost(r, c, snapshotName)
 	case "DELETE":
-		return snapshotDelete(c, snapshotName)
+		return snapshotDelete(d, c, snapshotName)
 	default:
 		return NotFound
 	}
@@ -817,7 +867,8 @@ func snapshotPost(r *http.Request, c *lxdContainer, oldName string) Response {
 	return AsyncResponse(shared.OperationWrap(rename), nil)
 }
 
-func snapshotDelete(c *lxdContainer, name string) Response {
+func snapshotDelete(d *Daemon, c *lxdContainer, name string) Response {
+	dbRemoveSnapshot(d, c.name, name)
 	dir := snapshotDir(c, name)
 	remove := func() error { return os.RemoveAll(dir) }
 	return AsyncResponse(shared.OperationWrap(remove), nil)

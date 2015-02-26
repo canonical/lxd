@@ -71,6 +71,15 @@ type Response struct {
 	Metadata json.RawMessage `json:"metadata"`
 }
 
+func IsSnapshot(name string) bool {
+	x := strings.SplitN(name, "/", 2)
+
+	if len(x) == 2 {
+		return true
+	}
+	return false
+}
+
 func (r *Response) MetadataAsMap() (*shared.Jmap, error) {
 	ret := shared.Jmap{}
 	if err := json.Unmarshal(r.Metadata, &ret); err != nil {
@@ -755,7 +764,14 @@ func (c *Client) Action(name string, action shared.ContainerAction, timeout int,
 }
 
 func (c *Client) Delete(name string) (*Response, error) {
-	resp, err := c.delete(fmt.Sprintf("containers/%s", name), nil)
+	var url string
+	s := strings.SplitN(name, "/", 2)
+	if len(s) == 2 {
+		url = fmt.Sprintf("containers/%s/snapshots/%s", s[0], s[1])
+	} else {
+		url = fmt.Sprintf("containers/%s", name)
+	}
+	resp, err := c.delete(url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -913,4 +929,50 @@ func (c *Client) Snapshot(container string, snapshotName string, stateful bool) 
 	}
 
 	return resp, nil
+}
+
+func (c *Client) ListSnapshots(container string) ([]string, error) {
+	qUrl := fmt.Sprintf("containers/%s/snapshots", container)
+	resp, err := c.get(qUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
+	}
+	var result []string
+
+	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+		return nil, err
+	}
+
+	names := []string{}
+
+	for _, url := range result {
+		// /1.0/containers/<name>/snapshots/<snapshot>
+		apart := strings.SplitN(url, "/", 6)
+		if len(apart) < 6 {
+			return nil, fmt.Errorf(gettext.Gettext("bad container url %s"), url)
+		}
+		version := apart[1]
+		cname := apart[3]
+		name := apart[5]
+
+		if cname != container || apart[2] != "containers" || apart[4] != "snapshots" {
+			return nil, fmt.Errorf(gettext.Gettext("bad container url %s"), url)
+		}
+
+		if version != shared.APIVersion {
+			return nil, fmt.Errorf(gettext.Gettext("bad version in container url"))
+		}
+
+		names = append(names, name)
+	}
+
+	return names, nil
 }
