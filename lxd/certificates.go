@@ -106,7 +106,10 @@ func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 		tx.Rollback()
 		return err
 	}
-	tx.Commit()
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
 
 	return nil
 }

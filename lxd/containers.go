@@ -256,7 +256,10 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType) (int, error)
 		tx.Rollback()
 		return 0, err
 	}
-	tx.Commit()
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
 
 	id, err = dbGetContainerId(d.db, name)
 	if err != nil {
