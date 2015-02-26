@@ -319,7 +319,10 @@ class LXCImages(object):
 
 
 if __name__ == "__main__":
-    lxd = LXD("/var/lib/lxd/unix.socket")
+    if "LXD_DIR" in os.environ:
+        lxd = LXD(os.path.join(os.environ['LXD_DIR'], "unix.socket"))
+    else:
+        lxd = LXD("/var/lib/lxd/unix.socket")
 
     def setup_alias(parser, args, fingerprint):
         existing = lxd.aliases_list()

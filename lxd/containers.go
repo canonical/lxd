@@ -32,17 +32,6 @@ const (
 	cTypeSnapshot containerType = 1
 )
 
-type containerImageSource struct {
-	Type string `json:"type"`
-	URL  string `json:"url"`
-	Name string `json:"name"`
-}
-
-type containerPostReq struct {
-	Name   string               `json:"name"`
-	Source containerImageSource `json:"source"`
-}
-
 func containersGet(d *Daemon, r *http.Request) Response {
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=%d", cTypeRegular)
 	rows, err := d.db.Query(q)
@@ -64,28 +53,18 @@ func containersGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, result)
 }
 
-func containersPost(d *Daemon, r *http.Request) Response {
-	shared.Debugf("responding to create")
+type containerImageSource struct {
+	Type string `json:"type"`
+	URL  string `json:"url"`
+	Name string `json:"name"`
+}
 
-	if d.id_map == nil {
-		return BadRequest(fmt.Errorf("shared's user has no subuids"))
-	}
+type containerPostReq struct {
+	Name   string               `json:"name"`
+	Source containerImageSource `json:"source"`
+}
 
-	req := containerPostReq{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
-	}
-
-	if req.Name == "" {
-		req.Name = strings.ToLower(petname.Generate(2, "-"))
-		shared.Debugf("no name provided, creating %s", req.Name)
-	}
-
-	/* TODO: support other options here */
-	if req.Source.Type != "local" {
-		return NotImplemented
-	}
-
+func createFromImage(d *Daemon, req *containerPostReq) Response {
 	image := req.Source.Name
 	_, uuid, err := dbGetImageId(d, image)
 	if err != nil {
@@ -115,6 +94,48 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	 */
 	run := shared.OperationWrap(func() error { return extractShiftRootfs(uuid, name, d) })
 	return &asyncResponse{run: run, containers: []string{req.Name}}
+}
+
+func createFromNone(d *Daemon, req *containerPostReq) Response {
+
+	_, err := dbCreateContainer(d, req.Name, cTypeRegular)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	/* The container already exists, so don't do anything. */
+	run := shared.OperationWrap(func() error { return nil })
+	return &asyncResponse{run: run, containers: []string{req.Name}}
+}
+
+func containersPost(d *Daemon, r *http.Request) Response {
+	shared.Debugf("responding to create")
+
+	if d.id_map == nil {
+		return BadRequest(fmt.Errorf("shared's user has no subuids"))
+	}
+
+	req := containerPostReq{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	if req.Name == "" {
+		req.Name = strings.ToLower(petname.Generate(2, "-"))
+		shared.Debugf("no name provided, creating %s", req.Name)
+	}
+
+	switch req.Source.Type {
+	case "image":
+		return createFromImage(d, &req)
+	case "none":
+		return createFromNone(d, &req)
+	case "migration":
+		return NotImplemented
+	default:
+		return BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
+	}
+
 }
 
 func removeContainerPath(d *Daemon, name string) {

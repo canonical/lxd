@@ -1,6 +1,6 @@
 test_basic_usage() {
   if ! lxc image alias list | grep -q ^ubuntu$; then
-    scripts/lxd-images import lxc ubuntu trusty amd64 --alias ubuntu
+    ../scripts/lxd-images import lxc ubuntu trusty amd64 --alias ubuntu
   fi
 
   lxc launch ubuntu foo
@@ -29,4 +29,9 @@ test_basic_usage() {
   # cleanup
   lxc stop foo
   lxc delete foo
+
+  # now, make sure create type 'none' works
+  mkdir -p "${LXD_DIR}/lxc/nonetype"
+  wait_for my_curl -X POST $BASEURL/1.0/containers -d '{"name": "nonetype", "source": {"type": "none"}}'
+  rm -rf "${LXD_DIR}/lxc/nonetype"
 }
