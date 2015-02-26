@@ -775,6 +775,9 @@ func nextSnapshot(d *Daemon, name string) int {
 		var tmp string
 		var num int
 		rows.Scan(&tmp)
+		if len(tmp) <= length {
+			continue
+		}
 		tmp2 := tmp[length:]
 		count, err := fmt.Sscanf(tmp2, "%d", &num)
 		if err != nil || count != 1 {
