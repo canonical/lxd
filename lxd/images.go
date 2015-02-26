@@ -96,7 +96,10 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		tx.Rollback()
 		return InternalError(err)
 	}
-	tx.Commit()
+
+	if err := tx.Commit(); err != nil {
+		return InternalError(err)
+	}
 
 	/*
 	 * TODO - take X-LXD-properties from headers and add those to
