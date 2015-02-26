@@ -24,6 +24,10 @@ test_basic_usage() {
   lxc stop foo  --force # stop is hanging
   lxc start foo
 
+  # check that we can set the environment
+  lxc exec foo pwd | grep /root
+  lxc exec --env BEST_BAND=meshuggah foo env | grep meshuggah
+
   # Make sure it is the right version
   lxc exec foo /bin/cat /etc/issue | grep 14.04
   echo foo | lxc exec foo tee /tmp/foo

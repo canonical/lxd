@@ -704,8 +704,8 @@ type execMd struct {
 	FDs map[string]string `json:"fds"`
 }
 
-func (c *Client) Exec(name string, cmd []string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error) {
-	body := shared.Jmap{"command": cmd, "wait-for-websocket": true}
+func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error) {
+	body := shared.Jmap{"command": cmd, "wait-for-websocket": true, "environment": env}
 	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body)
 	if err != nil {
 		return -1, err
