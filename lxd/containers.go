@@ -682,7 +682,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	for rows.Next() {
 		var name string
 		rows.Scan(&name)
-		url := fmt.Sprintf("/1.0/containers/%s/snapshots/%s", cname, name)
+		url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
 		body = append(body, url)
 	}
 
