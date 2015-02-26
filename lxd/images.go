@@ -185,7 +185,7 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 	for rows.Next() {
 		var name string
 		rows.Scan(&name)
-		url := fmt.Sprintf("/1.0/images/%s", name)
+		url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
 		result = append(result, url)
 	}
 
@@ -263,11 +263,35 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	for rows.Next() {
 		var name string
 		rows.Scan(&name)
-		url := fmt.Sprintf("/1.0/images/aliases/%s", name)
+		url := fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, name)
 		result = append(result, url)
 	}
 
 	return SyncResponse(true, result)
+}
+
+func aliasGet(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	rows, err := d.db.Query(`SELECT images.fingerprint, images_aliases.description
+	                         FROM images_aliases
+	                         INNER JOIN images
+				 ON images_aliases.image_id=images.id
+				 WHERE images_aliases.name=?`, name)
+	if err != nil {
+		return InternalError(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var fingerprint, description string
+		if err := rows.Scan(&fingerprint, &description); err != nil {
+			return InternalError(err)
+		}
+
+		return SyncResponse(true, shared.Jmap{"target": fingerprint, "description": description})
+	}
+
+	return NotFound
 }
 
 func aliasDelete(d *Daemon, r *http.Request) Response {
@@ -281,4 +305,4 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 
-var aliasCmd = Command{name: "images/aliases/{name:.*}", delete: aliasDelete}
+var aliasCmd = Command{name: "images/aliases/{name:.*}", get: aliasGet, delete: aliasDelete}
