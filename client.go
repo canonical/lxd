@@ -18,7 +18,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/gosexy/gettext"
@@ -152,9 +151,7 @@ func (c *Client) loadServerCert() {
 func NewClient(config *Config, remote string) (*Client, error) {
 	c := Client{
 		config: *config,
-		http: http.Client{
-			Timeout: 10 * time.Second,
-		},
+		http:   http.Client{},
 	}
 
 	c.name = remote
