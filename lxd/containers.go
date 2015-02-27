@@ -183,7 +183,6 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	 * extract that under /var/lib/lxd/lxc/container/rootfs/
 	 */
 	dpath := shared.VarPath("lxc", name)
-	fmt.Printf("uuid is %s\n", uuid)
 	imagefile := shared.VarPath("images", uuid)
 	output, err := exec.Command("tar", "-C", dpath, "--numeric-owner", "-Jxf", imagefile, "rootfs").Output()
 	if err != nil {
