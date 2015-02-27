@@ -84,6 +84,7 @@ alive=0
 while [ $alive -eq 0 ]; do
   [ -e "${LXD_DIR}/unix.socket" ] || continue
   lxc finger && alive=1 || true
+  sleep 1s
 done
 
 echo "==> Setting trust password"
