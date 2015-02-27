@@ -75,10 +75,13 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
+	arch := 0
+	/* TODO: make sure this code doesn't spit out innocuous errors.
 	arch, err := extractTar(uuidfname)
 	if err != nil {
 		return InternalError(err)
 	}
+	*/
 
 	tx, err := d.db.Begin()
 	if err != nil {
