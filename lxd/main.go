@@ -65,7 +65,7 @@ func run() error {
 	d, err := StartDaemon(*listenAddr)
 
 	if err != nil {
-		if d.db != nil {
+		if d != nil && d.db != nil {
 			d.db.Close()
 		}
 		return err
