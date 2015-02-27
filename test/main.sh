@@ -9,10 +9,29 @@ chmod 777 "${LXD_DIR}"
 export LXD_CONF=$(mktemp -d)
 export LXD_FUIDMAP_DIR=${LXD_DIR}/fuidmap
 mkdir -p ${LXD_FUIDMAP_DIR}
+BASEURL=https://127.0.0.1:8443
 RESULT=failure
 lxd_pid=0
 
+set -e
+if [ -n "$LXD_DEBUG" ]; then
+    set -x
+fi
+
 echo "==> Running the LXD testsuite"
+
+my_curl() {
+  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" $@
+}
+
+wait_for() {
+  op=$($@ | jq -r .operation)
+  my_curl $BASEURL$op/wait
+}
+
+lxc() {
+  `which lxc` $@ --config "${LXD_CONF}" $debug
+}
 
 cleanup() {
     echo "==> Cleaning up"
@@ -28,13 +47,10 @@ cleanup() {
     sleep 3
     rm -Rf ${LXD_DIR}
     rm -Rf ${LXD_CONF}
+    echo ""
+    echo ""
     echo "==> Test result: $RESULT"
 }
-
-set -e
-if [ -n "$LXD_DEBUG" ]; then
-    set -x
-fi
 
 trap cleanup EXIT HUP INT TERM
 
@@ -62,20 +78,6 @@ static_analysis
 echo "==> Spawning lxd"
 lxd $debug --tcp 127.0.0.1:8443 &
 lxd_pid=$!
-
-BASEURL=https://127.0.0.1:8443
-my_curl() {
-  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" $@
-}
-
-wait_for() {
-  op=$($@ | jq -r .operation)
-  my_curl $BASEURL$op/wait
-}
-
-lxc() {
-  `which lxc` $@ --config "${LXD_CONF}" $debug
-}
 
 echo "==> Confirming lxd is responsive"
 alive=0
