@@ -948,6 +948,7 @@ var containerSnapshotCmd = Command{name: "containers/{name}/snapshots/{snapshotN
 type execWs struct {
 	command      []string
 	container    *lxc.Container
+	options      lxc.AttachOptions
 	conns        []*websocket.Conn
 	allConnected chan bool
 	done         chan shared.OperationResult
@@ -987,14 +988,7 @@ func (s *execWs) Connect(secret string, r *http.Request, w http.ResponseWriter) 
 	return os.ErrPermission
 }
 
-func runCommand(container *lxc.Container, command []string, stdin uintptr, stdout uintptr, stderr uintptr) shared.OperationResult {
-
-	options := lxc.DefaultAttachOptions
-	options.StdinFd = stdin
-	options.StdoutFd = stdout
-	options.StderrFd = stderr
-	options.ClearEnv = true
-
+func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions) shared.OperationResult {
 	status, err := container.RunCommandStatus(command, options)
 	if err != nil {
 		shared.Debugf("Failed running command: %q", err.Error())
@@ -1023,6 +1017,10 @@ func (s *execWs) Do() shared.OperationResult {
 		}
 	}
 
+	s.options.StdinFd = ttys[0].Fd()
+	s.options.StdoutFd = ttys[1].Fd()
+	s.options.StderrFd = ttys[2].Fd()
+
 	go func() {
 		for i := 0; i < 3; i++ {
 			go func(i int) {
@@ -1038,9 +1036,7 @@ func (s *execWs) Do() shared.OperationResult {
 		result := runCommand(
 			s.container,
 			s.command,
-			ttys[0].Fd(),
-			ttys[1].Fd(),
-			ttys[2].Fd(),
+			s.options,
 		)
 
 		for _, tty := range ttys {
@@ -1058,8 +1054,9 @@ func (s *execWs) Do() shared.OperationResult {
 }
 
 type commandPostContent struct {
-	Command   []string `json:"command"`
-	WaitForWS bool     `json:"wait-for-websocket"`
+	Command     []string          `json:"command"`
+	WaitForWS   bool              `json:"wait-for-websocket"`
+	Environment map[string]string `json:"environment"`
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
@@ -1083,12 +1080,26 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	opts := lxc.DefaultAttachOptions
+	opts.ClearEnv = true
+	opts.Env = []string{}
+
+	if post.Environment != nil {
+		for k, v := range post.Environment {
+			if k == "HOME" {
+				opts.Cwd = v
+			}
+			opts.Env = append(opts.Env, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
+
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
 		ws.conns = make([]*websocket.Conn, 3)
 		ws.allConnected = make(chan bool, 1)
 		ws.done = make(chan shared.OperationResult, 1)
+		ws.options = opts
 		for i := 0; i < 3; i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
@@ -1101,6 +1112,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 		return AsyncResponseWithWs(ws, nil)
 	}
+
 	run := func() shared.OperationResult {
 
 		nullDev, err := os.OpenFile(os.DevNull, os.O_RDWR, 0666)
@@ -1110,7 +1122,11 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		defer nullDev.Close()
 		nullfd := nullDev.Fd()
 
-		return runCommand(c, post.Command, nullfd, nullfd, nullfd)
+		opts.StdinFd = nullfd
+		opts.StdoutFd = nullfd
+		opts.StderrFd = nullfd
+
+		return runCommand(c, post.Command, opts)
 	}
 	return AsyncResponse(run, nil)
 }
