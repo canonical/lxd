@@ -3,7 +3,7 @@
  */
 package shared
 
-var Version = "0.1"
+var Version = "0.2"
 
 /*
  * Please increment the api compat number every time you change the API.
