@@ -82,8 +82,8 @@ lxd_pid=$!
 echo "==> Confirming lxd is responsive"
 alive=0
 while [ $alive -eq 0 ]; do
-  [ -e "${LXD_DIR}/unix.socket" ] || continue
-  lxc finger && alive=1 || true
+  [ -e "${LXD_DIR}/unix.socket" ] && lxc finger && alive=1
+  sleep 1
 done
 
 echo "==> Setting trust password"
