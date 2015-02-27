@@ -19,7 +19,6 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/kr/pty"
 	"github.com/lxc/lxd/shared"
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/lxc/go-lxc.v2"
@@ -1010,7 +1009,7 @@ func (s *execWs) Do() shared.OperationResult {
 	var err error
 
 	for i := 0; i < 3; i++ {
-		ptys[i], ttys[i], err = pty.Open()
+		ptys[i], ttys[i], err = shared.OpenPty()
 		if err != nil {
 			return shared.OperationError(err)
 		}

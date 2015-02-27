@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -25,11 +26,17 @@ import (
 	"github.com/gosexy/gettext"
 )
 
+// #cgo LDFLAGS: -lutil
 /*
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <grp.h>
+#include <pty.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <string.h>
+#include <stdio.h>
 
 // This is an adaption from https://codereview.appspot.com/4589049, to be
 // included in the stdlib with the stdlib's license.
@@ -38,8 +45,106 @@ static int mygetgrgid_r(int gid, struct group *grp,
 	char *buf, size_t buflen, struct group **result) {
 	return getgrgid_r(gid, grp, buf, buflen, result);
 }
+
+void configure_pty(int fd) {
+	struct termios term_settings;
+	struct winsize win;
+
+	if (tcgetattr(fd, &term_settings) < 0) {
+		printf("Failed to get settings: %s\n", strerror(errno));
+		return;
+	}
+
+	term_settings.c_iflag |= IMAXBEL;
+	term_settings.c_iflag |= IUTF8;
+	term_settings.c_iflag |= BRKINT;
+	term_settings.c_iflag |= IXANY;
+
+	term_settings.c_cflag |= HUPCL;
+
+	if (tcsetattr(fd, TCSANOW, &term_settings) < 0) {
+		printf("Failed to set settings: %s\n", strerror(errno));
+		return;
+	}
+
+	if (ioctl(fd, TIOCGWINSZ, &win) < 0) {
+		printf("Failed to get the terminal size: %s\n", strerror(errno));
+		return;
+	}
+
+	win.ws_col = 80;
+	win.ws_row = 25;
+
+	if (ioctl(fd, TIOCSWINSZ, &win) < 0) {
+		printf("Failed to set the terminal size: %s\n", strerror(errno));
+		return;
+	}
+
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
+		printf("Failed to set FD_CLOEXEC: %s\n", strerror(errno));
+		return;
+	}
+
+	return;
+}
+
+void create_pty(int *master, int *slave) {
+	if (openpty(master, slave, NULL, NULL, NULL) < 0) {
+		printf("Failed to openpty: %s\n", strerror(errno));
+		return;
+	}
+
+	configure_pty(*master);
+	configure_pty(*slave);
+}
+
+void create_pipe(int *master, int *slave) {
+	int pipefd[2];
+
+	if (pipe2(pipefd, O_CLOEXEC) < 0) {
+		printf("Failed to create a pipe: %s\n", strerror(errno));
+		return;
+	}
+
+	*master = pipefd[0];
+	*slave = pipefd[1];
+}
+
 */
 import "C"
+
+
+func OpenPty() (master *os.File, slave *os.File, err error) {
+	fd_master := C.int(0)
+	fd_slave := C.int(0)
+
+	C.create_pty(&fd_master, &fd_slave);
+
+	if (fd_master == 0 || fd_slave == 0) {
+		return nil, nil, errors.New("Failed to create a new pts pair")
+	}
+
+	master = os.NewFile(uintptr(fd_master), "master")
+	slave = os.NewFile(uintptr(fd_slave), "slave")
+
+	return master, slave, nil
+}
+
+func Pipe() (master *os.File, slave *os.File, err error) {
+	fd_master := C.int(0)
+	fd_slave := C.int(0)
+
+	C.create_pipe(&fd_master, &fd_slave);
+
+	if (fd_master == 0 || fd_slave == 0) {
+		return nil, nil, errors.New("Failed to create a new pipe")
+	}
+
+	master = os.NewFile(uintptr(fd_master), "master")
+	slave = os.NewFile(uintptr(fd_slave), "slave")
+
+	return master, slave, nil
+}
 
 // VarPath returns the provided path elements joined by a slash and
 // appended to the end of $LXD_DIR, which defaults to /var/lib/lxd.
