@@ -19,12 +19,12 @@ test_nonroot_fuidshift() {
 	touch ${LXD_FUIDMAP_DIR}/x1
 	fuidshift ${LXD_FUIDMAP_DIR}/x1 -t u:$u:100000:1 g:$g:100000:1 | tee /dev/stderr | grep "to 100000 100000" > /dev/null || fail=1
 	if [ $fail -eq 1 ]; then
-		echo "failed to shift own uid to container root"
+		echo "==> Failed to shift own uid to container root"
 		false
 	fi
 	fuidshift ${LXD_FUIDMAP_DIR}/x1 -t u:$u1:10000:1 g:$g1:100000:1 | tee /dev/stderr | grep "to -1 -1" > /dev/null || fail=1
 	if [ $fail -eq 1 ]; then
-		echo "wrongly shifted invalid uid to container root"
+		echo "==> Wrongly shifted invalid uid to container root"
 		false
 	fi
 }
