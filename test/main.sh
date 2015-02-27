@@ -15,6 +15,11 @@ lxd_pid=0
 echo "Running the LXD testsuite"
 
 cleanup() {
+    # Try to stop all the containers
+    my_curl "$BASEURL/1.0/containers" | jq -r .metadata[] | while read -r line; do
+        wait_for my_curl -X PUT "$BASEURL$line/state" -d "{\"action\":\"stop\",\"force\":true}"
+    done
+
     [ "${lxd_pid}" -gt "0" ] && kill -9 ${lxd_pid}
 
     # Apparently we need to wait a while for everything to die
