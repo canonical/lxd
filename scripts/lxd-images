@@ -10,6 +10,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import tarfile
 import tempfile
 import time
@@ -320,9 +321,14 @@ class LXCImages(object):
 
 if __name__ == "__main__":
     if "LXD_DIR" in os.environ:
-        lxd = LXD(os.path.join(os.environ['LXD_DIR'], "unix.socket"))
+        lxd_socket = os.path.join(os.environ['LXD_DIR'], "unix.socket")
     else:
-        lxd = LXD("/var/lib/lxd/unix.socket")
+        lxd_socket = "/var/lib/lxd/unix.socket"
+
+    if not os.path.exists(lxd_socket):
+        print(_("LXD isn't running."))
+        sys.exit(1)
+    lxd = LXD(lxd_socket)
 
     def setup_alias(parser, args, fingerprint):
         existing = lxd.aliases_list()
