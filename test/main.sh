@@ -12,9 +12,11 @@ mkdir -p ${LXD_FUIDMAP_DIR}
 RESULT=failure
 lxd_pid=0
 
-echo "Running the LXD testsuite"
+echo "==> Running the LXD testsuite"
 
 cleanup() {
+    echo "==> Cleaning up"
+
     # Try to stop all the containers
     my_curl "$BASEURL/1.0/containers" | jq -r .metadata[] | while read -r line; do
         wait_for my_curl -X PUT "$BASEURL$line/state" -d "{\"action\":\"stop\",\"force\":true}"
@@ -26,7 +28,7 @@ cleanup() {
     sleep 3
     rm -Rf ${LXD_DIR}
     rm -Rf ${LXD_CONF}
-    echo "Test result: $RESULT"
+    echo "==> Test result: $RESULT"
 }
 
 set -e
@@ -37,7 +39,7 @@ fi
 trap cleanup EXIT HUP INT TERM
 
 if [ -z "`which lxc`" ]; then
-    echo "couldn't find lxc" && false
+    echo "==> Couldn't find lxc" && false
 fi
 
 . ./static_analysis.sh
@@ -51,14 +53,14 @@ if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
 fi
 
-echo "TEST: commit sign-off"
+echo "==> TEST: commit sign-off"
 test_commits_signed_off
 
-echo "TEST: doing static analysis of commits"
+echo "==> TEST: doing static analysis of commits"
 static_analysis
 
-echo "Spawning lxd"
-lxd --debug --tcp 127.0.0.1:8443 &
+echo "==> Spawning lxd"
+lxd $debug --tcp 127.0.0.1:8443 &
 lxd_pid=$!
 
 BASEURL=https://127.0.0.1:8443
@@ -75,16 +77,17 @@ lxc() {
   `which lxc` $@ --config "${LXD_CONF}" $debug
 }
 
-echo "Confirming lxd is responsive"
+echo "==> Confirming lxd is responsive"
 alive=0
 while [ $alive -eq 0 ]; do
+  [ -e "${LXD_DIR}/unix.socket" ] || continue
   lxc finger && alive=1 || true
 done
 
-echo "Setting trust password"
+echo "==> Setting trust password"
 lxc config set password foo
 
-echo "TEST: lxc remote"
+echo "==> TEST: lxc remote"
 test_remote
 
 # Only run the tests below if we're not in travis, since travis itself is using
@@ -94,13 +97,13 @@ if [ -n "$TRAVIS_PULL_REQUEST" ]; then
   exit
 fi
 
-echo "TEST: basic usage"
+echo "==> TEST: basic usage"
 test_basic_usage
 
-echo "TEST: snapshots"
+echo "==> TEST: snapshots"
 test_snapshots
 
-echo "TEST: uidshift"
+echo "==> TEST: uidshift"
 test_fuidshift
 
 RESULT=success
