@@ -191,6 +191,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 		return cleanup(err)
 	}
 
+fmt.Println(compression)
 	args := []string{"-C", dpath, "--numeric-owner"}
 	switch compression {
 	case COMPRESSION_TAR:
@@ -205,7 +206,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 		args = append(args, "-Jxf")
 	}
 	args = append(args, imagefile, "rootfs")
-
+fmt.Println(args)
 	output, err := exec.Command("tar", args...).Output()
 	if err != nil {
 		fmt.Printf("Untar of image: Output %s\nError %s\n", output, err)

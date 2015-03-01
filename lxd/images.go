@@ -18,11 +18,11 @@ import (
 )
 
 const (
-	COMPRESSION_TAR  = iota
-	COMPRESSION_GZIP = iota
-	COMPRESSION_BZ2  = iota
-	COMPRESSION_LZMA = iota
-	COMPRESSION_XY   = iota
+	COMPRESSION_TAR = iota
+	COMPRESSION_GZIP
+	COMPRESSION_BZ2
+	COMPRESSION_LZMA
+	COMPRESSION_XY
 )
 
 const (
@@ -35,6 +35,16 @@ const (
 	ARCH_64BIT_POWERPC_BIG_ENDIAN    = 6
 	ARCH_64BIT_POWERPC_LITTLE_ENDIAN = 7
 )
+
+var architectures = map[string]int{
+	"i686":    ARCH_32BIT_INTEL_X86,
+	"x86_64":  ARCH_64BIT_INTEL_X86,
+	"armv7l":  ARCH_ARMV7_LITTLE_ENDIAN,
+	"aarch64": ARCH_64BIT_ARMV8_LITTLE_ENDIAN,
+	"ppc":     ARCH_32BIT_POWERPC_BIG_ENDIAN,
+	"ppc64":   ARCH_64BIT_POWERPC_BIG_ENDIAN,
+	"ppc64le": ARCH_64BIT_POWERPC_LITTLE_ENDIAN,
+}
 
 func getSize(f *os.File) (int64, error) {
 	fi, err := f.Stat()
@@ -138,6 +148,12 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
+	arch := ARCH_UNKNOWN
+	_, exists := architectures[imageMeta.Architecture]
+	if exists {
+		arch = architectures[imageMeta.Architecture]
+	}
+	
 	tx, err := d.db.Begin()
 	if err != nil {
 		return InternalError(err)
@@ -149,7 +165,8 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(uuid, tarname, size, public, imageMeta.Architecture)
+
+	_, err = stmt.Exec(uuid, tarname, size, public, arch)
 	if err != nil {
 		tx.Rollback()
 		return InternalError(err)
