@@ -114,12 +114,12 @@ void create_pipe(int *master, int *slave) {
 import "C"
 
 func OpenPty() (master *os.File, slave *os.File, err error) {
-	fd_master := C.int(0)
-	fd_slave := C.int(0)
+	fd_master := C.int(-1)
+	fd_slave := C.int(-1)
 
 	C.create_pty(&fd_master, &fd_slave)
 
-	if fd_master == 0 || fd_slave == 0 {
+	if fd_master == -1 || fd_slave == -1 {
 		return nil, nil, errors.New("Failed to create a new pts pair")
 	}
 
@@ -130,12 +130,12 @@ func OpenPty() (master *os.File, slave *os.File, err error) {
 }
 
 func Pipe() (master *os.File, slave *os.File, err error) {
-	fd_master := C.int(0)
-	fd_slave := C.int(0)
+	fd_master := C.int(-1)
+	fd_slave := C.int(-1)
 
 	C.create_pipe(&fd_master, &fd_slave)
 
-	if fd_master == 0 || fd_slave == 0 {
+	if fd_master == -1 || fd_slave == -1 {
 		return nil, nil, errors.New("Failed to create a new pipe")
 	}
 
