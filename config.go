@@ -13,9 +13,6 @@ import (
 
 // Config holds settings to be used by a client or daemon.
 type Config struct {
-	// TestOption is used only for testing purposes.
-	TestOption string `yaml:"test-option,omitempty"`
-
 	// DefaultRemote holds the remote daemon name from the Remotes map
 	// that the client should communicate with by default.
 	// If empty it defaults to "local".
