@@ -33,6 +33,8 @@ var api10 = []Command{
 	api10Cmd,
 	certificatesCmd,
 	certificateFingerprintCmd,
+	profilesCmd,
+	profileCmd,
 }
 
 /* Some interesting filesystems */

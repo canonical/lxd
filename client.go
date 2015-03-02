@@ -362,7 +362,7 @@ var unixTransport = http.Transport{
 	Dial: unixDial,
 }
 
-func (c *Client) GetConfig() (*Response, error) {
+func (c *Client) GetServerConfig() (*Response, error) {
 	resp, err := c.baseGet(c.url(shared.APIVersion))
 	if err != nil {
 		return nil, err
@@ -377,7 +377,7 @@ func (c *Client) GetConfig() (*Response, error) {
 
 func (c *Client) Finger() error {
 	shared.Debugf("fingering the daemon")
-	resp, err := c.GetConfig()
+	resp, err := c.GetServerConfig()
 	if err != nil {
 		return err
 	}
@@ -400,7 +400,7 @@ func (c *Client) Finger() error {
 }
 
 func (c *Client) AmTrusted() bool {
-	resp, err := c.GetConfig()
+	resp, err := c.GetServerConfig()
 	if err != nil {
 		return false
 	}
@@ -693,7 +693,7 @@ func (c *Client) Init(name string, image string) (*Response, error) {
 	}
 
 	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("Non-async response from create!"))
+		return nil, fmt.Errorf(gettext.Gettext("Non-async response from init!"))
 	}
 
 	return resp, nil
@@ -824,7 +824,7 @@ func (c *Client) Delete(name string) (*Response, error) {
 	}
 
 	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("got non-async response from delete!"))
+		return nil, fmt.Errorf(gettext.Gettext("Non-async response from delete!"))
 	}
 
 	return resp, nil
@@ -834,6 +834,29 @@ func (c *Client) ContainerStatus(name string) (*shared.ContainerState, error) {
 	ct := shared.ContainerState{}
 
 	resp, err := c.get(fmt.Sprintf("containers/%s", name))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf(gettext.Gettext("got non-sync response from containers get!"))
+	}
+
+	if err := json.Unmarshal(resp.Metadata, &ct); err != nil {
+		return nil, err
+	}
+
+	return &ct, nil
+}
+
+func (c *Client) ProfileConfig(name string) (*shared.ProfileConfig, error) {
+	ct := shared.ProfileConfig{}
+
+	resp, err := c.get(fmt.Sprintf("profiles/%s", name))
 	if err != nil {
 		return nil, err
 	}
@@ -1018,4 +1041,330 @@ func (c *Client) ListSnapshots(container string) ([]string, error) {
 	}
 
 	return names, nil
+}
+
+/*
+ * return string array representing a container's full configuration
+ */
+func (c *Client) GetContainerConfig(container string) ([]string, error) {
+	st, err := c.ContainerStatus(container)
+	var resp []string
+	if err != nil {
+		return resp, err
+	}
+
+	profiles := strings.Join(st.Profiles, ",")
+	pstr := fmt.Sprintf("Profiles: %s", profiles)
+
+	resp = append(resp, pstr)
+	for k, v := range st.Config {
+		str := fmt.Sprintf("%s = %s", k, v)
+		resp = append(resp, str)
+	}
+
+	return resp, nil
+}
+
+func (c *Client) SetContainerConfig(container, key, value string) (*Response, error) {
+	st, err := c.ContainerStatus(container)
+	if err != nil {
+		return nil, err
+	}
+
+	if value == "" {
+		delete(st.Config, key)
+	} else {
+		st.Config[key] = value
+	}
+
+	body := shared.Jmap{"config": st.Config, "profiles": st.Profiles, "name": container, "devices": st.Devices}
+	resp, err := c.put(fmt.Sprintf("containers/%s", container), body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Async {
+		return nil, fmt.Errorf(gettext.Gettext("Unexpected non-async response"))
+	}
+
+	return resp, nil
+}
+
+func (c *Client) ProfileCreate(p string) error {
+	body := shared.Jmap{"name": p}
+
+	_, err := c.post("profiles", body)
+	return err
+}
+
+func (c *Client) ProfileDelete(p string) error {
+	_, err := c.delete(fmt.Sprintf("profiles/%s", p), nil)
+	return err
+}
+
+func (c *Client) GetProfileConfig(profile string) (map[string]string, error) {
+	st, err := c.ProfileConfig(profile)
+	if err != nil {
+		return nil, err
+	}
+
+	return st.Config, nil
+}
+
+func (c *Client) SetProfileConfig(profile, key, value string) error {
+	st, err := c.ProfileConfig(profile)
+	if err != nil {
+		shared.Debugf("Error getting profile %s to update\n", profile)
+		return err
+	}
+
+	if value == "" {
+		delete(st.Config, key)
+	} else {
+		st.Config[key] = value
+	}
+
+	body := shared.Jmap{"name": profile, "config": st.Config}
+	resp, err := c.put(fmt.Sprintf("profiles/%s", profile), body)
+	if err != nil {
+		return err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return err
+	}
+
+	if resp.Type != Sync {
+		return fmt.Errorf(gettext.Gettext("Unexpected async response"))
+	}
+
+	return nil
+}
+
+func (c *Client) ListProfiles() ([]string, error) {
+	resp, err := c.get("profiles")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
+	}
+	var result []string
+
+	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+		return nil, err
+	}
+
+	names := []string{}
+
+	for _, url := range result {
+		toScan := strings.Replace(url, "/", " ", -1)
+		version := ""
+		name := ""
+		count, err := fmt.Sscanf(toScan, " %s profiles %s", &version, &name)
+		if err != nil {
+			return nil, err
+		}
+
+		if count != 2 {
+			return nil, fmt.Errorf(gettext.Gettext("bad profile url %s"), url)
+		}
+
+		if version != shared.APIVersion {
+			return nil, fmt.Errorf(gettext.Gettext("bad version in profile url"))
+		}
+
+		names = append(names, name)
+	}
+
+	return names, nil
+}
+
+func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
+	st, err := c.ContainerStatus(container)
+	if err != nil {
+		return nil, err
+	}
+	profiles := strings.Split(profile, ",")
+	body := shared.Jmap{"config": st.Config, "profiles": profiles, "name": st.Name, "devices": st.Devices}
+
+	resp, err := c.put(fmt.Sprintf("containers/%s", container), body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Async {
+		return nil, fmt.Errorf(gettext.Gettext("Unexpected non-async response"))
+	}
+
+	return resp, nil
+}
+
+func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, error) {
+	st, err := c.ContainerStatus(container)
+	if err != nil {
+		return nil, err
+	}
+
+	delete(st.Devices, devname)
+
+	body := shared.Jmap{"config": st.Config, "profiles": st.Profiles, "name": st.Name, "devices": st.Devices}
+	resp, err := c.put(fmt.Sprintf("containers/%s", container), body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Async {
+		return nil, fmt.Errorf(gettext.Gettext("Unexpected non-async response"))
+	}
+
+	return resp, nil
+}
+
+func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []string) (*Response, error) {
+	st, err := c.ContainerStatus(container)
+	if err != nil {
+		return nil, err
+	}
+
+	newdev := shared.Device{}
+	for _, p := range props {
+		results := strings.SplitN(p, "=", 2)
+		if len(results) != 2 {
+			return nil, fmt.Errorf(gettext.Gettext("no value found in %q\n"), p)
+		}
+		k := results[0]
+		v := results[1]
+		newdev[k] = v
+	}
+	newdev["type"] = devtype
+	if st.Devices == nil {
+		st.Devices = shared.Devices{}
+	}
+	st.Devices[devname] = newdev
+
+	body := shared.Jmap{"config": st.Config, "profiles": st.Profiles, "name": st.Name, "devices": st.Devices}
+	resp, err := c.put(fmt.Sprintf("containers/%s", container), body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Async {
+		return nil, fmt.Errorf(gettext.Gettext("Unexpected non-async response"))
+	}
+
+	return resp, nil
+}
+
+func (c *Client) ContainerListDevices(container string) ([]string, error) {
+	st, err := c.ContainerStatus(container)
+	if err != nil {
+		return nil, err
+	}
+	devs := []string{}
+	for n, d := range st.Devices {
+		devs = append(devs, fmt.Sprintf("%s: %s", n, d["type"]))
+	}
+	return devs, nil
+}
+
+func (c *Client) ProfileDeviceDelete(profile, devname string) (*Response, error) {
+	st, err := c.ProfileConfig(profile)
+	if err != nil {
+		return nil, err
+	}
+
+	for n, _ := range st.Devices {
+		if n == devname {
+			delete(st.Devices, n)
+		}
+	}
+
+	body := shared.Jmap{"config": st.Config, "name": st.Name, "devices": st.Devices}
+	resp, err := c.put(fmt.Sprintf("profiless/%s", profile), body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
+	}
+
+	return resp, nil
+}
+
+func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []string) (*Response, error) {
+	st, err := c.ProfileConfig(profile)
+	if err != nil {
+		return nil, err
+	}
+
+	newdev := shared.Device{}
+	for _, p := range props {
+		results := strings.SplitN(p, "=", 2)
+		if len(results) != 2 {
+			return nil, fmt.Errorf(gettext.Gettext("no value found in %q\n"), p)
+		}
+		k := results[0]
+		v := results[1]
+		newdev[k] = v
+	}
+	newdev["type"] = devtype
+	if st.Devices == nil {
+		st.Devices = shared.Devices{}
+	}
+	st.Devices[devname] = newdev
+
+	body := shared.Jmap{"config": st.Config, "name": st.Name, "devices": st.Devices}
+	resp, err := c.put(fmt.Sprintf("profiles/%s", profile), body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
+	}
+
+	return resp, nil
+}
+
+func (c *Client) ProfileListDevices(profile string) ([]string, error) {
+	st, err := c.ProfileConfig(profile)
+	if err != nil {
+		return nil, err
+	}
+	devs := []string{}
+	for n, d := range st.Devices {
+		devs = append(devs, fmt.Sprintf("%s: %s", n, d["type"]))
+	}
+	return devs, nil
 }

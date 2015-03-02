@@ -469,3 +469,11 @@ func PathExists(name string) bool {
 	}
 	return true
 }
+
+func IsDir(name string) bool {
+	stat, err := os.Lstat(name)
+	if err != nil {
+		return false
+	}
+	return stat.IsDir()
+}
