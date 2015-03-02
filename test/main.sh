@@ -65,6 +65,7 @@ fi
 . ./signoff.sh
 . ./snapshots.sh
 . ./static_analysis.sh
+. ./config.sh
 
 if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
@@ -98,6 +99,9 @@ test_basic_usage
 
 echo "==> TEST: snapshots"
 test_snapshots
+
+echo "==> TEST: profiles, devices and configuration"
+test_config_profiles
 
 echo "==> TEST: uidshift"
 test_fuidshift

@@ -8,7 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const DB_CURRENT_VERSION int = 2
+const DB_CURRENT_VERSION int = 3
 
 func createDb(p string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", p)
@@ -39,6 +39,31 @@ CREATE TABLE containers_config (
     FOREIGN KEY (container_id) REFERENCES containers (id),
     UNIQUE (container_id, key)
 );
+CREATE TABLE containers_devices (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL default 0,
+    FOREIGN KEY (container_id) REFERENCES containers (id),
+    UNIQUE (container_id, name)
+);
+CREATE TABLE containers_devices_config (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_device_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (container_device_id) REFERENCES containers_devices (id),
+    UNIQUE (container_device_id, key)
+);
+CREATE TABLE containers_profiles (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    apply_order INTEGER NOT NULL default 0,
+    UNIQUE (container_id, profile_id),
+    FOREIGN KEY (container_id) REFERENCES containers(id),
+    FOREIGN KEY (profile_id) REFERENCES profiles(id)
+);
 CREATE TABLE images (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     fingerprint VARCHAR(255) NOT NULL,
@@ -67,6 +92,35 @@ CREATE TABLE images_properties (
     value TEXT,
     FOREIGN KEY (image_id) REFERENCES images (id)
 );
+CREATE TABLE profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    UNIQUE (name)
+);
+CREATE TABLE profiles_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value VARCHAR(255),
+    UNIQUE (profile_id, key),
+    FOREIGN KEY (profile_id) REFERENCES profiles(id)
+);
+CREATE TABLE profiles_devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL default 0,
+    UNIQUE (profile_id, name),
+    FOREIGN KEY (profile_id) REFERENCES profiles (id)
+);
+CREATE TABLE profiles_devices_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_device_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (profile_device_id, key),
+    FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id)
+);
 CREATE TABLE schema (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     version INTEGER NOT NULL,
@@ -91,6 +145,67 @@ func getSchema(db *sql.DB) (int, error) {
 		return v, nil
 	}
 	return 0, nil
+}
+
+func updateFromV2(db *sql.DB) error {
+	stmt := `
+CREATE TABLE containers_devices (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL default 0,
+    FOREIGN KEY (container_id) REFERENCES containers (id),
+    UNIQUE (container_id, name)
+);
+CREATE TABLE containers_devices_config (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_device_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (container_device_id) REFERENCES containers_devices (id),
+    UNIQUE (container_device_id, key)
+);
+CREATE TABLE containers_profiles (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    apply_order INTEGER NOT NULL default 0,
+    UNIQUE (container_id, profile_id),
+    FOREIGN KEY (container_id) REFERENCES containers(id),
+    FOREIGN KEY (profile_id) REFERENCES profiles(id)
+);
+CREATE TABLE profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    UNIQUE (name)
+);
+CREATE TABLE profiles_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value VARCHAR(255),
+    UNIQUE (profile_id, key),
+    FOREIGN KEY (profile_id) REFERENCES profiles(id)
+);
+CREATE TABLE profiles_devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL default 0,
+    UNIQUE (profile_id, name),
+    FOREIGN KEY (profile_id) REFERENCES profiles (id)
+);
+CREATE TABLE profiles_devices_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_device_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (profile_device_id, key),
+    FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id)
+);
+INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 3)
+	return err
 }
 
 /* Yeah we can do htis in a more clever way */
@@ -140,6 +255,12 @@ func updateDb(db *sql.DB, prev_version int) error {
 	}
 	if prev_version < 2 {
 		err = updateFromV1(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prev_version < 3 {
+		err = updateFromV2(db)
 		if err != nil {
 			return err
 		}
@@ -252,4 +373,109 @@ func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
 	}
 
 	return config, nil
+}
+
+func dbGetProfileConfig(d *Daemon, name string) (map[string]string, error) {
+	q := `SELECT key, value FROM profiles_config JOIN profiles
+		ON profiles_config.profile_id=profiles.id
+		WHERE name=?`
+	rows, err := d.db.Query(q, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	config := map[string]string{}
+
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, err
+		}
+		config[key] = value
+	}
+
+	return config, nil
+}
+
+type Profile struct {
+	name  string
+	order int
+}
+type Profiles []Profile
+
+func dbGetProfiles(d *Daemon, c *lxdContainer) ([]string, error) {
+	q := `SELECT name FROM containers_profiles JOIN profiles
+		ON containers_profiles.profile_id=profiles.id
+		WHERE container_id=? ORDER BY containers_profiles.apply_order`
+	rows, err := d.db.Query(q, c.id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var profiles []string
+
+	for rows.Next() {
+		var name string
+		err := rows.Scan(&name)
+		if err != nil {
+			return nil, err
+		}
+		profiles = append(profiles, name)
+	}
+
+	return profiles, nil
+}
+
+func dbGetDevices(d *Daemon, qName string, isprofile bool) (shared.Devices, error) {
+	var q, q2 string
+	if isprofile {
+		q = `SELECT profiles_devices.id, profiles_devices.name, profiles_devices.type
+			FROM profiles_devices JOIN profiles
+			ON profiles_devices.profile_id = profiles.id
+			WHERE profiles.name=?`
+		q2 = `SELECT key, value FROM profiles_devices_config WHERE profile_device_id=?`
+	} else {
+		q = `SELECT containers_devices.id, containers_devices.name, containers_devices.type
+			FROM containers_devices JOIN containers
+			ON containers_devices.container_id = containers.id
+			WHERE containers.name=?`
+		q2 = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
+	}
+	rows, err := d.db.Query(q, qName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	devices := shared.Devices{}
+
+	for rows.Next() {
+		var id int
+		var name, dtype string
+		if err := rows.Scan(&id, &name, &dtype); err != nil {
+			return nil, err
+		}
+		newdev := shared.Device{}
+		rows2, err := d.db.Query(q2, id)
+		if err != nil {
+			return nil, err
+		}
+		defer rows2.Close()
+
+		newdev["type"] = dtype
+		for rows2.Next() {
+			var k, v string
+			rows2.Scan(&k, &v)
+			if !shared.ValidDeviceConfig(dtype, k, v) {
+				return nil, fmt.Errorf("YYY Invalid device config: %s = %s\n", k, v)
+			}
+			newdev[k] = v
+		}
+
+		devices[name] = newdev
+	}
+
+	return devices, nil
 }

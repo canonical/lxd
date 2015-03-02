@@ -369,6 +369,160 @@ func containerDeleteSnapshots(d *Daemon, cname string) []string {
 	return results
 }
 
+type containerConfigReq struct {
+	Profiles []string          `json:"profiles"`
+	Config   map[string]string `json:"config"`
+	Devices  shared.Devices    `json:"devices"`
+	Restore  string            `json:"restore"`
+}
+
+func containerSnapRestore(id int, snap string) Response {
+	return NotImplemented
+}
+
+func dbClearContainerConfig(tx *sql.Tx, id int) error {
+	_, err := tx.Exec("DELETE FROM containers_config WHERE container_id=?", id)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec("DELETE FROM containers_profiles WHERE container_id=?", id)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(`DELETE FROM containers_devices_config WHERE id IN
+		(SELECT containers_devices_config.id
+		 FROM containers_devices_config JOIN containers_devices
+		 ON containers_devices_config.container_device_id=containers_devices.id
+		 WHERE containers_devices.container_id=?)`, id)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec("DELETE FROM containers_devices WHERE container_id=?", id)
+	return err
+}
+
+func ValidContainerConfigKey(k string) bool {
+	switch k {
+	case "limits.cpus":
+		return true
+	case "limits.memory":
+		return true
+	case "security.privileged":
+		return true
+	case "raw.apparmor":
+		return true
+	case "raw.lxc":
+		return true
+	}
+
+	return strings.HasPrefix(k, "user.")
+}
+
+func emptyProfile(l []string) bool {
+	if len(l) == 0 {
+		return true
+	}
+	if len(l) == 1 && l[0] == "" {
+		return true
+	}
+	return false
+}
+
+/*
+ * Update configuration, or, if 'restore:snapshot-name' is present, restore
+ * the named snapshot
+ */
+func containerPut(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	shared.Debugf("containerPut: called with name %s\n", name)
+	cId, err := dbGetContainerId(d.db, name)
+	if err != nil {
+		return NotFound
+	}
+
+	configRaw := containerConfigReq{}
+	if err := json.NewDecoder(r.Body).Decode(&configRaw); err != nil {
+		return BadRequest(err)
+	}
+
+	do := func() error {
+
+		tx, err := d.db.Begin()
+		if err != nil {
+			return err
+		}
+
+		/* Update config or profiles */
+		if err = dbClearContainerConfig(tx, cId); err != nil {
+			shared.Debugf("Error clearing configuration for container %s\n", name)
+			tx.Rollback()
+			return err
+		}
+
+		str := "INSERT INTO containers_config (container_id, key, value) values (?, ?, ?)"
+		stmt, err := tx.Prepare(str)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		defer stmt.Close()
+
+		for k, v := range configRaw.Config {
+			if !ValidContainerConfigKey(k) {
+				tx.Rollback()
+				return fmt.Errorf("Bad key: %s\n", k)
+			}
+
+			_, err = stmt.Exec(cId, k, v)
+			if err != nil {
+				shared.Debugf("Error adding configuration item %s = %s to container %s\n",
+					k, v, name)
+				tx.Rollback()
+				return err
+			}
+		}
+
+		/* handle profiles */
+		if emptyProfile(configRaw.Profiles) {
+			_, err := tx.Exec("DELETE from containers_profiles where container_id=?", cId)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		} else {
+			apply_order := 1
+			str2 := `INSERT INTO containers_profiles (container_id, profile_id, apply_order) VALUES
+				(?, (SELECT id FROM profiles WHERE name=?), ?);`
+			stmt2, err := tx.Prepare(str2)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			defer stmt2.Close()
+			for _, p := range configRaw.Profiles {
+				_, err = stmt2.Exec(cId, p, apply_order)
+				if err != nil {
+					shared.Debugf("Error adding profile %s to container %s: %s\n",
+						p, name, err)
+					tx.Rollback()
+					return err
+				}
+				apply_order = apply_order + 1
+			}
+		}
+
+		err = shared.AddDevices(tx, "container", cId, configRaw.Devices)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		return tx.Commit()
+	}
+
+	return AsyncResponse(shared.OperationWrap(do), nil)
+}
+
 func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	fmt.Printf("delete: called with name %s\n", name)
@@ -393,7 +547,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	return AsyncResponse(shared.OperationWrap(rmdir), nil)
 }
 
-var containerCmd = Command{name: "containers/{name}", get: containerGet, delete: containerDelete}
+var containerCmd = Command{name: "containers/{name}", get: containerGet, put: containerPut, delete: containerDelete}
 
 func containerStateGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
@@ -412,19 +566,22 @@ type containerStatePutReq struct {
 }
 
 type lxdContainer struct {
-	c      *lxc.Container
-	id     int
-	name   string
-	config map[string]string
+	c        *lxc.Container
+	id       int
+	name     string
+	config   map[string]string
+	profiles []string
+	devices  shared.Devices
 }
 
 func (c *lxdContainer) RenderState() *shared.ContainerState {
 	return &shared.ContainerState{
 		Name:     c.name,
-		Profiles: []string{},
+		Profiles: c.profiles,
 		Config:   c.config,
 		Userdata: []byte{},
 		Status:   shared.NewStatus(c.c.State()),
+		Devices:  c.devices,
 	}
 }
 
@@ -440,6 +597,16 @@ func (c *lxdContainer) Freeze() error {
 	return c.c.Freeze()
 }
 
+func (c *lxdContainer) isUnprivileged() bool {
+	switch strings.ToLower(c.config["security.privileged"]) {
+	case "0":
+		return true
+	case "false":
+		return true
+	}
+	return false
+}
+
 func (c *lxdContainer) Shutdown(timeout time.Duration) error {
 	return c.c.Shutdown(timeout)
 }
@@ -450,6 +617,115 @@ func (c *lxdContainer) Stop() error {
 
 func (c *lxdContainer) Unfreeze() error {
 	return c.c.Unfreeze()
+}
+
+func (d *lxdContainer) applyConfig(config map[string]string) error {
+	var err error
+	for k, v := range config {
+		switch k {
+		case "limits.cpus":
+			// TODO - Come up with a way to choose cpus for multiple
+			// containers
+			var vint int
+			count, err := fmt.Sscanf(v, "%d", &vint)
+			if err != nil {
+				return err
+			}
+			if count != 1 || vint < 0 || vint > 65000 {
+				return fmt.Errorf("Bad cpu limit: %s\n", v)
+			}
+			cpuset := fmt.Sprintf("0-%d", vint-1)
+			err = d.c.SetConfigItem("lxc.cgroup.cpuset.cpus", cpuset)
+		case "limits.memory":
+			err = d.c.SetConfigItem("lxc.cgroup.memory.limit_in_bytes", v)
+		default:
+			if strings.HasPrefix(k, "user.") {
+				// ignore for now
+				err = nil
+			}
+		}
+		if err != nil {
+			shared.Debugf("error setting %s: %q\n", k, err)
+			return err
+		}
+	}
+
+	if lxcConfig, ok := config["raw.lxc"]; ok {
+		for _, line := range strings.Split(lxcConfig, "\n") {
+			contents := strings.SplitN(line, "=", 2)
+			key := contents[0]
+			value := ""
+			if len(contents) > 1 {
+				value = contents[1]
+			}
+
+			key = strings.Trim(key, " ")
+			value = strings.Trim(value, " ")
+
+			// empty lines
+			if key == "" {
+				continue
+			}
+
+			shared.Debugf("setting %s=%s", key, value)
+
+			if err := d.c.SetConfigItem(key, value); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
+	rows, err := daemon.db.Query(`SELECT key, value FROM profiles_config
+		JOIN profiles ON profiles.id=profiles_config.profile_id
+		WHERE profiles.name=?`, p)
+
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	config := map[string]string{}
+
+	for rows.Next() {
+		var k string
+		var v string
+		rows.Scan(&k, &v)
+		config[k] = v
+	}
+
+	newdevs, err := dbGetDevices(daemon, p, true)
+	if err != nil {
+		return err
+	}
+	for k, v := range newdevs {
+		d.devices[k] = v
+	}
+
+	return d.applyConfig(config)
+}
+
+func (c *lxdContainer) applyDevices() error {
+	for name, d := range c.devices {
+		if name == "type" {
+			continue
+		}
+		configs, err := DeviceToLxc(d)
+		if err != nil {
+			return fmt.Errorf("Failed configuring device %s: %s\n", name, err)
+		}
+		for _, line := range configs {
+			err := c.c.SetConfigItem(line[0], line[1])
+			if err != nil {
+				fmt.Errorf("Failed configuring device %s: %s\n", name, err)
+			}
+		}
+		shared.Debugf("Configured device %s\n", name)
+	}
+	return nil
 }
 
 func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
@@ -475,16 +751,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/ubuntu.common.conf")
-	if err != nil {
-		return nil, err
-	}
-
-	err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/ubuntu.userns.conf")
-	if err != nil {
-		return nil, err
-	}
+	d.c = c
 
 	var txtarch string
 	switch arch {
@@ -498,24 +765,31 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		return nil, err
 	}
 
-	/* todo - get and translate containers_config entries
-	 * for now we hardcode some sane entries */
+	err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/common.conf")
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/userns.conf")
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := dbGetConfig(daemon, d)
+	if err != nil {
+		return nil, err
+	}
+	d.config = config
+
+	profiles, err := dbGetProfiles(daemon, d)
+	if err != nil {
+		return nil, err
+	}
+	d.profiles = profiles
+	d.devices = shared.Devices{}
+
 	rootfsPath := shared.VarPath("lxc", name, "rootfs")
 	err = c.SetConfigItem("lxc.rootfs", rootfsPath)
-	if err != nil {
-		return nil, err
-	}
-	err = c.SetConfigItem("lxc.devttydir", "")
-	if err != nil {
-		return nil, err
-	}
-	uidstr := fmt.Sprintf("u 0 %d %d\n", daemon.id_map.Uidmin, daemon.id_map.Uidrange)
-	err = c.SetConfigItem("lxc.id_map", uidstr)
-	if err != nil {
-		return nil, err
-	}
-	gidstr := fmt.Sprintf("g 0 %d %d\n", daemon.id_map.Gidmin, daemon.id_map.Gidrange)
-	err = c.SetConfigItem("lxc.id_map", gidstr)
 	if err != nil {
 		return nil, err
 	}
@@ -533,57 +807,50 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* net config */
-	err = c.SetConfigItem("lxc.network.type", "veth")
-	if err != nil {
-		return nil, err
-	}
-	err = c.SetConfigItem("lxc.network.link", "lxcbr0")
-	if err != nil {
-		return nil, err
-	}
-	err = c.SetConfigItem("lxc.network.flags", "up")
-	if err != nil {
-		return nil, err
-	}
-	err = c.SetConfigItem("lxc.network.hwaddr", "00:16:3e:xx:xx:xx")
-	if err != nil {
-		return nil, err
-	}
 
-	config, err := dbGetConfig(daemon, d)
-	if err != nil {
-		return nil, err
-	}
-	d.config = config
-
-	if lxcConfig, ok := config["raw.lxc"]; ok {
-		for _, line := range strings.Split(lxcConfig, "\n") {
-			contents := strings.SplitN(line, "=", 2)
-			key := contents[0]
-			value := ""
-			if len(contents) > 1 {
-				value = contents[1]
-			}
-
-			key = strings.Trim(key, " ")
-			value = strings.Trim(value, " ")
-
-			// empty lines
-			if key == "" {
-				continue
-			}
-
-			shared.Debugf("setting %s=%s", key, value)
-
-			if err := c.SetConfigItem(key, value); err != nil {
-				return nil, err
-			}
+	/* apply profiles */
+	for _, p := range profiles {
+		err := applyProfile(daemon, d, p)
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	/* get container_devices */
+	newdevs, err := dbGetDevices(daemon, d.name, false)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range newdevs {
+		d.devices[k] = v
+	}
+
+	/* now add the lxc.* entries for the configured devices */
+	err = d.applyDevices()
+	if err != nil {
+		return nil, err
+	}
+
+	if !d.isUnprivileged() {
+		uidstr := fmt.Sprintf("u 0 %d %d\n", daemon.id_map.Uidmin, daemon.id_map.Uidrange)
+		err = c.SetConfigItem("lxc.id_map", uidstr)
+		if err != nil {
+			return nil, err
+		}
+		gidstr := fmt.Sprintf("g 0 %d %d\n", daemon.id_map.Gidmin, daemon.id_map.Gidrange)
+		err = c.SetConfigItem("lxc.id_map", gidstr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = d.applyConfig(d.config)
+	if err != nil {
+		return nil, err
+	}
+
 	d.name = name
-	d.c = c
 
 	return d, nil
 }
