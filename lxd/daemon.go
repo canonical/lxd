@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/tomb.v2"
@@ -177,6 +178,23 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	}
 
 	localSocket := shared.VarPath("unix.socket")
+
+	// If the socket exists, let's try to connect to it and see if there's
+	// a lxd running.
+	if _, err := os.Stat(localSocket); err == nil {
+		c := &lxd.Config{Remotes: map[string]lxd.RemoteConfig{}}
+		_, err := lxd.NewClient(c, "")
+		if err != nil {
+			shared.Debugf("Detected old but dead unix socket, deleting it...")
+			// Connecting failed, so let's delete the socket and
+			// listen on it ourselves.
+			err = os.Remove(localSocket)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	unixAddr, err := net.ResolveUnixAddr("unix", localSocket)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
