@@ -1,7 +1,6 @@
 package main
 
 import (
-	"archive/tar"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -13,9 +12,39 @@ import (
 	"strconv"
 
 	//"github.com/uli-go/xz/lzma"
+	"bytes"
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
 )
+
+const (
+	COMPRESSION_TAR = iota
+	COMPRESSION_GZIP
+	COMPRESSION_BZ2
+	COMPRESSION_LZMA
+	COMPRESSION_XY
+)
+
+const (
+	ARCH_UNKNOWN                     = 0
+	ARCH_32BIT_INTEL_X86             = 1
+	ARCH_64BIT_INTEL_X86             = 2
+	ARCH_ARMV7_LITTLE_ENDIAN         = 3
+	ARCH_64BIT_ARMV8_LITTLE_ENDIAN   = 4
+	ARCH_32BIT_POWERPC_BIG_ENDIAN    = 5
+	ARCH_64BIT_POWERPC_BIG_ENDIAN    = 6
+	ARCH_64BIT_POWERPC_LITTLE_ENDIAN = 7
+)
+
+var architectures = map[string]int{
+	"i686":    ARCH_32BIT_INTEL_X86,
+	"x86_64":  ARCH_64BIT_INTEL_X86,
+	"armv7l":  ARCH_ARMV7_LITTLE_ENDIAN,
+	"aarch64": ARCH_64BIT_ARMV8_LITTLE_ENDIAN,
+	"ppc":     ARCH_32BIT_POWERPC_BIG_ENDIAN,
+	"ppc64":   ARCH_64BIT_POWERPC_BIG_ENDIAN,
+	"ppc64le": ARCH_64BIT_POWERPC_LITTLE_ENDIAN,
+}
 
 func getSize(f *os.File) (int64, error) {
 	fi, err := f.Stat()
@@ -23,6 +52,46 @@ func getSize(f *os.File) (int64, error) {
 		return 0, err
 	}
 	return fi.Size(), nil
+}
+
+func detectCompression(fname string) (int, error) {
+
+	f, err := os.Open(fname)
+	if err != nil {
+		return -1, err
+	}
+	defer f.Close()
+
+	// read header parts to detect compression method
+	// bz2 - 2 bytes, 'BZ' signature/magic number
+	// gz - 2 bytes, 0x1f 0x8b
+	// lzma - 6 bytes, { [0x000, 0xE0], '7', 'z', 'X', 'Z', 0x00 } -
+	// xy - 6 bytes,  header format { 0xFD, '7', 'z', 'X', 'Z', 0x00 }
+	// tar - 263 bytes, trying to get ustar from 257 - 262
+	header := make([]byte, 263)
+	_, err = f.Read(header)
+
+	switch {
+	case bytes.Equal(header[0:2], []byte{'B', 'Z'}):
+		return COMPRESSION_BZ2, nil
+	case bytes.Equal(header[0:2], []byte{0x1f, 0x8b}):
+		return COMPRESSION_GZIP, nil
+	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] == 0xFD):
+		return COMPRESSION_XY, nil
+	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] != 0xFD):
+		return COMPRESSION_LZMA, nil
+	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
+		return COMPRESSION_TAR, nil
+	default:
+		return -1, fmt.Errorf("Unsupported compression.")
+	}
+
+}
+
+type imageMetadata struct {
+	Architecture  string
+	Creation_date float64
+	Properties    map[string]interface{}
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
@@ -52,14 +121,11 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	if err != nil {
-		return InternalError(err)
-	}
-
 	/* TODO - this reads whole file into memory; we should probably
 	 * do the sha256sum piecemeal */
 	contents, err := ioutil.ReadFile(fname)
 	if err != nil {
+		// TODO clean up file
 		return InternalError(err)
 	}
 
@@ -70,18 +136,23 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	if shared.PathExists(uuidfname) {
 		return InternalError(fmt.Errorf("Image exists"))
 	}
+
 	err = os.Rename(fname, uuidfname)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	arch := 0
-	/* TODO: make sure this code doesn't spit out innocuous errors.
-	arch, err := extractTar(uuidfname)
+	imageMeta, err := getImageMetadata(uuidfname)
 	if err != nil {
+		// TODO: clean up file
 		return InternalError(err)
 	}
-	*/
+
+	arch := ARCH_UNKNOWN
+	_, exists := architectures[imageMeta.Architecture]
+	if exists {
+		arch = architectures[imageMeta.Architecture]
+	}
 
 	tx, err := d.db.Begin()
 	if err != nil {
@@ -94,6 +165,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 	defer stmt.Close()
+
 	_, err = stmt.Exec(uuid, tarname, size, public, arch)
 	if err != nil {
 		tx.Rollback()
@@ -131,49 +203,45 @@ func xzReader(r io.Reader) io.ReadCloser {
 	return rpipe
 }
 
-func extractTar(fname string) (int, error) {
-	f, err := os.Open(fname)
+func getImageMetadata(fname string) (*imageMetadata, error) {
+
+	compression, err := detectCompression(fname)
+
 	if err != nil {
-		fmt.Printf("error opening %s: %s\n", fname, err)
-		return 0, err
-	}
-	defer f.Close()
-	fmt.Printf("opened %s\n", fname)
-
-	/* todo - uncompress */
-	/*
-		var fileReader io.ReadCloser = f
-		if fileReader, err = lzma.NewReader(f); err != nil {
-			// ok it's not xz - ignore (or try others)
-			filereader = f
-		} else {
-			defer filereader.Close()
-		}
-	*/
-
-	tr := tar.NewReader(f)
-	for {
-		hdr, err := tr.Next()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			fmt.Printf("got error %s\n", err)
-			/* TODO - figure out why we get error */
-			return 0, nil
-			//return 0, err
-		}
-		if hdr.Name != "metadata.yaml" {
-			continue
-		}
-		//tr.Read()
-		// find architecture line
-		break
+		return nil, err
 	}
 
-	/* todo - read arch from metadata.yaml */
-	arch := 0
-	return arch, nil
+	args := []string{"-O"}
+	switch compression {
+	case COMPRESSION_TAR:
+		args = append(args, "-xf")
+	case COMPRESSION_GZIP:
+		args = append(args, "-zxf")
+	case COMPRESSION_BZ2:
+		args = append(args, "--jxf")
+	case COMPRESSION_LZMA:
+		args = append(args, "--lzma", "-xf")
+	default:
+		args = append(args, "-Jxf")
+	}
+	args = append(args, fname, "metadata.yaml")
+
+	// read the metadata.yaml
+	output, err := exec.Command("tar", args...).Output()
+
+	if err != nil {
+		return nil, err
+	}
+
+	metadata := new(imageMetadata)
+	err = json.Unmarshal(output, &metadata)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return metadata, nil
+
 }
 
 func imagesGet(d *Daemon, r *http.Request) Response {
