@@ -1060,12 +1060,12 @@ type commandPostContent struct {
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := lxc.NewContainer(name, d.lxcpath)
+	c, err := newLxdContainer(name, d)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	if !c.Running() {
+	if !c.c.Running() {
 		return BadRequest(fmt.Errorf("Container is not running."))
 	}
 
@@ -1107,7 +1107,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		}
 
 		ws.command = post.Command
-		ws.container = c
+		ws.container = c.c
 
 		return AsyncResponseWithWs(ws, nil)
 	}
@@ -1125,7 +1125,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		opts.StdoutFd = nullfd
 		opts.StderrFd = nullfd
 
-		return runCommand(c, post.Command, opts)
+		return runCommand(c.c, post.Command, opts)
 	}
 	return AsyncResponse(run, nil)
 }

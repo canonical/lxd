@@ -100,12 +100,12 @@ func networkGet(d *Daemon, r *http.Request) Response {
 	} else if isBridge(n.Name) {
 		n.Type = "bridge"
 		for _, ct := range lxc.ActiveContainerNames(d.lxcpath) {
-			c, err := lxc.NewContainer(ct, d.lxcpath)
+			c, err := newLxdContainer(ct, d)
 			if err != nil {
 				return InternalError(err)
 			}
 
-			if isOnBridge(c, n.Name) {
+			if isOnBridge(c.c, n.Name) {
 				n.Members = append(n.Members, ct)
 			}
 		}
