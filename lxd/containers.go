@@ -1032,8 +1032,6 @@ func (s *execWs) Do() shared.OperationResult {
 
 	go func() {
 		if s.interactive {
-			shared.Debugf("conns = %d", len(s.conns))
-			shared.Debugf("ptys = %d", len(ptys))
 			shared.WebsocketMirror(s.conns[0], ptys[0], ptys[0])
 		} else {
 			for i := 0; i < len(ttys); i++ {
