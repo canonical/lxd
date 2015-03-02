@@ -56,23 +56,22 @@ And then download it as usual:
     go get -v -d ./...
     make
 
-And you should have two binaries, one at `/lxc/lxc`, and one at `/lxd/lxd`.
+...which will give you two binaries in $GOPATH/bin, `lxd` the daemon binary,
+and `lxc` a command line client to that daemon.
 
 ### Machine Setup
 
-Right now lxd uses a hardcoded path for all its containers. This will change in
-the future, but for now you need to let the user running lxd own /var/lib/lxd:
+You'll need sub{u,g}ids for root, so that LXD can create the unprivileged
+containers:
 
-    sudo mkdir -p /var/lib/lxd
-    sudo chown $USER:$USER /var/lib/lxd
+    echo "root:1000000:65536" | sudo tee -a /etc/subuid /etc/subgid
 
-You'll also need sub{u,g}ids for the user that lxd is going to run as:
+Now you can run the daemon (the --group admin bit allows everyone in the admin
+group to talk to lxd; you can create your own group if you want, but typically
+all sudo users are in the admin group, so this is a handy way to allow them to
+talk to lxd):
 
-    echo "$USER:1000000:65536" | sudo tee -a /etc/subuid /etc/subgid
-
-Now you can run the daemon:
-
-    ./lxd/lxd &
+    sudo -E $GOPATH/bin/lxd --group admin
 
 ## First steps
 
