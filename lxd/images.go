@@ -136,7 +136,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	uuidfname := shared.VarPath("images", uuid)
 
 	if shared.PathExists(uuidfname) {
-		return InternalError(fmt.Errorf("Image exists"))
+		return cleanup(fmt.Errorf("Image exists already."), fname)
 	}
 
 	err = os.Rename(fname, uuidfname)
