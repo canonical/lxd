@@ -567,6 +567,16 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 				value = contents[1]
 			}
 
+			key = strings.Trim(key, " ")
+			value = strings.Trim(value, " ")
+
+			// empty lines
+			if key == "" {
+				continue
+			}
+
+			shared.Debugf("setting %s=%s", key, value)
+
 			if err := c.SetConfigItem(key, value); err != nil {
 				return nil, err
 			}
