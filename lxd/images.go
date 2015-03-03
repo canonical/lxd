@@ -10,11 +10,11 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-
 	//"github.com/uli-go/xz/lzma"
 	"bytes"
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
+	"hash"
 )
 
 const (
@@ -94,7 +94,50 @@ type imageMetadata struct {
 	Properties    map[string]interface{}
 }
 
+type httpRequestFileReader struct {
+	reader      io.Reader
+	fingerprint string
+	hash        hash.Hash
+}
+
+// used to generate content hash on the fly, while copying the request to the filesystem
+func NewHttpRequestFileReader(ioReader io.Reader) *httpRequestFileReader {
+
+	return &httpRequestFileReader{
+		reader:      ioReader,
+		fingerprint: "",
+		hash:        sha256.New(),
+	}
+
+}
+
+func (r *httpRequestFileReader) Read(p []byte) (n int, err error) {
+
+	// pass read on to underlying reader
+	bytesRead, err := r.reader.Read(p)
+
+	// if there is no EOF error and some data in p, write it in hash
+	// otherwise generate fingerprint
+	if err == io.EOF {
+		r.hash.Write(p[0:(bytesRead - 1)])
+		r.fingerprint = fmt.Sprintf("%x", r.hash.Sum(nil))
+	} else {
+		r.hash.Write(p)
+	}
+
+	return bytesRead, err
+}
+
 func imagesPost(d *Daemon, r *http.Request) Response {
+
+	cleanup := func(err error, fname string) Response {
+		// show both errors, if remove fails
+		if remErr := os.Remove(fname); remErr != nil {
+			return InternalError(fmt.Errorf("Could not process image: %s; Error deleting temporary file: %s", err, remErr))
+		}
+		return InternalError(err)
+	}
+
 	shared.Debugf("responding to images:post")
 
 	public, err := strconv.Atoi(r.Header.Get("X-LXD-public"))
@@ -107,30 +150,22 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	f, err := ioutil.TempFile(dirname, "image_")
+	defer f.Close()
+
 	if err != nil {
 		return InternalError(err)
 	}
 
 	fname := f.Name()
 
-	_, err = io.Copy(f, r.Body)
+	reqFileReader := NewHttpRequestFileReader(r.Body)
+	size, err := io.Copy(f, reqFileReader)
 
-	size, err := getSize(f)
-	f.Close()
 	if err != nil {
-		return InternalError(err)
+		return cleanup(err, fname)
 	}
 
-	/* TODO - this reads whole file into memory; we should probably
-	 * do the sha256sum piecemeal */
-	contents, err := ioutil.ReadFile(fname)
-	if err != nil {
-		// TODO clean up file
-		return InternalError(err)
-	}
-
-	fingerprint := sha256.Sum256(contents)
-	uuid := fmt.Sprintf("%x", fingerprint)
+	uuid := reqFileReader.fingerprint
 	uuidfname := shared.VarPath("images", uuid)
 
 	if shared.PathExists(uuidfname) {
@@ -139,13 +174,12 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	err = os.Rename(fname, uuidfname)
 	if err != nil {
-		return InternalError(err)
+		return cleanup(err, fname)
 	}
 
 	imageMeta, err := getImageMetadata(uuidfname)
 	if err != nil {
-		// TODO: clean up file
-		return InternalError(err)
+		return cleanup(err, uuidfname)
 	}
 
 	arch := ARCH_UNKNOWN
@@ -156,24 +190,24 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	tx, err := d.db.Begin()
 	if err != nil {
-		return InternalError(err)
+		return cleanup(err, uuidfname)
 	}
 
 	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, upload_date) VALUES (?, ?, ?, ?, ?, strftime("%s"))`)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return cleanup(err, uuidfname)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(uuid, tarname, size, public, arch)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return cleanup(err, uuidfname)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return InternalError(err)
+		return cleanup(err, uuidfname)
 	}
 
 	/*
@@ -230,14 +264,14 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 	output, err := exec.Command("tar", args...).Output()
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Could not get image metadata: %v", err)
 	}
 
 	metadata := new(imageMetadata)
 	err = json.Unmarshal(output, &metadata)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Could not get image metadata: %v", err)
 	}
 
 	return metadata, nil
