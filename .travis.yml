@@ -6,15 +6,20 @@ go:
 
 before_install:
   - sudo apt-add-repository -y ppa:ubuntu-lxc/daily
-  - sudo apt-get update -qq
+  - sudo apt-add-repository -y ppa:ubuntu-lxc/lxd-daily
+  - sudo apt-get update
+  - sudo apt-get install -y libssl1.0.0 libssl-dev libssl-doc curl libcurl3 libcurl3-gnutls libcurl4-openssl-dev
+  - sudo apt-get install -y acl lxc lxc-dev sqlite3 jq
 
 install:
-  - sudo apt-get install lxc lxc-dev
   - go get golang.org/x/tools/cmd/vet
   - mkdir -p $GOPATH/github.com/lxc
   - go get -v -d ./...
   - rsync -az ${TRAVIS_BUILD_DIR}/ $HOME/gopath/src/github.com/lxc/lxd/
+  - echo "root:100000:65536" | sudo tee /etc/subuid
+  - echo "root:100000:65536" | sudo tee /etc/subgid
+  - sudo stop cgmanager
 
-script: "make check"
+script: "sudo -E env PATH=$PATH make check"
 notifications:
   webhooks: https://linuxcontainers.org/webhook-lxcbot/
