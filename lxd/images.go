@@ -12,10 +12,10 @@ import (
 	"strconv"
 	//"github.com/uli-go/xz/lzma"
 	"bytes"
+
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
 	"gopkg.in/yaml.v2"
-	"hash"
 )
 
 const (
@@ -95,40 +95,6 @@ type imageMetadata struct {
 	Properties    map[string]interface{}
 }
 
-type httpRequestFileReader struct {
-	reader      io.Reader
-	fingerprint string
-	hash        hash.Hash
-}
-
-// used to generate content hash on the fly, while copying the request to the filesystem
-func NewHttpRequestFileReader(ioReader io.Reader) *httpRequestFileReader {
-
-	return &httpRequestFileReader{
-		reader:      ioReader,
-		fingerprint: "",
-		hash:        sha256.New(),
-	}
-
-}
-
-func (r *httpRequestFileReader) Read(p []byte) (n int, err error) {
-
-	// pass read on to underlying reader
-	bytesRead, err := r.reader.Read(p)
-
-	// if there is no EOF error and some data in p, write it in hash
-	// otherwise generate fingerprint
-	if err == io.EOF {
-		r.hash.Write(p[0:(bytesRead - 1)])
-		r.fingerprint = fmt.Sprintf("%x", r.hash.Sum(nil))
-	} else {
-		r.hash.Write(p)
-	}
-
-	return bytesRead, err
-}
-
 func imagesPost(d *Daemon, r *http.Request) Response {
 
 	cleanup := func(err error, fname string) Response {
@@ -159,14 +125,14 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	fname := f.Name()
 
-	reqFileReader := NewHttpRequestFileReader(r.Body)
-	size, err := io.Copy(f, reqFileReader)
+	sha256 := sha256.New()
+	size, err := io.Copy(io.MultiWriter(f, sha256), r.Body)
 
 	if err != nil {
 		return cleanup(err, fname)
 	}
 
-	uuid := reqFileReader.fingerprint
+	uuid := fmt.Sprintf("%x", sha256.Sum(nil))
 	uuidfname := shared.VarPath("images", uuid)
 
 	if shared.PathExists(uuidfname) {
@@ -272,7 +238,6 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 	err = yaml.Unmarshal(output, &metadata)
 
 	if err != nil {
-		fmt.Println(err)
 		return nil, fmt.Errorf("Could not get image metadata: %v", err)
 	}
 
