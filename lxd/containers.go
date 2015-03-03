@@ -184,7 +184,29 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	 */
 	dpath := shared.VarPath("lxc", name)
 	imagefile := shared.VarPath("images", uuid)
-	output, err := exec.Command("tar", "-C", dpath, "--numeric-owner", "-Jxf", imagefile, "rootfs").Output()
+
+	compression, err := detectCompression(imagefile)
+	if err != nil {
+		fmt.Printf("Unkown compression type: %s", err)
+		return cleanup(err)
+	}
+
+	args := []string{"-C", dpath, "--numeric-owner"}
+	switch compression {
+	case COMPRESSION_TAR:
+		args = append(args, "-xf")
+	case COMPRESSION_GZIP:
+		args = append(args, "-zxf")
+	case COMPRESSION_BZ2:
+		args = append(args, "--jxf")
+	case COMPRESSION_LZMA:
+		args = append(args, "--lzma", "-xf")
+	default:
+		args = append(args, "-Jxf")
+	}
+	args = append(args, imagefile, "rootfs")
+
+	output, err := exec.Command("tar", args...).Output()
 	if err != nil {
 		fmt.Printf("Untar of image: Output %s\nError %s\n", output, err)
 		return cleanup(err)
@@ -503,6 +525,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		return nil, err
 	}
 	logfile := shared.VarPath("lxc", name, "log")
+	fmt.Println(logfile)
 	err = c.SetConfigItem("lxc.logfile", logfile)
 	if err != nil {
 		return nil, err
