@@ -17,6 +17,6 @@ install:
   - echo "root:100000:65536" | sudo tee /etc/subuid
   - echo "root:100000:65536" | sudo tee /etc/subgid
 
-script: "sudo -E make check"
+script: "sudo -E env PATH=$PATH make check"
 notifications:
   webhooks: https://linuxcontainers.org/webhook-lxcbot/
