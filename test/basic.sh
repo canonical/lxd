@@ -32,6 +32,11 @@ test_basic_usage() {
   lxc exec foo /bin/cat /etc/issue | grep 14.04
   echo foo | lxc exec foo tee /tmp/foo
 
+  # Detect regressions/hangs in exec
+  sum=$(ps aux | tee ${LXD_DIR}/out | lxc exec foo md5sum | cut -d' ' -f1)
+  [ "$sum" = "$(md5sum ${LXD_DIR}/out | cut -d' ' -f1)" ]
+  rm ${LXD_DIR}/out
+
   # This is why we can't have nice things.
   content=$(cat "${LXD_DIR}/lxc/foo/rootfs/tmp/foo")
   [ "$content" = "foo" ]

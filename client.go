@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/gorilla/websocket"
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd/shared"
@@ -702,7 +704,10 @@ type execMd struct {
 }
 
 func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error) {
-	body := shared.Jmap{"command": cmd, "wait-for-websocket": true, "environment": env}
+	interactive := terminal.IsTerminal(int(stdin.Fd()))
+
+	body := shared.Jmap{"command": cmd, "wait-for-websocket": true, "interactive": interactive, "environment": env}
+
 	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body)
 	if err != nil {
 		return -1, err
@@ -721,41 +726,49 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 		return -1, err
 	}
 
-	conns := make([]*websocket.Conn, 3)
-	dones := make([]chan bool, 3)
-	sources := []*os.File{stdin, stdout, stderr}
-
-	for i := 0; i < 3; i++ {
-		conns[i], err = c.websocket(resp.Operation, md.FDs[string(i)])
+	if interactive {
+		conn, err := c.websocket(resp.Operation, md.FDs[string(0)])
 		if err != nil {
 			return -1, err
 		}
+		shared.WebsocketSendStream(conn, stdin)
+		<-shared.WebsocketRecvStream(stdout, conn)
+	} else {
+		sources := []*os.File{stdin, stdout, stderr}
+		conns := make([]*websocket.Conn, 3)
+		dones := make([]chan bool, 3)
+		for i := 0; i < 3; i++ {
+			conns[i], err = c.websocket(resp.Operation, md.FDs[string(i)])
+			if err != nil {
+				return -1, err
+			}
 
-		if i == 0 {
-			dones[i] = shared.WebsocketSendStream(conns[i], sources[i])
-		} else {
-			dones[i] = shared.WebsocketRecvStream(sources[i], conns[i])
+			if i == 0 {
+				dones[i] = shared.WebsocketSendStream(conns[i], sources[i])
+			} else {
+				dones[i] = shared.WebsocketRecvStream(sources[i], conns[i])
+			}
 		}
-	}
 
-	/*
-	 * We'll get a read signal from each of stdout, stderr when they've
-	 * both died. We need to wait for these in addition to the operation,
-	 * because the server may indicate that the operation is done before we
-	 * can actually read the last bits of data off these sockets and print
-	 * it to the screen.
-	 *
-	 * We don't wait for stdin here, because if we're interactive, the user
-	 * may not have closed it (e.g. if the command exits but the user
-	 * didn't ^D).
-	 */
-	for i := 1; i < 3; i++ {
-		<-dones[i]
-	}
+		/*
+		 * We'll get a read signal from each of stdout, stderr when they've
+		 * both died. We need to wait for these in addition to the operation,
+		 * because the server may indicate that the operation is done before we
+		 * can actually read the last bits of data off these sockets and print
+		 * it to the screen.
+		 *
+		 * We don't wait for stdin here, because if we're interactive, the user
+		 * may not have closed it (e.g. if the command exits but the user
+		 * didn't ^D).
+		 */
+		for i := 1; i < 3; i++ {
+			<-dones[i]
+		}
 
-	// Once we're done, we explicitly close stdin, to signal the websockets
-	// we're done.
-	sources[0].Close()
+		// Once we're done, we explicitly close stdin, to signal the websockets
+		// we're done.
+		sources[0].Close()
+	}
 
 	// Now, get the operation's status too.
 	op, err := c.WaitFor(resp.Operation)
