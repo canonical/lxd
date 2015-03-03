@@ -9,7 +9,7 @@ before_install:
   - sudo apt-get update -qq
 
 install:
-  - sudo apt-get install lxc lxc-dev
+  - sudo apt-get install lxc lxc-dev sqlite3 jq
   - go get golang.org/x/tools/cmd/vet
   - mkdir -p $GOPATH/github.com/lxc
   - go get -v -d ./...
