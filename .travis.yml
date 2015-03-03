@@ -9,7 +9,7 @@ before_install:
   - sudo apt-add-repository -y ppa:ubuntu-lxc/lxd-daily
   - sudo apt-get update
   - sudo apt-get install -y libssl1.0.0 libssl-dev libssl-doc curl libcurl3 libcurl3-gnutls libcurl4-openssl-dev
-  - sudo apt-get install -y lxc lxc-dev sqlite3 jq
+  - sudo apt-get install -y acl lxc lxc-dev sqlite3 jq
 
 install:
   - go get golang.org/x/tools/cmd/vet
