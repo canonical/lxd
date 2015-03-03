@@ -19,7 +19,6 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/kr/pty"
 	"github.com/lxc/lxd/shared"
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/lxc/go-lxc.v2"
@@ -973,6 +972,7 @@ type execWs struct {
 	options      lxc.AttachOptions
 	conns        []*websocket.Conn
 	allConnected chan bool
+	interactive  bool
 	done         chan shared.OperationResult
 	fds          map[int]string
 }
@@ -1028,31 +1028,46 @@ func runCommand(container *lxc.Container, command []string, options lxc.AttachOp
 func (s *execWs) Do() shared.OperationResult {
 	<-s.allConnected
 
-	ttys := make([]*os.File, 3)
-	ptys := make([]*os.File, 3)
 	var err error
+	var ttys []*os.File
+	var ptys []*os.File
 
-	for i := 0; i < 3; i++ {
-		ptys[i], ttys[i], err = pty.Open()
-		if err != nil {
-			return shared.OperationError(err)
+	if s.interactive {
+		ttys = make([]*os.File, 1)
+		ptys = make([]*os.File, 1)
+		ptys[0], ttys[0], err = shared.OpenPty()
+		s.options.StdinFd = ttys[0].Fd()
+		s.options.StdoutFd = ttys[0].Fd()
+		s.options.StderrFd = ttys[0].Fd()
+	} else {
+		ttys = make([]*os.File, 3)
+		ptys = make([]*os.File, 3)
+		for i := 0; i < len(ttys); i++ {
+			ptys[i], ttys[i], err = shared.Pipe()
+			if err != nil {
+				return shared.OperationError(err)
+			}
 		}
+		s.options.StdinFd = ptys[0].Fd()
+		s.options.StdoutFd = ttys[1].Fd()
+		s.options.StderrFd = ttys[2].Fd()
 	}
 
-	s.options.StdinFd = ttys[0].Fd()
-	s.options.StdoutFd = ttys[1].Fd()
-	s.options.StderrFd = ttys[2].Fd()
-
 	go func() {
-		for i := 0; i < 3; i++ {
-			go func(i int) {
-				if i == 0 {
-					<-shared.WebsocketRecvStream(ptys[i], s.conns[i])
-					ptys[i].Write([]byte{0x04})
-				} else {
-					shared.WebsocketSendStream(s.conns[i], ptys[i])
-				}
-			}(i)
+		if s.interactive {
+			shared.WebsocketMirror(s.conns[0], ptys[0], ptys[0])
+		} else {
+			for i := 0; i < len(ttys); i++ {
+				go func(i int) {
+					if i == 0 {
+						<-shared.WebsocketRecvStream(ttys[i], s.conns[i])
+						ttys[i].Close()
+					} else {
+						<-shared.WebsocketSendStream(s.conns[i], ptys[i])
+						ptys[i].Close()
+					}
+				}(i)
+			}
 		}
 
 		result := runCommand(
@@ -1078,6 +1093,7 @@ func (s *execWs) Do() shared.OperationResult {
 type commandPostContent struct {
 	Command     []string          `json:"command"`
 	WaitForWS   bool              `json:"wait-for-websocket"`
+	Interactive bool              `json:"interactive"`
 	Environment map[string]string `json:"environment"`
 }
 
@@ -1118,11 +1134,16 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
-		ws.conns = make([]*websocket.Conn, 3)
+		if post.Interactive {
+			ws.conns = make([]*websocket.Conn, 1)
+		} else {
+			ws.conns = make([]*websocket.Conn, 3)
+		}
 		ws.allConnected = make(chan bool, 1)
+		ws.interactive = post.Interactive
 		ws.done = make(chan shared.OperationResult, 1)
 		ws.options = opts
-		for i := 0; i < 3; i++ {
+		for i := 0; i < len(ws.conns); i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
 				return InternalError(err)

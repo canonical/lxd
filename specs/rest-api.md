@@ -534,9 +534,10 @@ HTTP code for this should be 202 (Accepted).
 Input (run bash):
 
     {
-        'command': ["/bin/bash"],   # Command and arguments
-        'environment': {},          # Optional extra environment variables to set
-        'wait-for-websocket': false
+        'command': ["/bin/bash"],       # Command and arguments
+        'environment': {},              # Optional extra environment variables to set
+        'wait-for-websocket': false,    # Whether to wait for a connection before starting the process
+        'interactive': false            # Whether to allocate a pts device instead of PIPEs
     }
 
 `wait-for-websocket` indicates whether the operation should block and wait for
@@ -549,6 +550,12 @@ operation's metadata:
     {
         'return': 0
     }
+
+If interactive is set to true, a single websocket is returned and is mapped to a
+pts device for stdin, stdout and stderr of the execed process.
+
+If interactive is set to false (default), three pipes will be setup, one
+for each of stdin, stdout and stderr.
 
 ## /1.0/events
 This URL isn't a real REST API endpoint, instead doing a GET query on it
