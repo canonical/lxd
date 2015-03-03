@@ -9,15 +9,31 @@ test_basic_usage() {
     fi
   fi
 
-  lxc launch testimage foo
-  # should fail if foo isn't running
-  lxc stop foo --force  # stop is hanging
+  # Test container creation
+  lxc init testimage foo
+  lxc list | grep foo | grep STOPPED
   lxc delete foo
 
-  lxc init testimage foo
+  # Test "nonetype" container creation
+  wait_for my_curl -X POST $BASEURL/1.0/containers \
+        -d "{\"name\":\"nonetype\",\"source\":{\"type\":\"none\"}}"
+  lxc delete nonetype
 
-  # did it get created?
-  lxc list | grep foo
+  # Test "nonetype" container creation with an LXC config
+  wait_for my_curl -X POST $BASEURL/1.0/containers \
+        -d "{\"name\":\"configtest\",\"config\":{\"raw.lxc\":\"lxc.hook.clone=/bin/true\"},\"source\":{\"type\":\"none\"}}"
+  [ "$(my_curl $BASEURL/1.0/containers/configtest | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
+  lxc delete configtest
+
+  # Anything below this will not get run inside Travis-CI
+  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+    return
+  fi
+
+  # Create and start a container
+  lxc launch testimage foo
+  lxc list | grep foo | grep RUNNING
+  lxc stop foo --force  # stop is hanging
 
   # cycle it a few times
   lxc start foo
@@ -42,14 +58,5 @@ test_basic_usage() {
   [ "$content" = "foo" ]
 
   # cleanup
-  lxc stop foo  --force # stop is hanging
   lxc delete foo
-
-  # now, make sure create type 'none' works
-  wait_for my_curl -X POST $BASEURL/1.0/containers -d "{\"name\":\"nonetype\",\"source\":{\"type\":\"none\"}}"
-
-  # and creating with a config
-  wait_for my_curl -X POST $BASEURL/1.0/containers -d "{\"name\":\"configtest\",\"config\":{\"raw.lxc\":\"lxc.hook.clone=/bin/true\"},\"source\":{\"type\":\"none\"}}"
-  [ "$(my_curl $BASEURL/1.0/containers/configtest | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
-  lxc delete configtest
 }

@@ -58,12 +58,13 @@ if [ -z "`which lxc`" ]; then
     echo "==> Couldn't find lxc" && false
 fi
 
-. ./static_analysis.sh
+. ./basic.sh
+. ./database.sh
+. ./fuidshift.sh
 . ./remote.sh
 . ./signoff.sh
-. ./basic.sh
 . ./snapshots.sh
-. ./fuidshift.sh
+. ./static_analysis.sh
 
 if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
@@ -92,13 +93,6 @@ lxc config set password foo
 echo "==> TEST: lxc remote"
 test_remote
 
-# Only run the tests below if we're not in travis, since travis itself is using
-# openvz containers and the full test suite won't work.
-if [ -n "$TRAVIS_PULL_REQUEST" ]; then
-  RESULT=success
-  exit
-fi
-
 echo "==> TEST: basic usage"
 test_basic_usage
 
@@ -107,5 +101,8 @@ test_snapshots
 
 echo "==> TEST: uidshift"
 test_fuidshift
+
+echo "==> TEST: database lock"
+test_database_lock
 
 RESULT=success
