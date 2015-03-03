@@ -16,6 +16,7 @@ install:
   - rsync -az ${TRAVIS_BUILD_DIR}/ $HOME/gopath/src/github.com/lxc/lxd/
   - echo "root:100000:65536" | sudo tee /etc/subuid
   - echo "root:100000:65536" | sudo tee /etc/subgid
+  - sudo stop cgmanager
 
 script: "sudo -E env PATH=$PATH make check"
 notifications:
