@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
+	"gopkg.in/yaml.v2"
 	"hash"
 )
 
@@ -268,9 +269,10 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 	}
 
 	metadata := new(imageMetadata)
-	err = json.Unmarshal(output, &metadata)
+	err = yaml.Unmarshal(output, &metadata)
 
 	if err != nil {
+		fmt.Println(err)
 		return nil, fmt.Errorf("Could not get image metadata: %v", err)
 	}
 
