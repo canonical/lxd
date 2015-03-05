@@ -1,4 +1,9 @@
 test_migration() {
+  if [ -z "$(which criu)" ]; then
+      echo "==> Skipping migration tests; no criu binary found"
+      return
+  fi
+
   export LXD2_DIR=$(mktemp -d -p $(pwd))
   chmod 777 "${LXD2_DIR}"
   spawn_lxd 127.0.0.1:8444 "${LXD2_DIR}"
