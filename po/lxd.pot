@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-02-26 02:05-0600\n"
+        "POT-Creation-Date: 2015-03-05 12:36-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -39,11 +39,11 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: client.go:566
+#: client.go:567
 msgid   "Certificate already stored.\n"
 msgstr  ""
 
-#: client.go:570
+#: client.go:571
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -57,7 +57,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: client.go:584
+#: client.go:585
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -77,7 +77,7 @@ msgstr  ""
 msgid   "Enables verbose mode."
 msgstr  ""
 
-#: lxc/exec.go:21
+#: lxc/exec.go:23
 msgid   "Execute the specified command in a container.\n"
 msgstr  ""
 
@@ -139,7 +139,7 @@ msgstr  ""
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:562
+#: client.go:563
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -147,11 +147,11 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: client.go:664
+#: client.go:696
 msgid   "Non-async response from create!"
 msgstr  ""
 
-#: client.go:928
+#: client.go:971
 msgid   "Non-async response from snapshot!"
 msgstr  ""
 
@@ -172,11 +172,11 @@ msgstr  ""
 msgid   "Prints the version number of lxd.\n"
 msgstr  ""
 
-#: client.go:577
+#: client.go:578
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
-#: client.go:236
+#: client.go:237
 msgid   "Server certificate has changed"
 msgstr  ""
 
@@ -245,11 +245,11 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: client.go:395
+#: client.go:396
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:453 client.go:960 client.go:967
+#: client.go:454 client.go:1003 client.go:1010
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -258,11 +258,11 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:549
+#: client.go:550
 msgid   "bad response type from image list!"
 msgstr  ""
 
-#: client.go:433 client.go:510 client.go:946
+#: client.go:434 client.go:511 client.go:989
 msgid   "bad response type from list!"
 msgstr  ""
 
@@ -270,11 +270,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:457 client.go:971
+#: client.go:458 client.go:1014
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:349 client.go:354
+#: client.go:350 client.go:355
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
@@ -296,12 +296,12 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:741
+#: client.go:784
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
 
-#: client.go:686
+#: client.go:721
 msgid   "got bad response type from exec"
 msgstr  ""
 
@@ -309,11 +309,11 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:784
+#: client.go:827
 msgid   "got non-async response from delete!"
 msgstr  ""
 
-#: client.go:803
+#: client.go:846
 msgid   "got non-sync response from containers get!"
 msgstr  ""
 
@@ -322,7 +322,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:882
+#: client.go:925
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -340,11 +340,11 @@ msgstr  ""
 msgid   "lxc launch ubuntu [<name>]\n"
 msgstr  ""
 
-#: client.go:102
+#: client.go:104
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:571
+#: client.go:572
 msgid   "ok (y/n)? "
 msgstr  ""
 
@@ -363,11 +363,11 @@ msgstr  ""
 msgid   "remote %s exists as <%s>"
 msgstr  ""
 
-#: client.go:213
+#: client.go:214
 msgid   "unknown remote name: %q"
 msgstr  ""
 
-#: lxc/exec.go:67
+#: lxc/exec.go:105
 msgid   "unreachable return reached"
 msgstr  ""
 
