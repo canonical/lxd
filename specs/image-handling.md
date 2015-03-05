@@ -19,15 +19,14 @@ The rootfs directory contains a full file system tree of what will become the co
 metadata.yaml contains information relevant to running the image under
 lxd, at the moment, this contains:
 
-    {
-        'architecture': "x86_64",
-        'creation_date': 1424284563,
-        'properties': {
-            'os': "Ubuntu",
-            'release': ["trusty", "14.04"],
-            'description': "Ubuntu 14.04 LTS Intel 64bit"},
-            'name': "ubuntu-14.04-amd64-20150218"
-    }
+    architecture: x86_64
+    creation_date: 1424284563
+    name: ubuntu-14.04-amd64-20150218
+    properties:
+      description: Ubuntu 14.04 LTS Intel 64bit
+      name: ubuntu-14.04-amd64-20150218
+      os: Ubuntu
+      release: [trusty, '14.04']
 
 The architecture and creation\_date fields are mandatory, the properties
 are just a set of default properties for the image. The os, release,

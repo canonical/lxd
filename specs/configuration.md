@@ -42,17 +42,20 @@ currently supported:
  - limits (resource limits)
  - raw (raw container configuration overrides)
  - security (security policies)
+ - user (storage for user properties, searchable)
+ - volatile (used internally by LXD to store container settings like MAC addresses)
 
 The currently supported keys are:
 
-Key                 | Type          | Default           | Description
-:--                 | :---          | :------           | :----------
-limits.cpus         | int           | 0 (all)           | Number of CPUs to expose to the container
-limits.memory       | int           | 0 (all)           | Size in MB of the memory allocation for the container
-security.privileged | boolean       | false             | Runs the container in privileged mode
-raw.apparmor        | blob          | -                 | Apparmor profile entries to be appended to the generated profile
-raw.lxc             | blob          | -                 | Raw LXC configuration to be appended to the generated one
-user.\*             | string        | -                 | Free form user key/value storage (can be used in search)
+Key                         | Type          | Default           | Description
+:--                         | :---          | :------           | :----------
+limits.cpus                 | int           | 0 (all)           | Number of CPUs to expose to the container
+limits.memory               | int           | 0 (all)           | Size in MB of the memory allocation for the container
+raw.apparmor                | blob          | -                 | Apparmor profile entries to be appended to the generated profile
+raw.lxc                     | blob          | -                 | Raw LXC configuration to be appended to the generated one
+security.privileged         | boolean       | false             | Runs the container in privileged mode
+user.\*                     | string        | -                 | Free form user key/value storage (can be used in search)
+volatile.\<name\>.hwaddr    | string        | -                 | Unique MAC address for a given interface (generated and set by LXD when the hwaddr field of a "nic" type device isn't set)
 
 Note that while a type is defined above as a convenience, all values are
 stored as strings and should be exported over the REST API as strings
