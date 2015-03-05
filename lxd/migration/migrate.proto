@@ -1,6 +1,6 @@
 package migration;
 
-enum FilesystemType {
+enum MigrationFSType {
   RSYNC = 0;
   BTRFS = 1;
 }
@@ -11,7 +11,7 @@ enum CRIUType {
 }
 
 message MigrationHeader {
-  required FilesystemType fs = 1;
+  required MigrationFSType fs = 1;
   required CRIUType       criu = 2;
 }
 
