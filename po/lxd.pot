@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-05 12:36-0500\n"
+        "POT-Creation-Date: 2015-03-05 13:36-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -69,6 +69,16 @@ msgstr  ""
 msgid   "Delete a container or container snapshot.\n"
 msgstr  ""
 
+#: lxc/config.go:458
+#, c-format
+msgid   "Device %s added to %s\n"
+msgstr  ""
+
+#: lxc/config.go:486
+#, c-format
+msgid   "Device %s removed from %s\n"
+msgstr  ""
+
 #: lxc/main.go:27
 msgid   "Enables debug mode."
 msgstr  ""
@@ -115,7 +125,7 @@ msgstr  ""
 msgid   "Lists the available resources.\n"
 msgstr  ""
 
-#: lxc/config.go:21
+#: lxc/config.go:22
 msgid   "Manage configuration.\n"
 msgstr  ""
 
@@ -135,7 +145,7 @@ msgstr  ""
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
-#: lxc/config.go:92
+#: lxc/config.go:142
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -143,20 +153,20 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:115
+#: lxc/config.go:165
 msgid   "No fingerprint specified."
 msgstr  ""
 
+#: client.go:827
+msgid   "Non-async response from delete!"
+msgstr  ""
+
 #: client.go:696
-msgid   "Non-async response from create!"
+msgid   "Non-async response from init!"
 msgstr  ""
 
-#: client.go:971
+#: client.go:994
 msgid   "Non-async response from snapshot!"
-msgstr  ""
-
-#: lxc/config.go:59
-msgid   "Only 'password' can be set currently"
 msgstr  ""
 
 #: lxc/delete.go:42
@@ -170,6 +180,21 @@ msgstr  ""
 
 #: lxc/version.go:19
 msgid   "Prints the version number of lxd.\n"
+msgstr  ""
+
+#: lxc/config.go:325
+#, c-format
+msgid   "Profile %s applied to %s\n"
+msgstr  ""
+
+#: lxc/config.go:306
+#, c-format
+msgid   "Profile %s created\n"
+msgstr  ""
+
+#: lxc/config.go:314
+#, c-format
+msgid   "Profile %s deleted\n"
 msgstr  ""
 
 #: client.go:578
@@ -208,9 +233,12 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: lxc/config.go:145
-#, c-format
-msgid   "Unknown config command %s"
+#: client.go:1142
+msgid   "Unexpected async response"
+msgstr  ""
+
+#: client.go:1091 client.go:1210 client.go:1235 client.go:1274
+msgid   "Unexpected non-async response"
 msgstr  ""
 
 #: lxc/image.go:180
@@ -223,7 +251,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:142
+#: lxc/config.go:192
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
@@ -249,7 +277,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:454 client.go:1003 client.go:1010
+#: client.go:454 client.go:1026 client.go:1033
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -258,11 +286,17 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
+#: client.go:1179
+#, c-format
+msgid   "bad profile url %s"
+msgstr  ""
+
 #: client.go:550
 msgid   "bad response type from image list!"
 msgstr  ""
 
-#: client.go:434 client.go:511 client.go:989
+#: client.go:434 client.go:511 client.go:1012 client.go:1159 client.go:1315
+#: client.go:1354
 msgid   "bad response type from list!"
 msgstr  ""
 
@@ -270,8 +304,12 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:458 client.go:1014
+#: client.go:458 client.go:1037
 msgid   "bad version in container url"
+msgstr  ""
+
+#: client.go:1183
+msgid   "bad version in profile url"
 msgstr  ""
 
 #: client.go:350 client.go:355
@@ -309,11 +347,7 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:827
-msgid   "got non-async response from delete!"
-msgstr  ""
-
-#: client.go:846
+#: client.go:846 client.go:869
 msgid   "got non-sync response from containers get!"
 msgstr  ""
 
@@ -322,7 +356,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:925
+#: client.go:948
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -342,6 +376,10 @@ msgstr  ""
 
 #: client.go:104
 msgid   "no response!"
+msgstr  ""
+
+#: client.go:1251 client.go:1331
+msgid   "no value found in %q\n"
 msgstr  ""
 
 #: client.go:572

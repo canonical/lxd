@@ -138,6 +138,8 @@ type            | INTEGER       | 0             | NOT NULL          | Container 
 
 Index: UNIQUE ON id AND container\_id + name
 
+Foreign keys: container\_id REFERENCES containers(id)
+
 
 ## containers\_devices\_config
 
@@ -160,7 +162,7 @@ Column          | Type          | Default       | Constraint        | Descriptio
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 container\_id   | INTEGER       | -             | NOT NULL          | containers.id FK
 profile\_id     | INTEGER       | -             | NOT NULL          | profiles.id FK
-order           | INTEGER       | 0             | NOT NULL          | Profile ordering
+apply_order     | INTEGER       | 0             | NOT NULL          | Profile ordering
 
 Index: UNIQUE ON id AND container\_id + profile\_id
 
@@ -247,6 +249,8 @@ name            | VARCHAR(255)  | -             | NOT NULL          | Container 
 type            | INTEGER       | 0             | NOT NULL          | Container type (0 = drive, 1 = network-interface, ...)
 
 Index: UNIQUE ON id AND profile\_id + name
+
+Foreign keys: profile\_id REFERENCES profiles(id)
 
 
 ## profiles\_devices\_config
