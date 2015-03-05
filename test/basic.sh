@@ -5,7 +5,7 @@ test_basic_usage() {
         lxc image import $LXD_TEST_IMAGE
         lxc image alias create testimage $IMAGE_SHA256
     else
-        ../scripts/lxd-images import lxc ubuntu trusty amd64 --alias testimage
+        ../scripts/lxd-images import busybox --alias testimage
     fi
   fi
 
@@ -45,7 +45,9 @@ test_basic_usage() {
   lxc exec --env BEST_BAND=meshuggah foo env | grep meshuggah
 
   # Make sure it is the right version
-  lxc exec foo /bin/cat /etc/issue | grep 14.04
+  echo abc > ${LXD_DIR}/in
+  lxc file push ${LXD_DIR}/in foo/root/
+  lxc exec foo /bin/cat /root/in | grep abc
   echo foo | lxc exec foo tee /tmp/foo
 
   # Detect regressions/hangs in exec
