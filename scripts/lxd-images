@@ -103,6 +103,85 @@ class LXD(object):
         return data['metadata']
 
 
+class Busybox(object):
+    workdir = None
+
+    def __init__(self):
+        # Create our workdir
+        self.workdir = tempfile.mkdtemp()
+
+    def __del__(self):
+        if self.workdir:
+            shutil.rmtree(self.workdir)
+
+    def create_tarball(self):
+        xz = "pxz" if find_on_path("pxz") else "xz"
+
+        destination_tar = os.path.join(self.workdir, "busybox.tar")
+        target_tarball = tarfile.open(destination_tar, "w:")
+
+        metadata = {'architecture': os.uname().machine,
+                    'creation_date': int(os.stat("/bin/busybox").st_ctime),
+                    'properties': {
+                        'os': "Busybox",
+                        'architecture': os.uname().machine,
+                        'description': "Busybox %s" % os.uname().machine,
+                        'name': "busybox-%s" % os.uname().machine
+                        },
+                    }
+
+        # Add busybox
+        with open("/bin/busybox", "rb") as fd:
+            busybox_file = tarfile.TarInfo()
+            busybox_file.size = os.stat("/bin/busybox").st_size
+            busybox_file.name = "rootfs/bin/busybox"
+            busybox_file.mode = 0o755
+            target_tarball.addfile(busybox_file, fd)
+
+        # Add symlinks
+        busybox = subprocess.Popen(["/bin/busybox", "--list-full"],
+                                   stdout=subprocess.PIPE,
+                                   universal_newlines=True)
+        busybox.wait()
+
+        for path in busybox.stdout.read().split("\n"):
+            if not path.strip():
+                continue
+
+            symlink_file = tarfile.TarInfo()
+            symlink_file.name = "rootfs/%s" % path.strip()
+            symlink_file.type = tarfile.SYMTYPE
+            symlink_file.linkname = "/bin/busybox"
+            target_tarball.addfile(symlink_file)
+
+        # Add directories
+        for path in ("dev", "mnt", "proc", "root", "sys", "tmp"):
+            directory_file = tarfile.TarInfo()
+            directory_file.name = "rootfs/%s" % path
+            directory_file.type = tarfile.DIRTYPE
+            target_tarball.addfile(directory_file)
+
+        # Add the metadata file
+        metadata_yaml = json.dumps(metadata, sort_keys=True,
+                                   indent=4, separators=(',', ': '),
+                                   ensure_ascii=False).encode('utf-8') + b"\n"
+
+        metadata_file = tarfile.TarInfo()
+        metadata_file.size = len(metadata_yaml)
+        metadata_file.name = "metadata.yaml"
+        target_tarball.addfile(metadata_file,
+                               io.BytesIO(metadata_yaml))
+
+        target_tarball.close()
+
+        # Compress the tarball
+        r = subprocess.call([xz, "-9", destination_tar])
+        if r:
+            raise Exception("Failed to compress: %s" % path)
+
+        return destination_tar + ".xz"
+
+
 class LXCImages(object):
     workdir = None
     images = []
@@ -301,7 +380,6 @@ class LXCImages(object):
 
         metadata_file = tarfile.TarInfo()
         metadata_file.size = len(metadata_yaml)
-        metadata_file.mtime = 0
         metadata_file.name = "metadata.yaml"
         target_tarball.addfile(metadata_file,
                                io.BytesIO(metadata_yaml))
@@ -337,7 +415,22 @@ if __name__ == "__main__":
             if alias in existing:
                 lxd.aliases_remove(alias)
             lxd.aliases_create(alias, fingerprint)
-            print("Setup alias: %s" % alias)
+            print(_("Setup alias: %s" % alias))
+
+    def import_busybox(parser, args):
+        busybox = Busybox()
+        path = busybox.create_tarball()
+
+        with open(path, "rb") as fd:
+            fingerprint = hashlib.sha256(fd.read()).hexdigest()
+
+        if fingerprint in lxd.images_list():
+            parser.exit(1, _("This image is already in the store.\n"))
+
+        r = lxd.images_upload(path, path.split("/")[-1])
+        print(_("Image imported as: %s" % r['fingerprint']))
+
+        setup_alias(parser, args, fingerprint)
 
     def import_lxc(parser, args):
         lxc = LXCImages()
@@ -372,6 +465,13 @@ if __name__ == "__main__":
         "import", help=_("Import images"))
     parser_import_subparsers = parser_import.add_subparsers(dest="source")
     parser_import_subparsers.required = True
+
+    ## Busybox
+    parser_import_busybox = parser_import_subparsers.add_parser(
+        "busybox", help=_("Busybox image"))
+    parser_import_busybox.add_argument("--alias", action="append", default=[],
+                                       help=_("Aliases for the image"))
+    parser_import_busybox.set_defaults(func=import_busybox)
 
     ## LXC
     parser_import_lxc = parser_import_subparsers.add_parser(
