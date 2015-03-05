@@ -40,6 +40,10 @@ dependencies are xz, tar, and setfacl:
 
     sudo apt-get install xz-utils tar acl
 
+To run the testsuite, you'll also need:
+
+    sudo apt-get install curl gettext jq sqlite3
+
 ### Building the tools
 
 LXD consists of two binaries, a client called `lxc` and a server called `lxd`.
