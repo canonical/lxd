@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"path"
 
 	"github.com/gosexy/gettext"
@@ -33,6 +34,10 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 
 	sourceRemote, sourceName := config.ParseRemoteAndContainer(args[0])
 	destRemote, destName := config.ParseRemoteAndContainer(args[1])
+
+	if sourceRemote == "" || destRemote == "" {
+		return fmt.Errorf("non-http remotes are not supported for migration right now")
+	}
 
 	source, err := lxd.NewClient(config, sourceRemote)
 	if err != nil {
