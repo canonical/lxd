@@ -379,6 +379,44 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
+func imageExport(d *Daemon, r *http.Request) Response {
+	shared.Debugf("responding to images/export")
+
+	name := mux.Vars(r)["name"]
+
+	// check for fingerprint
+	rows, err := d.db.Query(`SELECT images.filename, images.size FROM images WHERE images.fingerprint=?`, name)
+	if err != nil {
+		return InternalError(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var filename string
+		var size int64
+		if err := rows.Scan(&filename, &size); err != nil {
+			return InternalError(err)
+		}
+
+		// test compression, for content type header
+		// if unknown compression we send standard header
+		_, err := detectCompression(filename)
+	
+		ctype := "application/x-gtar"
+		if err != nil {
+			ctype = "application/octet-stream"
+		}
+
+		return FileResponse(filename, size, ctype)
+
+	}
+
+	return NotFound
+
+}
+
+var imagesExportCmd = Command{name: "images/export/{name}", get: imageExport}
+
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 
 var aliasCmd = Command{name: "images/aliases/{name:.*}", get: aliasGet, delete: aliasDelete}

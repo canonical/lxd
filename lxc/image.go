@@ -176,6 +176,9 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			}
 		}
 		return nil
+	case "export":
+		
+		return nil
 	default:
 		return fmt.Errorf(gettext.Gettext("Unknown image command %s"), args[0])
 	}
