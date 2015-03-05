@@ -342,8 +342,6 @@ if __name__ == "__main__":
     def import_lxc(parser, args):
         lxc = LXCImages()
 
-        print(lxd.aliases_list())
-
         if not lxc.image_exists(args.distribution, args.release,
                                 args.architecture, args.variant):
             parser.exit(1, _("Requested image doesn't exist.\n"))
