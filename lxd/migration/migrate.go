@@ -183,7 +183,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 	<-s.allConnected
 
 	header := MigrationHeader{
-		Fs:   FilesystemType_RSYNC.Enum(),
+		Fs:   MigrationFSType_RSYNC.Enum(),
 		Criu: CRIUType_CRIU_RSYNC.Enum(),
 	}
 
@@ -197,7 +197,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		return shared.OperationError(err)
 	}
 
-	if *header.Fs != FilesystemType_RSYNC {
+	if *header.Fs != MigrationFSType_RSYNC {
 		err := fmt.Errorf("formats other than rsync not understood")
 		s.sendControl(err)
 		return shared.OperationError(err)
@@ -325,7 +325,7 @@ func (c *migrationSink) do() error {
 		return err
 	}
 
-	resp := MigrationHeader{Fs: FilesystemType_RSYNC.Enum(), Criu: CRIUType_CRIU_RSYNC.Enum()}
+	resp := MigrationHeader{Fs: MigrationFSType_RSYNC.Enum(), Criu: CRIUType_CRIU_RSYNC.Enum()}
 	if err := c.send(&resp); err != nil {
 		c.sendControl(err)
 		return err
