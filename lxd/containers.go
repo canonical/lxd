@@ -353,25 +353,9 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[s
 	}
 	// TODO: is this really int64? we should fix it everywhere if so
 	id = int(id64)
-
-	str = fmt.Sprintf("INSERT INTO containers_config (container_id, key, value) VALUES(?, ?, ?)")
-	insertConfig, err := tx.Prepare(str)
-	if err != nil {
+	if err := dbInsertContainerConfig(tx, id, config); err != nil {
 		tx.Rollback()
 		return 0, err
-	}
-	defer insertConfig.Close()
-
-	for key, value := range config {
-		if key != "raw.lxc" {
-			tx.Rollback()
-			return 0, fmt.Errorf("only raw.lxc config is respected right now")
-		}
-		_, err := insertConfig.Exec(id, key, value)
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -457,6 +441,31 @@ func dbClearContainerConfig(tx *sql.Tx, id int) error {
 	return err
 }
 
+func dbInsertContainerConfig(tx *sql.Tx, id int, config map[string]string) error {
+	str := "INSERT INTO containers_config (container_id, key, value) values (?, ?, ?)"
+	stmt, err := tx.Prepare(str)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+
+	for k, v := range config {
+		if !ValidContainerConfigKey(k) {
+			return fmt.Errorf("Bad key: %s\n", k)
+		}
+
+		_, err = stmt.Exec(id, k, v)
+		if err != nil {
+			shared.Debugf("Error adding configuration item %s = %s to container %d\n",
+				k, v, id)
+			return err
+		}
+	}
+
+	return nil
+}
+
 func ValidContainerConfigKey(k string) bool {
 	switch k {
 	case "limits.cpus":
@@ -515,27 +524,10 @@ func containerPut(d *Daemon, r *http.Request) Response {
 			return err
 		}
 
-		str := "INSERT INTO containers_config (container_id, key, value) values (?, ?, ?)"
-		stmt, err := tx.Prepare(str)
-		if err != nil {
+		if err = dbInsertContainerConfig(tx, cId, configRaw.Config); err != nil {
+			shared.Debugf("Error inserting configuration for container %s\n", name)
 			tx.Rollback()
 			return err
-		}
-		defer stmt.Close()
-
-		for k, v := range configRaw.Config {
-			if !ValidContainerConfigKey(k) {
-				tx.Rollback()
-				return fmt.Errorf("Bad key: %s\n", k)
-			}
-
-			_, err = stmt.Exec(cId, k, v)
-			if err != nil {
-				shared.Debugf("Error adding configuration item %s = %s to container %s\n",
-					k, v, name)
-				tx.Rollback()
-				return err
-			}
 		}
 
 		/* handle profiles */
