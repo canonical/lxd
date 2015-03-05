@@ -5,6 +5,7 @@ package shared
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
@@ -499,4 +500,23 @@ func GetTLSConfig(certf string, keyf string) (*tls.Config, error) {
 	tlsConfig.BuildNameToCertificate()
 
 	return tlsConfig, nil
+}
+
+func WriteAll(w io.Writer, buf []byte) error {
+	return WriteAllBuf(w, bytes.NewBuffer(buf))
+}
+
+func WriteAllBuf(w io.Writer, buf *bytes.Buffer) error {
+	toWrite := int64(buf.Len())
+	for {
+		n, err := io.Copy(w, buf)
+		if err != nil {
+			return err
+		}
+
+		toWrite -= n
+		if toWrite <= 0 {
+			return nil
+		}
+	}
 }
