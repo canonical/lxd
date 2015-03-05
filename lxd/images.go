@@ -117,36 +117,40 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	f, err := ioutil.TempFile(dirname, "image_")
-	defer f.Close()
-
 	if err != nil {
 		return InternalError(err)
 	}
+	defer f.Close()
 
 	fname := f.Name()
 
 	sha256 := sha256.New()
 	size, err := io.Copy(io.MultiWriter(f, sha256), r.Body)
-
 	if err != nil {
 		return cleanup(err, fname)
 	}
 
-	uuid := fmt.Sprintf("%x", sha256.Sum(nil))
-	uuidfname := shared.VarPath("images", uuid)
+	hash := fmt.Sprintf("%x", sha256.Sum(nil))
+	expectedHash := r.Header.Get("X-LXD-fingerprint")
+	if expectedHash != "" && hash != expectedHash {
+		err = fmt.Errorf("hashes don't match, got %s expected %s", hash, expectedHash)
+		fmt.Println("TYCHO: ", err)
+		return cleanup(err, fname)
+	}
 
-	if shared.PathExists(uuidfname) {
+	hashfname := shared.VarPath("images", hash)
+	if shared.PathExists(hashfname) {
 		return cleanup(fmt.Errorf("Image exists already."), fname)
 	}
 
-	err = os.Rename(fname, uuidfname)
+	err = os.Rename(fname, hashfname)
 	if err != nil {
 		return cleanup(err, fname)
 	}
 
-	imageMeta, err := getImageMetadata(uuidfname)
+	imageMeta, err := getImageMetadata(hashfname)
 	if err != nil {
-		return cleanup(err, uuidfname)
+		return cleanup(err, hashfname)
 	}
 
 	arch := ARCH_UNKNOWN
@@ -157,24 +161,24 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	tx, err := d.db.Begin()
 	if err != nil {
-		return cleanup(err, uuidfname)
+		return cleanup(err, hashfname)
 	}
 
 	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, upload_date) VALUES (?, ?, ?, ?, ?, strftime("%s"))`)
 	if err != nil {
 		tx.Rollback()
-		return cleanup(err, uuidfname)
+		return cleanup(err, hashfname)
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(uuid, tarname, size, public, arch)
+	_, err = stmt.Exec(hash, tarname, size, public, arch)
 	if err != nil {
 		tx.Rollback()
-		return cleanup(err, uuidfname)
+		return cleanup(err, hashfname)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return cleanup(err, uuidfname)
+		return cleanup(err, hashfname)
 	}
 
 	/*
@@ -183,7 +187,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	 */
 
 	metadata := make(map[string]string)
-	metadata["fingerprint"] = uuid
+	metadata["fingerprint"] = hash
 	metadata["size"] = strconv.FormatInt(size, 10)
 
 	return SyncResponse(true, metadata)
