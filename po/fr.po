@@ -1,0 +1,395 @@
+# French translation for LXD
+# Copyright (C) 2015 - LXD contributors
+# This file is distributed under the same license as LXD.
+# Stéphane Graber <stgraber@ubuntu.com, 2015.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: LXD\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2015-03-05 12:33-0500\n"
+"PO-Revision-Date: 2015-02-26 02:05-0600\n"
+"Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
+"Language-Team: French <fr@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: lxc/snapshot.go:50
+msgid "'/' not allowed in snapshot name\n"
+msgstr "'/' n'est pas autorisé dans le nom d'un instantané (snapshot)\n"
+
+#: lxc/image.go:59
+#, c-format
+msgid "(Bad alias entry: %s\n"
+msgstr "(Alias invalide: %s\n"
+
+#: lxc/image.go:173
+#, c-format
+msgid "(Bad image entry: %s\n"
+msgstr "(Image invalide: %s\n"
+
+#: lxc/remote.go:53
+#, c-format
+msgid "Admin password for %s: "
+msgstr "Mot de passe administrateur pour %s: "
+
+#: lxc/main.go:29
+msgid "Alternate config directory."
+msgstr "Dossier de configuration alternatif."
+
+#: client.go:567
+msgid "Certificate already stored.\n"
+msgstr "Le certificat a déjà été enregistré.\n"
+
+#: client.go:571
+#, c-format
+msgid "Certificate fingerprint: % x\n"
+msgstr "Empreinte du certificat: % x\n"
+
+#: lxc/action.go:26
+#, c-format
+msgid "Changes a containers state to %s.\n"
+msgstr "Change l'état du conteneur à %s.\n"
+
+#: lxc/remote.go:74
+msgid "Client certificate stored at server: "
+msgstr "Certificat client enregistré avec le serveur: "
+
+#: client.go:585
+msgid "Could not create server cert dir"
+msgstr "Le dossier de stockage des certificats serveurs n'a pas pû être créé"
+
+#: lxc/snapshot.go:21
+msgid "Create a read-only snapshot of a container.\n"
+msgstr "Prend un instantané (snapshot) en lecture seule d'un conteneur.\n"
+
+#: lxc/delete.go:20
+msgid "Delete a container or container snapshot.\n"
+msgstr "Supprime un conteneur ou l'instantané (snapshot) d'un conteneur.\n"
+
+#: lxc/main.go:27
+msgid "Enables debug mode."
+msgstr "Active le mode de déboguage."
+
+#: lxc/main.go:26
+msgid "Enables verbose mode."
+msgstr "Active le mode verbeux."
+
+#: lxc/exec.go:23
+msgid "Execute the specified command in a container.\n"
+msgstr "Exécute la commande spécifiée dans un conteneur.\n"
+
+#: lxc/finger.go:18
+msgid "Fingers the lxd instance to check if it is up and working.\n"
+msgstr "Contacte LXD pour voir s'il est fonctionel.\n"
+
+#: lxc/action.go:34
+msgid "Force the container to shutdown."
+msgstr "Force l'arrêt du conteneur."
+
+#: lxc/main.go:76
+msgid "Generating a client certificate. This may take a minute...\n"
+msgstr "Géneration d'un certificat client. Ceci peut prendre une minute...\n"
+
+#: lxc/info.go:37
+msgid "Information about remotes not yet supported\n"
+msgstr ""
+"Il n'est pas encore possible d'obtenir de l'information sur un serveur "
+"distant\n"
+
+#: lxc/file.go:141
+#, c-format
+msgid "Invalid source %s"
+msgstr "Source invalide %s"
+
+#: lxc/file.go:49
+#, c-format
+msgid "Invalid target %s"
+msgstr "Destination invalide %s"
+
+#: lxc/info.go:18
+msgid "List information on containers.\n"
+msgstr "Liste de l'information sur les conteneurs.\n"
+
+#: lxc/list.go:19
+msgid "Lists the available resources.\n"
+msgstr "Liste des ressources disponibles.\n"
+
+#: lxc/config.go:21
+msgid "Manage configuration.\n"
+msgstr "Gérer la configuration.\n"
+
+#: lxc/file.go:28
+msgid "Manage files on a container.\n"
+msgstr "Gérer les fichiers du conteneur.\n"
+
+#: lxc/remote.go:23
+msgid "Manage remote lxc servers.\n"
+msgstr "Gérer les serveurs distants.\n"
+
+#: lxc/help.go:75
+msgid "Missing summary."
+msgstr "Sommaire manquant."
+
+#: lxc/file.go:127
+msgid "More than one file to download, but target is not a directory"
+msgstr "Plusieurs fichiers à télécharger mais la destination n'est pas un dossier"
+
+#: lxc/config.go:92
+msgid "No cert provided to add"
+msgstr "Un certificat n'a pas été fournis"
+
+#: client.go:563
+msgid "No certificate on this connection"
+msgstr "Aucun certificat pour cette connexion"
+
+#: lxc/config.go:115
+msgid "No fingerprint specified."
+msgstr "Aucune empreinte n'a été spécifié."
+
+#: client.go:696
+msgid "Non-async response from create!"
+msgstr "Réponse invalide (non-async) durant la cration!"
+
+#: client.go:971
+msgid "Non-async response from snapshot!"
+msgstr ""
+"Réponse invalide (non-async) durant la cration d'un instantané (snapshot)!"
+
+#: lxc/config.go:59
+msgid "Only 'password' can be set currently"
+msgstr "Seul 'password' peut être configuré en ce moment"
+
+#: lxc/delete.go:42
+#, c-format
+msgid "Operation %s"
+msgstr "Opération %s"
+
+#: lxc/help.go:24
+msgid "Presents details on how to use lxd.\n"
+msgstr "Explique comment utiliser LXD.\n"
+
+#: lxc/version.go:19
+msgid "Prints the version number of lxd.\n"
+msgstr "Montre le numéro de version de LXD.\n"
+
+#: client.go:578
+msgid "Server certificate NACKed by user"
+msgstr "Le certificat serveur a été rejeté par l'utilisateur"
+
+#: client.go:237
+msgid "Server certificate has changed"
+msgstr "Le certificat serveur a changé"
+
+#: lxc/remote.go:71
+msgid "Server doesn't trust us after adding our cert"
+msgstr "Identification refuse après l'ajout du certificat client"
+
+#: lxc/file.go:36
+msgid "Set the file's gid on push"
+msgstr "Définit le gid lors de l'envoi"
+
+#: lxc/file.go:37
+msgid "Set the file's perms on push"
+msgstr "Définit les permissions lors de l'envoi"
+
+#: lxc/file.go:35
+msgid "Set the file's uid on push"
+msgstr "Définit le uid lors de l'envoi"
+
+#: lxc/help.go:32
+msgid "Show all commands (not just interesting ones)"
+msgstr "Affiche toutes les comandes (pas seulement les intéresantes)"
+
+#: lxc/delete.go:76
+msgid "Stopping container failed!"
+msgstr "L'arrêt du conteneur a échoué!"
+
+#: lxc/action.go:33
+msgid "Time to wait for the container before killing it."
+msgstr "Temps d'attente avant de tuer le conteneur."
+
+#: lxc/config.go:145
+#, c-format
+msgid "Unknown config command %s"
+msgstr "Comande de configuration inconue %s"
+
+#: lxc/image.go:180
+#, c-format
+msgid "Unknown image command %s"
+msgstr "Comande d'image inconnue %s"
+
+#: lxc/remote.go:185
+#, c-format
+msgid "Unknown remote subcommand %s"
+msgstr "Comande de serveur distant inconnue %s"
+
+#: lxc/config.go:142
+#, c-format
+msgid "Unkonwn config trust command %s"
+msgstr "Comande de configuration de confiance inconnue %s"
+
+#: lxc/main.go:52
+#, c-format
+msgid ""
+"Usage: %s\n"
+"\n"
+"Options:\n"
+"\n"
+msgstr ""
+"Utilisation: %s\n"
+"\n"
+"Options:\n"
+"\n"
+
+#: lxc/help.go:48
+msgid ""
+"Usage: lxc [subcommand] [options]\n"
+"Available commands:\n"
+msgstr ""
+"Utilisation: lxc [sous commande] [options]\n"
+"Comande disponibles:\n"
+
+#: lxc/snapshot.go:27
+msgid "Whether or not to snapshot the container's running state"
+msgstr ""
+"Est-ce que l'état de fonctionement du conteneur doit être inclus dans "
+"l'instantané (snapshot)"
+
+#: client.go:396
+msgid "api version mismatch: mine: %q, daemon: %q"
+msgstr "Version de l'API incompatible: local: %q, distant: %q"
+
+#: client.go:454 client.go:1003 client.go:1010
+#, c-format
+msgid "bad container url %s"
+msgstr "Mauvaise URL pour le conteneur %s"
+
+#: lxc/launch.go:73
+msgid "bad number of things scanned from resource"
+msgstr "nombre de propriété invalide pour la ressource"
+
+#: client.go:550
+msgid "bad response type from image list!"
+msgstr "mauvais type de réponse pour la liste d'image!"
+
+#: client.go:434 client.go:511 client.go:989
+msgid "bad response type from list!"
+msgstr "mauvais type de réponse pour la liste!"
+
+#: lxc/action.go:55
+msgid "bad result type from action"
+msgstr "mauvais type de réponse pour l'action!"
+
+#: client.go:458 client.go:1014
+msgid "bad version in container url"
+msgstr "version invalide dans l'URL du conteneur"
+
+#: client.go:350 client.go:355
+msgid "cannot resolve unix socket address: %v"
+msgstr "Ne peut pas résoudre l'adresse du unix socket: %v"
+
+#: lxc/launch.go:57 lxc/launch.go:62
+msgid "didn't get any affected resources from server"
+msgstr "N'a pas pû obtenir de resource du serveur"
+
+#: lxc/main.go:17
+msgid "error: %v\n"
+msgstr "erreur: %v\n"
+
+#: lxc/main.go:86
+msgid ""
+"error: %v\n"
+"%s"
+msgstr ""
+"erreur: %v\n"
+"%s"
+
+#: lxc/help.go:40 lxc/main.go:46
+#, c-format
+msgid "error: unknown command: %s\n"
+msgstr "erreur: comande inconnue: %s\n"
+
+#: client.go:784
+#, c-format
+msgid "got bad op status %s"
+msgstr "reçu un status d'opration invalide %s"
+
+#: client.go:721
+msgid "got bad response type from exec"
+msgstr "reçu une mauvaise réponse pour \"exec\""
+
+#: lxc/launch.go:77
+msgid "got bad version"
+msgstr "reçu une version invalide"
+
+#: client.go:827
+msgid "got non-async response from delete!"
+msgstr "Réponse invalide (non-async) durant la suppression!"
+
+#: client.go:846
+msgid "got non-sync response from containers get!"
+msgstr "Réponse invalide (non-async) durant le chargement!"
+
+#: lxc/file.go:188
+#, c-format
+msgid "invalid argument %s"
+msgstr "Arguments invalides %s"
+
+#: client.go:925
+#, c-format
+msgid "invalid wait url %s"
+msgstr "URL d'attente invalide %s"
+
+#: lxc/image.go:18
+msgid ""
+"lxc image import <tarball> [target] [--created-at=ISO-8601] [--expires-"
+"at=ISO-8601] [--fingerprint=HASH] [prop=value]\n"
+msgstr ""
+"lxc image import <tarball> [destination] [--created-at=ISO-8601] [--expires-"
+"at=ISO-8601] [--fingerprint=HASH] [proprit=valeur]\n"
+
+#: lxc/init.go:16
+msgid "lxc init ubuntu [<name>]\n"
+msgstr "lxc init ubuntu [<nom>]\n"
+
+#: lxc/launch.go:20
+msgid "lxc launch ubuntu [<name>]\n"
+msgstr "lxc launch ubuntu [<nom>]\n"
+
+#: client.go:104
+msgid "no response!"
+msgstr "pas de réponse!"
+
+#: client.go:572
+msgid "ok (y/n)? "
+msgstr "ok (y/n)?"
+
+#: lxc/remote.go:147
+#, c-format
+msgid "remote %s already exists"
+msgstr "le serveur distant %s existe déjà"
+
+#: lxc/remote.go:117 lxc/remote.go:143 lxc/remote.go:163 lxc/remote.go:174
+#, c-format
+msgid "remote %s doesn't exist"
+msgstr "le serveur distant %s n'existe pas"
+
+#: lxc/remote.go:97
+#, c-format
+msgid "remote %s exists as <%s>"
+msgstr "le serveur distant %s existe en tant que <%s>"
+
+#: client.go:214
+msgid "unknown remote name: %q"
+msgstr "serveur distant inconnu: %q"
+
+#: lxc/exec.go:105
+msgid "unreachable return reached"
+msgstr "Un retour inacessible à été atteint"
+
+#: lxc/main.go:119
+msgid "wrong number of subcommand arguments"
+msgstr "nombre d'argument incorrect pour la sous-comande"
