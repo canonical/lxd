@@ -1,61 +1,23 @@
 // Package migration provides the primitives for migration in LXD.
 //
-// Migration has two pieces, a "source", that is, the host that already has the
-// container, and a "sink", the host that's getting the container. Currently,
-// in the 'pull' mode, the source sets up an operation, and the sink connects
-// to the source and pulls the container.
-//
-// There are three websockets (channels) used in migration: 1. the control
-// stream, 2. the criu images stream, and 3. the filesystem stream. When a
-// migration is initiated, information about the container, its configuration,
-// etc. are sent over the control channel, the criu images and container
-// filesystem are synced over their respective channels, and the result of the
-// restore operation is sent from the sink to the source over the control
-// channel.
-//
-// In particular, the protocol that is spoken over the criu channel and
-// filesystem channel can vary, depending on what is negotiated over the
-// control socket. For example, both the source and the sink's LXD directory is
-// on btrfs, the filesystem socket can speak btrfs-send/receive. Additionally,
-// although we do a "stop the world" type migration right now, support for
-// criu's p.haul protocol will happen over the criu socket.
+// See https://github.com/lxc/lxd/blob/master/specs/migration.md for a complete
+// description.
+
 package migration
 
 import (
-	"encoding/gob"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"gopkg.in/lxc/go-lxc.v2"
 )
-
-type FilesystemType int
-
-const (
-	Rsync FilesystemType = 0
-)
-
-type MigrationHeader struct {
-	FSType FilesystemType
-}
-
-type ControlMessageType int
-
-const (
-	Failure ControlMessageType = 0
-	Success ControlMessageType = 1
-)
-
-type MigrationControl struct {
-	Type    ControlMessageType
-	Message string
-}
 
 type migrationFields struct {
 	controlSecret string
@@ -70,27 +32,37 @@ type migrationFields struct {
 	container *lxc.Container
 }
 
-func (c *migrationFields) send(m interface{}) error {
+func (c *migrationFields) send(m proto.Message) error {
 	w, err := c.controlConn.NextWriter(websocket.BinaryMessage)
 	if err != nil {
 		return err
 	}
-
 	defer w.Close()
 
-	// TODO: We should change the encoding here to be a protobuf, so that
-	// non-go users can easily talk to the migration socket if we want.
-	// I'll (tych0) investigate that in a bit, but for now gob is easier to
-	// use.
-	return gob.NewEncoder(w).Encode(m)
-}
-
-func (c *migrationFields) recv(m interface{}) error {
-	_, r, err := c.controlConn.NextReader()
+	data, err := proto.Marshal(m)
 	if err != nil {
 		return err
 	}
-	return gob.NewDecoder(r).Decode(m)
+
+	return shared.WriteAll(w, data)
+}
+
+func (c *migrationFields) recv(m proto.Message) error {
+	mt, r, err := c.controlConn.NextReader()
+	if err != nil {
+		return err
+	}
+
+	if mt != websocket.BinaryMessage {
+		return fmt.Errorf("only binary messages allowed")
+	}
+
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	return proto.Unmarshal(buf, m)
 }
 
 func (c *migrationFields) disconnect() {
@@ -109,14 +81,15 @@ func (c *migrationFields) disconnect() {
 }
 
 func (c *migrationFields) sendControl(err error) {
-	msg := MigrationControl{}
+	message := ""
 	if err != nil {
-		msg.Type = Failure
-		msg.Message = err.Error()
-	} else {
-		msg.Type = Success
+		message = err.Error()
 	}
 
+	msg := MigrationControl{
+		Success: proto.Bool(err == nil),
+		Message: proto.String(message),
+	}
 	c.send(&msg)
 
 	if err != nil {
@@ -209,9 +182,30 @@ func (s *migrationSourceWs) Connect(secret string, r *http.Request, w http.Respo
 func (s *migrationSourceWs) Do() shared.OperationResult {
 	<-s.allConnected
 
-	err := s.send(&MigrationHeader{Rsync})
-	if err != nil {
-		s.disconnect()
+	header := MigrationHeader{
+		Fs:   FilesystemType_RSYNC.Enum(),
+		Criu: CRIUType_CRIU_RSYNC.Enum(),
+	}
+
+	if err := s.send(&header); err != nil {
+		s.sendControl(err)
+		return shared.OperationError(err)
+	}
+
+	if err := s.recv(&header); err != nil {
+		s.sendControl(err)
+		return shared.OperationError(err)
+	}
+
+	if *header.Fs != FilesystemType_RSYNC {
+		err := fmt.Errorf("formats other than rsync not understood")
+		s.sendControl(err)
+		return shared.OperationError(err)
+	}
+
+	if *header.Criu != CRIUType_CRIU_RSYNC {
+		err := fmt.Errorf("formats other than criu rsync not understood")
+		s.sendControl(err)
 		return shared.OperationError(err)
 	}
 
@@ -257,8 +251,8 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 
 	// TODO: should we add some config here about automatically restarting
 	// the container migrate failure? What about the failures above?
-	if msg.Type == Failure {
-		return shared.OperationError(fmt.Errorf(msg.Message))
+	if !*msg.Success {
+		return shared.OperationError(fmt.Errorf(*msg.Message))
 	}
 
 	return shared.OperationSuccess
@@ -323,14 +317,16 @@ func (c *migrationSink) do() error {
 		return err
 	}
 
-	header := MigrationHeader{FSType: Rsync}
+	// For now, we just ignore whatever the server sends us. We only
+	// support RSYNC, so that's what we respond with.
+	header := MigrationHeader{}
 	if err := c.recv(&header); err != nil {
 		c.sendControl(err)
 		return err
 	}
 
-	if header.FSType != Rsync {
-		err = fmt.Errorf("formats other than rsync not understood")
+	resp := MigrationHeader{Fs: FilesystemType_RSYNC.Enum(), Criu: CRIUType_CRIU_RSYNC.Enum()}
+	if err := c.send(&resp); err != nil {
 		c.sendControl(err)
 		return err
 	}
@@ -380,9 +376,9 @@ func (c *migrationSink) do() error {
 				c.disconnect()
 				return fmt.Errorf("got error reading source")
 			}
-			if msg.Type == Failure {
+			if !*msg.Success {
 				c.disconnect()
-				return fmt.Errorf(msg.Message)
+				return fmt.Errorf(*msg.Message)
 			} else {
 				// The source can only tell us it failed (e.g. if
 				// checkpointing failed). We have to tell the source

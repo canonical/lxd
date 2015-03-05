@@ -17,12 +17,12 @@ After you've got LXD installed, you can take your [first steps](#first-steps).
 ## Building from source
 
 We have exeperienced some problems using gccgo, so for now we recommend using
-the golang compiler. We also require that a 1.0+ version of lxc and lxc-dev be
+the golang compiler. We also require that a 1.1+ version of lxc and lxc-dev be
 installed. Additionally, some of LXD's dependencies are grabbed from `go get`
 via mercurial, so you'll need to have `hg` in your path as well. You can get
 these on Ubuntu via:
 
-    sudo apt-get install lxc lxc-dev mercurial git pkg-config
+    sudo apt-get install lxc lxc-dev mercurial git pkg-config protobuf-compiler golang-goprotobuf-dev
 
 ### Installing Go
 
