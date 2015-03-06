@@ -628,7 +628,7 @@ in an optimized format.
  * Operation: sync
  * Return: dict representing an image properties
 
-Input:
+Output:
 
     {
         'properties': {
