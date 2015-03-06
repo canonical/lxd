@@ -1202,8 +1202,11 @@ func (c *Client) SetContainerConfig(container, key, value string) (*Response, er
 func (c *Client) ProfileCreate(p string) error {
 	body := shared.Jmap{"name": p}
 
-	_, err := c.post("profiles", body)
-	return err
+	raw, err := c.post("profiles", body)
+	if err != nil {
+		return err
+	}
+	return ParseError(raw)
 }
 
 func (c *Client) ProfileDelete(p string) error {
