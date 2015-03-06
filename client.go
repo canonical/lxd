@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -464,7 +465,7 @@ func (c *Client) ListContainers() ([]string, error) {
 	return names, nil
 }
 
-func (c *Client) ExportImage(image string) (*Response, error) {
+func (c *Client) ExportImage(image string, target string) (*Response, error) {
 
 	uri := c.url(shared.APIVersion, "images", image, "export")
 
@@ -486,13 +487,61 @@ func (c *Client) ExportImage(image string) (*Response, error) {
 		}
 		return nil, ParseError(resp)
 	}
-	_, err = io.Copy(os.Stdout, raw.Body)
+
+	var wr io.Writer
+
+	if target == "-" {
+		wr = os.Stdout
+	} else if fi, err := os.Stat(target); err == nil {
+		// file exists, so check if folder
+		switch mode := fi.Mode(); {
+		case mode.IsDir():
+			// save in directory, header content-disposition can not be null
+			// and will have a filename
+			cd := strings.Split(raw.Header["Content-Disposition"][0], "=")
+
+			// write filename from header
+			f, err := os.Create(filepath.Join(target, cd[1]))
+			defer f.Close()
+
+			if err != nil {
+				return nil, err
+			}
+
+			wr = f
+
+		default:
+			// overwrite file
+			f, err := os.Open(target)
+			defer f.Close()
+
+			if err != nil {
+				return nil, err
+			}
+
+			wr = f
+		}
+
+	} else {
+
+		// write as simple file
+		f, err := os.Create(target)
+		defer f.Close()
+
+		wr = f
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	_, err = io.Copy(wr, raw.Body)
 
 	if err != nil {
 		return nil, err
 	}
-	
-	// it streams to stdout, so no response returned
+
+	// it streams to stdout or file, so no response returned
 	return nil, nil
 
 }

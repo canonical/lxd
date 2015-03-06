@@ -178,7 +178,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 		return nil
 	case "export":
-		if len(args) < 2 {
+		if len(args) < 3 {
 			return errArgs
 		}
 
@@ -188,7 +188,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		_, err = d.ExportImage(image)
+		_, err = d.ExportImage(image, args[2])
 		if err != nil {
 			return err
 		}
