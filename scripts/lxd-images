@@ -120,13 +120,13 @@ class Busybox(object):
         destination_tar = os.path.join(self.workdir, "busybox.tar")
         target_tarball = tarfile.open(destination_tar, "w:")
 
-        metadata = {'architecture': os.uname().machine,
+        metadata = {'architecture': os.uname()[4],
                     'creation_date': int(os.stat("/bin/busybox").st_ctime),
                     'properties': {
                         'os': "Busybox",
-                        'architecture': os.uname().machine,
-                        'description': "Busybox %s" % os.uname().machine,
-                        'name': "busybox-%s" % os.uname().machine
+                        'architecture': os.uname()[4],
+                        'description': "Busybox %s" % os.uname()[4],
+                        'name': "busybox-%s" % os.uname()[4]
                         },
                     }
 
