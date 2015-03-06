@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-03-05 12:33-0500\n"
+"POT-Creation-Date: 2015-03-06 16:27-0500\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -39,35 +39,56 @@ msgstr "Mot de passe administrateur pour %s: "
 msgid "Alternate config directory."
 msgstr "Dossier de configuration alternatif."
 
-#: client.go:567
+#: client.go:543
 msgid "Certificate already stored.\n"
 msgstr "Le certificat a déjà été enregistré.\n"
 
-#: client.go:571
+#: client.go:547
 #, c-format
 msgid "Certificate fingerprint: % x\n"
 msgstr "Empreinte du certificat: % x\n"
 
 #: lxc/action.go:26
-#, c-format
-msgid "Changes a containers state to %s.\n"
+#, fuzzy, c-format
+msgid ""
+"Changes a containers state to %s.\n"
+"\n"
+"lxd %s <name>\n"
 msgstr "Change l'état du conteneur à %s.\n"
 
 #: lxc/remote.go:74
 msgid "Client certificate stored at server: "
 msgstr "Certificat client enregistré avec le serveur: "
 
-#: client.go:585
+#: client.go:561
 msgid "Could not create server cert dir"
 msgstr "Le dossier de stockage des certificats serveurs n'a pas pû être créé"
 
 #: lxc/snapshot.go:21
-msgid "Create a read-only snapshot of a container.\n"
+#, fuzzy
+msgid ""
+"Create a read-only snapshot of a container.\n"
+"\n"
+"lxc snapshot <source> <snapshot name> [--stateful]\n"
 msgstr "Prend un instantané (snapshot) en lecture seule d'un conteneur.\n"
 
 #: lxc/delete.go:20
-msgid "Delete a container or container snapshot.\n"
-msgstr "Supprime un conteneur ou l'instantané (snapshot) d'un conteneur.\n"
+msgid ""
+"Delete a container or container snapshot.\n"
+"\n"
+"Destroy a resource (e.g. container) and any attached data (configuration,\n"
+"snapshots, ...).\n"
+msgstr ""
+
+#: lxc/config.go:475
+#, c-format
+msgid "Device %s added to %s\n"
+msgstr ""
+
+#: lxc/config.go:503
+#, c-format
+msgid "Device %s removed from %s\n"
+msgstr ""
 
 #: lxc/main.go:27
 msgid "Enables debug mode."
@@ -78,11 +99,19 @@ msgid "Enables verbose mode."
 msgstr "Active le mode verbeux."
 
 #: lxc/exec.go:23
-msgid "Execute the specified command in a container.\n"
+#, fuzzy
+msgid ""
+"Execute the specified command in a container.\n"
+"\n"
+"lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n"
 msgstr "Exécute la commande spécifiée dans un conteneur.\n"
 
 #: lxc/finger.go:18
-msgid "Fingers the lxd instance to check if it is up and working.\n"
+#, fuzzy
+msgid ""
+"Fingers the LXD instance to check if it is up and working.\n"
+"\n"
+"lxc finger <remote>\n"
 msgstr "Contacte LXD pour voir s'il est fonctionel.\n"
 
 #: lxc/action.go:34
@@ -110,24 +139,76 @@ msgid "Invalid target %s"
 msgstr "Destination invalide %s"
 
 #: lxc/info.go:18
-msgid "List information on containers.\n"
-msgstr "Liste de l'information sur les conteneurs.\n"
+msgid ""
+"List information on containers.\n"
+"\n"
+"This will support remotes and images as well, but only containers for now.\n"
+"\n"
+"lxc info [<remote>:]container\n"
+msgstr ""
 
 #: lxc/list.go:19
-msgid "Lists the available resources.\n"
-msgstr "Liste des ressources disponibles.\n"
+msgid ""
+"Lists the available resources.\n"
+"\n"
+"lxc list [resource]\n"
+"\n"
+"Currently resource must be a defined remote, and list only lists\n"
+"the defined containers.\n"
+msgstr ""
 
-#: lxc/config.go:21
-msgid "Manage configuration.\n"
-msgstr "Gérer la configuration.\n"
+#: lxc/config.go:22
+msgid ""
+"Manage configuration.\n"
+"\n"
+"lxc config get <container> key                   Get configuration key\n"
+"lxc config device add <resource> <name> <type> [key=value]...\n"
+"               Add a device to a resource\n"
+"lxc config device list <resource>                List devices for resource\n"
+"lxc config device remove <resource> <name>       Remove device from "
+"resource\n"
+"lxc config profile list [filters]                List profiles\n"
+"lxc config profile create <profile>              Create profile\n"
+"lxc config profile delete <profile>              Delete profile\n"
+"lxc config profile device add <profile> <name> <type> [key=value]...\n"
+"               Delete profile\n"
+"lxc config profile device list <profile>\n"
+"lxc config profile device remove <profile> <name>\n"
+"lxc config profile set <profile> <key> <value>   Set profile configuration\n"
+"lxc config profile apply <resource> <profile>    Apply profile to container\n"
+"lxc config set [remote] password <newpwd>        Set admin password\n"
+"lxc config set <container> key [value]           Set container configuration "
+"key\n"
+"lxc config show <container>                      Show container "
+"configuration\n"
+"lxc config trust list [remote]                   List all trusted certs.\n"
+"lxc config trust add [remote] [certfile.crt]     Add certfile.crt to trusted "
+"hosts.\n"
+"lxc config trust remove [remote] [hostname|fingerprint]\n"
+"               Remove the cert from trusted hosts.\n"
+msgstr ""
 
 #: lxc/file.go:28
-msgid "Manage files on a container.\n"
-msgstr "Gérer les fichiers du conteneur.\n"
+msgid ""
+"Manage files on a container.\n"
+"\n"
+"lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] "
+"<target>\n"
+"lxc file pull <source> [<source>...] <target>\n"
+msgstr ""
 
 #: lxc/remote.go:23
-msgid "Manage remote lxc servers.\n"
-msgstr "Gérer les serveurs distants.\n"
+msgid ""
+"Manage remote LXD servers.\n"
+"\n"
+"lxc remote add <name> <url>        Add the remote <name> at <url>.\n"
+"lxc remote remove <name>           Remove the remote <name>.\n"
+"lxc remote list                    List all remotes.\n"
+"lxc remote rename <old> <new>      Rename remote <old> to <new>.\n"
+"lxc remote set-url <name> <url>    Update <name>'s url to <url>.\n"
+"lxc remote set-default <name>      Set the default remote.\n"
+"lxc remote get-default             Print the default remote.\n"
+msgstr ""
 
 #: lxc/help.go:75
 msgid "Missing summary."
@@ -135,32 +216,44 @@ msgstr "Sommaire manquant."
 
 #: lxc/file.go:127
 msgid "More than one file to download, but target is not a directory"
-msgstr "Plusieurs fichiers à télécharger mais la destination n'est pas un dossier"
+msgstr ""
+"Plusieurs fichiers à télécharger mais la destination n'est pas un dossier"
 
-#: lxc/config.go:92
+#: lxc/move.go:22
+msgid ""
+"Move containers within or in between lxd instances.\n"
+"\n"
+"(currently only live migration is supported)\n"
+"lxc move <source container> <destination container>\n"
+msgstr ""
+
+#: lxc/config.go:142
 msgid "No cert provided to add"
 msgstr "Un certificat n'a pas été fournis"
 
-#: client.go:563
+#: client.go:539
 msgid "No certificate on this connection"
 msgstr "Aucun certificat pour cette connexion"
 
-#: lxc/config.go:115
+#: lxc/config.go:165
 msgid "No fingerprint specified."
 msgstr "Aucune empreinte n'a été spécifié."
 
-#: client.go:696
-msgid "Non-async response from create!"
-msgstr "Réponse invalide (non-async) durant la cration!"
+#: client.go:803
+#, fuzzy
+msgid "Non-async response from delete!"
+msgstr "Réponse invalide (non-async) durant la suppression!"
 
-#: client.go:971
-msgid "Non-async response from snapshot!"
+#: client.go:672
+#, fuzzy
+msgid "Non-async response from init!"
 msgstr ""
 "Réponse invalide (non-async) durant la cration d'un instantané (snapshot)!"
 
-#: lxc/config.go:59
-msgid "Only 'password' can be set currently"
-msgstr "Seul 'password' peut être configuré en ce moment"
+#: client.go:1014
+msgid "Non-async response from snapshot!"
+msgstr ""
+"Réponse invalide (non-async) durant la cration d'un instantané (snapshot)!"
 
 #: lxc/delete.go:42
 #, c-format
@@ -168,18 +261,41 @@ msgid "Operation %s"
 msgstr "Opération %s"
 
 #: lxc/help.go:24
-msgid "Presents details on how to use lxd.\n"
+#, fuzzy
+msgid ""
+"Presents details on how to use LXD.\n"
+"\n"
+"lxd help [--all]\n"
 msgstr "Explique comment utiliser LXD.\n"
 
 #: lxc/version.go:19
-msgid "Prints the version number of lxd.\n"
+#, fuzzy
+msgid ""
+"Prints the version number of LXD.\n"
+"\n"
+"lxc version\n"
 msgstr "Montre le numéro de version de LXD.\n"
 
-#: client.go:578
+#: lxc/config.go:325
+#, c-format
+msgid "Profile %s applied to %s\n"
+msgstr ""
+
+#: lxc/config.go:306
+#, c-format
+msgid "Profile %s created\n"
+msgstr ""
+
+#: lxc/config.go:314
+#, c-format
+msgid "Profile %s deleted\n"
+msgstr ""
+
+#: client.go:554
 msgid "Server certificate NACKed by user"
 msgstr "Le certificat serveur a été rejeté par l'utilisateur"
 
-#: client.go:237
+#: client.go:228
 msgid "Server certificate has changed"
 msgstr "Le certificat serveur a changé"
 
@@ -211,10 +327,14 @@ msgstr "L'arrêt du conteneur a échoué!"
 msgid "Time to wait for the container before killing it."
 msgstr "Temps d'attente avant de tuer le conteneur."
 
-#: lxc/config.go:145
-#, c-format
-msgid "Unknown config command %s"
-msgstr "Comande de configuration inconue %s"
+#: client.go:1162
+msgid "Unexpected async response"
+msgstr ""
+
+#: client.go:1111 client.go:1230 client.go:1255 client.go:1294
+#, fuzzy
+msgid "Unexpected non-async response"
+msgstr "Réponse invalide (non-async) durant la suppression!"
 
 #: lxc/image.go:180
 #, c-format
@@ -226,7 +346,7 @@ msgstr "Comande d'image inconnue %s"
 msgid "Unknown remote subcommand %s"
 msgstr "Comande de serveur distant inconnue %s"
 
-#: lxc/config.go:142
+#: lxc/config.go:192
 #, c-format
 msgid "Unkonwn config trust command %s"
 msgstr "Comande de configuration de confiance inconnue %s"
@@ -258,11 +378,11 @@ msgstr ""
 "Est-ce que l'état de fonctionement du conteneur doit être inclus dans "
 "l'instantané (snapshot)"
 
-#: client.go:396
+#: client.go:372
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "Version de l'API incompatible: local: %q, distant: %q"
 
-#: client.go:454 client.go:1003 client.go:1010
+#: client.go:430 client.go:1046 client.go:1053
 #, c-format
 msgid "bad container url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
@@ -271,11 +391,17 @@ msgstr "Mauvaise URL pour le conteneur %s"
 msgid "bad number of things scanned from resource"
 msgstr "nombre de propriété invalide pour la ressource"
 
-#: client.go:550
+#: client.go:1199
+#, fuzzy, c-format
+msgid "bad profile url %s"
+msgstr "Mauvaise URL pour le conteneur %s"
+
+#: client.go:526
 msgid "bad response type from image list!"
 msgstr "mauvais type de réponse pour la liste d'image!"
 
-#: client.go:434 client.go:511 client.go:989
+#: client.go:410 client.go:487 client.go:1032 client.go:1179 client.go:1335
+#: client.go:1374 client.go:1432
 msgid "bad response type from list!"
 msgstr "mauvais type de réponse pour la liste!"
 
@@ -283,11 +409,16 @@ msgstr "mauvais type de réponse pour la liste!"
 msgid "bad result type from action"
 msgstr "mauvais type de réponse pour l'action!"
 
-#: client.go:458 client.go:1014
+#: client.go:434 client.go:1057
 msgid "bad version in container url"
 msgstr "version invalide dans l'URL du conteneur"
 
-#: client.go:350 client.go:355
+#: client.go:1203
+#, fuzzy
+msgid "bad version in profile url"
+msgstr "version invalide dans l'URL du conteneur"
+
+#: client.go:326 client.go:331
 msgid "cannot resolve unix socket address: %v"
 msgstr "Ne peut pas résoudre l'adresse du unix socket: %v"
 
@@ -312,12 +443,12 @@ msgstr ""
 msgid "error: unknown command: %s\n"
 msgstr "erreur: comande inconnue: %s\n"
 
-#: client.go:784
+#: client.go:760
 #, c-format
 msgid "got bad op status %s"
 msgstr "reçu un status d'opration invalide %s"
 
-#: client.go:721
+#: client.go:697
 msgid "got bad response type from exec"
 msgstr "reçu une mauvaise réponse pour \"exec\""
 
@@ -325,11 +456,12 @@ msgstr "reçu une mauvaise réponse pour \"exec\""
 msgid "got bad version"
 msgstr "reçu une version invalide"
 
-#: client.go:827
-msgid "got non-async response from delete!"
+#: client.go:934 client.go:959
+#, fuzzy
+msgid "got non-async response!"
 msgstr "Réponse invalide (non-async) durant la suppression!"
 
-#: client.go:846
+#: client.go:822 client.go:845
 msgid "got non-sync response from containers get!"
 msgstr "Réponse invalide (non-async) durant le chargement!"
 
@@ -338,7 +470,7 @@ msgstr "Réponse invalide (non-async) durant le chargement!"
 msgid "invalid argument %s"
 msgstr "Arguments invalides %s"
 
-#: client.go:925
+#: client.go:968
 #, c-format
 msgid "invalid wait url %s"
 msgstr "URL d'attente invalide %s"
@@ -347,23 +479,42 @@ msgstr "URL d'attente invalide %s"
 msgid ""
 "lxc image import <tarball> [target] [--created-at=ISO-8601] [--expires-"
 "at=ISO-8601] [--fingerprint=HASH] [prop=value]\n"
+"\n"
+"lxc image list [resource:] [filter]\n"
+"lxc image delete [resource:]<image>\n"
+"\n"
+"Lists the images at resource, or local images.\n"
+"Filters are not yet supported.\n"
+"\n"
+"lxc image alias list [resource:]\n"
+"lxc image alias create <alias> <target>\n"
+"lxc image alias delete <alias>\n"
+"list, create, delete image aliases\n"
 msgstr ""
-"lxc image import <tarball> [destination] [--created-at=ISO-8601] [--expires-"
-"at=ISO-8601] [--fingerprint=HASH] [proprit=valeur]\n"
 
 #: lxc/init.go:16
-msgid "lxc init ubuntu [<name>]\n"
-msgstr "lxc init ubuntu [<nom>]\n"
+msgid ""
+"lxc init ubuntu [<name>]\n"
+"\n"
+"Initializes a container using the specified image and name.\n"
+msgstr ""
 
 #: lxc/launch.go:20
-msgid "lxc launch ubuntu [<name>]\n"
-msgstr "lxc launch ubuntu [<nom>]\n"
+msgid ""
+"lxc launch ubuntu [<name>]\n"
+"\n"
+"Launches a container using the specified image and name.\n"
+msgstr ""
 
-#: client.go:104
+#: client.go:102
 msgid "no response!"
 msgstr "pas de réponse!"
 
-#: client.go:572
+#: client.go:1271 client.go:1351
+msgid "no value found in %q\n"
+msgstr ""
+
+#: client.go:548
 msgid "ok (y/n)? "
 msgstr "ok (y/n)?"
 
@@ -382,7 +533,7 @@ msgstr "le serveur distant %s n'existe pas"
 msgid "remote %s exists as <%s>"
 msgstr "le serveur distant %s existe en tant que <%s>"
 
-#: client.go:214
+#: client.go:205
 msgid "unknown remote name: %q"
 msgstr "serveur distant inconnu: %q"
 
@@ -390,6 +541,46 @@ msgstr "serveur distant inconnu: %q"
 msgid "unreachable return reached"
 msgstr "Un retour inacessible à été atteint"
 
-#: lxc/main.go:119
+#: lxc/main.go:120
 msgid "wrong number of subcommand arguments"
 msgstr "nombre d'argument incorrect pour la sous-comande"
+
+#~ msgid "Delete a container or container snapshot.\n"
+#~ msgstr "Supprime un conteneur ou l'instantané (snapshot) d'un conteneur.\n"
+
+#~ msgid "List information on containers.\n"
+#~ msgstr "Liste de l'information sur les conteneurs.\n"
+
+#~ msgid "Lists the available resources.\n"
+#~ msgstr "Liste des ressources disponibles.\n"
+
+#~ msgid "Manage configuration.\n"
+#~ msgstr "Gérer la configuration.\n"
+
+#~ msgid "Manage files on a container.\n"
+#~ msgstr "Gérer les fichiers du conteneur.\n"
+
+#~ msgid "Manage remote lxc servers.\n"
+#~ msgstr "Gérer les serveurs distants.\n"
+
+#~ msgid "Non-async response from create!"
+#~ msgstr "Réponse invalide (non-async) durant la cration!"
+
+#~ msgid "Only 'password' can be set currently"
+#~ msgstr "Seul 'password' peut être configuré en ce moment"
+
+#~ msgid "Unknown config command %s"
+#~ msgstr "Comande de configuration inconue %s"
+
+#~ msgid ""
+#~ "lxc image import <tarball> [target] [--created-at=ISO-8601] [--expires-"
+#~ "at=ISO-8601] [--fingerprint=HASH] [prop=value]\n"
+#~ msgstr ""
+#~ "lxc image import <tarball> [destination] [--created-at=ISO-8601] [--"
+#~ "expires-at=ISO-8601] [--fingerprint=HASH] [proprit=valeur]\n"
+
+#~ msgid "lxc init ubuntu [<name>]\n"
+#~ msgstr "lxc init ubuntu [<nom>]\n"
+
+#~ msgid "lxc launch ubuntu [<name>]\n"
+#~ msgstr "lxc launch ubuntu [<nom>]\n"
