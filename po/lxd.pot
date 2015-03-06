@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-06 08:38-0700\n"
+        "POT-Creation-Date: 2015-03-06 16:27-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -51,6 +51,8 @@ msgstr  ""
 #: lxc/action.go:26
 #, c-format
 msgid   "Changes a containers state to %s.\n"
+        "\n"
+        "lxd %s <name>\n"
 msgstr  ""
 
 #: lxc/remote.go:74
@@ -63,10 +65,16 @@ msgstr  ""
 
 #: lxc/snapshot.go:21
 msgid   "Create a read-only snapshot of a container.\n"
+        "\n"
+        "lxc snapshot <source> <snapshot name> [--stateful]\n"
 msgstr  ""
 
 #: lxc/delete.go:20
 msgid   "Delete a container or container snapshot.\n"
+        "\n"
+        "Destroy a resource (e.g. container) and any attached data "
+        "(configuration,\n"
+        "snapshots, ...).\n"
 msgstr  ""
 
 #: lxc/config.go:475
@@ -89,10 +97,14 @@ msgstr  ""
 
 #: lxc/exec.go:23
 msgid   "Execute the specified command in a container.\n"
+        "\n"
+        "lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n"
 msgstr  ""
 
 #: lxc/finger.go:18
 msgid   "Fingers the LXD instance to check if it is up and working.\n"
+        "\n"
+        "lxc finger <remote>\n"
 msgstr  ""
 
 #: lxc/action.go:34
@@ -119,22 +131,76 @@ msgstr  ""
 
 #: lxc/info.go:18
 msgid   "List information on containers.\n"
+        "\n"
+        "This will support remotes and images as well, but only containers "
+        "for now.\n"
+        "\n"
+        "lxc info [<remote>:]container\n"
 msgstr  ""
 
 #: lxc/list.go:19
 msgid   "Lists the available resources.\n"
+        "\n"
+        "lxc list [resource]\n"
+        "\n"
+        "Currently resource must be a defined remote, and list only lists\n"
+        "the defined containers.\n"
 msgstr  ""
 
 #: lxc/config.go:22
 msgid   "Manage configuration.\n"
+        "\n"
+        "lxc config get <container> key                   Get configuration "
+        "key\n"
+        "lxc config device add <resource> <name> <type> [key=value]...\n"
+        "               Add a device to a resource\n"
+        "lxc config device list <resource>                List devices for "
+        "resource\n"
+        "lxc config device remove <resource> <name>       Remove device from "
+        "resource\n"
+        "lxc config profile list [filters]                List profiles\n"
+        "lxc config profile create <profile>              Create profile\n"
+        "lxc config profile delete <profile>              Delete profile\n"
+        "lxc config profile device add <profile> <name> <type> "
+        "[key=value]...\n"
+        "               Delete profile\n"
+        "lxc config profile device list <profile>\n"
+        "lxc config profile device remove <profile> <name>\n"
+        "lxc config profile set <profile> <key> <value>   Set profile "
+        "configuration\n"
+        "lxc config profile apply <resource> <profile>    Apply profile to "
+        "container\n"
+        "lxc config set [remote] password <newpwd>        Set admin password\n"
+        "lxc config set <container> key [value]           Set container "
+        "configuration key\n"
+        "lxc config show <container>                      Show container "
+        "configuration\n"
+        "lxc config trust list [remote]                   List all trusted "
+        "certs.\n"
+        "lxc config trust add [remote] [certfile.crt]     Add certfile.crt to "
+        "trusted hosts.\n"
+        "lxc config trust remove [remote] [hostname|fingerprint]\n"
+        "               Remove the cert from trusted hosts.\n"
 msgstr  ""
 
 #: lxc/file.go:28
 msgid   "Manage files on a container.\n"
+        "\n"
+        "lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> "
+        "[<source>...] <target>\n"
+        "lxc file pull <source> [<source>...] <target>\n"
 msgstr  ""
 
 #: lxc/remote.go:23
 msgid   "Manage remote LXD servers.\n"
+        "\n"
+        "lxc remote add <name> <url>        Add the remote <name> at <url>.\n"
+        "lxc remote remove <name>           Remove the remote <name>.\n"
+        "lxc remote list                    List all remotes.\n"
+        "lxc remote rename <old> <new>      Rename remote <old> to <new>.\n"
+        "lxc remote set-url <name> <url>    Update <name>'s url to <url>.\n"
+        "lxc remote set-default <name>      Set the default remote.\n"
+        "lxc remote get-default             Print the default remote.\n"
 msgstr  ""
 
 #: lxc/help.go:75
@@ -145,8 +211,11 @@ msgstr  ""
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
-#: lxc/move.go:21
+#: lxc/move.go:22
 msgid   "Move containers within or in between lxd instances.\n"
+        "\n"
+        "(currently only live migration is supported)\n"
+        "lxc move <source container> <destination container>\n"
 msgstr  ""
 
 #: lxc/config.go:142
@@ -180,10 +249,14 @@ msgstr  ""
 
 #: lxc/help.go:24
 msgid   "Presents details on how to use LXD.\n"
+        "\n"
+        "lxd help [--all]\n"
 msgstr  ""
 
 #: lxc/version.go:19
 msgid   "Prints the version number of LXD.\n"
+        "\n"
+        "lxc version\n"
 msgstr  ""
 
 #: lxc/config.go:325
@@ -372,14 +445,29 @@ msgstr  ""
 #: lxc/image.go:18
 msgid   "lxc image import <tarball> [target] [--created-at=ISO-8601] [--"
         "expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n"
+        "\n"
+        "lxc image list [resource:] [filter]\n"
+        "lxc image delete [resource:]<image>\n"
+        "\n"
+        "Lists the images at resource, or local images.\n"
+        "Filters are not yet supported.\n"
+        "\n"
+        "lxc image alias list [resource:]\n"
+        "lxc image alias create <alias> <target>\n"
+        "lxc image alias delete <alias>\n"
+        "list, create, delete image aliases\n"
 msgstr  ""
 
 #: lxc/init.go:16
 msgid   "lxc init ubuntu [<name>]\n"
+        "\n"
+        "Initializes a container using the specified image and name.\n"
 msgstr  ""
 
 #: lxc/launch.go:20
 msgid   "lxc launch ubuntu [<name>]\n"
+        "\n"
+        "Launches a container using the specified image and name.\n"
 msgstr  ""
 
 #: client.go:102
