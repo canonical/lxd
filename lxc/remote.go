@@ -20,7 +20,7 @@ func (c *remoteCmd) showByDefault() bool {
 
 func (c *remoteCmd) usage() string {
 	return gettext.Gettext(
-		"Manage remote lxc servers.\n" +
+		"Manage remote LXD servers.\n" +
 			"\n" +
 			"lxc remote add <name> <url>        Add the remote <name> at <url>.\n" +
 			"lxc remote remove <name>           Remove the remote <name>.\n" +
