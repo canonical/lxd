@@ -1,4 +1,8 @@
 test_migration() {
+  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+    return
+  fi
+
   if [ -z "$(which criu)" ]; then
       echo "==> Skipping migration tests; no criu binary found"
       return
