@@ -9,9 +9,8 @@ test_config_profiles() {
   lxc config profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
   lxc config profile apply foo onenic,unconfined
 
-# FIXME: Broken
-#  lxc config device list foo | grep home
-#  lxc config profile show foo | grep "onenic,unconfined"
+  lxc config device list foo | grep home
+  lxc config show foo | grep "onenic,unconfined"
   lxc config profile list | grep onenic
   lxc config profile device list onenic | grep eth0
 
