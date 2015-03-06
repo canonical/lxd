@@ -1128,7 +1128,7 @@ func (c *Client) SetProfileConfig(profile, key, value string) error {
 		st.Config[key] = value
 	}
 
-	body := shared.Jmap{"name": profile, "config": st.Config}
+	body := shared.Jmap{"name": profile, "config": st.Config, "devices": st.Devices}
 	resp, err := c.put(fmt.Sprintf("profiles/%s", profile), body)
 	if err != nil {
 		return err
@@ -1302,7 +1302,7 @@ func (c *Client) ProfileDeviceDelete(profile, devname string) (*Response, error)
 	}
 
 	body := shared.Jmap{"config": st.Config, "name": st.Name, "devices": st.Devices}
-	resp, err := c.put(fmt.Sprintf("profiless/%s", profile), body)
+	resp, err := c.put(fmt.Sprintf("profiles/%s", profile), body)
 	if err != nil {
 		return nil, err
 	}
@@ -1367,4 +1367,28 @@ func (c *Client) ProfileListDevices(profile string) ([]string, error) {
 		devs = append(devs, fmt.Sprintf("%s: %s", n, d["type"]))
 	}
 	return devs, nil
+}
+
+func (c *Client) ProfileCopy(name, newname string, dest *Client) error {
+	st, err := c.ProfileConfig(name)
+	if err != nil {
+		return err
+	}
+
+	body := shared.Jmap{"config": st.Config, "name": newname, "devices": st.Devices}
+	resp, err := dest.post("profiles", body)
+
+	if err != nil {
+		return err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return err
+	}
+
+	if resp.Type != Sync {
+		return fmt.Errorf(gettext.Gettext("bad response type from list!"))
+	}
+
+	return nil
 }

@@ -273,7 +273,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		case "unset":
 			return doProfileSet(client, profile, args[3:])
 		case "copy":
-			return doProfileCopy(client, profile, args[3:])
+			return doProfileCopy(config, client, profile, args[3:])
 		case "show":
 			return doProfileShow(client, profile)
 		}
@@ -347,6 +347,23 @@ func doProfileShow(client *lxd.Client, p string) error {
 	return nil
 }
 
+func doProfileCopy(config *lxd.Config, client *lxd.Client, p string, args []string) error {
+	if len(args) != 1 {
+		return errArgs
+	}
+	remote, newname := config.ParseRemoteAndContainer(args[0])
+	if newname == "" {
+		newname = p
+	}
+
+	dest, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	return client.ProfileCopy(p, newname, dest)
+}
+
 func doProfileDevice(config *lxd.Config, args []string) error {
 	// profile device add b1 eth0 nic type=bridged
 	// profile device list b1
@@ -399,13 +416,6 @@ func doProfileSet(client *lxd.Client, p string, args []string) error {
 	}
 	err := client.SetProfileConfig(p, key, value)
 	return err
-}
-
-func doProfileCopy(client *lxd.Client, p string, args []string) error {
-	if len(args) < 4 {
-		return errArgs
-	}
-	return fmt.Errorf("profile copy not yet implemented")
 }
 
 func doProfileList(config *lxd.Config, args []string) error {
