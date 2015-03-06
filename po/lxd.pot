@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-05 13:36-0600\n"
+        "POT-Creation-Date: 2015-03-06 00:04-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -92,7 +92,7 @@ msgid   "Execute the specified command in a container.\n"
 msgstr  ""
 
 #: lxc/finger.go:18
-msgid   "Fingers the lxd instance to check if it is up and working.\n"
+msgid   "Fingers the LXD instance to check if it is up and working.\n"
 msgstr  ""
 
 #: lxc/action.go:34
@@ -134,7 +134,7 @@ msgid   "Manage files on a container.\n"
 msgstr  ""
 
 #: lxc/remote.go:23
-msgid   "Manage remote lxc servers.\n"
+msgid   "Manage remote LXD servers.\n"
 msgstr  ""
 
 #: lxc/help.go:75
@@ -175,11 +175,11 @@ msgid   "Operation %s"
 msgstr  ""
 
 #: lxc/help.go:24
-msgid   "Presents details on how to use lxd.\n"
+msgid   "Presents details on how to use LXD.\n"
 msgstr  ""
 
 #: lxc/version.go:19
-msgid   "Prints the version number of lxd.\n"
+msgid   "Prints the version number of LXD.\n"
 msgstr  ""
 
 #: lxc/config.go:325
