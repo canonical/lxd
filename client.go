@@ -585,8 +585,11 @@ func (c *Client) DeleteImage(image string) error {
 func (c *Client) PostAlias(alias string, desc string, target string) error {
 	body := shared.Jmap{"description": desc, "target": target, "name": alias}
 
-	_, err := c.post("images/aliases", body)
-	return err
+	raw, err := c.post("images/aliases", body)
+	if err != nil {
+		return err
+	}
+	return ParseError(raw)
 }
 
 func (c *Client) DeleteAlias(alias string) error {
