@@ -17,7 +17,7 @@ the following structure:
 The rootfs directory contains a full file system tree of what will become the container's /.
 
 metadata.yaml contains information relevant to running the image under
-lxd, at the moment, this contains:
+LXD, at the moment, this contains:
 
     architecture: x86_64
     creation_date: 1424284563

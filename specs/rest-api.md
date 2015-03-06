@@ -1,5 +1,5 @@
 # Introduction
-All the communications between lxd and its clients happen using a
+All the communications between LXD and its clients happen using a
 RESTful API over http which is then encapsulated over either SSL for
 remote operations or a unix socket for local operations.
 
@@ -129,7 +129,7 @@ The update will then only be done if the two match.
 If they don't, an error will be returned instead using HTTP error code
 412 (Precondition failed).
 
-For consistency in lxc's use of hashes, the Etag hash should be a SHA-256.
+For consistency in LXD's use of hashes, the Etag hash should be a SHA-256.
 
 # API structure
  * /
