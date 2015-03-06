@@ -15,7 +15,7 @@ import (
 /*
  * We'll flesh this out to be lists of ranges
  * We will want a list of available ranges (all ranges
- * which lxd may use) and taken range (parts of the
+ * which LXD may use) and taken range (parts of the
  * available ranges which are already in use by containers)
  *
  * We also may want some way of deciding which containers may

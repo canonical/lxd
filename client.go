@@ -26,7 +26,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// Client can talk to a lxd daemon.
+// Client can talk to a LXD daemon.
 type Client struct {
 	config          Config
 	Remote          *RemoteConfig
@@ -149,7 +149,7 @@ func (c *Client) loadServerCert() {
 	c.scert = cert
 }
 
-// NewClient returns a new lxd client.
+// NewClient returns a new LXD client.
 func NewClient(config *Config, remote string) (*Client, error) {
 	c := Client{
 		config: *config,
@@ -159,7 +159,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 	c.name = remote
 
 	// TODO: Here, we don't support configurable local remotes, we only
-	// support the default local lxd at /var/lib/lxd/unix.socket.
+	// support the default local LXD at /var/lib/lxd/unix.socket.
 	if remote == "" {
 		c.baseURL = "http://unix.socket"
 		c.baseWSURL = "ws://unix.socket"

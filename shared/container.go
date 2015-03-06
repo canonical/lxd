@@ -1,7 +1,7 @@
 package shared
 
-// This package is intended for rendering ContainerState for use between lxc
-// and lxd.
+// This package is intended for rendering ContainerState for use between LXC
+// and LXD.
 
 import (
 	"database/sql"
