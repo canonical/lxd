@@ -15,7 +15,7 @@ func (c *fingerCmd) showByDefault() bool {
 
 func (c *fingerCmd) usage() string {
 	return gettext.Gettext(
-		"Fingers the lxd instance to check if it is up and working.\n" +
+		"Fingers the LXD instance to check if it is up and working.\n" +
 			"\n" +
 			"lxc finger <remote>\n")
 }

@@ -1,4 +1,4 @@
-# lxd [![Build Status](https://travis-ci.org/lxc/lxd.svg?branch=master)](https://travis-ci.org/lxc/lxd)
+# LXD [![Build Status](https://travis-ci.org/lxc/lxd.svg?branch=master)](https://travis-ci.org/lxc/lxd)
 
 REST API, command line tool and OpenStack integration plugin for LXC.
 
@@ -12,7 +12,7 @@ builds right now. They're available via:
     sudo add-apt-repository ppa:ubuntu-lxc/lxd-daily && sudo apt-get update
     sudo apt-get install lxd
 
-After you've got lxd installed, you can take your [first steps](#first-steps).
+After you've got LXD installed, you can take your [first steps](#first-steps).
 
 ## Building from source
 
@@ -28,7 +28,7 @@ these on Ubuntu via:
 
 LXD requires Golang 1.3 or later to work.
 
-If running Ubuntu, the easiest way to get it is to use the lxc PPA:
+If running Ubuntu, the easiest way to get it is to use the LXC PPA:
 
     sudo apt-get install software-properties-common
     sudo add-apt-repository ppa:ubuntu-lxc/lxd-daily
@@ -71,9 +71,9 @@ containers:
     echo "root:1000000:65536" | sudo tee -a /etc/subuid /etc/subgid
 
 Now you can run the daemon (the --group admin bit allows everyone in the admin
-group to talk to lxd; you can create your own group if you want, but typically
+group to talk to LXD; you can create your own group if you want, but typically
 all sudo users are in the admin group, so this is a handy way to allow them to
-talk to lxd):
+talk to LXD):
 
     sudo -E $GOPATH/bin/lxd --group admin
 
