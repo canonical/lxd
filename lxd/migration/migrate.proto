@@ -1,0 +1,23 @@
+package migration;
+
+enum MigrationFSType {
+  RSYNC = 0;
+  BTRFS = 1;
+}
+
+enum CRIUType {
+  CRIU_RSYNC = 0;
+  PHAUL = 1;
+}
+
+message MigrationHeader {
+  required MigrationFSType fs = 1;
+  required CRIUType       criu = 2;
+}
+
+message MigrationControl {
+  required bool success = 1;
+
+  /* optional failure message if sending a failure */
+  optional string message = 2;
+}

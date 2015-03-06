@@ -53,11 +53,7 @@ The body is a dict with the following structure:
         'resources': {
             'containers': ["/1.0/containers/my-container"]      # List of affected resources
         },
-        'metadata': {                                           # Metadata relevant to the operation
-            'websocket_secret': 'theparadiserocks'              # The secret string used to connect to a websocket.
-                                                                # This is optional, depending on whether or not
-                                                                # the operation has a websocket you can connect to.
-        }
+        'metadata': {}                                          # Metadata relevant to the operation
     }
 
 The body is mostly provided as a user friendly way of seeing what's
@@ -318,7 +314,9 @@ Input (using a remote container, sent over the migration websocket):
         'source': {'type': "migration",                                                 # Can be: "image", "migration" or "none"
                    'mode': "pull",                                                      # One of "pull" or "receive"
                    'operation': "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
-                   'secret': "my-secret-string"},                                       # Secret to use to retrieve the container (pull mode only)
+                   'secrets': {'control': "my-secret-string",                           # Secrets to use when talking to the migration source
+                               'criu':    "my-other-secret",
+                               'fs':      "my third secret"},
     }
 
 
@@ -382,17 +380,32 @@ Input (restore snapshot):
  * Operation: async
  * Return: background operation or standard error
 
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
+
 Input (simple rename):
 
     {
         'name': "new-name"
     }
 
+Input (migration across lxd instances):
+    {
+        "migration": true,
+        "name": "new-name"
+    }
 
-Renaming to an existing name must return the 409 (Conflict) HTTP code.
+The migration does not actually start until someone (i.e. another lxd instance)
+connects to all the websockets and begins negotiation with the source.
 
-TODO: Cross host rename/migration.
+Output in metadata section (for migration):
 
+    {
+        "control": "secret1",
+        "criu": "secret2",
+        "fs": "secret3",
+    }
+
+These are the secrets that should be passed to the create call.
 
 ### DELETE
  * Description: remove the container
@@ -537,7 +550,7 @@ Input (run bash):
         'command': ["/bin/bash"],       # Command and arguments
         'environment': {},              # Optional extra environment variables to set
         'wait-for-websocket': false,    # Whether to wait for a connection before starting the process
-        'interactive': false            # Whether to allocate a pts device instead of PIPEs
+        'interactive': true             # Whether to allocate a pts device instead of PIPEs
     }
 
 `wait-for-websocket` indicates whether the operation should block and wait for
@@ -556,6 +569,27 @@ pts device for stdin, stdout and stderr of the execed process.
 
 If interactive is set to false (default), three pipes will be setup, one
 for each of stdin, stdout and stderr.
+
+Depending on the state of the interactive flag, one or three different
+websocket/secret pairs will be returned, which are valid for connecting to this
+operations /websocket endpoint.
+
+Response metadata (interactive=true); the output of the pty is mirrored over
+this websocket:
+
+    {
+        "-1": "secret"
+    }
+
+Response metadata (interactive=false); each of the process' fds are hooked up
+to these (i.e. you can only write to 0, and read from 1 and 2):
+
+    {
+        "0": "secret0",
+        "1": "secret1",
+        "2": "secret2",
+    }
+
 
 ## /1.0/events
 This URL isn't a real REST API endpoint, instead doing a GET query on it
@@ -846,8 +880,9 @@ Input (wait for the operation to succeed or timeout): ?status\_code=200&timeout=
    stdin/stdout/stderr to flow to and from the process inside the container.
    In the case of migration, it will be the primary interface over which the
    migration information is communicated. The secret here is the one that was
-   provided when the operation was created.
- * Authentication: trusted
+   provided when the operation was created. Guests are allowed to connect
+   provided they have the right secret.
+ * Authentication: guest or trusted
  * Operation: sync
  * Return: websocket stream or standard error
 

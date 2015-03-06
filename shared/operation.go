@@ -73,6 +73,8 @@ type OperationResult struct {
 	Error    error
 }
 
+var OperationSuccess OperationResult = OperationResult{}
+
 func OperationWrap(f func() error) func() OperationResult {
 	return func() OperationResult { return OperationError(f()) }
 }

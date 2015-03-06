@@ -108,6 +108,7 @@ var commands = map[string]command{
 	"init":     &initCmd{},
 	"launch":   &launchCmd{},
 	"list":     &listCmd{},
+	"move":     &moveCmd{},
 	"remote":   &remoteCmd{},
 	"restart":  &actionCmd{shared.Restart, true},
 	"snapshot": &snapshotCmd{},
