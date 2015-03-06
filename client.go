@@ -464,6 +464,39 @@ func (c *Client) ListContainers() ([]string, error) {
 	return names, nil
 }
 
+func (c *Client) ExportImage(image string) (*Response, error) {
+
+	uri := c.url(shared.APIVersion, "images", image, "export")
+
+	req, err := http.NewRequest("GET", uri, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	raw, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// because it is raw data, we need to check for http status
+	if raw.StatusCode != 200 {
+		resp, err := ParseResponse(raw)
+		if err != nil {
+			return nil, err
+		}
+		return nil, ParseError(resp)
+	}
+	_, err = io.Copy(os.Stdout, raw.Body)
+
+	if err != nil {
+		return nil, err
+	}
+	
+	// it streams to stdout, so no response returned
+	return nil, nil
+
+}
+
 func (c *Client) PostImage(filename string) (*Response, error) {
 	uri := c.url(shared.APIVersion, "images")
 

@@ -384,7 +384,6 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 	name := mux.Vars(r)["name"]
 
-	// check for fingerprint
 	rows, err := d.db.Query(`SELECT images.filename, images.size FROM images WHERE images.fingerprint=?`, name)
 	if err != nil {
 		return InternalError(err)
@@ -415,7 +414,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 }
 
-var imagesExportCmd = Command{name: "images/export/{name}", get: imageExport}
+var imagesExportCmd = Command{name: "images/{name}/export", get: imageExport}
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 
