@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -60,6 +61,14 @@ func run() error {
 	if *verbose || *debug {
 		shared.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
 		shared.SetDebug(*debug)
+	}
+
+	needed_programs := []string{"setfacl", "rsync", "tar", "xz"}
+	for _, p := range needed_programs {
+		_, err := exec.LookPath(p)
+		if err != nil {
+			return err
+		}
 	}
 
 	d, err := StartDaemon(*listenAddr)
