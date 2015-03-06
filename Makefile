@@ -47,6 +47,6 @@ update-po:
 	done
 
 update-pot:
-	xgettext -d $(DOMAIN) -s client.go lxc/*.go -o po/$(DOMAIN).pot -L c++ -i --keyword=Gettext
+	xgettext -d $(DOMAIN) -s client.go lxc/*.go -o po/$(DOMAIN).pot -L vala -i --keyword=Gettext
 
 build-mo: $(MOFILES)
