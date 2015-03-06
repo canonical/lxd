@@ -337,6 +337,13 @@ func doProfileShow(client *lxd.Client, p string) error {
 	for k, v := range resp {
 		fmt.Printf("%s = %s\n", k, v)
 	}
+
+	dresp, err := client.ProfileListDevices(p)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%s\n", strings.Join(dresp, "\n"))
+
 	return nil
 }
 
