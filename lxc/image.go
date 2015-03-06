@@ -19,6 +19,7 @@ func (c *imageCmd) usage() string {
 			"\n" +
 			"lxc image list [resource:] [filter]\n" +
 			"lxc image delete [resource:]<image>\n" +
+			"lxc image export [resource:]<image>\n" +
 			"\n" +
 			"Lists the images at resource, or local images.\n" +
 			"Filters are not yet supported.\n" +
@@ -177,7 +178,21 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 		return nil
 	case "export":
-		
+		if len(args) < 2 {
+			return errArgs
+		}
+
+		remote, image := config.ParseRemoteAndContainer(args[1])
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+
+		_, err = d.ExportImage(image)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	default:
 		return fmt.Errorf(gettext.Gettext("Unknown image command %s"), args[0])
