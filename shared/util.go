@@ -5,8 +5,10 @@ package shared
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -287,11 +289,11 @@ func WebsocketRecvStream(w io.WriteCloser, conn *websocket.Conn) chan bool {
 	return ch
 }
 
-func WebsocketMirror(conn *websocket.Conn, w io.Writer, r io.ReadCloser) (chan bool, chan bool) {
-	readDone := make(chan bool)
-	writeDone := make(chan bool)
-
-	go func(conn *websocket.Conn, w io.Writer) {
+// WebsocketMirror allows mirroring a reader to a websocket and taking the
+// result and writing it to a writer.
+func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.Reader) chan bool {
+	done := make(chan bool, 1)
+	go func(conn *websocket.Conn, w io.WriteCloser) {
 		for {
 			mt, r, err := conn.NextReader()
 			if mt == websocket.CloseMessage {
@@ -311,22 +313,26 @@ func WebsocketMirror(conn *websocket.Conn, w io.Writer, r io.ReadCloser) (chan b
 			i, err := w.Write(buf)
 			if i != len(buf) {
 				Debugf("didn't write all of buf")
+				break
 			}
 			if err != nil {
 				Debugf("error writing buf %s", err)
+				break
 			}
 		}
-		r.Close()
-		readDone <- true
-		close(readDone)
+		done <- true
+		w.Close()
 	}(conn, w)
 
-	go func(conn *websocket.Conn, r io.ReadCloser) {
+	go func(conn *websocket.Conn, r io.Reader) {
 		in := ReaderToChannel(r)
 		for {
 			buf, ok := <-in
 			if !ok {
-				break
+				done <- true
+				conn.WriteMessage(websocket.CloseMessage, []byte{})
+				conn.Close()
+				return
 			}
 			w, err := conn.NextWriter(websocket.BinaryMessage)
 			if err != nil {
@@ -343,11 +349,10 @@ func WebsocketMirror(conn *websocket.Conn, w io.Writer, r io.ReadCloser) (chan b
 		}
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 		conn.WriteMessage(websocket.CloseMessage, closeMsg)
-		writeDone <- true
-		close(writeDone)
+		done <- true
 	}(conn, r)
 
-	return readDone, writeDone
+	return done
 }
 
 // Returns a random base64 encoded string from crypto/rand.
@@ -476,4 +481,42 @@ func IsDir(name string) bool {
 		return false
 	}
 	return stat.IsDir()
+}
+
+func GetTLSConfig(certf string, keyf string) (*tls.Config, error) {
+	cert, err := tls.LoadX509KeyPair(certf, keyf)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+		ClientAuth:         tls.RequireAnyClientCert,
+		Certificates:       []tls.Certificate{cert},
+		MinVersion:         tls.VersionTLS12,
+		MaxVersion:         tls.VersionTLS12,
+	}
+
+	tlsConfig.BuildNameToCertificate()
+
+	return tlsConfig, nil
+}
+
+func WriteAll(w io.Writer, buf []byte) error {
+	return WriteAllBuf(w, bytes.NewBuffer(buf))
+}
+
+func WriteAllBuf(w io.Writer, buf *bytes.Buffer) error {
+	toWrite := int64(buf.Len())
+	for {
+		n, err := io.Copy(w, buf)
+		if err != nil {
+			return err
+		}
+
+		toWrite -= n
+		if toWrite <= 0 {
+			return nil
+		}
+	}
 }
