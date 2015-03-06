@@ -119,10 +119,11 @@ test_config_profiles
 echo "==> TEST: uidshift"
 test_fuidshift
 
-echo "==> TEST: database lock"
-test_database_lock
-
 echo "==> TEST: migration"
 test_migration
+
+# This should always be run last
+echo "==> TEST: database lock"
+test_database_lock
 
 RESULT=success
