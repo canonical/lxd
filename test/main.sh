@@ -122,12 +122,6 @@ test_fuidshift
 echo "==> TEST: database lock"
 test_database_lock
 
-# Anything below this will not get run inside Travis-CI
-if [ -n "$TRAVIS_PULL_REQUEST" ]; then
-  RESULT=success
-  return
-fi
-
 echo "==> TEST: migration"
 test_migration
 
