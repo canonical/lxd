@@ -787,6 +787,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	}
 	d.profiles = profiles
 	d.devices = shared.Devices{}
+	d.name = name
 
 	rootfsPath := shared.VarPath("lxc", name, "rootfs")
 	err = c.SetConfigItem("lxc.rootfs", rootfsPath)
@@ -848,8 +849,6 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	d.name = name
 
 	return d, nil
 }
