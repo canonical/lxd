@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
@@ -25,6 +28,42 @@ type Response interface {
 type syncResponse struct {
 	success  bool
 	metadata interface{}
+}
+
+/*
+  Used for returning images.
+  fname: name of the file without path
+  clength: sets content-size of response
+  ctype: content-type, depends on compression
+*/
+type fileResponse struct {
+	fname   string
+	clength int64
+	ctype   string
+}
+
+func FileResponse(fname string, size int64, ctype string) Response {
+	return &fileResponse{fname, size, ctype}
+}
+
+func (r *fileResponse) Render(w http.ResponseWriter) error {
+
+	// export name of the file, without path
+	ename := filepath.Base(r.fname)
+
+	w.Header().Set("Content-Type", r.ctype)
+	w.Header().Set("Content-Length", strconv.FormatInt(r.clength, 10))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", ename))
+
+	f, err := os.Open(r.fname)
+	defer f.Close()
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(w, f)
+	return err
+
 }
 
 func (r *syncResponse) Render(w http.ResponseWriter) error {

@@ -24,6 +24,7 @@ var api10 = []Command{
 	aliasesCmd,
 	imageCmd,
 	imagesCmd,
+	imagesExportCmd,
 	operationsCmd,
 	operationCmd,
 	operationWait,
