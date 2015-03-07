@@ -48,5 +48,17 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	}
 	fmt.Printf("Name: %s\n", ct.Name)
 	fmt.Printf("Status: %s\n", ct.Status.State)
+	if ct.Status.Init != 0 {
+		fmt.Printf("Init: %d\n", ct.Status.Init)
+		fmt.Printf("Ips:\n")
+		foundone := false
+		for _, ip := range ct.Status.Ips {
+			fmt.Printf("  %s:\t %s\t%s\n", ip.Interface, ip.Protocol, ip.Address)
+			foundone = true
+		}
+		if !foundone {
+			fmt.Printf("(none)\n")
+		}
+	}
 	return nil
 }
