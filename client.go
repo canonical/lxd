@@ -522,7 +522,7 @@ func (c *Client) ExportImage(image string, target string) (*Response, error) {
 
 }
 
-func (c *Client) PostImage(filename string) (*Response, error) {
+func (c *Client) PostImage(filename string, properties []string) (*Response, error) {
 	uri := c.url(shared.APIVersion, "images")
 
 	f, err := os.Open(filename)
@@ -540,7 +540,10 @@ func (c *Client) PostImage(filename string) (*Response, error) {
 	mode := 0 // private
 	req.Header.Set("X-LXD-public", fmt.Sprintf("%04o", mode))
 	//req.Header.Set("X-LXD-fingerprint", fmt.Sprintf("%04o", mode))
-	//req.Header.Set("X-LXD-properties", fmt.Sprintf("%04o", mode))
+	if len(properties) != 0 {
+		props := strings.Join(properties, "; ")
+		req.Header.Set("X-LXD-properties", props)
+	}
 
 	raw, err := c.http.Do(req)
 	if err != nil {
