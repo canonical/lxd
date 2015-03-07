@@ -1,11 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"os"
+	"strings"
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
-	//	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter"
 )
 
 type listCmd struct{}
@@ -27,45 +28,47 @@ func (c *listCmd) usage() string {
 
 func (c *listCmd) flags() {}
 
-func listContainers(d *lxd.Client) error {
-	cts, err := d.ListContainers()
-	if err != nil {
-		return err
-	}
+func listContainers(d *lxd.Client, cts []string) error {
+	data := [][]string{}
 
 	for _, ct := range cts {
 		// get more information
 		c, err := d.ContainerStatus(ct)
+		d := []string{}
 		if err == nil {
-			fmt.Printf("%s: %s\n", ct, c.Status.State)
+			d = []string{ct, c.Status.State}
 		} else {
-			fmt.Printf("%s: Unknown\n", ct)
+			d = []string{ct, "(Error)"}
 		}
-	}
-	return nil
-}
-
-func listContainer(d *lxd.Client, name string) error {
-	status, err := d.ContainerStatus(name)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Name: %s\n", name)
-	fmt.Printf("State: %s\n", status.Status.State)
-
-	// List snapshots
-	first_snapshot := true
-	snaps, err := d.ListSnapshots(name)
-	if err != nil {
-		return nil
-	}
-	for _, snap := range snaps {
-		if first_snapshot {
-			fmt.Printf("Snapshots:\n")
+		if c.Status.State == "RUNNING" {
+			ipv4s := []string{}
+			ipv6s := []string{}
+			for _, ip := range c.Status.Ips {
+				if ip.Protocol == "IPV6" {
+					ipv6s = append(ipv6s, ip.Address)
+				} else {
+					ipv4s = append(ipv4s, ip.Address)
+				}
+			}
+			ipv4 := strings.Join(ipv4s, ", ")
+			ipv6 := strings.Join(ipv6s, ", ")
+			d = append(d, ipv4)
+			d = append(d, ipv6)
+		} else {
+			d = append(d, "")
+			d = append(d, "")
 		}
-		fmt.Printf("  %s\n", snap)
-		first_snapshot = false
+		data = append(data, d)
 	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"NAME", "STATE", "IPV4", "IPV6"})
+
+	for _, v := range data {
+		table.Append(v)
+	}
+
+	table.Render() // Send output
 	return nil
 }
 
@@ -88,9 +91,15 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
+	var cts []string
 	if name == "" {
-		return listContainers(d)
+		cts, err = d.ListContainers()
+		if err != nil {
+			return err
+		}
+	} else {
+		cts = []string{name}
 	}
 
-	return listContainer(d, name)
+	return listContainers(d, cts)
 }
