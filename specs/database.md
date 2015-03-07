@@ -162,7 +162,7 @@ Column          | Type          | Default       | Constraint        | Descriptio
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 container\_id   | INTEGER       | -             | NOT NULL          | containers.id FK
 profile\_id     | INTEGER       | -             | NOT NULL          | profiles.id FK
-apply_order     | INTEGER       | 0             | NOT NULL          | Profile ordering
+apply\_order    | INTEGER       | 0             | NOT NULL          | Profile ordering
 
 Index: UNIQUE ON id AND container\_id + profile\_id
 
