@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -10,8 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	//"github.com/uli-go/xz/lzma"
-	"bytes"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
@@ -171,10 +171,41 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(hash, tarname, size, public, arch)
+	result, err := stmt.Exec(hash, tarname, size, public, arch)
 	if err != nil {
 		tx.Rollback()
 		return cleanup(err, hashfname)
+	}
+
+	properties := r.Header.Get("X-LXD-properties")
+	if properties != "" {
+		id64, err := result.LastInsertId()
+		if err != nil {
+			tx.Rollback()
+			return cleanup(err, hashfname)
+		}
+		id := int(id64)
+
+		pstmt, err := tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, 0, ?, ?)`)
+		if err != nil {
+			tx.Rollback()
+			return cleanup(err, hashfname)
+		}
+		defer pstmt.Close()
+
+		list := strings.Split(properties, "; ")
+		for _, l := range list {
+			fields := strings.SplitN(l, "=", 2)
+			if len(fields) != 2 {
+				shared.Debugf("Bad image property: %s\n", l)
+				continue
+			}
+			_, err = pstmt.Exec(id, fields[0], fields[1])
+			if err != nil {
+				tx.Rollback()
+				return cleanup(err, hashfname)
+			}
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -281,6 +312,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	_, _ = d.db.Exec("DELETE FROM images_aliases WHERE image_id=(SELECT id FROM images WHERE fingerprint=?);", uuid)
+	_, _ = d.db.Exec("DELETE FROM images_properties WHERE image_id=(SELECT id FROM images WHERE fingerprint=?);", uuid)
 	_, _ = d.db.Exec("DELETE FROM images WHERE fingerprint=?", uuid)
 
 	return EmptySyncResponse
