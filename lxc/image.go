@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
@@ -124,16 +125,22 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 		imagefile := args[1]
 
-		/* todo - accept properties between the image name and the (optional) resource, i.e.
-		 * "tarball --created-at=<date> os=fedora arch=amd64 dakara:
-		 * or
-		 * "tarball --created-at=<date> os=fedora arch=amd64
-		 * For now I'm not accepting those, so I can just assume that len(args)>2 means
-		 * args[2] is the resource, else we use local */
+		var properties []string
 		if len(args) > 2 {
-			remote, _ = config.ParseRemoteAndContainer(args[2])
+			split := strings.Split(args[2], "=")
+			if len(split) == 1 {
+				remote, _ = config.ParseRemoteAndContainer(args[2])
+				if len(args) > 3 {
+					properties = args[3:]
+				} else {
+					properties = []string{}
+				}
+			} else {
+				properties = args[2:]
+			}
 		} else {
 			remote = ""
+			properties = []string{}
 		}
 
 		d, err := lxd.NewClient(config, remote)
@@ -141,7 +148,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		_, err = d.PostImage(imagefile)
+		_, err = d.PostImage(imagefile, properties)
 		if err != nil {
 			return err
 		}
