@@ -60,5 +60,20 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 			fmt.Printf("(none)\n")
 		}
 	}
+
+	// List snapshots
+	first_snapshot := true
+	snaps, err := d.ListSnapshots(cName)
+	if err != nil {
+		return nil
+	}
+	for _, snap := range snaps {
+		if first_snapshot {
+			fmt.Printf("Snapshots:\n")
+		}
+		fmt.Printf("  %s\n", snap)
+		first_snapshot = false
+	}
+
 	return nil
 }
