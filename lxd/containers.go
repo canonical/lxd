@@ -667,7 +667,7 @@ func (c *lxdContainer) RenderState() *shared.ContainerState {
 		Profiles: c.profiles,
 		Config:   c.config,
 		Userdata: []byte{},
-		Status:   shared.NewStatus(c.c.State()),
+		Status:   shared.NewStatus(c.c, c.c.State()),
 		Devices:  c.devices,
 	}
 }

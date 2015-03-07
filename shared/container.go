@@ -6,18 +6,56 @@ package shared
 import (
 	"database/sql"
 	"fmt"
+	"net"
 
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
+type Ip struct {
+	Interface string `json:"interface"`
+	Protocol  string `json:"protocol"`
+	Address   string `json:"address"`
+}
+
 type ContainerStatus struct {
 	State     string    `json:"status"`
 	StateCode lxc.State `json:"status_code"`
+	Init      int       `json:"init"`
+	Ips       []Ip      `json:"ips"`
 }
 
-func NewStatus(state lxc.State) ContainerStatus {
-	return ContainerStatus{state.String(), state}
+func getIps(c *lxc.Container) []Ip {
+	ips := []Ip{}
+	names, err := c.Interfaces()
+	if err != nil {
+		return ips
+	}
+	for _, n := range names {
+		addresses, err := c.IPAddress(n)
+		if err != nil {
+			continue
+		}
+		for _, a := range addresses {
+			ip := Ip{Interface: n, Address: a}
+			if net.ParseIP(a).To4() == nil {
+				ip.Protocol = "IPV6"
+			} else {
+				ip.Protocol = "IPV4"
+			}
+			ips = append(ips, ip)
+		}
+	}
+	return ips
+}
+
+func NewStatus(c *lxc.Container, state lxc.State) ContainerStatus {
+	status := ContainerStatus{State: state.String(), StateCode: state}
+	if state == lxc.RUNNING {
+		status.Init = c.InitPid()
+		status.Ips = getIps(c)
+	}
+	return status
 }
 
 type Device map[string]string
