@@ -1263,7 +1263,7 @@ func (c *Client) GetProfileConfig(profile string) (map[string]string, error) {
 	return st.Config, nil
 }
 
-func (c *Client) SetProfileConfig(profile, key, value string) error {
+func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 	st, err := c.ProfileConfig(profile)
 	if err != nil {
 		shared.Debugf("Error getting profile %s to update\n", profile)
@@ -1278,6 +1278,27 @@ func (c *Client) SetProfileConfig(profile, key, value string) error {
 
 	body := shared.Jmap{"name": profile, "config": st.Config, "devices": st.Devices}
 	resp, err := c.put(fmt.Sprintf("profiles/%s", profile), body)
+	if err != nil {
+		return err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return err
+	}
+
+	if resp.Type != Sync {
+		return fmt.Errorf(gettext.Gettext("Unexpected async response"))
+	}
+
+	return nil
+}
+
+func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
+	if profile.Name != name {
+		return fmt.Errorf(gettext.Gettext("Cannot change profile name"))
+	}
+	body := shared.Jmap{"name": name, "config": profile.Config, "devices": profile.Devices}
+	resp, err := c.put(fmt.Sprintf("profiles/%s", name), body)
 	if err != nil {
 		return err
 	}

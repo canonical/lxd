@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"gopkg.in/yaml.v2"
 )
 
 type configCmd struct {
@@ -16,6 +20,24 @@ type configCmd struct {
 func (c *configCmd) showByDefault() bool {
 	return true
 }
+
+var profileEditHelp string = `### This is a yaml representation of the profile.
+### Any line starting with a '# will be ignored.
+###
+### A profile consists of a set of configuration items followed by a set of
+### devices.
+###
+### The first line of the profile is the profile name.  This cannot be changed
+### using the 'edit' command.  See 'lxc profile move' for renaming.
+###
+### After the name comes the 'config:' section header, followed by configuration
+### items, one per line.
+###
+### Next come the devices.  Since each device has optional properties, the
+### devices are each one sub-section followed by properties listed on separate
+### lines as 'key: value'
+
+`
 
 func (c *configCmd) usage() string {
 	return gettext.Gettext(
@@ -31,6 +53,7 @@ func (c *configCmd) usage() string {
 			"lxc config profile delete <profile>              Delete profile\n" +
 			"lxc config profile device add <profile> <name> <type> [key=value]...\n" +
 			"               Delete profile\n" +
+			"lxc config profile edit <profile>                Edit profile in external editor\n" +
 			"lxc config profile device list <profile>\n" +
 			"lxc config profile device remove <profile> <name>\n" +
 			"lxc config profile set <profile> <key> <value>   Set profile configuration\n" +
@@ -255,6 +278,8 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return doProfileCreate(client, profile)
 		case "delete":
 			return doProfileDelete(client, profile)
+		case "edit":
+			return doProfileEdit(client, profile)
 		case "apply":
 			container := profile
 			switch len(args) {
@@ -305,6 +330,51 @@ func doProfileCreate(client *lxd.Client, p string) error {
 	if err == nil {
 		fmt.Printf(gettext.Gettext("Profile %s created\n"), p)
 	}
+	return err
+}
+
+func doProfileEdit(client *lxd.Client, p string) error {
+	profile, err := client.ProfileConfig(p)
+	editor := os.Getenv("VISUAL")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+		if editor == "" {
+			editor = "vi"
+		}
+	}
+	data, err := yaml.Marshal(&profile)
+	f, err := ioutil.TempFile("/tmp", "lxc_profile_")
+	if err != nil {
+		return err
+	}
+	fname := f.Name()
+	if err = f.Chmod(0700); err != nil {
+		f.Close()
+		os.Remove(fname)
+		return err
+	}
+	f.Write([]byte(profileEditHelp))
+	f.Write(data)
+	f.Close()
+	defer os.Remove(fname)
+	cmd := exec.Command(editor, fname)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+	contents, err := ioutil.ReadFile(fname)
+	if err != nil {
+		return err
+	}
+	newdata := shared.ProfileConfig{}
+	err = yaml.Unmarshal(contents, &newdata)
+	if err != nil {
+		return err
+	}
+	err = client.PutProfile(p, newdata)
 	return err
 }
 
@@ -414,7 +484,7 @@ func doProfileSet(client *lxd.Client, p string, args []string) error {
 	} else {
 		value = args[1]
 	}
-	err := client.SetProfileConfig(p, key, value)
+	err := client.SetProfileConfigItem(p, key, value)
 	return err
 }
 
