@@ -19,7 +19,7 @@ func (c *imageCmd) showByDefault() bool {
 	return true
 }
 
-var imageedithelp string = `### This is a yaml representation of the image properties.
+var imageEditHelp string = `### This is a yaml representation of the image properties.
 ### Any line starting with a '# will be ignored.
 ###
 ### Each property is represented by thee lines:
@@ -238,7 +238,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			os.Remove(fname)
 			return err
 		}
-		f.Write([]byte(imageedithelp))
+		f.Write([]byte(imageEditHelp))
 		f.Write(data)
 		f.Close()
 		defer os.Remove(fname)
