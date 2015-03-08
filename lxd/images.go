@@ -304,21 +304,95 @@ var imagesCmd = Command{name: "images", post: imagesPost, get: imagesGet}
 func imageDelete(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to image:delete")
 
-	uuid := mux.Vars(r)["name"]
-	uuidfname := shared.VarPath("images", uuid)
-	err := os.Remove(uuidfname)
+	fingerprint := mux.Vars(r)["fingerprint"]
+	fname := shared.VarPath("images", fingerprint)
+	err := os.Remove(fname)
 	if err != nil {
-		shared.Debugf("Error deleting image file %s: %s\n", uuidfname, err)
+		shared.Debugf("Error deleting image file %s: %s\n", fname, err)
 	}
 
-	_, _ = d.db.Exec("DELETE FROM images_aliases WHERE image_id=(SELECT id FROM images WHERE fingerprint=?);", uuid)
-	_, _ = d.db.Exec("DELETE FROM images_properties WHERE image_id=(SELECT id FROM images WHERE fingerprint=?);", uuid)
-	_, _ = d.db.Exec("DELETE FROM images WHERE fingerprint=?", uuid)
+	_, _ = d.db.Exec("DELETE FROM images_aliases WHERE image_id=(SELECT id FROM images WHERE fingerprint=?);", fingerprint)
+	_, _ = d.db.Exec("DELETE FROM images_properties WHERE image_id=(SELECT id FROM images WHERE fingerprint=?);", fingerprint)
+	_, _ = d.db.Exec("DELETE FROM images WHERE fingerprint=?", fingerprint)
 
 	return EmptySyncResponse
 }
 
-var imageCmd = Command{name: "images/{name}", delete: imageDelete}
+func imageGet(d *Daemon, r *http.Request) Response {
+	fingerprint := mux.Vars(r)["fingerprint"]
+
+	rows, err := d.db.Query(`SELECT type, key, value FROM images_properties
+			JOIN images ON images_properties.image_id=images.id
+			WHERE images.fingerprint=?`, fingerprint)
+	if err != nil {
+		return InternalError(err)
+	}
+	defer rows.Close()
+	properties := shared.ImageProperties{}
+	for rows.Next() {
+		var key, value string
+		var imagetype int
+		rows.Scan(&imagetype, &key, &value)
+		i := shared.ImageProperty{Imagetype: imagetype, Key: key, Value: value}
+		properties = append(properties, i)
+	}
+	return SyncResponse(true, properties)
+}
+
+type imagePutReq struct {
+	Properties shared.ImageProperties `json:"properties"`
+}
+
+func imagePut(d *Daemon, r *http.Request) Response {
+	fingerprint := mux.Vars(r)["fingerprint"]
+
+	imageRaw := imagePutReq{}
+	if err := json.NewDecoder(r.Body).Decode(&imageRaw); err != nil {
+		return BadRequest(err)
+	}
+
+	tx, err := d.db.Begin()
+	if err != nil {
+		return InternalError(err)
+	}
+
+	id := -1
+	rows, err := d.db.Query("SELECT id FROM images WHERE fingerprint=?", fingerprint)
+	if err != nil {
+		tx.Rollback()
+		return InternalError(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var idx int
+		rows.Scan(&idx)
+		id = idx
+	}
+
+	_, err = tx.Exec(`DELETE FROM images_properties WHERE image_id=?`, id)
+
+	stmt, err := tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, ?, ?, ?)`)
+	if err != nil {
+		tx.Rollback()
+		return InternalError(err)
+	}
+	for _, i := range imageRaw.Properties {
+		_, err = stmt.Exec(id, i.Imagetype, i.Key, i.Value)
+		if err != nil {
+			tx.Rollback()
+			return InternalError(err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return InternalError(err)
+	}
+
+	return EmptySyncResponse
+}
+
+var imageCmd = Command{name: "images/{fingerprint}", get: imageGet, put: imagePut, delete: imageDelete}
 
 type aliasPostReq struct {
 	Name        string `json:"name"`

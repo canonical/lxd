@@ -558,6 +558,43 @@ func (c *Client) PostImage(filename string, properties []string) (*Response, err
 	return resp, nil
 }
 
+func (c *Client) GetImageProperties(image string) (*shared.ImageProperties, error) {
+	resp, err := c.get(fmt.Sprintf("images/%s", image))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf(gettext.Gettext("got non-sync response from containers get!"))
+	}
+
+	properties := shared.ImageProperties{}
+	if err := json.Unmarshal(resp.Metadata, &properties); err != nil {
+		return nil, err
+	}
+
+	return &properties, nil
+}
+
+func (c *Client) PutImageProperties(name string, p shared.ImageProperties) error {
+	body := shared.Jmap{"properties": p}
+	resp, err := c.put(fmt.Sprintf("images/%s", name), body)
+	if err != nil {
+		return err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *Client) ListImages() ([]string, error) {
 	resp, err := c.get("images")
 	if err != nil {
