@@ -2,10 +2,15 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
+	"gopkg.in/yaml.v2"
 )
 
 type imageCmd struct{}
@@ -18,17 +23,18 @@ func (c *imageCmd) usage() string {
 	return gettext.Gettext(
 		"lxc image import <tarball> [target] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n" +
 			"\n" +
-			"lxc image list [resource:] [filter]\n" +
 			"lxc image delete [resource:]<image>\n" +
+			"lxc image edit [resource:]\n" +
 			"lxc image export [resource:]<image>\n" +
+			"lxc image list [resource:] [filter]\n" +
 			"\n" +
 			"Lists the images at resource, or local images.\n" +
 			"Filters are not yet supported.\n" +
 			"\n" +
-			"lxc image alias list [resource:]\n" +
 			"lxc image alias create <alias> <target>\n" +
 			"lxc image alias delete <alias>\n" +
-			"list, create, delete image aliases\n")
+			"lxc image alias list [resource:]\n" +
+			"create, delete, list image aliases\n")
 }
 
 func (c *imageCmd) flags() {}
@@ -184,6 +190,55 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			}
 		}
 		return nil
+
+	case "edit":
+		if len(args) < 2 {
+			return errArgs
+		}
+		remote, image := config.ParseRemoteAndContainer(args[1])
+		if image == "" {
+			return errArgs
+		}
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+		properties, err := d.GetImageProperties(image)
+		editor := os.Getenv("VISUAL")
+		if editor == "" {
+			editor = os.Getenv("EDITOR")
+			if editor == "" {
+				editor = "/usr/bin/vi"
+			}
+		}
+		data, err := yaml.Marshal(&properties)
+		f, err := ioutil.TempFile("/tmp", "image_")
+		if err != nil {
+			return err
+		}
+		fname := f.Name()
+		f.Write(data)
+		f.Close()
+		cmd := exec.Command(editor, fname)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
+		contents, err := ioutil.ReadFile(fname)
+		if err != nil {
+			return err
+		}
+		newdata := shared.ImageProperties{}
+		err = yaml.Unmarshal(contents, &newdata)
+		if err != nil {
+			return err
+		}
+		err = d.PutImageProperties(image, newdata)
+		return err
+
 	case "export":
 		if len(args) < 3 {
 			return errArgs
