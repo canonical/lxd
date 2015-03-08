@@ -16,7 +16,9 @@ func (c *imageCmd) showByDefault() bool {
 
 func (c *imageCmd) usage() string {
 	return gettext.Gettext(
-		"lxc image import <tarball> [target] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n" +
+		"Manage container images." +
+			"\n" +
+			"lxc image import <tarball> [target] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n" +
 			"\n" +
 			"lxc image list [resource:] [filter]\n" +
 			"lxc image delete [resource:]<image>\n" +
