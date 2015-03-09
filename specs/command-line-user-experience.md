@@ -267,10 +267,7 @@ result, it's only possible to have one copy of any given image on a
 given LXD host.
 
 
-There are 2 special properties which the lxc command line tool will look
-for and present to the user by default if present:
- * description
- * name
+The "description" property is special in that if it's set, it'll appear in "lxc image list".
 
 Aliases are a one to one mapping between a user friendly name and an image.
 Aliases may contain any character but colons and slashes.
@@ -290,11 +287,11 @@ lxc image alias create centos/7 \<hash\>                                        
 
 **Example output (lxc image list)**
 
-    ALIAS                   HASH            PUBLIC  NAME                                DESCRIPTION
-    ------------------------------------------------------------------------------------------------------------------
-    busybox-amd64           146246146827... yes     busybox-amd64                       -
-    ubuntu/devel (3 more)   95830b5e4e04... yes     ubuntu-vivid-amd64-default-20150308 Ubuntu 15.04 (devel) x86 64bit
-    -                       a1420943168a... no      -                                   Test image
+    ALIAS                   HASH            PUBLIC  DESCRIPTION
+    ------------------------------------------------------------------------------
+    busybox-amd64           146246146827... yes     -
+    ubuntu/devel (3 more)   95830b5e4e04... yes     Ubuntu 15.04 (devel) x86 64bit
+    -                       a1420943168a... no      Test image
 
 **Example output (lxc image info)**
 
@@ -311,7 +308,6 @@ lxc image alias create centos/7 \<hash\>                                        
         arch: x86_64
         build: 20150308
         description: Ubuntu 15.04 (devel) x86 64bit
-        name: ubuntu-vivid-amd64-default-20150308
         os: Ubuntu
         release: vivid, 15.04
         variant: default

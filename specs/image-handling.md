@@ -24,7 +24,6 @@ LXD, at the moment, this contains:
     name: ubuntu-14.04-amd64-20150218
     properties:
       description: Ubuntu 14.04 LTS Intel 64bit
-      name: ubuntu-14.04-amd64-20150218
       os: Ubuntu
       release: [trusty, '14.04']
 
