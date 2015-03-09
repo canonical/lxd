@@ -220,6 +220,9 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 		properties, err := d.GetImageProperties(image)
+		if err != nil {
+			return err
+		}
 		editor := os.Getenv("VISUAL")
 		if editor == "" {
 			editor = os.Getenv("EDITOR")

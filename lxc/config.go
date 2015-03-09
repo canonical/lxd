@@ -336,6 +336,9 @@ func doProfileCreate(client *lxd.Client, p string) error {
 
 func doProfileEdit(client *lxd.Client, p string) error {
 	profile, err := client.ProfileConfig(p)
+	if err != nil {
+		return err
+	}
 	editor := os.Getenv("VISUAL")
 	if editor == "" {
 		editor = os.Getenv("EDITOR")
