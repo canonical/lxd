@@ -130,6 +130,13 @@ to specify a specific key wins.
 In any case, resource-specific configuration always overrides that
 coming from the profiles.
 
+
+If not present, LXD will create a "default" profile which comes with a
+network interface connected to LXD's default bridge (lxcbr0).
+
+The "default" profile is set for any new container created which doesn't
+specify a different profiles list.
+
 ## JSON representation
 A representation of a container using all the different types of
 configurations would look like:
