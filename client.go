@@ -558,6 +558,43 @@ func (c *Client) PostImage(filename string, properties []string) (*Response, err
 	return resp, nil
 }
 
+func (c *Client) GetImageProperties(image string) (*shared.ImageProperties, error) {
+	resp, err := c.get(fmt.Sprintf("images/%s", image))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Sync {
+		return nil, fmt.Errorf(gettext.Gettext("got non-sync response from containers get!"))
+	}
+
+	properties := shared.ImageProperties{}
+	if err := json.Unmarshal(resp.Metadata, &properties); err != nil {
+		return nil, err
+	}
+
+	return &properties, nil
+}
+
+func (c *Client) PutImageProperties(name string, p shared.ImageProperties) error {
+	body := shared.Jmap{"properties": p}
+	resp, err := c.put(fmt.Sprintf("images/%s", name), body)
+	if err != nil {
+		return err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *Client) ListImages() ([]string, error) {
 	resp, err := c.get("images")
 	if err != nil {
@@ -1226,7 +1263,7 @@ func (c *Client) GetProfileConfig(profile string) (map[string]string, error) {
 	return st.Config, nil
 }
 
-func (c *Client) SetProfileConfig(profile, key, value string) error {
+func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 	st, err := c.ProfileConfig(profile)
 	if err != nil {
 		shared.Debugf("Error getting profile %s to update\n", profile)
@@ -1241,6 +1278,27 @@ func (c *Client) SetProfileConfig(profile, key, value string) error {
 
 	body := shared.Jmap{"name": profile, "config": st.Config, "devices": st.Devices}
 	resp, err := c.put(fmt.Sprintf("profiles/%s", profile), body)
+	if err != nil {
+		return err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return err
+	}
+
+	if resp.Type != Sync {
+		return fmt.Errorf(gettext.Gettext("Unexpected async response"))
+	}
+
+	return nil
+}
+
+func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
+	if profile.Name != name {
+		return fmt.Errorf(gettext.Gettext("Cannot change profile name"))
+	}
+	body := shared.Jmap{"name": name, "config": profile.Config, "devices": profile.Devices}
+	resp, err := c.put(fmt.Sprintf("profiles/%s", name), body)
 	if err != nil {
 		return err
 	}
