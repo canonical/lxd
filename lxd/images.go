@@ -349,25 +349,53 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 func imageGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	rows, err := d.db.Query(`SELECT type, key, value FROM images_properties
-			JOIN images ON images_properties.image_id=images.id
-			WHERE images.fingerprint=?`, fingerprint)
+	rows, err := d.db.Query("SELECT id, public FROM images WHERE fingerprint=?", fingerprint)
 	if err != nil {
 		return InternalError(err)
 	}
 	defer rows.Close()
-	properties := shared.ImageProperties{}
+	id := -1
+	public := 0
 	for rows.Next() {
+		var xId int
+		var p int
+		rows.Scan(&xId, &p)
+		id = xId
+		public = p
+	}
+	if id == -1 {
+		return NotFound
+	}
+
+	rows2, err := d.db.Query("SELECT type, key, value FROM images_properties where image_id=?", id)
+	if err != nil {
+		return InternalError(err)
+	}
+	defer rows2.Close()
+	properties := shared.ImageProperties{}
+	for rows2.Next() {
 		var key, value string
 		var imagetype int
-		rows.Scan(&imagetype, &key, &value)
+		rows2.Scan(&imagetype, &key, &value)
 		i := shared.ImageProperty{Imagetype: imagetype, Key: key, Value: value}
 		properties = append(properties, i)
 	}
-	if len(properties) == 0 {
-		return NotFound
+
+	rows3, err := d.db.Query("SELECT name, description FROM images_aliases WHERE image_id=?", id)
+	if err != nil {
+		return InternalError(err)
 	}
-	return SyncResponse(true, properties)
+	defer rows3.Close()
+	aliases := shared.ImageAliases{}
+	for rows3.Next() {
+		var name, desc string
+		rows3.Scan(&name, &desc)
+		a := shared.ImageAlias{Name: name, Description: desc}
+		aliases = append(aliases, a)
+	}
+
+	info := shared.ImageInfo{Fingerprint: fingerprint, Properties: properties, Aliases: aliases, Public: public}
+	return SyncResponse(true, info)
 }
 
 type imagePutReq struct {
