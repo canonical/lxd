@@ -343,7 +343,7 @@ func doProfileEdit(client *lxd.Client, p string) error {
 		}
 	}
 	data, err := yaml.Marshal(&profile)
-	f, err := ioutil.TempFile("/tmp", "lxc_profile_")
+	f, err := ioutil.TempFile("", "lxc_profile_")
 	if err != nil {
 		return err
 	}
