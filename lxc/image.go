@@ -43,6 +43,7 @@ func (c *imageCmd) usage() string {
 			"lxc image delete [resource:]<image>\n" +
 			"lxc image edit [resource:]\n" +
 			"lxc image export [resource:]<image>\n" +
+			"lxc image info [resource:]<image>\n" +
 			"lxc image list [resource:] [filter]\n" +
 			"\n" +
 			"Lists the images at resource, or local images.\n" +
@@ -129,12 +130,16 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 		return doImageAlias(config, args)
+
 	case "delete":
 		/* delete [<remote>:]<image> */
 		if len(args) < 2 {
 			return errArgs
 		}
 		remote, inName := config.ParseRemoteAndContainer(args[1])
+		if inName == "" {
+			return errArgs
+		}
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
@@ -142,6 +147,40 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		image := dereferenceAlias(d, inName)
 		err = d.DeleteImage(image)
 		return err
+
+	case "info":
+		if len(args) < 2 {
+			return errArgs
+		}
+		remote, inName := config.ParseRemoteAndContainer(args[1])
+		if inName == "" {
+			return errArgs
+		}
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+		image := dereferenceAlias(d, inName)
+		info, err := d.GetImageInfo(image)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Hash: %s\n", info.Fingerprint)
+		public := "no"
+		if info.Public == 1 {
+			public = "yes"
+		}
+		fmt.Printf("Public: %s\n", public)
+		fmt.Printf("Properties:\n")
+		for _, prop := range info.Properties {
+			fmt.Printf("    %s: %s\n", prop.Key, prop.Value)
+		}
+		fmt.Printf("Aliases:\n")
+		for _, alias := range info.Aliases {
+			fmt.Printf("    - %s\n", alias.Name)
+		}
+		return nil
+
 	case "import":
 		if len(args) < 2 {
 			return errArgs
@@ -289,6 +328,9 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		remote, inName := config.ParseRemoteAndContainer(args[1])
+		if inName == "" {
+			return errArgs
+		}
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
