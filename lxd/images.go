@@ -311,9 +311,37 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		shared.Debugf("Error deleting image file %s: %s\n", fname, err)
 	}
 
-	_, _ = d.db.Exec("DELETE FROM images_aliases WHERE image_id=(SELECT id FROM images WHERE fingerprint=?);", fingerprint)
-	_, _ = d.db.Exec("DELETE FROM images_properties WHERE image_id=(SELECT id FROM images WHERE fingerprint=?);", fingerprint)
-	_, _ = d.db.Exec("DELETE FROM images WHERE fingerprint=?", fingerprint)
+	tx, err := d.db.Begin()
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	rows, err := tx.Query("SELECT id FROM images WHERE fingerprint=?", fingerprint)
+	if err != nil {
+		tx.Rollback()
+		return BadRequest(err)
+	}
+	defer rows.Close()
+
+	id := -1
+	for rows.Next() {
+		var xId int
+		rows.Scan(&xId)
+		id = xId
+	}
+	if id == -1 {
+		shared.Debugf("Error deleting image from db %s: %s\n", fingerprint, err)
+		tx.Rollback()
+		return NotFound
+	}
+
+	_, _ = tx.Exec("DELETE FROM images_aliases WHERE image_id=?", id)
+	_, _ = tx.Exec("DELETE FROM images_properties WHERE ?", id)
+	_, _ = tx.Exec("DELETE FROM images WHERE id=?", id)
+
+	if err := tx.Commit(); err != nil {
+		return BadRequest(err)
+	}
 
 	return EmptySyncResponse
 }
