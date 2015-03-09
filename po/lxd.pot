@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-08 14:54-0500\n"
+        "POT-Creation-Date: 2015-03-09 12:17-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,6 +15,44 @@ msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "MIME-Version: 1.0\n"
         "Content-Type: text/plain; charset=CHARSET\n"
         "Content-Transfer-Encoding: 8bit\n"
+
+#: lxc/image.go:23
+msgid   "### This is a yaml representation of the image properties.\n"
+        "### Any line starting with a '# will be ignored.\n"
+        "###\n"
+        "### Each property is represented by thee lines:\n"
+        "###\n"
+        "###  The first is 'imagetype: ' followed by an integer.  0 means\n"
+        "###  a short string, 1 means a long text value containing newlines.\n"
+        "###\n"
+        "###  This is followed by the key and value\n"
+        "###\n"
+        "###  An example would be:\n"
+        "### - imagetype: 0\n"
+        "###   key: os\n"
+        "###   value: Ubuntu\n"
+msgstr  ""
+
+#: lxc/config.go:25
+msgid   "### This is a yaml representation of the profile.\n"
+        "### Any line starting with a '# will be ignored.\n"
+        "###\n"
+        "### A profile consists of a set of configuration items followed by a "
+        "set of\n"
+        "### devices.\n"
+        "###\n"
+        "### An example would look like:\n"
+        "### name: onenic\n"
+        "### config:\n"
+        "###   raw.lxc: lxc.aa_profile=unconfined\n"
+        "### devices:\n"
+        "###   eth0:\n"
+        "###     nictype: bridged\n"
+        "###     parent: lxcbr0\n"
+        "###     type: nic\n"
+        "###\n"
+        "### Note that the name cannot be changed\n"
+msgstr  ""
 
 #: lxc/snapshot.go:50
 msgid   "'/' not allowed in snapshot name\n"
@@ -81,12 +119,12 @@ msgid   "Delete a container or container snapshot.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:545
+#: lxc/config.go:549
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:573
+#: lxc/config.go:577
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -151,7 +189,7 @@ msgid   "Lists the available resources.\n"
         "the defined containers.\n"
 msgstr  ""
 
-#: lxc/config.go:44
+#: lxc/config.go:45
 msgid   "Manage configuration.\n"
         "\n"
         "lxc config get <container> key                   Get configuration "
@@ -224,7 +262,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move <source container> <destination container>\n"
 msgstr  ""
 
-#: lxc/config.go:165
+#: lxc/config.go:166
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -232,7 +270,7 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:188
+#: lxc/config.go:189
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -265,17 +303,17 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version\n"
 msgstr  ""
 
-#: lxc/config.go:395
+#: lxc/config.go:399
 #, c-format
 msgid   "Profile %s applied to %s\n"
 msgstr  ""
 
-#: lxc/config.go:331
+#: lxc/config.go:332
 #, c-format
 msgid   "Profile %s created\n"
 msgstr  ""
 
-#: lxc/config.go:384
+#: lxc/config.go:388
 #, c-format
 msgid   "Profile %s deleted\n"
 msgstr  ""
@@ -324,7 +362,7 @@ msgstr  ""
 msgid   "Unexpected non-async response"
 msgstr  ""
 
-#: lxc/image.go:283
+#: lxc/image.go:286
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -334,7 +372,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:215
+#: lxc/config.go:216
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
