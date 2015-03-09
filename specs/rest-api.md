@@ -642,18 +642,33 @@ query URL.
  * Operation: async
  * Return: background operation or standard error
 
-Input:
+Input (one of):
  * Standard http file upload
+ * Soure container dictionary
 
-The following headers may be set by the client:
+In the http file upload case, The following headers may be set by the client:
  * X-LXD-fingerprint: SHA-256 (if set, uploaded file must match)
  * X-LXD-filename: FILENAME (used for export)
  * X-LXD-public: true/false (defaults to false)
  * X-LXD-properties: key=value; key1=value1 (optional properties)
 
-After the file is received by LXD, a background operation is started
-which will unpack the tarball, parse its metadata and possibly repack it
-in an optimized format.
+In the source container case, the following dict must be passed:
+
+    {
+        "public": true,             # True or False
+        "source": {
+            "type": "container",    # One of "container" or "snapshot"
+            "name": "abc"
+        },
+        "properties": {             # Image properties
+            "os": "Ubuntu",
+        }
+    }
+
+
+After the input is received by LXD, a background operation is started
+which will add the image to the store and possibly do some backend
+filesystem-specific optimizations.
 
 ## /1.0/images/\<fingerprint\>
 ### GET
