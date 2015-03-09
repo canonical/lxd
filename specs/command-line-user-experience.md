@@ -288,6 +288,14 @@ lxc image import centos-7-x86\_64.tar.gz --created-at=2014-12-10 --expires-at=20
 lxc image import debian-jessie\_amd64.tar.gz dakara:                                                                    | Import a debian LXD image in the lxc image store of remote host "dakara"
 lxc image alias create centos/7 \<hash\>                                                                                | Create an alias for centos/7 pointing to our centos 7 image
 
+**Example output (lxc image list)**
+
+    HASH            PUBLIC    NAME                                  DESCRIPTION                     ALIAS
+    -----------------------------------------------------------------------------------------------------
+    146246146827... yes       busybox-amd64                         -                               busybox-amd64
+    95830b5e4e04... yes       ubuntu-vivid-amd64-default-20150308   Ubuntu 15.04 (devel) x86 64bit  ubuntu/devel (3 more)
+    a1420943168a... no        -                                     Test image                      -
+
 * * *
 
 ## info
@@ -394,6 +402,14 @@ Command             | Result
 lxc list            | Show the list of local containers, snapshots and images
 lxc list dakara:    | Show the list of remote containers, snapshots and images on "dakara"
 lxc list c1         | Show the entry for the local container "c1" as well as any snapshot it may have
+
+**Example output**
+
+    NAME         STATE    IPV4       IPV6                                    MEMORY     DISK
+    ----------------------------------------------------------------------------------------
+    precise      STOPPED  -          -                                       -          UNKNOWN
+    precise-gui  RUNNING  10.0.3.59  2607:f2c0:f00f:2761:216:3eff:fe51:234f  4435.89MB  UNKNOWN
+    vivid        STOPPED  -          -                                       -          UNKNOWN
 
 * * *
 
