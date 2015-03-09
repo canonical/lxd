@@ -67,9 +67,10 @@ type containerImageSource struct {
 }
 
 type containerPostReq struct {
-	Name   string               `json:"name"`
-	Source containerImageSource `json:"source"`
-	Config map[string]string    `json:"config"`
+	Name     string               `json:"name"`
+	Source   containerImageSource `json:"source"`
+	Config   map[string]string    `json:"config"`
+	Profiles []string             `json:"profiles"`
 }
 
 func createFromImage(d *Daemon, req *containerPostReq) Response {
@@ -111,7 +112,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	}
 
 	name := req.Name
-	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config)
+	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config, req.Profiles)
 	if err != nil {
 		removeContainerPath(d, name)
 		return InternalError(err)
@@ -126,7 +127,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
 
-	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config)
+	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -142,7 +143,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return NotImplemented
 	}
 
-	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config)
+	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles)
 	if err != nil {
 		if err == DbErrAlreadyDefined {
 			return Conflict
@@ -322,7 +323,7 @@ func dbGetContainerId(db *sql.DB, name string) (int, error) {
 	return id, nil
 }
 
-func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[string]string) (int, error) {
+func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[string]string, profiles []string) (int, error) {
 	id, err := dbGetContainerId(d.db, name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
@@ -354,6 +355,11 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[s
 	// TODO: is this really int64? we should fix it everywhere if so
 	id = int(id64)
 	if err := dbInsertContainerConfig(tx, id, config); err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	if err := dbInsertProfiles(tx, id, profiles); err != nil {
 		tx.Rollback()
 		return 0, err
 	}
@@ -466,6 +472,29 @@ func dbInsertContainerConfig(tx *sql.Tx, id int, config map[string]string) error
 	return nil
 }
 
+func dbInsertProfiles(tx *sql.Tx, id int, profiles []string) error {
+	apply_order := 1
+	str := `INSERT INTO containers_profiles (container_id, profile_id, apply_order) VALUES
+		(?, (SELECT id FROM profiles WHERE name=?), ?);`
+	stmt, err := tx.Prepare(str)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+	for _, p := range profiles {
+		_, err = stmt.Exec(id, p, apply_order)
+		if err != nil {
+			shared.Debugf("Error adding profile %s to container: %s\n",
+				p, err)
+			return err
+		}
+		apply_order = apply_order + 1
+	}
+
+	return nil
+}
+
 func ValidContainerConfigKey(k string) bool {
 	switch k {
 	case "limits.cpus":
@@ -538,24 +567,10 @@ func containerPut(d *Daemon, r *http.Request) Response {
 				return err
 			}
 		} else {
-			apply_order := 1
-			str2 := `INSERT INTO containers_profiles (container_id, profile_id, apply_order) VALUES
-				(?, (SELECT id FROM profiles WHERE name=?), ?);`
-			stmt2, err := tx.Prepare(str2)
-			if err != nil {
+			if err := dbInsertProfiles(tx, cId, configRaw.Profiles); err != nil {
+
 				tx.Rollback()
 				return err
-			}
-			defer stmt2.Close()
-			for _, p := range configRaw.Profiles {
-				_, err = stmt2.Exec(cId, p, apply_order)
-				if err != nil {
-					shared.Debugf("Error adding profile %s to container %s: %s\n",
-						p, name, err)
-					tx.Rollback()
-					return err
-				}
-				apply_order = apply_order + 1
 			}
 		}
 
@@ -1234,7 +1249,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		/* Create the db info */
 		//cId, err := dbCreateContainer(d, snapshotName, cTypeSnapshot)
-		_, err := dbCreateContainer(d, fullName, cTypeSnapshot, c.config)
+		_, err := dbCreateContainer(d, fullName, cTypeSnapshot, c.config, c.profiles)
 
 		/* Create the directory and rootfs, set perms */
 		/* Copy the rootfs */

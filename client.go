@@ -1062,14 +1062,19 @@ func (c *Client) MigrateTo(container string, target *Client) (*Response, error) 
 	return resp, nil
 }
 
-func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string) (*Response, error) {
+func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string, config map[string]string, profiles []string) (*Response, error) {
 	source := shared.Jmap{
 		"type":      "migration",
 		"mode":      "pull",
 		"operation": operation,
 		"secrets":   secrets,
 	}
-	body := shared.Jmap{"source": source, "name": name}
+	body := shared.Jmap{
+		"source":   source,
+		"name":     name,
+		"config":   config,
+		"profiles": profiles,
+	}
 
 	resp, err := c.post("containers", body)
 	if err != nil {
