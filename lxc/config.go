@@ -23,22 +23,22 @@ func (c *configCmd) showByDefault() bool {
 
 var profileEditHelp string = gettext.Gettext(
 	"### This is a yaml representation of the profile.\n" +
-	"### Any line starting with a '# will be ignored.\n" +
-	"###\n" +
-	"### A profile consists of a set of configuration items followed by a set of\n" +
-	"### devices.\n" +
-	"###\n" +
-	"### An example would look like:\n" +
-	"### name: onenic\n" +
-	"### config:\n" +
-	"###   raw.lxc: lxc.aa_profile=unconfined\n" +
-	"### devices:\n" +
-	"###   eth0:\n" +
-	"###     nictype: bridged\n" +
-	"###     parent: lxcbr0\n" +
-	"###     type: nic\n" +
-	"###\n" +
-	"### Note that the name cannot be changed\n")
+		"### Any line starting with a '# will be ignored.\n" +
+		"###\n" +
+		"### A profile consists of a set of configuration items followed by a set of\n" +
+		"### devices.\n" +
+		"###\n" +
+		"### An example would look like:\n" +
+		"### name: onenic\n" +
+		"### config:\n" +
+		"###   raw.lxc: lxc.aa_profile=unconfined\n" +
+		"### devices:\n" +
+		"###   eth0:\n" +
+		"###     nictype: bridged\n" +
+		"###     parent: lxcbr0\n" +
+		"###     type: nic\n" +
+		"###\n" +
+		"### Note that the name cannot be changed\n")
 
 func (c *configCmd) usage() string {
 	return gettext.Gettext(

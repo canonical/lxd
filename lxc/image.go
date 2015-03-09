@@ -21,19 +21,19 @@ func (c *imageCmd) showByDefault() bool {
 
 var imageEditHelp string = gettext.Gettext(
 	"### This is a yaml representation of the image properties.\n" +
-	"### Any line starting with a '# will be ignored.\n" +
-	"###\n" +
-	"### Each property is represented by thee lines:\n" +
-	"###\n" +
-	"###  The first is 'imagetype: ' followed by an integer.  0 means\n" +
-	"###  a short string, 1 means a long text value containing newlines.\n" +
-	"###\n" +
-	"###  This is followed by the key and value\n" +
-	"###\n" +
-	"###  An example would be:\n" +
-        "### - imagetype: 0\n" +
-        "###   key: os\n" +
-        "###   value: Ubuntu\n")
+		"### Any line starting with a '# will be ignored.\n" +
+		"###\n" +
+		"### Each property is represented by thee lines:\n" +
+		"###\n" +
+		"###  The first is 'imagetype: ' followed by an integer.  0 means\n" +
+		"###  a short string, 1 means a long text value containing newlines.\n" +
+		"###\n" +
+		"###  This is followed by the key and value\n" +
+		"###\n" +
+		"###  An example would be:\n" +
+		"### - imagetype: 0\n" +
+		"###   key: os\n" +
+		"###   value: Ubuntu\n")
 
 func (c *imageCmd) usage() string {
 	return gettext.Gettext(
