@@ -290,11 +290,29 @@ lxc image alias create centos/7 \<hash\>                                        
 
 **Example output (lxc image list)**
 
-    HASH            PUBLIC    NAME                                  DESCRIPTION                     ALIAS
-    -----------------------------------------------------------------------------------------------------
-    146246146827... yes       busybox-amd64                         -                               busybox-amd64
-    95830b5e4e04... yes       ubuntu-vivid-amd64-default-20150308   Ubuntu 15.04 (devel) x86 64bit  ubuntu/devel (3 more)
-    a1420943168a... no        -                                     Test image                      -
+    HASH            NAME                                  DESCRIPTION                       PUBLIC    ALIAS
+    -----------------------------------------------------------------------------------------------------------------------
+    146246146827... busybox-amd64                         -                                 yes       busybox-amd64
+    95830b5e4e04... ubuntu-vivid-amd64-default-20150308   Ubuntu 15.04 (devel) x86 64bit    yes       ubuntu/devel (3 more)
+    a1420943168a... -                                     Test image                        no        -
+
+**Example output (lxc image info)**
+
+    Hash: 146246146827e213eff5c9b5243c8c28cf461184a507588d6c7abac192e600dd
+    Architecture: x86_64
+    Public: yes
+    Properties:
+        arch: x86_64
+        build: 20150308
+        description: Ubuntu 15.04 (devel) x86 64bit
+        name: ubuntu-vivid-amd64-default-20150308
+        os: Ubuntu
+        release: vivid, 15.04
+        variant: default
+    Aliases:
+        - ubuntu/devel
+        - ubuntu/vivid
+        - ubuntu/vivid/amd64
 
 * * *
 
@@ -406,7 +424,7 @@ lxc list c1         | Show the entry for the local container "c1" as well as any
 **Example output**
 
     NAME         STATE    IPV4       IPV6                                    MEMORY     DISK
-    ----------------------------------------------------------------------------------------
+    -------------------------------------------------------------------------------------------
     precise      STOPPED  -          -                                       -          UNKNOWN
     precise-gui  RUNNING  10.0.3.59  2607:f2c0:f00f:2761:216:3eff:fe51:234f  4435.89MB  UNKNOWN
     vivid        STOPPED  -          -                                       -          UNKNOWN
