@@ -9,8 +9,8 @@ type ImageProperty struct {
 type ImageProperties []ImageProperty
 
 type ImageAlias struct {
-	Name        string      `json:"target"`
-	Description string      `json:"description"`
+	Name        string `json:"target"`
+	Description string `json:"description"`
 }
 
 type ImageAliases []ImageAlias

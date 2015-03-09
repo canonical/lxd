@@ -76,14 +76,13 @@ func doImageAlias(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		for _, alias := range resp {
+		for _, url := range resp {
 			/* /1.0/images/aliases/ALIAS_NAME */
-			prefix := "/1.0/images/aliases/"
-			offset := len(prefix)
-			if len(alias) < offset+1 {
-				fmt.Printf(gettext.Gettext("(Bad alias entry: %s\n"), alias)
+			alias := fromUrl(url, "/1.0/images/aliases/")
+			if alias == "" {
+				fmt.Printf(gettext.Gettext("(Bad alias entry: %s\n"), url)
 			} else {
-				fmt.Println(alias[offset:])
+				fmt.Println(alias)
 			}
 		}
 		return nil
@@ -308,19 +307,25 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 	}
 }
 
+func fromUrl(url string, prefix string) string {
+	offset := len(prefix)
+	if len(url) < offset+1 {
+		return ""
+	}
+	return url[offset:]
+}
+
 func dereferenceAlias(d *lxd.Client, inName string) string {
 	imageList, err := d.ListImages()
 	if err != nil {
 		return ""
 	}
 	inLen := len(inName)
-	for _, urln := range imageList {
-		prefix := "/1.0/images/"
-		offset := len(prefix)
-		if len(urln) < offset+1 {
+	for _, url := range imageList {
+		n := fromUrl(url, "/1.0/images/")
+		if n == "" {
 			continue
 		}
-		n := urln[offset:]
 		if len(n) < inLen {
 			continue
 		}
@@ -332,12 +337,10 @@ func dereferenceAlias(d *lxd.Client, inName string) string {
 	aliasList, err := d.ListAliases()
 	if err == nil {
 		for _, url := range aliasList {
-			prefix := "/1.0/images/aliases/"
-			offset := len(prefix)
-			if len(url) < offset+1 {
+			l := fromUrl(url, "/1.0/images/aliases/")
+			if l == "" {
 				continue
 			}
-			l := url[offset:]
 			if l == inName {
 				return d.GetAlias(l)
 			}
@@ -347,7 +350,7 @@ func dereferenceAlias(d *lxd.Client, inName string) string {
 	return ""
 }
 
-func shortest_alias(list shared.ImageAliases) string {
+func shortestAlias(list shared.ImageAliases) string {
 	shortest := ""
 	for _, l := range list {
 		if shortest == "" {
@@ -362,7 +365,7 @@ func shortest_alias(list shared.ImageAliases) string {
 	return shortest
 }
 
-func find_description(props shared.ImageProperties) string {
+func findDescription(props shared.ImageProperties) string {
 	for _, p := range props {
 		if p.Key == "description" {
 			return p.Value
@@ -374,10 +377,10 @@ func find_description(props shared.ImageProperties) string {
 func showImages(images []shared.ImageInfo) error {
 	data := [][]string{}
 	for _, image := range images {
-		shortest := shortest_alias(image.Aliases)
+		shortest := shortestAlias(image.Aliases)
 		fp := image.Fingerprint[0:8]
 		public := "no"
-		description := find_description(image.Properties)
+		description := findDescription(image.Properties)
 		if image.Public == 1 {
 			public = "yes"
 		}
