@@ -299,8 +299,14 @@ lxc image alias create centos/7 \<hash\>                                        
 **Example output (lxc image info)**
 
     Hash: 146246146827e213eff5c9b5243c8c28cf461184a507588d6c7abac192e600dd
+    Filename: ubuntu-vivid-amd64-default-20150308.tar.xz
+    Size: 65MB
     Architecture: x86_64
     Public: yes
+    Timestamps:
+        Created: 2015/03/08 10:50 UTC
+        Uploaded: 2015/03/09 16:00 UTC
+        Expires: never
     Properties:
         arch: x86_64
         build: 20150308
