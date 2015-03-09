@@ -376,6 +376,21 @@ func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
 }
 
 func dbGetProfileConfig(d *Daemon, name string) (map[string]string, error) {
+	rows1, err := d.db.Query("SELECT id FROM profiles WHERE name=?", name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows1.Close()
+	id := -1
+	for rows1.Next() {
+		var xId int
+		rows1.Scan(&xId)
+		id = xId
+	}
+	if id == -1 {
+		return nil, fmt.Errorf("Profile %s not found", name)
+	}
+
 	q := `SELECT key, value FROM profiles_config JOIN profiles
 		ON profiles_config.profile_id=profiles.id
 		WHERE name=?`
