@@ -21,23 +21,24 @@ func (c *configCmd) showByDefault() bool {
 	return true
 }
 
-var profileEditHelp string = `### This is a yaml representation of the profile.
-### Any line starting with a '# will be ignored.
-###
-### A profile consists of a set of configuration items followed by a set of
-### devices.
-###
-### The first line of the profile is the profile name.  This cannot be changed
-### using the 'edit' command.  See 'lxc profile move' for renaming.
-###
-### After the name comes the 'config:' section header, followed by configuration
-### items, one per line.
-###
-### Next come the devices.  Since each device has optional properties, the
-### devices are each one sub-section followed by properties listed on separate
-### lines as 'key: value'
-
-`
+var profileEditHelp string = gettext.Gettext(
+	"### This is a yaml representation of the profile.\n" +
+	"### Any line starting with a '# will be ignored.\n" +
+	"###\n" +
+	"### A profile consists of a set of configuration items followed by a set of\n" +
+	"### devices.\n" +
+	"###\n" +
+	"### An example would look like:\n" +
+	"### name: onenic\n" +
+	"### config:\n" +
+	"###   raw.lxc: lxc.aa_profile=unconfined\n" +
+	"### devices:\n" +
+	"###   eth0:\n" +
+	"###     nictype: bridged\n" +
+	"###     parent: lxcbr0\n" +
+	"###     type: nic\n" +
+	"###\n" +
+	"### Note that the name cannot be changed\n")
 
 func (c *configCmd) usage() string {
 	return gettext.Gettext(
