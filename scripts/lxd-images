@@ -24,6 +24,13 @@ _ = gettext.gettext
 gettext.textdomain("lxd")
 
 
+class FriendlyParser(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write('error: %s\n' % message)
+        self.print_help()
+        sys.exit(2)
+
+
 def find_on_path(command):
     """Is command on the executable search path?"""
 
@@ -453,9 +460,16 @@ if __name__ == "__main__":
 
         setup_alias(parser, args, fingerprint)
 
-    parser = argparse.ArgumentParser(
+    parser = FriendlyParser(
         description=_("LXD: image store helper"),
-        formatter_class=argparse.RawTextHelpFormatter)
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=_("""Examples:
+ To import the latest Ubuntu 14.04 LTS 64bit image with some aliases:
+    %s import lxc ubuntu trusty amd64 --alias ubuntu --alias ubuntu/trusty
+
+ To import a basic busybox image:
+    %s import busybox --alias busybox
+""" % (sys.argv[0], sys.argv[0])))
 
     parser_subparsers = parser.add_subparsers(dest="action")
     parser_subparsers.required = True

@@ -109,6 +109,7 @@ id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 name            | VARCHAR(255)  | -             | NOT NULL          | Container name
 architecture    | INTEGER       | -             | NOT NULL          | Container architecture
 type            | INTEGER       | 0             | NOT NULL          | Container type (0 = container, 1 = container snapshot)
+power\_state    | INTEGER       | 0             | NOT NULL          | Container power state (0 = off, 1 = on)
 
 Index: UNIQUE ON id AND name
 
