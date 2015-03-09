@@ -8,7 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const DB_CURRENT_VERSION int = 3
+const DB_CURRENT_VERSION int = 4
 
 func createDb(p string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", p)
@@ -130,6 +130,12 @@ CREATE TABLE schema (
 INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 
 	_, err = db.Exec(stmt, DB_CURRENT_VERSION)
+	if err != nil {
+		return db, err
+	}
+
+	err = createDefaultProfile(db)
+
 	return db, err
 }
 
@@ -208,6 +214,15 @@ INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 	return err
 }
 
+func updateFromV3(db *sql.DB) error {
+	err := createDefaultProfile(db)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`, 4)
+	return err
+}
+
 /* Yeah we can do htis in a more clever way */
 func updateFromV1(db *sql.DB) error {
 	// v1..v2 adds images aliases
@@ -265,6 +280,83 @@ func updateDb(db *sql.DB, prev_version int) error {
 			return err
 		}
 	}
+	if prev_version < 4 {
+		err = updateFromV3(db)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createDefaultProfile(db *sql.DB) error {
+	rows, err := db.Query("SELECT id FROM profiles WHERE name=?", "default")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	id := -1
+	for rows.Next() {
+		var xId int
+		rows.Scan(&xId)
+		id = xId
+	}
+	if id != -1 {
+		// default profile already exists
+		return nil
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	result, err := tx.Exec("INSERT INTO profiles (name) VALUES (?)", "default")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	id64, err := result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	id = int(id64)
+
+	result, err = tx.Exec(`INSERT INTO profiles_devices 
+		(profile_id, name, type) VALUES (?, ?, ?)`,
+		id, "eth0", "nic")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	id64, err = result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	devId := int(id64)
+
+	_, err = tx.Exec(`INSERT INTO profiles_devices_config
+		(profile_device_id, key, value) VALUES (?, ?, ?)`,
+		devId, "nictype", "bridged")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	/* TODO - analyze system to choose a bridge */
+	_, err = tx.Exec(`INSERT INTO profiles_devices_config
+		(profile_device_id, key, value) VALUES (?, ?, ?)`,
+		devId, "parent", "lxcbr0")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -484,7 +576,7 @@ func dbGetDevices(d *Daemon, qName string, isprofile bool) (shared.Devices, erro
 			var k, v string
 			rows2.Scan(&k, &v)
 			if !shared.ValidDeviceConfig(dtype, k, v) {
-				return nil, fmt.Errorf("YYY Invalid device config: %s = %s\n", k, v)
+				return nil, fmt.Errorf("Invalid config for device type %s: %s = %s\n", dtype, k, v)
 			}
 			newdev[k] = v
 		}
