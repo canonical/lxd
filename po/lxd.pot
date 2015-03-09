@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-09 15:42-0500\n"
+        "POT-Creation-Date: 2015-03-09 16:57-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -58,12 +58,12 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name\n"
 msgstr  ""
 
-#: lxc/image.go:83
+#: lxc/image.go:84
 #, c-format
 msgid   "(Bad alias entry: %s\n"
 msgstr  ""
 
-#: lxc/image.go:205
+#: lxc/image.go:244
 #, c-format
 msgid   "(Bad image entry: %s\n"
 msgstr  ""
@@ -362,7 +362,7 @@ msgstr  ""
 msgid   "Unexpected non-async response"
 msgstr  ""
 
-#: lxc/image.go:306
+#: lxc/image.go:348
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -493,6 +493,7 @@ msgid   "lxc image import <tarball> [target] [--created-at=ISO-8601] [--"
         "lxc image delete [resource:]<image>\n"
         "lxc image edit [resource:]\n"
         "lxc image export [resource:]<image>\n"
+        "lxc image info [resource:]<image>\n"
         "lxc image list [resource:] [filter]\n"
         "\n"
         "Lists the images at resource, or local images.\n"
