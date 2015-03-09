@@ -364,6 +364,9 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		i := shared.ImageProperty{Imagetype: imagetype, Key: key, Value: value}
 		properties = append(properties, i)
 	}
+	if len(properties) == 0 {
+		return NotFound
+	}
 	return SyncResponse(true, properties)
 }
 
