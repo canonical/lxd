@@ -267,10 +267,7 @@ result, it's only possible to have one copy of any given image on a
 given LXD host.
 
 
-There are 2 special properties which the lxc command line tool will look
-for and present to the user by default if present:
- * description
- * name
+The "description" property is special in that if it's set, it'll appear in "lxc image list".
 
 Aliases are a one to one mapping between a user friendly name and an image.
 Aliases may contain any character but colons and slashes.
@@ -287,6 +284,37 @@ Command                                                                         
 lxc image import centos-7-x86\_64.tar.gz --created-at=2014-12-10 --expires-at=2015-01-10 os=fedora release=7 arch=amd64 | Import a centos LXD image in the local LXD image store
 lxc image import debian-jessie\_amd64.tar.gz dakara:                                                                    | Import a debian LXD image in the lxc image store of remote host "dakara"
 lxc image alias create centos/7 \<hash\>                                                                                | Create an alias for centos/7 pointing to our centos 7 image
+
+**Example output (lxc image list)**
+
+    ALIAS                   HASH            PUBLIC  DESCRIPTION
+    ------------------------------------------------------------------------------
+    busybox-amd64           146246146827... yes     -
+    ubuntu/devel (3 more)   95830b5e4e04... yes     Ubuntu 15.04 (devel) x86 64bit
+    -                       a1420943168a... no      Test image
+
+**Example output (lxc image info)**
+
+    Hash: 146246146827e213eff5c9b5243c8c28cf461184a507588d6c7abac192e600dd
+    Filename: ubuntu-vivid-amd64-default-20150308.tar.xz
+    Size: 65MB
+    Architecture: x86_64
+    Public: yes
+    Timestamps:
+        Created: 2015/03/08 10:50 UTC
+        Uploaded: 2015/03/09 16:00 UTC
+        Expires: never
+    Properties:
+        arch: x86_64
+        build: 20150308
+        description: Ubuntu 15.04 (devel) x86 64bit
+        os: Ubuntu
+        release: vivid, 15.04
+        variant: default
+    Aliases:
+        - ubuntu/devel
+        - ubuntu/vivid
+        - ubuntu/vivid/amd64
 
 * * *
 
@@ -394,6 +422,14 @@ Command             | Result
 lxc list            | Show the list of local containers, snapshots and images
 lxc list dakara:    | Show the list of remote containers, snapshots and images on "dakara"
 lxc list c1         | Show the entry for the local container "c1" as well as any snapshot it may have
+
+**Example output**
+
+    NAME         STATE    IPV4       IPV6                                    MEMORY     DISK
+    -------------------------------------------------------------------------------------------
+    precise      STOPPED  -          -                                       -          UNKNOWN
+    precise-gui  RUNNING  10.0.3.59  2607:f2c0:f00f:2761:216:3eff:fe51:234f  4435.89MB  UNKNOWN
+    vivid        STOPPED  -          -                                       -          UNKNOWN
 
 * * *
 
