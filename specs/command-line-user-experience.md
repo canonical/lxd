@@ -290,11 +290,11 @@ lxc image alias create centos/7 \<hash\>                                        
 
 **Example output (lxc image list)**
 
-    HASH            NAME                                  DESCRIPTION                       PUBLIC    ALIAS
-    -----------------------------------------------------------------------------------------------------------------------
-    146246146827... busybox-amd64                         -                                 yes       busybox-amd64
-    95830b5e4e04... ubuntu-vivid-amd64-default-20150308   Ubuntu 15.04 (devel) x86 64bit    yes       ubuntu/devel (3 more)
-    a1420943168a... -                                     Test image                        no        -
+    ALIAS                   HASH            PUBLIC  NAME                                DESCRIPTION
+    ------------------------------------------------------------------------------------------------------------------
+    busybox-amd64           146246146827... yes     busybox-amd64                       -
+    ubuntu/devel (3 more)   95830b5e4e04... yes     ubuntu-vivid-amd64-default-20150308 Ubuntu 15.04 (devel) x86 64bit
+    -                       a1420943168a... no      -                                   Test image
 
 **Example output (lxc image info)**
 
