@@ -768,11 +768,7 @@ func (c *Client) GetAlias(alias string) string {
 	}
 
 	if resp.Type == Error {
-		if resp.Code == http.StatusNotFound {
-			return ""
-		} else {
-			return ""
-		}
+		return ""
 	}
 
 	var result shared.ImageAlias
