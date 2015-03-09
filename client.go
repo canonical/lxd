@@ -761,6 +761,27 @@ func (c *Client) IsAlias(alias string) (bool, error) {
 	return true, nil
 }
 
+func (c *Client) GetAlias(alias string) string {
+	resp, err := c.get(fmt.Sprintf("images/aliases/%s", alias))
+	if err != nil {
+		return ""
+	}
+
+	if resp.Type == Error {
+		if resp.Code == http.StatusNotFound {
+			return ""
+		} else {
+			return ""
+		}
+	}
+
+	var result shared.ImageAlias
+	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+		return ""
+	}
+	return result.Name
+}
+
 // Init creates a container from either a fingerprint or an alias; you must
 // provide at least one.
 func (c *Client) Init(name string, image string) (*Response, error) {

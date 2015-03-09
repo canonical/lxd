@@ -135,11 +135,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) < 2 {
 			return errArgs
 		}
-		remote, image := config.ParseRemoteAndContainer(args[1])
+		remote, inName := config.ParseRemoteAndContainer(args[1])
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
+		image := dereferenceAlias(d, inName)
 		err = d.DeleteImage(image)
 		return err
 	case "import":
@@ -220,14 +221,21 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) < 2 {
 			return errArgs
 		}
-		remote, image := config.ParseRemoteAndContainer(args[1])
-		if image == "" {
+		remote, inName := config.ParseRemoteAndContainer(args[1])
+		if inName == "" {
 			return errArgs
 		}
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
+
+		image := dereferenceAlias(d, inName)
+		fmt.Printf("for name %s got image %s\n", inName, image)
+		if image == "" {
+			image = inName
+		}
+
 		info, err := d.GetImageInfo(image)
 		if err != nil {
 			return err
@@ -281,11 +289,13 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		remote, image := config.ParseRemoteAndContainer(args[1])
+		remote, inName := config.ParseRemoteAndContainer(args[1])
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
+
+		image := dereferenceAlias(d, inName)
 
 		_, err = d.ExportImage(image, args[2])
 		if err != nil {
@@ -296,6 +306,45 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 	default:
 		return fmt.Errorf(gettext.Gettext("Unknown image command %s"), args[0])
 	}
+}
+
+func dereferenceAlias(d *lxd.Client, inName string) string {
+	imageList, err := d.ListImages()
+	if err != nil {
+		return ""
+	}
+	inLen := len(inName)
+	for _, urln := range imageList {
+		prefix := "/1.0/images/"
+		offset := len(prefix)
+		if len(urln) < offset+1 {
+			continue
+		}
+		n := urln[offset:]
+		if len(n) < inLen {
+			continue
+		}
+		if n[:inLen] == inName {
+			return n
+		}
+	}
+
+	aliasList, err := d.ListAliases()
+	if err == nil {
+		for _, url := range aliasList {
+			prefix := "/1.0/images/aliases/"
+			offset := len(prefix)
+			if len(url) < offset+1 {
+				continue
+			}
+			l := url[offset:]
+			if l == inName {
+				return d.GetAlias(l)
+			}
+		}
+	}
+
+	return ""
 }
 
 func shortest_alias(list shared.ImageAliases) string {
