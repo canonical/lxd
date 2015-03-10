@@ -795,7 +795,12 @@ func (c *Client) Init(name string, image string) (*Response, error) {
 		source["fingerprint"] = image
 	}
 
-	body := shared.Jmap{"source": source}
+	/* TODO - lxc/init.go should accept --profile arg;  when it does,
+	 * we will pass int ["default"] if no profiles listed, "" if an
+	 * empty profile was passed, or the passed-in profiles otherwise
+	 */
+	profiles := []string{"default"}
+	body := shared.Jmap{"source": source, "profiles": profiles}
 
 	if name != "" {
 		body["name"] = name
