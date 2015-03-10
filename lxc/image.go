@@ -10,6 +10,7 @@ import (
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 )
 
@@ -42,6 +43,7 @@ func (c *imageCmd) usage() string {
 			"lxc image delete [resource:]<image>\n" +
 			"lxc image edit [resource:]\n" +
 			"lxc image export [resource:]<image>\n" +
+			"lxc image info [resource:]<image>\n" +
 			"lxc image list [resource:] [filter]\n" +
 			"\n" +
 			"Lists the images at resource, or local images.\n" +
@@ -75,14 +77,13 @@ func doImageAlias(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		for _, alias := range resp {
+		for _, url := range resp {
 			/* /1.0/images/aliases/ALIAS_NAME */
-			prefix := "/1.0/images/aliases/"
-			offset := len(prefix)
-			if len(alias) < offset+1 {
-				fmt.Printf(gettext.Gettext("(Bad alias entry: %s\n"), alias)
+			alias := fromUrl(url, "/1.0/images/aliases/")
+			if alias == "" {
+				fmt.Printf(gettext.Gettext("(Bad alias entry: %s\n"), url)
 			} else {
-				fmt.Println(alias[offset:])
+				fmt.Println(alias)
 			}
 		}
 		return nil
@@ -129,18 +130,57 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 		return doImageAlias(config, args)
+
 	case "delete":
 		/* delete [<remote>:]<image> */
 		if len(args) < 2 {
 			return errArgs
 		}
-		remote, image := config.ParseRemoteAndContainer(args[1])
+		remote, inName := config.ParseRemoteAndContainer(args[1])
+		if inName == "" {
+			return errArgs
+		}
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
+		image := dereferenceAlias(d, inName)
 		err = d.DeleteImage(image)
 		return err
+
+	case "info":
+		if len(args) < 2 {
+			return errArgs
+		}
+		remote, inName := config.ParseRemoteAndContainer(args[1])
+		if inName == "" {
+			return errArgs
+		}
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+		image := dereferenceAlias(d, inName)
+		info, err := d.GetImageInfo(image)
+		if err != nil {
+			return err
+		}
+		fmt.Printf(gettext.Gettext("Hash: %s\n"), info.Fingerprint)
+		public := "no"
+		if info.Public == 1 {
+			public = "yes"
+		}
+		fmt.Printf(gettext.Gettext("Public: %s\n"), public)
+		fmt.Printf(gettext.Gettext("Properties:\n"))
+		for _, prop := range info.Properties {
+			fmt.Printf("    %s: %s\n", prop.Key, prop.Value)
+		}
+		fmt.Printf(gettext.Gettext("Aliases:\n"))
+		for _, alias := range info.Aliases {
+			fmt.Printf("    - %s\n", alias.Name)
+		}
+		return nil
+
 	case "import":
 		if len(args) < 2 {
 			return errArgs
@@ -190,39 +230,55 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		resp, err := d.ListImages()
+		imagenames, err := d.ListImages()
 		if err != nil {
 			return err
 		}
 
-		for _, image := range resp {
-			/* /1.0/images/IMAGE_NAME */
-			prefix := "/1.0/images/"
-			offset := len(prefix)
+		images := []shared.ImageInfo{}
+		prefix := "/1.0/images/"
+		offset := len(prefix)
+		for _, image := range imagenames {
+			var plainname string
 			if len(image) < offset+1 {
 				fmt.Printf(gettext.Gettext("(Bad image entry: %s\n"), image)
-			} else {
-				fmt.Println(image[offset:])
+				continue
 			}
+			plainname = image[offset:]
+			info, err := d.GetImageInfo(plainname)
+			if err != nil {
+				// XXX should we warn?  bail?
+				continue
+			}
+			images = append(images, *info)
 		}
-		return nil
+
+		return showImages(images)
 
 	case "edit":
 		if len(args) < 2 {
 			return errArgs
 		}
-		remote, image := config.ParseRemoteAndContainer(args[1])
-		if image == "" {
+		remote, inName := config.ParseRemoteAndContainer(args[1])
+		if inName == "" {
 			return errArgs
 		}
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
-		properties, err := d.GetImageProperties(image)
+
+		image := dereferenceAlias(d, inName)
+		if image == "" {
+			image = inName
+		}
+
+		info, err := d.GetImageInfo(image)
 		if err != nil {
 			return err
 		}
+
+		properties := info.Properties
 		editor := os.Getenv("VISUAL")
 		if editor == "" {
 			editor = os.Getenv("EDITOR")
@@ -270,11 +326,16 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		remote, image := config.ParseRemoteAndContainer(args[1])
+		remote, inName := config.ParseRemoteAndContainer(args[1])
+		if inName == "" {
+			return errArgs
+		}
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
+
+		image := dereferenceAlias(d, inName)
 
 		_, err = d.ExportImage(image, args[2])
 		if err != nil {
@@ -285,4 +346,95 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 	default:
 		return fmt.Errorf(gettext.Gettext("Unknown image command %s"), args[0])
 	}
+}
+
+func fromUrl(url string, prefix string) string {
+	offset := len(prefix)
+	if len(url) < offset+1 {
+		return ""
+	}
+	return url[offset:]
+}
+
+func dereferenceAlias(d *lxd.Client, inName string) string {
+	imageList, err := d.ListImages()
+	if err != nil {
+		return ""
+	}
+	inLen := len(inName)
+	for _, url := range imageList {
+		n := fromUrl(url, "/1.0/images/")
+		if n == "" {
+			continue
+		}
+		if len(n) < inLen {
+			continue
+		}
+		if n[:inLen] == inName {
+			return n
+		}
+	}
+
+	aliasList, err := d.ListAliases()
+	if err == nil {
+		for _, url := range aliasList {
+			l := fromUrl(url, "/1.0/images/aliases/")
+			if l == "" {
+				continue
+			}
+			if l == inName {
+				return d.GetAlias(l)
+			}
+		}
+	}
+
+	return ""
+}
+
+func shortestAlias(list shared.ImageAliases) string {
+	shortest := ""
+	for _, l := range list {
+		if shortest == "" {
+			shortest = l.Name
+			continue
+		}
+		if len(l.Name) != 0 && len(l.Name) < len(shortest) {
+			shortest = l.Name
+		}
+	}
+
+	return shortest
+}
+
+func findDescription(props shared.ImageProperties) string {
+	for _, p := range props {
+		if p.Key == "description" {
+			return p.Value
+		}
+	}
+	return ""
+}
+
+func showImages(images []shared.ImageInfo) error {
+	data := [][]string{}
+	for _, image := range images {
+		shortest := shortestAlias(image.Aliases)
+		fp := image.Fingerprint[0:8]
+		public := "no"
+		description := findDescription(image.Properties)
+		if image.Public == 1 {
+			public = "yes"
+		}
+		data = append(data, []string{shortest, fp, public, description})
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"ALIAS", "HASH", "PUBLIC", "DESCRIPTION"})
+
+	for _, v := range data {
+		table.Append(v)
+	}
+	table.Render()
+
+	return nil
 }

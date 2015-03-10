@@ -680,9 +680,17 @@ filesystem-specific optimizations.
 Output:
 
     {
+        'aliases': ['alias1', ...],
+        'architecture': 0,
+        'fingerprint': "a3625aeada09576673620d1d048eed7ac101c4c2409f527a1f77e237fa280e32",
         'properties': {
             'key': 'value'
         },
+        'public': true,
+        'size': 11031704,
+        'created_at': 1415639996,
+        'expires_at': 1415639996,
+        'uploaded_at': 1415639996
     }
 
 ### DELETE
