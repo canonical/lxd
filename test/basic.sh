@@ -43,6 +43,7 @@ test_basic_usage() {
   # check that we can set the environment
   lxc exec foo pwd | grep /root
   lxc exec --env BEST_BAND=meshuggah foo env | grep meshuggah
+  lxc exec foo ip link show | grep eth0
 
   # Make sure it is the right version
   echo abc > ${LXD_DIR}/in

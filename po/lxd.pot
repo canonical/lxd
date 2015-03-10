@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-10 09:19-0500\n"
+        "POT-Creation-Date: 2015-03-10 13:35-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -81,7 +81,7 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: client.go:1315
+#: client.go:1325
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -283,15 +283,15 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: client.go:945
+#: client.go:950
 msgid   "Non-async response from delete!"
 msgstr  ""
 
-#: client.go:814
+#: client.go:819
 msgid   "Non-async response from init!"
 msgstr  ""
 
-#: client.go:1156
+#: client.go:1166
 msgid   "Non-async response from snapshot!"
 msgstr  ""
 
@@ -372,11 +372,11 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: client.go:1307 client.go:1328
+#: client.go:1317 client.go:1338
 msgid   "Unexpected async response"
 msgstr  ""
 
-#: client.go:1253 client.go:1396 client.go:1421 client.go:1460
+#: client.go:1263 client.go:1406 client.go:1431 client.go:1470
 msgid   "Unexpected non-async response"
 msgstr  ""
 
@@ -416,7 +416,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:431 client.go:1188 client.go:1195
+#: client.go:431 client.go:1198 client.go:1205
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -425,7 +425,7 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1365
+#: client.go:1375
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -434,8 +434,8 @@ msgstr  ""
 msgid   "bad response type from image list!"
 msgstr  ""
 
-#: client.go:411 client.go:609 client.go:1174 client.go:1345 client.go:1501
-#: client.go:1540 client.go:1598
+#: client.go:411 client.go:609 client.go:1184 client.go:1355 client.go:1511
+#: client.go:1550 client.go:1608
 msgid   "bad response type from list!"
 msgstr  ""
 
@@ -443,11 +443,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:435 client.go:1199
+#: client.go:435 client.go:1209
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1369
+#: client.go:1379
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -473,12 +473,12 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:902
+#: client.go:907
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
 
-#: client.go:839
+#: client.go:844
 msgid   "got bad response type from exec"
 msgstr  ""
 
@@ -486,11 +486,11 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:1076 client.go:1101
+#: client.go:1081 client.go:1111
 msgid   "got non-async response!"
 msgstr  ""
 
-#: client.go:573 client.go:964 client.go:987
+#: client.go:573 client.go:969 client.go:992
 msgid   "got non-sync response from containers get!"
 msgstr  ""
 
@@ -499,7 +499,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1110
+#: client.go:1120
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -539,7 +539,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1437 client.go:1517
+#: client.go:1447 client.go:1527
 msgid   "no value found in %q\n"
 msgstr  ""
 
