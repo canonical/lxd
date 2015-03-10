@@ -242,7 +242,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 	 * no reason to do these in parallel. In the future when we're using
 	 * p.haul's protocol, it will make sense to do these in parallel.
 	 */
-	if err := RsyncSend(checkpointDir, s.criuConn); err != nil {
+	if err := RsyncSend(AddSlash(checkpointDir), s.criuConn); err != nil {
 		s.sendControl(err)
 		return shared.OperationError(err)
 	}

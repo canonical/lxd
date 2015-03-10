@@ -53,6 +53,11 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
+	status, err := source.ContainerStatus(sourceName)
+	if err != nil {
+		return err
+	}
+
 	to, err := source.MigrateTo(sourceName, dest)
 	if err != nil {
 		return err
@@ -64,7 +69,11 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	url := "wss://" + source.Remote.Addr + path.Join(to.Operation, "websocket")
-	migration, err := dest.MigrateFrom(destName, url, secrets)
+	// TODO: copy profiles as well. We need to make sure the profile
+	// exists before we create a container with the profile, but we should
+	// probably talk about some policy about what happens when the profile
+	// already exists on the target host.
+	migration, err := dest.MigrateFrom(destName, url, secrets, status.Config, []string{})
 	if err != nil {
 		return err
 	}
