@@ -1,6 +1,3 @@
-// +build linux
-// +build cgo
-
 package main
 
 import (
@@ -27,26 +24,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/lxc/go-lxc.v2"
 )
-
-// #cgo LDFLAGS: -lutil
-/*
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <grp.h>
-#include <pty.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdio.h>
-#include <termios.h>
-
-void own_pty(int fd) {
-	if (ioctl(fd, TIOCSCTTY, (char *)NULL) == -1)
-		printf("Failed TIOCSCTTY: %s\n", strerror(errno));
-}
-*/
-import "C"
 
 type containerType int
 
@@ -1396,22 +1373,22 @@ func (s *execWs) Connect(secret string, r *http.Request, w http.ResponseWriter) 
 }
 
 func runCommandNofork(container *lxc.Container, command []string, options lxc.AttachOptions) shared.OperationResult {
-        status, err := container.RunCommandStatus(command, options)
-        if err != nil {
-                shared.Debugf("Failed running command: %q", err.Error())
-                return shared.OperationError(err)
-        }
+	status, err := container.RunCommandStatus(command, options)
+	if err != nil {
+		shared.Debugf("Failed running command: %q", err.Error())
+		return shared.OperationError(err)
+	}
 
-        metadata, err := json.Marshal(shared.Jmap{"return": status})
-        if err != nil {
-                return shared.OperationError(err)
-        }
+	metadata, err := json.Marshal(shared.Jmap{"return": status})
+	if err != nil {
+		return shared.OperationError(err)
+	}
 
-        return shared.OperationResult{Metadata: metadata, Error: nil}
+	return shared.OperationResult{Metadata: metadata, Error: nil}
 }
 
 func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions, interactive bool) shared.OperationResult {
-	if ! interactive {
+	if !interactive {
 		return runCommandNofork(container, command, options)
 	}
 	pid, errno := shared.Fork()
@@ -1420,7 +1397,7 @@ func runCommand(container *lxc.Container, command []string, options lxc.AttachOp
 	}
 	if pid == 0 {
 		_, _ = syscall.Setsid()
-		C.own_pty(C.int(options.StdinFd))
+		shared.OwnPty(options.StdinFd)
 		status, err := container.RunCommandStatus(command, options)
 		if err != nil {
 			os.Exit(1)
@@ -1437,7 +1414,6 @@ func runCommand(container *lxc.Container, command []string, options lxc.AttachOp
 	}
 
 	status := int(wstatus)
-
 
 	metadata, err := json.Marshal(shared.Jmap{"return": status})
 	if err != nil {
