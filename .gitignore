@@ -1,4 +1,3 @@
 *.swp
 po/*.mo
 lxd-*.tar.gz
-*.pb.go
