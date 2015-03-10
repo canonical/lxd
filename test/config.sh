@@ -1,5 +1,6 @@
 test_config_profiles() {
   lxc init testimage foo
+  lxc config profile list | grep default
 
   lxc config device add foo home disk source=/mnt path=/mnt readonly=true
   lxc config profile create onenic
