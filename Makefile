@@ -12,8 +12,14 @@ ARCHIVE=lxd-$(VERSION).tar
 
 .PHONY: default
 default:
-	protoc --go_out=. ./lxd/migration/migrate.proto
 	go install -v ./...
+
+# This only needs to be done when migrate.proto is actually changed; since we
+# commit the .pb.go in the tree and it's not expected to change very often,
+# it's not a default build step.
+.PHONY: protobuf
+protobuf:
+	protoc --go_out=. ./lxd/migration/migrate.proto
 
 .PHONY: check
 check: default
