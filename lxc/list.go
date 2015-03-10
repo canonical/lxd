@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -28,7 +29,7 @@ func (c *listCmd) usage() string {
 
 func (c *listCmd) flags() {}
 
-func listContainers(d *lxd.Client, cts []string) error {
+func listContainers(d *lxd.Client, cts []string, showsnaps bool) error {
 	data := [][]string{}
 
 	for _, ct := range cts {
@@ -38,8 +39,9 @@ func listContainers(d *lxd.Client, cts []string) error {
 		if err == nil {
 			d = []string{ct, c.Status.State}
 		} else {
-			d = []string{ct, "(Error)"}
+			return fmt.Errorf(gettext.Gettext("Container not found"))
 		}
+
 		if c.Status.State == "RUNNING" {
 			ipv4s := []string{}
 			ipv6s := []string{}
@@ -69,6 +71,22 @@ func listContainers(d *lxd.Client, cts []string) error {
 	}
 
 	table.Render() // Send output
+
+	if showsnaps {
+		cName := cts[0]
+		first_snapshot := true
+		snaps, err := d.ListSnapshots(cName)
+		if err != nil {
+			return nil
+		}
+		for _, snap := range snaps {
+			if first_snapshot {
+				fmt.Printf("Snapshots:\n")
+			}
+			fmt.Printf("  %s\n", snap)
+			first_snapshot = false
+		}
+	}
 	return nil
 }
 
@@ -92,14 +110,16 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	var cts []string
+	showsnapshots := false
 	if name == "" {
 		cts, err = d.ListContainers()
 		if err != nil {
 			return err
 		}
 	} else {
+		showsnapshots = true
 		cts = []string{name}
 	}
 
-	return listContainers(d, cts)
+	return listContainers(d, cts, showsnapshots)
 }
