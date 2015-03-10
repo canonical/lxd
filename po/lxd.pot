@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-10 13:35-0500\n"
+        "POT-Creation-Date: 2015-03-10 14:15-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -81,7 +81,7 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: client.go:1325
+#: client.go:1320
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -264,7 +264,7 @@ msgstr  ""
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
-#: lxc/move.go:22
+#: lxc/move.go:23
 msgid   "Move containers within or in between lxd instances.\n"
         "\n"
         "(currently only live migration is supported)\n"
@@ -283,15 +283,15 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: client.go:950
+#: client.go:945
 msgid   "Non-async response from delete!"
 msgstr  ""
 
-#: client.go:819
+#: client.go:814
 msgid   "Non-async response from init!"
 msgstr  ""
 
-#: client.go:1166
+#: client.go:1161
 msgid   "Non-async response from snapshot!"
 msgstr  ""
 
@@ -372,11 +372,11 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: client.go:1317 client.go:1338
+#: client.go:1312 client.go:1333
 msgid   "Unexpected async response"
 msgstr  ""
 
-#: client.go:1263 client.go:1406 client.go:1431 client.go:1470
+#: client.go:1258 client.go:1401 client.go:1426 client.go:1465
 msgid   "Unexpected non-async response"
 msgstr  ""
 
@@ -416,7 +416,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:431 client.go:1198 client.go:1205
+#: client.go:431 client.go:1193 client.go:1200
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -425,7 +425,7 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1375
+#: client.go:1370
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -434,8 +434,8 @@ msgstr  ""
 msgid   "bad response type from image list!"
 msgstr  ""
 
-#: client.go:411 client.go:609 client.go:1184 client.go:1355 client.go:1511
-#: client.go:1550 client.go:1608
+#: client.go:411 client.go:609 client.go:1179 client.go:1350 client.go:1506
+#: client.go:1545 client.go:1603
 msgid   "bad response type from list!"
 msgstr  ""
 
@@ -443,11 +443,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:435 client.go:1209
+#: client.go:435 client.go:1204
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1379
+#: client.go:1374
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -473,12 +473,12 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:907
+#: client.go:902
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
 
-#: client.go:844
+#: client.go:839
 msgid   "got bad response type from exec"
 msgstr  ""
 
@@ -486,11 +486,11 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:1081 client.go:1111
+#: client.go:1076 client.go:1106
 msgid   "got non-async response!"
 msgstr  ""
 
-#: client.go:573 client.go:969 client.go:992
+#: client.go:573 client.go:964 client.go:987
 msgid   "got non-sync response from containers get!"
 msgstr  ""
 
@@ -499,7 +499,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1120
+#: client.go:1115
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -539,8 +539,12 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1447 client.go:1527
+#: client.go:1442 client.go:1522
 msgid   "no value found in %q\n"
+msgstr  ""
+
+#: lxc/move.go:69
+msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
 #: client.go:673
