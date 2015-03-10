@@ -329,6 +329,10 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[s
 		return 0, DbErrAlreadyDefined
 	}
 
+	if profiles == nil {
+		profiles = []string{"default"}
+	}
+
 	tx, err := d.db.Begin()
 	if err != nil {
 		return 0, err
