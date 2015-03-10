@@ -165,17 +165,17 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Hash: %s\n", info.Fingerprint)
+		fmt.Printf(gettext.Gettext("Hash: %s\n"), info.Fingerprint)
 		public := "no"
 		if info.Public == 1 {
 			public = "yes"
 		}
-		fmt.Printf("Public: %s\n", public)
-		fmt.Printf("Properties:\n")
+		fmt.Printf(gettext.Gettext("Public: %s\n"), public)
+		fmt.Printf(gettext.Gettext("Properties:\n"))
 		for _, prop := range info.Properties {
 			fmt.Printf("    %s: %s\n", prop.Key, prop.Value)
 		}
-		fmt.Printf("Aliases:\n")
+		fmt.Printf(gettext.Gettext("Aliases:\n"))
 		for _, alias := range info.Aliases {
 			fmt.Printf("    - %s\n", alias.Name)
 		}
@@ -269,7 +269,6 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		image := dereferenceAlias(d, inName)
-		fmt.Printf("for name %s got image %s\n", inName, image)
 		if image == "" {
 			image = inName
 		}
