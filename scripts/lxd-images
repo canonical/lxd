@@ -13,7 +13,6 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import time
 import urllib.request
 
 # External dependencies:
@@ -300,108 +299,15 @@ class LXCImages(object):
             raise Exception("Requested image doesn't exist")
 
         path = os.path.join(self.workdir,
-                            "%s-%s-%s-%s-%s.rootfs.tar.xz" %
+                            "%s-%s-%s-%s-%s.tar.xz" %
                             (image['distribution'], image['release'],
                              image['architecture'], image['variant'],
                              image['version']))
-        url = "%s%srootfs.tar.xz" % (self.server, image['path'])
+        url = "%s%slxd.tar.xz" % (self.server, image['path'])
 
         print(_("Downloading the image: %s" % url))
         self.__grab_and_validate(url, path)
-
-        # Repack
-        print(_("Repacking the image for LXD"))
-        epoch = time.strftime("%s", time.strptime(image['version'],
-                              "%Y%m%d_%H:%M"))
-
-        arch = image['architecture']
-        if arch == "i386":
-            arch = "i686"
-        elif arch == "amd64":
-            arch = "x86_64"
-        elif arch in ("armhf", "armel"):
-            arch = "armv7l"
-        elif arch == "arm64":
-            arch = "aarch64"
-        elif arch == "powerpc":
-            arch = "ppc"
-        elif arch == "powerpc64":
-            arch = "ppc64"
-        elif arch == "ppc64el":
-            arch = "ppc64le"
-
-        metadata = {'architecture': arch,
-                    'creation_date': int(epoch),
-                    'properties': {
-                        'os': image['distribution'],
-                        'release': image['release'],
-                        'architecture': arch,
-                        'variant': image['variant'],
-                        'description': "%s %s %s (%s) (%s)" %
-                                       (image['distribution'],
-                                        image['release'],
-                                        image['architecture'],
-                                        image['variant'],
-                                        image['version']),
-                        'name': "%s-%s-%s-%s-%s" %
-                                (image['distribution'],
-                                 image['release'],
-                                 image['architecture'],
-                                 image['variant'],
-                                 image['version'])
-                        },
-                    }
-
-        xz = "pxz" if find_on_path("pxz") else "xz"
-
-        r = subprocess.call([xz, "-d", path])
-        source_tar = path.split(".xz")[0]
-        destination_tar = path.split(".xz")[0].replace(".rootfs", "")
-        if r:
-            raise Exception("Failed to uncompress: %s" % path)
-
-        # Generate a new tarball
-        source_tarball = tarfile.open(source_tar, "r:")
-        target_tarball = tarfile.open(destination_tar, "w:")
-
-        # Move everything to rootfs/
-        for entry in source_tarball:
-            fileptr = None
-            if entry.isfile():
-                try:
-                    fileptr = source_tarball.extractfile(entry.name)
-                except KeyError:  # pragma: no cover
-                    pass
-
-            # Update hardlinks to point to the right target
-            if entry.islnk():
-                entry.linkname = "rootfs/%s" % entry.linkname
-
-            entry.name = "rootfs/%s" % entry.name
-            target_tarball.addfile(entry, fileobj=fileptr)
-
-        # Add the metadata file
-        metadata_yaml = json.dumps(metadata, sort_keys=True,
-                                   indent=4, separators=(',', ': '),
-                                   ensure_ascii=False).encode('utf-8') + b"\n"
-
-        metadata_file = tarfile.TarInfo()
-        metadata_file.size = len(metadata_yaml)
-        metadata_file.name = "metadata.yaml"
-        target_tarball.addfile(metadata_file,
-                               io.BytesIO(metadata_yaml))
-
-        source_tarball.close()
-        os.remove(source_tar)
-
-        target_tarball.close()
-
-        # Compress the tarball
-        r = subprocess.call([xz, "-9", destination_tar])
-        if r:
-            raise Exception("Failed to compress: %s" % path)
-
-        return destination_tar + ".xz"
+        return path
 
 
 if __name__ == "__main__":
