@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-09 16:57-0500\n"
+        "POT-Creation-Date: 2015-03-10 09:19-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -71,6 +71,10 @@ msgstr  ""
 #: lxc/remote.go:53
 #, c-format
 msgid   "Admin password for %s: "
+msgstr  ""
+
+#: lxc/image.go:178
+msgid   "Aliases:\n"
 msgstr  ""
 
 #: lxc/main.go:29
@@ -155,6 +159,11 @@ msgstr  ""
 
 #: lxc/main.go:76
 msgid   "Generating a client certificate. This may take a minute...\n"
+msgstr  ""
+
+#: lxc/image.go:168
+#, c-format
+msgid   "Hash: %s\n"
 msgstr  ""
 
 #: lxc/info.go:37
@@ -318,6 +327,15 @@ msgstr  ""
 msgid   "Profile %s deleted\n"
 msgstr  ""
 
+#: lxc/image.go:174
+msgid   "Properties:\n"
+msgstr  ""
+
+#: lxc/image.go:173
+#, c-format
+msgid   "Public: %s\n"
+msgstr  ""
+
 #: client.go:679
 msgid   "Server certificate NACKed by user"
 msgstr  ""
@@ -362,7 +380,7 @@ msgstr  ""
 msgid   "Unexpected non-async response"
 msgstr  ""
 
-#: lxc/image.go:348
+#: lxc/image.go:347
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
