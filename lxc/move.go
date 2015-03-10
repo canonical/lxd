@@ -7,6 +7,7 @@ import (
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 )
 
 type moveCmd struct {
@@ -58,6 +59,16 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
+	sourceProfs := shared.NewStringSet(status.Profiles)
+	destProfs, err := dest.ListProfiles()
+	if err != nil {
+		return err
+	}
+
+	if !sourceProfs.IsSubset(shared.NewStringSet(destProfs)) {
+		return fmt.Errorf(gettext.Gettext("not all the profiles from the source exist on the target"))
+	}
+
 	to, err := source.MigrateTo(sourceName, dest)
 	if err != nil {
 		return err
@@ -69,11 +80,7 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	url := "wss://" + source.Remote.Addr + path.Join(to.Operation, "websocket")
-	// TODO: copy profiles as well. We need to make sure the profile
-	// exists before we create a container with the profile, but we should
-	// probably talk about some policy about what happens when the profile
-	// already exists on the target host.
-	migration, err := dest.MigrateFrom(destName, url, secrets, status.Config, []string{})
+	migration, err := dest.MigrateFrom(destName, url, secrets, status.Config, status.Profiles)
 	if err != nil {
 		return err
 	}
