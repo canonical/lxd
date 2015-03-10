@@ -558,7 +558,7 @@ func (c *Client) PostImage(filename string, properties []string) (*Response, err
 	return resp, nil
 }
 
-func (c *Client) GetImageProperties(image string) (*shared.ImageProperties, error) {
+func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
 	resp, err := c.get(fmt.Sprintf("images/%s", image))
 
 	if err != nil {
@@ -573,12 +573,12 @@ func (c *Client) GetImageProperties(image string) (*shared.ImageProperties, erro
 		return nil, fmt.Errorf(gettext.Gettext("got non-sync response from containers get!"))
 	}
 
-	properties := shared.ImageProperties{}
-	if err := json.Unmarshal(resp.Metadata, &properties); err != nil {
+	info := shared.ImageInfo{}
+	if err := json.Unmarshal(resp.Metadata, &info); err != nil {
 		return nil, err
 	}
 
-	return &properties, nil
+	return &info, nil
 }
 
 func (c *Client) PutImageProperties(name string, p shared.ImageProperties) error {
@@ -759,6 +759,23 @@ func (c *Client) IsAlias(alias string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (c *Client) GetAlias(alias string) string {
+	resp, err := c.get(fmt.Sprintf("images/aliases/%s", alias))
+	if err != nil {
+		return ""
+	}
+
+	if resp.Type == Error {
+		return ""
+	}
+
+	var result shared.ImageAlias
+	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+		return ""
+	}
+	return result.Name
 }
 
 // Init creates a container from either a fingerprint or an alias; you must

@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-09 12:17-0500\n"
+        "POT-Creation-Date: 2015-03-10 09:19-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,7 +16,7 @@ msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Content-Type: text/plain; charset=CHARSET\n"
         "Content-Transfer-Encoding: 8bit\n"
 
-#: lxc/image.go:23
+#: lxc/image.go:24
 msgid   "### This is a yaml representation of the image properties.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -58,12 +58,12 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name\n"
 msgstr  ""
 
-#: lxc/image.go:83
+#: lxc/image.go:84
 #, c-format
 msgid   "(Bad alias entry: %s\n"
 msgstr  ""
 
-#: lxc/image.go:203
+#: lxc/image.go:244
 #, c-format
 msgid   "(Bad image entry: %s\n"
 msgstr  ""
@@ -73,11 +73,15 @@ msgstr  ""
 msgid   "Admin password for %s: "
 msgstr  ""
 
+#: lxc/image.go:178
+msgid   "Aliases:\n"
+msgstr  ""
+
 #: lxc/main.go:29
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: client.go:1298
+#: client.go:1315
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -155,6 +159,11 @@ msgstr  ""
 
 #: lxc/main.go:76
 msgid   "Generating a client certificate. This may take a minute...\n"
+msgstr  ""
+
+#: lxc/image.go:168
+#, c-format
+msgid   "Hash: %s\n"
 msgstr  ""
 
 #: lxc/info.go:37
@@ -274,15 +283,15 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: client.go:928
+#: client.go:945
 msgid   "Non-async response from delete!"
 msgstr  ""
 
-#: client.go:797
+#: client.go:814
 msgid   "Non-async response from init!"
 msgstr  ""
 
-#: client.go:1139
+#: client.go:1156
 msgid   "Non-async response from snapshot!"
 msgstr  ""
 
@@ -316,6 +325,15 @@ msgstr  ""
 #: lxc/config.go:388
 #, c-format
 msgid   "Profile %s deleted\n"
+msgstr  ""
+
+#: lxc/image.go:174
+msgid   "Properties:\n"
+msgstr  ""
+
+#: lxc/image.go:173
+#, c-format
+msgid   "Public: %s\n"
 msgstr  ""
 
 #: client.go:679
@@ -354,15 +372,15 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: client.go:1290 client.go:1311
+#: client.go:1307 client.go:1328
 msgid   "Unexpected async response"
 msgstr  ""
 
-#: client.go:1236 client.go:1379 client.go:1404 client.go:1443
+#: client.go:1253 client.go:1396 client.go:1421 client.go:1460
 msgid   "Unexpected non-async response"
 msgstr  ""
 
-#: lxc/image.go:286
+#: lxc/image.go:347
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -398,7 +416,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:431 client.go:1171 client.go:1178
+#: client.go:431 client.go:1188 client.go:1195
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -407,7 +425,7 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1348
+#: client.go:1365
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -416,8 +434,8 @@ msgstr  ""
 msgid   "bad response type from image list!"
 msgstr  ""
 
-#: client.go:411 client.go:609 client.go:1157 client.go:1328 client.go:1484
-#: client.go:1523 client.go:1581
+#: client.go:411 client.go:609 client.go:1174 client.go:1345 client.go:1501
+#: client.go:1540 client.go:1598
 msgid   "bad response type from list!"
 msgstr  ""
 
@@ -425,11 +443,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:435 client.go:1182
+#: client.go:435 client.go:1199
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1352
+#: client.go:1369
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -455,12 +473,12 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:885
+#: client.go:902
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
 
-#: client.go:822
+#: client.go:839
 msgid   "got bad response type from exec"
 msgstr  ""
 
@@ -468,11 +486,11 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:1059 client.go:1084
+#: client.go:1076 client.go:1101
 msgid   "got non-async response!"
 msgstr  ""
 
-#: client.go:573 client.go:947 client.go:970
+#: client.go:573 client.go:964 client.go:987
 msgid   "got non-sync response from containers get!"
 msgstr  ""
 
@@ -481,18 +499,19 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1093
+#: client.go:1110
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
 
-#: lxc/image.go:40
+#: lxc/image.go:41
 msgid   "lxc image import <tarball> [target] [--created-at=ISO-8601] [--"
         "expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n"
         "\n"
         "lxc image delete [resource:]<image>\n"
         "lxc image edit [resource:]\n"
         "lxc image export [resource:]<image>\n"
+        "lxc image info [resource:]<image>\n"
         "lxc image list [resource:] [filter]\n"
         "\n"
         "Lists the images at resource, or local images.\n"
@@ -520,7 +539,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1420 client.go:1500
+#: client.go:1437 client.go:1517
 msgid   "no value found in %q\n"
 msgstr  ""
 
