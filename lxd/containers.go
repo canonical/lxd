@@ -859,6 +859,16 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	}
 	d.c = c
 
+	dir := shared.LogPath(c.Name())
+	err = os.MkdirAll(dir, 0700)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = d.c.SetLogFile(filepath.Join(dir, "lxc.log")); err != nil {
+		return nil, err
+	}
+
 	var txtarch string
 	switch arch {
 	case 0:

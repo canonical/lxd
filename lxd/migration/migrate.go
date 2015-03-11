@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
+	"time"
 
 	/*
 	 * Although the goprotobuf project has moved to github, the protoc
@@ -123,6 +125,12 @@ func (c *migrationFields) controlChannel() <-chan MigrationControl {
 	return ch
 }
 
+func collectMigrationLogFile(c *lxc.Container, imagesDir string, method string) error {
+	t := time.Now().Format(time.RFC3339)
+	newPath := shared.LogPath(c.Name(), fmt.Sprintf("migration_%s_%s.log", method, t))
+	return os.Rename(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
+}
+
 type migrationSourceWs struct {
 	migrationFields
 
@@ -227,10 +235,13 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 	defer os.RemoveAll(checkpointDir)
 
 	opts := lxc.CheckpointOptions{Stop: true, Directory: checkpointDir}
-	if err := s.container.Checkpoint(opts); err != nil {
-		// TODO: we should probably clean up checkpointDir here, but
-		// where should we put the checkpoint log so people can debug
-		// why things didn't checkpoint?
+	err = s.container.Checkpoint(opts)
+
+	if err2 := collectMigrationLogFile(s.container, checkpointDir, "dump"); err2 != nil {
+		shared.Debugf("error collecting checkpoint log file %s", err)
+	}
+
+	if err != nil {
 		s.sendControl(err)
 		return shared.OperationError(err)
 	}
@@ -367,11 +378,20 @@ func (c *migrationSink) do() error {
 
 		opts := lxc.RestoreOptions{Directory: imagesDir, Verbose: true}
 		err := c.container.Restore(opts)
-		// TODO: We should remove this directory, but for now we leave
-		// it for debugging restores. Perhaps we should copy the log
-		// somewhere and delete it?
-		// os.RemoveAll(imagesDir)
 		restore <- err
+	}()
+
+	defer func() {
+		err := collectMigrationLogFile(c.container, imagesDir, "restore")
+		/*
+		 * If the checkpoint fails, we won't have any log to collect,
+		 * so don't warn about that.
+		 */
+		if err != nil && !os.IsNotExist(err) {
+			shared.Debugf("error collectiong migration log file %s", err)
+		}
+
+		os.RemoveAll(imagesDir)
 	}()
 
 	source := c.controlChannel()
