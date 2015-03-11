@@ -169,6 +169,19 @@ func VarPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
+// LogPath returns the directory that LXD should put logs under. If LXD_DIR is
+// set, this path is $LXD_DIR/logs, otherwise it is /var/log/lxd.
+func LogPath(path ...string) string {
+	varDir := os.Getenv("LXD_DIR")
+	logDir := "/var/log/lxd"
+	if varDir != "" {
+		logDir = filepath.Join(varDir, "logs")
+	}
+	items := []string{logDir}
+	items = append(items, path...)
+	return filepath.Join(items...)
+}
+
 func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMode, err error) {
 
 	uid, err = strconv.Atoi(headers.Get("X-LXD-uid"))
