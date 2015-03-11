@@ -757,27 +757,20 @@ func (d *lxdContainer) applyConfig(config map[string]string) error {
 	}
 
 	if lxcConfig, ok := config["raw.lxc"]; ok {
-		for _, line := range strings.Split(lxcConfig, "\n") {
-			contents := strings.SplitN(line, "=", 2)
-			key := contents[0]
-			value := ""
-			if len(contents) > 1 {
-				value = contents[1]
-			}
+		f, err := ioutil.TempFile("", "tmpConfig")
+		if err != nil {
+			return err
+		}
 
-			key = strings.Trim(key, " ")
-			value = strings.Trim(value, " ")
+		err = shared.WriteAll(f, []byte(lxcConfig))
+		f.Close()
+		defer os.Remove(f.Name())
+		if err != nil {
+			return err
+		}
 
-			// empty lines
-			if key == "" {
-				continue
-			}
-
-			shared.Debugf("setting %s=%s", key, value)
-
-			if err := d.c.SetConfigItem(key, value); err != nil {
-				return err
-			}
+		if err := d.c.LoadConfigFile(f.Name()); err != nil {
+			return err
 		}
 	}
 
