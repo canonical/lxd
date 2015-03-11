@@ -11,14 +11,14 @@ import (
 const helloWorld = "hello world\n"
 
 func TestRsyncSendRecv(t *testing.T) {
-	source, err := ioutil.TempDir("", "source")
+	source, err := ioutil.TempDir("", "lxd_test_source_")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	defer os.RemoveAll(source)
 
-	sink, err := ioutil.TempDir("", "sink")
+	sink, err := ioutil.TempDir("", "lxd_test_sink_")
 	if err != nil {
 		t.Error(err)
 		return
