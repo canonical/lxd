@@ -907,11 +907,6 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	if err != nil {
 		return nil, err
 	}
-	logfile := shared.VarPath("lxc", name, "log")
-	err = c.SetConfigItem("lxc.logfile", logfile)
-	if err != nil {
-		return nil, err
-	}
 	err = c.SetConfigItem("lxc.utsname", name)
 	if err != nil {
 		return nil, err
