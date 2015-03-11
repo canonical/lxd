@@ -116,7 +116,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	f, err := ioutil.TempFile(dirname, "lxd_image")
+	f, err := ioutil.TempFile(dirname, "lxd_image_")
 	if err != nil {
 		return InternalError(err)
 	}
