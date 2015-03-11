@@ -227,7 +227,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		return shared.OperationError(err)
 	}
 
-	checkpointDir, err := ioutil.TempDir("", "lxd_migration")
+	checkpointDir, err := ioutil.TempDir("", "lxd_migration_")
 	if err != nil {
 		s.sendControl(err)
 		return shared.OperationError(err)
@@ -352,7 +352,7 @@ func (c *migrationSink) do() error {
 		return err
 	}
 
-	imagesDir, err := ioutil.TempDir("", "lxd_migration")
+	imagesDir, err := ioutil.TempDir("", "lxd_migration_")
 	if err != nil {
 		os.RemoveAll(imagesDir)
 		c.sendControl(err)
