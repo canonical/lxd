@@ -757,7 +757,7 @@ func (d *lxdContainer) applyConfig(config map[string]string) error {
 	}
 
 	if lxcConfig, ok := config["raw.lxc"]; ok {
-		f, err := ioutil.TempFile("", "tmpConfig")
+		f, err := ioutil.TempFile("", "lxd_config")
 		if err != nil {
 			return err
 		}
