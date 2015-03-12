@@ -570,6 +570,10 @@ func (c *Client) PostImage(filename string, properties []string) (*Response, err
 		return nil, err
 	}
 
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
 	return resp, nil
 }
 
