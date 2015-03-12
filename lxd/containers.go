@@ -157,6 +157,14 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return InternalError(err)
 	}
 
+	// rsync complaisn if the parent directory for the rootfs sync doesn't
+	// exist
+	dpath := shared.VarPath("lxc", req.Name)
+	if err := os.MkdirAll(dpath, 0700); err != nil {
+		removeContainer(d, req.Name)
+		return InternalError(err)
+	}
+
 	config, err := shared.GetTLSConfig(d.certf, d.keyf)
 	if err != nil {
 		removeContainer(d, req.Name)
