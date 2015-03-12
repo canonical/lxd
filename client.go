@@ -798,7 +798,7 @@ func (c *Client) GetAlias(alias string) string {
 
 // Init creates a container from either a fingerprint or an alias; you must
 // provide at least one.
-func (c *Client) Init(name string, image string) (*Response, error) {
+func (c *Client) Init(name string, image string, profiles *[]string) (*Response, error) {
 
 	source := shared.Jmap{"type": "image"}
 
@@ -817,6 +817,10 @@ func (c *Client) Init(name string, image string) (*Response, error) {
 
 	if name != "" {
 		body["name"] = name
+	}
+
+	if profiles != nil {
+		body["profiles"] = *profiles
 	}
 
 	resp, err := c.post("containers", body)

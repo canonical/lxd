@@ -6,6 +6,7 @@ import (
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/internal/gnuflag"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -17,12 +18,24 @@ func (c *launchCmd) showByDefault() bool {
 
 func (c *launchCmd) usage() string {
 	return gettext.Gettext(
-		"lxc launch ubuntu [<name>]\n" +
+		"lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
 			"\n" +
-			"Launches a container using the specified image and name.\n")
+			"Launches a container using the specified image and name.\n" +
+			"\n" +
+			"Not specifying -p will result in the default profile.\n" +
+			"Specifying \"-p\" with no argument will result in no profile.\n" +
+			"\n" +
+			"Example:\n" +
+			"lxc launch ubuntu u1\n")
 }
 
-func (c *launchCmd) flags() {}
+func (c *launchCmd) flags() {
+	massage_args()
+	gnuflag.Var(&profArgs, "profile", "Profile to apply to the new container")
+	gnuflag.Var(&profArgs, "p", "Profile to apply to the new container")
+	gnuflag.BoolVar(&ephem, "ephemeral", false, gettext.Gettext("Ephemeral container"))
+	gnuflag.BoolVar(&ephem, "e", false, gettext.Gettext("Ephemeral container"))
+}
 
 func (c *launchCmd) run(config *lxd.Config, args []string) error {
 
@@ -41,13 +54,31 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		remote = ""
 	}
 
+	if ephem {
+		fmt.Printf(gettext.Gettext("Ephemeral containers not yet supported\n"))
+		return errArgs
+	}
+
 	fmt.Printf("Creating container...")
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
 
-	resp, err := d.Init(name, image)
+	/*
+	 * requested_empty_profiles means user requested empty
+	 * !requested_empty_profiles but len(profArgs) == 0 means use profile default
+	 */
+	var resp *lxd.Response
+	profiles := []string{}
+	for _, p := range profArgs {
+		profiles = append(profiles, p)
+	}
+	if !requested_empty_profiles && len(profiles) == 0 {
+		resp, err = d.Init(name, image, nil)
+	} else {
+		resp, err = d.Init(name, image, &profiles)
+	}
 	if err != nil {
 		return err
 	}
