@@ -539,10 +539,24 @@ func (c *Client) PostImage(filename string, properties []string) (*Response, err
 	req.Header.Set("X-LXD-filename", filename)
 	mode := 0 // private
 	req.Header.Set("X-LXD-public", fmt.Sprintf("%04o", mode))
-	//req.Header.Set("X-LXD-fingerprint", fmt.Sprintf("%04o", mode))
+
 	if len(properties) != 0 {
-		props := strings.Join(properties, "; ")
-		req.Header.Set("X-LXD-properties", props)
+
+		imgProps := url.Values{}
+		for _, value := range properties {
+			eqIndex := strings.Index(value, "=")
+
+			// props must be in key=value format
+			// if not, request will not be accepted
+			if eqIndex > -1 {
+				imgProps.Set(value[:eqIndex], value[eqIndex+1:])
+			} else {
+				return nil, fmt.Errorf(gettext.Gettext("Bad image property: %s\n"), value)
+			}
+
+		}
+
+		req.Header.Set("X-LXD-properties", imgProps.Encode())
 	}
 
 	raw, err := c.http.Do(req)
