@@ -46,6 +46,10 @@ func listContainers(d *lxd.Client, cts []string, showsnaps bool) error {
 			ipv4s := []string{}
 			ipv6s := []string{}
 			for _, ip := range c.Status.Ips {
+				if ip.Interface == "lo" {
+					continue
+				}
+
 				if ip.Protocol == "IPV6" {
 					ipv6s = append(ipv6s, ip.Address)
 				} else {
