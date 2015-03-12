@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-10 14:33-0600\n"
+        "POT-Creation-Date: 2015-03-12 14:35+1100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -81,15 +81,20 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: client.go:1320
+#: client.go:554
+#, c-format
+msgid   "Bad image property: %s\n"
+msgstr  ""
+
+#: client.go:1334
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: client.go:668
+#: client.go:682
 msgid   "Certificate already stored.\n"
 msgstr  ""
 
-#: client.go:672
+#: client.go:686
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -109,7 +114,7 @@ msgstr  ""
 msgid   "Container not found"
 msgstr  ""
 
-#: client.go:686
+#: client.go:700
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -279,7 +284,7 @@ msgstr  ""
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:664
+#: client.go:678
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -287,15 +292,15 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: client.go:945
+#: client.go:959
 msgid   "Non-async response from delete!"
 msgstr  ""
 
-#: client.go:814
+#: client.go:828
 msgid   "Non-async response from init!"
 msgstr  ""
 
-#: client.go:1161
+#: client.go:1175
 msgid   "Non-async response from snapshot!"
 msgstr  ""
 
@@ -340,7 +345,7 @@ msgstr  ""
 msgid   "Public: %s\n"
 msgstr  ""
 
-#: client.go:679
+#: client.go:693
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
@@ -376,11 +381,11 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: client.go:1312 client.go:1333
+#: client.go:1326 client.go:1347
 msgid   "Unexpected async response"
 msgstr  ""
 
-#: client.go:1258 client.go:1401 client.go:1426 client.go:1465
+#: client.go:1272 client.go:1415 client.go:1440 client.go:1479
 msgid   "Unexpected non-async response"
 msgstr  ""
 
@@ -420,7 +425,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:431 client.go:1193 client.go:1200
+#: client.go:431 client.go:1207 client.go:1214
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -429,17 +434,17 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1370
+#: client.go:1384
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
 
-#: client.go:651
+#: client.go:665
 msgid   "bad response type from image list!"
 msgstr  ""
 
-#: client.go:411 client.go:609 client.go:1179 client.go:1350 client.go:1506
-#: client.go:1545 client.go:1603
+#: client.go:411 client.go:623 client.go:1193 client.go:1364 client.go:1520
+#: client.go:1559 client.go:1617
 msgid   "bad response type from list!"
 msgstr  ""
 
@@ -447,11 +452,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:435 client.go:1204
+#: client.go:435 client.go:1218
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1374
+#: client.go:1388
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -477,12 +482,12 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:902
+#: client.go:916
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
 
-#: client.go:839
+#: client.go:853
 msgid   "got bad response type from exec"
 msgstr  ""
 
@@ -490,11 +495,11 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:1076 client.go:1106
+#: client.go:1090 client.go:1120
 msgid   "got non-async response!"
 msgstr  ""
 
-#: client.go:573 client.go:964 client.go:987
+#: client.go:587 client.go:978 client.go:1001
 msgid   "got non-sync response from containers get!"
 msgstr  ""
 
@@ -503,7 +508,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1115
+#: client.go:1129
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -543,7 +548,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1442 client.go:1522
+#: client.go:1456 client.go:1536
 msgid   "no value found in %q\n"
 msgstr  ""
 
@@ -551,7 +556,7 @@ msgstr  ""
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: client.go:673
+#: client.go:687
 msgid   "ok (y/n)? "
 msgstr  ""
 
