@@ -1,8 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/internal/gnuflag"
 )
 
 type initCmd struct{}
@@ -13,12 +17,89 @@ func (c *initCmd) showByDefault() bool {
 
 func (c *initCmd) usage() string {
 	return gettext.Gettext(
-		"lxc init ubuntu [<name>]\n" +
+		"lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
 			"\n" +
-			"Initializes a container using the specified image and name.\n")
+			"Initializes a container using the specified image and name.\n" +
+			"\n" +
+			"Not specifying -p will result in the default profile.\n" +
+			"Specifying \"-p\" with no argument will result in no profile.\n" +
+			"\n" +
+			"Example:\n" +
+			"lxc init ubuntu u1\n")
 }
 
-func (c *initCmd) flags() {}
+type profileList []string
+
+func (f *profileList) String() string {
+	return fmt.Sprint(*f)
+}
+
+func (f *profileList) Set(value string) error {
+	if value == "" {
+		requested_empty_profiles = true
+		return nil
+	}
+	if f == nil {
+		*f = make(profileList, 1)
+	} else {
+		*f = append(*f, value)
+	}
+	return nil
+}
+
+var profArgs profileList
+var requested_empty_profiles bool = false
+var ephem bool = false
+
+func is_ephem(s string) bool {
+	switch s {
+	case "-e":
+		return true
+	case "--ephemeral":
+		return true
+	}
+	return false
+}
+
+func is_profile(s string) bool {
+	switch s {
+	case "-p":
+		return true
+	case "--profile":
+		return true
+	}
+	return false
+}
+
+func massage_args() {
+	l := len(os.Args)
+	if l < 2 {
+		return
+	}
+	if is_profile(os.Args[l-1]) {
+		requested_empty_profiles = true
+		os.Args = os.Args[0 : l-1]
+		return
+	}
+	if l < 3 {
+		return
+	}
+	/* catch "lxc init ubuntu -p -e */
+	if is_ephem(os.Args[l-1]) && is_profile(os.Args[l-2]) {
+		requested_empty_profiles = true
+		newargs := os.Args[0 : l-2]
+		newargs = append(newargs, os.Args[l-1])
+		return
+	}
+}
+
+func (c *initCmd) flags() {
+	massage_args()
+	gnuflag.Var(&profArgs, "profile", "Profile to apply to the new container")
+	gnuflag.Var(&profArgs, "p", "Profile to apply to the new container")
+	gnuflag.BoolVar(&ephem, "ephemeral", false, gettext.Gettext("Ephemeral container"))
+	gnuflag.BoolVar(&ephem, "e", false, gettext.Gettext("Ephemeral container"))
+}
 
 func (c *initCmd) run(config *lxd.Config, args []string) error {
 	if len(args) > 2 || len(args) < 1 {
@@ -37,13 +118,32 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		remote = ""
 	}
 
+	if ephem {
+		fmt.Printf(gettext.Gettext("Ephemeral containers not yet supported\n"))
+		return errArgs
+	}
+
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
 
 	// TODO: implement the syntax for supporting other image types/remotes
-	resp, err := d.Init(name, image)
+
+	/*
+	 * requested_empty_profiles means user requested empty
+	 * !requested_empty_profiles but len(profArgs) == 0 means use profile default
+	 */
+	var resp *lxd.Response
+	profiles := []string{}
+	for _, p := range profArgs {
+		profiles = append(profiles, p)
+	}
+	if !requested_empty_profiles && len(profiles) == 0 {
+		resp, err = d.Init(name, image, nil)
+	} else {
+		resp, err = d.Init(name, image, &profiles)
+	}
 	if err != nil {
 		return err
 	}
