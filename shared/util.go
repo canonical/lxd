@@ -118,6 +118,10 @@ void own_pty(int fd) {
 	if (ioctl(fd, TIOCSCTTY, (char *)NULL) == -1)
 		printf("Failed TIOCSCTTY: %s\n", strerror(errno));
 }
+
+int do_fork() {
+	return fork();
+}
 */
 import "C"
 
@@ -544,12 +548,12 @@ func WriteAllBuf(w io.Writer, buf *bytes.Buffer) error {
 	}
 }
 
-func Fork() (uintptr, syscall.Errno) {
-	r1, _, err1 := syscall.RawSyscall(syscall.SYS_FORK, 0, 0, 0)
+func Fork() (int, int) {
+	pid := C.do_fork()
 
-	if err1 != 0 {
-		return 0, err1
+	if pid < 0 {
+		return 0, int(pid)
 	}
 
-	return r1, 0
+	return int(pid), 0
 }
