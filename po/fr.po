@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-03-06 16:27-0500\n"
+"POT-Creation-Date: 2015-03-12 13:58+1100\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -16,16 +16,55 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+#: lxc/image.go:24
+msgid ""
+"### This is a yaml representation of the image properties.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### Each property is represented by thee lines:\n"
+"###\n"
+"###  The first is 'imagetype: ' followed by an integer.  0 means\n"
+"###  a short string, 1 means a long text value containing newlines.\n"
+"###\n"
+"###  This is followed by the key and value\n"
+"###\n"
+"###  An example would be:\n"
+"### - imagetype: 0\n"
+"###   key: os\n"
+"###   value: Ubuntu\n"
+msgstr ""
+
+#: lxc/config.go:25
+msgid ""
+"### This is a yaml representation of the profile.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### A profile consists of a set of configuration items followed by a set of\n"
+"### devices.\n"
+"###\n"
+"### An example would look like:\n"
+"### name: onenic\n"
+"### config:\n"
+"###   raw.lxc: lxc.aa_profile=unconfined\n"
+"### devices:\n"
+"###   eth0:\n"
+"###     nictype: bridged\n"
+"###     parent: lxcbr0\n"
+"###     type: nic\n"
+"###\n"
+"### Note that the name cannot be changed\n"
+msgstr ""
+
 #: lxc/snapshot.go:50
 msgid "'/' not allowed in snapshot name\n"
 msgstr "'/' n'est pas autorisé dans le nom d'un instantané (snapshot)\n"
 
-#: lxc/image.go:59
+#: lxc/image.go:84
 #, c-format
 msgid "(Bad alias entry: %s\n"
 msgstr "(Alias invalide: %s\n"
 
-#: lxc/image.go:173
+#: lxc/image.go:244
 #, c-format
 msgid "(Bad image entry: %s\n"
 msgstr "(Image invalide: %s\n"
@@ -35,15 +74,28 @@ msgstr "(Image invalide: %s\n"
 msgid "Admin password for %s: "
 msgstr "Mot de passe administrateur pour %s: "
 
+#: lxc/image.go:178
+msgid "Aliases:\n"
+msgstr ""
+
 #: lxc/main.go:29
 msgid "Alternate config directory."
 msgstr "Dossier de configuration alternatif."
 
-#: client.go:543
+#: client.go:554
+#, fuzzy, c-format
+msgid "Bad image property format: %s\n"
+msgstr "(Image invalide: %s\n"
+
+#: client.go:1334
+msgid "Cannot change profile name"
+msgstr ""
+
+#: client.go:682
 msgid "Certificate already stored.\n"
 msgstr "Le certificat a déjà été enregistré.\n"
 
-#: client.go:547
+#: client.go:686
 #, c-format
 msgid "Certificate fingerprint: % x\n"
 msgstr "Empreinte du certificat: % x\n"
@@ -60,7 +112,11 @@ msgstr "Change l'état du conteneur à %s.\n"
 msgid "Client certificate stored at server: "
 msgstr "Certificat client enregistré avec le serveur: "
 
-#: client.go:561
+#: lxc/list.go:42
+msgid "Container not found"
+msgstr ""
+
+#: client.go:700
 msgid "Could not create server cert dir"
 msgstr "Le dossier de stockage des certificats serveurs n'a pas pû être créé"
 
@@ -80,12 +136,12 @@ msgid ""
 "snapshots, ...).\n"
 msgstr ""
 
-#: lxc/config.go:475
+#: lxc/config.go:549
 #, c-format
 msgid "Device %s added to %s\n"
 msgstr ""
 
-#: lxc/config.go:503
+#: lxc/config.go:577
 #, c-format
 msgid "Device %s removed from %s\n"
 msgstr ""
@@ -122,6 +178,11 @@ msgstr "Force l'arrêt du conteneur."
 msgid "Generating a client certificate. This may take a minute...\n"
 msgstr "Géneration d'un certificat client. Ceci peut prendre une minute...\n"
 
+#: lxc/image.go:168
+#, c-format
+msgid "Hash: %s\n"
+msgstr ""
+
 #: lxc/info.go:37
 msgid "Information about remotes not yet supported\n"
 msgstr ""
@@ -147,7 +208,7 @@ msgid ""
 "lxc info [<remote>:]container\n"
 msgstr ""
 
-#: lxc/list.go:19
+#: lxc/list.go:21
 msgid ""
 "Lists the available resources.\n"
 "\n"
@@ -157,7 +218,7 @@ msgid ""
 "the defined containers.\n"
 msgstr ""
 
-#: lxc/config.go:22
+#: lxc/config.go:45
 msgid ""
 "Manage configuration.\n"
 "\n"
@@ -172,6 +233,8 @@ msgid ""
 "lxc config profile delete <profile>              Delete profile\n"
 "lxc config profile device add <profile> <name> <type> [key=value]...\n"
 "               Delete profile\n"
+"lxc config profile edit <profile>                Edit profile in external "
+"editor\n"
 "lxc config profile device list <profile>\n"
 "lxc config profile device remove <profile> <name>\n"
 "lxc config profile set <profile> <key> <value>   Set profile configuration\n"
@@ -219,7 +282,7 @@ msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger mais la destination n'est pas un dossier"
 
-#: lxc/move.go:22
+#: lxc/move.go:23
 msgid ""
 "Move containers within or in between lxd instances.\n"
 "\n"
@@ -227,30 +290,30 @@ msgid ""
 "lxc move <source container> <destination container>\n"
 msgstr ""
 
-#: lxc/config.go:142
+#: lxc/config.go:166
 msgid "No cert provided to add"
 msgstr "Un certificat n'a pas été fournis"
 
-#: client.go:539
+#: client.go:678
 msgid "No certificate on this connection"
 msgstr "Aucun certificat pour cette connexion"
 
-#: lxc/config.go:165
+#: lxc/config.go:189
 msgid "No fingerprint specified."
 msgstr "Aucune empreinte n'a été spécifié."
 
-#: client.go:803
+#: client.go:959
 #, fuzzy
 msgid "Non-async response from delete!"
 msgstr "Réponse invalide (non-async) durant la suppression!"
 
-#: client.go:672
+#: client.go:828
 #, fuzzy
 msgid "Non-async response from init!"
 msgstr ""
 "Réponse invalide (non-async) durant la cration d'un instantané (snapshot)!"
 
-#: client.go:1014
+#: client.go:1175
 msgid "Non-async response from snapshot!"
 msgstr ""
 "Réponse invalide (non-async) durant la cration d'un instantané (snapshot)!"
@@ -276,26 +339,35 @@ msgid ""
 "lxc version\n"
 msgstr "Montre le numéro de version de LXD.\n"
 
-#: lxc/config.go:325
+#: lxc/config.go:399
 #, c-format
 msgid "Profile %s applied to %s\n"
 msgstr ""
 
-#: lxc/config.go:306
+#: lxc/config.go:332
 #, c-format
 msgid "Profile %s created\n"
 msgstr ""
 
-#: lxc/config.go:314
+#: lxc/config.go:388
 #, c-format
 msgid "Profile %s deleted\n"
 msgstr ""
 
-#: client.go:554
+#: lxc/image.go:174
+msgid "Properties:\n"
+msgstr ""
+
+#: lxc/image.go:173
+#, c-format
+msgid "Public: %s\n"
+msgstr ""
+
+#: client.go:693
 msgid "Server certificate NACKed by user"
 msgstr "Le certificat serveur a été rejeté par l'utilisateur"
 
-#: client.go:228
+#: client.go:229
 msgid "Server certificate has changed"
 msgstr "Le certificat serveur a changé"
 
@@ -327,16 +399,16 @@ msgstr "L'arrêt du conteneur a échoué!"
 msgid "Time to wait for the container before killing it."
 msgstr "Temps d'attente avant de tuer le conteneur."
 
-#: client.go:1162
+#: client.go:1326 client.go:1347
 msgid "Unexpected async response"
 msgstr ""
 
-#: client.go:1111 client.go:1230 client.go:1255 client.go:1294
+#: client.go:1272 client.go:1415 client.go:1440 client.go:1479
 #, fuzzy
 msgid "Unexpected non-async response"
 msgstr "Réponse invalide (non-async) durant la suppression!"
 
-#: lxc/image.go:180
+#: lxc/image.go:347
 #, c-format
 msgid "Unknown image command %s"
 msgstr "Comande d'image inconnue %s"
@@ -346,7 +418,7 @@ msgstr "Comande d'image inconnue %s"
 msgid "Unknown remote subcommand %s"
 msgstr "Comande de serveur distant inconnue %s"
 
-#: lxc/config.go:192
+#: lxc/config.go:216
 #, c-format
 msgid "Unkonwn config trust command %s"
 msgstr "Comande de configuration de confiance inconnue %s"
@@ -378,11 +450,11 @@ msgstr ""
 "Est-ce que l'état de fonctionement du conteneur doit être inclus dans "
 "l'instantané (snapshot)"
 
-#: client.go:372
+#: client.go:373
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "Version de l'API incompatible: local: %q, distant: %q"
 
-#: client.go:430 client.go:1046 client.go:1053
+#: client.go:431 client.go:1207 client.go:1214
 #, c-format
 msgid "bad container url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
@@ -391,17 +463,17 @@ msgstr "Mauvaise URL pour le conteneur %s"
 msgid "bad number of things scanned from resource"
 msgstr "nombre de propriété invalide pour la ressource"
 
-#: client.go:1199
+#: client.go:1384
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
 
-#: client.go:526
+#: client.go:665
 msgid "bad response type from image list!"
 msgstr "mauvais type de réponse pour la liste d'image!"
 
-#: client.go:410 client.go:487 client.go:1032 client.go:1179 client.go:1335
-#: client.go:1374 client.go:1432
+#: client.go:411 client.go:623 client.go:1193 client.go:1364 client.go:1520
+#: client.go:1559 client.go:1617
 msgid "bad response type from list!"
 msgstr "mauvais type de réponse pour la liste!"
 
@@ -409,16 +481,16 @@ msgstr "mauvais type de réponse pour la liste!"
 msgid "bad result type from action"
 msgstr "mauvais type de réponse pour l'action!"
 
-#: client.go:434 client.go:1057
+#: client.go:435 client.go:1218
 msgid "bad version in container url"
 msgstr "version invalide dans l'URL du conteneur"
 
-#: client.go:1203
+#: client.go:1388
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "version invalide dans l'URL du conteneur"
 
-#: client.go:326 client.go:331
+#: client.go:327 client.go:332
 msgid "cannot resolve unix socket address: %v"
 msgstr "Ne peut pas résoudre l'adresse du unix socket: %v"
 
@@ -443,12 +515,12 @@ msgstr ""
 msgid "error: unknown command: %s\n"
 msgstr "erreur: comande inconnue: %s\n"
 
-#: client.go:760
+#: client.go:916
 #, c-format
 msgid "got bad op status %s"
 msgstr "reçu un status d'opration invalide %s"
 
-#: client.go:697
+#: client.go:853
 msgid "got bad response type from exec"
 msgstr "reçu une mauvaise réponse pour \"exec\""
 
@@ -456,12 +528,12 @@ msgstr "reçu une mauvaise réponse pour \"exec\""
 msgid "got bad version"
 msgstr "reçu une version invalide"
 
-#: client.go:934 client.go:959
+#: client.go:1090 client.go:1120
 #, fuzzy
 msgid "got non-async response!"
 msgstr "Réponse invalide (non-async) durant la suppression!"
 
-#: client.go:822 client.go:845
+#: client.go:587 client.go:978 client.go:1001
 msgid "got non-sync response from containers get!"
 msgstr "Réponse invalide (non-async) durant le chargement!"
 
@@ -470,26 +542,29 @@ msgstr "Réponse invalide (non-async) durant le chargement!"
 msgid "invalid argument %s"
 msgstr "Arguments invalides %s"
 
-#: client.go:968
+#: client.go:1129
 #, c-format
 msgid "invalid wait url %s"
 msgstr "URL d'attente invalide %s"
 
-#: lxc/image.go:18
+#: lxc/image.go:41
 msgid ""
 "lxc image import <tarball> [target] [--created-at=ISO-8601] [--expires-"
 "at=ISO-8601] [--fingerprint=HASH] [prop=value]\n"
 "\n"
-"lxc image list [resource:] [filter]\n"
 "lxc image delete [resource:]<image>\n"
+"lxc image edit [resource:]\n"
+"lxc image export [resource:]<image>\n"
+"lxc image info [resource:]<image>\n"
+"lxc image list [resource:] [filter]\n"
 "\n"
 "Lists the images at resource, or local images.\n"
 "Filters are not yet supported.\n"
 "\n"
-"lxc image alias list [resource:]\n"
 "lxc image alias create <alias> <target>\n"
 "lxc image alias delete <alias>\n"
-"list, create, delete image aliases\n"
+"lxc image alias list [resource:]\n"
+"create, delete, list image aliases\n"
 msgstr ""
 
 #: lxc/init.go:16
@@ -506,15 +581,19 @@ msgid ""
 "Launches a container using the specified image and name.\n"
 msgstr ""
 
-#: client.go:102
+#: client.go:103
 msgid "no response!"
 msgstr "pas de réponse!"
 
-#: client.go:1271 client.go:1351
+#: client.go:1456 client.go:1536
 msgid "no value found in %q\n"
 msgstr ""
 
-#: client.go:548
+#: lxc/move.go:69
+msgid "not all the profiles from the source exist on the target"
+msgstr ""
+
+#: client.go:687
 msgid "ok (y/n)? "
 msgstr "ok (y/n)?"
 
@@ -533,7 +612,7 @@ msgstr "le serveur distant %s n'existe pas"
 msgid "remote %s exists as <%s>"
 msgstr "le serveur distant %s existe en tant que <%s>"
 
-#: client.go:205
+#: client.go:206
 msgid "unknown remote name: %q"
 msgstr "serveur distant inconnu: %q"
 
