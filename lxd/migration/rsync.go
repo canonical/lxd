@@ -1,7 +1,10 @@
 package migration
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net"
+	"os"
 	"os/exec"
 
 	"github.com/gorilla/websocket"
@@ -41,6 +44,17 @@ func AddSlash(path string) string {
 
 func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, error) {
 	/*
+	 * It's sort of unfortunate, but there's no library call to get a
+	 * temporary name, so we get the file and close it and use its name.
+	 */
+	f, err := ioutil.TempFile("", "lxd_rsync_")
+	if err != nil {
+		return nil, nil, err
+	}
+	f.Close()
+	os.Remove(f.Name())
+
+	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
 	 * way for us to capture this process' stdin/stdout, we just use netcat
@@ -54,7 +68,7 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, error) {
 	 * stdin/stdout, but that also seemed messy. In any case, this seems to
 	 * work just fine.
 	 */
-	l, err := net.Listen("unix", "/tmp/rsync-socket")
+	l, err := net.Listen("unix", f.Name())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -70,7 +84,8 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, error) {
 	 * command (i.e. the command to run on --server). However, we're
 	 * hardcoding that at the other end, so we can just ignore it.
 	 */
-	cmd := exec.Command("rsync", "-arvPz", "--devices", "--partial", path, "localhost:/tmp/foo", "-e", "sh -c \"nc -U /tmp/rsync-socket\"")
+	rsyncCmd := fmt.Sprintf("sh -c \"nc -U %s\"", f.Name())
+	cmd := exec.Command("rsync", "-arvPz", "--devices", "--partial", path, "localhost:/tmp/foo", "-e", rsyncCmd)
 	if err := cmd.Start(); err != nil {
 		return nil, nil, err
 	}

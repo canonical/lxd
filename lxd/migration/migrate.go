@@ -234,7 +234,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 	}
 	defer os.RemoveAll(checkpointDir)
 
-	opts := lxc.CheckpointOptions{Stop: true, Directory: checkpointDir}
+	opts := lxc.CheckpointOptions{Stop: true, Directory: checkpointDir, Verbose: true}
 	err = s.container.Checkpoint(opts)
 
 	if err2 := collectMigrationLogFile(s.container, checkpointDir, "dump"); err2 != nil {
