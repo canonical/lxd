@@ -8,10 +8,10 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
@@ -134,7 +134,6 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	expectedHash := r.Header.Get("X-LXD-fingerprint")
 	if expectedHash != "" && hash != expectedHash {
 		err = fmt.Errorf("hashes don't match, got %s expected %s", hash, expectedHash)
-		fmt.Println("TYCHO: ", err)
 		return cleanup(err, fname)
 	}
 
@@ -177,8 +176,11 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return cleanup(err, hashfname)
 	}
 
-	properties := r.Header.Get("X-LXD-properties")
-	if properties != "" {
+	// read multiple headers, if required
+	propHeaders := r.Header[http.CanonicalHeaderKey("X-LXD-properties")]
+
+	if len(propHeaders) > 0 {
+
 		id64, err := result.LastInsertId()
 		if err != nil {
 			tx.Rollback()
@@ -193,29 +195,36 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		}
 		defer pstmt.Close()
 
-		list := strings.Split(properties, "; ")
-		for _, l := range list {
-			fields := strings.SplitN(l, "=", 2)
-			if len(fields) != 2 {
-				shared.Debugf("Bad image property: %s\n", l)
-				continue
-			}
-			_, err = pstmt.Exec(id, fields[0], fields[1])
+		for _, ph := range propHeaders {
+
+			// url parse the header
+			p, err := url.ParseQuery(ph)
+
 			if err != nil {
 				tx.Rollback()
 				return cleanup(err, hashfname)
 			}
+
+			// for each key value pair, exec statement
+			for pkey, pval := range p {
+
+				// we can assume, that there is just one
+				// value per key
+				_, err = pstmt.Exec(id, pkey, pval[0])
+				if err != nil {
+					tx.Rollback()
+					return cleanup(err, hashfname)
+				}
+
+			}
+
 		}
+
 	}
 
 	if err := tx.Commit(); err != nil {
 		return cleanup(err, hashfname)
 	}
-
-	/*
-	 * TODO - take X-LXD-properties from headers and add those to
-	 * containers_properties table
-	 */
 
 	metadata := make(map[string]string)
 	metadata["fingerprint"] = hash

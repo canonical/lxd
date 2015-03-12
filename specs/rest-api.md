@@ -650,7 +650,7 @@ In the http file upload case, The following headers may be set by the client:
  * X-LXD-fingerprint: SHA-256 (if set, uploaded file must match)
  * X-LXD-filename: FILENAME (used for export)
  * X-LXD-public: true/false (defaults to false)
- * X-LXD-properties: key=value; key1=value1 (optional properties)
+ * X-LXD-properties: URL-encoded key value pairs without duplicate keys (optional properties)
 
 In the source container case, the following dict must be passed:
 
