@@ -218,15 +218,16 @@ func (c *Client) get(base string) (*Response, error) {
 	return c.baseGet(uri)
 }
 
-func (c *Client) baseGet(url string) (*Response, error) {
-	resp, err := c.http.Get(url)
+func (c *Client) baseGet(getUrl string) (*Response, error) {
+	resp, err := c.http.Get(getUrl)
 	if err != nil {
 		return nil, err
 	}
 
 	if c.scert != nil && resp.TLS != nil {
 		if !bytes.Equal(resp.TLS.PeerCertificates[0].Raw, c.scert.Raw) {
-			return nil, fmt.Errorf(gettext.Gettext("Server certificate has changed"))
+			pUrl, _ := url.Parse(getUrl)
+			return nil, fmt.Errorf(gettext.Gettext("Server certificate for host %s has changed. Add correct certificate or remove certificate in %s"), pUrl.Host, ConfigPath("servercerts"))
 		}
 	}
 
@@ -679,7 +680,6 @@ func (c *Client) UserAuthServerCert() error {
 	}
 
 	if c.scert != nil {
-		fmt.Printf(gettext.Gettext("Certificate already stored.\n"))
 		return nil
 	}
 
