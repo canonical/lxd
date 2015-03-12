@@ -551,7 +551,7 @@ func (c *Client) PostImage(filename string, properties []string) (*Response, err
 			if eqIndex > -1 {
 				imgProps.Set(value[:eqIndex], value[eqIndex+1:])
 			} else {
-				return nil, fmt.Errorf(gettext.Gettext("Bad image property format: %s\n"), value)
+				return nil, fmt.Errorf(gettext.Gettext("Bad image property: %s\n"), value)
 			}
 
 		}

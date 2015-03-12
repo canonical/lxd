@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-12 13:58+1100\n"
+        "POT-Creation-Date: 2015-03-12 14:35+1100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -83,7 +83,7 @@ msgstr  ""
 
 #: client.go:554
 #, c-format
-msgid   "Bad image property format: %s\n"
+msgid   "Bad image property: %s\n"
 msgstr  ""
 
 #: client.go:1334
