@@ -296,23 +296,6 @@ func dbRemoveContainer(d *Daemon, name string) {
 	_, _ = d.db.Exec("DELETE FROM containers WHERE name=?", name)
 }
 
-//func dbGetImageId(d *Daemon, image string) (int, string, error) {
-//
-//	var id int
-//	var uuid string
-//	err := d.db.QueryRow("SELECT id, fingerprint FROM images WHERE fingerprint like ?", (image+"%")).Scan(&id, &uuid)
-//
-//	switch {
-//	case err == sql.ErrNoRows:
-//		return 0, "", fmt.Errorf("No such image")
-//	case err != nil:
-//		return 0, "", err
-//	default:
-//		return id, uuid, nil
-//	}
-//
-//}
-
 func dbGetContainerId(db *sql.DB, name string) (int, error) {
 	rows, err := db.Query("SELECT id FROM containers WHERE name=?", name)
 	if err != nil {
