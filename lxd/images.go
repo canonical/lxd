@@ -556,31 +556,31 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 func imageExport(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to images/export")
 
-	name := mux.Vars(r)["name"]
+	hash := mux.Vars(r)["hash"]
 
-	rows, err := d.db.Query(`SELECT images.filename, images.size FROM images WHERE images.fingerprint=?`, name)
+	rows, err := d.db.Query(`SELECT images.size FROM images WHERE images.fingerprint=?`, hash)
 	if err != nil {
 		return InternalError(err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var filename string
+		path := shared.VarPath("images", hash)
 		var size int64
-		if err := rows.Scan(&filename, &size); err != nil {
+		if err := rows.Scan(&size); err != nil {
 			return InternalError(err)
 		}
 
 		// test compression, for content type header
 		// if unknown compression we send standard header
-		_, err := detectCompression(filename)
+		_, err := detectCompression(path)
 
 		ctype := "application/x-gtar"
 		if err != nil {
 			ctype = "application/octet-stream"
 		}
 
-		return FileResponse(filename, size, ctype)
+		return FileResponse(path, size, ctype)
 
 	}
 
@@ -588,7 +588,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 }
 
-var imagesExportCmd = Command{name: "images/{name}/export", get: imageExport}
+var imagesExportCmd = Command{name: "images/{hash}/export", get: imageExport}
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 
