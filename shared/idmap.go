@@ -1,4 +1,4 @@
-package main
+package shared
 
 import (
 	"bufio"
@@ -8,8 +8,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-
-	"github.com/lxc/lxd/shared"
 )
 
 /*
@@ -107,7 +105,7 @@ func NewIdmap() (*Idmap, error) {
 }
 
 func (i *Idmap) ShiftRootfs(p string) error {
-	set := shared.IdmapSet{}
+	set := IdmapSet{}
 	uidstr := fmt.Sprintf("u:0:%d:%d", i.Uidmin, i.Uidrange)
 	gidstr := fmt.Sprintf("g:0:%d:%d", i.Gidmin, i.Gidrange)
 	set, err := set.Append(uidstr)
@@ -118,5 +116,5 @@ func (i *Idmap) ShiftRootfs(p string) error {
 	if err != nil {
 		return err
 	}
-	return shared.Uidshift(p, set, false)
+	return Uidshift(p, set, false)
 }
