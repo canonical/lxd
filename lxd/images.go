@@ -558,7 +558,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 	hash := mux.Vars(r)["hash"]
 
-	rows, err := d.db.Query(`SELECT images.size FROM images WHERE images.fingerprint=?`, hash)
+	rows, err := d.db.Query(`SELECT images.filename, images.size FROM images WHERE images.fingerprint=?`, hash)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -566,9 +566,14 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 	for rows.Next() {
 		path := shared.VarPath("images", hash)
+		var filename string
 		var size int64
-		if err := rows.Scan(&size); err != nil {
+		if err := rows.Scan(&filename, &size); err != nil {
 			return InternalError(err)
+		}
+
+		if filename == "" {
+			filename = hash
 		}
 
 		// test compression, for content type header
@@ -580,7 +585,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 			ctype = "application/octet-stream"
 		}
 
-		return FileResponse(path, size, ctype)
+		return FileResponse(path, filename, size, ctype)
 
 	}
 
