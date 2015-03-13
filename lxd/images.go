@@ -547,20 +547,19 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	path := shared.VarPath("images", hash)
 	filename := imgInfo.Filename
 
-	// test compression, for content type header
-	// if unknown compression we send standard header
-	_, ext, err := detectCompression(path)
-
-	ctype := "application/x-gtar"
-	if err != nil {
-		ctype = "application/octet-stream"
-	}
-
 	if filename == "" {
+		_, ext, err := detectCompression(path)
+		if err != nil {
+			ext = ""
+		}
 		filename = fmt.Sprintf("%s%s", hash, ext)
 	}
 
-	return FileResponse(path, filename, imgInfo.Size, ctype)
+	headers := map[string]string{
+		"Content-Disposition": fmt.Sprintf("inline;filename=%s", filename),
+	}
+
+	return FileResponse(r, path, filename, headers)
 }
 
 var imagesExportCmd = Command{name: "images/{hash}/export", get: imageExport}

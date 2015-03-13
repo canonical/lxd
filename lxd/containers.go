@@ -1031,41 +1031,25 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	}
 }
 
-type fileServe struct {
-	req     *http.Request
-	path    string
-	fi      os.FileInfo
-	content *os.File
-}
+func containerFileGet(r *http.Request, path string) Response {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return SmartError(err)
+	}
 
-func (r *fileServe) Render(w http.ResponseWriter) error {
 	/*
 	 * Unfortunately, there's no portable way to do this:
 	 * https://groups.google.com/forum/#!topic/golang-nuts/tGYjYyrwsGM
 	 * https://groups.google.com/forum/#!topic/golang-nuts/ywS7xQYJkHY
 	 */
-	sb := r.fi.Sys().(*syscall.Stat_t)
-	w.Header().Set("X-LXD-uid", strconv.FormatUint(uint64(sb.Uid), 10))
-	w.Header().Set("X-LXD-gid", strconv.FormatUint(uint64(sb.Gid), 10))
-	w.Header().Set("X-LXD-mode", fmt.Sprintf("%04o", r.fi.Mode()&os.ModePerm))
-
-	http.ServeContent(w, r.req, r.path, r.fi.ModTime(), r.content)
-	r.content.Close()
-	return nil
-}
-
-func containerFileGet(r *http.Request, path string) Response {
-	f, err := os.Open(path)
-	if err != nil {
-		return SmartError(err)
+	sb := fi.Sys().(*syscall.Stat_t)
+	headers := map[string]string{
+		"X-LXD-uid":  strconv.FormatUint(uint64(sb.Uid), 10),
+		"X-LXD-gid":  strconv.FormatUint(uint64(sb.Gid), 10),
+		"X-LXD-mode": fmt.Sprintf("%04o", fi.Mode()&os.ModePerm),
 	}
 
-	fi, err := f.Stat()
-	if err != nil {
-		return InternalError(err)
-	}
-
-	return &fileServe{r, filepath.Base(path), fi, f}
+	return FileResponse(r, path, filepath.Base(path), headers)
 }
 
 func containerFilePut(r *http.Request, p string) Response {
