@@ -11,21 +11,22 @@ test_basic_usage() {
 
   # Test image export
   sum=$(lxc image info testimage | grep ^Hash | cut -d' ' -f2)
-  lxc image export testimage ${LXD_DIR}/out
-  [ "$sum" = "$(sha256sum ${LXD_DIR}/out | cut -d' ' -f1)" ]
+  lxc image export testimage ${LXD_DIR}/
+  [ "$sum" = "$(sha256sum ${LXD_DIR}/${sum}.tar.xz | cut -d' ' -f1)" ]
 
   # Test iamge delete
   lxc image delete testimage
 
   # Re-import the image
-  lxc image import ${LXD_DIR}/out
+  mv ${LXD_DIR}/${sum}.tar.xz ${LXD_DIR}/testimage.tar.xz
+  lxc image import ${LXD_DIR}/testimage.tar.xz
   lxc image alias create testimage $sum
-  rm ${LXD_DIR}/out
+  rm ${LXD_DIR}/testimage.tar.xz
 
   # Test filename for image export (should be "out")
   lxc image export testimage ${LXD_DIR}/
-  [ "$sum" = "$(sha256sum ${LXD_DIR}/out | cut -d' ' -f1)" ]
-  rm ${LXD_DIR}/out
+  [ "$sum" = "$(sha256sum ${LXD_DIR}/testimage.tar.xz | cut -d' ' -f1)" ]
+  rm ${LXD_DIR}/testimage.tar.xz
 
   # Test container creation
   lxc init testimage foo
