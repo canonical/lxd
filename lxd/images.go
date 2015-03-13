@@ -23,7 +23,7 @@ const (
 	COMPRESSION_GZIP
 	COMPRESSION_BZ2
 	COMPRESSION_LZMA
-	COMPRESSION_XY
+	COMPRESSION_XZ
 )
 
 const (
@@ -55,11 +55,11 @@ func getSize(f *os.File) (int64, error) {
 	return fi.Size(), nil
 }
 
-func detectCompression(fname string) (int, error) {
+func detectCompression(fname string) (int, string, error) {
 
 	f, err := os.Open(fname)
 	if err != nil {
-		return -1, err
+		return -1, "", err
 	}
 	defer f.Close()
 
@@ -74,17 +74,17 @@ func detectCompression(fname string) (int, error) {
 
 	switch {
 	case bytes.Equal(header[0:2], []byte{'B', 'Z'}):
-		return COMPRESSION_BZ2, nil
+		return COMPRESSION_BZ2, ".tar.bz2", nil
 	case bytes.Equal(header[0:2], []byte{0x1f, 0x8b}):
-		return COMPRESSION_GZIP, nil
+		return COMPRESSION_GZIP, ".tar.gz", nil
 	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] == 0xFD):
-		return COMPRESSION_XY, nil
+		return COMPRESSION_XZ, ".tar.xz", nil
 	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] != 0xFD):
-		return COMPRESSION_LZMA, nil
+		return COMPRESSION_LZMA, ".tar.lzma", nil
 	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
-		return COMPRESSION_TAR, nil
+		return COMPRESSION_TAR, ".tar", nil
 	default:
-		return -1, fmt.Errorf("Unsupported compression.")
+		return -1, "", fmt.Errorf("Unsupported compression.")
 	}
 
 }
@@ -250,7 +250,7 @@ func xzReader(r io.Reader) io.ReadCloser {
 
 func getImageMetadata(fname string) (*imageMetadata, error) {
 
-	compression, err := detectCompression(fname)
+	compression, _, err := detectCompression(fname)
 
 	if err != nil {
 		return nil, err
@@ -572,13 +572,13 @@ func imageExport(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		if filename == "" {
-			filename = hash
-		}
-
 		// test compression, for content type header
 		// if unknown compression we send standard header
-		_, err := detectCompression(path)
+		_, ext, err := detectCompression(path)
+
+		if filename == "" {
+			filename = fmt.Sprintf("%s%s", hash, ext)
+		}
 
 		ctype := "application/x-gtar"
 		if err != nil {

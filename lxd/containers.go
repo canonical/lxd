@@ -244,7 +244,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	dpath := shared.VarPath("lxc", name)
 	imagefile := shared.VarPath("images", uuid)
 
-	compression, err := detectCompression(imagefile)
+	compression, _, err := detectCompression(imagefile)
 	if err != nil {
 		fmt.Printf("Unkown compression type: %s", err)
 		removeContainer(d, name)
