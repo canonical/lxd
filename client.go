@@ -523,10 +523,10 @@ func (c *Client) ExportImage(image string, target string) (*Response, error) {
 
 }
 
-func (c *Client) PostImage(filename string, properties []string) (*Response, error) {
+func (c *Client) PostImage(path string, properties []string) (*Response, error) {
 	uri := c.url(shared.APIVersion, "images")
 
-	f, err := os.Open(filename)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -537,7 +537,7 @@ func (c *Client) PostImage(filename string, properties []string) (*Response, err
 		return nil, err
 	}
 
-	req.Header.Set("X-LXD-filename", filename)
+	req.Header.Set("X-LXD-filename", filepath.Base(path))
 	mode := 0 // private
 	req.Header.Set("X-LXD-public", fmt.Sprintf("%04o", mode))
 
