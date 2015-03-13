@@ -279,7 +279,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 	}
 
 	fsDir := s.container.ConfigItem("lxc.rootfs")[0]
-	if err := RsyncSend(fsDir, s.fsConn); err != nil {
+	if err := RsyncSend(AddSlash(fsDir), s.fsConn); err != nil {
 		s.sendControl(err)
 		return shared.OperationError(err)
 	}
@@ -304,23 +304,37 @@ type migrationSink struct {
 
 	url    string
 	dialer websocket.Dialer
+	idMap  *shared.Idmap
 }
 
-func NewMigrationSink(url string, dialer websocket.Dialer, c *lxc.Container, secrets map[string]string) (func() error, error) {
-	sink := migrationSink{migrationFields{container: c}, url, dialer}
+type MigrationSinkArgs struct {
+	Url       string
+	Dialer    websocket.Dialer
+	Container *lxc.Container
+	Secrets   map[string]string
+	IdMap     *shared.Idmap
+}
+
+func NewMigrationSink(args *MigrationSinkArgs) (func() error, error) {
+	sink := migrationSink{
+		migrationFields{container: args.Container},
+		args.Url,
+		args.Dialer,
+		args.IdMap,
+	}
 
 	var ok bool
-	sink.controlSecret, ok = secrets["control"]
+	sink.controlSecret, ok = args.Secrets["control"]
 	if !ok {
 		return nil, fmt.Errorf("missing control secret")
 	}
 
-	sink.fsSecret, ok = secrets["fs"]
+	sink.fsSecret, ok = args.Secrets["fs"]
 	if !ok {
 		return nil, fmt.Errorf("missing fs secret")
 	}
 
-	sink.criuSecret, ok = secrets["criu"]
+	sink.criuSecret, ok = args.Secrets["criu"]
 	sink.live = ok
 
 	return sink.do, nil
@@ -413,7 +427,12 @@ func (c *migrationSink) do() error {
 		fsDir := c.container.ConfigItem("lxc.rootfs")[0]
 		if err := RsyncRecv(AddSlash(fsDir), c.fsConn); err != nil {
 			restore <- err
-			os.RemoveAll(fsDir)
+			c.sendControl(err)
+			return
+		}
+
+		if err := c.idMap.ShiftRootfs(shared.VarPath("lxc", c.container.Name())); err != nil {
+			restore <- err
 			c.sendControl(err)
 			return
 		}

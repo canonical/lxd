@@ -170,9 +170,15 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return InternalError(err)
 	}
 
-	dialer := websocket.Dialer{TLSClientConfig: config}
+	args := migration.MigrationSinkArgs{
+		Url:       req.Source.Operation,
+		Dialer:    websocket.Dialer{TLSClientConfig: config},
+		Container: c.c,
+		Secrets:   req.Source.Websockets,
+		IdMap:     d.idMap,
+	}
 
-	sink, err := migration.NewMigrationSink(req.Source.Operation, dialer, c.c, req.Source.Websockets)
+	sink, err := migration.NewMigrationSink(&args)
 	if err != nil {
 		removeContainer(d, req.Name)
 		return BadRequest(err)
