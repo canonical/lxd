@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/lxc/lxd"
@@ -37,25 +36,23 @@ type syncResponse struct {
   ctype: content-type, depends on compression
 */
 type fileResponse struct {
-	fname   string
-	clength int64
-	ctype   string
+	path     string
+	filename string
+	clength  int64
+	ctype    string
 }
 
-func FileResponse(fname string, size int64, ctype string) Response {
-	return &fileResponse{fname, size, ctype}
+func FileResponse(path string, filename string, size int64, ctype string) Response {
+	return &fileResponse{path, filename, size, ctype}
 }
 
 func (r *fileResponse) Render(w http.ResponseWriter) error {
 
-	// export name of the file, without path
-	ename := filepath.Base(r.fname)
-
 	w.Header().Set("Content-Type", r.ctype)
 	w.Header().Set("Content-Length", strconv.FormatInt(r.clength, 10))
-	w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", ename))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.filename))
 
-	f, err := os.Open(r.fname)
+	f, err := os.Open(r.path)
 	defer f.Close()
 	if err != nil {
 		return err
