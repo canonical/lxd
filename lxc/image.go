@@ -160,6 +160,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		image := dereferenceAlias(d, inName)
 		info, err := d.GetImageInfo(image)
 		if err != nil {
@@ -357,23 +358,6 @@ func fromUrl(url string, prefix string) string {
 }
 
 func dereferenceAlias(d *lxd.Client, inName string) string {
-	imageList, err := d.ListImages()
-	if err != nil {
-		return ""
-	}
-	inLen := len(inName)
-	for _, url := range imageList {
-		n := fromUrl(url, "/1.0/images/")
-		if n == "" {
-			continue
-		}
-		if len(n) < inLen {
-			continue
-		}
-		if n[:inLen] == inName {
-			return n
-		}
-	}
 
 	aliasList, err := d.ListAliases()
 	if err == nil {
@@ -388,7 +372,7 @@ func dereferenceAlias(d *lxd.Client, inName string) string {
 		}
 	}
 
-	return ""
+	return inName
 }
 
 func shortestAlias(list shared.ImageAliases) string {
@@ -419,7 +403,7 @@ func showImages(images []shared.ImageInfo) error {
 	data := [][]string{}
 	for _, image := range images {
 		shortest := shortestAlias(image.Aliases)
-		fp := image.Fingerprint[0:8]
+		fp := image.Fingerprint[0:12]
 		public := "no"
 		description := findDescription(image.Properties)
 		if image.Public == 1 {
