@@ -557,7 +557,7 @@ Input (run bash):
 a websocket connection to start (so that users can pass stdin and read
 stdout), or simply run to completion with /dev/null as stdin and stdout.
 
-When the exec command finishes, its exit status is avaialabe from the
+When the exec command finishes, its exit status is available from the
 operation's metadata:
 
     {
@@ -733,13 +733,38 @@ Renaming to an existing name must return the 409 (Conflict) HTTP code.
 TODO: move to remote host
 
 ## /1.0/images/\<fingerprint\>/export
-### GET
+### GET (optional secret=SECRET)
  * Description: Download the image tarball
  * Authentication: guest or trusted
  * Operation: sync
  * Return: Raw file or standard error
 
-TODO: examples
+The secret string is required when an untrusted LXD is spawning a new
+container from a private image stored on a different LXD.
+
+Rather than require a trust relationship between the two LXDs, the
+client will POST to /1.0/images/\<fingerprint\>/export to get a secret
+token which it'll then pass to the target LXD. That target LXD will then
+GET the image as a guest, passing the secret token.
+
+### POST
+ * Description: Generate a random token and tell LXD to expect it be used by a guest
+ * Authentication: guest or trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input:
+
+    {
+    }
+
+Output:
+
+Standard backround operation with "secret" set to the generated secret
+string in metadata.
+
+The secret can only be used once. The operation will then complete and
+the secret will no longer be valid.
 
 ## /1.0/images/aliases
 ### GET
