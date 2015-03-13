@@ -15,7 +15,7 @@ type moveCmd struct {
 }
 
 func (c *moveCmd) showByDefault() bool {
-	return false
+	return true
 }
 
 func (c *moveCmd) usage() string {
