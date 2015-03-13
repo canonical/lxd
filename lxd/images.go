@@ -325,7 +325,6 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 
 	fname := shared.VarPath("images", imgInfo.Fingerprint)
 	err = os.Remove(fname)
-	fmt.Println(fname)
 	if err != nil {
 		shared.Debugf("Error deleting image file %s: %s\n", fname, err)
 	}
