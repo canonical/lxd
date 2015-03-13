@@ -87,15 +87,14 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		}
 
 	} else if req.Source.Fingerprint != "" {
-		/*
-		 * There must be a better way to do this given go's scoping,
-		 * but I'm not sure what it is.
-		 */
-		_, uuidLocal, err := dbGetImageId(d, req.Source.Fingerprint)
+
+		imgInfo, err := dbImageGet(d, req.Source.Fingerprint)
 		if err != nil {
 			return InternalError(err)
 		}
-		uuid = uuidLocal
+
+		uuid = imgInfo.Fingerprint
+
 	} else {
 		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
 	}
@@ -295,23 +294,6 @@ var DbErrAlreadyDefined = fmt.Errorf("already exists")
 
 func dbRemoveContainer(d *Daemon, name string) {
 	_, _ = d.db.Exec("DELETE FROM containers WHERE name=?", name)
-}
-
-func dbGetImageId(d *Daemon, image string) (int, string, error) {
-	rows, err := d.db.Query("SELECT id, fingerprint FROM images WHERE fingerprint=?", image)
-	if err != nil {
-		return 0, "", err
-	}
-	defer rows.Close()
-	id := -1
-	var uuid string
-	for rows.Next() {
-		rows.Scan(&id, &uuid)
-	}
-	if id == -1 {
-		return 0, "", fmt.Errorf("Unknown image")
-	}
-	return id, uuid, nil
 }
 
 func dbGetContainerId(db *sql.DB, name string) (int, error) {
