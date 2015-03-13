@@ -40,8 +40,12 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 		return fmt.Errorf("non-http remotes are not supported for migration right now")
 	}
 
-	if sourceName == "" || destName == "" {
-		return fmt.Errorf("you must specify both a source and a destination container name")
+	if sourceName == "" {
+		return fmt.Errorf("you must specify both a source container name")
+	}
+
+	if destName == "" {
+		destName = sourceName
 	}
 
 	source, err := lxd.NewClient(config, sourceRemote)
