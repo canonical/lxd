@@ -9,6 +9,12 @@ test_basic_usage() {
     fi
   fi
 
+  # Export
+  sum=$(lxc image info testimage | grep ^Hash | cut -d' ' -f2)
+  lxc image export testimage ${LXD_DIR}/out
+  [ "$sum" = "$(sha256sum ${LXD_DIR}/out | cut -d' ' -f1)" ]
+  rm ${LXD_DIR}/out
+
   # Test container creation
   lxc init testimage foo
   lxc list | grep foo | grep STOPPED
