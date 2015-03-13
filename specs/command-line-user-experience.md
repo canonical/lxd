@@ -248,7 +248,7 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
     image delete <image>
     image edit <image>
     image export <image>
-    image import <tarball> [target] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]
+    image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]
     image info <image>
     image list [filter]
     image move <image> <destination name or host>
@@ -459,7 +459,7 @@ lxc move c1 dakara:c2           | Move c1 to "dakara" as "c2"
 
 **Arguments**
 
-    <resource> [target] [--public] [--expire=ISO-8601] [prop-key=prop-value]...
+    <resource> [target] [--public] [--expires-at=ISO-8601] [prop-key=prop-value]...
 
 **Description**
 Takes an existing container or container snapshot and makes a
