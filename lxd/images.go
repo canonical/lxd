@@ -314,8 +314,18 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to image:delete")
 
 	fingerprint := mux.Vars(r)["fingerprint"]
-	fname := shared.VarPath("images", fingerprint)
-	err := os.Remove(fname)
+
+	imgInfo, err := dbImageGet(d, fingerprint)
+	// send 404, if image not found, 500 otherwise
+	if err != nil && err == NoSuchImageError {
+		return NotFound
+	} else if err != nil {
+		return BadRequest(err)
+	}
+
+	fname := shared.VarPath("images", imgInfo.Fingerprint)
+	err = os.Remove(fname)
+	fmt.Println(fname)
 	if err != nil {
 		shared.Debugf("Error deleting image file %s: %s\n", fname, err)
 	}
@@ -325,28 +335,9 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	rows, err := tx.Query("SELECT id FROM images WHERE fingerprint=?", fingerprint)
-	if err != nil {
-		tx.Rollback()
-		return BadRequest(err)
-	}
-	defer rows.Close()
-
-	id := -1
-	for rows.Next() {
-		var xId int
-		rows.Scan(&xId)
-		id = xId
-	}
-	if id == -1 {
-		shared.Debugf("Error deleting image from db %s: %s\n", fingerprint, err)
-		tx.Rollback()
-		return NotFound
-	}
-
-	_, _ = tx.Exec("DELETE FROM images_aliases WHERE image_id=?", id)
-	_, _ = tx.Exec("DELETE FROM images_properties WHERE ?", id)
-	_, _ = tx.Exec("DELETE FROM images WHERE id=?", id)
+	_, _ = tx.Exec("DELETE FROM images_aliases WHERE image_id=?", imgInfo.Id)
+	_, _ = tx.Exec("DELETE FROM images_properties WHERE image_id?", imgInfo.Id)
+	_, _ = tx.Exec("DELETE FROM images WHERE id=?", imgInfo.Id)
 
 	if err := tx.Commit(); err != nil {
 		return BadRequest(err)
@@ -358,25 +349,15 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 func imageGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	rows, err := d.db.Query("SELECT id, public FROM images WHERE fingerprint=?", fingerprint)
-	if err != nil {
-		return InternalError(err)
-	}
-	defer rows.Close()
-	id := -1
-	public := 0
-	for rows.Next() {
-		var xId int
-		var p int
-		rows.Scan(&xId, &p)
-		id = xId
-		public = p
-	}
-	if id == -1 {
+	imgInfo, err := dbImageGet(d, fingerprint)
+	// send 404, if image not found, 500 otherwise
+	if err != nil && err == NoSuchImageError {
 		return NotFound
+	} else if err != nil {
+		return BadRequest(err)
 	}
 
-	rows2, err := d.db.Query("SELECT type, key, value FROM images_properties where image_id=?", id)
+	rows2, err := d.db.Query("SELECT type, key, value FROM images_properties where image_id=?", imgInfo.Id)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -390,7 +371,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		properties = append(properties, i)
 	}
 
-	rows3, err := d.db.Query("SELECT name, description FROM images_aliases WHERE image_id=?", id)
+	rows3, err := d.db.Query("SELECT name, description FROM images_aliases WHERE image_id=?", imgInfo.Id)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -403,7 +384,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		aliases = append(aliases, a)
 	}
 
-	info := shared.ImageInfo{Fingerprint: fingerprint, Properties: properties, Aliases: aliases, Public: public}
+	info := shared.ImageInfo{Fingerprint: imgInfo.Fingerprint, Properties: properties, Aliases: aliases, Public: imgInfo.Public}
 	return SyncResponse(true, info)
 }
 
@@ -424,21 +405,15 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	id := -1
-	rows, err := d.db.Query("SELECT id FROM images WHERE fingerprint=?", fingerprint)
-	if err != nil {
-		tx.Rollback()
-		return InternalError(err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var idx int
-		rows.Scan(&idx)
-		id = idx
+	imgInfo, err := dbImageGet(d, fingerprint)
+	// send 404, if image not found, 500 otherwise
+	if err != nil && err == NoSuchImageError {
+		return NotFound
+	} else if err != nil {
+		return BadRequest(err)
 	}
 
-	_, err = tx.Exec(`DELETE FROM images_properties WHERE image_id=?`, id)
+	_, err = tx.Exec(`DELETE FROM images_properties WHERE image_id=?`, imgInfo.Id)
 
 	stmt, err := tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, ?, ?, ?)`)
 	if err != nil {
@@ -446,7 +421,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 	for _, i := range imageRaw.Properties {
-		_, err = stmt.Exec(id, i.Imagetype, i.Key, i.Value)
+		_, err = stmt.Exec(imgInfo.Id, i.Imagetype, i.Key, i.Value)
 		if err != nil {
 			tx.Rollback()
 			return InternalError(err)
@@ -488,12 +463,15 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("alias exists"))
 	}
 
-	iId, err := dbImageGet(d, req.Target)
-	if err != nil {
+	imgInfo, err := dbImageGet(d, req.Target)
+	// send 404, if image not found, 500 otherwise
+	if err != nil && err == NoSuchImageError {
+		return NotFound
+	} else if err != nil {
 		return BadRequest(err)
 	}
 
-	err = dbAddAlias(d, req.Name, iId, req.Description)
+	err = dbAddAlias(d, req.Name, imgInfo.Id, req.Description)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -558,39 +536,31 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 	hash := mux.Vars(r)["hash"]
 
-	rows, err := d.db.Query(`SELECT images.filename, images.size FROM images WHERE images.fingerprint=?`, hash)
+	imgInfo, err := dbImageGet(d, hash)
+	// send 404, if image not found, 500 otherwise
+	if err != nil && err == NoSuchImageError {
+		return NotFound
+	} else if err != nil {
+		return BadRequest(err)
+	}
+
+	path := shared.VarPath("images", hash)
+	filename := imgInfo.Filename
+
+	// test compression, for content type header
+	// if unknown compression we send standard header
+	_, ext, err := detectCompression(path)
+
+	ctype := "application/x-gtar"
 	if err != nil {
-		return InternalError(err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		path := shared.VarPath("images", hash)
-		var filename string
-		var size int64
-		if err := rows.Scan(&filename, &size); err != nil {
-			return InternalError(err)
-		}
-
-		// test compression, for content type header
-		// if unknown compression we send standard header
-		_, ext, err := detectCompression(path)
-
-		if filename == "" {
-			filename = fmt.Sprintf("%s%s", hash, ext)
-		}
-
-		ctype := "application/x-gtar"
-		if err != nil {
-			ctype = "application/octet-stream"
-		}
-
-		return FileResponse(path, filename, size, ctype)
-
+		ctype = "application/octet-stream"
 	}
 
-	return NotFound
+	if filename == "" {
+		filename = fmt.Sprintf("%s%s", hash, ext)
+	}
 
+	return FileResponse(path, filename, imgInfo.Size, ctype)
 }
 
 var imagesExportCmd = Command{name: "images/{hash}/export", get: imageExport}
