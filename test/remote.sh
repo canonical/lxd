@@ -9,7 +9,7 @@ gen_second_cert() {
 	mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
 }
 
-test_remote() {
+test_remote_admin() {
   bad=0
   (echo y;  sleep 3;  echo bad) | lxc remote add badpass 127.0.0.1:8443 $debug || true
   lxc list badpass && bad=1 || true
@@ -41,4 +41,29 @@ test_remote() {
   lxc config trust add "$LXD_CONF/client2.crt"
   lxc config trust list | grep client2
   lxc config trust remove client2
+}
+
+test_remote_usage() {
+  (echo y;  sleep 3;  echo foo) |  lxc remote add lxd2 127.0.0.1:8444 $debug
+
+  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+    return
+  fi
+
+  # we need a public image on local
+  lxc image export local:testimage foo.img
+  lxc image delete local:testimage
+  sum=`sha256sum foo.img`
+  lxc image import foo.img local: --public
+  lxc image alias create local:testimage $sum
+
+  # launch testimage stored on local as container c1 on lxd2
+  lxc launch local:testimage lxd2:c1
+
+  # make sure it is running
+  lxc list lxd2: | grep c1 | grep RUNNING
+
+  lxc stop lxd2:c1
+
+  lxc delete lxd2:c1
 }

@@ -397,12 +397,16 @@ func initDb(d *Daemon) error {
 
 var NoSuchImageError = errors.New("No such image")
 
-func dbImageGet(d *Daemon, name string) (*shared.ImageBaseInfo, error) {
+func dbImageGet(d *Daemon, name string, public bool) (*shared.ImageBaseInfo, error) {
 
 	// count potential images first, if more than one
 	// return error
 	var countImg int
-	err := d.db.QueryRow("SELECT count(id) FROM images WHERE fingerprint like ?", (name + "%")).Scan(&countImg)
+	q := "SELECT count(id) FROM images WHERE fingerprint like ?"
+	if public {
+		q = q + " AND public=1"
+	}
+	err := d.db.QueryRow(q, (name + "%")).Scan(&countImg)
 
 	if err != nil {
 		return nil, err
@@ -414,7 +418,11 @@ func dbImageGet(d *Daemon, name string) (*shared.ImageBaseInfo, error) {
 
 	image := new(shared.ImageBaseInfo)
 
-	err = d.db.QueryRow("SELECT id, fingerprint, filename, size, public FROM images WHERE fingerprint like ?", (name+"%")).Scan(&image.Id, &image.Fingerprint, &image.Filename, &image.Size, &image.Public)
+	q = "SELECT id, fingerprint, filename, size, public FROM images WHERE fingerprint like ?"
+	if public {
+		q = q + " AND public=1"
+	}
+	err = d.db.QueryRow(q, (name+"%")).Scan(&image.Id, &image.Fingerprint, &image.Filename, &image.Size, &image.Public)
 
 	switch {
 	case err == sql.ErrNoRows:

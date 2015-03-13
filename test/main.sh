@@ -49,6 +49,7 @@ cleanup() {
     sleep 3
     rm -Rf ${LXD_DIR}
     rm -Rf ${LXD_CONF}
+    rm -f foo.img
     [ -n "${LXD2_DIR}" ] && rm -Rf "${LXD2_DIR}"
 
     echo ""
@@ -97,6 +98,11 @@ spawn_lxd() {
 spawn_lxd 127.0.0.1:8443 $LXD_DIR
 lxd_pid=$!
 
+export LXD2_DIR=$(mktemp -d -p $(pwd))
+chmod 777 "${LXD2_DIR}"
+spawn_lxd 127.0.0.1:8444 "${LXD2_DIR}"
+lxd2_pid=$!
+
 # allow for running a specific set of tests
 if [ "$#" -gt 0 ]; then
   test_$1
@@ -110,11 +116,14 @@ test_commits_signed_off
 echo "==> TEST: doing static analysis of commits"
 static_analysis
 
-echo "==> TEST: lxc remote"
-test_remote
+echo "==> TEST: lxc remote administration"
+test_remote_admin
 
 echo "==> TEST: basic usage"
 test_basic_usage
+
+echo "==> TEST: lxc remote usage"
+test_remote_usage
 
 echo "==> TEST: snapshots"
 test_snapshots

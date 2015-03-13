@@ -489,7 +489,7 @@ func (c *Client) ExportImage(image string, target string) (*Response, error) {
 
 		default:
 			// overwrite file
-			f, err := os.Open(target)
+			f, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 			defer f.Close()
 
 			if err != nil {
@@ -523,7 +523,7 @@ func (c *Client) ExportImage(image string, target string) (*Response, error) {
 
 }
 
-func (c *Client) PostImage(path string, properties []string) (*Response, error) {
+func (c *Client) PostImage(path string, properties []string, public bool) (*Response, error) {
 	uri := c.url(shared.APIVersion, "images")
 
 	f, err := os.Open(path)
@@ -538,8 +538,11 @@ func (c *Client) PostImage(path string, properties []string) (*Response, error) 
 	}
 
 	req.Header.Set("X-LXD-filename", filepath.Base(path))
-	mode := 0 // private
-	req.Header.Set("X-LXD-public", fmt.Sprintf("%04o", mode))
+	if public {
+		req.Header.Set("X-LXD-public", "1")
+	} else {
+		req.Header.Set("X-LXD-public", "0")
+	}
 
 	if len(properties) != 0 {
 
@@ -798,19 +801,39 @@ func (c *Client) GetAlias(alias string) string {
 
 // Init creates a container from either a fingerprint or an alias; you must
 // provide at least one.
-func (c *Client) Init(name string, image string, profiles *[]string) (*Response, error) {
+func (c *Client) Init(name string, imgremote string, image string, profiles *[]string) (*Response, error) {
 
 	source := shared.Jmap{"type": "image"}
 
-	isAlias, err := c.IsAlias(image)
-	if err != nil {
-		return nil, err
-	}
+	if imgremote != "" {
+		source["type"] = "image"
+		source["mode"] = "pull"
+		tmpremote, err := NewClient(&c.config, imgremote)
+		if err != nil {
+			return nil, err
+		}
+		source["server"] = tmpremote.baseURL
+		isAlias, err := tmpremote.IsAlias(image)
+		if err != nil {
+			return nil, err
+		}
 
-	if isAlias {
-		source["alias"] = image
+		if isAlias {
+			source["alias"] = image
+		} else {
+			source["fingerprint"] = image
+		}
 	} else {
-		source["fingerprint"] = image
+		isAlias, err := c.IsAlias(image)
+		if err != nil {
+			return nil, err
+		}
+
+		if isAlias {
+			source["alias"] = image
+		} else {
+			source["fingerprint"] = image
+		}
 	}
 
 	body := shared.Jmap{"source": source}
