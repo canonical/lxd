@@ -9,9 +9,21 @@ test_basic_usage() {
     fi
   fi
 
-  # Export
+  # Test image export
   sum=$(lxc image info testimage | grep ^Hash | cut -d' ' -f2)
   lxc image export testimage ${LXD_DIR}/out
+  [ "$sum" = "$(sha256sum ${LXD_DIR}/out | cut -d' ' -f1)" ]
+
+  # Test iamge delete
+  lxc image delete testimage
+
+  # Re-import the image
+  lxc image import ${LXD_DIR}/out
+  lxc image alias create testimage $sum
+  rm ${LXD_DIR}/out
+
+  # Test filename for image export (should be "out")
+  lxc image export testimage ${LXD_DIR}/
   [ "$sum" = "$(sha256sum ${LXD_DIR}/out | cut -d' ' -f1)" ]
   rm ${LXD_DIR}/out
 
