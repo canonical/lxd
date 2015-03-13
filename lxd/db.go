@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/lxc/lxd/shared"
@@ -394,19 +395,36 @@ func initDb(d *Daemon) error {
 	return nil
 }
 
-func dbImageGet(d *Daemon, name string) (int, error) {
-	rows, err := d.db.Query("SELECT id FROM images WHERE fingerprint=?", name)
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
+var NoSuchImageError = errors.New("No such image")
 
-	for rows.Next() {
-		var id int
-		rows.Scan(&id)
-		return id, nil
+func dbImageGet(d *Daemon, name string) (*shared.ImageBaseInfo, error) {
+
+	// count potential images first, if more than one
+	// return error
+	var countImg int
+	err := d.db.QueryRow("SELECT count(id) FROM images WHERE fingerprint like ?", (name + "%")).Scan(&countImg)
+
+	if err != nil {
+		return nil, err
 	}
-	return 0, fmt.Errorf("No such image")
+
+	if countImg > 1 {
+		return nil, fmt.Errorf("Multiple images for hash")
+	}
+
+	image := new(shared.ImageBaseInfo)
+
+	err = d.db.QueryRow("SELECT id, fingerprint, filename, size, public FROM images WHERE fingerprint like ?", (name+"%")).Scan(&image.Id, &image.Fingerprint, &image.Filename, &image.Size, &image.Public)
+
+	switch {
+	case err == sql.ErrNoRows:
+		return nil, NoSuchImageError
+	case err != nil:
+		return nil, err
+	default:
+		return image, nil
+	}
+
 }
 
 func dbImageGetById(d *Daemon, id int) (string, error) {
