@@ -192,7 +192,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 func containersPost(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to create")
 
-	if d.id_map == nil {
+	if d.idMap == nil {
 		return BadRequest(fmt.Errorf("shared's user has no subuids"))
 	}
 
@@ -273,7 +273,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	}
 
 	rpath := shared.VarPath("lxc", name, "rootfs")
-	err = d.id_map.ShiftRootfs(rpath)
+	err = d.idMap.ShiftRootfs(rpath)
 	if err != nil {
 		fmt.Printf("Shift of rootfs %s failed: %s\n", rpath, err)
 		removeContainer(d, name)
@@ -281,7 +281,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	}
 
 	/* Set an acl so the container root can descend the container dir */
-	acl := fmt.Sprintf("%d:rx", d.id_map.Uidmin)
+	acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
 	_, err = exec.Command("setfacl", "-m", acl, dpath).Output()
 	if err != nil {
 		fmt.Printf("Error adding acl for container root: start will likely fail\n")
@@ -923,12 +923,12 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	}
 
 	if !d.isUnprivileged() {
-		uidstr := fmt.Sprintf("u 0 %d %d\n", daemon.id_map.Uidmin, daemon.id_map.Uidrange)
+		uidstr := fmt.Sprintf("u 0 %d %d\n", daemon.idMap.Uidmin, daemon.idMap.Uidrange)
 		err = c.SetConfigItem("lxc.id_map", uidstr)
 		if err != nil {
 			return nil, err
 		}
-		gidstr := fmt.Sprintf("g 0 %d %d\n", daemon.id_map.Gidmin, daemon.id_map.Gidrange)
+		gidstr := fmt.Sprintf("g 0 %d %d\n", daemon.idMap.Gidmin, daemon.idMap.Gidrange)
 		err = c.SetConfigItem("lxc.id_map", gidstr)
 		if err != nil {
 			return nil, err
