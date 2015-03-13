@@ -358,23 +358,6 @@ func fromUrl(url string, prefix string) string {
 }
 
 func dereferenceAlias(d *lxd.Client, inName string) string {
-	//	imageList, err := d.ListImages()
-	//	if err != nil {
-	//		return ""
-	//	}
-	//	inLen := len(inName)
-	//	for _, url := range imageList {
-	//		n := fromUrl(url, "/1.0/images/")
-	//		if n == "" {
-	//			continue
-	//		}
-	//		if len(n) < inLen {
-	//			continue
-	//		}
-	//		if n[:inLen] == inName {
-	//			return n
-	//		}
-	//	}
 
 	aliasList, err := d.ListAliases()
 	if err == nil {
