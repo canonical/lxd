@@ -603,10 +603,6 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if body.Host != "" {
-		if !c.c.Running() {
-			return BadRequest(fmt.Errorf("only live migrations supported right now"))
-		}
-
 		ws, err := migration.NewMigrationSource(c.c)
 		if err != nil {
 			return InternalError(err)

@@ -87,7 +87,7 @@ func (x *CRIUType) UnmarshalJSON(data []byte) error {
 
 type MigrationHeader struct {
 	Fs               *MigrationFSType `protobuf:"varint,1,req,name=fs,enum=migration.MigrationFSType" json:"fs,omitempty"`
-	Criu             *CRIUType        `protobuf:"varint,2,req,name=criu,enum=migration.CRIUType" json:"criu,omitempty"`
+	Criu             *CRIUType        `protobuf:"varint,2,opt,name=criu,enum=migration.CRIUType" json:"criu,omitempty"`
 	XXX_unrecognized []byte           `json:"-"`
 }
 
