@@ -21,3 +21,11 @@ type ImageInfo struct {
 	Aliases     ImageAliases
 	Public      int
 }
+
+type ImageBaseInfo struct {
+	Id          int
+	Fingerprint string
+	Filename    string
+	Size        int64
+	Public      int
+}
