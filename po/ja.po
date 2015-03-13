@@ -309,12 +309,12 @@ msgstr "削除コマンドからの応答が不正(非同期でない)です！"
 #, fuzzy
 msgid "Non-async response from init!"
 msgstr ""
-msgstr "初期化コマンドからの応答が不正(非同期でない)です！"
+"初期化コマンドからの応答が不正(非同期でない)です！"
 
 #: client.go:1175
 msgid "Non-async response from snapshot!"
 msgstr ""
-msgstr "スナップショットからの応答が不正(非同期でない)です！"
+"スナップショットからの応答が不正(非同期でない)です！"
 
 #: lxc/delete.go:42
 #, c-format
