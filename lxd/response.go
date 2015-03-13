@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
@@ -30,37 +28,41 @@ type syncResponse struct {
 }
 
 /*
-  Used for returning images.
   fname: name of the file without path
-  clength: sets content-size of response
-  ctype: content-type, depends on compression
+  headers: any other headers that should be set in the response
 */
 type fileResponse struct {
+	req      *http.Request
 	path     string
 	filename string
-	clength  int64
-	ctype    string
+	headers  map[string]string
 }
 
-func FileResponse(path string, filename string, size int64, ctype string) Response {
-	return &fileResponse{path, filename, size, ctype}
+func FileResponse(r *http.Request, path string, filename string, headers map[string]string) Response {
+	return &fileResponse{r, path, filename, headers}
 }
 
 func (r *fileResponse) Render(w http.ResponseWriter) error {
 
-	w.Header().Set("Content-Type", r.ctype)
-	w.Header().Set("Content-Length", strconv.FormatInt(r.clength, 10))
-	w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.filename))
-
 	f, err := os.Open(r.path)
+	if err != nil {
+		return err
+	}
 	defer f.Close()
+
+	fi, err := f.Stat()
 	if err != nil {
 		return err
 	}
 
-	_, err = io.Copy(w, f)
-	return err
+	if r.headers != nil {
+		for k, v := range r.headers {
+			w.Header().Set(k, v)
+		}
+	}
 
+	http.ServeContent(w, r.req, r.filename, fi.ModTime(), f)
+	return nil
 }
 
 func (r *syncResponse) Render(w http.ResponseWriter) error {
