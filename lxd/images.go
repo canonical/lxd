@@ -315,7 +315,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	imgInfo, err := dbImageGet(d, fingerprint)
+	imgInfo, err := dbImageGet(d, fingerprint, false)
 	// send 404, if image not found, 500 otherwise
 	if err != nil && err == NoSuchImageError {
 		return NotFound
@@ -348,7 +348,8 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 func imageGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	imgInfo, err := dbImageGet(d, fingerprint)
+	public := !d.isTrustedClient(r)
+	imgInfo, err := dbImageGet(d, fingerprint, public)
 	// send 404, if image not found, 500 otherwise
 	if err != nil && err == NoSuchImageError {
 		return NotFound
@@ -404,7 +405,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	imgInfo, err := dbImageGet(d, fingerprint)
+	imgInfo, err := dbImageGet(d, fingerprint, false)
 	// send 404, if image not found, 500 otherwise
 	if err != nil && err == NoSuchImageError {
 		return NotFound
@@ -434,7 +435,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var imageCmd = Command{name: "images/{fingerprint}", get: imageGet, put: imagePut, delete: imageDelete}
+var imageCmd = Command{name: "images/{fingerprint}", untrustedGet: true, get: imageGet, put: imagePut, delete: imageDelete}
 
 type aliasPostReq struct {
 	Name        string `json:"name"`
@@ -462,7 +463,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("alias exists"))
 	}
 
-	imgInfo, err := dbImageGet(d, req.Target)
+	imgInfo, err := dbImageGet(d, req.Target, false)
 	// send 404, if image not found, 500 otherwise
 	if err != nil && err == NoSuchImageError {
 		return NotFound
@@ -498,12 +499,17 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 }
 
 func aliasGet(d *Daemon, r *http.Request) Response {
+	shared.Debugf("Responding to alias get")
 	name := mux.Vars(r)["name"]
-	rows, err := d.db.Query(`SELECT images.fingerprint, images_aliases.description
-	                         FROM images_aliases
-	                         INNER JOIN images
-				 ON images_aliases.image_id=images.id
-				 WHERE images_aliases.name=?`, name)
+	q := `SELECT images.fingerprint, images_aliases.description
+			 FROM images_aliases
+			 INNER JOIN images
+			 ON images_aliases.image_id=images.id
+			 WHERE images_aliases.name=?`
+	if !d.isTrustedClient(r) {
+		q = q + ` AND images.public=1`
+	}
+	rows, err := d.db.Query(q, name)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -535,7 +541,8 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 	hash := mux.Vars(r)["hash"]
 
-	imgInfo, err := dbImageGet(d, hash)
+	public := !d.isTrustedClient(r)
+	imgInfo, err := dbImageGet(d, hash, public)
 	// send 404, if image not found, 500 otherwise
 	if err != nil && err == NoSuchImageError {
 		return NotFound
@@ -561,8 +568,8 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	return FileResponse(r, path, filename, headers)
 }
 
-var imagesExportCmd = Command{name: "images/{hash}/export", get: imageExport}
+var imagesExportCmd = Command{name: "images/{hash}/export", untrustedGet: true, get: imageExport}
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 
-var aliasCmd = Command{name: "images/aliases/{name:.*}", get: aliasGet, delete: aliasDelete}
+var aliasCmd = Command{name: "images/aliases/{name:.*}", untrustedGet: true, get: aliasGet, delete: aliasDelete}

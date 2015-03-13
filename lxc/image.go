@@ -9,6 +9,7 @@ import (
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/internal/gnuflag"
 	"github.com/lxc/lxd/shared"
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
@@ -38,7 +39,7 @@ var imageEditHelp string = gettext.Gettext(
 
 func (c *imageCmd) usage() string {
 	return gettext.Gettext(
-		"lxc image import <tarball> [target] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n" +
+		"lxc image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n" +
 			"\n" +
 			"lxc image delete [resource:]<image>\n" +
 			"lxc image edit [resource:]\n" +
@@ -55,7 +56,11 @@ func (c *imageCmd) usage() string {
 			"create, delete, list image aliases\n")
 }
 
-func (c *imageCmd) flags() {}
+var public_image bool = false
+
+func (c *imageCmd) flags() {
+	gnuflag.BoolVar(&public_image, "public", false, gettext.Gettext("Make image public"))
+}
 
 func doImageAlias(config *lxd.Config, args []string) error {
 	var remote string
@@ -211,7 +216,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		_, err = d.PostImage(imagefile, properties)
+		_, err = d.PostImage(imagefile, properties, public_image)
 		if err != nil {
 			return err
 		}
