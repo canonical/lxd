@@ -13,7 +13,7 @@ import (
 type launchCmd struct{}
 
 func (c *launchCmd) showByDefault() bool {
-	return false
+	return true
 }
 
 func (c *launchCmd) usage() string {
