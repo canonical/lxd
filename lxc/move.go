@@ -22,7 +22,6 @@ func (c *moveCmd) usage() string {
 	return gettext.Gettext(
 		"Move containers within or in between lxd instances.\n" +
 			"\n" +
-			"(currently only live migration is supported)\n" +
 			"lxc move <source container> <destination container>\n")
 }
 

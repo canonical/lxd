@@ -12,7 +12,7 @@ enum CRIUType {
 
 message MigrationHeader {
   required MigrationFSType fs = 1;
-  required CRIUType       criu = 2;
+  optional CRIUType       criu = 2;
 }
 
 message MigrationControl {
