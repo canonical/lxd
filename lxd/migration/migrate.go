@@ -32,6 +32,8 @@ import (
 )
 
 type migrationFields struct {
+	live bool
+
 	controlSecret string
 	controlConn   *websocket.Conn
 
@@ -151,20 +153,27 @@ func NewMigrationSource(c *lxc.Container) (shared.OperationWebsocket, error) {
 		return nil, err
 	}
 
-	ret.criuSecret, err = shared.RandomCryptoString()
-	if err != nil {
-		return nil, err
+	if c.Running() {
+		ret.criuSecret, err = shared.RandomCryptoString()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ret, nil
 }
 
 func (s *migrationSourceWs) Metadata() interface{} {
-	return shared.Jmap{
+	secrets := shared.Jmap{
 		"control": s.controlSecret,
 		"fs":      s.fsSecret,
-		"criu":    s.criuSecret,
 	}
+
+	if s.criuSecret != "" {
+		secrets["criu"] = s.criuSecret
+	}
+
+	return secrets
 }
 
 func (s *migrationSourceWs) Connect(secret string, r *http.Request, w http.ResponseWriter) error {
@@ -190,7 +199,7 @@ func (s *migrationSourceWs) Connect(secret string, r *http.Request, w http.Respo
 
 	*conn = c
 
-	if s.controlConn != nil && s.criuConn != nil && s.fsConn != nil {
+	if s.controlConn != nil && (!s.live || s.criuConn != nil) && s.fsConn != nil {
 		s.allConnected <- true
 	}
 
@@ -200,9 +209,14 @@ func (s *migrationSourceWs) Connect(secret string, r *http.Request, w http.Respo
 func (s *migrationSourceWs) Do() shared.OperationResult {
 	<-s.allConnected
 
+	criuType := CRIUType_CRIU_RSYNC.Enum()
+	if !s.live {
+		criuType = nil
+	}
+
 	header := MigrationHeader{
 		Fs:   MigrationFSType_RSYNC.Enum(),
-		Criu: CRIUType_CRIU_RSYNC.Enum(),
+		Criu: criuType,
 	}
 
 	if err := s.send(&header); err != nil {
@@ -221,51 +235,57 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		return shared.OperationError(err)
 	}
 
-	if *header.Criu != CRIUType_CRIU_RSYNC {
-		err := fmt.Errorf("formats other than criu rsync not understood")
-		s.sendControl(err)
-		return shared.OperationError(err)
-	}
+	if s.live {
+		if header.Criu == nil {
+			err := fmt.Errorf("got no CRIU socket type for live migration")
+			s.sendControl(err)
+			return shared.OperationError(err)
+		} else if *header.Criu != CRIUType_CRIU_RSYNC {
+			err := fmt.Errorf("formats other than criu rsync not understood")
+			s.sendControl(err)
+			return shared.OperationError(err)
+		}
 
-	checkpointDir, err := ioutil.TempDir("", "lxd_migration_")
-	if err != nil {
-		s.sendControl(err)
-		return shared.OperationError(err)
-	}
-	defer os.RemoveAll(checkpointDir)
+		checkpointDir, err := ioutil.TempDir("", "lxd_migration_")
+		if err != nil {
+			s.sendControl(err)
+			return shared.OperationError(err)
+		}
+		defer os.RemoveAll(checkpointDir)
 
-	opts := lxc.CheckpointOptions{Stop: true, Directory: checkpointDir, Verbose: true}
-	err = s.container.Checkpoint(opts)
+		opts := lxc.CheckpointOptions{Stop: true, Directory: checkpointDir, Verbose: true}
+		err = s.container.Checkpoint(opts)
 
-	if err2 := collectMigrationLogFile(s.container, checkpointDir, "dump"); err2 != nil {
-		shared.Debugf("error collecting checkpoint log file %s", err)
-	}
+		if err2 := collectMigrationLogFile(s.container, checkpointDir, "dump"); err2 != nil {
+			shared.Debugf("error collecting checkpoint log file %s", err)
+		}
 
-	if err != nil {
-		s.sendControl(err)
-		return shared.OperationError(err)
-	}
+		if err != nil {
+			s.sendControl(err)
+			return shared.OperationError(err)
+		}
 
-	/*
-	 * We do the serially right now, but there's really no reason for us
-	 * to; since we have separate websockets, we can do it in parallel if
-	 * we wanted to. However, assuming we're network bound, there's really
-	 * no reason to do these in parallel. In the future when we're using
-	 * p.haul's protocol, it will make sense to do these in parallel.
-	 */
-	if err := RsyncSend(AddSlash(checkpointDir), s.criuConn); err != nil {
-		s.sendControl(err)
-		return shared.OperationError(err)
+		/*
+		 * We do the serially right now, but there's really no reason for us
+		 * to; since we have separate websockets, we can do it in parallel if
+		 * we wanted to. However, assuming we're network bound, there's really
+		 * no reason to do these in parallel. In the future when we're using
+		 * p.haul's protocol, it will make sense to do these in parallel.
+		 */
+		if err := RsyncSend(AddSlash(checkpointDir), s.criuConn); err != nil {
+			s.sendControl(err)
+			return shared.OperationError(err)
+		}
 	}
 
 	fsDir := s.container.ConfigItem("lxc.rootfs")[0]
-	if err := RsyncSend(fsDir, s.fsConn); err != nil {
+	if err := RsyncSend(AddSlash(fsDir), s.fsConn); err != nil {
 		s.sendControl(err)
 		return shared.OperationError(err)
 	}
 
 	msg := MigrationControl{}
-	if err = s.recv(&msg); err != nil {
+	if err := s.recv(&msg); err != nil {
 		s.disconnect()
 		return shared.OperationError(err)
 	}
@@ -284,26 +304,38 @@ type migrationSink struct {
 
 	url    string
 	dialer websocket.Dialer
+	idMap  *shared.Idmap
 }
 
-func NewMigrationSink(url string, dialer websocket.Dialer, c *lxc.Container, secrets map[string]string) (func() error, error) {
-	sink := migrationSink{migrationFields{container: c}, url, dialer}
+type MigrationSinkArgs struct {
+	Url       string
+	Dialer    websocket.Dialer
+	Container *lxc.Container
+	Secrets   map[string]string
+	IdMap     *shared.Idmap
+}
+
+func NewMigrationSink(args *MigrationSinkArgs) (func() error, error) {
+	sink := migrationSink{
+		migrationFields{container: args.Container},
+		args.Url,
+		args.Dialer,
+		args.IdMap,
+	}
 
 	var ok bool
-	sink.controlSecret, ok = secrets["control"]
+	sink.controlSecret, ok = args.Secrets["control"]
 	if !ok {
 		return nil, fmt.Errorf("missing control secret")
 	}
 
-	sink.fsSecret, ok = secrets["fs"]
+	sink.fsSecret, ok = args.Secrets["fs"]
 	if !ok {
 		return nil, fmt.Errorf("missing fs secret")
 	}
 
-	sink.criuSecret, ok = secrets["criu"]
-	if !ok {
-		return nil, fmt.Errorf("missing criu secret")
-	}
+	sink.criuSecret, ok = args.Secrets["criu"]
+	sink.live = ok
 
 	return sink.do, nil
 }
@@ -332,10 +364,12 @@ func (c *migrationSink) do() error {
 		return err
 	}
 
-	c.criuConn, err = c.connectWithSecret(c.criuSecret)
-	if err != nil {
-		c.sendControl(err)
-		return err
+	if c.live {
+		c.criuConn, err = c.connectWithSecret(c.criuSecret)
+		if err != nil {
+			c.sendControl(err)
+			return err
+		}
 	}
 
 	// For now, we just ignore whatever the server sends us. We only
@@ -346,53 +380,70 @@ func (c *migrationSink) do() error {
 		return err
 	}
 
-	resp := MigrationHeader{Fs: MigrationFSType_RSYNC.Enum(), Criu: CRIUType_CRIU_RSYNC.Enum()}
+	criuType := CRIUType_CRIU_RSYNC.Enum()
+	if !c.live {
+		criuType = nil
+	}
+
+	resp := MigrationHeader{Fs: MigrationFSType_RSYNC.Enum(), Criu: criuType}
 	if err := c.send(&resp); err != nil {
 		c.sendControl(err)
 		return err
 	}
 
-	imagesDir, err := ioutil.TempDir("", "lxd_migration_")
-	if err != nil {
-		os.RemoveAll(imagesDir)
-		c.sendControl(err)
-		return err
-	}
-
 	restore := make(chan error)
-	go func() {
-		if err := RsyncRecv(AddSlash(imagesDir), c.criuConn); err != nil {
-			restore <- err
-			os.RemoveAll(imagesDir)
-			c.sendControl(err)
-			return
+	go func(c *migrationSink) {
+		imagesDir := ""
+		if c.live {
+			var err error
+			imagesDir, err = ioutil.TempDir("", "lxd_migration_")
+			if err != nil {
+				os.RemoveAll(imagesDir)
+				c.sendControl(err)
+				return
+			}
+
+			defer func() {
+				err := collectMigrationLogFile(c.container, imagesDir, "restore")
+				/*
+				 * If the checkpoint fails, we won't have any log to collect,
+				 * so don't warn about that.
+				 */
+				if err != nil && !os.IsNotExist(err) {
+					shared.Debugf("error collectiong migration log file %s", err)
+				}
+
+				os.RemoveAll(imagesDir)
+			}()
+
+			if err := RsyncRecv(AddSlash(imagesDir), c.criuConn); err != nil {
+				restore <- err
+				os.RemoveAll(imagesDir)
+				c.sendControl(err)
+				return
+			}
 		}
 
 		fsDir := c.container.ConfigItem("lxc.rootfs")[0]
 		if err := RsyncRecv(AddSlash(fsDir), c.fsConn); err != nil {
 			restore <- err
-			os.RemoveAll(fsDir)
 			c.sendControl(err)
 			return
 		}
 
-		opts := lxc.RestoreOptions{Directory: imagesDir, Verbose: true}
-		err := c.container.Restore(opts)
-		restore <- err
-	}()
-
-	defer func() {
-		err := collectMigrationLogFile(c.container, imagesDir, "restore")
-		/*
-		 * If the checkpoint fails, we won't have any log to collect,
-		 * so don't warn about that.
-		 */
-		if err != nil && !os.IsNotExist(err) {
-			shared.Debugf("error collectiong migration log file %s", err)
+		if err := c.idMap.ShiftRootfs(shared.VarPath("lxc", c.container.Name())); err != nil {
+			restore <- err
+			c.sendControl(err)
+			return
 		}
 
-		os.RemoveAll(imagesDir)
-	}()
+		if c.live {
+			opts := lxc.RestoreOptions{Directory: imagesDir, Verbose: true}
+			restore <- c.container.Restore(opts)
+		} else {
+			restore <- nil
+		}
+	}(c)
 
 	source := c.controlChannel()
 

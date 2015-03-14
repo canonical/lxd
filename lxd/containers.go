@@ -170,9 +170,15 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return InternalError(err)
 	}
 
-	dialer := websocket.Dialer{TLSClientConfig: config}
+	args := migration.MigrationSinkArgs{
+		Url:       req.Source.Operation,
+		Dialer:    websocket.Dialer{TLSClientConfig: config},
+		Container: c.c,
+		Secrets:   req.Source.Websockets,
+		IdMap:     d.idMap,
+	}
 
-	sink, err := migration.NewMigrationSink(req.Source.Operation, dialer, c.c, req.Source.Websockets)
+	sink, err := migration.NewMigrationSink(&args)
 	if err != nil {
 		removeContainer(d, req.Name)
 		return BadRequest(err)
@@ -192,7 +198,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 func containersPost(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to create")
 
-	if d.id_map == nil {
+	if d.idMap == nil {
 		return BadRequest(fmt.Errorf("shared's user has no subuids"))
 	}
 
@@ -273,7 +279,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	}
 
 	rpath := shared.VarPath("lxc", name, "rootfs")
-	err = d.id_map.ShiftRootfs(rpath)
+	err = d.idMap.ShiftRootfs(rpath)
 	if err != nil {
 		fmt.Printf("Shift of rootfs %s failed: %s\n", rpath, err)
 		removeContainer(d, name)
@@ -281,7 +287,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	}
 
 	/* Set an acl so the container root can descend the container dir */
-	acl := fmt.Sprintf("%d:rx", d.id_map.Uidmin)
+	acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
 	_, err = exec.Command("setfacl", "-m", acl, dpath).Output()
 	if err != nil {
 		fmt.Printf("Error adding acl for container root: start will likely fail\n")
@@ -603,10 +609,6 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if body.Host != "" {
-		if !c.c.Running() {
-			return BadRequest(fmt.Errorf("only live migrations supported right now"))
-		}
-
 		ws, err := migration.NewMigrationSource(c.c)
 		if err != nil {
 			return InternalError(err)
@@ -927,12 +929,12 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	}
 
 	if !d.isUnprivileged() {
-		uidstr := fmt.Sprintf("u 0 %d %d\n", daemon.id_map.Uidmin, daemon.id_map.Uidrange)
+		uidstr := fmt.Sprintf("u 0 %d %d\n", daemon.idMap.Uidmin, daemon.idMap.Uidrange)
 		err = c.SetConfigItem("lxc.id_map", uidstr)
 		if err != nil {
 			return nil, err
 		}
-		gidstr := fmt.Sprintf("g 0 %d %d\n", daemon.id_map.Gidmin, daemon.id_map.Gidrange)
+		gidstr := fmt.Sprintf("g 0 %d %d\n", daemon.idMap.Gidmin, daemon.idMap.Gidrange)
 		err = c.SetConfigItem("lxc.id_map", gidstr)
 		if err != nil {
 			return nil, err
@@ -1031,41 +1033,25 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	}
 }
 
-type fileServe struct {
-	req     *http.Request
-	path    string
-	fi      os.FileInfo
-	content *os.File
-}
+func containerFileGet(r *http.Request, path string) Response {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return SmartError(err)
+	}
 
-func (r *fileServe) Render(w http.ResponseWriter) error {
 	/*
 	 * Unfortunately, there's no portable way to do this:
 	 * https://groups.google.com/forum/#!topic/golang-nuts/tGYjYyrwsGM
 	 * https://groups.google.com/forum/#!topic/golang-nuts/ywS7xQYJkHY
 	 */
-	sb := r.fi.Sys().(*syscall.Stat_t)
-	w.Header().Set("X-LXD-uid", strconv.FormatUint(uint64(sb.Uid), 10))
-	w.Header().Set("X-LXD-gid", strconv.FormatUint(uint64(sb.Gid), 10))
-	w.Header().Set("X-LXD-mode", fmt.Sprintf("%04o", r.fi.Mode()&os.ModePerm))
-
-	http.ServeContent(w, r.req, r.path, r.fi.ModTime(), r.content)
-	r.content.Close()
-	return nil
-}
-
-func containerFileGet(r *http.Request, path string) Response {
-	f, err := os.Open(path)
-	if err != nil {
-		return SmartError(err)
+	sb := fi.Sys().(*syscall.Stat_t)
+	headers := map[string]string{
+		"X-LXD-uid":  strconv.FormatUint(uint64(sb.Uid), 10),
+		"X-LXD-gid":  strconv.FormatUint(uint64(sb.Gid), 10),
+		"X-LXD-mode": fmt.Sprintf("%04o", fi.Mode()&os.ModePerm),
 	}
 
-	fi, err := f.Stat()
-	if err != nil {
-		return InternalError(err)
-	}
-
-	return &fileServe{r, filepath.Base(path), fi, f}
+	return FileResponse(r, path, filepath.Base(path), headers)
 }
 
 func containerFilePut(r *http.Request, p string) Response {
