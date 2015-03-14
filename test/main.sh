@@ -43,11 +43,14 @@ cleanup() {
     done
 
     [ "${lxd_pid}" -gt "0" ] && kill -9 ${lxd_pid}
+    [ -n "${lxd2_pid}" ] && [ "${lxd2_pid}" -gt "0" ] && kill -9 ${lxd2_pid}
 
     # Apparently we need to wait a while for everything to die
     sleep 3
     rm -Rf ${LXD_DIR}
     rm -Rf ${LXD_CONF}
+    [ -n "${LXD2_DIR}" ] && rm -Rf "${LXD2_DIR}"
+
     echo ""
     echo ""
     echo "==> Test result: $RESULT"
@@ -74,6 +77,9 @@ if [ -n "$LXD_DEBUG" ]; then
 fi
 
 spawn_lxd() {
+  # LXD_DIR is local here because since `lxc` is actually a function, it
+  # overwrites the environment and we would lose LXD_DIR's value otherwise.
+  local LXD_DIR
   echo "==> Spawning lxd on $1 in $2"
   LXD_DIR=$2 lxd $debug --tcp $1 &
 

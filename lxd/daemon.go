@@ -22,7 +22,7 @@ type Daemon struct {
 	tomb        tomb.Tomb
 	unixl       net.Listener
 	tcpl        net.Listener
-	id_map      *Idmap
+	idMap       *shared.Idmap
 	lxcpath     string
 	certf       string
 	keyf        string
@@ -165,16 +165,16 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		NotFound.Render(w)
 	})
 
-	d.id_map, err = NewIdmap()
+	d.idMap, err = shared.NewIdmap()
 	if err != nil {
 		shared.Logf("error reading idmap: %s", err.Error())
 		shared.Logf("operations requiring idmap will not be available")
 	} else {
 		shared.Debugf("idmap is %d %d %d %d\n",
-			d.id_map.Uidmin,
-			d.id_map.Uidrange,
-			d.id_map.Gidmin,
-			d.id_map.Gidrange)
+			d.idMap.Uidmin,
+			d.idMap.Uidrange,
+			d.idMap.Gidmin,
+			d.idMap.Gidrange)
 	}
 
 	localSocket := shared.VarPath("unix.socket")
