@@ -146,7 +146,7 @@ func Uidshift(dir string, idmap IdmapSet, testmode bool) error {
 		if testmode {
 			fmt.Printf("I would shift %q to %d %d\n", path, newuid, newgid)
 		} else {
-			err = os.Chown(path, int(newuid), int(newgid))
+			err = os.Lchown(path, int(newuid), int(newgid))
 			if err == nil {
 				m := fi.Mode()
 				if m&os.ModeSymlink == 0 {
