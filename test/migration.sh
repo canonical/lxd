@@ -1,6 +1,5 @@
 test_migration() {
 
-  lxc image list
   lxc init testimage nonlive
   lxc move local:nonlive lxd2:
   [ -d "$LXD2_DIR/lxc/nonlive/rootfs" ]
