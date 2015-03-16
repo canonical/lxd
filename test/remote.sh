@@ -51,10 +51,10 @@ test_remote_usage() {
   fi
 
   # we need a public image on local
-  lxc image export local:testimage foo.img
+  lxc image export local:testimage ${LXD_DIR}/foo.img
   lxc image delete local:testimage
-  sum=`sha256sum foo.img`
-  lxc image import foo.img local: --public
+  sum=`sha256sum ${LXD_DIR}/foo.img`
+  lxc image import ${LXD_DIR}/foo.img local: --public
   lxc image alias create local:testimage $sum
 
   # launch testimage stored on local as container c1 on lxd2
