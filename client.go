@@ -1105,8 +1105,8 @@ func (c *Client) SetRemotePwd(password string) (*Response, error) {
 	return resp, nil
 }
 
-func (c *Client) MigrateTo(container string, target *Client) (*Response, error) {
-	body := shared.Jmap{"host": target.Remote.Addr}
+func (c *Client) MigrateTo(container string) (*Response, error) {
+	body := shared.Jmap{"migration": true}
 
 	resp, err := c.post(fmt.Sprintf("containers/%s", container), body)
 	if err != nil {

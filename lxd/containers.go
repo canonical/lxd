@@ -602,8 +602,8 @@ func containerPut(d *Daemon, r *http.Request) Response {
 }
 
 type containerPostBody struct {
-	Host string `json:"host"`
-	Name string `json:"name"`
+	Migration bool   `json:"migration"`
+	Name      string `json:"name"`
 }
 
 func containerPost(d *Daemon, r *http.Request) Response {
@@ -623,7 +623,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	if body.Host != "" {
+	if body.Migration {
 		ws, err := migration.NewMigrationSource(c.c)
 		if err != nil {
 			return InternalError(err)
