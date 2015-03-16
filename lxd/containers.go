@@ -79,7 +79,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var err error
 	if req.Source.Alias != "" {
 		if req.Source.Mode == "pull" && req.Source.Server != "" {
-			uuid, err = remoteGetFingerprint(d, req.Source.Server, req.Source.Alias)
+			uuid, err = remoteGetImageFingerprint(d, req.Source.Server, req.Source.Alias)
 			if err != nil {
 				return InternalError(err)
 			}

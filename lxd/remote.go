@@ -9,7 +9,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func remoteGetFingerprint(d *Daemon, server string, alias string) (string, error) {
+func remoteGetImageFingerprint(d *Daemon, server string, alias string) (string, error) {
 	url := fmt.Sprintf("%s/%s/images/aliases/%s", server, shared.APIVersion, alias)
 
 	resp, err := d.httpGetSync(url)
