@@ -26,7 +26,7 @@ func remoteGetImageFingerprint(d *Daemon, server string, alias string) (string, 
 
 func (d *Daemon) dbGetimage(fp string) int {
 	q := `SELECT id FROM images WHERE fingerprint=?`
-	rows, err := d.db.Query(q, fp)
+	rows, err := shared.DbQuery(d.db, q, fp)
 	if err != nil {
 		return -1
 	}
@@ -102,7 +102,7 @@ func ensureLocalImage(d *Daemon, server, fp string) error {
 	/* insert into db - do we want to add properties? */
 	q := `INSERT INTO images (fingerprint, filename, size, public, architecture, upload_date) VALUES (?, ?, ?, ?, ?, strftime("%s"))`
 
-	_, err = d.db.Exec(q, fp, tarname, size, info.Public, arch)
+	_, err = shared.DbExec(d.db, q, fp, tarname, size, info.Public, arch)
 	if err != nil {
 		os.Remove(destName)
 		return err

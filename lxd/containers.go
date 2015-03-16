@@ -21,7 +21,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
-	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
@@ -33,8 +32,8 @@ const (
 )
 
 func containersGet(d *Daemon, r *http.Request) Response {
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=%d", cTypeRegular)
-	rows, err := d.db.Query(q)
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
+	rows, err := shared.DbQuery(d.db, q, cTypeRegular)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -314,11 +313,11 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 var DbErrAlreadyDefined = fmt.Errorf("already exists")
 
 func dbRemoveContainer(d *Daemon, name string) {
-	_, _ = d.db.Exec("DELETE FROM containers WHERE name=?", name)
+	_, _ = shared.DbExec(d.db, "DELETE FROM containers WHERE name=?", name)
 }
 
 func dbGetContainerId(db *sql.DB, name string) (int, error) {
-	rows, err := db.Query("SELECT id FROM containers WHERE name=?", name)
+	rows, err := shared.DbQuery(db, "SELECT id FROM containers WHERE name=?", name)
 	if err != nil {
 		return 0, err
 	}
@@ -379,11 +378,7 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[s
 		return 0, err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return 0, err
-	}
-
-	return id, nil
+	return id, shared.TxCommit(tx)
 }
 
 var containersCmd = Command{name: "containers", get: containersGet, post: containersPost}
@@ -406,7 +401,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 func containerDeleteSnapshots(d *Daemon, cname string) []string {
 	prefix := fmt.Sprintf("%s/", cname)
 	length := len(prefix)
-	rows, err := d.db.Query("SELECT name, id FROM containers WHERE type=? AND SUBSTR(name,1,?)=?",
+	rows, err := shared.DbQuery(d.db, "SELECT name, id FROM containers WHERE type=? AND SUBSTR(name,1,?)=?",
 		cTypeSnapshot, length, prefix)
 	if err != nil {
 		return nil
@@ -425,7 +420,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) []string {
 	}
 	rows.Close()
 	for _, id := range ids {
-		_, _ = d.db.Exec("DELETE FROM containers WHERE id=?", id)
+		_, _ = shared.DbExec(d.db, "DELETE FROM containers WHERE id=?", id)
 	}
 	return results
 }
@@ -595,7 +590,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 			return err
 		}
 
-		return tx.Commit()
+		return shared.TxCommit(tx)
 	}
 
 	return AsyncResponse(shared.OperationWrap(do), nil)
@@ -803,7 +798,7 @@ func (d *lxdContainer) applyConfig(config map[string]string) error {
 }
 
 func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
-	rows, err := daemon.db.Query(`SELECT key, value FROM profiles_config
+	rows, err := shared.DbQuery(daemon.db, `SELECT key, value FROM profiles_config
 		JOIN profiles ON profiles.id=profiles_config.profile_id
 		WHERE profiles.name=?`, p)
 
@@ -855,7 +850,7 @@ func (c *lxdContainer) applyDevices() error {
 func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	d := &lxdContainer{}
 
-	rows, err := daemon.db.Query("SELECT id, architecture FROM containers WHERE name=?", name)
+	rows, err := shared.DbQuery(daemon.db, "SELECT id, architecture FROM containers WHERE name=?", name)
 	if err != nil {
 		return nil, err
 	}
@@ -1147,7 +1142,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	regexp := fmt.Sprintf("%s/", cname)
 	length := len(regexp)
-	rows, err := d.db.Query("SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?",
+	rows, err := shared.DbQuery(d.db, "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?",
 		cTypeSnapshot, length, regexp)
 	if err != nil {
 		return InternalError(err)
@@ -1174,7 +1169,7 @@ func nextSnapshot(d *Daemon, name string) int {
 	base := fmt.Sprintf("%s/snap", name)
 	length := len(base)
 	q := fmt.Sprintf("SELECT MAX(name) FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
-	rows, err := d.db.Query(q, cTypeSnapshot, length, base)
+	rows, err := shared.DbQuery(d.db, q, cTypeSnapshot, length, base)
 	if err != nil {
 		return 0
 	}
@@ -1277,7 +1272,7 @@ var containerSnapshotsCmd = Command{name: "containers/{name}/snapshots", get: co
 
 func dbRemoveSnapshot(d *Daemon, cname string, sname string) {
 	name := fmt.Sprintf("%s/%s", cname, sname)
-	_, _ = d.db.Exec("DELETE FROM containers WHERE type=? AND name=?", cTypeSnapshot, name)
+	_, _ = shared.DbExec(d.db, "DELETE FROM containers WHERE type=? AND name=?", cTypeSnapshot, name)
 }
 
 func snapshotHandler(d *Daemon, r *http.Request) Response {

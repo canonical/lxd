@@ -222,7 +222,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := shared.TxCommit(tx); err != nil {
 		return cleanup(err, hashfname)
 	}
 
@@ -292,7 +292,7 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 func imagesGet(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to images:get")
 
-	rows, err := d.db.Query("SELECT fingerprint FROM images")
+	rows, err := shared.DbQuery(d.db, "SELECT fingerprint FROM images")
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -338,7 +338,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	_, _ = tx.Exec("DELETE FROM images_properties WHERE image_id?", imgInfo.Id)
 	_, _ = tx.Exec("DELETE FROM images WHERE id=?", imgInfo.Id)
 
-	if err := tx.Commit(); err != nil {
+	if err := shared.TxCommit(tx); err != nil {
 		return BadRequest(err)
 	}
 
@@ -357,7 +357,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	rows2, err := d.db.Query("SELECT type, key, value FROM images_properties where image_id=?", imgInfo.Id)
+	rows2, err := shared.DbQuery(d.db, "SELECT type, key, value FROM images_properties where image_id=?", imgInfo.Id)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -371,7 +371,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		properties = append(properties, i)
 	}
 
-	rows3, err := d.db.Query("SELECT name, description FROM images_aliases WHERE image_id=?", imgInfo.Id)
+	rows3, err := shared.DbQuery(d.db, "SELECT name, description FROM images_aliases WHERE image_id=?", imgInfo.Id)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -428,7 +428,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := shared.TxCommit(tx); err != nil {
 		return InternalError(err)
 	}
 
@@ -439,7 +439,7 @@ var imageCmd = Command{name: "images/{fingerprint}", untrustedGet: true, get: im
 
 type aliasPostReq struct {
 	Name        string `json:"name"`
-	Description string `json:"descriptoin"`
+	Description string `json:"description"`
 	Target      string `json:"target"`
 }
 
@@ -482,7 +482,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 func aliasesGet(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to images/aliases:get")
 
-	rows, err := d.db.Query("SELECT name FROM images_aliases")
+	rows, err := shared.DbQuery(d.db, "SELECT name FROM images_aliases")
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -509,7 +509,7 @@ func aliasGet(d *Daemon, r *http.Request) Response {
 	if !d.isTrustedClient(r) {
 		q = q + ` AND images.public=1`
 	}
-	rows, err := d.db.Query(q, name)
+	rows, err := shared.DbQuery(d.db, q, name)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -531,7 +531,7 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to images/aliases:delete")
 
 	name := mux.Vars(r)["name"]
-	_, _ = d.db.Exec("DELETE FROM images_aliases WHERE name=?", name)
+	_, _ = shared.DbExec(d.db, "DELETE FROM images_aliases WHERE name=?", name)
 
 	return EmptySyncResponse
 }
