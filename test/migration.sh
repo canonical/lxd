@@ -13,6 +13,10 @@ test_migration() {
     return
   fi
 
+  lxc start local:nonlive2
+  lxc list local: | grep RUNNING | grep nonlive2
+  lxc stop local:nonlive2 --force
+
   lxc start lxd2:nonlive
   lxc list lxd2: | grep RUNNING | grep nonlive
   lxc stop lxd2:nonlive --force
