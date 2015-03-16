@@ -1154,6 +1154,24 @@ func (c *Client) MigrateFrom(name string, operation string, secrets map[string]s
 	return resp, nil
 }
 
+func (c *Client) Rename(name string, newName string) (*Response, error) {
+	body := shared.Jmap{"name": newName}
+	resp, err := c.post(fmt.Sprintf("containers/%s", name), body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Async {
+		return nil, fmt.Errorf(gettext.Gettext("got non-async response!"))
+	}
+
+	return resp, nil
+}
+
 /* Wait for an operation */
 func (c *Client) WaitFor(waitURL string) (*shared.Operation, error) {
 	if len(waitURL) < 1 {
