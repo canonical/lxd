@@ -39,7 +39,6 @@ import (
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
-#include <termios.h>
 
 // This is an adaption from https://codereview.appspot.com/4589049, to be
 // included in the stdlib with the stdlib's license.
@@ -113,21 +112,8 @@ void create_pipe(int *master, int *slave) {
 	*slave = pipefd[1];
 }
 
-void own_pty(int fd) {
-	printf("fd is %d\n", fd);
-	if (ioctl(fd, TIOCSCTTY, (char *)NULL) == -1)
-		printf("Failed TIOCSCTTY: %s\n", strerror(errno));
-}
-
-int do_fork() {
-	return fork();
-}
 */
 import "C"
-
-func OwnPty(fd uintptr) {
-	C.own_pty(C.int(fd))
-}
 
 func OpenPty() (master *os.File, slave *os.File, err error) {
 	fd_master := C.int(-1)
@@ -546,14 +532,4 @@ func WriteAllBuf(w io.Writer, buf *bytes.Buffer) error {
 			return nil
 		}
 	}
-}
-
-func Fork() (int, int) {
-	pid := C.do_fork()
-
-	if pid < 0 {
-		return 0, int(pid)
-	}
-
-	return int(pid), 0
 }
