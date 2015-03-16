@@ -9,7 +9,7 @@ chmod 777 "${LXD_DIR}"
 export LXD_CONF=$(mktemp -d)
 export LXD_FUIDMAP_DIR=${LXD_DIR}/fuidmap
 mkdir -p ${LXD_FUIDMAP_DIR}
-BASEURL=https://127.0.0.1:8443
+BASEURL=https://127.0.0.1:18443
 RESULT=failure
 lxd_pid=0
 
@@ -20,7 +20,7 @@ fi
 
 echo "==> Running the LXD testsuite"
 
-BASEURL=https://127.0.0.1:8443
+BASEURL=https://127.0.0.1:18443
 my_curl() {
   curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" $@
 }
@@ -94,8 +94,13 @@ spawn_lxd() {
   LXD_DIR=$2 lxc config set password foo
 }
 
-spawn_lxd 127.0.0.1:8443 $LXD_DIR
+spawn_lxd 127.0.0.1:18443 $LXD_DIR
 lxd_pid=$!
+
+export LXD2_DIR=$(mktemp -d -p $(pwd))
+chmod 777 "${LXD2_DIR}"
+spawn_lxd 127.0.0.1:18444 "${LXD2_DIR}"
+lxd2_pid=$!
 
 # allow for running a specific set of tests
 if [ "$#" -gt 0 ]; then
@@ -110,11 +115,14 @@ test_commits_signed_off
 echo "==> TEST: doing static analysis of commits"
 static_analysis
 
-echo "==> TEST: lxc remote"
-test_remote
+echo "==> TEST: lxc remote administration"
+test_remote_admin
 
 echo "==> TEST: basic usage"
 test_basic_usage
+
+echo "==> TEST: lxc remote usage"
+test_remote_usage
 
 echo "==> TEST: snapshots"
 test_snapshots

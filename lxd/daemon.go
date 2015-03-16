@@ -29,6 +29,8 @@ type Daemon struct {
 	mux         *mux.Router
 	clientCerts map[string]x509.Certificate
 	db          *sql.DB
+
+	tlsconfig *tls.Config
 }
 
 type Command struct {
@@ -39,6 +41,66 @@ type Command struct {
 	put           func(d *Daemon, r *http.Request) Response
 	post          func(d *Daemon, r *http.Request) Response
 	delete        func(d *Daemon, r *http.Request) Response
+}
+
+func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
+	var err error
+	if d.tlsconfig == nil {
+		d.tlsconfig, err = shared.GetTLSConfig(d.certf, d.keyf)
+		if err != nil {
+			return nil, err
+		}
+	}
+	tr := &http.Transport{
+		TLSClientConfig: d.tlsconfig,
+	}
+	myhttp := http.Client{
+		Transport: tr,
+	}
+	r, err := myhttp.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := lxd.ParseResponse(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Type != lxd.Sync {
+		return nil, fmt.Errorf("unexpected non-sync response!")
+	}
+
+	return resp, nil
+}
+
+func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
+	var err error
+	if d.tlsconfig == nil {
+		d.tlsconfig, err = shared.GetTLSConfig(d.certf, d.keyf)
+		if err != nil {
+			return nil, err
+		}
+	}
+	tr := &http.Transport{
+		TLSClientConfig: d.tlsconfig,
+	}
+	myhttp := http.Client{
+		Transport: tr,
+	}
+	raw, err := myhttp.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if raw.StatusCode != 200 {
+		resp, err := lxd.ParseResponse(raw)
+		if err != nil {
+			return nil, err
+		}
+		return nil, lxd.ParseError(resp)
+	}
+
+	return raw, nil
 }
 
 func readMyCert() (string, string, error) {

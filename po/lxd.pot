@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-12 15:44-0500\n"
+        "POT-Creation-Date: 2015-03-14 00:30-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,7 +16,7 @@ msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Content-Type: text/plain; charset=CHARSET\n"
         "Content-Transfer-Encoding: 8bit\n"
 
-#: lxc/image.go:24
+#: lxc/image.go:25
 msgid   "### This is a yaml representation of the image properties.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -58,12 +58,12 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name\n"
 msgstr  ""
 
-#: lxc/image.go:84
+#: lxc/image.go:89
 #, c-format
 msgid   "(Bad alias entry: %s\n"
 msgstr  ""
 
-#: lxc/image.go:244
+#: lxc/image.go:250
 #, c-format
 msgid   "(Bad image entry: %s\n"
 msgstr  ""
@@ -73,7 +73,7 @@ msgstr  ""
 msgid   "Admin password for %s: "
 msgstr  ""
 
-#: lxc/image.go:178
+#: lxc/image.go:184
 msgid   "Aliases:\n"
 msgstr  ""
 
@@ -81,16 +81,16 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: client.go:555
+#: client.go:558
 #, c-format
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1340
+#: client.go:1365
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: client.go:690
+#: client.go:693
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -110,7 +110,7 @@ msgstr  ""
 msgid   "Container not found"
 msgstr  ""
 
-#: client.go:704
+#: client.go:707
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -146,11 +146,11 @@ msgstr  ""
 msgid   "Enables verbose mode."
 msgstr  ""
 
-#: lxc/init.go:96 lxc/init.go:97 lxc/launch.go:36 lxc/launch.go:37
+#: lxc/init.go:100 lxc/init.go:101 lxc/launch.go:36 lxc/launch.go:37
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: lxc/init.go:118 lxc/launch.go:58
+#: lxc/init.go:121 lxc/launch.go:58
 msgid   "Ephemeral containers not yet supported\n"
 msgstr  ""
 
@@ -174,7 +174,7 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute...\n"
 msgstr  ""
 
-#: lxc/image.go:168
+#: lxc/image.go:174
 #, c-format
 msgid   "Hash: %s\n"
 msgstr  ""
@@ -209,6 +209,10 @@ msgid   "Lists the available resources.\n"
         "\n"
         "Currently resource must be a defined remote, and list only lists\n"
         "the defined containers.\n"
+msgstr  ""
+
+#: lxc/image.go:62
+msgid   "Make image public"
 msgstr  ""
 
 #: lxc/config.go:45
@@ -280,7 +284,6 @@ msgstr  ""
 #: lxc/move.go:23
 msgid   "Move containers within or in between lxd instances.\n"
         "\n"
-        "(currently only live migration is supported)\n"
         "lxc move <source container> <destination container>\n"
 msgstr  ""
 
@@ -288,7 +291,7 @@ msgstr  ""
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:683
+#: client.go:686
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -296,15 +299,15 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: client.go:965
+#: client.go:990
 msgid   "Non-async response from delete!"
 msgstr  ""
 
-#: client.go:834
+#: client.go:859
 msgid   "Non-async response from init!"
 msgstr  ""
 
-#: client.go:1181
+#: client.go:1206
 msgid   "Non-async response from snapshot!"
 msgstr  ""
 
@@ -340,16 +343,16 @@ msgstr  ""
 msgid   "Profile %s deleted\n"
 msgstr  ""
 
-#: lxc/image.go:174
+#: lxc/image.go:180
 msgid   "Properties:\n"
 msgstr  ""
 
-#: lxc/image.go:173
+#: lxc/image.go:179
 #, c-format
 msgid   "Public: %s\n"
 msgstr  ""
 
-#: client.go:697
+#: client.go:700
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
@@ -387,15 +390,15 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: client.go:1332 client.go:1353
+#: client.go:1357 client.go:1378
 msgid   "Unexpected async response"
 msgstr  ""
 
-#: client.go:1278 client.go:1421 client.go:1446 client.go:1485
+#: client.go:1303 client.go:1446 client.go:1471 client.go:1510
 msgid   "Unexpected non-async response"
 msgstr  ""
 
-#: lxc/image.go:347
+#: lxc/image.go:353
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -431,26 +434,26 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:432 client.go:1213 client.go:1220
+#: client.go:432 client.go:1238 client.go:1245
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
 
-#: lxc/launch.go:103
+#: lxc/launch.go:104
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1390
+#: client.go:1415
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
 
-#: client.go:670
+#: client.go:673
 msgid   "bad response type from image list!"
 msgstr  ""
 
-#: client.go:412 client.go:628 client.go:1199 client.go:1370 client.go:1526
-#: client.go:1565 client.go:1623
+#: client.go:412 client.go:631 client.go:1224 client.go:1395 client.go:1551
+#: client.go:1590 client.go:1648
 msgid   "bad response type from list!"
 msgstr  ""
 
@@ -458,11 +461,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:436 client.go:1224
+#: client.go:436 client.go:1249
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1394
+#: client.go:1419
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -470,7 +473,7 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: lxc/launch.go:87 lxc/launch.go:92
+#: lxc/launch.go:88 lxc/launch.go:93
 msgid   "didn't get any affected resources from server"
 msgstr  ""
 
@@ -488,24 +491,24 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:922
+#: client.go:947
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
 
-#: client.go:859
+#: client.go:884
 msgid   "got bad response type from exec"
 msgstr  ""
 
-#: lxc/launch.go:107
+#: lxc/launch.go:108
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:1096 client.go:1126
+#: client.go:1121 client.go:1151
 msgid   "got non-async response!"
 msgstr  ""
 
-#: client.go:592 client.go:984 client.go:1007
+#: client.go:595 client.go:1009 client.go:1032
 msgid   "got non-sync response from containers get!"
 msgstr  ""
 
@@ -514,14 +517,15 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1135
+#: client.go:1160
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
 
-#: lxc/image.go:41
-msgid   "lxc image import <tarball> [target] [--created-at=ISO-8601] [--"
-        "expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n"
+#: lxc/image.go:42
+msgid   "lxc image import <tarball> [target] [--public] [--created-"
+        "at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] "
+        "[prop=value]\n"
         "\n"
         "lxc image delete [resource:]<image>\n"
         "lxc image edit [resource:]\n"
@@ -568,15 +572,15 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1462 client.go:1542
+#: client.go:1487 client.go:1567
 msgid   "no value found in %q\n"
 msgstr  ""
 
-#: lxc/move.go:69
+#: lxc/move.go:72
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: client.go:691
+#: client.go:694
 msgid   "ok (y/n)? "
 msgstr  ""
 

@@ -19,7 +19,7 @@ test_basic_usage() {
   fi
   [ "$sum" = "$(sha256sum ${LXD_DIR}/${name} | cut -d' ' -f1)" ]
 
-  # Test iamge delete
+  # Test image delete
   lxc image delete testimage
 
   # Re-import the image

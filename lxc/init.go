@@ -106,8 +106,7 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	/* TODO: image could also be a resource:name */
-	image := args[0]
+	iremote, image := config.ParseRemoteAndContainer(args[0])
 
 	var name string
 	var remote string
@@ -140,9 +139,9 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		profiles = append(profiles, p)
 	}
 	if !requested_empty_profiles && len(profiles) == 0 {
-		resp, err = d.Init(name, image, nil)
+		resp, err = d.Init(name, iremote, image, nil)
 	} else {
-		resp, err = d.Init(name, image, &profiles)
+		resp, err = d.Init(name, iremote, image, &profiles)
 	}
 	if err != nil {
 		return err
