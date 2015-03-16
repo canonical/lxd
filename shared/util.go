@@ -533,13 +533,3 @@ func WriteAllBuf(w io.Writer, buf *bytes.Buffer) error {
 		}
 	}
 }
-
-func Fork() (uintptr, syscall.Errno) {
-	r1, _, err1 := syscall.RawSyscall(syscall.SYS_FORK, 0, 0, 0)
-
-	if err1 != 0 {
-		return 0, err1
-	}
-
-	return r1, 0
-}
