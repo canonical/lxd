@@ -641,21 +641,10 @@ func containerPost(d *Daemon, r *http.Request) Response {
 				return err
 			}
 
-			oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", c.name, "rootfs"))
-			newPath := fmt.Sprintf("%s/", shared.VarPath("lxc", body.Name, "rootfs"))
+			oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", c.name))
+			newPath := fmt.Sprintf("%s/", shared.VarPath("lxc", body.Name))
 
-			if err := os.MkdirAll(newPath, 0700); err != nil {
-				return err
-			}
-
-			acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
-			_, err = exec.Command("setfacl", "-m", acl, shared.VarPath("lxc", body.Name)).Output()
-			if err != nil {
-				return err
-			}
-
-			if err = exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run(); err != nil {
-				removeContainer(d, body.Name)
+			if err := os.Rename(oldPath, newPath); err != nil {
 				return err
 			}
 
