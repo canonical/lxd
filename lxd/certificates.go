@@ -69,7 +69,7 @@ func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = make(map[string]x509.Certificate)
 	rows, err := d.db.Query("SELECT fingerprint, type, name, certificate FROM certificates")
 	if err != nil {
-		fmt.Printf("Error reading certificates from database: %s\n", err)
+		shared.Logf("Error reading certificates from database: %s\n", err)
 		return
 	}
 	defer rows.Close()
@@ -82,7 +82,7 @@ func readSavedClientCAList(d *Daemon) {
 		cert_block, _ := pem.Decode(cf)
 		cert, err := x509.ParseCertificate(cert_block.Bytes)
 		if err != nil {
-			fmt.Printf("Error reading certificate for %s: %s\n", name, err)
+			shared.Logf("Error reading certificate for %s: %s\n", name, err)
 			continue
 		}
 		d.clientCerts[name] = *cert

@@ -1105,8 +1105,8 @@ func (c *Client) SetRemotePwd(password string) (*Response, error) {
 	return resp, nil
 }
 
-func (c *Client) MigrateTo(container string, target *Client) (*Response, error) {
-	body := shared.Jmap{"host": target.Remote.Addr}
+func (c *Client) MigrateTo(container string) (*Response, error) {
+	body := shared.Jmap{"migration": true}
 
 	resp, err := c.post(fmt.Sprintf("containers/%s", container), body)
 	if err != nil {
@@ -1139,6 +1139,24 @@ func (c *Client) MigrateFrom(name string, operation string, secrets map[string]s
 	}
 
 	resp, err := c.post("containers", body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ParseError(resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Type != Async {
+		return nil, fmt.Errorf(gettext.Gettext("got non-async response!"))
+	}
+
+	return resp, nil
+}
+
+func (c *Client) Rename(name string, newName string) (*Response, error) {
+	body := shared.Jmap{"name": newName}
+	resp, err := c.post(fmt.Sprintf("containers/%s", name), body)
 	if err != nil {
 		return nil, err
 	}

@@ -266,7 +266,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 
 	compression, _, err := detectCompression(imagefile)
 	if err != nil {
-		fmt.Printf("Unkown compression type: %s", err)
+		shared.Logf("Unkown compression type: %s", err)
 		removeContainer(d, name)
 		return err
 	}
@@ -288,7 +288,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 
 	output, err := exec.Command("tar", args...).Output()
 	if err != nil {
-		fmt.Printf("Untar of image: Output %s\nError %s\n", output, err)
+		shared.Debugf("Untar of image: Output %s\nError %s\n", output, err)
 		removeContainer(d, name)
 		return err
 	}
@@ -296,7 +296,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	rpath := shared.VarPath("lxc", name, "rootfs")
 	err = d.idMap.ShiftRootfs(rpath)
 	if err != nil {
-		fmt.Printf("Shift of rootfs %s failed: %s\n", rpath, err)
+		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
 		removeContainer(d, name)
 		return err
 	}
@@ -305,7 +305,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
 	_, err = exec.Command("setfacl", "-m", acl, dpath).Output()
 	if err != nil {
-		fmt.Printf("Error adding acl for container root: start will likely fail\n")
+		shared.Debugf("Error adding acl for container root: start will likely fail\n")
 	}
 
 	return nil
@@ -602,8 +602,8 @@ func containerPut(d *Daemon, r *http.Request) Response {
 }
 
 type containerPostBody struct {
-	Host string `json:"host"`
-	Name string `json:"name"`
+	Migration bool   `json:"migration"`
+	Name      string `json:"name"`
 }
 
 func containerPost(d *Daemon, r *http.Request) Response {
@@ -623,7 +623,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	if body.Host != "" {
+	if body.Migration {
 		ws, err := migration.NewMigrationSource(c.c)
 		if err != nil {
 			return InternalError(err)
@@ -631,17 +631,36 @@ func containerPost(d *Daemon, r *http.Request) Response {
 
 		return AsyncResponseWithWs(ws, nil)
 	} else {
-		run := func() error { return c.c.Rename(body.Name) }
+		run := func() error {
+			if c.c.Running() {
+				return fmt.Errorf("renaming of running container not allowed")
+			}
+
+			_, err := dbCreateContainer(d, body.Name, cTypeRegular, c.config, c.profiles)
+			if err != nil {
+				return err
+			}
+
+			oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", c.name))
+			newPath := fmt.Sprintf("%s/", shared.VarPath("lxc", body.Name))
+
+			if err := os.Rename(oldPath, newPath); err != nil {
+				return err
+			}
+
+			removeContainer(d, c.name)
+			return nil
+		}
+
 		return AsyncResponse(shared.OperationWrap(run), nil)
 	}
 }
 
 func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	fmt.Printf("delete: called with name %s\n", name)
 	_, err := dbGetContainerId(d.db, name)
 	if err != nil {
-		fmt.Printf("Delete: container %s not known", name)
+		shared.Debugf("Delete: container %s not known", name)
 		// rootfs may still exist though, so try to delete it
 	}
 	dirsToDelete := containerDeleteSnapshots(d, name)
@@ -656,7 +675,6 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		}
 		return nil
 	}
-	fmt.Printf("running rmdir\n")
 	return AsyncResponse(shared.OperationWrap(rmdir), nil)
 }
 
@@ -1248,7 +1266,6 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		/* Copy the rootfs */
 		oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", name, "rootfs"))
 		newPath := snapshotRootfsDir(c, snapshotName)
-		fmt.Printf("Running rsync -a --devices %s %s\n", oldPath, newPath)
 		err = exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
 		return err
 	}

@@ -373,7 +373,6 @@ func initDb(d *Daemon) error {
 	} else {
 		db, err = sql.Open("sqlite3", dbpath)
 		if err != nil {
-			fmt.Printf("Error opening lxd database\n")
 			return err
 		}
 	}
