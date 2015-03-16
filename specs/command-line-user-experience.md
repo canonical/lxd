@@ -172,7 +172,7 @@ Command                                 | Result
 :------                                 | :-----
 lxc copy c1 c2                          | Create a container called "c2" which is a copy of container "c1" with its hostname changed and a fresh MAC address
 lxc copy c1 dakara:                     | Copy container "c1" to remote host "dakara" still keeping the name "c1" on the target
-lxc copy c1 dakara: c2                  | Same as above but also rename the container and change its hostname
+lxc copy c1 dakara:c2                   | Same as above but also rename the container and change its hostname
 
 
 * * *

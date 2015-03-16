@@ -130,7 +130,7 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 		body.Resources = map[string][]string{}
 		var containers []string
 		for _, c := range r.containers {
-			containers = append(containers, fmt.Sprintf("/%s/containers/%s", shared.Version, c))
+			containers = append(containers, fmt.Sprintf("/%s/containers/%s", shared.APIVersion, c))
 		}
 
 		body.Resources["containers"] = containers
