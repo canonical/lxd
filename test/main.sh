@@ -49,7 +49,6 @@ cleanup() {
     sleep 3
     rm -Rf ${LXD_DIR}
     rm -Rf ${LXD_CONF}
-    rm -f foo.img
     [ -n "${LXD2_DIR}" ] && rm -Rf "${LXD2_DIR}"
 
     echo ""
