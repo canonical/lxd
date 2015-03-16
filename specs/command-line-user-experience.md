@@ -415,6 +415,16 @@ Snapshots would be displayed below their parent containers and would re-use the
 name, state and disk consumption field, the others wouldn’t be relevant and
 will be displayed as "-".
 
+The filters are:
+ * A single keyword like "web" which will list any container with "web" in its name.
+ * A key/value pair referring to a configuration item. For those, the namespace can be abreviated to the smallest unambiguous identifier:
+   * "user.blah=abc" will list all containers with the "blah" user property set to "abc"
+   * "u.blah=abc" will do the same
+   * "security.privileged=1" will list all privileged containers
+   * "s.privileged=1" will do the same
+
+Multiple filters may be passed, a container will then have to match them all to be listed.
+
 **Examples**
 
 Command             | Result
