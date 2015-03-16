@@ -53,6 +53,17 @@ const (
 	Error ResponseType = "error"
 )
 
+var (
+	// LXDErrors are special errors; the client library hoists error codes
+	// to these errors internally so that user code can compare against
+	// them. We probably shouldn't hoist BadRequest or InternalError, since
+	// LXD passes an error string along which is more informative than
+	// whatever static error message we would put here.
+	LXDErrors = map[int]error{
+		http.StatusNotFound: fmt.Errorf("not found"),
+	}
+)
+
 type Response struct {
 	Type ResponseType `json:"type"`
 
@@ -98,6 +109,11 @@ func (r *Response) MetadataAsOperation() (*shared.Operation, error) {
 	return &op, nil
 }
 
+// ParseResponse parses a lxd style response out of an http.Response. Note that
+// this does _not_ automatically convert error responses to golang errors. To
+// do that, use ParseError. Internal client library uses should probably use
+// HoistResponse, unless they are interested in accessing the underlying Error
+// response (e.g. to inspect the error code).
 func ParseResponse(r *http.Response) (*Response, error) {
 	if r == nil {
 		return nil, fmt.Errorf(gettext.Gettext("no response!"))
@@ -118,12 +134,28 @@ func ParseResponse(r *http.Response) (*Response, error) {
 	return &ret, nil
 }
 
-func ParseError(r *Response) error {
-	if r.Type == Error {
-		return fmt.Errorf(r.Error)
+// HoistResponse hoists a regular http response into a response of type rtype
+// or returns a golang error.
+func HoistResponse(r *http.Response, rtype ResponseType) (*Response, error) {
+	resp, err := ParseResponse(r)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	if resp.Type == Error {
+		// Try and use a known error if we have one for this code.
+		err, ok := LXDErrors[resp.Code]
+		if !ok {
+			return nil, fmt.Errorf(resp.Error)
+		}
+		return nil, err
+	}
+
+	if resp.Type != rtype {
+		return nil, fmt.Errorf(gettext.Gettext("got bad response type, expected %s got %s"), rtype, resp.Type)
+	}
+
+	return resp, nil
 }
 
 func readMyCert() (string, string, error) {
@@ -237,10 +269,10 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 		c.scertDigestSet = true
 	}
 
-	return ParseResponse(resp)
+	return HoistResponse(resp, Sync)
 }
 
-func (c *Client) put(base string, args shared.Jmap) (*Response, error) {
+func (c *Client) put(base string, args shared.Jmap, rtype ResponseType) (*Response, error) {
 	uri := c.url(shared.APIVersion, base)
 
 	buf := bytes.Buffer{}
@@ -262,10 +294,10 @@ func (c *Client) put(base string, args shared.Jmap) (*Response, error) {
 		return nil, err
 	}
 
-	return ParseResponse(resp)
+	return HoistResponse(resp, rtype)
 }
 
-func (c *Client) post(base string, args shared.Jmap) (*Response, error) {
+func (c *Client) post(base string, args shared.Jmap, rtype ResponseType) (*Response, error) {
 	uri := c.url(shared.APIVersion, base)
 
 	buf := bytes.Buffer{}
@@ -281,10 +313,10 @@ func (c *Client) post(base string, args shared.Jmap) (*Response, error) {
 		return nil, err
 	}
 
-	return ParseResponse(resp)
+	return HoistResponse(resp, rtype)
 }
 
-func (c *Client) delete(base string, args shared.Jmap) (*Response, error) {
+func (c *Client) delete(base string, args shared.Jmap, rtype ResponseType) (*Response, error) {
 	uri := c.url(shared.APIVersion, base)
 
 	buf := bytes.Buffer{}
@@ -306,7 +338,7 @@ func (c *Client) delete(base string, args shared.Jmap) (*Response, error) {
 		return nil, err
 	}
 
-	return ParseResponse(resp)
+	return HoistResponse(resp, rtype)
 }
 
 func (c *Client) websocket(operation string, secret string) (*websocket.Conn, error) {
@@ -341,16 +373,7 @@ var unixTransport = http.Transport{
 }
 
 func (c *Client) GetServerConfig() (*Response, error) {
-	resp, err := c.baseGet(c.url(shared.APIVersion))
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return c.baseGet(c.url(shared.APIVersion))
 }
 
 func (c *Client) Finger() error {
@@ -404,13 +427,6 @@ func (c *Client) ListContainers() ([]string, error) {
 		return nil, err
 	}
 
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Sync {
-		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
-	}
 	var result []string
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
@@ -458,11 +474,11 @@ func (c *Client) ExportImage(image string, target string) (*Response, error) {
 
 	// because it is raw data, we need to check for http status
 	if raw.StatusCode != 200 {
-		resp, err := ParseResponse(raw)
+		resp, err := HoistResponse(raw, Sync)
 		if err != nil {
 			return nil, err
 		}
-		return nil, ParseError(resp)
+		return nil, fmt.Errorf(gettext.Gettext("expected error, got %s"), resp)
 	}
 
 	var wr io.Writer
@@ -568,31 +584,13 @@ func (c *Client) PostImage(path string, properties []string, public bool) (*Resp
 		return nil, err
 	}
 
-	resp, err := ParseResponse(raw)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return HoistResponse(raw, Sync)
 }
 
 func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
 	resp, err := c.get(fmt.Sprintf("images/%s", image))
-
 	if err != nil {
 		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Sync {
-		return nil, fmt.Errorf(gettext.Gettext("got non-sync response from containers get!"))
 	}
 
 	info := shared.ImageInfo{}
@@ -605,16 +603,8 @@ func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
 
 func (c *Client) PutImageProperties(name string, p shared.ImageProperties) error {
 	body := shared.Jmap{"properties": p}
-	resp, err := c.put(fmt.Sprintf("images/%s", name), body)
-	if err != nil {
-		return err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return err
-	}
-
-	return nil
+	_, err := c.put(fmt.Sprintf("images/%s", name), body, Sync)
+	return err
 }
 
 func (c *Client) ListImages() ([]string, error) {
@@ -623,15 +613,7 @@ func (c *Client) ListImages() ([]string, error) {
 		return nil, err
 	}
 
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Sync {
-		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
-	}
 	var result []string
-
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
 	}
@@ -640,22 +622,19 @@ func (c *Client) ListImages() ([]string, error) {
 }
 
 func (c *Client) DeleteImage(image string) error {
-	_, err := c.delete(fmt.Sprintf("images/%s", image), nil)
+	_, err := c.delete(fmt.Sprintf("images/%s", image), nil, Sync)
 	return err
 }
 
 func (c *Client) PostAlias(alias string, desc string, target string) error {
 	body := shared.Jmap{"description": desc, "target": target, "name": alias}
 
-	raw, err := c.post("images/aliases", body)
-	if err != nil {
-		return err
-	}
-	return ParseError(raw)
+	_, err := c.post("images/aliases", body, Sync)
+	return err
 }
 
 func (c *Client) DeleteAlias(alias string) error {
-	_, err := c.delete(fmt.Sprintf("images/aliases/%s", alias), nil)
+	_, err := c.delete(fmt.Sprintf("images/aliases/%s", alias), nil, Sync)
 	return err
 }
 
@@ -665,13 +644,6 @@ func (c *Client) ListAliases() ([]string, error) {
 		return nil, err
 	}
 
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Sync {
-		return nil, fmt.Errorf(gettext.Gettext("bad response type from image list!"))
-	}
 	var result []string
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
@@ -724,10 +696,6 @@ func (c *Client) CertificateList() (map[string]string, error) {
 		return nil, err
 	}
 
-	if err := ParseError(raw); err != nil {
-		return nil, err
-	}
-
 	ret := make(map[string]string)
 	if err := json.Unmarshal(raw.Metadata, &ret); err != nil {
 		return nil, err
@@ -739,44 +707,28 @@ func (c *Client) CertificateList() (map[string]string, error) {
 func (c *Client) AddMyCertToServer(pwd string) error {
 	body := shared.Jmap{"type": "client", "password": pwd}
 
-	raw, err := c.post("certificates", body)
-	if err != nil {
-		return err
-	}
-
-	return ParseError(raw)
+	_, err := c.post("certificates", body, Sync)
+	return err
 }
 
 func (c *Client) CertificateAdd(cert *x509.Certificate, name string) error {
 	b64 := base64.StdEncoding.EncodeToString(cert.Raw)
-	raw, err := c.post("certificates", shared.Jmap{"type": "client", "certificate": b64, "name": name})
-	if err != nil {
-		return err
-	}
-
-	return ParseError(raw)
+	_, err := c.post("certificates", shared.Jmap{"type": "client", "certificate": b64, "name": name}, Sync)
+	return err
 }
 
 func (c *Client) CertificateRemove(fingerprint string) error {
-	raw, err := c.delete(fmt.Sprintf("certificates/%s", fingerprint), nil)
-	if err != nil {
-		return err
-	}
-	return ParseError(raw)
+	_, err := c.delete(fmt.Sprintf("certificates/%s", fingerprint), nil, Sync)
+	return err
 }
 
 func (c *Client) IsAlias(alias string) (bool, error) {
-	resp, err := c.get(fmt.Sprintf("images/aliases/%s", alias))
+	_, err := c.get(fmt.Sprintf("images/aliases/%s", alias))
 	if err != nil {
-		return false, err
-	}
-
-	if resp.Type == Error {
-		if resp.Code == http.StatusNotFound {
+		if err == LXDErrors[http.StatusNotFound] {
 			return false, nil
-		} else {
-			return false, ParseError(resp)
 		}
+		return false, err
 	}
 
 	return true, nil
@@ -846,20 +798,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		body["profiles"] = *profiles
 	}
 
-	resp, err := c.post("containers", body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("Non-async response from init!"))
-	}
-
-	return resp, nil
+	return c.post("containers", body, Async)
 }
 
 type execMd struct {
@@ -871,17 +810,9 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 
 	body := shared.Jmap{"command": cmd, "wait-for-websocket": true, "interactive": interactive, "environment": env}
 
-	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body)
+	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body, Async)
 	if err != nil {
 		return -1, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return -1, err
-	}
-
-	if resp.Type != Async {
-		return -1, fmt.Errorf(gettext.Gettext("got bad response type from exec"))
 	}
 
 	md := execMd{}
@@ -957,16 +888,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 
 func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool) (*Response, error) {
 	body := shared.Jmap{"action": action, "timeout": timeout, "force": force}
-	resp, err := c.put(fmt.Sprintf("containers/%s/state", name), body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return c.put(fmt.Sprintf("containers/%s/state", name), body, Async)
 }
 
 func (c *Client) Delete(name string) (*Response, error) {
@@ -977,20 +899,8 @@ func (c *Client) Delete(name string) (*Response, error) {
 	} else {
 		url = fmt.Sprintf("containers/%s", name)
 	}
-	resp, err := c.delete(url, nil)
-	if err != nil {
-		return nil, err
-	}
 
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("Non-async response from delete!"))
-	}
-
-	return resp, nil
+	return c.delete(url, nil, Async)
 }
 
 func (c *Client) ContainerStatus(name string) (*shared.ContainerState, error) {
@@ -999,14 +909,6 @@ func (c *Client) ContainerStatus(name string) (*shared.ContainerState, error) {
 	resp, err := c.get(fmt.Sprintf("containers/%s", name))
 	if err != nil {
 		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Sync {
-		return nil, fmt.Errorf(gettext.Gettext("got non-sync response from containers get!"))
 	}
 
 	if err := json.Unmarshal(resp.Metadata, &ct); err != nil {
@@ -1022,14 +924,6 @@ func (c *Client) ProfileConfig(name string) (*shared.ProfileConfig, error) {
 	resp, err := c.get(fmt.Sprintf("profiles/%s", name))
 	if err != nil {
 		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Sync {
-		return nil, fmt.Errorf(gettext.Gettext("got non-sync response from containers get!"))
 	}
 
 	if err := json.Unmarshal(resp.Metadata, &ct); err != nil {
@@ -1057,12 +951,8 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 		return err
 	}
 
-	resp, err := ParseResponse(raw)
-	if err != nil {
-		return err
-	}
-
-	return ParseError(resp)
+	_, err = HoistResponse(raw, Sync)
+	return err
 }
 
 func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io.ReadCloser, error) {
@@ -1075,12 +965,12 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 	}
 
 	if r.StatusCode != 200 {
-		resp, err := ParseResponse(r)
+		_, err := HoistResponse(r, Error)
 		if err != nil {
 			return 0, 0, 0, nil, err
 		}
 
-		return 0, 0, 0, nil, ParseError(resp)
+		return 0, 0, 0, nil, fmt.Errorf("non-200 error code with no error response?")
 	}
 
 	uid, gid, mode, err := shared.ParseLXDFileHeaders(r.Header)
@@ -1093,35 +983,12 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 
 func (c *Client) SetRemotePwd(password string) (*Response, error) {
 	body := shared.Jmap{"config": []shared.Jmap{shared.Jmap{"key": "trust-password", "value": password}}}
-	resp, err := c.put("", body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return c.put("", body, Sync)
 }
 
 func (c *Client) MigrateTo(container string) (*Response, error) {
 	body := shared.Jmap{"migration": true}
-
-	resp, err := c.post(fmt.Sprintf("containers/%s", container), body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("got non-async response!"))
-	}
-
-	return resp, nil
+	return c.post(fmt.Sprintf("containers/%s", container), body, Async)
 }
 
 func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string, config map[string]string, profiles []string) (*Response, error) {
@@ -1138,38 +1005,12 @@ func (c *Client) MigrateFrom(name string, operation string, secrets map[string]s
 		"profiles": profiles,
 	}
 
-	resp, err := c.post("containers", body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("got non-async response!"))
-	}
-
-	return resp, nil
+	return c.post("containers", body, Async)
 }
 
 func (c *Client) Rename(name string, newName string) (*Response, error) {
 	body := shared.Jmap{"name": newName}
-	resp, err := c.post(fmt.Sprintf("containers/%s", name), body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("got non-async response!"))
-	}
-
-	return resp, nil
+	return c.post(fmt.Sprintf("containers/%s", name), body, Async)
 }
 
 /* Wait for an operation */
@@ -1186,10 +1027,6 @@ func (c *Client) WaitFor(waitURL string) (*shared.Operation, error) {
 	shared.Debugf(path.Join(waitURL[1:], "wait"))
 	resp, err := c.baseGet(c.url(waitURL, "wait"))
 	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
 		return nil, err
 	}
 
@@ -1211,20 +1048,7 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 
 func (c *Client) Snapshot(container string, snapshotName string, stateful bool) (*Response, error) {
 	body := shared.Jmap{"name": snapshotName, "stateful": stateful}
-	resp, err := c.post(fmt.Sprintf("containers/%s/snapshots", container), body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("Non-async response from snapshot!"))
-	}
-
-	return resp, nil
+	return c.post(fmt.Sprintf("containers/%s/snapshots", container), body, Async)
 }
 
 func (c *Client) ListSnapshots(container string) ([]string, error) {
@@ -1234,13 +1058,6 @@ func (c *Client) ListSnapshots(container string) ([]string, error) {
 		return nil, err
 	}
 
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Sync {
-		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
-	}
 	var result []string
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
@@ -1308,34 +1125,18 @@ func (c *Client) SetContainerConfig(container, key, value string) (*Response, er
 	}
 
 	body := shared.Jmap{"config": st.Config, "profiles": st.Profiles, "name": container, "devices": st.Devices}
-	resp, err := c.put(fmt.Sprintf("containers/%s", container), body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("Unexpected non-async response"))
-	}
-
-	return resp, nil
+	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
 }
 
 func (c *Client) ProfileCreate(p string) error {
 	body := shared.Jmap{"name": p}
 
-	raw, err := c.post("profiles", body)
-	if err != nil {
-		return err
-	}
-	return ParseError(raw)
+	_, err := c.post("profiles", body, Sync)
+	return err
 }
 
 func (c *Client) ProfileDelete(p string) error {
-	_, err := c.delete(fmt.Sprintf("profiles/%s", p), nil)
+	_, err := c.delete(fmt.Sprintf("profiles/%s", p), nil, Sync)
 	return err
 }
 
@@ -1362,20 +1163,8 @@ func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 	}
 
 	body := shared.Jmap{"name": profile, "config": st.Config, "devices": st.Devices}
-	resp, err := c.put(fmt.Sprintf("profiles/%s", profile), body)
-	if err != nil {
-		return err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return err
-	}
-
-	if resp.Type != Sync {
-		return fmt.Errorf(gettext.Gettext("Unexpected async response"))
-	}
-
-	return nil
+	_, err = c.put(fmt.Sprintf("profiles/%s", profile), body, Sync)
+	return err
 }
 
 func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
@@ -1383,20 +1172,8 @@ func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
 		return fmt.Errorf(gettext.Gettext("Cannot change profile name"))
 	}
 	body := shared.Jmap{"name": name, "config": profile.Config, "devices": profile.Devices}
-	resp, err := c.put(fmt.Sprintf("profiles/%s", name), body)
-	if err != nil {
-		return err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return err
-	}
-
-	if resp.Type != Sync {
-		return fmt.Errorf(gettext.Gettext("Unexpected async response"))
-	}
-
-	return nil
+	_, err := c.put(fmt.Sprintf("profiles/%s", name), body, Sync)
+	return err
 }
 
 func (c *Client) ListProfiles() ([]string, error) {
@@ -1405,13 +1182,6 @@ func (c *Client) ListProfiles() ([]string, error) {
 		return nil, err
 	}
 
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Sync {
-		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
-	}
 	var result []string
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
@@ -1451,20 +1221,7 @@ func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
 	profiles := strings.Split(profile, ",")
 	body := shared.Jmap{"config": st.Config, "profiles": profiles, "name": st.Name, "devices": st.Devices}
 
-	resp, err := c.put(fmt.Sprintf("containers/%s", container), body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("Unexpected non-async response"))
-	}
-
-	return resp, nil
+	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
 }
 
 func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, error) {
@@ -1476,20 +1233,7 @@ func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, er
 	delete(st.Devices, devname)
 
 	body := shared.Jmap{"config": st.Config, "profiles": st.Profiles, "name": st.Name, "devices": st.Devices}
-	resp, err := c.put(fmt.Sprintf("containers/%s", container), body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("Unexpected non-async response"))
-	}
-
-	return resp, nil
+	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
 }
 
 func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []string) (*Response, error) {
@@ -1515,20 +1259,7 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 	st.Devices[devname] = newdev
 
 	body := shared.Jmap{"config": st.Config, "profiles": st.Profiles, "name": st.Name, "devices": st.Devices}
-	resp, err := c.put(fmt.Sprintf("containers/%s", container), body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Async {
-		return nil, fmt.Errorf(gettext.Gettext("Unexpected non-async response"))
-	}
-
-	return resp, nil
+	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
 }
 
 func (c *Client) ContainerListDevices(container string) ([]string, error) {
@@ -1556,20 +1287,7 @@ func (c *Client) ProfileDeviceDelete(profile, devname string) (*Response, error)
 	}
 
 	body := shared.Jmap{"config": st.Config, "name": st.Name, "devices": st.Devices}
-	resp, err := c.put(fmt.Sprintf("profiles/%s", profile), body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Sync {
-		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
-	}
-
-	return resp, nil
+	return c.put(fmt.Sprintf("profiles/%s", profile), body, Sync)
 }
 
 func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []string) (*Response, error) {
@@ -1595,20 +1313,7 @@ func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []stri
 	st.Devices[devname] = newdev
 
 	body := shared.Jmap{"config": st.Config, "name": st.Name, "devices": st.Devices}
-	resp, err := c.put(fmt.Sprintf("profiles/%s", profile), body)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return nil, err
-	}
-
-	if resp.Type != Sync {
-		return nil, fmt.Errorf(gettext.Gettext("bad response type from list!"))
-	}
-
-	return resp, nil
+	return c.put(fmt.Sprintf("profiles/%s", profile), body, Sync)
 }
 
 func (c *Client) ProfileListDevices(profile string) ([]string, error) {
@@ -1629,15 +1334,11 @@ func (c *Client) ProfileListDevices(profile string) ([]string, error) {
 func WebsocketDial(dialer websocket.Dialer, url string) (*websocket.Conn, error) {
 	conn, raw, err := dialer.Dial(url, http.Header{})
 	if err != nil {
-		resp, err2 := ParseResponse(raw)
+		_, err2 := HoistResponse(raw, Error)
 		if err2 != nil {
 			/* The response isn't one we understand, so return
 			 * whatever the original error was. */
 			return nil, err
-		}
-
-		if err2 := ParseError(resp); err2 != nil {
-			return nil, err2
 		}
 
 		return nil, err
@@ -1652,19 +1353,6 @@ func (c *Client) ProfileCopy(name, newname string, dest *Client) error {
 	}
 
 	body := shared.Jmap{"config": st.Config, "name": newname, "devices": st.Devices}
-	resp, err := dest.post("profiles", body)
-
-	if err != nil {
-		return err
-	}
-
-	if err := ParseError(resp); err != nil {
-		return err
-	}
-
-	if resp.Type != Sync {
-		return fmt.Errorf(gettext.Gettext("bad response type from list!"))
-	}
-
-	return nil
+	_, err = dest.post("profiles", body, Sync)
+	return err
 }
