@@ -11,13 +11,13 @@ gen_second_cert() {
 
 test_remote_admin() {
   bad=0
-  (echo y;  sleep 3;  echo bad) | lxc remote add badpass 127.0.0.1:8443 $debug || true
+  (echo y;  sleep 3;  echo bad) | lxc remote add badpass 127.0.0.1:18443 $debug || true
   lxc list badpass && bad=1 || true
   if [ "$bad" -eq 1 ]; then
       echo "bad password accepted" && false
   fi
 
-  (echo y;  sleep 3;  echo foo) |  lxc remote add local 127.0.0.1:8443 $debug
+  (echo y;  sleep 3;  echo foo) |  lxc remote add local 127.0.0.1:18443 $debug
   lxc remote list | grep 'local'
 
   lxc remote set-default local
@@ -33,7 +33,7 @@ test_remote_admin() {
 
   # This is a test for #91, we expect this to hang asking for a password if we
   # tried to re-add our cert.
-  echo y | lxc remote add local 127.0.0.1:8443 $debug
+  echo y | lxc remote add local 127.0.0.1:18443 $debug
 
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
@@ -44,7 +44,7 @@ test_remote_admin() {
 }
 
 test_remote_usage() {
-  (echo y;  sleep 3;  echo foo) |  lxc remote add lxd2 127.0.0.1:8444 $debug
+  (echo y;  sleep 3;  echo foo) |  lxc remote add lxd2 127.0.0.1:18444 $debug
 
   if [ -n "$TRAVIS_PULL_REQUEST" ]; then
     return
