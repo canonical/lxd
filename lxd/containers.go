@@ -1380,48 +1380,12 @@ func (s *execWs) Connect(secret string, r *http.Request, w http.ResponseWriter) 
 	return os.ErrPermission
 }
 
-func runCommandNofork(container *lxc.Container, command []string, options lxc.AttachOptions) shared.OperationResult {
+func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions) shared.OperationResult {
 	status, err := container.RunCommandStatus(command, options)
 	if err != nil {
 		shared.Debugf("Failed running command: %q", err.Error())
 		return shared.OperationError(err)
 	}
-
-	metadata, err := json.Marshal(shared.Jmap{"return": status})
-	if err != nil {
-		return shared.OperationError(err)
-	}
-
-	return shared.OperationResult{Metadata: metadata, Error: nil}
-}
-
-func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions, interactive bool) shared.OperationResult {
-	if !interactive {
-		return runCommandNofork(container, command, options)
-	}
-	pid, errno := shared.Fork()
-	if errno != 0 {
-		return shared.OperationError(fmt.Errorf("Fork failed"))
-	}
-	if pid == 0 {
-		_, _ = syscall.Setsid()
-		shared.OwnPty(options.StdinFd)
-		status, err := container.RunCommandStatus(command, options)
-		if err != nil {
-			os.Exit(1)
-		}
-		os.Exit(status)
-	}
-
-	var wstatus syscall.WaitStatus
-	var rusage syscall.Rusage
-	rpid, err := syscall.Wait4(int(pid), &wstatus, 0, &rusage)
-
-	if int(rpid) != int(pid) {
-		shared.Debugf("runcommand: got return value %d not pid %d\n", int(rpid), int(pid))
-	}
-
-	status := int(wstatus)
 
 	metadata, err := json.Marshal(shared.Jmap{"return": status})
 	if err != nil {
@@ -1480,7 +1444,6 @@ func (s *execWs) Do() shared.OperationResult {
 			s.container,
 			s.command,
 			s.options,
-			s.interactive,
 		)
 
 		for _, tty := range ttys {
@@ -1576,7 +1539,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		opts.StdoutFd = nullfd
 		opts.StderrFd = nullfd
 
-		return runCommand(c.c, post.Command, opts, post.Interactive)
+		return runCommand(c.c, post.Command, opts)
 	}
 
 	return AsyncResponse(run, nil)
