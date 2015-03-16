@@ -59,6 +59,7 @@ type containerImageSource struct {
 	/* for "image" type */
 	Alias       string `json:"alias"`
 	Fingerprint string `json:"fingerprint"`
+	Server      string `json:"server"`
 
 	/* for "migration" type */
 	Mode       string            `json:"mode"`
@@ -75,20 +76,27 @@ type containerPostReq struct {
 
 func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var uuid string
+	var err error
 	if req.Source.Alias != "" {
-		_, iId, err := dbAliasGet(d, req.Source.Alias)
-		if err == nil {
+		if req.Source.Mode == "pull" && req.Source.Server != "" {
+			uuid, err = remoteGetImageFingerprint(d, req.Source.Server, req.Source.Alias)
+			if err != nil {
+				return InternalError(err)
+			}
+		} else {
+			_, iId, err := dbAliasGet(d, req.Source.Alias)
+			if err != nil {
+				return InternalError(err)
+			}
 			uuid, err = dbImageGetById(d, iId)
 			if err != nil {
 				return InternalError(fmt.Errorf("Stale alias"))
 			}
-		} else {
-			return InternalError(err)
 		}
 
 	} else if req.Source.Fingerprint != "" {
 
-		imgInfo, err := dbImageGet(d, req.Source.Fingerprint)
+		imgInfo, err := dbImageGet(d, req.Source.Fingerprint, false)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -99,13 +107,20 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
 	}
 
+	if req.Source.Server != "" {
+		err := ensureLocalImage(d, req.Source.Server, uuid)
+		if err != nil {
+			return InternalError(err)
+		}
+	}
+
 	dpath := shared.VarPath("lxc", req.Name)
 	if shared.PathExists(dpath) {
 		return InternalError(fmt.Errorf("Container exists"))
 	}
 
 	rootfsPath := fmt.Sprintf("%s/rootfs", dpath)
-	err := os.MkdirAll(rootfsPath, 0700)
+	err = os.MkdirAll(rootfsPath, 0700)
 	if err != nil {
 		return InternalError(fmt.Errorf("Error creating rootfs directory"))
 	}
