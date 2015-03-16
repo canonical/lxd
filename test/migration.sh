@@ -5,13 +5,13 @@ test_migration() {
   [ -d "$LXD2_DIR/lxc/nonlive/rootfs" ]
   [ ! -d "$LXD_DIR/lxc/nonlive" ]
 
-  lxc copy lxd2:nonlive local:nonlive2
-  [ -d "$LXD_DIR/lxc/nonlive2" ]
-  [ -d "$LXD2_DIR/lxc/nonlive/rootfs" ]
-
   if [ -n "$TRAVIS_PULL_REQUEST" ]; then
     return
   fi
+
+  lxc copy lxd2:nonlive local:nonlive2
+  [ -d "$LXD_DIR/lxc/nonlive2" ]
+  [ -d "$LXD2_DIR/lxc/nonlive/rootfs" ]
 
   lxc start local:nonlive2
   lxc list local: | grep RUNNING | grep nonlive2
