@@ -631,7 +631,38 @@ func containerPost(d *Daemon, r *http.Request) Response {
 
 		return AsyncResponseWithWs(ws, nil)
 	} else {
-		run := func() error { return c.c.Rename(body.Name) }
+		run := func() error {
+			if c.c.Running() {
+				return fmt.Errorf("renaming of running container not allowed")
+			}
+
+			_, err := dbCreateContainer(d, body.Name, cTypeRegular, c.config, c.profiles)
+			if err != nil {
+				return err
+			}
+
+			oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", c.name, "rootfs"))
+			newPath := fmt.Sprintf("%s/", shared.VarPath("lxc", body.Name, "rootfs"))
+
+			if err := os.MkdirAll(newPath, 0700); err != nil {
+				return err
+			}
+
+			acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
+			_, err = exec.Command("setfacl", "-m", acl, shared.VarPath("lxc", body.Name)).Output()
+			if err != nil {
+				return err
+			}
+
+			if err = exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run(); err != nil {
+				removeContainer(d, body.Name)
+				return err
+			}
+
+			removeContainer(d, c.name)
+			return nil
+		}
+
 		return AsyncResponse(shared.OperationWrap(run), nil)
 	}
 }
