@@ -93,11 +93,12 @@ func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
 	}
 
 	if raw.StatusCode != 200 {
-		resp, err := lxd.ParseResponse(raw)
+		_, err := lxd.HoistResponse(raw, lxd.Error)
 		if err != nil {
 			return nil, err
 		}
-		return nil, lxd.ParseError(resp)
+
+		return nil, fmt.Errorf("non-200 status with no error response?")
 	}
 
 	return raw, nil
