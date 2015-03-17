@@ -131,6 +131,10 @@ func ParseResponse(r *http.Response) (*Response, error) {
 		return nil, err
 	}
 
+	if err := ParseError(&ret); err != nil {
+		return nil, err
+	}
+
 	return &ret, nil
 }
 
