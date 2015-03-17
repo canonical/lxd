@@ -39,7 +39,7 @@ type profilesPostReq struct {
 func profilesGet(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to profiles get")
 	q := fmt.Sprintf("SELECT name FROM profiles")
-	rows, err := d.db.Query(q)
+	rows, err := shared.DbQuery(d.db, q)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -100,7 +100,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	err = tx.Commit()
+	err = shared.TxCommit(tx)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -197,7 +197,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	err = tx.Commit()
+	err = shared.TxCommit(tx)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -226,7 +226,8 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 		tx.Rollback()
 		return InternalError(err)
 	}
-	err = tx.Commit()
+
+	err = shared.TxCommit(tx)
 	if err != nil {
 		return InternalError(err)
 	}

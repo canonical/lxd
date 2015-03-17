@@ -291,7 +291,7 @@ func updateDb(db *sql.DB, prev_version int) error {
 }
 
 func createDefaultProfile(db *sql.DB) error {
-	rows, err := db.Query("SELECT id FROM profiles WHERE name=?", "default")
+	rows, err := shared.DbQuery(db, "SELECT id FROM profiles WHERE name=?", "default")
 	if err != nil {
 		return err
 	}
@@ -401,12 +401,15 @@ func dbImageGet(d *Daemon, name string, public bool) (*shared.ImageBaseInfo, err
 	// count potential images first, if more than one
 	// return error
 	var countImg int
+	var err error
 	q := "SELECT count(id) FROM images WHERE fingerprint like ?"
 	if public {
 		q = q + " AND public=1"
 	}
-	err := d.db.QueryRow(q, (name + "%")).Scan(&countImg)
 
+	arg1 := []interface{}{name + "%"}
+	arg2 := []interface{}{&countImg}
+	err = shared.DbQueryRowScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +424,12 @@ func dbImageGet(d *Daemon, name string, public bool) (*shared.ImageBaseInfo, err
 	if public {
 		q = q + " AND public=1"
 	}
-	err = d.db.QueryRow(q, (name+"%")).Scan(&image.Id, &image.Fingerprint, &image.Filename, &image.Size, &image.Public)
+
+	arg2 = []interface{}{&image.Id, &image.Fingerprint, &image.Filename, &image.Size, &image.Public}
+	err = shared.DbQueryRowScan(d.db, q, arg1, arg2)
+	if err != nil {
+		return nil, err
+	}
 
 	switch {
 	case err == sql.ErrNoRows:
@@ -435,7 +443,7 @@ func dbImageGet(d *Daemon, name string, public bool) (*shared.ImageBaseInfo, err
 }
 
 func dbImageGetById(d *Daemon, id int) (string, error) {
-	rows, err := d.db.Query("SELECT fingerprint FROM images WHERE id=?", id)
+	rows, err := shared.DbQuery(d.db, "SELECT fingerprint FROM images WHERE id=?", id)
 	if err != nil {
 		return "", err
 	}
@@ -450,7 +458,7 @@ func dbImageGetById(d *Daemon, id int) (string, error) {
 }
 
 func dbAliasGet(d *Daemon, name string) (int, int, error) {
-	rows, err := d.db.Query("SELECT id, image_id FROM images_aliases WHERE name=?", name)
+	rows, err := shared.DbQuery(d.db, "SELECT id, image_id FROM images_aliases WHERE name=?", name)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -467,13 +475,13 @@ func dbAliasGet(d *Daemon, name string) (int, int, error) {
 
 func dbAddAlias(d *Daemon, name string, tgt int, desc string) error {
 	stmt := `INSERT into images_aliases (name, image_id, description) values (?, ?, ?)`
-	_, err := d.db.Exec(stmt, name, tgt, desc)
+	_, err := shared.DbExec(d.db, stmt, name, tgt, desc)
 	return err
 }
 
 func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
 	q := `SELECT key, value FROM containers_config WHERE container_id=?`
-	rows, err := d.db.Query(q, c.id)
+	rows, err := shared.DbQuery(d.db, q, c.id)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +501,7 @@ func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
 }
 
 func dbGetProfileConfig(d *Daemon, name string) (map[string]string, error) {
-	rows1, err := d.db.Query("SELECT id FROM profiles WHERE name=?", name)
+	rows1, err := shared.DbQuery(d.db, "SELECT id FROM profiles WHERE name=?", name)
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +519,7 @@ func dbGetProfileConfig(d *Daemon, name string) (map[string]string, error) {
 	q := `SELECT key, value FROM profiles_config JOIN profiles
 		ON profiles_config.profile_id=profiles.id
 		WHERE name=?`
-	rows, err := d.db.Query(q, name)
+	rows, err := shared.DbQuery(d.db, q, name)
 	if err != nil {
 		return nil, err
 	}
@@ -540,7 +548,7 @@ func dbGetProfiles(d *Daemon, c *lxdContainer) ([]string, error) {
 	q := `SELECT name FROM containers_profiles JOIN profiles
 		ON containers_profiles.profile_id=profiles.id
 		WHERE container_id=? ORDER BY containers_profiles.apply_order`
-	rows, err := d.db.Query(q, c.id)
+	rows, err := shared.DbQuery(d.db, q, c.id)
 	if err != nil {
 		return nil, err
 	}
@@ -575,7 +583,7 @@ func dbGetDevices(d *Daemon, qName string, isprofile bool) (shared.Devices, erro
 			WHERE containers.name=?`
 		q2 = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
 	}
-	rows, err := d.db.Query(q, qName)
+	rows, err := shared.DbQuery(d.db, q, qName)
 	if err != nil {
 		return nil, err
 	}
@@ -590,7 +598,7 @@ func dbGetDevices(d *Daemon, qName string, isprofile bool) (shared.Devices, erro
 			return nil, err
 		}
 		newdev := shared.Device{}
-		rows2, err := d.db.Query(q2, id)
+		rows2, err := shared.DbQuery(d.db, q2, id)
 		if err != nil {
 			return nil, err
 		}
