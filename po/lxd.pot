@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-16 12:42-0600\n"
+        "POT-Creation-Date: 2015-03-16 16:38-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -81,16 +81,16 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: client.go:558
+#: client.go:574
 #, c-format
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1383
+#: client.go:1172
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: client.go:693
+#: client.go:665
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -116,7 +116,7 @@ msgid   "Copy containers within or in between lxd instances.\n"
         "lxc copy <source container> <destination container>\n"
 msgstr  ""
 
-#: client.go:707
+#: client.go:679
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -287,7 +287,7 @@ msgstr  ""
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
-#: lxc/move.go:18
+#: lxc/move.go:19
 msgid   "Move containers within or in between lxd instances.\n"
         "\n"
         "lxc move <source container> <destination container>\n"
@@ -297,24 +297,12 @@ msgstr  ""
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:686
+#: client.go:658
 msgid   "No certificate on this connection"
 msgstr  ""
 
 #: lxc/config.go:189
 msgid   "No fingerprint specified."
-msgstr  ""
-
-#: client.go:990
-msgid   "Non-async response from delete!"
-msgstr  ""
-
-#: client.go:859
-msgid   "Non-async response from init!"
-msgstr  ""
-
-#: client.go:1224
-msgid   "Non-async response from snapshot!"
 msgstr  ""
 
 #: lxc/delete.go:42
@@ -358,11 +346,11 @@ msgstr  ""
 msgid   "Public: %s\n"
 msgstr  ""
 
-#: client.go:700
+#: client.go:672
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
-#: client.go:230
+#: client.go:262
 #, c-format
 msgid   "Server certificate for host %s has changed. Add correct certificate "
         "or remove certificate in %s"
@@ -394,14 +382,6 @@ msgstr  ""
 
 #: lxc/action.go:33
 msgid   "Time to wait for the container before killing it."
-msgstr  ""
-
-#: client.go:1375 client.go:1396
-msgid   "Unexpected async response"
-msgstr  ""
-
-#: client.go:1321 client.go:1464 client.go:1489 client.go:1528
-msgid   "Unexpected non-async response"
 msgstr  ""
 
 #: lxc/image.go:353
@@ -436,11 +416,11 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: client.go:374
+#: client.go:397
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:432 client.go:1256 client.go:1263
+#: client.go:448 client.go:1073 client.go:1080
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -449,33 +429,24 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1433
+#: client.go:1203
 #, c-format
 msgid   "bad profile url %s"
-msgstr  ""
-
-#: client.go:673
-msgid   "bad response type from image list!"
-msgstr  ""
-
-#: client.go:412 client.go:631 client.go:1242 client.go:1413 client.go:1569
-#: client.go:1608 client.go:1666
-msgid   "bad response type from list!"
 msgstr  ""
 
 #: lxc/action.go:55
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:436 client.go:1267
+#: client.go:452 client.go:1084
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1437
+#: client.go:1207
 msgid   "bad version in profile url"
 msgstr  ""
 
-#: client.go:328 client.go:333
+#: client.go:360 client.go:365
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
@@ -501,25 +472,23 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:947
+#: client.go:481
+#, c-format
+msgid   "expected error, got %s"
+msgstr  ""
+
+#: client.go:878
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
 
-#: client.go:884
-msgid   "got bad response type from exec"
+#: client.go:155
+#, c-format
+msgid   "got bad response type, expected %s got %s"
 msgstr  ""
 
 #: lxc/launch.go:108
 msgid   "got bad version"
-msgstr  ""
-
-#: client.go:1121 client.go:1151 client.go:1169
-msgid   "got non-async response!"
-msgstr  ""
-
-#: client.go:595 client.go:1009 client.go:1032
-msgid   "got non-sync response from containers get!"
 msgstr  ""
 
 #: lxc/file.go:188
@@ -527,7 +496,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1178
+#: client.go:1019
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -578,11 +547,11 @@ msgid   "lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p "
         "lxc launch ubuntu u1\n"
 msgstr  ""
 
-#: client.go:103
+#: client.go:119
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1505 client.go:1585
+#: client.go:1249 client.go:1303
 msgid   "no value found in %q\n"
 msgstr  ""
 
@@ -590,7 +559,7 @@ msgstr  ""
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: client.go:694
+#: client.go:666
 msgid   "ok (y/n)? "
 msgstr  ""
 
@@ -609,7 +578,7 @@ msgstr  ""
 msgid   "remote %s exists as <%s>"
 msgstr  ""
 
-#: client.go:206
+#: client.go:238
 msgid   "unknown remote name: %q"
 msgstr  ""
 
