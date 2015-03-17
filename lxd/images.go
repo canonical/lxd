@@ -362,13 +362,12 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 	defer rows2.Close()
-	properties := shared.ImageProperties{}
+	properties := map[string]string{}
 	for rows2.Next() {
 		var key, value string
 		var imagetype int
 		rows2.Scan(&imagetype, &key, &value)
-		i := shared.ImageProperty{Imagetype: imagetype, Key: key, Value: value}
-		properties = append(properties, i)
+		properties[key] = value
 	}
 
 	rows3, err := shared.DbQuery(d.db, "SELECT name, description FROM images_aliases WHERE image_id=?", imgInfo.Id)
@@ -384,7 +383,14 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		aliases = append(aliases, a)
 	}
 
-	info := shared.ImageInfo{Fingerprint: imgInfo.Fingerprint, Properties: properties, Aliases: aliases, Public: imgInfo.Public}
+	info := shared.ImageInfo{Fingerprint: imgInfo.Fingerprint,
+		Properties: properties, Aliases: aliases,
+		Public: imgInfo.Public, Size: imgInfo.Size,
+		Architecture: imgInfo.Architecture,
+		CreationDate: imgInfo.CreationDate,
+		ExpiryDate:   imgInfo.ExpiryDate,
+		UploadDate:   imgInfo.UploadDate}
+
 	return SyncResponse(true, info)
 }
 
