@@ -218,11 +218,11 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 	case "show":
 		if len(args) == 1 {
-			return fmt.Errorf("Show for server is not yet supported\n")
+			return fmt.Errorf(gettext.Gettext("Show for server is not yet supported\n"))
 		}
 		remote, container := config.ParseRemoteAndContainer(args[1])
 		if container == "" {
-			return fmt.Errorf("Show for remotes is not yet supported\n")
+			return fmt.Errorf(gettext.Gettext("Show for remotes is not yet supported\n"))
 		}
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
@@ -498,7 +498,7 @@ func doProfileList(config *lxd.Config, args []string) error {
 		var name string
 		remote, name = config.ParseRemoteAndContainer(args[2])
 		if name != "" {
-			return fmt.Errorf("Cannot provide container name to list")
+			return fmt.Errorf(gettext.Gettext("Cannot provide container name to list"))
 		}
 	} else {
 		remote = config.DefaultRemote
