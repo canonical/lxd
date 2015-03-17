@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-03-17 15:16-0400\n"
+"POT-Creation-Date: 2015-03-17 13:30-0600\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -94,6 +94,10 @@ msgstr "(Image invalide: %s\n"
 
 #: client.go:1172
 msgid "Cannot change profile name"
+msgstr ""
+
+#: lxc/config.go:501
+msgid "Cannot provide container name to list"
 msgstr ""
 
 #: client.go:665
@@ -408,6 +412,20 @@ msgstr "Définit le uid lors de l'envoi"
 msgid "Show all commands (not just interesting ones)"
 msgstr "Affiche toutes les comandes (pas seulement les intéresantes)"
 
+#: lxc/config.go:225
+#, fuzzy
+msgid "Show for remotes is not yet supported\n"
+msgstr ""
+"Il n'est pas encore possible d'obtenir de l'information sur un serveur "
+"distant\n"
+
+#: lxc/config.go:221
+#, fuzzy
+msgid "Show for server is not yet supported\n"
+msgstr ""
+"Il n'est pas encore possible d'obtenir de l'information sur un serveur "
+"distant\n"
+
 #: lxc/image.go:180
 msgid "Size: %.2vMB\n"
 msgstr ""
@@ -609,6 +627,10 @@ msgstr "pas de réponse!"
 msgid "no value found in %q\n"
 msgstr ""
 
+#: lxc/copy.go:36
+msgid "non-http remotes are not supported for migration right now"
+msgstr ""
+
 #: lxc/copy.go:73
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
@@ -643,6 +665,10 @@ msgstr "Un retour inacessible à été atteint"
 #: lxc/main.go:121
 msgid "wrong number of subcommand arguments"
 msgstr "nombre d'argument incorrect pour la sous-comande"
+
+#: lxc/copy.go:40
+msgid "you must specify a source container name"
+msgstr ""
 
 #~ msgid "Certificate already stored.\n"
 #~ msgstr "Le certificat a déjà été enregistré.\n"
