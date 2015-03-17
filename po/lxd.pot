@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-17 15:16-0400\n"
+        "POT-Creation-Date: 2015-03-17 13:30-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -93,6 +93,10 @@ msgstr  ""
 
 #: client.go:1172
 msgid   "Cannot change profile name"
+msgstr  ""
+
+#: lxc/config.go:501
+msgid   "Cannot provide container name to list"
 msgstr  ""
 
 #: client.go:665
@@ -389,6 +393,14 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
+#: lxc/config.go:225
+msgid   "Show for remotes is not yet supported\n"
+msgstr  ""
+
+#: lxc/config.go:221
+msgid   "Show for server is not yet supported\n"
+msgstr  ""
+
 #: lxc/image.go:180
 msgid   "Size: %.2vMB\n"
 msgstr  ""
@@ -576,6 +588,10 @@ msgstr  ""
 msgid   "no value found in %q\n"
 msgstr  ""
 
+#: lxc/copy.go:36
+msgid   "non-http remotes are not supported for migration right now"
+msgstr  ""
+
 #: lxc/copy.go:73
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
@@ -609,4 +625,8 @@ msgstr  ""
 
 #: lxc/main.go:121
 msgid   "wrong number of subcommand arguments"
+msgstr  ""
+
+#: lxc/copy.go:40
+msgid   "you must specify a source container name"
 msgstr  ""
