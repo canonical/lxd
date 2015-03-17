@@ -33,11 +33,11 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 	destRemote, destName := config.ParseRemoteAndContainer(destResource)
 
 	if sourceRemote == "" || destRemote == "" {
-		return fmt.Errorf("non-http remotes are not supported for migration right now")
+		return fmt.Errorf(gettext.Gettext("non-http remotes are not supported for migration right now"))
 	}
 
 	if sourceName == "" {
-		return fmt.Errorf("you must specify a source container name")
+		return fmt.Errorf(gettext.Gettext("you must specify a source container name"))
 	}
 
 	if destName == "" {
