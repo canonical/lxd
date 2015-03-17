@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-03-17 15:16-0400\n"
+"POT-Creation-Date: 2015-03-17 13:30-0600\n"
 "PO-Revision-Date: 2015-03-13 23:44+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -95,6 +95,10 @@ msgstr "(不正なイメージプロパティ形式: %s\n"
 #: client.go:1172
 msgid "Cannot change profile name"
 msgstr "プロファイル名を変更できません"
+
+#: lxc/config.go:501
+msgid "Cannot provide container name to list"
+msgstr ""
 
 #: client.go:665
 #, c-format
@@ -405,6 +409,16 @@ msgstr "プッシュ時にファイルのuidを設定します"
 msgid "Show all commands (not just interesting ones)"
 msgstr "全てコマンドを表示します (主なコマンドだけではなく)"
 
+#: lxc/config.go:225
+#, fuzzy
+msgid "Show for remotes is not yet supported\n"
+msgstr "リモートの情報表示はまだサポートされていません。\n"
+
+#: lxc/config.go:221
+#, fuzzy
+msgid "Show for server is not yet supported\n"
+msgstr "リモートの情報表示はまだサポートされていません。\n"
+
 #: lxc/image.go:180
 msgid "Size: %.2vMB\n"
 msgstr ""
@@ -604,6 +618,10 @@ msgstr "応答がありません！"
 msgid "no value found in %q\n"
 msgstr ""
 
+#: lxc/copy.go:36
+msgid "non-http remotes are not supported for migration right now"
+msgstr ""
+
 #: lxc/copy.go:73
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
@@ -638,6 +656,10 @@ msgstr "到達しないはずのreturnに到達しました"
 #: lxc/main.go:121
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
+
+#: lxc/copy.go:40
+msgid "you must specify a source container name"
+msgstr ""
 
 #~ msgid "Certificate already stored.\n"
 #~ msgstr "証明書は既に格納されています。\n"
