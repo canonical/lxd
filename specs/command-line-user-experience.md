@@ -287,11 +287,11 @@ lxc image alias create centos/7 \<hash\>                                        
 
 **Example output (lxc image list)**
 
-    ALIAS                   HASH            PUBLIC  DESCRIPTION
-    ------------------------------------------------------------------------------
-    busybox-amd64           146246146827... yes     -
-    ubuntu/devel (3 more)   95830b5e4e04... yes     Ubuntu 15.04 (devel) x86 64bit
-    -                       a1420943168a... no      Test image
+    ALIAS                   HASH            PUBLIC  DESCRIPTION                     UPLOAD DATE
+    -------------------------------------------------------------------------------------------
+    busybox-amd64           146246146827... yes     -                               Mar 12, 2015 at 10:41pm (CDT)
+    ubuntu/devel (3 more)   95830b5e4e04... yes     Ubuntu 15.04 (devel) x86 64bit  Mar 8, 2015 at 1:27am (CST)
+    -                       a1420943168a... no      Test image                      Mar 4, 2015 at 3:41pm (CST)
 
 **Example output (lxc image info)**
 

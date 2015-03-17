@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
@@ -176,10 +177,23 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if info.Public == 1 {
 			public = "yes"
 		}
+		fmt.Printf(gettext.Gettext("Size: %.2vMB\n"), float64(info.Size)/1024.0/1024.0)
+		fmt.Printf(gettext.Gettext("Architecture: %s\n"), arch_to_string(info.Architecture))
 		fmt.Printf(gettext.Gettext("Public: %s\n"), public)
+		fmt.Printf(gettext.Gettext("Timestamps:\n"))
+		const layout = "2006/01/02 15:04 UTC"
+		if info.CreationDate != 0 {
+			fmt.Printf("    Created: %s\n", time.Unix(info.CreationDate, 0).UTC().Format(layout))
+		}
+		fmt.Printf("    Uploaded: %s\n", time.Unix(info.UploadDate, 0).UTC().Format(layout))
+		if info.ExpiryDate != 0 {
+			fmt.Printf("    Expires: %s\n", time.Unix(info.ExpiryDate, 0).UTC().Format(layout))
+		} else {
+			fmt.Printf("    Expires: never\n")
+		}
 		fmt.Printf(gettext.Gettext("Properties:\n"))
-		for _, prop := range info.Properties {
-			fmt.Printf("    %s: %s\n", prop.Key, prop.Value)
+		for key, value := range info.Properties {
+			fmt.Printf("    %s: %s\n", key, value)
 		}
 		fmt.Printf(gettext.Gettext("Aliases:\n"))
 		for _, alias := range info.Aliases {
@@ -395,13 +409,34 @@ func shortestAlias(list shared.ImageAliases) string {
 	return shortest
 }
 
-func findDescription(props shared.ImageProperties) string {
-	for _, p := range props {
-		if p.Key == "description" {
-			return p.Value
+func findDescription(props map[string]string) string {
+	for k, v := range props {
+		if k == "description" {
+			return v
 		}
 	}
 	return ""
+}
+
+func arch_to_string(arch int) string {
+	switch arch {
+	case 1:
+		return "i686"
+	case 2:
+		return "x86_64"
+	case 3:
+		return "armv7l"
+	case 4:
+		return "aarch64"
+	case 5:
+		return "ppc"
+	case 6:
+		return "ppc64"
+	case 7:
+		return "ppc64le"
+	default:
+		return "x86_64"
+	}
 }
 
 func showImages(images []shared.ImageInfo) error {
@@ -414,11 +449,14 @@ func showImages(images []shared.ImageInfo) error {
 		if image.Public == 1 {
 			public = "yes"
 		}
-		data = append(data, []string{shortest, fp, public, description})
+		const layout = "Jan 2, 2006 at 3:04pm (MST)"
+		uploaded := time.Unix(image.UploadDate, 0).Format(layout)
+		arch := arch_to_string(image.Architecture)
+		data = append(data, []string{shortest, fp, public, description, arch, uploaded})
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"ALIAS", "HASH", "PUBLIC", "DESCRIPTION"})
+	table.SetHeader([]string{"ALIAS", "HASH", "PUBLIC", "DESCRIPTION", "ARCH", "UPLOAD DATE"})
 
 	for _, v := range data {
 		table.Append(v)
