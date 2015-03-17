@@ -15,6 +15,9 @@ test_config_profiles() {
   lxc config profile list | grep onenic
   lxc config profile device list onenic | grep eth0
 
+  lxc config set foo user.prop value
+  lxc list user.prop=value | grep foo
+
   lxc delete foo
 
   # Anything below this will not get run inside Travis-CI
