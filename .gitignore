@@ -1,3 +1,4 @@
 *.swp
 po/*.mo
+po/*.po~
 lxd-*.tar.gz
