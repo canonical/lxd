@@ -12,7 +12,7 @@ gen_second_cert() {
 test_remote_admin() {
   bad=0
   (echo y;  sleep 3;  echo bad) | lxc remote add badpass 127.0.0.1:18443 $debug || true
-  lxc list badpass && bad=1 || true
+  lxc list badpass: && bad=1 || true
   if [ "$bad" -eq 1 ]; then
       echo "bad password accepted" && false
   fi
