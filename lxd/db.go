@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/lxc/lxd/shared"
 	_ "github.com/mattn/go-sqlite3"
@@ -420,16 +421,35 @@ func dbImageGet(d *Daemon, name string, public bool) (*shared.ImageBaseInfo, err
 
 	image := new(shared.ImageBaseInfo)
 
-	q = "SELECT id, fingerprint, filename, size, public FROM images WHERE fingerprint like ?"
+	var create, expire, upload *time.Time
+	q = `SELECT id, fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date FROM images WHERE fingerprint like ?`
 	if public {
 		q = q + " AND public=1"
 	}
 
-	arg2 = []interface{}{&image.Id, &image.Fingerprint, &image.Filename, &image.Size, &image.Public}
+	arg2 = []interface{}{&image.Id, &image.Fingerprint, &image.Filename,
+		&image.Size, &image.Public, &image.Architecture,
+		&create, &expire, &upload}
+
 	err = shared.DbQueryRowScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
 	}
+
+	if create != nil {
+		t := *create
+		image.CreationDate = t.Unix()
+	} else {
+		image.CreationDate = 0
+	}
+	if expire != nil {
+		t := *expire
+		image.ExpiryDate = t.Unix()
+	} else {
+		image.ExpiryDate = 0
+	}
+	t := *upload
+	image.UploadDate = t.Unix()
 
 	switch {
 	case err == sql.ErrNoRows:
