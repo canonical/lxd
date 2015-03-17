@@ -67,7 +67,7 @@ type certificatesPostBody struct {
 
 func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = make(map[string]x509.Certificate)
-	rows, err := d.db.Query("SELECT fingerprint, type, name, certificate FROM certificates")
+	rows, err := shared.DbQuery(d.db, "SELECT fingerprint, type, name, certificate FROM certificates")
 	if err != nil {
 		shared.Logf("Error reading certificates from database: %s\n", err)
 		return
@@ -107,11 +107,7 @@ func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-
-	return nil
+	return shared.TxCommit(tx)
 }
 
 func certificatesPost(d *Daemon, r *http.Request) Response {
@@ -190,7 +186,7 @@ func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	for name, cert := range d.clientCerts {
 		if fingerprint == shared.GenerateFingerprint(&cert) {
 			delete(d.clientCerts, name)
-			_, err := d.db.Exec("DELETE FROM certificates WHERE name=?", name)
+			_, err := shared.DbExec(d.db, "DELETE FROM certificates WHERE name=?", name)
 			if err != nil {
 				return SmartError(err)
 			}

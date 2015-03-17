@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-16 16:38-0600\n"
+        "POT-Creation-Date: 2015-03-16 22:46-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -106,7 +106,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/list.go:42
+#: lxc/list.go:43
 msgid   "Container not found"
 msgstr  ""
 
@@ -208,7 +208,7 @@ msgid   "List information on containers.\n"
         "lxc info [<remote>:]container\n"
 msgstr  ""
 
-#: lxc/list.go:21
+#: lxc/list.go:22
 msgid   "Lists the available resources.\n"
         "\n"
         "lxc list [resource]\n"
