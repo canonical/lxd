@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-17 10:46-0600\n"
+        "POT-Creation-Date: 2015-03-17 14:39-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,7 +16,7 @@ msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Content-Type: text/plain; charset=CHARSET\n"
         "Content-Transfer-Encoding: 8bit\n"
 
-#: lxc/image.go:25
+#: lxc/image.go:26
 msgid   "### This is a yaml representation of the image properties.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -58,12 +58,12 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name\n"
 msgstr  ""
 
-#: lxc/image.go:89
+#: lxc/image.go:90
 #, c-format
 msgid   "(Bad alias entry: %s\n"
 msgstr  ""
 
-#: lxc/image.go:250
+#: lxc/image.go:264
 #, c-format
 msgid   "(Bad image entry: %s\n"
 msgstr  ""
@@ -73,12 +73,17 @@ msgstr  ""
 msgid   "Admin password for %s: "
 msgstr  ""
 
-#: lxc/image.go:184
+#: lxc/image.go:198
 msgid   "Aliases:\n"
 msgstr  ""
 
 #: lxc/main.go:29
 msgid   "Alternate config directory."
+msgstr  ""
+
+#: lxc/image.go:181
+#, c-format
+msgid   "Architecture: %s\n"
 msgstr  ""
 
 #: client.go:574
@@ -180,7 +185,7 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute...\n"
 msgstr  ""
 
-#: lxc/image.go:174
+#: lxc/image.go:175
 #, c-format
 msgid   "Hash: %s\n"
 msgstr  ""
@@ -225,7 +230,7 @@ msgid   "Lists the available resources.\n"
         "* \"s.privileged=1\" will do the same\n"
 msgstr  ""
 
-#: lxc/image.go:62
+#: lxc/image.go:63
 msgid   "Make image public"
 msgstr  ""
 
@@ -345,11 +350,11 @@ msgstr  ""
 msgid   "Profile %s deleted\n"
 msgstr  ""
 
-#: lxc/image.go:180
+#: lxc/image.go:194
 msgid   "Properties:\n"
 msgstr  ""
 
-#: lxc/image.go:179
+#: lxc/image.go:182
 #, c-format
 msgid   "Public: %s\n"
 msgstr  ""
@@ -384,6 +389,10 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
+#: lxc/image.go:180
+msgid   "Size: %.2vMB\n"
+msgstr  ""
+
 #: lxc/delete.go:76
 msgid   "Stopping container failed!"
 msgstr  ""
@@ -392,7 +401,11 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: lxc/image.go:353
+#: lxc/image.go:183
+msgid   "Timestamps:\n"
+msgstr  ""
+
+#: lxc/image.go:367
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -509,7 +522,7 @@ msgstr  ""
 msgid   "invalid wait url %s"
 msgstr  ""
 
-#: lxc/image.go:42
+#: lxc/image.go:43
 msgid   "lxc image import <tarball> [target] [--public] [--created-"
         "at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] "
         "[prop=value]\n"
