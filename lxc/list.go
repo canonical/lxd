@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -38,8 +39,10 @@ func listContainers(d *lxd.Client, cts []string, showsnaps bool) error {
 		d := []string{}
 		if err == nil {
 			d = []string{ct, c.Status.State}
-		} else {
+		} else if err == lxd.LXDErrors[http.StatusNotFound] {
 			return fmt.Errorf(gettext.Gettext("Container not found"))
+		} else {
+			return err
 		}
 
 		if c.Status.State == "RUNNING" {
