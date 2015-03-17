@@ -104,7 +104,7 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf(gettext.Gettext("bad number of things scanned from resource"))
 		}
 
-		if version != shared.Version {
+		if version != shared.APIVersion {
 			return fmt.Errorf(gettext.Gettext("got bad version"))
 		}
 	}
