@@ -427,7 +427,6 @@ func dbImageGet(d *Daemon, name string, public bool) (*shared.ImageBaseInfo, err
 
 	arg2 = []interface{}{&image.Id, &image.Fingerprint, &image.Filename, &image.Size, &image.Public}
 	err = shared.DbQueryRowScan(d.db, q, arg1, arg2)
-	err = shared.DbQueryRowScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
 	}
