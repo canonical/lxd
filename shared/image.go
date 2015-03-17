@@ -16,10 +16,10 @@ type ImageAlias struct {
 type ImageAliases []ImageAlias
 
 type ImageInfo struct {
-	Fingerprint string
-	Properties  ImageProperties
-	Aliases     ImageAliases
-	Public      int
+	Fingerprint string          `json:"fingerprint"`
+	Properties  ImageProperties `json:"properties"`
+	Aliases     ImageAliases    `json:"aliases"`
+	Public      int             `json:"public"`
 }
 
 type ImageBaseInfo struct {
