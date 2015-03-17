@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-16 22:46-0500\n"
+        "POT-Creation-Date: 2015-03-17 10:46-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -106,7 +106,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/list.go:43
+#: lxc/list.go:105
 msgid   "Container not found"
 msgstr  ""
 
@@ -208,13 +208,21 @@ msgid   "List information on containers.\n"
         "lxc info [<remote>:]container\n"
 msgstr  ""
 
-#: lxc/list.go:22
+#: lxc/list.go:23
 msgid   "Lists the available resources.\n"
         "\n"
-        "lxc list [resource]\n"
+        "lxc list [resource] [filters]\n"
         "\n"
-        "Currently resource must be a defined remote, and list only lists\n"
-        "the defined containers.\n"
+        "The filters are:\n"
+        "* A single keyword like \"web\" which will list any container with "
+        "\"web\" in its name.\n"
+        "* A key/value pair referring to a configuration item. For those, the "
+        "namespace can be abreviated to the smallest unambiguous identifier:\n"
+        "* \"user.blah=abc\" will list all containers with the \"blah\" user "
+        "property set to \"abc\"\n"
+        "* \"u.blah=abc\" will do the same\n"
+        "* \"security.privileged=1\" will list all privileged containers\n"
+        "* \"s.privileged=1\" will do the same\n"
 msgstr  ""
 
 #: lxc/image.go:62
