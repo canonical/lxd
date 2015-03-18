@@ -53,6 +53,8 @@ func StartOperation(id string) error {
 	go func(op *shared.Operation) {
 		result := op.Run()
 
+		shared.Debugf("operation %s finished: %s", op.Run, result)
+
 		lock.Lock()
 		op.SetResult(result)
 		lock.Unlock()
@@ -183,17 +185,7 @@ type websocketServe struct {
 }
 
 func (r *websocketServe) Render(w http.ResponseWriter) error {
-	err := r.op.Websocket.Connect(r.secret, r.req, w)
-	if err != nil {
-		return err
-	}
-
-	result := r.op.Websocket.Do()
-	lock.Lock()
-	r.op.SetResult(result)
-	lock.Unlock()
-
-	return nil
+	return r.op.Websocket.Connect(r.secret, r.req, w)
 }
 
 func operationWebsocketGet(d *Daemon, r *http.Request) Response {

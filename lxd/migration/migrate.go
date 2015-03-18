@@ -154,6 +154,7 @@ func NewMigrationSource(c *lxc.Container) (shared.OperationWebsocket, error) {
 	}
 
 	if c.Running() {
+		ret.live = true
 		ret.criuSecret, err = shared.RandomCryptoString()
 		if err != nil {
 			return nil, err
