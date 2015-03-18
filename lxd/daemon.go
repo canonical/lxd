@@ -53,15 +53,24 @@ func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
 	}
 	tr := &http.Transport{
 		TLSClientConfig: d.tlsconfig,
-		Dial: shared.RFC3493Dialer,
+		Dial:            shared.RFC3493Dialer,
 	}
 	myhttp := http.Client{
 		Transport: tr,
 	}
-	r, err := myhttp.Get(url)
+
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Set("User-Agent", shared.UserAgent)
+
+	r, err := myhttp.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := lxd.ParseResponse(r)
 	if err != nil {
 		return nil, err
@@ -84,12 +93,20 @@ func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
 	}
 	tr := &http.Transport{
 		TLSClientConfig: d.tlsconfig,
-		Dial: shared.RFC3493Dialer,
+		Dial:            shared.RFC3493Dialer,
 	}
 	myhttp := http.Client{
 		Transport: tr,
 	}
-	raw, err := myhttp.Get(url)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("User-Agent", shared.UserAgent)
+
+	raw, err := myhttp.Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -220,7 +220,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 
 		tr := &http.Transport{
 			TLSClientConfig: tlsconfig,
-			Dial: shared.RFC3493Dialer,
+			Dial:            shared.RFC3493Dialer,
 		}
 
 		c.websocketDialer = websocket.Dialer{
@@ -252,7 +252,14 @@ func (c *Client) get(base string) (*Response, error) {
 }
 
 func (c *Client) baseGet(getUrl string) (*Response, error) {
-	resp, err := c.http.Get(getUrl)
+	req, err := http.NewRequest("GET", getUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("User-Agent", shared.UserAgent)
+
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -288,6 +295,7 @@ func (c *Client) put(base string, args shared.Jmap, rtype ResponseType) (*Respon
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", shared.UserAgent)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.http.Do(req)
@@ -309,7 +317,14 @@ func (c *Client) post(base string, args shared.Jmap, rtype ResponseType) (*Respo
 
 	shared.Debugf("posting %s to %s", buf.String(), uri)
 
-	resp, err := c.http.Post(uri, "application/json", &buf)
+	req, err := http.NewRequest("POST", uri, &buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -332,6 +347,7 @@ func (c *Client) delete(base string, args shared.Jmap, rtype ResponseType) (*Res
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", shared.UserAgent)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.http.Do(req)
@@ -467,6 +483,8 @@ func (c *Client) ExportImage(image string, target string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("User-Agent", "blah")
 
 	raw, err := c.http.Do(req)
 	if err != nil {
@@ -553,6 +571,7 @@ func (c *Client) PostImage(path string, properties []string, public bool) (*Resp
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", shared.UserAgent)
 
 	req.Header.Set("X-LXD-filename", filepath.Base(path))
 	if public {
@@ -942,6 +961,7 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", shared.UserAgent)
 
 	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode))
 	req.Header.Set("X-LXD-uid", strconv.FormatUint(uint64(uid), 10))
@@ -960,7 +980,14 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 	uri := c.url(shared.APIVersion, "containers", container, "files")
 	query := url.Values{"path": []string{p}}
 
-	r, err := c.http.Get(uri + "?" + query.Encode())
+	req, err := http.NewRequest("GET", uri+"?"+query.Encode(), nil)
+	if err != nil {
+		return 0, 0, 0, nil, err
+	}
+
+	req.Header.Set("User-Agent", shared.UserAgent)
+
+	r, err := c.http.Do(req)
 	if err != nil {
 		return 0, 0, 0, nil, err
 	}
