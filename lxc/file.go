@@ -27,8 +27,10 @@ func (c *fileCmd) usage() string {
 	return gettext.Gettext(
 		"Manage files on a container.\n" +
 			"\n" +
+			"lxc file pull <source> [<source>...] <target>\n" +
 			"lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>\n" +
-			"lxc file pull <source> [<source>...] <target>\n")
+			"\n" +
+			"<source> in the case of pull and <target> in the case of push are <container name>/<path>\n")
 }
 
 func (c *fileCmd) flags() {
