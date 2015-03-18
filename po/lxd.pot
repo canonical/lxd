@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-17 13:30-0600\n"
+        "POT-Creation-Date: 2015-03-18 11:12-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -198,12 +198,12 @@ msgstr  ""
 msgid   "Information about remotes not yet supported\n"
 msgstr  ""
 
-#: lxc/file.go:141
+#: lxc/file.go:143
 #, c-format
 msgid   "Invalid source %s"
 msgstr  ""
 
-#: lxc/file.go:49
+#: lxc/file.go:51
 #, c-format
 msgid   "Invalid target %s"
 msgstr  ""
@@ -279,9 +279,12 @@ msgstr  ""
 #: lxc/file.go:28
 msgid   "Manage files on a container.\n"
         "\n"
+        "lxc file pull <source> [<source>...] <target>\n"
         "lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> "
         "[<source>...] <target>\n"
-        "lxc file pull <source> [<source>...] <target>\n"
+        "\n"
+        "<source> in the case of pull and <target> in the case of push are "
+        "<container name>/<path>\n"
 msgstr  ""
 
 #: lxc/remote.go:23
@@ -300,7 +303,7 @@ msgstr  ""
 msgid   "Missing summary."
 msgstr  ""
 
-#: lxc/file.go:127
+#: lxc/file.go:129
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
@@ -377,15 +380,15 @@ msgstr  ""
 msgid   "Server doesn't trust us after adding our cert"
 msgstr  ""
 
-#: lxc/file.go:36
+#: lxc/file.go:38
 msgid   "Set the file's gid on push"
 msgstr  ""
 
-#: lxc/file.go:37
+#: lxc/file.go:39
 msgid   "Set the file's perms on push"
 msgstr  ""
 
-#: lxc/file.go:35
+#: lxc/file.go:37
 msgid   "Set the file's uid on push"
 msgstr  ""
 
@@ -524,7 +527,7 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: lxc/file.go:188
+#: lxc/file.go:190
 #, c-format
 msgid   "invalid argument %s"
 msgstr  ""
