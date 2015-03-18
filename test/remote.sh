@@ -41,6 +41,9 @@ test_remote_admin() {
   lxc config trust add "$LXD_CONF/client2.crt"
   lxc config trust list | grep client2
   lxc config trust remove client2
+
+  # Check that we can add domains with valid certs without confirmation:
+  lxc remote add images images.linuxcontainers.org
 }
 
 test_remote_usage() {
