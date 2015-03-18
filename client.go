@@ -220,6 +220,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 
 		tr := &http.Transport{
 			TLSClientConfig: tlsconfig,
+			Dial: shared.RFC3493Dialer,
 		}
 
 		c.websocketDialer = websocket.Dialer{
