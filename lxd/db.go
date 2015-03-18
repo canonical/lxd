@@ -474,7 +474,7 @@ func dbImageGetById(d *Daemon, id int) (string, error) {
 		rows.Scan(&fp)
 		return fp, nil
 	}
-	return "", fmt.Errorf("No such image")
+	return "", NoSuchImageError
 }
 
 func dbAliasGet(d *Daemon, name string) (int, int, error) {
@@ -490,7 +490,7 @@ func dbAliasGet(d *Daemon, name string) (int, int, error) {
 		rows.Scan(&id, &imageid)
 		return id, imageid, nil
 	}
-	return 0, 0, fmt.Errorf("No such image")
+	return 0, 0, NoSuchImageError
 }
 
 func dbAddAlias(d *Daemon, name string, tgt int, desc string) error {
