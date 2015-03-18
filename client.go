@@ -484,7 +484,6 @@ func (c *Client) ExportImage(image string, target string) (*Response, error) {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", shared.UserAgent)
-	req.Header.Set("User-Agent", "blah")
 
 	raw, err := c.http.Do(req)
 	if err != nil {
