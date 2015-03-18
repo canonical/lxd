@@ -53,6 +53,7 @@ func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
 	}
 	tr := &http.Transport{
 		TLSClientConfig: d.tlsconfig,
+		Dial: shared.RFC3493Dialer,
 	}
 	myhttp := http.Client{
 		Transport: tr,
@@ -83,6 +84,7 @@ func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
 	}
 	tr := &http.Transport{
 		TLSClientConfig: d.tlsconfig,
+		Dial: shared.RFC3493Dialer,
 	}
 	myhttp := http.Client{
 		Transport: tr,
