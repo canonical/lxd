@@ -51,9 +51,9 @@ var WebsocketUpgrader = websocket.Upgrader{
 
 // OperationWebsocket represents the /websocket endpoint for operations. Users
 // can connect by specifying a secret (given to them at operation creation
-// time). After the first connection to the socket is initiated, the socket's
-// Do() function is called. It is up to the Do() function to block and wait
-// for any other connections it expects before proceeding.
+// time). As soon as the operation is created, the websocket's Do() function is
+// called. It is up to the Do() function to block and wait for any connections
+// it expects before proceeding.
 type OperationWebsocket interface {
 
 	// Metadata() specifies the metadata for the initial response this
