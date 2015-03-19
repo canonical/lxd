@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/gosexy/gettext"
@@ -33,14 +34,19 @@ func (c *remoteCmd) usage() string {
 
 func (c *remoteCmd) flags() {}
 
-func addServer(config *lxd.Config, server string) error {
+func addServer(config *lxd.Config, server string, addr string) error {
 	remote := config.ParseRemote(server)
 	c, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
 
-	err = c.UserAuthServerCert()
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+
+	err = c.UserAuthServerCert(host)
 	if err != nil {
 		return err
 	}
@@ -102,7 +108,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 		config.Remotes[args[1]] = lxd.RemoteConfig{Addr: args[2]}
 
-		err := addServer(config, args[1])
+		err := addServer(config, args[1], args[2])
 		if err != nil {
 			delete(config.Remotes, args[1])
 			return err
