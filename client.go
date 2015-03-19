@@ -40,9 +40,10 @@ type Client struct {
 
 	scert *x509.Certificate // the cert stored on disk
 
-	scertWire      *x509.Certificate // the cert from the tls connection
-	scertDigest    [sha256.Size]byte // fingerprint of server cert from connection
-	scertDigestSet bool              // whether we've stored the fingerprint
+	scertWire          *x509.Certificate // the cert from the tls connection
+	scertIntermediates *x509.CertPool
+	scertDigest        [sha256.Size]byte // fingerprint of server cert from connection
+	scertDigestSet     bool              // whether we've stored the fingerprint
 }
 
 type ResponseType string
@@ -273,6 +274,10 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 
 	if c.scertDigestSet == false && resp.TLS != nil {
 		c.scertWire = resp.TLS.PeerCertificates[0]
+		c.scertIntermediates = x509.NewCertPool()
+		for _, cert := range resp.TLS.PeerCertificates {
+			c.scertIntermediates.AddCert(cert)
+		}
 		c.scertDigest = sha256.Sum256(resp.TLS.PeerCertificates[0].Raw)
 		c.scertDigestSet = true
 	}
@@ -672,7 +677,7 @@ func (c *Client) ListAliases() ([]string, error) {
 	return result, nil
 }
 
-func (c *Client) UserAuthServerCert() error {
+func (c *Client) UserAuthServerCert(name string) error {
 	if !c.scertDigestSet {
 		return fmt.Errorf(gettext.Gettext("No certificate on this connection"))
 	}
@@ -681,14 +686,20 @@ func (c *Client) UserAuthServerCert() error {
 		return nil
 	}
 
-	fmt.Printf(gettext.Gettext("Certificate fingerprint: % x\n"), c.scertDigest)
-	fmt.Printf(gettext.Gettext("ok (y/n)? "))
-	line, err := shared.ReadStdin()
+	_, err := c.scertWire.Verify(x509.VerifyOptions{
+		DNSName:       name,
+		Intermediates: c.scertIntermediates,
+	})
 	if err != nil {
-		return err
-	}
-	if line[0] != 'y' && line[0] != 'Y' {
-		return fmt.Errorf(gettext.Gettext("Server certificate NACKed by user"))
+		fmt.Printf(gettext.Gettext("Certificate fingerprint: % x\n"), c.scertDigest)
+		fmt.Printf(gettext.Gettext("ok (y/n)? "))
+		line, err := shared.ReadStdin()
+		if err != nil {
+			return err
+		}
+		if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
+			return fmt.Errorf(gettext.Gettext("Server certificate NACKed by user"))
+		}
 	}
 
 	// User acked the cert, now add it to our store

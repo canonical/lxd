@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"errors"
 	"net"
 )
 
@@ -21,5 +22,5 @@ func RFC3493Dialer(network, address string) (net.Conn, error) {
 		}
 		return c, err
 	}
-	return nil, err
+	return nil, errors.New("Unable to connect to: "+address)
 }
