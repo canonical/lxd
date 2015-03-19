@@ -44,6 +44,7 @@ test_remote_admin() {
 
   # Check that we can add domains with valid certs without confirmation:
   lxc remote add images images.linuxcontainers.org
+  lxc remote add images2 images.linuxcontainers.org:443
 }
 
 test_remote_usage() {
