@@ -698,7 +698,7 @@ func (c *Client) UserAuthServerCert(name string) error {
 		if err != nil {
 			return err
 		}
-		if line[0] != 'y' && line[0] != 'Y' {
+		if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
 			return fmt.Errorf(gettext.Gettext("Server certificate NACKed by user"))
 		}
 	}
