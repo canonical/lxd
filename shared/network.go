@@ -22,5 +22,5 @@ func RFC3493Dialer(network, address string) (net.Conn, error) {
 		}
 		return c, err
 	}
-	return nil, errors.New("Unable to connect to: "+address)
+	return nil, errors.New("Unable to connect to: " + address)
 }
