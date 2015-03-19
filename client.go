@@ -691,7 +691,6 @@ func (c *Client) UserAuthServerCert(name string) error {
 		Intermediates: c.scertIntermediates,
 	})
 	if err != nil {
-		fmt.Println(err)
 		fmt.Printf(gettext.Gettext("Certificate fingerprint: % x\n"), c.scertDigest)
 		fmt.Printf(gettext.Gettext("ok (y/n)? "))
 		line, err := shared.ReadStdin()
