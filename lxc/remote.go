@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"os"
-	"strings"
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
@@ -42,15 +40,7 @@ func addServer(config *lxd.Config, server string, addr string) error {
 		return err
 	}
 
-	host := addr
-	if strings.Contains(addr, ":") {
-		host, _, err = net.SplitHostPort(addr)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = c.UserAuthServerCert(host)
+	err = c.UserAuthServerCert(addr)
 	if err != nil {
 		return err
 	}
