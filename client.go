@@ -480,34 +480,36 @@ func (c *Client) ListContainers() ([]string, error) {
 	return names, nil
 }
 
-func (c *Client) ExportImage(image string, target string) (*Response, error) {
+func (c *Client) ExportImage(image string, target string) (*Response, string, error) {
 
 	uri := c.url(shared.APIVersion, "images", image, "export")
 
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	req.Header.Set("User-Agent", shared.UserAgent)
 
 	raw, err := c.http.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// because it is raw data, we need to check for http status
 	if raw.StatusCode != 200 {
 		resp, err := HoistResponse(raw, Sync)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return nil, fmt.Errorf(gettext.Gettext("expected error, got %s"), resp)
+		return nil, "", fmt.Errorf(gettext.Gettext("expected error, got %s"), resp)
 	}
 
 	var wr io.Writer
 
+	var destpath string
 	if target == "-" {
 		wr = os.Stdout
+		destpath = "stdout"
 	} else if fi, err := os.Stat(target); err == nil {
 		// file exists, so check if folder
 		switch mode := fi.Mode(); {
@@ -517,22 +519,24 @@ func (c *Client) ExportImage(image string, target string) (*Response, error) {
 			cd := strings.Split(raw.Header["Content-Disposition"][0], "=")
 
 			// write filename from header
-			f, err := os.Create(filepath.Join(target, cd[1]))
+			destpath = filepath.Join(target, cd[1])
+			f, err := os.Create(destpath)
 			defer f.Close()
 
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 
 			wr = f
 
 		default:
 			// overwrite file
-			f, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+			destpath = target
+			f, err := os.OpenFile(destpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 			defer f.Close()
 
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 
 			wr = f
@@ -541,12 +545,13 @@ func (c *Client) ExportImage(image string, target string) (*Response, error) {
 	} else {
 
 		// write as simple file
-		f, err := os.Create(target)
+		destpath = target
+		f, err := os.Create(destpath)
 		defer f.Close()
 
 		wr = f
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 	}
@@ -554,11 +559,11 @@ func (c *Client) ExportImage(image string, target string) (*Response, error) {
 	_, err = io.Copy(wr, raw.Body)
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// it streams to stdout or file, so no response returned
-	return nil, nil
+	return nil, destpath, nil
 
 }
 
