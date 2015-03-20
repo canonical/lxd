@@ -337,6 +337,30 @@ func (c *Client) post(base string, args shared.Jmap, rtype ResponseType) (*Respo
 	return HoistResponse(resp, rtype)
 }
 
+func (c *Client) getRaw(uri string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", uri, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", shared.UserAgent)
+
+	raw, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// because it is raw data, we need to check for http status
+	if raw.StatusCode != 200 {
+		resp, err := HoistResponse(raw, Sync)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf(gettext.Gettext("expected error, got %s"), resp)
+	}
+
+	return raw, nil
+}
+
 func (c *Client) delete(base string, args shared.Jmap, rtype ResponseType) (*Response, error) {
 	uri := c.url(shared.APIVersion, base)
 
@@ -480,30 +504,73 @@ func (c *Client) ListContainers() ([]string, error) {
 	return names, nil
 }
 
-func (c *Client) ExportImage(image string, target string) (*Response, string, error) {
-
+func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string) error {
 	uri := c.url(shared.APIVersion, "images", image, "export")
+	raw, err := c.getRaw(uri)
 
-	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
-		return nil, "", err
+		return err
 	}
-	req.Header.Set("User-Agent", shared.UserAgent)
-
-	raw, err := c.http.Do(req)
+	info, err := c.GetImageInfo(image)
 	if err != nil {
-		return nil, "", err
+		return err
 	}
 
-	// because it is raw data, we need to check for http status
-	if raw.StatusCode != 200 {
-		resp, err := HoistResponse(raw, Sync)
-		if err != nil {
-			return nil, "", err
+	cd := strings.Split(raw.Header["Content-Disposition"][0], "=")
+
+	posturi := dest.url(shared.APIVersion, "images")
+	postreq, err := http.NewRequest("POST", posturi, raw.Body)
+	if err != nil {
+		return err
+	}
+	postreq.Header.Set("User-Agent", shared.UserAgent)
+	postreq.Header.Set("X-LXD-filename", cd[1])
+	postreq.Header.Set("X-LXD-public", "0")
+	imgProps := url.Values{}
+	for key, value := range info.Properties {
+		imgProps.Set(key, value)
+	}
+	postreq.Header.Set("X-LXD-properties", imgProps.Encode())
+
+	postresp, err := c.http.Do(postreq)
+	if err != nil {
+		return err
+	}
+
+	_, err = HoistResponse(postresp, Sync)
+	if err != nil {
+		return err
+	}
+
+	/* copy aliases from source image */
+	if copy_aliases {
+		for _, alias := range info.Aliases {
+			dest.DeleteAlias(alias.Name)
+			err = dest.PostAlias(alias.Name, alias.Description, info.Fingerprint)
+			if err != nil {
+				fmt.Printf(gettext.Gettext("Error adding alias %s\n"), alias.Name)
+			}
 		}
-		return nil, "", fmt.Errorf(gettext.Gettext("expected error, got %s"), resp)
 	}
 
+	/* add new aliases */
+	for _, alias := range aliases {
+		dest.DeleteAlias(alias)
+		err = dest.PostAlias(alias, alias, info.Fingerprint)
+		if err != nil {
+			fmt.Printf(gettext.Gettext("Error adding alias %s\n"), alias)
+		}
+	}
+
+	return nil
+}
+
+func (c *Client) ExportImage(image string, target string) (*Response, string, error) {
+	uri := c.url(shared.APIVersion, "images", image, "export")
+	raw, err := c.getRaw(uri)
+	if err != nil {
+		return nil, "", err
+	}
 	var wr io.Writer
 
 	var destpath string
@@ -995,25 +1062,9 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 	uri := c.url(shared.APIVersion, "containers", container, "files")
 	query := url.Values{"path": []string{p}}
 
-	req, err := http.NewRequest("GET", uri+"?"+query.Encode(), nil)
+	r, err := c.getRaw(uri + "?" + query.Encode())
 	if err != nil {
 		return 0, 0, 0, nil, err
-	}
-
-	req.Header.Set("User-Agent", shared.UserAgent)
-
-	r, err := c.http.Do(req)
-	if err != nil {
-		return 0, 0, 0, nil, err
-	}
-
-	if r.StatusCode != 200 {
-		_, err := HoistResponse(r, Error)
-		if err != nil {
-			return 0, 0, 0, nil, err
-		}
-
-		return 0, 0, 0, nil, fmt.Errorf("non-200 error code with no error response?")
 	}
 
 	uid, gid, mode, err := shared.ParseLXDFileHeaders(r.Header)
