@@ -247,7 +247,7 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
     image copy <image> <target host and image name>
     image delete <image>
     image edit <image>
-    image export <image>
+    image export <image> [target]
     image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [--alias=ALIAS].. [prop=value]
     image info <image>
     image list [filter]
