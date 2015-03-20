@@ -244,14 +244,14 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
     image alias create <alias> <target>
     image alias list [<remote>:]
     image alias delete <alias>
-    image copy <image> <target host and image name> [--alias=ALIAS].. [--copy-alias]
+    image copy [<remote>:]<image> <remote>: [--alias=ALIAS].. [--copy-alias]
     image delete <image>
     image edit <image>
     image export <image> [target]
     image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [--alias=ALIAS].. [prop=value]
     image info <image>
     image list [filter]
-    image move <image> <destination name or host>
+    image move <image> <remote:>
     image set <image> <key> <value>
     image unset <image> <key>
 
