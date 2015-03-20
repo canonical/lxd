@@ -337,6 +337,30 @@ func (c *Client) post(base string, args shared.Jmap, rtype ResponseType) (*Respo
 	return HoistResponse(resp, rtype)
 }
 
+func (c *Client) getRaw(uri string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", uri, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", shared.UserAgent)
+
+	raw, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// because it is raw data, we need to check for http status
+	if raw.StatusCode != 200 {
+		resp, err := HoistResponse(raw, Sync)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf(gettext.Gettext("expected error, got %s"), resp)
+	}
+
+	return raw, nil
+}
+
 func (c *Client) delete(base string, args shared.Jmap, rtype ResponseType) (*Response, error) {
 	uri := c.url(shared.APIVersion, base)
 
@@ -482,27 +506,11 @@ func (c *Client) ListContainers() ([]string, error) {
 
 func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string) error {
 	uri := c.url(shared.APIVersion, "images", image, "export")
+	raw, err := c.getRaw(uri)
 
-	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", shared.UserAgent)
-
-	raw, err := c.http.Do(req)
-	if err != nil {
-		return err
-	}
-
-	// because it is raw data, we need to check for http status
-	if raw.StatusCode != 200 {
-		resp, err := HoistResponse(raw, Sync)
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf(gettext.Gettext("expected error, got %s"), resp)
-	}
-
 	info, err := c.GetImageInfo(image)
 	if err != nil {
 		return err
@@ -558,29 +566,11 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 }
 
 func (c *Client) ExportImage(image string, target string) (*Response, string, error) {
-
 	uri := c.url(shared.APIVersion, "images", image, "export")
-
-	req, err := http.NewRequest("GET", uri, nil)
+	raw, err := c.getRaw(uri)
 	if err != nil {
 		return nil, "", err
 	}
-	req.Header.Set("User-Agent", shared.UserAgent)
-
-	raw, err := c.http.Do(req)
-	if err != nil {
-		return nil, "", err
-	}
-
-	// because it is raw data, we need to check for http status
-	if raw.StatusCode != 200 {
-		resp, err := HoistResponse(raw, Sync)
-		if err != nil {
-			return nil, "", err
-		}
-		return nil, "", fmt.Errorf(gettext.Gettext("expected error, got %s"), resp)
-	}
-
 	var wr io.Writer
 
 	var destpath string
@@ -1072,25 +1062,9 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 	uri := c.url(shared.APIVersion, "containers", container, "files")
 	query := url.Values{"path": []string{p}}
 
-	req, err := http.NewRequest("GET", uri+"?"+query.Encode(), nil)
+	r, err := c.getRaw(uri + "?" + query.Encode())
 	if err != nil {
 		return 0, 0, 0, nil, err
-	}
-
-	req.Header.Set("User-Agent", shared.UserAgent)
-
-	r, err := c.http.Do(req)
-	if err != nil {
-		return 0, 0, 0, nil, err
-	}
-
-	if r.StatusCode != 200 {
-		_, err := HoistResponse(r, Error)
-		if err != nil {
-			return 0, 0, 0, nil, err
-		}
-
-		return 0, 0, 0, nil, fmt.Errorf("non-200 error code with no error response?")
 	}
 
 	uid, gid, mode, err := shared.ParseLXDFileHeaders(r.Header)
