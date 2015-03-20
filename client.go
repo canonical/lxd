@@ -480,7 +480,7 @@ func (c *Client) ListContainers() ([]string, error) {
 	return names, nil
 }
 
-func (c *Client) CopyImage(image string, dest *Client, name string, cp bool, aliases []string) error {
+func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string) error {
 	uri := c.url(shared.APIVersion, "images", image, "export")
 
 	req, err := http.NewRequest("GET", uri, nil)
@@ -535,7 +535,7 @@ func (c *Client) CopyImage(image string, dest *Client, name string, cp bool, ali
 	}
 
 	/* copy aliases from source image */
-	if cp {
+	if copy_aliases {
 		for _, alias := range info.Aliases {
 			dest.DeleteAlias(alias.Name)
 			err = dest.PostAlias(alias.Name, alias.Description, info.Fingerprint)
