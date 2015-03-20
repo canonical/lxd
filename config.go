@@ -65,6 +65,8 @@ func LoadConfig() (*Config, error) {
 	if c.Remotes == nil {
 		c.Remotes = make(map[string]RemoteConfig)
 	}
+
+	c.Remotes["local"] = RemoteConfig{Addr: "unix:/var/lib/lxd/unix.socket"}
 	return &c, nil
 }
 

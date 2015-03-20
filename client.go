@@ -192,50 +192,55 @@ func NewClient(config *Config, remote string) (*Client, error) {
 
 	// TODO: Here, we don't support configurable local remotes, we only
 	// support the default local LXD at /var/lib/lxd/unix.socket.
-	if remote == "" {
-		c.baseURL = "http://unix.socket"
-		c.baseWSURL = "ws://unix.socket"
-		c.http.Transport = &unixTransport
-		c.websocketDialer.NetDial = unixDial
-	} else if len(remote) > 6 && remote[0:5] == "unix:" {
-		/*
-		 * TODO: I suspect this doesn't work, since unixTransport
-		 * hardcodes VarPath("unix.socket"); we should figure out
-		 * whether or not unix: is really in the spec, and pass this
-		 * down accordingly if it is.
-		 */
+	if remote == "" || remote == "local" {
 		c.baseURL = "http://unix.socket"
 		c.baseWSURL = "ws://unix.socket"
 		c.http.Transport = &unixTransport
 		c.websocketDialer.NetDial = unixDial
 	} else if r, ok := config.Remotes[remote]; ok {
-		certf, keyf, err := readMyCert()
-		if err != nil {
-			return nil, err
+		if r.Addr[0:5] == "unix:" {
+			c.baseURL = "http://unix.socket"
+			c.baseWSURL = "ws://unix.socket"
+			uDial := func(networ, addr string) (net.Conn, error) {
+				raddr, err := net.ResolveUnixAddr("unix", r.Addr[5:])
+				if err != nil {
+					return nil, err
+				}
+				return net.DialUnix("unix", nil, raddr)
+			}
+			c.http.Transport = &http.Transport{Dial: uDial}
+			c.websocketDialer.NetDial = uDial
+			c.Remote = &r
+			return &c, nil
+		} else {
+			certf, keyf, err := readMyCert()
+			if err != nil {
+				return nil, err
+			}
+
+			tlsconfig, err := shared.GetTLSConfig(certf, keyf)
+			if err != nil {
+				return nil, err
+			}
+
+			tr := &http.Transport{
+				TLSClientConfig: tlsconfig,
+				Dial:            shared.RFC3493Dialer,
+			}
+
+			c.websocketDialer = websocket.Dialer{
+				TLSClientConfig: tlsconfig,
+			}
+
+			c.certf = certf
+			c.keyf = keyf
+
+			c.baseURL = "https://" + r.Addr
+			c.baseWSURL = "wss://" + r.Addr
+			c.http.Transport = tr
+			c.loadServerCert()
+			c.Remote = &r
 		}
-
-		tlsconfig, err := shared.GetTLSConfig(certf, keyf)
-		if err != nil {
-			return nil, err
-		}
-
-		tr := &http.Transport{
-			TLSClientConfig: tlsconfig,
-			Dial:            shared.RFC3493Dialer,
-		}
-
-		c.websocketDialer = websocket.Dialer{
-			TLSClientConfig: tlsconfig,
-		}
-
-		c.certf = certf
-		c.keyf = keyf
-
-		c.baseURL = "https://" + r.Addr
-		c.baseWSURL = "wss://" + r.Addr
-		c.Remote = &r
-		c.http.Transport = tr
-		c.loadServerCert()
 	} else {
 		return nil, fmt.Errorf(gettext.Gettext("unknown remote name: %q"), remote)
 	}
@@ -405,7 +410,7 @@ func unixDial(networ, addr string) (net.Conn, error) {
 		if err != nil {
 			return nil, fmt.Errorf(gettext.Gettext("cannot resolve unix socket address: %v"), err)
 		}
-	} else {
+	} else { // TODO - I think this is dead code
 		raddr, err = net.ResolveUnixAddr("unix", addr)
 		if err != nil {
 			return nil, fmt.Errorf(gettext.Gettext("cannot resolve unix socket address: %v"), err)
