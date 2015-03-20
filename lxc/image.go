@@ -167,7 +167,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 		destRemote, outName := config.ParseRemoteAndContainer(args[2])
-		if outName == "" {
+		if outName != "" {
 			return errArgs
 		}
 		d, err := lxd.NewClient(config, remote)
@@ -178,7 +178,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		return d.CopyImage(inName, dest, outName, copyAliases, addAliases)
+		return d.CopyImage(inName, dest, copyAliases, addAliases)
 
 	case "delete":
 		/* delete [<remote>:]<image> */
