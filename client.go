@@ -480,6 +480,83 @@ func (c *Client) ListContainers() ([]string, error) {
 	return names, nil
 }
 
+func (c *Client) CopyImage(image string, dest *Client, name string, cp bool, aliases []string) error {
+	uri := c.url(shared.APIVersion, "images", image, "export")
+
+	req, err := http.NewRequest("GET", uri, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", shared.UserAgent)
+
+	raw, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+
+	// because it is raw data, we need to check for http status
+	if raw.StatusCode != 200 {
+		resp, err := HoistResponse(raw, Sync)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf(gettext.Gettext("expected error, got %s"), resp)
+	}
+
+	info, err := c.GetImageInfo(image)
+	if err != nil {
+		return err
+	}
+
+	cd := strings.Split(raw.Header["Content-Disposition"][0], "=")
+
+	posturi := dest.url(shared.APIVersion, "images")
+	postreq, err := http.NewRequest("POST", posturi, raw.Body)
+	if err != nil {
+		return err
+	}
+	postreq.Header.Set("User-Agent", shared.UserAgent)
+	postreq.Header.Set("X-LXD-filename", cd[1])
+	postreq.Header.Set("X-LXD-public", "0")
+	imgProps := url.Values{}
+	for key, value := range info.Properties {
+		imgProps.Set(key, value)
+	}
+	postreq.Header.Set("X-LXD-properties", imgProps.Encode())
+
+	postresp, err := c.http.Do(postreq)
+	if err != nil {
+		return err
+	}
+
+	_, err = HoistResponse(postresp, Sync)
+	if err != nil {
+		return err
+	}
+
+	/* copy aliases from source image */
+	if cp {
+		for _, alias := range info.Aliases {
+			dest.DeleteAlias(alias.Name)
+			err = dest.PostAlias(alias.Name, alias.Description, info.Fingerprint)
+			if err != nil {
+				fmt.Printf(gettext.Gettext("Error adding alias %s\n"), alias.Name)
+			}
+		}
+	}
+
+	/* add new aliases */
+	for _, alias := range aliases {
+		dest.DeleteAlias(alias)
+		err = dest.PostAlias(alias, alias, info.Fingerprint)
+		if err != nil {
+			fmt.Printf(gettext.Gettext("Error adding alias %s\n"), alias)
+		}
+	}
+
+	return nil
+}
+
 func (c *Client) ExportImage(image string, target string) (*Response, string, error) {
 
 	uri := c.url(shared.APIVersion, "images", image, "export")

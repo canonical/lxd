@@ -42,6 +42,7 @@ func (c *imageCmd) usage() string {
 	return gettext.Gettext(
 		"lxc image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n" +
 			"\n" +
+			"lxc image copy [resource:]<image> [resource:]<image> [--alias=ALIAS].. [--copy-alias]\n" +
 			"lxc image delete [resource:]<image>\n" +
 			"lxc image edit [resource:]\n" +
 			"lxc image export [resource:]<image>\n" +
@@ -57,10 +58,29 @@ func (c *imageCmd) usage() string {
 			"create, delete, list image aliases\n")
 }
 
-var public_image bool = false
+type aliasList []string
+
+func (f *aliasList) String() string {
+	return fmt.Sprint(*f)
+}
+
+func (f *aliasList) Set(value string) error {
+	if f == nil {
+		*f = make(aliasList, 1)
+	} else {
+		*f = append(*f, value)
+	}
+	return nil
+}
+
+var addAliases aliasList
+var publicImage bool = false
+var copyAliases bool = false
 
 func (c *imageCmd) flags() {
-	gnuflag.BoolVar(&public_image, "public", false, gettext.Gettext("Make image public"))
+	gnuflag.BoolVar(&publicImage, "public", false, gettext.Gettext("Make image public"))
+	gnuflag.BoolVar(&copyAliases, "copy-aliases", false, gettext.Gettext("Copy aliases from source"))
+	gnuflag.Var(&addAliases, "--alias", "New alias to define at target")
 }
 
 func doImageAlias(config *lxd.Config, args []string) error {
@@ -136,6 +156,29 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 		return doImageAlias(config, args)
+
+	case "copy":
+		/* copy [<remote>:]<image> [<rmeote>:]<image> */
+		if len(args) != 3 {
+			return errArgs
+		}
+		remote, inName := config.ParseRemoteAndContainer(args[1])
+		if inName == "" {
+			return errArgs
+		}
+		destRemote, outName := config.ParseRemoteAndContainer(args[2])
+		if outName == "" {
+			return errArgs
+		}
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+		dest, err := lxd.NewClient(config, destRemote)
+		if err != nil {
+			return err
+		}
+		return d.CopyImage(inName, dest, outName, copyAliases, addAliases)
 
 	case "delete":
 		/* delete [<remote>:]<image> */
@@ -230,7 +273,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		_, err = d.PostImage(imagefile, properties, public_image)
+		_, err = d.PostImage(imagefile, properties, publicImage)
 		if err != nil {
 			return err
 		}
