@@ -41,6 +41,12 @@ func addServer(config *lxd.Config, server string, addr string) error {
 		return err
 	}
 
+	if len(addr) > 5 && addr[0:5] == "unix:" {
+		// NewClient succeeded so there was a lxd there (we fingered
+		// it) so just accept it
+		return nil
+	}
+
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		host = addr
@@ -117,6 +123,10 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 	case "remove":
 		if len(args) != 2 {
 			return errArgs
+		}
+
+		if args[1] == "local" {
+			return fmt.Errorf(gettext.Gettext("'local' cannot be removed"))
 		}
 
 		if _, ok := config.Remotes[args[1]]; !ok {

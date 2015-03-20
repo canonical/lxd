@@ -17,15 +17,15 @@ test_remote_admin() {
       echo "bad password accepted" && false
   fi
 
-  (echo y;  sleep 3;  echo foo) |  lxc remote add local 127.0.0.1:18443 $debug
-  lxc remote list | grep 'local'
+  (echo y;  sleep 3;  echo foo) |  lxc remote add localhost 127.0.0.1:18443 $debug
+  lxc remote list | grep 'localhost'
 
-  lxc remote set-default local
-  [ "$(lxc remote get-default)" = "local" ]
+  lxc remote set-default localhost
+  [ "$(lxc remote get-default)" = "localhost" ]
 
-  lxc remote rename local foo
+  lxc remote rename localhost foo
   lxc remote list | grep 'foo'
-  lxc remote list | grep -v 'local'
+  lxc remote list | grep -v 'localhost'
   [ "$(lxc remote get-default)" = "foo" ]
 
   lxc remote remove foo
@@ -33,7 +33,7 @@ test_remote_admin() {
 
   # This is a test for #91, we expect this to hang asking for a password if we
   # tried to re-add our cert.
-  echo y | lxc remote add local 127.0.0.1:18443 $debug
+  echo y | lxc remote add localhost 127.0.0.1:18443 $debug
 
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
@@ -54,15 +54,15 @@ test_remote_usage() {
     return
   fi
 
-  # we need a public image on local
-  lxc image export local:testimage ${LXD_DIR}/foo.img
-  lxc image delete local:testimage
+  # we need a public image on localhost
+  lxc image export localhost:testimage ${LXD_DIR}/foo.img
+  lxc image delete localhost:testimage
   sum=`sha256sum ${LXD_DIR}/foo.img`
-  lxc image import ${LXD_DIR}/foo.img local: --public
-  lxc image alias create local:testimage $sum
+  lxc image import ${LXD_DIR}/foo.img localhost: --public
+  lxc image alias create localhost:testimage $sum
 
-  # launch testimage stored on local as container c1 on lxd2
-  lxc launch local:testimage lxd2:c1
+  # launch testimage stored on localhost as container c1 on lxd2
+  lxc launch localhost:testimage lxd2:c1
 
   # make sure it is running
   lxc list lxd2: | grep c1 | grep RUNNING
