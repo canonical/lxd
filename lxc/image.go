@@ -80,7 +80,7 @@ var copyAliases bool = false
 func (c *imageCmd) flags() {
 	gnuflag.BoolVar(&publicImage, "public", false, gettext.Gettext("Make image public"))
 	gnuflag.BoolVar(&copyAliases, "copy-aliases", false, gettext.Gettext("Copy aliases from source"))
-	gnuflag.Var(&addAliases, "--alias", "New alias to define at target")
+	gnuflag.Var(&addAliases, "alias", "New alias to define at target")
 }
 
 func doImageAlias(config *lxd.Config, args []string) error {
