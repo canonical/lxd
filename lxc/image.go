@@ -342,7 +342,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		return err
 
 	case "export":
-		if len(args) < 3 {
+		if len(args) < 2 {
 			return errArgs
 		}
 
@@ -357,11 +357,18 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 
 		image := dereferenceAlias(d, inName)
 
-		_, err = d.ExportImage(image, args[2])
+		target := "."
+		if len(args) > 2 {
+			target = args[2]
+		}
+		_, outfile, err := d.ExportImage(image, target)
 		if err != nil {
 			return err
 		}
 
+		if target != "-" {
+			fmt.Printf("Output is in %s\n", outfile)
+		}
 		return nil
 	default:
 		return fmt.Errorf(gettext.Gettext("Unknown image command %s"), args[0])
