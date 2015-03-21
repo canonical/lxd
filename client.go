@@ -192,7 +192,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 
 	// TODO: Here, we don't support configurable local remotes, we only
 	// support the default local LXD at /var/lib/lxd/unix.socket.
-	if remote == "" || remote == "local" {
+	if remote == "" {
 		c.baseURL = "http://unix.socket"
 		c.baseWSURL = "ws://unix.socket"
 		c.http.Transport = &unixTransport

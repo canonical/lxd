@@ -125,10 +125,6 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		if args[1] == "local" {
-			return fmt.Errorf(gettext.Gettext("'local' cannot be removed"))
-		}
-
 		if _, ok := config.Remotes[args[1]]; !ok {
 			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
 		}
