@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-20 18:40-0500\n"
+        "POT-Creation-Date: 2015-03-21 00:11-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -56,10 +56,6 @@ msgstr  ""
 
 #: lxc/snapshot.go:50
 msgid   "'/' not allowed in snapshot name\n"
-msgstr  ""
-
-#: lxc/remote.go:129
-msgid   "'local' cannot be removed"
 msgstr  ""
 
 #: lxc/image.go:110
@@ -438,7 +434,7 @@ msgstr  ""
 msgid   "Unknown image command %s"
 msgstr  ""
 
-#: lxc/remote.go:201
+#: lxc/remote.go:197
 #, c-format
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
@@ -618,12 +614,12 @@ msgstr  ""
 msgid   "ok (y/n)? "
 msgstr  ""
 
-#: lxc/remote.go:163
+#: lxc/remote.go:159
 #, c-format
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:133 lxc/remote.go:159 lxc/remote.go:179 lxc/remote.go:190
+#: lxc/remote.go:129 lxc/remote.go:155 lxc/remote.go:175 lxc/remote.go:186
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""
