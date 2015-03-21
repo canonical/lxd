@@ -428,21 +428,11 @@ func fromUrl(url string, prefix string) string {
 }
 
 func dereferenceAlias(d *lxd.Client, inName string) string {
-
-	aliasList, err := d.ListAliases()
-	if err == nil {
-		for _, url := range aliasList {
-			l := fromUrl(url, "/1.0/images/aliases/")
-			if l == "" {
-				continue
-			}
-			if l == inName {
-				return d.GetAlias(l)
-			}
-		}
+	result := d.GetAlias(inName)
+	if result == "" {
+		return inName
 	}
-
-	return inName
+	return result
 }
 
 func shortestAlias(list shared.ImageAliases) string {
