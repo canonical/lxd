@@ -41,6 +41,12 @@ func addServer(config *lxd.Config, server string, addr string) error {
 		return err
 	}
 
+	if len(addr) > 5 && addr[0:5] == "unix:" {
+		// NewClient succeeded so there was a lxd there (we fingered
+		// it) so just accept it
+		return nil
+	}
+
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		host = addr
