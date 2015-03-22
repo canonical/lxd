@@ -35,6 +35,9 @@ type RemoteConfig struct {
 	Addr string `yaml:"addr"`
 }
 
+var localRemote = RemoteConfig{Addr: "unix:/var/lib/lxd/unix.socket"}
+var defaultRemote = map[string]RemoteConfig{"local": localRemote}
+
 var ConfigDir = "$HOME/.config/lxc"
 var configFileName = "config.yml"
 
@@ -51,7 +54,7 @@ func LoadConfig() (*Config, error) {
 	data, err := ioutil.ReadFile(ConfigPath(configFileName))
 	if os.IsNotExist(err) {
 		// A missing file is equivalent to the default configuration.
-		return &Config{}, nil
+		return &Config{Remotes: defaultRemote}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file: %v", err)
@@ -65,6 +68,7 @@ func LoadConfig() (*Config, error) {
 	if c.Remotes == nil {
 		c.Remotes = make(map[string]RemoteConfig)
 	}
+
 	return &c, nil
 }
 
