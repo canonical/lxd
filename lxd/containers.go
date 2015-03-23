@@ -923,6 +923,10 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = c.SetConfigItem("lxc.tty", "0")
+	if err != nil {
+		return nil, err
+	}
 
 	/* apply profiles */
 	for _, p := range profiles {
