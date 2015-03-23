@@ -92,16 +92,8 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 				return InternalError(fmt.Errorf("Stale alias"))
 			}
 		}
-
 	} else if req.Source.Fingerprint != "" {
-
-		imgInfo, err := dbImageGet(d, req.Source.Fingerprint, false)
-		if err != nil {
-			return InternalError(err)
-		}
-
-		uuid = imgInfo.Fingerprint
-
+		uuid = req.Source.Fingerprint
 	} else {
 		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
 	}
