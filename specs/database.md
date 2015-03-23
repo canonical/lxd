@@ -175,6 +175,7 @@ Foreign keys: container\_id REFERENCES containers(id) and profile\_id REFERENCES
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
+cached          | INTEGER       | 0             | NOT NULL          | Whether this is a cached image
 fingerprint     | VARCHAR(255)  | -             | NOT NULL          | Tarball fingerprint
 filename        | VARCHAR(255)  | -             | NOT NULL          | Tarball filename
 size            | INTEGER       | -             | NOT NULL          | Tarball size
@@ -183,6 +184,7 @@ architecture    | INTEGER       | -             | NOT NULL          | Image arch
 creation\_date  | DATETIME      | -             |                   | Image creation date (user supplied, 0 = unknown)
 expiry\_date    | DATETIME      | -             |                   | Image expiry (user supplied, 0 = never)
 upload\_date    | DATETIME      | -             | NOT NULL          | Image entry creation date
+last\_use\_date | DATETIME      | -             |                   | Last time the image was used to spawn a container
 
 Index: UNIQUE ON id AND fingerprint
 
