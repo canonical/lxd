@@ -8,6 +8,17 @@ It's possible to spawn remote containers using local images or local
 containers using remote images. In such cases, the image may be cached
 on the target LXD.
 
+# Caching
+When spawning a container from a remote image, the remote image is
+downloaded into the local image store with the cached bit set. The image
+will be kept locally as a private image until either it's been unused
+(no new container spawned) for the number of days set in
+images.remote\_cache\_expiry or until the image's expiry is reached
+whichever comes first.
+
+LXD keeps track of image usage by updating the last\_use\_date image
+property every time a new container is spawned from the image.
+
 # Image format
 The image format for LXD is a compressed tarball (xz recommended) with
 the following structure:
