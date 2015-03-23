@@ -262,9 +262,10 @@ Images can either be fed from an external tool using the API or manually
 imported into LXD using the import command. Attributes can then be set
 on them and images can be copied/moved to other LXD hosts.
 
-The unique identifier of an image is the sha256 hash of its rootfs, as a
-result, it's only possible to have one copy of any given image on a
-given LXD host.
+Images may also be copied or moved between hosts.
+
+The unique identifier of an image is its sha256, as a result, it's only
+possible to have one copy of any given image on a given LXD host.
 
 
 The "description" property is special in that if it's set, it'll appear in "lxc image list".
