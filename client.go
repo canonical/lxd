@@ -1081,7 +1081,7 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 }
 
 func (c *Client) SetRemotePwd(password string) (*Response, error) {
-	body := shared.Jmap{"config": []shared.Jmap{shared.Jmap{"key": "trust-password", "value": password}}}
+	body := shared.Jmap{"config": shared.Jmap{"trust-password": password}}
 	return c.put("", body, Sync)
 }
 
