@@ -172,10 +172,9 @@ For consistency in LXD's use of hashes, the Etag hash should be a SHA-256.
 Return value (if trusted):
 
     {
-        'auth': "trusted"      ,                        # Authentication state, one of "guest", "untrusted" or "trusted"
+        'auth': "trusted",                              # Authentication state, one of "guest", "untrusted" or "trusted"
         'api_compat': 0,                                # Used to determine API functionality
-        'config': [{'key': "trust-password",            # Host configuration
-                    'value': True}],                    # In the case of passwords, their value is returned as True if set
+        'config': {"trust-password": True},             # Host configuration
         'environment': {'kernel_version': "3.16",       # Various information about the host (OS, kernel, ...)
                         'lxc_version': "1.0.6",
                         'driver': "lxc",
@@ -198,8 +197,7 @@ Return value (if guest or untrusted):
 Input:
 
     {
-        'config': [{'key': "trust-password",
-                    'value': "my-new-password"}]
+        'config': {"trust-password": "my-new-password"}
     }
 
 ## /1.0/containers
@@ -951,10 +949,8 @@ Input:
 
     {
         'name': "my-profile'name",
-        'config': [{'key': "resources.memory",
-                    'value': "2GB"},
-                   {'key': "network.0.bridge",
-                    'value': "lxcbr0"}]
+        'config': {"resources.memory": "2GB"},
+                   "network.0.bridge": "lxcbr0"}
     }
 
 ## /1.0/profiles/\<name\>
@@ -968,10 +964,8 @@ Output:
 
     {
         'name': "my-profile'name",
-        'config': [{'key': "resources.memory",
-                    'value': "2GB"},
-                   {'key': "network.0.bridge",
-                    'value': "lxcbr0"}]
+        'config': {"resources.memory": "2GB"},
+                   "network.0.bridge": "lxcbr0"}
     }
 
 ### PUT

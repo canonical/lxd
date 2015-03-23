@@ -96,7 +96,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 		env["kernel_version"] = kernelVersion
 		body["environment"] = env
-		config := []shared.Jmap{shared.Jmap{"key": "trust-password", "value": d.hasPwd()}}
+		config := shared.Jmap{"trust-password": d.hasPwd()}
 		body["config"] = config
 	} else {
 		body["auth"] = "untrusted"
@@ -106,7 +106,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 }
 
 type apiPut struct {
-	Config []shared.Jmap `json:"config"`
+	Config shared.Jmap `json:"config"`
 }
 
 const (
@@ -121,20 +121,13 @@ func api10Put(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	for _, elt := range req.Config {
-		key, err := elt.GetString("key")
-		if err != nil {
-			continue
-		}
+	for key, value := range req.Config {
 		if key == "trust-password" {
-			password, err := elt.GetString("value")
-			if err != nil {
-				continue
-			}
+			password, _ := value.(string)
 
 			shared.Debugf("setting new password")
 			salt := make([]byte, PW_SALT_BYTES)
-			_, err = io.ReadFull(rand.Reader, salt)
+			_, err := io.ReadFull(rand.Reader, salt)
 			if err != nil {
 				return InternalError(err)
 			}
