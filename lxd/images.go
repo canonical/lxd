@@ -384,6 +384,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 	}
 
 	info := shared.ImageInfo{Fingerprint: imgInfo.Fingerprint,
+		Filename: imgInfo.Filename,
 		Properties: properties, Aliases: aliases,
 		Public: imgInfo.Public, Size: imgInfo.Size,
 		Architecture: imgInfo.Architecture,

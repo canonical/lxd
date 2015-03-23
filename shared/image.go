@@ -19,6 +19,7 @@ type ImageInfo struct {
 	Aliases      ImageAliases      `json:"aliases"`
 	Architecture int               `json:"architecture"`
 	Fingerprint  string            `json:"fingerprint"`
+	Filename     string            `json:"filename"`
 	Properties   map[string]string `json:"properties"`
 	Public       int               `json:"public"`
 	Size         int64             `json:"size"`
