@@ -88,24 +88,33 @@ func ensureLocalImage(d *Daemon, server, fp string) error {
 	var wr io.Writer
 	wr = f
 
-	size, err := io.Copy(wr, raw.Body)
+	_, err = io.Copy(wr, raw.Body)
 	f.Close()
 	if err != nil {
 		os.Remove(destName)
 		return err
 	}
 
-	/* todo - we need to add arch and tarname to shared.ImageInfo */
-	tarname := ""
-	arch := 0
+	q := `INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, strftime("%s"))`
 
-	/* insert into db - do we want to add properties? */
-	q := `INSERT INTO images (fingerprint, filename, size, public, architecture, upload_date) VALUES (?, ?, ?, ?, ?, strftime("%s"))`
-
-	_, err = shared.DbExec(d.db, q, fp, tarname, size, info.Public, arch)
+	result, err := shared.DbExec(d.db, q, fp, info.Filename, info.Size, info.Architecture, info.CreationDate, info.ExpiryDate)
 	if err != nil {
 		os.Remove(destName)
 		return err
+	}
+
+	id64, err := result.LastInsertId()
+	if err != nil {
+		return err
+	}
+	id := int(id64)
+
+	for k, v := range info.Properties {
+		q := `INSERT INTO images_properties (image_id, type, key, value) VALUES (?, 0, ?, ?)`
+		_, err = shared.DbExec(d.db, q, id, k, v)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
