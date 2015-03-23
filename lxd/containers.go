@@ -647,8 +647,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	_, err := dbGetContainerId(d.db, name)
 	if err != nil {
-		shared.Debugf("Delete: container %s not known", name)
-		// rootfs may still exist though, so try to delete it
+		return BadRequest(fmt.Errorf("Unknown container"))
 	}
 	dirsToDelete := containerDeleteSnapshots(d, name)
 	dbRemoveContainer(d, name)

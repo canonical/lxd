@@ -681,6 +681,7 @@ Output:
         'aliases': ['alias1', ...],
         'architecture': 0,
         'fingerprint': "a3625aeada09576673620d1d048eed7ac101c4c2409f527a1f77e237fa280e32",
+        'filename': "busybox-amd64.tar.xz",
         'properties': {
             'key': 'value'
         },
