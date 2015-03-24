@@ -465,34 +465,35 @@ func dbImageGet(d *Daemon, name string, public bool) (*shared.ImageBaseInfo, err
 }
 
 func dbImageGetById(d *Daemon, id int) (string, error) {
-	rows, err := shared.DbQuery(d.db, "SELECT fingerprint FROM images WHERE id=?", id)
+	q := "SELECT fingerprint FROM images WHERE id=?"
+	var fp string
+	arg1 := []interface{}{id}
+	arg2 := []interface{}{&fp}
+	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
+	if err == sql.ErrNoRows {
+		return "", NoSuchImageError
+	}
 	if err != nil {
 		return "", err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var fp string
-		rows.Scan(&fp)
-		return fp, nil
-	}
-	return "", NoSuchImageError
+	return fp, nil
 }
 
 func dbAliasGet(d *Daemon, name string) (int, int, error) {
-	rows, err := shared.DbQuery(d.db, "SELECT id, image_id FROM images_aliases WHERE name=?", name)
+	q := "SELECT id, image_id FROM images_aliases WHERE name=?"
+	var id int
+	var imageid int
+	arg1 := []interface{}{name}
+	arg2 := []interface{}{&id, &imageid}
+	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
+	if err == sql.ErrNoRows {
+		return 0, 0, NoSuchImageError
+	}
 	if err != nil {
 		return 0, 0, err
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id int
-		var imageid int
-		rows.Scan(&id, &imageid)
-		return id, imageid, nil
-	}
-	return 0, 0, NoSuchImageError
+	return id, imageid, nil
 }
 
 func dbAddAlias(d *Daemon, name string, tgt int, desc string) error {
@@ -523,22 +524,19 @@ func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
 }
 
 func dbGetProfileConfig(d *Daemon, name string) (map[string]string, error) {
-	rows1, err := shared.DbQuery(d.db, "SELECT id FROM profiles WHERE name=?", name)
+	q := "SELECT id FROM profiles WHERE name=?"
+	id := -1
+	arg1 := []interface{}{name}
+	arg2 := []interface{}{&id}
+	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("Profile %s not found", name)
+	}
 	if err != nil {
 		return nil, err
 	}
-	defer rows1.Close()
-	id := -1
-	for rows1.Next() {
-		var xId int
-		rows1.Scan(&xId)
-		id = xId
-	}
-	if id == -1 {
-		return nil, fmt.Errorf("Profile %s not found", name)
-	}
 
-	q := `SELECT key, value FROM profiles_config JOIN profiles
+	q = `SELECT key, value FROM profiles_config JOIN profiles
 		ON profiles_config.profile_id=profiles.id
 		WHERE name=?`
 	rows, err := shared.DbQuery(d.db, q, name)

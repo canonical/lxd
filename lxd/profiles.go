@@ -48,11 +48,18 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 	result := []string{}
 	for rows.Next() {
 		name := ""
-		if err := rows.Scan(&name); err != nil {
+		err = rows.Scan(&name)
+		if err != nil {
+			fmt.Printf("DBERR: profilesGet: scan returned error %q\n", err)
 			return InternalError(err)
 		}
 
 		result = append(result, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, name))
+	}
+	err = rows.Err()
+	if err != nil {
+		fmt.Printf("DBERR: profilesGet: Err returned an error %q\n", err)
+		return InternalError(err)
 	}
 
 	return SyncResponse(true, result)
@@ -174,10 +181,19 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	var id int
 	for rows.Next() {
 		var i int
-		rows.Scan(&i)
+		err = rows.Scan(&i)
+		if err != nil {
+			fmt.Printf("DBERR: profilePut: scan returned error %q\n", err)
+			return InternalError(err)
+		}
 		id = i
 	}
 	rows.Close()
+	err = rows.Err()
+	if err != nil {
+		fmt.Printf("DBERR: profilePut: Err returned an error %q\n", err)
+		return InternalError(err)
+	}
 
 	err = dbClearProfileConfig(tx, id)
 	if err != nil {

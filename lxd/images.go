@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
@@ -290,22 +292,50 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 }
 
 func imagesGet(d *Daemon, r *http.Request) Response {
+	slept := time.Millisecond * 0
+	for {
+		result, err := doImagesGet(d)
+		if err == nil {
+			return SyncResponse(true, result)
+		}
+		if !shared.IsDbLockedError(err) {
+			shared.Debugf("DBERR: imagesGet: error %q\n", err)
+			return InternalError(err)
+		}
+		if slept == 30*time.Second {
+			shared.Debugf("DBERR: imagesGet: DB Locked for 30 seconds\n")
+			return InternalError(err)
+		}
+		time.Sleep(100 * time.Millisecond)
+		slept = slept + 100*time.Millisecond
+	}
+}
+
+func doImagesGet(d *Daemon) ([]string, error) {
 	shared.Debugf("responding to images:get")
 
 	rows, err := shared.DbQuery(d.db, "SELECT fingerprint FROM images")
 	if err != nil {
-		return BadRequest(err)
+		return []string{}, err
 	}
 	defer rows.Close()
+
 	result := make([]string, 0)
 	for rows.Next() {
 		var name string
-		rows.Scan(&name)
+		err = rows.Scan(&name)
+		if err != nil {
+			return []string{}, err
+		}
 		url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
 		result = append(result, url)
 	}
+	err = rows.Err()
+	if err != nil {
+		return []string{}, err
+	}
 
-	return SyncResponse(true, result)
+	return result, nil
 }
 
 var imagesCmd = Command{name: "images", post: imagesPost, get: imagesGet}
@@ -366,8 +396,17 @@ func imageGet(d *Daemon, r *http.Request) Response {
 	for rows2.Next() {
 		var key, value string
 		var imagetype int
-		rows2.Scan(&imagetype, &key, &value)
+		err = rows2.Scan(&imagetype, &key, &value)
+		if err != nil {
+			fmt.Printf("DBERR: imageGet: scan returned error %q\n", err)
+			return InternalError(err)
+		}
 		properties[key] = value
+	}
+	err = rows2.Err()
+	if err != nil {
+		fmt.Printf("DBERR: imageGet: Err returned an error %q\n", err)
+		return InternalError(err)
 	}
 
 	rows3, err := shared.DbQuery(d.db, "SELECT name, description FROM images_aliases WHERE image_id=?", imgInfo.Id)
@@ -378,9 +417,18 @@ func imageGet(d *Daemon, r *http.Request) Response {
 	aliases := shared.ImageAliases{}
 	for rows3.Next() {
 		var name, desc string
-		rows3.Scan(&name, &desc)
+		err = rows3.Scan(&name, &desc)
+		if err != nil {
+			fmt.Printf("DBERR: imageGet (2): scan returned error %q\n", err)
+			return InternalError(err)
+		}
 		a := shared.ImageAlias{Name: name, Description: desc}
 		aliases = append(aliases, a)
+	}
+	err = rows3.Err()
+	if err != nil {
+		fmt.Printf("DBERR: imageGet (2): Err returned an error %q\n", err)
+		return InternalError(err)
 	}
 
 	info := shared.ImageInfo{Fingerprint: imgInfo.Fingerprint,
@@ -499,9 +547,18 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	result := make([]string, 0)
 	for rows.Next() {
 		var name string
-		rows.Scan(&name)
+		err = rows.Scan(&name)
+		if err != nil {
+			fmt.Printf("DBERR: aliasesGet: scan returned error %q\n", err)
+			return InternalError(err)
+		}
 		url := fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, name)
 		result = append(result, url)
+	}
+	err = rows.Err()
+	if err != nil {
+		fmt.Printf("DBERR: aliasesGet: Err returned an error %q\n", err)
+		return InternalError(err)
 	}
 
 	return SyncResponse(true, result)
@@ -518,22 +575,19 @@ func aliasGet(d *Daemon, r *http.Request) Response {
 	if !d.isTrustedClient(r) {
 		q = q + ` AND images.public=1`
 	}
-	rows, err := shared.DbQuery(d.db, q, name)
+
+	var fingerprint, description string
+	arg1 := []interface{}{name}
+	arg2 := []interface{}{&fingerprint, &description}
+	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
+	if err == sql.ErrNoRows {
+		return NotFound
+	}
 	if err != nil {
 		return InternalError(err)
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var fingerprint, description string
-		if err := rows.Scan(&fingerprint, &description); err != nil {
-			return InternalError(err)
-		}
-
-		return SyncResponse(true, shared.Jmap{"target": fingerprint, "description": description})
-	}
-
-	return NotFound
+	return SyncResponse(true, shared.Jmap{"target": fingerprint, "description": description})
 }
 
 func aliasDelete(d *Daemon, r *http.Request) Response {
