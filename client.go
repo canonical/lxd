@@ -32,8 +32,8 @@ type Client struct {
 	Remote          *RemoteConfig
 	name            string
 	http            http.Client
-	baseURL         string
-	baseWSURL       string
+	BaseURL         string
+	BaseWSURL       string
 	certf           string
 	keyf            string
 	websocketDialer websocket.Dialer
@@ -193,16 +193,22 @@ func NewClient(config *Config, remote string) (*Client, error) {
 	// TODO: Here, we don't support configurable local remotes, we only
 	// support the default local LXD at /var/lib/lxd/unix.socket.
 	if remote == "" {
-		c.baseURL = "http://unix.socket"
-		c.baseWSURL = "ws://unix.socket"
+		c.BaseURL = "http://unix.socket"
+		c.BaseWSURL = "ws://unix.socket"
 		c.http.Transport = &unixTransport
 		c.websocketDialer.NetDial = unixDial
 	} else if r, ok := config.Remotes[remote]; ok {
 		if r.Addr[0:5] == "unix:" {
-			c.baseURL = "http://unix.socket"
-			c.baseWSURL = "ws://unix.socket"
+			c.BaseURL = "http://unix.socket"
+			c.BaseWSURL = "ws://unix.socket"
 			uDial := func(networ, addr string) (net.Conn, error) {
-				raddr, err := net.ResolveUnixAddr("unix", r.Addr[5:])
+				var err error
+				var raddr *net.UnixAddr
+				if r.Addr[7:] == "unix://" {
+					raddr, err = net.ResolveUnixAddr("unix", r.Addr[7:])
+				} else {
+					raddr, err = net.ResolveUnixAddr("unix", r.Addr[5:])
+				}
 				if err != nil {
 					return nil, err
 				}
@@ -235,8 +241,13 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			c.certf = certf
 			c.keyf = keyf
 
-			c.baseURL = "https://" + r.Addr
-			c.baseWSURL = "wss://" + r.Addr
+			if r.Addr[0:8] == "https://" {
+				c.BaseURL = "https://" + r.Addr[8:]
+				c.BaseWSURL = "wss://" + r.Addr[8:]
+			} else {
+				c.BaseURL = "https://" + r.Addr
+				c.BaseWSURL = "wss://" + r.Addr
+			}
 			c.http.Transport = tr
 			c.loadServerCert()
 			c.Remote = &r
@@ -394,12 +405,12 @@ func (c *Client) delete(base string, args shared.Jmap, rtype ResponseType) (*Res
 
 func (c *Client) websocket(operation string, secret string) (*websocket.Conn, error) {
 	query := url.Values{"secret": []string{secret}}
-	url := c.baseWSURL + path.Join(operation, "websocket") + "?" + query.Encode()
+	url := c.BaseWSURL + path.Join(operation, "websocket") + "?" + query.Encode()
 	return WebsocketDial(c.websocketDialer, url)
 }
 
 func (c *Client) url(elem ...string) string {
-	return c.baseURL + "/" + path.Join(elem...)
+	return c.BaseURL + "/" + path.Join(elem...)
 }
 
 func unixDial(networ, addr string) (net.Conn, error) {
@@ -871,7 +882,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		if err != nil {
 			return nil, err
 		}
-		source["server"] = tmpremote.baseURL
+		source["server"] = tmpremote.BaseURL
 		isAlias, err := tmpremote.IsAlias(image)
 		if err != nil {
 			return nil, err
