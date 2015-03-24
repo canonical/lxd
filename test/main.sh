@@ -115,6 +115,9 @@ test_commits_signed_off
 echo "==> TEST: doing static analysis of commits"
 static_analysis
 
+echo "==> TEST: lxc remote url"
+test_remote_url
+
 echo "==> TEST: lxc remote administration"
 test_remote_admin
 

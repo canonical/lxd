@@ -83,7 +83,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		return err
 	}
 
-	url := "wss://" + source.Remote.Addr + path.Join(to.Operation, "websocket")
+	url := source.BaseWSURL + path.Join(to.Operation, "websocket")
 	migration, err := dest.MigrateFrom(sourceName, url, secrets, status.Config, status.Profiles)
 	if err != nil {
 		return err
