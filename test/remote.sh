@@ -9,6 +9,21 @@ gen_second_cert() {
 	mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
 }
 
+test_remote_url() {
+  for url in localhost:18443 https://localhost:18443; do
+    (echo y;  sleep 3;  echo foo) | lxc remote add test $url
+    lxc finger test:
+    lxc config trust remove localhost
+    lxc remote remove test
+  done
+
+  for url in images.linuxcontainers.org https://images.linuxcontainers.org ${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket; do
+    lxc remote add test $url
+    lxc finger test:
+    lxc remote remove test
+  done
+}
+
 test_remote_admin() {
   bad=0
   (echo y;  sleep 3;  echo bad) | lxc remote add badpass 127.0.0.1:18443 $debug || true
