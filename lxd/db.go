@@ -366,13 +366,15 @@ func initDb(d *Daemon) error {
 	dbpath := shared.VarPath("lxd.db")
 	var db *sql.DB
 	var err error
+	timeout := 30 // TODO - make this command-line configurable?
+	openPath := fmt.Sprintf("%s?_busy_timeout=%d", dbpath, timeout*1000)
 	if !shared.PathExists(dbpath) {
-		db, err = createDb(dbpath)
+		db, err = createDb(openPath)
 		if err != nil {
 			return err
 		}
 	} else {
-		db, err = sql.Open("sqlite3", dbpath)
+		db, err = sql.Open("sqlite3", openPath)
 		if err != nil {
 			return err
 		}
