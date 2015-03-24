@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/stgraber/lxd-go-sqlite3"
 	"gopkg.in/tomb.v2"
 )
 

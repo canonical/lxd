@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/shared"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/stgraber/lxd-go-sqlite3"
 )
 
 const DB_CURRENT_VERSION int = 4
