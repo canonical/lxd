@@ -26,22 +26,14 @@ func remoteGetImageFingerprint(d *Daemon, server string, alias string) (string, 
 
 func (d *Daemon) dbGetimage(fp string) int {
 	q := `SELECT id FROM images WHERE fingerprint=?`
-	rows, err := shared.DbQuery(d.db, q, fp)
+	id := -1
+	arg1 := []interface{}{fp}
+	arg2 := []interface{}{&id}
+	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return -1
 	}
-	defer rows.Close()
-	id := -1
-	for rows.Next() {
-		var xId int
-		rows.Scan(&xId)
-		id = xId
-	}
-	if id != -1 {
-		return id
-	}
-
-	return -1
+	return id
 }
 
 func ensureLocalImage(d *Daemon, server, fp string) error {
