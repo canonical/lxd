@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/mattn/go-sqlite3"
+	"github.com/stgraber/lxd-go-sqlite3"
 )
 
 func IsDbLockedError(err error) bool {
