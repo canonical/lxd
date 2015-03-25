@@ -48,7 +48,6 @@ func DbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 			return nil
 		}
 		if !IsDbLockedError(err) {
-			Debugf("DbQuery: queryrow %q error %q\n", q, err)
 			return err
 		}
 		if slept == 30*time.Second {
