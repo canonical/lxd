@@ -130,6 +130,15 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		}
 	}
 
+	_, err = dbImageGet(d, uuid, false)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NotFound
+		}
+
+		return InternalError(err)
+	}
+
 	dpath := shared.VarPath("lxc", req.Name)
 	if shared.PathExists(dpath) {
 		return InternalError(fmt.Errorf("Container exists"))
