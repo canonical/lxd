@@ -107,8 +107,6 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	shared.Debugf("responding to images:post")
-
 	public, err := strconv.Atoi(r.Header.Get("X-LXD-public"))
 	tarname := r.Header.Get("X-LXD-filename")
 
@@ -312,8 +310,6 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 }
 
 func doImagesGet(d *Daemon) ([]string, error) {
-	shared.Debugf("responding to images:get")
-
 	rows, err := shared.DbQuery(d.db, "SELECT fingerprint FROM images")
 	if err != nil {
 		return []string{}, err
@@ -341,8 +337,6 @@ func doImagesGet(d *Daemon) ([]string, error) {
 var imagesCmd = Command{name: "images", post: imagesPost, get: imagesGet}
 
 func imageDelete(d *Daemon, r *http.Request) Response {
-	shared.Debugf("responding to image:delete")
-
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	imgInfo, err := dbImageGet(d, fingerprint, false)
@@ -501,8 +495,6 @@ type aliasPostReq struct {
 }
 
 func aliasesPost(d *Daemon, r *http.Request) Response {
-	shared.Debugf("responding to images/aliases:put")
-
 	req := aliasPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
@@ -537,8 +529,6 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 }
 
 func aliasesGet(d *Daemon, r *http.Request) Response {
-	shared.Debugf("responding to images/aliases:get")
-
 	rows, err := shared.DbQuery(d.db, "SELECT name FROM images_aliases")
 	if err != nil {
 		return BadRequest(err)
@@ -565,7 +555,6 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 }
 
 func aliasGet(d *Daemon, r *http.Request) Response {
-	shared.Debugf("Responding to alias get")
 	name := mux.Vars(r)["name"]
 	q := `SELECT images.fingerprint, images_aliases.description
 			 FROM images_aliases
@@ -591,8 +580,6 @@ func aliasGet(d *Daemon, r *http.Request) Response {
 }
 
 func aliasDelete(d *Daemon, r *http.Request) Response {
-	shared.Debugf("responding to images/aliases:delete")
-
 	name := mux.Vars(r)["name"]
 	_, _ = shared.DbExec(d.db, "DELETE FROM images_aliases WHERE name=?", name)
 
@@ -600,8 +587,6 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 }
 
 func imageExport(d *Daemon, r *http.Request) Response {
-	shared.Debugf("responding to images/export")
-
 	hash := mux.Vars(r)["hash"]
 
 	public := !d.isTrustedClient(r)
