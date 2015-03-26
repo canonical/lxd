@@ -2,3 +2,4 @@
 po/*.mo
 po/*.po~
 lxd-*.tar.gz
+.vagrant
