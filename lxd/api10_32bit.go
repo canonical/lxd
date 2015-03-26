@@ -1,4 +1,4 @@
-// +build 386 arm
+// +build 386 arm ppc
 
 package main
 
