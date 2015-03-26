@@ -747,11 +747,11 @@ func (c *lxdContainer) Freeze() error {
 	return c.c.Freeze()
 }
 
-func (c *lxdContainer) isUnprivileged() bool {
+func (c *lxdContainer) isPrivileged() bool {
 	switch strings.ToLower(c.config["security.privileged"]) {
-	case "0":
+	case "1":
 		return true
-	case "false":
+	case "true":
 		return true
 	}
 	return false
@@ -788,11 +788,15 @@ func (d *lxdContainer) applyConfig(config map[string]string) error {
 			err = d.c.SetConfigItem("lxc.cgroup.cpuset.cpus", cpuset)
 		case "limits.memory":
 			err = d.c.SetConfigItem("lxc.cgroup.memory.limit_in_bytes", v)
+
 		default:
 			if strings.HasPrefix(k, "user.") {
 				// ignore for now
 				err = nil
 			}
+
+			/* Things like security.privileged need to be propagatged */
+			d.config[k] = v
 		}
 		if err != nil {
 			shared.Debugf("error setting %s: %q\n", k, err)
@@ -841,6 +845,7 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 			fmt.Printf("DBERR: applyProfile: scan returned error %q\n", err)
 			return err
 		}
+		shared.Debugf("applying %s: %s", k, v)
 		config[k] = v
 	}
 	err = rows.Err()
@@ -990,7 +995,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		return nil, err
 	}
 
-	if !d.isUnprivileged() {
+	if !d.isPrivileged() {
 		uidstr := fmt.Sprintf("u 0 %d %d\n", daemon.idMap.Uidmin, daemon.idMap.Uidrange)
 		err = c.SetConfigItem("lxc.id_map", uidstr)
 		if err != nil {
