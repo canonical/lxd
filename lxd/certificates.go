@@ -137,6 +137,11 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		name = req.Name
 
 	} else {
+				
+		if len(r.TLS.PeerCertificates) < 1 {
+			return BadRequest(fmt.Errorf("No client certificate provided"))
+		}
+		
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
 		name = r.TLS.ServerName
 	}
