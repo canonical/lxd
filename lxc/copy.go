@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
@@ -28,7 +29,7 @@ func (c *copyCmd) usage() string {
 
 func (c *copyCmd) flags() {}
 
-func copyContainer(config *lxd.Config, sourceResource string, destResource string) error {
+func copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool) error {
 	sourceRemote, sourceName := config.ParseRemoteAndContainer(sourceResource)
 	destRemote, destName := config.ParseRemoteAndContainer(destResource)
 
@@ -83,6 +84,14 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		return err
 	}
 
+	if !keepVolatile {
+		for k := range status.Config {
+			if strings.HasPrefix(k, "volatile") {
+				delete(status.Config, k)
+			}
+		}
+	}
+
 	url := source.BaseWSURL + path.Join(to.Operation, "websocket")
 	migration, err := dest.MigrateFrom(sourceName, url, secrets, status.Config, status.Profiles)
 	if err != nil {
@@ -109,5 +118,5 @@ func (c *copyCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	return copyContainer(config, args[0], args[1])
+	return copyContainer(config, args[0], args[1], false)
 }
