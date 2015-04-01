@@ -598,7 +598,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	path := shared.VarPath("images", hash)
+	path := shared.VarPath("images", imgInfo.Fingerprint)
 	filename := imgInfo.Filename
 
 	if filename == "" {
