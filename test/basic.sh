@@ -38,6 +38,11 @@ test_basic_usage() {
   lxc list | grep foo | grep STOPPED
   lxc delete foo
 
+  # Test randomly named container creation
+  lxc init testimage
+  RDNAME=$(lxc list | grep STOPPED | cut -d' ' -f2)
+  lxc delete $RDNAME
+
   # Test "nonetype" container creation
   wait_for my_curl -X POST $BASEURL/1.0/containers \
         -d "{\"name\":\"nonetype\",\"source\":{\"type\":\"none\"}}"
