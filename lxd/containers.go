@@ -1,16 +1,20 @@
 package main
 
 import (
+	"bytes"
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -530,6 +534,19 @@ func dbInsertProfiles(tx *sql.Tx, id int, profiles []string) error {
 	return nil
 }
 
+// ExtractInterfaceFromConfigName returns "eth0" from "volatile.eth0.hwaddr",
+// or an error if the key does not match this pattern.
+func ExtractInterfaceFromConfigName(k string) (string, error) {
+
+	re := regexp.MustCompile("volatile\\.([^.]*)\\.hwaddr")
+	m := re.FindStringSubmatch(k)
+	if m != nil && len(m) > 1 {
+		return m[1], nil
+	}
+
+	return "", fmt.Errorf("%s did not match", k)
+}
+
 func ValidContainerConfigKey(k string) bool {
 	switch k {
 	case "limits.cpus":
@@ -541,6 +558,10 @@ func ValidContainerConfigKey(k string) bool {
 	case "raw.apparmor":
 		return true
 	case "raw.lxc":
+		return true
+	}
+
+	if _, err := ExtractInterfaceFromConfigName(k); err == nil {
 		return true
 	}
 
@@ -865,11 +886,92 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 	return d.applyConfig(config)
 }
 
+// GenerateMacAddr generates a mac address from a string template:
+// e.g. "00:11:22:xx:xx:xx" -> "00:11:22:af:3e:51"
+func GenerateMacAddr(template string) (string, error) {
+	ret := bytes.Buffer{}
+
+	for _, c := range template {
+		if c == 'x' {
+			c, err := rand.Int(rand.Reader, big.NewInt(16))
+			if err != nil {
+				return "", err
+			}
+			ret.WriteString(fmt.Sprintf("%x", c.Int64()))
+		} else {
+			ret.WriteString(string(c))
+		}
+	}
+
+	return ret.String(), nil
+}
+
+func (c *lxdContainer) setupMacAddresses(d *Daemon) error {
+	newConfigEntries := map[string]string{}
+
+	for name, d := range c.devices {
+		if d["type"] != "nic" {
+			continue
+		}
+
+		found := false
+
+		for key, val := range c.config {
+			device, err := ExtractInterfaceFromConfigName(key)
+			if err == nil && device == name {
+				found = true
+				d["hwaddr"] = val
+			}
+		}
+
+		if !found {
+			var hwaddr string
+			var err error
+			if d["hwaddr"] != "" {
+				hwaddr, err = GenerateMacAddr(d["hwaddr"])
+				if err != nil {
+					return err
+				}
+			} else {
+				hwaddr, err = GenerateMacAddr("00:16:3e:xx:xx:xx")
+				if err != nil {
+					return err
+				}
+			}
+
+			if hwaddr != d["hwaddr"] {
+				d["hwaddr"] = hwaddr
+				key := fmt.Sprintf("volatile.%s.hwaddr", name)
+				c.config[key] = hwaddr
+				newConfigEntries[key] = hwaddr
+			}
+		}
+	}
+
+	if len(newConfigEntries) > 0 {
+
+		tx, err := d.db.Begin()
+		if err != nil {
+			return err
+		}
+
+		if err := dbInsertContainerConfig(tx, c.id, newConfigEntries); err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		return shared.TxCommit(tx)
+	}
+
+	return nil
+}
+
 func (c *lxdContainer) applyDevices() error {
 	for name, d := range c.devices {
 		if name == "type" {
 			continue
 		}
+
 		configs, err := DeviceToLxc(d)
 		if err != nil {
 			return fmt.Errorf("Failed configuring device %s: %s\n", name, err)
@@ -987,6 +1089,10 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 
 	for k, v := range newdevs {
 		d.devices[k] = v
+	}
+
+	if err := d.setupMacAddresses(daemon); err != nil {
+		return nil, err
 	}
 
 	/* now add the lxc.* entries for the configured devices */
