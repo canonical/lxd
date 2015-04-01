@@ -61,8 +61,15 @@ test_basic_usage() {
 
   # cycle it a few times
   lxc start foo
+  mac1=$(lxc exec foo cat /sys/class/net/eth0/address)
   lxc stop foo  --force # stop is hanging
   lxc start foo
+  mac2=$(lxc exec foo cat /sys/class/net/eth0/address)
+
+  if [ "$mac1" != "$mac2" ]; then
+    echo "==> MAC addresses didn't match across restarts"
+    false
+  fi
 
   # check that we can set the environment
   lxc exec foo pwd | grep /root
