@@ -232,7 +232,7 @@ class LXCImages(object):
         with open(os.devnull, "w") as devnull:
             r = subprocess.call(
                 ["gpg",
-                 "--keyserver", "hkp://pool.sks-keyservers.net",
+                 "--keyserver", "hkp://p80.pool.sks-keyservers.net:80",
                  "--recv-keys", self.gpgkey],
                 env=gpg_environ,
                 stdout=devnull, stderr=devnull)
