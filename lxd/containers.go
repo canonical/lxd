@@ -136,11 +136,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	_, err = dbImageGet(d, uuid, false)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return NotFound
-		}
-
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	dpath := shared.VarPath("lxc", req.Name)
@@ -158,7 +154,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config, req.Profiles)
 	if err != nil {
 		removeContainerPath(d, name)
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	/*
@@ -172,7 +168,7 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 
 	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	/* The container already exists, so don't do anything. */
@@ -188,16 +184,13 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 
 	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles)
 	if err != nil {
-		if err == DbErrAlreadyDefined {
-			return Conflict
-		}
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	c, err := newLxdContainer(req.Name, d)
 	if err != nil {
 		removeContainer(d, req.Name)
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	// rsync complaisn if the parent directory for the rootfs sync doesn't
@@ -340,8 +333,6 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	return nil
 }
 
-var DbErrAlreadyDefined = fmt.Errorf("already exists")
-
 func dbRemoveContainer(d *Daemon, name string) {
 	_, _ = shared.DbExec(d.db, "DELETE FROM containers WHERE name=?", name)
 }
@@ -414,7 +405,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 	}
 	c, err := newLxdContainer(name, d)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return SyncResponse(true, c.RenderState())
@@ -651,12 +642,12 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	c, err := newLxdContainer(name, d)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return BadRequest(err)
+		return InternalError(err)
 	}
 
 	body := containerPostBody{}
@@ -672,16 +663,16 @@ func containerPost(d *Daemon, r *http.Request) Response {
 
 		return AsyncResponseWithWs(ws, nil)
 	} else {
+		if c.c.Running() {
+			return BadRequest(fmt.Errorf("renaming of running container not allowed"))
+		}
+
+		_, err := dbCreateContainer(d, body.Name, cTypeRegular, c.config, c.profiles)
+		if err != nil {
+			return SmartError(err)
+		}
+
 		run := func() error {
-			if c.c.Running() {
-				return fmt.Errorf("renaming of running container not allowed")
-			}
-
-			_, err := dbCreateContainer(d, body.Name, cTypeRegular, c.config, c.profiles)
-			if err != nil {
-				return err
-			}
-
 			oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", c.name))
 			newPath := fmt.Sprintf("%s/", shared.VarPath("lxc", body.Name))
 
@@ -701,7 +692,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	_, err := dbGetContainerId(d.db, name)
 	if err != nil {
-		return BadRequest(fmt.Errorf("Unknown container"))
+		return SmartError(err)
 	}
 	dirsToDelete := containerDeleteSnapshots(d, name)
 	dbRemoveContainer(d, name)
@@ -724,7 +715,7 @@ func containerStateGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	c, err := newLxdContainer(name, d)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return SyncResponse(true, c.RenderState().Status)
@@ -1137,7 +1128,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 
 	c, err := newLxdContainer(name, d)
 	if err != nil {
-		return BadRequest(err)
+		return SmartError(err)
 	}
 
 	var do func() error
@@ -1169,7 +1160,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	c, err := newLxdContainer(name, d)
 	if err != nil {
-		return NotFound
+		return SmartError(err)
 	}
 
 	targetPath := r.FormValue("path")
@@ -1290,7 +1281,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	rows, err := shared.DbQuery(d.db, "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?",
 		cTypeSnapshot, length, regexp)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 	defer rows.Close()
 
@@ -1366,7 +1357,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	 */
 	c, err := newLxdContainer(name, d)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	raw := shared.Jmap{}
@@ -1388,6 +1379,10 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	fullName := fmt.Sprintf("%s/%s", name, snapshotName)
 	snapDir := snapshotDir(c, snapshotName)
+	if shared.PathExists(snapDir) {
+		return Conflict
+	}
+
 	err = os.MkdirAll(snapDir, 0700)
 	if err != nil {
 		return InternalError(err)
@@ -1396,13 +1391,11 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	snapshot := func() error {
 
 		StateDir := snapshotStateDir(c, snapshotName)
-		if shared.PathExists(StateDir) {
-			return fmt.Errorf("Snapshot directory exists")
-		}
 		err = os.MkdirAll(StateDir, 0700)
 		if err != nil {
-			return fmt.Errorf("Error creating rootfs directory")
+			return err
 		}
+
 		if stateful {
 			// TODO - shouldn't we freeze for the duration of rootfs snapshot below?
 			if !c.c.Running() {
@@ -1440,7 +1433,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	containerName := mux.Vars(r)["name"]
 	c, err := newLxdContainer(containerName, d)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	snapshotName := mux.Vars(r)["snapshotName"]
@@ -1644,7 +1637,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	c, err := newLxdContainer(name, d)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	if !c.c.Running() {
