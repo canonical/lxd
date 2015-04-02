@@ -74,9 +74,9 @@ test_remote_usage() {
 
   lxc image delete lxd2:$sum || true
 
-  lxc image copy localhost:testimage lxd2: --copy-aliases
+  lxc image copy localhost:testimage lxd2: --copy-aliases --public
   lxc image delete localhost:$sum
-  lxc image copy lxd2:$sum local: --copy-aliases
+  lxc image copy lxd2:$sum local: --copy-aliases --public
   lxc image info localhost:testimage
   lxc image delete lxd2:$sum
 

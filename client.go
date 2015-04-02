@@ -520,7 +520,7 @@ func (c *Client) ListContainers() ([]string, error) {
 	return names, nil
 }
 
-func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string) error {
+func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string, public bool) error {
 	uri := c.url(shared.APIVersion, "images", image, "export")
 	raw, err := c.getRaw(uri)
 
@@ -541,7 +541,11 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 	}
 	postreq.Header.Set("User-Agent", shared.UserAgent)
 	postreq.Header.Set("X-LXD-filename", cd[1])
-	postreq.Header.Set("X-LXD-public", "0")
+	if public {
+		postreq.Header.Set("X-LXD-public", "1")
+	} else {
+		postreq.Header.Set("X-LXD-public", "0")
+	}
 	imgProps := url.Values{}
 	for key, value := range info.Properties {
 		imgProps.Set(key, value)
