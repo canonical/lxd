@@ -179,7 +179,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 		image := dereferenceAlias(d, inName)
-		return d.CopyImage(image, dest, copyAliases, addAliases)
+		return d.CopyImage(image, dest, copyAliases, addAliases, publicImage)
 
 	case "delete":
 		/* delete [<remote>:]<image> */
