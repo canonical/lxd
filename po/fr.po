@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-03-24 18:29-0400\n"
+"POT-Creation-Date: 2015-04-01 22:28-0400\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -125,7 +125,7 @@ msgstr ""
 msgid "Copy aliases from source"
 msgstr ""
 
-#: lxc/copy.go:24
+#: lxc/copy.go:25
 msgid ""
 "Copy containers within or in between lxd instances.\n"
 "\n"
@@ -170,11 +170,11 @@ msgstr "Active le mode de déboguage."
 msgid "Enables verbose mode."
 msgstr "Active le mode verbeux."
 
-#: lxc/init.go:100 lxc/init.go:101 lxc/launch.go:36 lxc/launch.go:37
+#: lxc/init.go:101 lxc/init.go:102 lxc/launch.go:37 lxc/launch.go:38
 msgid "Ephemeral container"
 msgstr ""
 
-#: lxc/init.go:121 lxc/launch.go:58
+#: lxc/init.go:122 lxc/launch.go:59
 #, fuzzy
 msgid "Ephemeral containers not yet supported\n"
 msgstr ""
@@ -505,7 +505,7 @@ msgstr "Version de l'API incompatible: local: %q, distant: %q"
 msgid "bad container url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
 
-#: lxc/launch.go:104
+#: lxc/launch.go:108
 msgid "bad number of things scanned from resource"
 msgstr "nombre de propriété invalide pour la ressource"
 
@@ -531,11 +531,11 @@ msgstr "version invalide dans l'URL du conteneur"
 msgid "cannot resolve unix socket address: %v"
 msgstr "Ne peut pas résoudre l'adresse du unix socket: %v"
 
-#: lxc/copy.go:58
+#: lxc/copy.go:59
 msgid "changing hostname of running containers not supported"
 msgstr ""
 
-#: lxc/launch.go:88 lxc/launch.go:93
+#: lxc/launch.go:92 lxc/launch.go:97
 msgid "didn't get any affected resources from server"
 msgstr "N'a pas pû obtenir de resource du serveur"
 
@@ -571,7 +571,7 @@ msgstr "reçu un status d'opration invalide %s"
 msgid "got bad response type, expected %s got %s"
 msgstr "reçu une mauvaise réponse pour \"exec\""
 
-#: lxc/launch.go:108
+#: lxc/launch.go:112
 msgid "got bad version"
 msgstr "reçu une version invalide"
 
@@ -607,7 +607,7 @@ msgid ""
 "create, delete, list image aliases\n"
 msgstr ""
 
-#: lxc/init.go:20
+#: lxc/init.go:21
 msgid ""
 "lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n"
 "\n"
@@ -620,7 +620,7 @@ msgid ""
 "lxc init ubuntu u1\n"
 msgstr ""
 
-#: lxc/launch.go:21
+#: lxc/launch.go:22
 msgid ""
 "lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n"
 "\n"
@@ -641,11 +641,11 @@ msgstr "pas de réponse!"
 msgid "no value found in %q\n"
 msgstr ""
 
-#: lxc/copy.go:36
+#: lxc/copy.go:37
 msgid "non-http remotes are not supported for migration right now"
 msgstr ""
 
-#: lxc/copy.go:73
+#: lxc/copy.go:74
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
@@ -680,7 +680,7 @@ msgstr "Un retour inacessible à été atteint"
 msgid "wrong number of subcommand arguments"
 msgstr "nombre d'argument incorrect pour la sous-comande"
 
-#: lxc/copy.go:40
+#: lxc/copy.go:41
 msgid "you must specify a source container name"
 msgstr ""
 
