@@ -19,10 +19,10 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/ssh/terminal"
-
 	"github.com/gorilla/websocket"
 	"github.com/gosexy/gettext"
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/lxc/lxd/shared"
 )
 
