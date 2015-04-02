@@ -221,7 +221,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if info.Public == 1 {
 			public = "yes"
 		}
-		fmt.Printf(gettext.Gettext("Size: %.2vMB\n"), float64(info.Size)/1024.0/1024.0)
+		fmt.Printf(gettext.Gettext("Size: %.2fMB\n"), float64(info.Size)/1024.0/1024.0)
 		fmt.Printf(gettext.Gettext("Architecture: %s\n"), arch_to_string(info.Architecture))
 		fmt.Printf(gettext.Gettext("Public: %s\n"), public)
 		fmt.Printf(gettext.Gettext("Timestamps:\n"))

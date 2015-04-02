@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-24 18:29-0400\n"
+        "POT-Creation-Date: 2015-04-01 16:03+1100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -165,11 +165,11 @@ msgstr  ""
 msgid   "Enables verbose mode."
 msgstr  ""
 
-#: lxc/init.go:100 lxc/init.go:101 lxc/launch.go:36 lxc/launch.go:37
+#: lxc/init.go:101 lxc/init.go:102 lxc/launch.go:37 lxc/launch.go:38
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: lxc/init.go:121 lxc/launch.go:58
+#: lxc/init.go:122 lxc/launch.go:59
 msgid   "Ephemeral containers not yet supported\n"
 msgstr  ""
 
@@ -414,7 +414,8 @@ msgid   "Show for server is not yet supported\n"
 msgstr  ""
 
 #: lxc/image.go:224
-msgid   "Size: %.2vMB\n"
+#, c-format
+msgid   "Size: %.2fMB\n"
 msgstr  ""
 
 #: lxc/delete.go:76
@@ -470,7 +471,7 @@ msgstr  ""
 msgid   "bad container url %s"
 msgstr  ""
 
-#: lxc/launch.go:104
+#: lxc/launch.go:108
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
@@ -499,7 +500,7 @@ msgstr  ""
 msgid   "changing hostname of running containers not supported"
 msgstr  ""
 
-#: lxc/launch.go:88 lxc/launch.go:93
+#: lxc/launch.go:92 lxc/launch.go:97
 msgid   "didn't get any affected resources from server"
 msgstr  ""
 
@@ -532,7 +533,7 @@ msgstr  ""
 msgid   "got bad response type, expected %s got %s"
 msgstr  ""
 
-#: lxc/launch.go:108
+#: lxc/launch.go:112
 msgid   "got bad version"
 msgstr  ""
 
@@ -568,7 +569,7 @@ msgid   "lxc image import <tarball> [target] [--public] [--created-"
         "create, delete, list image aliases\n"
 msgstr  ""
 
-#: lxc/init.go:20
+#: lxc/init.go:21
 msgid   "lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p "
         "<profile>...]\n"
         "\n"
@@ -581,7 +582,7 @@ msgid   "lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p "
         "lxc init ubuntu u1\n"
 msgstr  ""
 
-#: lxc/launch.go:21
+#: lxc/launch.go:22
 msgid   "lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p "
         "<profile>...]\n"
         "\n"
