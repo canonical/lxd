@@ -161,7 +161,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 
 	err := saveCert(d, name, cert)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	d.clientCerts[name] = *cert

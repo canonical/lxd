@@ -37,11 +37,10 @@ type profilesPostReq struct {
 }
 
 func profilesGet(d *Daemon, r *http.Request) Response {
-	shared.Debugf("responding to profiles get")
 	q := fmt.Sprintf("SELECT name FROM profiles")
 	rows, err := shared.DbQuery(d.db, q)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 	defer rows.Close()
 
@@ -66,15 +65,13 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 }
 
 func profilesPost(d *Daemon, r *http.Request) Response {
-	shared.Debugf("responding to profile create")
-
 	req := profilesPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return InternalError(err)
+		return BadRequest(err)
 	}
 
 	if req.Name == "" {
-		return InternalError(fmt.Errorf("No name provided"))
+		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
 	name := req.Name
@@ -86,7 +83,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	result, err := tx.Exec("INSERT INTO profiles (name) VALUES (?)", name)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return SmartError(err)
 	}
 	id64, err := result.LastInsertId()
 	if err != nil {
@@ -98,13 +95,13 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	err = addProfileConfig(tx, id, req.Config)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	err = shared.AddDevices(tx, "profile", id, req.Devices)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	err = shared.TxCommit(tx)
@@ -122,12 +119,12 @@ func profileGet(d *Daemon, r *http.Request) Response {
 
 	config, err := dbGetProfileConfig(d, name)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	devices, err := dbGetDevices(d, name, true)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	resp := &shared.ProfileConfig{
@@ -165,7 +162,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 
 	req := profilesPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return InternalError(err)
+		return BadRequest(err)
 	}
 
 	tx, err := d.db.Begin()
@@ -176,7 +173,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	rows, err := tx.Query("SELECT id FROM profiles WHERE name=?", name)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return SmartError(err)
 	}
 	var id int
 	for rows.Next() {
@@ -204,13 +201,13 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	err = addProfileConfig(tx, id, req.Config)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	err = shared.AddDevices(tx, "profile", id, req.Devices)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	err = shared.TxCommit(tx)

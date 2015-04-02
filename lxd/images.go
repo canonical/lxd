@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
@@ -104,7 +103,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		if remErr := os.Remove(fname); remErr != nil {
 			return InternalError(fmt.Errorf("Could not process image: %s; Error deleting temporary file: %s", err, remErr))
 		}
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	public, err := strconv.Atoi(r.Header.Get("X-LXD-public"))
@@ -290,23 +289,11 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 }
 
 func imagesGet(d *Daemon, r *http.Request) Response {
-	slept := time.Millisecond * 0
-	for {
-		result, err := doImagesGet(d)
-		if err == nil {
-			return SyncResponse(true, result)
-		}
-		if !shared.IsDbLockedError(err) {
-			shared.Debugf("DBERR: imagesGet: error %q\n", err)
-			return InternalError(err)
-		}
-		if slept == 30*time.Second {
-			shared.Debugf("DBERR: imagesGet: DB Locked for 30 seconds\n")
-			return InternalError(err)
-		}
-		time.Sleep(100 * time.Millisecond)
-		slept = slept + 100*time.Millisecond
+	result, err := doImagesGet(d)
+	if err != nil {
+		return SmartError(err)
 	}
+	return SyncResponse(true, result)
 }
 
 func doImagesGet(d *Daemon) ([]string, error) {
@@ -340,11 +327,8 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	imgInfo, err := dbImageGet(d, fingerprint, false)
-	// send 404, if image not found, 500 otherwise
-	if err != nil && err == NoSuchImageError {
-		return NotFound
-	} else if err != nil {
-		return BadRequest(err)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	fname := shared.VarPath("images", imgInfo.Fingerprint)
@@ -355,7 +339,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 
 	tx, err := d.db.Begin()
 	if err != nil {
-		return BadRequest(err)
+		return InternalError(err)
 	}
 
 	_, _ = tx.Exec("DELETE FROM images_aliases WHERE image_id=?", imgInfo.Id)
@@ -363,7 +347,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	_, _ = tx.Exec("DELETE FROM images WHERE id=?", imgInfo.Id)
 
 	if err := shared.TxCommit(tx); err != nil {
-		return BadRequest(err)
+		return InternalError(err)
 	}
 
 	return EmptySyncResponse
@@ -374,16 +358,13 @@ func imageGet(d *Daemon, r *http.Request) Response {
 
 	public := !d.isTrustedClient(r)
 	imgInfo, err := dbImageGet(d, fingerprint, public)
-	// send 404, if image not found, 500 otherwise
-	if err != nil && err == NoSuchImageError {
-		return NotFound
-	} else if err != nil {
-		return BadRequest(err)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	rows2, err := shared.DbQuery(d.db, "SELECT type, key, value FROM images_properties where image_id=?", imgInfo.Id)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 	defer rows2.Close()
 	properties := map[string]string{}
@@ -457,11 +438,8 @@ func imagePut(d *Daemon, r *http.Request) Response {
 	}
 
 	imgInfo, err := dbImageGet(d, fingerprint, false)
-	// send 404, if image not found, 500 otherwise
-	if err != nil && err == NoSuchImageError {
-		return NotFound
-	} else if err != nil {
-		return BadRequest(err)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	_, err = tx.Exec(`DELETE FROM images_properties WHERE image_id=?`, imgInfo.Id)
@@ -509,20 +487,17 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 
 	_, _, err := dbAliasGet(d, req.Name)
 	if err == nil {
-		return BadRequest(fmt.Errorf("alias exists"))
+		return Conflict
 	}
 
 	imgInfo, err := dbImageGet(d, req.Target, false)
-	// send 404, if image not found, 500 otherwise
-	if err != nil && err == NoSuchImageError {
-		return NotFound
-	} else if err != nil {
-		return BadRequest(err)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	err = dbAddAlias(d, req.Name, imgInfo.Id, req.Description)
 	if err != nil {
-		return BadRequest(err)
+		return InternalError(err)
 	}
 
 	return EmptySyncResponse
@@ -591,11 +566,8 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 	public := !d.isTrustedClient(r)
 	imgInfo, err := dbImageGet(d, hash, public)
-	// send 404, if image not found, 500 otherwise
-	if err != nil && err == NoSuchImageError {
-		return NotFound
-	} else if err != nil {
-		return BadRequest(err)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	path := shared.VarPath("images", imgInfo.Fingerprint)
