@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/lxc/lxd/shared"
 )
 
 // Config holds settings to be used by a client or daemon.
@@ -35,7 +37,7 @@ type RemoteConfig struct {
 	Addr string `yaml:"addr"`
 }
 
-var localRemote = RemoteConfig{Addr: "unix:/var/lib/lxd/unix.socket"}
+var localRemote = RemoteConfig{Addr: "unix://" + shared.VarPath("unix.socket")}
 var defaultRemote = map[string]RemoteConfig{"local": localRemote}
 
 var ConfigDir = "$HOME/.config/lxc"

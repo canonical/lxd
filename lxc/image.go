@@ -179,7 +179,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 		image := dereferenceAlias(d, inName)
-		return d.CopyImage(image, dest, copyAliases, addAliases)
+		return d.CopyImage(image, dest, copyAliases, addAliases, publicImage)
 
 	case "delete":
 		/* delete [<remote>:]<image> */
@@ -274,10 +274,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		_, err = d.PostImage(imagefile, properties, publicImage)
+		fingerprint, err := d.PostImage(imagefile, properties, publicImage, addAliases)
 		if err != nil {
 			return err
 		}
+
+		fmt.Printf(gettext.Gettext("Image imported with fingerprint: %s\n"), fingerprint)
 
 		return nil
 

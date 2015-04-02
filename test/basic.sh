@@ -1,9 +1,7 @@
 test_basic_usage() {
   if ! lxc image alias list | grep -q ^testimage$; then
     if [ -e "$LXD_TEST_IMAGE" ]; then
-        IMAGE_SHA256=$(sha256sum "$LXD_TEST_IMAGE" | cut -d ' ' -f1)
-        lxc image import $LXD_TEST_IMAGE
-        lxc image alias create testimage $IMAGE_SHA256
+        lxc image import $LXD_TEST_IMAGE --alias testimage
     else
         ../scripts/lxd-images import busybox --alias testimage
     fi
@@ -24,8 +22,7 @@ test_basic_usage() {
 
   # Re-import the image
   mv ${LXD_DIR}/$name ${LXD_DIR}/testimage.tar.xz
-  lxc image import ${LXD_DIR}/testimage.tar.xz
-  lxc image alias create testimage $sum
+  lxc image import ${LXD_DIR}/testimage.tar.xz --alias testimage
   rm ${LXD_DIR}/testimage.tar.xz
 
   # Test filename for image export (should be "out")
@@ -37,6 +34,11 @@ test_basic_usage() {
   lxc init testimage foo
   lxc list | grep foo | grep STOPPED
   lxc delete foo
+
+  # Test randomly named container creation
+  lxc init testimage
+  RDNAME=$(lxc list | grep STOPPED | cut -d' ' -f2)
+  lxc delete $RDNAME
 
   # Test "nonetype" container creation
   wait_for my_curl -X POST $BASEURL/1.0/containers \
