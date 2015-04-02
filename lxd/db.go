@@ -12,6 +12,10 @@ import (
 
 const DB_CURRENT_VERSION int = 4
 
+var (
+	DbErrAlreadyDefined = fmt.Errorf("already exists")
+)
+
 func createDb(p string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", p)
 	if err != nil {

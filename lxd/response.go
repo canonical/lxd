@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/stgraber/lxd-go-sqlite3"
 )
 
 type resp struct {
@@ -187,8 +189,16 @@ func SmartError(err error) Response {
 	switch err {
 	case os.ErrNotExist:
 		return NotFound
+	case sql.ErrNoRows:
+		return NotFound
+	case NoSuchImageError:
+		return NotFound
 	case os.ErrPermission:
 		return Forbidden
+	case DbErrAlreadyDefined:
+		return Conflict
+	case sqlite3.ErrConstraintUnique:
+		return Conflict
 	default:
 		return InternalError(err)
 	}
