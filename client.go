@@ -548,7 +548,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 	}
 	postreq.Header.Set("X-LXD-properties", imgProps.Encode())
 
-	postresp, err := c.http.Do(postreq)
+	postresp, err := dest.http.Do(postreq)
 	if err != nil {
 		return err
 	}
