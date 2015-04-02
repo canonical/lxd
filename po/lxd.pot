@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-03-24 18:29-0400\n"
+        "POT-Creation-Date: 2015-04-02 10:59-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -63,7 +63,7 @@ msgstr  ""
 msgid   "(Bad alias entry: %s\n"
 msgstr  ""
 
-#: lxc/image.go:308
+#: lxc/image.go:310
 #, c-format
 msgid   "(Bad image entry: %s\n"
 msgstr  ""
@@ -86,12 +86,12 @@ msgstr  ""
 msgid   "Architecture: %s\n"
 msgstr  ""
 
-#: client.go:686
+#: client.go:690
 #, c-format
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1282
+#: client.go:1310
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -99,7 +99,7 @@ msgstr  ""
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
-#: client.go:782
+#: client.go:810
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -123,13 +123,13 @@ msgstr  ""
 msgid   "Copy aliases from source"
 msgstr  ""
 
-#: lxc/copy.go:24
+#: lxc/copy.go:25
 msgid   "Copy containers within or in between lxd instances.\n"
         "\n"
         "lxc copy <source container> <destination container>\n"
 msgstr  ""
 
-#: client.go:797
+#: client.go:825
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -165,15 +165,15 @@ msgstr  ""
 msgid   "Enables verbose mode."
 msgstr  ""
 
-#: lxc/init.go:100 lxc/init.go:101 lxc/launch.go:36 lxc/launch.go:37
+#: lxc/init.go:101 lxc/init.go:102 lxc/launch.go:37 lxc/launch.go:38
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: lxc/init.go:121 lxc/launch.go:58
+#: lxc/init.go:122 lxc/launch.go:59
 msgid   "Ephemeral containers not yet supported\n"
 msgstr  ""
 
-#: client.go:567 client.go:577
+#: client.go:571 client.go:581 client.go:723
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -201,6 +201,11 @@ msgstr  ""
 #: lxc/image.go:219
 #, c-format
 msgid   "Hash: %s\n"
+msgstr  ""
+
+#: lxc/image.go:282
+#, c-format
+msgid   "Image imported with fingerprint: %s\n"
 msgstr  ""
 
 #: lxc/info.go:37
@@ -326,7 +331,7 @@ msgstr  ""
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:770
+#: client.go:798
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -375,7 +380,7 @@ msgstr  ""
 msgid   "Public: %s\n"
 msgstr  ""
 
-#: client.go:789
+#: client.go:817
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
@@ -429,7 +434,7 @@ msgstr  ""
 msgid   "Timestamps:\n"
 msgstr  ""
 
-#: lxc/image.go:418
+#: lxc/image.go:420
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -465,16 +470,16 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:510 client.go:1183 client.go:1190
+#: client.go:510 client.go:1211 client.go:1218
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
 
-#: lxc/launch.go:104
+#: lxc/launch.go:108
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1313
+#: client.go:1341
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -483,11 +488,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:514 client.go:1194
+#: client.go:514 client.go:1222
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1317
+#: client.go:1345
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -495,11 +500,11 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: lxc/copy.go:58
+#: lxc/copy.go:59
 msgid   "changing hostname of running containers not supported"
 msgstr  ""
 
-#: lxc/launch.go:88 lxc/launch.go:93
+#: lxc/launch.go:92 lxc/launch.go:97
 msgid   "didn't get any affected resources from server"
 msgstr  ""
 
@@ -522,7 +527,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:996
+#: client.go:1024
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -532,7 +537,7 @@ msgstr  ""
 msgid   "got bad response type, expected %s got %s"
 msgstr  ""
 
-#: lxc/launch.go:108
+#: lxc/launch.go:112
 msgid   "got bad version"
 msgstr  ""
 
@@ -541,7 +546,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1129
+#: client.go:1157
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -568,7 +573,7 @@ msgid   "lxc image import <tarball> [target] [--public] [--created-"
         "create, delete, list image aliases\n"
 msgstr  ""
 
-#: lxc/init.go:20
+#: lxc/init.go:21
 msgid   "lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p "
         "<profile>...]\n"
         "\n"
@@ -581,7 +586,7 @@ msgid   "lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p "
         "lxc init ubuntu u1\n"
 msgstr  ""
 
-#: lxc/launch.go:21
+#: lxc/launch.go:22
 msgid   "lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p "
         "<profile>...]\n"
         "\n"
@@ -598,19 +603,19 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1359 client.go:1413
+#: client.go:1387 client.go:1441
 msgid   "no value found in %q\n"
 msgstr  ""
 
-#: lxc/copy.go:36
+#: lxc/copy.go:37
 msgid   "non-http remotes are not supported for migration right now"
 msgstr  ""
 
-#: lxc/copy.go:73
+#: lxc/copy.go:74
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: client.go:783
+#: client.go:811
 msgid   "ok (y/n)? "
 msgstr  ""
 
@@ -641,6 +646,6 @@ msgstr  ""
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
-#: lxc/copy.go:40
+#: lxc/copy.go:41
 msgid   "you must specify a source container name"
 msgstr  ""

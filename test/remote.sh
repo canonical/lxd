@@ -65,16 +65,30 @@ test_remote_admin() {
 test_remote_usage() {
   (echo y;  sleep 3;  echo foo) |  lxc remote add lxd2 127.0.0.1:18444 $debug
 
-  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
-    return
-  fi
-
   # we need a public image on localhost
   lxc image export localhost:testimage ${LXD_DIR}/foo.img
   lxc image delete localhost:testimage
-  sum=`sha256sum ${LXD_DIR}/foo.img`
+  sum=$(sha256sum ${LXD_DIR}/foo.img | cut -d' ' -f1)
   lxc image import ${LXD_DIR}/foo.img localhost: --public
   lxc image alias create localhost:testimage $sum
+
+  lxc image delete lxd2:$sum || true
+
+  lxc image copy localhost:testimage lxd2: --copy-aliases --public
+  lxc image delete localhost:$sum
+  lxc image copy lxd2:$sum local: --copy-aliases --public
+  lxc image info localhost:testimage
+  lxc image delete lxd2:$sum
+
+  lxc image copy localhost:$sum lxd2:
+  lxc image delete lxd2:$sum
+
+  lxc image copy localhost:$(echo $sum | colrm 3) lxd2:
+  lxc image delete lxd2:$sum
+
+  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+    return
+  fi
 
   # launch testimage stored on localhost as container c1 on lxd2
   lxc launch localhost:testimage lxd2:c1

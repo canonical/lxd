@@ -139,7 +139,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	hashfname := shared.VarPath("images", hash)
 	if shared.PathExists(hashfname) {
-		return cleanup(fmt.Errorf("Image exists already."), fname)
+		return cleanup(fmt.Errorf("Image already exists."), fname)
 	}
 
 	err = os.Rename(fname, hashfname)
