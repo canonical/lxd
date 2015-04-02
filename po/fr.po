@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-04-01 22:28-0400\n"
+"POT-Creation-Date: 2015-04-02 10:59-0400\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -64,7 +64,7 @@ msgstr "'/' n'est pas autorisé dans le nom d'un instantané (snapshot)\n"
 msgid "(Bad alias entry: %s\n"
 msgstr "(Alias invalide: %s\n"
 
-#: lxc/image.go:308
+#: lxc/image.go:310
 #, c-format
 msgid "(Bad image entry: %s\n"
 msgstr "(Image invalide: %s\n"
@@ -87,12 +87,12 @@ msgstr "Dossier de configuration alternatif."
 msgid "Architecture: %s\n"
 msgstr ""
 
-#: client.go:686
+#: client.go:690
 #, fuzzy, c-format
 msgid "Bad image property: %s\n"
 msgstr "(Image invalide: %s\n"
 
-#: client.go:1282
+#: client.go:1310
 msgid "Cannot change profile name"
 msgstr ""
 
@@ -100,7 +100,7 @@ msgstr ""
 msgid "Cannot provide container name to list"
 msgstr ""
 
-#: client.go:782
+#: client.go:810
 #, c-format
 msgid "Certificate fingerprint: % x\n"
 msgstr "Empreinte du certificat: % x\n"
@@ -132,7 +132,7 @@ msgid ""
 "lxc copy <source container> <destination container>\n"
 msgstr ""
 
-#: client.go:797
+#: client.go:825
 msgid "Could not create server cert dir"
 msgstr "Le dossier de stockage des certificats serveurs n'a pas pû être créé"
 
@@ -181,7 +181,7 @@ msgstr ""
 "Il n'est pas encore possible d'obtenir de l'information sur un serveur "
 "distant\n"
 
-#: client.go:567 client.go:577
+#: client.go:571 client.go:581 client.go:723
 #, c-format
 msgid "Error adding alias %s\n"
 msgstr ""
@@ -214,6 +214,11 @@ msgstr "Géneration d'un certificat client. Ceci peut prendre une minute...\n"
 #, c-format
 msgid "Hash: %s\n"
 msgstr ""
+
+#: lxc/image.go:282
+#, fuzzy, c-format
+msgid "Image imported with fingerprint: %s\n"
+msgstr "Empreinte du certificat: % x\n"
 
 #: lxc/info.go:37
 msgid "Information about remotes not yet supported\n"
@@ -340,7 +345,7 @@ msgstr ""
 msgid "No cert provided to add"
 msgstr "Un certificat n'a pas été fournis"
 
-#: client.go:770
+#: client.go:798
 msgid "No certificate on this connection"
 msgstr "Aucun certificat pour cette connexion"
 
@@ -393,7 +398,7 @@ msgstr ""
 msgid "Public: %s\n"
 msgstr ""
 
-#: client.go:789
+#: client.go:817
 msgid "Server certificate NACKed by user"
 msgstr "Le certificat serveur a été rejeté par l'utilisateur"
 
@@ -454,7 +459,7 @@ msgstr "Temps d'attente avant de tuer le conteneur."
 msgid "Timestamps:\n"
 msgstr ""
 
-#: lxc/image.go:418
+#: lxc/image.go:420
 #, c-format
 msgid "Unknown image command %s"
 msgstr "Comande d'image inconnue %s"
@@ -500,7 +505,7 @@ msgstr ""
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "Version de l'API incompatible: local: %q, distant: %q"
 
-#: client.go:510 client.go:1183 client.go:1190
+#: client.go:510 client.go:1211 client.go:1218
 #, c-format
 msgid "bad container url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
@@ -509,7 +514,7 @@ msgstr "Mauvaise URL pour le conteneur %s"
 msgid "bad number of things scanned from resource"
 msgstr "nombre de propriété invalide pour la ressource"
 
-#: client.go:1313
+#: client.go:1341
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
@@ -518,11 +523,11 @@ msgstr "Mauvaise URL pour le conteneur %s"
 msgid "bad result type from action"
 msgstr "mauvais type de réponse pour l'action!"
 
-#: client.go:514 client.go:1194
+#: client.go:514 client.go:1222
 msgid "bad version in container url"
 msgstr "version invalide dans l'URL du conteneur"
 
-#: client.go:1317
+#: client.go:1345
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "version invalide dans l'URL du conteneur"
@@ -561,7 +566,7 @@ msgstr "erreur: comande inconnue: %s\n"
 msgid "expected error, got %s"
 msgstr ""
 
-#: client.go:996
+#: client.go:1024
 #, c-format
 msgid "got bad op status %s"
 msgstr "reçu un status d'opration invalide %s"
@@ -580,7 +585,7 @@ msgstr "reçu une version invalide"
 msgid "invalid argument %s"
 msgstr "Arguments invalides %s"
 
-#: client.go:1129
+#: client.go:1157
 #, c-format
 msgid "invalid wait url %s"
 msgstr "URL d'attente invalide %s"
@@ -637,7 +642,7 @@ msgstr ""
 msgid "no response!"
 msgstr "pas de réponse!"
 
-#: client.go:1359 client.go:1413
+#: client.go:1387 client.go:1441
 msgid "no value found in %q\n"
 msgstr ""
 
@@ -649,7 +654,7 @@ msgstr ""
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
-#: client.go:783
+#: client.go:811
 msgid "ok (y/n)? "
 msgstr "ok (y/n)?"
 

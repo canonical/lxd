@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-04-01 22:28-0400\n"
+"POT-Creation-Date: 2015-04-02 10:59-0400\n"
 "PO-Revision-Date: 2015-03-13 23:44+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -64,7 +64,7 @@ msgstr "'/' はスナップショットの名前には使用できません。\n
 msgid "(Bad alias entry: %s\n"
 msgstr "(不正なエイリアス: %s\n"
 
-#: lxc/image.go:308
+#: lxc/image.go:310
 #, c-format
 msgid "(Bad image entry: %s\n"
 msgstr "(不正なイメージ: %s\n"
@@ -87,12 +87,12 @@ msgstr "別の設定ディレクトリ"
 msgid "Architecture: %s\n"
 msgstr ""
 
-#: client.go:686
+#: client.go:690
 #, fuzzy, c-format
 msgid "Bad image property: %s\n"
 msgstr "(不正なイメージプロパティ形式: %s\n"
 
-#: client.go:1282
+#: client.go:1310
 msgid "Cannot change profile name"
 msgstr "プロファイル名を変更できません"
 
@@ -100,7 +100,7 @@ msgstr "プロファイル名を変更できません"
 msgid "Cannot provide container name to list"
 msgstr ""
 
-#: client.go:782
+#: client.go:810
 #, c-format
 msgid "Certificate fingerprint: % x\n"
 msgstr "証明書のフィンガープリント: % x\n"
@@ -132,7 +132,7 @@ msgid ""
 "lxc copy <source container> <destination container>\n"
 msgstr ""
 
-#: client.go:797
+#: client.go:825
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません。"
 
@@ -179,7 +179,7 @@ msgstr ""
 msgid "Ephemeral containers not yet supported\n"
 msgstr "リモートの情報表示はまだサポートされていません。\n"
 
-#: client.go:567 client.go:577
+#: client.go:571 client.go:581 client.go:723
 #, c-format
 msgid "Error adding alias %s\n"
 msgstr ""
@@ -212,6 +212,11 @@ msgstr "クライアント証明書を生成します。1分ぐらいかかり�
 #, c-format
 msgid "Hash: %s\n"
 msgstr ""
+
+#: lxc/image.go:282
+#, fuzzy, c-format
+msgid "Image imported with fingerprint: %s\n"
+msgstr "証明書のフィンガープリント: % x\n"
 
 #: lxc/info.go:37
 msgid "Information about remotes not yet supported\n"
@@ -337,7 +342,7 @@ msgstr ""
 msgid "No cert provided to add"
 msgstr "追加すべき証明書が提供されていません"
 
-#: client.go:770
+#: client.go:798
 msgid "No certificate on this connection"
 msgstr "この接続に使用する証明書がありません"
 
@@ -390,7 +395,7 @@ msgstr ""
 msgid "Public: %s\n"
 msgstr ""
 
-#: client.go:789
+#: client.go:817
 msgid "Server certificate NACKed by user"
 msgstr "ユーザによりサーバ証明書が拒否されました"
 
@@ -447,7 +452,7 @@ msgstr "コンテナを強制停止するまでの時間"
 msgid "Timestamps:\n"
 msgstr ""
 
-#: lxc/image.go:418
+#: lxc/image.go:420
 #, c-format
 msgid "Unknown image command %s"
 msgstr "未知のイメージコマンド %s"
@@ -491,7 +496,7 @@ msgstr "コンテナの稼動状態のスナップショットを取得するか
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "APIのバージョン不一致: クライアント: %q, サーバ: %q"
 
-#: client.go:510 client.go:1183 client.go:1190
+#: client.go:510 client.go:1211 client.go:1218
 #, c-format
 msgid "bad container url %s"
 msgstr "コンテナの不正なURL %s"
@@ -500,7 +505,7 @@ msgstr "コンテナの不正なURL %s"
 msgid "bad number of things scanned from resource"
 msgstr "リソースからスキャンされた数が不正"
 
-#: client.go:1313
+#: client.go:1341
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "プロファイルURLが不正 %s"
@@ -509,11 +514,11 @@ msgstr "プロファイルURLが不正 %s"
 msgid "bad result type from action"
 msgstr "アクションからの結果タイプが不正！"
 
-#: client.go:514 client.go:1194
+#: client.go:514 client.go:1222
 msgid "bad version in container url"
 msgstr "コンテナURL内のバージョンが不正"
 
-#: client.go:1317
+#: client.go:1345
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "プロファイルURL内のバージョンが不正"
@@ -552,7 +557,7 @@ msgstr "エラー: 未知のコマンド: %s\n"
 msgid "expected error, got %s"
 msgstr ""
 
-#: client.go:996
+#: client.go:1024
 #, c-format
 msgid "got bad op status %s"
 msgstr "不正な操作ステータスを得ました %s"
@@ -571,7 +576,7 @@ msgstr "不正なバージョンを得ました"
 msgid "invalid argument %s"
 msgstr "不正な引数 %s"
 
-#: client.go:1129
+#: client.go:1157
 #, c-format
 msgid "invalid wait url %s"
 msgstr "待つURLが不正 %s"
@@ -628,7 +633,7 @@ msgstr ""
 msgid "no response!"
 msgstr "応答がありません！"
 
-#: client.go:1359 client.go:1413
+#: client.go:1387 client.go:1441
 msgid "no value found in %q\n"
 msgstr ""
 
@@ -640,7 +645,7 @@ msgstr ""
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
-#: client.go:783
+#: client.go:811
 msgid "ok (y/n)? "
 msgstr "ok (y/n)?"
 
