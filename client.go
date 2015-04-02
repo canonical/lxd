@@ -650,18 +650,18 @@ func (c *Client) ExportImage(image string, target string) (*Response, string, er
 
 }
 
-func (c *Client) PostImage(path string, properties []string, public bool) (*Response, error) {
+func (c *Client) PostImage(path string, properties []string, public bool, aliases []string) (string, error) {
 	uri := c.url(shared.APIVersion, "images")
 
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer f.Close()
 
 	req, err := http.NewRequest("POST", uri, f)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	req.Header.Set("User-Agent", shared.UserAgent)
 
@@ -683,7 +683,7 @@ func (c *Client) PostImage(path string, properties []string, public bool) (*Resp
 			if eqIndex > -1 {
 				imgProps.Set(value[:eqIndex], value[eqIndex+1:])
 			} else {
-				return nil, fmt.Errorf(gettext.Gettext("Bad image property: %s\n"), value)
+				return "", fmt.Errorf(gettext.Gettext("Bad image property: %s\n"), value)
 			}
 
 		}
@@ -693,10 +693,34 @@ func (c *Client) PostImage(path string, properties []string, public bool) (*Resp
 
 	raw, err := c.http.Do(req)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return HoistResponse(raw, Sync)
+	resp, err := HoistResponse(raw, Sync)
+	if err != nil {
+		return "", err
+	}
+
+	jmap, err := resp.MetadataAsMap()
+	if err != nil {
+		return "", err
+	}
+
+	fingerprint, err := jmap.GetString("fingerprint")
+	if err != nil {
+		return "", err
+	}
+
+	/* add new aliases */
+	for _, alias := range aliases {
+		c.DeleteAlias(alias)
+		err = c.PostAlias(alias, alias, fingerprint)
+		if err != nil {
+			fmt.Printf(gettext.Gettext("Error adding alias %s\n"), alias)
+		}
+	}
+
+	return fingerprint, nil
 }
 
 func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
