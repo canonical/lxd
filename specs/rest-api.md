@@ -138,6 +138,8 @@ they point to (typically a dict).
 # API structure
  * /
    * /1.0
+     * /1.0/certificates
+       * /1.0/certificates/\<fingerprint\>
      * /1.0/containers
        * /1.0/containers/\<name\>
          * /1.0/containers/\<name\>/exec
@@ -159,8 +161,6 @@ they point to (typically a dict).
          * /1.0/operations/\<uuid\>/websocket
      * /1.0/profiles
        * /1.0/profiles/\<name\>
-     * /1.0/certificates
-       * /1.0/certificates/\<fingerprint\>
 
 # API details
 ## /
