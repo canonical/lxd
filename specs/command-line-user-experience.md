@@ -270,8 +270,8 @@ possible to have one copy of any given image on a given LXD host.
 
 The "description" property is special in that if it's set, it'll appear in "lxc image list".
 
-Aliases are a one to one mapping between a user friendly name and an image.
-Aliases may contain any character but colons and slashes.
+Aliases are mappings between a user friendly name and an image.
+Aliases may contain any character except for colons.
 
 Images are typically referenced by their full or partial hash, in most
 cases aliases may also be used and for listings, property filters can
