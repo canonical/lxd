@@ -42,7 +42,7 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	if err != nil {
 		return err
 	}
-	ct, err := d.ContainerStatus(args[0])
+	ct, err := d.ContainerStatus(cName)
 	if err != nil {
 		return err
 	}
