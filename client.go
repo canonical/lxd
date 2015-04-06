@@ -747,13 +747,13 @@ func (c *Client) PutImageProperties(name string, p shared.ImageProperties) error
 	return err
 }
 
-func (c *Client) ListImages() ([]string, error) {
-	resp, err := c.get("images")
+func (c *Client) ListImages() ([]shared.ImageInfo, error) {
+	resp, err := c.get("images?recursion=1")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []string
+	var result []shared.ImageInfo
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
 	}
