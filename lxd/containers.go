@@ -93,6 +93,9 @@ type containerImageSource struct {
 	Mode       string            `json:"mode"`
 	Operation  string            `json:"operation"`
 	Websockets map[string]string `json:"secrets"`
+
+	/* for "copy" type */
+	Source string `json:"source"`
 }
 
 type containerPostReq struct {
@@ -232,6 +235,38 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	return &asyncResponse{run: run, containers: []string{req.Name}}
 }
 
+func createFromCopy(d *Daemon, req *containerPostReq) Response {
+	if req.Source.Source == "" {
+		return BadRequest(fmt.Errorf("must specify a source container"))
+	}
+
+	// Make sure the source exists.
+	_, err := newLxdContainer(req.Source.Source, d)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	_, err = dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	dpath := shared.VarPath("lxc", req.Name)
+	if err := os.MkdirAll(dpath, 0700); err != nil {
+		removeContainer(d, req.Name)
+		return InternalError(err)
+	}
+
+	oldPath := migration.AddSlash(shared.VarPath("lxc", req.Source.Source, "rootfs"))
+	newPath := fmt.Sprintf("%s/%s", dpath, "rootfs")
+	run := func() shared.OperationResult {
+		err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
+		return shared.OperationError(err)
+	}
+
+	return &asyncResponse{run: run, containers: []string{req.Name, req.Source.Source}}
+}
+
 func containersPost(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to create")
 
@@ -256,6 +291,8 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		return createFromNone(d, &req)
 	case "migration":
 		return createFromMigration(d, &req)
+	case "copy":
+		return createFromCopy(d, &req)
 	default:
 		return BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
 	}
