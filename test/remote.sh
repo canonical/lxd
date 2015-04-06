@@ -95,6 +95,7 @@ test_remote_usage() {
 
   # make sure it is running
   lxc list lxd2: | grep c1 | grep RUNNING
+  lxc info lxd2:c1
 
   lxc stop lxd2:c1 --force
 
