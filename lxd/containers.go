@@ -1007,7 +1007,7 @@ func (c *lxdContainer) applyDevices() error {
 		for _, line := range configs {
 			err := c.c.SetConfigItem(line[0], line[1])
 			if err != nil {
-				fmt.Errorf("Failed configuring device %s: %s\n", name, err)
+				return fmt.Errorf("Failed configuring device %s: %s\n", name, err)
 			}
 		}
 		shared.Debugf("Configured device %s\n", name)
