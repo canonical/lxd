@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-04-02 10:59-0400\n"
+        "POT-Creation-Date: 2015-04-06 12:14-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -91,7 +91,7 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1310
+#: client.go:1324
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -470,7 +470,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:510 client.go:1211 client.go:1218
+#: client.go:510 client.go:1225 client.go:1232
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -479,7 +479,7 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1341
+#: client.go:1355
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -488,19 +488,23 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:514 client.go:1222
+#: client.go:514 client.go:1236
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1345
+#: client.go:1359
 msgid   "bad version in profile url"
+msgstr  ""
+
+#: lxc/copy.go:69
+msgid   "can't copy to the same container name"
 msgstr  ""
 
 #: client.go:422 client.go:427
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: lxc/copy.go:59
+#: lxc/copy.go:55
 msgid   "changing hostname of running containers not supported"
 msgstr  ""
 
@@ -527,7 +531,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1024
+#: client.go:1038
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -546,7 +550,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1157
+#: client.go:1171
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -603,15 +607,15 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1387 client.go:1441
+#: client.go:1401 client.go:1455
 msgid   "no value found in %q\n"
 msgstr  ""
 
-#: lxc/copy.go:37
+#: lxc/copy.go:80
 msgid   "non-http remotes are not supported for migration right now"
 msgstr  ""
 
-#: lxc/copy.go:74
+#: lxc/copy.go:95
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
@@ -646,6 +650,6 @@ msgstr  ""
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
-#: lxc/copy.go:41
+#: lxc/copy.go:37
 msgid   "you must specify a source container name"
 msgstr  ""
