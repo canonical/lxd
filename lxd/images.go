@@ -289,36 +289,64 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 }
 
 func imagesGet(d *Daemon, r *http.Request) Response {
-	result, err := doImagesGet(d)
+	public := !d.isTrustedClient(r)
+
+	recursion_str := r.FormValue("recursion")
+	recursion, err := strconv.Atoi(recursion_str)
+	if err != nil {
+		recursion = 0
+	}
+
+	result, err := doImagesGet(d, recursion, public)
 	if err != nil {
 		return SmartError(err)
 	}
 	return SyncResponse(true, result)
 }
 
-func doImagesGet(d *Daemon) ([]string, error) {
-	rows, err := shared.DbQuery(d.db, "SELECT fingerprint FROM images")
+func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
+	var err error
+	var rows *sql.Rows
+	result_string := make([]string, 0)
+	result_map := make([]shared.ImageInfo, 0)
+
+	if public == true {
+		rows, err = shared.DbQuery(d.db, "SELECT fingerprint FROM images WHERE public=1")
+	} else {
+		rows, err = shared.DbQuery(d.db, "SELECT fingerprint FROM images")
+	}
 	if err != nil {
 		return []string{}, err
 	}
 	defer rows.Close()
 
-	result := make([]string, 0)
 	for rows.Next() {
 		var name string
 		err = rows.Scan(&name)
 		if err != nil {
 			return []string{}, err
 		}
-		url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
-		result = append(result, url)
+		if recursion == 0 {
+			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
+			result_string = append(result_string, url)
+		} else {
+			image, response := doImageGet(d, name, public)
+			if response != nil {
+				continue
+			}
+			result_map = append(result_map, image)
+		}
 	}
 	err = rows.Err()
 	if err != nil {
 		return []string{}, err
 	}
 
-	return result, nil
+	if recursion == 0 {
+		return result_string, nil
+	} else {
+		return result_map, nil
+	}
 }
 
 var imagesCmd = Command{name: "images", post: imagesPost, get: imagesGet}
@@ -353,18 +381,15 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func imageGet(d *Daemon, r *http.Request) Response {
-	fingerprint := mux.Vars(r)["fingerprint"]
-
-	public := !d.isTrustedClient(r)
+func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, Response) {
 	imgInfo, err := dbImageGet(d, fingerprint, public)
 	if err != nil {
-		return SmartError(err)
+		return shared.ImageInfo{}, SmartError(err)
 	}
 
 	rows2, err := shared.DbQuery(d.db, "SELECT type, key, value FROM images_properties where image_id=?", imgInfo.Id)
 	if err != nil {
-		return SmartError(err)
+		return shared.ImageInfo{}, SmartError(err)
 	}
 	defer rows2.Close()
 	properties := map[string]string{}
@@ -374,19 +399,19 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		err = rows2.Scan(&imagetype, &key, &value)
 		if err != nil {
 			fmt.Printf("DBERR: imageGet: scan returned error %q\n", err)
-			return InternalError(err)
+			return shared.ImageInfo{}, InternalError(err)
 		}
 		properties[key] = value
 	}
 	err = rows2.Err()
 	if err != nil {
 		fmt.Printf("DBERR: imageGet: Err returned an error %q\n", err)
-		return InternalError(err)
+		return shared.ImageInfo{}, InternalError(err)
 	}
 
 	rows3, err := shared.DbQuery(d.db, "SELECT name, description FROM images_aliases WHERE image_id=?", imgInfo.Id)
 	if err != nil {
-		return InternalError(err)
+		return shared.ImageInfo{}, InternalError(err)
 	}
 	defer rows3.Close()
 	aliases := shared.ImageAliases{}
@@ -395,7 +420,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		err = rows3.Scan(&name, &desc)
 		if err != nil {
 			fmt.Printf("DBERR: imageGet (2): scan returned error %q\n", err)
-			return InternalError(err)
+			return shared.ImageInfo{}, InternalError(err)
 		}
 		a := shared.ImageAlias{Name: name, Description: desc}
 		aliases = append(aliases, a)
@@ -403,7 +428,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 	err = rows3.Err()
 	if err != nil {
 		fmt.Printf("DBERR: imageGet (2): Err returned an error %q\n", err)
-		return InternalError(err)
+		return shared.ImageInfo{}, InternalError(err)
 	}
 
 	info := shared.ImageInfo{Fingerprint: imgInfo.Fingerprint,
@@ -416,6 +441,18 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		CreationDate: imgInfo.CreationDate,
 		ExpiryDate:   imgInfo.ExpiryDate,
 		UploadDate:   imgInfo.UploadDate}
+
+	return info, nil
+}
+
+func imageGet(d *Daemon, r *http.Request) Response {
+	fingerprint := mux.Vars(r)["fingerprint"]
+	public := !d.isTrustedClient(r)
+
+	info, response := doImageGet(d, fingerprint, public)
+	if response != nil {
+		return response
+	}
 
 	return SyncResponse(true, info)
 }
