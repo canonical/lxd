@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-04-06 12:14-0600\n"
+        "POT-Creation-Date: 2015-04-06 17:06-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -61,11 +61,6 @@ msgstr  ""
 #: lxc/image.go:110
 #, c-format
 msgid   "(Bad alias entry: %s\n"
-msgstr  ""
-
-#: lxc/image.go:310
-#, c-format
-msgid   "(Bad image entry: %s\n"
 msgstr  ""
 
 #: lxc/remote.go:124
@@ -434,7 +429,7 @@ msgstr  ""
 msgid   "Timestamps:\n"
 msgstr  ""
 
-#: lxc/image.go:420
+#: lxc/image.go:402
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""

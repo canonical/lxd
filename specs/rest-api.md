@@ -127,9 +127,19 @@ If they don't, an error will be returned instead using HTTP error code
 
 For consistency in LXD's use of hashes, the Etag hash should be a SHA-256.
 
+# Recursion
+To optimize queries of large lists, recursion is implemented for collections.
+A "recursion" argument can be passed to a GET query against a collection.
+
+The default value is 0 which means that collection member URLs are
+returned. Setting it to 1 will have those URLs be replaced by the object
+they point to (typically a dict).
+
 # API structure
  * /
    * /1.0
+     * /1.0/certificates
+       * /1.0/certificates/\<fingerprint\>
      * /1.0/containers
        * /1.0/containers/\<name\>
          * /1.0/containers/\<name\>/exec
@@ -151,8 +161,6 @@ For consistency in LXD's use of hashes, the Etag hash should be a SHA-256.
          * /1.0/operations/\<uuid\>/websocket
      * /1.0/profiles
        * /1.0/profiles/\<name\>
-     * /1.0/certificates
-       * /1.0/certificates/\<fingerprint\>
 
 # API details
 ## /
