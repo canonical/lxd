@@ -33,7 +33,14 @@ test_basic_usage() {
   # Test container creation
   lxc init testimage foo
   lxc list | grep foo | grep STOPPED
+
+  # Test container rename
+  lxc move foo bar
+
+  # Test container copy
+  lxc copy bar foo
   lxc delete foo
+  lxc delete bar
 
   # Test randomly named container creation
   lxc init testimage
