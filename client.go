@@ -947,6 +947,20 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 	return c.post("containers", body, Async)
 }
 
+func (c *Client) LocalCopy(source string, name string, config map[string]string, profiles []string) (*Response, error) {
+	body := shared.Jmap{
+		"source": shared.Jmap{
+			"type":   "copy",
+			"source": source,
+		},
+		"name":     name,
+		"config":   config,
+		"profiles": profiles,
+	}
+
+	return c.post("containers", body, Async)
+}
+
 type execMd struct {
 	FDs map[string]string `json:"fds"`
 }
