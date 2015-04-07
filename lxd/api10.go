@@ -2,9 +2,9 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"io"
 	"net/http"
-	"os"
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
@@ -137,19 +137,33 @@ func api10Put(d *Daemon, r *http.Request) Response {
 				return InternalError(err)
 			}
 
-			passfname := shared.VarPath("adminpwd")
-			passOut, err := os.OpenFile(passfname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-			defer passOut.Close()
+			dbHash := hex.EncodeToString(append(salt, hash...))
+
+			tx, err := d.db.Begin()
 			if err != nil {
 				return InternalError(err)
 			}
 
-			_, err = passOut.Write(salt)
+			_, err = tx.Exec("DELETE FROM config WHERE key=\"core.trust_password\"")
 			if err != nil {
+				tx.Rollback()
 				return InternalError(err)
 			}
 
-			_, err = passOut.Write(hash)
+			str := `INSERT INTO config (key, value) VALUES ("core.trust_password", ?);`
+			stmt, err := tx.Prepare(str)
+			if err != nil {
+				tx.Rollback()
+				return InternalError(err)
+			}
+			defer stmt.Close()
+			_, err = stmt.Exec(dbHash)
+			if err != nil {
+				tx.Rollback()
+				return InternalError(err)
+			}
+
+			err = shared.TxCommit(tx)
 			if err != nil {
 				return InternalError(err)
 			}
