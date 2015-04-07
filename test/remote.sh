@@ -86,6 +86,14 @@ test_remote_usage() {
   lxc image copy localhost:$(echo $sum | colrm 3) lxd2:
   lxc image delete lxd2:$sum
 
+  # test a private image
+  lxc image copy localhost:$sum lxd2:
+  lxc image delete localhost:$sum
+  lxc init lxd2:$sum localhost:c1
+  lxc delete localhost:c1
+
+  lxc image alias create localhost:testimage $sum
+
   if [ -n "$TRAVIS_PULL_REQUEST" ]; then
     return
   fi
@@ -96,8 +104,6 @@ test_remote_usage() {
   # make sure it is running
   lxc list lxd2: | grep c1 | grep RUNNING
   lxc info lxd2:c1
-
   lxc stop lxd2:c1 --force
-
   lxc delete lxd2:c1
 }
