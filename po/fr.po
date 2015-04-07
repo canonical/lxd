@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-04-02 10:59-0400\n"
+"POT-Creation-Date: 2015-04-07 17:46-0400\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -64,11 +64,6 @@ msgstr "'/' n'est pas autorisé dans le nom d'un instantané (snapshot)\n"
 msgid "(Bad alias entry: %s\n"
 msgstr "(Alias invalide: %s\n"
 
-#: lxc/image.go:310
-#, c-format
-msgid "(Bad image entry: %s\n"
-msgstr "(Image invalide: %s\n"
-
 #: lxc/remote.go:124
 #, c-format
 msgid "Admin password for %s: "
@@ -92,7 +87,7 @@ msgstr ""
 msgid "Bad image property: %s\n"
 msgstr "(Image invalide: %s\n"
 
-#: client.go:1310
+#: client.go:1324
 msgid "Cannot change profile name"
 msgstr ""
 
@@ -459,7 +454,7 @@ msgstr "Temps d'attente avant de tuer le conteneur."
 msgid "Timestamps:\n"
 msgstr ""
 
-#: lxc/image.go:420
+#: lxc/image.go:402
 #, c-format
 msgid "Unknown image command %s"
 msgstr "Comande d'image inconnue %s"
@@ -505,7 +500,7 @@ msgstr ""
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "Version de l'API incompatible: local: %q, distant: %q"
 
-#: client.go:510 client.go:1211 client.go:1218
+#: client.go:510 client.go:1225 client.go:1232
 #, c-format
 msgid "bad container url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
@@ -514,7 +509,7 @@ msgstr "Mauvaise URL pour le conteneur %s"
 msgid "bad number of things scanned from resource"
 msgstr "nombre de propriété invalide pour la ressource"
 
-#: client.go:1341
+#: client.go:1355
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
@@ -523,20 +518,24 @@ msgstr "Mauvaise URL pour le conteneur %s"
 msgid "bad result type from action"
 msgstr "mauvais type de réponse pour l'action!"
 
-#: client.go:514 client.go:1222
+#: client.go:514 client.go:1236
 msgid "bad version in container url"
 msgstr "version invalide dans l'URL du conteneur"
 
-#: client.go:1345
+#: client.go:1359
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "version invalide dans l'URL du conteneur"
+
+#: lxc/copy.go:69
+msgid "can't copy to the same container name"
+msgstr ""
 
 #: client.go:422 client.go:427
 msgid "cannot resolve unix socket address: %v"
 msgstr "Ne peut pas résoudre l'adresse du unix socket: %v"
 
-#: lxc/copy.go:59
+#: lxc/copy.go:55
 msgid "changing hostname of running containers not supported"
 msgstr ""
 
@@ -566,7 +565,7 @@ msgstr "erreur: comande inconnue: %s\n"
 msgid "expected error, got %s"
 msgstr ""
 
-#: client.go:1024
+#: client.go:1038
 #, c-format
 msgid "got bad op status %s"
 msgstr "reçu un status d'opration invalide %s"
@@ -585,7 +584,7 @@ msgstr "reçu une version invalide"
 msgid "invalid argument %s"
 msgstr "Arguments invalides %s"
 
-#: client.go:1157
+#: client.go:1171
 #, c-format
 msgid "invalid wait url %s"
 msgstr "URL d'attente invalide %s"
@@ -642,15 +641,15 @@ msgstr ""
 msgid "no response!"
 msgstr "pas de réponse!"
 
-#: client.go:1387 client.go:1441
+#: client.go:1401 client.go:1455
 msgid "no value found in %q\n"
 msgstr ""
 
-#: lxc/copy.go:37
+#: lxc/copy.go:80
 msgid "non-http remotes are not supported for migration right now"
 msgstr ""
 
-#: lxc/copy.go:74
+#: lxc/copy.go:95
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
@@ -685,9 +684,12 @@ msgstr "Un retour inacessible à été atteint"
 msgid "wrong number of subcommand arguments"
 msgstr "nombre d'argument incorrect pour la sous-comande"
 
-#: lxc/copy.go:41
+#: lxc/copy.go:37
 msgid "you must specify a source container name"
 msgstr ""
+
+#~ msgid "(Bad image entry: %s\n"
+#~ msgstr "(Image invalide: %s\n"
 
 #~ msgid "Certificate already stored.\n"
 #~ msgstr "Le certificat a déjà été enregistré.\n"
