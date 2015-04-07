@@ -2,15 +2,17 @@ package main
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/lxc/lxd/shared"
 	_ "github.com/stgraber/lxd-go-sqlite3"
 )
 
-const DB_CURRENT_VERSION int = 4
+const DB_CURRENT_VERSION int = 5
 
 var (
 	DbErrAlreadyDefined = fmt.Errorf("already exists")
@@ -29,6 +31,12 @@ CREATE TABLE certificates (
     name VARCHAR(255) NOT NULL,
     certificate TEXT NOT NULL,
     UNIQUE (fingerprint)
+);
+CREATE TABLE config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (key)
 );
 CREATE TABLE containers (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
@@ -159,6 +167,54 @@ func getSchema(db *sql.DB) (int, error) {
 	return 0, nil
 }
 
+func updateFromV4(db *sql.DB) error {
+	stmt := `
+CREATE TABLE config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (key)
+);
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 5)
+	if err != nil {
+		return err
+	}
+
+	passfname := shared.VarPath("adminpwd")
+	passOut, err := os.Open(passfname)
+	old_password := ""
+	if err == nil {
+		defer passOut.Close()
+		buff := make([]byte, 96)
+		_, err = passOut.Read(buff)
+		if err != nil {
+			return err
+		}
+
+		old_password = hex.EncodeToString(buff)
+		stmt := `INSERT INTO config (key, value) VALUES ("core.trust_password", ?);`
+
+		_, err := db.Exec(stmt, old_password)
+		if err != nil {
+			return err
+		}
+
+		return os.Remove(passfname)
+	}
+
+	return nil
+}
+
+func updateFromV3(db *sql.DB) error {
+	err := createDefaultProfile(db)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`, 4)
+	return err
+}
+
 func updateFromV2(db *sql.DB) error {
 	stmt := `
 CREATE TABLE containers_devices (
@@ -217,15 +273,6 @@ CREATE TABLE profiles_devices_config (
 );
 INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 	_, err := db.Exec(stmt, 3)
-	return err
-}
-
-func updateFromV3(db *sql.DB) error {
-	err := createDefaultProfile(db)
-	if err != nil {
-		return err
-	}
-	_, err = db.Exec(`INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`, 4)
 	return err
 }
 
@@ -288,6 +335,12 @@ func updateDb(db *sql.DB, prev_version int) error {
 	}
 	if prev_version < 4 {
 		err = updateFromV3(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prev_version < 5 {
+		err = updateFromV4(db)
 		if err != nil {
 			return err
 		}
