@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-04-02 10:59-0400\n"
+"POT-Creation-Date: 2015-04-07 17:46-0400\n"
 "PO-Revision-Date: 2015-03-13 23:44+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -64,11 +64,6 @@ msgstr "'/' はスナップショットの名前には使用できません。\n
 msgid "(Bad alias entry: %s\n"
 msgstr "(不正なエイリアス: %s\n"
 
-#: lxc/image.go:310
-#, c-format
-msgid "(Bad image entry: %s\n"
-msgstr "(不正なイメージ: %s\n"
-
 #: lxc/remote.go:124
 #, c-format
 msgid "Admin password for %s: "
@@ -92,7 +87,7 @@ msgstr ""
 msgid "Bad image property: %s\n"
 msgstr "(不正なイメージプロパティ形式: %s\n"
 
-#: client.go:1310
+#: client.go:1324
 msgid "Cannot change profile name"
 msgstr "プロファイル名を変更できません"
 
@@ -452,7 +447,7 @@ msgstr "コンテナを強制停止するまでの時間"
 msgid "Timestamps:\n"
 msgstr ""
 
-#: lxc/image.go:420
+#: lxc/image.go:402
 #, c-format
 msgid "Unknown image command %s"
 msgstr "未知のイメージコマンド %s"
@@ -496,7 +491,7 @@ msgstr "コンテナの稼動状態のスナップショットを取得するか
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "APIのバージョン不一致: クライアント: %q, サーバ: %q"
 
-#: client.go:510 client.go:1211 client.go:1218
+#: client.go:510 client.go:1225 client.go:1232
 #, c-format
 msgid "bad container url %s"
 msgstr "コンテナの不正なURL %s"
@@ -505,7 +500,7 @@ msgstr "コンテナの不正なURL %s"
 msgid "bad number of things scanned from resource"
 msgstr "リソースからスキャンされた数が不正"
 
-#: client.go:1341
+#: client.go:1355
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "プロファイルURLが不正 %s"
@@ -514,20 +509,24 @@ msgstr "プロファイルURLが不正 %s"
 msgid "bad result type from action"
 msgstr "アクションからの結果タイプが不正！"
 
-#: client.go:514 client.go:1222
+#: client.go:514 client.go:1236
 msgid "bad version in container url"
 msgstr "コンテナURL内のバージョンが不正"
 
-#: client.go:1345
+#: client.go:1359
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "プロファイルURL内のバージョンが不正"
+
+#: lxc/copy.go:69
+msgid "can't copy to the same container name"
+msgstr ""
 
 #: client.go:422 client.go:427
 msgid "cannot resolve unix socket address: %v"
 msgstr "UNIXソケットのアドレスを解決できません: %v"
 
-#: lxc/copy.go:59
+#: lxc/copy.go:55
 msgid "changing hostname of running containers not supported"
 msgstr ""
 
@@ -557,7 +556,7 @@ msgstr "エラー: 未知のコマンド: %s\n"
 msgid "expected error, got %s"
 msgstr ""
 
-#: client.go:1024
+#: client.go:1038
 #, c-format
 msgid "got bad op status %s"
 msgstr "不正な操作ステータスを得ました %s"
@@ -576,7 +575,7 @@ msgstr "不正なバージョンを得ました"
 msgid "invalid argument %s"
 msgstr "不正な引数 %s"
 
-#: client.go:1157
+#: client.go:1171
 #, c-format
 msgid "invalid wait url %s"
 msgstr "待つURLが不正 %s"
@@ -633,15 +632,15 @@ msgstr ""
 msgid "no response!"
 msgstr "応答がありません！"
 
-#: client.go:1387 client.go:1441
+#: client.go:1401 client.go:1455
 msgid "no value found in %q\n"
 msgstr ""
 
-#: lxc/copy.go:37
+#: lxc/copy.go:80
 msgid "non-http remotes are not supported for migration right now"
 msgstr ""
 
-#: lxc/copy.go:74
+#: lxc/copy.go:95
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
@@ -676,9 +675,12 @@ msgstr "到達しないはずのreturnに到達しました"
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
-#: lxc/copy.go:41
+#: lxc/copy.go:37
 msgid "you must specify a source container name"
 msgstr ""
+
+#~ msgid "(Bad image entry: %s\n"
+#~ msgstr "(不正なイメージ: %s\n"
 
 #~ msgid "Certificate already stored.\n"
 #~ msgstr "証明書は既に格納されています。\n"
