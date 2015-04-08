@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/gosexy/gettext"
@@ -81,9 +80,6 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		resp, err = d.Init(name, iremote, image, &profiles)
 	}
 	if err != nil {
-		if lxd.LXDErrors[http.StatusNotFound] == err {
-			return fmt.Errorf("image doesn't exist")
-		}
 		return err
 	}
 

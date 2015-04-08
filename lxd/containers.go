@@ -88,6 +88,7 @@ type containerImageSource struct {
 	Alias       string `json:"alias"`
 	Fingerprint string `json:"fingerprint"`
 	Server      string `json:"server"`
+	Secret      string `json:"secret"`
 
 	/* for "migration" type */
 	Mode       string            `json:"mode"`
@@ -131,7 +132,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	}
 
 	if req.Source.Server != "" {
-		err := ensureLocalImage(d, req.Source.Server, uuid)
+		err := ensureLocalImage(d, req.Source.Server, uuid, req.Source.Secret)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -164,7 +165,11 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	 * extract the rootfs asynchronously
 	 */
 	run := shared.OperationWrap(func() error { return extractShiftRootfs(uuid, name, d) })
-	return &asyncResponse{run: run, containers: []string{req.Name}}
+
+	resources := make(map[string][]string)
+	resources["containers"] = []string{req.Name}
+
+	return &asyncResponse{run: run, resources: resources}
 }
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
@@ -176,7 +181,11 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 
 	/* The container already exists, so don't do anything. */
 	run := shared.OperationWrap(func() error { return nil })
-	return &asyncResponse{run: run, containers: []string{req.Name}}
+
+	resources := make(map[string][]string)
+	resources["containers"] = []string{req.Name}
+
+	return &asyncResponse{run: run, resources: resources}
 }
 
 func createFromMigration(d *Daemon, req *containerPostReq) Response {
@@ -232,7 +241,10 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return shared.OperationError(err)
 	}
 
-	return &asyncResponse{run: run, containers: []string{req.Name}}
+	resources := make(map[string][]string)
+	resources["containers"] = []string{req.Name}
+
+	return &asyncResponse{run: run, resources: resources}
 }
 
 func createFromCopy(d *Daemon, req *containerPostReq) Response {
@@ -264,7 +276,10 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		return shared.OperationError(err)
 	}
 
-	return &asyncResponse{run: run, containers: []string{req.Name, req.Source.Source}}
+	resources := make(map[string][]string)
+	resources["containers"] = []string{req.Name, req.Source.Source}
+
+	return &asyncResponse{run: run, resources: resources}
 }
 
 func containersPost(d *Daemon, r *http.Request) Response {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/gosexy/gettext"
@@ -134,22 +133,15 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 	 * requested_empty_profiles means user requested empty
 	 * !requested_empty_profiles but len(profArgs) == 0 means use profile default
 	 */
-	var resp *lxd.Response
 	profiles := []string{}
 	for _, p := range profArgs {
 		profiles = append(profiles, p)
 	}
 	if !requested_empty_profiles && len(profiles) == 0 {
-		resp, err = d.Init(name, iremote, image, nil)
+		_, err = d.Init(name, iremote, image, nil)
 	} else {
-		resp, err = d.Init(name, iremote, image, &profiles)
-	}
-	if err != nil {
-		if lxd.LXDErrors[http.StatusNotFound] == err {
-			return fmt.Errorf("image doesn't exist")
-		}
-		return err
+		_, err = d.Init(name, iremote, image, &profiles)
 	}
 
-	return d.WaitForSuccess(resp.Operation)
+	return err
 }
