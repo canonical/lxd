@@ -28,10 +28,10 @@ these on Ubuntu via:
 
 LXD requires Golang 1.3 or later to work.
 
-If running Ubuntu, the easiest way to get it is to use the LXC PPA:
+If running Ubuntu, the easiest way to get it is to use the LXD PPA:
 
     sudo apt-get install software-properties-common
-    sudo add-apt-repository ppa:ubuntu-lxc/lxd-daily
+    sudo add-apt-repository ppa:ubuntu-lxc/lxd-git-master
     sudo apt-get update
     sudo apt-get install golang
 
