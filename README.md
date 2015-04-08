@@ -9,7 +9,7 @@ LXD is pronounced lex-dee.
 Since LXD development is happening at such a rapid pace, we only provide daily
 builds right now. They're available via:
 
-    sudo add-apt-repository ppa:ubuntu-lxc/lxd-daily && sudo apt-get update
+    sudo add-apt-repository ppa:ubuntu-lxc/lxd-git-master && sudo apt-get update
     sudo apt-get install lxd
 
 After you've got LXD installed, you can take your [first steps](#first-steps).
