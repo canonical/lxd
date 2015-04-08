@@ -84,13 +84,13 @@ func OperationError(err error) OperationResult {
 }
 
 type Operation struct {
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	Status      string          `json:"status"`
-	StatusCode  OperationStatus `json:"status_code"`
-	ResourceURL string          `json:"resource_url"`
-	Metadata    json.RawMessage `json:"metadata"`
-	MayCancel   bool            `json:"may_cancel"`
+	CreatedAt  time.Time           `json:"created_at"`
+	UpdatedAt  time.Time           `json:"updated_at"`
+	Status     string              `json:"status"`
+	StatusCode OperationStatus     `json:"status_code"`
+	Resources  map[string][]string `json:"resources"`
+	Metadata   json.RawMessage     `json:"metadata"`
+	MayCancel  bool                `json:"may_cancel"`
 
 	/* The fields below are for use on the server side. */
 	Run func() OperationResult `json:"-"`

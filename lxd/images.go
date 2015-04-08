@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
@@ -445,9 +446,66 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 	return info, nil
 }
 
+func imageValidSecret(fingerprint string, secret string) bool {
+	lock.Lock()
+	for _, op := range operations {
+		if op.Resources == nil {
+			continue
+		}
+
+		opImages, ok := op.Resources["images"]
+		if ok == false {
+			continue
+		}
+
+		found := false
+		for img := range opImages {
+			toScan := strings.Replace(opImages[img], "/", " ", -1)
+			imgVersion := ""
+			imgFingerprint := ""
+			count, err := fmt.Sscanf(toScan, " %s images %s", &imgVersion, &imgFingerprint)
+			if err != nil || count != 2 {
+				continue
+			}
+
+			if imgFingerprint == fingerprint {
+				found = true
+				break
+			}
+		}
+
+		if found == false {
+			continue
+		}
+
+		opMetadata, err := op.MetadataAsMap()
+		if err != nil {
+			continue
+		}
+
+		opSecret, err := opMetadata.GetString("secret")
+		if err != nil {
+			continue
+		}
+
+		if opSecret == secret {
+			lock.Unlock()
+			return true
+		}
+	}
+	lock.Unlock()
+
+	return false
+}
+
 func imageGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 	public := !d.isTrustedClient(r)
+	secret := r.FormValue("secret")
+
+	if public == true && imageValidSecret(fingerprint, secret) == true {
+		public = false
+	}
 
 	info, response := doImageGet(d, fingerprint, public)
 	if response != nil {
@@ -602,6 +660,12 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	hash := mux.Vars(r)["hash"]
 
 	public := !d.isTrustedClient(r)
+	secret := r.FormValue("secret")
+
+	if public == true && imageValidSecret(hash, secret) == true {
+		public = false
+	}
+
 	imgInfo, err := dbImageGet(d, hash, public)
 	if err != nil {
 		return SmartError(err)
@@ -625,7 +689,29 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	return FileResponse(r, path, filename, headers)
 }
 
+func imageSecret(d *Daemon, r *http.Request) Response {
+	hash := mux.Vars(r)["hash"]
+	_, err := dbImageGet(d, hash, false)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	secret, err := shared.RandomCryptoString()
+
+	if err != nil {
+		return InternalError(err)
+	}
+
+	meta := shared.Jmap{}
+	meta["secret"] = secret
+
+	resources := make(map[string][]string)
+	resources["images"] = []string{fingerprint}
+	return &asyncResponse{resources: resources, metadata: meta}
+}
+
 var imagesExportCmd = Command{name: "images/{hash}/export", untrustedGet: true, get: imageExport}
+var imagesSecretCmd = Command{name: "images/{hash}/secret", post: imageSecret}
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 
