@@ -689,7 +689,7 @@ which will add the image to the store and possibly do some backend
 filesystem-specific optimizations.
 
 ## /1.0/images/\<fingerprint\>
-### GET
+### GET (optional secret=SECRET)
  * Description: Image description and metadata
  * Authentication: guest or trusted
  * Operation: sync
@@ -766,6 +766,8 @@ client will POST to /1.0/images/\<fingerprint\>/export to get a secret
 token which it'll then pass to the target LXD. That target LXD will then
 GET the image as a guest, passing the secret token.
 
+
+## /1.0/images/\<fingerprint\>/secret
 ### POST
  * Description: Generate a random token and tell LXD to expect it be used by a guest
  * Authentication: guest or trusted
@@ -782,8 +784,7 @@ Output:
 Standard backround operation with "secret" set to the generated secret
 string in metadata.
 
-The secret can only be used once. The operation will then complete and
-the secret will no longer be valid.
+The operation should be DELETEd once the secret is no longer in use.
 
 ## /1.0/images/aliases
 ### GET
