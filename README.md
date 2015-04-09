@@ -88,8 +88,8 @@ packaging or via the from-source instructions above), you can import some images
 
 With those two images imported into LXD, you can now start containers:
 
-    lxc launch ubuntu
-    lxc launch debian debian01
+    $GOPATH/bin/lxc launch ubuntu
+    $GOPATH/bin/lxc launch debian debian01
 
 ## Bug reports
 
