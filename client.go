@@ -914,18 +914,18 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, err
 		}
 
-		hash := tmpremote.GetAlias(image)
-		if hash == "" {
-			hash = image
+		fingerprint := tmpremote.GetAlias(image)
+		if fingerprint == "" {
+			fingerprint = image
 		}
 
-		imageinfo, err := tmpremote.GetImageInfo(hash)
+		imageinfo, err := tmpremote.GetImageInfo(fingerprint)
 		if err != nil {
 			return nil, err
 		}
 
 		if imageinfo.Public == 0 {
-			resp, err := tmpremote.post("images/"+hash+"/secret", nil, Async)
+			resp, err := tmpremote.post("images/"+fingerprint+"/secret", nil, Async)
 			if err != nil {
 				return nil, err
 			}
@@ -946,7 +946,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		}
 
 		source["server"] = tmpremote.BaseURL
-		source["fingerprint"] = hash
+		source["fingerprint"] = fingerprint
 	} else {
 		isAlias, err := c.IsAlias(image)
 		if err != nil {
