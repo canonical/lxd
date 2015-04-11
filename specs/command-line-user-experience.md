@@ -248,7 +248,7 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
     image delete <image>
     image edit <image>
     image export <image> [target]
-    image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [--alias=ALIAS].. [prop=value]
+    image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--alias=ALIAS].. [prop=value]
     image info <image>
     image list [filter]
     image move <image> <remote:>
@@ -273,7 +273,7 @@ The "description" property is special in that if it's set, it'll appear in "lxc 
 Aliases are mappings between a user friendly name and an image.
 Aliases may contain any character except for colons.
 
-Images are typically referenced by their full or partial hash, in most
+Images are typically referenced by their full or partial fingerprint, in most
 cases aliases may also be used and for listings, property filters can
 also be used.
 
@@ -284,11 +284,11 @@ Command                                                                         
 :------                                                                                                                 | :-----
 lxc image import centos-7-x86\_64.tar.gz --created-at=2014-12-10 --expires-at=2015-01-10 os=fedora release=7 arch=amd64 | Import a centos LXD image in the local LXD image store
 lxc image import debian-jessie\_amd64.tar.gz dakara:                                                                    | Import a debian LXD image in the lxc image store of remote host "dakara"
-lxc image alias create centos/7 \<hash\>                                                                                | Create an alias for centos/7 pointing to our centos 7 image
+lxc image alias create centos/7 \<fingerprint\>                                                                         | Create an alias for centos/7 pointing to our centos 7 image
 
 **Example output (lxc image list)**
 
-    ALIAS                   HASH            PUBLIC  DESCRIPTION                     UPLOAD DATE
+    ALIAS                   FINGERPRINT     PUBLIC  DESCRIPTION                     UPLOAD DATE
     -------------------------------------------------------------------------------------------
     busybox-amd64           146246146827... yes     -                               Mar 12, 2015 at 10:41pm (CDT)
     ubuntu/devel (3 more)   95830b5e4e04... yes     Ubuntu 15.04 (devel) x86 64bit  Mar 8, 2015 at 1:27am (CST)
@@ -296,7 +296,7 @@ lxc image alias create centos/7 \<hash\>                                        
 
 **Example output (lxc image info)**
 
-    Hash: 146246146827e213eff5c9b5243c8c28cf461184a507588d6c7abac192e600dd
+    Fingerprint: 146246146827e213eff5c9b5243c8c28cf461184a507588d6c7abac192e600dd
     Filename: ubuntu-vivid-amd64-default-20150308.tar.xz
     Size: 65MB
     Architecture: x86_64

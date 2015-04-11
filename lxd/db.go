@@ -475,7 +475,7 @@ func dbImageGet(d *Daemon, name string, public bool) (*shared.ImageBaseInfo, err
 	}
 
 	if countImg > 1 {
-		return nil, fmt.Errorf("Multiple images for hash")
+		return nil, fmt.Errorf("Multiple images for fingerprint")
 	}
 
 	image := new(shared.ImageBaseInfo)
