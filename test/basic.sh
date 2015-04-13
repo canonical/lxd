@@ -85,10 +85,17 @@ test_basic_usage() {
   lxc exec --env BEST_BAND=meshuggah foo env | grep meshuggah
   lxc exec foo ip link show | grep eth0
 
-  # Make sure it is the right version
+  # test file transfer
   echo abc > ${LXD_DIR}/in
+
   lxc file push ${LXD_DIR}/in foo/root/
   lxc exec foo /bin/cat /root/in | grep abc
+  lxc exec foo /bin/rm /root/in
+
+  lxc file push ${LXD_DIR}/in foo/root/in1
+  lxc exec foo /bin/cat /root/in1 | grep abc
+  lxc exec foo /bin/rm /root/in1
+
   echo foo | lxc exec foo tee /tmp/foo
 
   # Detect regressions/hangs in exec
