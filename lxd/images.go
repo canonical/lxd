@@ -476,6 +476,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 
 	imgInfo, err := dbImageGet(d, fingerprint, false)
 	if err != nil {
+		tx.Rollback()
 		return SmartError(err)
 	}
 
