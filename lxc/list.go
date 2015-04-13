@@ -133,11 +133,16 @@ func listContainers(d *lxd.Client, cts []string, filters []string, showsnaps boo
 			d = append(d, "")
 			d = append(d, "")
 		}
+		if c.Ephemeral {
+			d = append(d, "YES")
+		} else {
+			d = append(d, "NO")
+		}
 		data = append(data, d)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"NAME", "STATE", "IPV4", "IPV6"})
+	table.SetHeader([]string{"NAME", "STATE", "IPV4", "IPV6", "EPHEMERAL"})
 
 	for _, v := range data {
 		table.Append(v)
