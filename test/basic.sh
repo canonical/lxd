@@ -109,4 +109,12 @@ test_basic_usage() {
 
   # cleanup
   lxc delete foo
+
+  # Ephemeral
+  lxc launch testimage foo -e
+  lxc exec foo reboot
+  sleep 2
+  lxc stop foo --force
+  sleep 2
+  lxc list | grep -q foo && false
 }
