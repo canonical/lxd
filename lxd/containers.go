@@ -1263,9 +1263,13 @@ func containerFilePut(r *http.Request, p string) Response {
 		return BadRequest(err)
 	}
 
-	err = os.MkdirAll(path.Dir(p), mode)
+	fileinfo, err := os.Stat(path.Dir(p))
 	if err != nil {
 		return SmartError(err)
+	}
+
+	if !(fileinfo.IsDir()) {
+		return SmartError(os.ErrNotExist)
 	}
 
 	f, err := os.Create(p)
