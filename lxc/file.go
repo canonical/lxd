@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -78,22 +79,35 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 		gid = c.gid
 	}
 
-	/* Make sure all of the files are accessible by us before trying to
-	 * push any of them. */
-	var files []*os.File
-	for _, f := range args[:len(args)-1] {
-		if !strings.HasPrefix(f, "--") {
-			file, err := os.Open(f)
-			if err != nil {
-				return err
-			}
+	_, targetfilename := filepath.Split(targetPath)
 
-			files = append(files, file)
+	var sourcefilenames []string
+	for _, fname := range args[:len(args)-1] {
+		if !strings.HasPrefix(fname, "--") {
+			sourcefilenames = append(sourcefilenames, fname)
 		}
 	}
 
+	if (targetfilename != "") && (len(sourcefilenames) > 1) {
+		return errArgs
+	}
+
+	/* Make sure all of the files are accessible by us before trying to
+	 * push any of them. */
+	var files []*os.File
+	for _, f := range sourcefilenames {
+		file, err := os.Open(f)
+		if err != nil {
+			return err
+		}
+		files = append(files, file)
+	}
+
 	for _, f := range files {
-		fpath := path.Join(targetPath, path.Base(f.Name()))
+		fpath := targetPath
+		if targetfilename == "" {
+			fpath = path.Join(fpath, path.Base(f.Name()))
+		}
 		err := d.PushFile(container, fpath, gid, uid, mode, f)
 		if err != nil {
 			return err
