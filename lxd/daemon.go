@@ -5,10 +5,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd"
@@ -149,6 +152,17 @@ func (d *Daemon) isTrustedClient(r *http.Request) bool {
 	return false
 }
 
+func isJsonRequest(r *http.Request) bool {
+	for k, vs := range r.Header {
+		if strings.ToLower(k) == "content-type" &&
+			len(vs) == 1 && strings.ToLower(vs[0]) == "application/json" {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (d *Daemon) createCmd(version string, c Command) {
 	var uri string
 	if c.name == "" {
@@ -169,6 +183,25 @@ func (d *Daemon) createCmd(version string, c Command) {
 			shared.Debugf("rejecting request from untrusted client")
 			Forbidden.Render(w)
 			return
+		}
+
+		if *debug && r.Method != "GET" && isJsonRequest(r) {
+			newBody := &bytes.Buffer{}
+			captured := &bytes.Buffer{}
+			multiW := io.MultiWriter(newBody, captured)
+			if _, err := io.Copy(multiW, r.Body); err != nil {
+				InternalError(err).Render(w)
+				return
+			}
+
+			r.Body = shared.BytesReadCloser{Buf: newBody}
+			pretty := &bytes.Buffer{}
+			if err := json.Indent(pretty, captured.Bytes(), "\t", "\t"); err != nil {
+				InternalError(err).Render(w)
+				return
+			}
+
+			shared.Debugf("\n\t%s", pretty.String())
 		}
 
 		var resp Response
