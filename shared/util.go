@@ -562,3 +562,16 @@ func CopyFile(dest string, source string) error {
 	_, err = io.Copy(d, s)
 	return err
 }
+
+type BytesReadCloser struct {
+	Buf *bytes.Buffer
+}
+
+func (r BytesReadCloser) Read(b []byte) (n int, err error) {
+	return r.Buf.Read(b)
+}
+
+func (r BytesReadCloser) Close() error {
+	/* no-op since we're in memory */
+	return nil
+}
