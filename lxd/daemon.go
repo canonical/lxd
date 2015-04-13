@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -195,13 +194,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 			}
 
 			r.Body = shared.BytesReadCloser{Buf: newBody}
-			pretty := &bytes.Buffer{}
-			if err := json.Indent(pretty, captured.Bytes(), "\t", "\t"); err != nil {
-				InternalError(err).Render(w)
-				return
-			}
-
-			shared.Debugf("\n\t%s", pretty.String())
+			shared.DebugJson(captured)
 		}
 
 		var resp Response
