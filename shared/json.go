@@ -1,6 +1,8 @@
 package shared
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 )
 
@@ -44,4 +46,14 @@ func (m Jmap) GetBool(key string) (bool, error) {
 	} else {
 		return val, nil
 	}
+}
+
+func DebugJson(r *bytes.Buffer) {
+	pretty := &bytes.Buffer{}
+	if err := json.Indent(pretty, r.Bytes(), "\t", "\t"); err != nil {
+		Debugf("error indenting json: ", err)
+		return
+	}
+
+	Debugf("\n\t%s", pretty.String())
 }

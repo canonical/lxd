@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
@@ -67,6 +68,25 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 	return nil
 }
 
+func WriteJson(w http.ResponseWriter, body interface{}) error {
+	var output io.Writer
+	var captured *bytes.Buffer
+
+	output = w
+	if *debug {
+		captured = &bytes.Buffer{}
+		output = io.MultiWriter(w, captured)
+	}
+
+	err := json.NewEncoder(output).Encode(body)
+
+	if captured != nil {
+		shared.DebugJson(captured)
+	}
+
+	return err
+}
+
 func (r *syncResponse) Render(w http.ResponseWriter) error {
 	status := shared.Success
 	if !r.success {
@@ -74,13 +94,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	}
 
 	resp := resp{Type: lxd.Sync, Status: status.String(), StatusCode: status, Metadata: r.metadata}
-	enc, err := json.Marshal(&resp)
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write(enc)
-	return err
+	return WriteJson(w, resp)
 }
 
 /*
@@ -140,7 +154,8 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 
 	w.Header().Set("Location", op)
 	w.WriteHeader(202)
-	return json.NewEncoder(w).Encode(body)
+
+	return WriteJson(w, body)
 }
 
 func AsyncResponse(run func() shared.OperationResult, cancel func() error) Response {
@@ -157,13 +172,25 @@ type ErrorResponse struct {
 }
 
 func (r *ErrorResponse) Render(w http.ResponseWriter) error {
-	buf := bytes.Buffer{}
-	err := json.NewEncoder(&buf).Encode(shared.Jmap{"type": lxd.Error, "error": r.msg, "error_code": r.code})
+	var output io.Writer
+
+	buf := &bytes.Buffer{}
+	output = buf
+	var captured *bytes.Buffer
+	if *debug {
+		captured := &bytes.Buffer{}
+		output = io.MultiWriter(buf, captured)
+	}
+
+	err := json.NewEncoder(output).Encode(shared.Jmap{"type": lxd.Error, "error": r.msg, "error_code": r.code})
 
 	if err != nil {
 		return err
 	}
 
+	if *debug {
+		shared.DebugJson(captured)
+	}
 	http.Error(w, buf.String(), r.code)
 	return nil
 }
