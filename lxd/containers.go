@@ -137,10 +137,11 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		}
 	}
 
-	_, err = dbImageGet(d, uuid, false)
+	imgInfo, err := dbImageGet(d, uuid, false)
 	if err != nil {
 		return SmartError(err)
 	}
+	uuid = imgInfo.Fingerprint
 
 	dpath := shared.VarPath("lxc", req.Name)
 	if shared.PathExists(dpath) {
