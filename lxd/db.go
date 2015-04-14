@@ -12,7 +12,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const DB_CURRENT_VERSION int = 5
+const DB_CURRENT_VERSION int = 6
 
 var (
 	DbErrAlreadyDefined = fmt.Errorf("already exists")
@@ -43,6 +43,8 @@ CREATE TABLE containers (
     name VARCHAR(255) NOT NULL,
     architecture INTEGER NOT NULL,
     type INTEGER NOT NULL,
+    power_state INTEGER NOT NULL DEFAULT 0,
+    ephemeral INTEGER NOT NULL DEFAULT 0,
     UNIQUE (name)
 );
 CREATE TABLE containers_config (
@@ -165,6 +167,15 @@ func getSchema(db *sql.DB) (int, error) {
 		return v, nil
 	}
 	return 0, nil
+}
+
+func updateFromV5(db *sql.DB) error {
+	stmt := `
+ALTER TABLE containers ADD COLUMN power_state INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE containers ADD COLUMN ephemeral INTEGER NOT NULL DEFAULT 0;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 6)
+	return err
 }
 
 func updateFromV4(db *sql.DB) error {
@@ -341,6 +352,12 @@ func updateDb(db *sql.DB, prev_version int) error {
 	}
 	if prev_version < 5 {
 		err = updateFromV4(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prev_version < 6 {
+		err = updateFromV5(db)
 		if err != nil {
 			return err
 		}

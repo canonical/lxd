@@ -77,5 +77,9 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		}
 	}
 
+	if ct.Ephemeral == true {
+		return nil
+	}
+
 	return doDelete(d, name)
 }
