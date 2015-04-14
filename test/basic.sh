@@ -90,11 +90,11 @@ test_basic_usage() {
 
   lxc file push ${LXD_DIR}/in foo/root/
   lxc exec foo /bin/cat /root/in | grep abc
-  lxc exec foo /bin/rm /-f root/in
+  lxc exec foo -- /bin/rm -f root/in
 
   lxc file push ${LXD_DIR}/in foo/root/in1
   lxc exec foo /bin/cat /root/in1 | grep abc
-  lxc exec foo /bin/rm -f /root/in1
+  lxc exec foo -- /bin/rm -f root/in1
 
   echo foo | lxc exec foo tee /tmp/foo
 
@@ -116,5 +116,5 @@ test_basic_usage() {
   sleep 2
   lxc stop foo --force
   sleep 2
-  lxc list | grep -q foo && false
+  ! lxc list | grep -q foo
 }
