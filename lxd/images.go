@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
@@ -129,26 +130,26 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return cleanup(err, fname)
 	}
 
-	hash := fmt.Sprintf("%x", sha256.Sum(nil))
-	expectedHash := r.Header.Get("X-LXD-fingerprint")
-	if expectedHash != "" && hash != expectedHash {
-		err = fmt.Errorf("hashes don't match, got %s expected %s", hash, expectedHash)
+	fingerprint := fmt.Sprintf("%x", sha256.Sum(nil))
+	expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
+	if expectedFingerprint != "" && fingerprint != expectedFingerprint {
+		err = fmt.Errorf("fingerprints don't match, got %s expected %s", fingerprint, expectedFingerprint)
 		return cleanup(err, fname)
 	}
 
-	hashfname := shared.VarPath("images", hash)
-	if shared.PathExists(hashfname) {
+	imagefname := shared.VarPath("images", fingerprint)
+	if shared.PathExists(imagefname) {
 		return cleanup(fmt.Errorf("Image already exists."), fname)
 	}
 
-	err = os.Rename(fname, hashfname)
+	err = os.Rename(fname, imagefname)
 	if err != nil {
 		return cleanup(err, fname)
 	}
 
-	imageMeta, err := getImageMetadata(hashfname)
+	imageMeta, err := getImageMetadata(imagefname)
 	if err != nil {
-		return cleanup(err, hashfname)
+		return cleanup(err, imagefname)
 	}
 
 	arch := ARCH_UNKNOWN
@@ -159,20 +160,20 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	tx, err := d.db.Begin()
 	if err != nil {
-		return cleanup(err, hashfname)
+		return cleanup(err, imagefname)
 	}
 
 	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, upload_date) VALUES (?, ?, ?, ?, ?, strftime("%s"))`)
 	if err != nil {
 		tx.Rollback()
-		return cleanup(err, hashfname)
+		return cleanup(err, imagefname)
 	}
 	defer stmt.Close()
 
-	result, err := stmt.Exec(hash, tarname, size, public, arch)
+	result, err := stmt.Exec(fingerprint, tarname, size, public, arch)
 	if err != nil {
 		tx.Rollback()
-		return cleanup(err, hashfname)
+		return cleanup(err, imagefname)
 	}
 
 	// read multiple headers, if required
@@ -183,14 +184,14 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		id64, err := result.LastInsertId()
 		if err != nil {
 			tx.Rollback()
-			return cleanup(err, hashfname)
+			return cleanup(err, imagefname)
 		}
 		id := int(id64)
 
 		pstmt, err := tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, 0, ?, ?)`)
 		if err != nil {
 			tx.Rollback()
-			return cleanup(err, hashfname)
+			return cleanup(err, imagefname)
 		}
 		defer pstmt.Close()
 
@@ -201,7 +202,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 			if err != nil {
 				tx.Rollback()
-				return cleanup(err, hashfname)
+				return cleanup(err, imagefname)
 			}
 
 			// for each key value pair, exec statement
@@ -212,7 +213,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 				_, err = pstmt.Exec(id, pkey, pval[0])
 				if err != nil {
 					tx.Rollback()
-					return cleanup(err, hashfname)
+					return cleanup(err, imagefname)
 				}
 
 			}
@@ -222,11 +223,11 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if err := shared.TxCommit(tx); err != nil {
-		return cleanup(err, hashfname)
+		return cleanup(err, imagefname)
 	}
 
 	metadata := make(map[string]string)
-	metadata["fingerprint"] = hash
+	metadata["fingerprint"] = fingerprint
 	metadata["size"] = strconv.FormatInt(size, 10)
 
 	return SyncResponse(true, metadata)
@@ -445,9 +446,66 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 	return info, nil
 }
 
+func imageValidSecret(fingerprint string, secret string) bool {
+	lock.Lock()
+	for _, op := range operations {
+		if op.Resources == nil {
+			continue
+		}
+
+		opImages, ok := op.Resources["images"]
+		if ok == false {
+			continue
+		}
+
+		found := false
+		for img := range opImages {
+			toScan := strings.Replace(opImages[img], "/", " ", -1)
+			imgVersion := ""
+			imgFingerprint := ""
+			count, err := fmt.Sscanf(toScan, " %s images %s", &imgVersion, &imgFingerprint)
+			if err != nil || count != 2 {
+				continue
+			}
+
+			if imgFingerprint == fingerprint {
+				found = true
+				break
+			}
+		}
+
+		if found == false {
+			continue
+		}
+
+		opMetadata, err := op.MetadataAsMap()
+		if err != nil {
+			continue
+		}
+
+		opSecret, err := opMetadata.GetString("secret")
+		if err != nil {
+			continue
+		}
+
+		if opSecret == secret {
+			lock.Unlock()
+			return true
+		}
+	}
+	lock.Unlock()
+
+	return false
+}
+
 func imageGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 	public := !d.isTrustedClient(r)
+	secret := r.FormValue("secret")
+
+	if public == true && imageValidSecret(fingerprint, secret) == true {
+		public = false
+	}
 
 	info, response := doImageGet(d, fingerprint, public)
 	if response != nil {
@@ -600,10 +658,16 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 }
 
 func imageExport(d *Daemon, r *http.Request) Response {
-	hash := mux.Vars(r)["hash"]
+	fingerprint := mux.Vars(r)["fingerprint"]
 
 	public := !d.isTrustedClient(r)
-	imgInfo, err := dbImageGet(d, hash, public)
+	secret := r.FormValue("secret")
+
+	if public == true && imageValidSecret(fingerprint, secret) == true {
+		public = false
+	}
+
+	imgInfo, err := dbImageGet(d, fingerprint, public)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -616,7 +680,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			ext = ""
 		}
-		filename = fmt.Sprintf("%s%s", hash, ext)
+		filename = fmt.Sprintf("%s%s", fingerprint, ext)
 	}
 
 	headers := map[string]string{
@@ -626,7 +690,29 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	return FileResponse(r, path, filename, headers)
 }
 
-var imagesExportCmd = Command{name: "images/{hash}/export", untrustedGet: true, get: imageExport}
+func imageSecret(d *Daemon, r *http.Request) Response {
+	fingerprint := mux.Vars(r)["fingerprint"]
+	_, err := dbImageGet(d, fingerprint, false)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	secret, err := shared.RandomCryptoString()
+
+	if err != nil {
+		return InternalError(err)
+	}
+
+	meta := shared.Jmap{}
+	meta["secret"] = secret
+
+	resources := make(map[string][]string)
+	resources["images"] = []string{fingerprint}
+	return &asyncResponse{resources: resources, metadata: meta}
+}
+
+var imagesExportCmd = Command{name: "images/{fingerprint}/export", untrustedGet: true, get: imageExport}
+var imagesSecretCmd = Command{name: "images/{fingerprint}/secret", post: imageSecret}
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 

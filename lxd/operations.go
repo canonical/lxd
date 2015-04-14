@@ -15,13 +15,24 @@ import (
 var lock sync.Mutex
 var operations map[string]*shared.Operation = make(map[string]*shared.Operation)
 
-func CreateOperation(metadata shared.Jmap, run func() shared.OperationResult, cancel func() error, ws shared.OperationWebsocket) (string, error) {
+func CreateOperation(metadata shared.Jmap, resources map[string][]string, run func() shared.OperationResult, cancel func() error, ws shared.OperationWebsocket) (string, error) {
 	id := uuid.New()
 	op := shared.Operation{}
 	op.CreatedAt = time.Now()
 	op.UpdatedAt = op.CreatedAt
 	op.SetStatus(shared.Pending)
-	op.ResourceURL = shared.OperationsURL(id)
+
+	if resources != nil {
+		tmpResources := make(map[string][]string)
+		for key, value := range resources {
+			var values []string
+			for _, c := range value {
+				values = append(values, fmt.Sprintf("/%s/%s/%s", shared.APIVersion, key, c))
+			}
+			tmpResources[key] = values
+		}
+		op.Resources = tmpResources
+	}
 
 	md, err := json.Marshal(metadata)
 	if err != nil {
@@ -29,17 +40,19 @@ func CreateOperation(metadata shared.Jmap, run func() shared.OperationResult, ca
 	}
 	op.Metadata = md
 
-	op.MayCancel = cancel != nil
+	op.MayCancel = ((run == nil && cancel == nil) || cancel != nil)
 
 	op.Run = run
 	op.Cancel = cancel
 	op.Chan = make(chan bool, 1)
 	op.Websocket = ws
 
+	url := shared.OperationsURL(id)
+
 	lock.Lock()
-	operations[op.ResourceURL] = &op
+	operations[url] = &op
 	lock.Unlock()
-	return op.ResourceURL, nil
+	return url, nil
 }
 
 func StartOperation(id string) error {
@@ -50,15 +63,17 @@ func StartOperation(id string) error {
 		return fmt.Errorf("operation %s doesn't exist", id)
 	}
 
-	go func(op *shared.Operation) {
-		result := op.Run()
+	if op.Run != nil {
+		go func(op *shared.Operation) {
+			result := op.Run()
 
-		shared.Debugf("operation %s finished: %s", op.Run, result)
+			shared.Debugf("operation %s finished: %s", op.Run, result)
 
-		lock.Lock()
-		op.SetResult(result)
-		lock.Unlock()
-	}(op)
+			lock.Lock()
+			op.SetResult(result)
+			lock.Unlock()
+		}(op)
+	}
 
 	op.SetStatus(shared.Running)
 	lock.Unlock()
@@ -107,29 +122,37 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
-	if op.Cancel == nil {
+	if op.Cancel == nil && op.Run != nil {
+		lock.Unlock()
 		return BadRequest(fmt.Errorf("Can't cancel %s!", id))
 	}
 
 	if op.StatusCode == shared.Cancelling || op.StatusCode.IsFinal() {
 		/* the user has already requested a cancel, or the status is
 		 * in a final state. */
+		lock.Unlock()
 		return EmptySyncResponse
 	}
 
-	cancel := op.Cancel
-	op.SetStatus(shared.Cancelling)
-	lock.Unlock()
+	if op.Cancel != nil {
+		cancel := op.Cancel
+		op.SetStatus(shared.Cancelling)
+		lock.Unlock()
 
-	err := cancel()
+		err := cancel()
 
-	lock.Lock()
-	op.SetStatusByErr(err)
-	lock.Unlock()
+		lock.Lock()
+		op.SetStatusByErr(err)
+		lock.Unlock()
 
-	if err != nil {
-		return InternalError(err)
+		if err != nil {
+			return InternalError(err)
+		}
+	} else {
+		op.SetStatus(shared.Cancelled)
+		lock.Unlock()
 	}
+
 	return EmptySyncResponse
 }
 

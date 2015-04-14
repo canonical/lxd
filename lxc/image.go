@@ -40,7 +40,7 @@ var imageEditHelp string = gettext.Gettext(
 
 func (c *imageCmd) usage() string {
 	return gettext.Gettext(
-		"lxc image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n" +
+		"lxc image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]\n" +
 			"\n" +
 			"lxc image copy [resource:]<image> <resource>: [--alias=ALIAS].. [--copy-alias]\n" +
 			"lxc image delete [resource:]<image>\n" +
@@ -216,7 +216,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf(gettext.Gettext("Hash: %s\n"), info.Fingerprint)
+		fmt.Printf(gettext.Gettext("Fingerprint: %s\n"), info.Fingerprint)
 		public := "no"
 		if info.Public == 1 {
 			public = "yes"
@@ -484,7 +484,7 @@ func showImages(images []shared.ImageInfo) error {
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"ALIAS", "HASH", "PUBLIC", "DESCRIPTION", "ARCH", "UPLOAD DATE"})
+	table.SetHeader([]string{"ALIAS", "FINGERPRINT", "PUBLIC", "DESCRIPTION", "ARCH", "UPLOAD DATE"})
 
 	for _, v := range data {
 		table.Append(v)

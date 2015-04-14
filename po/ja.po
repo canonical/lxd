@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-04-07 17:46-0400\n"
+"POT-Creation-Date: 2015-04-10 22:34-0400\n"
 "PO-Revision-Date: 2015-03-13 23:44+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -87,7 +87,7 @@ msgstr ""
 msgid "Bad image property: %s\n"
 msgstr "(不正なイメージプロパティ形式: %s\n"
 
-#: client.go:1324
+#: client.go:1367
 msgid "Cannot change profile name"
 msgstr "プロファイル名を変更できません"
 
@@ -165,11 +165,11 @@ msgstr "デバッグモードを有効にします。"
 msgid "Enables verbose mode."
 msgstr "詳細モードを有効にします。"
 
-#: lxc/init.go:101 lxc/init.go:102 lxc/launch.go:37 lxc/launch.go:38
+#: lxc/init.go:100 lxc/init.go:101 lxc/launch.go:36 lxc/launch.go:37
 msgid "Ephemeral container"
 msgstr ""
 
-#: lxc/init.go:122 lxc/launch.go:59
+#: lxc/init.go:121 lxc/launch.go:58
 #, fuzzy
 msgid "Ephemeral containers not yet supported\n"
 msgstr "リモートの情報表示はまだサポートされていません。\n"
@@ -187,6 +187,11 @@ msgid ""
 "lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n"
 msgstr "コンテナで指定したコマンドを実行します。\n"
 
+#: lxc/image.go:219
+#, fuzzy, c-format
+msgid "Fingerprint: %s\n"
+msgstr "証明書のフィンガープリント: % x\n"
+
 #: lxc/finger.go:18
 #, fuzzy
 msgid ""
@@ -202,11 +207,6 @@ msgstr "コンテナを強制シャットダウンします。"
 #: lxc/main.go:76
 msgid "Generating a client certificate. This may take a minute...\n"
 msgstr "クライアント証明書を生成します。1分ぐらいかかります…\n"
-
-#: lxc/image.go:219
-#, c-format
-msgid "Hash: %s\n"
-msgstr ""
 
 #: lxc/image.go:282
 #, fuzzy, c-format
@@ -491,16 +491,16 @@ msgstr "コンテナの稼動状態のスナップショットを取得するか
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "APIのバージョン不一致: クライアント: %q, サーバ: %q"
 
-#: client.go:510 client.go:1225 client.go:1232
+#: client.go:510 client.go:1268 client.go:1275
 #, c-format
 msgid "bad container url %s"
 msgstr "コンテナの不正なURL %s"
 
-#: lxc/launch.go:108
+#: lxc/launch.go:104
 msgid "bad number of things scanned from resource"
 msgstr "リソースからスキャンされた数が不正"
 
-#: client.go:1355
+#: client.go:1398
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "プロファイルURLが不正 %s"
@@ -509,11 +509,11 @@ msgstr "プロファイルURLが不正 %s"
 msgid "bad result type from action"
 msgstr "アクションからの結果タイプが不正！"
 
-#: client.go:514 client.go:1236
+#: client.go:514 client.go:1279
 msgid "bad version in container url"
 msgstr "コンテナURL内のバージョンが不正"
 
-#: client.go:1359
+#: client.go:1402
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "プロファイルURL内のバージョンが不正"
@@ -530,7 +530,7 @@ msgstr "UNIXソケットのアドレスを解決できません: %v"
 msgid "changing hostname of running containers not supported"
 msgstr ""
 
-#: lxc/launch.go:92 lxc/launch.go:97
+#: lxc/launch.go:88 lxc/launch.go:93
 msgid "didn't get any affected resources from server"
 msgstr "サーバから変更されたリソースを取得できませんでした"
 
@@ -556,7 +556,7 @@ msgstr "エラー: 未知のコマンド: %s\n"
 msgid "expected error, got %s"
 msgstr ""
 
-#: client.go:1038
+#: client.go:1081
 #, c-format
 msgid "got bad op status %s"
 msgstr "不正な操作ステータスを得ました %s"
@@ -566,7 +566,7 @@ msgstr "不正な操作ステータスを得ました %s"
 msgid "got bad response type, expected %s got %s"
 msgstr "\"exec\"から不正な応答タイプを得ました"
 
-#: lxc/launch.go:112
+#: lxc/launch.go:108
 msgid "got bad version"
 msgstr "不正なバージョンを得ました"
 
@@ -575,7 +575,7 @@ msgstr "不正なバージョンを得ました"
 msgid "invalid argument %s"
 msgstr "不正な引数 %s"
 
-#: client.go:1171
+#: client.go:1214
 #, c-format
 msgid "invalid wait url %s"
 msgstr "待つURLが不正 %s"
@@ -583,7 +583,7 @@ msgstr "待つURLが不正 %s"
 #: lxc/image.go:43
 msgid ""
 "lxc image import <tarball> [target] [--public] [--created-at=ISO-8601] [--"
-"expires-at=ISO-8601] [--fingerprint=HASH] [prop=value]\n"
+"expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]\n"
 "\n"
 "lxc image copy [resource:]<image> <resource>: [--alias=ALIAS].. [--copy-"
 "alias]\n"
@@ -602,7 +602,7 @@ msgid ""
 "create, delete, list image aliases\n"
 msgstr ""
 
-#: lxc/init.go:21
+#: lxc/init.go:20
 msgid ""
 "lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n"
 "\n"
@@ -615,7 +615,7 @@ msgid ""
 "lxc init ubuntu u1\n"
 msgstr ""
 
-#: lxc/launch.go:22
+#: lxc/launch.go:21
 msgid ""
 "lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n"
 "\n"
@@ -632,7 +632,7 @@ msgstr ""
 msgid "no response!"
 msgstr "応答がありません！"
 
-#: client.go:1401 client.go:1455
+#: client.go:1444 client.go:1498
 msgid "no value found in %q\n"
 msgstr ""
 

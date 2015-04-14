@@ -8,7 +8,7 @@ test_basic_usage() {
   fi
 
   # Test image export
-  sum=$(lxc image info testimage | grep ^Hash | cut -d' ' -f2)
+  sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
   lxc image export testimage ${LXD_DIR}/
   if [ -e "$LXD_TEST_IMAGE" ]; then
       name=$(basename $LXD_TEST_IMAGE)

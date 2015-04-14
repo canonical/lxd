@@ -118,16 +118,17 @@ type async struct {
 }
 
 type asyncResponse struct {
-	run        func() shared.OperationResult
-	cancel     func() error
-	ws         shared.OperationWebsocket
-	containers []string
-	done       chan shared.OperationResult
+	run       func() shared.OperationResult
+	cancel    func() error
+	ws        shared.OperationWebsocket
+	resources map[string][]string
+	metadata  shared.Jmap
+	done      chan shared.OperationResult
 }
 
 func (r *asyncResponse) Render(w http.ResponseWriter) error {
 
-	op, err := CreateOperation(nil, r.run, r.cancel, r.ws)
+	op, err := CreateOperation(r.metadata, r.resources, r.run, r.cancel, r.ws)
 	if err != nil {
 		return err
 	}
@@ -140,16 +141,20 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 	body := async{Type: lxd.Async, Status: shared.OK.String(), StatusCode: shared.OK, Operation: op}
 	if r.ws != nil {
 		body.Metadata = r.ws.Metadata()
+	} else if r.metadata != nil {
+		body.Metadata = r.metadata
 	}
 
-	if r.containers != nil && len(r.containers) > 0 {
-		body.Resources = map[string][]string{}
-		var containers []string
-		for _, c := range r.containers {
-			containers = append(containers, fmt.Sprintf("/%s/containers/%s", shared.APIVersion, c))
+	if r.resources != nil {
+		resources := make(map[string][]string)
+		for key, value := range r.resources {
+			var values []string
+			for _, c := range value {
+				values = append(values, fmt.Sprintf("/%s/%s/%s", shared.APIVersion, key, c))
+			}
+			resources[key] = values
 		}
-
-		body.Resources["containers"] = containers
+		body.Resources = resources
 	}
 
 	w.Header().Set("Location", op)
