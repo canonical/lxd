@@ -424,7 +424,6 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[s
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		tx.Rollback()
-		shared.Debugf("here\n")
 		return 0, err
 	}
 	defer stmt.Close()
@@ -830,11 +829,7 @@ func (c *lxdContainer) Start() error {
 			for _, dir := range dirsToDelete {
 				os.RemoveAll(dir)
 			}
-
-			shared.Debugf("ephemeral container was stopped\n")
 		}()
-
-		shared.Debugf("ephemeral container was started\n")
 	}
 
 	return err
