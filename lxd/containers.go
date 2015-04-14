@@ -726,7 +726,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return BadRequest(fmt.Errorf("renaming of running container not allowed"))
 		}
 
-		_, err := dbCreateContainer(d, body.Name, cTypeRegular, c.config, c.profiles, false)
+		_, err := dbCreateContainer(d, body.Name, cTypeRegular, c.config, c.profiles, c.ephemeral)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -1505,7 +1505,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		/* Create the db info */
 		//cId, err := dbCreateContainer(d, snapshotName, cTypeSnapshot)
-		_, err := dbCreateContainer(d, fullName, cTypeSnapshot, c.config, c.profiles, false)
+		_, err := dbCreateContainer(d, fullName, cTypeSnapshot, c.config, c.profiles, c.ephemeral)
 
 		/* Create the directory and rootfs, set perms */
 		/* Copy the rootfs */
