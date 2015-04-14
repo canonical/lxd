@@ -468,6 +468,9 @@ func showImages(images []shared.ImageInfo) error {
 	data := [][]string{}
 	for _, image := range images {
 		shortest := shortestAlias(image.Aliases)
+		if len(image.Aliases) > 1 {
+			shortest = fmt.Sprintf("%s (%d more)", shortest, len(image.Aliases)-1)
+		}
 		fp := image.Fingerprint[0:12]
 		public := "no"
 		description := findDescription(image.Properties)
