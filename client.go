@@ -900,27 +900,53 @@ func (c *Client) GetAlias(alias string) string {
 // Init creates a container from either a fingerprint or an alias; you must
 // provide at least one.
 func (c *Client) Init(name string, imgremote string, image string, profiles *[]string) (*Response, error) {
+	var operation string
+	var tmpremote *Client
+	var err error
 
 	source := shared.Jmap{"type": "image"}
 
 	if imgremote != "" {
 		source["type"] = "image"
 		source["mode"] = "pull"
-		tmpremote, err := NewClient(&c.config, imgremote)
-		if err != nil {
-			return nil, err
-		}
-		source["server"] = tmpremote.BaseURL
-		isAlias, err := tmpremote.IsAlias(image)
+		tmpremote, err = NewClient(&c.config, imgremote)
 		if err != nil {
 			return nil, err
 		}
 
-		if isAlias {
-			source["alias"] = image
-		} else {
-			source["fingerprint"] = image
+		fingerprint := tmpremote.GetAlias(image)
+		if fingerprint == "" {
+			fingerprint = image
 		}
+
+		imageinfo, err := tmpremote.GetImageInfo(fingerprint)
+		if err != nil {
+			return nil, err
+		}
+
+		if imageinfo.Public == 0 {
+			resp, err := tmpremote.post("images/"+fingerprint+"/secret", nil, Async)
+			if err != nil {
+				return nil, err
+			}
+
+			toScan := strings.Replace(resp.Operation, "/", " ", -1)
+			version := ""
+			count, err := fmt.Sscanf(toScan, " %s operations %s", &version, &operation)
+			if err != nil || count != 2 {
+				return nil, err
+			}
+
+			md := secretMd{}
+			if err := json.Unmarshal(resp.Metadata, &md); err != nil {
+				return nil, err
+			}
+
+			source["secret"] = md.Secret
+		}
+
+		source["server"] = tmpremote.BaseURL
+		source["fingerprint"] = fingerprint
 	} else {
 		isAlias, err := c.IsAlias(image)
 		if err != nil {
@@ -944,7 +970,20 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		body["profiles"] = *profiles
 	}
 
-	return c.post("containers", body, Async)
+	resp, err := c.post("containers", body, Async)
+
+	if operation != "" {
+		_, _ = tmpremote.delete("operations/"+operation, nil, Sync)
+	}
+
+	if err != nil {
+		if LXDErrors[http.StatusNotFound] == err {
+			return nil, fmt.Errorf("image doesn't exist")
+		}
+		return nil, err
+	}
+
+	return resp, c.WaitForSuccess(resp.Operation)
 }
 
 func (c *Client) LocalCopy(source string, name string, config map[string]string, profiles []string) (*Response, error) {
@@ -963,6 +1002,10 @@ func (c *Client) LocalCopy(source string, name string, config map[string]string,
 
 type execMd struct {
 	FDs map[string]string `json:"fds"`
+}
+
+type secretMd struct {
+	Secret string `json:"secret"`
 }
 
 func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error) {

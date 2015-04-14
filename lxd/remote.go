@@ -36,14 +36,21 @@ func (d *Daemon) dbGetimage(fp string) int {
 	return id
 }
 
-func ensureLocalImage(d *Daemon, server, fp string) error {
+func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
+	var url string
+	var exporturl string
+
 	if d.dbGetimage(fp) != -1 {
 		// already have it
 		return nil
 	}
 
 	/* grab the metadata from /1.0/images/%s */
-	url := fmt.Sprintf("%s/%s/images/%s", server, shared.APIVersion, fp)
+	if secret != "" {
+		url = fmt.Sprintf("%s/%s/images/%s?secret=%s", server, shared.APIVersion, fp, secret)
+	} else {
+		url = fmt.Sprintf("%s/%s/images/%s", server, shared.APIVersion, fp)
+	}
 
 	resp, err := d.httpGetSync(url)
 	if err != nil {
@@ -56,7 +63,11 @@ func ensureLocalImage(d *Daemon, server, fp string) error {
 	}
 
 	/* now grab the actual file from /1.0/images/%s/export */
-	exporturl := fmt.Sprintf("%s/%s/images/%s/export", server, shared.APIVersion, fp)
+	if secret != "" {
+		exporturl = fmt.Sprintf("%s/%s/images/%s/export?secret=%s", server, shared.APIVersion, fp, secret)
+	} else {
+		exporturl = fmt.Sprintf("%s/%s/images/%s/export", server, shared.APIVersion, fp)
+	}
 
 	raw, err := d.httpGetFile(exporturl)
 	if err != nil {
