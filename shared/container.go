@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net"
 
-	_ "github.com/stgraber/lxd-go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
