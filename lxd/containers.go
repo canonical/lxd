@@ -100,10 +100,11 @@ type containerImageSource struct {
 }
 
 type containerPostReq struct {
-	Name     string               `json:"name"`
-	Source   containerImageSource `json:"source"`
-	Config   map[string]string    `json:"config"`
-	Profiles []string             `json:"profiles"`
+	Name      string               `json:"name"`
+	Source    containerImageSource `json:"source"`
+	Config    map[string]string    `json:"config"`
+	Profiles  []string             `json:"profiles"`
+	Ephemeral bool                 `json:"ephemeral"`
 }
 
 func createFromImage(d *Daemon, req *containerPostReq) Response {
@@ -156,7 +157,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	}
 
 	name := req.Name
-	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config, req.Profiles)
+	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
 	if err != nil {
 		removeContainerPath(d, name)
 		return SmartError(err)
@@ -175,7 +176,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
 
-	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles)
+	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -195,7 +196,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return NotImplemented
 	}
 
-	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles)
+	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -259,7 +260,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		return SmartError(err)
 	}
 
-	_, err = dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles)
+	_, err = dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -399,7 +400,7 @@ func dbGetContainerId(db *sql.DB, name string) (int, error) {
 	return id, err
 }
 
-func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[string]string, profiles []string) (int, error) {
+func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[string]string, profiles []string, ephem bool) (int, error) {
 	id, err := dbGetContainerId(d.db, name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
@@ -413,8 +414,13 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[s
 	if err != nil {
 		return 0, err
 	}
-	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type) VALUES (?, 1, %d)",
-		ctype)
+	ephem_int := 0
+	if ephem == true {
+		ephem_int = 1
+	}
+
+	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral) VALUES (?, 1, %d, %d)",
+		ctype, ephem_int)
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		tx.Rollback()
@@ -720,7 +726,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return BadRequest(fmt.Errorf("renaming of running container not allowed"))
 		}
 
-		_, err := dbCreateContainer(d, body.Name, cTypeRegular, c.config, c.profiles)
+		_, err := dbCreateContainer(d, body.Name, cTypeRegular, c.config, c.profiles, c.ephemeral)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -781,27 +787,52 @@ type containerStatePutReq struct {
 }
 
 type lxdContainer struct {
-	c        *lxc.Container
-	id       int
-	name     string
-	config   map[string]string
-	profiles []string
-	devices  shared.Devices
+	c         *lxc.Container
+	daemon    *Daemon
+	id        int
+	name      string
+	config    map[string]string
+	profiles  []string
+	devices   shared.Devices
+	ephemeral bool
 }
 
 func (c *lxdContainer) RenderState() *shared.ContainerState {
 	return &shared.ContainerState{
-		Name:     c.name,
-		Profiles: c.profiles,
-		Config:   c.config,
-		Userdata: []byte{},
-		Status:   shared.NewStatus(c.c, c.c.State()),
-		Devices:  c.devices,
+		Name:      c.name,
+		Profiles:  c.profiles,
+		Config:    c.config,
+		Userdata:  []byte{},
+		Status:    shared.NewStatus(c.c, c.c.State()),
+		Devices:   c.devices,
+		Ephemeral: c.ephemeral,
 	}
 }
 
 func (c *lxdContainer) Start() error {
-	return c.c.Start()
+	err := c.c.Start()
+
+	if err == nil && c.ephemeral == true {
+		go func() {
+			c.c.Wait(lxc.STOPPED, -1*time.Second)
+			c.c.Wait(lxc.RUNNING, 1*time.Second)
+			c.c.Wait(lxc.STOPPED, -1*time.Second)
+
+			_, err := dbGetContainerId(c.daemon.db, c.name)
+			if err != nil {
+				return
+			}
+
+			dirsToDelete := containerDeleteSnapshots(c.daemon, c.name)
+			dbRemoveContainer(c.daemon, c.name)
+			dirsToDelete = append(dirsToDelete, shared.VarPath("lxc", c.name))
+			for _, dir := range dirsToDelete {
+				os.RemoveAll(dir)
+			}
+		}()
+	}
+
+	return err
 }
 
 func (c *lxdContainer) Reboot() error {
@@ -1034,17 +1065,25 @@ func (c *lxdContainer) applyDevices() error {
 func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	d := &lxdContainer{}
 
+	d.daemon = daemon
+
 	arch := 0
+	ephem_int := -1
+	d.ephemeral = false
 	d.id = -1
-	q := "SELECT id, architecture FROM containers WHERE name=?"
+	q := "SELECT id, architecture, ephemeral FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&d.id, &arch}
+	arg2 := []interface{}{&d.id, &arch, &ephem_int}
 	err := shared.DbQueryRowScan(daemon.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
 	}
 	if d.id == -1 {
 		return nil, fmt.Errorf("Unknown container")
+	}
+
+	if ephem_int == 1 {
+		d.ephemeral = true
 	}
 
 	c, err := lxc.NewContainer(name, daemon.lxcpath)
@@ -1466,7 +1505,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		/* Create the db info */
 		//cId, err := dbCreateContainer(d, snapshotName, cTypeSnapshot)
-		_, err := dbCreateContainer(d, fullName, cTypeSnapshot, c.config, c.profiles)
+		_, err := dbCreateContainer(d, fullName, cTypeSnapshot, c.config, c.profiles, c.ephemeral)
 
 		/* Create the directory and rootfs, set perms */
 		/* Copy the rootfs */

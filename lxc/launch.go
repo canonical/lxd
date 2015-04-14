@@ -54,11 +54,6 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		remote = ""
 	}
 
-	if ephem {
-		fmt.Printf(gettext.Gettext("Ephemeral containers not yet supported\n"))
-		return errArgs
-	}
-
 	fmt.Printf("Creating container...")
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {
@@ -75,9 +70,9 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		profiles = append(profiles, p)
 	}
 	if !requested_empty_profiles && len(profiles) == 0 {
-		resp, err = d.Init(name, iremote, image, nil)
+		resp, err = d.Init(name, iremote, image, nil, ephem)
 	} else {
-		resp, err = d.Init(name, iremote, image, &profiles)
+		resp, err = d.Init(name, iremote, image, &profiles, ephem)
 	}
 	if err != nil {
 		return err
