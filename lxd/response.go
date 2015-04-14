@@ -11,7 +11,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/stgraber/lxd-go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 )
 
 type resp struct {

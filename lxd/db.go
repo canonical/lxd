@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/shared"
-	_ "github.com/stgraber/lxd-go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const DB_CURRENT_VERSION int = 5
@@ -424,7 +424,7 @@ func initDb(d *Daemon) error {
 	var db *sql.DB
 	var err error
 	timeout := 30 // TODO - make this command-line configurable?
-	openPath := fmt.Sprintf("%s?_busy_timeout=%d", dbpath, timeout*1000)
+	openPath := fmt.Sprintf("%s?_busy_timeout=%d&_txlock=immediate", dbpath, timeout*1000)
 	if !shared.PathExists(dbpath) {
 		db, err = createDb(openPath)
 		if err != nil {
