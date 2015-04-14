@@ -31,7 +31,24 @@ wait_for() {
 }
 
 lxc() {
-  `which lxc` $@ --config "${LXD_CONF}" $debug
+    INJECTED=0
+    CMD="$(which lxc)"
+    for arg in $@; do
+        if [ "$arg" = "--" ]; then
+            INJECTED=1
+            CMD="$CMD \"--config\" \"${LXD_CONF}\" $debug"
+            CMD="$CMD \"--debug\""
+            CMD="$CMD --"
+        else
+            CMD="$CMD \"$arg\""
+        fi
+    done
+
+    if [ "$INJECTED" = "0" ]; then
+        CMD="$CMD \"--config\" \"${LXD_CONF}\" $debug"
+    fi
+
+    eval "$CMD"
 }
 
 cleanup() {
