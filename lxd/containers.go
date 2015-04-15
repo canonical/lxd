@@ -1283,7 +1283,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	case "GET":
 		return containerFileGet(r, p)
 	case "POST":
-		return containerFilePut(r, p)
+		return containerFilePut(r, p, d.idMap)
 	default:
 		return NotFound
 	}
@@ -1310,12 +1310,15 @@ func containerFileGet(r *http.Request, path string) Response {
 	return FileResponse(r, path, filepath.Base(path), headers)
 }
 
-func containerFilePut(r *http.Request, p string) Response {
+func containerFilePut(r *http.Request, p string, idmap *shared.Idmap) Response {
 
 	uid, gid, mode, err := shared.ParseLXDFileHeaders(r.Header)
 	if err != nil {
 		return BadRequest(err)
 	}
+	// map provided uid / gid to UID / GID range of the container
+	uid = int(idmap.Uidmin) + uid
+	gid = int(idmap.Gidmin) + gid
 
 	fileinfo, err := os.Stat(path.Dir(p))
 	if err != nil {
