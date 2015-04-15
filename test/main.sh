@@ -80,6 +80,7 @@ if [ -z "`which lxc`" ]; then
 fi
 
 . ./basic.sh
+. ./concurrent.sh
 . ./database.sh
 . ./fuidshift.sh
 . ./migration.sh
@@ -140,6 +141,9 @@ test_remote_admin
 
 echo "==> TEST: basic usage"
 test_basic_usage
+
+echo "==> TEST: concurrent startup"
+test_concurrent
 
 echo "==> TEST: lxc remote usage"
 test_remote_usage
