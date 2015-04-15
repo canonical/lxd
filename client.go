@@ -232,6 +232,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			tr := &http.Transport{
 				TLSClientConfig: tlsconfig,
 				Dial:            shared.RFC3493Dialer,
+				Proxy:           http.ProxyFromEnvironment,
 			}
 
 			c.websocketDialer = websocket.Dialer{
