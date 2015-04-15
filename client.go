@@ -987,7 +987,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		return nil, err
 	}
 
-	return resp, c.WaitForSuccess(resp.Operation)
+	return resp, nil
 }
 
 func (c *Client) LocalCopy(source string, name string, config map[string]string, profiles []string) (*Response, error) {

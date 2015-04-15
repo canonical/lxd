@@ -132,11 +132,18 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 	for _, p := range profArgs {
 		profiles = append(profiles, p)
 	}
+
+	var resp *lxd.Response
+
 	if !requested_empty_profiles && len(profiles) == 0 {
-		_, err = d.Init(name, iremote, image, nil, ephem)
+		resp, err = d.Init(name, iremote, image, nil, ephem)
 	} else {
-		_, err = d.Init(name, iremote, image, &profiles, ephem)
+		resp, err = d.Init(name, iremote, image, &profiles, ephem)
 	}
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	return d.WaitForSuccess(resp.Operation)
 }
