@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-04-10 22:34-0400\n"
+"POT-Creation-Date: 2015-04-14 23:36-0500\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -87,7 +87,7 @@ msgstr ""
 msgid "Bad image property: %s\n"
 msgstr "(Image invalide: %s\n"
 
-#: client.go:1367
+#: client.go:1371
 msgid "Cannot change profile name"
 msgstr ""
 
@@ -169,13 +169,6 @@ msgstr "Active le mode verbeux."
 msgid "Ephemeral container"
 msgstr ""
 
-#: lxc/init.go:121 lxc/launch.go:58
-#, fuzzy
-msgid "Ephemeral containers not yet supported\n"
-msgstr ""
-"Il n'est pas encore possible d'obtenir de l'information sur un serveur "
-"distant\n"
-
 #: client.go:571 client.go:581 client.go:723
 #, c-format
 msgid "Error adding alias %s\n"
@@ -221,12 +214,12 @@ msgstr ""
 "Il n'est pas encore possible d'obtenir de l'information sur un serveur "
 "distant\n"
 
-#: lxc/file.go:143
+#: lxc/file.go:157
 #, c-format
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:51
+#: lxc/file.go:52
 #, c-format
 msgid "Invalid target %s"
 msgstr "Destination invalide %s"
@@ -295,7 +288,7 @@ msgid ""
 "               Remove the cert from trusted hosts.\n"
 msgstr ""
 
-#: lxc/file.go:28
+#: lxc/file.go:29
 msgid ""
 "Manage files on a container.\n"
 "\n"
@@ -324,7 +317,7 @@ msgstr ""
 msgid "Missing summary."
 msgstr "Sommaire manquant."
 
-#: lxc/file.go:129
+#: lxc/file.go:143
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger mais la destination n'est pas un dossier"
@@ -408,15 +401,15 @@ msgstr ""
 msgid "Server doesn't trust us after adding our cert"
 msgstr "Identification refuse après l'ajout du certificat client"
 
-#: lxc/file.go:38
+#: lxc/file.go:39
 msgid "Set the file's gid on push"
 msgstr "Définit le gid lors de l'envoi"
 
-#: lxc/file.go:39
+#: lxc/file.go:40
 msgid "Set the file's perms on push"
 msgstr "Définit les permissions lors de l'envoi"
 
-#: lxc/file.go:37
+#: lxc/file.go:38
 msgid "Set the file's uid on push"
 msgstr "Définit le uid lors de l'envoi"
 
@@ -500,16 +493,16 @@ msgstr ""
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "Version de l'API incompatible: local: %q, distant: %q"
 
-#: client.go:510 client.go:1268 client.go:1275
+#: client.go:510 client.go:1272 client.go:1279
 #, c-format
 msgid "bad container url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
 
-#: lxc/launch.go:104
+#: lxc/launch.go:99
 msgid "bad number of things scanned from resource"
 msgstr "nombre de propriété invalide pour la ressource"
 
-#: client.go:1398
+#: client.go:1402
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
@@ -518,11 +511,11 @@ msgstr "Mauvaise URL pour le conteneur %s"
 msgid "bad result type from action"
 msgstr "mauvais type de réponse pour l'action!"
 
-#: client.go:514 client.go:1279
+#: client.go:514 client.go:1283
 msgid "bad version in container url"
 msgstr "version invalide dans l'URL du conteneur"
 
-#: client.go:1402
+#: client.go:1406
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "version invalide dans l'URL du conteneur"
@@ -539,7 +532,7 @@ msgstr "Ne peut pas résoudre l'adresse du unix socket: %v"
 msgid "changing hostname of running containers not supported"
 msgstr ""
 
-#: lxc/launch.go:88 lxc/launch.go:93
+#: lxc/launch.go:83 lxc/launch.go:88
 msgid "didn't get any affected resources from server"
 msgstr "N'a pas pû obtenir de resource du serveur"
 
@@ -565,7 +558,7 @@ msgstr "erreur: comande inconnue: %s\n"
 msgid "expected error, got %s"
 msgstr ""
 
-#: client.go:1081
+#: client.go:1085
 #, c-format
 msgid "got bad op status %s"
 msgstr "reçu un status d'opration invalide %s"
@@ -575,16 +568,16 @@ msgstr "reçu un status d'opration invalide %s"
 msgid "got bad response type, expected %s got %s"
 msgstr "reçu une mauvaise réponse pour \"exec\""
 
-#: lxc/launch.go:108
+#: lxc/launch.go:103
 msgid "got bad version"
 msgstr "reçu une version invalide"
 
-#: lxc/file.go:190
+#: lxc/file.go:204
 #, c-format
 msgid "invalid argument %s"
 msgstr "Arguments invalides %s"
 
-#: client.go:1214
+#: client.go:1218
 #, c-format
 msgid "invalid wait url %s"
 msgstr "URL d'attente invalide %s"
@@ -641,7 +634,7 @@ msgstr ""
 msgid "no response!"
 msgstr "pas de réponse!"
 
-#: client.go:1444 client.go:1498
+#: client.go:1448 client.go:1502
 msgid "no value found in %q\n"
 msgstr ""
 
@@ -687,6 +680,12 @@ msgstr "nombre d'argument incorrect pour la sous-comande"
 #: lxc/copy.go:37
 msgid "you must specify a source container name"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Ephemeral containers not yet supported\n"
+#~ msgstr ""
+#~ "Il n'est pas encore possible d'obtenir de l'information sur un serveur "
+#~ "distant\n"
 
 #~ msgid "(Bad image entry: %s\n"
 #~ msgstr "(Image invalide: %s\n"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-04-10 22:34-0400\n"
+"POT-Creation-Date: 2015-04-14 23:36-0500\n"
 "PO-Revision-Date: 2015-03-13 23:44+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -87,7 +87,7 @@ msgstr ""
 msgid "Bad image property: %s\n"
 msgstr "(不正なイメージプロパティ形式: %s\n"
 
-#: client.go:1367
+#: client.go:1371
 msgid "Cannot change profile name"
 msgstr "プロファイル名を変更できません"
 
@@ -169,11 +169,6 @@ msgstr "詳細モードを有効にします。"
 msgid "Ephemeral container"
 msgstr ""
 
-#: lxc/init.go:121 lxc/launch.go:58
-#, fuzzy
-msgid "Ephemeral containers not yet supported\n"
-msgstr "リモートの情報表示はまだサポートされていません。\n"
-
 #: client.go:571 client.go:581 client.go:723
 #, c-format
 msgid "Error adding alias %s\n"
@@ -217,12 +212,12 @@ msgstr "証明書のフィンガープリント: % x\n"
 msgid "Information about remotes not yet supported\n"
 msgstr "リモートの情報表示はまだサポートされていません。\n"
 
-#: lxc/file.go:143
+#: lxc/file.go:157
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:51
+#: lxc/file.go:52
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -291,7 +286,7 @@ msgid ""
 "               Remove the cert from trusted hosts.\n"
 msgstr ""
 
-#: lxc/file.go:28
+#: lxc/file.go:29
 msgid ""
 "Manage files on a container.\n"
 "\n"
@@ -320,7 +315,7 @@ msgstr ""
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
-#: lxc/file.go:129
+#: lxc/file.go:143
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
@@ -405,15 +400,15 @@ msgstr ""
 msgid "Server doesn't trust us after adding our cert"
 msgstr "サーバが我々の証明書を追加した後我々を信頼していません"
 
-#: lxc/file.go:38
+#: lxc/file.go:39
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:39
+#: lxc/file.go:40
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:37
+#: lxc/file.go:38
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
@@ -491,16 +486,16 @@ msgstr "コンテナの稼動状態のスナップショットを取得するか
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "APIのバージョン不一致: クライアント: %q, サーバ: %q"
 
-#: client.go:510 client.go:1268 client.go:1275
+#: client.go:510 client.go:1272 client.go:1279
 #, c-format
 msgid "bad container url %s"
 msgstr "コンテナの不正なURL %s"
 
-#: lxc/launch.go:104
+#: lxc/launch.go:99
 msgid "bad number of things scanned from resource"
 msgstr "リソースからスキャンされた数が不正"
 
-#: client.go:1398
+#: client.go:1402
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "プロファイルURLが不正 %s"
@@ -509,11 +504,11 @@ msgstr "プロファイルURLが不正 %s"
 msgid "bad result type from action"
 msgstr "アクションからの結果タイプが不正！"
 
-#: client.go:514 client.go:1279
+#: client.go:514 client.go:1283
 msgid "bad version in container url"
 msgstr "コンテナURL内のバージョンが不正"
 
-#: client.go:1402
+#: client.go:1406
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "プロファイルURL内のバージョンが不正"
@@ -530,7 +525,7 @@ msgstr "UNIXソケットのアドレスを解決できません: %v"
 msgid "changing hostname of running containers not supported"
 msgstr ""
 
-#: lxc/launch.go:88 lxc/launch.go:93
+#: lxc/launch.go:83 lxc/launch.go:88
 msgid "didn't get any affected resources from server"
 msgstr "サーバから変更されたリソースを取得できませんでした"
 
@@ -556,7 +551,7 @@ msgstr "エラー: 未知のコマンド: %s\n"
 msgid "expected error, got %s"
 msgstr ""
 
-#: client.go:1081
+#: client.go:1085
 #, c-format
 msgid "got bad op status %s"
 msgstr "不正な操作ステータスを得ました %s"
@@ -566,16 +561,16 @@ msgstr "不正な操作ステータスを得ました %s"
 msgid "got bad response type, expected %s got %s"
 msgstr "\"exec\"から不正な応答タイプを得ました"
 
-#: lxc/launch.go:108
+#: lxc/launch.go:103
 msgid "got bad version"
 msgstr "不正なバージョンを得ました"
 
-#: lxc/file.go:190
+#: lxc/file.go:204
 #, c-format
 msgid "invalid argument %s"
 msgstr "不正な引数 %s"
 
-#: client.go:1214
+#: client.go:1218
 #, c-format
 msgid "invalid wait url %s"
 msgstr "待つURLが不正 %s"
@@ -632,7 +627,7 @@ msgstr ""
 msgid "no response!"
 msgstr "応答がありません！"
 
-#: client.go:1444 client.go:1498
+#: client.go:1448 client.go:1502
 msgid "no value found in %q\n"
 msgstr ""
 
@@ -678,6 +673,10 @@ msgstr "サブコマンドの引数の数が正しくありません"
 #: lxc/copy.go:37
 msgid "you must specify a source container name"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Ephemeral containers not yet supported\n"
+#~ msgstr "リモートの情報表示はまだサポートされていません。\n"
 
 #~ msgid "(Bad image entry: %s\n"
 #~ msgstr "(不正なイメージ: %s\n"
