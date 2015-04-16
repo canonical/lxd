@@ -47,6 +47,8 @@ func containersGet(d *Daemon, r *http.Request) Response {
 		}
 		// 1 s may seem drastic, but we really don't want to thrash
 		// perhaps we should use a random amount
+		shared.Debugf("DBERR: containersGet, db is locked\n")
+		shared.PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }
