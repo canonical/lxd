@@ -540,7 +540,6 @@ func dbInsertContainerConfig(tx *sql.Tx, id int, config map[string]string) error
 	str := "INSERT INTO containers_config (container_id, key, value) values (?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	if err != nil {
-		tx.Rollback()
 		return err
 	}
 	defer stmt.Close()
@@ -567,7 +566,6 @@ func dbInsertProfiles(tx *sql.Tx, id int, profiles []string) error {
 		(?, (SELECT id FROM profiles WHERE name=?), ?);`
 	stmt, err := tx.Prepare(str)
 	if err != nil {
-		tx.Rollback()
 		return err
 	}
 	defer stmt.Close()
