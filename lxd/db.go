@@ -578,26 +578,21 @@ func dbAddAlias(d *Daemon, name string, tgt int, desc string) error {
 
 func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
 	q := `SELECT key, value FROM containers_config WHERE container_id=?`
-	rows, err := shared.DbQuery(d.db, q, c.id)
+	var key, value string
+	arg1 := []interface{}{c.id}
+	arg2 := []interface{}{key, value}
+	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	config := map[string]string{}
 
-	for rows.Next() {
-		var key, value string
-		if err := rows.Scan(&key, &value); err != nil {
-			shared.Debugf("DBERR: dbGetConfig: scan returned error %q\n", err)
-			return nil, err
-		}
+	for _, r := range results {
+		key = r[0].(string)
+		value = r[1].(string)
+
 		config[key] = value
-	}
-	err = rows.Err()
-	if err != nil {
-		shared.Debugf("DBERR: dbGetConfig: rows.Close returned error %q\n", err)
-		return nil, err
 	}
 
 	return config, nil
@@ -619,26 +614,21 @@ func dbGetProfileConfig(d *Daemon, name string) (map[string]string, error) {
 	q = `SELECT key, value FROM profiles_config JOIN profiles
 		ON profiles_config.profile_id=profiles.id
 		WHERE name=?`
-	rows, err := shared.DbQuery(d.db, q, name)
+	var key, value string
+	arg1 = []interface{}{name}
+	arg2 = []interface{}{key, value}
+	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	config := map[string]string{}
 
-	for rows.Next() {
-		var key, value string
-		if err := rows.Scan(&key, &value); err != nil {
-			shared.Debugf("DBERR: dbGetProfileConfig: Err returned an error %q\n", err)
-			return nil, err
-		}
+	for _, r := range results {
+		key = r[0].(string)
+		value = r[1].(string)
+
 		config[key] = value
-	}
-	err = rows.Err()
-	if err != nil {
-		shared.Debugf("DBERR: dbGetProfileConfig: Err returned an error %q\n", err)
-		return nil, err
 	}
 
 	return config, nil
@@ -654,80 +644,82 @@ func dbGetProfiles(d *Daemon, c *lxdContainer) ([]string, error) {
 	q := `SELECT name FROM containers_profiles JOIN profiles
 		ON containers_profiles.profile_id=profiles.id
 		WHERE container_id=? ORDER BY containers_profiles.apply_order`
-	rows, err := shared.DbQuery(d.db, q, c.id)
+	var name string
+	arg1 := []interface{}{c.id}
+	arg2 := []interface{}{name}
+	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	var profiles []string
 
-	for rows.Next() {
-		var name string
-		err := rows.Scan(&name)
-		if err != nil {
-			shared.Debugf("DBERR: dbGetProfiles: Scan returned an error %q\n", err)
-			return nil, err
-		}
+	for _, r := range results {
+		name = r[0].(string)
+
 		profiles = append(profiles, name)
-	}
-	err = rows.Err()
-	if err != nil {
-		shared.Debugf("DBERR: dbGetProfiles: Err returned an error %q\n", err)
-		return nil, err
 	}
 
 	return profiles, nil
 }
 
+func dbGetDeviceConfig(db *sql.DB, id int, isprofile bool) (shared.Device, error) {
+	var q string
+	if isprofile {
+		q = `SELECT key, value FROM profiles_devices_config WHERE profile_device_id=?`
+	} else {
+		q = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
+	}
+	newdev := shared.Device{}
+	var key, value string
+	arg1 := []interface{}{id}
+	arg2 := []interface{}{key, value}
+	results, err := shared.DbQueryScan(db, q, arg1, arg2)
+	if err != nil {
+		return newdev, err
+	}
+
+	for _, r := range results {
+		key = r[0].(string)
+		value = r[1].(string)
+		newdev[key] = value
+	}
+
+	return newdev, nil
+}
+
 func dbGetDevices(d *Daemon, qName string, isprofile bool) (shared.Devices, error) {
-	var q, q2 string
+	var q string
 	if isprofile {
 		q = `SELECT profiles_devices.id, profiles_devices.name, profiles_devices.type
 			FROM profiles_devices JOIN profiles
 			ON profiles_devices.profile_id = profiles.id
 			WHERE profiles.name=?`
-		q2 = `SELECT key, value FROM profiles_devices_config WHERE profile_device_id=?`
 	} else {
 		q = `SELECT containers_devices.id, containers_devices.name, containers_devices.type
 			FROM containers_devices JOIN containers
 			ON containers_devices.container_id = containers.id
 			WHERE containers.name=?`
-		q2 = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
 	}
-	rows, err := shared.DbQuery(d.db, q, qName)
+	var id int
+	var name, dtype string
+	arg1 := []interface{}{qName}
+	arg2 := []interface{}{id, name, dtype}
+	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	devices := shared.Devices{}
-
-	for rows.Next() {
-		var id int
-		var name, dtype string
-		if err := rows.Scan(&id, &name, &dtype); err != nil {
-			shared.Debugf("DBERR: dbGetDevices: rows.Scan returned an error %q\n", err)
-			return nil, err
-		}
-		newdev := shared.Device{}
-		rows2, err := shared.DbQuery(d.db, q2, id)
+	for _, r := range results {
+		id = r[0].(int)
+		name = r[1].(string)
+		dtype = r[2].(string)
+		newdev, err := dbGetDeviceConfig(d.db, id, isprofile)
 		if err != nil {
 			return nil, err
 		}
-		defer rows2.Close()
-
 		newdev["type"] = dtype
-		for rows2.Next() {
-			var k, v string
-			err = rows2.Scan(&k, &v)
-			if !shared.ValidDeviceConfig(dtype, k, v) {
-				shared.Debugf("DBERR: dbGetDevices: rows2.Scan returned an error %q\n", err)
-				return nil, fmt.Errorf("Invalid config for device type %s: %s = %s\n", dtype, k, v)
-			}
-			newdev[k] = v
-		}
-
 		devices[name] = newdev
 	}
 
