@@ -2,10 +2,18 @@ package shared
 
 import (
 	"database/sql"
+	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/mattn/go-sqlite3"
 )
+
+func PrintStack() {
+	buf := make([]byte, 1<<16)
+	runtime.Stack(buf, true)
+	fmt.Printf("%s", buf)
+}
 
 func IsDbLockedError(err error) bool {
 	if err == nil {
@@ -31,6 +39,7 @@ func TxCommit(tx *sql.Tx) error {
 			return err
 		}
 		Debugf("Txcommit: db was locked\n")
+		PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -46,6 +55,7 @@ func DbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 			return err
 		}
 		Debugf("DbQueryRowScan: query %q args %q, DB was locked\n", q, args)
+		PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -61,6 +71,7 @@ func DbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 			return nil, err
 		}
 		Debugf("DbQuery: query %q args %q, DB was locked\n", q, args)
+		PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -76,6 +87,7 @@ func DbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 			return nil, err
 		}
 		Debugf("DbExec: query %q args %q, DB was locked\n", q, args)
+		PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }
