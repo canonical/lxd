@@ -325,6 +325,7 @@ func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
 		var name string
 		err = rows.Scan(&name)
 		if err != nil {
+			shared.Debugf("DBERR: doImagesGet: scan returned error %q\n", err)
 			return []string{}, err
 		}
 		if recursion == 0 {
@@ -340,6 +341,7 @@ func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
 	}
 	err = rows.Err()
 	if err != nil {
+		shared.Debugf("DBERR: doImagesGet: scan returned error %q\n", err)
 		return []string{}, err
 	}
 
@@ -399,14 +401,14 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 		var imagetype int
 		err = rows2.Scan(&imagetype, &key, &value)
 		if err != nil {
-			fmt.Printf("DBERR: imageGet: scan returned error %q\n", err)
+			shared.Debugf("DBERR: imageGet: scan returned error %q\n", err)
 			return shared.ImageInfo{}, InternalError(err)
 		}
 		properties[key] = value
 	}
 	err = rows2.Err()
 	if err != nil {
-		fmt.Printf("DBERR: imageGet: Err returned an error %q\n", err)
+		shared.Debugf("DBERR: imageGet: Err returned an error %q\n", err)
 		return shared.ImageInfo{}, InternalError(err)
 	}
 
@@ -420,7 +422,7 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 		var name, desc string
 		err = rows3.Scan(&name, &desc)
 		if err != nil {
-			fmt.Printf("DBERR: imageGet (2): scan returned error %q\n", err)
+			shared.Debugf("DBERR: imageGet (2): scan returned error %q\n", err)
 			return shared.ImageInfo{}, InternalError(err)
 		}
 		a := shared.ImageAlias{Name: name, Description: desc}
@@ -428,7 +430,7 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 	}
 	err = rows3.Err()
 	if err != nil {
-		fmt.Printf("DBERR: imageGet (2): Err returned an error %q\n", err)
+		shared.Debugf("DBERR: imageGet (2): Err returned an error %q\n", err)
 		return shared.ImageInfo{}, InternalError(err)
 	}
 
@@ -610,7 +612,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 		var name string
 		err = rows.Scan(&name)
 		if err != nil {
-			fmt.Printf("DBERR: aliasesGet: scan returned error %q\n", err)
+			shared.Debugf("DBERR: aliasesGet: scan returned error %q\n", err)
 			return InternalError(err)
 		}
 		url := fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, name)
@@ -618,7 +620,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	}
 	err = rows.Err()
 	if err != nil {
-		fmt.Printf("DBERR: aliasesGet: Err returned an error %q\n", err)
+		shared.Debugf("DBERR: aliasesGet: Err returned an error %q\n", err)
 		return InternalError(err)
 	}
 

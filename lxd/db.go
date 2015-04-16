@@ -440,7 +440,7 @@ func initDb(d *Daemon) error {
 	dbpath := shared.VarPath("lxd.db")
 	var db *sql.DB
 	var err error
-	timeout := 30 // TODO - make this command-line configurable?
+	timeout := 5 // TODO - make this command-line configurable?
 	openPath := fmt.Sprintf("%s?_busy_timeout=%d&_txlock=immediate", dbpath, timeout*1000)
 	if !shared.PathExists(dbpath) {
 		db, err = createDb(openPath)
@@ -589,9 +589,15 @@ func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
 	for rows.Next() {
 		var key, value string
 		if err := rows.Scan(&key, &value); err != nil {
+			shared.Debugf("DBERR: dbGetConfig: scan returned error %q\n", err)
 			return nil, err
 		}
 		config[key] = value
+	}
+	err = rows.Err()
+	if err != nil {
+		shared.Debugf("DBERR: dbGetConfig: rows.Close returned error %q\n", err)
+		return nil, err
 	}
 
 	return config, nil
@@ -624,9 +630,15 @@ func dbGetProfileConfig(d *Daemon, name string) (map[string]string, error) {
 	for rows.Next() {
 		var key, value string
 		if err := rows.Scan(&key, &value); err != nil {
+			shared.Debugf("DBERR: dbGetProfileConfig: Err returned an error %q\n", err)
 			return nil, err
 		}
 		config[key] = value
+	}
+	err = rows.Err()
+	if err != nil {
+		shared.Debugf("DBERR: dbGetProfileConfig: Err returned an error %q\n", err)
+		return nil, err
 	}
 
 	return config, nil
@@ -654,9 +666,15 @@ func dbGetProfiles(d *Daemon, c *lxdContainer) ([]string, error) {
 		var name string
 		err := rows.Scan(&name)
 		if err != nil {
+			shared.Debugf("DBERR: dbGetProfiles: Scan returned an error %q\n", err)
 			return nil, err
 		}
 		profiles = append(profiles, name)
+	}
+	err = rows.Err()
+	if err != nil {
+		shared.Debugf("DBERR: dbGetProfiles: Err returned an error %q\n", err)
+		return nil, err
 	}
 
 	return profiles, nil
@@ -689,6 +707,7 @@ func dbGetDevices(d *Daemon, qName string, isprofile bool) (shared.Devices, erro
 		var id int
 		var name, dtype string
 		if err := rows.Scan(&id, &name, &dtype); err != nil {
+			shared.Debugf("DBERR: dbGetDevices: rows.Scan returned an error %q\n", err)
 			return nil, err
 		}
 		newdev := shared.Device{}
@@ -701,8 +720,9 @@ func dbGetDevices(d *Daemon, qName string, isprofile bool) (shared.Devices, erro
 		newdev["type"] = dtype
 		for rows2.Next() {
 			var k, v string
-			rows2.Scan(&k, &v)
+			err = rows2.Scan(&k, &v)
 			if !shared.ValidDeviceConfig(dtype, k, v) {
+				shared.Debugf("DBERR: dbGetDevices: rows2.Scan returned an error %q\n", err)
 				return nil, fmt.Errorf("Invalid config for device type %s: %s = %s\n", dtype, k, v)
 			}
 			newdev[k] = v
