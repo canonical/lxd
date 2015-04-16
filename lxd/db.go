@@ -441,7 +441,7 @@ func initDb(d *Daemon) error {
 	var db *sql.DB
 	var err error
 	timeout := 5 // TODO - make this command-line configurable?
-	openPath := fmt.Sprintf("%s?_busy_timeout=%d&_txlock=immediate", dbpath, timeout*1000)
+	openPath := fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", dbpath, timeout*1000)
 	if !shared.PathExists(dbpath) {
 		db, err = createDb(openPath)
 		if err != nil {
