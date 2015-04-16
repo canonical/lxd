@@ -102,7 +102,7 @@ func listContainers(d *lxd.Client, cts []string, filters []string, showsnaps boo
 		if err == nil {
 			d = []string{ct, c.Status.State}
 		} else if err == lxd.LXDErrors[http.StatusNotFound] {
-			return fmt.Errorf(gettext.Gettext("Container not found"))
+			continue
 		} else {
 			return err
 		}
