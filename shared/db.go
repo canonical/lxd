@@ -76,6 +76,71 @@ func DbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 	}
 }
 
+/*
+ * output is not going into outargs - rather outargs is a template of the
+ * interface types we should expect
+ */
+func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		return [][]interface{}{}, err
+	}
+	defer rows.Close()
+	result := [][]interface{}{}
+	for rows.Next() {
+		ptrargs := make([]interface{}, len(outargs))
+		for i, _ := range outargs {
+			switch t := outargs[i].(type) {
+			case string:
+				str := ""
+				ptrargs[i] = &str
+			case int:
+				integer := 0
+				ptrargs[i] = &integer
+			default:
+				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s\n", t)
+			}
+		}
+		err = rows.Scan(ptrargs...)
+		if err != nil {
+			return [][]interface{}{}, err
+		}
+		newargs := make([]interface{}, len(outargs))
+		for i, _ := range ptrargs {
+			switch t := outargs[i].(type) {
+			case string:
+				newargs[i] = *ptrargs[i].(*string)
+			case int:
+				newargs[i] = *ptrargs[i].(*int)
+			default:
+				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s\n", t)
+			}
+		}
+		result = append(result, newargs)
+	}
+	err = rows.Err()
+	if err != nil {
+		return [][]interface{}{}, err
+	}
+	return result, nil
+}
+
+func DbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
+	for {
+		result, err := doDbQueryScan(db, q, args, outargs)
+		if err == nil {
+			return result, nil
+		}
+		if !IsDbLockedError(err) {
+			Debugf("DbQuery: query %q error %q\n", q, err)
+			return nil, err
+		}
+		Debugf("DbQueryscan: query %q args %q, DB was locked\n", q, args)
+		PrintStack()
+		time.Sleep(1 * time.Second)
+	}
+}
+
 func DbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 	for {
 		result, err := db.Exec(q, args...)

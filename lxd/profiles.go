@@ -38,30 +38,21 @@ type profilesPostReq struct {
 
 func profilesGet(d *Daemon, r *http.Request) Response {
 	q := fmt.Sprintf("SELECT name FROM profiles")
-	rows, err := shared.DbQuery(d.db, q)
+	arg1 := []interface{}{}
+	var name string
+	arg2 := []interface{}{name}
+	result, err := shared.DbQueryScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return SmartError(err)
 	}
-	defer rows.Close()
-
-	result := []string{}
-	for rows.Next() {
-		name := ""
-		err = rows.Scan(&name)
-		if err != nil {
-			shared.Debugf("DBERR: profilesGet: scan returned error %q\n", err)
-			return InternalError(err)
-		}
-
-		result = append(result, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, name))
-	}
-	err = rows.Err()
-	if err != nil {
-		shared.Debugf("DBERR: profilesGet: Err returned an error %q\n", err)
-		return InternalError(err)
+	response := []string{}
+	for _, r := range result {
+		name := r[0].(string)
+		url := fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, name)
+		response = append(response, url)
 	}
 
-	return SyncResponse(true, result)
+	return SyncResponse(true, response)
 }
 
 func profilesPost(d *Daemon, r *http.Request) Response {
