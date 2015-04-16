@@ -49,7 +49,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 		name := ""
 		err = rows.Scan(&name)
 		if err != nil {
-			fmt.Printf("DBERR: profilesGet: scan returned error %q\n", err)
+			shared.Debugf("DBERR: profilesGet: scan returned error %q\n", err)
 			return InternalError(err)
 		}
 
@@ -57,7 +57,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 	}
 	err = rows.Err()
 	if err != nil {
-		fmt.Printf("DBERR: profilesGet: Err returned an error %q\n", err)
+		shared.Debugf("DBERR: profilesGet: Err returned an error %q\n", err)
 		return InternalError(err)
 	}
 
@@ -180,7 +180,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		var i int
 		err = rows.Scan(&i)
 		if err != nil {
-			fmt.Printf("DBERR: profilePut: scan returned error %q\n", err)
+			shared.Debugf("DBERR: profilePut: scan returned error %q\n", err)
 			tx.Rollback()
 			return InternalError(err)
 		}
@@ -189,7 +189,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	rows.Close()
 	err = rows.Err()
 	if err != nil {
-		fmt.Printf("DBERR: profilePut: Err returned an error %q\n", err)
+		shared.Debugf("DBERR: profilePut: Err returned an error %q\n", err)
 		tx.Rollback()
 		return InternalError(err)
 	}

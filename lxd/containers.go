@@ -36,7 +36,6 @@ const (
 )
 
 func containersGet(d *Daemon, r *http.Request) Response {
-	slept := time.Millisecond * 0
 	for {
 		result, err := doContainersGet(d)
 		if err == nil {
@@ -46,12 +45,9 @@ func containersGet(d *Daemon, r *http.Request) Response {
 			shared.Debugf("DBERR: containersGet: error %q\n", err)
 			return InternalError(err)
 		}
-		if slept == 30*time.Second {
-			shared.Debugf("DBERR: containersGet: DB Locked for 30 seconds\n")
-			return InternalError(err)
-		}
-		time.Sleep(100 * time.Millisecond)
-		slept = slept + 100*time.Millisecond
+		// 1 s may seem drastic, but we really don't want to thrash
+		// perhaps we should use a random amount
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -68,6 +64,7 @@ func doContainersGet(d *Daemon) ([]string, error) {
 		container := ""
 		err = rows.Scan(&container)
 		if err != nil {
+			shared.Debugf("DBERR: doContainersGet: scan returned error %q\n", err)
 			return []string{}, err
 		}
 
@@ -75,6 +72,7 @@ func doContainersGet(d *Daemon) ([]string, error) {
 	}
 	err = rows.Err()
 	if err != nil {
+		shared.Debugf("DBERR: doContainersGet: scan returned error %q\n", err)
 		return []string{}, err
 	}
 
@@ -487,7 +485,8 @@ func containerDeleteSnapshots(d *Daemon, cname string) []string {
 		var sname string
 		err = rows.Scan(&sname, &id)
 		if err != nil {
-			fmt.Printf("DBERR: containerDeleteSnapshots: scan returned error %q\n", err)
+			shared.Debugf("DBERR: containerDeleteSnapshots: scan returned error %q\n", err)
+			break
 		}
 		ids = append(ids, id)
 		cdir := shared.VarPath("lxc", cname, "snapshots", sname)
@@ -495,7 +494,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) []string {
 	}
 	err = rows.Err()
 	if err != nil {
-		fmt.Printf("DBERR: containerDeleteSnapshots: Err returned an error %q\n", err)
+		shared.Debugf("DBERR: containerDeleteSnapshots: Err returned an error %q\n", err)
 	}
 	rows.Close()
 	for _, id := range ids {
@@ -936,7 +935,7 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 		var v string
 		err = rows.Scan(&k, &v)
 		if err != nil {
-			fmt.Printf("DBERR: applyProfile: scan returned error %q\n", err)
+			shared.Debugf("DBERR: applyProfile: scan returned error %q\n", err)
 			return err
 		}
 		shared.Debugf("applying %s: %s", k, v)
@@ -944,7 +943,7 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 	}
 	err = rows.Err()
 	if err != nil {
-		fmt.Printf("DBERR: applyProfile: Err returned an error %q\n", err)
+		shared.Debugf("DBERR: applyProfile: Err returned an error %q\n", err)
 		return err
 	}
 
@@ -1392,7 +1391,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 		var name string
 		err = rows.Scan(&name)
 		if err != nil {
-			fmt.Printf("DBERR: containerSnapshotsGet: scan returned error %q\n", err)
+			shared.Debugf("DBERR: containerSnapshotsGet: scan returned error %q\n", err)
 			return InternalError(err)
 		}
 		url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
@@ -1400,7 +1399,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	}
 	err = rows.Err()
 	if err != nil {
-		fmt.Printf("DBERR: containerSnapshotsGet: Err returned an error %q\n", err)
+		shared.Debugf("DBERR: containerSnapshotsGet: Err returned an error %q\n", err)
 		return InternalError(err)
 	}
 
@@ -1426,7 +1425,8 @@ func nextSnapshot(d *Daemon, name string) int {
 		var num int
 		err = rows.Scan(&tmp)
 		if err != nil {
-			fmt.Printf("DBERR: nextSnapshot: scan returned error %q\n", err)
+			shared.Debugf("DBERR: nextSnapshot: scan returned error %q\n", err)
+			break
 		}
 		if len(tmp) <= length {
 			continue
@@ -1442,7 +1442,7 @@ func nextSnapshot(d *Daemon, name string) int {
 	}
 	err = rows.Err()
 	if err != nil {
-		fmt.Printf("DBERR: nextSnapshot: Err returned an error %q\n", err)
+		shared.Debugf("DBERR: nextSnapshot: Err returned an error %q\n", err)
 	}
 	return max
 }

@@ -21,7 +21,6 @@ func IsDbLockedError(err error) bool {
 }
 
 func TxCommit(tx *sql.Tx) error {
-	slept := time.Millisecond * 0
 	for {
 		err := tx.Commit()
 		if err == nil {
@@ -31,36 +30,27 @@ func TxCommit(tx *sql.Tx) error {
 			Debugf("Txcommit: error %q\n", err)
 			return err
 		}
-		if slept == 30*time.Second {
-			Debugf("DB Locked for 30 seconds\n")
-			return err
-		}
-		time.Sleep(100 * time.Millisecond)
-		slept = slept + 100*time.Millisecond
+		Debugf("Txcommit: db was locked\n")
+		time.Sleep(1 * time.Second)
 	}
 }
 
 func DbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) error {
-	slept := time.Millisecond * 0
 	for {
 		err := db.QueryRow(q, args...).Scan(outargs...)
 		if err == nil {
 			return nil
 		}
 		if !IsDbLockedError(err) {
+			Debugf("DbQuery: query %q error %q\n", q, err)
 			return err
 		}
-		if slept == 30*time.Second {
-			Debugf("DB Locked for 30 seconds\n")
-			return err
-		}
-		time.Sleep(100 * time.Millisecond)
-		slept = slept + 100*time.Millisecond
+		Debugf("DbQueryRowScan: query %q args %q, DB was locked\n", q, args)
+		time.Sleep(1 * time.Second)
 	}
 }
 
 func DbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
-	slept := time.Millisecond * 0
 	for {
 		result, err := db.Query(q, args...)
 		if err == nil {
@@ -70,17 +60,12 @@ func DbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 			Debugf("DbQuery: query %q error %q\n", q, err)
 			return nil, err
 		}
-		if slept == 30*time.Second {
-			Debugf("DB Locked for 30 seconds\n")
-			return nil, err
-		}
-		time.Sleep(100 * time.Millisecond)
-		slept = slept + 100*time.Millisecond
+		Debugf("DbQuery: query %q args %q, DB was locked\n", q, args)
+		time.Sleep(1 * time.Second)
 	}
 }
 
 func DbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
-	slept := time.Millisecond * 0
 	for {
 		result, err := db.Exec(q, args...)
 		if err == nil {
@@ -90,11 +75,7 @@ func DbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 			Debugf("DbExec: query %q error %q\n", q, err)
 			return nil, err
 		}
-		if slept == 30*time.Second {
-			Debugf("DB Locked for 30 seconds\n")
-			return nil, err
-		}
-		time.Sleep(100 * time.Millisecond)
-		slept = slept + 100*time.Millisecond
+		Debugf("DbExec: query %q args %q, DB was locked\n", q, args)
+		time.Sleep(1 * time.Second)
 	}
 }
