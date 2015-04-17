@@ -38,10 +38,10 @@ type profilesPostReq struct {
 
 func profilesGet(d *Daemon, r *http.Request) Response {
 	q := fmt.Sprintf("SELECT name FROM profiles")
-	arg1 := []interface{}{}
+	inargs := []interface{}{}
 	var name string
-	arg2 := []interface{}{name}
-	result, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	outfmt := []interface{}{name}
+	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return SmartError(err)
 	}

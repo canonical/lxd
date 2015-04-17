@@ -314,9 +314,9 @@ func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
 	if public == true {
 		q = "SELECT fingerprint FROM images WHERE public=1"
 	}
-	arg1 := []interface{}{}
-	arg2 := []interface{}{name}
-	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs := []interface{}{}
+	outfmt := []interface{}{name}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -382,9 +382,9 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 
 	q := "SELECT key, value FROM images_properties where image_id=?"
 	var key, value, name, desc string
-	arg1 := []interface{}{imgInfo.Id}
-	arg2 := []interface{}{key, value}
-	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs := []interface{}{imgInfo.Id}
+	outfmt := []interface{}{key, value}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return shared.ImageInfo{}, SmartError(err)
 	}
@@ -396,9 +396,9 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 	}
 
 	q = "SELECT name, description FROM images_aliases WHERE image_id=?"
-	arg1 = []interface{}{imgInfo.Id}
-	arg2 = []interface{}{name, desc}
-	results, err = shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs = []interface{}{imgInfo.Id}
+	outfmt = []interface{}{name, desc}
+	results, err = shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return shared.ImageInfo{}, InternalError(err)
 	}
@@ -580,9 +580,9 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 func aliasesGet(d *Daemon, r *http.Request) Response {
 	q := "SELECT name FROM images_aliases"
 	var name string
-	arg1 := []interface{}{}
-	arg2 := []interface{}{name}
-	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs := []interface{}{}
+	outfmt := []interface{}{name}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return BadRequest(err)
 	}
