@@ -16,9 +16,13 @@ import (
 )
 
 func PrintStack() {
+	if ! debug || logger == nil {
+		return
+	}
+
 	buf := make([]byte, 1<<16)
 	runtime.Stack(buf, true)
-	fmt.Printf("%s", buf)
+	Debugf("%s", buf)
 }
 
 func IsDbLockedError(err error) bool {
