@@ -306,27 +306,23 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 }
 
 func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
-	var err error
-	var rows *sql.Rows
 	result_string := make([]string, 0)
 	result_map := make([]shared.ImageInfo, 0)
 
+	q := "SELECT fingerprint FROM images"
+	var name string
 	if public == true {
-		rows, err = shared.DbQuery(d.db, "SELECT fingerprint FROM images WHERE public=1")
-	} else {
-		rows, err = shared.DbQuery(d.db, "SELECT fingerprint FROM images")
+		q = "SELECT fingerprint FROM images WHERE public=1"
 	}
+	inargs := []interface{}{}
+	outfmt := []interface{}{name}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var name string
-		err = rows.Scan(&name)
-		if err != nil {
-			return []string{}, err
-		}
+	for _, r := range results {
+		name = r[0].(string)
 		if recursion == 0 {
 			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
 			result_string = append(result_string, url)
@@ -337,10 +333,6 @@ func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
 			}
 			result_map = append(result_map, image)
 		}
-	}
-	err = rows.Err()
-	if err != nil {
-		return []string{}, err
 	}
 
 	if recursion == 0 {
@@ -388,48 +380,34 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 		return shared.ImageInfo{}, SmartError(err)
 	}
 
-	rows2, err := shared.DbQuery(d.db, "SELECT type, key, value FROM images_properties where image_id=?", imgInfo.Id)
+	q := "SELECT key, value FROM images_properties where image_id=?"
+	var key, value, name, desc string
+	inargs := []interface{}{imgInfo.Id}
+	outfmt := []interface{}{key, value}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return shared.ImageInfo{}, SmartError(err)
 	}
-	defer rows2.Close()
 	properties := map[string]string{}
-	for rows2.Next() {
-		var key, value string
-		var imagetype int
-		err = rows2.Scan(&imagetype, &key, &value)
-		if err != nil {
-			fmt.Printf("DBERR: imageGet: scan returned error %q\n", err)
-			return shared.ImageInfo{}, InternalError(err)
-		}
+	for _, r := range results {
+		key = r[0].(string)
+		value = r[1].(string)
 		properties[key] = value
 	}
-	err = rows2.Err()
-	if err != nil {
-		fmt.Printf("DBERR: imageGet: Err returned an error %q\n", err)
-		return shared.ImageInfo{}, InternalError(err)
-	}
 
-	rows3, err := shared.DbQuery(d.db, "SELECT name, description FROM images_aliases WHERE image_id=?", imgInfo.Id)
+	q = "SELECT name, description FROM images_aliases WHERE image_id=?"
+	inargs = []interface{}{imgInfo.Id}
+	outfmt = []interface{}{name, desc}
+	results, err = shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return shared.ImageInfo{}, InternalError(err)
 	}
-	defer rows3.Close()
 	aliases := shared.ImageAliases{}
-	for rows3.Next() {
-		var name, desc string
-		err = rows3.Scan(&name, &desc)
-		if err != nil {
-			fmt.Printf("DBERR: imageGet (2): scan returned error %q\n", err)
-			return shared.ImageInfo{}, InternalError(err)
-		}
+	for _, r := range results {
+		name = r[0].(string)
+		desc = r[0].(string)
 		a := shared.ImageAlias{Name: name, Description: desc}
 		aliases = append(aliases, a)
-	}
-	err = rows3.Err()
-	if err != nil {
-		fmt.Printf("DBERR: imageGet (2): Err returned an error %q\n", err)
-		return shared.ImageInfo{}, InternalError(err)
 	}
 
 	info := shared.ImageInfo{Fingerprint: imgInfo.Fingerprint,
@@ -600,29 +578,22 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 }
 
 func aliasesGet(d *Daemon, r *http.Request) Response {
-	rows, err := shared.DbQuery(d.db, "SELECT name FROM images_aliases")
+	q := "SELECT name FROM images_aliases"
+	var name string
+	inargs := []interface{}{}
+	outfmt := []interface{}{name}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return BadRequest(err)
 	}
-	defer rows.Close()
-	result := make([]string, 0)
-	for rows.Next() {
-		var name string
-		err = rows.Scan(&name)
-		if err != nil {
-			fmt.Printf("DBERR: aliasesGet: scan returned error %q\n", err)
-			return InternalError(err)
-		}
+	response := make([]string, 0)
+	for _, r := range results {
+		name = r[0].(string)
 		url := fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, name)
-		result = append(result, url)
-	}
-	err = rows.Err()
-	if err != nil {
-		fmt.Printf("DBERR: aliasesGet: Err returned an error %q\n", err)
-		return InternalError(err)
+		response = append(response, url)
 	}
 
-	return SyncResponse(true, result)
+	return SyncResponse(true, response)
 }
 
 func aliasGet(d *Daemon, r *http.Request) Response {
