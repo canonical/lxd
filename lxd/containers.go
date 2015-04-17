@@ -66,7 +66,6 @@ func doContainersGet(d *Daemon) ([]string, error) {
 	for _, r := range result {
 		container := string(r[0].(string))
 		url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
-		shared.Debugf("ZZZZ doContainersGet: got string %s\n", container)
 		str = append(str, url)
 	}
 	return str, nil
