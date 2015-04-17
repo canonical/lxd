@@ -36,7 +36,6 @@ const (
 )
 
 func containersGet(d *Daemon, r *http.Request) Response {
-	slept := time.Millisecond * 0
 	for {
 		result, err := doContainersGet(d)
 		if err == nil {
@@ -46,39 +45,30 @@ func containersGet(d *Daemon, r *http.Request) Response {
 			shared.Debugf("DBERR: containersGet: error %q\n", err)
 			return InternalError(err)
 		}
-		if slept == 30*time.Second {
-			shared.Debugf("DBERR: containersGet: DB Locked for 30 seconds\n")
-			return InternalError(err)
-		}
-		time.Sleep(100 * time.Millisecond)
-		slept = slept + 100*time.Millisecond
+		// 1 s may seem drastic, but we really don't want to thrash
+		// perhaps we should use a random amount
+		shared.Debugf("DBERR: containersGet, db is locked\n")
+		shared.PrintStack()
+		time.Sleep(1 * time.Second)
 	}
 }
 
 func doContainersGet(d *Daemon) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
-	rows, err := shared.DbQuery(d.db, q, cTypeRegular)
+	inargs := []interface{}{cTypeRegular}
+	var container string
+	outfmt := []interface{}{container}
+	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	str := []string{}
 	if err != nil {
-		return []string{}, err
+		return str, err
 	}
-	defer rows.Close()
-
-	result := []string{}
-	for rows.Next() {
-		container := ""
-		err = rows.Scan(&container)
-		if err != nil {
-			return []string{}, err
-		}
-
-		result = append(result, fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container))
+	for _, r := range result {
+		container := string(r[0].(string))
+		url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
+		str = append(str, url)
 	}
-	err = rows.Err()
-	if err != nil {
-		return []string{}, err
-	}
-
-	return result, nil
+	return str, nil
 }
 
 type containerImageSource struct {
@@ -473,35 +463,31 @@ func containerGet(d *Daemon, r *http.Request) Response {
 func containerDeleteSnapshots(d *Daemon, cname string) []string {
 	prefix := fmt.Sprintf("%s/", cname)
 	length := len(prefix)
-	rows, err := shared.DbQuery(d.db, "SELECT name, id FROM containers WHERE type=? AND SUBSTR(name,1,?)=?",
-		cTypeSnapshot, length, prefix)
+	q := "SELECT name, id FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
+	var id int
+	var sname string
+	inargs := []interface{}{cTypeSnapshot, length, prefix}
+	outfmt := []interface{}{sname, id}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return nil
 	}
 
-	var results []string
+	var response []string
 	var ids []int
 
-	for rows.Next() {
-		var id int
-		var sname string
-		err = rows.Scan(&sname, &id)
-		if err != nil {
-			fmt.Printf("DBERR: containerDeleteSnapshots: scan returned error %q\n", err)
-		}
+	for _, r := range results {
+		sname = r[0].(string)
+		id = r[1].(int)
 		ids = append(ids, id)
 		cdir := shared.VarPath("lxc", cname, "snapshots", sname)
-		results = append(results, cdir)
+		response = append(response, cdir)
 	}
-	err = rows.Err()
-	if err != nil {
-		fmt.Printf("DBERR: containerDeleteSnapshots: Err returned an error %q\n", err)
-	}
-	rows.Close()
+
 	for _, id := range ids {
 		_, _ = shared.DbExec(d.db, "DELETE FROM containers WHERE id=?", id)
 	}
-	return results
+	return response
 }
 
 type containerConfigReq struct {
@@ -920,32 +906,25 @@ func (d *lxdContainer) applyConfig(config map[string]string) error {
 }
 
 func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
-	rows, err := shared.DbQuery(daemon.db, `SELECT key, value FROM profiles_config
+	q := `SELECT key, value FROM profiles_config
 		JOIN profiles ON profiles.id=profiles_config.profile_id
-		WHERE profiles.name=?`, p)
+		WHERE profiles.name=?`
+	var k, v string
+	inargs := []interface{}{p}
+	outfmt := []interface{}{k, v}
+	result, err := shared.DbQueryScan(daemon.db, q, inargs, outfmt)
 
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
 
 	config := map[string]string{}
+	for _, r := range result {
+		k = r[0].(string)
+		v = r[1].(string)
 
-	for rows.Next() {
-		var k string
-		var v string
-		err = rows.Scan(&k, &v)
-		if err != nil {
-			fmt.Printf("DBERR: applyProfile: scan returned error %q\n", err)
-			return err
-		}
 		shared.Debugf("applying %s: %s", k, v)
 		config[k] = v
-	}
-	err = rows.Err()
-	if err != nil {
-		fmt.Printf("DBERR: applyProfile: Err returned an error %q\n", err)
-		return err
 	}
 
 	newdevs, err := dbGetDevices(daemon, p, true)
@@ -1379,29 +1358,22 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	regexp := fmt.Sprintf("%s/", cname)
 	length := len(regexp)
-	rows, err := shared.DbQuery(d.db, "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?",
-		cTypeSnapshot, length, regexp)
+	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
+	var name string
+	inargs := []interface{}{cTypeSnapshot, length, regexp}
+	outfmt := []interface{}{name}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return SmartError(err)
 	}
-	defer rows.Close()
 
 	var body []string
 
-	for rows.Next() {
-		var name string
-		err = rows.Scan(&name)
-		if err != nil {
-			fmt.Printf("DBERR: containerSnapshotsGet: scan returned error %q\n", err)
-			return InternalError(err)
-		}
+	for _, r := range results {
+		name = r[0].(string)
+
 		url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
 		body = append(body, url)
-	}
-	err = rows.Err()
-	if err != nil {
-		fmt.Printf("DBERR: containerSnapshotsGet: Err returned an error %q\n", err)
-		return InternalError(err)
 	}
 
 	return SyncResponse(true, body)
@@ -1415,24 +1387,23 @@ func nextSnapshot(d *Daemon, name string) int {
 	base := fmt.Sprintf("%s/snap", name)
 	length := len(base)
 	q := fmt.Sprintf("SELECT MAX(name) FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
-	rows, err := shared.DbQuery(d.db, q, cTypeSnapshot, length, base)
+	var numstr string
+	inargs := []interface{}{cTypeSnapshot, length, base}
+	outfmt := []interface{}{numstr}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return 0
 	}
-	defer rows.Close()
 	max := 0
-	for rows.Next() {
-		var tmp string
-		var num int
-		err = rows.Scan(&tmp)
-		if err != nil {
-			fmt.Printf("DBERR: nextSnapshot: scan returned error %q\n", err)
-		}
-		if len(tmp) <= length {
+
+	for _, r := range results {
+		numstr = r[0].(string)
+		if len(numstr) <= length {
 			continue
 		}
-		tmp2 := tmp[length:]
-		count, err := fmt.Sscanf(tmp2, "%d", &num)
+		substr := numstr[length:]
+		var num int
+		count, err := fmt.Sscanf(substr, "%d", &num)
 		if err != nil || count != 1 {
 			continue
 		}
@@ -1440,10 +1411,7 @@ func nextSnapshot(d *Daemon, name string) int {
 			max = num + 1
 		}
 	}
-	err = rows.Err()
-	if err != nil {
-		fmt.Printf("DBERR: nextSnapshot: Err returned an error %q\n", err)
-	}
+
 	return max
 }
 

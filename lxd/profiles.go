@@ -38,30 +38,21 @@ type profilesPostReq struct {
 
 func profilesGet(d *Daemon, r *http.Request) Response {
 	q := fmt.Sprintf("SELECT name FROM profiles")
-	rows, err := shared.DbQuery(d.db, q)
+	inargs := []interface{}{}
+	var name string
+	outfmt := []interface{}{name}
+	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return SmartError(err)
 	}
-	defer rows.Close()
-
-	result := []string{}
-	for rows.Next() {
-		name := ""
-		err = rows.Scan(&name)
-		if err != nil {
-			fmt.Printf("DBERR: profilesGet: scan returned error %q\n", err)
-			return InternalError(err)
-		}
-
-		result = append(result, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, name))
-	}
-	err = rows.Err()
-	if err != nil {
-		fmt.Printf("DBERR: profilesGet: Err returned an error %q\n", err)
-		return InternalError(err)
+	response := []string{}
+	for _, r := range result {
+		name := r[0].(string)
+		url := fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, name)
+		response = append(response, url)
 	}
 
-	return SyncResponse(true, result)
+	return SyncResponse(true, response)
 }
 
 func profilesPost(d *Daemon, r *http.Request) Response {
@@ -180,7 +171,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		var i int
 		err = rows.Scan(&i)
 		if err != nil {
-			fmt.Printf("DBERR: profilePut: scan returned error %q\n", err)
+			shared.Debugf("DBERR: profilePut: scan returned error %q\n", err)
 			tx.Rollback()
 			return InternalError(err)
 		}
@@ -189,7 +180,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	rows.Close()
 	err = rows.Err()
 	if err != nil {
-		fmt.Printf("DBERR: profilePut: Err returned an error %q\n", err)
+		shared.Debugf("DBERR: profilePut: Err returned an error %q\n", err)
 		tx.Rollback()
 		return InternalError(err)
 	}
