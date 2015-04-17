@@ -55,10 +55,10 @@ func containersGet(d *Daemon, r *http.Request) Response {
 
 func doContainersGet(d *Daemon) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
-	arg1 := []interface{}{cTypeRegular}
+	inargs := []interface{}{cTypeRegular}
 	var container string
-	arg2 := []interface{}{container}
-	result, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	outfmt := []interface{}{container}
+	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	str := []string{}
 	if err != nil {
 		return str, err
@@ -467,9 +467,9 @@ func containerDeleteSnapshots(d *Daemon, cname string) []string {
 	q := "SELECT name, id FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
 	var id int
 	var sname string
-	arg1 := []interface{}{cTypeSnapshot, length, prefix}
-	arg2 := []interface{}{sname, id}
-	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs := []interface{}{cTypeSnapshot, length, prefix}
+	outfmt := []interface{}{sname, id}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return nil
 	}
@@ -911,9 +911,9 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 		JOIN profiles ON profiles.id=profiles_config.profile_id
 		WHERE profiles.name=?`
 	var k, v string
-	arg1 := []interface{}{p}
-	arg2 := []interface{}{k, v}
-	result, err := shared.DbQueryScan(daemon.db, q, arg1, arg2)
+	inargs := []interface{}{p}
+	outfmt := []interface{}{k, v}
+	result, err := shared.DbQueryScan(daemon.db, q, inargs, outfmt)
 
 	if err != nil {
 		return err
@@ -1361,9 +1361,9 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	length := len(regexp)
 	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
 	var name string
-	arg1 := []interface{}{cTypeSnapshot, length, regexp}
-	arg2 := []interface{}{name}
-	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs := []interface{}{cTypeSnapshot, length, regexp}
+	outfmt := []interface{}{name}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1389,9 +1389,9 @@ func nextSnapshot(d *Daemon, name string) int {
 	length := len(base)
 	q := fmt.Sprintf("SELECT MAX(name) FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
 	var numstr string
-	arg1 := []interface{}{cTypeSnapshot, length, base}
-	arg2 := []interface{}{numstr}
-	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs := []interface{}{cTypeSnapshot, length, base}
+	outfmt := []interface{}{numstr}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return 0
 	}

@@ -579,9 +579,9 @@ func dbAddAlias(d *Daemon, name string, tgt int, desc string) error {
 func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
 	q := `SELECT key, value FROM containers_config WHERE container_id=?`
 	var key, value string
-	arg1 := []interface{}{c.id}
-	arg2 := []interface{}{key, value}
-	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs := []interface{}{c.id}
+	outfmt := []interface{}{key, value}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -615,9 +615,9 @@ func dbGetProfileConfig(d *Daemon, name string) (map[string]string, error) {
 		ON profiles_config.profile_id=profiles.id
 		WHERE name=?`
 	var key, value string
-	arg1 = []interface{}{name}
-	arg2 = []interface{}{key, value}
-	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs := []interface{}{name}
+	outfmt := []interface{}{key, value}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -645,9 +645,9 @@ func dbGetProfiles(d *Daemon, c *lxdContainer) ([]string, error) {
 		ON containers_profiles.profile_id=profiles.id
 		WHERE container_id=? ORDER BY containers_profiles.apply_order`
 	var name string
-	arg1 := []interface{}{c.id}
-	arg2 := []interface{}{name}
-	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs := []interface{}{c.id}
+	outfmt := []interface{}{name}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -672,9 +672,9 @@ func dbGetDeviceConfig(db *sql.DB, id int, isprofile bool) (shared.Device, error
 	}
 	newdev := shared.Device{}
 	var key, value string
-	arg1 := []interface{}{id}
-	arg2 := []interface{}{key, value}
-	results, err := shared.DbQueryScan(db, q, arg1, arg2)
+	inargs := []interface{}{id}
+	outfmt := []interface{}{key, value}
+	results, err := shared.DbQueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return newdev, err
 	}
@@ -703,9 +703,9 @@ func dbGetDevices(d *Daemon, qName string, isprofile bool) (shared.Devices, erro
 	}
 	var id int
 	var name, dtype string
-	arg1 := []interface{}{qName}
-	arg2 := []interface{}{id, name, dtype}
-	results, err := shared.DbQueryScan(d.db, q, arg1, arg2)
+	inargs := []interface{}{qName}
+	outfmt := []interface{}{id, name, dtype}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}

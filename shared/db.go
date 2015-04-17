@@ -1,5 +1,11 @@
 package shared
 
+/*
+ * This file contains helpers for interacting with the database
+ * which will check for database errors at the various steps,
+ * as well as re-try indefinately if the db is locked.
+ */
+
 import (
 	"database/sql"
 	"fmt"
@@ -76,10 +82,6 @@ func DbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 	}
 }
 
-/*
- * output is not going into outargs - rather outargs is a template of the
- * interface types we should expect
- */
 func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
 	rows, err := db.Query(q, args...)
 	if err != nil {
@@ -125,9 +127,21 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
 	return result, nil
 }
 
-func DbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
+/*
+ * . q is the database query
+ * . inargs is an array of interfaces containing the query arguments
+ * . outfmt is an array of interfaces containing the right types of output
+ *   arguments, i.e.
+ *      var arg1 string
+ *      var arg2 int
+ *      outfmt := {}interface{}{arg1, arg2}
+ *
+ * The result will be an array (one per output row) of arrays (one per output argument)
+ * of interfaces, containing pointers to the actual output arguments.
+ */
+func DbQueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
 	for {
-		result, err := doDbQueryScan(db, q, args, outargs)
+		result, err := doDbQueryScan(db, q, inargs, outfmt)
 		if err == nil {
 			return result, nil
 		}
@@ -135,7 +149,7 @@ func DbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface{}
 			Debugf("DbQuery: query %q error %q\n", q, err)
 			return nil, err
 		}
-		Debugf("DbQueryscan: query %q args %q, DB was locked\n", q, args)
+		Debugf("DbQueryscan: query %q inargs %q, DB was locked\n", q, inargs)
 		PrintStack()
 		time.Sleep(1 * time.Second)
 	}
