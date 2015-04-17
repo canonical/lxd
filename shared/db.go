@@ -16,7 +16,7 @@ import (
 )
 
 func PrintStack() {
-	if ! debug || logger == nil {
+	if !debug || logger == nil {
 		return
 	}
 
