@@ -27,6 +27,7 @@ var listenAddr = gnuflag.String("tcp", "", "TCP address <addr:port> to listen on
 var group = gnuflag.String("group", "", "Group which owns the shared socket")
 var help = gnuflag.Bool("help", false, "Print this help message.")
 var version = gnuflag.Bool("version", false, "Print LXD's version number and exit.")
+var printGoroutines = gnuflag.Int("print-goroutines-every", -1, "For debugging, print a complete stack trace every n seconds")
 
 func init() {
 	myGroup, err := shared.GroupName(os.Getgid())
@@ -69,6 +70,15 @@ func run() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if *printGoroutines > 0 {
+		go func() {
+			for {
+				time.Sleep(time.Duration(*printGoroutines) * time.Second)
+				shared.PrintStack()
+			}
+		}()
 	}
 
 	d, err := StartDaemon(*listenAddr)
