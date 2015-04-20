@@ -1585,7 +1585,7 @@ type execWs struct {
 func (s *execWs) Metadata() interface{} {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
-		fds[string(fd)] = secret
+		fds[strconv.Itoa(fd)] = secret
 	}
 
 	return shared.Jmap{"fds": fds}

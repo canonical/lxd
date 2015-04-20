@@ -1029,7 +1029,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 	}
 
 	if interactive {
-		conn, err := c.websocket(resp.Operation, md.FDs[string(0)])
+		conn, err := c.websocket(resp.Operation, md.FDs["0"])
 		if err != nil {
 			return -1, err
 		}
@@ -1040,7 +1040,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 		conns := make([]*websocket.Conn, 3)
 		dones := make([]chan bool, 3)
 		for i := 0; i < 3; i++ {
-			conns[i], err = c.websocket(resp.Operation, md.FDs[string(i)])
+			conns[i], err = c.websocket(resp.Operation, md.FDs[strconv.Itoa(i)])
 			if err != nil {
 				return -1, err
 			}
