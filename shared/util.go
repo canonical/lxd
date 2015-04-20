@@ -305,7 +305,7 @@ func WebsocketRecvStream(w io.WriteCloser, conn *websocket.Conn) chan bool {
 // WebsocketMirror allows mirroring a reader to a websocket and taking the
 // result and writing it to a writer.
 func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.Reader) chan bool {
-	done := make(chan bool, 1)
+	done := make(chan bool, 2)
 	go func(conn *websocket.Conn, w io.WriteCloser) {
 		for {
 			mt, r, err := conn.NextReader()
