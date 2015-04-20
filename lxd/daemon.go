@@ -343,6 +343,8 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		tcpListen = func() error { return http.Serve(d.tcpl, d.mux) }
 	}
 
+	containersWatch(d)
+
 	d.tomb.Go(func() error {
 		if tcpListen != nil {
 			d.tomb.Go(tcpListen)

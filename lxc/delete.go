@@ -75,10 +75,10 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		if op.StatusCode == shared.Failure {
 			return fmt.Errorf(gettext.Gettext("Stopping container failed!"))
 		}
-	}
 
-	if ct.Ephemeral == true {
-		return nil
+		if ct.Ephemeral == true {
+			return nil
+		}
 	}
 
 	return doDelete(d, name)
