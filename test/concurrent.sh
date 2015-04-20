@@ -1,5 +1,7 @@
 test_concurrent() {
   spawn_container() {
+    set -e
+
     name=concurrent-${1}
 
     lxc launch testimage ${name}
@@ -21,7 +23,7 @@ test_concurrent() {
   done
 
   for pid in $PIDS; do
-      wait $pid || true
+      wait $pid
   done
 
   ! lxc list | grep -q concurrent
