@@ -97,6 +97,51 @@ type containerPostReq struct {
 	Ephemeral bool                 `json:"ephemeral"`
 }
 
+func containerWatchEphemeral(c *lxdContainer) {
+	go func() {
+		c.c.Wait(lxc.STOPPED, -1*time.Second)
+		c.c.Wait(lxc.RUNNING, 1*time.Second)
+		c.c.Wait(lxc.STOPPED, -1*time.Second)
+
+		_, err := dbGetContainerId(c.daemon.db, c.name)
+		if err != nil {
+			return
+		}
+
+		dirsToDelete := containerDeleteSnapshots(c.daemon, c.name)
+		dbRemoveContainer(c.daemon, c.name)
+		dirsToDelete = append(dirsToDelete, shared.VarPath("lxc", c.name))
+		for _, dir := range dirsToDelete {
+			os.RemoveAll(dir)
+		}
+	}()
+}
+
+func containersWatch(d *Daemon) error {
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
+	inargs := []interface{}{cTypeRegular}
+	var name string
+	outfmt := []interface{}{name}
+
+	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		return err
+	}
+
+	for _, r := range result {
+		container, err := newLxdContainer(string(r[0].(string)), d)
+		if err != nil {
+			return err
+		}
+
+		if container.ephemeral == true && container.c.State() != lxc.STOPPED {
+			containerWatchEphemeral(container)
+		}
+	}
+
+	return nil
+}
+
 func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var uuid string
 	var err error
@@ -797,23 +842,7 @@ func (c *lxdContainer) Start() error {
 	err := c.c.Start()
 
 	if err == nil && c.ephemeral == true {
-		go func() {
-			c.c.Wait(lxc.STOPPED, -1*time.Second)
-			c.c.Wait(lxc.RUNNING, 1*time.Second)
-			c.c.Wait(lxc.STOPPED, -1*time.Second)
-
-			_, err := dbGetContainerId(c.daemon.db, c.name)
-			if err != nil {
-				return
-			}
-
-			dirsToDelete := containerDeleteSnapshots(c.daemon, c.name)
-			dbRemoveContainer(c.daemon, c.name)
-			dirsToDelete = append(dirsToDelete, shared.VarPath("lxc", c.name))
-			for _, dir := range dirsToDelete {
-				os.RemoveAll(dir)
-			}
-		}()
+		containerWatchEphemeral(c)
 	}
 
 	return err
@@ -1034,7 +1063,6 @@ func (c *lxdContainer) applyDevices() error {
 				return fmt.Errorf("Failed configuring device %s: %s\n", name, err)
 			}
 		}
-		shared.Debugf("Configured device %s\n", name)
 	}
 	return nil
 }
@@ -1585,7 +1613,7 @@ type execWs struct {
 func (s *execWs) Metadata() interface{} {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
-		fds[string(fd)] = secret
+		fds[strconv.Itoa(fd)] = secret
 	}
 
 	return shared.Jmap{"fds": fds}
