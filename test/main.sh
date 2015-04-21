@@ -52,6 +52,9 @@ lxc() {
 }
 
 cleanup() {
+    if [ -n "$LXD_INSPECT" ]; then
+        read -p "Tests Completed ($RESULT): hit enter to continue" x
+    fi
     echo "==> Cleaning up"
 
     # Try to stop all the containers
@@ -99,7 +102,7 @@ spawn_lxd() {
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
   local LXD_DIR
   echo "==> Spawning lxd on $1 in $2"
-  LXD_DIR=$2 lxd $debug --tcp $1 &
+  LXD_DIR=$2 lxd $debug --tcp $1 2>&1 | tee $2/lxd.log &
 
   echo "==> Confirming lxd on $1 is responsive"
   alive=0
