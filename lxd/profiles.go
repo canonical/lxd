@@ -67,7 +67,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 
 	name := req.Name
 
-	tx, err := d.db.Begin()
+	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -156,7 +156,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	tx, err := d.db.Begin()
+	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -213,7 +213,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 
 func profileDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	tx, err := d.db.Begin()
+	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
