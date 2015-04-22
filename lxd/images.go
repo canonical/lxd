@@ -158,7 +158,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		arch = architectures[imageMeta.Architecture]
 	}
 
-	tx, err := d.db.Begin()
+	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return cleanup(err, imagefname)
 	}
@@ -358,7 +358,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		shared.Debugf("Error deleting image file %s: %s\n", fname, err)
 	}
 
-	tx, err := d.db.Begin()
+	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -505,7 +505,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	tx, err := d.db.Begin()
+	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
 	}

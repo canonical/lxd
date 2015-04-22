@@ -445,7 +445,7 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[s
 		profiles = []string{"default"}
 	}
 
-	tx, err := d.db.Begin()
+	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return 0, err
 	}
@@ -676,7 +676,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 
 	do := func() error {
 
-		tx, err := d.db.Begin()
+		tx, err := shared.DbBegin(d.db)
 		if err != nil {
 			return err
 		}
@@ -1031,7 +1031,7 @@ func (c *lxdContainer) setupMacAddresses(d *Daemon) error {
 
 	if len(newConfigEntries) > 0 {
 
-		tx, err := d.db.Begin()
+		tx, err := shared.DbBegin(d.db)
 		if err != nil {
 			return err
 		}

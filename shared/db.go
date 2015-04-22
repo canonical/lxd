@@ -38,6 +38,22 @@ func IsDbLockedError(err error) bool {
 	return false
 }
 
+func DbBegin(db *sql.DB) (*sql.Tx, error) {
+	for {
+		tx, err := db.Begin()
+		if err == nil {
+			return tx, nil
+		}
+		if !IsDbLockedError(err) {
+			Debugf("DbBegin: error %q\n", err)
+			return nil, err
+		}
+		Debugf("DbBegin: DB was locked\n")
+		PrintStack()
+		time.Sleep(1 * time.Second)
+	}
+}
+
 func TxCommit(tx *sql.Tx) error {
 	for {
 		err := tx.Commit()
