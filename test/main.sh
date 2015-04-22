@@ -11,7 +11,6 @@ export LXD_FUIDMAP_DIR=${LXD_DIR}/fuidmap
 mkdir -p ${LXD_FUIDMAP_DIR}
 BASEURL=https://127.0.0.1:18443
 RESULT=failure
-lxd_pid=0
 
 set -e
 if [ -n "$LXD_DEBUG" ]; then
@@ -59,8 +58,16 @@ cleanup() {
         wait_for my_curl -X PUT "$BASEURL$line/state" -d "{\"action\":\"stop\",\"force\":true}"
     done
 
-    [ "${lxd_pid}" -gt "0" ] && kill -9 ${lxd_pid}
-    [ -n "${lxd2_pid}" ] && [ "${lxd2_pid}" -gt "0" ] && kill -9 ${lxd2_pid}
+    # kill the lxds which share our pgrp as parent
+    mygrp=`awk '{ print $5 }' /proc/self/stat`
+    for p in `pidof lxd`; do
+        echo "XXX looking at  $p"
+        pgrp=`awk '{ print $5 }' /proc/$p/stat`
+        if [ "$pgrp" = "$mygrp" ]; then
+            echo "XXX killing $p"
+            kill -9 $p
+        fi
+    done
 
     # Apparently we need to wait a while for everything to die
     sleep 3
@@ -113,12 +120,10 @@ spawn_lxd() {
 }
 
 spawn_lxd 127.0.0.1:18443 $LXD_DIR
-lxd_pid=$!
 
 export LXD2_DIR=$(mktemp -d -p $(pwd))
 chmod 777 "${LXD2_DIR}"
 spawn_lxd 127.0.0.1:18444 "${LXD2_DIR}"
-lxd2_pid=$!
 
 # allow for running a specific set of tests
 if [ "$#" -gt 0 ]; then
