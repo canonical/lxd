@@ -140,7 +140,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 
 			dbHash := hex.EncodeToString(append(salt, hash...))
 
-			tx, err := d.db.Begin()
+			tx, err := shared.DbBegin(d.db)
 			if err != nil {
 				return InternalError(err)
 			}

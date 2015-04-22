@@ -96,7 +96,7 @@ func readSavedClientCAList(d *Daemon) {
 }
 
 func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
-	tx, err := d.db.Begin()
+	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return err
 	}
