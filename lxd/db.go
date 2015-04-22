@@ -156,17 +156,15 @@ INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 }
 
 func getSchema(db *sql.DB) (int, error) {
-	rows, err := db.Query("SELECT max(version) FROM schema")
+	var v int
+	arg1 := []interface{}{}
+	arg2 := []interface{}{&v}
+	q := "SELECT max(version) FROM schema"
+	err := shared.DbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		return 0, nil
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var v int
-		rows.Scan(&v)
-		return v, nil
-	}
-	return 0, nil
+	return v, nil
 }
 
 func updateFromV5(db *sql.DB) error {
