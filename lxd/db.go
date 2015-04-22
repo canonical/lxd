@@ -380,7 +380,7 @@ func createDefaultProfile(db *sql.DB) error {
 		return nil
 	}
 
-	tx, err := db.Begin()
+	tx, err := shared.DbBegin(db)
 	if err != nil {
 		return err
 	}
