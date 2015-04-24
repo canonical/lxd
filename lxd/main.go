@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 	"time"
 
@@ -28,6 +29,8 @@ var group = gnuflag.String("group", "", "Group which owns the shared socket")
 var help = gnuflag.Bool("help", false, "Print this help message.")
 var version = gnuflag.Bool("version", false, "Print LXD's version number and exit.")
 var printGoroutines = gnuflag.Int("print-goroutines-every", -1, "For debugging, print a complete stack trace every n seconds")
+var cpuProfile = gnuflag.String("cpuprofile", "", "Enable cpu profiling into the specified file.")
+var memProfile = gnuflag.String("memprofile", "", "Enable memory profiling into the specified file.")
 
 func init() {
 	myGroup, err := shared.GroupName(os.Getgid())
@@ -62,6 +65,20 @@ func run() error {
 	if *verbose || *debug {
 		shared.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
 		shared.SetDebug(*debug)
+	}
+
+	if *cpuProfile != "" {
+		f, err := os.Create(*cpuProfile)
+		if err != nil {
+			fmt.Printf("Error opening cpu profile file: %s\n", err)
+			return nil
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	if *memProfile != "" {
+		go memProfiler()
 	}
 
 	needed_programs := []string{"setfacl", "rsync", "tar", "xz"}
