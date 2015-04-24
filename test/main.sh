@@ -77,6 +77,8 @@ cleanup() {
     rm -Rf ${LXD_DIR}
     rm -Rf ${LXD_CONF}
     [ -n "${LXD2_DIR}" ] && rm -Rf "${LXD2_DIR}"
+    [ -n "${LXD3_DIR}" ] && rm -Rf "${LXD3_DIR}"
+    [ -n "${LXD4_DIR}" ] && rm -Rf "${LXD4_DIR}"
 
     echo ""
     echo ""
@@ -99,6 +101,7 @@ fi
 . ./snapshots.sh
 . ./static_analysis.sh
 . ./config.sh
+. ./profiling.sh
 
 if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
@@ -108,18 +111,23 @@ spawn_lxd() {
   # LXD_DIR is local here because since `lxc` is actually a function, it
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
   local LXD_DIR
-  echo "==> Spawning lxd on $1 in $2"
-  LXD_DIR=$2 lxd $debug --tcp $1 2>&1 | tee $2/lxd.log &
 
-  echo "==> Confirming lxd on $1 is responsive"
+  addr=$1
+  lxddir=$2
+  shift
+  shift
+  echo "==> Spawning lxd on $addr in $lxddir"
+  LXD_DIR=$lxddir lxd $debug --tcp $addr $extraargs $* 2>&1 | tee $lxddir/lxd.log &
+
+  echo "==> Confirming lxd on $addr is responsive"
   alive=0
   while [ $alive -eq 0 ]; do
-    [ -e "${2}/unix.socket" ] && LXD_DIR=$2 lxc finger && alive=1
+    [ -e "${lxddir}/unix.socket" ] && LXD_DIR=$lxddir lxc finger && alive=1
     sleep 1s
   done
 
   echo "==> Setting trust password"
-  LXD_DIR=$2 lxc config set password foo
+  LXD_DIR=$lxddir lxc config set password foo
 }
 
 spawn_lxd 127.0.0.1:18443 $LXD_DIR
@@ -167,6 +175,11 @@ test_fuidshift
 
 echo "==> TEST: migration"
 test_migration
+
+echo "==> TEST: cpu profiling"
+test_cpu_profiling
+echo "==> TEST: memory profiling"
+test_mem_profiling
 
 # This should always be run last
 echo "==> TEST: database lock"
