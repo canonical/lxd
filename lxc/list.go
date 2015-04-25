@@ -92,12 +92,13 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 	return true
 }
 
-func listContainers(d *lxd.Client, cts []string, filters []string, showsnaps bool) error {
+func listContainers(client *lxd.Client, cts []string, filters []string, listsnaps bool) error {
+	var snaps []string
 	data := [][]string{}
 
 	for _, ct := range cts {
 		// get more information
-		c, err := d.ContainerStatus(ct)
+		c, err := client.ContainerStatus(ct)
 		d := []string{}
 		if err == nil {
 			d = []string{ct, c.Status.State}
@@ -138,11 +139,19 @@ func listContainers(d *lxd.Client, cts []string, filters []string, showsnaps boo
 		} else {
 			d = append(d, "NO")
 		}
+		// List snapshots
+		snaps, err = client.ListSnapshots(ct)
+		if err != nil {
+			d = append(d, fmt.Sprintf("(ERR)"))
+		} else {
+			d = append(d, fmt.Sprintf("%d", len(snaps)))
+		}
+
 		data = append(data, d)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"NAME", "STATE", "IPV4", "IPV6", "EPHEMERAL"})
+	table.SetHeader([]string{"NAME", "STATE", "IPV4", "IPV6", "EPHEMERAL", "SNAPSHOTS"})
 
 	for _, v := range data {
 		table.Append(v)
@@ -150,13 +159,8 @@ func listContainers(d *lxd.Client, cts []string, filters []string, showsnaps boo
 
 	table.Render() // Send output
 
-	if showsnaps {
-		cName := cts[0]
+	if listsnaps && len(cts) == 1 {
 		first_snapshot := true
-		snaps, err := d.ListSnapshots(cName)
-		if err != nil {
-			return nil
-		}
 		for _, snap := range snaps {
 			if first_snapshot {
 				fmt.Printf("Snapshots:\n")
@@ -170,13 +174,12 @@ func listContainers(d *lxd.Client, cts []string, filters []string, showsnaps boo
 
 func (c *listCmd) run(config *lxd.Config, args []string) error {
 	var remote string
-	var name string
+	name := ""
 
 	filters := []string{}
 
 	if len(args) == 0 {
 		remote = config.DefaultRemote
-		name = ""
 	} else {
 		filters = args
 		if strings.Contains(args[0], ":") {
@@ -184,7 +187,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 			filters = args[1:]
 		} else if !strings.Contains(args[0], "=") {
 			remote = config.DefaultRemote
-			name = ""
+			name = args[0]
 		}
 	}
 
@@ -203,5 +206,5 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		cts = []string{name}
 	}
 
-	return listContainers(d, cts, filters, len(cts) == 1)
+	return listContainers(d, cts, filters, name != "")
 }
