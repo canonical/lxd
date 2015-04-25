@@ -987,6 +987,23 @@ func GenerateMacAddr(template string) (string, error) {
 	return ret.String(), nil
 }
 
+func (c *lxdContainer) updateContainerHWAddr(k, v string) {
+	for name, d := range c.devices {
+		if d["type"] != "nic" {
+			continue
+		}
+
+		for key, _ := range c.config {
+			device, err := ExtractInterfaceFromConfigName(key)
+			if err == nil && device == name {
+				d["hwaddr"] = v
+				c.config[key] = v
+				return
+			}
+		}
+	}
+}
+
 func (c *lxdContainer) setupMacAddresses(d *Daemon) error {
 	newConfigEntries := map[string]string{}
 
@@ -1036,12 +1053,75 @@ func (c *lxdContainer) setupMacAddresses(d *Daemon) error {
 			return err
 		}
 
-		if err := dbInsertContainerConfig(tx, c.id, newConfigEntries); err != nil {
+		/*
+		 * My logic may be flawed here, but it seems to me that one of
+		 * the following must be true:
+		 * 1. The current database entry equals what we had stored.
+		 *    Our update akes precedence
+		 * 2. The current database entry is different from what we had
+		 *    stored.  Someone updated it since we last grabbed the
+		 *    container configuration.  So either
+		 *    a. it contains 'x' and is a template.  We have generated
+		 *       a real mac, so our update takes precedence
+		 *    b. it contains no 'x' and is an hwaddr, not template.  We
+		 *       defer to the racer's update since it may be actually
+		 *       starting the container.
+		 */
+		str := "INSERT INTO containers_config (container_id, key, value) values (?, ?, ?)"
+		stmt, err := tx.Prepare(str)
+		if err != nil {
 			tx.Rollback()
 			return err
 		}
+		defer stmt.Close()
 
-		return shared.TxCommit(tx)
+		ustr := "UPDATE containers_config SET value=? WHERE container_id=? AND key=?"
+		ustmt, err := tx.Prepare(ustr)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		defer ustmt.Close()
+
+		qstr := "SELECT value FROM containers_config WHERE container_id=? AND key=?"
+		qstmt, err := tx.Prepare(qstr)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		defer qstmt.Close()
+
+		for k, v := range newConfigEntries {
+			var racer string
+			err := qstmt.QueryRow(c.id, k).Scan(&racer)
+			if err == sql.ErrNoRows {
+				_, err = stmt.Exec(c.id, k, v)
+				if err != nil {
+					shared.Debugf("Error adding mac address to container\n")
+					tx.Rollback()
+					return err
+				}
+			} else if err != nil {
+				tx.Rollback()
+				return err
+			} else if strings.Contains(racer, "x") {
+				_, err = ustmt.Exec(v, c.id, k)
+				if err != nil {
+					shared.Debugf("Error updating mac address to container\n")
+					tx.Rollback()
+					return err
+				}
+			} else {
+				// we accept the racing task's update
+				c.updateContainerHWAddr(k, v)
+			}
+		}
+
+		err = shared.TxCommit(tx)
+		if err != nil {
+			fmt.Printf("setupMacAddresses: (TxCommit) error %s\n", err)
+		}
+		return err
 	}
 
 	return nil
