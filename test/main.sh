@@ -17,6 +17,15 @@ if [ -n "$LXD_DEBUG" ]; then
     set -x
 fi
 
+if [ "$USER" != "root" ]; then
+    echo "The testsuite must be run as root."
+    exit 1
+fi
+
+for dep in lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt; do
+    type $dep >/dev/null 2>&1 || (echo "Missing dependency: $dep" && exit 1)
+done
+
 echo "==> Running the LXD testsuite"
 
 BASEURL=https://127.0.0.1:18443
@@ -64,10 +73,8 @@ cleanup() {
     # kill the lxds which share our pgrp as parent
     mygrp=`awk '{ print $5 }' /proc/self/stat`
     for p in `pidof lxd`; do
-        echo "XXX looking at  $p"
         pgrp=`awk '{ print $5 }' /proc/$p/stat`
         if [ "$pgrp" = "$mygrp" ]; then
-            echo "XXX killing $p"
             kill -9 $p
         fi
     done
