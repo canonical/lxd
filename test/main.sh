@@ -59,6 +59,18 @@ lxc() {
     eval "$CMD"
 }
 
+
+wipe() {
+    if type btrfs >/dev/null 2>&1; then
+        btrfs subvolume list -o "$1" | awk '{print $NF}' | while read line; do
+            subvol=$(echo $line | awk '{print $NF}')
+            btrfs subvolume delete "/$subvol"
+        done
+    fi
+
+    rm -Rf "$1"
+}
+
 cleanup() {
     if [ -n "$LXD_INSPECT" ]; then
         read -p "Tests Completed ($RESULT): hit enter to continue" x
@@ -83,9 +95,9 @@ cleanup() {
     sleep 3
     rm -Rf ${LXD_DIR}
     rm -Rf ${LXD_CONF}
-    [ -n "${LXD2_DIR}" ] && rm -Rf "${LXD2_DIR}"
-    [ -n "${LXD3_DIR}" ] && rm -Rf "${LXD3_DIR}"
-    [ -n "${LXD4_DIR}" ] && rm -Rf "${LXD4_DIR}"
+    [ -n "${LXD2_DIR}" ] && wipe "${LXD2_DIR}"
+    [ -n "${LXD3_DIR}" ] && wipe "${LXD3_DIR}"
+    [ -n "${LXD4_DIR}" ] && wipe "${LXD4_DIR}"
 
     echo ""
     echo ""

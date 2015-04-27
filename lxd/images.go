@@ -98,8 +98,19 @@ type imageMetadata struct {
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
+	backing_fs, _, err := shared.GetFilesystem(d.lxcpath)
+	if err != nil {
+		return InternalError(err)
+	}
 
 	cleanup := func(err error, fname string) Response {
+		if backing_fs == "btrfs" {
+			subvol := fmt.Sprintf("%s.btrfs", fname)
+			if shared.PathExists(subvol) {
+				exec.Command("btrfs", "subvolume", "delete", subvol).Run()
+			}
+		}
+
 		// show both errors, if remove fails
 		if remErr := os.Remove(fname); remErr != nil {
 			return InternalError(fmt.Errorf("Could not process image: %s; Error deleting temporary file: %s", err, remErr))
@@ -145,6 +156,43 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	err = os.Rename(fname, imagefname)
 	if err != nil {
 		return cleanup(err, fname)
+	}
+
+	if backing_fs == "btrfs" {
+		subvol := fmt.Sprintf("%s.btrfs", imagefname)
+		output, err := exec.Command("btrfs", "subvolume", "create", subvol).CombinedOutput()
+		if err != nil {
+			shared.Debugf("btrfs subvolume creation failed\n")
+			shared.Debugf(string(output))
+			return cleanup(err, imagefname)
+		}
+
+		compression, _, err := detectCompression(imagefname)
+		if err != nil {
+			return cleanup(err, imagefname)
+		}
+
+		args := []string{"-C", subvol, "--numeric-owner"}
+		switch compression {
+		case COMPRESSION_TAR:
+			args = append(args, "-xf")
+		case COMPRESSION_GZIP:
+			args = append(args, "-zxf")
+		case COMPRESSION_BZ2:
+			args = append(args, "--jxf")
+		case COMPRESSION_LZMA:
+			args = append(args, "--lzma", "-xf")
+		default:
+			args = append(args, "-Jxf")
+		}
+		args = append(args, imagefname)
+
+		output, err = exec.Command("tar", args...).CombinedOutput()
+		if err != nil {
+			shared.Debugf("image unpacking failed\n")
+			shared.Debugf(string(output))
+			return cleanup(err, imagefname)
+		}
 	}
 
 	imageMeta, err := getImageMetadata(imagefname)
@@ -345,6 +393,11 @@ func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
 var imagesCmd = Command{name: "images", post: imagesPost, get: imagesGet}
 
 func imageDelete(d *Daemon, r *http.Request) Response {
+	backing_fs, _, err := shared.GetFilesystem(d.lxcpath)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	imgInfo, err := dbImageGet(d, fingerprint, false)
@@ -356,6 +409,11 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	err = os.Remove(fname)
 	if err != nil {
 		shared.Debugf("Error deleting image file %s: %s\n", fname, err)
+	}
+
+	if backing_fs == "btrfs" {
+		subvol := fmt.Sprintf("%s.btrfs", fname)
+		exec.Command("btrfs", "subvolume", "delete", subvol).Run()
 	}
 
 	tx, err := shared.DbBegin(d.db)
