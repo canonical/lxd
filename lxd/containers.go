@@ -327,6 +327,9 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	newPath := fmt.Sprintf("%s/%s", dpath, "rootfs")
 	run := func() shared.OperationResult {
 		err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
+		if err == nil && !source.isPrivileged() {
+			err = setUnprivUserAcl(d, dpath)
+		}
 		return shared.OperationError(err)
 	}
 
@@ -430,13 +433,18 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	}
 
 	/* Set an acl so the container root can descend the container dir */
-	acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
-	_, err = exec.Command("setfacl", "-m", acl, dpath).Output()
+	err = setUnprivUserAcl(d, dpath)
 	if err != nil {
 		shared.Debugf("Error adding acl for container root: start will likely fail\n")
 	}
 
 	return nil
+}
+
+func setUnprivUserAcl(d *Daemon, dpath string) error {
+	acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
+	_, err := exec.Command("setfacl", "-m", acl, dpath).Output()
+	return err
 }
 
 func dbRemoveContainer(d *Daemon, name string) {
