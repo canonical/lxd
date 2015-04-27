@@ -10,6 +10,9 @@ test_snapshots() {
   lxc snapshot foo tester
   [ -d "$LXD_DIR/lxc/foo/snapshots/tester" ]
 
+  lxc copy foo/tester foosnap1
+  [ -d "$LXD_DIR/lxc/foosnap1/rootfs" ]
+
   lxc delete foo/snap0
   [ ! -d "$LXD_DIR/lxc/foo/snapshots/snap0" ]
 

@@ -6,6 +6,7 @@ import (
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
+	"github.com/lxc/lxd/shared"
 )
 
 type snapshotCmd struct {
@@ -46,7 +47,7 @@ func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	// we don't allow '/' in snapshot names
-	if lxd.IsSnapshot(snapname) {
+	if shared.IsSnapshot(snapname) {
 		return fmt.Errorf(gettext.Gettext("'/' not allowed in snapshot name\n"))
 	}
 
