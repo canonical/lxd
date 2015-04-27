@@ -84,15 +84,6 @@ type Response struct {
 	Metadata json.RawMessage `json:"metadata"`
 }
 
-func IsSnapshot(name string) bool {
-	x := strings.SplitN(name, "/", 2)
-
-	if len(x) == 2 {
-		return true
-	}
-	return false
-}
-
 func (r *Response) MetadataAsMap() (*shared.Jmap, error) {
 	ret := shared.Jmap{}
 	if err := json.Unmarshal(r.Metadata, &ret); err != nil {
