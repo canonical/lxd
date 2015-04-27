@@ -22,6 +22,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/gorilla/websocket"
@@ -574,4 +575,8 @@ func (r BytesReadCloser) Read(b []byte) (n int, err error) {
 func (r BytesReadCloser) Close() error {
 	/* no-op since we're in memory */
 	return nil
+}
+
+func IsSnapshot(name string) bool {
+	return strings.Contains(name, "/")
 }

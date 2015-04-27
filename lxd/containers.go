@@ -290,9 +290,16 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	// Make sure the source exists.
-	_, err := newLxdContainer(req.Source.Source, d)
+	source, err := newLxdContainer(req.Source.Source, d)
 	if err != nil {
 		return SmartError(err)
+	}
+
+	if req.Config == nil {
+		req.Config = source.config
+	}
+	if req.Profiles == nil {
+		req.Profiles = source.profiles
 	}
 
 	_, err = dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
@@ -306,7 +313,17 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		return InternalError(err)
 	}
 
-	oldPath := migration.AddSlash(shared.VarPath("lxc", req.Source.Source, "rootfs"))
+	var oldPath string
+	if shared.IsSnapshot(req.Source.Source) {
+		snappieces := strings.SplitN(req.Source.Source, "/", 2)
+		oldPath = migration.AddSlash(shared.VarPath("lxc",
+			snappieces[0],
+			"snapshots",
+			snappieces[1],
+			"rootfs"))
+	} else {
+		oldPath = migration.AddSlash(shared.VarPath("lxc", req.Source.Source, "rootfs"))
+	}
 	newPath := fmt.Sprintf("%s/%s", dpath, "rootfs")
 	run := func() shared.OperationResult {
 		err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
