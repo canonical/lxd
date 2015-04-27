@@ -108,12 +108,9 @@ func containerWatchEphemeral(c *lxdContainer) {
 			return
 		}
 
-		dirsToDelete := containerDeleteSnapshots(c.daemon, c.name)
 		dbRemoveContainer(c.daemon, c.name)
-		dirsToDelete = append(dirsToDelete, shared.VarPath("lxc", c.name))
-		for _, dir := range dirsToDelete {
-			os.RemoveAll(dir)
-		}
+		containerDeleteSnapshots(c.daemon, c.name)
+		removeContainerPath(c.daemon, c.name)
 	}()
 }
 
@@ -145,6 +142,13 @@ func containersWatch(d *Daemon) error {
 func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var uuid string
 	var err error
+	var run func() shared.OperationResult
+
+	backing_fs, _, err := shared.GetFilesystem(d.lxcpath)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	if req.Source.Alias != "" {
 		if req.Source.Mode == "pull" && req.Source.Server != "" {
 			uuid, err = remoteGetImageFingerprint(d, req.Source.Server, req.Source.Alias)
@@ -185,23 +189,25 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		return InternalError(fmt.Errorf("Container exists"))
 	}
 
-	rootfsPath := fmt.Sprintf("%s/rootfs", dpath)
-	err = os.MkdirAll(rootfsPath, 0700)
-	if err != nil {
-		return InternalError(fmt.Errorf("Error creating rootfs directory"))
+	name := req.Name
+
+	if backing_fs == "btrfs" && shared.PathExists(fmt.Sprintf("%s.btrfs", shared.VarPath("images", uuid))) {
+		run = shared.OperationWrap(func() error { return btrfsCopyImage(uuid, name, d) })
+	} else {
+		rootfsPath := fmt.Sprintf("%s/rootfs", dpath)
+		err = os.MkdirAll(rootfsPath, 0700)
+		if err != nil {
+			return InternalError(fmt.Errorf("Error creating rootfs directory"))
+		}
+
+		run = shared.OperationWrap(func() error { return extractShiftRootfs(uuid, name, d) })
 	}
 
-	name := req.Name
 	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
 	if err != nil {
 		removeContainerPath(d, name)
 		return SmartError(err)
 	}
-
-	/*
-	 * extract the rootfs asynchronously
-	 */
-	run := shared.OperationWrap(func() error { return extractShiftRootfs(uuid, name, d) })
 
 	resources := make(map[string][]string)
 	resources["containers"] = []string{req.Name}
@@ -210,7 +216,6 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 }
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
-
 	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
 	if err != nil {
 		return SmartError(err)
@@ -373,7 +378,18 @@ func containersPost(d *Daemon, r *http.Request) Response {
 
 func removeContainerPath(d *Daemon, name string) {
 	cpath := shared.VarPath("lxc", name)
-	err := os.RemoveAll(cpath)
+
+	backing_fs, _, err := shared.GetFilesystem(cpath)
+	if err != nil {
+		shared.Debugf("Error cleaning up %s: %s\n", cpath, err)
+		return
+	}
+
+	if backing_fs == "btrfs" {
+		exec.Command("btrfs", "subvolume", "delete", cpath).Run()
+	}
+
+	err = os.RemoveAll(cpath)
 	if err != nil {
 		shared.Debugf("Error cleaning up %s: %s\n", cpath, err)
 	}
@@ -382,6 +398,34 @@ func removeContainerPath(d *Daemon, name string) {
 func removeContainer(d *Daemon, name string) {
 	removeContainerPath(d, name)
 	dbRemoveContainer(d, name)
+}
+
+func btrfsCopyImage(uuid string, name string, d *Daemon) error {
+	dpath := shared.VarPath("lxc", name)
+	imagefile := shared.VarPath("images", uuid)
+	subvol := fmt.Sprintf("%s.btrfs", imagefile)
+
+	err := exec.Command("btrfs", "subvolume", "snapshot", subvol, dpath).Run()
+	if err != nil {
+		return err
+	}
+
+	rpath := shared.VarPath("lxc", name, "rootfs")
+	err = d.idMap.ShiftRootfs(rpath)
+	if err != nil {
+		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
+		removeContainer(d, name)
+		return err
+	}
+
+	/* Set an acl so the container root can descend the container dir */
+	acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
+	_, err = exec.Command("setfacl", "-m", acl, dpath).Output()
+	if err != nil {
+		shared.Debugf("Error adding acl for container root: start will likely fail\n")
+	}
+
+	return nil
 }
 
 func extractShiftRootfs(uuid string, name string, d *Daemon) error {
@@ -530,7 +574,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, c.RenderState())
 }
 
-func containerDeleteSnapshots(d *Daemon, cname string) []string {
+func containerDeleteSnapshots(d *Daemon, cname string) {
 	prefix := fmt.Sprintf("%s/", cname)
 	length := len(prefix)
 	q := "SELECT name, id FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
@@ -540,24 +584,34 @@ func containerDeleteSnapshots(d *Daemon, cname string) []string {
 	outfmt := []interface{}{sname, id}
 	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
-		return nil
+		return
 	}
 
-	var response []string
 	var ids []int
+
+	backing_fs, _, err := shared.GetFilesystem(shared.VarPath("lxc", cname))
+	if err != nil {
+		shared.Debugf("Error cleaning up snapshots: %s\n", err)
+		return
+	}
 
 	for _, r := range results {
 		sname = r[0].(string)
 		id = r[1].(int)
 		ids = append(ids, id)
 		cdir := shared.VarPath("lxc", cname, "snapshots", sname)
-		response = append(response, cdir)
+
+		if backing_fs == "btrfs" {
+			exec.Command("btrfs", "subvolume", "delete", cdir).Run()
+		}
+		os.RemoveAll(cdir)
 	}
 
 	for _, id := range ids {
 		_, _ = shared.DbExec(d.db, "DELETE FROM containers WHERE id=?", id)
 	}
-	return response
+
+	return
 }
 
 type containerConfigReq struct {
@@ -807,16 +861,10 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	dirsToDelete := containerDeleteSnapshots(d, name)
 	dbRemoveContainer(d, name)
-	dirsToDelete = append(dirsToDelete, shared.VarPath("lxc", name))
 	rmdir := func() error {
-		for _, dir := range dirsToDelete {
-			err := os.RemoveAll(dir)
-			if err != nil {
-				shared.Debugf("Error cleaning up %s: %s\n", dir, err)
-			}
-		}
+		containerDeleteSnapshots(d, name)
+		removeContainerPath(d, name)
 		return nil
 	}
 	return AsyncResponse(shared.OperationWrap(rmdir), nil)
