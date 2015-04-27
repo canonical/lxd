@@ -46,19 +46,22 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		return err
 	}
 
-	status, err := source.ContainerStatus(sourceName)
-	if err != nil {
-		return err
-	}
+	status := shared.ContainerState{}
+	if !shared.IsSnapshot(sourceName) {
+		status, err := source.ContainerStatus(sourceName)
+		if err != nil {
+			return err
+		}
 
-	if status.State() == lxc.RUNNING && sourceName != destName {
-		return fmt.Errorf(gettext.Gettext("changing hostname of running containers not supported"))
-	}
+		if status.State() == lxc.RUNNING && sourceName != destName {
+			return fmt.Errorf(gettext.Gettext("changing hostname of running containers not supported"))
+		}
 
-	if !keepVolatile {
-		for k := range status.Config {
-			if strings.HasPrefix(k, "volatile") {
-				delete(status.Config, k)
+		if !keepVolatile {
+			for k := range status.Config {
+				if strings.HasPrefix(k, "volatile") {
+					delete(status.Config, k)
+				}
 			}
 		}
 	}
