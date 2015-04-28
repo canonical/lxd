@@ -39,14 +39,6 @@ var api10 = []Command{
 	profileCmd,
 }
 
-/* Some interesting filesystems */
-const (
-	tmpfsSuperMagic = 0x01021994
-	ext4SuperMagic  = 0xEF53
-	xfsSuperMagic   = 0x58465342
-	nfsSuperMagic   = 0x6969
-)
-
 func api10Get(d *Daemon, r *http.Request) Response {
 	body := shared.Jmap{"api_compat": shared.APICompat}
 
@@ -58,27 +50,15 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		fs := syscall.Statfs_t{}
-		if err := syscall.Statfs(d.lxcpath, &fs); err != nil {
+		backing_fs, _, err := shared.GetFilesystem(d.lxcpath)
+		if err != nil {
 			return InternalError(err)
 		}
 
-		env := shared.Jmap{"lxc_version": lxc.Version(), "driver": "lxc"}
-
-		switch fs.Type {
-		case btrfsSuperMagic:
-			env["backing_fs"] = "btrfs"
-		case tmpfsSuperMagic:
-			env["backing_fs"] = "tmpfs"
-		case ext4SuperMagic:
-			env["backing_fs"] = "ext4"
-		case xfsSuperMagic:
-			env["backing_fs"] = "xfs"
-		case nfsSuperMagic:
-			env["backing_fs"] = "nfs"
-		default:
-			env["backing_fs"] = fs.Type
-		}
+		env := shared.Jmap{
+			"lxc_version": lxc.Version(),
+			"driver":      "lxc",
+			"backing_fs":  backing_fs}
 
 		/*
 		 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
