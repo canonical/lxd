@@ -144,7 +144,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var err error
 	var run func() shared.OperationResult
 
-	backing_fs, _, err := shared.GetFilesystem(d.lxcpath)
+	backing_fs, err := shared.GetFilesystem(d.lxcpath)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -379,7 +379,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 func removeContainerPath(d *Daemon, name string) {
 	cpath := shared.VarPath("lxc", name)
 
-	backing_fs, _, err := shared.GetFilesystem(cpath)
+	backing_fs, err := shared.GetFilesystem(cpath)
 	if err != nil {
 		shared.Debugf("Error cleaning up %s: %s\n", cpath, err)
 		return
@@ -589,7 +589,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) {
 
 	var ids []int
 
-	backing_fs, _, err := shared.GetFilesystem(shared.VarPath("lxc", cname))
+	backing_fs, err := shared.GetFilesystem(shared.VarPath("lxc", cname))
 	if err != nil {
 		shared.Debugf("Error cleaning up snapshots: %s\n", err)
 		return

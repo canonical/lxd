@@ -50,7 +50,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		backing_fs, _, err := shared.GetFilesystem(d.lxcpath)
+		backing_fs, err := shared.GetFilesystem(d.lxcpath)
 		if err != nil {
 			return InternalError(err)
 		}

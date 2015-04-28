@@ -98,7 +98,7 @@ type imageMetadata struct {
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
-	backing_fs, _, err := shared.GetFilesystem(d.lxcpath)
+	backing_fs, err := shared.GetFilesystem(d.lxcpath)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -393,7 +393,7 @@ func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
 var imagesCmd = Command{name: "images", post: imagesPost, get: imagesGet}
 
 func imageDelete(d *Daemon, r *http.Request) Response {
-	backing_fs, _, err := shared.GetFilesystem(d.lxcpath)
+	backing_fs, err := shared.GetFilesystem(d.lxcpath)
 	if err != nil {
 		return InternalError(err)
 	}
