@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-04-14 23:36-0500\n"
+"POT-Creation-Date: 2015-04-28 19:56+0200\n"
 "PO-Revision-Date: 2015-03-13 23:44+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -55,7 +55,7 @@ msgid ""
 "### Note that the name cannot be changed\n"
 msgstr ""
 
-#: lxc/snapshot.go:50
+#: lxc/snapshot.go:51
 msgid "'/' not allowed in snapshot name\n"
 msgstr "'/' はスナップショットの名前には使用できません。\n"
 
@@ -82,12 +82,12 @@ msgstr "別の設定ディレクトリ"
 msgid "Architecture: %s\n"
 msgstr ""
 
-#: client.go:690
+#: client.go:682
 #, fuzzy, c-format
 msgid "Bad image property: %s\n"
 msgstr "(不正なイメージプロパティ形式: %s\n"
 
-#: client.go:1371
+#: client.go:1363
 msgid "Cannot change profile name"
 msgstr "プロファイル名を変更できません"
 
@@ -95,7 +95,7 @@ msgstr "プロファイル名を変更できません"
 msgid "Cannot provide container name to list"
 msgstr ""
 
-#: client.go:810
+#: client.go:802
 #, c-format
 msgid "Certificate fingerprint: % x\n"
 msgstr "証明書のフィンガープリント: % x\n"
@@ -112,10 +112,6 @@ msgstr "コンテナの状態を %s に変更します。\n"
 msgid "Client certificate stored at server: "
 msgstr "クライアント証明書がサーバに格納されました: "
 
-#: lxc/list.go:105
-msgid "Container not found"
-msgstr "コンテナが見つかりません"
-
 #: lxc/image.go:82
 msgid "Copy aliases from source"
 msgstr ""
@@ -127,11 +123,11 @@ msgid ""
 "lxc copy <source container> <destination container>\n"
 msgstr ""
 
-#: client.go:825
+#: client.go:817
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません。"
 
-#: lxc/snapshot.go:21
+#: lxc/snapshot.go:22
 #, fuzzy
 msgid ""
 "Create a read-only snapshot of a container.\n"
@@ -169,7 +165,7 @@ msgstr "詳細モードを有効にします。"
 msgid "Ephemeral container"
 msgstr ""
 
-#: client.go:571 client.go:581 client.go:723
+#: client.go:563 client.go:573 client.go:715
 #, c-format
 msgid "Error adding alias %s\n"
 msgstr ""
@@ -332,7 +328,7 @@ msgstr ""
 msgid "No cert provided to add"
 msgstr "追加すべき証明書が提供されていません"
 
-#: client.go:798
+#: client.go:790
 msgid "No certificate on this connection"
 msgstr "この接続に使用する証明書がありません"
 
@@ -385,11 +381,11 @@ msgstr ""
 msgid "Public: %s\n"
 msgstr ""
 
-#: client.go:817
+#: client.go:809
 msgid "Server certificate NACKed by user"
 msgstr "ユーザによりサーバ証明書が拒否されました"
 
-#: client.go:287
+#: client.go:279
 #, c-format
 msgid ""
 "Server certificate for host %s has changed. Add correct certificate or "
@@ -478,15 +474,15 @@ msgstr ""
 "使い方: lxc [サブコマンド] [オプション]\n"
 "利用可能なコマンド:\n"
 
-#: lxc/snapshot.go:27
+#: lxc/snapshot.go:28
 msgid "Whether or not to snapshot the container's running state"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
 
-#: client.go:459
+#: client.go:451
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "APIのバージョン不一致: クライアント: %q, サーバ: %q"
 
-#: client.go:510 client.go:1272 client.go:1279
+#: client.go:502 client.go:1264 client.go:1271
 #, c-format
 msgid "bad container url %s"
 msgstr "コンテナの不正なURL %s"
@@ -495,7 +491,7 @@ msgstr "コンテナの不正なURL %s"
 msgid "bad number of things scanned from resource"
 msgstr "リソースからスキャンされた数が不正"
 
-#: client.go:1402
+#: client.go:1394
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "プロファイルURLが不正 %s"
@@ -504,24 +500,24 @@ msgstr "プロファイルURLが不正 %s"
 msgid "bad result type from action"
 msgstr "アクションからの結果タイプが不正！"
 
-#: client.go:514 client.go:1283
+#: client.go:506 client.go:1275
 msgid "bad version in container url"
 msgstr "コンテナURL内のバージョンが不正"
 
-#: client.go:1406
+#: client.go:1398
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "プロファイルURL内のバージョンが不正"
 
-#: lxc/copy.go:69
+#: lxc/copy.go:72
 msgid "can't copy to the same container name"
 msgstr ""
 
-#: client.go:422 client.go:427
+#: client.go:414 client.go:419
 msgid "cannot resolve unix socket address: %v"
 msgstr "UNIXソケットのアドレスを解決できません: %v"
 
-#: lxc/copy.go:55
+#: lxc/copy.go:57
 msgid "changing hostname of running containers not supported"
 msgstr ""
 
@@ -546,17 +542,17 @@ msgstr ""
 msgid "error: unknown command: %s\n"
 msgstr "エラー: 未知のコマンド: %s\n"
 
-#: client.go:374
+#: client.go:366
 #, c-format
 msgid "expected error, got %s"
 msgstr ""
 
-#: client.go:1085
+#: client.go:1077
 #, c-format
 msgid "got bad op status %s"
 msgstr "不正な操作ステータスを得ました %s"
 
-#: client.go:156
+#: client.go:147
 #, fuzzy, c-format
 msgid "got bad response type, expected %s got %s"
 msgstr "\"exec\"から不正な応答タイプを得ました"
@@ -570,7 +566,7 @@ msgstr "不正なバージョンを得ました"
 msgid "invalid argument %s"
 msgstr "不正な引数 %s"
 
-#: client.go:1218
+#: client.go:1210
 #, c-format
 msgid "invalid wait url %s"
 msgstr "待つURLが不正 %s"
@@ -623,23 +619,23 @@ msgid ""
 "lxc launch ubuntu u1\n"
 msgstr ""
 
-#: client.go:120
+#: client.go:111
 msgid "no response!"
 msgstr "応答がありません！"
 
-#: client.go:1448 client.go:1502
+#: client.go:1440 client.go:1494
 msgid "no value found in %q\n"
 msgstr ""
 
-#: lxc/copy.go:80
+#: lxc/copy.go:83
 msgid "non-http remotes are not supported for migration right now"
 msgstr ""
 
-#: lxc/copy.go:95
+#: lxc/copy.go:98
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
-#: client.go:811
+#: client.go:803
 msgid "ok (y/n)? "
 msgstr "ok (y/n)?"
 
@@ -658,7 +654,7 @@ msgstr "リモート %s は存在しません"
 msgid "remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"
 
-#: client.go:256
+#: client.go:248
 msgid "unknown remote name: %q"
 msgstr "未知のリモート名: %q"
 
@@ -673,6 +669,9 @@ msgstr "サブコマンドの引数の数が正しくありません"
 #: lxc/copy.go:37
 msgid "you must specify a source container name"
 msgstr ""
+
+#~ msgid "Container not found"
+#~ msgstr "コンテナが見つかりません"
 
 #, fuzzy
 #~ msgid "Ephemeral containers not yet supported\n"

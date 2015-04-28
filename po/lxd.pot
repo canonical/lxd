@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-04-17 14:04-0500\n"
+        "POT-Creation-Date: 2015-04-28 19:56+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -54,7 +54,7 @@ msgid   "### This is a yaml representation of the profile.\n"
         "### Note that the name cannot be changed\n"
 msgstr  ""
 
-#: lxc/snapshot.go:50
+#: lxc/snapshot.go:51
 msgid   "'/' not allowed in snapshot name\n"
 msgstr  ""
 
@@ -81,12 +81,12 @@ msgstr  ""
 msgid   "Architecture: %s\n"
 msgstr  ""
 
-#: client.go:691
+#: client.go:682
 #, c-format
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1372
+#: client.go:1363
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -94,7 +94,7 @@ msgstr  ""
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
-#: client.go:811
+#: client.go:802
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -120,11 +120,11 @@ msgid   "Copy containers within or in between lxd instances.\n"
         "lxc copy <source container> <destination container>\n"
 msgstr  ""
 
-#: client.go:826
+#: client.go:817
 msgid   "Could not create server cert dir"
 msgstr  ""
 
-#: lxc/snapshot.go:21
+#: lxc/snapshot.go:22
 msgid   "Create a read-only snapshot of a container.\n"
         "\n"
         "lxc snapshot <source> <snapshot name> [--stateful]\n"
@@ -160,7 +160,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:572 client.go:582 client.go:724
+#: client.go:563 client.go:573 client.go:715
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -318,7 +318,7 @@ msgstr  ""
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:799
+#: client.go:790
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -367,11 +367,11 @@ msgstr  ""
 msgid   "Public: %s\n"
 msgstr  ""
 
-#: client.go:818
+#: client.go:809
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
-#: client.go:288
+#: client.go:279
 #, c-format
 msgid   "Server certificate for host %s has changed. Add correct certificate "
         "or remove certificate in %s"
@@ -449,15 +449,15 @@ msgid   "Usage: lxc [subcommand] [options]\n"
         "Available commands:\n"
 msgstr  ""
 
-#: lxc/snapshot.go:27
+#: lxc/snapshot.go:28
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: client.go:460
+#: client.go:451
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:511 client.go:1273 client.go:1280
+#: client.go:502 client.go:1264 client.go:1271
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -466,7 +466,7 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1403
+#: client.go:1394
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -475,23 +475,23 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:515 client.go:1284
+#: client.go:506 client.go:1275
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1407
+#: client.go:1398
 msgid   "bad version in profile url"
 msgstr  ""
 
-#: lxc/copy.go:69
+#: lxc/copy.go:72
 msgid   "can't copy to the same container name"
 msgstr  ""
 
-#: client.go:423 client.go:428
+#: client.go:414 client.go:419
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: lxc/copy.go:55
+#: lxc/copy.go:57
 msgid   "changing hostname of running containers not supported"
 msgstr  ""
 
@@ -513,17 +513,17 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:375
+#: client.go:366
 #, c-format
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1086
+#: client.go:1077
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
 
-#: client.go:156
+#: client.go:147
 #, c-format
 msgid   "got bad response type, expected %s got %s"
 msgstr  ""
@@ -537,7 +537,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1219
+#: client.go:1210
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -590,23 +590,23 @@ msgid   "lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p "
         "lxc launch ubuntu u1\n"
 msgstr  ""
 
-#: client.go:120
+#: client.go:111
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1449 client.go:1503
+#: client.go:1440 client.go:1494
 msgid   "no value found in %q\n"
 msgstr  ""
 
-#: lxc/copy.go:80
+#: lxc/copy.go:83
 msgid   "non-http remotes are not supported for migration right now"
 msgstr  ""
 
-#: lxc/copy.go:95
+#: lxc/copy.go:98
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: client.go:812
+#: client.go:803
 msgid   "ok (y/n)? "
 msgstr  ""
 
@@ -625,7 +625,7 @@ msgstr  ""
 msgid   "remote %s exists as <%s>"
 msgstr  ""
 
-#: client.go:257
+#: client.go:248
 msgid   "unknown remote name: %q"
 msgstr  ""
 
