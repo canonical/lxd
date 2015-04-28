@@ -572,27 +572,27 @@ const (
 	nfsSuperMagic   = 0x6969
 )
 
-func GetFilesystem(path string) (string, int64, error) {
+func GetFilesystem(path string) (string, error) {
 	fs := syscall.Statfs_t{}
 
 	err := syscall.Statfs(path, &fs)
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
 	switch fs.Type {
 	case btrfsSuperMagic:
-		return "btrfs", fs.Type, nil
+		return "btrfs", nil
 	case tmpfsSuperMagic:
-		return "tmpfs", fs.Type, nil
+		return "tmpfs", nil
 	case ext4SuperMagic:
-		return "ext4", fs.Type, nil
+		return "ext4", nil
 	case xfsSuperMagic:
-		return "xfs", fs.Type, nil
+		return "xfs", nil
 	case nfsSuperMagic:
-		return "nfs", fs.Type, nil
+		return "nfs", nil
 	default:
-		return "unknown", fs.Type, nil
+		return string(fs.Type), nil
 	}
 }
 
