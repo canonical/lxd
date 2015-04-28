@@ -24,7 +24,7 @@ func main() {
 }
 
 func run() error {
-	if len(os.Args) < 4 {
+	if len(os.Args) < 3 {
 		if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "help") {
 			help(os.Args[0], 0)
 		} else {
