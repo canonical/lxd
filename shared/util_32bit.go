@@ -1,6 +1,6 @@
 // +build 386 arm ppc
 
-package main
+package shared
 
 const (
 	/* This is really 0x9123683E, go wants us to give it in signed form
