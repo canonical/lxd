@@ -135,7 +135,7 @@ Command                                                                         
 lxc config show                                                                 | Show the local server's configuration
 lxc config show dakara:                                                         | Show "dakara"'s server' configuration
 lxc config set password new-trust-password                                      | Set the local server's trust password to "new-trust-password"
-lxc config c1 set limits.memory 2GB                                             | Set a memory limit of 2GB for container "c1"
+lxc config set c1 limits.memory 2GB                                             | Set a memory limit of 2GB for container "c1"
 lxc config profile create micro                                                 | Create a new "micro" profile.
 lxc config profile set micro limits.memory 256MB                                | Restrict memory usage to 256MB
 lxc config profile set micro limits.cpu 1                                       | Restrict CPU usage to a single core
