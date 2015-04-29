@@ -1,4 +1,12 @@
 test_concurrent() {
+  if ! lxc image alias list | grep -q ^testimage$; then
+      if [ -e "$LXD_TEST_IMAGE" ]; then
+          lxc image import $LXD_TEST_IMAGE --alias testimage
+      else
+          ../scripts/lxd-images import busybox --alias testimage
+      fi
+  fi
+
   spawn_container() {
     set -e
 
@@ -18,7 +26,7 @@ test_concurrent() {
   PIDS=""
 
   for id in $(seq 50); do
-     spawn_container $id &
+     spawn_container $id 2>&1 | tee $LXD_DIR/lxc-${id}.out &
      PIDS="$PIDS $!"
   done
 
