@@ -25,8 +25,8 @@ test_migration() {
   lxc list l2: | grep RUNNING | grep nonlive
   lxc stop l2:nonlive --force
 
-  if [ -z "$(which criu)" ]; then
-      echo "==> Skipping live migration tests; no criu binary found"
+  if type criu >/dev/null 2>&1; then
+      echo "==> SKIP: live migration with CRIU (missing binary)"
       return
   fi
 

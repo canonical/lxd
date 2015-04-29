@@ -190,8 +190,12 @@ test_snapshots
 echo "==> TEST: profiles, devices and configuration"
 test_config_profiles
 
-echo "==> TEST: uidshift"
-test_fuidshift
+if type fuidshift >/dev/null 2>&1; then
+    echo "==> TEST: uidshift"
+    test_fuidshift
+else
+    echo "==> SKIP: fuidshift (binary missing)"
+fi
 
 echo "==> TEST: migration"
 test_migration

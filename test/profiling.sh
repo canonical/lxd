@@ -21,6 +21,7 @@ test_cpu_profiling() {
     kill -TERM $lxdpid
     wait $lxdpid || true
     echo top5 | go tool pprof $(which lxd) ${LXD3_DIR}/cpu.out
+    echo ""
 }
 
 test_mem_profiling() {
@@ -36,5 +37,6 @@ test_mem_profiling() {
     kill -USR1 $lxdpid
     sleep 1s
     echo top5 | go tool pprof $(which lxd) ${LXD4_DIR}/mem
+    echo ""
     kill -9 $lxdpid
 }
