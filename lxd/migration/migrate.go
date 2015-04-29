@@ -24,7 +24,7 @@ import (
 	 * generating a github.com import, and then we can switch this back
 	 * too.
 	 */
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
