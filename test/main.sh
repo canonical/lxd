@@ -121,6 +121,7 @@ fi
 . ./static_analysis.sh
 . ./config.sh
 . ./profiling.sh
+. ./fdleak.sh
 
 if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
@@ -194,6 +195,9 @@ test_fuidshift
 
 echo "==> TEST: migration"
 test_migration
+
+echo "==> TEST: fdleak"
+test_fdleak
 
 echo "==> TEST: cpu profiling"
 test_cpu_profiling
