@@ -338,9 +338,11 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 	newPath := fmt.Sprintf("%s/%s", dpath, "rootfs")
 	run := func() shared.OperationResult {
-		err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
+		output, err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).CombinedOutput()
 		if err == nil && !source.isPrivileged() {
 			err = setUnprivUserAcl(d, dpath)
+		} else {
+			shared.Debugf("rsync failed:\n%s", output)
 		}
 		return shared.OperationError(err)
 	}
@@ -494,7 +496,10 @@ func extractShiftRootfs(hash string, name string, d *Daemon) error {
 
 func setUnprivUserAcl(d *Daemon, dpath string) error {
 	acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
-	_, err := exec.Command("setfacl", "-m", acl, dpath).Output()
+	output, err := exec.Command("setfacl", "-m", acl, dpath).CombinedOutput()
+	if err != nil {
+		shared.Debugf("setfacl failed:\n%s", output)
+	}
 	return err
 }
 
