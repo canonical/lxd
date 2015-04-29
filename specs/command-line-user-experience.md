@@ -213,8 +213,8 @@ Execute a command inside the remote container.
 
 Command                                                 | Result
 :------                                                 | :-----
-lxc exec c1 /bin/bash                                   | Spawn /bin/bash in local container c1
-tar xcf - /opt/myapp \| lxc exec dakara:c2 tar xvf -    | Make a tarball of /opt/myapp with the stream going out to stdout, then have that piped into lxc exec connecting to a receiving tar command in container running on remote host "dakara"
+lxc exec c1 -- /bin/bash                                   | Spawn /bin/bash in local container c1
+tar xcf - /opt/myapp \| lxc exec dakara:c2 -- tar xvf -    | Make a tarball of /opt/myapp with the stream going out to stdout, then have that piped into lxc exec connecting to a receiving tar command in container running on remote host "dakara"
 
 * * *
 
