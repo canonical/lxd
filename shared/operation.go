@@ -135,6 +135,16 @@ func (o *Operation) SetStatus(status OperationStatus) {
 	o.UpdatedAt = time.Now()
 	if status.IsFinal() {
 		o.MayCancel = false
+		/*
+		 * These cannot be reused once a status is final. Further, they
+		 * are often pointers to functions that were/are members of
+		 * some struct that is holding on to an lxdContainer struct,
+		 * which keeps the log fds open as long as it is around. Let's
+		 * make sure we don't "leak" these.
+		 */
+		o.Cancel = nil
+		o.Run = nil
+		o.Websocket = nil
 	}
 }
 
