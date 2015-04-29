@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -135,6 +136,12 @@ func containersWatch(d *Daemon) error {
 			containerWatchEphemeral(container)
 		}
 	}
+
+	/*
+	 * force collect the containers we created above; see comment in
+	 * daemon.go:createCmd.
+	 */
+	runtime.GC()
 
 	return nil
 }

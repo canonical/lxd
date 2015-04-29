@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -227,6 +228,18 @@ func (d *Daemon) createCmd(version string, c Command) {
 				shared.Debugf("failed writing error for error, giving up.")
 			}
 		}
+
+		/*
+		 * When we create a new lxc.Container, it adds a finalizer (via
+		 * SetFinalizer) that frees the struct. However, it sometimes
+		 * takes the go GC a while to actually free the struct,
+		 * presumably since it is a small amount of memory.
+		 * Unfortunately, the struct also keeps the log fd open, so if
+		 * we leave too many of these around, we end up running out of
+		 * fds. So, let's explicitly do a GC to collect these at the
+		 * end of each request.
+		 */
+		runtime.GC()
 	})
 }
 
