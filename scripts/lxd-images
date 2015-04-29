@@ -230,9 +230,13 @@ class LXCImages(object):
         gpg_environ["GNUPGHOME"] = self.gpgdir
 
         with open(os.devnull, "w") as devnull:
+            if "http_proxy" in os.environ:
+                gpg_server = "hkp://p80.pool.sks-keyservers.net:80"
+            else:
+                gpg_server = "hkp://pool.sks-keyservers.net"
             r = subprocess.call(
                 ["gpg",
-                 "--keyserver", "hkp://p80.pool.sks-keyservers.net:80",
+                 "--keyserver", gpg_server,
                  "--recv-keys", self.gpgkey],
                 env=gpg_environ,
                 stdout=devnull, stderr=devnull)
