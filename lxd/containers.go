@@ -341,6 +341,10 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		output, err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).CombinedOutput()
 		if err == nil && !source.isPrivileged() {
 			err = setUnprivUserAcl(d, dpath)
+			if err != nil {
+				shared.Debugf("Error adding acl for container root: start will likely fail\n")
+			}
+			err = nil
 		} else {
 			shared.Debugf("rsync failed:\n%s", output)
 		}
