@@ -342,9 +342,13 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		if err == nil && !source.isPrivileged() {
 			err = setUnprivUserAcl(d, dpath)
 			if err != nil {
-				shared.Debugf("Error adding acl for container root: start will likely fail\n")
+				shared.Debugf("Error adding acl for container root: falling back to chmod\n")
+				output, err := exec.Command("chmod", "+x", dpath).CombinedOutput()
+				if err != nil {
+					shared.Debugf("Error chmoding the container root\n")
+					shared.Debugf(string(output))
+				}
 			}
-			err = nil
 		} else {
 			shared.Debugf("rsync failed:\n%s", output)
 		}
@@ -492,7 +496,13 @@ func extractShiftRootfs(hash string, name string, d *Daemon) error {
 	/* Set an acl so the container root can descend the container dir */
 	err = setUnprivUserAcl(d, dpath)
 	if err != nil {
-		shared.Debugf("Error adding acl for container root: start will likely fail\n")
+		shared.Debugf("Error adding acl for container root: falling back to chmod\n")
+		output, err := exec.Command("chmod", "+x", dpath).CombinedOutput()
+		if err != nil {
+			shared.Debugf("Error chmoding the container root\n")
+			shared.Debugf(string(output))
+			return err
+		}
 	}
 
 	return nil
