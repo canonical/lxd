@@ -140,7 +140,7 @@ func containersWatch(d *Daemon) error {
 }
 
 func createFromImage(d *Daemon, req *containerPostReq) Response {
-	var uuid string
+	var hash string
 	var err error
 	var run func() shared.OperationResult
 
@@ -151,7 +151,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	if req.Source.Alias != "" {
 		if req.Source.Mode == "pull" && req.Source.Server != "" {
-			uuid, err = remoteGetImageFingerprint(d, req.Source.Server, req.Source.Alias)
+			hash, err = remoteGetImageFingerprint(d, req.Source.Server, req.Source.Alias)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -160,29 +160,29 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			if err != nil {
 				return InternalError(err)
 			}
-			uuid, err = dbImageGetById(d, iId)
+			hash, err = dbImageGetById(d, iId)
 			if err != nil {
 				return InternalError(fmt.Errorf("Stale alias"))
 			}
 		}
 	} else if req.Source.Fingerprint != "" {
-		uuid = req.Source.Fingerprint
+		hash = req.Source.Fingerprint
 	} else {
 		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
 	}
 
 	if req.Source.Server != "" {
-		err := ensureLocalImage(d, req.Source.Server, uuid, req.Source.Secret)
+		err := ensureLocalImage(d, req.Source.Server, hash, req.Source.Secret)
 		if err != nil {
 			return InternalError(err)
 		}
 	}
 
-	imgInfo, err := dbImageGet(d, uuid, false)
+	imgInfo, err := dbImageGet(d, hash, false)
 	if err != nil {
 		return SmartError(err)
 	}
-	uuid = imgInfo.Fingerprint
+	hash = imgInfo.Fingerprint
 
 	dpath := shared.VarPath("lxc", req.Name)
 	if shared.PathExists(dpath) {
@@ -191,8 +191,8 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	name := req.Name
 
-	if backing_fs == "btrfs" && shared.PathExists(fmt.Sprintf("%s.btrfs", shared.VarPath("images", uuid))) {
-		run = shared.OperationWrap(func() error { return btrfsCopyImage(uuid, name, d) })
+	if backing_fs == "btrfs" && shared.PathExists(fmt.Sprintf("%s.btrfs", shared.VarPath("images", hash))) {
+		run = shared.OperationWrap(func() error { return btrfsCopyImage(hash, name, d) })
 	} else {
 		rootfsPath := fmt.Sprintf("%s/rootfs", dpath)
 		err = os.MkdirAll(rootfsPath, 0700)
@@ -200,7 +200,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			return InternalError(fmt.Errorf("Error creating rootfs directory"))
 		}
 
-		run = shared.OperationWrap(func() error { return extractShiftRootfs(uuid, name, d) })
+		run = shared.OperationWrap(func() error { return extractShiftRootfs(hash, name, d) })
 	}
 
 	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
@@ -400,9 +400,9 @@ func removeContainer(d *Daemon, name string) {
 	dbRemoveContainer(d, name)
 }
 
-func btrfsCopyImage(uuid string, name string, d *Daemon) error {
+func btrfsCopyImage(hash string, name string, d *Daemon) error {
 	dpath := shared.VarPath("lxc", name)
-	imagefile := shared.VarPath("images", uuid)
+	imagefile := shared.VarPath("images", hash)
 	subvol := fmt.Sprintf("%s.btrfs", imagefile)
 
 	err := exec.Command("btrfs", "subvolume", "snapshot", subvol, dpath).Run()
@@ -428,7 +428,7 @@ func btrfsCopyImage(uuid string, name string, d *Daemon) error {
 	return nil
 }
 
-func extractShiftRootfs(uuid string, name string, d *Daemon) error {
+func extractShiftRootfs(hash string, name string, d *Daemon) error {
 	/*
 	 * We want to use archive/tar for this, but that doesn't appear
 	 * to be working for us (see lxd/images.go)
@@ -437,7 +437,7 @@ func extractShiftRootfs(uuid string, name string, d *Daemon) error {
 	 * extract that under /var/lib/lxd/lxc/container/rootfs/
 	 */
 	dpath := shared.VarPath("lxc", name)
-	imagefile := shared.VarPath("images", uuid)
+	imagefile := shared.VarPath("images", hash)
 
 	compression, _, err := detectCompression(imagefile)
 	if err != nil {
