@@ -29,7 +29,7 @@ import (
 	"github.com/gosexy/gettext"
 )
 
-// #cgo LDFLAGS: -lutil
+// #cgo LDFLAGS: -lutil -lpthread
 /*
 #include <unistd.h>
 #include <stdlib.h>

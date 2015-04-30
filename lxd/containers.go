@@ -339,6 +339,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	newPath := fmt.Sprintf("%s/%s", dpath, "rootfs")
 	run := func() shared.OperationResult {
 		output, err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).CombinedOutput()
+
 		if err == nil && !source.isPrivileged() {
 			err = setUnprivUserAcl(d, dpath)
 			if err != nil {
@@ -347,12 +348,15 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 				if err != nil {
 					shared.Debugf("Error chmoding the container root\n")
 					shared.Debugf(string(output))
+					return shared.OperationError(err)
 				}
 			}
 		} else {
 			shared.Debugf("rsync failed:\n%s", output)
+			return shared.OperationError(err)
 		}
-		return shared.OperationError(err)
+
+		return shared.OperationError(nil)
 	}
 
 	resources := make(map[string][]string)
