@@ -338,9 +338,19 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 	newPath := fmt.Sprintf("%s/%s", dpath, "rootfs")
 	run := func() shared.OperationResult {
-		err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
+		output, err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).CombinedOutput()
 		if err == nil && !source.isPrivileged() {
 			err = setUnprivUserAcl(d, dpath)
+			if err != nil {
+				shared.Debugf("Error adding acl for container root: falling back to chmod\n")
+				output, err := exec.Command("chmod", "+x", dpath).CombinedOutput()
+				if err != nil {
+					shared.Debugf("Error chmoding the container root\n")
+					shared.Debugf(string(output))
+				}
+			}
+		} else {
+			shared.Debugf("rsync failed:\n%s", output)
 		}
 		return shared.OperationError(err)
 	}
@@ -486,7 +496,13 @@ func extractShiftRootfs(hash string, name string, d *Daemon) error {
 	/* Set an acl so the container root can descend the container dir */
 	err = setUnprivUserAcl(d, dpath)
 	if err != nil {
-		shared.Debugf("Error adding acl for container root: start will likely fail\n")
+		shared.Debugf("Error adding acl for container root: falling back to chmod\n")
+		output, err := exec.Command("chmod", "+x", dpath).CombinedOutput()
+		if err != nil {
+			shared.Debugf("Error chmoding the container root\n")
+			shared.Debugf(string(output))
+			return err
+		}
 	}
 
 	return nil
@@ -494,7 +510,10 @@ func extractShiftRootfs(hash string, name string, d *Daemon) error {
 
 func setUnprivUserAcl(d *Daemon, dpath string) error {
 	acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
-	_, err := exec.Command("setfacl", "-m", acl, dpath).Output()
+	output, err := exec.Command("setfacl", "-m", acl, dpath).CombinedOutput()
+	if err != nil {
+		shared.Debugf("setfacl failed:\n%s", output)
+	}
 	return err
 }
 
