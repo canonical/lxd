@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-04-28 19:56+0200\n"
+        "POT-Creation-Date: 2015-05-01 07:53-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -90,7 +90,7 @@ msgstr  ""
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: lxc/config.go:501
+#: lxc/config.go:512
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -138,12 +138,12 @@ msgid   "Delete a container or container snapshot.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:549
+#: lxc/config.go:560
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:577
+#: lxc/config.go:588
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -343,7 +343,7 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version\n"
 msgstr  ""
 
-#: lxc/config.go:399
+#: lxc/config.go:410
 #, c-format
 msgid   "Profile %s applied to %s\n"
 msgstr  ""
@@ -353,7 +353,7 @@ msgstr  ""
 msgid   "Profile %s created\n"
 msgstr  ""
 
-#: lxc/config.go:388
+#: lxc/config.go:399
 #, c-format
 msgid   "Profile %s deleted\n"
 msgstr  ""
@@ -451,6 +451,10 @@ msgstr  ""
 
 #: lxc/snapshot.go:28
 msgid   "Whether or not to snapshot the container's running state"
+msgstr  ""
+
+#: lxc/config.go:381
+msgid   "YAML parse error %v\n"
 msgstr  ""
 
 #: client.go:451
