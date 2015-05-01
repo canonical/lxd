@@ -354,7 +354,15 @@ Output:
         'architecture': "x86_64",
         'hostname': "my-container",
         'config': {"resources.cpus": "3"},
+        'expanded_config': {"resources.cpus": "3"}  # the result of expanding profiles and adding the container's local config
         'devices': {
+            'rootfs': {
+                'type': "disk",
+                'path': "/",
+                'source': "UUID=8f7fdf5e-dc60-4524-b9fe-634f82ac2fb6"}
+            }
+        },
+        'expanded_devices': {  # the result of expanding profiles and adding the container's local devices
             'rootfs': {
                 'type': "disk",
                 'path': "/",
