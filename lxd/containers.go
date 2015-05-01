@@ -207,7 +207,22 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			return InternalError(fmt.Errorf("Error creating rootfs directory"))
 		}
 
-		run = shared.OperationWrap(func() error { return extractShiftRootfs(hash, name, d) })
+		run = shared.OperationWrap(func() error {
+			c, err := newLxdContainer(name, d)
+			if err != nil {
+				return err
+			}
+
+			if err := extractRootfs(hash, name, d); err != nil {
+				return err
+			}
+
+			if !c.isPrivileged() {
+				return shiftRootfs(name, d)
+			}
+
+			return nil
+		})
 	}
 
 	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
@@ -449,7 +464,7 @@ func btrfsCopyImage(hash string, name string, d *Daemon) error {
 	return nil
 }
 
-func extractShiftRootfs(hash string, name string, d *Daemon) error {
+func extractRootfs(hash string, name string, d *Daemon) error {
 	/*
 	 * We want to use archive/tar for this, but that doesn't appear
 	 * to be working for us (see lxd/images.go)
@@ -489,8 +504,13 @@ func extractShiftRootfs(hash string, name string, d *Daemon) error {
 		return err
 	}
 
+	return nil
+}
+
+func shiftRootfs(name string, d *Daemon) error {
+	dpath := shared.VarPath("lxc", name)
 	rpath := shared.VarPath("lxc", name, "rootfs")
-	err = d.idMap.ShiftRootfs(rpath)
+	err := d.idMap.ShiftRootfs(rpath)
 	if err != nil {
 		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
 		removeContainer(d, name)
