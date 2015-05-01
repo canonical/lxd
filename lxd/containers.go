@@ -198,8 +198,29 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	name := req.Name
 
+	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
+	if err != nil {
+		removeContainerPath(d, name)
+		return SmartError(err)
+	}
+
+	c, err := newLxdContainer(name, d)
+	if err != nil {
+		return SmartError(err)
+	}
+
 	if backing_fs == "btrfs" && shared.PathExists(fmt.Sprintf("%s.btrfs", shared.VarPath("images", hash))) {
-		run = shared.OperationWrap(func() error { return btrfsCopyImage(hash, name, d) })
+		run = shared.OperationWrap(func() error {
+			if err := btrfsCopyImage(hash, name, d); err != nil {
+				return err
+			}
+
+			if !c.isPrivileged() {
+				return shiftRootfs(name, d)
+			}
+
+			return nil
+		})
 	} else {
 		rootfsPath := fmt.Sprintf("%s/rootfs", dpath)
 		err = os.MkdirAll(rootfsPath, 0700)
@@ -208,11 +229,6 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		}
 
 		run = shared.OperationWrap(func() error {
-			c, err := newLxdContainer(name, d)
-			if err != nil {
-				return err
-			}
-
 			if err := extractRootfs(hash, name, d); err != nil {
 				return err
 			}
@@ -223,12 +239,6 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 			return nil
 		})
-	}
-
-	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
-	if err != nil {
-		removeContainerPath(d, name)
-		return SmartError(err)
 	}
 
 	resources := make(map[string][]string)
@@ -441,27 +451,7 @@ func btrfsCopyImage(hash string, name string, d *Daemon) error {
 	imagefile := shared.VarPath("images", hash)
 	subvol := fmt.Sprintf("%s.btrfs", imagefile)
 
-	err := exec.Command("btrfs", "subvolume", "snapshot", subvol, dpath).Run()
-	if err != nil {
-		return err
-	}
-
-	rpath := shared.VarPath("lxc", name, "rootfs")
-	err = d.idMap.ShiftRootfs(rpath)
-	if err != nil {
-		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
-		removeContainer(d, name)
-		return err
-	}
-
-	/* Set an acl so the container root can descend the container dir */
-	acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
-	_, err = exec.Command("setfacl", "-m", acl, dpath).Output()
-	if err != nil {
-		shared.Debugf("Error adding acl for container root: start will likely fail\n")
-	}
-
-	return nil
+	return exec.Command("btrfs", "subvolume", "snapshot", subvol, dpath).Run()
 }
 
 func extractRootfs(hash string, name string, d *Daemon) error {
