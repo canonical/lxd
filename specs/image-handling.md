@@ -35,7 +35,6 @@ LXD, at the moment, this contains:
 
     architecture: x86_64
     creation_date: 1424284563
-    name: ubuntu-14.04-amd64-20150218
     properties:
       description: Ubuntu 14.04 LTS Intel 64bit
       os: Ubuntu
