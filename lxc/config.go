@@ -361,24 +361,35 @@ func doProfileEdit(client *lxd.Client, p string) error {
 	f.Write(data)
 	f.Close()
 	defer os.Remove(fname)
-	cmd := exec.Command(editor, fname)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
-	if err != nil {
-		return err
+
+	for {
+		cmd := exec.Command(editor, fname)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
+		contents, err := ioutil.ReadFile(fname)
+		if err != nil {
+			return err
+		}
+		newdata := shared.ProfileConfig{}
+		err = yaml.Unmarshal(contents, &newdata)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v\n"), err)
+			fmt.Printf("Press enter to play again ")
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+		err = client.PutProfile(p, newdata)
+		break
 	}
-	contents, err := ioutil.ReadFile(fname)
-	if err != nil {
-		return err
-	}
-	newdata := shared.ProfileConfig{}
-	err = yaml.Unmarshal(contents, &newdata)
-	if err != nil {
-		return err
-	}
-	err = client.PutProfile(p, newdata)
 	return err
 }
 
