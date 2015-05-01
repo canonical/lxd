@@ -611,7 +611,12 @@ func containerGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponse(true, c.RenderState())
+	state, err := c.RenderState()
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return SyncResponse(true, state)
 }
 
 func containerDeleteSnapshots(d *Daemon, cname string) {
@@ -782,7 +787,6 @@ func emptyProfile(l []string) bool {
  */
 func containerPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	shared.Debugf("containerPut: called with name %s\n", name)
 	cId, err := dbGetContainerId(d.db, name)
 	if err != nil {
 		return NotFound
@@ -919,7 +923,12 @@ func containerStateGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponse(true, c.RenderState().Status)
+	state, err := c.RenderState()
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return SyncResponse(true, state.Status)
 }
 
 type containerStatePutReq struct {
@@ -939,16 +948,28 @@ type lxdContainer struct {
 	ephemeral bool
 }
 
-func (c *lxdContainer) RenderState() *shared.ContainerState {
-	return &shared.ContainerState{
-		Name:      c.name,
-		Profiles:  c.profiles,
-		Config:    c.config,
-		Userdata:  []byte{},
-		Status:    shared.NewStatus(c.c, c.c.State()),
-		Devices:   c.devices,
-		Ephemeral: c.ephemeral,
+func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
+	devices, err := dbGetDevices(c.daemon, c.name, false)
+	if err != nil {
+		return nil, err
 	}
+
+	config, err := dbGetConfig(c.daemon, c)
+	if err != nil {
+		return nil, err
+	}
+
+	return &shared.ContainerState{
+		Name:            c.name,
+		Profiles:        c.profiles,
+		Config:          config,
+		ExpandedConfig:  c.config,
+		Userdata:        []byte{},
+		Status:          shared.NewStatus(c.c, c.c.State()),
+		Devices:         devices,
+		ExpandedDevices: c.devices,
+		Ephemeral:       c.ephemeral,
+	}, nil
 }
 
 func (c *lxdContainer) Start() error {
