@@ -62,13 +62,15 @@ type Device map[string]string
 type Devices map[string]Device
 
 type ContainerState struct {
-	Name      string            `json:"name"`
-	Profiles  []string          `json:"profiles"`
-	Config    map[string]string `json:"config"`
-	Userdata  []byte            `json:"userdata"`
-	Status    ContainerStatus   `json:"status"`
-	Devices   Devices           `json:"devices"`
-	Ephemeral bool              `json:"ephemeral"`
+	Name            string            `json:"name"`
+	Profiles        []string          `json:"profiles"`
+	Config          map[string]string `json:"config"`
+	ExpandedConfig  map[string]string `json:"expanded_config"`
+	Userdata        []byte            `json:"userdata"`
+	Status          ContainerStatus   `json:"status"`
+	Devices         Devices           `json:"devices"`
+	ExpandedDevices Devices           `json:"expanded_devices"`
+	Ephemeral       bool              `json:"ephemeral"`
 }
 
 func (c *ContainerState) State() lxc.State {
