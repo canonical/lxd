@@ -973,7 +973,22 @@ func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 }
 
 func (c *lxdContainer) Start() error {
-	err := c.c.Start()
+
+	f, err := ioutil.TempFile("", "lxc_startconfig_")
+	if err != nil {
+		return err
+	}
+	configPath := f.Name()
+	if err = f.Chmod(0700); err != nil {
+		f.Close()
+		os.Remove(configPath)
+		return err
+	}
+	f.Close()
+	err = c.c.SaveConfigFile(configPath)
+
+	cmd := exec.Command(os.Args[0], "forkstart", c.name, c.daemon.lxcpath, configPath)
+	err = cmd.Run()
 
 	if err == nil && c.ephemeral == true {
 		containerWatchEphemeral(c)
@@ -2023,3 +2038,29 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 }
 
 var containerExecCmd = Command{name: "containers/{name}/exec", post: containerExecPost}
+
+/*
+ * This is called by lxd when called as "lxd forkstart <container>"
+ * 'forkstart' is used instead of just 'start' in the hopes that people
+ * do not accidentally type 'lxd start' instead of 'lxc start'
+ *
+ * We expect to read the lxcconfig over fd 3.
+ */
+func startContainer(args []string) error {
+	if len(args) != 4 {
+		return fmt.Errorf("Bad arguments: %q\n", args)
+	}
+	name := args[1]
+	lxcpath := args[2]
+	configPath := args[3]
+	c, err := lxc.NewContainer(name, lxcpath)
+	if err != nil {
+		return fmt.Errorf("Error initializing container for start: %q", err)
+	}
+	err = c.LoadConfigFile(configPath)
+	if err != nil {
+		return fmt.Errorf("Error opening startup config file: %q", err)
+	}
+	os.Remove(configPath)
+	return c.Start()
+}
