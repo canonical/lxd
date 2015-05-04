@@ -974,7 +974,7 @@ func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 
 func (c *lxdContainer) Start() error {
 
-	f, err := ioutil.TempFile("", "lxc_startconfig_")
+	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
 	if err != nil {
 		return err
 	}
