@@ -200,9 +200,8 @@ fi
 echo "==> TEST: migration"
 test_migration
 
-# Skip this for now, since it still seems to be broken.
-# echo "==> TEST: fdleak"
-# test_fdleak
+echo "==> TEST: fdleak"
+test_fdleak
 
 echo "==> TEST: cpu profiling"
 test_cpu_profiling
