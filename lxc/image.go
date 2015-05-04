@@ -335,7 +335,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			}
 		}
 		data, err := yaml.Marshal(&properties)
-		f, err := ioutil.TempFile("", "lxc_image_")
+		f, err := ioutil.TempFile("", "lxd_lxc_image_")
 		if err != nil {
 			return err
 		}
