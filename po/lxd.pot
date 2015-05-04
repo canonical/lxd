@@ -182,12 +182,22 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>\n"
 msgstr  ""
 
+#: lxc/main.go:84
+msgid   "For example: 'lxd-images import lxc ubuntu trusty amd64 --alias "
+        "ubuntu/trusty'.\n"
+msgstr  ""
+
 #: lxc/action.go:34
 msgid   "Force the container to shutdown."
 msgstr  ""
 
 #: lxc/main.go:76
 msgid   "Generating a client certificate. This may take a minute...\n"
+msgstr  ""
+
+#: lxc/main.go:83
+msgid   "If this is your first run, you will need to import images using the "
+        "'lxd-images script'.\n"
 msgstr  ""
 
 #: lxc/image.go:282
@@ -507,7 +517,7 @@ msgstr  ""
 msgid   "error: %v\n"
 msgstr  ""
 
-#: lxc/main.go:86
+#: lxc/main.go:89
 msgid   "error: %v\n"
         "%s"
 msgstr  ""
@@ -637,7 +647,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:121
+#: lxc/main.go:124
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
