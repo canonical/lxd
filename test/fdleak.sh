@@ -9,6 +9,8 @@ test_fdleak() {
     lxd1_pid=`ps -ef | grep lxd | grep -v grep | awk '/127.0.0.1:18443/ { print $2 }'`
     echo "lxd1_pid is $lxd1_pid"
     beforefds=`/bin/ls /proc/$lxd1_pid/fd | wc -l`
+    echo "XXX Before we test, fd dir looks like:"
+    ls -la /proc/$lxd1_pid/fd
     lxc init testimage leaktest1
     lxc info leaktest1
     [ -n "$TRAVIS_PULL_REQUEST" ] || lxc start leaktest1
