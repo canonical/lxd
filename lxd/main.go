@@ -43,6 +43,10 @@ func init() {
 }
 
 func run() error {
+	if os.Args[1] == "forkstart" {
+		return startContainer(os.Args[1:])
+	}
+
 	gnuflag.Usage = func() {
 		fmt.Printf("Usage: lxd [options]\n\nOptions:\n")
 		gnuflag.PrintDefaults()
