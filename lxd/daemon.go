@@ -222,13 +222,6 @@ func (d *Daemon) createCmd(version string, c Command) {
 			resp = NotFound
 		}
 
-		if err := resp.Render(w); err != nil {
-			err := InternalError(err).Render(w)
-			if err != nil {
-				shared.Debugf("failed writing error for error, giving up.")
-			}
-		}
-
 		/*
 		 * When we create a new lxc.Container, it adds a finalizer (via
 		 * SetFinalizer) that frees the struct. However, it sometimes
@@ -240,6 +233,13 @@ func (d *Daemon) createCmd(version string, c Command) {
 		 * end of each request.
 		 */
 		runtime.GC()
+
+		if err := resp.Render(w); err != nil {
+			err := InternalError(err).Render(w)
+			if err != nil {
+				shared.Debugf("failed writing error for error, giving up.")
+			}
+		}
 	})
 }
 
