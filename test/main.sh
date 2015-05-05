@@ -200,8 +200,16 @@ fi
 echo "==> TEST: migration"
 test_migration
 
-echo "==> TEST: fdleak"
-test_fdleak
+curversion=`dpkg -s lxc | awk '/^Version/ { print $2 }'`
+if dpkg --compare-versions "$curversion" gt 1.1.2-0ubuntu3; then
+    echo "==> TEST: fdleak"
+    test_fdleak
+else
+    # We temporarily skip the fdleak test because a bug in lxc is
+    # known to make it # fail without lxc commit
+    # 858377e: # logs: introduce a thread-local 'current' lxc_config (v2)
+    echo "==> SKIPPING TEST: fdleak"
+fi
 
 echo "==> TEST: cpu profiling"
 test_cpu_profiling
