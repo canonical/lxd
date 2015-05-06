@@ -57,10 +57,10 @@ func DeviceToLxc(d shared.Device) ([][]string, error) {
 		if d["readonly"] == "1" || d["readonly"] == "true" {
 			opts = fmt.Sprintf("%s,ro", opts)
 		}
-		if d["optional"] == "1" || d["optinal"] == "true" {
+		if d["optional"] == "1" || d["optional"] == "true" {
 			opts = fmt.Sprintf("%s,optional", opts)
 		}
-		l := []string{"lxc.mount.entry", fmt.Sprintf("%s %s none %s", source, p, opts)}
+		l := []string{"lxc.mount.entry", fmt.Sprintf("%s %s none %s 0 0", source, p, opts)}
 		return [][]string{l}, nil
 	case "none":
 		return nil, nil
