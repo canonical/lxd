@@ -42,7 +42,7 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		status, err := source.ContainerStatus(sourceName)
+		status, err := source.ContainerStatus(sourceName, false)
 		if err != nil {
 			return err
 		}
