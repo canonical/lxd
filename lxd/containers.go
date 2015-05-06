@@ -616,6 +616,23 @@ func containerGet(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
+	targetPath := r.FormValue("log")
+	if strings.ToLower(targetPath) == "true" || targetPath == "1" {
+		fname := c.c.LogFile()
+
+		f, err := os.Open(fname)
+		if err != nil {
+			return InternalError(err)
+		}
+		defer f.Close()
+
+		log, err := shared.ReadLastNLines(f, 100)
+		if err != nil {
+			return InternalError(err)
+		}
+		state.Log = log
+	}
+
 	return SyncResponse(true, state)
 }
 

@@ -1,8 +1,10 @@
 package shared
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -49,5 +51,52 @@ func TestCopyFile(t *testing.T) {
 	if string(content) != string(helloWorld) {
 		t.Error("content mismatch: ", string(content), "!=", string(helloWorld))
 		return
+	}
+}
+
+func TestReadLastNLines(t *testing.T) {
+	source, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer os.Remove(source.Name())
+
+	for i := 0; i < 50; i++ {
+		fmt.Fprintf(source, "%d\n", i)
+	}
+
+	lines, err := ReadLastNLines(source, 100)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	split := strings.Split(lines, "\n")
+	for i := 0; i < 50; i++ {
+		if fmt.Sprintf("%d", i) != split[i] {
+			t.Error(fmt.Sprintf("got %s expected %d", split[i], i))
+			return
+		}
+	}
+
+	source.Seek(0, 0)
+	for i := 0; i < 150; i++ {
+		fmt.Fprintf(source, "%d\n", i)
+	}
+
+	lines, err = ReadLastNLines(source, 100)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Println(lines)
+
+	split = strings.Split(lines, "\n")
+	for i := 0; i < 100; i++ {
+		if fmt.Sprintf("%d", i+50) != split[i] {
+			t.Error(fmt.Sprintf("got %s expected %d", split[i], i))
+			return
+		}
 	}
 }

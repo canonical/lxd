@@ -98,7 +98,7 @@ func listContainers(client *lxd.Client, cts []string, filters []string, listsnap
 
 	for _, ct := range cts {
 		// get more information
-		c, err := client.ContainerStatus(ct)
+		c, err := client.ContainerStatus(ct, false)
 		d := []string{}
 		if err == nil {
 			d = []string{ct, c.Status.State}

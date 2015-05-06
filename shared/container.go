@@ -71,6 +71,7 @@ type ContainerState struct {
 	Devices         Devices           `json:"devices"`
 	ExpandedDevices Devices           `json:"expanded_devices"`
 	Ephemeral       bool              `json:"ephemeral"`
+	Log             string            `json:"log"`
 }
 
 /*
