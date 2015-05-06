@@ -339,12 +339,14 @@ Input (using a local container):
     }
 
 
-## /1.0/containers/\<name\>
+## /1.0/containers/\<name\>?log=true
 ### GET
  * Description: Container information
  * Authentication: trusted
  * Operation: sync
- * Return: dict of the container configuration and current state
+ * Return: dict of the container configuration and current state. If the
+   optional parameter log=true is supplied, the last 100 lines of the
+   container's log are rendered as well.
 
 Output:
 
@@ -378,7 +380,11 @@ Output:
                              'address': "2001:470:b368:1020:1::2"},
                             {'interface': "eth0",
                              'protocol': "INET",
-                             'address': "172.16.15.30"}]}
+                             'address': "172.16.15.30"}]},
+        'log': "lxc-checkpoint 1430925874.468 DEBUG    lxc_commands - commands.c:lxc_cmd_get_state:574 - 'u2' is in 'RUNNING' state
+                lxc-checkpoint 1430925874.468 ERROR    lxc_criu - criu.c:criu_version_ok:242 - No such file or directory - execing criu failed, is it installed?
+                ...",
+
     }
 
 

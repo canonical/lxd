@@ -5,9 +5,12 @@ import (
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/internal/gnuflag"
 )
 
-type infoCmd struct{}
+type infoCmd struct {
+	showLog bool
+}
 
 func (c *infoCmd) showByDefault() bool {
 	return true
@@ -19,10 +22,12 @@ func (c *infoCmd) usage() string {
 			"\n" +
 			"This will support remotes and images as well, but only containers for now.\n" +
 			"\n" +
-			"lxc info [<remote>:]container\n")
+			"lxc info [<remote>:]container [--show-log]\n")
 }
 
-func (c *infoCmd) flags() {}
+func (c *infoCmd) flags() {
+	gnuflag.BoolVar(&c.showLog, "show-log", false, gettext.Gettext("Show the container's last 100 log lines?"))
+}
 
 func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	var remote string
@@ -42,7 +47,7 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	if err != nil {
 		return err
 	}
-	ct, err := d.ContainerStatus(cName)
+	ct, err := d.ContainerStatus(cName, c.showLog)
 	if err != nil {
 		return err
 	}
@@ -73,6 +78,10 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 		}
 		fmt.Printf("  %s\n", snap)
 		first_snapshot = false
+	}
+
+	if c.showLog {
+		fmt.Printf("\nLog:\n\n%s\n", ct.Log)
 	}
 
 	return nil
