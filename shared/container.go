@@ -73,6 +73,27 @@ type ContainerState struct {
 	Ephemeral       bool              `json:"ephemeral"`
 }
 
+/*
+ * BriefContainerState contains a subset of the fields in
+ * ContainerState, namely those which a user may update
+ */
+type BriefContainerState struct {
+	Name      string            `json:"name"`
+	Profiles  []string          `json:"profiles"`
+	Config    map[string]string `json:"config"`
+	Devices   Devices           `json:"devices"`
+	Ephemeral bool              `json:"ephemeral"`
+}
+
+func (c *ContainerState) BriefState() BriefContainerState {
+	retstate := BriefContainerState{Name: c.Name,
+		Profiles:  c.Profiles,
+		Config:    c.Config,
+		Devices:   c.Devices,
+		Ephemeral: c.Ephemeral}
+	return retstate
+}
+
 func (c *ContainerState) State() lxc.State {
 	return lxc.StateMap[c.Status.State]
 }

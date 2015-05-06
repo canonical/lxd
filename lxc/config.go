@@ -21,6 +21,25 @@ func (c *configCmd) showByDefault() bool {
 	return true
 }
 
+var configEditHelp string = gettext.Gettext(
+	"### This is a yaml representation of the configuration.\n" +
+		"### Any line starting with a '# will be ignored.\n" +
+		"###\n" +
+		"### A sample configuration looks like:\n" +
+		"### name: container1\n" +
+		"### profiles:\n" +
+		"### - default\n" +
+		"### config:\n" +
+		"###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n" +
+		"### devices:\n" +
+		"###   homedir:\n" +
+		"###     path: /extra\n" +
+		"###     source: /home/user\n" +
+		"###     type: disk\n" +
+		"### ephemeral: false\n" +
+		"###\n" +
+		"### Note that the name is shown but cannot be changed\n")
+
 var profileEditHelp string = gettext.Gettext(
 	"### This is a yaml representation of the profile.\n" +
 		"### Any line starting with a '# will be ignored.\n" +
@@ -38,17 +57,18 @@ var profileEditHelp string = gettext.Gettext(
 		"###     parent: lxcbr0\n" +
 		"###     type: nic\n" +
 		"###\n" +
-		"### Note that the name cannot be changed\n")
+		"### Note that the name is shown but cannot be changed\n")
 
 func (c *configCmd) usage() string {
 	return gettext.Gettext(
 		"Manage configuration.\n" +
 			"\n" +
-			"lxc config get <container> key                   Get configuration key\n" +
 			"lxc config device add <resource> <name> <type> [key=value]...\n" +
 			"               Add a device to a resource\n" +
 			"lxc config device list <resource>                List devices for resource\n" +
 			"lxc config device remove <resource> <name>       Remove device from resource\n" +
+			"lxc config edit <container>                      Edit container configuration in external editor\n" +
+			"lxc config get <container> key                   Get configuration key\n" +
 			"lxc config profile list [filters]                List profiles\n" +
 			"lxc config profile create <profile>              Create profile\n" +
 			"lxc config profile delete <profile>              Delete profile\n" +
@@ -319,6 +339,19 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
+	case "edit":
+		if len(args) != 2 {
+			return errArgs
+		}
+
+		remote, container := config.ParseRemoteAndContainer(args[1])
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+
+		return doConfigEdit(d, container)
+
 	default:
 		return errArgs
 	}
@@ -330,6 +363,68 @@ func doProfileCreate(client *lxd.Client, p string) error {
 	err := client.ProfileCreate(p)
 	if err == nil {
 		fmt.Printf(gettext.Gettext("Profile %s created\n"), p)
+	}
+	return err
+}
+
+func doConfigEdit(client *lxd.Client, cont string) error {
+	config, err := client.ContainerStatus(cont)
+	if err != nil {
+		return err
+	}
+
+	brief := config.BriefState()
+
+	editor := os.Getenv("VISUAL")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+		if editor == "" {
+			editor = "vi"
+		}
+	}
+	data, err := yaml.Marshal(&brief)
+	f, err := ioutil.TempFile("", "lxd_lxc_config_")
+	if err != nil {
+		return err
+	}
+	fname := f.Name()
+	if err = f.Chmod(0700); err != nil {
+		f.Close()
+		os.Remove(fname)
+		return err
+	}
+	f.Write([]byte(configEditHelp))
+	f.Write(data)
+	f.Close()
+	defer os.Remove(fname)
+
+	for {
+		cmd := exec.Command(editor, fname)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
+		contents, err := ioutil.ReadFile(fname)
+		if err != nil {
+			return err
+		}
+		newdata := shared.BriefContainerState{}
+		err = yaml.Unmarshal(contents, &newdata)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v\n"), err)
+			fmt.Printf("Press enter to play again ")
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+		err = client.UpdateContainerConfig(cont, newdata)
+		break
 	}
 	return err
 }
