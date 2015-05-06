@@ -173,7 +173,7 @@ func ValidDeviceConfig(t, k, v string) bool {
 			return true
 		case "source":
 			return true
-		case "readonly":
+		case "readonly", "optional":
 			return true
 		default:
 			return false
