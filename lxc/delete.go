@@ -54,7 +54,7 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	ct, err := d.ContainerStatus(name)
+	ct, err := d.ContainerStatus(name, false)
 
 	if err != nil {
 		// Could be a snapshot

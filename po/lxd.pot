@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-06 14:57-0500\n"
+        "POT-Creation-Date: 2015-05-06 15:02-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -106,7 +106,7 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1373
+#: client.go:1374
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -225,7 +225,7 @@ msgstr  ""
 msgid   "Image imported with fingerprint: %s\n"
 msgstr  ""
 
-#: lxc/info.go:37
+#: lxc/info.go:42
 msgid   "Information about remotes not yet supported\n"
 msgstr  ""
 
@@ -239,13 +239,13 @@ msgstr  ""
 msgid   "Invalid target %s"
 msgstr  ""
 
-#: lxc/info.go:18
+#: lxc/info.go:21
 msgid   "List information on containers.\n"
         "\n"
         "This will support remotes and images as well, but only containers "
         "for now.\n"
         "\n"
-        "lxc info [<remote>:]container\n"
+        "lxc info [<remote>:]container [--show-log]\n"
 msgstr  ""
 
 #: lxc/list.go:23
@@ -437,6 +437,10 @@ msgstr  ""
 msgid   "Show for server is not yet supported\n"
 msgstr  ""
 
+#: lxc/info.go:29
+msgid   "Show the container's last 100 log lines?"
+msgstr  ""
+
 #: lxc/image.go:224
 msgid   "Size: %.2vMB\n"
 msgstr  ""
@@ -493,7 +497,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:502 client.go:1264 client.go:1271
+#: client.go:502 client.go:1265 client.go:1272
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -502,7 +506,7 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1404
+#: client.go:1405
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -511,11 +515,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:506 client.go:1275
+#: client.go:506 client.go:1276
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1408
+#: client.go:1409
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -573,7 +577,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1210
+#: client.go:1211
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -630,7 +634,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1450 client.go:1504
+#: client.go:1451 client.go:1505
 msgid   "no value found in %q\n"
 msgstr  ""
 

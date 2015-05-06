@@ -266,7 +266,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		resp, err := d.ContainerStatus(container)
+		resp, err := d.ContainerStatus(container, false)
 		if err != nil {
 			return err
 		}
@@ -368,7 +368,7 @@ func doProfileCreate(client *lxd.Client, p string) error {
 }
 
 func doConfigEdit(client *lxd.Client, cont string) error {
-	config, err := client.ContainerStatus(cont)
+	config, err := client.ContainerStatus(cont, false)
 	if err != nil {
 		return err
 	}
