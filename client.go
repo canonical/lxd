@@ -1319,6 +1319,16 @@ func (c *Client) SetContainerConfig(container, key, value string) (*Response, er
 	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
 }
 
+func (c *Client) UpdateContainerConfig(container string, st shared.BriefContainerState) error {
+	body := shared.Jmap{"name": container,
+		"profiles":  st.Profiles,
+		"config":    st.Config,
+		"devices":   st.Devices,
+		"ephemeral": st.Ephemeral}
+	_, err := c.put(fmt.Sprintf("containers/%s", container), body, Async)
+	return err
+}
+
 func (c *Client) ProfileCreate(p string) error {
 	body := shared.Jmap{"name": p}
 
