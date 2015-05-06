@@ -1332,10 +1332,6 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		return nil, err
 	}
 
-	if err = d.c.SetLogFile(filepath.Join(dir, "lxc.log")); err != nil {
-		return nil, err
-	}
-
 	var txtarch string
 	switch arch {
 	case 0:
@@ -1433,6 +1429,16 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 
 	err = d.applyConfig(d.config)
 	if err != nil {
+		return nil, err
+	}
+
+	/*
+	 * N.B. we do this after all the configs and profiles are applied,
+	 * because users can control those, which means they can write (and
+	 * read, with --show-log) from arbitrary files on the system unless we
+	 * override them.
+	 */
+	if err = d.c.SetLogFile(filepath.Join(dir, "lxc.log")); err != nil {
 		return nil, err
 	}
 
