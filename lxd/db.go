@@ -260,7 +260,7 @@ CREATE TABLE IF NOT EXISTS profiles_config (
     key VARCHAR(255) NOT NULL,
     value VARCHAR(255),
     UNIQUE (profile_id, key),
-    FOREIGN KEY (profile_id) REFERENCES profiles(id)
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS profiles_devices (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -268,7 +268,7 @@ CREATE TABLE IF NOT EXISTS profiles_devices (
     name VARCHAR(255) NOT NULL,
     type INTEGER NOT NULL default 0,
     UNIQUE (profile_id, name),
-    FOREIGN KEY (profile_id) REFERENCES profiles (id)
+    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS profiles_devices_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
