@@ -87,7 +87,10 @@ func (c *configCmd) usage() string {
 			"lxc config trust remove [remote] [hostname|fingerprint]\n" +
 			"               Remove the cert from trusted hosts.\n" +
 			"\n" +
-			"To set an lxc config value, for example:\n" +
+			"Examples:\n" +
+			"To mount host's /share/c1 onto /opt in the container:\n" +
+			"\tlxc config device add container1 mntdir disk source=/share/c1 path=opt\n" +
+			"To set an lxc config value:\n" +
 			"\tlxc config set <container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n")
 }
 
