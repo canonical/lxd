@@ -717,6 +717,13 @@ func dbInsertContainerConfig(tx *sql.Tx, id int, config map[string]string) error
 	defer stmt.Close()
 
 	for k, v := range config {
+		if k == "raw.lxc" {
+			err := validateRawLxc(config["raw.lxc"])
+			if err != nil {
+				return err
+			}
+		}
+
 		if !ValidContainerConfigKey(k) {
 			return fmt.Errorf("Bad key: %s\n", k)
 		}
@@ -1044,6 +1051,17 @@ func (c *lxdContainer) Unfreeze() error {
 	return c.c.Unfreeze()
 }
 
+func validateRawLxc(rawLxc string) error {
+	for _, line := range strings.Split(rawLxc, "\n") {
+		membs := strings.SplitN(line, "=", 2)
+		if strings.ToLower(strings.Trim(membs[0], " \t")) == "lxc.logfile" {
+			return fmt.Errorf("setting lxc.logfile is not allowed")
+		}
+	}
+
+	return nil
+}
+
 func (d *lxdContainer) applyConfig(config map[string]string) error {
 	var err error
 	for k, v := range config {
@@ -1080,6 +1098,10 @@ func (d *lxdContainer) applyConfig(config map[string]string) error {
 	}
 
 	if lxcConfig, ok := config["raw.lxc"]; ok {
+		if err := validateRawLxc(config["raw.lxc"]); err != nil {
+			return err
+		}
+
 		f, err := ioutil.TempFile("", "lxd_config_")
 		if err != nil {
 			return err
