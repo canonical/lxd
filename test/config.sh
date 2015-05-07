@@ -1,4 +1,11 @@
 test_config_profiles() {
+  if ! lxc image alias list | grep -q ^testimage$; then
+      if [ -e "$LXD_TEST_IMAGE" ]; then
+          lxc image import $LXD_TEST_IMAGE --alias testimage
+      else
+          ../scripts/lxd-images import busybox --alias testimage
+      fi
+  fi
   lxc init testimage foo
   lxc config profile list | grep default
 
@@ -17,6 +24,19 @@ test_config_profiles() {
 
   lxc config set foo user.prop value
   lxc list user.prop=value | grep foo
+  lxc config unset foo user.prop
+
+  bad=0
+  lxc list user.prop=value | grep foo && bad=1
+  if [ "$bad" -eq 1 ]; then
+    echo "property unset failed"
+  fi
+
+  bad=0
+  lxc config set foo user.prop && bad=1
+  if [ "$bad" -eq 1 ]; then
+    echo "property set succeded when it shouldn't have"
+  fi
 
   lxc delete foo
 
