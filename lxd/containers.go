@@ -333,8 +333,17 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	if req.Config == nil {
-		req.Config = source.config
+		config := make(map[string]string)
+		for key, value := range source.config {
+			if key[0:8] == "volatile" {
+				shared.Debugf("skipping: %s\n", key)
+				continue
+			}
+			req.Config[key] = value
+		}
+		req.Config = config
 	}
+
 	if req.Profiles == nil {
 		req.Profiles = source.profiles
 	}
