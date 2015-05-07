@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-06 15:02-0600\n"
+        "POT-Creation-Date: 2015-05-07 11:24-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -110,7 +110,7 @@ msgstr  ""
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: lxc/config.go:607
+#: lxc/config.go:609
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -158,12 +158,12 @@ msgid   "Delete a container or container snapshot.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:655
+#: lxc/config.go:657
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:683
+#: lxc/config.go:685
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -307,6 +307,9 @@ msgid   "Manage configuration.\n"
         "trusted hosts.\n"
         "lxc config trust remove [remote] [hostname|fingerprint]\n"
         "               Remove the cert from trusted hosts.\n"
+        "\n"
+        "To set an lxc config value, for example:\n"
+        "\tlxc config set <container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n"
 msgstr  ""
 
 #: lxc/file.go:29
@@ -346,7 +349,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move <source container> <destination container>\n"
 msgstr  ""
 
-#: lxc/config.go:186
+#: lxc/config.go:188
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -354,7 +357,7 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:209
+#: lxc/config.go:211
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -375,17 +378,17 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version\n"
 msgstr  ""
 
-#: lxc/config.go:505
+#: lxc/config.go:507
 #, c-format
 msgid   "Profile %s applied to %s\n"
 msgstr  ""
 
-#: lxc/config.go:365
+#: lxc/config.go:367
 #, c-format
 msgid   "Profile %s created\n"
 msgstr  ""
 
-#: lxc/config.go:494
+#: lxc/config.go:496
 #, c-format
 msgid   "Profile %s deleted\n"
 msgstr  ""
@@ -429,11 +432,11 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:245
+#: lxc/config.go:247
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
-#: lxc/config.go:241
+#: lxc/config.go:243
 msgid   "Show for server is not yet supported\n"
 msgstr  ""
 
@@ -467,7 +470,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:236
+#: lxc/config.go:238
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
@@ -489,7 +492,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:417 lxc/config.go:476
+#: lxc/config.go:419 lxc/config.go:478
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
