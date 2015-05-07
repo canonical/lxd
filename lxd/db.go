@@ -433,27 +433,27 @@ func createDefaultProfile(db *sql.DB) error {
 }
 
 // Create a database connection object and return it.
-func initializeDbObject(openPath string) (db *sql.DB, err error){
+func initializeDbObject(openPath string) (db *sql.DB, err error) {
 	timeout := 5 // TODO - make this command-line configurable?
 
-    // Open the database. If the file doesn't exist it is created.
-    db, err = sql.Open("sqlite3", openPath)
-    if err != nil {
-        return nil, err
-    }
+	// Open the database. If the file doesn't exist it is created.
+	db, err = sql.Open("sqlite3", openPath)
+	if err != nil {
+		return nil, err
+	}
 
-    // Table creation is indempotent, run it every time
-    err = createDb(db)
-    if err != nil {
-        return nil, fmt.Errorf("Error creating database: %s\n", err)
-    }
+	// Table creation is indempotent, run it every time
+	err = createDb(db)
+	if err != nil {
+		return nil, fmt.Errorf("Error creating database: %s\n", err)
+	}
 
-    // Run PRAGMA statements now since they are *per-connection*.
-    // err is not checked because SQLite explicitely doesn't error out on wrong
-    // pragma statements (it always succeeds, but is ignored if invalid).
-    db.Exec(fmt.Sprintf("PRAGMA busy_timeout = %d;", timeout*1000))
-    db.Exec("PRAGMA locking_mode = EXCLUSIVE;")
-    db.Exec("PRAGMA foreign_keys=ON;")  // This allows us to use ON DELETE CASCADE
+	// Run PRAGMA statements now since they are *per-connection*.
+	// err is not checked because SQLite explicitely doesn't error out on wrong
+	// pragma statements (it always succeeds, but is ignored if invalid).
+	db.Exec(fmt.Sprintf("PRAGMA busy_timeout = %d;", timeout*1000))
+	db.Exec("PRAGMA locking_mode = EXCLUSIVE;")
+	db.Exec("PRAGMA foreign_keys=ON;") // This allows us to use ON DELETE CASCADE
 
 	v, err := getSchema(db)
 	if err != nil {
@@ -474,7 +474,7 @@ func initializeDbObject(openPath string) (db *sql.DB, err error){
 func initDb(d *Daemon) (err error) {
 	openPath := shared.VarPath("lxd.db")
 	d.db, err = initializeDbObject(openPath)
-    return
+	return
 }
 
 var NoSuchImageError = errors.New("No such image")
