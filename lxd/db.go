@@ -18,13 +18,11 @@ var (
 	DbErrAlreadyDefined = fmt.Errorf("already exists")
 )
 
-func createDb(p string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", p)
-	if err != nil {
-		return nil, fmt.Errorf("Error creating database: %s\n", err)
-	}
+// Create the initial schema for a given SQLite DB connection.
+// This is indempotent, using the CREATE TABLE IF NOT EXISTS stanza.
+func createDb(db *sql.DB) (err error) {
 	stmt := `
-CREATE TABLE certificates (
+CREATE TABLE IF NOT EXISTS certificates (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     fingerprint VARCHAR(255) NOT NULL,
     type INTEGER NOT NULL,
@@ -32,13 +30,13 @@ CREATE TABLE certificates (
     certificate TEXT NOT NULL,
     UNIQUE (fingerprint)
 );
-CREATE TABLE config (
+CREATE TABLE IF NOT EXISTS config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     key VARCHAR(255) NOT NULL,
     value TEXT,
     UNIQUE (key)
 );
-CREATE TABLE containers (
+CREATE TABLE IF NOT EXISTS containers (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
     architecture INTEGER NOT NULL,
@@ -47,40 +45,40 @@ CREATE TABLE containers (
     ephemeral INTEGER NOT NULL DEFAULT 0,
     UNIQUE (name)
 );
-CREATE TABLE containers_config (
+CREATE TABLE IF NOT EXISTS containers_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     container_id INTEGER NOT NULL,
     key VARCHAR(255) NOT NULL,
     value TEXT,
-    FOREIGN KEY (container_id) REFERENCES containers (id),
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
     UNIQUE (container_id, key)
 );
-CREATE TABLE containers_devices (
+CREATE TABLE IF NOT EXISTS containers_devices (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     container_id INTEGER NOT NULL,
     name VARCHAR(255) NOT NULL,
     type INTEGER NOT NULL default 0,
-    FOREIGN KEY (container_id) REFERENCES containers (id),
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
     UNIQUE (container_id, name)
 );
-CREATE TABLE containers_devices_config (
+CREATE TABLE IF NOT EXISTS containers_devices_config (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     container_device_id INTEGER NOT NULL,
     key VARCHAR(255) NOT NULL,
     value TEXT,
-    FOREIGN KEY (container_device_id) REFERENCES containers_devices (id),
+    FOREIGN KEY (container_device_id) REFERENCES containers_devices (id) ON DELETE CASCADE,
     UNIQUE (container_device_id, key)
 );
-CREATE TABLE containers_profiles (
+CREATE TABLE IF NOT EXISTS containers_profiles (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     container_id INTEGER NOT NULL,
     profile_id INTEGER NOT NULL,
     apply_order INTEGER NOT NULL default 0,
     UNIQUE (container_id, profile_id),
-    FOREIGN KEY (container_id) REFERENCES containers(id),
-    FOREIGN KEY (profile_id) REFERENCES profiles(id)
+    FOREIGN KEY (container_id) REFERENCES containers(id) ON DELETE CASCADE,
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
-CREATE TABLE images (
+CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     fingerprint VARCHAR(255) NOT NULL,
     filename VARCHAR(255) NOT NULL,
@@ -92,7 +90,7 @@ CREATE TABLE images (
     upload_date DATETIME NOT NULL,
     UNIQUE (fingerprint)
 );
-CREATE TABLE images_aliases (
+CREATE TABLE IF NOT EXISTS images_aliases (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
     image_id INTEGER NOT NULL,
@@ -100,7 +98,7 @@ CREATE TABLE images_aliases (
     FOREIGN KEY (image_id) REFERENCES images (id),
     UNIQUE (name)
 );
-CREATE TABLE images_properties (
+CREATE TABLE IF NOT EXISTS images_properties (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     image_id INTEGER NOT NULL,
     type INTEGER NOT NULL,
@@ -108,36 +106,36 @@ CREATE TABLE images_properties (
     value TEXT,
     FOREIGN KEY (image_id) REFERENCES images (id)
 );
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
     UNIQUE (name)
 );
-CREATE TABLE profiles_config (
+CREATE TABLE IF NOT EXISTS profiles_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     profile_id INTEGER NOT NULL,
     key VARCHAR(255) NOT NULL,
     value VARCHAR(255),
     UNIQUE (profile_id, key),
-    FOREIGN KEY (profile_id) REFERENCES profiles(id)
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
-CREATE TABLE profiles_devices (
+CREATE TABLE IF NOT EXISTS profiles_devices (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     profile_id INTEGER NOT NULL,
     name VARCHAR(255) NOT NULL,
     type INTEGER NOT NULL default 0,
     UNIQUE (profile_id, name),
-    FOREIGN KEY (profile_id) REFERENCES profiles (id)
+    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
 );
-CREATE TABLE profiles_devices_config (
+CREATE TABLE IF NOT EXISTS profiles_devices_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     profile_device_id INTEGER NOT NULL,
     key VARCHAR(255) NOT NULL,
     value TEXT,
     UNIQUE (profile_device_id, key),
-    FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id)
+    FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id) ON DELETE CASCADE
 );
-CREATE TABLE schema (
+CREATE TABLE IF NOT EXISTS schema (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     version INTEGER NOT NULL,
     updated_at DATETIME NOT NULL,
@@ -147,12 +145,12 @@ INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 
 	_, err = db.Exec(stmt, DB_CURRENT_VERSION)
 	if err != nil {
-		return db, err
+		return err
 	}
 
 	err = createDefaultProfile(db)
 
-	return db, err
+	return err
 }
 
 func getSchema(db *sql.DB) (int, error) {
@@ -178,7 +176,7 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 
 func updateFromV4(db *sql.DB) error {
 	stmt := `
-CREATE TABLE config (
+CREATE TABLE IF NOT EXISTS config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     key VARCHAR(255) NOT NULL,
     value TEXT,
@@ -226,15 +224,15 @@ func updateFromV3(db *sql.DB) error {
 
 func updateFromV2(db *sql.DB) error {
 	stmt := `
-CREATE TABLE containers_devices (
+CREATE TABLE IF NOT EXISTS containers_devices (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     container_id INTEGER NOT NULL,
     name VARCHAR(255) NOT NULL,
     type INTEGER NOT NULL default 0,
-    FOREIGN KEY (container_id) REFERENCES containers (id),
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
     UNIQUE (container_id, name)
 );
-CREATE TABLE containers_devices_config (
+CREATE TABLE IF NOT EXISTS containers_devices_config (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     container_device_id INTEGER NOT NULL,
     key VARCHAR(255) NOT NULL,
@@ -242,37 +240,37 @@ CREATE TABLE containers_devices_config (
     FOREIGN KEY (container_device_id) REFERENCES containers_devices (id),
     UNIQUE (container_device_id, key)
 );
-CREATE TABLE containers_profiles (
+CREATE TABLE IF NOT EXISTS containers_profiles (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     container_id INTEGER NOT NULL,
     profile_id INTEGER NOT NULL,
     apply_order INTEGER NOT NULL default 0,
     UNIQUE (container_id, profile_id),
-    FOREIGN KEY (container_id) REFERENCES containers(id),
-    FOREIGN KEY (profile_id) REFERENCES profiles(id)
+    FOREIGN KEY (container_id) REFERENCES containers(id) ON DELETE CASCADE,
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
     UNIQUE (name)
 );
-CREATE TABLE profiles_config (
+CREATE TABLE IF NOT EXISTS profiles_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     profile_id INTEGER NOT NULL,
     key VARCHAR(255) NOT NULL,
     value VARCHAR(255),
     UNIQUE (profile_id, key),
-    FOREIGN KEY (profile_id) REFERENCES profiles(id)
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
-CREATE TABLE profiles_devices (
+CREATE TABLE IF NOT EXISTS profiles_devices (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     profile_id INTEGER NOT NULL,
     name VARCHAR(255) NOT NULL,
     type INTEGER NOT NULL default 0,
     UNIQUE (profile_id, name),
-    FOREIGN KEY (profile_id) REFERENCES profiles (id)
+    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
 );
-CREATE TABLE profiles_devices_config (
+CREATE TABLE IF NOT EXISTS profiles_devices_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     profile_device_id INTEGER NOT NULL,
     key VARCHAR(255) NOT NULL,
@@ -289,7 +287,7 @@ INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 func updateFromV1(db *sql.DB) error {
 	// v1..v2 adds images aliases
 	stmt := `
-CREATE TABLE images_aliases (
+CREATE TABLE IF NOT EXISTS images_aliases (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
     image_id INTEGER NOT NULL,
@@ -305,7 +303,7 @@ INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 func updateFromV0(db *sql.DB) error {
 	// v0..v1 adds schema table
 	stmt := `
-CREATE TABLE schema (
+CREATE TABLE IF NOT EXISTS schema (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     version INTEGER NOT NULL,
     updated_at DATETIME NOT NULL,
@@ -434,39 +432,49 @@ func createDefaultProfile(db *sql.DB) error {
 	return nil
 }
 
-func initDb(d *Daemon) error {
-	dbpath := shared.VarPath("lxd.db")
-	var db *sql.DB
-	var err error
+// Create a database connection object and return it.
+func initializeDbObject(openPath string) (db *sql.DB, err error) {
 	timeout := 5 // TODO - make this command-line configurable?
-	openPath := fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", dbpath, timeout*1000)
-	if !shared.PathExists(dbpath) {
-		db, err = createDb(openPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		db, err = sql.Open("sqlite3", openPath)
-		if err != nil {
-			return err
-		}
+
+	// Open the database. If the file doesn't exist it is created.
+	db, err = sql.Open("sqlite3", openPath)
+	if err != nil {
+		return nil, err
 	}
 
-	d.db = db
+	// Table creation is indempotent, run it every time
+	err = createDb(db)
+	if err != nil {
+		return nil, fmt.Errorf("Error creating database: %s\n", err)
+	}
+
+	// Run PRAGMA statements now since they are *per-connection*.
+	// err is not checked because SQLite explicitely doesn't error out on wrong
+	// pragma statements (it always succeeds, but is ignored if invalid).
+	db.Exec(fmt.Sprintf("PRAGMA busy_timeout = %d;", timeout*1000))
+	db.Exec("PRAGMA locking_mode = EXCLUSIVE;")
+	db.Exec("PRAGMA foreign_keys=ON;") // This allows us to use ON DELETE CASCADE
 
 	v, err := getSchema(db)
 	if err != nil {
-		return fmt.Errorf("Bad database, or database too new for this lxd version")
+		return nil, fmt.Errorf("Bad database, or database too new for this lxd version")
 	}
 
 	if v != DB_CURRENT_VERSION {
 		err = updateDb(db, v)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return db, nil
+}
+
+// Initialize a database connection and set it on the daemon.
+func initDb(d *Daemon) (err error) {
+	openPath := shared.VarPath("lxd.db")
+	d.db, err = initializeDbObject(openPath)
+	return
 }
 
 var NoSuchImageError = errors.New("No such image")
