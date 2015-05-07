@@ -214,12 +214,15 @@ class LXCImages(object):
             shutil.rmtree(self.workdir)
 
     def __grab_and_validate(self, url, dest):
-        # Main file
-        urllib.request.urlretrieve(url, dest)
+        try:
+            # Main file
+            urllib.request.urlretrieve(url, dest)
 
-        # Signature
-        urllib.request.urlretrieve(url + ".asc",
-                                   dest + ".asc")
+            # Signature
+            urllib.request.urlretrieve(url + ".asc",
+                                       dest + ".asc")
+        except socket.timeout or IOError as e:
+            raise Exception("Failed to download \"%s\": %s" % (url, e))
 
         # Verify the signature
         self.gpg_verify(dest + ".asc")
