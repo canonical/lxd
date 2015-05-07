@@ -85,12 +85,19 @@ func (c *configCmd) usage() string {
 			"lxc config trust list [remote]                   List all trusted certs.\n" +
 			"lxc config trust add [remote] [certfile.crt]     Add certfile.crt to trusted hosts.\n" +
 			"lxc config trust remove [remote] [hostname|fingerprint]\n" +
-			"               Remove the cert from trusted hosts.\n")
+			"               Remove the cert from trusted hosts.\n" +
+			"\n" +
+			"To set an lxc config value, for example:\n" +
+			"\tlxc config set <container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n")
 }
 
 func (c *configCmd) flags() {}
 
 func doSet(config *lxd.Config, args []string) error {
+	if len(args) != 4 {
+		return errArgs
+	}
+
 	// [[lxc config]] set dakara:c1 limits.memory 200000
 	remote, container := config.ParseRemoteAndContainer(args[1])
 	d, err := lxd.NewClient(config, remote)
@@ -99,12 +106,7 @@ func doSet(config *lxd.Config, args []string) error {
 	}
 
 	key := args[2]
-	var value string
-	if len(args) < 4 {
-		value = ""
-	} else {
-		value = args[3]
-	}
+	value := args[3]
 	resp, err := d.SetContainerConfig(container, key, value)
 	if err != nil {
 		return err
@@ -123,7 +125,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		if len(args) < 3 {
 			return errArgs
 		}
-		return doSet(config, args)
+		return doSet(config, append(args, ""))
 
 	case "set":
 		if len(args) < 2 {
