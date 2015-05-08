@@ -1183,12 +1183,13 @@ func (c *Client) MigrateTo(container string) (*Response, error) {
 	return c.post(fmt.Sprintf("containers/%s", container), body, Async)
 }
 
-func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string, config map[string]string, profiles []string) (*Response, error) {
+func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string, config map[string]string, profiles []string, baseImage string) (*Response, error) {
 	source := shared.Jmap{
-		"type":      "migration",
-		"mode":      "pull",
-		"operation": operation,
-		"secrets":   secrets,
+		"type":       "migration",
+		"mode":       "pull",
+		"operation":  operation,
+		"secrets":    secrets,
+		"base-image": baseImage,
 	}
 	body := shared.Jmap{
 		"source":   source,
