@@ -189,3 +189,18 @@ func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
 		t.Error(fmt.Sprintf("Deleting an image didn't delete the related images_properties! There are %d left", count))
 	}
 }
+
+func Test_initializing_db_is_indempotent(t *testing.T) {
+	var db *sql.DB
+	var err error
+
+	// This calls "createDb" once already.
+	db, err = initializeDbObject(":memory:")
+	defer db.Close()
+
+	// Let's call it a second time.
+	err = createDb(db)
+	if err != nil {
+		t.Error("The database schema is not indempotent.")
+	}
+}
