@@ -63,10 +63,10 @@ func (c *configCmd) usage() string {
 	return gettext.Gettext(
 		"Manage configuration.\n" +
 			"\n" +
-			"lxc config device add <resource> <name> <type> [key=value]...\n" +
-			"               Add a device to a resource\n" +
-			"lxc config device list <resource>                List devices for resource\n" +
-			"lxc config device remove <resource> <name>       Remove device from resource\n" +
+			"lxc config device add <container> <name> <type> [key=value]...\n" +
+			"               Add a device to a container\n" +
+			"lxc config device list <container>                List devices for container\n" +
+			"lxc config device remove <container> <name>       Remove device from container\n" +
 			"lxc config edit <container>                      Edit container configuration in external editor\n" +
 			"lxc config get <container> key                   Get configuration key\n" +
 			"lxc config profile list [filters]                List profiles\n" +
@@ -78,7 +78,7 @@ func (c *configCmd) usage() string {
 			"lxc config profile device list <profile>\n" +
 			"lxc config profile device remove <profile> <name>\n" +
 			"lxc config profile set <profile> <key> <value>   Set profile configuration\n" +
-			"lxc config profile apply <resource> <profile>    Apply profile to container\n" +
+			"lxc config profile apply <container> <profile>    Apply profile to container\n" +
 			"lxc config set [remote] password <newpwd>        Set admin password\n" +
 			"lxc config set <container> key [value]           Set container configuration key\n" +
 			"lxc config show <container>                      Show container configuration\n" +
