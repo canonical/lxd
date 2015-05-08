@@ -62,10 +62,8 @@ lxc() {
 
 wipe() {
     if type btrfs >/dev/null 2>&1; then
-        btrfs subvolume list -o "$1" | awk '{print $NF}' | while read line; do
-            subvol=$(echo $line | awk '{print $NF}')
-            btrfs subvolume delete "/$subvol"
-        done
+        rm -Rf "$1" 2>/dev/null || true
+        find "$1" | tac | xargs btrfs subvolume delete >/dev/null 2>&1 || true
     fi
 
     rm -Rf "$1"
