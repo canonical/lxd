@@ -149,17 +149,10 @@ CREATE TABLE IF NOT EXISTS schema (
 
 	// To make the schema creation indempotent, only insert the schema version
 	// if there isn't one already.
-	var count int
-	query_stmt := `SELECT COUNT(*) FROM schema WHERE version == ?`
-	err = db.QueryRow(query_stmt, DB_CURRENT_VERSION).Scan(&count)
+	latest_version := getSchema(db)
 
-	if err != nil {
-		return err
-	}
-
-	if count == 0 {
-		// There isn't an entry for the latest schema version already, let's
-		// put it in.
+	if latest_version == 0 {
+		// There isn't an entry for schema version, let's put it in.
 		insert_stmt := `INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 		_, err = db.Exec(insert_stmt, DB_CURRENT_VERSION)
 		if err != nil {
@@ -172,16 +165,15 @@ CREATE TABLE IF NOT EXISTS schema (
 	return err
 }
 
-func getSchema(db *sql.DB) (int, error) {
-	var v int
+func getSchema(db *sql.DB) (v int) {
 	arg1 := []interface{}{}
 	arg2 := []interface{}{&v}
 	q := "SELECT max(version) FROM schema"
 	err := shared.DbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
-		return 0, nil
+		return 0
 	}
-	return v, nil
+	return v
 }
 
 func updateFromV5(db *sql.DB) error {
@@ -476,10 +468,7 @@ func initializeDbObject(path string) (db *sql.DB, err error) {
 	// Run PRAGMA statements now since they are *per-connection*.
 	db.Exec("PRAGMA foreign_keys=ON;") // This allows us to use ON DELETE CASCADE
 
-	v, err := getSchema(db)
-	if err != nil {
-		return nil, fmt.Errorf("Bad database, or database too new for this lxd version")
-	}
+	v := getSchema(db)
 
 	if v != DB_CURRENT_VERSION {
 		err = updateDb(db, v)

@@ -204,3 +204,18 @@ func Test_initializing_db_is_indempotent(t *testing.T) {
 		t.Error("The database schema is not indempotent.")
 	}
 }
+
+func Test_get_schema_returns_0_on_uninitialized_db(t *testing.T) {
+	var db *sql.DB
+	var err error
+
+	db, err = sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Error(err)
+	}
+	var result int = getSchema(db)
+
+	if result != 0 {
+		t.Error("getSchema should return 0 on uninitialized db!")
+	}
+}
