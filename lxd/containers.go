@@ -513,6 +513,10 @@ func removeContainerPath(d *Daemon, name string) error {
 
 	backing_fs, err := shared.GetFilesystem(cpath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
 		shared.Debugf("Error cleaning up %s: %s\n", cpath, err)
 		return err
 	}
@@ -771,7 +775,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 	var ids []int
 
 	backing_fs, err := shared.GetFilesystem(shared.VarPath("lxc", cname))
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		shared.Debugf("Error cleaning up snapshots: %s\n", err)
 		return err
 	}
