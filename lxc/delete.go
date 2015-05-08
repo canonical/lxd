@@ -31,15 +31,7 @@ func doDelete(d *lxd.Client, name string) error {
 		return err
 	}
 
-	op, err := d.WaitFor(resp.Operation)
-	if err != nil {
-		return err
-	}
-
-	if op.StatusCode == shared.Success {
-		return nil
-	}
-	return fmt.Errorf(gettext.Gettext("Operation %s"), op.Status)
+	return d.WaitForSuccess(resp.Operation)
 }
 
 func (c *deleteCmd) run(config *lxd.Config, args []string) error {
