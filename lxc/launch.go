@@ -80,12 +80,12 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 
 	if name == "" {
 		if resp.Resources == nil {
-			return fmt.Errorf(gettext.Gettext("didn't get any affected resources from server"))
+			return fmt.Errorf(gettext.Gettext("didn't get any affected image, container or snapshot from server"))
 		}
 
 		containers, ok := resp.Resources["containers"]
 		if !ok || len(containers) == 0 {
-			return fmt.Errorf(gettext.Gettext("didn't get any affected resources from server"))
+			return fmt.Errorf(gettext.Gettext("didn't get any affected image, container or snapshot from server"))
 		}
 
 		var version string
@@ -96,7 +96,7 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if count != 2 {
-			return fmt.Errorf(gettext.Gettext("bad number of things scanned from resource"))
+			return fmt.Errorf(gettext.Gettext("bad number of things scanned from image, container or snapshot"))
 		}
 
 		if version != shared.APIVersion {
