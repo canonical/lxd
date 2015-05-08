@@ -140,12 +140,31 @@ CREATE TABLE IF NOT EXISTS schema (
     version INTEGER NOT NULL,
     updated_at DATETIME NOT NULL,
     UNIQUE (version)
-);
-INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
+);`
 
-	_, err = db.Exec(stmt, DB_CURRENT_VERSION)
+	_, err = db.Exec(stmt)
 	if err != nil {
 		return err
+	}
+
+	// To make the schema creation indempotent, only insert the schema version
+	// if there isn't one already.
+	var count int
+	query_stmt := `SELECT COUNT(*) FROM schema WHERE version == ?`
+	err = db.QueryRow(query_stmt, DB_CURRENT_VERSION).Scan(&count)
+
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		// There isn't an entry for the latest schema version already, let's
+		// put it in.
+		insert_stmt := `INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
+		_, err = db.Exec(insert_stmt, DB_CURRENT_VERSION)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = createDefaultProfile(db)
