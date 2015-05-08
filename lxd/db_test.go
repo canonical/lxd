@@ -101,14 +101,6 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Check that there is exactly one containers_profile entry.
-	statements = `SELECT count(*) FROM containers_profiles;`
-	err = db.QueryRow(statements).Scan(&count)
-
-	if count != 1 {
-		t.Error(fmt.Sprintf("Wut? There's an exata containers_profile! There are %d", count))
-	}
-
 	// Drop the profile we just created.
 	statements = `DELETE FROM profiles WHERE name = 'theprofile';`
 
@@ -117,7 +109,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 		t.Error(fmt.Sprintf("Error deleting profile! %s", err))
 	}
 
-	// Make sure there is 0 container_profiles entries left.
+	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles;`
 	err = db.QueryRow(statements).Scan(&count)
 
@@ -125,7 +117,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 		t.Error(fmt.Sprintf("Deleting a profile didn't delete the container association! There are %d left", count))
 	}
 
-	// Make sure there is 0 profiles_devices entries left.
+	// Make sure there are 0 profiles_devices entries left.
 	statements = `SELECT count(*) FROM profiles_devices WHERE profile_id != 1;`
 	err = db.QueryRow(statements).Scan(&count)
 
@@ -133,7 +125,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 		t.Error(fmt.Sprintf("Deleting a profile didn't delete the related profiles_devices! There are %d left", count))
 	}
 
-	// Make sure there is 0 profiles_config entries left.
+	// Make sure there are 0 profiles_config entries left.
 	statements = `SELECT count(*) FROM profiles_config;`
 	err = db.QueryRow(statements).Scan(&count)
 
@@ -141,7 +133,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 		t.Error(fmt.Sprintf("Deleting a profile didn't delete the related profiles_config! There are %d left", count))
 	}
 
-	// Make sure there is 0 profiles_devices_config entries left.
+	// Make sure there are 0 profiles_devices_config entries left.
 	statements = `SELECT count(*) FROM profiles_devices_config WHERE profeil_device_id != 1;`
 	err = db.QueryRow(statements).Scan(&count)
 
@@ -149,4 +141,51 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 		t.Error(fmt.Sprintf("Deleting a profile didn't delete the related profiles_devices_config! There are %d left", count))
 	}
 
+}
+
+func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var count int
+
+	db, err = initializeDbObject(":memory:")
+	defer db.Close()
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	statements := `
+    INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES ('fingerprint', 'filename', 0, 0, 0, 0, 0);
+    INSERT INTO images_aliases (name, image_id, description) VALUES ('somename', 1, 'some description');
+    INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');`
+
+	_, err = db.Exec(statements)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Drop the image we just created.
+	statements = `DELETE FROM images;`
+
+	_, err = db.Exec(statements)
+	if err != nil {
+		t.Error(fmt.Sprintf("Error deleting image! %s", err))
+	}
+
+	// Make sure there are 0 images_aliases entries left.
+	statements = `SELECT count(*) FROM images_aliases;`
+	err = db.QueryRow(statements).Scan(&count)
+
+	if count != 0 {
+		t.Error(fmt.Sprintf("Deleting an image didn't delete the image alias association! There are %d left", count))
+	}
+
+	// Make sure there are 0 images_properties entries left.
+	statements = `SELECT count(*) FROM images_properties;`
+	err = db.QueryRow(statements).Scan(&count)
+
+	if count != 0 {
+		t.Error(fmt.Sprintf("Deleting an image didn't delete the related images_properties! There are %d left", count))
+	}
 }

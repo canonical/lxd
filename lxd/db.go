@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS images_aliases (
     name VARCHAR(255) NOT NULL,
     image_id INTEGER NOT NULL,
     description VARCHAR(255),
-    FOREIGN KEY (image_id) REFERENCES images (id),
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
     UNIQUE (name)
 );
 CREATE TABLE IF NOT EXISTS images_properties (
@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS images_properties (
     type INTEGER NOT NULL,
     key VARCHAR(255) NOT NULL,
     value TEXT,
-    FOREIGN KEY (image_id) REFERENCES images (id)
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -292,7 +292,7 @@ CREATE TABLE IF NOT EXISTS images_aliases (
     name VARCHAR(255) NOT NULL,
     image_id INTEGER NOT NULL,
     description VARCHAR(255),
-    FOREIGN KEY (image_id) REFERENCES images (id),
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
     UNIQUE (name)
 );
 INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
@@ -433,8 +433,14 @@ func createDefaultProfile(db *sql.DB) error {
 }
 
 // Create a database connection object and return it.
-func initializeDbObject(openPath string) (db *sql.DB, err error) {
+func initializeDbObject(path string) (db *sql.DB, err error) {
+	var openPath string
+
 	timeout := 5 // TODO - make this command-line configurable?
+
+	// These are used to tune the transaction BEGIN behavior instead of using the
+	// similar "locking_mode" pragma (locking for the whole database connection).
+	openPath = fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", path, timeout*1000)
 
 	// Open the database. If the file doesn't exist it is created.
 	db, err = sql.Open("sqlite3", openPath)
@@ -449,10 +455,6 @@ func initializeDbObject(openPath string) (db *sql.DB, err error) {
 	}
 
 	// Run PRAGMA statements now since they are *per-connection*.
-	// err is not checked because SQLite explicitely doesn't error out on wrong
-	// pragma statements (it always succeeds, but is ignored if invalid).
-	db.Exec(fmt.Sprintf("PRAGMA busy_timeout = %d;", timeout*1000))
-	db.Exec("PRAGMA locking_mode = EXCLUSIVE;")
 	db.Exec("PRAGMA foreign_keys=ON;") // This allows us to use ON DELETE CASCADE
 
 	v, err := getSchema(db)
@@ -472,9 +474,9 @@ func initializeDbObject(openPath string) (db *sql.DB, err error) {
 
 // Initialize a database connection and set it on the daemon.
 func initDb(d *Daemon) (err error) {
-	openPath := shared.VarPath("lxd.db")
-	d.db, err = initializeDbObject(openPath)
-	return
+	path := shared.VarPath("lxd.db")
+	d.db, err = initializeDbObject(path)
+	return err
 }
 
 var NoSuchImageError = errors.New("No such image")
