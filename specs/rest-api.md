@@ -320,6 +320,7 @@ Input (using a remote container, sent over the migration websocket):
         'source': {'type': "migration",                                                 # Can be: "image", "migration", "copy" or "none"
                    'mode': "pull",                                                      # One of "pull" or "receive"
                    'operation': "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
+                   'base-image': "<some hash>"                                          # Optional, the base image the container was created from
                    'secrets': {'control': "my-secret-string",                           # Secrets to use when talking to the migration source
                                'criu':    "my-other-secret",
                                'fs':      "my third secret"},

@@ -81,6 +81,15 @@ type containerImageSource struct {
 	Server      string `json:"server"`
 	Secret      string `json:"secret"`
 
+	/*
+	 * for "migration" and "copy" types, as an optimization users can
+	 * provide an image hash to extract before the filesystem is rsync'd,
+	 * potentially cutting down filesystem transfer time. LXD will not go
+	 * and fetch this image, it will simply use it if it exists in the
+	 * image store.
+	 */
+	BaseImage string `json:"base-image"`
+
 	/* for "migration" type */
 	Mode       string            `json:"mode"`
 	Operation  string            `json:"operation"`
@@ -198,7 +207,17 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	name := req.Name
 
-	_, err = dbCreateContainer(d, name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
+	args := DbCreateContainerArgs{
+		d:         d,
+		name:      name,
+		ctype:     cTypeRegular,
+		config:    req.Config,
+		profiles:  req.Profiles,
+		ephem:     req.Ephemeral,
+		baseImage: hash,
+	}
+
+	_, err = dbCreateContainer(args)
 	if err != nil {
 		removeContainerPath(d, name)
 		return SmartError(err)
@@ -248,7 +267,16 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 }
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
-	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
+	args := DbCreateContainerArgs{
+		d:        d,
+		name:     req.Name,
+		ctype:    cTypeRegular,
+		config:   req.Config,
+		profiles: req.Profiles,
+		ephem:    req.Ephemeral,
+	}
+
+	_, err := dbCreateContainer(args)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -262,13 +290,44 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 	return &asyncResponse{run: run, resources: resources}
 }
 
+func extractShiftIfExists(d *Daemon, c *lxdContainer, hash string, name string) error {
+	if hash == "" {
+		return nil
+	}
+
+	_, err := dbImageGet(d, hash, false)
+	if err == nil {
+		if err := extractRootfs(hash, name, d); err != nil {
+			return err
+		}
+
+		if !c.isPrivileged() {
+			if err := shiftRootfs(name, d); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func createFromMigration(d *Daemon, req *containerPostReq) Response {
 
 	if req.Source.Mode != "pull" {
 		return NotImplemented
 	}
 
-	_, err := dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
+	createArgs := DbCreateContainerArgs{
+		d:         d,
+		name:      req.Name,
+		ctype:     cTypeRegular,
+		config:    req.Config,
+		profiles:  req.Profiles,
+		ephem:     req.Ephemeral,
+		baseImage: req.Source.BaseImage,
+	}
+
+	_, err := dbCreateContainer(createArgs)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -283,6 +342,11 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	// exist
 	dpath := shared.VarPath("lxc", req.Name)
 	if err := os.MkdirAll(dpath, 0700); err != nil {
+		removeContainer(d, req.Name)
+		return InternalError(err)
+	}
+
+	if err := extractShiftIfExists(d, c, req.Source.BaseImage, req.Name); err != nil {
 		removeContainer(d, req.Name)
 		return InternalError(err)
 	}
@@ -339,13 +403,28 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		req.Profiles = source.profiles
 	}
 
-	_, err = dbCreateContainer(d, req.Name, cTypeRegular, req.Config, req.Profiles, req.Ephemeral)
+	args := DbCreateContainerArgs{
+		d:         d,
+		name:      req.Name,
+		ctype:     cTypeRegular,
+		config:    req.Config,
+		profiles:  req.Profiles,
+		ephem:     req.Ephemeral,
+		baseImage: req.Source.BaseImage,
+	}
+
+	_, err = dbCreateContainer(args)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	dpath := shared.VarPath("lxc", req.Name)
 	if err := os.MkdirAll(dpath, 0700); err != nil {
+		removeContainer(d, req.Name)
+		return InternalError(err)
+	}
+
+	if err := extractShiftIfExists(d, source, req.Source.BaseImage, req.Name); err != nil {
 		removeContainer(d, req.Name)
 		return InternalError(err)
 	}
@@ -544,34 +623,52 @@ func dbGetContainerId(db *sql.DB, name string) (int, error) {
 	return id, err
 }
 
-func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[string]string, profiles []string, ephem bool) (int, error) {
-	id, err := dbGetContainerId(d.db, name)
+type DbCreateContainerArgs struct {
+	d         *Daemon
+	name      string
+	ctype     containerType
+	config    map[string]string
+	profiles  []string
+	ephem     bool
+	baseImage string
+}
+
+func dbCreateContainer(args DbCreateContainerArgs) (int, error) {
+	id, err := dbGetContainerId(args.d.db, args.name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
 	}
 
-	if profiles == nil {
-		profiles = []string{"default"}
+	if args.profiles == nil {
+		args.profiles = []string{"default"}
 	}
 
-	tx, err := shared.DbBegin(d.db)
+	if args.baseImage != "" {
+		if args.config == nil {
+			args.config = map[string]string{}
+		}
+
+		args.config["volatile.baseImage"] = args.baseImage
+	}
+
+	tx, err := shared.DbBegin(args.d.db)
 	if err != nil {
 		return 0, err
 	}
 	ephem_int := 0
-	if ephem == true {
+	if args.ephem == true {
 		ephem_int = 1
 	}
 
 	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral) VALUES (?, 1, %d, %d)",
-		ctype, ephem_int)
+		args.ctype, ephem_int)
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 	defer stmt.Close()
-	result, err := stmt.Exec(name)
+	result, err := stmt.Exec(args.name)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -580,16 +677,16 @@ func dbCreateContainer(d *Daemon, name string, ctype containerType, config map[s
 	id64, err := result.LastInsertId()
 	if err != nil {
 		tx.Rollback()
-		return 0, fmt.Errorf("Error inserting %s into database", name)
+		return 0, fmt.Errorf("Error inserting %s into database", args.name)
 	}
 	// TODO: is this really int64? we should fix it everywhere if so
 	id = int(id64)
-	if err := dbInsertContainerConfig(tx, id, config); err != nil {
+	if err := dbInsertContainerConfig(tx, id, args.config); err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
-	if err := dbInsertProfiles(tx, id, profiles); err != nil {
+	if err := dbInsertProfiles(tx, id, args.profiles); err != nil {
 		tx.Rollback()
 		return 0, err
 	}
@@ -786,6 +883,8 @@ func ValidContainerConfigKey(k string) bool {
 		return true
 	case "raw.lxc":
 		return true
+	case "volatile.baseImage":
+		return true
 	}
 
 	if _, err := ExtractInterfaceFromConfigName(k); err == nil {
@@ -902,7 +1001,17 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return BadRequest(fmt.Errorf("renaming of running container not allowed"))
 		}
 
-		_, err := dbCreateContainer(d, body.Name, cTypeRegular, c.config, c.profiles, c.ephemeral)
+		args := DbCreateContainerArgs{
+			d:         d,
+			name:      body.Name,
+			ctype:     cTypeRegular,
+			config:    c.config,
+			profiles:  c.profiles,
+			ephem:     c.ephemeral,
+			baseImage: c.config["volatile.baseImage"],
+		}
+
+		_, err := dbCreateContainer(args)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -1773,8 +1882,20 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		}
 
 		/* Create the db info */
-		//cId, err := dbCreateContainer(d, snapshotName, cTypeSnapshot)
-		_, err := dbCreateContainer(d, fullName, cTypeSnapshot, c.config, c.profiles, c.ephemeral)
+		args := DbCreateContainerArgs{
+			d:         d,
+			name:      fullName,
+			ctype:     cTypeSnapshot,
+			config:    c.config,
+			profiles:  c.profiles,
+			ephem:     c.ephemeral,
+			baseImage: c.config["volatile.baseImage"],
+		}
+
+		_, err := dbCreateContainer(args)
+		if err != nil {
+			return err
+		}
 
 		/* Create the directory and rootfs, set perms */
 		/* Copy the rootfs */

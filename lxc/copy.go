@@ -47,11 +47,20 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 	}
 
 	status := shared.ContainerState{}
+
+	// TODO: presumably we want to do this for copying snapshots too? We
+	// need to think a bit more about how we track the baseImage in the
+	// face of LVM and snapshots in general; this will probably make more
+	// sense once that work is done.
+	baseImage := ""
+
 	if !shared.IsSnapshot(sourceName) {
 		status, err := source.ContainerStatus(sourceName, false)
 		if err != nil {
 			return err
 		}
+
+		baseImage = status.Config["volatile.baseImage"]
 
 		if status.State() == lxc.RUNNING && sourceName != destName {
 			return fmt.Errorf(gettext.Gettext("changing hostname of running containers not supported"))
@@ -109,7 +118,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		}
 
 		url := source.BaseWSURL + path.Join(to.Operation, "websocket")
-		migration, err := dest.MigrateFrom(sourceName, url, secrets, status.Config, status.Profiles)
+		migration, err := dest.MigrateFrom(sourceName, url, secrets, status.Config, status.Profiles, baseImage)
 		if err != nil {
 			return err
 		}
