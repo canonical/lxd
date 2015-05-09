@@ -12,7 +12,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const DB_CURRENT_VERSION int = 6
+const DB_CURRENT_VERSION int = 7
 
 var (
 	DbErrAlreadyDefined = fmt.Errorf("already exists")
@@ -174,6 +174,138 @@ func getSchema(db *sql.DB) (v int) {
 		return 0
 	}
 	return v
+}
+
+func updateFromV6(db *sql.DB) error {
+	// This update recreates the schemas that need an ON DELETE CASCADE foreign
+	// key.
+	stmt := `
+PRAGMA foreign_keys=OFF; -- So that integrity doesn't get in the way for now
+
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_config; 
+DROP TABLE containers_config;
+CREATE TABLE IF NOT EXISTS containers_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
+    UNIQUE (container_id, key)
+);
+INSERT INTO containers_config SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_devices; 
+DROP TABLE containers_devices;
+CREATE TABLE IF NOT EXISTS containers_devices (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL default 0,
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
+    UNIQUE (container_id, name)
+);
+INSERT INTO containers_devices SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_devices_config; 
+DROP TABLE containers_devices_config;
+CREATE TABLE IF NOT EXISTS containers_devices_config (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_device_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (container_device_id) REFERENCES containers_devices (id) ON DELETE CASCADE,
+    UNIQUE (container_device_id, key)
+);
+INSERT INTO containers_devices_config SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_profiles; 
+DROP TABLE containers_profiles;
+CREATE TABLE IF NOT EXISTS containers_profiles (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    apply_order INTEGER NOT NULL default 0,
+    UNIQUE (container_id, profile_id),
+    FOREIGN KEY (container_id) REFERENCES containers(id) ON DELETE CASCADE,
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+INSERT INTO containers_profiles SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM images_aliases; 
+DROP TABLE image_aliases;
+CREATE TABLE IF NOT EXISTS images_aliases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    image_id INTEGER NOT NULL,
+    description VARCHAR(255),
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
+    UNIQUE (name)
+);
+INSERT INTO images_aliases SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM images_properties; 
+DROP TABLE image_properties;
+CREATE TABLE IF NOT EXISTS images_properties (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    image_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
+);
+INSERT INTO images_properties SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM profiles_config; 
+DROP TABLE profiles_config;
+CREATE TABLE IF NOT EXISTS profiles_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value VARCHAR(255),
+    UNIQUE (profile_id, key),
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+INSERT INTO profiles_config SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM profiles_devices; 
+DROP TABLE profiles_devices;
+CREATE TABLE IF NOT EXISTS profiles_devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL default 0,
+    UNIQUE (profile_id, name),
+    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
+);
+INSERT INTO profiles_devices SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM profiles_devices_config; 
+DROP TABLE profiles_devices_config;
+CREATE TABLE IF NOT EXISTS profiles_devices_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_device_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (profile_device_id, key),
+    FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id) ON DELETE CASCADE
+);
+INSERT INTO profiles_devices_config SELECT * FROM tmp;
+DROP TABLE tmp;
+
+PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.
+PRAGMA integrity_check;
+PRAGMA foreign_key_check;`
+
+	_, err := db.Exec(stmt, 6)
+	return err
 }
 
 func updateFromV5(db *sql.DB) error {
@@ -369,6 +501,13 @@ func updateDb(db *sql.DB, prev_version int) error {
 			return err
 		}
 	}
+	if prev_version < 7 {
+		err = updateFromV6(db)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
