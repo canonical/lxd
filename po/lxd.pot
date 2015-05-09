@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-07 11:24-0600\n"
+        "POT-Creation-Date: 2015-05-08 17:12-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -106,11 +106,11 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1374
+#: client.go:1375
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: lxc/config.go:609
+#: lxc/config.go:612
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -158,12 +158,12 @@ msgid   "Delete a container or container snapshot.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:657
+#: lxc/config.go:660
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:685
+#: lxc/config.go:688
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -308,7 +308,11 @@ msgid   "Manage configuration.\n"
         "lxc config trust remove [remote] [hostname|fingerprint]\n"
         "               Remove the cert from trusted hosts.\n"
         "\n"
-        "To set an lxc config value, for example:\n"
+        "Examples:\n"
+        "To mount host's /share/c1 onto /opt in the container:\n"
+        "\tlxc config device add container1 mntdir disk source=/share/c1 "
+        "path=opt\n"
+        "To set an lxc config value:\n"
         "\tlxc config set <container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n"
 msgstr  ""
 
@@ -349,7 +353,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move <source container> <destination container>\n"
 msgstr  ""
 
-#: lxc/config.go:188
+#: lxc/config.go:191
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -357,7 +361,7 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:211
+#: lxc/config.go:214
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -378,17 +382,17 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version\n"
 msgstr  ""
 
-#: lxc/config.go:507
+#: lxc/config.go:510
 #, c-format
 msgid   "Profile %s applied to %s\n"
 msgstr  ""
 
-#: lxc/config.go:367
+#: lxc/config.go:370
 #, c-format
 msgid   "Profile %s created\n"
 msgstr  ""
 
-#: lxc/config.go:496
+#: lxc/config.go:499
 #, c-format
 msgid   "Profile %s deleted\n"
 msgstr  ""
@@ -432,11 +436,11 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:247
+#: lxc/config.go:250
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
-#: lxc/config.go:243
+#: lxc/config.go:246
 msgid   "Show for server is not yet supported\n"
 msgstr  ""
 
@@ -470,7 +474,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:238
+#: lxc/config.go:241
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
@@ -492,7 +496,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:419 lxc/config.go:478
+#: lxc/config.go:422 lxc/config.go:481
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -500,7 +504,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:502 client.go:1265 client.go:1272
+#: client.go:502 client.go:1266 client.go:1273
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -509,7 +513,7 @@ msgstr  ""
 msgid   "bad number of things scanned from resource"
 msgstr  ""
 
-#: client.go:1405
+#: client.go:1406
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -518,15 +522,15 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:506 client.go:1276
+#: client.go:506 client.go:1277
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1409
+#: client.go:1410
 msgid   "bad version in profile url"
 msgstr  ""
 
-#: lxc/copy.go:72
+#: lxc/copy.go:81
 msgid   "can't copy to the same container name"
 msgstr  ""
 
@@ -534,7 +538,7 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: lxc/copy.go:57
+#: lxc/copy.go:66
 msgid   "changing hostname of running containers not supported"
 msgstr  ""
 
@@ -580,7 +584,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1211
+#: client.go:1212
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -637,15 +641,15 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1451 client.go:1505
+#: client.go:1452 client.go:1506
 msgid   "no value found in %q\n"
 msgstr  ""
 
-#: lxc/copy.go:83
+#: lxc/copy.go:92
 msgid   "non-http remotes are not supported for migration right now"
 msgstr  ""
 
-#: lxc/copy.go:98
+#: lxc/copy.go:107
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
