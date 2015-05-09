@@ -57,6 +57,7 @@ raw.lxc                     | blob          | -                 | Raw LXC config
 security.privileged         | boolean       | false             | Runs the container in privileged mode
 user.\*                     | string        | -                 | Free form user key/value storage (can be used in search)
 volatile.\<name\>.hwaddr    | string        | -                 | Unique MAC address for a given interface (generated and set by LXD when the hwaddr field of a "nic" type device isn't set)
+volatile.baseImg            | string        | -                 | The hash of the image the container was created from, if any.
 
 Note that while a type is defined above as a convenience, all values are
 stored as strings and should be exported over the REST API as strings
