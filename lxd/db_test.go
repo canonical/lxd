@@ -219,3 +219,73 @@ func Test_get_schema_returns_0_on_uninitialized_db(t *testing.T) {
 		t.Error("getSchema should return 0 on uninitialized db!")
 	}
 }
+
+func Test_running_updateFromV6_adds_on_delete_cascade(t *testing.T) {
+	// Upgrading the database schema with updateFromV6 adds ON DELETE CASCADE
+	// to sqlite tables that require it, and conserve the data.
+
+	var db *sql.DB
+	var err error
+	var count int
+
+	db, err = initializeDbObject(":memory:")
+	defer db.Close()
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	statements := `
+CREATE TABLE IF NOT EXISTS containers (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    architecture INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    power_state INTEGER NOT NULL DEFAULT 0,
+    ephemeral INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (name)
+);
+CREATE TABLE IF NOT EXISTS containers_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (container_id) REFERENCES containers (id),
+    UNIQUE (container_id, key)
+);
+INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
+INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`
+
+	_, err = db.Exec(statements)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Run the upgrade from V6 code
+	err = updateFromV6(db)
+
+	// Make sure the inserted data is still there.
+	statements = `SELECT count(*) FROM containers_config;`
+	err = db.QueryRow(statements).Scan(&count)
+
+	if count != 1 {
+		t.Fatal(fmt.Sprintf("There should be exactly one entry in containers_config! There are %d.", count))
+	}
+
+	// Drop the container.
+	statements = `DELETE FROM containers WHERE name = 'thename';`
+
+	_, err = db.Exec(statements)
+	if err != nil {
+		t.Error(fmt.Sprintf("Error deleting container! %s", err))
+	}
+
+	// Make sure there are 0 container_profiles entries left.
+	statements = `SELECT count(*) FROM containers_profiles;`
+	err = db.QueryRow(statements).Scan(&count)
+
+	if count != 0 {
+		t.Error(fmt.Sprintf("Deleting a container didn't delete the profile association! There are %d left", count))
+	}
+
+}
