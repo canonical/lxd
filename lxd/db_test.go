@@ -287,5 +287,98 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	if count != 0 {
 		t.Error(fmt.Sprintf("Deleting a container didn't delete the profile association! There are %d left", count))
 	}
+}
+
+func Test_run_database_upgrades_with_some_foreign_keys_inconsistencies(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var count int
+
+	db, err = sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// This schema is a part of schema rev 1.
+	statements := `
+CREATE TABLE containers (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    architecture INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    UNIQUE (name)
+);
+CREATE TABLE containers_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (container_id) REFERENCES containers (id),
+    UNIQUE (container_id, key)
+);
+CREATE TABLE schema (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    version INTEGER NOT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE (version)
+);
+CREATE TABLE images (                                                          
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,                             
+    fingerprint VARCHAR(255) NOT NULL,                                         
+    filename VARCHAR(255) NOT NULL,                                            
+    size INTEGER NOT NULL,                                                     
+    public INTEGER NOT NULL DEFAULT 0,                                         
+    architecture INTEGER NOT NULL,                                             
+    creation_date DATETIME,                                                    
+    expiry_date DATETIME,                                                      
+    upload_date DATETIME NOT NULL,                                             
+    UNIQUE (fingerprint)                                                       
+);                                                                             
+CREATE TABLE images_properties (                                               
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,                             
+    image_id INTEGER NOT NULL,                                                 
+    type INTEGER NOT NULL,                                                     
+    key VARCHAR(255) NOT NULL,                                                 
+    value TEXT,                                                                
+    FOREIGN KEY (image_id) REFERENCES images (id)                              
+);                                       
+INSERT INTO schema (version, updated_at) values (1, "now");
+INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
+INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`
+
+	_, err = db.Exec(statements)
+	if err != nil {
+		t.Fatal("Error creating schema!")
+	}
+
+	// Now that we have a consistent schema, let's remove the container entry
+	// *without* the ON DELETE CASCADE in place.
+	statements = `DELETE FROM containers;`
+	_, err = db.Exec(statements)
+	if err != nil {
+		t.Fatal("Error truncating the container table!")
+	}
+
+	// The "foreign key" on containers_config now points to nothing.
+	// Let's run the schema upgrades.
+	err = updateDb(db, 1)
+
+	if err != nil {
+		t.Error("Error upgrading database schema!")
+		t.Fatal(err)
+	}
+
+	var result int = getSchema(db)
+	if result != DB_CURRENT_VERSION {
+		t.Fatal(fmt.Sprintf("The schema is not at the latest version after update! Found: %d, should be: %d", result, DB_CURRENT_VERSION))
+	}
+
+	// Make sure there are 0 containers_config entries left.
+	statements = `SELECT count(*) FROM containers_config;`
+	err = db.QueryRow(statements).Scan(&count)
+
+	if count != 0 {
+		t.Fatal("updateDb did not delete orphaned child entries after adding ON DELETE CASCADE!")
+	}
 
 }
