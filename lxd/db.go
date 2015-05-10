@@ -14,14 +14,7 @@ import (
 
 const DB_CURRENT_VERSION int = 7
 
-var (
-	DbErrAlreadyDefined = fmt.Errorf("already exists")
-)
-
-// Create the initial schema for a given SQLite DB connection.
-// This is indempotent, using the CREATE TABLE IF NOT EXISTS stanza.
-func createDb(db *sql.DB) (err error) {
-	stmt := `
+const CURRENT_SCHEMA string = `
 CREATE TABLE IF NOT EXISTS certificates (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     fingerprint VARCHAR(255) NOT NULL,
@@ -142,7 +135,14 @@ CREATE TABLE IF NOT EXISTS schema (
     UNIQUE (version)
 );`
 
-	_, err = db.Exec(stmt)
+var (
+	DbErrAlreadyDefined = fmt.Errorf("already exists")
+)
+
+// Create the initial (current) schema for a given SQLite DB connection.
+// This should stay indempotent.
+func createDb(db *sql.DB) (err error) {
+	_, err = db.Exec(CURRENT_SCHEMA)
 	if err != nil {
 		return err
 	}
@@ -301,10 +301,41 @@ INSERT INTO profiles_devices_config SELECT * FROM tmp;
 DROP TABLE tmp;
 
 PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.
-PRAGMA integrity_check;
-PRAGMA foreign_key_check;`
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 7)
+	if err != nil {
+		return err
+	}
 
-	_, err := db.Exec(stmt, 6)
+	// Get the rows with broken foreign keys an nuke them
+	rows, err := db.Query("PRAGMA foreign_key_check;")
+	if err != nil {
+		return err
+	}
+
+	var tablestodelete []string
+	var rowidtodelete []int
+
+	defer rows.Close()
+	for rows.Next() {
+		var tablename string
+		var rowid int
+		var targetname string
+		var keynumber int
+
+		rows.Scan(&tablename, &rowid, &targetname, &keynumber)
+		tablestodelete = append(tablestodelete, tablename)
+		rowidtodelete = append(rowidtodelete, rowid)
+	}
+	rows.Close()
+
+	for i := range tablestodelete {
+		_, err = db.Exec(fmt.Sprintf("DELETE FROM %s WHERE rowid = %d;", tablestodelete[i], rowidtodelete[i]))
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
 }
 
