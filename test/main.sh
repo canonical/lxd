@@ -96,6 +96,7 @@ cleanup() {
     [ -n "${LXD2_DIR}" ] && wipe "${LXD2_DIR}"
     [ -n "${LXD3_DIR}" ] && wipe "${LXD3_DIR}"
     [ -n "${LXD4_DIR}" ] && wipe "${LXD4_DIR}"
+    [ -n "${LXD_MIGRATE_DIR}" ] && wipe "${LXD_MIGRATE_DIR}"
 
     echo ""
     echo ""
@@ -120,6 +121,7 @@ fi
 . ./config.sh
 . ./profiling.sh
 . ./fdleak.sh
+. ./database_update.sh
 
 if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
@@ -166,6 +168,9 @@ test_commits_signed_off
 
 echo "==> TEST: doing static analysis of commits"
 static_analysis
+
+echo "==> TEST: Database schema update"
+test_database_update
 
 echo "==> TEST: lxc remote url"
 test_remote_url
