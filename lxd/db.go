@@ -236,7 +236,7 @@ INSERT INTO containers_profiles SELECT * FROM tmp;
 DROP TABLE tmp;
 
 CREATE TEMP TABLE tmp AS SELECT * FROM images_aliases; 
-DROP TABLE image_aliases;
+DROP TABLE images_aliases;
 CREATE TABLE IF NOT EXISTS images_aliases (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -249,7 +249,7 @@ INSERT INTO images_aliases SELECT * FROM tmp;
 DROP TABLE tmp;
 
 CREATE TEMP TABLE tmp AS SELECT * FROM images_properties; 
-DROP TABLE image_properties;
+DROP TABLE images_properties;
 CREATE TABLE IF NOT EXISTS images_properties (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     image_id INTEGER NOT NULL,
