@@ -118,9 +118,7 @@ func containerWatchEphemeral(c *lxdContainer) {
 			return
 		}
 
-		dbRemoveContainer(c.daemon, c.name)
-		containerDeleteSnapshots(c.daemon, c.name)
-		removeContainerPath(c.daemon, c.name)
+		removeContainer(c.daemon, c.name)
 	}()
 }
 
@@ -510,13 +508,17 @@ func containersPost(d *Daemon, r *http.Request) Response {
 
 }
 
-func removeContainerPath(d *Daemon, name string) {
+func removeContainerPath(d *Daemon, name string) error {
 	cpath := shared.VarPath("lxc", name)
 
 	backing_fs, err := shared.GetFilesystem(cpath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
 		shared.Debugf("Error cleaning up %s: %s\n", cpath, err)
-		return
+		return err
 	}
 
 	if backing_fs == "btrfs" {
@@ -526,12 +528,26 @@ func removeContainerPath(d *Daemon, name string) {
 	err = os.RemoveAll(cpath)
 	if err != nil {
 		shared.Debugf("Error cleaning up %s: %s\n", cpath, err)
+		return err
 	}
+
+	return nil
 }
 
-func removeContainer(d *Daemon, name string) {
-	removeContainerPath(d, name)
-	dbRemoveContainer(d, name)
+func removeContainer(d *Daemon, name string) error {
+	if err := containerDeleteSnapshots(d, name); err != nil {
+		return err
+	}
+
+	if err := removeContainerPath(d, name); err != nil {
+		return err
+	}
+
+	if err := dbRemoveContainer(d, name); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func btrfsCopyImage(hash string, name string, d *Daemon) error {
@@ -619,8 +635,9 @@ func setUnprivUserAcl(d *Daemon, dpath string) error {
 	return err
 }
 
-func dbRemoveContainer(d *Daemon, name string) {
-	_, _ = shared.DbExec(d.db, "DELETE FROM containers WHERE name=?", name)
+func dbRemoveContainer(d *Daemon, name string) error {
+	_, err := shared.DbExec(d.db, "DELETE FROM containers WHERE name=?", name)
+	return err
 }
 
 func dbGetContainerId(db *sql.DB, name string) (int, error) {
@@ -742,7 +759,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, state)
 }
 
-func containerDeleteSnapshots(d *Daemon, cname string) {
+func containerDeleteSnapshots(d *Daemon, cname string) error {
 	prefix := fmt.Sprintf("%s/", cname)
 	length := len(prefix)
 	q := "SELECT name, id FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
@@ -752,15 +769,15 @@ func containerDeleteSnapshots(d *Daemon, cname string) {
 	outfmt := []interface{}{sname, id}
 	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
-		return
+		return err
 	}
 
 	var ids []int
 
 	backing_fs, err := shared.GetFilesystem(shared.VarPath("lxc", cname))
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		shared.Debugf("Error cleaning up snapshots: %s\n", err)
-		return
+		return err
 	}
 
 	for _, r := range results {
@@ -776,10 +793,13 @@ func containerDeleteSnapshots(d *Daemon, cname string) {
 	}
 
 	for _, id := range ids {
-		_, _ = shared.DbExec(d.db, "DELETE FROM containers WHERE id=?", id)
+		_, err = shared.DbExec(d.db, "DELETE FROM containers WHERE id=?", id)
+		if err != nil {
+			return err
+		}
 	}
 
-	return
+	return nil
 }
 
 type containerConfigReq struct {
@@ -1047,13 +1067,12 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	dbRemoveContainer(d, name)
-	rmdir := func() error {
-		containerDeleteSnapshots(d, name)
-		removeContainerPath(d, name)
-		return nil
+
+	rmct := func() error {
+		return removeContainer(d, name)
 	}
-	return AsyncResponse(shared.OperationWrap(rmdir), nil)
+
+	return AsyncResponse(shared.OperationWrap(rmct), nil)
 }
 
 var containerCmd = Command{name: "containers/{name}", get: containerGet, put: containerPut, delete: containerDelete, post: containerPost}
