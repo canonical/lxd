@@ -96,6 +96,9 @@ test_basic_usage() {
   lxc exec foo /bin/cat /root/in1 | grep abc
   lxc exec foo -- /bin/rm -f root/in1
 
+  # make sure stdin is chowned to our container root uid (Issue #590)
+  lxc exec foo -- chown 1000:1000 /proc/self/fd/0
+
   echo foo | lxc exec foo tee /tmp/foo
 
   # Detect regressions/hangs in exec
