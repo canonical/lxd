@@ -91,7 +91,7 @@ void configure_pty(int fd) {
 	return;
 }
 
-void create_pty(int *master, int *slave) {
+void create_pty(int *master, int *slave, int uid, int gid) {
 	if (openpty(master, slave, NULL, NULL, NULL) < 0) {
 		printf("Failed to openpty: %s\n", strerror(errno));
 		return;
@@ -99,6 +99,15 @@ void create_pty(int *master, int *slave) {
 
 	configure_pty(*master);
 	configure_pty(*slave);
+
+	if (fchown(*slave, uid, gid) < 0) {
+		printf("Warning: error chowning pty to container root\n");
+		printf("Continuing...\n");
+	}
+	if (fchown(*master, uid, gid) < 0) {
+		printf("Warning: error chowning pty to container root\n");
+		printf("Continuing...\n");
+	}
 }
 
 void create_pipe(int *master, int *slave) {
@@ -116,11 +125,13 @@ void create_pipe(int *master, int *slave) {
 */
 import "C"
 
-func OpenPty() (master *os.File, slave *os.File, err error) {
+func OpenPty(uid, gid int) (master *os.File, slave *os.File, err error) {
 	fd_master := C.int(-1)
 	fd_slave := C.int(-1)
+	rootUid := C.int(uid)
+	rootGid := C.int(gid)
 
-	C.create_pty(&fd_master, &fd_slave)
+	C.create_pty(&fd_master, &fd_slave, rootUid, rootGid)
 
 	if fd_master == -1 || fd_slave == -1 {
 		return nil, nil, errors.New("Failed to create a new pts pair")

@@ -2000,6 +2000,8 @@ var containerSnapshotCmd = Command{name: "containers/{name}/snapshots/{snapshotN
 type execWs struct {
 	command      []string
 	container    *lxc.Container
+	rootUid      int
+	rootGid      int
 	options      lxc.AttachOptions
 	conns        []*websocket.Conn
 	allConnected chan bool
@@ -2066,7 +2068,7 @@ func (s *execWs) Do() shared.OperationResult {
 	if s.interactive {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
-		ptys[0], ttys[0], err = shared.OpenPty()
+		ptys[0], ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
 		s.options.StdinFd = ttys[0].Fd()
 		s.options.StdoutFd = ttys[0].Fd()
 		s.options.StderrFd = ttys[0].Fd()
@@ -2165,6 +2167,8 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
+		ws.rootUid = int(d.idMap.Uidmin)
+		ws.rootGid = int(d.idMap.Gidmin)
 		if post.Interactive {
 			ws.conns = make([]*websocket.Conn, 1)
 		} else {
