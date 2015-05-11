@@ -71,6 +71,11 @@ func run() error {
 		shared.SetDebug(*debug)
 	}
 
+	if gnuflag.NArg() != 0 {
+		gnuflag.Usage()
+		return fmt.Errorf("Unknown arguments")
+	}
+
 	if *cpuProfile != "" {
 		f, err := os.Create(*cpuProfile)
 		if err != nil {
