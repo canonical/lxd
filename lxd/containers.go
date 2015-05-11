@@ -2167,8 +2167,10 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
-		ws.rootUid = int(d.idMap.Uidmin)
-		ws.rootGid = int(d.idMap.Gidmin)
+		if !c.isPrivileged() {
+			ws.rootUid = int(d.idMap.Uidmin)
+			ws.rootGid = int(d.idMap.Gidmin)
+		}
 		if post.Interactive {
 			ws.conns = make([]*websocket.Conn, 1)
 		} else {
