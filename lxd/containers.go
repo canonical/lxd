@@ -1199,7 +1199,7 @@ func validateRawLxc(rawLxc string) error {
 	return nil
 }
 
-func (d *lxdContainer) applyConfig(config map[string]string) error {
+func (d *lxdContainer) applyConfig(config map[string]string, fromProfile bool) error {
 	var err error
 	for k, v := range config {
 		switch k {
@@ -1234,8 +1234,12 @@ func (d *lxdContainer) applyConfig(config map[string]string) error {
 		}
 	}
 
+	if fromProfile {
+		return nil
+	}
+
 	if lxcConfig, ok := config["raw.lxc"]; ok {
-		if err := validateRawLxc(config["raw.lxc"]); err != nil {
+		if err := validateRawLxc(lxcConfig); err != nil {
 			return err
 		}
 
@@ -1278,6 +1282,13 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 		v = r[1].(string)
 
 		shared.Debugf("applying %s: %s", k, v)
+		if k == "raw.lxc" {
+			if _, ok := d.config["raw.lxc"]; ok {
+				shared.Debugf("ignoring overridden raw.lxc from profile")
+				continue
+			}
+		}
+
 		config[k] = v
 	}
 
@@ -1289,7 +1300,7 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 		d.devices[k] = v
 	}
 
-	return d.applyConfig(config)
+	return d.applyConfig(config, true)
 }
 
 // GenerateMacAddr generates a mac address from a string template:
@@ -1607,7 +1618,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		}
 	}
 
-	err = d.applyConfig(d.config)
+	err = d.applyConfig(d.config, false)
 	if err != nil {
 		return nil, err
 	}
