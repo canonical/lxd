@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-11 18:13-0500\n"
+        "POT-Creation-Date: 2015-05-12 07:18-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -53,7 +53,7 @@ msgid   "### This is a yaml representation of the image properties.\n"
         "###   value: Ubuntu\n"
 msgstr  ""
 
-#: lxc/config.go:44
+#: lxc/profile.go:25
 msgid   "### This is a yaml representation of the profile.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -110,7 +110,7 @@ msgstr  ""
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: lxc/config.go:612
+#: lxc/profile.go:298
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -158,12 +158,12 @@ msgid   "Delete a container or container snapshot.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:660
+#: lxc/config.go:379
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:688
+#: lxc/config.go:407
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -202,7 +202,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>\n"
 msgstr  ""
 
-#: lxc/main.go:84
+#: lxc/main.go:89
 msgid   "For example: 'lxd-images import lxc ubuntu trusty amd64 --alias "
         "ubuntu/trusty'.\n"
 msgstr  ""
@@ -211,11 +211,11 @@ msgstr  ""
 msgid   "Force the container to shutdown."
 msgstr  ""
 
-#: lxc/main.go:76
+#: lxc/main.go:81
 msgid   "Generating a client certificate. This may take a minute...\n"
 msgstr  ""
 
-#: lxc/main.go:83
+#: lxc/main.go:88
 msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
@@ -269,7 +269,7 @@ msgstr  ""
 msgid   "Make image public"
 msgstr  ""
 
-#: lxc/config.go:64
+#: lxc/config.go:45
 msgid   "Manage configuration.\n"
         "\n"
         "lxc config device add <container> <name> <type> [key=value]...\n"
@@ -282,20 +282,6 @@ msgid   "Manage configuration.\n"
         "configuration in external editor\n"
         "lxc config get <container> key                   Get configuration "
         "key\n"
-        "lxc config profile list [filters]                List profiles\n"
-        "lxc config profile create <profile>              Create profile\n"
-        "lxc config profile delete <profile>              Delete profile\n"
-        "lxc config profile device add <profile> <name> <type> "
-        "[key=value]...\n"
-        "               Delete profile\n"
-        "lxc config profile edit <profile>                Edit profile in "
-        "external editor\n"
-        "lxc config profile device list <profile>\n"
-        "lxc config profile device remove <profile> <name>\n"
-        "lxc config profile set <profile> <key> <value>   Set profile "
-        "configuration\n"
-        "lxc config profile apply <container> <profile>    Apply profile to "
-        "container\n"
         "lxc config set [remote] password <newpwd>        Set admin password\n"
         "lxc config set <container> key [value]           Set container "
         "configuration key\n"
@@ -327,6 +313,23 @@ msgid   "Manage files on a container.\n"
         "<container name>/<path>\n"
 msgstr  ""
 
+#: lxc/profile.go:45
+msgid   "Manage profiles.\n"
+        "\n"
+        "lxc profile list [filters]                List profiles\n"
+        "lxc profile create <profile>              Create profile\n"
+        "lxc profile delete <profile>              Delete profile\n"
+        "lxc profile device add <profile> <name> <type> [key=value]...\n"
+        "               Delete profile\n"
+        "lxc profile edit <profile>                Edit profile in external "
+        "editor\n"
+        "lxc profile device list <profile>\n"
+        "lxc profile device remove <profile> <name>\n"
+        "lxc profile set <profile> <key> <value>   Set profile configuration\n"
+        "lxc profile apply <resource> <profile>    Apply profile to "
+        "container\n"
+msgstr  ""
+
 #: lxc/remote.go:25
 msgid   "Manage remote LXD servers.\n"
         "\n"
@@ -353,7 +356,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move <source container> <destination container>\n"
 msgstr  ""
 
-#: lxc/config.go:191
+#: lxc/config.go:162
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -361,7 +364,7 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:214
+#: lxc/config.go:185
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -377,17 +380,17 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version\n"
 msgstr  ""
 
-#: lxc/config.go:510
+#: lxc/profile.go:196
 #, c-format
 msgid   "Profile %s applied to %s\n"
 msgstr  ""
 
-#: lxc/config.go:370
+#: lxc/profile.go:118
 #, c-format
 msgid   "Profile %s created\n"
 msgstr  ""
 
-#: lxc/config.go:499
+#: lxc/profile.go:185
 #, c-format
 msgid   "Profile %s deleted\n"
 msgstr  ""
@@ -431,11 +434,11 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:250
+#: lxc/config.go:221
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
-#: lxc/config.go:246
+#: lxc/config.go:217
 msgid   "Show for server is not yet supported\n"
 msgstr  ""
 
@@ -469,12 +472,12 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:241
+#: lxc/config.go:212
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
 
-#: lxc/main.go:52
+#: lxc/main.go:57
 #, c-format
 msgid   "Usage: %s\n"
         "\n"
@@ -491,7 +494,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:422 lxc/config.go:481
+#: lxc/config.go:335 lxc/profile.go:167
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -545,12 +548,12 @@ msgstr  ""
 msgid   "error: %v\n"
 msgstr  ""
 
-#: lxc/main.go:89
+#: lxc/main.go:94
 msgid   "error: %v\n"
         "%s"
 msgstr  ""
 
-#: lxc/help.go:40 lxc/main.go:46
+#: lxc/help.go:40 lxc/main.go:51
 #, c-format
 msgid   "error: unknown command: %s\n"
 msgstr  ""
@@ -676,7 +679,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:124
+#: lxc/main.go:130
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 

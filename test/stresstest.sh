@@ -159,9 +159,9 @@ listthread() {
 configthread() {
     echo "configthread: I am $$"
     for i in `seq 1 20`; do
-        lxc config profile create p$i
-        lxc config profile set p$i limits.memory 100M
-        lxc config profile delete p$i
+        lxc profile create p$i
+        lxc profile set p$i limits.memory 100M
+        lxc profile delete p$i
     done
     exit 0
 }
@@ -169,14 +169,14 @@ configthread() {
 disturbthread() {
     echo "disturbthread: I am $$"
     while [ 1 ]; do
-        lxc config profile create empty
+        lxc profile create empty
         lxc init busybox disturb1
-        lxc config profile apply disturb1 empty
+        lxc profile apply disturb1 empty
         lxc start disturb1
         lxc exec disturb1 -- ps -ef
         lxc stop disturb1
         lxc delete disturb1
-	lxc config profile delete empty
+	lxc profile delete empty
     done
     exit 0
 }

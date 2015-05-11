@@ -40,25 +40,6 @@ var configEditHelp string = gettext.Gettext(
 		"###\n" +
 		"### Note that the name is shown but cannot be changed\n")
 
-var profileEditHelp string = gettext.Gettext(
-	"### This is a yaml representation of the profile.\n" +
-		"### Any line starting with a '# will be ignored.\n" +
-		"###\n" +
-		"### A profile consists of a set of configuration items followed by a set of\n" +
-		"### devices.\n" +
-		"###\n" +
-		"### An example would look like:\n" +
-		"### name: onenic\n" +
-		"### config:\n" +
-		"###   raw.lxc: lxc.aa_profile=unconfined\n" +
-		"### devices:\n" +
-		"###   eth0:\n" +
-		"###     nictype: bridged\n" +
-		"###     parent: lxcbr0\n" +
-		"###     type: nic\n" +
-		"###\n" +
-		"### Note that the name is shown but cannot be changed\n")
-
 func (c *configCmd) usage() string {
 	return gettext.Gettext(
 		"Manage configuration.\n" +
@@ -69,16 +50,6 @@ func (c *configCmd) usage() string {
 			"lxc config device remove <container> <name>       Remove device from container\n" +
 			"lxc config edit <container>                      Edit container configuration in external editor\n" +
 			"lxc config get <container> key                   Get configuration key\n" +
-			"lxc config profile list [filters]                List profiles\n" +
-			"lxc config profile create <profile>              Create profile\n" +
-			"lxc config profile delete <profile>              Delete profile\n" +
-			"lxc config profile device add <profile> <name> <type> [key=value]...\n" +
-			"               Delete profile\n" +
-			"lxc config profile edit <profile>                Edit profile in external editor\n" +
-			"lxc config profile device list <profile>\n" +
-			"lxc config profile device remove <profile> <name>\n" +
-			"lxc config profile set <profile> <key> <value>   Set profile configuration\n" +
-			"lxc config profile apply <container> <profile>    Apply profile to container\n" +
 			"lxc config set [remote] password <newpwd>        Set admin password\n" +
 			"lxc config set <container> key [value]           Set container configuration key\n" +
 			"lxc config show <container>                      Show container configuration\n" +
@@ -279,56 +250,6 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		return nil
 
 	case "profile":
-		if len(args) < 2 {
-			return errArgs
-		}
-		if args[1] == "list" {
-			return doProfileList(config, args)
-		}
-		if len(args) < 3 {
-			return errArgs
-		}
-
-		if args[1] == "device" {
-			return doProfileDevice(config, args)
-		}
-
-		remote, profile := config.ParseRemoteAndContainer(args[2])
-		client, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		switch args[1] {
-		case "create":
-			return doProfileCreate(client, profile)
-		case "delete":
-			return doProfileDelete(client, profile)
-		case "edit":
-			return doProfileEdit(client, profile)
-		case "apply":
-			container := profile
-			switch len(args) {
-			case 3:
-				profile = ""
-			case 4:
-				profile = args[3]
-			default:
-				return errArgs
-			}
-			return doProfileApply(client, container, profile)
-		case "get":
-			return doProfileGet(client, profile, args[3:])
-		case "set":
-			return doProfileSet(client, profile, args[3:])
-		case "unset":
-			return doProfileSet(client, profile, args[3:])
-		case "copy":
-			return doProfileCopy(config, client, profile, args[3:])
-		case "show":
-			return doProfileShow(client, profile)
-		}
-
 	case "device":
 		if len(args) < 2 {
 			return errArgs
@@ -362,14 +283,6 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	return errArgs
-}
-
-func doProfileCreate(client *lxd.Client, p string) error {
-	err := client.ProfileCreate(p)
-	if err == nil {
-		fmt.Printf(gettext.Gettext("Profile %s created\n"), p)
-	}
-	return err
 }
 
 func doConfigEdit(client *lxd.Client, cont string) error {
@@ -432,200 +345,6 @@ func doConfigEdit(client *lxd.Client, cont string) error {
 		break
 	}
 	return err
-}
-
-func doProfileEdit(client *lxd.Client, p string) error {
-	profile, err := client.ProfileConfig(p)
-	if err != nil {
-		return err
-	}
-	editor := os.Getenv("VISUAL")
-	if editor == "" {
-		editor = os.Getenv("EDITOR")
-		if editor == "" {
-			editor = "vi"
-		}
-	}
-	data, err := yaml.Marshal(&profile)
-	f, err := ioutil.TempFile("", "lxd_lxc_profile_")
-	if err != nil {
-		return err
-	}
-	fname := f.Name()
-	if err = f.Chmod(0700); err != nil {
-		f.Close()
-		os.Remove(fname)
-		return err
-	}
-	f.Write([]byte(profileEditHelp))
-	f.Write(data)
-	f.Close()
-	defer os.Remove(fname)
-
-	for {
-		cmd := exec.Command(editor, fname)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		err = cmd.Run()
-		if err != nil {
-			return err
-		}
-		contents, err := ioutil.ReadFile(fname)
-		if err != nil {
-			return err
-		}
-		newdata := shared.ProfileConfig{}
-		err = yaml.Unmarshal(contents, &newdata)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v\n"), err)
-			fmt.Printf("Press enter to play again ")
-			_, err := os.Stdin.Read(make([]byte, 1))
-			if err != nil {
-				return err
-			}
-
-			continue
-		}
-		err = client.PutProfile(p, newdata)
-		break
-	}
-	return err
-}
-
-func doProfileDelete(client *lxd.Client, p string) error {
-	err := client.ProfileDelete(p)
-	if err == nil {
-		fmt.Printf(gettext.Gettext("Profile %s deleted\n"), p)
-	}
-	return err
-}
-
-func doProfileApply(client *lxd.Client, c string, p string) error {
-	resp, err := client.ApplyProfile(c, p)
-	if err == nil {
-		if p == "" {
-			p = "(none)"
-		}
-		fmt.Printf(gettext.Gettext("Profile %s applied to %s\n"), p, c)
-	} else {
-		return err
-	}
-	return client.WaitForSuccess(resp.Operation)
-}
-
-func doProfileShow(client *lxd.Client, p string) error {
-	resp, err := client.GetProfileConfig(p)
-	if err != nil {
-		return err
-	}
-	for k, v := range resp {
-		fmt.Printf("%s = %s\n", k, v)
-	}
-
-	dresp, err := client.ProfileListDevices(p)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s\n", strings.Join(dresp, "\n"))
-
-	return nil
-}
-
-func doProfileCopy(config *lxd.Config, client *lxd.Client, p string, args []string) error {
-	if len(args) != 1 {
-		return errArgs
-	}
-	remote, newname := config.ParseRemoteAndContainer(args[0])
-	if newname == "" {
-		newname = p
-	}
-
-	dest, err := lxd.NewClient(config, remote)
-	if err != nil {
-		return err
-	}
-
-	return client.ProfileCopy(p, newname, dest)
-}
-
-func doProfileDevice(config *lxd.Config, args []string) error {
-	// profile device add b1 eth0 nic type=bridged
-	// profile device list b1
-	// profile device remove b1 eth0
-	if len(args) < 4 {
-		return errArgs
-	}
-	switch args[2] {
-	case "add":
-		return deviceAdd(config, "profile", args[1:])
-	case "remove":
-		return deviceRm(config, "profile", args[1:])
-	case "list":
-		return deviceList(config, "profile", args[1:])
-	default:
-		return errArgs
-	}
-}
-
-func doProfileGet(client *lxd.Client, p string, args []string) error {
-	// we shifted @args so so it should read "<key>"
-	if len(args) != 1 {
-		return errArgs
-	}
-
-	resp, err := client.GetProfileConfig(p)
-	if err != nil {
-		return err
-	}
-	for k, v := range resp {
-		if k == args[0] {
-			fmt.Printf("%s\n", v)
-		}
-	}
-	return nil
-}
-
-func doProfileSet(client *lxd.Client, p string, args []string) error {
-	// we shifted @args so so it should read "<key> [<value>]"
-	if len(args) < 1 {
-		return errArgs
-	}
-
-	key := args[0]
-	var value string
-	if len(args) < 2 {
-		value = ""
-	} else {
-		value = args[1]
-	}
-	err := client.SetProfileConfigItem(p, key, value)
-	return err
-}
-
-func doProfileList(config *lxd.Config, args []string) error {
-	var remote string
-	if len(args) > 2 {
-		var name string
-		remote, name = config.ParseRemoteAndContainer(args[2])
-		if name != "" {
-			return fmt.Errorf(gettext.Gettext("Cannot provide container name to list"))
-		}
-	} else {
-		remote = config.DefaultRemote
-	}
-
-	client, err := lxd.NewClient(config, remote)
-	if err != nil {
-		return err
-	}
-
-	profiles, err := client.ListProfiles()
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s\n", strings.Join(profiles, "\n"))
-	return nil
 }
 
 func deviceAdd(config *lxd.Config, which string, args []string) error {

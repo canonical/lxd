@@ -61,6 +61,7 @@ init        | Create a container without starting it
 launch      | Create and start a new container from an image
 list        | List all the containers
 move        | Move a container either to rename it or to migrate it
+profile     | Manage container configuration profiles.
 publish     | Make an image out of an existing container or container snapshot
 remote      | Remote server handling
 restart     | Restart a container
@@ -83,20 +84,6 @@ stop        | Stop a container
     device add <resource> <device name> <type> [key=value]...
     device remove <resource> <device name>
     device list <resource>
-    profile device add <profile name> <device name> <type> [key=value]...
-    profile device remove <profile name> <device name>
-    profile device list <profile name>
-    profile apply <resource> <profile name>[,<second profile name>, ...]
-    profile create <profile name>
-    profile copy <source profile name> <target profile name>
-    profile delete <profile name>
-    profile edit <profile name>
-    profile list [remote] [filters]
-    profile get <profile name> <key>
-    profile move <profile name> <new profile name>
-    profile set <profile name> <key> <value>
-    profile show <profile name>
-    profile unset <profile name> <key>
     trust add [remote] <certificate>
     trust remove [remote] <fingerprint>
     trust list [remote]
@@ -105,18 +92,6 @@ stop        | Stop a container
 
 Probably one of the most complex commands, it allows querying and
 setting all the configuration options available for containers and LXD hosts.
-
-It also supports profiles which are used to group configuration settings
-(configurations keys and devices) and then apply the resulting set to a
-given container.
-
-It’s possible to create, delete, list and setup profiles on a remote
-host. The one limitation is that a container can only reference local
-profiles, so profiles need to be copied across hosts or be moved around
-alongside the containers.
-
-Also note that removing a profile or moving it off the host will fail if any
-local container still references it.
 
 The trust sub-command is there to manage the server's trust store. It
 can list the certificates which the server currently trusts, delete
@@ -136,15 +111,7 @@ lxc config show                                                                 
 lxc config show dakara:                                                         | Show "dakara"'s server' configuration
 lxc config set password new-trust-password                                      | Set the local server's trust password to "new-trust-password"
 lxc config set c1 limits.memory 2GB                                             | Set a memory limit of 2GB for container "c1"
-lxc config profile create micro                                                 | Create a new "micro" profile.
-lxc config profile set micro limits.memory 256MB                                | Restrict memory usage to 256MB
-lxc config profile set micro limits.cpu 1                                       | Restrict CPU usage to a single core
-lxc config profile copy micro dakara:                                           | Copy the resulting profile over to "dakara"
-lxc config profile show micro                                                   | Show all the options associated with the "micro" profile and all the containers using it
-lxc config profile unset dakara:nano limits.memory                              | Unset "limits.memory" for the "nano" profile on "dakara"
 lxc config show c1                                                              | Show the configuration of the "c1" container, starting by the list of profiles it’s based on, then the container specific settings and finally the resulting overall configuration.
-lxc config profile apply c1 micro,nesting                                       | Set the profiles for container "c1" to be "micro" followed by "nesting"
-lxc config profile apply c1 ""                                                  | Unset any assigned profile for container "c1"
 lxc config trust add new-client-cert.crt                                        | Add new-client-cert.pem to the default remote's trust store (typically local LXD)
 lxc config trust add dakara: new-client-cert.crt                                | Add new-client-cert.pem to the "dakara"'s trust store
 lxc config trust list                                                           | List all the trusted certificates on the default remote
@@ -463,6 +430,53 @@ Command                         | Result
 lxc move c1 c2                  | Rename container c1 to c2
 lxc move c1 dakara:             | Move c1 to "dakara". If the container is stopped, this simply moves the container and its configuration to "dakara". If it is running, this live migrates container c1 to "dakara". This will first stream the filesystem content over to "dakara", then dump the container state to disk, sync the state and the delta of the filesystem, restore the container on the remote host and then wipe it from the source host
 lxc move c1 dakara:c2           | Move c1 to "dakara" as "c2"
+
+* * *
+
+## profile
+
+**Arguments**
+
+    device add <profile name> <device name> <type> [key=value]...
+    device remove <profile name> <device name>
+    device list <profile name>
+    apply <resource> <profile name>[,<second profile name>, ...]
+    create <profile name>
+    copy <source profile name> <target profile name>
+    delete <profile name>
+    edit <profile name>
+    list [remote] [filters]
+    get <profile name> <key>
+    move <profile name> <new profile name>
+    set <profile name> <key> <value>
+    show <profile name>
+    unset <profile name> <key>
+
+This command supports profiles which are used to group configuration settings
+(configurations keys and devices) and then apply the resulting set to a given
+container.
+
+It’s possible to create, delete, list and setup profiles on a remote
+host. The one limitation is that a container can only reference local
+profiles, so profiles need to be copied across hosts or be moved around
+alongside the containers.
+
+Also note that removing a profile or moving it off the host will fail if any
+local container still references it.
+
+**Examples**
+
+Command                                                                  | Result
+:------                                                                  | :-----
+lxc profile create micro                                                 | Create a new "micro" profile.
+lxc profile set micro limits.memory 256MB                                | Restrict memory usage to 256MB
+lxc profile set micro limits.cpu 1                                       | Restrict CPU usage to a single core
+lxc profile copy micro dakara:                                           | Copy the resulting profile over to "dakara"
+lxc profile show micro                                                   | Show all the options associated with the "micro" profile and all the containers using it
+lxc profile unset dakara:nano limits.memory                              | Unset "limits.memory" for the "nano" profile on "dakara"
+lxc profile apply c1 micro,nesting                                       | Set the profiles for container "c1" to be "micro" followed by "nesting"
+lxc profile apply c1 ""                                                  | Unset any assigned profile for container "c1"
+
 
 * * *
 

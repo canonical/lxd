@@ -7,20 +7,23 @@ test_config_profiles() {
       fi
   fi
   lxc init testimage foo
+  lxc profile list | grep default
+
+  # let's check that 'lxc config profile' still works while it's deprecated
   lxc config profile list | grep default
 
   lxc config device add foo home disk source=/mnt path=/mnt readonly=true
-  lxc config profile create onenic
-  lxc config profile device add onenic eth0 nic nictype=bridged parent=lxcbr0
-  lxc config profile apply foo onenic
-  lxc config profile create unconfined
-  lxc config profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
-  lxc config profile apply foo onenic,unconfined
+  lxc profile create onenic
+  lxc profile device add onenic eth0 nic nictype=bridged parent=lxcbr0
+  lxc profile apply foo onenic
+  lxc profile create unconfined
+  lxc profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
+  lxc profile apply foo onenic,unconfined
 
   lxc config device list foo | grep home
   lxc config show foo | grep "onenic,unconfined"
-  lxc config profile list | grep onenic
-  lxc config profile device list onenic | grep eth0
+  lxc profile list | grep onenic
+  lxc profile device list onenic | grep eth0
 
   lxc config set foo user.prop value
   lxc list user.prop=value | grep foo
