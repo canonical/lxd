@@ -28,6 +28,11 @@ func run() error {
 
 	gnuflag.StringVar(&lxd.ConfigDir, "config", lxd.ConfigDir, gettext.Gettext("Alternate config directory."))
 
+	if len(os.Args) >= 3 && os.Args[1] == "config" && os.Args[2] == "profile" {
+		fmt.Fprintf(os.Stderr, "`lxc config profile` is deprecated, please use `lxc profile`\n")
+		os.Args = append(os.Args[:1], os.Args[2:]...)
+	}
+
 	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
 		os.Args[1] = "help"
 	}
@@ -113,6 +118,7 @@ var commands = map[string]command{
 	"launch":   &launchCmd{},
 	"list":     &listCmd{},
 	"move":     &moveCmd{},
+	"profile":  &profileCmd{},
 	"remote":   &remoteCmd{},
 	"restart":  &actionCmd{shared.Restart, true},
 	"snapshot": &snapshotCmd{},
