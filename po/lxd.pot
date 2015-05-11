@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-08 17:12-0600\n"
+        "POT-Creation-Date: 2015-05-11 07:52-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -217,7 +217,7 @@ msgstr  ""
 
 #: lxc/main.go:83
 msgid   "If this is your first run, you will need to import images using the "
-        "'lxd-images script'.\n"
+        "'lxd-images' script.\n"
 msgstr  ""
 
 #: lxc/image.go:282
@@ -365,11 +365,6 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: lxc/delete.go:42
-#, c-format
-msgid   "Operation %s"
-msgstr  ""
-
 #: lxc/help.go:24
 msgid   "Presents details on how to use LXD.\n"
         "\n"
@@ -452,7 +447,7 @@ msgstr  ""
 msgid   "Size: %.2vMB\n"
 msgstr  ""
 
-#: lxc/delete.go:76
+#: lxc/delete.go:68
 msgid   "Stopping container failed!"
 msgstr  ""
 

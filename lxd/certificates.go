@@ -37,6 +37,7 @@ func (d *Daemon) verifyAdminPwd(password string) bool {
 
 	buff, err := hex.DecodeString(value)
 	if err != nil {
+		shared.Debugf("hex decode failed")
 		return false
 	}
 
