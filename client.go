@@ -475,41 +475,19 @@ func (c *Client) AmTrusted() bool {
 	return auth == "trusted"
 }
 
-func (c *Client) ListContainers() ([]string, error) {
-	resp, err := c.get("containers")
+func (c *Client) ListContainers() ([]shared.ContainerInfo, error) {
+	resp, err := c.get("containers?recursion=1")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []string
+	var result []shared.ContainerInfo
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
 	}
 
-	names := []string{}
-
-	for _, url := range result {
-		toScan := strings.Replace(url, "/", " ", -1)
-		version := ""
-		name := ""
-		count, err := fmt.Sscanf(toScan, " %s containers %s", &version, &name)
-		if err != nil {
-			return nil, err
-		}
-
-		if count != 2 {
-			return nil, fmt.Errorf(gettext.Gettext("bad container url %s"), url)
-		}
-
-		if version != shared.APIVersion {
-			return nil, fmt.Errorf(gettext.Gettext("bad version in container url"))
-		}
-
-		names = append(names, name)
-	}
-
-	return names, nil
+	return result, nil
 }
 
 func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string, public bool) error {
