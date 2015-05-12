@@ -63,7 +63,9 @@ lxc() {
 wipe() {
     if type btrfs >/dev/null 2>&1; then
         rm -Rf "$1" 2>/dev/null || true
-        find "$1" | tac | xargs btrfs subvolume delete >/dev/null 2>&1 || true
+        if [ -d "$1" ]; then
+            find "$1" | tac | xargs btrfs subvolume delete >/dev/null 2>&1 || true
+        fi
     fi
 
     rm -Rf "$1"

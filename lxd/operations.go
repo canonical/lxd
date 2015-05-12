@@ -7,16 +7,16 @@ import (
 	"sync"
 	"time"
 
-	"code.google.com/p/go-uuid/uuid"
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
+	"github.com/satori/go.uuid"
 )
 
 var lock sync.Mutex
 var operations map[string]*shared.Operation = make(map[string]*shared.Operation)
 
 func CreateOperation(metadata shared.Jmap, resources map[string][]string, run func() shared.OperationResult, cancel func() error, ws shared.OperationWebsocket) (string, error) {
-	id := uuid.New()
+	id := uuid.NewV4().String()
 	op := shared.Operation{}
 	op.CreatedAt = time.Now()
 	op.UpdatedAt = op.CreatedAt
