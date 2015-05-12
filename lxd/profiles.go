@@ -211,29 +211,27 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func profileDelete(d *Daemon, r *http.Request) Response {
-	name := mux.Vars(r)["name"]
-	tx, err := shared.DbBegin(d.db)
+func dbProfileDelete(db *sql.DB, name string) error {
+	tx, err := shared.DbBegin(db)
 	if err != nil {
-		return InternalError(err)
+		return err
 	}
-	_, err = tx.Exec(`DELETE FROM profiles_config
-			WHERE id IN (SELECT profiles_config.id FROM
-			profiles_config JOIN profiles ON profiles_config.profile_id=profiles.id
-			WHERE profiles.name=?)`, name)
-	if err != nil {
-		tx.Rollback()
-		shared.Debugf("Error deleting profile %s: %s\n", name, err)
-		return InternalError(err)
-	}
-
 	_, err = tx.Exec("DELETE FROM profiles WHERE name=?", name)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return err
 	}
 
 	err = shared.TxCommit(tx)
+
+	return err
+}
+
+// The handler for the delete operation.
+func profileDelete(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	err := dbProfileDelete(d.db, name)
+
 	if err != nil {
 		return InternalError(err)
 	}
