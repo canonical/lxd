@@ -326,7 +326,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	}
 	d.unixl = unixl
 
-	if err := os.Chmod(localSocket, 0775); err != nil {
+	if err := os.Chmod(localSocket, 0660); err != nil {
 		return nil, err
 	}
 
