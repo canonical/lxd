@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"path"
 
 	"github.com/gorilla/mux"
@@ -18,17 +19,39 @@ const (
 )
 
 func networksGet(d *Daemon, r *http.Request) Response {
+	recursion_str := r.FormValue("recursion")
+	recursion, err := strconv.Atoi(recursion_str)
+	if err != nil {
+		recursion = 0
+	}
+
 	ifs, err := net.Interfaces()
 	if err != nil {
 		return InternalError(err)
 	}
 
-	var result []string
+
+	result_string := make([]string, 0)
+	result_map := make([]network, 0)
+//	var result []string
 	for _, iface := range ifs {
-		result = append(result, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))
+		if (recursion == 0) {
+			result_string = append(result_string, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))
+		} else {
+			net, err := doNetworkGet(d, iface.Name)
+			if err != nil {
+				continue
+			}
+			result_map = append(result_map, net)
+
+		}
 	}
 
-	return SyncResponse(true, result)
+	if recursion == 0 {
+		return SyncResponse(true, result_string)
+	} else {
+		return SyncResponse(true, result_map)
+	}
 }
 
 var networksCmd = Command{name: "networks", get: networksGet}
@@ -86,9 +109,18 @@ func isOnBridge(c *lxc.Container, bridge string) bool {
 func networkGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	iface, err := net.InterfaceByName(name)
+	n, err := doNetworkGet(d, name)
 	if err != nil {
 		return InternalError(err)
+	}
+
+	return SyncResponse(true, &n)
+}
+
+func doNetworkGet(d *Daemon, name string) (network, error) {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return network{}, err
 	}
 
 	n := network{}
@@ -102,7 +134,7 @@ func networkGet(d *Daemon, r *http.Request) Response {
 		for _, ct := range lxc.ActiveContainerNames(d.lxcpath) {
 			c, err := newLxdContainer(ct, d)
 			if err != nil {
-				return InternalError(err)
+				return network{}, err
 			}
 
 			if isOnBridge(c.c, n.Name) {
@@ -113,7 +145,7 @@ func networkGet(d *Daemon, r *http.Request) Response {
 		n.Type = "unknown"
 	}
 
-	return SyncResponse(true, &n)
+	return n, nil
 }
 
 var networkCmd = Command{name: "networks/{name}", get: networkGet}
