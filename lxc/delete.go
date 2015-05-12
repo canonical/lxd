@@ -19,7 +19,7 @@ func (c *deleteCmd) usage() string {
 	return gettext.Gettext(
 		"Delete a container or container snapshot.\n" +
 			"\n" +
-			"Destroy a resource (e.g. container) and any attached data (configuration,\n" +
+			"Destroy a container (or snapshot) and any attached data (configuration,\n" +
 			"snapshots, ...).\n")
 }
 
