@@ -49,6 +49,7 @@ test_config_profiles() {
   fi
 
   lxc init testimage foo
+  lxc profile apply foo onenic,unconfined
   lxc start foo
 
   lxc exec foo -- cat /proc/self/attr/current | grep unconfined
