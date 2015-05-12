@@ -13,7 +13,9 @@ test_remote_url() {
   for url in localhost:18443 https://localhost:18443; do
     (echo y;  sleep 3;  echo foo) | lxc remote add test $url
     lxc finger test:
-    lxc config trust remove localhost
+    lxc config trust list | while IFS= read -r line ; do
+      lxc config trust remove "\"$line\""
+    done
     lxc remote remove test
   done
 
@@ -53,9 +55,15 @@ test_remote_admin() {
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
   gen_second_cert
+
+  # Test for #623
+  (echo y; sleep 3; echo foo) | lxc remote add test-623 127.0.0.1:18443 $debug
+
+  # now re-add under a different alias
   lxc config trust add "$LXD_CONF/client2.crt"
-  lxc config trust list | grep client2
-  lxc config trust remove client2
+  if [ "$(lxc config trust list | wc -l)" -ne 2 ]; then
+    echo "wrong number of certs"
+  fi
 
   # Check that we can add domains with valid certs without confirmation:
   lxc remote add images images.linuxcontainers.org

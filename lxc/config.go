@@ -151,8 +151,8 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 				return err
 			}
 
-			for host, fingerprint := range trust {
-				fmt.Println(fmt.Sprintf("%s: %s", host, fingerprint))
+			for _, fingerprint := range trust {
+				fmt.Println(fmt.Sprintf("%s", fingerprint))
 			}
 
 			return nil
@@ -192,19 +192,6 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			d, err := lxd.NewClient(config, remote)
 			if err != nil {
 				return err
-			}
-
-			toRemove := args[len(args)-1]
-			trust, err := d.CertificateList()
-			if err != nil {
-				return err
-			}
-
-			/* Try to remove by hostname first. */
-			for host, fingerprint := range trust {
-				if host == toRemove {
-					return d.CertificateRemove(fingerprint)
-				}
 			}
 
 			return d.CertificateRemove(args[len(args)-1])
