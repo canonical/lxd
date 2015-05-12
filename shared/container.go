@@ -1,8 +1,5 @@
 package shared
 
-// This package is intended for rendering ContainerState for use between LXC
-// and LXD.
-
 import (
 	"database/sql"
 	"fmt"
@@ -97,6 +94,11 @@ func (c *ContainerState) BriefState() BriefContainerState {
 
 func (c *ContainerState) State() lxc.State {
 	return lxc.StateMap[c.Status.State]
+}
+
+type ContainerInfo struct {
+	State    ContainerState     `json:"state"`
+	Snaps    []string           `json:"snaps"`
 }
 
 type ContainerAction string
