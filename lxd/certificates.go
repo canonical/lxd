@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"net"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -56,10 +57,10 @@ func (d *Daemon) verifyAdminPwd(password string) bool {
 }
 
 func certificatesGet(d *Daemon, r *http.Request) Response {
-	body := shared.Jmap{}
-	for host, cert := range d.clientCerts {
+	body := []string{}
+	for _, cert := range d.clientCerts {
 		fingerprint := shared.GenerateFingerprint(&cert)
-		body[host] = fingerprint
+		body = append(body, fingerprint)
 	}
 
 	return SyncResponse(true, body)
@@ -73,7 +74,7 @@ type certificatesPostBody struct {
 }
 
 func readSavedClientCAList(d *Daemon) {
-	d.clientCerts = make(map[string]x509.Certificate)
+	d.clientCerts = []x509.Certificate{}
 	rows, err := shared.DbQuery(d.db, "SELECT fingerprint, type, name, certificate FROM certificates")
 	if err != nil {
 		shared.Logf("Error reading certificates from database: %s\n", err)
@@ -92,7 +93,7 @@ func readSavedClientCAList(d *Daemon) {
 			shared.Logf("Error reading certificate for %s: %s\n", name, err)
 			continue
 		}
-		d.clientCerts[name] = *cert
+		d.clientCerts = append(d.clientCerts, *cert)
 	}
 }
 
@@ -149,16 +150,19 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 			return BadRequest(fmt.Errorf("No client certificate provided"))
 		}
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
-		name = r.TLS.ServerName
+
+		remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		name = remoteHost
 	}
 
 	fingerprint := shared.GenerateFingerprint(cert)
-	for existingName, existingCert := range d.clientCerts {
-		if name == existingName {
-			if fingerprint == shared.GenerateFingerprint(&existingCert) {
-				return EmptySyncResponse
-			}
-			return Conflict
+	for _, existingCert := range d.clientCerts {
+		if fingerprint == shared.GenerateFingerprint(&existingCert) {
+			return EmptySyncResponse
 		}
 	}
 
@@ -171,7 +175,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	d.clientCerts[name] = *cert
+	d.clientCerts = append(d.clientCerts, *cert)
 
 	return EmptySyncResponse
 }
@@ -194,10 +198,11 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 
 func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
-	for name, cert := range d.clientCerts {
+	for i, cert := range d.clientCerts {
 		if fingerprint == shared.GenerateFingerprint(&cert) {
-			delete(d.clientCerts, name)
-			_, err := shared.DbExec(d.db, "DELETE FROM certificates WHERE name=?", name)
+			fingerprint := shared.GenerateFingerprint(&cert)
+			d.clientCerts = append(d.clientCerts[:i], d.clientCerts[i+1:]...)
+			_, err := shared.DbExec(d.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
 			if err != nil {
 				return SmartError(err)
 			}

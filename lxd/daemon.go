@@ -30,7 +30,7 @@ type Daemon struct {
 	certf       string
 	keyf        string
 	mux         *mux.Router
-	clientCerts map[string]x509.Certificate
+	clientCerts []x509.Certificate
 	db          *sql.DB
 
 	tlsconfig *tls.Config
