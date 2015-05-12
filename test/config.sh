@@ -36,7 +36,7 @@ test_config_profiles() {
   fi
 
   bad=0
-  lxc config set foo user.prop && bad=1
+  lxc config set foo user.prop 2>/dev/null && bad=1
   if [ "$bad" -eq 1 ]; then
     echo "property set succeded when it shouldn't have"
   fi
@@ -51,10 +51,8 @@ test_config_profiles() {
   lxc init testimage foo
   lxc start foo
 
-  # Uncomment the below when the 'lxc()' define in main.sh works with
-  # the --config
-  #lxc exec foo -- cat /proc/self/attr/current | grep unconfined
-  #lxc exec foo -- ls /sys/class/net | grep eth0
+  lxc exec foo -- cat /proc/self/attr/current | grep unconfined
+  lxc exec foo -- ls /sys/class/net | grep eth0
 
   lxc stop foo --force
   lxc delete foo
