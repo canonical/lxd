@@ -43,7 +43,7 @@ func init() {
 }
 
 func run() error {
-	if os.Args[1] == "forkstart" {
+	if len(os.Args) > 1 && os.Args[1] == "forkstart" {
 		return startContainer(os.Args[1:])
 	}
 

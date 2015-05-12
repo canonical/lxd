@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 
@@ -92,30 +91,21 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 	return true
 }
 
-func listContainers(client *lxd.Client, cts []string, filters []string, listsnaps bool) error {
-	var snaps []string
+func listContainers(client *lxd.Client, cinfos []shared.ContainerInfo, filters []string, listsnaps bool) error {
 	data := [][]string{}
 
-	for _, ct := range cts {
-		// get more information
-		c, err := client.ContainerStatus(ct, false)
-		d := []string{}
-		if err == nil {
-			d = []string{ct, c.Status.State}
-		} else if err == lxd.LXDErrors[http.StatusNotFound] {
-			continue
-		} else {
-			return err
-		}
+	for _, cinfo := range cinfos {
+		cstate := cinfo.State
+		d := []string{cstate.Name, cstate.Status.State}
 
-		if !shouldShow(filters, c) {
+		if !shouldShow(filters, &cstate) {
 			continue
 		}
 
-		if c.Status.State == "RUNNING" {
+		if cstate.Status.State == "RUNNING" {
 			ipv4s := []string{}
 			ipv6s := []string{}
-			for _, ip := range c.Status.Ips {
+			for _, ip := range cstate.Status.Ips {
 				if ip.Interface == "lo" {
 					continue
 				}
@@ -134,18 +124,14 @@ func listContainers(client *lxd.Client, cts []string, filters []string, listsnap
 			d = append(d, "")
 			d = append(d, "")
 		}
-		if c.Ephemeral {
+		if cstate.Ephemeral {
 			d = append(d, "YES")
 		} else {
 			d = append(d, "NO")
 		}
 		// List snapshots
-		snaps, err = client.ListSnapshots(ct)
-		if err != nil {
-			d = append(d, fmt.Sprintf("(ERR)"))
-		} else {
-			d = append(d, fmt.Sprintf("%d", len(snaps)))
-		}
+		csnaps := cinfo.Snaps
+		d = append(d, fmt.Sprintf("%d", len(csnaps)))
 
 		data = append(data, d)
 	}
@@ -159,9 +145,10 @@ func listContainers(client *lxd.Client, cts []string, filters []string, listsnap
 
 	table.Render() // Send output
 
-	if listsnaps && len(cts) == 1 {
+	if listsnaps && len(cinfos) == 1 {
+		csnaps := cinfos[0].Snaps
 		first_snapshot := true
-		for _, snap := range snaps {
+		for _, snap := range csnaps {
 			if first_snapshot {
 				fmt.Printf("Snapshots:\n")
 			}
@@ -196,14 +183,27 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	var cts []string
+	var cts []shared.ContainerInfo
 	if name == "" {
-		cts, err = d.ListContainers()
+		ctslist, err := d.ListContainers()
 		if err != nil {
 			return err
 		}
+		cts = ctslist
 	} else {
-		cts = []string{name}
+		//Get direct, only Once
+		cstatus, err := d.ContainerStatus(name, false)
+		if err != nil {
+			return err
+		}
+		csnaps, err := d.ListSnapshots(name)
+		if err != nil {
+			return err
+		}
+		c := shared.ContainerInfo{State: *cstatus,
+			Snaps: csnaps}
+		cts = []shared.ContainerInfo{c}
+
 	}
 
 	return listContainers(d, cts, filters, name != "")
