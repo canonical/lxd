@@ -6,8 +6,8 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"path"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
@@ -30,12 +30,10 @@ func networksGet(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-
 	result_string := make([]string, 0)
 	result_map := make([]network, 0)
-//	var result []string
 	for _, iface := range ifs {
-		if (recursion == 0) {
+		if recursion == 0 {
 			result_string = append(result_string, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))
 		} else {
 			net, err := doNetworkGet(d, iface.Name)
