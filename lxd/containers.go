@@ -37,8 +37,14 @@ const (
 )
 
 func containersGet(d *Daemon, r *http.Request) Response {
+	recursion_str := r.FormValue("recursion")
+	recursion, err := strconv.Atoi(recursion_str)
+	if err != nil {
+		recursion = 0
+	}
+
 	for {
-		result, err := doContainersGet(d)
+		result, err := doContainersGet(d, recursion)
 		if err == nil {
 			return SyncResponse(true, result)
 		}
@@ -54,22 +60,78 @@ func containersGet(d *Daemon, r *http.Request) Response {
 	}
 }
 
-func doContainersGet(d *Daemon) ([]string, error) {
+func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
+	_, err := dbGetContainerId(d.db, cname)
+	if err != nil {
+		return shared.ContainerInfo{}, SmartError(err)
+	}
+
+	c, err := newLxdContainer(cname, d)
+	if err != nil {
+		return shared.ContainerInfo{}, SmartError(err)
+	}
+
+	var name string
+	regexp := fmt.Sprintf("%s/", cname)
+	length := len(regexp)
+	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
+	inargs := []interface{}{cTypeSnapshot, length, regexp}
+	outfmt := []interface{}{name}
+	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		return shared.ContainerInfo{}, SmartError(err)
+	}
+
+	var body []string
+
+	for _, r := range results {
+		name = r[0].(string)
+
+		url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
+		body = append(body, url)
+	}
+
+	cts, err := c.RenderState()
+	if err != nil {
+		return shared.ContainerInfo{}, SmartError(err)
+	}
+
+	containerinfo := shared.ContainerInfo{State: *cts,
+		Snaps: body}
+
+	return containerinfo, nil
+}
+
+func doContainersGet(d *Daemon, recursion int) (interface{}, error) {
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
 	inargs := []interface{}{cTypeRegular}
 	var container string
 	outfmt := []interface{}{container}
 	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
-	str := []string{}
+	result_string := make([]string, 0)
+	result_map := make([]shared.ContainerInfo, 0)
 	if err != nil {
-		return str, err
+		return []string{}, err
 	}
 	for _, r := range result {
 		container := string(r[0].(string))
-		url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
-		str = append(str, url)
+		if recursion == 0 {
+			url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
+			result_string = append(result_string, url)
+		} else {
+			container, response := doContainerGet(d, container)
+			if response != nil {
+				continue
+			}
+			result_map = append(result_map, container)
+		}
 	}
-	return str, nil
+
+	if recursion == 0 {
+		return result_string, nil
+	} else {
+		return result_map, nil
+	}
 }
 
 type containerImageSource struct {
