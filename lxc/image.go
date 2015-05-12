@@ -341,7 +341,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 		fname := f.Name()
-		if err = f.Chmod(0700); err != nil {
+		if err = f.Chmod(0600); err != nil {
 			f.Close()
 			os.Remove(fname)
 			return err

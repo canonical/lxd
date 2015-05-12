@@ -1202,7 +1202,7 @@ func (c *lxdContainer) Start() error {
 		return err
 	}
 	configPath := f.Name()
-	if err = f.Chmod(0700); err != nil {
+	if err = f.Chmod(0600); err != nil {
 		f.Close()
 		os.Remove(configPath)
 		return err
