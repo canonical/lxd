@@ -806,13 +806,13 @@ func (c *Client) UserAuthServerCert(name string) error {
 	return err
 }
 
-func (c *Client) CertificateList() (map[string]string, error) {
+func (c *Client) CertificateList() ([]string, error) {
 	raw, err := c.get("certificates")
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make(map[string]string)
+	ret := []string{}
 	if err := json.Unmarshal(raw.Metadata, &ret); err != nil {
 		return nil, err
 	}
