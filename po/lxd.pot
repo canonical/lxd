@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-12 07:18-0600\n"
+        "POT-Creation-Date: 2015-05-12 17:42-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -101,12 +101,12 @@ msgstr  ""
 msgid   "Architecture: %s\n"
 msgstr  ""
 
-#: client.go:682
+#: client.go:660
 #, c-format
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1375
+#: client.go:1353
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -114,7 +114,7 @@ msgstr  ""
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
-#: client.go:802
+#: client.go:780
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -140,7 +140,7 @@ msgid   "Copy containers within or in between lxd instances.\n"
         "lxc copy <source container> <destination container>\n"
 msgstr  ""
 
-#: client.go:817
+#: client.go:795
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -158,12 +158,12 @@ msgid   "Delete a container or container snapshot.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:379
+#: lxc/config.go:366
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:407
+#: lxc/config.go:394
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -180,7 +180,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:563 client.go:573 client.go:715
+#: client.go:541 client.go:551 client.go:693
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -248,7 +248,7 @@ msgid   "List information on containers.\n"
         "lxc info [<remote>:]container [--show-log]\n"
 msgstr  ""
 
-#: lxc/list.go:23
+#: lxc/list.go:22
 msgid   "Lists the available resources.\n"
         "\n"
         "lxc list [resource] [filters]\n"
@@ -360,7 +360,7 @@ msgstr  ""
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:790
+#: client.go:768
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -404,7 +404,7 @@ msgstr  ""
 msgid   "Public: %s\n"
 msgstr  ""
 
-#: client.go:809
+#: client.go:787
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
@@ -434,11 +434,11 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:221
+#: lxc/config.go:208
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
-#: lxc/config.go:217
+#: lxc/config.go:204
 msgid   "Show for server is not yet supported\n"
 msgstr  ""
 
@@ -472,7 +472,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:212
+#: lxc/config.go:199
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
@@ -494,7 +494,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:335 lxc/profile.go:167
+#: lxc/config.go:322 lxc/profile.go:167
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -502,7 +502,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:502 client.go:1266 client.go:1273
+#: client.go:1244 client.go:1251
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -511,7 +511,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1406
+#: client.go:1384
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -520,11 +520,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:506 client.go:1277
+#: client.go:1255
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1410
+#: client.go:1388
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -563,7 +563,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1077
+#: client.go:1055
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -582,7 +582,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1212
+#: client.go:1190
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -640,7 +640,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1452 client.go:1506
+#: client.go:1430 client.go:1484
 msgid   "no value found in %q\n"
 msgstr  ""
 
@@ -652,7 +652,7 @@ msgstr  ""
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: client.go:803
+#: client.go:781
 msgid   "ok (y/n)? "
 msgstr  ""
 
