@@ -42,19 +42,20 @@ func (c *imageCmd) usage() string {
 	return gettext.Gettext(
 		"lxc image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]\n" +
 			"\n" +
-			"lxc image copy [resource:]<image> <resource>: [--alias=ALIAS].. [--copy-alias]\n" +
-			"lxc image delete [resource:]<image>\n" +
-			"lxc image edit [resource:]\n" +
-			"lxc image export [resource:]<image>\n" +
-			"lxc image info [resource:]<image>\n" +
-			"lxc image list [resource:] [filter]\n" +
+			"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-alias]\n" +
+			"lxc image delete [remote:]<image>\n" +
+			"lxc image edit [remote:]<image>\n" +
+			"lxc image export [remote:]<image>\n" +
+			"lxc image info [remote:]<image>\n" +
+			"lxc image list [remote:] [filter]\n" +
 			"\n" +
-			"Lists the images at resource, or local images.\n" +
+			"Lists the images at specified remote, or local images.\n" +
 			"Filters are not yet supported.\n" +
 			"\n" +
 			"lxc image alias create <alias> <target>\n" +
 			"lxc image alias delete <alias>\n" +
-			"lxc image alias list [resource:]\n" +
+			"lxc remote add images images.linuxcontainers.org\n" +
+			"lxc image alias list images:\n" +
 			"create, delete, list image aliases\n")
 }
 

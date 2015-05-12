@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-11 15:30-0500\n"
+        "POT-Creation-Date: 2015-05-11 18:13-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -78,7 +78,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name\n"
 msgstr  ""
 
-#: lxc/image.go:110
+#: lxc/image.go:111
 #, c-format
 msgid   "(Bad alias entry: %s\n"
 msgstr  ""
@@ -88,7 +88,7 @@ msgstr  ""
 msgid   "Admin password for %s: "
 msgstr  ""
 
-#: lxc/image.go:242
+#: lxc/image.go:243
 msgid   "Aliases:\n"
 msgstr  ""
 
@@ -96,7 +96,7 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: lxc/image.go:225
+#: lxc/image.go:226
 #, c-format
 msgid   "Architecture: %s\n"
 msgstr  ""
@@ -130,7 +130,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/image.go:82
+#: lxc/image.go:83
 msgid   "Copy aliases from source"
 msgstr  ""
 
@@ -153,7 +153,7 @@ msgstr  ""
 #: lxc/delete.go:20
 msgid   "Delete a container or container snapshot.\n"
         "\n"
-        "Destroy a resource (e.g. container) and any attached data "
+        "Destroy a container (or snapshot) and any attached data "
         "(configuration,\n"
         "snapshots, ...).\n"
 msgstr  ""
@@ -191,7 +191,7 @@ msgid   "Execute the specified command in a container.\n"
         "lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n"
 msgstr  ""
 
-#: lxc/image.go:219
+#: lxc/image.go:220
 #, c-format
 msgid   "Fingerprint: %s\n"
 msgstr  ""
@@ -220,7 +220,7 @@ msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
 
-#: lxc/image.go:282
+#: lxc/image.go:283
 #, c-format
 msgid   "Image imported with fingerprint: %s\n"
 msgstr  ""
@@ -265,19 +265,19 @@ msgid   "Lists the available resources.\n"
         "* \"s.privileged=1\" will do the same\n"
 msgstr  ""
 
-#: lxc/image.go:81
+#: lxc/image.go:82
 msgid   "Make image public"
 msgstr  ""
 
 #: lxc/config.go:64
 msgid   "Manage configuration.\n"
         "\n"
-        "lxc config device add <resource> <name> <type> [key=value]...\n"
-        "               Add a device to a resource\n"
-        "lxc config device list <resource>                List devices for "
-        "resource\n"
-        "lxc config device remove <resource> <name>       Remove device from "
-        "resource\n"
+        "lxc config device add <container> <name> <type> [key=value]...\n"
+        "               Add a device to a container\n"
+        "lxc config device list <container>                List devices for "
+        "container\n"
+        "lxc config device remove <container> <name>       Remove device from "
+        "container\n"
         "lxc config edit <container>                      Edit container "
         "configuration in external editor\n"
         "lxc config get <container> key                   Get configuration "
@@ -294,7 +294,7 @@ msgid   "Manage configuration.\n"
         "lxc config profile device remove <profile> <name>\n"
         "lxc config profile set <profile> <key> <value>   Set profile "
         "configuration\n"
-        "lxc config profile apply <resource> <profile>    Apply profile to "
+        "lxc config profile apply <container> <profile>    Apply profile to "
         "container\n"
         "lxc config set [remote] password <newpwd>        Set admin password\n"
         "lxc config set <container> key [value]           Set container "
@@ -392,11 +392,11 @@ msgstr  ""
 msgid   "Profile %s deleted\n"
 msgstr  ""
 
-#: lxc/image.go:238
+#: lxc/image.go:239
 msgid   "Properties:\n"
 msgstr  ""
 
-#: lxc/image.go:226
+#: lxc/image.go:227
 #, c-format
 msgid   "Public: %s\n"
 msgstr  ""
@@ -443,7 +443,7 @@ msgstr  ""
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
 
-#: lxc/image.go:224
+#: lxc/image.go:225
 msgid   "Size: %.2vMB\n"
 msgstr  ""
 
@@ -455,11 +455,11 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: lxc/image.go:227
+#: lxc/image.go:228
 msgid   "Timestamps:\n"
 msgstr  ""
 
-#: lxc/image.go:402
+#: lxc/image.go:403
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -505,7 +505,7 @@ msgid   "bad container url %s"
 msgstr  ""
 
 #: lxc/launch.go:99
-msgid   "bad number of things scanned from resource"
+msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
 #: client.go:1406
@@ -538,7 +538,7 @@ msgid   "changing hostname of running containers not supported"
 msgstr  ""
 
 #: lxc/launch.go:83 lxc/launch.go:88
-msgid   "didn't get any affected resources from server"
+msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
 #: lxc/main.go:17
@@ -589,20 +589,21 @@ msgid   "lxc image import <tarball> [target] [--public] [--created-"
         "at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] "
         "[prop=value]\n"
         "\n"
-        "lxc image copy [resource:]<image> <resource>: [--alias=ALIAS].. [--"
-        "copy-alias]\n"
-        "lxc image delete [resource:]<image>\n"
-        "lxc image edit [resource:]\n"
-        "lxc image export [resource:]<image>\n"
-        "lxc image info [resource:]<image>\n"
-        "lxc image list [resource:] [filter]\n"
+        "lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-"
+        "alias]\n"
+        "lxc image delete [remote:]<image>\n"
+        "lxc image edit [remote:]<image>\n"
+        "lxc image export [remote:]<image>\n"
+        "lxc image info [remote:]<image>\n"
+        "lxc image list [remote:] [filter]\n"
         "\n"
-        "Lists the images at resource, or local images.\n"
+        "Lists the images at specified remote, or local images.\n"
         "Filters are not yet supported.\n"
         "\n"
         "lxc image alias create <alias> <target>\n"
         "lxc image alias delete <alias>\n"
-        "lxc image alias list [resource:]\n"
+        "lxc remote add images images.linuxcontainers.org\n"
+        "lxc image alias list images:\n"
         "create, delete, list image aliases\n"
 msgstr  ""
 
