@@ -400,7 +400,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	imgInfo, err := dbImageGet(d, fingerprint, false)
+	imgInfo, err := dbImageGet(d.db, fingerprint, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -433,7 +433,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 }
 
 func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, Response) {
-	imgInfo, err := dbImageGet(d, fingerprint, public)
+	imgInfo, err := dbImageGet(d.db, fingerprint, public)
 	if err != nil {
 		return shared.ImageInfo{}, SmartError(err)
 	}
@@ -568,7 +568,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	imgInfo, err := dbImageGet(d, fingerprint, false)
+	imgInfo, err := dbImageGet(d.db, fingerprint, false)
 	if err != nil {
 		tx.Rollback()
 		return SmartError(err)
@@ -622,7 +622,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 		return Conflict
 	}
 
-	imgInfo, err := dbImageGet(d, req.Target, false)
+	imgInfo, err := dbImageGet(d.db, req.Target, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -696,7 +696,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 		public = false
 	}
 
-	imgInfo, err := dbImageGet(d, fingerprint, public)
+	imgInfo, err := dbImageGet(d.db, fingerprint, public)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -721,7 +721,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 func imageSecret(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
-	_, err := dbImageGet(d, fingerprint, false)
+	_, err := dbImageGet(d.db, fingerprint, false)
 	if err != nil {
 		return SmartError(err)
 	}
