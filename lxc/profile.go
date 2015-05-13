@@ -42,18 +42,28 @@ var profileEditHelp string = gettext.Gettext(
 
 func (c *profileCmd) usage() string {
 	return gettext.Gettext(
-		"Manage profiles.\n" +
+		"Manage configuration profiles.\n" +
 			"\n" +
-			"lxc profile list [filters]                List profiles\n" +
-			"lxc profile create <profile>              Create profile\n" +
-			"lxc profile delete <profile>              Delete profile\n" +
-			"lxc profile device add <profile> <name> <type> [key=value]...\n" +
-			"               Delete profile\n" +
-			"lxc profile edit <profile>                Edit profile in external editor\n" +
-			"lxc profile device list <profile>\n" +
-			"lxc profile device remove <profile> <name>\n" +
-			"lxc profile set <profile> <key> <value>   Set profile configuration\n" +
-			"lxc profile apply <resource> <profile>    Apply profile to container\n")
+			"lxc profile list [filters]                     List available profiles\n" +
+			"lxc profile create <profile>                   Create a profile\n" +
+			"lxc profile edit <profile>                     Edit profile in external editor\n" +
+			"lxc profile set <profile> <key> <value>        Set profile configuration\n" +
+			"lxc profile delete <profile>                   Delete a profile\n" +
+			"lxc profile apply <container> <profiles>\n" +
+			"    Apply a comma-separated list of profiles to a container, in order.\n" +
+			"    All profiles passed in this call (and only those) will be applied\n" +
+			"    to the specified container.\n" +
+			"    Example: lxc profile apply foo default,bar # Apply default and bar\n" +
+			"             lxc profile apply foo default # Only default is active\n" +
+			"             lxc profile apply '' # no profiles are applied anymore\n" +
+			"             lxc profile apply bar,default # Apply default second now\n" +
+			"\n" +
+			"Devices:\n" +
+			"lxc profile device list <profile>              List devices in the given profile.\n" +
+			"lxc profile device remove <profile> <name>     Remove a device from a profile.\n" +
+			"lxc profile device add <profile name> <device name> <device type> [key=value]...\n" +
+			"    Add a profile device, such as a disk or a nic, to the containers\n" +
+			"    using the specified profile.\n")
 }
 
 func (c *profileCmd) flags() {}
