@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -340,20 +339,14 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 func imagesGet(d *Daemon, r *http.Request) Response {
 	public := !d.isTrustedClient(r)
 
-	recursion_str := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursion_str)
-	if err != nil {
-		recursion = 0
-	}
-
-	result, err := doImagesGet(d, recursion, public)
+	result, err := doImagesGet(d, d.isRecursionRequest(r), public)
 	if err != nil {
 		return SmartError(err)
 	}
 	return SyncResponse(true, result)
 }
 
-func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
+func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 	result_string := make([]string, 0)
 	result_map := make([]shared.ImageInfo, 0)
 
@@ -371,7 +364,7 @@ func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
 
 	for _, r := range results {
 		name = r[0].(string)
-		if recursion == 0 {
+		if !recursion {
 			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
 			result_string = append(result_string, url)
 		} else {
@@ -383,7 +376,7 @@ func doImagesGet(d *Daemon, recursion int, public bool) (interface{}, error) {
 		}
 	}
 
-	if recursion == 0 {
+	if !recursion {
 		return result_string, nil
 	} else {
 		return result_map, nil
@@ -636,6 +629,8 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 }
 
 func aliasesGet(d *Daemon, r *http.Request) Response {
+	recursion := d.isRecursionRequest(r)
+
 	q := "SELECT name FROM images_aliases"
 	var name string
 	inargs := []interface{}{}
@@ -644,24 +639,48 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return BadRequest(err)
 	}
-	response := make([]string, 0)
-	for _, r := range results {
-		name = r[0].(string)
-		url := fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, name)
-		response = append(response, url)
+	response_str := make([]string, 0)
+	response_map := make([]shared.ImageAlias, 0)
+	for _, res := range results {
+		name = res[0].(string)
+		if !recursion {
+			url := fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, name)
+			response_str = append(response_str, url)
+
+		} else {
+			alias, err := doAliasGet(d, name, d.isTrustedClient(r))
+			if err != nil {
+				continue
+			}
+			response_map = append(response_map, alias)
+		}
 	}
 
-	return SyncResponse(true, response)
+	if !recursion {
+		return SyncResponse(true, response_str)
+	} else {
+		return SyncResponse(true, response_map)
+	}
 }
 
 func aliasGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+
+	alias, err := doAliasGet(d, name, d.isTrustedClient(r))
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return SyncResponse(true, alias)
+}
+
+func doAliasGet(d *Daemon, name string, isTrustedClient bool) (shared.ImageAlias, error) {
 	q := `SELECT images.fingerprint, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
 			 ON images_aliases.image_id=images.id
 			 WHERE images_aliases.name=?`
-	if !d.isTrustedClient(r) {
+	if !isTrustedClient {
 		q = q + ` AND images.public=1`
 	}
 
@@ -669,14 +688,11 @@ func aliasGet(d *Daemon, r *http.Request) Response {
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&fingerprint, &description}
 	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
-	if err == sql.ErrNoRows {
-		return NotFound
-	}
 	if err != nil {
-		return InternalError(err)
+		return shared.ImageAlias{}, err
 	}
 
-	return SyncResponse(true, shared.Jmap{"target": fingerprint, "description": description})
+	return shared.ImageAlias{Name: fingerprint, Description: description}, nil
 }
 
 func aliasDelete(d *Daemon, r *http.Request) Response {
