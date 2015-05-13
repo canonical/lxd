@@ -763,7 +763,7 @@ func (c *Client) ListAliases() ([]string, error) {
 	return result, nil
 }
 
-func (c *Client) UserAuthServerCert(name string) error {
+func (c *Client) UserAuthServerCert(name string, acceptCert bool) error {
 	if !c.scertDigestSet {
 		return fmt.Errorf(gettext.Gettext("No certificate on this connection"))
 	}
@@ -777,14 +777,16 @@ func (c *Client) UserAuthServerCert(name string) error {
 		Intermediates: c.scertIntermediates,
 	})
 	if err != nil {
-		fmt.Printf(gettext.Gettext("Certificate fingerprint: % x\n"), c.scertDigest)
-		fmt.Printf(gettext.Gettext("ok (y/n)? "))
-		line, err := shared.ReadStdin()
-		if err != nil {
-			return err
-		}
-		if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
-			return fmt.Errorf(gettext.Gettext("Server certificate NACKed by user"))
+		if acceptCert == false {
+			fmt.Printf(gettext.Gettext("Certificate fingerprint: % x\n"), c.scertDigest)
+			fmt.Printf(gettext.Gettext("ok (y/n)? "))
+			line, err := shared.ReadStdin()
+			if err != nil {
+				return err
+			}
+			if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
+				return fmt.Errorf(gettext.Gettext("Server certificate NACKed by user"))
+			}
 		}
 	}
 
