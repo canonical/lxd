@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -161,6 +162,16 @@ func isJsonRequest(r *http.Request) bool {
 	}
 
 	return false
+}
+
+func (d *Daemon) isRecursionRequest(r *http.Request) bool {
+	recursion_str := r.FormValue("recursion")
+	recursion, err := strconv.Atoi(recursion_str)
+	if err != nil {
+		return false
+	}
+
+	return recursion == 1
 }
 
 func (d *Daemon) createCmd(version string, c Command) {

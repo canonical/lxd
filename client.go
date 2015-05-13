@@ -748,13 +748,13 @@ func (c *Client) DeleteAlias(alias string) error {
 	return err
 }
 
-func (c *Client) ListAliases() ([]string, error) {
-	resp, err := c.get("images/aliases")
+func (c *Client) ListAliases() ([]shared.ImageAlias, error) {
+	resp, err := c.get("images/aliases?recursion=1")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []string
+	var result []shared.ImageAlias
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
