@@ -827,17 +827,20 @@ func dbGetProfiles(db *sql.DB, containerId int) ([]string, error) {
 }
 
 func dbGetDeviceConfig(db *sql.DB, id int, isprofile bool) (shared.Device, error) {
-	var q string
-	if isprofile {
-		q = `SELECT key, value FROM profiles_devices_config WHERE profile_device_id=?`
-	} else {
-		q = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
-	}
-	newdev := shared.Device{}
+	var query string
 	var key, value string
+	newdev := shared.Device{} // That's a map[string]string
 	inargs := []interface{}{id}
 	outfmt := []interface{}{key, value}
-	results, err := shared.DbQueryScan(db, q, inargs, outfmt)
+
+	if isprofile {
+		query = `SELECT key, value FROM profiles_devices_config WHERE profile_device_id=?`
+	} else {
+		query = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
+	}
+
+	results, err := shared.DbQueryScan(db, query, inargs, outfmt)
+
 	if err != nil {
 		return newdev, err
 	}
@@ -851,7 +854,7 @@ func dbGetDeviceConfig(db *sql.DB, id int, isprofile bool) (shared.Device, error
 	return newdev, nil
 }
 
-func dbGetDevices(d *Daemon, qName string, isprofile bool) (shared.Devices, error) {
+func dbGetDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, error) {
 	var q string
 	if isprofile {
 		q = `SELECT profiles_devices.id, profiles_devices.name, profiles_devices.type
@@ -868,17 +871,17 @@ func dbGetDevices(d *Daemon, qName string, isprofile bool) (shared.Devices, erro
 	var name, dtype string
 	inargs := []interface{}{qName}
 	outfmt := []interface{}{id, name, dtype}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	results, err := shared.DbQueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
 
-	devices := shared.Devices{}
+	devices := shared.Devices{} // That's basically a map[string]map[string]string
 	for _, r := range results {
 		id = r[0].(int)
 		name = r[1].(string)
 		dtype = r[2].(string)
-		newdev, err := dbGetDeviceConfig(d.db, id, isprofile)
+		newdev, err := dbGetDeviceConfig(db, id, isprofile)
 		if err != nil {
 			return nil, err
 		}

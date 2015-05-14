@@ -1169,7 +1169,7 @@ type lxdContainer struct {
 }
 
 func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
-	devices, err := dbGetDevices(c.daemon, c.name, false)
+	devices, err := dbGetDevices(c.daemon.db, c.name, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1351,7 +1351,7 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 		config[k] = v
 	}
 
-	newdevs, err := dbGetDevices(daemon, p, true)
+	newdevs, err := dbGetDevices(daemon.db, p, true)
 	if err != nil {
 		return err
 	}
@@ -1645,7 +1645,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	}
 
 	/* get container_devices */
-	newdevs, err := dbGetDevices(daemon, d.name, false)
+	newdevs, err := dbGetDevices(daemon.db, d.name, false)
 	if err != nil {
 		return nil, err
 	}

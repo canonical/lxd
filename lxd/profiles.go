@@ -113,7 +113,7 @@ func profileGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	devices, err := dbGetDevices(d, name, true)
+	devices, err := dbGetDevices(d.db, name, true)
 	if err != nil {
 		return SmartError(err)
 	}
