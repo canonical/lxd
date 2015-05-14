@@ -17,7 +17,10 @@ const DB_FIXTURES string = `
     INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176);
     INSERT INTO images_aliases (name, image_id, description) VALUES ('somealias', 1, 'some description');
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
-    INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'thekey', 'thevalue');`
+    INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'thekey', 'thevalue');
+    INSERT INTO profiles_devices (profile_id, name) VALUES (2, 'devicename');
+    INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (2, 'devicekey', 'devicevalue');
+    `
 
 //  This Helper will initialize a test in-memory DB.
 func createTestDb(t *testing.T) (db *sql.DB) {
@@ -39,13 +42,14 @@ func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var count int
+	var statements string
 
 	// Insert a container and a related profile.
 	db = createTestDb(t)
 	defer db.Close()
 
 	// Drop the container we just created.
-	statements := `DELETE FROM containers WHERE name = 'thename';`
+	statements = `DELETE FROM containers WHERE name = 'thename';`
 
 	_, err = db.Exec(statements)
 	if err != nil {
@@ -90,13 +94,14 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var count int
+	var statements string
 
 	// Insert a container and a related profile.
 	db = createTestDb(t)
 	defer db.Close()
 
 	// Drop the profile we just created.
-	statements := `DELETE FROM profiles WHERE name = 'theprofile';`
+	statements = `DELETE FROM profiles WHERE name = 'theprofile';`
 
 	_, err = db.Exec(statements)
 	if err != nil {
@@ -128,7 +133,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	}
 
 	// Make sure there are 0 profiles_devices_config entries left.
-	statements = `SELECT count(*) FROM profiles_devices_config WHERE profeil_device_id != 1;`
+	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id != 1;`
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
@@ -141,12 +146,13 @@ func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var count int
+	var statements string
 
 	db = createTestDb(t)
 	defer db.Close()
 
 	// Drop the image we just created.
-	statements := `DELETE FROM images;`
+	statements = `DELETE FROM images;`
 
 	_, err = db.Exec(statements)
 	if err != nil {
@@ -546,4 +552,56 @@ func Test_dbGetProfiles(t *testing.T) {
 			t.Fatal(fmt.Sprintf("Mismatching contents for profile list: %s != %s", result[i], expected[i]))
 		}
 	}
+}
+
+func Test_dbGEtDevices_profiles(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var result shared.Devices
+	var subresult shared.Device
+	var expected shared.Device
+
+	db = createTestDb(t)
+	defer db.Close()
+
+	result, err = dbGetDevices(db, "theprofile", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = shared.Device{"type": "0", "devicekey": "devicevalue"}
+	subresult = result["devicename"]
+
+	for key, value := range expected {
+		if subresult[key] != value {
+			t.Error(fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
+		}
+	}
+
+}
+
+func Test_dbGEtDevices_containers(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var result shared.Devices
+	var subresult shared.Device
+	var expected shared.Device
+
+	db = createTestDb(t)
+	defer db.Close()
+
+	result, err = dbGetDevices(db, "thename", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = shared.Device{"type": "0", "configkey": "configvalue"}
+	subresult = result["somename"]
+
+	for key, value := range expected {
+		if subresult[key] != value {
+			t.Error(fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
+		}
+	}
+
 }
