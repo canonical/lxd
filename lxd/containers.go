@@ -1174,7 +1174,7 @@ func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 		return nil, err
 	}
 
-	config, err := dbGetConfig(c.daemon, c)
+	config, err := dbGetConfig(c.daemon.db, c.id)
 	if err != nil {
 		return nil, err
 	}
@@ -1604,13 +1604,13 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		return nil, err
 	}
 
-	config, err := dbGetConfig(daemon, d)
+	config, err := dbGetConfig(daemon.db, d.id)
 	if err != nil {
 		return nil, err
 	}
 	d.config = config
 
-	profiles, err := dbGetProfiles(daemon, d)
+	profiles, err := dbGetProfiles(daemon.db, d.id)
 	if err != nil {
 		return nil, err
 	}
