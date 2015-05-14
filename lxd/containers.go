@@ -254,7 +254,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		}
 	}
 
-	imgInfo, err := dbImageGet(d, hash, false)
+	imgInfo, err := dbImageGet(d.db, hash, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -355,7 +355,7 @@ func extractShiftIfExists(d *Daemon, c *lxdContainer, hash string, name string) 
 		return nil
 	}
 
-	_, err := dbImageGet(d, hash, false)
+	_, err := dbImageGet(d.db, hash, false)
 	if err == nil {
 		if err := extractRootfs(hash, name, d); err != nil {
 			return err
