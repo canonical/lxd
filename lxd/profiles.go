@@ -108,7 +108,7 @@ var profilesCmd = Command{name: "profiles", get: profilesGet, post: profilesPost
 func profileGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	config, err := dbGetProfileConfig(d, name)
+	config, err := dbGetProfileConfig(d.db, name)
 	if err != nil {
 		return SmartError(err)
 	}

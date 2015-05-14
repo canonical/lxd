@@ -17,6 +17,12 @@ var (
 	NoSuchImageError    = errors.New("No such image")
 )
 
+type Profile struct {
+	name  string
+	order int
+}
+type Profiles []Profile
+
 const DB_CURRENT_VERSION int = 7
 
 const CURRENT_SCHEMA string = `
@@ -669,8 +675,8 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseI
 	image := new(shared.ImageBaseInfo)
 
 	// These two humongous things will be filled by the call to DbQueryRowScan
-	inparam := []interface{}{fingerprint + "%"}
-	outparam := []interface{}{&image.Id, &image.Fingerprint, &image.Filename,
+	inargs := []interface{}{fingerprint + "%"}
+	outfmt := []interface{}{&image.Id, &image.Fingerprint, &image.Filename,
 		&image.Size, &image.Public, &image.Architecture,
 		&create, &expire, &upload}
 
@@ -686,7 +692,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseI
 		query = query + " AND public=1"
 	}
 
-	err = shared.DbQueryRowScan(db, query, inparam, outparam)
+	err = shared.DbQueryRowScan(db, query, inargs, outfmt)
 
 	if err != nil {
 		return nil, err // Likely: there are no rows for this fingerprint
@@ -718,10 +724,10 @@ func dbAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
         ON a.image_id == i.id
         WHERE name=?`
 
-	inparams := []interface{}{name}
-	outparams := []interface{}{&fingerprint}
+	inargs := []interface{}{name}
+	outfmt := []interface{}{&fingerprint}
 
-	err = shared.DbQueryRowScan(db, q, inparams, outparams)
+	err = shared.DbQueryRowScan(db, q, inargs, outfmt)
 
 	if err == sql.ErrNoRows {
 		return "", NoSuchImageError
@@ -732,20 +738,25 @@ func dbAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
 	return fingerprint, nil
 }
 
-func dbAddAlias(d *Daemon, name string, tgt int, desc string) error {
+// Insert an alias into the database.
+func dbAddAlias(db *sql.DB, name string, imageId int, desc string) error {
 	stmt := `INSERT into images_aliases (name, image_id, description) values (?, ?, ?)`
-	_, err := shared.DbExec(d.db, stmt, name, tgt, desc)
+	_, err := shared.DbExec(db, stmt, name, imageId, desc)
 	return err
 }
 
-func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
-	q := `SELECT key, value FROM containers_config WHERE container_id=?`
+// Get the container configuration map from the DB
+func dbGetConfig(db *sql.DB, containerId int) (map[string]string, error) {
 	var key, value string
-	inargs := []interface{}{c.id}
+	q := `SELECT key, value FROM containers_config WHERE container_id=?`
+
+	inargs := []interface{}{containerId}
 	outfmt := []interface{}{key, value}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+
+	// Results is already a slice here, not db Rows anymore.
+	results, err := shared.DbQueryScan(db, q, inargs, outfmt)
 	if err != nil {
-		return nil, err
+		return nil, err //SmartError will wrap this and make "not found" errors pretty
 	}
 
 	config := map[string]string{}
@@ -760,28 +771,20 @@ func dbGetConfig(d *Daemon, c *lxdContainer) (map[string]string, error) {
 	return config, nil
 }
 
-func dbGetProfileConfig(d *Daemon, name string) (map[string]string, error) {
-	q := "SELECT id FROM profiles WHERE name=?"
-	id := -1
-	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id}
-	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("Profile %s not found", name)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	q = `SELECT key, value FROM profiles_config JOIN profiles
-		ON profiles_config.profile_id=profiles.id
-		WHERE name=?`
+// Get the profile configuration map from the DB
+func dbGetProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 	var key, value string
+	query := `
+        SELECT
+            key, value
+        FROM profiles_config
+        JOIN profiles ON profiles_config.profile_id=profiles.id
+		WHERE name=?`
 	inargs := []interface{}{name}
 	outfmt := []interface{}{key, value}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	results, err := shared.DbQueryScan(db, query, inargs, outfmt)
 	if err != nil {
-		return nil, err
+		return nil, err //SmartError will wrap this and make "not found" errors pretty
 	}
 
 	config := map[string]string{}
@@ -796,25 +799,23 @@ func dbGetProfileConfig(d *Daemon, name string) (map[string]string, error) {
 	return config, nil
 }
 
-type Profile struct {
-	name  string
-	order int
-}
-type Profiles []Profile
-
-func dbGetProfiles(d *Daemon, c *lxdContainer) ([]string, error) {
-	q := `SELECT name FROM containers_profiles JOIN profiles
-		ON containers_profiles.profile_id=profiles.id
-		WHERE container_id=? ORDER BY containers_profiles.apply_order`
+// Get a list of profiles for a given container id.
+func dbGetProfiles(db *sql.DB, containerId int) ([]string, error) {
 	var name string
-	inargs := []interface{}{c.id}
+	var profiles []string
+
+	query := `
+        SELECT name FROM containers_profiles
+        JOIN profiles ON containers_profiles.profile_id=profiles.id
+		WHERE container_id=?
+        ORDER BY containers_profiles.apply_order`
+	inargs := []interface{}{containerId}
 	outfmt := []interface{}{name}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+
+	results, err := shared.DbQueryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
-
-	var profiles []string
 
 	for _, r := range results {
 		name = r[0].(string)
