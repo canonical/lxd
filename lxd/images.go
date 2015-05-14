@@ -617,7 +617,8 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 		req.Description = req.Name
 	}
 
-	_, _, err := dbAliasGet(d, req.Name)
+	// This is just to see if the alias name already exists.
+	_, err := dbAliasGet(d.db, req.Name)
 	if err == nil {
 		return Conflict
 	}
