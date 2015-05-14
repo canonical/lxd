@@ -17,7 +17,7 @@ const CONTAINER_AND_PROFILE string = `
 
 const IMAGE string = `
     INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176);
-    INSERT INTO images_aliases (name, image_id, description) VALUES ('somename', 1, 'some description');
+    INSERT INTO images_aliases (name, image_id, description) VALUES ('somealias', 1, 'some description');
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');`
 
 func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
@@ -450,4 +450,51 @@ func Test_dbImageGet_for_missing_fingerprint(t *testing.T) {
 	if err != sql.ErrNoRows {
 		t.Fatal("Wrong err type returned")
 	}
+}
+
+func Test_dbAliasGet_alias_exists(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var result string
+
+	db, err = initializeDbObject(":memory:")
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(IMAGE)
+	if err != nil {
+		t.Fatal("Error creating schema!")
+	}
+
+	result, err = dbAliasGet(db, "somealias")
+
+	if result != "fingerprint" {
+		t.Fatal("Fingerprint is not the expected fingerprint!")
+	}
+
+}
+
+func Test_dbAliasGet_alias_does_not_exists(t *testing.T) {
+	var db *sql.DB
+	var err error
+
+	db, err = initializeDbObject(":memory:")
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(IMAGE)
+	if err != nil {
+		t.Fatal("Error creating schema!")
+	}
+
+	_, err = dbAliasGet(db, "whatever")
+
+	if err != NoSuchImageError {
+		t.Fatal("Error should be NoSuchImageError")
+	}
+
 }

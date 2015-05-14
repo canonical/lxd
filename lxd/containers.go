@@ -232,13 +232,10 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 				return InternalError(err)
 			}
 		} else {
-			_, iId, err := dbAliasGet(d, req.Source.Alias)
+
+			hash, err = dbAliasGet(d.db, req.Source.Alias)
 			if err != nil {
 				return InternalError(err)
-			}
-			hash, err = dbImageGetById(d, iId)
-			if err != nil {
-				return InternalError(fmt.Errorf("Stale alias"))
 			}
 		}
 	} else if req.Source.Fingerprint != "" {
