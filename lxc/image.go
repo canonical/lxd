@@ -104,15 +104,8 @@ func doImageAlias(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		for _, url := range resp {
-			/* /1.0/images/aliases/ALIAS_NAME */
-			alias := fromUrl(url, "/1.0/images/aliases/")
-			if alias == "" {
-				fmt.Printf(gettext.Gettext("(Bad alias entry: %s\n"), url)
-			} else {
-				fmt.Println(alias)
-			}
-		}
+		showAliases(resp)
+
 		return nil
 	case "create":
 		/* alias create [<remote>:]<alias> <target> */
@@ -486,6 +479,23 @@ func showImages(images []shared.ImageInfo) error {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"ALIAS", "FINGERPRINT", "PUBLIC", "DESCRIPTION", "ARCH", "UPLOAD DATE"})
+
+	for _, v := range data {
+		table.Append(v)
+	}
+	table.Render()
+
+	return nil
+}
+
+func showAliases(aliases []shared.ImageAlias) error {
+	data := [][]string{}
+	for _, alias := range aliases {
+		data = append(data, []string{alias.Description, alias.Name[0:12]})
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"ALIAS", "FINGERPRINT"})
 
 	for _, v := range data {
 		table.Append(v)
