@@ -709,36 +709,27 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseI
 	return image, nil
 }
 
-func dbImageGetById(d *Daemon, id int) (string, error) {
-	q := "SELECT fingerprint FROM images WHERE id=?"
-	var fp string
-	arg1 := []interface{}{id}
-	arg2 := []interface{}{&fp}
-	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
+// Get an image's fingerprint for a given alias name.
+func dbAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
+	q := `
+        SELECT
+            fingerprint
+        FROM images AS i JOIN images_aliases AS a
+        ON a.image_id == i.id
+        WHERE name=?`
+
+	inparams := []interface{}{name}
+	outparams := []interface{}{&fingerprint}
+
+	err = shared.DbQueryRowScan(db, q, inparams, outparams)
+
 	if err == sql.ErrNoRows {
 		return "", NoSuchImageError
 	}
 	if err != nil {
 		return "", err
 	}
-
-	return fp, nil
-}
-
-func dbAliasGet(d *Daemon, name string) (int, int, error) {
-	q := "SELECT id, image_id FROM images_aliases WHERE name=?"
-	var id int
-	var imageid int
-	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id, &imageid}
-	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
-	if err == sql.ErrNoRows {
-		return 0, 0, NoSuchImageError
-	}
-	if err != nil {
-		return 0, 0, err
-	}
-	return id, imageid, nil
+	return fingerprint, nil
 }
 
 func dbAddAlias(d *Daemon, name string, tgt int, desc string) error {
