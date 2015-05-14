@@ -3,13 +3,28 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/lxc/lxd/shared"
 	"testing"
 )
+
+const CONTAINER_AND_PROFILE string = `
+    INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
+    INSERT INTO profiles (name) VALUES ('theprofile');
+    INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
+    INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');
+    INSERT INTO containers_devices (container_id, name) VALUES (1, 'somename');
+    INSERT INTO containers_devices_config (key, value, container_device_id) VALUES ('configkey', 'configvalue', 1);`
+
+const IMAGE string = `
+    INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176);
+    INSERT INTO images_aliases (name, image_id, description) VALUES ('somename', 1, 'some description');
+    INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');`
 
 func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var count int
+	var statements string
 
 	db, err = initializeDbObject(":memory:")
 	defer db.Close()
@@ -19,15 +34,7 @@ func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 	}
 
 	// Insert a container and a related profile.
-	statements := `
-    INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
-    INSERT INTO profiles (name) VALUES ('theprofile');
-    INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
-    INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');
-    INSERT INTO containers_devices (container_id, name) VALUES (1, 'somename');
-    INSERT INTO containers_devices_config (key, value, container_device_id) VALUES ('configkey', 'configvalue', 1);`
-
-	_, err = db.Exec(statements)
+	_, err = db.Exec(CONTAINER_AND_PROFILE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -78,6 +85,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var count int
+	var statements string
 
 	db, err = initializeDbObject(":memory:")
 	defer db.Close()
@@ -88,15 +96,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 
 	// Insert a container and a related profile. Dont't forget that the profile
 	// we insert is profile ID 2 (there is a default profile already).
-	statements := `
-    INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
-    INSERT INTO profiles (name) VALUES ('theprofile');
-    INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
-    INSERT INTO profiles_devices (name, profile_id) VALUES ('somename', 2);
-    INSERT INTO profiles_config (key, value, profile_id) VALUES ('thekey', 'thevalue', 2);
-    INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (1, 'something', 'boring');`
-
-	_, err = db.Exec(statements)
+	_, err = db.Exec(CONTAINER_AND_PROFILE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -147,6 +147,7 @@ func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var count int
+	var statements string
 
 	db, err = initializeDbObject(":memory:")
 	defer db.Close()
@@ -155,12 +156,7 @@ func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
 		t.Error(err)
 	}
 
-	statements := `
-    INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES ('fingerprint', 'filename', 0, 0, 0, 0, 0);
-    INSERT INTO images_aliases (name, image_id, description) VALUES ('somename', 1, 'some description');
-    INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');`
-
-	_, err = db.Exec(statements)
+	_, err = db.Exec(IMAGE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -227,6 +223,7 @@ func Test_running_updateFromV6_adds_on_delete_cascade(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var count int
+	var statements string
 
 	db, err = initializeDbObject(":memory:")
 	defer db.Close()
@@ -235,7 +232,7 @@ func Test_running_updateFromV6_adds_on_delete_cascade(t *testing.T) {
 		t.Error(err)
 	}
 
-	statements := `
+	statements = `
 CREATE TABLE IF NOT EXISTS containers (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -293,14 +290,17 @@ func Test_run_database_upgrades_with_some_foreign_keys_inconsistencies(t *testin
 	var db *sql.DB
 	var err error
 	var count int
+	var statements string
 
 	db, err = sql.Open("sqlite3", ":memory:")
+	defer db.Close()
+
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// This schema is a part of schema rev 1.
-	statements := `
+	statements = `
 CREATE TABLE containers (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -381,4 +381,73 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 		t.Fatal("updateDb did not delete orphaned child entries after adding ON DELETE CASCADE!")
 	}
 
+}
+
+func Test_dbImageGet_finds_image_for_fingerprint(t *testing.T) {
+
+	var db *sql.DB
+	var err error
+	//	var count int
+	var result *shared.ImageBaseInfo
+
+	db, err = initializeDbObject(":memory:")
+	defer db.Close()
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Insert some image and related metadata
+	_, err = db.Exec(IMAGE)
+	if err != nil {
+		t.Fatal("Error creating schema!")
+	}
+
+	result, err = dbImageGet(db, "fingerprint", false)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result == nil {
+		t.Fatal("No image returned!")
+	}
+
+	if result.Filename != "filename" {
+		t.Fatal("Filename should be set.")
+	}
+
+	if result.CreationDate != 1431547174 {
+		t.Fatal(result.CreationDate)
+	}
+
+	if result.ExpiryDate != 1431547175 { // It was short lived
+		t.Fatal(result.ExpiryDate)
+	}
+
+	if result.UploadDate != 1431547176 {
+		t.Fatal(result.UploadDate)
+	}
+}
+
+func Test_dbImageGet_for_missing_fingerprint(t *testing.T) {
+	var db *sql.DB
+	var err error
+
+	db, err = initializeDbObject(":memory:")
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(IMAGE)
+	if err != nil {
+		t.Fatal("Error creating schema!")
+	}
+
+	_, err = dbImageGet(db, "unknown", false)
+
+	if err != sql.ErrNoRows {
+		t.Fatal("Wrong err type returned")
+	}
 }

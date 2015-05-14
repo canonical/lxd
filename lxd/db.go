@@ -12,6 +12,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+var (
+	DbErrAlreadyDefined = fmt.Errorf("already exists")
+	NoSuchImageError    = errors.New("No such image")
+)
+
 const DB_CURRENT_VERSION int = 7
 
 const CURRENT_SCHEMA string = `
@@ -134,10 +139,6 @@ CREATE TABLE IF NOT EXISTS schema (
     updated_at DATETIME NOT NULL,
     UNIQUE (version)
 );`
-
-var (
-	DbErrAlreadyDefined = fmt.Errorf("already exists")
-)
 
 // Create the initial (current) schema for a given SQLite DB connection.
 // This should stay indempotent.
@@ -657,71 +658,55 @@ func initDb(d *Daemon) (err error) {
 	return err
 }
 
-var NoSuchImageError = errors.New("No such image")
-
-func dbImageGet(d *Daemon, name string, public bool) (*shared.ImageBaseInfo, error) {
-
-	// count potential images first, if more than one
-	// return error
-	var countImg int
+// Get an ImageBaseInfo object from the database.
+// There can never be more than one image with a given fingerprint, as it is
+// enforced by a UNIQUE constraint in the schema.
+func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseInfo, error) {
 	var err error
-	q := "SELECT count(id) FROM images WHERE fingerprint like ?"
-	if public {
-		q = q + " AND public=1"
-	}
+	var create, expire, upload *time.Time // These hold the db-returned times
 
-	arg1 := []interface{}{name + "%"}
-	arg2 := []interface{}{&countImg}
-	err = shared.DbQueryRowScan(d.db, q, arg1, arg2)
-	if err != nil {
-		return nil, err
-	}
-
-	if countImg > 1 {
-		return nil, fmt.Errorf("Multiple images for fingerprint")
-	}
-
+	// The object we'll actually return
 	image := new(shared.ImageBaseInfo)
 
-	var create, expire, upload *time.Time
-	q = `SELECT id, fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date FROM images WHERE fingerprint like ?`
-	if public {
-		q = q + " AND public=1"
-	}
-
-	arg2 = []interface{}{&image.Id, &image.Fingerprint, &image.Filename,
+	// These two humongous things will be filled by the call to DbQueryRowScan
+	inparam := []interface{}{fingerprint + "%"}
+	outparam := []interface{}{&image.Id, &image.Fingerprint, &image.Filename,
 		&image.Size, &image.Public, &image.Architecture,
 		&create, &expire, &upload}
 
-	err = shared.DbQueryRowScan(d.db, q, arg1, arg2)
-	if err != nil {
-		return nil, err
+	query := `
+        SELECT
+            id, fingerprint, filename, size, public, architecture,
+            creation_date, expiry_date, upload_date
+        FROM
+            images
+        WHERE fingerprint like ?`
+
+	if public {
+		query = query + " AND public=1"
 	}
 
+	err = shared.DbQueryRowScan(db, query, inparam, outparam)
+
+	if err != nil {
+		return nil, err // Likely: there are no rows for this fingerprint
+	}
+
+	// Some of the dates can be nil in the DB, let's process them.
 	if create != nil {
-		t := *create
-		image.CreationDate = t.Unix()
+		image.CreationDate = create.Unix()
 	} else {
 		image.CreationDate = 0
 	}
 	if expire != nil {
-		t := *expire
-		image.ExpiryDate = t.Unix()
+		image.ExpiryDate = expire.Unix()
 	} else {
 		image.ExpiryDate = 0
 	}
-	t := *upload
-	image.UploadDate = t.Unix()
+	// The upload date is enforced by NOT NULL in the schema, so it can never be nil.
+	image.UploadDate = upload.Unix()
 
-	switch {
-	case err == sql.ErrNoRows:
-		return nil, NoSuchImageError
-	case err != nil:
-		return nil, err
-	default:
-		return image, nil
-	}
-
+	return image, nil
 }
 
 func dbImageGetById(d *Daemon, id int) (string, error) {
