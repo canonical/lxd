@@ -1859,8 +1859,17 @@ func snapshotRootfsDir(c *lxdContainer, name string) string {
 }
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
+	recursion_str := r.FormValue("recursion")
+	recursion, err := strconv.Atoi(recursion_str)
+	if err != nil {
+		recursion = 0
+	}
 
 	cname := mux.Vars(r)["name"]
+	c, err := newLxdContainer(cname, d)
+	if err != nil {
+		return SmartError(err)
+	}
 
 	regexp := fmt.Sprintf("%s/", cname)
 	length := len(regexp)
@@ -1873,16 +1882,28 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	var body []string
+	var result_string []string
+	var result_map []shared.Jmap
 
 	for _, r := range results {
 		name = r[0].(string)
+		if recursion == 0 {
+			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
+			result_string = append(result_string, url)
+		} else {
+			_, err := os.Stat(snapshotStateDir(c, name))
+			body := shared.Jmap{"name": name, "stateful": err == nil}
+			result_map = append(result_map, body)
+		}
 
-		url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
-		body = append(body, url)
 	}
 
-	return SyncResponse(true, body)
+	if recursion == 0 {
+		return SyncResponse(true, result_string)
+	} else {
+		return SyncResponse(true, result_map)
+	}
+
 }
 
 /*

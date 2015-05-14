@@ -1225,13 +1225,13 @@ func (c *Client) Snapshot(container string, snapshotName string, stateful bool) 
 }
 
 func (c *Client) ListSnapshots(container string) ([]string, error) {
-	qUrl := fmt.Sprintf("containers/%s/snapshots", container)
+	qUrl := fmt.Sprintf("containers/%s/snapshots?recursion=1", container)
 	resp, err := c.get(qUrl)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []string
+	var result []shared.Jmap
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
@@ -1239,24 +1239,11 @@ func (c *Client) ListSnapshots(container string) ([]string, error) {
 
 	names := []string{}
 
-	for _, url := range result {
-		// /1.0/containers/<name>/snapshots/<snapshot>
-		apart := strings.SplitN(url, "/", 6)
-		if len(apart) < 6 {
-			return nil, fmt.Errorf(gettext.Gettext("bad container url %s"), url)
+	for _, snapjmap := range result {
+		name, err := snapjmap.GetString("name")
+		if err != nil {
+			continue
 		}
-		version := apart[1]
-		cname := apart[3]
-		name := apart[5]
-
-		if cname != container || apart[2] != "containers" || apart[4] != "snapshots" {
-			return nil, fmt.Errorf(gettext.Gettext("bad container url %s"), url)
-		}
-
-		if version != shared.APIVersion {
-			return nil, fmt.Errorf(gettext.Gettext("bad version in container url"))
-		}
-
 		names = append(names, name)
 	}
 
