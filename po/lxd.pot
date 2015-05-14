@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-13 17:18+0200\n"
+        "POT-Creation-Date: 2015-05-14 20:53+0530\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -110,7 +110,7 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1355
+#: client.go:1342
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -532,16 +532,11 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:1246 client.go:1253
-#, c-format
-msgid   "bad container url %s"
-msgstr  ""
-
 #: lxc/launch.go:99
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1386
+#: client.go:1373
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -550,11 +545,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1257
-msgid   "bad version in container url"
-msgstr  ""
-
-#: client.go:1390
+#: client.go:1377
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -670,7 +661,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1432 client.go:1486
+#: client.go:1419 client.go:1473
 msgid   "no value found in %q\n"
 msgstr  ""
 
