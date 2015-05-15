@@ -47,6 +47,7 @@ func (c *profileCmd) usage() string {
 			"lxc profile list [filters]                     List available profiles\n" +
 			"lxc profile create <profile>                   Create a profile\n" +
 			"lxc profile edit <profile>                     Edit profile in external editor\n" +
+			"lxc profile copy <profile> <remote>            Copy the profile to the specified remote\n" +
 			"lxc profile set <profile> <key> <value>        Set profile configuration\n" +
 			"lxc profile delete <profile>                   Delete a profile\n" +
 			"lxc profile apply <container> <profiles>\n" +

@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-14 09:26+1200\n"
+        "POT-Creation-Date: 2015-05-14 20:03-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -109,7 +109,7 @@ msgstr  ""
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: lxc/profile.go:308
+#: lxc/profile.go:309
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -276,6 +276,8 @@ msgid   "Manage configuration profiles.\n"
         "lxc profile create <profile>                   Create a profile\n"
         "lxc profile edit <profile>                     Edit profile in "
         "external editor\n"
+        "lxc profile copy <profile> <remote>            Copy the profile to "
+        "the specified remote\n"
         "lxc profile set <profile> <key> <value>        Set profile "
         "configuration\n"
         "lxc profile delete <profile>                   Delete a profile\n"
@@ -405,17 +407,17 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version\n"
 msgstr  ""
 
-#: lxc/profile.go:206
+#: lxc/profile.go:207
 #, c-format
 msgid   "Profile %s applied to %s\n"
 msgstr  ""
 
-#: lxc/profile.go:128
+#: lxc/profile.go:129
 #, c-format
 msgid   "Profile %s created\n"
 msgstr  ""
 
-#: lxc/profile.go:195
+#: lxc/profile.go:196
 #, c-format
 msgid   "Profile %s deleted\n"
 msgstr  ""
@@ -519,7 +521,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:322 lxc/profile.go:177
+#: lxc/config.go:322 lxc/profile.go:178
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
