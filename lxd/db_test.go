@@ -7,18 +7,36 @@ import (
 	"testing"
 )
 
-const CONTAINER_AND_PROFILE string = `
+const DB_FIXTURES string = `
     INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
     INSERT INTO profiles (name) VALUES ('theprofile');
     INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
     INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');
     INSERT INTO containers_devices (container_id, name) VALUES (1, 'somename');
-    INSERT INTO containers_devices_config (key, value, container_device_id) VALUES ('configkey', 'configvalue', 1);`
-
-const IMAGE string = `
+    INSERT INTO containers_devices_config (key, value, container_device_id) VALUES ('configkey', 'configvalue', 1);
     INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176);
     INSERT INTO images_aliases (name, image_id, description) VALUES ('somealias', 1, 'some description');
-    INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');`
+    INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
+    INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'thekey', 'thevalue');
+    INSERT INTO profiles_devices (profile_id, name) VALUES (2, 'devicename');
+    INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (2, 'devicekey', 'devicevalue');
+    `
+
+//  This Helper will initialize a test in-memory DB.
+func createTestDb(t *testing.T) (db *sql.DB) {
+	var err error
+	db, err = initializeDbObject(":memory:")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec(DB_FIXTURES)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return // db is a named output param
+}
 
 func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 	var db *sql.DB
@@ -26,18 +44,9 @@ func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 	var count int
 	var statements string
 
-	db, err = initializeDbObject(":memory:")
-	defer db.Close()
-
-	if err != nil {
-		t.Error(err)
-	}
-
 	// Insert a container and a related profile.
-	_, err = db.Exec(CONTAINER_AND_PROFILE)
-	if err != nil {
-		t.Error(err)
-	}
+	db = createTestDb(t)
+	defer db.Close()
 
 	// Drop the container we just created.
 	statements = `DELETE FROM containers WHERE name = 'thename';`
@@ -87,19 +96,9 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	var count int
 	var statements string
 
-	db, err = initializeDbObject(":memory:")
+	// Insert a container and a related profile.
+	db = createTestDb(t)
 	defer db.Close()
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Insert a container and a related profile. Dont't forget that the profile
-	// we insert is profile ID 2 (there is a default profile already).
-	_, err = db.Exec(CONTAINER_AND_PROFILE)
-	if err != nil {
-		t.Error(err)
-	}
 
 	// Drop the profile we just created.
 	statements = `DELETE FROM profiles WHERE name = 'theprofile';`
@@ -134,7 +133,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	}
 
 	// Make sure there are 0 profiles_devices_config entries left.
-	statements = `SELECT count(*) FROM profiles_devices_config WHERE profeil_device_id != 1;`
+	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id != 1;`
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
@@ -149,17 +148,8 @@ func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
 	var count int
 	var statements string
 
-	db, err = initializeDbObject(":memory:")
+	db = createTestDb(t)
 	defer db.Close()
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = db.Exec(IMAGE)
-	if err != nil {
-		t.Error(err)
-	}
 
 	// Drop the image we just created.
 	statements = `DELETE FROM images;`
@@ -387,21 +377,10 @@ func Test_dbImageGet_finds_image_for_fingerprint(t *testing.T) {
 
 	var db *sql.DB
 	var err error
-	//	var count int
 	var result *shared.ImageBaseInfo
 
-	db, err = initializeDbObject(":memory:")
+	db = createTestDb(t)
 	defer db.Close()
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Insert some image and related metadata
-	_, err = db.Exec(IMAGE)
-	if err != nil {
-		t.Fatal("Error creating schema!")
-	}
 
 	result, err = dbImageGet(db, "fingerprint", false)
 
@@ -434,16 +413,8 @@ func Test_dbImageGet_for_missing_fingerprint(t *testing.T) {
 	var db *sql.DB
 	var err error
 
-	db, err = initializeDbObject(":memory:")
-	if err != nil {
-		t.Error(err)
-	}
+	db = createTestDb(t)
 	defer db.Close()
-
-	_, err = db.Exec(IMAGE)
-	if err != nil {
-		t.Fatal("Error creating schema!")
-	}
 
 	_, err = dbImageGet(db, "unknown", false)
 
@@ -457,18 +428,14 @@ func Test_dbAliasGet_alias_exists(t *testing.T) {
 	var err error
 	var result string
 
-	db, err = initializeDbObject(":memory:")
-	if err != nil {
-		t.Error(err)
-	}
+	db = createTestDb(t)
 	defer db.Close()
 
-	_, err = db.Exec(IMAGE)
-	if err != nil {
-		t.Fatal("Error creating schema!")
-	}
-
 	result, err = dbAliasGet(db, "somealias")
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if result != "fingerprint" {
 		t.Fatal("Fingerprint is not the expected fingerprint!")
@@ -480,21 +447,161 @@ func Test_dbAliasGet_alias_does_not_exists(t *testing.T) {
 	var db *sql.DB
 	var err error
 
-	db, err = initializeDbObject(":memory:")
-	if err != nil {
-		t.Error(err)
-	}
+	db = createTestDb(t)
 	defer db.Close()
-
-	_, err = db.Exec(IMAGE)
-	if err != nil {
-		t.Fatal("Error creating schema!")
-	}
 
 	_, err = dbAliasGet(db, "whatever")
 
 	if err != NoSuchImageError {
 		t.Fatal("Error should be NoSuchImageError")
+	}
+
+}
+
+func Test_dbAddAlias(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var result string
+
+	db = createTestDb(t)
+	defer db.Close()
+
+	err = dbAddAlias(db, "Chaosphere", 1, "Someone will like the name")
+	if err != nil {
+		t.Fatal("Error inserting Image alias.")
+	}
+
+	result, err = dbAliasGet(db, "Chaosphere")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result != "fingerprint" {
+		t.Fatal("Couldn't retrieve newly created alias.")
+	}
+}
+
+func Test_dbGetConfig(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var result map[string]string
+	var expected map[string]string
+
+	db = createTestDb(t)
+	defer db.Close()
+
+	_, err = db.Exec("INSERT INTO containers_config (container_id, key, value) VALUES (1, 'something', 'something else');")
+
+	result, err = dbGetConfig(db, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = map[string]string{"thekey": "thevalue", "something": "something else"}
+
+	for key, value := range expected {
+		if result[key] != value {
+			t.Error(fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
+		}
+	}
+}
+
+func Test_dbGetProfileConfig(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var result map[string]string
+	var expected map[string]string
+
+	db = createTestDb(t)
+	defer db.Close()
+
+	_, err = db.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'something', 'something else');")
+
+	result, err = dbGetProfileConfig(db, "theprofile")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = map[string]string{"thekey": "thevalue", "something": "something else"}
+
+	for key, value := range expected {
+		if result[key] != value {
+			t.Error(fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
+		}
+	}
+}
+
+func Test_dbGetProfiles(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var result []string
+	var expected []string
+
+	db = createTestDb(t)
+	defer db.Close()
+
+	expected = []string{"theprofile"}
+	result, err = dbGetProfiles(db, 1)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := range expected {
+		if expected[i] != result[i] {
+			t.Fatal(fmt.Sprintf("Mismatching contents for profile list: %s != %s", result[i], expected[i]))
+		}
+	}
+}
+
+func Test_dbGEtDevices_profiles(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var result shared.Devices
+	var subresult shared.Device
+	var expected shared.Device
+
+	db = createTestDb(t)
+	defer db.Close()
+
+	result, err = dbGetDevices(db, "theprofile", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = shared.Device{"type": "0", "devicekey": "devicevalue"}
+	subresult = result["devicename"]
+
+	for key, value := range expected {
+		if subresult[key] != value {
+			t.Error(fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
+		}
+	}
+
+}
+
+func Test_dbGEtDevices_containers(t *testing.T) {
+	var db *sql.DB
+	var err error
+	var result shared.Devices
+	var subresult shared.Device
+	var expected shared.Device
+
+	db = createTestDb(t)
+	defer db.Close()
+
+	result, err = dbGetDevices(db, "thename", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = shared.Device{"type": "0", "configkey": "configvalue"}
+	subresult = result["somename"]
+
+	for key, value := range expected {
+		if subresult[key] != value {
+			t.Error(fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
+		}
 	}
 
 }
