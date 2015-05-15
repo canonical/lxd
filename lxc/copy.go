@@ -46,7 +46,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		return err
 	}
 
-	status := shared.ContainerState{}
+	status := &shared.ContainerState{}
 
 	// TODO: presumably we want to do this for copying snapshots too? We
 	// need to think a bit more about how we track the baseImage in the
@@ -55,7 +55,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 	baseImage := ""
 
 	if !shared.IsSnapshot(sourceName) {
-		status, err := source.ContainerStatus(sourceName, false)
+		status, err = source.ContainerStatus(sourceName, false)
 		if err != nil {
 			return err
 		}
