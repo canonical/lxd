@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-14 20:03-0600\n"
+        "POT-Creation-Date: 2015-05-15 10:06+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -100,12 +100,12 @@ msgstr  ""
 msgid   "Architecture: %s\n"
 msgstr  ""
 
-#: client.go:660
+#: client.go:675
 #, c-format
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1355
+#: client.go:1370
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -113,7 +113,7 @@ msgstr  ""
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
-#: client.go:781
+#: client.go:796
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -139,7 +139,7 @@ msgid   "Copy containers within or in between lxd instances.\n"
         "lxc copy <source container> <destination container>\n"
 msgstr  ""
 
-#: client.go:797
+#: client.go:812
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -179,7 +179,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:541 client.go:551 client.go:693
+#: client.go:556 client.go:566 client.go:708
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -387,7 +387,7 @@ msgstr  ""
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:768
+#: client.go:783
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -431,11 +431,11 @@ msgstr  ""
 msgid   "Public: %s\n"
 msgstr  ""
 
-#: client.go:788
+#: client.go:803
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
-#: client.go:279
+#: client.go:280
 #, c-format
 msgid   "Server certificate for host %s has changed. Add correct certificate "
         "or remove certificate in %s"
@@ -443,6 +443,11 @@ msgstr  ""
 
 #: lxc/remote.go:146
 msgid   "Server doesn't trust us after adding our cert"
+msgstr  ""
+
+#: client.go:431
+#, c-format
+msgid   "Server is not listening on %s. Is the LXD server running?\n"
 msgstr  ""
 
 #: lxc/file.go:39
@@ -525,11 +530,11 @@ msgstr  ""
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
-#: client.go:451
+#: client.go:466
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: client.go:1246 client.go:1253
+#: client.go:1261 client.go:1268
 #, c-format
 msgid   "bad container url %s"
 msgstr  ""
@@ -538,7 +543,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1386
+#: client.go:1401
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -547,11 +552,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1257
+#: client.go:1272
 msgid   "bad version in container url"
 msgstr  ""
 
-#: client.go:1390
+#: client.go:1405
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -559,7 +564,7 @@ msgstr  ""
 msgid   "can't copy to the same container name"
 msgstr  ""
 
-#: client.go:414 client.go:419
+#: client.go:418 client.go:423
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
@@ -585,12 +590,12 @@ msgstr  ""
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:366
+#: client.go:367
 #, c-format
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1057
+#: client.go:1072
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -609,7 +614,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1192
+#: client.go:1207
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -667,7 +672,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1432 client.go:1486
+#: client.go:1447 client.go:1501
 msgid   "no value found in %q\n"
 msgstr  ""
 
@@ -679,7 +684,7 @@ msgstr  ""
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: client.go:782
+#: client.go:797
 msgid   "ok (y/n)? "
 msgstr  ""
 
@@ -698,7 +703,7 @@ msgstr  ""
 msgid   "remote %s exists as <%s>"
 msgstr  ""
 
-#: client.go:248
+#: client.go:249
 msgid   "unknown remote name: %q"
 msgstr  ""
 
