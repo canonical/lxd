@@ -203,6 +203,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 				if err != nil {
 					return nil, err
 				}
+
 				return net.DialUnix("unix", nil, raddr)
 			}
 			c.http.Transport = &http.Transport{Dial: uDial}
@@ -408,6 +409,9 @@ func (c *Client) url(elem ...string) string {
 func unixDial(networ, addr string) (net.Conn, error) {
 	var raddr *net.UnixAddr
 	var err error
+	var result net.Conn
+
+	shared.Debugf("In unixDial, with addr: %s", addr)
 	if addr == "unix.socket:80" {
 		raddr, err = net.ResolveUnixAddr("unix", shared.VarPath("unix.socket"))
 		if err != nil {
@@ -419,7 +423,18 @@ func unixDial(networ, addr string) (net.Conn, error) {
 			return nil, fmt.Errorf(gettext.Gettext("cannot resolve unix socket address: %v"), err)
 		}
 	}
-	return net.DialUnix("unix", nil, raddr)
+	result, err = net.DialUnix("unix", nil, raddr)
+
+	switch t := err.(type) {
+	case *net.OpError:
+		shared.Debugf("Op Error in DialUnix! Op: %s, Err: %s, Addr: %s", t.Op, t.Err, t.Addr)
+		fmt.Fprintf(os.Stderr, gettext.Gettext("Server is not listening on %s. Is the LXD server running?\n"), t.Addr)
+		os.Exit(1)
+	default:
+		shared.Debugf("Called net.DialUnix: reuslt: %s err: %s", result, err)
+	}
+
+	return result, err
 }
 
 var unixTransport = http.Transport{
