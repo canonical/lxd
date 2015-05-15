@@ -414,12 +414,16 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return InternalError(err)
 	}
 
+	idMap := d.idMap
+	if c.isPrivileged() {
+		idMap = nil
+	}
 	args := migration.MigrationSinkArgs{
 		Url:       req.Source.Operation,
 		Dialer:    websocket.Dialer{TLSClientConfig: config},
 		Container: c.c,
 		Secrets:   req.Source.Websockets,
-		IdMap:     d.idMap,
+		IdMap:     idMap,
 	}
 
 	sink, err := migration.NewMigrationSink(&args)
