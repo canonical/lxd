@@ -621,7 +621,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = dbAddAlias(d, req.Name, imgInfo.Id, req.Description)
+	err = dbAddAlias(d.db, req.Name, imgInfo.Id, req.Description)
 	if err != nil {
 		return InternalError(err)
 	}
