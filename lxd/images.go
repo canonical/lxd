@@ -297,6 +297,8 @@ func xzReader(r io.Reader) io.ReadCloser {
 
 func getImageMetadata(fname string) (*imageMetadata, error) {
 
+	metadataName := "metadata.yaml"
+
 	compression, _, err := detectCompression(fname)
 
 	if err != nil {
@@ -316,20 +318,23 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 	default:
 		args = append(args, "-Jxf")
 	}
-	args = append(args, fname, "metadata.yaml")
+	args = append(args, fname, metadataName)
+
+	shared.Debugf("Extracting tarball using command: tar %s", strings.Join(args, " "))
 
 	// read the metadata.yaml
-	output, err := exec.Command("tar", args...).Output()
+	output, err := exec.Command("tar", args...).CombinedOutput()
 
 	if err != nil {
-		return nil, fmt.Errorf("Could not get image metadata: %v", err)
+		outputLines := strings.Split(string(output), "\n")
+		return nil, fmt.Errorf("Could not extract image metadata %s from tar: %v (%s)", metadataName, err, outputLines[0])
 	}
 
 	metadata := new(imageMetadata)
 	err = yaml.Unmarshal(output, &metadata)
 
 	if err != nil {
-		return nil, fmt.Errorf("Could not get image metadata: %v", err)
+		return nil, fmt.Errorf("Could not parse %s: %v", metadataName, err)
 	}
 
 	return metadata, nil
