@@ -18,7 +18,9 @@ func (c *launchCmd) showByDefault() bool {
 
 func (c *launchCmd) usage() string {
 	return gettext.Gettext(
-		"lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
+		"Launch a container from a particular image.\n" +
+			"\n" +
+			"lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
 			"\n" +
 			"Launches a container using the specified image and name.\n" +
 			"\n" +

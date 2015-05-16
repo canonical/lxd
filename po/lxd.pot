@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-14 20:03-0600\n"
+        "POT-Creation-Date: 2015-05-14 22:36-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -87,7 +87,7 @@ msgstr  ""
 msgid   "Admin password for %s: "
 msgstr  ""
 
-#: lxc/image.go:236
+#: lxc/image.go:238
 msgid   "Aliases:\n"
 msgstr  ""
 
@@ -95,7 +95,7 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: lxc/image.go:219
+#: lxc/image.go:221
 #, c-format
 msgid   "Architecture: %s\n"
 msgstr  ""
@@ -129,7 +129,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/image.go:83
+#: lxc/image.go:85
 msgid   "Copy aliases from source"
 msgstr  ""
 
@@ -175,7 +175,7 @@ msgstr  ""
 msgid   "Enables verbose mode."
 msgstr  ""
 
-#: lxc/init.go:100 lxc/init.go:101 lxc/launch.go:36 lxc/launch.go:37
+#: lxc/init.go:100 lxc/init.go:101 lxc/launch.go:38 lxc/launch.go:39
 msgid   "Ephemeral container"
 msgstr  ""
 
@@ -190,7 +190,7 @@ msgid   "Execute the specified command in a container.\n"
         "lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n"
 msgstr  ""
 
-#: lxc/image.go:213
+#: lxc/image.go:215
 #, c-format
 msgid   "Fingerprint: %s\n"
 msgstr  ""
@@ -219,7 +219,7 @@ msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
 
-#: lxc/image.go:276
+#: lxc/image.go:278
 #, c-format
 msgid   "Image imported with fingerprint: %s\n"
 msgstr  ""
@@ -236,6 +236,21 @@ msgstr  ""
 #: lxc/file.go:52
 #, c-format
 msgid   "Invalid target %s"
+msgstr  ""
+
+#: lxc/launch.go:21
+msgid   "Launch a container from a particular image.\n"
+        "\n"
+        "lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p "
+        "<profile>...]\n"
+        "\n"
+        "Launches a container using the specified image and name.\n"
+        "\n"
+        "Not specifying -p will result in the default profile.\n"
+        "Specifying \"-p\" with no argument will result in no profile.\n"
+        "\n"
+        "Example:\n"
+        "lxc launch ubuntu u1\n"
 msgstr  ""
 
 #: lxc/info.go:21
@@ -264,7 +279,7 @@ msgid   "Lists the available resources.\n"
         "* \"s.privileged=1\" will do the same\n"
 msgstr  ""
 
-#: lxc/image.go:82
+#: lxc/image.go:84
 msgid   "Make image public"
 msgstr  ""
 
@@ -369,6 +384,31 @@ msgid   "Manage remote LXD servers.\n"
         "default remote.\n"
 msgstr  ""
 
+#: lxc/image.go:43
+msgid   "Manipulate container images\n"
+        "\n"
+        "lxc image import <tarball> [target] [--public] [--created-"
+        "at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] "
+        "[prop=value]\n"
+        "\n"
+        "lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-"
+        "alias]\n"
+        "lxc image delete [remote:]<image>\n"
+        "lxc image edit [remote:]<image>\n"
+        "lxc image export [remote:]<image>\n"
+        "lxc image info [remote:]<image>\n"
+        "lxc image list [remote:] [filter]\n"
+        "\n"
+        "Lists the images at specified remote, or local images.\n"
+        "Filters are not yet supported.\n"
+        "\n"
+        "lxc image alias create <alias> <target>\n"
+        "lxc image alias delete <alias>\n"
+        "lxc remote add images images.linuxcontainers.org\n"
+        "lxc image alias list images:\n"
+        "create, delete, list image aliases\n"
+msgstr  ""
+
 #: lxc/help.go:75
 msgid   "Missing summary."
 msgstr  ""
@@ -422,11 +462,11 @@ msgstr  ""
 msgid   "Profile %s deleted\n"
 msgstr  ""
 
-#: lxc/image.go:232
+#: lxc/image.go:234
 msgid   "Properties:\n"
 msgstr  ""
 
-#: lxc/image.go:220
+#: lxc/image.go:222
 #, c-format
 msgid   "Public: %s\n"
 msgstr  ""
@@ -473,7 +513,7 @@ msgstr  ""
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
 
-#: lxc/image.go:218
+#: lxc/image.go:220
 msgid   "Size: %.2vMB\n"
 msgstr  ""
 
@@ -485,11 +525,11 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: lxc/image.go:221
+#: lxc/image.go:223
 msgid   "Timestamps:\n"
 msgstr  ""
 
-#: lxc/image.go:396
+#: lxc/image.go:398
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -534,7 +574,7 @@ msgstr  ""
 msgid   "bad container url %s"
 msgstr  ""
 
-#: lxc/launch.go:99
+#: lxc/launch.go:101
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
@@ -567,7 +607,7 @@ msgstr  ""
 msgid   "changing hostname of running containers not supported"
 msgstr  ""
 
-#: lxc/launch.go:83 lxc/launch.go:88
+#: lxc/launch.go:85 lxc/launch.go:90
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
@@ -600,7 +640,7 @@ msgstr  ""
 msgid   "got bad response type, expected %s got %s"
 msgstr  ""
 
-#: lxc/launch.go:103
+#: lxc/launch.go:105
 msgid   "got bad version"
 msgstr  ""
 
@@ -614,29 +654,6 @@ msgstr  ""
 msgid   "invalid wait url %s"
 msgstr  ""
 
-#: lxc/image.go:43
-msgid   "lxc image import <tarball> [target] [--public] [--created-"
-        "at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] "
-        "[prop=value]\n"
-        "\n"
-        "lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-"
-        "alias]\n"
-        "lxc image delete [remote:]<image>\n"
-        "lxc image edit [remote:]<image>\n"
-        "lxc image export [remote:]<image>\n"
-        "lxc image info [remote:]<image>\n"
-        "lxc image list [remote:] [filter]\n"
-        "\n"
-        "Lists the images at specified remote, or local images.\n"
-        "Filters are not yet supported.\n"
-        "\n"
-        "lxc image alias create <alias> <target>\n"
-        "lxc image alias delete <alias>\n"
-        "lxc remote add images images.linuxcontainers.org\n"
-        "lxc image alias list images:\n"
-        "create, delete, list image aliases\n"
-msgstr  ""
-
 #: lxc/init.go:20
 msgid   "lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p "
         "<profile>...]\n"
@@ -648,19 +665,6 @@ msgid   "lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p "
         "\n"
         "Example:\n"
         "lxc init ubuntu u1\n"
-msgstr  ""
-
-#: lxc/launch.go:21
-msgid   "lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p "
-        "<profile>...]\n"
-        "\n"
-        "Launches a container using the specified image and name.\n"
-        "\n"
-        "Not specifying -p will result in the default profile.\n"
-        "Specifying \"-p\" with no argument will result in no profile.\n"
-        "\n"
-        "Example:\n"
-        "lxc launch ubuntu u1\n"
 msgstr  ""
 
 #: client.go:111
