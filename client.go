@@ -1219,6 +1219,11 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 	return op.GetError()
 }
 
+func (c *Client) RestoreSnapshot(container string, snapshotName string, stateful bool) (*Response, error) {
+	body := shared.Jmap{"restore": snapshotName, "stateful": stateful}
+	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
+}
+
 func (c *Client) Snapshot(container string, snapshotName string, stateful bool) (*Response, error) {
 	body := shared.Jmap{"name": snapshotName, "stateful": stateful}
 	return c.post(fmt.Sprintf("containers/%s/snapshots", container), body, Async)
