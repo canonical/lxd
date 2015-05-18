@@ -37,14 +37,8 @@ const (
 )
 
 func containersGet(d *Daemon, r *http.Request) Response {
-	recursion_str := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursion_str)
-	if err != nil {
-		recursion = 0
-	}
-
 	for {
-		result, err := doContainersGet(d, recursion)
+		result, err := doContainersGet(d, d.isRecursionRequest(r))
 		if err == nil {
 			return SyncResponse(true, result)
 		}
@@ -102,8 +96,8 @@ func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
 	return containerinfo, nil
 }
 
-func doContainersGet(d *Daemon, recursion int) (interface{}, error) {
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
+func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? ORDER BY name")
 	inargs := []interface{}{cTypeRegular}
 	var container string
 	outfmt := []interface{}{container}
@@ -115,7 +109,7 @@ func doContainersGet(d *Daemon, recursion int) (interface{}, error) {
 	}
 	for _, r := range result {
 		container := string(r[0].(string))
-		if recursion == 0 {
+		if !recursion {
 			url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
 			result_string = append(result_string, url)
 		} else {
@@ -127,7 +121,7 @@ func doContainersGet(d *Daemon, recursion int) (interface{}, error) {
 		}
 	}
 
-	if recursion == 0 {
+	if !recursion {
 		return result_string, nil
 	} else {
 		return result_map, nil
