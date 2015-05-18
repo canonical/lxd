@@ -23,7 +23,9 @@ images.remote\_cache\_expiry    | integer       | 10                        | Nu
 lxc.lxc\_path                   | string        | /var/lib/lxd/lxc          | LXC path used for the container control socket
 
 Those keys can be set using the lxc tool with:
+
     lxc config set <key> <value>
+
 
 # Container configuration
 ## Properties
@@ -35,7 +37,9 @@ The following are direct container properties and can't be part of a profile:
 Name is the container name and can only be changed by renaming the container.
 
 hostname and architecture can be changed with:
+
     lxc config set <container> <property> <value>
+
 
 ## Key/value configuration
 The key/value configuration is namespaced with the following namespaces
@@ -65,7 +69,9 @@ stored as strings and should be exported over the REST API as strings
 backward compatibility).
 
 Those keys can be set using the lxc tool with:
+
     lxc config set <container> <key> <value>
+
 
 ## Devices configuration
 LXD will always provide the container with the basic devices which are
