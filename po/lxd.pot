@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-19 08:50+0000\n"
+        "POT-Creation-Date: 2015-05-20 08:01+1200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,11 +105,11 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1342
+#: client.go:1347
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: lxc/profile.go:309
+#: lxc/profile.go:313
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -157,12 +157,12 @@ msgid   "Delete a container or container snapshot.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:366
+#: lxc/config.go:369
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:394
+#: lxc/config.go:397
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -288,6 +288,8 @@ msgid   "Manage configuration profiles.\n"
         "\n"
         "lxc profile list [filters]                     List available "
         "profiles\n"
+        "lxc profile show <profile>                     Show details of a "
+        "profile\n"
         "lxc profile create <profile>                   Create a profile\n"
         "lxc profile edit <profile>                     Edit profile in "
         "external editor\n"
@@ -312,6 +314,8 @@ msgid   "Manage configuration profiles.\n"
         "Devices:\n"
         "lxc profile device list <profile>              List devices in the "
         "given profile.\n"
+        "lxc profile device show <profile>              Show full device "
+        "details in the given profile.\n"
         "lxc profile device remove <profile> <name>     Remove a device from "
         "a profile.\n"
         "lxc profile device add <profile name> <device name> <device type> "
@@ -328,6 +332,8 @@ msgid   "Manage configuration.\n"
         "               Add a device to a container\n"
         "lxc config device list <container>                List devices for "
         "container\n"
+        "lxc config device show <container>                Show full device "
+        "details for container\n"
         "lxc config device remove <container> <name>       Remove device from "
         "container\n"
         "lxc config edit <container>                      Edit container "
@@ -429,7 +435,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move <source container> <destination container>\n"
 msgstr  ""
 
-#: lxc/config.go:162
+#: lxc/config.go:163
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -437,7 +443,7 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:185
+#: lxc/config.go:186
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -453,17 +459,17 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version\n"
 msgstr  ""
 
-#: lxc/profile.go:207
+#: lxc/profile.go:209
 #, c-format
 msgid   "Profile %s applied to %s\n"
 msgstr  ""
 
-#: lxc/profile.go:129
+#: lxc/profile.go:131
 #, c-format
 msgid   "Profile %s created\n"
 msgstr  ""
 
-#: lxc/profile.go:196
+#: lxc/profile.go:198
 #, c-format
 msgid   "Profile %s deleted\n"
 msgstr  ""
@@ -495,6 +501,13 @@ msgstr  ""
 msgid   "Server doesn't trust us after adding our cert"
 msgstr  ""
 
+#: lxc/restore.go:22
+msgid   "Set the current state of a resource back to what it was when it was "
+        "snapshotted.\n"
+        "\n"
+        "lxc restore <resource> <snapshot name> [--stateful]\n"
+msgstr  ""
+
 #: lxc/file.go:39
 msgid   "Set the file's gid on push"
 msgstr  ""
@@ -511,11 +524,11 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:208
+#: lxc/config.go:209
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
-#: lxc/config.go:204
+#: lxc/config.go:205
 msgid   "Show for server is not yet supported\n"
 msgstr  ""
 
@@ -549,7 +562,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:199
+#: lxc/config.go:200
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
@@ -567,11 +580,16 @@ msgid   "Usage: lxc [subcommand] [options]\n"
         "Available commands:\n"
 msgstr  ""
 
+#: lxc/restore.go:28
+msgid   "Whether or not to restore the container's running state from "
+        "snapshot (if available)"
+msgstr  ""
+
 #: lxc/snapshot.go:28
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:322 lxc/profile.go:178
+#: lxc/config.go:325 lxc/profile.go:180
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -583,7 +601,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1373
+#: client.go:1378
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -592,7 +610,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1377
+#: client.go:1382
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -672,7 +690,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1419 client.go:1473
+#: client.go:1424 client.go:1478
 msgid   "no value found in %q\n"
 msgstr  ""
 
@@ -711,7 +729,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:130
+#: lxc/main.go:131
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 

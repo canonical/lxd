@@ -866,8 +866,109 @@ type containerConfigReq struct {
 	Restore  string            `json:"restore"`
 }
 
-func containerSnapRestore(id int, snap string) Response {
-	return NotImplemented
+func containerSnapRestore(d *Daemon, name string, snap string) error {
+	// normalize snapshot name
+	if !shared.IsSnapshot(snap) {
+		snap = fmt.Sprintf("%s/%s", name, snap)
+	}
+
+	shared.Debugf("RESTORE => Restoring snapshot [%s] on container [%s]", snap, name)
+	/*
+	 * restore steps:
+	 * 1. stop container if already running
+	 * 2. overwrite existing config with snapshot config
+	 * 3. copy snapshot rootfs to container
+	 */
+	wasRunning := false
+	c, err := newLxdContainer(name, d)
+
+	if err != nil {
+		shared.Debugf("RESTORE => Error: newLxdContainer() failed for container", err)
+		return err
+	}
+
+	// 1. stop container
+	// TODO: stateful restore ?
+	if c.c.Running() {
+		wasRunning = true
+		if err = c.Stop(); err != nil {
+			shared.Debugf("RESTORE => Error: could not stop container", err)
+			return err
+		}
+		shared.Debugf("RESTORE => Stopped container %s", name)
+	}
+
+	// 2, replace config
+
+	// Make sure the source exists.
+	source, err := newLxdContainer(snap, d)
+	if err != nil {
+		shared.Debugf("RESTORE => Error: newLxdContainer() failed for snapshot", err)
+		return err
+	}
+
+	newConfig := containerConfigReq{}
+	newConfig.Config = source.config
+	newConfig.Profiles = source.profiles
+	newConfig.Devices = source.devices
+
+	err = containerReplaceConfig(d, c.id, name, newConfig)
+	if err != nil {
+		shared.Debugf("RESTORE => err #4", err)
+		return err
+	}
+
+	// 3. copy rootfs
+	// TODO: btrfs optimizations
+
+	containerRootPath := shared.VarPath("lxc", name)
+	// Check container dir already exists
+	fileinfo, err := os.Stat(path.Dir(containerRootPath))
+	if err != nil {
+		shared.Debugf("RESTORE => Could not stat %s to %s", containerRootPath, err)
+		return err
+	}
+
+	if !(fileinfo.IsDir()) {
+		shared.Debugf("RESTORE => containerRoot [%s] directory does not exist", containerRootPath)
+		return os.ErrNotExist
+	}
+
+	var snapshotRootFSPath string
+	snapshotRootFSPath = migration.AddSlash(snapshotRootfsDir(c, strings.SplitN(snap, "/", 2)[1]))
+
+	containerRootFSPath := migration.AddSlash(fmt.Sprintf("%s/%s", containerRootPath, "rootfs"))
+	shared.Debugf("RESTORE => Copying %s to %s", snapshotRootFSPath, containerRootFSPath)
+
+	rsync_debug := ""
+	if *debug {
+		rsync_debug = "-vi"
+	}
+
+	output, err := exec.Command("rsync", "-a", "-c", "-HAX", "--devices", "--delete", rsync_debug, snapshotRootFSPath, containerRootFSPath).CombinedOutput()
+	shared.Debugf("RESTORE => rsync output\n%s", output)
+
+	if err == nil && !source.isPrivileged() {
+		err = setUnprivUserAcl(d, containerRootPath)
+		if err != nil {
+			shared.Debugf("Error adding acl for container root: falling back to chmod\n")
+			output, err := exec.Command("chmod", "+x", containerRootPath).CombinedOutput()
+			if err != nil {
+				shared.Debugf("Error chmoding the container root\n")
+				shared.Debugf(string(output))
+				return err
+			}
+		}
+	} else {
+		shared.Debugf("rsync failed:\n%s", output)
+		return err
+	}
+
+	if wasRunning {
+		c.Start()
+	}
+
+	return nil
 }
 
 func dbClearContainerConfig(tx *sql.Tx, id int) error {
@@ -1006,51 +1107,64 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	do := func() error {
+	var do = func() error { return nil }
 
-		tx, err := shared.DbBegin(d.db)
-		if err != nil {
-			return err
+	if configRaw.Restore == "" {
+		// Update container configuration
+		do = func() error {
+			return containerReplaceConfig(d, cId, name, configRaw)
 		}
-
-		/* Update config or profiles */
-		if err = dbClearContainerConfig(tx, cId); err != nil {
-			shared.Debugf("Error clearing configuration for container %s\n", name)
-			tx.Rollback()
-			return err
+	} else {
+		// Snapshot Restore
+		do = func() error {
+			return containerSnapRestore(d, name, configRaw.Restore)
 		}
-
-		if err = dbInsertContainerConfig(tx, cId, configRaw.Config); err != nil {
-			shared.Debugf("Error inserting configuration for container %s\n", name)
-			tx.Rollback()
-			return err
-		}
-
-		/* handle profiles */
-		if emptyProfile(configRaw.Profiles) {
-			_, err := tx.Exec("DELETE from containers_profiles where container_id=?", cId)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-		} else {
-			if err := dbInsertProfiles(tx, cId, configRaw.Profiles); err != nil {
-
-				tx.Rollback()
-				return err
-			}
-		}
-
-		err = shared.AddDevices(tx, "container", cId, configRaw.Devices)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		return shared.TxCommit(tx)
 	}
 
 	return AsyncResponse(shared.OperationWrap(do), nil)
+}
+
+func containerReplaceConfig(d *Daemon, cId int, name string, newConfig containerConfigReq) error {
+	tx, err := shared.DbBegin(d.db)
+	if err != nil {
+		return err
+	}
+
+	/* Update config or profiles */
+	if err = dbClearContainerConfig(tx, cId); err != nil {
+		shared.Debugf("Error clearing configuration for container %s\n", name)
+		tx.Rollback()
+		return err
+	}
+
+	if err = dbInsertContainerConfig(tx, cId, newConfig.Config); err != nil {
+		shared.Debugf("Error inserting configuration for container %s\n", name)
+		tx.Rollback()
+		return err
+	}
+
+	/* handle profiles */
+	if emptyProfile(newConfig.Profiles) {
+		_, err := tx.Exec("DELETE from containers_profiles where container_id=?", cId)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	} else {
+		if err := dbInsertProfiles(tx, cId, newConfig.Profiles); err != nil {
+
+			tx.Rollback()
+			return err
+		}
+	}
+
+	err = shared.AddDevices(tx, "container", cId, newConfig.Devices)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return shared.TxCommit(tx)
 }
 
 type containerPostBody struct {
