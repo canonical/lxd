@@ -185,6 +185,7 @@ Return value (if trusted):
         'config': {"trust-password": True},             # Host configuration
         'environment': {'kernel_version': "3.16",       # Various information about the host (OS, kernel, ...)
                         'lxc_version': "1.0.6",
+                        'lxd_version': "0.8.1",
                         'driver': "lxc",
                         'backing_fs': "ext4"}
     }

@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-19 12:57+1200\n"
+        "POT-Creation-Date: 2015-05-20 07:23+1200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -78,11 +78,11 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name\n"
 msgstr  ""
 
-#: lxc/remote.go:39
+#: lxc/remote.go:40
 msgid   "Accept certificate"
 msgstr  ""
 
-#: lxc/remote.go:128
+#: lxc/remote.go:131
 #, c-format
 msgid   "Admin password for %s: "
 msgstr  ""
@@ -125,7 +125,7 @@ msgid   "Changes a containers state to %s.\n"
         "lxd %s <name>\n"
 msgstr  ""
 
-#: lxc/remote.go:149
+#: lxc/remote.go:154
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
@@ -365,22 +365,28 @@ msgid   "Manage files on a container.\n"
         "<container name>/<path>\n"
 msgstr  ""
 
-#: lxc/remote.go:27
+#: lxc/remote.go:28
 msgid   "Manage remote LXD servers.\n"
         "\n"
-        "lxc remote add <name> <url> [--accept-certificate]  Add the remote "
-        "<name> at <url>.\n"
-        "lxc remote remove <name>                            Remove the "
+        "lxc remote add <name> <url> [--accept-certificate] [--"
+        "password=PASSWORD]  Add the remote <name> at <url>.\n"
+        "lxc remote remove "
+        "<name>                                                  Remove the "
         "remote <name>.\n"
-        "lxc remote list                                     List all "
-        "remotes.\n"
-        "lxc remote rename <old> <new>                       Rename remote "
+        "lxc remote "
+        "list                                                           List "
+        "all remotes.\n"
+        "lxc remote rename <old> "
+        "<new>                                             Rename remote "
         "<old> to <new>.\n"
-        "lxc remote set-url <name> <url>                     Update <name>'s "
-        "url to <url>.\n"
-        "lxc remote set-default <name>                       Set the default "
+        "lxc remote set-url <name> "
+        "<url>                                           Update <name>'s url "
+        "to <url>.\n"
+        "lxc remote set-default "
+        "<name>                                             Set the default "
         "remote.\n"
-        "lxc remote get-default                              Print the "
+        "lxc remote get-"
+        "default                                                    Print the "
         "default remote.\n"
 msgstr  ""
 
@@ -471,6 +477,10 @@ msgstr  ""
 msgid   "Public: %s\n"
 msgstr  ""
 
+#: lxc/remote.go:41
+msgid   "Remote admin password"
+msgstr  ""
+
 #: client.go:788
 msgid   "Server certificate NACKed by user"
 msgstr  ""
@@ -481,7 +491,7 @@ msgid   "Server certificate for host %s has changed. Add correct certificate "
         "or remove certificate in %s"
 msgstr  ""
 
-#: lxc/remote.go:146
+#: lxc/remote.go:151
 msgid   "Server doesn't trust us after adding our cert"
 msgstr  ""
 
@@ -541,7 +551,7 @@ msgstr  ""
 msgid   "Unknown image command %s"
 msgstr  ""
 
-#: lxc/remote.go:255
+#: lxc/remote.go:260
 #, c-format
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
@@ -690,17 +700,17 @@ msgstr  ""
 msgid   "ok (y/n)? "
 msgstr  ""
 
-#: lxc/remote.go:217
+#: lxc/remote.go:222
 #, c-format
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:187 lxc/remote.go:213 lxc/remote.go:233 lxc/remote.go:244
+#: lxc/remote.go:192 lxc/remote.go:218 lxc/remote.go:238 lxc/remote.go:249
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""
 
-#: lxc/remote.go:172
+#: lxc/remote.go:177
 #, c-format
 msgid   "remote %s exists as <%s>"
 msgstr  ""
