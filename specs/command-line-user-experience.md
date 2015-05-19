@@ -84,6 +84,7 @@ stop        | Stop a container
     device add <resource> <device name> <type> [key=value]...
     device remove <resource> <device name>
     device list <resource>
+    device show <resource>
     trust add [remote] <certificate>
     trust remove [remote] <fingerprint>
     trust list [remote]
