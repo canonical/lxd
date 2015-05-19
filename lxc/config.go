@@ -47,6 +47,7 @@ func (c *configCmd) usage() string {
 			"lxc config device add <container> <name> <type> [key=value]...\n" +
 			"               Add a device to a container\n" +
 			"lxc config device list <container>                List devices for container\n" +
+			"lxc config device show <container>                Show full device details for container\n" +
 			"lxc config device remove <container> <name>       Remove device from container\n" +
 			"lxc config edit <container>                      Edit container configuration in external editor\n" +
 			"lxc config get <container> key                   Get configuration key\n" +
@@ -248,6 +249,8 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return deviceAdd(config, "container", args)
 		case "remove":
 			return deviceRm(config, "container", args)
+		case "show":
+			return deviceShow(config, "container", args)
 		default:
 			return errArgs
 		}
@@ -419,6 +422,45 @@ func deviceList(config *lxd.Config, which string, args []string) error {
 		return err
 	}
 	fmt.Printf("%s\n", strings.Join(resp, "\n"))
+
+	return nil
+}
+
+func deviceShow(config *lxd.Config, which string, args []string) error {
+	if len(args) < 3 {
+		return errArgs
+	}
+	remote, name := config.ParseRemoteAndContainer(args[2])
+
+	client, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	var devices map[string]shared.Device
+	if which == "profile" {
+		resp, err := client.ProfileConfig(name)
+		if err != nil {
+			return err
+		}
+
+		devices = resp.Devices
+
+	} else {
+		resp, err := client.ContainerStatus(name, false)
+		if err != nil {
+			return err
+		}
+
+		devices = resp.Devices
+	}
+
+	for n, d := range devices {
+		fmt.Printf("%s\n", n)
+		for attr, val := range d {
+			fmt.Printf("  %s: %s\n", attr, val)
+		}
+	}
 
 	return nil
 }

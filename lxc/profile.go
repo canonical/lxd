@@ -45,6 +45,7 @@ func (c *profileCmd) usage() string {
 		"Manage configuration profiles.\n" +
 			"\n" +
 			"lxc profile list [filters]                     List available profiles\n" +
+			"lxc profile show <profile>                     Show details of a profile\n" +
 			"lxc profile create <profile>                   Create a profile\n" +
 			"lxc profile edit <profile>                     Edit profile in external editor\n" +
 			"lxc profile copy <profile> <remote>            Copy the profile to the specified remote\n" +
@@ -61,6 +62,7 @@ func (c *profileCmd) usage() string {
 			"\n" +
 			"Devices:\n" +
 			"lxc profile device list <profile>              List devices in the given profile.\n" +
+			"lxc profile device show <profile>              Show full device details in the given profile.\n" +
 			"lxc profile device remove <profile> <name>     Remove a device from a profile.\n" +
 			"lxc profile device add <profile name> <device name> <device type> [key=value]...\n" +
 			"    Add a profile device, such as a disk or a nic, to the containers\n" +
@@ -260,6 +262,8 @@ func doProfileDevice(config *lxd.Config, args []string) error {
 		return deviceRm(config, "profile", args)
 	case "list":
 		return deviceList(config, "profile", args)
+	case "show":
+		return deviceShow(config, "profile", args)
 	default:
 		return errArgs
 	}

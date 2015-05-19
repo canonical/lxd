@@ -21,9 +21,11 @@ test_config_profiles() {
   lxc profile apply foo onenic,unconfined
 
   lxc config device list foo | grep home
+  lxc config device show foo | grep "/mnt"
   lxc config show foo | grep "onenic,unconfined"
   lxc profile list | grep onenic
   lxc profile device list onenic | grep eth0
+  lxc profile device show onenic | grep lxcbr0
 
   lxc config set foo user.prop value
   lxc list user.prop=value | grep foo
