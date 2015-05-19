@@ -57,7 +57,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 		env := shared.Jmap{
 			"lxc_version": lxc.Version(),
-			"lxd-version": shared.Version,
+			"lxd_version": shared.Version,
 			"driver":      "lxc",
 			"backing_fs":  backing_fs}
 
