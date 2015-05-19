@@ -121,6 +121,7 @@ var commands = map[string]command{
 	"profile":  &profileCmd{},
 	"remote":   &remoteCmd{},
 	"restart":  &actionCmd{shared.Restart, true},
+	"restore":  &restoreCmd{},
 	"snapshot": &snapshotCmd{},
 	"start":    &actionCmd{shared.Start, false},
 	"stop":     &actionCmd{shared.Stop, true},

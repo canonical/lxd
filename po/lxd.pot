@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-19 08:50+0000\n"
+        "POT-Creation-Date: 2015-05-20 07:23+1200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,7 +105,7 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1342
+#: client.go:1347
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -495,6 +495,13 @@ msgstr  ""
 msgid   "Server doesn't trust us after adding our cert"
 msgstr  ""
 
+#: lxc/restore.go:22
+msgid   "Set the current state of a resource back to what it was when it was "
+        "snapshotted.\n"
+        "\n"
+        "lxc restore <resource> <snapshot name> [--stateful]\n"
+msgstr  ""
+
 #: lxc/file.go:39
 msgid   "Set the file's gid on push"
 msgstr  ""
@@ -567,6 +574,11 @@ msgid   "Usage: lxc [subcommand] [options]\n"
         "Available commands:\n"
 msgstr  ""
 
+#: lxc/restore.go:28
+msgid   "Whether or not to restore the container's running state from "
+        "snapshot (if available)"
+msgstr  ""
+
 #: lxc/snapshot.go:28
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
@@ -583,7 +595,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1373
+#: client.go:1378
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -592,7 +604,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1377
+#: client.go:1382
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -672,7 +684,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1419 client.go:1473
+#: client.go:1424 client.go:1478
 msgid   "no value found in %q\n"
 msgstr  ""
 
@@ -711,7 +723,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:130
+#: lxc/main.go:131
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 

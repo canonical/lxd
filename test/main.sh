@@ -192,6 +192,9 @@ test_remote_usage
 echo "==> TEST: snapshots"
 test_snapshots
 
+echo "==> TEST: snapshot restore"
+test_snap_restore
+
 echo "==> TEST: profiles, devices and configuration"
 test_config_profiles
 
