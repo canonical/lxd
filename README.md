@@ -70,12 +70,10 @@ containers:
 
     echo "root:1000000:65536" | sudo tee -a /etc/subuid /etc/subgid
 
-Now you can run the daemon (the --group admin bit allows everyone in the admin
-group to talk to LXD; you can create your own group if you want, but typically
-all sudo users are in the admin group, so this is a handy way to allow them to
-talk to LXD):
+Now you can run the daemon (the --group sudo bit allows everyone in the sudo
+group to talk to LXD; you can create your own group if you want):
 
-    sudo -E $GOPATH/bin/lxd --group admin
+    sudo -E $GOPATH/bin/lxd --group sudo
 
 ## First steps
 
@@ -83,8 +81,8 @@ LXD has two parts, the daemon (the `lxd` binary), and the client (the `lxc`
 binary). Now that the daemon is all configured and running (either via the
 packaging or via the from-source instructions above), you can import some images:
 
-    scripts/lxd-images import lxc ubuntu trusty amd64 --alias ubuntu --alias ubuntu/trusty --alias ubuntu/trusty/amd64
-    scripts/lxd-images import lxc debian wheezy amd64 --alias debian --alias debian/wheezy --alias debian/wheezy/amd64
+    $GOPATH/src/github.com/lxc/lxd/scripts/lxd-images import lxc ubuntu trusty amd64 --alias ubuntu --alias ubuntu/trusty --alias ubuntu/trusty/amd64
+    $GOPATH/src/github.com/lxc/lxd/scripts/lxd-images import lxc debian wheezy amd64 --alias debian --alias debian/wheezy --alias debian/wheezy/amd64
 
 With those two images imported into LXD, you can now start containers:
 
