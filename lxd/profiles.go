@@ -89,7 +89,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = shared.AddDevices(tx, "profile", id, req.Devices)
+	err = AddDevices(tx, "profile", id, req.Devices)
 	if err != nil {
 		tx.Rollback()
 		return SmartError(err)
@@ -197,7 +197,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = shared.AddDevices(tx, "profile", id, req.Devices)
+	err = AddDevices(tx, "profile", id, req.Devices)
 	if err != nil {
 		tx.Rollback()
 		return SmartError(err)
