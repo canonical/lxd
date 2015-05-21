@@ -9,7 +9,6 @@ import (
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"gopkg.in/lxc/go-lxc.v2"
 )
 
 type copyCmd struct {
@@ -62,7 +61,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 
 		baseImage = status.Config["volatile.baseImage"]
 
-		if status.State() == lxc.RUNNING && sourceName != destName {
+		if status.State() == shared.RUNNING && sourceName != destName {
 			return fmt.Errorf(gettext.Gettext("changing hostname of running containers not supported"))
 		}
 

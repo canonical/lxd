@@ -6,7 +6,6 @@ import (
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"gopkg.in/lxc/go-lxc.v2"
 )
 
 type deleteCmd struct{}
@@ -53,7 +52,7 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		return doDelete(d, name)
 	}
 
-	if ct.State() != lxc.STOPPED {
+	if ct.State() != shared.STOPPED {
 		resp, err := d.Action(name, shared.Stop, -1, true)
 		if err != nil {
 			return err
