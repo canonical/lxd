@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
-	"gopkg.in/lxc/go-lxc.v2"
+	"github.com/lxc/lxd/shared"
 )
 
 type moveCmd struct {
@@ -47,7 +47,7 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		if status.State() != lxc.RUNNING {
+		if status.State() != shared.RUNNING {
 			rename, err := source.Rename(sourceName, destName)
 			if err != nil {
 				return err
