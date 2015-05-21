@@ -913,7 +913,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 	newConfig.Profiles = source.profiles
 	newConfig.Devices = source.devices
 
-	err = containerReplaceConfig(d, c.id, name, newConfig)
+	err = containerReplaceConfig(d, c, name, newConfig)
 	if err != nil {
 		shared.Debugf("RESTORE => err #4", err)
 		return err
@@ -1098,7 +1098,7 @@ func emptyProfile(l []string) bool {
  */
 func containerPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	cId, err := dbGetContainerId(d.db, name)
+	c, err := newLxdContainer(name, d)
 	if err != nil {
 		return NotFound
 	}
@@ -1113,7 +1113,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	if configRaw.Restore == "" {
 		// Update container configuration
 		do = func() error {
-			return containerReplaceConfig(d, cId, name, configRaw)
+			return containerReplaceConfig(d, c, name, configRaw)
 		}
 	} else {
 		// Snapshot Restore
@@ -1125,20 +1125,29 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	return AsyncResponse(shared.OperationWrap(do), nil)
 }
 
-func containerReplaceConfig(d *Daemon, cId int, name string, newConfig containerConfigReq) error {
+func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig containerConfigReq) error {
+
+	/* check to see that the config actually applies to the container
+	 * successfully before saving it. in particular, raw.lxc and
+	 * raw.apparmor need to be parsed once to make sure they make sense.
+	 */
+	if err := ct.applyConfig(newConfig.Config, false); err != nil {
+		return err
+	}
+
 	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return err
 	}
 
 	/* Update config or profiles */
-	if err = dbClearContainerConfig(tx, cId); err != nil {
+	if err = dbClearContainerConfig(tx, ct.id); err != nil {
 		shared.Debugf("Error clearing configuration for container %s\n", name)
 		tx.Rollback()
 		return err
 	}
 
-	if err = dbInsertContainerConfig(tx, cId, newConfig.Config); err != nil {
+	if err = dbInsertContainerConfig(tx, ct.id, newConfig.Config); err != nil {
 		shared.Debugf("Error inserting configuration for container %s\n", name)
 		tx.Rollback()
 		return err
@@ -1146,20 +1155,20 @@ func containerReplaceConfig(d *Daemon, cId int, name string, newConfig container
 
 	/* handle profiles */
 	if emptyProfile(newConfig.Profiles) {
-		_, err := tx.Exec("DELETE from containers_profiles where container_id=?", cId)
+		_, err := tx.Exec("DELETE from containers_profiles where container_id=?", ct.id)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
 	} else {
-		if err := dbInsertProfiles(tx, cId, newConfig.Profiles); err != nil {
+		if err := dbInsertProfiles(tx, ct.id, newConfig.Profiles); err != nil {
 
 			tx.Rollback()
 			return err
 		}
 	}
 
-	err = AddDevices(tx, "container", cId, newConfig.Devices)
+	err = AddDevices(tx, "container", ct.id, newConfig.Devices)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -1461,7 +1470,7 @@ func (d *lxdContainer) applyConfig(config map[string]string, fromProfile bool) e
 		}
 
 		if err := d.c.LoadConfigFile(f.Name()); err != nil {
-			return err
+			return fmt.Errorf("problem applying raw.lxc, perhaps there is a syntax error?")
 		}
 	}
 
