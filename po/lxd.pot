@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-20 08:01+1200\n"
+        "POT-Creation-Date: 2015-05-21 10:28+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -91,7 +91,7 @@ msgstr  ""
 msgid   "Aliases:\n"
 msgstr  ""
 
-#: lxc/main.go:29
+#: lxc/main.go:51
 msgid   "Alternate config directory."
 msgstr  ""
 
@@ -107,6 +107,11 @@ msgstr  ""
 
 #: client.go:1347
 msgid   "Cannot change profile name"
+msgstr  ""
+
+#: lxc/main.go:29
+#, c-format
+msgid   "Cannot connect to unix socket at %s Is the server running?\n"
 msgstr  ""
 
 #: lxc/profile.go:313
@@ -167,11 +172,11 @@ msgstr  ""
 msgid   "Device %s removed from %s\n"
 msgstr  ""
 
-#: lxc/main.go:27
+#: lxc/main.go:49
 msgid   "Enables debug mode."
 msgstr  ""
 
-#: lxc/main.go:26
+#: lxc/main.go:48
 msgid   "Enables verbose mode."
 msgstr  ""
 
@@ -201,7 +206,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>\n"
 msgstr  ""
 
-#: lxc/main.go:89
+#: lxc/main.go:111
 msgid   "For example: 'lxd-images import lxc ubuntu trusty amd64 --alias "
         "ubuntu/trusty'.\n"
 msgstr  ""
@@ -210,11 +215,11 @@ msgstr  ""
 msgid   "Force the container to shutdown."
 msgstr  ""
 
-#: lxc/main.go:81
+#: lxc/main.go:103
 msgid   "Generating a client certificate. This may take a minute...\n"
 msgstr  ""
 
-#: lxc/main.go:88
+#: lxc/main.go:110
 msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
@@ -567,7 +572,7 @@ msgstr  ""
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
 
-#: lxc/main.go:57
+#: lxc/main.go:79
 #, c-format
 msgid   "Usage: %s\n"
         "\n"
@@ -630,16 +635,16 @@ msgstr  ""
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
-#: lxc/main.go:17
+#: lxc/main.go:39
 msgid   "error: %v\n"
 msgstr  ""
 
-#: lxc/main.go:94
+#: lxc/main.go:116
 msgid   "error: %v\n"
         "%s"
 msgstr  ""
 
-#: lxc/help.go:40 lxc/main.go:51
+#: lxc/help.go:40 lxc/main.go:73
 #, c-format
 msgid   "error: unknown command: %s\n"
 msgstr  ""
@@ -729,7 +734,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:131
+#: lxc/main.go:153
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
