@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/big"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -1158,7 +1159,7 @@ func containerReplaceConfig(d *Daemon, cId int, name string, newConfig container
 		}
 	}
 
-	err = shared.AddDevices(tx, "container", cId, newConfig.Devices)
+	err = AddDevices(tx, "container", cId, newConfig.Devices)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -1280,6 +1281,39 @@ type lxdContainer struct {
 	ephemeral bool
 }
 
+func getIps(c *lxc.Container) []shared.Ip {
+	ips := []shared.Ip{}
+	names, err := c.Interfaces()
+	if err != nil {
+		return ips
+	}
+	for _, n := range names {
+		addresses, err := c.IPAddress(n)
+		if err != nil {
+			continue
+		}
+		for _, a := range addresses {
+			ip := shared.Ip{Interface: n, Address: a}
+			if net.ParseIP(a).To4() == nil {
+				ip.Protocol = "IPV6"
+			} else {
+				ip.Protocol = "IPV4"
+			}
+			ips = append(ips, ip)
+		}
+	}
+	return ips
+}
+
+func NewStatus(c *lxc.Container, state lxc.State) shared.ContainerStatus {
+	status := shared.ContainerStatus{State: state.String(), StateCode: shared.State(int(state))}
+	if state == lxc.RUNNING {
+		status.Init = c.InitPid()
+		status.Ips = getIps(c)
+	}
+	return status
+}
+
 func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 	devices, err := dbGetDevices(c.daemon.db, c.name, false)
 	if err != nil {
@@ -1297,7 +1331,7 @@ func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 		Config:          config,
 		ExpandedConfig:  c.config,
 		Userdata:        []byte{},
-		Status:          shared.NewStatus(c.c, c.c.State()),
+		Status:          NewStatus(c.c, c.c.State()),
 		Devices:         devices,
 		ExpandedDevices: c.devices,
 		Ephemeral:       c.ephemeral,

@@ -114,6 +114,7 @@ fi
 . ./basic.sh
 . ./concurrent.sh
 . ./database.sh
+. ./deps.sh
 . ./fuidshift.sh
 . ./migration.sh
 . ./remote.sh
@@ -170,6 +171,9 @@ test_commits_signed_off
 
 echo "==> TEST: doing static analysis of commits"
 static_analysis
+
+echo "==> TEST: checking dependencies"
+test_check_deps
 
 echo "==> TEST: Database schema update"
 test_database_update
