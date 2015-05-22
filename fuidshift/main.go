@@ -60,5 +60,5 @@ func run() error {
 		os.Exit(1)
 	}
 
-	return shared.Uidshift(directory, idmap, testmode)
+	return idmap.UidshiftIntoContainer(directory, testmode)
 }
