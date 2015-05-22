@@ -69,7 +69,7 @@ test_snap_restore() {
   mkdir dir_only_in_snap1
   cd -
 
-  lxc config set bar limits.cpus 2
+  lxc config set bar limits.cpus 1
 
   lxc snapshot bar snap1
 
@@ -92,7 +92,7 @@ test_snap_restore() {
   # Check config value in snapshot has been restored   
   cpus=$(lxc config get bar limits.cpus)
   echo $cpus
-  if [ "$cpus" != "limits.cpus: 2" ]; then
+  if [ "$cpus" != "limits.cpus: 1" ]; then
    echo "==> config didn't match expected value after restore ($cpus)"
    false
   fi
