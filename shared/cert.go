@@ -102,7 +102,7 @@ func GenCert(certf string, keyf string) error {
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			Organization: []string{"linuxcontainer.org"},
+			Organization: []string{"linuxcontainers.org"},
 		},
 		NotBefore: validFrom,
 		NotAfter:  validTo,
