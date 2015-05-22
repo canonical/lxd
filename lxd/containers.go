@@ -287,7 +287,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			}
 
 			if !c.isPrivileged() {
-				return shiftRootfs(name, d)
+				return shiftRootfs(c, name, d)
 			}
 
 			return nil
@@ -305,7 +305,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			}
 
 			if !c.isPrivileged() {
-				return shiftRootfs(name, d)
+				return shiftRootfs(c, name, d)
 			}
 
 			return nil
@@ -354,7 +354,7 @@ func extractShiftIfExists(d *Daemon, c *lxdContainer, hash string, name string) 
 		}
 
 		if !c.isPrivileged() {
-			if err := shiftRootfs(name, d); err != nil {
+			if err := shiftRootfs(c, name, d); err != nil {
 				return err
 			}
 		}
@@ -409,16 +409,12 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return InternalError(err)
 	}
 
-	idMap := d.idMap
-	if c.isPrivileged() {
-		idMap = nil
-	}
 	args := migration.MigrationSinkArgs{
 		Url:       req.Source.Operation,
 		Dialer:    websocket.Dialer{TLSClientConfig: config},
 		Container: c.c,
 		Secrets:   req.Source.Websockets,
-		IdMap:     idMap,
+		IdMapSet:  c.IdmapSet,
 	}
 
 	sink, err := migration.NewMigrationSink(&args)
@@ -510,7 +506,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		output, err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).CombinedOutput()
 
 		if err == nil && !source.isPrivileged() {
-			err = setUnprivUserAcl(d, dpath)
+			err = setUnprivUserAcl(source, dpath)
 			if err != nil {
 				shared.Debugf("Error adding acl for container root: falling back to chmod\n")
 				output, err := exec.Command("chmod", "+x", dpath).CombinedOutput()
@@ -537,7 +533,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 func containersPost(d *Daemon, r *http.Request) Response {
 	shared.Debugf("responding to create")
 
-	if d.idMap == nil {
+	if d.IdmapSet == nil {
 		return BadRequest(fmt.Errorf("shared's user has no subuids"))
 	}
 
@@ -659,10 +655,10 @@ func extractRootfs(hash string, name string, d *Daemon) error {
 	return nil
 }
 
-func shiftRootfs(name string, d *Daemon) error {
+func shiftRootfs(c *lxdContainer, name string, d *Daemon) error {
 	dpath := shared.VarPath("lxc", name)
 	rpath := shared.VarPath("lxc", name, "rootfs")
-	err := d.idMap.ShiftRootfs(rpath)
+	err := c.IdmapSet.ShiftRootfs(rpath)
 	if err != nil {
 		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
 		removeContainer(d, name)
@@ -670,7 +666,7 @@ func shiftRootfs(name string, d *Daemon) error {
 	}
 
 	/* Set an acl so the container root can descend the container dir */
-	err = setUnprivUserAcl(d, dpath)
+	err = setUnprivUserAcl(c, dpath)
 	if err != nil {
 		shared.Debugf("Error adding acl for container root: falling back to chmod\n")
 		output, err := exec.Command("chmod", "+x", dpath).CombinedOutput()
@@ -684,8 +680,19 @@ func shiftRootfs(name string, d *Daemon) error {
 	return nil
 }
 
-func setUnprivUserAcl(d *Daemon, dpath string) error {
-	acl := fmt.Sprintf("%d:rx", d.idMap.Uidmin)
+func setUnprivUserAcl(c *lxdContainer, dpath string) error {
+	if c.IdmapSet == nil {
+		return nil
+	}
+	uid, _ := c.IdmapSet.ShiftIntoNs(0, 0)
+	switch uid {
+	case -1:
+		shared.Debugf("setUnprivUserAcl: no root id mapping")
+		return nil
+	case 0:
+		return nil
+	}
+	acl := fmt.Sprintf("%d:rx", uid)
 	output, err := exec.Command("setfacl", "-m", acl, dpath).CombinedOutput()
 	if err != nil {
 		shared.Debugf("setfacl failed:\n%s", output)
@@ -950,7 +957,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 	shared.Debugf("RESTORE => rsync output\n%s", output)
 
 	if err == nil && !source.isPrivileged() {
-		err = setUnprivUserAcl(d, containerRootPath)
+		err = setUnprivUserAcl(c, containerRootPath)
 		if err != nil {
 			shared.Debugf("Error adding acl for container root: falling back to chmod\n")
 			output, err := exec.Command("chmod", "+x", containerRootPath).CombinedOutput()
@@ -1279,6 +1286,7 @@ type lxdContainer struct {
 	profiles  []string
 	devices   shared.Devices
 	ephemeral bool
+	IdmapSet  *shared.IdmapSet
 }
 
 func getIps(c *lxc.Container) []shared.Ip {
@@ -1430,7 +1438,7 @@ func (d *lxdContainer) applyConfig(config map[string]string, fromProfile bool) e
 				err = nil
 			}
 
-			/* Things like security.privileged need to be propagatged */
+			/* Things like security.privileged need to be propagated */
 			d.config[k] = v
 		}
 		if err != nil {
@@ -1668,6 +1676,20 @@ func (c *lxdContainer) setupMacAddresses(d *Daemon) error {
 	return nil
 }
 
+func (c *lxdContainer) applyIdmapSet() error {
+	if c.IdmapSet == nil {
+		return nil
+	}
+	lines := c.IdmapSet.ToLxcString()
+	for _, line := range lines {
+		err := c.c.SetConfigItem("lxc.id_map", line)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *lxdContainer) applyDevices() error {
 	for name, d := range c.devices {
 		if name == "type" {
@@ -1745,9 +1767,11 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		return nil, err
 	}
 
-	err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/ubuntu.userns.conf")
-	if err != nil {
-		return nil, err
+	if !d.isPrivileged() {
+		err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/ubuntu.userns.conf")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	config, err := dbGetConfig(daemon.db, d.id)
@@ -1811,16 +1835,12 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	}
 
 	if !d.isPrivileged() {
-		uidstr := fmt.Sprintf("u 0 %d %d\n", daemon.idMap.Uidmin, daemon.idMap.Uidrange)
-		err = c.SetConfigItem("lxc.id_map", uidstr)
-		if err != nil {
-			return nil, err
-		}
-		gidstr := fmt.Sprintf("g 0 %d %d\n", daemon.idMap.Gidmin, daemon.idMap.Gidrange)
-		err = c.SetConfigItem("lxc.id_map", gidstr)
-		if err != nil {
-			return nil, err
-		}
+		d.IdmapSet = daemon.IdmapSet // TODO - per-tenant idmaps
+	}
+
+	err = d.applyIdmapSet()
+	if err != nil {
+		return nil, err
 	}
 
 	err = d.applyConfig(d.config, false)
@@ -1909,7 +1929,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	case "GET":
 		return containerFileGet(r, p)
 	case "POST":
-		return containerFilePut(r, p, d.idMap, c.isPrivileged())
+		return containerFilePut(r, p, c.IdmapSet)
 	default:
 		return NotFound
 	}
@@ -1936,18 +1956,15 @@ func containerFileGet(r *http.Request, path string) Response {
 	return FileResponse(r, path, filepath.Base(path), headers)
 }
 
-func containerFilePut(r *http.Request, p string, idmap *shared.Idmap, privileged bool) Response {
+func containerFilePut(r *http.Request, p string, idmapset *shared.IdmapSet) Response {
 
 	uid, gid, mode, err := shared.ParseLXDFileHeaders(r.Header)
 	if err != nil {
 		return BadRequest(err)
 	}
-
-	if !privileged {
-
-		// map provided uid / gid to UID / GID range of the container
-		uid = int(idmap.Uidmin) + uid
-		gid = int(idmap.Gidmin) + gid
+	uid, gid = idmapset.ShiftIntoNs(uid, gid)
+	if uid == -1 || gid == -1 {
+		return BadRequest(fmt.Errorf("unmapped uid or gid specified"))
 	}
 
 	fileinfo, err := os.Stat(path.Dir(p))
@@ -1972,7 +1989,7 @@ func containerFilePut(r *http.Request, p string, idmap *shared.Idmap, privileged
 
 	err = f.Chown(uid, gid)
 	if err != nil {
-		return SmartError(err)
+		return InternalError(err)
 	}
 
 	_, err = io.Copy(f, r.Body)
@@ -2423,9 +2440,8 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
-		if !c.isPrivileged() {
-			ws.rootUid = int(d.idMap.Uidmin)
-			ws.rootGid = int(d.idMap.Gidmin)
+		if c.IdmapSet != nil {
+			ws.rootUid, ws.rootGid = c.IdmapSet.ShiftIntoNs(0, 0)
 		}
 		if post.Interactive {
 			ws.conns = make([]*websocket.Conn, 1)

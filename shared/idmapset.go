@@ -1,8 +1,11 @@
 package shared
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"os/user"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,9 +19,44 @@ import (
 type idmapEntry struct {
 	isuid    bool
 	isgid    bool
-	srcid    int
-	destid   int
-	maprange int
+	hostid   int
+	nsid     int // id as seen in the ns - i.e. 0
+	maprange int // id as seen on the host - i.e. 100000
+}
+
+func (e *idmapEntry) ToLxcString() string {
+	if e.isuid {
+		return fmt.Sprintf("u %d %d %d\n", e.nsid, e.hostid, e.maprange)
+	}
+	return fmt.Sprintf("g %d %d %d\n", e.nsid, e.hostid, e.maprange)
+}
+
+func is_between(x, low, high int) bool {
+	return x >= low && x < high
+}
+
+func (e *idmapEntry) Intersects(i idmapEntry) bool {
+	if (e.isuid && i.isuid) || (e.isgid && i.isgid) {
+		switch {
+		case is_between(e.hostid, i.hostid, i.hostid+i.maprange):
+			return true
+		case is_between(i.hostid, e.hostid, e.hostid+e.maprange):
+			return true
+		case is_between(e.hostid+e.maprange, i.hostid, i.hostid+i.maprange):
+			return true
+		case is_between(i.hostid+e.maprange, e.hostid, e.hostid+e.maprange):
+			return true
+		case is_between(e.nsid, i.nsid, i.nsid+i.maprange):
+			return true
+		case is_between(i.nsid, e.nsid, e.nsid+e.maprange):
+			return true
+		case is_between(e.nsid+e.maprange, i.nsid, i.nsid+i.maprange):
+			return true
+		case is_between(i.nsid+e.maprange, e.nsid, e.nsid+e.maprange):
+			return true
+		}
+	}
+	return false
 }
 
 func (e *idmapEntry) parse(s string) error {
@@ -38,11 +76,11 @@ func (e *idmapEntry) parse(s string) error {
 	default:
 		return fmt.Errorf("Bad idmap type in %q", s)
 	}
-	e.srcid, err = strconv.Atoi(split[1])
+	e.nsid, err = strconv.Atoi(split[1])
 	if err != nil {
 		return err
 	}
-	e.destid, err = strconv.Atoi(split[2])
+	e.hostid, err = strconv.Atoi(split[2])
 	if err != nil {
 		return err
 	}
@@ -52,7 +90,7 @@ func (e *idmapEntry) parse(s string) error {
 	}
 
 	// wraparound
-	if e.srcid+e.maprange < e.srcid || e.destid+e.maprange < e.destid {
+	if e.hostid+e.maprange < e.hostid || e.nsid+e.maprange < e.nsid {
 		return fmt.Errorf("Bad mapping: id wraparound")
 	}
 
@@ -60,15 +98,15 @@ func (e *idmapEntry) parse(s string) error {
 }
 
 /*
- * Convert an id from host id to mapped container id
+ * Shift a uid from the host into the container
  */
 func (e *idmapEntry) shift_into_ns(id int) (int, error) {
-	if id < e.srcid || id >= e.srcid+e.maprange {
+	if id < e.nsid || id >= e.nsid+e.maprange {
 		// this mapping doesn't apply
 		return 0, fmt.Errorf("N/A")
 	}
 
-	return id - e.srcid + e.destid, nil
+	return id - e.nsid + e.hostid, nil
 }
 
 /* taken from http://blog.golang.org/slices (which is under BSD licence) */
@@ -94,11 +132,31 @@ func (m IdmapSet) Len() int {
 	return len(m.idmap)
 }
 
+func (m IdmapSet) Intersects(i idmapEntry) bool {
+	for _, e := range m.idmap {
+		if i.Intersects(e) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m IdmapSet) ToLxcString() []string {
+	var lines []string
+	for _, e := range m.idmap {
+		lines = append(lines, e.ToLxcString())
+	}
+	return lines
+}
+
 func (m IdmapSet) Append(s string) (IdmapSet, error) {
 	e := idmapEntry{}
 	err := e.parse(s)
 	if err != nil {
 		return m, err
+	}
+	if m.Intersects(e) {
+		return m, fmt.Errorf("Conflicting id mapping")
 	}
 	m.idmap = extend(m.idmap, e)
 	return m, nil
@@ -136,13 +194,13 @@ func getOwner(path string) (int, int, error) {
 	return uid, gid, nil
 }
 
-func Uidshift(dir string, idmap IdmapSet, testmode bool) error {
+func (set *IdmapSet) UidshiftIntoContainer(dir string, testmode bool) error {
 	convert := func(path string, fi os.FileInfo, err error) (e error) {
 		uid, gid, err := getOwner(path)
 		if err != nil {
 			return err
 		}
-		newuid, newgid := idmap.ShiftIntoNs(uid, gid)
+		newuid, newgid := set.ShiftIntoNs(uid, gid)
 		if testmode {
 			fmt.Printf("I would shift %q to %d %d\n", path, newuid, newgid)
 		} else {
@@ -164,4 +222,93 @@ func Uidshift(dir string, idmap IdmapSet, testmode bool) error {
 		return fmt.Errorf("No such file or directory: %q", dir)
 	}
 	return filepath.Walk(dir, convert)
+}
+
+func (set *IdmapSet) ShiftRootfs(p string) error {
+	return set.UidshiftIntoContainer(p, false)
+}
+
+const (
+	minIDRange = 65536
+)
+
+/*
+ * get a uid or gid mapping from /etc/subxid
+ */
+func getFromMap(fname string, username string) (int, int, error) {
+	f, err := os.Open(fname)
+	var min int
+	var idrange int
+	if err != nil {
+		return 0, 0, err
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	min = 0
+	idrange = 0
+	for scanner.Scan() {
+		/*
+		 * /etc/sub{gu}id allow comments in the files, so ignore
+		 * everything after a '#'
+		 */
+		s := strings.Split(scanner.Text(), "#")
+		if len(s[0]) == 0 {
+			continue
+		}
+
+		s = strings.Split(s[0], ":")
+		if len(s) < 3 {
+			return 0, 0, fmt.Errorf("unexpected values in %q: %q", fname, s)
+		}
+		if strings.EqualFold(s[0], username) {
+			bigmin, err := strconv.ParseUint(s[1], 10, 32)
+			if err != nil {
+				continue
+			}
+			bigIdrange, err := strconv.ParseUint(s[2], 10, 32)
+			if err != nil {
+				continue
+			}
+			min = int(bigmin)
+			idrange = int(bigIdrange)
+			return min, idrange, nil
+		}
+	}
+
+	return 0, 0, fmt.Errorf("User %q has no %ss.", username, path.Base(fname))
+}
+
+/*
+ * Create a new default idmap
+ */
+func DefaultIdmapSet() (*IdmapSet, error) {
+	me, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+
+	umin, urange, err := getFromMap("/etc/subuid", me.Username)
+	if err != nil {
+		return nil, err
+	}
+	gmin, grange, err := getFromMap("/etc/subgid", me.Username)
+	if err != nil {
+		return nil, err
+	}
+
+	if urange < minIDRange {
+		return nil, fmt.Errorf("uidrange less than %d", minIDRange)
+	}
+	if grange < minIDRange {
+		return nil, fmt.Errorf("gidrange less than %d", minIDRange)
+	}
+
+	m := new(IdmapSet)
+
+	e := idmapEntry{isuid: true, nsid: 0, hostid: umin, maprange: urange}
+	m.idmap = extend(m.idmap, e)
+	e = idmapEntry{isgid: true, nsid: 0, hostid: gmin, maprange: grange}
+	m.idmap = extend(m.idmap, e)
+
+	return m, nil
 }
