@@ -5,17 +5,12 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"os"
 	"path"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
 	"gopkg.in/lxc/go-lxc.v2"
-)
-
-const (
-	SYS_CLASS_NET = "/sys/class/net"
 )
 
 func networksGet(d *Daemon, r *http.Request) Response {
@@ -60,18 +55,8 @@ type network struct {
 	Members []string `json:"members"`
 }
 
-func isBridge(iface string) bool {
-	p := path.Join(SYS_CLASS_NET, iface, "bridge")
-	stat, err := os.Stat(p)
-	if err != nil {
-		return false
-	}
-
-	return stat.IsDir()
-}
-
 func children(iface string) []string {
-	p := path.Join(SYS_CLASS_NET, iface, "brif")
+	p := path.Join(shared.SYS_CLASS_NET, iface, "brif")
 
 	var ret []string
 
@@ -125,9 +110,9 @@ func doNetworkGet(d *Daemon, name string) (network, error) {
 	n.Name = iface.Name
 	n.Members = make([]string, 0)
 
-	if int(iface.Flags&net.FlagLoopback) > 0 {
+	if shared.IsLoopback(iface) {
 		n.Type = "loopback"
-	} else if isBridge(n.Name) {
+	} else if shared.IsBridge(iface) {
 		n.Type = "bridge"
 		for _, ct := range lxc.ActiveContainerNames(d.lxcpath) {
 			c, err := newLxdContainer(ct, d)
