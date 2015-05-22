@@ -69,6 +69,9 @@ test_snap_restore() {
   mkdir dir_only_in_snap1
   cd -
 
+  # Delete the state file we created to prevent leaking.
+  rm state
+
   lxc config set bar limits.cpus 1
 
   lxc snapshot bar snap1
