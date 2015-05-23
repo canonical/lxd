@@ -12,6 +12,14 @@ test_config_profiles() {
   # let's check that 'lxc config profile' still works while it's deprecated
   lxc config profile list | grep default
 
+  # setting an invalid config item should error out when setting it, not get
+  # into the database and never let the user edit the container again.
+  bad=0
+  lxc config set foo raw.lxc "lxc.notaconfigkey = invalid" && bad=1 || true
+  if [ "$bad" -q 1 ]; then
+    echo "allowed setting a bad config value"
+  fi
+
   lxc config device add foo home disk source=/mnt path=/mnt readonly=true
   lxc profile create onenic
   lxc profile device add onenic eth0 nic nictype=bridged parent=lxcbr0
