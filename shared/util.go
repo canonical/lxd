@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -124,6 +125,10 @@ void create_pipe(int *master, int *slave) {
 
 */
 import "C"
+
+const (
+	SYS_CLASS_NET = "/sys/class/net"
+)
 
 func OpenPty(uid, gid int) (master *os.File, slave *os.File, err error) {
 	fd_master := C.int(-1)
@@ -651,4 +656,18 @@ func ReadLastNLines(f *os.File, lines int) (string, error) {
 	}
 
 	return string(data), nil
+}
+
+func IsBridge(iface *net.Interface) bool {
+	p := path.Join(SYS_CLASS_NET, iface.Name, "bridge")
+	stat, err := os.Stat(p)
+	if err != nil {
+		return false
+	}
+
+	return stat.IsDir()
+}
+
+func IsLoopback(iface *net.Interface) bool {
+	return int(iface.Flags&net.FlagLoopback) > 0
 }
