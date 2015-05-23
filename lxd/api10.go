@@ -3,8 +3,10 @@ package main
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
@@ -128,6 +130,63 @@ const (
 	PW_HASH_BYTES = 64
 )
 
+func setTrustPassword(d *Daemon, password string) error {
+
+	shared.Debugf("setting new password")
+	salt := make([]byte, PW_SALT_BYTES)
+	_, err := io.ReadFull(rand.Reader, salt)
+	if err != nil {
+		return err
+	}
+
+	hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, PW_HASH_BYTES)
+	if err != nil {
+		return err
+	}
+
+	dbHash := hex.EncodeToString(append(salt, hash...))
+
+	err = setServerConfig(d, "core.trust_password", dbHash)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setServerConfig(d *Daemon, key string, value string) error {
+
+	tx, err := shared.DbBegin(d.db)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM config WHERE key=?", key)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	str := `INSERT INTO config (key, value) VALUES (?, ?);`
+	stmt, err := tx.Prepare(str)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(key, value)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = shared.TxCommit(tx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func api10Put(d *Daemon, r *http.Request) Response {
 	req := apiPut{}
 
@@ -136,51 +195,20 @@ func api10Put(d *Daemon, r *http.Request) Response {
 	}
 
 	for key, value := range req.Config {
-		if key == "trust-password" {
-			password, _ := value.(string)
-
-			shared.Debugf("setting new password")
-			salt := make([]byte, PW_SALT_BYTES)
-			_, err := io.ReadFull(rand.Reader, salt)
+		if key == "trust-password" || key == "core.trust_password" {
+			err := setTrustPassword(d, value.(string))
 			if err != nil {
 				return InternalError(err)
 			}
+		} else if strings.HasPrefix(key, "core.") {
+			shared.Debugf("setting core key '%s'", key)
 
-			hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, PW_HASH_BYTES)
+			err := setServerConfig(d, key, value.(string))
 			if err != nil {
 				return InternalError(err)
 			}
-
-			dbHash := hex.EncodeToString(append(salt, hash...))
-
-			tx, err := shared.DbBegin(d.db)
-			if err != nil {
-				return InternalError(err)
-			}
-
-			_, err = tx.Exec("DELETE FROM config WHERE key=\"core.trust_password\"")
-			if err != nil {
-				tx.Rollback()
-				return InternalError(err)
-			}
-
-			str := `INSERT INTO config (key, value) VALUES ("core.trust_password", ?);`
-			stmt, err := tx.Prepare(str)
-			if err != nil {
-				tx.Rollback()
-				return InternalError(err)
-			}
-			defer stmt.Close()
-			_, err = stmt.Exec(dbHash)
-			if err != nil {
-				tx.Rollback()
-				return InternalError(err)
-			}
-
-			err = shared.TxCommit(tx)
-			if err != nil {
-				return InternalError(err)
-			}
+		} else {
+			return BadRequest(fmt.Errorf("Bad server config key: '%s'", key))
 		}
 	}
 
