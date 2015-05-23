@@ -103,27 +103,22 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		return doSet(config, append(args, ""))
 
 	case "set":
-		if len(args) < 2 {
+		if len(args) < 3 {
 			return errArgs
 		}
 
-		if args[1] == "password" {
-			if len(args) != 3 {
-				return errArgs
+		if len(args) == 3 {
+			key := args[1]
+			if key == "password" {
+				key = "trust-password"
 			}
 
-			password := args[2]
 			c, err := lxd.NewClient(config, "")
 			if err != nil {
 				return err
 			}
-
-			_, err = c.SetRemotePwd(password)
+			_, err = c.SetServerConfig(key, args[2])
 			return err
-		}
-
-		if len(args) < 3 {
-			return errArgs
 		}
 
 		return doSet(config, args)

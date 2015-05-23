@@ -1168,11 +1168,6 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 	return uid, gid, mode, r.Body, nil
 }
 
-func (c *Client) SetRemotePwd(password string) (*Response, error) {
-	body := shared.Jmap{"config": shared.Jmap{"trust-password": password}}
-	return c.put("", body, Sync)
-}
-
 func (c *Client) MigrateTo(container string) (*Response, error) {
 	body := shared.Jmap{"migration": true}
 	return c.post(fmt.Sprintf("containers/%s", container), body, Async)
@@ -1290,6 +1285,11 @@ func (c *Client) GetServerConfigString() ([]string, error) {
 	}
 
 	return resp, nil
+}
+
+func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
+	body := shared.Jmap{"config": shared.Jmap{key: value}}
+	return c.put("", body, Sync)
 }
 
 /*
