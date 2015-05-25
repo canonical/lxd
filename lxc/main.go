@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
+	"net/url"
 	"os"
 	"strings"
 
@@ -14,6 +16,26 @@ import (
 
 func main() {
 	if err := run(); err != nil {
+		// The action we take depends on the error we get.
+		switch t := err.(type) {
+		case *url.Error:
+			shared.Debugf("url.Error caught in main(). Op: %s, URL: %s, Err: %s\n", t.Op, t.URL, t.Err)
+			switch u := t.Err.(type) {
+			case *net.OpError:
+				shared.Debugf("Inner error type is a net.OpError: Op: %s Net: %s Addr: %s Err: %T", u.Op, u.Net, u.Addr, u.Err)
+				if u.Op == "dial" && u.Net == "unix" {
+					// The unix socket we are trying to conect to is refusing our connection attempt. Perhaps the server is not running?
+					// Let's at least tell the user about it, since it's hard to get information on wether something is actually listening.
+					fmt.Fprintf(os.Stderr, fmt.Sprintf(gettext.Gettext("Cannot connect to unix socket at %s Is the server running?\n"), u.Addr))
+					os.Exit(1)
+				}
+			default:
+				shared.Debugf("url.Error's inner Err type is %T", u)
+			}
+		default:
+			shared.Debugf("Error caught in main: %T\n", t)
+		}
+
 		fmt.Fprintf(os.Stderr, gettext.Gettext("error: %v\n"), err)
 		os.Exit(1)
 	}
