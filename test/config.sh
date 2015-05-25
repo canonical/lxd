@@ -16,7 +16,7 @@ test_config_profiles() {
   # into the database and never let the user edit the container again.
   bad=0
   lxc config set foo raw.lxc "lxc.notaconfigkey = invalid" && bad=1 || true
-  if [ "$bad" -q 1 ]; then
+  if [ "$bad" -eq 1 ]; then
     echo "allowed setting a bad config value"
   fi
 
