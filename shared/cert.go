@@ -111,7 +111,7 @@ func GenCert(certf string, keyf string) error {
 	}
 
 	validFrom := time.Now()
-	validTo := validFrom.Add(365 * 24 * time.Hour)
+	validTo := validFrom.Add(10 * 365 * 24 * time.Hour)
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
