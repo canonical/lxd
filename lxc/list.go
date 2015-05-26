@@ -91,7 +91,7 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 	return true
 }
 
-func listContainers(client *lxd.Client, cinfos []shared.ContainerInfo, filters []string, listsnaps bool) error {
+func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps bool) error {
 	data := [][]string{}
 
 	for _, cinfo := range cinfos {
@@ -184,27 +184,20 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	var cts []shared.ContainerInfo
-	if name == "" {
-		ctslist, err := d.ListContainers()
-		if err != nil {
-			return err
-		}
-		cts = ctslist
-	} else {
-		//Get direct, only Once
-		cstatus, err := d.ContainerStatus(name, false)
-		if err != nil {
-			return err
-		}
-		csnaps, err := d.ListSnapshots(name)
-		if err != nil {
-			return err
-		}
-		c := shared.ContainerInfo{State: *cstatus,
-			Snaps: csnaps}
-		cts = []shared.ContainerInfo{c}
-
+	ctslist, err := d.ListContainers()
+	if err != nil {
+		return err
 	}
 
-	return listContainers(d, cts, filters, name != "")
+	if name == "" {
+		cts = ctslist
+	} else {
+		for _, cinfo := range ctslist {
+			if len(cinfo.State.Name) >= len(name) && cinfo.State.Name[0:len(name)] == name {
+				cts = append(cts, cinfo)
+			}
+		}
+	}
+
+	return listContainers(cts, filters, len(cts) == 1)
 }
