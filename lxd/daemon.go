@@ -302,7 +302,10 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		shared.Logf("error reading idmap: %s", err.Error())
 		shared.Logf("operations requiring idmap will not be available")
 	} else {
-		shared.Debugf("idmap is: %q\n", d.IdmapSet)
+		shared.Debugf("Default uid/gid map:")
+		for _, lxcmap := range d.IdmapSet.ToLxcString() {
+			shared.Debugf(" - " + lxcmap)
+		}
 	}
 
 	localSocket := shared.VarPath("unix.socket")
