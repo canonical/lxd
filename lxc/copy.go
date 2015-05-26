@@ -61,8 +61,8 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 
 		baseImage = status.Config["volatile.baseImage"]
 
-		if status.State() == shared.RUNNING && sourceName != destName {
-			return fmt.Errorf(gettext.Gettext("changing hostname of running containers not supported"))
+		if status.State() == shared.RUNNING {
+			return fmt.Errorf(gettext.Gettext("copying running containers isn't supported at this time"))
 		}
 
 		if !keepVolatile {
