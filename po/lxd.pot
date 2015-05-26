@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-26 17:49-0400\n"
+        "POT-Creation-Date: 2015-05-26 18:50-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -162,12 +162,12 @@ msgid   "Delete a container or container snapshot.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:383
+#: lxc/config.go:378
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:411
+#: lxc/config.go:406
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -440,7 +440,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move <source container> <destination container>\n"
 msgstr  ""
 
-#: lxc/config.go:163
+#: lxc/config.go:158
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -448,7 +448,7 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:186
+#: lxc/config.go:181
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -529,7 +529,7 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:209
+#: lxc/config.go:204
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
@@ -563,7 +563,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:200
+#: lxc/config.go:195
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
@@ -590,7 +590,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:339 lxc/profile.go:180
+#: lxc/config.go:334 lxc/profile.go:180
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -669,7 +669,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1207
+#: client.go:1202
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
