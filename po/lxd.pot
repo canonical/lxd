@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-21 10:28+0200\n"
+        "POT-Creation-Date: 2015-05-26 17:49-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,7 +105,7 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1347
+#: client.go:1384
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -138,7 +138,7 @@ msgstr  ""
 msgid   "Copy aliases from source"
 msgstr  ""
 
-#: lxc/copy.go:25
+#: lxc/copy.go:24
 msgid   "Copy containers within or in between lxd instances.\n"
         "\n"
         "lxc copy <source container> <destination container>\n"
@@ -154,7 +154,7 @@ msgid   "Create a read-only snapshot of a container.\n"
         "lxc snapshot <source> <snapshot name> [--stateful]\n"
 msgstr  ""
 
-#: lxc/delete.go:20
+#: lxc/delete.go:19
 msgid   "Delete a container or container snapshot.\n"
         "\n"
         "Destroy a container (or snapshot) and any attached data "
@@ -162,12 +162,12 @@ msgid   "Delete a container or container snapshot.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:369
+#: lxc/config.go:383
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:397
+#: lxc/config.go:411
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -533,10 +533,6 @@ msgstr  ""
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
-#: lxc/config.go:205
-msgid   "Show for server is not yet supported\n"
-msgstr  ""
-
 #: lxc/info.go:29
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
@@ -545,7 +541,7 @@ msgstr  ""
 msgid   "Size: %.2vMB\n"
 msgstr  ""
 
-#: lxc/delete.go:68
+#: lxc/delete.go:67
 msgid   "Stopping container failed!"
 msgstr  ""
 
@@ -594,7 +590,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:325 lxc/profile.go:180
+#: lxc/config.go:339 lxc/profile.go:180
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -606,7 +602,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1378
+#: client.go:1415
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -615,11 +611,11 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1382
+#: client.go:1419
 msgid   "bad version in profile url"
 msgstr  ""
 
-#: lxc/copy.go:81
+#: lxc/copy.go:80
 msgid   "can't copy to the same container name"
 msgstr  ""
 
@@ -627,7 +623,7 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: lxc/copy.go:66
+#: lxc/copy.go:65
 msgid   "changing hostname of running containers not supported"
 msgstr  ""
 
@@ -673,7 +669,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1192
+#: client.go:1207
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -695,15 +691,15 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1424 client.go:1478
+#: client.go:1461 client.go:1515
 msgid   "no value found in %q\n"
 msgstr  ""
 
-#: lxc/copy.go:92
+#: lxc/copy.go:91
 msgid   "non-http remotes are not supported for migration right now"
 msgstr  ""
 
-#: lxc/copy.go:107
+#: lxc/copy.go:106
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
@@ -738,6 +734,6 @@ msgstr  ""
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
-#: lxc/copy.go:37
+#: lxc/copy.go:36
 msgid   "you must specify a source container name"
 msgstr  ""
