@@ -38,7 +38,7 @@ dist:
 	gzip -9 $(ARCHIVE)
 	rm -Rf dist lxd-$(VERSION) $(ARCHIVE)
 
-.PHONY: i18n update-po update-pot build-mo
+.PHONY: i18n update-po update-pot build-mo static-analysis
 i18n: update-pot
 
 po/%.mo: po/%.po
@@ -56,3 +56,6 @@ update-pot:
 	xgettext -d $(DOMAIN) -s client.go lxc/*.go -o po/$(DOMAIN).pot -L vala -i --keyword=Gettext
 
 build-mo: $(MOFILES)
+
+static-analysis:
+	/bin/bash -x -c ". test/static_analysis.sh; static_analysis"
