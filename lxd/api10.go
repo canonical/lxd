@@ -39,6 +39,24 @@ var api10 = []Command{
 	profileCmd,
 }
 
+func getServerConfig(d *Daemon) (map[string]interface{}, error) {
+	config := make(map[string]interface{})
+	q := "SELECT key, value FROM config"
+	rows, err := shared.DbQuery(d.db, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var key, value string
+		rows.Scan(&key, &value)
+		config[key] = value
+	}
+
+	return config, nil
+}
+
 func api10Get(d *Daemon, r *http.Request) Response {
 	body := shared.Jmap{"api_compat": shared.APICompat}
 
@@ -78,7 +96,21 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 		env["kernel_version"] = kernelVersion
 		body["environment"] = env
-		config := shared.Jmap{"trust-password": d.hasPwd()}
+		config := shared.Jmap{}
+
+		serverConfig, err := getServerConfig(d)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		for key, value := range serverConfig {
+			if key == "core.trust_password" {
+				config["trust-password"] = true
+			} else {
+				config[key] = value
+			}
+		}
+
 		body["config"] = config
 	} else {
 		body["auth"] = "untrusted"
