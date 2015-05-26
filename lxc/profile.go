@@ -6,10 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 )
 
@@ -134,6 +136,20 @@ func doProfileCreate(client *lxd.Client, p string) error {
 }
 
 func doProfileEdit(client *lxd.Client, p string) error {
+	if !terminal.IsTerminal(syscall.Stdin) {
+		contents, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newdata := shared.ProfileConfig{}
+		err = yaml.Unmarshal(contents, &newdata)
+		if err != nil {
+			return err
+		}
+		return client.PutProfile(p, newdata)
+	}
+
 	profile, err := client.ProfileConfig(p)
 	if err != nil {
 		return err
@@ -214,19 +230,13 @@ func doProfileApply(client *lxd.Client, c string, p string) error {
 }
 
 func doProfileShow(client *lxd.Client, p string) error {
-	resp, err := client.GetProfileConfig(p)
+	profile, err := client.ProfileConfig(p)
 	if err != nil {
 		return err
-	}
-	for k, v := range resp {
-		fmt.Printf("%s = %s\n", k, v)
 	}
 
-	dresp, err := client.ProfileListDevices(p)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s\n", strings.Join(dresp, "\n"))
+	data, err := yaml.Marshal(&profile)
+	fmt.Printf("%s", data)
 
 	return nil
 }

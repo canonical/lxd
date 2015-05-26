@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gosexy/gettext"
@@ -13,6 +14,7 @@ import (
 	"github.com/lxc/lxd/internal/gnuflag"
 	"github.com/lxc/lxd/shared"
 	"github.com/olekukonko/tablewriter"
+	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 )
 
@@ -320,6 +322,20 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		info, err := d.GetImageInfo(image)
 		if err != nil {
 			return err
+		}
+
+		if !terminal.IsTerminal(syscall.Stdin) {
+			contents, err := ioutil.ReadAll(os.Stdin)
+			if err != nil {
+				return err
+			}
+
+			newdata := shared.ImageProperties{}
+			err = yaml.Unmarshal(contents, &newdata)
+			if err != nil {
+				return err
+			}
+			return d.PutImageProperties(image, newdata)
 		}
 
 		properties := info.Properties
