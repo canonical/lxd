@@ -99,6 +99,7 @@ cleanup() {
     [ -n "${LXD3_DIR}" ] && wipe "${LXD3_DIR}"
     [ -n "${LXD4_DIR}" ] && wipe "${LXD4_DIR}"
     [ -n "${LXD_MIGRATE_DIR}" ] && wipe "${LXD_MIGRATE_DIR}"
+    [ -n "${LXD_SERVERCONFIG_DIR}" ] && wipe "${LXD_SERVERCONFIG_DIR}"
 
     echo ""
     echo ""
@@ -122,6 +123,7 @@ fi
 . ./snapshots.sh
 . ./static_analysis.sh
 . ./config.sh
+. ./serverconfig.sh
 . ./profiling.sh
 . ./fdleak.sh
 . ./database_update.sh
@@ -201,6 +203,9 @@ test_snap_restore
 
 echo "==> TEST: profiles, devices and configuration"
 test_config_profiles
+
+echo "==> TEST: server config"
+test_server_config
 
 if type fuidshift >/dev/null 2>&1; then
     echo "==> TEST: uidshift"

@@ -201,21 +201,35 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 	case "show":
-		if len(args) == 1 {
-			return fmt.Errorf(gettext.Gettext("Show for server is not yet supported\n"))
+		remote := ""
+		container := ""
+		if len(args) > 1 {
+			remote, container = config.ParseRemoteAndContainer(args[1])
+			if container == "" {
+				return fmt.Errorf(gettext.Gettext("Show for remotes is not yet supported\n"))
+			}
 		}
-		remote, container := config.ParseRemoteAndContainer(args[1])
-		if container == "" {
-			return fmt.Errorf(gettext.Gettext("Show for remotes is not yet supported\n"))
-		}
+
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
-		resp, err := d.GetContainerConfig(container)
-		if err != nil {
-			return err
+
+		var resp []string
+
+		if len(args) == 1 || container == "" {
+			resp, err = d.GetServerConfigString()
+			if err != nil {
+				return err
+			}
+
+		} else {
+			resp, err = d.GetContainerConfig(container)
+			if err != nil {
+				return err
+			}
 		}
+
 		fmt.Printf("%s\n", strings.Join(resp, "\n"))
 		return nil
 

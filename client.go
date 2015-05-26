@@ -1082,6 +1082,21 @@ func (c *Client) Delete(name string) (*Response, error) {
 	return c.delete(url, nil, Async)
 }
 
+func (c *Client) ServerStatus() (*shared.ServerState, error) {
+	ss := shared.ServerState{}
+
+	resp, err := c.GetServerConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(resp.Metadata, &ss); err != nil {
+		return nil, err
+	}
+
+	return &ss, nil
+}
+
 func (c *Client) ContainerStatus(name string, showLog bool) (*shared.ContainerState, error) {
 	ct := shared.ContainerState{}
 	query := url.Values{"log": []string{fmt.Sprintf("%v", showLog)}}
@@ -1253,6 +1268,28 @@ func (c *Client) ListSnapshots(container string) ([]string, error) {
 	}
 
 	return names, nil
+}
+
+func (c *Client) GetServerConfigString() ([]string, error) {
+	ss, err := c.ServerStatus()
+	var resp []string
+	if err != nil {
+		return resp, err
+	}
+
+	if ss.Auth == "untrusted" {
+		return resp, nil
+	}
+
+	if len(ss.Config) == 0 {
+		resp = append(resp, "No config variables set.")
+	}
+
+	for k, v := range ss.Config {
+		resp = append(resp, fmt.Sprintf("%s = %v", k, v))
+	}
+
+	return resp, nil
 }
 
 /*
