@@ -6,10 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 
 	"github.com/gosexy/gettext"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 )
 
@@ -210,22 +212,28 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		var resp []string
+		var data []byte
 
 		if len(args) == 1 || container == "" {
-			resp, err = d.GetServerConfigString()
+			config, err := d.ServerStatus()
 			if err != nil {
 				return err
 			}
 
+			brief := config.BriefState()
+			data, err = yaml.Marshal(&brief)
 		} else {
-			resp, err = d.GetContainerConfig(container)
+			config, err := d.ContainerStatus(container, false)
 			if err != nil {
 				return err
 			}
+
+			brief := config.BriefState()
+			data, err = yaml.Marshal(&brief)
 		}
 
-		fmt.Printf("%s\n", strings.Join(resp, "\n"))
+		fmt.Printf("%s", data)
+
 		return nil
 
 	case "get":
@@ -285,6 +293,20 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 }
 
 func doConfigEdit(client *lxd.Client, cont string) error {
+	if !terminal.IsTerminal(syscall.Stdin) {
+		contents, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newdata := shared.BriefContainerState{}
+		err = yaml.Unmarshal(contents, &newdata)
+		if err != nil {
+			return err
+		}
+		return client.UpdateContainerConfig(cont, newdata)
+	}
+
 	config, err := client.ContainerStatus(cont, false)
 	if err != nil {
 		return err
