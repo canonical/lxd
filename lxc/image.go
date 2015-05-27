@@ -28,17 +28,9 @@ var imageEditHelp string = gettext.Gettext(
 	"### This is a yaml representation of the image properties.\n" +
 		"### Any line starting with a '# will be ignored.\n" +
 		"###\n" +
-		"### Each property is represented by thee lines:\n" +
-		"###\n" +
-		"###  The first is 'imagetype: ' followed by an integer.  0 means\n" +
-		"###  a short string, 1 means a long text value containing newlines.\n" +
-		"###\n" +
-		"###  This is followed by the key and value\n" +
-		"###\n" +
-		"###  An example would be:\n" +
-		"### - imagetype: 0\n" +
-		"###   key: os\n" +
-		"###   value: Ubuntu\n")
+		"### Each property is represented by a single line:\n" +
+		"### An example would be:\n" +
+		"###  description: My custom image\n")
 
 func (c *imageCmd) usage() string {
 	return gettext.Gettext(
@@ -319,11 +311,6 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			image = inName
 		}
 
-		info, err := d.GetImageInfo(image)
-		if err != nil {
-			return err
-		}
-
 		if !terminal.IsTerminal(syscall.Stdin) {
 			contents, err := ioutil.ReadAll(os.Stdin)
 			if err != nil {
@@ -336,6 +323,11 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 				return err
 			}
 			return d.PutImageProperties(image, newdata)
+		}
+
+		info, err := d.GetImageInfo(image)
+		if err != nil {
+			return err
 		}
 
 		properties := info.Properties
@@ -361,24 +353,36 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		f.Write(data)
 		f.Close()
 		defer os.Remove(fname)
-		cmd := exec.Command(editor, fname)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		err = cmd.Run()
-		if err != nil {
-			return err
+
+		for {
+			cmd := exec.Command(editor, fname)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			err = cmd.Run()
+			if err != nil {
+				return err
+			}
+			contents, err := ioutil.ReadFile(fname)
+			if err != nil {
+				return err
+			}
+			newdata := shared.ImageProperties{}
+			err = yaml.Unmarshal(contents, &newdata)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v\n"), err)
+				fmt.Printf("Press enter to play again ")
+				_, err := os.Stdin.Read(make([]byte, 1))
+				if err != nil {
+					return err
+				}
+
+				continue
+			}
+			err = d.PutImageProperties(image, newdata)
+			break
 		}
-		contents, err := ioutil.ReadFile(fname)
-		if err != nil {
-			return err
-		}
-		newdata := shared.ImageProperties{}
-		err = yaml.Unmarshal(contents, &newdata)
-		if err != nil {
-			return err
-		}
-		err = d.PutImageProperties(image, newdata)
+
 		return err
 
 	case "export":

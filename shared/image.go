@@ -1,12 +1,6 @@
 package shared
 
-type ImageProperty struct {
-	Imagetype int
-	Key       string
-	Value     string
-}
-
-type ImageProperties []ImageProperty
+type ImageProperties map[string]string
 
 type ImageAlias struct {
 	Name        string `json:"target"`
