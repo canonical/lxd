@@ -19,7 +19,12 @@ test_remote_url() {
     lxc remote remove test
   done
 
-  for url in images.linuxcontainers.org https://images.linuxcontainers.org ${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket; do
+  urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
+  if [ -z "$LXD_TEST_DRACONIAN_PROXY" ]; then
+    urls="images.linuxcontainers.org https://images.linuxcontainers.org $urls"
+  fi
+
+  for url in $urls; do
     lxc remote add test $url
     lxc finger test:
     lxc remote remove test
@@ -66,8 +71,12 @@ test_remote_admin() {
   fi
 
   # Check that we can add domains with valid certs without confirmation:
-  lxc remote add images images.linuxcontainers.org
-  lxc remote add images2 images.linuxcontainers.org:443
+
+  # avoid default high port behind some proxies:
+  if [ -z "$LXD_TEST_DRACONIAN_PROXY" ]; then
+    lxc remote add images images.linuxcontainers.org
+    lxc remote add images2 images.linuxcontainers.org:443
+  fi
 }
 
 test_remote_usage() {
