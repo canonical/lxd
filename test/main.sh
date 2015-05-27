@@ -133,6 +133,7 @@ fi
 . ./fdleak.sh
 . ./database_update.sh
 . ./devlxd.sh
+. ./lvm.sh
 
 if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
@@ -232,6 +233,13 @@ fi
 
 echo "==> TEST: migration"
 test_migration
+
+if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+    echo "===> SKIP: lvm backing (no loop device on Travis)"
+else
+    echo "==> TEST: lvm backing"
+    test_lvm
+fi
 
 curversion=`dpkg -s lxc | awk '/^Version/ { print $2 }'`
 if dpkg --compare-versions "$curversion" gt 1.1.2-0ubuntu3; then

@@ -355,7 +355,39 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		return SmartError(err)
 	}
 
-	if backing_fs == "btrfs" && shared.PathExists(fmt.Sprintf("%s.btrfs", shared.VarPath("images", hash))) {
+	vgname, vgnameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
+	if err != nil {
+		return InternalError(fmt.Errorf("Error checking server config: %v", err))
+	}
+
+	if vgnameIsSet && shared.PathExists(fmt.Sprintf("%s.lv", shared.VarPath("images", hash))) {
+		run = shared.OperationWrap(func() error {
+			srcLVPath := fmt.Sprintf("/dev/%s/%s", vgname, hash)
+
+			snapshotLVPath, err := shared.LVMCreateSnapshotLV(name, hash, vgname)
+			if err != nil {
+				return fmt.Errorf("Error creating snapshot of source volume '%s'", srcLVPath)
+			}
+
+			destPath := shared.VarPath("lxc", name)
+			err = os.MkdirAll(destPath, 0700)
+			if err != nil {
+				return fmt.Errorf("Error creating container directory: %v", err)
+			}
+
+			output, err := exec.Command("mount", "-o", "discard", snapshotLVPath, destPath).CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, output)
+			}
+
+			if !c.isPrivileged() {
+				return shiftRootfs(c, name, d)
+			}
+
+			return nil
+		})
+
+	} else if backing_fs == "btrfs" && shared.PathExists(fmt.Sprintf("%s.btrfs", shared.VarPath("images", hash))) {
 		run = shared.OperationWrap(func() error {
 			if err := btrfsCopyImage(hash, name, d); err != nil {
 				return err
@@ -375,6 +407,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 			return nil
 		})
+
 	} else {
 		rootfsPath := fmt.Sprintf("%s/rootfs", dpath)
 		err = os.MkdirAll(rootfsPath, 0700)
@@ -699,7 +732,23 @@ func removeContainerPath(d *Daemon, name string) error {
 		return err
 	}
 
-	if backing_fs == "btrfs" {
+	vgname, vgnameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
+	if err != nil {
+		return fmt.Errorf("Error checking server config: %v", err)
+	}
+
+	if vgnameIsSet {
+		output, err := exec.Command("umount", cpath).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to unmount container path '%s'.\nError: %v\nOutput: %s", cpath, err, output)
+		}
+
+		err = shared.LVMRemoveLV(vgname, name)
+		if err != nil {
+			return fmt.Errorf("failed to remove deleted container LV: %v", err)
+		}
+
+	} else if backing_fs == "btrfs" {
 		exec.Command("btrfs", "subvolume", "delete", cpath).Run()
 	}
 
@@ -1522,6 +1571,10 @@ func (c *lxdContainer) Start() error {
 
 	cmd := exec.Command(os.Args[0], "forkstart", c.name, c.daemon.lxcpath, configPath)
 	err = cmd.Run()
+
+	if err != nil {
+		err = fmt.Errorf("Error calling 'lxd forkstart': %v", err)
+	}
 
 	if err == nil && c.ephemeral == true {
 		containerWatchEphemeral(c)

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"io"
 
 	"golang.org/x/crypto/scrypt"
@@ -47,6 +48,10 @@ func setTrustPassword(d *Daemon, password string) error {
 func ValidServerConfigKey(k string) bool {
 	switch k {
 	case "core.trust_password":
+		return true
+	case "core.lvm_vg_name":
+		return true
+	case "core.lvm_thinpool_name":
 		return true
 	}
 
@@ -122,4 +127,49 @@ func getServerConfig(d *Daemon) (map[string]interface{}, error) {
 	}
 
 	return config, nil
+}
+
+func setLVMVolumeGroupNameConfig(d *Daemon, vgname string) error {
+
+	if vgname != "" {
+		err := shared.LVMCheckVolumeGroup(vgname)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := setServerConfig(d, "core.lvm_vg_name", vgname)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setLVMThinPoolNameConfig(d *Daemon, poolname string) error {
+
+	vgname, vgnameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
+	if err != nil {
+		return fmt.Errorf("Error getting lvm_vg_name config")
+	}
+	if !vgnameIsSet {
+		return fmt.Errorf("Can not set lvm_thinpool_name without lvm_vg_name set.")
+	}
+
+	if poolname != "" {
+		poolExists, err := shared.LVMThinPoolLVExists(vgname, poolname)
+		if err != nil {
+			return fmt.Errorf("Error checking for thin pool '%s' in '%s': %v", poolname, vgname, err)
+		}
+		if !poolExists {
+			return fmt.Errorf("Pool '%s' does not exist in Volume Group '%s'", poolname, vgname)
+		}
+	}
+
+	err = setServerConfig(d, "core.lvm_thinpool_name", poolname)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
