@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -68,6 +69,37 @@ func detectCompression(fname string) (int, string, error) {
 		return -1, "", fmt.Errorf("Unsupported compression.")
 	}
 
+}
+
+func untarImage(imagefname string, destpath string) error {
+	compression, _, err := detectCompression(imagefname)
+	if err != nil {
+		return err
+	}
+
+	args := []string{"-C", destpath, "--numeric-owner"}
+	switch compression {
+	case COMPRESSION_TAR:
+		args = append(args, "-xf")
+	case COMPRESSION_GZIP:
+		args = append(args, "-zxf")
+	case COMPRESSION_BZ2:
+		args = append(args, "--jxf")
+	case COMPRESSION_LZMA:
+		args = append(args, "--lzma", "-xf")
+	default:
+		args = append(args, "-Jxf")
+	}
+	args = append(args, imagefname)
+
+	output, err := exec.Command("tar", args...).CombinedOutput()
+	if err != nil {
+		shared.Debugf("image unpacking failed\n")
+		shared.Debugf(string(output))
+		return err
+	}
+
+	return nil
 }
 
 type imageFromContainerPostReq struct {
@@ -171,30 +203,8 @@ func makeBtrfsSubvol(imagefname, subvol string) error {
 		return err
 	}
 
-	compression, _, err := detectCompression(imagefname)
+	err = untarImage(imagefname, subvol)
 	if err != nil {
-		return err
-	}
-
-	args := []string{"-C", subvol, "--numeric-owner"}
-	switch compression {
-	case COMPRESSION_TAR:
-		args = append(args, "-xf")
-	case COMPRESSION_GZIP:
-		args = append(args, "-zxf")
-	case COMPRESSION_BZ2:
-		args = append(args, "-jxf")
-	case COMPRESSION_LZMA:
-		args = append(args, "--lzma", "-xf")
-	default:
-		args = append(args, "-Jxf")
-	}
-	args = append(args, imagefname)
-
-	output, err = exec.Command("tar", args...).CombinedOutput()
-	if err != nil {
-		shared.Debugf("image unpacking failed\n")
-		shared.Debugf(string(output))
 		return err
 	}
 
@@ -202,6 +212,28 @@ func makeBtrfsSubvol(imagefname, subvol string) error {
 }
 
 func removeImgWorkdir(d *Daemon, builddir string) {
+
+	vgname, _, err := getServerConfigValue(d, "core.lvm_vg_name")
+	if err != nil {
+		shared.Debugf("Error checking server config: %v", err)
+	}
+
+	matches, _ := filepath.Glob(fmt.Sprintf("%s/*.lv", builddir))
+	if len(matches) > 0 {
+		if len(matches) > 1 {
+			shared.Debugf("Unexpected - more than one .lv file in builddir. using first: %v", matches)
+		}
+		lvsymlink := matches[0]
+		if lvpath, err := os.Readlink(lvsymlink); err != nil {
+			shared.Debugf("Error reading target of symlink '%s'", lvsymlink)
+		} else {
+			err = shared.LVMRemoveLV(vgname, filepath.Base(lvpath))
+			if err != nil {
+				shared.Debugf("Error removing LV '%s': %v", lvpath, err)
+			}
+		}
+	}
+
 	if d.BackingFs == "btrfs" {
 		/* cannot rm -rf /a if /a/b is a subvolume, so first delete subvolumes */
 		/* todo: find the .btrfs file under dir */
@@ -216,8 +248,17 @@ func removeImgWorkdir(d *Daemon, builddir string) {
 	}
 }
 
-// We've got an image with the directory, create .btrfs or .lvm
+// We've got an image with the directory, create .btrfs or .lv
 func buildOtherFs(d *Daemon, builddir string, fp string) error {
+	vgname, vgnameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
+	if err != nil {
+		return fmt.Errorf("Error checking server config: %v", err)
+	}
+
+	if vgnameIsSet {
+		return createImageLV(d, builddir, fp, vgname)
+	}
+
 	switch d.BackingFs {
 	case "btrfs":
 		imagefname := fmt.Sprintf("%s/%s", builddir, fp)
@@ -229,20 +270,89 @@ func buildOtherFs(d *Daemon, builddir string, fp string) error {
 	return nil
 }
 
+func createImageLV(d *Daemon, builddir string, fingerprint string, vgname string) error {
+	imagefname := filepath.Join(builddir, fingerprint)
+	poolname, poolnameIsSet, err := getServerConfigValue(d, "core.lvm_thinpool_name")
+	if err != nil {
+		return fmt.Errorf("Error checking server config: %v", err)
+	}
+
+	if !poolnameIsSet {
+		poolname, err = shared.LVMCreateDefaultThinPool(vgname)
+		if err != nil {
+			return fmt.Errorf("Error creating LVM thin pool: %v", err)
+		}
+		err = setLVMThinPoolNameConfig(d, poolname)
+		if err != nil {
+			shared.Debugf("Error setting thin pool name: '%s'", err)
+			return fmt.Errorf("Error setting LVM thin pool config: %v", err)
+		}
+	}
+
+	lvpath, err := shared.LVMCreateThinLV(fingerprint, poolname, vgname)
+	if err != nil {
+		shared.Logf("Error from LVMCreateThinLV: '%v'", err)
+		return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
+	}
+
+	err = os.Symlink(lvpath, fmt.Sprintf("%s.lv", imagefname))
+	if err != nil {
+		return err
+	}
+
+	output, err := exec.Command("mkfs.ext4", "-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0", lvpath).CombinedOutput()
+	if err != nil {
+		shared.Logf("Error output from mkfs.ext4: '%s'", output)
+		return fmt.Errorf("Error making filesystem on image LV: %v", err)
+	}
+
+	tempLVMountPoint, err := ioutil.TempDir(builddir, "tmp_lv_mnt")
+	if err != nil {
+		return err
+	}
+
+	output, err = exec.Command("mount", "-o", "discard", lvpath, tempLVMountPoint).CombinedOutput()
+	if err != nil {
+		shared.Logf("Error mounting image LV for untarring: '%s'", output)
+		return fmt.Errorf("Error mounting image LV: %v", err)
+
+	}
+
+	untar_err := untarImage(imagefname, tempLVMountPoint)
+
+	output, err = exec.Command("umount", tempLVMountPoint).CombinedOutput()
+	if err != nil {
+		shared.Logf("WARNING: could not unmount LV '%s' from '%s'. Will not remove. Error: %v", lvpath, tempLVMountPoint, err)
+		if untar_err == nil {
+			return err
+		} else {
+			return fmt.Errorf("Error unmounting '%s' during cleanup of error %v", tempLVMountPoint, untar_err)
+		}
+	}
+
+	return untar_err
+}
+
 // Copy imagefile and btrfs file out of the tmpdir
-func pullOutImagefiles(d *Daemon, builddir string, fp string) error {
-	imagefname := fmt.Sprintf("%s/%s", builddir, fp)
-	finalName := shared.VarPath("images", fp)
-	subvol := fmt.Sprintf("%s.btrfs", imagefname)
+func pullOutImagefiles(d *Daemon, builddir string, fingerprint string) error {
+	imagefname := fmt.Sprintf("%s/%s", builddir, fingerprint)
+	finalName := shared.VarPath("images", fingerprint)
 
 	err := os.Rename(imagefname, finalName)
 	if err != nil {
 		return err
 	}
 
+	lvsymlink := fmt.Sprintf("%s.lv", imagefname)
+	if _, err := os.Stat(lvsymlink); err == nil {
+		dst := shared.VarPath("images", fmt.Sprintf("%s.lv", fingerprint))
+		return os.Rename(lvsymlink, dst)
+	}
+
 	switch d.BackingFs {
 	case "btrfs":
-		dst := shared.VarPath("images", fmt.Sprintf("%s.btrfs", fp))
+		subvol := fmt.Sprintf("%s.btrfs", imagefname)
+		dst := shared.VarPath("images", fmt.Sprintf("%s.btrfs", fingerprint))
 		if err := os.Rename(subvol, dst); err != nil {
 			return err
 		}
@@ -462,11 +572,6 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 var imagesCmd = Command{name: "images", post: imagesPost, get: imagesGet}
 
 func imageDelete(d *Daemon, r *http.Request) Response {
-	backing_fs, err := shared.GetFilesystem(d.lxcpath)
-	if err != nil {
-		return InternalError(err)
-	}
-
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	imgInfo, err := dbImageGet(d.db, fingerprint, false)
@@ -480,7 +585,25 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		shared.Debugf("Error deleting image file %s: %s\n", fname, err)
 	}
 
-	if backing_fs == "btrfs" {
+	vgname, vgnameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
+	if err != nil {
+		return InternalError(fmt.Errorf("Error checking server config: %v", err))
+	}
+
+	if vgnameIsSet {
+		err = shared.LVMRemoveLV(vgname, imgInfo.Fingerprint)
+		if err != nil {
+			return InternalError(fmt.Errorf("Failed to remove deleted image LV: %v", err))
+		}
+
+		lvsymlink := fmt.Sprintf("%s.lv", fname)
+		err = os.Remove(lvsymlink)
+		if err != nil {
+			return InternalError(fmt.Errorf("Failed to remove symlink to deleted image LV: '%s': %v", lvsymlink, err))
+		}
+	}
+
+	if d.BackingFs == "btrfs" {
 		subvol := fmt.Sprintf("%s.btrfs", fname)
 		exec.Command("btrfs", "subvolume", "delete", subvol).Run()
 	}

@@ -112,18 +112,30 @@ func api10Put(d *Daemon, r *http.Request) Response {
 	}
 
 	for key, value := range req.Config {
+		if !ValidServerConfigKey(key) {
+			return BadRequest(fmt.Errorf("Bad server config key: '%s'", key))
+		}
+
 		if key == "core.trust_password" {
 			err := setTrustPassword(d, value.(string))
 			if err != nil {
 				return InternalError(err)
 			}
-		} else if ValidServerConfigKey(key) {
-			err := setServerConfig(d, key, value.(string))
+		} else if key == "core.lvm_vg_name" {
+			err := setLVMVolumeGroupNameConfig(d, value.(string))
+			if err != nil {
+				return InternalError(err)
+			}
+		} else if key == "core.lvm_thinpool_name" {
+			err := setLVMThinPoolNameConfig(d, value.(string))
 			if err != nil {
 				return InternalError(err)
 			}
 		} else {
-			return BadRequest(fmt.Errorf("Bad server config key: '%s'", key))
+			err := setServerConfig(d, key, value.(string))
+			if err != nil {
+				return InternalError(err)
+			}
 		}
 	}
 
