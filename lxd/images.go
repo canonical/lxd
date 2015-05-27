@@ -550,7 +550,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 }
 
 type imagePutReq struct {
-	Properties shared.ImageProperties `json:"properties"`
+	Properties map[string]string `json:"properties"`
 }
 
 func imagePut(d *Daemon, r *http.Request) Response {
@@ -561,15 +561,14 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	imgInfo, err := dbImageGet(d.db, fingerprint, false)
+	if err != nil {
+		return SmartError(err)
+	}
+
 	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
-	}
-
-	imgInfo, err := dbImageGet(d.db, fingerprint, false)
-	if err != nil {
-		tx.Rollback()
-		return SmartError(err)
 	}
 
 	_, err = tx.Exec(`DELETE FROM images_properties WHERE image_id=?`, imgInfo.Id)
@@ -579,8 +578,9 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		tx.Rollback()
 		return InternalError(err)
 	}
-	for _, i := range imageRaw.Properties {
-		_, err = stmt.Exec(imgInfo.Id, i.Imagetype, i.Key, i.Value)
+
+	for key, value := range imageRaw.Properties {
+		_, err = stmt.Exec(imgInfo.Id, 0, key, value)
 		if err != nil {
 			tx.Rollback()
 			return InternalError(err)
