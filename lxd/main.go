@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime/pprof"
+	"sync"
 	"syscall"
 	"time"
 
@@ -118,9 +119,34 @@ func run() error {
 
 	defer d.db.Close()
 
-	ch := make(chan os.Signal)
-	signal.Notify(ch, syscall.SIGINT)
-	signal.Notify(ch, syscall.SIGTERM)
-	<-ch
-	return d.Stop()
+	var ret error
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		ch := make(chan os.Signal)
+		signal.Notify(ch, syscall.SIGPWR)
+		sig := <-ch
+
+		shared.Debugf("Received '%s signal', shutting down containers.\n", sig)
+		ret = d.Stop()
+
+		containersShutdown(d)
+		wg.Done()
+	}()
+
+	go func() {
+		ch := make(chan os.Signal)
+		signal.Notify(ch, syscall.SIGINT)
+		signal.Notify(ch, syscall.SIGQUIT)
+		signal.Notify(ch, syscall.SIGTERM)
+		sig := <-ch
+
+		shared.Debugf("Received '%s signal', exiting.\n", sig)
+		ret = d.Stop()
+		wg.Done()
+	}()
+
+	wg.Wait()
+	return ret
 }

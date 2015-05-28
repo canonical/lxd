@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -206,6 +207,66 @@ func containersWatch(d *Daemon) error {
 	 * daemon.go:createCmd.
 	 */
 	runtime.GC()
+
+	return nil
+}
+
+func containersRestart(d *Daemon) error {
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND power_state=1")
+	inargs := []interface{}{cTypeRegular}
+	var name string
+	outfmt := []interface{}{name}
+
+	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		return err
+	}
+
+	_, _ = shared.DbExec(d.db, "UPDATE containers SET power_state=0")
+
+	for _, r := range result {
+		container, err := newLxdContainer(string(r[0].(string)), d)
+		if err != nil {
+			return err
+		}
+
+		container.c.Start()
+	}
+
+	return nil
+}
+
+func containersShutdown(d *Daemon) error {
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
+	inargs := []interface{}{cTypeRegular}
+	var name string
+	outfmt := []interface{}{name}
+
+	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		return err
+	}
+
+	var wg sync.WaitGroup
+
+	for _, r := range result {
+		container, err := newLxdContainer(string(r[0].(string)), d)
+		if err != nil {
+			return err
+		}
+
+		_, _ = shared.DbExec(d.db, "UPDATE containers SET power_state=1 WHERE name=?", container.name)
+
+		if container.c.State() != lxc.STOPPED {
+			wg.Add(1)
+			go func() {
+				container.c.Shutdown(time.Second * 30)
+				container.c.Stop()
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+	}
 
 	return nil
 }

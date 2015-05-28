@@ -23,7 +23,8 @@ func memProfiler() {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGUSR1)
 	for {
-		<-ch
+		sig := <-ch
+		shared.Debugf("Received '%s signal', dumping memory.\n", sig)
 		doMemDump()
 	}
 }
