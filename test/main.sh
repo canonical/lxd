@@ -39,6 +39,7 @@ wait_for() {
 }
 
 lxc() {
+    set +x
     INJECTED=0
     CMD="$(which lxc)"
     for arg in $@; do
@@ -55,7 +56,9 @@ lxc() {
     if [ "$INJECTED" = "0" ]; then
         CMD="$CMD \"--config\" \"${LXD_CONF}\" $debug"
     fi
-
+    if [ -n "$LXD_DEBUG" ]; then
+        set -x
+    fi
     eval "$CMD"
 }
 
@@ -72,6 +75,8 @@ wipe() {
 }
 
 cleanup() {
+    set +x
+
     if [ -n "$LXD_INSPECT" ]; then
         read -p "Tests Completed ($RESULT): hit enter to continue" x
     fi
@@ -133,6 +138,7 @@ if [ -n "$LXD_DEBUG" ]; then
 fi
 
 spawn_lxd() {
+  set +x
   # LXD_DIR is local here because since `lxc` is actually a function, it
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
   local LXD_DIR
@@ -153,6 +159,10 @@ spawn_lxd() {
 
   echo "==> Setting trust password"
   LXD_DIR=$lxddir lxc config set password foo
+  if [ -n "$LXD_DEBUG" ]; then
+      set -x
+  fi
+
 }
 
 spawn_lxd 127.0.0.1:18443 $LXD_DIR
