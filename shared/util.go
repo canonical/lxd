@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"unsafe"
 
 	"github.com/gorilla/websocket"
 	"github.com/gosexy/gettext"
@@ -670,4 +671,15 @@ func IsBridge(iface *net.Interface) bool {
 
 func IsLoopback(iface *net.Interface) bool {
 	return int(iface.Flags&net.FlagLoopback) > 0
+}
+
+func SetSize(fd int, width int, height int) (err error) {
+	var dimensions [4]uint16
+	dimensions[0] = uint16(height)
+	dimensions[1] = uint16(width)
+
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(&dimensions)), 0, 0, 0); err != 0 {
+		return err
+	}
+	return nil
 }
