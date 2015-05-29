@@ -44,6 +44,7 @@ func (c *imageCmd) usage() string {
 			"lxc image export [remote:]<image>\n" +
 			"lxc image info [remote:]<image>\n" +
 			"lxc image list [remote:] [filter]\n" +
+			"lxc image show [remote:]<image>\n" +
 			"\n" +
 			"Lists the images at specified remote, or local images.\n" +
 			"Filters are not yet supported.\n" +
@@ -279,7 +280,6 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		} else {
 			remote = ""
 		}
-		// XXX TODO if name is not "" we'll want to filter for just that image name
 
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
@@ -414,6 +414,32 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			fmt.Printf("Output is in %s\n", outfile)
 		}
 		return nil
+
+	case "show":
+		if len(args) < 2 {
+			return errArgs
+		}
+		remote, inName := config.ParseRemoteAndContainer(args[1])
+		if inName == "" {
+			return errArgs
+		}
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
+
+		image := dereferenceAlias(d, inName)
+		info, err := d.GetImageInfo(image)
+		if err != nil {
+			return err
+		}
+
+		properties := info.Properties
+
+		data, err := yaml.Marshal(&properties)
+		fmt.Printf("%s", data)
+		return err
+
 	default:
 		return fmt.Errorf(gettext.Gettext("Unknown image command %s"), args[0])
 	}

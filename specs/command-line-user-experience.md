@@ -221,6 +221,7 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
     image list [filter]
     image move <image> <remote:>
     image set <image> <key> <value>
+    image show <image>
     image unset <image> <key>
 
 **Description**
