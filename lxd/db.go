@@ -23,7 +23,7 @@ type Profile struct {
 }
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 7
+const DB_CURRENT_VERSION int = 8
 
 const CURRENT_SCHEMA string = `
 CREATE TABLE IF NOT EXISTS certificates (
@@ -181,6 +181,15 @@ func getSchema(db *sql.DB) (v int) {
 		return 0
 	}
 	return v
+}
+
+func updateFromV7(db *sql.DB) error {
+	stmt := `
+UPDATE config SET key='core.trust_password' WHERE key IN ('password', 'trust_password', 'trust-password', 'core.trust-password');
+DELETE FROM config WHERE key != 'core.trust_password';
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 8)
+	return err
 }
 
 func updateFromV6(db *sql.DB) error {
@@ -541,6 +550,12 @@ func updateDb(db *sql.DB, prev_version int) error {
 	}
 	if prev_version < 7 {
 		err = updateFromV6(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prev_version < 8 {
+		err = updateFromV7(db)
 		if err != nil {
 			return err
 		}

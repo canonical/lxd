@@ -182,7 +182,7 @@ Return value (if trusted):
     {
         'auth': "trusted",                              # Authentication state, one of "guest", "untrusted" or "trusted"
         'api_compat': 0,                                # Used to determine API functionality
-        'config': {"trust-password": True},             # Host configuration
+        'config': {"trust_password": True},             # Host configuration
         'environment': {'kernel_version': "3.16",       # Various information about the host (OS, kernel, ...)
                         'lxc_version': "1.0.6",
                         'lxd_version': "0.8.1",
@@ -206,7 +206,7 @@ Return value (if guest or untrusted):
 Input:
 
     {
-        'config': {"trust-password": "my-new-password"}
+        'config': {"trust_password": "my-new-password"}
     }
 
 ## /1.0/containers

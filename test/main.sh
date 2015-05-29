@@ -158,11 +158,10 @@ spawn_lxd() {
   done
 
   echo "==> Setting trust password"
-  LXD_DIR=$lxddir lxc config set password foo
+  LXD_DIR=$lxddir lxc config set core.trust_password foo
   if [ -n "$LXD_DEBUG" ]; then
       set -x
   fi
-
 }
 
 spawn_lxd 127.0.0.1:18443 $LXD_DIR
