@@ -222,7 +222,10 @@ func containersRestart(d *Daemon) error {
 		return err
 	}
 
-	_, _ = shared.DbExec(d.db, "UPDATE containers SET power_state=0")
+	_, err = shared.DbExec(d.db, "UPDATE containers SET power_state=0")
+	if err != nil {
+		return err
+	}
 
 	for _, r := range result {
 		container, err := newLxdContainer(string(r[0].(string)), d)
@@ -255,7 +258,10 @@ func containersShutdown(d *Daemon) error {
 			return err
 		}
 
-		_, _ = shared.DbExec(d.db, "UPDATE containers SET power_state=1 WHERE name=?", container.name)
+		_, err = shared.DbExec(d.db, "UPDATE containers SET power_state=1 WHERE name=?", container.name)
+		if err != nil {
+			return err
+		}
 
 		if container.c.State() != lxc.STOPPED {
 			wg.Add(1)
