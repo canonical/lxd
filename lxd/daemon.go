@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/coreos/go-systemd/activation"
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/stgraber/lxd-go-systemd/activation"
 	"gopkg.in/tomb.v2"
 
 	"github.com/lxc/lxd"
