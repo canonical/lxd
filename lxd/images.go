@@ -178,7 +178,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		case COMPRESSION_GZIP:
 			args = append(args, "-zxf")
 		case COMPRESSION_BZ2:
-			args = append(args, "--jxf")
+			args = append(args, "-jxf")
 		case COMPRESSION_LZMA:
 			args = append(args, "--lzma", "-xf")
 		default:
