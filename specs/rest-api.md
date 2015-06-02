@@ -230,7 +230,7 @@ Input (container based on a local image with the "ubuntu/devel" alias):
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
-        'config': {'resources.cpus': "2"},                                  # Config override.
+        'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'alias': "ubuntu/devel"},                                # Name of the alias
     }
@@ -243,7 +243,7 @@ Input (container based on a local image identified by its fingerprint):
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
-        'config': {'resources.cpus': "2"},                                  # Config override.
+        'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'fingerprint': "SHA-256"},                               # Fingerprint
     }
@@ -256,7 +256,7 @@ Input (container based on most recent match based on image properties):
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
-        'config': {'resources.cpus': "2"},                                  # Config override.
+        'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'properties': {                                          # Properties
                         'os': "ubuntu",
@@ -273,7 +273,7 @@ Input (container without a pre-populated rootfs, useful when attaching to an exi
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
-        'config': {'resources.cpus': "2"},                                  # Config override.
+        'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "none"},                                         # Can be: "image", "migration", "copy" or "none"
     }
 
@@ -285,7 +285,7 @@ Input (using a public remote image):
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
-        'config': {'resources.cpus': "2"},                                  # Config override.
+        'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
                    'server': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
@@ -301,7 +301,7 @@ Input (using a private remote image after having obtained a secret for that imag
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
-        'config': {'resources.cpus': "2"},                                  # Config override.
+        'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
                    'server': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
@@ -317,7 +317,7 @@ Input (using a remote container, sent over the migration websocket):
         'hostname': "my-container",
         'profiles': ["default"],                                                        # List of profiles
         'ephemeral': True,                                                              # Whether to destroy the container on shutdown
-        'config': {'resources.cpus': "2"},                                              # Config override.
+        'config': {'limits.cpus': "2"},                                                 # Config override.
         'source': {'type': "migration",                                                 # Can be: "image", "migration", "copy" or "none"
                    'mode': "pull",                                                      # One of "pull" or "receive"
                    'operation': "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
@@ -335,7 +335,7 @@ Input (using a local container):
         'hostname': "my-container",
         'profiles': ["default"],                                                        # List of profiles
         'ephemeral': True,                                                              # Whether to destroy the container on shutdown
-        'config': {'resources.cpus': "2"},                                              # Config override.
+        'config': {'limits.cpus': "2"},                                                 # Config override.
         'source': {'type': "copy",                                                      # Can be: "image", "migration", "copy" or "none"
                    'source': "my-old-container"}                                        # Name of the source container
     }
@@ -357,8 +357,8 @@ Output:
         'profiles': ["default"],
         'architecture': "x86_64",
         'hostname': "my-container",
-        'config': {"resources.cpus": "3"},
-        'expanded_config': {"resources.cpus": "3"}  # the result of expanding profiles and adding the container's local config
+        'config': {"limits.cpus": "3"},
+        'expanded_config': {"limits.cpus": "3"}  # the result of expanding profiles and adding the container's local config
         'devices': {
             'rootfs': {
                 'type': "disk",
