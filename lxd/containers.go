@@ -2454,14 +2454,28 @@ func (s *execWs) Do() shared.OperationResult {
 					}
 
 					buf, err := ioutil.ReadAll(r)
-					line := string(buf)
+					if err != nil {
+						shared.Debugf("failed to read message %s", err)
+						break
+					}
 
-					if len(line) > 13 && line[0:13] == "window-resize" {
-						var winch_width int
-						var winch_height int
+					command := shared.ContainerExecControl{}
 
-						count, err := fmt.Sscanf(line, "window-resize %d %d", &winch_width, &winch_height)
-						if count != 2 || err != nil {
+					if err := json.Unmarshal(buf, &command); err != nil {
+						shared.Debugf("failed to unmarshal control socket command: %s", err)
+						continue
+					}
+
+					if command.Command == "window-resize" {
+						winch_width, err := strconv.Atoi(command.Args["width"])
+						if err != nil {
+							shared.Debugf("Unable to extract window width: %s", err)
+							continue
+						}
+
+						winch_height, err := strconv.Atoi(command.Args["height"])
+						if err != nil {
+							shared.Debugf("Unable to extract window height: %s", err)
 							continue
 						}
 
