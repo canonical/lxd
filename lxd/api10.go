@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
@@ -98,16 +97,17 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 		env["kernel_version"] = kernelVersion
 		body["environment"] = env
-		config := shared.Jmap{}
 
 		serverConfig, err := getServerConfig(d)
 		if err != nil {
 			return InternalError(err)
 		}
 
+		config := shared.Jmap{}
+
 		for key, value := range serverConfig {
 			if key == "core.trust_password" {
-				config["trust-password"] = true
+				config[key] = true
 			} else {
 				config[key] = value
 			}
@@ -154,8 +154,16 @@ func setTrustPassword(d *Daemon, password string) error {
 	return nil
 }
 
-func setServerConfig(d *Daemon, key string, value string) error {
+func ValidServerConfigKey(k string) bool {
+	switch k {
+	case "core.trust_password":
+		return true
+	}
 
+	return false
+}
+
+func setServerConfig(d *Daemon, key string, value string) error {
 	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return err
@@ -195,14 +203,12 @@ func api10Put(d *Daemon, r *http.Request) Response {
 	}
 
 	for key, value := range req.Config {
-		if key == "trust-password" || key == "core.trust_password" {
+		if key == "core.trust_password" {
 			err := setTrustPassword(d, value.(string))
 			if err != nil {
 				return InternalError(err)
 			}
-		} else if strings.HasPrefix(key, "core.") {
-			shared.Debugf("setting core key '%s'", key)
-
+		} else if ValidServerConfigKey(key) {
 			err := setServerConfig(d, key, value.(string))
 			if err != nil {
 				return InternalError(err)

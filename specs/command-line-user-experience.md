@@ -110,7 +110,7 @@ Command                                                                         
 :------                                                                         | :-----
 lxc config show                                                                 | Show the local server's configuration
 lxc config show dakara:                                                         | Show "dakara"'s server' configuration
-lxc config set password new-trust-password                                      | Set the local server's trust password to "new-trust-password"
+lxc config set core.trust\_password new-trust-password                          | Set the local server's trust password to "new-trust-password"
 lxc config set c1 limits.memory 2GB                                             | Set a memory limit of 2GB for container "c1"
 lxc config show c1                                                              | Show the configuration of the "c1" container, starting by the list of profiles it’s based on, then the container specific settings and finally the resulting overall configuration.
 lxc config trust add new-client-cert.crt                                        | Add new-client-cert.pem to the default remote's trust store (typically local LXD)
@@ -221,6 +221,7 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
     image list [filter]
     image move <image> <remote:>
     image set <image> <key> <value>
+    image show <image>
     image unset <image> <key>
 
 **Description**
