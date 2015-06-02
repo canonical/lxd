@@ -1439,7 +1439,14 @@ func (d *lxdContainer) applyConfig(config map[string]string, fromProfile bool) e
 			cpuset := fmt.Sprintf("0-%d", vint-1)
 			err = d.c.SetConfigItem("lxc.cgroup.cpuset.cpus", cpuset)
 		case "limits.memory":
-			err = d.c.SetConfigItem("lxc.cgroup.memory.limit_in_bytes", v)
+			megabytes, err := strconv.Atoi(v)
+			if err != nil {
+				return err
+			}
+
+			bytes := strconv.Itoa(megabytes * 1024)
+
+			err = d.c.SetConfigItem("lxc.cgroup.memory.limit_in_bytes", bytes)
 
 		default:
 			if strings.HasPrefix(k, "user.") {
