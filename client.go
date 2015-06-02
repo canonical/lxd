@@ -1028,7 +1028,19 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 						break
 					}
 
-					_, err = io.WriteString(w, fmt.Sprintf("window-resize %d %d", width, height))
+					msg := shared.ContainerExecControl{}
+					msg.Command = "window-resize"
+					msg.Args = make(map[string]string)
+					msg.Args["width"] = strconv.Itoa(width)
+					msg.Args["height"] = strconv.Itoa(height)
+
+					buf, err := json.Marshal(msg)
+					if err != nil {
+						shared.Debugf("failed to convert to json %s", err)
+						break
+					}
+					_, err = w.Write(buf)
+
 					w.Close()
 					if err != nil {
 						shared.Debugf("got err writing %s", err)

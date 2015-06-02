@@ -52,6 +52,11 @@ type ContainerStatus struct {
 	Ips       []Ip   `json:"ips"`
 }
 
+type ContainerExecControl struct {
+	Command string            `json:"command"`
+	Args    map[string]string `json:"args"`
+}
+
 type Device map[string]string
 type Devices map[string]Device
 
