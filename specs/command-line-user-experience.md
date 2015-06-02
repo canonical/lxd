@@ -472,7 +472,7 @@ Command                                                                  | Resul
 :------                                                                  | :-----
 lxc profile create micro                                                 | Create a new "micro" profile.
 lxc profile set micro limits.memory 256MB                                | Restrict memory usage to 256MB
-lxc profile set micro limits.cpu 1                                       | Restrict CPU usage to a single core
+lxc profile set micro limits.cpus 1                                      | Restrict CPU usage to a single core
 lxc profile copy micro dakara:                                           | Copy the resulting profile over to "dakara"
 lxc profile show micro                                                   | Show all the options associated with the "micro" profile and all the containers using it
 lxc profile unset dakara:nano limits.memory                              | Unset "limits.memory" for the "nano" profile on "dakara"
