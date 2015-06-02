@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -206,6 +207,72 @@ func containersWatch(d *Daemon) error {
 	 * daemon.go:createCmd.
 	 */
 	runtime.GC()
+
+	return nil
+}
+
+func containersRestart(d *Daemon) error {
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND power_state=1")
+	inargs := []interface{}{cTypeRegular}
+	var name string
+	outfmt := []interface{}{name}
+
+	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		return err
+	}
+
+	_, err = shared.DbExec(d.db, "UPDATE containers SET power_state=0")
+	if err != nil {
+		return err
+	}
+
+	for _, r := range result {
+		container, err := newLxdContainer(string(r[0].(string)), d)
+		if err != nil {
+			return err
+		}
+
+		container.c.Start()
+	}
+
+	return nil
+}
+
+func containersShutdown(d *Daemon) error {
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
+	inargs := []interface{}{cTypeRegular}
+	var name string
+	outfmt := []interface{}{name}
+
+	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		return err
+	}
+
+	var wg sync.WaitGroup
+
+	for _, r := range result {
+		container, err := newLxdContainer(string(r[0].(string)), d)
+		if err != nil {
+			return err
+		}
+
+		_, err = shared.DbExec(d.db, "UPDATE containers SET power_state=1 WHERE name=?", container.name)
+		if err != nil {
+			return err
+		}
+
+		if container.c.State() != lxc.STOPPED {
+			wg.Add(1)
+			go func() {
+				container.c.Shutdown(time.Second * 30)
+				container.c.Stop()
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+	}
 
 	return nil
 }
@@ -2292,7 +2359,7 @@ type execWs struct {
 	rootUid      int
 	rootGid      int
 	options      lxc.AttachOptions
-	conns        []*websocket.Conn
+	conns        map[int]*websocket.Conn
 	allConnected chan bool
 	interactive  bool
 	done         chan shared.OperationResult
@@ -2302,7 +2369,11 @@ type execWs struct {
 func (s *execWs) Metadata() interface{} {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
-		fds[strconv.Itoa(fd)] = secret
+		if fd == -1 {
+			fds["control"] = secret
+		} else {
+			fds[strconv.Itoa(fd)] = secret
+		}
 	}
 
 	return shared.Jmap{"fds": fds}
@@ -2317,8 +2388,8 @@ func (s *execWs) Connect(secret string, r *http.Request, w http.ResponseWriter) 
 			}
 
 			s.conns[fd] = conn
-			for _, c := range s.conns {
-				if c == nil {
+			for i, c := range s.conns {
+				if i != -1 && c == nil {
 					return nil
 				}
 			}
@@ -2377,6 +2448,57 @@ func (s *execWs) Do() shared.OperationResult {
 
 	go func() {
 		if s.interactive {
+			go func() {
+				for {
+					mt, r, err := s.conns[-1].NextReader()
+					if mt == websocket.CloseMessage {
+						break
+					}
+
+					if err != nil {
+						shared.Debugf("got error getting next reader %s", err)
+						break
+					}
+
+					buf, err := ioutil.ReadAll(r)
+					if err != nil {
+						shared.Debugf("failed to read message %s", err)
+						break
+					}
+
+					command := shared.ContainerExecControl{}
+
+					if err := json.Unmarshal(buf, &command); err != nil {
+						shared.Debugf("failed to unmarshal control socket command: %s", err)
+						continue
+					}
+
+					if command.Command == "window-resize" {
+						winch_width, err := strconv.Atoi(command.Args["width"])
+						if err != nil {
+							shared.Debugf("Unable to extract window width: %s", err)
+							continue
+						}
+
+						winch_height, err := strconv.Atoi(command.Args["height"])
+						if err != nil {
+							shared.Debugf("Unable to extract window height: %s", err)
+							continue
+						}
+
+						err = shared.SetSize(int(ptys[0].Fd()), winch_width, winch_height)
+						if err != nil {
+							shared.Debugf("Failed to set window size to: %dx%d", winch_width, winch_height)
+						}
+					}
+
+					if err != nil {
+						shared.Debugf("got error writing to writer %s", err)
+						break
+					}
+				}
+			}()
+
 			shared.WebsocketMirror(s.conns[0], ptys[0], ptys[0])
 		} else {
 			for i := 0; i < len(ttys); i++ {
@@ -2459,16 +2581,18 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		if c.IdmapSet != nil {
 			ws.rootUid, ws.rootGid = c.IdmapSet.ShiftIntoNs(0, 0)
 		}
-		if post.Interactive {
-			ws.conns = make([]*websocket.Conn, 1)
-		} else {
-			ws.conns = make([]*websocket.Conn, 3)
+		ws.conns = map[int]*websocket.Conn{}
+		ws.conns[-1] = nil
+		ws.conns[0] = nil
+		if !post.Interactive {
+			ws.conns[1] = nil
+			ws.conns[2] = nil
 		}
 		ws.allConnected = make(chan bool, 1)
 		ws.interactive = post.Interactive
 		ws.done = make(chan shared.OperationResult, 1)
 		ws.options = opts
-		for i := 0; i < len(ws.conns); i++ {
+		for i := -1; i < len(ws.conns); i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
 				return InternalError(err)

@@ -29,3 +29,6 @@ will kill any remaining container.
 The container power\_state in the containers table is kept as it was so
 that LXD after the host is done rebooting can restore the containers as
 they were.
+
+## SIGUSR1
+Write a memory profile dump to the file specified with \-\-memprofile.

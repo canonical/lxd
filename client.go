@@ -14,10 +14,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 	"github.com/gosexy/gettext"
@@ -1000,6 +1002,57 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 	}
 
 	if interactive {
+		if wsControl, ok := md.FDs["control"]; ok {
+			go func() {
+				control, err := c.websocket(resp.Operation, wsControl)
+				if err != nil {
+					return
+				}
+
+				for {
+					ch := make(chan os.Signal)
+					signal.Notify(ch, syscall.SIGWINCH)
+					sig := <-ch
+
+					shared.Debugf("Received '%s signal', updating window geometry.\n", sig)
+					width, height, err := terminal.GetSize(syscall.Stdout)
+					if err != nil {
+						continue
+					}
+
+					shared.Debugf("Window size is now: %dx%d\n", width, height)
+
+					w, err := control.NextWriter(websocket.TextMessage)
+					if err != nil {
+						shared.Debugf("got error getting next writer %s", err)
+						break
+					}
+
+					msg := shared.ContainerExecControl{}
+					msg.Command = "window-resize"
+					msg.Args = make(map[string]string)
+					msg.Args["width"] = strconv.Itoa(width)
+					msg.Args["height"] = strconv.Itoa(height)
+
+					buf, err := json.Marshal(msg)
+					if err != nil {
+						shared.Debugf("failed to convert to json %s", err)
+						break
+					}
+					_, err = w.Write(buf)
+
+					w.Close()
+					if err != nil {
+						shared.Debugf("got err writing %s", err)
+						break
+					}
+				}
+
+				closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+				control.WriteMessage(websocket.CloseMessage, closeMsg)
+			}()
+		}
+
 		conn, err := c.websocket(resp.Operation, md.FDs["0"])
 		if err != nil {
 			return -1, err

@@ -105,7 +105,7 @@ Contributions to this project should be sent as pull requests on github.
 Sometimes it is useful to view the raw response that LXD sends; you can do
 this by:
 
-    lxc config set password foo
+    lxc config set core.trust_password foo
     lxc remote add local 127.0.0.1:8443
     wget --no-check-certificate https://127.0.0.1:8443/1.0 --certificate=$HOME/.config/lxc/client.crt --private-key=$HOME/.config/lxc/client.key -O - -q
 

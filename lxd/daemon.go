@@ -15,17 +15,17 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/stgraber/lxd-go-systemd/activation"
+	"gopkg.in/tomb.v2"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	_ "github.com/mattn/go-sqlite3"
-	"gopkg.in/tomb.v2"
 )
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
 	tomb        tomb.Tomb
-	unixl       net.Listener
-	tcpl        net.Listener
 	IdmapSet    *shared.IdmapSet
 	lxcpath     string
 	certf       string
@@ -33,6 +33,9 @@ type Daemon struct {
 	mux         *mux.Router
 	clientCerts []x509.Certificate
 	db          *sql.DB
+
+	localSockets  []net.Listener
+	remoteSockets []net.Listener
 
 	tlsconfig *tls.Config
 }
@@ -308,71 +311,101 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		}
 	}
 
-	localSocket := shared.VarPath("unix.socket")
+	tlsConfig, err := shared.GetTLSConfig(d.certf, d.keyf)
+	if err != nil {
+		return nil, err
+	}
 
-	// If the socket exists, let's try to connect to it and see if there's
-	// a lxd running.
-	if _, err := os.Stat(localSocket); err == nil {
-		c := &lxd.Config{Remotes: map[string]lxd.RemoteConfig{}}
-		_, err := lxd.NewClient(c, "")
-		if err != nil {
-			shared.Debugf("Detected old but dead unix socket, deleting it...")
-			// Connecting failed, so let's delete the socket and
-			// listen on it ourselves.
-			err = os.Remove(localSocket)
-			if err != nil {
-				return nil, err
+	listeners, err := activation.Listeners(false)
+	if err != nil {
+		return nil, err
+	}
+
+	var localSockets []net.Listener
+	var remoteSockets []net.Listener
+
+	if len(listeners) > 0 {
+		shared.Debugf("LXD is socket activated.\n")
+
+		for _, listener := range listeners {
+			if _, err := os.Stat(listener.Addr().String()); err == nil {
+				localSockets = append(localSockets, listener)
+			} else {
+				tlsListener := tls.NewListener(listener, tlsConfig)
+				remoteSockets = append(remoteSockets, tlsListener)
 			}
 		}
-	}
+	} else {
+		shared.Debugf("LXD isn't socket activated.\n")
 
-	unixAddr, err := net.ResolveUnixAddr("unix", localSocket)
-	if err != nil {
-		return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
-	}
-	unixl, err := net.ListenUnix("unix", unixAddr)
-	if err != nil {
-		return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
-	}
-	d.unixl = unixl
+		localSocketPath := shared.VarPath("unix.socket")
 
-	if err := os.Chmod(localSocket, 0660); err != nil {
-		return nil, err
-	}
+		// If the socket exists, let's try to connect to it and see if there's
+		// a lxd running.
+		if _, err := os.Stat(localSocketPath); err == nil {
+			c := &lxd.Config{Remotes: map[string]lxd.RemoteConfig{}}
+			_, err := lxd.NewClient(c, "")
+			if err != nil {
+				shared.Debugf("Detected old but dead unix socket, deleting it...")
+				// Connecting failed, so let's delete the socket and
+				// listen on it ourselves.
+				err = os.Remove(localSocketPath)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 
-	gid, err := shared.GroupId(*group)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := os.Chown(localSocket, os.Getuid(), gid); err != nil {
-		return nil, err
-	}
-
-	var tcpListen func() error
-	if listenAddr != "" {
-		config, err := shared.GetTLSConfig(d.certf, d.keyf)
+		unixAddr, err := net.ResolveUnixAddr("unix", localSocketPath)
 		if err != nil {
-			d.unixl.Close()
+			return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
+		}
+
+		unixl, err := net.ListenUnix("unix", unixAddr)
+		if err != nil {
+			return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
+		}
+
+		if err := os.Chmod(localSocketPath, 0660); err != nil {
 			return nil, err
 		}
 
-		tcpl, err := tls.Listen("tcp", listenAddr, config)
+		gid, err := shared.GroupId(*group)
 		if err != nil {
-			d.unixl.Close()
-			return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
+			return nil, err
 		}
-		d.tcpl = tcpl
-		tcpListen = func() error { return http.Serve(d.tcpl, d.mux) }
+
+		if err := os.Chown(localSocketPath, os.Getuid(), gid); err != nil {
+			return nil, err
+		}
+
+		localSockets = append(localSockets, unixl)
+
+		if listenAddr != "" {
+			tcpl, err := tls.Listen("tcp", listenAddr, tlsConfig)
+			if err != nil {
+				return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
+			}
+
+			remoteSockets = append(remoteSockets, tcpl)
+		}
 	}
 
+	d.localSockets = localSockets
+	d.remoteSockets = remoteSockets
+
+	containersRestart(d)
 	containersWatch(d)
 
 	d.tomb.Go(func() error {
-		if tcpListen != nil {
-			d.tomb.Go(tcpListen)
+		for _, socket := range d.localSockets {
+			shared.Debugf(" - binding local socket: %s\n", socket.Addr())
+			d.tomb.Go(func() error { return http.Serve(socket, d.mux) })
 		}
-		d.tomb.Go(func() error { return http.Serve(d.unixl, d.mux) })
+		for _, socket := range d.remoteSockets {
+			shared.Debugf(" - binding remote socket: %s\n", socket.Addr())
+			d.tomb.Go(func() error { return http.Serve(socket, d.mux) })
+		}
 		return nil
 	})
 
@@ -395,10 +428,13 @@ var errStop = fmt.Errorf("requested stop")
 // Stop stops the shared daemon.
 func (d *Daemon) Stop() error {
 	d.tomb.Kill(errStop)
-	d.unixl.Close()
-	if d.tcpl != nil {
-		d.tcpl.Close()
+	for _, socket := range d.localSockets {
+		socket.Close()
 	}
+	for _, socket := range d.remoteSockets {
+		socket.Close()
+	}
+
 	err := d.tomb.Wait()
 	if err == errStop {
 		return nil
