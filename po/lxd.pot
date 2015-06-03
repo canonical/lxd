@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-26 18:50-0400\n"
+        "POT-Creation-Date: 2015-06-03 11:35-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,7 +16,7 @@ msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Content-Type: text/plain; charset=CHARSET\n"
         "Content-Transfer-Encoding: 8bit\n"
 
-#: lxc/config.go:25
+#: lxc/config.go:27
 msgid   "### This is a yaml representation of the configuration.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -36,24 +36,16 @@ msgid   "### This is a yaml representation of the configuration.\n"
         "### Note that the name is shown but cannot be changed\n"
 msgstr  ""
 
-#: lxc/image.go:26
+#: lxc/image.go:28
 msgid   "### This is a yaml representation of the image properties.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
-        "### Each property is represented by thee lines:\n"
-        "###\n"
-        "###  The first is 'imagetype: ' followed by an integer.  0 means\n"
-        "###  a short string, 1 means a long text value containing newlines.\n"
-        "###\n"
-        "###  This is followed by the key and value\n"
-        "###\n"
-        "###  An example would be:\n"
-        "### - imagetype: 0\n"
-        "###   key: os\n"
-        "###   value: Ubuntu\n"
+        "### Each property is represented by a single line:\n"
+        "### An example would be:\n"
+        "###  description: My custom image\n"
 msgstr  ""
 
-#: lxc/profile.go:25
+#: lxc/profile.go:27
 msgid   "### This is a yaml representation of the profile.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -87,7 +79,7 @@ msgstr  ""
 msgid   "Admin password for %s: "
 msgstr  ""
 
-#: lxc/image.go:238
+#: lxc/image.go:232
 msgid   "Aliases:\n"
 msgstr  ""
 
@@ -95,7 +87,7 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: lxc/image.go:221
+#: lxc/image.go:215
 #, c-format
 msgid   "Architecture: %s\n"
 msgstr  ""
@@ -114,7 +106,7 @@ msgstr  ""
 msgid   "Cannot connect to unix socket at %s Is the server running?\n"
 msgstr  ""
 
-#: lxc/profile.go:313
+#: lxc/profile.go:323
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -130,11 +122,15 @@ msgid   "Changes a containers state to %s.\n"
         "lxd %s <name>\n"
 msgstr  ""
 
+#: lxc/copy.go:65
+msgid   "Changing the name of a running container during copy isn't supported."
+msgstr  ""
+
 #: lxc/remote.go:154
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/image.go:85
+#: lxc/image.go:79
 msgid   "Copy aliases from source"
 msgstr  ""
 
@@ -162,12 +158,12 @@ msgid   "Delete a container or container snapshot.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:378
+#: lxc/config.go:400
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:406
+#: lxc/config.go:428
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -195,7 +191,7 @@ msgid   "Execute the specified command in a container.\n"
         "lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n"
 msgstr  ""
 
-#: lxc/image.go:215
+#: lxc/image.go:209
 #, c-format
 msgid   "Fingerprint: %s\n"
 msgstr  ""
@@ -224,7 +220,7 @@ msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
 
-#: lxc/image.go:278
+#: lxc/image.go:272
 #, c-format
 msgid   "Image imported with fingerprint: %s\n"
 msgstr  ""
@@ -284,11 +280,11 @@ msgid   "Lists the available resources.\n"
         "* \"s.privileged=1\" will do the same\n"
 msgstr  ""
 
-#: lxc/image.go:84
+#: lxc/image.go:78
 msgid   "Make image public"
 msgstr  ""
 
-#: lxc/profile.go:45
+#: lxc/profile.go:47
 msgid   "Manage configuration profiles.\n"
         "\n"
         "lxc profile list [filters]                     List available "
@@ -330,7 +326,7 @@ msgid   "Manage configuration profiles.\n"
         "    using the specified profile.\n"
 msgstr  ""
 
-#: lxc/config.go:45
+#: lxc/config.go:47
 msgid   "Manage configuration.\n"
         "\n"
         "lxc config device add <container> <name> <type> [key=value]...\n"
@@ -401,7 +397,7 @@ msgid   "Manage remote LXD servers.\n"
         "default remote.\n"
 msgstr  ""
 
-#: lxc/image.go:43
+#: lxc/image.go:37
 msgid   "Manipulate container images\n"
         "\n"
         "lxc image import <tarball> [target] [--public] [--created-"
@@ -440,7 +436,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move <source container> <destination container>\n"
 msgstr  ""
 
-#: lxc/config.go:158
+#: lxc/config.go:160
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -448,7 +444,7 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:181
+#: lxc/config.go:183
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -464,26 +460,26 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version\n"
 msgstr  ""
 
-#: lxc/profile.go:209
+#: lxc/profile.go:225
 #, c-format
 msgid   "Profile %s applied to %s\n"
 msgstr  ""
 
-#: lxc/profile.go:131
+#: lxc/profile.go:133
 #, c-format
 msgid   "Profile %s created\n"
 msgstr  ""
 
-#: lxc/profile.go:198
+#: lxc/profile.go:214
 #, c-format
 msgid   "Profile %s deleted\n"
 msgstr  ""
 
-#: lxc/image.go:234
+#: lxc/image.go:228
 msgid   "Properties:\n"
 msgstr  ""
 
-#: lxc/image.go:222
+#: lxc/image.go:216
 #, c-format
 msgid   "Public: %s\n"
 msgstr  ""
@@ -529,7 +525,7 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:204
+#: lxc/config.go:206
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
@@ -537,7 +533,7 @@ msgstr  ""
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
 
-#: lxc/image.go:220
+#: lxc/image.go:214
 msgid   "Size: %.2vMB\n"
 msgstr  ""
 
@@ -549,11 +545,11 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: lxc/image.go:223
+#: lxc/image.go:217
 msgid   "Timestamps:\n"
 msgstr  ""
 
-#: lxc/image.go:398
+#: lxc/image.go:418
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -563,7 +559,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:195
+#: lxc/config.go:197
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
@@ -590,7 +586,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:334 lxc/profile.go:180
+#: lxc/config.go:356 lxc/image.go:373 lxc/profile.go:196
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -621,10 +617,6 @@ msgstr  ""
 
 #: client.go:414 client.go:419
 msgid   "cannot resolve unix socket address: %v"
-msgstr  ""
-
-#: lxc/copy.go:65
-msgid   "changing hostname of running containers not supported"
 msgstr  ""
 
 #: lxc/launch.go:85 lxc/launch.go:90
