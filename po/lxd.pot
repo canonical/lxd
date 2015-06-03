@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-05-26 19:11-0400\n"
+        "POT-Creation-Date: 2015-06-03 11:35-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -40,17 +40,9 @@ msgstr  ""
 msgid   "### This is a yaml representation of the image properties.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
-        "### Each property is represented by thee lines:\n"
-        "###\n"
-        "###  The first is 'imagetype: ' followed by an integer.  0 means\n"
-        "###  a short string, 1 means a long text value containing newlines.\n"
-        "###\n"
-        "###  This is followed by the key and value\n"
-        "###\n"
-        "###  An example would be:\n"
-        "### - imagetype: 0\n"
-        "###   key: os\n"
-        "###   value: Ubuntu\n"
+        "### Each property is represented by a single line:\n"
+        "### An example would be:\n"
+        "###  description: My custom image\n"
 msgstr  ""
 
 #: lxc/profile.go:27
@@ -87,7 +79,7 @@ msgstr  ""
 msgid   "Admin password for %s: "
 msgstr  ""
 
-#: lxc/image.go:240
+#: lxc/image.go:232
 msgid   "Aliases:\n"
 msgstr  ""
 
@@ -95,7 +87,7 @@ msgstr  ""
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: lxc/image.go:223
+#: lxc/image.go:215
 #, c-format
 msgid   "Architecture: %s\n"
 msgstr  ""
@@ -130,11 +122,15 @@ msgid   "Changes a containers state to %s.\n"
         "lxd %s <name>\n"
 msgstr  ""
 
+#: lxc/copy.go:65
+msgid   "Changing the name of a running container during copy isn't supported."
+msgstr  ""
+
 #: lxc/remote.go:154
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/image.go:87
+#: lxc/image.go:79
 msgid   "Copy aliases from source"
 msgstr  ""
 
@@ -195,7 +191,7 @@ msgid   "Execute the specified command in a container.\n"
         "lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n"
 msgstr  ""
 
-#: lxc/image.go:217
+#: lxc/image.go:209
 #, c-format
 msgid   "Fingerprint: %s\n"
 msgstr  ""
@@ -224,7 +220,7 @@ msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
 
-#: lxc/image.go:280
+#: lxc/image.go:272
 #, c-format
 msgid   "Image imported with fingerprint: %s\n"
 msgstr  ""
@@ -284,7 +280,7 @@ msgid   "Lists the available resources.\n"
         "* \"s.privileged=1\" will do the same\n"
 msgstr  ""
 
-#: lxc/image.go:86
+#: lxc/image.go:78
 msgid   "Make image public"
 msgstr  ""
 
@@ -401,7 +397,7 @@ msgid   "Manage remote LXD servers.\n"
         "default remote.\n"
 msgstr  ""
 
-#: lxc/image.go:45
+#: lxc/image.go:37
 msgid   "Manipulate container images\n"
         "\n"
         "lxc image import <tarball> [target] [--public] [--created-"
@@ -479,11 +475,11 @@ msgstr  ""
 msgid   "Profile %s deleted\n"
 msgstr  ""
 
-#: lxc/image.go:236
+#: lxc/image.go:228
 msgid   "Properties:\n"
 msgstr  ""
 
-#: lxc/image.go:224
+#: lxc/image.go:216
 #, c-format
 msgid   "Public: %s\n"
 msgstr  ""
@@ -537,7 +533,7 @@ msgstr  ""
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
 
-#: lxc/image.go:222
+#: lxc/image.go:214
 msgid   "Size: %.2vMB\n"
 msgstr  ""
 
@@ -549,11 +545,11 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: lxc/image.go:225
+#: lxc/image.go:217
 msgid   "Timestamps:\n"
 msgstr  ""
 
-#: lxc/image.go:414
+#: lxc/image.go:418
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
@@ -590,7 +586,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:356 lxc/profile.go:196
+#: lxc/config.go:356 lxc/image.go:373 lxc/profile.go:196
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -621,10 +617,6 @@ msgstr  ""
 
 #: client.go:414 client.go:419
 msgid   "cannot resolve unix socket address: %v"
-msgstr  ""
-
-#: lxc/copy.go:65
-msgid   "copying running containers isn't supported at this time"
 msgstr  ""
 
 #: lxc/launch.go:85 lxc/launch.go:90
