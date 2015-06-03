@@ -143,7 +143,10 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
 	err = rows.Err()
 	if err != nil {
 		return [][]interface{}{}, err
+	} else if len(result) == 0 {
+		return [][]interface{}{}, sql.ErrNoRows
 	}
+
 	return result, nil
 }
 
