@@ -367,7 +367,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		}
 
 		run = shared.OperationWrap(func() error {
-			if err := extractRootfs(hash, name, d); err != nil {
+			if err := extractImage(hash, name, d); err != nil {
 				return err
 			}
 
@@ -416,7 +416,7 @@ func extractShiftIfExists(d *Daemon, c *lxdContainer, hash string, name string) 
 
 	_, err := dbImageGet(d.db, hash, false)
 	if err == nil {
-		if err := extractRootfs(hash, name, d); err != nil {
+		if err := extractImage(hash, name, d); err != nil {
 			return err
 		}
 
@@ -679,13 +679,10 @@ func btrfsCopyImage(hash string, name string, d *Daemon) error {
 	return exec.Command("btrfs", "subvolume", "snapshot", subvol, dpath).Run()
 }
 
-func extractRootfs(hash string, name string, d *Daemon) error {
+func extractImage(hash string, name string, d *Daemon) error {
 	/*
 	 * We want to use archive/tar for this, but that doesn't appear
 	 * to be working for us (see lxd/images.go)
-	 * So for now, we extract the rootfs.tar.xz from the image
-	 * tarball to /var/lib/lxd/lxc/container/rootfs.tar.xz, then
-	 * extract that under /var/lib/lxd/lxc/container/rootfs/
 	 */
 	dpath := shared.VarPath("lxc", name)
 	imagefile := shared.VarPath("images", hash)
@@ -710,7 +707,7 @@ func extractRootfs(hash string, name string, d *Daemon) error {
 	default:
 		args = append(args, "-Jxf")
 	}
-	args = append(args, imagefile, "rootfs")
+	args = append(args, imagefile)
 
 	output, err := exec.Command("tar", args...).Output()
 	if err != nil {
@@ -2447,7 +2444,7 @@ func (s *execWs) Do() shared.OperationResult {
 	}
 
 	go func() {
-		if s.interactive {
+		if s.interactive && s.conns[-1] != nil {
 			go func() {
 				for {
 					mt, r, err := s.conns[-1].NextReader()
