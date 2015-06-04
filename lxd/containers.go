@@ -2444,7 +2444,7 @@ func (s *execWs) Do() shared.OperationResult {
 	}
 
 	go func() {
-		if s.interactive {
+		if s.interactive && s.conns[-1] != nil {
 			go func() {
 				for {
 					mt, r, err := s.conns[-1].NextReader()
