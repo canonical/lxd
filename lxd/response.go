@@ -223,7 +223,7 @@ func SmartError(err error) Response {
 		return NotFound
 	case sql.ErrNoRows:
 		return NotFound
-	case NoSuchImageError:
+	case NoSuchObjectError:
 		return NotFound
 	case os.ErrPermission:
 		return Forbidden
