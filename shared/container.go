@@ -43,6 +43,7 @@ type Ip struct {
 	Interface string `json:"interface"`
 	Protocol  string `json:"protocol"`
 	Address   string `json:"address"`
+	HostVeth  string `json:"host_veth"`
 }
 
 type ContainerStatus struct {
