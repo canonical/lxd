@@ -1432,8 +1432,26 @@ func getIps(c *lxc.Container) []shared.Ip {
 		if err != nil {
 			continue
 		}
+
+		veth := ""
+
+		for i := 0; i < len(c.ConfigItem("lxc.network")); i++ {
+			nicName := c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.name", i))[0]
+			if nicName != n {
+				continue
+			}
+
+			interfaceType := c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.type", i))
+			if interfaceType[0] != "veth" {
+				continue
+			}
+
+			veth = c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.veth.pair", i))[0]
+			break
+		}
+
 		for _, a := range addresses {
-			ip := shared.Ip{Interface: n, Address: a}
+			ip := shared.Ip{Interface: n, Address: a, HostVeth: veth}
 			if net.ParseIP(a).To4() == nil {
 				ip.Protocol = "IPV6"
 			} else {
