@@ -344,6 +344,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	c, err := newLxdContainer(name, d)
 	if err != nil {
+		removeContainer(d, name)
 		return SmartError(err)
 	}
 
