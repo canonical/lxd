@@ -37,6 +37,34 @@ func DeviceToLxc(d shared.Device) ([][]string, error) {
 			l2 = []string{"lxc.network.name", d["name"]}
 			lines = append(lines, l2)
 		}
+		if d["flags"] != "" {
+			l2 = []string{"lxc.network.flags", d["flags"]}
+			lines = append(lines, l2)
+		}
+		if d["ipv4"] != "" {
+			l2 = []string{"lxc.network.ipv4", d["ipv4"]}
+			lines = append(lines, l2)
+		}
+		if d["ipv4.gateway"] != "" {
+			l2 = []string{"lxc.network.ipv4.gateway", d["ipv4.gateway"]}
+			lines = append(lines, l2)
+		}
+		if d["ipv6"] != "" {
+			l2 = []string{"lxc.network.ipv6", d["ipv6"]}
+			lines = append(lines, l2)
+		}
+		if d["ipv6.gateway"] != "" {
+			l2 = []string{"lxc.network.ipv6.gateway", d["ipv6.gateway"]}
+			lines = append(lines, l2)
+		}
+		if d["script.up"] != "" {
+			l2 = []string{"lxc.network.script.up", d["script.up"]}
+			lines = append(lines, l2)
+		}
+		if d["script.down"] != "" {
+			l2 = []string{"lxc.network.script.down", d["script.down"]}
+			lines = append(lines, l2)
+		}
 		return lines, nil
 	case "disk":
 		var p string
@@ -136,6 +164,20 @@ func ValidDeviceConfig(t, k, v string) bool {
 		case "hwaddr":
 			return true
 		case "mtu":
+			return true
+		case "flags":
+			return true
+		case "ipv4":
+			return true
+		case "ipv4.gateway":
+			return true
+		case "ipv6":
+			return true
+		case "ipv6.gateway":
+			return true
+		case "script.up":
+			return true
+		case "script.down":
 			return true
 		case "nictype":
 			if v != "bridged" && v != "" {
