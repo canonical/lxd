@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/lxc/lxd/shared"
 	"testing"
+
+	"github.com/lxc/lxd/shared"
 )
 
 func Test_disk_device_returns_simple_mount_entry(t *testing.T) {

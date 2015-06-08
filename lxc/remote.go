@@ -7,10 +7,11 @@ import (
 	"os"
 
 	"github.com/gosexy/gettext"
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
 	"github.com/lxc/lxd/shared"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 type remoteCmd struct {

@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/gosexy/gettext"
-	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/internal/gnuflag"
-	"github.com/lxc/lxd/shared"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
+
+	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/internal/gnuflag"
+	"github.com/lxc/lxd/shared"
 )
 
 type imageCmd struct{}

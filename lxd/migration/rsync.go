@@ -8,6 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/shared"
 )
 

@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/shared"
 	"github.com/satori/go.uuid"
+
+	"github.com/lxc/lxd/shared"
 )
 
 var lock sync.Mutex
