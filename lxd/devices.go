@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/lxc/lxd/shared"
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/lxc/lxd/shared"
 )
 
 func DeviceToLxc(d shared.Device) ([][]string, error) {

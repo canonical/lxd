@@ -7,9 +7,10 @@ import (
 	"syscall"
 
 	"github.com/gosexy/gettext"
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 type execCmd struct{}

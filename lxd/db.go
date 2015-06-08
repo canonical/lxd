@@ -8,8 +8,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/lxc/lxd/shared"
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/lxc/lxd/shared"
 )
 
 var (

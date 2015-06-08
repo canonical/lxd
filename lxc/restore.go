@@ -1,9 +1,10 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/gosexy/gettext"
 
-	"fmt"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
 	"github.com/lxc/lxd/shared"
