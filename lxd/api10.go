@@ -8,9 +8,10 @@ import (
 	"net/http"
 	"syscall"
 
-	"github.com/lxc/lxd/shared"
 	"golang.org/x/crypto/scrypt"
 	"gopkg.in/lxc/go-lxc.v2"
+
+	"github.com/lxc/lxd/shared"
 )
 
 var api10 = []Command{

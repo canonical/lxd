@@ -9,10 +9,11 @@ import (
 	"syscall"
 
 	"github.com/gosexy/gettext"
-	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared"
 	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
+
+	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 )
 
 type configCmd struct {

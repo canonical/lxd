@@ -14,21 +14,12 @@ import (
 	"path/filepath"
 	"time"
 
-	/*
-	 * Although the goprotobuf project has moved to github, the protoc
-	 * compiler still generates this import. Since this the only file in
-	 * the tree (i.e. the migrate.pb.go file is generated during make),
-	 * when someone does `go get -u ./...`, they don't have any
-	 * dependencies that the generated protobuf file has, namely, this
-	 * dependency. Presumably protoc will switch at some point to
-	 * generating a github.com import, and then we can switch this back
-	 * too.
-	 */
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
+	"gopkg.in/lxc/go-lxc.v2"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"gopkg.in/lxc/go-lxc.v2"
 )
 
 type migrationFields struct {

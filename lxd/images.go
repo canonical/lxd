@@ -15,8 +15,9 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/shared"
 	"gopkg.in/yaml.v2"
+
+	"github.com/lxc/lxd/shared"
 )
 
 const (

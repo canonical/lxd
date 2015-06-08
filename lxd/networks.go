@@ -9,8 +9,9 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/shared"
 	"gopkg.in/lxc/go-lxc.v2"
+
+	"github.com/lxc/lxd/shared"
 )
 
 func networksGet(d *Daemon, r *http.Request) Response {

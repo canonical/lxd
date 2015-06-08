@@ -9,9 +9,10 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/mattn/go-sqlite3"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/mattn/go-sqlite3"
 )
 
 type resp struct {
