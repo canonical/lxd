@@ -61,19 +61,13 @@ pretty common.
 
 For templates, the "when" key can be one or more of:
  - create (run at the time a new container is created from the image)
- - rename (run when a container is renamed)
- - copy (run when a container is copied to a different host)
- - move (run when a container is moved to a different host)
+ - copy (run when a container is created from an existing one, either copy or move)
  - start (run every time the container is started)
-
-When moving or copying a container to a different machine and also
-changing its name in the process, both the copy/move templates and the
-rename templates will be applied.
 
 The templates will always receive the following context:
  - trigger: name of the event which triggered the template (string)
  - path: path of the file being templated (string)
- - container: key/value map of container properties (name, architecture and ephemeral) (map[string]string)
+ - container: key/value map of container properties (name, architecture, privileged and ephemeral) (map[string]string)
  - config: key/value map of the container's configuration (map[string]string)
  - devices: key/value map of the devices assigned to this container (map[string]map[string]string)
  - properties: key/value map of the template properties specified in metadata.yaml (map[string]string)
