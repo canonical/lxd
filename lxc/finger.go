@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gosexy/gettext"
+
 	"github.com/lxc/lxd"
 )
 

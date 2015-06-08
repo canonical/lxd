@@ -26,9 +26,10 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"gopkg.in/lxc/go-lxc.v2"
+
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
-	"gopkg.in/lxc/go-lxc.v2"
 )
 
 type containerType int

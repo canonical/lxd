@@ -11,8 +11,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/shared"
 	"golang.org/x/crypto/scrypt"
+
+	"github.com/lxc/lxd/shared"
 )
 
 func (d *Daemon) hasPwd() bool {

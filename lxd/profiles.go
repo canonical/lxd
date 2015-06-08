@@ -7,8 +7,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/shared"
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/lxc/lxd/shared"
 )
 
 func addProfileConfig(tx *sql.Tx, id int, config map[string]string) error {

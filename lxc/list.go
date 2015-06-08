@@ -6,9 +6,10 @@ import (
 	"strings"
 
 	"github.com/gosexy/gettext"
+	"github.com/olekukonko/tablewriter"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/olekukonko/tablewriter"
 )
 
 type listCmd struct{}

@@ -3,8 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/lxc/lxd/shared"
 	"testing"
+
+	"github.com/lxc/lxd/shared"
 )
 
 const DB_FIXTURES string = `
