@@ -234,6 +234,11 @@ func containersRestart(d *Daemon) error {
 			return err
 		}
 
+		err = templateApply(container, "start")
+		if err != nil {
+			return err
+		}
+
 		container.c.Start()
 	}
 
@@ -328,13 +333,14 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	name := req.Name
 
 	args := DbCreateContainerArgs{
-		d:         d,
-		name:      name,
-		ctype:     cTypeRegular,
-		config:    req.Config,
-		profiles:  req.Profiles,
-		ephem:     req.Ephemeral,
-		baseImage: hash,
+		d:            d,
+		name:         name,
+		ctype:        cTypeRegular,
+		config:       req.Config,
+		profiles:     req.Profiles,
+		ephem:        req.Ephemeral,
+		baseImage:    hash,
+		architecture: imgInfo.Architecture,
 	}
 
 	_, err = dbCreateContainer(args)
@@ -356,7 +362,15 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			}
 
 			if !c.isPrivileged() {
-				return shiftRootfs(c, name, d)
+				err = shiftRootfs(c, name, d)
+				if err != nil {
+					return err
+				}
+			}
+
+			err = templateApply(c, "create")
+			if err != nil {
+				return err
 			}
 
 			return nil
@@ -374,7 +388,15 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			}
 
 			if !c.isPrivileged() {
-				return shiftRootfs(c, name, d)
+				err = shiftRootfs(c, name, d)
+				if err != nil {
+					return err
+				}
+			}
+
+			err = templateApply(c, "create")
+			if err != nil {
+				return err
 			}
 
 			return nil
@@ -402,8 +424,19 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 		return SmartError(err)
 	}
 
-	/* The container already exists, so don't do anything. */
-	run := shared.OperationWrap(func() error { return nil })
+	run := shared.OperationWrap(func() error {
+		c, err := newLxdContainer(req.Name, d)
+		if err != nil {
+			return err
+		}
+
+		err = templateApply(c, "create")
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 
 	resources := make(map[string][]string)
 	resources["containers"] = []string{req.Name}
@@ -483,7 +516,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		Dialer:    websocket.Dialer{TLSClientConfig: config},
 		Container: c.c,
 		Secrets:   req.Source.Websockets,
-		IdMapSet:  c.IdmapSet,
+		IdMapSet:  c.idmapset,
 	}
 
 	sink, err := migration.NewMigrationSink(&args)
@@ -496,8 +529,20 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		err := sink()
 		if err != nil {
 			removeContainer(d, req.Name)
+			return shared.OperationError(err)
 		}
-		return shared.OperationError(err)
+
+		c, err := newLxdContainer(req.Name, d)
+		if err != nil {
+			return shared.OperationError(err)
+		}
+
+		err = templateApply(c, "copy")
+		if err != nil {
+			return shared.OperationError(err)
+		}
+
+		return shared.OperationError(nil)
 	}
 
 	resources := make(map[string][]string)
@@ -587,6 +632,16 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 			}
 		} else {
 			shared.Debugf("rsync failed:\n%s", output)
+			return shared.OperationError(err)
+		}
+
+		c, err := newLxdContainer(req.Name, d)
+		if err != nil {
+			return shared.OperationError(err)
+		}
+
+		err = templateApply(c, "copy")
+		if err != nil {
 			return shared.OperationError(err)
 		}
 
@@ -724,7 +779,7 @@ func extractImage(hash string, name string, d *Daemon) error {
 func shiftRootfs(c *lxdContainer, name string, d *Daemon) error {
 	dpath := shared.VarPath("lxc", name)
 	rpath := shared.VarPath("lxc", name, "rootfs")
-	err := c.IdmapSet.ShiftRootfs(rpath)
+	err := c.idmapset.ShiftRootfs(rpath)
 	if err != nil {
 		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
 		removeContainer(d, name)
@@ -747,10 +802,10 @@ func shiftRootfs(c *lxdContainer, name string, d *Daemon) error {
 }
 
 func setUnprivUserAcl(c *lxdContainer, dpath string) error {
-	if c.IdmapSet == nil {
+	if c.idmapset == nil {
 		return nil
 	}
-	uid, _ := c.IdmapSet.ShiftIntoNs(0, 0)
+	uid, _ := c.idmapset.ShiftIntoNs(0, 0)
 	switch uid {
 	case -1:
 		shared.Debugf("setUnprivUserAcl: no root id mapping")
@@ -781,13 +836,14 @@ func dbGetContainerId(db *sql.DB, name string) (int, error) {
 }
 
 type DbCreateContainerArgs struct {
-	d         *Daemon
-	name      string
-	ctype     containerType
-	config    map[string]string
-	profiles  []string
-	ephem     bool
-	baseImage string
+	d            *Daemon
+	name         string
+	ctype        containerType
+	config       map[string]string
+	profiles     []string
+	ephem        bool
+	baseImage    string
+	architecture int
 }
 
 func dbCreateContainer(args DbCreateContainerArgs) (int, error) {
@@ -817,15 +873,14 @@ func dbCreateContainer(args DbCreateContainerArgs) (int, error) {
 		ephem_int = 1
 	}
 
-	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral) VALUES (?, 1, %d, %d)",
-		args.ctype, ephem_int)
+	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral) VALUES (?, ?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 	defer stmt.Close()
-	result, err := stmt.Exec(args.name)
+	result, err := stmt.Exec(args.name, args.architecture, args.ctype, ephem_int)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -1285,13 +1340,14 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		}
 
 		args := DbCreateContainerArgs{
-			d:         d,
-			name:      body.Name,
-			ctype:     cTypeRegular,
-			config:    c.config,
-			profiles:  c.profiles,
-			ephem:     c.ephemeral,
-			baseImage: c.config["volatile.baseImage"],
+			d:            d,
+			name:         body.Name,
+			ctype:        cTypeRegular,
+			config:       c.config,
+			profiles:     c.profiles,
+			ephem:        c.ephemeral,
+			baseImage:    c.config["volatile.baseImage"],
+			architecture: c.architecture,
 		}
 
 		_, err := dbCreateContainer(args)
@@ -1353,15 +1409,16 @@ type containerStatePutReq struct {
 }
 
 type lxdContainer struct {
-	c         *lxc.Container
-	daemon    *Daemon
-	id        int
-	name      string
-	config    map[string]string
-	profiles  []string
-	devices   shared.Devices
-	ephemeral bool
-	IdmapSet  *shared.IdmapSet
+	c            *lxc.Container
+	daemon       *Daemon
+	id           int
+	name         string
+	config       map[string]string
+	profiles     []string
+	devices      shared.Devices
+	architecture int
+	ephemeral    bool
+	idmapset     *shared.IdmapSet
 }
 
 func getIps(c *lxc.Container) []shared.Ip {
@@ -1434,7 +1491,16 @@ func (c *lxdContainer) Start() error {
 		return err
 	}
 	f.Close()
+
 	err = c.c.SaveConfigFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	err = templateApply(c, "start")
+	if err != nil {
+		return err
+	}
 
 	cmd := exec.Command(os.Args[0], "forkstart", c.name, c.daemon.lxcpath, configPath)
 	err = cmd.Run()
@@ -1759,10 +1825,10 @@ func (c *lxdContainer) setupMacAddresses(d *Daemon) error {
 }
 
 func (c *lxdContainer) applyIdmapSet() error {
-	if c.IdmapSet == nil {
+	if c.idmapset == nil {
 		return nil
 	}
-	lines := c.IdmapSet.ToLxcString()
+	lines := c.idmapset.ToLxcString()
 	for _, line := range lines {
 		err := c.c.SetConfigItem("lxc.id_map", line)
 		if err != nil {
@@ -1797,13 +1863,13 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 
 	d.daemon = daemon
 
-	arch := 0
 	ephem_int := -1
 	d.ephemeral = false
+	d.architecture = -1
 	d.id = -1
 	q := "SELECT id, architecture, ephemeral FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&d.id, &arch, &ephem_int}
+	arg2 := []interface{}{&d.id, &d.architecture, &ephem_int}
 	err := shared.DbQueryRowScan(daemon.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
@@ -1832,16 +1898,12 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		return nil, err
 	}
 
-	var txtarch string
-	switch arch {
-	case 0:
-		txtarch = "x86_64"
-	default:
-		txtarch = "x86_64"
-	}
-	err = c.SetConfigItem("lxc.arch", txtarch)
-	if err != nil {
-		return nil, err
+	personality, err := shared.ArchitecturePersonality(d.architecture)
+	if err == nil {
+		err = c.SetConfigItem("lxc.arch", personality)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/ubuntu.common.conf")
@@ -1917,7 +1979,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	}
 
 	if !d.isPrivileged() {
-		d.IdmapSet = daemon.IdmapSet // TODO - per-tenant idmaps
+		d.idmapset = daemon.IdmapSet // TODO - per-tenant idmaps
 	}
 
 	err = d.applyIdmapSet()
@@ -2011,7 +2073,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	case "GET":
 		return containerFileGet(r, p)
 	case "POST":
-		return containerFilePut(r, p, c.IdmapSet)
+		return containerFilePut(r, p, c.idmapset)
 	default:
 		return NotFound
 	}
@@ -2247,13 +2309,14 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		/* Create the db info */
 		args := DbCreateContainerArgs{
-			d:         d,
-			name:      fullName,
-			ctype:     cTypeSnapshot,
-			config:    c.config,
-			profiles:  c.profiles,
-			ephem:     c.ephemeral,
-			baseImage: c.config["volatile.baseImage"],
+			d:            d,
+			name:         fullName,
+			ctype:        cTypeSnapshot,
+			config:       c.config,
+			profiles:     c.profiles,
+			ephem:        c.ephemeral,
+			baseImage:    c.config["volatile.baseImage"],
+			architecture: c.architecture,
 		}
 
 		_, err := dbCreateContainer(args)
@@ -2577,8 +2640,8 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
-		if c.IdmapSet != nil {
-			ws.rootUid, ws.rootGid = c.IdmapSet.ShiftIntoNs(0, 0)
+		if c.idmapset != nil {
+			ws.rootUid, ws.rootGid = c.idmapset.ShiftIntoNs(0, 0)
 		}
 		ws.conns = map[int]*websocket.Conn{}
 		ws.conns[-1] = nil
@@ -2650,5 +2713,6 @@ func startContainer(args []string) error {
 	if err != nil {
 		return fmt.Errorf("Error opening startup config file: %q", err)
 	}
+
 	return c.Start()
 }

@@ -214,7 +214,8 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			public = "yes"
 		}
 		fmt.Printf(gettext.Gettext("Size: %.2vMB\n"), float64(info.Size)/1024.0/1024.0)
-		fmt.Printf(gettext.Gettext("Architecture: %s\n"), arch_to_string(info.Architecture))
+		arch, _ := shared.ArchitectureName(info.Architecture)
+		fmt.Printf(gettext.Gettext("Architecture: %s\n"), arch)
 		fmt.Printf(gettext.Gettext("Public: %s\n"), public)
 		fmt.Printf(gettext.Gettext("Timestamps:\n"))
 		const layout = "2006/01/02 15:04 UTC"
@@ -486,27 +487,6 @@ func findDescription(props map[string]string) string {
 	return ""
 }
 
-func arch_to_string(arch int) string {
-	switch arch {
-	case 1:
-		return "i686"
-	case 2:
-		return "x86_64"
-	case 3:
-		return "armv7l"
-	case 4:
-		return "aarch64"
-	case 5:
-		return "ppc"
-	case 6:
-		return "ppc64"
-	case 7:
-		return "ppc64le"
-	default:
-		return "x86_64"
-	}
-}
-
 func showImages(images []shared.ImageInfo) error {
 	data := [][]string{}
 	for _, image := range images {
@@ -522,7 +502,7 @@ func showImages(images []shared.ImageInfo) error {
 		}
 		const layout = "Jan 2, 2006 at 3:04pm (MST)"
 		uploaded := time.Unix(image.UploadDate, 0).Format(layout)
-		arch := arch_to_string(image.Architecture)
+		arch, _ := shared.ArchitectureName(image.Architecture)
 		data = append(data, []string{shortest, fp, public, description, arch, uploaded})
 	}
 
