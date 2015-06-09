@@ -2639,6 +2639,9 @@ func startContainer(args []string) error {
 	name := args[1]
 	lxcpath := args[2]
 	configPath := args[3]
+
+	defer os.Remove(configPath)
+
 	c, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
 		return fmt.Errorf("Error initializing container for start: %q", err)
@@ -2647,6 +2650,5 @@ func startContainer(args []string) error {
 	if err != nil {
 		return fmt.Errorf("Error opening startup config file: %q", err)
 	}
-	os.Remove(configPath)
 	return c.Start()
 }
