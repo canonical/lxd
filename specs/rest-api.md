@@ -646,14 +646,14 @@ The notification types are:
 This never returns. Each notification is sent as a separate JSON dict:
 
     {
-        'timestamp': 1415639996,                # Current timestamp
-        'type': "operations",                   # Notification type
-        'resource': "/1.0/operations/<uuid>",   # Resource URL
-        'metadata': {}                          # Extra resource or type specific metadata
+        'timestamp': "2015-06-09T19:07:24.379615253-06:00",                # Current timestamp
+        'type': "operations",                                              # Notification type
+        'resource': "/1.0/operations/<uuid>",                              # Resource URL
+        'metadata': {}                                                     # Extra resource or type specific metadata
     }
 
     {
-        'timestamp': 1415639996,
+        'timestamp': "2015-06-09T19:07:24.379615253-06:00",
         'type': "logging",
         'resource': "/1.0",
         'metadata' {'message': "Service started"}
@@ -723,9 +723,9 @@ Output:
         },
         'public': true,
         'size': 11031704,
-        'created_at': 1415639996,
-        'expires_at': 1415639996,
-        'uploaded_at': 1415639996
+        'created_at': "2015-06-09T19:07:24.379615253-06:00",
+        'expires_at': "2015-06-19T19:07:24.379615253-06:00",
+        'uploaded_at': "2015-06-09T19:07:24.379615253-06:00"
     }
 
 ### DELETE
@@ -921,15 +921,15 @@ Input (none at present):
 Return:
 
     {
-        'created_at': 1415639996,                   # Creation timestamp
-        'updated_at': 1415639996,                   # Last update timestamp
+        'created_at': "2015-06-09T19:07:24.379615253-06:00", # Creation timestamp
+        'updated_at': "2015-06-09T19:07:24.379615253-06:00", # Last update timestamp
         'status': "Running",
         'status_code': 103,
         'resources': {
-            'containers': ['/1.0/containers/1']     # List of affected resources
+            'containers': ['/1.0/containers/1']              # List of affected resources
         },
-        'metadata': {},                             # Extra information about the operation (action, target, ...)
-        'may_cancel': True                          # Whether it's possible to cancel the operation
+        'metadata': {},                                      # Extra information about the operation (action, target, ...)
+        'may_cancel': True                                   # Whether it's possible to cancel the operation
     }
 
 ### DELETE
