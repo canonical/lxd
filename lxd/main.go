@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/internal/gnuflag"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -44,8 +45,13 @@ func init() {
 }
 
 func run() error {
-	if len(os.Args) > 1 && os.Args[1] == "forkstart" {
-		return startContainer(os.Args[1:])
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "forkstart":
+			return startContainer(os.Args[1:])
+		case "forkmigrate":
+			return migration.MigrateContainer(os.Args[1:])
+		}
 	}
 
 	gnuflag.Usage = func() {
