@@ -3,3 +3,4 @@ po/*.mo
 po/*.po~
 lxd-*.tar.gz
 .vagrant
+test/devlxd-client
