@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -432,8 +433,34 @@ func (c *migrationSink) do() error {
 		}
 
 		if c.live {
-			opts := lxc.RestoreOptions{Directory: imagesDir, Verbose: true}
-			restore <- c.container.Restore(opts)
+			f, err := ioutil.TempFile("", "lxd_lxc_migrateconfig_")
+			if err != nil {
+				restore <- err
+				return
+			}
+
+			if err = f.Chmod(0600); err != nil {
+				f.Close()
+				os.Remove(f.Name())
+				return
+			}
+			f.Close()
+
+			if err := c.container.SaveConfigFile(f.Name()); err != nil {
+				restore <- err
+				return
+			}
+
+			cmd := exec.Command(
+				os.Args[0],
+				"forkmigrate",
+				c.container.Name(),
+				c.container.ConfigPath(),
+				f.Name(),
+				imagesDir,
+			)
+
+			restore <- cmd.Run()
 		} else {
 			restore <- nil
 		}
@@ -462,4 +489,42 @@ func (c *migrationSink) do() error {
 			}
 		}
 	}
+}
+
+/*
+ * Similar to forkstart, this is called when lxd is invoked as:
+ *
+ *    lxd forkmigrate <container> <lxcpath> <path_to_config> <path_to_criu_images>
+ *
+ * liblxc's restore() sets up the processes in such a way that the monitor ends
+ * up being a child of the process that calls it, in our case lxd. However, we
+ * really want the monitor to be daemonized, so we fork again. Additionally, we
+ * want to fork for the same reasons we do forkstart (i.e. reduced memory
+ * footprint when we fork tasks that will never free golang's memory, etc.)
+ */
+func MigrateContainer(args []string) error {
+	if len(args) != 5 {
+		return fmt.Errorf("Bad arguments %q", args)
+	}
+
+	name := args[1]
+	lxcpath := args[2]
+	configPath := args[3]
+	imagesDir := args[4]
+
+	defer os.Remove(configPath)
+
+	c, err := lxc.NewContainer(name, lxcpath)
+	if err != nil {
+		return err
+	}
+
+	if err := c.LoadConfigFile(configPath); err != nil {
+		return err
+	}
+
+	return c.Restore(lxc.RestoreOptions{
+		Directory: imagesDir,
+		Verbose:   true,
+	})
 }
