@@ -9,6 +9,9 @@ test_server_config() {
     echo $config | grep -q "trust_password"
     echo $config | grep -q -v "123456"
 
+    lxc config unset core.trust_password
+    lxc config show | grep -q -v "trust_password"
+
     # test untrusted server GET
     my_curl -X GET https://127.0.0.1:18450/1.0 | grep -v -q environment
 
