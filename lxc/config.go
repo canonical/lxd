@@ -54,7 +54,7 @@ func (c *configCmd) usage() string {
 			"lxc config device remove <container> <name>            Remove device from container\n" +
 			"lxc config edit <container>                            Edit container configuration in external editor\n" +
 			"lxc config get <container> key                         Get configuration key\n" +
-			"lxc config set <container> key [value]                 Set container configuration key\n" +
+			"lxc config set <container> key value                   Set container configuration key\n" +
 			"lxc config unset <container> key                       Unset container configuration key\n" +
 			"lxc config set key value                               Set server configuration key\n" +
 			"lxc config unset key                                   Unset server configuration key\n" +
