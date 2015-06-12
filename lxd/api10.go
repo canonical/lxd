@@ -134,20 +134,23 @@ const (
 func setTrustPassword(d *Daemon, password string) error {
 
 	shared.Debugf("setting new password")
-	salt := make([]byte, PW_SALT_BYTES)
-	_, err := io.ReadFull(rand.Reader, salt)
-	if err != nil {
-		return err
+	var value = password
+	if password != "" {
+		salt := make([]byte, PW_SALT_BYTES)
+		_, err := io.ReadFull(rand.Reader, salt)
+		if err != nil {
+			return err
+		}
+
+		hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, PW_HASH_BYTES)
+		if err != nil {
+			return err
+		}
+
+		value = hex.EncodeToString(append(salt, hash...))
 	}
 
-	hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, PW_HASH_BYTES)
-	if err != nil {
-		return err
-	}
-
-	dbHash := hex.EncodeToString(append(salt, hash...))
-
-	err = setServerConfig(d, "core.trust_password", dbHash)
+	err := setServerConfig(d, "core.trust_password", value)
 	if err != nil {
 		return err
 	}
@@ -176,17 +179,19 @@ func setServerConfig(d *Daemon, key string, value string) error {
 		return err
 	}
 
-	str := `INSERT INTO config (key, value) VALUES (?, ?);`
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(key, value)
-	if err != nil {
-		tx.Rollback()
-		return err
+	if value != "" {
+		str := `INSERT INTO config (key, value) VALUES (?, ?);`
+		stmt, err := tx.Prepare(str)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		defer stmt.Close()
+		_, err = stmt.Exec(key, value)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	err = shared.TxCommit(tx)
