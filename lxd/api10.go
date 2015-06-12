@@ -147,7 +147,8 @@ func setTrustPassword(d *Daemon, password string) error {
 			return err
 		}
 
-		value = hex.EncodeToString(append(salt, hash...))
+		rawvalue := append(salt, hash...)
+		value = hex.EncodeToString(rawvalue)
 	}
 
 	err := setServerConfig(d, "core.trust_password", value)
