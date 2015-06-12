@@ -120,7 +120,8 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		// 3 args is a container config key
-		return doSet(config, append(args, ""))
+		args = append(args, "")
+		return doSet(config, args)
 
 	case "set":
 		if len(args) < 3 {
