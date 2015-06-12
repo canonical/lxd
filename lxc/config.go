@@ -54,7 +54,10 @@ func (c *configCmd) usage() string {
 			"lxc config device remove <container> <name>            Remove device from container\n" +
 			"lxc config edit <container>                            Edit container configuration in external editor\n" +
 			"lxc config get <container> key                         Get configuration key\n" +
-			"lxc config set <container> key [value]                 Set container configuration key\n" +
+			"lxc config set <container> key value                   Set container configuration key\n" +
+			"lxc config unset <container> key                       Unset container configuration key\n" +
+			"lxc config set key value                               Set server configuration key\n" +
+			"lxc config unset key                                   Unset server configuration key\n" +
 			"lxc config show <container>                            Show container configuration\n" +
 			"lxc config trust list [remote]                         List all trusted certs.\n" +
 			"lxc config trust add [remote] [certfile.crt]           Add certfile.crt to trusted hosts.\n" +
@@ -101,9 +104,22 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 	switch args[0] {
 
 	case "unset":
-		if len(args) < 3 {
+		if len(args) < 2 {
 			return errArgs
 		}
+
+		// 2 args means we're unsetting a server key
+		if len(args) == 2 {
+			key := args[1]
+			c, err := lxd.NewClient(config, "")
+			if err != nil {
+				return err
+			}
+			_, err = c.SetServerConfig(key, "")
+			return err
+		}
+
+		// 3 args is a container config key
 		return doSet(config, append(args, ""))
 
 	case "set":
@@ -111,6 +127,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
+		// 3 args means we're setting a server key
 		if len(args) == 3 {
 			key := args[1]
 			c, err := lxd.NewClient(config, "")
@@ -121,6 +138,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
+		// 4 args is a container config key
 		return doSet(config, args)
 
 	case "trust":
