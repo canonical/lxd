@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/gosexy/gettext"
+	"github.com/chai2010/gettext-go/gettext"
 
 	"github.com/lxc/lxd"
 )
