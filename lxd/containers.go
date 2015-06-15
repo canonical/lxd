@@ -1860,13 +1860,18 @@ func (c *lxdContainer) applyDevices() error {
 
 func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	d := &lxdContainer{}
-
 	d.daemon = daemon
-
 	ephem_int := -1
 	d.ephemeral = false
 	d.architecture = -1
 	d.id = -1
+
+	templateConfBase := "ubuntu"
+	templateConfDir := os.Getenv("LXC_TEMPLATE_CONFIG")
+	if templateConfDir == "" {
+		templateConfDir = "/usr/share/lxc/config"
+	}
+
 	q := "SELECT id, architecture, ephemeral FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&d.id, &d.architecture, &ephem_int}
@@ -1906,13 +1911,13 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		}
 	}
 
-	err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/ubuntu.common.conf")
+	err = c.SetConfigItem("lxc.include", fmt.Sprintf("%s/%s.common.conf", templateConfDir, templateConfBase))
 	if err != nil {
 		return nil, err
 	}
 
 	if !d.isPrivileged() {
-		err = c.SetConfigItem("lxc.include", "/usr/share/lxc/config/ubuntu.userns.conf")
+		err = c.SetConfigItem("lxc.include", fmt.Sprintf("%s/%s.userns.conf", templateConfDir, templateConfBase))
 		if err != nil {
 			return nil, err
 		}
