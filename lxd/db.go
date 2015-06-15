@@ -918,7 +918,7 @@ func dbGetDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, err
 		return nil, err
 	}
 
-	devices := shared.Devices{} // That's basically a map[string]map[string]string
+	devices := shared.Devices{}
 	for _, r := range results {
 		id = r[0].(int)
 		name = r[1].(string)
