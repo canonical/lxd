@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gosexy/gettext"
+	"github.com/chai2010/gettext-go/gettext"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"

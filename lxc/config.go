@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/gosexy/gettext"
+	"github.com/chai2010/gettext-go/gettext"
 	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 

@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/gosexy/gettext"
+	"github.com/chai2010/gettext-go/gettext"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"

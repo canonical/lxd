@@ -21,8 +21,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/chai2010/gettext-go/gettext"
 	"github.com/gorilla/websocket"
-	"github.com/gosexy/gettext"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd/shared"

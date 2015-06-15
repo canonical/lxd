@@ -27,8 +27,8 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/chai2010/gettext-go/gettext"
 	"github.com/gorilla/websocket"
-	"github.com/gosexy/gettext"
 )
 
 // #cgo LDFLAGS: -lutil -lpthread
