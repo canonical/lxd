@@ -371,6 +371,13 @@ Output:
                 'type': "disk",
                 'path': "/",
                 'source': "UUID=8f7fdf5e-dc60-4524-b9fe-634f82ac2fb6"}
+            },
+            "eth0": {
+                "type": "nic"
+                "parent": "lxcbr0",
+                "hwaddr": "00:16:3e:f4:e7:1c",
+                "name": "eth0",
+                "nictype": "bridged",
             }
         },
         'userdata': "SOME BASE64 BLOB",
@@ -379,10 +386,12 @@ Output:
                     'status_code': 103,
                     'ips': [{'interface': "eth0",
                              'protocol': "INET6",
-                             'address': "2001:470:b368:1020:1::2"},
+                             'address': "2001:470:b368:1020:1::2",
+                             'host_veth': "vethGMDIY9"},
                             {'interface': "eth0",
                              'protocol': "INET",
-                             'address': "172.16.15.30"}]},
+                             'address': "172.16.15.30",
+                             'host_veth': "vethGMDIY9"}]},
         'log': "lxc-checkpoint 1430925874.468 DEBUG    lxc_commands - commands.c:lxc_cmd_get_state:574 - 'u2' is in 'RUNNING' state
                 lxc-checkpoint 1430925874.468 ERROR    lxc_criu - criu.c:criu_version_ok:242 - No such file or directory - execing criu failed, is it installed?
                 ...",
