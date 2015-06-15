@@ -186,6 +186,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 	}
 
 	d.mux.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 
 		if d.isTrustedClient(r) {
 			shared.Debugf("handling %s %s", r.Method, r.URL.RequestURI())
@@ -288,6 +289,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.mux = mux.NewRouter()
 
 	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
@@ -297,6 +299,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		shared.Debugf("sending top level 404: %s", r.URL)
+		w.Header().Set("Content-Type", "application/json")
 		NotFound.Render(w)
 	})
 
