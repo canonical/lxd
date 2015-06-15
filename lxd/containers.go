@@ -2416,16 +2416,17 @@ func snapshotDelete(d *Daemon, c *lxdContainer, name string) Response {
 var containerSnapshotCmd = Command{name: "containers/{name}/snapshots/{snapshotName}", get: snapshotHandler, post: snapshotHandler, delete: snapshotHandler}
 
 type execWs struct {
-	command      []string
-	container    *lxc.Container
-	rootUid      int
-	rootGid      int
-	options      lxc.AttachOptions
-	conns        map[int]*websocket.Conn
-	allConnected chan bool
-	interactive  bool
-	done         chan shared.OperationResult
-	fds          map[int]string
+	command          []string
+	container        *lxc.Container
+	rootUid          int
+	rootGid          int
+	options          lxc.AttachOptions
+	conns            map[int]*websocket.Conn
+	allConnected     chan bool
+	controlConnected chan bool
+	interactive      bool
+	done             chan shared.OperationResult
+	fds              map[int]string
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -2450,6 +2451,12 @@ func (s *execWs) Connect(secret string, r *http.Request, w http.ResponseWriter) 
 			}
 
 			s.conns[fd] = conn
+
+			if fd == -1 {
+				s.controlConnected <- true
+				return nil
+			}
+
 			for i, c := range s.conns {
 				if i != -1 && c == nil {
 					return nil
@@ -2508,9 +2515,19 @@ func (s *execWs) Do() shared.OperationResult {
 		s.options.StderrFd = ttys[2].Fd()
 	}
 
+	controlExit := make(chan bool)
+
 	go func() {
-		if s.interactive && s.conns[-1] != nil {
+		if s.interactive {
 			go func() {
+				select {
+				case <-s.controlConnected:
+					break
+
+				case <-controlExit:
+					return
+				}
+
 				for {
 					mt, r, err := s.conns[-1].NextReader()
 					if mt == websocket.CloseMessage {
@@ -2593,7 +2610,13 @@ func (s *execWs) Do() shared.OperationResult {
 		s.done <- result
 	}()
 
-	return <-s.done
+	done := <-s.done
+
+	if s.conns[-1] == nil {
+		controlExit <- true
+	}
+
+	return done
 }
 
 type commandPostContent struct {
@@ -2651,10 +2674,11 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			ws.conns[2] = nil
 		}
 		ws.allConnected = make(chan bool, 1)
+		ws.controlConnected = make(chan bool, 1)
 		ws.interactive = post.Interactive
 		ws.done = make(chan shared.OperationResult, 1)
 		ws.options = opts
-		for i := -1; i < len(ws.conns); i++ {
+		for i := -1; i < len(ws.conns)-1; i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
 				return InternalError(err)

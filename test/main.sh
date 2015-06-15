@@ -98,13 +98,9 @@ cleanup() {
 
     # Apparently we need to wait a while for everything to die
     sleep 3
-    rm -Rf ${LXD_DIR}
-    rm -Rf ${LXD_CONF}
-    [ -n "${LXD2_DIR}" ] && wipe "${LXD2_DIR}"
-    [ -n "${LXD3_DIR}" ] && wipe "${LXD3_DIR}"
-    [ -n "${LXD4_DIR}" ] && wipe "${LXD4_DIR}"
-    [ -n "${LXD_MIGRATE_DIR}" ] && wipe "${LXD_MIGRATE_DIR}"
-    [ -n "${LXD_SERVERCONFIG_DIR}" ] && wipe "${LXD_SERVERCONFIG_DIR}"
+    for dir in ${LXD_CONF} ${LXD_DIR} ${LXD2_DIR} ${LXD3_DIR} ${LXD4_DIR} ${LXD_MIGRATE_DIR} ${LXD_SERVERCONFIG_DIR}; do
+        [ -n "${dir}" ] && wipe "${dir}"
+    done
 
     echo ""
     echo ""
