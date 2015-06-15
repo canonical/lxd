@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gosexy/gettext"
+	"github.com/chai2010/gettext-go/gettext"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"

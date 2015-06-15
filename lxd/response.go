@@ -47,6 +47,7 @@ func FileResponse(r *http.Request, path string, filename string, headers map[str
 }
 
 func (r *fileResponse) Render(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
 
 	f, err := os.Open(r.path)
 	if err != nil {

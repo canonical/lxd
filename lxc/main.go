@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gosexy/gettext"
+	"github.com/chai2010/gettext-go/gettext"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
@@ -43,7 +43,7 @@ func main() {
 }
 
 func run() error {
-	gettext.BindTextdomain("lxd", "")
+	gettext.BindTextdomain("lxd", "", nil)
 	gettext.Textdomain("lxd")
 
 	verbose := gnuflag.Bool("v", false, gettext.Gettext("Enables verbose mode."))
