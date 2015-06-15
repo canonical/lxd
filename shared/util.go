@@ -172,6 +172,7 @@ func VarPath(path ...string) string {
 	if varDir == "" {
 		varDir = "/var/lib/lxd"
 	}
+
 	items := []string{varDir}
 	items = append(items, path...)
 	return filepath.Join(items...)
@@ -191,7 +192,6 @@ func LogPath(path ...string) string {
 }
 
 func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMode, err error) {
-
 	uid, err = strconv.Atoi(headers.Get("X-LXD-uid"))
 	if err != nil {
 		return 0, 0, 0, err
@@ -214,7 +214,6 @@ func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMod
 }
 
 func ReadToJSON(r io.Reader, req interface{}) error {
-
 	buf, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
@@ -228,7 +227,6 @@ func GenerateFingerprint(cert *x509.Certificate) string {
 }
 
 func ReaderToChannel(r io.Reader) <-chan []byte {
-
 	ch := make(chan ([]byte))
 
 	go func() {
