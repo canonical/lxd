@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gosexy/gettext"
+	"github.com/chai2010/gettext-go/gettext"
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/lxc/lxd"
