@@ -111,7 +111,7 @@ Command                                                                         
 lxc config show                                                                 | Show the local server's configuration
 lxc config show dakara:                                                         | Show "dakara"'s server' configuration
 lxc config set core.trust\_password new-trust-password                          | Set the local server's trust password to "new-trust-password"
-lxc config set c1 limits.memory 2GB                                             | Set a memory limit of 2GB for container "c1"
+lxc config set c1 limits.memory 2G                                              | Set a memory limit of 2GB for container "c1"
 lxc config show c1                                                              | Show the configuration of the "c1" container, starting by the list of profiles it’s based on, then the container specific settings and finally the resulting overall configuration.
 lxc config trust add new-client-cert.crt                                        | Add new-client-cert.pem to the default remote's trust store (typically local LXD)
 lxc config trust add dakara: new-client-cert.crt                                | Add new-client-cert.pem to the "dakara"'s trust store
@@ -471,7 +471,7 @@ local container still references it.
 Command                                                                  | Result
 :------                                                                  | :-----
 lxc profile create micro                                                 | Create a new "micro" profile.
-lxc profile set micro limits.memory 256MB                                | Restrict memory usage to 256MB
+lxc profile set micro limits.memory 256M                                 | Restrict memory usage to 256MB
 lxc profile set micro limits.cpus 1                                      | Restrict CPU usage to a single core
 lxc profile copy micro dakara:                                           | Copy the resulting profile over to "dakara"
 lxc profile show micro                                                   | Show all the options associated with the "micro" profile and all the containers using it
