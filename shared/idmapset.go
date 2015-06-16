@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path"
 	"path/filepath"
@@ -287,18 +288,30 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 		return nil, err
 	}
 
-	umin, urange, err := getFromMap("/etc/subuid", me.Username)
-	if err != nil {
-		return nil, err
-	}
-	gmin, grange, err := getFromMap("/etc/subgid", me.Username)
-	if err != nil {
-		return nil, err
+	umin := 1000000
+	urange := 100000
+	gmin := 1000000
+	grange := 100000
+
+	newuidmap, _ := exec.LookPath("newuidmap")
+	newgidmap, _ := exec.LookPath("newgidmap")
+
+	if newuidmap != "" && newgidmap != "" {
+		umin, urange, err = getFromMap("/etc/subuid", me.Username)
+		if err != nil {
+			return nil, err
+		}
+
+		gmin, grange, err = getFromMap("/etc/subgid", me.Username)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if urange < minIDRange {
 		return nil, fmt.Errorf("uidrange less than %d", minIDRange)
 	}
+
 	if grange < minIDRange {
 		return nil, fmt.Errorf("gidrange less than %d", minIDRange)
 	}
