@@ -2628,7 +2628,7 @@ func (s *execWs) Do() shared.OperationResult {
 
 	done := <-s.done
 
-	if s.conns[-1] == nil {
+	if s.interactive && s.conns[-1] == nil {
 		controlExit <- true
 	}
 
