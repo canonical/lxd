@@ -2532,6 +2532,7 @@ func (s *execWs) Do() shared.OperationResult {
 	}
 
 	controlExit := make(chan bool)
+	stdinEof := make(chan bool)
 
 	if s.interactive {
 		go func() {
@@ -2600,6 +2601,7 @@ func (s *execWs) Do() shared.OperationResult {
 				if i == 0 {
 					<-shared.WebsocketRecvStream(ttys[i], s.conns[i])
 					ttys[i].Close()
+					stdinEof <- true
 				} else {
 					<-shared.WebsocketSendStream(s.conns[i], ptys[i])
 					ptys[i].Close()
@@ -2613,6 +2615,10 @@ func (s *execWs) Do() shared.OperationResult {
 		s.command,
 		s.options,
 	)
+
+	if !s.interactive {
+		<-stdinEof
+	}
 
 	for _, tty := range ttys {
 		tty.Close()
