@@ -115,6 +115,7 @@ fi
 
 . ./basic.sh
 . ./concurrent.sh
+. ./exec.sh
 . ./database.sh
 . ./deps.sh
 . ./fuidshift.sh
@@ -193,6 +194,9 @@ test_remote_admin
 
 echo "==> TEST: basic usage"
 test_basic_usage
+
+echo "==> TEST: concurrent exec"
+test_concurrent_exec
 
 echo "==> TEST: concurrent startup"
 test_concurrent
