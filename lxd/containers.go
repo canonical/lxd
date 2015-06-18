@@ -2533,106 +2533,100 @@ func (s *execWs) Do() shared.OperationResult {
 
 	controlExit := make(chan bool)
 
-	go func() {
-		if s.interactive {
-			go func() {
-				select {
-				case <-s.controlConnected:
-					break
+	if s.interactive {
+		go func() {
+			select {
+			case <-s.controlConnected:
+				break
 
-				case <-controlExit:
-					return
+			case <-controlExit:
+				return
+			}
+
+			for {
+				mt, r, err := s.conns[-1].NextReader()
+				if mt == websocket.CloseMessage {
+					break
 				}
 
-				for {
-					mt, r, err := s.conns[-1].NextReader()
-					if mt == websocket.CloseMessage {
-						break
-					}
+				if err != nil {
+					shared.Debugf("got error getting next reader %s", err)
+					break
+				}
 
+				buf, err := ioutil.ReadAll(r)
+				if err != nil {
+					shared.Debugf("failed to read message %s", err)
+					break
+				}
+
+				command := shared.ContainerExecControl{}
+
+				if err := json.Unmarshal(buf, &command); err != nil {
+					shared.Debugf("failed to unmarshal control socket command: %s", err)
+					continue
+				}
+
+				if command.Command == "window-resize" {
+					winch_width, err := strconv.Atoi(command.Args["width"])
 					if err != nil {
-						shared.Debugf("got error getting next reader %s", err)
-						break
-					}
-
-					buf, err := ioutil.ReadAll(r)
-					if err != nil {
-						shared.Debugf("failed to read message %s", err)
-						break
-					}
-
-					command := shared.ContainerExecControl{}
-
-					if err := json.Unmarshal(buf, &command); err != nil {
-						shared.Debugf("failed to unmarshal control socket command: %s", err)
+						shared.Debugf("Unable to extract window width: %s", err)
 						continue
 					}
 
-					if command.Command == "window-resize" {
-						winch_width, err := strconv.Atoi(command.Args["width"])
-						if err != nil {
-							shared.Debugf("Unable to extract window width: %s", err)
-							continue
-						}
-
-						winch_height, err := strconv.Atoi(command.Args["height"])
-						if err != nil {
-							shared.Debugf("Unable to extract window height: %s", err)
-							continue
-						}
-
-						err = shared.SetSize(int(ptys[0].Fd()), winch_width, winch_height)
-						if err != nil {
-							shared.Debugf("Failed to set window size to: %dx%d", winch_width, winch_height)
-						}
+					winch_height, err := strconv.Atoi(command.Args["height"])
+					if err != nil {
+						shared.Debugf("Unable to extract window height: %s", err)
+						continue
 					}
 
+					err = shared.SetSize(int(ptys[0].Fd()), winch_width, winch_height)
 					if err != nil {
-						shared.Debugf("got error writing to writer %s", err)
-						break
+						shared.Debugf("Failed to set window size to: %dx%d", winch_width, winch_height)
 					}
 				}
-			}()
 
-			shared.WebsocketMirror(s.conns[0], ptys[0], ptys[0])
-		} else {
-			for i := 0; i < len(ttys); i++ {
-				go func(i int) {
-					if i == 0 {
-						<-shared.WebsocketRecvStream(ttys[i], s.conns[i])
-						ttys[i].Close()
-					} else {
-						<-shared.WebsocketSendStream(s.conns[i], ptys[i])
-						ptys[i].Close()
-					}
-				}(i)
+				if err != nil {
+					shared.Debugf("got error writing to writer %s", err)
+					break
+				}
 			}
+		}()
+
+		shared.WebsocketMirror(s.conns[0], ptys[0], ptys[0])
+	} else {
+		for i := 0; i < len(ttys); i++ {
+			go func(i int) {
+				if i == 0 {
+					<-shared.WebsocketRecvStream(ttys[i], s.conns[i])
+					ttys[i].Close()
+				} else {
+					<-shared.WebsocketSendStream(s.conns[i], ptys[i])
+					ptys[i].Close()
+				}
+			}(i)
 		}
+	}
 
-		result := runCommand(
-			s.container,
-			s.command,
-			s.options,
-		)
+	result := runCommand(
+		s.container,
+		s.command,
+		s.options,
+	)
 
-		for _, tty := range ttys {
-			tty.Close()
-		}
+	for _, tty := range ttys {
+		tty.Close()
+	}
 
-		for _, pty := range ptys {
-			pty.Close()
-		}
-
-		s.done <- result
-	}()
-
-	done := <-s.done
+	for _, pty := range ptys {
+		pty.Close()
+	}
 
 	if s.interactive && s.conns[-1] == nil {
 		controlExit <- true
 	}
 
-	return done
+	return result
 }
 
 type commandPostContent struct {
