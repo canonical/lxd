@@ -38,13 +38,15 @@ func dialAndSendCreds(path string) (*net.UnixConn, error) {
 	}
 
 	ucred := syscall.Ucred{
-		Pid: int32(os.Getpid()),
+		Pid: int32(syscall.Gettid()),
 		Uid: uint32(os.Getuid()),
 		Gid: uint32(os.Getgid()),
 	}
 
 	oob := syscall.UnixCredentials(&ucred)
+	fmt.Printf("dialAndSendCreds: oob is %q\n", oob)
 	n, oobn, err := conn.WriteMsgUnix(nil, oob, nil)
+	fmt.Printf("dialAndSendCreds: got back %d %d %q", n, oobn, err)
 	if n != 0 {
 		return nil, fmt.Errorf("wrote nonzero number bytes?")
 	}
@@ -80,6 +82,7 @@ func TestCredsSendRecv(t *testing.T) {
 		}
 		defer conn.Close()
 
+		fmt.Printf("yes i can debug here")
 		pid, err := getPid(conn)
 		if err != nil {
 			t.Log(err)
@@ -96,6 +99,7 @@ func TestCredsSendRecv(t *testing.T) {
 	defer conn.Close()
 
 	pid := <-result
+	fmt.Printf("got back pid %d;  I am tid %d\n", int(pid), int(syscall.Gettid()))
 	if pid != int32(os.Getpid()) {
 		t.Fatal("pid mismatch: ", pid, os.Getpid())
 	}

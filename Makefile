@@ -23,7 +23,7 @@ protobuf:
 
 .PHONY: check
 check: default
-	go test ./...
+	go test -v ./...
 	cd test && ./main.sh
 
 .PHONY: dist
