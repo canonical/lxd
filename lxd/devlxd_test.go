@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/lxc/lxd"
 )
@@ -92,6 +93,7 @@ func TestCredsSendRecv(t *testing.T) {
 		result <- pid
 	}()
 
+	time.Sleep(3 * time.Second)
 	conn, err := dialAndSendCreds("/tmp/tester/devlxd")
 	if err != nil {
 		t.Fatal(err)
