@@ -32,7 +32,7 @@ func (d DevLxdDialer) DevLxdDial(network, path string) (net.Conn, error) {
 }
 
 var DevLxdTransport = &http.Transport{
-	Dial: DevLxdDialer{"/dev/lxd"}.DevLxdDial,
+	Dial: DevLxdDialer{"/dev/lxd/sock"}.DevLxdDial,
 }
 
 func main() {
