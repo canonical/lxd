@@ -83,7 +83,7 @@ func TestCredsSendRecv(t *testing.T) {
 		result <- pid
 	}()
 
-	conn, err := connect("/tmp/tester/devlxd")
+	conn, err := connect("/tmp/tester/devlxd/sock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestHttpRequest(t *testing.T) {
 	}
 	defer d.Stop()
 
-	c := http.Client{Transport: &http.Transport{Dial: DevLxdDialer{Path: "/tmp/tester/devlxd"}.DevLxdDial}}
+	c := http.Client{Transport: &http.Transport{Dial: DevLxdDialer{Path: "/tmp/tester/devlxd/sock"}.DevLxdDial}}
 
 	raw, err := c.Get("http://1.0")
 	if err != nil {

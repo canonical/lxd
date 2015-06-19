@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -110,12 +111,13 @@ func hoistReq(f func(*lxdContainer, *http.Request) *DevLxdResponse, d *Daemon) f
 }
 
 func createAndBindDevLxd() (*net.UnixListener, error) {
-	path := socketPath()
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("couldn't remove old devlxd: %s", err)
+
+	if err := os.MkdirAll(socketPath(), 0777); err != nil {
+		return nil, err
 	}
 
-	unixAddr, err := net.ResolveUnixAddr("unix", path)
+	sockFile := path.Join(socketPath(), "sock")
+	unixAddr, err := net.ResolveUnixAddr("unix", sockFile)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +127,7 @@ func createAndBindDevLxd() (*net.UnixListener, error) {
 		return nil, err
 	}
 
-	if err := os.Chmod(path, 0666); err != nil {
+	if err := os.Chmod(sockFile, 0666); err != nil {
 		return nil, err
 	}
 
@@ -133,7 +135,7 @@ func createAndBindDevLxd() (*net.UnixListener, error) {
 }
 
 func setupDevLxdMount(c *lxc.Container) error {
-	mtab := fmt.Sprintf("%s dev/lxd none bind,create=file 0 0", socketPath())
+	mtab := fmt.Sprintf("%s dev/lxd none bind,create=dir 0 0", socketPath())
 	return c.SetConfigItem("lxc.mount.entry", mtab)
 }
 
