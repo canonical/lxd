@@ -12,16 +12,8 @@ before_install:
   - sudo apt-get install -y acl lxc lxc-dev sqlite3 jq busybox-static protobuf-compiler
 
 install:
-  - go get -v github.com/golang/protobuf/...
-  - go get golang.org/x/tools/cmd/vet
-  - mkdir -p $GOPATH/github.com/lxc
-  - go get -v -d ./...
-  - rsync -az ${TRAVIS_BUILD_DIR}/ $HOME/gopath/src/github.com/lxc/lxd/
-  - echo "root:100000:65536" | sudo tee /etc/subuid
-  - echo "root:100000:65536" | sudo tee /etc/subgid
-  - sudo stop cgmanager
-  - sudo -E env PATH=$PATH env
+  - make tests
 
-script: "sudo -E env PATH=$PATH make check"
+script: "sudo -E env PATH=$PATH test/scmtest"
 notifications:
   webhooks: https://linuxcontainers.org/webhook-lxcbot/

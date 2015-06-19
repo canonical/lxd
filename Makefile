@@ -23,7 +23,7 @@ protobuf:
 
 .PHONY: check
 check: default
-	go test ./...
+	go test -v ./...
 	cd test && ./main.sh
 
 .PHONY: dist
@@ -56,6 +56,11 @@ update-pot:
 	xgettext -d $(DOMAIN) -s client.go lxc/*.go -o po/$(DOMAIN).pot -L vala -i --keyword=Gettext
 
 build-mo: $(MOFILES)
+
+TESTS_SCM: test/scmtest.c
+	$(CC) -o test/scmtest test/scmtest.c
+
+tests: TESTS_SCM
 
 static-analysis:
 	/bin/bash -x -c ". test/static_analysis.sh; static_analysis"

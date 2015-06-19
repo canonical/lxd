@@ -102,6 +102,8 @@ cleanup() {
         [ -n "${dir}" ] && wipe "${dir}"
     done
 
+    rm -f devlxd-client || true
+
     echo ""
     echo ""
     echo "==> Test result: $RESULT"
@@ -129,6 +131,7 @@ fi
 . ./profiling.sh
 . ./fdleak.sh
 . ./database_update.sh
+. ./devlxd.sh
 
 if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
@@ -215,6 +218,9 @@ test_config_profiles
 
 echo "==> TEST: server config"
 test_server_config
+
+echo "==> TEST: devlxd"
+test_devlxd
 
 if type fuidshift >/dev/null 2>&1; then
     echo "==> TEST: uidshift"
