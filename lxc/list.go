@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/chai2010/gettext-go/gettext"
@@ -11,6 +12,20 @@ import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 )
+
+type ByName [][]string
+
+func (a ByName) Len() int {
+	return len(a)
+}
+
+func (a ByName) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a ByName) Less(i, j int) bool {
+	return a[i][0] < a[j][0]
+}
 
 type listCmd struct{}
 
@@ -140,9 +155,8 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"NAME", "STATE", "IPV4", "IPV6", "EPHEMERAL", "SNAPSHOTS"})
 
-	for _, v := range data {
-		table.Append(v)
-	}
+	sort.Sort(ByName(data))
+	table.AppendBulk(data)
 
 	table.Render() // Send output
 
