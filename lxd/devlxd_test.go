@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -27,6 +28,14 @@ func setupSocket() (*net.UnixListener, error) {
 	return createAndBindDevLxd()
 }
 
+func enablePassingCredsOnConn(connPtr *net.UnixConn) error {
+	conn := reflect.Indirect(reflect.ValueOf(connPtr))
+	netFdPtr := conn.FieldByName("fd")
+	netFd := reflect.Indirect(netFdPtr)
+	fd := netFd.FieldByName("sysfd")
+	return syscall.SetsockoptInt(int(fd.Int()), syscall.SOL_SOCKET, syscall.SO_PASSCRED, 1)
+}
+
 func dialAndSendCreds(path string) (*net.UnixConn, error) {
 	addr, err := net.ResolveUnixAddr("unix", path)
 	if err != nil {
@@ -37,6 +46,12 @@ func dialAndSendCreds(path string) (*net.UnixConn, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if err := enablePassingCredsOnConn(conn); err != nil {
+		fmt.Printf("failed setting passcred on sender: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("enabled so_passcred on sending edn\n")
 
 	ucred := syscall.Ucred{
 		Pid: int32(syscall.Gettid()),
