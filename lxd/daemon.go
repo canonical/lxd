@@ -38,6 +38,8 @@ type Daemon struct {
 	remoteSockets []net.Listener
 
 	tlsconfig *tls.Config
+
+	devlxd *net.UnixListener
 }
 
 type Command struct {
@@ -396,6 +398,10 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.localSockets = localSockets
 	d.remoteSockets = remoteSockets
+	d.devlxd, err = createAndBindDevLxd()
+	if err != nil {
+		return nil, err
+	}
 
 	containersRestart(d)
 	containersWatch(d)
@@ -409,6 +415,11 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 			shared.Debugf(" - binding remote socket: %s\n", socket.Addr())
 			d.tomb.Go(func() error { return http.Serve(socket, d.mux) })
 		}
+
+		d.tomb.Go(func() error {
+			server := devLxdServer(d)
+			return server.Serve(d.devlxd)
+		})
 		return nil
 	})
 
@@ -437,6 +448,8 @@ func (d *Daemon) Stop() error {
 	for _, socket := range d.remoteSockets {
 		socket.Close()
 	}
+
+	d.devlxd.Close()
 
 	err := d.tomb.Wait()
 	if err == errStop {

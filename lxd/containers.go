@@ -100,18 +100,17 @@ func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
 }
 
 func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? ORDER BY name")
-	inargs := []interface{}{cTypeRegular}
-	var container string
-	outfmt := []interface{}{container}
-	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	result, err := dbListContainers(d)
+	if err != nil {
+		return nil, err
+	}
+
 	result_string := make([]string, 0)
 	result_map := make([]shared.ContainerInfo, 0)
 	if err != nil {
 		return []string{}, err
 	}
-	for _, r := range result {
-		container := string(r[0].(string))
+	for _, container := range result {
 		if !recursion {
 			url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
 			result_string = append(result_string, url)
@@ -1963,6 +1962,10 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	}
 	err = c.SetConfigItem("lxc.tty", "0")
 	if err != nil {
+		return nil, err
+	}
+
+	if err := setupDevLxdMount(c); err != nil {
 		return nil, err
 	}
 
