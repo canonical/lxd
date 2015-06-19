@@ -57,5 +57,10 @@ update-pot:
 
 build-mo: $(MOFILES)
 
+TESTS_SCM: test/scmtest.c
+	$(CC) -o test/scmtest test/scmtest.c
+
+tests: TESTS_SCM
+
 static-analysis:
 	/bin/bash -x -c ". test/static_analysis.sh; static_analysis"
