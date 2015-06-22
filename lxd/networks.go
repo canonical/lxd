@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"path"
@@ -59,16 +58,7 @@ type network struct {
 func children(iface string) []string {
 	p := path.Join(shared.SYS_CLASS_NET, iface, "brif")
 
-	var ret []string
-
-	ents, err := ioutil.ReadDir(p)
-	if err != nil {
-		return ret
-	}
-
-	for _, ent := range ents {
-		ret = append(ret, ent.Name())
-	}
+	ret, _ := shared.ReadDir(p)
 
 	return ret
 }
