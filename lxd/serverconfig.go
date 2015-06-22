@@ -4,8 +4,9 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"golang.org/x/crypto/scrypt"
 	"io"
+
+	"golang.org/x/crypto/scrypt"
 
 	"github.com/lxc/lxd/shared"
 )
