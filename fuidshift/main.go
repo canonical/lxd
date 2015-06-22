@@ -8,8 +8,10 @@ import (
 )
 
 func help(me string, status int) {
-	fmt.Printf("Usage: %s directory [-t] <range1> [<range2> ...]\n", me)
+	fmt.Printf("Usage: %s directory [-t] [-r] <range1> [<range2> ...]\n", me)
 	fmt.Printf("  -t implies test mode.  No file ownerships will be changed.\n")
+	fmt.Printf("  -r means reverse, that is shift the uids out of hte container.\n")
+	fmt.Printf("\n")
 	fmt.Printf("  A range is [u|b|g]:<first_container_id:first_host_id:range>.\n")
 	fmt.Printf("  where u means shift uids, g means shift gids, b means shift both.\n")
 	fmt.Printf("  For example: %s directory b:0:100000:65536 u:10000:1000:1\n", me)
@@ -35,10 +37,13 @@ func run() error {
 	directory := os.Args[1]
 	idmap := shared.IdmapSet{}
 	testmode := false
+	reverse := false
 
 	for pos := 2; pos < len(os.Args); pos++ {
 
 		switch os.Args[pos] {
+		case "-r", "--reverse":
+			reverse = true
 		case "t", "-t", "--test", "test":
 			testmode = true
 		default:
@@ -60,5 +65,8 @@ func run() error {
 		os.Exit(1)
 	}
 
+	if reverse {
+		return idmap.UidshiftFromContainer(directory, testmode)
+	}
 	return idmap.UidshiftIntoContainer(directory, testmode)
 }
