@@ -20,9 +20,9 @@ import (
 type idmapEntry struct {
 	isuid    bool
 	isgid    bool
-	hostid   int
+	hostid   int // id as seen on the host - i.e. 100000
 	nsid     int // id as seen in the ns - i.e. 0
-	maprange int // id as seen on the host - i.e. 100000
+	maprange int
 }
 
 func (e *idmapEntry) ToLxcString() string {
@@ -100,6 +100,7 @@ func (e *idmapEntry) parse(s string) error {
 
 /*
  * Shift a uid from the host into the container
+ * I.e. 0 -> 1000 -> 101000
  */
 func (e *idmapEntry) shift_into_ns(id int) (int, error) {
 	if id < e.nsid || id >= e.nsid+e.maprange {
@@ -108,6 +109,19 @@ func (e *idmapEntry) shift_into_ns(id int) (int, error) {
 	}
 
 	return id - e.nsid + e.hostid, nil
+}
+
+/*
+ * Shift a uid from the container back to the host
+ * I.e. 101000 -> 1000
+ */
+func (e *idmapEntry) shift_from_ns(id int) (int, error) {
+	if id < e.hostid || id >= e.hostid+e.maprange {
+		// this mapping doesn't apply
+		return 0, fmt.Errorf("N/A")
+	}
+
+	return id - e.hostid + e.nsid, nil
 }
 
 /* taken from http://blog.golang.org/slices (which is under BSD licence) */
@@ -163,18 +177,30 @@ func (m IdmapSet) Append(s string) (IdmapSet, error) {
 	return m, nil
 }
 
-func (m IdmapSet) ShiftIntoNs(uid int, gid int) (int, int) {
+func (m IdmapSet) doShiftIntoNs(uid int, gid int, how string) (int, int) {
 	u := -1
 	g := -1
 	for _, e := range m.idmap {
+		var err error
+		var tmpu, tmpg int
 		if e.isuid && u == -1 {
-			tmpu, err := e.shift_into_ns(uid)
+			switch how {
+			case "in":
+				tmpu, err = e.shift_into_ns(uid)
+			case "out":
+				tmpu, err = e.shift_from_ns(uid)
+			}
 			if err == nil {
 				u = tmpu
 			}
 		}
 		if e.isgid && g == -1 {
-			tmpg, err := e.shift_into_ns(gid)
+			switch how {
+			case "in":
+				tmpg, err = e.shift_into_ns(gid)
+			case "out":
+				tmpg, err = e.shift_from_ns(gid)
+			}
 			if err == nil {
 				g = tmpg
 			}
@@ -182,6 +208,14 @@ func (m IdmapSet) ShiftIntoNs(uid int, gid int) (int, int) {
 	}
 
 	return u, g
+}
+
+func (m IdmapSet) ShiftIntoNs(uid int, gid int) (int, int) {
+	return m.doShiftIntoNs(uid, gid, "in")
+}
+
+func (m IdmapSet) ShiftFromNs(uid int, gid int) (int, int) {
+	return m.doShiftIntoNs(uid, gid, "out")
 }
 
 func getOwner(path string) (int, int, error) {
@@ -195,13 +229,19 @@ func getOwner(path string) (int, int, error) {
 	return uid, gid, nil
 }
 
-func (set *IdmapSet) UidshiftIntoContainer(dir string, testmode bool) error {
+func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how string) error {
 	convert := func(path string, fi os.FileInfo, err error) (e error) {
 		uid, gid, err := getOwner(path)
 		if err != nil {
 			return err
 		}
-		newuid, newgid := set.ShiftIntoNs(uid, gid)
+		var newuid, newgid int
+		switch how {
+		case "in":
+			newuid, newgid = set.ShiftIntoNs(uid, gid)
+		case "out":
+			newuid, newgid = set.ShiftFromNs(uid, gid)
+		}
 		if testmode {
 			fmt.Printf("I would shift %q to %d %d\n", path, newuid, newgid)
 		} else {
@@ -225,8 +265,20 @@ func (set *IdmapSet) UidshiftIntoContainer(dir string, testmode bool) error {
 	return filepath.Walk(dir, convert)
 }
 
+func (set *IdmapSet) UidshiftIntoContainer(dir string, testmode bool) error {
+	return set.doUidshiftIntoContainer(dir, testmode, "in")
+}
+
+func (set *IdmapSet) UidshiftFromContainer(dir string, testmode bool) error {
+	return set.doUidshiftIntoContainer(dir, testmode, "out")
+}
+
 func (set *IdmapSet) ShiftRootfs(p string) error {
-	return set.UidshiftIntoContainer(p, false)
+	return set.doUidshiftIntoContainer(p, false, "in")
+}
+
+func (set *IdmapSet) UnshiftRootfs(p string) error {
+	return set.doUidshiftIntoContainer(p, false, "out")
 }
 
 const (
