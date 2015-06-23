@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-06-09 17:52+0200\n"
+        "POT-Creation-Date: 2015-06-23 17:56-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -97,7 +97,7 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1437
+#: client.go:1438
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -153,17 +153,19 @@ msgstr  ""
 #: lxc/delete.go:20
 msgid   "Delete a container or container snapshot.\n"
         "\n"
-        "Destroy a container (or snapshot) and any attached data "
+        "lxc delete <container>[/<snapshot>]\n"
+        "\n"
+        "Destroy a container or snapshot with any attached data "
         "(configuration,\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:398
+#: lxc/config.go:417
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:426
+#: lxc/config.go:445
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -263,7 +265,7 @@ msgid   "List information on containers.\n"
         "lxc info [<remote>:]container [--show-log]\n"
 msgstr  ""
 
-#: lxc/list.go:23
+#: lxc/list.go:38
 msgid   "Lists the available resources.\n"
         "\n"
         "lxc list [resource] [filters]\n"
@@ -341,7 +343,13 @@ msgid   "Manage configuration.\n"
         "container configuration in external editor\n"
         "lxc config get <container> key                         Get "
         "configuration key\n"
-        "lxc config set <container> key [value]                 Set container "
+        "lxc config set <container> key value                   Set container "
+        "configuration key\n"
+        "lxc config unset <container> key                       Unset "
+        "container configuration key\n"
+        "lxc config set key value                               Set server "
+        "configuration key\n"
+        "lxc config unset key                                   Unset server "
         "configuration key\n"
         "lxc config show <container>                            Show "
         "container configuration\n"
@@ -438,7 +446,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move <source container> <destination container>\n"
 msgstr  ""
 
-#: lxc/config.go:158
+#: lxc/config.go:177
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -446,7 +454,7 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:181
+#: lxc/config.go:200
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -527,7 +535,7 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:204
+#: lxc/config.go:223
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
@@ -539,7 +547,7 @@ msgstr  ""
 msgid   "Size: %.2vMB\n"
 msgstr  ""
 
-#: lxc/delete.go:68
+#: lxc/delete.go:70
 msgid   "Stopping container failed!"
 msgstr  ""
 
@@ -561,7 +569,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:195
+#: lxc/config.go:214
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
@@ -588,7 +596,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:354 lxc/image.go:375 lxc/profile.go:197
+#: lxc/config.go:373 lxc/image.go:375 lxc/profile.go:197
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -600,7 +608,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1468
+#: client.go:1469
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -609,7 +617,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1472
+#: client.go:1473
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -644,7 +652,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1110
+#: client.go:1111
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -663,7 +671,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1255
+#: client.go:1256
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -685,7 +693,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1514 client.go:1568
+#: client.go:1515 client.go:1569
 msgid   "no value found in %q\n"
 msgstr  ""
 
