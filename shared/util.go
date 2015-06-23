@@ -681,3 +681,16 @@ func SetSize(fd int, width int, height int) (err error) {
 	}
 	return nil
 }
+
+func ReadDir(p string) ([]string, error) {
+	ents, err := ioutil.ReadDir(p)
+	if err != nil {
+		return []string{}, err
+	}
+
+	var ret []string
+	for _, ent := range ents {
+		ret = append(ret, ent.Name())
+	}
+	return ret, nil
+}
