@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1849,7 +1850,14 @@ func (c *lxdContainer) applyIdmapSet() error {
 }
 
 func (c *lxdContainer) applyDevices() error {
-	for name, d := range c.devices {
+	var keys []string
+	for k := range c.devices {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, name := range keys {
+		d := c.devices[name]
 		if name == "type" {
 			continue
 		}
