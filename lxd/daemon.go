@@ -33,6 +33,7 @@ type Daemon struct {
 	mux         *mux.Router
 	clientCerts []x509.Certificate
 	db          *sql.DB
+	BackingFs   string
 
 	localSockets  []net.Listener
 	remoteSockets []net.Listener
@@ -272,6 +273,11 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	err = os.MkdirAll(d.lxcpath, 0755)
 	if err != nil {
 		return nil, err
+	}
+
+	d.BackingFs, err = shared.GetFilesystem(d.lxcpath)
+	if err != nil {
+		shared.Debugf("Error detecting backing fs: %s\n", err)
 	}
 
 	certf, keyf, err := readMyCert()

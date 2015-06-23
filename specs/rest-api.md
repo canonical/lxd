@@ -698,12 +698,13 @@ In the http file upload case, The following headers may be set by the client:
 In the source container case, the following dict must be passed:
 
     {
-        "public": true,             # True or False
+        "public":   true,         # True or False
+        "filename": filename,     # Used for export
         "source": {
-            "type": "container",    # One of "container" or "snapshot"
+            "type": "container",  # One of "container" or "snapshot"
             "name": "abc"
         },
-        "properties": {             # Image properties
+        "properties": {           # Image properties
             "os": "Ubuntu",
         }
     }
