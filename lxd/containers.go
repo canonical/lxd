@@ -2130,37 +2130,47 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("missing path argument"))
 	}
 
-	var rootfs string
-	if c.c.Running() {
-		rootfs = fmt.Sprintf("/proc/%d/root", c.c.InitPid())
-	} else {
-		/*
-		 * TODO: We should ask LXC about whether or not this rootfs is a block
-		 * device, and if it is, whether or not it is actually mounted.
-		 */
-		rootfs = shared.VarPath("lxc", name, "rootfs")
-	}
-
-	/*
-	 * Make sure someone didn't pass in ../../../etc/shadow or something.
-	 */
-	p := path.Clean(path.Join(rootfs, targetPath))
-	if !strings.HasPrefix(p, path.Clean(rootfs)) {
-		return BadRequest(fmt.Errorf("%s is not in the container's rootfs", p))
+	if !c.c.Running() {
+		return BadRequest(fmt.Errorf("container is not running"))
 	}
 
 	switch r.Method {
 	case "GET":
-		return containerFileGet(r, p)
+		return containerFileGet(c.c.InitPid(), r, targetPath)
 	case "POST":
-		return containerFilePut(r, p, c.idmapset)
+		return containerFilePut(c.c.InitPid(), r, targetPath, c.idmapset)
 	default:
 		return NotFound
 	}
 }
 
-func containerFileGet(r *http.Request, path string) Response {
-	fi, err := os.Stat(path)
+func containerFileGet(pid int, r *http.Request, path string) Response {
+
+	/*
+	 * Copy out of the ns to a temporary file, and then use that to serve
+	 * the request from. This prevents us from having to worry about stuff
+	 * like people breaking out of the container root by symlinks or
+	 * ../../../s etc. in the path, since we can just rely on the kernel
+	 * for correctness.
+	 */
+	temp, err := ioutil.TempFile("", "lxd_forkgetfile_")
+	if err != nil {
+		return InternalError(err)
+	}
+	defer temp.Close()
+
+	cmd := exec.Command(
+		os.Args[0],
+		"forkgetfile",
+		temp.Name(),
+		fmt.Sprintf("%d", pid),
+		path,
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return InternalError(fmt.Errorf("%s: %s", err.Error(), string(out)))
+	}
+
+	fi, err := temp.Stat()
 	if err != nil {
 		return SmartError(err)
 	}
@@ -2177,10 +2187,10 @@ func containerFileGet(r *http.Request, path string) Response {
 		"X-LXD-mode": fmt.Sprintf("%04o", fi.Mode()&os.ModePerm),
 	}
 
-	return FileResponse(r, path, filepath.Base(path), headers)
+	return FileResponse(r, temp.Name(), filepath.Base(path), headers, true)
 }
 
-func containerFilePut(r *http.Request, p string, idmapset *shared.IdmapSet) Response {
+func containerFilePut(pid int, r *http.Request, p string, idmapset *shared.IdmapSet) Response {
 
 	uid, gid, mode, err := shared.ParseLXDFileHeaders(r.Header)
 	if err != nil {
@@ -2191,34 +2201,33 @@ func containerFilePut(r *http.Request, p string, idmapset *shared.IdmapSet) Resp
 		return BadRequest(fmt.Errorf("unmapped uid or gid specified"))
 	}
 
-	fileinfo, err := os.Stat(path.Dir(p))
+	temp, err := ioutil.TempFile("", "lxd_forkputfile_")
 	if err != nil {
-		return SmartError(err)
+		return InternalError(err)
 	}
+	defer func() {
+		temp.Close()
+		os.Remove(temp.Name())
+	}()
 
-	if !(fileinfo.IsDir()) {
-		return SmartError(os.ErrNotExist)
-	}
-
-	f, err := os.Create(p)
-	if err != nil {
-		return SmartError(err)
-	}
-	defer f.Close()
-
-	err = f.Chmod(mode)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	err = f.Chown(uid, gid)
+	_, err = io.Copy(temp, r.Body)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	_, err = io.Copy(f, r.Body)
+	cmd := exec.Command(
+		os.Args[0],
+		"forkputfile",
+		temp.Name(),
+		fmt.Sprintf("%d", pid),
+		p,
+		fmt.Sprintf("%d", uid),
+		fmt.Sprintf("%d", gid),
+		fmt.Sprintf("%d", mode&os.ModePerm),
+	)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return InternalError(err)
+		return InternalError(fmt.Errorf("%s: %s", err.Error(), string(out)))
 	}
 
 	return EmptySyncResponse
