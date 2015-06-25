@@ -51,6 +51,9 @@ func run() error {
 			return startContainer(os.Args[1:])
 		case "forkmigrate":
 			return migration.MigrateContainer(os.Args[1:])
+			/*
+				case "forkputfile" and "forkgetfile" handled specially in copyfile.go
+			*/
 		}
 	}
 
