@@ -1622,3 +1622,38 @@ func (c *Client) ProfileCopy(name, newname string, dest *Client) error {
 	_, err = dest.post("profiles", body, Sync)
 	return err
 }
+
+func (c *Client) ImageFromContainer(cname string, public bool, aliases []string, properties map[string]string) (string, error) {
+
+	source := shared.Jmap{"type": "container", "name": cname}
+	if shared.IsSnapshot(cname) {
+		source["type"] = "snapshot"
+	}
+	body := shared.Jmap{"public": public, "source": source, "properties": properties}
+
+	resp, err := c.post("images", body, Sync)
+	if err != nil {
+		return "", err
+	}
+
+	jmap, err := resp.MetadataAsMap()
+	if err != nil {
+		return "", err
+	}
+
+	fingerprint, err := jmap.GetString("fingerprint")
+	if err != nil {
+		return "", err
+	}
+
+	/* add new aliases */
+	for _, alias := range aliases {
+		c.DeleteAlias(alias)
+		err = c.PostAlias(alias, alias, fingerprint)
+		if err != nil {
+			fmt.Printf(gettext.Gettext("Error adding alias %s\n"), alias)
+		}
+	}
+
+	return fingerprint, nil
+}
