@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/internal/gnuflag"
 )
 
-type publishCmd struct {}
+type publishCmd struct{}
 
 func (c *publishCmd) showByDefault() bool {
 	return true

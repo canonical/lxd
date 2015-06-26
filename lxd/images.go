@@ -208,9 +208,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
 	}
 
 	arch = c.architecture
-	for key, value := range req.Properties {
-		properties[key] = value
-	}
+	properties = req.Properties
 
 	return
 }
