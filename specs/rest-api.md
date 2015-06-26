@@ -501,7 +501,8 @@ The following headers will be set (on top of standard size and mimetype headers)
  * X-LXD-gid: 0
  * X-LXD-mode: 0700
 
-This is designed to be easily usable from the command line or even a web browser.
+This is designed to be easily usable from the command line or even a web
+browser. This is only supported for currently running contianers.
 
 ### POST
  * Description: upload a file to the container
@@ -517,7 +518,8 @@ The following headers may be set by the client:
  * X-LXD-gid: 0
  * X-LXD-mode: 0700
 
-This is designed to be easily usable from the command line or even a web browser.
+This is designed to be easily usable from the command line or even a web
+browser. This is only supported for currently running containers.
 
 ## /1.0/containers/\<name\>/snapshots
 ### GET
