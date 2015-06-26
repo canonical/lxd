@@ -502,7 +502,7 @@ The following headers will be set (on top of standard size and mimetype headers)
  * X-LXD-mode: 0700
 
 This is designed to be easily usable from the command line or even a web
-browser. This is only supported for currently running contianers.
+browser. This is only supported for currently running containers.
 
 ### POST
  * Description: upload a file to the container
