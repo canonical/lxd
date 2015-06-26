@@ -10,9 +10,7 @@ import (
 	"github.com/lxc/lxd/internal/gnuflag"
 )
 
-type publishCmd struct {
-	httpAddr string
-}
+type publishCmd struct {}
 
 func (c *publishCmd) showByDefault() bool {
 	return true
