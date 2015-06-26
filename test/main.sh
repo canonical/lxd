@@ -121,6 +121,7 @@ fi
 . ./exec.sh
 . ./database.sh
 . ./deps.sh
+. ./filemanip.sh
 . ./fuidshift.sh
 . ./migration.sh
 . ./remote.sh
@@ -220,6 +221,9 @@ test_config_profiles
 
 echo "==> TEST: server config"
 test_server_config
+
+echo "==> TEST: filemanip"
+test_filemanip
 
 echo "==> TEST: devlxd"
 test_devlxd

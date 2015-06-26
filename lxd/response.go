@@ -36,14 +36,15 @@ type syncResponse struct {
   headers: any other headers that should be set in the response
 */
 type fileResponse struct {
-	req      *http.Request
-	path     string
-	filename string
-	headers  map[string]string
+	req              *http.Request
+	path             string
+	filename         string
+	headers          map[string]string
+	removeAfterServe bool
 }
 
-func FileResponse(r *http.Request, path string, filename string, headers map[string]string) Response {
-	return &fileResponse{r, path, filename, headers}
+func FileResponse(r *http.Request, path string, filename string, headers map[string]string, removeAfterServe bool) Response {
+	return &fileResponse{r, path, filename, headers, removeAfterServe}
 }
 
 func (r *fileResponse) Render(w http.ResponseWriter) error {
@@ -67,6 +68,10 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 	}
 
 	http.ServeContent(w, r.req, r.filename, fi.ModTime(), f)
+	if r.removeAfterServe {
+		os.Remove(r.filename)
+	}
+
 	return nil
 }
 
