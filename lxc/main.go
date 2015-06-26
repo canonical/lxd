@@ -142,6 +142,7 @@ var commands = map[string]command{
 	"list":     &listCmd{},
 	"move":     &moveCmd{},
 	"profile":  &profileCmd{},
+	"publish":  &publishCmd{},
 	"remote":   &remoteCmd{},
 	"restart":  &actionCmd{shared.Restart, true},
 	"restore":  &restoreCmd{},
