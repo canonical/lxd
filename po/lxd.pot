@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-06-23 17:56-0400\n"
+        "POT-Creation-Date: 2015-06-25 16:42-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -130,6 +130,10 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
+#: lxc/publish.go:55
+msgid   "Container name is mandatory"
+msgstr  ""
+
 #: lxc/image.go:81
 msgid   "Copy aliases from source"
 msgstr  ""
@@ -182,7 +186,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:543 client.go:553 client.go:695
+#: client.go:543 client.go:553 client.go:695 client.go:1651
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -284,6 +288,10 @@ msgstr  ""
 
 #: lxc/image.go:80
 msgid   "Make image public"
+msgstr  ""
+
+#: lxc/publish.go:32
+msgid   "Make the image public"
 msgstr  ""
 
 #: lxc/profile.go:48
@@ -494,6 +502,17 @@ msgstr  ""
 msgid   "Public: %s\n"
 msgstr  ""
 
+#: lxc/publish.go:23
+msgid   "Publish containers as images.\n"
+        "\n"
+        "lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-"
+        "key=prop-value]...\n"
+msgstr  ""
+
+#: lxc/publish.go:67
+msgid   "Publish to remote server is not supported yet"
+msgstr  ""
+
 #: lxc/remote.go:42
 msgid   "Remote admin password"
 msgstr  ""
@@ -549,6 +568,10 @@ msgstr  ""
 
 #: lxc/delete.go:70
 msgid   "Stopping container failed!"
+msgstr  ""
+
+#: lxc/publish.go:58
+msgid   "There is no \"image name\".  Did you want an alias?"
 msgstr  ""
 
 #: lxc/action.go:34
@@ -732,7 +755,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:154
+#: lxc/main.go:155
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 

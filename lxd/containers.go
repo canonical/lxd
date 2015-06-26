@@ -2770,3 +2770,42 @@ func startContainer(args []string) error {
 
 	return c.Start()
 }
+
+/*
+ * Export the container under @dir.  It will look like:
+ * dir/
+ *     metadata.yaml
+ *     rootfs/
+ */
+func (d *lxdContainer) exportToDir(snap, dir string) error {
+	if snap != "" && d.c.Running() {
+		return fmt.Errorf("Cannot export a running container as image")
+	}
+
+	source := shared.VarPath("lxc", d.name, "metadata.yaml")
+	dest := fmt.Sprintf("%s/metadata.yaml", dir)
+	if shared.PathExists(source) {
+		if err := shared.CopyFile(dest, source); err != nil {
+			return err
+		}
+	}
+
+	if snap != "" {
+		source = snapshotRootfsDir(d, snap)
+	} else {
+		source = shared.VarPath("lxc", d.name, "rootfs")
+	}
+	dest = fmt.Sprintf("%s/rootfs", dir)
+
+	// rsync the rootfs
+	err := exec.Command("rsync", "-a", "--devices", source, dest).Run()
+	if err != nil {
+		return err
+	}
+
+	// unshift
+	if !d.isPrivileged() {
+		err = d.idmapset.UnshiftRootfs(dest)
+	}
+	return err
+}

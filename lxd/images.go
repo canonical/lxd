@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -71,7 +72,7 @@ func detectCompression(fname string) (int, string, error) {
 }
 
 type imageFromContainerPostReq struct {
-	Name       string            `json:"name"`
+	Filename   string            `json:"filename"`
 	Public     bool              `json:"public"`
 	Source     map[string]string `json:"source"`
 	Properties map[string]string `json:"properties"`
@@ -84,14 +85,106 @@ type imageMetadata struct {
 	Templates     map[string]*TemplateEntry
 }
 
-func imgPostContInfo(r *http.Request, req imageFromContainerPostReq, builddir string) (public int,
-	fingerprint string, arch int,
-	filename string, size int64,
-	properties map[string]string, err error) {
-	return 0, "", 0, "", 0, properties, fmt.Errorf("Not implemented")
+/*
+ * This function takes a container or snapshot from the local image server and
+ * exports it as an image.
+ */
+func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
+	builddir string) (public int, fingerprint string, arch int,
+	filename string, size int64, properties map[string]string, err error) {
+
+	properties = map[string]string{}
+	name := req.Source["name"]
+	ctype := req.Source["type"]
+	if ctype == "" || name == "" {
+		return 0, "", 0, "", 0, properties, fmt.Errorf("No source provided")
+	}
+
+	switch ctype {
+	case "snapshot":
+		if !shared.IsSnapshot(name) {
+			return 0, "", 0, "", 0, properties, fmt.Errorf("Not a snapshot")
+		}
+	case "container":
+		if shared.IsSnapshot(name) {
+			return 0, "", 0, "", 0, properties, fmt.Errorf("This is a snapshot")
+		}
+	default:
+		return 0, "", 0, "", 0, properties, fmt.Errorf("Bad type")
+	}
+
+	filename = req.Filename
+	switch req.Public {
+	case true:
+		public = 1
+	case false:
+		public = 0
+	}
+
+	snap := ""
+	if ctype == "snapshot" {
+		fields := strings.SplitN(name, "/", 2)
+		if len(fields) != 2 {
+			return 0, "", 0, "", 0, properties, fmt.Errorf("Not a snapshot")
+		}
+		name = fields[0]
+		snap = fields[1]
+	}
+
+	c, err := newLxdContainer(name, d)
+	if err != nil {
+		return 0, "", 0, "", 0, properties, err
+	}
+
+	if err := c.exportToDir(snap, builddir); err != nil {
+		return 0, "", 0, "", 0, properties, err
+	}
+
+	// Build the actual image file
+	tarfname := fmt.Sprintf("%s.tar.xz", name)
+	tarpath := filepath.Join(builddir, tarfname)
+	args := []string{"-C", builddir, "--numeric-owner", "-Jcf", tarpath}
+	if shared.PathExists(filepath.Join(builddir, "metadata.yaml")) {
+		args = append(args, "metadata.yaml")
+	}
+	args = append(args, "rootfs")
+	output, err := exec.Command("tar", args...).CombinedOutput()
+	if err != nil {
+		shared.Debugf("image packing failed\n")
+		shared.Debugf("command was: tar %q\n", args)
+		shared.Debugf(string(output))
+		return 0, "", 0, "", 0, properties, err
+	}
+
+	// get the size and fingerprint
+	sha256 := sha256.New()
+	tarf, err := os.Open(tarpath)
+	if err != nil {
+		return 0, "", 0, "", 0, properties, err
+	}
+	size, err = io.Copy(sha256, tarf)
+	tarf.Close()
+	if err != nil {
+		return 0, "", 0, "", 0, properties, err
+	}
+	fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
+
+	/* rename the the file to the expected name so our caller can use it */
+	imagefname := filepath.Join(builddir, fingerprint)
+	err = os.Rename(tarpath, imagefname)
+	if err != nil {
+		return 0, "", 0, "", 0, properties, err
+	}
+
+	arch = c.architecture
+	for key, value := range req.Properties {
+		properties[key] = value
+	}
+
+	return
 }
 
-func getImgPostInfo(r *http.Request, builddir string) (public int,
+func getImgPostInfo(d *Daemon, r *http.Request, builddir string) (public int,
 	fingerprint string, arch int,
 	filename string, size int64,
 	properties map[string]string, err error) {
@@ -100,7 +193,7 @@ func getImgPostInfo(r *http.Request, builddir string) (public int,
 	decoder := json.NewDecoder(r.Body)
 	req := imageFromContainerPostReq{}
 	if err = decoder.Decode(&req); err == nil {
-		return imgPostContInfo(r, req, builddir)
+		return imgPostContInfo(d, r, req, builddir)
 	}
 
 	// ok we've got an image in the body
@@ -145,7 +238,7 @@ func getImgPostInfo(r *http.Request, builddir string) (public int,
 		return 0, "", 0, "", 0, properties, err
 	}
 
-	imagefname := fmt.Sprintf("%s/%s", builddir, fingerprint)
+	imagefname := filepath.Join(builddir, fingerprint)
 	err = os.Rename(tarfname, imagefname)
 	if err != nil {
 		return 0, "", 0, "", 0, properties, err
@@ -207,7 +300,7 @@ func removeImgWorkdir(d *Daemon, builddir string) {
 		/* todo: find the .btrfs file under dir */
 		fnamelist, _ := shared.ReadDir(builddir)
 		for _, fname := range fnamelist {
-			subvol := fmt.Sprintf("%s/%s", builddir, fname)
+			subvol := filepath.Join(builddir, fname)
 			exec.Command("btrfs", "subvolume", "delete", subvol).Run()
 		}
 	}
@@ -220,7 +313,7 @@ func removeImgWorkdir(d *Daemon, builddir string) {
 func buildOtherFs(d *Daemon, builddir string, fp string) error {
 	switch d.BackingFs {
 	case "btrfs":
-		imagefname := fmt.Sprintf("%s/%s", builddir, fp)
+		imagefname := filepath.Join(builddir, fp)
 		subvol := fmt.Sprintf("%s.btrfs", imagefname)
 		if err := makeBtrfsSubvol(imagefname, subvol); err != nil {
 			return err
@@ -231,7 +324,7 @@ func buildOtherFs(d *Daemon, builddir string, fp string) error {
 
 // Copy imagefile and btrfs file out of the tmpdir
 func pullOutImagefiles(d *Daemon, builddir string, fp string) error {
-	imagefname := fmt.Sprintf("%s/%s", builddir, fp)
+	imagefname := filepath.Join(builddir, fp)
 	finalName := shared.VarPath("images", fp)
 	subvol := fmt.Sprintf("%s.btrfs", imagefname)
 
@@ -324,7 +417,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	defer removeImgWorkdir(d, builddir)
 
 	/* Grab all info from the web request */
-	public, fingerprint, arch, filename, size, properties, err := getImgPostInfo(r, builddir)
+	public, fingerprint, arch, filename, size, properties, err := getImgPostInfo(d, r, builddir)
 	if err != nil {
 		return SmartError(err)
 	}
