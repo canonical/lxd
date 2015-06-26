@@ -1,0 +1,80 @@
+_lxc_complete()
+{
+  _lxc_names()
+  {
+    COMPREPLY=( $( compgen -W \
+      "$( lxc list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
+    )
+  }
+
+  _lxc_images()
+  {
+    COMPREPLY=( $( compgen -W \
+      "$( lxc image list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
+    )
+  }
+
+  local cur prev
+
+  COMPREPLY=()
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  lxc_cmds="config copy delete exec file finger help image info init launch \
+    list move profile remote restart restore snapshot start stop version"
+
+  if [ $COMP_CWORD -eq 1 ]; then
+    COMPREPLY=( $(compgen -W "$lxc_cmds" -- $cur) )
+  elif [ $COMP_CWORD -eq 2 ]; then
+    case "$prev" in
+      "config")
+        COMPREPLY=( $(compgen -W "device edit get set show trust" -- $cur) )
+        ;;
+      "exec")
+        _lxc_names
+        ;;
+      "exec")
+        COMPREPLY=( $(compgen -W "pull push" -- $cur) )
+        ;;
+      "help")
+        COMPREPLY=( $(compgen -W "$lxc_cmds" -- $cur) )
+        ;;
+      "image")
+        COMPREPLY=( $(compgen -W "copy delete edit export info list" -- $cur) )
+        ;;
+      "info")
+        _lxc_names
+        ;;
+      "launch")
+        _lxc_images
+        ;;
+      "profile")
+        COMPREPLY=( $(compgen -W \
+          "list show create edit copy set delete apply" -- $cur) )
+        ;;
+      "remote")
+        COMPREPLY=( $(compgen -W \
+          "add remove list rename set-url set-default get-default" -- $cur) )
+        ;;
+      "restart")
+        _lxc_names
+        ;;
+      "snapshot")
+        _lxc_names
+        ;;
+      "start")
+        # should check if containers are stopped
+        _lxc_names
+        ;;
+      "stop")
+        # should check if containers are started
+        _lxc_names
+        ;;
+      *)
+        ;;
+    esac
+  fi
+
+  return 0
+}
+
+complete -F _lxc_complete lxc
