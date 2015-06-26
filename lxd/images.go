@@ -100,10 +100,17 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
 		return 0, "", 0, "", 0, properties, fmt.Errorf("No source provided")
 	}
 
-	if ctype == "snapshot" {
-		// we'll ned to get metadata from the container itself
-		// figure that out later
-		return 0, "", 0, "", 0, properties, fmt.Errorf("Snapshot export not yet implemnted")
+	switch ctype {
+	case "snapshot":
+		if !shared.IsSnapshot(name) {
+			return 0, "", 0, "", 0, properties, fmt.Errorf("Not a snapshot")
+		}
+	case "container":
+		if shared.IsSnapshot(name) {
+			return 0, "", 0, "", 0, properties, fmt.Errorf("This is a snapshot")
+		}
+	default:
+		return 0, "", 0, "", 0, properties, fmt.Errorf("Bad type")
 	}
 
 	filename = req.Filename
@@ -114,15 +121,25 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
 		public = 0
 	}
 
-	// Get the container to export itself
+	snap := ""
+	if ctype == "snapshot" {
+		fields := strings.SplitN(name, "/", 2)
+		if len(fields) != 2 {
+			return 0, "", 0, "", 0, properties, fmt.Errorf("Not a snapshot")
+		}
+		name = fields[0]
+		snap = fields[1]
+	}
+
 	c, err := newLxdContainer(name, d)
 	if err != nil {
 		return 0, "", 0, "", 0, properties, err
 	}
 
-	if err := c.exportToDir(builddir); err != nil {
+	if err := c.exportToDir(snap, builddir); err != nil {
 		return 0, "", 0, "", 0, properties, err
 	}
+
 	// Build the actual image file
 	tarfname := fmt.Sprintf("%s.tar.xz", name)
 	tarpath := filepath.Join(builddir, tarfname)

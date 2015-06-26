@@ -2777,8 +2777,8 @@ func startContainer(args []string) error {
  *     metadata.yaml
  *     rootfs/
  */
-func (d *lxdContainer) exportToDir(dir string) error {
-	if d.c.Running() {
+func (d *lxdContainer) exportToDir(snap, dir string) error {
+	if snap != "" && d.c.Running() {
 		return fmt.Errorf("Cannot export a running container as image")
 	}
 
@@ -2790,7 +2790,11 @@ func (d *lxdContainer) exportToDir(dir string) error {
 		}
 	}
 
-	source = shared.VarPath("lxc", d.name, "rootfs")
+	if snap != "" {
+		source = snapshotRootfsDir(d, snap)
+	} else {
+		source = shared.VarPath("lxc", d.name, "rootfs")
+	}
 	dest = fmt.Sprintf("%s/rootfs", dir)
 
 	// rsync the rootfs

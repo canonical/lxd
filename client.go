@@ -1626,6 +1626,9 @@ func (c *Client) ProfileCopy(name, newname string, dest *Client) error {
 func (c *Client) ImageFromContainer(cname string, public bool, aliases []string, properties map[string]string) (string, error) {
 
 	source := shared.Jmap{"type": "container", "name": cname}
+	if shared.IsSnapshot(cname) {
+		source["type"] = "snapshot"
+	}
 	body := shared.Jmap{"public": public, "source": source, "properties": properties}
 
 	resp, err := c.post("images", body, Sync)
