@@ -135,7 +135,8 @@ __attribute__((constructor)) void init(void) {
 		_exit(232);
 	}
 
-	if ((size = read(cmdline, buf, sizeof(buf))) < 0) {
+	memset(buf, 0, sizeof(buf));
+	if ((size = read(cmdline, buf, sizeof(buf)-1)) < 0) {
 		close(cmdline);
 		perror("read");
 		_exit(232);
