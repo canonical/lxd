@@ -32,7 +32,8 @@ func (c *fileCmd) usage() string {
 			"lxc file pull <source> [<source>...] <target>\n" +
 			"lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>\n" +
 			"\n" +
-			"<source> in the case of pull and <target> in the case of push are <container name>/<path>\n")
+			"<source> in the case of pull and <target> in the case of push are <container name>/<path>\n" +
+			"This operation is only supported on containers that are currently running\n")
 }
 
 func (c *fileCmd) flags() {

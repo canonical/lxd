@@ -930,7 +930,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 		"Content-Disposition": fmt.Sprintf("inline;filename=%s", filename),
 	}
 
-	return FileResponse(r, path, filename, headers)
+	return FileResponse(r, path, filename, headers, false)
 }
 
 func imageSecret(d *Daemon, r *http.Request) Response {
