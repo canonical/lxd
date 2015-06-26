@@ -41,6 +41,21 @@ test_basic_usage() {
   # Test container copy
   lxc copy bar foo
   lxc delete foo
+
+  # Test container publish
+  lxc publish bar --alias=foo prop1=val1
+  lxc image show foo | grep val1
+  lxc image delete foo
+
+  # Test snapshot publish
+  lxc snapshot bar
+  lxc publish bar/snap0 --alias foo
+  lxc init foo bar2
+  lxc list | grep bar2
+  lxc delete bar2
+  lxc image delete foo
+
+  # Delete the bar container we've used for several tests
   lxc delete bar
 
   # Test randomly named container creation
