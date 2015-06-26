@@ -601,9 +601,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return InternalError(fmt.Errorf("Failed to remove symlink to deleted image LV: '%s': %v", lvsymlink, err))
 		}
-	}
-
-	if d.BackingFs == "btrfs" {
+	} else if d.BackingFs == "btrfs" {
 		subvol := fmt.Sprintf("%s.btrfs", fname)
 		exec.Command("btrfs", "subvolume", "delete", subvol).Run()
 	}
