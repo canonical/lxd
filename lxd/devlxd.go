@@ -117,6 +117,24 @@ func createAndBindDevLxd() (*net.UnixListener, error) {
 	}
 
 	sockFile := path.Join(socketPath(), "sock")
+
+	/*
+	 * If this socket exists, that means a previous lxd died and didn't
+	 * clean up after itself. We assume that the LXD is actually dead if we
+	 * get this far, since StartDaemon() tries to connect to the actual lxd
+	 * socket to make sure that it is actually dead. So, it is safe to
+	 * remove it here without any checks.
+	 *
+	 * Also, it would be nice to SO_REUSEADDR here so we don't have to
+	 * delete the socket, but we can't:
+	 *   http://stackoverflow.com/questions/15716302/so-reuseaddr-and-af-unix
+	 *
+	 * Note that this will force clients to reconnect when LXD is restarted.
+	 */
+	if err := os.Remove(sockFile); err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
 	unixAddr, err := net.ResolveUnixAddr("unix", sockFile)
 	if err != nil {
 		return nil, err
