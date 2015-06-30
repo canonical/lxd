@@ -39,6 +39,7 @@ die() {
 }
 
 test_lvm() {
+    which vgcreate || echo "===> SKIPPING lvm backing: vgcreate not found" && return
     create_vg
     trap cleanup_vg EXIT HUP INT TERM
 
