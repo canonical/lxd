@@ -39,7 +39,10 @@ die() {
 }
 
 test_lvm() {
-    which vgcreate || echo "===> SKIPPING lvm backing: vgcreate not found" && return
+    if ! which vgcreate >/dev/null; then
+        echo "===> SKIPPING lvm backing: vgcreate not found"
+        return
+    fi
     create_vg
     trap cleanup_vg EXIT HUP INT TERM
 
@@ -48,6 +51,9 @@ test_lvm() {
 
     lvcreate -l 100%FREE --poolmetadatasize 500M --thinpool lxd_test_vg/test_user_thinpool
     test_lvm_withpool test_user_thinpool
+
+    lvremove -f lxd_test_vg/test_user_thinpool
+    test_remote_launch_imports_lvm
 }
 
 test_lvm_withpool() {
@@ -106,5 +112,50 @@ test_lvm_withpool() {
     kill -9 `cat $LXD_DIR/lxd.pid`
     sleep 3
     rm -Rf ${LXD_DIR}
+    LXD_DIR=${PREV_LXD_DIR}
+}
+
+test_remote_launch_imports_lvm() {
+    PREV_LXD_DIR=$LXD_DIR
+    export LXD_DIR=$(mktemp -d -p $(pwd))
+    chmod 777 "${LXD_DIR}"
+    spawn_lxd 127.0.0.1:18466 "${LXD_DIR}"
+
+    # import busybox as a regular file-backed image
+    ../scripts/lxd-images import busybox --alias testimage
+
+    export LXD_REMOTE_DIR=$(mktemp -d -p $(pwd))
+    chmod 777 "${LXD_REMOTE_DIR}"
+
+    spawn_lxd 127.0.0.1:18467 "${LXD_REMOTE_DIR}"
+
+    # swap env so 'lxc' will point at the new LXD
+    TEMPLXDDIR=$LXD_DIR
+    LXD_DIR=$LXD_REMOTE_DIR
+    LXD_REMOTE_DIR=$TEMPLXDDIR
+
+    lxc config set core.lvm_vg_name "lxd_test_vg" || die "couldn't set vg_name"
+    (echo y; sleep 3; echo foo) | lxc remote add testremote 127.0.0.1:18466
+
+    testimage_sha=$(lxc image info testremote:testimage | grep Fingerprint | cut -d' ' -f 2)
+    lxc launch testremote:testimage remote-test || die "Couldn't launch from remote"
+
+    lxc image show $testimage_sha || die "Didn't import image from remote"
+    lvs --noheadings -o lv_attr lxd_test_vg/$testimage_sha | grep "^  V" || die "no lv named $testimage_sha or not a thin Vol."
+
+    lxc list | grep remote-test | grep RUNNING || die "remote-test is not RUNNING"
+    lvs --noheadings -o pool_lv lxd_test_vg/remote-test | grep LXDPool || die "LV for remote-test not found or not in LXDPool"
+    lxc stop remote-test --force || die "Couldn't stop remote-test"
+    lxc delete remote-test
+
+    lvs lxd_test_vg/remote-test && die "remote-test LV is still there, should have been removed."
+    lxc image delete $testimage_sha
+    lvs lxd_test_vg/$testimage_sha && die "LV $testimage_sha is still there, should have been removed."
+
+    kill -9 `cat $LXD_DIR/lxd.pid`
+    kill -9 `cat $LXD_REMOTE_DIR/lxd.pid`
+    sleep 3
+    rm -Rf ${LXD_DIR}
+    rm -Rf ${LXD_REMOTE_DIR}
     LXD_DIR=${PREV_LXD_DIR}
 }
