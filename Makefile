@@ -26,6 +26,9 @@ check: default
 	go test ./...
 	cd test && ./main.sh
 
+gccgo:
+	go build -compiler gccgo ./...
+
 .PHONY: dist
 dist:
 	rm -Rf lxd-$(VERSION) $(ARCHIVE) $(ARCHIVE).gz
