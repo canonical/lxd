@@ -110,10 +110,11 @@ type imageFromContainerPostReq struct {
 }
 
 type imageMetadata struct {
-	Architecture  string
-	Creation_date float64
-	Properties    map[string]interface{}
-	Templates     map[string]*TemplateEntry
+	Architecture string                    `yaml:"architecture"`
+	CreationDate int64                     `yaml:"creation_date"`
+	ExpiryDate   int64                     `yaml:"expiry_date"`
+	Properties   map[string]interface{}    `yaml:"properties"`
+	Templates    map[string]*TemplateEntry `yaml:"templates"`
 }
 
 /*
@@ -121,42 +122,41 @@ type imageMetadata struct {
  * exports it as an image.
  */
 func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
-	builddir string) (public int, fingerprint string, arch int,
-	filename string, size int64, properties map[string]string, err error) {
+	builddir string) (info shared.ImageInfo, err error) {
 
-	properties = map[string]string{}
+	info.Properties = map[string]string{}
 	name := req.Source["name"]
 	ctype := req.Source["type"]
 	if ctype == "" || name == "" {
-		return 0, "", 0, "", 0, properties, fmt.Errorf("No source provided")
+		return info, fmt.Errorf("No source provided")
 	}
 
 	switch ctype {
 	case "snapshot":
 		if !shared.IsSnapshot(name) {
-			return 0, "", 0, "", 0, properties, fmt.Errorf("Not a snapshot")
+			return info, fmt.Errorf("Not a snapshot")
 		}
 	case "container":
 		if shared.IsSnapshot(name) {
-			return 0, "", 0, "", 0, properties, fmt.Errorf("This is a snapshot")
+			return info, fmt.Errorf("This is a snapshot")
 		}
 	default:
-		return 0, "", 0, "", 0, properties, fmt.Errorf("Bad type")
+		return info, fmt.Errorf("Bad type")
 	}
 
-	filename = req.Filename
+	info.Filename = req.Filename
 	switch req.Public {
 	case true:
-		public = 1
+		info.Public = 1
 	case false:
-		public = 0
+		info.Public = 0
 	}
 
 	snap := ""
 	if ctype == "snapshot" {
 		fields := strings.SplitN(name, "/", 2)
 		if len(fields) != 2 {
-			return 0, "", 0, "", 0, properties, fmt.Errorf("Not a snapshot")
+			return info, fmt.Errorf("Not a snapshot")
 		}
 		name = fields[0]
 		snap = fields[1]
@@ -164,11 +164,11 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
 
 	c, err := newLxdContainer(name, d)
 	if err != nil {
-		return 0, "", 0, "", 0, properties, err
+		return info, err
 	}
 
 	if err := c.exportToDir(snap, builddir); err != nil {
-		return 0, "", 0, "", 0, properties, err
+		return info, err
 	}
 
 	// Build the actual image file
@@ -184,40 +184,37 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
 		shared.Debugf("image packing failed\n")
 		shared.Debugf("command was: tar %q\n", args)
 		shared.Debugf(string(output))
-		return 0, "", 0, "", 0, properties, err
+		return info, err
 	}
 
 	// get the size and fingerprint
 	sha256 := sha256.New()
 	tarf, err := os.Open(tarpath)
 	if err != nil {
-		return 0, "", 0, "", 0, properties, err
+		return info, err
 	}
-	size, err = io.Copy(sha256, tarf)
+	info.Size, err = io.Copy(sha256, tarf)
 	tarf.Close()
 	if err != nil {
-		return 0, "", 0, "", 0, properties, err
+		return info, err
 	}
-	fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
+	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 
 	/* rename the the file to the expected name so our caller can use it */
-	imagefname := filepath.Join(builddir, fingerprint)
+	imagefname := filepath.Join(builddir, info.Fingerprint)
 	err = os.Rename(tarpath, imagefname)
 	if err != nil {
-		return 0, "", 0, "", 0, properties, err
+		return info, err
 	}
 
-	arch = c.architecture
-	properties = req.Properties
+	info.Architecture = c.architecture
+	info.Properties = req.Properties
 
-	return
+	return info, nil
 }
 
-func getImgPostInfo(d *Daemon, r *http.Request, builddir string) (public int,
-	fingerprint string, arch int,
-	filename string, size int64,
-	properties map[string]string, err error) {
-
+func getImgPostInfo(d *Daemon, r *http.Request, builddir string) (info shared.ImageInfo,
+	err error) {
 	// Is this a container request?
 	decoder := json.NewDecoder(r.Body)
 	req := imageFromContainerPostReq{}
@@ -226,16 +223,16 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string) (public int,
 	}
 
 	// ok we've got an image in the body
-	public, _ = strconv.Atoi(r.Header.Get("X-LXD-public"))
-	filename = r.Header.Get("X-LXD-filename")
+	info.Public, _ = strconv.Atoi(r.Header.Get("X-LXD-public"))
+	info.Filename = r.Header.Get("X-LXD-filename")
 	propHeaders := r.Header[http.CanonicalHeaderKey("X-LXD-properties")]
 
-	properties = map[string]string{}
+	info.Properties = map[string]string{}
 	if len(propHeaders) > 0 {
 		for _, ph := range propHeaders {
 			p, _ := url.ParseQuery(ph)
 			for pkey, pval := range p {
-				properties[pkey] = pval[0]
+				info.Properties[pkey] = pval[0]
 			}
 		}
 	}
@@ -243,7 +240,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string) (public int,
 	// Create a file for the tarball
 	tarf, err := ioutil.TempFile(builddir, "lxd_tar_")
 	if err != nil {
-		return 0, "", 0, "", 0, properties, err
+		return info, err
 	}
 
 	tarfname := tarf.Name()
@@ -254,35 +251,36 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string) (public int,
 	if err == nil {
 		size2, err = io.Copy(io.MultiWriter(tarf, sha256), r.Body)
 	}
-	size = size1 + size2
+	info.Size = size1 + size2
 	tarf.Close()
 	if err != nil {
-		return 0, "", 0, "", 0, properties, err
+		return info, err
 	}
 
-	fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
+	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 	expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
-	if expectedFingerprint != "" && fingerprint != expectedFingerprint {
-		err = fmt.Errorf("fingerprints don't match, got %s expected %s", fingerprint, expectedFingerprint)
-		return 0, "", 0, "", 0, properties, err
+	if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
+		err = fmt.Errorf("fingerprints don't match, got %s expected %s", info.Fingerprint, expectedFingerprint)
+		return info, err
 	}
 
-	imagefname := filepath.Join(builddir, fingerprint)
-	err = os.Rename(tarfname, imagefname)
+	imgfname := filepath.Join(builddir, info.Fingerprint)
+	err = os.Rename(tarfname, imgfname)
 	if err != nil {
-		return 0, "", 0, "", 0, properties, err
+		return info, err
 	}
 
 	var imageMeta *imageMetadata
-	imageMeta, err = getImageMetadata(imagefname)
+	imageMeta, err = getImageMetadata(imgfname)
 	if err != nil {
-		return 0, "", 0, "", 0, properties, err
+		return info, err
 	}
 
-	arch, _ = shared.ArchitectureId(imageMeta.Architecture)
+	info.Architecture, _ = shared.ArchitectureId(imageMeta.Architecture)
+	info.CreationDate = imageMeta.CreationDate
+	info.ExpiryDate = imageMeta.ExpiryDate
 
-	err = nil
-	return
+	return info, nil
 }
 
 func makeBtrfsSubvol(imagefname, subvol string) error {
@@ -452,20 +450,20 @@ func pullOutImagefiles(d *Daemon, builddir string, fingerprint string) error {
 }
 
 func dbInsertImage(d *Daemon, fp string, fname string, sz int64, public int,
-	arch int, properties map[string]string) error {
+	arch int, creation_date int64, expiry_date int64, properties map[string]string) error {
 	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return err
 	}
 
-	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, upload_date) VALUES (?, ?, ?, ?, ?, strftime("%s"))`)
+	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, strftime("%s"))`)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 	defer stmt.Close()
 
-	result, err := stmt.Exec(fp, fname, sz, public, arch)
+	result, err := stmt.Exec(fp, fname, sz, public, arch, creation_date, expiry_date)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -524,32 +522,41 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	defer removeImgWorkdir(d, builddir)
 
 	/* Grab all info from the web request */
-	public, fingerprint, arch, filename, size, properties, err := getImgPostInfo(d, r, builddir)
+
+	info, err := getImgPostInfo(d, r, builddir)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	if err := buildOtherFs(d, builddir, fingerprint); err != nil {
-		return SmartError(err)
-	}
-
-	err = dbInsertImage(d, fingerprint, filename, size, public, arch, properties)
+	metadata, err := buildImageFromInfo(d, info, builddir)
 	if err != nil {
 		return SmartError(err)
 	}
+	return SyncResponse(true, metadata)
+}
 
-	metadata := make(map[string]string)
-	metadata["fingerprint"] = fingerprint
-	metadata["size"] = strconv.FormatInt(size, 10)
+func buildImageFromInfo(d *Daemon, info shared.ImageInfo, builddir string) (metadata map[string]string, err error) {
+	if err := buildOtherFs(d, builddir, info.Fingerprint); err != nil {
+		return nil, err
+	}
 
-	err = pullOutImagefiles(d, builddir, fingerprint)
+	err = dbInsertImage(d, info.Fingerprint, info.Filename, info.Size, info.Public, info.Architecture, info.CreationDate, info.ExpiryDate, info.Properties)
 	if err != nil {
-		return SmartError(err)
+		return nil, err
+	}
+
+	metadata = make(map[string]string)
+	metadata["fingerprint"] = info.Fingerprint
+	metadata["size"] = strconv.FormatInt(info.Size, 10)
+
+	err = pullOutImagefiles(d, builddir, info.Fingerprint)
+	if err != nil {
+		return nil, err
 	}
 
 	// now we can let the deferred cleanup fn remove the tmpdir
 
-	return SyncResponse(true, metadata)
+	return metadata, nil
 }
 
 func xzReader(r io.Reader) io.ReadCloser {
