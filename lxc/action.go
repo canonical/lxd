@@ -24,9 +24,9 @@ var force = false
 
 func (c *actionCmd) usage() string {
 	return fmt.Sprintf(gettext.Gettext(
-		"Changes a containers state to %s.\n"+
+		"Changes one or more containers state to %s.\n"+
 			"\n"+
-			"lxd %s <name>\n"), c.action, c.action)
+			"lxd %s <name> [<name>...]\n"), c.action, c.action)
 }
 
 func (c *actionCmd) flags() {
@@ -37,24 +37,29 @@ func (c *actionCmd) flags() {
 }
 
 func (c *actionCmd) run(config *lxd.Config, args []string) error {
-	if len(args) != 1 {
+	if len(args) == 0 {
 		return errArgs
 	}
 
-	remote, name := config.ParseRemoteAndContainer(args[0])
-	d, err := lxd.NewClient(config, remote)
-	if err != nil {
-		return err
-	}
+	for _, nameArg := range args {
+		remote, name := config.ParseRemoteAndContainer(nameArg)
+		d, err := lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
 
-	resp, err := d.Action(name, c.action, timeout, force)
-	if err != nil {
-		return err
-	}
+		resp, err := d.Action(name, c.action, timeout, force)
+		if err != nil {
+			return err
+		}
 
-	if resp.Type != lxd.Async {
-		return fmt.Errorf(gettext.Gettext("bad result type from action"))
-	}
+		if resp.Type != lxd.Async {
+			return fmt.Errorf(gettext.Gettext("bad result type from action"))
+		}
 
-	return d.WaitForSuccess(resp.Operation)
+		if err := d.WaitForSuccess(resp.Operation); err != nil {
+			return err
+		}
+	}
+	return nil
 }
