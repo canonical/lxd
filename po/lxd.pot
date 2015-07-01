@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-06-26 17:46-0500\n"
+        "POT-Creation-Date: 2015-06-28 11:29+0000\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -117,9 +117,9 @@ msgstr  ""
 
 #: lxc/action.go:27
 #, c-format
-msgid   "Changes a containers state to %s.\n"
+msgid   "Changes one or more containers state to %s.\n"
         "\n"
-        "lxd %s <name>\n"
+        "lxd %s <name> [<name>...]\n"
 msgstr  ""
 
 #: lxc/copy.go:66
@@ -130,7 +130,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/publish.go:55
+#: lxc/publish.go:53
 msgid   "Container name is mandatory"
 msgstr  ""
 
@@ -155,11 +155,11 @@ msgid   "Create a read-only snapshot of a container.\n"
 msgstr  ""
 
 #: lxc/delete.go:20
-msgid   "Delete a container or container snapshot.\n"
+msgid   "Delete containers or container snapshots.\n"
         "\n"
-        "lxc delete <container>[/<snapshot>]\n"
+        "lxc delete <container>[/<snapshot>] [<container>[/<snapshot>]...]\n"
         "\n"
-        "Destroy a container or snapshot with any attached data "
+        "Destroy containers or snapshots with any attached data "
         "(configuration,\n"
         "snapshots, ...).\n"
 msgstr  ""
@@ -290,7 +290,7 @@ msgstr  ""
 msgid   "Make image public"
 msgstr  ""
 
-#: lxc/publish.go:32
+#: lxc/publish.go:30
 msgid   "Make the image public"
 msgstr  ""
 
@@ -504,14 +504,14 @@ msgstr  ""
 msgid   "Public: %s\n"
 msgstr  ""
 
-#: lxc/publish.go:23
+#: lxc/publish.go:21
 msgid   "Publish containers as images.\n"
         "\n"
         "lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-"
         "key=prop-value]...\n"
 msgstr  ""
 
-#: lxc/publish.go:67
+#: lxc/publish.go:65
 msgid   "Publish to remote server is not supported yet"
 msgstr  ""
 
@@ -568,11 +568,11 @@ msgstr  ""
 msgid   "Size: %.2vMB\n"
 msgstr  ""
 
-#: lxc/delete.go:70
+#: lxc/delete.go:71
 msgid   "Stopping container failed!"
 msgstr  ""
 
-#: lxc/publish.go:58
+#: lxc/publish.go:56
 msgid   "There is no \"image name\".  Did you want an alias?"
 msgstr  ""
 
@@ -638,7 +638,7 @@ msgstr  ""
 msgid   "bad profile url %s"
 msgstr  ""
 
-#: lxc/action.go:56
+#: lxc/action.go:57
 msgid   "bad result type from action"
 msgstr  ""
 
