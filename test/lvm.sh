@@ -39,7 +39,7 @@ die() {
 }
 
 test_lvm() {
-    if [ ! `which vgcreate` ]; then
+    if ! which vgcreate >/dev/null; then
         echo "===> SKIPPING lvm backing: vgcreate not found"
         return
     fi
