@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -79,7 +81,16 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 	if err != nil {
 		return err
 	}
-	destName := shared.VarPath("images", fp)
+
+	builddir, err := ioutil.TempDir(destDir, "lxd_build_")
+	if err != nil {
+		return err
+	}
+
+	/* remove the builddir when done */
+	defer removeImgWorkdir(d, builddir)
+
+	destName := filepath.Join(builddir, fp)
 	if _, err := os.Stat(destName); err == nil {
 		os.Remove(destName)
 	}
@@ -98,26 +109,9 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 		return err
 	}
 
-	q := `INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, strftime("%s"))`
-
-	result, err := shared.DbExec(d.db, q, fp, info.Filename, info.Size, info.Architecture, info.CreationDate, info.ExpiryDate)
-	if err != nil {
-		os.Remove(destName)
-		return err
-	}
-
-	id64, err := result.LastInsertId()
+	_, err = buildImageFromInfo(d, info, builddir)
 	if err != nil {
 		return err
-	}
-	id := int(id64)
-
-	for k, v := range info.Properties {
-		q := `INSERT INTO images_properties (image_id, type, key, value) VALUES (?, 0, ?, ?)`
-		_, err = shared.DbExec(d.db, q, id, k, v)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
