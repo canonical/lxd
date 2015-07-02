@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -167,37 +168,22 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
 		return info, err
 	}
 
-	if err := c.exportToDir(snap, builddir); err != nil {
-		return info, err
-	}
-
 	// Build the actual image file
 	tarfname := fmt.Sprintf("%s.tar.xz", name)
 	tarpath := filepath.Join(builddir, tarfname)
-	args := []string{"-C", builddir, "--numeric-owner", "-Jcf", tarpath}
-	if shared.PathExists(filepath.Join(builddir, "metadata.yaml")) {
-		args = append(args, "metadata.yaml")
-	}
-	args = append(args, "rootfs")
-	output, err := exec.Command("tar", args...).CombinedOutput()
+	tarfile, err := os.OpenFile(tarpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		shared.Debugf("image packing failed\n")
-		shared.Debugf("command was: tar %q\n", args)
-		shared.Debugf(string(output))
 		return info, err
 	}
-
-	// get the size and fingerprint
 	sha256 := sha256.New()
-	tarf, err := os.Open(tarpath)
-	if err != nil {
-		return info, err
+	gw := gzip.NewWriter(io.MultiWriter(tarfile, sha256))
+	if err := c.exportToTar(snap, gw); err != nil {
+		tarfile.Close()
+		return info, fmt.Errorf("imgPostContInfo: exportToTar failed: %s\n", err)
 	}
-	info.Size, err = io.Copy(sha256, tarf)
-	tarf.Close()
-	if err != nil {
-		return info, err
-	}
+	gw.Close()
+	tarfile.Close()
+
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 
 	/* rename the the file to the expected name so our caller can use it */
