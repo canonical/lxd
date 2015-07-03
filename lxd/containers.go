@@ -369,6 +369,9 @@ func (d *lxdContainer) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 	// unshift the id under /rootfs/ for unpriv containers
 	if !d.isPrivileged() && strings.HasPrefix(hdr.Name, "/rootfs") {
 		hdr.Uid, hdr.Gid = d.idmapset.ShiftFromNs(hdr.Uid, hdr.Gid)
+		if hdr.Uid == -1 || hdr.Gid == -1 {
+			return nil
+		}
 	}
 	if major != -1 {
 		hdr.Devmajor = int64(major)
