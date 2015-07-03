@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"compress/gzip"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -169,26 +168,41 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
 	}
 
 	// Build the actual image file
-	tarfname := fmt.Sprintf("%s.tar.xz", name)
+	tarfname := fmt.Sprintf("%s.tar", name)
 	tarpath := filepath.Join(builddir, tarfname)
 	tarfile, err := os.OpenFile(tarpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return info, err
 	}
-	sha256 := sha256.New()
-	gw := gzip.NewWriter(io.MultiWriter(tarfile, sha256))
-	if err := c.exportToTar(snap, gw); err != nil {
+	if err := c.exportToTar(snap, tarfile); err != nil {
 		tarfile.Close()
 		return info, fmt.Errorf("imgPostContInfo: exportToTar failed: %s\n", err)
 	}
-	gw.Close()
 	tarfile.Close()
 
+	args := []string{tarpath}
+	_, err = exec.Command("gzip", args...).CombinedOutput()
+	if err != nil {
+		shared.Debugf("image compression\n")
+		return info, err
+	}
+	gztarpath := fmt.Sprintf("%s.gz", tarpath)
+
+	sha256 := sha256.New()
+	tarf, err := os.Open(gztarpath)
+	if err != nil {
+		return info, err
+	}
+	info.Size, err = io.Copy(sha256, tarf)
+	tarf.Close()
+	if err != nil {
+		return info, err
+	}
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 
 	/* rename the the file to the expected name so our caller can use it */
 	imagefname := filepath.Join(builddir, info.Fingerprint)
-	err = os.Rename(tarpath, imagefname)
+	err = os.Rename(gztarpath, imagefname)
 	if err != nil {
 		return info, err
 	}
