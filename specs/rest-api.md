@@ -380,7 +380,6 @@ Output:
                 "nictype": "bridged",
             }
         },
-        'userdata': "SOME BASE64 BLOB",
         'status': {
                     'status': "Running",
                     'status_code': 103,
