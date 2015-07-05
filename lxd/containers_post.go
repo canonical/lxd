@@ -14,12 +14,57 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func btrfsCopyImage(hash string, name string, d *Daemon) error {
-	dpath := shared.VarPath("lxc", name)
-	imagefile := shared.VarPath("images", hash)
-	subvol := fmt.Sprintf("%s.btrfs", imagefile)
+func btrfsCmdIsInstalled() bool {
+	/*
+	 * Returns true if the "btrfs" tool is in PATH else false.
+	 *
+	 * TODO: Move this to the main code somewhere and call it once?
+	 */
+	out, err := exec.Command("which", "btrfs").Output()
+	if err != nil || len(out) == 0 {
+		return false
+	}
 
-	return exec.Command("btrfs", "subvolume", "snapshot", subvol, dpath).Run()
+	return true
+}
+
+func btrfsIsSubvolume(subvolPath string) bool {
+	/*
+	 * Returns true if the given Path is a btrfs subvolume else false.
+	 */
+	if !btrfsCmdIsInstalled() {
+		return false
+	}
+
+	out, err := exec.Command("btrfs", "subvolume", "show", subvolPath).CombinedOutput()
+	if err != nil || strings.HasPrefix(string(out), "ERROR: ") {
+		return false
+	}
+
+	return true
+}
+
+func btrfsSnapshot(source string, dest string, readonly bool) (string, error) {
+	/*
+	 * Creates a snapshot of "source" to "dest"
+	 * the result will be readonly if "readonly" is True.
+	 */
+	var out []byte
+	var err error
+	if readonly {
+		out, err = exec.Command("btrfs", "subvolume", "snapshot", "-r", source, dest).CombinedOutput()
+	} else {
+		out, err = exec.Command("btrfs", "subvolume", "snapshot", source, dest).CombinedOutput()
+	}
+
+	return string(out), err
+}
+
+func btrfsCopyImage(hash string, name string, d *Daemon) (string, error) {
+	dest := shared.VarPath("lxc", name)
+	source := fmt.Sprintf("%s.btrfs", shared.VarPath("images", hash))
+
+	return btrfsSnapshot(source, dest, false)
 }
 
 func extractImage(hash string, name string, d *Daemon) error {
@@ -234,7 +279,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	} else if backing_fs == "btrfs" && shared.PathExists(fmt.Sprintf("%s.btrfs", shared.VarPath("images", hash))) {
 		run = shared.OperationWrap(func() error {
-			if err := btrfsCopyImage(hash, name, d); err != nil {
+			if _, err := btrfsCopyImage(hash, name, d); err != nil {
 				return err
 			}
 
@@ -450,17 +495,6 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		return SmartError(err)
 	}
 
-	dpath := shared.VarPath("lxc", req.Name)
-	if err := os.MkdirAll(dpath, 0700); err != nil {
-		removeContainer(d, req.Name)
-		return InternalError(err)
-	}
-
-	if err := extractShiftIfExists(d, source, req.Source.BaseImage, req.Name); err != nil {
-		removeContainer(d, req.Name)
-		return InternalError(err)
-	}
-
 	var oldPath string
 	if shared.IsSnapshot(req.Source.Source) {
 		snappieces := strings.SplitN(req.Source.Source, "/", 2)
@@ -472,11 +506,46 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	} else {
 		oldPath = migration.AddSlash(shared.VarPath("lxc", req.Source.Source, "rootfs"))
 	}
+
+	subvol := strings.TrimSuffix(oldPath, "rootfs/")
+	dpath := shared.VarPath("lxc", req.Name) // Destination path
+
+	if !btrfsIsSubvolume(subvol) {
+		if err := os.MkdirAll(dpath, 0700); err != nil {
+			removeContainer(d, req.Name)
+			return InternalError(err)
+		}
+
+		if err := extractShiftIfExists(d, source, req.Source.BaseImage, req.Name); err != nil {
+			removeContainer(d, req.Name)
+			return InternalError(err)
+		}
+	}
+
 	newPath := fmt.Sprintf("%s/%s", dpath, "rootfs")
 	run := func() shared.OperationResult {
-		output, err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).CombinedOutput()
+		if btrfsIsSubvolume(subvol) {
+			/*
+			 * Copy by using btrfs snapshot
+		   */
+			output, err := btrfsSnapshot(subvol, dpath, false)
+			if err != nil {
+				shared.Debugf("Failed to create a BTRFS Snapshot of '%s' to '%s'.", subvol, dpath)
+				shared.Debugf(string(output))
+				return shared.OperationError(err)
+			}
+		} else {
+			/*
+			 * Copy by using rsync
+		   */
+			output, err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).CombinedOutput()
+			if err != nil {
+				shared.Debugf("rsync failed:\n%s", output)
+				return shared.OperationError(err)
+			}
+		}
 
-		if err == nil && !source.isPrivileged() {
+		if !source.isPrivileged() {
 			err = setUnprivUserAcl(source, dpath)
 			if err != nil {
 				shared.Debugf("Error adding acl for container root: falling back to chmod\n")
@@ -487,9 +556,6 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 					return shared.OperationError(err)
 				}
 			}
-		} else {
-			shared.Debugf("rsync failed:\n%s", output)
-			return shared.OperationError(err)
 		}
 
 		c, err := newLxdContainer(req.Name, d)
