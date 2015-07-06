@@ -173,7 +173,6 @@ configurations would look like:
                 'source': 'UUID=8f7fdf5e-dc60-4524-b9fe-634f82ac2fb6'
             },
         },
-        'userdata': "SOME BASE64 BLOB",
         'status': {
                     'status': "Running",
                     'status_code': 103,

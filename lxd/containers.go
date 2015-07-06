@@ -247,12 +247,12 @@ func containersShutdown(d *Daemon) error {
 			return err
 		}
 
-		_, err = shared.DbExec(d.db, "UPDATE containers SET power_state=1 WHERE name=?", container.name)
-		if err != nil {
-			return err
-		}
-
 		if container.c.State() != lxc.STOPPED {
+			_, err = shared.DbExec(d.db, "UPDATE containers SET power_state=1 WHERE name=?", container.name)
+			if err != nil {
+				return err
+			}
+
 			wg.Add(1)
 			go func() {
 				container.c.Shutdown(time.Second * 30)

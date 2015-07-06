@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 
 	"gopkg.in/flosch/pongo2.v3"
@@ -37,7 +38,7 @@ func templateApply(c *lxdContainer, trigger string) error {
 		return fmt.Errorf("Could not parse %s: %v", fname, err)
 	}
 
-	for path, template := range metadata.Templates {
+	for filepath, template := range metadata.Templates {
 		var w *os.File
 
 		found := false
@@ -52,20 +53,22 @@ func templateApply(c *lxdContainer, trigger string) error {
 			continue
 		}
 
-		fpath := shared.VarPath("lxc", c.name, "rootfs", strings.TrimLeft(path, "/"))
+		fullpath := shared.VarPath("lxc", c.name, "rootfs", strings.TrimLeft(filepath, "/"))
 
-		if _, err := os.Stat(fpath); err == nil {
-			w, err = os.Create(fpath)
+		if _, err := os.Stat(fullpath); err == nil {
+			w, err = os.Create(fullpath)
 			if err != nil {
 				return err
 			}
 		} else {
-			w, err = os.Create(fpath)
+			uid, gid := c.idmapset.ShiftIntoNs(0, 0)
+			shared.MkdirAllOwner(path.Dir(fullpath), 0755, uid, gid)
+
+			w, err = os.Create(fullpath)
 			if err != nil {
 				return err
 			}
 
-			uid, gid := c.idmapset.ShiftIntoNs(0, 0)
 			w.Chown(uid, gid)
 			w.Chmod(0644)
 		}
@@ -91,12 +94,22 @@ func templateApply(c *lxdContainer, trigger string) error {
 			container_meta["privileged"] = "false"
 		}
 
+		configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
+			val, ok := c.config[confKey.String()]
+			if !ok {
+				return confDefault
+			}
+
+			return pongo2.AsValue(strings.TrimRight(val, "\r\n"))
+		}
+
 		tpl.ExecuteWriter(pongo2.Context{"trigger": trigger,
-			"path":       path,
+			"path":       filepath,
 			"container":  container_meta,
 			"config":     c.config,
 			"devices":    c.devices,
-			"properties": template.Properties}, w)
+			"properties": template.Properties,
+			"config_get": configGet}, w)
 	}
 
 	return nil
