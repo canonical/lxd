@@ -20,7 +20,7 @@ func btrfsCmdIsInstalled() bool {
 	 *
 	 * TODO: Move this to the main code somewhere and call it once?
 	 */
-	out, err := exec.Command("which", "btrfs").Output()
+	out, err := exec.LookPath("btrfs")
 	if err != nil || len(out) == 0 {
 		return false
 	}
