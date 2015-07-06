@@ -20,13 +20,37 @@ LXD keeps track of image usage by updating the last\_use\_date image
 property every time a new container is spawned from the image.
 
 # Image format
-The image format for LXD is a compressed tarball (xz recommended) with
-the following structure:
- - metadata.yaml
- - rootfs/
- - templates/
+LXD currently supports two LXD-specific image formats.
 
-The rootfs directory contains a full file system tree of what will become the container's /.
+The first is a unified tarball, where a single tarball
+contains both the container rootfs and the needed metadata.
+
+The second is a split model, using two tarballs instead, one containing
+the rootfs, the other containing the metadata.
+
+The former is what's produced by LXD itself and what people should be
+using for LXD-specific images.
+
+The latter is designed to allow for easy image building from existing
+non-LXD rootfs tarballs already available today.
+
+## Unified tarball
+Tarball, can be compressed and contains:
+ - rootfs/
+ - metadata.yaml
+ - templates/ (optional)
+
+## Split tarballs
+Two (possibly compressed) tarballs. One for metadata, one for the rootfs.
+
+metadata.tar contains:
+ - metadata.yaml
+ - templates/ (optional)
+
+rootfs.tar contains a Linux root filesystem at its root.
+
+## Content
+The rootfs directory (or tarball) contains a full file system tree of what will become the container's /.
 
 The templates directory contains pongo2-formatted templates of files inside the container.
 
