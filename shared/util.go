@@ -726,7 +726,7 @@ func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
 		if dir.IsDir() {
 			return nil
 		}
-		return &os.PathError{"mkdir", path, syscall.ENOTDIR}
+		return errors.New("path exists but isn't a directory")
 	}
 
 	// Slow path: make sure parent exists and then call Mkdir for path.
