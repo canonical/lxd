@@ -527,7 +527,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		if btrfsIsSubvolume(subvol) {
 			/*
 			 * Copy by using btrfs snapshot
-		   */
+			 */
 			output, err := btrfsSnapshot(subvol, dpath, false)
 			if err != nil {
 				shared.Debugf("Failed to create a BTRFS Snapshot of '%s' to '%s'.", subvol, dpath)
@@ -537,7 +537,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		} else {
 			/*
 			 * Copy by using rsync
-		   */
+			 */
 			output, err := exec.Command("rsync", "-a", "--devices", oldPath, newPath).CombinedOutput()
 			if err != nil {
 				shared.Debugf("rsync failed:\n%s", output)
