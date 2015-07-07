@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 
@@ -56,11 +57,21 @@ type network struct {
 }
 
 func children(iface string) []string {
-	p := path.Join(shared.SYS_CLASS_NET, iface, "brif")
+	p := path.Join("/sys/class/net", iface, "brif")
 
 	ret, _ := shared.ReadDir(p)
 
 	return ret
+}
+
+func isBridge(iface *net.Interface) bool {
+	p := path.Join("/sys/class/net", iface.Name, "bridge")
+	stat, err := os.Stat(p)
+	if err != nil {
+		return false
+	}
+
+	return stat.IsDir()
 }
 
 func isOnBridge(c *lxc.Container, bridge string) bool {
@@ -103,7 +114,7 @@ func doNetworkGet(d *Daemon, name string) (network, error) {
 
 	if shared.IsLoopback(iface) {
 		n.Type = "loopback"
-	} else if shared.IsBridge(iface) {
+	} else if isBridge(iface) {
 		n.Type = "bridge"
 		for _, ct := range lxc.ActiveContainerNames(d.lxcpath) {
 			c, err := newLxdContainer(ct, d)
