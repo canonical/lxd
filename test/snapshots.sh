@@ -49,7 +49,7 @@ test_snap_restore() {
   echo snap0 > state 
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap0
-  lxc stop bar
+  lxc stop bar --force
   mkdir "$LXD_DIR/lxc/bar/rootfs/root/dir_only_in_snap0"
   cd "$LXD_DIR/lxc/bar/rootfs/root/"
   ln -s ./file_only_in_snap0 statelink
@@ -62,7 +62,7 @@ test_snap_restore() {
   lxc start bar
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap1
-  lxc stop bar
+  lxc stop bar --force
   cd "$LXD_DIR/lxc/bar/rootfs/root/"
 
   rmdir dir_only_in_snap0

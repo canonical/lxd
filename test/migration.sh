@@ -33,5 +33,5 @@ test_migration() {
   lxc launch testimage migratee
 
   lxc move l1:migratee l2:migratee
-  lxc stop l2:migratee
+  lxc stop l2:migratee --force
 }
