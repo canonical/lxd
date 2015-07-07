@@ -161,16 +161,19 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		StateDir := snapshotStateDir(c, snapshotName)
 		err = os.MkdirAll(StateDir, 0700)
 		if err != nil {
+			os.RemoveAll(snapDir)
 			return err
 		}
 
 		if stateful {
 			// TODO - shouldn't we freeze for the duration of rootfs snapshot below?
 			if !c.c.Running() {
+				os.RemoveAll(snapDir)
 				return fmt.Errorf("Container not running\n")
 			}
 			opts := lxc.CheckpointOptions{Directory: StateDir, Stop: true, Verbose: true}
 			if err := c.c.Checkpoint(opts); err != nil {
+				os.RemoveAll(snapDir)
 				return err
 			}
 		}
@@ -189,6 +192,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		_, err := dbCreateContainer(args)
 		if err != nil {
+			os.RemoveAll(snapDir)
 			return err
 		}
 
@@ -197,6 +201,10 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", name, "rootfs"))
 		newPath := snapshotRootfsDir(c, snapshotName)
 		err = exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
+		if err != nil {
+			os.RemoveAll(snapDir)
+			dbRemoveSnapshot(d, c.name, snapshotName)
+		}
 		return err
 	}
 
