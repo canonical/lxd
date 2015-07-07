@@ -60,7 +60,7 @@ func (c *configCmd) usage() string {
 			"lxc config unset key                                   Unset server configuration key\n" +
 			"lxc config show [remote:]<container>                   Show container configuration\n" +
 			"lxc config trust list [remote]                         List all trusted certs.\n" +
-			"lxc config trust add [remote] [certfile.crt]           Add certfile.crt to trusted hosts.\n" +
+			"lxc config trust add [remote] <certfile.crt>           Add certfile.crt to trusted hosts.\n" +
 			"lxc config trust remove [remote] [hostname|fingerprint]\n" +
 			"               Remove the cert from trusted hosts.\n" +
 			"\n" +
