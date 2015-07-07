@@ -21,7 +21,7 @@ func (d *Daemon) hasPwd() bool {
 	id := -1
 	argIn := []interface{}{}
 	argOut := []interface{}{&id}
-	err := shared.DbQueryRowScan(d.db, q, argIn, argOut)
+	err := dbQueryRowScan(d.db, q, argIn, argOut)
 	return err == nil && id != -1
 }
 
@@ -30,7 +30,7 @@ func (d *Daemon) verifyAdminPwd(password string) bool {
 	value := ""
 	argIn := []interface{}{}
 	argOut := []interface{}{&value}
-	err := shared.DbQueryRowScan(d.db, q, argIn, argOut)
+	err := dbQueryRowScan(d.db, q, argIn, argOut)
 
 	if err != nil || value == "" {
 		shared.Debugf("verifyAdminPwd: no password is set")
@@ -76,7 +76,7 @@ type certificatesPostBody struct {
 
 func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = []x509.Certificate{}
-	rows, err := shared.DbQuery(d.db, "SELECT fingerprint, type, name, certificate FROM certificates")
+	rows, err := dbQuery(d.db, "SELECT fingerprint, type, name, certificate FROM certificates")
 	if err != nil {
 		shared.Logf("Error reading certificates from database: %s\n", err)
 		return
@@ -99,7 +99,7 @@ func readSavedClientCAList(d *Daemon) {
 }
 
 func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
-	tx, err := shared.DbBegin(d.db)
+	tx, err := dbBegin(d.db)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 		return err
 	}
 
-	return shared.TxCommit(tx)
+	return txCommit(tx)
 }
 
 func certificatesPost(d *Daemon, r *http.Request) Response {
@@ -205,7 +205,7 @@ func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 		if fingerprint == shared.GenerateFingerprint(&cert) {
 			fingerprint := shared.GenerateFingerprint(&cert)
 			d.clientCerts = append(d.clientCerts[:i], d.clientCerts[i+1:]...)
-			_, err := shared.DbExec(d.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
+			_, err := dbExec(d.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
 			if err != nil {
 				return SmartError(err)
 			}

@@ -170,7 +170,7 @@ func containersWatch(d *Daemon) error {
 	var name string
 	outfmt := []interface{}{name}
 
-	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	result, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return err
 	}
@@ -201,12 +201,12 @@ func containersRestart(d *Daemon) error {
 	var name string
 	outfmt := []interface{}{name}
 
-	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	result, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return err
 	}
 
-	_, err = shared.DbExec(d.db, "UPDATE containers SET power_state=0")
+	_, err = dbExec(d.db, "UPDATE containers SET power_state=0")
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func containersShutdown(d *Daemon) error {
 	var name string
 	outfmt := []interface{}{name}
 
-	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	result, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func containersShutdown(d *Daemon) error {
 		}
 
 		if container.c.State() != lxc.STOPPED {
-			_, err = shared.DbExec(d.db, "UPDATE containers SET power_state=1 WHERE name=?", container.name)
+			_, err = dbExec(d.db, "UPDATE containers SET power_state=1 WHERE name=?", container.name)
 			if err != nil {
 				return err
 			}
@@ -274,7 +274,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 	var sname string
 	inargs := []interface{}{cTypeSnapshot, length, prefix}
 	outfmt := []interface{}{sname, id}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return err
 	}
@@ -300,7 +300,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 	}
 
 	for _, id := range ids {
-		_, err = shared.DbExec(d.db, "DELETE FROM containers WHERE id=?", id)
+		_, err = dbExec(d.db, "DELETE FROM containers WHERE id=?", id)
 		if err != nil {
 			return err
 		}

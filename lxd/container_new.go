@@ -257,7 +257,7 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 	var k, v string
 	inargs := []interface{}{p}
 	outfmt := []interface{}{k, v}
-	result, err := shared.DbQueryScan(daemon.db, q, inargs, outfmt)
+	result, err := dbQueryScan(daemon.db, q, inargs, outfmt)
 
 	if err != nil {
 		return err
@@ -371,7 +371,7 @@ func (c *lxdContainer) setupMacAddresses(d *Daemon) error {
 
 	if len(newConfigEntries) > 0 {
 
-		tx, err := shared.DbBegin(d.db)
+		tx, err := dbBegin(d.db)
 		if err != nil {
 			return err
 		}
@@ -440,7 +440,7 @@ func (c *lxdContainer) setupMacAddresses(d *Daemon) error {
 			}
 		}
 
-		err = shared.TxCommit(tx)
+		err = txCommit(tx)
 		if err != nil {
 			fmt.Printf("setupMacAddresses: (TxCommit) error %s\n", err)
 		}
@@ -508,7 +508,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	q := "SELECT id, architecture, ephemeral FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&d.id, &d.architecture, &ephem_int}
-	err := shared.DbQueryRowScan(daemon.db, q, arg1, arg2)
+	err := dbQueryRowScan(daemon.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
 	}

@@ -56,7 +56,7 @@ func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig 
 		return err
 	}
 
-	tx, err := shared.DbBegin(d.db)
+	tx, err := dbBegin(d.db)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig 
 		return err
 	}
 
-	return shared.TxCommit(tx)
+	return txCommit(tx)
 }
 
 func containerSnapRestore(d *Daemon, name string, snap string) error {

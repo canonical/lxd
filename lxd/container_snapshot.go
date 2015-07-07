@@ -50,7 +50,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	var name string
 	inargs := []interface{}{cTypeSnapshot, length, regexp}
 	outfmt := []interface{}{name}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -89,7 +89,7 @@ func nextSnapshot(d *Daemon, name string) int {
 	var numstr string
 	inargs := []interface{}{cTypeSnapshot, length, base}
 	outfmt := []interface{}{numstr}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return 0
 	}

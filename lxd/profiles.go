@@ -42,7 +42,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 	inargs := []interface{}{}
 	var name string
 	outfmt := []interface{}{name}
-	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	result, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -68,7 +68,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 
 	name := req.Name
 
-	tx, err := shared.DbBegin(d.db)
+	tx, err := dbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -96,7 +96,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = shared.TxCommit(tx)
+	err = txCommit(tx)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -157,7 +157,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	tx, err := shared.DbBegin(d.db)
+	tx, err := dbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -204,7 +204,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = shared.TxCommit(tx)
+	err = txCommit(tx)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -213,7 +213,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 }
 
 func dbProfileDelete(db *sql.DB, name string) error {
-	tx, err := shared.DbBegin(db)
+	tx, err := dbBegin(db)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func dbProfileDelete(db *sql.DB, name string) error {
 		return err
 	}
 
-	err = shared.TxCommit(tx)
+	err = txCommit(tx)
 
 	return err
 }
