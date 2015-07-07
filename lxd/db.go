@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -24,7 +23,7 @@ var (
 	 * isn't found so we don't abuse sql.ErrNoRows any more than we
 	 * already do.
 	 */
-	NoSuchObjectError = errors.New("No such object")
+	NoSuchObjectError = fmt.Errorf("No such object")
 )
 
 type Profile struct {

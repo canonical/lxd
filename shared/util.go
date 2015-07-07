@@ -9,7 +9,6 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -360,7 +359,7 @@ func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
 		if dir.IsDir() {
 			return nil
 		}
-		return errors.New("path exists but isn't a directory")
+		return fmt.Errorf("path exists but isn't a directory")
 	}
 
 	// Slow path: make sure parent exists and then call Mkdir for path.

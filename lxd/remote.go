@@ -91,7 +91,7 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 	defer removeImgWorkdir(d, builddir)
 
 	destName := filepath.Join(builddir, fp)
-	if _, err := os.Stat(destName); err == nil {
+	if shared.PathExists(destName) {
 		os.Remove(destName)
 	}
 

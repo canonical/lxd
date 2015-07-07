@@ -64,8 +64,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
 			result_string = append(result_string, url)
 		} else {
-			_, err := os.Stat(snapshotStateDir(c, name))
-			body := shared.Jmap{"name": name, "stateful": err == nil}
+			body := shared.Jmap{"name": name, "stateful": shared.PathExists(snapshotStateDir(c, name))}
 			result_map = append(result_map, body)
 		}
 
@@ -214,9 +213,8 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	snapshotName := mux.Vars(r)["snapshotName"]
 	dir := snapshotDir(c, snapshotName)
 
-	_, err = os.Stat(dir)
-	if err != nil {
-		return SmartError(err)
+	if !shared.PathExists(dir) {
+		return NotFound
 	}
 
 	switch r.Method {
@@ -232,8 +230,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 }
 
 func snapshotGet(c *lxdContainer, name string) Response {
-	_, err := os.Stat(snapshotStateDir(c, name))
-	body := shared.Jmap{"name": name, "stateful": err == nil}
+	body := shared.Jmap{"name": name, "stateful": shared.PathExists(snapshotStateDir(c, name))}
 	return SyncResponse(true, body)
 }
 
@@ -251,10 +248,7 @@ func snapshotPost(r *http.Request, c *lxdContainer, oldName string) Response {
 	oldDir := snapshotDir(c, oldName)
 	newDir := snapshotDir(c, newName)
 
-	_, err = os.Stat(newDir)
-	if !os.IsNotExist(err) {
-		return InternalError(err)
-	} else if err == nil {
+	if shared.PathExists(newDir) {
 		return Conflict
 	}
 

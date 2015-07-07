@@ -61,8 +61,7 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 	} else if addr[0] == '/' {
 		r_scheme = "unix"
 	} else {
-		_, err := os.Stat(addr)
-		if err != nil && os.IsNotExist(err) {
+		if !shared.PathExists(addr) {
 			r_scheme = "https"
 		} else {
 			r_scheme = "unix"

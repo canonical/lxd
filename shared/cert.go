@@ -56,29 +56,13 @@ func mynames() ([]string, error) {
 }
 
 func FindOrGenCert(certf string, keyf string) error {
-	_, err := os.Stat(certf)
-	_, err2 := os.Stat(keyf)
-
-	/*
-	 * If both stat's succeeded, then the cert and pubkey already
-	 * exist.
-	 */
-	if err == nil && err2 == nil {
+	if PathExists(certf) && PathExists(keyf) {
 		return nil
-	}
-
-	/* If one of the stats succeeded and one failed, then there's
-	 * a configuration problem, return an error */
-	if err == nil {
-		return err2
-	}
-	if err2 == nil {
-		return err
 	}
 
 	/* If neither stat succeeded, then this is our first run and we
 	 * need to generate cert and privkey */
-	err = GenCert(certf, keyf)
+	err := GenCert(certf, keyf)
 	if err != nil {
 		return err
 	}

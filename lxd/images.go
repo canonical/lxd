@@ -432,7 +432,7 @@ func pullOutImagefiles(d *Daemon, builddir string, fingerprint string) error {
 	}
 
 	lvsymlink := fmt.Sprintf("%s.lv", imagefname)
-	if _, err := os.Stat(lvsymlink); err == nil {
+	if shared.PathExists(lvsymlink) {
 		dst := shared.VarPath("images", fmt.Sprintf("%s.lv", fingerprint))
 		return os.Rename(lvsymlink, dst)
 	}
