@@ -16,7 +16,7 @@ const (
 )
 
 func dbRemoveContainer(d *Daemon, name string) error {
-	_, err := shared.DbExec(d.db, "DELETE FROM containers WHERE name=?", name)
+	_, err := dbExec(d.db, "DELETE FROM containers WHERE name=?", name)
 	return err
 }
 
@@ -25,7 +25,7 @@ func dbGetContainerId(db *sql.DB, name string) (int, error) {
 	id := -1
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id}
-	err := shared.DbQueryRowScan(db, q, arg1, arg2)
+	err := dbQueryRowScan(db, q, arg1, arg2)
 	return id, err
 }
 
@@ -58,7 +58,7 @@ func dbCreateContainer(args DbCreateContainerArgs) (int, error) {
 		args.config["volatile.baseImage"] = args.baseImage
 	}
 
-	tx, err := shared.DbBegin(args.d.db)
+	tx, err := dbBegin(args.d.db)
 	if err != nil {
 		return 0, err
 	}
@@ -97,7 +97,7 @@ func dbCreateContainer(args DbCreateContainerArgs) (int, error) {
 		return 0, err
 	}
 
-	return id, shared.TxCommit(tx)
+	return id, txCommit(tx)
 }
 
 func dbClearContainerConfig(tx *sql.Tx, id int) error {
@@ -176,7 +176,7 @@ func dbInsertProfiles(tx *sql.Tx, id int, profiles []string) error {
 
 func dbRemoveSnapshot(d *Daemon, cname string, sname string) {
 	name := fmt.Sprintf("%s/%s", cname, sname)
-	_, _ = shared.DbExec(d.db, "DELETE FROM containers WHERE type=? AND name=?", cTypeSnapshot, name)
+	_, _ = dbExec(d.db, "DELETE FROM containers WHERE type=? AND name=?", cTypeSnapshot, name)
 }
 
 func ValidContainerConfigKey(k string) bool {

@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"runtime"
 )
 
 // Logger is implemented by the standard *log.Logger.
@@ -37,4 +38,14 @@ func Debugf(format string, args ...interface{}) {
 	if debug && logger != nil {
 		logger.Output(2, fmt.Sprintf(format, args...))
 	}
+}
+
+func PrintStack() {
+	if !debug || logger == nil {
+		return
+	}
+
+	buf := make([]byte, 1<<16)
+	runtime.Stack(buf, true)
+	Debugf("%s", buf)
 }
