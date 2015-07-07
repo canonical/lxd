@@ -19,7 +19,7 @@ func (c *deleteCmd) usage() string {
 	return gettext.Gettext(
 		"Delete containers or container snapshots.\n" +
 			"\n" +
-			"lxc delete <container>[/<snapshot>] [<container>[/<snapshot>]...]\n" +
+			"lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/<snapshot>]...]\n" +
 			"\n" +
 			"Destroy containers or snapshots with any attached data (configuration,\n" +
 			"snapshots, ...).\n")

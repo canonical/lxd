@@ -24,7 +24,7 @@ func (c *copyCmd) usage() string {
 	return gettext.Gettext(
 		"Copy containers within or in between lxd instances.\n" +
 			"\n" +
-			"lxc copy <source container> <destination container>\n")
+			"lxc copy [remote:]<source container> [remote:]<destination container>\n")
 }
 
 func (c *copyCmd) flags() {}

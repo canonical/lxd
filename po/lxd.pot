@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-06-28 11:29+0000\n"
+        "POT-Creation-Date: 2015-07-07 07:36+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -141,7 +141,8 @@ msgstr  ""
 #: lxc/copy.go:25
 msgid   "Copy containers within or in between lxd instances.\n"
         "\n"
-        "lxc copy <source container> <destination container>\n"
+        "lxc copy [remote:]<source container> [remote:]<destination "
+        "container>\n"
 msgstr  ""
 
 #: client.go:799
@@ -151,13 +152,14 @@ msgstr  ""
 #: lxc/snapshot.go:23
 msgid   "Create a read-only snapshot of a container.\n"
         "\n"
-        "lxc snapshot <source> <snapshot name> [--stateful]\n"
+        "lxc snapshot [remote:]<source> <snapshot name> [--stateful]\n"
 msgstr  ""
 
 #: lxc/delete.go:20
 msgid   "Delete containers or container snapshots.\n"
         "\n"
-        "lxc delete <container>[/<snapshot>] [<container>[/<snapshot>]...]\n"
+        "lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/"
+        "<snapshot>]...]\n"
         "\n"
         "Destroy containers or snapshots with any attached data "
         "(configuration,\n"
@@ -194,7 +196,8 @@ msgstr  ""
 #: lxc/exec.go:24
 msgid   "Execute the specified command in a container.\n"
         "\n"
-        "lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n"
+        "lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... "
+        "<command>\n"
 msgstr  ""
 
 #: lxc/image.go:211
@@ -248,8 +251,8 @@ msgstr  ""
 #: lxc/launch.go:22
 msgid   "Launch a container from a particular image.\n"
         "\n"
-        "lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p "
-        "<profile>...]\n"
+        "lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--"
+        "profile|-p <profile>...]\n"
         "\n"
         "Launches a container using the specified image and name.\n"
         "\n"
@@ -453,7 +456,8 @@ msgstr  ""
 #: lxc/move.go:20
 msgid   "Move containers within or in between lxd instances.\n"
         "\n"
-        "lxc move <source container> <destination container>\n"
+        "lxc move [remote:]<source container> [remote:]<destination "
+        "container>\n"
 msgstr  ""
 
 #: lxc/config.go:177
@@ -537,7 +541,7 @@ msgstr  ""
 msgid   "Set the current state of a resource back to what it was when it was "
         "snapshotted.\n"
         "\n"
-        "lxc restore <resource> <snapshot name> [--stateful]\n"
+        "lxc restore [remote:]<resource> <snapshot name> [--stateful]\n"
 msgstr  ""
 
 #: lxc/file.go:41
@@ -702,8 +706,8 @@ msgid   "invalid wait url %s"
 msgstr  ""
 
 #: lxc/init.go:21
-msgid   "lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p "
-        "<profile>...]\n"
+msgid   "lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--"
+        "profile|-p <profile>...]\n"
         "\n"
         "Initializes a container using the specified image and name.\n"
         "\n"

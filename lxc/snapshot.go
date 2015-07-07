@@ -22,7 +22,7 @@ func (c *snapshotCmd) usage() string {
 	return gettext.Gettext(
 		"Create a read-only snapshot of a container.\n" +
 			"\n" +
-			"lxc snapshot <source> <snapshot name> [--stateful]\n")
+			"lxc snapshot [remote:]<source> <snapshot name> [--stateful]\n")
 }
 
 func (c *snapshotCmd) flags() {

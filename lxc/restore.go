@@ -22,7 +22,7 @@ func (c *restoreCmd) usage() string {
 	return gettext.Gettext(
 		"Set the current state of a resource back to what it was when it was snapshotted.\n" +
 			"\n" +
-			"lxc restore <resource> <snapshot name> [--stateful]\n")
+			"lxc restore [remote:]<resource> <snapshot name> [--stateful]\n")
 }
 
 func (c *restoreCmd) flags() {
