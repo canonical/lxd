@@ -202,10 +202,10 @@ echo "==> TEST: basic usage"
 test_basic_usage
 
 echo "==> TEST: concurrent exec"
-#test_concurrent_exec
+test_concurrent_exec
 
 echo "==> TEST: concurrent startup"
-#test_concurrent
+test_concurrent
 
 echo "==> TEST: lxc remote usage"
 test_remote_usage
