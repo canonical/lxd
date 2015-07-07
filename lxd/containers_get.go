@@ -14,7 +14,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 		if err == nil {
 			return SyncResponse(true, result)
 		}
-		if !shared.IsDbLockedError(err) {
+		if !isDbLockedError(err) {
 			shared.Debugf("DBERR: containersGet: error %q\n", err)
 			return InternalError(err)
 		}
@@ -74,7 +74,7 @@ func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
 	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
 	inargs := []interface{}{cTypeSnapshot, length, regexp}
 	outfmt := []interface{}{name}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return shared.ContainerInfo{}, SmartError(err)
 	}

@@ -13,7 +13,6 @@ import (
 )
 
 func rsyncWebsocket(cmd *exec.Cmd, conn *websocket.Conn) error {
-
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err

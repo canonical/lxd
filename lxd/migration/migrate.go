@@ -334,7 +334,6 @@ func NewMigrationSink(args *MigrationSinkArgs) (func() error, error) {
 }
 
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
-
 	query := url.Values{"secret": []string{secret}}
 
 	// TODO: we shouldn't assume this is a HTTP URL

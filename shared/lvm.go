@@ -14,7 +14,6 @@ var defaultThinPoolName = "LXDPool"
 var snapshotCreateTimeout = time.Duration(60) // seconds
 
 func LVMCheckVolumeGroup(vgname string) error {
-
 	output, err := exec.Command("vgdisplay", "-s", vgname).CombinedOutput()
 	if err != nil {
 		Debugf("vgdisplay failed to find vg:\n%s", output)

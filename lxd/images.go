@@ -38,7 +38,6 @@ func getSize(f *os.File) (int64, error) {
 }
 
 func detectCompression(fname string) (int, string, error) {
-
 	f, err := os.Open(fname)
 	if err != nil {
 		return -1, "", err
@@ -300,7 +299,6 @@ func makeBtrfsSubvol(imagefname, subvol string) error {
 }
 
 func removeImgWorkdir(d *Daemon, builddir string) {
-
 	vgname, _, err := getServerConfigValue(d, "core.lvm_vg_name")
 	if err != nil {
 		shared.Debugf("Error checking server config: %v", err)
@@ -432,7 +430,7 @@ func pullOutImagefiles(d *Daemon, builddir string, fingerprint string) error {
 	}
 
 	lvsymlink := fmt.Sprintf("%s.lv", imagefname)
-	if _, err := os.Stat(lvsymlink); err == nil {
+	if shared.PathExists(lvsymlink) {
 		dst := shared.VarPath("images", fmt.Sprintf("%s.lv", fingerprint))
 		return os.Rename(lvsymlink, dst)
 	}
@@ -451,7 +449,7 @@ func pullOutImagefiles(d *Daemon, builddir string, fingerprint string) error {
 
 func dbInsertImage(d *Daemon, fp string, fname string, sz int64, public int,
 	arch int, creation_date int64, expiry_date int64, properties map[string]string) error {
-	tx, err := shared.DbBegin(d.db)
+	tx, err := dbBegin(d.db)
 	if err != nil {
 		return err
 	}
@@ -498,7 +496,7 @@ func dbInsertImage(d *Daemon, fp string, fname string, sz int64, public int,
 
 	}
 
-	if err := shared.TxCommit(tx); err != nil {
+	if err := txCommit(tx); err != nil {
 		return err
 	}
 
@@ -506,7 +504,6 @@ func dbInsertImage(d *Daemon, fp string, fname string, sz int64, public int,
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
-
 	dirname := shared.VarPath("images")
 	if err := os.MkdirAll(dirname, 0700); err != nil {
 		return InternalError(err)
@@ -575,7 +572,6 @@ func xzReader(r io.Reader) io.ReadCloser {
 }
 
 func getImageMetadata(fname string) (*imageMetadata, error) {
-
 	metadataName := "metadata.yaml"
 
 	compression, _, err := detectCompression(fname)
@@ -640,7 +636,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 	}
 	inargs := []interface{}{}
 	outfmt := []interface{}{name}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -703,7 +699,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		exec.Command("btrfs", "subvolume", "delete", subvol).Run()
 	}
 
-	tx, err := shared.DbBegin(d.db)
+	tx, err := dbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -712,7 +708,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	_, _ = tx.Exec("DELETE FROM images_properties WHERE image_id?", imgInfo.Id)
 	_, _ = tx.Exec("DELETE FROM images WHERE id=?", imgInfo.Id)
 
-	if err := shared.TxCommit(tx); err != nil {
+	if err := txCommit(tx); err != nil {
 		return InternalError(err)
 	}
 
@@ -729,7 +725,7 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 	var key, value, name, desc string
 	inargs := []interface{}{imgInfo.Id}
 	outfmt := []interface{}{key, value}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return shared.ImageInfo{}, SmartError(err)
 	}
@@ -743,7 +739,7 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 	q = "SELECT name, description FROM images_aliases WHERE image_id=?"
 	inargs = []interface{}{imgInfo.Id}
 	outfmt = []interface{}{name, desc}
-	results, err = shared.DbQueryScan(d.db, q, inargs, outfmt)
+	results, err = dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return shared.ImageInfo{}, InternalError(err)
 	}
@@ -855,7 +851,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	tx, err := shared.DbBegin(d.db)
+	tx, err := dbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -876,7 +872,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	if err := shared.TxCommit(tx); err != nil {
+	if err := txCommit(tx); err != nil {
 		return InternalError(err)
 	}
 
@@ -930,7 +926,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	var name string
 	inargs := []interface{}{}
 	outfmt := []interface{}{name}
-	results, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -982,7 +978,7 @@ func doAliasGet(d *Daemon, name string, isTrustedClient bool) (shared.ImageAlias
 	var fingerprint, description string
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&fingerprint, &description}
-	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
+	err := dbQueryRowScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return shared.ImageAlias{}, err
 	}
@@ -992,7 +988,7 @@ func doAliasGet(d *Daemon, name string, isTrustedClient bool) (shared.ImageAlias
 
 func aliasDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	_, _ = shared.DbExec(d.db, "DELETE FROM images_aliases WHERE name=?", name)
+	_, _ = dbExec(d.db, "DELETE FROM images_aliases WHERE name=?", name)
 
 	return EmptySyncResponse
 }

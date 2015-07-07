@@ -1,7 +1,7 @@
 package shared
 
 import (
-	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -26,7 +26,7 @@ func RFC3493Dialer(network, address string) (net.Conn, error) {
 		}
 		return c, err
 	}
-	return nil, errors.New("Unable to connect to: " + address)
+	return nil, fmt.Errorf("Unable to connect to: " + address)
 }
 
 func IsLoopback(iface *net.Interface) bool {
