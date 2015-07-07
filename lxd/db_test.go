@@ -375,7 +375,6 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 }
 
 func Test_dbImageGet_finds_image_for_fingerprint(t *testing.T) {
-
 	var db *sql.DB
 	var err error
 	var result *shared.ImageBaseInfo

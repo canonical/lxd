@@ -3,12 +3,11 @@ package main
 import (
 	"database/sql"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -24,7 +23,7 @@ var (
 	 * isn't found so we don't abuse sql.ErrNoRows any more than we
 	 * already do.
 	 */
-	NoSuchObjectError = errors.New("No such object")
+	NoSuchObjectError = fmt.Errorf("No such object")
 )
 
 type Profile struct {
@@ -186,7 +185,7 @@ func getSchema(db *sql.DB) (v int) {
 	arg1 := []interface{}{}
 	arg2 := []interface{}{&v}
 	q := "SELECT max(version) FROM schema"
-	err := shared.DbQueryRowScan(db, q, arg1, arg2)
+	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		return 0
 	}
@@ -575,7 +574,7 @@ func updateDb(db *sql.DB, prev_version int) error {
 }
 
 func createDefaultProfile(db *sql.DB) error {
-	rows, err := shared.DbQuery(db, "SELECT id FROM profiles WHERE name=?", "default")
+	rows, err := dbQuery(db, "SELECT id FROM profiles WHERE name=?", "default")
 	if err != nil {
 		return err
 	}
@@ -591,7 +590,7 @@ func createDefaultProfile(db *sql.DB) error {
 		return nil
 	}
 
-	tx, err := shared.DbBegin(db)
+	tx, err := dbBegin(db)
 	if err != nil {
 		return err
 	}
@@ -717,7 +716,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseI
 		query = query + " AND public=1"
 	}
 
-	err = shared.DbQueryRowScan(db, query, inargs, outfmt)
+	err = dbQueryRowScan(db, query, inargs, outfmt)
 
 	if err != nil {
 		return nil, err // Likely: there are no rows for this fingerprint
@@ -752,7 +751,7 @@ func dbAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
 	inargs := []interface{}{name}
 	outfmt := []interface{}{&fingerprint}
 
-	err = shared.DbQueryRowScan(db, q, inargs, outfmt)
+	err = dbQueryRowScan(db, q, inargs, outfmt)
 
 	if err == sql.ErrNoRows {
 		return "", NoSuchObjectError
@@ -766,7 +765,7 @@ func dbAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
 // Insert an alias into the database.
 func dbAddAlias(db *sql.DB, name string, imageId int, desc string) error {
 	stmt := `INSERT into images_aliases (name, image_id, description) values (?, ?, ?)`
-	_, err := shared.DbExec(db, stmt, name, imageId, desc)
+	_, err := dbExec(db, stmt, name, imageId, desc)
 	return err
 }
 
@@ -779,7 +778,7 @@ func dbGetConfig(db *sql.DB, containerId int) (map[string]string, error) {
 	outfmt := []interface{}{key, value}
 
 	// Results is already a slice here, not db Rows anymore.
-	results, err := shared.DbQueryScan(db, q, inargs, outfmt)
+	results, err := dbQueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err //SmartError will wrap this and make "not found" errors pretty
 	}
@@ -807,7 +806,7 @@ func dbGetProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 		WHERE name=?`
 	inargs := []interface{}{name}
 	outfmt := []interface{}{key, value}
-	results, err := shared.DbQueryScan(db, query, inargs, outfmt)
+	results, err := dbQueryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -819,7 +818,7 @@ func dbGetProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 		 */
 		query := "SELECT id FROM profiles WHERE name=?"
 		var id int
-		results, err := shared.DbQueryScan(db, query, []interface{}{name}, []interface{}{id})
+		results, err := dbQueryScan(db, query, []interface{}{name}, []interface{}{id})
 		if err != nil {
 			return nil, err
 		}
@@ -854,7 +853,7 @@ func dbGetProfiles(db *sql.DB, containerId int) ([]string, error) {
 	inargs := []interface{}{containerId}
 	outfmt := []interface{}{name}
 
-	results, err := shared.DbQueryScan(db, query, inargs, outfmt)
+	results, err := dbQueryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -881,7 +880,7 @@ func dbGetDeviceConfig(db *sql.DB, id int, isprofile bool) (shared.Device, error
 		query = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
 	}
 
-	results, err := shared.DbQueryScan(db, query, inargs, outfmt)
+	results, err := dbQueryScan(db, query, inargs, outfmt)
 
 	if err != nil {
 		return newdev, err
@@ -913,7 +912,7 @@ func dbGetDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, err
 	var name, dtype string
 	inargs := []interface{}{qName}
 	outfmt := []interface{}{id, name, dtype}
-	results, err := shared.DbQueryScan(db, q, inargs, outfmt)
+	results, err := dbQueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -939,7 +938,7 @@ func dbListContainers(d *Daemon) ([]string, error) {
 	inargs := []interface{}{cTypeRegular}
 	var container string
 	outfmt := []interface{}{container}
-	result, err := shared.DbQueryScan(d.db, q, inargs, outfmt)
+	result, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -950,4 +949,170 @@ func dbListContainers(d *Daemon) ([]string, error) {
 	}
 
 	return ret, nil
+}
+
+func isDbLockedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if err == sqlite3.ErrLocked || err == sqlite3.ErrBusy {
+		return true
+	}
+	if err.Error() == "database is locked" {
+		return true
+	}
+	return false
+}
+
+func dbBegin(db *sql.DB) (*sql.Tx, error) {
+	for {
+		tx, err := db.Begin()
+		if err == nil {
+			return tx, nil
+		}
+		if !isDbLockedError(err) {
+			shared.Debugf("DbBegin: error %q\n", err)
+			return nil, err
+		}
+		shared.Debugf("DbBegin: DB was locked\n")
+		shared.PrintStack()
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func txCommit(tx *sql.Tx) error {
+	for {
+		err := tx.Commit()
+		if err == nil {
+			return nil
+		}
+		if !isDbLockedError(err) {
+			shared.Debugf("Txcommit: error %q\n", err)
+			return err
+		}
+		shared.Debugf("Txcommit: db was locked\n")
+		shared.PrintStack()
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) error {
+	for {
+		err := db.QueryRow(q, args...).Scan(outargs...)
+		if err == nil {
+			return nil
+		}
+		if !isDbLockedError(err) {
+			shared.Debugf("DbQuery: query %q error %q\n", q, err)
+			return err
+		}
+		shared.Debugf("DbQueryRowScan: query %q args %q, DB was locked\n", q, args)
+		shared.PrintStack()
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
+	for {
+		result, err := db.Query(q, args...)
+		if err == nil {
+			return result, nil
+		}
+		if !isDbLockedError(err) {
+			shared.Debugf("DbQuery: query %q error %q\n", q, err)
+			return nil, err
+		}
+		shared.Debugf("DbQuery: query %q args %q, DB was locked\n", q, args)
+		shared.PrintStack()
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		return [][]interface{}{}, err
+	}
+	defer rows.Close()
+	result := [][]interface{}{}
+	for rows.Next() {
+		ptrargs := make([]interface{}, len(outargs))
+		for i, _ := range outargs {
+			switch t := outargs[i].(type) {
+			case string:
+				str := ""
+				ptrargs[i] = &str
+			case int:
+				integer := 0
+				ptrargs[i] = &integer
+			default:
+				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s\n", t)
+			}
+		}
+		err = rows.Scan(ptrargs...)
+		if err != nil {
+			return [][]interface{}{}, err
+		}
+		newargs := make([]interface{}, len(outargs))
+		for i, _ := range ptrargs {
+			switch t := outargs[i].(type) {
+			case string:
+				newargs[i] = *ptrargs[i].(*string)
+			case int:
+				newargs[i] = *ptrargs[i].(*int)
+			default:
+				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s\n", t)
+			}
+		}
+		result = append(result, newargs)
+	}
+	err = rows.Err()
+	if err != nil {
+		return [][]interface{}{}, err
+	}
+	return result, nil
+}
+
+/*
+ * . q is the database query
+ * . inargs is an array of interfaces containing the query arguments
+ * . outfmt is an array of interfaces containing the right types of output
+ *   arguments, i.e.
+ *      var arg1 string
+ *      var arg2 int
+ *      outfmt := {}interface{}{arg1, arg2}
+ *
+ * The result will be an array (one per output row) of arrays (one per output argument)
+ * of interfaces, containing pointers to the actual output arguments.
+ */
+func dbQueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
+	for {
+		result, err := doDbQueryScan(db, q, inargs, outfmt)
+		if err == nil {
+			return result, nil
+		}
+		if !isDbLockedError(err) {
+			shared.Debugf("DbQuery: query %q error %q\n", q, err)
+			return nil, err
+		}
+		shared.Debugf("DbQueryscan: query %q inargs %q, DB was locked\n", q, inargs)
+		shared.PrintStack()
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func dbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
+	for {
+		result, err := db.Exec(q, args...)
+		if err == nil {
+			return result, nil
+		}
+		if !isDbLockedError(err) {
+			shared.Debugf("DbExec: query %q error %q\n", q, err)
+			return nil, err
+		}
+		shared.Debugf("DbExec: query %q args %q, DB was locked\n", q, args)
+		shared.PrintStack()
+		time.Sleep(1 * time.Second)
+	}
 }

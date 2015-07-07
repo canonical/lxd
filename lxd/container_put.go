@@ -48,7 +48,6 @@ func containerPut(d *Daemon, r *http.Request) Response {
 }
 
 func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig containerConfigReq) error {
-
 	/* check to see that the config actually applies to the container
 	 * successfully before saving it. in particular, raw.lxc and
 	 * raw.apparmor need to be parsed once to make sure they make sense.
@@ -57,7 +56,7 @@ func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig 
 		return err
 	}
 
-	tx, err := shared.DbBegin(d.db)
+	tx, err := dbBegin(d.db)
 	if err != nil {
 		return err
 	}
@@ -96,7 +95,7 @@ func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig 
 		return err
 	}
 
-	return shared.TxCommit(tx)
+	return txCommit(tx)
 }
 
 func containerSnapRestore(d *Daemon, name string, snap string) error {
@@ -155,14 +154,8 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 	// TODO: btrfs optimizations
 
 	containerRootPath := shared.VarPath("lxc", name)
-	// Check container dir already exists
-	fileinfo, err := os.Stat(path.Dir(containerRootPath))
-	if err != nil {
-		shared.Debugf("RESTORE => Could not stat %s to %s", containerRootPath, err)
-		return err
-	}
 
-	if !(fileinfo.IsDir()) {
+	if !shared.IsDir(path.Dir(containerRootPath)) {
 		shared.Debugf("RESTORE => containerRoot [%s] directory does not exist", containerRootPath)
 		return os.ErrNotExist
 	}

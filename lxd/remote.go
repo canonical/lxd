@@ -31,7 +31,7 @@ func (d *Daemon) dbGetimage(fp string) int {
 	id := -1
 	arg1 := []interface{}{fp}
 	arg2 := []interface{}{&id}
-	err := shared.DbQueryRowScan(d.db, q, arg1, arg2)
+	err := dbQueryRowScan(d.db, q, arg1, arg2)
 	if err != nil {
 		return -1
 	}
@@ -91,7 +91,7 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 	defer removeImgWorkdir(d, builddir)
 
 	destName := filepath.Join(builddir, fp)
-	if _, err := os.Stat(destName); err == nil {
+	if shared.PathExists(destName) {
 		os.Remove(destName)
 	}
 
