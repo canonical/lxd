@@ -21,7 +21,7 @@ func (c *launchCmd) usage() string {
 	return gettext.Gettext(
 		"Launch a container from a particular image.\n" +
 			"\n" +
-			"lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
+			"lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
 			"\n" +
 			"Launches a container using the specified image and name.\n" +
 			"\n" +
