@@ -38,7 +38,7 @@ func mynames() ([]string, error) {
 	}
 
 	for _, iface := range ifs {
-		if IsBridge(&iface) || IsLoopback(&iface) {
+		if IsLoopback(&iface) {
 			continue
 		}
 
