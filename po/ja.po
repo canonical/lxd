@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-09 17:52+0200\n"
+"POT-Creation-Date: 2015-07-07 17:20-0400\n"
 "PO-Revision-Date: 2015-03-13 23:44+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -76,7 +76,7 @@ msgstr "'/' はスナップショットの名前には使用できません。\n
 msgid "Accept certificate"
 msgstr ""
 
-#: lxc/remote.go:132
+#: lxc/remote.go:131
 #, c-format
 msgid "Admin password for %s: "
 msgstr "%s の管理者パスワード: "
@@ -99,7 +99,7 @@ msgstr ""
 msgid "Bad image property: %s\n"
 msgstr "(不正なイメージプロパティ形式: %s\n"
 
-#: client.go:1437
+#: client.go:1438
 msgid "Cannot change profile name"
 msgstr "プロファイル名を変更できません"
 
@@ -120,18 +120,23 @@ msgstr "証明書のフィンガープリント: % x\n"
 #: lxc/action.go:27
 #, fuzzy, c-format
 msgid ""
-"Changes a containers state to %s.\n"
+"Changes one or more containers state to %s.\n"
 "\n"
-"lxd %s <name>\n"
+"lxd %s <name> [<name>...]\n"
 msgstr "コンテナの状態を %s に変更します。\n"
 
 #: lxc/copy.go:66
 msgid "Changing the name of a running container during copy isn't supported."
 msgstr ""
 
-#: lxc/remote.go:155
+#: lxc/remote.go:154
 msgid "Client certificate stored at server: "
 msgstr "クライアント証明書がサーバに格納されました: "
+
+#: lxc/publish.go:53
+#, fuzzy
+msgid "Container name is mandatory"
+msgstr "コンテナが見つかりません"
 
 #: lxc/image.go:81
 msgid "Copy aliases from source"
@@ -141,7 +146,7 @@ msgstr ""
 msgid ""
 "Copy containers within or in between lxd instances.\n"
 "\n"
-"lxc copy <source container> <destination container>\n"
+"lxc copy [remote:]<source container> [remote:]<destination container>\n"
 msgstr ""
 
 #: client.go:799
@@ -153,23 +158,26 @@ msgstr "サーバ証明書格納用のディレクトリを作成できません
 msgid ""
 "Create a read-only snapshot of a container.\n"
 "\n"
-"lxc snapshot <source> <snapshot name> [--stateful]\n"
+"lxc snapshot [remote:]<source> <snapshot name> [--stateful]\n"
 msgstr "コンテナの読み取り専用スナップショットを作成します。\n"
 
 #: lxc/delete.go:20
 msgid ""
-"Delete a container or container snapshot.\n"
+"Delete containers or container snapshots.\n"
 "\n"
-"Destroy a container (or snapshot) and any attached data (configuration,\n"
+"lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/"
+"<snapshot>]...]\n"
+"\n"
+"Destroy containers or snapshots with any attached data (configuration,\n"
 "snapshots, ...).\n"
 msgstr ""
 
-#: lxc/config.go:398
+#: lxc/config.go:417
 #, c-format
 msgid "Device %s added to %s\n"
 msgstr "デバイス %s が %s に追加されました\n"
 
-#: lxc/config.go:426
+#: lxc/config.go:445
 #, c-format
 msgid "Device %s removed from %s\n"
 msgstr "デバイス %s が %s から削除されました\n"
@@ -186,7 +194,7 @@ msgstr "詳細モードを有効にします。"
 msgid "Ephemeral container"
 msgstr ""
 
-#: client.go:543 client.go:553 client.go:695
+#: client.go:543 client.go:553 client.go:695 client.go:1653
 #, c-format
 msgid "Error adding alias %s\n"
 msgstr ""
@@ -196,7 +204,7 @@ msgstr ""
 msgid ""
 "Execute the specified command in a container.\n"
 "\n"
-"lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n"
+"lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>\n"
 msgstr "コンテナで指定したコマンドを実行します。\n"
 
 #: lxc/image.go:211
@@ -212,7 +220,7 @@ msgid ""
 "lxc finger <remote>\n"
 msgstr "LXDインスタンスが稼働中かを確認します。\n"
 
-#: lxc/main.go:112
+#: lxc/main.go:109
 msgid ""
 "For example: 'lxd-images import lxc ubuntu trusty amd64 --alias ubuntu/"
 "trusty'.\n"
@@ -222,11 +230,11 @@ msgstr ""
 msgid "Force the container to shutdown."
 msgstr "コンテナを強制シャットダウンします。"
 
-#: lxc/main.go:104
+#: lxc/main.go:101
 msgid "Generating a client certificate. This may take a minute...\n"
 msgstr "クライアント証明書を生成します。1分ぐらいかかります…\n"
 
-#: lxc/main.go:111
+#: lxc/main.go:108
 msgid ""
 "If this is your first run, you will need to import images using the 'lxd-"
 "images' script.\n"
@@ -241,12 +249,12 @@ msgstr "証明書のフィンガープリント: % x\n"
 msgid "Information about remotes not yet supported\n"
 msgstr "リモートの情報表示はまだサポートされていません。\n"
 
-#: lxc/file.go:158
+#: lxc/file.go:159
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:53
+#: lxc/file.go:54
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -255,7 +263,8 @@ msgstr "不正な送り先 %s"
 msgid ""
 "Launch a container from a particular image.\n"
 "\n"
-"lxc launch <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n"
+"lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p "
+"<profile>...]\n"
 "\n"
 "Launches a container using the specified image and name.\n"
 "\n"
@@ -275,7 +284,7 @@ msgid ""
 "lxc info [<remote>:]container [--show-log]\n"
 msgstr ""
 
-#: lxc/list.go:23
+#: lxc/list.go:38
 msgid ""
 "Lists the available resources.\n"
 "\n"
@@ -295,6 +304,10 @@ msgstr ""
 
 #: lxc/image.go:80
 msgid "Make image public"
+msgstr ""
+
+#: lxc/publish.go:30
+msgid "Make the image public"
 msgstr ""
 
 #: lxc/profile.go:48
@@ -348,7 +361,13 @@ msgid ""
 "configuration in external editor\n"
 "lxc config get <container> key                         Get configuration "
 "key\n"
-"lxc config set <container> key [value]                 Set container "
+"lxc config set <container> key value                   Set container "
+"configuration key\n"
+"lxc config unset <container> key                       Unset container "
+"configuration key\n"
+"lxc config set key value                               Set server "
+"configuration key\n"
+"lxc config unset key                                   Unset server "
 "configuration key\n"
 "lxc config show <container>                            Show container "
 "configuration\n"
@@ -378,6 +397,7 @@ msgid ""
 "\n"
 "<source> in the case of pull and <target> in the case of push are <container "
 "name>/<path>\n"
+"This operation is only supported on containers that are currently running\n"
 msgstr ""
 
 #: lxc/remote.go:29
@@ -429,7 +449,7 @@ msgstr ""
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
-#: lxc/file.go:144
+#: lxc/file.go:145
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
@@ -439,10 +459,10 @@ msgstr ""
 msgid ""
 "Move containers within or in between lxd instances.\n"
 "\n"
-"lxc move <source container> <destination container>\n"
+"lxc move [remote:]<source container> [remote:]<destination container>\n"
 msgstr ""
 
-#: lxc/config.go:158
+#: lxc/config.go:177
 msgid "No cert provided to add"
 msgstr "追加すべき証明書が提供されていません"
 
@@ -450,7 +470,7 @@ msgstr "追加すべき証明書が提供されていません"
 msgid "No certificate on this connection"
 msgstr "この接続に使用する証明書がありません"
 
-#: lxc/config.go:181
+#: lxc/config.go:200
 msgid "No fingerprint specified."
 msgstr "フィンガープリントが指定されていません。"
 
@@ -494,6 +514,19 @@ msgstr ""
 msgid "Public: %s\n"
 msgstr ""
 
+#: lxc/publish.go:21
+msgid ""
+"Publish containers as images.\n"
+"\n"
+"lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-"
+"value]...\n"
+msgstr ""
+
+#: lxc/publish.go:65
+#, fuzzy
+msgid "Publish to remote server is not supported yet"
+msgstr "リモートの情報表示はまだサポートされていません。\n"
+
 #: lxc/remote.go:42
 msgid "Remote admin password"
 msgstr ""
@@ -509,7 +542,7 @@ msgid ""
 "remove certificate in %s"
 msgstr ""
 
-#: lxc/remote.go:152
+#: lxc/remote.go:151
 msgid "Server doesn't trust us after adding our cert"
 msgstr "サーバが我々の証明書を追加した後我々を信頼していません"
 
@@ -519,18 +552,18 @@ msgid ""
 "Set the current state of a resource back to what it was when it was "
 "snapshotted.\n"
 "\n"
-"lxc restore <resource> <snapshot name> [--stateful]\n"
+"lxc restore [remote:]<resource> <snapshot name> [--stateful]\n"
 msgstr "コンテナの読み取り専用スナップショットを作成します。\n"
 
-#: lxc/file.go:40
+#: lxc/file.go:41
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:41
+#: lxc/file.go:42
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:39
+#: lxc/file.go:40
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
@@ -538,7 +571,7 @@ msgstr "プッシュ時にファイルのuidを設定します"
 msgid "Show all commands (not just interesting ones)"
 msgstr "全てコマンドを表示します (主なコマンドだけではなく)"
 
-#: lxc/config.go:204
+#: lxc/config.go:223
 #, fuzzy
 msgid "Show for remotes is not yet supported\n"
 msgstr "リモートの情報表示はまだサポートされていません。\n"
@@ -551,9 +584,13 @@ msgstr ""
 msgid "Size: %.2vMB\n"
 msgstr ""
 
-#: lxc/delete.go:68
+#: lxc/delete.go:71
 msgid "Stopping container failed!"
 msgstr "コンテナの停止に失敗しました！"
+
+#: lxc/publish.go:56
+msgid "There is no \"image name\".  Did you want an alias?"
+msgstr ""
 
 #: lxc/action.go:34
 msgid "Time to wait for the container before killing it."
@@ -568,12 +605,12 @@ msgstr ""
 msgid "Unknown image command %s"
 msgstr "未知のイメージコマンド %s"
 
-#: lxc/remote.go:261
+#: lxc/remote.go:260
 #, c-format
 msgid "Unknown remote subcommand %s"
 msgstr "未知のリモートサブコマンド %s"
 
-#: lxc/config.go:195
+#: lxc/config.go:214
 #, c-format
 msgid "Unkonwn config trust command %s"
 msgstr "未知の設定信頼コマンド %s"
@@ -610,7 +647,7 @@ msgstr "コンテナの稼動状態のスナップショットを取得するか
 msgid "Whether or not to snapshot the container's running state"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
 
-#: lxc/config.go:354 lxc/image.go:375 lxc/profile.go:197
+#: lxc/config.go:373 lxc/image.go:375 lxc/profile.go:197
 #, fuzzy
 msgid "YAML parse error %v\n"
 msgstr "エラー: %v\n"
@@ -619,21 +656,21 @@ msgstr "エラー: %v\n"
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "APIのバージョン不一致: クライアント: %q, サーバ: %q"
 
-#: lxc/launch.go:102
+#: lxc/launch.go:101
 #, fuzzy
 msgid "bad number of things scanned from image, container or snapshot"
 msgstr "リソースからスキャンされた数が不正"
 
-#: client.go:1468
+#: client.go:1469
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "プロファイルURLが不正 %s"
 
-#: lxc/action.go:56
+#: lxc/action.go:57
 msgid "bad result type from action"
 msgstr "アクションからの結果タイプが不正！"
 
-#: client.go:1472
+#: client.go:1473
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "プロファイルURL内のバージョンが不正"
@@ -646,7 +683,7 @@ msgstr ""
 msgid "cannot resolve unix socket address: %v"
 msgstr "UNIXソケットのアドレスを解決できません: %v"
 
-#: lxc/launch.go:86 lxc/launch.go:91
+#: lxc/launch.go:85 lxc/launch.go:90
 #, fuzzy
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr "サーバから変更されたリソースを取得できませんでした"
@@ -655,7 +692,7 @@ msgstr "サーバから変更されたリソースを取得できませんでし
 msgid "error: %v\n"
 msgstr "エラー: %v\n"
 
-#: lxc/main.go:117
+#: lxc/main.go:114
 msgid ""
 "error: %v\n"
 "%s"
@@ -673,7 +710,7 @@ msgstr "エラー: 未知のコマンド: %s\n"
 msgid "expected error, got %s"
 msgstr ""
 
-#: client.go:1110
+#: client.go:1111
 #, c-format
 msgid "got bad op status %s"
 msgstr "不正な操作ステータスを得ました %s"
@@ -683,23 +720,24 @@ msgstr "不正な操作ステータスを得ました %s"
 msgid "got bad response type, expected %s got %s"
 msgstr "\"exec\"から不正な応答タイプを得ました"
 
-#: lxc/launch.go:106
+#: lxc/launch.go:105
 msgid "got bad version"
 msgstr "不正なバージョンを得ました"
 
-#: lxc/file.go:205
+#: lxc/file.go:206
 #, c-format
 msgid "invalid argument %s"
 msgstr "不正な引数 %s"
 
-#: client.go:1255
+#: client.go:1256
 #, c-format
 msgid "invalid wait url %s"
 msgstr "待つURLが不正 %s"
 
 #: lxc/init.go:21
 msgid ""
-"lxc init <image> [<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n"
+"lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p "
+"<profile>...]\n"
 "\n"
 "Initializes a container using the specified image and name.\n"
 "\n"
@@ -714,7 +752,7 @@ msgstr ""
 msgid "no response!"
 msgstr "応答がありません！"
 
-#: client.go:1514 client.go:1568
+#: client.go:1515 client.go:1569
 msgid "no value found in %q\n"
 msgstr ""
 
@@ -730,17 +768,17 @@ msgstr ""
 msgid "ok (y/n)? "
 msgstr "ok (y/n)?"
 
-#: lxc/remote.go:223
+#: lxc/remote.go:222
 #, c-format
 msgid "remote %s already exists"
 msgstr "リモート %s は既に存在します"
 
-#: lxc/remote.go:193 lxc/remote.go:219 lxc/remote.go:239 lxc/remote.go:250
+#: lxc/remote.go:192 lxc/remote.go:218 lxc/remote.go:238 lxc/remote.go:249
 #, c-format
 msgid "remote %s doesn't exist"
 msgstr "リモート %s は存在しません"
 
-#: lxc/remote.go:178
+#: lxc/remote.go:177
 #, c-format
 msgid "remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"
@@ -753,7 +791,7 @@ msgstr "未知のリモート名: %q"
 msgid "unreachable return reached"
 msgstr "到達しないはずのreturnに到達しました"
 
-#: lxc/main.go:154
+#: lxc/main.go:152
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
@@ -764,10 +802,6 @@ msgstr ""
 #~ msgid "(Bad alias entry: %s\n"
 #~ msgstr "(不正なエイリアス: %s\n"
 
-#, fuzzy
-#~ msgid "Show for server is not yet supported\n"
-#~ msgstr "リモートの情報表示はまだサポートされていません。\n"
-
 #~ msgid "bad container url %s"
 #~ msgstr "コンテナの不正なURL %s"
 
@@ -776,9 +810,6 @@ msgstr ""
 
 #~ msgid "Operation %s"
 #~ msgstr "操作 %s"
-
-#~ msgid "Container not found"
-#~ msgstr "コンテナが見つかりません"
 
 #, fuzzy
 #~ msgid "Ephemeral containers not yet supported\n"

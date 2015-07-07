@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-07-07 07:36+0200\n"
+        "POT-Creation-Date: 2015-07-07 17:20-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -74,7 +74,7 @@ msgstr  ""
 msgid   "Accept certificate"
 msgstr  ""
 
-#: lxc/remote.go:132
+#: lxc/remote.go:131
 #, c-format
 msgid   "Admin password for %s: "
 msgstr  ""
@@ -126,7 +126,7 @@ msgstr  ""
 msgid   "Changing the name of a running container during copy isn't supported."
 msgstr  ""
 
-#: lxc/remote.go:155
+#: lxc/remote.go:154
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
@@ -188,7 +188,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:543 client.go:553 client.go:695 client.go:1654
+#: client.go:543 client.go:553 client.go:695 client.go:1653
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -211,7 +211,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>\n"
 msgstr  ""
 
-#: lxc/main.go:112
+#: lxc/main.go:109
 msgid   "For example: 'lxd-images import lxc ubuntu trusty amd64 --alias "
         "ubuntu/trusty'.\n"
 msgstr  ""
@@ -220,11 +220,11 @@ msgstr  ""
 msgid   "Force the container to shutdown."
 msgstr  ""
 
-#: lxc/main.go:104
+#: lxc/main.go:101
 msgid   "Generating a client certificate. This may take a minute...\n"
 msgstr  ""
 
-#: lxc/main.go:111
+#: lxc/main.go:108
 msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
@@ -533,7 +533,7 @@ msgid   "Server certificate for host %s has changed. Add correct certificate "
         "or remove certificate in %s"
 msgstr  ""
 
-#: lxc/remote.go:152
+#: lxc/remote.go:151
 msgid   "Server doesn't trust us after adding our cert"
 msgstr  ""
 
@@ -593,7 +593,7 @@ msgstr  ""
 msgid   "Unknown image command %s"
 msgstr  ""
 
-#: lxc/remote.go:261
+#: lxc/remote.go:260
 #, c-format
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
@@ -633,7 +633,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: lxc/launch.go:102
+#: lxc/launch.go:101
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
@@ -658,7 +658,7 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: lxc/launch.go:86 lxc/launch.go:91
+#: lxc/launch.go:85 lxc/launch.go:90
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
@@ -666,7 +666,7 @@ msgstr  ""
 msgid   "error: %v\n"
 msgstr  ""
 
-#: lxc/main.go:117
+#: lxc/main.go:114
 msgid   "error: %v\n"
         "%s"
 msgstr  ""
@@ -691,7 +691,7 @@ msgstr  ""
 msgid   "got bad response type, expected %s got %s"
 msgstr  ""
 
-#: lxc/launch.go:106
+#: lxc/launch.go:105
 msgid   "got bad version"
 msgstr  ""
 
@@ -738,17 +738,17 @@ msgstr  ""
 msgid   "ok (y/n)? "
 msgstr  ""
 
-#: lxc/remote.go:223
+#: lxc/remote.go:222
 #, c-format
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:193 lxc/remote.go:219 lxc/remote.go:239 lxc/remote.go:250
+#: lxc/remote.go:192 lxc/remote.go:218 lxc/remote.go:238 lxc/remote.go:249
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""
 
-#: lxc/remote.go:178
+#: lxc/remote.go:177
 #, c-format
 msgid   "remote %s exists as <%s>"
 msgstr  ""
@@ -761,7 +761,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:155
+#: lxc/main.go:152
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
