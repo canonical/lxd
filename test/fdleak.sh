@@ -13,7 +13,7 @@ test_fdleak() {
     lxc info leaktest1
     [ -n "$TRAVIS_PULL_REQUEST" ] || lxc start leaktest1
     [ -n "$TRAVIS_PULL_REQUEST" ] || lxc exec leaktest1 -- ps -ef
-    [ -n "$TRAVIS_PULL_REQUEST" ] || lxc stop leaktest1
+    [ -n "$TRAVIS_PULL_REQUEST" ] || lxc stop leaktest1 --force
     lxc delete leaktest1
     afterfds=`/bin/ls /proc/$lxd1_pid/fd | wc -l`
     leakedfds=$((afterfds - beforefds))

@@ -174,7 +174,7 @@ disturbthread() {
         lxc profile apply disturb1 empty
         lxc start disturb1
         lxc exec disturb1 -- ps -ef
-        lxc stop disturb1
+        lxc stop disturb1 --force
         lxc delete disturb1
         lxc profile delete empty
     done
