@@ -41,7 +41,6 @@ func (c *launchCmd) flags() {
 }
 
 func (c *launchCmd) run(config *lxd.Config, args []string) error {
-
 	if len(args) > 2 || len(args) < 1 {
 		return errArgs
 	}

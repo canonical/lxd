@@ -38,7 +38,6 @@ func getSize(f *os.File) (int64, error) {
 }
 
 func detectCompression(fname string) (int, string, error) {
-
 	f, err := os.Open(fname)
 	if err != nil {
 		return -1, "", err
@@ -300,7 +299,6 @@ func makeBtrfsSubvol(imagefname, subvol string) error {
 }
 
 func removeImgWorkdir(d *Daemon, builddir string) {
-
 	vgname, _, err := getServerConfigValue(d, "core.lvm_vg_name")
 	if err != nil {
 		shared.Debugf("Error checking server config: %v", err)
@@ -506,7 +504,6 @@ func dbInsertImage(d *Daemon, fp string, fname string, sz int64, public int,
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
-
 	dirname := shared.VarPath("images")
 	if err := os.MkdirAll(dirname, 0700); err != nil {
 		return InternalError(err)
@@ -575,7 +572,6 @@ func xzReader(r io.Reader) io.ReadCloser {
 }
 
 func getImageMetadata(fname string) (*imageMetadata, error) {
-
 	metadataName := "metadata.yaml"
 
 	compression, _, err := detectCompression(fname)
