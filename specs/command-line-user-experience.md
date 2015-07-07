@@ -217,7 +217,7 @@ lxc file pull dakara:c2/etc/hosts /tmp/                 | Grab /etc/hosts from c
     image delete <image>
     image edit <image>
     image export <image> [target]
-    image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--alias=ALIAS].. [prop=value]
+    image import <tarball> [rootfs tarball] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--alias=ALIAS].. [prop=value]
     image info <image>
     image list [filter]
     image move <image> <remote:>
@@ -254,6 +254,7 @@ Command                                                                         
 :------                                                                                                                 | :-----
 lxc image import centos-7-x86\_64.tar.gz --created-at=2014-12-10 --expires-at=2015-01-10 os=fedora release=7 arch=amd64 | Import a centos LXD image in the local LXD image store
 lxc image import debian-jessie\_amd64.tar.gz dakara:                                                                    | Import a debian LXD image in the lxc image store of remote host "dakara"
+lxc image import debian-jessie\_amd64.meta.tar.gz debian-jessie\_amd64.tar.g dakara:                                    | Import a debian LXD image in split format in the lxc image store of remote host "dakara"
 lxc image alias create centos/7 \<fingerprint\>                                                                         | Create an alias for centos/7 pointing to our centos 7 image
 
 **Example output (lxc image list)**

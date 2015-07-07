@@ -14,6 +14,7 @@ import sys
 import tarfile
 import tempfile
 import urllib.request
+import uuid
 
 # External dependencies:
 # - gnupg
@@ -60,14 +61,14 @@ class LXD(object):
     def __init__(self, path):
         self.lxd = UnixHTTPConnection(path)
 
-    def rest_call(self, path, data=None, method="GET"):
+    def rest_call(self, path, data=None, method="GET", headers={}):
         if method == "GET" and data:
             self.lxd.request(
                 method,
                 "%s?%s" % "&".join(["%s=%s" % (key, value)
-                                    for key, value in data.items()]))
+                                    for key, value in data.items()]), headers)
         else:
-            self.lxd.request(method, path, data)
+            self.lxd.request(method, path, data, headers)
 
         r = self.lxd.getresponse()
         d = json.loads(r.read().decode("utf-8"))
@@ -101,7 +102,40 @@ class LXD(object):
         return [image.split("/1.0/images/")[-1] for image in data['metadata']]
 
     def images_upload(self, path, filename):
-        status, data = self.rest_call("/1.0/images", open(path, "rb"), "POST")
+        if isinstance(path, str):
+            status, data = self.rest_call("/1.0/images",
+                                          open(path, "rb"), "POST")
+        else:
+            meta_path, rootfs_path = path
+            boundary = str(uuid.uuid1())
+
+            form = []
+            for name, path in [("metadata", meta_path),
+                               ("rootfs", rootfs_path)]:
+                filename = os.path.basename(path)
+                form.append("--%s" % boundary)
+                form.append("Content-Disposition: form-data; "
+                            "name=%s; filename=%s" % (name, filename))
+                form.append("Content-Type: application/octet-stream")
+                form.append("")
+                with open(path, "rb") as fd:
+                    form.append(fd.read())
+
+            form.append("--%s--" % boundary)
+            form.append("")
+
+            body = b""
+            for entry in form:
+                if isinstance(entry, bytes):
+                    body += entry + b"\r\n"
+                else:
+                    body += entry.encode() + b"\r\n"
+
+            headers = {}
+            headers['Content-Type'] = "multipart/form-data; boundary=%s" \
+                % boundary
+
+            status, data = self.rest_call("/1.0/images", body, "POST", headers)
 
         if status != 200:
             raise Exception("Failed to upload the image: %s" % status)
@@ -120,11 +154,16 @@ class Busybox(object):
         if self.workdir:
             shutil.rmtree(self.workdir)
 
-    def create_tarball(self):
+    def create_tarball(self, split=False):
         xz = "pxz" if find_on_path("pxz") else "xz"
 
         destination_tar = os.path.join(self.workdir, "busybox.tar")
         target_tarball = tarfile.open(destination_tar, "w:")
+
+        if split:
+            destination_tar_rootfs = os.path.join(self.workdir,
+                                                  "busybox.rootfs.tar")
+            target_tarball_rootfs = tarfile.open(destination_tar_rootfs, "w:")
 
         metadata = {'architecture': os.uname()[4],
                     'creation_date': int(os.stat("/bin/busybox").st_ctime),
@@ -140,9 +179,13 @@ class Busybox(object):
         with open("/bin/busybox", "rb") as fd:
             busybox_file = tarfile.TarInfo()
             busybox_file.size = os.stat("/bin/busybox").st_size
-            busybox_file.name = "rootfs/bin/busybox"
             busybox_file.mode = 0o755
-            target_tarball.addfile(busybox_file, fd)
+            if split:
+                busybox_file.name = "bin/busybox"
+                target_tarball_rootfs.addfile(busybox_file, fd)
+            else:
+                busybox_file.name = "rootfs/bin/busybox"
+                target_tarball.addfile(busybox_file, fd)
 
         # Add symlinks
         busybox = subprocess.Popen(["/bin/busybox", "--list-full"],
@@ -155,17 +198,25 @@ class Busybox(object):
                 continue
 
             symlink_file = tarfile.TarInfo()
-            symlink_file.name = "rootfs/%s" % path.strip()
             symlink_file.type = tarfile.SYMTYPE
             symlink_file.linkname = "/bin/busybox"
-            target_tarball.addfile(symlink_file)
+            if split:
+                symlink_file.name = "%s" % path.strip()
+                target_tarball_rootfs.addfile(symlink_file)
+            else:
+                symlink_file.name = "rootfs/%s" % path.strip()
+                target_tarball.addfile(symlink_file)
 
         # Add directories
         for path in ("dev", "mnt", "proc", "root", "sys", "tmp"):
             directory_file = tarfile.TarInfo()
-            directory_file.name = "rootfs/%s" % path
             directory_file.type = tarfile.DIRTYPE
-            target_tarball.addfile(directory_file)
+            if split:
+                directory_file.name = "%s" % path
+                target_tarball_rootfs.addfile(directory_file)
+            else:
+                directory_file.name = "rootfs/%s" % path
+                target_tarball.addfile(directory_file)
 
         # Add the metadata file
         metadata_yaml = json.dumps(metadata, sort_keys=True,
@@ -179,13 +230,22 @@ class Busybox(object):
                                io.BytesIO(metadata_yaml))
 
         target_tarball.close()
+        if split:
+            target_tarball_rootfs.close()
 
         # Compress the tarball
         r = subprocess.call([xz, "-9", destination_tar])
         if r:
-            raise Exception("Failed to compress: %s" % path)
+            raise Exception("Failed to compress: %s" % destination_tar)
 
-        return destination_tar + ".xz"
+        if split:
+            r = subprocess.call([xz, "-9", destination_tar_rootfs])
+            if r:
+                raise Exception("Failed to compress: %s" %
+                                destination_tar_rootfs)
+            return destination_tar + ".xz", destination_tar_rootfs + ".xz"
+        else:
+            return destination_tar + ".xz"
 
 
 class LXCImages(object):
@@ -335,16 +395,32 @@ if __name__ == "__main__":
 
     def import_busybox(parser, args):
         busybox = Busybox()
-        path = busybox.create_tarball()
 
-        with open(path, "rb") as fd:
-            fingerprint = hashlib.sha256(fd.read()).hexdigest()
+        if args.split:
+            meta_path, rootfs_path = busybox.create_tarball(split=True)
 
-        if fingerprint in lxd.images_list():
-            parser.exit(1, _("This image is already in the store.\n"))
+            with open(meta_path, "rb") as meta_fd:
+                with open(rootfs_path, "rb") as rootfs_fd:
+                    fingerprint = hashlib.sha256(meta_fd.read() +
+                                                 rootfs_fd.read()).hexdigest()
 
-        r = lxd.images_upload(path, path.split("/")[-1])
-        print(_("Image imported as: %s" % r['fingerprint']))
+            if fingerprint in lxd.images_list():
+                parser.exit(1, _("This image is already in the store.\n"))
+
+            r = lxd.images_upload((meta_path, rootfs_path),
+                                  meta_path.split("/")[-1])
+            print(_("Image imported as: %s" % r['fingerprint']))
+        else:
+            path = busybox.create_tarball()
+
+            with open(path, "rb") as fd:
+                fingerprint = hashlib.sha256(fd.read()).hexdigest()
+
+            if fingerprint in lxd.images_list():
+                parser.exit(1, _("This image is already in the store.\n"))
+
+            r = lxd.images_upload(path, path.split("/")[-1])
+            print(_("Image imported as: %s" % r['fingerprint']))
 
         setup_alias(parser, args, fingerprint)
 
@@ -394,6 +470,9 @@ if __name__ == "__main__":
         "busybox", help=_("Busybox image"))
     parser_import_busybox.add_argument("--alias", action="append", default=[],
                                        help=_("Aliases for the image"))
+    parser_import_busybox.add_argument(
+        "--split", action="store_true", default=False,
+        help=_("Whether to create a split image"))
     parser_import_busybox.set_defaults(func=import_busybox)
 
     ## LXC
