@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"net"
@@ -163,4 +164,14 @@ func GenCert(certf string, keyf string) error {
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privk)})
 	keyOut.Close()
 	return nil
+}
+
+func ReadCert(fpath string) (*x509.Certificate, error) {
+	cf, err := ioutil.ReadFile(fpath)
+	if err != nil {
+		return nil, err
+	}
+
+	certBlock, _ := pem.Decode(cf)
+	return x509.ParseCertificate(certBlock.Bytes)
 }
