@@ -18,7 +18,6 @@ const (
 )
 
 func setTrustPassword(d *Daemon, password string) error {
-
 	shared.Debugf("setting new password")
 	var value = password
 	if password != "" {
@@ -59,7 +58,6 @@ func ValidServerConfigKey(k string) bool {
 }
 
 func setServerConfig(d *Daemon, key string, value string) error {
-
 	tx, err := shared.DbBegin(d.db)
 	if err != nil {
 		return err
@@ -130,7 +128,6 @@ func getServerConfig(d *Daemon) (map[string]interface{}, error) {
 }
 
 func setLVMVolumeGroupNameConfig(d *Daemon, vgname string) error {
-
 	if vgname != "" {
 		err := shared.LVMCheckVolumeGroup(vgname)
 		if err != nil {
@@ -147,7 +144,6 @@ func setLVMVolumeGroupNameConfig(d *Daemon, vgname string) error {
 }
 
 func setLVMThinPoolNameConfig(d *Daemon, poolname string) error {
-
 	vgname, vgnameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
 	if err != nil {
 		return fmt.Errorf("Error getting lvm_vg_name config")

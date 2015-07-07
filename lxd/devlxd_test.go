@@ -55,7 +55,6 @@ func connect(path string) (*net.UnixConn, error) {
 }
 
 func TestCredsSendRecv(t *testing.T) {
-
 	result := make(chan int32, 1)
 
 	listener, err := setupSocket()
@@ -102,7 +101,6 @@ func TestCredsSendRecv(t *testing.T) {
  * point where it realizes the pid isn't in a container without crashing).
  */
 func TestHttpRequest(t *testing.T) {
-
 	if err := setupDir(); err != nil {
 		t.Fatal(err)
 	}

@@ -48,7 +48,6 @@ func containerPut(d *Daemon, r *http.Request) Response {
 }
 
 func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig containerConfigReq) error {
-
 	/* check to see that the config actually applies to the container
 	 * successfully before saving it. in particular, raw.lxc and
 	 * raw.apparmor need to be parsed once to make sure they make sense.

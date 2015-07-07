@@ -43,7 +43,6 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 }
 
 func containerFileGet(pid int, r *http.Request, path string) Response {
-
 	/*
 	 * Copy out of the ns to a temporary file, and then use that to serve
 	 * the request from. This prevents us from having to worry about stuff
@@ -89,7 +88,6 @@ func containerFileGet(pid int, r *http.Request, path string) Response {
 }
 
 func containerFilePut(pid int, r *http.Request, p string, idmapset *shared.IdmapSet) Response {
-
 	uid, gid, mode, err := shared.ParseLXDFileHeaders(r.Header)
 	if err != nil {
 		return BadRequest(err)

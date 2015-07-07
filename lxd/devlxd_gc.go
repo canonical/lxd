@@ -113,7 +113,6 @@ func hoistReq(f func(*lxdContainer, *http.Request) *DevLxdResponse, d *Daemon) f
 }
 
 func createAndBindDevLxd() (*net.UnixListener, error) {
-
 	if err := os.MkdirAll(socketPath(), 0777); err != nil {
 		return nil, err
 	}
@@ -239,7 +238,6 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
  * we need it to get at SO_PEERCRED, so let's grab it.
  */
 func extractUnderlyingFd(unixConnPtr *net.UnixConn) int {
-
 	conn := reflect.Indirect(reflect.ValueOf(unixConnPtr))
 	netFdPtr := conn.FieldByName("fd")
 	netFd := reflect.Indirect(netFdPtr)
@@ -281,7 +279,6 @@ func extractUnderlyingConn(w http.ResponseWriter) *net.UnixConn {
 var pidNotInContainerErr = fmt.Errorf("pid not in container?")
 
 func findContainerForPid(pid int32, d *Daemon) (*lxdContainer, error) {
-
 	/*
 	 * Try and figure out which container a pid is in. There is probably a
 	 * better way to do this. Based on rharper's initial performance

@@ -24,7 +24,6 @@ import (
 // ExtractInterfaceFromConfigName returns "eth0" from "volatile.eth0.hwaddr",
 // or an error if the key does not match this pattern.
 func ExtractInterfaceFromConfigName(k string) (string, error) {
-
 	re := regexp.MustCompile("volatile\\.([^.]*)\\.hwaddr")
 	m := re.FindStringSubmatch(k)
 	if m != nil && len(m) > 1 {
@@ -110,7 +109,6 @@ func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 }
 
 func (c *lxdContainer) Start() error {
-
 	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
 	if err != nil {
 		return err

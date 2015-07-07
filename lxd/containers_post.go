@@ -368,7 +368,6 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 }
 
 func createFromMigration(d *Daemon, req *containerPostReq) Response {
-
 	if req.Source.Mode != "pull" {
 		return NotImplemented
 	}
