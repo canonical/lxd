@@ -19,7 +19,7 @@ func (c *moveCmd) usage() string {
 	return gettext.Gettext(
 		"Move containers within or in between lxd instances.\n" +
 			"\n" +
-			"lxc move <source container> <destination container>\n")
+			"lxc move [remote:]<source container> [remote:]<destination container>\n")
 }
 
 func (c *moveCmd) flags() {}

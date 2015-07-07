@@ -23,7 +23,7 @@ func (c *execCmd) usage() string {
 	return gettext.Gettext(
 		"Execute the specified command in a container.\n" +
 			"\n" +
-			"lxc exec container [--env EDITOR=/usr/bin/vim]... <command>\n")
+			"lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>\n")
 }
 
 type envFlag []string
