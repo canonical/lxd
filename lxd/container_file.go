@@ -84,7 +84,12 @@ func containerFileGet(pid int, r *http.Request, path string) Response {
 		"X-LXD-mode": fmt.Sprintf("%04o", fi.Mode()&os.ModePerm),
 	}
 
-	return FileResponse(r, temp.Name(), filepath.Base(path), headers, true)
+	files := make([]fileResponseEntry, 1)
+	files[0].identifier = filepath.Base(path)
+	files[0].path = temp.Name()
+	files[0].filename = filepath.Base(path)
+
+	return FileResponse(r, files, headers, true)
 }
 
 func containerFilePut(pid int, r *http.Request, p string, idmapset *shared.IdmapSet) Response {
