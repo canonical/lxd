@@ -1,4 +1,4 @@
-// +build linux dragonfly freebsd netbsd openbsd
+// +build linux
 // +build cgo
 
 package shared
