@@ -97,10 +97,7 @@ func run() error {
 	certf := lxd.ConfigPath("client.crt")
 	keyf := lxd.ConfigPath("client.key")
 
-	_, err = os.Stat(certf)
-	_, err2 := os.Stat(keyf)
-
-	if os.Args[0] != "help" && os.Args[0] != "version" && (err != nil || err2 != nil) {
+	if os.Args[0] != "help" && os.Args[0] != "version" && (!shared.PathExists(certf) || !shared.PathExists(keyf)) {
 		fmt.Fprintf(os.Stderr, gettext.Gettext("Generating a client certificate. This may take a minute...\n"))
 
 		err = shared.FindOrGenCert(certf, keyf)

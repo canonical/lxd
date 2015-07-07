@@ -339,7 +339,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		shared.Debugf("LXD is socket activated.\n")
 
 		for _, listener := range listeners {
-			if _, err := os.Stat(listener.Addr().String()); err == nil {
+			if shared.PathExists(listener.Addr().String()) {
 				localSockets = append(localSockets, listener)
 			} else {
 				tlsListener := tls.NewListener(listener, tlsConfig)
@@ -353,7 +353,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 		// If the socket exists, let's try to connect to it and see if there's
 		// a lxd running.
-		if _, err := os.Stat(localSocketPath); err == nil {
+		if shared.PathExists(localSocketPath) {
 			c := &lxd.Config{Remotes: map[string]lxd.RemoteConfig{}}
 			_, err := lxd.NewClient(c, "")
 			if err != nil {
