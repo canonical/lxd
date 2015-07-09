@@ -47,18 +47,18 @@ func (c *configCmd) usage() string {
 	return gettext.Gettext(
 		"Manage configuration.\n" +
 			"\n" +
-			"lxc config device add <container> <name> <type> [key=value]...\n" +
+			"lxc config device add <[remote:]container> <name> <type> [key=value]...\n" +
 			"               Add a device to a container\n" +
-			"lxc config device list <container>                     List devices for container\n" +
-			"lxc config device show <container>                     Show full device details for container\n" +
-			"lxc config device remove <container> <name>            Remove device from container\n" +
-			"lxc config edit <container>                            Edit container configuration in external editor\n" +
-			"lxc config get <container> key                         Get configuration key\n" +
-			"lxc config set <container> key value                   Set container configuration key\n" +
-			"lxc config unset <container> key                       Unset container configuration key\n" +
+			"lxc config device list [remote:]<container>            List devices for container\n" +
+			"lxc config device show [remote:]<container>            Show full device details for container\n" +
+			"lxc config device remove [remote:]<container> <name>   Remove device from container\n" +
+			"lxc config edit [remote:]<container>                   Edit container configuration in external editor\n" +
+			"lxc config get [remote:]<container> key                Get configuration key\n" +
+			"lxc config set [remote:]<container> key value          Set container configuration key\n" +
+			"lxc config unset [remote:]<container> key              Unset container configuration key\n" +
 			"lxc config set key value                               Set server configuration key\n" +
 			"lxc config unset key                                   Unset server configuration key\n" +
-			"lxc config show <container>                            Show container configuration\n" +
+			"lxc config show [remote:]<container>                   Show container configuration\n" +
 			"lxc config trust list [remote]                         List all trusted certs.\n" +
 			"lxc config trust add [remote] [certfile.crt]           Add certfile.crt to trusted hosts.\n" +
 			"lxc config trust remove [remote] [hostname|fingerprint]\n" +
@@ -66,9 +66,9 @@ func (c *configCmd) usage() string {
 			"\n" +
 			"Examples:\n" +
 			"To mount host's /share/c1 onto /opt in the container:\n" +
-			"\tlxc config device add container1 mntdir disk source=/share/c1 path=opt\n" +
+			"\tlxc config device add [remote:]container1 mntdir disk source=/share/c1 path=opt\n" +
 			"To set an lxc config value:\n" +
-			"\tlxc config set <container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n" +
+			"\tlxc config set [remote:]<container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n" +
 			"To set the server trust password:\n" +
 			"\tlxc config set core.trust_password blah\n")
 }
