@@ -256,7 +256,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 			snapshotLVPath, err := shared.LVMCreateSnapshotLV(name, hash, vgname)
 			if err != nil {
-				return fmt.Errorf("Error creating snapshot of source volume '%s'", srcLVPath)
+				return fmt.Errorf("Error creating snapshot of source volume '%s': %v", srcLVPath, err)
 			}
 
 			destPath := shared.VarPath("lxc", name)
