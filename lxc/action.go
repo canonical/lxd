@@ -26,7 +26,7 @@ func (c *actionCmd) usage() string {
 	return fmt.Sprintf(gettext.Gettext(
 		"Changes one or more containers state to %s.\n"+
 			"\n"+
-			"lxd %s <name> [<name>...]\n"), c.action, c.action)
+			"lxc %s <name> [<name>...]\n"), c.action, c.action)
 }
 
 func (c *actionCmd) flags() {
