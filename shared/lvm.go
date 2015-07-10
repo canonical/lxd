@@ -74,14 +74,8 @@ func LVMCreateSnapshotLV(lvname string, origlvname string, vgname string) (strin
 		Debugf("could not create LV named '%s' as snapshot of '%s': '%s'", lvname, origlvname, errbuf.String())
 		return "", fmt.Errorf("Could not create snapshot LV named %s", lvname)
 	}
-
-	timer := time.AfterFunc(snapshotCreateTimeout*time.Second, func() {
-		Debugf("Snapshot creation timed out after '%d' seconds, terminating attempt.", snapshotCreateTimeout)
-		cmd.Process.Kill()
-	})
-
 	err = cmd.Wait()
-	timer.Stop()
+
 	if err != nil {
 		return "", fmt.Errorf("Snapshot LV creation error: '%v'", err)
 	}
