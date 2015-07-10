@@ -252,11 +252,10 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	if vgnameIsSet && shared.PathExists(fmt.Sprintf("%s.lv", shared.VarPath("images", hash))) {
 		run = shared.OperationWrap(func() error {
-			srcLVPath := fmt.Sprintf("/dev/%s/%s", vgname, hash)
 
-			snapshotLVPath, err := shared.LVMCreateSnapshotLV(name, hash, vgname)
+			lvpath, err := shared.LVMCreateSnapshotLV(name, hash, vgname)
 			if err != nil {
-				return fmt.Errorf("Error creating snapshot of source volume '%s': %v", srcLVPath, err)
+				return fmt.Errorf("Error creating snapshot of source LV '%s/%s': %s", vgname, hash, err)
 			}
 
 			destPath := shared.VarPath("lxc", name)
@@ -265,13 +264,21 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 				return fmt.Errorf("Error creating container directory: %v", err)
 			}
 
-			output, err := exec.Command("mount", "-o", "discard", snapshotLVPath, destPath).CombinedOutput()
-			if err != nil {
-				return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, output)
-			}
-
 			if !c.isPrivileged() {
-				return shiftRootfs(c, name, d)
+				output, err := exec.Command("mount", "-o", "discard", lvpath, destPath).CombinedOutput()
+				if err != nil {
+					return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, output)
+				}
+
+				if err = shiftRootfs(c, c.name, d); err != nil {
+					return fmt.Errorf("Error in shiftRootfs: %v", err)
+				}
+
+				cpath := shared.VarPath("lxc", c.name)
+				output, err = exec.Command("umount", cpath).CombinedOutput()
+				if err != nil {
+					return fmt.Errorf("Error unmounting '%s' after shiftRootfs: %v", cpath, err)
+				}
 			}
 
 			return nil

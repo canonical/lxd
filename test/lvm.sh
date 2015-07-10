@@ -19,7 +19,7 @@ cleanup_vg() {
 
     if [ -d "$LXD_DIR"/lxc/testcontainer ]; then
         echo "unmounting testcontainer LV"
-        umount "$LXD_DIR"/lxc/testcontainer
+        umount "$LXD_DIR"/lxc/testcontainer || echo "Couldn't unmount testcontainer, skipping"
     fi
 
     # -f removes any LVs in the VG
@@ -99,9 +99,21 @@ test_lvm_withpool() {
     # check that we now have a new volume in the pool
     lvs --noheadings -o pool_lv lxd_test_vg/testcontainer | grep "$poolname" || die "LV for new container not found or not in $poolname"
 
+    mount | grep ${LXD_DIR}/lxc/testcontainer && die "LV for new container should not be mounted until container start"
+
     lxc start testcontainer || die "Couldn't start testcontainer"
+    mount | grep ${LXD_DIR}/lxc/testcontainer || die "testcontainer LV is not mounted?"
     lxc list testcontainer | grep RUNNING || die "testcontainer doesn't seem to be running"
+
     lxc stop testcontainer --force || die "Couldn't stop testcontainer"
+    mount | grep ${LXD_DIR}/lxc/testcontainer && die "LV for new container should be umounted after stop"
+
+    # TODO can't do this because busybox ignores SIGPWR, breaking restart:
+    # check that 'shutdown' also unmounts:
+    # lxc start testcontainer || die "Couldn't re-start testcontainer"
+    # lxc stop testcontainer --timeout 1 || die "Couldn't shutdown testcontainer"
+    # lxc list testcontainer | grep STOPPED || die "testcontainer is still running"
+    # mount | grep ${LXD_DIR}/lxc/testcontainer && die "LV for new container should be umounted after shutdown"
 
     lxc delete testcontainer || die "Couldn't delete testcontainer"
     lvs lxd_test_vg/testcontainer && die "testcontainer LV is still there, should've been destroyed"
