@@ -222,6 +222,9 @@ func containersRestart(d *Daemon) error {
 			return err
 		}
 
+		if err = activateStorage(d, container); err != nil {
+			return err
+		}
 		container.c.Start()
 	}
 
@@ -257,6 +260,9 @@ func containersShutdown(d *Daemon) error {
 			go func() {
 				container.c.Shutdown(time.Second * 30)
 				container.c.Stop()
+				if err = deactivateStorage(d, container); err != nil {
+					shared.Logf("Error deactivating storage after container stop: %v", err)
+				}
 				wg.Done()
 			}()
 		}
