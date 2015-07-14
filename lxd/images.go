@@ -110,8 +110,8 @@ type imageFromContainerPostReq struct {
 
 type imageMetadata struct {
 	Architecture string                    `yaml:"architecture"`
-	CreationDate int64                     `yaml:"creationDate"`
-	ExpiryDate   int64                     `yaml:"expiryDate"`
+	CreationDate int64                     `yaml:"creation_date"`
+	ExpiryDate   int64                     `yaml:"expiry_date"`
 	Properties   map[string]interface{}    `yaml:"properties"`
 	Templates    map[string]*TemplateEntry `yaml:"templates"`
 }
