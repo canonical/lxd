@@ -48,7 +48,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		backing_fs, err := shared.GetFilesystem(d.lxcpath)
+		backingFs, err := shared.GetFilesystem(d.lxcpath)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -57,7 +57,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"lxc_version": lxc.Version(),
 			"lxd_version": shared.Version,
 			"driver":      "lxc",
-			"backing_fs":  backing_fs}
+			"backing_fs":  backingFs}
 
 		/*
 		 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
