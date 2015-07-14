@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -109,11 +108,11 @@ type imageFromContainerPostReq struct {
 }
 
 type imageMetadata struct {
-	Architecture string                    `yaml:"architecture"`
-	CreationDate int64                     `yaml:"creation_date"`
-	ExpiryDate   int64                     `yaml:"expiry_date"`
-	Properties   map[string]interface{}    `yaml:"properties"`
-	Templates    map[string]*TemplateEntry `yaml:"templates"`
+	Architecture string                    `json:"architecture"`
+	CreationDate int64                     `json:"creation_date"`
+	ExpiryDate   int64                     `json:"expiry_date"`
+	Properties   map[string]interface{}    `json:"properties"`
+	Templates    map[string]*TemplateEntry `json:"templates"`
 }
 
 /*
@@ -572,7 +571,7 @@ func xzReader(r io.Reader) io.ReadCloser {
 }
 
 func getImageMetadata(fname string) (*imageMetadata, error) {
-	metadataName := "metadata.yaml"
+	metadataName := "/metadata.yaml"
 
 	compression, _, err := detectCompression(fname)
 
@@ -598,15 +597,14 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 	shared.Debugf("Extracting tarball using command: tar %s", strings.Join(args, " "))
 
 	// read the metadata.yaml
-	output, err := exec.Command("tar", args...).CombinedOutput()
+	output, err := exec.Command("tar", args...).Output()
 
 	if err != nil {
-		outputLines := strings.Split(string(output), "\n")
-		return nil, fmt.Errorf("Could not extract image metadata %s from tar: %v (%s)", metadataName, err, outputLines[0])
+		return nil, fmt.Errorf("Could not extract image metadata %s from tar: %v", metadataName, err)
 	}
 
 	metadata := new(imageMetadata)
-	err = yaml.Unmarshal(output, &metadata)
+	err = json.Unmarshal(output, &metadata)
 
 	if err != nil {
 		return nil, fmt.Errorf("Could not parse %s: %v", metadataName, err)
