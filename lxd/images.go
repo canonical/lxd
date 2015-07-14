@@ -110,8 +110,8 @@ type imageFromContainerPostReq struct {
 
 type imageMetadata struct {
 	Architecture string                    `yaml:"architecture"`
-	CreationDate int64                     `yaml:"creation_date"`
-	ExpiryDate   int64                     `yaml:"expiry_date"`
+	CreationDate int64                     `yaml:"creationDate"`
+	ExpiryDate   int64                     `yaml:"expiryDate"`
 	Properties   map[string]interface{}    `yaml:"properties"`
 	Templates    map[string]*TemplateEntry `yaml:"templates"`
 }
@@ -404,19 +404,19 @@ func createImageLV(d *Daemon, builddir string, fingerprint string, vgname string
 
 	}
 
-	untar_err := untarImage(imagefname, tempLVMountPoint)
+	untarErr := untarImage(imagefname, tempLVMountPoint)
 
 	output, err = exec.Command("umount", tempLVMountPoint).CombinedOutput()
 	if err != nil {
 		shared.Logf("WARNING: could not unmount LV '%s' from '%s'. Will not remove. Error: %v", lvpath, tempLVMountPoint, err)
-		if untar_err == nil {
+		if untarErr == nil {
 			return err
-		} else {
-			return fmt.Errorf("Error unmounting '%s' during cleanup of error %v", tempLVMountPoint, untar_err)
 		}
+
+		return fmt.Errorf("Error unmounting '%s' during cleanup of error %v", tempLVMountPoint, untarErr)
 	}
 
-	return untar_err
+	return untarErr
 }
 
 // Copy imagefile and btrfs file out of the tmpdir
@@ -448,20 +448,20 @@ func pullOutImagefiles(d *Daemon, builddir string, fingerprint string) error {
 }
 
 func dbInsertImage(d *Daemon, fp string, fname string, sz int64, public int,
-	arch int, creation_date int64, expiry_date int64, properties map[string]string) error {
+	arch int, creationDate int64, expiryDate int64, properties map[string]string) error {
 	tx, err := dbBegin(d.db)
 	if err != nil {
 		return err
 	}
 
-	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, strftime("%s"))`)
+	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, creationDate, expiryDate, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, strftime("%s"))`)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 	defer stmt.Close()
 
-	result, err := stmt.Exec(fp, fname, sz, public, arch, creation_date, expiry_date)
+	result, err := stmt.Exec(fp, fname, sz, public, arch, creationDate, expiryDate)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -626,8 +626,8 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 }
 
 func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
-	result_string := make([]string, 0)
-	result_map := make([]shared.ImageInfo, 0)
+	var resultString []string
+	var resultMap []shared.ImageInfo
 
 	q := "SELECT fingerprint FROM images"
 	var name string
@@ -645,21 +645,21 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 		name = r[0].(string)
 		if !recursion {
 			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
-			result_string = append(result_string, url)
+			resultString = append(resultString, url)
 		} else {
 			image, response := doImageGet(d, name, public)
 			if response != nil {
 				continue
 			}
-			result_map = append(result_map, image)
+			resultMap = append(resultMap, image)
 		}
 	}
 
 	if !recursion {
-		return result_string, nil
-	} else {
-		return result_map, nil
+		return resultString, nil
 	}
+
+	return resultMap, nil
 }
 
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
@@ -930,28 +930,28 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return BadRequest(err)
 	}
-	response_str := make([]string, 0)
-	response_map := make([]shared.ImageAlias, 0)
+	var responseStr []string
+	var responseMap []shared.ImageAlias
 	for _, res := range results {
 		name = res[0].(string)
 		if !recursion {
 			url := fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, name)
-			response_str = append(response_str, url)
+			responseStr = append(responseStr, url)
 
 		} else {
 			alias, err := doAliasGet(d, name, d.isTrustedClient(r))
 			if err != nil {
 				continue
 			}
-			response_map = append(response_map, alias)
+			responseMap = append(responseMap, alias)
 		}
 	}
 
 	if !recursion {
-		return SyncResponse(true, response_str)
-	} else {
-		return SyncResponse(true, response_map)
+		return SyncResponse(true, responseStr)
 	}
+
+	return SyncResponse(true, responseMap)
 }
 
 func aliasGet(d *Daemon, r *http.Request) Response {

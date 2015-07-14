@@ -65,7 +65,7 @@ func removeContainer(d *Daemon, name string) error {
 
 func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	_, err := dbGetContainerId(d.db, name)
+	_, err := dbGetContainerID(d.db, name)
 	if err != nil {
 		return SmartError(err)
 	}

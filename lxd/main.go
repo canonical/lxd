@@ -100,8 +100,8 @@ func run() error {
 		go memProfiler()
 	}
 
-	needed_programs := []string{"setfacl", "rsync", "tar", "xz"}
-	for _, p := range needed_programs {
+	neededPrograms := []string{"setfacl", "rsync", "tar", "xz"}
+	for _, p := range neededPrograms {
 		_, err := exec.LookPath(p)
 		if err != nil {
 			return err

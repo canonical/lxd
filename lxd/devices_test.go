@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/lxc/lxd/shared"
@@ -22,7 +21,7 @@ func Test_disk_device_returns_simple_mount_entry(t *testing.T) {
 
 	for key := range unwrapped {
 		if unwrapped[key] != expected[key] {
-			t.Error(fmt.Sprintf("Expected '%s', got '%s' instead!", expected, unwrapped))
+			t.Errorf("Expected '%s', got '%s' instead!", expected, unwrapped)
 		}
 	}
 }
@@ -43,7 +42,7 @@ func Test_disk_device_returns_readonly_mount_entry(t *testing.T) {
 
 	for key := range unwrapped {
 		if unwrapped[key] != expected[key] {
-			t.Error(fmt.Sprintf("Expected '%s', got '%s' instead!", expected, unwrapped))
+			t.Errorf("Expected '%s', got '%s' instead!", expected, unwrapped)
 		}
 	}
 }
@@ -64,7 +63,7 @@ func Test_disk_device_returns_optional_mount_entry(t *testing.T) {
 
 	for key := range unwrapped {
 		if unwrapped[key] != expected[key] {
-			t.Error(fmt.Sprintf("Expected '%s', got '%s' instead!", expected, unwrapped))
+			t.Errorf("Expected '%s', got '%s' instead!", expected, unwrapped)
 		}
 	}
 }
@@ -95,7 +94,7 @@ func Test_nic_device_returns_config_line(t *testing.T) {
 
 	for key := range unwrapped {
 		if unwrapped[key] != expected[key] {
-			t.Error(fmt.Sprintf("Expected '%s', got '%s' instead!", expected, unwrapped))
+			t.Errorf("Expected '%s', got '%s' instead!", expected, unwrapped)
 		}
 	}
 }

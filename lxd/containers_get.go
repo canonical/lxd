@@ -32,33 +32,33 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 		return nil, err
 	}
 
-	result_string := make([]string, 0)
-	result_map := make([]shared.ContainerInfo, 0)
+	var resultString []string
+	var resultMap []shared.ContainerInfo
 	if err != nil {
 		return []string{}, err
 	}
 	for _, container := range result {
 		if !recursion {
 			url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
-			result_string = append(result_string, url)
+			resultString = append(resultString, url)
 		} else {
 			container, response := doContainerGet(d, container)
 			if response != nil {
 				continue
 			}
-			result_map = append(result_map, container)
+			resultMap = append(resultMap, container)
 		}
 	}
 
 	if !recursion {
-		return result_string, nil
-	} else {
-		return result_map, nil
+		return resultString, nil
 	}
+
+	return resultMap, nil
 }
 
 func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
-	_, err := dbGetContainerId(d.db, cname)
+	_, err := dbGetContainerID(d.db, cname)
 	if err != nil {
 		return shared.ContainerInfo{}, SmartError(err)
 	}

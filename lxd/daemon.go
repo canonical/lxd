@@ -43,6 +43,7 @@ type Daemon struct {
 	devlxd *net.UnixListener
 }
 
+// Command is the basic structure for every API call.
 type Command struct {
 	name          string
 	untrustedGet  bool
@@ -87,7 +88,7 @@ func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
 	}
 
 	if resp.Type != lxd.Sync {
-		return nil, fmt.Errorf("unexpected non-sync response!")
+		return nil, fmt.Errorf("unexpected non-sync response")
 	}
 
 	return resp, nil
@@ -159,7 +160,7 @@ func (d *Daemon) isTrustedClient(r *http.Request) bool {
 	return false
 }
 
-func isJsonRequest(r *http.Request) bool {
+func isJSONRequest(r *http.Request) bool {
 	for k, vs := range r.Header {
 		if strings.ToLower(k) == "content-type" &&
 			len(vs) == 1 && strings.ToLower(vs[0]) == "application/json" {
@@ -171,8 +172,8 @@ func isJsonRequest(r *http.Request) bool {
 }
 
 func (d *Daemon) isRecursionRequest(r *http.Request) bool {
-	recursion_str := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursion_str)
+	recursionStr := r.FormValue("recursion")
+	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
 		return false
 	}
@@ -203,7 +204,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 			return
 		}
 
-		if *debug && r.Method != "GET" && isJsonRequest(r) {
+		if *debug && r.Method != "GET" && isJSONRequest(r) {
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
@@ -432,6 +433,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	return d, nil
 }
 
+// CheckTrustState returns True if the client is trusted else false.
 func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 	for k, v := range d.clientCerts {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
