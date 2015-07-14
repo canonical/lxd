@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"testing"
 )
 
@@ -48,7 +47,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a profile didn't delete the container association! There are %d left", count))
+		t.Errorf("Deleting a profile didn't delete the container association! There are %d left", count)
 	}
 
 	// Make sure there are 0 profiles_devices entries left.
@@ -56,7 +55,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a profile didn't delete the related profiles_devices! There are %d left", count))
+		t.Errorf("Deleting a profile didn't delete the related profiles_devices! There are %d left", count)
 	}
 
 	// Make sure there are 0 profiles_config entries left.
@@ -64,7 +63,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a profile didn't delete the related profiles_config! There are %d left", count))
+		t.Errorf("Deleting a profile didn't delete the related profiles_config! There are %d left", count)
 	}
 
 	// Make sure there are 0 profiles_devices_config entries left.
@@ -72,6 +71,6 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a profile didn't delete the related profiles_devices_config! There are %d left", count))
+		t.Errorf("Deleting a profile didn't delete the related profiles_devices_config! There are %d left", count)
 	}
 }

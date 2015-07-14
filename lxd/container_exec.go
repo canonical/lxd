@@ -101,7 +101,7 @@ func (s *execWs) Do() shared.OperationResult {
 	}
 
 	controlExit := make(chan bool)
-	stdEof := make(chan bool)
+	stdEOF := make(chan bool)
 
 	if s.interactive {
 		go func() {
@@ -138,21 +138,21 @@ func (s *execWs) Do() shared.OperationResult {
 				}
 
 				if command.Command == "window-resize" {
-					winch_width, err := strconv.Atoi(command.Args["width"])
+					winchWidth, err := strconv.Atoi(command.Args["width"])
 					if err != nil {
 						shared.Debugf("Unable to extract window width: %s", err)
 						continue
 					}
 
-					winch_height, err := strconv.Atoi(command.Args["height"])
+					winchHeight, err := strconv.Atoi(command.Args["height"])
 					if err != nil {
 						shared.Debugf("Unable to extract window height: %s", err)
 						continue
 					}
 
-					err = shared.SetSize(int(ptys[0].Fd()), winch_width, winch_height)
+					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
 					if err != nil {
-						shared.Debugf("Failed to set window size to: %dx%d", winch_width, winch_height)
+						shared.Debugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
 					}
 				}
 
@@ -173,7 +173,7 @@ func (s *execWs) Do() shared.OperationResult {
 				} else {
 					<-shared.WebsocketSendStream(s.conns[i], ptys[i])
 					ptys[i].Close()
-					stdEof <- true
+					stdEOF <- true
 				}
 			}(i)
 		}
@@ -189,7 +189,7 @@ func (s *execWs) Do() shared.OperationResult {
 		ttys[0].Close()
 		ttys[1].Close()
 		ttys[2].Close()
-		<-stdEof
+		<-stdEOF
 	}
 
 	for _, tty := range ttys {
