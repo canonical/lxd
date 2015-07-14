@@ -433,7 +433,7 @@ func (d *lxdContainer) exportToTar(snap string, w io.Writer) error {
 	cDir := shared.VarPath("lxc", d.name)
 
 	// Path inside the tar image is the pathname starting after cDir
-	offset := len(cDir)
+	offset := len(cDir) + 1
 
 	fnam := filepath.Join(cDir, "metadata.yaml")
 	writeToTar := func(path string, fi os.FileInfo, err error) error {
