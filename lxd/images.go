@@ -454,7 +454,7 @@ func dbInsertImage(d *Daemon, fp string, fname string, sz int64, public int,
 		return err
 	}
 
-	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, creationDate, expiryDate, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, strftime("%s"))`)
+	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, strftime("%s"))`)
 	if err != nil {
 		tx.Rollback()
 		return err
