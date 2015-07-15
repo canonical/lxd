@@ -32,8 +32,8 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 		return nil, err
 	}
 
-	var resultString []string
-	var resultMap []shared.ContainerInfo
+	resultString := []string{}
+	resultMap := []shared.ContainerInfo{}
 	if err != nil {
 		return []string{}, err
 	}
