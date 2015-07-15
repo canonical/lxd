@@ -282,22 +282,6 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string) (info shared.Im
 	return info, nil
 }
 
-func makeBtrfsSubvol(imagefname, subvol string) error {
-	output, err := exec.Command("btrfs", "subvolume", "create", subvol).CombinedOutput()
-	if err != nil {
-		shared.Debugf("btrfs subvolume creation failed\n")
-		shared.Debugf(string(output))
-		return err
-	}
-
-	err = untarImage(imagefname, subvol)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func removeImgWorkdir(d *Daemon, builddir string) {
 	vgname, _, err := getServerConfigValue(d, "core.lvm_vg_name")
 	if err != nil {
@@ -326,7 +310,7 @@ func removeImgWorkdir(d *Daemon, builddir string) {
 		fnamelist, _ := shared.ReadDir(builddir)
 		for _, fname := range fnamelist {
 			subvol := filepath.Join(builddir, fname)
-			exec.Command("btrfs", "subvolume", "delete", subvol).Run()
+			btrfsDeleteSubvol(subvol)
 		}
 	}
 	if remErr := os.RemoveAll(builddir); remErr != nil {
@@ -349,7 +333,12 @@ func buildOtherFs(d *Daemon, builddir string, fp string) error {
 	case "btrfs":
 		imagefname := filepath.Join(builddir, fp)
 		subvol := fmt.Sprintf("%s.btrfs", imagefname)
-		if err := makeBtrfsSubvol(imagefname, subvol); err != nil {
+		if err := btrfsMakeSubvol(subvol); err != nil {
+			return err
+		}
+
+		err = untarImage(imagefname, subvol)
+		if err != nil {
 			return err
 		}
 	}
@@ -696,7 +685,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		}
 	} else if d.BackingFs == "btrfs" {
 		subvol := fmt.Sprintf("%s.btrfs", fname)
-		exec.Command("btrfs", "subvolume", "delete", subvol).Run()
+		btrfsDeleteSubvol(subvol)
 	}
 
 	tx, err := dbBegin(d.db)
