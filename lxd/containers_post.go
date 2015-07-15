@@ -75,7 +75,7 @@ func extractImage(hash string, name string, d *Daemon) error {
 	dpath := shared.VarPath("lxc", name)
 	imagefile := shared.VarPath("images", hash)
 
-	compression, _, err := detectCompression(imagefile)
+	compressionArgs, _, err := detectCompression(imagefile)
 	if err != nil {
 		shared.Logf("Unkown compression type: %s", err)
 		removeContainer(d, name)
@@ -83,18 +83,7 @@ func extractImage(hash string, name string, d *Daemon) error {
 	}
 
 	args := []string{"-C", dpath, "--numeric-owner"}
-	switch compression {
-	case COMPRESSION_TAR:
-		args = append(args, "-xf")
-	case COMPRESSION_GZIP:
-		args = append(args, "-zxf")
-	case COMPRESSION_BZ2:
-		args = append(args, "--jxf")
-	case COMPRESSION_LZMA:
-		args = append(args, "--lzma", "-xf")
-	default:
-		args = append(args, "-Jxf")
-	}
+	args = append(args, compressionArgs...)
 	args = append(args, imagefile)
 
 	output, err := exec.Command("tar", args...).Output()
