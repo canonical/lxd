@@ -287,7 +287,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 
 	var ids []int
 
-	backing_fs, err := shared.GetFilesystem(shared.VarPath("lxc", cname))
+	backingFs, err := shared.GetFilesystem(shared.VarPath("lxc", cname))
 	if err != nil && !os.IsNotExist(err) {
 		shared.Debugf("Error cleaning up snapshots: %s\n", err)
 		return err
@@ -299,7 +299,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 		ids = append(ids, id)
 		cdir := shared.VarPath("lxc", cname, "snapshots", sname)
 
-		if backing_fs == "btrfs" {
+		if backingFs == "btrfs" {
 			exec.Command("btrfs", "subvolume", "delete", cdir).Run()
 		}
 		os.RemoveAll(cdir)

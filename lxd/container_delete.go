@@ -13,7 +13,7 @@ import (
 func removeContainerPath(d *Daemon, name string) error {
 	cpath := shared.VarPath("lxc", name)
 
-	backing_fs, err := shared.GetFilesystem(cpath)
+	backingFs, err := shared.GetFilesystem(cpath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -34,7 +34,7 @@ func removeContainerPath(d *Daemon, name string) error {
 			return fmt.Errorf("failed to remove deleted container LV: %v", err)
 		}
 
-	} else if backing_fs == "btrfs" {
+	} else if backingFs == "btrfs" {
 		exec.Command("btrfs", "subvolume", "delete", cpath).Run()
 	}
 

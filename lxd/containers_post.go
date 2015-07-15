@@ -178,7 +178,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var err error
 	var run func() shared.OperationResult
 
-	backing_fs, err := shared.GetFilesystem(d.lxcpath)
+	backingFs, err := shared.GetFilesystem(d.lxcpath)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -284,7 +284,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			return nil
 		})
 
-	} else if backing_fs == "btrfs" && shared.PathExists(fmt.Sprintf("%s.btrfs", shared.VarPath("images", hash))) {
+	} else if backingFs == "btrfs" && shared.PathExists(fmt.Sprintf("%s.btrfs", shared.VarPath("images", hash))) {
 		run = shared.OperationWrap(func() error {
 			if _, err := btrfsCopyImage(hash, name, d); err != nil {
 				return err
