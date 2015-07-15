@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
@@ -35,7 +34,9 @@ func removeContainerPath(d *Daemon, name string) error {
 		}
 
 	} else if backingFs == "btrfs" {
-		exec.Command("btrfs", "subvolume", "delete", cpath).Run()
+		if err := btrfsDeleteSubvol(cpath); err != nil {
+			return err
+		}
 	}
 
 	err = os.RemoveAll(cpath)
