@@ -356,8 +356,10 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	}
 
 	args := migration.MigrationSinkArgs{
-		Url:       req.Source.Operation,
-		Dialer:    websocket.Dialer{TLSClientConfig: config},
+		Url: req.Source.Operation,
+		Dialer: websocket.Dialer{
+			TLSClientConfig: config,
+			NetDial:         shared.RFC3493Dialer},
 		Container: c.c,
 		Secrets:   req.Source.Websockets,
 		IdMapSet:  c.idmapset,

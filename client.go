@@ -229,6 +229,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			}
 
 			c.websocketDialer = websocket.Dialer{
+				NetDial:         shared.RFC3493Dialer,
 				TLSClientConfig: tlsconfig,
 			}
 
