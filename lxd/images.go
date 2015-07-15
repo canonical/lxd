@@ -626,8 +626,8 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 }
 
 func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
-	var resultString []string
-	var resultMap []shared.ImageInfo
+	resultString := []string{}
+	resultMap := []shared.ImageInfo{}
 
 	q := "SELECT fingerprint FROM images"
 	var name string
@@ -930,8 +930,8 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return BadRequest(err)
 	}
-	var responseStr []string
-	var responseMap []shared.ImageAlias
+	responseStr := []string{}
+	responseMap := []shared.ImageAlias{}
 	for _, res := range results {
 		name = res[0].(string)
 		if !recursion {

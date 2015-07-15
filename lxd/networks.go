@@ -26,8 +26,8 @@ func networksGet(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	var resultString []string
-	var resultMap []network
+	resultString := []string{}
+	resultMap := []network{}
 	for _, iface := range ifs {
 		if recursion == 0 {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))

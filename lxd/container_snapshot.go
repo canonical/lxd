@@ -55,8 +55,8 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	var resultString []string
-	var resultMap []shared.Jmap
+	resultString := []string{}
+	resultMap := []shared.Jmap{}
 
 	for _, r := range results {
 		name = r[0].(string)
