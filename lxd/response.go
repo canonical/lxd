@@ -75,7 +75,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 	return nil
 }
 
-func WriteJson(w http.ResponseWriter, body interface{}) error {
+func WriteJSON(w http.ResponseWriter, body interface{}) error {
 	var output io.Writer
 	var captured *bytes.Buffer
 
@@ -101,7 +101,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	}
 
 	resp := resp{Type: lxd.Sync, Status: status.String(), StatusCode: status, Metadata: r.metadata}
-	return WriteJson(w, resp)
+	return WriteJSON(w, resp)
 }
 
 /*
@@ -166,7 +166,7 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 	w.Header().Set("Location", op)
 	w.WriteHeader(202)
 
-	return WriteJson(w, body)
+	return WriteJSON(w, body)
 }
 
 func AsyncResponse(run func() shared.OperationResult, cancel func() error) Response {
@@ -221,7 +221,7 @@ func InternalError(err error) Response {
 }
 
 /*
- * Write the right error message based on err.
+ * SmartError returns the right error message based on err.
  */
 func SmartError(err error) Response {
 	switch err {

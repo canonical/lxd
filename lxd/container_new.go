@@ -75,7 +75,7 @@ func getIps(c *lxc.Container) []shared.Ip {
 	return ips
 }
 
-func NewStatus(c *lxc.Container, state lxc.State) shared.ContainerStatus {
+func newStatus(c *lxc.Container, state lxc.State) shared.ContainerStatus {
 	status := shared.ContainerStatus{State: state.String(), StateCode: shared.State(int(state))}
 	if state == lxc.RUNNING {
 		status.Init = c.InitPid()
@@ -101,7 +101,7 @@ func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 		Config:          config,
 		ExpandedConfig:  c.config,
 		Userdata:        []byte{},
-		Status:          NewStatus(c.c, c.c.State()),
+		Status:          newStatus(c.c, c.c.State()),
 		Devices:         devices,
 		ExpandedDevices: c.devices,
 		Ephemeral:       c.ephemeral,
@@ -186,7 +186,7 @@ func validateRawLxc(rawLxc string) error {
 	return nil
 }
 
-func (d *lxdContainer) applyConfig(config map[string]string, fromProfile bool) error {
+func (c *lxdContainer) applyConfig(config map[string]string, fromProfile bool) error {
 	var err error
 	for k, v := range config {
 		switch k {
@@ -202,9 +202,9 @@ func (d *lxdContainer) applyConfig(config map[string]string, fromProfile bool) e
 				return fmt.Errorf("Bad cpu limit: %s\n", v)
 			}
 			cpuset := fmt.Sprintf("0-%d", vint-1)
-			err = d.c.SetConfigItem("lxc.cgroup.cpuset.cpus", cpuset)
+			err = c.c.SetConfigItem("lxc.cgroup.cpuset.cpus", cpuset)
 		case "limits.memory":
-			err = d.c.SetConfigItem("lxc.cgroup.memory.limit_in_bytes", v)
+			err = c.c.SetConfigItem("lxc.cgroup.memory.limit_in_bytes", v)
 
 		default:
 			if strings.HasPrefix(k, "user.") {
@@ -213,7 +213,7 @@ func (d *lxdContainer) applyConfig(config map[string]string, fromProfile bool) e
 			}
 
 			/* Things like security.privileged need to be propagated */
-			d.config[k] = v
+			c.config[k] = v
 		}
 		if err != nil {
 			shared.Debugf("error setting %s: %q\n", k, err)
@@ -242,7 +242,7 @@ func (d *lxdContainer) applyConfig(config map[string]string, fromProfile bool) e
 			return err
 		}
 
-		if err := d.c.LoadConfigFile(f.Name()); err != nil {
+		if err := c.c.LoadConfigFile(f.Name()); err != nil {
 			return fmt.Errorf("problem applying raw.lxc, perhaps there is a syntax error?")
 		}
 	}
@@ -316,7 +316,7 @@ func (c *lxdContainer) updateContainerHWAddr(k, v string) {
 			continue
 		}
 
-		for key, _ := range c.config {
+		for key := range c.config {
 			device, err := ExtractInterfaceFromConfigName(key)
 			if err == nil && device == name {
 				d["hwaddr"] = v
@@ -494,7 +494,7 @@ func (c *lxdContainer) applyDevices() error {
 func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	d := &lxdContainer{}
 	d.daemon = daemon
-	ephem_int := -1
+	ephemInt := -1
 	d.ephemeral = false
 	d.architecture = -1
 	d.id = -1
@@ -507,7 +507,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 
 	q := "SELECT id, architecture, ephemeral FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&d.id, &d.architecture, &ephem_int}
+	arg2 := []interface{}{&d.id, &d.architecture, &ephemInt}
 	err := dbQueryRowScan(daemon.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err
@@ -516,7 +516,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		return nil, fmt.Errorf("Unknown container")
 	}
 
-	if ephem_int == 1 {
+	if ephemInt == 1 {
 		d.ephemeral = true
 	}
 
