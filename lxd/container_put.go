@@ -166,12 +166,12 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 	containerRootFSPath := migration.AddSlash(fmt.Sprintf("%s/%s", containerRootPath, "rootfs"))
 	shared.Debugf("RESTORE => Copying %s to %s", snapshotRootFSPath, containerRootFSPath)
 
-	rsync_verbosity := "-q"
+	rsyncVerbosity := "-q"
 	if *debug {
-		rsync_verbosity = "-vi"
+		rsyncVerbosity = "-vi"
 	}
 
-	output, err := exec.Command("rsync", "-a", "-c", "-HAX", "--devices", "--delete", rsync_verbosity, snapshotRootFSPath, containerRootFSPath).CombinedOutput()
+	output, err := exec.Command("rsync", "-a", "-c", "-HAX", "--devices", "--delete", rsyncVerbosity, snapshotRootFSPath, containerRootFSPath).CombinedOutput()
 	shared.Debugf("RESTORE => rsync output\n%s", output)
 
 	if err == nil && !source.isPrivileged() {

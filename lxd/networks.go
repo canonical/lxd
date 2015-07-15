@@ -15,8 +15,8 @@ import (
 )
 
 func networksGet(d *Daemon, r *http.Request) Response {
-	recursion_str := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursion_str)
+	recursionStr := r.FormValue("recursion")
+	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
 		recursion = 0
 	}
@@ -26,26 +26,26 @@ func networksGet(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	result_string := make([]string, 0)
-	result_map := make([]network, 0)
+	resultString := []string{}
+	resultMap := []network{}
 	for _, iface := range ifs {
 		if recursion == 0 {
-			result_string = append(result_string, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))
+			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))
 		} else {
 			net, err := doNetworkGet(d, iface.Name)
 			if err != nil {
 				continue
 			}
-			result_map = append(result_map, net)
+			resultMap = append(resultMap, net)
 
 		}
 	}
 
 	if recursion == 0 {
-		return SyncResponse(true, result_string)
-	} else {
-		return SyncResponse(true, result_map)
+		return SyncResponse(true, resultString)
 	}
+
+	return SyncResponse(true, resultMap)
 }
 
 var networksCmd = Command{name: "networks", get: networksGet}

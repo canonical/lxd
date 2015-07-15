@@ -88,8 +88,8 @@ func readSavedClientCAList(d *Daemon) {
 		var name string
 		var cf []byte
 		rows.Scan(&fp, &t, &name, &cf)
-		cert_block, _ := pem.Decode(cf)
-		cert, err := x509.ParseCertificate(cert_block.Bytes)
+		certBlock, _ := pem.Decode(cf)
+		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
 			shared.Logf("Error reading certificate for %s: %s\n", name, err)
 			continue

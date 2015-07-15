@@ -155,7 +155,7 @@ func containerWatchEphemeral(c *lxdContainer) {
 		c.c.Wait(lxc.RUNNING, 1*time.Second)
 		c.c.Wait(lxc.STOPPED, -1*time.Second)
 
-		_, err := dbGetContainerId(c.daemon.db, c.name)
+		_, err := dbGetContainerID(c.daemon.db, c.name)
 		if err != nil {
 			return
 		}

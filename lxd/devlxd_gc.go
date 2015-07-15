@@ -107,7 +107,7 @@ func hoistReq(f func(*lxdContainer, *http.Request) *DevLxdResponse, d *Daemon) f
 		if resp.code != http.StatusOK {
 			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
 		} else {
-			WriteJson(w, resp.content)
+			WriteJSON(w, resp.content)
 		}
 	}
 }
