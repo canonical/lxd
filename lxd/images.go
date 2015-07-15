@@ -21,14 +21,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-const (
-	COMPRESSION_TAR = iota
-	COMPRESSION_GZIP
-	COMPRESSION_BZ2
-	COMPRESSION_LZMA
-	COMPRESSION_XZ
-)
-
 func getSize(f *os.File) (int64, error) {
 	fi, err := f.Stat()
 	if err != nil {
@@ -37,10 +29,10 @@ func getSize(f *os.File) (int64, error) {
 	return fi.Size(), nil
 }
 
-func detectCompression(fname string) (int, string, error) {
+func detectCompression(fname string) ([]string, string, error) {
 	f, err := os.Open(fname)
 	if err != nil {
-		return -1, "", err
+		return []string{""}, "", err
 	}
 	defer f.Close()
 
@@ -52,43 +44,35 @@ func detectCompression(fname string) (int, string, error) {
 	// tar - 263 bytes, trying to get ustar from 257 - 262
 	header := make([]byte, 263)
 	_, err = f.Read(header)
+	if err != nil {
+		return []string{""}, "", err
+	}
 
 	switch {
 	case bytes.Equal(header[0:2], []byte{'B', 'Z'}):
-		return COMPRESSION_BZ2, ".tar.bz2", nil
+		return []string{"--jxf"}, ".tar.bz2", nil
 	case bytes.Equal(header[0:2], []byte{0x1f, 0x8b}):
-		return COMPRESSION_GZIP, ".tar.gz", nil
+		return []string{"-zxf"}, ".tar.gz", nil
 	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] == 0xFD):
-		return COMPRESSION_XZ, ".tar.xz", nil
+		return []string{"-Jxf"}, ".tar.xz", nil
 	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] != 0xFD):
-		return COMPRESSION_LZMA, ".tar.lzma", nil
+		return []string{"--lzma", "-xf"}, ".tar.lzma", nil
 	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
-		return COMPRESSION_TAR, ".tar", nil
+		return []string{"-xf"}, ".tar", nil
 	default:
-		return -1, "", fmt.Errorf("Unsupported compression.")
+		return []string{""}, "", fmt.Errorf("Unsupported compression.")
 	}
 
 }
 
 func untarImage(imagefname string, destpath string) error {
-	compression, _, err := detectCompression(imagefname)
+	extractArgs, _, err := detectCompression(imagefname)
 	if err != nil {
 		return err
 	}
 
 	args := []string{"-C", destpath, "--numeric-owner"}
-	switch compression {
-	case COMPRESSION_TAR:
-		args = append(args, "-xf")
-	case COMPRESSION_GZIP:
-		args = append(args, "-zxf")
-	case COMPRESSION_BZ2:
-		args = append(args, "--jxf")
-	case COMPRESSION_LZMA:
-		args = append(args, "--lzma", "-xf")
-	default:
-		args = append(args, "-Jxf")
-	}
+	args = append(args, extractArgs...)
 	args = append(args, imagefname)
 
 	output, err := exec.Command("tar", args...).CombinedOutput()
@@ -574,25 +558,14 @@ func xzReader(r io.Reader) io.ReadCloser {
 func getImageMetadata(fname string) (*imageMetadata, error) {
 	metadataName := "metadata.yaml"
 
-	compression, _, err := detectCompression(fname)
+	compressionArgs, _, err := detectCompression(fname)
 
 	if err != nil {
 		return nil, err
 	}
 
 	args := []string{"-O"}
-	switch compression {
-	case COMPRESSION_TAR:
-		args = append(args, "-xf")
-	case COMPRESSION_GZIP:
-		args = append(args, "-zxf")
-	case COMPRESSION_BZ2:
-		args = append(args, "--jxf")
-	case COMPRESSION_LZMA:
-		args = append(args, "--lzma", "-xf")
-	default:
-		args = append(args, "-Jxf")
-	}
+	args = append(args, compressionArgs...)
 	args = append(args, fname, metadataName)
 
 	shared.Debugf("Extracting tarball using command: tar %s", strings.Join(args, " "))
