@@ -14,59 +14,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func btrfsCmdIsInstalled() bool {
-	/*
-	 * Returns true if the "btrfs" tool is in PATH else false.
-	 *
-	 * TODO: Move this to the main code somewhere and call it once?
-	 */
-	out, err := exec.LookPath("btrfs")
-	if err != nil || len(out) == 0 {
-		return false
-	}
-
-	return true
-}
-
-func btrfsIsSubvolume(subvolPath string) bool {
-	/*
-	 * Returns true if the given Path is a btrfs subvolume else false.
-	 */
-	if !btrfsCmdIsInstalled() {
-		return false
-	}
-
-	out, err := exec.Command("btrfs", "subvolume", "show", subvolPath).CombinedOutput()
-	if err != nil || strings.HasPrefix(string(out), "ERROR: ") {
-		return false
-	}
-
-	return true
-}
-
-func btrfsSnapshot(source string, dest string, readonly bool) (string, error) {
-	/*
-	 * Creates a snapshot of "source" to "dest"
-	 * the result will be readonly if "readonly" is True.
-	 */
-	var out []byte
-	var err error
-	if readonly {
-		out, err = exec.Command("btrfs", "subvolume", "snapshot", "-r", source, dest).CombinedOutput()
-	} else {
-		out, err = exec.Command("btrfs", "subvolume", "snapshot", source, dest).CombinedOutput()
-	}
-
-	return string(out), err
-}
-
-func btrfsCopyImage(hash string, name string, d *Daemon) (string, error) {
-	dest := shared.VarPath("lxc", name)
-	source := fmt.Sprintf("%s.btrfs", shared.VarPath("images", hash))
-
-	return btrfsSnapshot(source, dest, false)
-}
-
 func extractImage(hash string, name string, d *Daemon) error {
 	/*
 	 * We want to use archive/tar for this, but that doesn't appear

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -300,7 +299,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 		cdir := shared.VarPath("lxc", cname, "snapshots", sname)
 
 		if backingFs == "btrfs" {
-			exec.Command("btrfs", "subvolume", "delete", cdir).Run()
+			btrfsDeleteSubvol(cdir)
 		}
 		os.RemoveAll(cdir)
 	}
