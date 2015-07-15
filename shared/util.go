@@ -117,7 +117,7 @@ func ReadToJSON(r io.Reader, req interface{}) error {
 }
 
 func GenerateFingerprint(cert *x509.Certificate) string {
-	return fmt.Sprintf("% x", sha256.Sum256(cert.Raw))
+	return fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
 }
 
 func ReaderToChannel(r io.Reader) <-chan []byte {

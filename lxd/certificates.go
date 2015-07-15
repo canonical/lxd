@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/scrypt"
@@ -57,7 +58,27 @@ func (d *Daemon) verifyAdminPwd(password string) bool {
 	return true
 }
 
+type certificateResponse struct {
+	Certificate string `json:"certificate"`
+	Fingerprint string `json:"fingerprint"`
+	Type        string `json:"type"`
+}
+
 func certificatesGet(d *Daemon, r *http.Request) Response {
+	recursion := d.isRecursionRequest(r)
+
+	if recursion {
+		certResponses := []certificateResponse{}
+		for _, cert := range d.clientCerts {
+			resp := certificateResponse{}
+			resp.Fingerprint = shared.GenerateFingerprint(&cert)
+			resp.Certificate = base64.StdEncoding.EncodeToString(cert.Raw)
+			resp.Type = "client"
+			certResponses = append(certResponses, resp)
+		}
+		return SyncResponse(true, certResponses)
+	}
+
 	body := []string{}
 	for _, cert := range d.clientCerts {
 		fingerprint := shared.GenerateFingerprint(&cert)
@@ -76,7 +97,10 @@ type certificatesPostBody struct {
 
 func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = []x509.Certificate{}
-	rows, err := dbQuery(d.db, "SELECT fingerprint, type, name, certificate FROM certificates")
+	rows, err := dbQuery(
+		d.db,
+		"SELECT fingerprint, type, name, certificate FROM certificates",
+	)
 	if err != nil {
 		shared.Logf("Error reading certificates from database: %s\n", err)
 		return
@@ -104,13 +128,25 @@ func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 		return err
 	}
 	fingerprint := shared.GenerateFingerprint(cert)
-	stmt, err := tx.Prepare("INSERT INTO certificates (fingerprint,type,name,certificate) VALUES (?, ?, ?, ?)")
+	stmt, err := tx.Prepare(`
+			INSERT INTO certificates (
+				fingerprint,
+				type,
+				name,
+				certificate
+			) VALUES (?, ?, ?, ?)`,
+	)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(fingerprint, 1, host, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+	_, err = stmt.Exec(
+		fingerprint,
+		1,
+		host,
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}),
+	)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -183,16 +219,26 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var certificatesCmd = Command{"certificates", false, true, certificatesGet, nil, certificatesPost, nil}
+var certificatesCmd = Command{
+	"certificates",
+	false,
+	true,
+	certificatesGet,
+	nil,
+	certificatesPost,
+	nil,
+}
 
 func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	for _, cert := range d.clientCerts {
-		if fingerprint == shared.GenerateFingerprint(&cert) {
-			b64 := base64.StdEncoding.EncodeToString(cert.Raw)
-			body := shared.Jmap{"type": "client", "certificates": b64}
-			return SyncResponse(true, body)
+		if strings.HasSuffix(shared.GenerateFingerprint(&cert), fingerprint) {
+			resp := certificateResponse{}
+			resp.Fingerprint = shared.GenerateFingerprint(&cert)
+			resp.Certificate = base64.StdEncoding.EncodeToString(cert.Raw)
+			resp.Type = "client"
+			return SyncResponse(true, resp)
 		}
 	}
 
@@ -205,7 +251,11 @@ func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 		if fingerprint == shared.GenerateFingerprint(&cert) {
 			fingerprint := shared.GenerateFingerprint(&cert)
 			d.clientCerts = append(d.clientCerts[:i], d.clientCerts[i+1:]...)
-			_, err := dbExec(d.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
+			_, err := dbExec(
+				d.db,
+				"DELETE FROM certificates WHERE fingerprint=?",
+				fingerprint,
+			)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -216,4 +266,12 @@ func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	return NotFound
 }
 
-var certificateFingerprintCmd = Command{"certificates/{fingerprint}", false, false, certificateFingerprintGet, nil, nil, certificateFingerprintDelete}
+var certificateFingerprintCmd = Command{
+	"certificates/{fingerprint}",
+	false,
+	false,
+	certificateFingerprintGet,
+	nil,
+	nil,
+	certificateFingerprintDelete,
+}
