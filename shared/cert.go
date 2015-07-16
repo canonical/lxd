@@ -20,6 +20,13 @@ import (
 	"time"
 )
 
+// CertInfo is the representation of a Certificate in the API.
+type CertInfo struct {
+	Certificate string `json:"certificate"`
+	Fingerprint string `json:"fingerprint"`
+	Type        string `json:"type"`
+}
+
 /*
  * Generate a list of names for which the certificate will be valid.
  * This will include the hostname and ip address

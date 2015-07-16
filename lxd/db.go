@@ -192,6 +192,14 @@ func getSchema(db *sql.DB) (v int) {
 	return v
 }
 
+func updateFromV8(db *sql.DB) error {
+	stmt := `
+UPDATE certificates SET fingerprint = replace(fingerprint, " ", "");
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 9)
+	return err
+}
+
 func updateFromV7(db *sql.DB) error {
 	stmt := `
 UPDATE config SET key='core.trust_password' WHERE key IN ('password', 'trust_password', 'trust-password', 'core.trust-password');
@@ -207,7 +215,7 @@ func updateFromV6(db *sql.DB) error {
 	stmt := `
 PRAGMA foreign_keys=OFF; -- So that integrity doesn't get in the way for now
 
-CREATE TEMP TABLE tmp AS SELECT * FROM containers_config; 
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_config;
 DROP TABLE containers_config;
 CREATE TABLE IF NOT EXISTS containers_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -220,7 +228,7 @@ CREATE TABLE IF NOT EXISTS containers_config (
 INSERT INTO containers_config SELECT * FROM tmp;
 DROP TABLE tmp;
 
-CREATE TEMP TABLE tmp AS SELECT * FROM containers_devices; 
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_devices;
 DROP TABLE containers_devices;
 CREATE TABLE IF NOT EXISTS containers_devices (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
@@ -233,7 +241,7 @@ CREATE TABLE IF NOT EXISTS containers_devices (
 INSERT INTO containers_devices SELECT * FROM tmp;
 DROP TABLE tmp;
 
-CREATE TEMP TABLE tmp AS SELECT * FROM containers_devices_config; 
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_devices_config;
 DROP TABLE containers_devices_config;
 CREATE TABLE IF NOT EXISTS containers_devices_config (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
@@ -246,7 +254,7 @@ CREATE TABLE IF NOT EXISTS containers_devices_config (
 INSERT INTO containers_devices_config SELECT * FROM tmp;
 DROP TABLE tmp;
 
-CREATE TEMP TABLE tmp AS SELECT * FROM containers_profiles; 
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_profiles;
 DROP TABLE containers_profiles;
 CREATE TABLE IF NOT EXISTS containers_profiles (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
@@ -260,7 +268,7 @@ CREATE TABLE IF NOT EXISTS containers_profiles (
 INSERT INTO containers_profiles SELECT * FROM tmp;
 DROP TABLE tmp;
 
-CREATE TEMP TABLE tmp AS SELECT * FROM images_aliases; 
+CREATE TEMP TABLE tmp AS SELECT * FROM images_aliases;
 DROP TABLE images_aliases;
 CREATE TABLE IF NOT EXISTS images_aliases (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -273,7 +281,7 @@ CREATE TABLE IF NOT EXISTS images_aliases (
 INSERT INTO images_aliases SELECT * FROM tmp;
 DROP TABLE tmp;
 
-CREATE TEMP TABLE tmp AS SELECT * FROM images_properties; 
+CREATE TEMP TABLE tmp AS SELECT * FROM images_properties;
 DROP TABLE images_properties;
 CREATE TABLE IF NOT EXISTS images_properties (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -286,7 +294,7 @@ CREATE TABLE IF NOT EXISTS images_properties (
 INSERT INTO images_properties SELECT * FROM tmp;
 DROP TABLE tmp;
 
-CREATE TEMP TABLE tmp AS SELECT * FROM profiles_config; 
+CREATE TEMP TABLE tmp AS SELECT * FROM profiles_config;
 DROP TABLE profiles_config;
 CREATE TABLE IF NOT EXISTS profiles_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -299,7 +307,7 @@ CREATE TABLE IF NOT EXISTS profiles_config (
 INSERT INTO profiles_config SELECT * FROM tmp;
 DROP TABLE tmp;
 
-CREATE TEMP TABLE tmp AS SELECT * FROM profiles_devices; 
+CREATE TEMP TABLE tmp AS SELECT * FROM profiles_devices;
 DROP TABLE profiles_devices;
 CREATE TABLE IF NOT EXISTS profiles_devices (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -312,7 +320,7 @@ CREATE TABLE IF NOT EXISTS profiles_devices (
 INSERT INTO profiles_devices SELECT * FROM tmp;
 DROP TABLE tmp;
 
-CREATE TEMP TABLE tmp AS SELECT * FROM profiles_devices_config; 
+CREATE TEMP TABLE tmp AS SELECT * FROM profiles_devices_config;
 DROP TABLE profiles_devices_config;
 CREATE TABLE IF NOT EXISTS profiles_devices_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -569,6 +577,12 @@ func updateDb(db *sql.DB, prev_version int) error {
 			return err
 		}
 	}
+	if prev_version < 9 {
+		err = updateFromV8(db)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -606,7 +620,7 @@ func createDefaultProfile(db *sql.DB) error {
 	}
 	id = int(id64)
 
-	result, err = tx.Exec(`INSERT INTO profiles_devices 
+	result, err = tx.Exec(`INSERT INTO profiles_devices
 		(profile_id, name, type) VALUES (?, ?, ?)`,
 		id, "eth0", "nic")
 	if err != nil {
@@ -688,7 +702,136 @@ func initDb(d *Daemon) (err error) {
 	return err
 }
 
-// Get an ImageBaseInfo object from the database.
+func dbPasswordGet(db *sql.DB) (pwd string, err error) {
+	q := "SELECT value FROM config WHERE key=\"core.trust_password\""
+	value := ""
+	argIn := []interface{}{}
+	argOut := []interface{}{&value}
+	err = dbQueryRowScan(db, q, argIn, argOut)
+
+	if err != nil || value == "" {
+		return "", fmt.Errorf("No password is set")
+	}
+
+	return value, nil
+}
+
+// dbCertInfo is here to pass the certificates content
+// from the database around
+type dbCertInfo struct {
+	ID          int
+	Fingerprint string
+	Type        int
+	Name        string
+	Certificate string
+}
+
+// dbCertsGet returns all certificates from the DB as CertBaseInfo objects.
+func dbCertsGet(db *sql.DB) (certs []*dbCertInfo, err error) {
+	rows, err := dbQuery(
+		db,
+		"SELECT id, fingerprint, type, name, certificate FROM certificates",
+	)
+	if err != nil {
+		return certs, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		cert := new(dbCertInfo)
+		rows.Scan(
+			&cert.ID,
+			&cert.Fingerprint,
+			&cert.Type,
+			&cert.Name,
+			&cert.Certificate,
+		)
+		certs = append(certs, cert)
+	}
+
+	return certs, nil
+}
+
+// dbCertGet gets an CertBaseInfo object from the database.
+// The argument fingerprint will be queried with a LIKE query, means you can
+// pass a shortform and will get the full fingerprint.
+// There can never be more than one image with a given fingerprint, as it is
+// enforced by a UNIQUE constraint in the schema.
+func dbCertGet(db *sql.DB, fingerprint string) (cert *dbCertInfo, err error) {
+	cert = new(dbCertInfo)
+
+	inargs := []interface{}{fingerprint + "%"}
+	outfmt := []interface{}{
+		&cert.ID,
+		&cert.Fingerprint,
+		&cert.Type,
+		&cert.Name,
+		&cert.Certificate,
+	}
+
+	query := `
+		SELECT
+			id, fingerprint, type, name, certificate
+		FROM
+			certificates
+		WHERE fingerprint LIKE ?`
+
+	if err = dbQueryRowScan(db, query, inargs, outfmt); err != nil {
+		return nil, err
+	}
+
+	return cert, err
+}
+
+// dbSaveCert stores a CertBaseInfo object in the db,
+// it will ignore the ID field from the dbCertInfo.
+func dbCertSave(db *sql.DB, cert *dbCertInfo) error {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare(`
+			INSERT INTO certificates (
+				fingerprint,
+				type,
+				name,
+				certificate
+			) VALUES (?, ?, ?, ?)`,
+	)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(
+		cert.Fingerprint,
+		cert.Type,
+		cert.Name,
+		cert.Certificate,
+	)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return txCommit(tx)
+}
+
+// dbCertDelete deletes a certificate from the db.
+func dbCertDelete(db *sql.DB, fingerprint string) error {
+	_, err := dbExec(
+		db,
+		"DELETE FROM certificates WHERE fingerprint=?",
+		fingerprint,
+	)
+
+	return err
+}
+
+// dbImageGet gets an ImageBaseInfo object from the database.
+// The argument fingerprint will be queried with a LIKE query, means you can
+// pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
 func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseInfo, error) {
