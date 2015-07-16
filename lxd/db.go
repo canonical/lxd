@@ -32,7 +32,7 @@ type Profile struct {
 }
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 8
+const DB_CURRENT_VERSION int = 9
 
 const CURRENT_SCHEMA string = `
 CREATE TABLE IF NOT EXISTS certificates (
