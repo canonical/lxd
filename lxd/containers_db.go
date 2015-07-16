@@ -20,7 +20,7 @@ func dbRemoveContainer(d *Daemon, name string) error {
 	return err
 }
 
-func dbGetContainerId(db *sql.DB, name string) (int, error) {
+func dbGetContainerID(db *sql.DB, name string) (int, error) {
 	q := "SELECT id FROM containers WHERE name=?"
 	id := -1
 	arg1 := []interface{}{name}
@@ -29,6 +29,8 @@ func dbGetContainerId(db *sql.DB, name string) (int, error) {
 	return id, err
 }
 
+// DbCreateContainerArgs is a list of arguments for dbCreateContainer
+// to create a new container.
 type DbCreateContainerArgs struct {
 	d            *Daemon
 	name         string
@@ -41,7 +43,7 @@ type DbCreateContainerArgs struct {
 }
 
 func dbCreateContainer(args DbCreateContainerArgs) (int, error) {
-	id, err := dbGetContainerId(args.d.db, args.name)
+	id, err := dbGetContainerID(args.d.db, args.name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
 	}
@@ -62,9 +64,9 @@ func dbCreateContainer(args DbCreateContainerArgs) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	ephem_int := 0
+	ephemInt := 0
 	if args.ephem == true {
-		ephem_int = 1
+		ephemInt = 1
 	}
 
 	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral) VALUES (?, ?, ?, ?)")
@@ -74,7 +76,7 @@ func dbCreateContainer(args DbCreateContainerArgs) (int, error) {
 		return 0, err
 	}
 	defer stmt.Close()
-	result, err := stmt.Exec(args.name, args.architecture, args.ctype, ephem_int)
+	result, err := stmt.Exec(args.name, args.architecture, args.ctype, ephemInt)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -153,7 +155,7 @@ func dbInsertContainerConfig(tx *sql.Tx, id int, config map[string]string) error
 }
 
 func dbInsertProfiles(tx *sql.Tx, id int, profiles []string) error {
-	apply_order := 1
+	applyOrder := 1
 	str := `INSERT INTO containers_profiles (container_id, profile_id, apply_order) VALUES
 		(?, (SELECT id FROM profiles WHERE name=?), ?);`
 	stmt, err := tx.Prepare(str)
@@ -162,13 +164,13 @@ func dbInsertProfiles(tx *sql.Tx, id int, profiles []string) error {
 	}
 	defer stmt.Close()
 	for _, p := range profiles {
-		_, err = stmt.Exec(id, p, apply_order)
+		_, err = stmt.Exec(id, p, applyOrder)
 		if err != nil {
 			shared.Debugf("Error adding profile %s to container: %s\n",
 				p, err)
 			return err
 		}
-		apply_order = apply_order + 1
+		applyOrder = applyOrder + 1
 	}
 
 	return nil
@@ -179,6 +181,7 @@ func dbRemoveSnapshot(d *Daemon, cname string, sname string) {
 	_, _ = dbExec(d.db, "DELETE FROM containers WHERE type=? AND name=?", cTypeSnapshot, name)
 }
 
+// ValidContainerConfigKey returns if the given config key is a known/valid key.
 func ValidContainerConfigKey(k string) bool {
 	switch k {
 	case "limits.cpus":

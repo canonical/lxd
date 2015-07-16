@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -155,7 +154,7 @@ func containerWatchEphemeral(c *lxdContainer) {
 		c.c.Wait(lxc.RUNNING, 1*time.Second)
 		c.c.Wait(lxc.STOPPED, -1*time.Second)
 
-		_, err := dbGetContainerId(c.daemon.db, c.name)
+		_, err := dbGetContainerID(c.daemon.db, c.name)
 		if err != nil {
 			return
 		}
@@ -300,7 +299,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 		cdir := shared.VarPath("lxc", cname, "snapshots", sname)
 
 		if backingFs == "btrfs" {
-			exec.Command("btrfs", "subvolume", "delete", cdir).Run()
+			btrfsDeleteSubvol(cdir)
 		}
 		os.RemoveAll(cdir)
 	}
