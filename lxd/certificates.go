@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -17,7 +18,7 @@ import (
 )
 
 func certGenerateFingerprint(cert *x509.Certificate) string {
-	return fmt.Sprintf("%x", cert.SerialNumber)
+	return fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
 }
 
 func (d *Daemon) hasPwd() bool {
@@ -169,9 +170,9 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
 
-	serial := cert.SerialNumber
+	fingerprint := certGenerateFingerprint(cert)
 	for _, existingCert := range d.clientCerts {
-		if serial == existingCert.SerialNumber {
+		if fingerprint == certGenerateFingerprint(&existingCert) {
 			return EmptySyncResponse
 		}
 	}
