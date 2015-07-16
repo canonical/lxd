@@ -54,7 +54,7 @@ func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 
 	_, err = db.Exec(statements)
 	if err != nil {
-		t.Error(fmt.Sprintf("Error deleting container! %s", err))
+		t.Errorf("Error deleting container! %s", err)
 	}
 
 	// Make sure there are 0 container_profiles entries left.
@@ -62,7 +62,7 @@ func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a container didn't delete the profile association! There are %d left", count))
+		t.Errorf("Deleting a container didn't delete the profile association! There are %d left", count)
 	}
 
 	// Make sure there are 0 containers_config entries left.
@@ -70,7 +70,7 @@ func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a container didn't delete the associated container_config! There are %d left", count))
+		t.Errorf("Deleting a container didn't delete the associated container_config! There are %d left", count)
 	}
 
 	// Make sure there are 0 containers_devices entries left.
@@ -78,7 +78,7 @@ func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a container didn't delete the associated container_devices! There are %d left", count))
+		t.Errorf("Deleting a container didn't delete the associated container_devices! There are %d left", count)
 	}
 
 	// Make sure there are 0 containers_devices_config entries left.
@@ -86,7 +86,7 @@ func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a container didn't delete the associated container_devices_config! There are %d left", count))
+		t.Errorf("Deleting a container didn't delete the associated container_devices_config! There are %d left", count)
 	}
 
 }
@@ -106,7 +106,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 
 	_, err = db.Exec(statements)
 	if err != nil {
-		t.Error(fmt.Sprintf("Error deleting profile! %s", err))
+		t.Errorf("Error deleting profile! %s", err)
 	}
 
 	// Make sure there are 0 container_profiles entries left.
@@ -114,7 +114,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a profile didn't delete the container association! There are %d left", count))
+		t.Errorf("Deleting a profile didn't delete the container association! There are %d left", count)
 	}
 
 	// Make sure there are 0 profiles_devices entries left.
@@ -122,7 +122,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a profile didn't delete the related profiles_devices! There are %d left", count))
+		t.Errorf("Deleting a profile didn't delete the related profiles_devices! There are %d left", count)
 	}
 
 	// Make sure there are 0 profiles_config entries left.
@@ -130,7 +130,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a profile didn't delete the related profiles_config! There are %d left", count))
+		t.Errorf("Deleting a profile didn't delete the related profiles_config! There are %d left", count)
 	}
 
 	// Make sure there are 0 profiles_devices_config entries left.
@@ -138,7 +138,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a profile didn't delete the related profiles_devices_config! There are %d left", count))
+		t.Errorf("Deleting a profile didn't delete the related profiles_devices_config! There are %d left", count)
 	}
 
 }
@@ -157,7 +157,7 @@ func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
 
 	_, err = db.Exec(statements)
 	if err != nil {
-		t.Error(fmt.Sprintf("Error deleting image! %s", err))
+		t.Errorf("Error deleting image! %s", err)
 	}
 
 	// Make sure there are 0 images_aliases entries left.
@@ -165,7 +165,7 @@ func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting an image didn't delete the image alias association! There are %d left", count))
+		t.Errorf("Deleting an image didn't delete the image alias association! There are %d left", count)
 	}
 
 	// Make sure there are 0 images_properties entries left.
@@ -173,7 +173,7 @@ func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting an image didn't delete the related images_properties! There are %d left", count))
+		t.Errorf("Deleting an image didn't delete the related images_properties! There are %d left", count)
 	}
 }
 
@@ -200,7 +200,7 @@ func Test_get_schema_returns_0_on_uninitialized_db(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var result int = getSchema(db)
+	result := getSchema(db)
 
 	if result != 0 {
 		t.Error("getSchema should return 0 on uninitialized db!")
@@ -257,7 +257,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 1 {
-		t.Fatal(fmt.Sprintf("There should be exactly one entry in containers_config! There are %d.", count))
+		t.Fatalf("There should be exactly one entry in containers_config! There are %d.", count)
 	}
 
 	// Drop the container.
@@ -265,7 +265,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 
 	_, err = db.Exec(statements)
 	if err != nil {
-		t.Error(fmt.Sprintf("Error deleting container! %s", err))
+		t.Errorf("Error deleting container! %s", err)
 	}
 
 	// Make sure there are 0 container_profiles entries left.
@@ -273,7 +273,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
-		t.Error(fmt.Sprintf("Deleting a container didn't delete the profile association! There are %d left", count))
+		t.Errorf("Deleting a container didn't delete the profile association! There are %d left", count)
 	}
 }
 
@@ -313,26 +313,26 @@ CREATE TABLE schema (
     updated_at DATETIME NOT NULL,
     UNIQUE (version)
 );
-CREATE TABLE images (                                                          
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,                             
-    fingerprint VARCHAR(255) NOT NULL,                                         
-    filename VARCHAR(255) NOT NULL,                                            
-    size INTEGER NOT NULL,                                                     
-    public INTEGER NOT NULL DEFAULT 0,                                         
-    architecture INTEGER NOT NULL,                                             
-    creation_date DATETIME,                                                    
-    expiry_date DATETIME,                                                      
-    upload_date DATETIME NOT NULL,                                             
-    UNIQUE (fingerprint)                                                       
-);                                                                             
-CREATE TABLE images_properties (                                               
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,                             
-    image_id INTEGER NOT NULL,                                                 
-    type INTEGER NOT NULL,                                                     
-    key VARCHAR(255) NOT NULL,                                                 
-    value TEXT,                                                                
-    FOREIGN KEY (image_id) REFERENCES images (id)                              
-);                                       
+CREATE TABLE images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    fingerprint VARCHAR(255) NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    size INTEGER NOT NULL,
+    public INTEGER NOT NULL DEFAULT 0,
+    architecture INTEGER NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    upload_date DATETIME NOT NULL,
+    UNIQUE (fingerprint)
+);
+CREATE TABLE images_properties (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    image_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (image_id) REFERENCES images (id)
+);
 INSERT INTO schema (version, updated_at) values (1, "now");
 INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
 INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`
@@ -359,7 +359,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 		t.Fatal(err)
 	}
 
-	var result int = getSchema(db)
+	result := getSchema(db)
 	if result != DB_CURRENT_VERSION {
 		t.Fatal(fmt.Sprintf("The schema is not at the latest version after update! Found: %d, should be: %d", result, DB_CURRENT_VERSION))
 	}
@@ -501,7 +501,7 @@ func Test_dbGetConfig(t *testing.T) {
 
 	for key, value := range expected {
 		if result[key] != value {
-			t.Error(fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
+			t.Errorf("Mismatching value for key %s: %s != %s", key, result[key], value)
 		}
 	}
 }
@@ -526,7 +526,7 @@ func Test_dbGetProfileConfig(t *testing.T) {
 
 	for key, value := range expected {
 		if result[key] != value {
-			t.Error(fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
+			t.Errorf("Mismatching value for key %s: %s != %s", key, result[key], value)
 		}
 	}
 }
@@ -574,7 +574,7 @@ func Test_dbGEtDevices_profiles(t *testing.T) {
 
 	for key, value := range expected {
 		if subresult[key] != value {
-			t.Error(fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
+			t.Errorf("Mismatching value for key %s: %s != %s", key, result[key], value)
 		}
 	}
 
@@ -600,7 +600,7 @@ func Test_dbGEtDevices_containers(t *testing.T) {
 
 	for key, value := range expected {
 		if subresult[key] != value {
-			t.Error(fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
+			t.Errorf("Mismatching value for key %s: %s != %s", key, result[key], value)
 		}
 	}
 

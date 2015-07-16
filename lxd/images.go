@@ -21,14 +21,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-const (
-	COMPRESSION_TAR = iota
-	COMPRESSION_GZIP
-	COMPRESSION_BZ2
-	COMPRESSION_LZMA
-	COMPRESSION_XZ
-)
-
 func getSize(f *os.File) (int64, error) {
 	fi, err := f.Stat()
 	if err != nil {
@@ -37,10 +29,10 @@ func getSize(f *os.File) (int64, error) {
 	return fi.Size(), nil
 }
 
-func detectCompression(fname string) (int, string, error) {
+func detectCompression(fname string) ([]string, string, error) {
 	f, err := os.Open(fname)
 	if err != nil {
-		return -1, "", err
+		return []string{""}, "", err
 	}
 	defer f.Close()
 
@@ -52,43 +44,35 @@ func detectCompression(fname string) (int, string, error) {
 	// tar - 263 bytes, trying to get ustar from 257 - 262
 	header := make([]byte, 263)
 	_, err = f.Read(header)
+	if err != nil {
+		return []string{""}, "", err
+	}
 
 	switch {
 	case bytes.Equal(header[0:2], []byte{'B', 'Z'}):
-		return COMPRESSION_BZ2, ".tar.bz2", nil
+		return []string{"--jxf"}, ".tar.bz2", nil
 	case bytes.Equal(header[0:2], []byte{0x1f, 0x8b}):
-		return COMPRESSION_GZIP, ".tar.gz", nil
+		return []string{"-zxf"}, ".tar.gz", nil
 	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] == 0xFD):
-		return COMPRESSION_XZ, ".tar.xz", nil
+		return []string{"-Jxf"}, ".tar.xz", nil
 	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] != 0xFD):
-		return COMPRESSION_LZMA, ".tar.lzma", nil
+		return []string{"--lzma", "-xf"}, ".tar.lzma", nil
 	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
-		return COMPRESSION_TAR, ".tar", nil
+		return []string{"-xf"}, ".tar", nil
 	default:
-		return -1, "", fmt.Errorf("Unsupported compression.")
+		return []string{""}, "", fmt.Errorf("Unsupported compression.")
 	}
 
 }
 
 func untarImage(imagefname string, destpath string) error {
-	compression, _, err := detectCompression(imagefname)
+	extractArgs, _, err := detectCompression(imagefname)
 	if err != nil {
 		return err
 	}
 
 	args := []string{"-C", destpath, "--numeric-owner"}
-	switch compression {
-	case COMPRESSION_TAR:
-		args = append(args, "-xf")
-	case COMPRESSION_GZIP:
-		args = append(args, "-zxf")
-	case COMPRESSION_BZ2:
-		args = append(args, "--jxf")
-	case COMPRESSION_LZMA:
-		args = append(args, "--lzma", "-xf")
-	default:
-		args = append(args, "-Jxf")
-	}
+	args = append(args, extractArgs...)
 	args = append(args, imagefname)
 
 	output, err := exec.Command("tar", args...).CombinedOutput()
@@ -282,22 +266,6 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string) (info shared.Im
 	return info, nil
 }
 
-func makeBtrfsSubvol(imagefname, subvol string) error {
-	output, err := exec.Command("btrfs", "subvolume", "create", subvol).CombinedOutput()
-	if err != nil {
-		shared.Debugf("btrfs subvolume creation failed\n")
-		shared.Debugf(string(output))
-		return err
-	}
-
-	err = untarImage(imagefname, subvol)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func removeImgWorkdir(d *Daemon, builddir string) {
 	vgname, _, err := getServerConfigValue(d, "core.lvm_vg_name")
 	if err != nil {
@@ -326,7 +294,7 @@ func removeImgWorkdir(d *Daemon, builddir string) {
 		fnamelist, _ := shared.ReadDir(builddir)
 		for _, fname := range fnamelist {
 			subvol := filepath.Join(builddir, fname)
-			exec.Command("btrfs", "subvolume", "delete", subvol).Run()
+			btrfsDeleteSubvol(subvol)
 		}
 	}
 	if remErr := os.RemoveAll(builddir); remErr != nil {
@@ -349,7 +317,12 @@ func buildOtherFs(d *Daemon, builddir string, fp string) error {
 	case "btrfs":
 		imagefname := filepath.Join(builddir, fp)
 		subvol := fmt.Sprintf("%s.btrfs", imagefname)
-		if err := makeBtrfsSubvol(imagefname, subvol); err != nil {
+		if err := btrfsMakeSubvol(subvol); err != nil {
+			return err
+		}
+
+		err = untarImage(imagefname, subvol)
+		if err != nil {
 			return err
 		}
 	}
@@ -404,19 +377,19 @@ func createImageLV(d *Daemon, builddir string, fingerprint string, vgname string
 
 	}
 
-	untar_err := untarImage(imagefname, tempLVMountPoint)
+	untarErr := untarImage(imagefname, tempLVMountPoint)
 
 	output, err = exec.Command("umount", tempLVMountPoint).CombinedOutput()
 	if err != nil {
 		shared.Logf("WARNING: could not unmount LV '%s' from '%s'. Will not remove. Error: %v", lvpath, tempLVMountPoint, err)
-		if untar_err == nil {
+		if untarErr == nil {
 			return err
-		} else {
-			return fmt.Errorf("Error unmounting '%s' during cleanup of error %v", tempLVMountPoint, untar_err)
 		}
+
+		return fmt.Errorf("Error unmounting '%s' during cleanup of error %v", tempLVMountPoint, untarErr)
 	}
 
-	return untar_err
+	return untarErr
 }
 
 // Copy imagefile and btrfs file out of the tmpdir
@@ -448,7 +421,7 @@ func pullOutImagefiles(d *Daemon, builddir string, fingerprint string) error {
 }
 
 func dbInsertImage(d *Daemon, fp string, fname string, sz int64, public int,
-	arch int, creation_date int64, expiry_date int64, properties map[string]string) error {
+	arch int, creationDate int64, expiryDate int64, properties map[string]string) error {
 	tx, err := dbBegin(d.db)
 	if err != nil {
 		return err
@@ -461,7 +434,7 @@ func dbInsertImage(d *Daemon, fp string, fname string, sz int64, public int,
 	}
 	defer stmt.Close()
 
-	result, err := stmt.Exec(fp, fname, sz, public, arch, creation_date, expiry_date)
+	result, err := stmt.Exec(fp, fname, sz, public, arch, creationDate, expiryDate)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -574,25 +547,14 @@ func xzReader(r io.Reader) io.ReadCloser {
 func getImageMetadata(fname string) (*imageMetadata, error) {
 	metadataName := "metadata.yaml"
 
-	compression, _, err := detectCompression(fname)
+	compressionArgs, _, err := detectCompression(fname)
 
 	if err != nil {
 		return nil, err
 	}
 
 	args := []string{"-O"}
-	switch compression {
-	case COMPRESSION_TAR:
-		args = append(args, "-xf")
-	case COMPRESSION_GZIP:
-		args = append(args, "-zxf")
-	case COMPRESSION_BZ2:
-		args = append(args, "--jxf")
-	case COMPRESSION_LZMA:
-		args = append(args, "--lzma", "-xf")
-	default:
-		args = append(args, "-Jxf")
-	}
+	args = append(args, compressionArgs...)
 	args = append(args, fname, metadataName)
 
 	shared.Debugf("Extracting tarball using command: tar %s", strings.Join(args, " "))
@@ -626,8 +588,8 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 }
 
 func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
-	result_string := make([]string, 0)
-	result_map := make([]shared.ImageInfo, 0)
+	resultString := []string{}
+	resultMap := []shared.ImageInfo{}
 
 	q := "SELECT fingerprint FROM images"
 	var name string
@@ -645,21 +607,21 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 		name = r[0].(string)
 		if !recursion {
 			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
-			result_string = append(result_string, url)
+			resultString = append(resultString, url)
 		} else {
 			image, response := doImageGet(d, name, public)
 			if response != nil {
 				continue
 			}
-			result_map = append(result_map, image)
+			resultMap = append(resultMap, image)
 		}
 	}
 
 	if !recursion {
-		return result_string, nil
-	} else {
-		return result_map, nil
+		return resultString, nil
 	}
+
+	return resultMap, nil
 }
 
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
@@ -696,7 +658,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		}
 	} else if d.BackingFs == "btrfs" {
 		subvol := fmt.Sprintf("%s.btrfs", fname)
-		exec.Command("btrfs", "subvolume", "delete", subvol).Run()
+		btrfsDeleteSubvol(subvol)
 	}
 
 	tx, err := dbBegin(d.db)
@@ -930,28 +892,28 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return BadRequest(err)
 	}
-	response_str := make([]string, 0)
-	response_map := make([]shared.ImageAlias, 0)
+	responseStr := []string{}
+	responseMap := []shared.ImageAlias{}
 	for _, res := range results {
 		name = res[0].(string)
 		if !recursion {
 			url := fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, name)
-			response_str = append(response_str, url)
+			responseStr = append(responseStr, url)
 
 		} else {
 			alias, err := doAliasGet(d, name, d.isTrustedClient(r))
 			if err != nil {
 				continue
 			}
-			response_map = append(response_map, alias)
+			responseMap = append(responseMap, alias)
 		}
 	}
 
 	if !recursion {
-		return SyncResponse(true, response_str)
-	} else {
-		return SyncResponse(true, response_map)
+		return SyncResponse(true, responseStr)
 	}
+
+	return SyncResponse(true, responseMap)
 }
 
 func aliasGet(d *Daemon, r *http.Request) Response {

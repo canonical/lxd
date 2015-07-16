@@ -164,7 +164,7 @@ func ValidDeviceConfig(t, k, v string) bool {
 	}
 }
 
-func AddDevices(tx *sql.Tx, w string, cId int, devices shared.Devices) error {
+func AddDevices(tx *sql.Tx, w string, cID int, devices shared.Devices) error {
 	str1 := fmt.Sprintf("INSERT INTO %ss_devices (%s_id, name, type) VALUES (?, ?, ?)", w, w)
 	stmt1, err := tx.Prepare(str1)
 	if err != nil {
@@ -181,7 +181,7 @@ func AddDevices(tx *sql.Tx, w string, cId int, devices shared.Devices) error {
 		if !ValidDeviceType(v["type"]) {
 			return fmt.Errorf("Invalid device type %s\n", v["type"])
 		}
-		result, err := stmt1.Exec(cId, k, v["type"])
+		result, err := stmt1.Exec(cID, k, v["type"])
 		if err != nil {
 			return err
 		}
