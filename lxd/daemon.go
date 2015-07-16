@@ -268,6 +268,11 @@ func (d *Daemon) createCmd(version string, c Command) {
 func StartDaemon(listenAddr string) (*Daemon, error) {
 	d := &Daemon{}
 
+	// Setup logging if main() hasn't been called/when testing
+	if shared.Log == nil {
+		shared.SetLogger("", "", true, true)
+	}
+
 	d.lxcpath = shared.VarPath("lxc")
 	err := os.MkdirAll(shared.VarPath("/"), 0755)
 	if err != nil {
