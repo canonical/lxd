@@ -16,6 +16,10 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+func certGenerateFingerprint(cert *x509.Certificate) string {
+	return fmt.Sprintf("%x", cert.SerialNumber)
+}
+
 func (d *Daemon) hasPwd() bool {
 	_, err := dbPasswordGet(d.db)
 	return err == nil
@@ -75,7 +79,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 
 	body := []string{}
 	for _, cert := range d.clientCerts {
-		fingerprint := shared.GenerateFingerprint(&cert)
+		fingerprint := certGenerateFingerprint(&cert)
 		body = append(body, fingerprint)
 	}
 
@@ -112,7 +116,7 @@ func readSavedClientCAList(d *Daemon) {
 func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 
 	baseCert := new(dbCertInfo)
-	baseCert.Fingerprint = shared.GenerateFingerprint(cert)
+	baseCert.Fingerprint = certGenerateFingerprint(cert)
 	baseCert.Type = 1
 	baseCert.Name = host
 	baseCert.Certificate = string(
@@ -165,9 +169,9 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
 
-	fingerprint := shared.GenerateFingerprint(cert)
+	serial := cert.SerialNumber
 	for _, existingCert := range d.clientCerts {
-		if fingerprint == shared.GenerateFingerprint(&existingCert) {
+		if serial == existingCert.SerialNumber {
 			return EmptySyncResponse
 		}
 	}

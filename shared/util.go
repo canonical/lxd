@@ -4,9 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -114,10 +112,6 @@ func ReadToJSON(r io.Reader, req interface{}) error {
 	}
 
 	return json.Unmarshal(buf, req)
-}
-
-func GenerateFingerprint(cert *x509.Certificate) string {
-	return fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
 }
 
 func ReaderToChannel(r io.Reader) <-chan []byte {
