@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -25,9 +24,11 @@ func main() {
 }
 
 var verbose = gnuflag.Bool("v", false, "Enables verbose mode.")
+var syslogFlag = gnuflag.Bool("syslog", false, "Enables syslog logging.")
+var logfile = gnuflag.String("logfile", "", "Logfile to log to (e.g., /var/log/lxd/lxd.log).")
 var debug = gnuflag.Bool("debug", false, "Enables debug mode.")
-var listenAddr = gnuflag.String("tcp", "", "TCP address <addr:port> to listen on in addition to the unix socket (e.g., 127.0.0.1:8443)")
-var group = gnuflag.String("group", "", "Group which owns the shared socket")
+var listenAddr = gnuflag.String("tcp", "", "TCP address <addr:port> to listen on in addition to the unix socket (e.g., 127.0.0.1:8443).")
+var group = gnuflag.String("group", "", "Group which owns the shared socket.")
 var help = gnuflag.Bool("help", false, "Print this help message.")
 var version = gnuflag.Bool("version", false, "Print LXD's version number and exit.")
 var printGoroutines = gnuflag.Int("print-goroutines-every", -1, "For debugging, print a complete stack trace every n seconds")
@@ -76,10 +77,12 @@ func run() error {
 		return nil
 	}
 
-	if *verbose || *debug {
-		shared.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
-		shared.SetDebug(*debug)
+	// Configure logging
+	syslog := ""
+	if *syslogFlag {
+		syslog = "lxd"
 	}
+	shared.SetLogger(syslog, *logfile, *verbose, *debug)
 
 	if gnuflag.NArg() != 0 {
 		gnuflag.Usage()

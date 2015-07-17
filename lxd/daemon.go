@@ -21,6 +21,8 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // A Daemon can respond to requests from a shared client.
@@ -137,7 +139,7 @@ func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
 func readMyCert() (string, string, error) {
 	certf := shared.VarPath("server.crt")
 	keyf := shared.VarPath("server.key")
-	shared.Debugf("looking for existing certificates: %s %s", certf, keyf)
+	shared.Log.Debug("looking for existing certificates:", log.Ctx{"cert": certf, "key": keyf})
 
 	err := shared.FindOrGenCert(certf, keyf)
 
@@ -193,13 +195,13 @@ func (d *Daemon) createCmd(version string, c Command) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if d.isTrustedClient(r) {
-			shared.Debugf("handling %s %s", r.Method, r.URL.RequestURI())
+			shared.Log.Info("handling", log.Ctx{"method": r.Method, "url": r.URL.RequestURI()})
 		} else if r.Method == "GET" && c.untrustedGet {
-			shared.Debugf("allowing untrusted GET to %s", r.URL.RequestURI())
+			shared.Log.Info("allowing untrusted GET", log.Ctx{"url": r.URL.RequestURI()})
 		} else if r.Method == "POST" && c.untrustedPost {
-			shared.Debugf("allowing untrusted POST to %s", r.URL.RequestURI())
+			shared.Log.Info("allowing untrusted POST", log.Ctx{"url": r.URL.RequestURI()})
 		} else {
-			shared.Debugf("rejecting request from untrusted client")
+			shared.Log.Warn("rejecting request from untrusted client")
 			Forbidden.Render(w)
 			return
 		}
@@ -244,7 +246,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 		if err := resp.Render(w); err != nil {
 			err := InternalError(err).Render(w)
 			if err != nil {
-				shared.Debugf("failed writing error for error, giving up.")
+				shared.Log.Error("failed writing error for error, giving up.")
 			}
 		}
 
@@ -266,6 +268,11 @@ func (d *Daemon) createCmd(version string, c Command) {
 func StartDaemon(listenAddr string) (*Daemon, error) {
 	d := &Daemon{}
 
+	// Setup logging if main() hasn't been called/when testing
+	if shared.Log == nil {
+		shared.SetLogger("", "", true, true)
+	}
+
 	d.lxcpath = shared.VarPath("lxc")
 	err := os.MkdirAll(shared.VarPath("/"), 0755)
 	if err != nil {
@@ -278,7 +285,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.BackingFs, err = shared.GetFilesystem(d.lxcpath)
 	if err != nil {
-		shared.Debugf("Error detecting backing fs: %s\n", err)
+		shared.Log.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}
 
 	certf, keyf, err := readMyCert()
@@ -307,19 +314,19 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	}
 
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		shared.Debugf("sending top level 404: %s", r.URL)
+		shared.Log.Debug("sending top level 404", log.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")
 		NotFound.Render(w)
 	})
 
 	d.IdmapSet, err = shared.DefaultIdmapSet()
 	if err != nil {
-		shared.Logf("error reading idmap: %s", err.Error())
-		shared.Logf("operations requiring idmap will not be available")
+		shared.Log.Warn("error reading idmap", log.Ctx{"err": err.Error()})
+		shared.Log.Warn("operations requiring idmap will not be available")
 	} else {
-		shared.Debugf("Default uid/gid map:")
+		shared.Log.Debug("Default uid/gid map:")
 		for _, lxcmap := range d.IdmapSet.ToLxcString() {
-			shared.Debugf(" - " + lxcmap)
+			shared.Log.Debug(" - " + lxcmap)
 		}
 	}
 
@@ -337,7 +344,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	var remoteSockets []net.Listener
 
 	if len(listeners) > 0 {
-		shared.Debugf("LXD is socket activated.\n")
+		shared.Log.Debug("LXD is socket activated.")
 
 		for _, listener := range listeners {
 			if shared.PathExists(listener.Addr().String()) {
@@ -348,7 +355,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 			}
 		}
 	} else {
-		shared.Debugf("LXD isn't socket activated.\n")
+		shared.Log.Debug("LXD isn't socket activated.")
 
 		localSocketPath := shared.VarPath("unix.socket")
 
@@ -358,7 +365,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 			c := &lxd.Config{Remotes: map[string]lxd.RemoteConfig{}}
 			_, err := lxd.NewClient(c, "")
 			if err != nil {
-				shared.Debugf("Detected old but dead unix socket, deleting it...")
+				shared.Log.Debug("Detected old but dead unix socket, deleting it...")
 				// Connecting failed, so let's delete the socket and
 				// listen on it ourselves.
 				err = os.Remove(localSocketPath)
@@ -415,11 +422,11 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.tomb.Go(func() error {
 		for _, socket := range d.localSockets {
-			shared.Debugf(" - binding local socket: %s\n", socket.Addr())
+			shared.Log.Debug(" - binding local socket", log.Ctx{"socket": socket.Addr()})
 			d.tomb.Go(func() error { return http.Serve(socket, d.mux) })
 		}
 		for _, socket := range d.remoteSockets {
-			shared.Debugf(" - binding remote socket: %s\n", socket.Addr())
+			shared.Log.Debug(" - binding remote socket", log.Ctx{"socket": socket.Addr()})
 			d.tomb.Go(func() error { return http.Serve(socket, d.mux) })
 		}
 
@@ -437,10 +444,10 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 	for k, v := range d.clientCerts {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			shared.Debugf("found cert for %s", k)
+			shared.Log.Debug("found cert", log.Ctx{"k": k})
 			return true
 		}
-		shared.Debugf("client cert != key for %s", k)
+		shared.Log.Debug("client cert != key", log.Ctx{"k": k})
 	}
 	return false
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -84,10 +83,7 @@ func run() error {
 	os.Args = os.Args[1:]
 	gnuflag.Parse(true)
 
-	if *verbose || *debug {
-		shared.SetLogger(log.New(os.Stderr, "", log.LstdFlags))
-		shared.SetDebug(*debug)
-	}
+	shared.SetLogger("", "", *verbose, *debug)
 
 	config, err := lxd.LoadConfig()
 	if err != nil {
