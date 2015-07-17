@@ -26,9 +26,9 @@ type idmapEntry struct {
 
 func (e *idmapEntry) ToLxcString() string {
 	if e.isuid {
-		return fmt.Sprintf("u %d %d %d\n", e.nsid, e.hostid, e.maprange)
+		return fmt.Sprintf("u %d %d %d", e.nsid, e.hostid, e.maprange)
 	}
-	return fmt.Sprintf("g %d %d %d\n", e.nsid, e.hostid, e.maprange)
+	return fmt.Sprintf("g %d %d %d", e.nsid, e.hostid, e.maprange)
 }
 
 func is_between(x, low, high int) bool {
@@ -158,7 +158,7 @@ func (m IdmapSet) Intersects(i idmapEntry) bool {
 func (m IdmapSet) ToLxcString() []string {
 	var lines []string
 	for _, e := range m.idmap {
-		lines = append(lines, e.ToLxcString())
+		lines = append(lines, e.ToLxcString()+"\n")
 	}
 	return lines
 }

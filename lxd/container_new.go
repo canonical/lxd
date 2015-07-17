@@ -456,7 +456,7 @@ func (c *lxdContainer) applyIdmapSet() error {
 	}
 	lines := c.idmapset.ToLxcString()
 	for _, line := range lines {
-		err := c.c.SetConfigItem("lxc.id_map", line)
+		err := c.c.SetConfigItem("lxc.id_map", line+"\n")
 		if err != nil {
 			return err
 		}
