@@ -22,22 +22,16 @@ func extractImage(hash string, name string, d *Daemon) error {
 	dpath := shared.VarPath("lxc", name)
 	imagefile := shared.VarPath("images", hash)
 
-	compressionArgs, _, err := detectCompression(imagefile)
+	err := untar(imagefile, dpath)
 	if err != nil {
-		shared.Logf("Unkown compression type: %s", err)
-		removeContainer(d, name)
 		return err
 	}
 
-	args := []string{"-C", dpath, "--numeric-owner"}
-	args = append(args, compressionArgs...)
-	args = append(args, imagefile)
-
-	output, err := exec.Command("tar", args...).Output()
-	if err != nil {
-		shared.Debugf("Untar of image: Output %s\nError %s\n", output, err)
-		removeContainer(d, name)
-		return err
+	if shared.PathExists(imagefile + ".rootfs") {
+		err := untar(imagefile+".rootfs", dpath+"/rootfs/")
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

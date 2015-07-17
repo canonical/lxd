@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mime"
+	"mime/multipart"
 	"os"
 	"path/filepath"
 
@@ -90,23 +92,74 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 	/* remove the builddir when done */
 	defer removeImgWorkdir(d, builddir)
 
-	destName := filepath.Join(builddir, fp)
-	if shared.PathExists(destName) {
-		os.Remove(destName)
+	ctype, ctypeParams, err := mime.ParseMediaType(raw.Header.Get("Content-Type"))
+	if err != nil {
+		ctype = "application/octet-stream"
 	}
 
-	f, err := os.Create(destName)
-	if err != nil {
-		return err
-	}
-	var wr io.Writer
-	wr = f
+	if ctype == "multipart/form-data" {
+		// Parse the POST data
+		mr := multipart.NewReader(raw.Body, ctypeParams["boundary"])
 
-	_, err = io.Copy(wr, raw.Body)
-	f.Close()
-	if err != nil {
-		os.Remove(destName)
-		return err
+		// Get the metadata tarball
+		part, err := mr.NextPart()
+		if err != nil {
+			return err
+		}
+
+		if part.FormName() != "metadata" {
+			return fmt.Errorf("Invalid multipart image")
+		}
+
+		destName := filepath.Join(builddir, info.Fingerprint)
+		f, err := os.Create(destName)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(f, part)
+		f.Close()
+
+		if err != nil {
+			return err
+		}
+
+		// Get the rootfs tarball
+		part, err = mr.NextPart()
+		if err != nil {
+			return err
+		}
+
+		if part.FormName() != "rootfs" {
+			return fmt.Errorf("Invalid multipart image")
+		}
+
+		destName = filepath.Join(builddir, info.Fingerprint+".rootfs")
+		f, err = os.Create(destName)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(f, part)
+		f.Close()
+
+		if err != nil {
+			return err
+		}
+	} else {
+		destName := filepath.Join(builddir, info.Fingerprint)
+
+		f, err := os.Create(destName)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(f, raw.Body)
+		f.Close()
+
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = buildImageFromInfo(d, info, builddir)

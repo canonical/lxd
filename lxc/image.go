@@ -37,7 +37,7 @@ func (c *imageCmd) usage() string {
 	return gettext.Gettext(
 		"Manipulate container images\n" +
 			"\n" +
-			"lxc image import <tarball> [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]\n" +
+			"lxc image import <tarball> [rootfs tarball] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]\n" +
 			"\n" +
 			"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-alias]\n" +
 			"lxc image delete [remote:]<image>\n" +
@@ -242,24 +242,31 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) < 2 {
 			return errArgs
 		}
-		imagefile := args[1]
 
+		var imageFile string
+		var rootfsFile string
 		var properties []string
-		if len(args) > 2 {
-			split := strings.Split(args[2], "=")
-			if len(split) == 1 {
-				remote, _ = config.ParseRemoteAndContainer(args[2])
-				if len(args) > 3 {
-					properties = args[3:]
+		var remote string
+
+		for _, arg := range args[1:] {
+			split := strings.Split(arg, "=")
+			if len(split) == 1 || shared.PathExists(arg) {
+				if strings.HasSuffix(arg, ":") {
+					remote = config.ParseRemote(arg)
 				} else {
-					properties = []string{}
+					if imageFile == "" {
+						imageFile = args[1]
+					} else {
+						rootfsFile = arg
+					}
 				}
 			} else {
-				properties = args[2:]
+				properties = append(properties, arg)
 			}
-		} else {
-			remote = ""
-			properties = []string{}
+		}
+
+		if imageFile == "" {
+			return errArgs
 		}
 
 		d, err := lxd.NewClient(config, remote)
@@ -267,7 +274,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		fingerprint, err := d.PostImage(imagefile, properties, publicImage, addAliases)
+		fingerprint, err := d.PostImage(imageFile, rootfsFile, properties, publicImage, addAliases)
 		if err != nil {
 			return err
 		}
