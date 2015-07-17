@@ -928,18 +928,18 @@ func (c *Client) UserAuthServerCert(name string, acceptCert bool) error {
 	return err
 }
 
-func (c *Client) CertificateList() ([]string, error) {
-	raw, err := c.get("certificates")
+func (c *Client) CertificateList() ([]shared.CertInfo, error) {
+	resp, err := c.get("certificates?recursion=1")
 	if err != nil {
 		return nil, err
 	}
 
-	ret := []string{}
-	if err := json.Unmarshal(raw.Metadata, &ret); err != nil {
+	var result []shared.CertInfo
+	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
 	}
 
-	return ret, nil
+	return result, nil
 }
 
 func (c *Client) AddMyCertToServer(pwd string) error {
