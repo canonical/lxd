@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-07-17 17:30-0400\n"
+        "POT-Creation-Date: 2015-07-17 18:42-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -97,7 +97,7 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1556
+#: client.go:1553
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -188,7 +188,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:556 client.go:566 client.go:813 client.go:1771
+#: client.go:556 client.go:566 client.go:813 client.go:1768
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -211,7 +211,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>\n"
 msgstr  ""
 
-#: lxc/main.go:105
+#: lxc/main.go:110
 msgid   "For example: 'lxd-images import lxc ubuntu trusty amd64 --alias "
         "ubuntu/trusty'.\n"
 msgstr  ""
@@ -220,11 +220,11 @@ msgstr  ""
 msgid   "Force the container to shutdown."
 msgstr  ""
 
-#: lxc/main.go:97
+#: lxc/main.go:102
 msgid   "Generating a client certificate. This may take a minute...\n"
 msgstr  ""
 
-#: lxc/main.go:104
+#: lxc/main.go:109
 msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
@@ -447,7 +447,7 @@ msgid   "Manipulate container images\n"
         "create, delete, list image aliases\n"
 msgstr  ""
 
-#: lxc/help.go:76
+#: lxc/help.go:80
 msgid   "Missing summary."
 msgstr  ""
 
@@ -474,10 +474,18 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
+#: lxc/help.go:63
+msgid   "Options:"
+msgstr  ""
+
 #: lxc/help.go:25
 msgid   "Presents details on how to use LXD.\n"
         "\n"
         "lxd help [--all]\n"
+msgstr  ""
+
+#: lxc/help.go:64
+msgid   "Print less common commands."
 msgstr  ""
 
 #: lxc/version.go:20
@@ -609,7 +617,7 @@ msgstr  ""
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
 
-#: lxc/main.go:79
+#: lxc/main.go:84
 #, c-format
 msgid   "Usage: %s\n"
         "\n"
@@ -643,7 +651,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1587
+#: client.go:1584
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -652,7 +660,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1591
+#: client.go:1588
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -672,12 +680,12 @@ msgstr  ""
 msgid   "error: %v\n"
 msgstr  ""
 
-#: lxc/main.go:110
+#: lxc/main.go:115
 msgid   "error: %v\n"
         "%s"
 msgstr  ""
 
-#: lxc/help.go:41 lxc/main.go:73
+#: lxc/help.go:41 lxc/main.go:78
 #, c-format
 msgid   "error: unknown command: %s\n"
 msgstr  ""
@@ -706,7 +714,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1374
+#: client.go:1371
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -728,7 +736,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1633 client.go:1687
+#: client.go:1630 client.go:1684
 msgid   "no value found in %q\n"
 msgstr  ""
 
@@ -767,7 +775,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:148
+#: lxc/main.go:153
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
