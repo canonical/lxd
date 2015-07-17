@@ -125,9 +125,10 @@ func (s *storageLvm) ContainerDelete(name string) error {
 	}
 
 	// Then the container path (e.g. /var/lib/lxd/lxc/<name>)
-	cpath := s.containerGetPath(name)
-	if err := os.RemoveAll(cpath); err != nil {
-		return fmt.Errorf("Error cleaning up %s: %s", cpath, err)
+	cPath := s.containerGetPath(name)
+	if err := os.RemoveAll(cPath); err != nil {
+		s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "err": err})
+		return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
 	}
 
 	return nil

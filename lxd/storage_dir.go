@@ -54,11 +54,12 @@ func (s *storageDir) ContainerCreate(
 }
 
 func (s *storageDir) ContainerDelete(name string) error {
-	cpath := s.containerGetPath(name)
+	cPath := s.containerGetPath(name)
 
-	err := os.RemoveAll(cpath)
+	err := os.RemoveAll(cPath)
 	if err != nil {
-		return fmt.Errorf("Error cleaning up %s: %s", cpath, err)
+		s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "err": err})
+		return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
 	}
 
 	return nil
