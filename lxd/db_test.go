@@ -333,6 +333,14 @@ CREATE TABLE images_properties (
     value TEXT,
     FOREIGN KEY (image_id) REFERENCES images (id)
 );
+CREATE TABLE certificates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    fingerprint VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    certificate TEXT NOT NULL,
+    UNIQUE (fingerprint)
+);
 INSERT INTO schema (version, updated_at) values (1, "now");
 INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
 INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`

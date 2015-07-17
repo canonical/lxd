@@ -1096,7 +1096,8 @@ Output:
 
     {
         'type': "client",
-        'certificate': "BASE64"
+        'certificate': "PEM certificate"
+        'fingerprint': "SHA256 Hash of the raw certificate"
     }
 
 ### DELETE

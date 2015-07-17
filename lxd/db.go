@@ -36,7 +36,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 8
+const DB_CURRENT_VERSION int = 9
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
@@ -195,6 +195,14 @@ func getSchema(db *sql.DB) (v int) {
 		return 0
 	}
 	return v
+}
+
+func updateFromV8(db *sql.DB) error {
+	stmt := `
+UPDATE certificates SET fingerprint = replace(fingerprint, " ", "");
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 9)
+	return err
 }
 
 func updateFromV7(db *sql.DB) error {
@@ -574,6 +582,12 @@ func updateDb(db *sql.DB, prevVersion int) error {
 			return err
 		}
 	}
+	if prevVersion < 9 {
+		err = updateFromV8(db)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -693,7 +707,136 @@ func initDb(d *Daemon) (err error) {
 	return err
 }
 
-// Get an ImageBaseInfo object from the database.
+func dbPasswordGet(db *sql.DB) (pwd string, err error) {
+	q := "SELECT value FROM config WHERE key=\"core.trust_password\""
+	value := ""
+	argIn := []interface{}{}
+	argOut := []interface{}{&value}
+	err = dbQueryRowScan(db, q, argIn, argOut)
+
+	if err != nil || value == "" {
+		return "", fmt.Errorf("No password is set")
+	}
+
+	return value, nil
+}
+
+// dbCertInfo is here to pass the certificates content
+// from the database around
+type dbCertInfo struct {
+	ID          int
+	Fingerprint string
+	Type        int
+	Name        string
+	Certificate string
+}
+
+// dbCertsGet returns all certificates from the DB as CertBaseInfo objects.
+func dbCertsGet(db *sql.DB) (certs []*dbCertInfo, err error) {
+	rows, err := dbQuery(
+		db,
+		"SELECT id, fingerprint, type, name, certificate FROM certificates",
+	)
+	if err != nil {
+		return certs, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		cert := new(dbCertInfo)
+		rows.Scan(
+			&cert.ID,
+			&cert.Fingerprint,
+			&cert.Type,
+			&cert.Name,
+			&cert.Certificate,
+		)
+		certs = append(certs, cert)
+	}
+
+	return certs, nil
+}
+
+// dbCertGet gets an CertBaseInfo object from the database.
+// The argument fingerprint will be queried with a LIKE query, means you can
+// pass a shortform and will get the full fingerprint.
+// There can never be more than one image with a given fingerprint, as it is
+// enforced by a UNIQUE constraint in the schema.
+func dbCertGet(db *sql.DB, fingerprint string) (cert *dbCertInfo, err error) {
+	cert = new(dbCertInfo)
+
+	inargs := []interface{}{fingerprint + "%"}
+	outfmt := []interface{}{
+		&cert.ID,
+		&cert.Fingerprint,
+		&cert.Type,
+		&cert.Name,
+		&cert.Certificate,
+	}
+
+	query := `
+		SELECT
+			id, fingerprint, type, name, certificate
+		FROM
+			certificates
+		WHERE fingerprint LIKE ?`
+
+	if err = dbQueryRowScan(db, query, inargs, outfmt); err != nil {
+		return nil, err
+	}
+
+	return cert, err
+}
+
+// dbCertSave stores a CertBaseInfo object in the db,
+// it will ignore the ID field from the dbCertInfo.
+func dbCertSave(db *sql.DB, cert *dbCertInfo) error {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare(`
+			INSERT INTO certificates (
+				fingerprint,
+				type,
+				name,
+				certificate
+			) VALUES (?, ?, ?, ?)`,
+	)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(
+		cert.Fingerprint,
+		cert.Type,
+		cert.Name,
+		cert.Certificate,
+	)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return txCommit(tx)
+}
+
+// dbCertDelete deletes a certificate from the db.
+func dbCertDelete(db *sql.DB, fingerprint string) error {
+	_, err := dbExec(
+		db,
+		"DELETE FROM certificates WHERE fingerprint=?",
+		fingerprint,
+	)
+
+	return err
+}
+
+// dbImageGet gets an ImageBaseInfo object from the database.
+// The argument fingerprint will be queried with a LIKE query, means you can
+// pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
 func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseInfo, error) {
