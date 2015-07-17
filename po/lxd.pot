@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-07-14 15:14-0400\n"
+        "POT-Creation-Date: 2015-07-17 17:30-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,7 +16,7 @@ msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Content-Type: text/plain; charset=CHARSET\n"
         "Content-Transfer-Encoding: 8bit\n"
 
-#: lxc/config.go:28
+#: lxc/config.go:31
 msgid   "### This is a yaml representation of the configuration.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -83,7 +83,7 @@ msgstr  ""
 msgid   "Aliases:\n"
 msgstr  ""
 
-#: lxc/main.go:52
+#: lxc/main.go:51
 msgid   "Alternate config directory."
 msgstr  ""
 
@@ -92,16 +92,16 @@ msgstr  ""
 msgid   "Architecture: %s\n"
 msgstr  ""
 
-#: client.go:779
+#: client.go:780
 #, c-format
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1555
+#: client.go:1556
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: lxc/main.go:30
+#: lxc/main.go:29
 #, c-format
 msgid   "Cannot connect to unix socket at %s Is the server running?\n"
 msgstr  ""
@@ -110,7 +110,7 @@ msgstr  ""
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
-#: client.go:900
+#: client.go:901
 #, c-format
 msgid   "Certificate fingerprint: % x\n"
 msgstr  ""
@@ -145,7 +145,7 @@ msgid   "Copy containers within or in between lxd instances.\n"
         "container>\n"
 msgstr  ""
 
-#: client.go:916
+#: client.go:917
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -166,21 +166,21 @@ msgid   "Delete containers or container snapshots.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:417
+#: lxc/config.go:440
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:445
+#: lxc/config.go:468
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
 
-#: lxc/main.go:50
+#: lxc/main.go:49
 msgid   "Enables debug mode."
 msgstr  ""
 
-#: lxc/main.go:49
+#: lxc/main.go:48
 msgid   "Enables verbose mode."
 msgstr  ""
 
@@ -188,7 +188,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:555 client.go:565 client.go:812 client.go:1770
+#: client.go:556 client.go:566 client.go:813 client.go:1771
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -211,7 +211,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>\n"
 msgstr  ""
 
-#: lxc/main.go:109
+#: lxc/main.go:105
 msgid   "For example: 'lxd-images import lxc ubuntu trusty amd64 --alias "
         "ubuntu/trusty'.\n"
 msgstr  ""
@@ -220,11 +220,11 @@ msgstr  ""
 msgid   "Force the container to shutdown."
 msgstr  ""
 
-#: lxc/main.go:101
+#: lxc/main.go:97
 msgid   "Generating a client certificate. This may take a minute...\n"
 msgstr  ""
 
-#: lxc/main.go:108
+#: lxc/main.go:104
 msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
@@ -339,7 +339,7 @@ msgid   "Manage configuration profiles.\n"
         "    using the specified profile.\n"
 msgstr  ""
 
-#: lxc/config.go:48
+#: lxc/config.go:51
 msgid   "Manage configuration.\n"
         "\n"
         "lxc config device add <[remote:]container> <name> <type> "
@@ -462,15 +462,15 @@ msgid   "Move containers within or in between lxd instances.\n"
         "container>\n"
 msgstr  ""
 
-#: lxc/config.go:177
+#: lxc/config.go:200
 msgid   "No cert provided to add"
 msgstr  ""
 
-#: client.go:887
+#: client.go:888
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:200
+#: lxc/config.go:223
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -525,11 +525,11 @@ msgstr  ""
 msgid   "Remote admin password"
 msgstr  ""
 
-#: client.go:907
+#: client.go:908
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
-#: client.go:283
+#: client.go:284
 #, c-format
 msgid   "Server certificate for host %s has changed. Add correct certificate "
         "or remove certificate in %s"
@@ -562,7 +562,7 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:223
+#: lxc/config.go:246
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
@@ -574,7 +574,7 @@ msgstr  ""
 msgid   "Size: %.2vMB\n"
 msgstr  ""
 
-#: client.go:587
+#: client.go:588
 msgid   "Split images can only be written to a directory."
 msgstr  ""
 
@@ -604,12 +604,12 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:214
+#: lxc/config.go:237
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
 
-#: lxc/main.go:80
+#: lxc/main.go:79
 #, c-format
 msgid   "Usage: %s\n"
         "\n"
@@ -631,11 +631,11 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:373 lxc/image.go:382 lxc/profile.go:197
+#: lxc/config.go:396 lxc/image.go:382 lxc/profile.go:197
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
-#: client.go:455
+#: client.go:456
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
@@ -643,7 +643,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1586
+#: client.go:1587
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -652,7 +652,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1590
+#: client.go:1591
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -660,7 +660,7 @@ msgstr  ""
 msgid   "can't copy to the same container name"
 msgstr  ""
 
-#: client.go:418 client.go:423
+#: client.go:419 client.go:424
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
@@ -668,26 +668,26 @@ msgstr  ""
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
-#: lxc/main.go:40
+#: lxc/main.go:39
 msgid   "error: %v\n"
 msgstr  ""
 
-#: lxc/main.go:114
+#: lxc/main.go:110
 msgid   "error: %v\n"
         "%s"
 msgstr  ""
 
-#: lxc/help.go:41 lxc/main.go:74
+#: lxc/help.go:41 lxc/main.go:73
 #, c-format
 msgid   "error: unknown command: %s\n"
 msgstr  ""
 
-#: client.go:370
+#: client.go:371
 #, c-format
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1228
+#: client.go:1229
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -706,7 +706,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1373
+#: client.go:1374
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -728,7 +728,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1632 client.go:1686
+#: client.go:1633 client.go:1687
 msgid   "no value found in %q\n"
 msgstr  ""
 
@@ -740,7 +740,7 @@ msgstr  ""
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: client.go:901
+#: client.go:902
 msgid   "ok (y/n)? "
 msgstr  ""
 
@@ -759,7 +759,7 @@ msgstr  ""
 msgid   "remote %s exists as <%s>"
 msgstr  ""
 
-#: client.go:252
+#: client.go:253
 msgid   "unknown remote name: %q"
 msgstr  ""
 
@@ -767,7 +767,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:152
+#: lxc/main.go:148
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 

@@ -13,7 +13,7 @@ test_remote_url() {
   for url in localhost:18443 https://localhost:18443; do
     (echo y;  sleep 3;  echo foo) | lxc remote add test $url
     lxc finger test:
-    lxc config trust list | while IFS= read -r line ; do
+    lxc config trust list | grep @ | awk '{print $2}' | while read line ; do
       lxc config trust remove "\"$line\""
     done
     lxc remote remove test
@@ -66,7 +66,7 @@ test_remote_admin() {
 
   # now re-add under a different alias
   lxc config trust add "$LXD_CONF/client2.crt"
-  if [ "$(lxc config trust list | wc -l)" -ne 2 ]; then
+  if [ "$(lxc config trust list | wc -l)" -ne 6 ]; then
     echo "wrong number of certs"
   fi
 
