@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 
@@ -35,44 +36,86 @@ type syncResponse struct {
   fname: name of the file without path
   headers: any other headers that should be set in the response
 */
+
+type fileResponseEntry struct {
+	identifier string
+	path       string
+	filename   string
+}
+
 type fileResponse struct {
 	req              *http.Request
-	path             string
-	filename         string
+	files            []fileResponseEntry
 	headers          map[string]string
 	removeAfterServe bool
 }
 
-func FileResponse(r *http.Request, path string, filename string, headers map[string]string, removeAfterServe bool) Response {
-	return &fileResponse{r, path, filename, headers, removeAfterServe}
+func FileResponse(r *http.Request, files []fileResponseEntry, headers map[string]string, removeAfterServe bool) Response {
+	return &fileResponse{r, files, headers, removeAfterServe}
 }
 
 func (r *fileResponse) Render(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/octet-stream")
-
-	f, err := os.Open(r.path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return err
-	}
-
 	if r.headers != nil {
 		for k, v := range r.headers {
 			w.Header().Set(k, v)
 		}
 	}
 
-	http.ServeContent(w, r.req, r.filename, fi.ModTime(), f)
-	if r.removeAfterServe {
-		os.Remove(r.filename)
+	// No file, well, it's easy then
+	if len(r.files) == 0 {
+		return nil
 	}
 
-	return nil
+	// For a single file, return it inline
+	if len(r.files) == 1 {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.files[0].filename))
+
+		f, err := os.Open(r.files[0].path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		fi, err := f.Stat()
+		if err != nil {
+			return err
+		}
+
+		http.ServeContent(w, r.req, r.files[0].filename, fi.ModTime(), f)
+		if r.removeAfterServe {
+			os.Remove(r.files[0].filename)
+		}
+
+		return nil
+	}
+
+	// Now the complex multipart answer
+	body := &bytes.Buffer{}
+	mw := multipart.NewWriter(body)
+
+	for _, entry := range r.files {
+		fd, err := os.Open(entry.path)
+		if err != nil {
+			return err
+		}
+		defer fd.Close()
+
+		fw, err := mw.CreateFormFile(entry.identifier, entry.filename)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(fw, fd)
+		if err != nil {
+			return err
+		}
+	}
+
+	mw.Close()
+	w.Header().Set("Content-Type", mw.FormDataContentType())
+	_, err := io.Copy(w, body)
+	return err
 }
 
 func WriteJSON(w http.ResponseWriter, body interface{}) error {
