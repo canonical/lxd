@@ -326,7 +326,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	} else {
 		shared.Log.Debug("Default uid/gid map:")
 		for _, lxcmap := range d.IdmapSet.ToLxcString() {
-			shared.Log.Debug(" - " + lxcmap)
+			shared.Log.Debug(strings.TrimRight(" - "+lxcmap, "\n"))
 		}
 	}
 

@@ -33,7 +33,7 @@ func removeContainerPath(d *Daemon, name string) error {
 			return fmt.Errorf("failed to remove deleted container LV: %v", err)
 		}
 
-	} else if backingFs == "btrfs" {
+	} else if backingFs == "btrfs" && btrfsIsSubvolume(cpath) {
 		if err := btrfsDeleteSubvol(cpath); err != nil {
 			return err
 		}
