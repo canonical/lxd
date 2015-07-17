@@ -55,8 +55,13 @@ func run() error {
 		os.Args = append(os.Args[:1], os.Args[2:]...)
 	}
 
-	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
+	if len(os.Args) >= 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
 		os.Args[1] = "help"
+	}
+
+	if len(os.Args) >= 2 && (os.Args[1] == "--all") {
+		os.Args[1] = "help"
+		os.Args = append(os.Args, "--all")
 	}
 
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
