@@ -97,26 +97,26 @@ func LogPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
-func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMode, err error) {
-	uid, err = strconv.Atoi(headers.Get("X-LXD-uid"))
+func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMode) {
+	uid, err := strconv.Atoi(headers.Get("X-LXD-uid"))
 	if err != nil {
-		return 0, 0, 0, err
+		uid = 0
 	}
 
 	gid, err = strconv.Atoi(headers.Get("X-LXD-gid"))
 	if err != nil {
-		return 0, 0, 0, err
+		gid = 0
 	}
 
 	/* Allow people to send stuff with a leading 0 for octal or a regular
 	 * int that represents the perms when redered in octal. */
 	rawMode, err := strconv.ParseInt(headers.Get("X-LXD-mode"), 0, 0)
 	if err != nil {
-		return 0, 0, 0, err
+		rawMode = 0644
 	}
 	mode = os.FileMode(rawMode)
 
-	return uid, gid, mode, nil
+	return uid, gid, mode
 }
 
 func ReadToJSON(r io.Reader, req interface{}) error {
