@@ -59,6 +59,10 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 		}
 	}
 	fmt.Println()
+	if !showAll {
+		fmt.Println(gettext.Gettext("Options:"))
+		fmt.Println("  --all    " + gettext.Gettext("Print less common commands."))
+	}
 	return nil
 }
 
