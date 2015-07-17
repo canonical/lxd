@@ -99,7 +99,7 @@ type storageShared struct {
 
 func (ss *storageShared) initShared() error {
 	ss.log = shared.Log.New(
-		log.Ctx{"module": fmt.Sprintf("storage/%s", ss.sTypeName)},
+		log.Ctx{"driver": fmt.Sprintf("storage/%s", ss.sTypeName)},
 	)
 	return nil
 }
@@ -120,7 +120,7 @@ type storageLogWrapper struct {
 func (lw *storageLogWrapper) Init() (storage, error) {
 	_, err := lw.w.Init()
 	lw.log = shared.Log.New(
-		log.Ctx{"module": fmt.Sprintf("storage/%s", lw.w.GetStorageTypeName())},
+		log.Ctx{"driver": fmt.Sprintf("storage/%s", lw.w.GetStorageTypeName())},
 	)
 
 	lw.log.Debug("Init")
