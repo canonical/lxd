@@ -789,7 +789,7 @@ func dbCertGet(db *sql.DB, fingerprint string) (cert *dbCertInfo, err error) {
 	return cert, err
 }
 
-// dbSaveCert stores a CertBaseInfo object in the db,
+// dbCertSave stores a CertBaseInfo object in the db,
 // it will ignore the ID field from the dbCertInfo.
 func dbCertSave(db *sql.DB, cert *dbCertInfo) error {
 	tx, err := dbBegin(db)
