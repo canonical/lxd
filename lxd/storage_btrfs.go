@@ -66,7 +66,18 @@ func (s *storageBtrfs) ContainerCreate(
 }
 
 func (s *storageBtrfs) ContainerDelete(name string) error {
-	return s.subvolDelete(s.containerGetPath(name))
+	cPath := s.containerGetPath(name)
+	if s.isSubvolume(cPath) {
+		return s.subvolDelete(cPath)
+	}
+
+	err := os.RemoveAll(cPath)
+	if err != nil {
+		s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "err": err})
+		return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
+	}
+
+	return nil
 }
 
 func (s *storageBtrfs) ContainerCopy(name string, source string) error {
