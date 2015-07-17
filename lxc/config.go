@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/chai2010/gettext-go/gettext"
+	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 
@@ -166,9 +169,29 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 				return err
 			}
 
-			for _, fingerprint := range trust {
-				fmt.Println(fmt.Sprintf("%s", fingerprint))
+			data := [][]string{}
+			for _, cert := range trust {
+				fp := cert.Fingerprint[0:12]
+
+				certBlock, _ := pem.Decode([]byte(cert.Certificate))
+				cert, err := x509.ParseCertificate(certBlock.Bytes)
+				if err != nil {
+					return err
+				}
+
+				const layout = "Jan 2, 2006 at 3:04pm (MST)"
+				issue := cert.NotBefore.Format(layout)
+				expiry := cert.NotAfter.Format(layout)
+				data = append(data, []string{fp, cert.Subject.CommonName, issue, expiry})
 			}
+
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetHeader([]string{"FINGERPRINT", "COMMON NAME", "ISSUE DATE", "EXPIRY DATE"})
+
+			for _, v := range data {
+				table.Append(v)
+			}
+			table.Render()
 
 			return nil
 		case "add":

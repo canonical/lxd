@@ -274,13 +274,18 @@ class LXCImages(object):
             shutil.rmtree(self.workdir)
 
     def __grab_and_validate(self, url, dest):
+        def report_download(blocks_read, block_size, total_size):
+            size_read = blocks_read * block_size
+            percent = size_read/total_size*100
+            print("Progress: %.0f %%" % percent, end='\r')
+
         try:
             # Main file
-            urllib.request.urlretrieve(url, dest)
+            urllib.request.urlretrieve(url, dest, report_download)
 
             # Signature
             urllib.request.urlretrieve(url + ".asc",
-                                       dest + ".asc")
+                                       dest + ".asc", report_download)
         except socket.timeout or IOError as e:
             raise Exception("Failed to download \"%s\": %s" % (url, e))
 
@@ -465,7 +470,7 @@ if __name__ == "__main__":
     parser_import_subparsers = parser_import.add_subparsers(dest="source")
     parser_import_subparsers.required = True
 
-    ## Busybox
+    # # Busybox
     parser_import_busybox = parser_import_subparsers.add_parser(
         "busybox", help=_("Busybox image"))
     parser_import_busybox.add_argument("--alias", action="append", default=[],
@@ -475,7 +480,7 @@ if __name__ == "__main__":
         help=_("Whether to create a split image"))
     parser_import_busybox.set_defaults(func=import_busybox)
 
-    ## LXC
+    # # LXC
     parser_import_lxc = parser_import_subparsers.add_parser(
         "lxc", help=_("LXC images"))
     parser_import_lxc.add_argument("distribution", help=_("Distribution"))
