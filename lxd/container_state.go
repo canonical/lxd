@@ -47,7 +47,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	switch shared.ContainerAction(raw.Action) {
 	case shared.Start:
 		do = func() error {
-			if err = d.Storage.ContainerStart(c.name); err != nil {
+			if err = d.Storage.ContainerStart(c); err != nil {
 				return err
 			}
 			if err = c.Start(); err != nil {
@@ -61,7 +61,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 				if err = c.Stop(); err != nil {
 					return err
 				}
-				if err = d.Storage.ContainerStop(c.name); err != nil {
+				if err = d.Storage.ContainerStop(c); err != nil {
 					return err
 				}
 				return nil
@@ -71,7 +71,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 				if err = c.Shutdown(time.Duration(raw.Timeout) * time.Second); err != nil {
 					return err
 				}
-				if err = d.Storage.ContainerStop(c.name); err != nil {
+				if err = d.Storage.ContainerStop(c); err != nil {
 					return err
 				}
 				return nil

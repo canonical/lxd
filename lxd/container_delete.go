@@ -7,16 +7,16 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func removeContainer(d *Daemon, name string) error {
-	if err := containerDeleteSnapshots(d, name); err != nil {
+func removeContainer(d *Daemon, container *lxdContainer) error {
+	if err := containerDeleteSnapshots(d, container.name); err != nil {
 		return err
 	}
 
-	if err := d.Storage.ContainerDelete(name); err != nil {
+	if err := d.Storage.ContainerDelete(container); err != nil {
 		return err
 	}
 
-	if err := dbRemoveContainer(d, name); err != nil {
+	if err := dbRemoveContainer(d, container.name); err != nil {
 		return err
 	}
 
@@ -30,8 +30,14 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	// TODO: i have added this not sure its a good idea (pcdummy)
+	c, err := newLxdContainer(name, d)
+	if err != nil {
+		return SmartError(err)
+	}
+
 	rmct := func() error {
-		return removeContainer(d, name)
+		return removeContainer(d, c)
 	}
 
 	return AsyncResponse(shared.OperationWrap(rmct), nil)
