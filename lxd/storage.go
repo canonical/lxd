@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
@@ -67,10 +69,13 @@ type storage interface {
 	GetStorageTypeName() string
 
 	ContainerCreate(container *lxdContainer, imageFingerprint string) error
-	ContainerDelete(name string) error
-	ContainerCopy(name string, source string) error
-	ContainerStart(name string) error
-	ContainerStop(name string) error
+	ContainerDelete(container *lxdContainer) error
+	ContainerCopy(container *lxdContainer, sourceContainer *lxdContainer) error
+	ContainerStart(container *lxdContainer) error
+	ContainerStop(container *lxdContainer) error
+
+	ContainerSnapshotCreate(container *lxdContainer, snapshotName string) error
+	ContainerSnapshotDelete(container *lxdContainer, snapshotName string) error
 
 	ImageCreate(fingerprint string) error
 	ImageDelete(fingerprint string) error
@@ -112,6 +117,22 @@ func (ss *storageShared) containerGetPath(name string) string {
 	return shared.VarPath("lxc", name)
 }
 
+// rsyncCopy copies a directory using rsync (with the --devices option).
+func (ss *storageShared) rsyncCopy(source string, dest string) (string, error) {
+	if err := os.MkdirAll(dest, 0700); err != nil {
+		return "", err
+	}
+
+	output, err := exec.Command(
+		"rsync",
+		"-a",
+		"--devices",
+		source,
+		dest).CombinedOutput()
+
+	return string(output), err
+}
+
 type storageLogWrapper struct {
 	w   storage
 	log log.Logger
@@ -147,28 +168,45 @@ func (lw *storageLogWrapper) ContainerCreate(
 	return lw.w.ContainerCreate(container, imageFingerprint)
 }
 
-func (lw *storageLogWrapper) ContainerDelete(name string) error {
-	lw.log.Debug("ContainerDelete", log.Ctx{"name": name})
-	return lw.w.ContainerDelete(name)
+func (lw *storageLogWrapper) ContainerDelete(container *lxdContainer) error {
+	lw.log.Debug("ContainerDelete", log.Ctx{"container": container.name})
+	return lw.w.ContainerDelete(container)
 }
 
-func (lw *storageLogWrapper) ContainerCopy(name string, source string) error {
+func (lw *storageLogWrapper) ContainerCopy(
+	container *lxdContainer, sourceContainer *lxdContainer) error {
+
 	lw.log.Debug(
 		"ContainerCopy",
 		log.Ctx{
-			"name":   name,
-			"source": source})
-	return lw.w.ContainerCopy(name, source)
+			"container": container.name,
+			"source":    sourceContainer.name})
+	return lw.w.ContainerCopy(container, sourceContainer)
 }
 
-func (lw *storageLogWrapper) ContainerStart(name string) error {
-	lw.log.Debug("ContainerStart", log.Ctx{"name": name})
-	return lw.w.ContainerStart(name)
+func (lw *storageLogWrapper) ContainerStart(container *lxdContainer) error {
+	lw.log.Debug("ContainerStart", log.Ctx{"container": container.name})
+	return lw.w.ContainerStart(container)
 }
 
-func (lw *storageLogWrapper) ContainerStop(name string) error {
-	lw.log.Debug("ContainerStop", log.Ctx{"name": name})
-	return lw.w.ContainerStop(name)
+func (lw *storageLogWrapper) ContainerStop(container *lxdContainer) error {
+	lw.log.Debug("ContainerStop", log.Ctx{"container": container.name})
+	return lw.w.ContainerStop(container)
+}
+
+func (lw *storageLogWrapper) ContainerSnapshotCreate(
+	container *lxdContainer, snapshotName string) error {
+
+	lw.log.Debug("ContainerSnapshotCreate",
+		log.Ctx{"container": container.name, "snapshotName": snapshotName})
+	return lw.w.ContainerSnapshotCreate(container, snapshotName)
+}
+func (lw *storageLogWrapper) ContainerSnapshotDelete(
+	container *lxdContainer, snapshotName string) error {
+
+	lw.log.Debug("ContainerSnapshotDelete",
+		log.Ctx{"container": container.name, "snapshotName": snapshotName})
+	return lw.w.ContainerSnapshotDelete(container, snapshotName)
 }
 
 func (lw *storageLogWrapper) ImageCreate(fingerprint string) error {

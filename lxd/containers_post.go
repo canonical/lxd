@@ -43,7 +43,7 @@ func shiftRootfs(c *lxdContainer, d *Daemon) error {
 	err := c.idmapset.ShiftRootfs(rpath)
 	if err != nil {
 		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
-		removeContainer(d, c.name)
+		removeContainer(d, c)
 		return err
 	}
 
@@ -160,18 +160,15 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	_, err = dbCreateContainer(args)
 	if err != nil {
-		d.Storage.ContainerDelete(name)
 		return SmartError(err)
 	}
 
 	c, err := newLxdContainer(name, d)
 	if err != nil {
-		d.Storage.ContainerDelete(name)
 		return SmartError(err)
 	}
 
 	run = shared.OperationWrap(func() error {
-
 		err := d.Storage.ContainerCreate(c, hash)
 		return err
 	})
@@ -239,7 +236,6 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 
 	c, err := newLxdContainer(req.Name, d)
 	if err != nil {
-		removeContainer(d, req.Name)
 		return SmartError(err)
 	}
 
@@ -247,18 +243,18 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	// exist
 	dpath := shared.VarPath("lxc", req.Name)
 	if err := os.MkdirAll(dpath, 0700); err != nil {
-		removeContainer(d, req.Name)
+		removeContainer(d, c)
 		return InternalError(err)
 	}
 
 	if err := extractShiftIfExists(d, c, req.Source.BaseImage, req.Name); err != nil {
-		removeContainer(d, req.Name)
+		removeContainer(d, c)
 		return InternalError(err)
 	}
 
 	config, err := shared.GetTLSConfig(d.certf, d.keyf)
 	if err != nil {
-		removeContainer(d, req.Name)
+		removeContainer(d, c)
 		return InternalError(err)
 	}
 
@@ -274,14 +270,14 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 
 	sink, err := migration.NewMigrationSink(&args)
 	if err != nil {
-		removeContainer(d, req.Name)
+		removeContainer(d, c)
 		return BadRequest(err)
 	}
 
 	run := func() shared.OperationResult {
 		err := sink()
 		if err != nil {
-			removeContainer(d, req.Name)
+			removeContainer(d, c)
 			return shared.OperationError(err)
 		}
 
@@ -347,10 +343,14 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	run := func() shared.OperationResult {
-		if err := d.Storage.ContainerCopy(
-			req.Name, req.Source.Source); err != nil {
+		c, err := newLxdContainer(req.Name, d)
+		if err != nil {
+			return shared.OperationError(err)
+		}
 
-			removeContainer(d, req.Name)
+		if err := d.Storage.ContainerCopy(c, source); err != nil {
+
+			removeContainer(d, c)
 			return shared.OperationError(err)
 		}
 

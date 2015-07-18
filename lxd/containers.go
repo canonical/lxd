@@ -161,7 +161,7 @@ func containerWatchEphemeral(c *lxdContainer) {
 			return
 		}
 
-		removeContainer(c.daemon, c.name)
+		removeContainer(c.daemon, c)
 	}()
 }
 
@@ -223,7 +223,7 @@ func containersRestart(d *Daemon) error {
 			return err
 		}
 
-		if err = d.Storage.ContainerStart(container.name); err != nil {
+		if err = d.Storage.ContainerStart(container); err != nil {
 			return err
 		}
 		container.c.Start()
@@ -261,7 +261,7 @@ func containersShutdown(d *Daemon) error {
 			go func() {
 				container.c.Shutdown(time.Second * 30)
 				container.c.Stop()
-				if err = d.Storage.ContainerStop(container.name); err != nil {
+				if err = d.Storage.ContainerStop(container); err != nil {
 					shared.Log.Error(
 						"Error deactivating storage after container stop",
 						log.Ctx{"err": err})

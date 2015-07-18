@@ -122,7 +122,7 @@ func (c *migrationFields) controlChannel() <-chan MigrationControl {
 func collectMigrationLogFile(c *lxc.Container, imagesDir string, method string) error {
 	t := time.Now().Format(time.RFC3339)
 	newPath := shared.LogPath(c.Name(), fmt.Sprintf("migration_%s_%s.log", method, t))
-	return shared.CopyFile(newPath, filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)))
+	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
 }
 
 type migrationSourceWs struct {

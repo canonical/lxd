@@ -206,7 +206,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq) 
 
 	/* rename the the file to the expected name so our caller can use it */
 	finalName := shared.VarPath("images", info.Fingerprint)
-	err = os.Rename(gztarpath, finalName)
+	err = shared.FileMove(gztarpath, finalName)
 	if err != nil {
 		return info, err
 	}
@@ -333,13 +333,13 @@ func getImgPostInfo(d *Daemon, r *http.Request, post *os.File) (info shared.Imag
 		}
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
-		err = os.Rename(imageTarf.Name(), imgfname)
+		err = shared.FileMove(imageTarf.Name(), imgfname)
 		if err != nil {
 			return info, err
 		}
 
 		rootfsfname := shared.VarPath("images", info.Fingerprint+".rootfs")
-		err = os.Rename(rootfsTarf.Name(), rootfsfname)
+		err = shared.FileMove(rootfsTarf.Name(), rootfsfname)
 		if err != nil {
 			return info, err
 		}
@@ -367,7 +367,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, post *os.File) (info shared.Imag
 		}
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
-		err = os.Rename(imageTarf.Name(), imgfname)
+		err = shared.FileMove(imageTarf.Name(), imgfname)
 		if err != nil {
 			return info, err
 		}
@@ -576,7 +576,7 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 	args = append(args, compressionArgs...)
 	args = append(args, fname, metadataName)
 
-	shared.Debugf("Extracting tarball using command: tar %s", strings.Join(args, " "))
+	shared.Debugf("Extracting metadata.yaml using command: tar %s", strings.Join(args, " "))
 
 	// read the metadata.yaml
 	output, err := exec.Command("tar", args...).CombinedOutput()

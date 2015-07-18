@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestCopyFile(t *testing.T) {
+func TestFileCopy(t *testing.T) {
 	helloWorld := []byte("hello world\n")
 	source, err := ioutil.TempFile("", "")
 	if err != nil {
@@ -31,7 +31,7 @@ func TestCopyFile(t *testing.T) {
 	}
 	dest.Close()
 
-	if err := CopyFile(dest.Name(), source.Name()); err != nil {
+	if err := FileCopy(source.Name(), dest.Name()); err != nil {
 		t.Error(err)
 		return
 	}

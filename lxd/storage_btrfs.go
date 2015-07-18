@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/migration"
@@ -65,8 +66,8 @@ func (s *storageBtrfs) ContainerCreate(
 	return templateApply(container, "create")
 }
 
-func (s *storageBtrfs) ContainerDelete(name string) error {
-	cPath := s.containerGetPath(name)
+func (s *storageBtrfs) ContainerDelete(container *lxdContainer) error {
+	cPath := s.containerGetPath(container.name)
 	if s.isSubvolume(cPath) {
 		return s.subvolDelete(cPath)
 	}
@@ -80,11 +81,12 @@ func (s *storageBtrfs) ContainerDelete(name string) error {
 	return nil
 }
 
-func (s *storageBtrfs) ContainerCopy(name string, source string) error {
+func (s *storageBtrfs) ContainerCopy(container *lxdContainer, sourceContainer *lxdContainer) error {
 
-	oldPath := migration.AddSlash(shared.VarPath("lxc", source, "rootfs"))
-	if shared.IsSnapshot(source) {
-		snappieces := strings.SplitN(source, "/", 2)
+	oldPath := migration.AddSlash(
+		shared.VarPath("lxc", sourceContainer.name, "rootfs"))
+	if shared.IsSnapshot(sourceContainer.name) {
+		snappieces := strings.SplitN(sourceContainer.name, "/", 2)
 		oldPath = migration.AddSlash(shared.VarPath("lxc",
 			snappieces[0],
 			"snapshots",
@@ -93,7 +95,7 @@ func (s *storageBtrfs) ContainerCopy(name string, source string) error {
 	}
 
 	subvol := strings.TrimSuffix(oldPath, "rootfs/")
-	dpath := s.containerGetPath(name)
+	dpath := s.containerGetPath(container.name)
 
 	if s.isSubvolume(subvol) {
 		err := s.subvolSnapshot(subvol, dpath, false)
@@ -101,41 +103,25 @@ func (s *storageBtrfs) ContainerCopy(name string, source string) error {
 			return err
 		}
 	} else {
-		if err := os.MkdirAll(dpath, 0700); err != nil {
-			s.log.Error(
-				"ContainerCopy: os.MkdirAll failed", log.Ctx{"err": err})
-			return err
-		}
-
-		newPath := fmt.Sprintf("%s/%s", dpath, "rootfs")
+		newPath := filepath.Join(dpath, "rootfs")
 		/*
 		 * Copy by using rsync
 		 */
-		output, err := exec.Command(
-			"rsync",
-			"-a",
-			"--devices",
-			oldPath,
-			newPath).CombinedOutput()
-
+		output, err := s.rsyncCopy(oldPath, newPath)
 		if err != nil {
+			os.RemoveAll(s.containerGetPath(container.name))
 			s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": output})
 			return fmt.Errorf("rsync failed: %s", output)
 		}
 	}
 
-	sourceContainer, err := newLxdContainer(source, s.d)
-	if err != nil {
-		return err
-	}
-
 	if !sourceContainer.isPrivileged() {
-		err := setUnprivUserAcl(sourceContainer, s.containerGetPath(name))
+		err := setUnprivUserAcl(sourceContainer, dpath)
 		if err != nil {
 			s.log.Error(
 				"ContainerCopy: adding acl for container root: falling back to chmod")
 			output, err := exec.Command(
-				"chmod", "+x", s.containerGetPath(name)).CombinedOutput()
+				"chmod", "+x", dpath).CombinedOutput()
 			if err != nil {
 				s.log.Error(
 					"ContainerCopy: chmoding the container root", log.Ctx{"output": output})
@@ -144,19 +130,25 @@ func (s *storageBtrfs) ContainerCopy(name string, source string) error {
 		}
 	}
 
-	c, err := newLxdContainer(name, s.d)
-	if err != nil {
-		return err
-	}
-
-	return templateApply(c, "copy")
+	return templateApply(container, "copy")
 }
 
-func (s *storageBtrfs) ContainerStart(name string) error {
+func (s *storageBtrfs) ContainerStart(container *lxdContainer) error {
 	return nil
 }
 
-func (s *storageBtrfs) ContainerStop(name string) error {
+func (s *storageBtrfs) ContainerStop(container *lxdContainer) error {
+	return nil
+}
+
+func (s *storageBtrfs) ContainerSnapshotCreate(
+	container *lxdContainer, snapshotName string) error {
+
+	return nil
+}
+func (s *storageBtrfs) ContainerSnapshotDelete(
+	container *lxdContainer, snapshotName string) error {
+
 	return nil
 }
 

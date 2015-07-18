@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/migration"
@@ -62,11 +61,11 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", c.name))
 		newPath := fmt.Sprintf("%s/", shared.VarPath("lxc", body.Name))
 
-		if err := os.Rename(oldPath, newPath); err != nil {
+		if err := shared.FileMove(oldPath, newPath); err != nil {
 			return err
 		}
 
-		removeContainer(d, c.name)
+		removeContainer(d, c)
 		return nil
 	}
 

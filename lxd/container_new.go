@@ -493,12 +493,13 @@ func (c *lxdContainer) applyDevices() error {
 }
 
 func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
-	d := &lxdContainer{}
-	d.daemon = daemon
+	d := &lxdContainer{
+		daemon:       daemon,
+		ephemeral:    false,
+		architecture: -1,
+		id:           -1}
+
 	ephemInt := -1
-	d.ephemeral = false
-	d.architecture = -1
-	d.id = -1
 
 	templateConfBase := "ubuntu"
 	templateConfDir := os.Getenv("LXC_TEMPLATE_CONFIG")
