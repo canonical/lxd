@@ -57,7 +57,6 @@ And then download it as usual:
 
     go get github.com/lxc/lxd
     cd $GOPATH/src/github.com/lxc/lxd
-    go get -v -d ./...
     make
 
 ...which will give you two binaries in $GOPATH/bin, `lxd` the daemon binary,
