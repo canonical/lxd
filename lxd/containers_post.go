@@ -436,13 +436,13 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	var oldPath string
 	if shared.IsSnapshot(req.Source.Source) {
 		snappieces := strings.SplitN(req.Source.Source, "/", 2)
-		oldPath = migration.AddSlash(shared.VarPath("lxc",
+		oldPath = shared.AddSlash(shared.VarPath("lxc",
 			snappieces[0],
 			"snapshots",
 			snappieces[1],
 			"rootfs"))
 	} else {
-		oldPath = migration.AddSlash(shared.VarPath("lxc", req.Source.Source, "rootfs"))
+		oldPath = shared.AddSlash(shared.VarPath("lxc", req.Source.Source, "rootfs"))
 	}
 
 	subvol := strings.TrimSuffix(oldPath, "rootfs/")

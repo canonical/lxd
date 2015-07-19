@@ -97,6 +97,17 @@ func LogPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
+// AddSlash adds a slash to the end of paths if they don't already have one.
+// This can be useful for rsyncing things, since rsync has behavior present on
+// the presence or absence of a trailing slash.
+func AddSlash(path string) string {
+	if path[len(path)-1] != '/' {
+		return path + "/"
+	}
+
+	return path
+}
+
 func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMode, err error) {
 	uid, err = strconv.Atoi(headers.Get("X-LXD-uid"))
 	if err != nil {
