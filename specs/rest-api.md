@@ -184,12 +184,13 @@ Return value (if trusted):
         'api_compat': 0,                                # Used to determine API functionality
         'config': {"trust_password": True},             # Host configuration
         'environment': {                                # Various information about the host (OS, kernel, ...)
-                        'backing_fs': "ext4"}
+                        'architectures': [1, 2],
+                        'backing_fs': "ext4",
                         'kernel': "Linux",
                         'kernel_version': "3.16",
                         'driver': "lxc",
                         'driver_version': "1.0.6",
-                        'version': "0.8.1",
+                        'version': "0.8.1"}
     }
 
 Return value (if guest or untrusted):
@@ -228,7 +229,7 @@ Input (container based on a local image with the "ubuntu/devel" alias):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
+        'architecture': 2,
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
@@ -241,7 +242,7 @@ Input (container based on a local image identified by its fingerprint):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
+        'architecture': 2,
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
@@ -254,7 +255,7 @@ Input (container based on most recent match based on image properties):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
+        'architecture': 2,
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
@@ -271,7 +272,7 @@ Input (container without a pre-populated rootfs, useful when attaching to an exi
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
+        'architecture': 2,
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
@@ -283,7 +284,7 @@ Input (using a public remote image):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
+        'architecture': 2,
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
@@ -299,7 +300,7 @@ Input (using a private remote image after having obtained a secret for that imag
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
+        'architecture': 2,
         'hostname': "my-container",
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
@@ -315,7 +316,7 @@ Input (using a remote container, sent over the migration websocket):
 
     {
         'name': "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
+        'architecture': 2,
         'hostname': "my-container",
         'profiles': ["default"],                                                        # List of profiles
         'ephemeral': True,                                                              # Whether to destroy the container on shutdown
@@ -333,7 +334,7 @@ Input (using a local container):
 
     {
         'name': "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
+        'architecture': 2,
         'hostname': "my-container",
         'profiles': ["default"],                                                        # List of profiles
         'ephemeral': True,                                                              # Whether to destroy the container on shutdown
@@ -357,7 +358,7 @@ Output:
     {
         'name': "my-container",
         'profiles': ["default"],
-        'architecture': "x86_64",
+        'architecture': 2,
         'hostname': "my-container",
         'config': {"limits.cpus": "3"},
         'expanded_config': {"limits.cpus": "3"}  # the result of expanding profiles and adding the container's local config
@@ -728,7 +729,7 @@ Output:
 
     {
         'aliases': ['alias1', ...],
-        'architecture': 0,
+        'architecture': 2,
         'fingerprint': "a3625aeada09576673620d1d048eed7ac101c4c2409f527a1f77e237fa280e32",
         'filename': "busybox-amd64.tar.xz",
         'properties': {

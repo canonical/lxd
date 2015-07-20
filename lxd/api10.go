@@ -43,11 +43,6 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	if d.isTrustedClient(r) {
 		body["auth"] = "trusted"
 
-		uname := syscall.Utsname{}
-		if err := syscall.Uname(&uname); err != nil {
-			return InternalError(err)
-		}
-
 		backingFs, err := shared.GetFilesystem(d.lxcpath)
 		if err != nil {
 			return InternalError(err)
@@ -60,6 +55,11 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		 * version in that thread, since it doesn't seem as portable,
 		 * viz. github issue #206.
 		 */
+		uname := syscall.Utsname{}
+		if err := syscall.Uname(&uname); err != nil {
+			return InternalError(err)
+		}
+
 		kernel := ""
 		for _, c := range uname.Sysname {
 			if c == 0 {
@@ -76,13 +76,23 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			kernelVersion += string(byte(c))
 		}
 
+		kernelArchitecture := ""
+		for _, c := range uname.Machine {
+			if c == 0 {
+				break
+			}
+			kernelArchitecture += string(byte(c))
+		}
+
 		env := shared.Jmap{
-			"backing_fs":     backingFs,
-			"driver":         "lxc",
-			"driver_version": lxc.Version(),
-			"kernel":         kernel,
-			"kernel_version": kernelVersion,
-			"version":        shared.Version}
+			"architectures":       d.architectures,
+			"backing_fs":          backingFs,
+			"driver":              "lxc",
+			"driver_version":      lxc.Version(),
+			"kernel":              kernel,
+			"kernel_architecture": kernelArchitecture,
+			"kernel_version":      kernelVersion,
+			"version":             shared.Version}
 
 		body["environment"] = env
 
