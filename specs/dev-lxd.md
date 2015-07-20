@@ -90,13 +90,10 @@ At this time, there also aren't any container-writable namespace.
 ### /1.0/meta-data
 #### GET
  * Description: Container meta-data compatible with cloud-init
- * Return: json dict compatible wtih cloud-init
+ * Return: cloud-init meta-data
 
 Return value:
 
-    {
-        'instance-id': "fixed UUID based on DB container ID",
-        'hostname': "container-name",
-        'image-id': "SHA-256",
-        'create-time': "TIMESTAMP"
-    }
+    #cloud-config
+    instance-id: abc
+    local-hostname: abc
