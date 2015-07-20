@@ -183,11 +183,13 @@ Return value (if trusted):
         'auth': "trusted",                              # Authentication state, one of "guest", "untrusted" or "trusted"
         'api_compat': 0,                                # Used to determine API functionality
         'config': {"trust_password": True},             # Host configuration
-        'environment': {'kernel_version': "3.16",       # Various information about the host (OS, kernel, ...)
-                        'lxc_version': "1.0.6",
-                        'lxd_version': "0.8.1",
-                        'driver': "lxc",
+        'environment': {                                # Various information about the host (OS, kernel, ...)
                         'backing_fs': "ext4"}
+                        'kernel': "Linux",
+                        'kernel_version': "3.16",
+                        'driver': "lxc",
+                        'driver_version': "1.0.6",
+                        'version': "0.8.1",
     }
 
 Return value (if guest or untrusted):

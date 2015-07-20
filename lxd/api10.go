@@ -53,12 +53,6 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		env := shared.Jmap{
-			"lxc_version": lxc.Version(),
-			"lxd_version": shared.Version,
-			"driver":      "lxc",
-			"backing_fs":  backingFs}
-
 		/*
 		 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
 		 * there is really no better way to do this, which is
@@ -66,6 +60,14 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		 * version in that thread, since it doesn't seem as portable,
 		 * viz. github issue #206.
 		 */
+		kernel := ""
+		for _, c := range uname.Sysname {
+			if c == 0 {
+				break
+			}
+			kernel += string(byte(c))
+		}
+
 		kernelVersion := ""
 		for _, c := range uname.Release {
 			if c == 0 {
@@ -74,7 +76,14 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			kernelVersion += string(byte(c))
 		}
 
-		env["kernel_version"] = kernelVersion
+		env := shared.Jmap{
+			"backing_fs":     backingFs,
+			"driver":         "lxc",
+			"driver_version": lxc.Version(),
+			"kernel":         kernel,
+			"kernel_version": kernelVersion,
+			"version":        shared.Version}
+
 		body["environment"] = env
 
 		serverConfig, err := getServerConfig(d)
