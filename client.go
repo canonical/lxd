@@ -496,53 +496,48 @@ func (c *Client) ListContainers() ([]shared.ContainerInfo, error) {
 }
 
 func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string, public bool) error {
-	uri := c.url(shared.APIVersion, "images", image, "export")
-	raw, err := c.getRaw(uri)
-
-	if err != nil {
-		return err
-	}
-	info, err := c.GetImageInfo(image)
-	if err != nil {
-		return err
+	fingerprint := c.GetAlias(image)
+	if fingerprint == "" {
+		fingerprint = image
 	}
 
-	posturi := dest.url(shared.APIVersion, "images")
-	postreq, err := http.NewRequest("POST", posturi, raw.Body)
-	if err != nil {
-		return err
-	}
-	postreq.Header.Set("User-Agent", shared.UserAgent)
-	postreq.Header.Set("Content-Type", raw.Header.Get("Content-Type"))
-
-	ctype, _, err := mime.ParseMediaType(raw.Header.Get("Content-Type"))
-	if err != nil {
-		ctype = "application/octet-stream"
-	}
-
-	if ctype != "multipart/form-data" {
-		cd := strings.Split(raw.Header["Content-Disposition"][0], "=")
-		postreq.Header.Set("X-LXD-filename", cd[1])
-	}
-
-	if public {
-		postreq.Header.Set("X-LXD-public", "1")
-	} else {
-		postreq.Header.Set("X-LXD-public", "0")
-	}
-
-	imgProps := url.Values{}
-	for key, value := range info.Properties {
-		imgProps.Set(key, value)
-	}
-	postreq.Header.Set("X-LXD-properties", imgProps.Encode())
-
-	postresp, err := dest.http.Do(postreq)
+	info, err := c.GetImageInfo(fingerprint)
 	if err != nil {
 		return err
 	}
 
-	_, err = HoistResponse(postresp, Sync)
+	source := shared.Jmap{
+		"type":        "image",
+		"mode":        "pull",
+		"server":      c.BaseURL,
+		"fingerprint": fingerprint}
+
+	if info.Public == 0 {
+		var operation string
+
+		resp, err := c.post("images/"+fingerprint+"/secret", nil, Async)
+		if err != nil {
+			return err
+		}
+
+		toScan := strings.Replace(resp.Operation, "/", " ", -1)
+		version := ""
+		count, err := fmt.Sscanf(toScan, " %s operations %s", &version, &operation)
+		if err != nil || count != 2 {
+			return err
+		}
+
+		md := secretMd{}
+		if err := json.Unmarshal(resp.Metadata, &md); err != nil {
+			return err
+		}
+
+		source["secret"] = md.Secret
+	}
+
+	body := shared.Jmap{"public": public, "source": source}
+
+	_, err = dest.post("images", body, Sync)
 	if err != nil {
 		return err
 	}
