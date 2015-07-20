@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -51,7 +49,7 @@ func (s *storageBtrfs) ContainerCreate(
 		}
 	}
 
-	err := s.subvolSnapshot(imageSubvol, s.containerGetPath(container.name), false)
+	err := s.subvolSnapshot(imageSubvol, container.PathGet(), false)
 	if err != nil {
 		return err
 	}
@@ -67,7 +65,7 @@ func (s *storageBtrfs) ContainerCreate(
 }
 
 func (s *storageBtrfs) ContainerDelete(container *lxdContainer) error {
-	cPath := s.containerGetPath(container.name)
+	cPath := container.PathGet()
 	if s.isSubvolume(cPath) {
 		return s.subvolDelete(cPath)
 	}
@@ -83,19 +81,8 @@ func (s *storageBtrfs) ContainerDelete(container *lxdContainer) error {
 
 func (s *storageBtrfs) ContainerCopy(container *lxdContainer, sourceContainer *lxdContainer) error {
 
-	oldPath := migration.AddSlash(
-		shared.VarPath("lxc", sourceContainer.name, "rootfs"))
-	if shared.IsSnapshot(sourceContainer.name) {
-		snappieces := strings.SplitN(sourceContainer.name, "/", 2)
-		oldPath = migration.AddSlash(shared.VarPath("lxc",
-			snappieces[0],
-			"snapshots",
-			snappieces[1],
-			"rootfs"))
-	}
-
-	subvol := strings.TrimSuffix(oldPath, "rootfs/")
-	dpath := s.containerGetPath(container.name)
+	subvol := sourceContainer.PathGet()
+	dpath := container.PathGet()
 
 	if s.isSubvolume(subvol) {
 		err := s.subvolSnapshot(subvol, dpath, false)
@@ -103,13 +90,14 @@ func (s *storageBtrfs) ContainerCopy(container *lxdContainer, sourceContainer *l
 			return err
 		}
 	} else {
-		newPath := filepath.Join(dpath, "rootfs")
 		/*
 		 * Copy by using rsync
 		 */
-		output, err := s.rsyncCopy(oldPath, newPath)
+		output, err := s.rsyncCopy(
+			sourceContainer.RootfsPathGet(),
+			container.RootfsPathGet())
 		if err != nil {
-			os.RemoveAll(s.containerGetPath(container.name))
+			os.RemoveAll(container.PathGet())
 			s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": output})
 			return fmt.Errorf("rsync failed: %s", output)
 		}
