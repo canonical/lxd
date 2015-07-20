@@ -31,4 +31,9 @@ done
 echo -e "\nlxc list: All started"
 time lxc list 1>/dev/null
 
+lxc delete "${CNAME}"
+for c in $(seq 1 $count); do
+  lxc delete "${CNAME}${c}"
+done
+
 echo -e "\nRun completed"
