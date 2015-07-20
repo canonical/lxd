@@ -12,6 +12,7 @@ ARCHIVE=lxd-$(VERSION).tar
 
 .PHONY: default
 default:
+	go get -v -d ./...
 	go install -v ./...
 
 # This only needs to be done when migrate.proto is actually changed; since we
