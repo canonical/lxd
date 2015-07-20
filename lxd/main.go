@@ -129,8 +129,6 @@ func run() error {
 		return err
 	}
 
-	defer d.db.Close()
-
 	var ret error
 	var wg sync.WaitGroup
 	wg.Add(1)

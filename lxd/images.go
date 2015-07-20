@@ -20,6 +20,8 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func getSize(f *os.File) (int64, error) {
@@ -127,8 +129,8 @@ type imageMetadata struct {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq) (
-	info shared.ImageInfo, err error) {
+func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
+	builddir string) (info shared.ImageInfo, err error) {
 
 	info.Properties = map[string]string{}
 	name := req.Source["name"]
@@ -174,7 +176,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq) 
 	}
 
 	// Build the actual image file
-	tarfile, err := ioutil.TempFile("", "lxd_build_tar_")
+	tarfile, err := ioutil.TempFile(builddir, "lxd_build_tar_")
 	if err != nil {
 		return info, err
 	}
@@ -257,7 +259,9 @@ func imgPostRemoteInfo(d *Daemon, req imageFromContainerPostReq) Response {
 	return SyncResponse(true, metadata)
 }
 
-func getImgPostInfo(d *Daemon, r *http.Request, post *os.File) (info shared.ImageInfo, err error) {
+func getImgPostInfo(d *Daemon, r *http.Request,
+	builddir string, post *os.File) (info shared.ImageInfo, err error) {
+
 	var imageMeta *imageMetadata
 
 	info.Public, _ = strconv.Atoi(r.Header.Get("X-LXD-public"))
@@ -271,18 +275,12 @@ func getImgPostInfo(d *Daemon, r *http.Request, post *os.File) (info shared.Imag
 	var size int64
 
 	// Create a temporary file for the image tarball
-	imageTarf, err := ioutil.TempFile("", "lxd_tar_")
+	imageTarf, err := ioutil.TempFile(builddir, "lxd_tar_")
 	if err != nil {
 		return info, err
 	}
 
 	if ctype == "multipart/form-data" {
-		// Create a temporary file for the rootfs tarball
-		rootfsTarf, err := ioutil.TempFile("", "lxd_tar_")
-		if err != nil {
-			return info, err
-		}
-
 		// Parse the POST data
 		post.Seek(0, 0)
 		mr := multipart.NewReader(post, ctypeParams["boundary"])
@@ -313,6 +311,12 @@ func getImgPostInfo(d *Daemon, r *http.Request, post *os.File) (info shared.Imag
 
 		if part.FormName() != "rootfs" {
 			return info, fmt.Errorf("Invalid multipart image")
+		}
+
+		// Create a temporary file for the rootfs tarball
+		rootfsTarf, err := ioutil.TempFile(builddir, "lxd_tar_")
+		if err != nil {
+			return info, err
 		}
 
 		size, err = io.Copy(io.MultiWriter(rootfsTarf, sha256), part)
@@ -509,7 +513,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	os.Remove(post.Name())
 	defer post.Close()
 
-	info, err = getImgPostInfo(d, r, post)
+	info, err = getImgPostInfo(d, r, builddir, post)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -523,7 +527,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	if err == nil {
 		/* Processing image request */
 		if req.Source["type"] == "container" || req.Source["type"] == "snapshot" {
-			info, err = imgPostContInfo(d, r, req)
+			info, err = imgPostContInfo(d, r, req, builddir)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -534,11 +538,19 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		}
 	} else {
 		/* Processing image upload */
-		info, err = getImgPostInfo(d, r, post)
+		info, err = getImgPostInfo(d, r, builddir, post)
 		if err != nil {
 			return SmartError(err)
 		}
 	}
+
+	defer func() {
+		if err := os.RemoveAll(builddir); err != nil {
+			shared.Log.Error(
+				"Deleting temporary directory",
+				log.Ctx{"builddir": builddir, "err": err})
+		}
+	}()
 
 	metadata, err := imageBuildFromInfo(d, info)
 	if err != nil {

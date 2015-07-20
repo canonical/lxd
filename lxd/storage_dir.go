@@ -42,11 +42,13 @@ func (s *storageDir) ContainerCreate(
 	}
 
 	if err := extractImage(imageFingerprint, container.name, s.d); err != nil {
+		os.RemoveAll(rootfsPath)
 		return err
 	}
 
 	if !container.isPrivileged() {
 		if err := shiftRootfs(container, s.d); err != nil {
+			os.RemoveAll(rootfsPath)
 			return err
 		}
 	}

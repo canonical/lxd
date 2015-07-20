@@ -323,9 +323,12 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		return nil, err
 	}
 
-	err = os.MkdirAll(d.lxcpath, 0755)
-	if err != nil {
-		return nil, err
+	// Create default directories
+	dirs := []string{"images", "lxc", "devlxd"}
+	for _, dir := range dirs {
+		if err := os.MkdirAll(shared.VarPath(dir), 0700); err != nil {
+			return nil, err
+		}
 	}
 
 	/* Detect the filesystem */
@@ -386,7 +389,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		d.Storage, err = newStorage(d, -1)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Faild to setup storage: %s", err)
+		return nil, fmt.Errorf("Failed to setup storage: %s", err)
 	}
 
 	d.mux = mux.NewRouter()
@@ -527,6 +530,8 @@ func (d *Daemon) Stop() error {
 	for _, socket := range d.remoteSockets {
 		socket.Close()
 	}
+
+	d.db.Close()
 
 	d.devlxd.Close()
 
