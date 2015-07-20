@@ -41,6 +41,17 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	return
 }
 
+// AddSlash adds a slash to the end of paths if they don't already have one.
+// This can be useful for rsyncing things, since rsync has behavior present on
+// the presence or absence of a trailing slash.
+func AddSlash(path string) string {
+	if path[len(path)-1] != '/' {
+		return path + "/"
+	}
+
+	return path
+}
+
 func PathExists(name string) bool {
 	_, err := os.Lstat(name)
 	if err != nil && os.IsNotExist(err) {

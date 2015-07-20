@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -161,9 +160,9 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 	}
 
 	var snapshotRootFSPath string
-	snapshotRootFSPath = migration.AddSlash(snapshotRootfsDir(c, strings.SplitN(snap, "/", 2)[1]))
+	snapshotRootFSPath = shared.AddSlash(snapshotRootfsDir(c, strings.SplitN(snap, "/", 2)[1]))
 
-	containerRootFSPath := migration.AddSlash(fmt.Sprintf("%s/%s", containerRootPath, "rootfs"))
+	containerRootFSPath := shared.AddSlash(fmt.Sprintf("%s/%s", containerRootPath, "rootfs"))
 	shared.Debugf("RESTORE => Copying %s to %s", snapshotRootFSPath, containerRootFSPath)
 
 	rsyncVerbosity := "-q"
