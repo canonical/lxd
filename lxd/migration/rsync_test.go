@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 	"testing"
+
+	"github.com/lxc/lxd/shared"
 )
 
 const helloWorld = "hello world\n"
@@ -34,7 +36,7 @@ func TestRsyncSendRecv(t *testing.T) {
 	f.Write([]byte(helloWorld))
 	f.Close()
 
-	send, sendConn, err := rsyncSendSetup(AddSlash(source))
+	send, sendConn, err := rsyncSendSetup(shared.AddSlash(source))
 	if err != nil {
 		t.Error(err)
 		return

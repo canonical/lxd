@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -124,7 +123,7 @@ func (ss *storageShared) rsyncCopy(source string, dest string) (string, error) {
 		"rsync",
 		"-a",
 		"--devices",
-		migration.AddSlash(source),
+		shared.AddSlash(source),
 		dest).CombinedOutput()
 
 	return string(output), err

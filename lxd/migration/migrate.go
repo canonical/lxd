@@ -265,14 +265,14 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		 * no reason to do these in parallel. In the future when we're using
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
-		if err := RsyncSend(AddSlash(checkpointDir), s.criuConn); err != nil {
+		if err := RsyncSend(shared.AddSlash(checkpointDir), s.criuConn); err != nil {
 			s.sendControl(err)
 			return shared.OperationError(err)
 		}
 	}
 
 	fsDir := s.container.ConfigItem("lxc.rootfs")[0]
-	if err := RsyncSend(AddSlash(fsDir), s.fsConn); err != nil {
+	if err := RsyncSend(shared.AddSlash(fsDir), s.fsConn); err != nil {
 		s.sendControl(err)
 		return shared.OperationError(err)
 	}
@@ -408,7 +408,7 @@ func (c *migrationSink) do() error {
 				os.RemoveAll(imagesDir)
 			}()
 
-			if err := RsyncRecv(AddSlash(imagesDir), c.criuConn); err != nil {
+			if err := RsyncRecv(shared.AddSlash(imagesDir), c.criuConn); err != nil {
 				restore <- err
 				os.RemoveAll(imagesDir)
 				c.sendControl(err)
@@ -417,7 +417,7 @@ func (c *migrationSink) do() error {
 		}
 
 		fsDir := c.container.ConfigItem("lxc.rootfs")[0]
-		if err := RsyncRecv(AddSlash(fsDir), c.fsConn); err != nil {
+		if err := RsyncRecv(shared.AddSlash(fsDir), c.fsConn); err != nil {
 			restore <- err
 			c.sendControl(err)
 			return
