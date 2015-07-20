@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
@@ -27,15 +28,16 @@ import (
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
-	tomb        tomb.Tomb
-	IdmapSet    *shared.IdmapSet
-	lxcpath     string
-	certf       string
-	keyf        string
-	mux         *mux.Router
-	clientCerts []x509.Certificate
-	db          *sql.DB
-	BackingFs   string
+	architectures []int
+	BackingFs     string
+	certf         string
+	clientCerts   []x509.Certificate
+	db            *sql.DB
+	IdmapSet      *shared.IdmapSet
+	keyf          string
+	lxcpath       string
+	mux           *mux.Router
+	tomb          tomb.Tomb
 
 	localSockets  []net.Listener
 	remoteSockets []net.Listener
@@ -268,40 +270,103 @@ func (d *Daemon) createCmd(version string, c Command) {
 func StartDaemon(listenAddr string) (*Daemon, error) {
 	d := &Daemon{}
 
-	// Setup logging if main() hasn't been called/when testing
+	/* Setup logging */
 	if shared.Log == nil {
 		shared.SetLogger("", "", true, true)
 	}
 
-	d.lxcpath = shared.VarPath("lxc")
-	err := os.MkdirAll(shared.VarPath("/"), 0755)
+	/* Get the list of supported architectures */
+	var architectures = []int{}
+
+	uname := syscall.Utsname{}
+	if err := syscall.Uname(&uname); err != nil {
+		return nil, err
+	}
+
+	architectureName := ""
+	for _, c := range uname.Machine {
+		if c == 0 {
+			break
+		}
+		architectureName += string(byte(c))
+	}
+
+	architecture, err := shared.ArchitectureId(architectureName)
 	if err != nil {
 		return nil, err
 	}
+	architectures = append(architectures, architecture)
+
+	personalities, err := shared.ArchitecturePersonalities(architecture)
+	if err != nil {
+		return nil, err
+	}
+	for _, personality := range personalities {
+		architectures = append(architectures, personality)
+	}
+	d.architectures = architectures
+
+	/* Create required paths */
+	d.lxcpath = shared.VarPath("lxc")
+	err = os.MkdirAll(shared.VarPath("/"), 0755)
+	if err != nil {
+		return nil, err
+	}
+
 	err = os.MkdirAll(d.lxcpath, 0755)
 	if err != nil {
 		return nil, err
 	}
 
+	/* Detect the filesystem */
 	d.BackingFs, err = shared.GetFilesystem(d.lxcpath)
 	if err != nil {
 		shared.Log.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}
 
+	/* Initialize the database */
+	err = initDb(d)
+	if err != nil {
+		return nil, err
+	}
+
+	/* Setup the TLS authentication */
 	certf, keyf, err := readMyCert()
 	if err != nil {
 		return nil, err
 	}
 	d.certf = certf
 	d.keyf = keyf
+	readSavedClientCAList(d)
 
-	err = initDb(d)
+	tlsConfig, err := shared.GetTLSConfig(d.certf, d.keyf)
 	if err != nil {
 		return nil, err
 	}
 
-	readSavedClientCAList(d)
+	/* Read the uid/gid allocation */
+	d.IdmapSet, err = shared.DefaultIdmapSet()
+	if err != nil {
+		shared.Log.Warn("error reading idmap", log.Ctx{"err": err.Error()})
+		shared.Log.Warn("operations requiring idmap will not be available")
+	} else {
+		shared.Log.Debug("Default uid/gid map:")
+		for _, lxcmap := range d.IdmapSet.ToLxcString() {
+			shared.Log.Debug(strings.TrimRight(" - "+lxcmap, "\n"))
+		}
+	}
 
+	/* Setup /dev/lxd */
+	d.devlxd, err = createAndBindDevLxd()
+	if err != nil {
+		return nil, err
+	}
+
+	/* Restart containers */
+	containersRestart(d)
+	containersWatch(d)
+
+	/* Setup the web server */
 	d.mux = mux.NewRouter()
 
 	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -318,22 +383,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		w.Header().Set("Content-Type", "application/json")
 		NotFound.Render(w)
 	})
-
-	d.IdmapSet, err = shared.DefaultIdmapSet()
-	if err != nil {
-		shared.Log.Warn("error reading idmap", log.Ctx{"err": err.Error()})
-		shared.Log.Warn("operations requiring idmap will not be available")
-	} else {
-		shared.Log.Debug("Default uid/gid map:")
-		for _, lxcmap := range d.IdmapSet.ToLxcString() {
-			shared.Log.Debug(strings.TrimRight(" - "+lxcmap, "\n"))
-		}
-	}
-
-	tlsConfig, err := shared.GetTLSConfig(d.certf, d.keyf)
-	if err != nil {
-		return nil, err
-	}
 
 	listeners, err := activation.Listeners(false)
 	if err != nil {
@@ -412,13 +461,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.localSockets = localSockets
 	d.remoteSockets = remoteSockets
-	d.devlxd, err = createAndBindDevLxd()
-	if err != nil {
-		return nil, err
-	}
-
-	containersRestart(d)
-	containersWatch(d)
 
 	d.tomb.Go(func() error {
 		for _, socket := range d.localSockets {

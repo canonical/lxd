@@ -43,21 +43,10 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	if d.isTrustedClient(r) {
 		body["auth"] = "trusted"
 
-		uname := syscall.Utsname{}
-		if err := syscall.Uname(&uname); err != nil {
-			return InternalError(err)
-		}
-
 		backingFs, err := shared.GetFilesystem(d.lxcpath)
 		if err != nil {
 			return InternalError(err)
 		}
-
-		env := shared.Jmap{
-			"lxc_version": lxc.Version(),
-			"lxd_version": shared.Version,
-			"driver":      "lxc",
-			"backing_fs":  backingFs}
 
 		/*
 		 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
@@ -66,6 +55,19 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		 * version in that thread, since it doesn't seem as portable,
 		 * viz. github issue #206.
 		 */
+		uname := syscall.Utsname{}
+		if err := syscall.Uname(&uname); err != nil {
+			return InternalError(err)
+		}
+
+		kernel := ""
+		for _, c := range uname.Sysname {
+			if c == 0 {
+				break
+			}
+			kernel += string(byte(c))
+		}
+
 		kernelVersion := ""
 		for _, c := range uname.Release {
 			if c == 0 {
@@ -74,7 +76,24 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			kernelVersion += string(byte(c))
 		}
 
-		env["kernel_version"] = kernelVersion
+		kernelArchitecture := ""
+		for _, c := range uname.Machine {
+			if c == 0 {
+				break
+			}
+			kernelArchitecture += string(byte(c))
+		}
+
+		env := shared.Jmap{
+			"architectures":       d.architectures,
+			"backing_fs":          backingFs,
+			"driver":              "lxc",
+			"driver_version":      lxc.Version(),
+			"kernel":              kernel,
+			"kernel_architecture": kernelArchitecture,
+			"kernel_version":      kernelVersion,
+			"version":             shared.Version}
+
 		body["environment"] = env
 
 		serverConfig, err := getServerConfig(d)
