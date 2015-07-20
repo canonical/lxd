@@ -78,6 +78,6 @@ func main() {
 
 		fmt.Println(string(value))
 	} else {
-		fmt.Println("/dev/lxd oki")
+		fmt.Println("/dev/lxd ok")
 	}
 }
