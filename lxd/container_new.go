@@ -96,15 +96,16 @@ func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 	}
 
 	return &shared.ContainerState{
+		Architecture:    c.architecture,
+		Config:          config,
+		Devices:         devices,
+		Ephemeral:       c.ephemeral,
+		ExpandedConfig:  c.config,
+		ExpandedDevices: c.devices,
 		Name:            c.name,
 		Profiles:        c.profiles,
-		Config:          config,
-		ExpandedConfig:  c.config,
-		Userdata:        []byte{},
 		Status:          newStatus(c.c, c.c.State()),
-		Devices:         devices,
-		ExpandedDevices: c.devices,
-		Ephemeral:       c.ephemeral,
+		Userdata:        []byte{},
 	}, nil
 }
 

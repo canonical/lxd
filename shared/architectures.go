@@ -35,6 +35,16 @@ var architecturePersonalities = map[int]string{
 	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: "linux64",
 }
 
+var architectureSupportedPersonalities = map[int][]int{
+	ARCH_32BIT_INTEL_X86:             []int{},
+	ARCH_64BIT_INTEL_X86:             []int{ARCH_32BIT_INTEL_X86},
+	ARCH_ARMV7_LITTLE_ENDIAN:         []int{},
+	ARCH_64BIT_ARMV8_LITTLE_ENDIAN:   []int{ARCH_ARMV7_LITTLE_ENDIAN},
+	ARCH_32BIT_POWERPC_BIG_ENDIAN:    []int{},
+	ARCH_64BIT_POWERPC_BIG_ENDIAN:    []int{ARCH_32BIT_POWERPC_BIG_ENDIAN},
+	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: []int{},
+}
+
 func ArchitectureName(arch int) (string, error) {
 	arch_name, exists := architectureNames[arch]
 	if exists {
@@ -61,4 +71,13 @@ func ArchitecturePersonality(arch int) (string, error) {
 	}
 
 	return "", fmt.Errorf("Architecture isn't supported: %d", arch)
+}
+
+func ArchitecturePersonalities(arch int) ([]int, error) {
+	personalities, exists := architectureSupportedPersonalities[arch]
+	if exists {
+		return personalities, nil
+	}
+
+	return []int{}, fmt.Errorf("Architecture isn't supported: %d", arch)
 }
