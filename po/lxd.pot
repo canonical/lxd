@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-07-17 18:42-0400\n"
+        "POT-Creation-Date: 2015-07-20 00:19-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -97,7 +97,7 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1553
+#: client.go:1566
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -188,7 +188,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:556 client.go:566 client.go:813 client.go:1768
+#: client.go:556 client.go:566 client.go:813 client.go:1781
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -590,6 +590,10 @@ msgstr  ""
 msgid   "Stopping container failed!"
 msgstr  ""
 
+#: client.go:1026 client.go:1064
+msgid   "The image architecture is incompatible with the target server"
+msgstr  ""
+
 #: lxc/publish.go:56
 msgid   "There is no \"image name\".  Did you want an alias?"
 msgstr  ""
@@ -651,7 +655,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1584
+#: client.go:1597
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -660,7 +664,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1588
+#: client.go:1601
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -695,7 +699,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1229
+#: client.go:1242
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -714,7 +718,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1371
+#: client.go:1384
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -736,7 +740,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1630 client.go:1684
+#: client.go:1643 client.go:1697
 msgid   "no value found in %q\n"
 msgstr  ""
 

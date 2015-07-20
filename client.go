@@ -996,6 +996,12 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 	var tmpremote *Client
 	var err error
 
+	serverStatus, err := c.ServerStatus()
+	if err != nil {
+		return nil, err
+	}
+	architectures := serverStatus.Environment.Architectures
+
 	source := shared.Jmap{"type": "image"}
 
 	if imgremote != "" {
@@ -1014,6 +1020,10 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		imageinfo, err := tmpremote.GetImageInfo(fingerprint)
 		if err != nil {
 			return nil, err
+		}
+
+		if !shared.IntInSlice(imageinfo.Architecture, architectures) {
+			return nil, fmt.Errorf(gettext.Gettext("The image architecture is incompatible with the target server"))
 		}
 
 		if imageinfo.Public == 0 {
@@ -1040,16 +1050,20 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		source["server"] = tmpremote.BaseURL
 		source["fingerprint"] = fingerprint
 	} else {
-		isAlias, err := c.IsAlias(image)
+		fingerprint := c.GetAlias(image)
+		if fingerprint == "" {
+			fingerprint = image
+		}
+
+		imageinfo, err := c.GetImageInfo(fingerprint)
 		if err != nil {
 			return nil, err
 		}
 
-		if isAlias {
-			source["alias"] = image
-		} else {
-			source["fingerprint"] = image
+		if !shared.IntInSlice(imageinfo.Architecture, architectures) {
+			return nil, fmt.Errorf(gettext.Gettext("The image architecture is incompatible with the target server"))
 		}
+		source["fingerprint"] = fingerprint
 	}
 
 	body := shared.Jmap{"source": source}
