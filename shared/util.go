@@ -255,38 +255,6 @@ func CopyFile(dest string, source string) error {
 	return err
 }
 
-/* Some interesting filesystems */
-const (
-	tmpfsSuperMagic = 0x01021994
-	ext4SuperMagic  = 0xEF53
-	xfsSuperMagic   = 0x58465342
-	nfsSuperMagic   = 0x6969
-)
-
-func GetFilesystem(path string) (string, error) {
-	fs := syscall.Statfs_t{}
-
-	err := syscall.Statfs(path, &fs)
-	if err != nil {
-		return "", err
-	}
-
-	switch fs.Type {
-	case btrfsSuperMagic:
-		return "btrfs", nil
-	case tmpfsSuperMagic:
-		return "tmpfs", nil
-	case ext4SuperMagic:
-		return "ext4", nil
-	case xfsSuperMagic:
-		return "xfs", nil
-	case nfsSuperMagic:
-		return "nfs", nil
-	default:
-		return string(fs.Type), nil
-	}
-}
-
 type BytesReadCloser struct {
 	Buf *bytes.Buffer
 }

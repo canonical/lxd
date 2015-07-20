@@ -15,6 +15,8 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type lxdContainer struct {
@@ -221,7 +223,7 @@ func containersRestart(d *Daemon) error {
 			return err
 		}
 
-		if err = activateStorage(d, container); err != nil {
+		if err = d.Storage.ContainerStart(container.name); err != nil {
 			return err
 		}
 		container.c.Start()
@@ -259,8 +261,10 @@ func containersShutdown(d *Daemon) error {
 			go func() {
 				container.c.Shutdown(time.Second * 30)
 				container.c.Stop()
-				if err = deactivateStorage(d, container); err != nil {
-					shared.Logf("Error deactivating storage after container stop: %v", err)
+				if err = d.Storage.ContainerStop(container.name); err != nil {
+					shared.Log.Error(
+						"Error deactivating storage after container stop",
+						log.Ctx{"err": err})
 				}
 				wg.Done()
 			}()
@@ -286,7 +290,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 
 	var ids []int
 
-	backingFs, err := shared.GetFilesystem(shared.VarPath("lxc", cname))
+	backingFs, err := filesystemDetect(shared.VarPath("lxc", cname))
 	if err != nil && !os.IsNotExist(err) {
 		shared.Debugf("Error cleaning up snapshots: %s\n", err)
 		return err

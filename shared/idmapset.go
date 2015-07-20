@@ -158,7 +158,7 @@ func (m IdmapSet) Intersects(i idmapEntry) bool {
 func (m IdmapSet) ToLxcString() []string {
 	var lines []string
 	for _, e := range m.idmap {
-		lines = append(lines, e.ToLxcString()+"\n")
+		lines = append(lines, e.ToLxcString())
 	}
 	return lines
 }

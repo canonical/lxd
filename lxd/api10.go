@@ -43,11 +43,6 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	if d.isTrustedClient(r) {
 		body["auth"] = "trusted"
 
-		backingFs, err := shared.GetFilesystem(d.lxcpath)
-		if err != nil {
-			return InternalError(err)
-		}
-
 		/*
 		 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
 		 * there is really no better way to do this, which is
@@ -86,7 +81,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 		env := shared.Jmap{
 			"architectures":       d.architectures,
-			"backing_fs":          backingFs,
+			"backing_fs":          d.BackingFs,
 			"driver":              "lxc",
 			"driver_version":      lxc.Version(),
 			"kernel":              kernel,

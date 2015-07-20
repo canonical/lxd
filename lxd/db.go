@@ -10,6 +10,8 @@ import (
 	"github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 var (
@@ -887,6 +889,23 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseI
 	return image, nil
 }
 
+func dbImageDelete(db *sql.DB, id int) error {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	_, _ = tx.Exec("DELETE FROM images_aliases WHERE image_id=?", id)
+	_, _ = tx.Exec("DELETE FROM images_properties WHERE image_id?", id)
+	_, _ = tx.Exec("DELETE FROM images WHERE id=?", id)
+
+	if err := txCommit(tx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Get an image's fingerprint for a given alias name.
 func dbAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
 	q := `
@@ -1151,7 +1170,7 @@ func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 			return nil
 		}
 		if !isDbLockedError(err) {
-			shared.Debugf("DbQuery: query %q error %q\n", q, err)
+			shared.Log.Debug("DbQuery: query error", log.Ctx{"query": q, "args": args, "err": err})
 			return err
 		}
 		shared.Debugf("DbQueryRowScan: query %q args %q, DB was locked\n", q, args)

@@ -39,6 +39,8 @@ type Daemon struct {
 	mux           *mux.Router
 	tomb          tomb.Tomb
 
+	Storage storage
+
 	localSockets  []net.Listener
 	remoteSockets []net.Listener
 
@@ -197,13 +199,21 @@ func (d *Daemon) createCmd(version string, c Command) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if d.isTrustedClient(r) {
-			shared.Log.Info("handling", log.Ctx{"method": r.Method, "url": r.URL.RequestURI()})
+			shared.Log.Info(
+				"handling",
+				log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if r.Method == "GET" && c.untrustedGet {
-			shared.Log.Info("allowing untrusted GET", log.Ctx{"url": r.URL.RequestURI()})
+			shared.Log.Info(
+				"allowing untrusted GET",
+				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if r.Method == "POST" && c.untrustedPost {
-			shared.Log.Info("allowing untrusted POST", log.Ctx{"url": r.URL.RequestURI()})
+			shared.Log.Info(
+				"allowing untrusted POST",
+				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
-			shared.Log.Warn("rejecting request from untrusted client")
+			shared.Log.Warn(
+				"rejecting request from untrusted client",
+				log.Ctx{"ip": r.RemoteAddr})
 			Forbidden.Render(w)
 			return
 		}
@@ -319,7 +329,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	}
 
 	/* Detect the filesystem */
-	d.BackingFs, err = shared.GetFilesystem(d.lxcpath)
+	d.BackingFs, err = filesystemDetect(d.lxcpath)
 	if err != nil {
 		shared.Log.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}
@@ -366,7 +376,19 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	containersRestart(d)
 	containersWatch(d)
 
-	/* Setup the web server */
+	// Setup the Storage Object
+	_, vgNameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
+	if vgNameIsSet {
+		d.Storage, err = newStorage(d, storageTypeLvm)
+	} else if d.BackingFs == "btrfs" {
+		d.Storage, err = newStorage(d, storageTypeBtrfs)
+	} else {
+		d.Storage, err = newStorage(d, -1)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("Faild to setup storage: %s", err)
+	}
+
 	d.mux = mux.NewRouter()
 
 	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
