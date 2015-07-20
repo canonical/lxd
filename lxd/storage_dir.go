@@ -4,11 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
-
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -36,12 +31,12 @@ func (s *storageDir) GetStorageType() storageType {
 func (s *storageDir) ContainerCreate(
 	container *lxdContainer, imageFingerprint string) error {
 
-	rootfsPath := fmt.Sprintf("%s/rootfs", s.containerGetPath(container.name))
+	rootfsPath := container.RootfsPathGet()
 	if err := os.MkdirAll(rootfsPath, 0700); err != nil {
 		return fmt.Errorf("Error creating rootfs directory")
 	}
 
-	if err := extractImage(imageFingerprint, container.name, s.d); err != nil {
+	if err := extractImage(imageFingerprint, container.NameGet(), s.d); err != nil {
 		os.RemoveAll(rootfsPath)
 		return err
 	}
@@ -57,7 +52,7 @@ func (s *storageDir) ContainerCreate(
 }
 
 func (s *storageDir) ContainerDelete(container *lxdContainer) error {
-	cPath := s.containerGetPath(container.name)
+	cPath := container.PathGet()
 
 	err := os.RemoveAll(cPath)
 	if err != nil {
@@ -71,17 +66,8 @@ func (s *storageDir) ContainerDelete(container *lxdContainer) error {
 func (s *storageDir) ContainerCopy(
 	container *lxdContainer, sourceContainer *lxdContainer) error {
 
-	oldPath := migration.AddSlash(shared.VarPath("lxc", sourceContainer.name, "rootfs"))
-	if shared.IsSnapshot(sourceContainer.name) {
-		snappieces := strings.SplitN(sourceContainer.name, "/", 2)
-		oldPath = migration.AddSlash(shared.VarPath("lxc",
-			snappieces[0],
-			"snapshots",
-			snappieces[1],
-			"rootfs"))
-	}
-
-	newPath := filepath.Join(s.containerGetPath(container.name), "rootfs")
+	oldPath := sourceContainer.RootfsPathGet()
+	newPath := container.RootfsPathGet()
 
 	/*
 	 * Copy by using rsync
@@ -94,12 +80,12 @@ func (s *storageDir) ContainerCopy(
 	}
 
 	if !sourceContainer.isPrivileged() {
-		err := setUnprivUserAcl(sourceContainer, s.containerGetPath(container.name))
+		err := setUnprivUserAcl(sourceContainer, container.PathGet())
 		if err != nil {
 			s.log.Error(
 				"ContainerCopy: adding acl for container root: falling back to chmod")
 			output, err := exec.Command(
-				"chmod", "+x", s.containerGetPath(container.name)).CombinedOutput()
+				"chmod", "+x", container.PathGet()).CombinedOutput()
 			if err != nil {
 				s.ContainerDelete(container)
 				s.log.Error(

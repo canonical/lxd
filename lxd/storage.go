@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"syscall"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -113,10 +114,6 @@ func (ss *storageShared) GetStorageTypeName() string {
 	return ss.sTypeName
 }
 
-func (ss *storageShared) containerGetPath(name string) string {
-	return shared.VarPath("lxc", name)
-}
-
 // rsyncCopy copies a directory using rsync (with the --devices option).
 func (ss *storageShared) rsyncCopy(source string, dest string) (string, error) {
 	if err := os.MkdirAll(dest, 0700); err != nil {
@@ -127,7 +124,7 @@ func (ss *storageShared) rsyncCopy(source string, dest string) (string, error) {
 		"rsync",
 		"-a",
 		"--devices",
-		source,
+		migration.AddSlash(source),
 		dest).CombinedOutput()
 
 	return string(output), err

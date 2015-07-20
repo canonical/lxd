@@ -5,12 +5,10 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -89,12 +87,12 @@ func (s *storageLvm) GetStorageType() storageType {
 func (s *storageLvm) ContainerCreate(
 	container *lxdContainer, imageFingerprint string) error {
 
-	lvPath, err := s.createSnapshotLV(container.name, imageFingerprint)
+	lvPath, err := s.createSnapshotLV(container.NameGet(), imageFingerprint)
 	if err != nil {
 		return err
 	}
 
-	destPath := shared.VarPath("lxc", container.name)
+	destPath := shared.VarPath("lxc", container.NameGet())
 	if err := os.MkdirAll(destPath, 0700); err != nil {
 		return fmt.Errorf("Error creating container directory: %v", err)
 	}
@@ -122,12 +120,12 @@ func (s *storageLvm) ContainerCreate(
 
 func (s *storageLvm) ContainerDelete(container *lxdContainer) error {
 	// First remove the LVM LV
-	if err := s.removeLV(container.name); err != nil {
+	if err := s.removeLV(container.NameGet()); err != nil {
 		return err
 	}
 
 	// Then the container path (e.g. /var/lib/lxd/lxc/<name>)
-	cPath := s.containerGetPath(container.name)
+	cPath := container.PathGet()
 	if err := os.RemoveAll(cPath); err != nil {
 		s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "err": err})
 		return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
@@ -138,34 +136,25 @@ func (s *storageLvm) ContainerDelete(container *lxdContainer) error {
 
 func (s *storageLvm) ContainerCopy(container *lxdContainer, sourceContainer *lxdContainer) error {
 
-	oldPath := migration.AddSlash(shared.VarPath("lxc", sourceContainer.name, "rootfs"))
-	if shared.IsSnapshot(sourceContainer.name) {
-		snappieces := strings.SplitN(sourceContainer.name, "/", 2)
-		oldPath = migration.AddSlash(shared.VarPath("lxc",
-			snappieces[0],
-			"snapshots",
-			snappieces[1],
-			"rootfs"))
-	}
-
-	newPath := filepath.Join(s.containerGetPath(container.name), "rootfs")
+	oldPath := sourceContainer.RootfsPathGet()
+	newPath := container.RootfsPathGet()
 	/*
 	 * Copy by using rsync
 	 */
 	output, err := s.rsyncCopy(oldPath, newPath)
 	if err != nil {
-		os.RemoveAll(s.containerGetPath(container.name))
+		os.RemoveAll(container.PathGet())
 		s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": output})
 		return fmt.Errorf("rsync failed: %s", output)
 	}
 
 	if !sourceContainer.isPrivileged() {
-		err := setUnprivUserAcl(sourceContainer, s.containerGetPath(container.name))
+		err := setUnprivUserAcl(sourceContainer, container.PathGet())
 		if err != nil {
 			s.log.Error(
 				"ContainerCopy: adding acl for container root: falling back to chmod")
 			output, err := exec.Command(
-				"chmod", "+x", s.containerGetPath(container.name)).CombinedOutput()
+				"chmod", "+x", container.PathGet()).CombinedOutput()
 			if err != nil {
 				s.ContainerDelete(container)
 				s.log.Error(
@@ -179,8 +168,8 @@ func (s *storageLvm) ContainerCopy(container *lxdContainer, sourceContainer *lxd
 }
 
 func (s *storageLvm) ContainerStart(container *lxdContainer) error {
-	cpath := shared.VarPath("lxc", container.name)
-	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, container.name)
+	cpath := shared.VarPath("lxc", container.NameGet())
+	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, container.NameGet())
 	output, err := exec.Command("mount", "-o", "discard", lvpath, cpath).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, output)
@@ -190,7 +179,7 @@ func (s *storageLvm) ContainerStart(container *lxdContainer) error {
 }
 
 func (s *storageLvm) ContainerStop(container *lxdContainer) error {
-	cpath := shared.VarPath("lxc", container.name)
+	cpath := shared.VarPath("lxc", container.NameGet())
 	output, err := exec.Command("umount", cpath).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf(

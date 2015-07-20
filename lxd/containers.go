@@ -30,6 +30,7 @@ type lxdContainer struct {
 	architecture int
 	ephemeral    bool
 	idmapset     *shared.IdmapSet
+	cType        containerType
 }
 
 type execWs struct {
