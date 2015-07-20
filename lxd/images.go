@@ -639,7 +639,10 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return InternalError(err)
 	}
-	defer os.Remove(post.Name())
+
+	os.Remove(post.Name())
+	defer post.Close()
+
 	_, err = io.Copy(post, r.Body)
 	if err != nil {
 		return InternalError(err)
