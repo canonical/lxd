@@ -408,3 +408,12 @@ func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
 	}
 	return nil
 }
+
+func IntInSlice(key int, list []int) bool {
+	for _, entry := range list {
+		if entry == key {
+			return true
+		}
+	}
+	return false
+}
