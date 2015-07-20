@@ -62,16 +62,17 @@ type Device map[string]string
 type Devices map[string]Device
 
 type ContainerState struct {
+	Architecture    int               `json:"architecture"`
+	Config          map[string]string `json:"config"`
+	Devices         Devices           `json:"devices"`
+	Ephemeral       bool              `json:"ephemeral"`
+	ExpandedConfig  map[string]string `json:"expanded_config"`
+	ExpandedDevices Devices           `json:"expanded_devices"`
+	Log             string            `json:"log"`
 	Name            string            `json:"name"`
 	Profiles        []string          `json:"profiles"`
-	Config          map[string]string `json:"config"`
-	ExpandedConfig  map[string]string `json:"expanded_config"`
-	Userdata        []byte            `json:"userdata"`
 	Status          ContainerStatus   `json:"status"`
-	Devices         Devices           `json:"devices"`
-	ExpandedDevices Devices           `json:"expanded_devices"`
-	Ephemeral       bool              `json:"ephemeral"`
-	Log             string            `json:"log"`
+	Userdata        []byte            `json:"userdata"`
 }
 
 /*

@@ -183,11 +183,14 @@ Return value (if trusted):
         'auth': "trusted",                              # Authentication state, one of "guest", "untrusted" or "trusted"
         'api_compat': 0,                                # Used to determine API functionality
         'config': {"trust_password": True},             # Host configuration
-        'environment': {'kernel_version': "3.16",       # Various information about the host (OS, kernel, ...)
-                        'lxc_version': "1.0.6",
-                        'lxd_version': "0.8.1",
+        'environment': {                                # Various information about the host (OS, kernel, ...)
+                        'architectures': [1, 2],
+                        'backing_fs': "ext4",
+                        'kernel': "Linux",
+                        'kernel_version': "3.16",
                         'driver': "lxc",
-                        'backing_fs': "ext4"}
+                        'driver_version': "1.0.6",
+                        'version': "0.8.1"}
     }
 
 Return value (if guest or untrusted):
@@ -226,8 +229,7 @@ Input (container based on a local image with the "ubuntu/devel" alias):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
-        'hostname': "my-container",
+        'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
@@ -239,8 +241,7 @@ Input (container based on a local image identified by its fingerprint):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
-        'hostname': "my-container",
+        'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
@@ -252,8 +253,7 @@ Input (container based on most recent match based on image properties):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
-        'hostname': "my-container",
+        'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
@@ -269,8 +269,7 @@ Input (container without a pre-populated rootfs, useful when attaching to an exi
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
-        'hostname': "my-container",
+        'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
@@ -281,8 +280,7 @@ Input (using a public remote image):
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
-        'hostname': "my-container",
+        'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
@@ -297,8 +295,7 @@ Input (using a private remote image after having obtained a secret for that imag
 
     {
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
-        'hostname': "my-container",
+        'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
         'ephemeral': True,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
@@ -313,8 +310,7 @@ Input (using a remote container, sent over the migration websocket):
 
     {
         'name': "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
-        'hostname': "my-container",
+        'architecture': 2,
         'profiles': ["default"],                                                        # List of profiles
         'ephemeral': True,                                                              # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                                 # Config override.
@@ -331,8 +327,7 @@ Input (using a local container):
 
     {
         'name': "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': "x86_64",
-        'hostname': "my-container",
+        'architecture': 2,
         'profiles': ["default"],                                                        # List of profiles
         'ephemeral': True,                                                              # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                                 # Config override.
@@ -355,8 +350,7 @@ Output:
     {
         'name': "my-container",
         'profiles': ["default"],
-        'architecture': "x86_64",
-        'hostname': "my-container",
+        'architecture': 2,
         'config': {"limits.cpus": "3"},
         'expanded_config': {"limits.cpus": "3"}  # the result of expanding profiles and adding the container's local config
         'devices': {
@@ -688,13 +682,28 @@ query URL.
 
 Input (one of):
  * Standard http file upload
- * Soure container dictionary
+ * Source image dictionary (transfers a remote image)
+ * Source container dictionary (makes an image out of a local container)
 
 In the http file upload case, The following headers may be set by the client:
  * X-LXD-fingerprint: SHA-256 (if set, uploaded file must match)
  * X-LXD-filename: FILENAME (used for export)
  * X-LXD-public: true/false (defaults to false)
  * X-LXD-properties: URL-encoded key value pairs without duplicate keys (optional properties)
+
+In the source image case, the following dict must be passed:
+
+    {
+        "public": true,                         # True or False
+        "source": {
+            "type": "image",
+            "mode": "pull",                     # One of "pull" or "receive"
+            "server": "https://10.0.2.3:8443",  # Remote server (pull mode only)
+            "secret": "my-secret-string",       # Secret (pull mode only, private images only)
+            "fingerprint": "SHA256",            # Fingerprint of the image (must be set if alias isn't)
+            "alias": "ubuntu/devel",            # Name of the alias (must be set if fingerprint isn't)
+        }
+    }
 
 In the source container case, the following dict must be passed:
 
@@ -726,7 +735,7 @@ Output:
 
     {
         'aliases': ['alias1', ...],
-        'architecture': 0,
+        'architecture': 2,
         'fingerprint': "a3625aeada09576673620d1d048eed7ac101c4c2409f527a1f77e237fa280e32",
         'filename': "busybox-amd64.tar.xz",
         'properties': {
