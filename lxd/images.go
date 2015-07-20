@@ -109,7 +109,7 @@ func untarImage(imagefname string, destpath string) error {
 	return nil
 }
 
-type imageFromContainerPostReq struct {
+type imagePostReq struct {
 	Filename   string            `json:"filename"`
 	Public     bool              `json:"public"`
 	Source     map[string]string `json:"source"`
@@ -128,8 +128,7 @@ type imageMetadata struct {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
-	builddir string) (info shared.ImageInfo, err error) {
+func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq, builddir string) (info shared.ImageInfo, err error) {
 
 	info.Properties = map[string]string{}
 	name := req.Source["name"]
@@ -220,29 +219,49 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
 	return info, nil
 }
 
-func getImgPostInfo(d *Daemon, r *http.Request, builddir string) (info shared.ImageInfo, err error) {
+func imgPostRemoteInfo(d *Daemon, req imagePostReq) Response {
+	var err error
+	var hash string
+
+	if req.Source["alias"] != "" {
+		if req.Source["mode"] == "pull" && req.Source["server"] != "" {
+			hash, err = remoteGetImageFingerprint(d, req.Source["server"], req.Source["alias"])
+			if err != nil {
+				return InternalError(err)
+			}
+		} else {
+
+			hash, err = dbAliasGet(d.db, req.Source["alias"])
+			if err != nil {
+				return InternalError(err)
+			}
+		}
+	} else if req.Source["fingerprint"] != "" {
+		hash = req.Source["fingerprint"]
+	} else {
+		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
+	}
+
+	err = ensureLocalImage(d, req.Source["server"], hash, req.Source["secret"])
+	if err != nil {
+		return InternalError(err)
+	}
+
+	info, err := dbImageGet(d.db, hash, false)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	metadata := make(map[string]string)
+	metadata["fingerprint"] = info.Fingerprint
+	metadata["size"] = strconv.FormatInt(info.Size, 10)
+
+	return SyncResponse(true, metadata)
+}
+
+func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) (info shared.ImageInfo, err error) {
 	var imageMeta *imageMetadata
 
-	// Store the post data to disk
-	post, err := ioutil.TempFile(builddir, "lxd_post_")
-	if err != nil {
-		return info, err
-	}
-	defer os.Remove(post.Name())
-	_, err = io.Copy(post, r.Body)
-	if err != nil {
-		return info, err
-	}
-
-	// Is this a container request?
-	post.Seek(0, 0)
-	decoder := json.NewDecoder(post)
-	req := imageFromContainerPostReq{}
-	if err = decoder.Decode(&req); err == nil {
-		return imgPostContInfo(d, r, req, builddir)
-	}
-
-	// ok we've got an image in the body
 	info.Public, _ = strconv.Atoi(r.Header.Get("X-LXD-public"))
 	propHeaders := r.Header[http.CanonicalHeaderKey("X-LXD-properties")]
 	ctype, ctypeParams, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -598,6 +617,9 @@ func dbInsertImage(d *Daemon, fp string, fname string, sz int64, public int,
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
+	var err error
+	var info shared.ImageInfo
+
 	dirname := shared.VarPath("images")
 	if err := os.MkdirAll(dirname, 0700); err != nil {
 		return InternalError(err)
@@ -612,11 +634,44 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	/* remove the builddir when done */
 	defer removeImgWorkdir(d, builddir)
 
-	/* Grab all info from the web request */
-
-	info, err := getImgPostInfo(d, r, builddir)
+	// Store the post data to disk
+	post, err := ioutil.TempFile(builddir, "lxd_post_")
 	if err != nil {
-		return SmartError(err)
+		return InternalError(err)
+	}
+
+	os.Remove(post.Name())
+	defer post.Close()
+
+	_, err = io.Copy(post, r.Body)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	// Is this a container request?
+	post.Seek(0, 0)
+	decoder := json.NewDecoder(post)
+	req := imagePostReq{}
+	err = decoder.Decode(&req)
+
+	if err == nil {
+		/* Processing image request */
+		if req.Source["type"] == "container" || req.Source["type"] == "snapshot" {
+			info, err = imgPostContInfo(d, r, req, builddir)
+			if err != nil {
+				return SmartError(err)
+			}
+		} else if req.Source["type"] == "image" {
+			return imgPostRemoteInfo(d, req)
+		} else {
+			return InternalError(fmt.Errorf("Invalid images JSON"))
+		}
+	} else {
+		/* Processing image upload */
+		info, err = getImgPostInfo(d, r, builddir, post)
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	metadata, err := buildImageFromInfo(d, info, builddir)

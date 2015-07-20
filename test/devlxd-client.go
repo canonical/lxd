@@ -69,12 +69,14 @@ func main() {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		key := ""
-		if err := json.NewDecoder(raw.Body).Decode(&key); err != nil {
-			fmt.Println("err decoding response", err)
+
+		value, err := ioutil.ReadAll(raw.Body)
+		if err != nil {
+			fmt.Println(err)
 			os.Exit(1)
 		}
-		fmt.Println(key)
+
+		fmt.Println(string(value))
 	} else {
 		fmt.Println("/dev/lxd ok")
 	}

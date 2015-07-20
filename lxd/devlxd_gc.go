@@ -29,10 +29,11 @@ func socketPath() string {
 type DevLxdResponse struct {
 	content interface{}
 	code    int
+	ctype   string
 }
 
-func OkResponse(ct interface{}) *DevLxdResponse {
-	return &DevLxdResponse{ct, http.StatusOK}
+func OkResponse(ct interface{}, ctype string) *DevLxdResponse {
+	return &DevLxdResponse{ct, http.StatusOK, ctype}
 }
 
 type DevLxdHandler struct {
@@ -48,39 +49,40 @@ type DevLxdHandler struct {
 }
 
 var configGet = DevLxdHandler{"/1.0/config", func(c *lxdContainer, r *http.Request) *DevLxdResponse {
-	filtered := map[string]string{}
-	for k, v := range c.config {
+	filtered := []string{}
+	for k, _ := range c.config {
 		if strings.HasPrefix(k, "user.") {
-			filtered[k] = v
+			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
 		}
 	}
-	return OkResponse(filtered)
+	return OkResponse(filtered, "json")
 }}
 
 var configKeyGet = DevLxdHandler{"/1.0/config/{key}", func(c *lxdContainer, r *http.Request) *DevLxdResponse {
 	key := mux.Vars(r)["key"]
 	if !strings.HasPrefix(key, "user.") {
-		return &DevLxdResponse{"not authorized", http.StatusForbidden}
+		return &DevLxdResponse{"not authorized", http.StatusForbidden, "raw"}
 	}
 
 	value, ok := c.config[key]
 	if !ok {
-		return &DevLxdResponse{"not found", http.StatusNotFound}
+		return &DevLxdResponse{"not found", http.StatusNotFound, "raw"}
 	}
 
-	return OkResponse(value)
+	return OkResponse(value, "raw")
 }}
 
 var metadataGet = DevLxdHandler{"/1.0/meta-data", func(c *lxdContainer, r *http.Request) *DevLxdResponse {
-	return &DevLxdResponse{"not implemented", http.StatusNotImplemented}
+	value := c.config["user.meta-data"]
+	return OkResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", c.name, c.name, value), "raw")
 }}
 
 var handlers = []DevLxdHandler{
 	DevLxdHandler{"/", func(c *lxdContainer, r *http.Request) *DevLxdResponse {
-		return OkResponse([]string{"/1.0"})
+		return OkResponse([]string{"/1.0"}, "json")
 	}},
 	DevLxdHandler{"/1.0", func(c *lxdContainer, r *http.Request) *DevLxdResponse {
-		return OkResponse(shared.Jmap{"api_compat": 0})
+		return OkResponse(shared.Jmap{"api_compat": 0}, "json")
 	}},
 	configGet,
 	configKeyGet,
@@ -105,9 +107,14 @@ func hoistReq(f func(*lxdContainer, *http.Request) *DevLxdResponse, d *Daemon) f
 
 		resp := f(c, r)
 		if resp.code != http.StatusOK {
+			w.Header().Set("Content-Type", "application/octet-stream")
 			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
-		} else {
+		} else if resp.ctype == "json" {
+			w.Header().Set("Content-Type", "application/json")
 			WriteJSON(w, resp.content)
+		} else {
+			w.Header().Set("Content-Type", "application/octet-stream")
+			fmt.Fprintf(w, resp.content.(string))
 		}
 	}
 }
