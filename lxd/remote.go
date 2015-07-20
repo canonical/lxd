@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"os"
@@ -83,14 +82,10 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 	if err != nil {
 		return err
 	}
-
-	builddir, err := ioutil.TempDir(destDir, "lxd_build_")
-	if err != nil {
-		return err
+	destName := filepath.Join(destDir, fp)
+	if shared.PathExists(destName) {
+		os.Remove(destName)
 	}
-
-	/* remove the builddir when done */
-	defer removeImgWorkdir(d, builddir)
 
 	ctype, ctypeParams, err := mime.ParseMediaType(raw.Header.Get("Content-Type"))
 	if err != nil {
@@ -111,7 +106,7 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 			return fmt.Errorf("Invalid multipart image")
 		}
 
-		destName := filepath.Join(builddir, info.Fingerprint)
+		destName := filepath.Join(destDir, info.Fingerprint)
 		f, err := os.Create(destName)
 		if err != nil {
 			return err
@@ -134,7 +129,7 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 			return fmt.Errorf("Invalid multipart image")
 		}
 
-		destName = filepath.Join(builddir, info.Fingerprint+".rootfs")
+		destName = filepath.Join(destDir, info.Fingerprint+".rootfs")
 		f, err = os.Create(destName)
 		if err != nil {
 			return err
@@ -147,7 +142,7 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 			return err
 		}
 	} else {
-		destName := filepath.Join(builddir, info.Fingerprint)
+		destName := filepath.Join(destDir, info.Fingerprint)
 
 		f, err := os.Create(destName)
 		if err != nil {
@@ -162,7 +157,7 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 		}
 	}
 
-	_, err = buildImageFromInfo(d, info, builddir)
+	_, err = imageBuildFromInfo(d, info)
 	if err != nil {
 		return err
 	}
