@@ -349,7 +349,6 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		}
 
 		if err := d.Storage.ContainerCopy(c, source); err != nil {
-
 			removeContainer(d, c)
 			return shared.OperationError(err)
 		}

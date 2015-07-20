@@ -102,17 +102,18 @@ func (s *storageLvm) ContainerCreate(
 	if !container.isPrivileged() {
 		output, err := exec.Command("mount", "-o", "discard", lvPath, destPath).CombinedOutput()
 		if err != nil {
+			os.RemoveAll(destPath)
 			return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, output)
 		}
 
 		if err = shiftRootfs(container, s.d); err != nil {
+			os.RemoveAll(destPath)
 			return fmt.Errorf("Error in shiftRootfs: %v", err)
 		}
 
-		cpath := shared.VarPath("lxc", container.name)
-		output, err = exec.Command("umount", cpath).CombinedOutput()
+		output, err = exec.Command("umount", destPath).CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("Error unmounting '%s' after shiftRootfs: %v", cpath, err)
+			return fmt.Errorf("Error unmounting '%s' after shiftRootfs: %v", destPath, err)
 		}
 	}
 
