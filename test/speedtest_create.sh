@@ -6,10 +6,12 @@ CNAME="speedtest"
 
 count=${1}
 if [ "x${count}" == "x" ]; then
-  $COUNT = 2
+  echo "USAGE: ${0} 10"
+  echo "This creates 10 busybox containers"
+  exit 1
 fi
 
-if [ "x${2}" != "xnotime" ]; then
+if [ "x${3}" != "xnotime" ]; then
   time ${0} ${count} notime
   exit 0
 fi
@@ -30,10 +32,5 @@ done
 
 echo -e "\nlxc list: All started"
 time lxc list 1>/dev/null
-
-lxc delete "${CNAME}"
-for c in $(seq 1 $count); do
-  lxc delete "${CNAME}${c}"
-done
 
 echo -e "\nRun completed"
