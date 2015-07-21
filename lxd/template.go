@@ -73,7 +73,12 @@ func templateApply(c *lxdContainer, trigger string) error {
 			w.Chmod(0644)
 		}
 
-		tpl, err := pongo2.FromFile(shared.VarPath("lxc", c.name, "templates", template.Template))
+		tplString, err := ioutil.ReadFile(shared.VarPath("lxc", c.name, "templates", template.Template))
+		if err != nil {
+			return err
+		}
+
+		tpl, err := pongo2.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 		if err != nil {
 			return err
 		}
