@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-07-21 18:38-0400\n"
+        "POT-Creation-Date: 2015-07-22 11:45-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -188,7 +188,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:551 client.go:561 client.go:808 client.go:1777
+#: client.go:551 client.go:561 client.go:808 client.go:1783
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -676,6 +676,10 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
+#: client.go:1646 client.go:1703
+msgid   "device already exists\n"
+msgstr  ""
+
 #: lxc/launch.go:85 lxc/launch.go:90
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
@@ -740,7 +744,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1639 client.go:1693
+#: client.go:1639 client.go:1696
 msgid   "no value found in %q\n"
 msgstr  ""
 
