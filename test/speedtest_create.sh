@@ -6,7 +6,7 @@ CNAME="speedtest"
 
 count=${1}
 if [ "x${count}" == "x" ]; then
-  $COUNT = 2
+  COUNT=2
 fi
 
 if [ "x${2}" != "xnotime" ]; then
@@ -30,10 +30,5 @@ done
 
 echo -e "\nlxc list: All started"
 time lxc list 1>/dev/null
-
-lxc delete "${CNAME}"
-for c in $(seq 1 $count); do
-  lxc delete "${CNAME}${c}"
-done
 
 echo -e "\nRun completed"

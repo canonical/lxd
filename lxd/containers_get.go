@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/lxc/lxd/shared"
@@ -26,6 +27,25 @@ func containersGet(d *Daemon, r *http.Request) Response {
 	}
 }
 
+func doContainersGetGoRoutine(
+	d *Daemon, containers []string, channel chan []shared.ContainerInfo,
+	wg *sync.WaitGroup) {
+
+	myResults := []shared.ContainerInfo{}
+	for _, name := range containers {
+		container, response := doContainerGet(d, name)
+		if response != nil {
+			continue
+		}
+
+		myResults = append(myResults, container)
+	}
+
+	channel <- myResults
+
+	wg.Done()
+}
+
 func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 	result, err := dbListContainers(d)
 	if err != nil {
@@ -34,19 +54,53 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 
 	resultString := []string{}
 	resultMap := []shared.ContainerInfo{}
-	if err != nil {
-		return []string{}, err
-	}
-	for _, container := range result {
-		if !recursion {
+	resultLength := len(result)
+	perRoutine := resultLength / 100 * 20
+	routines := int(float64(resultLength)/float64(perRoutine) + 1.0)
+	shared.Debugf("len %d float %f", resultLength, float64(resultLength)/float64(perRoutine)+1.0)
+
+	if recursion {
+		if resultLength > perRoutine {
+			shared.Debugf("len %d routines %d", resultLength, routines)
+
+			channel := make(chan []shared.ContainerInfo, perRoutine)
+			wg := sync.WaitGroup{}
+
+			for i := 0; i < routines; i++ {
+				wg.Add(1)
+				if i*perRoutine+perRoutine < resultLength {
+					go doContainersGetGoRoutine(
+						d,
+						result[i*perRoutine:i*perRoutine+perRoutine],
+						channel,
+						&wg)
+				} else {
+					go doContainersGetGoRoutine(
+						d,
+						result[i*perRoutine:],
+						channel,
+						&wg)
+				}
+			}
+			wg.Wait()
+
+			for i := 0; i < routines; i++ {
+				resultMap = append(resultMap, <-channel...)
+			}
+
+		} else {
+			for _, container := range result {
+				container, response := doContainerGet(d, container)
+				if response != nil {
+					continue
+				}
+				resultMap = append(resultMap, container)
+			}
+		}
+	} else {
+		for _, container := range result {
 			url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
 			resultString = append(resultString, url)
-		} else {
-			container, response := doContainerGet(d, container)
-			if response != nil {
-				continue
-			}
-			resultMap = append(resultMap, container)
 		}
 	}
 
