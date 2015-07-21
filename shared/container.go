@@ -58,9 +58,6 @@ type ContainerExecControl struct {
 	Args    map[string]string `json:"args"`
 }
 
-type Device map[string]string
-type Devices map[string]Device
-
 type ContainerState struct {
 	Architecture    int               `json:"architecture"`
 	Config          map[string]string `json:"config"`

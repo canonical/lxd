@@ -13,13 +13,13 @@ const DB_FIXTURES string = `
     INSERT INTO profiles (name) VALUES ('theprofile');
     INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
     INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');
-    INSERT INTO containers_devices (container_id, name) VALUES (1, 'somename');
+    INSERT INTO containers_devices (container_id, name, type) VALUES (1, 'somename', 1);
     INSERT INTO containers_devices_config (key, value, container_device_id) VALUES ('configkey', 'configvalue', 1);
     INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176);
     INSERT INTO images_aliases (name, image_id, description) VALUES ('somealias', 1, 'some description');
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
     INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'thekey', 'thevalue');
-    INSERT INTO profiles_devices (profile_id, name) VALUES (2, 'devicename');
+    INSERT INTO profiles_devices (profile_id, name, type) VALUES (2, 'devicename', 1);
     INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (2, 'devicekey', 'devicevalue');
     `
 
@@ -577,12 +577,12 @@ func Test_dbGEtDevices_profiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected = shared.Device{"type": "0", "devicekey": "devicevalue"}
+	expected = shared.Device{"type": "nic", "devicekey": "devicevalue"}
 	subresult = result["devicename"]
 
 	for key, value := range expected {
 		if subresult[key] != value {
-			t.Errorf("Mismatching value for key %s: %s != %s", key, result[key], value)
+			t.Errorf("Mismatching value for key %s: %s != %s", key, subresult[key], value)
 		}
 	}
 
@@ -603,12 +603,12 @@ func Test_dbGEtDevices_containers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected = shared.Device{"type": "0", "configkey": "configvalue"}
+	expected = shared.Device{"type": "nic", "configkey": "configvalue"}
 	subresult = result["somename"]
 
 	for key, value := range expected {
 		if subresult[key] != value {
-			t.Errorf("Mismatching value for key %s: %s != %s", key, result[key], value)
+			t.Errorf("Mismatching value for key %s: %s != %s", key, subresult[key], value)
 		}
 	}
 

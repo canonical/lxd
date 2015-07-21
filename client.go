@@ -1642,6 +1642,9 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 		v := results[1]
 		newdev[k] = v
 	}
+	if st.Devices != nil && st.Devices.ContainsName(devname) {
+		return nil, fmt.Errorf(gettext.Gettext("device already exists\n"))
+	}
 	newdev["type"] = devtype
 	if st.Devices == nil {
 		st.Devices = shared.Devices{}
@@ -1695,6 +1698,9 @@ func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []stri
 		k := results[0]
 		v := results[1]
 		newdev[k] = v
+	}
+	if st.Devices != nil && st.Devices.ContainsName(devname) {
+		return nil, fmt.Errorf(gettext.Gettext("device already exists\n"))
 	}
 	newdev["type"] = devtype
 	if st.Devices == nil {
