@@ -1,12 +1,17 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
+	"os/exec"
+	"syscall"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
+	"gopkg.in/lxc/go-lxc.v2"
 )
 
 func DeviceToLxc(d shared.Device) ([][]string, error) {
@@ -72,21 +77,43 @@ func DeviceToLxc(d shared.Device) ([][]string, error) {
 	}
 }
 
-func ValidDeviceType(t string) bool {
+func dbDeviceTypeToString(t int) (string, error) {
 	switch t {
-	case "unix-char":
-		return true
-	case "unix-block":
-		return true
-	case "nic":
-		return true
-	case "disk":
-		return true
-	case "none":
-		return true
+	case 0:
+		return "disk", nil
+	case 1:
+		return "nic", nil
+	case 2:
+		return "unix-char", nil
+	case 3:
+		return "unix-block", nil
+	case 4:
+		return "none", nil
 	default:
-		return false
+		return "", fmt.Errorf("Invalid device type %d\n", t)
 	}
+}
+
+func DeviceTypeToDbType(t string) (int, error) {
+	switch t {
+	case "disk":
+		return 0, nil
+	case "nic":
+		return 1, nil
+	case "unix-char":
+		return 2, nil
+	case "unix-block":
+		return 3, nil
+	case "none":
+		return 4, nil
+	default:
+		return -1, fmt.Errorf("Invalid device type %s\n", t)
+	}
+}
+
+func ValidDeviceType(t string) bool {
+	_, err := DeviceTypeToDbType(t)
+	return err == nil
 }
 
 func ValidDeviceConfig(t, k, v string) bool {
@@ -178,10 +205,11 @@ func AddDevices(tx *sql.Tx, w string, cID int, devices shared.Devices) error {
 	}
 	defer stmt2.Close()
 	for k, v := range devices {
-		if !ValidDeviceType(v["type"]) {
-			return fmt.Errorf("Invalid device type %s\n", v["type"])
+		t, err := DeviceTypeToDbType(v["type"])
+		if err != nil {
+			return err
 		}
-		result, err := stmt1.Exec(cID, k, v["type"])
+		result, err := stmt1.Exec(cID, k, t)
 		if err != nil {
 			return err
 		}
@@ -202,6 +230,146 @@ func AddDevices(tx *sql.Tx, w string, cID int, devices shared.Devices) error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+func tempNic() string {
+	randBytes := make([]byte, 4)
+	rand.Read(randBytes)
+	return "lxd" + hex.EncodeToString(randBytes)
+}
+
+func inList(l []string, s string) bool {
+	for _, ls := range l {
+		if ls == s {
+			return true
+		}
+	}
+	return false
+}
+
+func nextUnusedNic(c *lxdContainer) string {
+	list, err := c.c.Interfaces()
+	if err != nil || len(list) == 0 {
+		return "eth0"
+	}
+	i := 0
+	// is it worth sorting list?
+	for {
+		nic := fmt.Sprintf("eth%d", i)
+		if !inList(list, nic) {
+			return nic
+		}
+		i = i + 1
+	}
+}
+
+func setupNic(c *lxdContainer, d map[string]string) (string, error) {
+	if d["nictype"] != "bridged" {
+		return "", fmt.Errorf("Unsupported nic type: %s\n", d["nictype"])
+	}
+	if d["parent"] == "" {
+		return "", fmt.Errorf("No bridge given\n")
+	}
+	if d["name"] == "" {
+		d["name"] = nextUnusedNic(c)
+	}
+
+	n1 := tempNic()
+	n2 := tempNic()
+
+	err := exec.Command("ip", "link", "add", n1, "type", "veth", "peer", "name", n2).Run()
+	if err != nil {
+		return "", err
+	}
+	err = exec.Command("brctl", "addif", d["parent"], n1).Run()
+	if err != nil {
+		RemoveInterface(n2)
+		return "", err
+	}
+
+	return n2, nil
+}
+
+func RemoveInterface(nic string) {
+	_ = exec.Command("ip", "link", "del", nic).Run()
+}
+
+/*
+ * Detach an interface in a container
+ * The thing is, there doesn't seem to be a good way of doing
+ * this without relying on /sys in the container or /sbin/ip
+ * in the container being reliable.  We can look at the
+ * /sys/devices/virtual/net/$name/ifindex (i.e. if 7, then delete 8 on host)
+ * we can just ip link del $name in the container.
+ *
+ * if we just did a lxc config device add of this nic, then
+ * lxc simply doesn't know the peername for this nic
+ *
+ * probably the thing to do is re-exec ourselves asking to
+ * setns into the container's netns (only) and remove the nic.  for
+ * now just don't do it, but don't fail either.
+ */
+func detachInterface(c *lxdContainer, key string) error {
+	options := lxc.DefaultAttachOptions
+	options.ClearEnv = false
+	options.Namespaces = syscall.CLONE_NEWNET
+	command := []string{"ip", "link", "del", key}
+	_, err := c.c.RunCommand(command, options)
+	return err
+}
+
+func txUpdateNic(tx *sql.Tx, cId int, devname string, nicname string) error {
+	q := `
+	SELECT id FROM containers_devices
+	WHERE container_id == ? AND type == 1 AND name == ?`
+	var dId int
+	err := tx.QueryRow(q, cId, devname).Scan(&dId)
+	if err != nil {
+		return err
+	}
+
+	stmt := `INSERT into containers_devices_config (container_device_id, key, value) VALUES (?, ?, ?)`
+	_, err = tx.Exec(stmt, dId, "name", nicname)
+	return err
+}
+
+/*
+ * Given a running container and a list of devices before and after a
+ * config change, update the devices in the container.
+ *
+ * Currently we only support nics.  Disks will be supported once we
+ * decide how best to insert them.
+ */
+func devicesApplyDeltaLive(tx *sql.Tx, c *lxdContainer, preDevList shared.Devices, postDevList shared.Devices) error {
+	rmList, addList := preDevList.Update(postDevList)
+	var err error
+
+	// note - currently Devices.Update() only returns nics
+	for key, nic := range rmList {
+		if nic["name"] == "" {
+			return fmt.Errorf("Do not know a name for the nic for device %s\n", key)
+		}
+		if err := detachInterface(c, nic["name"]); err != nil {
+			return fmt.Errorf("Error removing device %s (nic %s) from container %s: %s", key, nic["name"], c.name, err)
+		}
+	}
+
+	for key, nic := range addList {
+		var tmpName string
+		if tmpName, err = setupNic(c, nic); err != nil {
+			return fmt.Errorf("Unable to create nic %s for container %s: %s", nic["name"], c.name, err)
+		}
+		if err := c.c.AttachInterface(tmpName, nic["name"]); err != nil {
+			RemoveInterface(tmpName)
+			return fmt.Errorf("Unable to move nic %s into container %s as %s: %s", tmpName, c.name, nic["name"], err)
+		}
+		// Now we need to add the name to the database
+		if err := txUpdateNic(tx, c.id, key, nic["name"]); err != nil {
+			shared.Debugf("Warning: failed to update database entry for new nic %s: %s\n", key, err)
 		}
 	}
 

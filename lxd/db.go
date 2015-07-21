@@ -36,7 +36,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 9
+const DB_CURRENT_VERSION int = 10
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
@@ -195,6 +195,32 @@ func getSchema(db *sql.DB) (v int) {
 		return 0
 	}
 	return v
+}
+
+func updateFromV9(db *sql.DB) error {
+	whichset := []string{"containers", "profiles"}
+
+	for _, which := range whichset {
+		q := fmt.Sprintf("SELECT id, type from %s_devices", which)
+		cmd := fmt.Sprintf("UPDATE %s_devices SET type=? WHERE id=?", which)
+		rows, err := db.Query(q)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id, nType int
+				var oType string
+				rows.Scan(&id, &oType)
+				nType, err = DeviceTypeToDbType(oType)
+				if err != nil {
+					nType = 4
+				}
+				db.Exec(cmd, nType, id)
+			}
+		}
+	}
+
+	db.Exec(`INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`, 10)
+	return nil
 }
 
 func updateFromV8(db *sql.DB) error {
@@ -588,6 +614,12 @@ func updateDb(db *sql.DB, prevVersion int) error {
 			return err
 		}
 	}
+	if prevVersion < 10 {
+		err = updateFromV9(db)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -627,7 +659,7 @@ func createDefaultProfile(db *sql.DB) error {
 
 	result, err = tx.Exec(`INSERT INTO profiles_devices
 		(profile_id, name, type) VALUES (?, ?, ?)`,
-		id, "eth0", "nic")
+		id, "eth0", 1)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -1056,8 +1088,8 @@ func dbGetDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, err
 			ON containers_devices.container_id = containers.id
 			WHERE containers.name=?`
 	}
-	var id int
-	var name, dtype string
+	var id, dtype int
+	var name, stype string
 	inargs := []interface{}{qName}
 	outfmt := []interface{}{id, name, dtype}
 	results, err := dbQueryScan(db, q, inargs, outfmt)
@@ -1069,12 +1101,15 @@ func dbGetDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, err
 	for _, r := range results {
 		id = r[0].(int)
 		name = r[1].(string)
-		dtype = r[2].(string)
+		stype, err = dbDeviceTypeToString(r[2].(int))
+		if err != nil {
+			return nil, err
+		}
 		newdev, err := dbGetDeviceConfig(db, id, isprofile)
 		if err != nil {
 			return nil, err
 		}
-		newdev["type"] = dtype
+		newdev["type"] = stype
 		devices[name] = newdev
 	}
 
