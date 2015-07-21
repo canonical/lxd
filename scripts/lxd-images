@@ -46,6 +46,32 @@ def find_on_path(command):
     return False
 
 
+def report_download(blocks_read, block_size, total_size):
+    size_read = blocks_read * block_size
+    percent = size_read/total_size*100
+    if percent > 100:
+        return
+
+    print("Progress: %.0f %%" % percent, end='\r')
+
+
+def local_architecture():
+    try:
+        import apt_pkg
+        apt_pkg.init()
+        return apt_pkg.config.find("APT::Architecture").lower()
+    except:
+        arch_tables = {'x86_64': "amd64",
+                       'i686': "i386",
+                       'armv7l': "armhf",
+                       'aarch64': "arm64",
+                       'ppc': "powerpc",
+                       'ppc64le': "ppc64el"}
+
+        kernel_arch = os.uname().machine
+
+        return arch_tables[kernel_arch]
+
 class UnixHTTPConnection(http.client.HTTPConnection):
     def __init__(self, path):
         http.client.HTTPConnection.__init__(self, 'localhost')
@@ -274,11 +300,6 @@ class LXCImages(object):
             shutil.rmtree(self.workdir)
 
     def __grab_and_validate(self, url, dest):
-        def report_download(blocks_read, block_size, total_size):
-            size_read = blocks_read * block_size
-            percent = size_read/total_size*100
-            print("Progress: %.0f %%" % percent, end='\r')
-
         try:
             # Main file
             urllib.request.urlretrieve(url, dest, report_download)
@@ -378,6 +399,97 @@ class LXCImages(object):
         return path
 
 
+class Ubuntu(object):
+    workdir = None
+    server = None
+    stream = None
+
+    # FIXME: We should default to the released stream once available
+    def __init__(self, server="https://cloud-images.ubuntu.com",
+                 stream="daily"):
+
+        # Create our workdir
+        self.workdir = tempfile.mkdtemp()
+        self.gpgdir = "%s/gpg" % self.workdir
+        os.mkdir(self.gpgdir, 0o700)
+
+        # Set variables
+        self.server = server
+        self.stream = stream
+
+    def __del__(self):
+        if self.workdir:
+            shutil.rmtree(self.workdir)
+
+    def image_download(self, release=None, architecture=None, version=None):
+        if not release:
+            # FIXME: We should default to latest LTS once available
+            release = "wily"
+
+        if not architecture:
+            architecture = local_architecture()
+
+        try:
+            print(_("Downloading the image index: %s" % self.server))
+            index = json.loads(
+                urllib.request.urlopen(
+                    "%s/%s/streams/v1/com.ubuntu.cloud:%s:download.json" %
+                    (self.server, self.stream, self.stream)).read().decode())
+        except:
+            raise Exception("Unable to parse the image index.")
+
+        image = None
+        for product_name, product in index['products'].items():
+            if product['release'] != release and \
+                    product['version'] != release:
+                continue
+
+            if product['arch'] != architecture:
+                continue
+
+            candidates = {}
+            for version_number, version_entry in product['versions'].items():
+                if "lxd.tar.xz" not in version_entry['items']:
+                    continue
+
+                if "root.tar.xz" not in version_entry['items']:
+                    continue
+
+                candidates[version_number] = version_entry
+
+            if not candidates:
+                raise Exception("The requested image doesn't exist.")
+
+            if version:
+                if version not in candidates:
+                    raise Exception("The requested image doesn't exist.")
+
+                image = candidates[version]
+                break
+            else:
+                image = list(candidates.values())[-1]
+
+        if not image:
+            raise Exception("The requested image doesn't exist.")
+
+        print(_("Downloading the image."))
+        meta_path = os.path.join(self.workdir,
+                                 "meta-%s.tar.xz" % image['pubname'])
+        urllib.request.urlretrieve(
+            "%s/%s" % (self.server, image['items']['lxd.tar.xz']['path']),
+            meta_path,
+            report_download)
+
+        rootfs_path = os.path.join(self.workdir,
+                                   "%s.tar.xz" % image['pubname'])
+        urllib.request.urlretrieve(
+            "%s/%s" % (self.server, image['items']['root.tar.xz']['path']),
+            rootfs_path,
+            report_download)
+
+        return meta_path, rootfs_path
+
+
 if __name__ == "__main__":
     if "LXD_DIR" in os.environ:
         lxd_socket = os.path.join(os.environ['LXD_DIR'], "unix.socket")
@@ -450,16 +562,40 @@ if __name__ == "__main__":
 
         setup_alias(parser, args, fingerprint)
 
+    def import_ubuntu(parser, args):
+        ubuntu = Ubuntu()
+
+        meta_path, rootfs_path = ubuntu.image_download(args.release,
+                                                       args.architecture,
+                                                       args.version)
+
+        with open(meta_path, "rb") as meta_fd:
+            with open(rootfs_path, "rb") as rootfs_fd:
+                fingerprint = hashlib.sha256(meta_fd.read() +
+                                             rootfs_fd.read()).hexdigest()
+
+        if fingerprint in lxd.images_list():
+            parser.exit(1, _("This image is already in the store.\n"))
+
+        r = lxd.images_upload((meta_path, rootfs_path),
+                              meta_path.split("/")[-1])
+        print(_("Image imported as: %s" % r['fingerprint']))
+
+        setup_alias(parser, args, fingerprint)
+
     parser = FriendlyParser(
         description=_("LXD: image store helper"),
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=_("""Examples:
+ To import the latest Ubuntu Cloud image with an alias:
+    %s import ubuntu --alias ubuntu
+
  To import the latest Ubuntu 14.04 LTS 64bit image with some aliases:
     %s import lxc ubuntu trusty amd64 --alias ubuntu --alias ubuntu/trusty
 
  To import a basic busybox image:
     %s import busybox --alias busybox
-""" % (sys.argv[0], sys.argv[0])))
+""" % (sys.argv[0], sys.argv[0], sys.argv[0])))
 
     parser_subparsers = parser.add_subparsers(dest="action")
     parser_subparsers.required = True
@@ -492,6 +628,22 @@ if __name__ == "__main__":
                                    help=_("Aliases for the image"))
     parser_import_lxc.set_defaults(func=import_lxc)
 
+    # # Ubuntu
+    parser_import_ubuntu = parser_import_subparsers.add_parser(
+        "ubuntu", help=_("Ubuntu images"))
+    parser_import_ubuntu.add_argument("release", help=_("Release"),
+                                      default=None, nargs="?")
+    parser_import_ubuntu.add_argument("architecture", help=_("Architecture"),
+                                      default=None, nargs="?")
+    parser_import_ubuntu.add_argument("version", help=_("Version"),
+                                      default=None, nargs="?")
+    parser_import_ubuntu.add_argument("--alias", action="append", default=[],
+                                      help=_("Aliases for the image"))
+    parser_import_ubuntu.set_defaults(func=import_ubuntu)
+
     # Call the function
     args = parser.parse_args()
-    args.func(parser, args)
+    try:
+        args.func(parser, args)
+    except Exception as e:
+        parser.error(e)
