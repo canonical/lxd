@@ -149,6 +149,32 @@ func dbClearProfileConfig(tx *sql.Tx, id int) error {
 	return nil
 }
 
+func getRunningContainersWithProfile(d *Daemon, profile string) []*lxdContainer {
+	q := `SELECT containers.name FROM containers JOIN containers_profiles
+		ON containers.id == containers_profiles.container_id
+		JOIN profiles ON containers_profiles.profile_id == profiles.id
+		WHERE profiles.name == ?`
+	results := []*lxdContainer{}
+	inargs := []interface{}{profile}
+	var name string
+	outfmt := []interface{}{name}
+
+	output, err := dbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		return results
+	}
+	for _, r := range output {
+		name := r[0].(string)
+		c, err := newLxdContainer(name, d)
+		if err != nil {
+			shared.Debugf("ERROR: failed opening container %s\n", name)
+			continue
+		}
+		results = append(results, c)
+	}
+	return results
+}
+
 func profilePut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
@@ -156,6 +182,12 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
+
+	preDevList, err := dbGetDevices(d.db, name, true)
+	if err != nil {
+		return InternalError(err)
+	}
+	clist := getRunningContainersWithProfile(d, name)
 
 	tx, err := dbBegin(d.db)
 	if err != nil {
@@ -202,6 +234,19 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		tx.Rollback()
 		return SmartError(err)
+	}
+
+	postDevList := req.Devices
+	// do our best to update the device list for each container using
+	// this profile
+	for _, c := range clist {
+		if !c.c.Running() {
+			continue
+		}
+		fmt.Printf("Updating profile device list for %s\n", c.name)
+		if err := devicesApplyDeltaLive(tx, c, preDevList, postDevList); err != nil {
+			shared.Debugf("Warning: failed to update device list for container %s (profile %s updated)\n", c.name, name)
+		}
 	}
 
 	err = txCommit(tx)
