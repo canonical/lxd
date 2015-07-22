@@ -334,8 +334,6 @@ func startContainer(args []string) error {
 	lxcpath := args[2]
 	configPath := args[3]
 
-	defer os.Remove(configPath)
-
 	c, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
 		return fmt.Errorf("Error initializing container for start: %q", err)
@@ -345,7 +343,14 @@ func startContainer(args []string) error {
 		return fmt.Errorf("Error opening startup config file: %q", err)
 	}
 
-	return c.Start()
+	err = c.Start()
+	if err != nil {
+		os.Remove(configPath)
+	} else {
+		shared.FileMove(configPath, shared.LogPath(name, "lxc.conf"))
+	}
+
+	return nil
 }
 
 func (d *lxdContainer) tarStoreFile(linkmap map[uint64]string, offset int, tw *tar.Writer, path string, fi os.FileInfo) error {
