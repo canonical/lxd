@@ -36,7 +36,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 9
+const DB_CURRENT_VERSION int = 10
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
@@ -195,6 +195,56 @@ func getSchema(db *sql.DB) (v int) {
 		return 0
 	}
 	return v
+}
+
+func updateFromV9(db *sql.DB) error {
+
+	whichset := []string{"containers", "profiles"}
+	for _, which := range whichset {
+		q := fmt.Sprintf("SELECT id, type from %s_devices", which)
+		cmd := fmt.Sprintf("UPDATE %s_devices SET type=? WHERE id=?", which)
+		rows, err := db.Query(q)
+		type needed_updates struct {
+			id int
+			nType int
+		}
+		updates := []needed_updates{}
+		if err != nil {
+			continue
+		}
+		for rows.Next() {
+			var id, nType int
+			var oType string
+			err := rows.Scan(&id, &oType)
+			if err != nil {
+				rows.Close()
+				return fmt.Errorf("Warning: upgrade query step failed: %s\n", err)
+			}
+			// Since only nics were supported up to this point anyway,
+			// but there was some test code using '0', I'll support the
+			// following:
+			switch(oType) {
+				case "0": nType = 0
+				case "1": nType = 1
+				case "nic": nType = 1
+				case "4": nType = 4
+				default: nType = 4
+			}
+			newu := needed_updates{id: id, nType: nType}
+			updates = append(updates, newu)
+		}
+		rows.Close()
+		for _, u := range updates {
+			_, err = db.Exec(cmd, u.nType, u.id)
+			if err != nil {
+				return fmt.Errorf("Warning: upgrade step failed: %s\n", err)
+			}
+		}
+	}
+
+	stmt := `INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 10)
+	return err
 }
 
 func updateFromV8(db *sql.DB) error {
@@ -588,6 +638,12 @@ func updateDb(db *sql.DB, prevVersion int) error {
 			return err
 		}
 	}
+	if prevVersion < 10 {
+		err = updateFromV9(db)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -627,7 +683,7 @@ func createDefaultProfile(db *sql.DB) error {
 
 	result, err = tx.Exec(`INSERT INTO profiles_devices
 		(profile_id, name, type) VALUES (?, ?, ?)`,
-		id, "eth0", "nic")
+		id, "eth0", 1)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -1056,8 +1112,8 @@ func dbGetDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, err
 			ON containers_devices.container_id = containers.id
 			WHERE containers.name=?`
 	}
-	var id int
-	var name, dtype string
+	var id, dtype int
+	var name, stype string
 	inargs := []interface{}{qName}
 	outfmt := []interface{}{id, name, dtype}
 	results, err := dbQueryScan(db, q, inargs, outfmt)
@@ -1069,12 +1125,15 @@ func dbGetDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, err
 	for _, r := range results {
 		id = r[0].(int)
 		name = r[1].(string)
-		dtype = r[2].(string)
+		stype, err = dbDeviceTypeToString(r[2].(int))
+		if err != nil {
+			return nil, err
+		}
 		newdev, err := dbGetDeviceConfig(db, id, isprofile)
 		if err != nil {
 			return nil, err
 		}
-		newdev["type"] = dtype
+		newdev["type"] = stype
 		devices[name] = newdev
 	}
 
