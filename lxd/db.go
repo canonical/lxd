@@ -219,8 +219,9 @@ func updateFromV9(db *sql.DB) error {
 		}
 	}
 
-	db.Exec(`INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`, 10)
-	return nil
+	stmt := `INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 10)
+	return err
 }
 
 func updateFromV8(db *sql.DB) error {

@@ -577,7 +577,7 @@ func Test_dbGEtDevices_profiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected = shared.Device{"type": "0", "devicekey": "devicevalue"}
+	expected = shared.Device{"type": "disk", "devicekey": "devicevalue"}
 	subresult = result["devicename"]
 
 	for key, value := range expected {
@@ -603,7 +603,7 @@ func Test_dbGEtDevices_containers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected = shared.Device{"type": "0", "configkey": "configvalue"}
+	expected = shared.Device{"type": "disk", "configkey": "configvalue"}
 	subresult = result["somename"]
 
 	for key, value := range expected {
