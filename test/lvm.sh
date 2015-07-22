@@ -5,8 +5,8 @@ create_vg() {
     pvloopdev=$(losetup -f)
     losetup $pvloopdev $pvfile
 
-    #vgcreate will create a PV for us
-    vgcreate lxd_test_vg $pvloopdev
+    pvcreate $pvloopdev
+    vgcreate -vv lxd_test_vg $pvloopdev
 
 }
 

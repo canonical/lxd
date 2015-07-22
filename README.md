@@ -44,6 +44,10 @@ To run the testsuite, you'll also need:
 
     sudo apt-get install curl gettext jq sqlite3
 
+To use LVM backing stores, you'll need:
+
+    sudo apt-get install lvm2 thin-provisioning-tools
+
 ### Building the tools
 
 LXD consists of two binaries, a client called `lxc` and a server called `lxd`.
