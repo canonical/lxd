@@ -38,7 +38,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 9
+const DB_CURRENT_VERSION int = 10
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
@@ -197,6 +197,50 @@ func getSchema(db *sql.DB) (v int) {
 		return 0
 	}
 	return v
+}
+
+func updateFromV9(db *sql.DB) error {
+	stmt := `
+CREATE TABLE tmp (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(255) NOT NULL default "none",
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
+    UNIQUE (container_id, name)
+);
+
+INSERT INTO tmp SELECT * FROM containers_devices;
+
+UPDATE containers_devices SET type=0 WHERE id IN (SELECT id FROM tmp WHERE type="none");
+UPDATE containers_devices SET type=1 WHERE id IN (SELECT id FROM tmp WHERE type="nic");
+UPDATE containers_devices SET type=2 WHERE id IN (SELECT id FROM tmp WHERE type="disk");
+UPDATE containers_devices SET type=3 WHERE id IN (SELECT id FROM tmp WHERE type="unix-char");
+UPDATE containers_devices SET type=4 WHERE id IN (SELECT id FROM tmp WHERE type="unix-block");
+
+DROP TABLE tmp;
+
+CREATE TABLE tmp (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(255) NOT NULL default "none",
+    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE,
+    UNIQUE (profile_id, name)
+);
+
+INSERT INTO tmp SELECT * FROM profiles_devices;
+
+UPDATE profiles_devices SET type=0 WHERE id IN (SELECT id FROM tmp WHERE type="none");
+UPDATE profiles_devices SET type=1 WHERE id IN (SELECT id FROM tmp WHERE type="nic");
+UPDATE profiles_devices SET type=2 WHERE id IN (SELECT id FROM tmp WHERE type="disk");
+UPDATE profiles_devices SET type=3 WHERE id IN (SELECT id FROM tmp WHERE type="unix-char");
+UPDATE profiles_devices SET type=4 WHERE id IN (SELECT id FROM tmp WHERE type="unix-block");
+
+DROP TABLE tmp;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 10)
+	return err
 }
 
 func updateFromV8(db *sql.DB) error {
@@ -590,6 +634,12 @@ func updateDb(db *sql.DB, prevVersion int) error {
 			return err
 		}
 	}
+	if prevVersion < 10 {
+		err = updateFromV9(db)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -629,7 +679,7 @@ func createDefaultProfile(db *sql.DB) error {
 
 	result, err = tx.Exec(`INSERT INTO profiles_devices
 		(profile_id, name, type) VALUES (?, ?, ?)`,
-		id, "eth0", "nic")
+		id, "eth0", 1)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -1075,8 +1125,8 @@ func dbGetDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, err
 			ON containers_devices.container_id = containers.id
 			WHERE containers.name=?`
 	}
-	var id int
-	var name, dtype string
+	var id, dtype int
+	var name, stype string
 	inargs := []interface{}{qName}
 	outfmt := []interface{}{id, name, dtype}
 	results, err := dbQueryScan(db, q, inargs, outfmt)
@@ -1088,12 +1138,15 @@ func dbGetDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, err
 	for _, r := range results {
 		id = r[0].(int)
 		name = r[1].(string)
-		dtype = r[2].(string)
+		stype, err = dbDeviceTypeToString(r[2].(int))
+		if err != nil {
+			return nil, err
+		}
 		newdev, err := dbGetDeviceConfig(db, id, isprofile)
 		if err != nil {
 			return nil, err
 		}
-		newdev["type"] = dtype
+		newdev["type"] = stype
 		devices[name] = newdev
 	}
 

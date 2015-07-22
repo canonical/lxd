@@ -35,6 +35,16 @@ test_config_profiles() {
   lxc profile device list onenic | grep eth0
   lxc profile device show onenic | grep lxcbr0
 
+  # test live-adding a nic
+  if [ -z "$TRAVIS_PULL_REQUEST" ]; then
+    lxc start foo
+    lxc config device add foo eth2 nic nictype=bridged parent=lxcbr0 name=eth10
+    lxc exec foo -- /sbin/ifconfig -a | grep eth10
+    lxc config device list foo | grep eth2
+    lxc config device remove foo eth2
+    lxc stop foo
+  fi
+
   lxc config set foo user.prop value
   lxc list user.prop=value | grep foo
   lxc config unset foo user.prop

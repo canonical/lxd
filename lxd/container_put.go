@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -34,7 +35,30 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	if configRaw.Restore == "" {
 		// Update container configuration
 		do = func() error {
-			return containerReplaceConfig(d, c, name, configRaw)
+			preDevList, err := dbGetDevices(d.db, name, false)
+			if err != nil {
+				return err
+			}
+			tx, err := containerReplaceConfig(d, c, name, configRaw)
+			if err != nil {
+				return err
+			}
+			if !c.c.Running() {
+				return txCommit(tx)
+			}
+
+			// apply new devices
+			postDevList := configRaw.Devices
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			if err := devicesApplyDeltaLive(tx, c, preDevList, postDevList); err != nil {
+				tx.Rollback()
+				return err
+			}
+			return txCommit(tx)
 		}
 	} else {
 		// Snapshot Restore
@@ -46,31 +70,31 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	return AsyncResponse(shared.OperationWrap(do), nil)
 }
 
-func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig containerConfigReq) error {
+func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig containerConfigReq) (*sql.Tx, error) {
 	/* check to see that the config actually applies to the container
 	 * successfully before saving it. in particular, raw.lxc and
 	 * raw.apparmor need to be parsed once to make sure they make sense.
 	 */
 	if err := ct.applyConfig(newConfig.Config, false); err != nil {
-		return err
+		return nil, err
 	}
 
 	tx, err := dbBegin(d.db)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	/* Update config or profiles */
 	if err = dbClearContainerConfig(tx, ct.id); err != nil {
 		shared.Debugf("Error clearing configuration for container %s\n", name)
 		tx.Rollback()
-		return err
+		return nil, err
 	}
 
 	if err = dbInsertContainerConfig(tx, ct.id, newConfig.Config); err != nil {
 		shared.Debugf("Error inserting configuration for container %s\n", name)
 		tx.Rollback()
-		return err
+		return nil, err
 	}
 
 	/* handle profiles */
@@ -78,23 +102,23 @@ func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig 
 		_, err := tx.Exec("DELETE from containers_profiles where container_id=?", ct.id)
 		if err != nil {
 			tx.Rollback()
-			return err
+			return nil, err
 		}
 	} else {
 		if err := dbInsertProfiles(tx, ct.id, newConfig.Profiles); err != nil {
 
 			tx.Rollback()
-			return err
+			return nil, err
 		}
 	}
 
 	err = AddDevices(tx, "container", ct.id, newConfig.Devices)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return nil, err
 	}
 
-	return txCommit(tx)
+	return tx, nil
 }
 
 func containerSnapRestore(d *Daemon, name string, snap string) error {
@@ -143,9 +167,12 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 	newConfig.Profiles = source.profiles
 	newConfig.Devices = source.devices
 
-	err = containerReplaceConfig(d, c, name, newConfig)
+	tx, err := containerReplaceConfig(d, c, name, newConfig)
 	if err != nil {
 		shared.Debugf("RESTORE => err #4", err)
+		return err
+	}
+	if err := txCommit(tx); err != nil {
 		return err
 	}
 
