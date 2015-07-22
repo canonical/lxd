@@ -122,7 +122,7 @@ func (c *migrationFields) controlChannel() <-chan MigrationControl {
 func collectMigrationLogFile(c *lxc.Container, imagesDir string, method string) error {
 	t := time.Now().Format(time.RFC3339)
 	newPath := shared.LogPath(c.Name(), fmt.Sprintf("migration_%s_%s.log", method, t))
-	return shared.CopyFile(newPath, filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)))
+	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
 }
 
 type migrationSourceWs struct {
@@ -265,14 +265,14 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		 * no reason to do these in parallel. In the future when we're using
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
-		if err := RsyncSend(AddSlash(checkpointDir), s.criuConn); err != nil {
+		if err := RsyncSend(shared.AddSlash(checkpointDir), s.criuConn); err != nil {
 			s.sendControl(err)
 			return shared.OperationError(err)
 		}
 	}
 
 	fsDir := s.container.ConfigItem("lxc.rootfs")[0]
-	if err := RsyncSend(AddSlash(fsDir), s.fsConn); err != nil {
+	if err := RsyncSend(shared.AddSlash(fsDir), s.fsConn); err != nil {
 		s.sendControl(err)
 		return shared.OperationError(err)
 	}
@@ -408,7 +408,7 @@ func (c *migrationSink) do() error {
 				os.RemoveAll(imagesDir)
 			}()
 
-			if err := RsyncRecv(AddSlash(imagesDir), c.criuConn); err != nil {
+			if err := RsyncRecv(shared.AddSlash(imagesDir), c.criuConn); err != nil {
 				restore <- err
 				os.RemoveAll(imagesDir)
 				c.sendControl(err)
@@ -417,7 +417,7 @@ func (c *migrationSink) do() error {
 		}
 
 		fsDir := c.container.ConfigItem("lxc.rootfs")[0]
-		if err := RsyncRecv(AddSlash(fsDir), c.fsConn); err != nil {
+		if err := RsyncRecv(shared.AddSlash(fsDir), c.fsConn); err != nil {
 			restore <- err
 			c.sendControl(err)
 			return

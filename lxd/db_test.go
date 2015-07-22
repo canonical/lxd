@@ -25,6 +25,11 @@ const DB_FIXTURES string = `
 
 //  This Helper will initialize a test in-memory DB.
 func createTestDb(t *testing.T) (db *sql.DB) {
+	// Setup logging if main() hasn't been called/when testing
+	if shared.Log == nil {
+		shared.SetLogger("", "", true, true)
+	}
+
 	var err error
 	db, err = initializeDbObject(":memory:")
 

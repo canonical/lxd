@@ -129,7 +129,7 @@ func getServerConfig(d *Daemon) (map[string]interface{}, error) {
 
 func setLVMVolumeGroupNameConfig(d *Daemon, vgname string) error {
 	if vgname != "" {
-		err := shared.LVMCheckVolumeGroup(vgname)
+		err := storageLVMCheckVolumeGroup(vgname)
 		if err != nil {
 			return err
 		}
@@ -153,7 +153,7 @@ func setLVMThinPoolNameConfig(d *Daemon, poolname string) error {
 	}
 
 	if poolname != "" {
-		poolExists, err := shared.LVMThinPoolLVExists(vgname, poolname)
+		poolExists, err := storageLVMThinpoolExists(vgname, poolname)
 		if err != nil {
 			return fmt.Errorf("Error checking for thin pool '%s' in '%s': %v", poolname, vgname, err)
 		}
