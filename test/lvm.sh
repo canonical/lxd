@@ -6,7 +6,11 @@ create_vg() {
     losetup $pvloopdev $pvfile
 
     pvcreate $pvloopdev
-    vgcreate -vv lxd_test_vg $pvloopdev
+    VGDEBUG=""
+    if [ -n "$LXD_DEBUG" ]; then
+        VGDEBUG="-vv"
+    fi
+    vgcreate $VGDEBUG lxd_test_vg $pvloopdev
 
 }
 
