@@ -31,17 +31,6 @@ func rsyncWebsocket(cmd *exec.Cmd, conn *websocket.Conn) error {
 	return cmd.Wait()
 }
 
-// AddSlash adds a slash to the end of paths if they don't already have one.
-// This can be useful for rsyncing things, since rsync has behavior present on
-// the presence or absence of a trailing slash.
-func AddSlash(path string) string {
-	if path[len(path)-1] != '/' {
-		return path + "/"
-	}
-
-	return path
-}
-
 func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, error) {
 	/*
 	 * It's sort of unfortunate, but there's no library call to get a

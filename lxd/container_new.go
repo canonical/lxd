@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -83,6 +84,8 @@ func newStatus(c *lxc.Container, state lxc.State) shared.ContainerStatus {
 	}
 	return status
 }
+
+const containerSnapshotDelimiter = "/"
 
 func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 	devices, err := dbGetDevices(c.daemon.db, c.name, false)
@@ -174,6 +177,27 @@ func (c *lxdContainer) Stop() error {
 
 func (c *lxdContainer) Unfreeze() error {
 	return c.c.Unfreeze()
+}
+
+func (c *lxdContainer) IsSnapshot() bool {
+	return c.cType == cTypeSnapshot
+}
+
+func (c *lxdContainer) NameGet() string {
+	return c.name
+}
+
+func (c *lxdContainer) PathGet() string {
+	if c.IsSnapshot() {
+		snappieces := strings.SplitN(c.NameGet(), containerSnapshotDelimiter, 2)
+		return shared.VarPath("lxc", snappieces[0], "snapshots", snappieces[1])
+	}
+
+	return shared.VarPath("lxc", c.NameGet())
+}
+
+func (c *lxdContainer) RootfsPathGet() string {
+	return path.Join(c.PathGet(), "rootfs")
 }
 
 func validateRawLxc(rawLxc string) error {
@@ -493,12 +517,14 @@ func (c *lxdContainer) applyDevices() error {
 }
 
 func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
-	d := &lxdContainer{}
-	d.daemon = daemon
+	d := &lxdContainer{
+		daemon:       daemon,
+		ephemeral:    false,
+		architecture: -1,
+		cType:        -1,
+		id:           -1}
+
 	ephemInt := -1
-	d.ephemeral = false
-	d.architecture = -1
-	d.id = -1
 
 	templateConfBase := "ubuntu"
 	templateConfDir := os.Getenv("LXC_TEMPLATE_CONFIG")
@@ -506,9 +532,9 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		templateConfDir = "/usr/share/lxc/config"
 	}
 
-	q := "SELECT id, architecture, ephemeral FROM containers WHERE name=?"
+	q := "SELECT id, architecture, type, ephemeral FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&d.id, &d.architecture, &ephemInt}
+	arg2 := []interface{}{&d.id, &d.architecture, &d.cType, &ephemInt}
 	err := dbQueryRowScan(daemon.db, q, arg1, arg2)
 	if err != nil {
 		return nil, err

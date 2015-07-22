@@ -39,6 +39,8 @@ type Daemon struct {
 	mux           *mux.Router
 	tomb          tomb.Tomb
 
+	Storage storage
+
 	localSockets  []net.Listener
 	remoteSockets []net.Listener
 
@@ -197,13 +199,21 @@ func (d *Daemon) createCmd(version string, c Command) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if d.isTrustedClient(r) {
-			shared.Log.Info("handling", log.Ctx{"method": r.Method, "url": r.URL.RequestURI()})
+			shared.Log.Info(
+				"handling",
+				log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if r.Method == "GET" && c.untrustedGet {
-			shared.Log.Info("allowing untrusted GET", log.Ctx{"url": r.URL.RequestURI()})
+			shared.Log.Info(
+				"allowing untrusted GET",
+				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if r.Method == "POST" && c.untrustedPost {
-			shared.Log.Info("allowing untrusted POST", log.Ctx{"url": r.URL.RequestURI()})
+			shared.Log.Info(
+				"allowing untrusted POST",
+				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
-			shared.Log.Warn("rejecting request from untrusted client")
+			shared.Log.Warn(
+				"rejecting request from untrusted client",
+				log.Ctx{"ip": r.RemoteAddr})
 			Forbidden.Render(w)
 			return
 		}
@@ -313,13 +323,16 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		return nil, err
 	}
 
-	err = os.MkdirAll(d.lxcpath, 0755)
-	if err != nil {
-		return nil, err
+	// Create default directories
+	dirs := []string{"images", "lxc", "devlxd"}
+	for _, dir := range dirs {
+		if err := os.MkdirAll(shared.VarPath(dir), 0700); err != nil {
+			return nil, err
+		}
 	}
 
 	/* Detect the filesystem */
-	d.BackingFs, err = shared.GetFilesystem(d.lxcpath)
+	d.BackingFs, err = filesystemDetect(d.lxcpath)
 	if err != nil {
 		shared.Log.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}
@@ -365,6 +378,19 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	/* Restart containers */
 	containersRestart(d)
 	containersWatch(d)
+
+	// Setup the Storage Object
+	_, vgNameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
+	if vgNameIsSet {
+		d.Storage, err = newStorage(d, storageTypeLvm)
+	} else if d.BackingFs == "btrfs" {
+		d.Storage, err = newStorage(d, storageTypeBtrfs)
+	} else {
+		d.Storage, err = newStorage(d, -1)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("Failed to setup storage: %s", err)
+	}
 
 	/* Setup the web server */
 	d.mux = mux.NewRouter()
@@ -505,6 +531,8 @@ func (d *Daemon) Stop() error {
 	for _, socket := range d.remoteSockets {
 		socket.Close()
 	}
+
+	d.db.Close()
 
 	d.devlxd.Close()
 
