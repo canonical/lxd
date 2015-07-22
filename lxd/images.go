@@ -263,6 +263,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 	builddir string, post *os.File) (info shared.ImageInfo, err error) {
 
 	var imageMeta *imageMetadata
+	logger := shared.Log.New(log.Ctx{"function": "getImgPostInfo"})
 
 	info.Public, _ = strconv.Atoi(r.Header.Get("X-LXD-public"))
 	propHeaders := r.Header[http.CanonicalHeaderKey("X-LXD-properties")]
@@ -300,16 +301,25 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 
 		imageTarf.Close()
 		if err != nil {
+			logger.Error(
+				"Failed to copy the image tarfile",
+				log.Ctx{"err": err})
 			return info, err
 		}
 
 		// Get the rootfs tarball
 		part, err = mr.NextPart()
 		if err != nil {
+			logger.Error(
+				"Failed to get the next part",
+				log.Ctx{"err": err})
 			return info, err
 		}
 
 		if part.FormName() != "rootfs" {
+			logger.Error(
+				"Invalid multipart image")
+
 			return info, fmt.Errorf("Invalid multipart image")
 		}
 
@@ -324,6 +334,9 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 
 		rootfsTarf.Close()
 		if err != nil {
+			logger.Error(
+				"Failed to copy the rootfs tarfile",
+				log.Ctx{"err": err})
 			return info, err
 		}
 
@@ -339,17 +352,32 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		imgfname := shared.VarPath("images", info.Fingerprint)
 		err = shared.FileMove(imageTarf.Name(), imgfname)
 		if err != nil {
+			logger.Error(
+				"Failed to move the image tarfile",
+				log.Ctx{
+					"err":    err,
+					"source": imageTarf.Name(),
+					"dest":   imgfname})
 			return info, err
 		}
 
 		rootfsfname := shared.VarPath("images", info.Fingerprint+".rootfs")
 		err = shared.FileMove(rootfsTarf.Name(), rootfsfname)
 		if err != nil {
+			logger.Error(
+				"Failed to move the rootfs tarfile",
+				log.Ctx{
+					"err":    err,
+					"source": rootfsTarf.Name(),
+					"dest":   imgfname})
 			return info, err
 		}
 
 		imageMeta, err = getImageMetadata(imgfname)
 		if err != nil {
+			logger.Error(
+				"Failed to get image metadata",
+				log.Ctx{"err": err})
 			return info, err
 		}
 	} else {
@@ -357,7 +385,11 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		size, err = io.Copy(io.MultiWriter(imageTarf, sha256), post)
 		info.Size = size
 		imageTarf.Close()
+		logger.Debug("Tar size", log.Ctx{"size": size})
 		if err != nil {
+			logger.Error(
+				"Failed to copy the tarfile",
+				log.Ctx{"err": err})
 			return info, err
 		}
 
@@ -366,18 +398,35 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 
 		expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
 		if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
-			err = fmt.Errorf("fingerprints don't match, got %s expected %s", info.Fingerprint, expectedFingerprint)
+			logger.Error(
+				"Fingerprints don't match",
+				log.Ctx{
+					"got":      info.Fingerprint,
+					"expected": expectedFingerprint})
+			err = fmt.Errorf(
+				"fingerprints don't match, got %s expected %s",
+				info.Fingerprint,
+				expectedFingerprint)
 			return info, err
 		}
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
 		err = shared.FileMove(imageTarf.Name(), imgfname)
 		if err != nil {
+			logger.Error(
+				"Failed to move the tarfile",
+				log.Ctx{
+					"err":    err,
+					"source": imageTarf.Name(),
+					"dest":   imgfname})
 			return info, err
 		}
 
 		imageMeta, err = getImageMetadata(imgfname)
 		if err != nil {
+			logger.Error(
+				"Failed to get image metadata",
+				log.Ctx{"err": err})
 			return info, err
 		}
 	}
@@ -513,7 +562,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	os.Remove(post.Name())
 	defer post.Close()
 
-	info, err = getImgPostInfo(d, r, builddir, post)
+	_, err = io.Copy(post, r.Body)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -581,7 +630,10 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 	compressionArgs, _, err := detectCompression(fname)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"detectCompression failed, err='%v', tarfile='%s'",
+			err,
+			fname)
 	}
 
 	args := []string{"-O"}
