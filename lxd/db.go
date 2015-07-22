@@ -198,23 +198,46 @@ func getSchema(db *sql.DB) (v int) {
 }
 
 func updateFromV9(db *sql.DB) error {
-	whichset := []string{"containers", "profiles"}
 
+	whichset := []string{"containers", "profiles"}
 	for _, which := range whichset {
 		q := fmt.Sprintf("SELECT id, type from %s_devices", which)
 		cmd := fmt.Sprintf("UPDATE %s_devices SET type=? WHERE id=?", which)
 		rows, err := db.Query(q)
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var id, nType int
-				var oType string
-				rows.Scan(&id, &oType)
-				nType, err = DeviceTypeToDbType(oType)
-				if err != nil {
-					nType = 4
-				}
-				db.Exec(cmd, nType, id)
+		type needed_updates struct {
+			id int
+			nType int
+		}
+		updates := []needed_updates{}
+		if err != nil {
+			continue
+		}
+		for rows.Next() {
+			var id, nType int
+			var oType string
+			err := rows.Scan(&id, &oType)
+			if err != nil {
+				rows.Close()
+				return fmt.Errorf("Warning: upgrade query step failed: %s\n", err)
+			}
+			// Since only nics were supported up to this point anyway,
+			// but there was some test code using '0', I'll support the
+			// following:
+			switch(oType) {
+				case "0": nType = 0
+				case "1": nType = 1
+				case "nic": nType = 1
+				case "4": nType = 4
+				default: nType = 4
+			}
+			newu := needed_updates{id: id, nType: nType}
+			updates = append(updates, newu)
+		}
+		rows.Close()
+		for _, u := range updates {
+			_, err = db.Exec(cmd, u.nType, u.id)
+			if err != nil {
+				return fmt.Errorf("Warning: upgrade step failed: %s\n", err)
 			}
 		}
 	}
