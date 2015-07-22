@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
@@ -15,6 +17,8 @@ import (
 	"strings"
 	"syscall"
 
+	"golang.org/x/crypto/scrypt"
+
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stgraber/lxd-go-systemd/activation"
@@ -24,6 +28,11 @@ import (
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
+)
+
+const (
+	pwSaltBytes = 32
+	pwHashBytes = 64
 )
 
 // A Daemon can respond to requests from a shared client.
@@ -47,6 +56,8 @@ type Daemon struct {
 	tlsconfig *tls.Config
 
 	devlxd *net.UnixListener
+
+	configValues map[string]string
 }
 
 // Command is the basic structure for every API call.
@@ -380,8 +391,8 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	containersWatch(d)
 
 	// Setup the Storage Object
-	_, vgNameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
-	if vgNameIsSet {
+	value, err := d.ConfigValueGet("core.lvm_vg_name")
+	if value != "" {
 		d.Storage, err = newStorage(d, storageTypeLvm)
 	} else if d.BackingFs == "btrfs" {
 		d.Storage, err = newStorage(d, storageTypeBtrfs)
@@ -540,4 +551,159 @@ func (d *Daemon) Stop() error {
 		return nil
 	}
 	return err
+}
+
+// ConfigKeyIsValid returns if the given key is a known config value.
+func (d *Daemon) ConfigKeyIsValid(key string) bool {
+	switch key {
+	case "core.trust_password":
+		return true
+	case "core.lvm_vg_name":
+		return true
+	case "core.lvm_thinpool_name":
+		return true
+	}
+
+	return false
+}
+
+// ConfigValueGet returns a config value from the memory,
+// calls ConfigValuesGet if required.
+func (d *Daemon) ConfigValueGet(key string) (string, error) {
+	if d.configValues == nil {
+		if _, err := d.ConfigValuesGet(); err != nil {
+			return "", err
+		}
+	}
+
+	if val, ok := d.configValues[key]; ok {
+		return val, nil
+	}
+
+	return "", nil
+}
+
+// ConfigValuesGet fetches all config values and stores them in memory.
+func (d *Daemon) ConfigValuesGet() (map[string]string, error) {
+	if d.configValues == nil {
+		d.configValues = make(map[string]string)
+
+		q := "SELECT key, value FROM config"
+		rows, err := dbQuery(d.db, q)
+		if err != nil {
+			d.configValues = nil
+			return d.configValues, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var key, value string
+			rows.Scan(&key, &value)
+			d.configValues[key] = value
+		}
+	}
+
+	return d.configValues, nil
+}
+
+// ConfigValueSet sets a new or updates a config value,
+// it updates the value in the DB and in memory.
+func (d *Daemon) ConfigValueSet(key string, value string) error {
+	tx, err := dbBegin(d.db)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM config WHERE key=?", key)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if value != "" {
+		str := `INSERT INTO config (key, value) VALUES (?, ?);`
+		stmt, err := tx.Prepare(str)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		defer stmt.Close()
+		_, err = stmt.Exec(key, value)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	err = txCommit(tx)
+	if err != nil {
+		return err
+	}
+
+	if d.configValues == nil {
+		if _, err := d.ConfigValuesGet(); err != nil {
+			return err
+		}
+	} else {
+		d.configValues[key] = value
+	}
+
+	return nil
+}
+
+// PasswordSet sets the password to the new value.
+func (d *Daemon) PasswordSet(password string) error {
+	shared.Log.Info("setting new password")
+	var value = password
+	if password != "" {
+		buf := make([]byte, pwSaltBytes)
+		_, err := io.ReadFull(rand.Reader, buf)
+		if err != nil {
+			return err
+		}
+
+		hash, err := scrypt.Key([]byte(password), buf, 1<<14, 8, 1, pwHashBytes)
+		if err != nil {
+			return err
+		}
+
+		buf = append(buf, hash...)
+		value = hex.EncodeToString(buf)
+	}
+
+	err := d.ConfigValueSet("core.trust_password", value)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PasswordCheck checks if the given password is the same
+// as we have in the DB.
+func (d *Daemon) PasswordCheck(password string) bool {
+	value, err := d.ConfigValueGet("core.trust_password")
+	if err != nil {
+		shared.Log.Error("verifyAdminPwd", log.Ctx{"err": err})
+		return false
+	}
+
+	buff, err := hex.DecodeString(value)
+	if err != nil {
+		shared.Log.Error("hex decode failed", log.Ctx{"err": err})
+		return false
+	}
+
+	salt := buff[0:pwSaltBytes]
+	hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, pwHashBytes)
+	if err != nil {
+		shared.Log.Error("failed to create hash to check", log.Ctx{"err": err})
+		return false
+	}
+	if !bytes.Equal(hash, buff[pwSaltBytes:]) {
+		shared.Log.Error("Bad password received", log.Ctx{"err": err})
+		return false
+	}
+	shared.Log.Debug("Verified the admin password")
+	return true
 }

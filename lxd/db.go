@@ -709,20 +709,6 @@ func initDb(d *Daemon) (err error) {
 	return err
 }
 
-func dbPasswordGet(db *sql.DB) (pwd string, err error) {
-	q := "SELECT value FROM config WHERE key=\"core.trust_password\""
-	value := ""
-	argIn := []interface{}{}
-	argOut := []interface{}{&value}
-	err = dbQueryRowScan(db, q, argIn, argOut)
-
-	if err != nil || value == "" {
-		return "", fmt.Errorf("No password is set")
-	}
-
-	return value, nil
-}
-
 // dbCertInfo is here to pass the certificates content
 // from the database around
 type dbCertInfo struct {
