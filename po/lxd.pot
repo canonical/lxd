@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-07-21 20:13-0500\n"
+        "POT-Creation-Date: 2015-07-21 21:47-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -188,7 +188,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:551 client.go:561 client.go:808 client.go:1780
+#: client.go:551 client.go:561 client.go:808 client.go:1783
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -676,7 +676,7 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: client.go:1646
+#: client.go:1646 client.go:1703
 msgid   "device already exists\n"
 msgstr  ""
 

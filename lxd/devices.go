@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"os/exec"
 	"syscall"
 
@@ -317,8 +318,17 @@ func detachInterface(c *lxdContainer, key string) error {
 	options := lxc.DefaultAttachOptions
 	options.ClearEnv = false
 	options.Namespaces = syscall.CLONE_NEWNET
+	nullDev, err := os.OpenFile(os.DevNull, os.O_RDWR, 0666)
+	if err != nil {
+		return err
+	}
+	defer nullDev.Close()
+	nullfd := nullDev.Fd()
+	options.StdinFd = nullfd
+	options.StdoutFd = nullfd
+	options.StderrFd = nullfd
 	command := []string{"ip", "link", "del", key}
-	_, err := c.c.RunCommand(command, options)
+	_, err = c.c.RunCommand(command, options)
 	return err
 }
 
