@@ -392,6 +392,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		return nil, fmt.Errorf("Failed to setup storage: %s", err)
 	}
 
+	/* Setup the web server */
 	d.mux = mux.NewRouter()
 
 	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
