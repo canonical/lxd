@@ -165,11 +165,15 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	c, err := newLxdContainer(name, d)
 	if err != nil {
+		removeContainer(d, c)
 		return SmartError(err)
 	}
 
 	run = shared.OperationWrap(func() error {
 		err := d.Storage.ContainerCreate(c, hash)
+		if err != nil {
+			removeContainer(d, c)
+		}
 		return err
 	})
 
@@ -236,6 +240,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 
 	c, err := newLxdContainer(req.Name, d)
 	if err != nil {
+		removeContainer(d, c)
 		return SmartError(err)
 	}
 

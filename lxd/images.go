@@ -110,7 +110,7 @@ func untarImage(imagefname string, destpath string) error {
 	return nil
 }
 
-type imageFromContainerPostReq struct {
+type imagePostReq struct {
 	Filename   string            `json:"filename"`
 	Public     bool              `json:"public"`
 	Source     map[string]string `json:"source"`
@@ -129,7 +129,7 @@ type imageMetadata struct {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
+func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	builddir string) (info shared.ImageInfo, err error) {
 
 	info.Properties = map[string]string{}
@@ -219,7 +219,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imageFromContainerPostReq,
 	return info, nil
 }
 
-func imgPostRemoteInfo(d *Daemon, req imageFromContainerPostReq) Response {
+func imgPostRemoteInfo(d *Daemon, req imagePostReq) Response {
 	var err error
 	var hash string
 
@@ -570,7 +570,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	// Is this a container request?
 	post.Seek(0, 0)
 	decoder := json.NewDecoder(post)
-	req := imageFromContainerPostReq{}
+	req := imagePostReq{}
 	err = decoder.Decode(&req)
 
 	if err == nil {
