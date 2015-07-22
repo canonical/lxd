@@ -115,7 +115,7 @@ func (ss *storageShared) GetStorageTypeName() string {
 
 // rsyncCopy copies a directory using rsync (with the --devices option).
 func (ss *storageShared) rsyncCopy(source string, dest string) (string, error) {
-	if err := os.MkdirAll(dest, 0700); err != nil {
+	if err := os.MkdirAll(dest, 0755); err != nil {
 		return "", err
 	}
 

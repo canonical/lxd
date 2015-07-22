@@ -93,7 +93,7 @@ func (s *storageLvm) ContainerCreate(
 	}
 
 	destPath := shared.VarPath("lxc", container.NameGet())
-	if err := os.MkdirAll(destPath, 0700); err != nil {
+	if err := os.MkdirAll(destPath, 0755); err != nil {
 		return fmt.Errorf("Error creating container directory: %v", err)
 	}
 
