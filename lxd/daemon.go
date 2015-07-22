@@ -318,13 +318,13 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	/* Create required paths */
 	d.lxcpath = shared.VarPath("lxc")
-	err = os.MkdirAll(shared.VarPath("/"), 0755)
+	err = os.MkdirAll(shared.VarPath("lxc"), 0755)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create default directories
-	dirs := []string{"images", "lxc", "devlxd"}
+	dirs := []string{"images", "devlxd"}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(shared.VarPath(dir), 0700); err != nil {
 			return nil, err

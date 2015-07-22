@@ -32,7 +32,7 @@ func (s *storageDir) ContainerCreate(
 	container *lxdContainer, imageFingerprint string) error {
 
 	rootfsPath := container.RootfsPathGet()
-	if err := os.MkdirAll(rootfsPath, 0700); err != nil {
+	if err := os.MkdirAll(rootfsPath, 0755); err != nil {
 		return fmt.Errorf("Error creating rootfs directory")
 	}
 
