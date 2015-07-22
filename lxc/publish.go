@@ -8,6 +8,10 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/internal/gnuflag"
+
+	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type publishCmd struct{}
@@ -47,6 +51,8 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 	if len(args) >= 2 && !strings.Contains(args[1], "=") {
 		firstprop = 2
 		iRemote, iName = config.ParseRemoteAndContainer(args[1])
+	} else {
+		iRemote = "local"
 	}
 
 	if cName == "" {
@@ -62,6 +68,11 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		 * pass that ws to the dest remote, and have it import it as an
 		 * image
 		 */
+		shared.Log.Debug(
+			"Publish to remote server is not supported yet",
+			log.Ctx{
+				"cRemote": cRemote,
+				"iRemote": iRemote})
 		return fmt.Errorf(gettext.Gettext("Publish to remote server is not supported yet"))
 	}
 
