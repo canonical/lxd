@@ -41,6 +41,17 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	return
 }
 
+// AddSlash adds a slash to the end of paths if they don't already have one.
+// This can be useful for rsyncing things, since rsync has behavior present on
+// the presence or absence of a trailing slash.
+func AddSlash(path string) string {
+	if path[len(path)-1] != '/' {
+		return path + "/"
+	}
+
+	return path
+}
+
 func PathExists(name string) bool {
 	_, err := os.Lstat(name)
 	if err != nil && os.IsNotExist(err) {
@@ -230,8 +241,24 @@ func WriteAllBuf(w io.Writer, buf *bytes.Buffer) error {
 	}
 }
 
-// CopyFile copies a file, overwriting the target if it exists.
-func CopyFile(dest string, source string) error {
+// FileMove tries to move a file by using os.Rename,
+// if that fails it tries to copy the file and remove the source.
+func FileMove(oldPath string, newPath string) error {
+	if err := os.Rename(oldPath, newPath); err == nil {
+		return nil
+	}
+
+	if err := FileCopy(oldPath, newPath); err != nil {
+		return err
+	}
+
+	os.Remove(oldPath)
+
+	return nil
+}
+
+// FileCopy copies a file, overwriting the target if it exists.
+func FileCopy(source string, dest string) error {
 	s, err := os.Open(source)
 	if err != nil {
 		return err
@@ -253,38 +280,6 @@ func CopyFile(dest string, source string) error {
 
 	_, err = io.Copy(d, s)
 	return err
-}
-
-/* Some interesting filesystems */
-const (
-	tmpfsSuperMagic = 0x01021994
-	ext4SuperMagic  = 0xEF53
-	xfsSuperMagic   = 0x58465342
-	nfsSuperMagic   = 0x6969
-)
-
-func GetFilesystem(path string) (string, error) {
-	fs := syscall.Statfs_t{}
-
-	err := syscall.Statfs(path, &fs)
-	if err != nil {
-		return "", err
-	}
-
-	switch fs.Type {
-	case btrfsSuperMagic:
-		return "btrfs", nil
-	case tmpfsSuperMagic:
-		return "tmpfs", nil
-	case ext4SuperMagic:
-		return "ext4", nil
-	case xfsSuperMagic:
-		return "xfs", nil
-	case nfsSuperMagic:
-		return "nfs", nil
-	default:
-		return string(fs.Type), nil
-	}
 }
 
 type BytesReadCloser struct {

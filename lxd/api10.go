@@ -43,11 +43,6 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	if d.isTrustedClient(r) {
 		body["auth"] = "trusted"
 
-		backingFs, err := shared.GetFilesystem(d.lxcpath)
-		if err != nil {
-			return InternalError(err)
-		}
-
 		/*
 		 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
 		 * there is really no better way to do this, which is
@@ -86,7 +81,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 		env := shared.Jmap{
 			"architectures":       d.architectures,
-			"backing_fs":          backingFs,
+			"backing_fs":          d.BackingFs,
 			"driver":              "lxc",
 			"driver_version":      lxc.Version(),
 			"kernel":              kernel,
@@ -96,7 +91,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 		body["environment"] = env
 
-		serverConfig, err := getServerConfig(d)
+		serverConfig, err := d.ConfigValuesGet()
 		if err != nil {
 			return InternalError(err)
 		}
@@ -131,27 +126,27 @@ func api10Put(d *Daemon, r *http.Request) Response {
 	}
 
 	for key, value := range req.Config {
-		if !ValidServerConfigKey(key) {
+		if !d.ConfigKeyIsValid(key) {
 			return BadRequest(fmt.Errorf("Bad server config key: '%s'", key))
 		}
 
 		if key == "core.trust_password" {
-			err := setTrustPassword(d, value.(string))
+			err := d.PasswordSet(value.(string))
 			if err != nil {
 				return InternalError(err)
 			}
 		} else if key == "core.lvm_vg_name" {
-			err := setLVMVolumeGroupNameConfig(d, value.(string))
+			err := storageLVMSetVolumeGroupNameConfig(d, value.(string))
 			if err != nil {
 				return InternalError(err)
 			}
 		} else if key == "core.lvm_thinpool_name" {
-			err := setLVMThinPoolNameConfig(d, value.(string))
+			err := storageLVMSetThinPoolNameConfig(d, value.(string))
 			if err != nil {
 				return InternalError(err)
 			}
 		} else {
-			err := setServerConfig(d, key, value.(string))
+			err := d.ConfigValueSet(key, value.(string))
 			if err != nil {
 				return InternalError(err)
 			}

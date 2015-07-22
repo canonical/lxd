@@ -10,6 +10,8 @@ import (
 	"github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 var (
@@ -707,20 +709,6 @@ func initDb(d *Daemon) (err error) {
 	return err
 }
 
-func dbPasswordGet(db *sql.DB) (pwd string, err error) {
-	q := "SELECT value FROM config WHERE key=\"core.trust_password\""
-	value := ""
-	argIn := []interface{}{}
-	argOut := []interface{}{&value}
-	err = dbQueryRowScan(db, q, argIn, argOut)
-
-	if err != nil || value == "" {
-		return "", fmt.Errorf("No password is set")
-	}
-
-	return value, nil
-}
-
 // dbCertInfo is here to pass the certificates content
 // from the database around
 type dbCertInfo struct {
@@ -885,6 +873,23 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseI
 	image.UploadDate = upload.Unix()
 
 	return image, nil
+}
+
+func dbImageDelete(db *sql.DB, id int) error {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	_, _ = tx.Exec("DELETE FROM images_aliases WHERE image_id=?", id)
+	_, _ = tx.Exec("DELETE FROM images_properties WHERE image_id?", id)
+	_, _ = tx.Exec("DELETE FROM images WHERE id=?", id)
+
+	if err := txCommit(tx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Get an image's fingerprint for a given alias name.
@@ -1151,7 +1156,7 @@ func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 			return nil
 		}
 		if !isDbLockedError(err) {
-			shared.Debugf("DbQuery: query %q error %q\n", q, err)
+			shared.Log.Debug("DbQuery: query error", log.Ctx{"query": q, "args": args, "err": err})
 			return err
 		}
 		shared.Debugf("DbQueryRowScan: query %q args %q, DB was locked\n", q, args)

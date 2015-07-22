@@ -97,7 +97,7 @@ func SaveConfig(c *Config) error {
 	}
 
 	f.Close()
-	err = os.Rename(fname+".new", fname)
+	err = shared.FileMove(fname+".new", fname)
 	if err != nil {
 		return fmt.Errorf("cannot rename temporary config file: %v", err)
 	}
