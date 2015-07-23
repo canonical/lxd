@@ -140,6 +140,9 @@ func api10Put(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return InternalError(err)
 			}
+			if err = d.SetupStorageDriver(); err != nil {
+				return InternalError(err)
+			}
 		} else if key == "core.lvm_thinpool_name" {
 			err := setLVMThinPoolNameConfig(d, value.(string))
 			if err != nil {
