@@ -276,6 +276,21 @@ func (d *Daemon) createCmd(version string, c Command) {
 	})
 }
 
+func (d *Daemon) SetupStorageDriver() error {
+	_, vgNameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
+	if err != nil {
+		return fmt.Errorf("Couldn't read config: %s", err)
+	}
+	if vgNameIsSet {
+		d.Storage, err = newStorage(d, storageTypeLvm)
+	} else if d.BackingFs == "btrfs" {
+		d.Storage, err = newStorage(d, storageTypeBtrfs)
+	} else {
+		d.Storage, err = newStorage(d, -1)
+	}
+	return err
+}
+
 // StartDaemon starts the shared daemon with the provided configuration.
 func StartDaemon(listenAddr string) (*Daemon, error) {
 	d := &Daemon{}
@@ -379,15 +394,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	containersRestart(d)
 	containersWatch(d)
 
-	// Setup the Storage Object
-	_, vgNameIsSet, err := getServerConfigValue(d, "core.lvm_vg_name")
-	if vgNameIsSet {
-		d.Storage, err = newStorage(d, storageTypeLvm)
-	} else if d.BackingFs == "btrfs" {
-		d.Storage, err = newStorage(d, storageTypeBtrfs)
-	} else {
-		d.Storage, err = newStorage(d, -1)
-	}
+	err = d.SetupStorageDriver()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to setup storage: %s", err)
 	}
