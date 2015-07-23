@@ -36,6 +36,12 @@ func (s *storageDir) ContainerCreate(
 		return fmt.Errorf("Error creating rootfs directory")
 	}
 
+	if container.isPrivileged() {
+		if err := os.Chmod(container.PathGet(), 0700); err != nil {
+			return err
+		}
+	}
+
 	if err := extractImage(imageFingerprint, container.NameGet(), s.d); err != nil {
 		os.RemoveAll(rootfsPath)
 		return err
