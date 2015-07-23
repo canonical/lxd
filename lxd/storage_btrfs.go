@@ -59,6 +59,10 @@ func (s *storageBtrfs) ContainerCreate(
 		if err != nil {
 			return err
 		}
+	} else {
+		if err := os.Chmod(container.PathGet(), 0700); err != nil {
+			return err
+		}
 	}
 
 	return templateApply(container, "create")
