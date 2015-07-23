@@ -135,21 +135,20 @@ func (c *lxdContainer) Start() error {
 		return err
 	}
 
-	output, err := exec.Command(
+	err = exec.Command(
 		os.Args[0],
 		"forkstart",
 		c.name,
 		c.daemon.lxcpath,
-		configPath).CombinedOutput()
+		configPath).Run()
 
 	if err != nil {
 		err = fmt.Errorf(
-			"Error calling 'lxd forkstart %s %s %s': err='%v', output='%s'",
+			"Error calling 'lxd forkstart %s %s %s': err='%v'",
 			c.name,
 			c.daemon.lxcpath,
 			shared.LogPath(c.name, "lxc.conf"),
-			err,
-			output)
+			err)
 	}
 
 	if err == nil && c.ephemeral == true {
