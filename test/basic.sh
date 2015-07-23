@@ -149,6 +149,14 @@ test_basic_usage() {
   # cleanup
   lxc delete foo
 
+  # make sure that privileged containers are not world-readable
+  lxc profile create unconfined
+  lxc profile set unconfined security.privileged true
+  lxc init testimage foo2 -p unconfined
+  [ `stat -c "%a" ${LXD_DIR}/lxc/foo2` = 700 ]
+  lxc delete foo2
+  lxc profile delete unconfined
+
   # Ephemeral
   lxc launch testimage foo -e
   lxc exec foo reboot
