@@ -61,15 +61,20 @@ func templateApply(c *lxdContainer, trigger string) error {
 				return err
 			}
 		} else {
-			uid, gid := c.idmapset.ShiftIntoNs(0, 0)
-			shared.MkdirAllOwner(path.Dir(fullpath), 0755, uid, gid)
+			var uid, gid int
+			if !c.isPrivileged() {
+				uid, gid := c.idmapset.ShiftIntoNs(0, 0)
+				shared.MkdirAllOwner(path.Dir(fullpath), 0755, uid, gid)
+			}
 
 			w, err = os.Create(fullpath)
 			if err != nil {
 				return err
 			}
 
-			w.Chown(uid, gid)
+			if !c.isPrivileged() {
+				w.Chown(uid, gid)
+			}
 			w.Chmod(0644)
 		}
 

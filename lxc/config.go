@@ -69,7 +69,7 @@ func (c *configCmd) usage() string {
 			"\n" +
 			"Examples:\n" +
 			"To mount host's /share/c1 onto /opt in the container:\n" +
-			"\tlxc config device add [remote:]container1 mntdir disk source=/share/c1 path=opt\n" +
+			"\tlxc config device add [remote:]container1 <device-name> disk source=/share/c1 path=opt\n" +
 			"To set an lxc config value:\n" +
 			"\tlxc config set [remote:]<container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n" +
 			"To set the server trust password:\n" +
