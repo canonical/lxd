@@ -350,7 +350,7 @@ func startContainer(args []string) error {
 		shared.FileMove(configPath, shared.LogPath(name, "lxc.conf"))
 	}
 
-	return nil
+	return err
 }
 
 func (d *lxdContainer) tarStoreFile(linkmap map[uint64]string, offset int, tw *tar.Writer, path string, fi os.FileInfo) error {
