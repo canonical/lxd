@@ -63,7 +63,7 @@ func storageTypeToString(sType storageType) string {
 }
 
 type storage interface {
-	Init() (storage, error)
+	Init(config map[string]interface{}) (storage, error)
 
 	GetStorageType() storageType
 	GetStorageTypeName() string
@@ -82,6 +82,11 @@ type storage interface {
 }
 
 func newStorage(d *Daemon, sType storageType) (storage, error) {
+	var nilmap map[string]interface{}
+	return newStorageWithConfig(d, sType, nilmap)
+}
+
+func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interface{}) (storage, error) {
 	var s storage
 
 	switch sType {
@@ -93,7 +98,7 @@ func newStorage(d *Daemon, sType storageType) (storage, error) {
 		s = &storageLogWrapper{w: &storageDir{d: d, sType: sType}}
 	}
 
-	return s.Init()
+	return s.Init(config)
 }
 
 type storageShared struct {
@@ -134,8 +139,8 @@ type storageLogWrapper struct {
 	log log.Logger
 }
 
-func (lw *storageLogWrapper) Init() (storage, error) {
-	_, err := lw.w.Init()
+func (lw *storageLogWrapper) Init(config map[string]interface{}) (storage, error) {
+	_, err := lw.w.Init(config)
 	lw.log = shared.Log.New(
 		log.Ctx{"driver": fmt.Sprintf("storage/%s", lw.w.GetStorageTypeName())},
 	)

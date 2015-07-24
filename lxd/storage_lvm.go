@@ -57,25 +57,28 @@ type storageLvm struct {
 	storageShared
 }
 
-func (s *storageLvm) Init() (storage, error) {
+func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 	s.sTypeName = storageTypeToString(s.sType)
 	if err := s.initShared(); err != nil {
 		return s, err
 	}
 
-	vgName, vgNameIsSet, err := getServerConfigValue(s.d, "core.lvm_vg_name")
-	if err != nil {
-		return s, fmt.Errorf("Error checking server config: %v", err)
-	}
-	if !vgNameIsSet {
-		return s, fmt.Errorf("LVM isn't enabled")
-	}
+	if config["vgName"] == nil {
+		vgName, vgNameIsSet, err := getServerConfigValue(s.d, "core.lvm_vg_name")
+		if err != nil {
+			return s, fmt.Errorf("Error checking server config: %v", err)
+		}
+		if !vgNameIsSet {
+			return s, fmt.Errorf("LVM isn't enabled")
+		}
 
-	if err := storageLVMCheckVolumeGroup(vgName); err != nil {
-		return s, err
+		if err := storageLVMCheckVolumeGroup(vgName); err != nil {
+			return s, err
+		}
+		s.vgName = vgName
+	} else {
+		s.vgName = config["vgName"].(string)
 	}
-
-	s.vgName = vgName
 
 	return s, nil
 }
