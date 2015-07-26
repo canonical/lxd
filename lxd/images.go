@@ -96,7 +96,7 @@ func untarImage(imagefname string, destpath string) error {
 
 	if shared.PathExists(imagefname + ".rootfs") {
 		rootfsPath := fmt.Sprintf("%s/rootfs", destpath)
-		err = os.MkdirAll(rootfsPath, 0700)
+		err = os.MkdirAll(rootfsPath, 0755)
 		if err != nil {
 			return fmt.Errorf("Error creating rootfs directory")
 		}
