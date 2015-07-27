@@ -90,7 +90,7 @@ func (s *storageLvm) GetStorageType() storageType {
 func (s *storageLvm) ContainerCreate(
 	container *lxdContainer, imageFingerprint string) error {
 
-	lvPath, err := s.createSnapshotLV(container.NameGet(), imageFingerprint)
+	lvpath, err := s.createSnapshotLV(container.NameGet(), imageFingerprint)
 	if err != nil {
 		return err
 	}
@@ -100,8 +100,14 @@ func (s *storageLvm) ContainerCreate(
 		return fmt.Errorf("Error creating container directory: %v", err)
 	}
 
+	dst := shared.VarPath("lxc", fmt.Sprintf("%s.lv", container.NameGet()))
+	err = os.Symlink(lvpath, dst)
+	if err != nil {
+		return err
+	}
+
 	if !container.isPrivileged() {
-		output, err := exec.Command("mount", "-o", "discard", lvPath, destPath).CombinedOutput()
+		output, err := exec.Command("mount", "-o", "discard", lvpath, destPath).CombinedOutput()
 		if err != nil {
 			os.RemoveAll(destPath)
 			return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, output)

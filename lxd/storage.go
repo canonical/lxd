@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
@@ -49,6 +51,7 @@ type storageType int
 const (
 	storageTypeBtrfs storageType = iota
 	storageTypeLvm
+	storageTypeDir
 )
 
 func storageTypeToString(sType storageType) string {
@@ -99,6 +102,48 @@ func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interf
 	}
 
 	return s.Init(config)
+}
+
+func storageForFilename(d *Daemon, filename string) (storage, error) {
+	config := make(map[string]interface{})
+	storageType := storageTypeDir
+	lvLinkPath := filename + ".lv"
+	filesystem, err := filesystemDetect(filename)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't detect filesystem for '%s': %v", filename, err)
+	}
+
+	if shared.PathExists(lvLinkPath) {
+		storageType = storageTypeLvm
+		lvPath, err := os.Readlink(lvLinkPath)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't read link dest for '%s': %v", lvLinkPath, err)
+		}
+		vgname := filepath.Base(filepath.Dir(lvPath))
+		config["vgName"] = vgname
+
+	} else if filesystem == "btrfs" {
+		storageType = storageTypeBtrfs
+	}
+	return newStorageWithConfig(d, storageType, config)
+}
+
+func storageForImage(d *Daemon, imgInfo *shared.ImageBaseInfo) (storage, error) {
+	imageFilename := shared.VarPath("images", imgInfo.Fingerprint)
+	return storageForFilename(d, imageFilename)
+}
+
+func storageForContainer(d *Daemon, container *lxdContainer) (storage, error) {
+	var cpath string
+	nameComponents := strings.Split(container.name, "/")
+	cname := nameComponents[0]
+	if len(nameComponents) > 1 {
+		sname := nameComponents[1]
+		cpath = shared.VarPath("lxc", cname, "snapshots", sname)
+	} else {
+		cpath = shared.VarPath("lxc", cname)
+	}
+	return storageForFilename(d, cpath)
 }
 
 type storageShared struct {

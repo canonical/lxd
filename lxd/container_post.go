@@ -65,7 +65,9 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return err
 		}
 
-		removeContainer(d, c)
+		if err = removeContainer(d, c); err != nil {
+			return fmt.Errorf("error removing container after rename: %v", err)
+		}
 		return nil
 	}
 
