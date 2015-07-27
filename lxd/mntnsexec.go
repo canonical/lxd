@@ -60,9 +60,30 @@ int copy(int target, int source)
 	return 0;
 }
 
-int manip_file_in_ns(char *host, int pid, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode) {
-	int host_fd, container_fd, mntns;
+int dosetns(int pid, char *nstype) {
+	int mntns;
 	char buf[PATH_MAX];
+
+	sprintf(buf, "/proc/%d/ns/%s", pid, nstype);
+	fprintf(stderr, "mntns dir: %s\n", buf);
+	mntns = open(buf, O_RDONLY);
+	if (mntns < 0) {
+		perror("open mntns");
+		return -1;
+	}
+
+	if (setns(mntns, 0) < 0) {
+		perror("setns");
+		close(mntns);
+		return -1;
+	}
+	close(mntns);
+
+	return 0;
+}
+
+int manip_file_in_ns(char *host, int pid, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode) {
+	int host_fd, container_fd;
 	int ret = -1;
 	int container_open_flags;
 
@@ -72,27 +93,17 @@ int manip_file_in_ns(char *host, int pid, char *container, bool is_put, uid_t ui
 		return -1;
 	}
 
-	sprintf(buf, "/proc/%d/ns/mnt", pid);
-	fprintf(stderr, "mntns dir: %s\n", buf);
-	mntns = open(buf, O_RDONLY);
-	if (mntns < 0) {
-		perror("open mntns");
-		goto close_host;
-	}
-
-	if (setns(mntns, 0) < 0) {
-		perror("setns");
-		goto close_mntns;
-	}
-
 	container_open_flags = O_RDWR;
 	if (is_put)
 		container_open_flags |= O_CREAT;
 
+	if (dosetns(pid, "mnt") < 0)
+		goto close_host;
+
 	container_fd = open(container, container_open_flags, mode);
 	if (container_fd < 0) {
 		perror("open container");
-		goto close_mntns;
+		goto close_host;
 	}
 
 	if (is_put) {
@@ -110,60 +121,10 @@ int manip_file_in_ns(char *host, int pid, char *container, bool is_put, uid_t ui
 
 close_container:
 	close(container_fd);
-close_mntns:
-	close(mntns);
 close_host:
 	close(host_fd);
 	return ret;
 }
-
-__attribute__((constructor)) void init(void) {
-	int cmdline;
-	char *command = NULL, *source = NULL, *target = NULL;
-	pid_t pid;
-	char buf[CMDLINE_SIZE];
-	char *cur;
-	bool is_put;
-	ssize_t size;
-	uid_t uid = 0;
-	gid_t gid = 0;
-	mode_t mode = 0;
-
-	cmdline = open("/proc/self/cmdline", O_RDONLY);
-	if (cmdline < 0) {
-		perror("open");
-		_exit(232);
-	}
-
-	memset(buf, 0, sizeof(buf));
-	if ((size = read(cmdline, buf, sizeof(buf)-1)) < 0) {
-		close(cmdline);
-		perror("read");
-		_exit(232);
-	}
-
-	cur = buf;
-	// skip argv[0]
-	while (*cur != 0) {
-		cur++;
-	}
-	cur++;
-	if (size <= cur - buf) {
-		close(cmdline);
-		return;
-	}
-
-	command = cur;
-	if (strcmp(command, "forkputfile") == 0) {
-		is_put = true;
-	} else if (strcmp(command, "forkgetfile") == 0) {
-		is_put = false;
-	} else {
-		// This isn't one of our special commands, let's just continue
-		// normally with execution.
-		close(cmdline);
-		return;
-	}
 
 #define ADVANCE_ARG_REQUIRED()					\
 	do {							\
@@ -171,11 +132,17 @@ __attribute__((constructor)) void init(void) {
 			cur++;					\
 		cur++;						\
 		if (size <= cur - buf) {			\
-			close(cmdline);				\
 			printf("not enough arguments\n");	\
 			_exit(1);				\
 		}						\
 	} while(0)
+
+void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
+	uid_t uid = 0;
+	gid_t gid = 0;
+	mode_t mode = 0;
+	char *command = cur, *source = NULL, *target = NULL;
+	pid_t pid;
 
 	ADVANCE_ARG_REQUIRED();
 	source = cur;
@@ -205,9 +172,46 @@ __attribute__((constructor)) void init(void) {
 	printf("gid: %d\n", gid);
 	printf("mode: %d\n", mode);
 
+	_exit(manip_file_in_ns(source, pid, target, is_put, uid, gid, mode));
+}
+
+__attribute__((constructor)) void init(void) {
+	int cmdline;
+	char buf[CMDLINE_SIZE];
+	ssize_t size;
+	char *cur;
+
+	cmdline = open("/proc/self/cmdline", O_RDONLY);
+	if (cmdline < 0) {
+		perror("open");
+		_exit(232);
+	}
+
+	memset(buf, 0, sizeof(buf));
+	if ((size = read(cmdline, buf, sizeof(buf)-1)) < 0) {
+		close(cmdline);
+		perror("read");
+		_exit(232);
+	}
 	close(cmdline);
 
-	_exit(manip_file_in_ns(source, pid, target, is_put, uid, gid, mode));
+	cur = buf;
+	// skip argv[0]
+	while (*cur != 0)
+		cur++;
+	cur++;
+	if (size <= cur - buf)
+		return;
+
+	if (strcmp(cur, "forkputfile") == 0) {
+		forkdofile(buf, cur, true, size);
+	} else if (strcmp(cur, "forkgetfile") == 0) {
+		forkdofile(buf, cur, false, size);
+	} else if (strcmp(cur, "forkmount") == 0) {
+		return;
+	} else if (strcmp(cur, "forkumount") == 0) {
+		return;
+	}
 }
 */
 import "C"
