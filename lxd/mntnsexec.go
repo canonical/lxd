@@ -29,6 +29,9 @@ package main
 #include <fcntl.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <errno.h>
+#include <alloca.h>
+#include <libgen.h>
 
 // This expects:
 //  ./lxd forkputfile /source/path <pid> /target/path
@@ -137,6 +140,107 @@ close_host:
 		}						\
 	} while(0)
 
+void ensure_dir(char *dest) {
+	struct stat sb;
+	if (stat(dest, &sb) == 0) {
+		if ((sb.st_mode & S_IFMT) == S_IFDIR)
+			return;
+		if (unlink(dest) < 0) {
+			printf("Failed to remove old %s: %s\n", dest, strerror(errno));
+			_exit(1);
+		}
+	}
+	if (mkdir(dest, 0755) < 0) {
+		printf("Failed to mkdir %s: %s\n", dest, strerror(errno));
+		_exit(1);
+	}
+}
+
+void ensure_file(char *dest) {
+	struct stat sb;
+	char *copy, *destdir;
+	int fd;
+
+	if (stat(dest, &sb) == 0) {
+		if ((sb.st_mode & S_IFMT) != S_IFDIR)
+			return;
+		if (rmdir(dest) < 0) {
+			printf("Failed to remove old %s: %s\n", dest, strerror(errno));
+			_exit(1);
+		}
+	}
+	copy = alloca(strlen(dest) + 1);
+	strcpy(copy, dest);
+	destdir = dirname(copy);
+	ensure_dir(copy);
+
+	fd = creat(dest, 0755);
+	if (fd < 0) {
+		printf("Failed to mkdir %s: %s\n", dest, strerror(errno));
+		_exit(1);
+	}
+	close(fd);
+}
+
+void create(char *src, char *dest) {
+	struct stat sb;
+	if (stat(src, &sb) < 0) {
+		printf("source %s does not exist\n", src);
+		_exit(1);
+	}
+	switch (sb.st_mode & S_IFMT) {
+	case S_IFDIR:
+		ensure_dir(dest);
+		return;
+	default:
+		ensure_file(dest);
+		return;
+	}
+}
+
+void forkmount(char *buf, char *cur, ssize_t size) {
+	char *src, *dest, *opts;
+
+	printf("called for forkmount\n");
+	ADVANCE_ARG_REQUIRED();
+	int pid = atoi(cur);
+
+	if (dosetns(pid, "mnt") < 0)
+		_exit(1);
+
+	ADVANCE_ARG_REQUIRED();
+	src = cur;
+
+	ADVANCE_ARG_REQUIRED();
+	dest = cur;
+
+	create(src, dest);
+
+	printf("mounting %s onto %s\n", src, dest);
+	if (mount(src, dest, "none", MS_MOVE, NULL) < 0) {
+		printf("Failed mounting %s onto %s: %s\n", src, dest, strerror(errno));
+		_exit(1);
+	}
+	printf("mounting passed\n");
+
+	_exit(0);
+}
+
+void forkumount(char *buf, char *cur, ssize_t size) {
+	ADVANCE_ARG_REQUIRED();
+	int pid = atoi(cur);
+
+	if (dosetns(pid, "mnt") < 0)
+		_exit(1);
+
+	ADVANCE_ARG_REQUIRED();
+	if (umount2(cur, MNT_DETACH) < 0) {
+		printf("Error unmounting %s: %s\n", cur, strerror(errno));
+		_exit(1);
+	}
+	_exit(0);
+}
+
 void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 	uid_t uid = 0;
 	gid_t gid = 0;
@@ -208,9 +312,9 @@ __attribute__((constructor)) void init(void) {
 	} else if (strcmp(cur, "forkgetfile") == 0) {
 		forkdofile(buf, cur, false, size);
 	} else if (strcmp(cur, "forkmount") == 0) {
-		return;
+		forkmount(buf, cur, size);
 	} else if (strcmp(cur, "forkumount") == 0) {
-		return;
+		forkumount(buf, cur, size);
 	}
 }
 */
