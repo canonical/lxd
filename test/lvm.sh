@@ -50,6 +50,9 @@ test_lvm() {
     create_vg
     trap cleanup_vg EXIT HUP INT TERM
 
+    test_delete_with_appropriate_storage
+    lvremove -f lxd_test_vg/LXDPool
+
     test_lvm_withpool
     lvremove -f lxd_test_vg/LXDPool
 
@@ -58,6 +61,57 @@ test_lvm() {
 
     lvremove -f lxd_test_vg/test_user_thinpool
     test_remote_launch_imports_lvm
+}
+
+test_delete_with_appropriate_storage() {
+    PREV_LXD_DIR=$LXD_DIR
+    export LXD_DIR=$(mktemp -d -p $(pwd))
+    chmod 777 "${LXD_DIR}"
+    spawn_lxd 127.0.0.1:18451 "${LXD_DIR}"
+
+    ../scripts/lxd-images import busybox --alias testimage || die "couldn't import image"
+    lxc launch testimage reg-container || die "couldn't launch regular container"
+    lxc config set core.lvm_vg_name "lxd_test_vg" || die "error setting core.lvm_vg_name config"
+    lxc config show | grep "lxd_test_vg" || die "test_vg not in config show output"
+    lxc stop reg-container || die "couldn't stop reg-container"
+    lxc start reg-container || die "couldn't start reg-container"
+    lxc stop reg-container || die "couldn't stop reg-container"
+    lxc delete reg-container || die "couldn't delete reg-container"
+    lxc image delete testimage || die "couldn't delete regular image"
+
+    ../scripts/lxd-images import busybox --alias testimage || die "couldn't import image"
+
+    check_image_exists_in_pool testimage LXDPool
+
+    lxc launch testimage lvm-container || die "couldn't launch lvm container"
+    lxc config unset core.lvm_vg_name || die "couldn't unset config"
+    lxc stop lvm-container || die "couldn't stop lvm-container"
+    lxc start lvm-container || die "couldn't start lvm-container"
+    lxc stop lvm-container || die "couldn't stop lvm-container"
+    lxc delete lvm-container || die "couldn't delete container"
+    lxc image delete testimage || die "couldn't delete lvm-backed image"
+
+    kill -9 `cat $LXD_DIR/lxd.pid`
+    sleep 3
+    rm -Rf ${LXD_DIR}
+    LXD_DIR=${PREV_LXD_DIR}
+}
+
+check_image_exists_in_pool() {
+    imagename=$1
+    poolname=$2
+    # get sha of image
+    lxc image info $imagename || die "Couldn't find $imagename in lxc image info"
+    testimage_sha=$(lxc image info $imagename | grep Fingerprint | cut -d' ' -f 2)
+
+    imagelvname=$testimage_sha
+
+    lvs --noheadings -o lv_attr lxd_test_vg/$poolname | grep "^  t" || die "$poolname not found or not a thin pool"
+
+    lvs --noheadings -o lv_attr lxd_test_vg/$imagelvname | grep "^  V" || die "no lv named $imagelvname found or not a thin Vol."
+
+    lvs --noheadings -o pool_lv lxd_test_vg/$imagelvname | grep "$poolname" || die "new LV not member of $poolname"
+
 }
 
 test_lvm_withpool() {
@@ -84,17 +138,7 @@ test_lvm_withpool() {
 
     ../scripts/lxd-images import busybox --alias testimage
 
-    # get sha of image
-    lxc image info testimage || die "Couldn't find testimage in lxc image info"
-    testimage_sha=$(lxc image info testimage | grep Fingerprint | cut -d' ' -f 2)
-
-    imagelvname=$testimage_sha
-
-    lvs --noheadings -o lv_attr lxd_test_vg/$poolname | grep "^  t" || die "$poolname not found or not a thin pool"
-
-    lvs --noheadings -o lv_attr lxd_test_vg/$imagelvname | grep "^  V" || die "no lv named $imagelvname found or not a thin Vol."
-
-    lvs --noheadings -o pool_lv lxd_test_vg/$imagelvname | grep "$poolname" || die "new LV not member of $poolname"
+    check_image_exists_in_pool testimage $poolname
 
     # launch a container using that image
 

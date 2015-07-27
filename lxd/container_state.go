@@ -43,11 +43,16 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	s, err := storageForContainer(d, c)
+	if err != nil {
+		return SmartError(fmt.Errorf("Couldn't detect storage: %v", err))
+	}
+
 	var do func() error
 	switch shared.ContainerAction(raw.Action) {
 	case shared.Start:
 		do = func() error {
-			if err = d.Storage.ContainerStart(c); err != nil {
+			if err = s.ContainerStart(c); err != nil {
 				return err
 			}
 			if err = c.Start(); err != nil {
@@ -61,7 +66,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 				if err = c.Stop(); err != nil {
 					return err
 				}
-				if err = d.Storage.ContainerStop(c); err != nil {
+				if err = s.ContainerStop(c); err != nil {
 					return err
 				}
 				return nil
@@ -71,7 +76,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 				if err = c.Shutdown(time.Duration(raw.Timeout) * time.Second); err != nil {
 					return err
 				}
-				if err = d.Storage.ContainerStop(c); err != nil {
+				if err = s.ContainerStop(c); err != nil {
 					return err
 				}
 				return nil
