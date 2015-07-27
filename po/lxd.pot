@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-07-22 22:40-0500\n"
+        "POT-Creation-Date: 2015-07-27 14:56-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -670,6 +670,11 @@ msgstr  ""
 
 #: lxc/copy.go:81
 msgid   "can't copy to the same container name"
+msgstr  ""
+
+#: client.go:1055
+#, c-format
+msgid   "can't get info for image '%s': %s"
 msgstr  ""
 
 #: client.go:419 client.go:424

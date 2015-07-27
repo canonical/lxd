@@ -1052,7 +1052,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 		imageinfo, err := c.GetImageInfo(fingerprint)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf(gettext.Gettext("can't get info for image '%s': %s"), image, err)
 		}
 
 		if !shared.IntInSlice(imageinfo.Architecture, architectures) {
