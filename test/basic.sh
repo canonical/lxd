@@ -48,6 +48,8 @@ test_basic_usage() {
 
   # Test container rename
   lxc move foo bar
+  lxc list | grep -v foo
+  lxc list | grep bar
 
   # Test container copy
   lxc copy bar foo

@@ -57,25 +57,28 @@ type storageLvm struct {
 	storageShared
 }
 
-func (s *storageLvm) Init() (storage, error) {
+func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 	s.sTypeName = storageTypeToString(s.sType)
 	if err := s.initShared(); err != nil {
 		return s, err
 	}
 
-	vgName, vgNameIsSet, err := getServerConfigValue(s.d, "core.lvm_vg_name")
-	if err != nil {
-		return s, fmt.Errorf("Error checking server config: %v", err)
-	}
-	if !vgNameIsSet {
-		return s, fmt.Errorf("LVM isn't enabled")
-	}
+	if config["vgName"] == nil {
+		vgName, vgNameIsSet, err := getServerConfigValue(s.d, "core.lvm_vg_name")
+		if err != nil {
+			return s, fmt.Errorf("Error checking server config: %v", err)
+		}
+		if !vgNameIsSet {
+			return s, fmt.Errorf("LVM isn't enabled")
+		}
 
-	if err := storageLVMCheckVolumeGroup(vgName); err != nil {
-		return s, err
+		if err := storageLVMCheckVolumeGroup(vgName); err != nil {
+			return s, err
+		}
+		s.vgName = vgName
+	} else {
+		s.vgName = config["vgName"].(string)
 	}
-
-	s.vgName = vgName
 
 	return s, nil
 }
@@ -87,7 +90,7 @@ func (s *storageLvm) GetStorageType() storageType {
 func (s *storageLvm) ContainerCreate(
 	container *lxdContainer, imageFingerprint string) error {
 
-	lvPath, err := s.createSnapshotLV(container.NameGet(), imageFingerprint)
+	lvpath, err := s.createSnapshotLV(container.NameGet(), imageFingerprint)
 	if err != nil {
 		return err
 	}
@@ -97,8 +100,14 @@ func (s *storageLvm) ContainerCreate(
 		return fmt.Errorf("Error creating container directory: %v", err)
 	}
 
+	dst := shared.VarPath("lxc", fmt.Sprintf("%s.lv", container.NameGet()))
+	err = os.Symlink(lvpath, dst)
+	if err != nil {
+		return err
+	}
+
 	if !container.isPrivileged() {
-		output, err := exec.Command("mount", "-o", "discard", lvPath, destPath).CombinedOutput()
+		output, err := exec.Command("mount", "-o", "discard", lvpath, destPath).CombinedOutput()
 		if err != nil {
 			os.RemoveAll(destPath)
 			return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, output)

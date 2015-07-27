@@ -15,7 +15,7 @@ type storageDir struct {
 	storageShared
 }
 
-func (s *storageDir) Init() (storage, error) {
+func (s *storageDir) Init(config map[string]interface{}) (storage, error) {
 	s.sTypeName = storageTypeToString(s.sType)
 	if err := s.initShared(); err != nil {
 		return s, err
