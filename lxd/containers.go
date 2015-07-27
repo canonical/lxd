@@ -253,20 +253,15 @@ func containersRestart(d *Daemon) error {
 }
 
 func containersShutdown(d *Daemon) error {
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
-	inargs := []interface{}{cTypeRegular}
-	var name string
-	outfmt := []interface{}{name}
-
-	result, err := dbQueryScan(d.db, q, inargs, outfmt)
+	results, err := d.ListRegularContainers()
 	if err != nil {
 		return err
 	}
 
 	var wg sync.WaitGroup
 
-	for _, r := range result {
-		container, err := newLxdContainer(string(r[0].(string)), d)
+	for _, r := range results {
+		container, err := newLxdContainer(r, d)
 		if err != nil {
 			return err
 		}
@@ -500,4 +495,30 @@ func (d *lxdContainer) exportToTar(snap string, w io.Writer) error {
 		filepath.Walk(fnam, writeToTar)
 	}
 	return tw.Close()
+}
+
+func (d *lxdContainer) MkdirAllContainerRoot(path string, perm os.FileMode) error {
+	var uid int = 0
+	var gid int = 0
+	if !d.isPrivileged() {
+		uid, gid = d.idmapset.ShiftIntoNs(0, 0)
+		if uid == -1 {
+			uid = 0
+		}
+		if gid == -1 {
+			gid = 0
+		}
+	}
+	return shared.MkdirAllOwner(path, perm, uid, gid)
+}
+
+func (d *lxdContainer) MountShared() error {
+	source := shared.VarPath("shmounts", d.name)
+	entry := fmt.Sprintf("%s .lxdmounts none bind,create=dir 0 0", source)
+	if !shared.PathExists(source) {
+		if err := d.MkdirAllContainerRoot(source, 0755); err != nil {
+			return err
+		}
+	}
+	return d.c.SetConfigItem("lxc.mount.entry", entry)
 }
