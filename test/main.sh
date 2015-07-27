@@ -93,7 +93,7 @@ cleanup() {
     for p in `pidof lxd`; do
         pgrp=`awk '{ print $5 }' /proc/$p/stat`
         if [ "$pgrp" = "$mygrp" ]; then
-            kill -9 $p
+          do_kill_lxd $p
         fi
     done
 
@@ -104,10 +104,18 @@ cleanup() {
     done
 
     rm -f devlxd-client || true
+    find . -name shmounts -exec "umount" "-l" "{}" \; || true
 
     echo ""
     echo ""
     echo "==> Test result: $RESULT"
+}
+
+do_kill_lxd() {
+  pid=$1
+  kill -15 $pid
+  sleep 2
+  kill -9 $pid || true
 }
 
 trap cleanup EXIT HUP INT TERM
