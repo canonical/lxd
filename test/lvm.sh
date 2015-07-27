@@ -169,7 +169,7 @@ test_lvm_withpool() {
 
     lvs lxd_test_vg/$imagelvname && die "lv $imagelvname is still there, should be gone"
 
-    kill -9 `cat $LXD_DIR/lxd.pid`
+    do_kill_lxd `cat $LXD_DIR/lxd.pid`
     sleep 3
     rm -Rf ${LXD_DIR}
     LXD_DIR=${PREV_LXD_DIR}
@@ -212,8 +212,8 @@ test_remote_launch_imports_lvm() {
     lxc image delete $testimage_sha
     lvs lxd_test_vg/$testimage_sha && die "LV $testimage_sha is still there, should have been removed."
 
-    kill -9 `cat $LXD_DIR/lxd.pid`
-    kill -9 `cat $LXD_REMOTE_DIR/lxd.pid`
+    do_kill_lxd `cat $LXD_DIR/lxd.pid`
+    do_kill_lxd `cat $LXD_REMOTE_DIR/lxd.pid`
     sleep 3
     rm -Rf ${LXD_DIR}
     rm -Rf ${LXD_REMOTE_DIR}
