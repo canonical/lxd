@@ -5,6 +5,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func removeContainer(d *Daemon, container *lxdContainer) error {
@@ -12,8 +14,13 @@ func removeContainer(d *Daemon, container *lxdContainer) error {
 		return err
 	}
 
-	if err := d.Storage.ContainerDelete(container); err != nil {
-		return err
+	s, err := storageForContainer(d, container)
+	if err != nil {
+		shared.Log.Warn("Couldn't detect storage.", log.Ctx{"container": container})
+	} else {
+		if err := s.ContainerDelete(container); err != nil {
+			shared.Log.Warn("Couldn't delete container storage.", log.Ctx{"container": container, "storage": s})
+		}
 	}
 
 	if err := dbRemoveContainer(d, container.name); err != nil {

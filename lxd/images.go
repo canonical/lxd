@@ -721,13 +721,20 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	// get storage before deleting images/$fp because we need to
+	// look at the path
+	s, err := storageForImage(d, imgInfo)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	fname := shared.VarPath("images", imgInfo.Fingerprint)
 	err = os.Remove(fname)
 	if err != nil {
 		shared.Debugf("Error deleting image file %s: %s\n", fname, err)
 	}
 
-	if err = d.Storage.ImageDelete(imgInfo.Fingerprint); err != nil {
+	if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {
 		return InternalError(err)
 	}
 

@@ -224,7 +224,14 @@ func containersRestart(d *Daemon) error {
 			return err
 		}
 
-		if err = d.Storage.ContainerStart(container); err != nil {
+		s, err := storageForContainer(d, container)
+		if err != nil {
+			shared.Log.Error(
+				"Error getting storage driver for container",
+				log.Ctx{"err": err})
+			return fmt.Errorf("Couldn't detect storage: %v", err)
+		}
+		if err = s.ContainerStart(container); err != nil {
 			return err
 		}
 		container.c.Start()
@@ -262,7 +269,14 @@ func containersShutdown(d *Daemon) error {
 			go func() {
 				container.c.Shutdown(time.Second * 30)
 				container.c.Stop()
-				if err = d.Storage.ContainerStop(container); err != nil {
+				s, err := storageForContainer(d, container)
+				if err != nil {
+					shared.Log.Error(
+						"Error getting storage driver for container",
+						log.Ctx{"err": err})
+				}
+
+				if err = s.ContainerStop(container); err != nil {
 					shared.Log.Error(
 						"Error deactivating storage after container stop",
 						log.Ctx{"err": err})
