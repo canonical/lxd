@@ -74,8 +74,15 @@ wipe() {
     rm -Rf "$1"
 }
 
+curtest=setup
+
 cleanup() {
     set +x
+
+    echo "==> Test result: $RESULT"
+    if [ $RESULT != "success" ]; then
+      echo "failed test: $curtest"
+    fi
 
     if [ -n "$LXD_INSPECT" ]; then
         echo "To poke around, use:\n LXD_DIR=$LXD_DIR sudo -E $GOPATH/bin/lxc COMMAND --config ${LXD_CONF}"
@@ -109,6 +116,9 @@ cleanup() {
     echo ""
     echo ""
     echo "==> Test result: $RESULT"
+    if [ $RESULT != "success" ]; then
+      echo "failed test: $curtest"
+    fi
 }
 
 do_kill_lxd() {
@@ -189,73 +199,93 @@ if [ "$#" -gt 0 ]; then
 fi
 
 echo "==> TEST: commit sign-off"
+curtest=test_commits_signed_off
 test_commits_signed_off
 
 echo "==> TEST: doing static analysis of commits"
+curtest=static_analysis
 static_analysis
 
 echo "==> TEST: checking dependencies"
+curtest=test_check_deps
 test_check_deps
 
 echo "==> TEST: Database schema update"
+curtest=test_database_update
 test_database_update
 
 echo "==> TEST: lxc remote url"
+curtest=test_remote_url
 test_remote_url
 
 echo "==> TEST: lxc remote administration"
+curtest=test_remote_admin
 test_remote_admin
 
 echo "==> TEST: basic usage"
+curtest=test_basic_usage
 test_basic_usage
 
 echo "==> TEST: concurrent exec"
+curtest=test_concurrent_exec
 test_concurrent_exec
 
 echo "==> TEST: concurrent startup"
+curtest=test_concurrent
 test_concurrent
 
 echo "==> TEST: lxc remote usage"
+curtest=test_remote_usage
 test_remote_usage
 
 echo "==> TEST: snapshots"
+curtest=test_snapshots
 test_snapshots
 
 echo "==> TEST: snapshot restore"
+curtest=test_snap_restore
 test_snap_restore
 
 echo "==> TEST: profiles, devices and configuration"
+curtest=test_config_profiles
 test_config_profiles
 
 echo "==> TEST: server config"
+curtest=test_server_config
 test_server_config
 
 echo "==> TEST: filemanip"
+curtest=test_filemanip
 test_filemanip
 
 echo "==> TEST: devlxd"
+curtest=test_devlxd
 test_devlxd
 
 if type fuidshift >/dev/null 2>&1; then
     echo "==> TEST: uidshift"
+    curtest=test_fuidshift
     test_fuidshift
 else
     echo "==> SKIP: fuidshift (binary missing)"
 fi
 
 echo "==> TEST: migration"
+curtest=test_migration
 test_migration
 
 if [ -n "$TRAVIS_PULL_REQUEST" ]; then
     echo "===> SKIP: lvm backing (no loop device on Travis)"
 else
     echo "==> TEST: lvm backing"
+    curtest=test_lvm
     test_lvm
 fi
 
 curversion=`dpkg -s lxc | awk '/^Version/ { print $2 }'`
 if dpkg --compare-versions "$curversion" gt 1.1.2-0ubuntu3; then
     echo "==> TEST: fdleak"
+    curtest=test_fdleak
     test_fdleak
 else
     # We temporarily skip the fdleak test because a bug in lxc is
@@ -265,12 +295,15 @@ else
 fi
 
 echo "==> TEST: cpu profiling"
+curtest=test_cpu_profiling
 test_cpu_profiling
 echo "==> TEST: memory profiling"
+curtest=test_mem_profiling
 test_mem_profiling
 
 # This should always be run last
 echo "==> TEST: database lock"
+curtest=test_database_lock
 test_database_lock
 
 RESULT=success
