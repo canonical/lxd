@@ -68,22 +68,14 @@ func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
 		return shared.ContainerInfo{}, SmartError(err)
 	}
 
-	var name string
-	regexp := cname + shared.SnapshotDelimiter
-	length := len(regexp)
-	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
-	inargs := []interface{}{cTypeSnapshot, length, regexp}
-	outfmt := []interface{}{name}
-	results, err := dbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbContainerGetSnapshots(d.db, cname)
 	if err != nil {
 		return shared.ContainerInfo{}, SmartError(err)
 	}
 
 	var body []string
 
-	for _, r := range results {
-		name = r[0].(string)
-
+	for _, name := range results {
 		url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
 		body = append(body, url)
 	}
