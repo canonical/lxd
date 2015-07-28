@@ -421,6 +421,7 @@ func (d *lxdContainer) attachMount(m shared.Device) error {
 			// this doesn't do that.
 			return fmt.Errorf("non-block device file not supported\n")
 		}
+
 		fstype, err = shared.BlockFsDetect(source)
 		if err != nil {
 			return fmt.Errorf("Unable to detect fstype for %s: %s\n", source, err)
@@ -524,5 +525,16 @@ func devicesApplyDeltaLive(tx *sql.Tx, c *lxdContainer, preDevList shared.Device
 		}
 	}
 
+	return nil
+}
+
+func validateConfig(c *lxdContainer, devs shared.Devices) error {
+	for _, dev := range devs {
+		if dev["type"] == "disk" && shared.IsBlockdevPath(dev["source"]) {
+			if !c.isPrivileged() {
+				return fmt.Errorf("Only privileged containers may mount block devices")
+			}
+		}
+	}
 	return nil
 }
