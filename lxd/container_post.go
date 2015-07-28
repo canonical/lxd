@@ -41,18 +41,16 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("renaming of running container not allowed"))
 	}
 
-	args := DbCreateContainerArgs{
-		d:            d,
-		name:         body.Name,
-		ctype:        cTypeRegular,
-		config:       c.config,
-		profiles:     c.profiles,
-		ephem:        c.ephemeral,
-		baseImage:    c.config["volatile.baseImage"],
-		architecture: c.architecture,
+	args := containerLXDArgs{
+		Ctype:        cTypeRegular,
+		Config:       c.config,
+		Profiles:     c.profiles,
+		Ephemeral:    c.ephemeral,
+		BaseImage:    c.config["volatile.baseImage"],
+		Architecture: c.architecture,
 	}
 
-	_, err = dbCreateContainer(args)
+	_, err = dbContainerCreate(d.db, body.Name, args)
 	if err != nil {
 		return SmartError(err)
 	}

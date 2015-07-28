@@ -116,7 +116,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			}
 		} else {
 
-			hash, err = dbAliasGet(d.db, req.Source.Alias)
+			hash, err = dbImageAliasGet(d.db, req.Source.Alias)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -147,18 +147,16 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	name := req.Name
 
-	args := DbCreateContainerArgs{
-		d:            d,
-		name:         name,
-		ctype:        cTypeRegular,
-		config:       req.Config,
-		profiles:     req.Profiles,
-		ephem:        req.Ephemeral,
-		baseImage:    hash,
-		architecture: imgInfo.Architecture,
+	args := containerLXDArgs{
+		Ctype:        cTypeRegular,
+		Config:       req.Config,
+		Profiles:     req.Profiles,
+		Ephemeral:    req.Ephemeral,
+		BaseImage:    hash,
+		Architecture: imgInfo.Architecture,
 	}
 
-	_, err = dbCreateContainer(args)
+	_, err = dbContainerCreate(d.db, name, args)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -184,16 +182,14 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 }
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
-	args := DbCreateContainerArgs{
-		d:        d,
-		name:     req.Name,
-		ctype:    cTypeRegular,
-		config:   req.Config,
-		profiles: req.Profiles,
-		ephem:    req.Ephemeral,
+	args := containerLXDArgs{
+		Ctype:     cTypeRegular,
+		Config:    req.Config,
+		Profiles:  req.Profiles,
+		Ephemeral: req.Ephemeral,
 	}
 
-	_, err := dbCreateContainer(args)
+	_, err := dbContainerCreate(d.db, req.Name, args)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -223,17 +219,15 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return NotImplemented
 	}
 
-	createArgs := DbCreateContainerArgs{
-		d:         d,
-		name:      req.Name,
-		ctype:     cTypeRegular,
-		config:    req.Config,
-		profiles:  req.Profiles,
-		ephem:     req.Ephemeral,
-		baseImage: req.Source.BaseImage,
+	createArgs := containerLXDArgs{
+		Ctype:     cTypeRegular,
+		Config:    req.Config,
+		Profiles:  req.Profiles,
+		Ephemeral: req.Ephemeral,
+		BaseImage: req.Source.BaseImage,
 	}
 
-	_, err := dbCreateContainer(createArgs)
+	_, err := dbContainerCreate(d.db, req.Name, createArgs)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -332,17 +326,15 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		req.Profiles = source.profiles
 	}
 
-	args := DbCreateContainerArgs{
-		d:         d,
-		name:      req.Name,
-		ctype:     cTypeRegular,
-		config:    req.Config,
-		profiles:  req.Profiles,
-		ephem:     req.Ephemeral,
-		baseImage: req.Source.BaseImage,
+	args := containerLXDArgs{
+		Ctype:     cTypeRegular,
+		Config:    req.Config,
+		Profiles:  req.Profiles,
+		Ephemeral: req.Ephemeral,
+		BaseImage: req.Source.BaseImage,
 	}
 
-	_, err = dbCreateContainer(args)
+	_, err = dbContainerCreate(d.db, req.Name, args)
 	if err != nil {
 		return SmartError(err)
 	}

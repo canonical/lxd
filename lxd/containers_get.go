@@ -27,7 +27,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 }
 
 func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
-	result, err := dbListContainers(d)
+	result, err := dbContainersList(d.db)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 }
 
 func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
-	_, err := dbGetContainerID(d.db, cname)
+	_, err := dbContainerIDGet(d.db, cname)
 	if err != nil {
 		return shared.ContainerInfo{}, SmartError(err)
 	}
@@ -68,22 +68,14 @@ func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
 		return shared.ContainerInfo{}, SmartError(err)
 	}
 
-	var name string
-	regexp := fmt.Sprintf("%s/", cname)
-	length := len(regexp)
-	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
-	inargs := []interface{}{cTypeSnapshot, length, regexp}
-	outfmt := []interface{}{name}
-	results, err := dbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbContainerGetSnapshots(d.db, cname)
 	if err != nil {
 		return shared.ContainerInfo{}, SmartError(err)
 	}
 
 	var body []string
 
-	for _, r := range results {
-		name = r[0].(string)
-
+	for _, name := range results {
 		url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
 		body = append(body, url)
 	}
