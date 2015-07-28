@@ -205,14 +205,14 @@ func Test_get_schema_returns_0_on_uninitialized_db(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	result := getSchema(db)
+	result := dbGetSchema(db)
 
 	if result != 0 {
 		t.Error("getSchema should return 0 on uninitialized db!")
 	}
 }
 
-func Test_running_updateFromV6_adds_on_delete_cascade(t *testing.T) {
+func Test_running_dbUpdateFromV6_adds_on_delete_cascade(t *testing.T) {
 	// Upgrading the database schema with updateFromV6 adds ON DELETE CASCADE
 	// to sqlite tables that require it, and conserve the data.
 
@@ -255,7 +255,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	}
 
 	// Run the upgrade from V6 code
-	err = updateFromV6(db)
+	err = dbUpdateFromV6(db)
 
 	// Make sure the inserted data is still there.
 	statements = `SELECT count(*) FROM containers_config;`
@@ -365,14 +365,14 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 
 	// The "foreign key" on containers_config now points to nothing.
 	// Let's run the schema upgrades.
-	err = updateDb(db, 1)
+	err = dbUpdate(db, 1)
 
 	if err != nil {
 		t.Error("Error upgrading database schema!")
 		t.Fatal(err)
 	}
 
-	result := getSchema(db)
+	result := dbGetSchema(db)
 	if result != DB_CURRENT_VERSION {
 		t.Fatal(fmt.Sprintf("The schema is not at the latest version after update! Found: %d, should be: %d", result, DB_CURRENT_VERSION))
 	}

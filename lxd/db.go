@@ -172,7 +172,7 @@ func createDb(db *sql.DB) (err error) {
 
 	// To make the schema creation indempotent, only insert the schema version
 	// if there isn't one already.
-	latestVersion := getSchema(db)
+	latestVersion := dbGetSchema(db)
 
 	if latestVersion == 0 {
 		// There isn't an entry for schema version, let's put it in.
@@ -188,7 +188,7 @@ func createDb(db *sql.DB) (err error) {
 	return err
 }
 
-func getSchema(db *sql.DB) (v int) {
+func dbGetSchema(db *sql.DB) (v int) {
 	arg1 := []interface{}{}
 	arg2 := []interface{}{&v}
 	q := "SELECT max(version) FROM schema"
@@ -199,7 +199,7 @@ func getSchema(db *sql.DB) (v int) {
 	return v
 }
 
-func updateFromV9(db *sql.DB) error {
+func dbUpdateFromV9(db *sql.DB) error {
 	stmt := `
 CREATE TABLE tmp (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
@@ -243,7 +243,7 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	return err
 }
 
-func updateFromV8(db *sql.DB) error {
+func dbUpdateFromV8(db *sql.DB) error {
 	stmt := `
 UPDATE certificates SET fingerprint = replace(fingerprint, " ", "");
 INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
@@ -251,7 +251,7 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	return err
 }
 
-func updateFromV7(db *sql.DB) error {
+func dbUpdateFromV7(db *sql.DB) error {
 	stmt := `
 UPDATE config SET key='core.trust_password' WHERE key IN ('password', 'trust_password', 'trust-password', 'core.trust-password');
 DELETE FROM config WHERE key != 'core.trust_password';
@@ -260,7 +260,7 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	return err
 }
 
-func updateFromV6(db *sql.DB) error {
+func dbUpdateFromV6(db *sql.DB) error {
 	// This update recreates the schemas that need an ON DELETE CASCADE foreign
 	// key.
 	stmt := `
@@ -423,7 +423,7 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	return err
 }
 
-func updateFromV5(db *sql.DB) error {
+func dbUpdateFromV5(db *sql.DB) error {
 	stmt := `
 ALTER TABLE containers ADD COLUMN power_state INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE containers ADD COLUMN ephemeral INTEGER NOT NULL DEFAULT 0;
@@ -432,7 +432,7 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	return err
 }
 
-func updateFromV4(db *sql.DB) error {
+func dbUpdateFromV4(db *sql.DB) error {
 	stmt := `
 CREATE TABLE IF NOT EXISTS config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -471,7 +471,7 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	return nil
 }
 
-func updateFromV3(db *sql.DB) error {
+func dbUpdateFromV3(db *sql.DB) error {
 	err := createDefaultProfile(db)
 	if err != nil {
 		return err
@@ -480,7 +480,7 @@ func updateFromV3(db *sql.DB) error {
 	return err
 }
 
-func updateFromV2(db *sql.DB) error {
+func dbUpdateFromV2(db *sql.DB) error {
 	stmt := `
 CREATE TABLE IF NOT EXISTS containers_devices (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
@@ -542,7 +542,7 @@ INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 }
 
 /* Yeah we can do htis in a more clever way */
-func updateFromV1(db *sql.DB) error {
+func dbUpdateFromV1(db *sql.DB) error {
 	// v1..v2 adds images aliases
 	stmt := `
 CREATE TABLE IF NOT EXISTS images_aliases (
@@ -558,7 +558,7 @@ INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 	return err
 }
 
-func updateFromV0(db *sql.DB) error {
+func dbUpdateFromV0(db *sql.DB) error {
 	// v0..v1 adds schema table
 	stmt := `
 CREATE TABLE IF NOT EXISTS schema (
@@ -572,7 +572,7 @@ INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 	return err
 }
 
-func updateDb(db *sql.DB, prevVersion int) error {
+func dbUpdate(db *sql.DB, prevVersion int) error {
 	if prevVersion < 0 || prevVersion > DB_CURRENT_VERSION {
 		return fmt.Errorf("Bad database version: %d\n", prevVersion)
 	}
@@ -581,61 +581,61 @@ func updateDb(db *sql.DB, prevVersion int) error {
 	}
 	var err error
 	if prevVersion < 1 {
-		err = updateFromV0(db)
+		err = dbUpdateFromV0(db)
 		if err != nil {
 			return err
 		}
 	}
 	if prevVersion < 2 {
-		err = updateFromV1(db)
+		err = dbUpdateFromV1(db)
 		if err != nil {
 			return err
 		}
 	}
 	if prevVersion < 3 {
-		err = updateFromV2(db)
+		err = dbUpdateFromV2(db)
 		if err != nil {
 			return err
 		}
 	}
 	if prevVersion < 4 {
-		err = updateFromV3(db)
+		err = dbUpdateFromV3(db)
 		if err != nil {
 			return err
 		}
 	}
 	if prevVersion < 5 {
-		err = updateFromV4(db)
+		err = dbUpdateFromV4(db)
 		if err != nil {
 			return err
 		}
 	}
 	if prevVersion < 6 {
-		err = updateFromV5(db)
+		err = dbUpdateFromV5(db)
 		if err != nil {
 			return err
 		}
 	}
 	if prevVersion < 7 {
-		err = updateFromV6(db)
+		err = dbUpdateFromV6(db)
 		if err != nil {
 			return err
 		}
 	}
 	if prevVersion < 8 {
-		err = updateFromV7(db)
+		err = dbUpdateFromV7(db)
 		if err != nil {
 			return err
 		}
 	}
 	if prevVersion < 9 {
-		err = updateFromV8(db)
+		err = dbUpdateFromV8(db)
 		if err != nil {
 			return err
 		}
 	}
 	if prevVersion < 10 {
-		err = updateFromV9(db)
+		err = dbUpdateFromV9(db)
 		if err != nil {
 			return err
 		}
@@ -740,10 +740,10 @@ func initializeDbObject(path string) (db *sql.DB, err error) {
 	// Run PRAGMA statements now since they are *per-connection*.
 	db.Exec("PRAGMA foreign_keys=ON;") // This allows us to use ON DELETE CASCADE
 
-	v := getSchema(db)
+	v := dbGetSchema(db)
 
 	if v != DB_CURRENT_VERSION {
-		err = updateDb(db, v)
+		err = dbUpdate(db, v)
 		if err != nil {
 			return nil, err
 		}
