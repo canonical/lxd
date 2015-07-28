@@ -336,6 +336,26 @@ func dbContainerRename(db *sql.DB, oldName string, newName string) error {
 	return txCommit(tx)
 }
 
+func dbContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {
+	result := []string{}
+
+	regexp := name + shared.SnapshotDelimiter
+	length := len(regexp)
+	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
+	inargs := []interface{}{cTypeSnapshot, length, regexp}
+	outfmt := []interface{}{name}
+	dbResults, err := dbQueryScan(db, q, inargs, outfmt)
+	if err != nil {
+		return result, err
+	}
+
+	for _, r := range dbResults {
+		result = append(result, r[0].(string))
+	}
+
+	return result, nil
+}
+
 // ValidContainerConfigKey returns if the given config key is a known/valid key.
 func ValidContainerConfigKey(k string) bool {
 	switch k {
