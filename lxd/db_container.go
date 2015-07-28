@@ -83,6 +83,18 @@ func dbContainerCreate(db *sql.DB, name string, args containerLXDArgs) (int, err
 		return 0, DbErrAlreadyDefined
 	}
 
+	if args.Profiles == nil {
+		args.Profiles = []string{"default"}
+	}
+
+	if args.BaseImage != "" {
+		if args.Config == nil {
+			args.Config = map[string]string{}
+		}
+
+		args.Config["volatile.baseImage"] = args.BaseImage
+	}
+
 	tx, err := dbBegin(db)
 	if err != nil {
 		return 0, err
