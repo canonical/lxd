@@ -44,7 +44,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	regexp := fmt.Sprintf("%s/", cname)
+	regexp := cname + shared.SnapshotDelimiter
 	length := len(regexp)
 	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
 	var name string
@@ -82,7 +82,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
  * To do that, we'll need to weed out based on # slashes in names
  */
 func nextSnapshot(d *Daemon, name string) int {
-	base := fmt.Sprintf("%s/snap", name)
+	base := name + shared.SnapshotDelimiter + "snap"
 	length := len(base)
 	q := fmt.Sprintf("SELECT MAX(name) FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
 	var numstr string
@@ -178,18 +178,16 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		}
 
 		/* Create the db info */
-		args := DbCreateContainerArgs{
-			d:            d,
-			name:         fullName,
-			ctype:        cTypeSnapshot,
-			config:       c.config,
-			profiles:     c.profiles,
-			ephem:        c.ephemeral,
-			baseImage:    c.config["volatile.baseImage"],
-			architecture: c.architecture,
+		args := containerLXDArgs{
+			Ctype:        cTypeSnapshot,
+			Config:       c.config,
+			Profiles:     c.profiles,
+			Ephemeral:    c.ephemeral,
+			BaseImage:    c.config["volatile.baseImage"],
+			Architecture: c.architecture,
 		}
 
-		_, err := dbCreateContainer(args)
+		_, err := dbContainerCreate(d.db, fullName, args)
 		if err != nil {
 			os.RemoveAll(snapDir)
 			return err
@@ -197,12 +195,12 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		/* Create the directory and rootfs, set perms */
 		/* Copy the rootfs */
-		oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", name, "rootfs"))
+		oldPath := shared.AddSlash(shared.VarPath("lxc", name, "rootfs"))
 		newPath := snapshotRootfsDir(c, snapshotName)
 		err = exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
 		if err != nil {
 			os.RemoveAll(snapDir)
-			dbRemoveSnapshot(d, c.name, snapshotName)
+			dbContainerSnapshotRemove(d.db, name, snapshotName)
 		}
 		return err
 	}
@@ -270,7 +268,7 @@ func snapshotPost(r *http.Request, c *lxdContainer, oldName string) Response {
 }
 
 func snapshotDelete(d *Daemon, c *lxdContainer, name string) Response {
-	dbRemoveSnapshot(d, c.name, name)
+	dbContainerSnapshotRemove(d.db, c.name, name)
 	dir := snapshotDir(c, name)
 	remove := func() error { return os.RemoveAll(dir) }
 	return AsyncResponse(shared.OperationWrap(remove), nil)
