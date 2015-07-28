@@ -47,6 +47,49 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 	return false, fmt.Errorf("Pool named '%s' exists but is not a thin pool.", poolName)
 }
 
+func storageLVMSetThinPoolNameConfig(d *Daemon, poolname string) error {
+	vgname, err := d.ConfigValueGet("core.lvm_vg_name")
+	if err != nil {
+		return fmt.Errorf("Error getting lvm_vg_name config")
+	}
+	if vgname == "" {
+		return fmt.Errorf("Can not set lvm_thinpool_name without lvm_vg_name set.")
+	}
+
+	if poolname != "" {
+		poolExists, err := storageLVMThinpoolExists(vgname, poolname)
+		if err != nil {
+			return fmt.Errorf("Error checking for thin pool '%s' in '%s': %v", poolname, vgname, err)
+		}
+		if !poolExists {
+			return fmt.Errorf("Pool '%s' does not exist in Volume Group '%s'", poolname, vgname)
+		}
+	}
+
+	err = d.ConfigValueSet("core.lvm_thinpool_name", poolname)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func storageLVMSetVolumeGroupNameConfig(d *Daemon, vgname string) error {
+	if vgname != "" {
+		err := storageLVMCheckVolumeGroup(vgname)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := d.ConfigValueSet("core.lvm_vg_name", vgname)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type storageLvm struct {
 	d      *Daemon
 	sType  storageType
@@ -62,11 +105,11 @@ func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 	}
 
 	if config["vgName"] == nil {
-		vgName, vgNameIsSet, err := getServerConfigValue(s.d, "core.lvm_vg_name")
+		vgName, err := s.d.ConfigValueGet("core.lvm_vg_name")
 		if err != nil {
 			return s, fmt.Errorf("Error checking server config: %v", err)
 		}
-		if !vgNameIsSet {
+		if vgName == "" {
 			return s, fmt.Errorf("LVM isn't enabled")
 		}
 
@@ -213,17 +256,17 @@ func (s *storageLvm) ContainerSnapshotDelete(
 func (s *storageLvm) ImageCreate(fingerprint string) error {
 	finalName := shared.VarPath("images", fingerprint)
 
-	poolname, poolnameIsSet, err := getServerConfigValue(s.d, "core.lvm_thinpool_name")
+	poolname, err := s.d.ConfigValueGet("core.lvm_thinpool_name")
 	if err != nil {
 		return fmt.Errorf("Error checking server config, err=%v", err)
 	}
 
-	if !poolnameIsSet {
+	if poolname == "" {
 		poolname, err = s.createDefaultThinPool()
 		if err != nil {
 			return fmt.Errorf("Error creating LVM thin pool: %v", err)
 		}
-		err = s.setThinPoolNameConfig(poolname)
+		err = storageLVMSetThinPoolNameConfig(s.d, poolname)
 		if err != nil {
 			s.log.Error("Setting thin pool name", log.Ctx{"err": err})
 			return fmt.Errorf("Error setting LVM thin pool config: %v", err)
@@ -354,25 +397,6 @@ func (s *storageLvm) removeLV(lvname string) error {
 		s.log.Debug("could not remove LV", log.Ctx{"lvname": lvname, "output": output})
 		return fmt.Errorf("Could not remove LV named %s", lvname)
 	}
-	return nil
-}
-
-func (s *storageLvm) setThinPoolNameConfig(poolname string) error {
-	if poolname != "" {
-		poolExists, err := storageLVMThinpoolExists(s.vgName, poolname)
-		if err != nil {
-			return fmt.Errorf("Error checking for thin pool '%s' in '%s': %v", poolname, s.vgName, err)
-		}
-		if !poolExists {
-			return fmt.Errorf("Pool '%s' does not exist in Volume Group '%s'", poolname, s.vgName)
-		}
-	}
-
-	err := setServerConfig(s.d, "core.lvm_thinpool_name", poolname)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

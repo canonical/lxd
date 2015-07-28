@@ -759,20 +759,6 @@ func initDb(d *Daemon) (err error) {
 	return err
 }
 
-func dbPasswordGet(db *sql.DB) (pwd string, err error) {
-	q := "SELECT value FROM config WHERE key=\"core.trust_password\""
-	value := ""
-	argIn := []interface{}{}
-	argOut := []interface{}{&value}
-	err = dbQueryRowScan(db, q, argIn, argOut)
-
-	if err != nil || value == "" {
-		return "", fmt.Errorf("No password is set")
-	}
-
-	return value, nil
-}
-
 func dbDevicesAdd(tx *sql.Tx, w string, cID int, devices shared.Devices) error {
 	str1 := fmt.Sprintf("INSERT INTO %ss_devices (%s_id, name, type) VALUES (?, ?, ?)", w, w)
 	stmt1, err := tx.Prepare(str1)

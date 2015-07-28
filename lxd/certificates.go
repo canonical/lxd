@@ -1,57 +1,21 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"net"
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"golang.org/x/crypto/scrypt"
 
 	"github.com/lxc/lxd/shared"
 )
 
 func certGenerateFingerprint(cert *x509.Certificate) string {
 	return fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
-}
-
-func (d *Daemon) hasPwd() bool {
-	_, err := dbPasswordGet(d.db)
-	return err == nil
-}
-
-func (d *Daemon) verifyAdminPwd(password string) bool {
-	value, err := dbPasswordGet(d.db)
-
-	if err != nil {
-		shared.Debugf("verifyAdminPwd: %s", err)
-		return false
-	}
-
-	buff, err := hex.DecodeString(value)
-	if err != nil {
-		shared.Debugf("hex decode failed")
-		return false
-	}
-
-	salt := buff[0:PW_SALT_BYTES]
-	hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, PW_HASH_BYTES)
-	if err != nil {
-		shared.Debugf("failed to create hash to check")
-		return false
-	}
-	if !bytes.Equal(hash, buff[PW_SALT_BYTES:]) {
-		shared.Debugf("Bad password received")
-		return false
-	}
-	shared.Debugf("Verified the admin password")
-	return true
 }
 
 func certificatesGet(d *Daemon, r *http.Request) Response {
@@ -177,7 +141,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	if !d.isTrustedClient(r) && !d.verifyAdminPwd(req.Password) {
+	if !d.isTrustedClient(r) && !d.PasswordCheck(req.Password) {
 		return Forbidden
 	}
 
