@@ -295,8 +295,10 @@ func (r BytesReadCloser) Close() error {
 	return nil
 }
 
+const SnapshotDelimiter = "/"
+
 func IsSnapshot(name string) bool {
-	return strings.Contains(name, "/")
+	return strings.Contains(name, SnapshotDelimiter)
 }
 
 func ReadLastNLines(f *os.File, lines int) (string, error) {

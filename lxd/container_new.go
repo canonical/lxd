@@ -85,8 +85,6 @@ func newStatus(c *lxc.Container, state lxc.State) shared.ContainerStatus {
 	return status
 }
 
-const containerSnapshotDelimiter = "/"
-
 func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 	devices, err := dbDevicesGet(c.daemon.db, c.name, false)
 	if err != nil {
@@ -198,7 +196,7 @@ func (c *lxdContainer) NameGet() string {
 
 func (c *lxdContainer) PathGet() string {
 	if c.IsSnapshot() {
-		snappieces := strings.SplitN(c.NameGet(), containerSnapshotDelimiter, 2)
+		snappieces := strings.SplitN(c.NameGet(), shared.SnapshotDelimiter, 2)
 		return shared.VarPath("lxc", snappieces[0], "snapshots", snappieces[1])
 	}
 
