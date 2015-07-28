@@ -436,7 +436,7 @@ func Test_dbImageGet_for_missing_fingerprint(t *testing.T) {
 	}
 }
 
-func Test_dbAliasGet_alias_exists(t *testing.T) {
+func Test_dbImageAliasGet_alias_exists(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var result string
@@ -444,7 +444,7 @@ func Test_dbAliasGet_alias_exists(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	result, err = dbAliasGet(db, "somealias")
+	result, err = dbImageAliasGet(db, "somealias")
 
 	if err != nil {
 		t.Fatal(err)
@@ -456,14 +456,14 @@ func Test_dbAliasGet_alias_exists(t *testing.T) {
 
 }
 
-func Test_dbAliasGet_alias_does_not_exists(t *testing.T) {
+func Test_dbImageAliasGet_alias_does_not_exists(t *testing.T) {
 	var db *sql.DB
 	var err error
 
 	db = createTestDb(t)
 	defer db.Close()
 
-	_, err = dbAliasGet(db, "whatever")
+	_, err = dbImageAliasGet(db, "whatever")
 
 	if err != NoSuchObjectError {
 		t.Fatal("Error should be NoSuchObjectError")
@@ -471,7 +471,7 @@ func Test_dbAliasGet_alias_does_not_exists(t *testing.T) {
 
 }
 
-func Test_dbAddAlias(t *testing.T) {
+func Test_dbImageAliasAdd(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var result string
@@ -479,12 +479,12 @@ func Test_dbAddAlias(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	err = dbAddAlias(db, "Chaosphere", 1, "Someone will like the name")
+	err = dbImageAliasAdd(db, "Chaosphere", 1, "Someone will like the name")
 	if err != nil {
 		t.Fatal("Error inserting Image alias.")
 	}
 
-	result, err = dbAliasGet(db, "Chaosphere")
+	result, err = dbImageAliasGet(db, "Chaosphere")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,7 +494,7 @@ func Test_dbAddAlias(t *testing.T) {
 	}
 }
 
-func Test_dbGetConfig(t *testing.T) {
+func Test_dbContainerConfigGet(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var result map[string]string
@@ -505,7 +505,7 @@ func Test_dbGetConfig(t *testing.T) {
 
 	_, err = db.Exec("INSERT INTO containers_config (container_id, key, value) VALUES (1, 'something', 'something else');")
 
-	result, err = dbGetConfig(db, 1)
+	result, err = dbContainerConfigGet(db, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -519,7 +519,7 @@ func Test_dbGetConfig(t *testing.T) {
 	}
 }
 
-func Test_dbGetProfileConfig(t *testing.T) {
+func Test_dbProfileConfigGet(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var result map[string]string
@@ -530,7 +530,7 @@ func Test_dbGetProfileConfig(t *testing.T) {
 
 	_, err = db.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'something', 'something else');")
 
-	result, err = dbGetProfileConfig(db, "theprofile")
+	result, err = dbProfileConfigGet(db, "theprofile")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -544,7 +544,7 @@ func Test_dbGetProfileConfig(t *testing.T) {
 	}
 }
 
-func Test_dbGetProfiles(t *testing.T) {
+func Test_dbContainerProfilesGet(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var result []string
@@ -554,7 +554,7 @@ func Test_dbGetProfiles(t *testing.T) {
 	defer db.Close()
 
 	expected = []string{"theprofile"}
-	result, err = dbGetProfiles(db, 1)
+	result, err = dbContainerProfilesGet(db, 1)
 
 	if err != nil {
 		t.Fatal(err)
@@ -567,7 +567,7 @@ func Test_dbGetProfiles(t *testing.T) {
 	}
 }
 
-func Test_dbGEtDevices_profiles(t *testing.T) {
+func Test_dbDevicesGet_profiles(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var result shared.Devices
@@ -577,7 +577,7 @@ func Test_dbGEtDevices_profiles(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	result, err = dbGetDevices(db, "theprofile", true)
+	result, err = dbDevicesGet(db, "theprofile", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -587,13 +587,13 @@ func Test_dbGEtDevices_profiles(t *testing.T) {
 
 	for key, value := range expected {
 		if subresult[key] != value {
-			t.Errorf("Mismatching value for key %s: %s != %s", key, subresult[key], value)
+			t.Errorf("Mismatching value for key %s: %v != %v", key, subresult[key], value)
 		}
 	}
 
 }
 
-func Test_dbGEtDevices_containers(t *testing.T) {
+func Test_dbDevicesGet_containers(t *testing.T) {
 	var db *sql.DB
 	var err error
 	var result shared.Devices
@@ -603,7 +603,7 @@ func Test_dbGEtDevices_containers(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	result, err = dbGetDevices(db, "thename", false)
+	result, err = dbDevicesGet(db, "thename", false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -88,12 +88,12 @@ func newStatus(c *lxc.Container, state lxc.State) shared.ContainerStatus {
 const containerSnapshotDelimiter = "/"
 
 func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
-	devices, err := dbGetDevices(c.daemon.db, c.name, false)
+	devices, err := dbDevicesGet(c.daemon.db, c.name, false)
 	if err != nil {
 		return nil, err
 	}
 
-	config, err := dbGetConfig(c.daemon.db, c.id)
+	config, err := dbContainerConfigGet(c.daemon.db, c.id)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 		config[k] = v
 	}
 
-	newdevs, err := dbGetDevices(daemon.db, p, true)
+	newdevs, err := dbDevicesGet(daemon.db, p, true)
 	if err != nil {
 		return err
 	}
@@ -592,13 +592,13 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		}
 	}
 
-	config, err := dbGetConfig(daemon.db, d.id)
+	config, err := dbContainerConfigGet(daemon.db, d.id)
 	if err != nil {
 		return nil, err
 	}
 	d.config = config
 
-	profiles, err := dbGetProfiles(daemon.db, d.id)
+	profiles, err := dbContainerProfilesGet(daemon.db, d.id)
 	if err != nil {
 		return nil, err
 	}
@@ -637,7 +637,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	}
 
 	/* get container_devices */
-	newdevs, err := dbGetDevices(daemon.db, d.name, false)
+	newdevs, err := dbDevicesGet(daemon.db, d.name, false)
 	if err != nil {
 		return nil, err
 	}

@@ -19,6 +19,18 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+// containerLXDArgs contains every argument needed to create an LXD Container
+type containerLXDArgs struct {
+	ID           int // Leave it empty when you create one.
+	Ctype        containerType
+	Config       map[string]string
+	Profiles     []string
+	Ephemeral    bool
+	BaseImage    string
+	Architecture int
+	Devices      shared.Devices
+}
+
 type lxdContainer struct {
 	c            *lxc.Container
 	daemon       *Daemon
@@ -157,7 +169,7 @@ func containerWatchEphemeral(c *lxdContainer) {
 		c.c.Wait(lxc.RUNNING, 1*time.Second)
 		c.c.Wait(lxc.STOPPED, -1*time.Second)
 
-		_, err := dbGetContainerID(c.daemon.db, c.name)
+		_, err := dbContainerIDGet(c.daemon.db, c.name)
 		if err != nil {
 			return
 		}

@@ -231,7 +231,7 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq) Response {
 			}
 		} else {
 
-			hash, err = dbAliasGet(d.db, req.Source["alias"])
+			hash, err = dbImageAliasGet(d.db, req.Source["alias"])
 			if err != nil {
 				return InternalError(err)
 			}
@@ -927,7 +927,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// This is just to see if the alias name already exists.
-	_, err := dbAliasGet(d.db, req.Name)
+	_, err := dbImageAliasGet(d.db, req.Name)
 	if err == nil {
 		return Conflict
 	}
@@ -937,7 +937,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = dbAddAlias(d.db, req.Name, imgInfo.Id, req.Description)
+	err = dbImageAliasAdd(d.db, req.Name, imgInfo.Id, req.Description)
 	if err != nil {
 		return InternalError(err)
 	}

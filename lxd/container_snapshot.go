@@ -178,18 +178,16 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		}
 
 		/* Create the db info */
-		args := DbCreateContainerArgs{
-			d:            d,
-			name:         fullName,
-			ctype:        cTypeSnapshot,
-			config:       c.config,
-			profiles:     c.profiles,
-			ephem:        c.ephemeral,
-			baseImage:    c.config["volatile.baseImage"],
-			architecture: c.architecture,
+		args := containerLXDArgs{
+			Ctype:        cTypeSnapshot,
+			Config:       c.config,
+			Profiles:     c.profiles,
+			Ephemeral:    c.ephemeral,
+			BaseImage:    c.config["volatile.baseImage"],
+			Architecture: c.architecture,
 		}
 
-		_, err := dbCreateContainer(args)
+		_, err := dbContainerCreate(d.db, fullName, args)
 		if err != nil {
 			os.RemoveAll(snapDir)
 			return err
@@ -202,7 +200,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		err = exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
 		if err != nil {
 			os.RemoveAll(snapDir)
-			dbRemoveSnapshot(d, c.name, snapshotName)
+			dbContainerSnapshotRemove(d.db, name, snapshotName)
 		}
 		return err
 	}
@@ -270,7 +268,7 @@ func snapshotPost(r *http.Request, c *lxdContainer, oldName string) Response {
 }
 
 func snapshotDelete(d *Daemon, c *lxdContainer, name string) Response {
-	dbRemoveSnapshot(d, c.name, name)
+	dbContainerSnapshotRemove(d.db, c.name, name)
 	dir := snapshotDir(c, name)
 	remove := func() error { return os.RemoveAll(dir) }
 	return AsyncResponse(shared.OperationWrap(remove), nil)
