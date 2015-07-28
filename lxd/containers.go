@@ -303,7 +303,7 @@ func containersShutdown(d *Daemon) error {
 }
 
 func containerDeleteSnapshots(d *Daemon, cname string) error {
-	prefix := fmt.Sprintf("%s/", cname)
+	prefix := cname + shared.SnapshotDelimiter
 	length := len(prefix)
 	q := "SELECT name, id FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
 	var id int

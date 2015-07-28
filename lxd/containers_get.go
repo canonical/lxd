@@ -69,7 +69,7 @@ func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
 	}
 
 	var name string
-	regexp := fmt.Sprintf("%s/", cname)
+	regexp := cname + shared.SnapshotDelimiter
 	length := len(regexp)
 	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
 	inargs := []interface{}{cTypeSnapshot, length, regexp}
