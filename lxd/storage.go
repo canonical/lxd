@@ -135,7 +135,7 @@ func storageForImage(d *Daemon, imgInfo *shared.ImageBaseInfo) (storage, error) 
 
 func storageForContainer(d *Daemon, container *lxdContainer) (storage, error) {
 	var cpath string
-	nameComponents := strings.Split(container.name, "/")
+	nameComponents := strings.Split(container.name, shared.SnapshotDelimiter)
 	cname := nameComponents[0]
 	if len(nameComponents) > 1 {
 		sname := nameComponents[1]
