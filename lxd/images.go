@@ -24,14 +24,6 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-func getSize(f *os.File) (int64, error) {
-	fi, err := f.Stat()
-	if err != nil {
-		return 0, err
-	}
-	return fi.Size(), nil
-}
-
 func detectCompression(fname string) ([]string, string, error) {
 	f, err := os.Open(fname)
 	if err != nil {
@@ -607,21 +599,6 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	return SyncResponse(true, metadata)
-}
-
-func xzReader(r io.Reader) io.ReadCloser {
-	rpipe, wpipe := io.Pipe()
-
-	cmd := exec.Command("xz", "--decompress", "--stdout")
-	cmd.Stdin = r
-	cmd.Stdout = wpipe
-
-	go func() {
-		err := cmd.Run()
-		wpipe.CloseWithError(err)
-	}()
-
-	return rpipe
 }
 
 func getImageMetadata(fname string) (*imageMetadata, error) {

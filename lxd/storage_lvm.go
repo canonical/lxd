@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/lxc/lxd/shared"
 
@@ -16,7 +15,6 @@ import (
 
 var storageLvmDefaultThinLVSize = "100GiB"
 var storageLvmDefaultThinPoolName = "LXDPool"
-var storageLvmSnapshotCreateTimeout = time.Duration(60) // seconds
 
 func storageLVMCheckVolumeGroup(vgName string) error {
 	output, err := exec.Command("vgdisplay", "-s", vgName).CombinedOutput()
