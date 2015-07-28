@@ -1017,7 +1017,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, err
 		}
 
-		if !shared.IntInSlice(imageinfo.Architecture, architectures) {
+		if len(architectures) != 0 && !shared.IntInSlice(imageinfo.Architecture, architectures) {
 			return nil, fmt.Errorf(gettext.Gettext("The image architecture is incompatible with the target server"))
 		}
 
@@ -1055,7 +1055,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, fmt.Errorf(gettext.Gettext("can't get info for image '%s': %s"), image, err)
 		}
 
-		if !shared.IntInSlice(imageinfo.Architecture, architectures) {
+		if len(architectures) != 0 && !shared.IntInSlice(imageinfo.Architecture, architectures) {
 			return nil, fmt.Errorf(gettext.Gettext("The image architecture is incompatible with the target server"))
 		}
 		source["fingerprint"] = fingerprint
