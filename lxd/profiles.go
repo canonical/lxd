@@ -109,12 +109,12 @@ var profilesCmd = Command{name: "profiles", get: profilesGet, post: profilesPost
 func profileGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	config, err := dbGetProfileConfig(d.db, name)
+	config, err := dbProfileConfigGet(d.db, name)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	devices, err := dbGetDevices(d.db, name, true)
+	devices, err := dbDevicesGet(d.db, name, true)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -183,7 +183,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	preDevList, err := dbGetDevices(d.db, name, true)
+	preDevList, err := dbDevicesGet(d.db, name, true)
 	if err != nil {
 		return InternalError(err)
 	}

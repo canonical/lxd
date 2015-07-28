@@ -23,7 +23,7 @@ func removeContainer(d *Daemon, container *lxdContainer) error {
 		}
 	}
 
-	if err := dbRemoveContainer(d, container.name); err != nil {
+	if err := dbContainerRemove(d.db, container.name); err != nil {
 		return err
 	}
 
@@ -32,7 +32,7 @@ func removeContainer(d *Daemon, container *lxdContainer) error {
 
 func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	_, err := dbGetContainerID(d.db, name)
+	_, err := dbContainerIDGet(d.db, name)
 	if err != nil {
 		return SmartError(err)
 	}

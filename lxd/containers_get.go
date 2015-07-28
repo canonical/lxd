@@ -27,7 +27,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 }
 
 func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
-	result, err := dbListContainers(d)
+	result, err := dbContainersList(d.db)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 }
 
 func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
-	_, err := dbGetContainerID(d.db, cname)
+	_, err := dbContainerIDGet(d.db, cname)
 	if err != nil {
 		return shared.ContainerInfo{}, SmartError(err)
 	}

@@ -773,6 +773,119 @@ func dbPasswordGet(db *sql.DB) (pwd string, err error) {
 	return value, nil
 }
 
+func dbDevicesAdd(tx *sql.Tx, w string, cID int, devices shared.Devices) error {
+	str1 := fmt.Sprintf("INSERT INTO %ss_devices (%s_id, name, type) VALUES (?, ?, ?)", w, w)
+	stmt1, err := tx.Prepare(str1)
+	if err != nil {
+		return err
+	}
+	defer stmt1.Close()
+	str2 := fmt.Sprintf("INSERT INTO %ss_devices_config (%s_device_id, key, value) VALUES (?, ?, ?)", w, w)
+	stmt2, err := tx.Prepare(str2)
+	if err != nil {
+		return err
+	}
+	defer stmt2.Close()
+	for k, v := range devices {
+		if !ValidDeviceType(v["type"]) {
+			return fmt.Errorf("Invalid device type %s\n", v["type"])
+		}
+		result, err := stmt1.Exec(cID, k, v["type"])
+		if err != nil {
+			return err
+		}
+		id64, err := result.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("Error inserting device %s into database", k)
+		}
+		// TODO: is this really int64? we should fix it everywhere if so
+		id := int(id64)
+		for ck, cv := range v {
+			if ck == "type" {
+				continue
+			}
+			if !ValidDeviceConfig(v["type"], ck, cv) {
+				return fmt.Errorf("Invalid device config %s %s\n", ck, cv)
+			}
+			_, err = stmt2.Exec(id, ck, cv)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func dbDeviceConfigGet(db *sql.DB, id int, isprofile bool) (shared.Device, error) {
+	var query string
+	var key, value string
+	newdev := shared.Device{} // That's a map[string]string
+	inargs := []interface{}{id}
+	outfmt := []interface{}{key, value}
+
+	if isprofile {
+		query = `SELECT key, value FROM profiles_devices_config WHERE profile_device_id=?`
+	} else {
+		query = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
+	}
+
+	results, err := dbQueryScan(db, query, inargs, outfmt)
+
+	if err != nil {
+		return newdev, err
+	}
+
+	for _, r := range results {
+		key = r[0].(string)
+		value = r[1].(string)
+		newdev[key] = value
+	}
+
+	return newdev, nil
+}
+
+func dbDevicesGet(db *sql.DB, qName string, isprofile bool) (shared.Devices, error) {
+	var q string
+	if isprofile {
+		q = `SELECT profiles_devices.id, profiles_devices.name, profiles_devices.type
+			FROM profiles_devices JOIN profiles
+			ON profiles_devices.profile_id = profiles.id
+   		WHERE profiles.name=?`
+	} else {
+		q = `SELECT containers_devices.id, containers_devices.name, containers_devices.type
+			FROM containers_devices JOIN containers
+			ON containers_devices.container_id = containers.id
+			WHERE containers.name=?`
+	}
+	var id, dtype int
+	var name, stype string
+	inargs := []interface{}{qName}
+	outfmt := []interface{}{id, name, dtype}
+	results, err := dbQueryScan(db, q, inargs, outfmt)
+	if err != nil {
+		return nil, err
+	}
+
+	devices := shared.Devices{}
+	for _, r := range results {
+		id = r[0].(int)
+		name = r[1].(string)
+		stype, err = dbDeviceTypeToString(r[2].(int))
+		if err != nil {
+			return nil, err
+		}
+		newdev, err := dbDeviceConfigGet(db, id, isprofile)
+		if err != nil {
+			return nil, err
+		}
+		newdev["type"] = stype
+		devices[name] = newdev
+	}
+
+	return devices, nil
+}
+
 // dbCertInfo is here to pass the certificates content
 // from the database around
 type dbCertInfo struct {
@@ -957,7 +1070,7 @@ func dbImageDelete(db *sql.DB, id int) error {
 }
 
 // Get an image's fingerprint for a given alias name.
-func dbAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
+func dbImageAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
 	q := `
         SELECT
             fingerprint
@@ -980,40 +1093,14 @@ func dbAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
 }
 
 // Insert an alias into the database.
-func dbAddAlias(db *sql.DB, name string, imageID int, desc string) error {
+func dbImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
 	stmt := `INSERT into images_aliases (name, image_id, description) values (?, ?, ?)`
 	_, err := dbExec(db, stmt, name, imageID, desc)
 	return err
 }
 
-// Get the container configuration map from the DB
-func dbGetConfig(db *sql.DB, containerID int) (map[string]string, error) {
-	var key, value string
-	q := `SELECT key, value FROM containers_config WHERE container_id=?`
-
-	inargs := []interface{}{containerID}
-	outfmt := []interface{}{key, value}
-
-	// Results is already a slice here, not db Rows anymore.
-	results, err := dbQueryScan(db, q, inargs, outfmt)
-	if err != nil {
-		return nil, err //SmartError will wrap this and make "not found" errors pretty
-	}
-
-	config := map[string]string{}
-
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-
-		config[key] = value
-	}
-
-	return config, nil
-}
-
 // Get the profile configuration map from the DB
-func dbGetProfileConfig(db *sql.DB, name string) (map[string]string, error) {
+func dbProfileConfigGet(db *sql.DB, name string) (map[string]string, error) {
 	var key, value string
 	query := `
         SELECT
@@ -1025,7 +1112,7 @@ func dbGetProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 	outfmt := []interface{}{key, value}
 	results, err := dbQueryScan(db, query, inargs, outfmt)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to get profile '%s'", name)
 	}
 
 	if len(results) == 0 {
@@ -1055,120 +1142,6 @@ func dbGetProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 	}
 
 	return config, nil
-}
-
-// Get a list of profiles for a given container id.
-func dbGetProfiles(db *sql.DB, containerID int) ([]string, error) {
-	var name string
-	var profiles []string
-
-	query := `
-        SELECT name FROM containers_profiles
-        JOIN profiles ON containers_profiles.profile_id=profiles.id
-		WHERE container_id=?
-        ORDER BY containers_profiles.apply_order`
-	inargs := []interface{}{containerID}
-	outfmt := []interface{}{name}
-
-	results, err := dbQueryScan(db, query, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, r := range results {
-		name = r[0].(string)
-
-		profiles = append(profiles, name)
-	}
-
-	return profiles, nil
-}
-
-func dbGetDeviceConfig(db *sql.DB, id int, isprofile bool) (shared.Device, error) {
-	var query string
-	var key, value string
-	newdev := shared.Device{} // That's a map[string]string
-	inargs := []interface{}{id}
-	outfmt := []interface{}{key, value}
-
-	if isprofile {
-		query = `SELECT key, value FROM profiles_devices_config WHERE profile_device_id=?`
-	} else {
-		query = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
-	}
-
-	results, err := dbQueryScan(db, query, inargs, outfmt)
-
-	if err != nil {
-		return newdev, err
-	}
-
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-		newdev[key] = value
-	}
-
-	return newdev, nil
-}
-
-func dbGetDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, error) {
-	var q string
-	if isprofile {
-		q = `SELECT profiles_devices.id, profiles_devices.name, profiles_devices.type
-			FROM profiles_devices JOIN profiles
-			ON profiles_devices.profile_id = profiles.id
-			WHERE profiles.name=?`
-	} else {
-		q = `SELECT containers_devices.id, containers_devices.name, containers_devices.type
-			FROM containers_devices JOIN containers
-			ON containers_devices.container_id = containers.id
-			WHERE containers.name=?`
-	}
-	var id, dtype int
-	var name, stype string
-	inargs := []interface{}{qName}
-	outfmt := []interface{}{id, name, dtype}
-	results, err := dbQueryScan(db, q, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	devices := shared.Devices{}
-	for _, r := range results {
-		id = r[0].(int)
-		name = r[1].(string)
-		stype, err = dbDeviceTypeToString(r[2].(int))
-		if err != nil {
-			return nil, err
-		}
-		newdev, err := dbGetDeviceConfig(db, id, isprofile)
-		if err != nil {
-			return nil, err
-		}
-		newdev["type"] = stype
-		devices[name] = newdev
-	}
-
-	return devices, nil
-}
-
-func dbListContainers(d *Daemon) ([]string, error) {
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? ORDER BY name")
-	inargs := []interface{}{cTypeRegular}
-	var container string
-	outfmt := []interface{}{container}
-	result, err := dbQueryScan(d.db, q, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	var ret []string
-	for _, container := range result {
-		ret = append(ret, container[0].(string))
-	}
-
-	return ret, nil
 }
 
 func isDbLockedError(err error) bool {

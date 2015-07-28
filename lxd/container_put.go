@@ -35,7 +35,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	if configRaw.Restore == "" {
 		// Update container configuration
 		do = func() error {
-			preDevList, err := dbGetDevices(d.db, name, false)
+			preDevList, err := dbDevicesGet(d.db, name, false)
 			if err != nil {
 				return err
 			}
@@ -85,13 +85,13 @@ func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig 
 	}
 
 	/* Update config or profiles */
-	if err = dbClearContainerConfig(tx, ct.id); err != nil {
+	if err = dbContainerConfigClear(tx, ct.id); err != nil {
 		shared.Debugf("Error clearing configuration for container %s\n", name)
 		tx.Rollback()
 		return nil, err
 	}
 
-	if err = dbInsertContainerConfig(tx, ct.id, newConfig.Config); err != nil {
+	if err = dbContainerConfigInsert(tx, ct.id, newConfig.Config); err != nil {
 		shared.Debugf("Error inserting configuration for container %s\n", name)
 		tx.Rollback()
 		return nil, err
@@ -105,7 +105,7 @@ func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig 
 			return nil, err
 		}
 	} else {
-		if err := dbInsertProfiles(tx, ct.id, newConfig.Profiles); err != nil {
+		if err := dbContainerProfilesInsert(tx, ct.id, newConfig.Profiles); err != nil {
 
 			tx.Rollback()
 			return nil, err
