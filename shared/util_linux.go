@@ -14,14 +14,15 @@ import (
 
 // #cgo LDFLAGS: -lutil -lpthread
 /*
+#include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <grp.h>
 #include <pty.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdio.h>
 
 // This is an adaption from https://codereview.appspot.com/4589049, to be
@@ -37,7 +38,7 @@ void configure_pty(int fd) {
 	struct winsize win;
 
 	if (tcgetattr(fd, &term_settings) < 0) {
-		printf("Failed to get settings: %s\n", strerror(errno));
+		fprintf(stderr, "Failed to get settings: %s\n", strerror(errno));
 		return;
 	}
 
@@ -49,12 +50,12 @@ void configure_pty(int fd) {
 	term_settings.c_cflag |= HUPCL;
 
 	if (tcsetattr(fd, TCSANOW, &term_settings) < 0) {
-		printf("Failed to set settings: %s\n", strerror(errno));
+		fprintf(stderr, "Failed to set settings: %s\n", strerror(errno));
 		return;
 	}
 
 	if (ioctl(fd, TIOCGWINSZ, &win) < 0) {
-		printf("Failed to get the terminal size: %s\n", strerror(errno));
+		fprintf(stderr, "Failed to get the terminal size: %s\n", strerror(errno));
 		return;
 	}
 
@@ -62,12 +63,12 @@ void configure_pty(int fd) {
 	win.ws_row = 25;
 
 	if (ioctl(fd, TIOCSWINSZ, &win) < 0) {
-		printf("Failed to set the terminal size: %s\n", strerror(errno));
+		fprintf(stderr, "Failed to set the terminal size: %s\n", strerror(errno));
 		return;
 	}
 
 	if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
-		printf("Failed to set FD_CLOEXEC: %s\n", strerror(errno));
+		fprintf(stderr, "Failed to set FD_CLOEXEC: %s\n", strerror(errno));
 		return;
 	}
 
@@ -76,7 +77,7 @@ void configure_pty(int fd) {
 
 void create_pty(int *master, int *slave, int uid, int gid) {
 	if (openpty(master, slave, NULL, NULL, NULL) < 0) {
-		printf("Failed to openpty: %s\n", strerror(errno));
+		fprintf(stderr, "Failed to openpty: %s\n", strerror(errno));
 		return;
 	}
 
@@ -84,12 +85,12 @@ void create_pty(int *master, int *slave, int uid, int gid) {
 	configure_pty(*slave);
 
 	if (fchown(*slave, uid, gid) < 0) {
-		printf("Warning: error chowning pty to container root\n");
-		printf("Continuing...\n");
+		fprintf(stderr, "Warning: error chowning pty to container root\n");
+		fprintf(stderr, "Continuing...\n");
 	}
 	if (fchown(*master, uid, gid) < 0) {
-		printf("Warning: error chowning pty to container root\n");
-		printf("Continuing...\n");
+		fprintf(stderr, "Warning: error chowning pty to container root\n");
+		fprintf(stderr, "Continuing...\n");
 	}
 }
 
@@ -97,14 +98,13 @@ void create_pipe(int *master, int *slave) {
 	int pipefd[2];
 
 	if (pipe2(pipefd, O_CLOEXEC) < 0) {
-		printf("Failed to create a pipe: %s\n", strerror(errno));
+		fprintf(stderr, "Failed to create a pipe: %s\n", strerror(errno));
 		return;
 	}
 
 	*master = pipefd[0];
 	*slave = pipefd[1];
 }
-
 */
 import "C"
 
