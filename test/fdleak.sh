@@ -17,5 +17,12 @@ test_fdleak() {
     lxc delete leaktest1
     afterfds=`/bin/ls /proc/$lxd1_pid/fd | wc -l`
     leakedfds=$((afterfds - beforefds))
-    [ $leakedfds -lt 1 ] || { echo "$leakedfds FDS leaked"; ls /proc/$lxd1_pid/fd -al; false; }
+
+    bad=0
+    [ $leakedfds -gt 0 ] && bad=1 || true
+    if [ $bad -eq 1 ]; then
+      echo "$leakedfds FDS leaked"
+      ls /proc/$lxd1_pid/fd -al
+      false
+    fi
 }
