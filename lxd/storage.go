@@ -21,6 +21,10 @@ const (
 	filesystemSuperMagicNfs   = 0x6969
 )
 
+/*
+ * filesystemDetect returns the filesystem on which
+ * the passed-in path sits
+ */
 func filesystemDetect(path string) (string, error) {
 	fs := syscall.Statfs_t{}
 

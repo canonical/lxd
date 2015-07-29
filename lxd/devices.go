@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -14,6 +17,18 @@ import (
 	"github.com/lxc/lxd/shared"
 	"gopkg.in/lxc/go-lxc.v2"
 )
+
+func addBlockDev(dev string) ([]string, error) {
+	stat := syscall.Stat_t{}
+	err := syscall.Stat(dev, &stat)
+	if err != nil {
+		return []string{}, err
+	}
+	k := "lxc.cgroup.devices.allow"
+	v := fmt.Sprintf("b %d:%d rwm", uint(stat.Rdev/256), uint(stat.Rdev%256))
+	line := []string{k, v}
+	return line, err
+}
 
 func DeviceToLxc(d shared.Device) ([][]string, error) {
 	switch d["type"] {
@@ -47,6 +62,7 @@ func DeviceToLxc(d shared.Device) ([][]string, error) {
 		return lines, nil
 	case "disk":
 		var p string
+		configLines := [][]string{}
 		if d["path"] == "/" || d["path"] == "" {
 			p = ""
 		} else if d["path"][0:1] == "/" {
@@ -57,20 +73,41 @@ func DeviceToLxc(d shared.Device) ([][]string, error) {
 		/* TODO - check whether source is a disk, loopback, btrfs subvol, etc */
 		/* for now we only handle directory bind mounts */
 		source := d["source"]
-		opts := "bind"
-		if shared.IsDir(source) {
-			opts = fmt.Sprintf("%s,create=dir", opts)
-		} else {
-			opts = fmt.Sprintf("%s,create=file", opts)
+		fstype := "none"
+		options := []string{}
+		var err error
+		if shared.IsBlockdevPath(d["source"]) {
+			fstype, err = shared.BlockFsDetect(d["source"])
+			if err != nil {
+				return nil, fmt.Errorf("Error setting up %s: %s\n", d["name"], err)
+			}
+			l, err := addBlockDev(d["source"])
+			if err != nil {
+				return nil, fmt.Errorf("Error adding blockdev: %s\n", err)
+			}
+			configLines = append(configLines, l)
+		} else if shared.IsDir(source) {
+			options = append(options, "bind")
+			options = append(options, "create=dir")
+		} else /* file bind mount */ {
+			/* Todo - can we distinguish between file bind mount and
+			 * a qcow2 (or other fs container) file? */
+			options = append(options, "bind")
+			options = append(options, "create=file")
 		}
 		if d["readonly"] == "1" || d["readonly"] == "true" {
-			opts = fmt.Sprintf("%s,ro", opts)
+			options = append(options, "ro")
 		}
 		if d["optional"] == "1" || d["optional"] == "true" {
-			opts = fmt.Sprintf("%s,optional", opts)
+			options = append(options, "optional")
 		}
-		l := []string{"lxc.mount.entry", fmt.Sprintf("%s %s none %s 0 0", source, p, opts)}
-		return [][]string{l}, nil
+		opts := strings.Join(options, ",")
+		if opts == "" {
+			opts = "defaults"
+		}
+		l := []string{"lxc.mount.entry", fmt.Sprintf("%s %s %s %s 0 0", source, p, fstype, opts)}
+		configLines = append(configLines, l)
+		return configLines, nil
 	case "none":
 		return nil, nil
 	default:
@@ -347,6 +384,98 @@ func txUpdateNic(tx *sql.Tx, cId int, devname string, nicname string) error {
 	return err
 }
 
+func (d *lxdContainer) detachMount(m shared.Device) error {
+	// TODO - in case of reboot, we should remove the lxc.mount.entry.  Trick
+	// is, we can't d.c.ClearConfigItem bc that will clear all the keys.  So
+	// we should get the full list, clear, then reinsert all but the one we're
+	// removing
+	shared.Debugf("Mounts detach not yet implemented")
+
+	pid := d.c.InitPid()
+	if pid == -1 { // container not running
+		return nil
+	}
+	pidstr := fmt.Sprintf("%d", pid)
+	return exec.Command(os.Args[0], "forkumount", pidstr, m["path"]).Run()
+}
+
+func (d *lxdContainer) attachMount(m shared.Device) error {
+	dest := m["path"]
+	source := m["source"]
+
+	opts := ""
+	fstype := "none"
+	flags := 0
+	sb, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	if sb.IsDir() {
+		flags |= syscall.MS_BIND
+		opts = "bind,create=dir"
+	} else {
+		if !shared.IsBlockdev(sb.Mode()) {
+			// Not sure if we want to try dealing with loopdevs, but
+			// since we'd need to deal with partitions i think not.
+			// We also might want to support file bind mounting, but
+			// this doesn't do that.
+			return fmt.Errorf("non-block device file not supported\n")
+		}
+
+		fstype, err = shared.BlockFsDetect(source)
+		if err != nil {
+			return fmt.Errorf("Unable to detect fstype for %s: %s\n", source, err)
+		}
+	}
+
+	// add a lxc.mount.entry = souce destination, in case of reboot
+	if m["readonly"] == "1" || m["readonly"] == "true" {
+		if opts == "" {
+			opts = "ro"
+		} else {
+			opts = opts + ",ro"
+		}
+	}
+	optional := false
+	if m["optional"] == "1" || m["optional"] == "true" {
+		optional = true
+		opts = opts + ",optional"
+	}
+
+	entry := fmt.Sprintf("%s %s %s %s 0 0", source, dest, fstype, opts)
+	if err := d.c.SetConfigItem("lxc.mount.entry", entry); err != nil {
+		return err
+	}
+
+	pid := d.c.InitPid()
+	if pid == -1 { // container not running - we're done
+		return nil
+	}
+
+	// now live-mount
+	tmpMount, err := ioutil.TempDir(shared.VarPath("shmounts", d.name), "lxdmount_")
+	if err != nil {
+		return err
+	}
+
+	err = syscall.Mount(m["source"], tmpMount, fstype, uintptr(flags), "")
+	if err != nil {
+		return err
+	}
+
+	mntsrc := filepath.Join("/.lxdmounts", filepath.Base(tmpMount))
+	// finally we need to move-mount this in the container
+	pidstr := fmt.Sprintf("%d", pid)
+	err = exec.Command(os.Args[0], "forkmount", pidstr, mntsrc, m["path"]).Run()
+	syscall.Unmount(tmpMount, syscall.MNT_DETACH) // in case forkmount failed
+	os.Remove(tmpMount)
+
+	if err != nil && !optional {
+		return err
+	}
+	return nil
+}
+
 /*
  * Given a running container and a list of devices before and after a
  * config change, update the devices in the container.
@@ -359,29 +488,53 @@ func devicesApplyDeltaLive(tx *sql.Tx, c *lxdContainer, preDevList shared.Device
 	var err error
 
 	// note - currently Devices.Update() only returns nics
-	for key, nic := range rmList {
-		if nic["name"] == "" {
-			return fmt.Errorf("Do not know a name for the nic for device %s\n", key)
-		}
-		if err := detachInterface(c, nic["name"]); err != nil {
-			return fmt.Errorf("Error removing device %s (nic %s) from container %s: %s", key, nic["name"], c.name, err)
-		}
-	}
-
-	for key, nic := range addList {
-		var tmpName string
-		if tmpName, err = setupNic(c, nic); err != nil {
-			return fmt.Errorf("Unable to create nic %s for container %s: %s", nic["name"], c.name, err)
-		}
-		if err := c.c.AttachInterface(tmpName, nic["name"]); err != nil {
-			RemoveInterface(tmpName)
-			return fmt.Errorf("Unable to move nic %s into container %s as %s: %s", tmpName, c.name, nic["name"], err)
-		}
-		// Now we need to add the name to the database
-		if err := txUpdateNic(tx, c.id, key, nic["name"]); err != nil {
-			shared.Debugf("Warning: failed to update database entry for new nic %s: %s\n", key, err)
+	for key, dev := range rmList {
+		switch dev["type"] {
+		case "nic":
+			if dev["name"] == "" {
+				return fmt.Errorf("Do not know a name for the nic for device %s\n", key)
+			}
+			if err := detachInterface(c, dev["name"]); err != nil {
+				return fmt.Errorf("Error removing device %s (nic %s) from container %s: %s", key, dev["name"], c.name, err)
+			}
+		case "disk":
+			return c.detachMount(dev)
 		}
 	}
 
+	for key, dev := range addList {
+		switch dev["type"] {
+		case "nic":
+			var tmpName string
+			if tmpName, err = setupNic(c, dev); err != nil {
+				return fmt.Errorf("Unable to create nic %s for container %s: %s", dev["name"], c.name, err)
+			}
+			if err := c.c.AttachInterface(tmpName, dev["name"]); err != nil {
+				RemoveInterface(tmpName)
+				return fmt.Errorf("Unable to move nic %s into container %s as %s: %s", tmpName, c.name, dev["name"], err)
+			}
+			// Now we need to add the name to the database
+			if err := txUpdateNic(tx, c.id, key, dev["name"]); err != nil {
+				shared.Debugf("Warning: failed to update database entry for new nic %s: %s\n", key, err)
+			}
+		case "disk":
+			if dev["source"] == "" || dev["path"] == "" {
+				return fmt.Errorf("no source or destination given")
+			}
+			return c.attachMount(dev)
+		}
+	}
+
+	return nil
+}
+
+func validateConfig(c *lxdContainer, devs shared.Devices) error {
+	for _, dev := range devs {
+		if dev["type"] == "disk" && shared.IsBlockdevPath(dev["source"]) {
+			if !c.isPrivileged() {
+				return fmt.Errorf("Only privileged containers may mount block devices")
+			}
+		}
+	}
 	return nil
 }

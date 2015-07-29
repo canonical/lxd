@@ -658,6 +658,10 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 		d.idmapset = daemon.IdmapSet // TODO - per-tenant idmaps
 	}
 
+	if err := d.MountShared(); err != nil {
+		return nil, err
+	}
+
 	err = d.applyIdmapSet()
 	if err != nil {
 		return nil, err
