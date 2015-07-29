@@ -54,6 +54,7 @@ The currently supported keys are:
 
 Key                         | Type          | Default           | Description
 :--                         | :---          | :------           | :----------
+environment.\*              | string        | -                 | key/value environment variables to export to the container and set on exec
 limits.cpus                 | int           | 0 (all)           | Number of CPUs to expose to the container
 limits.memory               | int           | 0 (all)           | Size in MB of the memory allocation for the container
 raw.apparmor                | blob          | -                 | Apparmor profile entries to be appended to the generated profile
