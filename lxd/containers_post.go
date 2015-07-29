@@ -380,6 +380,10 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		shared.Debugf("no name provided, creating %s", req.Name)
 	}
 
+	if strings.Contains(req.Name, "/") {
+		return BadRequest(fmt.Errorf("Invalid container name: '/' is reserved for snapshots"))
+	}
+
 	switch req.Source.Type {
 	case "image":
 		return createFromImage(d, &req)
