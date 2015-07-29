@@ -389,5 +389,13 @@ func ValidContainerConfigKey(k string) bool {
 		return true
 	}
 
-	return strings.HasPrefix(k, "user.")
+	if strings.HasPrefix(k, "environment.") {
+		return true
+	}
+
+	if strings.HasPrefix(k, "user.") {
+		return true
+	}
+
+	return false
 }
