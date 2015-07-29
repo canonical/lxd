@@ -239,9 +239,8 @@ func (c *lxdContainer) applyConfig(config map[string]string, fromProfile bool) e
 			err = c.c.SetConfigItem("lxc.cgroup.memory.limit_in_bytes", v)
 
 		default:
-			if strings.HasPrefix(k, "user.") {
-				// ignore for now
-				err = nil
+			if strings.HasPrefix(k, "environment.") {
+				c.c.SetConfigItem("lxc.environment", fmt.Sprintf("%s=%s", strings.TrimPrefix(k, "environment."), v))
 			}
 
 			/* Things like security.privileged need to be propagated */
