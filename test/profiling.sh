@@ -38,5 +38,5 @@ test_mem_profiling() {
     sleep 1s
     echo top5 | go tool pprof $(which lxd) ${LXD4_DIR}/mem
     echo ""
-    kill -9 $lxdpid
+    do_kill_lxd $lxdpid
 }

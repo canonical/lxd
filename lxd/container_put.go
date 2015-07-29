@@ -39,10 +39,14 @@ func containerPut(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return err
 			}
+			if err := validateConfig(c, configRaw.Devices); err != nil {
+				return err
+			}
 			tx, err := containerReplaceConfig(d, c, name, configRaw)
 			if err != nil {
 				return err
 			}
+
 			if !c.c.Running() {
 				return txCommit(tx)
 			}

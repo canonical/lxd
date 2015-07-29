@@ -65,7 +65,7 @@ cleanup() {
     for p in `pidof lxd`; do
         pgrp=`awk '{ print $5 }' /proc/$p/stat`
         if [ "$pgrp" = "$mygrp" ]; then
-            kill -9 $p
+          do_kill_lxd $p
         fi
     done
 

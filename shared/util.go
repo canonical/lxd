@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -413,4 +414,41 @@ func IntInSlice(key int, list []int) bool {
 		}
 	}
 	return false
+}
+
+func IsSharedMount(path string) bool {
+	file, err := os.Open("/proc/self/mountinfo")
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		rows := strings.Fields(scanner.Text())
+		if rows[3] != path || rows[4] != path {
+			continue
+		}
+		return strings.HasPrefix(rows[6], "shared:")
+	}
+	return false
+}
+
+func IsBlockdev(fm os.FileMode) bool {
+	return ((fm&os.ModeDevice != 0) && (fm&os.ModeCharDevice == 0))
+}
+
+func IsBlockdevPath(path string) bool {
+	sb, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	fm := sb.Mode()
+	return ((fm&os.ModeDevice != 0) && (fm&os.ModeCharDevice == 0))
+}
+
+func BlockFsDetect(dev string) (string, error) {
+	out, err := exec.Command("blkid", "-s", "TYPE", "-o", "value", dev).Output()
+	return strings.TrimSpace(string(out)), err
 }

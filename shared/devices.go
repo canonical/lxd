@@ -58,12 +58,23 @@ func (list Devices) Contains(k string, d Device) bool {
 	return true
 }
 
+func liveUpdateable(devtype string) bool {
+	switch devtype {
+	case "nic":
+		return true
+	case "disk":
+		return true
+	default:
+		return false
+	}
+}
+
 func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device) {
 	rmlist := map[string]Device{}
 	addlist := map[string]Device{}
 	for key, d := range old {
 		switch {
-		case d["type"] != "nic":
+		case !liveUpdateable(d["type"]):
 			continue
 		case !newlist.Contains(key, d):
 			rmlist[key] = d
@@ -71,7 +82,7 @@ func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device
 	}
 	for key, d := range newlist {
 		switch {
-		case d["type"] != "nic":
+		case !liveUpdateable(d["type"]):
 			continue
 		case !old.Contains(key, d):
 			addlist[key] = d

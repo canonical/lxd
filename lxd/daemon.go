@@ -22,6 +22,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stgraber/lxd-go-systemd/activation"
+	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/tomb.v2"
 
 	"github.com/lxc/lxd"
@@ -302,6 +303,27 @@ func (d *Daemon) SetupStorageDriver() error {
 	return err
 }
 
+func setupSharedMounts() error {
+	path := shared.VarPath("shmounts")
+	if shared.IsSharedMount(path) {
+		// mounted by previous lxd run which must have crashed
+		return nil
+	}
+	if !shared.PathExists(path) {
+		if err := os.Mkdir(path, 0755); err != nil {
+			return err
+		}
+	}
+	if err := syscall.Mount(path, path, "none", syscall.MS_BIND, ""); err != nil {
+		return err
+	}
+	var flags uintptr = syscall.MS_SHARED | syscall.MS_REC
+	if err := syscall.Mount(path, path, "none", flags, ""); err != nil {
+		return err
+	}
+	return nil
+}
+
 // StartDaemon starts the shared daemon with the provided configuration.
 func StartDaemon(listenAddr string) (*Daemon, error) {
 	d := &Daemon{}
@@ -398,6 +420,10 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	/* Setup /dev/lxd */
 	d.devlxd, err = createAndBindDevLxd()
 	if err != nil {
+		return nil, err
+	}
+
+	if err := setupSharedMounts(); err != nil {
 		return nil, err
 	}
 
@@ -538,6 +564,44 @@ func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 	return false
 }
 
+func (d *Daemon) ListRegularContainers() ([]string, error) {
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
+	inargs := []interface{}{cTypeRegular}
+	var name string
+	outfmt := []interface{}{name}
+
+	list := []string{}
+	result, err := dbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		return list, err
+	}
+	for _, r := range result {
+		list = append(list, r[0].(string))
+	}
+	return list, nil
+}
+
+func (d *Daemon) numRunningContainers() (int, error) {
+	results, err := d.ListRegularContainers()
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, r := range results {
+		container, err := newLxdContainer(r, d)
+		if err != nil {
+			continue
+		}
+
+		if container.c.State() != lxc.STOPPED {
+			count = count + 1
+		}
+	}
+
+	return count, nil
+}
+
 var errStop = fmt.Errorf("requested stop")
 
 // Stop stops the shared daemon.
@@ -548,6 +612,14 @@ func (d *Daemon) Stop() error {
 	}
 	for _, socket := range d.remoteSockets {
 		socket.Close()
+	}
+
+	if n, err := d.numRunningContainers(); err != nil || n == 0 {
+		shared.Debugf("daemon.Stop: unmounting shmounts: err %s n %d", err, n)
+		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
+		os.RemoveAll(shared.VarPath("shmounts"))
+	} else {
+		shared.Debugf("daemon.Stop: not unmounting shmounts")
 	}
 
 	d.db.Close()
