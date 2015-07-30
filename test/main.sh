@@ -231,13 +231,15 @@ echo "==> TEST: basic usage"
 curtest=test_basic_usage
 test_basic_usage
 
-echo "==> TEST: concurrent exec"
-curtest=test_concurrent_exec
-test_concurrent_exec
+if [ -n "$LXD_CONCURRENT" ]; then
+    echo "==> TEST: concurrent exec"
+    curtest=test_concurrent_exec
+    test_concurrent_exec
 
-echo "==> TEST: concurrent startup"
-curtest=test_concurrent
-test_concurrent
+    echo "==> TEST: concurrent startup"
+    curtest=test_concurrent
+    test_concurrent
+fi
 
 echo "==> TEST: lxc remote usage"
 curtest=test_remote_usage
