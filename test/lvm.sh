@@ -47,6 +47,12 @@ test_lvm() {
         echo "===> SKIPPING lvm backing: vgcreate not found"
         return
     fi
+
+    if ! which thin_check >/dev/null; then
+        echo "===> SKIPPING lvm backing: thin_check not found"
+        return
+    fi
+
     create_vg
     trap cleanup_vg EXIT HUP INT TERM
 
@@ -92,7 +98,7 @@ test_delete_with_appropriate_storage() {
     lxc image delete testimage || die "couldn't delete lvm-backed image"
 
     do_kill_lxd `cat $LXD_DIR/lxd.pid`
-    rm -Rf ${LXD_DIR}
+    wipe ${LXD_DIR}
     LXD_DIR=${PREV_LXD_DIR}
 }
 
@@ -172,7 +178,7 @@ test_lvm_withpool() {
 
     do_kill_lxd `cat $LXD_DIR/lxd.pid`
     sleep 3
-    rm -Rf ${LXD_DIR}
+    wipe ${LXD_DIR}
     LXD_DIR=${PREV_LXD_DIR}
 }
 
@@ -216,7 +222,7 @@ test_remote_launch_imports_lvm() {
     do_kill_lxd `cat $LXD_DIR/lxd.pid`
     do_kill_lxd `cat $LXD_REMOTE_DIR/lxd.pid`
     sleep 3
-    rm -Rf ${LXD_DIR}
-    rm -Rf ${LXD_REMOTE_DIR}
+    wipe ${LXD_DIR}
+    wipe ${LXD_REMOTE_DIR}
     LXD_DIR=${PREV_LXD_DIR}
 }
