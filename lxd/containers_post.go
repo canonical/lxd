@@ -19,7 +19,7 @@ func extractImage(hash string, name string, d *Daemon) error {
 	 * We want to use archive/tar for this, but that doesn't appear
 	 * to be working for us (see lxd/images.go)
 	 */
-	dpath := shared.VarPath("lxc", name)
+	dpath := shared.VarPath("containers", name)
 	imagefile := shared.VarPath("images", hash)
 
 	err := untar(imagefile, dpath)
@@ -38,8 +38,8 @@ func extractImage(hash string, name string, d *Daemon) error {
 }
 
 func shiftRootfs(c *lxdContainer, d *Daemon) error {
-	dpath := shared.VarPath("lxc", c.name)
-	rpath := shared.VarPath("lxc", c.name, "rootfs")
+	dpath := shared.VarPath("containers", c.name)
+	rpath := shared.VarPath("containers", c.name, "rootfs")
 	err := c.idmapset.ShiftRootfs(rpath)
 	if err != nil {
 		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
@@ -140,7 +140,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	}
 	hash = imgInfo.Fingerprint
 
-	dpath := shared.VarPath("lxc", req.Name)
+	dpath := shared.VarPath("containers", req.Name)
 	if shared.PathExists(dpath) {
 		return InternalError(fmt.Errorf("Container exists"))
 	}
@@ -240,7 +240,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 
 	// rsync complaisn if the parent directory for the rootfs sync doesn't
 	// exist
-	dpath := shared.VarPath("lxc", req.Name)
+	dpath := shared.VarPath("containers", req.Name)
 	if err := os.MkdirAll(dpath, 0700); err != nil {
 		removeContainer(d, c)
 		return InternalError(err)

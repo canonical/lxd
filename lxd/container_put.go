@@ -183,7 +183,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 	// 3. copy rootfs
 	// TODO: btrfs optimizations
 
-	containerRootPath := shared.VarPath("lxc", name)
+	containerRootPath := shared.VarPath("containers", name)
 
 	if !shared.IsDir(path.Dir(containerRootPath)) {
 		shared.Debugf("RESTORE => containerRoot [%s] directory does not exist", containerRootPath)

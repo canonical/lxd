@@ -2,31 +2,31 @@ test_snapshots() {
   lxc init testimage foo
 
   lxc snapshot foo
-  [ -d "$LXD_DIR/lxc/foo/snapshots/snap0" ]
+  [ -d "$LXD_DIR/containers/foo/snapshots/snap0" ]
 
   lxc snapshot foo
-  [ -d "$LXD_DIR/lxc/foo/snapshots/snap1" ]
+  [ -d "$LXD_DIR/containers/foo/snapshots/snap1" ]
 
   lxc snapshot foo tester
-  [ -d "$LXD_DIR/lxc/foo/snapshots/tester" ]
+  [ -d "$LXD_DIR/containers/foo/snapshots/tester" ]
 
   lxc copy foo/tester foosnap1
-  [ -d "$LXD_DIR/lxc/foosnap1/rootfs" ]
+  [ -d "$LXD_DIR/containers/foosnap1/rootfs" ]
 
   lxc delete foo/snap0
-  [ ! -d "$LXD_DIR/lxc/foo/snapshots/snap0" ]
+  [ ! -d "$LXD_DIR/containers/foo/snapshots/snap0" ]
 
   # no CLI for this, so we use the API directly
   wait_for my_curl -X POST $BASEURL/1.0/containers/foo/snapshots/tester -d "{\"name\":\"tester2\"}"
-  [ ! -d "$LXD_DIR/lxc/foo/snapshots/tester" ]
+  [ ! -d "$LXD_DIR/containers/foo/snapshots/tester" ]
 
   # no CLI for this, so we use the API directly
   wait_for my_curl -X DELETE $BASEURL/1.0/containers/foo/snapshots/tester2
-  [ ! -d "$LXD_DIR/lxc/foo/snapshots/tester2" ]
+  [ ! -d "$LXD_DIR/containers/foo/snapshots/tester2" ]
 
   lxc delete foo
   lxc delete foosnap1
-  [ ! -d "$LXD_DIR/lxc/foo" ]
+  [ ! -d "$LXD_DIR/containers/foo" ]
 }
 
 test_snap_restore() {
@@ -50,8 +50,8 @@ test_snap_restore() {
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap0
   lxc stop bar --force
-  mkdir "$LXD_DIR/lxc/bar/rootfs/root/dir_only_in_snap0"
-  cd "$LXD_DIR/lxc/bar/rootfs/root/"
+  mkdir "$LXD_DIR/containers/bar/rootfs/root/dir_only_in_snap0"
+  cd "$LXD_DIR/containers/bar/rootfs/root/"
   ln -s ./file_only_in_snap0 statelink
   cd -
 
@@ -63,7 +63,7 @@ test_snap_restore() {
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap1
   lxc stop bar --force
-  cd "$LXD_DIR/lxc/bar/rootfs/root/"
+  cd "$LXD_DIR/containers/bar/rootfs/root/"
 
   rmdir dir_only_in_snap0
   rm    file_only_in_snap0
@@ -131,6 +131,6 @@ restore_and_compare_fs() {
   lxc restore bar $1
 
   # Recursive diff of container FS
-  echo "diff -r $LXD_DIR/lxc/bar/rootfs $LXD_DIR/lxc/bar/snapshots/$snap/rootfs"
-  diff -r "$LXD_DIR/lxc/bar/rootfs" "$LXD_DIR/lxc/bar/snapshots/$snap/rootfs"
+  echo "diff -r $LXD_DIR/containers/bar/rootfs $LXD_DIR/containers/bar/snapshots/$snap/rootfs"
+  diff -r "$LXD_DIR/containers/bar/rootfs" "$LXD_DIR/containers/bar/snapshots/$snap/rootfs"
 }

@@ -56,8 +56,8 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	run := func() error {
-		oldPath := fmt.Sprintf("%s/", shared.VarPath("lxc", c.name))
-		newPath := fmt.Sprintf("%s/", shared.VarPath("lxc", body.Name))
+		oldPath := fmt.Sprintf("%s/", shared.VarPath("containers", c.name))
+		newPath := fmt.Sprintf("%s/", shared.VarPath("containers", body.Name))
 
 		if err := shared.FileMove(oldPath, newPath); err != nil {
 			return err

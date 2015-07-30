@@ -20,7 +20,7 @@ test_filemanip() {
   lxc file push main.sh filemanip/tmp/inside/
 
   [ ! -f /tmp/outside/main.sh ]
-  [ -f ${LXD_DIR}/lxc/filemanip/rootfs/tmp/outside/main.sh ]
+  [ -f ${LXD_DIR}/containers/filemanip/rootfs/tmp/outside/main.sh ]
 
   rm -rf /tmp/outside
   lxc delete filemanip

@@ -145,7 +145,7 @@ test_basic_usage() {
   rm ${LXD_DIR}/out
 
   # This is why we can't have nice things.
-  content=$(cat "${LXD_DIR}/lxc/foo/rootfs/tmp/foo")
+  content=$(cat "${LXD_DIR}/containers/foo/rootfs/tmp/foo")
   [ "$content" = "foo" ]
 
   # cleanup
@@ -155,7 +155,7 @@ test_basic_usage() {
   lxc profile create unconfined
   lxc profile set unconfined security.privileged true
   lxc init testimage foo2 -p unconfined
-  [ `stat -c "%a" ${LXD_DIR}/lxc/foo2` = 700 ]
+  [ `stat -c "%a" ${LXD_DIR}/containers/foo2` = 700 ]
   lxc delete foo2
   lxc profile delete unconfined
 
