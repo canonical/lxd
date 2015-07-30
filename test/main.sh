@@ -168,6 +168,11 @@ spawn_lxd() {
   lxddir=$2
   shift
   shift
+
+  # Copy pre generated Certs
+  cp server.crt $lxddir
+  cp server.key $lxddir
+
   echo "==> Spawning lxd on $addr in $lxddir"
   (LXD_DIR=$lxddir lxd $debug --tcp $addr $extraargs $* 2>&1 & echo $! > $lxddir/lxd.pid) | tee $lxddir/lxd.log &
 
