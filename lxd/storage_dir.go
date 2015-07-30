@@ -78,7 +78,7 @@ func (s *storageDir) ContainerCopy(
 	/*
 	 * Copy by using rsync
 	 */
-	output, err := s.rsyncCopy(oldPath, newPath)
+	output, err := storageRsyncCopy(oldPath, newPath)
 	if err != nil {
 		s.ContainerDelete(container)
 		s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": output})
