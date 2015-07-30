@@ -19,8 +19,8 @@ type TemplateEntry struct {
 	Properties map[string]string
 }
 
-func templateApply(c *lxdContainer, trigger string) error {
-	fname := shared.VarPath("containers", c.name, "metadata.yaml")
+func (c *lxdContainer) TemplateApply(trigger string) error {
+	fname := path.Join(c.PathGet(""), "metadata.yaml")
 
 	if !shared.PathExists(fname) {
 		return nil
@@ -62,7 +62,7 @@ func templateApply(c *lxdContainer, trigger string) error {
 			}
 		} else {
 			var uid, gid int
-			if !c.isPrivileged() {
+			if !c.IsPrivileged() {
 				uid, gid := c.idmapset.ShiftIntoNs(0, 0)
 				shared.MkdirAllOwner(path.Dir(fullpath), 0755, uid, gid)
 			}
@@ -72,7 +72,7 @@ func templateApply(c *lxdContainer, trigger string) error {
 				return err
 			}
 
-			if !c.isPrivileged() {
+			if !c.IsPrivileged() {
 				w.Chown(uid, gid)
 			}
 			w.Chmod(0644)
@@ -98,7 +98,7 @@ func templateApply(c *lxdContainer, trigger string) error {
 			containerMeta["ephemeral"] = "false"
 		}
 
-		if c.isPrivileged() {
+		if c.IsPrivileged() {
 			containerMeta["privileged"] = "true"
 		} else {
 			containerMeta["privileged"] = "false"

@@ -54,10 +54,19 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 		return "", err
 	}
 
+	rsyncVerbosity := "-q"
+	if *debug {
+		rsyncVerbosity = "-vi"
+	}
+
 	output, err := exec.Command(
 		"rsync",
 		"-a",
+		"--checksum", // TODO: Not sure we need this option
+		"-HAX",
 		"--devices",
+		"--delete",
+		rsyncVerbosity,
 		shared.AddSlash(source),
 		dest).CombinedOutput()
 
@@ -81,7 +90,7 @@ func storageTypeToString(sType storageType) string {
 		return "lvm"
 	}
 
-	return "default"
+	return "dir"
 }
 
 type storage interface {
@@ -90,14 +99,18 @@ type storage interface {
 	GetStorageType() storageType
 	GetStorageTypeName() string
 
-	ContainerCreate(container *lxdContainer, imageFingerprint string) error
-	ContainerDelete(container *lxdContainer) error
-	ContainerCopy(container *lxdContainer, sourceContainer *lxdContainer) error
-	ContainerStart(container *lxdContainer) error
-	ContainerStop(container *lxdContainer) error
+	ContainerCreate(container container, imageFingerprint string) error
+	ContainerDelete(container container) error
+	ContainerCopy(container container, sourceContainer container) error
+	ContainerStart(container container) error
+	ContainerStop(container container) error
+	ContainerRename(container container, newName string) error
+	ContainerRestore(container container, sourceContainer container) error
 
-	ContainerSnapshotCreate(container *lxdContainer, snapshotName string) error
-	ContainerSnapshotDelete(container *lxdContainer, snapshotName string) error
+	ContainerSnapshotCreate(
+		snapshotContainer container, sourceContainer container) error
+	ContainerSnapshotDelete(snapshotContainer container) error
+	ContainerSnapshotRename(snapshotContainer container, newName string) error
 
 	ImageCreate(fingerprint string) error
 	ImageDelete(fingerprint string) error
@@ -152,16 +165,6 @@ func storageForImage(d *Daemon, imgInfo *shared.ImageBaseInfo) (storage, error) 
 	return storageForFilename(d, imageFilename)
 }
 
-func storageForContainer(d *Daemon, container *lxdContainer) (storage, error) {
-	var cpath string
-	if container.IsSnapshot() {
-		cpath = shared.VarPath("snapshots", container.name)
-	} else {
-		cpath = shared.VarPath("containers", container.name)
-	}
-	return storageForFilename(d, cpath)
-}
-
 type storageShared struct {
 	sTypeName string
 
@@ -177,6 +180,34 @@ func (ss *storageShared) initShared() error {
 
 func (ss *storageShared) GetStorageTypeName() string {
 	return ss.sTypeName
+}
+
+func (ss *storageShared) setUnprivUserAcl(
+	sourceContainer container, destPath string) error {
+
+	if !sourceContainer.IsPrivileged() {
+		err := setUnprivUserAcl(sourceContainer, destPath)
+		if err != nil {
+			ss.log.Error(
+				"adding acl for container root: falling back to chmod",
+				log.Ctx{"destPath": destPath})
+
+			output, err := exec.Command(
+				"chmod", "+x", destPath).CombinedOutput()
+
+			if err != nil {
+				ss.log.Error(
+					"chmoding the container root",
+					log.Ctx{
+						"destPath": destPath,
+						"output":   output})
+
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 type storageLogWrapper struct {
@@ -203,56 +234,91 @@ func (lw *storageLogWrapper) GetStorageTypeName() string {
 }
 
 func (lw *storageLogWrapper) ContainerCreate(
-	container *lxdContainer, imageFingerprint string) error {
+	container container, imageFingerprint string) error {
 
 	lw.log.Debug(
 		"ContainerCreate",
 		log.Ctx{
 			"imageFingerprint": imageFingerprint,
-			"name":             container.name,
-			"isPrivileged":     container.isPrivileged})
+			"name":             container.NameGet(),
+			"isPrivileged":     container.IsPrivileged()})
 	return lw.w.ContainerCreate(container, imageFingerprint)
 }
 
-func (lw *storageLogWrapper) ContainerDelete(container *lxdContainer) error {
-	lw.log.Debug("ContainerDelete", log.Ctx{"container": container.name})
+func (lw *storageLogWrapper) ContainerDelete(container container) error {
+	lw.log.Debug("ContainerDelete", log.Ctx{"container": container.NameGet()})
 	return lw.w.ContainerDelete(container)
 }
 
 func (lw *storageLogWrapper) ContainerCopy(
-	container *lxdContainer, sourceContainer *lxdContainer) error {
+	container container, sourceContainer container) error {
 
 	lw.log.Debug(
 		"ContainerCopy",
 		log.Ctx{
-			"container": container.name,
-			"source":    sourceContainer.name})
+			"container": container.NameGet(),
+			"source":    sourceContainer.NameGet()})
 	return lw.w.ContainerCopy(container, sourceContainer)
 }
 
-func (lw *storageLogWrapper) ContainerStart(container *lxdContainer) error {
-	lw.log.Debug("ContainerStart", log.Ctx{"container": container.name})
+func (lw *storageLogWrapper) ContainerStart(container container) error {
+	lw.log.Debug("ContainerStart", log.Ctx{"container": container.NameGet()})
 	return lw.w.ContainerStart(container)
 }
 
-func (lw *storageLogWrapper) ContainerStop(container *lxdContainer) error {
-	lw.log.Debug("ContainerStop", log.Ctx{"container": container.name})
+func (lw *storageLogWrapper) ContainerStop(container container) error {
+	lw.log.Debug("ContainerStop", log.Ctx{"container": container.NameGet()})
 	return lw.w.ContainerStop(container)
 }
 
+func (lw *storageLogWrapper) ContainerRename(
+	container container, newName string) error {
+
+	lw.log.Debug(
+		"ContainerRename",
+		log.Ctx{
+			"container": container.NameGet(),
+			"newName":   newName})
+	return lw.w.ContainerRename(container, newName)
+}
+
+func (lw *storageLogWrapper) ContainerRestore(
+	container container, sourceContainer container) error {
+
+	lw.log.Debug(
+		"ContainerRestore",
+		log.Ctx{
+			"container": container.NameGet(),
+			"source":    sourceContainer.NameGet()})
+	return lw.w.ContainerRestore(container, sourceContainer)
+}
+
 func (lw *storageLogWrapper) ContainerSnapshotCreate(
-	container *lxdContainer, snapshotName string) error {
+	snapshotContainer container, sourceContainer container) error {
 
 	lw.log.Debug("ContainerSnapshotCreate",
-		log.Ctx{"container": container.name, "snapshotName": snapshotName})
-	return lw.w.ContainerSnapshotCreate(container, snapshotName)
+		log.Ctx{
+			"snapshotContainer": snapshotContainer.NameGet(),
+			"sourceContainer":   sourceContainer.NameGet()})
+
+	return lw.w.ContainerSnapshotCreate(snapshotContainer, sourceContainer)
 }
 func (lw *storageLogWrapper) ContainerSnapshotDelete(
-	container *lxdContainer, snapshotName string) error {
+	snapshotContainer container) error {
 
 	lw.log.Debug("ContainerSnapshotDelete",
-		log.Ctx{"container": container.name, "snapshotName": snapshotName})
-	return lw.w.ContainerSnapshotDelete(container, snapshotName)
+		log.Ctx{"snapshotContainer": snapshotContainer.NameGet()})
+	return lw.w.ContainerSnapshotDelete(snapshotContainer)
+}
+
+func (lw *storageLogWrapper) ContainerSnapshotRename(
+	snapshotContainer container, newName string) error {
+
+	lw.log.Debug("ContainerSnapshotRename",
+		log.Ctx{
+			"snapshotContainer": snapshotContainer.NameGet(),
+			"newName":           newName})
+	return lw.w.ContainerSnapshotRename(snapshotContainer, newName)
 }
 
 func (lw *storageLogWrapper) ImageCreate(fingerprint string) error {

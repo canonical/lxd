@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -29,7 +28,11 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if body.Migration {
-		ws, err := migration.NewMigrationSource(c.c)
+		lxc, err := c.LXContainerGet()
+		if err != nil {
+			return InternalError(err)
+		}
+		ws, err := migration.NewMigrationSource(lxc)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -37,36 +40,8 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		return AsyncResponseWithWs(ws, nil)
 	}
 
-	if c.c.Running() {
-		return BadRequest(fmt.Errorf("renaming of running container not allowed"))
-	}
-
-	args := containerLXDArgs{
-		Ctype:        cTypeRegular,
-		Config:       c.config,
-		Profiles:     c.profiles,
-		Ephemeral:    c.ephemeral,
-		BaseImage:    c.config["volatile.baseImage"],
-		Architecture: c.architecture,
-	}
-
-	_, err = dbContainerCreate(d.db, body.Name, args)
-	if err != nil {
-		return SmartError(err)
-	}
-
 	run := func() error {
-		oldPath := fmt.Sprintf("%s/", shared.VarPath("containers", c.name))
-		newPath := fmt.Sprintf("%s/", shared.VarPath("containers", body.Name))
-
-		if err := shared.FileMove(oldPath, newPath); err != nil {
-			return err
-		}
-
-		if err = removeContainer(d, c); err != nil {
-			return fmt.Errorf("error removing container after rename: %v", err)
-		}
-		return nil
+		return c.Rename(body.Name)
 	}
 
 	return AsyncResponse(shared.OperationWrap(run), nil)

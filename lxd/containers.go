@@ -15,8 +15,6 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // containerLXDArgs contains every argument needed to create an LXD Container
@@ -43,6 +41,12 @@ type lxdContainer struct {
 	ephemeral    bool
 	idmapset     *shared.IdmapSet
 	cType        containerType
+
+	// These two will contain the containers data without profiles
+	myConfig  map[string]string
+	myDevices shared.Devices
+
+	Storage storage
 }
 
 type execWs struct {
@@ -163,18 +167,23 @@ var containerExecCmd = Command{
 	post: containerExecPost,
 }
 
-func containerWatchEphemeral(c *lxdContainer) {
+func containerWatchEphemeral(d *Daemon, c container) {
 	go func() {
-		c.c.Wait(lxc.STOPPED, -1*time.Second)
-		c.c.Wait(lxc.RUNNING, 1*time.Second)
-		c.c.Wait(lxc.STOPPED, -1*time.Second)
-
-		_, err := dbContainerIDGet(c.daemon.db, c.name)
+		lxContainer, err := c.LXContainerGet()
 		if err != nil {
 			return
 		}
 
-		removeContainer(c.daemon, c)
+		lxContainer.Wait(lxc.STOPPED, -1*time.Second)
+		lxContainer.Wait(lxc.RUNNING, 1*time.Second)
+		lxContainer.Wait(lxc.STOPPED, -1*time.Second)
+
+		_, err = dbContainerIDGet(d.db, c.NameGet())
+		if err != nil {
+			return
+		}
+
+		c.Delete()
 	}()
 }
 
@@ -195,8 +204,8 @@ func containersWatch(d *Daemon) error {
 			return err
 		}
 
-		if container.ephemeral == true && container.c.State() != lxc.STOPPED {
-			containerWatchEphemeral(container)
+		if container.IsEmpheral() && container.IsRunning() {
+			containerWatchEphemeral(d, container)
 		}
 	}
 
@@ -231,22 +240,7 @@ func containersRestart(d *Daemon) error {
 			return err
 		}
 
-		err = templateApply(container, "start")
-		if err != nil {
-			return err
-		}
-
-		s, err := storageForContainer(d, container)
-		if err != nil {
-			shared.Log.Error(
-				"Error getting storage driver for container",
-				log.Ctx{"err": err})
-			return fmt.Errorf("Couldn't detect storage: %v", err)
-		}
-		if err = s.ContainerStart(container); err != nil {
-			return err
-		}
-		container.c.Start()
+		container.Start()
 	}
 
 	return nil
@@ -266,28 +260,19 @@ func containersShutdown(d *Daemon) error {
 			return err
 		}
 
-		if container.c.State() != lxc.STOPPED {
-			_, err = dbExec(d.db, "UPDATE containers SET power_state=1 WHERE name=?", container.name)
+		if container.IsRunning() {
+			_, err = dbExec(
+				d.db,
+				"UPDATE containers SET power_state=1 WHERE name=?",
+				container.NameGet())
 			if err != nil {
 				return err
 			}
 
 			wg.Add(1)
 			go func() {
-				container.c.Shutdown(time.Second * 30)
-				container.c.Stop()
-				s, err := storageForContainer(d, container)
-				if err != nil {
-					shared.Log.Error(
-						"Error getting storage driver for container",
-						log.Ctx{"err": err})
-				}
-
-				if err = s.ContainerStop(container); err != nil {
-					shared.Log.Error(
-						"Error deactivating storage after container stop",
-						log.Ctx{"err": err})
-				}
+				container.Shutdown(time.Second * 30)
+				container.Stop()
 				wg.Done()
 			}()
 		}
@@ -374,7 +359,7 @@ func startContainer(args []string) error {
 	return err
 }
 
-func (d *lxdContainer) tarStoreFile(linkmap map[uint64]string, offset int, tw *tar.Writer, path string, fi os.FileInfo) error {
+func (c *lxdContainer) tarStoreFile(linkmap map[uint64]string, offset int, tw *tar.Writer, path string, fi os.FileInfo) error {
 	var err error
 	var major, minor, nlink int
 	var ino uint64
@@ -403,8 +388,8 @@ func (d *lxdContainer) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 	}
 
 	// unshift the id under /rootfs/ for unpriv containers
-	if !d.isPrivileged() && strings.HasPrefix(hdr.Name, "/rootfs") {
-		hdr.Uid, hdr.Gid = d.idmapset.ShiftFromNs(hdr.Uid, hdr.Gid)
+	if !c.IsPrivileged() && strings.HasPrefix(hdr.Name, "/rootfs") {
+		hdr.Uid, hdr.Gid = c.idmapset.ShiftFromNs(hdr.Uid, hdr.Gid)
 		if hdr.Uid == -1 || hdr.Gid == -1 {
 			return nil
 		}
@@ -450,8 +435,8 @@ func (d *lxdContainer) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
  *     metadata.yaml
  *     rootfs/
  */
-func (d *lxdContainer) exportToTar(snap string, w io.Writer) error {
-	if snap != "" && d.c.Running() {
+func (c *lxdContainer) ExportToTar(snap string, w io.Writer) error {
+	if snap != "" && c.IsRunning() {
 		return fmt.Errorf("Cannot export a running container as image")
 	}
 
@@ -460,14 +445,14 @@ func (d *lxdContainer) exportToTar(snap string, w io.Writer) error {
 	// keep track of the first path we saw for each path with nlink>1
 	linkmap := map[uint64]string{}
 
-	cDir := shared.VarPath("containers", d.name)
+	cDir := c.PathGet("")
 
 	// Path inside the tar image is the pathname starting after cDir
 	offset := len(cDir) + 1
 
 	fnam := filepath.Join(cDir, "metadata.yaml")
 	writeToTar := func(path string, fi os.FileInfo, err error) error {
-		if err := d.tarStoreFile(linkmap, offset, tw, path, fi); err != nil {
+		if err := c.tarStoreFile(linkmap, offset, tw, path, fi); err != nil {
 			shared.Debugf("error tarring up %s: %s\n", path, err)
 			return err
 		}
@@ -482,7 +467,7 @@ func (d *lxdContainer) exportToTar(snap string, w io.Writer) error {
 			tw.Close()
 			return err
 		}
-		if err := d.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
+		if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
 			shared.Debugf("exportToTar: error writing to tarfile: %s\n", err)
 			tw.Close()
 			return err
@@ -497,11 +482,11 @@ func (d *lxdContainer) exportToTar(snap string, w io.Writer) error {
 	return tw.Close()
 }
 
-func (d *lxdContainer) MkdirAllContainerRoot(path string, perm os.FileMode) error {
+func (c *lxdContainer) mkdirAllContainerRoot(path string, perm os.FileMode) error {
 	var uid int = 0
 	var gid int = 0
-	if !d.isPrivileged() {
-		uid, gid = d.idmapset.ShiftIntoNs(0, 0)
+	if !c.IsPrivileged() {
+		uid, gid = c.idmapset.ShiftIntoNs(0, 0)
 		if uid == -1 {
 			uid = 0
 		}
@@ -512,13 +497,13 @@ func (d *lxdContainer) MkdirAllContainerRoot(path string, perm os.FileMode) erro
 	return shared.MkdirAllOwner(path, perm, uid, gid)
 }
 
-func (d *lxdContainer) MountShared() error {
-	source := shared.VarPath("shmounts", d.name)
+func (c *lxdContainer) mountShared() error {
+	source := shared.VarPath("shmounts", c.NameGet())
 	entry := fmt.Sprintf("%s .lxdmounts none bind,create=dir 0 0", source)
 	if !shared.PathExists(source) {
-		if err := d.MkdirAllContainerRoot(source, 0755); err != nil {
+		if err := c.mkdirAllContainerRoot(source, 0755); err != nil {
 			return err
 		}
 	}
-	return d.c.SetConfigItem("lxc.mount.entry", entry)
+	return c.c.SetConfigItem("lxc.mount.entry", entry)
 }

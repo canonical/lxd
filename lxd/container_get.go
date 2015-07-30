@@ -23,9 +23,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 
 	targetPath := r.FormValue("log")
 	if strings.ToLower(targetPath) == "true" || targetPath == "1" {
-		fname := c.c.LogFile()
-
-		f, err := os.Open(fname)
+		f, err := os.Open(c.LogFilePathGet())
 		if err != nil {
 			return InternalError(err)
 		}

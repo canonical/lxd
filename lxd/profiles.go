@@ -82,8 +82,8 @@ func profileGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, resp)
 }
 
-func getRunningContainersWithProfile(d *Daemon, profile string) []*lxdContainer {
-	results := []*lxdContainer{}
+func getRunningContainersWithProfile(d *Daemon, profile string) []container {
+	results := []container{}
 
 	output, err := dbProfileContainersGet(d.db, profile)
 	if err != nil {
@@ -146,12 +146,12 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	// do our best to update the device list for each container using
 	// this profile
 	for _, c := range clist {
-		if !c.c.Running() {
+		if !c.IsRunning() {
 			continue
 		}
-		fmt.Printf("Updating profile device list for %s\n", c.name)
+		fmt.Printf("Updating profile device list for %s\n", c.NameGet())
 		if err := devicesApplyDeltaLive(tx, c, preDevList, postDevList); err != nil {
-			shared.Debugf("Warning: failed to update device list for container %s (profile %s updated)\n", c.name, name)
+			shared.Debugf("Warning: failed to update device list for container %s (profile %s updated)\n", c.NameGet(), name)
 		}
 	}
 
