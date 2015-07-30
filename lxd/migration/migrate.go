@@ -424,7 +424,7 @@ func (c *migrationSink) do() error {
 		}
 
 		if c.IdmapSet != nil {
-			if err := c.IdmapSet.ShiftRootfs(shared.VarPath("lxc", c.container.Name())); err != nil {
+			if err := c.IdmapSet.ShiftRootfs(shared.VarPath("containers", c.container.Name())); err != nil {
 				restore <- err
 				c.sendControl(err)
 				return

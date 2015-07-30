@@ -143,9 +143,9 @@ func storageForContainer(d *Daemon, container *lxdContainer) (storage, error) {
 	cname := nameComponents[0]
 	if len(nameComponents) > 1 {
 		sname := nameComponents[1]
-		cpath = shared.VarPath("lxc", cname, "snapshots", sname)
+		cpath = shared.VarPath("containers", cname, "snapshots", sname)
 	} else {
-		cpath = shared.VarPath("lxc", cname)
+		cpath = shared.VarPath("containers", cname)
 	}
 	return storageForFilename(d, cpath)
 }
