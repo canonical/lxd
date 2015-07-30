@@ -285,14 +285,6 @@ func (d *Daemon) createCmd(version string, c Command) {
 		 * end of each request.
 		 */
 		runtime.GC()
-
-		/*
-		 * On most (all) of the architectures we are concerned about
-		 * the GC is concurrent, and so runtime.GC doesn't yield to
-		 * call finalizers, which is really what we want since the log
-		 * fd is closed in the finalizer.
-		 */
-		runtime.Gosched()
 	})
 }
 
