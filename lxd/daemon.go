@@ -385,6 +385,18 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		shared.Log.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}
 
+	/* Read the uid/gid allocation */
+	d.IdmapSet, err = shared.DefaultIdmapSet()
+	if err != nil {
+		shared.Log.Warn("error reading idmap", log.Ctx{"err": err.Error()})
+		shared.Log.Warn("operations requiring idmap will not be available")
+	} else {
+		shared.Log.Debug("Default uid/gid map:")
+		for _, lxcmap := range d.IdmapSet.ToLxcString() {
+			shared.Log.Debug(strings.TrimRight(" - "+lxcmap, "\n"))
+		}
+	}
+
 	/* Initialize the database */
 	err = initDb(d)
 	if err != nil {
@@ -403,18 +415,6 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	tlsConfig, err := shared.GetTLSConfig(d.certf, d.keyf)
 	if err != nil {
 		return nil, err
-	}
-
-	/* Read the uid/gid allocation */
-	d.IdmapSet, err = shared.DefaultIdmapSet()
-	if err != nil {
-		shared.Log.Warn("error reading idmap", log.Ctx{"err": err.Error()})
-		shared.Log.Warn("operations requiring idmap will not be available")
-	} else {
-		shared.Log.Debug("Default uid/gid map:")
-		for _, lxcmap := range d.IdmapSet.ToLxcString() {
-			shared.Log.Debug(strings.TrimRight(" - "+lxcmap, "\n"))
-		}
 	}
 
 	/* Setup /dev/lxd */
