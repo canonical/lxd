@@ -13,10 +13,12 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func snapshotsDir(c *lxdContainer) string {
-	return shared.VarPath("containers", c.name, "snapshots")
+	return shared.VarPath("snapshots", c.name)
 }
 
 func snapshotDir(c *lxdContainer, name string) string {
@@ -147,6 +149,11 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	fullName := fmt.Sprintf("%s/%s", name, snapshotName)
 	snapDir := snapshotDir(c, snapshotName)
 	if shared.PathExists(snapDir) {
+		shared.Log.Error(
+			"Snapshot exists on disk",
+			log.Ctx{
+				"name": fullName,
+				"path": snapDir})
 		return Conflict
 	}
 
@@ -254,6 +261,12 @@ func snapshotPost(r *http.Request, c *lxdContainer, oldName string) Response {
 	newDir := snapshotDir(c, newName)
 
 	if shared.PathExists(newDir) {
+		shared.Log.Error(
+			"Cant rename snapshot, the new path exists",
+			log.Ctx{
+				"oldName": oldName,
+				"newName": newName,
+				"path":    newDir})
 		return Conflict
 	}
 

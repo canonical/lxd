@@ -196,8 +196,7 @@ func (c *lxdContainer) NameGet() string {
 
 func (c *lxdContainer) PathGet() string {
 	if c.IsSnapshot() {
-		snappieces := strings.SplitN(c.NameGet(), shared.SnapshotDelimiter, 2)
-		return shared.VarPath("containers", snappieces[0], "snapshots", snappieces[1])
+		return shared.VarPath("snapshots", c.NameGet())
 	}
 
 	return shared.VarPath("containers", c.NameGet())

@@ -97,7 +97,7 @@ func (s *storageBtrfs) ContainerCopy(container *lxdContainer, sourceContainer *l
 		/*
 		 * Copy by using rsync
 		 */
-		output, err := s.rsyncCopy(
+		output, err := storageRsyncCopy(
 			sourceContainer.RootfsPathGet(),
 			container.RootfsPathGet())
 		if err != nil {

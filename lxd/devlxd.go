@@ -342,7 +342,7 @@ func findContainerForPid(pid int32, d *Daemon) (*lxdContainer, error) {
 		return nil, err
 	}
 
-	containers, err := dbContainersList(d.db)
+	containers, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return nil, err
 	}
