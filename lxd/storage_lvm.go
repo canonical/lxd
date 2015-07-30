@@ -174,6 +174,11 @@ func (s *storageLvm) ContainerDelete(container *lxdContainer) error {
 		return err
 	}
 
+	lvLinkPath := shared.VarPath("lxc", fmt.Sprintf("%s.lv", container.NameGet()))
+	if err := os.Remove(lvLinkPath); err != nil {
+		return err
+	}
+
 	// Then the container path (e.g. /var/lib/lxd/lxc/<name>)
 	cPath := container.PathGet()
 	if err := os.RemoveAll(cPath); err != nil {

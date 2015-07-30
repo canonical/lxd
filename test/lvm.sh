@@ -145,7 +145,7 @@ test_lvm_withpool() {
 
     # check that we now have a new volume in the pool
     lvs --noheadings -o pool_lv lxd_test_vg/testcontainer | grep "$poolname" || die "LV for new container not found or not in $poolname"
-
+    [ -L "${LXD_DIR}/lxc/testcontainer.lv" ] || die "testcontainer lv symlink should exist!"
     mount | grep ${LXD_DIR}/lxc/testcontainer && die "LV for new container should not be mounted until container start"
 
     lxc start testcontainer || die "Couldn't start testcontainer"
@@ -164,6 +164,7 @@ test_lvm_withpool() {
 
     lxc delete testcontainer || die "Couldn't delete testcontainer"
     lvs lxd_test_vg/testcontainer && die "testcontainer LV is still there, should've been destroyed"
+    [ -L "${LXD_DIR}/lxc/testcontainer.lv" ] && die "testcontainer lv symlink should be deleted"
     lxc image delete testimage || die "Couldn't delete testimage"
 
     lvs lxd_test_vg/$imagelvname && die "lv $imagelvname is still there, should be gone"
