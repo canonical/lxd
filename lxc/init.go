@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 
 	"github.com/chai2010/gettext-go/gettext"
 
@@ -135,7 +136,11 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	var resp *lxd.Response
-
+	if name == "" {
+		fmt.Printf("Creating ")
+	} else {
+		fmt.Printf("Creating %s ", name)
+	}
 	if !requested_empty_profiles && len(profiles) == 0 {
 		resp, err = d.Init(name, iremote, image, nil, ephem)
 	} else {
@@ -146,5 +151,19 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	return d.WaitForSuccess(resp.Operation)
+	err = d.WaitForSuccess(resp.Operation)
+	if err != nil {
+		fmt.Println("error.")
+		return err
+	} else {
+		containers := resp.Resources["containers"]
+
+		if len(containers) == 1 && name == "" {
+			cname := path.Base(containers[0])
+			fmt.Println(cname, "done.")
+		} else {
+			fmt.Println("done.")
+		}
+	}
+	return nil
 }
