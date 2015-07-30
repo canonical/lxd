@@ -110,7 +110,7 @@ check_image_exists_in_pool() {
     lvs --noheadings -o lv_attr lxd_test_vg/$imagelvname | grep "^  V" || die "no lv named $imagelvname found or not a thin Vol."
 
     lvs --noheadings -o pool_lv lxd_test_vg/$imagelvname | grep "$poolname" || die "new LV not member of $poolname"
-
+    [ -L "${LXD_DIR}/images/${imagelvname}.lv" ] || die "image symlink doesn't exist"
 }
 
 test_lvm_withpool() {
@@ -168,6 +168,7 @@ test_lvm_withpool() {
     lxc image delete testimage || die "Couldn't delete testimage"
 
     lvs lxd_test_vg/$imagelvname && die "lv $imagelvname is still there, should be gone"
+    [ -L "${LXD_DIR}/images/${imagelvname}.lv" ] && die "image symlink is still there, should be gone."
 
     do_kill_lxd `cat $LXD_DIR/lxd.pid`
     sleep 3
