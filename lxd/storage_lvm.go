@@ -136,12 +136,12 @@ func (s *storageLvm) ContainerCreate(
 		return err
 	}
 
-	destPath := shared.VarPath("lxc", container.NameGet())
+	destPath := shared.VarPath("containers", container.NameGet())
 	if err := os.MkdirAll(destPath, 0755); err != nil {
 		return fmt.Errorf("Error creating container directory: %v", err)
 	}
 
-	dst := shared.VarPath("lxc", fmt.Sprintf("%s.lv", container.NameGet()))
+	dst := shared.VarPath("containers", fmt.Sprintf("%s.lv", container.NameGet()))
 	err = os.Symlink(lvpath, dst)
 	if err != nil {
 		return err
@@ -174,7 +174,7 @@ func (s *storageLvm) ContainerDelete(container *lxdContainer) error {
 		return err
 	}
 
-	lvLinkPath := shared.VarPath("lxc", fmt.Sprintf("%s.lv", container.NameGet()))
+	lvLinkPath := shared.VarPath("containers", fmt.Sprintf("%s.lv", container.NameGet()))
 	if err := os.Remove(lvLinkPath); err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (s *storageLvm) ContainerCopy(container *lxdContainer, sourceContainer *lxd
 }
 
 func (s *storageLvm) ContainerStart(container *lxdContainer) error {
-	cpath := shared.VarPath("lxc", container.NameGet())
+	cpath := shared.VarPath("containers", container.NameGet())
 	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, container.NameGet())
 	output, err := exec.Command("mount", "-o", "discard", lvpath, cpath).CombinedOutput()
 	if err != nil {
@@ -234,7 +234,7 @@ func (s *storageLvm) ContainerStart(container *lxdContainer) error {
 }
 
 func (s *storageLvm) ContainerStop(container *lxdContainer) error {
-	cpath := shared.VarPath("lxc", container.NameGet())
+	cpath := shared.VarPath("containers", container.NameGet())
 	output, err := exec.Command("umount", cpath).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf(

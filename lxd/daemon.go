@@ -366,7 +366,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	d.architectures = architectures
 
 	/* Create required paths */
-	d.lxcpath = shared.VarPath("lxc")
+	d.lxcpath = shared.VarPath("containers")
 	err = os.MkdirAll(d.lxcpath, 0755)
 	if err != nil {
 		return nil, err

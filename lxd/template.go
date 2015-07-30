@@ -20,7 +20,7 @@ type TemplateEntry struct {
 }
 
 func templateApply(c *lxdContainer, trigger string) error {
-	fname := shared.VarPath("lxc", c.name, "metadata.yaml")
+	fname := shared.VarPath("containers", c.name, "metadata.yaml")
 
 	if !shared.PathExists(fname) {
 		return nil
@@ -53,7 +53,7 @@ func templateApply(c *lxdContainer, trigger string) error {
 			continue
 		}
 
-		fullpath := shared.VarPath("lxc", c.name, "rootfs", strings.TrimLeft(filepath, "/"))
+		fullpath := shared.VarPath("containers", c.name, "rootfs", strings.TrimLeft(filepath, "/"))
 
 		if shared.PathExists(fullpath) {
 			w, err = os.Create(fullpath)
@@ -78,7 +78,7 @@ func templateApply(c *lxdContainer, trigger string) error {
 			w.Chmod(0644)
 		}
 
-		tplString, err := ioutil.ReadFile(shared.VarPath("lxc", c.name, "templates", template.Template))
+		tplString, err := ioutil.ReadFile(shared.VarPath("containers", c.name, "templates", template.Template))
 		if err != nil {
 			return err
 		}

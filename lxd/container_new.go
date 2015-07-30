@@ -197,10 +197,10 @@ func (c *lxdContainer) NameGet() string {
 func (c *lxdContainer) PathGet() string {
 	if c.IsSnapshot() {
 		snappieces := strings.SplitN(c.NameGet(), shared.SnapshotDelimiter, 2)
-		return shared.VarPath("lxc", snappieces[0], "snapshots", snappieces[1])
+		return shared.VarPath("containers", snappieces[0], "snapshots", snappieces[1])
 	}
 
-	return shared.VarPath("lxc", c.NameGet())
+	return shared.VarPath("containers", c.NameGet())
 }
 
 func (c *lxdContainer) RootfsPathGet() string {
@@ -603,7 +603,7 @@ func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
 	d.devices = shared.Devices{}
 	d.name = name
 
-	rootfsPath := shared.VarPath("lxc", name, "rootfs")
+	rootfsPath := shared.VarPath("containers", name, "rootfs")
 	err = c.SetConfigItem("lxc.rootfs", rootfsPath)
 	if err != nil {
 		return nil, err
