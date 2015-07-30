@@ -82,7 +82,12 @@ func run() error {
 	if *syslogFlag {
 		syslog = "lxd"
 	}
-	shared.SetLogger(syslog, *logfile, *verbose, *debug)
+
+	err := shared.SetLogger(syslog, *logfile, *verbose, *debug)
+	if err != nil {
+		fmt.Printf("%s", err)
+		return nil
+	}
 
 	if gnuflag.NArg() != 0 {
 		gnuflag.Usage()
