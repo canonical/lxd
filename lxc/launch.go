@@ -56,7 +56,6 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		remote = ""
 	}
 
-	fmt.Printf("Creating container...")
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
@@ -105,20 +104,25 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf(gettext.Gettext("got bad version"))
 		}
 	}
+	fmt.Printf("Creating %s ", name)
 
 	if err = d.WaitForSuccess(resp.Operation); err != nil {
 		return err
 	}
-	fmt.Println("done")
+	fmt.Println("done.")
 
-	fmt.Printf("Starting container...")
+	fmt.Printf("Starting %s ", name)
 	resp, err = d.Action(name, shared.Start, -1, false)
 	if err != nil {
 		return err
 	}
 
 	err = d.WaitForSuccess(resp.Operation)
-	fmt.Println("done")
+	if err != nil {
+		fmt.Println("error.")
+	} else {
+		fmt.Println("done.")
+	}
 
 	return err
 }
