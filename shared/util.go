@@ -61,6 +61,35 @@ func PathExists(name string) bool {
 	return true
 }
 
+// PathParent returns the parent path of "path"
+// For example:
+//   /var/lib/lxd/snapshots/test/snap0
+// turns to:
+//   /var/lib/lxd/snapshots/test
+func PathParent(path string) string {
+	parent, _ := filepath.Abs(AddSlash(path) + "..")
+	return parent
+}
+
+// PathIsEmpty checks if the given path is empty.
+func PathIsEmpty(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	// read in ONLY one file
+	_, err = f.Readdir(1)
+
+	// and if the file is EOF... well, the dir is empty.
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err
+}
+
+// IsDir returns true if the given path is a directory.
 func IsDir(name string) bool {
 	stat, err := os.Lstat(name)
 	if err != nil {

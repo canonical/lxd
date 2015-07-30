@@ -375,6 +375,9 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	if err := os.MkdirAll(shared.VarPath("images"), 0700); err != nil {
 		return nil, err
 	}
+	if err := os.MkdirAll(shared.VarPath("snapshots"), 0700); err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(shared.VarPath("devlxd"), 0755); err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/mattn/go-sqlite3"
@@ -17,7 +18,7 @@ import (
 var (
 	// DbErrAlreadyDefined hapens when the given entry already exists,
 	// for example a container.
-	DbErrAlreadyDefined = fmt.Errorf("already exists")
+	DbErrAlreadyDefined = fmt.Errorf("The container/snapshot already exists")
 
 	/* NoSuchObjectError is in the case of joins (and probably other) queries,
 	 * we don't get back sql.ErrNoRows when no rows are returned, even though we do
@@ -38,7 +39,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 11
+const DB_CURRENT_VERSION int = 12
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
@@ -197,6 +198,78 @@ func dbGetSchema(db *sql.DB) (v int) {
 		return 0
 	}
 	return v
+}
+
+func dbUpdateFromV11(d *Daemon) error {
+	cNames, err := dbContainersList(d.db, cTypeSnapshot)
+	if err != nil {
+		return err
+	}
+
+	errors := 0
+
+	for _, cName := range cNames {
+		snappieces := strings.SplitN(cName, shared.SnapshotDelimiter, 2)
+		oldPath := shared.VarPath("containers", snappieces[0], "snapshots", snappieces[1])
+		newPath := shared.VarPath("snapshots", snappieces[0], snappieces[1])
+		if shared.PathExists(oldPath) && !shared.PathExists(newPath) {
+			shared.Log.Info(
+				"Moving snapshot",
+				log.Ctx{
+					"snapshot": cName,
+					"oldPath":  oldPath,
+					"newPath":  newPath})
+
+			// Rsync
+			// containers/<container>/snapshots/<snap0>
+			//   to
+			// snapshots/<container>/<snap0>
+			output, err := storageRsyncCopy(oldPath, newPath)
+			if err != nil {
+				shared.Log.Error(
+					"Failed rsync snapshot",
+					log.Ctx{
+						"snapshot": cName,
+						"output":   output,
+						"err":      err})
+				errors++
+				continue
+			}
+
+			// Remove containers/<container>/snapshots/<snap0>
+			if err := os.RemoveAll(oldPath); err != nil {
+				shared.Log.Error(
+					"Failed to remove the old snapshot path",
+					log.Ctx{
+						"snapshot": cName,
+						"oldPath":  oldPath,
+						"err":      err})
+
+				// Ignore this error.
+				// errors++
+				// continue
+			}
+
+			// Remove /var/lib/lxd/containers/<container>/snapshots
+			// if its empty.
+			cPathParent := shared.PathParent(oldPath)
+			if ok, _ := shared.PathIsEmpty(cPathParent); ok {
+				os.Remove(cPathParent)
+			}
+
+		} // if shared.PathExists(oldPath) && !shared.PathExists(newPath) {
+	} // for _, cName := range cNames {
+
+	// Refuse to start lxd if a rsync failed.
+	if errors > 0 {
+		return fmt.Errorf("Got errors while moving snapshots, see the log output.")
+	}
+
+	stmt := `
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err = d.db.Exec(stmt, 12)
+	return err
+
 }
 
 func dbUpdateFromV10(d *Daemon) error {
@@ -662,6 +735,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 11 {
 		err = dbUpdateFromV10(d)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 12 {
+		err = dbUpdateFromV11(d)
 		if err != nil {
 			return err
 		}

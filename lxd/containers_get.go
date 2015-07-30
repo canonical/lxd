@@ -27,7 +27,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 }
 
 func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
-	result, err := dbContainersList(d.db)
+	result, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return nil, err
 	}
