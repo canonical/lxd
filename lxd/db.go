@@ -201,7 +201,7 @@ func dbGetSchema(db *sql.DB) (v int) {
 
 func dbUpdateFromV10(d *Daemon) error {
 	if shared.PathExists(shared.VarPath("lxc")) {
-		err := shared.FileMove(shared.VarPath("lxc"), shared.VarPath("containers"))
+		err := os.Rename(shared.VarPath("lxc"), shared.VarPath("containers"))
 		if err != nil {
 			return err
 		}
