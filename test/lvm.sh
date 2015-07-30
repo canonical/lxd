@@ -27,9 +27,9 @@ cleanup_vg() {
     fi
 
     # -f removes any LVs in the VG
-    vgremove -f lxd_test_vg
-    losetup -d $pvloopdev
-    rm $pvfile
+    vgremove -f lxd_test_vg || echo "Couldn't remove lxd_test_vg, skipping"
+    losetup -d $pvloopdev || echo "Couldn't delete loop device $pvloopdev"
+    rm $pvfile || echo "Couldn't remove $pvfile"
 
     cleanup
 }
@@ -91,8 +91,7 @@ test_delete_with_appropriate_storage() {
     lxc delete lvm-container || die "couldn't delete container"
     lxc image delete testimage || die "couldn't delete lvm-backed image"
 
-    kill -9 `cat $LXD_DIR/lxd.pid`
-    sleep 3
+    do_kill_lxd `cat $LXD_DIR/lxd.pid`
     rm -Rf ${LXD_DIR}
     LXD_DIR=${PREV_LXD_DIR}
 }
