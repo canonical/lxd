@@ -61,16 +61,6 @@ func PathExists(name string) bool {
 	return true
 }
 
-// PathParent returns the parent path of "path"
-// For example:
-//   /var/lib/lxd/snapshots/test/snap0
-// turns to:
-//   /var/lib/lxd/snapshots/test
-func PathParent(path string) string {
-	parent, _ := filepath.Abs(AddSlash(path) + "..")
-	return parent
-}
-
 // PathIsEmpty checks if the given path is empty.
 func PathIsEmpty(path string) (bool, error) {
 	f, err := os.Open(path)

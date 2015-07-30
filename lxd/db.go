@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -252,7 +253,7 @@ func dbUpdateFromV11(d *Daemon) error {
 
 			// Remove /var/lib/lxd/containers/<container>/snapshots
 			// if its empty.
-			cPathParent := shared.PathParent(oldPath)
+			cPathParent := filepath.Dir(oldPath)
 			if ok, _ := shared.PathIsEmpty(cPathParent); ok {
 				os.Remove(cPathParent)
 			}
