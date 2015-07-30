@@ -125,7 +125,7 @@ do_kill_lxd() {
   pid=$1
   kill -15 $pid
   sleep 2
-  kill -9 $pid || true
+  kill -9 $pid 2>/dev/null || true
 }
 
 trap cleanup EXIT HUP INT TERM
