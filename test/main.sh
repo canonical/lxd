@@ -125,7 +125,7 @@ do_kill_lxd() {
   pid=$1
   kill -15 $pid
   sleep 2
-  kill -9 $pid || true
+  kill -9 $pid 2>/dev/null || true
 }
 
 trap cleanup EXIT HUP INT TERM
@@ -231,13 +231,15 @@ echo "==> TEST: basic usage"
 curtest=test_basic_usage
 test_basic_usage
 
-echo "==> TEST: concurrent exec"
-curtest=test_concurrent_exec
-test_concurrent_exec
+if [ -n "$LXD_CONCURRENT" ]; then
+    echo "==> TEST: concurrent exec"
+    curtest=test_concurrent_exec
+    test_concurrent_exec
 
-echo "==> TEST: concurrent startup"
-curtest=test_concurrent
-test_concurrent
+    echo "==> TEST: concurrent startup"
+    curtest=test_concurrent
+    test_concurrent
+fi
 
 echo "==> TEST: lxc remote usage"
 curtest=test_remote_usage
