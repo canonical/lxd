@@ -51,8 +51,7 @@ type Daemon struct {
 
 	Storage storage
 
-	localSockets  []net.Listener
-	remoteSockets []net.Listener
+	Sockets []net.Listener
 
 	tlsconfig *tls.Config
 
@@ -460,18 +459,17 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		return nil, err
 	}
 
-	var localSockets []net.Listener
-	var remoteSockets []net.Listener
+	var sockets []net.Listener
 
 	if len(listeners) > 0 {
 		shared.Log.Debug("LXD is socket activated.")
 
 		for _, listener := range listeners {
 			if shared.PathExists(listener.Addr().String()) {
-				localSockets = append(localSockets, listener)
+				sockets = append(sockets, listener)
 			} else {
 				tlsListener := tls.NewListener(listener, tlsConfig)
-				remoteSockets = append(remoteSockets, tlsListener)
+				sockets = append(sockets, tlsListener)
 			}
 		}
 	} else {
@@ -518,7 +516,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 			return nil, err
 		}
 
-		localSockets = append(localSockets, unixl)
+		sockets = append(sockets, unixl)
 
 		if listenAddr != "" {
 			tcpl, err := tls.Listen("tcp", listenAddr, tlsConfig)
@@ -526,21 +524,17 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 				return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
 			}
 
-			remoteSockets = append(remoteSockets, tcpl)
+			sockets = append(sockets, tcpl)
 		}
 	}
 
-	d.localSockets = localSockets
-	d.remoteSockets = remoteSockets
+	d.Sockets = sockets
 
 	d.tomb.Go(func() error {
-		for _, socket := range d.localSockets {
-			shared.Log.Debug(" - binding local socket", log.Ctx{"socket": socket.Addr()})
-			d.tomb.Go(func() error { return http.Serve(socket, d.mux) })
-		}
-		for _, socket := range d.remoteSockets {
-			shared.Log.Debug(" - binding remote socket", log.Ctx{"socket": socket.Addr()})
-			d.tomb.Go(func() error { return http.Serve(socket, d.mux) })
+		for _, socket := range d.Sockets {
+			shared.Log.Debug(" - binding socket", log.Ctx{"socket": socket.Addr()})
+			current_socket := socket
+			d.tomb.Go(func() error { return http.Serve(current_socket, d.mux) })
 		}
 
 		d.tomb.Go(func() error {
@@ -608,10 +602,7 @@ var errStop = fmt.Errorf("requested stop")
 // Stop stops the shared daemon.
 func (d *Daemon) Stop() error {
 	d.tomb.Kill(errStop)
-	for _, socket := range d.localSockets {
-		socket.Close()
-	}
-	for _, socket := range d.remoteSockets {
+	for _, socket := range d.Sockets {
 		socket.Close()
 	}
 
