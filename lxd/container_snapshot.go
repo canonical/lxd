@@ -16,7 +16,7 @@ import (
 )
 
 func snapshotsDir(c *lxdContainer) string {
-	return shared.VarPath("lxc", c.name, "snapshots")
+	return shared.VarPath("containers", c.name, "snapshots")
 }
 
 func snapshotDir(c *lxdContainer, name string) string {
@@ -195,7 +195,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		/* Create the directory and rootfs, set perms */
 		/* Copy the rootfs */
-		oldPath := shared.AddSlash(shared.VarPath("lxc", name, "rootfs"))
+		oldPath := shared.AddSlash(shared.VarPath("containers", name, "rootfs"))
 		newPath := snapshotRootfsDir(c, snapshotName)
 		err = exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
 		if err != nil {

@@ -10,7 +10,9 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	var err error
 	var count int
 
-	db, err = initializeDbObject(":memory:")
+	d := &Daemon{}
+	err = initializeDbObject(d, ":memory:")
+	db = d.db
 
 	// Insert a container and a related profile. Dont't forget that the profile
 	// we insert is profile ID 2 (there is a default profile already).

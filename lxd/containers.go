@@ -312,7 +312,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 
 	var ids []int
 
-	backingFs, err := filesystemDetect(shared.VarPath("lxc", cname))
+	backingFs, err := filesystemDetect(shared.VarPath("containers", cname))
 	if err != nil && !os.IsNotExist(err) {
 		shared.Debugf("Error cleaning up snapshots: %s\n", err)
 		return err
@@ -322,7 +322,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 		sname = r[0].(string)
 		id = r[1].(int)
 		ids = append(ids, id)
-		cdir := shared.VarPath("lxc", cname, "snapshots", sname)
+		cdir := shared.VarPath("containers", cname, "snapshots", sname)
 
 		if backingFs == "btrfs" {
 			btrfsDeleteSubvol(cdir)
@@ -460,7 +460,7 @@ func (d *lxdContainer) exportToTar(snap string, w io.Writer) error {
 	// keep track of the first path we saw for each path with nlink>1
 	linkmap := map[uint64]string{}
 
-	cDir := shared.VarPath("lxc", d.name)
+	cDir := shared.VarPath("containers", d.name)
 
 	// Path inside the tar image is the pathname starting after cDir
 	offset := len(cDir) + 1

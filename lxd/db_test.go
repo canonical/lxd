@@ -31,7 +31,9 @@ func createTestDb(t *testing.T) (db *sql.DB) {
 	}
 
 	var err error
-	db, err = initializeDbObject(":memory:")
+	d := &Daemon{}
+	err = initializeDbObject(d, ":memory:")
+	db = d.db
 
 	if err != nil {
 		t.Fatal(err)
@@ -187,7 +189,10 @@ func Test_initializing_db_is_indempotent(t *testing.T) {
 	var err error
 
 	// This calls "createDb" once already.
-	db, err = initializeDbObject(":memory:")
+	d := &Daemon{}
+	err = initializeDbObject(d, ":memory:")
+	db = d.db
+
 	defer db.Close()
 
 	// Let's call it a second time.
@@ -221,7 +226,10 @@ func Test_running_dbUpdateFromV6_adds_on_delete_cascade(t *testing.T) {
 	var count int
 	var statements string
 
-	db, err = initializeDbObject(":memory:")
+	d := &Daemon{}
+	err = initializeDbObject(d, ":memory:")
+	db = d.db
+
 	defer db.Close()
 
 	if err != nil {
@@ -365,7 +373,9 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 
 	// The "foreign key" on containers_config now points to nothing.
 	// Let's run the schema upgrades.
-	err = dbUpdate(db, 1)
+	d := &Daemon{}
+	d.db = db
+	err = dbUpdate(d, 1)
 
 	if err != nil {
 		t.Error("Error upgrading database schema!")

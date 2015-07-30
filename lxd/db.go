@@ -38,7 +38,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 10
+const DB_CURRENT_VERSION int = 11
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
@@ -197,6 +197,24 @@ func dbGetSchema(db *sql.DB) (v int) {
 		return 0
 	}
 	return v
+}
+
+func dbUpdateFromV10(d *Daemon) error {
+	if shared.PathExists(shared.VarPath("lxc")) {
+		err := shared.FileMove(shared.VarPath("lxc"), shared.VarPath("containers"))
+		if err != nil {
+			return err
+		}
+
+		shared.Debugf("Restarting all the containers following directory rename.")
+		containersShutdown(d)
+		containersRestart(d)
+	}
+
+	stmt := `
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := d.db.Exec(stmt, 11)
+	return err
 }
 
 func dbUpdateFromV9(db *sql.DB) error {
@@ -572,7 +590,9 @@ INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 	return err
 }
 
-func dbUpdate(db *sql.DB, prevVersion int) error {
+func dbUpdate(d *Daemon, prevVersion int) error {
+	db := d.db
+
 	if prevVersion < 0 || prevVersion > DB_CURRENT_VERSION {
 		return fmt.Errorf("Bad database version: %d\n", prevVersion)
 	}
@@ -636,6 +656,12 @@ func dbUpdate(db *sql.DB, prevVersion int) error {
 	}
 	if prevVersion < 10 {
 		err = dbUpdateFromV9(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 11 {
+		err = dbUpdateFromV10(d)
 		if err != nil {
 			return err
 		}
@@ -716,7 +742,7 @@ func createDefaultProfile(db *sql.DB) error {
 }
 
 // Create a database connection object and return it.
-func initializeDbObject(path string) (db *sql.DB, err error) {
+func initializeDbObject(d *Daemon, path string) (err error) {
 	var openPath string
 
 	timeout := 5 // TODO - make this command-line configurable?
@@ -726,36 +752,36 @@ func initializeDbObject(path string) (db *sql.DB, err error) {
 	openPath = fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", path, timeout*1000)
 
 	// Open the database. If the file doesn't exist it is created.
-	db, err = sql.Open("sqlite3", openPath)
+	d.db, err = sql.Open("sqlite3", openPath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Table creation is indempotent, run it every time
-	err = createDb(db)
+	err = createDb(d.db)
 	if err != nil {
-		return nil, fmt.Errorf("Error creating database: %s\n", err)
+		return fmt.Errorf("Error creating database: %s\n", err)
 	}
 
 	// Run PRAGMA statements now since they are *per-connection*.
-	db.Exec("PRAGMA foreign_keys=ON;") // This allows us to use ON DELETE CASCADE
+	d.db.Exec("PRAGMA foreign_keys=ON;") // This allows us to use ON DELETE CASCADE
 
-	v := dbGetSchema(db)
+	v := dbGetSchema(d.db)
 
 	if v != DB_CURRENT_VERSION {
-		err = dbUpdate(db, v)
+		err = dbUpdate(d, v)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return db, nil
+	return nil
 }
 
 // Initialize a database connection and set it on the daemon.
 func initDb(d *Daemon) (err error) {
 	path := shared.VarPath("lxd.db")
-	d.db, err = initializeDbObject(path)
+	err = initializeDbObject(d, path)
 	return err
 }
 
