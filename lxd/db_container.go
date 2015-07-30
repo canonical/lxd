@@ -302,9 +302,9 @@ func dbContainerConfigGet(db *sql.DB, containerID int) (map[string]string, error
 	return config, nil
 }
 
-func dbContainersList(db *sql.DB) ([]string, error) {
+func dbContainersList(db *sql.DB, cType containerType) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? ORDER BY name")
-	inargs := []interface{}{cTypeRegular}
+	inargs := []interface{}{cType}
 	var container string
 	outfmt := []interface{}{container}
 	result, err := dbQueryScan(db, q, inargs, outfmt)

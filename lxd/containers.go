@@ -322,7 +322,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 		sname = r[0].(string)
 		id = r[1].(int)
 		ids = append(ids, id)
-		cdir := shared.VarPath("containers", cname, "snapshots", sname)
+		cdir := shared.VarPath("snapshots", sname)
 
 		if backingFs == "btrfs" {
 			btrfsDeleteSubvol(cdir)

@@ -196,7 +196,7 @@ func (s *storageLvm) ContainerCopy(container *lxdContainer, sourceContainer *lxd
 	/*
 	 * Copy by using rsync
 	 */
-	output, err := s.rsyncCopy(oldPath, newPath)
+	output, err := storageRsyncCopy(oldPath, newPath)
 	if err != nil {
 		os.RemoveAll(container.PathGet())
 		s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": output})

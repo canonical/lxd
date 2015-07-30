@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
@@ -47,6 +46,22 @@ func filesystemDetect(path string) (string, error) {
 	default:
 		return string(fs.Type), nil
 	}
+}
+
+// storageRsyncCopy copies a directory using rsync (with the --devices option).
+func storageRsyncCopy(source string, dest string) (string, error) {
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return "", err
+	}
+
+	output, err := exec.Command(
+		"rsync",
+		"-a",
+		"--devices",
+		shared.AddSlash(source),
+		dest).CombinedOutput()
+
+	return string(output), err
 }
 
 // storageType defines the type of a storage
@@ -139,13 +154,10 @@ func storageForImage(d *Daemon, imgInfo *shared.ImageBaseInfo) (storage, error) 
 
 func storageForContainer(d *Daemon, container *lxdContainer) (storage, error) {
 	var cpath string
-	nameComponents := strings.Split(container.name, "/")
-	cname := nameComponents[0]
-	if len(nameComponents) > 1 {
-		sname := nameComponents[1]
-		cpath = shared.VarPath("containers", cname, "snapshots", sname)
+	if container.IsSnapshot() {
+		cpath = shared.VarPath("snapshots", container.name)
 	} else {
-		cpath = shared.VarPath("containers", cname)
+		cpath = shared.VarPath("containers", container.name)
 	}
 	return storageForFilename(d, cpath)
 }
@@ -165,22 +177,6 @@ func (ss *storageShared) initShared() error {
 
 func (ss *storageShared) GetStorageTypeName() string {
 	return ss.sTypeName
-}
-
-// rsyncCopy copies a directory using rsync (with the --devices option).
-func (ss *storageShared) rsyncCopy(source string, dest string) (string, error) {
-	if err := os.MkdirAll(dest, 0755); err != nil {
-		return "", err
-	}
-
-	output, err := exec.Command(
-		"rsync",
-		"-a",
-		"--devices",
-		shared.AddSlash(source),
-		dest).CombinedOutput()
-
-	return string(output), err
 }
 
 type storageLogWrapper struct {
