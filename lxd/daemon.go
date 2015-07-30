@@ -22,7 +22,6 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stgraber/lxd-go-systemd/activation"
-	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/tomb.v2"
 
 	"github.com/lxc/lxd"
@@ -594,7 +593,7 @@ func (d *Daemon) numRunningContainers() (int, error) {
 			continue
 		}
 
-		if container.c.State() != lxc.STOPPED {
+		if container.IsRunning() {
 			count = count + 1
 		}
 	}

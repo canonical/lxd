@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -20,6 +21,8 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // ExtractInterfaceFromConfigName returns "eth0" from "volatile.eth0.hwaddr",
@@ -34,32 +37,32 @@ func ExtractInterfaceFromConfigName(k string) (string, error) {
 	return "", fmt.Errorf("%s did not match", k)
 }
 
-func getIps(c *lxc.Container) []shared.Ip {
+func (c *lxdContainer) iPsGet() []shared.Ip {
 	ips := []shared.Ip{}
-	names, err := c.Interfaces()
+	names, err := c.c.Interfaces()
 	if err != nil {
 		return ips
 	}
 	for _, n := range names {
-		addresses, err := c.IPAddress(n)
+		addresses, err := c.c.IPAddress(n)
 		if err != nil {
 			continue
 		}
 
 		veth := ""
 
-		for i := 0; i < len(c.ConfigItem("lxc.network")); i++ {
-			nicName := c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.name", i))[0]
+		for i := 0; i < len(c.c.ConfigItem("lxc.network")); i++ {
+			nicName := c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.name", i))[0]
 			if nicName != n {
 				continue
 			}
 
-			interfaceType := c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.type", i))
+			interfaceType := c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.type", i))
 			if interfaceType[0] != "veth" {
 				continue
 			}
 
-			veth = c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.veth.pair", i))[0]
+			veth = c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.veth.pair", i))[0]
 			break
 		}
 
@@ -76,41 +79,79 @@ func getIps(c *lxc.Container) []shared.Ip {
 	return ips
 }
 
-func newStatus(c *lxc.Container, state lxc.State) shared.ContainerStatus {
-	status := shared.ContainerStatus{State: state.String(), StateCode: shared.State(int(state))}
-	if state == lxc.RUNNING {
-		status.Init = c.InitPid()
-		status.Ips = getIps(c)
-	}
-	return status
+type container interface {
+	RenderState() (*shared.ContainerState, error)
+	Reboot() error
+	Freeze() error
+	IsPrivileged() bool
+	IsRunning() bool
+	IsEmpheral() bool
+	IsSnapshot() bool
+	Shutdown(timeout time.Duration) error
+	Start() error
+	Stop() error
+	Unfreeze() error
+	Delete() error
+	CreateFromImage(hash string) error
+	Restore(sourceContainer container) error
+	Copy(source container) error
+	Rename(newName string) error
+	IDGet() int
+	NameGet() string
+	ArchitectureGet() int
+	PathGet(newName string) string
+	RootfsPathGet() string
+	TemplatesPathGet() string
+	StateDirGet() string
+	TemplateApply(trigger string) error
+	LogFilePathGet() string
+	LogPathGet() string
+	InitPidGet() (int, error)
+	IdmapSetGet() (*shared.IdmapSet, error)
+	ConfigReplace(newConfig containerLXDArgs) error
+	ConfigGet() containerLXDArgs
+
+	ExportToTar(snap string, w io.Writer) error
+
+	// TODO: Remove every use of this and remove it.
+	LXContainerGet() (*lxc.Container, error)
+
+	DetachMount(m shared.Device) error
+	AttachMount(m shared.Device) error
 }
 
 func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
-	devices, err := dbDevicesGet(c.daemon.db, c.name, false)
-	if err != nil {
+	if _, err := c.LXContainerGet(); err != nil {
 		return nil, err
 	}
 
-	config, err := dbContainerConfigGet(c.daemon.db, c.id)
-	if err != nil {
-		return nil, err
+	state := c.c.State()
+	pid, _ := c.InitPidGet()
+	status := shared.ContainerStatus{State: state.String(), StateCode: shared.State(int(state))}
+	if state == lxc.RUNNING {
+		status.Init = pid
+		status.Ips = c.iPsGet()
 	}
 
 	return &shared.ContainerState{
-		Architecture:    c.architecture,
-		Config:          config,
-		Devices:         devices,
-		Ephemeral:       c.ephemeral,
-		ExpandedConfig:  c.config,
-		ExpandedDevices: c.devices,
 		Name:            c.name,
 		Profiles:        c.profiles,
-		Status:          newStatus(c.c, c.c.State()),
+		Config:          c.myConfig,
+		ExpandedConfig:  c.config,
 		Userdata:        []byte{},
+		Status:          status,
+		Devices:         c.myDevices,
+		ExpandedDevices: c.devices,
+		Ephemeral:       c.ephemeral,
 	}, nil
 }
 
 func (c *lxdContainer) Start() error {
+	// Start the storage for this container
+	if err := c.Storage.ContainerStart(c); err != nil {
+		return err
+	}
+
 	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
 	if err != nil {
 		return err
@@ -128,7 +169,7 @@ func (c *lxdContainer) Start() error {
 		return err
 	}
 
-	err = templateApply(c, "start")
+	err = c.TemplateApply("start")
 	if err != nil {
 		return err
 	}
@@ -145,12 +186,12 @@ func (c *lxdContainer) Start() error {
 			"Error calling 'lxd forkstart %s %s %s': err='%v'",
 			c.name,
 			c.daemon.lxcpath,
-			shared.LogPath(c.name, "lxc.conf"),
+			path.Join(c.LogPathGet(), "lxc.conf"),
 			err)
 	}
 
 	if err == nil && c.ephemeral == true {
-		containerWatchEphemeral(c)
+		containerWatchEphemeral(c.daemon, c)
 	}
 
 	return err
@@ -164,7 +205,7 @@ func (c *lxdContainer) Freeze() error {
 	return c.c.Freeze()
 }
 
-func (c *lxdContainer) isPrivileged() bool {
+func (c *lxdContainer) IsPrivileged() bool {
 	switch strings.ToLower(c.config["security.privileged"]) {
 	case "1":
 		return true
@@ -174,36 +215,288 @@ func (c *lxdContainer) isPrivileged() bool {
 	return false
 }
 
+func (c *lxdContainer) IsRunning() bool {
+	return c.c.Running()
+}
+
 func (c *lxdContainer) Shutdown(timeout time.Duration) error {
-	return c.c.Shutdown(timeout)
+	if err := c.c.Shutdown(timeout); err != nil {
+
+		// TODO: Not sure this line is right.
+		c.Storage.ContainerStop(c)
+
+		return err
+	}
+
+	// Stop the storage for this container
+	if err := c.Storage.ContainerStop(c); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *lxdContainer) Stop() error {
-	return c.c.Stop()
+	if err := c.c.Stop(); err != nil {
+		c.Storage.ContainerStop(c)
+		return err
+	}
+
+	// Stop the storage for this container
+	if err := c.Storage.ContainerStop(c); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *lxdContainer) Unfreeze() error {
 	return c.c.Unfreeze()
 }
 
+func (c *lxdContainer) CreateFromImage(hash string) error {
+	return c.Storage.ContainerCreate(c, hash)
+}
+
+func (c *lxdContainer) Restore(sourceContainer container) error {
+	/*
+	 * restore steps:
+	 * 1. stop container if already running
+	 * 2. copy snapshot rootfs to container
+	 * 3. overwrite existing config with snapshot config
+	 */
+
+	// Stop the container
+	// TODO: stateful restore ?
+	wasRunning := false
+	if c.IsRunning() {
+		wasRunning = true
+		if err := c.Stop(); err != nil {
+			shared.Log.Error(
+				"RESTORE => could not stop container",
+				log.Ctx{
+					"container": c.NameGet(),
+					"err":       err})
+			return err
+		}
+		shared.Log.Debug(
+			"RESTORE => Stopped container",
+			log.Ctx{"container": c.NameGet()})
+	}
+
+	// Restore the FS.
+	// TODO: I switched the FS and config restore, think thats the correct way
+	// (pcdummy)
+	err := c.Storage.ContainerRestore(c, sourceContainer)
+	if err != nil {
+		shared.Log.Error("RESTORE => Restoring the filesystem failed",
+			log.Ctx{
+				"source":      sourceContainer.NameGet(),
+				"destination": c.NameGet()})
+		return err
+	}
+
+	// Replace the config
+	err = c.ConfigReplace(sourceContainer.ConfigGet())
+	if err != nil {
+		shared.Log.Error("RESTORE => Restore of the configuration failed",
+			log.Ctx{
+				"source":      sourceContainer.NameGet(),
+				"destination": c.NameGet()})
+
+		return err
+	}
+
+	if wasRunning {
+		c.Start()
+	}
+
+	return nil
+}
+
+func (c *lxdContainer) Copy(source container) error {
+	return c.Storage.ContainerCopy(c, source)
+}
+
+func (c *lxdContainer) Delete() error {
+	if err := containerDeleteSnapshots(c.daemon, c.NameGet()); err != nil {
+		return err
+	}
+
+	if err := c.Storage.ContainerDelete(c); err != nil {
+		return err
+	}
+
+	if err := dbContainerRemove(c.daemon.db, c.NameGet()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *lxdContainer) Rename(newName string) error {
+	if c.IsRunning() {
+		return fmt.Errorf("renaming of running container not allowed")
+	}
+
+	if err := c.Storage.ContainerRename(c, newName); err != nil {
+		return err
+	}
+	if err := dbContainerRename(c.daemon.db, c.NameGet(), newName); err != nil {
+		return err
+	}
+
+	c.name = newName
+
+	// Recreate the LX Container
+	c.c = nil
+	c.init()
+
+	// TODO: We should rename its snapshots here.
+
+	return nil
+}
+
+func (c *lxdContainer) IsEmpheral() bool {
+	return c.ephemeral
+}
+
 func (c *lxdContainer) IsSnapshot() bool {
 	return c.cType == cTypeSnapshot
+}
+
+func (c *lxdContainer) IDGet() int {
+	return c.id
 }
 
 func (c *lxdContainer) NameGet() string {
 	return c.name
 }
 
-func (c *lxdContainer) PathGet() string {
-	if c.IsSnapshot() {
-		return shared.VarPath("snapshots", c.NameGet())
+func (c *lxdContainer) ArchitectureGet() int {
+	return c.architecture
+}
+
+func (c *lxdContainer) PathGet(newName string) string {
+	if newName != "" {
+		return containerPathGet(newName, c.IsSnapshot())
 	}
 
-	return shared.VarPath("containers", c.NameGet())
+	return containerPathGet(c.NameGet(), c.IsSnapshot())
 }
 
 func (c *lxdContainer) RootfsPathGet() string {
-	return path.Join(c.PathGet(), "rootfs")
+	return path.Join(c.PathGet(""), "rootfs")
+}
+
+func (c *lxdContainer) TemplatesPathGet() string {
+	return path.Join(c.PathGet(""), "templates")
+}
+
+func (c *lxdContainer) StateDirGet() string {
+	return path.Join(c.PathGet(""), "state")
+}
+
+func (c *lxdContainer) LogPathGet() string {
+	return shared.LogPath(c.NameGet())
+}
+
+func (c *lxdContainer) LogFilePathGet() string {
+	return filepath.Join(c.LogPathGet(), "lxc.log")
+}
+
+func (c *lxdContainer) InitPidGet() (int, error) {
+	return c.c.InitPid(), nil
+}
+
+func (c *lxdContainer) IdmapSetGet() (*shared.IdmapSet, error) {
+	return c.idmapset, nil
+}
+
+func (c *lxdContainer) LXContainerGet() (*lxc.Container, error) {
+	return c.c, nil
+}
+
+// ConfigReplace replaces the config of container and tries to live apply
+// the new configuration.
+func (c *lxdContainer) ConfigReplace(newConfig containerLXDArgs) error {
+	/* check to see that the config actually applies to the container
+	 * successfully before saving it. in particular, raw.lxc and
+	 * raw.apparmor need to be parsed once to make sure they make sense.
+	 */
+	preDevList := c.devices
+
+	/* Validate devices */
+	if err := validateConfig(c, newConfig.Devices); err != nil {
+		return err
+	}
+
+	if err := c.applyConfig(newConfig.Config, false); err != nil {
+		return err
+	}
+
+	tx, err := dbBegin(c.daemon.db)
+	if err != nil {
+		return err
+	}
+
+	/* Update config or profiles */
+	if err = dbContainerConfigClear(tx, c.id); err != nil {
+		shared.Log.Debug(
+			"Error clearing configuration for container",
+			log.Ctx{"name": c.NameGet()})
+		tx.Rollback()
+		return err
+	}
+
+	if err = dbContainerConfigInsert(tx, c.id, newConfig.Config); err != nil {
+		shared.Debugf("Error inserting configuration for container %s\n", c.NameGet())
+		tx.Rollback()
+		return err
+	}
+
+	/* handle profiles */
+	if emptyProfile(newConfig.Profiles) {
+		_, err := tx.Exec("DELETE from containers_profiles where container_id=?", c.id)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	} else {
+		if err := dbContainerProfilesInsert(tx, c.id, newConfig.Profiles); err != nil {
+
+			tx.Rollback()
+			return err
+		}
+	}
+
+	err = dbDevicesAdd(tx, "container", int64(c.id), newConfig.Devices)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if !c.IsRunning() {
+		return txCommit(tx)
+	}
+
+	// Apply new devices
+	if err := devicesApplyDeltaLive(tx, c, preDevList, newConfig.Devices); err != nil {
+		return err
+	}
+
+	return txCommit(tx)
+}
+
+func (c *lxdContainer) ConfigGet() containerLXDArgs {
+	newConfig := containerLXDArgs{
+		Config:    c.myConfig,
+		Devices:   c.myDevices,
+		Profiles:  c.profiles,
+		Ephemeral: c.ephemeral,
+	}
+
+	return newConfig
 }
 
 func validateRawLxc(rawLxc string) error {
@@ -280,14 +573,14 @@ func (c *lxdContainer) applyConfig(config map[string]string, fromProfile bool) e
 	return nil
 }
 
-func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
+func (c *lxdContainer) applyProfile(p string) error {
 	q := `SELECT key, value FROM profiles_config
 		JOIN profiles ON profiles.id=profiles_config.profile_id
 		WHERE profiles.name=?`
 	var k, v string
 	inargs := []interface{}{p}
 	outfmt := []interface{}{k, v}
-	result, err := dbQueryScan(daemon.db, q, inargs, outfmt)
+	result, err := dbQueryScan(c.daemon.db, q, inargs, outfmt)
 
 	if err != nil {
 		return err
@@ -300,7 +593,7 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 
 		shared.Debugf("applying %s: %s", k, v)
 		if k == "raw.lxc" {
-			if _, ok := d.config["raw.lxc"]; ok {
+			if _, ok := c.config["raw.lxc"]; ok {
 				shared.Debugf("ignoring overridden raw.lxc from profile")
 				continue
 			}
@@ -309,15 +602,15 @@ func applyProfile(daemon *Daemon, d *lxdContainer, p string) error {
 		config[k] = v
 	}
 
-	newdevs, err := dbDevicesGet(daemon.db, p, true)
+	newdevs, err := dbDevicesGet(c.daemon.db, p, true)
 	if err != nil {
 		return err
 	}
 	for k, v := range newdevs {
-		d.devices[k] = v
+		c.devices[k] = v
 	}
 
-	return d.applyConfig(config, true)
+	return c.applyConfig(config, true)
 }
 
 // GenerateMacAddr generates a mac address from a string template:
@@ -357,7 +650,7 @@ func (c *lxdContainer) updateContainerHWAddr(k, v string) {
 	}
 }
 
-func (c *lxdContainer) setupMacAddresses(d *Daemon) error {
+func (c *lxdContainer) setupMacAddresses() error {
 	newConfigEntries := map[string]string{}
 
 	for name, d := range c.devices {
@@ -401,7 +694,7 @@ func (c *lxdContainer) setupMacAddresses(d *Daemon) error {
 
 	if len(newConfigEntries) > 0 {
 
-		tx, err := dbBegin(d.db)
+		tx, err := dbBegin(c.daemon.db)
 		if err != nil {
 			return err
 		}
@@ -521,154 +814,219 @@ func (c *lxdContainer) applyDevices() error {
 	return nil
 }
 
-func newLxdContainer(name string, daemon *Daemon) (*lxdContainer, error) {
-	d := &lxdContainer{
-		daemon:       daemon,
-		ephemeral:    false,
-		architecture: -1,
-		cType:        -1,
-		id:           -1}
+func containerPathGet(name string, isSnapshot bool) string {
+	if isSnapshot {
+		return shared.VarPath("snapshots", name)
+	}
 
-	ephemInt := -1
+	return shared.VarPath("containers", name)
+}
 
+func createcontainerLXD(
+	d *Daemon, name string, args containerLXDArgs) (container, error) {
+
+	shared.Log.Info(
+		"Container create",
+		log.Ctx{
+			"container":  name,
+			"isSnapshot": args.Ctype == cTypeSnapshot})
+
+	if args.Ctype != cTypeSnapshot &&
+		strings.Contains(name, shared.SnapshotDelimiter) {
+		return nil, fmt.Errorf(
+			"The character '%s' is reserved for snapshots.",
+			shared.SnapshotDelimiter)
+	}
+
+	path := containerPathGet(name, args.Ctype == cTypeSnapshot)
+	if shared.PathExists(path) {
+		shared.Log.Error(
+			"The container already exists on disk",
+			log.Ctx{
+				"container": name,
+				"path":      path})
+
+		return nil, fmt.Errorf(
+			"The container already exists on disk, container: '%s', path: '%s'",
+			name,
+			path)
+	}
+
+	if args.Profiles == nil {
+		args.Profiles = []string{"default"}
+	}
+
+	if args.BaseImage != "" {
+		if args.Config == nil {
+			args.Config = map[string]string{}
+			args.Config["volatile.baseImage"] = args.BaseImage
+		}
+	}
+
+	if args.Devices == nil {
+		args.Devices = shared.Devices{}
+	}
+
+	id, err := dbContainerCreate(d.db, name, args)
+	if err != nil {
+		return nil, err
+	}
+
+	shared.Log.Debug(
+		"Container created in the DB",
+		log.Ctx{"container": name, "id": id})
+
+	c := &lxdContainer{
+		daemon:       d,
+		id:           id,
+		name:         name,
+		ephemeral:    args.Ephemeral,
+		architecture: args.Architecture,
+		config:       args.Config,
+		profiles:     args.Profiles,
+		devices:      args.Devices,
+		cType:        args.Ctype,
+		myConfig:     args.Config,
+		myDevices:    args.Devices}
+
+	// No need to detect storage here, its a new container.
+	c.Storage = d.Storage
+
+	if err := c.init(); err != nil {
+		c.Delete() // Delete the container from the DB.
+		return nil, err
+	}
+
+	return c, nil
+}
+
+func newLxdContainer(name string, d *Daemon) (container, error) {
+	shared.Log.Debug("Container load", log.Ctx{"container": name})
+
+	args, err := dbContainerGet(d.db, name)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &lxdContainer{
+		daemon:       d,
+		id:           args.ID,
+		name:         name,
+		ephemeral:    args.Ephemeral,
+		architecture: args.Architecture,
+		config:       args.Config,
+		profiles:     args.Profiles,
+		devices:      args.Devices,
+		cType:        args.Ctype,
+		myConfig:     args.Config,
+		myDevices:    args.Devices}
+
+	s, err := storageForFilename(d, c.PathGet(""))
+	if err != nil {
+		shared.Log.Warn("Couldn't detect storage.", log.Ctx{"container": c.NameGet()})
+		c.Storage = d.Storage
+	} else {
+		c.Storage = s
+	}
+
+	if err := c.init(); err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// init prepares the LXContainer for this LXD Container
+// TODO: This gets called on each load of the container,
+//       we might be able to split this is up into c.Start().
+func (c *lxdContainer) init() error {
 	templateConfBase := "ubuntu"
 	templateConfDir := os.Getenv("LXC_TEMPLATE_CONFIG")
 	if templateConfDir == "" {
 		templateConfDir = "/usr/share/lxc/config"
 	}
 
-	q := "SELECT id, architecture, type, ephemeral FROM containers WHERE name=?"
-	arg1 := []interface{}{name}
-	arg2 := []interface{}{&d.id, &d.architecture, &d.cType, &ephemInt}
-	err := dbQueryRowScan(daemon.db, q, arg1, arg2)
+	cc, err := lxc.NewContainer(c.NameGet(), c.daemon.lxcpath)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if d.id == -1 {
-		return nil, fmt.Errorf("Unknown container")
+	c.c = cc
+
+	logfile := c.LogFilePathGet()
+	if err := os.MkdirAll(filepath.Dir(logfile), 0700); err != nil {
+		return err
 	}
 
-	if ephemInt == 1 {
-		d.ephemeral = true
+	if err = c.c.SetLogFile(logfile); err != nil {
+		return err
 	}
 
-	c, err := lxc.NewContainer(name, daemon.lxcpath)
-	if err != nil {
-		return nil, err
-	}
-	d.c = c
-
-	dir := shared.LogPath(c.Name())
-	err = os.MkdirAll(dir, 0700)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = d.c.SetLogFile(filepath.Join(dir, "lxc.log")); err != nil {
-		return nil, err
-	}
-
-	personality, err := shared.ArchitecturePersonality(d.architecture)
+	personality, err := shared.ArchitecturePersonality(c.architecture)
 	if err == nil {
-		err = c.SetConfigItem("lxc.arch", personality)
-		if err != nil {
-			return nil, err
+		if err := c.c.SetConfigItem("lxc.arch", personality); err != nil {
+			return err
 		}
 	}
 
-	err = c.SetConfigItem("lxc.include", fmt.Sprintf("%s/%s.common.conf", templateConfDir, templateConfBase))
+	err = c.c.SetConfigItem("lxc.include", fmt.Sprintf("%s/%s.common.conf", templateConfDir, templateConfBase))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if !d.isPrivileged() {
-		err = c.SetConfigItem("lxc.include", fmt.Sprintf("%s/%s.userns.conf", templateConfDir, templateConfBase))
+	if !c.IsPrivileged() {
+		err = c.c.SetConfigItem("lxc.include", fmt.Sprintf("%s/%s.userns.conf", templateConfDir, templateConfBase))
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	config, err := dbContainerConfigGet(daemon.db, d.id)
-	if err != nil {
-		return nil, err
+	if err := c.c.SetConfigItem("lxc.rootfs", c.RootfsPathGet()); err != nil {
+		return err
 	}
-	d.config = config
-
-	profiles, err := dbContainerProfilesGet(daemon.db, d.id)
-	if err != nil {
-		return nil, err
+	if err := c.c.SetConfigItem("lxc.loglevel", "0"); err != nil {
+		return err
 	}
-	d.profiles = profiles
-	d.devices = shared.Devices{}
-	d.name = name
-
-	rootfsPath := shared.VarPath("containers", name, "rootfs")
-	err = c.SetConfigItem("lxc.rootfs", rootfsPath)
-	if err != nil {
-		return nil, err
+	if err := c.c.SetConfigItem("lxc.utsname", c.NameGet()); err != nil {
+		return err
 	}
-	err = c.SetConfigItem("lxc.loglevel", "0")
-	if err != nil {
-		return nil, err
+	if err := c.c.SetConfigItem("lxc.tty", "0"); err != nil {
+		return err
 	}
-	err = c.SetConfigItem("lxc.utsname", name)
-	if err != nil {
-		return nil, err
-	}
-	err = c.SetConfigItem("lxc.tty", "0")
-	if err != nil {
-		return nil, err
-	}
-
-	if err := setupDevLxdMount(c); err != nil {
-		return nil, err
+	if err := setupDevLxdMount(c.c); err != nil {
+		return err
 	}
 
 	/* apply profiles */
-	for _, p := range profiles {
-		err := applyProfile(daemon, d, p)
-		if err != nil {
-			return nil, err
+	for _, p := range c.profiles {
+		if err := c.applyProfile(p); err != nil {
+			return err
 		}
 	}
 
-	/* get container_devices */
-	newdevs, err := dbDevicesGet(daemon.db, d.name, false)
-	if err != nil {
-		return nil, err
-	}
-
-	for k, v := range newdevs {
-		d.devices[k] = v
-	}
-
-	if err := d.setupMacAddresses(daemon); err != nil {
-		return nil, err
+	if err := c.setupMacAddresses(); err != nil {
+		return err
 	}
 
 	/* now add the lxc.* entries for the configured devices */
-	err = d.applyDevices()
-	if err != nil {
-		return nil, err
+	if err := c.applyDevices(); err != nil {
+		return err
 	}
 
-	if !d.isPrivileged() {
-		d.idmapset = daemon.IdmapSet // TODO - per-tenant idmaps
+	if !c.IsPrivileged() {
+		c.idmapset = c.daemon.IdmapSet // TODO - per-tenant idmaps
 	}
 
-	if err := d.MountShared(); err != nil {
-		return nil, err
+	if err := c.mountShared(); err != nil {
+		return err
 	}
 
-	err = d.applyIdmapSet()
-	if err != nil {
-		return nil, err
+	if err := c.applyIdmapSet(); err != nil {
+		return err
 	}
 
-	err = d.applyConfig(d.config, false)
-	if err != nil {
-		return nil, err
+	if err := c.applyConfig(c.config, false); err != nil {
+		return err
 	}
 
-	return d, nil
+	return nil
 }

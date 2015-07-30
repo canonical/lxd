@@ -216,11 +216,6 @@ func dbContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
 	return nil
 }
 
-func dbContainerSnapshotRemove(db *sql.DB, cname string, sname string) {
-	name := fmt.Sprintf("%s/%s", cname, sname)
-	_, _ = dbExec(db, "DELETE FROM containers WHERE type=? AND name=?", cTypeSnapshot, name)
-}
-
 func dbContainerDeviceConfigGet(db *sql.DB, id int, isprofile bool) (shared.Device, error) {
 	var query string
 	var key, value string
