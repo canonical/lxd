@@ -143,7 +143,9 @@ func run() error {
 		signal.Notify(ch, syscall.SIGPWR)
 		sig := <-ch
 
-		shared.Debugf("Received '%s signal', shutting down containers.\n", sig)
+		shared.Log.Info(
+			fmt.Sprintf("Received '%s signal', shutting down containers.", sig))
+
 		ret = d.Stop()
 
 		containersShutdown(d)
@@ -157,7 +159,7 @@ func run() error {
 		signal.Notify(ch, syscall.SIGTERM)
 		sig := <-ch
 
-		shared.Debugf("Received '%s signal', exiting.\n", sig)
+		shared.Log.Info(fmt.Sprintf("Received '%s signal', exiting.\n", sig))
 		ret = d.Stop()
 		wg.Done()
 	}()
