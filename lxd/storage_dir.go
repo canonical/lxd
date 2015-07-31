@@ -41,11 +41,6 @@ func (s *storageDir) ContainerCreate(container container) error {
 		if err := os.Chmod(cPath, 0700); err != nil {
 			return err
 		}
-	} else {
-		if err := s.shiftRootfs(container); err != nil {
-			s.ContainerDelete(container)
-			return err
-		}
 	}
 
 	return container.TemplateApply("create")

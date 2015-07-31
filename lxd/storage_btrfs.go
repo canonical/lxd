@@ -43,12 +43,7 @@ func (s *storageBtrfs) ContainerCreate(container container) error {
 		return err
 	}
 
-	if !container.IsPrivileged() {
-		if err = s.shiftRootfs(container); err != nil {
-			s.ContainerDelete(container)
-			return err
-		}
-	} else {
+	if container.IsPrivileged() {
 		if err := os.Chmod(container.PathGet(""), 0700); err != nil {
 			return err
 		}
