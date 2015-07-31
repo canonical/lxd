@@ -134,7 +134,7 @@ func dbContainerCreate(db *sql.DB, name string, args containerLXDArgs) (int, err
 		return 0, err
 	}
 
-	if err := dbDevicesAdd(tx, "container", id, args.Devices); err != nil {
+	if err := dbDevicesAdd(tx, "container", int64(id), args.Devices); err != nil {
 		tx.Rollback()
 		return 0, err
 	}

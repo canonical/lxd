@@ -1,0 +1,563 @@
+package main
+
+import (
+	"database/sql"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
+)
+
+func dbUpdateFromV11(db *sql.DB) error {
+	cNames, err := dbContainersList(db, cTypeSnapshot)
+	if err != nil {
+		return err
+	}
+
+	errors := 0
+
+	for _, cName := range cNames {
+		snappieces := strings.SplitN(cName, shared.SnapshotDelimiter, 2)
+		oldPath := shared.VarPath("containers", snappieces[0], "snapshots", snappieces[1])
+		newPath := shared.VarPath("snapshots", snappieces[0], snappieces[1])
+		if shared.PathExists(oldPath) && !shared.PathExists(newPath) {
+			shared.Log.Info(
+				"Moving snapshot",
+				log.Ctx{
+					"snapshot": cName,
+					"oldPath":  oldPath,
+					"newPath":  newPath})
+
+			// Rsync
+			// containers/<container>/snapshots/<snap0>
+			//   to
+			// snapshots/<container>/<snap0>
+			output, err := storageRsyncCopy(oldPath, newPath)
+			if err != nil {
+				shared.Log.Error(
+					"Failed rsync snapshot",
+					log.Ctx{
+						"snapshot": cName,
+						"output":   output,
+						"err":      err})
+				errors++
+				continue
+			}
+
+			// Remove containers/<container>/snapshots/<snap0>
+			if err := os.RemoveAll(oldPath); err != nil {
+				shared.Log.Error(
+					"Failed to remove the old snapshot path",
+					log.Ctx{
+						"snapshot": cName,
+						"oldPath":  oldPath,
+						"err":      err})
+
+				// Ignore this error.
+				// errors++
+				// continue
+			}
+
+			// Remove /var/lib/lxd/containers/<container>/snapshots
+			// if its empty.
+			cPathParent := filepath.Dir(oldPath)
+			if ok, _ := shared.PathIsEmpty(cPathParent); ok {
+				os.Remove(cPathParent)
+			}
+
+		} // if shared.PathExists(oldPath) && !shared.PathExists(newPath) {
+	} // for _, cName := range cNames {
+
+	// Refuse to start lxd if a rsync failed.
+	if errors > 0 {
+		return fmt.Errorf("Got errors while moving snapshots, see the log output.")
+	}
+
+	stmt := `
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err = db.Exec(stmt, 12)
+	return err
+
+}
+
+func dbUpdateFromV10(d *Daemon) error {
+	if shared.PathExists(shared.VarPath("lxc")) {
+		err := os.Rename(shared.VarPath("lxc"), shared.VarPath("containers"))
+		if err != nil {
+			return err
+		}
+
+		shared.Debugf("Restarting all the containers following directory rename.")
+		containersShutdown(d)
+		containersRestart(d)
+	}
+
+	stmt := `
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := d.db.Exec(stmt, 11)
+	return err
+}
+
+func dbUpdateFromV9(db *sql.DB) error {
+	stmt := `
+CREATE TABLE tmp (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(255) NOT NULL default "none",
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
+    UNIQUE (container_id, name)
+);
+
+INSERT INTO tmp SELECT * FROM containers_devices;
+
+UPDATE containers_devices SET type=0 WHERE id IN (SELECT id FROM tmp WHERE type="none");
+UPDATE containers_devices SET type=1 WHERE id IN (SELECT id FROM tmp WHERE type="nic");
+UPDATE containers_devices SET type=2 WHERE id IN (SELECT id FROM tmp WHERE type="disk");
+UPDATE containers_devices SET type=3 WHERE id IN (SELECT id FROM tmp WHERE type="unix-char");
+UPDATE containers_devices SET type=4 WHERE id IN (SELECT id FROM tmp WHERE type="unix-block");
+
+DROP TABLE tmp;
+
+CREATE TABLE tmp (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(255) NOT NULL default "none",
+    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE,
+    UNIQUE (profile_id, name)
+);
+
+INSERT INTO tmp SELECT * FROM profiles_devices;
+
+UPDATE profiles_devices SET type=0 WHERE id IN (SELECT id FROM tmp WHERE type="none");
+UPDATE profiles_devices SET type=1 WHERE id IN (SELECT id FROM tmp WHERE type="nic");
+UPDATE profiles_devices SET type=2 WHERE id IN (SELECT id FROM tmp WHERE type="disk");
+UPDATE profiles_devices SET type=3 WHERE id IN (SELECT id FROM tmp WHERE type="unix-char");
+UPDATE profiles_devices SET type=4 WHERE id IN (SELECT id FROM tmp WHERE type="unix-block");
+
+DROP TABLE tmp;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 10)
+	return err
+}
+
+func dbUpdateFromV8(db *sql.DB) error {
+	stmt := `
+UPDATE certificates SET fingerprint = replace(fingerprint, " ", "");
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 9)
+	return err
+}
+
+func dbUpdateFromV7(db *sql.DB) error {
+	stmt := `
+UPDATE config SET key='core.trust_password' WHERE key IN ('password', 'trust_password', 'trust-password', 'core.trust-password');
+DELETE FROM config WHERE key != 'core.trust_password';
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 8)
+	return err
+}
+
+func dbUpdateFromV6(db *sql.DB) error {
+	// This update recreates the schemas that need an ON DELETE CASCADE foreign
+	// key.
+	stmt := `
+PRAGMA foreign_keys=OFF; -- So that integrity doesn't get in the way for now
+
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_config;
+DROP TABLE containers_config;
+CREATE TABLE IF NOT EXISTS containers_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
+    UNIQUE (container_id, key)
+);
+INSERT INTO containers_config SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_devices;
+DROP TABLE containers_devices;
+CREATE TABLE IF NOT EXISTS containers_devices (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL default 0,
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
+    UNIQUE (container_id, name)
+);
+INSERT INTO containers_devices SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_devices_config;
+DROP TABLE containers_devices_config;
+CREATE TABLE IF NOT EXISTS containers_devices_config (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_device_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (container_device_id) REFERENCES containers_devices (id) ON DELETE CASCADE,
+    UNIQUE (container_device_id, key)
+);
+INSERT INTO containers_devices_config SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM containers_profiles;
+DROP TABLE containers_profiles;
+CREATE TABLE IF NOT EXISTS containers_profiles (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    apply_order INTEGER NOT NULL default 0,
+    UNIQUE (container_id, profile_id),
+    FOREIGN KEY (container_id) REFERENCES containers(id) ON DELETE CASCADE,
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+INSERT INTO containers_profiles SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM images_aliases;
+DROP TABLE images_aliases;
+CREATE TABLE IF NOT EXISTS images_aliases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    image_id INTEGER NOT NULL,
+    description VARCHAR(255),
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
+    UNIQUE (name)
+);
+INSERT INTO images_aliases SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM images_properties;
+DROP TABLE images_properties;
+CREATE TABLE IF NOT EXISTS images_properties (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    image_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
+);
+INSERT INTO images_properties SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM profiles_config;
+DROP TABLE profiles_config;
+CREATE TABLE IF NOT EXISTS profiles_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value VARCHAR(255),
+    UNIQUE (profile_id, key),
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+INSERT INTO profiles_config SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM profiles_devices;
+DROP TABLE profiles_devices;
+CREATE TABLE IF NOT EXISTS profiles_devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL default 0,
+    UNIQUE (profile_id, name),
+    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
+);
+INSERT INTO profiles_devices SELECT * FROM tmp;
+DROP TABLE tmp;
+
+CREATE TEMP TABLE tmp AS SELECT * FROM profiles_devices_config;
+DROP TABLE profiles_devices_config;
+CREATE TABLE IF NOT EXISTS profiles_devices_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_device_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (profile_device_id, key),
+    FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id) ON DELETE CASCADE
+);
+INSERT INTO profiles_devices_config SELECT * FROM tmp;
+DROP TABLE tmp;
+
+PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 7)
+	if err != nil {
+		return err
+	}
+
+	// Get the rows with broken foreign keys an nuke them
+	rows, err := db.Query("PRAGMA foreign_key_check;")
+	if err != nil {
+		return err
+	}
+
+	var tablestodelete []string
+	var rowidtodelete []int
+
+	defer rows.Close()
+	for rows.Next() {
+		var tablename string
+		var rowid int
+		var targetname string
+		var keynumber int
+
+		rows.Scan(&tablename, &rowid, &targetname, &keynumber)
+		tablestodelete = append(tablestodelete, tablename)
+		rowidtodelete = append(rowidtodelete, rowid)
+	}
+	rows.Close()
+
+	for i := range tablestodelete {
+		_, err = db.Exec(fmt.Sprintf("DELETE FROM %s WHERE rowid = %d;", tablestodelete[i], rowidtodelete[i]))
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
+func dbUpdateFromV5(db *sql.DB) error {
+	stmt := `
+ALTER TABLE containers ADD COLUMN power_state INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE containers ADD COLUMN ephemeral INTEGER NOT NULL DEFAULT 0;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 6)
+	return err
+}
+
+func dbUpdateFromV4(db *sql.DB) error {
+	stmt := `
+CREATE TABLE IF NOT EXISTS config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (key)
+);
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 5)
+	if err != nil {
+		return err
+	}
+
+	passfname := shared.VarPath("adminpwd")
+	passOut, err := os.Open(passfname)
+	oldPassword := ""
+	if err == nil {
+		defer passOut.Close()
+		buff := make([]byte, 96)
+		_, err = passOut.Read(buff)
+		if err != nil {
+			return err
+		}
+
+		oldPassword = hex.EncodeToString(buff)
+		stmt := `INSERT INTO config (key, value) VALUES ("core.trust_password", ?);`
+
+		_, err := db.Exec(stmt, oldPassword)
+		if err != nil {
+			return err
+		}
+
+		return os.Remove(passfname)
+	}
+
+	return nil
+}
+
+func dbUpdateFromV3(db *sql.DB) error {
+	err := dbProfileCreateDefault(db)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`, 4)
+	return err
+}
+
+func dbUpdateFromV2(db *sql.DB) error {
+	stmt := `
+CREATE TABLE IF NOT EXISTS containers_devices (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL default 0,
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
+    UNIQUE (container_id, name)
+);
+CREATE TABLE IF NOT EXISTS containers_devices_config (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_device_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    FOREIGN KEY (container_device_id) REFERENCES containers_devices (id),
+    UNIQUE (container_device_id, key)
+);
+CREATE TABLE IF NOT EXISTS containers_profiles (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    apply_order INTEGER NOT NULL default 0,
+    UNIQUE (container_id, profile_id),
+    FOREIGN KEY (container_id) REFERENCES containers(id) ON DELETE CASCADE,
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    UNIQUE (name)
+);
+CREATE TABLE IF NOT EXISTS profiles_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value VARCHAR(255),
+    UNIQUE (profile_id, key),
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS profiles_devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type INTEGER NOT NULL default 0,
+    UNIQUE (profile_id, name),
+    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS profiles_devices_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_device_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (profile_device_id, key),
+    FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id)
+);
+INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 3)
+	return err
+}
+
+/* Yeah we can do htis in a more clever way */
+func dbUpdateFromV1(db *sql.DB) error {
+	// v1..v2 adds images aliases
+	stmt := `
+CREATE TABLE IF NOT EXISTS images_aliases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    image_id INTEGER NOT NULL,
+    description VARCHAR(255),
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
+    UNIQUE (name)
+);
+INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 2)
+	return err
+}
+
+func dbUpdateFromV0(db *sql.DB) error {
+	// v0..v1 adds schema table
+	stmt := `
+CREATE TABLE IF NOT EXISTS schema (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    version INTEGER NOT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE (version)
+);
+INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 1)
+	return err
+}
+
+func dbUpdate(d *Daemon, prevVersion int) error {
+	db := d.db
+
+	if prevVersion < 0 || prevVersion > DB_CURRENT_VERSION {
+		return fmt.Errorf("Bad database version: %d\n", prevVersion)
+	}
+	if prevVersion == DB_CURRENT_VERSION {
+		return nil
+	}
+	var err error
+	if prevVersion < 1 {
+		err = dbUpdateFromV0(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 2 {
+		err = dbUpdateFromV1(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 3 {
+		err = dbUpdateFromV2(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 4 {
+		err = dbUpdateFromV3(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 5 {
+		err = dbUpdateFromV4(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 6 {
+		err = dbUpdateFromV5(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 7 {
+		err = dbUpdateFromV6(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 8 {
+		err = dbUpdateFromV7(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 9 {
+		err = dbUpdateFromV8(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 10 {
+		err = dbUpdateFromV9(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 11 {
+		err = dbUpdateFromV10(d)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 12 {
+		err = dbUpdateFromV11(db)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

@@ -116,7 +116,7 @@ func containerReplaceConfig(d *Daemon, ct *lxdContainer, name string, newConfig 
 		}
 	}
 
-	err = AddDevices(tx, "container", ct.id, newConfig.Devices)
+	err = dbDevicesAdd(tx, "container", int64(ct.id), newConfig.Devices)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
