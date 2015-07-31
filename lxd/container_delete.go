@@ -32,12 +32,6 @@ func removeContainer(d *Daemon, container *lxdContainer) error {
 
 func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	_, err := dbContainerIDGet(d.db, name)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	// TODO: i have added this not sure its a good idea (pcdummy)
 	c, err := newLxdContainer(name, d)
 	if err != nil {
 		return SmartError(err)
