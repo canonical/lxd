@@ -423,8 +423,7 @@ class Ubuntu(object):
 
     def image_download(self, release=None, architecture=None, version=None):
         if not release:
-            # FIXME: We should default to latest LTS once available
-            release = "wily"
+            release = "trusty"
 
         if not architecture:
             architecture = local_architecture()
