@@ -5,10 +5,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -346,98 +344,6 @@ func txUpdateNic(tx *sql.Tx, cId int, devname string, nicname string) error {
 	stmt := `INSERT into containers_devices_config (container_device_id, key, value) VALUES (?, ?, ?)`
 	_, err = tx.Exec(stmt, dId, "name", nicname)
 	return err
-}
-
-func (d *lxdContainer) DetachMount(m shared.Device) error {
-	// TODO - in case of reboot, we should remove the lxc.mount.entry.  Trick
-	// is, we can't d.c.ClearConfigItem bc that will clear all the keys.  So
-	// we should get the full list, clear, then reinsert all but the one we're
-	// removing
-	shared.Debugf("Mounts detach not yet implemented")
-
-	pid := d.c.InitPid()
-	if pid == -1 { // container not running
-		return nil
-	}
-	pidstr := fmt.Sprintf("%d", pid)
-	return exec.Command(os.Args[0], "forkumount", pidstr, m["path"]).Run()
-}
-
-func (d *lxdContainer) AttachMount(m shared.Device) error {
-	dest := m["path"]
-	source := m["source"]
-
-	opts := ""
-	fstype := "none"
-	flags := 0
-	sb, err := os.Stat(source)
-	if err != nil {
-		return err
-	}
-	if sb.IsDir() {
-		flags |= syscall.MS_BIND
-		opts = "bind,create=dir"
-	} else {
-		if !shared.IsBlockdev(sb.Mode()) {
-			// Not sure if we want to try dealing with loopdevs, but
-			// since we'd need to deal with partitions i think not.
-			// We also might want to support file bind mounting, but
-			// this doesn't do that.
-			return fmt.Errorf("non-block device file not supported\n")
-		}
-
-		fstype, err = shared.BlockFsDetect(source)
-		if err != nil {
-			return fmt.Errorf("Unable to detect fstype for %s: %s\n", source, err)
-		}
-	}
-
-	// add a lxc.mount.entry = souce destination, in case of reboot
-	if m["readonly"] == "1" || m["readonly"] == "true" {
-		if opts == "" {
-			opts = "ro"
-		} else {
-			opts = opts + ",ro"
-		}
-	}
-	optional := false
-	if m["optional"] == "1" || m["optional"] == "true" {
-		optional = true
-		opts = opts + ",optional"
-	}
-
-	entry := fmt.Sprintf("%s %s %s %s 0 0", source, dest, fstype, opts)
-	if err := d.c.SetConfigItem("lxc.mount.entry", entry); err != nil {
-		return err
-	}
-
-	pid := d.c.InitPid()
-	if pid == -1 { // container not running - we're done
-		return nil
-	}
-
-	// now live-mount
-	tmpMount, err := ioutil.TempDir(shared.VarPath("shmounts", d.name), "lxdmount_")
-	if err != nil {
-		return err
-	}
-
-	err = syscall.Mount(m["source"], tmpMount, fstype, uintptr(flags), "")
-	if err != nil {
-		return err
-	}
-
-	mntsrc := filepath.Join("/.lxdmounts", filepath.Base(tmpMount))
-	// finally we need to move-mount this in the container
-	pidstr := fmt.Sprintf("%d", pid)
-	err = exec.Command(os.Args[0], "forkmount", pidstr, mntsrc, m["path"]).Run()
-	syscall.Unmount(tmpMount, syscall.MNT_DETACH) // in case forkmount failed
-	os.Remove(tmpMount)
-
-	if err != nil && !optional {
-		return err
-	}
-	return nil
 }
 
 /*
