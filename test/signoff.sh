@@ -11,4 +11,5 @@ test_commits_signed_off() {
     git show "$i" | grep -q 'Signed-off-by' || \
         ( echo "==> Commit without sign-off:" ; git show "$i" ; false )
   done
+  git remote remove lxc
 }
