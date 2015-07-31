@@ -154,7 +154,7 @@ func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
 func readMyCert() (string, string, error) {
 	certf := shared.VarPath("server.crt")
 	keyf := shared.VarPath("server.key")
-	shared.Log.Debug("looking for existing certificates:", log.Ctx{"cert": certf, "key": keyf})
+	shared.Log.Info("looking for existing certificates:", log.Ctx{"cert": certf, "key": keyf})
 
 	err := shared.FindOrGenCert(certf, keyf)
 
@@ -333,6 +333,8 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		shared.SetLogger("", "", true, true)
 	}
 
+	shared.Log.Info("LXD is starting.")
+
 	/* Get the list of supported architectures */
 	var architectures = []int{}
 
@@ -394,9 +396,9 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		shared.Log.Warn("error reading idmap", log.Ctx{"err": err.Error()})
 		shared.Log.Warn("operations requiring idmap will not be available")
 	} else {
-		shared.Log.Debug("Default uid/gid map:")
+		shared.Log.Info("Default uid/gid map:")
 		for _, lxcmap := range d.IdmapSet.ToLxcString() {
-			shared.Log.Debug(strings.TrimRight(" - "+lxcmap, "\n"))
+			shared.Log.Info(strings.TrimRight(" - "+lxcmap, "\n"))
 		}
 	}
 
@@ -465,7 +467,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 	var sockets []net.Listener
 
 	if len(listeners) > 0 {
-		shared.Log.Debug("LXD is socket activated.")
+		shared.Log.Info("LXD is socket activated.")
 
 		for _, listener := range listeners {
 			if shared.PathExists(listener.Addr().String()) {
@@ -476,7 +478,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 			}
 		}
 	} else {
-		shared.Log.Debug("LXD isn't socket activated.")
+		shared.Log.Info("LXD isn't socket activated.")
 
 		localSocketPath := shared.VarPath("unix.socket")
 
@@ -535,7 +537,7 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 
 	d.tomb.Go(func() error {
 		for _, socket := range d.Sockets {
-			shared.Log.Debug(" - binding socket", log.Ctx{"socket": socket.Addr()})
+			shared.Log.Info(" - binding socket", log.Ctx{"socket": socket.Addr()})
 			current_socket := socket
 			d.tomb.Go(func() error { return http.Serve(current_socket, d.mux) })
 		}
