@@ -16,8 +16,14 @@ if [ "x${2}" != "xnotime" ]; then
   exit 0
 fi
 
-lxc delete "${CNAME}"
+PIDS=""
 for c in $(seq 1 $count); do
-  lxc delete "${CNAME}${c}"
+  lxc delete "${CNAME}${c}" 2>&1 &
+  PIDS="$PIDS $!"
 done
+
+for pid in $PIDS; do
+  wait $pid
+done
+
 echo -e "\nRun completed"
