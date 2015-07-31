@@ -83,10 +83,6 @@ type container interface {
 	RenderState() (*shared.ContainerState, error)
 	Reboot() error
 	Freeze() error
-	IsPrivileged() bool
-	IsRunning() bool
-	IsEmpheral() bool
-	IsSnapshot() bool
 	Shutdown(timeout time.Duration) error
 	Start() error
 	Stop() error
@@ -96,6 +92,13 @@ type container interface {
 	Restore(sourceContainer container) error
 	Copy(source container) error
 	Rename(newName string) error
+	ConfigReplace(newConfig containerLXDArgs) error
+
+	IsPrivileged() bool
+	IsRunning() bool
+	IsEmpheral() bool
+	IsSnapshot() bool
+
 	IDGet() int
 	NameGet() string
 	ArchitectureGet() int
@@ -103,14 +106,13 @@ type container interface {
 	RootfsPathGet() string
 	TemplatesPathGet() string
 	StateDirGet() string
-	TemplateApply(trigger string) error
 	LogFilePathGet() string
 	LogPathGet() string
 	InitPidGet() (int, error)
 	IdmapSetGet() (*shared.IdmapSet, error)
-	ConfigReplace(newConfig containerLXDArgs) error
 	ConfigGet() containerLXDArgs
 
+	TemplateApply(trigger string) error
 	ExportToTar(snap string, w io.Writer) error
 
 	// TODO: Remove every use of this and remove it.
@@ -221,10 +223,8 @@ func (c *lxdContainer) IsRunning() bool {
 
 func (c *lxdContainer) Shutdown(timeout time.Duration) error {
 	if err := c.c.Shutdown(timeout); err != nil {
-
-		// TODO: Not sure this line is right.
+		// Still try to unload the storage.
 		c.Storage.ContainerStop(c)
-
 		return err
 	}
 
@@ -238,6 +238,7 @@ func (c *lxdContainer) Shutdown(timeout time.Duration) error {
 
 func (c *lxdContainer) Stop() error {
 	if err := c.c.Stop(); err != nil {
+		// Still try to unload the storage.
 		c.Storage.ContainerStop(c)
 		return err
 	}
