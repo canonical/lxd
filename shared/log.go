@@ -24,7 +24,7 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool) error {
 			handlers = append(
 				handlers,
 				log.LvlFilterHandler(
-					log.LvlError,
+					log.LvlInfo,
 					log.Must.SyslogHandler(syslog, log.LogfmtFormat()),
 				),
 			)
@@ -43,7 +43,7 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool) error {
 			handlers = append(
 				handlers,
 				log.LvlFilterHandler(
-					log.LvlError,
+					log.LvlInfo,
 					log.Must.FileHandler(logfile, log.LogfmtFormat()),
 				),
 			)
@@ -58,7 +58,7 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool) error {
 			handlers = append(
 				handlers,
 				log.LvlFilterHandler(
-					log.LvlError,
+					log.LvlInfo,
 					log.StderrHandler,
 				),
 			)

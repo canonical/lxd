@@ -11,11 +11,6 @@ import (
 
 func containerGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	//cId, err := dbGetContainerID(d.db, name)  will need cId to get info
-	_, err := dbContainerIDGet(d.db, name)
-	if err != nil {
-		return NotFound
-	}
 	c, err := newLxdContainer(name, d)
 	if err != nil {
 		return SmartError(err)

@@ -229,51 +229,6 @@ func ValidDeviceConfig(t, k, v string) bool {
 	}
 }
 
-func AddDevices(tx *sql.Tx, w string, cID int, devices shared.Devices) error {
-	str1 := fmt.Sprintf("INSERT INTO %ss_devices (%s_id, name, type) VALUES (?, ?, ?)", w, w)
-	stmt1, err := tx.Prepare(str1)
-	if err != nil {
-		return err
-	}
-	defer stmt1.Close()
-	str2 := fmt.Sprintf("INSERT INTO %ss_devices_config (%s_device_id, key, value) VALUES (?, ?, ?)", w, w)
-	stmt2, err := tx.Prepare(str2)
-	if err != nil {
-		return err
-	}
-	defer stmt2.Close()
-	for k, v := range devices {
-		t, err := DeviceTypeToDbType(v["type"])
-		if err != nil {
-			return err
-		}
-		result, err := stmt1.Exec(cID, k, t)
-		if err != nil {
-			return err
-		}
-		id64, err := result.LastInsertId()
-		if err != nil {
-			return fmt.Errorf("Error inserting device %s into database", k)
-		}
-		// TODO: is this really int64? we should fix it everywhere if so
-		id := int(id64)
-		for ck, cv := range v {
-			if ck == "type" {
-				continue
-			}
-			if !ValidDeviceConfig(v["type"], ck, cv) {
-				return fmt.Errorf("Invalid device config %s %s\n", ck, cv)
-			}
-			_, err = stmt2.Exec(id, ck, cv)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 func tempNic() string {
 	randBytes := make([]byte, 4)
 	rand.Read(randBytes)
