@@ -644,6 +644,7 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 
 // ConfigValueGet returns a config value from the memory,
 // calls ConfigValuesGet if required.
+// It returns a empty result if the config key isn't given.
 func (d *Daemon) ConfigValueGet(key string) (string, error) {
 	if d.configValues == nil {
 		if _, err := d.ConfigValuesGet(); err != nil {
