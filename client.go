@@ -1492,10 +1492,10 @@ func (c *Client) GetContainerConfig(container string) ([]string, error) {
 	return resp, nil
 }
 
-func (c *Client) SetContainerConfig(container, key, value string) (*Response, error) {
+func (c *Client) SetContainerConfig(container, key, value string) error {
 	st, err := c.ContainerStatus(container, false)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if value == "" {
@@ -1505,7 +1505,17 @@ func (c *Client) SetContainerConfig(container, key, value string) (*Response, er
 	}
 
 	body := shared.Jmap{"config": st.Config, "profiles": st.Profiles, "name": container, "devices": st.Devices}
-	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
+	/*
+	 * Although container config is an async operation (we PUT to restore a
+	 * snapshot), we expect config to be a sync operation, so let's just
+	 * handle it here.
+	 */
+	resp, err := c.put(fmt.Sprintf("containers/%s", container), body, Async)
+	if err != nil {
+		return err
+	}
+
+	return c.WaitForSuccess(resp.Operation)
 }
 
 func (c *Client) UpdateContainerConfig(container string, st shared.BriefContainerState) error {
