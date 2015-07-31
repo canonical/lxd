@@ -403,7 +403,7 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 	return nil
 }
 
-func validateConfig(c *lxdContainer, devs shared.Devices) error {
+func validateConfig(c container, devs shared.Devices) error {
 	for _, dev := range devs {
 		if dev["type"] == "disk" && shared.IsBlockdevPath(dev["source"]) {
 			if !c.IsPrivileged() {

@@ -92,7 +92,7 @@ type containerLXDArgs struct {
 	Devices      shared.Devices
 }
 
-type lxdContainer struct {
+type containerLXD struct {
 	c            *lxc.Container
 	daemon       *Daemon
 	id           int
@@ -209,7 +209,7 @@ func createcontainerLXD(
 		"Container created in the DB",
 		log.Ctx{"container": name, "id": id})
 
-	c := &lxdContainer{
+	c := &containerLXD{
 		daemon:       d,
 		id:           id,
 		name:         name,
@@ -241,7 +241,7 @@ func newLxdContainer(name string, d *Daemon) (container, error) {
 		return nil, err
 	}
 
-	c := &lxdContainer{
+	c := &containerLXD{
 		daemon:       d,
 		id:           args.ID,
 		name:         name,
@@ -272,7 +272,7 @@ func newLxdContainer(name string, d *Daemon) (container, error) {
 // init prepares the LXContainer for this LXD Container
 // TODO: This gets called on each load of the container,
 //       we might be able to split this is up into c.Start().
-func (c *lxdContainer) init() error {
+func (c *containerLXD) init() error {
 	templateConfBase := "ubuntu"
 	templateConfDir := os.Getenv("LXC_TEMPLATE_CONFIG")
 	if templateConfDir == "" {
@@ -364,7 +364,7 @@ func (c *lxdContainer) init() error {
 	return nil
 }
 
-func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
+func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 	if _, err := c.LXContainerGet(); err != nil {
 		return nil, err
 	}
@@ -390,7 +390,7 @@ func (c *lxdContainer) RenderState() (*shared.ContainerState, error) {
 	}, nil
 }
 
-func (c *lxdContainer) Start() error {
+func (c *containerLXD) Start() error {
 	// Start the storage for this container
 	if err := c.Storage.ContainerStart(c); err != nil {
 		return err
@@ -441,15 +441,15 @@ func (c *lxdContainer) Start() error {
 	return err
 }
 
-func (c *lxdContainer) Reboot() error {
+func (c *containerLXD) Reboot() error {
 	return c.c.Reboot()
 }
 
-func (c *lxdContainer) Freeze() error {
+func (c *containerLXD) Freeze() error {
 	return c.c.Freeze()
 }
 
-func (c *lxdContainer) IsPrivileged() bool {
+func (c *containerLXD) IsPrivileged() bool {
 	switch strings.ToLower(c.config["security.privileged"]) {
 	case "1":
 		return true
@@ -459,11 +459,11 @@ func (c *lxdContainer) IsPrivileged() bool {
 	return false
 }
 
-func (c *lxdContainer) IsRunning() bool {
+func (c *containerLXD) IsRunning() bool {
 	return c.c.Running()
 }
 
-func (c *lxdContainer) Shutdown(timeout time.Duration) error {
+func (c *containerLXD) Shutdown(timeout time.Duration) error {
 	if err := c.c.Shutdown(timeout); err != nil {
 		// Still try to unload the storage.
 		c.Storage.ContainerStop(c)
@@ -478,7 +478,7 @@ func (c *lxdContainer) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
-func (c *lxdContainer) Stop() error {
+func (c *containerLXD) Stop() error {
 	if err := c.c.Stop(); err != nil {
 		// Still try to unload the storage.
 		c.Storage.ContainerStop(c)
@@ -493,15 +493,15 @@ func (c *lxdContainer) Stop() error {
 	return nil
 }
 
-func (c *lxdContainer) Unfreeze() error {
+func (c *containerLXD) Unfreeze() error {
 	return c.c.Unfreeze()
 }
 
-func (c *lxdContainer) CreateFromImage(hash string) error {
+func (c *containerLXD) CreateFromImage(hash string) error {
 	return c.Storage.ContainerCreate(c, hash)
 }
 
-func (c *lxdContainer) Restore(sourceContainer container) error {
+func (c *containerLXD) Restore(sourceContainer container) error {
 	/*
 	 * restore steps:
 	 * 1. stop container if already running
@@ -557,11 +557,11 @@ func (c *lxdContainer) Restore(sourceContainer container) error {
 	return nil
 }
 
-func (c *lxdContainer) Copy(source container) error {
+func (c *containerLXD) Copy(source container) error {
 	return c.Storage.ContainerCopy(c, source)
 }
 
-func (c *lxdContainer) Delete() error {
+func (c *containerLXD) Delete() error {
 	if err := containerDeleteSnapshots(c.daemon, c.NameGet()); err != nil {
 		return err
 	}
@@ -577,7 +577,7 @@ func (c *lxdContainer) Delete() error {
 	return nil
 }
 
-func (c *lxdContainer) Rename(newName string) error {
+func (c *containerLXD) Rename(newName string) error {
 	if c.IsRunning() {
 		return fmt.Errorf("renaming of running container not allowed")
 	}
@@ -600,27 +600,27 @@ func (c *lxdContainer) Rename(newName string) error {
 	return nil
 }
 
-func (c *lxdContainer) IsEmpheral() bool {
+func (c *containerLXD) IsEmpheral() bool {
 	return c.ephemeral
 }
 
-func (c *lxdContainer) IsSnapshot() bool {
+func (c *containerLXD) IsSnapshot() bool {
 	return c.cType == cTypeSnapshot
 }
 
-func (c *lxdContainer) IDGet() int {
+func (c *containerLXD) IDGet() int {
 	return c.id
 }
 
-func (c *lxdContainer) NameGet() string {
+func (c *containerLXD) NameGet() string {
 	return c.name
 }
 
-func (c *lxdContainer) ArchitectureGet() int {
+func (c *containerLXD) ArchitectureGet() int {
 	return c.architecture
 }
 
-func (c *lxdContainer) PathGet(newName string) string {
+func (c *containerLXD) PathGet(newName string) string {
 	if newName != "" {
 		return containerPathGet(newName, c.IsSnapshot())
 	}
@@ -628,41 +628,41 @@ func (c *lxdContainer) PathGet(newName string) string {
 	return containerPathGet(c.NameGet(), c.IsSnapshot())
 }
 
-func (c *lxdContainer) RootfsPathGet() string {
+func (c *containerLXD) RootfsPathGet() string {
 	return path.Join(c.PathGet(""), "rootfs")
 }
 
-func (c *lxdContainer) TemplatesPathGet() string {
+func (c *containerLXD) TemplatesPathGet() string {
 	return path.Join(c.PathGet(""), "templates")
 }
 
-func (c *lxdContainer) StateDirGet() string {
+func (c *containerLXD) StateDirGet() string {
 	return path.Join(c.PathGet(""), "state")
 }
 
-func (c *lxdContainer) LogPathGet() string {
+func (c *containerLXD) LogPathGet() string {
 	return shared.LogPath(c.NameGet())
 }
 
-func (c *lxdContainer) LogFilePathGet() string {
+func (c *containerLXD) LogFilePathGet() string {
 	return filepath.Join(c.LogPathGet(), "lxc.log")
 }
 
-func (c *lxdContainer) InitPidGet() (int, error) {
+func (c *containerLXD) InitPidGet() (int, error) {
 	return c.c.InitPid(), nil
 }
 
-func (c *lxdContainer) IdmapSetGet() (*shared.IdmapSet, error) {
+func (c *containerLXD) IdmapSetGet() (*shared.IdmapSet, error) {
 	return c.idmapset, nil
 }
 
-func (c *lxdContainer) LXContainerGet() (*lxc.Container, error) {
+func (c *containerLXD) LXContainerGet() (*lxc.Container, error) {
 	return c.c, nil
 }
 
 // ConfigReplace replaces the config of container and tries to live apply
 // the new configuration.
-func (c *lxdContainer) ConfigReplace(newConfig containerLXDArgs) error {
+func (c *containerLXD) ConfigReplace(newConfig containerLXDArgs) error {
 	/* check to see that the config actually applies to the container
 	 * successfully before saving it. in particular, raw.lxc and
 	 * raw.apparmor need to be parsed once to make sure they make sense.
@@ -731,7 +731,7 @@ func (c *lxdContainer) ConfigReplace(newConfig containerLXDArgs) error {
 	return txCommit(tx)
 }
 
-func (c *lxdContainer) ConfigGet() containerLXDArgs {
+func (c *containerLXD) ConfigGet() containerLXDArgs {
 	newConfig := containerLXDArgs{
 		Config:    c.myConfig,
 		Devices:   c.myDevices,
@@ -748,7 +748,7 @@ func (c *lxdContainer) ConfigGet() containerLXDArgs {
  *     metadata.yaml
  *     rootfs/
  */
-func (c *lxdContainer) ExportToTar(snap string, w io.Writer) error {
+func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 	if snap != "" && c.IsRunning() {
 		return fmt.Errorf("Cannot export a running container as image")
 	}
@@ -795,7 +795,7 @@ func (c *lxdContainer) ExportToTar(snap string, w io.Writer) error {
 	return tw.Close()
 }
 
-func (c *lxdContainer) TemplateApply(trigger string) error {
+func (c *containerLXD) TemplateApply(trigger string) error {
 	fname := path.Join(c.PathGet(""), "metadata.yaml")
 
 	if !shared.PathExists(fname) {
@@ -901,7 +901,7 @@ func (c *lxdContainer) TemplateApply(trigger string) error {
 	return nil
 }
 
-func (d *lxdContainer) DetachMount(m shared.Device) error {
+func (d *containerLXD) DetachMount(m shared.Device) error {
 	// TODO - in case of reboot, we should remove the lxc.mount.entry.  Trick
 	// is, we can't d.c.ClearConfigItem bc that will clear all the keys.  So
 	// we should get the full list, clear, then reinsert all but the one we're
@@ -916,7 +916,7 @@ func (d *lxdContainer) DetachMount(m shared.Device) error {
 	return exec.Command(os.Args[0], "forkumount", pidstr, m["path"]).Run()
 }
 
-func (d *lxdContainer) AttachMount(m shared.Device) error {
+func (d *containerLXD) AttachMount(m shared.Device) error {
 	dest := m["path"]
 	source := m["source"]
 
@@ -993,7 +993,7 @@ func (d *lxdContainer) AttachMount(m shared.Device) error {
 	return nil
 }
 
-func (c *lxdContainer) applyConfig(config map[string]string, fromProfile bool) error {
+func (c *containerLXD) applyConfig(config map[string]string, fromProfile bool) error {
 	var err error
 	for k, v := range config {
 		switch k {
@@ -1056,7 +1056,7 @@ func (c *lxdContainer) applyConfig(config map[string]string, fromProfile bool) e
 	return nil
 }
 
-func (c *lxdContainer) applyProfile(p string) error {
+func (c *containerLXD) applyProfile(p string) error {
 	q := `SELECT key, value FROM profiles_config
 		JOIN profiles ON profiles.id=profiles_config.profile_id
 		WHERE profiles.name=?`
@@ -1096,7 +1096,7 @@ func (c *lxdContainer) applyProfile(p string) error {
 	return c.applyConfig(config, true)
 }
 
-func (c *lxdContainer) updateContainerHWAddr(k, v string) {
+func (c *containerLXD) updateContainerHWAddr(k, v string) {
 	for name, d := range c.devices {
 		if d["type"] != "nic" {
 			continue
@@ -1113,7 +1113,7 @@ func (c *lxdContainer) updateContainerHWAddr(k, v string) {
 	}
 }
 
-func (c *lxdContainer) setupMacAddresses() error {
+func (c *containerLXD) setupMacAddresses() error {
 	newConfigEntries := map[string]string{}
 
 	for name, d := range c.devices {
@@ -1236,7 +1236,7 @@ func (c *lxdContainer) setupMacAddresses() error {
 	return nil
 }
 
-func (c *lxdContainer) applyIdmapSet() error {
+func (c *containerLXD) applyIdmapSet() error {
 	if c.idmapset == nil {
 		return nil
 	}
@@ -1250,7 +1250,7 @@ func (c *lxdContainer) applyIdmapSet() error {
 	return nil
 }
 
-func (c *lxdContainer) applyDevices() error {
+func (c *containerLXD) applyDevices() error {
 	var keys []string
 	for k := range c.devices {
 		keys = append(keys, k)
@@ -1277,7 +1277,7 @@ func (c *lxdContainer) applyDevices() error {
 	return nil
 }
 
-func (c *lxdContainer) iPsGet() []shared.Ip {
+func (c *containerLXD) iPsGet() []shared.Ip {
 	ips := []shared.Ip{}
 	names, err := c.c.Interfaces()
 	if err != nil {
@@ -1319,7 +1319,7 @@ func (c *lxdContainer) iPsGet() []shared.Ip {
 	return ips
 }
 
-func (c *lxdContainer) tarStoreFile(linkmap map[uint64]string, offset int, tw *tar.Writer, path string, fi os.FileInfo) error {
+func (c *containerLXD) tarStoreFile(linkmap map[uint64]string, offset int, tw *tar.Writer, path string, fi os.FileInfo) error {
 	var err error
 	var major, minor, nlink int
 	var ino uint64
@@ -1389,7 +1389,7 @@ func (c *lxdContainer) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 	return nil
 }
 
-func (c *lxdContainer) mkdirAllContainerRoot(path string, perm os.FileMode) error {
+func (c *containerLXD) mkdirAllContainerRoot(path string, perm os.FileMode) error {
 	var uid int = 0
 	var gid int = 0
 	if !c.IsPrivileged() {
@@ -1404,7 +1404,7 @@ func (c *lxdContainer) mkdirAllContainerRoot(path string, perm os.FileMode) erro
 	return shared.MkdirAllOwner(path, perm, uid, gid)
 }
 
-func (c *lxdContainer) mountShared() error {
+func (c *containerLXD) mountShared() error {
 	source := shared.VarPath("shmounts", c.NameGet())
 	entry := fmt.Sprintf("%s .lxdmounts none bind,create=dir 0 0", source)
 	if !shared.PathExists(source) {
