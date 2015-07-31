@@ -685,6 +685,10 @@ func (d *Daemon) ConfigValueSet(key string, value string) error {
 		if _, err := d.ConfigValuesGet(); err != nil {
 			return err
 		}
+	}
+
+	if value == "" {
+		delete(d.configValues, key)
 	} else {
 		d.configValues[key] = value
 	}
