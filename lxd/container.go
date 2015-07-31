@@ -193,11 +193,12 @@ func containerLXDCreate(
 		args.Profiles = []string{"default"}
 	}
 
+	if args.Config == nil {
+		args.Config = map[string]string{}
+	}
+
 	if args.BaseImage != "" {
-		if args.Config == nil {
-			args.Config = map[string]string{}
-			args.Config["volatile.baseImage"] = args.BaseImage
-		}
+		args.Config["volatile.baseImage"] = args.BaseImage
 	}
 
 	if args.Devices == nil {
@@ -546,7 +547,10 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 	// Restore the FS.
 	// TODO: I switched the FS and config restore, think thats the correct way
 	// (pcdummy)
+	sourceContainer.StorageStart()
 	err := c.Storage.ContainerRestore(c, sourceContainer)
+	sourceContainer.StorageStop()
+
 	if err != nil {
 		shared.Log.Error("RESTORE => Restoring the filesystem failed",
 			log.Ctx{
@@ -574,6 +578,9 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 }
 
 func (c *containerLXD) Copy(source container) error {
+	source.StorageStart()
+	defer source.StorageStop()
+
 	return c.Storage.ContainerCopy(c, source)
 }
 
