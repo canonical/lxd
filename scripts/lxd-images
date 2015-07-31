@@ -169,6 +169,55 @@ class LXD(object):
         return data['metadata']
 
 
+class Image(object):
+    """ Class for reuse of various functionality """
+
+    def gpg_update(self):
+        print(_("Downloading the GPG key for %s" % self.server))
+        gpg_environ = dict(os.environ)
+        gpg_environ["GNUPGHOME"] = self.gpgdir
+
+        with open(os.devnull, "w") as devnull:
+            r = subprocess.call(
+                ["gpg",
+                 "--keyserver", "hkp://p80.pool.sks-keyservers.net:80",
+                 "--recv-keys", self.gpgkey],
+                env=gpg_environ,
+                stdout=devnull, stderr=devnull)
+
+        if r:
+            raise Exception("Failed to retrieve the GPG key")
+
+    def gpg_verify(self, path):
+        print(_("Validating the GPG signature of %s" % path))
+        gpg_environ = dict(os.environ)
+        gpg_environ["GNUPGHOME"] = self.gpgdir
+
+        with open(os.devnull, "w") as devnull:
+            r = subprocess.call(
+                ["gpg",
+                 "--verify", path],
+                env=gpg_environ,
+                stdout=devnull, stderr=devnull)
+
+        if r:
+            raise Exception("GPG signature verification failed for: %s" % path)
+
+    def grab_and_validate(self, url, dest, gpg_suffix=".asc"):
+        try:
+            # Main file
+            urllib.request.urlretrieve(url, dest, report_download)
+
+            # Signature
+            urllib.request.urlretrieve(url + gpg_suffix,
+                                       dest + ".asc", report_download)
+        except socket.timeout or IOError as e:
+            raise Exception("Failed to download \"%s\": %s" % (url, e))
+
+        # Verify the signature
+        self.gpg_verify(dest + ".asc")
+
+
 class Busybox(object):
     workdir = None
 
@@ -274,7 +323,7 @@ class Busybox(object):
             return destination_tar + ".xz"
 
 
-class LXCImages(object):
+class LXCImages(Image):
     workdir = None
     images = []
 
@@ -299,57 +348,12 @@ class LXCImages(object):
         if self.workdir:
             shutil.rmtree(self.workdir)
 
-    def __grab_and_validate(self, url, dest):
-        try:
-            # Main file
-            urllib.request.urlretrieve(url, dest, report_download)
-
-            # Signature
-            urllib.request.urlretrieve(url + ".asc",
-                                       dest + ".asc", report_download)
-        except socket.timeout or IOError as e:
-            raise Exception("Failed to download \"%s\": %s" % (url, e))
-
-        # Verify the signature
-        self.gpg_verify(dest + ".asc")
-
-    def gpg_update(self):
-        print(_("Downloading the GPG key for %s" % self.server))
-        gpg_environ = dict(os.environ)
-        gpg_environ["GNUPGHOME"] = self.gpgdir
-
-        with open(os.devnull, "w") as devnull:
-            r = subprocess.call(
-                ["gpg",
-                 "--keyserver", "hkp://p80.pool.sks-keyservers.net:80",
-                 "--recv-keys", self.gpgkey],
-                env=gpg_environ,
-                stdout=devnull, stderr=devnull)
-
-        if r:
-            raise Exception("Failed to retrieve the GPG key")
-
-    def gpg_verify(self, path):
-        print(_("Validating the GPG signature of %s" % path))
-        gpg_environ = dict(os.environ)
-        gpg_environ["GNUPGHOME"] = self.gpgdir
-
-        with open(os.devnull, "w") as devnull:
-            r = subprocess.call(
-                ["gpg",
-                 "--verify", path],
-                env=gpg_environ,
-                stdout=devnull, stderr=devnull)
-
-        if r:
-            raise Exception("GPG signature verification failed for: %s" % path)
-
     def index_update(self):
         print(_("Downloading the image list for %s" % self.server))
         index = "%s/meta/1.0/index-user" % self.server
         index_path = os.path.join(self.workdir, "index.json")
 
-        self.__grab_and_validate(index, index_path)
+        self.grab_and_validate(index, index_path)
 
         images = []
         with open(index_path, "r") as fd:
@@ -395,18 +399,19 @@ class LXCImages(object):
         url = "%s%slxd.tar.xz" % (self.server, image['path'])
 
         print(_("Downloading the image: %s" % url))
-        self.__grab_and_validate(url, path)
+        self.grab_and_validate(url, path)
         return path
 
 
-class Ubuntu(object):
+class Ubuntu(Image):
     workdir = None
     server = None
     stream = None
 
     # FIXME: We should default to the released stream once available
     def __init__(self, server="https://cloud-images.ubuntu.com",
-                 stream="daily"):
+                 stream="daily",
+                 gpgkey="476CF100"):
 
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
@@ -416,6 +421,10 @@ class Ubuntu(object):
         # Set variables
         self.server = server
         self.stream = stream
+        self.gpgkey = gpgkey
+
+        # Get ready to work with this server
+        self.gpg_update()
 
     def __del__(self):
         if self.workdir:
@@ -428,12 +437,16 @@ class Ubuntu(object):
         if not architecture:
             architecture = local_architecture()
 
+        # Download and verify GPG signature of index file.
+        download_path = os.path.join(self.workdir, "download.json")
+        url = "%s/%s/streams/v1/com.ubuntu.cloud:%s:download.json" % \
+            (self.server, self.stream, self.stream)
+        index = self.grab_and_validate(url, download_path, gpg_suffix=".gpg")
+
         try:
-            print(_("Downloading the image index: %s" % self.server))
-            index = json.loads(
-                urllib.request.urlopen(
-                    "%s/%s/streams/v1/com.ubuntu.cloud:%s:download.json" %
-                    (self.server, self.stream, self.stream)).read().decode())
+            # Parse JSON data
+            with open(download_path, "rb") as download_file:
+                index = json.loads(download_file.read().decode("utf-8"))
         except:
             raise Exception("Unable to parse the image index.")
 
@@ -472,19 +485,38 @@ class Ubuntu(object):
             raise Exception("The requested image doesn't exist.")
 
         print(_("Downloading the image."))
-        meta_path = os.path.join(self.workdir,
-                                 "meta-%s.tar.xz" % image['pubname'])
-        urllib.request.urlretrieve(
-            "%s/%s" % (self.server, image['items']['lxd.tar.xz']['path']),
-            meta_path,
-            report_download)
 
-        rootfs_path = os.path.join(self.workdir,
-                                   "%s.tar.xz" % image['pubname'])
-        urllib.request.urlretrieve(
-            "%s/%s" % (self.server, image['items']['root.tar.xz']['path']),
-            rootfs_path,
-            report_download)
+        def download_and_verify(file_to_download, prefix, pubname):
+            """
+                This function downloads and verifies files in the image.
+            """
+            path = os.path.join(self.workdir,
+                                "%s%s.tar.xz" % (prefix, pubname))
+            # Download file
+            urllib.request.urlretrieve(
+                "%s/%s" % (self.server, file_to_download['path']),
+                path,
+                report_download)
+
+            # Verify SHA256 checksum of the downloaded file
+            with open(path, 'rb') as fd:
+                checksum = hashlib.sha256(fd.read()).hexdigest()
+                if checksum != file_to_download['sha256']:
+                    raise Exception("Checksum of file does not validate")
+
+            return path
+
+        # Download and verify the lxd.tar.xz file
+        meta_path = download_and_verify(
+            image['items']['lxd.tar.xz'],
+            "meta-",
+            image['pubname'])
+
+        # Download and verify the root.tar.xz file
+        rootfs_path = download_and_verify(
+            image['items']['root.tar.xz'],
+            "",
+            image['pubname'])
 
         return meta_path, rootfs_path
 
