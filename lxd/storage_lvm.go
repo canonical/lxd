@@ -129,7 +129,12 @@ func (s *storageLvm) GetStorageType() storageType {
 	return s.sType
 }
 
-func (s *storageLvm) ContainerCreate(
+func (s *storageLvm) ContainerCreate(container container) error {
+	return fmt.Errorf(
+		"ContainerCreate is not implemented in the LVM backend.")
+}
+
+func (s *storageLvm) ContainerCreateFromImage(
 	container container, imageFingerprint string) error {
 
 	lvpath, err := s.createSnapshotLV(container.NameGet(), imageFingerprint)
@@ -137,7 +142,7 @@ func (s *storageLvm) ContainerCreate(
 		return err
 	}
 
-	destPath := shared.VarPath("containers", container.NameGet())
+	destPath := container.PathGet("")
 	if err := os.MkdirAll(destPath, 0755); err != nil {
 		return fmt.Errorf("Error creating container directory: %v", err)
 	}
@@ -155,7 +160,7 @@ func (s *storageLvm) ContainerCreate(
 			return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, output)
 		}
 
-		if err = shiftRootfs(container, s.d); err != nil {
+		if err = s.shiftRootfs(container); err != nil {
 			s.ContainerDelete(container)
 			return fmt.Errorf("Error in shiftRootfs: %v", err)
 		}

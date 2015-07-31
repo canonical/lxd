@@ -143,7 +143,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		args := c.ConfigGet()
 		args.Ctype = cTypeSnapshot
-		sc, err := createcontainerLXD(d, fullName, args)
+		sc, err := containerLXDCreate(d, fullName, args)
 		if err != nil {
 			// no need no fs ops happened.
 			// os.RemoveAll(containerPathGet(fullName, true))

@@ -121,11 +121,15 @@ type container interface {
 	Stop() error
 	Unfreeze() error
 	Delete() error
-	CreateFromImage(hash string) error
 	Restore(sourceContainer container) error
 	Copy(source container) error
 	Rename(newName string) error
 	ConfigReplace(newConfig containerLXDArgs) error
+
+	StorageFromImage(hash string) error
+	StorageFromNone() error
+	StorageStart() error
+	StorageStop() error
 
 	IsPrivileged() bool
 	IsRunning() bool
@@ -155,7 +159,7 @@ type container interface {
 	AttachMount(m shared.Device) error
 }
 
-func createcontainerLXD(
+func containerLXDCreate(
 	d *Daemon, name string, args containerLXDArgs) (container, error) {
 
 	shared.Log.Info(
@@ -497,8 +501,20 @@ func (c *containerLXD) Unfreeze() error {
 	return c.c.Unfreeze()
 }
 
-func (c *containerLXD) CreateFromImage(hash string) error {
-	return c.Storage.ContainerCreate(c, hash)
+func (c *containerLXD) StorageFromImage(hash string) error {
+	return c.Storage.ContainerCreateFromImage(c, hash)
+}
+
+func (c *containerLXD) StorageFromNone() error {
+	return c.Storage.ContainerCreate(c)
+}
+
+func (c *containerLXD) StorageStart() error {
+	return c.Storage.ContainerStart(c)
+}
+
+func (c *containerLXD) StorageStop() error {
+	return c.Storage.ContainerStop(c)
 }
 
 func (c *containerLXD) Restore(sourceContainer container) error {

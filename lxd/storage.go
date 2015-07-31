@@ -73,6 +73,31 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 	return string(output), err
 }
 
+func storageUnprivUserAclSet(c container, dpath string) error {
+	idmapset, err := c.IdmapSetGet()
+	if err != nil {
+		return err
+	}
+
+	if idmapset == nil {
+		return nil
+	}
+	uid, _ := idmapset.ShiftIntoNs(0, 0)
+	switch uid {
+	case -1:
+		shared.Debugf("storageUnprivUserAclSet: no root id mapping")
+		return nil
+	case 0:
+		return nil
+	}
+	acl := fmt.Sprintf("%d:rx", uid)
+	output, err := exec.Command("setfacl", "-m", acl, dpath).CombinedOutput()
+	if err != nil {
+		shared.Debugf("storageUnprivUserAclSet: setfacl failed:\n%s", output)
+	}
+	return err
+}
+
 // storageType defines the type of a storage
 type storageType int
 
@@ -99,7 +124,12 @@ type storage interface {
 	GetStorageType() storageType
 	GetStorageTypeName() string
 
-	ContainerCreate(container container, imageFingerprint string) error
+	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
+	ContainerCreate(container container) error
+
+	// ContainerCreateFromImage creates a container from a image.
+	ContainerCreateFromImage(container container, imageFingerprint string) error
+
 	ContainerDelete(container container) error
 	ContainerCopy(container container, sourceContainer container) error
 	ContainerStart(container container) error
@@ -182,11 +212,38 @@ func (ss *storageShared) GetStorageTypeName() string {
 	return ss.sTypeName
 }
 
-func (ss *storageShared) setUnprivUserAcl(
-	sourceContainer container, destPath string) error {
+func (ss *storageShared) shiftRootfs(c container) error {
+	dpath := c.PathGet("")
+	rpath := c.RootfsPathGet()
 
-	if !sourceContainer.IsPrivileged() {
-		err := setUnprivUserAcl(sourceContainer, destPath)
+	shared.Log.Debug("shiftRootfs",
+		log.Ctx{"container": c.NameGet(), "rootfs": rpath})
+
+	idmapset, err := c.IdmapSetGet()
+	if err != nil {
+		return err
+	}
+
+	if idmapset == nil {
+		return fmt.Errorf("IdmapSet of container '%s' is nil", c.NameGet())
+	}
+
+	err = idmapset.ShiftRootfs(rpath)
+	if err != nil {
+		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
+		return err
+	}
+
+	/* Set an acl so the container root can descend the container dir */
+	// TODO: i changed this so it calls ss.setUnprivUserAcl, which does
+	// the acl change only if the container is not privileged, think thats right.
+	return ss.setUnprivUserAcl(c, dpath)
+}
+
+func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
+
+	if !c.IsPrivileged() {
+		err := storageUnprivUserAclSet(c, destPath)
 		if err != nil {
 			ss.log.Error(
 				"adding acl for container root: falling back to chmod",
@@ -233,7 +290,16 @@ func (lw *storageLogWrapper) GetStorageTypeName() string {
 	return lw.w.GetStorageTypeName()
 }
 
-func (lw *storageLogWrapper) ContainerCreate(
+func (lw *storageLogWrapper) ContainerCreate(container container) error {
+	lw.log.Debug(
+		"ContainerCreate",
+		log.Ctx{
+			"name":         container.NameGet(),
+			"isPrivileged": container.IsPrivileged()})
+	return lw.w.ContainerCreate(container)
+}
+
+func (lw *storageLogWrapper) ContainerCreateFromImage(
 	container container, imageFingerprint string) error {
 
 	lw.log.Debug(
@@ -242,7 +308,7 @@ func (lw *storageLogWrapper) ContainerCreate(
 			"imageFingerprint": imageFingerprint,
 			"name":             container.NameGet(),
 			"isPrivileged":     container.IsPrivileged()})
-	return lw.w.ContainerCreate(container, imageFingerprint)
+	return lw.w.ContainerCreateFromImage(container, imageFingerprint)
 }
 
 func (lw *storageLogWrapper) ContainerDelete(container container) error {
