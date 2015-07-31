@@ -102,6 +102,12 @@ func untarImage(imagefname string, destpath string) error {
 	return nil
 }
 
+type templateEntry struct {
+	When       []string
+	Template   string
+	Properties map[string]string
+}
+
 type imagePostReq struct {
 	Filename   string            `json:"filename"`
 	Public     bool              `json:"public"`
@@ -114,7 +120,7 @@ type imageMetadata struct {
 	CreationDate int64                     `yaml:"creation_date"`
 	ExpiryDate   int64                     `yaml:"expiry_date"`
 	Properties   map[string]string         `yaml:"properties"`
-	Templates    map[string]*TemplateEntry `yaml:"templates"`
+	Templates    map[string]*templateEntry `yaml:"templates"`
 }
 
 /*

@@ -1,13 +1,9 @@
 package main
 
 import (
-	"archive/tar"
 	"fmt"
-	"io"
 	"os"
-	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,38 +12,6 @@ import (
 
 	"github.com/lxc/lxd/shared"
 )
-
-// containerLXDArgs contains every argument needed to create an LXD Container
-type containerLXDArgs struct {
-	ID           int // Leave it empty when you create one.
-	Ctype        containerType
-	Config       map[string]string
-	Profiles     []string
-	Ephemeral    bool
-	BaseImage    string
-	Architecture int
-	Devices      shared.Devices
-}
-
-type lxdContainer struct {
-	c            *lxc.Container
-	daemon       *Daemon
-	id           int
-	name         string
-	config       map[string]string
-	profiles     []string
-	devices      shared.Devices
-	architecture int
-	ephemeral    bool
-	idmapset     *shared.IdmapSet
-	cType        containerType
-
-	// These two will contain the containers data without profiles
-	myConfig  map[string]string
-	myDevices shared.Devices
-
-	Storage storage
-}
 
 type execWs struct {
 	command          []string
@@ -357,153 +321,4 @@ func startContainer(args []string) error {
 	}
 
 	return err
-}
-
-func (c *lxdContainer) tarStoreFile(linkmap map[uint64]string, offset int, tw *tar.Writer, path string, fi os.FileInfo) error {
-	var err error
-	var major, minor, nlink int
-	var ino uint64
-
-	link := ""
-	if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
-		link, err = os.Readlink(path)
-		if err != nil {
-			return err
-		}
-	}
-	hdr, err := tar.FileInfoHeader(fi, link)
-	if err != nil {
-		return err
-	}
-	hdr.Name = path[offset:]
-	if fi.IsDir() || fi.Mode()&os.ModeSymlink == os.ModeSymlink {
-		hdr.Size = 0
-	} else {
-		hdr.Size = fi.Size()
-	}
-
-	hdr.Uid, hdr.Gid, major, minor, ino, nlink, err = shared.GetFileStat(path)
-	if err != nil {
-		return fmt.Errorf("error getting file info: %s\n", err)
-	}
-
-	// unshift the id under /rootfs/ for unpriv containers
-	if !c.IsPrivileged() && strings.HasPrefix(hdr.Name, "/rootfs") {
-		hdr.Uid, hdr.Gid = c.idmapset.ShiftFromNs(hdr.Uid, hdr.Gid)
-		if hdr.Uid == -1 || hdr.Gid == -1 {
-			return nil
-		}
-	}
-	if major != -1 {
-		hdr.Devmajor = int64(major)
-		hdr.Devminor = int64(minor)
-	}
-
-	// If it's a hardlink we've already seen use the old name
-	if fi.Mode().IsRegular() && nlink > 1 {
-		if firstpath, found := linkmap[ino]; found {
-			hdr.Typeflag = tar.TypeLink
-			hdr.Linkname = firstpath
-			hdr.Size = 0
-		} else {
-			linkmap[ino] = hdr.Name
-		}
-	}
-
-	// todo - handle xattrs
-
-	if err := tw.WriteHeader(hdr); err != nil {
-		return fmt.Errorf("error writing header: %s\n", err)
-	}
-
-	if hdr.Typeflag == tar.TypeReg {
-		f, err := os.Open(path)
-		if err != nil {
-			return fmt.Errorf("tarStoreFile: error opening file: %s\n", err)
-		}
-		defer f.Close()
-		if _, err := io.Copy(tw, f); err != nil {
-			return fmt.Errorf("error copying file %s\n", err)
-		}
-	}
-	return nil
-}
-
-/*
- * Export the container to a unshifted tarfile containing:
- * dir/
- *     metadata.yaml
- *     rootfs/
- */
-func (c *lxdContainer) ExportToTar(snap string, w io.Writer) error {
-	if snap != "" && c.IsRunning() {
-		return fmt.Errorf("Cannot export a running container as image")
-	}
-
-	tw := tar.NewWriter(w)
-
-	// keep track of the first path we saw for each path with nlink>1
-	linkmap := map[uint64]string{}
-
-	cDir := c.PathGet("")
-
-	// Path inside the tar image is the pathname starting after cDir
-	offset := len(cDir) + 1
-
-	fnam := filepath.Join(cDir, "metadata.yaml")
-	writeToTar := func(path string, fi os.FileInfo, err error) error {
-		if err := c.tarStoreFile(linkmap, offset, tw, path, fi); err != nil {
-			shared.Debugf("error tarring up %s: %s\n", path, err)
-			return err
-		}
-		return nil
-	}
-
-	fnam = filepath.Join(cDir, "metadata.yaml")
-	if shared.PathExists(fnam) {
-		fi, err := os.Lstat(fnam)
-		if err != nil {
-			shared.Debugf("Error statting %s during exportToTar\n", fnam)
-			tw.Close()
-			return err
-		}
-		if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
-			shared.Debugf("exportToTar: error writing to tarfile: %s\n", err)
-			tw.Close()
-			return err
-		}
-	}
-	fnam = filepath.Join(cDir, "rootfs")
-	filepath.Walk(fnam, writeToTar)
-	fnam = filepath.Join(cDir, "templates")
-	if shared.PathExists(fnam) {
-		filepath.Walk(fnam, writeToTar)
-	}
-	return tw.Close()
-}
-
-func (c *lxdContainer) mkdirAllContainerRoot(path string, perm os.FileMode) error {
-	var uid int = 0
-	var gid int = 0
-	if !c.IsPrivileged() {
-		uid, gid = c.idmapset.ShiftIntoNs(0, 0)
-		if uid == -1 {
-			uid = 0
-		}
-		if gid == -1 {
-			gid = 0
-		}
-	}
-	return shared.MkdirAllOwner(path, perm, uid, gid)
-}
-
-func (c *lxdContainer) mountShared() error {
-	source := shared.VarPath("shmounts", c.NameGet())
-	entry := fmt.Sprintf("%s .lxdmounts none bind,create=dir 0 0", source)
-	if !shared.PathExists(source) {
-		if err := c.mkdirAllContainerRoot(source, 0755); err != nil {
-			return err
-		}
-	}
-	return c.c.SetConfigItem("lxc.mount.entry", entry)
 }
