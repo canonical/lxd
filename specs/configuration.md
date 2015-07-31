@@ -20,7 +20,6 @@ Key                             | Type          | Default                   | De
 :--                             | :---          | :------                   | :----------
 core.trust\_password            | string        | -                         | Password to be provided by clients to setup a trust
 images.remote\_cache\_expiry    | integer       | 10                        | Number of days after which an unused cached remote image will be flushed
-lxc.lxc\_path                   | string        | /var/lib/lxd/lxc          | LXC path used for the container control socket
 
 Those keys can be set using the lxc tool with:
 
