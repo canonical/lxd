@@ -324,8 +324,52 @@ func setupSharedMounts() error {
 	return nil
 }
 
+func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
+	var sockets []net.Listener
+
+	if oldAddress != "" {
+		_, _, err := net.SplitHostPort(oldAddress)
+		if err != nil {
+			oldAddress = fmt.Sprintf("%s:%s", oldAddress, shared.DefaultPort)
+		}
+
+		for _, socket := range d.Sockets {
+			if socket.Addr().String() == oldAddress {
+				socket.Close()
+			} else {
+				sockets = append(sockets, socket)
+			}
+		}
+	} else {
+		sockets = d.Sockets
+	}
+
+	if newAddress != "" {
+		_, _, err := net.SplitHostPort(newAddress)
+		if err != nil {
+			newAddress = fmt.Sprintf("%s:%s", newAddress, shared.DefaultPort)
+		}
+
+		tlsConfig, err := shared.GetTLSConfig(d.certf, d.keyf)
+		if err != nil {
+			return err
+		}
+
+		tcpl, err := tls.Listen("tcp", newAddress, tlsConfig)
+		if err != nil {
+			return fmt.Errorf("cannot listen on https socket: %v", err)
+		}
+
+		d.tomb.Go(func() error { return http.Serve(tcpl, d.mux) })
+		sockets = append(sockets, tcpl)
+	}
+
+	d.Sockets = sockets
+	return nil
+}
+
 // StartDaemon starts the shared daemon with the provided configuration.
-func StartDaemon(listenAddr string) (*Daemon, error) {
+func StartDaemon() (*Daemon, error) {
 	d := &Daemon{}
 
 	/* Setup logging */
@@ -520,15 +564,20 @@ func StartDaemon(listenAddr string) (*Daemon, error) {
 		}
 
 		sockets = append(sockets, unixl)
+	}
 
-		if listenAddr != "" {
-			tcpl, err := tls.Listen("tcp", listenAddr, tlsConfig)
-			if err != nil {
-				return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
-			}
+	listenAddr, err := d.ConfigValueGet("core.https_address")
+	if err != nil {
+		return nil, err
+	}
 
-			sockets = append(sockets, tcpl)
+	if listenAddr != "" {
+		tcpl, err := tls.Listen("tcp", listenAddr, tlsConfig)
+		if err != nil {
+			return nil, fmt.Errorf("cannot listen on https socket: %v", err)
 		}
+
+		sockets = append(sockets, tcpl)
 	}
 
 	d.Sockets = sockets
@@ -631,6 +680,8 @@ func (d *Daemon) Stop() error {
 // ConfigKeyIsValid returns if the given key is a known config value.
 func (d *Daemon) ConfigKeyIsValid(key string) bool {
 	switch key {
+	case "core.https_address":
+		return true
 	case "core.trust_password":
 		return true
 	case "core.lvm_vg_name":

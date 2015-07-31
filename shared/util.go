@@ -21,6 +21,9 @@ import (
 	"unsafe"
 )
 
+const SnapshotDelimiter = "/"
+const DefaultPort = "8443"
+
 func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	inode uint64, nlink int, err error) {
 	var stat syscall.Stat_t
@@ -314,8 +317,6 @@ func (r BytesReadCloser) Close() error {
 	/* no-op since we're in memory */
 	return nil
 }
-
-const SnapshotDelimiter = "/"
 
 func IsSnapshot(name string) bool {
 	return strings.Contains(name, SnapshotDelimiter)

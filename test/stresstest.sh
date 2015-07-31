@@ -95,7 +95,7 @@ spawn_lxd() {
   shift
   shift
   echo "==> Spawning lxd on $addr in $lxddir"
-  LXD_DIR=$lxddir lxd ${DEBUG} --tcp $addr $extraargs $* 2>&1 > $lxddir/lxd.log &
+  LXD_DIR=$lxddir lxd ${DEBUG} $extraargs $* 2>&1 > $lxddir/lxd.log &
 
   echo "==> Confirming lxd on $addr is responsive"
   alive=0
@@ -103,6 +103,9 @@ spawn_lxd() {
     [ -e "${lxddir}/unix.socket" ] && LXD_DIR=$lxddir lxc finger && alive=1
     sleep 1s
   done
+
+  echo "==> Binding to network"
+  LXD_DIR=$lxddir lxc config set core.https_address $addr
 
   echo "==> Setting trust password"
   LXD_DIR=$lxddir lxc config set core.trust_password foo
