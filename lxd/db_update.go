@@ -13,8 +13,8 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-func dbUpdateFromV11(d *Daemon) error {
-	cNames, err := dbContainersList(d.db, cTypeSnapshot)
+func dbUpdateFromV11(db *sql.DB) error {
+	cNames, err := dbContainersList(db, cTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func dbUpdateFromV11(d *Daemon) error {
 
 	stmt := `
 INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
-	_, err = d.db.Exec(stmt, 12)
+	_, err = db.Exec(stmt, 12)
 	return err
 
 }
@@ -553,7 +553,7 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 		}
 	}
 	if prevVersion < 12 {
-		err = dbUpdateFromV11(d)
+		err = dbUpdateFromV11(db)
 		if err != nil {
 			return err
 		}
