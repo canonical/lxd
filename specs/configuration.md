@@ -18,6 +18,7 @@ currently supported:
 
 Key                             | Type          | Default                   | Description
 :--                             | :---          | :------                   | :----------
+core.https\_address             | string        | -                         | Address to bind for the remote API
 core.trust\_password            | string        | -                         | Password to be provided by clients to setup a trust
 images.remote\_cache\_expiry    | integer       | 10                        | Number of days after which an unused cached remote image will be flushed
 lxc.lxc\_path                   | string        | /var/lib/lxd/lxc          | LXC path used for the container control socket
