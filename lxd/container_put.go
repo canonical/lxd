@@ -16,7 +16,7 @@ import (
  */
 func containerPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return NotFound
 	}
@@ -64,7 +64,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 			"snapshot":  snap,
 			"container": name})
 
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		shared.Log.Error(
 			"RESTORE => loadcontainerLXD() failed",
@@ -75,7 +75,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 		return err
 	}
 
-	source, err := newLxdContainer(snap, d)
+	source, err := containerLXDLoad(d, snap)
 	if err != nil {
 		shared.Debugf("RESTORE => Error: newLxdContainer() failed for snapshot", err)
 		return err

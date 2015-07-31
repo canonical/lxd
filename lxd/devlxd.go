@@ -314,7 +314,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 			parts := strings.Split(string(cmdline), " ")
 			name := parts[len(parts)-1]
 
-			return newLxdContainer(name, d)
+			return containerLXDLoad(d, name)
 		}
 
 		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
@@ -348,7 +348,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 	}
 
 	for _, container := range containers {
-		c, err := newLxdContainer(container, d)
+		c, err := containerLXDLoad(d, container)
 		if err != nil {
 			return nil, err
 		}

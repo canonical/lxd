@@ -159,7 +159,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		return SmartError(err)
 	}
 
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		c.Delete()
 		return SmartError(err)
@@ -193,7 +193,7 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 	}
 
 	run := shared.OperationWrap(func() error {
-		c, err := newLxdContainer(req.Name, d)
+		c, err := containerLXDLoad(d, req.Name)
 		if err != nil {
 			return err
 		}
@@ -230,7 +230,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return SmartError(err)
 	}
 
-	c, err := newLxdContainer(req.Name, d)
+	c, err := containerLXDLoad(d, req.Name)
 	if err != nil {
 		c.Delete()
 		return SmartError(err)
@@ -288,7 +288,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 			return shared.OperationError(err)
 		}
 
-		c, err := newLxdContainer(req.Name, d)
+		c, err := containerLXDLoad(d, req.Name)
 		if err != nil {
 			return shared.OperationError(err)
 		}
@@ -313,7 +313,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	// Make sure the source exists.
-	source, err := newLxdContainer(req.Source.Source, d)
+	source, err := containerLXDLoad(d, req.Source.Source)
 	if err != nil {
 		return SmartError(err)
 	}
