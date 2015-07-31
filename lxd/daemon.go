@@ -662,20 +662,10 @@ func (d *Daemon) ConfigValueGet(key string) (string, error) {
 // ConfigValuesGet fetches all config values and stores them in memory.
 func (d *Daemon) ConfigValuesGet() (map[string]string, error) {
 	if d.configValues == nil {
-		d.configValues = make(map[string]string)
-
-		q := "SELECT key, value FROM config"
-		rows, err := dbQuery(d.db, q)
+		var err error
+		d.configValues, err = dbConfigValuesGet(d.db)
 		if err != nil {
-			d.configValues = nil
 			return d.configValues, err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var key, value string
-			rows.Scan(&key, &value)
-			d.configValues[key] = value
 		}
 	}
 
@@ -685,34 +675,7 @@ func (d *Daemon) ConfigValuesGet() (map[string]string, error) {
 // ConfigValueSet sets a new or updates a config value,
 // it updates the value in the DB and in memory.
 func (d *Daemon) ConfigValueSet(key string, value string) error {
-	tx, err := dbBegin(d.db)
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("DELETE FROM config WHERE key=?", key)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if value != "" {
-		str := `INSERT INTO config (key, value) VALUES (?, ?);`
-		stmt, err := tx.Prepare(str)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-		defer stmt.Close()
-		_, err = stmt.Exec(key, value)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	err = txCommit(tx)
-	if err != nil {
+	if err := dbConfigValueSet(d.db, key, value); err != nil {
 		return err
 	}
 
