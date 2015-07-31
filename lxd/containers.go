@@ -163,7 +163,7 @@ func containersWatch(d *Daemon) error {
 	}
 
 	for _, r := range result {
-		container, err := newLxdContainer(string(r[0].(string)), d)
+		container, err := containerLXDLoad(d, string(r[0].(string)))
 		if err != nil {
 			return err
 		}
@@ -199,7 +199,7 @@ func containersRestart(d *Daemon) error {
 	}
 
 	for _, r := range result {
-		container, err := newLxdContainer(string(r[0].(string)), d)
+		container, err := containerLXDLoad(d, string(r[0].(string)))
 		if err != nil {
 			return err
 		}
@@ -219,7 +219,7 @@ func containersShutdown(d *Daemon) error {
 	var wg sync.WaitGroup
 
 	for _, r := range results {
-		container, err := newLxdContainer(r, d)
+		container, err := containerLXDLoad(d, r)
 		if err != nil {
 			return err
 		}

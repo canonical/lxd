@@ -24,7 +24,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	cname := mux.Vars(r)["name"]
 	// Makes sure the requested container exists.
-	_, err = newLxdContainer(cname, d)
+	_, err = containerLXDLoad(d, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -45,7 +45,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	for _, r := range results {
 		name = r[0].(string)
-		sc, err := newLxdContainer(name, d)
+		sc, err := containerLXDLoad(d, name)
 		if err != nil {
 			shared.Log.Error("Failed to load snapshot", log.Ctx{"snapshot": name})
 			continue
@@ -113,7 +113,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	 * 2. copy the database info over
 	 * 3. copy over the rootfs
 	 */
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -190,11 +190,11 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	containerName := mux.Vars(r)["name"]
 	snapshotName := mux.Vars(r)["snapshotName"]
 
-	sc, err := newLxdContainer(
+	sc, err := containerLXDLoad(
+		d,
 		containerName+
 			shared.SnapshotDelimiter+
-			snapshotName,
-		d)
+			snapshotName)
 	if err != nil {
 		return SmartError(err)
 	}

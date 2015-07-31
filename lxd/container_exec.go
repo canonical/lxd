@@ -210,7 +210,7 @@ func (s *execWs) Do() shared.OperationResult {
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return SmartError(err)
 	}

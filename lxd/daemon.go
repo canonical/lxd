@@ -588,7 +588,7 @@ func (d *Daemon) numRunningContainers() (int, error) {
 
 	count := 0
 	for _, r := range results {
-		container, err := newLxdContainer(r, d)
+		container, err := containerLXDLoad(d, r)
 		if err != nil {
 			continue
 		}

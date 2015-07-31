@@ -168,7 +168,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		snap = fields[1]
 	}
 
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return info, err
 	}

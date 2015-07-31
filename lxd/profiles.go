@@ -89,8 +89,9 @@ func getRunningContainersWithProfile(d *Daemon, profile string) []container {
 	if err != nil {
 		return results
 	}
+
 	for _, name := range output {
-		c, err := newLxdContainer(name, d)
+		c, err := containerLXDLoad(d, name)
 		if err != nil {
 			shared.Log.Error("failed opening container", log.Ctx{"container": name})
 			continue

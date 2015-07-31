@@ -233,7 +233,7 @@ func createcontainerLXD(
 	return c, nil
 }
 
-func newLxdContainer(name string, d *Daemon) (container, error) {
+func containerLXDLoad(d *Daemon, name string) (container, error) {
 	shared.Log.Debug("Container load", log.Ctx{"container": name})
 
 	args, err := dbContainerGet(d.db, name)
