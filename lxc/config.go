@@ -92,11 +92,7 @@ func doSet(config *lxd.Config, args []string) error {
 
 	key := args[2]
 	value := args[3]
-	resp, err := d.SetContainerConfig(container, key, value)
-	if err != nil {
-		return err
-	}
-	return d.WaitForSuccess(resp.Operation)
+	return d.SetContainerConfig(container, key, value)
 }
 
 func (c *configCmd) run(config *lxd.Config, args []string) error {
