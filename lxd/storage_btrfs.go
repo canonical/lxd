@@ -37,7 +37,27 @@ func (s *storageBtrfs) GetStorageType() storageType {
 	return s.sType
 }
 
-func (s *storageBtrfs) ContainerCreate(
+func (s *storageBtrfs) ContainerCreate(container container) error {
+	err := s.subvolCreate(container.PathGet(""))
+	if err != nil {
+		return err
+	}
+
+	if !container.IsPrivileged() {
+		if err = s.shiftRootfs(container); err != nil {
+			s.ContainerDelete(container)
+			return err
+		}
+	} else {
+		if err := os.Chmod(container.PathGet(""), 0700); err != nil {
+			return err
+		}
+	}
+
+	return container.TemplateApply("create")
+}
+
+func (s *storageBtrfs) ContainerCreateFromImage(
 	container container, imageFingerprint string) error {
 
 	imageSubvol := fmt.Sprintf(
@@ -58,8 +78,7 @@ func (s *storageBtrfs) ContainerCreate(
 	}
 
 	if !container.IsPrivileged() {
-		err = shiftRootfs(container, s.d)
-		if err != nil {
+		if err = s.shiftRootfs(container); err != nil {
 			s.ContainerDelete(container)
 			return err
 		}

@@ -31,7 +31,27 @@ func (s *storageDir) GetStorageType() storageType {
 	return s.sType
 }
 
-func (s *storageDir) ContainerCreate(
+func (s *storageDir) ContainerCreate(container container) error {
+	cPath := container.PathGet("")
+	if err := os.MkdirAll(cPath, 0755); err != nil {
+		return fmt.Errorf("Error creating containers directory")
+	}
+
+	if container.IsPrivileged() {
+		if err := os.Chmod(cPath, 0700); err != nil {
+			return err
+		}
+	} else {
+		if err := s.shiftRootfs(container); err != nil {
+			s.ContainerDelete(container)
+			return err
+		}
+	}
+
+	return container.TemplateApply("create")
+}
+
+func (s *storageDir) ContainerCreateFromImage(
 	container container, imageFingerprint string) error {
 
 	rootfsPath := container.RootfsPathGet()
@@ -52,7 +72,7 @@ func (s *storageDir) ContainerCreate(
 	}
 
 	if !container.IsPrivileged() {
-		if err := shiftRootfs(container, s.d); err != nil {
+		if err := s.shiftRootfs(container); err != nil {
 			s.ContainerDelete(container)
 			return err
 		}
