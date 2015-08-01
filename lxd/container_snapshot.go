@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
 
@@ -143,40 +141,8 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 		args := c.ConfigGet()
 		args.Ctype = cTypeSnapshot
-		sc, err := containerLXDCreate(d, fullName, args)
+		_, err := containerLXDCreateAsSnapshot(d, fullName, args, c, stateful)
 		if err != nil {
-			// no need no fs ops happened.
-			// os.RemoveAll(containerPathGet(fullName, true))
-			return err
-		}
-
-		if stateful {
-			stateDir := sc.StateDirGet()
-			err = os.MkdirAll(stateDir, 0700)
-			if err != nil {
-				sc.Delete()
-				return err
-			}
-
-			// TODO - shouldn't we freeze for the duration of rootfs snapshot below?
-			if !c.IsRunning() {
-				sc.Delete()
-				return fmt.Errorf("Container not running\n")
-			}
-			lxcContainer, err := c.LXContainerGet()
-			if err != nil {
-				sc.Delete()
-				return err
-			}
-			opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
-			if err := lxcContainer.Checkpoint(opts); err != nil {
-				sc.Delete()
-				return err
-			}
-		}
-
-		if err := d.Storage.ContainerSnapshotCreate(sc, c); err != nil {
-			sc.Delete()
 			return err
 		}
 

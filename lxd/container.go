@@ -122,12 +122,9 @@ type container interface {
 	Unfreeze() error
 	Delete() error
 	Restore(sourceContainer container) error
-	Copy(source container) error
 	Rename(newName string) error
 	ConfigReplace(newConfig containerLXDArgs) error
 
-	StorageFromImage(hash string) error
-	StorageFromNone() error
 	StorageStart() error
 	StorageStop() error
 
@@ -159,8 +156,117 @@ type container interface {
 	AttachMount(m shared.Device) error
 }
 
-func containerLXDCreate(
-	d *Daemon, name string, args containerLXDArgs) (container, error) {
+func containerLXDCreateAsEmpty(d *Daemon, name string,
+	args containerLXDArgs) (container, error) {
+
+	// Create the container
+	c, err := containerLXDCreateInternal(d, name, args)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now create the empty storage
+	if err := c.Storage.ContainerCreate(c); err != nil {
+		c.Delete()
+		return nil, err
+	}
+
+	return c, nil
+}
+
+func containerLXDCreateFromImage(d *Daemon, name string,
+	args containerLXDArgs, hash string) (container, error) {
+
+	// Create the container
+	c, err := containerLXDCreateInternal(d, name, args)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now create the storage from an image
+	if err := c.Storage.ContainerCreateFromImage(c, hash); err != nil {
+		c.Delete()
+		return nil, err
+	}
+
+	return c, nil
+}
+
+func containerLXDCreateAsCopy(d *Daemon, name string,
+	args containerLXDArgs, sourceContainer container) (container, error) {
+
+	// Create the container
+	c, err := containerLXDCreateInternal(d, name, args)
+	if err != nil {
+		return nil, err
+	}
+
+	// Replace the config
+	if err := c.ConfigReplace(sourceContainer.ConfigGet()); err != nil {
+		c.Delete()
+		return nil, err
+	}
+
+	// Now copy the source
+	sourceContainer.StorageStart()
+	defer sourceContainer.StorageStop()
+
+	if err := c.Storage.ContainerCopy(c, sourceContainer); err != nil {
+		c.Delete()
+		return nil, err
+	}
+
+	return c, nil
+}
+
+func containerLXDCreateAsSnapshot(d *Daemon, name string,
+	args containerLXDArgs, sourceContainer container,
+	stateful bool) (container, error) {
+
+	// Create the container
+	c, err := containerLXDCreateInternal(d, name, args)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now copy the source
+	sourceContainer.StorageStart()
+	defer sourceContainer.StorageStop()
+
+	if err := c.Storage.ContainerSnapshotCreate(c, sourceContainer); err != nil {
+		c.Delete()
+		return nil, err
+	}
+
+	if stateful {
+		stateDir := c.StateDirGet()
+		err = os.MkdirAll(stateDir, 0700)
+		if err != nil {
+			c.Delete()
+			return nil, err
+		}
+
+		// TODO - shouldn't we freeze for the duration of rootfs snapshot below?
+		if !c.IsRunning() {
+			c.Delete()
+			return nil, fmt.Errorf("Container not running\n")
+		}
+		if err != nil {
+			c.Delete()
+			return nil, err
+		}
+		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
+		if err := c.c.Checkpoint(opts); err != nil {
+			c.Delete()
+			return nil, err
+		}
+	}
+
+	return c, nil
+}
+
+func containerLXDCreateInternal(
+	d *Daemon, name string, args containerLXDArgs) (*containerLXD, error) {
 
 	shared.Log.Info(
 		"Container create",
@@ -571,13 +677,6 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 	}
 
 	return nil
-}
-
-func (c *containerLXD) Copy(source container) error {
-	source.StorageStart()
-	defer source.StorageStop()
-
-	return c.Storage.ContainerCopy(c, source)
 }
 
 func (c *containerLXD) Delete() error {
