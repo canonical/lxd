@@ -147,11 +147,6 @@ func DeviceTypeToDbType(t string) (int, error) {
 	}
 }
 
-func ValidDeviceType(t string) bool {
-	_, err := DeviceTypeToDbType(t)
-	return err == nil
-}
-
 func ValidDeviceConfig(t, k, v string) bool {
 	if k == "type" {
 		return false

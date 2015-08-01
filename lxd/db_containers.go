@@ -216,34 +216,6 @@ func dbContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
 	return nil
 }
 
-func dbContainerDeviceConfigGet(db *sql.DB, id int, isprofile bool) (shared.Device, error) {
-	var query string
-	var key, value string
-	newdev := shared.Device{} // That's a map[string]string
-	inargs := []interface{}{id}
-	outfmt := []interface{}{key, value}
-
-	if isprofile {
-		query = `SELECT key, value FROM profiles_devices_config WHERE profile_device_id=?`
-	} else {
-		query = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
-	}
-
-	results, err := dbQueryScan(db, query, inargs, outfmt)
-
-	if err != nil {
-		return newdev, err
-	}
-
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-		newdev[key] = value
-	}
-
-	return newdev, nil
-}
-
 // Get a list of profiles for a given container id.
 func dbContainerProfilesGet(db *sql.DB, containerID int) ([]string, error) {
 	var name string
