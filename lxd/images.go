@@ -653,43 +653,6 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, result)
 }
 
-func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
-	resultString := []string{}
-	resultMap := []shared.ImageInfo{}
-
-	q := "SELECT fingerprint FROM images"
-	var name string
-	if public == true {
-		q = "SELECT fingerprint FROM images WHERE public=1"
-	}
-	inargs := []interface{}{}
-	outfmt := []interface{}{name}
-	results, err := dbQueryScan(d.db, q, inargs, outfmt)
-	if err != nil {
-		return []string{}, err
-	}
-
-	for _, r := range results {
-		name = r[0].(string)
-		if !recursion {
-			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
-			resultString = append(resultString, url)
-		} else {
-			image, response := doImageGet(d, name, public)
-			if response != nil {
-				continue
-			}
-			resultMap = append(resultMap, image)
-		}
-	}
-
-	if !recursion {
-		return resultString, nil
-	}
-
-	return resultMap, nil
-}
-
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
 
 func doDeleteImage(d *Daemon, fingerprint string) error {

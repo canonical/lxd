@@ -2,12 +2,50 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
 )
+
+func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
+	resultString := []string{}
+	resultMap := []shared.ImageInfo{}
+
+	q := "SELECT fingerprint FROM images"
+	var name string
+	if public == true {
+		q = "SELECT fingerprint FROM images WHERE public=1"
+	}
+	inargs := []interface{}{}
+	outfmt := []interface{}{name}
+	results, err := dbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		return []string{}, err
+	}
+
+	for _, r := range results {
+		name = r[0].(string)
+		if !recursion {
+			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
+			resultString = append(resultString, url)
+		} else {
+			image, response := doImageGet(d, name, public)
+			if response != nil {
+				continue
+			}
+			resultMap = append(resultMap, image)
+		}
+	}
+
+	if !recursion {
+		return resultString, nil
+	}
+
+	return resultMap, nil
+}
 
 // dbImageGet gets an ImageBaseInfo object from the database.
 // The argument fingerprint will be queried with a LIKE query, means you can
