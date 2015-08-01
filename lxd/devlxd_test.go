@@ -106,7 +106,7 @@ func TestHttpRequest(t *testing.T) {
 	}
 	defer os.RemoveAll("/tmp/tester")
 
-	d, err := StartDaemon("")
+	d, err := StartDaemon()
 	if err != nil {
 		t.Fatal(err)
 	}

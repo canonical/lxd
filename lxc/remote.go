@@ -79,7 +79,7 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 		r_host = host
 		r_port = port
 	} else {
-		r_port = "8443"
+		r_port = shared.DefaultPort
 	}
 
 	if r_scheme == "unix" {

@@ -32,7 +32,7 @@ stop on shutdown
 
 script
 
-    exec /home/vagrant/go/bin/lxd --group vagrant --tcp 0.0.0.0:443
+    exec /home/vagrant/go/bin/lxd --group vagrant
 
 end script
 
