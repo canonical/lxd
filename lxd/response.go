@@ -177,12 +177,12 @@ type asyncResponse struct {
 }
 
 func (r *asyncResponse) Render(w http.ResponseWriter) error {
-	op, err := CreateOperation(r.metadata, r.resources, r.run, r.cancel, r.ws)
+	op, err := createOperation(r.metadata, r.resources, r.run, r.cancel, r.ws)
 	if err != nil {
 		return err
 	}
 
-	err = StartOperation(op)
+	err = startOperation(op)
 	if err != nil {
 		return err
 	}

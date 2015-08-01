@@ -32,7 +32,7 @@ import (
 
 // ExtractInterfaceFromConfigName returns "eth0" from "volatile.eth0.hwaddr",
 // or an error if the key does not match this pattern.
-func ExtractInterfaceFromConfigName(k string) (string, error) {
+func extractInterfaceFromConfigName(k string) (string, error) {
 	re := regexp.MustCompile("volatile\\.([^.]*)\\.hwaddr")
 	m := re.FindStringSubmatch(k)
 	if m != nil && len(m) > 1 {
@@ -55,7 +55,7 @@ func validateRawLxc(rawLxc string) error {
 
 // GenerateMacAddr generates a mac address from a string template:
 // e.g. "00:11:22:xx:xx:xx" -> "00:11:22:af:3e:51"
-func GenerateMacAddr(template string) (string, error) {
+func generateMacAddr(template string) (string, error) {
 	ret := bytes.Buffer{}
 
 	for _, c := range template {
@@ -1246,7 +1246,7 @@ func (c *containerLXD) updateContainerHWAddr(k, v string) {
 		}
 
 		for key := range c.config {
-			device, err := ExtractInterfaceFromConfigName(key)
+			device, err := extractInterfaceFromConfigName(key)
 			if err == nil && device == name {
 				d["hwaddr"] = v
 				c.config[key] = v
@@ -1267,7 +1267,7 @@ func (c *containerLXD) setupMacAddresses() error {
 		found := false
 
 		for key, val := range c.config {
-			device, err := ExtractInterfaceFromConfigName(key)
+			device, err := extractInterfaceFromConfigName(key)
 			if err == nil && device == name {
 				found = true
 				d["hwaddr"] = val
@@ -1278,12 +1278,12 @@ func (c *containerLXD) setupMacAddresses() error {
 			var hwaddr string
 			var err error
 			if d["hwaddr"] != "" {
-				hwaddr, err = GenerateMacAddr(d["hwaddr"])
+				hwaddr, err = generateMacAddr(d["hwaddr"])
 				if err != nil {
 					return err
 				}
 			} else {
-				hwaddr, err = GenerateMacAddr("00:16:3e:xx:xx:xx")
+				hwaddr, err = generateMacAddr("00:16:3e:xx:xx:xx")
 				if err != nil {
 					return err
 				}
@@ -1406,7 +1406,7 @@ func (c *containerLXD) applyDevices() error {
 			continue
 		}
 
-		configs, err := DeviceToLxc(d)
+		configs, err := deviceToLxc(d)
 		if err != nil {
 			return fmt.Errorf("Failed configuring device %s: %s\n", name, err)
 		}
