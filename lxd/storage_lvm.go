@@ -199,6 +199,10 @@ func (s *storageLvm) ContainerDelete(container container) error {
 		oldPathParent := filepath.Dir(container.PathGet(""))
 		if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
 			os.Remove(oldPathParent)
+		} else {
+			shared.Log.Debug(
+				"Cannot remove the parent of this container its not empty",
+				log.Ctx{"container": container.NameGet(), "parent": oldPathParent})
 		}
 	}
 

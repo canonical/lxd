@@ -11,6 +11,8 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type execWs struct {
@@ -247,42 +249,25 @@ func containersShutdown(d *Daemon) error {
 }
 
 func containerDeleteSnapshots(d *Daemon, cname string) error {
-	prefix := cname + shared.SnapshotDelimiter
-	length := len(prefix)
-	q := "SELECT name, id FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
-	var id int
-	var sname string
-	inargs := []interface{}{cTypeSnapshot, length, prefix}
-	outfmt := []interface{}{sname, id}
-	results, err := dbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbContainerGetSnapshots(d.db, cname)
 	if err != nil {
 		return err
 	}
 
-	var ids []int
-
-	backingFs, err := filesystemDetect(shared.VarPath("containers", cname))
-	if err != nil && !os.IsNotExist(err) {
-		shared.Debugf("Error cleaning up snapshots: %s\n", err)
-		return err
-	}
-
-	for _, r := range results {
-		sname = r[0].(string)
-		id = r[1].(int)
-		ids = append(ids, id)
-		cdir := shared.VarPath("snapshots", sname)
-
-		if backingFs == "btrfs" {
-			btrfsDeleteSubvol(cdir)
-		}
-		os.RemoveAll(cdir)
-	}
-
-	for _, id := range ids {
-		_, err = dbExec(d.db, "DELETE FROM containers WHERE id=?", id)
+	for _, sname := range results {
+		sc, err := containerLXDLoad(d, sname)
 		if err != nil {
-			return err
+			shared.Log.Error(
+				"containerDeleteSnapshots: Failed to load the snapshotcontainer",
+				log.Ctx{"container": cname, "snapshot": sname})
+
+			continue
+		}
+
+		if err := sc.Delete(); err != nil {
+			shared.Log.Error(
+				"containerDeleteSnapshots: Failed to load delete a snapshotcontainer",
+				log.Ctx{"container": cname, "snapshot": sname})
 		}
 	}
 

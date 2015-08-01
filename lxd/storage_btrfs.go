@@ -91,7 +91,9 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 
 	// First remove the subvol (if it was one).
 	if s.isSubvolume(cPath) {
-		return s.subvolDelete(cPath)
+		if err := s.subvolDelete(cPath); err != nil {
+			return err
+		}
 	}
 
 	// Then the directory (if it still exists).
@@ -105,8 +107,16 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 	// this should only happen with snapshot containers
 	if strings.Contains(container.NameGet(), "/") {
 		oldPathParent := filepath.Dir(container.PathGet(""))
+		shared.Log.Debug(
+			"Trying to remove the parent path",
+			log.Ctx{"container": container.NameGet(), "parent": oldPathParent})
+
 		if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
 			os.Remove(oldPathParent)
+		} else {
+			shared.Log.Debug(
+				"Cannot remove the parent of this container its not empty",
+				log.Ctx{"container": container.NameGet(), "parent": oldPathParent})
 		}
 	}
 
