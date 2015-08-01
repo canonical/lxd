@@ -27,6 +27,25 @@ func dbProfileIDGet(db *sql.DB, profile string) (int64, error) {
 	return id, nil
 }
 
+// dbProfilesGet returns a string list of profiles.
+func dbProfilesGet(db *sql.DB) ([]string, error) {
+	q := fmt.Sprintf("SELECT name FROM profiles")
+	inargs := []interface{}{}
+	var name string
+	outfmt := []interface{}{name}
+	result, err := dbQueryScan(db, q, inargs, outfmt)
+	if err != nil {
+		return []string{}, err
+	}
+
+	response := []string{}
+	for _, r := range result {
+		response = append(response, r[0].(string))
+	}
+
+	return response, nil
+}
+
 func dbProfileCreate(db *sql.DB, profile string, config map[string]string,
 	devices shared.Devices) (int64, error) {
 
