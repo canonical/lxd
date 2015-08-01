@@ -508,33 +508,33 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 
 func (c *containerLXD) Start() error {
 	// Start the storage for this container
-	if err := c.Storage.ContainerStart(c); err != nil {
+	if err := c.StorageStart(); err != nil {
 		return err
 	}
 
 	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
 	if err != nil {
-		c.Storage.ContainerStop(c)
+		c.StorageStop()
 		return err
 	}
 	configPath := f.Name()
 	if err = f.Chmod(0600); err != nil {
 		f.Close()
 		os.Remove(configPath)
-		c.Storage.ContainerStop(c)
+		c.StorageStop()
 		return err
 	}
 	f.Close()
 
 	err = c.c.SaveConfigFile(configPath)
 	if err != nil {
-		c.Storage.ContainerStop(c)
+		c.StorageStop()
 		return err
 	}
 
 	err = c.TemplateApply("start")
 	if err != nil {
-		c.Storage.ContainerStop(c)
+		c.StorageStop()
 		return err
 	}
 
@@ -546,7 +546,7 @@ func (c *containerLXD) Start() error {
 		configPath).Run()
 
 	if err != nil {
-		c.Storage.ContainerStop(c)
+		c.StorageStop()
 		err = fmt.Errorf(
 			"Error calling 'lxd forkstart %s %s %s': err='%v'",
 			c.name,
@@ -587,12 +587,12 @@ func (c *containerLXD) IsRunning() bool {
 func (c *containerLXD) Shutdown(timeout time.Duration) error {
 	if err := c.c.Shutdown(timeout); err != nil {
 		// Still try to unload the storage.
-		c.Storage.ContainerStop(c)
+		c.StorageStop()
 		return err
 	}
 
 	// Stop the storage for this container
-	if err := c.Storage.ContainerStop(c); err != nil {
+	if err := c.StorageStop(); err != nil {
 		return err
 	}
 
@@ -602,12 +602,12 @@ func (c *containerLXD) Shutdown(timeout time.Duration) error {
 func (c *containerLXD) Stop() error {
 	if err := c.c.Stop(); err != nil {
 		// Still try to unload the storage.
-		c.Storage.ContainerStop(c)
+		c.StorageStop()
 		return err
 	}
 
 	// Stop the storage for this container
-	if err := c.Storage.ContainerStop(c); err != nil {
+	if err := c.StorageStop(); err != nil {
 		return err
 	}
 
