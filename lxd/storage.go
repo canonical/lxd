@@ -156,10 +156,22 @@ func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interf
 
 	switch sType {
 	case storageTypeBtrfs:
+		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeBtrfs {
+			return d.Storage, nil
+		}
+
 		s = &storageLogWrapper{w: &storageBtrfs{d: d, sType: sType}}
 	case storageTypeLvm:
+		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeLvm {
+			return d.Storage, nil
+		}
+
 		s = &storageLogWrapper{w: &storageLvm{d: d, sType: sType}}
 	default:
+		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeDir {
+			return d.Storage, nil
+		}
+
 		s = &storageLogWrapper{w: &storageDir{d: d, sType: sType}}
 	}
 
