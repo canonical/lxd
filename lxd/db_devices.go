@@ -23,7 +23,7 @@ func dbDevicesAdd(tx *sql.Tx, w string, cID int64, devices shared.Devices) error
 	}
 	defer stmt2.Close()
 	for k, v := range devices {
-		t, err := DeviceTypeToDbType(v["type"])
+		t, err := deviceTypeToDbType(v["type"])
 		if err != nil {
 			return err
 		}
@@ -41,7 +41,7 @@ func dbDevicesAdd(tx *sql.Tx, w string, cID int64, devices shared.Devices) error
 			if ck == "type" {
 				continue
 			}
-			if !ValidDeviceConfig(v["type"], ck, cv) {
+			if !validDeviceConfig(v["type"], ck, cv) {
 				return fmt.Errorf("Invalid device config %s %s\n", ck, cv)
 			}
 			_, err = stmt2.Exec(id, ck, cv)
