@@ -137,6 +137,13 @@ func (s *storageLvm) ContainerCreate(container container) error {
 func (s *storageLvm) ContainerCreateFromImage(
 	container container, imageFingerprint string) error {
 
+	imageLVFilename := shared.VarPath(
+		"images", fmt.Sprintf("%s.lv", imageFingerprint))
+
+	if !shared.PathExists(imageLVFilename) {
+		s.ImageCreate(imageLVFilename)
+	}
+
 	lvpath, err := s.createSnapshotLV(container.NameGet(), imageFingerprint)
 	if err != nil {
 		return err
