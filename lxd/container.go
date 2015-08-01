@@ -505,23 +505,27 @@ func (c *containerLXD) Start() error {
 
 	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
 	if err != nil {
+		c.Storage.ContainerStop(c)
 		return err
 	}
 	configPath := f.Name()
 	if err = f.Chmod(0600); err != nil {
 		f.Close()
 		os.Remove(configPath)
+		c.Storage.ContainerStop(c)
 		return err
 	}
 	f.Close()
 
 	err = c.c.SaveConfigFile(configPath)
 	if err != nil {
+		c.Storage.ContainerStop(c)
 		return err
 	}
 
 	err = c.TemplateApply("start")
 	if err != nil {
+		c.Storage.ContainerStop(c)
 		return err
 	}
 
@@ -533,6 +537,7 @@ func (c *containerLXD) Start() error {
 		configPath).Run()
 
 	if err != nil {
+		c.Storage.ContainerStop(c)
 		err = fmt.Errorf(
 			"Error calling 'lxd forkstart %s %s %s': err='%v'",
 			c.name,
