@@ -58,22 +58,13 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		Architecture: imgInfo.Architecture,
 	}
 
-	c, err := containerLXDCreate(d, req.Name, args)
-	if err != nil {
-		c.Delete()
-		return SmartError(err)
-	}
-
 	run = shared.OperationWrap(func() error {
-		err := c.StorageFromImage(hash)
-		if err != nil {
-			c.Delete()
-		}
+		_, err := containerLXDCreateFromImage(d, req.Name, args, hash)
 		return err
 	})
 
 	resources := make(map[string][]string)
-	resources["containers"] = []string{c.NameGet()}
+	resources["containers"] = []string{req.Name}
 
 	return &asyncResponse{run: run, resources: resources}
 }
@@ -87,17 +78,8 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 	}
 
 	run := shared.OperationWrap(func() error {
-		c, err := containerLXDCreate(d, req.Name, args)
-		if err != nil {
-			return err
-		}
-
-		if err := c.StorageFromNone(); err != nil {
-			c.Delete()
-			return err
-		}
-
-		return nil
+		_, err := containerLXDCreateAsEmpty(d, req.Name, args)
+		return err
 	})
 
 	resources := make(map[string][]string)
@@ -111,78 +93,70 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return NotImplemented
 	}
 
-	createArgs := containerLXDArgs{
-		Ctype:     cTypeRegular,
-		Config:    req.Config,
-		Profiles:  req.Profiles,
-		Ephemeral: req.Ephemeral,
-		BaseImage: req.Source.BaseImage,
-	}
-
-	c, err := containerLXDCreate(d, req.Name, createArgs)
-	if err != nil {
-		c.Delete()
-		return SmartError(err)
-	}
-
-	_, err = dbImageGet(d.db, req.Source.BaseImage, false)
-	if err == nil {
-		if err := c.StorageFromImage(req.Source.BaseImage); err != nil {
-			c.Delete()
-			return InternalError(err)
-		}
-	} else {
-		if err := c.StorageFromNone(); err != nil {
-			c.Delete()
-			return InternalError(err)
-		}
-	}
-
-	config, err := shared.GetTLSConfig(d.certf, d.keyf)
-	if err != nil {
-		c.Delete()
-		return InternalError(err)
-	}
-
-	lxContainer, err := c.LXContainerGet()
-	if err != nil {
-		c.Delete()
-		return InternalError(err)
-	}
-	idmapset, err := c.IdmapSetGet()
-	if err != nil {
-		c.Delete()
-		return InternalError(err)
-	}
-	args := migration.MigrationSinkArgs{
-		Url: req.Source.Operation,
-		Dialer: websocket.Dialer{
-			TLSClientConfig: config,
-			NetDial:         shared.RFC3493Dialer},
-		Container: lxContainer,
-		Secrets:   req.Source.Websockets,
-		IdMapSet:  idmapset,
-	}
-
-	sink, err := migration.NewMigrationSink(&args)
-	if err != nil {
-		c.Delete()
-		return BadRequest(err)
-	}
-
 	run := func() shared.OperationResult {
-		// Start the storage for this container (LVM mount/umount)
-		c.StorageStart()
-		defer c.StorageStop()
+		createArgs := containerLXDArgs{
+			Ctype:     cTypeRegular,
+			Config:    req.Config,
+			Profiles:  req.Profiles,
+			Ephemeral: req.Ephemeral,
+			BaseImage: req.Source.BaseImage,
+		}
 
-		err := sink()
+		var c container
+		if _, err := dbImageGet(d.db, req.Source.BaseImage, false); err == nil {
+			c, err = containerLXDCreateFromImage(
+				d, req.Name, createArgs, req.Source.BaseImage)
+
+			if err != nil {
+				return shared.OperationError(err)
+			}
+		} else {
+			c, err = containerLXDCreateAsEmpty(d, req.Name, createArgs)
+			if err != nil {
+				return shared.OperationError(err)
+			}
+		}
+
+		config, err := shared.GetTLSConfig(d.certf, d.keyf)
 		if err != nil {
 			c.Delete()
 			return shared.OperationError(err)
 		}
 
-		c, err := containerLXDLoad(d, req.Name)
+		lxContainer, err := c.LXContainerGet()
 		if err != nil {
+			c.Delete()
+			return shared.OperationError(err)
+		}
+		idmapset, err := c.IdmapSetGet()
+		if err != nil {
+			c.Delete()
+			return shared.OperationError(err)
+		}
+		args := migration.MigrationSinkArgs{
+			Url: req.Source.Operation,
+			Dialer: websocket.Dialer{
+				TLSClientConfig: config,
+				NetDial:         shared.RFC3493Dialer},
+			Container: lxContainer,
+			Secrets:   req.Source.Websockets,
+			IdMapSet:  idmapset,
+		}
+
+		sink, err := migration.NewMigrationSink(&args)
+		if err != nil {
+			c.Delete()
+			return shared.OperationError(err)
+		}
+
+		// Start the storage for this container (LVM mount/umount)
+		c.StorageStart()
+		defer c.StorageStop()
+
+		// And finaly run the migration.
+		err = sink()
+		if err != nil {
+			c.Delete()
 			return shared.OperationError(err)
 		}
 
@@ -238,13 +212,8 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	run := func() shared.OperationResult {
-		c, err := containerLXDCreate(d, req.Name, args)
+		_, err := containerLXDCreateAsCopy(d, req.Name, args, source)
 		if err != nil {
-			return shared.OperationError(err)
-		}
-
-		if err := c.Copy(source); err != nil {
-			c.Delete()
 			return shared.OperationError(err)
 		}
 
