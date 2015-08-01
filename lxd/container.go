@@ -370,14 +370,10 @@ func (c *containerLXD) init() error {
 }
 
 func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
-	if _, err := c.LXContainerGet(); err != nil {
-		return nil, err
-	}
-
 	state := c.c.State()
-	pid, _ := c.InitPidGet()
 	status := shared.ContainerStatus{State: state.String(), StateCode: shared.State(int(state))}
-	if state == lxc.RUNNING {
+	if c.IsRunning() {
+		pid, _ := c.InitPidGet()
 		status.Init = pid
 		status.Ips = c.iPsGet()
 	}
@@ -924,14 +920,14 @@ func (c *containerLXD) TemplateApply(trigger string) error {
 	return nil
 }
 
-func (d *containerLXD) DetachMount(m shared.Device) error {
+func (c *containerLXD) DetachMount(m shared.Device) error {
 	// TODO - in case of reboot, we should remove the lxc.mount.entry.  Trick
 	// is, we can't d.c.ClearConfigItem bc that will clear all the keys.  So
 	// we should get the full list, clear, then reinsert all but the one we're
 	// removing
 	shared.Debugf("Mounts detach not yet implemented")
 
-	pid := d.c.InitPid()
+	pid := c.c.InitPid()
 	if pid == -1 { // container not running
 		return nil
 	}
@@ -939,7 +935,7 @@ func (d *containerLXD) DetachMount(m shared.Device) error {
 	return exec.Command(os.Args[0], "forkumount", pidstr, m["path"]).Run()
 }
 
-func (d *containerLXD) AttachMount(m shared.Device) error {
+func (c *containerLXD) AttachMount(m shared.Device) error {
 	dest := m["path"]
 	source := m["source"]
 
@@ -983,17 +979,17 @@ func (d *containerLXD) AttachMount(m shared.Device) error {
 	}
 
 	entry := fmt.Sprintf("%s %s %s %s 0 0", source, dest, fstype, opts)
-	if err := d.c.SetConfigItem("lxc.mount.entry", entry); err != nil {
+	if err := c.c.SetConfigItem("lxc.mount.entry", entry); err != nil {
 		return err
 	}
 
-	pid := d.c.InitPid()
+	pid := c.c.InitPid()
 	if pid == -1 { // container not running - we're done
 		return nil
 	}
 
 	// now live-mount
-	tmpMount, err := ioutil.TempDir(shared.VarPath("shmounts", d.name), "lxdmount_")
+	tmpMount, err := ioutil.TempDir(shared.VarPath("shmounts", c.name), "lxdmount_")
 	if err != nil {
 		return err
 	}
@@ -1413,8 +1409,8 @@ func (c *containerLXD) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 }
 
 func (c *containerLXD) mkdirAllContainerRoot(path string, perm os.FileMode) error {
-	var uid int = 0
-	var gid int = 0
+	var uid int
+	var gid int
 	if !c.IsPrivileged() {
 		uid, gid = c.idmapset.ShiftIntoNs(0, 0)
 		if uid == -1 {
