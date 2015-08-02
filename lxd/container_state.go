@@ -12,7 +12,7 @@ import (
 
 func containerStateGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -38,23 +38,15 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return SmartError(err)
-	}
-
-	s, err := storageForContainer(d, c)
-	if err != nil {
-		return SmartError(fmt.Errorf("Couldn't detect storage: %v", err))
 	}
 
 	var do func() error
 	switch shared.ContainerAction(raw.Action) {
 	case shared.Start:
 		do = func() error {
-			if err = s.ContainerStart(c); err != nil {
-				return err
-			}
 			if err = c.Start(); err != nil {
 				return err
 			}
@@ -66,17 +58,11 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 				if err = c.Stop(); err != nil {
 					return err
 				}
-				if err = s.ContainerStop(c); err != nil {
-					return err
-				}
 				return nil
 			}
 		} else {
 			do = func() error {
 				if err = c.Shutdown(time.Duration(raw.Timeout) * time.Second); err != nil {
-					return err
-				}
-				if err = s.ContainerStop(c); err != nil {
 					return err
 				}
 				return nil

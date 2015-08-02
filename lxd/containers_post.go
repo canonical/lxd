@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/dustinkirkland/golang-petname"
@@ -13,95 +11,6 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 )
-
-func extractImage(hash string, name string, d *Daemon) error {
-	/*
-	 * We want to use archive/tar for this, but that doesn't appear
-	 * to be working for us (see lxd/images.go)
-	 */
-	dpath := shared.VarPath("containers", name)
-	imagefile := shared.VarPath("images", hash)
-
-	err := untar(imagefile, dpath)
-	if err != nil {
-		return err
-	}
-
-	if shared.PathExists(imagefile + ".rootfs") {
-		err := untar(imagefile+".rootfs", dpath+"/rootfs/")
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func shiftRootfs(c *lxdContainer, d *Daemon) error {
-	dpath := shared.VarPath("containers", c.name)
-	rpath := shared.VarPath("containers", c.name, "rootfs")
-	err := c.idmapset.ShiftRootfs(rpath)
-	if err != nil {
-		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
-		removeContainer(d, c)
-		return err
-	}
-
-	/* Set an acl so the container root can descend the container dir */
-	err = setUnprivUserAcl(c, dpath)
-	if err != nil {
-		shared.Debugf("Error adding acl for container root: falling back to chmod\n")
-		output, err := exec.Command("chmod", "+x", dpath).CombinedOutput()
-		if err != nil {
-			shared.Debugf("Error chmoding the container root\n")
-			shared.Debugf(string(output))
-			return err
-		}
-	}
-
-	return nil
-}
-
-func setUnprivUserAcl(c *lxdContainer, dpath string) error {
-	if c.idmapset == nil {
-		return nil
-	}
-	uid, _ := c.idmapset.ShiftIntoNs(0, 0)
-	switch uid {
-	case -1:
-		shared.Debugf("setUnprivUserAcl: no root id mapping")
-		return nil
-	case 0:
-		return nil
-	}
-	acl := fmt.Sprintf("%d:rx", uid)
-	output, err := exec.Command("setfacl", "-m", acl, dpath).CombinedOutput()
-	if err != nil {
-		shared.Debugf("setfacl failed:\n%s", output)
-	}
-	return err
-}
-
-func extractShiftIfExists(d *Daemon, c *lxdContainer, hash string, name string) error {
-	if hash == "" {
-		return nil
-	}
-
-	_, err := dbImageGet(d.db, hash, false)
-	if err == nil {
-		if err := extractImage(hash, name, d); err != nil {
-			return err
-		}
-
-		if !c.isPrivileged() {
-			if err := shiftRootfs(c, d); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
 
 func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var hash string
@@ -140,13 +49,6 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	}
 	hash = imgInfo.Fingerprint
 
-	dpath := shared.VarPath("containers", req.Name)
-	if shared.PathExists(dpath) {
-		return InternalError(fmt.Errorf("Container exists"))
-	}
-
-	name := req.Name
-
 	args := containerLXDArgs{
 		Ctype:        cTypeRegular,
 		Config:       req.Config,
@@ -156,27 +58,13 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		Architecture: imgInfo.Architecture,
 	}
 
-	_, err = dbContainerCreate(d.db, name, args)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	c, err := newLxdContainer(name, d)
-	if err != nil {
-		removeContainer(d, c)
-		return SmartError(err)
-	}
-
 	run = shared.OperationWrap(func() error {
-		err := d.Storage.ContainerCreate(c, hash)
-		if err != nil {
-			removeContainer(d, c)
-		}
+		_, err := containerLXDCreateFromImage(d, req.Name, args, hash)
 		return err
 	})
 
 	resources := make(map[string][]string)
-	resources["containers"] = []string{c.name}
+	resources["containers"] = []string{req.Name}
 
 	return &asyncResponse{run: run, resources: resources}
 }
@@ -189,23 +77,9 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 		Ephemeral: req.Ephemeral,
 	}
 
-	_, err := dbContainerCreate(d.db, req.Name, args)
-	if err != nil {
-		return SmartError(err)
-	}
-
 	run := shared.OperationWrap(func() error {
-		c, err := newLxdContainer(req.Name, d)
-		if err != nil {
-			return err
-		}
-
-		err = templateApply(c, "create")
-		if err != nil {
-			return err
-		}
-
-		return nil
+		_, err := containerLXDCreateAsEmpty(d, req.Name, args)
+		return err
 	})
 
 	resources := make(map[string][]string)
@@ -219,73 +93,74 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return NotImplemented
 	}
 
-	createArgs := containerLXDArgs{
-		Ctype:     cTypeRegular,
-		Config:    req.Config,
-		Profiles:  req.Profiles,
-		Ephemeral: req.Ephemeral,
-		BaseImage: req.Source.BaseImage,
-	}
-
-	_, err := dbContainerCreate(d.db, req.Name, createArgs)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	c, err := newLxdContainer(req.Name, d)
-	if err != nil {
-		removeContainer(d, c)
-		return SmartError(err)
-	}
-
-	// rsync complaisn if the parent directory for the rootfs sync doesn't
-	// exist
-	dpath := shared.VarPath("containers", req.Name)
-	if err := os.MkdirAll(dpath, 0700); err != nil {
-		removeContainer(d, c)
-		return InternalError(err)
-	}
-
-	if err := extractShiftIfExists(d, c, req.Source.BaseImage, req.Name); err != nil {
-		removeContainer(d, c)
-		return InternalError(err)
-	}
-
-	config, err := shared.GetTLSConfig(d.certf, d.keyf)
-	if err != nil {
-		removeContainer(d, c)
-		return InternalError(err)
-	}
-
-	args := migration.MigrationSinkArgs{
-		Url: req.Source.Operation,
-		Dialer: websocket.Dialer{
-			TLSClientConfig: config,
-			NetDial:         shared.RFC3493Dialer},
-		Container: c.c,
-		Secrets:   req.Source.Websockets,
-		IdMapSet:  c.idmapset,
-	}
-
-	sink, err := migration.NewMigrationSink(&args)
-	if err != nil {
-		removeContainer(d, c)
-		return BadRequest(err)
-	}
-
 	run := func() shared.OperationResult {
-		err := sink()
+		createArgs := containerLXDArgs{
+			Ctype:     cTypeRegular,
+			Config:    req.Config,
+			Profiles:  req.Profiles,
+			Ephemeral: req.Ephemeral,
+			BaseImage: req.Source.BaseImage,
+		}
+
+		var c container
+		if _, err := dbImageGet(d.db, req.Source.BaseImage, false); err == nil {
+			c, err = containerLXDCreateFromImage(
+				d, req.Name, createArgs, req.Source.BaseImage)
+
+			if err != nil {
+				return shared.OperationError(err)
+			}
+		} else {
+			c, err = containerLXDCreateAsEmpty(d, req.Name, createArgs)
+			if err != nil {
+				return shared.OperationError(err)
+			}
+		}
+
+		config, err := shared.GetTLSConfig(d.certf, d.keyf)
 		if err != nil {
-			removeContainer(d, c)
+			c.Delete()
 			return shared.OperationError(err)
 		}
 
-		c, err := newLxdContainer(req.Name, d)
+		lxContainer, err := c.LXContainerGet()
 		if err != nil {
+			c.Delete()
+			return shared.OperationError(err)
+		}
+		idmapset, err := c.IdmapSetGet()
+		if err != nil {
+			c.Delete()
+			return shared.OperationError(err)
+		}
+		args := migration.MigrationSinkArgs{
+			Url: req.Source.Operation,
+			Dialer: websocket.Dialer{
+				TLSClientConfig: config,
+				NetDial:         shared.RFC3493Dialer},
+			Container: lxContainer,
+			Secrets:   req.Source.Websockets,
+			IdMapSet:  idmapset,
+		}
+
+		sink, err := migration.NewMigrationSink(&args)
+		if err != nil {
+			c.Delete()
 			return shared.OperationError(err)
 		}
 
-		err = templateApply(c, "copy")
+		// Start the storage for this container (LVM mount/umount)
+		c.StorageStart()
+		defer c.StorageStop()
+
+		// And finaly run the migration.
+		err = sink()
+		if err != nil {
+			c.Delete()
+			return shared.OperationError(err)
+		}
+
+		err = c.TemplateApply("copy")
 		if err != nil {
 			return shared.OperationError(err)
 		}
@@ -305,14 +180,16 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	// Make sure the source exists.
-	source, err := newLxdContainer(req.Source.Source, d)
+	source, err := containerLXDLoad(d, req.Source.Source)
 	if err != nil {
 		return SmartError(err)
 	}
 
+	sourceConfig := source.ConfigGet()
+
 	if req.Config == nil {
 		config := make(map[string]string)
-		for key, value := range source.config {
+		for key, value := range sourceConfig.Config {
 			if key[0:8] == "volatile" {
 				shared.Debugf("skipping: %s\n", key)
 				continue
@@ -323,7 +200,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	if req.Profiles == nil {
-		req.Profiles = source.profiles
+		req.Profiles = sourceConfig.Profiles
 	}
 
 	args := containerLXDArgs{
@@ -334,27 +211,13 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		BaseImage: req.Source.BaseImage,
 	}
 
-	_, err = dbContainerCreate(d.db, req.Name, args)
-	if err != nil {
-		return SmartError(err)
-	}
-
 	run := func() shared.OperationResult {
-		c, err := newLxdContainer(req.Name, d)
+		_, err := containerLXDCreateAsCopy(d, req.Name, args, source)
 		if err != nil {
 			return shared.OperationError(err)
 		}
 
-		s, err := storageForContainer(d, source)
-		if err != nil {
-			return shared.OperationError(err)
-		}
-		if err := s.ContainerCopy(c, source); err != nil {
-			removeContainer(d, c)
-			return shared.OperationError(err)
-		}
-
-		return shared.OperationError(nil)
+		return shared.OperationSuccess
 	}
 
 	resources := make(map[string][]string)

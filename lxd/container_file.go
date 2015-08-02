@@ -18,7 +18,7 @@ import (
 
 func containerFileHandler(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -28,15 +28,24 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("missing path argument"))
 	}
 
-	if !c.c.Running() {
+	if !c.IsRunning() {
 		return BadRequest(fmt.Errorf("container is not running"))
+	}
+
+	initPid, err := c.InitPidGet()
+	if err != nil {
+		return InternalError(err)
 	}
 
 	switch r.Method {
 	case "GET":
-		return containerFileGet(c.c.InitPid(), r, targetPath)
+		return containerFileGet(initPid, r, targetPath)
 	case "POST":
-		return containerFilePut(c.c.InitPid(), r, targetPath, c.idmapset)
+		idmapset, err := c.IdmapSetGet()
+		if err != nil {
+			return InternalError(err)
+		}
+		return containerFilePut(initPid, r, targetPath, idmapset)
 	default:
 		return NotFound
 	}

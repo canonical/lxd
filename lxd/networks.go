@@ -117,12 +117,17 @@ func doNetworkGet(d *Daemon, name string) (network, error) {
 	} else if isBridge(iface) {
 		n.Type = "bridge"
 		for _, ct := range lxc.ActiveContainerNames(d.lxcpath) {
-			c, err := newLxdContainer(ct, d)
+			c, err := containerLXDLoad(d, ct)
 			if err != nil {
 				return network{}, err
 			}
 
-			if isOnBridge(c.c, n.Name) {
+			lxContainer, err := c.LXContainerGet()
+			if err != nil {
+				return network{}, err
+			}
+
+			if isOnBridge(lxContainer, n.Name) {
 				n.Members = append(n.Members, ct)
 			}
 		}

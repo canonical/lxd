@@ -42,12 +42,12 @@ type DevLxdHandler struct {
 	 * server side right now either, I went the simple route to avoid
 	 * needless noise.
 	 */
-	f func(c *lxdContainer, r *http.Request) *DevLxdResponse
+	f func(c container, r *http.Request) *DevLxdResponse
 }
 
-var configGet = DevLxdHandler{"/1.0/config", func(c *lxdContainer, r *http.Request) *DevLxdResponse {
+var configGet = DevLxdHandler{"/1.0/config", func(c container, r *http.Request) *DevLxdResponse {
 	filtered := []string{}
-	for k, _ := range c.config {
+	for k, _ := range c.ConfigGet().Config {
 		if strings.HasPrefix(k, "user.") {
 			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
 		}
@@ -55,13 +55,13 @@ var configGet = DevLxdHandler{"/1.0/config", func(c *lxdContainer, r *http.Reque
 	return OkResponse(filtered, "json")
 }}
 
-var configKeyGet = DevLxdHandler{"/1.0/config/{key}", func(c *lxdContainer, r *http.Request) *DevLxdResponse {
+var configKeyGet = DevLxdHandler{"/1.0/config/{key}", func(c container, r *http.Request) *DevLxdResponse {
 	key := mux.Vars(r)["key"]
 	if !strings.HasPrefix(key, "user.") {
 		return &DevLxdResponse{"not authorized", http.StatusForbidden, "raw"}
 	}
 
-	value, ok := c.config[key]
+	value, ok := c.ConfigGet().Config[key]
 	if !ok {
 		return &DevLxdResponse{"not found", http.StatusNotFound, "raw"}
 	}
@@ -69,16 +69,16 @@ var configKeyGet = DevLxdHandler{"/1.0/config/{key}", func(c *lxdContainer, r *h
 	return OkResponse(value, "raw")
 }}
 
-var metadataGet = DevLxdHandler{"/1.0/meta-data", func(c *lxdContainer, r *http.Request) *DevLxdResponse {
-	value := c.config["user.meta-data"]
-	return OkResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", c.name, c.name, value), "raw")
+var metadataGet = DevLxdHandler{"/1.0/meta-data", func(c container, r *http.Request) *DevLxdResponse {
+	value := c.ConfigGet().Config["user.meta-data"]
+	return OkResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", c.NameGet(), c.NameGet(), value), "raw")
 }}
 
 var handlers = []DevLxdHandler{
-	DevLxdHandler{"/", func(c *lxdContainer, r *http.Request) *DevLxdResponse {
+	DevLxdHandler{"/", func(c container, r *http.Request) *DevLxdResponse {
 		return OkResponse([]string{"/1.0"}, "json")
 	}},
-	DevLxdHandler{"/1.0", func(c *lxdContainer, r *http.Request) *DevLxdResponse {
+	DevLxdHandler{"/1.0", func(c container, r *http.Request) *DevLxdResponse {
 		return OkResponse(shared.Jmap{"api_compat": 0}, "json")
 	}},
 	configGet,
@@ -87,7 +87,7 @@ var handlers = []DevLxdHandler{
 	/* TODO: events */
 }
 
-func hoistReq(f func(*lxdContainer, *http.Request) *DevLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
+func hoistReq(f func(container, *http.Request) *DevLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn := extractUnderlyingConn(w)
 		pid, ok := pidMapper.m[conn]
@@ -283,7 +283,7 @@ func extractUnderlyingConn(w http.ResponseWriter) *net.UnixConn {
 
 var pidNotInContainerErr = fmt.Errorf("pid not in container?")
 
-func findContainerForPid(pid int32, d *Daemon) (*lxdContainer, error) {
+func findContainerForPid(pid int32, d *Daemon) (container, error) {
 	/*
 	 * Try and figure out which container a pid is in. There is probably a
 	 * better way to do this. Based on rharper's initial performance
@@ -314,7 +314,7 @@ func findContainerForPid(pid int32, d *Daemon) (*lxdContainer, error) {
 			parts := strings.Split(string(cmdline), " ")
 			name := parts[len(parts)-1]
 
-			return newLxdContainer(name, d)
+			return containerLXDLoad(d, name)
 		}
 
 		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
@@ -348,12 +348,16 @@ func findContainerForPid(pid int32, d *Daemon) (*lxdContainer, error) {
 	}
 
 	for _, container := range containers {
-		c, err := newLxdContainer(container, d)
+		c, err := containerLXDLoad(d, container)
 		if err != nil {
 			return nil, err
 		}
 
-		pidNs, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/pid", c.c.InitPid()))
+		initpid, err := c.InitPidGet()
+		if err != nil {
+			return nil, err
+		}
+		pidNs, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/pid", initpid))
 		if err != nil {
 			return nil, err
 		}

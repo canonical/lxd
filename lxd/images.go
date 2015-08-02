@@ -102,6 +102,12 @@ func untarImage(imagefname string, destpath string) error {
 	return nil
 }
 
+type templateEntry struct {
+	When       []string
+	Template   string
+	Properties map[string]string
+}
+
 type imagePostReq struct {
 	Filename   string            `json:"filename"`
 	Public     bool              `json:"public"`
@@ -114,7 +120,7 @@ type imageMetadata struct {
 	CreationDate int64                     `yaml:"creation_date"`
 	ExpiryDate   int64                     `yaml:"expiry_date"`
 	Properties   map[string]string         `yaml:"properties"`
-	Templates    map[string]*TemplateEntry `yaml:"templates"`
+	Templates    map[string]*templateEntry `yaml:"templates"`
 }
 
 /*
@@ -162,7 +168,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		snap = fields[1]
 	}
 
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return info, err
 	}
@@ -173,7 +179,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		return info, err
 	}
 
-	if err := c.exportToTar(snap, tarfile); err != nil {
+	if err := c.ExportToTar(snap, tarfile); err != nil {
 		tarfile.Close()
 		return info, fmt.Errorf("imgPostContInfo: exportToTar failed: %s\n", err)
 	}
@@ -205,7 +211,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		return info, err
 	}
 
-	info.Architecture = c.architecture
+	info.Architecture = c.ArchitectureGet()
 	info.Properties = req.Properties
 
 	return info, nil

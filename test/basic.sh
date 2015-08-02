@@ -79,6 +79,8 @@ test_basic_usage() {
 
   # Delete the bar container we've used for several tests
   lxc delete bar
+	# lxc delete should also delete all snapshots of bar
+	[ ! -d ${LXD_DIR}/snapshots/bar ]
 
   # Test randomly named container creation
   lxc init testimage

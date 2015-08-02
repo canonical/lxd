@@ -4,34 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"os/exec"
-	"path"
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
-
-func snapshotsDir(c *lxdContainer) string {
-	return shared.VarPath("snapshots", c.name)
-}
-
-func snapshotDir(c *lxdContainer, name string) string {
-	return path.Join(snapshotsDir(c), name)
-}
-
-func snapshotStateDir(c *lxdContainer, name string) string {
-	return path.Join(snapshotDir(c, name), "state")
-}
-
-func snapshotRootfsDir(c *lxdContainer, name string) string {
-	return path.Join(snapshotDir(c, name), "rootfs")
-}
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	recursionStr := r.FormValue("recursion")
@@ -41,7 +21,8 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	cname := mux.Vars(r)["name"]
-	c, err := newLxdContainer(cname, d)
+	// Makes sure the requested container exists.
+	_, err = containerLXDLoad(d, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -62,11 +43,17 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	for _, r := range results {
 		name = r[0].(string)
+		sc, err := containerLXDLoad(d, name)
+		if err != nil {
+			shared.Log.Error("Failed to load snapshot", log.Ctx{"snapshot": name})
+			continue
+		}
+
 		if recursion == 0 {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
 			resultString = append(resultString, url)
 		} else {
-			body := shared.Jmap{"name": name, "stateful": shared.PathExists(snapshotStateDir(c, name))}
+			body := shared.Jmap{"name": name, "stateful": shared.PathExists(sc.StateDirGet())}
 			resultMap = append(resultMap, body)
 		}
 
@@ -124,7 +111,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	 * 2. copy the database info over
 	 * 3. copy over the rootfs
 	 */
-	c, err := newLxdContainer(name, d)
+	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -146,70 +133,20 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	fullName := fmt.Sprintf("%s/%s", name, snapshotName)
-	snapDir := snapshotDir(c, snapshotName)
-	if shared.PathExists(snapDir) {
-		shared.Log.Error(
-			"Snapshot exists on disk",
-			log.Ctx{
-				"name": fullName,
-				"path": snapDir})
-		return Conflict
-	}
-
-	err = os.MkdirAll(snapDir, 0700)
-	if err != nil {
-		return InternalError(err)
-	}
+	fullName := name +
+		shared.SnapshotDelimiter +
+		snapshotName
 
 	snapshot := func() error {
 
-		StateDir := snapshotStateDir(c, snapshotName)
-		err = os.MkdirAll(StateDir, 0700)
+		args := c.ConfigGet()
+		args.Ctype = cTypeSnapshot
+		_, err := containerLXDCreateAsSnapshot(d, fullName, args, c, stateful)
 		if err != nil {
-			os.RemoveAll(snapDir)
 			return err
 		}
 
-		if stateful {
-			// TODO - shouldn't we freeze for the duration of rootfs snapshot below?
-			if !c.c.Running() {
-				os.RemoveAll(snapDir)
-				return fmt.Errorf("Container not running\n")
-			}
-			opts := lxc.CheckpointOptions{Directory: StateDir, Stop: true, Verbose: true}
-			if err := c.c.Checkpoint(opts); err != nil {
-				os.RemoveAll(snapDir)
-				return err
-			}
-		}
-
-		/* Create the db info */
-		args := containerLXDArgs{
-			Ctype:        cTypeSnapshot,
-			Config:       c.config,
-			Profiles:     c.profiles,
-			Ephemeral:    c.ephemeral,
-			BaseImage:    c.config["volatile.baseImage"],
-			Architecture: c.architecture,
-		}
-
-		_, err := dbContainerCreate(d.db, fullName, args)
-		if err != nil {
-			os.RemoveAll(snapDir)
-			return err
-		}
-
-		/* Create the directory and rootfs, set perms */
-		/* Copy the rootfs */
-		oldPath := shared.AddSlash(shared.VarPath("containers", name, "rootfs"))
-		newPath := snapshotRootfsDir(c, snapshotName)
-		err = exec.Command("rsync", "-a", "--devices", oldPath, newPath).Run()
-		if err != nil {
-			os.RemoveAll(snapDir)
-			dbContainerSnapshotRemove(d.db, name, snapshotName)
-		}
-		return err
+		return nil
 	}
 
 	return AsyncResponse(shared.OperationWrap(snapshot), nil)
@@ -217,36 +154,35 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 func snapshotHandler(d *Daemon, r *http.Request) Response {
 	containerName := mux.Vars(r)["name"]
-	c, err := newLxdContainer(containerName, d)
+	snapshotName := mux.Vars(r)["snapshotName"]
+
+	sc, err := containerLXDLoad(
+		d,
+		containerName+
+			shared.SnapshotDelimiter+
+			snapshotName)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	snapshotName := mux.Vars(r)["snapshotName"]
-	dir := snapshotDir(c, snapshotName)
-
-	if !shared.PathExists(dir) {
-		return NotFound
-	}
-
 	switch r.Method {
 	case "GET":
-		return snapshotGet(c, snapshotName)
+		return snapshotGet(sc, snapshotName)
 	case "POST":
-		return snapshotPost(r, c, snapshotName)
+		return snapshotPost(r, sc, containerName)
 	case "DELETE":
-		return snapshotDelete(d, c, snapshotName)
+		return snapshotDelete(sc, snapshotName)
 	default:
 		return NotFound
 	}
 }
 
-func snapshotGet(c *lxdContainer, name string) Response {
-	body := shared.Jmap{"name": name, "stateful": shared.PathExists(snapshotStateDir(c, name))}
+func snapshotGet(sc container, name string) Response {
+	body := shared.Jmap{"name": name, "stateful": shared.PathExists(sc.StateDirGet())}
 	return SyncResponse(true, body)
 }
 
-func snapshotPost(r *http.Request, c *lxdContainer, oldName string) Response {
+func snapshotPost(r *http.Request, sc container, containerName string) Response {
 	raw := shared.Jmap{}
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		return BadRequest(err)
@@ -257,32 +193,15 @@ func snapshotPost(r *http.Request, c *lxdContainer, oldName string) Response {
 		return BadRequest(err)
 	}
 
-	oldDir := snapshotDir(c, oldName)
-	newDir := snapshotDir(c, newName)
-
-	if shared.PathExists(newDir) {
-		shared.Log.Error(
-			"Cant rename snapshot, the new path exists",
-			log.Ctx{
-				"oldName": oldName,
-				"newName": newName,
-				"path":    newDir})
-		return Conflict
+	rename := func() error {
+		return sc.Rename(containerName + shared.SnapshotDelimiter + newName)
 	}
-
-	/*
-	 * TODO: do we need to do something more intelligent here? We probably
-	 * shouldn't do anything for stateful snapshots, since changing the fs
-	 * out from under criu will cause it to fail, but it may be useful to
-	 * do something for stateless ones.
-	 */
-	rename := func() error { return os.Rename(oldDir, newDir) }
 	return AsyncResponse(shared.OperationWrap(rename), nil)
 }
 
-func snapshotDelete(d *Daemon, c *lxdContainer, name string) Response {
-	dbContainerSnapshotRemove(d.db, c.name, name)
-	dir := snapshotDir(c, name)
-	remove := func() error { return os.RemoveAll(dir) }
+func snapshotDelete(sc container, name string) Response {
+	remove := func() error {
+		return sc.Delete()
+	}
 	return AsyncResponse(shared.OperationWrap(remove), nil)
 }

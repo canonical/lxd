@@ -54,14 +54,48 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 		return "", err
 	}
 
+	rsyncVerbosity := "-q"
+	if *debug {
+		rsyncVerbosity = "-vi"
+	}
+
 	output, err := exec.Command(
 		"rsync",
 		"-a",
+		"--checksum", // TODO: Not sure we need this option
+		"-HAX",
 		"--devices",
+		"--delete",
+		rsyncVerbosity,
 		shared.AddSlash(source),
 		dest).CombinedOutput()
 
 	return string(output), err
+}
+
+func storageUnprivUserAclSet(c container, dpath string) error {
+	idmapset, err := c.IdmapSetGet()
+	if err != nil {
+		return err
+	}
+
+	if idmapset == nil {
+		return nil
+	}
+	uid, _ := idmapset.ShiftIntoNs(0, 0)
+	switch uid {
+	case -1:
+		shared.Debugf("storageUnprivUserAclSet: no root id mapping")
+		return nil
+	case 0:
+		return nil
+	}
+	acl := fmt.Sprintf("%d:rx", uid)
+	output, err := exec.Command("setfacl", "-m", acl, dpath).CombinedOutput()
+	if err != nil {
+		shared.Debugf("storageUnprivUserAclSet: setfacl failed:\n%s", output)
+	}
+	return err
 }
 
 // storageType defines the type of a storage
@@ -81,7 +115,7 @@ func storageTypeToString(sType storageType) string {
 		return "lvm"
 	}
 
-	return "default"
+	return "dir"
 }
 
 type storage interface {
@@ -90,14 +124,23 @@ type storage interface {
 	GetStorageType() storageType
 	GetStorageTypeName() string
 
-	ContainerCreate(container *lxdContainer, imageFingerprint string) error
-	ContainerDelete(container *lxdContainer) error
-	ContainerCopy(container *lxdContainer, sourceContainer *lxdContainer) error
-	ContainerStart(container *lxdContainer) error
-	ContainerStop(container *lxdContainer) error
+	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
+	ContainerCreate(container container) error
 
-	ContainerSnapshotCreate(container *lxdContainer, snapshotName string) error
-	ContainerSnapshotDelete(container *lxdContainer, snapshotName string) error
+	// ContainerCreateFromImage creates a container from a image.
+	ContainerCreateFromImage(container container, imageFingerprint string) error
+
+	ContainerDelete(container container) error
+	ContainerCopy(container container, sourceContainer container) error
+	ContainerStart(container container) error
+	ContainerStop(container container) error
+	ContainerRename(container container, newName string) error
+	ContainerRestore(container container, sourceContainer container) error
+
+	ContainerSnapshotCreate(
+		snapshotContainer container, sourceContainer container) error
+	ContainerSnapshotDelete(snapshotContainer container) error
+	ContainerSnapshotRename(snapshotContainer container, newName string) error
 
 	ImageCreate(fingerprint string) error
 	ImageDelete(fingerprint string) error
@@ -113,10 +156,22 @@ func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interf
 
 	switch sType {
 	case storageTypeBtrfs:
+		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeBtrfs {
+			return d.Storage, nil
+		}
+
 		s = &storageLogWrapper{w: &storageBtrfs{d: d, sType: sType}}
 	case storageTypeLvm:
+		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeLvm {
+			return d.Storage, nil
+		}
+
 		s = &storageLogWrapper{w: &storageLvm{d: d, sType: sType}}
 	default:
+		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeDir {
+			return d.Storage, nil
+		}
+
 		s = &storageLogWrapper{w: &storageDir{d: d, sType: sType}}
 	}
 
@@ -152,16 +207,6 @@ func storageForImage(d *Daemon, imgInfo *shared.ImageBaseInfo) (storage, error) 
 	return storageForFilename(d, imageFilename)
 }
 
-func storageForContainer(d *Daemon, container *lxdContainer) (storage, error) {
-	var cpath string
-	if container.IsSnapshot() {
-		cpath = shared.VarPath("snapshots", container.name)
-	} else {
-		cpath = shared.VarPath("containers", container.name)
-	}
-	return storageForFilename(d, cpath)
-}
-
 type storageShared struct {
 	sTypeName string
 
@@ -177,6 +222,61 @@ func (ss *storageShared) initShared() error {
 
 func (ss *storageShared) GetStorageTypeName() string {
 	return ss.sTypeName
+}
+
+func (ss *storageShared) shiftRootfs(c container) error {
+	dpath := c.PathGet("")
+	rpath := c.RootfsPathGet()
+
+	shared.Log.Debug("shiftRootfs",
+		log.Ctx{"container": c.NameGet(), "rootfs": rpath})
+
+	idmapset, err := c.IdmapSetGet()
+	if err != nil {
+		return err
+	}
+
+	if idmapset == nil {
+		return fmt.Errorf("IdmapSet of container '%s' is nil", c.NameGet())
+	}
+
+	err = idmapset.ShiftRootfs(rpath)
+	if err != nil {
+		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
+		return err
+	}
+
+	/* Set an acl so the container root can descend the container dir */
+	// TODO: i changed this so it calls ss.setUnprivUserAcl, which does
+	// the acl change only if the container is not privileged, think thats right.
+	return ss.setUnprivUserAcl(c, dpath)
+}
+
+func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
+
+	if !c.IsPrivileged() {
+		err := storageUnprivUserAclSet(c, destPath)
+		if err != nil {
+			ss.log.Error(
+				"adding acl for container root: falling back to chmod",
+				log.Ctx{"destPath": destPath})
+
+			output, err := exec.Command(
+				"chmod", "+x", destPath).CombinedOutput()
+
+			if err != nil {
+				ss.log.Error(
+					"chmoding the container root",
+					log.Ctx{
+						"destPath": destPath,
+						"output":   output})
+
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 type storageLogWrapper struct {
@@ -202,57 +302,101 @@ func (lw *storageLogWrapper) GetStorageTypeName() string {
 	return lw.w.GetStorageTypeName()
 }
 
-func (lw *storageLogWrapper) ContainerCreate(
-	container *lxdContainer, imageFingerprint string) error {
+func (lw *storageLogWrapper) ContainerCreate(container container) error {
+	lw.log.Debug(
+		"ContainerCreate",
+		log.Ctx{
+			"name":         container.NameGet(),
+			"isPrivileged": container.IsPrivileged()})
+	return lw.w.ContainerCreate(container)
+}
+
+func (lw *storageLogWrapper) ContainerCreateFromImage(
+	container container, imageFingerprint string) error {
 
 	lw.log.Debug(
 		"ContainerCreate",
 		log.Ctx{
 			"imageFingerprint": imageFingerprint,
-			"name":             container.name,
-			"isPrivileged":     container.isPrivileged})
-	return lw.w.ContainerCreate(container, imageFingerprint)
+			"name":             container.NameGet(),
+			"isPrivileged":     container.IsPrivileged()})
+	return lw.w.ContainerCreateFromImage(container, imageFingerprint)
 }
 
-func (lw *storageLogWrapper) ContainerDelete(container *lxdContainer) error {
-	lw.log.Debug("ContainerDelete", log.Ctx{"container": container.name})
+func (lw *storageLogWrapper) ContainerDelete(container container) error {
+	lw.log.Debug("ContainerDelete", log.Ctx{"container": container.NameGet()})
 	return lw.w.ContainerDelete(container)
 }
 
 func (lw *storageLogWrapper) ContainerCopy(
-	container *lxdContainer, sourceContainer *lxdContainer) error {
+	container container, sourceContainer container) error {
 
 	lw.log.Debug(
 		"ContainerCopy",
 		log.Ctx{
-			"container": container.name,
-			"source":    sourceContainer.name})
+			"container": container.NameGet(),
+			"source":    sourceContainer.NameGet()})
 	return lw.w.ContainerCopy(container, sourceContainer)
 }
 
-func (lw *storageLogWrapper) ContainerStart(container *lxdContainer) error {
-	lw.log.Debug("ContainerStart", log.Ctx{"container": container.name})
+func (lw *storageLogWrapper) ContainerStart(container container) error {
+	lw.log.Debug("ContainerStart", log.Ctx{"container": container.NameGet()})
 	return lw.w.ContainerStart(container)
 }
 
-func (lw *storageLogWrapper) ContainerStop(container *lxdContainer) error {
-	lw.log.Debug("ContainerStop", log.Ctx{"container": container.name})
+func (lw *storageLogWrapper) ContainerStop(container container) error {
+	lw.log.Debug("ContainerStop", log.Ctx{"container": container.NameGet()})
 	return lw.w.ContainerStop(container)
 }
 
+func (lw *storageLogWrapper) ContainerRename(
+	container container, newName string) error {
+
+	lw.log.Debug(
+		"ContainerRename",
+		log.Ctx{
+			"container": container.NameGet(),
+			"newName":   newName})
+	return lw.w.ContainerRename(container, newName)
+}
+
+func (lw *storageLogWrapper) ContainerRestore(
+	container container, sourceContainer container) error {
+
+	lw.log.Debug(
+		"ContainerRestore",
+		log.Ctx{
+			"container": container.NameGet(),
+			"source":    sourceContainer.NameGet()})
+	return lw.w.ContainerRestore(container, sourceContainer)
+}
+
 func (lw *storageLogWrapper) ContainerSnapshotCreate(
-	container *lxdContainer, snapshotName string) error {
+	snapshotContainer container, sourceContainer container) error {
 
 	lw.log.Debug("ContainerSnapshotCreate",
-		log.Ctx{"container": container.name, "snapshotName": snapshotName})
-	return lw.w.ContainerSnapshotCreate(container, snapshotName)
+		log.Ctx{
+			"snapshotContainer": snapshotContainer.NameGet(),
+			"sourceContainer":   sourceContainer.NameGet()})
+
+	return lw.w.ContainerSnapshotCreate(snapshotContainer, sourceContainer)
 }
 func (lw *storageLogWrapper) ContainerSnapshotDelete(
-	container *lxdContainer, snapshotName string) error {
+	snapshotContainer container) error {
 
 	lw.log.Debug("ContainerSnapshotDelete",
-		log.Ctx{"container": container.name, "snapshotName": snapshotName})
-	return lw.w.ContainerSnapshotDelete(container, snapshotName)
+		log.Ctx{"snapshotContainer": snapshotContainer.NameGet()})
+	return lw.w.ContainerSnapshotDelete(snapshotContainer)
+}
+
+func (lw *storageLogWrapper) ContainerSnapshotRename(
+	snapshotContainer container, newName string) error {
+
+	lw.log.Debug("ContainerSnapshotRename",
+		log.Ctx{
+			"snapshotContainer": snapshotContainer.NameGet(),
+			"newName":           newName})
+	return lw.w.ContainerSnapshotRename(snapshotContainer, newName)
 }
 
 func (lw *storageLogWrapper) ImageCreate(fingerprint string) error {

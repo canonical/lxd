@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/lxc/lxd/shared"
@@ -36,57 +37,96 @@ func (s *storageBtrfs) GetStorageType() storageType {
 	return s.sType
 }
 
-func (s *storageBtrfs) ContainerCreate(
-	container *lxdContainer, imageFingerprint string) error {
+func (s *storageBtrfs) ContainerCreate(container container) error {
+	err := s.subvolCreate(container.PathGet(""))
+	if err != nil {
+		return err
+	}
+
+	if container.IsPrivileged() {
+		if err := os.Chmod(container.PathGet(""), 0700); err != nil {
+			return err
+		}
+	}
+
+	return container.TemplateApply("create")
+}
+
+func (s *storageBtrfs) ContainerCreateFromImage(
+	container container, imageFingerprint string) error {
 
 	imageSubvol := fmt.Sprintf(
 		"%s.btrfs",
 		shared.VarPath("images", imageFingerprint))
 
+	// Create the btrfs subvol of the image first if it doesn exists.
 	if !shared.PathExists(imageSubvol) {
 		if err := s.ImageCreate(imageFingerprint); err != nil {
 			return err
 		}
 	}
 
-	err := s.subvolSnapshot(imageSubvol, container.PathGet(), false)
+	// Now make a snapshot of the image subvol
+	err := s.subvolSnapshot(imageSubvol, container.PathGet(""), false)
 	if err != nil {
 		return err
 	}
 
-	if !container.isPrivileged() {
-		err = shiftRootfs(container, s.d)
-		if err != nil {
+	if !container.IsPrivileged() {
+		if err = s.shiftRootfs(container); err != nil {
+			s.ContainerDelete(container)
 			return err
 		}
 	} else {
-		if err := os.Chmod(container.PathGet(), 0700); err != nil {
+		if err := os.Chmod(container.PathGet(""), 0700); err != nil {
 			return err
 		}
 	}
 
-	return templateApply(container, "create")
+	return container.TemplateApply("create")
 }
 
-func (s *storageBtrfs) ContainerDelete(container *lxdContainer) error {
-	cPath := container.PathGet()
+func (s *storageBtrfs) ContainerDelete(container container) error {
+	cPath := container.PathGet("")
+
+	// First remove the subvol (if it was one).
 	if s.isSubvolume(cPath) {
-		return s.subvolDelete(cPath)
+		if err := s.subvolDelete(cPath); err != nil {
+			return err
+		}
 	}
 
+	// Then the directory (if it still exists).
 	err := os.RemoveAll(cPath)
 	if err != nil {
 		s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "err": err})
 		return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
 	}
 
+	// If its name contains a "/" also remove the parent,
+	// this should only happen with snapshot containers
+	if strings.Contains(container.NameGet(), "/") {
+		oldPathParent := filepath.Dir(container.PathGet(""))
+		shared.Log.Debug(
+			"Trying to remove the parent path",
+			log.Ctx{"container": container.NameGet(), "parent": oldPathParent})
+
+		if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
+			os.Remove(oldPathParent)
+		} else {
+			shared.Log.Debug(
+				"Cannot remove the parent of this container its not empty",
+				log.Ctx{"container": container.NameGet(), "parent": oldPathParent})
+		}
+	}
+
 	return nil
 }
 
-func (s *storageBtrfs) ContainerCopy(container *lxdContainer, sourceContainer *lxdContainer) error {
+func (s *storageBtrfs) ContainerCopy(container container, sourceContainer container) error {
 
-	subvol := sourceContainer.PathGet()
-	dpath := container.PathGet()
+	subvol := sourceContainer.PathGet("")
+	dpath := container.PathGet("")
 
 	if s.isSubvolume(subvol) {
 		err := s.subvolSnapshot(subvol, dpath, false)
@@ -101,45 +141,164 @@ func (s *storageBtrfs) ContainerCopy(container *lxdContainer, sourceContainer *l
 			sourceContainer.RootfsPathGet(),
 			container.RootfsPathGet())
 		if err != nil {
-			os.RemoveAll(container.PathGet())
+			s.ContainerDelete(container)
+
 			s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": output})
 			return fmt.Errorf("rsync failed: %s", output)
 		}
 	}
 
-	if !sourceContainer.isPrivileged() {
-		err := setUnprivUserAcl(sourceContainer, dpath)
+	if err := s.setUnprivUserAcl(sourceContainer, dpath); err != nil {
+		return err
+	}
+
+	return container.TemplateApply("copy")
+}
+
+func (s *storageBtrfs) ContainerStart(container container) error {
+	return nil
+}
+
+func (s *storageBtrfs) ContainerStop(container container) error {
+	return nil
+}
+
+func (s *storageBtrfs) ContainerRename(
+	container container, newName string) error {
+
+	oldPath := container.PathGet("")
+	newPath := container.PathGet(newName)
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return err
+	}
+
+	// TODO: No TemplateApply here?
+	return nil
+}
+
+func (s *storageBtrfs) ContainerRestore(
+	container container, sourceContainer container) error {
+
+	targetSubVol := container.PathGet("")
+	sourceSubVol := sourceContainer.PathGet("")
+	sourceBackupPath := container.PathGet("") + ".back"
+
+	// Create a backup of the container
+	err := os.Rename(container.PathGet(""), sourceBackupPath)
+	if err != nil {
+		return err
+	}
+
+	var failure error
+	if s.isSubvolume(sourceSubVol) {
+		// Restore using btrfs snapshots.
+		err := s.subvolSnapshot(sourceSubVol, targetSubVol, false)
 		if err != nil {
-			s.log.Error(
-				"ContainerCopy: adding acl for container root: falling back to chmod")
-			output, err := exec.Command(
-				"chmod", "+x", dpath).CombinedOutput()
+			failure = err
+		}
+	} else {
+		// Restore using rsync but create a btrfs subvol.
+		if err := s.subvolCreate(targetSubVol); err == nil {
+			output, err := storageRsyncCopy(
+				sourceSubVol,
+				targetSubVol)
+
 			if err != nil {
 				s.log.Error(
-					"ContainerCopy: chmoding the container root", log.Ctx{"output": output})
-				return err
+					"ContainerRestore: rsync failed",
+					log.Ctx{"output": output})
+
+				failure = err
 			}
+		} else {
+			failure = err
 		}
 	}
 
-	return templateApply(container, "copy")
-}
+	// Now allow unprivileged users to access its data.
+	if err := s.setUnprivUserAcl(sourceContainer, targetSubVol); err != nil {
+		failure = err
+	}
 
-func (s *storageBtrfs) ContainerStart(container *lxdContainer) error {
-	return nil
-}
+	if failure != nil {
+		// Restore original container
+		s.ContainerDelete(container)
+		os.Rename(sourceBackupPath, container.PathGet(""))
+	} else {
+		// Remove the backup, we made
+		if s.isSubvolume(sourceBackupPath) {
+			return s.subvolDelete(sourceBackupPath)
+		}
+		os.RemoveAll(sourceBackupPath)
+	}
 
-func (s *storageBtrfs) ContainerStop(container *lxdContainer) error {
-	return nil
+	return failure
 }
 
 func (s *storageBtrfs) ContainerSnapshotCreate(
-	container *lxdContainer, snapshotName string) error {
+	snapshotContainer container, sourceContainer container) error {
+
+	subvol := sourceContainer.PathGet("")
+	dpath := snapshotContainer.PathGet("")
+
+	if s.isSubvolume(subvol) {
+		// Create a readonly snapshot of the source.
+		err := s.subvolSnapshot(subvol, dpath, true)
+		if err != nil {
+			s.ContainerDelete(snapshotContainer)
+			return err
+		}
+	} else {
+		/*
+		 * Copy by using rsync
+		 */
+		output, err := storageRsyncCopy(
+			subvol,
+			dpath)
+		if err != nil {
+			s.ContainerDelete(snapshotContainer)
+
+			s.log.Error(
+				"ContainerSnapshotCreate: rsync failed",
+				log.Ctx{"output": output})
+			return fmt.Errorf("rsync failed: %s", output)
+		}
+	}
 
 	return nil
 }
 func (s *storageBtrfs) ContainerSnapshotDelete(
-	container *lxdContainer, snapshotName string) error {
+	snapshotContainer container) error {
+
+	return s.ContainerDelete(snapshotContainer)
+}
+
+// ContainerSnapshotRename renames a snapshot of a container.
+func (s *storageBtrfs) ContainerSnapshotRename(
+	snapshotContainer container, newName string) error {
+
+	oldPath := snapshotContainer.PathGet("")
+	newPath := snapshotContainer.PathGet(newName)
+
+	// Create the new parent.
+	if strings.Contains(snapshotContainer.NameGet(), "/") {
+		if !shared.PathExists(filepath.Dir(newPath)) {
+			os.MkdirAll(filepath.Dir(newPath), 0700)
+		}
+	}
+
+	// Now rename the snapshot.
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return err
+	}
+
+	// Remove the old parent (on container rename) if its empty.
+	if strings.Contains(snapshotContainer.NameGet(), "/") {
+		if ok, _ := shared.PathIsEmpty(filepath.Dir(oldPath)); ok {
+			os.Remove(filepath.Dir(oldPath))
+		}
+	}
 
 	return nil
 }
@@ -167,6 +326,13 @@ func (s *storageBtrfs) ImageDelete(fingerprint string) error {
 }
 
 func (s *storageBtrfs) subvolCreate(subvol string) error {
+	parentDestPath := filepath.Dir(subvol)
+	if !shared.PathExists(parentDestPath) {
+		if err := os.MkdirAll(parentDestPath, 0700); err != nil {
+			return err
+		}
+	}
+
 	output, err := exec.Command(
 		"btrfs",
 		"subvolume",
@@ -196,14 +362,9 @@ func (s *storageBtrfs) subvolDelete(subvol string) error {
 	).CombinedOutput()
 
 	if err != nil {
-		s.log.Debug(
+		s.log.Warn(
 			"subvolume delete failed",
 			log.Ctx{"subvol": subvol, "output": output},
-		)
-		return fmt.Errorf(
-			"btrfs subvolume delete failed, subvol=%s, output=%s",
-			subvol,
-			output,
 		)
 	}
 	return nil
@@ -214,6 +375,13 @@ func (s *storageBtrfs) subvolDelete(subvol string) error {
  * the result will be readonly if "readonly" is True.
  */
 func (s *storageBtrfs) subvolSnapshot(source string, dest string, readonly bool) error {
+	parentDestPath := filepath.Dir(dest)
+	if !shared.PathExists(parentDestPath) {
+		if err := os.MkdirAll(parentDestPath, 0700); err != nil {
+			return err
+		}
+	}
+
 	var out []byte
 	var err error
 	if readonly {

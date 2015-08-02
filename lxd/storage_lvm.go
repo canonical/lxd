@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -128,15 +129,27 @@ func (s *storageLvm) GetStorageType() storageType {
 	return s.sType
 }
 
-func (s *storageLvm) ContainerCreate(
-	container *lxdContainer, imageFingerprint string) error {
+func (s *storageLvm) ContainerCreate(container container) error {
+	return fmt.Errorf(
+		"ContainerCreate is not implemented in the LVM backend.")
+}
+
+func (s *storageLvm) ContainerCreateFromImage(
+	container container, imageFingerprint string) error {
+
+	imageLVFilename := shared.VarPath(
+		"images", fmt.Sprintf("%s.lv", imageFingerprint))
+
+	if !shared.PathExists(imageLVFilename) {
+		s.ImageCreate(imageLVFilename)
+	}
 
 	lvpath, err := s.createSnapshotLV(container.NameGet(), imageFingerprint)
 	if err != nil {
 		return err
 	}
 
-	destPath := shared.VarPath("containers", container.NameGet())
+	destPath := container.PathGet("")
 	if err := os.MkdirAll(destPath, 0755); err != nil {
 		return fmt.Errorf("Error creating container directory: %v", err)
 	}
@@ -147,15 +160,15 @@ func (s *storageLvm) ContainerCreate(
 		return err
 	}
 
-	if !container.isPrivileged() {
+	if !container.IsPrivileged() {
 		output, err := exec.Command("mount", "-o", "discard", lvpath, destPath).CombinedOutput()
 		if err != nil {
-			os.RemoveAll(destPath)
+			s.ContainerDelete(container)
 			return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, output)
 		}
 
-		if err = shiftRootfs(container, s.d); err != nil {
-			os.RemoveAll(destPath)
+		if err = s.shiftRootfs(container); err != nil {
+			s.ContainerDelete(container)
 			return fmt.Errorf("Error in shiftRootfs: %v", err)
 		}
 
@@ -165,81 +178,60 @@ func (s *storageLvm) ContainerCreate(
 		}
 	}
 
-	return templateApply(container, "create")
+	return container.TemplateApply("create")
 }
 
-func (s *storageLvm) ContainerDelete(container *lxdContainer) error {
+func (s *storageLvm) ContainerDelete(container container) error {
 	// First remove the LVM LV
 	if err := s.removeLV(container.NameGet()); err != nil {
 		return err
 	}
 
+	// Then remove the symlink
 	lvLinkPath := shared.VarPath("containers", fmt.Sprintf("%s.lv", container.NameGet()))
 	if err := os.Remove(lvLinkPath); err != nil {
 		return err
 	}
 
-	// Then the container path (e.g. /var/lib/lxd/lxc/<name>)
-	cPath := container.PathGet()
-	if err := os.RemoveAll(cPath); err != nil {
+	// Then the container path (e.g. /var/lib/lxd/containers/<name>)
+	cPath := container.PathGet("")
+	if err := os.RemoveAll(cPath + "/*"); err != nil {
 		s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "err": err})
-		return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
+		return fmt.Errorf("Cleaning up %s: %s", cPath, err)
 	}
 
-	return nil
-}
-
-func (s *storageLvm) ContainerCopy(container *lxdContainer, sourceContainer *lxdContainer) error {
-
-	oldPath := sourceContainer.RootfsPathGet()
-	newPath := container.RootfsPathGet()
-	/*
-	 * Copy by using rsync
-	 */
-	output, err := storageRsyncCopy(oldPath, newPath)
-	if err != nil {
-		os.RemoveAll(container.PathGet())
-		s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": output})
-		return fmt.Errorf("rsync failed: %s", output)
-	}
-
-	if !sourceContainer.isPrivileged() {
-		err := setUnprivUserAcl(sourceContainer, container.PathGet())
-		if err != nil {
-			s.log.Error(
-				"ContainerCopy: adding acl for container root: falling back to chmod")
-			output, err := exec.Command(
-				"chmod", "+x", container.PathGet()).CombinedOutput()
-			if err != nil {
-				s.ContainerDelete(container)
-				s.log.Error(
-					"ContainerCopy: chmoding the container root", log.Ctx{"output": output})
-				return err
-			}
+	// If its name contains a "/" also remove the parent,
+	// this should only happen with snapshot containers
+	if strings.Contains(container.NameGet(), "/") {
+		oldPathParent := filepath.Dir(container.PathGet(""))
+		if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
+			os.Remove(oldPathParent)
+		} else {
+			shared.Log.Debug(
+				"Cannot remove the parent of this container its not empty",
+				log.Ctx{"container": container.NameGet(), "parent": oldPathParent})
 		}
 	}
 
-	return templateApply(container, "copy")
-}
-
-func (s *storageLvm) ContainerStart(container *lxdContainer) error {
-	cpath := shared.VarPath("containers", container.NameGet())
-	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, container.NameGet())
-	output, err := exec.Command("mount", "-o", "discard", lvpath, cpath).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, output)
-	}
-
 	return nil
 }
 
-func (s *storageLvm) ContainerStop(container *lxdContainer) error {
-	cpath := shared.VarPath("containers", container.NameGet())
-	output, err := exec.Command("umount", cpath).CombinedOutput()
+func (s *storageLvm) ContainerCopy(container container, sourceContainer container) error {
+
+	return fmt.Errorf(
+		"ContainerCopy is not implemented in the LVM backend.")
+
+	// return container.TemplateApply("copy")
+}
+
+func (s *storageLvm) ContainerStart(container container) error {
+	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, container.NameGet())
+	output, err := exec.Command(
+		"mount", "-o", "discard", lvpath, container.PathGet("")).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf(
-			"failed to unmount container path '%s'.\nError: %v\nOutput: %s",
-			cpath,
+			"Error mounting snapshot LV path='%s': %v\noutput:'%s'",
+			container.PathGet(""),
 			err,
 			output)
 	}
@@ -247,15 +239,55 @@ func (s *storageLvm) ContainerStop(container *lxdContainer) error {
 	return nil
 }
 
-func (s *storageLvm) ContainerSnapshotCreate(
-	container *lxdContainer, snapshotName string) error {
+func (s *storageLvm) ContainerStop(container container) error {
+	output, err := exec.Command("umount", container.PathGet("")).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf(
+			"failed to unmount container path '%s'.\nError: %v\nOutput: %s",
+			container.PathGet(""),
+			err,
+			output)
+	}
 
 	return nil
 }
-func (s *storageLvm) ContainerSnapshotDelete(
-	container *lxdContainer, snapshotName string) error {
 
-	return nil
+// ContainerRename should rename a LVM Container.
+// TODO: Not implemented, yet.
+func (s *storageLvm) ContainerRename(
+	container container, newName string) error {
+
+	// TODO: No TemplateApply here?
+
+	return fmt.Errorf(
+		"ContainerRename is not implemented in the LVM backend.")
+}
+
+func (s *storageLvm) ContainerRestore(
+	container container, sourceContainer container) error {
+
+	return fmt.Errorf(
+		"ContainerRestore is not implemented in the LVM backend.")
+}
+
+func (s *storageLvm) ContainerSnapshotCreate(
+	snapshotContainer container, sourceContainer container) error {
+
+	return fmt.Errorf(
+		"ContainerSnapshotCreate is not implement in the LVM Backend.")
+}
+func (s *storageLvm) ContainerSnapshotDelete(
+	snapshotContainer container) error {
+
+	return fmt.Errorf(
+		"ContainerSnapshotDelete is not implement in the LVM Backend.")
+}
+
+func (s *storageLvm) ContainerSnapshotRename(
+	snapshotContainer container, newName string) error {
+
+	return fmt.Errorf(
+		"ContainerSnapshotRename is not implement in the LVM Backend.")
 }
 
 func (s *storageLvm) ImageCreate(fingerprint string) error {

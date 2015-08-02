@@ -58,7 +58,7 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 }
 
 func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
-	c, err := newLxdContainer(cname, d)
+	c, err := containerLXDLoad(d, cname)
 	if err != nil {
 		return shared.ContainerInfo{}, SmartError(err)
 	}
