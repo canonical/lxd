@@ -21,22 +21,36 @@ type profilesPostReq struct {
 }
 
 func profilesGet(d *Daemon, r *http.Request) Response {
-	q := fmt.Sprintf("SELECT name FROM profiles")
-	inargs := []interface{}{}
-	var name string
-	outfmt := []interface{}{name}
-	result, err := dbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbProfilesGet(d.db)
 	if err != nil {
 		return SmartError(err)
 	}
-	response := []string{}
-	for _, r := range result {
-		name := r[0].(string)
-		url := fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, name)
-		response = append(response, url)
+
+	recursion := d.isRecursionRequest(r)
+
+	resultString := make([]string, len(results))
+	resultMap := make([]*shared.ProfileConfig, len(results))
+	i := 0
+	for _, name := range results {
+		if !recursion {
+			url := fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, name)
+			resultString[i] = url
+		} else {
+			profile, err := doProfileGet(d, name)
+			if err != nil {
+				shared.Log.Error("Failed to get profile", log.Ctx{"profile": name})
+				continue
+			}
+			resultMap[i] = profile
+		}
+		i++
 	}
 
-	return SyncResponse(true, response)
+	if !recursion {
+		return SyncResponse(true, resultString)
+	}
+
+	return SyncResponse(true, resultMap)
 }
 
 func profilesPost(d *Daemon, r *http.Request) Response {
@@ -58,25 +72,35 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var profilesCmd = Command{name: "profiles", get: profilesGet, post: profilesPost}
+var profilesCmd = Command{
+	name: "profiles",
+	get:  profilesGet,
+	post: profilesPost}
 
-func profileGet(d *Daemon, r *http.Request) Response {
-	name := mux.Vars(r)["name"]
-
+func doProfileGet(d *Daemon, name string) (*shared.ProfileConfig, error) {
 	config, err := dbProfileConfigGet(d.db, name)
 	if err != nil {
-		return SmartError(err)
+		return nil, err
 	}
 
 	devices, err := dbDevicesGet(d.db, name, true)
 	if err != nil {
-		return SmartError(err)
+		return nil, err
 	}
 
-	resp := &shared.ProfileConfig{
+	return &shared.ProfileConfig{
 		Name:    name,
 		Config:  config,
 		Devices: devices,
+	}, nil
+}
+
+func profileGet(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+
+	resp, err := doProfileGet(d, name)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	return SyncResponse(true, resp)
