@@ -5,10 +5,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -149,11 +147,6 @@ func DeviceTypeToDbType(t string) (int, error) {
 	}
 }
 
-func ValidDeviceType(t string) bool {
-	_, err := DeviceTypeToDbType(t)
-	return err == nil
-}
-
 func ValidDeviceConfig(t, k, v string) bool {
 	if k == "type" {
 		return false
@@ -244,8 +237,13 @@ func inList(l []string, s string) bool {
 	return false
 }
 
-func nextUnusedNic(c *lxdContainer) string {
-	list, err := c.c.Interfaces()
+func nextUnusedNic(c container) string {
+	lxContainer, err := c.LXContainerGet()
+	if err != nil {
+		return ""
+	}
+
+	list, err := lxContainer.Interfaces()
 	if err != nil || len(list) == 0 {
 		return "eth0"
 	}
@@ -260,7 +258,7 @@ func nextUnusedNic(c *lxdContainer) string {
 	}
 }
 
-func setupNic(c *lxdContainer, d map[string]string) (string, error) {
+func setupNic(c container, d map[string]string) (string, error) {
 	if d["nictype"] != "bridged" {
 		return "", fmt.Errorf("Unsupported nic type: %s\n", d["nictype"])
 	}
@@ -306,7 +304,7 @@ func RemoveInterface(nic string) {
  * setns into the container's netns (only) and remove the nic.  for
  * now just don't do it, but don't fail either.
  */
-func detachInterface(c *lxdContainer, key string) error {
+func detachInterface(c container, key string) error {
 	options := lxc.DefaultAttachOptions
 	options.ClearEnv = false
 	options.Namespaces = syscall.CLONE_NEWNET
@@ -320,7 +318,11 @@ func detachInterface(c *lxdContainer, key string) error {
 	options.StdoutFd = nullfd
 	options.StderrFd = nullfd
 	command := []string{"ip", "link", "del", key}
-	_, err = c.c.RunCommand(command, options)
+	lxContainer, err := c.LXContainerGet()
+	if err != nil {
+		return err
+	}
+	_, err = lxContainer.RunCommand(command, options)
 	return err
 }
 
@@ -339,98 +341,6 @@ func txUpdateNic(tx *sql.Tx, cId int, devname string, nicname string) error {
 	return err
 }
 
-func (d *lxdContainer) detachMount(m shared.Device) error {
-	// TODO - in case of reboot, we should remove the lxc.mount.entry.  Trick
-	// is, we can't d.c.ClearConfigItem bc that will clear all the keys.  So
-	// we should get the full list, clear, then reinsert all but the one we're
-	// removing
-	shared.Debugf("Mounts detach not yet implemented")
-
-	pid := d.c.InitPid()
-	if pid == -1 { // container not running
-		return nil
-	}
-	pidstr := fmt.Sprintf("%d", pid)
-	return exec.Command(os.Args[0], "forkumount", pidstr, m["path"]).Run()
-}
-
-func (d *lxdContainer) attachMount(m shared.Device) error {
-	dest := m["path"]
-	source := m["source"]
-
-	opts := ""
-	fstype := "none"
-	flags := 0
-	sb, err := os.Stat(source)
-	if err != nil {
-		return err
-	}
-	if sb.IsDir() {
-		flags |= syscall.MS_BIND
-		opts = "bind,create=dir"
-	} else {
-		if !shared.IsBlockdev(sb.Mode()) {
-			// Not sure if we want to try dealing with loopdevs, but
-			// since we'd need to deal with partitions i think not.
-			// We also might want to support file bind mounting, but
-			// this doesn't do that.
-			return fmt.Errorf("non-block device file not supported\n")
-		}
-
-		fstype, err = shared.BlockFsDetect(source)
-		if err != nil {
-			return fmt.Errorf("Unable to detect fstype for %s: %s\n", source, err)
-		}
-	}
-
-	// add a lxc.mount.entry = souce destination, in case of reboot
-	if m["readonly"] == "1" || m["readonly"] == "true" {
-		if opts == "" {
-			opts = "ro"
-		} else {
-			opts = opts + ",ro"
-		}
-	}
-	optional := false
-	if m["optional"] == "1" || m["optional"] == "true" {
-		optional = true
-		opts = opts + ",optional"
-	}
-
-	entry := fmt.Sprintf("%s %s %s %s 0 0", source, dest, fstype, opts)
-	if err := d.c.SetConfigItem("lxc.mount.entry", entry); err != nil {
-		return err
-	}
-
-	pid := d.c.InitPid()
-	if pid == -1 { // container not running - we're done
-		return nil
-	}
-
-	// now live-mount
-	tmpMount, err := ioutil.TempDir(shared.VarPath("shmounts", d.name), "lxdmount_")
-	if err != nil {
-		return err
-	}
-
-	err = syscall.Mount(m["source"], tmpMount, fstype, uintptr(flags), "")
-	if err != nil {
-		return err
-	}
-
-	mntsrc := filepath.Join("/.lxdmounts", filepath.Base(tmpMount))
-	// finally we need to move-mount this in the container
-	pidstr := fmt.Sprintf("%d", pid)
-	err = exec.Command(os.Args[0], "forkmount", pidstr, mntsrc, m["path"]).Run()
-	syscall.Unmount(tmpMount, syscall.MNT_DETACH) // in case forkmount failed
-	os.Remove(tmpMount)
-
-	if err != nil && !optional {
-		return err
-	}
-	return nil
-}
-
 /*
  * Given a running container and a list of devices before and after a
  * config change, update the devices in the container.
@@ -438,7 +348,7 @@ func (d *lxdContainer) attachMount(m shared.Device) error {
  * Currently we only support nics.  Disks will be supported once we
  * decide how best to insert them.
  */
-func devicesApplyDeltaLive(tx *sql.Tx, c *lxdContainer, preDevList shared.Devices, postDevList shared.Devices) error {
+func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, postDevList shared.Devices) error {
 	rmList, addList := preDevList.Update(postDevList)
 	var err error
 
@@ -450,11 +360,16 @@ func devicesApplyDeltaLive(tx *sql.Tx, c *lxdContainer, preDevList shared.Device
 				return fmt.Errorf("Do not know a name for the nic for device %s\n", key)
 			}
 			if err := detachInterface(c, dev["name"]); err != nil {
-				return fmt.Errorf("Error removing device %s (nic %s) from container %s: %s", key, dev["name"], c.name, err)
+				return fmt.Errorf("Error removing device %s (nic %s) from container %s: %s", key, dev["name"], c.NameGet(), err)
 			}
 		case "disk":
-			return c.detachMount(dev)
+			return c.DetachMount(dev)
 		}
+	}
+
+	lxContainer, err := c.LXContainerGet()
+	if err != nil {
+		return err
 	}
 
 	for key, dev := range addList {
@@ -462,31 +377,31 @@ func devicesApplyDeltaLive(tx *sql.Tx, c *lxdContainer, preDevList shared.Device
 		case "nic":
 			var tmpName string
 			if tmpName, err = setupNic(c, dev); err != nil {
-				return fmt.Errorf("Unable to create nic %s for container %s: %s", dev["name"], c.name, err)
+				return fmt.Errorf("Unable to create nic %s for container %s: %s", dev["name"], c.NameGet(), err)
 			}
-			if err := c.c.AttachInterface(tmpName, dev["name"]); err != nil {
+			if err := lxContainer.AttachInterface(tmpName, dev["name"]); err != nil {
 				RemoveInterface(tmpName)
-				return fmt.Errorf("Unable to move nic %s into container %s as %s: %s", tmpName, c.name, dev["name"], err)
+				return fmt.Errorf("Unable to move nic %s into container %s as %s: %s", tmpName, c.NameGet(), dev["name"], err)
 			}
 			// Now we need to add the name to the database
-			if err := txUpdateNic(tx, c.id, key, dev["name"]); err != nil {
+			if err := txUpdateNic(tx, c.IDGet(), key, dev["name"]); err != nil {
 				shared.Debugf("Warning: failed to update database entry for new nic %s: %s\n", key, err)
 			}
 		case "disk":
 			if dev["source"] == "" || dev["path"] == "" {
 				return fmt.Errorf("no source or destination given")
 			}
-			return c.attachMount(dev)
+			return c.AttachMount(dev)
 		}
 	}
 
 	return nil
 }
 
-func validateConfig(c *lxdContainer, devs shared.Devices) error {
+func validateConfig(c container, devs shared.Devices) error {
 	for _, dev := range devs {
 		if dev["type"] == "disk" && shared.IsBlockdevPath(dev["source"]) {
-			if !c.isPrivileged() {
+			if !c.IsPrivileged() {
 				return fmt.Errorf("Only privileged containers may mount block devices")
 			}
 		}
