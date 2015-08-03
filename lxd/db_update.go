@@ -13,6 +13,15 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV12(db *sql.DB) error {
+	stmt := `
+ALTER TABLE images ADD COLUMN cached INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE images ADD COLUMN last_use_date DATETIME;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 13)
+	return err
+}
+
 func dbUpdateFromV11(db *sql.DB) error {
 	cNames, err := dbContainersList(db, cTypeSnapshot)
 	if err != nil {
@@ -554,6 +563,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 12 {
 		err = dbUpdateFromV11(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 13 {
+		err = dbUpdateFromV12(db)
 		if err != nil {
 			return err
 		}
