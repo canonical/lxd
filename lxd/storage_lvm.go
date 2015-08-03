@@ -141,7 +141,9 @@ func (s *storageLvm) ContainerCreateFromImage(
 		"images", fmt.Sprintf("%s.lv", imageFingerprint))
 
 	if !shared.PathExists(imageLVFilename) {
-		s.ImageCreate(imageLVFilename)
+		if err := s.ImageCreate(imageLVFilename); err != nil {
+			return err
+		}
 	}
 
 	lvpath, err := s.createSnapshotLV(container.NameGet(), imageFingerprint)
