@@ -39,7 +39,7 @@ func (d *Daemon) dbGetimage(fp string) int {
 	return id
 }
 
-func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
+func ensureLocalImage(d *Daemon, server, fp string, secret string, forContainer bool) error {
 	var url string
 	var exporturl string
 
@@ -160,6 +160,10 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string) error {
 	_, err = imageBuildFromInfo(d, info)
 	if err != nil {
 		return err
+	}
+
+	if forContainer {
+		return dbInitImageLastAccess(d, fp)
 	}
 
 	return nil
