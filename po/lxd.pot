@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-07-27 14:56-0700\n"
+        "POT-Creation-Date: 2015-08-02 22:59-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -83,7 +83,7 @@ msgstr  ""
 msgid   "Aliases:\n"
 msgstr  ""
 
-#: lxc/main.go:51
+#: lxc/main.go:56
 msgid   "Alternate config directory."
 msgstr  ""
 
@@ -97,13 +97,8 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1562
+#: client.go:1572
 msgid   "Cannot change profile name"
-msgstr  ""
-
-#: lxc/main.go:29
-#, c-format
-msgid   "Cannot connect to unix socket at %s Is the server running?\n"
 msgstr  ""
 
 #: lxc/profile.go:324
@@ -128,6 +123,10 @@ msgstr  ""
 
 #: lxc/remote.go:154
 msgid   "Client certificate stored at server: "
+msgstr  ""
+
+#: lxc/main.go:33
+msgid   "Connection refused; is LXD running?\n"
 msgstr  ""
 
 #: lxc/publish.go:53
@@ -166,29 +165,29 @@ msgid   "Delete containers or container snapshots.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:440
+#: lxc/config.go:437
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:468
+#: lxc/config.go:465
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
 
-#: lxc/main.go:49
+#: lxc/main.go:54
 msgid   "Enables debug mode."
 msgstr  ""
 
-#: lxc/main.go:48
+#: lxc/main.go:53
 msgid   "Enables verbose mode."
 msgstr  ""
 
-#: lxc/init.go:101 lxc/init.go:102 lxc/launch.go:39 lxc/launch.go:40
+#: lxc/init.go:102 lxc/init.go:103 lxc/launch.go:39 lxc/launch.go:40
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:551 client.go:561 client.go:808 client.go:1783
+#: client.go:551 client.go:561 client.go:808 client.go:1793
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -211,7 +210,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>\n"
 msgstr  ""
 
-#: lxc/main.go:110
+#: lxc/main.go:115
 msgid   "For example: 'lxd-images import lxc ubuntu trusty amd64 --alias "
         "ubuntu/trusty'.\n"
 msgstr  ""
@@ -220,11 +219,11 @@ msgstr  ""
 msgid   "Force the container to shutdown."
 msgstr  ""
 
-#: lxc/main.go:102
+#: lxc/main.go:107
 msgid   "Generating a client certificate. This may take a minute...\n"
 msgstr  ""
 
-#: lxc/main.go:109
+#: lxc/main.go:114
 msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
@@ -246,6 +245,10 @@ msgstr  ""
 #: lxc/file.go:54
 #, c-format
 msgid   "Invalid target %s"
+msgstr  ""
+
+#: lxc/main.go:31
+msgid   "LXD socket not found; is LXD running?\n"
 msgstr  ""
 
 #: lxc/launch.go:22
@@ -462,7 +465,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "container>\n"
 msgstr  ""
 
-#: lxc/config.go:200
+#: lxc/config.go:196
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -470,12 +473,16 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:223
+#: lxc/config.go:219
 msgid   "No fingerprint specified."
 msgstr  ""
 
 #: lxc/help.go:63
 msgid   "Options:"
+msgstr  ""
+
+#: lxc/main.go:35
+msgid   "Permisson denied, are you in the lxd group?"
 msgstr  ""
 
 #: lxc/help.go:25
@@ -570,7 +577,7 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:246
+#: lxc/config.go:242
 msgid   "Show for remotes is not yet supported\n"
 msgstr  ""
 
@@ -616,12 +623,12 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:237
+#: lxc/config.go:233
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
 
-#: lxc/main.go:84
+#: lxc/main.go:89
 #, c-format
 msgid   "Usage: %s\n"
         "\n"
@@ -643,7 +650,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:396 lxc/image.go:382 lxc/profile.go:197
+#: lxc/config.go:393 lxc/image.go:382 lxc/profile.go:197
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -651,11 +658,11 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: lxc/launch.go:101
+#: lxc/launch.go:100
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1593
+#: client.go:1603
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -664,7 +671,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1597
+#: client.go:1607
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -681,24 +688,24 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: client.go:1646 client.go:1703
+#: client.go:1656 client.go:1713
 msgid   "device already exists\n"
 msgstr  ""
 
-#: lxc/launch.go:85 lxc/launch.go:90
+#: lxc/launch.go:84 lxc/launch.go:89
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
-#: lxc/main.go:39
-msgid   "error: %v\n"
+#: lxc/main.go:21
+msgid   "error %v\n"
 msgstr  ""
 
-#: lxc/main.go:115
+#: lxc/main.go:120
 msgid   "error: %v\n"
         "%s"
 msgstr  ""
 
-#: lxc/help.go:41 lxc/main.go:78
+#: lxc/help.go:41 lxc/main.go:83
 #, c-format
 msgid   "error: unknown command: %s\n"
 msgstr  ""
@@ -718,7 +725,7 @@ msgstr  ""
 msgid   "got bad response type, expected %s got %s"
 msgstr  ""
 
-#: lxc/launch.go:105
+#: lxc/launch.go:104
 msgid   "got bad version"
 msgstr  ""
 
@@ -732,7 +739,7 @@ msgstr  ""
 msgid   "invalid wait url %s"
 msgstr  ""
 
-#: lxc/init.go:21
+#: lxc/init.go:22
 msgid   "lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--"
         "profile|-p <profile>...]\n"
         "\n"
@@ -749,7 +756,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1639 client.go:1696
+#: client.go:1649 client.go:1706
 msgid   "no value found in %q\n"
 msgstr  ""
 
@@ -788,7 +795,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:153
+#: lxc/main.go:158
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
