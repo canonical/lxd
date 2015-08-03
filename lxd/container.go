@@ -183,6 +183,10 @@ func containerLXDCreateFromImage(d *Daemon, name string,
 		return nil, err
 	}
 
+	if err := dbUpdateImageLastAccess(d, hash); err != nil {
+		return nil, fmt.Errorf("Error updating image last use date: %s", err)
+	}
+
 	// Now create the storage from an image
 	if err := c.Storage.ContainerCreateFromImage(c, hash); err != nil {
 		c.Delete()

@@ -408,3 +408,15 @@ func dbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 		time.Sleep(1 * time.Second)
 	}
 }
+
+func dbUpdateImageLastAccess(d *Daemon, fingerprint string) error {
+	stmt := `UPDATE images SET last_use_date=strftime("%s") WHERE fingerprint=?`
+	_, err := dbExec(d.db, stmt, fingerprint)
+	return err
+}
+
+func dbInitImageLastAccess(d *Daemon, fingerprint string) error {
+	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
+	_, err := dbExec(d.db, stmt, fingerprint)
+	return err
+}
