@@ -294,11 +294,22 @@ func (d *Daemon) SetupStorageDriver() error {
 	}
 	if vgName != "" {
 		d.Storage, err = newStorage(d, storageTypeLvm)
+		if err != nil {
+			shared.Logf("Could not initialize storage type LVM: %s - falling back to dir", err)
+		} else {
+			return nil
+		}
 	} else if d.BackingFs == "btrfs" {
 		d.Storage, err = newStorage(d, storageTypeBtrfs)
-	} else {
-		d.Storage, err = newStorage(d, -1)
+		if err != nil {
+			shared.Logf("Could not initialize storage type btrfs: %s - falling back to dir", err)
+		} else {
+			return nil
+		}
 	}
+
+	d.Storage, err = newStorage(d, storageTypeDir)
+
 	return err
 }
 
