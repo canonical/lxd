@@ -420,3 +420,15 @@ func dbInitImageLastAccess(d *Daemon, fingerprint string) error {
 	_, err := dbExec(d.db, stmt, fingerprint)
 	return err
 }
+
+func dbGetImageExpiry(d *Daemon) (string, error) {
+	q := `SELECT value FROM config WHERE key=images.remote_cache_expiry`
+	arg1 := []interface{}{}
+	var expiry string
+	arg2 := []interface{}{&expiry}
+	err := dbQueryRowScan(d.db, q, arg1, arg2)
+	if err != nil {
+		return "", err
+	}
+	return expiry, nil
+}
