@@ -15,6 +15,10 @@ default:
 	go get -v -d ./...
 	go install -v ./...
 
+client:
+	go get -v -d ./...
+	go install -v ./lxc
+
 # This only needs to be done when migrate.proto is actually changed; since we
 # commit the .pb.go in the tree and it's not expected to change very often,
 # it's not a default build step.
