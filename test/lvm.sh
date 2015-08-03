@@ -1,6 +1,6 @@
 create_vg() {
-
-    pvfile=$LXD_DIR/lvm-pv.img
+    vgname=$1
+    pvfile=$LOOP_IMG_DIR/lvm-pv-$vgname.img
     truncate -s 10G $pvfile
     pvloopdev=$(losetup -f)
     losetup $pvloopdev $pvfile
@@ -10,11 +10,23 @@ create_vg() {
     if [ -n "$LXD_DEBUG" ]; then
         VGDEBUG="-vv"
     fi
-    vgcreate $VGDEBUG lxd_test_vg $pvloopdev
+    vgcreate $VGDEBUG $vgname $pvloopdev
+    pvloopdevs_to_delete="$pvloopdevs_to_delete $pvloopdev"
+}
 
+cleanup_vg_and_shutdown() {
+    cleanup_vg
+    losetup -d $pvloopdevs_to_delete || echo "Couldn't delete loop devices $pvloopdevs_to_delete"
+    rm -rf $LOOP_IMG_DIR || echo "Couldn't remove $pvfile"
+    cleanup
 }
 
 cleanup_vg() {
+    vgname=$1
+
+    if [ -z $vgname ]; then
+        vgname="lxd_test_vg"
+    fi
 
     if [ -n "$LXD_INSPECT_LVM" ]; then
         echo "To poke around, use:\n LXD_DIR=$LXD_DIR sudo -E $GOPATH/bin/lxc COMMAND --config ${LXD_CONF} "
@@ -27,11 +39,8 @@ cleanup_vg() {
     fi
 
     # -f removes any LVs in the VG
-    vgremove -f lxd_test_vg || echo "Couldn't remove lxd_test_vg, skipping"
-    losetup -d $pvloopdev || echo "Couldn't delete loop device $pvloopdev"
-    rm $pvfile || echo "Couldn't remove $pvfile"
+    vgremove -f $vgname || echo "Couldn't remove $vgname, skipping"
 
-    cleanup
 }
 
 die() {
@@ -53,8 +62,10 @@ test_lvm() {
         return
     fi
 
-    create_vg
-    trap cleanup_vg EXIT HUP INT TERM
+    export LOOP_IMG_DIR=$(mktemp -d -p $(pwd))
+
+    create_vg lxd_test_vg
+    trap cleanup_vg_and_shutdown EXIT HUP INT TERM
 
     test_delete_with_appropriate_storage
     lvremove -f lxd_test_vg/LXDPool
@@ -67,7 +78,10 @@ test_lvm() {
 
     lvremove -f lxd_test_vg/test_user_thinpool
     test_remote_launch_imports_lvm
+
+    test_init_with_missing_vg
 }
+
 
 test_delete_with_appropriate_storage() {
     PREV_LXD_DIR=$LXD_DIR
@@ -221,8 +235,26 @@ test_remote_launch_imports_lvm() {
 
     do_kill_lxd `cat $LXD_DIR/lxd.pid`
     do_kill_lxd `cat $LXD_REMOTE_DIR/lxd.pid`
-    sleep 3
     wipe ${LXD_DIR}
     wipe ${LXD_REMOTE_DIR}
+    LXD_DIR=${PREV_LXD_DIR}
+}
+
+test_init_with_missing_vg() {
+    PREV_LXD_DIR=$LXD_DIR
+    export LXD_DIR=$(mktemp -d -p $(pwd))
+    chmod 777 "${LXD_DIR}"
+    spawn_lxd 127.0.0.1:18451 "${LXD_DIR}"
+
+    create_vg red_shirt_yeoman_vg
+
+    lxc config set core.lvm_vg_name "red_shirt_yeoman_vg" || die "error setting core.lvm_vg_name config"
+    do_kill_lxd `cat $LXD_DIR/lxd.pid`
+    cleanup_vg red_shirt_yeoman_vg
+    spawn_lxd 127.0.0.1:18451 "${LXD_DIR}"
+    lxc config show | grep "red_shirt_yeoman_vg" || die "should show config even if it is broken"
+    lxc config unset core.lvm_vg_name || die "should be able to un set config to un break"
+    do_kill_lxd `cat $LXD_DIR/lxd.pid`
+    wipe ${LXD_DIR}
     LXD_DIR=${PREV_LXD_DIR}
 }
