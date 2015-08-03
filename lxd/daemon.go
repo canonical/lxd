@@ -705,6 +705,8 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 		return true
 	case "core.lvm_thinpool_name":
 		return true
+	case "images.remote_cache_expiry":
+		return true
 	}
 
 	return false
