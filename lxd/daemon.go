@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"golang.org/x/crypto/scrypt"
 
@@ -378,6 +379,34 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 	return nil
 }
 
+func (d *Daemon) pruneExpiredImages() {
+	expiry, err := dbGetImageExpiry(d)
+	shared.Debugf("Pruning expired images\n")
+	if err != nil { // no expiry
+		expiry = "10"
+	}
+
+	q := `
+SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 'now', '-` + expiry + ` day')`
+	inargs := []interface{}{}
+	var fingerprint string
+	outfmt := []interface{}{fingerprint}
+
+	result, err := dbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		shared.Debugf("error making cache expiry query: %s\n", err)
+		return
+	}
+	shared.Debugf("found %d expired images\n", len(result))
+
+	for _, r := range result {
+		if err := DeleteImage(d, r[0].(string)); err != nil {
+			shared.Debugf("error deleting image: %s\n", err)
+		}
+	}
+	shared.Debugf("done pruning expired images\n")
+}
+
 // StartDaemon starts the shared daemon with the provided configuration.
 func StartDaemon() (*Daemon, error) {
 	d := &Daemon{}
@@ -598,6 +627,13 @@ func StartDaemon() (*Daemon, error) {
 	}
 
 	d.Sockets = sockets
+
+	go func() {
+		for {
+			d.pruneExpiredImages()
+			time.Sleep(24 * time.Hour)
+		}
+	}()
 
 	d.tomb.Go(func() error {
 		for _, socket := range d.Sockets {
