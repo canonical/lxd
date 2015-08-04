@@ -422,7 +422,7 @@ func dbInitImageLastAccess(d *Daemon, fingerprint string) error {
 }
 
 func dbGetImageExpiry(d *Daemon) (string, error) {
-	q := `SELECT value FROM config WHERE key=images.remote_cache_expiry`
+	q := `SELECT value FROM config WHERE key='images.remote_cache_expiry'`
 	arg1 := []interface{}{}
 	var expiry string
 	arg2 := []interface{}{&expiry}
