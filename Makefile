@@ -29,8 +29,9 @@ protobuf:
 
 .PHONY: check
 check: default
-	go test ./...
-	cd test && ./main.sh
+	go test -race ./...
+	-cd test && GORACE="halt_on_error=1" ./main.sh
+	go install -v -a ./...	# rebuild all without race detector
 
 gccgo:
 	go build -compiler gccgo ./...
