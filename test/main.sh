@@ -174,7 +174,7 @@ spawn_lxd() {
   cp server.key $lxddir
 
   echo "==> Spawning lxd on $addr in $lxddir"
-  (LXD_DIR=$lxddir lxd $debug $extraargs $* 2>&1 & echo $! > $lxddir/lxd.pid) | tee $lxddir/lxd.log &
+  LXD_DIR=$lxddir lxd --logfile $lxddir/lxd.log $debug $extraargs $* 2>&1 & echo $! > $lxddir/lxd.pid
 
   echo "==> Confirming lxd on $addr is responsive"
   alive=0
