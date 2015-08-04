@@ -107,18 +107,18 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			return fmt.Errorf(gettext.Gettext("not all the profiles from the source exist on the target"))
 		}
 
-		to, err := source.GetMigrationSourceWS(sourceName)
+		sourceWSResponse, err := source.GetMigrationSourceWS(sourceName)
 		if err != nil {
 			return err
 		}
 
 		secrets := map[string]string{}
-		if err := json.Unmarshal(to.Metadata, &secrets); err != nil {
+		if err := json.Unmarshal(sourceWSResponse.Metadata, &secrets); err != nil {
 			return err
 		}
 
-		url := source.BaseWSURL + path.Join(to.Operation, "websocket")
-		migration, err := dest.MigrateFrom(sourceName, url, secrets, status.Config, status.Profiles, baseImage)
+		sourceWSUrl := source.BaseWSURL + path.Join(sourceWSResponse.Operation, "websocket")
+		migration, err := dest.MigrateFrom(sourceName, sourceWSUrl, secrets, status.Config, status.Profiles, baseImage)
 		if err != nil {
 			return err
 		}
