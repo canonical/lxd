@@ -62,7 +62,6 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 	output, err := exec.Command(
 		"rsync",
 		"-a",
-		"--checksum", // TODO: Not sure we need this option
 		"-HAX",
 		"--devices",
 		"--delete",
