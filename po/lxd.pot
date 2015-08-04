@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-08-02 22:59-0400\n"
+        "POT-Creation-Date: 2015-08-04 10:54-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -165,12 +165,12 @@ msgid   "Delete containers or container snapshots.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:437
+#: lxc/config.go:434
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:465
+#: lxc/config.go:462
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -577,10 +577,6 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/config.go:242
-msgid   "Show for remotes is not yet supported\n"
-msgstr  ""
-
 #: lxc/info.go:30
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
@@ -650,7 +646,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:393 lxc/image.go:382 lxc/profile.go:197
+#: lxc/config.go:390 lxc/image.go:382 lxc/profile.go:197
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
