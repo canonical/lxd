@@ -238,9 +238,6 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		container := ""
 		if len(args) > 1 {
 			remote, container = config.ParseRemoteAndContainer(args[1])
-			if container == "" {
-				return fmt.Errorf(gettext.Gettext("Show for remotes is not yet supported\n"))
-			}
 		}
 
 		d, err := lxd.NewClient(config, remote)
