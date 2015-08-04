@@ -1,4 +1,6 @@
 test_snapshots() {
+  ensure_import_testimage
+
   lxc init testimage foo
 
   lxc snapshot foo
