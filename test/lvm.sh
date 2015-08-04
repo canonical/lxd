@@ -2,6 +2,7 @@ create_vg() {
     vgname=$1
     pvfile=$LOOP_IMG_DIR/lvm-pv-$vgname.img
     truncate -s 10G $pvfile
+    chattr +C $pvfile || true
     pvloopdev=$(losetup -f)
     losetup $pvloopdev $pvfile
 

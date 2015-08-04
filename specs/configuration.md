@@ -31,15 +31,9 @@ Those keys can be set using the lxc tool with:
 ## Properties
 The following are direct container properties and can't be part of a profile:
  - name
- - hostname
  - architecture
 
 Name is the container name and can only be changed by renaming the container.
-
-hostname and architecture can be changed with:
-
-    lxc config set <container> <property> <value>
-
 
 ## Key/value configuration
 The key/value configuration is namespaced with the following namespaces
@@ -154,7 +148,6 @@ configurations would look like:
         'name': "my-container",
         'profiles': ["default"],
         'architecture': 'x86_64',
-        'hostname': 'my-container',
         'config': {
             'limits.cpus': '3',
             'security.privileged': 'true'
