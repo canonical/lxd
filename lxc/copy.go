@@ -107,7 +107,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			return fmt.Errorf(gettext.Gettext("not all the profiles from the source exist on the target"))
 		}
 
-		to, err := source.MigrateTo(sourceName)
+		to, err := source.GetMigrationSourceWS(sourceName)
 		if err != nil {
 			return err
 		}
