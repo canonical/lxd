@@ -960,11 +960,12 @@ func (c *containerLXD) TemplateApply(trigger string) error {
 				return err
 			}
 		} else {
-			var uid, gid int
+			uid := 0
+			gid := 0
 			if !c.IsPrivileged() {
-				uid, gid := c.idmapset.ShiftIntoNs(0, 0)
-				shared.MkdirAllOwner(path.Dir(fullpath), 0755, uid, gid)
+				uid, gid = c.idmapset.ShiftIntoNs(0, 0)
 			}
+			shared.MkdirAllOwner(path.Dir(fullpath), 0755, uid, gid)
 
 			w, err = os.Create(fullpath)
 			if err != nil {
