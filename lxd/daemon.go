@@ -48,6 +48,7 @@ type Daemon struct {
 	lxcpath       string
 	mux           *mux.Router
 	tomb          tomb.Tomb
+	pruneChan     chan bool
 
 	Storage storage
 
@@ -628,10 +629,31 @@ func StartDaemon() (*Daemon, error) {
 
 	d.Sockets = sockets
 
+	d.pruneChan = make(chan bool)
 	go func() {
 		for {
-			d.pruneExpiredImages()
-			time.Sleep(24 * time.Hour)
+			expiryStr, err := dbGetImageExpiry(d)
+			var expiry int
+			if err != nil {
+				expiry = 10
+			} else {
+				expiry, err = strconv.Atoi(expiryStr)
+				if err != nil {
+					expiry = 10
+				}
+				if expiry <= 0 {
+					expiry = 1
+				}
+			}
+			timer := time.NewTimer(time.Duration(expiry) * 24 * time.Hour)
+			timeChan := timer.C
+			select {
+			case <-timeChan:
+				d.pruneExpiredImages()
+			case <-d.pruneChan:
+				d.pruneExpiredImages()
+				timer.Stop()
+			}
 		}
 	}()
 
