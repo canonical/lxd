@@ -1,4 +1,5 @@
 test_migration() {
+  ensure_import_testimage
   (echo y;  sleep 3;  echo foo) | lxc remote add l1 127.0.0.1:18443 $debug
   (echo y;  sleep 3;  echo foo) | lxc remote add l2 127.0.0.1:18444 $debug
 

@@ -10,13 +10,8 @@ gen_third_cert() {
 }
 
 test_basic_usage() {
-  if ! lxc image alias list | grep -q "^| testimage\s*|.*$"; then
-    if [ -e "$LXD_TEST_IMAGE" ]; then
-        lxc image import $LXD_TEST_IMAGE --alias testimage
-    else
-        ../scripts/lxd-images import busybox --alias testimage
-    fi
-  fi
+
+  ensure_import_testimage
 
   # Test image export
   sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
