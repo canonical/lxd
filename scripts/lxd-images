@@ -411,7 +411,7 @@ class Ubuntu(Image):
     # FIXME: We should default to the released stream once available
     def __init__(self, server="https://cloud-images.ubuntu.com",
                  stream="daily",
-                 gpgkey="476CF100"):
+                 gpgkey="7FF3F408476CF100"):
 
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
