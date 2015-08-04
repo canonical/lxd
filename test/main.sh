@@ -153,6 +153,7 @@ fi
 . ./database_update.sh
 . ./devlxd.sh
 . ./lvm.sh
+. ./image.sh
 
 if [ -n "$LXD_DEBUG" ]; then
     debug=--debug
@@ -243,6 +244,10 @@ test_remote_admin
 echo "==> TEST: basic usage"
 curtest=test_basic_usage
 test_basic_usage
+
+echo "==> TEST: images (and cached image expiry)"
+curtest=test_image_expiry
+test_image_expiry
 
 if [ -n "$LXD_CONCURRENT" ]; then
     echo "==> TEST: concurrent exec"
