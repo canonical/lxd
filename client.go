@@ -1346,7 +1346,7 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 	return uid, gid, mode, r.Body, nil
 }
 
-func (c *Client) MigrateTo(container string) (*Response, error) {
+func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
 	body := shared.Jmap{"migration": true}
 	return c.post(fmt.Sprintf("containers/%s", container), body, Async)
 }
