@@ -174,6 +174,9 @@ func api10Put(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return InternalError(err)
 			}
+			if key == "images.remote_cache_expiry" {
+				d.pruneChan <- true
+			}
 		}
 	}
 
