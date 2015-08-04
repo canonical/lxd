@@ -17,7 +17,7 @@ create_vg() {
 cleanup_vg_and_shutdown() {
     cleanup_vg
     losetup -d $pvloopdevs_to_delete || echo "Couldn't delete loop devices $pvloopdevs_to_delete"
-    rm -rf $LOOP_IMG_DIR || echo "Couldn't remove $pvfile"
+    wipe $LOOP_IMG_DIR || echo "Couldn't remove $pvfile"
     cleanup
 }
 
