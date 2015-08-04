@@ -193,6 +193,16 @@ spawn_lxd() {
   fi
 }
 
+ensure_import_testimage() {
+  if ! lxc image alias list | grep -q "^| testimage\s*|.*$"; then
+    if [ -e "$LXD_TEST_IMAGE" ]; then
+        lxc image import $LXD_TEST_IMAGE --alias testimage
+    else
+        ../scripts/lxd-images import busybox --alias testimage
+    fi
+  fi
+}
+
 spawn_lxd 127.0.0.1:18443 $LXD_DIR
 
 export LXD2_DIR=$(mktemp -d -p $(pwd))
