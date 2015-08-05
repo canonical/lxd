@@ -233,10 +233,6 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 		return nil, err
 	}
 
-	// Now copy the source
-	sourceContainer.StorageStart()
-	defer sourceContainer.StorageStop()
-
 	if err := c.Storage.ContainerSnapshotCreate(c, sourceContainer); err != nil {
 		c.Delete()
 		return nil, err
