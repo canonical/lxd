@@ -194,6 +194,12 @@ spawn_lxd() {
   fi
 }
 
+ensure_has_localhost_remote() {
+    if ! lxc remote list | grep -q "localhost"; then
+        (echo y; sleep 3) | lxc remote add localhost $BASEURL $debug --password foo
+    fi
+}
+
 ensure_import_testimage() {
   if ! lxc image alias list | grep -q "^| testimage\s*|.*$"; then
     if [ -e "$LXD_TEST_IMAGE" ]; then
