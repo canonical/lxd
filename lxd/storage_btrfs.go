@@ -103,23 +103,6 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 		return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
 	}
 
-	// If its name contains a "/" also remove the parent,
-	// this should only happen with snapshot containers
-	if strings.Contains(container.NameGet(), "/") {
-		oldPathParent := filepath.Dir(container.PathGet(""))
-		shared.Log.Debug(
-			"Trying to remove the parent path",
-			log.Ctx{"container": container.NameGet(), "parent": oldPathParent})
-
-		if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
-			os.Remove(oldPathParent)
-		} else {
-			shared.Log.Debug(
-				"Cannot remove the parent of this container its not empty",
-				log.Ctx{"container": container.NameGet(), "parent": oldPathParent})
-		}
-	}
-
 	return nil
 }
 
@@ -271,7 +254,16 @@ func (s *storageBtrfs) ContainerSnapshotCreate(
 func (s *storageBtrfs) ContainerSnapshotDelete(
 	snapshotContainer container) error {
 
-	return s.ContainerDelete(snapshotContainer)
+	err := s.ContainerDelete(snapshotContainer)
+	if err != nil {
+		return fmt.Errorf("Error deleting snapshot %s: %s", snapshotContainer.NameGet(), err)
+	}
+
+	oldPathParent := filepath.Dir(snapshotContainer.PathGet(""))
+	if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
+		os.Remove(oldPathParent)
+	}
+	return nil
 }
 
 // ContainerSnapshotRename renames a snapshot of a container.
