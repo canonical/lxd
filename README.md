@@ -131,3 +131,22 @@ add this way. In order to set a password, do:
 
 on the host LXD is running on. This will set the remote password that you can
 then use to do `lxc remote add`.
+
+#### How can I live migrate a container using LXD?
+
+**NOTE**: in order to have a migratable container, you need to disable almost
+all of the seciruty that LXD provides. We are working on fixing this, but it
+requires several kernel changes that take time. You should not use migratable
+containers for untrusted workloads right now.
+
+In order to create a migratable container, LXD provides a built in profile
+called "migratable". First, launch your container with the following,
+
+     lxc launch -p default -p migratable ubuntu $somename
+
+Ensure you have criu installed on both hosts (`sudo apt-get install criu` for
+Ubuntu), and do:
+
+    lxc move host1:$somename host2:$somename
+
+And with luck you'll have migrated the container :)
