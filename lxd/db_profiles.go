@@ -86,6 +86,10 @@ func dbProfileCreate(db *sql.DB, profile string, config map[string]string,
 
 func dbProfileCreateDefault(db *sql.DB) error {
 	id, err := dbProfileIDGet(db, "default")
+	if err != nil {
+		return err
+	}
+
 	if id != -1 {
 		// default profile already exists
 		return nil
