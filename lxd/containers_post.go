@@ -43,7 +43,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		}
 	}
 
-	imgInfo, err := dbImageGet(d.db, hash, false)
+	imgInfo, err := dbImageGet(d.db, hash, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -103,7 +103,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		}
 
 		var c container
-		if _, err := dbImageGet(d.db, req.Source.BaseImage, false); err == nil {
+		if _, err := dbImageGet(d.db, req.Source.BaseImage, false, true); err == nil {
 			c, err = containerLXDCreateFromImage(
 				d, req.Name, createArgs, req.Source.BaseImage)
 
