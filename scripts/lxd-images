@@ -72,6 +72,7 @@ def local_architecture():
 
         return arch_tables[kernel_arch]
 
+
 class UnixHTTPConnection(http.client.HTTPConnection):
     def __init__(self, path):
         http.client.HTTPConnection.__init__(self, 'localhost')
@@ -127,10 +128,16 @@ class LXD(object):
 
         return [image.split("/1.0/images/")[-1] for image in data['metadata']]
 
-    def images_upload(self, path, filename):
+    def images_upload(self, path, filename, public):
+        headers = {}
+        if public:
+            headers['X-LXD-public'] = "1"
+
         if isinstance(path, str):
-            status, data = self.rest_call("/1.0/images",
-                                          open(path, "rb"), "POST")
+            headers['Content-Type'] = "application/octet-stream"
+
+            status, data = self.rest_call("/1.0/images", open(path, "rb"),
+                                          "POST", headers)
         else:
             meta_path, rootfs_path = path
             boundary = str(uuid.uuid1())
@@ -157,7 +164,6 @@ class LXD(object):
                 else:
                     body += entry.encode() + b"\r\n"
 
-            headers = {}
             headers['Content-Type'] = "multipart/form-data; boundary=%s" \
                 % boundary
 
@@ -556,7 +562,7 @@ if __name__ == "__main__":
                 parser.exit(1, _("This image is already in the store.\n"))
 
             r = lxd.images_upload((meta_path, rootfs_path),
-                                  meta_path.split("/")[-1])
+                                  meta_path.split("/")[-1], args.public)
             print(_("Image imported as: %s" % r['fingerprint']))
         else:
             path = busybox.create_tarball()
@@ -567,7 +573,7 @@ if __name__ == "__main__":
             if fingerprint in lxd.images_list():
                 parser.exit(1, _("This image is already in the store.\n"))
 
-            r = lxd.images_upload(path, path.split("/")[-1])
+            r = lxd.images_upload(path, path.split("/")[-1], args.public)
             print(_("Image imported as: %s" % r['fingerprint']))
 
         setup_alias(parser, args, fingerprint)
@@ -588,7 +594,7 @@ if __name__ == "__main__":
         if fingerprint in lxd.images_list():
             parser.exit(1, _("This image is already in the store.\n"))
 
-        r = lxd.images_upload(path, path.split("/")[-1])
+        r = lxd.images_upload(path, path.split("/")[-1], args.public)
         print(_("Image imported as: %s" % r['fingerprint']))
 
         setup_alias(parser, args, fingerprint)
@@ -609,7 +615,7 @@ if __name__ == "__main__":
             parser.exit(1, _("This image is already in the store.\n"))
 
         r = lxd.images_upload((meta_path, rootfs_path),
-                              meta_path.split("/")[-1])
+                              meta_path.split("/")[-1], args.public)
         print(_("Image imported as: %s" % r['fingerprint']))
 
         setup_alias(parser, args, fingerprint)
@@ -642,6 +648,9 @@ if __name__ == "__main__":
         "busybox", help=_("Busybox image"))
     parser_import_busybox.add_argument("--alias", action="append", default=[],
                                        help=_("Aliases for the image"))
+    parser_import_busybox.add_argument("--public", action="store_true",
+                                       default=False,
+                                       help=_("Make the image public"))
     parser_import_busybox.add_argument(
         "--split", action="store_true", default=False,
         help=_("Whether to create a split image"))
@@ -657,6 +666,9 @@ if __name__ == "__main__":
                                    default="default", nargs="?")
     parser_import_lxc.add_argument("--alias", action="append", default=[],
                                    help=_("Aliases for the image"))
+    parser_import_lxc.add_argument("--public", action="store_true",
+                                   default=False,
+                                   help=_("Make the image public"))
     parser_import_lxc.set_defaults(func=import_lxc)
 
     # # Ubuntu
@@ -670,6 +682,9 @@ if __name__ == "__main__":
                                       default=None, nargs="?")
     parser_import_ubuntu.add_argument("--alias", action="append", default=[],
                                       help=_("Aliases for the image"))
+    parser_import_ubuntu.add_argument("--public", action="store_true",
+                                      default=False,
+                                      help=_("Make the image public"))
     parser_import_ubuntu.set_defaults(func=import_ubuntu)
 
     # Call the function
