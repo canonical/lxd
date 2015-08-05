@@ -405,7 +405,7 @@ func Test_dbImageGet_finds_image_for_fingerprint(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	result, err = dbImageGet(db, "fingerprint", false)
+	result, err = dbImageGet(db, "fingerprint", false, false)
 
 	if err != nil {
 		t.Fatal(err)
@@ -439,7 +439,7 @@ func Test_dbImageGet_for_missing_fingerprint(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	_, err = dbImageGet(db, "unknown", false)
+	_, err = dbImageGet(db, "unknown", false, false)
 
 	if err != sql.ErrNoRows {
 		t.Fatal("Wrong err type returned")
