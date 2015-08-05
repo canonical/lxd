@@ -245,7 +245,7 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq) Response {
 		return InternalError(err)
 	}
 
-	info, err := dbImageGet(d.db, hash, false)
+	info, err := dbImageGet(d.db, hash, false, false)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -693,7 +693,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
 
 func doDeleteImage(d *Daemon, fingerprint string) error {
-	imgInfo, err := dbImageGet(d.db, fingerprint, false)
+	imgInfo, err := dbImageGet(d.db, fingerprint, false, false)
 	if err != nil {
 		return err
 	}
@@ -733,7 +733,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 }
 
 func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, Response) {
-	imgInfo, err := dbImageGet(d.db, fingerprint, public)
+	imgInfo, err := dbImageGet(d.db, fingerprint, public, false)
 	if err != nil {
 		return shared.ImageInfo{}, SmartError(err)
 	}
@@ -863,7 +863,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	imgInfo, err := dbImageGet(d.db, fingerprint, false)
+	imgInfo, err := dbImageGet(d.db, fingerprint, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -923,7 +923,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 		return Conflict
 	}
 
-	imgInfo, err := dbImageGet(d.db, req.Target, false)
+	imgInfo, err := dbImageGet(d.db, req.Target, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1020,7 +1020,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 		public = false
 	}
 
-	imgInfo, err := dbImageGet(d.db, fingerprint, public)
+	imgInfo, err := dbImageGet(d.db, fingerprint, public, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1060,7 +1060,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 func imageSecret(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
-	_, err := dbImageGet(d.db, fingerprint, false)
+	_, err := dbImageGet(d.db, fingerprint, false, false)
 	if err != nil {
 		return SmartError(err)
 	}

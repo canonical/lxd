@@ -17,6 +17,11 @@ test_migration() {
   [ -d "$LXD2_DIR/containers/nonlive/rootfs" ]
 
   lxc copy l2:nonlive l2:nonlive2
+  lxc config get l2:nonlive2 volatile.baseImage | grep -q baseImage
+
+  lxc config unset l2:nonlive volatile.baseImage
+  lxc copy l2:nonlive l1:nobase
+  lxc delete l1:nobase
 
   if [ -n "$TRAVIS_PULL_REQUEST" ]; then
     return
