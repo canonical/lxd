@@ -401,7 +401,7 @@ SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 
 	shared.Debugf("found %d expired images\n", len(result))
 
 	for _, r := range result {
-		if err := DeleteImage(d, r[0].(string)); err != nil {
+		if err := doDeleteImage(d, r[0].(string)); err != nil {
 			shared.Debugf("error deleting image: %s\n", err)
 		}
 	}
