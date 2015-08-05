@@ -249,6 +249,9 @@ func containersShutdown(d *Daemon) error {
 }
 
 func containerDeleteSnapshots(d *Daemon, cname string) error {
+	shared.Log.Debug("containerDeleteSnapshots",
+		log.Ctx{"container": cname})
+
 	results, err := dbContainerGetSnapshots(d.db, cname)
 	if err != nil {
 		return err
@@ -266,8 +269,8 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 
 		if err := sc.Delete(); err != nil {
 			shared.Log.Error(
-				"containerDeleteSnapshots: Failed to load delete a snapshotcontainer",
-				log.Ctx{"container": cname, "snapshot": sname})
+				"containerDeleteSnapshots: Failed to delete a snapshotcontainer",
+				log.Ctx{"container": cname, "snapshot": sname, "err": err})
 		}
 	}
 

@@ -689,12 +689,22 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 }
 
 func (c *containerLXD) Delete() error {
-	if err := containerDeleteSnapshots(c.daemon, c.NameGet()); err != nil {
-		return err
-	}
+	shared.Log.Debug("containerLXD.Delete", log.Ctx{"c.name": c.NameGet(), "type": c.cType})
+	switch c.cType {
+	case cTypeRegular:
+		if err := containerDeleteSnapshots(c.daemon, c.NameGet()); err != nil {
+			return err
+		}
 
-	if err := c.Storage.ContainerDelete(c); err != nil {
-		return err
+		if err := c.Storage.ContainerDelete(c); err != nil {
+			return err
+		}
+	case cTypeSnapshot:
+		if err := c.Storage.ContainerSnapshotDelete(c); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("Unknown cType: %d", c.cType)
 	}
 
 	if err := dbContainerRemove(c.daemon.db, c.NameGet()); err != nil {
