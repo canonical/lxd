@@ -13,6 +13,8 @@ test_basic_usage() {
 
   ensure_import_testimage
 
+  lxc remote set-default DEFAULT
+
   # Test image export
   sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
   lxc image export testimage ${LXD_DIR}/
