@@ -47,6 +47,8 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 	if len(args) >= 2 && !strings.Contains(args[1], "=") {
 		firstprop = 2
 		iRemote, iName = config.ParseRemoteAndContainer(args[1])
+	} else {
+		iRemote, iName = config.ParseRemoteAndContainer("")
 	}
 
 	if cName == "" {
