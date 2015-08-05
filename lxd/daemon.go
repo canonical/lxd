@@ -584,6 +584,11 @@ func StartDaemon() (*Daemon, error) {
 	}
 
 	if listenAddr != "" {
+		_, _, err := net.SplitHostPort(listenAddr)
+		if err != nil {
+			listenAddr = fmt.Sprintf("%s:%s", listenAddr, shared.DefaultPort)
+		}
+
 		tcpl, err := tls.Listen("tcp", listenAddr, tlsConfig)
 		if err != nil {
 			return nil, fmt.Errorf("cannot listen on https socket: %v", err)
