@@ -11,15 +11,15 @@ import (
 const DB_FIXTURES string = `
     INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
     INSERT INTO profiles (name) VALUES ('theprofile');
-    INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
+    INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 3);
     INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');
     INSERT INTO containers_devices (container_id, name, type) VALUES (1, 'somename', 1);
     INSERT INTO containers_devices_config (key, value, container_device_id) VALUES ('configkey', 'configvalue', 1);
     INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176);
     INSERT INTO images_aliases (name, image_id, description) VALUES ('somealias', 1, 'some description');
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
-    INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'thekey', 'thevalue');
-    INSERT INTO profiles_devices (profile_id, name, type) VALUES (2, 'devicename', 1);
+    INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'thekey', 'thevalue');
+    INSERT INTO profiles_devices (profile_id, name, type) VALUES (3, 'devicename', 1);
     INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (2, 'devicekey', 'devicevalue');
     `
 
@@ -117,7 +117,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	}
 
 	// Make sure there are 0 container_profiles entries left.
-	statements = `SELECT count(*) FROM containers_profiles;`
+	statements = `SELECT count(*) FROM containers_profiles WHERE profile_id = 3;`
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
@@ -125,7 +125,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	}
 
 	// Make sure there are 0 profiles_devices entries left.
-	statements = `SELECT count(*) FROM profiles_devices WHERE profile_id != 1;`
+	statements = `SELECT count(*) FROM profiles_devices WHERE profile_id == 3;`
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
@@ -133,7 +133,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	}
 
 	// Make sure there are 0 profiles_config entries left.
-	statements = `SELECT count(*) FROM profiles_config;`
+	statements = `SELECT count(*) FROM profiles_config WHERE profile_id == 3;`
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
@@ -141,7 +141,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	}
 
 	// Make sure there are 0 profiles_devices_config entries left.
-	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id != 1;`
+	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 3;`
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
@@ -538,7 +538,7 @@ func Test_dbProfileConfigGet(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	_, err = db.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'something', 'something else');")
+	_, err = db.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'something', 'something else');")
 
 	result, err = dbProfileConfigGet(db, "theprofile")
 	if err != nil {
@@ -565,7 +565,6 @@ func Test_dbContainerProfilesGet(t *testing.T) {
 
 	expected = []string{"theprofile"}
 	result, err = dbContainerProfilesGet(db, 1)
-
 	if err != nil {
 		t.Fatal(err)
 	}
