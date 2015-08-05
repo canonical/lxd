@@ -427,8 +427,12 @@ func dbGetImageExpiry(d *Daemon) (string, error) {
 	var expiry string
 	arg2 := []interface{}{&expiry}
 	err := dbQueryRowScan(d.db, q, arg1, arg2)
-	if err != nil {
+	switch err {
+	case sql.ErrNoRows:
+		return "10", nil
+	case nil:
+		return expiry, nil
+	default:
 		return "", err
 	}
-	return expiry, nil
 }

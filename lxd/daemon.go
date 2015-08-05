@@ -381,10 +381,11 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 }
 
 func (d *Daemon) pruneExpiredImages() {
-	expiry, err := dbGetImageExpiry(d)
 	shared.Debugf("Pruning expired images\n")
+	expiry, err := dbGetImageExpiry(d)
 	if err != nil { // no expiry
-		expiry = "10"
+		shared.Debugf("Failed getting the cached image expiry timeout\n")
+		return
 	}
 
 	q := `
