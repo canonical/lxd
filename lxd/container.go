@@ -251,10 +251,6 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 			c.Delete()
 			return nil, fmt.Errorf("Container not running\n")
 		}
-		if err != nil {
-			c.Delete()
-			return nil, err
-		}
 		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
 		if err := c.c.Checkpoint(opts); err != nil {
 			c.Delete()
