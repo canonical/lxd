@@ -244,9 +244,11 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		_, ok := config.Remotes[args[1]]
-		if !ok {
-			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
+		if args[1] != "" {
+			_, ok := config.Remotes[args[1]]
+			if !ok {
+				return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
+			}
 		}
 		config.DefaultRemote = args[1]
 
