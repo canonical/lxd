@@ -314,7 +314,7 @@ func (lw *storageLogWrapper) ContainerCreateFromImage(
 	container container, imageFingerprint string) error {
 
 	lw.log.Debug(
-		"ContainerCreate",
+		"ContainerCreateFromImage",
 		log.Ctx{
 			"imageFingerprint": imageFingerprint,
 			"name":             container.NameGet(),
