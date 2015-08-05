@@ -204,6 +204,7 @@ ensure_import_testimage() {
 }
 
 spawn_lxd 127.0.0.1:18443 $LXD_DIR
+lxc remote add DEFAULT unix:${LXD_DIR}/unix.socket
 
 export LXD2_DIR=$(mktemp -d -p $(pwd))
 chmod 777 "${LXD2_DIR}"
