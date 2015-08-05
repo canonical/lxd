@@ -260,10 +260,6 @@ func (s *storageBtrfs) ContainerSnapshotDelete(
 	}
 
 	oldPathParent := filepath.Dir(snapshotContainer.PathGet(""))
-	shared.Log.Debug(
-		"Trying to remove the parent path",
-		log.Ctx{"container": snapshotContainer.NameGet(), "parent": oldPathParent})
-
 	if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
 		os.Remove(oldPathParent)
 	}
