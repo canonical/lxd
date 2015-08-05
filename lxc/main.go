@@ -18,7 +18,7 @@ import (
 func main() {
 	if err := run(); err != nil {
 		// The action we take depends on the error we get.
-		msg := fmt.Sprintf(gettext.Gettext("error %v\n"), err)
+		msg := fmt.Sprintf(gettext.Gettext("error: %v\n"), err)
 		switch t := err.(type) {
 		case *url.Error:
 			switch u := t.Err.(type) {
