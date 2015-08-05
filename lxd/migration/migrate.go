@@ -119,9 +119,9 @@ func (c *migrationFields) controlChannel() <-chan MigrationControl {
 	return ch
 }
 
-func collectMigrationLogFile(c *lxc.Container, imagesDir string, method string) error {
+func CollectCRIULogFile(c *lxc.Container, imagesDir string, function string, method string) error {
 	t := time.Now().Format(time.RFC3339)
-	newPath := shared.LogPath(c.Name(), fmt.Sprintf("migration_%s_%s.log", method, t))
+	newPath := shared.LogPath(c.Name(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
 	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
 }
 
@@ -249,7 +249,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		opts := lxc.CheckpointOptions{Stop: true, Directory: checkpointDir, Verbose: true}
 		err = s.container.Checkpoint(opts)
 
-		if err2 := collectMigrationLogFile(s.container, checkpointDir, "dump"); err2 != nil {
+		if err2 := CollectCRIULogFile(s.container, checkpointDir, "migration", "dump"); err2 != nil {
 			shared.Debugf("error collecting checkpoint log file %s", err)
 		}
 
@@ -396,7 +396,7 @@ func (c *migrationSink) do() error {
 			}
 
 			defer func() {
-				err := collectMigrationLogFile(c.container, imagesDir, "restore")
+				err := CollectCRIULogFile(c.container, imagesDir, "migration", "restore")
 				/*
 				 * If the checkpoint fails, we won't have any log to collect,
 				 * so don't warn about that.
