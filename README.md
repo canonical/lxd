@@ -119,3 +119,15 @@ find and subscribe to those at: https://lists.linuxcontainers.org
 
 If you prefer live discussions, some of us also hang out in
 [#lxcontainers](http://webchat.freenode.net/?channels=#lxcontainers) on irc.freenode.net.
+
+## FAQ
+
+#### When I do a `lxc remote add` over https, it asks for a password?
+
+By default, LXD has no password for security reasons, so you can't do a remote
+add this way. In order to set a password, do:
+
+    lxc config set core.trust_password SECRET
+
+on the host LXD is running on. This will set the remote password that you can
+then use to do `lxc remote add`.
