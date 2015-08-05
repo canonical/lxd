@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"golang.org/x/crypto/scrypt"
 
@@ -47,6 +48,7 @@ type Daemon struct {
 	lxcpath       string
 	mux           *mux.Router
 	tomb          tomb.Tomb
+	pruneChan     chan bool
 
 	Storage storage
 
@@ -378,6 +380,35 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 	return nil
 }
 
+func (d *Daemon) pruneExpiredImages() {
+	shared.Debugf("Pruning expired images\n")
+	expiry, err := dbGetImageExpiry(d)
+	if err != nil { // no expiry
+		shared.Debugf("Failed getting the cached image expiry timeout\n")
+		return
+	}
+
+	q := `
+SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 'now', '-` + expiry + ` day')`
+	inargs := []interface{}{}
+	var fingerprint string
+	outfmt := []interface{}{fingerprint}
+
+	result, err := dbQueryScan(d.db, q, inargs, outfmt)
+	if err != nil {
+		shared.Debugf("error making cache expiry query: %s\n", err)
+		return
+	}
+	shared.Debugf("found %d expired images\n", len(result))
+
+	for _, r := range result {
+		if err := doDeleteImage(d, r[0].(string)); err != nil {
+			shared.Debugf("error deleting image: %s\n", err)
+		}
+	}
+	shared.Debugf("done pruning expired images\n")
+}
+
 // StartDaemon starts the shared daemon with the provided configuration.
 func StartDaemon() (*Daemon, error) {
 	d := &Daemon{}
@@ -599,6 +630,34 @@ func StartDaemon() (*Daemon, error) {
 
 	d.Sockets = sockets
 
+	d.pruneChan = make(chan bool)
+	go func() {
+		for {
+			expiryStr, err := dbGetImageExpiry(d)
+			var expiry int
+			if err != nil {
+				expiry = 10
+			} else {
+				expiry, err = strconv.Atoi(expiryStr)
+				if err != nil {
+					expiry = 10
+				}
+				if expiry <= 0 {
+					expiry = 1
+				}
+			}
+			timer := time.NewTimer(time.Duration(expiry) * 24 * time.Hour)
+			timeChan := timer.C
+			select {
+			case <-timeChan:
+				d.pruneExpiredImages()
+			case <-d.pruneChan:
+				d.pruneExpiredImages()
+				timer.Stop()
+			}
+		}
+	}()
+
 	d.tomb.Go(func() error {
 		for _, socket := range d.Sockets {
 			shared.Log.Info(" - binding socket", log.Ctx{"socket": socket.Addr()})
@@ -704,6 +763,8 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 	case "core.lvm_vg_name":
 		return true
 	case "core.lvm_thinpool_name":
+		return true
+	case "images.remote_cache_expiry":
 		return true
 	}
 

@@ -15,6 +15,7 @@ The key/value configuration is namespaced with the following namespaces
 currently supported:
  - core (core daemon configuration)
  - lxc (LXC configuration)
+ - images (image configuration)
 
 Key                             | Type          | Default                   | Description
 :--                             | :---          | :------                   | :----------

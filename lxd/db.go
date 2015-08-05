@@ -36,7 +36,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 12
+const DB_CURRENT_VERSION int = 13
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS containers_profiles (
 );
 CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    cached INTEGER NOT NULL DEFAULT 0,
     fingerprint VARCHAR(255) NOT NULL,
     filename VARCHAR(255) NOT NULL,
     size INTEGER NOT NULL,
@@ -106,6 +107,7 @@ CREATE TABLE IF NOT EXISTS images (
     creation_date DATETIME,
     expiry_date DATETIME,
     upload_date DATETIME NOT NULL,
+    last_use_date DATETIME,
     UNIQUE (fingerprint)
 );
 CREATE TABLE IF NOT EXISTS images_aliases (
@@ -404,5 +406,33 @@ func dbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 		shared.Debugf("DbExec: query %q args %q, DB was locked\n", q, args)
 		shared.PrintStack()
 		time.Sleep(1 * time.Second)
+	}
+}
+
+func dbUpdateImageLastAccess(d *Daemon, fingerprint string) error {
+	stmt := `UPDATE images SET last_use_date=strftime("%s") WHERE fingerprint=?`
+	_, err := dbExec(d.db, stmt, fingerprint)
+	return err
+}
+
+func dbInitImageLastAccess(d *Daemon, fingerprint string) error {
+	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
+	_, err := dbExec(d.db, stmt, fingerprint)
+	return err
+}
+
+func dbGetImageExpiry(d *Daemon) (string, error) {
+	q := `SELECT value FROM config WHERE key='images.remote_cache_expiry'`
+	arg1 := []interface{}{}
+	var expiry string
+	arg2 := []interface{}{&expiry}
+	err := dbQueryRowScan(d.db, q, arg1, arg2)
+	switch err {
+	case sql.ErrNoRows:
+		return "10", nil
+	case nil:
+		return expiry, nil
+	default:
+		return "", err
 	}
 }

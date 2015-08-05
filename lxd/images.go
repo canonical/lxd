@@ -240,7 +240,7 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq) Response {
 		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
 	}
 
-	err = ensureLocalImage(d, req.Source["server"], hash, req.Source["secret"])
+	err = ensureLocalImage(d, req.Source["server"], hash, req.Source["secret"], false)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -692,23 +692,21 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
 
-func imageDelete(d *Daemon, r *http.Request) Response {
-	fingerprint := mux.Vars(r)["fingerprint"]
-
+func doDeleteImage(d *Daemon, fingerprint string) error {
 	imgInfo, err := dbImageGet(d.db, fingerprint, false)
 	if err != nil {
-		return SmartError(err)
+		return err
 	}
 
 	if err = dbImageDelete(d.db, imgInfo.Id); err != nil {
-		return SmartError(err)
+		return err
 	}
 
 	// get storage before deleting images/$fp because we need to
 	// look at the path
 	s, err := storageForImage(d, imgInfo)
 	if err != nil {
-		return InternalError(err)
+		return err
 	}
 
 	fname := shared.VarPath("images", imgInfo.Fingerprint)
@@ -718,7 +716,17 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {
-		return InternalError(err)
+		return err
+	}
+
+	return nil
+}
+
+func imageDelete(d *Daemon, r *http.Request) Response {
+	fingerprint := mux.Vars(r)["fingerprint"]
+
+	if err := doDeleteImage(d, fingerprint); err != nil {
+		return SmartError(err)
 	}
 
 	return EmptySyncResponse
