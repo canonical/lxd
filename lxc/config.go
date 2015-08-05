@@ -110,7 +110,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		// 2 args means we're unsetting a server key
 		if len(args) == 2 {
 			key := args[1]
-			c, err := lxd.NewClient(config, "")
+			c, err := lxd.NewClient(config, config.DefaultRemote)
 			if err != nil {
 				return err
 			}
@@ -130,7 +130,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		// 3 args means we're setting a server key
 		if len(args) == 3 {
 			key := args[1]
-			c, err := lxd.NewClient(config, "")
+			c, err := lxd.NewClient(config, config.DefaultRemote)
 			if err != nil {
 				return err
 			}
@@ -234,7 +234,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 	case "show":
-		remote := ""
+		remote := config.DefaultRemote
 		container := ""
 		if len(args) > 1 {
 			remote, container = config.ParseRemoteAndContainer(args[1])
