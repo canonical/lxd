@@ -14,7 +14,7 @@ import (
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseInfo, error) {
+func dbImageGet(db *sql.DB, fingerprint string, public bool, strict_matching bool) (*shared.ImageBaseInfo, error) {
 	var err error
 	var create, expire, upload *time.Time // These hold the db-returned times
 
@@ -27,13 +27,25 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool) (*shared.ImageBaseI
 		&image.Size, &image.Public, &image.Architecture,
 		&create, &expire, &upload}
 
-	query := `
+	var query string
+
+	if strict_matching {
+		query = `
         SELECT
             id, fingerprint, filename, size, public, architecture,
             creation_date, expiry_date, upload_date
         FROM
             images
-        WHERE fingerprint like ?`
+        WHERE fingerprint = ?`
+	} else {
+		query = `
+        SELECT
+            id, fingerprint, filename, size, public, architecture,
+            creation_date, expiry_date, upload_date
+        FROM
+            images
+        WHERE fingerprint LIKE ?`
+	}
 
 	if public {
 		query = query + " AND public=1"
