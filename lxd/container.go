@@ -24,6 +24,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -252,7 +253,19 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 			return nil, fmt.Errorf("Container not running\n")
 		}
 		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
-		if err := c.c.Checkpoint(opts); err != nil {
+		source, err := sourceContainer.LXContainerGet()
+		if err != nil {
+			c.Delete()
+			return nil, err
+		}
+
+		err = source.Checkpoint(opts)
+		err2 := migration.CollectCRIULogFile(source, stateDir, "snapshot", "dump")
+		if err != nil {
+			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
+		}
+
+		if err != nil {
 			c.Delete()
 			return nil, err
 		}
