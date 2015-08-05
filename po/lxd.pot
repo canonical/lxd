@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-08-04 20:36-0500\n"
+        "POT-Creation-Date: 2015-08-05 17:00-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -101,7 +101,7 @@ msgstr  ""
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: lxc/profile.go:324
+#: lxc/profile.go:325
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -129,7 +129,7 @@ msgstr  ""
 msgid   "Connection refused; is LXD running?\n"
 msgstr  ""
 
-#: lxc/publish.go:53
+#: lxc/publish.go:55
 msgid   "Container name is mandatory"
 msgstr  ""
 
@@ -501,7 +501,7 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version\n"
 msgstr  ""
 
-#: lxc/profile.go:226
+#: lxc/profile.go:227
 #, c-format
 msgid   "Profile %s applied to %s\n"
 msgstr  ""
@@ -511,7 +511,7 @@ msgstr  ""
 msgid   "Profile %s created\n"
 msgstr  ""
 
-#: lxc/profile.go:215
+#: lxc/profile.go:216
 #, c-format
 msgid   "Profile %s deleted\n"
 msgstr  ""
@@ -532,7 +532,7 @@ msgid   "Publish containers as images.\n"
         "key=prop-value]...\n"
 msgstr  ""
 
-#: lxc/publish.go:65
+#: lxc/publish.go:67
 msgid   "Publish to remote server is not supported yet"
 msgstr  ""
 
@@ -597,7 +597,7 @@ msgstr  ""
 msgid   "The image architecture is incompatible with the target server"
 msgstr  ""
 
-#: lxc/publish.go:56
+#: lxc/publish.go:58
 msgid   "There is no \"image name\".  Did you want an alias?"
 msgstr  ""
 
@@ -609,12 +609,12 @@ msgstr  ""
 msgid   "Timestamps:\n"
 msgstr  ""
 
-#: lxc/image.go:453
+#: lxc/image.go:454
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
 
-#: lxc/remote.go:260
+#: lxc/remote.go:262
 #, c-format
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
@@ -646,7 +646,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:390 lxc/image.go:382 lxc/profile.go:197
+#: lxc/config.go:390 lxc/image.go:383 lxc/profile.go:198
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -693,7 +693,7 @@ msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
 #: lxc/main.go:21
-msgid   "error %v\n"
+msgid   "error: %v\n"
 msgstr  ""
 
 #: lxc/main.go:120
@@ -773,7 +773,7 @@ msgstr  ""
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:192 lxc/remote.go:218 lxc/remote.go:238 lxc/remote.go:249
+#: lxc/remote.go:192 lxc/remote.go:218 lxc/remote.go:238 lxc/remote.go:250
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""
