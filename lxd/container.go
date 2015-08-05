@@ -247,7 +247,7 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 		}
 
 		// TODO - shouldn't we freeze for the duration of rootfs snapshot below?
-		if !c.IsRunning() {
+		if !sourceContainer.IsRunning() {
 			c.Delete()
 			return nil, fmt.Errorf("Container not running\n")
 		}
