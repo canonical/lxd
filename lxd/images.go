@@ -692,7 +692,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
 
-func DeleteImage(d *Daemon, fingerprint string) error {
+func doDeleteImage(d *Daemon, fingerprint string) error {
 	imgInfo, err := dbImageGet(d.db, fingerprint, false)
 	if err != nil {
 		return err
@@ -725,7 +725,7 @@ func DeleteImage(d *Daemon, fingerprint string) error {
 func imageDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	if err := DeleteImage(d, fingerprint); err != nil {
+	if err := doDeleteImage(d, fingerprint); err != nil {
 		return SmartError(err)
 	}
 
