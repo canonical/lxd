@@ -12,6 +12,7 @@ gen_third_cert() {
 test_basic_usage() {
 
   ensure_import_testimage
+  ensure_has_localhost_remote
 
   # Test image export
   sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
