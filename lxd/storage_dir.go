@@ -85,19 +85,6 @@ func (s *storageDir) ContainerDelete(container container) error {
 		return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
 	}
 
-	// If its name contains a "/" also remove the parent,
-	// this should only happen with snapshot containers
-	if strings.Contains(container.NameGet(), "/") {
-		oldPathParent := filepath.Dir(container.PathGet(""))
-		if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
-			os.Remove(oldPathParent)
-		} else {
-			shared.Log.Debug(
-				"Cannot remove the parent of this container its not empty",
-				log.Ctx{"container": container.NameGet(), "parent": oldPathParent})
-		}
-	}
-
 	return nil
 }
 
@@ -196,8 +183,17 @@ func (s *storageDir) ContainerSnapshotCreate(
 }
 func (s *storageDir) ContainerSnapshotDelete(
 	snapshotContainer container) error {
+	err := s.ContainerDelete(snapshotContainer)
+	if err != nil {
+		return fmt.Errorf("Error deleting snapshot %s: %s", snapshotContainer.NameGet(), err)
+	}
 
-	return s.ContainerDelete(snapshotContainer)
+	oldPathParent := filepath.Dir(snapshotContainer.PathGet(""))
+	if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
+		os.Remove(oldPathParent)
+	}
+
+	return nil
 }
 
 func (s *storageDir) ContainerSnapshotRename(
