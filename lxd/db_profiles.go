@@ -86,6 +86,10 @@ func dbProfileCreate(db *sql.DB, profile string, config map[string]string,
 
 func dbProfileCreateDefault(db *sql.DB) error {
 	id, err := dbProfileIDGet(db, "default")
+	if err != nil {
+		return err
+	}
+
 	if id != -1 {
 		// default profile already exists
 		return nil
@@ -103,6 +107,28 @@ func dbProfileCreateDefault(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func dbProfileCreateMigratable(db *sql.DB) error {
+	id, err := dbProfileIDGet(db, "migratable")
+	if err != nil {
+		return err
+	}
+
+	if id != -1 {
+		// migratable profile already exists
+		return nil
+	}
+
+	config := map[string]string{
+		"security.privileged": "true",
+		"raw.lxc": `lxc.console = none
+lxc.cgroup.devices.deny = c 5:1 rwm
+lxc.seccomp =`,
+	}
+
+	_, err = dbProfileCreate(db, "migratable", config, shared.Devices{})
+	return err
 }
 
 // Get the profile configuration map from the DB

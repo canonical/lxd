@@ -12,7 +12,7 @@ ARCHIVE=lxd-$(VERSION).tar
 
 .PHONY: default
 default:
-	go get -v -d ./...
+	go get -v -d ./... || true
 	go install -v ./...
 
 .PHONY: client
