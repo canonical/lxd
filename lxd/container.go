@@ -24,6 +24,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -233,10 +234,6 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 		return nil, err
 	}
 
-	// Now copy the source
-	sourceContainer.StorageStart()
-	defer sourceContainer.StorageStop()
-
 	if err := c.Storage.ContainerSnapshotCreate(c, sourceContainer); err != nil {
 		c.Delete()
 		return nil, err
@@ -251,16 +248,24 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 		}
 
 		// TODO - shouldn't we freeze for the duration of rootfs snapshot below?
-		if !c.IsRunning() {
+		if !sourceContainer.IsRunning() {
 			c.Delete()
 			return nil, fmt.Errorf("Container not running\n")
 		}
+		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
+		source, err := sourceContainer.LXContainerGet()
 		if err != nil {
 			c.Delete()
 			return nil, err
 		}
-		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
-		if err := c.c.Checkpoint(opts); err != nil {
+
+		err = source.Checkpoint(opts)
+		err2 := migration.CollectCRIULogFile(source, stateDir, "snapshot", "dump")
+		if err != nil {
+			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
+		}
+
+		if err != nil {
 			c.Delete()
 			return nil, err
 		}
