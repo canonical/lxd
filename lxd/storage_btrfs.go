@@ -38,13 +38,21 @@ func (s *storageBtrfs) GetStorageType() storageType {
 }
 
 func (s *storageBtrfs) ContainerCreate(container container) error {
-	err := s.subvolCreate(container.PathGet(""))
+	cPath := container.PathGet("")
+
+	// MkdirAll the pardir of the BTRFS Subvolume.
+	if err := os.MkdirAll(filepath.Dir(cPath), 0755); err != nil {
+		return err
+	}
+
+	// Create the BTRFS Subvolume
+	err := s.subvolCreate(cPath)
 	if err != nil {
 		return err
 	}
 
 	if container.IsPrivileged() {
-		if err := os.Chmod(container.PathGet(""), 0700); err != nil {
+		if err := os.Chmod(cPath, 0700); err != nil {
 			return err
 		}
 	}
@@ -117,12 +125,17 @@ func (s *storageBtrfs) ContainerCopy(container container, sourceContainer contai
 			return err
 		}
 	} else {
+		// Create the BTRFS Container.
+		if err := s.ContainerCreate(container); err != nil {
+			return err
+		}
+
 		/*
 		 * Copy by using rsync
 		 */
 		output, err := storageRsyncCopy(
-			sourceContainer.RootfsPathGet(),
-			container.RootfsPathGet())
+			sourceContainer.PathGet(""),
+			container.PathGet(""))
 		if err != nil {
 			s.ContainerDelete(container)
 
