@@ -2,15 +2,24 @@
 // source: lxd/migration/migrate.proto
 // DO NOT EDIT!
 
+/*
+Package migration is a generated protocol buffer package.
+
+It is generated from these files:
+	lxd/migration/migrate.proto
+
+It has these top-level messages:
+	IDMapType
+	MigrationHeader
+	MigrationControl
+*/
 package migration
 
 import proto "github.com/golang/protobuf/proto"
-import json "encoding/json"
 import math "math"
 
-// Reference proto, json, and math imports to suppress error if they are not otherwise used.
+// Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
-var _ = &json.SyntaxError{}
 var _ = math.Inf
 
 type MigrationFSType int32
@@ -36,9 +45,6 @@ func (x MigrationFSType) Enum() *MigrationFSType {
 }
 func (x MigrationFSType) String() string {
 	return proto.EnumName(MigrationFSType_name, int32(x))
-}
-func (x MigrationFSType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.String())
 }
 func (x *MigrationFSType) UnmarshalJSON(data []byte) error {
 	value, err := proto.UnmarshalJSONEnum(MigrationFSType_value, data, "MigrationFSType")
@@ -73,9 +79,6 @@ func (x CRIUType) Enum() *CRIUType {
 func (x CRIUType) String() string {
 	return proto.EnumName(CRIUType_name, int32(x))
 }
-func (x CRIUType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.String())
-}
 func (x *CRIUType) UnmarshalJSON(data []byte) error {
 	value, err := proto.UnmarshalJSONEnum(CRIUType_value, data, "CRIUType")
 	if err != nil {
@@ -85,9 +88,58 @@ func (x *CRIUType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type IDMapType struct {
+	Isuid            *bool  `protobuf:"varint,1,req,name=isuid" json:"isuid,omitempty"`
+	Isgid            *bool  `protobuf:"varint,2,req,name=isgid" json:"isgid,omitempty"`
+	Hostid           *int32 `protobuf:"varint,3,req,name=hostid" json:"hostid,omitempty"`
+	Nsid             *int32 `protobuf:"varint,4,req,name=nsid" json:"nsid,omitempty"`
+	Maprange         *int32 `protobuf:"varint,5,req,name=maprange" json:"maprange,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *IDMapType) Reset()         { *m = IDMapType{} }
+func (m *IDMapType) String() string { return proto.CompactTextString(m) }
+func (*IDMapType) ProtoMessage()    {}
+
+func (m *IDMapType) GetIsuid() bool {
+	if m != nil && m.Isuid != nil {
+		return *m.Isuid
+	}
+	return false
+}
+
+func (m *IDMapType) GetIsgid() bool {
+	if m != nil && m.Isgid != nil {
+		return *m.Isgid
+	}
+	return false
+}
+
+func (m *IDMapType) GetHostid() int32 {
+	if m != nil && m.Hostid != nil {
+		return *m.Hostid
+	}
+	return 0
+}
+
+func (m *IDMapType) GetNsid() int32 {
+	if m != nil && m.Nsid != nil {
+		return *m.Nsid
+	}
+	return 0
+}
+
+func (m *IDMapType) GetMaprange() int32 {
+	if m != nil && m.Maprange != nil {
+		return *m.Maprange
+	}
+	return 0
+}
+
 type MigrationHeader struct {
 	Fs               *MigrationFSType `protobuf:"varint,1,req,name=fs,enum=migration.MigrationFSType" json:"fs,omitempty"`
 	Criu             *CRIUType        `protobuf:"varint,2,opt,name=criu,enum=migration.CRIUType" json:"criu,omitempty"`
+	Idmap            []*IDMapType     `protobuf:"bytes,3,rep,name=idmap" json:"idmap,omitempty"`
 	XXX_unrecognized []byte           `json:"-"`
 }
 
@@ -99,14 +151,21 @@ func (m *MigrationHeader) GetFs() MigrationFSType {
 	if m != nil && m.Fs != nil {
 		return *m.Fs
 	}
-	return 0
+	return MigrationFSType_RSYNC
 }
 
 func (m *MigrationHeader) GetCriu() CRIUType {
 	if m != nil && m.Criu != nil {
 		return *m.Criu
 	}
-	return 0
+	return CRIUType_CRIU_RSYNC
+}
+
+func (m *MigrationHeader) GetIdmap() []*IDMapType {
+	if m != nil {
+		return m.Idmap
+	}
+	return nil
 }
 
 type MigrationControl struct {
