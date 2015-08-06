@@ -65,6 +65,7 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 		"-HAX",
 		"--devices",
 		"--delete",
+		"--checksum",
 		rsyncVerbosity,
 		shared.AddSlash(source),
 		dest).CombinedOutput()
