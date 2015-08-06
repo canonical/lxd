@@ -352,7 +352,7 @@ func ValidContainerConfigKey(k string) bool {
 		return true
 	}
 
-	if _, err := ExtractInterfaceFromConfigName(k); err == nil {
+	if _, err := extractInterfaceFromConfigName(k); err == nil {
 		return true
 	}
 

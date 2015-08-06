@@ -469,7 +469,7 @@ SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 
 }
 
 // StartDaemon starts the shared daemon with the provided configuration.
-func StartDaemon() (*Daemon, error) {
+func startDaemon() (*Daemon, error) {
 	d := &Daemon{}
 
 	/* Setup logging */
