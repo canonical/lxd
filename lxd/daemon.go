@@ -336,6 +336,65 @@ func setupSharedMounts() error {
 	return nil
 }
 
+func (d *Daemon) ListenAddresses() ([]string, error) {
+	addresses := make([]string, 0)
+
+	value, err := d.ConfigValueGet("core.https_address")
+	if err != nil || value == "" {
+		return addresses, err
+	}
+
+	localHost, localPort, err := net.SplitHostPort(value)
+	if err != nil {
+		localHost = value
+		localPort = shared.DefaultPort
+	}
+
+	if localHost == "0.0.0.0" || localHost == "::" {
+		ifaces, err := net.Interfaces()
+		if err != nil {
+			return addresses, err
+		}
+
+		for _, i := range ifaces {
+			addrs, err := i.Addrs()
+			if err != nil {
+				continue
+			}
+
+			for _, addr := range addrs {
+				var ip net.IP
+				switch v := addr.(type) {
+				case *net.IPNet:
+					ip = v.IP
+				case *net.IPAddr:
+					ip = v.IP
+				}
+
+				if !ip.IsGlobalUnicast() {
+					continue
+				}
+
+				if ip.To4() == nil {
+					if localHost == "0.0.0.0" {
+						continue
+					}
+					addresses = append(addresses, fmt.Sprintf("[%s]:%s", ip, localPort))
+				} else {
+					addresses = append(addresses, fmt.Sprintf("%s:%s", ip, localPort))
+				}
+			}
+		}
+	} else {
+		ip := net.ParseIP(localHost)
+		if ip != nil && ip.IsGlobalUnicast() {
+			addresses = append(addresses, value)
+		}
+	}
+
+	return addresses, nil
+}
+
 func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 	var sockets []net.Listener
 
