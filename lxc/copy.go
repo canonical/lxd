@@ -118,21 +118,13 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		}
 
 		sourceWSUrl := source.BaseWSURL + path.Join(sourceWSResponse.Operation, "websocket")
-		migration, err := dest.MigrateFrom(sourceName, sourceWSUrl, secrets, status.Config, status.Profiles, baseImage)
+		migration, err := dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Config, status.Profiles, baseImage)
 		if err != nil {
 			return err
 		}
 
 		if err := dest.WaitForSuccess(migration.Operation); err != nil {
 			return err
-		}
-
-		if sourceName != destName {
-			rename, err := dest.Rename(sourceName, destName)
-			if err != nil {
-				return err
-			}
-			return dest.WaitForSuccess(rename.Operation)
 		}
 
 		return nil

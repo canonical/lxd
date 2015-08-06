@@ -79,7 +79,13 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			kernelArchitecture += string(byte(c))
 		}
 
+		addresses, err := d.ListenAddresses()
+		if err != nil {
+			return InternalError(err)
+		}
+
 		env := shared.Jmap{
+			"addresses":           addresses,
 			"architectures":       d.architectures,
 			"backing_fs":          d.BackingFs,
 			"driver":              "lxc",

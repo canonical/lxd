@@ -184,6 +184,7 @@ Return value (if trusted):
         'api_compat': 0,                                # Used to determine API functionality
         'config': {"trust_password": True},             # Host configuration
         'environment': {                                # Various information about the host (OS, kernel, ...)
+                        'addresses': ["1.2.3.4:8443", "[1234::1234]:8443"],
                         'architectures': [1, 2],
                         'backing_fs': "ext4",
                         'kernel': "Linux",
