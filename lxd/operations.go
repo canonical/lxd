@@ -16,7 +16,7 @@ import (
 var lock sync.Mutex
 var operations map[string]*shared.Operation = make(map[string]*shared.Operation)
 
-func CreateOperation(metadata shared.Jmap, resources map[string][]string, run func() shared.OperationResult, cancel func() error, ws shared.OperationWebsocket) (string, error) {
+func createOperation(metadata shared.Jmap, resources map[string][]string, run func() shared.OperationResult, cancel func() error, ws shared.OperationWebsocket) (string, error) {
 	id := uuid.NewV4().String()
 	op := shared.Operation{}
 	op.CreatedAt = time.Now()
@@ -56,7 +56,7 @@ func CreateOperation(metadata shared.Jmap, resources map[string][]string, run fu
 	return url, nil
 }
 
-func StartOperation(id string) error {
+func startOperation(id string) error {
 	lock.Lock()
 	op, ok := operations[id]
 	if !ok {

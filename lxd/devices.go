@@ -28,7 +28,7 @@ func addBlockDev(dev string) ([]string, error) {
 	return line, err
 }
 
-func DeviceToLxc(d shared.Device) ([][]string, error) {
+func deviceToLxc(d shared.Device) ([][]string, error) {
 	switch d["type"] {
 	case "unix-char":
 		return nil, fmt.Errorf("Not implemented")
@@ -130,7 +130,7 @@ func dbDeviceTypeToString(t int) (string, error) {
 	}
 }
 
-func DeviceTypeToDbType(t string) (int, error) {
+func deviceTypeToDbType(t string) (int, error) {
 	switch t {
 	case "none":
 		return 0, nil
@@ -147,7 +147,7 @@ func DeviceTypeToDbType(t string) (int, error) {
 	}
 }
 
-func ValidDeviceConfig(t, k, v string) bool {
+func validDeviceConfig(t, k, v string) bool {
 	if k == "type" {
 		return false
 	}
@@ -278,14 +278,14 @@ func setupNic(c container, d map[string]string) (string, error) {
 	}
 	err = exec.Command("brctl", "addif", d["parent"], n1).Run()
 	if err != nil {
-		RemoveInterface(n2)
+		removeInterface(n2)
 		return "", err
 	}
 
 	return n2, nil
 }
 
-func RemoveInterface(nic string) {
+func removeInterface(nic string) {
 	_ = exec.Command("ip", "link", "del", nic).Run()
 }
 
@@ -380,7 +380,7 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 				return fmt.Errorf("Unable to create nic %s for container %s: %s", dev["name"], c.NameGet(), err)
 			}
 			if err := lxContainer.AttachInterface(tmpName, dev["name"]); err != nil {
-				RemoveInterface(tmpName)
+				removeInterface(tmpName)
 				return fmt.Errorf("Unable to move nic %s into container %s as %s: %s", tmpName, c.NameGet(), dev["name"], err)
 			}
 			// Now we need to add the name to the database

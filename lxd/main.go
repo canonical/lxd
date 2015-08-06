@@ -124,7 +124,7 @@ func run() error {
 		}()
 	}
 
-	d, err := StartDaemon()
+	d, err := startDaemon()
 
 	if err != nil {
 		if d != nil && d.db != nil {
