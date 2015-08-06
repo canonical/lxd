@@ -13,6 +13,14 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV13(db *sql.DB) error {
+	stmt := `
+UPDATE containers_config SET key='volatile.base_image' WHERE key = 'volatile.baseImage';
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 14)
+	return err
+}
+
 func dbUpdateFromV12(db *sql.DB) error {
 	stmt := `
 ALTER TABLE images ADD COLUMN cached INTEGER NOT NULL DEFAULT 0;
@@ -569,6 +577,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 13 {
 		err = dbUpdateFromV12(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 14 {
+		err = dbUpdateFromV13(db)
 		if err != nil {
 			return err
 		}

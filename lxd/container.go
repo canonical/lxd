@@ -313,7 +313,7 @@ func containerLXDCreateInternal(
 	}
 
 	if args.BaseImage != "" {
-		args.Config["volatile.baseImage"] = args.BaseImage
+		args.Config["volatile.base_image"] = args.BaseImage
 	}
 
 	if args.Devices == nil {
