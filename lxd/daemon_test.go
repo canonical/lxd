@@ -1,10 +1,15 @@
 package main
 
-import "testing"
+import (
+	"sync"
+	"testing"
+)
 
 func mockStartDaemon() (*Daemon, error) {
 	d := &Daemon{
-		IsMock: true,
+		IsMock:                true,
+		imagesDownloading:     map[string]*sync.Mutex{},
+		imagesDownloadingLock: sync.RWMutex{},
 	}
 
 	if err := d.Init(); err != nil {

@@ -37,7 +37,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	}
 
 	if req.Source.Server != "" {
-		err := ensureLocalImage(d, req.Source.Server, hash, req.Source.Secret, true)
+		err := d.ImageDownload(req.Source.Server, hash, req.Source.Secret, true)
 		if err != nil {
 			return InternalError(err)
 		}
