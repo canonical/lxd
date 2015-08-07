@@ -18,6 +18,8 @@ test_migration() {
 
   lxc copy l2:nonlive l2:nonlive2
   lxc config get l2:nonlive2 volatile.base_image | grep -q base_image
+  # check that nonlive2 has a new addr in volatile
+  [ "`lxc config get l2:nonlive volatile.eth0.hwaddr`" != "`lxc config get l2:nonlive2 volatile.eth0.hwaddr`" ]
 
   lxc config unset l2:nonlive volatile.base_image
   lxc copy l2:nonlive l1:nobase

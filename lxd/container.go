@@ -211,7 +211,6 @@ func containerLXDCreateAsCopy(d *Daemon, name string,
 		return nil, err
 	}
 
-	// Now copy the source
 	sourceContainer.StorageStart()
 	defer sourceContainer.StorageStop()
 
