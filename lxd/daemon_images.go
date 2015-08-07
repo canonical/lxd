@@ -20,10 +20,15 @@ import (
 func (d *Daemon) ImageDownload(
 	server, fp string, secret string, forContainer bool) error {
 
-	if _, err := dbImageGet(d.db, fp, false, true); err == nil {
+	if id := dbImageIDGet(d.db, fp); id != -1 {
+		shared.Log.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		// already have it
 		return nil
 	}
+
+	shared.Log.Info(
+		"Image not in the db downloading it",
+		log.Ctx{"image": fp, "server": server})
 
 	// Now check if we already downloading the image
 	d.imagesDownloadingLock.RLock()
@@ -41,29 +46,12 @@ func (d *Daemon) ImageDownload(
 		lock.Lock()
 		lock.Unlock()
 
-		// Somehow dbImageGet fails here so i use dbImagesGet.
-		{
-			results, err := dbImagesGet(d.db, false)
-			if err != nil {
-				shared.Log.Error("Failed to get the image list")
-				return fmt.Errorf("Failed to get the image list")
-			}
+		if id := dbImageIDGet(d.db, fp); id == -1 {
+			shared.Log.Error(
+				"Previous download didn't succeed",
+				log.Ctx{"image": fp})
 
-			found := false
-			for _, imagesFP := range results {
-				if imagesFP == fp {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				shared.Log.Error(
-					"Previous download didn't succeed",
-					log.Ctx{"image": fp, "err": err})
-
-				return fmt.Errorf("Previous download didn't succeed")
-			}
+			return fmt.Errorf("Previous download didn't succeed")
 		}
 
 		shared.Log.Info(
@@ -265,13 +253,13 @@ func (d *Daemon) ImageDownload(
 		return err
 	}
 
-	if forContainer {
-		return dbImageLastAccessInit(d.db, fp)
-	}
-
 	shared.Log.Info(
 		"Download succeeded",
 		log.Ctx{"image": fp})
+
+	if forContainer {
+		return dbImageLastAccessInit(d.db, fp)
+	}
 
 	return nil
 }
