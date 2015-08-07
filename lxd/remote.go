@@ -31,7 +31,7 @@ func ensureLocalImage(d *Daemon, server, fp string, secret string, forContainer 
 	var url string
 	var exporturl string
 
-	if dbImageIDGet(d.db, fp) != -1 {
+	if _, err := dbImageGet(d.db, fp, false, true); err == nil {
 		// already have it
 		return nil
 	}
