@@ -2,44 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
 )
-
-func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
-	results, err := dbImagesGet(d.db, public)
-	if err != nil {
-		return []string{}, err
-	}
-
-	resultString := make([]string, len(results))
-	resultMap := make([]shared.ImageInfo, len(results))
-	i := 0
-	for _, name := range results {
-		if !recursion {
-			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
-			resultString[i] = url
-		} else {
-			image, response := doImageGet(d, name, public)
-			if response != nil {
-				continue
-			}
-			resultMap[i] = image
-		}
-
-		i++
-	}
-
-	if !recursion {
-		return resultString, nil
-	}
-
-	return resultMap, nil
-}
 
 func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
 	q := "SELECT fingerprint FROM images"
