@@ -38,6 +38,7 @@ type Client struct {
 	http            http.Client
 	BaseURL         string
 	BaseWSURL       string
+	Transport       string
 	certf           string
 	keyf            string
 	websocketDialer websocket.Dialer
@@ -190,12 +191,14 @@ func NewClient(config *Config, remote string) (*Client, error) {
 	if remote == "" {
 		c.BaseURL = "http://unix.socket"
 		c.BaseWSURL = "ws://unix.socket"
+		c.Transport = "unix"
 		c.http.Transport = &unixTransport
 		c.websocketDialer.NetDial = unixDial
 	} else if r, ok := config.Remotes[remote]; ok {
 		if r.Addr[0:5] == "unix:" {
 			c.BaseURL = "http://unix.socket"
 			c.BaseWSURL = "ws://unix.socket"
+			c.Transport = "unix"
 			uDial := func(networ, addr string) (net.Conn, error) {
 				var err error
 				var raddr *net.UnixAddr
@@ -245,6 +248,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 				c.BaseURL = "https://" + r.Addr
 				c.BaseWSURL = "wss://" + r.Addr
 			}
+			c.Transport = "https"
 			c.http.Transport = tr
 			c.loadServerCert()
 			c.Remote = &r
