@@ -447,7 +447,7 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 
 func (d *Daemon) pruneExpiredImages() {
 	shared.Debugf("Pruning expired images\n")
-	expiry, err := dbGetImageExpiry(d)
+	expiry, err := dbImageExpiryGet(d.db)
 	if err != nil { // no expiry
 		shared.Debugf("Failed getting the cached image expiry timeout\n")
 		return
@@ -584,7 +584,7 @@ func (d *Daemon) Init() error {
 	d.pruneChan = make(chan bool)
 	go func() {
 		for {
-			expiryStr, err := dbGetImageExpiry(d)
+			expiryStr, err := dbImageExpiryGet(d.db)
 			var expiry int
 			if err != nil {
 				expiry = 10

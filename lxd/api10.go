@@ -112,7 +112,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			}
 		}
 
-		expiry, err := dbGetImageExpiry(d)
+		expiry, err := dbImageExpiryGet(d.db)
 		if err != nil || expiry == "" {
 			expiry = "10"
 		}
