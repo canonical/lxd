@@ -417,31 +417,3 @@ func dbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 		time.Sleep(1 * time.Second)
 	}
 }
-
-func dbUpdateImageLastAccess(d *Daemon, fingerprint string) error {
-	stmt := `UPDATE images SET last_use_date=strftime("%s") WHERE fingerprint=?`
-	_, err := dbExec(d.db, stmt, fingerprint)
-	return err
-}
-
-func dbInitImageLastAccess(d *Daemon, fingerprint string) error {
-	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
-	_, err := dbExec(d.db, stmt, fingerprint)
-	return err
-}
-
-func dbGetImageExpiry(d *Daemon) (string, error) {
-	q := `SELECT value FROM config WHERE key='images.remote_cache_expiry'`
-	arg1 := []interface{}{}
-	var expiry string
-	arg2 := []interface{}{&expiry}
-	err := dbQueryRowScan(d.db, q, arg1, arg2)
-	switch err {
-	case sql.ErrNoRows:
-		return "10", nil
-	case nil:
-		return expiry, nil
-	default:
-		return "", err
-	}
-}

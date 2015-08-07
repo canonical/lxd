@@ -266,7 +266,7 @@ func (d *Daemon) ImageDownload(
 	}
 
 	if forContainer {
-		return dbInitImageLastAccess(d, fp)
+		return dbImageLastAccessInit(d.db, fp)
 	}
 
 	shared.Log.Info(

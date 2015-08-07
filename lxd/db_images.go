@@ -174,3 +174,31 @@ func dbImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
 	_, err := dbExec(db, stmt, name, imageID, desc)
 	return err
 }
+
+func dbImageLastAccessUpdate(db *sql.DB, fingerprint string) error {
+	stmt := `UPDATE images SET last_use_date=strftime("%s") WHERE fingerprint=?`
+	_, err := dbExec(db, stmt, fingerprint)
+	return err
+}
+
+func dbImageLastAccessInit(db *sql.DB, fingerprint string) error {
+	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
+	_, err := dbExec(db, stmt, fingerprint)
+	return err
+}
+
+func dbImageExpiryGet(db *sql.DB) (string, error) {
+	q := `SELECT value FROM config WHERE key='images.remote_cache_expiry'`
+	arg1 := []interface{}{}
+	var expiry string
+	arg2 := []interface{}{&expiry}
+	err := dbQueryRowScan(db, q, arg1, arg2)
+	switch err {
+	case sql.ErrNoRows:
+		return "10", nil
+	case nil:
+		return expiry, nil
+	default:
+		return "", err
+	}
+}
