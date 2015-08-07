@@ -64,7 +64,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func dbImageGet(db *sql.DB, fingerprint string, public bool, strict_matching bool) (*shared.ImageBaseInfo, error) {
+func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) (*shared.ImageBaseInfo, error) {
 	var err error
 	var create, expire, upload *time.Time // These hold the db-returned times
 
@@ -79,7 +79,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strict_matching boo
 
 	var query string
 
-	if strict_matching {
+	if strictMatching {
 		query = `
         SELECT
             id, fingerprint, filename, size, public, architecture,
