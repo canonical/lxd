@@ -88,10 +88,6 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 
 		return source.WaitForSuccess(cp.Operation)
 	} else {
-		if sourceRemote == "" || destRemote == "" {
-			return fmt.Errorf(gettext.Gettext("non-http remotes are not supported for migration right now"))
-		}
-
 		dest, err := lxd.NewClient(config, destRemote)
 		if err != nil {
 			return err
@@ -117,17 +113,41 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			return err
 		}
 
-		sourceWSUrl := source.BaseWSURL + path.Join(sourceWSResponse.Operation, "websocket")
-		migration, err := dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Config, status.Profiles, baseImage)
-		if err != nil {
-			return err
+		addresses := make([]string, 0)
+
+		if source.Transport == "unix" {
+			serverStatus, err := source.ServerStatus()
+			if err != nil {
+				return err
+			}
+			addresses = serverStatus.Environment.Addresses
+		} else if source.Transport == "https" {
+			addresses = append(addresses, source.BaseURL[8:])
+		} else {
+			return fmt.Errorf(gettext.Gettext("unknown transport type: %s"), source.Transport)
 		}
 
-		if err := dest.WaitForSuccess(migration.Operation); err != nil {
-			return err
+		if len(addresses) == 0 {
+			return fmt.Errorf(gettext.Gettext("The source remote isn't available over the network"))
 		}
 
-		return nil
+		for _, addr := range addresses {
+			sourceWSUrl := "wss://" + addr + path.Join(sourceWSResponse.Operation, "websocket")
+
+			var migration *lxd.Response
+			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Config, status.Profiles, baseImage)
+			if err != nil {
+				continue
+			}
+
+			if err = dest.WaitForSuccess(migration.Operation); err != nil {
+				continue
+			}
+
+			return nil
+		}
+
+		return err
 	}
 }
 
