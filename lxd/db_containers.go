@@ -92,7 +92,7 @@ func dbContainerCreate(db *sql.DB, name string, args containerLXDArgs) (int, err
 			args.Config = map[string]string{}
 		}
 
-		args.Config["volatile.baseImage"] = args.BaseImage
+		args.Config["volatile.base_image"] = args.BaseImage
 	}
 
 	tx, err := dbBegin(db)
@@ -348,7 +348,7 @@ func ValidContainerConfigKey(k string) bool {
 		return true
 	case "raw.lxc":
 		return true
-	case "volatile.baseImage":
+	case "volatile.base_image":
 		return true
 	}
 
