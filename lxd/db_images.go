@@ -11,33 +11,27 @@ import (
 )
 
 func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
-	resultString := []string{}
-	resultMap := []shared.ImageInfo{}
-
-	q := "SELECT fingerprint FROM images"
-	var name string
-	if public == true {
-		q = "SELECT fingerprint FROM images WHERE public=1"
-	}
-	inargs := []interface{}{}
-	outfmt := []interface{}{name}
-	results, err := dbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbImagesGet(d.db, public)
 	if err != nil {
 		return []string{}, err
 	}
 
-	for _, r := range results {
-		name = r[0].(string)
+	resultString := make([]string, len(results))
+	resultMap := make([]shared.ImageInfo, len(results))
+	i := 0
+	for _, name := range results {
 		if !recursion {
 			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
-			resultString = append(resultString, url)
+			resultString[i] = url
 		} else {
 			image, response := doImageGet(d, name, public)
 			if response != nil {
 				continue
 			}
-			resultMap = append(resultMap, image)
+			resultMap[i] = image
 		}
+
+		i++
 	}
 
 	if !recursion {
@@ -45,6 +39,28 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 	}
 
 	return resultMap, nil
+}
+
+func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
+	q := "SELECT fingerprint FROM images"
+	if public == true {
+		q = "SELECT fingerprint FROM images WHERE public=1"
+	}
+
+	var fp string
+	inargs := []interface{}{}
+	outfmt := []interface{}{fp}
+	dbResults, err := dbQueryScan(db, q, inargs, outfmt)
+	if err != nil {
+		return []string{}, err
+	}
+
+	results := []string{}
+	for _, r := range dbResults {
+		results = append(results, r[0].(string))
+	}
+
+	return results, nil
 }
 
 // dbImageGet gets an ImageBaseInfo object from the database.

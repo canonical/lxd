@@ -239,7 +239,9 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq) Response {
 		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
 	}
 
-	err = ensureLocalImage(d, req.Source["server"], hash, req.Source["secret"], false)
+	err = d.ImageDownload(
+		req.Source["server"], hash, req.Source["secret"], false)
+
 	if err != nil {
 		return InternalError(err)
 	}

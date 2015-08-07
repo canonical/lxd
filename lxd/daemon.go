@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -60,7 +61,10 @@ type Daemon struct {
 
 	configValues map[string]string
 
-	IsMock bool
+	IsMock                bool
+
+	imagesDownloading     map[string]*sync.Mutex
+	imagesDownloadingLock sync.RWMutex
 }
 
 // Command is the basic structure for every API call.
@@ -473,7 +477,9 @@ SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 
 // StartDaemon starts the shared daemon with the provided configuration.
 func startDaemon() (*Daemon, error) {
 	d := &Daemon{
-		IsMock: false,
+		IsMock:                false,
+		imagesDownloading:     map[string]*sync.Mutex{},
+		imagesDownloadingLock: sync.RWMutex{},
 	}
 
 	if err := d.Init(); err != nil {
