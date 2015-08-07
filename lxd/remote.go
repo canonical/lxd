@@ -27,23 +27,11 @@ func remoteGetImageFingerprint(d *Daemon, server string, alias string) (string, 
 	return result.Name, nil
 }
 
-func (d *Daemon) dbGetimage(fp string) int {
-	q := `SELECT id FROM images WHERE fingerprint=?`
-	id := -1
-	arg1 := []interface{}{fp}
-	arg2 := []interface{}{&id}
-	err := dbQueryRowScan(d.db, q, arg1, arg2)
-	if err != nil {
-		return -1
-	}
-	return id
-}
-
 func ensureLocalImage(d *Daemon, server, fp string, secret string, forContainer bool) error {
 	var url string
 	var exporturl string
 
-	if d.dbGetimage(fp) != -1 {
+	if dbImageIDGet(d.db, fp) != -1 {
 		// already have it
 		return nil
 	}
