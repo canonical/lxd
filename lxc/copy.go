@@ -60,7 +60,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			return err
 		}
 
-		baseImage = status.Config["volatile.baseImage"]
+		baseImage = status.Config["volatile.base_image"]
 
 		if status.State() == shared.RUNNING && sourceName != destName {
 			return fmt.Errorf(gettext.Gettext("Changing the name of a running container during copy isn't supported."))

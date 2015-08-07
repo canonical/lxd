@@ -36,7 +36,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 13
+const DB_CURRENT_VERSION int = 14
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
