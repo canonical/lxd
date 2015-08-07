@@ -10,18 +10,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func dbImageIDGet(db *sql.DB, fp string) int {
-	q := `SELECT id FROM images WHERE fingerprint=?`
-	id := -1
-	arg1 := []interface{}{fp}
-	arg2 := []interface{}{&id}
-	err := dbQueryRowScan(db, q, arg1, arg2)
-	if err != nil {
-		return -1
-	}
-	return id
-}
-
 func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 	resultString := []string{}
 	resultMap := []shared.ImageInfo{}
