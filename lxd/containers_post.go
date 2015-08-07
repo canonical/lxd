@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func createFromImage(d *Daemon, req *containerPostReq) Response {
@@ -179,7 +181,6 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		return BadRequest(fmt.Errorf("must specify a source container"))
 	}
 
-	// Make sure the source exists.
 	source, err := containerLXDLoad(d, req.Source.Source)
 	if err != nil {
 		return SmartError(err)
@@ -188,15 +189,16 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	sourceConfig := source.ConfigGet()
 
 	if req.Config == nil {
-		config := make(map[string]string)
-		for key, value := range sourceConfig {
-			if key[0:8] == "volatile" {
-				shared.Debugf("Skipping configuration key: %s\n", key)
-				continue
-			}
-			req.Config[key] = value
+		req.Config = make(map[string]string)
+	}
+
+	for key, value := range sourceConfig {
+		if key[0:8] == "volatile" && key[9:] != "base_image" {
+			shared.Log.Debug("Skipping volatile key from copy source",
+				log.Ctx{"key": key})
+			continue
 		}
-		req.Config = config
+		req.Config[key] = value
 	}
 
 	if req.Profiles == nil {
