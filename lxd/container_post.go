@@ -32,7 +32,13 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return InternalError(err)
 		}
-		ws, err := migration.NewMigrationSource(lxc)
+
+		idmapset, err := c.IdmapSetGet()
+		if err != nil {
+			return InternalError(err)
+		}
+
+		ws, err := migration.NewMigrationSource(lxc, idmapset)
 		if err != nil {
 			return InternalError(err)
 		}

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -36,6 +37,7 @@ type migrationFields struct {
 	fsConn   *websocket.Conn
 
 	container *lxc.Container
+	idmapset  *shared.IdmapSet
 }
 
 func (c *migrationFields) send(m proto.Message) error {
@@ -131,8 +133,8 @@ type migrationSourceWs struct {
 	allConnected chan bool
 }
 
-func NewMigrationSource(c *lxc.Container) (shared.OperationWebsocket, error) {
-	ret := migrationSourceWs{migrationFields{container: c}, make(chan bool, 1)}
+func NewMigrationSource(c *lxc.Container, idmapset *shared.IdmapSet) (shared.OperationWebsocket, error) {
+	ret := migrationSourceWs{migrationFields{container: c, idmapset: idmapset}, make(chan bool, 1)}
 
 	var err error
 	ret.controlSecret, err = shared.RandomCryptoString()
@@ -207,9 +209,24 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		criuType = nil
 	}
 
+	idmaps := make([]*IDMapType, 0)
+
+	for _, ctnIdmap := range s.idmapset.Idmap {
+		idmap := IDMapType{
+			Isuid:    proto.Bool(ctnIdmap.Isuid),
+			Isgid:    proto.Bool(ctnIdmap.Isgid),
+			Hostid:   proto.Int(ctnIdmap.Hostid),
+			Nsid:     proto.Int(ctnIdmap.Nsid),
+			Maprange: proto.Int(ctnIdmap.Maprange),
+		}
+
+		idmaps = append(idmaps, &idmap)
+	}
+
 	header := MigrationHeader{
-		Fs:   MigrationFSType_RSYNC.Enum(),
-		Criu: criuType,
+		Fs:    MigrationFSType_RSYNC.Enum(),
+		Criu:  criuType,
+		Idmap: idmaps,
 	}
 
 	if err := s.send(&header); err != nil {
@@ -423,8 +440,27 @@ func (c *migrationSink) do() error {
 			return
 		}
 
-		if c.IdmapSet != nil {
-			if err := c.IdmapSet.ShiftRootfs(shared.VarPath("containers", c.container.Name())); err != nil {
+		srcIdmap := new(shared.IdmapSet)
+		dstIdmap := c.IdmapSet
+
+		for _, idmap := range header.Idmap {
+			e := shared.IdmapEntry{
+				Isuid:    *idmap.Isuid,
+				Isgid:    *idmap.Isgid,
+				Nsid:     int(*idmap.Nsid),
+				Hostid:   int(*idmap.Hostid),
+				Maprange: int(*idmap.Maprange)}
+			srcIdmap.Idmap = shared.Extend(srcIdmap.Idmap, e)
+		}
+
+		if !reflect.DeepEqual(srcIdmap, dstIdmap) {
+			if err := srcIdmap.UnshiftRootfs(shared.VarPath("containers", c.container.Name())); err != nil {
+				restore <- err
+				c.sendControl(err)
+				return
+			}
+
+			if err := dstIdmap.ShiftRootfs(shared.VarPath("containers", c.container.Name())); err != nil {
 				restore <- err
 				c.sendControl(err)
 				return
