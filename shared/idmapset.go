@@ -16,50 +16,50 @@ import (
  * One entry in id mapping set - a single range of either
  * uid or gid mappings.
  */
-type idmapEntry struct {
-	isuid    bool
-	isgid    bool
-	hostid   int // id as seen on the host - i.e. 100000
-	nsid     int // id as seen in the ns - i.e. 0
-	maprange int
+type IdmapEntry struct {
+	Isuid    bool
+	Isgid    bool
+	Hostid   int // id as seen on the host - i.e. 100000
+	Nsid     int // id as seen in the ns - i.e. 0
+	Maprange int
 }
 
-func (e *idmapEntry) ToLxcString() string {
-	if e.isuid {
-		return fmt.Sprintf("u %d %d %d", e.nsid, e.hostid, e.maprange)
+func (e *IdmapEntry) ToLxcString() string {
+	if e.Isuid {
+		return fmt.Sprintf("u %d %d %d", e.Nsid, e.Hostid, e.Maprange)
 	}
-	return fmt.Sprintf("g %d %d %d", e.nsid, e.hostid, e.maprange)
+	return fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange)
 }
 
 func is_between(x, low, high int) bool {
 	return x >= low && x < high
 }
 
-func (e *idmapEntry) Intersects(i idmapEntry) bool {
-	if (e.isuid && i.isuid) || (e.isgid && i.isgid) {
+func (e *IdmapEntry) Intersects(i IdmapEntry) bool {
+	if (e.Isuid && i.Isuid) || (e.Isgid && i.Isgid) {
 		switch {
-		case is_between(e.hostid, i.hostid, i.hostid+i.maprange):
+		case is_between(e.Hostid, i.Hostid, i.Hostid+i.Maprange):
 			return true
-		case is_between(i.hostid, e.hostid, e.hostid+e.maprange):
+		case is_between(i.Hostid, e.Hostid, e.Hostid+e.Maprange):
 			return true
-		case is_between(e.hostid+e.maprange, i.hostid, i.hostid+i.maprange):
+		case is_between(e.Hostid+e.Maprange, i.Hostid, i.Hostid+i.Maprange):
 			return true
-		case is_between(i.hostid+e.maprange, e.hostid, e.hostid+e.maprange):
+		case is_between(i.Hostid+e.Maprange, e.Hostid, e.Hostid+e.Maprange):
 			return true
-		case is_between(e.nsid, i.nsid, i.nsid+i.maprange):
+		case is_between(e.Nsid, i.Nsid, i.Nsid+i.Maprange):
 			return true
-		case is_between(i.nsid, e.nsid, e.nsid+e.maprange):
+		case is_between(i.Nsid, e.Nsid, e.Nsid+e.Maprange):
 			return true
-		case is_between(e.nsid+e.maprange, i.nsid, i.nsid+i.maprange):
+		case is_between(e.Nsid+e.Maprange, i.Nsid, i.Nsid+i.Maprange):
 			return true
-		case is_between(i.nsid+e.maprange, e.nsid, e.nsid+e.maprange):
+		case is_between(i.Nsid+e.Maprange, e.Nsid, e.Nsid+e.Maprange):
 			return true
 		}
 	}
 	return false
 }
 
-func (e *idmapEntry) parse(s string) error {
+func (e *IdmapEntry) parse(s string) error {
 	split := strings.Split(s, ":")
 	var err error
 	if len(split) != 4 {
@@ -67,30 +67,30 @@ func (e *idmapEntry) parse(s string) error {
 	}
 	switch split[0] {
 	case "u":
-		e.isuid = true
+		e.Isuid = true
 	case "g":
-		e.isgid = true
+		e.Isgid = true
 	case "b":
-		e.isuid = true
-		e.isgid = true
+		e.Isuid = true
+		e.Isgid = true
 	default:
 		return fmt.Errorf("Bad idmap type in %q", s)
 	}
-	e.nsid, err = strconv.Atoi(split[1])
+	e.Nsid, err = strconv.Atoi(split[1])
 	if err != nil {
 		return err
 	}
-	e.hostid, err = strconv.Atoi(split[2])
+	e.Hostid, err = strconv.Atoi(split[2])
 	if err != nil {
 		return err
 	}
-	e.maprange, err = strconv.Atoi(split[3])
+	e.Maprange, err = strconv.Atoi(split[3])
 	if err != nil {
 		return err
 	}
 
 	// wraparound
-	if e.hostid+e.maprange < e.hostid || e.nsid+e.maprange < e.nsid {
+	if e.Hostid+e.Maprange < e.Hostid || e.Nsid+e.Maprange < e.Nsid {
 		return fmt.Errorf("Bad mapping: id wraparound")
 	}
 
@@ -101,35 +101,35 @@ func (e *idmapEntry) parse(s string) error {
  * Shift a uid from the host into the container
  * I.e. 0 -> 1000 -> 101000
  */
-func (e *idmapEntry) shift_into_ns(id int) (int, error) {
-	if id < e.nsid || id >= e.nsid+e.maprange {
+func (e *IdmapEntry) shift_into_ns(id int) (int, error) {
+	if id < e.Nsid || id >= e.Nsid+e.Maprange {
 		// this mapping doesn't apply
 		return 0, fmt.Errorf("N/A")
 	}
 
-	return id - e.nsid + e.hostid, nil
+	return id - e.Nsid + e.Hostid, nil
 }
 
 /*
  * Shift a uid from the container back to the host
  * I.e. 101000 -> 1000
  */
-func (e *idmapEntry) shift_from_ns(id int) (int, error) {
-	if id < e.hostid || id >= e.hostid+e.maprange {
+func (e *IdmapEntry) shift_from_ns(id int) (int, error) {
+	if id < e.Hostid || id >= e.Hostid+e.Maprange {
 		// this mapping doesn't apply
 		return 0, fmt.Errorf("N/A")
 	}
 
-	return id - e.hostid + e.nsid, nil
+	return id - e.Hostid + e.Nsid, nil
 }
 
 /* taken from http://blog.golang.org/slices (which is under BSD licence) */
-func extend(slice []idmapEntry, element idmapEntry) []idmapEntry {
+func Extend(slice []IdmapEntry, element IdmapEntry) []IdmapEntry {
 	n := len(slice)
 	if n == cap(slice) {
 		// Slice is full; must grow.
 		// We double its size and add 1, so if the size is zero we still grow.
-		newSlice := make([]idmapEntry, len(slice), 2*len(slice)+1)
+		newSlice := make([]IdmapEntry, len(slice), 2*len(slice)+1)
 		copy(newSlice, slice)
 		slice = newSlice
 	}
@@ -139,15 +139,15 @@ func extend(slice []idmapEntry, element idmapEntry) []idmapEntry {
 }
 
 type IdmapSet struct {
-	idmap []idmapEntry
+	Idmap []IdmapEntry
 }
 
 func (m IdmapSet) Len() int {
-	return len(m.idmap)
+	return len(m.Idmap)
 }
 
-func (m IdmapSet) Intersects(i idmapEntry) bool {
-	for _, e := range m.idmap {
+func (m IdmapSet) Intersects(i IdmapEntry) bool {
+	for _, e := range m.Idmap {
 		if i.Intersects(e) {
 			return true
 		}
@@ -157,14 +157,14 @@ func (m IdmapSet) Intersects(i idmapEntry) bool {
 
 func (m IdmapSet) ToLxcString() []string {
 	var lines []string
-	for _, e := range m.idmap {
+	for _, e := range m.Idmap {
 		lines = append(lines, e.ToLxcString()+"\n")
 	}
 	return lines
 }
 
 func (m IdmapSet) Append(s string) (IdmapSet, error) {
-	e := idmapEntry{}
+	e := IdmapEntry{}
 	err := e.parse(s)
 	if err != nil {
 		return m, err
@@ -172,17 +172,17 @@ func (m IdmapSet) Append(s string) (IdmapSet, error) {
 	if m.Intersects(e) {
 		return m, fmt.Errorf("Conflicting id mapping")
 	}
-	m.idmap = extend(m.idmap, e)
+	m.Idmap = Extend(m.Idmap, e)
 	return m, nil
 }
 
 func (m IdmapSet) doShiftIntoNs(uid int, gid int, how string) (int, int) {
 	u := -1
 	g := -1
-	for _, e := range m.idmap {
+	for _, e := range m.Idmap {
 		var err error
 		var tmpu, tmpg int
-		if e.isuid && u == -1 {
+		if e.Isuid && u == -1 {
 			switch how {
 			case "in":
 				tmpu, err = e.shift_into_ns(uid)
@@ -193,7 +193,7 @@ func (m IdmapSet) doShiftIntoNs(uid int, gid int, how string) (int, int) {
 				u = tmpu
 			}
 		}
-		if e.isgid && g == -1 {
+		if e.Isgid && g == -1 {
 			switch how {
 			case "in":
 				tmpg, err = e.shift_into_ns(gid)
@@ -363,10 +363,10 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 
 	m := new(IdmapSet)
 
-	e := idmapEntry{isuid: true, nsid: 0, hostid: umin, maprange: urange}
-	m.idmap = extend(m.idmap, e)
-	e = idmapEntry{isgid: true, nsid: 0, hostid: gmin, maprange: grange}
-	m.idmap = extend(m.idmap, e)
+	e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: umin, Maprange: urange}
+	m.Idmap = Extend(m.Idmap, e)
+	e = IdmapEntry{Isgid: true, Nsid: 0, Hostid: gmin, Maprange: grange}
+	m.Idmap = Extend(m.Idmap, e)
 
 	return m, nil
 }
