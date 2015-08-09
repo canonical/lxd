@@ -28,6 +28,8 @@ import (
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
+
+	"gopkg.in/getlantern/deepcopy.v1"
 )
 
 // ExtractInterfaceFromConfigName returns "eth0" from "volatile.eth0.hwaddr",
@@ -361,6 +363,15 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 		return nil, err
 	}
 
+	myConfig := map[string]string{}
+	if err := deepcopy.Copy(&myConfig, &args.Config); err != nil {
+		return nil, err
+	}
+	myDevices := shared.Devices{}
+	if err := deepcopy.Copy(&myDevices, &args.Devices); err != nil {
+		return nil, err
+	}
+
 	c := &containerLXD{
 		daemon:       d,
 		id:           args.ID,
@@ -371,8 +382,8 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 		profiles:     args.Profiles,
 		devices:      args.Devices,
 		cType:        args.Ctype,
-		myConfig:     args.Config,
-		myDevices:    args.Devices}
+		myConfig:     myConfig,
+		myDevices:    myDevices}
 
 	s, err := storageForFilename(d, c.PathGet(""))
 	if err != nil {
@@ -456,8 +467,18 @@ func (c *containerLXD) init() error {
 		}
 	}
 
+	// Apply the config of this container over the profile(s) above.
+	if err := c.applyConfig(c.myConfig, false); err != nil {
+		return err
+	}
+
 	if err := c.setupMacAddresses(); err != nil {
 		return err
+	}
+
+	// Allow overwrites of devices
+	for k, v := range c.myDevices {
+		c.devices[k] = v
 	}
 
 	/* now add the lxc.* entries for the configured devices */
@@ -474,10 +495,6 @@ func (c *containerLXD) init() error {
 	}
 
 	if err := c.applyIdmapSet(); err != nil {
-		return err
-	}
-
-	if err := c.applyConfig(c.config, false); err != nil {
 		return err
 	}
 
@@ -870,7 +887,14 @@ func (c *containerLXD) ConfigReplace(newConfig containerLXDArgs) error {
 		return err
 	}
 
-	return txCommit(tx)
+	if err := txCommit(tx); err != nil {
+		return err
+	}
+
+	c.myConfig = newConfig.Config
+	c.myDevices = newConfig.Devices
+
+	return nil
 }
 
 func (c *containerLXD) ConfigGet() containerLXDArgs {
