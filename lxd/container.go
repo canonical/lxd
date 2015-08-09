@@ -28,8 +28,6 @@ import (
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
-
-	"gopkg.in/getlantern/deepcopy.v1"
 )
 
 // ExtractInterfaceFromConfigName returns "eth0" from "volatile.eth0.hwaddr",
@@ -364,11 +362,11 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 	}
 
 	myConfig := map[string]string{}
-	if err := deepcopy.Copy(&myConfig, &args.Config); err != nil {
+	if err := shared.DeepCopy(&args.Config, &myConfig); err != nil {
 		return nil, err
 	}
 	myDevices := shared.Devices{}
-	if err := deepcopy.Copy(&myDevices, &args.Devices); err != nil {
+	if err := shared.DeepCopy(&args.Devices, &myDevices); err != nil {
 		return nil, err
 	}
 
