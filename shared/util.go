@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -516,4 +517,21 @@ func IsBlockdevPath(pathName string) bool {
 func BlockFsDetect(dev string) (string, error) {
 	out, err := exec.Command("blkid", "-s", "TYPE", "-o", "value", dev).Output()
 	return strings.TrimSpace(string(out)), err
+}
+
+// DeepCopy copies src to dest by using encoding/gob so its not that fast.
+func DeepCopy(src, dest interface{}) error {
+
+	buff := new(bytes.Buffer)
+	enc := gob.NewEncoder(buff)
+	dec := gob.NewDecoder(buff)
+	if err := enc.Encode(src); err != nil {
+		return err
+	}
+
+	if err := dec.Decode(dest); err != nil {
+		return err
+	}
+
+	return nil
 }
