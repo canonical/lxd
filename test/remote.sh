@@ -123,4 +123,11 @@ test_remote_usage() {
   lxc info lxd2:c1
   lxc stop lxd2:c1 --force
   lxc delete lxd2:c1
+
+  # Double launch to test if the image downloads only once.
+  lxc launch localhost:testimage lxd2:c1 &
+  lxc launch localhost:testimage lxd2:c2
+
+  lxc delete lxd2:c1
+  lxc delete lxd2:c2
 }
