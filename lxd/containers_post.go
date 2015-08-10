@@ -191,7 +191,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		config := make(map[string]string)
 		for key, value := range sourceConfig.Config {
 			if key[0:8] == "volatile" {
-				shared.Debugf("skipping: %s\n", key)
+				shared.Debugf("Skipping configuration key: %s\n", key)
 				continue
 			}
 			req.Config[key] = value
@@ -227,7 +227,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 }
 
 func containersPost(d *Daemon, r *http.Request) Response {
-	shared.Debugf("responding to create")
+	shared.Debugf("Responding to container create")
 
 	if d.IdmapSet == nil {
 		return BadRequest(fmt.Errorf("shared's user has no subuids"))
@@ -240,7 +240,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 
 	if req.Name == "" {
 		req.Name = strings.ToLower(petname.Generate(2, "-"))
-		shared.Debugf("no name provided, creating %s", req.Name)
+		shared.Debugf("No name provided, creating %s", req.Name)
 	}
 
 	if strings.Contains(req.Name, shared.SnapshotDelimiter) {

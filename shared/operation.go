@@ -165,7 +165,7 @@ func (o *Operation) SetStatusByErr(err error) {
 
 		/* This isn't really fatal, it'll just be annoying for users */
 		if err != nil {
-			Debugf("error converting %s to json", err)
+			Debugf("Error converting %s to json", err)
 		}
 		o.Metadata = md
 	}

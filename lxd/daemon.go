@@ -155,7 +155,7 @@ func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
 func readMyCert() (string, string, error) {
 	certf := shared.VarPath("server.crt")
 	keyf := shared.VarPath("server.key")
-	shared.Log.Info("looking for existing certificates:", log.Ctx{"cert": certf, "key": keyf})
+	shared.Log.Info("Looking for existing certificates:", log.Ctx{"cert": certf, "key": keyf})
 
 	err := shared.FindOrGenCert(certf, keyf)
 
@@ -270,7 +270,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 		if err := resp.Render(w); err != nil {
 			err := InternalError(err).Render(w)
 			if err != nil {
-				shared.Log.Error("failed writing error for error, giving up.")
+				shared.Log.Error("Failed writing error for error, giving up")
 			}
 		}
 
@@ -455,17 +455,17 @@ SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 
 
 	result, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
-		shared.Debugf("error making cache expiry query: %s\n", err)
+		shared.Debugf("Error making cache expiry query: %s\n", err)
 		return
 	}
-	shared.Debugf("found %d expired images\n", len(result))
+	shared.Debugf("Found %d expired images\n", len(result))
 
 	for _, r := range result {
 		if err := doDeleteImage(d, r[0].(string)); err != nil {
-			shared.Debugf("error deleting image: %s\n", err)
+			shared.Debugf("Error deleting image: %s\n", err)
 		}
 	}
-	shared.Debugf("done pruning expired images\n")
+	shared.Debugf("Done pruning expired images\n")
 }
 
 // StartDaemon starts the shared daemon with the provided configuration.
@@ -477,7 +477,7 @@ func startDaemon() (*Daemon, error) {
 		shared.SetLogger("", "", true, true)
 	}
 
-	shared.Log.Info("LXD is starting.")
+	shared.Log.Info("LXD is starting")
 
 	/* Get the list of supported architectures */
 	var architectures = []int{}
@@ -552,19 +552,34 @@ func startDaemon() (*Daemon, error) {
 		return nil, err
 	}
 
-	/* Setup the TLS authentication */
-	certf, keyf, err := readMyCert()
-	if err != nil {
-		return nil, err
-	}
-	d.certf = certf
-	d.keyf = keyf
-	readSavedClientCAList(d)
-
-	tlsConfig, err := shared.GetTLSConfig(d.certf, d.keyf)
-	if err != nil {
-		return nil, err
-	}
+	/* Prune images */
+	d.pruneChan = make(chan bool)
+	go func() {
+		for {
+			expiryStr, err := dbGetImageExpiry(d)
+			var expiry int
+			if err != nil {
+				expiry = 10
+			} else {
+				expiry, err = strconv.Atoi(expiryStr)
+				if err != nil {
+					expiry = 10
+				}
+				if expiry <= 0 {
+					expiry = 1
+				}
+			}
+			timer := time.NewTimer(time.Duration(expiry) * 24 * time.Hour)
+			timeChan := timer.C
+			select {
+			case <-timeChan:
+				d.pruneExpiredImages()
+			case <-d.pruneChan:
+				d.pruneExpiredImages()
+				timer.Stop()
+			}
+		}
+	}()
 
 	/* Setup /dev/lxd */
 	d.devlxd, err = createAndBindDevLxd()
@@ -585,6 +600,20 @@ func startDaemon() (*Daemon, error) {
 		return nil, fmt.Errorf("Failed to setup storage: %s", err)
 	}
 
+	/* Setup the TLS authentication */
+	certf, keyf, err := readMyCert()
+	if err != nil {
+		return nil, err
+	}
+	d.certf = certf
+	d.keyf = keyf
+	readSavedClientCAList(d)
+
+	tlsConfig, err := shared.GetTLSConfig(d.certf, d.keyf)
+	if err != nil {
+		return nil, err
+	}
+
 	/* Setup the web server */
 	d.mux = mux.NewRouter()
 
@@ -598,7 +627,7 @@ func startDaemon() (*Daemon, error) {
 	}
 
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		shared.Log.Debug("sending top level 404", log.Ctx{"url": r.URL})
+		shared.Log.Debug("Sending top level 404", log.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")
 		NotFound.Render(w)
 	})
@@ -611,7 +640,7 @@ func startDaemon() (*Daemon, error) {
 	var sockets []net.Listener
 
 	if len(listeners) > 0 {
-		shared.Log.Info("LXD is socket activated.")
+		shared.Log.Info("LXD is socket activated")
 
 		for _, listener := range listeners {
 			if shared.PathExists(listener.Addr().String()) {
@@ -622,7 +651,7 @@ func startDaemon() (*Daemon, error) {
 			}
 		}
 	} else {
-		shared.Log.Info("LXD isn't socket activated.")
+		shared.Log.Info("LXD isn't socket activated")
 
 		localSocketPath := shared.VarPath("unix.socket")
 
@@ -632,7 +661,7 @@ func startDaemon() (*Daemon, error) {
 			c := &lxd.Config{Remotes: map[string]lxd.RemoteConfig{}}
 			_, err := lxd.NewClient(c, "")
 			if err != nil {
-				shared.Log.Debug("Detected old but dead unix socket, deleting it...")
+				shared.Log.Debug("Detected stale unix socket, deleting")
 				// Connecting failed, so let's delete the socket and
 				// listen on it ourselves.
 				err = os.Remove(localSocketPath)
@@ -689,35 +718,8 @@ func startDaemon() (*Daemon, error) {
 
 	d.Sockets = sockets
 
-	d.pruneChan = make(chan bool)
-	go func() {
-		for {
-			expiryStr, err := dbGetImageExpiry(d)
-			var expiry int
-			if err != nil {
-				expiry = 10
-			} else {
-				expiry, err = strconv.Atoi(expiryStr)
-				if err != nil {
-					expiry = 10
-				}
-				if expiry <= 0 {
-					expiry = 1
-				}
-			}
-			timer := time.NewTimer(time.Duration(expiry) * 24 * time.Hour)
-			timeChan := timer.C
-			select {
-			case <-timeChan:
-				d.pruneExpiredImages()
-			case <-d.pruneChan:
-				d.pruneExpiredImages()
-				timer.Stop()
-			}
-		}
-	}()
-
 	d.tomb.Go(func() error {
+		shared.Log.Info("REST API daemon:")
 		for _, socket := range d.Sockets {
 			shared.Log.Info(" - binding socket", log.Ctx{"socket": socket.Addr()})
 			current_socket := socket
@@ -738,10 +740,10 @@ func startDaemon() (*Daemon, error) {
 func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 	for k, v := range d.clientCerts {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			shared.Log.Debug("found cert", log.Ctx{"k": k})
+			shared.Log.Debug("Found cert", log.Ctx{"k": k})
 			return true
 		}
-		shared.Log.Debug("client cert != key", log.Ctx{"k": k})
+		shared.Log.Debug("Client cert != key", log.Ctx{"k": k})
 	}
 	return false
 }
@@ -794,11 +796,11 @@ func (d *Daemon) Stop() error {
 	}
 
 	if n, err := d.numRunningContainers(); err != nil || n == 0 {
-		shared.Debugf("daemon.Stop: unmounting shmounts: err %s n %d", err, n)
+		shared.Debugf("Unmounting shmounts: err %s n %d", err, n)
 		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
 		os.RemoveAll(shared.VarPath("shmounts"))
 	} else {
-		shared.Debugf("daemon.Stop: not unmounting shmounts")
+		shared.Debugf("Not unmounting shmounts (containers are still running)")
 	}
 
 	d.db.Close()
@@ -884,7 +886,7 @@ func (d *Daemon) ConfigValueSet(key string, value string) error {
 
 // PasswordSet sets the password to the new value.
 func (d *Daemon) PasswordSet(password string) error {
-	shared.Log.Info("setting new password")
+	shared.Log.Info("Setting new https password")
 	var value = password
 	if password != "" {
 		buf := make([]byte, pwSaltBytes)
