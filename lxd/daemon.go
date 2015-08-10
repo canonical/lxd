@@ -61,9 +61,9 @@ type Daemon struct {
 
 	configValues map[string]string
 
-	IsMock                bool
+	IsMock bool
 
-	imagesDownloading     map[string]*sync.Mutex
+	imagesDownloading     map[string]chan bool
 	imagesDownloadingLock sync.RWMutex
 }
 
@@ -478,7 +478,7 @@ SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 
 func startDaemon() (*Daemon, error) {
 	d := &Daemon{
 		IsMock:                false,
-		imagesDownloading:     map[string]*sync.Mutex{},
+		imagesDownloading:     map[string]chan bool{},
 		imagesDownloadingLock: sync.RWMutex{},
 	}
 

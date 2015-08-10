@@ -8,7 +8,6 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/lxc/lxd/shared"
 
@@ -32,7 +31,7 @@ func (d *Daemon) ImageDownload(
 
 	// Now check if we already downloading the image
 	d.imagesDownloadingLock.RLock()
-	if lock, ok := d.imagesDownloading[fp]; ok {
+	if waitChannel, ok := d.imagesDownloading[fp]; ok {
 		// We already download the image
 		d.imagesDownloadingLock.RUnlock()
 
@@ -40,11 +39,10 @@ func (d *Daemon) ImageDownload(
 			"Already downloading the image, waiting for it to succeed",
 			log.Ctx{"image": fp})
 
-		// Now we use a little trick
-		// we wait until we can lock the download once
-		// we are able to lock it we return we have it on succeed.
-		lock.Lock()
-		lock.Unlock()
+		// Wait until the download finishes (channel closes)
+		if _, ok := <-waitChannel; ok {
+			shared.Log.Warn("Value transmitted over image lock semaphore?")
+		}
 
 		if id := dbImageIDGet(d.db, fp); id == -1 {
 			shared.Log.Error(
@@ -68,22 +66,18 @@ func (d *Daemon) ImageDownload(
 		log.Ctx{"image": fp})
 
 	// Add the download to the queue
-	lock := sync.Mutex{}
-	lock.Lock()
 	d.imagesDownloadingLock.Lock()
-	d.imagesDownloading[fp] = &lock
+	d.imagesDownloading[fp] = make(chan bool)
 	d.imagesDownloadingLock.Unlock()
 
 	// Unlock once this func ends.
 	defer func() {
-		if lock, ok := d.imagesDownloading[fp]; ok {
-			d.imagesDownloadingLock.Lock()
-			lock.Unlock()
-
+		d.imagesDownloadingLock.Lock()
+		if waitChannel, ok := d.imagesDownloading[fp]; ok {
+			close(waitChannel)
 			delete(d.imagesDownloading, fp)
-
-			d.imagesDownloadingLock.Unlock()
 		}
+		d.imagesDownloadingLock.Unlock()
 	}()
 
 	/* grab the metadata from /1.0/images/%s */
