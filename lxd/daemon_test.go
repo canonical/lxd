@@ -8,7 +8,7 @@ import (
 func mockStartDaemon() (*Daemon, error) {
 	d := &Daemon{
 		IsMock:                true,
-		imagesDownloading:     map[string]*sync.Mutex{},
+		imagesDownloading:     map[string]chan bool{},
 		imagesDownloadingLock: sync.RWMutex{},
 	}
 
