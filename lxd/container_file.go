@@ -41,7 +41,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	case "GET":
 		return containerFileGet(initPid, r, targetPath)
 	case "POST":
-		idmapset, err := c.IdmapSetGet()
+		idmapset, err := c.LastIdmapSetGet()
 		if err != nil {
 			return InternalError(err)
 		}
@@ -104,9 +104,8 @@ func containerFileGet(pid int, r *http.Request, path string) Response {
 func containerFilePut(pid int, r *http.Request, p string, idmapset *shared.IdmapSet) Response {
 	uid, gid, mode := shared.ParseLXDFileHeaders(r.Header)
 
-	uid, gid = idmapset.ShiftIntoNs(uid, gid)
-	if uid == -1 || gid == -1 {
-		return BadRequest(fmt.Errorf("unmapped uid or gid specified"))
+	if idmapset != nil {
+		uid, gid = idmapset.ShiftIntoNs(uid, gid)
 	}
 
 	temp, err := ioutil.TempFile("", "lxd_forkputfile_")
