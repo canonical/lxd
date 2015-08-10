@@ -320,6 +320,17 @@ func containerLXDCreateInternal(
 		args.Devices = shared.Devices{}
 	}
 
+	profiles, err := dbProfilesGet(d.db)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, profile := range args.Profiles {
+		if !shared.StringInSlice(profile, profiles) {
+			return nil, fmt.Errorf("Requested profile '%s' doesn't exist", profile)
+		}
+	}
+
 	id, err := dbContainerCreate(d.db, name, args)
 	if err != nil {
 		return nil, err
