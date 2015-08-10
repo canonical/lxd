@@ -72,7 +72,7 @@ func untar(tarball string, path string) error {
 
 	output, err := exec.Command("tar", args...).CombinedOutput()
 	if err != nil {
-		shared.Debugf("unpacking failed\n")
+		shared.Debugf("Unpacking failed\n")
 		shared.Debugf(string(output))
 		return err
 	}
@@ -187,7 +187,6 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 
 	_, err = exec.Command("gzip", tarfile.Name()).CombinedOutput()
 	if err != nil {
-		shared.Debugf("image compression\n")
 		return info, err
 	}
 	gztarpath := fmt.Sprintf("%s.gz", tarfile.Name())
