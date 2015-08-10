@@ -212,7 +212,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	case http.StateNew:
 		pid, err := getPid(unixConn)
 		if err != nil {
-			shared.Debugf("error getting pid for conn %s", err)
+			shared.Debugf("Error getting pid for conn %s", err)
 		} else {
 			m.m[unixConn] = pid
 		}
@@ -233,7 +233,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	case http.StateClosed:
 		delete(m.m, unixConn)
 	default:
-		shared.Debugf("unknown state for connection %s", state)
+		shared.Debugf("Unknown state for connection %s", state)
 	}
 }
 

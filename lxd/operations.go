@@ -68,7 +68,7 @@ func startOperation(id string) error {
 		go func(op *shared.Operation) {
 			result := op.Run()
 
-			shared.Debugf("operation %s finished: %s", op.Run, result)
+			shared.Debugf("Operation %s finished: %s", op.Run, result)
 
 			lock.Lock()
 			op.SetResult(result)

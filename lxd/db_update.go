@@ -109,7 +109,7 @@ func dbUpdateFromV10(d *Daemon) error {
 			return err
 		}
 
-		shared.Debugf("Restarting all the containers following directory rename.")
+		shared.Debugf("Restarting all the containers following directory rename")
 		containersShutdown(d)
 		containersRestart(d)
 	}

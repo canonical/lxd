@@ -62,7 +62,7 @@ func (c *migrationFields) recv(m proto.Message) error {
 	}
 
 	if mt != websocket.BinaryMessage {
-		return fmt.Errorf("only binary messages allowed")
+		return fmt.Errorf("Only binary messages allowed")
 	}
 
 	buf, err := ioutil.ReadAll(r)
@@ -111,7 +111,7 @@ func (c *migrationFields) controlChannel() <-chan MigrationControl {
 		msg := MigrationControl{}
 		err := c.recv(&msg)
 		if err != nil {
-			shared.Debugf("got error reading migration control socket %s", err)
+			shared.Debugf("Got error reading migration control socket %s", err)
 			close(ch)
 			return
 		}
@@ -240,18 +240,18 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 	}
 
 	if *header.Fs != MigrationFSType_RSYNC {
-		err := fmt.Errorf("formats other than rsync not understood")
+		err := fmt.Errorf("Formats other than rsync not understood")
 		s.sendControl(err)
 		return shared.OperationError(err)
 	}
 
 	if s.live {
 		if header.Criu == nil {
-			err := fmt.Errorf("got no CRIU socket type for live migration")
+			err := fmt.Errorf("Got no CRIU socket type for live migration")
 			s.sendControl(err)
 			return shared.OperationError(err)
 		} else if *header.Criu != CRIUType_CRIU_RSYNC {
-			err := fmt.Errorf("formats other than criu rsync not understood")
+			err := fmt.Errorf("Formats other than criu rsync not understood")
 			s.sendControl(err)
 			return shared.OperationError(err)
 		}
@@ -267,7 +267,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		err = s.container.Checkpoint(opts)
 
 		if err2 := CollectCRIULogFile(s.container, checkpointDir, "migration", "dump"); err2 != nil {
-			shared.Debugf("error collecting checkpoint log file %s", err)
+			shared.Debugf("Error collecting checkpoint log file %s", err)
 		}
 
 		if err != nil {
@@ -336,12 +336,12 @@ func NewMigrationSink(args *MigrationSinkArgs) (func() error, error) {
 	var ok bool
 	sink.controlSecret, ok = args.Secrets["control"]
 	if !ok {
-		return nil, fmt.Errorf("missing control secret")
+		return nil, fmt.Errorf("Missing control secret")
 	}
 
 	sink.fsSecret, ok = args.Secrets["fs"]
 	if !ok {
-		return nil, fmt.Errorf("missing fs secret")
+		return nil, fmt.Errorf("Missing fs secret")
 	}
 
 	sink.criuSecret, ok = args.Secrets["criu"]
@@ -419,7 +419,7 @@ func (c *migrationSink) do() error {
 				 * so don't warn about that.
 				 */
 				if err != nil && !os.IsNotExist(err) {
-					shared.Debugf("error collectiong migration log file %s", err)
+					shared.Debugf("Error collectiong migration log file %s", err)
 				}
 
 				os.RemoveAll(imagesDir)
@@ -511,7 +511,7 @@ func (c *migrationSink) do() error {
 		case msg, ok := <-source:
 			if !ok {
 				c.disconnect()
-				return fmt.Errorf("got error reading source")
+				return fmt.Errorf("Got error reading source")
 			}
 			if !*msg.Success {
 				c.disconnect()
@@ -520,7 +520,7 @@ func (c *migrationSink) do() error {
 				// The source can only tell us it failed (e.g. if
 				// checkpointing failed). We have to tell the source
 				// whether or not the restore was successful.
-				shared.Debugf("unknown message %v from source", msg)
+				shared.Debugf("Unknown message %v from source", msg)
 			}
 		}
 	}

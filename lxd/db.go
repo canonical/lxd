@@ -259,6 +259,16 @@ func isDbLockedError(err error) bool {
 	return false
 }
 
+func isNoMatchError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if err.Error() == "sql: no rows in result set" {
+		return true
+	}
+	return false
+}
+
 func dbBegin(db *sql.DB) (*sql.Tx, error) {
 	for {
 		tx, err := db.Begin()
@@ -296,6 +306,9 @@ func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 		err := db.QueryRow(q, args...).Scan(outargs...)
 		if err == nil {
 			return nil
+		}
+		if isNoMatchError(err) {
+			return err
 		}
 		if !isDbLockedError(err) {
 			shared.Log.Debug("DbQuery: query error", log.Ctx{"query": q, "args": args, "err": err})

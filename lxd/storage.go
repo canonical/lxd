@@ -85,7 +85,7 @@ func storageUnprivUserAclSet(c container, dpath string) error {
 	uid, _ := idmapset.ShiftIntoNs(0, 0)
 	switch uid {
 	case -1:
-		shared.Debugf("storageUnprivUserAclSet: no root id mapping")
+		shared.Debugf("No root id mapping")
 		return nil
 	case 0:
 		return nil
@@ -93,7 +93,7 @@ func storageUnprivUserAclSet(c container, dpath string) error {
 	acl := fmt.Sprintf("%d:rx", uid)
 	output, err := exec.Command("setfacl", "-m", acl, dpath).CombinedOutput()
 	if err != nil {
-		shared.Debugf("storageUnprivUserAclSet: setfacl failed:\n%s", output)
+		shared.Debugf("Setfacl failed:\n%s", output)
 	}
 	return err
 }
@@ -228,7 +228,7 @@ func (ss *storageShared) shiftRootfs(c container) error {
 	dpath := c.PathGet("")
 	rpath := c.RootfsPathGet()
 
-	shared.Log.Debug("shiftRootfs",
+	shared.Log.Debug("Shifting root filesystem",
 		log.Ctx{"container": c.NameGet(), "rootfs": rpath})
 
 	idmapset, err := c.IdmapSetGet()
@@ -258,7 +258,7 @@ func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
 		err := storageUnprivUserAclSet(c, destPath)
 		if err != nil {
 			ss.log.Error(
-				"adding acl for container root: falling back to chmod",
+				"Adding acl for container root: falling back to chmod",
 				log.Ctx{"destPath": destPath})
 
 			output, err := exec.Command(

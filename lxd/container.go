@@ -930,7 +930,7 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 	fnam := filepath.Join(cDir, "metadata.yaml")
 	writeToTar := func(path string, fi os.FileInfo, err error) error {
 		if err := c.tarStoreFile(linkmap, offset, tw, path, fi); err != nil {
-			shared.Debugf("error tarring up %s: %s\n", path, err)
+			shared.Debugf("Error tarring up %s: %s\n", path, err)
 			return err
 		}
 		return nil
@@ -945,7 +945,7 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 			return err
 		}
 		if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
-			shared.Debugf("exportToTar: error writing to tarfile: %s\n", err)
+			shared.Debugf("Error writing to tarfile: %s\n", err)
 			tw.Close()
 			return err
 		}
@@ -1187,7 +1187,7 @@ func (c *containerLXD) applyConfig(config map[string]string, fromProfile bool) e
 			c.config[k] = v
 		}
 		if err != nil {
-			shared.Debugf("error setting %s: %q\n", k, err)
+			shared.Debugf("Error setting %s: %q\n", k, err)
 			return err
 		}
 	}
@@ -1239,10 +1239,10 @@ func (c *containerLXD) applyProfile(p string) error {
 		k = r[0].(string)
 		v = r[1].(string)
 
-		shared.Debugf("applying %s: %s", k, v)
+		shared.Debugf("Applying %s: %s", k, v)
 		if k == "raw.lxc" {
 			if _, ok := c.config["raw.lxc"]; ok {
-				shared.Debugf("ignoring overridden raw.lxc from profile")
+				shared.Debugf("Ignoring overridden raw.lxc from profile")
 				continue
 			}
 		}
