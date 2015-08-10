@@ -121,20 +121,20 @@ func (s *execWs) Do() shared.OperationResult {
 				}
 
 				if err != nil {
-					shared.Debugf("got error getting next reader %s", err)
+					shared.Debugf("Got error getting next reader %s", err)
 					break
 				}
 
 				buf, err := ioutil.ReadAll(r)
 				if err != nil {
-					shared.Debugf("failed to read message %s", err)
+					shared.Debugf("Failed to read message %s", err)
 					break
 				}
 
 				command := shared.ContainerExecControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
-					shared.Debugf("failed to unmarshal control socket command: %s", err)
+					shared.Debugf("Failed to unmarshal control socket command: %s", err)
 					continue
 				}
 
@@ -159,7 +159,7 @@ func (s *execWs) Do() shared.OperationResult {
 				}
 
 				if err != nil {
-					shared.Debugf("got error writing to writer %s", err)
+					shared.Debugf("Got error writing to writer %s", err)
 					break
 				}
 			}

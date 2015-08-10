@@ -122,7 +122,7 @@ func ParseResponse(r *http.Response) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	shared.Debugf("raw response: %s", string(s))
+	shared.Debugf("Raw response: %s", string(s))
 
 	if err := json.Unmarshal(s, &ret); err != nil {
 		return nil, err
@@ -311,7 +311,7 @@ func (c *Client) put(base string, args shared.Jmap, rtype ResponseType) (*Respon
 		return nil, err
 	}
 
-	shared.Debugf("putting %s to %s", buf.String(), uri)
+	shared.Debugf("Putting %s to %s", buf.String(), uri)
 
 	req, err := http.NewRequest("PUT", uri, &buf)
 	if err != nil {
@@ -337,7 +337,7 @@ func (c *Client) post(base string, args shared.Jmap, rtype ResponseType) (*Respo
 		return nil, err
 	}
 
-	shared.Debugf("posting %s to %s", buf.String(), uri)
+	shared.Debugf("Posting %s to %s", buf.String(), uri)
 
 	req, err := http.NewRequest("POST", uri, &buf)
 	if err != nil {
@@ -387,7 +387,7 @@ func (c *Client) delete(base string, args shared.Jmap, rtype ResponseType) (*Res
 		return nil, err
 	}
 
-	shared.Debugf("deleting %s to %s", buf.String(), uri)
+	shared.Debugf("Deleting %s to %s", buf.String(), uri)
 
 	req, err := http.NewRequest("DELETE", uri, &buf)
 	if err != nil {
@@ -440,7 +440,7 @@ func (c *Client) GetServerConfig() (*Response, error) {
 }
 
 func (c *Client) Finger() error {
-	shared.Debugf("fingering the daemon")
+	shared.Debugf("Fingering the daemon")
 	resp, err := c.GetServerConfig()
 	if err != nil {
 		return err
@@ -459,7 +459,7 @@ func (c *Client) Finger() error {
 	if serverAPICompat != shared.APICompat {
 		return fmt.Errorf(gettext.Gettext("api version mismatch: mine: %q, daemon: %q"), shared.APICompat, serverAPICompat)
 	}
-	shared.Debugf("pong received")
+	shared.Debugf("Pong received")
 	return nil
 }
 
@@ -1150,7 +1150,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 
 					w, err := control.NextWriter(websocket.TextMessage)
 					if err != nil {
-						shared.Debugf("got error getting next writer %s", err)
+						shared.Debugf("Got error getting next writer %s", err)
 						break
 					}
 
@@ -1162,14 +1162,14 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 
 					buf, err := json.Marshal(msg)
 					if err != nil {
-						shared.Debugf("failed to convert to json %s", err)
+						shared.Debugf("Failed to convert to json %s", err)
 						break
 					}
 					_, err = w.Write(buf)
 
 					w.Close()
 					if err != nil {
-						shared.Debugf("got err writing %s", err)
+						shared.Debugf("Got err writing %s", err)
 						break
 					}
 
