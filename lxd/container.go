@@ -522,6 +522,10 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 }
 
 func (c *containerLXD) Start() error {
+	if c.IsRunning() {
+		return fmt.Errorf("the container is already running")
+	}
+
 	// Start the storage for this container
 	if err := c.StorageStart(); err != nil {
 		return err
