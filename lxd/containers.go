@@ -170,7 +170,7 @@ func containersWatch(d *Daemon) error {
 			return err
 		}
 
-		if container.IsEmpheral() && container.IsRunning() {
+		if container.IsEphemeral() && container.IsRunning() {
 			containerWatchEphemeral(d, container)
 		}
 	}
