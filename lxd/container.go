@@ -329,6 +329,15 @@ func containerLXDCreateInternal(
 		"Container created in the DB",
 		log.Ctx{"container": name, "id": id})
 
+	myConfig := map[string]string{}
+	if err := shared.DeepCopy(&args.Config, &myConfig); err != nil {
+		return nil, err
+	}
+	myDevices := shared.Devices{}
+	if err := shared.DeepCopy(&args.Devices, &myDevices); err != nil {
+		return nil, err
+	}
+
 	c := &containerLXD{
 		daemon:       d,
 		id:           id,
@@ -339,8 +348,8 @@ func containerLXDCreateInternal(
 		profiles:     args.Profiles,
 		devices:      args.Devices,
 		cType:        args.Ctype,
-		myConfig:     args.Config,
-		myDevices:    args.Devices}
+		myConfig:     myConfig,
+		myDevices:    myDevices}
 
 	// No need to detect storage here, its a new container.
 	c.Storage = d.Storage
