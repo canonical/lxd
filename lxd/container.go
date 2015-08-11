@@ -106,9 +106,8 @@ type containerLXD struct {
 	idmapset     *shared.IdmapSet
 	cType        containerType
 
-	// These two will contain the containers data without profiles
-	myConfig  map[string]string
-	myDevices shared.Devices
+	baseConfig  map[string]string
+	baseDevices shared.Devices
 
 	Storage storage
 }
@@ -137,6 +136,9 @@ type container interface {
 	IDGet() int
 	NameGet() string
 	ArchitectureGet() int
+	ConfigGet() map[string]string
+	DevicesGet() shared.Devices
+	ProfilesGet() []string
 	PathGet(newName string) string
 	RootfsPathGet() string
 	TemplatesPathGet() string
@@ -145,7 +147,6 @@ type container interface {
 	LogPathGet() string
 	InitPidGet() (int, error)
 	IdmapSetGet() (*shared.IdmapSet, error)
-	ConfigGet() containerLXDArgs
 
 	TemplateApply(trigger string) error
 	ExportToTar(snap string, w io.Writer) error
@@ -200,14 +201,12 @@ func containerLXDCreateFromImage(d *Daemon, name string,
 func containerLXDCreateAsCopy(d *Daemon, name string,
 	args containerLXDArgs, sourceContainer container) (container, error) {
 
-	// Create the container
 	c, err := containerLXDCreateInternal(d, name, args)
 	if err != nil {
 		return nil, err
 	}
 
-	// Replace the config
-	if err := c.ConfigReplace(sourceContainer.ConfigGet()); err != nil {
+	if err := c.ConfigReplace(args); err != nil {
 		c.Delete()
 		return nil, err
 	}
@@ -340,12 +339,12 @@ func containerLXDCreateInternal(
 		"Container created in the DB",
 		log.Ctx{"container": name, "id": id})
 
-	myConfig := map[string]string{}
-	if err := shared.DeepCopy(&args.Config, &myConfig); err != nil {
+	baseConfig := map[string]string{}
+	if err := shared.DeepCopy(&args.Config, &baseConfig); err != nil {
 		return nil, err
 	}
-	myDevices := shared.Devices{}
-	if err := shared.DeepCopy(&args.Devices, &myDevices); err != nil {
+	baseDevices := shared.Devices{}
+	if err := shared.DeepCopy(&args.Devices, &baseDevices); err != nil {
 		return nil, err
 	}
 
@@ -359,8 +358,8 @@ func containerLXDCreateInternal(
 		profiles:     args.Profiles,
 		devices:      args.Devices,
 		cType:        args.Ctype,
-		myConfig:     myConfig,
-		myDevices:    myDevices}
+		baseConfig:   baseConfig,
+		baseDevices:  baseDevices}
 
 	// No need to detect storage here, its a new container.
 	c.Storage = d.Storage
@@ -381,12 +380,12 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 		return nil, err
 	}
 
-	myConfig := map[string]string{}
-	if err := shared.DeepCopy(&args.Config, &myConfig); err != nil {
+	baseConfig := map[string]string{}
+	if err := shared.DeepCopy(&args.Config, &baseConfig); err != nil {
 		return nil, err
 	}
-	myDevices := shared.Devices{}
-	if err := shared.DeepCopy(&args.Devices, &myDevices); err != nil {
+	baseDevices := shared.Devices{}
+	if err := shared.DeepCopy(&args.Devices, &baseDevices); err != nil {
 		return nil, err
 	}
 
@@ -400,8 +399,8 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 		profiles:     args.Profiles,
 		devices:      args.Devices,
 		cType:        args.Ctype,
-		myConfig:     myConfig,
-		myDevices:    myDevices}
+		baseConfig:   baseConfig,
+		baseDevices:  baseDevices}
 
 	s, err := storageForFilename(d, c.PathGet(""))
 	if err != nil {
@@ -478,15 +477,14 @@ func (c *containerLXD) init() error {
 		return err
 	}
 
-	/* apply profiles */
 	for _, p := range c.profiles {
 		if err := c.applyProfile(p); err != nil {
 			return err
 		}
 	}
 
-	// Apply the config of this container over the profile(s) above.
-	if err := c.applyConfig(c.myConfig, false); err != nil {
+	// base per-container config should override profile config, so we apply it second
+	if err := c.applyConfig(c.baseConfig, false); err != nil {
 		return err
 	}
 
@@ -495,7 +493,7 @@ func (c *containerLXD) init() error {
 	}
 
 	// Allow overwrites of devices
-	for k, v := range c.myDevices {
+	for k, v := range c.baseDevices {
 		c.devices[k] = v
 	}
 
@@ -531,11 +529,11 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 	return &shared.ContainerState{
 		Name:            c.name,
 		Profiles:        c.profiles,
-		Config:          c.myConfig,
+		Config:          c.baseConfig,
 		ExpandedConfig:  c.config,
 		Userdata:        []byte{},
 		Status:          status,
-		Devices:         c.myDevices,
+		Devices:         c.baseDevices,
 		ExpandedDevices: c.devices,
 		Ephemeral:       c.ephemeral,
 	}, nil
@@ -714,8 +712,15 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 		return err
 	}
 
-	// Replace the config
-	err = c.ConfigReplace(sourceContainer.ConfigGet())
+	args := containerLXDArgs{
+		Ctype:        cTypeRegular,
+		Config:       sourceContainer.ConfigGet(),
+		Profiles:     sourceContainer.ProfilesGet(),
+		Ephemeral:    sourceContainer.IsEphemeral(),
+		Architecture: sourceContainer.ArchitectureGet(),
+		Devices:      sourceContainer.DevicesGet(),
+	}
+	err = c.ConfigReplace(args)
 	if err != nil {
 		shared.Log.Error("RESTORE => Restore of the configuration failed",
 			log.Ctx{
@@ -914,21 +919,22 @@ func (c *containerLXD) ConfigReplace(newConfig containerLXDArgs) error {
 		return err
 	}
 
-	c.myConfig = newConfig.Config
-	c.myDevices = newConfig.Devices
+	c.baseConfig = newContainerArgs.Config
+	c.baseDevices = newContainerArgs.Devices
 
 	return nil
 }
 
-func (c *containerLXD) ConfigGet() containerLXDArgs {
-	newConfig := containerLXDArgs{
-		Config:    c.myConfig,
-		Devices:   c.myDevices,
-		Profiles:  c.profiles,
-		Ephemeral: c.ephemeral,
-	}
+func (c *containerLXD) ConfigGet() map[string]string {
+	return c.config
+}
 
-	return newConfig
+func (c *containerLXD) DevicesGet() shared.Devices {
+	return c.devices
+}
+
+func (c *containerLXD) ProfilesGet() []string {
+	return c.profiles
 }
 
 /*
@@ -1340,7 +1346,7 @@ func (c *containerLXD) setupMacAddresses() error {
 				d["hwaddr"] = hwaddr
 				key := fmt.Sprintf("volatile.%s.hwaddr", name)
 				c.config[key] = hwaddr
-				c.myConfig[key] = hwaddr
+				c.baseConfig[key] = hwaddr
 				newConfigEntries[key] = hwaddr
 			}
 		}

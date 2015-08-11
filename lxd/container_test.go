@@ -14,15 +14,15 @@ func (suite *lxdTestSuite) TestContainer_ProfilesDefault() {
 	suite.Req.Nil(err)
 	defer c.Delete()
 
-	config := c.ConfigGet()
+	profiles := c.ProfilesGet()
 	suite.Len(
-		config.Profiles,
+		profiles,
 		1,
 		"No default profile created on containerLXDCreateInternal.")
 
 	suite.Equal(
 		"default",
-		config.Profiles[0],
+		profiles[0],
 		"First profile should be the default profile.")
 }
 
@@ -49,9 +49,9 @@ func (suite *lxdTestSuite) TestContainer_ProfilesMulti() {
 	suite.Req.Nil(err)
 	defer c.Delete()
 
-	config := c.ConfigGet()
+	profiles := c.ProfilesGet()
 	suite.Len(
-		config.Profiles,
+		profiles,
 		2,
 		"Didn't get both profiles in containerLXDCreateInternal.")
 
