@@ -849,7 +849,7 @@ func (c *containerLXD) LXContainerGet() (*lxc.Container, error) {
 
 // ConfigReplace replaces the config of container and tries to live apply
 // the new configuration.
-func (c *containerLXD) ConfigReplace(newConfig containerLXDArgs) error {
+func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	/* check to see that the config actually applies to the container
 	 * successfully before saving it. in particular, raw.lxc and
 	 * raw.apparmor need to be parsed once to make sure they make sense.
@@ -857,11 +857,11 @@ func (c *containerLXD) ConfigReplace(newConfig containerLXDArgs) error {
 	preDevList := c.devices
 
 	/* Validate devices */
-	if err := validateConfig(c, newConfig.Devices); err != nil {
+	if err := validateConfig(c, newContainerArgs.Devices); err != nil {
 		return err
 	}
 
-	if err := c.applyConfig(newConfig.Config, false); err != nil {
+	if err := c.applyConfig(newContainerArgs.Config, false); err != nil {
 		return err
 	}
 
@@ -879,28 +879,28 @@ func (c *containerLXD) ConfigReplace(newConfig containerLXDArgs) error {
 		return err
 	}
 
-	if err = dbContainerConfigInsert(tx, c.id, newConfig.Config); err != nil {
+	if err = dbContainerConfigInsert(tx, c.id, newContainerArgs.Config); err != nil {
 		shared.Debugf("Error inserting configuration for container %s\n", c.NameGet())
 		tx.Rollback()
 		return err
 	}
 
 	/* handle profiles */
-	if emptyProfile(newConfig.Profiles) {
+	if emptyProfile(newContainerArgs.Profiles) {
 		_, err := tx.Exec("DELETE from containers_profiles where container_id=?", c.id)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
 	} else {
-		if err := dbContainerProfilesInsert(tx, c.id, newConfig.Profiles); err != nil {
+		if err := dbContainerProfilesInsert(tx, c.id, newContainerArgs.Profiles); err != nil {
 
 			tx.Rollback()
 			return err
 		}
 	}
 
-	err = dbDevicesAdd(tx, "container", int64(c.id), newConfig.Devices)
+	err = dbDevicesAdd(tx, "container", int64(c.id), newContainerArgs.Devices)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -910,8 +910,7 @@ func (c *containerLXD) ConfigReplace(newConfig containerLXDArgs) error {
 		return txCommit(tx)
 	}
 
-	// Apply new devices
-	if err := devicesApplyDeltaLive(tx, c, preDevList, newConfig.Devices); err != nil {
+	if err := devicesApplyDeltaLive(tx, c, preDevList, newContainerArgs.Devices); err != nil {
 		return err
 	}
 
@@ -1273,7 +1272,7 @@ func (c *containerLXD) applyProfile(p string) error {
 		shared.Debugf("Applying %s: %s", k, v)
 		if k == "raw.lxc" {
 			if _, ok := c.config["raw.lxc"]; ok {
-				shared.Debugf("Ignoring overridden raw.lxc from profile")
+				shared.Debugf("Ignoring overridden raw.lxc from profile '%s'", p)
 				continue
 			}
 		}
