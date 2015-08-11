@@ -213,7 +213,7 @@ func containersRestart(d *Daemon) error {
 }
 
 func containersShutdown(d *Daemon) error {
-	results, err := d.ListRegularContainers()
+	results, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return err
 	}

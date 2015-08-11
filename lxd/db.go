@@ -239,13 +239,6 @@ func initializeDbObject(d *Daemon, path string) (err error) {
 	return nil
 }
 
-// Initialize a database connection and set it on the daemon.
-func initDb(d *Daemon) (err error) {
-	path := shared.VarPath("lxd.db")
-	err = initializeDbObject(d, path)
-	return err
-}
-
 func isDbLockedError(err error) bool {
 	if err == nil {
 		return false

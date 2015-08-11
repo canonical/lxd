@@ -93,13 +93,13 @@ func storageLVMSetVolumeGroupNameConfig(d *Daemon, vgname string) error {
 
 type storageLvm struct {
 	d      *Daemon
-	sType  storageType
 	vgName string
 
 	storageShared
 }
 
 func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
+	s.sType = storageTypeLvm
 	s.sTypeName = storageTypeToString(s.sType)
 	if err := s.initShared(); err != nil {
 		return s, err
@@ -123,10 +123,6 @@ func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 	}
 
 	return s, nil
-}
-
-func (s *storageLvm) GetStorageType() storageType {
-	return s.sType
 }
 
 func (s *storageLvm) ContainerCreate(container container) error {
