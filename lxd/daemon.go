@@ -777,25 +777,8 @@ func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 	return false
 }
 
-func (d *Daemon) ListRegularContainers() ([]string, error) {
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
-	inargs := []interface{}{cTypeRegular}
-	var name string
-	outfmt := []interface{}{name}
-
-	list := []string{}
-	result, err := dbQueryScan(d.db, q, inargs, outfmt)
-	if err != nil {
-		return list, err
-	}
-	for _, r := range result {
-		list = append(list, r[0].(string))
-	}
-	return list, nil
-}
-
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := d.ListRegularContainers()
+	results, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return 0, err
 	}
