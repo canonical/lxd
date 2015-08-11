@@ -615,14 +615,14 @@ func (d *Daemon) Init() error {
 
 	var tlsConfig *tls.Config
 	if !d.IsMock {
-		/* Restart containers */
-		containersRestart(d)
-		containersWatch(d)
-
 		err = d.SetupStorageDriver()
 		if err != nil {
 			return fmt.Errorf("Failed to setup storage: %s", err)
 		}
+
+		/* Restart containers */
+		containersRestart(d)
+		containersWatch(d)
 
 		/* Setup the TLS authentication */
 		certf, keyf, err := readMyCert()
