@@ -47,7 +47,7 @@ test_config_profiles() {
     # test live-adding a disk
     lxc config device add foo etc disk source=/etc path=/mnt2 readonly=true
     lxc exec foo -- ls /mnt2/hosts
-    lxc stop foo
+    lxc stop foo --force
     lxc start foo
     lxc exec foo -- ls /mnt2/hosts
     lxc config device remove foo etc
@@ -57,14 +57,14 @@ test_config_profiles() {
       echo "disk was not hot-unplugged"
       false
     fi
-    lxc stop foo
+    lxc stop foo --force
     lxc start foo
     lxc exec foo -- ls /mnt2/hosts && bad=1 || true
     if [ "$bad" -eq 1 ]; then
       echo "disk device re-appeared after stop and start"
       false
     fi
-    lxc stop foo
+    lxc stop foo --force
   fi
 
   lxc config set foo user.prop value
