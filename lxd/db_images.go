@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -10,41 +9,26 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
-	resultString := []string{}
-	resultMap := []shared.ImageInfo{}
-
+func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
 	q := "SELECT fingerprint FROM images"
-	var name string
 	if public == true {
 		q = "SELECT fingerprint FROM images WHERE public=1"
 	}
+
+	var fp string
 	inargs := []interface{}{}
-	outfmt := []interface{}{name}
-	results, err := dbQueryScan(d.db, q, inargs, outfmt)
+	outfmt := []interface{}{fp}
+	dbResults, err := dbQueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
 
-	for _, r := range results {
-		name = r[0].(string)
-		if !recursion {
-			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
-			resultString = append(resultString, url)
-		} else {
-			image, response := doImageGet(d, name, public)
-			if response != nil {
-				continue
-			}
-			resultMap = append(resultMap, image)
-		}
+	results := []string{}
+	for _, r := range dbResults {
+		results = append(results, r[0].(string))
 	}
 
-	if !recursion {
-		return resultString, nil
-	}
-
-	return resultMap, nil
+	return results, nil
 }
 
 // dbImageGet gets an ImageBaseInfo object from the database.
@@ -52,7 +36,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func dbImageGet(db *sql.DB, fingerprint string, public bool, strict_matching bool) (*shared.ImageBaseInfo, error) {
+func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) (*shared.ImageBaseInfo, error) {
 	var err error
 	var create, expire, upload *time.Time // These hold the db-returned times
 
@@ -60,14 +44,15 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strict_matching boo
 	image := new(shared.ImageBaseInfo)
 
 	// These two humongous things will be filled by the call to DbQueryRowScan
-	inargs := []interface{}{fingerprint + "%"}
 	outfmt := []interface{}{&image.Id, &image.Fingerprint, &image.Filename,
 		&image.Size, &image.Public, &image.Architecture,
 		&create, &expire, &upload}
 
 	var query string
 
-	if strict_matching {
+	var inargs []interface{}
+	if strictMatching {
+		inargs = []interface{}{fingerprint}
 		query = `
         SELECT
             id, fingerprint, filename, size, public, architecture,
@@ -76,6 +61,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strict_matching boo
             images
         WHERE fingerprint = ?`
 	} else {
+		inargs = []interface{}{fingerprint + "%"}
 		query = `
         SELECT
             id, fingerprint, filename, size, public, architecture,
@@ -157,4 +143,32 @@ func dbImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
 	stmt := `INSERT into images_aliases (name, image_id, description) values (?, ?, ?)`
 	_, err := dbExec(db, stmt, name, imageID, desc)
 	return err
+}
+
+func dbImageLastAccessUpdate(db *sql.DB, fingerprint string) error {
+	stmt := `UPDATE images SET last_use_date=strftime("%s") WHERE fingerprint=?`
+	_, err := dbExec(db, stmt, fingerprint)
+	return err
+}
+
+func dbImageLastAccessInit(db *sql.DB, fingerprint string) error {
+	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
+	_, err := dbExec(db, stmt, fingerprint)
+	return err
+}
+
+func dbImageExpiryGet(db *sql.DB) (string, error) {
+	q := `SELECT value FROM config WHERE key='images.remote_cache_expiry'`
+	arg1 := []interface{}{}
+	var expiry string
+	arg2 := []interface{}{&expiry}
+	err := dbQueryRowScan(db, q, arg1, arg2)
+	switch err {
+	case sql.ErrNoRows:
+		return "10", nil
+	case nil:
+		return expiry, nil
+	default:
+		return "", err
+	}
 }

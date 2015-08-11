@@ -184,7 +184,7 @@ func containerLXDCreateFromImage(d *Daemon, name string,
 		return nil, err
 	}
 
-	if err := dbUpdateImageLastAccess(d, hash); err != nil {
+	if err := dbImageLastAccessUpdate(d.db, hash); err != nil {
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 

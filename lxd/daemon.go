@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -61,6 +62,9 @@ type Daemon struct {
 	configValues map[string]string
 
 	IsMock bool
+
+	imagesDownloading     map[string]chan bool
+	imagesDownloadingLock sync.RWMutex
 }
 
 // Command is the basic structure for every API call.
@@ -443,7 +447,7 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 
 func (d *Daemon) pruneExpiredImages() {
 	shared.Debugf("Pruning expired images\n")
-	expiry, err := dbGetImageExpiry(d)
+	expiry, err := dbImageExpiryGet(d.db)
 	if err != nil { // no expiry
 		shared.Debugf("Failed getting the cached image expiry timeout\n")
 		return
@@ -473,7 +477,9 @@ SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 
 // StartDaemon starts the shared daemon with the provided configuration.
 func startDaemon() (*Daemon, error) {
 	d := &Daemon{
-		IsMock: false,
+		IsMock:                false,
+		imagesDownloading:     map[string]chan bool{},
+		imagesDownloadingLock: sync.RWMutex{},
 	}
 
 	if err := d.Init(); err != nil {
@@ -578,7 +584,7 @@ func (d *Daemon) Init() error {
 	d.pruneChan = make(chan bool)
 	go func() {
 		for {
-			expiryStr, err := dbGetImageExpiry(d)
+			expiryStr, err := dbImageExpiryGet(d.db)
 			var expiry int
 			if err != nil {
 				expiry = 10
