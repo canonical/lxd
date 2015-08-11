@@ -131,7 +131,7 @@ type container interface {
 
 	IsPrivileged() bool
 	IsRunning() bool
-	IsEmpheral() bool
+	IsEphemeral() bool
 	IsSnapshot() bool
 
 	IDGet() int
@@ -771,7 +771,7 @@ func (c *containerLXD) Rename(newName string) error {
 	return nil
 }
 
-func (c *containerLXD) IsEmpheral() bool {
+func (c *containerLXD) IsEphemeral() bool {
 	return c.ephemeral
 }
 
