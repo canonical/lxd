@@ -19,7 +19,7 @@ import (
 func (d *Daemon) ImageDownload(
 	server, fp string, secret string, forContainer bool) error {
 
-	if id := dbImageIDGet(d.db, fp); id != -1 {
+	if _, err := dbImageGet(d.db, fp, false, true); err == nil {
 		shared.Log.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		// already have it
 		return nil
@@ -44,7 +44,7 @@ func (d *Daemon) ImageDownload(
 			shared.Log.Warn("Value transmitted over image lock semaphore?")
 		}
 
-		if id := dbImageIDGet(d.db, fp); id == -1 {
+		if _, err := dbImageGet(d.db, fp, false, true); err != nil {
 			shared.Log.Error(
 				"Previous download didn't succeed",
 				log.Ctx{"image": fp})
