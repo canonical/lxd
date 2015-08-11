@@ -9,18 +9,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func dbImageIDGet(db *sql.DB, fp string) int {
-	q := `SELECT id FROM images WHERE fingerprint=?`
-	id := -1
-	arg1 := []interface{}{fp}
-	arg2 := []interface{}{&id}
-	err := dbQueryRowScan(db, q, arg1, arg2)
-	if err != nil {
-		return -1
-	}
-	return id
-}
-
 func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
 	q := "SELECT fingerprint FROM images"
 	if public == true {
@@ -56,14 +44,15 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 	image := new(shared.ImageBaseInfo)
 
 	// These two humongous things will be filled by the call to DbQueryRowScan
-	inargs := []interface{}{fingerprint + "%"}
 	outfmt := []interface{}{&image.Id, &image.Fingerprint, &image.Filename,
 		&image.Size, &image.Public, &image.Architecture,
 		&create, &expire, &upload}
 
 	var query string
 
+	var inargs []interface{}
 	if strictMatching {
+		inargs = []interface{}{fingerprint}
 		query = `
         SELECT
             id, fingerprint, filename, size, public, architecture,
@@ -72,6 +61,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
             images
         WHERE fingerprint = ?`
 	} else {
+		inargs = []interface{}{fingerprint + "%"}
 		query = `
         SELECT
             id, fingerprint, filename, size, public, architecture,
