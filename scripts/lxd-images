@@ -485,7 +485,7 @@ class Ubuntu(Image):
                 image = candidates[version]
                 break
             else:
-                image = list(candidates.values())[-1]
+                image = candidates[sorted(candidates.keys())[-1]]
 
         if not image:
             raise Exception("The requested image doesn't exist.")
