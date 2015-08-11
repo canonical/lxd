@@ -714,6 +714,7 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 
 func (c *containerLXD) Delete() error {
 	shared.Log.Debug("containerLXD.Delete", log.Ctx{"c.name": c.NameGet(), "type": c.cType})
+
 	switch c.cType {
 	case cTypeRegular:
 		if err := containerDeleteSnapshots(c.daemon, c.NameGet()); err != nil {
@@ -1319,6 +1320,7 @@ func (c *containerLXD) setupMacAddresses() error {
 				d["hwaddr"] = hwaddr
 				key := fmt.Sprintf("volatile.%s.hwaddr", name)
 				c.config[key] = hwaddr
+				c.myConfig[key] = hwaddr
 				newConfigEntries[key] = hwaddr
 			}
 		}

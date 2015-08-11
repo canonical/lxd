@@ -1,25 +1,33 @@
 package main
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/lxc/lxd/shared"
-)
+func mockStartDaemon() (*Daemon, error) {
+	d := &Daemon{
+		IsMock: true,
+	}
+
+	if err := d.Init(); err != nil {
+		return nil, err
+	}
+
+	// Call this after Init so we have a log object.
+	storageConfig := make(map[string]interface{})
+	d.Storage = &storageLogWrapper{w: &storageMock{d: d}}
+	if _, err := d.Storage.Init(storageConfig); err != nil {
+		return nil, err
+	}
+
+	return d, nil
+}
 
 func Test_config_value_set_empty_removes_val(t *testing.T) {
-	d := &Daemon{}
-
-	err := shared.SetLogger("", "", true, true)
+	d, err := mockStartDaemon()
 	if err != nil {
-		t.Error("logging")
+		t.Errorf("daemon, err='%s'", err)
 	}
+	defer d.Stop()
 
-	err = initializeDbObject(d, ":memory:")
-	defer d.db.Close()
-
-	if err != nil {
-		t.Error("failed to init db")
-	}
 	if err = d.ConfigValueSet("core.lvm_vg_name", "foo"); err != nil {
 		t.Error("couldn't set value", err)
 	}

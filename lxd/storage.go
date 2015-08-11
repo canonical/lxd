@@ -105,6 +105,7 @@ const (
 	storageTypeBtrfs storageType = iota
 	storageTypeLvm
 	storageTypeDir
+	storageTypeMock
 )
 
 func storageTypeToString(sType storageType) string {
@@ -113,6 +114,8 @@ func storageTypeToString(sType storageType) string {
 		return "btrfs"
 	case storageTypeLvm:
 		return "lvm"
+	case storageTypeMock:
+		return "mock"
 	}
 
 	return "dir"
@@ -152,6 +155,10 @@ func newStorage(d *Daemon, sType storageType) (storage, error) {
 }
 
 func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interface{}) (storage, error) {
+	if d.IsMock {
+		return d.Storage, nil
+	}
+
 	var s storage
 
 	switch sType {
@@ -160,19 +167,19 @@ func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interf
 			return d.Storage, nil
 		}
 
-		s = &storageLogWrapper{w: &storageBtrfs{d: d, sType: sType}}
+		s = &storageLogWrapper{w: &storageBtrfs{d: d}}
 	case storageTypeLvm:
 		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeLvm {
 			return d.Storage, nil
 		}
 
-		s = &storageLogWrapper{w: &storageLvm{d: d, sType: sType}}
+		s = &storageLogWrapper{w: &storageLvm{d: d}}
 	default:
 		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeDir {
 			return d.Storage, nil
 		}
 
-		s = &storageLogWrapper{w: &storageDir{d: d, sType: sType}}
+		s = &storageLogWrapper{w: &storageDir{d: d}}
 	}
 
 	return s.Init(config)
@@ -208,6 +215,7 @@ func storageForImage(d *Daemon, imgInfo *shared.ImageBaseInfo) (storage, error) 
 }
 
 type storageShared struct {
+	sType     storageType
 	sTypeName string
 
 	log log.Logger
@@ -218,6 +226,10 @@ func (ss *storageShared) initShared() error {
 		log.Ctx{"driver": fmt.Sprintf("storage/%s", ss.sTypeName)},
 	)
 	return nil
+}
+
+func (ss *storageShared) GetStorageType() storageType {
+	return ss.sType
 }
 
 func (ss *storageShared) GetStorageTypeName() string {

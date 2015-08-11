@@ -30,8 +30,14 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	return err
 }
 
-func dbUpdateFromV11(db *sql.DB) error {
-	cNames, err := dbContainersList(db, cTypeSnapshot)
+func dbUpdateFromV11(d *Daemon) error {
+	if d.IsMock {
+		// No need to move snapshots no mock runs,
+		// dbUpdateFromV12 will then set the db version to 13
+		return nil
+	}
+
+	cNames, err := dbContainersList(d.db, cTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -97,12 +103,18 @@ func dbUpdateFromV11(db *sql.DB) error {
 
 	stmt := `
 INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
-	_, err = db.Exec(stmt, 12)
-	return err
+	_, err = d.db.Exec(stmt, 12)
 
+	return err
 }
 
 func dbUpdateFromV10(d *Daemon) error {
+	if d.IsMock {
+		// No need to move lxc to containers in mock runs,
+		// dbUpdateFromV12 will then set the db version to 13
+		return nil
+	}
+
 	if shared.PathExists(shared.VarPath("lxc")) {
 		err := os.Rename(shared.VarPath("lxc"), shared.VarPath("containers"))
 		if err != nil {
@@ -570,7 +582,7 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 		}
 	}
 	if prevVersion < 12 {
-		err = dbUpdateFromV11(db)
+		err = dbUpdateFromV11(d)
 		if err != nil {
 			return err
 		}

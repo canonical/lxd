@@ -12,23 +12,19 @@ import (
 )
 
 type storageDir struct {
-	d     *Daemon
-	sType storageType
+	d *Daemon
 
 	storageShared
 }
 
 func (s *storageDir) Init(config map[string]interface{}) (storage, error) {
+	s.sType = storageTypeDir
 	s.sTypeName = storageTypeToString(s.sType)
 	if err := s.initShared(); err != nil {
 		return s, err
 	}
 
 	return s, nil
-}
-
-func (s *storageDir) GetStorageType() storageType {
-	return s.sType
 }
 
 func (s *storageDir) ContainerCreate(container container) error {
