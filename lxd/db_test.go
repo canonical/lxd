@@ -31,7 +31,7 @@ func createTestDb(t *testing.T) (db *sql.DB) {
 	}
 
 	var err error
-	d := &Daemon{}
+	d := &Daemon{IsMock: true}
 	err = initializeDbObject(d, ":memory:")
 	db = d.db
 
@@ -189,7 +189,7 @@ func Test_initializing_db_is_indempotent(t *testing.T) {
 	var err error
 
 	// This calls "createDb" once already.
-	d := &Daemon{}
+	d := &Daemon{IsMock: true}
 	err = initializeDbObject(d, ":memory:")
 	db = d.db
 
@@ -198,7 +198,7 @@ func Test_initializing_db_is_indempotent(t *testing.T) {
 	// Let's call it a second time.
 	err = createDb(db)
 	if err != nil {
-		t.Error("The database schema is not indempotent.")
+		t.Errorf("The database schema is not indempotent, err='%s'", err)
 	}
 }
 
@@ -221,22 +221,14 @@ func Test_running_dbUpdateFromV6_adds_on_delete_cascade(t *testing.T) {
 	// Upgrading the database schema with updateFromV6 adds ON DELETE CASCADE
 	// to sqlite tables that require it, and conserve the data.
 
-	var db *sql.DB
 	var err error
 	var count int
-	var statements string
 
-	d := &Daemon{}
+	d := &Daemon{IsMock: true}
 	err = initializeDbObject(d, ":memory:")
-	db = d.db
+	defer d.db.Close()
 
-	defer db.Close()
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	statements = `
+	statements := `
 CREATE TABLE IF NOT EXISTS containers (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -254,20 +246,21 @@ CREATE TABLE IF NOT EXISTS containers_config (
     FOREIGN KEY (container_id) REFERENCES containers (id),
     UNIQUE (container_id, key)
 );
+
 INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
 INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`
 
-	_, err = db.Exec(statements)
+	_, err = d.db.Exec(statements)
 	if err != nil {
 		t.Error(err)
 	}
 
 	// Run the upgrade from V6 code
-	err = dbUpdateFromV6(db)
+	err = dbUpdateFromV6(d.db)
 
 	// Make sure the inserted data is still there.
 	statements = `SELECT count(*) FROM containers_config;`
-	err = db.QueryRow(statements).Scan(&count)
+	err = d.db.QueryRow(statements).Scan(&count)
 
 	if count != 1 {
 		t.Fatalf("There should be exactly one entry in containers_config! There are %d.", count)
@@ -276,14 +269,14 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	// Drop the container.
 	statements = `DELETE FROM containers WHERE name = 'thename';`
 
-	_, err = db.Exec(statements)
+	_, err = d.db.Exec(statements)
 	if err != nil {
 		t.Errorf("Error deleting container! %s", err)
 	}
 
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles;`
-	err = db.QueryRow(statements).Scan(&count)
+	err = d.db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
 		t.Errorf("Deleting a container didn't delete the profile association! There are %d left", count)
@@ -373,7 +366,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 
 	// The "foreign key" on containers_config now points to nothing.
 	// Let's run the schema upgrades.
-	d := &Daemon{}
+	d := &Daemon{IsMock: true}
 	d.db = db
 	err = dbUpdate(d, 1)
 

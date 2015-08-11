@@ -59,6 +59,8 @@ type Daemon struct {
 	devlxd *net.UnixListener
 
 	configValues map[string]string
+
+	IsMock bool
 }
 
 // Command is the basic structure for every API call.
@@ -470,21 +472,37 @@ SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 
 
 // StartDaemon starts the shared daemon with the provided configuration.
 func startDaemon() (*Daemon, error) {
-	d := &Daemon{}
+	d := &Daemon{
+		IsMock: false,
+	}
 
+	if err := d.Init(); err != nil {
+		return nil, err
+	}
+
+	return d, nil
+}
+
+func (d *Daemon) Init() error {
 	/* Setup logging */
 	if shared.Log == nil {
 		shared.SetLogger("", "", true, true)
 	}
 
-	shared.Log.Info("LXD is starting")
+	if !d.IsMock {
+		shared.Log.Info("LXD is starting",
+			log.Ctx{"path": shared.VarPath("")})
+	} else {
+		shared.Log.Info("Mock LXD is starting",
+			log.Ctx{"path": shared.VarPath("")})
+	}
 
 	/* Get the list of supported architectures */
 	var architectures = []int{}
 
 	uname := syscall.Utsname{}
 	if err := syscall.Uname(&uname); err != nil {
-		return nil, err
+		return err
 	}
 
 	architectureName := ""
@@ -497,13 +515,13 @@ func startDaemon() (*Daemon, error) {
 
 	architecture, err := shared.ArchitectureId(architectureName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	architectures = append(architectures, architecture)
 
 	personalities, err := shared.ArchitecturePersonalities(architecture)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for _, personality := range personalities {
 		architectures = append(architectures, personality)
@@ -514,18 +532,18 @@ func startDaemon() (*Daemon, error) {
 	d.lxcpath = shared.VarPath("containers")
 	err = os.MkdirAll(d.lxcpath, 0755)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Create default directories
 	if err := os.MkdirAll(shared.VarPath("images"), 0700); err != nil {
-		return nil, err
+		return err
 	}
 	if err := os.MkdirAll(shared.VarPath("snapshots"), 0700); err != nil {
-		return nil, err
+		return err
 	}
 	if err := os.MkdirAll(shared.VarPath("devlxd"), 0755); err != nil {
-		return nil, err
+		return err
 	}
 
 	/* Detect the filesystem */
@@ -547,9 +565,13 @@ func startDaemon() (*Daemon, error) {
 	}
 
 	/* Initialize the database */
-	err = initDb(d)
+	if !d.IsMock {
+		err = initializeDbObject(d, shared.VarPath("lxd.db"))
+	} else {
+		err = initializeDbObject(d, ":memory:")
+	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	/* Prune images */
@@ -584,34 +606,37 @@ func startDaemon() (*Daemon, error) {
 	/* Setup /dev/lxd */
 	d.devlxd, err = createAndBindDevLxd()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := setupSharedMounts(); err != nil {
-		return nil, err
+		return err
 	}
 
-	/* Restart containers */
-	containersRestart(d)
-	containersWatch(d)
+	var tlsConfig *tls.Config
+	if !d.IsMock {
+		err = d.SetupStorageDriver()
+		if err != nil {
+			return fmt.Errorf("Failed to setup storage: %s", err)
+		}
 
-	err = d.SetupStorageDriver()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to setup storage: %s", err)
-	}
+		/* Restart containers */
+		containersRestart(d)
+		containersWatch(d)
 
-	/* Setup the TLS authentication */
-	certf, keyf, err := readMyCert()
-	if err != nil {
-		return nil, err
-	}
-	d.certf = certf
-	d.keyf = keyf
-	readSavedClientCAList(d)
+		/* Setup the TLS authentication */
+		certf, keyf, err := readMyCert()
+		if err != nil {
+			return err
+		}
+		d.certf = certf
+		d.keyf = keyf
+		readSavedClientCAList(d)
 
-	tlsConfig, err := shared.GetTLSConfig(d.certf, d.keyf)
-	if err != nil {
-		return nil, err
+		tlsConfig, err = shared.GetTLSConfig(d.certf, d.keyf)
+		if err != nil {
+			return err
+		}
 	}
 
 	/* Setup the web server */
@@ -634,7 +659,7 @@ func startDaemon() (*Daemon, error) {
 
 	listeners, err := activation.Listeners(false)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var sockets []net.Listener
@@ -666,32 +691,32 @@ func startDaemon() (*Daemon, error) {
 				// listen on it ourselves.
 				err = os.Remove(localSocketPath)
 				if err != nil {
-					return nil, err
+					return err
 				}
 			}
 		}
 
 		unixAddr, err := net.ResolveUnixAddr("unix", localSocketPath)
 		if err != nil {
-			return nil, fmt.Errorf("cannot resolve unix socket address: %v", err)
+			return fmt.Errorf("cannot resolve unix socket address: %v", err)
 		}
 
 		unixl, err := net.ListenUnix("unix", unixAddr)
 		if err != nil {
-			return nil, fmt.Errorf("cannot listen on unix socket: %v", err)
+			return fmt.Errorf("cannot listen on unix socket: %v", err)
 		}
 
 		if err := os.Chmod(localSocketPath, 0660); err != nil {
-			return nil, err
+			return err
 		}
 
 		gid, err := shared.GroupId(*group)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if err := os.Chown(localSocketPath, os.Getuid(), gid); err != nil {
-			return nil, err
+			return err
 		}
 
 		sockets = append(sockets, unixl)
@@ -699,7 +724,7 @@ func startDaemon() (*Daemon, error) {
 
 	listenAddr, err := d.ConfigValueGet("core.https_address")
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if listenAddr != "" {
@@ -710,13 +735,17 @@ func startDaemon() (*Daemon, error) {
 
 		tcpl, err := tls.Listen("tcp", listenAddr, tlsConfig)
 		if err != nil {
-			return nil, fmt.Errorf("cannot listen on https socket: %v", err)
+			return fmt.Errorf("cannot listen on https socket: %v", err)
 		}
 
 		sockets = append(sockets, tcpl)
 	}
 
-	d.Sockets = sockets
+	if !d.IsMock {
+		d.Sockets = sockets
+	} else {
+		d.Sockets = []net.Listener{}
+	}
 
 	d.tomb.Go(func() error {
 		shared.Log.Info("REST API daemon:")
@@ -733,7 +762,7 @@ func startDaemon() (*Daemon, error) {
 		return nil
 	})
 
-	return d, nil
+	return nil
 }
 
 // CheckTrustState returns True if the client is trusted else false.
@@ -748,25 +777,8 @@ func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 	return false
 }
 
-func (d *Daemon) ListRegularContainers() ([]string, error) {
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
-	inargs := []interface{}{cTypeRegular}
-	var name string
-	outfmt := []interface{}{name}
-
-	list := []string{}
-	result, err := dbQueryScan(d.db, q, inargs, outfmt)
-	if err != nil {
-		return list, err
-	}
-	for _, r := range result {
-		list = append(list, r[0].(string))
-	}
-	return list, nil
-}
-
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := d.ListRegularContainers()
+	results, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return 0, err
 	}
@@ -796,7 +808,10 @@ func (d *Daemon) Stop() error {
 	}
 
 	if n, err := d.numRunningContainers(); err != nil || n == 0 {
-		shared.Debugf("Unmounting shmounts: err %s n %d", err, n)
+		shared.Log.Debug(
+			"Unmounting shmounts",
+			log.Ctx{"err": err, "n": n})
+
 		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
 		os.RemoveAll(shared.VarPath("shmounts"))
 	} else {
@@ -807,11 +822,15 @@ func (d *Daemon) Stop() error {
 
 	d.devlxd.Close()
 
-	err := d.tomb.Wait()
-	if err == errStop {
-		return nil
+	if !d.IsMock {
+		err := d.tomb.Wait()
+		if err == errStop {
+			return nil
+		}
+		return err
 	}
-	return err
+
+	return nil
 }
 
 // ConfigKeyIsValid returns if the given key is a known config value.
