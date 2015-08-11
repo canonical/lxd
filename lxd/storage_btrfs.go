@@ -13,13 +13,13 @@ import (
 )
 
 type storageBtrfs struct {
-	d     *Daemon
-	sType storageType
+	d *Daemon
 
 	storageShared
 }
 
 func (s *storageBtrfs) Init(config map[string]interface{}) (storage, error) {
+	s.sType = storageTypeBtrfs
 	s.sTypeName = storageTypeToString(s.sType)
 	if err := s.initShared(); err != nil {
 		return s, err
@@ -31,10 +31,6 @@ func (s *storageBtrfs) Init(config map[string]interface{}) (storage, error) {
 	}
 
 	return s, nil
-}
-
-func (s *storageBtrfs) GetStorageType() storageType {
-	return s.sType
 }
 
 func (s *storageBtrfs) ContainerCreate(container container) error {

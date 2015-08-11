@@ -12,12 +12,12 @@ ARCHIVE=lxd-$(VERSION).tar
 
 .PHONY: default
 default:
-	go get -v -d ./... || true
+	go get -t -v -d ./... || true
 	go install -v ./...
 
 .PHONY: client
 client:
-	go get -v -d ./...
+	go get -t -v -d ./...
 	go install -v ./lxc
 
 # This only needs to be done when migrate.proto is actually changed; since we
