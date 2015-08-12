@@ -94,9 +94,9 @@ test_delete_with_appropriate_storage() {
     lxc launch testimage reg-container || die "couldn't launch regular container"
     lxc config set core.lvm_vg_name "lxd_test_vg" || die "error setting core.lvm_vg_name config"
     lxc config show | grep "lxd_test_vg" || die "test_vg not in config show output"
-    lxc stop reg-container || die "couldn't stop reg-container"
+    lxc stop reg-container --force || die "couldn't stop reg-container"
     lxc start reg-container || die "couldn't start reg-container"
-    lxc stop reg-container || die "couldn't stop reg-container"
+    lxc stop reg-container --force || die "couldn't stop reg-container"
     lxc delete reg-container || die "couldn't delete reg-container"
     lxc image delete testimage || die "couldn't delete regular image"
 
@@ -106,9 +106,9 @@ test_delete_with_appropriate_storage() {
 
     lxc launch testimage lvm-container || die "couldn't launch lvm container"
     lxc config unset core.lvm_vg_name || die "couldn't unset config"
-    lxc stop lvm-container || die "couldn't stop lvm-container"
+    lxc stop lvm-container --force || die "couldn't stop lvm-container"
     lxc start lvm-container || die "couldn't start lvm-container"
-    lxc stop lvm-container || die "couldn't stop lvm-container"
+    lxc stop lvm-container --force || die "couldn't stop lvm-container"
     lxc delete lvm-container || die "couldn't delete container"
     lxc image delete testimage || die "couldn't delete lvm-backed image"
 
