@@ -403,6 +403,9 @@ func (c *migrationSink) do() error {
 	restore := make(chan error)
 	go func(c *migrationSink) {
 		imagesDir := ""
+		srcIdmap := new(shared.IdmapSet)
+		dstIdmap := c.IdmapSet
+
 		if c.live {
 			var err error
 			imagesDir, err = ioutil.TempDir("", "lxd_migration_")
@@ -431,6 +434,21 @@ func (c *migrationSink) do() error {
 				c.sendControl(err)
 				return
 			}
+
+			/*
+			 * For unprivileged containers we need to shift the
+			 * perms on the images images so that they can be
+			 * opened by the process after it is in its user
+			 * namespace.
+			 */
+			if dstIdmap != nil {
+				if err := dstIdmap.ShiftRootfs(imagesDir); err != nil {
+					restore <- err
+					os.RemoveAll(imagesDir)
+					c.sendControl(err)
+					return
+				}
+			}
 		}
 
 		fsDir := c.container.ConfigItem("lxc.rootfs")[0]
@@ -439,9 +457,6 @@ func (c *migrationSink) do() error {
 			c.sendControl(err)
 			return
 		}
-
-		srcIdmap := new(shared.IdmapSet)
-		dstIdmap := c.IdmapSet
 
 		for _, idmap := range header.Idmap {
 			e := shared.IdmapEntry{
