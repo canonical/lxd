@@ -336,7 +336,7 @@ func txUpdateNic(tx *sql.Tx, cId int, devname string, nicname string) error {
 		return err
 	}
 
-	stmt := `INSERT into containers_devices_config (container_device_id, key, value) VALUES (?, ?, ?)`
+	stmt := `INSERT OR REPLACE into containers_devices_config (container_device_id, key, value) VALUES (?, ?, ?)`
 	_, err = tx.Exec(stmt, dId, "name", nicname)
 	return err
 }
@@ -352,7 +352,6 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 	rmList, addList := preDevList.Update(postDevList)
 	var err error
 
-	// note - currently Devices.Update() only returns nics
 	for key, dev := range rmList {
 		switch dev["type"] {
 		case "nic":
@@ -383,9 +382,10 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 				removeInterface(tmpName)
 				return fmt.Errorf("Unable to move nic %s into container %s as %s: %s", tmpName, c.NameGet(), dev["name"], err)
 			}
-			// Now we need to add the name to the database
+
 			if err := txUpdateNic(tx, c.IDGet(), key, dev["name"]); err != nil {
 				shared.Debugf("Warning: failed to update database entry for new nic %s: %s\n", key, err)
+				return err
 			}
 		case "disk":
 			if dev["source"] == "" || dev["path"] == "" {

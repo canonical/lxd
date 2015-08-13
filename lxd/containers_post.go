@@ -189,7 +189,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 
 	if req.Config == nil {
 		config := make(map[string]string)
-		for key, value := range sourceConfig.Config {
+		for key, value := range sourceConfig {
 			if key[0:8] == "volatile" {
 				shared.Debugf("Skipping configuration key: %s\n", key)
 				continue
@@ -200,7 +200,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	if req.Profiles == nil {
-		req.Profiles = sourceConfig.Profiles
+		req.Profiles = source.ProfilesGet()
 	}
 
 	args := containerLXDArgs{
