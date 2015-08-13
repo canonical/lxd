@@ -6,14 +6,17 @@
 package migration
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -125,6 +128,26 @@ func CollectCRIULogFile(c *lxc.Container, imagesDir string, function string, met
 	t := time.Now().Format(time.RFC3339)
 	newPath := shared.LogPath(c.Name(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
 	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
+}
+
+func GetCRIULogErrors(imagesDir string, method string) string {
+	f, err := os.Open(path.Join(imagesDir, fmt.Sprintf("%s.log", method)))
+	if err != nil {
+		return fmt.Sprintf("Problem accessing CRIU log: %s", err)
+	}
+
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	ret := []string{}
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "Error") {
+			ret = append(ret, scanner.Text())
+		}
+	}
+
+	return strings.Join(ret, "\n")
 }
 
 type migrationSourceWs struct {
@@ -271,6 +294,9 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		}
 
 		if err != nil {
+			log := GetCRIULogErrors(checkpointDir, "dump")
+
+			err = fmt.Errorf("checkpoint failed:\n%s", log)
 			s.sendControl(err)
 			return shared.OperationError(err)
 		}
@@ -512,7 +538,8 @@ func (c *migrationSink) do() error {
 
 			err = cmd.Run()
 			if err != nil {
-				err = fmt.Errorf("restore failed")
+				log := GetCRIULogErrors(imagesDir, "restore")
+				err = fmt.Errorf("restore failed:\n%s", log)
 			}
 
 			restore <- err
