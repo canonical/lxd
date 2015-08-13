@@ -510,7 +510,12 @@ func (c *migrationSink) do() error {
 				imagesDir,
 			)
 
-			restore <- cmd.Run()
+			err = cmd.Run()
+			if err != nil {
+				err = fmt.Errorf("restore failed")
+			}
+
+			restore <- err
 		} else {
 			restore <- nil
 		}
