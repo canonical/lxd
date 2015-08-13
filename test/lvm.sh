@@ -134,6 +134,12 @@ check_image_exists_in_pool() {
     [ -L "${LXD_DIR}/images/${imagelvname}.lv" ] || die "image symlink doesn't exist"
 }
 
+do_image_import_subtest() {
+    poolname=$1
+    ../scripts/lxd-images import busybox --alias testimage
+    check_image_exists_in_pool testimage $poolname
+}
+
 test_lvm_withpool() {
     poolname=$1
     PREV_LXD_DIR=$LXD_DIR
@@ -151,14 +157,19 @@ test_lvm_withpool() {
         echo " --> Testing with user-supplied thin pool name '$poolname'"
         lxc config set core.lvm_thinpool_name $poolname || die "error setting core.lvm_thinpool_name config"
         lxc config show | grep "$poolname" || die "thin pool name not in config show output."
+        echo " --> only doing minimal image import subtest with user pool name"
+        do_image_import_subtest $poolname
+        do_kill_lxd `cat $LXD_DIR/lxd.pid`
+        sleep 3
+        wipe ${LXD_DIR}
+        LXD_DIR=${PREV_LXD_DIR}
+        return
     else
         echo " --> Testing with default thin pool name 'LXDPool'"
         poolname=LXDPool
     fi
 
-    ../scripts/lxd-images import busybox --alias testimage
-
-    check_image_exists_in_pool testimage $poolname
+    do_image_import_subtest $poolname
 
     # launch a container using that image
 
