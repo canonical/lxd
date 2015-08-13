@@ -484,7 +484,7 @@ func (c *containerLXD) init() error {
 	}
 
 	// base per-container config should override profile config, so we apply it second
-	if err := c.applyConfig(c.baseConfig, false); err != nil {
+	if err := c.applyConfig(c.baseConfig); err != nil {
 		return err
 	}
 
@@ -511,6 +511,10 @@ func (c *containerLXD) init() error {
 	}
 
 	if err := c.applyIdmapSet(); err != nil {
+		return err
+	}
+
+	if err := c.applyPostDeviceConfig(); err != nil {
 		return err
 	}
 
@@ -861,7 +865,7 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 		return err
 	}
 
-	if err := c.applyConfig(newContainerArgs.Config, false); err != nil {
+	if err := c.applyConfig(newContainerArgs.Config); err != nil {
 		return err
 	}
 
@@ -906,6 +910,13 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 		return err
 	}
 
+	if err := c.applyPostDeviceConfig(); err != nil {
+		return err
+	}
+
+	c.baseConfig = newContainerArgs.Config
+	c.baseDevices = newContainerArgs.Devices
+
 	if !c.IsRunning() {
 		return txCommit(tx)
 	}
@@ -917,9 +928,6 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	if err := txCommit(tx); err != nil {
 		return err
 	}
-
-	c.baseConfig = newContainerArgs.Config
-	c.baseDevices = newContainerArgs.Devices
 
 	return nil
 }
@@ -1188,7 +1196,7 @@ func (c *containerLXD) AttachMount(m shared.Device) error {
 	return nil
 }
 
-func (c *containerLXD) applyConfig(config map[string]string, fromProfile bool) error {
+func (c *containerLXD) applyConfig(config map[string]string) error {
 	var err error
 	for k, v := range config {
 		switch k {
@@ -1221,12 +1229,14 @@ func (c *containerLXD) applyConfig(config map[string]string, fromProfile bool) e
 			return err
 		}
 	}
+	return nil
+}
 
-	if fromProfile {
-		return nil
-	}
+func (c *containerLXD) applyPostDeviceConfig() error {
+	// applies config that must be delayed until after devices are
+	// instantiated, see bug #588 and fix #635
 
-	if lxcConfig, ok := config["raw.lxc"]; ok {
+	if lxcConfig, ok := c.config["raw.lxc"]; ok {
 		if err := validateRawLxc(lxcConfig); err != nil {
 			return err
 		}
@@ -1288,7 +1298,7 @@ func (c *containerLXD) applyProfile(p string) error {
 		c.devices[k] = v
 	}
 
-	return c.applyConfig(config, true)
+	return c.applyConfig(config)
 }
 
 func (c *containerLXD) updateContainerHWAddr(k, v string) {
