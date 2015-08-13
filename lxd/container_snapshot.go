@@ -138,9 +138,17 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		snapshotName
 
 	snapshot := func() error {
+		config := c.ConfigGet()
+		args := containerLXDArgs{
+			Ctype:        cTypeSnapshot,
+			Config:       config,
+			Profiles:     c.ProfilesGet(),
+			Ephemeral:    c.IsEphemeral(),
+			BaseImage:    config["volatile.base_image"],
+			Architecture: c.ArchitectureGet(),
+			Devices:      c.DevicesGet(),
+		}
 
-		args := c.ConfigGet()
-		args.Ctype = cTypeSnapshot
 		_, err := containerLXDCreateAsSnapshot(d, fullName, args, c, stateful)
 		if err != nil {
 			return err
