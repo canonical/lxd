@@ -623,16 +623,15 @@ func (c *containerLXD) Start() error {
 		}
 	}
 
-	config := c.ConfigGet()
 	c.config["volatile.last_state.idmap"] = jsonIdmap
 
 	args := containerLXDArgs{
 		Ctype:        c.cType,
-		Config:       config,
+		Config:       c.baseConfig,
 		Profiles:     c.profiles,
 		Ephemeral:    c.ephemeral,
 		Architecture: c.architecture,
-		Devices:      c.devices,
+		Devices:      c.baseDevices,
 	}
 	err = c.ConfigReplace(args)
 
