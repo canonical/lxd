@@ -66,7 +66,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	_, err := dbProfileCreate(d.db, req.Name, req.Config, req.Devices)
 	if err != nil {
 		return InternalError(
-			fmt.Errorf("Error inserting %s into database", req.Name))
+			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
 	return EmptySyncResponse
