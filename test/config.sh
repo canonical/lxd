@@ -39,7 +39,10 @@ test_config_profiles() {
   if [ -z "$TRAVIS_PULL_REQUEST" ]; then
     # test live-adding a nic
     lxc start foo
+    lxc config show foo | grep -q "raw.lxc" && false
+    lxc config show foo | grep -v "volatile.eth0.hwaddr" | grep -q "eth0" && false
     lxc config device add foo eth2 nic nictype=bridged parent=lxcbr0 name=eth10
+    lxc exec foo -- /sbin/ifconfig -a | grep eth0
     lxc exec foo -- /sbin/ifconfig -a | grep eth10
     lxc config device list foo | grep eth2
     lxc config device remove foo eth2
