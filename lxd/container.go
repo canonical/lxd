@@ -921,6 +921,25 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 		return txCommit(tx)
 	}
 
+	if err := txCommit(tx); err != nil {
+		return err
+	}
+
+	// add devices from new profile list to the desired goal set
+	for _, p := range c.profiles {
+		profileDevs, err := dbDevicesGet(c.daemon.db, p, true)
+		if err != nil {
+			return fmt.Errorf("Error reading devices from profile '%s': %v", p, err)
+		}
+
+		newContainerArgs.Devices.ExtendFromProfile(preDevList, profileDevs)
+	}
+
+	tx, err = dbBegin(c.daemon.db)
+	if err != nil {
+		return err
+	}
+
 	if err := devicesApplyDeltaLive(tx, c, preDevList, newContainerArgs.Devices); err != nil {
 		return err
 	}
