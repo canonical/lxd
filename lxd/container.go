@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +15,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -146,7 +148,9 @@ type container interface {
 	LogFilePathGet() string
 	LogPathGet() string
 	InitPidGet() (int, error)
+
 	IdmapSetGet() (*shared.IdmapSet, error)
+	LastIdmapSetGet() (*shared.IdmapSet, error)
 
 	TemplateApply(trigger string) error
 	ExportToTar(snap string, w io.Writer) error
@@ -578,6 +582,66 @@ func (c *containerLXD) Start() error {
 		return err
 	}
 
+	/* Deal with idmap changes */
+	idmap, err := c.IdmapSetGet()
+	if err != nil {
+		return err
+	}
+
+	lastIdmap, err := c.LastIdmapSetGet()
+	if err != nil {
+		return err
+	}
+
+	var jsonIdmap string
+	if idmap != nil {
+		idmapBytes, err := json.Marshal(idmap.Idmap)
+		if err != nil {
+			c.StorageStop()
+			return err
+		}
+		jsonIdmap = string(idmapBytes)
+	} else {
+		jsonIdmap = "[]"
+	}
+
+	if !reflect.DeepEqual(idmap, lastIdmap) {
+		shared.Debugf("Container idmap changed, remapping")
+
+		if lastIdmap != nil {
+			if err := lastIdmap.UnshiftRootfs(c.RootfsPathGet()); err != nil {
+				c.StorageStop()
+				return err
+			}
+		}
+
+		if idmap != nil {
+			if err := idmap.ShiftRootfs(c.RootfsPathGet()); err != nil {
+				c.StorageStop()
+				return err
+			}
+		}
+	}
+
+	config := c.ConfigGet()
+	c.config["volatile.last_state.idmap"] = jsonIdmap
+
+	args := containerLXDArgs{
+		Ctype:        c.cType,
+		Config:       config,
+		Profiles:     c.profiles,
+		Ephemeral:    c.ephemeral,
+		Architecture: c.architecture,
+		Devices:      c.devices,
+	}
+	err = c.ConfigReplace(args)
+
+	if err != nil {
+		c.StorageStop()
+		return err
+	}
+
+	/* Actually start the container */
 	err = exec.Command(
 		os.Args[0],
 		"forkstart",
@@ -844,6 +908,27 @@ func (c *containerLXD) InitPidGet() (int, error) {
 
 func (c *containerLXD) IdmapSetGet() (*shared.IdmapSet, error) {
 	return c.idmapset, nil
+}
+
+func (c *containerLXD) LastIdmapSetGet() (*shared.IdmapSet, error) {
+	config := c.ConfigGet()
+	lastJsonIdmap := config["volatile.last_state.idmap"]
+
+	if lastJsonIdmap == "" {
+		return c.IdmapSetGet()
+	}
+
+	lastIdmap := new(shared.IdmapSet)
+	err := json.Unmarshal([]byte(lastJsonIdmap), &lastIdmap.Idmap)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(lastIdmap.Idmap) == 0 {
+		return nil, nil
+	}
+
+	return lastIdmap, nil
 }
 
 func (c *containerLXD) LXContainerGet() (*lxc.Container, error) {

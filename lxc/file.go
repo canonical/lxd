@@ -71,12 +71,12 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 		mode = os.FileMode(m)
 	}
 
-	uid := 1000
+	uid := 0
 	if c.uid >= 0 {
 		uid = c.uid
 	}
 
-	gid := 1000
+	gid := 0
 	if c.gid >= 0 {
 		gid = c.gid
 	}
