@@ -6,14 +6,17 @@
 package migration
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -125,6 +128,26 @@ func CollectCRIULogFile(c *lxc.Container, imagesDir string, function string, met
 	t := time.Now().Format(time.RFC3339)
 	newPath := shared.LogPath(c.Name(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
 	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
+}
+
+func GetCRIULogErrors(imagesDir string, method string) string {
+	f, err := os.Open(path.Join(imagesDir, fmt.Sprintf("%s.log", method)))
+	if err != nil {
+		return fmt.Sprintf("Problem accessing CRIU log: %s", err)
+	}
+
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	ret := []string{}
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "Error") {
+			ret = append(ret, scanner.Text())
+		}
+	}
+
+	return strings.Join(ret, "\n")
 }
 
 type migrationSourceWs struct {
@@ -271,6 +294,9 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		}
 
 		if err != nil {
+			log := GetCRIULogErrors(checkpointDir, "dump")
+
+			err = fmt.Errorf("checkpoint failed:\n%s", log)
 			s.sendControl(err)
 			return shared.OperationError(err)
 		}
@@ -403,6 +429,9 @@ func (c *migrationSink) do() error {
 	restore := make(chan error)
 	go func(c *migrationSink) {
 		imagesDir := ""
+		srcIdmap := new(shared.IdmapSet)
+		dstIdmap := c.IdmapSet
+
 		if c.live {
 			var err error
 			imagesDir, err = ioutil.TempDir("", "lxd_migration_")
@@ -431,6 +460,21 @@ func (c *migrationSink) do() error {
 				c.sendControl(err)
 				return
 			}
+
+			/*
+			 * For unprivileged containers we need to shift the
+			 * perms on the images images so that they can be
+			 * opened by the process after it is in its user
+			 * namespace.
+			 */
+			if dstIdmap != nil {
+				if err := dstIdmap.ShiftRootfs(imagesDir); err != nil {
+					restore <- err
+					os.RemoveAll(imagesDir)
+					c.sendControl(err)
+					return
+				}
+			}
 		}
 
 		fsDir := c.container.ConfigItem("lxc.rootfs")[0]
@@ -439,9 +483,6 @@ func (c *migrationSink) do() error {
 			c.sendControl(err)
 			return
 		}
-
-		srcIdmap := new(shared.IdmapSet)
-		dstIdmap := c.IdmapSet
 
 		for _, idmap := range header.Idmap {
 			e := shared.IdmapEntry{
@@ -495,7 +536,13 @@ func (c *migrationSink) do() error {
 				imagesDir,
 			)
 
-			restore <- cmd.Run()
+			err = cmd.Run()
+			if err != nil {
+				log := GetCRIULogErrors(imagesDir, "restore")
+				err = fmt.Errorf("restore failed:\n%s", log)
+			}
+
+			restore <- err
 		} else {
 			restore <- nil
 		}

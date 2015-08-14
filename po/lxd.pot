@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-08-06 10:33-0400\n"
+        "POT-Creation-Date: 2015-08-13 13:18-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -117,10 +117,6 @@ msgid   "Changes one or more containers state to %s.\n"
         "lxc %s <name> [<name>...]\n"
 msgstr  ""
 
-#: lxc/copy.go:66
-msgid   "Changing the name of a running container during copy isn't supported."
-msgstr  ""
-
 #: lxc/remote.go:154
 msgid   "Client certificate stored at server: "
 msgstr  ""
@@ -165,12 +161,12 @@ msgid   "Delete containers or container snapshots.\n"
         "snapshots, ...).\n"
 msgstr  ""
 
-#: lxc/config.go:434
+#: lxc/config.go:436
 #, c-format
 msgid   "Device %s added to %s\n"
 msgstr  ""
 
-#: lxc/config.go:462
+#: lxc/config.go:464
 #, c-format
 msgid   "Device %s removed from %s\n"
 msgstr  ""
@@ -382,6 +378,9 @@ msgid   "Manage configuration.\n"
         "To set an lxc config value:\n"
         "\tlxc config set [remote:]<container> raw.lxc 'lxc."
         "aa_allow_incomplete = 1'\n"
+        "To listen on IPv4 and IPv6 port 8443 (you can omit the 8443 its the "
+        "default):\n"
+        "\tlxc config set core.https_address [::]:8443\n"
         "To set the server trust password:\n"
         "\tlxc config set core.trust_password blah\n"
 msgstr  ""
@@ -465,7 +464,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "container>\n"
 msgstr  ""
 
-#: lxc/config.go:196
+#: lxc/config.go:198
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -473,7 +472,7 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:219
+#: lxc/config.go:221
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -597,7 +596,7 @@ msgstr  ""
 msgid   "The image architecture is incompatible with the target server"
 msgstr  ""
 
-#: lxc/copy.go:131
+#: lxc/copy.go:127
 msgid   "The source remote isn't available over the network"
 msgstr  ""
 
@@ -623,7 +622,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:233
+#: lxc/config.go:235
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
@@ -650,7 +649,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:390 lxc/image.go:383 lxc/profile.go:198
+#: lxc/config.go:392 lxc/image.go:383 lxc/profile.go:198
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -675,7 +674,7 @@ msgstr  ""
 msgid   "bad version in profile url"
 msgstr  ""
 
-#: lxc/copy.go:81
+#: lxc/copy.go:77
 msgid   "can't copy to the same container name"
 msgstr  ""
 
@@ -760,7 +759,7 @@ msgstr  ""
 msgid   "no value found in %q\n"
 msgstr  ""
 
-#: lxc/copy.go:103
+#: lxc/copy.go:99
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
@@ -787,7 +786,7 @@ msgstr  ""
 msgid   "unknown remote name: %q"
 msgstr  ""
 
-#: lxc/copy.go:127
+#: lxc/copy.go:123
 #, c-format
 msgid   "unknown transport type: %s"
 msgstr  ""
