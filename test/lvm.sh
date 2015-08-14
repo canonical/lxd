@@ -159,6 +159,11 @@ test_lvm_withpool() {
         lxc config show | grep "$poolname" || die "thin pool name not in config show output."
         echo " --> only doing minimal image import subtest with user pool name"
         do_image_import_subtest $poolname
+
+        # check that we can unset configs in this order
+        lxc config unset core.lvm_vg_name
+        lxc config unset core.lvm_thinpool_name
+
         do_kill_lxd `cat $LXD_DIR/lxd.pid`
         sleep 3
         wipe ${LXD_DIR}

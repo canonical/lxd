@@ -53,11 +53,12 @@ func storageLVMSetThinPoolNameConfig(d *Daemon, poolname string) error {
 	if err != nil {
 		return fmt.Errorf("Error getting lvm_vg_name config")
 	}
-	if vgname == "" {
-		return fmt.Errorf("Can not set lvm_thinpool_name without lvm_vg_name set.")
-	}
 
 	if poolname != "" {
+		if vgname == "" {
+			return fmt.Errorf("Can not set lvm_thinpool_name without lvm_vg_name set.")
+		}
+
 		poolExists, err := storageLVMThinpoolExists(vgname, poolname)
 		if err != nil {
 			return fmt.Errorf("Error checking for thin pool '%s' in '%s': %v", poolname, vgname, err)
