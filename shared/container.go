@@ -1,5 +1,9 @@
 package shared
 
+import (
+	"strconv"
+)
+
 /*
  * N.B. State is copied from lxc.State, but we re-export it here so that
  * client libraries don't have to import go-lxc and thus link against liblxc
@@ -100,6 +104,29 @@ func (c *ContainerState) State() State {
 type ContainerInfo struct {
 	State ContainerState `json:"state"`
 	Snaps []string       `json:"snaps"`
+}
+
+type ContainerInfoList []ContainerInfo
+
+func (slice ContainerInfoList) Len() int {
+	return len(slice)
+}
+
+func (slice ContainerInfoList) Less(i, j int) bool {
+	iOrder := slice[i].State.ExpandedConfig["boot.autostart.priority"]
+	jOrder := slice[j].State.ExpandedConfig["boot.autostart.priority"]
+
+	if iOrder != jOrder {
+		iOrderInt, _ := strconv.Atoi(iOrder)
+		jOrderInt, _ := strconv.Atoi(jOrder)
+		return iOrderInt > jOrderInt
+	}
+
+	return slice[i].State.Name < slice[j].State.Name
+}
+
+func (slice ContainerInfoList) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
 }
 
 type ContainerAction string
