@@ -185,28 +185,27 @@ func containersWatch(d *Daemon) error {
 }
 
 func containersRestart(d *Daemon) error {
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND power_state=1")
-	inargs := []interface{}{cTypeRegular}
-	var name string
-	outfmt := []interface{}{name}
+	containers, err := doContainersGet(d, true)
 
-	result, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return err
 	}
 
-	_, err = dbExec(d.db, "UPDATE containers SET power_state=0")
-	if err != nil {
-		return err
-	}
+	for _, container := range containers.([]shared.ContainerInfo) {
+		lastState := container.State.Config["volatile.last_state.power"]
+		if lastState == "RUNNING" {
+			container, err := containerLXDLoad(d, container.State.Name)
+			if err != nil {
+				return err
+			}
 
-	for _, r := range result {
-		container, err := containerLXDLoad(d, string(r[0].(string)))
-		if err != nil {
-			return err
+			container.Start()
 		}
+	}
 
-		container.Start()
+	_, err = dbExec(d.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -221,24 +220,22 @@ func containersShutdown(d *Daemon) error {
 	var wg sync.WaitGroup
 
 	for _, r := range results {
-		container, err := containerLXDLoad(d, r)
+		c, err := containerLXDLoad(d, r)
 		if err != nil {
 			return err
 		}
 
-		if container.IsRunning() {
-			_, err = dbExec(
-				d.db,
-				"UPDATE containers SET power_state=1 WHERE name=?",
-				container.NameGet())
-			if err != nil {
-				return err
-			}
+		err = c.ConfigKeySet("volatile.last_state.power", c.StateGet())
 
+		if err != nil {
+			return err
+		}
+
+		if c.IsRunning() {
 			wg.Add(1)
 			go func() {
-				container.Shutdown(time.Second * 30)
-				container.Stop()
+				c.Shutdown(time.Second * 30)
+				c.Stop()
 				wg.Done()
 			}()
 		}
