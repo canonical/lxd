@@ -326,6 +326,12 @@ func dbContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {
 // ValidContainerConfigKey returns if the given config key is a known/valid key.
 func ValidContainerConfigKey(k string) bool {
 	switch k {
+	case "boot.autostart":
+		return true
+	case "boot.autostart.delay":
+		return true
+	case "boot.autostart.priority":
+		return true
 	case "limits.cpus":
 		return true
 	case "limits.memory":

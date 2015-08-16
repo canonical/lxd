@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -191,15 +193,31 @@ func containersRestart(d *Daemon) error {
 		return err
 	}
 
-	for _, container := range containers.([]shared.ContainerInfo) {
+	containerInfo := containers.(shared.ContainerInfoList)
+	sort.Sort(containerInfo)
+
+	for _, container := range containerInfo {
 		lastState := container.State.Config["volatile.last_state.power"]
-		if lastState == "RUNNING" {
+
+		autoStart := container.State.ExpandedConfig["boot.autostart"]
+		autoStartDelay := container.State.ExpandedConfig["boot.autostart.delay"]
+
+		if lastState == "RUNNING" || autoStart == "true" {
 			container, err := containerLXDLoad(d, container.State.Name)
 			if err != nil {
 				return err
 			}
 
+			if container.IsRunning() {
+				continue
+			}
+
 			container.Start()
+
+			autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
+			if err == nil {
+				time.Sleep(time.Duration(autoStartDelayInt) * time.Second)
+			}
 		}
 	}
 

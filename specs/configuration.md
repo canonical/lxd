@@ -39,16 +39,21 @@ Name is the container name and can only be changed by renaming the container.
 ## Key/value configuration
 The key/value configuration is namespaced with the following namespaces
 currently supported:
+ - boot (boot related options, timing, dependencies, ...)
+ - environment (environment variables)
  - limits (resource limits)
  - raw (raw container configuration overrides)
  - security (security policies)
  - user (storage for user properties, searchable)
- - volatile (used internally by LXD to store container settings like MAC addresses)
+ - volatile (used internally by LXD to store settings that are specific to a specific container instance)
 
 The currently supported keys are:
 
 Key                         | Type          | Default           | Description
 :--                         | :---          | :------           | :----------
+boot.autostart              | boolean       | false             | Always start the container when LXD starts
+boot.autostart.delay        | int           | 0                 | Number of seconds to wait after the container started before starting the next one
+boot.autostart.priority     | int           | 0                 | What order to start the containers in (starting with highest)
 environment.\*              | string        | -                 | key/value environment variables to export to the container and set on exec
 limits.cpus                 | int           | 0 (all)           | Number of CPUs to expose to the container
 limits.memory               | int           | 0 (all)           | Size in MB of the memory allocation for the container
@@ -57,7 +62,9 @@ raw.lxc                     | blob          | -                 | Raw LXC config
 security.privileged         | boolean       | false             | Runs the container in privileged mode
 user.\*                     | string        | -                 | Free form user key/value storage (can be used in search)
 volatile.\<name\>.hwaddr    | string        | -                 | Unique MAC address for a given interface (generated and set by LXD when the hwaddr field of a "nic" type device isn't set)
-volatile.baseImg            | string        | -                 | The hash of the image the container was created from, if any.
+volatile.base\_image        | string        | -                 | The hash of the image the container was created from, if any.
+volatile.last\_state.idmap  | string        | -                 | Serialized container uid/gid map
+volatile.last\_state.power  | string        | -                 | Container state as of last host shutdown
 
 Note that while a type is defined above as a convenience, all values are
 stored as strings and should be exported over the REST API as strings
@@ -67,6 +74,8 @@ backward compatibility).
 Those keys can be set using the lxc tool with:
 
     lxc config set <container> <key> <value>
+
+Volatile keys can't be set by the user and can only be set directly against a container.
 
 
 ## Devices configuration
