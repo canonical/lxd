@@ -340,6 +340,8 @@ func ValidContainerConfigKey(k string) bool {
 		return true
 	case "volatile.last_state.idmap":
 		return true
+	case "volatile.last_state.power":
+		return true
 	}
 
 	if _, err := extractInterfaceFromConfigName(k); err == nil {
