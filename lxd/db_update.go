@@ -13,6 +13,40 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV14(db *sql.DB) error {
+	stmt := `
+PRAGMA foreign_keys=OFF; -- So that integrity doesn't get in the way for now
+
+DELETE FROM containers_config WHERE key="volatile.last_state.power";
+
+INSERT INTO containers_config (container_id, key, value)
+    SELECT id, "volatile.last_state.power", "RUNNING"
+    FROM containers WHERE power_state=1;
+
+INSERT INTO containers_config (container_id, key, value)
+    SELECT id, "volatile.last_state.power", "STOPPED"
+    FROM containers WHERE power_state != 1;
+
+CREATE TABLE tmp (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    architecture INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    ephemeral INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (name)
+);
+
+INSERT INTO tmp SELECT id, name, architecture, type, ephemeral FROM containers;
+
+DROP TABLE containers;
+ALTER TABLE tmp RENAME TO containers;
+
+PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 15)
+	return err
+}
+
 func dbUpdateFromV13(db *sql.DB) error {
 	stmt := `
 UPDATE containers_config SET key='volatile.base_image' WHERE key = 'volatile.baseImage';
@@ -595,6 +629,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 14 {
 		err = dbUpdateFromV13(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 15 {
+		err = dbUpdateFromV14(db)
 		if err != nil {
 			return err
 		}
