@@ -1064,9 +1064,20 @@ func (c *containerLXD) ProfilesGet() []string {
  *     rootfs/
  */
 func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
-	if snap != "" && c.IsRunning() {
+	if snap == "" && c.IsRunning() {
 		return fmt.Errorf("Cannot export a running container as image")
 	}
+
+	idmap, err := c.LastIdmapSetGet()
+	if err != nil {
+		return err
+	}
+
+	if err := idmap.UnshiftRootfs(c.RootfsPathGet()); err != nil {
+		return err
+	}
+
+	defer idmap.ShiftRootfs(c.RootfsPathGet())
 
 	tw := tar.NewWriter(w)
 
@@ -1078,7 +1089,6 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 	// Path inside the tar image is the pathname starting after cDir
 	offset := len(cDir) + 1
 
-	fnam := filepath.Join(cDir, "metadata.yaml")
 	writeToTar := func(path string, fi os.FileInfo, err error) error {
 		if err := c.tarStoreFile(linkmap, offset, tw, path, fi); err != nil {
 			shared.Debugf("Error tarring up %s: %s\n", path, err)
@@ -1087,7 +1097,7 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 		return nil
 	}
 
-	fnam = filepath.Join(cDir, "metadata.yaml")
+	fnam := filepath.Join(cDir, "metadata.yaml")
 	if shared.PathExists(fnam) {
 		fi, err := os.Lstat(fnam)
 		if err != nil {
