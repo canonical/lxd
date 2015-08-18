@@ -1108,7 +1108,41 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		body["ephemeral"] = ephem
 	}
 
-	resp, err := c.post("containers", body, Async)
+	var resp *Response
+
+	if imgremote != "" {
+		addresses := make([]string, 0)
+
+		if tmpremote.Transport == "unix" {
+			serverStatus, err := tmpremote.ServerStatus()
+			if err != nil {
+				return nil, err
+			}
+			addresses = serverStatus.Environment.Addresses
+		} else if tmpremote.Transport == "https" {
+			addresses = append(addresses, tmpremote.BaseURL[8:])
+		} else {
+			return nil, fmt.Errorf(gettext.Gettext("unknown transport type: %s"), tmpremote.Transport)
+		}
+
+		if len(addresses) == 0 {
+			return nil, fmt.Errorf(gettext.Gettext("The source remote isn't available over the network"))
+		}
+
+		for _, addr := range addresses {
+			body["source"].(shared.Jmap)["server"] = "https://" + addr
+
+			shared.Debugf("%s", body)
+			resp, err = c.post("containers", body, Async)
+			if err != nil {
+				continue
+			}
+
+			break
+		}
+	} else {
+		resp, err = c.post("containers", body, Async)
+	}
 
 	if operation != "" {
 		_, _ = tmpremote.delete("operations/"+operation, nil, Sync)
