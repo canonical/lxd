@@ -539,9 +539,38 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		source["secret"] = md.Secret
 	}
 
-	body := shared.Jmap{"public": public, "source": source}
+	addresses := make([]string, 0)
 
-	_, err = dest.post("images", body, Sync)
+	if c.Transport == "unix" {
+		serverStatus, err := c.ServerStatus()
+		if err != nil {
+			return err
+		}
+		addresses = serverStatus.Environment.Addresses
+	} else if c.Transport == "https" {
+		addresses = append(addresses, c.BaseURL[8:])
+	} else {
+		return fmt.Errorf(gettext.Gettext("unknown transport type: %s"), c.Transport)
+	}
+
+	if len(addresses) == 0 {
+		return fmt.Errorf(gettext.Gettext("The source remote isn't available over the network"))
+	}
+
+	for _, addr := range addresses {
+		sourceUrl := "https://" + addr
+
+		source["server"] = sourceUrl
+		body := shared.Jmap{"public": public, "source": source}
+
+		_, err = dest.post("images", body, Sync)
+		if err != nil {
+			continue
+		}
+
+		break
+	}
+
 	if err != nil {
 		return err
 	}
