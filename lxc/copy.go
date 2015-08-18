@@ -109,22 +109,9 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			return err
 		}
 
-		addresses := make([]string, 0)
-
-		if source.Transport == "unix" {
-			serverStatus, err := source.ServerStatus()
-			if err != nil {
-				return err
-			}
-			addresses = serverStatus.Environment.Addresses
-		} else if source.Transport == "https" {
-			addresses = append(addresses, source.BaseURL[8:])
-		} else {
-			return fmt.Errorf(gettext.Gettext("unknown transport type: %s"), source.Transport)
-		}
-
-		if len(addresses) == 0 {
-			return fmt.Errorf(gettext.Gettext("The source remote isn't available over the network"))
+		addresses, err := source.Addresses()
+		if err != nil {
+			return err
 		}
 
 		for _, addr := range addresses {
