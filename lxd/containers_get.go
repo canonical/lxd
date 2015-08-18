@@ -33,7 +33,7 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 	}
 
 	resultString := []string{}
-	resultMap := []shared.ContainerInfo{}
+	resultMap := shared.ContainerInfoList{}
 	if err != nil {
 		return []string{}, err
 	}

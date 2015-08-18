@@ -139,6 +139,7 @@ type container interface {
 	NameGet() string
 	ArchitectureGet() int
 	ConfigGet() map[string]string
+	ConfigKeySet(key string, value string) error
 	DevicesGet() shared.Devices
 	ProfilesGet() []string
 	PathGet(newName string) string
@@ -148,6 +149,7 @@ type container interface {
 	LogFilePathGet() string
 	LogPathGet() string
 	InitPidGet() (int, error)
+	StateGet() string
 
 	IdmapSetGet() (*shared.IdmapSet, error)
 	LastIdmapSetGet() (*shared.IdmapSet, error)
@@ -623,17 +625,7 @@ func (c *containerLXD) Start() error {
 		}
 	}
 
-	c.config["volatile.last_state.idmap"] = jsonIdmap
-
-	args := containerLXDArgs{
-		Ctype:        c.cType,
-		Config:       c.baseConfig,
-		Profiles:     c.profiles,
-		Ephemeral:    c.ephemeral,
-		Architecture: c.architecture,
-		Devices:      c.baseDevices,
-	}
-	err = c.ConfigReplace(args)
+	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
 
 	if err != nil {
 		c.StorageStop()
@@ -905,6 +897,10 @@ func (c *containerLXD) InitPidGet() (int, error) {
 	return c.c.InitPid(), nil
 }
 
+func (c *containerLXD) StateGet() string {
+	return c.c.State().String()
+}
+
 func (c *containerLXD) IdmapSetGet() (*shared.IdmapSet, error) {
 	return c.idmapset, nil
 }
@@ -928,6 +924,21 @@ func (c *containerLXD) LastIdmapSetGet() (*shared.IdmapSet, error) {
 	}
 
 	return lastIdmap, nil
+}
+
+func (c *containerLXD) ConfigKeySet(key string, value string) error {
+	c.baseConfig[key] = value
+
+	args := containerLXDArgs{
+		Ctype:        c.cType,
+		Config:       c.baseConfig,
+		Profiles:     c.profiles,
+		Ephemeral:    c.ephemeral,
+		Architecture: c.architecture,
+		Devices:      c.baseDevices,
+	}
+
+	return c.ConfigReplace(args)
 }
 
 func (c *containerLXD) LXContainerGet() (*lxc.Container, error) {
