@@ -263,6 +263,28 @@ func NewClient(config *Config, remote string) (*Client, error) {
 	return &c, nil
 }
 
+func (c *Client) Addresses() ([]string, error) {
+	addresses := make([]string, 0)
+
+	if c.Transport == "unix" {
+		serverStatus, err := c.ServerStatus()
+		if err != nil {
+			return nil, err
+		}
+		addresses = serverStatus.Environment.Addresses
+	} else if c.Transport == "https" {
+		addresses = append(addresses, c.BaseURL[8:])
+	} else {
+		return nil, fmt.Errorf(gettext.Gettext("unknown transport type: %s"), c.Transport)
+	}
+
+	if len(addresses) == 0 {
+		return nil, fmt.Errorf(gettext.Gettext("The source remote isn't available over the network"))
+	}
+
+	return addresses, nil
+}
+
 func (c *Client) get(base string) (*Response, error) {
 	uri := c.url(shared.APIVersion, base)
 
@@ -539,9 +561,25 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		source["secret"] = md.Secret
 	}
 
-	body := shared.Jmap{"public": public, "source": source}
+	addresses, err := c.Addresses()
+	if err != nil {
+		return err
+	}
 
-	_, err = dest.post("images", body, Sync)
+	for _, addr := range addresses {
+		sourceUrl := "https://" + addr
+
+		source["server"] = sourceUrl
+		body := shared.Jmap{"public": public, "source": source}
+
+		_, err = dest.post("images", body, Sync)
+		if err != nil {
+			continue
+		}
+
+		break
+	}
+
 	if err != nil {
 		return err
 	}
@@ -1079,7 +1117,28 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		body["ephemeral"] = ephem
 	}
 
-	resp, err := c.post("containers", body, Async)
+	var resp *Response
+
+	if imgremote != "" {
+		var addresses []string
+		addresses, err = tmpremote.Addresses()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, addr := range addresses {
+			body["source"].(shared.Jmap)["server"] = "https://" + addr
+
+			resp, err = c.post("containers", body, Async)
+			if err != nil {
+				continue
+			}
+
+			break
+		}
+	} else {
+		resp, err = c.post("containers", body, Async)
+	}
 
 	if operation != "" {
 		_, _ = tmpremote.delete("operations/"+operation, nil, Sync)
