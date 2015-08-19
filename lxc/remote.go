@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/chai2010/gettext-go/gettext"
 	"golang.org/x/crypto/ssh/terminal"
@@ -91,6 +92,10 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 			}
 		}
 		r_port = ""
+	}
+
+	if strings.Contains(r_host, ":") && !strings.HasPrefix(r_host, "[") {
+		r_host = fmt.Sprintf("[%s]", r_host)
 	}
 
 	if r_port != "" {
