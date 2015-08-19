@@ -12,13 +12,15 @@ ARCHIVE=lxd-$(VERSION).tar
 
 .PHONY: default
 default:
-	go get -t -v -d ./... || true
+	-go get -t -v -d ./...
 	go install -v ./...
+	echo "LXD built succesfuly"
 
 .PHONY: client
 client:
-	go get -t -v -d ./...
+	-go get -t -v -d ./...
 	go install -v ./lxc
+	echo "LXD client built succesfuly"
 
 # This only needs to be done when migrate.proto is actually changed; since we
 # commit the .pb.go in the tree and it's not expected to change very often,
@@ -34,6 +36,7 @@ check: default
 
 gccgo:
 	go build -compiler gccgo ./...
+	echo "LXD built succesfuly with gccgo"
 
 .PHONY: dist
 dist:
