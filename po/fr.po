@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-08-04 19:23-0400\n"
+"POT-Creation-Date: 2015-08-18 18:12-0700\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -94,20 +94,20 @@ msgstr "Dossier de configuration alternatif."
 msgid "Architecture: %s\n"
 msgstr ""
 
-#: client.go:775
+#: client.go:817
 #, fuzzy, c-format
 msgid "Bad image property: %s\n"
 msgstr "(Image invalide: %s\n"
 
-#: client.go:1572
+#: client.go:1635
 msgid "Cannot change profile name"
 msgstr ""
 
-#: lxc/profile.go:324
+#: lxc/profile.go:325
 msgid "Cannot provide container name to list"
 msgstr ""
 
-#: client.go:896
+#: client.go:938
 #, c-format
 msgid "Certificate fingerprint: % x\n"
 msgstr "Empreinte du certificat: % x\n"
@@ -120,10 +120,6 @@ msgid ""
 "lxc %s <name> [<name>...]\n"
 msgstr "Change l'état du conteneur à %s.\n"
 
-#: lxc/copy.go:66
-msgid "Changing the name of a running container during copy isn't supported."
-msgstr ""
-
 #: lxc/remote.go:154
 msgid "Client certificate stored at server: "
 msgstr "Certificat client enregistré avec le serveur: "
@@ -132,7 +128,7 @@ msgstr "Certificat client enregistré avec le serveur: "
 msgid "Connection refused; is LXD running?\n"
 msgstr ""
 
-#: lxc/publish.go:53
+#: lxc/publish.go:55
 msgid "Container name is mandatory"
 msgstr ""
 
@@ -147,7 +143,7 @@ msgid ""
 "lxc copy [remote:]<source container> [remote:]<destination container>\n"
 msgstr ""
 
-#: client.go:912
+#: client.go:954
 msgid "Could not create server cert dir"
 msgstr "Le dossier de stockage des certificats serveurs n'a pas pû être créé"
 
@@ -170,12 +166,12 @@ msgid ""
 "snapshots, ...).\n"
 msgstr ""
 
-#: lxc/config.go:434
+#: lxc/config.go:436
 #, c-format
 msgid "Device %s added to %s\n"
 msgstr ""
 
-#: lxc/config.go:462
+#: lxc/config.go:464
 #, c-format
 msgid "Device %s removed from %s\n"
 msgstr ""
@@ -192,7 +188,7 @@ msgstr "Active le mode verbeux."
 msgid "Ephemeral container"
 msgstr ""
 
-#: client.go:551 client.go:561 client.go:808 client.go:1793
+#: client.go:593 client.go:603 client.go:850 client.go:1856
 #, c-format
 msgid "Error adding alias %s\n"
 msgstr ""
@@ -388,6 +384,9 @@ msgid ""
 "c1 path=opt\n"
 "To set an lxc config value:\n"
 "\tlxc config set [remote:]<container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n"
+"To listen on IPv4 and IPv6 port 8443 (you can omit the 8443 its the "
+"default):\n"
+"\tlxc config set core.https_address [::]:8443\n"
 "To set the server trust password:\n"
 "\tlxc config set core.trust_password blah\n"
 msgstr ""
@@ -467,15 +466,15 @@ msgid ""
 "lxc move [remote:]<source container> [remote:]<destination container>\n"
 msgstr ""
 
-#: lxc/config.go:196
+#: lxc/config.go:198
 msgid "No cert provided to add"
 msgstr "Un certificat n'a pas été fournis"
 
-#: client.go:883
+#: client.go:925
 msgid "No certificate on this connection"
 msgstr "Aucun certificat pour cette connexion"
 
-#: lxc/config.go:219
+#: lxc/config.go:221
 msgid "No fingerprint specified."
 msgstr "Aucune empreinte n'a été spécifié."
 
@@ -485,7 +484,7 @@ msgid "Options:"
 msgstr "Opération %s"
 
 #: lxc/main.go:35
-msgid "Permisson denied, are you in the lxd group?"
+msgid "Permisson denied, are you in the lxd group?\n"
 msgstr ""
 
 #: lxc/help.go:25
@@ -508,7 +507,7 @@ msgid ""
 "lxc version\n"
 msgstr "Montre le numéro de version de LXD.\n"
 
-#: lxc/profile.go:226
+#: lxc/profile.go:227
 #, c-format
 msgid "Profile %s applied to %s\n"
 msgstr ""
@@ -518,7 +517,7 @@ msgstr ""
 msgid "Profile %s created\n"
 msgstr ""
 
-#: lxc/profile.go:215
+#: lxc/profile.go:216
 #, c-format
 msgid "Profile %s deleted\n"
 msgstr ""
@@ -540,7 +539,7 @@ msgid ""
 "value]...\n"
 msgstr ""
 
-#: lxc/publish.go:65
+#: lxc/publish.go:67
 #, fuzzy
 msgid "Publish to remote server is not supported yet"
 msgstr ""
@@ -551,11 +550,11 @@ msgstr ""
 msgid "Remote admin password"
 msgstr ""
 
-#: client.go:903
+#: client.go:945
 msgid "Server certificate NACKed by user"
 msgstr "Le certificat serveur a été rejeté par l'utilisateur"
 
-#: client.go:284
+#: client.go:310
 #, c-format
 msgid ""
 "Server certificate for host %s has changed. Add correct certificate or "
@@ -599,7 +598,7 @@ msgstr ""
 msgid "Size: %.2vMB\n"
 msgstr ""
 
-#: client.go:583
+#: client.go:625
 msgid "Split images can only be written to a directory."
 msgstr ""
 
@@ -607,11 +606,15 @@ msgstr ""
 msgid "Stopping container failed!"
 msgstr "L'arrêt du conteneur a échoué!"
 
-#: client.go:1021 client.go:1059
+#: client.go:1063 client.go:1101
 msgid "The image architecture is incompatible with the target server"
 msgstr ""
 
-#: lxc/publish.go:56
+#: client.go:282
+msgid "The source remote isn't available over the network"
+msgstr ""
+
+#: lxc/publish.go:58
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
@@ -623,17 +626,17 @@ msgstr "Temps d'attente avant de tuer le conteneur."
 msgid "Timestamps:\n"
 msgstr ""
 
-#: lxc/image.go:453
+#: lxc/image.go:454
 #, c-format
 msgid "Unknown image command %s"
 msgstr "Comande d'image inconnue %s"
 
-#: lxc/remote.go:260
+#: lxc/remote.go:262
 #, c-format
 msgid "Unknown remote subcommand %s"
 msgstr "Comande de serveur distant inconnue %s"
 
-#: lxc/config.go:233
+#: lxc/config.go:235
 #, c-format
 msgid "Unkonwn config trust command %s"
 msgstr "Comande de configuration de confiance inconnue %s"
@@ -674,12 +677,12 @@ msgstr ""
 "Est-ce que l'état de fonctionement du conteneur doit être inclus dans "
 "l'instantané (snapshot)"
 
-#: lxc/config.go:390 lxc/image.go:382 lxc/profile.go:197
+#: lxc/config.go:392 lxc/image.go:383 lxc/profile.go:198
 #, fuzzy
 msgid "YAML parse error %v\n"
 msgstr "erreur: %v\n"
 
-#: client.go:456
+#: client.go:482
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "Version de l'API incompatible: local: %q, distant: %q"
 
@@ -688,7 +691,7 @@ msgstr "Version de l'API incompatible: local: %q, distant: %q"
 msgid "bad number of things scanned from image, container or snapshot"
 msgstr "nombre de propriété invalide pour la ressource"
 
-#: client.go:1603
+#: client.go:1666
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "Mauvaise URL pour le conteneur %s"
@@ -697,25 +700,25 @@ msgstr "Mauvaise URL pour le conteneur %s"
 msgid "bad result type from action"
 msgstr "mauvais type de réponse pour l'action!"
 
-#: client.go:1607
+#: client.go:1670
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "version invalide dans l'URL du conteneur"
 
-#: lxc/copy.go:81
+#: lxc/copy.go:77
 msgid "can't copy to the same container name"
 msgstr ""
 
-#: client.go:1055
+#: client.go:1097
 #, c-format
 msgid "can't get info for image '%s': %s"
 msgstr ""
 
-#: client.go:419 client.go:424
+#: client.go:445 client.go:450
 msgid "cannot resolve unix socket address: %v"
 msgstr "Ne peut pas résoudre l'adresse du unix socket: %v"
 
-#: client.go:1656 client.go:1713
+#: client.go:1719 client.go:1776
 #, fuzzy
 msgid "device already exists\n"
 msgstr "le serveur distant %s existe déjà"
@@ -727,7 +730,7 @@ msgstr "N'a pas pû obtenir de resource du serveur"
 
 #: lxc/main.go:21
 #, fuzzy
-msgid "error %v\n"
+msgid "error: %v\n"
 msgstr "erreur: %v\n"
 
 #: lxc/main.go:120
@@ -743,17 +746,17 @@ msgstr ""
 msgid "error: unknown command: %s\n"
 msgstr "erreur: comande inconnue: %s\n"
 
-#: client.go:371
+#: client.go:397
 #, c-format
 msgid "expected error, got %s"
 msgstr ""
 
-#: client.go:1238
+#: client.go:1301
 #, c-format
 msgid "got bad op status %s"
 msgstr "reçu un status d'opration invalide %s"
 
-#: client.go:151
+#: client.go:152
 #, fuzzy, c-format
 msgid "got bad response type, expected %s got %s"
 msgstr "reçu une mauvaise réponse pour \"exec\""
@@ -767,7 +770,7 @@ msgstr "reçu une version invalide"
 msgid "invalid argument %s"
 msgstr "Arguments invalides %s"
 
-#: client.go:1380
+#: client.go:1443
 #, c-format
 msgid "invalid wait url %s"
 msgstr "URL d'attente invalide %s"
@@ -786,23 +789,19 @@ msgid ""
 "lxc init ubuntu u1\n"
 msgstr ""
 
-#: client.go:115
+#: client.go:116
 msgid "no response!"
 msgstr "pas de réponse!"
 
-#: client.go:1649 client.go:1706
+#: client.go:1712 client.go:1769
 msgid "no value found in %q\n"
 msgstr ""
 
-#: lxc/copy.go:92
-msgid "non-http remotes are not supported for migration right now"
-msgstr ""
-
-#: lxc/copy.go:107
+#: lxc/copy.go:99
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
-#: client.go:897
+#: client.go:939
 msgid "ok (y/n)? "
 msgstr "ok (y/n)?"
 
@@ -811,7 +810,7 @@ msgstr "ok (y/n)?"
 msgid "remote %s already exists"
 msgstr "le serveur distant %s existe déjà"
 
-#: lxc/remote.go:192 lxc/remote.go:218 lxc/remote.go:238 lxc/remote.go:249
+#: lxc/remote.go:192 lxc/remote.go:218 lxc/remote.go:238 lxc/remote.go:250
 #, c-format
 msgid "remote %s doesn't exist"
 msgstr "le serveur distant %s n'existe pas"
@@ -821,8 +820,13 @@ msgstr "le serveur distant %s n'existe pas"
 msgid "remote %s exists as <%s>"
 msgstr "le serveur distant %s existe en tant que <%s>"
 
-#: client.go:253
+#: client.go:257
 msgid "unknown remote name: %q"
+msgstr "serveur distant inconnu: %q"
+
+#: client.go:278
+#, fuzzy, c-format
+msgid "unknown transport type: %s"
 msgstr "serveur distant inconnu: %q"
 
 #: lxc/exec.go:106
