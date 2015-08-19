@@ -19,13 +19,17 @@
 package main
 
 /*
+#define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/mount.h>
 #include <sched.h>
 #include <linux/sched.h>
 #include <linux/limits.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <unistd.h>
