@@ -1,6 +1,6 @@
 Vagrant.configure('2') do |config|
-    # grab Ubuntu 14.04 official image
-    config.vm.box = "ubuntu/trusty64" # Ubuntu 14.04
+    # grab Ubuntu 14.04 boxcutter image: https://atlas.hashicorp.com/boxcutter
+    config.vm.box = "boxcutter/ubuntu1404" # Ubuntu 14.04
 
     # fix issues with slow dns https://www.virtualbox.org/ticket/13002
     config.vm.provider :virtualbox do |vb, override|
