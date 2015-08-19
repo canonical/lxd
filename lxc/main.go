@@ -32,7 +32,7 @@ func main() {
 						case syscall.ECONNREFUSED:
 							msg = gettext.Gettext("Connection refused; is LXD running?\n")
 						case syscall.EACCES:
-							msg = gettext.Gettext("Permisson denied, are you in the lxd group?")
+							msg = gettext.Gettext("Permisson denied, are you in the lxd group?\n")
 						default:
 							msg = fmt.Sprintf("%d %s\n", uintptr(errno), errno.Error())
 						}
