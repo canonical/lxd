@@ -209,11 +209,12 @@ func (s *storageLvm) ContainerDelete(container container) error {
 }
 
 func (s *storageLvm) ContainerCopy(container container, sourceContainer container) error {
-
-	return fmt.Errorf(
-		"ContainerCopy is not implemented in the LVM backend.")
-
-	// return container.TemplateApply("copy")
+	readonly := false
+	if err:= s.createSnapshotContainer(snapshotContainer, sourceContainer, readonly); err != nil{
+		s.log.Error("Error creating snapshot LV for copy", log.Ctx{"err": err})
+		return err
+	}
+	return container.TemplateApply("copy")
 }
 
 func (s *storageLvm) ContainerStart(container container) error {
@@ -276,7 +277,12 @@ func (s *storageLvm) ContainerRestore(
 
 func (s *storageLvm) ContainerSnapshotCreate(
 	snapshotContainer container, sourceContainer container) error {
+	readonly := true
+	return s.createSnapshotContainer(snapshotContainer, sourceContainer, readonly)
+}
 
+func (s *storageLvm) createSnapshotContainer(
+	snapshotContainer container, sourceContainer container, readonly bool) error {
 	// must stop and thus unmount LV to take consistent snapshot:
 	wasRunning := false
 	if sourceContainer.IsRunning() {
@@ -298,7 +304,7 @@ func (s *storageLvm) ContainerSnapshotCreate(
 		"Creating snapshot",
 		log.Ctx{"srcName": srcName, "destName": destName})
 
-	lvpath, err := s.createSnapshotLV(destName, srcName, true)
+	lvpath, err := s.createSnapshotLV(destName, srcName, readonly)
 	if err != nil {
 		return fmt.Errorf("Error creating snapshot LV: %v", err)
 	}
@@ -309,7 +315,6 @@ func (s *storageLvm) ContainerSnapshotCreate(
 	}
 
 	dest := fmt.Sprintf("%s.lv", snapshotContainer.PathGet(""))
-	shared.Log.Debug("ContainerSnapshotCreate: ", log.Ctx{"lvpath": lvpath, "dest": dest})
 	err = os.Symlink(lvpath, dest)
 	if err != nil {
 		return err
