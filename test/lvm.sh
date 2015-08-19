@@ -204,7 +204,13 @@ test_lvm_withpool() {
     lxc restore test-container unchillbro
     lxc start test-container
     lxc exec test-container -- ls /tmp/unchill || die "should find unchill in unchillbro"
+
+    lxc copy test-container test-container-copy
+    lxc start test-container-copy
     lxc stop test-container --force
+    lxc exec test-container -- ls /tmp/unchill || die "should find unchill in copy of unchillbro"
+    lxc stop test-container-copy --force
+
     # TODO can't do this because busybox ignores SIGPWR, breaking restart:
     # check that 'shutdown' also unmounts:
     # lxc start test-container || die "Couldn't re-start test-container"
