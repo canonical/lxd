@@ -14,6 +14,7 @@ import (
 
 // #cgo LDFLAGS: -lutil -lpthread
 /*
+#define _GNU_SOURCE
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>
