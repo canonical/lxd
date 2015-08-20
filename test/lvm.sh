@@ -68,7 +68,7 @@ test_lvm() {
     create_vg lxd_test_vg
     trap cleanup_vg_and_shutdown EXIT HUP INT TERM
 
-    test_delete_with_appropriate_storage
+    test_mixing_storage
     lvremove -f lxd_test_vg/LXDPool
 
     test_lvm_withpool
@@ -81,10 +81,11 @@ test_lvm() {
     test_remote_launch_imports_lvm
 
     test_init_with_missing_vg
+
 }
 
 
-test_delete_with_appropriate_storage() {
+test_mixing_storage() {
     PREV_LXD_DIR=$LXD_DIR
     export LXD_DIR=$(mktemp -d -p $(pwd))
     chmod 777 "${LXD_DIR}"
@@ -92,6 +93,7 @@ test_delete_with_appropriate_storage() {
 
     ../scripts/lxd-images import busybox --alias testimage || die "couldn't import image"
     lxc launch testimage reg-container || die "couldn't launch regular container"
+    lxc copy reg-container reg-container-sticks-around || die "Couldn't copy reg"
     lxc config set core.lvm_vg_name "lxd_test_vg" || die "error setting core.lvm_vg_name config"
     lxc config show | grep "lxd_test_vg" || die "test_vg not in config show output"
     lxc stop reg-container --force || die "couldn't stop reg-container"
@@ -105,6 +107,11 @@ test_delete_with_appropriate_storage() {
     check_image_exists_in_pool testimage LXDPool
 
     lxc launch testimage lvm-container || die "couldn't launch lvm container"
+    lxc copy reg-container-sticks-around lvm-from-reg || die "can't copy reg->lvm"
+    lvs lxd_test_vg/lvm--from--reg || die "snapshot LV lvm--from--reg couldn't be found"
+    lxc snapshot reg-container-sticks-around regsnap || die "Couldn't snapshot"
+    lvs lxd_test_vg/reg--container--sticks--around-regsnap && die "we should NOT have a snap lv for a reg container"
+
     lxc config unset core.lvm_vg_name || die "couldn't unset config"
     lxc stop lvm-container --force || die "couldn't stop lvm-container"
     lxc start lvm-container || die "couldn't start lvm-container"
