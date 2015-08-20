@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
+	"golang.org/x/sys/unix"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -210,7 +211,7 @@ func (s *storageLvm) ContainerDelete(container container) error {
 
 func (s *storageLvm) ContainerCopy(container container, sourceContainer container) error {
 	readonly := false
-	if err:= s.createSnapshotContainer(snapshotContainer, sourceContainer, readonly); err != nil{
+	if err := s.createSnapshotContainer(container, sourceContainer, readonly); err != nil {
 		s.log.Error("Error creating snapshot LV for copy", log.Ctx{"err": err})
 		return err
 	}
@@ -283,18 +284,28 @@ func (s *storageLvm) ContainerSnapshotCreate(
 
 func (s *storageLvm) createSnapshotContainer(
 	snapshotContainer container, sourceContainer container, readonly bool) error {
-	// must stop and thus unmount LV to take consistent snapshot:
+	// must freeze and syncfs LV to take consistent snapshot:
 	wasRunning := false
 	if sourceContainer.IsRunning() {
 		wasRunning = true
-		if err := sourceContainer.Stop(); err != nil {
-			shared.Log.Error("LVM Snapshot Create: could not stop source container",
+		if err := sourceContainer.Freeze(); err != nil {
+			shared.Log.Error("LVM Snapshot Create: could not freeze source container",
 				log.Ctx{"sourceContainer name": sourceContainer.NameGet(),
 					"err": err})
 			return err
 		}
+
+		srcDir, err := os.Open(sourceContainer.PathGet(""))
+		if err != nil {
+			return fmt.Errorf("Error opening mounted sourceContainer path for syncfs: '%v'", err)
+		}
+		defer srcDir.Close()
+		_, _, errno := unix.Syscall(unix.SYS_SYNCFS, srcDir.Fd(), 0, 0)
+		if errno != 0 {
+			return fmt.Errorf("Error syncing fs of frozen source container: '%s'", err)
+		}
 		shared.Log.Debug(
-			"LVM Snapshot Create: Stopped source container",
+			"LVM Snapshot Create: Frozen source container",
 			log.Ctx{"sourceContainer name": sourceContainer.NameGet()})
 	}
 
@@ -321,8 +332,8 @@ func (s *storageLvm) createSnapshotContainer(
 	}
 
 	if wasRunning {
-		if err := sourceContainer.Start(); err != nil {
-			shared.Log.Error("Error restarting source container after snapshot",
+		if err := sourceContainer.Unfreeze(); err != nil {
+			shared.Log.Error("Error unfreezing source container after snapshot",
 				log.Ctx{"sourceContainer name": sourceContainer.NameGet()})
 			return err
 		}
