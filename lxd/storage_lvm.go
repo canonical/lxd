@@ -264,9 +264,9 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 
 func (s *storageLvm) ContainerStart(container container) error {
 	lvName := containerNameToLVName(container.NameGet())
-	lvPath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvName)
+	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvName)
 	output, err := exec.Command(
-		"mount", "-o", "discard", lvPath, container.PathGet("")).CombinedOutput()
+		"mount", "-o", "discard", lvpath, container.PathGet("")).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf(
 			"Error mounting snapshot LV path='%s': %v\noutput:'%s'",
