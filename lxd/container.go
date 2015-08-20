@@ -129,6 +129,7 @@ type container interface {
 
 	StorageStart() error
 	StorageStop() error
+	StorageGet() storage
 
 	IsPrivileged() bool
 	IsRunning() bool
@@ -234,6 +235,7 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 		return nil, err
 	}
 
+	c.Storage = sourceContainer.StorageGet()
 	if err := c.Storage.ContainerSnapshotCreate(c, sourceContainer); err != nil {
 		c.Delete()
 		return nil, err
@@ -723,6 +725,10 @@ func (c *containerLXD) StorageStart() error {
 
 func (c *containerLXD) StorageStop() error {
 	return c.Storage.ContainerStop(c)
+}
+
+func (c *containerLXD) StorageGet() storage {
+	return c.Storage
 }
 
 func (c *containerLXD) Restore(sourceContainer container) error {
