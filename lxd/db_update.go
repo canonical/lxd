@@ -52,7 +52,7 @@ func dbUpdateFromV15(d *Daemon) error {
 
 		output, err := exec.Command("lvrename", vgName, cName, newLVName).CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("Could not rename LV '%s' to 's': %v\noutput:%s", cName, newLVName, err, output)
+			return fmt.Errorf("Could not rename LV '%s' to '%s': %v\noutput:%s", cName, newLVName, err, output)
 		}
 
 		if err := os.Remove(lvLinkPath); err != nil {

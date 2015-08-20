@@ -208,7 +208,7 @@ test_lvm_withpool() {
     lxc copy test-container test-container-copy
     lxc start test-container-copy
     lxc stop test-container --force
-    lxc exec test-container -- ls /tmp/unchill || die "should find unchill in copy of unchillbro"
+    lxc exec test-container-copy -- ls /tmp/unchill || die "should find unchill in copy of unchillbro"
     lxc stop test-container-copy --force
 
     # TODO can't do this because busybox ignores SIGPWR, breaking restart:

@@ -217,9 +217,6 @@ func containerLXDCreateAsCopy(d *Daemon, name string,
 		return nil, err
 	}
 
-	sourceContainer.StorageStart()
-	defer sourceContainer.StorageStop()
-
 	if err := c.Storage.ContainerCopy(c, sourceContainer); err != nil {
 		c.Delete()
 		return nil, err
