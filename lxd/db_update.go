@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -12,6 +13,61 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
+
+func dbUpdateFromV15(d *Daemon) error {
+	// munge all LVM-backed containers' LV names to match what is
+	// required for snapshot support
+
+	cNames, err := dbContainersList(d.db, cTypeRegular)
+	if err != nil {
+		return err
+	}
+
+	vgName, err := d.ConfigValueGet("core.lvm_vg_name")
+	if err != nil {
+		return fmt.Errorf("Error checking server config: %v", err)
+	}
+
+	for _, cName := range cNames {
+		var lvLinkPath string
+		if strings.Contains(cName, shared.SnapshotDelimiter) {
+			lvLinkPath = shared.VarPath("snapshots", fmt.Sprintf("%s.lv", cName))
+		} else {
+			lvLinkPath = shared.VarPath("containers", fmt.Sprintf("%s.lv", cName))
+		}
+
+		if !shared.PathExists(lvLinkPath) {
+			continue
+		}
+
+		newLVName := strings.Replace(cName, "-", "--", -1)
+		newLVName = strings.Replace(newLVName, shared.SnapshotDelimiter, "-", -1)
+
+		if cName == newLVName {
+			shared.Log.Debug("no need to rename, skipping", log.Ctx{"cName": cName, "newLVName": newLVName})
+			continue
+		}
+
+		shared.Log.Debug("about to rename cName in lv upgrade", log.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
+
+		output, err := exec.Command("lvrename", vgName, cName, newLVName).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Could not rename LV '%s' to '%s': %v\noutput:%s", cName, newLVName, err, output)
+		}
+
+		if err := os.Remove(lvLinkPath); err != nil {
+			return fmt.Errorf("Couldn't remove lvLinkPath '%s'", lvLinkPath)
+		}
+		newLinkDest := fmt.Sprintf("/dev/%s/%s", vgName, newLVName)
+		if err := os.Symlink(newLinkDest, lvLinkPath); err != nil {
+			return fmt.Errorf("Couldn't recreate symlink '%s'->'%s'", lvLinkPath, newLinkDest)
+		}
+	}
+	stmt := `
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err = d.db.Exec(stmt, 16)
+	return err
+}
 
 func dbUpdateFromV14(db *sql.DB) error {
 	stmt := `
@@ -635,6 +691,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 15 {
 		err = dbUpdateFromV14(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 16 {
+		err = dbUpdateFromV15(d)
 		if err != nil {
 			return err
 		}
