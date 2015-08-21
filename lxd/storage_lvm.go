@@ -304,7 +304,7 @@ func (s *storageLvm) ContainerRename(
 				"err":     err,
 				"output":  output})
 
-		return fmt.Errorf("Failed to rename a container LV, oldName='%s', newName='%s', err='%s'",			oldName, newName, err)
+		return fmt.Errorf("Failed to rename a container LV, oldName='%s', newName='%s', err='%s'", oldName, newName, err)
 	}
 
 	// Rename the Symlink
@@ -606,7 +606,6 @@ func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly
 func (s *storageLvm) isLVMContainer(container container) bool {
 	return shared.PathExists(fmt.Sprintf("%s.lv", container.PathGet("")))
 }
-
 
 func (s *storageLvm) renameLV(oldName string, newName string) (string, error) {
 	output, err := exec.Command("lvrename", s.vgName, oldName, newName).CombinedOutput()
