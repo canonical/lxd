@@ -6,7 +6,7 @@ import (
 	"github.com/chai2010/gettext-go/gettext"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/internal/gnuflag"
+	"github.com/lxc/lxd/shared/gnuflag"
 )
 
 type infoCmd struct {
