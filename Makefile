@@ -14,7 +14,7 @@ ARCHIVE=lxd-$(VERSION).tar
 default:
 	-go get -t -v -d ./...
 	go install -v ./...
-	echo "LXD built succesfuly"
+	@echo "LXD built succesfuly"
 
 .PHONY: client
 client:
