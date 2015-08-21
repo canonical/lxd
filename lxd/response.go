@@ -268,6 +268,8 @@ func InternalError(err error) Response {
  */
 func SmartError(err error) Response {
 	switch err {
+	case nil:
+		return EmptySyncResponse
 	case os.ErrNotExist:
 		return NotFound
 	case sql.ErrNoRows:
