@@ -15,8 +15,8 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/internal/gnuflag"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/gnuflag"
 )
 
 type imageCmd struct{}

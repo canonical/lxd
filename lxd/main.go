@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lxc/lxd/internal/gnuflag"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/gnuflag"
 )
 
 func main() {
