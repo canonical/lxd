@@ -228,8 +228,7 @@ func (s *storageLvm) ContainerDelete(container container) error {
 
 func (s *storageLvm) ContainerCopy(container container, sourceContainer container) error {
 	if s.isLVMContainer(sourceContainer) {
-		readonly := false
-		if err := s.createSnapshotContainer(container, sourceContainer, readonly); err != nil {
+		if err := s.createSnapshotContainer(container, sourceContainer, false); err != nil {
 			s.log.Error("Error creating snapshot LV for copy", log.Ctx{"err": err})
 			return err
 		}
@@ -323,8 +322,7 @@ func (s *storageLvm) ContainerRestore(
 
 func (s *storageLvm) ContainerSnapshotCreate(
 	snapshotContainer container, sourceContainer container) error {
-	readonly := true
-	return s.createSnapshotContainer(snapshotContainer, sourceContainer, readonly)
+	return s.createSnapshotContainer(snapshotContainer, sourceContainer, true)
 }
 
 func (s *storageLvm) createSnapshotContainer(
