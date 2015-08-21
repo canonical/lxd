@@ -52,9 +52,12 @@ func (c *imageCmd) usage() string {
 			"\n" +
 			"lxc image alias create <alias> <target>\n" +
 			"lxc image alias delete <alias>\n" +
-			"lxc remote add images images.linuxcontainers.org\n" +
-			"lxc image alias list images:\n" +
-			"create, delete, list image aliases\n")
+			"lxc image alias list [remote:]\n" +
+			"\n" +
+ 			"Create, delete, list image aliases. Example:\n" +
+ 			"\n" +
+			"lxc remote add store2 images.linuxcontainers.org\n" +
+			"lxc image alias list store2:\n")
 }
 
 type aliasList []string
