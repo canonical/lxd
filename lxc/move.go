@@ -43,12 +43,18 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		status, err := source.ContainerStatus(sourceName, false)
-		if err != nil {
-			return err
+		canRename := false
+		if shared.IsSnapshot(sourceName) {
+			canRename = true
+		} else {
+			status, err := source.ContainerStatus(sourceName, false)
+			if err != nil {
+				return err
+			}
+			canRename = status.State() != shared.RUNNING
 		}
 
-		if status.State() != shared.RUNNING {
+		if canRename {
 			rename, err := source.Rename(sourceName, destName)
 			if err != nil {
 				return err

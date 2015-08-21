@@ -1433,8 +1433,20 @@ func (c *Client) MigrateFrom(name string, operation string, secrets map[string]s
 }
 
 func (c *Client) Rename(name string, newName string) (*Response, error) {
-	body := shared.Jmap{"name": newName}
-	return c.post(fmt.Sprintf("containers/%s", name), body, Async)
+	oldNameParts := strings.SplitN(name, "/", 2)
+	newNameParts := strings.SplitN(newName, "/", 2)
+	if len(oldNameParts) != len(newNameParts) {
+		return nil, fmt.Errorf("Attempting to rename container to snapshot or vice versa.")
+	}
+	if len(oldNameParts) == 1 {
+		body := shared.Jmap{"name": newName}
+		return c.post(fmt.Sprintf("containers/%s", name), body, Async)
+	}
+	if oldNameParts[0] != newNameParts[0] {
+		return nil, fmt.Errorf("Attempting to rename snapshot of one container into a snapshot of another container.")
+	}
+	body := shared.Jmap{"name": newNameParts[1]}
+	return c.post(fmt.Sprintf("containers/%s/snapshots/%s", oldNameParts[0], oldNameParts[1]), body, Async)
 }
 
 /* Wait for an operation */
