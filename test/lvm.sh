@@ -218,6 +218,10 @@ test_lvm_withpool() {
     lxc exec test-container-copy -- ls /tmp/unchill || die "should find unchill in copy of unchillbro"
     lxc stop test-container-copy --force
 
+    lxc move test-container-copy test-cc
+    lvs lxd_test_vg/test--container--copy && die "test-container-copy should not exist"
+    lvs lxd_test_vg/test--cc || die "test--cc should exist"
+
     # TODO can't do this because busybox ignores SIGPWR, breaking restart:
     # check that 'shutdown' also unmounts:
     # lxc start test-container || die "Couldn't re-start test-container"
