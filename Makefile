@@ -42,7 +42,7 @@ gccgo:
 dist:
 	rm -Rf lxd-$(VERSION) $(ARCHIVE) $(ARCHIVE).gz
 	mkdir -p lxd-$(VERSION)/dist
-	GOPATH=$(shell pwd)/lxd-$(VERSION)/dist go get -d -v ./...
+	GOPATH=$(shell pwd)/lxd-$(VERSION)/dist go get -t -v -d ./...
 	rm -rf $(shell pwd)/lxd-$(VERSION)/dist/src/github.com/lxc/lxd
 	ln -s ../../../.. ./lxd-$(VERSION)/dist/src/github.com/lxc/lxd
 	git archive --prefix=lxd-$(VERSION)/ --output=$(ARCHIVE) HEAD
