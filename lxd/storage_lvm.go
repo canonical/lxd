@@ -10,10 +10,11 @@ import (
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
-	"golang.org/x/sys/unix"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
+
+var sysSyncfsTrapNum uintptr = 306
 
 var storageLvmDefaultThinLVSize = "100GiB"
 var storageLvmDefaultThinPoolName = "LXDPool"
@@ -344,7 +345,7 @@ func (s *storageLvm) createSnapshotContainer(
 			return fmt.Errorf("Error opening mounted sourceContainer path for syncfs: '%v'", err)
 		}
 		defer srcDir.Close()
-		_, _, errno := unix.Syscall(unix.SYS_SYNCFS, srcDir.Fd(), 0, 0)
+		_, _, errno := syscall.Syscall(sysSyncfsTrapNum, srcDir.Fd(), 0, 0)
 		if errno != 0 {
 			return fmt.Errorf("Error syncing fs of frozen source container: '%s'", err)
 		}
