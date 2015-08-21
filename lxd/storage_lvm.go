@@ -291,15 +291,36 @@ func (s *storageLvm) ContainerStop(container container) error {
 	return nil
 }
 
-// ContainerRename should rename a LVM Container.
-// TODO: Not implemented, yet.
 func (s *storageLvm) ContainerRename(
-	container container, newName string) error {
+	container container, newContainerName string) error {
 
-	// TODO: No TemplateApply here?
+	oldName := containerNameToLVName(container.NameGet())
+	newName := containerNameToLVName(newContainerName)
+	output, err := s.renameLV(oldName, newName)
+	if err != nil {
+		s.log.Error("Failed to rename a container LV",
+			log.Ctx{"oldName": oldName,
+				"newName": newName,
+				"err":     err,
+				"output":  output})
 
-	return fmt.Errorf(
-		"ContainerRename is not implemented in the LVM backend.")
+		return fmt.Errorf("Failed to rename a container LV, oldName='%s', newName='%s', err='%s'",			oldName, newName, err)
+	}
+
+	// Rename the Symlink
+	oldSymPath := fmt.Sprintf("%s.lv", container.PathGet(""))
+	newSymPath := fmt.Sprintf("%s.lv", container.PathGet(newName))
+	if err := os.Rename(oldSymPath, newSymPath); err != nil {
+		s.log.Error("Rename of the symlink failed",
+			log.Ctx{"oldPath": oldSymPath,
+				"newPath": newSymPath,
+				"err":     err})
+
+		return err
+	}
+
+	return nil
+
 }
 
 func (s *storageLvm) ContainerRestore(
@@ -584,4 +605,10 @@ func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly
 
 func (s *storageLvm) isLVMContainer(container container) bool {
 	return shared.PathExists(fmt.Sprintf("%s.lv", container.PathGet("")))
+}
+
+
+func (s *storageLvm) renameLV(oldName string, newName string) (string, error) {
+	output, err := exec.Command("lvrename", s.vgName, oldName, newName).CombinedOutput()
+	return string(output), err
 }
