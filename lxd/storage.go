@@ -188,12 +188,13 @@ func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interf
 func storageForFilename(d *Daemon, filename string) (storage, error) {
 	config := make(map[string]interface{})
 	storageType := storageTypeDir
-	lvLinkPath := filename + ".lv"
+
 	filesystem, err := filesystemDetect(filename)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't detect filesystem for '%s': %v", filename, err)
 	}
 
+	lvLinkPath := filename + ".lv"
 	if shared.PathExists(lvLinkPath) {
 		storageType = storageTypeLvm
 		lvPath, err := os.Readlink(lvLinkPath)

@@ -129,6 +129,7 @@ type container interface {
 
 	StorageStart() error
 	StorageStop() error
+	StorageGet() storage
 
 	IsPrivileged() bool
 	IsRunning() bool
@@ -217,9 +218,6 @@ func containerLXDCreateAsCopy(d *Daemon, name string,
 		return nil, err
 	}
 
-	sourceContainer.StorageStart()
-	defer sourceContainer.StorageStop()
-
 	if err := c.Storage.ContainerCopy(c, sourceContainer); err != nil {
 		c.Delete()
 		return nil, err
@@ -232,12 +230,12 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 	args containerLXDArgs, sourceContainer container,
 	stateful bool) (container, error) {
 
-	// Create the container
 	c, err := containerLXDCreateInternal(d, name, args)
 	if err != nil {
 		return nil, err
 	}
 
+	c.Storage = sourceContainer.StorageGet()
 	if err := c.Storage.ContainerSnapshotCreate(c, sourceContainer); err != nil {
 		c.Delete()
 		return nil, err
@@ -729,6 +727,10 @@ func (c *containerLXD) StorageStop() error {
 	return c.Storage.ContainerStop(c)
 }
 
+func (c *containerLXD) StorageGet() storage {
+	return c.Storage
+}
+
 func (c *containerLXD) Restore(sourceContainer container) error {
 	/*
 	 * restore steps:
@@ -758,9 +760,7 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 	// Restore the FS.
 	// TODO: I switched the FS and config restore, think thats the correct way
 	// (pcdummy)
-	sourceContainer.StorageStart()
 	err := c.Storage.ContainerRestore(c, sourceContainer)
-	sourceContainer.StorageStop()
 
 	if err != nil {
 		shared.Log.Error("RESTORE => Restoring the filesystem failed",

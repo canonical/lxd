@@ -68,7 +68,7 @@ test_lvm() {
     create_vg lxd_test_vg
     trap cleanup_vg_and_shutdown EXIT HUP INT TERM
 
-    test_delete_with_appropriate_storage
+    test_mixing_storage
     lvremove -f lxd_test_vg/LXDPool
 
     test_lvm_withpool
@@ -81,10 +81,11 @@ test_lvm() {
     test_remote_launch_imports_lvm
 
     test_init_with_missing_vg
+
 }
 
 
-test_delete_with_appropriate_storage() {
+test_mixing_storage() {
     PREV_LXD_DIR=$LXD_DIR
     export LXD_DIR=$(mktemp -d -p $(pwd))
     chmod 777 "${LXD_DIR}"
@@ -92,6 +93,7 @@ test_delete_with_appropriate_storage() {
 
     ../scripts/lxd-images import busybox --alias testimage || die "couldn't import image"
     lxc launch testimage reg-container || die "couldn't launch regular container"
+    lxc copy reg-container reg-container-sticks-around || die "Couldn't copy reg"
     lxc config set core.lvm_vg_name "lxd_test_vg" || die "error setting core.lvm_vg_name config"
     lxc config show | grep "lxd_test_vg" || die "test_vg not in config show output"
     lxc stop reg-container --force || die "couldn't stop reg-container"
@@ -105,6 +107,11 @@ test_delete_with_appropriate_storage() {
     check_image_exists_in_pool testimage LXDPool
 
     lxc launch testimage lvm-container || die "couldn't launch lvm container"
+    lxc copy reg-container-sticks-around lvm-from-reg || die "can't copy reg->lvm"
+    lvs lxd_test_vg/lvm--from--reg || die "snapshot LV lvm--from--reg couldn't be found"
+    lxc snapshot reg-container-sticks-around regsnap || die "Couldn't snapshot"
+    lvs lxd_test_vg/reg--container--sticks--around-regsnap && die "we should NOT have a snap lv for a reg container"
+
     lxc config unset core.lvm_vg_name || die "couldn't unset config"
     lxc stop lvm-container --force || die "couldn't stop lvm-container"
     lxc start lvm-container || die "couldn't start lvm-container"
@@ -178,32 +185,53 @@ test_lvm_withpool() {
 
     # launch a container using that image
 
-    lxc init testimage testcontainer || die "Couldn't init test container"
+    lxc init testimage test-container || die "Couldn't init test container"
 
     # check that we now have a new volume in the pool
-    lvs --noheadings -o pool_lv lxd_test_vg/testcontainer | grep "$poolname" || die "LV for new container not found or not in $poolname"
-    [ -L "${LXD_DIR}/containers/testcontainer.lv" ] || die "testcontainer lv symlink should exist!"
+    lvs --noheadings -o pool_lv lxd_test_vg/test--container | grep "$poolname" || die "LV for new container not found or not in $poolname"
+    [ -L "${LXD_DIR}/containers/test-container.lv" ] || die "test-container lv symlink should exist!"
     mountpoint -q ${LXD_DIR}/containers/testcontainer && die "LV for new container should not be mounted until container start"
 
-    lxc start testcontainer || die "Couldn't start testcontainer"
-    mountpoint -q ${LXD_DIR}/containers/testcontainer || die "testcontainer LV is not mounted?"
-    lxc list testcontainer | grep RUNNING || die "testcontainer doesn't seem to be running"
+    lxc start test-container || die "Couldn't start test-container"
+    mountpoint -q ${LXD_DIR}/containers/test-container || die "test-container LV is not mounted?"
+    lxc list test-container | grep RUNNING || die "test-container doesn't seem to be running"
 
-    lxc stop testcontainer --force || die "Couldn't stop testcontainer"
-    mountpoint -q ${LXD_DIR}/containers/testcontainer && die "LV for new container should be umounted after stop"
+    lxc stop test-container --force || die "Couldn't stop test-container"
+    mountpoint -q ${LXD_DIR}/containers/test-container && die "LV for new container should be umounted after stop"
+
+    lxc snapshot test-container chillbro || die "Couldn't snapshot"
+    lvs lxd_test_vg/test--container-chillbro || die "snapshot LV test--container-chillbro  couldn't be found"
+    lxc start test-container
+    lxc exec test-container -- touch /tmp/unchill
+    lxc snapshot test-container unchillbro
+    lxc restore test-container chillbro
+
+    lxc exec test-container -- ls /tmp/unchill && die "Should not find unchill in chillbro"
+    lxc stop test-container --force
+    lxc restore test-container unchillbro
+    lxc start test-container
+    lxc exec test-container -- ls /tmp/unchill || die "should find unchill in unchillbro"
+
+    lxc copy test-container test-container-copy
+    lxc start test-container-copy
+    lxc stop test-container --force
+    lxc exec test-container-copy -- ls /tmp/unchill || die "should find unchill in copy of unchillbro"
+    lxc stop test-container-copy --force
 
     # TODO can't do this because busybox ignores SIGPWR, breaking restart:
     # check that 'shutdown' also unmounts:
-    # lxc start testcontainer || die "Couldn't re-start testcontainer"
-    # lxc stop testcontainer --timeout 1 || die "Couldn't shutdown testcontainer"
-    # lxc list testcontainer | grep STOPPED || die "testcontainer is still running"
-    # mountpoint -q ${LXD_DIR}/containers/testcontainer && die "LV for new container should be umounted after shutdown"
+    # lxc start test-container || die "Couldn't re-start test-container"
+    # lxc stop test-container --timeout 1 || die "Couldn't shutdown test-container"
+    # lxc list test-container | grep STOPPED || die "test-container is still running"
+    # mountpoint -q ${LXD_DIR}/containers/test-container && die "LV for new container should be umounted after shutdown"
 
-    lxc delete testcontainer || die "Couldn't delete testcontainer"
-    lvs lxd_test_vg/testcontainer && die "testcontainer LV is still there, should've been destroyed"
-    [ -L "${LXD_DIR}/containers/testcontainer.lv" ] && die "testcontainer lv symlink should be deleted"
+    lxc delete test-container || die "Couldn't delete test-container"
+    lvs lxd_test_vg/test--container && die "test-container LV is still there, should've been destroyed"
+    [ -L "${LXD_DIR}/containers/test-container.lv" ] && die "test-container lv symlink should be deleted"
+    lvs lxd_test_vg/test--container-chillbro && die "chillbro is still there, should have been deleted"
+    [ -L "${LXD_DIR}/snapshots/test-container/chillbro.lv" ] && die "chillbro snapshot lv symlink should be deleted"
+
     lxc image delete testimage || die "Couldn't delete testimage"
-
     lvs lxd_test_vg/$imagelvname && die "lv $imagelvname is still there, should be gone"
     [ -L "${LXD_DIR}/images/${imagelvname}.lv" ] && die "image symlink is still there, should be gone."
 
@@ -242,11 +270,11 @@ test_remote_launch_imports_lvm() {
     lvs --noheadings -o lv_attr lxd_test_vg/$testimage_sha | grep "^  V" || die "no lv named $testimage_sha or not a thin Vol."
 
     lxc list | grep remote-test | grep RUNNING || die "remote-test is not RUNNING"
-    lvs --noheadings -o pool_lv lxd_test_vg/remote-test | grep LXDPool || die "LV for remote-test not found or not in LXDPool"
+    lvs --noheadings -o pool_lv lxd_test_vg/remote--test | grep LXDPool || die "LV for remote-test not found or not in LXDPool"
     lxc stop remote-test --force || die "Couldn't stop remote-test"
     lxc delete remote-test
 
-    lvs lxd_test_vg/remote-test && die "remote-test LV is still there, should have been removed."
+    lvs lxd_test_vg/remote--test && die "remote--test LV is still there, should have been removed."
     lxc image delete $testimage_sha
     lvs lxd_test_vg/$testimage_sha && die "LV $testimage_sha is still there, should have been removed."
 

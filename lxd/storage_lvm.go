@@ -14,6 +14,8 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+var sysSyncfsTrapNum uintptr = 306
+
 var storageLvmDefaultThinLVSize = "100GiB"
 var storageLvmDefaultThinPoolName = "LXDPool"
 
@@ -92,6 +94,11 @@ func storageLVMSetVolumeGroupNameConfig(d *Daemon, vgname string) error {
 	return nil
 }
 
+func containerNameToLVName(containerName string) string {
+	lvName := strings.Replace(containerName, "-", "--", -1)
+	return strings.Replace(lvName, shared.SnapshotDelimiter, "-", -1)
+}
+
 type storageLvm struct {
 	d      *Daemon
 	vgName string
@@ -127,8 +134,24 @@ func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 }
 
 func (s *storageLvm) ContainerCreate(container container) error {
-	return fmt.Errorf(
-		"ContainerCreate is not implemented in the LVM backend.")
+
+	containerName := containerNameToLVName(container.NameGet())
+	lvpath, err := s.createThinLV(containerName)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(container.PathGet(""), 0755); err != nil {
+		return err
+	}
+
+	dst := shared.VarPath("containers", fmt.Sprintf("%s.lv", container.NameGet()))
+	err = os.Symlink(lvpath, dst)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *storageLvm) ContainerCreateFromImage(
@@ -143,7 +166,9 @@ func (s *storageLvm) ContainerCreateFromImage(
 		}
 	}
 
-	lvpath, err := s.createSnapshotLV(container.NameGet(), imageFingerprint)
+	containerName := containerNameToLVName(container.NameGet())
+
+	lvpath, err := s.createSnapshotLV(containerName, imageFingerprint, false)
 	if err != nil {
 		return err
 	}
@@ -181,50 +206,65 @@ func (s *storageLvm) ContainerCreateFromImage(
 }
 
 func (s *storageLvm) ContainerDelete(container container) error {
-	// First remove the LVM LV
-	if err := s.removeLV(container.NameGet()); err != nil {
+
+	lvName := containerNameToLVName(container.NameGet())
+	if err := s.removeLV(lvName); err != nil {
 		return err
 	}
 
-	// Then remove the symlink
-	lvLinkPath := shared.VarPath("containers", fmt.Sprintf("%s.lv", container.NameGet()))
+	lvLinkPath := fmt.Sprintf("%s.lv", container.PathGet(""))
 	if err := os.Remove(lvLinkPath); err != nil {
 		return err
 	}
 
-	// Then the container path (e.g. /var/lib/lxd/containers/<name>)
 	cPath := container.PathGet("")
-	if err := os.RemoveAll(cPath + "/*"); err != nil {
-		s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "err": err})
+	if err := os.RemoveAll(cPath); err != nil {
+		s.log.Error("ContainerDelete: failed to remove path", log.Ctx{"cPath": cPath, "err": err})
 		return fmt.Errorf("Cleaning up %s: %s", cPath, err)
-	}
-
-	// If its name contains a "/" also remove the parent,
-	// this should only happen with snapshot containers
-	if strings.Contains(container.NameGet(), "/") {
-		oldPathParent := filepath.Dir(container.PathGet(""))
-		if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
-			os.Remove(oldPathParent)
-		} else {
-			shared.Log.Debug(
-				"Cannot remove the parent of this container its not empty",
-				log.Ctx{"container": container.NameGet(), "parent": oldPathParent})
-		}
 	}
 
 	return nil
 }
 
 func (s *storageLvm) ContainerCopy(container container, sourceContainer container) error {
+	if s.isLVMContainer(sourceContainer) {
+		if err := s.createSnapshotContainer(container, sourceContainer, false); err != nil {
+			s.log.Error("Error creating snapshot LV for copy", log.Ctx{"err": err})
+			return err
+		}
+	} else {
+		s.log.Info("Copy from Non-LVM container", log.Ctx{"container name": container.NameGet(),
+			"sourceContainer": sourceContainer.NameGet()})
+		if err := s.ContainerCreate(container); err != nil {
+			s.log.Error("Error creating empty container", log.Ctx{"err": err})
+			return err
+		}
 
-	return fmt.Errorf(
-		"ContainerCopy is not implemented in the LVM backend.")
+		if err := s.ContainerStart(container); err != nil {
+			s.log.Error("Error starting/mounting container", log.Ctx{"err": err, "container name": container.NameGet()})
+			s.ContainerDelete(container)
+			return err
+		}
 
-	// return container.TemplateApply("copy")
+		output, err := storageRsyncCopy(
+			sourceContainer.PathGet(""),
+			container.PathGet(""))
+		if err != nil {
+			s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": output})
+			s.ContainerDelete(container)
+			return fmt.Errorf("rsync failed: %s", output)
+		}
+
+		if err := s.ContainerStop(container); err != nil {
+			return err
+		}
+	}
+	return container.TemplateApply("copy")
 }
 
 func (s *storageLvm) ContainerStart(container container) error {
-	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, container.NameGet())
+	lvName := containerNameToLVName(container.NameGet())
+	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvName)
 	output, err := exec.Command(
 		"mount", "-o", "discard", lvpath, container.PathGet("")).CombinedOutput()
 	if err != nil {
@@ -264,22 +304,100 @@ func (s *storageLvm) ContainerRename(
 
 func (s *storageLvm) ContainerRestore(
 	container container, sourceContainer container) error {
+	srcName := containerNameToLVName(sourceContainer.NameGet())
+	destName := containerNameToLVName(container.NameGet())
 
-	return fmt.Errorf(
-		"ContainerRestore is not implemented in the LVM backend.")
+	err := s.removeLV(destName)
+	if err != nil {
+		return fmt.Errorf("Error removing LV about to be restored over: %v", err)
+	}
+
+	_, err = s.createSnapshotLV(destName, srcName, false)
+	if err != nil {
+		return fmt.Errorf("Error creating snapshot LV: %v", err)
+	}
+
+	return nil
 }
 
 func (s *storageLvm) ContainerSnapshotCreate(
 	snapshotContainer container, sourceContainer container) error {
-
-	return fmt.Errorf(
-		"ContainerSnapshotCreate is not implement in the LVM Backend.")
+	return s.createSnapshotContainer(snapshotContainer, sourceContainer, true)
 }
+
+func (s *storageLvm) createSnapshotContainer(
+	snapshotContainer container, sourceContainer container, readonly bool) error {
+	// must freeze and syncfs LV to take consistent snapshot:
+	wasRunning := false
+	if sourceContainer.IsRunning() {
+		wasRunning = true
+		if err := sourceContainer.Freeze(); err != nil {
+			shared.Log.Error("LVM Snapshot Create: could not freeze source container",
+				log.Ctx{"sourceContainer name": sourceContainer.NameGet(),
+					"err": err})
+			return err
+		}
+
+		srcDir, err := os.Open(sourceContainer.PathGet(""))
+		if err != nil {
+			return fmt.Errorf("Error opening mounted sourceContainer path for syncfs: '%v'", err)
+		}
+		defer srcDir.Close()
+		_, _, errno := syscall.Syscall(sysSyncfsTrapNum, srcDir.Fd(), 0, 0)
+		if errno != 0 {
+			return fmt.Errorf("Error syncing fs of frozen source container: '%s'", err)
+		}
+		shared.Log.Debug(
+			"LVM Snapshot Create: Frozen source container",
+			log.Ctx{"sourceContainer name": sourceContainer.NameGet()})
+	}
+
+	srcName := containerNameToLVName(sourceContainer.NameGet())
+	destName := containerNameToLVName(snapshotContainer.NameGet())
+	shared.Log.Debug(
+		"Creating snapshot",
+		log.Ctx{"srcName": srcName, "destName": destName})
+
+	lvpath, err := s.createSnapshotLV(destName, srcName, readonly)
+	if err != nil {
+		return fmt.Errorf("Error creating snapshot LV: %v", err)
+	}
+
+	destPath := snapshotContainer.PathGet("")
+	if err := os.MkdirAll(destPath, 0755); err != nil {
+		return fmt.Errorf("Error creating container directory: %v", err)
+	}
+
+	dest := fmt.Sprintf("%s.lv", snapshotContainer.PathGet(""))
+	err = os.Symlink(lvpath, dest)
+	if err != nil {
+		return err
+	}
+
+	if wasRunning {
+		if err := sourceContainer.Unfreeze(); err != nil {
+			shared.Log.Error("Error unfreezing source container after snapshot",
+				log.Ctx{"sourceContainer name": sourceContainer.NameGet()})
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *storageLvm) ContainerSnapshotDelete(
 	snapshotContainer container) error {
 
-	return fmt.Errorf(
-		"ContainerSnapshotDelete is not implement in the LVM Backend.")
+	err := s.ContainerDelete(snapshotContainer)
+	if err != nil {
+		return fmt.Errorf("Error deleting snapshot %s: %s", snapshotContainer.NameGet(), err)
+	}
+
+	oldPathParent := filepath.Dir(snapshotContainer.PathGet(""))
+	if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
+		os.Remove(oldPathParent)
+	}
+	return nil
 }
 
 func (s *storageLvm) ContainerSnapshotRename(
@@ -292,24 +410,7 @@ func (s *storageLvm) ContainerSnapshotRename(
 func (s *storageLvm) ImageCreate(fingerprint string) error {
 	finalName := shared.VarPath("images", fingerprint)
 
-	poolname, err := s.d.ConfigValueGet("core.lvm_thinpool_name")
-	if err != nil {
-		return fmt.Errorf("Error checking server config, err=%v", err)
-	}
-
-	if poolname == "" {
-		poolname, err = s.createDefaultThinPool()
-		if err != nil {
-			return fmt.Errorf("Error creating LVM thin pool: %v", err)
-		}
-		err = storageLVMSetThinPoolNameConfig(s.d, poolname)
-		if err != nil {
-			s.log.Error("Setting thin pool name", log.Ctx{"err": err})
-			return fmt.Errorf("Error setting LVM thin pool config: %v", err)
-		}
-	}
-
-	lvpath, err := s.createThinLV(fingerprint, poolname)
+	lvpath, err := s.createThinLV(fingerprint)
 	if err != nil {
 		s.log.Error("LVMCreateThinLV", log.Ctx{"err": err})
 		return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
@@ -319,16 +420,6 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	err = os.Symlink(lvpath, dst)
 	if err != nil {
 		return err
-	}
-
-	output, err := exec.Command(
-		"mkfs.ext4",
-		"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0",
-		lvpath).CombinedOutput()
-
-	if err != nil {
-		s.log.Error("mkfs.ext4", log.Ctx{"output": output})
-		return fmt.Errorf("Error making filesystem on image LV: %v", err)
 	}
 
 	tempLVMountPoint, err := ioutil.TempDir(shared.VarPath("images"), "tmp_lv_mnt")
@@ -341,7 +432,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 		}
 	}()
 
-	output, err = exec.Command(
+	output, err := exec.Command(
 		"mount",
 		"-o", "discard",
 		lvpath,
@@ -410,7 +501,25 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 	return storageLvmDefaultThinPoolName, nil
 }
 
-func (s *storageLvm) createThinLV(lvname string, poolname string) (string, error) {
+func (s *storageLvm) createThinLV(lvname string) (string, error) {
+
+	poolname, err := s.d.ConfigValueGet("core.lvm_thinpool_name")
+	if err != nil {
+		return "", fmt.Errorf("Error checking server config, err=%v", err)
+	}
+
+	if poolname == "" {
+		poolname, err = s.createDefaultThinPool()
+		if err != nil {
+			return "", fmt.Errorf("Error creating LVM thin pool: %v", err)
+		}
+		err = storageLVMSetThinPoolNameConfig(s.d, poolname)
+		if err != nil {
+			s.log.Error("Setting thin pool name", log.Ctx{"err": err})
+			return "", fmt.Errorf("Error setting LVM thin pool config: %v", err)
+		}
+	}
+
 	output, err := exec.Command(
 		"lvcreate",
 		"--thin",
@@ -423,7 +532,18 @@ func (s *storageLvm) createThinLV(lvname string, poolname string) (string, error
 		return "", fmt.Errorf("Could not create thin LV named %s", lvname)
 	}
 
-	return fmt.Sprintf("/dev/%s/%s", s.vgName, lvname), nil
+	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvname)
+	output, err = exec.Command(
+		"mkfs.ext4",
+		"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0",
+		lvpath).CombinedOutput()
+
+	if err != nil {
+		s.log.Error("mkfs.ext4", log.Ctx{"output": output})
+		return "", fmt.Errorf("Error making filesystem on image LV: %v", err)
+	}
+
+	return lvpath, nil
 }
 
 func (s *storageLvm) removeLV(lvname string) error {
@@ -436,7 +556,7 @@ func (s *storageLvm) removeLV(lvname string) error {
 	return nil
 }
 
-func (s *storageLvm) createSnapshotLV(lvname string, origlvname string) (string, error) {
+func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly bool) (string, error) {
 	output, err := exec.Command(
 		"lvcreate",
 		"-kn",
@@ -448,10 +568,20 @@ func (s *storageLvm) createSnapshotLV(lvname string, origlvname string) (string,
 	}
 
 	snapshotFullName := fmt.Sprintf("/dev/%s/%s", s.vgName, lvname)
-	output, err = exec.Command("lvchange", "-ay", snapshotFullName).CombinedOutput()
+
+	if readonly {
+		output, err = exec.Command("lvchange", "-ay", "-pr", snapshotFullName).CombinedOutput()
+	} else {
+		output, err = exec.Command("lvchange", "-ay", snapshotFullName).CombinedOutput()
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("Could not activate new snapshot '%s': %v\noutput:%s", lvname, err, output)
 	}
 
 	return snapshotFullName, nil
+}
+
+func (s *storageLvm) isLVMContainer(container container) bool {
+	return shared.PathExists(fmt.Sprintf("%s.lv", container.PathGet("")))
 }
