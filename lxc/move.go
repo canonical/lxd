@@ -47,7 +47,7 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 		if shared.IsSnapshot(sourceName) {
 			canRename = true
 		} else {
-			status, err := source.ContainerStatus(sourceName, false)
+			status, err := source.ContainerStatus(sourceName)
 			if err != nil {
 				return err
 			}

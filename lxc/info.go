@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	"github.com/chai2010/gettext-go/gettext"
 
@@ -48,10 +49,11 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	if err != nil {
 		return err
 	}
-	ct, err := d.ContainerStatus(cName, c.showLog)
+	ct, err := d.ContainerStatus(cName)
 	if err != nil {
 		return err
 	}
+
 	fmt.Printf("Name: %s\n", ct.Name)
 	fmt.Printf("Status: %s\n", ct.Status.State)
 	if ct.Status.Init != 0 {
@@ -87,7 +89,17 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if c.showLog {
-		fmt.Printf("\nLog:\n\n%s\n", ct.Log)
+		log, err := d.GetLog(cName, "lxc.log")
+		if err != nil {
+			return err
+		}
+
+		stuff, err := ioutil.ReadAll(log)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("\nLog:\n\n%s\n", string(stuff))
 	}
 
 	return nil
