@@ -258,7 +258,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			brief := config.BriefState()
 			data, err = yaml.Marshal(&brief)
 		} else {
-			config, err := d.ContainerStatus(container, false)
+			config, err := d.ContainerStatus(container)
 			if err != nil {
 				return err
 			}
@@ -282,7 +282,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		resp, err := d.ContainerStatus(container, false)
+		resp, err := d.ContainerStatus(container)
 		if err != nil {
 			return err
 		}
@@ -342,7 +342,7 @@ func doConfigEdit(client *lxd.Client, cont string) error {
 		return client.UpdateContainerConfig(cont, newdata)
 	}
 
-	config, err := client.ContainerStatus(cont, false)
+	config, err := client.ContainerStatus(cont)
 	if err != nil {
 		return err
 	}
@@ -514,7 +514,7 @@ func deviceShow(config *lxd.Config, which string, args []string) error {
 		devices = resp.Devices
 
 	} else {
-		resp, err := client.ContainerStatus(name, false)
+		resp, err := client.ContainerStatus(name)
 		if err != nil {
 			return err
 		}

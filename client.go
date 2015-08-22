@@ -1341,11 +1341,10 @@ func (c *Client) ServerStatus() (*shared.ServerState, error) {
 	return &ss, nil
 }
 
-func (c *Client) ContainerStatus(name string, showLog bool) (*shared.ContainerState, error) {
+func (c *Client) ContainerStatus(name string) (*shared.ContainerState, error) {
 	ct := shared.ContainerState{}
-	query := url.Values{"log": []string{fmt.Sprintf("%v", showLog)}}
 
-	resp, err := c.get(fmt.Sprintf("containers/%s", name) + "?" + query.Encode())
+	resp, err := c.get(fmt.Sprintf("containers/%s", name))
 	if err != nil {
 		return nil, err
 	}
@@ -1355,6 +1354,16 @@ func (c *Client) ContainerStatus(name string, showLog bool) (*shared.ContainerSt
 	}
 
 	return &ct, nil
+}
+
+func (c *Client) GetLog(container string, log string) (io.Reader, error) {
+	uri := c.url(shared.APIVersion, "containers", container, "logs", log)
+	resp, err := c.getRaw(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Body, nil
 }
 
 func (c *Client) ProfileConfig(name string) (*shared.ProfileConfig, error) {
@@ -1549,7 +1558,7 @@ func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
  * return string array representing a container's full configuration
  */
 func (c *Client) GetContainerConfig(container string) ([]string, error) {
-	st, err := c.ContainerStatus(container, false)
+	st, err := c.ContainerStatus(container)
 	var resp []string
 	if err != nil {
 		return resp, err
@@ -1568,7 +1577,7 @@ func (c *Client) GetContainerConfig(container string) ([]string, error) {
 }
 
 func (c *Client) SetContainerConfig(container, key, value string) error {
-	st, err := c.ContainerStatus(container, false)
+	st, err := c.ContainerStatus(container)
 	if err != nil {
 		return err
 	}
@@ -1689,7 +1698,7 @@ func (c *Client) ListProfiles() ([]string, error) {
 }
 
 func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
-	st, err := c.ContainerStatus(container, false)
+	st, err := c.ContainerStatus(container)
 	if err != nil {
 		return nil, err
 	}
@@ -1700,7 +1709,7 @@ func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
 }
 
 func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, error) {
-	st, err := c.ContainerStatus(container, false)
+	st, err := c.ContainerStatus(container)
 	if err != nil {
 		return nil, err
 	}
@@ -1712,7 +1721,7 @@ func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, er
 }
 
 func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []string) (*Response, error) {
-	st, err := c.ContainerStatus(container, false)
+	st, err := c.ContainerStatus(container)
 	if err != nil {
 		return nil, err
 	}
@@ -1741,7 +1750,7 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 }
 
 func (c *Client) ContainerListDevices(container string) ([]string, error) {
-	st, err := c.ContainerStatus(container, false)
+	st, err := c.ContainerStatus(container)
 	if err != nil {
 		return nil, err
 	}

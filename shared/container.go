@@ -69,7 +69,6 @@ type ContainerState struct {
 	Ephemeral       bool              `json:"ephemeral"`
 	ExpandedConfig  map[string]string `json:"expanded_config"`
 	ExpandedDevices Devices           `json:"expanded_devices"`
-	Log             string            `json:"log"`
 	Name            string            `json:"name"`
 	Profiles        []string          `json:"profiles"`
 	Status          ContainerStatus   `json:"status"`
