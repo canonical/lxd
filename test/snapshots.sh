@@ -23,8 +23,9 @@ test_snapshots() {
   wait_for my_curl -X POST $BASEURL/1.0/containers/foo/snapshots/tester -d "{\"name\":\"tester2\"}"
   [ ! -d "$LXD_DIR/snapshots/foo/tester" ]
 
-  lxc delete foo/tester2
-  [ ! -d "$LXD_DIR/snapshots/foo/tester2" ]
+  lxc move foo/tester2 foo/tester-two
+  lxc delete foo/tester-two
+  [ ! -d "$LXD_DIR/snapshots/foo/tester-two" ]
 
   lxc delete foo
   lxc delete foosnap1
