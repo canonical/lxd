@@ -79,12 +79,12 @@ curtest=setup
 cleanup() {
     set +x
 
-    echo "==> Test result: $RESULT"
-    if [ $RESULT != "success" ]; then
-      echo "failed test: $curtest"
-    fi
-
     if [ -n "$LXD_INSPECT" ]; then
+        echo "==> Test result: $RESULT"
+        if [ $RESULT != "success" ]; then
+          echo "failed test: $curtest"
+        fi
+
         echo "To poke around, use:\n LXD_DIR=$LXD_DIR sudo -E $GOPATH/bin/lxc COMMAND --config ${LXD_CONF}"
         read -p "Tests Completed ($RESULT): hit enter to continue" x
     fi
@@ -106,7 +106,7 @@ cleanup() {
 
     # Apparently we need to wait a while for everything to die
     sleep 3
-    for dir in ${LXD_CONF} ${LXD_DIR} ${LXD2_DIR} ${LXD3_DIR} ${LXD4_DIR} ${LXD_MIGRATE_DIR} ${LXD_SERVERCONFIG_DIR}; do
+    for dir in ${LXD_CONF} ${LXD_DIR} ${LXD2_DIR} ${LXD3_DIR} ${LXD4_DIR} ${LXD5_DIR} ${LXD6_DIR} ${LXD_MIGRATE_DIR} ${LXD_SERVERCONFIG_DIR}; do
         [ -n "${dir}" ] && wipe "${dir}"
     done
 
