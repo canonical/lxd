@@ -22,6 +22,10 @@ func containerLogsGet(d *Daemon, r *http.Request) Response {
 	 */
 	name := mux.Vars(r)["name"]
 
+	if err := validContainerName(name); err != nil {
+		return BadRequest(err)
+	}
+
 	result := []map[string]interface{}{}
 
 	dents, err := ioutil.ReadDir(shared.LogPath(name))
@@ -58,6 +62,10 @@ func containerLogGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	file := mux.Vars(r)["file"]
 
+	if err := validContainerName(name); err != nil {
+		return BadRequest(err)
+	}
+
 	if !validLogFileName(file) {
 		return BadRequest(fmt.Errorf("log file name %s not valid", file))
 	}
@@ -73,6 +81,10 @@ func containerLogGet(d *Daemon, r *http.Request) Response {
 func containerLogDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	file := mux.Vars(r)["file"]
+
+	if err := validContainerName(name); err != nil {
+		return BadRequest(err)
+	}
 
 	if !validLogFileName(file) {
 		return BadRequest(fmt.Errorf("log file name %s not valid", file))

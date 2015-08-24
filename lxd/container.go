@@ -276,6 +276,16 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 	return c, nil
 }
 
+func validContainerName(name string) error {
+	if strings.Contains(name, shared.SnapshotDelimiter) {
+		return fmt.Errorf(
+			"The character '%s' is reserved for snapshots.",
+			shared.SnapshotDelimiter)
+	}
+
+	return nil
+}
+
 func containerLXDCreateInternal(
 	d *Daemon, name string, args containerLXDArgs) (*containerLXD, error) {
 
@@ -285,11 +295,10 @@ func containerLXDCreateInternal(
 			"container":  name,
 			"isSnapshot": args.Ctype == cTypeSnapshot})
 
-	if args.Ctype != cTypeSnapshot &&
-		strings.Contains(name, shared.SnapshotDelimiter) {
-		return nil, fmt.Errorf(
-			"The character '%s' is reserved for snapshots.",
-			shared.SnapshotDelimiter)
+	if args.Ctype != cTypeSnapshot {
+		if err := validContainerName(name); err != nil {
+			return nil, err
+		}
 	}
 
 	path := containerPathGet(name, args.Ctype == cTypeSnapshot)
