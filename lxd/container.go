@@ -1402,14 +1402,6 @@ func (c *containerLXD) applyProfile(p string) error {
 		k = r[0].(string)
 		v = r[1].(string)
 
-		shared.Debugf("Applying %s: %s", k, v)
-		if k == "raw.lxc" {
-			if _, ok := c.config["raw.lxc"]; ok {
-				shared.Debugf("Ignoring overridden raw.lxc from profile '%s'", p)
-				continue
-			}
-		}
-
 		config[k] = v
 	}
 
