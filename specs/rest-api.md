@@ -147,6 +147,8 @@ they point to (typically a dict).
          * /1.0/containers/\<name\>/snapshots
          * /1.0/containers/\<name\>/snapshots/\<name\>
          * /1.0/containers/\<name\>/state
+         * /1.0/containers/\<name\>/logs
+         * /1.0/containers/\<name\>/logs/\<logfile\>
      * /1.0/events
      * /1.0/images
        * /1.0/images/\<fingerprint\>
@@ -623,6 +625,34 @@ to these (i.e. you can only write to 0, and read from 1 and 2):
         "2": "secret2",
     }
 
+## /1.0/containers/\<name\>/logs
+### GET
+* Description: Returns a list of the log files available for this container.
+  Note that this works on containers that have been deleted (or were never
+  created) to enable people to get logs for failed creations.
+* Authentication: trusted
+* Operation: Sync
+* Return: a list of the available log files
+
+Return:
+
+    [
+        'lxc.log',
+        'migration_dump_2015-03-31T14:30:59Z.log'
+    ]
+
+## /1.0/containers/\<name\>/logs/\<logfile\>
+### GET
+* Description: returns the contents of a particular log file.
+* Authentication: trusted
+* Operation: N/A
+* Return: the contents of the log file
+
+### DELETE
+* Description: delete a particular log file.
+* Authentication: trusted
+* Operation: Sync
+* Return: empty response or standard error
 
 ## /1.0/events
 This URL isn't a real REST API endpoint, instead doing a GET query on it
