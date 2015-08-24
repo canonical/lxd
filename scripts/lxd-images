@@ -329,86 +329,6 @@ class Busybox(object):
             return destination_tar + ".xz"
 
 
-class LXCImages(Image):
-    workdir = None
-    images = []
-
-    def __init__(self,
-                 server="https://images.linuxcontainers.org",
-                 gpgkey="0xBAEFF88C22F6E216"):
-
-        # Create our workdir
-        self.workdir = tempfile.mkdtemp()
-        self.gpgdir = "%s/gpg" % self.workdir
-        os.mkdir(self.gpgdir, 0o700)
-
-        # Set variables
-        self.server = server
-        self.gpgkey = gpgkey
-
-        # Get ready to work with this server
-        self.gpg_update()
-        self.index_update()
-
-    def __del__(self):
-        if self.workdir:
-            shutil.rmtree(self.workdir)
-
-    def index_update(self):
-        print(_("Downloading the image list for %s" % self.server))
-        index = "%s/meta/1.0/index-user" % self.server
-        index_path = os.path.join(self.workdir, "index.json")
-
-        self.grab_and_validate(index, index_path)
-
-        images = []
-        with open(index_path, "r") as fd:
-            for line in fd:
-                fields = line.strip().split(";")
-
-                images.append({"distribution": fields[0],
-                               "release": fields[1],
-                               "architecture": fields[2],
-                               "variant": fields[3],
-                               "version": fields[4],
-                               "path": fields[5]})
-
-        self.images = images
-
-    def image_exists(self, distribution, release,
-                     architecture, variant="default"):
-        for image in self.images:
-            if image['distribution'] == distribution and \
-                    image['release'] == release and \
-                    image['architecture'] == architecture and \
-                    image['variant'] == variant:
-                return image['version']
-
-        return False
-
-    def image_download(self, distribution, release,
-                       architecture, variant="default"):
-        for image in self.images:
-            if image['distribution'] == distribution and \
-                    image['release'] == release and \
-                    image['architecture'] == architecture and \
-                    image['variant'] == variant:
-                break
-        else:
-            raise Exception("Requested image doesn't exist")
-
-        path = os.path.join(self.workdir,
-                            "%s-%s-%s-%s-%s.tar.xz" %
-                            (image['distribution'], image['release'],
-                             image['architecture'], image['variant'],
-                             image['version']))
-        url = "%s%slxd.tar.xz" % (self.server, image['path'])
-
-        print(_("Downloading the image: %s" % url))
-        self.grab_and_validate(url, path)
-        return path
-
-
 class Ubuntu(Image):
     workdir = None
     server = None
@@ -578,27 +498,6 @@ if __name__ == "__main__":
 
         setup_alias(parser, args, fingerprint)
 
-    def import_lxc(parser, args):
-        lxc = LXCImages()
-
-        if not lxc.image_exists(args.distribution, args.release,
-                                args.architecture, args.variant):
-            parser.exit(1, _("Requested image doesn't exist.\n"))
-
-        path = lxc.image_download(args.distribution, args.release,
-                                  args.architecture, args.variant)
-
-        with open(path, "rb") as fd:
-            fingerprint = hashlib.sha256(fd.read()).hexdigest()
-
-        if fingerprint in lxd.images_list():
-            parser.exit(1, _("This image is already in the store.\n"))
-
-        r = lxd.images_upload(path, path.split("/")[-1], args.public)
-        print(_("Image imported as: %s" % r['fingerprint']))
-
-        setup_alias(parser, args, fingerprint)
-
     def import_ubuntu(parser, args):
         ubuntu = Ubuntu()
 
@@ -627,12 +526,9 @@ if __name__ == "__main__":
  To import the latest Ubuntu Cloud image with an alias:
     %s import ubuntu --alias ubuntu
 
- To import the latest Ubuntu 14.04 LTS 64bit image with some aliases:
-    %s import lxc ubuntu trusty amd64 --alias ubuntu --alias ubuntu/trusty
-
  To import a basic busybox image:
     %s import busybox --alias busybox
-""" % (sys.argv[0], sys.argv[0], sys.argv[0])))
+""" % (sys.argv[0], sys.argv[0])))
 
     parser_subparsers = parser.add_subparsers(dest="action")
     parser_subparsers.required = True
@@ -655,21 +551,6 @@ if __name__ == "__main__":
         "--split", action="store_true", default=False,
         help=_("Whether to create a split image"))
     parser_import_busybox.set_defaults(func=import_busybox)
-
-    # # LXC
-    parser_import_lxc = parser_import_subparsers.add_parser(
-        "lxc", help=_("LXC images"))
-    parser_import_lxc.add_argument("distribution", help=_("Distribution"))
-    parser_import_lxc.add_argument("release", help=_("Release"))
-    parser_import_lxc.add_argument("architecture", help=_("Architecture"))
-    parser_import_lxc.add_argument("variant", help=_("Variant"),
-                                   default="default", nargs="?")
-    parser_import_lxc.add_argument("--alias", action="append", default=[],
-                                   help=_("Aliases for the image"))
-    parser_import_lxc.add_argument("--public", action="store_true",
-                                   default=False,
-                                   help=_("Make the image public"))
-    parser_import_lxc.set_defaults(func=import_lxc)
 
     # # Ubuntu
     parser_import_ubuntu = parser_import_subparsers.add_parser(

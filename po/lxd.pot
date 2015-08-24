@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-08-24 16:53+0200\n"
+        "POT-Creation-Date: 2015-08-24 13:07-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -207,8 +207,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
 msgstr  ""
 
 #: lxc/main.go:115
-msgid   "For example: 'lxd-images import lxc ubuntu trusty amd64 --alias "
-        "ubuntu/trusty'.\n"
+msgid   "For example: 'lxd-images import ubuntu --alias ubuntu'.\n"
 msgstr  ""
 
 #: lxc/action.go:35
