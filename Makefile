@@ -15,14 +15,14 @@ default:
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
 	go install -v ./...
-	echo "LXD built succesfuly"
+	@echo "LXD built succesfuly"
 
 .PHONY: client
 client:
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
 	go install -v ./lxc
-	echo "LXD client built succesfuly"
+	@echo "LXD client built succesfuly"
 
 # This only needs to be done when migrate.proto is actually changed; since we
 # commit the .pb.go in the tree and it's not expected to change very often,
@@ -38,7 +38,7 @@ check: default
 
 gccgo:
 	go build -compiler gccgo ./...
-	echo "LXD built succesfuly with gccgo"
+	@echo "LXD built succesfuly with gccgo"
 
 .PHONY: dist
 dist:
@@ -74,3 +74,6 @@ build-mo: $(MOFILES)
 
 static-analysis:
 	/bin/bash -x -c ". test/static_analysis.sh; static_analysis"
+
+tags:
+	find . | grep \.go | grep -v git | grep -v .swp | grep -v vagrant | xargs gotags > tags

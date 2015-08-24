@@ -147,6 +147,8 @@ they point to (typically a dict).
          * /1.0/containers/\<name\>/snapshots
          * /1.0/containers/\<name\>/snapshots/\<name\>
          * /1.0/containers/\<name\>/state
+         * /1.0/containers/\<name\>/logs
+         * /1.0/containers/\<name\>/logs/\<logfile\>
      * /1.0/events
      * /1.0/images
        * /1.0/images/\<fingerprint\>
@@ -337,14 +339,12 @@ Input (using a local container):
     }
 
 
-## /1.0/containers/\<name\>?log=true
+## /1.0/containers/\<name\>
 ### GET
  * Description: Container information
  * Authentication: trusted
  * Operation: sync
- * Return: dict of the container configuration and current state. If the
-   optional parameter log=true is supplied, the last 100 lines of the
-   container's log are rendered as well.
+ * Return: dict of the container configuration and current state.
 
 Output:
 
@@ -358,7 +358,7 @@ Output:
             'rootfs': {
                 'type': "disk",
                 'path': "/",
-                'source': "UUID=8f7fdf5e-dc60-4524-b9fe-634f82ac2fb6"}
+                'source': "UUID=8f7fdf5e-dc60-4524-b9fe-634f82ac2fb6"
             }
         },
         'expanded_devices': {  # the result of expanding profiles and adding the container's local devices
@@ -386,10 +386,6 @@ Output:
                              'protocol': "INET",
                              'address': "172.16.15.30",
                              'host_veth': "vethGMDIY9"}]},
-        'log': "lxc-checkpoint 1430925874.468 DEBUG    lxc_commands - commands.c:lxc_cmd_get_state:574 - 'u2' is in 'RUNNING' state
-                lxc-checkpoint 1430925874.468 ERROR    lxc_criu - criu.c:criu_version_ok:242 - No such file or directory - execing criu failed, is it installed?
-                ...",
-
     }
 
 
@@ -629,6 +625,34 @@ to these (i.e. you can only write to 0, and read from 1 and 2):
         "2": "secret2",
     }
 
+## /1.0/containers/\<name\>/logs
+### GET
+* Description: Returns a list of the log files available for this container.
+  Note that this works on containers that have been deleted (or were never
+  created) to enable people to get logs for failed creations.
+* Authentication: trusted
+* Operation: Sync
+* Return: a list of the available log files
+
+Return:
+
+    [
+        'lxc.log',
+        'migration_dump_2015-03-31T14:30:59Z.log'
+    ]
+
+## /1.0/containers/\<name\>/logs/\<logfile\>
+### GET
+* Description: returns the contents of a particular log file.
+* Authentication: trusted
+* Operation: N/A
+* Return: the contents of the log file
+
+### DELETE
+* Description: delete a particular log file.
+* Authentication: trusted
+* Operation: Sync
+* Return: empty response or standard error
 
 ## /1.0/events
 This URL isn't a real REST API endpoint, instead doing a GET query on it
