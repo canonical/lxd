@@ -19,7 +19,9 @@ func (c *initCmd) showByDefault() bool {
 
 func (c *initCmd) usage() string {
 	return gettext.Gettext(
-		"lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
+		"Initialize a container from a particular image.\n" +
+			"\n" +
+			"lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
 			"\n" +
 			"Initializes a container using the specified image and name.\n" +
 			"\n" +
