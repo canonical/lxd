@@ -233,7 +233,7 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 			return err
 		}
 	} else {
-		s.log.Info("Copy from Non-LVM container", log.Ctx{"container name": container.NameGet(),
+		s.log.Info("Copy from Non-LVM container", log.Ctx{"container": container.NameGet(),
 			"sourceContainer": sourceContainer.NameGet()})
 		if err := s.ContainerCreate(container); err != nil {
 			s.log.Error("Error creating empty container", log.Ctx{"err": err})
@@ -241,7 +241,7 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 		}
 
 		if err := s.ContainerStart(container); err != nil {
-			s.log.Error("Error starting/mounting container", log.Ctx{"err": err, "container name": container.NameGet()})
+			s.log.Error("Error starting/mounting container", log.Ctx{"err": err, "container": container.NameGet()})
 			s.ContainerDelete(container)
 			return err
 		}
