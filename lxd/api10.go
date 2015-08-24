@@ -15,6 +15,8 @@ var api10 = []Command{
 	containerCmd,
 	containerStateCmd,
 	containerFileCmd,
+	containerLogsCmd,
+	containerLogCmd,
 	containerSnapshotsCmd,
 	containerSnapshotCmd,
 	containerExecCmd,
