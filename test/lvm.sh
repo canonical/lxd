@@ -114,12 +114,13 @@ test_mixing_storage() {
     lxc snapshot reg-container-sticks-around regsnap || die "Couldn't snapshot"
     lvs lxd_test_vg/reg--container--sticks--around-regsnap && die "we should NOT have a snap lv for a reg container"
 
-    lxc config unset core.lvm_vg_name || die "couldn't unset config"
-    lxc stop lvm-container --force || die "couldn't stop lvm-container"
-    lxc start lvm-container || die "couldn't start lvm-container"
-    lxc stop lvm-container --force || die "couldn't stop lvm-container"
+    lxc config unset core.lvm_vg_name && die "shouldn't be able to unset config with existing lv containers"
     lxc delete lvm-container || die "couldn't delete container"
     lxc image delete testimage || die "couldn't delete lvm-backed image"
+
+    lxc delete lvm-from-reg || die "couldn't delete lvm-from-reg"
+    lxc config unset core.lvm_vg_name || die "should be able to unset config after delete all"
+
     exit 0
     )
 
@@ -172,6 +173,9 @@ test_lvm_withpool() {
         echo " --> only doing minimal image import subtest with user pool name"
         do_image_import_subtest $poolname
 
+        lxc config unset core.lvm_vg_name && die "should not be allowed to unset without deleting"
+        lxc image delete testimage
+        
         # check that we can unset configs in this order
         lxc config unset core.lvm_vg_name
         lxc config unset core.lvm_thinpool_name
