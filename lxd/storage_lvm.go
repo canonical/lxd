@@ -488,10 +488,39 @@ func (s *storageLvm) ContainerSnapshotDelete(
 }
 
 func (s *storageLvm) ContainerSnapshotRename(
-	snapshotContainer container, newName string) error {
+	snapshotContainer container, newContainerName string) error {
+	oldName := containerNameToLVName(snapshotContainer.NameGet())
+	newName := containerNameToLVName(newContainerName)
+	output, err := s.renameLV(oldName, newName)
+	if err != nil {
+		s.log.Error("Failed to rename a snapshot LV",
+			log.Ctx{"oldName": oldName, "newName": newName, "err": err, "output": string(output)})
+		return fmt.Errorf("Failed to rename a container LV, oldName='%s', newName='%s', err='%s'", oldName, newName, err)
+	}
 
-	return fmt.Errorf(
-		"ContainerSnapshotRename is not implement in the LVM Backend.")
+	oldPath := snapshotContainer.PathGet("")
+	oldSymPath := fmt.Sprintf("%s.lv", oldPath)
+	newPath := snapshotContainer.PathGet(newName)
+	newSymPath := fmt.Sprintf("%s.lv", newPath)
+
+	if err := os.Rename(oldSymPath, newSymPath); err != nil {
+		s.log.Error("Failed to rename symlink", log.Ctx{"oldSymPath": oldSymPath, "newSymPath": newSymPath, "err": err})
+		return fmt.Errorf("Failed to rename symlink err='%s'", err)
+	}
+
+	if strings.Contains(snapshotContainer.NameGet(), "/") {
+		if !shared.PathExists(filepath.Dir(newPath)) {
+			os.MkdirAll(filepath.Dir(newPath), 0700)
+		}
+	}
+
+	if strings.Contains(snapshotContainer.NameGet(), "/") {
+		if ok, _ := shared.PathIsEmpty(filepath.Dir(oldPath)); ok {
+			os.Remove(filepath.Dir(oldPath))
+		}
+	}
+
+	return nil
 }
 
 func (s *storageLvm) ImageCreate(fingerprint string) error {
