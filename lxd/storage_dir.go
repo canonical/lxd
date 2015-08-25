@@ -96,8 +96,8 @@ func (s *storageDir) ContainerCopy(
 	output, err := storageRsyncCopy(oldPath, newPath)
 	if err != nil {
 		s.ContainerDelete(container)
-		s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": output})
-		return fmt.Errorf("rsync failed: %s", output)
+		s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": string(output)})
+		return fmt.Errorf("rsync failed: %s", string(output))
 	}
 
 	err = s.setUnprivUserAcl(sourceContainer, container.PathGet(""))
@@ -144,7 +144,7 @@ func (s *storageDir) ContainerRestore(
 	if err != nil {
 		s.log.Error(
 			"ContainerRestore: rsync failed",
-			log.Ctx{"output": output})
+			log.Ctx{"output": string(output)})
 
 		return err
 	}
@@ -170,9 +170,9 @@ func (s *storageDir) ContainerSnapshotCreate(
 	if err != nil {
 		s.ContainerDelete(snapshotContainer)
 		s.log.Error("ContainerSnapshotCreate: rsync failed",
-			log.Ctx{"output": output})
+			log.Ctx{"output": string(output)})
 
-		return fmt.Errorf("rsync failed: %s", output)
+		return fmt.Errorf("rsync failed: %s", string(output))
 	}
 
 	return nil

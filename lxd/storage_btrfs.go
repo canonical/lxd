@@ -30,6 +30,16 @@ func (s *storageBtrfs) Init(config map[string]interface{}) (storage, error) {
 		return s, fmt.Errorf("The 'btrfs' tool isn't available")
 	}
 
+	output, err := exec.Command("btrfs", "version").CombinedOutput()
+	if err != nil {
+		return s, fmt.Errorf("The 'btrfs' tool isn't working properly")
+	}
+
+	count, err := fmt.Sscanf(strings.SplitN(string(output), " ", 2)[1], "v%s\n", &s.sTypeVersion)
+	if err != nil || count != 1 {
+		return s, fmt.Errorf("The 'btrfs' tool isn't working properly")
+	}
+
 	return s, nil
 }
 
@@ -135,8 +145,8 @@ func (s *storageBtrfs) ContainerCopy(container container, sourceContainer contai
 		if err != nil {
 			s.ContainerDelete(container)
 
-			s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": output})
-			return fmt.Errorf("rsync failed: %s", output)
+			s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": string(output)})
+			return fmt.Errorf("rsync failed: %s", string(output))
 		}
 	}
 
@@ -199,7 +209,7 @@ func (s *storageBtrfs) ContainerRestore(
 			if err != nil {
 				s.log.Error(
 					"ContainerRestore: rsync failed",
-					log.Ctx{"output": output})
+					log.Ctx{"output": string(output)})
 
 				failure = err
 			}
@@ -253,8 +263,8 @@ func (s *storageBtrfs) ContainerSnapshotCreate(
 
 			s.log.Error(
 				"ContainerSnapshotCreate: rsync failed",
-				log.Ctx{"output": output})
-			return fmt.Errorf("rsync failed: %s", output)
+				log.Ctx{"output": string(output)})
+			return fmt.Errorf("rsync failed: %s", string(output))
 		}
 	}
 
@@ -342,12 +352,12 @@ func (s *storageBtrfs) subvolCreate(subvol string) error {
 	if err != nil {
 		s.log.Debug(
 			"subvolume create failed",
-			log.Ctx{"subvol": subvol, "output": output},
+			log.Ctx{"subvol": subvol, "output": string(output)},
 		)
 		return fmt.Errorf(
 			"btrfs subvolume create failed, subvol=%s, output%s",
 			subvol,
-			output,
+			string(output),
 		)
 	}
 
@@ -365,7 +375,7 @@ func (s *storageBtrfs) subvolDelete(subvol string) error {
 	if err != nil {
 		s.log.Warn(
 			"subvolume delete failed",
-			log.Ctx{"subvol": subvol, "output": output},
+			log.Ctx{"subvol": subvol, "output": string(output)},
 		)
 	}
 	return nil
@@ -383,10 +393,10 @@ func (s *storageBtrfs) subvolSnapshot(source string, dest string, readonly bool)
 		}
 	}
 
-	var out []byte
+	var output []byte
 	var err error
 	if readonly {
-		out, err = exec.Command(
+		output, err = exec.Command(
 			"btrfs",
 			"subvolume",
 			"snapshot",
@@ -394,7 +404,7 @@ func (s *storageBtrfs) subvolSnapshot(source string, dest string, readonly bool)
 			source,
 			dest).CombinedOutput()
 	} else {
-		out, err = exec.Command(
+		output, err = exec.Command(
 			"btrfs",
 			"subvolume",
 			"snapshot",
@@ -404,13 +414,13 @@ func (s *storageBtrfs) subvolSnapshot(source string, dest string, readonly bool)
 	if err != nil {
 		s.log.Error(
 			"subvolume snapshot failed",
-			log.Ctx{"source": source, "dest": dest, "output": out},
+			log.Ctx{"source": source, "dest": dest, "output": string(output)},
 		)
 		return fmt.Errorf(
 			"subvolume snapshot failed, source=%s, dest=%s, output=%s",
 			source,
 			dest,
-			out,
+			string(output),
 		)
 	}
 
@@ -422,12 +432,12 @@ func (s *storageBtrfs) subvolSnapshot(source string, dest string, readonly bool)
  * else false.
  */
 func (s *storageBtrfs) isSubvolume(subvolPath string) bool {
-	out, err := exec.Command(
+	output, err := exec.Command(
 		"btrfs",
 		"subvolume",
 		"show",
 		subvolPath).CombinedOutput()
-	if err != nil || strings.HasPrefix(string(out), "ERROR: ") {
+	if err != nil || strings.HasPrefix(string(output), "ERROR: ") {
 		return false
 	}
 
