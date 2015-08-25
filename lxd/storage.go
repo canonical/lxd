@@ -93,7 +93,7 @@ func storageUnprivUserAclSet(c container, dpath string) error {
 	acl := fmt.Sprintf("%d:rx", uid)
 	output, err := exec.Command("setfacl", "-m", acl, dpath).CombinedOutput()
 	if err != nil {
-		shared.Debugf("Setfacl failed:\n%s", output)
+		shared.Debugf("Setfacl failed:\n%s", string(output))
 	}
 	return err
 }
@@ -288,7 +288,7 @@ func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
 					"chmoding the container root",
 					log.Ctx{
 						"destPath": destPath,
-						"output":   output})
+						"output":   string(output)})
 
 				return err
 			}
