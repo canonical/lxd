@@ -25,11 +25,6 @@ type Config struct {
 	// The implicit "local" remote is always available and communicates
 	// with the local daemon over a unix socket.
 	Remotes map[string]RemoteConfig `yaml:"remotes"`
-
-	// ListenAddr defines an alternative address for the local daemon
-	// to listen on. If empty, the daemon will listen only on the local
-	// unix socket address.
-	ListenAddr string `yaml:"listen-addr"`
 }
 
 // RemoteConfig holds details for communication with a remote daemon.
