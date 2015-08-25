@@ -19,14 +19,14 @@ import (
 func (d *Daemon) ImageDownload(
 	server, fp string, secret string, forContainer bool) error {
 
-	if _, err := dbImageGet(d.db, fp, false, true); err == nil {
+	if _, err := dbImageGet(d.db, fp, false, false); err == nil {
 		shared.Log.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		// already have it
 		return nil
 	}
 
 	shared.Log.Info(
-		"Image not in the db downloading it",
+		"Image not in the db, downloading it",
 		log.Ctx{"image": fp, "server": server})
 
 	// Now check if we already downloading the image
