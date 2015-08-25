@@ -51,7 +51,9 @@ func LoadConfig() (*Config, error) {
 	data, err := ioutil.ReadFile(ConfigPath(configFileName))
 	if os.IsNotExist(err) {
 		// A missing file is equivalent to the default configuration.
-		return &Config{Remotes: defaultRemote}, nil
+		return &Config{
+			Remotes:       defaultRemote,
+			DefaultRemote: "local"}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file: %v", err)
