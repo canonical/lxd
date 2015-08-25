@@ -89,12 +89,13 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		env := shared.Jmap{
 			"addresses":           addresses,
 			"architectures":       d.architectures,
-			"backing_fs":          d.BackingFs,
 			"driver":              "lxc",
 			"driver_version":      lxc.Version(),
 			"kernel":              kernel,
 			"kernel_architecture": kernelArchitecture,
 			"kernel_version":      kernelVersion,
+			"storage":             d.Storage.GetStorageTypeName(),
+			"storage_version":     d.Storage.GetStorageTypeVersion(),
 			"version":             shared.Version}
 
 		body["environment"] = env
