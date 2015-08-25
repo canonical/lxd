@@ -25,11 +25,6 @@ type Config struct {
 	// The implicit "local" remote is always available and communicates
 	// with the local daemon over a unix socket.
 	Remotes map[string]RemoteConfig `yaml:"remotes"`
-
-	// ListenAddr defines an alternative address for the local daemon
-	// to listen on. If empty, the daemon will listen only on the local
-	// unix socket address.
-	ListenAddr string `yaml:"listen-addr"`
 }
 
 // RemoteConfig holds details for communication with a remote daemon.
@@ -56,7 +51,9 @@ func LoadConfig() (*Config, error) {
 	data, err := ioutil.ReadFile(ConfigPath(configFileName))
 	if os.IsNotExist(err) {
 		// A missing file is equivalent to the default configuration.
-		return &Config{Remotes: defaultRemote}, nil
+		return &Config{
+			Remotes:       defaultRemote,
+			DefaultRemote: "local"}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file: %v", err)
