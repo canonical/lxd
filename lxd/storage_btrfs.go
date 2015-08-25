@@ -35,7 +35,7 @@ func (s *storageBtrfs) Init(config map[string]interface{}) (storage, error) {
 		return s, fmt.Errorf("The 'btrfs' tool isn't working properly")
 	}
 
-	count, err := fmt.Sscanf(string(output), "btrfs-progs v%s\n", &s.sTypeVersion)
+	count, err := fmt.Sscanf(strings.SplitN(string(output), " ", 2)[1], "v%s\n", &s.sTypeVersion)
 	if err != nil || count != 1 {
 		return s, fmt.Errorf("The 'btrfs' tool isn't working properly")
 	}
