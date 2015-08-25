@@ -126,6 +126,7 @@ type storage interface {
 
 	GetStorageType() storageType
 	GetStorageTypeName() string
+	GetStorageTypeVersion() string
 
 	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
 	ContainerCreate(container container) error
@@ -216,8 +217,9 @@ func storageForImage(d *Daemon, imgInfo *shared.ImageBaseInfo) (storage, error) 
 }
 
 type storageShared struct {
-	sType     storageType
-	sTypeName string
+	sType        storageType
+	sTypeName    string
+	sTypeVersion string
 
 	log log.Logger
 }
@@ -235,6 +237,10 @@ func (ss *storageShared) GetStorageType() storageType {
 
 func (ss *storageShared) GetStorageTypeName() string {
 	return ss.sTypeName
+}
+
+func (ss *storageShared) GetStorageTypeVersion() string {
+	return ss.sTypeVersion
 }
 
 func (ss *storageShared) shiftRootfs(c container) error {
@@ -313,6 +319,10 @@ func (lw *storageLogWrapper) GetStorageType() storageType {
 
 func (lw *storageLogWrapper) GetStorageTypeName() string {
 	return lw.w.GetStorageTypeName()
+}
+
+func (lw *storageLogWrapper) GetStorageTypeVersion() string {
+	return lw.w.GetStorageTypeVersion()
 }
 
 func (lw *storageLogWrapper) ContainerCreate(container container) error {
