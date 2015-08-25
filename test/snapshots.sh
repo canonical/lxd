@@ -27,9 +27,18 @@ test_snapshots() {
   lxc delete foo/tester-two
   [ ! -d "$LXD_DIR/snapshots/foo/tester-two" ]
 
-  lxc delete foo
-  lxc delete foosnap1
+  lxc snapshot foo namechange
+  [ -d "$LXD_DIR/snapshots/foo/namechange" ]
+  lxc move foo foople
   [ ! -d "$LXD_DIR/containers/foo" ]
+  [ -d "$LXD_DIR/containers/foople" ]
+  [ -d "$LXD_DIR/snapshots/foople/namechange" ]
+  [ -d "$LXD_DIR/snapshots/foople/namechange" ]
+
+  lxc delete foople
+  lxc delete foosnap1
+  [ ! -d "$LXD_DIR/containers/foople" ]
+  [ ! -d "$LXD_DIR/containers/foosnap1" ]
 }
 
 test_snap_restore() {

@@ -227,6 +227,10 @@ test_lvm_withpool() {
     lvs lxd_test_vg/test--container--copy && die "test-container-copy should not exist"
     lvs lxd_test_vg/test--cc || die "test--cc should exist"
 
+    lxc move test-container/chillbro test-container/superchill
+    lvs lxd_test_vg/test--container-superchill || die "superchill should exist"
+    lvs lxd_test_vg/test--container-chillbro && die "chillbro should not exist"
+
     # TODO busybox ignores SIGPWR, breaking restart:
     # check that 'shutdown' also unmounts:
     # lxc start test-container || die "Couldn't re-start test-container"
