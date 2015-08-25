@@ -836,11 +836,41 @@ func (c *containerLXD) Rename(newName string) error {
 		return fmt.Errorf("renaming of running container not allowed")
 	}
 
-	if err := c.Storage.ContainerRename(c, newName); err != nil {
-		return err
+	if c.IsSnapshot() {
+		if err := c.Storage.ContainerSnapshotRename(c, newName); err != nil {
+			return err
+		}
+	} else {
+		if err := c.Storage.ContainerRename(c, newName); err != nil {
+			return err
+		}
 	}
+
 	if err := dbContainerRename(c.daemon.db, c.NameGet(), newName); err != nil {
 		return err
+	}
+
+	results, err := dbContainerGetSnapshots(c.daemon.db, c.NameGet())
+	if err != nil {
+		return err
+	}
+
+	for _, sname := range results {
+		sc, err := containerLXDLoad(c.daemon, sname)
+		if err != nil {
+			shared.Log.Error(
+				"containerDeleteSnapshots: Failed to load the snapshotcontainer",
+				log.Ctx{"container": c.NameGet(), "snapshot": sname})
+
+			continue
+		}
+		baseSnapName := filepath.Base(sname)
+		newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
+		if err := sc.Rename(newSnapshotName); err != nil {
+			shared.Log.Error(
+				"containerDeleteSnapshots: Failed to rename a snapshotcontainer",
+				log.Ctx{"container": c.NameGet(), "snapshot": sname, "err": err})
+		}
 	}
 
 	c.name = newName
@@ -848,8 +878,6 @@ func (c *containerLXD) Rename(newName string) error {
 	// Recreate the LX Container
 	c.c = nil
 	c.init()
-
-	// TODO: We should rename its snapshots here.
 
 	return nil
 }
