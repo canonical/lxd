@@ -50,10 +50,68 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 	return false, fmt.Errorf("Pool named '%s' exists but is not a thin pool.", poolName)
 }
 
-func storageLVMSetThinPoolNameConfig(d *Daemon, poolname string) error {
+func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
+	results := []string{}
 	vgname, err := d.ConfigValueGet("core.lvm_vg_name")
 	if err != nil {
-		return fmt.Errorf("Error getting lvm_vg_name config")
+		return results, fmt.Errorf("Error getting lvm_vg_name config")
+	}
+	if vgname == "" {
+		return results, nil
+	}
+	poolname, err := d.ConfigValueGet("core.lvm_thinpool_name")
+	if err != nil {
+		return results, fmt.Errorf("Error getting lvm_thinpool_name config")
+	}
+	if poolname == "" {
+		return results, nil
+	}
+
+	cNames, err := dbContainersList(d.db, cTypeRegular)
+	if err != nil {
+		return results, err
+	}
+	for _, cName := range cNames {
+		var lvLinkPath string
+		if strings.Contains(cName, shared.SnapshotDelimiter) {
+			lvLinkPath = shared.VarPath("snapshots", fmt.Sprintf("%s.lv", cName))
+		} else {
+			lvLinkPath = shared.VarPath("containers", fmt.Sprintf("%s.lv", cName))
+		}
+
+		if shared.PathExists(lvLinkPath) {
+			results = append(results, cName)
+		}
+	}
+
+	imageNames, err := dbImagesGet(d.db, false)
+	if err != nil {
+		return results, err
+	}
+
+	for _, imageName := range imageNames {
+		imageLinkPath := shared.VarPath("images", fmt.Sprintf("%s.lv", imageName))
+		if shared.PathExists(imageLinkPath) {
+			results = append(results, imageName)
+		}
+	}
+
+	return results, nil
+
+}
+func storageLVMSetThinPoolNameConfig(d *Daemon, poolname string) error {
+
+	users, err := storageLVMGetThinPoolUsers(d)
+	if err != nil {
+		return fmt.Errorf("Error checking if a pool is already in use: %v", err)
+	}
+	if len(users) > 0 {
+		return fmt.Errorf("Can not change LVM config. Images or containers are still using LVs: %v", users)
+	}
+
+	vgname, err := d.ConfigValueGet("core.lvm_vg_name")
+	if err != nil {
+		return fmt.Errorf("Error getting lvm_vg_name config: %v", err)
 	}
 
 	if poolname != "" {
@@ -79,14 +137,22 @@ func storageLVMSetThinPoolNameConfig(d *Daemon, poolname string) error {
 }
 
 func storageLVMSetVolumeGroupNameConfig(d *Daemon, vgname string) error {
+	users, err := storageLVMGetThinPoolUsers(d)
+	if err != nil {
+		return fmt.Errorf("Error checking if a pool is already in use: %v", err)
+	}
+	if len(users) > 0 {
+		return fmt.Errorf("Can not change LVM config. Images or containers are still using LVs: %v", users)
+	}
+
 	if vgname != "" {
-		err := storageLVMCheckVolumeGroup(vgname)
+		err = storageLVMCheckVolumeGroup(vgname)
 		if err != nil {
 			return err
 		}
 	}
 
-	err := d.ConfigValueSet("core.lvm_vg_name", vgname)
+	err = d.ConfigValueSet("core.lvm_vg_name", vgname)
 	if err != nil {
 		return err
 	}
