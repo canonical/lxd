@@ -1041,7 +1041,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 	source := shared.Jmap{"type": "image"}
 
-	if imgremote != "" {
+	if imgremote != c.name {
 		source["type"] = "image"
 		source["mode"] = "pull"
 		tmpremote, err = NewClient(&c.config, imgremote)
@@ -1119,7 +1119,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 	var resp *Response
 
-	if imgremote != "" {
+	if imgremote != c.name {
 		var addresses []string
 		addresses, err = tmpremote.Addresses()
 		if err != nil {
