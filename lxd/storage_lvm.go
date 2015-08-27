@@ -179,6 +179,24 @@ func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 		return s, err
 	}
 
+	output, err := exec.Command("lvm", "version").CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("Error getting LVM version: %v\noutput:'%s'", err, string(output))
+	}
+	lines := strings.Split(string(output), "\n")
+
+	s.sTypeVersion = ""
+	for idx, line := range lines {
+		fields := strings.SplitAfterN(line, ":", 2)
+		if len(fields) < 2 {
+			continue
+		}
+		if idx > 0 {
+			s.sTypeVersion += " / "
+		}
+		s.sTypeVersion += strings.TrimSpace(fields[1])
+	}
+
 	if config["vgName"] == nil {
 		vgName, err := s.d.ConfigValueGet("core.lvm_vg_name")
 		if err != nil {
