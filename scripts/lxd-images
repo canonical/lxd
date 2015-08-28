@@ -377,20 +377,22 @@ class Ubuntu(Image):
             raise Exception("Unable to parse the image index.")
 
         image = None
-        for product_name, product in index['products'].items():
-            if product['release'] != release and \
-                    product['version'] != release:
+        for product_name, product in index.get("products", {}).items():
+            if product.get("release", None) != release and \
+                    product.get("version") != release and \
+                    product.get("release_title") != release:
                 continue
 
-            if product['arch'] != architecture:
+            if product.get("arch") != architecture:
                 continue
 
             candidates = {}
-            for version_number, version_entry in product['versions'].items():
-                if "lxd.tar.xz" not in version_entry['items']:
+            for version_number, version_entry in \
+                    product.get("versions", {}).items():
+                if "lxd.tar.xz" not in version_entry.get("items", {}):
                     continue
 
-                if "root.tar.xz" not in version_entry['items']:
+                if "root.tar.xz" not in version_entry.get("items", {}):
                     continue
 
                 candidates[version_number] = version_entry
@@ -411,8 +413,11 @@ class Ubuntu(Image):
             raise Exception("The requested image doesn't exist.")
 
         print(_("Downloading the image."))
-        print(_("Image manifest: %s") % "%s/%s" %
-              (self.server, image['items']['manifest']['path']))
+        try:
+            print(_("Image manifest: %s") % "%s/%s" %
+                  (self.server, image['items']['manifest']['path']))
+        except KeyError:
+            print(_("No image manifest provided."))
 
         def download_and_verify(file_to_download, prefix, pubname):
             """
