@@ -3,13 +3,17 @@ package main
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/chai2010/gettext-go/gettext"
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -31,8 +35,9 @@ func (c *fileCmd) usage() string {
 			"\n" +
 			"lxc file pull <source> [<source>...] <target>\n" +
 			"lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>\n" +
+			"lxc file edit <file>\n" +
 			"\n" +
-			"<source> in the case of pull and <target> in the case of push are <container name>/<path>\n" +
+			"<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>\n" +
 			"This operation is only supported on containers that are currently running\n")
 }
 
@@ -192,6 +197,54 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 	return nil
 }
 
+func (c *fileCmd) edit(config *lxd.Config, args []string) error {
+	if len(args) != 1 {
+		return errArgs
+	}
+
+	if !terminal.IsTerminal(syscall.Stdin) {
+		_, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+	}
+
+	f, err := ioutil.TempFile("", "lxd_file_edit_")
+	fname := f.Name()
+	f.Close()
+	os.Remove(fname)
+	defer os.Remove(fname)
+	err = c.pull(config, append([]string{args[0]}, fname))
+	if err != nil {
+		return err
+	}
+
+	editor := os.Getenv("VISUAL")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+		if editor == "" {
+			editor = "vi"
+		}
+	}
+
+	cmdParts := strings.Fields(editor)
+	cmd := exec.Command(cmdParts[0], append(cmdParts[1:], fname)...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	err = c.push(config, append([]string{fname}, args[0]))
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
 func (c *fileCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 1 {
 		return errArgs
@@ -202,6 +255,8 @@ func (c *fileCmd) run(config *lxd.Config, args []string) error {
 		return c.push(config, args[1:])
 	case "pull":
 		return c.pull(config, args[1:])
+	case "edit":
+		return c.edit(config, args[1:])
 	default:
 		return fmt.Errorf(gettext.Gettext("invalid argument %s"), args[0])
 	}
