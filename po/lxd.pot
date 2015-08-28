@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-08-24 13:07-0400\n"
+        "POT-Creation-Date: 2015-08-28 11:20+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -97,7 +97,7 @@ msgstr  ""
 msgid   "Bad image property: %s\n"
 msgstr  ""
 
-#: client.go:1647
+#: client.go:1656
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -183,7 +183,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:593 client.go:603 client.go:850 client.go:1868
+#: client.go:593 client.go:603 client.go:850 client.go:1877
 #, c-format
 msgid   "Error adding alias %s\n"
 msgstr  ""
@@ -228,7 +228,7 @@ msgstr  ""
 msgid   "Image imported with fingerprint: %s\n"
 msgstr  ""
 
-#: lxc/info.go:43
+#: lxc/info.go:44
 msgid   "Information about remotes not yet supported\n"
 msgstr  ""
 
@@ -247,12 +247,12 @@ msgid   "Initialize a container from a particular image.\n"
         "lxc init ubuntu u1\n"
 msgstr  ""
 
-#: lxc/file.go:159
+#: lxc/file.go:164
 #, c-format
 msgid   "Invalid source %s"
 msgstr  ""
 
-#: lxc/file.go:54
+#: lxc/file.go:59
 #, c-format
 msgid   "Invalid target %s"
 msgstr  ""
@@ -276,7 +276,7 @@ msgid   "Launch a container from a particular image.\n"
         "lxc launch ubuntu u1\n"
 msgstr  ""
 
-#: lxc/info.go:22
+#: lxc/info.go:23
 msgid   "List information on containers.\n"
         "\n"
         "This will support remotes and images as well, but only containers "
@@ -399,15 +399,16 @@ msgid   "Manage configuration.\n"
         "\tlxc config set core.trust_password blah\n"
 msgstr  ""
 
-#: lxc/file.go:30
+#: lxc/file.go:34
 msgid   "Manage files on a container.\n"
         "\n"
         "lxc file pull <source> [<source>...] <target>\n"
         "lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> "
         "[<source>...] <target>\n"
+        "lxc file edit <file>\n"
         "\n"
-        "<source> in the case of pull and <target> in the case of push are "
-        "<container name>/<path>\n"
+        "<source> in the case of pull, <target> in the case of push and "
+        "<file> in the case of edit are <container name>/<path>\n"
         "This operation is only supported on containers that are currently "
         "running\n"
 msgstr  ""
@@ -470,7 +471,7 @@ msgstr  ""
 msgid   "Missing summary."
 msgstr  ""
 
-#: lxc/file.go:145
+#: lxc/file.go:150
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
@@ -577,15 +578,15 @@ msgid   "Set the current state of a resource back to what it was when it was "
         "lxc restore [remote:]<resource> <snapshot name> [--stateful]\n"
 msgstr  ""
 
-#: lxc/file.go:41
+#: lxc/file.go:46
 msgid   "Set the file's gid on push"
 msgstr  ""
 
-#: lxc/file.go:42
+#: lxc/file.go:47
 msgid   "Set the file's perms on push"
 msgstr  ""
 
-#: lxc/file.go:40
+#: lxc/file.go:45
 msgid   "Set the file's uid on push"
 msgstr  ""
 
@@ -593,7 +594,7 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/info.go:30
+#: lxc/info.go:31
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
 
@@ -678,7 +679,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1678
+#: client.go:1687
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -687,7 +688,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1682
+#: client.go:1691
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -704,7 +705,7 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: client.go:1731 client.go:1788
+#: client.go:1740 client.go:1797
 msgid   "device already exists\n"
 msgstr  ""
 
@@ -745,12 +746,12 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: lxc/file.go:206
+#: lxc/file.go:261
 #, c-format
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1455
+#: client.go:1464
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -759,7 +760,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1724 client.go:1781
+#: client.go:1733 client.go:1790
 msgid   "no value found in %q\n"
 msgstr  ""
 
