@@ -379,8 +379,7 @@ class Ubuntu(Image):
         image = None
         for product_name, product in index.get("products", {}).items():
             if product.get("release", None) != release and \
-                    product.get("version") != release and \
-                    product.get("release_title") != release:
+                    product.get("version") != release:
                 continue
 
             if product.get("arch") != architecture:
