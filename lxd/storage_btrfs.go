@@ -482,10 +482,14 @@ func (s *storageBtrfs) subvolsSnapshot(
 		return err
 	}
 
-	if len(subsubvols) > 0 {
+	if len(subsubvols) > 0 && readonly {
 		// A root with subvolumes can never be readonly,
 		// also don't make subvolumes readonly.
 		readonly = false
+
+		s.log.Warn(
+			"Subvolumes detected, ignoring ro flag",
+			log.Ctx{"source": source, "dest": dest})
 	}
 
 	// First snapshot the root
