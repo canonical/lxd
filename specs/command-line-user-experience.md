@@ -513,7 +513,7 @@ lxc publish c2 dakara: --public                 | Turn c2 into a public image on
 
 **Arguments**
 
-    add <name> <URI> [--always-relay] [--password=PASSWORD] [--accept-certificate]
+    add <name> <URI> [--always-relay] [--password=PASSWORD] [--accept-certificate] [--public]
     remove <name>
     list
     rename <old name> <new name>
