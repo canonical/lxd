@@ -52,7 +52,7 @@ def report_download(blocks_read, block_size, total_size):
     if percent > 100:
         return
 
-    print("Progress: %.0f %%" % percent, end='\r')
+    print(_("Progress: %.0f %%") % percent, end='\r')
 
 
 def local_architecture():
@@ -336,7 +336,7 @@ class Ubuntu(Image):
 
     # FIXME: We should default to the released stream once available
     def __init__(self, server="https://cloud-images.ubuntu.com",
-                 stream="daily",
+                 stream="releases",
                  gpgkey="7FF3F408476CF100"):
 
         # Create our workdir
@@ -366,7 +366,9 @@ class Ubuntu(Image):
         # Download and verify GPG signature of index file.
         download_path = os.path.join(self.workdir, "download.json")
         url = "%s/%s/streams/v1/com.ubuntu.cloud:%s:download.json" % \
-            (self.server, self.stream, self.stream)
+            (self.server,
+             self.stream,
+             "released" if self.stream == "releases" else self.stream)
         index = self.grab_and_validate(url, download_path, gpg_suffix=".gpg")
 
         try:
@@ -505,7 +507,7 @@ if __name__ == "__main__":
         setup_alias(parser, args, fingerprint)
 
     def import_ubuntu(parser, args):
-        ubuntu = Ubuntu()
+        ubuntu = Ubuntu(stream=args.stream)
 
         meta_path, rootfs_path = ubuntu.image_download(args.release,
                                                        args.architecture,
@@ -567,6 +569,9 @@ if __name__ == "__main__":
                                       default=None, nargs="?")
     parser_import_ubuntu.add_argument("version", help=_("Version"),
                                       default=None, nargs="?")
+    parser_import_ubuntu.add_argument("--stream", default="releases",
+                                      choices=("releases", "daily"),
+                                      help=_("The simplestream stream to use"))
     parser_import_ubuntu.add_argument("--alias", action="append", default=[],
                                       help=_("Aliases for the image"))
     parser_import_ubuntu.add_argument("--public", action="store_true",
