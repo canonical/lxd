@@ -138,6 +138,25 @@ func dbImageAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
 	return fingerprint, nil
 }
 
+func dbImageSetPublic(db *sql.DB, id int, public bool) error {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	if public {
+		_, _ = tx.Exec("UPDATE images SET public=1 WHERE id=?", id)
+	} else {
+		_, _ = tx.Exec("UPDATE images SET public=0 WHERE id=?", id)
+	}
+
+	if err := txCommit(tx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Insert an alias into the database.
 func dbImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
 	stmt := `INSERT into images_aliases (name, image_id, description) values (?, ?, ?)`
