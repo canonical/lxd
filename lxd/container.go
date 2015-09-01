@@ -1343,7 +1343,7 @@ func (c *containerLXD) AttachMount(m shared.Device) error {
 		return err
 	}
 
-	mntsrc := filepath.Join("/.lxdmounts", filepath.Base(tmpMount))
+	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	// finally we need to move-mount this in the container
 	pidstr := fmt.Sprintf("%d", pid)
 	err = exec.Command(os.Args[0], "forkmount", pidstr, mntsrc, m["path"]).Run()
@@ -1764,7 +1764,7 @@ func (c *containerLXD) mkdirAllContainerRoot(path string, perm os.FileMode) erro
 
 func (c *containerLXD) mountShared() error {
 	source := shared.VarPath("shmounts", c.NameGet())
-	entry := fmt.Sprintf("%s .lxdmounts none bind,create=dir 0 0", source)
+	entry := fmt.Sprintf("%s dev/.lxd-mounts none bind,create=dir 0 0", source)
 	if !shared.PathExists(source) {
 		if err := c.mkdirAllContainerRoot(source, 0755); err != nil {
 			return err
