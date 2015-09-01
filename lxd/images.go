@@ -252,7 +252,10 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq) Response {
 	}
 
 	if req.Public {
-		dbImageSetPublic(d.db, info.Id, req.Public)
+		err = dbImageSetPublic(d.db, info.Id, req.Public)
+		if err != nil {
+			return InternalError(err)
+		}
 	}
 
 	metadata := make(map[string]string)
