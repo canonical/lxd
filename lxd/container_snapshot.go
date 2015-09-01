@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -49,14 +50,14 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			continue
 		}
 
+		snapName := strings.TrimLeft(name, regexp)
 		if recursion == 0 {
-			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
+			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
 		} else {
-			body := shared.Jmap{"name": name, "stateful": shared.PathExists(sc.StateDirGet())}
+			body := shared.Jmap{"name": snapName, "stateful": shared.PathExists(sc.StateDirGet())}
 			resultMap = append(resultMap, body)
 		}
-
 	}
 
 	if recursion == 0 {
