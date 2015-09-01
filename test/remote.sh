@@ -113,10 +113,13 @@ test_remote_usage() {
 
   # Double launch to test if the image downloads only once.
   lxc init localhost:testimage lxd2:c1 &
-  lxc init localhost:testimage lxd2:c2
+  C1PID=$!
 
-  lxc delete lxd2:c1
+  lxc init localhost:testimage lxd2:c2
   lxc delete lxd2:c2
+
+  wait $C1PID
+  lxc delete lxd2:c1
 
   if [ -n "$TRAVIS_PULL_REQUEST" ]; then
     return
