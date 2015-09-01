@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-08-24 13:07-0400\n"
+"POT-Creation-Date: 2015-09-01 18:00-0400\n"
 "PO-Revision-Date: 2015-03-13 23:44+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -72,11 +72,11 @@ msgstr ""
 msgid "'/' not allowed in snapshot name\n"
 msgstr "'/' はスナップショットの名前には使用できません。\n"
 
-#: lxc/remote.go:42
+#: lxc/remote.go:43
 msgid "Accept certificate"
 msgstr ""
 
-#: lxc/remote.go:136
+#: lxc/remote.go:148
 #, c-format
 msgid "Admin password for %s: "
 msgstr "%s の管理者パスワード: "
@@ -99,7 +99,7 @@ msgstr ""
 msgid "Bad image property: %s\n"
 msgstr "(不正なイメージプロパティ形式: %s\n"
 
-#: client.go:1647
+#: client.go:1656
 msgid "Cannot change profile name"
 msgstr "プロファイル名を変更できません"
 
@@ -120,7 +120,7 @@ msgid ""
 "lxc %s <name> [<name>...]\n"
 msgstr "コンテナの状態を %s に変更します。\n"
 
-#: lxc/remote.go:159
+#: lxc/remote.go:171
 msgid "Client certificate stored at server: "
 msgstr "クライアント証明書がサーバに格納されました: "
 
@@ -189,7 +189,7 @@ msgstr "詳細モードを有効にします。"
 msgid "Ephemeral container"
 msgstr ""
 
-#: client.go:593 client.go:603 client.go:850 client.go:1868
+#: client.go:593 client.go:603 client.go:850 client.go:1877
 #, c-format
 msgid "Error adding alias %s\n"
 msgstr ""
@@ -238,7 +238,7 @@ msgstr ""
 msgid "Image imported with fingerprint: %s\n"
 msgstr "証明書のフィンガープリント: % x\n"
 
-#: lxc/info.go:43
+#: lxc/info.go:44
 msgid "Information about remotes not yet supported\n"
 msgstr "リモートの情報表示はまだサポートされていません。\n"
 
@@ -258,12 +258,12 @@ msgid ""
 "lxc init ubuntu u1\n"
 msgstr ""
 
-#: lxc/file.go:159
+#: lxc/file.go:164
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:54
+#: lxc/file.go:59
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -288,7 +288,7 @@ msgid ""
 "lxc launch ubuntu u1\n"
 msgstr ""
 
-#: lxc/info.go:22
+#: lxc/info.go:23
 msgid ""
 "List information on containers.\n"
 "\n"
@@ -404,20 +404,21 @@ msgid ""
 "\tlxc config set core.trust_password blah\n"
 msgstr ""
 
-#: lxc/file.go:30
+#: lxc/file.go:34
 msgid ""
 "Manage files on a container.\n"
 "\n"
 "lxc file pull <source> [<source>...] <target>\n"
 "lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] "
 "<target>\n"
+"lxc file edit <file>\n"
 "\n"
-"<source> in the case of pull and <target> in the case of push are <container "
-"name>/<path>\n"
+"<source> in the case of pull, <target> in the case of push and <file> in the "
+"case of edit are <container name>/<path>\n"
 "This operation is only supported on containers that are currently running\n"
 msgstr ""
 
-#: lxc/remote.go:30
+#: lxc/remote.go:31
 msgid ""
 "Manage remote LXD servers.\n"
 "\n"
@@ -445,7 +446,8 @@ msgid ""
 "at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] "
 "[prop=value]\n"
 "\n"
-"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-alias]\n"
+"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-alias] "
+"[--public]\n"
 "lxc image delete [remote:]<image>\n"
 "lxc image edit [remote:]<image>\n"
 "lxc image export [remote:]<image>\n"
@@ -470,7 +472,7 @@ msgstr ""
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
-#: lxc/file.go:145
+#: lxc/file.go:150
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
@@ -543,6 +545,10 @@ msgstr ""
 msgid "Properties:\n"
 msgstr ""
 
+#: lxc/remote.go:45
+msgid "Public image server"
+msgstr ""
+
 #: lxc/image.go:222
 #, c-format
 msgid "Public: %s\n"
@@ -561,7 +567,7 @@ msgstr ""
 msgid "Publish to remote server is not supported yet"
 msgstr "リモートの情報表示はまだサポートされていません。\n"
 
-#: lxc/remote.go:43
+#: lxc/remote.go:44
 msgid "Remote admin password"
 msgstr ""
 
@@ -576,7 +582,7 @@ msgid ""
 "remove certificate in %s"
 msgstr ""
 
-#: lxc/remote.go:156
+#: lxc/remote.go:168
 msgid "Server doesn't trust us after adding our cert"
 msgstr "サーバが我々の証明書を追加した後我々を信頼していません"
 
@@ -589,15 +595,15 @@ msgid ""
 "lxc restore [remote:]<resource> <snapshot name> [--stateful]\n"
 msgstr "コンテナの読み取り専用スナップショットを作成します。\n"
 
-#: lxc/file.go:41
+#: lxc/file.go:46
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:42
+#: lxc/file.go:47
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:40
+#: lxc/file.go:45
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
@@ -605,7 +611,7 @@ msgstr "プッシュ時にファイルのuidを設定します"
 msgid "Show all commands (not just interesting ones)"
 msgstr "全てコマンドを表示します (主なコマンドだけではなく)"
 
-#: lxc/info.go:30
+#: lxc/info.go:31
 msgid "Show the container's last 100 log lines?"
 msgstr ""
 
@@ -646,7 +652,7 @@ msgstr ""
 msgid "Unknown image command %s"
 msgstr "未知のイメージコマンド %s"
 
-#: lxc/remote.go:267
+#: lxc/remote.go:283
 #, c-format
 msgid "Unknown remote subcommand %s"
 msgstr "未知のリモートサブコマンド %s"
@@ -702,7 +708,7 @@ msgstr "APIのバージョン不一致: クライアント: %q, サーバ: %q"
 msgid "bad number of things scanned from image, container or snapshot"
 msgstr "リソースからスキャンされた数が不正"
 
-#: client.go:1678
+#: client.go:1687
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "プロファイルURLが不正 %s"
@@ -711,7 +717,7 @@ msgstr "プロファイルURLが不正 %s"
 msgid "bad result type from action"
 msgstr "アクションからの結果タイプが不正！"
 
-#: client.go:1682
+#: client.go:1691
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "プロファイルURL内のバージョンが不正"
@@ -729,7 +735,7 @@ msgstr ""
 msgid "cannot resolve unix socket address: %v"
 msgstr "UNIXソケットのアドレスを解決できません: %v"
 
-#: client.go:1731 client.go:1788
+#: client.go:1740 client.go:1797
 #, fuzzy
 msgid "device already exists\n"
 msgstr "リモート %s は既に存在します"
@@ -776,12 +782,12 @@ msgstr "\"exec\"から不正な応答タイプを得ました"
 msgid "got bad version"
 msgstr "不正なバージョンを得ました"
 
-#: lxc/file.go:206
+#: lxc/file.go:261
 #, c-format
 msgid "invalid argument %s"
 msgstr "不正な引数 %s"
 
-#: client.go:1455
+#: client.go:1464
 #, c-format
 msgid "invalid wait url %s"
 msgstr "待つURLが不正 %s"
@@ -790,7 +796,7 @@ msgstr "待つURLが不正 %s"
 msgid "no response!"
 msgstr "応答がありません！"
 
-#: client.go:1724 client.go:1781
+#: client.go:1733 client.go:1790
 msgid "no value found in %q\n"
 msgstr ""
 
@@ -802,17 +808,17 @@ msgstr ""
 msgid "ok (y/n)? "
 msgstr "ok (y/n)?"
 
-#: lxc/remote.go:227
+#: lxc/remote.go:243
 #, c-format
 msgid "remote %s already exists"
 msgstr "リモート %s は既に存在します"
 
-#: lxc/remote.go:197 lxc/remote.go:223 lxc/remote.go:243 lxc/remote.go:255
+#: lxc/remote.go:209 lxc/remote.go:239 lxc/remote.go:259 lxc/remote.go:271
 #, c-format
 msgid "remote %s doesn't exist"
 msgstr "リモート %s は存在しません"
 
-#: lxc/remote.go:182
+#: lxc/remote.go:194
 #, c-format
 msgid "remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"

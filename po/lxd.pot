@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-08-28 11:20+0200\n"
+        "POT-Creation-Date: 2015-09-01 18:00-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -70,11 +70,11 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name\n"
 msgstr  ""
 
-#: lxc/remote.go:42
+#: lxc/remote.go:43
 msgid   "Accept certificate"
 msgstr  ""
 
-#: lxc/remote.go:136
+#: lxc/remote.go:148
 #, c-format
 msgid   "Admin password for %s: "
 msgstr  ""
@@ -117,7 +117,7 @@ msgid   "Changes one or more containers state to %s.\n"
         "lxc %s <name> [<name>...]\n"
 msgstr  ""
 
-#: lxc/remote.go:159
+#: lxc/remote.go:171
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
@@ -413,7 +413,7 @@ msgid   "Manage files on a container.\n"
         "running\n"
 msgstr  ""
 
-#: lxc/remote.go:30
+#: lxc/remote.go:31
 msgid   "Manage remote LXD servers.\n"
         "\n"
         "lxc remote add <name> <url> [--accept-certificate] [--"
@@ -446,7 +446,7 @@ msgid   "Manipulate container images\n"
         "fingerprint=FINGERPRINT] [prop=value]\n"
         "\n"
         "lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-"
-        "alias]\n"
+        "alias] [--public]\n"
         "lxc image delete [remote:]<image>\n"
         "lxc image edit [remote:]<image>\n"
         "lxc image export [remote:]<image>\n"
@@ -537,6 +537,10 @@ msgstr  ""
 msgid   "Properties:\n"
 msgstr  ""
 
+#: lxc/remote.go:45
+msgid   "Public image server"
+msgstr  ""
+
 #: lxc/image.go:222
 #, c-format
 msgid   "Public: %s\n"
@@ -553,7 +557,7 @@ msgstr  ""
 msgid   "Publish to remote server is not supported yet"
 msgstr  ""
 
-#: lxc/remote.go:43
+#: lxc/remote.go:44
 msgid   "Remote admin password"
 msgstr  ""
 
@@ -567,7 +571,7 @@ msgid   "Server certificate for host %s has changed. Add correct certificate "
         "or remove certificate in %s"
 msgstr  ""
 
-#: lxc/remote.go:156
+#: lxc/remote.go:168
 msgid   "Server doesn't trust us after adding our cert"
 msgstr  ""
 
@@ -635,7 +639,7 @@ msgstr  ""
 msgid   "Unknown image command %s"
 msgstr  ""
 
-#: lxc/remote.go:267
+#: lxc/remote.go:283
 #, c-format
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
@@ -772,17 +776,17 @@ msgstr  ""
 msgid   "ok (y/n)? "
 msgstr  ""
 
-#: lxc/remote.go:227
+#: lxc/remote.go:243
 #, c-format
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:197 lxc/remote.go:223 lxc/remote.go:243 lxc/remote.go:255
+#: lxc/remote.go:209 lxc/remote.go:239 lxc/remote.go:259 lxc/remote.go:271
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""
 
-#: lxc/remote.go:182
+#: lxc/remote.go:194
 #, c-format
 msgid   "remote %s exists as <%s>"
 msgstr  ""
