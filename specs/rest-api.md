@@ -66,8 +66,8 @@ wrong, in those cases, the following return value is used:
 
     {
         'type': "error",
-        'status': "Failure",
-        'status_code': 400,
+        'error': "Failure",
+        'error_code': 400,
         'metadata': {}                      # More details about the error
     }
 
