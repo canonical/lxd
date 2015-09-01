@@ -29,10 +29,13 @@ type Config struct {
 
 // RemoteConfig holds details for communication with a remote daemon.
 type RemoteConfig struct {
-	Addr string `yaml:"addr"`
+	Addr   string `yaml:"addr"`
+	Public bool   `yaml:"public"`
 }
 
-var localRemote = RemoteConfig{Addr: "unix://" + shared.VarPath("unix.socket")}
+var localRemote = RemoteConfig{
+	Addr:   "unix://" + shared.VarPath("unix.socket"),
+	Public: false}
 var defaultRemote = map[string]RemoteConfig{"local": localRemote}
 
 var ConfigDir = "$HOME/.config/lxc"
