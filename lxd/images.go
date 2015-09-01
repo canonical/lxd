@@ -251,6 +251,10 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq) Response {
 		return InternalError(err)
 	}
 
+	if req.Public {
+		dbImageSetPublic(d.db, info.Id, req.Public)
+	}
+
 	metadata := make(map[string]string)
 	metadata["fingerprint"] = info.Fingerprint
 	metadata["size"] = strconv.FormatInt(info.Size, 10)
