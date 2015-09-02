@@ -1110,11 +1110,13 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 		return err
 	}
 
-	if err := idmap.UnshiftRootfs(c.RootfsPathGet()); err != nil {
-		return err
-	}
+	if idmap != nil {
+		if err := idmap.UnshiftRootfs(c.RootfsPathGet()); err != nil {
+			return err
+		}
 
-	defer idmap.ShiftRootfs(c.RootfsPathGet())
+		defer idmap.ShiftRootfs(c.RootfsPathGet())
+	}
 
 	tw := tar.NewWriter(w)
 
