@@ -30,13 +30,13 @@ func (c *remoteCmd) usage() string {
 	return gettext.Gettext(
 		"Manage remote LXD servers.\n" +
 			"\n" +
-			"lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD]  Add the remote <name> at <url>.\n" +
-			"lxc remote remove <name>                                                  Remove the remote <name>.\n" +
-			"lxc remote list                                                           List all remotes.\n" +
-			"lxc remote rename <old> <new>                                             Rename remote <old> to <new>.\n" +
-			"lxc remote set-url <name> <url>                                           Update <name>'s url to <url>.\n" +
-			"lxc remote set-default <name>                                             Set the default remote.\n" +
-			"lxc remote get-default                                                    Print the default remote.\n")
+			"lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD] [--public]    Add the remote <name> at <url>.\n" +
+			"lxc remote remove <name>                                                               Remove the remote <name>.\n" +
+			"lxc remote list                                                                        List all remotes.\n" +
+			"lxc remote rename <old> <new>                                                          Rename remote <old> to <new>.\n" +
+			"lxc remote set-url <name> <url>                                                        Update <name>'s url to <url>.\n" +
+			"lxc remote set-default <name>                                                          Set the default remote.\n" +
+			"lxc remote get-default                                                                 Print the default remote.\n")
 }
 
 func (c *remoteCmd) flags() {
