@@ -154,11 +154,9 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"NAME", "STATE", "IPV4", "IPV6", "EPHEMERAL", "SNAPSHOTS"})
-
 	sort.Sort(ByName(data))
 	table.AppendBulk(data)
-
-	table.Render() // Send output
+	table.Render()
 
 	if listsnaps && len(cinfos) == 1 {
 		csnaps := cinfos[0].Snaps

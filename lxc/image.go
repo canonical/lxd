@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -512,10 +513,8 @@ func showImages(images []shared.ImageInfo) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(50)
 	table.SetHeader([]string{"ALIAS", "FINGERPRINT", "PUBLIC", "DESCRIPTION", "ARCH", "UPLOAD DATE"})
-
-	for _, v := range data {
-		table.Append(v)
-	}
+	sort.Sort(ByName(data))
+	table.AppendBulk(data)
 	table.Render()
 
 	return nil
