@@ -51,10 +51,10 @@ type Ip struct {
 }
 
 type ContainerStatus struct {
-	State     string `json:"status"`
-	StateCode State  `json:"status_code"`
-	Init      int    `json:"init"`
-	Ips       []Ip   `json:"ips"`
+	Status     string `json:"status"`
+	StatusCode State  `json:"status_code"`
+	Init       int    `json:"init"`
+	Ips        []Ip   `json:"ips"`
 }
 
 type ContainerExecControl struct {
@@ -97,7 +97,7 @@ func (c *ContainerState) BriefState() BriefContainerState {
 }
 
 func (c *ContainerState) State() State {
-	return StateMap[c.Status.State]
+	return StateMap[c.Status.Status]
 }
 
 type ContainerInfo struct {
