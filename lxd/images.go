@@ -72,7 +72,7 @@ func untar(tarball string, path string) error {
 
 	output, err := exec.Command("tar", args...).CombinedOutput()
 	if err != nil {
-		shared.Debugf("Unpacking failed\n")
+		shared.Debugf("Unpacking failed")
 		shared.Debugf(string(output))
 		return err
 	}
@@ -631,8 +631,6 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 	args = append(args, compressionArgs...)
 	args = append(args, fname, metadataName)
 
-	shared.Debugf("Extracting metadata.yaml using command: tar %s", strings.Join(args, " "))
-
 	// read the metadata.yaml
 	output, err := exec.Command("tar", args...).CombinedOutput()
 
@@ -714,7 +712,7 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 	fname := shared.VarPath("images", imgInfo.Fingerprint)
 	err = os.Remove(fname)
 	if err != nil {
-		shared.Debugf("Error deleting image file %s: %s\n", fname, err)
+		shared.Debugf("Error deleting image file %s: %s", fname, err)
 	}
 
 	if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {

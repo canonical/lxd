@@ -10,7 +10,6 @@ gen_third_cert() {
 }
 
 test_basic_usage() {
-
   ensure_import_testimage
   ensure_has_localhost_remote
 
@@ -54,11 +53,22 @@ test_basic_usage() {
   # gen untrusted cert
   gen_third_cert
 
-  # Test container publish
+  # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
   curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET $BASEURL/1.0/images | grep "/1.0/images/" && false
   lxc image delete foo-image
+
+  # Test privileged container publish
+  lxc profile create priv
+  lxc profile set priv security.privileged true
+  lxc init testimage barpriv -p default -p priv
+  lxc publish barpriv --alias=foo-image prop1=val1
+  lxc image show foo-image | grep val1
+  curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET $BASEURL/1.0/images | grep "/1.0/images/" && false
+  lxc image delete foo-image
+  lxc delete barpriv
+  lxc profile delete priv
 
   # Test public images
   lxc publish --public bar --alias=foo-image2
@@ -75,8 +85,9 @@ test_basic_usage() {
 
   # Delete the bar container we've used for several tests
   lxc delete bar
-	# lxc delete should also delete all snapshots of bar
-	[ ! -d ${LXD_DIR}/snapshots/bar ]
+
+  # lxc delete should also delete all snapshots of bar
+  [ ! -d ${LXD_DIR}/snapshots/bar ]
 
   # Test randomly named container creation
   lxc init testimage

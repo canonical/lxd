@@ -77,7 +77,6 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 
 	source, err := containerLXDLoad(d, snap)
 	if err != nil {
-		shared.Debugf("RESTORE => Error: newLxdContainer() failed for snapshot", err)
 		return err
 	}
 

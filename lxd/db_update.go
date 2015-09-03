@@ -44,11 +44,11 @@ func dbUpdateFromV15(d *Daemon) error {
 		newLVName = strings.Replace(newLVName, shared.SnapshotDelimiter, "-", -1)
 
 		if cName == newLVName {
-			shared.Log.Debug("no need to rename, skipping", log.Ctx{"cName": cName, "newLVName": newLVName})
+			shared.Log.Debug("No need to rename, skipping", log.Ctx{"cName": cName, "newLVName": newLVName})
 			continue
 		}
 
-		shared.Log.Debug("about to rename cName in lv upgrade", log.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
+		shared.Log.Debug("About to rename cName in lv upgrade", log.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
 
 		output, err := exec.Command("lvrename", vgName, cName, newLVName).CombinedOutput()
 		if err != nil {

@@ -461,7 +461,7 @@ func isSharedMount(file *os.File, pathName string) int {
 	for scanner.Scan() {
 		line := scanner.Text()
 		rows := strings.Fields(line)
-		if rows[3] != pathName || rows[4] != pathName {
+		if !strings.HasSuffix(pathName, rows[3]) || rows[4] != pathName {
 			continue
 		}
 		if strings.HasPrefix(rows[6], "shared:") {
