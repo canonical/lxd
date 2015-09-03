@@ -489,15 +489,15 @@ func (c *containerLXD) init() error {
 		return err
 	}
 
+	if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileName(c)); err != nil {
+		c.StorageStop()
+		return err
+	}
+
 	for _, p := range c.profiles {
 		if err := c.applyProfile(p); err != nil {
 			return err
 		}
-	}
-
-	if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileName(c)); err != nil {
-		c.StorageStop()
-		return err
 	}
 
 	// base per-container config should override profile config, so we apply it second
