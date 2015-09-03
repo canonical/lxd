@@ -72,7 +72,6 @@ int dosetns(int pid, char *nstype) {
 	char buf[PATH_MAX];
 
 	sprintf(buf, "/proc/%d/ns/%s", pid, nstype);
-	fprintf(stderr, "mntns dir: %s\n", buf);
 	mntns = open(buf, O_RDONLY);
 	if (mntns < 0) {
 		perror("open mntns");
@@ -109,7 +108,7 @@ int manip_file_in_ns(char *host, int pid, char *container, bool is_put, uid_t ui
 
 	container_fd = open(container, container_open_flags, mode);
 	if (container_fd < 0) {
-		perror("open container");
+		fprintf(stderr, "%s\n", strerror(errno));
 		goto close_host;
 	}
 
