@@ -489,6 +489,11 @@ func (c *containerLXD) init() error {
 		return err
 	}
 
+	if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileName(c)); err != nil {
+		c.StorageStop()
+		return err
+	}
+
 	for _, p := range c.profiles {
 		if err := c.applyProfile(p); err != nil {
 			return err
@@ -566,6 +571,14 @@ func (c *containerLXD) Start() error {
 
 	// Start the storage for this container
 	if err := c.StorageStart(); err != nil {
+		return err
+	}
+
+	/* (Re)Load the AA profile; we set it in the container's config above
+	 * in init()
+	 */
+	if err := AALoadProfile(c); err != nil {
+		c.StorageStop()
 		return err
 	}
 
@@ -702,6 +715,10 @@ func (c *containerLXD) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
+	if err := AAUnloadProfile(c); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -714,6 +731,10 @@ func (c *containerLXD) Stop() error {
 
 	// Stop the storage for this container
 	if err := c.StorageStop(); err != nil {
+		return err
+	}
+
+	if err := AAUnloadProfile(c); err != nil {
 		return err
 	}
 
@@ -831,6 +852,8 @@ func (c *containerLXD) Delete() error {
 	if err := dbContainerRemove(c.daemon.db, c.NameGet()); err != nil {
 		return err
 	}
+
+	AADeleteProfile(c)
 
 	return nil
 }
@@ -1052,7 +1075,23 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	c.baseConfig = newContainerArgs.Config
 	c.baseDevices = newContainerArgs.Devices
 
+	/* Let's try to load the apparmor profile again, in case the
+	 * raw.apparmor config was changed (or deleted). Make sure we do this
+	 * before commit, in case it fails because the user screwed something
+	 * up so we can roll back and not hose their container.
+	 */
+	if err := AALoadProfile(c); err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	if !c.IsRunning() {
+		/* If the container isn't running, let's unload the profile to
+		 * save some kernel memory.
+		 */
+		if err := AAUnloadProfile(c); err != nil {
+			shared.Log.Error("error unloading AA profile", log.Ctx{"error": err})
+		}
 		return txCommit(tx)
 	}
 
