@@ -104,6 +104,12 @@ Code  | Meaning
 103   | Running
 104   | Cancelling
 105   | Pending
+106   | Starting
+107   | Stopping
+108   | Aborting
+109   | Freezing
+110   | Frozen
+111   | Thawed
 200   | Success
 400   | Failure
 401   | Cancelled
