@@ -149,6 +149,19 @@ test_basic_usage() {
   # cleanup
   lxc delete foo
 
+  # check that an apparmor profile is created for this container, that it is
+  # unloaded on stop, and that it is deleted when the container is deleted
+  lxc launch testimage lxd-apparmor-test
+  aa-status | grep lxd-apparmor-test
+  lxc stop lxd-apparmor-test
+  bad=0
+  aa-status | grep lxd-apparmor-test && bad=1 || true
+  if [ "$bad" -eq 1 ]; then
+    echo "apparmor profile wasn't unloaded on container stop" && false
+  fi
+  lxc delete lxd-apparmor-test
+  [ ! -f ${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test ]
+
   # make sure that privileged containers are not world-readable
   lxc profile create unconfined
   lxc profile set unconfined security.privileged true
