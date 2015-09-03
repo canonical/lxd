@@ -5,9 +5,11 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/chai2010/gettext-go/gettext"
+	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
@@ -218,15 +220,21 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		removeCertificate(args[1])
 
 	case "list":
+		data := [][]string{}
 		for name, rc := range config.Remotes {
 			if rc.Public {
-				fmt.Println(fmt.Sprintf("%s <%s> [PUBLIC]", name, rc.Addr))
+				data = append(data, []string{name, rc.Addr, "YES"})
 			} else {
-				fmt.Println(fmt.Sprintf("%s <%s>", name, rc.Addr))
+				data = append(data, []string{name, rc.Addr, "NO"})
 			}
 		}
-		/* Here, we don't need to save since we didn't actually modify
-		 * anything, so just return. */
+
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetHeader([]string{"NAME", "URL", "PUBLIC"})
+		sort.Sort(ByName(data))
+		table.AppendBulk(data)
+		table.Render()
+
 		return nil
 
 	case "rename":
