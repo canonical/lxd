@@ -161,7 +161,7 @@ func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
 func readMyCert() (string, string, error) {
 	certf := shared.VarPath("server.crt")
 	keyf := shared.VarPath("server.key")
-	shared.Log.Info("Looking for existing certificates:", log.Ctx{"cert": certf, "key": keyf})
+	shared.Log.Info("Looking for existing certificates", log.Ctx{"cert": certf, "key": keyf})
 
 	err := shared.FindOrGenCert(certf, keyf)
 
@@ -446,10 +446,10 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 }
 
 func (d *Daemon) pruneExpiredImages() {
-	shared.Debugf("Pruning expired images\n")
+	shared.Debugf("Pruning expired images")
 	expiry, err := dbImageExpiryGet(d.db)
 	if err != nil { // no expiry
-		shared.Debugf("Failed getting the cached image expiry timeout\n")
+		shared.Debugf("Failed getting the cached image expiry timeout")
 		return
 	}
 
@@ -461,17 +461,17 @@ SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 
 
 	result, err := dbQueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
-		shared.Debugf("Error making cache expiry query: %s\n", err)
+		shared.Debugf("Error making cache expiry query: %s", err)
 		return
 	}
-	shared.Debugf("Found %d expired images\n", len(result))
+	shared.Debugf("Found %d expired images", len(result))
 
 	for _, r := range result {
 		if err := doDeleteImage(d, r[0].(string)); err != nil {
-			shared.Debugf("Error deleting image: %s\n", err)
+			shared.Debugf("Error deleting image: %s", err)
 		}
 	}
-	shared.Debugf("Done pruning expired images\n")
+	shared.Debugf("Done pruning expired images")
 }
 
 // StartDaemon starts the shared daemon with the provided configuration.
@@ -561,8 +561,8 @@ func (d *Daemon) Init() error {
 	/* Read the uid/gid allocation */
 	d.IdmapSet, err = shared.DefaultIdmapSet()
 	if err != nil {
-		shared.Log.Warn("error reading idmap", log.Ctx{"err": err.Error()})
-		shared.Log.Warn("operations requiring idmap will not be available")
+		shared.Log.Warn("Error reading idmap", log.Ctx{"err": err.Error()})
+		shared.Log.Warn("Operations requiring idmap will not be available")
 	} else {
 		shared.Log.Info("Default uid/gid map:")
 		for _, lxcmap := range d.IdmapSet.ToLxcString() {
@@ -955,7 +955,7 @@ func (d *Daemon) PasswordCheck(password string) bool {
 	salt := buff[0:pwSaltBytes]
 	hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, pwHashBytes)
 	if err != nil {
-		shared.Log.Error("failed to create hash to check", log.Ctx{"err": err})
+		shared.Log.Error("Failed to create hash to check", log.Ctx{"err": err})
 		return false
 	}
 	if !bytes.Equal(hash, buff[pwSaltBytes:]) {

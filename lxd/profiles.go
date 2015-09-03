@@ -117,7 +117,7 @@ func getRunningContainersWithProfile(d *Daemon, profile string) []container {
 	for _, name := range output {
 		c, err := containerLXDLoad(d, name)
 		if err != nil {
-			shared.Log.Error("failed opening container", log.Ctx{"container": name})
+			shared.Log.Error("Failed opening container", log.Ctx{"container": name})
 			continue
 		}
 		results = append(results, c)
@@ -176,7 +176,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		}
 		fmt.Printf("Updating profile device list for %s\n", c.NameGet())
 		if err := devicesApplyDeltaLive(tx, c, preDevList, postDevList); err != nil {
-			shared.Debugf("Warning: failed to update device list for container %s (profile %s updated)\n", c.NameGet(), name)
+			shared.Debugf("Warning: failed to update device list for container %s (profile %s updated)", c.NameGet(), name)
 		}
 	}
 
