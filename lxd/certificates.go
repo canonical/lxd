@@ -63,7 +63,7 @@ func readSavedClientCAList(d *Daemon) {
 
 	dbCerts, err := dbCertsGet(d.db)
 	if err != nil {
-		shared.Logf("Error reading certificates from database: %s\n", err)
+		shared.Logf("Error reading certificates from database: %s", err)
 		return
 	}
 
@@ -71,7 +71,7 @@ func readSavedClientCAList(d *Daemon) {
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			shared.Logf("Error reading certificate for %s: %s\n", dbCert.Name, err)
+			shared.Logf("Error reading certificate for %s: %s", dbCert.Name, err)
 			continue
 		}
 		d.clientCerts = append(d.clientCerts, *cert)

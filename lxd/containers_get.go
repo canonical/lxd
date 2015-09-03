@@ -15,12 +15,12 @@ func containersGet(d *Daemon, r *http.Request) Response {
 			return SyncResponse(true, result)
 		}
 		if !isDbLockedError(err) {
-			shared.Debugf("DBERR: containersGet: error %q\n", err)
+			shared.Debugf("DBERR: containersGet: error %q", err)
 			return InternalError(err)
 		}
 		// 1 s may seem drastic, but we really don't want to thrash
 		// perhaps we should use a random amount
-		shared.Debugf("DBERR: containersGet, db is locked\n")
+		shared.Debugf("DBERR: containersGet, db is locked")
 		shared.PrintStack()
 		time.Sleep(1 * time.Second)
 	}

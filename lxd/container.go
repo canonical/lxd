@@ -1015,7 +1015,7 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	}
 
 	if err = dbContainerConfigInsert(tx, c.id, newContainerArgs.Config); err != nil {
-		shared.Debugf("Error inserting configuration for container %s\n", c.NameGet())
+		shared.Debugf("Error inserting configuration for container %s", c.NameGet())
 		tx.Rollback()
 		return err
 	}
@@ -1130,7 +1130,7 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 
 	writeToTar := func(path string, fi os.FileInfo, err error) error {
 		if err := c.tarStoreFile(linkmap, offset, tw, path, fi); err != nil {
-			shared.Debugf("Error tarring up %s: %s\n", path, err)
+			shared.Debugf("Error tarring up %s: %s", path, err)
 			return err
 		}
 		return nil
@@ -1140,12 +1140,12 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 	if shared.PathExists(fnam) {
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			shared.Debugf("Error statting %s during exportToTar\n", fnam)
+			shared.Debugf("Error statting %s during exportToTar", fnam)
 			tw.Close()
 			return err
 		}
 		if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
-			shared.Debugf("Error writing to tarfile: %s\n", err)
+			shared.Debugf("Error writing to tarfile: %s", err)
 			tw.Close()
 			return err
 		}
@@ -1387,7 +1387,7 @@ func (c *containerLXD) applyConfig(config map[string]string) error {
 			c.config[k] = v
 		}
 		if err != nil {
-			shared.Debugf("Error setting %s: %q\n", k, err)
+			shared.Debugf("Error setting %s: %q", k, err)
 			return err
 		}
 	}
@@ -1566,7 +1566,7 @@ func (c *containerLXD) setupMacAddresses() error {
 			if err == sql.ErrNoRows {
 				_, err = stmt.Exec(c.id, k, v)
 				if err != nil {
-					shared.Debugf("Error adding mac address to container\n")
+					shared.Debugf("Error adding mac address to container")
 					tx.Rollback()
 					return err
 				}
@@ -1576,7 +1576,7 @@ func (c *containerLXD) setupMacAddresses() error {
 			} else if strings.Contains(racer, "x") {
 				_, err = ustmt.Exec(v, c.id, k)
 				if err != nil {
-					shared.Debugf("Error updating mac address to container\n")
+					shared.Debugf("Error updating mac address to container")
 					tx.Rollback()
 					return err
 				}

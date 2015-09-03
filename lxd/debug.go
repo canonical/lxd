@@ -12,7 +12,7 @@ import (
 func doMemDump() {
 	f, err := os.Create(*memProfile)
 	if err != nil {
-		shared.Debugf("Error opening memory profile file '%s': %s\n", err)
+		shared.Debugf("Error opening memory profile file '%s': %s", err)
 		return
 	}
 	pprof.WriteHeapProfile(f)
@@ -24,7 +24,7 @@ func memProfiler() {
 	signal.Notify(ch, syscall.SIGUSR1)
 	for {
 		sig := <-ch
-		shared.Debugf("Received '%s signal', dumping memory.\n", sig)
+		shared.Debugf("Received '%s signal', dumping memory.", sig)
 		doMemDump()
 	}
 }
