@@ -15,6 +15,7 @@ import (
 const (
 	APPARMOR_CMD_LOAD   = "r"
 	APPARMOR_CMD_UNLOAD = "R"
+	APPARMOR_CMD_PARSE  = "Q"
 )
 
 var aaEnabled = false
@@ -112,6 +113,16 @@ func AAUnloadProfile(c *containerLXD) error {
 	}
 
 	return runApparmor(APPARMOR_CMD_UNLOAD, AAProfileName(c))
+}
+
+// Parse the profile without loading it into the kernel.
+func AAParseProfile(c *containerLXD) error {
+	if !aaEnabled {
+		shared.Log.Debug("Apparmor not enabled, skipping profile parse")
+		return nil
+	}
+
+	return runApparmor(APPARMOR_CMD_PARSE, AAProfileName(c))
 }
 
 // Delete the policy from cache/disk.

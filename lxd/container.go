@@ -1088,20 +1088,22 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	 * raw.apparmor config was changed (or deleted). Make sure we do this
 	 * before commit, in case it fails because the user screwed something
 	 * up so we can roll back and not hose their container.
+	 *
+	 * For containers that aren't running, we just want to parse the new
+	 * profile; this is because this code is called during the start
+	 * process after the profile is loaded but before the container starts,
+	 * which will cause a container start to fail. If the container is
+	 * running, we /do/ want to reload the profile, because we want the
+	 * changes to take effect immediately.
 	 */
+	if !c.IsRunning() {
+		AAParseProfile(c)
+		return txCommit(tx)
+	}
+
 	if err := AALoadProfile(c); err != nil {
 		tx.Rollback()
 		return err
-	}
-
-	if !c.IsRunning() {
-		/* If the container isn't running, let's unload the profile to
-		 * save some kernel memory.
-		 */
-		if err := AAUnloadProfile(c); err != nil {
-			shared.Log.Error("error unloading AA profile", log.Ctx{"error": err})
-		}
-		return txCommit(tx)
 	}
 
 	if err := txCommit(tx); err != nil {
