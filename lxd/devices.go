@@ -384,7 +384,7 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 			}
 
 			if err := txUpdateNic(tx, c.IDGet(), key, dev["name"]); err != nil {
-				shared.Debugf("Warning: failed to update database entry for new nic %s: %s\n", key, err)
+				shared.Debugf("Warning: failed to update database entry for new nic %s: %s", key, err)
 				return err
 			}
 		case "disk":

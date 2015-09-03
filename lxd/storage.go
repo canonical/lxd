@@ -261,7 +261,7 @@ func (ss *storageShared) shiftRootfs(c container) error {
 
 	err = idmapset.ShiftRootfs(rpath)
 	if err != nil {
-		shared.Debugf("Shift of rootfs %s failed: %s\n", rpath, err)
+		shared.Debugf("Shift of rootfs %s failed: %s", rpath, err)
 		return err
 	}
 

@@ -170,7 +170,7 @@ func readMyCert() (string, string, error) {
 func (c *Client) loadServerCert() {
 	cert, err := shared.ReadCert(ServerCertPath(c.name))
 	if err != nil {
-		shared.Debugf("Error reading the server certificate for %s: %v\n", c.name, err)
+		shared.Debugf("Error reading the server certificate for %s: %v", c.name, err)
 		return
 	}
 
@@ -1205,7 +1205,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 						continue
 					}
 
-					shared.Debugf("Window size is now: %dx%d\n", width, height)
+					shared.Debugf("Window size is now: %dx%d", width, height)
 
 					w, err := control.NextWriter(websocket.TextMessage)
 					if err != nil {
@@ -1236,7 +1236,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 					signal.Notify(ch, syscall.SIGWINCH)
 					sig := <-ch
 
-					shared.Debugf("Received '%s signal', updating window geometry.\n", sig)
+					shared.Debugf("Received '%s signal', updating window geometry.", sig)
 				}
 
 				closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
@@ -1636,7 +1636,7 @@ func (c *Client) GetProfileConfig(profile string) (map[string]string, error) {
 func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 	st, err := c.ProfileConfig(profile)
 	if err != nil {
-		shared.Debugf("Error getting profile %s to update\n", profile)
+		shared.Debugf("Error getting profile %s to update", profile)
 		return err
 	}
 
