@@ -1071,7 +1071,23 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	c.baseConfig = newContainerArgs.Config
 	c.baseDevices = newContainerArgs.Devices
 
+	/* Let's try to load the apparmor profile again, in case the
+	 * raw.apparmor config was changed (or deleted). Make sure we do this
+	 * before commit, in case it fails because the user screwed something
+	 * up so we can roll back and not hose their container.
+	 */
+	if err := AALoadProfile(c); err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	if !c.IsRunning() {
+		/* If the container isn't running, let's unload the profile to
+		 * save some kernel memory.
+		 */
+		if err := AAUnloadProfile(c); err != nil {
+			shared.Log.Error("error unloading AA profile", log.Ctx{"error": err})
+		}
 		return txCommit(tx)
 	}
 
