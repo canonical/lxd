@@ -51,7 +51,7 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 			if err != nil {
 				return err
 			}
-			canRename = status.State() != shared.RUNNING
+			canRename = status.Status.StatusCode != shared.Running
 		}
 
 		if canRename {

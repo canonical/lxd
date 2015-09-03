@@ -13,7 +13,7 @@ test_concurrent_exec() {
 
   name=x1
   lxc launch testimage x1
-  lxc list ${name} | grep RUNNING
+  lxc list ${name} | grep Running
 
   exec_container() {
       echo abc$1 | lxc exec ${name} -- cat | grep abc

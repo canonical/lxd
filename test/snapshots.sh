@@ -126,13 +126,13 @@ test_snap_restore() {
     return
   fi
 
-  # Start container and then restore snapshot to verify RUNNING state after restore.
+  # Start container and then restore snapshot to verify Running state after restore.
   lxc start bar
 
   restore_and_compare_fs snap0
 
-  # check container RUNNING after restore
-  lxc list | grep bar | grep RUNNING
+  # check container Running after restore
+  lxc list | grep bar | grep Running
 
   lxc stop --force bar
 

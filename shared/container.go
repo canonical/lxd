@@ -4,45 +4,6 @@ import (
 	"strconv"
 )
 
-/*
- * N.B. State is copied from lxc.State, but we re-export it here so that
- * client libraries don't have to import go-lxc and thus link against liblxc
- * for just some constants.
- */
-
-// State type specifies possible container states.
-type State int
-
-const (
-	// STOPPED means container is not running
-	STOPPED State = iota + 1
-	// STARTING means container is starting
-	STARTING
-	// RUNNING means container is running
-	RUNNING
-	// STOPPING means container is stopping
-	STOPPING
-	// ABORTING means container is aborting
-	ABORTING
-	// FREEZING means container is freezing
-	FREEZING
-	// FROZEN means containe is frozen
-	FROZEN
-	// THAWED means container is thawed
-	THAWED
-)
-
-var StateMap = map[string]State{
-	"STOPPED":  STOPPED,
-	"STARTING": STARTING,
-	"RUNNING":  RUNNING,
-	"STOPPING": STOPPING,
-	"ABORTING": ABORTING,
-	"FREEZING": FREEZING,
-	"FROZEN":   FROZEN,
-	"THAWED":   THAWED,
-}
-
 type Ip struct {
 	Interface string `json:"interface"`
 	Protocol  string `json:"protocol"`
@@ -51,10 +12,10 @@ type Ip struct {
 }
 
 type ContainerStatus struct {
-	Status     string `json:"status"`
-	StatusCode State  `json:"status_code"`
-	Init       int    `json:"init"`
-	Ips        []Ip   `json:"ips"`
+	Status     string     `json:"status"`
+	StatusCode StatusCode `json:"status_code"`
+	Init       int        `json:"init"`
+	Ips        []Ip       `json:"ips"`
 }
 
 type ContainerExecControl struct {
@@ -94,10 +55,6 @@ func (c *ContainerState) BriefState() BriefContainerState {
 		Devices:   c.Devices,
 		Ephemeral: c.Ephemeral}
 	return retstate
-}
-
-func (c *ContainerState) State() State {
-	return StateMap[c.Status.Status]
 }
 
 type ContainerInfo struct {

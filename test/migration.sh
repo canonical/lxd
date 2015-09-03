@@ -31,11 +31,11 @@ test_migration() {
   fi
 
   lxc start l1:nonlive2
-  lxc list l1: | grep RUNNING | grep nonlive2
+  lxc list l1: | grep Running | grep nonlive2
   lxc stop l1:nonlive2 --force
 
   lxc start l2:nonlive
-  lxc list l2: | grep RUNNING | grep nonlive
+  lxc list l2: | grep Running | grep nonlive
   lxc stop l2:nonlive --force
 
   if ! type criu >/dev/null 2>&1; then
