@@ -490,7 +490,6 @@ func (c *containerLXD) init() error {
 	}
 
 	if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileName(c)); err != nil {
-		c.StorageStop()
 		return err
 	}
 
