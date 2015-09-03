@@ -199,7 +199,7 @@ test_lvm_withpool() {
 
     lxc start test-container || die "Couldn't start test-container"
     mountpoint -q ${LXD_DIR}/containers/test-container || die "test-container LV is not mounted?"
-    lxc list test-container | grep RUNNING || die "test-container doesn't seem to be running"
+    lxc list test-container | grep Running || die "test-container doesn't seem to be running"
 
     lxc stop test-container --force || die "Couldn't stop test-container"
     mountpoint -q ${LXD_DIR}/containers/test-container && die "LV for new container should be umounted after stop"
@@ -235,7 +235,7 @@ test_lvm_withpool() {
     # check that 'shutdown' also unmounts:
     # lxc start test-container || die "Couldn't re-start test-container"
     # lxc stop test-container --timeout 1 || die "Couldn't shutdown test-container"
-    # lxc list test-container | grep STOPPED || die "test-container is still running"
+    # lxc list test-container | grep Stopped || die "test-container is still running"
     # mountpoint -q ${LXD_DIR}/containers/test-container && die "LV for new container should be umounted after shutdown"
 
     lxc delete test-container || die "Couldn't delete test-container"
@@ -284,7 +284,7 @@ test_remote_launch_imports_lvm() {
     lxc image show $testimage_sha || die "Didn't import image from remote"
     lvs --noheadings -o lv_attr lxd_test_vg/$testimage_sha | grep "^  V" || die "no lv named $testimage_sha or not a thin Vol."
 
-    lxc list | grep remote-test | grep RUNNING || die "remote-test is not RUNNING"
+    lxc list | grep remote-test | grep Running || die "remote-test is not Running"
     lvs --noheadings -o pool_lv lxd_test_vg/remote--test | grep LXDPool || die "LV for remote-test not found or not in LXDPool"
     lxc stop remote-test --force || die "Couldn't stop remote-test"
     lxc delete remote-test

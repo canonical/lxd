@@ -17,10 +17,10 @@ import (
 )
 
 type resp struct {
-	Type       lxd.ResponseType       `json:"type"`
-	Status     string                 `json:"status"`
-	StatusCode shared.OperationStatus `json:"status_code"`
-	Metadata   interface{}            `json:"metadata"`
+	Type       lxd.ResponseType  `json:"type"`
+	Status     string            `json:"status"`
+	StatusCode shared.StatusCode `json:"status_code"`
+	Metadata   interface{}       `json:"metadata"`
 }
 
 type Response interface {
@@ -159,12 +159,12 @@ func SyncResponse(success bool, metadata interface{}) Response {
 var EmptySyncResponse = &syncResponse{true, make(map[string]interface{})}
 
 type async struct {
-	Type       lxd.ResponseType       `json:"type"`
-	Status     string                 `json:"status"`
-	StatusCode shared.OperationStatus `json:"status_code"`
-	Operation  string                 `json:"operation"`
-	Resources  map[string][]string    `json:"resources"`
-	Metadata   interface{}            `json:"metadata"`
+	Type       lxd.ResponseType    `json:"type"`
+	Status     string              `json:"status"`
+	StatusCode shared.StatusCode   `json:"status_code"`
+	Operation  string              `json:"operation"`
+	Resources  map[string][]string `json:"resources"`
+	Metadata   interface{}         `json:"metadata"`
 }
 
 type asyncResponse struct {

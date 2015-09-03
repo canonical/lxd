@@ -534,8 +534,12 @@ func (c *containerLXD) init() error {
 }
 
 func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
-	state := c.c.State()
-	status := shared.ContainerStatus{State: state.String(), StateCode: shared.State(int(state))}
+	statusCode := shared.FromLXCState(int(c.c.State()))
+	status := shared.ContainerStatus{
+		Status:     statusCode.String(),
+		StatusCode: statusCode,
+	}
+
 	if c.IsRunning() {
 		pid, _ := c.InitPidGet()
 		status.Init = pid

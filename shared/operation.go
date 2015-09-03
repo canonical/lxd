@@ -9,40 +9,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type OperationStatus int
-
-const (
-	OK         OperationStatus = 100
-	Started    OperationStatus = 101
-	Stopped    OperationStatus = 102
-	Running    OperationStatus = 103
-	Cancelling OperationStatus = 104
-	Pending    OperationStatus = 105
-
-	Success OperationStatus = 200
-
-	Failure   OperationStatus = 400
-	Cancelled OperationStatus = 401
-)
-
-func (o OperationStatus) String() string {
-	return map[OperationStatus]string{
-		OK:         "OK",
-		Started:    "Started",
-		Stopped:    "Stopped",
-		Running:    "Running",
-		Cancelling: "Cancelling",
-		Pending:    "Pending",
-		Success:    "Success",
-		Failure:    "Failure",
-		Cancelled:  "Cancelled",
-	}[o]
-}
-
-func (o OperationStatus) IsFinal() bool {
-	return int(o) >= 200
-}
-
 var WebsocketUpgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -87,7 +53,7 @@ type Operation struct {
 	CreatedAt  time.Time           `json:"created_at"`
 	UpdatedAt  time.Time           `json:"updated_at"`
 	Status     string              `json:"status"`
-	StatusCode OperationStatus     `json:"status_code"`
+	StatusCode StatusCode          `json:"status_code"`
 	Resources  map[string][]string `json:"resources"`
 	Metadata   json.RawMessage     `json:"metadata"`
 	MayCancel  bool                `json:"may_cancel"`
@@ -129,7 +95,7 @@ func (o *Operation) MetadataAsMap() (*Jmap, error) {
 	return &ret, nil
 }
 
-func (o *Operation) SetStatus(status OperationStatus) {
+func (o *Operation) SetStatus(status StatusCode) {
 	o.Status = status.String()
 	o.StatusCode = status
 	o.UpdatedAt = time.Now()

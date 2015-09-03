@@ -55,7 +55,7 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	fmt.Printf("Name: %s\n", ct.Name)
-	fmt.Printf("Status: %s\n", ct.Status.State)
+	fmt.Printf("Status: %s\n", ct.Status.Status)
 	if ct.Status.Init != 0 {
 		fmt.Printf("Init: %d\n", ct.Status.Init)
 		fmt.Printf("Ips:\n")

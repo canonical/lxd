@@ -112,13 +112,13 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 
 	for _, cinfo := range cinfos {
 		cstate := cinfo.State
-		d := []string{cstate.Name, cstate.Status.State}
+		d := []string{cstate.Name, cstate.Status.Status}
 
 		if !shouldShow(filters, &cstate) {
 			continue
 		}
 
-		if cstate.Status.State == "RUNNING" {
+		if cstate.Status.StatusCode == shared.Running {
 			ipv4s := []string{}
 			ipv6s := []string{}
 			for _, ip := range cstate.Status.Ips {
