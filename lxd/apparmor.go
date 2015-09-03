@@ -17,6 +17,8 @@ const (
 	APPARMOR_CMD_UNLOAD = "R"
 )
 
+var aaEnabled = false
+
 var aaPath = shared.VarPath("security", "apparmor")
 
 const DEFAULT_POLICY = `
@@ -63,6 +65,12 @@ func runApparmor(command string, profile string) error {
 // Ensure that the container's policy is loaded into the kernel so the
 // container can boot.
 func AALoadProfile(c *containerLXD) error {
+
+	if !aaEnabled {
+		shared.Log.Debug("Apparmor not enabled, skipping profile load")
+		return nil
+	}
+
 	/* In order to avoid forcing a profile parse (potentially slow) on
 	 * every container start, let's use apparmor's binary policy cache,
 	 * which checks mtime of the files to figure out if the policy needs to
@@ -98,11 +106,21 @@ func AALoadProfile(c *containerLXD) error {
 // Ensure that the container's policy is unloaded to free kernel memory. This
 // does not delete the policy from disk or cache.
 func AAUnloadProfile(c *containerLXD) error {
+	if !aaEnabled {
+		shared.Log.Debug("Apparmor not enabled, skipping profile unload")
+		return nil
+	}
+
 	return runApparmor(APPARMOR_CMD_UNLOAD, AAProfileName(c))
 }
 
 // Delete the policy from cache/disk.
 func AADeleteProfile(c *containerLXD) {
+	if !aaEnabled {
+		shared.Log.Debug("Apparmor not enabled, skipping profile delete")
+		return
+	}
+
 	/* It's ok if these deletes fail: if the container was never started,
 	 * we'll have never written a profile or cached it.
 	 */

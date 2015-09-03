@@ -115,6 +115,13 @@ func run() error {
 		}
 	}
 
+	_, err = exec.LookPath("apparmor_parser")
+	if err == nil {
+		aaEnabled = true
+	} else {
+		shared.Log.Warn("apparmor_parser binary not found. AppArmor disabled.")
+	}
+
 	if *printGoroutines > 0 {
 		go func() {
 			for {
