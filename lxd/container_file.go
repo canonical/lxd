@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/gorilla/mux"
@@ -73,7 +74,7 @@ func containerFileGet(pid int, r *http.Request, path string) Response {
 		path,
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return InternalError(fmt.Errorf("%s: %s", err.Error(), string(out)))
+		return InternalError(fmt.Errorf(strings.TrimRight(string(out), "\n")))
 	}
 
 	fi, err := temp.Stat()
@@ -134,7 +135,7 @@ func containerFilePut(pid int, r *http.Request, p string, idmapset *shared.Idmap
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return InternalError(fmt.Errorf("%s: %s", err.Error(), string(out)))
+		return InternalError(fmt.Errorf(strings.TrimRight(string(out), "\n")))
 	}
 
 	return EmptySyncResponse
