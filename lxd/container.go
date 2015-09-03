@@ -493,6 +493,10 @@ func (c *containerLXD) init() error {
 		return err
 	}
 
+	if err := c.c.SetConfigItem("lxc.seccomp", SeccompProfilePath(c)); err != nil {
+		return err
+	}
+
 	for _, p := range c.profiles {
 		if err := c.applyProfile(p); err != nil {
 			return err
@@ -577,6 +581,11 @@ func (c *containerLXD) Start() error {
 	 * in init()
 	 */
 	if err := AALoadProfile(c); err != nil {
+		c.StorageStop()
+		return err
+	}
+
+	if err := SeccompCreateProfile(c); err != nil {
 		c.StorageStop()
 		return err
 	}
@@ -853,6 +862,7 @@ func (c *containerLXD) Delete() error {
 	}
 
 	AADeleteProfile(c)
+	SeccompDeleteProfile(c)
 
 	return nil
 }
