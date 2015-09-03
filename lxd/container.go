@@ -495,6 +495,11 @@ func (c *containerLXD) init() error {
 		}
 	}
 
+	if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileName(c)); err != nil {
+		c.StorageStop()
+		return err
+	}
+
 	// base per-container config should override profile config, so we apply it second
 	if err := c.applyConfig(c.baseConfig); err != nil {
 		return err
@@ -562,6 +567,14 @@ func (c *containerLXD) Start() error {
 
 	// Start the storage for this container
 	if err := c.StorageStart(); err != nil {
+		return err
+	}
+
+	/* (Re)Load the AA profile; we set it in the container's config above
+	 * in init()
+	 */
+	if err := AALoadProfile(c); err != nil {
+		c.StorageStop()
 		return err
 	}
 
@@ -698,6 +711,10 @@ func (c *containerLXD) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
+	if err := AAUnloadProfile(c); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -710,6 +727,10 @@ func (c *containerLXD) Stop() error {
 
 	// Stop the storage for this container
 	if err := c.StorageStop(); err != nil {
+		return err
+	}
+
+	if err := AAUnloadProfile(c); err != nil {
 		return err
 	}
 
@@ -827,6 +848,8 @@ func (c *containerLXD) Delete() error {
 	if err := dbContainerRemove(c.daemon.db, c.NameGet()); err != nil {
 		return err
 	}
+
+	AADeleteProfile(c)
 
 	return nil
 }
