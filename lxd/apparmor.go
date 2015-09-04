@@ -15,13 +15,14 @@ import (
 const (
 	APPARMOR_CMD_LOAD   = "r"
 	APPARMOR_CMD_UNLOAD = "R"
+	APPARMOR_CMD_PARSE  = "Q"
 )
 
 var aaEnabled = false
 
 var aaPath = shared.VarPath("security", "apparmor")
 
-const DEFAULT_POLICY = `
+const DEFAULT_AA_PROFILE = `
 #include <tunables/global>
 profile lxd-%s flags=(attach_disconnected,mediate_deleted) {
     #include <abstractions/lxc/container-base>
@@ -37,13 +38,13 @@ func AAProfileName(c *containerLXD) string {
 // getProfileContent generates the apparmor profile template from the given
 // container. This includes the stock lxc includes as well as stuff from
 // raw.apparmor.
-func getProfileContent(c *containerLXD) string {
+func getAAProfileContent(c *containerLXD) string {
 	rawApparmor, ok := c.config["raw.apparmor"]
 	if !ok {
 		rawApparmor = ""
 	}
 
-	return fmt.Sprintf(DEFAULT_POLICY, c.name, rawApparmor)
+	return fmt.Sprintf(DEFAULT_AA_PROFILE, c.name, rawApparmor)
 }
 
 func runApparmor(command string, profile string) error {
@@ -88,7 +89,7 @@ func AALoadProfile(c *containerLXD) error {
 		return err
 	}
 
-	updated := getProfileContent(c)
+	updated := getAAProfileContent(c)
 
 	if string(content) != string(updated) {
 		if err := os.MkdirAll(path.Join(aaPath, "profiles"), 0700); err != nil {
@@ -112,6 +113,16 @@ func AAUnloadProfile(c *containerLXD) error {
 	}
 
 	return runApparmor(APPARMOR_CMD_UNLOAD, AAProfileName(c))
+}
+
+// Parse the profile without loading it into the kernel.
+func AAParseProfile(c *containerLXD) error {
+	if !aaEnabled {
+		shared.Log.Debug("Apparmor not enabled, skipping profile parse")
+		return nil
+	}
+
+	return runApparmor(APPARMOR_CMD_PARSE, AAProfileName(c))
 }
 
 // Delete the policy from cache/disk.
