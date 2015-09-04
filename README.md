@@ -16,37 +16,26 @@ After you've got LXD installed, you can take your [first steps](#first-steps).
 
 ## Building from source
 
-We have experienced some problems using gccgo, so for now we recommend using
-the golang compiler. We also require that a 1.1+ version of lxc and lxc-dev be
-installed. Additionally, some of LXD's dependencies are grabbed from `go get`
-via mercurial, so you'll need to have `hg` in your path as well. You can get
-these on Ubuntu via:
-
-    sudo apt-get install lxc lxc-dev mercurial git pkg-config protobuf-compiler golang-goprotobuf-dev
-
-### Installing Go
-
-LXD requires Golang 1.3 or later to work.
-
-If running Ubuntu, the easiest way to get it is to use the LXD PPA:
+We recommend having the latest versions of liblxc (>= 1.1 required) and CRIU
+(>= 1.7 recommended) available for LXD development. Additionally, LXD requires
+Golang 1.3 or later to work. All the right verisons dependencies are available
+via the LXD PPA:
 
     sudo apt-get install software-properties-common
     sudo add-apt-repository ppa:ubuntu-lxc/lxd-git-master
     sudo apt-get update
-    sudo apt-get install golang
+    sudo apt-get install golang lxc lxc-dev mercurial git pkg-config protobuf-compiler golang-goprotobuf-dev xz-utils tar acl
 
-In order to be able to extract images and create containers, a few more
-dependencies are xz, tar, and setfacl:
+There are a few storage backends for LXD besides the default "directory"
+backend. Installing these tools adds a bit to initramfs and may slow down your
+host boot, but are needed if you'd like to use a particular backend:
 
-    sudo apt-get install xz-utils tar acl
+    sudo apt-get install lvm2 thin-provisioning-tools
+    sudo apt-get install btrfs-tools
 
 To run the testsuite, you'll also need:
 
     sudo apt-get install curl gettext jq sqlite3
-
-To use LVM backing stores, you'll need:
-
-    sudo apt-get install lvm2 thin-provisioning-tools
 
 ### Building the tools
 
