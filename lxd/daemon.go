@@ -37,6 +37,11 @@ const (
 	pwHashBytes = 64
 )
 
+type Socket struct {
+	Socket      net.Listener
+	CloseOnExit bool
+}
+
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
 	architectures []int
@@ -53,7 +58,7 @@ type Daemon struct {
 
 	Storage storage
 
-	Sockets []net.Listener
+	Sockets []Socket
 
 	tlsconfig *tls.Config
 
@@ -402,7 +407,7 @@ func (d *Daemon) ListenAddresses() ([]string, error) {
 }
 
 func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
-	var sockets []net.Listener
+	var sockets []Socket
 
 	if oldAddress != "" {
 		_, _, err := net.SplitHostPort(oldAddress)
@@ -411,8 +416,8 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 		}
 
 		for _, socket := range d.Sockets {
-			if socket.Addr().String() == oldAddress {
-				socket.Close()
+			if socket.Socket.Addr().String() == oldAddress {
+				socket.Socket.Close()
 			} else {
 				sockets = append(sockets, socket)
 			}
@@ -438,7 +443,7 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 		}
 
 		d.tomb.Go(func() error { return http.Serve(tcpl, d.mux) })
-		sockets = append(sockets, tcpl)
+		sockets = append(sockets, Socket{Socket: tcpl, CloseOnExit: true})
 	}
 
 	d.Sockets = sockets
@@ -668,17 +673,17 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
-	var sockets []net.Listener
+	var sockets []Socket
 
 	if len(listeners) > 0 {
 		shared.Log.Info("LXD is socket activated")
 
 		for _, listener := range listeners {
 			if shared.PathExists(listener.Addr().String()) {
-				sockets = append(sockets, listener)
+				sockets = append(sockets, Socket{Socket: listener, CloseOnExit: false})
 			} else {
 				tlsListener := tls.NewListener(listener, tlsConfig)
-				sockets = append(sockets, tlsListener)
+				sockets = append(sockets, Socket{Socket: tlsListener, CloseOnExit: false})
 			}
 		}
 	} else {
@@ -725,7 +730,7 @@ func (d *Daemon) Init() error {
 			return err
 		}
 
-		sockets = append(sockets, unixl)
+		sockets = append(sockets, Socket{Socket: unixl, CloseOnExit: true})
 	}
 
 	listenAddr, err := d.ConfigValueGet("core.https_address")
@@ -744,21 +749,21 @@ func (d *Daemon) Init() error {
 			return fmt.Errorf("cannot listen on https socket: %v", err)
 		}
 
-		sockets = append(sockets, tcpl)
+		sockets = append(sockets, Socket{Socket: tcpl, CloseOnExit: true})
 	}
 
 	if !d.IsMock {
 		d.Sockets = sockets
 	} else {
-		d.Sockets = []net.Listener{}
+		d.Sockets = []Socket{}
 	}
 
 	d.tomb.Go(func() error {
 		shared.Log.Info("REST API daemon:")
 		for _, socket := range d.Sockets {
-			shared.Log.Info(" - binding socket", log.Ctx{"socket": socket.Addr()})
+			shared.Log.Info(" - binding socket", log.Ctx{"socket": socket.Socket.Addr()})
 			current_socket := socket
-			d.tomb.Go(func() error { return http.Serve(current_socket, d.mux) })
+			d.tomb.Go(func() error { return http.Serve(current_socket.Socket, d.mux) })
 		}
 
 		d.tomb.Go(func() error {
@@ -808,15 +813,22 @@ var errStop = fmt.Errorf("requested stop")
 
 // Stop stops the shared daemon.
 func (d *Daemon) Stop() error {
+	forceStop := false
+
 	d.tomb.Kill(errStop)
+	shared.Log.Info("Stopping REST API handler:")
 	for _, socket := range d.Sockets {
-		socket.Close()
+		if socket.CloseOnExit {
+			shared.Log.Info(" - closing socket", log.Ctx{"socket": socket.Socket.Addr()})
+			socket.Socket.Close()
+		} else {
+			shared.Log.Info(" - skipping socket-activated socket", log.Ctx{"socket": socket.Socket.Addr()})
+			forceStop = true
+		}
 	}
 
 	if n, err := d.numRunningContainers(); err != nil || n == 0 {
-		shared.Log.Debug(
-			"Unmounting shmounts",
-			log.Ctx{"err": err, "n": n})
+		shared.Log.Debug("Unmounting shmounts")
 
 		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
 		os.RemoveAll(shared.VarPath("shmounts"))
@@ -824,19 +836,22 @@ func (d *Daemon) Stop() error {
 		shared.Debugf("Not unmounting shmounts (containers are still running)")
 	}
 
+	shared.Log.Debug("Closing the database")
 	d.db.Close()
 
+	shared.Log.Debug("Stopping /dev/lxd handler")
 	d.devlxd.Close()
 
-	if !d.IsMock {
-		err := d.tomb.Wait()
-		if err == errStop {
-			return nil
-		}
-		return err
+	if d.IsMock || forceStop {
+		return nil
 	}
 
-	return nil
+	err := d.tomb.Wait()
+	if err == errStop {
+		return nil
+	}
+
+	return err
 }
 
 // ConfigKeyIsValid returns if the given key is a known config value.
