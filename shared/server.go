@@ -8,9 +8,11 @@ type ServerStateEnvironment struct {
 	Kernel             string   `json:"kernel"`
 	KernelArchitecture string   `json:"kernel_architecture"`
 	KernelVersion      string   `json:"kernel_version"`
+	Server             string   `json:"server"`
+	ServerPid          int      `json:"server_pid"`
+	ServerVersion      string   `json:"server_version"`
 	Storage            string   `json:"storage"`
 	StorageVersion     string   `json:"storage_version"`
-	Version            string   `json:"version"`
 }
 
 type ServerState struct {

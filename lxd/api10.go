@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"syscall"
 
 	"gopkg.in/lxc/go-lxc.v2"
@@ -96,7 +97,9 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"kernel_version":      kernelVersion,
 			"storage":             d.Storage.GetStorageTypeName(),
 			"storage_version":     d.Storage.GetStorageTypeVersion(),
-			"version":             shared.Version}
+			"server":              "lxd",
+			"server_pid":          os.Getpid(),
+			"server_version":      shared.Version}
 
 		body["environment"] = env
 
