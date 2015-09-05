@@ -961,6 +961,11 @@ func (d *Daemon) PasswordCheck(password string) bool {
 		return false
 	}
 
+	// No password set
+	if value == "" {
+		return false
+	}
+
 	buff, err := hex.DecodeString(value)
 	if err != nil {
 		shared.Log.Error("hex decode failed", log.Ctx{"err": err})
