@@ -50,8 +50,9 @@ func run() error {
 	gettext.BindTextdomain("lxd", "", nil)
 	gettext.Textdomain("lxd")
 
-	verbose := gnuflag.Bool("v", false, gettext.Gettext("Enables verbose mode."))
+	verbose := gnuflag.Bool("verbose", false, gettext.Gettext("Enables verbose mode."))
 	debug := gnuflag.Bool("debug", false, gettext.Gettext("Enables debug mode."))
+	forceLocal := gnuflag.Bool("force-local", false, gettext.Gettext("Enables debug mode."))
 
 	gnuflag.StringVar(&lxd.ConfigDir, "config", lxd.ConfigDir, gettext.Gettext("Alternate config directory."))
 
@@ -95,15 +96,22 @@ func run() error {
 
 	shared.SetLogger("", "", *verbose, *debug)
 
-	config, err := lxd.LoadConfig()
-	if err != nil {
-		return err
+	var config *lxd.Config
+	var err error
+
+	if *forceLocal {
+		config = &lxd.DefaultConfig
+	} else {
+		config, err = lxd.LoadConfig()
+		if err != nil {
+			return err
+		}
 	}
 
 	certf := lxd.ConfigPath("client.crt")
 	keyf := lxd.ConfigPath("client.key")
 
-	if os.Args[0] != "help" && os.Args[0] != "version" && (!shared.PathExists(certf) || !shared.PathExists(keyf)) {
+	if !*forceLocal && os.Args[0] != "help" && os.Args[0] != "version" && (!shared.PathExists(certf) || !shared.PathExists(keyf)) {
 		fmt.Fprintf(os.Stderr, gettext.Gettext("Generating a client certificate. This may take a minute...\n"))
 
 		err = shared.FindOrGenCert(certf, keyf)
