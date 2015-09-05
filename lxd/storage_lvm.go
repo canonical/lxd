@@ -432,30 +432,6 @@ func (s *storageLvm) ContainerSnapshotCreate(
 
 func (s *storageLvm) createSnapshotContainer(
 	snapshotContainer container, sourceContainer container, readonly bool) error {
-	// must freeze and syncfs LV to take consistent snapshot:
-	wasRunning := false
-	if sourceContainer.IsRunning() {
-		wasRunning = true
-		if err := sourceContainer.Freeze(); err != nil {
-			shared.Log.Error("LVM Snapshot Create: could not freeze source container",
-				log.Ctx{"sourceContainer name": sourceContainer.NameGet(),
-					"err": err})
-			return err
-		}
-
-		srcDir, err := os.Open(sourceContainer.PathGet(""))
-		if err != nil {
-			return fmt.Errorf("Error opening mounted sourceContainer path for syncfs: '%v'", err)
-		}
-		defer srcDir.Close()
-		_, _, errno := syscall.Syscall(sysSyncfsTrapNum, srcDir.Fd(), 0, 0)
-		if errno != 0 {
-			return fmt.Errorf("Error syncing fs of frozen source container: '%s'", err)
-		}
-		shared.Log.Debug(
-			"LVM Snapshot Create: Frozen source container",
-			log.Ctx{"sourceContainer name": sourceContainer.NameGet()})
-	}
 
 	srcName := containerNameToLVName(sourceContainer.NameGet())
 	destName := containerNameToLVName(snapshotContainer.NameGet())
@@ -477,14 +453,6 @@ func (s *storageLvm) createSnapshotContainer(
 	err = os.Symlink(lvpath, dest)
 	if err != nil {
 		return err
-	}
-
-	if wasRunning {
-		if err := sourceContainer.Unfreeze(); err != nil {
-			shared.Log.Error("Error unfreezing source container after snapshot",
-				log.Ctx{"sourceContainer name": sourceContainer.NameGet()})
-			return err
-		}
 	}
 
 	return nil
