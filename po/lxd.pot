@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2015-09-01 18:45-0400\n"
+        "POT-Creation-Date: 2015-09-04 18:08-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,7 +36,7 @@ msgid   "### This is a yaml representation of the configuration.\n"
         "### Note that the name is shown but cannot be changed\n"
 msgstr  ""
 
-#: lxc/image.go:29
+#: lxc/image.go:30
 msgid   "### This is a yaml representation of the image properties.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -70,24 +70,24 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name\n"
 msgstr  ""
 
-#: lxc/remote.go:43
+#: lxc/remote.go:45
 msgid   "Accept certificate"
 msgstr  ""
 
-#: lxc/remote.go:148
+#: lxc/remote.go:150
 #, c-format
 msgid   "Admin password for %s: "
 msgstr  ""
 
-#: lxc/image.go:238
+#: lxc/image.go:239
 msgid   "Aliases:\n"
 msgstr  ""
 
-#: lxc/main.go:56
+#: lxc/main.go:57
 msgid   "Alternate config directory."
 msgstr  ""
 
-#: lxc/image.go:221
+#: lxc/image.go:222
 #, c-format
 msgid   "Architecture: %s\n"
 msgstr  ""
@@ -117,7 +117,7 @@ msgid   "Changes one or more containers state to %s.\n"
         "lxc %s <name> [<name>...]\n"
 msgstr  ""
 
-#: lxc/remote.go:171
+#: lxc/remote.go:173
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
@@ -129,7 +129,7 @@ msgstr  ""
 msgid   "Container name is mandatory"
 msgstr  ""
 
-#: lxc/image.go:84
+#: lxc/image.go:85
 msgid   "Copy aliases from source"
 msgstr  ""
 
@@ -171,7 +171,7 @@ msgstr  ""
 msgid   "Device %s removed from %s\n"
 msgstr  ""
 
-#: lxc/main.go:54
+#: lxc/main.go:54 lxc/main.go:55
 msgid   "Enables debug mode."
 msgstr  ""
 
@@ -195,7 +195,7 @@ msgid   "Execute the specified command in a container.\n"
         "<command>\n"
 msgstr  ""
 
-#: lxc/image.go:214
+#: lxc/image.go:215
 #, c-format
 msgid   "Fingerprint: %s\n"
 msgstr  ""
@@ -206,7 +206,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>\n"
 msgstr  ""
 
-#: lxc/main.go:115
+#: lxc/main.go:123
 msgid   "For example: 'lxd-images import ubuntu --alias ubuntu'.\n"
 msgstr  ""
 
@@ -214,16 +214,16 @@ msgstr  ""
 msgid   "Force the container to shutdown."
 msgstr  ""
 
-#: lxc/main.go:107
+#: lxc/main.go:115
 msgid   "Generating a client certificate. This may take a minute...\n"
 msgstr  ""
 
-#: lxc/main.go:114
+#: lxc/main.go:122
 msgid   "If this is your first run, you will need to import images using the "
         "'lxd-images' script.\n"
 msgstr  ""
 
-#: lxc/image.go:285
+#: lxc/image.go:286
 #, c-format
 msgid   "Image imported with fingerprint: %s\n"
 msgstr  ""
@@ -302,7 +302,7 @@ msgid   "Lists the available resources.\n"
         "* \"s.privileged=1\" will do the same\n"
 msgstr  ""
 
-#: lxc/image.go:83
+#: lxc/image.go:84
 msgid   "Make image public"
 msgstr  ""
 
@@ -413,7 +413,7 @@ msgid   "Manage files on a container.\n"
         "running\n"
 msgstr  ""
 
-#: lxc/remote.go:31
+#: lxc/remote.go:33
 msgid   "Manage remote LXD servers.\n"
         "\n"
         "lxc remote add <name> <url> [--accept-certificate] [--"
@@ -438,7 +438,7 @@ msgid   "Manage remote LXD servers.\n"
         "Print the default remote.\n"
 msgstr  ""
 
-#: lxc/image.go:38
+#: lxc/image.go:39
 msgid   "Manipulate container images\n"
         "\n"
         "lxc image import <tarball> [rootfs tarball] [target] [--public] [--"
@@ -467,7 +467,7 @@ msgid   "Manipulate container images\n"
         "lxc image alias list store2:\n"
 msgstr  ""
 
-#: lxc/help.go:80
+#: lxc/help.go:83
 msgid   "Missing summary."
 msgstr  ""
 
@@ -508,8 +508,16 @@ msgid   "Presents details on how to use LXD.\n"
         "lxd help [--all]\n"
 msgstr  ""
 
+#: lxc/help.go:66
+msgid   "Print debug information."
+msgstr  ""
+
 #: lxc/help.go:64
 msgid   "Print less common commands."
+msgstr  ""
+
+#: lxc/help.go:67
+msgid   "Print verbose information."
 msgstr  ""
 
 #: lxc/version.go:20
@@ -533,15 +541,15 @@ msgstr  ""
 msgid   "Profile %s deleted\n"
 msgstr  ""
 
-#: lxc/image.go:234
+#: lxc/image.go:235
 msgid   "Properties:\n"
 msgstr  ""
 
-#: lxc/remote.go:45
+#: lxc/remote.go:47
 msgid   "Public image server"
 msgstr  ""
 
-#: lxc/image.go:222
+#: lxc/image.go:223
 #, c-format
 msgid   "Public: %s\n"
 msgstr  ""
@@ -557,7 +565,7 @@ msgstr  ""
 msgid   "Publish to remote server is not supported yet"
 msgstr  ""
 
-#: lxc/remote.go:44
+#: lxc/remote.go:46
 msgid   "Remote admin password"
 msgstr  ""
 
@@ -571,7 +579,7 @@ msgid   "Server certificate for host %s has changed. Add correct certificate "
         "or remove certificate in %s"
 msgstr  ""
 
-#: lxc/remote.go:168
+#: lxc/remote.go:170
 msgid   "Server doesn't trust us after adding our cert"
 msgstr  ""
 
@@ -602,7 +610,7 @@ msgstr  ""
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
 
-#: lxc/image.go:219
+#: lxc/image.go:220
 msgid   "Size: %.2vMB\n"
 msgstr  ""
 
@@ -630,16 +638,16 @@ msgstr  ""
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
-#: lxc/image.go:223
+#: lxc/image.go:224
 msgid   "Timestamps:\n"
 msgstr  ""
 
-#: lxc/image.go:457
+#: lxc/image.go:458
 #, c-format
 msgid   "Unknown image command %s"
 msgstr  ""
 
-#: lxc/remote.go:283
+#: lxc/remote.go:291
 #, c-format
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
@@ -649,7 +657,7 @@ msgstr  ""
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
 
-#: lxc/main.go:89
+#: lxc/main.go:90
 #, c-format
 msgid   "Usage: %s\n"
         "\n"
@@ -662,6 +670,10 @@ msgid   "Usage: lxc [subcommand] [options]\n"
         "Available commands:\n"
 msgstr  ""
 
+#: lxc/help.go:65
+msgid   "Use an alternative config path."
+msgstr  ""
+
 #: lxc/restore.go:29
 msgid   "Whether or not to restore the container's running state from "
         "snapshot (if available)"
@@ -671,7 +683,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:392 lxc/image.go:386 lxc/profile.go:198
+#: lxc/config.go:392 lxc/image.go:387 lxc/profile.go:198
 msgid   "YAML parse error %v\n"
 msgstr  ""
 
@@ -721,12 +733,12 @@ msgstr  ""
 msgid   "error: %v\n"
 msgstr  ""
 
-#: lxc/main.go:120
+#: lxc/main.go:128
 msgid   "error: %v\n"
         "%s"
 msgstr  ""
 
-#: lxc/help.go:41 lxc/main.go:83
+#: lxc/help.go:41 lxc/main.go:84
 #, c-format
 msgid   "error: unknown command: %s\n"
 msgstr  ""
@@ -776,17 +788,17 @@ msgstr  ""
 msgid   "ok (y/n)? "
 msgstr  ""
 
-#: lxc/remote.go:243
+#: lxc/remote.go:251
 #, c-format
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:209 lxc/remote.go:239 lxc/remote.go:259 lxc/remote.go:271
+#: lxc/remote.go:211 lxc/remote.go:247 lxc/remote.go:267 lxc/remote.go:279
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""
 
-#: lxc/remote.go:194
+#: lxc/remote.go:196
 #, c-format
 msgid   "remote %s exists as <%s>"
 msgstr  ""
@@ -804,7 +816,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:158
+#: lxc/main.go:166
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 

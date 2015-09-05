@@ -38,6 +38,10 @@ var localRemote = RemoteConfig{
 	Public: false}
 var defaultRemote = map[string]RemoteConfig{"local": localRemote}
 
+var DefaultConfig = Config{
+	Remotes:       defaultRemote,
+	DefaultRemote: "local"}
+
 var ConfigDir = "$HOME/.config/lxc"
 var configFileName = "config.yml"
 
@@ -54,9 +58,7 @@ func LoadConfig() (*Config, error) {
 	data, err := ioutil.ReadFile(ConfigPath(configFileName))
 	if os.IsNotExist(err) {
 		// A missing file is equivalent to the default configuration.
-		return &Config{
-			Remotes:       defaultRemote,
-			DefaultRemote: "local"}, nil
+		return &DefaultConfig, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file: %v", err)
