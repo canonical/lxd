@@ -194,12 +194,16 @@ Return value (if trusted):
         'environment': {                                # Various information about the host (OS, kernel, ...)
                         'addresses': ["1.2.3.4:8443", "[1234::1234]:8443"],
                         'architectures': [1, 2],
-                        'backing_fs': "ext4",
-                        'kernel': "Linux",
-                        'kernel_version': "3.16",
                         'driver': "lxc",
                         'driver_version': "1.0.6",
-                        'version': "0.8.1"}
+                        'kernel': "Linux",
+                        'kernel_architecture': "x86_64",
+                        'kernel_version': "3.16",
+                        'storage': "btrfs",
+                        'storage_version': "3.19",
+                        'server': "lxd",
+                        'server_pid': 10224,
+                        'server_version': "0.8.1"}
     }
 
 Return value (if guest or untrusted):
