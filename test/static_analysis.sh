@@ -3,6 +3,11 @@ safe_pot_hash() {
 }
 
 static_analysis() {
+  # Skip the test when not running from a git repository
+  if ! git status; then
+    return
+  fi
+
   toplevel="$(git rev-parse --show-toplevel)"
 
   # go tools
