@@ -96,7 +96,7 @@ test_mixing_storage() {
     ../scripts/lxd-images import busybox --alias testimage || die "couldn't import image"
     lxc launch testimage reg-container || die "couldn't launch regular container"
     lxc copy reg-container reg-container-sticks-around || die "Couldn't copy reg"
-    lxc config set core.lvm_vg_name "lxd_test_vg" || die "error setting core.lvm_vg_name config"
+    lxc config set storage.lvm_vg_name "lxd_test_vg" || die "error setting storage.lvm_vg_name config"
     lxc config show | grep "lxd_test_vg" || die "test_vg not in config show output"
     lxc stop reg-container --force || die "couldn't stop reg-container"
     lxc start reg-container || die "couldn't start reg-container"
@@ -114,12 +114,12 @@ test_mixing_storage() {
     lxc snapshot reg-container-sticks-around regsnap || die "Couldn't snapshot"
     lvs lxd_test_vg/reg--container--sticks--around-regsnap && die "we should NOT have a snap lv for a reg container"
 
-    lxc config unset core.lvm_vg_name && die "shouldn't be able to unset config with existing lv containers"
+    lxc config unset storage.lvm_vg_name && die "shouldn't be able to unset config with existing lv containers"
     lxc delete lvm-container || die "couldn't delete container"
     lxc image delete testimage || die "couldn't delete lvm-backed image"
 
     lxc delete lvm-from-reg || die "couldn't delete lvm-from-reg"
-    lxc config unset core.lvm_vg_name || die "should be able to unset config after delete all"
+    lxc config unset storage.lvm_vg_name || die "should be able to unset config after delete all"
 
     exit 0
     )
@@ -160,25 +160,25 @@ test_lvm_withpool() {
     (
     set -e
     LXD_DIR=$LXD5_DIR
-    lxc config set core.lvm_vg_name "zambonirodeo" && die "Shouldn't be able to set nonexistent LVM VG"
-    lxc config show | grep "core.lvm_vg_name" && die "vg_name should not be set after invalid attempt"
+    lxc config set storage.lvm_vg_name "zambonirodeo" && die "Shouldn't be able to set nonexistent LVM VG"
+    lxc config show | grep "storage.lvm_vg_name" && die "vg_name should not be set after invalid attempt"
 
-    lxc config set core.lvm_vg_name "lxd_test_vg" || die "error setting core.lvm_vg_name config"
+    lxc config set storage.lvm_vg_name "lxd_test_vg" || die "error setting storage.lvm_vg_name config"
     lxc config show | grep "lxd_test_vg" || die "test_vg not in config show output"
 
     if [ -n "$poolname" ]; then
         echo " --> Testing with user-supplied thin pool name '$poolname'"
-        lxc config set core.lvm_thinpool_name $poolname || die "error setting core.lvm_thinpool_name config"
+        lxc config set storage.lvm_thinpool_name $poolname || die "error setting storage.lvm_thinpool_name config"
         lxc config show | grep "$poolname" || die "thin pool name not in config show output."
         echo " --> only doing minimal image import subtest with user pool name"
         do_image_import_subtest $poolname
 
-        lxc config unset core.lvm_vg_name && die "should not be allowed to unset without deleting"
+        lxc config unset storage.lvm_vg_name && die "should not be allowed to unset without deleting"
         lxc image delete testimage
         
         # check that we can unset configs in this order
-        lxc config unset core.lvm_vg_name
-        lxc config unset core.lvm_thinpool_name
+        lxc config unset storage.lvm_vg_name
+        lxc config unset storage.lvm_thinpool_name
 
         return
     else
@@ -275,7 +275,7 @@ test_remote_launch_imports_lvm() {
     LXD_DIR=$LXD6_DIR
     LXD_REMOTE_DIR=$LXD5_DIR
 
-    lxc config set core.lvm_vg_name "lxd_test_vg" || die "couldn't set vg_name"
+    lxc config set storage.lvm_vg_name "lxd_test_vg" || die "couldn't set vg_name"
     (echo y; sleep 3; echo foo) | lxc remote add testremote 127.0.0.1:18466
 
     testimage_sha=$(lxc image info testremote:testimage | grep Fingerprint | cut -d' ' -f 2)
@@ -310,7 +310,7 @@ test_init_with_missing_vg() {
     set -e
     LXD_DIR=$LXD5_DIR
     create_vg red_shirt_yeoman_vg
-    lxc config set core.lvm_vg_name "red_shirt_yeoman_vg" || die "error setting core.lvm_vg_name config"
+    lxc config set storage.lvm_vg_name "red_shirt_yeoman_vg" || die "error setting storage.lvm_vg_name config"
     exit 0
     )
 
@@ -323,7 +323,7 @@ test_init_with_missing_vg() {
     set -e
     LXD_DIR=$LXD5_DIR
     lxc config show | grep "red_shirt_yeoman_vg" || die "should show config even if it is broken"
-    lxc config unset core.lvm_vg_name || die "should be able to un set config to un break"
+    lxc config unset storage.lvm_vg_name || die "should be able to un set config to un break"
     exit 0
     )
 

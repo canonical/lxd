@@ -153,7 +153,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return InternalError(err)
 			}
-		} else if key == "core.lvm_vg_name" {
+		} else if key == "storage.lvm_vg_name" {
 			err := storageLVMSetVolumeGroupNameConfig(d, value.(string))
 			if err != nil {
 				return InternalError(err)
@@ -161,7 +161,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 			if err = d.SetupStorageDriver(); err != nil {
 				return InternalError(err)
 			}
-		} else if key == "core.lvm_thinpool_name" {
+		} else if key == "storage.lvm_thinpool_name" {
 			err := storageLVMSetThinPoolNameConfig(d, value.(string))
 			if err != nil {
 				return InternalError(err)
