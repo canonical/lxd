@@ -97,10 +97,9 @@ func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 	}
 
 	return results, nil
-
 }
-func storageLVMSetThinPoolNameConfig(d *Daemon, poolname string) error {
 
+func storageLVMSetThinPoolNameConfig(d *Daemon, poolname string) error {
 	users, err := storageLVMGetThinPoolUsers(d)
 	if err != nil {
 		return fmt.Errorf("Error checking if a pool is already in use: %v", err)

@@ -166,6 +166,14 @@ func api10Put(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return InternalError(err)
 			}
+		} else if key == "storage.zfs_pool_name" {
+			err := storageZFSSetPoolNameConfig(d, value.(string))
+			if err != nil {
+				return InternalError(err)
+			}
+			if err = d.SetupStorageDriver(); err != nil {
+				return InternalError(err)
+			}
 		} else if key == "core.https_address" {
 			old_address, err := d.ConfigValueGet("core.https_address")
 			if err != nil {
