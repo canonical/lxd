@@ -203,16 +203,16 @@ func containersRestart(d *Daemon) error {
 		autoStartDelay := container.State.ExpandedConfig["boot.autostart.delay"]
 
 		if lastState == "RUNNING" || autoStart == "true" {
-			container, err := containerLXDLoad(d, container.State.Name)
+			c, err := containerLXDLoad(d, container.State.Name)
 			if err != nil {
 				return err
 			}
 
-			if container.IsRunning() {
+			if c.IsRunning() {
 				continue
 			}
 
-			container.Start()
+			c.Start()
 
 			autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
 			if err == nil {
