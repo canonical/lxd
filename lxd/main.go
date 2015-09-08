@@ -46,18 +46,6 @@ func main() {
 }
 
 func run() error {
-	if len(os.Args) > 1 {
-		// "forkputfile" and "forkgetfile" are handled specially in copyfile.go
-		switch os.Args[1] {
-		case "forkstart":
-			return startContainer(os.Args[1:])
-		case "forkmigrate":
-			return migration.MigrateContainer(os.Args[1:])
-		case "shutdown":
-			return cleanShutdown()
-		}
-	}
-
 	gnuflag.Usage = func() {
 		fmt.Printf("Usage: lxd [options]\n\nOptions:\n")
 		gnuflag.PrintDefaults()
@@ -87,6 +75,21 @@ func run() error {
 	if err != nil {
 		fmt.Printf("%s", err)
 		return nil
+	}
+
+	// Process sub-commands
+	if len(os.Args) > 1 {
+		// "forkputfile" and "forkgetfile" are handled specially in copyfile.go
+		switch os.Args[1] {
+		case "forkstart":
+			return startContainer(os.Args[1:])
+		case "forkmigrate":
+			return migration.MigrateContainer(os.Args[1:])
+		case "shutdown":
+			return cleanShutdown()
+		case "activateifneeded":
+			return activateIfNeeded()
+		}
 	}
 
 	if gnuflag.NArg() != 0 {
@@ -211,4 +214,51 @@ func cleanShutdown() error {
 	}
 
 	return fmt.Errorf("LXD still running after 60s timeout.")
+}
+
+func activateIfNeeded() error {
+	// Don't start a full daemon, we just need DB access
+	d := &Daemon{
+		IsMock:                false,
+		imagesDownloading:     map[string]chan bool{},
+		imagesDownloadingLock: sync.RWMutex{},
+	}
+
+	err := initializeDbObject(d, shared.VarPath("lxd.db"))
+	if err != nil {
+		return err
+	}
+
+	// Look for network socket
+	value, err := d.ConfigValueGet("core.https_address")
+	if err != nil {
+		return err
+	}
+
+	if value != "" {
+		shared.Debugf("Daemon has core.https_address set, activating...")
+		_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+		return err
+	}
+
+	// Look for auto-started or previously started containers
+	containers, err := doContainersGet(d, true)
+	if err != nil {
+		return err
+	}
+
+	containerInfo := containers.(shared.ContainerInfoList)
+	for _, container := range containerInfo {
+		lastState := container.State.Config["volatile.last_state.power"]
+		autoStart := container.State.ExpandedConfig["boot.autostart"]
+
+		if lastState == "RUNNING" || autoStart == "true" {
+			shared.Debugf("Daemon has auto-started containers, activating...")
+			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			return err
+		}
+	}
+
+	shared.Debugf("No need to start the daemon now.")
+	return nil
 }
