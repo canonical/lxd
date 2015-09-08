@@ -14,15 +14,15 @@ for devices, network interfaces and storage volumes.
 The key/value configuration is namespaced with the following namespaces
 currently supported:
  - core (core daemon configuration)
- - lxc (LXC configuration)
  - images (image configuration)
+ - storage (storage configuration)
 
 Key                             | Type          | Default                   | Description
 :--                             | :---          | :------                   | :----------
 core.https\_address             | string        | -                         | Address to bind for the remote API
 core.trust\_password            | string        | -                         | Password to be provided by clients to setup a trust
-core.lvm\_vg\_name              | string        | -                         | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `core.lvm_thinpool_name` is set.
-core.lvm\_thinpool\_name        | string        | "LXDPool"                 | LVM Thin Pool to use within the Volume Group specified in `core.lvm_vg_name`, if the default pool parameters are undesirable.
+storage.lvm\_vg\_name           | string        | -                         | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
+storage.lvm\_thinpool\_name     | string        | "LXDPool"                 | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
 images.remote\_cache\_expiry    | integer       | 10                        | Number of days after which an unused cached remote image will be flushed
 
 Those keys can be set using the lxc tool with:
