@@ -122,7 +122,6 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 }
 
 func (s *storageBtrfs) ContainerCopy(container container, sourceContainer container) error {
-
 	subvol := sourceContainer.PathGet("")
 	dpath := container.PathGet("")
 

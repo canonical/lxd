@@ -300,14 +300,27 @@ func (d *Daemon) createCmd(version string, c Command) {
 }
 
 func (d *Daemon) SetupStorageDriver() error {
-	vgName, err := d.ConfigValueGet("storage.lvm_vg_name")
+	lvmVgName, err := d.ConfigValueGet("storage.lvm_vg_name")
 	if err != nil {
 		return fmt.Errorf("Couldn't read config: %s", err)
 	}
-	if vgName != "" {
+
+	zfsPoolName, err := d.ConfigValueGet("storage.zfs_pool_name")
+	if err != nil {
+		return fmt.Errorf("Couldn't read config: %s", err)
+	}
+
+	if lvmVgName != "" {
 		d.Storage, err = newStorage(d, storageTypeLvm)
 		if err != nil {
 			shared.Logf("Could not initialize storage type LVM: %s - falling back to dir", err)
+		} else {
+			return nil
+		}
+	} else if zfsPoolName != "" {
+		d.Storage, err = newStorage(d, storageTypeZfs)
+		if err != nil {
+			shared.Logf("Could not initialize storage type ZFS: %s - falling back to dir", err)
 		} else {
 			return nil
 		}
@@ -864,6 +877,8 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 	case "storage.lvm_vg_name":
 		return true
 	case "storage.lvm_thinpool_name":
+		return true
+	case "storage.zfs_pool_name":
 		return true
 	case "images.remote_cache_expiry":
 		return true
