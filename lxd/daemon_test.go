@@ -33,11 +33,11 @@ func Test_config_value_set_empty_removes_val(t *testing.T) {
 	}
 	defer d.Stop()
 
-	if err = d.ConfigValueSet("core.lvm_vg_name", "foo"); err != nil {
+	if err = d.ConfigValueSet("storage.lvm_vg_name", "foo"); err != nil {
 		t.Error("couldn't set value", err)
 	}
 
-	val, err := d.ConfigValueGet("core.lvm_vg_name")
+	val, err := d.ConfigValueGet("storage.lvm_vg_name")
 	if err != nil {
 		t.Error("Error getting val")
 	}
@@ -45,12 +45,12 @@ func Test_config_value_set_empty_removes_val(t *testing.T) {
 		t.Error("Expected foo, got ", val)
 	}
 
-	err = d.ConfigValueSet("core.lvm_vg_name", "")
+	err = d.ConfigValueSet("storage.lvm_vg_name", "")
 	if err != nil {
 		t.Error("error setting to ''")
 	}
 
-	val, err = d.ConfigValueGet("core.lvm_vg_name")
+	val, err = d.ConfigValueGet("storage.lvm_vg_name")
 	if err != nil {
 		t.Error("Error getting val")
 	}
@@ -62,7 +62,7 @@ func Test_config_value_set_empty_removes_val(t *testing.T) {
 	if err != nil {
 		t.Error("Error getting val")
 	}
-	if key, present := valMap["core.lvm_vg_name"]; present {
+	if key, present := valMap["storage.lvm_vg_name"]; present {
 		t.Errorf("un-set key should not be in values map, it is '%v'", key)
 	}
 

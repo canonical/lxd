@@ -52,14 +52,14 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 
 func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 	results := []string{}
-	vgname, err := d.ConfigValueGet("core.lvm_vg_name")
+	vgname, err := d.ConfigValueGet("storage.lvm_vg_name")
 	if err != nil {
 		return results, fmt.Errorf("Error getting lvm_vg_name config")
 	}
 	if vgname == "" {
 		return results, nil
 	}
-	poolname, err := d.ConfigValueGet("core.lvm_thinpool_name")
+	poolname, err := d.ConfigValueGet("storage.lvm_thinpool_name")
 	if err != nil {
 		return results, fmt.Errorf("Error getting lvm_thinpool_name config")
 	}
@@ -109,7 +109,7 @@ func storageLVMSetThinPoolNameConfig(d *Daemon, poolname string) error {
 		return fmt.Errorf("Can not change LVM config. Images or containers are still using LVs: %v", users)
 	}
 
-	vgname, err := d.ConfigValueGet("core.lvm_vg_name")
+	vgname, err := d.ConfigValueGet("storage.lvm_vg_name")
 	if err != nil {
 		return fmt.Errorf("Error getting lvm_vg_name config: %v", err)
 	}
@@ -128,7 +128,7 @@ func storageLVMSetThinPoolNameConfig(d *Daemon, poolname string) error {
 		}
 	}
 
-	err = d.ConfigValueSet("core.lvm_thinpool_name", poolname)
+	err = d.ConfigValueSet("storage.lvm_thinpool_name", poolname)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func storageLVMSetVolumeGroupNameConfig(d *Daemon, vgname string) error {
 		}
 	}
 
-	err = d.ConfigValueSet("core.lvm_vg_name", vgname)
+	err = d.ConfigValueSet("storage.lvm_vg_name", vgname)
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 	}
 
 	if config["vgName"] == nil {
-		vgName, err := s.d.ConfigValueGet("core.lvm_vg_name")
+		vgName, err := s.d.ConfigValueGet("storage.lvm_vg_name")
 		if err != nil {
 			return s, fmt.Errorf("Error checking server config: %v", err)
 		}
@@ -605,7 +605,7 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 
 func (s *storageLvm) createThinLV(lvname string) (string, error) {
 
-	poolname, err := s.d.ConfigValueGet("core.lvm_thinpool_name")
+	poolname, err := s.d.ConfigValueGet("storage.lvm_thinpool_name")
 	if err != nil {
 		return "", fmt.Errorf("Error checking server config, err=%v", err)
 	}

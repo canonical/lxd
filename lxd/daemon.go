@@ -300,7 +300,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 }
 
 func (d *Daemon) SetupStorageDriver() error {
-	vgName, err := d.ConfigValueGet("core.lvm_vg_name")
+	vgName, err := d.ConfigValueGet("storage.lvm_vg_name")
 	if err != nil {
 		return fmt.Errorf("Couldn't read config: %s", err)
 	}
@@ -861,9 +861,9 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 		return true
 	case "core.trust_password":
 		return true
-	case "core.lvm_vg_name":
+	case "storage.lvm_vg_name":
 		return true
-	case "core.lvm_thinpool_name":
+	case "storage.lvm_thinpool_name":
 		return true
 	case "images.remote_cache_expiry":
 		return true
