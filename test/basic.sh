@@ -164,7 +164,7 @@ test_basic_usage() {
   # unloaded on stop, and that it is deleted when the container is deleted
   lxc launch testimage lxd-apparmor-test
   aa-status | grep lxd-apparmor-test
-  lxc stop lxd-apparmor-test
+  lxc stop lxd-apparmor-test --force
   bad=0
   aa-status | grep lxd-apparmor-test && bad=1 || true
   if [ "$bad" -eq 1 ]; then
