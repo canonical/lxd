@@ -125,7 +125,7 @@ func run() error {
 
 	err = cmd.run(config, gnuflag.Args())
 	if err == errArgs {
-		fmt.Fprintf(os.Stderr, gettext.Gettext("error: %v\n%s"), err, cmd.usage())
+		fmt.Fprintf(os.Stderr, gettext.Gettext("error: %v\n%s\n"), err, cmd.usage())
 		os.Exit(1)
 	}
 	return err

@@ -20,9 +20,9 @@ func (c *snapshotCmd) showByDefault() bool {
 
 func (c *snapshotCmd) usage() string {
 	return gettext.Gettext(
-		"Create a read-only snapshot of a container.\n" +
-			"\n" +
-			"lxc snapshot [remote:]<source> <snapshot name> [--stateful]\n")
+		`Create a read-only snapshot of a container.
+
+lxc snapshot [remote:]<source> <snapshot name> [--stateful]`)
 }
 
 func (c *snapshotCmd) flags() {

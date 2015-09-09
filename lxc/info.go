@@ -20,11 +20,11 @@ func (c *infoCmd) showByDefault() bool {
 
 func (c *infoCmd) usage() string {
 	return gettext.Gettext(
-		"List information on containers.\n" +
-			"\n" +
-			"This will support remotes and images as well, but only containers for now.\n" +
-			"\n" +
-			"lxc info [<remote>:]container [--show-log]\n")
+		`List information on containers.
+
+This will support remotes and images as well, but only containers for now.
+
+lxc info [<remote>:]container [--show-log]`)
 }
 
 func (c *infoCmd) flags() {

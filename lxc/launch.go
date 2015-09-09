@@ -19,17 +19,17 @@ func (c *launchCmd) showByDefault() bool {
 
 func (c *launchCmd) usage() string {
 	return gettext.Gettext(
-		"Launch a container from a particular image.\n" +
-			"\n" +
-			"lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
-			"\n" +
-			"Launches a container using the specified image and name.\n" +
-			"\n" +
-			"Not specifying -p will result in the default profile.\n" +
-			"Specifying \"-p\" with no argument will result in no profile.\n" +
-			"\n" +
-			"Example:\n" +
-			"lxc launch ubuntu u1\n")
+		`Launch a container from a particular image.
+
+lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]
+
+Launches a container using the specified image and name.
+
+Not specifying -p will result in the default profile.
+Specifying "-p" with no argument will result in no profile.
+
+Example:
+lxc launch ubuntu u1`)
 }
 
 func (c *launchCmd) flags() {

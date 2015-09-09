@@ -18,9 +18,9 @@ func (c *publishCmd) showByDefault() bool {
 
 func (c *publishCmd) usage() string {
 	return gettext.Gettext(
-		"Publish containers as images.\n" +
-			"\n" +
-			"lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]...\n")
+		`Publish containers as images.
+
+lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]...`)
 }
 
 var pAliases aliasList // aliasList defined in lxc/image.go
