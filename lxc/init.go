@@ -19,17 +19,17 @@ func (c *initCmd) showByDefault() bool {
 
 func (c *initCmd) usage() string {
 	return gettext.Gettext(
-		"Initialize a container from a particular image.\n" +
-			"\n" +
-			"lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
-			"\n" +
-			"Initializes a container using the specified image and name.\n" +
-			"\n" +
-			"Not specifying -p will result in the default profile.\n" +
-			"Specifying \"-p\" with no argument will result in no profile.\n" +
-			"\n" +
-			"Example:\n" +
-			"lxc init ubuntu u1\n")
+		`Initialize a container from a particular image.
+
+lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]
+
+Initializes a container using the specified image and name.
+
+Not specifying -p will result in the default profile.
+Specifying "-p" with no argument will result in no profile.
+
+Example:
+lxc init ubuntu u1`)
 }
 
 type profileList []string

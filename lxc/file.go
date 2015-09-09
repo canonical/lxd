@@ -31,14 +31,14 @@ func (c *fileCmd) showByDefault() bool {
 
 func (c *fileCmd) usage() string {
 	return gettext.Gettext(
-		"Manage files on a container.\n" +
-			"\n" +
-			"lxc file pull <source> [<source>...] <target>\n" +
-			"lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>\n" +
-			"lxc file edit <file>\n" +
-			"\n" +
-			"<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>\n" +
-			"This operation is only supported on containers that are currently running\n")
+		`Manage files on a container.
+
+lxc file pull <source> [<source>...] <target>
+lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
+lxc file edit <file>
+
+<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>
+This operation is only supported on containers that are currently running`)
 }
 
 func (c *fileCmd) flags() {

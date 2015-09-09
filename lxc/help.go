@@ -22,9 +22,9 @@ func (c *helpCmd) showByDefault() bool {
 
 func (c *helpCmd) usage() string {
 	return gettext.Gettext(
-		"Presents details on how to use LXD.\n" +
-			"\n" +
-			"lxd help [--all]\n")
+		`Presents details on how to use LXD.
+
+lxd help [--all]`)
 }
 
 var showAll bool

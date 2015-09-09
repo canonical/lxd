@@ -28,54 +28,55 @@ func (c *configCmd) showByDefault() bool {
 }
 
 var configEditHelp string = gettext.Gettext(
-	"### This is a yaml representation of the configuration.\n" +
-		"### Any line starting with a '# will be ignored.\n" +
-		"###\n" +
-		"### A sample configuration looks like:\n" +
-		"### name: container1\n" +
-		"### profiles:\n" +
-		"### - default\n" +
-		"### config:\n" +
-		"###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n" +
-		"### devices:\n" +
-		"###   homedir:\n" +
-		"###     path: /extra\n" +
-		"###     source: /home/user\n" +
-		"###     type: disk\n" +
-		"### ephemeral: false\n" +
-		"###\n" +
-		"### Note that the name is shown but cannot be changed\n")
+	`### This is a yaml representation of the configuration.
+### Any line starting with a '# will be ignored.
+###
+### A sample configuration looks like:
+### name: container1
+### profiles:
+### - default
+### config:
+###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f
+### devices:
+###   homedir:
+###     path: /extra
+###     source: /home/user
+###     type: disk
+### ephemeral: false
+###
+### Note that the name is shown but cannot be changed`)
 
 func (c *configCmd) usage() string {
 	return gettext.Gettext(
-		"Manage configuration.\n" +
-			"\n" +
-			"lxc config device add <[remote:]container> <name> <type> [key=value]...\n" +
-			"               Add a device to a container\n" +
-			"lxc config device list [remote:]<container>            List devices for container\n" +
-			"lxc config device show [remote:]<container>            Show full device details for container\n" +
-			"lxc config device remove [remote:]<container> <name>   Remove device from container\n" +
-			"lxc config edit [remote:]<container>                   Edit container configuration in external editor\n" +
-			"lxc config get [remote:]<container> key                Get configuration key\n" +
-			"lxc config set [remote:]<container> key value          Set container configuration key\n" +
-			"lxc config unset [remote:]<container> key              Unset container configuration key\n" +
-			"lxc config set key value                               Set server configuration key\n" +
-			"lxc config unset key                                   Unset server configuration key\n" +
-			"lxc config show [remote:]<container>                   Show container configuration\n" +
-			"lxc config trust list [remote]                         List all trusted certs.\n" +
-			"lxc config trust add [remote] <certfile.crt>           Add certfile.crt to trusted hosts.\n" +
-			"lxc config trust remove [remote] [hostname|fingerprint]\n" +
-			"               Remove the cert from trusted hosts.\n" +
-			"\n" +
-			"Examples:\n" +
-			"To mount host's /share/c1 onto /opt in the container:\n" +
-			"\tlxc config device add [remote:]container1 <device-name> disk source=/share/c1 path=opt\n" +
-			"To set an lxc config value:\n" +
-			"\tlxc config set [remote:]<container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n" +
-			"To listen on IPv4 and IPv6 port 8443 (you can omit the 8443 its the default):\n" +
-			"\tlxc config set core.https_address [::]:8443\n" +
-			"To set the server trust password:\n" +
-			"\tlxc config set core.trust_password blah\n")
+		`Manage configuration.
+
+lxc config device add <[remote:]container> <name> <type> [key=value]...     Add a device to a container.
+lxc config device list [remote:]<container>                                 List devices for container.
+lxc config device show [remote:]<container>                                 Show full device details for container.
+lxc config device remove [remote:]<container> <name>                        Remove device from container.
+lxc config edit [remote:]<container>                                        Edit container configuration in external editor.
+lxc config get [remote:]<container> key                                     Get configuration key.
+lxc config set [remote:]<container> key value                               Set container configuration key.
+lxc config unset [remote:]<container> key                                   Unset container configuration key.
+lxc config set key value                                                    Set server configuration key.
+lxc config unset key                                                        Unset server configuration key.
+lxc config show [remote:]<container>                                        Show container configuration.
+lxc config trust list [remote]                                              List all trusted certs.
+lxc config trust add [remote] <certfile.crt>                                Add certfile.crt to trusted hosts.
+lxc config trust remove [remote] [hostname|fingerprint]                     Remove the cert from trusted hosts.
+
+Examples:
+To mount host's /share/c1 onto /opt in the container:
+   lxc config device add [remote:]container1 <device-name> disk source=/share/c1 path=opt
+
+To set an lxc config value:
+    lxc config set [remote:]<container> raw.lxc 'lxc.aa_allow_incomplete = 1'
+
+To listen on IPv4 and IPv6 port 8443 (you can omit the 8443 its the default):
+    lxc config set core.https_address [::]:8443
+
+To set the server trust password:
+    lxc config set core.trust_password blah`)
 }
 
 func (c *configCmd) flags() {}

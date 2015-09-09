@@ -68,7 +68,9 @@ update-po:
 	done
 
 update-pot:
-	xgettext -d $(DOMAIN) -s client.go lxc/*.go -o po/$(DOMAIN).pot -L vala -i --keyword=Gettext
+	go get -v -x launchpad.net/~snappy-dev/snappy/snappy/i18n/xgettext-go/
+	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --no-location --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxd-devel@lists.linuxcontainers.org --keyword=gettext.Gettext --keyword-plural=gettext.NGettext *.go shared/*.go lxc/*.go lxd/*.go
+
 
 build-mo: $(MOFILES)
 

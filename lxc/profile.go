@@ -25,51 +25,51 @@ func (c *profileCmd) showByDefault() bool {
 }
 
 var profileEditHelp string = gettext.Gettext(
-	"### This is a yaml representation of the profile.\n" +
-		"### Any line starting with a '# will be ignored.\n" +
-		"###\n" +
-		"### A profile consists of a set of configuration items followed by a set of\n" +
-		"### devices.\n" +
-		"###\n" +
-		"### An example would look like:\n" +
-		"### name: onenic\n" +
-		"### config:\n" +
-		"###   raw.lxc: lxc.aa_profile=unconfined\n" +
-		"### devices:\n" +
-		"###   eth0:\n" +
-		"###     nictype: bridged\n" +
-		"###     parent: lxcbr0\n" +
-		"###     type: nic\n" +
-		"###\n" +
-		"### Note that the name is shown but cannot be changed\n")
+	`### This is a yaml representation of the profile.
+### Any line starting with a '# will be ignored.
+###
+### A profile consists of a set of configuration items followed by a set of
+### devices.
+###
+### An example would look like:
+### name: onenic
+### config:
+###   raw.lxc: lxc.aa_profile=unconfined
+### devices:
+###   eth0:
+###     nictype: bridged
+###     parent: lxcbr0
+###     type: nic
+###
+### Note that the name is shown but cannot be changed`)
 
 func (c *profileCmd) usage() string {
 	return gettext.Gettext(
-		"Manage configuration profiles.\n" +
-			"\n" +
-			"lxc profile list [filters]                     List available profiles\n" +
-			"lxc profile show <profile>                     Show details of a profile\n" +
-			"lxc profile create <profile>                   Create a profile\n" +
-			"lxc profile edit <profile>                     Edit profile in external editor\n" +
-			"lxc profile copy <profile> <remote>            Copy the profile to the specified remote\n" +
-			"lxc profile set <profile> <key> <value>        Set profile configuration\n" +
-			"lxc profile delete <profile>                   Delete a profile\n" +
-			"lxc profile apply <container> <profiles>\n" +
-			"    Apply a comma-separated list of profiles to a container, in order.\n" +
-			"    All profiles passed in this call (and only those) will be applied\n" +
-			"    to the specified container.\n" +
-			"    Example: lxc profile apply foo default,bar # Apply default and bar\n" +
-			"             lxc profile apply foo default # Only default is active\n" +
-			"             lxc profile apply '' # no profiles are applied anymore\n" +
-			"             lxc profile apply bar,default # Apply default second now\n" +
-			"\n" +
-			"Devices:\n" +
-			"lxc profile device list <profile>              List devices in the given profile.\n" +
-			"lxc profile device show <profile>              Show full device details in the given profile.\n" +
-			"lxc profile device remove <profile> <name>     Remove a device from a profile.\n" +
-			"lxc profile device add <profile name> <device name> <device type> [key=value]...\n" +
-			"    Add a profile device, such as a disk or a nic, to the containers\n" +
-			"    using the specified profile.\n")
+		`Manage configuration profiles.
+
+lxc profile list [filters]                     List available profiles.
+lxc profile show <profile>                     Show details of a profile.
+lxc profile create <profile>                   Create a profile.
+lxc profile edit <profile>                     Edit profile in external editor.
+lxc profile copy <profile> <remote>            Copy the profile to the specified remote.
+lxc profile set <profile> <key> <value>        Set profile configuration.
+lxc profile delete <profile>                   Delete a profile.
+lxc profile apply <container> <profiles>
+    Apply a comma-separated list of profiles to a container, in order.
+    All profiles passed in this call (and only those) will be applied
+    to the specified container.
+    Example: lxc profile apply foo default,bar # Apply default and bar
+             lxc profile apply foo default # Only default is active
+             lxc profile apply '' # no profiles are applied anymore
+             lxc profile apply bar,default # Apply default second now
+
+Devices:
+lxc profile device list <profile>              List devices in the given profile.
+lxc profile device show <profile>              Show full device details in the given profile.
+lxc profile device remove <profile> <name>     Remove a device from a profile.
+lxc profile device add <profile name> <device name> <device type> [key=value]...
+    Add a profile device, such as a disk or a nic, to the containers
+    using the specified profile.`)
 }
 
 func (c *profileCmd) flags() {}

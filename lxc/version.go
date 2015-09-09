@@ -17,9 +17,9 @@ func (c *versionCmd) showByDefault() bool {
 
 func (c *versionCmd) usage() string {
 	return gettext.Gettext(
-		"Prints the version number of LXD.\n" +
-			"\n" +
-			"lxc version\n")
+		`Prints the version number of LXD.
+
+lxc version`)
 }
 
 func (c *versionCmd) flags() {

@@ -22,9 +22,9 @@ func (c *copyCmd) showByDefault() bool {
 
 func (c *copyCmd) usage() string {
 	return gettext.Gettext(
-		"Copy containers within or in between lxd instances.\n" +
-			"\n" +
-			"lxc copy [remote:]<source container> [remote:]<destination container>\n")
+		`Copy containers within or in between lxd instances.
+
+lxc copy [remote:]<source container> [remote:]<destination container>`)
 }
 
 func (c *copyCmd) flags() {}

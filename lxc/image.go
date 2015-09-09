@@ -27,38 +27,37 @@ func (c *imageCmd) showByDefault() bool {
 }
 
 var imageEditHelp string = gettext.Gettext(
-	"### This is a yaml representation of the image properties.\n" +
-		"### Any line starting with a '# will be ignored.\n" +
-		"###\n" +
-		"### Each property is represented by a single line:\n" +
-		"### An example would be:\n" +
-		"###  description: My custom image\n")
+	`### This is a yaml representation of the image properties.
+### Any line starting with a '# will be ignored.
+###
+### Each property is represented by a single line:
+### An example would be:
+###  description: My custom image`)
 
 func (c *imageCmd) usage() string {
 	return gettext.Gettext(
-		"Manipulate container images\n" +
-			"\n" +
-			"lxc image import <tarball> [rootfs tarball] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]\n" +
-			"\n" +
-			"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-alias] [--public]\n" +
-			"lxc image delete [remote:]<image>\n" +
-			"lxc image edit [remote:]<image>\n" +
-			"lxc image export [remote:]<image>\n" +
-			"lxc image info [remote:]<image>\n" +
-			"lxc image list [remote:] [filter]\n" +
-			"lxc image show [remote:]<image>\n" +
-			"\n" +
-			"Lists the images at specified remote, or local images.\n" +
-			"Filters are not yet supported.\n" +
-			"\n" +
-			"lxc image alias create <alias> <target>\n" +
-			"lxc image alias delete <alias>\n" +
-			"lxc image alias list [remote:]\n" +
-			"\n" +
-			"Create, delete, list image aliases. Example:\n" +
-			"\n" +
-			"lxc remote add store2 images.linuxcontainers.org\n" +
-			"lxc image alias list store2:\n")
+		`Manipulate container images
+
+lxc image import <tarball> [rootfs tarball] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
+
+lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-alias] [--public]
+lxc image delete [remote:]<image>
+lxc image edit [remote:]<image>
+lxc image export [remote:]<image>
+lxc image info [remote:]<image>
+lxc image list [remote:] [filter]
+lxc image show [remote:]<image>
+
+Lists the images at specified remote, or local images.
+Filters are not yet supported.
+
+lxc image alias create <alias> <target>
+lxc image alias delete <alias>
+lxc image alias list [remote:]
+
+Create, delete, list image aliases. Example:
+lxc remote add store2 images.linuxcontainers.org
+lxc image alias list store2:`)
 }
 
 type aliasList []string
