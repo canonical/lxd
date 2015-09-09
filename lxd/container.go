@@ -473,6 +473,34 @@ func (c *containerLXD) init() error {
 		}
 	}
 
+	if c.IsNesting() {
+		shared.Debugf("Setting up %s for nesting", c.name)
+		orig := c.c.ConfigItem("lxc.mount.auto")
+		auto := ""
+		if len(orig) == 1 {
+			auto = orig[0]
+		}
+		if !strings.Contains(auto, "cgroup") {
+			auto = fmt.Sprintf("%s %s", auto, "cgroup:mixed")
+			err = c.c.SetConfigItem("lxc.mount.auto", auto)
+			if err != nil {
+				return err
+			}
+		}
+		/*
+		 * mount extra /proc and /sys to work around kernel
+		 * restrictions on remounting them when covered
+		 */
+		err = c.c.SetConfigItem("lxc.mount.entry", "proc dev/.lxc/proc proc create=dir,optional")
+		if err != nil {
+			return err
+		}
+		err = c.c.SetConfigItem("lxc.mount.entry", "sys dev/.lxc/sys sysfs create=dir,optional")
+		if err != nil {
+			return err
+		}
+	}
+
 	if err := c.c.SetConfigItem("lxc.rootfs", c.RootfsPathGet()); err != nil {
 		return err
 	}
@@ -489,8 +517,19 @@ func (c *containerLXD) init() error {
 		return err
 	}
 
+	/*
+	 * Until stacked apparmor profiles are possible, we have to run nested
+	 * containers unconfined
+	 */
 	if aaEnabled {
-		if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileName(c)); err != nil {
+		if aaConfined() {
+			curProfile := aaProfile()
+			shared.Debugf("Running %s in current profile %s (nested container)", c.name, curProfile)
+			curProfile = strings.TrimSuffix(curProfile, " (enforce)")
+			if err := c.c.SetConfigItem("lxc.aa_profile", curProfile); err != nil {
+				return err
+			}
+		} else if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileName(c)); err != nil {
 			return err
 		}
 	}
@@ -697,6 +736,16 @@ func (c *containerLXD) Reboot() error {
 
 func (c *containerLXD) Freeze() error {
 	return c.c.Freeze()
+}
+
+func (c *containerLXD) IsNesting() bool {
+	switch strings.ToLower(c.config["security.nesting"]) {
+	case "1":
+		return true
+	case "true":
+		return true
+	}
+	return false
 }
 
 func (c *containerLXD) IsPrivileged() bool {
