@@ -7,7 +7,7 @@ The following table shows which operations are optimized for each backend:
 
 | Storage Type | Image Create | Container Create                                            | Container Local Copy                  | Snapshot Create          | Remote Copy                               |
 |--------------|--------------|-------------------------------------------------------------|---------------------------------------|--------------------------|-------------------------------------------|
-| LVM          |              | uses LV snapshot from image (creates image LV if necessary) | TODO (throws error)                   | TODO (throws error)      | rsync                                     |
+| LVM          |              | uses LV thin snapshot from image (creates image thin LV if necessary) | creates read-write LV thin snapshot if source is snapshot, creates new thin LV and copies via rsync otherwise. | creates read-only LV thin snapshot                | rsync                                     |
 | btrfs        |              | creates subvol of image (creates image subvol if necessary) | subvol-snapshot if source is snapshot | readonly subvol-snapshot | TODO - rsync, should use btrfs primitives |
 |              |              |                                                             |                                       |                          |                                           |
 
