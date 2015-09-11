@@ -234,16 +234,18 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 
 	idmaps := make([]*IDMapType, 0)
 
-	for _, ctnIdmap := range s.idmapset.Idmap {
-		idmap := IDMapType{
-			Isuid:    proto.Bool(ctnIdmap.Isuid),
-			Isgid:    proto.Bool(ctnIdmap.Isgid),
-			Hostid:   proto.Int(ctnIdmap.Hostid),
-			Nsid:     proto.Int(ctnIdmap.Nsid),
-			Maprange: proto.Int(ctnIdmap.Maprange),
-		}
+	if s.idmapset != nil {
+		for _, ctnIdmap := range s.idmapset.Idmap {
+			idmap := IDMapType{
+				Isuid:    proto.Bool(ctnIdmap.Isuid),
+				Isgid:    proto.Bool(ctnIdmap.Isgid),
+				Hostid:   proto.Int(ctnIdmap.Hostid),
+				Nsid:     proto.Int(ctnIdmap.Nsid),
+				Maprange: proto.Int(ctnIdmap.Maprange),
+			}
 
-		idmaps = append(idmaps, &idmap)
+			idmaps = append(idmaps, &idmap)
+		}
 	}
 
 	header := MigrationHeader{
