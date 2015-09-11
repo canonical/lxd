@@ -112,7 +112,7 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 
 	for _, cinfo := range cinfos {
 		cstate := cinfo.State
-		d := []string{cstate.Name, cstate.Status.Status}
+		d := []string{cstate.Name, strings.ToUpper(cstate.Status.Status)}
 
 		if !shouldShow(filters, &cstate) {
 			continue

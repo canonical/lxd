@@ -129,7 +129,7 @@ test_remote_usage() {
   lxc launch localhost:testimage lxd2:c1
 
   # make sure it is running
-  lxc list lxd2: | grep c1 | grep Running
+  lxc list lxd2: | grep c1 | grep RUNNING
   lxc info lxd2:c1
   lxc stop lxd2:c1 --force
   lxc delete lxd2:c1
