@@ -13,7 +13,7 @@ test_concurrent() {
     name=concurrent-${1}
 
     lxc launch testimage ${name}
-    lxc list ${name} | grep Running
+    lxc list ${name} | grep RUNNING
     echo abc | lxc exec ${name} -- cat | grep abc
     lxc stop ${name} --force
     lxc delete ${name}

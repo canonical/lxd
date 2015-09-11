@@ -38,8 +38,8 @@ test_basic_usage() {
 
   # Test container creation
   lxc init testimage foo
-  lxc list | grep foo | grep Stopped
-  lxc list fo | grep foo | grep Stopped
+  lxc list | grep foo | grep STOPPED
+  lxc list fo | grep foo | grep STOPPED
 
   # Test container rename
   lxc move foo bar
@@ -91,7 +91,7 @@ test_basic_usage() {
 
   # Test randomly named container creation
   lxc init testimage
-  RDNAME=$(lxc list | grep Stopped | cut -d' ' -f2)
+  RDNAME=$(lxc list | grep STOPPED | cut -d' ' -f2)
   lxc delete $RDNAME
 
   # Test "nonetype" container creation
@@ -112,7 +112,7 @@ test_basic_usage() {
 
   # Create and start a container
   lxc launch testimage foo
-  lxc list | grep foo | grep Running
+  lxc list | grep foo | grep RUNNING
   lxc stop foo --force  # stop is hanging
 
   # cycle it a few times
