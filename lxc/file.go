@@ -112,6 +112,8 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 				return err
 			}
 		}
+
+		defer file.Close()
 		files = append(files, file)
 	}
 
