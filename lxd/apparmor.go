@@ -66,7 +66,6 @@ func runApparmor(command string, profile string) error {
 // Ensure that the container's policy is loaded into the kernel so the
 // container can boot.
 func AALoadProfile(c *containerLXD) error {
-
 	if !aaEnabled {
 		shared.Log.Debug("Apparmor not enabled, skipping profile load")
 		return nil
