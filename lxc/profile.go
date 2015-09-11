@@ -148,6 +148,7 @@ func doProfileEdit(client *lxd.Client, p string) error {
 		if err != nil {
 			return err
 		}
+		newdata.Name = p
 		return client.PutProfile(p, newdata)
 	}
 
@@ -194,6 +195,7 @@ func doProfileEdit(client *lxd.Client, p string) error {
 		}
 		newdata := shared.ProfileConfig{}
 		err = yaml.Unmarshal(contents, &newdata)
+		newdata.Name = p
 		if err != nil {
 			fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v\n"), err)
 			fmt.Printf("Press enter to play again ")
@@ -205,9 +207,12 @@ func doProfileEdit(client *lxd.Client, p string) error {
 			continue
 		}
 		err = client.PutProfile(p, newdata)
+		if err != nil {
+			return err
+		}
 		break
 	}
-	return err
+	return nil
 }
 
 func doProfileDelete(client *lxd.Client, p string) error {
