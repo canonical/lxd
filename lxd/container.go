@@ -295,6 +295,15 @@ func containerLXDCreateInternal(
 			"container":  name,
 			"isSnapshot": args.Ctype == cTypeSnapshot})
 
+	/* liblxc tries to connect to $container/command via a unix socket.
+	 * struct sockaddr_un's sun_path is 108 characters, null terminated, so
+	 * anything longer than that will fail in typically unusual and
+	 * sometimes hard to debug ways.
+	 */
+	if len(shared.VarPath("containers", name, "command")) > 107 {
+		return nil, fmt.Errorf("Total container path name too long. Consider an alternate LXD_DIR or shorter container name.")
+	}
+
 	if args.Ctype != cTypeSnapshot {
 		if err := validContainerName(name); err != nil {
 			return nil, err
