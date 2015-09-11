@@ -338,6 +338,8 @@ func ValidContainerConfigKey(k string) bool {
 		return true
 	case "security.privileged":
 		return true
+	case "security.nesting":
+		return true
 	case "raw.apparmor":
 		return true
 	case "raw.lxc":

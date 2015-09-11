@@ -143,6 +143,9 @@ func run() error {
 			"fs not mounted. AppArmor disabled.")
 	}
 
+	/* Can we create devices? */
+	checkCanMknod()
+
 	if *printGoroutines > 0 {
 		go func() {
 			for {
