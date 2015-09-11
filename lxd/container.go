@@ -489,8 +489,10 @@ func (c *containerLXD) init() error {
 		return err
 	}
 
-	if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileName(c)); err != nil {
-		return err
+	if aaEnabled {
+		if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileName(c)); err != nil {
+			return err
+		}
 	}
 
 	if err := c.c.SetConfigItem("lxc.seccomp", SeccompProfilePath(c)); err != nil {
