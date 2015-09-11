@@ -192,8 +192,8 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 			if err != nil {
 				return err
 			}
+			defer f.Close()
 		}
-		defer f.Close()
 
 		_, err = io.Copy(f, buf)
 		if err != nil {
