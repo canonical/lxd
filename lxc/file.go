@@ -103,9 +103,14 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 	 * push any of them. */
 	var files []*os.File
 	for _, f := range sourcefilenames {
-		file, err := os.Open(f)
-		if err != nil {
-			return err
+		var file *os.File
+		if f == "-" {
+			file = os.Stdin
+		} else {
+			file, err = os.Open(f)
+			if err != nil {
+				return err
+			}
 		}
 		files = append(files, file)
 	}
@@ -144,14 +149,11 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 	 *      should be a directory so we can save all the files into it.
 	 */
 	if err == nil {
-
 		targetIsDir = sb.IsDir()
 		if !targetIsDir && len(args)-1 > 1 {
 			return fmt.Errorf(gettext.Gettext("More than one file to download, but target is not a directory"))
 		}
-
 	} else if strings.HasSuffix(target, string(os.PathSeparator)) || len(args)-1 > 1 {
-
 		if err := os.MkdirAll(target, 0755); err != nil {
 			return err
 		}
@@ -182,9 +184,14 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 			targetPath = target
 		}
 
-		f, err := os.Create(targetPath)
-		if err != nil {
-			return err
+		var f *os.File
+		if targetPath == "-" {
+			f = os.Stdout
+		} else {
+			f, err = os.Create(targetPath)
+			if err != nil {
+				return err
+			}
 		}
 		defer f.Close()
 
