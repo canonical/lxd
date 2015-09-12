@@ -434,6 +434,10 @@ func (c *migrationSink) do() error {
 		srcIdmap := new(shared.IdmapSet)
 		dstIdmap := c.IdmapSet
 
+		if dstIdmap == nil {
+			dstIdmap = new(shared.IdmapSet)
+		}
+
 		if c.live {
 			var err error
 			imagesDir, err = ioutil.TempDir("", "lxd_migration_")
