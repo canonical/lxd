@@ -82,7 +82,7 @@ var copyAliases bool = false
 func (c *imageCmd) flags() {
 	gnuflag.BoolVar(&publicImage, "public", false, gettext.Gettext("Make image public"))
 	gnuflag.BoolVar(&copyAliases, "copy-aliases", false, gettext.Gettext("Copy aliases from source"))
-	gnuflag.Var(&addAliases, "alias", "New alias to define at target")
+	gnuflag.Var(&addAliases, "alias", gettext.Gettext("New alias to define at target"))
 }
 
 func doImageAlias(config *lxd.Config, args []string) error {
@@ -211,31 +211,31 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf(gettext.Gettext("Fingerprint: %s\n"), info.Fingerprint)
-		public := "no"
+		fmt.Printf(gettext.Gettext("Fingerprint: %s")+"\n", info.Fingerprint)
+		public := gettext.Gettext("no")
 		if info.Public == 1 {
-			public = "yes"
+			public = gettext.Gettext("yes")
 		}
-		fmt.Printf(gettext.Gettext("Size: %.2vMB\n"), float64(info.Size)/1024.0/1024.0)
+		fmt.Printf(gettext.Gettext("Size: %.2vMB")+"\n", float64(info.Size)/1024.0/1024.0)
 		arch, _ := shared.ArchitectureName(info.Architecture)
-		fmt.Printf(gettext.Gettext("Architecture: %s\n"), arch)
-		fmt.Printf(gettext.Gettext("Public: %s\n"), public)
-		fmt.Printf(gettext.Gettext("Timestamps:\n"))
+		fmt.Printf(gettext.Gettext("Architecture: %s")+"\n", arch)
+		fmt.Printf(gettext.Gettext("Public: %s")+"\n", public)
+		fmt.Printf(gettext.Gettext("Timestamps:") + "\n")
 		const layout = "2006/01/02 15:04 UTC"
 		if info.CreationDate != 0 {
-			fmt.Printf("    Created: %s\n", time.Unix(info.CreationDate, 0).UTC().Format(layout))
+			fmt.Printf("    "+gettext.Gettext("Created: %s")+"\n", time.Unix(info.CreationDate, 0).UTC().Format(layout))
 		}
-		fmt.Printf("    Uploaded: %s\n", time.Unix(info.UploadDate, 0).UTC().Format(layout))
+		fmt.Printf("    "+gettext.Gettext("Uploaded: %s")+"\n", time.Unix(info.UploadDate, 0).UTC().Format(layout))
 		if info.ExpiryDate != 0 {
-			fmt.Printf("    Expires: %s\n", time.Unix(info.ExpiryDate, 0).UTC().Format(layout))
+			fmt.Printf("    "+gettext.Gettext("Expires: %s")+"\n", time.Unix(info.ExpiryDate, 0).UTC().Format(layout))
 		} else {
-			fmt.Printf("    Expires: never\n")
+			fmt.Printf("    " + gettext.Gettext("Expires: never") + "\n")
 		}
-		fmt.Printf(gettext.Gettext("Properties:\n"))
+		fmt.Println(gettext.Gettext("Properties:"))
 		for key, value := range info.Properties {
 			fmt.Printf("    %s: %s\n", key, value)
 		}
-		fmt.Printf(gettext.Gettext("Aliases:\n"))
+		fmt.Println(gettext.Gettext("Aliases:"))
 		for _, alias := range info.Aliases {
 			fmt.Printf("    - %s\n", alias.Name)
 		}
@@ -282,7 +282,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		fmt.Printf(gettext.Gettext("Image imported with fingerprint: %s\n"), fingerprint)
+		fmt.Printf(gettext.Gettext("Image imported with fingerprint: %s")+"\n", fingerprint)
 
 		return nil
 
@@ -383,8 +383,8 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			newdata := shared.ImageProperties{}
 			err = yaml.Unmarshal(contents, &newdata)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v\n"), err)
-				fmt.Printf("Press enter to play again ")
+				fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v")+"\n", err)
+				fmt.Println(gettext.Gettext("Press enter to open the editor again"))
 				_, err := os.Stdin.Read(make([]byte, 1))
 				if err != nil {
 					return err
@@ -424,7 +424,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if target != "-" {
-			fmt.Printf("Output is in %s\n", outfile)
+			fmt.Printf(gettext.Gettext("Output is in %s")+"\n", outfile)
 		}
 		return nil
 
@@ -495,13 +495,13 @@ func showImages(images []shared.ImageInfo) error {
 	for _, image := range images {
 		shortest := shortestAlias(image.Aliases)
 		if len(image.Aliases) > 1 {
-			shortest = fmt.Sprintf("%s (%d more)", shortest, len(image.Aliases)-1)
+			shortest = fmt.Sprintf(gettext.Gettext("%s (%d more)"), shortest, len(image.Aliases)-1)
 		}
 		fp := image.Fingerprint[0:12]
-		public := "no"
+		public := gettext.Gettext("no")
 		description := findDescription(image.Properties)
 		if image.Public == 1 {
-			public = "yes"
+			public = gettext.Gettext("yes")
 		}
 		const layout = "Jan 2, 2006 at 3:04pm (MST)"
 		uploaded := time.Unix(image.UploadDate, 0).Format(layout)
@@ -511,7 +511,13 @@ func showImages(images []shared.ImageInfo) error {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(50)
-	table.SetHeader([]string{"ALIAS", "FINGERPRINT", "PUBLIC", "DESCRIPTION", "ARCH", "UPLOAD DATE"})
+	table.SetHeader([]string{
+		gettext.Gettext("ALIAS"),
+		gettext.Gettext("FINGERPRINT"),
+		gettext.Gettext("PUBLIC"),
+		gettext.Gettext("DESCRIPTION"),
+		gettext.Gettext("ARCH"),
+		gettext.Gettext("UPLOAD DATE")})
 	sort.Sort(ByName(data))
 	table.AppendBulk(data)
 	table.Render()
@@ -526,7 +532,9 @@ func showAliases(aliases []shared.ImageAlias) error {
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"ALIAS", "FINGERPRINT"})
+	table.SetHeader([]string{
+		gettext.Gettext("ALIAS"),
+		gettext.Gettext("FINGERPRINT")})
 
 	for _, v := range data {
 		table.Append(v)

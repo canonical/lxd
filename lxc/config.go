@@ -185,7 +185,11 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			}
 
 			table := tablewriter.NewWriter(os.Stdout)
-			table.SetHeader([]string{"FINGERPRINT", "COMMON NAME", "ISSUE DATE", "EXPIRY DATE"})
+			table.SetHeader([]string{
+				gettext.Gettext("FINGERPRINT"),
+				gettext.Gettext("COMMON NAME"),
+				gettext.Gettext("ISSUE DATE"),
+				gettext.Gettext("EXPIRY DATE")})
 
 			for _, v := range data {
 				table.Append(v)
@@ -390,8 +394,8 @@ func doConfigEdit(client *lxd.Client, cont string) error {
 		newdata := shared.BriefContainerState{}
 		err = yaml.Unmarshal(contents, &newdata)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v\n"), err)
-			fmt.Printf("Press enter to play again ")
+			fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v")+"\n", err)
+			fmt.Println(gettext.Gettext("Press enter to start the editor again"))
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
 				return err
@@ -434,7 +438,7 @@ func deviceAdd(config *lxd.Config, which string, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf(gettext.Gettext("Device %s added to %s\n"), devname, name)
+	fmt.Printf(gettext.Gettext("Device %s added to %s")+"\n", devname, name)
 	if which == "profile" {
 		return nil
 	}
@@ -462,7 +466,7 @@ func deviceRm(config *lxd.Config, which string, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf(gettext.Gettext("Device %s removed from %s\n"), devname, name)
+	fmt.Printf(gettext.Gettext("Device %s removed from %s")+"\n", devname, name)
 	if which == "profile" {
 		return nil
 	}
@@ -513,7 +517,6 @@ func deviceShow(config *lxd.Config, which string, args []string) error {
 		}
 
 		devices = resp.Devices
-
 	} else {
 		resp, err := client.ContainerStatus(name)
 		if err != nil {

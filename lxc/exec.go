@@ -44,7 +44,7 @@ func (f *envFlag) Set(value string) error {
 var envArgs envFlag
 
 func (c *execCmd) flags() {
-	gnuflag.Var(&envArgs, "env", "An environment variable of the form HOME=/home/foo")
+	gnuflag.Var(&envArgs, "env", gettext.Gettext("An environment variable of the form HOME=/home/foo"))
 }
 
 func (c *execCmd) run(config *lxd.Config, args []string) error {

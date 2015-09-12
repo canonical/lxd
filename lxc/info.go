@@ -41,7 +41,7 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 		cName = ""
 	}
 	if cName == "" {
-		fmt.Printf(gettext.Gettext("Information about remotes not yet supported\n"))
+		fmt.Println(gettext.Gettext("Information about remotes not yet supported"))
 		return errArgs
 	}
 
@@ -54,11 +54,11 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	fmt.Printf("Name: %s\n", ct.Name)
-	fmt.Printf("Status: %s\n", ct.Status.Status)
+	fmt.Printf(gettext.Gettext("Name: %s")+"\n", ct.Name)
+	fmt.Printf(gettext.Gettext("Status: %s")+"\n", ct.Status.Status)
 	if ct.Status.Init != 0 {
-		fmt.Printf("Init: %d\n", ct.Status.Init)
-		fmt.Printf("Ips:\n")
+		fmt.Printf(gettext.Gettext("Init: %d")+"\n", ct.Status.Init)
+		fmt.Printf(gettext.Gettext("Ips:") + "\n")
 		foundone := false
 		for _, ip := range ct.Status.Ips {
 			vethStr := ""
@@ -70,7 +70,7 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 			foundone = true
 		}
 		if !foundone {
-			fmt.Printf("(none)\n")
+			fmt.Println(gettext.Gettext("(none)"))
 		}
 	}
 
@@ -82,7 +82,7 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	}
 	for _, snap := range snaps {
 		if first_snapshot {
-			fmt.Printf("Snapshots:\n")
+			fmt.Println(gettext.Gettext("Snapshots:"))
 		}
 		fmt.Printf("  %s\n", snap)
 		first_snapshot = false
@@ -99,7 +99,7 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		fmt.Printf("\nLog:\n\n%s\n", string(stuff))
+		fmt.Printf("\n"+gettext.Gettext("Log:")+"\n\n%s\n", string(stuff))
 	}
 
 	return nil

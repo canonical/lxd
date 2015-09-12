@@ -38,7 +38,7 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 		for _, name := range args {
 			cmd, ok := commands[name]
 			if !ok {
-				fmt.Fprintf(os.Stderr, gettext.Gettext("error: unknown command: %s\n"), name)
+				fmt.Fprintf(os.Stderr, gettext.Gettext("error: unknown command: %s")+"\n", name)
 			} else {
 				fmt.Fprintf(os.Stderr, cmd.usage())
 			}
@@ -46,7 +46,8 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 		return nil
 	}
 
-	fmt.Println(gettext.Gettext("Usage: lxc [subcommand] [options]\nAvailable commands:\n"))
+	fmt.Println(gettext.Gettext("Usage: lxc [subcommand] [options]"))
+	fmt.Println(gettext.Gettext("Available commands:"))
 	var names []string
 	for name := range commands {
 		names = append(names, name)

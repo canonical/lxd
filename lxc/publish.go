@@ -28,7 +28,7 @@ var makePublic bool
 
 func (c *publishCmd) flags() {
 	gnuflag.BoolVar(&makePublic, "public", false, gettext.Gettext("Make the image public"))
-	gnuflag.Var(&pAliases, "alias", "New alias to define at target")
+	gnuflag.Var(&pAliases, "alias", gettext.Gettext("New alias to define at target"))
 }
 
 func (c *publishCmd) run(config *lxd.Config, args []string) error {
@@ -83,7 +83,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 	fp, err := d.ImageFromContainer(cName, makePublic, pAliases, properties)
 
 	if err == nil {
-		fmt.Printf("Container published with fingerprint %s\n", fp)
+		fmt.Printf(gettext.Gettext("Container published with fingerprint %s")+"\n", fp)
 	}
 	return err
 }

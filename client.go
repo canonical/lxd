@@ -590,7 +590,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 			dest.DeleteAlias(alias.Name)
 			err = dest.PostAlias(alias.Name, alias.Description, info.Fingerprint)
 			if err != nil {
-				fmt.Printf(gettext.Gettext("Error adding alias %s\n"), alias.Name)
+				fmt.Printf(gettext.Gettext("Error adding alias %s")+"\n", alias.Name)
 			}
 		}
 	}
@@ -600,7 +600,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		dest.DeleteAlias(alias)
 		err = dest.PostAlias(alias, alias, info.Fingerprint)
 		if err != nil {
-			fmt.Printf(gettext.Gettext("Error adding alias %s\n"), alias)
+			fmt.Printf(gettext.Gettext("Error adding alias %s")+"\n", alias)
 		}
 	}
 
@@ -814,7 +814,7 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 			if eqIndex > -1 {
 				imgProps.Set(value[:eqIndex], value[eqIndex+1:])
 			} else {
-				return "", fmt.Errorf(gettext.Gettext("Bad image property: %s\n"), value)
+				return "", fmt.Errorf(gettext.Gettext("Bad image property: %s"), value)
 			}
 
 		}
@@ -847,7 +847,7 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		c.DeleteAlias(alias)
 		err = c.PostAlias(alias, alias, fingerprint)
 		if err != nil {
-			fmt.Printf(gettext.Gettext("Error adding alias %s\n"), alias)
+			fmt.Printf(gettext.Gettext("Error adding alias %s")+"\n", alias)
 		}
 	}
 
@@ -935,8 +935,8 @@ func (c *Client) UserAuthServerCert(name string, acceptCert bool) error {
 	})
 	if err != nil {
 		if acceptCert == false {
-			fmt.Printf(gettext.Gettext("Certificate fingerprint: % x\n"), c.scertDigest)
-			fmt.Printf(gettext.Gettext("ok (y/n)? "))
+			fmt.Printf(gettext.Gettext("Certificate fingerprint: %x")+"\n", c.scertDigest)
+			fmt.Printf(gettext.Gettext("ok (y/n)?") + " ")
 			line, err := shared.ReadStdin()
 			if err != nil {
 				return err
@@ -1734,14 +1734,14 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 	for _, p := range props {
 		results := strings.SplitN(p, "=", 2)
 		if len(results) != 2 {
-			return nil, fmt.Errorf(gettext.Gettext("no value found in %q\n"), p)
+			return nil, fmt.Errorf(gettext.Gettext("no value found in %q"), p)
 		}
 		k := results[0]
 		v := results[1]
 		newdev[k] = v
 	}
 	if st.Devices != nil && st.Devices.ContainsName(devname) {
-		return nil, fmt.Errorf(gettext.Gettext("device already exists\n"))
+		return nil, fmt.Errorf(gettext.Gettext("device already exists"))
 	}
 	newdev["type"] = devtype
 	if st.Devices == nil {
@@ -1791,14 +1791,14 @@ func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []stri
 	for _, p := range props {
 		results := strings.SplitN(p, "=", 2)
 		if len(results) != 2 {
-			return nil, fmt.Errorf(gettext.Gettext("no value found in %q\n"), p)
+			return nil, fmt.Errorf(gettext.Gettext("no value found in %q"), p)
 		}
 		k := results[0]
 		v := results[1]
 		newdev[k] = v
 	}
 	if st.Devices != nil && st.Devices.ContainsName(devname) {
-		return nil, fmt.Errorf(gettext.Gettext("device already exists\n"))
+		return nil, fmt.Errorf(gettext.Gettext("device already exists"))
 	}
 	newdev["type"] = devtype
 	if st.Devices == nil {
@@ -1878,7 +1878,7 @@ func (c *Client) ImageFromContainer(cname string, public bool, aliases []string,
 		c.DeleteAlias(alias)
 		err = c.PostAlias(alias, alias, fingerprint)
 		if err != nil {
-			fmt.Printf(gettext.Gettext("Error adding alias %s\n"), alias)
+			fmt.Printf(gettext.Gettext("Error adding alias %s")+"\n", alias)
 		}
 	}
 

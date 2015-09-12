@@ -124,14 +124,14 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 	case "show":
 		return doProfileShow(client, profile)
 	default:
-		return fmt.Errorf("unknown profile cmd %s", args[0])
+		return fmt.Errorf(gettext.Gettext("unknown profile cmd %s"), args[0])
 	}
 }
 
 func doProfileCreate(client *lxd.Client, p string) error {
 	err := client.ProfileCreate(p)
 	if err == nil {
-		fmt.Printf(gettext.Gettext("Profile %s created\n"), p)
+		fmt.Printf(gettext.Gettext("Profile %s created")+"\n", p)
 	}
 	return err
 }
@@ -197,8 +197,8 @@ func doProfileEdit(client *lxd.Client, p string) error {
 		err = yaml.Unmarshal(contents, &newdata)
 		newdata.Name = p
 		if err != nil {
-			fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v\n"), err)
-			fmt.Printf("Press enter to play again ")
+			fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v")+"\n", err)
+			fmt.Println(gettext.Gettext("Press enter to open the editor again"))
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
 				return err
@@ -218,7 +218,7 @@ func doProfileEdit(client *lxd.Client, p string) error {
 func doProfileDelete(client *lxd.Client, p string) error {
 	err := client.ProfileDelete(p)
 	if err == nil {
-		fmt.Printf(gettext.Gettext("Profile %s deleted\n"), p)
+		fmt.Printf(gettext.Gettext("Profile %s deleted")+"\n", p)
 	}
 	return err
 }
@@ -227,9 +227,9 @@ func doProfileApply(client *lxd.Client, c string, p string) error {
 	resp, err := client.ApplyProfile(c, p)
 	if err == nil {
 		if p == "" {
-			p = "(none)"
+			p = gettext.Gettext("(none)")
 		}
-		fmt.Printf(gettext.Gettext("Profile %s applied to %s\n"), p, c)
+		fmt.Printf(gettext.Gettext("Profile %s applied to %s")+"\n", p, c)
 	} else {
 		return err
 	}

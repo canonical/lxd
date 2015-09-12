@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2015-09-11 15:55+0100\n"
+"POT-Creation-Date: 2015-09-12 16:05+0100\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -65,8 +65,22 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-msgid "'/' not allowed in snapshot name\n"
+#, c-format
+msgid "%s (%d more)"
+msgstr ""
+
+#, fuzzy
+msgid "'/' not allowed in snapshot name"
 msgstr "'/' n'est pas autorisé dans le nom d'un instantané (snapshot)\n"
+
+msgid "(none)"
+msgstr ""
+
+msgid "ALIAS"
+msgstr ""
+
+msgid "ARCH"
+msgstr ""
 
 msgid "Accept certificate"
 msgstr ""
@@ -75,19 +89,28 @@ msgstr ""
 msgid "Admin password for %s: "
 msgstr "Mot de passe administrateur pour %s: "
 
-msgid "Aliases:\n"
+msgid "Aliases:"
 msgstr ""
 
 msgid "Alternate config directory."
 msgstr "Dossier de configuration alternatif."
 
+msgid "An environment variable of the form HOME=/home/foo"
+msgstr ""
+
 #, c-format
-msgid "Architecture: %s\n"
+msgid "Architecture: %s"
+msgstr ""
+
+msgid "Available commands:"
 msgstr ""
 
 #, fuzzy, c-format
-msgid "Bad image property: %s\n"
+msgid "Bad image property: %s"
 msgstr "(Image invalide: %s\n"
+
+msgid "COMMON NAME"
+msgstr ""
 
 msgid "Cannot change profile name"
 msgstr ""
@@ -95,8 +118,8 @@ msgstr ""
 msgid "Cannot provide container name to list"
 msgstr ""
 
-#, c-format
-msgid "Certificate fingerprint: % x\n"
+#, fuzzy, c-format
+msgid "Certificate fingerprint: %x"
 msgstr "Empreinte du certificat: % x\n"
 
 #, fuzzy, c-format
@@ -109,11 +132,15 @@ msgstr "Change l'état du conteneur à %s.\n"
 msgid "Client certificate stored at server: "
 msgstr "Certificat client enregistré avec le serveur: "
 
-msgid "Connection refused; is LXD running?\n"
+msgid "Connection refused; is LXD running?"
 msgstr ""
 
 msgid "Container name is mandatory"
 msgstr ""
+
+#, fuzzy, c-format
+msgid "Container published with fingerprint %s"
+msgstr "Empreinte du certificat: % x\n"
 
 msgid "Copy aliases from source"
 msgstr ""
@@ -134,6 +161,20 @@ msgid ""
 "lxc snapshot [remote:]<source> <snapshot name> [--stateful]"
 msgstr "Prend un instantané (snapshot) en lecture seule d'un conteneur.\n"
 
+#, c-format
+msgid "Created: %s"
+msgstr ""
+
+msgid "Creating"
+msgstr ""
+
+#, c-format
+msgid "Creating %s"
+msgstr ""
+
+msgid "DESCRIPTION"
+msgstr ""
+
 msgid ""
 "Delete containers or container snapshots.\n"
 "\n"
@@ -145,11 +186,17 @@ msgid ""
 msgstr ""
 
 #, c-format
-msgid "Device %s added to %s\n"
+msgid "Device %s added to %s"
 msgstr ""
 
 #, c-format
-msgid "Device %s removed from %s\n"
+msgid "Device %s removed from %s"
+msgstr ""
+
+msgid "EPHEMERAL"
+msgstr ""
+
+msgid "EXPIRY DATE"
 msgstr ""
 
 msgid "Enables debug mode."
@@ -162,7 +209,7 @@ msgid "Ephemeral container"
 msgstr ""
 
 #, c-format
-msgid "Error adding alias %s\n"
+msgid "Error adding alias %s"
 msgstr ""
 
 #, fuzzy
@@ -172,8 +219,18 @@ msgid ""
 "lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>"
 msgstr "Exécute la commande spécifiée dans un conteneur.\n"
 
+#, c-format
+msgid "Expires: %s"
+msgstr ""
+
+msgid "Expires: never"
+msgstr ""
+
+msgid "FINGERPRINT"
+msgstr ""
+
 #, fuzzy, c-format
-msgid "Fingerprint: %s\n"
+msgid "Fingerprint: %s"
 msgstr "Empreinte du certificat: % x\n"
 
 #, fuzzy
@@ -183,28 +240,43 @@ msgid ""
 "lxc finger <remote>"
 msgstr "Contacte LXD pour voir s'il est fonctionel.\n"
 
-msgid "For example: 'lxd-images import ubuntu --alias ubuntu'.\n"
+msgid "For example: 'lxd-images import ubuntu --alias ubuntu'."
 msgstr ""
 
 msgid "Force the container to shutdown."
 msgstr "Force l'arrêt du conteneur."
 
-msgid "Generating a client certificate. This may take a minute...\n"
+#, fuzzy
+msgid "Generating a client certificate. This may take a minute..."
 msgstr "Géneration d'un certificat client. Ceci peut prendre une minute...\n"
+
+msgid "IPV4"
+msgstr ""
+
+msgid "IPV6"
+msgstr ""
+
+msgid "ISSUE DATE"
+msgstr ""
 
 msgid ""
 "If this is your first run, you will need to import images using the 'lxd-"
-"images' script.\n"
+"images' script."
 msgstr ""
 
 #, fuzzy, c-format
-msgid "Image imported with fingerprint: %s\n"
+msgid "Image imported with fingerprint: %s"
 msgstr "Empreinte du certificat: % x\n"
 
-msgid "Information about remotes not yet supported\n"
+#, fuzzy
+msgid "Information about remotes not yet supported"
 msgstr ""
 "Il n'est pas encore possible d'obtenir de l'information sur un serveur "
 "distant\n"
+
+#, c-format
+msgid "Init: %d"
+msgstr ""
 
 msgid ""
 "Initialize a container from a particular image.\n"
@@ -229,7 +301,10 @@ msgstr "Source invalide %s"
 msgid "Invalid target %s"
 msgstr "Destination invalide %s"
 
-msgid "LXD socket not found; is LXD running?\n"
+msgid "Ips:"
+msgstr ""
+
+msgid "LXD socket not found; is LXD running?"
 msgstr ""
 
 msgid ""
@@ -270,6 +345,9 @@ msgid ""
 "* \"u.blah=abc\" will do the same\n"
 "* \"security.privileged=1\" will list all privileged containers\n"
 "* \"s.privileged=1\" will do the same"
+msgstr ""
+
+msgid "Log:"
 msgstr ""
 
 msgid "Make image public"
@@ -440,6 +518,19 @@ msgid ""
 "lxc move [remote:]<source container> [remote:]<destination container>"
 msgstr ""
 
+msgid "NAME"
+msgstr ""
+
+msgid "NO"
+msgstr ""
+
+#, c-format
+msgid "Name: %s"
+msgstr ""
+
+msgid "New alias to define at target"
+msgstr ""
+
 msgid "No cert provided to add"
 msgstr "Un certificat n'a pas été fournis"
 
@@ -453,7 +544,14 @@ msgstr "Aucune empreinte n'a été spécifié."
 msgid "Options:"
 msgstr "Opération %s"
 
-msgid "Permisson denied, are you in the lxd group?\n"
+#, c-format
+msgid "Output is in %s"
+msgstr ""
+
+msgid "PUBLIC"
+msgstr ""
+
+msgid "Permisson denied, are you in the lxd group?"
 msgstr ""
 
 #, fuzzy
@@ -462,6 +560,12 @@ msgid ""
 "\n"
 "lxd help [--all]"
 msgstr "Explique comment utiliser LXD.\n"
+
+msgid "Press enter to open the editor again"
+msgstr ""
+
+msgid "Press enter to start the editor again"
+msgstr ""
 
 msgid "Print debug information."
 msgstr ""
@@ -480,25 +584,28 @@ msgid ""
 msgstr "Montre le numéro de version de LXD.\n"
 
 #, c-format
-msgid "Profile %s applied to %s\n"
+msgid "Profile %s applied to %s"
 msgstr ""
 
 #, c-format
-msgid "Profile %s created\n"
+msgid "Profile %s created"
 msgstr ""
 
 #, c-format
-msgid "Profile %s deleted\n"
+msgid "Profile %s deleted"
 msgstr ""
 
-msgid "Properties:\n"
+msgid "Profile to apply to the new container"
+msgstr ""
+
+msgid "Properties:"
 msgstr ""
 
 msgid "Public image server"
 msgstr ""
 
 #, c-format
-msgid "Public: %s\n"
+msgid "Public: %s"
 msgstr ""
 
 msgid ""
@@ -515,6 +622,12 @@ msgstr ""
 "distant\n"
 
 msgid "Remote admin password"
+msgstr ""
+
+msgid "SNAPSHOTS"
+msgstr ""
+
+msgid "STATE"
 msgstr ""
 
 msgid "Server certificate NACKed by user"
@@ -553,10 +666,21 @@ msgid "Show the container's last 100 log lines?"
 msgstr ""
 
 #, c-format
-msgid "Size: %.2vMB\n"
+msgid "Size: %.2vMB"
+msgstr ""
+
+msgid "Snapshots:"
 msgstr ""
 
 msgid "Split images can only be written to a directory."
+msgstr ""
+
+#, c-format
+msgid "Starting %s"
+msgstr ""
+
+#, c-format
+msgid "Status: %s"
 msgstr ""
 
 msgid "Stopping container failed!"
@@ -574,7 +698,13 @@ msgstr ""
 msgid "Time to wait for the container before killing it."
 msgstr "Temps d'attente avant de tuer le conteneur."
 
-msgid "Timestamps:\n"
+msgid "Timestamps:"
+msgstr ""
+
+msgid "UPLOAD DATE"
+msgstr ""
+
+msgid "URL"
 msgstr ""
 
 #, c-format
@@ -590,20 +720,19 @@ msgid "Unkonwn config trust command %s"
 msgstr "Comande de configuration de confiance inconnue %s"
 
 #, c-format
-msgid ""
-"Usage: %s\n"
-"\n"
-"Options:\n"
-"\n"
+msgid "Uploaded: %s"
+msgstr ""
+
+#, fuzzy, c-format
+msgid "Usage: %s"
 msgstr ""
 "Utilisation: %s\n"
 "\n"
 "Options:\n"
 "\n"
 
-msgid ""
-"Usage: lxc [subcommand] [options]\n"
-"Available commands:\n"
+#, fuzzy
+msgid "Usage: lxc [subcommand] [options]"
 msgstr ""
 "Utilisation: lxc [sous commande] [options]\n"
 "Comande disponibles:\n"
@@ -626,10 +755,16 @@ msgstr ""
 "l'instantané (snapshot)"
 
 #, fuzzy, c-format
-msgid "YAML parse error %v\n"
+msgid "YAML parse error %v"
 msgstr "erreur: %v\n"
 
+msgid "YES"
+msgstr ""
+
 msgid "You must provide an image hash or alias name."
+msgstr ""
+
+msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
 
 msgid "allocation failed"
@@ -666,27 +801,26 @@ msgid "cannot resolve unix socket address: %v"
 msgstr "Ne peut pas résoudre l'adresse du unix socket: %v"
 
 #, fuzzy
-msgid "device already exists\n"
+msgid "device already exists"
 msgstr "le serveur distant %s existe déjà"
 
 #, fuzzy
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr "N'a pas pû obtenir de resource du serveur"
 
-#, fuzzy, c-format
-msgid "error: %v\n"
+msgid "done."
+msgstr ""
+
+#, fuzzy
+msgid "error."
 msgstr "erreur: %v\n"
 
 #, fuzzy, c-format
-msgid ""
-"error: %v\n"
-"%s\n"
-msgstr ""
-"erreur: %v\n"
-"%s"
+msgid "error: %v"
+msgstr "erreur: %v\n"
 
-#, c-format
-msgid "error: unknown command: %s\n"
+#, fuzzy, c-format
+msgid "error: unknown command: %s"
 msgstr "erreur: comande inconnue: %s\n"
 
 #, c-format
@@ -716,17 +850,21 @@ msgstr "Arguments invalides %s"
 msgid "invalid wait url %s"
 msgstr "URL d'attente invalide %s"
 
+msgid "no"
+msgstr ""
+
 msgid "no response!"
 msgstr "pas de réponse!"
 
 #, c-format
-msgid "no value found in %q\n"
+msgid "no value found in %q"
 msgstr ""
 
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
-msgid "ok (y/n)? "
+#, fuzzy
+msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
 #, c-format
@@ -745,6 +883,10 @@ msgstr "le serveur distant %s existe en tant que <%s>"
 msgid "unknown group %s"
 msgstr "serveur distant inconnu: %q"
 
+#, fuzzy, c-format
+msgid "unknown profile cmd %s"
+msgstr "Comande de configuration inconue %s"
+
 #, c-format
 msgid "unknown remote name: %q"
 msgstr "serveur distant inconnu: %q"
@@ -759,8 +901,19 @@ msgstr "Un retour inacessible à été atteint"
 msgid "wrong number of subcommand arguments"
 msgstr "nombre d'argument incorrect pour la sous-comande"
 
+msgid "yes"
+msgstr ""
+
 msgid "you must specify a source container name"
 msgstr ""
+
+#, fuzzy
+#~ msgid ""
+#~ "error: %v\n"
+#~ "%s\n"
+#~ msgstr ""
+#~ "erreur: %v\n"
+#~ "%s"
 
 #, fuzzy
 #~ msgid "Show for remotes is not yet supported\n"
@@ -845,9 +998,6 @@ msgstr ""
 
 #~ msgid "Only 'password' can be set currently"
 #~ msgstr "Seul 'password' peut être configuré en ce moment"
-
-#~ msgid "Unknown config command %s"
-#~ msgstr "Comande de configuration inconue %s"
 
 #~ msgid ""
 #~ "lxc image import <tarball> [target] [--created-at=ISO-8601] [--expires-"
