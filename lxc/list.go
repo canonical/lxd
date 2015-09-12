@@ -141,9 +141,9 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 			d = append(d, "")
 		}
 		if cstate.Ephemeral {
-			d = append(d, "YES")
+			d = append(d, gettext.Gettext("YES"))
 		} else {
-			d = append(d, "NO")
+			d = append(d, gettext.Gettext("NO"))
 		}
 		// List snapshots
 		csnaps := cinfo.Snaps
@@ -153,7 +153,13 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"NAME", "STATE", "IPV4", "IPV6", "EPHEMERAL", "SNAPSHOTS"})
+	table.SetHeader([]string{
+		gettext.Gettext("NAME"),
+		gettext.Gettext("STATE"),
+		gettext.Gettext("IPV4"),
+		gettext.Gettext("IPV6"),
+		gettext.Gettext("EPHEMERAL"),
+		gettext.Gettext("SNAPSHOTS")})
 	sort.Sort(ByName(data))
 	table.AppendBulk(data)
 	table.Render()
@@ -163,7 +169,7 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 		first_snapshot := true
 		for _, snap := range csnaps {
 			if first_snapshot {
-				fmt.Printf("Snapshots:\n")
+				fmt.Println(gettext.Gettext("Snapshots:"))
 			}
 			fmt.Printf("  %s\n", snap)
 			first_snapshot = false

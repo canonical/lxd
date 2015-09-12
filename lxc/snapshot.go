@@ -49,7 +49,7 @@ func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
 
 	// we don't allow '/' in snapshot names
 	if shared.IsSnapshot(snapname) {
-		return fmt.Errorf(gettext.Gettext("'/' not allowed in snapshot name\n"))
+		return fmt.Errorf(gettext.Gettext("'/' not allowed in snapshot name"))
 	}
 
 	resp, err := d.Snapshot(name, snapname, c.stateful)
