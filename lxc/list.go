@@ -35,17 +35,17 @@ func (c *listCmd) showByDefault() bool {
 
 func (c *listCmd) usage() string {
 	return gettext.Gettext(
-		"Lists the available resources.\n" +
-			"\n" +
-			"lxc list [resource] [filters]\n" +
-			"\n" +
-			"The filters are:\n" +
-			"* A single keyword like \"web\" which will list any container with \"web\" in its name.\n" +
-			"* A key/value pair referring to a configuration item. For those, the namespace can be abreviated to the smallest unambiguous identifier:\n" +
-			"* \"user.blah=abc\" will list all containers with the \"blah\" user property set to \"abc\"\n" +
-			"* \"u.blah=abc\" will do the same\n" +
-			"* \"security.privileged=1\" will list all privileged containers\n" +
-			"* \"s.privileged=1\" will do the same\n")
+		`Lists the available resources.
+
+lxc list [resource] [filters]
+
+The filters are:
+* A single keyword like "web" which will list any container with "web" in its name.
+* A key/value pair referring to a configuration item. For those, the namespace can be abreviated to the smallest unambiguous identifier:
+* "user.blah=abc" will list all containers with the "blah" user property set to "abc"
+* "u.blah=abc" will do the same
+* "security.privileged=1" will list all privileged containers
+* "s.privileged=1" will do the same`)
 }
 
 func (c *listCmd) flags() {}
@@ -141,9 +141,9 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 			d = append(d, "")
 		}
 		if cstate.Ephemeral {
-			d = append(d, "YES")
+			d = append(d, gettext.Gettext("YES"))
 		} else {
-			d = append(d, "NO")
+			d = append(d, gettext.Gettext("NO"))
 		}
 		// List snapshots
 		csnaps := cinfo.Snaps
@@ -153,7 +153,13 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"NAME", "STATE", "IPV4", "IPV6", "EPHEMERAL", "SNAPSHOTS"})
+	table.SetHeader([]string{
+		gettext.Gettext("NAME"),
+		gettext.Gettext("STATE"),
+		gettext.Gettext("IPV4"),
+		gettext.Gettext("IPV6"),
+		gettext.Gettext("EPHEMERAL"),
+		gettext.Gettext("SNAPSHOTS")})
 	sort.Sort(ByName(data))
 	table.AppendBulk(data)
 	table.Render()
@@ -163,7 +169,7 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 		first_snapshot := true
 		for _, snap := range csnaps {
 			if first_snapshot {
-				fmt.Printf("Snapshots:\n")
+				fmt.Println(gettext.Gettext("Snapshots:"))
 			}
 			fmt.Printf("  %s\n", snap)
 			first_snapshot = false

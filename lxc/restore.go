@@ -20,9 +20,9 @@ func (c *restoreCmd) showByDefault() bool {
 
 func (c *restoreCmd) usage() string {
 	return gettext.Gettext(
-		"Set the current state of a resource back to what it was when it was snapshotted.\n" +
-			"\n" +
-			"lxc restore [remote:]<resource> <snapshot name> [--stateful]\n")
+		`Set the current state of a resource back to what it was when it was snapshotted.
+
+lxc restore [remote:]<resource> <snapshot name> [--stateful]`)
 }
 
 func (c *restoreCmd) flags() {

@@ -19,17 +19,17 @@ func (c *initCmd) showByDefault() bool {
 
 func (c *initCmd) usage() string {
 	return gettext.Gettext(
-		"Initialize a container from a particular image.\n" +
-			"\n" +
-			"lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
-			"\n" +
-			"Initializes a container using the specified image and name.\n" +
-			"\n" +
-			"Not specifying -p will result in the default profile.\n" +
-			"Specifying \"-p\" with no argument will result in no profile.\n" +
-			"\n" +
-			"Example:\n" +
-			"lxc init ubuntu u1\n")
+		`Initialize a container from a particular image.
+
+lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]
+
+Initializes a container using the specified image and name.
+
+Not specifying -p will result in the default profile.
+Specifying "-p" with no argument will result in no profile.
+
+Example:
+lxc init ubuntu u1`)
 }
 
 type profileList []string
@@ -99,8 +99,8 @@ func massage_args() {
 
 func (c *initCmd) flags() {
 	massage_args()
-	gnuflag.Var(&profArgs, "profile", "Profile to apply to the new container")
-	gnuflag.Var(&profArgs, "p", "Profile to apply to the new container")
+	gnuflag.Var(&profArgs, "profile", gettext.Gettext("Profile to apply to the new container"))
+	gnuflag.Var(&profArgs, "p", gettext.Gettext("Profile to apply to the new container"))
 	gnuflag.BoolVar(&ephem, "ephemeral", false, gettext.Gettext("Ephemeral container"))
 	gnuflag.BoolVar(&ephem, "e", false, gettext.Gettext("Ephemeral container"))
 }
@@ -139,9 +139,9 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 
 	var resp *lxd.Response
 	if name == "" {
-		fmt.Printf("Creating ")
+		fmt.Printf(gettext.Gettext("Creating") + " ")
 	} else {
-		fmt.Printf("Creating %s ", name)
+		fmt.Printf(gettext.Gettext("Creating %s")+" ", name)
 	}
 	if !requested_empty_profiles && len(profiles) == 0 {
 		resp, err = d.Init(name, iremote, image, nil, ephem)
@@ -155,16 +155,16 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 
 	err = d.WaitForSuccess(resp.Operation)
 	if err != nil {
-		fmt.Println("error.")
+		fmt.Println(gettext.Gettext("error."))
 		return err
 	} else {
 		containers := resp.Resources["containers"]
 
 		if len(containers) == 1 && name == "" {
 			cname := path.Base(containers[0])
-			fmt.Println(cname, "done.")
+			fmt.Println(cname, gettext.Gettext("done."))
 		} else {
-			fmt.Println("done.")
+			fmt.Println(gettext.Gettext("done."))
 		}
 	}
 	return nil
