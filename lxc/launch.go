@@ -19,23 +19,23 @@ func (c *launchCmd) showByDefault() bool {
 
 func (c *launchCmd) usage() string {
 	return gettext.Gettext(
-		"Launch a container from a particular image.\n" +
-			"\n" +
-			"lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n" +
-			"\n" +
-			"Launches a container using the specified image and name.\n" +
-			"\n" +
-			"Not specifying -p will result in the default profile.\n" +
-			"Specifying \"-p\" with no argument will result in no profile.\n" +
-			"\n" +
-			"Example:\n" +
-			"lxc launch ubuntu u1\n")
+		`Launch a container from a particular image.
+
+lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]
+
+Launches a container using the specified image and name.
+
+Not specifying -p will result in the default profile.
+Specifying "-p" with no argument will result in no profile.
+
+Example:
+lxc launch ubuntu u1`)
 }
 
 func (c *launchCmd) flags() {
 	massage_args()
-	gnuflag.Var(&profArgs, "profile", "Profile to apply to the new container")
-	gnuflag.Var(&profArgs, "p", "Profile to apply to the new container")
+	gnuflag.Var(&profArgs, "profile", gettext.Gettext("Profile to apply to the new container"))
+	gnuflag.Var(&profArgs, "p", gettext.Gettext("Profile to apply to the new container"))
 	gnuflag.BoolVar(&ephem, "ephemeral", false, gettext.Gettext("Ephemeral container"))
 	gnuflag.BoolVar(&ephem, "e", false, gettext.Gettext("Ephemeral container"))
 }
@@ -104,14 +104,14 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf(gettext.Gettext("got bad version"))
 		}
 	}
-	fmt.Printf("Creating %s ", name)
+	fmt.Printf(gettext.Gettext("Creating %s")+" ", name)
 
 	if err = d.WaitForSuccess(resp.Operation); err != nil {
 		return err
 	}
-	fmt.Println("done.")
+	fmt.Println(gettext.Gettext("done."))
 
-	fmt.Printf("Starting %s ", name)
+	fmt.Printf(gettext.Gettext("Starting %s")+" ", name)
 	resp, err = d.Action(name, shared.Start, -1, false)
 	if err != nil {
 		return err
@@ -119,9 +119,9 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 
 	err = d.WaitForSuccess(resp.Operation)
 	if err != nil {
-		fmt.Println("error.")
+		fmt.Println(gettext.Gettext("error."))
 	} else {
-		fmt.Println("done.")
+		fmt.Println(gettext.Gettext("done."))
 	}
 
 	return err

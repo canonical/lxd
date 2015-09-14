@@ -20,9 +20,9 @@ func (c *snapshotCmd) showByDefault() bool {
 
 func (c *snapshotCmd) usage() string {
 	return gettext.Gettext(
-		"Create a read-only snapshot of a container.\n" +
-			"\n" +
-			"lxc snapshot [remote:]<source> <snapshot name> [--stateful]\n")
+		`Create a read-only snapshot of a container.
+
+lxc snapshot [remote:]<source> <snapshot name> [--stateful]`)
 }
 
 func (c *snapshotCmd) flags() {
@@ -49,7 +49,7 @@ func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
 
 	// we don't allow '/' in snapshot names
 	if shared.IsSnapshot(snapname) {
-		return fmt.Errorf(gettext.Gettext("'/' not allowed in snapshot name\n"))
+		return fmt.Errorf(gettext.Gettext("'/' not allowed in snapshot name"))
 	}
 
 	resp, err := d.Snapshot(name, snapname, c.stateful)

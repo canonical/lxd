@@ -65,10 +65,13 @@ po/%.po: po/$(DOMAIN).pot
 update-po:
 	-for lang in $(LINGUAS); do\
 	    msgmerge -U $$lang.po po/$(DOMAIN).pot; \
+	    rm -f $$lang.po~; \
 	done
 
 update-pot:
-	xgettext -d $(DOMAIN) -s client.go lxc/*.go -o po/$(DOMAIN).pot -L vala -i --keyword=Gettext
+	go get -v -x launchpad.net/~snappy-dev/snappy/snappy/i18n/xgettext-go/
+	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxc-devel@lists.linuxcontainers.org --keyword=gettext.Gettext --keyword-plural=gettext.NGettext *.go shared/*.go lxc/*.go lxd/*.go
+
 
 build-mo: $(MOFILES)
 

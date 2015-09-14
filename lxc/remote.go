@@ -30,15 +30,15 @@ func (c *remoteCmd) showByDefault() bool {
 
 func (c *remoteCmd) usage() string {
 	return gettext.Gettext(
-		"Manage remote LXD servers.\n" +
-			"\n" +
-			"lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD] [--public]    Add the remote <name> at <url>.\n" +
-			"lxc remote remove <name>                                                               Remove the remote <name>.\n" +
-			"lxc remote list                                                                        List all remotes.\n" +
-			"lxc remote rename <old> <new>                                                          Rename remote <old> to <new>.\n" +
-			"lxc remote set-url <name> <url>                                                        Update <name>'s url to <url>.\n" +
-			"lxc remote set-default <name>                                                          Set the default remote.\n" +
-			"lxc remote get-default                                                                 Print the default remote.\n")
+		`Manage remote LXD servers.
+
+lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD] [--public]    Add the remote <name> at <url>.
+lxc remote remove <name>                                                               Remove the remote <name>.
+lxc remote list                                                                        List all remotes.
+lxc remote rename <old> <new>                                                          Rename remote <old> to <new>.
+lxc remote set-url <name> <url>                                                        Update <name>'s url to <url>.
+lxc remote set-default <name>                                                          Set the default remote.
+lxc remote get-default                                                                 Print the default remote.`)
 }
 
 func (c *remoteCmd) flags() {
@@ -157,7 +157,7 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 				return err
 			}
 		}
-		fmt.Printf("\n")
+		fmt.Println("")
 		password = string(pwd)
 	}
 
@@ -176,7 +176,7 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 
 func removeCertificate(remote string) {
 	certf := lxd.ServerCertPath(remote)
-	shared.Debugf("Trying to remove %s\n", certf)
+	shared.Debugf("Trying to remove %s", certf)
 
 	os.Remove(certf)
 }
@@ -223,14 +223,17 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		data := [][]string{}
 		for name, rc := range config.Remotes {
 			if rc.Public {
-				data = append(data, []string{name, rc.Addr, "YES"})
+				data = append(data, []string{name, rc.Addr, gettext.Gettext("YES")})
 			} else {
-				data = append(data, []string{name, rc.Addr, "NO"})
+				data = append(data, []string{name, rc.Addr, gettext.Gettext("NO")})
 			}
 		}
 
 		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"NAME", "URL", "PUBLIC"})
+		table.SetHeader([]string{
+			gettext.Gettext("NAME"),
+			gettext.Gettext("URL"),
+			gettext.Gettext("PUBLIC")})
 		sort.Sort(ByName(data))
 		table.AppendBulk(data)
 		table.Render()

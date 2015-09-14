@@ -21,9 +21,9 @@ func (c *execCmd) showByDefault() bool {
 
 func (c *execCmd) usage() string {
 	return gettext.Gettext(
-		"Execute the specified command in a container.\n" +
-			"\n" +
-			"lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>\n")
+		`Execute the specified command in a container.
+
+lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>`)
 }
 
 type envFlag []string
@@ -44,7 +44,7 @@ func (f *envFlag) Set(value string) error {
 var envArgs envFlag
 
 func (c *execCmd) flags() {
-	gnuflag.Var(&envArgs, "env", "An environment variable of the form HOME=/home/foo")
+	gnuflag.Var(&envArgs, "env", gettext.Gettext("An environment variable of the form HOME=/home/foo"))
 }
 
 func (c *execCmd) run(config *lxd.Config, args []string) error {

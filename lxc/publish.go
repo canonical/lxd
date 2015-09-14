@@ -18,9 +18,9 @@ func (c *publishCmd) showByDefault() bool {
 
 func (c *publishCmd) usage() string {
 	return gettext.Gettext(
-		"Publish containers as images.\n" +
-			"\n" +
-			"lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]...\n")
+		`Publish containers as images.
+
+lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]...`)
 }
 
 var pAliases aliasList // aliasList defined in lxc/image.go
@@ -28,7 +28,7 @@ var makePublic bool
 
 func (c *publishCmd) flags() {
 	gnuflag.BoolVar(&makePublic, "public", false, gettext.Gettext("Make the image public"))
-	gnuflag.Var(&pAliases, "alias", "New alias to define at target")
+	gnuflag.Var(&pAliases, "alias", gettext.Gettext("New alias to define at target"))
 }
 
 func (c *publishCmd) run(config *lxd.Config, args []string) error {
@@ -83,7 +83,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 	fp, err := d.ImageFromContainer(cName, makePublic, pAliases, properties)
 
 	if err == nil {
-		fmt.Printf("Container published with fingerprint %s\n", fp)
+		fmt.Printf(gettext.Gettext("Container published with fingerprint %s")+"\n", fp)
 	}
 	return err
 }
