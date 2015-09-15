@@ -29,7 +29,7 @@ client:
 # it's not a default build step.
 .PHONY: protobuf
 protobuf:
-	protoc --go_out=. ./lxd/migration/migrate.proto
+	protoc --go_out=. ./lxd/migrate.proto
 
 .PHONY: check
 check: default
