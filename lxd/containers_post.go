@@ -124,24 +124,13 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 			return shared.OperationError(err)
 		}
 
-		lxContainer, err := c.LXContainerGet()
-		if err != nil {
-			c.Delete()
-			return shared.OperationError(err)
-		}
-		idmapset, err := c.IdmapSetGet()
-		if err != nil {
-			c.Delete()
-			return shared.OperationError(err)
-		}
 		args := MigrationSinkArgs{
 			Url: req.Source.Operation,
 			Dialer: websocket.Dialer{
 				TLSClientConfig: config,
 				NetDial:         shared.RFC3493Dialer},
-			Container: lxContainer,
+			Container: c,
 			Secrets:   req.Source.Websockets,
-			IdMapSet:  idmapset,
 		}
 
 		sink, err := NewMigrationSink(&args)

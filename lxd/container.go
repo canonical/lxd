@@ -157,6 +157,9 @@ type container interface {
 	TemplateApply(trigger string) error
 	ExportToTar(snap string, w io.Writer) error
 
+	Checkpoint(opts lxc.CheckpointOptions) error
+	StartFromMigration(imagesDir string) error
+
 	// TODO: Remove every use of this and remove it.
 	LXContainerGet() (*lxc.Container, error)
 
@@ -254,15 +257,9 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 			return nil, fmt.Errorf("Container not running\n")
 		}
 		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
-		source, err := sourceContainer.LXContainerGet()
-		if err != nil {
-			c.Delete()
-			return nil, err
-		}
-
-		err = source.Checkpoint(opts)
-		err2 := CollectCRIULogFile(source, stateDir, "snapshot", "dump")
-		if err != nil {
+		err = sourceContainer.Checkpoint(opts)
+		err2 := CollectCRIULogFile(sourceContainer, stateDir, "snapshot", "dump")
+		if err2 != nil {
 			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
 		}
 
@@ -1877,4 +1874,51 @@ func (c *containerLXD) mountShared() error {
 		}
 	}
 	return c.c.SetConfigItem("lxc.mount.entry", entry)
+}
+
+func (c *containerLXD) Checkpoint(opts lxc.CheckpointOptions) error {
+	return c.c.Checkpoint(opts)
+}
+
+func (c *containerLXD) StartFromMigration(imagesDir string) error {
+	f, err := ioutil.TempFile("", "lxd_lxc_migrateconfig_")
+	if err != nil {
+		return err
+	}
+
+	if err = f.Chmod(0600); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return err
+	}
+	f.Close()
+	os.Remove(f.Name())
+
+	if err := c.c.SaveConfigFile(f.Name()); err != nil {
+		return err
+	}
+
+	/* (Re)Load the AA profile; we set it in the container's config above
+	 * in init()
+	 */
+	if err := AALoadProfile(c); err != nil {
+		c.StorageStop()
+		return err
+	}
+
+	if err := SeccompCreateProfile(c); err != nil {
+		c.StorageStop()
+		return err
+	}
+
+	cmd := exec.Command(
+		os.Args[0],
+		"forkmigrate",
+		c.name,
+		c.c.ConfigPath(),
+		f.Name(),
+		imagesDir,
+	)
+
+	return cmd.Run()
 }
