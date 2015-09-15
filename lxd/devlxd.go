@@ -353,10 +353,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 			return nil, err
 		}
 
-		initpid, err := c.InitPidGet()
-		if err != nil {
-			return nil, err
-		}
+		initpid := c.InitPidGet()
 		pidNs, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/pid", initpid))
 		if err != nil {
 			return nil, err

@@ -5,6 +5,7 @@ lxd-*.tar.gz
 .vagrant
 test/devlxd-client
 *~
+tags
 
 # For Atom ctags
 .tags

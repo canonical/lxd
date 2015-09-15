@@ -26,7 +26,6 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -149,17 +148,20 @@ type container interface {
 	StateDirGet() string
 	LogFilePathGet() string
 	LogPathGet() string
-	InitPidGet() (int, error)
+	InitPidGet() int
 	StateGet() string
 
-	IdmapSetGet() (*shared.IdmapSet, error)
+	IdmapSetGet() *shared.IdmapSet
 	LastIdmapSetGet() (*shared.IdmapSet, error)
 
 	TemplateApply(trigger string) error
 	ExportToTar(snap string, w io.Writer) error
 
+	Checkpoint(opts lxc.CheckpointOptions) error
+	StartFromMigration(imagesDir string) error
+
 	// TODO: Remove every use of this and remove it.
-	LXContainerGet() (*lxc.Container, error)
+	LXContainerGet() *lxc.Container
 
 	DetachMount(m shared.Device) error
 	AttachMount(m shared.Device) error
@@ -255,15 +257,9 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 			return nil, fmt.Errorf("Container not running\n")
 		}
 		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
-		source, err := sourceContainer.LXContainerGet()
-		if err != nil {
-			c.Delete()
-			return nil, err
-		}
-
-		err = source.Checkpoint(opts)
-		err2 := migration.CollectCRIULogFile(source, stateDir, "snapshot", "dump")
-		if err != nil {
+		err = sourceContainer.Checkpoint(opts)
+		err2 := CollectCRIULogFile(sourceContainer, stateDir, "snapshot", "dump")
+		if err2 != nil {
 			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
 		}
 
@@ -590,7 +586,7 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 	}
 
 	if c.IsRunning() {
-		pid, _ := c.InitPidGet()
+		pid := c.InitPidGet()
 		status.Init = pid
 		status.Ips = c.iPsGet()
 	}
@@ -658,10 +654,7 @@ func (c *containerLXD) Start() error {
 	}
 
 	/* Deal with idmap changes */
-	idmap, err := c.IdmapSetGet()
-	if err != nil {
-		return err
-	}
+	idmap := c.IdmapSetGet()
 
 	lastIdmap, err := c.LastIdmapSetGet()
 	if err != nil {
@@ -1017,16 +1010,16 @@ func (c *containerLXD) LogFilePathGet() string {
 	return filepath.Join(c.LogPathGet(), "lxc.log")
 }
 
-func (c *containerLXD) InitPidGet() (int, error) {
-	return c.c.InitPid(), nil
+func (c *containerLXD) InitPidGet() int {
+	return c.c.InitPid()
 }
 
 func (c *containerLXD) StateGet() string {
 	return c.c.State().String()
 }
 
-func (c *containerLXD) IdmapSetGet() (*shared.IdmapSet, error) {
-	return c.idmapset, nil
+func (c *containerLXD) IdmapSetGet() *shared.IdmapSet {
+	return c.idmapset
 }
 
 func (c *containerLXD) LastIdmapSetGet() (*shared.IdmapSet, error) {
@@ -1034,7 +1027,7 @@ func (c *containerLXD) LastIdmapSetGet() (*shared.IdmapSet, error) {
 	lastJsonIdmap := config["volatile.last_state.idmap"]
 
 	if lastJsonIdmap == "" {
-		return c.IdmapSetGet()
+		return c.IdmapSetGet(), nil
 	}
 
 	lastIdmap := new(shared.IdmapSet)
@@ -1065,8 +1058,8 @@ func (c *containerLXD) ConfigKeySet(key string, value string) error {
 	return c.ConfigReplace(args)
 }
 
-func (c *containerLXD) LXContainerGet() (*lxc.Container, error) {
-	return c.c, nil
+func (c *containerLXD) LXContainerGet() *lxc.Container {
+	return c.c
 }
 
 // ConfigReplace replaces the config of container and tries to live apply
@@ -1878,4 +1871,51 @@ func (c *containerLXD) mountShared() error {
 		}
 	}
 	return c.c.SetConfigItem("lxc.mount.entry", entry)
+}
+
+func (c *containerLXD) Checkpoint(opts lxc.CheckpointOptions) error {
+	return c.c.Checkpoint(opts)
+}
+
+func (c *containerLXD) StartFromMigration(imagesDir string) error {
+	f, err := ioutil.TempFile("", "lxd_lxc_migrateconfig_")
+	if err != nil {
+		return err
+	}
+
+	if err = f.Chmod(0600); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return err
+	}
+	f.Close()
+	os.Remove(f.Name())
+
+	if err := c.c.SaveConfigFile(f.Name()); err != nil {
+		return err
+	}
+
+	/* (Re)Load the AA profile; we set it in the container's config above
+	 * in init()
+	 */
+	if err := AALoadProfile(c); err != nil {
+		c.StorageStop()
+		return err
+	}
+
+	if err := SeccompCreateProfile(c); err != nil {
+		c.StorageStop()
+		return err
+	}
+
+	cmd := exec.Command(
+		os.Args[0],
+		"forkmigrate",
+		c.name,
+		c.c.ConfigPath(),
+		f.Name(),
+		imagesDir,
+	)
+
+	return cmd.Run()
 }
