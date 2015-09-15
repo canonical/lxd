@@ -151,7 +151,7 @@ type container interface {
 	InitPidGet() (int, error)
 	StateGet() string
 
-	IdmapSetGet() (*shared.IdmapSet, error)
+	IdmapSetGet() *shared.IdmapSet
 	LastIdmapSetGet() (*shared.IdmapSet, error)
 
 	TemplateApply(trigger string) error
@@ -654,10 +654,7 @@ func (c *containerLXD) Start() error {
 	}
 
 	/* Deal with idmap changes */
-	idmap, err := c.IdmapSetGet()
-	if err != nil {
-		return err
-	}
+	idmap := c.IdmapSetGet()
 
 	lastIdmap, err := c.LastIdmapSetGet()
 	if err != nil {
@@ -1021,8 +1018,8 @@ func (c *containerLXD) StateGet() string {
 	return c.c.State().String()
 }
 
-func (c *containerLXD) IdmapSetGet() (*shared.IdmapSet, error) {
-	return c.idmapset, nil
+func (c *containerLXD) IdmapSetGet() *shared.IdmapSet {
+	return c.idmapset
 }
 
 func (c *containerLXD) LastIdmapSetGet() (*shared.IdmapSet, error) {
@@ -1030,7 +1027,7 @@ func (c *containerLXD) LastIdmapSetGet() (*shared.IdmapSet, error) {
 	lastJsonIdmap := config["volatile.last_state.idmap"]
 
 	if lastJsonIdmap == "" {
-		return c.IdmapSetGet()
+		return c.IdmapSetGet(), nil
 	}
 
 	lastIdmap := new(shared.IdmapSet)
