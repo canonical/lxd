@@ -148,7 +148,7 @@ type container interface {
 	StateDirGet() string
 	LogFilePathGet() string
 	LogPathGet() string
-	InitPidGet() (int, error)
+	InitPidGet() int
 	StateGet() string
 
 	IdmapSetGet() *shared.IdmapSet
@@ -586,7 +586,7 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 	}
 
 	if c.IsRunning() {
-		pid, _ := c.InitPidGet()
+		pid := c.InitPidGet()
 		status.Init = pid
 		status.Ips = c.iPsGet()
 	}
@@ -1010,8 +1010,8 @@ func (c *containerLXD) LogFilePathGet() string {
 	return filepath.Join(c.LogPathGet(), "lxc.log")
 }
 
-func (c *containerLXD) InitPidGet() (int, error) {
-	return c.c.InitPid(), nil
+func (c *containerLXD) InitPidGet() int {
+	return c.c.InitPid()
 }
 
 func (c *containerLXD) StateGet() string {

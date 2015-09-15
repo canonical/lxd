@@ -33,10 +33,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("container is not running"))
 	}
 
-	initPid, err := c.InitPidGet()
-	if err != nil {
-		return InternalError(err)
-	}
+	initPid := c.InitPidGet()
 
 	switch r.Method {
 	case "GET":
