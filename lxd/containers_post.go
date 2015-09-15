@@ -8,7 +8,6 @@ import (
 
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
-	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -135,7 +134,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 			c.Delete()
 			return shared.OperationError(err)
 		}
-		args := migration.MigrationSinkArgs{
+		args := MigrationSinkArgs{
 			Url: req.Source.Operation,
 			Dialer: websocket.Dialer{
 				TLSClientConfig: config,
@@ -145,7 +144,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 			IdMapSet:  idmapset,
 		}
 
-		sink, err := migration.NewMigrationSink(&args)
+		sink, err := NewMigrationSink(&args)
 		if err != nil {
 			c.Delete()
 			return shared.OperationError(err)

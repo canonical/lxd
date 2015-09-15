@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -38,7 +37,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		ws, err := migration.NewMigrationSource(lxc, idmapset)
+		ws, err := NewMigrationSource(lxc, idmapset)
 		if err != nil {
 			return InternalError(err)
 		}

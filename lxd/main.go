@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
@@ -100,7 +99,7 @@ func run() error {
 		case "forkstart":
 			return startContainer(os.Args[1:])
 		case "forkmigrate":
-			return migration.MigrateContainer(os.Args[1:])
+			return MigrateContainer(os.Args[1:])
 		case "shutdown":
 			return cleanShutdown()
 		case "activateifneeded":

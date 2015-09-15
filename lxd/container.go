@@ -26,7 +26,6 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -262,7 +261,7 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 		}
 
 		err = source.Checkpoint(opts)
-		err2 := migration.CollectCRIULogFile(source, stateDir, "snapshot", "dump")
+		err2 := CollectCRIULogFile(source, stateDir, "snapshot", "dump")
 		if err != nil {
 			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
 		}

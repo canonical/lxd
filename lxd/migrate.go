@@ -3,7 +3,7 @@
 // See https://github.com/lxc/lxd/blob/master/specs/migration.md for a complete
 // description.
 
-package migration
+package main
 
 import (
 	"bufio"
