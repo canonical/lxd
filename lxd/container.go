@@ -434,7 +434,7 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 //       we might be able to split this is up into c.Start().
 func (c *containerLXD) init() error {
 	templateConfBase := "ubuntu"
-	templateConfDir := os.Getenv("LXC_TEMPLATE_CONFIG")
+	templateConfDir := os.Getenv("LXD_LXC_TEMPLATE_CONFIG")
 	if templateConfDir == "" {
 		templateConfDir = "/usr/share/lxc/config"
 	}
