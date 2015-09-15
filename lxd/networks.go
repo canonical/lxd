@@ -122,12 +122,7 @@ func doNetworkGet(d *Daemon, name string) (network, error) {
 				return network{}, err
 			}
 
-			lxContainer, err := c.LXContainerGet()
-			if err != nil {
-				return network{}, err
-			}
-
-			if isOnBridge(lxContainer, n.Name) {
+			if isOnBridge(c.LXContainerGet(), n.Name) {
 				n.Members = append(n.Members, ct)
 			}
 		}

@@ -276,11 +276,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		}
 
 		ws.command = post.Command
-		lxContainer, err := c.LXContainerGet()
-		if err != nil {
-			return InternalError(err)
-		}
-		ws.container = lxContainer
+		ws.container = c.LXContainerGet()
 
 		return AsyncResponseWithWs(ws, nil)
 	}
@@ -298,12 +294,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		opts.StdoutFd = nullfd
 		opts.StderrFd = nullfd
 
-		lxContainer, err := c.LXContainerGet()
-		if err != nil {
-			return shared.OperationError(err)
-		}
-
-		return runCommand(lxContainer, post.Command, opts)
+		return runCommand(c.LXContainerGet(), post.Command, opts)
 	}
 
 	return AsyncResponse(run, nil)
