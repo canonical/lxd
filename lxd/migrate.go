@@ -3,7 +3,7 @@
 // See https://github.com/lxc/lxd/blob/master/specs/migration.md for a complete
 // description.
 
-package migration
+package main
 
 import (
 	"bufio"
@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -39,8 +38,7 @@ type migrationFields struct {
 	fsSecret string
 	fsConn   *websocket.Conn
 
-	container *lxc.Container
-	idmapset  *shared.IdmapSet
+	container container
 }
 
 func (c *migrationFields) send(m proto.Message) error {
@@ -124,9 +122,9 @@ func (c *migrationFields) controlChannel() <-chan MigrationControl {
 	return ch
 }
 
-func CollectCRIULogFile(c *lxc.Container, imagesDir string, function string, method string) error {
+func CollectCRIULogFile(c container, imagesDir string, function string, method string) error {
 	t := time.Now().Format(time.RFC3339)
-	newPath := shared.LogPath(c.Name(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
+	newPath := shared.LogPath(c.NameGet(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
 	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
 }
 
@@ -156,8 +154,8 @@ type migrationSourceWs struct {
 	allConnected chan bool
 }
 
-func NewMigrationSource(c *lxc.Container, idmapset *shared.IdmapSet) (shared.OperationWebsocket, error) {
-	ret := migrationSourceWs{migrationFields{container: c, idmapset: idmapset}, make(chan bool, 1)}
+func NewMigrationSource(c container) (shared.OperationWebsocket, error) {
+	ret := migrationSourceWs{migrationFields{container: c}, make(chan bool, 1)}
 
 	var err error
 	ret.controlSecret, err = shared.RandomCryptoString()
@@ -170,7 +168,7 @@ func NewMigrationSource(c *lxc.Container, idmapset *shared.IdmapSet) (shared.Ope
 		return nil, err
 	}
 
-	if c.Running() {
+	if c.IsRunning() {
 		ret.live = true
 		ret.criuSecret, err = shared.RandomCryptoString()
 		if err != nil {
@@ -234,8 +232,9 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 
 	idmaps := make([]*IDMapType, 0)
 
-	if s.idmapset != nil {
-		for _, ctnIdmap := range s.idmapset.Idmap {
+	idmapset := s.container.IdmapSetGet()
+	if idmapset != nil {
+		for _, ctnIdmap := range idmapset.Idmap {
 			idmap := IDMapType{
 				Isuid:    proto.Bool(ctnIdmap.Isuid),
 				Isgid:    proto.Bool(ctnIdmap.Isgid),
@@ -316,7 +315,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		}
 	}
 
-	fsDir := s.container.ConfigItem("lxc.rootfs")[0]
+	fsDir := s.container.RootfsPathGet()
 	if err := RsyncSend(shared.AddSlash(fsDir), s.fsConn); err != nil {
 		s.sendControl(err)
 		return shared.OperationError(err)
@@ -340,17 +339,15 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 type migrationSink struct {
 	migrationFields
 
-	url      string
-	dialer   websocket.Dialer
-	IdmapSet *shared.IdmapSet
+	url    string
+	dialer websocket.Dialer
 }
 
 type MigrationSinkArgs struct {
 	Url       string
 	Dialer    websocket.Dialer
-	Container *lxc.Container
+	Container container
 	Secrets   map[string]string
-	IdMapSet  *shared.IdmapSet
 }
 
 func NewMigrationSink(args *MigrationSinkArgs) (func() error, error) {
@@ -358,7 +355,6 @@ func NewMigrationSink(args *MigrationSinkArgs) (func() error, error) {
 		migrationFields{container: args.Container},
 		args.Url,
 		args.Dialer,
-		args.IdMapSet,
 	}
 
 	var ok bool
@@ -432,8 +428,7 @@ func (c *migrationSink) do() error {
 	go func(c *migrationSink) {
 		imagesDir := ""
 		srcIdmap := new(shared.IdmapSet)
-		dstIdmap := c.IdmapSet
-
+		dstIdmap := c.container.IdmapSetGet()
 		if dstIdmap == nil {
 			dstIdmap = new(shared.IdmapSet)
 		}
@@ -483,7 +478,7 @@ func (c *migrationSink) do() error {
 			}
 		}
 
-		fsDir := c.container.ConfigItem("lxc.rootfs")[0]
+		fsDir := c.container.RootfsPathGet()
 		if err := RsyncRecv(shared.AddSlash(fsDir), c.fsConn); err != nil {
 			restore <- err
 			c.sendControl(err)
@@ -501,13 +496,13 @@ func (c *migrationSink) do() error {
 		}
 
 		if !reflect.DeepEqual(srcIdmap, dstIdmap) {
-			if err := srcIdmap.UnshiftRootfs(shared.VarPath("containers", c.container.Name())); err != nil {
+			if err := srcIdmap.UnshiftRootfs(shared.VarPath("containers", c.container.NameGet())); err != nil {
 				restore <- err
 				c.sendControl(err)
 				return
 			}
 
-			if err := dstIdmap.ShiftRootfs(shared.VarPath("containers", c.container.Name())); err != nil {
+			if err := dstIdmap.ShiftRootfs(shared.VarPath("containers", c.container.NameGet())); err != nil {
 				restore <- err
 				c.sendControl(err)
 				return
@@ -515,34 +510,7 @@ func (c *migrationSink) do() error {
 		}
 
 		if c.live {
-			f, err := ioutil.TempFile("", "lxd_lxc_migrateconfig_")
-			if err != nil {
-				restore <- err
-				return
-			}
-
-			if err = f.Chmod(0600); err != nil {
-				f.Close()
-				os.Remove(f.Name())
-				return
-			}
-			f.Close()
-
-			if err := c.container.SaveConfigFile(f.Name()); err != nil {
-				restore <- err
-				return
-			}
-
-			cmd := exec.Command(
-				os.Args[0],
-				"forkmigrate",
-				c.container.Name(),
-				c.container.ConfigPath(),
-				f.Name(),
-				imagesDir,
-			)
-
-			err = cmd.Run()
+			err := c.container.StartFromMigration(imagesDir)
 			if err != nil {
 				log := GetCRIULogErrors(imagesDir, "restore")
 				err = fmt.Errorf("restore failed:\n%s", log)

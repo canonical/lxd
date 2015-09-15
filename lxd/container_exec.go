@@ -252,7 +252,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
-		idmapset, err := c.IdmapSetGet()
+		idmapset := c.IdmapSetGet()
 		if idmapset != nil {
 			ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
 		}
@@ -276,11 +276,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		}
 
 		ws.command = post.Command
-		lxContainer, err := c.LXContainerGet()
-		if err != nil {
-			return InternalError(err)
-		}
-		ws.container = lxContainer
+		ws.container = c.LXContainerGet()
 
 		return AsyncResponseWithWs(ws, nil)
 	}
@@ -298,12 +294,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		opts.StdoutFd = nullfd
 		opts.StderrFd = nullfd
 
-		lxContainer, err := c.LXContainerGet()
-		if err != nil {
-			return shared.OperationError(err)
-		}
-
-		return runCommand(lxContainer, post.Command, opts)
+		return runCommand(c.LXContainerGet(), post.Command, opts)
 	}
 
 	return AsyncResponse(run, nil)
