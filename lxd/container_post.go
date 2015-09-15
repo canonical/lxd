@@ -27,17 +27,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if body.Migration {
-		lxc, err := c.LXContainerGet()
-		if err != nil {
-			return InternalError(err)
-		}
-
-		idmapset, err := c.IdmapSetGet()
-		if err != nil {
-			return InternalError(err)
-		}
-
-		ws, err := NewMigrationSource(lxc, idmapset)
+		ws, err := NewMigrationSource(c)
 		if err != nil {
 			return InternalError(err)
 		}
