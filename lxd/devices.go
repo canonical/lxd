@@ -238,10 +238,7 @@ func inList(l []string, s string) bool {
 }
 
 func nextUnusedNic(c container) string {
-	lxContainer, err := c.LXContainerGet()
-	if err != nil {
-		return ""
-	}
+	lxContainer := c.LXContainerGet()
 
 	list, err := lxContainer.Interfaces()
 	if err != nil || len(list) == 0 {
@@ -318,10 +315,7 @@ func detachInterface(c container, key string) error {
 	options.StdoutFd = nullfd
 	options.StderrFd = nullfd
 	command := []string{"ip", "link", "del", key}
-	lxContainer, err := c.LXContainerGet()
-	if err != nil {
-		return err
-	}
+	lxContainer := c.LXContainerGet()
 	_, err = lxContainer.RunCommand(command, options)
 	return err
 }
@@ -366,10 +360,7 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 		}
 	}
 
-	lxContainer, err := c.LXContainerGet()
-	if err != nil {
-		return err
-	}
+	lxContainer := c.LXContainerGet()
 
 	for key, dev := range addList {
 		switch dev["type"] {

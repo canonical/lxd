@@ -137,16 +137,13 @@ var containerExecCmd = Command{
 
 func containerWatchEphemeral(d *Daemon, c container) {
 	go func() {
-		lxContainer, err := c.LXContainerGet()
-		if err != nil {
-			return
-		}
+		lxContainer := c.LXContainerGet()
 
 		lxContainer.Wait(lxc.STOPPED, -1*time.Second)
 		lxContainer.Wait(lxc.RUNNING, 1*time.Second)
 		lxContainer.Wait(lxc.STOPPED, -1*time.Second)
 
-		_, err = dbContainerIDGet(d.db, c.NameGet())
+		_, err := dbContainerIDGet(d.db, c.NameGet())
 		if err != nil {
 			return
 		}

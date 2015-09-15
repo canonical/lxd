@@ -161,7 +161,7 @@ type container interface {
 	StartFromMigration(imagesDir string) error
 
 	// TODO: Remove every use of this and remove it.
-	LXContainerGet() (*lxc.Container, error)
+	LXContainerGet() *lxc.Container
 
 	DetachMount(m shared.Device) error
 	AttachMount(m shared.Device) error
@@ -1061,8 +1061,8 @@ func (c *containerLXD) ConfigKeySet(key string, value string) error {
 	return c.ConfigReplace(args)
 }
 
-func (c *containerLXD) LXContainerGet() (*lxc.Container, error) {
-	return c.c, nil
+func (c *containerLXD) LXContainerGet() *lxc.Container {
+	return c.c
 }
 
 // ConfigReplace replaces the config of container and tries to live apply
