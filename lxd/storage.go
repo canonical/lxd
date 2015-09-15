@@ -74,10 +74,7 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 }
 
 func storageUnprivUserAclSet(c container, dpath string) error {
-	idmapset, err := c.IdmapSetGet()
-	if err != nil {
-		return err
-	}
+	idmapset := c.IdmapSetGet()
 
 	if idmapset == nil {
 		return nil
@@ -250,16 +247,13 @@ func (ss *storageShared) shiftRootfs(c container) error {
 	shared.Log.Debug("Shifting root filesystem",
 		log.Ctx{"container": c.NameGet(), "rootfs": rpath})
 
-	idmapset, err := c.IdmapSetGet()
-	if err != nil {
-		return err
-	}
+	idmapset := c.IdmapSetGet()
 
 	if idmapset == nil {
 		return fmt.Errorf("IdmapSet of container '%s' is nil", c.NameGet())
 	}
 
-	err = idmapset.ShiftRootfs(rpath)
+	err := idmapset.ShiftRootfs(rpath)
 	if err != nil {
 		shared.Debugf("Shift of rootfs %s failed: %s", rpath, err)
 		return err

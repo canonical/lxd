@@ -232,11 +232,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 
 	idmaps := make([]*IDMapType, 0)
 
-	idmapset, err := s.container.IdmapSetGet()
-	if err != nil {
-		return shared.OperationError(err)
-	}
-
+	idmapset := s.container.IdmapSetGet()
 	if idmapset != nil {
 		for _, ctnIdmap := range idmapset.Idmap {
 			idmap := IDMapType{
@@ -432,12 +428,7 @@ func (c *migrationSink) do() error {
 	go func(c *migrationSink) {
 		imagesDir := ""
 		srcIdmap := new(shared.IdmapSet)
-		dstIdmap, err := c.container.IdmapSetGet()
-		if err != nil {
-			c.sendControl(err)
-			return
-		}
-
+		dstIdmap := c.container.IdmapSetGet()
 		if dstIdmap == nil {
 			dstIdmap = new(shared.IdmapSet)
 		}
