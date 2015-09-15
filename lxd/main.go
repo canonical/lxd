@@ -143,6 +143,11 @@ func run() error {
 			"fs not mounted. AppArmor disabled.")
 	}
 
+	if aaEnabled && os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
+		aaEnabled = false
+		shared.Log.Warn("apparmor has been manually disabled")
+	}
+
 	/* Can we create devices? */
 	checkCanMknod()
 
