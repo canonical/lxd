@@ -222,6 +222,35 @@ func IsMountPoint(name string) bool {
 	return stat.Sys().(*syscall.Stat_t).Dev != rootStat.Sys().(*syscall.Stat_t).Dev
 }
 
+func ReadLastNLines(f *os.File, lines int) (string, error) {
+	if lines <= 0 {
+		return "", fmt.Errorf("invalid line count")
+	}
+
+	stat, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+
+	data, err := syscall.Mmap(int(f.Fd()), 0, int(stat.Size()), syscall.PROT_READ, syscall.MAP_SHARED)
+	if err != nil {
+		return "", err
+	}
+	defer syscall.Munmap(data)
+
+	for i := len(data) - 1; i >= 0; i-- {
+		if data[i] == '\n' {
+			lines--
+		}
+
+		if lines < 0 {
+			return string(data[i+1 : len(data)]), nil
+		}
+	}
+
+	return string(data), nil
+}
+
 func SetSize(fd int, width int, height int) (err error) {
 	var dimensions [4]uint16
 	dimensions[0] = uint16(height)
