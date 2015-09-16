@@ -912,6 +912,8 @@ func (c *containerLXD) Delete() error {
 }
 
 func (c *containerLXD) Rename(newName string) error {
+	oldName := c.NameGet()
+
 	if c.IsRunning() {
 		return fmt.Errorf("renaming of running container not allowed")
 	}
@@ -926,11 +928,11 @@ func (c *containerLXD) Rename(newName string) error {
 		}
 	}
 
-	if err := dbContainerRename(c.daemon.db, c.NameGet(), newName); err != nil {
+	if err := dbContainerRename(c.daemon.db, oldName, newName); err != nil {
 		return err
 	}
 
-	results, err := dbContainerGetSnapshots(c.daemon.db, c.NameGet())
+	results, err := dbContainerGetSnapshots(c.daemon.db, oldName)
 	if err != nil {
 		return err
 	}
@@ -940,7 +942,7 @@ func (c *containerLXD) Rename(newName string) error {
 		if err != nil {
 			shared.Log.Error(
 				"containerDeleteSnapshots: Failed to load the snapshotcontainer",
-				log.Ctx{"container": c.NameGet(), "snapshot": sname})
+				log.Ctx{"container": oldName, "snapshot": sname})
 
 			continue
 		}
@@ -949,7 +951,7 @@ func (c *containerLXD) Rename(newName string) error {
 		if err := sc.Rename(newSnapshotName); err != nil {
 			shared.Log.Error(
 				"containerDeleteSnapshots: Failed to rename a snapshotcontainer",
-				log.Ctx{"container": c.NameGet(), "snapshot": sname, "err": err})
+				log.Ctx{"container": oldName, "snapshot": sname, "err": err})
 		}
 	}
 
