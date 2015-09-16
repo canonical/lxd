@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"unsafe"
 )
 
 const SnapshotDelimiter = "/"
