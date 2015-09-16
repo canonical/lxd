@@ -338,17 +338,6 @@ func ReadLastNLines(f *os.File, lines int) (string, error) {
 	return string(data), nil
 }
 
-func SetSize(fd int, width int, height int) (err error) {
-	var dimensions [4]uint16
-	dimensions[0] = uint16(height)
-	dimensions[1] = uint16(width)
-
-	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(&dimensions)), 0, 0, 0); err != 0 {
-		return err
-	}
-	return nil
-}
-
 func ReadDir(p string) ([]string, error) {
 	ents, err := ioutil.ReadDir(p)
 	if err != nil {
