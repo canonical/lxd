@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"unsafe"
 )
 
 const SnapshotDelimiter = "/"
@@ -90,20 +89,6 @@ func IsDir(name string) bool {
 		return false
 	}
 	return stat.IsDir()
-}
-
-func IsMountPoint(name string) bool {
-	stat, err := os.Stat(name)
-	if err != nil {
-		return false
-	}
-
-	rootStat, err := os.Lstat(name + "/..")
-	if err != nil {
-		return false
-	}
-	// If the directory has the same device as parent, then it's not a mountpoint.
-	return stat.Sys().(*syscall.Stat_t).Dev != rootStat.Sys().(*syscall.Stat_t).Dev
 }
 
 // VarPath returns the provided path elements joined by a slash and
@@ -350,17 +335,6 @@ func ReadLastNLines(f *os.File, lines int) (string, error) {
 	}
 
 	return string(data), nil
-}
-
-func SetSize(fd int, width int, height int) (err error) {
-	var dimensions [4]uint16
-	dimensions[0] = uint16(height)
-	dimensions[1] = uint16(width)
-
-	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(&dimensions)), 0, 0, 0); err != 0 {
-		return err
-	}
-	return nil
 }
 
 func ReadDir(p string) ([]string, error) {
