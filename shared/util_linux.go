@@ -206,3 +206,17 @@ func GroupId(name string) (int, error) {
 
 	return int(C.int(result.gr_gid)), nil
 }
+
+func IsMountPoint(name string) bool {
+	stat, err := os.Stat(name)
+	if err != nil {
+		return false
+	}
+
+	rootStat, err := os.Lstat(name + "/..")
+	if err != nil {
+		return false
+	}
+	// If the directory has the same device as parent, then it's not a mountpoint.
+	return stat.Sys().(*syscall.Stat_t).Dev != rootStat.Sys().(*syscall.Stat_t).Dev
+}
