@@ -92,20 +92,6 @@ func IsDir(name string) bool {
 	return stat.IsDir()
 }
 
-func IsMountPoint(name string) bool {
-	stat, err := os.Stat(name)
-	if err != nil {
-		return false
-	}
-
-	rootStat, err := os.Lstat(name + "/..")
-	if err != nil {
-		return false
-	}
-	// If the directory has the same device as parent, then it's not a mountpoint.
-	return stat.Sys().(*syscall.Stat_t).Dev != rootStat.Sys().(*syscall.Stat_t).Dev
-}
-
 // VarPath returns the provided path elements joined by a slash and
 // appended to the end of $LXD_DIR, which defaults to /var/lib/lxd.
 func VarPath(path ...string) string {
