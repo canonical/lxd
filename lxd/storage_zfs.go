@@ -760,6 +760,10 @@ func (s *storageZfs) zfsSnapshotRename(path string, oldName string, newName stri
 
 func (s *storageZfs) zfsListSubvolumes(path string) ([]string, error) {
 	path = strings.TrimRight(path, "/")
+	fullPath := s.zfsPool
+	if path != "" {
+		fullPath = fmt.Sprintf("%s/%s", s.zfsPool, path)
+	}
 
 	output, err := exec.Command(
 		"zfs",
@@ -767,7 +771,7 @@ func (s *storageZfs) zfsListSubvolumes(path string) ([]string, error) {
 		"-t", "filesystem",
 		"-o", "name",
 		"-H",
-		"-r", fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
+		"-r", fullPath).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs list failed", log.Ctx{"output": string(output)})
 		return []string{}, err
@@ -779,7 +783,7 @@ func (s *storageZfs) zfsListSubvolumes(path string) ([]string, error) {
 			continue
 		}
 
-		if entry == fmt.Sprintf("%s/%s", s.zfsPool, path) {
+		if entry == fullPath {
 			continue
 		}
 
@@ -791,6 +795,10 @@ func (s *storageZfs) zfsListSubvolumes(path string) ([]string, error) {
 
 func (s *storageZfs) zfsListSnapshots(path string) ([]string, error) {
 	path = strings.TrimRight(path, "/")
+	fullPath := s.zfsPool
+	if path != "" {
+		fullPath = fmt.Sprintf("%s/%s", s.zfsPool, path)
+	}
 
 	output, err := exec.Command(
 		"zfs",
@@ -799,7 +807,7 @@ func (s *storageZfs) zfsListSnapshots(path string) ([]string, error) {
 		"-o", "name",
 		"-H",
 		"-d", "1",
-		"-r", fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
+		"-r", fullPath).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs list failed", log.Ctx{"output": string(output)})
 		return []string{}, err
@@ -811,7 +819,7 @@ func (s *storageZfs) zfsListSnapshots(path string) ([]string, error) {
 			continue
 		}
 
-		if entry == fmt.Sprintf("%s/%s", s.zfsPool, path) {
+		if entry == fullPath {
 			continue
 		}
 
@@ -845,6 +853,11 @@ func (s *storageZfs) zfsSnapshotRemovable(path string, name string) (bool, error
 func storageZFSGetPoolUsers(d *Daemon) ([]string, error) {
 	zfs := storageZfs{}
 
+	err := zfs.initShared()
+	if err != nil {
+		return []string{}, err
+	}
+
 	zfsPool, err := d.ConfigValueGet("storage.zfs_pool_name")
 	if err != nil {
 		return []string{}, err
@@ -856,7 +869,28 @@ func storageZFSGetPoolUsers(d *Daemon) ([]string, error) {
 
 	zfs.zfsPool = zfsPool
 
-	return zfs.zfsListSubvolumes("")
+	subvols, err := zfs.zfsListSubvolumes("")
+	if err != nil {
+		return []string{}, err
+	}
+
+	exceptions := []string{
+		"containers",
+		"images",
+		"deleted",
+		"deleted/containers",
+		"deleted/images"}
+
+	users := []string{}
+	for _, subvol := range subvols {
+		if shared.StringInSlice(subvol, exceptions) {
+			continue
+		}
+
+		users = append(users, subvol)
+	}
+
+	return users, nil
 }
 
 func storageZFSSetPoolNameConfig(d *Daemon, poolname string) error {
@@ -866,7 +900,7 @@ func storageZFSSetPoolNameConfig(d *Daemon, poolname string) error {
 	}
 
 	if len(users) > 0 {
-		return fmt.Errorf("Can not change LVM config. Images or containers are still using the ZFS pool: %v", users)
+		return fmt.Errorf("Can not change ZFS config. Images or containers are still using the ZFS pool: %v", users)
 	}
 
 	err = d.ConfigValueSet("storage.zfs_pool_name", poolname)
