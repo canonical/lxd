@@ -200,6 +200,11 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 	config := make(map[string]interface{})
 	storageType := storageTypeDir
 
+	filesystem, err := filesystemDetect(filename)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't detect filesystem for '%s': %v", filename, err)
+	}
+
 	if shared.PathExists(filename + ".lv") {
 		storageType = storageTypeLvm
 		lvPath, err := os.Readlink(filename + ".lv")
@@ -208,7 +213,7 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 		}
 		vgname := filepath.Base(filepath.Dir(lvPath))
 		config["vgName"] = vgname
-	} else if shared.PathExists(filename + ".btrfs") {
+	} else if shared.PathExists(filename+".btrfs") || filesystem == "btrfs" {
 		storageType = storageTypeBtrfs
 	} else if shared.PathExists(filename + ".zfs") {
 		storageType = storageTypeZfs
