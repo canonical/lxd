@@ -18,6 +18,7 @@ const (
 	filesystemSuperMagicExt4  = 0xEF53
 	filesystemSuperMagicXfs   = 0x58465342
 	filesystemSuperMagicNfs   = 0x6969
+	filesystemSuperMagicZfs   = 0x2fc12fc1
 )
 
 /*
@@ -35,6 +36,8 @@ func filesystemDetect(path string) (string, error) {
 	switch fs.Type {
 	case filesystemSuperMagicBtrfs:
 		return "btrfs", nil
+	case filesystemSuperMagicZfs:
+		return "zfs", nil
 	case filesystemSuperMagicTmpfs:
 		return "tmpfs", nil
 	case filesystemSuperMagicExt4:
@@ -44,6 +47,7 @@ func filesystemDetect(path string) (string, error) {
 	case filesystemSuperMagicNfs:
 		return "nfs", nil
 	default:
+		shared.Debugf("Unknown backing filesystem type: 0x%x", fs.Type)
 		return string(fs.Type), nil
 	}
 }
@@ -100,6 +104,7 @@ type storageType int
 
 const (
 	storageTypeBtrfs storageType = iota
+	storageTypeZfs
 	storageTypeLvm
 	storageTypeDir
 	storageTypeMock
@@ -109,6 +114,8 @@ func storageTypeToString(sType storageType) string {
 	switch sType {
 	case storageTypeBtrfs:
 		return "btrfs"
+	case storageTypeZfs:
+		return "zfs"
 	case storageTypeLvm:
 		return "lvm"
 	case storageTypeMock:
@@ -166,6 +173,12 @@ func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interf
 		}
 
 		s = &storageLogWrapper{w: &storageBtrfs{d: d}}
+	case storageTypeZfs:
+		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeZfs {
+			return d.Storage, nil
+		}
+
+		s = &storageLogWrapper{w: &storageZfs{d: d}}
 	case storageTypeLvm:
 		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeLvm {
 			return d.Storage, nil
@@ -192,19 +205,20 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 		return nil, fmt.Errorf("couldn't detect filesystem for '%s': %v", filename, err)
 	}
 
-	lvLinkPath := filename + ".lv"
-	if shared.PathExists(lvLinkPath) {
+	if shared.PathExists(filename + ".lv") {
 		storageType = storageTypeLvm
-		lvPath, err := os.Readlink(lvLinkPath)
+		lvPath, err := os.Readlink(filename + ".lv")
 		if err != nil {
-			return nil, fmt.Errorf("couldn't read link dest for '%s': %v", lvLinkPath, err)
+			return nil, fmt.Errorf("couldn't read link dest for '%s': %v", filename+".lv", err)
 		}
 		vgname := filepath.Base(filepath.Dir(lvPath))
 		config["vgName"] = vgname
-
-	} else if filesystem == "btrfs" {
+	} else if shared.PathExists(filename+".btrfs") || filesystem == "btrfs" {
 		storageType = storageTypeBtrfs
+	} else if shared.PathExists(filename + ".zfs") {
+		storageType = storageTypeZfs
 	}
+
 	return newStorageWithConfig(d, storageType, config)
 }
 
@@ -266,7 +280,6 @@ func (ss *storageShared) shiftRootfs(c container) error {
 }
 
 func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
-
 	if !c.IsPrivileged() {
 		err := storageUnprivUserAclSet(c, destPath)
 		if err != nil {
