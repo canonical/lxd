@@ -37,8 +37,7 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	if len(args) == 1 {
 		remote, cName = config.ParseRemoteAndContainer(args[0])
 	} else {
-		remote = config.DefaultRemote
-		cName = ""
+		remote, cName = config.ParseRemoteAndContainer("")
 	}
 	if cName == "" {
 		fmt.Println(gettext.Gettext("Information about remotes not yet supported"))

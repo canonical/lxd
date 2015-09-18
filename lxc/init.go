@@ -117,8 +117,7 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 	if len(args) == 2 {
 		remote, name = config.ParseRemoteAndContainer(args[1])
 	} else {
-		name = ""
-		remote = ""
+		remote, name = config.ParseRemoteAndContainer("")
 	}
 
 	d, err := lxd.NewClient(config, remote)
