@@ -39,8 +39,8 @@ test_migration() {
   lxc stop l2:nonlive --force
 
   if ! type criu >/dev/null 2>&1; then
-      echo "==> SKIP: live migration with CRIU (missing binary)"
-      return
+    echo "==> SKIP: live migration with CRIU (missing binary)"
+    return
   fi
 
   lxc launch testimage migratee

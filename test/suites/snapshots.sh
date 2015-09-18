@@ -42,7 +42,6 @@ test_snapshots() {
 }
 
 test_snap_restore() {
-
   # Skipping restore tests on Travis for now...
   if [ -n "$TRAVIS_PULL_REQUEST" ]; then
     echo "SKIPPING"

@@ -1,10 +1,10 @@
 test_config_profiles() {
   if ! lxc image alias list | grep -q "^| testimage\s*|.*$"; then
-      if [ -e "$LXD_TEST_IMAGE" ]; then
-          lxc image import $LXD_TEST_IMAGE --alias testimage
-      else
-          ../scripts/lxd-images import busybox --alias testimage
-      fi
+    if [ -e "$LXD_TEST_IMAGE" ]; then
+      lxc image import $LXD_TEST_IMAGE --alias testimage
+    else
+      ../scripts/lxd-images import busybox --alias testimage
+    fi
   fi
   lxc init testimage foo
   lxc profile list | grep default
