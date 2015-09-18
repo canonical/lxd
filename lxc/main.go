@@ -52,7 +52,7 @@ func run() error {
 
 	verbose := gnuflag.Bool("verbose", false, gettext.Gettext("Enables verbose mode."))
 	debug := gnuflag.Bool("debug", false, gettext.Gettext("Enables debug mode."))
-	forceLocal := gnuflag.Bool("force-local", false, gettext.Gettext("Enables debug mode."))
+	forceLocal := gnuflag.Bool("force-local", false, gettext.Gettext("Force using the local unix socket."))
 
 	gnuflag.StringVar(&lxd.ConfigDir, "config", lxd.ConfigDir, gettext.Gettext("Alternate config directory."))
 

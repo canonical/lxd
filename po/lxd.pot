@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-09-14 13:04-0400\n"
+        "POT-Creation-Date: 2015-09-18 17:27-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -226,7 +226,7 @@ msgstr  ""
 msgid   "EXPIRY DATE"
 msgstr  ""
 
-#: lxc/main.go:54 lxc/main.go:55
+#: lxc/main.go:54
 msgid   "Enables debug mode."
 msgstr  ""
 
@@ -279,6 +279,10 @@ msgstr  ""
 
 #: lxc/action.go:35
 msgid   "Force the container to shutdown."
+msgstr  ""
+
+#: lxc/main.go:55
+msgid   "Force using the local unix socket."
 msgstr  ""
 
 #: lxc/main.go:115
@@ -801,7 +805,7 @@ msgstr  ""
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
-#: shared/util_linux.go:154 shared/util_linux.go:186
+#: shared/util_linux.go:155 shared/util_linux.go:187
 msgid   "allocation failed"
 msgstr  ""
 
@@ -872,7 +876,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: shared/util_linux.go:168 shared/util_linux.go:200
+#: shared/util_linux.go:169 shared/util_linux.go:201
 #, c-format
 msgid   "failed group lookup: %s"
 msgstr  ""
@@ -937,7 +941,7 @@ msgstr  ""
 msgid   "remote %s exists as <%s>"
 msgstr  ""
 
-#: shared/util_linux.go:172 shared/util_linux.go:204
+#: shared/util_linux.go:173 shared/util_linux.go:205
 #, c-format
 msgid   "unknown group %s"
 msgstr  ""
