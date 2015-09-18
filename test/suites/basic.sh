@@ -1,12 +1,12 @@
 gen_third_cert() {
-	[ -f $LXD_CONF/client3.crt ] && return
-	mv $LXD_CONF/client.crt $LXD_CONF/client.crt.bak
-	mv $LXD_CONF/client.key $LXD_CONF/client.key.bak
-	lxc list > /dev/null 2>&1
-	mv $LXD_CONF/client.crt $LXD_CONF/client3.crt
-	mv $LXD_CONF/client.key $LXD_CONF/client3.key
-	mv $LXD_CONF/client.crt.bak $LXD_CONF/client.crt
-	mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
+  [ -f $LXD_CONF/client3.crt ] && return
+  mv $LXD_CONF/client.crt $LXD_CONF/client.crt.bak
+  mv $LXD_CONF/client.key $LXD_CONF/client.key.bak
+  lxc list > /dev/null 2>&1
+  mv $LXD_CONF/client.crt $LXD_CONF/client3.crt
+  mv $LXD_CONF/client.key $LXD_CONF/client3.key
+  mv $LXD_CONF/client.crt.bak $LXD_CONF/client.crt
+  mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
 }
 
 test_basic_usage() {
@@ -17,9 +17,9 @@ test_basic_usage() {
   sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
   lxc image export testimage ${LXD_DIR}/
   if [ -e "$LXD_TEST_IMAGE" ]; then
-      name=$(basename $LXD_TEST_IMAGE)
+    name=$(basename $LXD_TEST_IMAGE)
   else
-      name=${sum}.tar.xz
+    name=${sum}.tar.xz
   fi
   [ "$sum" = "$(sha256sum ${LXD_DIR}/${name} | cut -d' ' -f1)" ]
 

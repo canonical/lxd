@@ -1,96 +1,94 @@
 create_vg() {
-    vgname=$1
-    pvfile=$LOOP_IMG_DIR/lvm-pv-$vgname.img
-    truncate -s 10G $pvfile
-    chattr +C $pvfile || true
-    pvloopdev=$(losetup -f)
-    losetup $pvloopdev $pvfile
+  vgname=$1
+  pvfile=$LOOP_IMG_DIR/lvm-pv-$vgname.img
+  truncate -s 10G $pvfile
+  chattr +C $pvfile || true
+  pvloopdev=$(losetup -f)
+  losetup $pvloopdev $pvfile
 
-    pvcreate $pvloopdev
-    VGDEBUG=""
-    if [ -n "$LXD_DEBUG" ]; then
-        VGDEBUG="-vv"
-    fi
-    vgcreate $VGDEBUG $vgname $pvloopdev
-    pvloopdevs_to_delete="$pvloopdevs_to_delete $pvloopdev"
+  pvcreate $pvloopdev
+  VGDEBUG=""
+  if [ -n "$LXD_DEBUG" ]; then
+    VGDEBUG="-vv"
+  fi
+  vgcreate $VGDEBUG $vgname $pvloopdev
+  pvloopdevs_to_delete="$pvloopdevs_to_delete $pvloopdev"
 }
 
 cleanup_vg_and_shutdown() {
-    cleanup_vg
-    losetup -d $pvloopdevs_to_delete || echo "Couldn't delete loop devices $pvloopdevs_to_delete"
-    wipe $LOOP_IMG_DIR || echo "Couldn't remove $pvfile"
-    cleanup
+  cleanup_vg
+  losetup -d $pvloopdevs_to_delete || echo "Couldn't delete loop devices $pvloopdevs_to_delete"
+  wipe $LOOP_IMG_DIR || echo "Couldn't remove $pvfile"
+  cleanup
 }
 
 cleanup_vg() {
-    vgname=$1
+  vgname=$1
 
-    if [ -z $vgname ]; then
-        vgname="lxd_test_vg"
-    fi
+  if [ -z $vgname ]; then
+    vgname="lxd_test_vg"
+  fi
 
-    if [ -n "$LXD_INSPECT_LVM" ]; then
-        echo "To poke around, use:\n LXD_DIR=$LXD5_DIR sudo -E $GOPATH/bin/lxc COMMAND --config ${LXD_CONF} "
-        read -p "Pausing to inspect LVM state. Hit Enter to continue cleanup." x
-    fi
+  if [ -n "$LXD_INSPECT_LVM" ]; then
+    echo "To poke around, use:\n LXD_DIR=$LXD5_DIR sudo -E $GOPATH/bin/lxc COMMAND --config ${LXD_CONF} "
+    read -p "Pausing to inspect LVM state. Hit Enter to continue cleanup." x
+  fi
 
-    if [ -d "$LXD5_DIR"/containers/testcontainer ]; then
-        echo "unmounting testcontainer LV"
-        umount "$LXD5_DIR"/containers/testcontainer || echo "Couldn't unmount testcontainer, skipping"
-    fi
+  if [ -d "$LXD5_DIR"/containers/testcontainer ]; then
+    echo "unmounting testcontainer LV"
+    umount "$LXD5_DIR"/containers/testcontainer || echo "Couldn't unmount testcontainer, skipping"
+  fi
 
-    # -f removes any LVs in the VG
-    vgremove -f $vgname || echo "Couldn't remove $vgname, skipping"
-
+  # -f removes any LVs in the VG
+  vgremove -f $vgname || echo "Couldn't remove $vgname, skipping"
 }
 
 die() {
-    set +x
-    message=$1
-    echo ""
-    echo "\033[1;31m###### Test Failed : $message\033[0m"
-    exit 1
+  set +x
+  message=$1
+  echo ""
+  echo "\033[1;31m###### Test Failed : $message\033[0m"
+  exit 1
 }
 
 test_lvm() {
-    if ! which vgcreate >/dev/null; then
-        echo "===> SKIPPING lvm backing: vgcreate not found"
-        return
-    fi
+  if ! which vgcreate >/dev/null; then
+    echo "===> SKIPPING lvm backing: vgcreate not found"
+    return
+  fi
 
-    if ! which thin_check >/dev/null; then
-        echo "===> SKIPPING lvm backing: thin_check not found"
-        return
-    fi
+  if ! which thin_check >/dev/null; then
+    echo "===> SKIPPING lvm backing: thin_check not found"
+    return
+  fi
 
-    export LOOP_IMG_DIR=$(mktemp -d -p $(pwd))
+  export LOOP_IMG_DIR=$(mktemp -d -p $(pwd))
 
-    create_vg lxd_test_vg
-    trap cleanup_vg_and_shutdown EXIT HUP INT TERM
+  create_vg lxd_test_vg
+  trap cleanup_vg_and_shutdown EXIT HUP INT TERM
 
-    test_mixing_storage
-    lvremove -f lxd_test_vg/LXDPool
+  test_mixing_storage
+  lvremove -f lxd_test_vg/LXDPool
 
-    test_lvm_withpool
-    lvremove -f lxd_test_vg/LXDPool
+  test_lvm_withpool
+  lvremove -f lxd_test_vg/LXDPool
 
-    lvcreate -l 100%FREE --poolmetadatasize 500M --thinpool lxd_test_vg/test_user_thinpool
-    test_lvm_withpool test_user_thinpool
+  lvcreate -l 100%FREE --poolmetadatasize 500M --thinpool lxd_test_vg/test_user_thinpool
+  test_lvm_withpool test_user_thinpool
 
-    lvremove -f lxd_test_vg/test_user_thinpool
-    test_remote_launch_imports_lvm
+  lvremove -f lxd_test_vg/test_user_thinpool
+  test_remote_launch_imports_lvm
 
-    test_init_with_missing_vg
-
+  test_init_with_missing_vg
 }
 
 
 test_mixing_storage() {
-    export LXD5_DIR=$(mktemp -d -p $(pwd))
-    chmod 777 "${LXD5_DIR}"
-    spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
+  export LXD5_DIR=$(mktemp -d -p $(pwd))
+  chmod 777 "${LXD5_DIR}"
+  spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
 
-    (
+  (
     set -e
     LXD_DIR=$LXD5_DIR
     ../scripts/lxd-images import busybox --alias testimage || die "couldn't import image"
@@ -122,42 +120,42 @@ test_mixing_storage() {
     lxc config unset storage.lvm_vg_name || die "should be able to unset config after delete all"
 
     exit 0
-    )
+  )
 
-    do_kill_lxd `cat $LXD5_DIR/lxd.pid`
-    wipe ${LXD5_DIR}
+  do_kill_lxd `cat $LXD5_DIR/lxd.pid`
+  wipe ${LXD5_DIR}
 }
 
 check_image_exists_in_pool() {
-    imagename=$1
-    poolname=$2
-    # get sha of image
-    lxc image info $imagename || die "Couldn't find $imagename in lxc image info"
-    testimage_sha=$(lxc image info $imagename | grep Fingerprint | cut -d' ' -f 2)
+  imagename=$1
+  poolname=$2
+  # get sha of image
+  lxc image info $imagename || die "Couldn't find $imagename in lxc image info"
+  testimage_sha=$(lxc image info $imagename | grep Fingerprint | cut -d' ' -f 2)
 
-    imagelvname=$testimage_sha
+  imagelvname=$testimage_sha
 
-    lvs --noheadings -o lv_attr lxd_test_vg/$poolname | grep "^  t" || die "$poolname not found or not a thin pool"
+  lvs --noheadings -o lv_attr lxd_test_vg/$poolname | grep "^  t" || die "$poolname not found or not a thin pool"
 
-    lvs --noheadings -o lv_attr lxd_test_vg/$imagelvname | grep "^  V" || die "no lv named $imagelvname found or not a thin Vol."
+  lvs --noheadings -o lv_attr lxd_test_vg/$imagelvname | grep "^  V" || die "no lv named $imagelvname found or not a thin Vol."
 
-    lvs --noheadings -o pool_lv lxd_test_vg/$imagelvname | grep "$poolname" || die "new LV not member of $poolname"
-    [ -L "${LXD_DIR}/images/${imagelvname}.lv" ] || die "image symlink doesn't exist"
+  lvs --noheadings -o pool_lv lxd_test_vg/$imagelvname | grep "$poolname" || die "new LV not member of $poolname"
+  [ -L "${LXD_DIR}/images/${imagelvname}.lv" ] || die "image symlink doesn't exist"
 }
 
 do_image_import_subtest() {
-    poolname=$1
-    ../scripts/lxd-images import busybox --alias testimage
-    check_image_exists_in_pool testimage $poolname
+  poolname=$1
+  ../scripts/lxd-images import busybox --alias testimage
+  check_image_exists_in_pool testimage $poolname
 }
 
 test_lvm_withpool() {
-    poolname=$1
-    export LXD5_DIR=$(mktemp -d -p $(pwd))
-    chmod 777 "${LXD5_DIR}"
-    spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
+  poolname=$1
+  export LXD5_DIR=$(mktemp -d -p $(pwd))
+  chmod 777 "${LXD5_DIR}"
+  spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
 
-    (
+  (
     set -e
     LXD_DIR=$LXD5_DIR
     lxc config set storage.lvm_vg_name "zambonirodeo" && die "Shouldn't be able to set nonexistent LVM VG"
@@ -167,29 +165,28 @@ test_lvm_withpool() {
     lxc config show | grep "lxd_test_vg" || die "test_vg not in config show output"
 
     if [ -n "$poolname" ]; then
-        echo " --> Testing with user-supplied thin pool name '$poolname'"
-        lxc config set storage.lvm_thinpool_name $poolname || die "error setting storage.lvm_thinpool_name config"
-        lxc config show | grep "$poolname" || die "thin pool name not in config show output."
-        echo " --> only doing minimal image import subtest with user pool name"
-        do_image_import_subtest $poolname
+      echo " --> Testing with user-supplied thin pool name '$poolname'"
+      lxc config set storage.lvm_thinpool_name $poolname || die "error setting storage.lvm_thinpool_name config"
+      lxc config show | grep "$poolname" || die "thin pool name not in config show output."
+      echo " --> only doing minimal image import subtest with user pool name"
+      do_image_import_subtest $poolname
 
-        lxc config unset storage.lvm_vg_name && die "should not be allowed to unset without deleting"
-        lxc image delete testimage
-        
-        # check that we can unset configs in this order
-        lxc config unset storage.lvm_vg_name
-        lxc config unset storage.lvm_thinpool_name
+      lxc config unset storage.lvm_vg_name && die "should not be allowed to unset without deleting"
+      lxc image delete testimage
 
-        return
+      # check that we can unset configs in this order
+      lxc config unset storage.lvm_vg_name
+      lxc config unset storage.lvm_thinpool_name
+
+      return
     else
-        echo " --> Testing with default thin pool name 'LXDPool'"
-        poolname=LXDPool
+      echo " --> Testing with default thin pool name 'LXDPool'"
+      poolname=LXDPool
     fi
 
     do_image_import_subtest $poolname
 
     # launch a container using that image
-
     lxc init testimage test-container || die "Couldn't init test container"
 
     # check that we now have a new volume in the pool
@@ -248,24 +245,24 @@ test_lvm_withpool() {
     lvs lxd_test_vg/$imagelvname && die "lv $imagelvname is still there, should be gone"
     [ -L "${LXD_DIR}/images/${imagelvname}.lv" ] && die "image symlink is still there, should be gone."
     exit 0
-    )
+  )
 
-    do_kill_lxd `cat $LXD5_DIR/lxd.pid`
-    sleep 3
-    wipe ${LXD5_DIR}
+  do_kill_lxd `cat $LXD5_DIR/lxd.pid`
+  sleep 3
+  wipe ${LXD5_DIR}
 }
 
 test_remote_launch_imports_lvm() {
-    export LXD5_DIR=$(mktemp -d -p $(pwd))
-    chmod 777 "${LXD5_DIR}"
-    spawn_lxd 127.0.0.1:18466 "${LXD5_DIR}"
+  export LXD5_DIR=$(mktemp -d -p $(pwd))
+  chmod 777 "${LXD5_DIR}"
+  spawn_lxd 127.0.0.1:18466 "${LXD5_DIR}"
 
-    export LXD6_DIR=$(mktemp -d -p $(pwd))
-    chmod 777 "${LXD6_DIR}"
+  export LXD6_DIR=$(mktemp -d -p $(pwd))
+  chmod 777 "${LXD6_DIR}"
 
-    spawn_lxd 127.0.0.1:18467 "${LXD6_DIR}"
+  spawn_lxd 127.0.0.1:18467 "${LXD6_DIR}"
 
-    (
+  (
     set -e
     LXD_DIR=$LXD5_DIR
     LXD_REMOTE_DIR=$LXD6_DIR
@@ -293,40 +290,40 @@ test_remote_launch_imports_lvm() {
     lxc image delete $testimage_sha
     lvs lxd_test_vg/$testimage_sha && die "LV $testimage_sha is still there, should have been removed."
     exit 0
-    )
+  )
 
-    do_kill_lxd `cat $LXD5_DIR/lxd.pid`
-    do_kill_lxd `cat $LXD6_DIR/lxd.pid`
-    wipe ${LXD5_DIR}
-    wipe ${LXD6_DIR}
+  do_kill_lxd `cat $LXD5_DIR/lxd.pid`
+  do_kill_lxd `cat $LXD6_DIR/lxd.pid`
+  wipe ${LXD5_DIR}
+  wipe ${LXD6_DIR}
 }
 
 test_init_with_missing_vg() {
-    export LXD5_DIR=$(mktemp -d -p $(pwd))
-    chmod 777 "${LXD5_DIR}"
-    spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
+  export LXD5_DIR=$(mktemp -d -p $(pwd))
+  chmod 777 "${LXD5_DIR}"
+  spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
 
-    (
+  (
     set -e
     LXD_DIR=$LXD5_DIR
     create_vg red_shirt_yeoman_vg
     lxc config set storage.lvm_vg_name "red_shirt_yeoman_vg" || die "error setting storage.lvm_vg_name config"
     exit 0
-    )
+  )
 
-    do_kill_lxd `cat $LXD5_DIR/lxd.pid`
-    cleanup_vg red_shirt_yeoman_vg
+  do_kill_lxd `cat $LXD5_DIR/lxd.pid`
+  cleanup_vg red_shirt_yeoman_vg
 
-    spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
+  spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
 
-    (
+  (
     set -e
     LXD_DIR=$LXD5_DIR
     lxc config show | grep "red_shirt_yeoman_vg" || die "should show config even if it is broken"
     lxc config unset storage.lvm_vg_name || die "should be able to un set config to un break"
     exit 0
-    )
+  )
 
-    do_kill_lxd `cat $LXD5_DIR/lxd.pid`
-    wipe ${LXD5_DIR}
+  do_kill_lxd `cat $LXD5_DIR/lxd.pid`
+  wipe ${LXD5_DIR}
 }

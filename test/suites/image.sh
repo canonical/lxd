@@ -1,11 +1,12 @@
 test_image_expiry() {
   if ! lxc image alias list | grep -q "^| testimage\s*|.*$"; then
     if [ -e "$LXD_TEST_IMAGE" ]; then
-        lxc image import $LXD_TEST_IMAGE --alias testimage
+      lxc image import $LXD_TEST_IMAGE --alias testimage
     else
-        ../scripts/lxd-images import busybox --alias testimage
+      ../scripts/lxd-images import busybox --alias testimage
     fi
   fi
+
   if ! lxc remote list | grep -q l1; then
     (echo y;  sleep 3;  echo foo) | lxc remote add l1 127.0.0.1:18443 $debug
   fi

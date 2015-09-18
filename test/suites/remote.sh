@@ -1,12 +1,12 @@
 gen_second_cert() {
-	[ -f $LXD_CONF/client2.crt ] && return
-	mv $LXD_CONF/client.crt $LXD_CONF/client.crt.bak
-	mv $LXD_CONF/client.key $LXD_CONF/client.key.bak
-	lxc list > /dev/null 2>&1
-	mv $LXD_CONF/client.crt $LXD_CONF/client2.crt
-	mv $LXD_CONF/client.key $LXD_CONF/client2.key
-	mv $LXD_CONF/client.crt.bak $LXD_CONF/client.crt
-	mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
+  [ -f $LXD_CONF/client2.crt ] && return
+  mv $LXD_CONF/client.crt $LXD_CONF/client.crt.bak
+  mv $LXD_CONF/client.key $LXD_CONF/client.key.bak
+  lxc list > /dev/null 2>&1
+  mv $LXD_CONF/client.crt $LXD_CONF/client2.crt
+  mv $LXD_CONF/client.key $LXD_CONF/client2.key
+  mv $LXD_CONF/client.crt.bak $LXD_CONF/client.crt
+  mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
 }
 
 test_remote_url() {
@@ -36,7 +36,7 @@ test_remote_admin() {
   (sleep 3; echo bad) | lxc remote add badpass 127.0.0.1:18443 $debug --accept-certificate || true
   lxc list badpass: && bad=1 || true
   if [ "$bad" -eq 1 ]; then
-      echo "bad password accepted" && false
+    echo "bad password accepted" && false
   fi
 
   (echo y; sleep 3) |  lxc remote add localhost 127.0.0.1:18443 $debug --password foo
