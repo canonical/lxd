@@ -93,7 +93,7 @@ func doImageAlias(config *lxd.Config, args []string) error {
 		if len(args) > 2 {
 			remote, _ = config.ParseRemoteAndContainer(args[2])
 		} else {
-			remote = ""
+			remote, _ = config.ParseRemoteAndContainer("")
 		}
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
@@ -290,7 +290,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) > 1 {
 			remote, _ = config.ParseRemoteAndContainer(args[1])
 		} else {
-			remote = ""
+			remote, _ = config.ParseRemoteAndContainer("")
 		}
 
 		d, err := lxd.NewClient(config, remote)
