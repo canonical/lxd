@@ -62,6 +62,7 @@ limits.cpus                 | int           | 0 (all)           | Number of CPUs
 limits.memory               | int           | 0 (all)           | Size in MB of the memory allocation for the container
 raw.apparmor                | blob          | -                 | Apparmor profile entries to be appended to the generated profile
 raw.lxc                     | blob          | -                 | Raw LXC configuration to be appended to the generated one
+security.nesting            | boolean       | false             | Support running lxd (nested) inside the container
 security.privileged         | boolean       | false             | Runs the container in privileged mode
 user.\*                     | string        | -                 | Free form user key/value storage (can be used in search)
 volatile.\<name\>.hwaddr    | string        | -                 | Unique MAC address for a given interface (generated and set by LXD when the hwaddr field of a "nic" type device isn't set)
