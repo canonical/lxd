@@ -1,16 +1,10 @@
 test_concurrent() {
-  if ! lxc image alias list | grep -q "^| testimage\s*|.*$"; then
-    if [ -e "$LXD_TEST_IMAGE" ]; then
-      lxc image import $LXD_TEST_IMAGE --alias testimage
-    else
-      ../scripts/lxd-images import busybox --alias testimage
-    fi
-  fi
+  ensure_import_testimage
 
   spawn_container() {
     set -e
 
-    name=concurrent-${1}
+    name=concurrent-$1
 
     lxc launch testimage ${name}
     lxc list ${name} | grep RUNNING
@@ -19,7 +13,7 @@ test_concurrent() {
     lxc delete ${name}
   }
 
-  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
     return
   fi
 

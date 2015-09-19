@@ -43,7 +43,7 @@ test_snapshots() {
 
 test_snap_restore() {
   # Skipping restore tests on Travis for now...
-  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
     echo "SKIPPING"
     return
   fi
@@ -120,7 +120,7 @@ test_snap_restore() {
   ##########################################################
 
   # Anything below this will not get run inside Travis-CI
-  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
     lxc delete bar
     return
   fi
@@ -142,7 +142,7 @@ restore_and_compare_fs() {
   snap=$1
   echo "\n ==> Restoring $snap \n"
 
-  lxc restore bar $1
+  lxc restore bar $snap
 
   # Recursive diff of container FS
   echo "diff -r $LXD_DIR/containers/bar/rootfs $LXD_DIR/snapshots/bar/$snap/rootfs"

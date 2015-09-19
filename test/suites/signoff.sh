@@ -6,7 +6,7 @@ test_commits_signed_off() {
 
   # Don't run this test if we're not in travis; we don't want to muck with
   # people's local repos.
-  if [ -z "$TRAVIS_PULL_REQUEST" ]; then
+  if [ -z "${TRAVIS_PULL_REQUEST:-}" ]; then
     return
   fi
 
