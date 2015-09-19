@@ -215,7 +215,6 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			c.http.Transport = &http.Transport{Dial: uDial}
 			c.websocketDialer.NetDial = uDial
 			c.Remote = &r
-			return &c, nil
 		} else {
 			certf, keyf, err := readMyCert()
 			if err != nil {
@@ -256,6 +255,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 	} else {
 		return nil, fmt.Errorf(gettext.Gettext("unknown remote name: %q"), remote)
 	}
+
 	if err := c.Finger(); err != nil {
 		return nil, err
 	}
