@@ -1,5 +1,5 @@
 test_database_update(){
-  LXD_MIGRATE_DIR=$(mktemp -d -p $TEST_DIR)
+  LXD_MIGRATE_DIR=$(mktemp -d -p $TEST_DIR XXX)
   MIGRATE_DB=${LXD_MIGRATE_DIR}/lxd.db
 
   # Nuke preexisting database if it exists
