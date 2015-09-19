@@ -15,6 +15,7 @@ our_lxd_pid() {
 
 test_cpu_profiling() {
   LXD3_DIR=$(mktemp -d -p $TEST_DIR XXX)
+  chmod +x ${LXD3_DIR}
   spawn_lxd 127.0.0.1:18445 $LXD3_DIR --cpuprofile ${LXD3_DIR}/cpu.out
   lxdpid=`our_lxd_pid cpuprofile`
   [ $lxdpid -ne -1 ]
@@ -26,6 +27,7 @@ test_cpu_profiling() {
 
 test_mem_profiling() {
   LXD4_DIR=$(mktemp -d -p $TEST_DIR XXX)
+  chmod +x ${LXD4_DIR}
   spawn_lxd 127.0.0.1:18446 $LXD4_DIR --memprofile ${LXD4_DIR}/mem
   if [ -e ${LXD4_DIR}/mem ]; then
     false

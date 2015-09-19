@@ -80,7 +80,7 @@ test_lvm() {
 
 test_mixing_storage() {
   LXD5_DIR=$(mktemp -d -p $TEST_DIR XXX)
-  chmod 777 "${LXD5_DIR}"
+  chmod +x "${LXD5_DIR}"
   spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
 
   (
@@ -147,7 +147,7 @@ do_image_import_subtest() {
 test_lvm_withpool() {
   poolname=${1:-}
   LXD5_DIR=$(mktemp -d -p $TEST_DIR XXX)
-  chmod 777 "${LXD5_DIR}"
+  chmod +x "${LXD5_DIR}"
   spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
 
   (
@@ -249,11 +249,11 @@ test_lvm_withpool() {
 
 test_remote_launch_imports_lvm() {
   LXD5_DIR=$(mktemp -d -p $TEST_DIR XXX)
-  chmod 777 "${LXD5_DIR}"
+  chmod +x "${LXD5_DIR}"
   spawn_lxd 127.0.0.1:18466 "${LXD5_DIR}"
 
   LXD6_DIR=$(mktemp -d -p $TEST_DIR XXX)
-  chmod 777 "${LXD6_DIR}"
+  chmod +x "${LXD6_DIR}"
 
   spawn_lxd 127.0.0.1:18467 "${LXD6_DIR}"
 
@@ -295,7 +295,7 @@ test_remote_launch_imports_lvm() {
 
 test_init_with_missing_vg() {
   LXD5_DIR=$(mktemp -d -p $TEST_DIR XXX)
-  chmod 777 "${LXD5_DIR}"
+  chmod +x "${LXD5_DIR}"
   spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
 
   create_vg red_shirt_yeoman_vg
