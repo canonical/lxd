@@ -377,6 +377,26 @@ func containerLXDCreateInternal(
 		return nil, err
 	}
 
+	idmap := c.IdmapSetGet()
+
+	var jsonIdmap string
+	if idmap != nil {
+		idmapBytes, err := json.Marshal(idmap.Idmap)
+		if err != nil {
+			c.Delete()
+			return nil, err
+		}
+		jsonIdmap = string(idmapBytes)
+	} else {
+		jsonIdmap = "[]"
+	}
+
+	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
+	if err != nil {
+		c.Delete()
+		return nil, err
+	}
+
 	return c, nil
 }
 
