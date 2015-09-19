@@ -1,7 +1,5 @@
 #!/bin/sh -eu
 export PATH=$GOPATH/bin:$PATH
-TEST_UUID=$(uuidgen)
-echo "==> Test run UUID: ${TEST_UUID}"
 
 if [ -n "${LXD_DEBUG:-}" ]; then
   set -x
@@ -169,17 +167,17 @@ for suite in suites/*.sh; do
 done
 
 # Setup test directory
-TEST_DIR=$(pwd)/$TEST_UUID
+TEST_DIR=$(mktemp -d -p $(pwd) tmp.XXX)
 mkdir -p $TEST_DIR
-LXD_CONF=$(mktemp -d -p $TEST_DIR)
+LXD_CONF=$(mktemp -d -p $TEST_DIR XXX)
 
 # Setup the first LXD
-export LXD_DIR=$(mktemp -d -p $TEST_DIR)
+export LXD_DIR=$(mktemp -d -p $TEST_DIR XXX)
 chmod 777 "${LXD_DIR}"
 spawn_lxd 127.0.0.1:18443 $LXD_DIR
 
 # Setup the second LXD
-LXD2_DIR=$(mktemp -d -p $TEST_DIR)
+LXD2_DIR=$(mktemp -d -p $TEST_DIR XXX)
 chmod 777 "${LXD2_DIR}"
 spawn_lxd 127.0.0.1:18444 "${LXD2_DIR}"
 

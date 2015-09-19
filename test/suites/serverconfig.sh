@@ -1,5 +1,5 @@
 test_server_config() {
-  LXD_SERVERCONFIG_DIR=$(mktemp -d -p $TEST_DIR)
+  LXD_SERVERCONFIG_DIR=$(mktemp -d -p $TEST_DIR XXX)
   spawn_lxd 127.0.0.1:18450 $LXD_SERVERCONFIG_DIR
 
   lxc config set core.trust_password 123456
