@@ -1,11 +1,5 @@
 test_fdleak() {
-  if ! lxc image alias list | grep -q "^| testimage\s*|.*$"; then
-    if [ -e "$LXD_TEST_IMAGE" ]; then
-      lxc image import $LXD_TEST_IMAGE --alias testimage
-    else
-      ../scripts/lxd-images import busybox --alias testimage
-    fi
-  fi
+  ensure_import_testimage
 
   lxd1_pid=`ps -ef | grep lxd | grep -v grep | awk '/127.0.0.1:18443/ { print $2 }'`
   echo "lxd1_pid is $lxd1_pid"
@@ -13,9 +7,11 @@ test_fdleak() {
   for i in `seq 5`; do
     lxc init testimage leaktest1
     lxc info leaktest1
-    [ -n "$TRAVIS_PULL_REQUEST" ] || lxc start leaktest1
-    [ -n "$TRAVIS_PULL_REQUEST" ] || lxc exec leaktest1 -- ps -ef
-    [ -n "$TRAVIS_PULL_REQUEST" ] || lxc stop leaktest1 --force
+    if [ -z "${TRAVIS_PULL_REQUEST:-}" ]; then
+      lxc start leaktest1
+      lxc exec leaktest1 -- ps -ef
+      lxc stop leaktest1 --force
+    fi
     lxc delete leaktest1
   done
 

@@ -1,11 +1,6 @@
 test_config_profiles() {
-  if ! lxc image alias list | grep -q "^| testimage\s*|.*$"; then
-    if [ -e "$LXD_TEST_IMAGE" ]; then
-      lxc image import $LXD_TEST_IMAGE --alias testimage
-    else
-      ../scripts/lxd-images import busybox --alias testimage
-    fi
-  fi
+  ensure_import_testimage
+
   lxc init testimage foo
   lxc profile list | grep default
 
@@ -36,7 +31,7 @@ test_config_profiles() {
   lxc profile device list onenic | grep eth0
   lxc profile device show onenic | grep lxcbr0
 
-  if [ -z "$TRAVIS_PULL_REQUEST" ]; then
+  if [ -z "${TRAVIS_PULL_REQUEST:-}" ]; then
     # test live-adding a nic
     lxc start foo
     lxc config show foo | grep -q "raw.lxc" && false
@@ -89,7 +84,7 @@ test_config_profiles() {
   lxc delete foo
 
   # Anything below this will not get run inside Travis-CI
-  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
     return
   fi
 

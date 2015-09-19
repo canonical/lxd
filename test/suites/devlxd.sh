@@ -1,16 +1,9 @@
 test_devlxd() {
-  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
-    echo "SKIPPING"
+  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
     return
   fi
 
-  if ! lxc image alias list | grep -q "^| testimage\s*|.*$"; then
-    if [ -e "$LXD_TEST_IMAGE" ]; then
-      lxc image import $LXD_TEST_IMAGE --alias testimage
-    else
-      ../scripts/lxd-images import busybox --alias testimage
-    fi
-  fi
+  ensure_import_testimage
 
   cd deps
   go build -tags netgo -a -installsuffix devlxd devlxd-client.go

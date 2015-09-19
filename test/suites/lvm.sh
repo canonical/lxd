@@ -8,11 +8,11 @@ create_vg() {
 
   pvcreate $pvloopdev
   VGDEBUG=""
-  if [ -n "$LXD_DEBUG" ]; then
+  if [ -n "${LXD_DEBUG:-}" ]; then
     VGDEBUG="-vv"
   fi
   vgcreate $VGDEBUG $vgname $pvloopdev
-  pvloopdevs_to_delete="$pvloopdevs_to_delete $pvloopdev"
+  pvloopdevs_to_delete="${pvloopdevs_to_delete:-} $pvloopdev"
 }
 
 cleanup_vg_and_shutdown() {
@@ -23,13 +23,9 @@ cleanup_vg_and_shutdown() {
 }
 
 cleanup_vg() {
-  vgname=$1
+  vgname=${1:-'lxd_test_vg'}
 
-  if [ -z $vgname ]; then
-    vgname="lxd_test_vg"
-  fi
-
-  if [ -n "$LXD_INSPECT_LVM" ]; then
+  if [ -n "${LXD_INSPECT_LVM:-}" ]; then
     echo "To poke around, use:\n LXD_DIR=$LXD5_DIR sudo -E $GOPATH/bin/lxc COMMAND --config ${LXD_CONF} "
     read -p "Pausing to inspect LVM state. Hit Enter to continue cleanup." x
   fi
@@ -45,9 +41,8 @@ cleanup_vg() {
 
 die() {
   set +x
-  message=$1
   echo ""
-  echo "\033[1;31m###### Test Failed : $message\033[0m"
+  echo "\033[1;31m###### Test Failed : ${1:-'unknown'}\033[0m"
   exit 1
 }
 
@@ -62,7 +57,7 @@ test_lvm() {
     return
   fi
 
-  export LOOP_IMG_DIR=$(mktemp -d -p $(pwd))
+  LOOP_IMG_DIR=$(mktemp -d -p $(pwd))
 
   create_vg lxd_test_vg
   trap cleanup_vg_and_shutdown EXIT HUP INT TERM
@@ -84,7 +79,7 @@ test_lvm() {
 
 
 test_mixing_storage() {
-  export LXD5_DIR=$(mktemp -d -p $(pwd))
+  LXD5_DIR=$(mktemp -d -p $(pwd))
   chmod 777 "${LXD5_DIR}"
   spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
 
@@ -150,8 +145,8 @@ do_image_import_subtest() {
 }
 
 test_lvm_withpool() {
-  poolname=$1
-  export LXD5_DIR=$(mktemp -d -p $(pwd))
+  poolname=${1:-}
+  LXD5_DIR=$(mktemp -d -p $(pwd))
   chmod 777 "${LXD5_DIR}"
   spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
 
@@ -253,11 +248,11 @@ test_lvm_withpool() {
 }
 
 test_remote_launch_imports_lvm() {
-  export LXD5_DIR=$(mktemp -d -p $(pwd))
+  LXD5_DIR=$(mktemp -d -p $(pwd))
   chmod 777 "${LXD5_DIR}"
   spawn_lxd 127.0.0.1:18466 "${LXD5_DIR}"
 
-  export LXD6_DIR=$(mktemp -d -p $(pwd))
+  LXD6_DIR=$(mktemp -d -p $(pwd))
   chmod 777 "${LXD6_DIR}"
 
   spawn_lxd 127.0.0.1:18467 "${LXD6_DIR}"
@@ -299,14 +294,15 @@ test_remote_launch_imports_lvm() {
 }
 
 test_init_with_missing_vg() {
-  export LXD5_DIR=$(mktemp -d -p $(pwd))
+  LXD5_DIR=$(mktemp -d -p $(pwd))
   chmod 777 "${LXD5_DIR}"
   spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
+
+  create_vg red_shirt_yeoman_vg
 
   (
     set -e
     LXD_DIR=$LXD5_DIR
-    create_vg red_shirt_yeoman_vg
     lxc config set storage.lvm_vg_name "red_shirt_yeoman_vg" || die "error setting storage.lvm_vg_name config"
     exit 0
   )

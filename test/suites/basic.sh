@@ -16,7 +16,7 @@ test_basic_usage() {
   # Test image export
   sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
   lxc image export testimage ${LXD_DIR}/
-  if [ -e "$LXD_TEST_IMAGE" ]; then
+  if [ -e "${LXD_TEST_IMAGE:-}" ]; then
     name=$(basename $LXD_TEST_IMAGE)
   else
     name=${sum}.tar.xz
@@ -106,7 +106,7 @@ test_basic_usage() {
   lxc delete configtest
 
   # Anything below this will not get run inside Travis-CI
-  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
     return
   fi
 
