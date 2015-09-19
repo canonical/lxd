@@ -169,16 +169,17 @@ done
 # Setup test directory
 TEST_DIR=$(mktemp -d -p $(pwd) tmp.XXX)
 mkdir -p $TEST_DIR
+chmod +x $TEST_DIR
 LXD_CONF=$(mktemp -d -p $TEST_DIR XXX)
 
 # Setup the first LXD
 export LXD_DIR=$(mktemp -d -p $TEST_DIR XXX)
-chmod 777 "${LXD_DIR}"
+chmod +x "${LXD_DIR}"
 spawn_lxd 127.0.0.1:18443 $LXD_DIR
 
 # Setup the second LXD
 LXD2_DIR=$(mktemp -d -p $TEST_DIR XXX)
-chmod 777 "${LXD2_DIR}"
+chmod +x "${LXD2_DIR}"
 spawn_lxd 127.0.0.1:18444 "${LXD2_DIR}"
 
 BASEURL=https://127.0.0.1:18443
