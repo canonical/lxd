@@ -1,9 +1,8 @@
 test_fdleak() {
   ensure_import_testimage
 
-  lxd1_pid=`ps -ef | grep lxd | grep -v grep | awk '/127.0.0.1:18443/ { print $2 }'`
-  echo "lxd1_pid is $lxd1_pid"
-  beforefds=`/bin/ls /proc/$lxd1_pid/fd | wc -l`
+  pid=$(cat $LXD_DIR/lxd.pid)
+  beforefds=`/bin/ls /proc/$pid/fd | wc -l`
   for i in `seq 5`; do
     lxc init testimage leaktest1
     lxc info leaktest1
@@ -15,14 +14,14 @@ test_fdleak() {
     lxc delete leaktest1
   done
 
-  afterfds=`/bin/ls /proc/$lxd1_pid/fd | wc -l`
+  afterfds=`/bin/ls /proc/$pid/fd | wc -l`
   leakedfds=$((afterfds - beforefds))
 
   bad=0
   [ $leakedfds -gt 5 ] && bad=1 || true
   if [ $bad -eq 1 ]; then
     echo "$leakedfds FDS leaked"
-    ls /proc/$lxd1_pid/fd -al
+    ls /proc/$pid/fd -al
     false
   fi
 }
