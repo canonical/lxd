@@ -261,8 +261,17 @@ func activateIfNeeded() error {
 
 	if value != "" {
 		shared.Debugf("Daemon has core.https_address set, activating...")
-		_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
-		return err
+		c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+		if err != nil {
+			return err
+		}
+
+		err = c.Finger()
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	// Look for auto-started or previously started containers
@@ -278,8 +287,17 @@ func activateIfNeeded() error {
 
 		if lastState == "RUNNING" || autoStart == "true" {
 			shared.Debugf("Daemon has auto-started containers, activating...")
-			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
-			return err
+			c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			if err != nil {
+				return err
+			}
+
+			err = c.Finger()
+			if err != nil {
+				return err
+			}
+
+			return nil
 		}
 	}
 
