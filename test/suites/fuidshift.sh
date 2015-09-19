@@ -11,8 +11,7 @@ test_common_fuidshift() {
 test_nonroot_fuidshift() {
   test_common_fuidshift
 
-  LXD_FUIDMAP_DIR=${LXD_DIR}/fuidmap
-  mkdir -p ${LXD_FUIDMAP_DIR}
+  LXD_FUIDMAP_DIR=$(mktemp -d -p $TEST_DIR)
 
   u=$(id -u)
   g=$(id -g)

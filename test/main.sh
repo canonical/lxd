@@ -1,5 +1,7 @@
 #!/bin/sh -eu
 export PATH=$GOPATH/bin:$PATH
+TEST_UUID=$(uuidgen)
+echo "==> Test run UUID: ${TEST_UUID}"
 
 if [ -n "${LXD_DEBUG:-}" ]; then
   set -x
@@ -137,14 +139,8 @@ cleanup() {
 
   # Apparently we need to wait a while for everything to die
   sleep 3
-  for dir in ${LXD_CONF:-} ${LXD_DIR:-} ${LXD2_DIR:-} ${LXD3_DIR:-} \
-             ${LXD4_DIR:-} ${LXD5_DIR:-} ${LXD6_DIR:-} ${LXD_MIGRATE_DIR:-} \
-             ${LXD_SERVERCONFIG_DIR:-}; do
-    [ -n "${dir}" ] && wipe "${dir}"
-  done
-
-  rm -f devlxd-client || true
   find . -name shmounts -exec "umount" "-l" "{}" \; || true
+  wipe ${TEST_DIR}
 
   echo ""
   echo ""
@@ -165,27 +161,31 @@ wipe() {
   rm -Rf "$1"
 }
 
-# /tmp isn't moutned exec on most systems, so we can't actually start
-# containers that are created there.
-export LXD_DIR=$(mktemp -d -p $(pwd))
-chmod 777 "${LXD_DIR}"
-LXD_CONF=$(mktemp -d)
+trap cleanup EXIT HUP INT TERM
 
 # Import all the testsuites
 for suite in suites/*.sh; do
  . ${suite}
 done
 
+# Setup test directory
+TEST_DIR=$(pwd)/$TEST_UUID
+mkdir -p $TEST_DIR
+LXD_CONF=$(mktemp -d -p $TEST_DIR)
+
+# Setup the first LXD
+export LXD_DIR=$(mktemp -d -p $TEST_DIR)
+chmod 777 "${LXD_DIR}"
+spawn_lxd 127.0.0.1:18443 $LXD_DIR
+
+# Setup the second LXD
+LXD2_DIR=$(mktemp -d -p $TEST_DIR)
+chmod 777 "${LXD2_DIR}"
+spawn_lxd 127.0.0.1:18444 "${LXD2_DIR}"
+
 BASEURL=https://127.0.0.1:18443
 TEST_CURRENT=setup
 TEST_RESULT=failure
-trap cleanup EXIT HUP INT TERM
-
-spawn_lxd 127.0.0.1:18443 $LXD_DIR
-
-LXD2_DIR=$(mktemp -d -p $(pwd))
-chmod 777 "${LXD2_DIR}"
-spawn_lxd 127.0.0.1:18444 "${LXD2_DIR}"
 
 # allow for running a specific set of tests
 if [ "$#" -gt 0 ]; then

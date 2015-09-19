@@ -5,13 +5,14 @@ test_devlxd() {
 
   ensure_import_testimage
 
-  cd deps
-  go build -tags netgo -a -installsuffix devlxd devlxd-client.go
-  cd ..
+  cd ${TEST_DIR}
+  go build -tags netgo -a -installsuffix devlxd ../deps/devlxd-client.go
+  cd -
 
   lxc launch testimage devlxd
 
-  lxc file push deps/devlxd-client devlxd/bin/
+  lxc file push ${TEST_DIR}/devlxd-client devlxd/bin/
+
   lxc exec devlxd chmod +x /bin/devlxd-client
 
   lxc config set devlxd user.foo bar
