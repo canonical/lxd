@@ -3,7 +3,7 @@ export PATH=$GOPATH/bin:$PATH
 
 if [ -n "${LXD_DEBUG:-}" ]; then
   set -x
-  debug="--debug"
+  DEBUG="--debug"
 fi
 
 echo "==> Checking for dependencies"
@@ -33,7 +33,10 @@ spawn_lxd() {
   cp deps/server.key $lxddir
 
   echo "==> Spawning lxd on $addr in $lxddir"
-  LXD_DIR=$lxddir lxd --logfile $lxddir/lxd.log ${debug-} $* 2>&1 & echo $! > $lxddir/lxd.pid
+  LXD_DIR=$lxddir lxd --logfile $lxddir/lxd.log ${DEBUG-} $* 2>&1 &
+  pid=$!
+  echo $pid > $lxddir/lxd.pid
+  echo "${lxddir} ${addr} ${pid}" >> $TEST_DIR/daemons
 
   echo "==> Confirming lxd on $addr is responsive"
   alive=0
@@ -54,25 +57,25 @@ spawn_lxd() {
 
 lxc() {
   set +x
-  INJECTED=0
-  CMD="$(which lxc)"
+  injected=0
+  cmd="$(which lxc)"
   for arg in $@; do
     if [ "$arg" = "--" ]; then
-      INJECTED=1
-      CMD="$CMD \"--config\" \"${LXD_CONF}\" ${debug:-}"
-      CMD="$CMD --"
+      injected=1
+      cmd="$cmd \"--config\" \"${LXD_CONF}\" ${DEBUG:-}"
+      cmd="$cmd --"
     else
-      CMD="$CMD \"$arg\""
+      cmd="$cmd \"$arg\""
     fi
   done
 
-  if [ "$INJECTED" = "0" ]; then
-    CMD="$CMD \"--config\" \"${LXD_CONF}\" ${debug-}"
+  if [ "$injected" = "0" ]; then
+    cmd="$cmd \"--config\" \"${LXD_CONF}\" ${DEBUG-}"
   fi
   if [ -n "${LXD_DEBUG:-}" ]; then
     set -x
   fi
-  eval "$CMD"
+  eval "$cmd"
 }
 
 my_curl() {
@@ -108,8 +111,9 @@ do_kill_lxd() {
 }
 
 cleanup() {
-  set +x
+  set +e
 
+  # Allow for inspection
   if [ -n "${LXD_INSPECT:-}" ]; then
     echo "==> Test result: $TEST_RESULT"
     if [ $TEST_RESULT != "success" ]; then
@@ -119,25 +123,36 @@ cleanup() {
     echo "To poke around, use:\n LXD_DIR=$LXD_DIR sudo -E $GOPATH/bin/lxc COMMAND --config ${LXD_CONF}"
     read -p "Tests Completed ($TEST_RESULT): hit enter to continue" x
   fi
+
   echo "==> Cleaning up"
 
-  # Try to stop all the containers
-  my_curl "$BASEURL/1.0/containers" | jq -r .metadata[] 2>/dev/null | while read -r line; do
-    wait_for my_curl -X PUT "$BASEURL$line/state" -d "{\"action\":\"stop\",\"force\":true}"
-  done
+  # Kill all the LXD instances
+  while read line; do
+    set -- $line
 
-  # kill the lxds which share our pgrp as parent
-  mygrp=`awk '{ print $5 }' /proc/self/stat`
-  for p in `pidof lxd`; do
-    pgrp=`awk '{ print $5 }' /proc/$p/stat`
-    if [ "$pgrp" = "$mygrp" ]; then
-      do_kill_lxd $p
-    fi
-  done
+    daemon_dir=${1}
+    daemon_addr=${2}
+    daemon_pid=${3}
 
-  # Apparently we need to wait a while for everything to die
-  sleep 3
-  find . -name shmounts -exec "umount" "-l" "{}" \; || true
+    [ -d "${daemon_dir}" ] || continue
+
+    # Delete all containers
+    my_curl "https://${daemon_addr}/1.0/containers" | jq -r .metadata[] 2>/dev/null | while read -r line; do
+      wait_for my_curl -X PUT "https://${daemon_addr}${line}/state" -d "{\"action\":\"stop\",\"force\":true}" >/dev/null
+      wait_for my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
+    done
+
+    # Delete all images
+    my_curl "https://${daemon_addr}/1.0/images" | jq -r .metadata[] 2>/dev/null | while read -r line; do
+      wait_for my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
+    done
+
+    do_kill_lxd ${daemon_pid}
+
+    find ${daemon_dir} -name shmounts -exec "umount" "-l" "{}" \; || true
+  done < $TEST_DIR/daemons
+
+  # Wipe the test environment
   wipe ${TEST_DIR}
 
   echo ""
@@ -298,6 +313,7 @@ fi
 echo "==> TEST: cpu profiling"
 TEST_CURRENT=test_cpu_profiling
 test_cpu_profiling
+
 echo "==> TEST: memory profiling"
 TEST_CURRENT=test_mem_profiling
 test_mem_profiling
