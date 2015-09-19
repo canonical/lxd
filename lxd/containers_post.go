@@ -219,10 +219,6 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 func containersPost(d *Daemon, r *http.Request) Response {
 	shared.Debugf("Responding to container create")
 
-	if d.IdmapSet == nil {
-		return BadRequest(fmt.Errorf("shared's user has no subuids"))
-	}
-
 	req := containerPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
