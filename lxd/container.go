@@ -560,6 +560,9 @@ func (c *containerLXD) init() error {
 	}
 
 	if !c.IsPrivileged() {
+		if c.daemon.IdmapSet == nil {
+			return fmt.Errorf("user has no subuids")
+		}
 		c.idmapset = c.daemon.IdmapSet // TODO - per-tenant idmaps
 	}
 
