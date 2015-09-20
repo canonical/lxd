@@ -482,6 +482,33 @@ func (c *containerLXD) init() error {
 		return err
 	}
 
+	if err := c.c.SetConfigItem("lxc.rootfs", c.RootfsPathGet()); err != nil {
+		return err
+	}
+	if err := c.c.SetConfigItem("lxc.loglevel", "0"); err != nil {
+		return err
+	}
+	if err := c.c.SetConfigItem("lxc.utsname", c.NameGet()); err != nil {
+		return err
+	}
+	if err := c.c.SetConfigItem("lxc.tty", "0"); err != nil {
+		return err
+	}
+	if err := setupDevLxdMount(c.c); err != nil {
+		return err
+	}
+
+	for _, p := range c.profiles {
+		if err := c.applyProfile(p); err != nil {
+			return err
+		}
+	}
+
+	// base per-container config should override profile config, so we apply it second
+	if err := c.applyConfig(c.baseConfig); err != nil {
+		return err
+	}
+
 	if !c.IsPrivileged() {
 		err = c.c.SetConfigItem("lxc.include", fmt.Sprintf("%s/%s.userns.conf", templateConfDir, templateConfBase))
 		if err != nil {
@@ -517,22 +544,6 @@ func (c *containerLXD) init() error {
 		}
 	}
 
-	if err := c.c.SetConfigItem("lxc.rootfs", c.RootfsPathGet()); err != nil {
-		return err
-	}
-	if err := c.c.SetConfigItem("lxc.loglevel", "0"); err != nil {
-		return err
-	}
-	if err := c.c.SetConfigItem("lxc.utsname", c.NameGet()); err != nil {
-		return err
-	}
-	if err := c.c.SetConfigItem("lxc.tty", "0"); err != nil {
-		return err
-	}
-	if err := setupDevLxdMount(c.c); err != nil {
-		return err
-	}
-
 	/*
 	 * Until stacked apparmor profiles are possible, we have to run nested
 	 * containers unconfined
@@ -551,17 +562,6 @@ func (c *containerLXD) init() error {
 	}
 
 	if err := c.c.SetConfigItem("lxc.seccomp", SeccompProfilePath(c)); err != nil {
-		return err
-	}
-
-	for _, p := range c.profiles {
-		if err := c.applyProfile(p); err != nil {
-			return err
-		}
-	}
-
-	// base per-container config should override profile config, so we apply it second
-	if err := c.applyConfig(c.baseConfig); err != nil {
 		return err
 	}
 
