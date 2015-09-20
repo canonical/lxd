@@ -489,3 +489,25 @@ func DeepCopy(src, dest interface{}) error {
 
 	return nil
 }
+
+func RunningInUserNS() bool {
+	file, err := os.Open("/proc/self/uid_map")
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	buf := bufio.NewReader(file)
+	l, _, err := buf.ReadLine()
+	if err != nil {
+		return false
+	}
+
+	line := string(l)
+	var a, b, c int
+	fmt.Sscanf(line, "%d %d %d", &a, &b, &c)
+	if a == 0 && b == 0 && c == 4294967295 {
+		return false
+	}
+	return true
+}
