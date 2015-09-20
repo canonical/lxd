@@ -11,7 +11,7 @@ gen_third_cert() {
 
 test_basic_usage() {
   ensure_import_testimage
-  ensure_has_localhost_remote
+  ensure_has_localhost_remote 127.0.0.1:18443
 
   # Test image export
   sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
@@ -56,7 +56,7 @@ test_basic_usage() {
   # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
-  curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET $BASEURL/1.0/images | grep "/1.0/images/" && false
+  curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET https://127.0.0.1:18443/1.0/images | grep "/1.0/images/" && false
   lxc image delete foo-image
 
   # Test privileged container publish
@@ -65,14 +65,14 @@ test_basic_usage() {
   lxc init testimage barpriv -p default -p priv
   lxc publish barpriv --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
-  curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET $BASEURL/1.0/images | grep "/1.0/images/" && false
+  curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET https://127.0.0.1:18443/1.0/images | grep "/1.0/images/" && false
   lxc image delete foo-image
   lxc delete barpriv
   lxc profile delete priv
 
   # Test public images
   lxc publish --public bar --alias=foo-image2
-  curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET $BASEURL/1.0/images | grep "/1.0/images/"
+  curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET https://127.0.0.1:18443/1.0/images | grep "/1.0/images/"
   lxc image delete foo-image2
 
   # Test snapshot publish
@@ -95,14 +95,14 @@ test_basic_usage() {
   lxc delete $RDNAME
 
   # Test "nonetype" container creation
-  wait_for my_curl -X POST $BASEURL/1.0/containers \
+  wait_for 127.0.0.1:18443 my_curl -X POST https://127.0.0.1:18443/1.0/containers \
         -d "{\"name\":\"nonetype\",\"source\":{\"type\":\"none\"}}"
   lxc delete nonetype
 
   # Test "nonetype" container creation with an LXC config
-  wait_for my_curl -X POST $BASEURL/1.0/containers \
+  wait_for 127.0.0.1:18443 my_curl -X POST https://127.0.0.1:18443/1.0/containers \
         -d "{\"name\":\"configtest\",\"config\":{\"raw.lxc\":\"lxc.hook.clone=/bin/true\"},\"source\":{\"type\":\"none\"}}"
-  [ "$(my_curl $BASEURL/1.0/containers/configtest | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
+  [ "$(my_curl https://127.0.0.1:18443/1.0/containers/configtest | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
   lxc delete configtest
 
   # Anything below this will not get run inside Travis-CI

@@ -1,6 +1,6 @@
 test_snapshots() {
   ensure_import_testimage
-  ensure_has_localhost_remote
+  ensure_has_localhost_remote 127.0.0.1:18443
 
   lxc init testimage foo
 
@@ -20,7 +20,7 @@ test_snapshots() {
   [ ! -d "$LXD_DIR/snapshots/foo/snap0" ]
 
   # no CLI for this, so we use the API directly (rename a snapshot)
-  wait_for my_curl -X POST $BASEURL/1.0/containers/foo/snapshots/tester -d "{\"name\":\"tester2\"}"
+  wait_for 127.0.0.1:18443 my_curl -X POST https://127.0.0.1:18443/1.0/containers/foo/snapshots/tester -d "{\"name\":\"tester2\"}"
   [ ! -d "$LXD_DIR/snapshots/foo/tester" ]
 
   lxc move foo/tester2 foo/tester-two
@@ -49,7 +49,7 @@ test_snap_restore() {
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote
+  ensure_has_localhost_remote 127.0.0.1:18443
 
   lxc launch testimage bar
 

@@ -83,13 +83,16 @@ my_curl() {
 }
 
 wait_for() {
+  addr=${1}
+  shift
   op=$($@ | jq -r .operation)
-  my_curl $BASEURL$op/wait
+  my_curl https://${addr}${op}/wait
 }
 
 ensure_has_localhost_remote() {
+  addr=${1}
   if ! lxc remote list | grep -q "localhost"; then
-    (echo y; sleep 3) | lxc remote add localhost $BASEURL --password foo
+    (echo y; sleep 3) | lxc remote add localhost https://$addr --password foo
   fi
 }
 
@@ -112,13 +115,13 @@ kill_lxd() {
 
   # Delete all containers
   my_curl "https://${daemon_addr}/1.0/containers" | jq -r .metadata[] 2>/dev/null | while read -r line; do
-    wait_for my_curl -X PUT "https://${daemon_addr}${line}/state" -d "{\"action\":\"stop\",\"force\":true}" >/dev/null
-    wait_for my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
+    wait_for ${daemon_addr} my_curl -X PUT "https://${daemon_addr}${line}/state" -d "{\"action\":\"stop\",\"force\":true}" >/dev/null
+    wait_for ${daemon_addr} my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
   done
 
   # Delete all images
   my_curl "https://${daemon_addr}/1.0/images" | jq -r .metadata[] 2>/dev/null | while read -r line; do
-    wait_for my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
+    wait_for ${daemon_addr} my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
   done
 
   # Kill the daemon
@@ -214,7 +217,6 @@ LXD2_DIR=$(mktemp -d -p $TEST_DIR XXX)
 chmod +x "${LXD2_DIR}"
 spawn_lxd 127.0.0.1:18444 "${LXD2_DIR}"
 
-BASEURL=https://127.0.0.1:18443
 TEST_CURRENT=setup
 TEST_RESULT=failure
 
