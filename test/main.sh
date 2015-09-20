@@ -176,6 +176,14 @@ wipe() {
     fi
   fi
 
+  ps aux | grep lxc-monitord | grep "$1" | awk '{print $2}' | while read pid; do
+    kill -9 $pid
+  done
+
+  if mountpoint -q "$1"; then
+    umount "$1"
+  fi
+
   rm -Rf "$1"
 }
 
@@ -188,8 +196,12 @@ done
 
 # Setup test directory
 TEST_DIR=$(mktemp -d -p $(pwd) tmp.XXX)
-mkdir -p $TEST_DIR
 chmod +x $TEST_DIR
+
+if [ -n "${LXD_TMPFS:-}" ]; then
+  mount -t tmpfs tmpfs ${TEST_DIR} -o mode=0751
+fi
+
 LXD_CONF=$(mktemp -d -p $TEST_DIR XXX)
 
 # Setup the first LXD
