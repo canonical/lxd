@@ -1,17 +1,17 @@
 gen_second_cert() {
-	[ -f $LXD_CONF/client2.crt ] && return
-	mv $LXD_CONF/client.crt $LXD_CONF/client.crt.bak
-	mv $LXD_CONF/client.key $LXD_CONF/client.key.bak
-	lxc list > /dev/null 2>&1
-	mv $LXD_CONF/client.crt $LXD_CONF/client2.crt
-	mv $LXD_CONF/client.key $LXD_CONF/client2.key
-	mv $LXD_CONF/client.crt.bak $LXD_CONF/client.crt
-	mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
+  [ -f $LXD_CONF/client2.crt ] && return
+  mv $LXD_CONF/client.crt $LXD_CONF/client.crt.bak
+  mv $LXD_CONF/client.key $LXD_CONF/client.key.bak
+  lxc list > /dev/null 2>&1
+  mv $LXD_CONF/client.crt $LXD_CONF/client2.crt
+  mv $LXD_CONF/client.key $LXD_CONF/client2.key
+  mv $LXD_CONF/client.crt.bak $LXD_CONF/client.crt
+  mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
 }
 
 test_remote_url() {
   for url in localhost:18443 https://localhost:18443; do
-    (echo y;  sleep 3;  echo foo) | lxc remote add test $url
+    (echo y; sleep 3; echo foo) | lxc remote add test $url
     lxc finger test:
     lxc config trust list | grep @ | awk '{print $2}' | while read line ; do
       lxc config trust remove "\"$line\""
@@ -20,7 +20,7 @@ test_remote_url() {
   done
 
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
-  if [ -z "$LXD_TEST_DRACONIAN_PROXY" ]; then
+  if [ -z "${LXD_TEST_DRACONIAN_PROXY:-}" ]; then
     urls="images.linuxcontainers.org https://images.linuxcontainers.org $urls"
   fi
 
@@ -33,13 +33,13 @@ test_remote_url() {
 
 test_remote_admin() {
   bad=0
-  (sleep 3; echo bad) | lxc remote add badpass 127.0.0.1:18443 $debug --accept-certificate || true
+  (sleep 3; echo bad) | lxc remote add badpass 127.0.0.1:18443 --accept-certificate || true
   lxc list badpass: && bad=1 || true
   if [ "$bad" -eq 1 ]; then
-      echo "bad password accepted" && false
+    echo "bad password accepted" && false
   fi
 
-  (echo y; sleep 3) |  lxc remote add localhost 127.0.0.1:18443 $debug --password foo
+  (echo y; sleep 3) | lxc remote add localhost 127.0.0.1:18443 --password foo
   lxc remote list | grep 'localhost'
 
   lxc remote set-default localhost
@@ -55,14 +55,14 @@ test_remote_admin() {
 
   # This is a test for #91, we expect this to hang asking for a password if we
   # tried to re-add our cert.
-  echo y | lxc remote add localhost 127.0.0.1:18443 $debug
+  echo y | lxc remote add localhost 127.0.0.1:18443
 
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
   gen_second_cert
 
   # Test for #623
-  (echo y; sleep 3; echo foo) | lxc remote add test-623 127.0.0.1:18443 $debug
+  (echo y; sleep 3; echo foo) | lxc remote add test-623 127.0.0.1:18443
 
   # now re-add under a different alias
   lxc config trust add "$LXD_CONF/client2.crt"
@@ -73,14 +73,14 @@ test_remote_admin() {
   # Check that we can add domains with valid certs without confirmation:
 
   # avoid default high port behind some proxies:
-  if [ -z "$LXD_TEST_DRACONIAN_PROXY" ]; then
+  if [ -z "${LXD_TEST_DRACONIAN_PROXY:-}" ]; then
     lxc remote add images images.linuxcontainers.org
     lxc remote add images2 images.linuxcontainers.org:443
   fi
 }
 
 test_remote_usage() {
-  (echo y;  sleep 3;  echo foo) |  lxc remote add lxd2 127.0.0.1:18444 $debug
+  (echo y; sleep 3; echo foo) | lxc remote add lxd2 127.0.0.1:18444
 
   # we need a public image on localhost
   lxc image export localhost:testimage ${LXD_DIR}/foo.img
@@ -121,7 +121,7 @@ test_remote_usage() {
   wait $C1PID
   lxc delete lxd2:c1
 
-  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
     return
   fi
 

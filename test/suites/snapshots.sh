@@ -1,6 +1,6 @@
 test_snapshots() {
   ensure_import_testimage
-  ensure_has_localhost_remote
+  ensure_has_localhost_remote 127.0.0.1:18443
 
   lxc init testimage foo
 
@@ -20,7 +20,7 @@ test_snapshots() {
   [ ! -d "$LXD_DIR/snapshots/foo/snap0" ]
 
   # no CLI for this, so we use the API directly (rename a snapshot)
-  wait_for my_curl -X POST $BASEURL/1.0/containers/foo/snapshots/tester -d "{\"name\":\"tester2\"}"
+  wait_for 127.0.0.1:18443 my_curl -X POST https://127.0.0.1:18443/1.0/containers/foo/snapshots/tester -d "{\"name\":\"tester2\"}"
   [ ! -d "$LXD_DIR/snapshots/foo/tester" ]
 
   lxc move foo/tester2 foo/tester-two
@@ -42,15 +42,14 @@ test_snapshots() {
 }
 
 test_snap_restore() {
-
   # Skipping restore tests on Travis for now...
-  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
     echo "SKIPPING"
     return
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote
+  ensure_has_localhost_remote 127.0.0.1:18443
 
   lxc launch testimage bar
 
@@ -121,7 +120,7 @@ test_snap_restore() {
   ##########################################################
 
   # Anything below this will not get run inside Travis-CI
-  if [ -n "$TRAVIS_PULL_REQUEST" ]; then
+  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
     lxc delete bar
     return
   fi
@@ -143,7 +142,7 @@ restore_and_compare_fs() {
   snap=$1
   echo "\n ==> Restoring $snap \n"
 
-  lxc restore bar $1
+  lxc restore bar $snap
 
   # Recursive diff of container FS
   echo "diff -r $LXD_DIR/containers/bar/rootfs $LXD_DIR/snapshots/bar/$snap/rootfs"
