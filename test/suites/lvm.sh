@@ -117,8 +117,7 @@ test_mixing_storage() {
     exit 0
   )
 
-  do_kill_lxd `cat $LXD5_DIR/lxd.pid`
-  wipe ${LXD5_DIR}
+  kill_lxd $LXD5_DIR
 }
 
 check_image_exists_in_pool() {
@@ -242,9 +241,7 @@ test_lvm_withpool() {
     exit 0
   )
 
-  do_kill_lxd `cat $LXD5_DIR/lxd.pid`
-  sleep 3
-  wipe ${LXD5_DIR}
+  kill_lxd $LXD5_DIR
 }
 
 test_remote_launch_imports_lvm() {
@@ -287,10 +284,8 @@ test_remote_launch_imports_lvm() {
     exit 0
   )
 
-  do_kill_lxd `cat $LXD5_DIR/lxd.pid`
-  do_kill_lxd `cat $LXD6_DIR/lxd.pid`
-  wipe ${LXD5_DIR}
-  wipe ${LXD6_DIR}
+  kill_lxd ${LXD5_DIR}
+  kill_lxd ${LXD6_DIR}
 }
 
 test_init_with_missing_vg() {
@@ -307,7 +302,7 @@ test_init_with_missing_vg() {
     exit 0
   )
 
-  do_kill_lxd `cat $LXD5_DIR/lxd.pid`
+  kill -9 $(cat $LXD5_DIR/lxd.pid)
   cleanup_vg red_shirt_yeoman_vg
 
   spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
@@ -320,6 +315,5 @@ test_init_with_missing_vg() {
     exit 0
   )
 
-  do_kill_lxd `cat $LXD5_DIR/lxd.pid`
-  wipe ${LXD5_DIR}
+  kill_lxd $LXD5_DIR
 }

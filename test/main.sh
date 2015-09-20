@@ -34,9 +34,9 @@ spawn_lxd() {
 
   echo "==> Spawning lxd on $addr in $lxddir"
   LXD_DIR=$lxddir lxd --logfile $lxddir/lxd.log ${DEBUG-} $* 2>&1 &
-  pid=$!
-  echo $pid > $lxddir/lxd.pid
-  echo "${lxddir} ${addr} ${pid}" >> $TEST_DIR/daemons
+  echo $! > $lxddir/lxd.pid
+  echo $addr > $lxddir/lxd.addr
+  echo $lxddir >> $TEST_DIR/daemons
 
   echo "==> Confirming lxd on $addr is responsive"
   alive=0
@@ -103,11 +103,37 @@ ensure_import_testimage() {
   fi
 }
 
-do_kill_lxd() {
-  pid=$1
-  kill -15 $pid
+kill_lxd() {
+  daemon_dir=${1}
+  daemon_addr=$(cat ${daemon_dir}/lxd.addr)
+  daemon_pid=$(cat ${daemon_dir}/lxd.pid)
+
+  [ -d "${daemon_dir}" ] || continue
+
+  # Delete all containers
+  my_curl "https://${daemon_addr}/1.0/containers" | jq -r .metadata[] 2>/dev/null | while read -r line; do
+    wait_for my_curl -X PUT "https://${daemon_addr}${line}/state" -d "{\"action\":\"stop\",\"force\":true}" >/dev/null
+    wait_for my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
+  done
+
+  # Delete all images
+  my_curl "https://${daemon_addr}/1.0/images" | jq -r .metadata[] 2>/dev/null | while read -r line; do
+    wait_for my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
+  done
+
+  # Kill the daemon
+  kill -15 ${daemon_pid} 2>/dev/null || true
   sleep 2
-  kill -9 $pid 2>/dev/null || true
+  kill -9 ${daemon_pid} 2>/dev/null || true
+
+  # Cleanup shmounts
+  find ${daemon_dir} -name shmounts -exec "umount" "-l" "{}" \; || true
+
+  # Wipe the daemon directory
+  wipe ${daemon_dir}
+
+  # Remove the daemon from the list
+  sed "\|^${daemon_dir}|d" -i ${TEST_DIR}/daemons
 }
 
 cleanup() {
@@ -127,29 +153,8 @@ cleanup() {
   echo "==> Cleaning up"
 
   # Kill all the LXD instances
-  while read line; do
-    set -- $line
-
-    daemon_dir=${1}
-    daemon_addr=${2}
-    daemon_pid=${3}
-
-    [ -d "${daemon_dir}" ] || continue
-
-    # Delete all containers
-    my_curl "https://${daemon_addr}/1.0/containers" | jq -r .metadata[] 2>/dev/null | while read -r line; do
-      wait_for my_curl -X PUT "https://${daemon_addr}${line}/state" -d "{\"action\":\"stop\",\"force\":true}" >/dev/null
-      wait_for my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
-    done
-
-    # Delete all images
-    my_curl "https://${daemon_addr}/1.0/images" | jq -r .metadata[] 2>/dev/null | while read -r line; do
-      wait_for my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
-    done
-
-    do_kill_lxd ${daemon_pid}
-
-    find ${daemon_dir} -name shmounts -exec "umount" "-l" "{}" \; || true
+  while read daemon_dir; do
+    kill_lxd $daemon_dir
   done < $TEST_DIR/daemons
 
   # Wipe the test environment
