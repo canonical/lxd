@@ -110,18 +110,26 @@ kill_lxd() {
   daemon_dir=${1}
   daemon_addr=$(cat ${daemon_dir}/lxd.addr)
   daemon_pid=$(cat ${daemon_dir}/lxd.pid)
+  echo "==> Killing LXD at ${daemon_dir}"
 
   [ -d "${daemon_dir}" ] || continue
 
   # Delete all containers
+  echo "==> Deleting all containers"
   my_curl "https://${daemon_addr}/1.0/containers" | jq -r .metadata[] 2>/dev/null | while read -r line; do
     wait_for ${daemon_addr} my_curl -X PUT "https://${daemon_addr}${line}/state" -d "{\"action\":\"stop\",\"force\":true}" >/dev/null
     wait_for ${daemon_addr} my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
   done
 
   # Delete all images
+  echo "==> Deleting all images"
   my_curl "https://${daemon_addr}/1.0/images" | jq -r .metadata[] 2>/dev/null | while read -r line; do
     wait_for ${daemon_addr} my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
+  done
+
+  echo "==> Checking for locked DB tables"
+  for table in $(echo .tables | sqlite3 ${daemon_dir}/lxd.db); do
+    echo "SELECT * FROM $table;" | sqlite3 ${daemon_dir}/lxd.db >/dev/null
   done
 
   # Kill the daemon
@@ -336,10 +344,5 @@ test_cpu_profiling
 echo "==> TEST: memory profiling"
 TEST_CURRENT=test_mem_profiling
 test_mem_profiling
-
-# This should always be run last
-echo "==> TEST: database lock"
-TEST_CURRENT=test_database_lock
-test_database_lock
 
 TEST_RESULT=success
