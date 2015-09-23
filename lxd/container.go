@@ -509,7 +509,7 @@ func (c *containerLXD) init() error {
 		return err
 	}
 
-	if !c.IsPrivileged() || shared.RunningInUserNS() {
+	if !c.IsPrivileged() || runningInUserns {
 		err = c.c.SetConfigItem("lxc.include", fmt.Sprintf("%s/%s.userns.conf", templateConfDir, templateConfBase))
 		if err != nil {
 			return err
