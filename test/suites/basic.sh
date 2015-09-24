@@ -123,7 +123,7 @@ test_basic_usage() {
   mac2=$(lxc exec foo cat /sys/class/net/eth0/address)
 
   if [ "${mac1}" != "${mac2}" ]; then
-    echo "==> MAC addresses didn't match across restarts"
+    echo "==> MAC addresses didn't match across restarts (${mac1} vs ${mac2})"
     false
   fi
 
