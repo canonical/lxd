@@ -7,7 +7,7 @@ if [ -n "${LXD_DEBUG:-}" ]; then
 fi
 
 echo "==> Checking for dependencies"
-for dep in lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl; do
+for dep in lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen; do
   type ${dep} >/dev/null 2>&1 || (echo "Missing dependency: ${dep}" >&2 && exit 1)
 done
 
