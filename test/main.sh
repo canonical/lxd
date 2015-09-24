@@ -7,7 +7,7 @@ if [ -n "${LXD_DEBUG:-}" ]; then
 fi
 
 echo "==> Checking for dependencies"
-for dep in lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt; do
+for dep in lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl; do
   type ${dep} >/dev/null 2>&1 || (echo "Missing dependency: ${dep}" >&2 && exit 1)
 done
 
@@ -17,28 +17,37 @@ if [ "${USER:-'root'}" != "root" ]; then
 fi
 
 # Helper functions
+local_tcp_port() {
+  while :; do
+    port=$(shuf -i 10000-32768 -n 1)
+    nc -l 127.0.0.1 ${port} >/dev/null 2>&1 &
+    pid=$!
+    kill ${pid} >/dev/null 2>&1 || continue
+    wait ${pid} || true
+    echo ${port}
+    return
+  done
+}
+
 spawn_lxd() {
   set +x
   # LXD_DIR is local here because since `lxc` is actually a function, it
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
   local LXD_DIR
 
-  addr=${1}
-  lxddir=${2}
-  shift
+  lxddir=${1}
   shift
 
   # Copy pre generated Certs
   cp deps/server.crt ${lxddir}
   cp deps/server.key ${lxddir}
 
-  echo "==> Spawning lxd on ${addr} in ${lxddir}"
+  echo "==> Spawning lxd in ${lxddir}"
   LXD_DIR=${lxddir} lxd --logfile ${lxddir}/lxd.log ${DEBUG-} $@ 2>&1 &
   echo $! > ${lxddir}/lxd.pid
-  echo ${addr} > ${lxddir}/lxd.addr
   echo ${lxddir} >> ${TEST_DIR}/daemons
 
-  echo "==> Confirming lxd on ${addr} is responsive"
+  echo "==> Confirming lxd is responsive"
   alive=0
   while [ ${alive} -eq 0 ]; do
     [ -e "${lxddir}/unix.socket" ] && LXD_DIR=${lxddir} lxc finger && alive=1
@@ -46,7 +55,10 @@ spawn_lxd() {
   done
 
   echo "==> Binding to network"
+  addr="127.0.0.1:$(local_tcp_port)"
   LXD_DIR=${lxddir} lxc config set core.https_address ${addr}
+  echo ${addr} > ${lxddir}/lxd.addr
+  echo "==> Bound to ${addr}"
 
   echo "==> Setting trust password"
   LXD_DIR=${lxddir} lxc config set core.trust_password foo
@@ -218,12 +230,14 @@ LXD_CONF=$(mktemp -d -p ${TEST_DIR} XXX)
 # Setup the first LXD
 export LXD_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
 chmod +x ${LXD_DIR}
-spawn_lxd 127.0.0.1:18443 ${LXD_DIR}
+spawn_lxd ${LXD_DIR}
+LXD_ADDR=$(cat ${LXD_DIR}/lxd.addr)
 
 # Setup the second LXD
 LXD2_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
-chmod +x "${LXD2_DIR}"
-spawn_lxd 127.0.0.1:18444 "${LXD2_DIR}"
+chmod +x ${LXD2_DIR}
+spawn_lxd ${LXD2_DIR}
+LXD2_ADDR=$(cat ${LXD2_DIR}/lxd.addr)
 
 TEST_CURRENT=setup
 TEST_RESULT=failure

@@ -10,7 +10,7 @@ gen_second_cert() {
 }
 
 test_remote_url() {
-  for url in localhost:18443 https://localhost:18443; do
+  for url in ${LXD_ADDR} https://${LXD_ADDR}; do
     (echo y; sleep 3; echo foo) | lxc remote add test ${url}
     lxc finger test:
     lxc config trust list | grep @ | awk '{print $2}' | while read line ; do
@@ -33,13 +33,13 @@ test_remote_url() {
 
 test_remote_admin() {
   bad=0
-  (sleep 3; echo bad) | lxc remote add badpass 127.0.0.1:18443 --accept-certificate || true
+  (sleep 3; echo bad) | lxc remote add badpass ${LXD_ADDR} --accept-certificate || true
   lxc list badpass: && bad=1 || true
   if [ "${bad}" -eq 1 ]; then
     echo "bad password accepted" && false
   fi
 
-  (echo y; sleep 3) | lxc remote add localhost 127.0.0.1:18443 --password foo
+  (echo y; sleep 3) | lxc remote add localhost ${LXD_ADDR} --password foo
   lxc remote list | grep 'localhost'
 
   lxc remote set-default localhost
@@ -55,14 +55,14 @@ test_remote_admin() {
 
   # This is a test for #91, we expect this to hang asking for a password if we
   # tried to re-add our cert.
-  echo y | lxc remote add localhost 127.0.0.1:18443
+  echo y | lxc remote add localhost ${LXD_ADDR}
 
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
   gen_second_cert
 
   # Test for #623
-  (echo y; sleep 3; echo foo) | lxc remote add test-623 127.0.0.1:18443
+  (echo y; sleep 3; echo foo) | lxc remote add test-623 ${LXD_ADDR}
 
   # now re-add under a different alias
   lxc config trust add "${LXD_CONF}/client2.crt"
@@ -80,7 +80,7 @@ test_remote_admin() {
 }
 
 test_remote_usage() {
-  (echo y; sleep 3; echo foo) | lxc remote add lxd2 127.0.0.1:18444
+  (echo y; sleep 3; echo foo) | lxc remote add lxd2 ${LXD2_ADDR}
 
   # we need a public image on localhost
   lxc image export localhost:testimage ${LXD_DIR}/foo.img
