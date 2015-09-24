@@ -2,10 +2,10 @@ test_migration() {
   ensure_import_testimage
 
   if ! lxc remote list | grep -q l1; then
-    (echo y; sleep 3; echo foo) | lxc remote add l1 127.0.0.1:18443
+    (echo y; sleep 3; echo foo) | lxc remote add l1 ${LXD_ADDR}
   fi
   if ! lxc remote list | grep -q l2; then
-    (echo y; sleep 3; echo foo) | lxc remote add l2 127.0.0.1:18444
+    (echo y; sleep 3; echo foo) | lxc remote add l2 ${LXD2_ADDR}
   fi
 
   lxc init testimage nonlive

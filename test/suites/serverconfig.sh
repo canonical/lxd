@@ -1,6 +1,6 @@
 test_server_config() {
   LXD_SERVERCONFIG_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
-  spawn_lxd 127.0.0.1:18450 ${LXD_SERVERCONFIG_DIR}
+  spawn_lxd ${LXD_SERVERCONFIG_DIR}
 
   lxc config set core.trust_password 123456
 
@@ -12,5 +12,5 @@ test_server_config() {
   lxc config show | grep -q -v "trust_password"
 
   # test untrusted server GET
-  my_curl -X GET https://127.0.0.1:18450/1.0 | grep -v -q environment
+  my_curl -X GET https://$(cat ${LXD_SERVERCONFIG_DIR}/lxd.addr)/1.0 | grep -v -q environment
 }

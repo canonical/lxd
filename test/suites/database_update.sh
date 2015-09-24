@@ -8,7 +8,7 @@ test_database_update(){
   cat deps/schema1.sql | sqlite3 ${MIGRATE_DB} > /dev/null
 
   # Start an LXD demon in the tmp directory. This should start the updates.
-  spawn_lxd 127.0.0.1:18447 "${LXD_MIGRATE_DIR}"
+  spawn_lxd ${LXD_MIGRATE_DIR}
 
   # Assert there are enough tables.
   expected_tables=15

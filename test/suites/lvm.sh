@@ -80,8 +80,8 @@ test_lvm() {
 
 test_mixing_storage() {
   LXD5_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
-  chmod +x "${LXD5_DIR}"
-  spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
+  chmod +x ${LXD5_DIR}
+  spawn_lxd ${LXD5_DIR}
 
   (
     set -e
@@ -146,8 +146,8 @@ do_image_import_subtest() {
 test_lvm_withpool() {
   poolname=${1:-}
   LXD5_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
-  chmod +x "${LXD5_DIR}"
-  spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
+  chmod +x ${LXD5_DIR}
+  spawn_lxd ${LXD5_DIR}
 
   (
     set -e
@@ -246,13 +246,14 @@ test_lvm_withpool() {
 
 test_remote_launch_imports_lvm() {
   LXD5_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
-  chmod +x "${LXD5_DIR}"
-  spawn_lxd 127.0.0.1:18466 "${LXD5_DIR}"
+  chmod +x ${LXD5_DIR}
+  spawn_lxd ${LXD5_DIR}
+  LXD5_ADDR=$(cat ${LXD5_DIR}/lxd.addr)
 
   LXD6_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
-  chmod +x "${LXD6_DIR}"
+  chmod +x ${LXD6_DIR}
 
-  spawn_lxd 127.0.0.1:18467 "${LXD6_DIR}"
+  spawn_lxd ${LXD6_DIR}
 
   (
     set -e
@@ -265,7 +266,7 @@ test_remote_launch_imports_lvm() {
     LXD_REMOTE_DIR=${LXD5_DIR}
 
     lxc config set storage.lvm_vg_name "lxd_test_vg" || die "couldn't set vg_name"
-    (echo y; sleep 3; echo foo) | lxc remote add testremote 127.0.0.1:18466
+    (echo y; sleep 3; echo foo) | lxc remote add testremote ${LXD5_ADDR}
 
     testimage_sha=$(lxc image info testremote:testimage | grep Fingerprint | cut -d' ' -f 2)
     lxc launch testremote:testimage remote-test || die "Couldn't launch from remote"
@@ -290,8 +291,8 @@ test_remote_launch_imports_lvm() {
 
 test_init_with_missing_vg() {
   LXD5_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
-  chmod +x "${LXD5_DIR}"
-  spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
+  chmod +x ${LXD5_DIR}
+  spawn_lxd ${LXD5_DIR}
 
   create_vg red_shirt_yeoman_vg
 
@@ -305,7 +306,7 @@ test_init_with_missing_vg() {
   kill -9 $(cat ${LXD5_DIR}/lxd.pid)
   cleanup_vg red_shirt_yeoman_vg
 
-  spawn_lxd 127.0.0.1:18451 "${LXD5_DIR}"
+  spawn_lxd ${LXD5_DIR}
 
   (
     set -e
