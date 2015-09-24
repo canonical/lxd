@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -46,7 +48,7 @@ const NESTING_AA_PROFILE = `
 
 const DEFAULT_AA_PROFILE = `
 #include <tunables/global>
-profile lxd-%s flags=(attach_disconnected,mediate_deleted) {
+profile "%s" flags=(attach_disconnected,mediate_deleted) {
     #include <abstractions/lxc/container-base>
 
     # user input raw.apparmor below here
@@ -54,10 +56,21 @@ profile lxd-%s flags=(attach_disconnected,mediate_deleted) {
 
     # nesting support goes here if needed
     %s
-    change_profile -> lxd-%s,
+    change_profile -> "%s",
 }`
 
-func AAProfileName(c *containerLXD) string {
+func AAProfileFull(c *containerLXD) string {
+	lxddir := shared.VarPath("")
+	if len(c.name)+len(lxddir)+7 >= 253 {
+		hash := sha256.New()
+		io.WriteString(hash, lxddir)
+		lxddir = fmt.Sprintf("%x", hash.Sum(nil))
+	}
+
+	return fmt.Sprintf("lxd-%s_<%s>", c.name, lxddir)
+}
+
+func AAProfileShort(c *containerLXD) string {
 	return fmt.Sprintf("lxd-%s", c.name)
 }
 
@@ -75,10 +88,10 @@ func getAAProfileContent(c *containerLXD) string {
 		nesting = NESTING_AA_PROFILE
 	}
 
-	return fmt.Sprintf(DEFAULT_AA_PROFILE, c.name, rawApparmor, nesting, c.name)
+	return fmt.Sprintf(DEFAULT_AA_PROFILE, AAProfileFull(c), rawApparmor, nesting, AAProfileFull(c))
 }
 
-func runApparmor(command string, profile string) error {
+func runApparmor(command string, c *containerLXD) error {
 	if aaConfined() {
 		shared.Log.Debug("Already apparmor-confined (nested?), skipping aa profile actions")
 		return nil
@@ -87,7 +100,7 @@ func runApparmor(command string, profile string) error {
 	cmd := exec.Command("apparmor_parser", []string{
 		fmt.Sprintf("-%sWL", command),
 		path.Join(aaPath, "cache"),
-		path.Join(aaPath, "profiles", profile),
+		path.Join(aaPath, "profiles", AAProfileShort(c)),
 	}...)
 
 	output, err := cmd.CombinedOutput()
@@ -135,7 +148,7 @@ func AALoadProfile(c *containerLXD) error {
 	 * version out so that the new changes are reflected and we definitely
 	 * force a recompile.
 	 */
-	profile := path.Join(aaPath, "profiles", AAProfileName(c))
+	profile := path.Join(aaPath, "profiles", AAProfileShort(c))
 	content, err := ioutil.ReadFile(profile)
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -153,7 +166,7 @@ func AALoadProfile(c *containerLXD) error {
 		}
 	}
 
-	return runApparmor(APPARMOR_CMD_LOAD, AAProfileName(c))
+	return runApparmor(APPARMOR_CMD_LOAD, c)
 }
 
 // Ensure that the container's policy is unloaded to free kernel memory. This
@@ -164,7 +177,7 @@ func AAUnloadProfile(c *containerLXD) error {
 		return nil
 	}
 
-	return runApparmor(APPARMOR_CMD_UNLOAD, AAProfileName(c))
+	return runApparmor(APPARMOR_CMD_UNLOAD, c)
 }
 
 // Parse the profile without loading it into the kernel.
@@ -174,7 +187,7 @@ func AAParseProfile(c *containerLXD) error {
 		return nil
 	}
 
-	return runApparmor(APPARMOR_CMD_PARSE, AAProfileName(c))
+	return runApparmor(APPARMOR_CMD_PARSE, c)
 }
 
 // Delete the policy from cache/disk.
@@ -187,8 +200,8 @@ func AADeleteProfile(c *containerLXD) {
 	/* It's ok if these deletes fail: if the container was never started,
 	 * we'll have never written a profile or cached it.
 	 */
-	os.Remove(path.Join(aaPath, "cache", AAProfileName(c)))
-	os.Remove(path.Join(aaPath, "profiles", AAProfileName(c)))
+	os.Remove(path.Join(aaPath, "cache", AAProfileShort(c)))
+	os.Remove(path.Join(aaPath, "profiles", AAProfileShort(c)))
 }
 
 // What's current apparmor profile

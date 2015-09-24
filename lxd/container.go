@@ -556,7 +556,7 @@ func (c *containerLXD) init() error {
 			if err := c.c.SetConfigItem("lxc.aa_profile", curProfile); err != nil {
 				return err
 			}
-		} else if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileName(c)); err != nil {
+		} else if err := c.c.SetConfigItem("lxc.aa_profile", AAProfileFull(c)); err != nil {
 			return err
 		}
 	}
