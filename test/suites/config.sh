@@ -11,7 +11,7 @@ test_config_profiles() {
   # into the database and never let the user edit the container again.
   bad=0
   lxc config set foo raw.lxc "lxc.notaconfigkey = invalid" && bad=1 || true
-  if [ "$bad" -eq 1 ]; then
+  if [ "${bad}" -eq 1 ]; then
     echo "allowed setting a bad config value"
     false
   fi
@@ -51,14 +51,14 @@ test_config_profiles() {
     lxc config device remove foo etc
     bad=0
     lxc exec foo -- ls /mnt2/hosts && bad=1 || true
-    if [ "$bad" -eq 1 ]; then
+    if [ "${bad}" -eq 1 ]; then
       echo "disk was not hot-unplugged"
       false
     fi
     lxc stop foo --force
     lxc start foo
     lxc exec foo -- ls /mnt2/hosts && bad=1 || true
-    if [ "$bad" -eq 1 ]; then
+    if [ "${bad}" -eq 1 ]; then
       echo "disk device re-appeared after stop and start"
       false
     fi
@@ -71,13 +71,13 @@ test_config_profiles() {
 
   bad=0
   lxc list user.prop=value | grep foo && bad=1
-  if [ "$bad" -eq 1 ]; then
+  if [ "${bad}" -eq 1 ]; then
     echo "property unset failed"
   fi
 
   bad=0
   lxc config set foo user.prop 2>/dev/null && bad=1
-  if [ "$bad" -eq 1 ]; then
+  if [ "${bad}" -eq 1 ]; then
     echo "property set succeded when it shouldn't have"
   fi
 
