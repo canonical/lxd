@@ -5,40 +5,40 @@ test_snapshots() {
   lxc init testimage foo
 
   lxc snapshot foo
-  [ -d "$LXD_DIR/snapshots/foo/snap0" ]
+  [ -d "${LXD_DIR}/snapshots/foo/snap0" ]
 
   lxc snapshot foo
-  [ -d "$LXD_DIR/snapshots/foo/snap1" ]
+  [ -d "${LXD_DIR}/snapshots/foo/snap1" ]
 
   lxc snapshot foo tester
-  [ -d "$LXD_DIR/snapshots/foo/tester" ]
+  [ -d "${LXD_DIR}/snapshots/foo/tester" ]
 
   lxc copy foo/tester foosnap1
-  [ -d "$LXD_DIR/containers/foosnap1/rootfs" ]
+  [ -d "${LXD_DIR}/containers/foosnap1/rootfs" ]
 
   lxc delete foo/snap0
-  [ ! -d "$LXD_DIR/snapshots/foo/snap0" ]
+  [ ! -d "${LXD_DIR}/snapshots/foo/snap0" ]
 
   # no CLI for this, so we use the API directly (rename a snapshot)
   wait_for 127.0.0.1:18443 my_curl -X POST https://127.0.0.1:18443/1.0/containers/foo/snapshots/tester -d "{\"name\":\"tester2\"}"
-  [ ! -d "$LXD_DIR/snapshots/foo/tester" ]
+  [ ! -d "${LXD_DIR}/snapshots/foo/tester" ]
 
   lxc move foo/tester2 foo/tester-two
   lxc delete foo/tester-two
-  [ ! -d "$LXD_DIR/snapshots/foo/tester-two" ]
+  [ ! -d "${LXD_DIR}/snapshots/foo/tester-two" ]
 
   lxc snapshot foo namechange
-  [ -d "$LXD_DIR/snapshots/foo/namechange" ]
+  [ -d "${LXD_DIR}/snapshots/foo/namechange" ]
   lxc move foo foople
-  [ ! -d "$LXD_DIR/containers/foo" ]
-  [ -d "$LXD_DIR/containers/foople" ]
-  [ -d "$LXD_DIR/snapshots/foople/namechange" ]
-  [ -d "$LXD_DIR/snapshots/foople/namechange" ]
+  [ ! -d "${LXD_DIR}/containers/foo" ]
+  [ -d "${LXD_DIR}/containers/foople" ]
+  [ -d "${LXD_DIR}/snapshots/foople/namechange" ]
+  [ -d "${LXD_DIR}/snapshots/foople/namechange" ]
 
   lxc delete foople
   lxc delete foosnap1
-  [ ! -d "$LXD_DIR/containers/foople" ]
-  [ ! -d "$LXD_DIR/containers/foosnap1" ]
+  [ ! -d "${LXD_DIR}/containers/foople" ]
+  [ ! -d "${LXD_DIR}/containers/foosnap1" ]
 }
 
 test_snap_restore() {
@@ -64,8 +64,8 @@ test_snap_restore() {
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap0
   lxc stop bar --force
-  mkdir "$LXD_DIR/containers/bar/rootfs/root/dir_only_in_snap0"
-  cd "$LXD_DIR/containers/bar/rootfs/root/"
+  mkdir "${LXD_DIR}/containers/bar/rootfs/root/dir_only_in_snap0"
+  cd "${LXD_DIR}/containers/bar/rootfs/root/"
   ln -s ./file_only_in_snap0 statelink
   cd -
 
@@ -77,7 +77,7 @@ test_snap_restore() {
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap1
   lxc stop bar --force
-  cd "$LXD_DIR/containers/bar/rootfs/root/"
+  cd "${LXD_DIR}/containers/bar/rootfs/root/"
 
   rmdir dir_only_in_snap0
   rm    file_only_in_snap0
@@ -99,8 +99,8 @@ test_snap_restore() {
 
   # Check container config has been restored (limits.cpus is unset)
   cpus=$(lxc config get bar limits.cpus)
-  if [ "$cpus" != "limits.cpus: " ]; then
-   echo "==> config didn't match expected value after restore ($cpus)"
+  if [ "${cpus}" != "limits.cpus: " ]; then
+   echo "==> config didn't match expected value after restore (${cpus})"
    false
   fi
 
@@ -111,9 +111,9 @@ test_snap_restore() {
 
   # Check config value in snapshot has been restored
   cpus=$(lxc config get bar limits.cpus)
-  echo $cpus
-  if [ "$cpus" != "limits.cpus: 1" ]; then
-   echo "==> config didn't match expected value after restore ($cpus)"
+  echo ${cpus}
+  if [ "${cpus}" != "limits.cpus: 1" ]; then
+   echo "==> config didn't match expected value after restore (${cpus})"
    false
   fi
 
@@ -139,12 +139,12 @@ test_snap_restore() {
 }
 
 restore_and_compare_fs() {
-  snap=$1
-  echo "\n ==> Restoring $snap \n"
+  snap=${1}
+  echo "\n ==> Restoring ${snap} \n"
 
-  lxc restore bar $snap
+  lxc restore bar ${snap}
 
   # Recursive diff of container FS
-  echo "diff -r $LXD_DIR/containers/bar/rootfs $LXD_DIR/snapshots/bar/$snap/rootfs"
-  diff -r "$LXD_DIR/containers/bar/rootfs" "$LXD_DIR/snapshots/bar/$snap/rootfs"
+  echo "diff -r ${LXD_DIR}/containers/bar/rootfs ${LXD_DIR}/snapshots/bar/${snap}/rootfs"
+  diff -r "${LXD_DIR}/containers/bar/rootfs" "${LXD_DIR}/snapshots/bar/${snap}/rootfs"
 }

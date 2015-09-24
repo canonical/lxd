@@ -9,18 +9,18 @@ test_image_expiry() {
   fi
   lxc init l1:testimage l2:c1
   fp=`lxc image info testimage | awk -F: '/^Fingerprint/ { print $2 }' | awk '{ print $1 }'`
-  [ ! -z "$fp" ]
-  fpbrief=`echo $fp | cut -c 1-10`
+  [ ! -z "${fp}" ]
+  fpbrief=`echo ${fp} | cut -c 1-10`
 
-  lxc image list l2: | grep -q $fpbrief
+  lxc image list l2: | grep -q ${fpbrief}
 
   lxc remote set-default l2
   lxc config set images.remote_cache_expiry 0
   sed -i '/^default-remote:/d' ${LXD_CONF}/config.yml
 
   bad=0
-  lxc image list l2: | grep -q $fpbrief && bad=1 || true
-  if [ $bad -eq 1 ]; then
+  lxc image list l2: | grep -q ${fpbrief} && bad=1 || true
+  if [ ${bad} -eq 1 ]; then
     echo "expired image was not removed"; false
   fi
 
