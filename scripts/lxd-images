@@ -334,8 +334,7 @@ class Ubuntu(Image):
     server = None
     stream = None
 
-    # FIXME: We should default to the released stream once available
-    def __init__(self, server="https://cloud-images.ubuntu.com",
+    def __init__(self, server="http://cloud-images.ubuntu.com",
                  stream="releases",
                  gpgkey="7FF3F408476CF100"):
 
