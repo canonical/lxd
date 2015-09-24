@@ -1,31 +1,31 @@
 gen_second_cert() {
-  [ -f $LXD_CONF/client2.crt ] && return
-  mv $LXD_CONF/client.crt $LXD_CONF/client.crt.bak
-  mv $LXD_CONF/client.key $LXD_CONF/client.key.bak
+  [ -f ${LXD_CONF}/client2.crt ] && return
+  mv ${LXD_CONF}/client.crt ${LXD_CONF}/client.crt.bak
+  mv ${LXD_CONF}/client.key ${LXD_CONF}/client.key.bak
   lxc list > /dev/null 2>&1
-  mv $LXD_CONF/client.crt $LXD_CONF/client2.crt
-  mv $LXD_CONF/client.key $LXD_CONF/client2.key
-  mv $LXD_CONF/client.crt.bak $LXD_CONF/client.crt
-  mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
+  mv ${LXD_CONF}/client.crt ${LXD_CONF}/client2.crt
+  mv ${LXD_CONF}/client.key ${LXD_CONF}/client2.key
+  mv ${LXD_CONF}/client.crt.bak ${LXD_CONF}/client.crt
+  mv ${LXD_CONF}/client.key.bak ${LXD_CONF}/client.key
 }
 
 test_remote_url() {
   for url in localhost:18443 https://localhost:18443; do
-    (echo y; sleep 3; echo foo) | lxc remote add test $url
+    (echo y; sleep 3; echo foo) | lxc remote add test ${url}
     lxc finger test:
     lxc config trust list | grep @ | awk '{print $2}' | while read line ; do
-      lxc config trust remove "\"$line\""
+      lxc config trust remove "\"${line}\""
     done
     lxc remote remove test
   done
 
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
   if [ -z "${LXD_TEST_DRACONIAN_PROXY:-}" ]; then
-    urls="images.linuxcontainers.org https://images.linuxcontainers.org $urls"
+    urls="images.linuxcontainers.org https://images.linuxcontainers.org ${urls}"
   fi
 
-  for url in $urls; do
-    lxc remote add test $url
+  for url in ${urls}; do
+    lxc remote add test ${url}
     lxc finger test:
     lxc remote remove test
   done
@@ -35,7 +35,7 @@ test_remote_admin() {
   bad=0
   (sleep 3; echo bad) | lxc remote add badpass 127.0.0.1:18443 --accept-certificate || true
   lxc list badpass: && bad=1 || true
-  if [ "$bad" -eq 1 ]; then
+  if [ "${bad}" -eq 1 ]; then
     echo "bad password accepted" && false
   fi
 
@@ -65,7 +65,7 @@ test_remote_admin() {
   (echo y; sleep 3; echo foo) | lxc remote add test-623 127.0.0.1:18443
 
   # now re-add under a different alias
-  lxc config trust add "$LXD_CONF/client2.crt"
+  lxc config trust add "${LXD_CONF}/client2.crt"
   if [ "$(lxc config trust list | wc -l)" -ne 6 ]; then
     echo "wrong number of certs"
   fi
@@ -87,29 +87,29 @@ test_remote_usage() {
   lxc image delete localhost:testimage
   sum=$(sha256sum ${LXD_DIR}/foo.img | cut -d' ' -f1)
   lxc image import ${LXD_DIR}/foo.img localhost: --public
-  lxc image alias create localhost:testimage $sum
+  lxc image alias create localhost:testimage ${sum}
 
-  lxc image delete lxd2:$sum || true
+  lxc image delete lxd2:${sum} || true
 
   lxc image copy localhost:testimage lxd2: --copy-aliases --public
-  lxc image delete localhost:$sum
-  lxc image copy lxd2:$sum local: --copy-aliases --public
+  lxc image delete localhost:${sum}
+  lxc image copy lxd2:${sum} local: --copy-aliases --public
   lxc image info localhost:testimage
-  lxc image delete lxd2:$sum
+  lxc image delete lxd2:${sum}
 
-  lxc image copy localhost:$sum lxd2:
-  lxc image delete lxd2:$sum
+  lxc image copy localhost:${sum} lxd2:
+  lxc image delete lxd2:${sum}
 
-  lxc image copy localhost:$(echo $sum | colrm 3) lxd2:
-  lxc image delete lxd2:$sum
+  lxc image copy localhost:$(echo ${sum} | colrm 3) lxd2:
+  lxc image delete lxd2:${sum}
 
   # test a private image
-  lxc image copy localhost:$sum lxd2:
-  lxc image delete localhost:$sum
-  lxc init lxd2:$sum localhost:c1
+  lxc image copy localhost:${sum} lxd2:
+  lxc image delete localhost:${sum}
+  lxc init lxd2:${sum} localhost:c1
   lxc delete localhost:c1
 
-  lxc image alias create localhost:testimage $sum
+  lxc image alias create localhost:testimage ${sum}
 
   # Double launch to test if the image downloads only once.
   lxc init localhost:testimage lxd2:c1 &
@@ -118,7 +118,7 @@ test_remote_usage() {
   lxc init localhost:testimage lxd2:c2
   lxc delete lxd2:c2
 
-  wait $C1PID
+  wait ${C1PID}
   lxc delete lxd2:c1
 
   if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then

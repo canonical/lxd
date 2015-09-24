@@ -10,17 +10,17 @@ test_concurrent_exec() {
   lxc list ${name} | grep RUNNING
 
   exec_container() {
-    echo abc$1 | lxc exec ${name} -- cat | grep abc
+    echo abc${1} | lxc exec ${name} -- cat | grep abc
   }
 
   PIDS=""
   for i in `seq 1 50`; do
-    exec_container $i 2>&1 > $LXD_DIR/exec-$i.out &
-    PIDS="$PIDS $!"
+    exec_container ${i} 2>&1 > ${LXD_DIR}/exec-${i}.out &
+    PIDS="${PIDS} $!"
   done
 
-  for pid in $PIDS; do
-    wait $pid
+  for pid in ${PIDS}; do
+    wait ${pid}
   done
 
   lxc stop ${name} --force

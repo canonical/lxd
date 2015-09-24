@@ -1,12 +1,12 @@
 gen_third_cert() {
-  [ -f $LXD_CONF/client3.crt ] && return
-  mv $LXD_CONF/client.crt $LXD_CONF/client.crt.bak
-  mv $LXD_CONF/client.key $LXD_CONF/client.key.bak
+  [ -f ${LXD_CONF}/client3.crt ] && return
+  mv ${LXD_CONF}/client.crt ${LXD_CONF}/client.crt.bak
+  mv ${LXD_CONF}/client.key ${LXD_CONF}/client.key.bak
   lxc list > /dev/null 2>&1
-  mv $LXD_CONF/client.crt $LXD_CONF/client3.crt
-  mv $LXD_CONF/client.key $LXD_CONF/client3.key
-  mv $LXD_CONF/client.crt.bak $LXD_CONF/client.crt
-  mv $LXD_CONF/client.key.bak $LXD_CONF/client.key
+  mv ${LXD_CONF}/client.crt ${LXD_CONF}/client3.crt
+  mv ${LXD_CONF}/client.key ${LXD_CONF}/client3.key
+  mv ${LXD_CONF}/client.crt.bak ${LXD_CONF}/client.crt
+  mv ${LXD_CONF}/client.key.bak ${LXD_CONF}/client.key
 }
 
 test_basic_usage() {
@@ -17,23 +17,23 @@ test_basic_usage() {
   sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
   lxc image export testimage ${LXD_DIR}/
   if [ -e "${LXD_TEST_IMAGE:-}" ]; then
-    name=$(basename $LXD_TEST_IMAGE)
+    name=$(basename ${LXD_TEST_IMAGE})
   else
     name=${sum}.tar.xz
   fi
-  [ "$sum" = "$(sha256sum ${LXD_DIR}/${name} | cut -d' ' -f1)" ]
+  [ "${sum}" = "$(sha256sum ${LXD_DIR}/${name} | cut -d' ' -f1)" ]
 
   # Test image delete
   lxc image delete testimage
 
   # Re-import the image
-  mv ${LXD_DIR}/$name ${LXD_DIR}/testimage.tar.xz
+  mv ${LXD_DIR}/${name} ${LXD_DIR}/testimage.tar.xz
   lxc image import ${LXD_DIR}/testimage.tar.xz --alias testimage
   rm ${LXD_DIR}/testimage.tar.xz
 
   # Test filename for image export (should be "out")
   lxc image export testimage ${LXD_DIR}/
-  [ "$sum" = "$(sha256sum ${LXD_DIR}/testimage.tar.xz | cut -d' ' -f1)" ]
+  [ "${sum}" = "$(sha256sum ${LXD_DIR}/testimage.tar.xz | cut -d' ' -f1)" ]
   rm ${LXD_DIR}/testimage.tar.xz
 
   # Test container creation
@@ -56,7 +56,7 @@ test_basic_usage() {
   # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
-  curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET https://127.0.0.1:18443/1.0/images | grep "/1.0/images/" && false
+  curl -k -s --cert ${LXD_CONF}/client3.crt --key ${LXD_CONF}/client3.key -X GET https://127.0.0.1:18443/1.0/images | grep "/1.0/images/" && false
   lxc image delete foo-image
 
   # Test privileged container publish
@@ -65,14 +65,14 @@ test_basic_usage() {
   lxc init testimage barpriv -p default -p priv
   lxc publish barpriv --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
-  curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET https://127.0.0.1:18443/1.0/images | grep "/1.0/images/" && false
+  curl -k -s --cert ${LXD_CONF}/client3.crt --key ${LXD_CONF}/client3.key -X GET https://127.0.0.1:18443/1.0/images | grep "/1.0/images/" && false
   lxc image delete foo-image
   lxc delete barpriv
   lxc profile delete priv
 
   # Test public images
   lxc publish --public bar --alias=foo-image2
-  curl -k -s --cert $LXD_CONF/client3.crt --key $LXD_CONF/client3.key -X GET https://127.0.0.1:18443/1.0/images | grep "/1.0/images/"
+  curl -k -s --cert ${LXD_CONF}/client3.crt --key ${LXD_CONF}/client3.key -X GET https://127.0.0.1:18443/1.0/images | grep "/1.0/images/"
   lxc image delete foo-image2
 
   # Test snapshot publish
@@ -92,7 +92,7 @@ test_basic_usage() {
   # Test randomly named container creation
   lxc init testimage
   RDNAME=$(lxc list | grep STOPPED | cut -d' ' -f2)
-  lxc delete $RDNAME
+  lxc delete ${RDNAME}
 
   # Test "nonetype" container creation
   wait_for 127.0.0.1:18443 my_curl -X POST https://127.0.0.1:18443/1.0/containers \
@@ -122,7 +122,7 @@ test_basic_usage() {
   lxc start foo
   mac2=$(lxc exec foo cat /sys/class/net/eth0/address)
 
-  if [ "$mac1" != "$mac2" ]; then
+  if [ "${mac1}" != "${mac2}" ]; then
     echo "==> MAC addresses didn't match across restarts"
     false
   fi
@@ -150,12 +150,12 @@ test_basic_usage() {
 
   # Detect regressions/hangs in exec
   sum=$(ps aux | tee ${LXD_DIR}/out | lxc exec foo md5sum | cut -d' ' -f1)
-  [ "$sum" = "$(md5sum ${LXD_DIR}/out | cut -d' ' -f1)" ]
+  [ "${sum}" = "$(md5sum ${LXD_DIR}/out | cut -d' ' -f1)" ]
   rm ${LXD_DIR}/out
 
   # This is why we can't have nice things.
   content=$(cat "${LXD_DIR}/containers/foo/rootfs/tmp/foo")
-  [ "$content" = "foo" ]
+  [ "${content}" = "foo" ]
 
   # cleanup
   lxc delete foo
@@ -167,7 +167,7 @@ test_basic_usage() {
   lxc stop lxd-apparmor-test --force
   bad=0
   aa-status | grep lxd-apparmor-test && bad=1 || true
-  if [ "$bad" -eq 1 ]; then
+  if [ "${bad}" -eq 1 ]; then
     echo "apparmor profile wasn't unloaded on container stop" && false
   fi
   lxc delete lxd-apparmor-test

@@ -4,7 +4,7 @@ test_concurrent() {
   spawn_container() {
     set -e
 
-    name=concurrent-$1
+    name=concurrent-${1}
 
     lxc launch testimage ${name}
     lxc list ${name} | grep RUNNING
@@ -20,12 +20,12 @@ test_concurrent() {
   PIDS=""
 
   for id in $(seq 50); do
-    spawn_container $id 2>&1 | tee $LXD_DIR/lxc-${id}.out &
-    PIDS="$PIDS $!"
+    spawn_container ${id} 2>&1 | tee ${LXD_DIR}/lxc-${id}.out &
+    PIDS="${PIDS} $!"
   done
 
-  for pid in $PIDS; do
-    wait $pid
+  for pid in ${PIDS}; do
+    wait ${pid}
   done
 
   ! lxc list | grep -q concurrent

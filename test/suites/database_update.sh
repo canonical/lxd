@@ -1,5 +1,5 @@
 test_database_update(){
-  LXD_MIGRATE_DIR=$(mktemp -d -p $TEST_DIR XXX)
+  LXD_MIGRATE_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
   MIGRATE_DB=${LXD_MIGRATE_DIR}/lxd.db
 
   # Nuke preexisting database if it exists
@@ -13,10 +13,10 @@ test_database_update(){
   # Assert there are enough tables.
   expected_tables=15
   tables=`sqlite3 ${MIGRATE_DB} ".dump" | grep "CREATE TABLE" | wc -l`
-  [ $tables -eq $expected_tables ] || { echo "FAIL: Wrong number of tables after database migration. Found: $tables, expected $expected_tables"; false; }
+  [ ${tables} -eq ${expected_tables} ] || { echo "FAIL: Wrong number of tables after database migration. Found: ${tables}, expected ${expected_tables}"; false; }
 
   # There should be 10 "ON DELETE CASCADE" occurences
   expected_cascades=10
   cascades=`sqlite3 ${MIGRATE_DB} ".dump" | grep "ON DELETE CASCADE" | wc -l`
-  [ $cascades -eq $expected_cascades ] || { echo "FAIL: Wrong number of ON DELETE CASCADE foreign keys. Found: $cascades, exected: $expected_cascades"; false; }
+  [ ${cascades} -eq ${expected_cascades} ] || { echo "FAIL: Wrong number of ON DELETE CASCADE foreign keys. Found: ${cascades}, exected: ${expected_cascades}"; false; }
 }
