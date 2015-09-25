@@ -99,7 +99,7 @@ func doSet(config *lxd.Config, args []string) error {
 	if value == "-" {
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			return fmt.Errorf("Can't read from stdin: %u", err)
+			return fmt.Errorf("Can't read from stdin: %s", err)
 		}
 		value = string(buf[:])
 	}
