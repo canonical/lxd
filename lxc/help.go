@@ -40,7 +40,7 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 			if !ok {
 				fmt.Fprintf(os.Stderr, gettext.Gettext("error: unknown command: %s")+"\n", name)
 			} else {
-				fmt.Fprintf(os.Stderr, cmd.usage())
+				fmt.Fprintf(os.Stderr, cmd.usage()+"\n")
 			}
 		}
 		return nil
