@@ -372,7 +372,7 @@ func doConfigEdit(client *lxd.Client, cont string) error {
 		os.Remove(fname)
 		return err
 	}
-	f.Write([]byte(configEditHelp))
+	f.Write([]byte(configEditHelp + "\n"))
 	f.Write(data)
 	f.Close()
 	defer os.Remove(fname)
