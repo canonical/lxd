@@ -95,6 +95,15 @@ func doSet(config *lxd.Config, args []string) error {
 
 	key := args[2]
 	value := args[3]
+
+	if value == "-" {
+		buf, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("Can't read from stdin: %u", err)
+		}
+		value = string(buf[:])
+	}
+
 	return d.SetContainerConfig(container, key, value)
 }
 

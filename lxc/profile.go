@@ -317,6 +317,15 @@ func doProfileSet(client *lxd.Client, p string, args []string) error {
 	} else {
 		value = args[1]
 	}
+
+	if value == "-" {
+		buf, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("Can't read from stdin: %u", err)
+		}
+		value = string(buf[:])
+	}
+
 	err := client.SetProfileConfigItem(p, key, value)
 	return err
 }
