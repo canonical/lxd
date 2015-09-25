@@ -4,11 +4,33 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
+
+func mockStartDaemon() (*Daemon, error) {
+	d := &Daemon{
+		IsMock:                true,
+		imagesDownloading:     map[string]chan bool{},
+		imagesDownloadingLock: sync.RWMutex{},
+	}
+
+	if err := d.Init(); err != nil {
+		return nil, err
+	}
+
+	// Call this after Init so we have a log object.
+	storageConfig := make(map[string]interface{})
+	d.Storage = &storageLogWrapper{w: &storageMock{d: d}}
+	if _, err := d.Storage.Init(storageConfig); err != nil {
+		return nil, err
+	}
+
+	return d, nil
+}
 
 type lxdTestSuite struct {
 	suite.Suite
