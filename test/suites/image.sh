@@ -2,10 +2,10 @@ test_image_expiry() {
   ensure_import_testimage
 
   if ! lxc remote list | grep -q l1; then
-    (echo y; sleep 3; echo foo) | lxc remote add l1 ${LXD_ADDR}
+    lxc remote add l1 ${LXD_ADDR} --accept-certificate --password foo
   fi
   if ! lxc remote list | grep -q l2; then
-    (echo y; sleep 3; echo foo) | lxc remote add l2 ${LXD2_ADDR}
+    lxc remote add l2 ${LXD2_ADDR} --accept-certificate --password foo
   fi
   lxc init l1:testimage l2:c1
   fp=`lxc image info testimage | awk -F: '/^Fingerprint/ { print $2 }' | awk '{ print $1 }'`
