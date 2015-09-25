@@ -104,7 +104,7 @@ wait_for() {
 ensure_has_localhost_remote() {
   addr=${1}
   if ! lxc remote list | grep -q "localhost"; then
-    (echo y; sleep 3) | lxc remote add localhost https://${addr} --password foo
+    lxc remote add localhost https://${addr} --accept-certificate --password foo
   fi
 }
 

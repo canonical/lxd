@@ -11,7 +11,7 @@ gen_second_cert() {
 
 test_remote_url() {
   for url in ${LXD_ADDR} https://${LXD_ADDR}; do
-    (echo y; sleep 3; echo foo) | lxc remote add test ${url}
+    lxc remote add test ${url} --accept-certificate --password foo
     lxc finger test:
     lxc config trust list | grep @ | awk '{print $2}' | while read line ; do
       lxc config trust remove "\"${line}\""
@@ -33,13 +33,13 @@ test_remote_url() {
 
 test_remote_admin() {
   bad=0
-  (sleep 3; echo bad) | lxc remote add badpass ${LXD_ADDR} --accept-certificate || true
+  lxc remote add badpass ${LXD_ADDR} --accept-certificate --password bad || true
   lxc list badpass: && bad=1 || true
   if [ "${bad}" -eq 1 ]; then
     echo "bad password accepted" && false
   fi
 
-  (echo y; sleep 3) | lxc remote add localhost ${LXD_ADDR} --password foo
+  lxc remote add localhost ${LXD_ADDR} --accept-certificate --password foo
   lxc remote list | grep 'localhost'
 
   lxc remote set-default localhost
@@ -62,7 +62,7 @@ test_remote_admin() {
   gen_second_cert
 
   # Test for #623
-  (echo y; sleep 3; echo foo) | lxc remote add test-623 ${LXD_ADDR}
+  lxc remote add test-623 ${LXD_ADDR} --accept-certificate --password foo
 
   # now re-add under a different alias
   lxc config trust add "${LXD_CONF}/client2.crt"
@@ -80,7 +80,7 @@ test_remote_admin() {
 }
 
 test_remote_usage() {
-  (echo y; sleep 3; echo foo) | lxc remote add lxd2 ${LXD2_ADDR}
+  lxc remote add lxd2 ${LXD2_ADDR} --accept-certificate --password foo
 
   # we need a public image on localhost
   lxc image export localhost:testimage ${LXD_DIR}/foo.img

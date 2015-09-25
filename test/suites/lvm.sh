@@ -269,7 +269,7 @@ test_remote_launch_imports_lvm() {
     LXD_REMOTE_DIR=${LXD5_DIR}
 
     lxc config set storage.lvm_vg_name "${VGNAME}" || die "couldn't set vg_name"
-    (echo y; sleep 3; echo foo) | lxc remote add testremote ${LXD5_ADDR}
+    lxc remote add testremote ${LXD5_ADDR} --accept-certificate --password foo
 
     testimage_sha=$(lxc image info testremote:testimage | grep Fingerprint | cut -d' ' -f 2)
     lxc launch testremote:testimage remote-test || die "Couldn't launch from remote"
