@@ -55,7 +55,7 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 			return doDelete(d, name)
 		}
 
-		if ct.Status.StatusCode != shared.Stopped {
+		if ct.Status.StatusCode != 0 && ct.Status.StatusCode != shared.Stopped {
 			resp, err := d.Action(name, shared.Stop, -1, true)
 			if err != nil {
 				return err
