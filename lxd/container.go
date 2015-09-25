@@ -586,10 +586,6 @@ func (c *containerLXD) init() error {
 		c.idmapset = c.daemon.IdmapSet // TODO - per-tenant idmaps
 	}
 
-	if err := c.mountShared(); err != nil {
-		return err
-	}
-
 	if err := c.applyIdmapSet(); err != nil {
 		return err
 	}
@@ -647,6 +643,10 @@ func (c *containerLXD) Start() error {
 
 	if err := SeccompCreateProfile(c); err != nil {
 		c.StorageStop()
+		return err
+	}
+
+	if err := c.mountShared(); err != nil {
 		return err
 	}
 
