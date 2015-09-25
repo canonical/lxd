@@ -32,6 +32,7 @@ test_fdleak() {
   if [ ${bad} -eq 1 ]; then
     echo "${leakedfds} FDS leaked"
     ls /proc/${pid}/fd -al
+    netstat -anp 2>&1 | grep ${pid}/
     false
   fi
 
