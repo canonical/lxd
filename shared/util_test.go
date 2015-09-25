@@ -25,6 +25,7 @@ func TestFileCopy(t *testing.T) {
 	source.Close()
 
 	dest, err := ioutil.TempFile("", "")
+	defer os.Remove(dest.Name())
 	if err != nil {
 		t.Error(err)
 		return
