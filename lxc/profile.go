@@ -174,7 +174,7 @@ func doProfileEdit(client *lxd.Client, p string) error {
 		os.Remove(fname)
 		return err
 	}
-	f.Write([]byte(profileEditHelp))
+	f.Write([]byte(profileEditHelp + "\n"))
 	f.Write(data)
 	f.Close()
 	defer os.Remove(fname)
