@@ -82,6 +82,10 @@ func run() error {
 		return nil
 	}
 
+	if len(shared.VarPath("unix.sock")) > 107 {
+		return fmt.Errorf("LXD_DIR is too long, must be < %d", 107-len("unix.sock"))
+	}
+
 	// Configure logging
 	syslog := ""
 	if *syslogFlag {
