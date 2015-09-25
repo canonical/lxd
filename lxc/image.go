@@ -361,7 +361,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			os.Remove(fname)
 			return err
 		}
-		f.Write([]byte(imageEditHelp))
+		f.Write([]byte(imageEditHelp + "\n"))
 		f.Write(data)
 		f.Close()
 		defer os.Remove(fname)
