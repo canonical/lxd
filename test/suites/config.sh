@@ -16,6 +16,15 @@ test_config_profiles() {
     false
   fi
 
+  lxc profile create stdintest
+  echo "BADCONF" | lxc profile set stdintest user.user_data -
+  lxc profile show stdintest | grep BADCONF
+  lxc profile delete stdintest
+
+  echo "BADCONF" | lxc config set foo user.user_data -
+  lxc config show foo | grep BADCONF
+  lxc config unset foo user.user_data
+
   lxc config device add foo home disk source=/mnt path=/mnt readonly=true
   lxc profile create onenic
   lxc profile device add onenic eth0 nic nictype=bridged parent=lxcbr0
