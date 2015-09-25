@@ -91,7 +91,7 @@ test_basic_usage() {
 
   # Test randomly named container creation
   lxc init testimage
-  RDNAME=$(lxc list | grep STOPPED | cut -d' ' -f2)
+  RDNAME=$(lxc list | tail -n2 | grep ^\| | awk '{print $2}')
   lxc delete ${RDNAME}
 
   # Test "nonetype" container creation
