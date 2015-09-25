@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -8,6 +9,8 @@ import (
 	"strings"
 	"testing"
 )
+
+var testDir string
 
 type DevLxdDialer struct {
 	Path string
@@ -28,14 +31,23 @@ func (d DevLxdDialer) DevLxdDial(network, path string) (net.Conn, error) {
 }
 
 func setupDir() error {
-	os.RemoveAll("/tmp/tester")
-	return os.Setenv("LXD_DIR", "/tmp/tester")
+	var err error
+
+	testDir, err = ioutil.TempDir("", "lxd_test_devlxd_")
+	if err != nil {
+		return err
+	}
+
+	err = os.Chmod(testDir, 0700)
+	if err != nil {
+		return err
+	}
+
+	return os.Setenv("LXD_DIR", testDir)
 }
 
 func setupSocket() (*net.UnixListener, error) {
 	setupDir()
-
-	os.MkdirAll("/tmp/tester", 0700)
 
 	return createAndBindDevLxd()
 }
@@ -62,7 +74,7 @@ func TestCredsSendRecv(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer listener.Close()
-	defer os.RemoveAll("/tmp/tester")
+	defer os.RemoveAll(testDir)
 
 	go func() {
 		conn, err := listener.AcceptUnix()
@@ -82,7 +94,7 @@ func TestCredsSendRecv(t *testing.T) {
 		result <- pid
 	}()
 
-	conn, err := connect("/tmp/tester/devlxd/sock")
+	conn, err := connect(fmt.Sprintf("%s/devlxd/sock", testDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +116,7 @@ func TestHttpRequest(t *testing.T) {
 	if err := setupDir(); err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll("/tmp/tester")
+	defer os.RemoveAll(testDir)
 
 	d, err := startDaemon()
 	if err != nil {
@@ -112,7 +124,7 @@ func TestHttpRequest(t *testing.T) {
 	}
 	defer d.Stop()
 
-	c := http.Client{Transport: &http.Transport{Dial: DevLxdDialer{Path: "/tmp/tester/devlxd/sock"}.DevLxdDial}}
+	c := http.Client{Transport: &http.Transport{Dial: DevLxdDialer{Path: fmt.Sprintf("%s/devlxd/sock", testDir)}.DevLxdDial}}
 
 	raw, err := c.Get("http://1.0")
 	if err != nil {
