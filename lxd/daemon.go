@@ -589,11 +589,7 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Initialize the database */
-	if !d.IsMock {
-		err = initializeDbObject(d, shared.VarPath("lxd.db"))
-	} else {
-		err = initializeDbObject(d, ":memory:")
-	}
+	err = initializeDbObject(d, shared.VarPath("lxd.db"))
 	if err != nil {
 		return err
 	}
