@@ -3,7 +3,6 @@ package main
 import (
 	"io/ioutil"
 	"os"
-	"path"
 	"sync"
 	"testing"
 
@@ -40,16 +39,11 @@ type lxdTestSuite struct {
 }
 
 func (suite *lxdTestSuite) SetupSuite() {
-	cwd, err := os.Getwd()
+	tmpdir, err := ioutil.TempDir("", "lxd_testrun_")
 	if err != nil {
 		os.Exit(1)
 	}
-
-	suite.tmpdir, err = ioutil.TempDir(
-		path.Join(path.Dir(cwd), "test"), "lxd_testrun_")
-	if err != nil {
-		os.Exit(1)
-	}
+	suite.tmpdir = tmpdir
 
 	if err := os.Setenv("LXD_DIR", suite.tmpdir); err != nil {
 		os.Exit(1)
