@@ -163,10 +163,10 @@ test_basic_usage() {
   # check that an apparmor profile is created for this container, that it is
   # unloaded on stop, and that it is deleted when the container is deleted
   lxc launch testimage lxd-apparmor-test
-  aa-status | grep lxd-apparmor-test
+  aa-status | grep "lxd-lxd-apparmor-test_<${LXD_DIR}>"
   lxc stop lxd-apparmor-test --force
   bad=0
-  aa-status | grep lxd-apparmor-test && bad=1 || true
+  aa-status | grep "lxd-lxd-apparmor-test_<${LXD_DIR}>" && bad=1 || true
   if [ "${bad}" -eq 1 ]; then
     echo "apparmor profile wasn't unloaded on container stop" && false
   fi
