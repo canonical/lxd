@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -102,7 +103,7 @@ func (s *execWs) Do() shared.OperationResult {
 	}
 
 	controlExit := make(chan bool)
-	stdEOF := make(chan bool)
+	var wgEOF sync.WaitGroup
 
 	if s.interactive {
 		go func() {
@@ -167,6 +168,7 @@ func (s *execWs) Do() shared.OperationResult {
 
 		shared.WebsocketMirror(s.conns[0], ptys[0], ptys[0])
 	} else {
+		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
 			go func(i int) {
 				if i == 0 {
@@ -175,7 +177,7 @@ func (s *execWs) Do() shared.OperationResult {
 				} else {
 					<-shared.WebsocketSendStream(s.conns[i], ptys[i])
 					ptys[i].Close()
-					stdEOF <- true
+					wgEOF.Done()
 				}
 			}(i)
 		}
@@ -191,7 +193,7 @@ func (s *execWs) Do() shared.OperationResult {
 		ttys[0].Close()
 		ttys[1].Close()
 		ttys[2].Close()
-		<-stdEOF
+		wgEOF.Wait()
 	}
 
 	for _, tty := range ttys {
