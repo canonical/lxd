@@ -329,8 +329,14 @@ func getFromMap(fname string, username string) (int, int, error) {
  */
 func DefaultIdmapSet() (*IdmapSet, error) {
 	me, err := user.Current()
-	if err != nil {
-		return nil, err
+	if err == nil {
+		username = me.Username
+        /* user.Current() requires cgo */
+	} else {
+		username = os.Getenv("USER")
+		if username == "" {
+			return nil, err
+		}
 	}
 
 	umin := 1000000
@@ -342,12 +348,12 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 	newgidmap, _ := exec.LookPath("newgidmap")
 
 	if newuidmap != "" && newgidmap != "" {
-		umin, urange, err = getFromMap("/etc/subuid", me.Username)
+		umin, urange, err = getFromMap("/etc/subuid", username)
 		if err != nil {
 			return nil, err
 		}
 
-		gmin, grange, err = getFromMap("/etc/subgid", me.Username)
+		gmin, grange, err = getFromMap("/etc/subgid", username)
 		if err != nil {
 			return nil, err
 		}
