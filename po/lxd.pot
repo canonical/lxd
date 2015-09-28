@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-09-28 01:00-0400\n"
+        "POT-Creation-Date: 2015-09-28 13:01-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -121,7 +121,7 @@ msgstr  ""
 msgid   "Bad image property: %s"
 msgstr  ""
 
-#: lxc/config.go:190
+#: lxc/config.go:199
 msgid   "COMMON NAME"
 msgstr  ""
 
@@ -129,7 +129,7 @@ msgstr  ""
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: lxc/profile.go:330
+#: lxc/profile.go:339
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -149,7 +149,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/config.go:403 lxc/profile.go:205
+#: lxc/config.go:412 lxc/profile.go:205
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -213,12 +213,12 @@ msgid   "Delete containers or container snapshots.\n"
         "Destroy containers or snapshots with any attached data (configuration, snapshots, ...)."
 msgstr  ""
 
-#: lxc/config.go:446
+#: lxc/config.go:455
 #, c-format
 msgid   "Device %s added to %s"
 msgstr  ""
 
-#: lxc/config.go:474
+#: lxc/config.go:483
 #, c-format
 msgid   "Device %s removed from %s"
 msgstr  ""
@@ -227,7 +227,7 @@ msgstr  ""
 msgid   "EPHEMERAL"
 msgstr  ""
 
-#: lxc/config.go:192
+#: lxc/config.go:201
 msgid   "EXPIRY DATE"
 msgstr  ""
 
@@ -263,7 +263,7 @@ msgstr  ""
 msgid   "Expires: never"
 msgstr  ""
 
-#: lxc/config.go:189 lxc/image.go:516 lxc/image.go:537
+#: lxc/config.go:198 lxc/image.go:516 lxc/image.go:537
 msgid   "FINGERPRINT"
 msgstr  ""
 
@@ -302,7 +302,7 @@ msgstr  ""
 msgid   "IPV6"
 msgstr  ""
 
-#: lxc/config.go:191
+#: lxc/config.go:200
 msgid   "ISSUE DATE"
 msgstr  ""
 
@@ -543,7 +543,7 @@ msgstr  ""
 msgid   "New alias to define at target"
 msgstr  ""
 
-#: lxc/config.go:203
+#: lxc/config.go:212
 msgid   "No cert provided to add"
 msgstr  ""
 
@@ -551,7 +551,7 @@ msgstr  ""
 msgid   "No certificate on this connection"
 msgstr  ""
 
-#: lxc/config.go:226
+#: lxc/config.go:235
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -582,7 +582,7 @@ msgstr  ""
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
-#: lxc/config.go:404
+#: lxc/config.go:413
 msgid   "Press enter to start the editor again"
 msgstr  ""
 
@@ -744,6 +744,11 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
+#: lxc/action.go:61
+#, c-format
+msgid   "Try `lxc info --show-log %s` for more info"
+msgstr  ""
+
 #: lxc/image.go:520
 msgid   "UPLOAD DATE"
 msgstr  ""
@@ -762,7 +767,7 @@ msgstr  ""
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
 
-#: lxc/config.go:240
+#: lxc/config.go:249
 #, c-format
 msgid   "Unkonwn config trust command %s"
 msgstr  ""
