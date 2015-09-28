@@ -1,8 +1,13 @@
-# LXD [![Build Status](https://travis-ci.org/lxc/lxd.svg?branch=master)](https://travis-ci.org/lxc/lxd)
+# LXD
 
 REST API, command line tool and OpenStack integration plugin for LXC.
 
 LXD is pronounced lex-dee.
+
+## CI status
+
+ * Travis: [![Build Status](https://travis-ci.org/lxc/lxd.svg?branch=master)](https://travis-ci.org/lxc/lxd)
+ * Jenkins: [![Build Status](https://jenkins.linuxcontainers.org/job/lxd-trigger-github/badge/icon)](https://jenkins.linuxcontainers.org/job/lxd-trigger-github/)
 
 ## Getting started with LXD
 
