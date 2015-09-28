@@ -14,7 +14,6 @@ import (
 	"unsafe"
 
 	"github.com/gorilla/mux"
-	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -157,9 +156,9 @@ func createAndBindDevLxd() (*net.UnixListener, error) {
 	return unixl, nil
 }
 
-func setupDevLxdMount(c *lxc.Container) error {
+func setupDevLxdMount(c *containerLXD) error {
 	mtab := fmt.Sprintf("%s dev/lxd none bind,create=dir 0 0", socketPath())
-	return c.SetConfigItem("lxc.mount.entry", mtab)
+	return setConfigItem(c, "lxc.mount.entry", mtab)
 }
 
 func devLxdServer(d *Daemon) http.Server {
