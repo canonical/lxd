@@ -105,6 +105,24 @@ test_basic_usage() {
   [ "$(my_curl https://${LXD_ADDR}/1.0/containers/configtest | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
   lxc delete configtest
 
+  # Test socket activation
+  LXD_ACTIVATION_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
+  spawn_lxd ${LXD_ACTIVATION_DIR}
+  (
+    set -e
+    LXD_DIR=${LXD_ACTIVATION_DIR}
+    ensure_import_testimage
+    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has core.https_address set, activating..."
+    lxc config unset core.https_address --force-local
+    lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
+    lxc init testimage autostart --force-local
+    lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
+    lxc config set autostart boot.autostart true --force-local
+    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
+    lxc delete autostart --force-local
+  )
+  kill_lxd ${LXD_ACTIVATION_DIR}
+
   # Anything below this will not get run inside Travis-CI
   if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
     return
