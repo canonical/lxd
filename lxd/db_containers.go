@@ -78,6 +78,10 @@ func dbContainerGet(db *sql.DB, name string) (*containerLXDArgs, error) {
 }
 
 func dbContainerCreate(db *sql.DB, name string, args containerLXDArgs) (int, error) {
+	if args.Ctype == cTypeRegular && !shared.ValidHostname(name) {
+		return 0, fmt.Errorf("Invalid container name")
+	}
+
 	id, err := dbContainerIDGet(db, name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
@@ -276,6 +280,10 @@ func dbContainersList(db *sql.DB, cType containerType) ([]string, error) {
 }
 
 func dbContainerRename(db *sql.DB, oldName string, newName string) error {
+	if !strings.Contains(newName, shared.SnapshotDelimiter) && !shared.ValidHostname(newName) {
+		return fmt.Errorf("Invalid container name")
+	}
+
 	tx, err := dbBegin(db)
 	if err != nil {
 		return err

@@ -940,6 +940,10 @@ func (c *containerLXD) Delete() error {
 func (c *containerLXD) Rename(newName string) error {
 	oldName := c.NameGet()
 
+	if !c.IsSnapshot() && !shared.ValidHostname(newName) {
+		return fmt.Errorf("Invalid container name")
+	}
+
 	if c.IsRunning() {
 		return fmt.Errorf("renaming of running container not allowed")
 	}
