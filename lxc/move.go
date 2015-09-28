@@ -65,7 +65,7 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the container.
-	if err := copyContainer(config, args[0], args[1], true); err != nil {
+	if err := copyContainer(config, args[0], args[1], true, -1); err != nil {
 		return err
 	}
 
