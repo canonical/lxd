@@ -140,23 +140,31 @@ func run() error {
 		}
 	}
 
-	_, err = exec.LookPath("apparmor_parser")
-	if err == nil && shared.IsDir("/sys/kernel/security/apparmor") {
-		aaEnabled = true
-	} else {
-		shared.Log.Warn("apparmor_parser binary not found or apparmor " +
-			"fs not mounted. AppArmor disabled.")
-	}
+	/* Detect user namespaces */
+	runningInUserns = shared.RunningInUserNS()
+
+	/* Detect apparmor support */
+	aaEnabled = true
 
 	if aaEnabled && os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
 		aaEnabled = false
-		shared.Log.Warn("per-container apparmor profiles have been manually disabled")
+		shared.Log.Warn("Per-container AppArmor profiles have been manually disabled")
 	}
 
-	runningInUserns = shared.RunningInUserNS()
+	if aaEnabled && !shared.IsDir("/sys/kernel/security/apparmor") {
+		aaEnabled = false
+		shared.Log.Warn("Per-container AppArmor profiles disabled because of lack of kernel support")
+	}
+
+	_, err = exec.LookPath("apparmor_parser")
+	if aaEnabled && err != nil {
+		aaEnabled = false
+		shared.Log.Warn("Per-container AppArmor profiles disabled because 'apparmor_parser' couldn't be found")
+	}
+
 	if aaEnabled && runningInUserns {
 		aaEnabled = false
-		shared.Log.Warn("per-container apparmor profiles disabled because we are in a user namespace")
+		shared.Log.Warn("Per-container AppArmor profiles disabled because LXD is running inside a user namespace")
 	}
 
 	/* Can we create devices? */
