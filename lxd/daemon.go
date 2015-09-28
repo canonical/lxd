@@ -580,7 +580,7 @@ func (d *Daemon) Init() error {
 	d.IdmapSet, err = shared.DefaultIdmapSet()
 	if err != nil {
 		shared.Log.Warn("Error reading idmap", log.Ctx{"err": err.Error()})
-		shared.Log.Warn("Operations requiring idmap will not be available")
+		shared.Log.Warn("Only privileged containers will be able to run")
 	} else {
 		shared.Log.Info("Default uid/gid map:")
 		for _, lxcmap := range d.IdmapSet.ToLxcString() {
