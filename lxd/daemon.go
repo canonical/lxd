@@ -755,10 +755,10 @@ func (d *Daemon) Init() error {
 
 		tcpl, err := tls.Listen("tcp", listenAddr, tlsConfig)
 		if err != nil {
-			return fmt.Errorf("cannot listen on https socket: %v", err)
+			shared.Log.Error("cannot listen on https socket, skipping...", log.Ctx{"err": err})
+		} else {
+			sockets = append(sockets, Socket{Socket: tcpl, CloseOnExit: true})
 		}
-
-		sockets = append(sockets, Socket{Socket: tcpl, CloseOnExit: true})
 	}
 
 	if !d.IsMock {
