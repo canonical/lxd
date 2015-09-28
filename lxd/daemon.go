@@ -378,7 +378,7 @@ func (d *Daemon) ListenAddresses() ([]string, error) {
 		localPort = shared.DefaultPort
 	}
 
-	if localHost == "0.0.0.0" || localHost == "::" {
+	if localHost == "0.0.0.0" || localHost == "::" || localHost == "[::]" {
 		ifaces, err := net.Interfaces()
 		if err != nil {
 			return addresses, err
