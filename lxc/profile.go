@@ -318,7 +318,7 @@ func doProfileSet(client *lxd.Client, p string, args []string) error {
 		value = args[1]
 	}
 
-	if value == "-" {
+	if !terminal.IsTerminal(syscall.Stdin) && value == "-" {
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("Can't read from stdin: %s", err)

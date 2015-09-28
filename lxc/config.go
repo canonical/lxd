@@ -96,7 +96,7 @@ func doSet(config *lxd.Config, args []string) error {
 	key := args[2]
 	value := args[3]
 
-	if value == "-" {
+	if !terminal.IsTerminal(syscall.Stdin) && value == "-" {
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("Can't read from stdin: %s", err)
