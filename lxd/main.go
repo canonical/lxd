@@ -27,8 +27,6 @@ var syslogFlag = gnuflag.Bool("syslog", false, "Enables syslog logging.")
 var verbose = gnuflag.Bool("verbose", false, "Enables verbose mode.")
 var version = gnuflag.Bool("version", false, "Print LXD's version number and exit.")
 
-var runningInUserns = false
-
 func init() {
 	myGroup, err := shared.GroupName(os.Getgid())
 	if err != nil {
@@ -139,36 +137,6 @@ func run() error {
 			return err
 		}
 	}
-
-	/* Detect user namespaces */
-	runningInUserns = shared.RunningInUserNS()
-
-	/* Detect apparmor support */
-	aaEnabled = true
-
-	if aaEnabled && os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
-		aaEnabled = false
-		shared.Log.Warn("Per-container AppArmor profiles have been manually disabled")
-	}
-
-	if aaEnabled && !shared.IsDir("/sys/kernel/security/apparmor") {
-		aaEnabled = false
-		shared.Log.Warn("Per-container AppArmor profiles disabled because of lack of kernel support")
-	}
-
-	_, err = exec.LookPath("apparmor_parser")
-	if aaEnabled && err != nil {
-		aaEnabled = false
-		shared.Log.Warn("Per-container AppArmor profiles disabled because 'apparmor_parser' couldn't be found")
-	}
-
-	if aaEnabled && runningInUserns {
-		aaEnabled = false
-		shared.Log.Warn("Per-container AppArmor profiles disabled because LXD is running inside a user namespace")
-	}
-
-	/* Can we create devices? */
-	checkCanMknod()
 
 	if *printGoroutines > 0 {
 		go func() {
