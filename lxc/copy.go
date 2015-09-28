@@ -10,10 +10,11 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/gnuflag"
 )
 
 type copyCmd struct {
-	httpAddr string
+	ephem bool
 }
 
 func (c *copyCmd) showByDefault() bool {
@@ -24,12 +25,15 @@ func (c *copyCmd) usage() string {
 	return gettext.Gettext(
 		`Copy containers within or in between lxd instances.
 
-lxc copy [remote:]<source container> [remote:]<destination container>`)
+lxc copy [remote:]<source container> [remote:]<destination container> [--ephemeral|e]`)
 }
 
-func (c *copyCmd) flags() {}
+func (c *copyCmd) flags() {
+	gnuflag.BoolVar(&c.ephem, "ephemeral", false, gettext.Gettext("Ephemeral container"))
+	gnuflag.BoolVar(&c.ephem, "e", false, gettext.Gettext("Ephemeral container"))
+}
 
-func copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool) error {
+func copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int) error {
 	sourceRemote, sourceName := config.ParseRemoteAndContainer(sourceResource)
 	destRemote, destName := config.ParseRemoteAndContainer(destResource)
 
@@ -77,7 +81,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			return fmt.Errorf(gettext.Gettext("can't copy to the same container name"))
 		}
 
-		cp, err := source.LocalCopy(sourceName, destName, status.Config, status.Profiles)
+		cp, err := source.LocalCopy(sourceName, destName, status.Config, status.Profiles, ephemeral == 1)
 		if err != nil {
 			return err
 		}
@@ -99,6 +103,19 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			return fmt.Errorf(gettext.Gettext("not all the profiles from the source exist on the target"))
 		}
 
+		if ephemeral == -1 {
+			ct, err := source.ContainerStatus(sourceName)
+			if err != nil {
+				return err
+			}
+
+			if ct.Ephemeral {
+				ephemeral = 1
+			} else {
+				ephemeral = 0
+			}
+		}
+
 		sourceWSResponse, err := source.GetMigrationSourceWS(sourceName)
 		if err != nil {
 			return err
@@ -118,7 +135,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			sourceWSUrl := "wss://" + addr + path.Join(sourceWSResponse.Operation, "websocket")
 
 			var migration *lxd.Response
-			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Config, status.Profiles, baseImage)
+			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Config, status.Profiles, baseImage, ephemeral == 1)
 			if err != nil {
 				continue
 			}
@@ -139,5 +156,10 @@ func (c *copyCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	return copyContainer(config, args[0], args[1], false)
+	ephem := 0
+	if c.ephem {
+		ephem = 1
+	}
+
+	return copyContainer(config, args[0], args[1], false, ephem)
 }
