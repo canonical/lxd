@@ -378,6 +378,7 @@ func doConfigEdit(client *lxd.Client, cont string) error {
 	defer os.Remove(fname)
 
 	for {
+		var err error
 		cmdParts := strings.Fields(editor)
 		cmd := exec.Command(cmdParts[0], append(cmdParts[1:], fname)...)
 		cmd.Stdin = os.Stdin
@@ -392,9 +393,14 @@ func doConfigEdit(client *lxd.Client, cont string) error {
 			return err
 		}
 		newdata := shared.BriefContainerState{}
+
 		err = yaml.Unmarshal(contents, &newdata)
+		if err == nil {
+			err = client.UpdateContainerConfig(cont, newdata)
+		}
+
 		if err != nil {
-			fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v")+"\n", err)
+			fmt.Fprintf(os.Stderr, gettext.Gettext("Config parsing error: %s")+"\n", err)
 			fmt.Println(gettext.Gettext("Press enter to start the editor again"))
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -403,10 +409,9 @@ func doConfigEdit(client *lxd.Client, cont string) error {
 
 			continue
 		}
-		err = client.UpdateContainerConfig(cont, newdata)
 		break
 	}
-	return err
+	return nil
 }
 
 func deviceAdd(config *lxd.Config, which string, args []string) error {

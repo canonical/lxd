@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -509,5 +510,34 @@ func RunningInUserNS() bool {
 	if a == 0 && b == 0 && c == 4294967295 {
 		return false
 	}
+	return true
+}
+
+func ValidHostname(name string) bool {
+	// Validate length
+	if len(name) < 1 || len(name) > 63 {
+		return false
+	}
+
+	// Validate first character
+	if strings.HasPrefix(name, "-") {
+		return false
+	}
+
+	if _, err := strconv.Atoi(string(name[0])); err == nil {
+		return false
+	}
+
+	// Validate last character
+	if strings.HasSuffix(name, "-") {
+		return false
+	}
+
+	// Validate the character set
+	match, _ := regexp.MatchString("^[-a-zA-Z0-9]*$", name)
+	if !match {
+		return false
+	}
+
 	return true
 }
