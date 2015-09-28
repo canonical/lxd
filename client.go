@@ -1158,15 +1158,16 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 	return resp, nil
 }
 
-func (c *Client) LocalCopy(source string, name string, config map[string]string, profiles []string) (*Response, error) {
+func (c *Client) LocalCopy(source string, name string, config map[string]string, profiles []string, ephemeral bool) (*Response, error) {
 	body := shared.Jmap{
 		"source": shared.Jmap{
 			"type":   "copy",
 			"source": source,
 		},
-		"name":     name,
-		"config":   config,
-		"profiles": profiles,
+		"name":      name,
+		"config":    config,
+		"profiles":  profiles,
+		"ephemeral": ephemeral,
 	}
 
 	return c.post("containers", body, Async)
@@ -1427,7 +1428,7 @@ func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
 	return c.post(fmt.Sprintf("containers/%s", container), body, Async)
 }
 
-func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string, config map[string]string, profiles []string, baseImage string) (*Response, error) {
+func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string, config map[string]string, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
 	source := shared.Jmap{
 		"type":       "migration",
 		"mode":       "pull",
@@ -1436,10 +1437,11 @@ func (c *Client) MigrateFrom(name string, operation string, secrets map[string]s
 		"base-image": baseImage,
 	}
 	body := shared.Jmap{
-		"source":   source,
-		"name":     name,
-		"config":   config,
-		"profiles": profiles,
+		"source":    source,
+		"name":      name,
+		"config":    config,
+		"profiles":  profiles,
+		"ephemeral": ephemeral,
 	}
 
 	return c.post("containers", body, Async)
