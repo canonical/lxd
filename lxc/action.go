@@ -58,7 +58,7 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if err := d.WaitForSuccess(resp.Operation); err != nil {
-			return err
+			return fmt.Errorf("%s\n"+gettext.Gettext("Try `lxc info --show-log %s` for more info"), err, name)
 		}
 	}
 	return nil
