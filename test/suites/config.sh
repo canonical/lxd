@@ -69,6 +69,10 @@ test_config_profiles() {
   lxc list user.prop=value | grep foo
   lxc config unset foo user.prop
 
+  # Test for invalid raw.lxc
+  ! lxc config set foo raw.lxc a
+  ! lxc profile set default raw.lxc a
+
   bad=0
   lxc list user.prop=value | grep foo && bad=1
   if [ "${bad}" -eq 1 ]; then

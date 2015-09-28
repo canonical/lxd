@@ -46,6 +46,9 @@ func extractInterfaceFromConfigName(k string) (string, error) {
 func validateRawLxc(rawLxc string) error {
 	for _, line := range strings.Split(rawLxc, "\n") {
 		membs := strings.SplitN(line, "=", 2)
+		if len(membs) != 2 {
+			return fmt.Errorf("invalid raw.lxc line: %s", line)
+		}
 		if strings.ToLower(strings.Trim(membs[0], " \t")) == "lxc.logfile" {
 			return fmt.Errorf("setting lxc.logfile is not allowed")
 		}
@@ -1120,7 +1123,7 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	}
 
 	if err = dbContainerConfigInsert(tx, c.id, newContainerArgs.Config); err != nil {
-		shared.Debugf("Error inserting configuration for container %s", c.NameGet())
+		shared.Debugf("Error inserting configuration for container %s: %s", c.NameGet(), err)
 		tx.Rollback()
 		return err
 	}
