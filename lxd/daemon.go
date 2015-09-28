@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -31,6 +32,9 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
+
+var aaEnabled = true
+var runningInUserns = false
 
 const (
 	pwSaltBytes = 32
@@ -521,6 +525,31 @@ func (d *Daemon) Init() error {
 			log.Ctx{"path": shared.VarPath("")})
 	}
 
+	/* Detect user namespaces */
+	runningInUserns = shared.RunningInUserNS()
+
+	/* Detect apparmor support */
+	if aaEnabled && os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
+		aaEnabled = false
+		shared.Log.Warn("Per-container AppArmor profiles have been manually disabled")
+	}
+
+	if aaEnabled && !shared.IsDir("/sys/kernel/security/apparmor") {
+		aaEnabled = false
+		shared.Log.Warn("Per-container AppArmor profiles disabled because of lack of kernel support")
+	}
+
+	_, err := exec.LookPath("apparmor_parser")
+	if aaEnabled && err != nil {
+		aaEnabled = false
+		shared.Log.Warn("Per-container AppArmor profiles disabled because 'apparmor_parser' couldn't be found")
+	}
+
+	if aaEnabled && runningInUserns {
+		aaEnabled = false
+		shared.Log.Warn("Per-container AppArmor profiles disabled because LXD is running inside a user namespace")
+	}
+
 	/* Get the list of supported architectures */
 	var architectures = []int{}
 
@@ -580,7 +609,7 @@ func (d *Daemon) Init() error {
 	d.IdmapSet, err = shared.DefaultIdmapSet()
 	if err != nil {
 		shared.Log.Warn("Error reading idmap", log.Ctx{"err": err.Error()})
-		shared.Log.Warn("Operations requiring idmap will not be available")
+		shared.Log.Warn("Only privileged containers will be able to run")
 	} else {
 		shared.Log.Info("Default uid/gid map:")
 		for _, lxcmap := range d.IdmapSet.ToLxcString() {

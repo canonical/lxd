@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
@@ -61,18 +60,6 @@ func detectCompression(fname string) ([]string, string, error) {
 
 }
 
-var canMknod = true
-
-func checkCanMknod() {
-	/* TODO - mktemp */
-	fnam := shared.VarPath("null")
-	// warning to cut-pasters: can't do the below in general, that is if minor is big
-	if err := syscall.Mknod(fnam, syscall.S_IFCHR, int((int64(1)<<8)|int64(3))); err != nil {
-		canMknod = false
-		os.Remove(fnam)
-	}
-}
-
 func untar(tarball string, path string) error {
 	extractArgs, _, err := detectCompression(tarball)
 	if err != nil {
@@ -81,7 +68,7 @@ func untar(tarball string, path string) error {
 
 	command := "tar"
 	args := []string{}
-	if !canMknod {
+	if !runningInUserns {
 		// if we are running in a userns where we cannot mknod,
 		// then run with a seccomp filter which turns mknod into a
 		// a noop.  The container config had better know how to bind

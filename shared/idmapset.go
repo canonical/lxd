@@ -358,7 +358,7 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 	newuidmap, _ := exec.LookPath("newuidmap")
 	newgidmap, _ := exec.LookPath("newgidmap")
 
-	if newuidmap != "" && newgidmap != "" {
+	if newuidmap != "" && newgidmap != "" && PathExists("/etc/subuid") && PathExists("/etc/subgid") {
 		umin, urange, err = getFromMap("/etc/subuid", myname)
 		if err != nil {
 			return nil, err

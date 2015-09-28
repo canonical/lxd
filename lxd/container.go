@@ -584,7 +584,7 @@ func (c *containerLXD) init() error {
 
 	if !c.IsPrivileged() {
 		if c.daemon.IdmapSet == nil {
-			return fmt.Errorf("user has no subuids")
+			return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
 		}
 		c.idmapset = c.daemon.IdmapSet // TODO - per-tenant idmaps
 	}
