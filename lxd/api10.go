@@ -180,7 +180,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 				return InternalError(err)
 			}
 
-			d.UpdateHTTPsPort(old_address, value.(string))
+			err = d.UpdateHTTPsPort(old_address, value.(string))
 			if err != nil {
 				return InternalError(err)
 			}
