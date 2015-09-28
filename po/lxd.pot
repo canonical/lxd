@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-09-18 17:27-0400\n"
+        "POT-Creation-Date: 2015-09-28 01:00-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -74,7 +74,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/info.go:73 lxc/profile.go:230
+#: lxc/info.go:72 lxc/profile.go:230
 msgid   "(none)"
 msgstr  ""
 
@@ -125,7 +125,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: client.go:1660
+#: client.go:1664
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -147,6 +147,11 @@ msgstr  ""
 
 #: lxc/remote.go:173
 msgid   "Client certificate stored at server: "
+msgstr  ""
+
+#: lxc/config.go:403 lxc/profile.go:205
+#, c-format
+msgid   "Config parsing error: %s"
 msgstr  ""
 
 #: lxc/main.go:33
@@ -187,11 +192,11 @@ msgstr  ""
 msgid   "Created: %s"
 msgstr  ""
 
-#: lxc/init.go:142
+#: lxc/init.go:141
 msgid   "Creating"
 msgstr  ""
 
-#: lxc/init.go:144 lxc/launch.go:107
+#: lxc/init.go:143 lxc/launch.go:106
 #, c-format
 msgid   "Creating %s"
 msgstr  ""
@@ -208,12 +213,12 @@ msgid   "Delete containers or container snapshots.\n"
         "Destroy containers or snapshots with any attached data (configuration, snapshots, ...)."
 msgstr  ""
 
-#: lxc/config.go:441
+#: lxc/config.go:446
 #, c-format
 msgid   "Device %s added to %s"
 msgstr  ""
 
-#: lxc/config.go:469
+#: lxc/config.go:474
 #, c-format
 msgid   "Device %s removed from %s"
 msgstr  ""
@@ -238,7 +243,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:593 client.go:603 client.go:850 client.go:1881
+#: client.go:593 client.go:603 client.go:850 client.go:1885
 #, c-format
 msgid   "Error adding alias %s"
 msgstr  ""
@@ -310,11 +315,11 @@ msgstr  ""
 msgid   "Image imported with fingerprint: %s"
 msgstr  ""
 
-#: lxc/info.go:44
+#: lxc/info.go:43
 msgid   "Information about remotes not yet supported"
 msgstr  ""
 
-#: lxc/info.go:60
+#: lxc/info.go:59
 #, c-format
 msgid   "Init: %d"
 msgstr  ""
@@ -343,7 +348,7 @@ msgstr  ""
 msgid   "Invalid target %s"
 msgstr  ""
 
-#: lxc/info.go:61
+#: lxc/info.go:60
 msgid   "Ips:"
 msgstr  ""
 
@@ -387,7 +392,7 @@ msgid   "Lists the available resources.\n"
         "* \"s.privileged=1\" will do the same"
 msgstr  ""
 
-#: lxc/info.go:102
+#: lxc/info.go:101
 msgid   "Log:"
 msgstr  ""
 
@@ -529,7 +534,7 @@ msgstr  ""
 msgid   "NO"
 msgstr  ""
 
-#: lxc/info.go:57
+#: lxc/info.go:56
 #, c-format
 msgid   "Name: %s"
 msgstr  ""
@@ -573,11 +578,11 @@ msgid   "Presents details on how to use LXD.\n"
         "lxd help [--all]"
 msgstr  ""
 
-#: lxc/image.go:387 lxc/profile.go:201
+#: lxc/image.go:387 lxc/profile.go:206
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
-#: lxc/config.go:398
+#: lxc/config.go:404
 msgid   "Press enter to start the editor again"
 msgstr  ""
 
@@ -697,7 +702,7 @@ msgstr  ""
 msgid   "Size: %.2vMB"
 msgstr  ""
 
-#: lxc/info.go:85 lxc/list.go:172
+#: lxc/info.go:84 lxc/list.go:172
 msgid   "Snapshots:"
 msgstr  ""
 
@@ -705,12 +710,12 @@ msgstr  ""
 msgid   "Split images can only be written to a directory."
 msgstr  ""
 
-#: lxc/launch.go:114
+#: lxc/launch.go:113
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
 
-#: lxc/info.go:58
+#: lxc/info.go:57
 #, c-format
 msgid   "Status: %s"
 msgstr  ""
@@ -788,7 +793,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/config.go:397 lxc/image.go:386 lxc/profile.go:200
+#: lxc/image.go:386
 #, c-format
 msgid   "YAML parse error %v"
 msgstr  ""
@@ -814,11 +819,11 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: lxc/launch.go:100
+#: lxc/launch.go:99
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1691
+#: client.go:1695
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -827,7 +832,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1695
+#: client.go:1699
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -845,19 +850,19 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: client.go:1744 client.go:1801
+#: client.go:1748 client.go:1805
 msgid   "device already exists"
 msgstr  ""
 
-#: lxc/launch.go:84 lxc/launch.go:89
+#: lxc/launch.go:83 lxc/launch.go:88
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
-#: lxc/init.go:165 lxc/init.go:167 lxc/launch.go:112 lxc/launch.go:124
+#: lxc/init.go:164 lxc/init.go:166 lxc/launch.go:111 lxc/launch.go:123
 msgid   "done."
 msgstr  ""
 
-#: lxc/init.go:158 lxc/launch.go:122
+#: lxc/init.go:157 lxc/launch.go:121
 msgid   "error."
 msgstr  ""
 
@@ -891,7 +896,7 @@ msgstr  ""
 msgid   "got bad response type, expected %s got %s"
 msgstr  ""
 
-#: lxc/launch.go:104
+#: lxc/launch.go:103
 msgid   "got bad version"
 msgstr  ""
 
@@ -913,7 +918,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1737 client.go:1794
+#: client.go:1741 client.go:1798
 #, c-format
 msgid   "no value found in %q"
 msgstr  ""
@@ -951,7 +956,7 @@ msgstr  ""
 msgid   "unknown profile cmd %s"
 msgstr  ""
 
-#: client.go:257
+#: client.go:256
 #, c-format
 msgid   "unknown remote name: %q"
 msgstr  ""
