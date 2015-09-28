@@ -180,6 +180,7 @@ func doProfileEdit(client *lxd.Client, p string) error {
 	defer os.Remove(fname)
 
 	for {
+		var err error
 		cmdParts := strings.Fields(editor)
 		cmd := exec.Command(cmdParts[0], append(cmdParts[1:], fname)...)
 		cmd.Stdin = os.Stdin
@@ -194,21 +195,20 @@ func doProfileEdit(client *lxd.Client, p string) error {
 			return err
 		}
 		newdata := shared.ProfileConfig{}
+
 		err = yaml.Unmarshal(contents, &newdata)
-		newdata.Name = p
+		if err == nil {
+			err = client.PutProfile(p, newdata)
+		}
+
 		if err != nil {
-			fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v")+"\n", err)
+			fmt.Fprintf(os.Stderr, gettext.Gettext("Config parsing error: %s")+"\n", err)
 			fmt.Println(gettext.Gettext("Press enter to open the editor again"))
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
 				return err
 			}
-
 			continue
-		}
-		err = client.PutProfile(p, newdata)
-		if err != nil {
-			return err
 		}
 		break
 	}

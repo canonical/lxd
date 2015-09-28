@@ -219,6 +219,13 @@ func dbProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	defer stmt.Close()
 
 	for k, v := range config {
+		if k == "raw.lxc" {
+			err := validateRawLxc(config["raw.lxc"])
+			if err != nil {
+				return err
+			}
+		}
+
 		if !ValidContainerConfigKey(k) {
 			return fmt.Errorf("Bad key: %s\n", k)
 		}

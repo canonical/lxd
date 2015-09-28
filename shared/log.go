@@ -65,6 +65,14 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool) error {
 		} else {
 			handlers = append(handlers, log.StderrHandler)
 		}
+	} else {
+		handlers = append(
+			handlers,
+			log.LvlFilterHandler(
+				log.LvlWarn,
+				log.StderrHandler,
+			),
+		)
 	}
 
 	Log.SetHandler(log.MultiHandler(handlers...))

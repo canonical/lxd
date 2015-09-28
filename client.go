@@ -1612,8 +1612,12 @@ func (c *Client) UpdateContainerConfig(container string, st shared.BriefContaine
 		"config":    st.Config,
 		"devices":   st.Devices,
 		"ephemeral": st.Ephemeral}
-	_, err := c.put(fmt.Sprintf("containers/%s", container), body, Async)
-	return err
+	resp, err := c.put(fmt.Sprintf("containers/%s", container), body, Async)
+	if err != nil {
+		return err
+	}
+
+	return c.WaitForSuccess(resp.Operation)
 }
 
 func (c *Client) ProfileCreate(p string) error {
