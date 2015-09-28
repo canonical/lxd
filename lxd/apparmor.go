@@ -21,8 +21,6 @@ const (
 	APPARMOR_CMD_PARSE  = "Q"
 )
 
-var aaEnabled = false
-
 var aaPath = shared.VarPath("security", "apparmor")
 
 const NESTING_AA_PROFILE = `
