@@ -114,7 +114,7 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 	}
 
 	/* Actually add the remote */
-	config.Remotes[server] = lxd.RemoteConfig{Addr: addr, Public: public}
+	config.Remotes[server] = lxd.RemoteConfig{Addr: addr}
 
 	remote := config.ParseRemote(server)
 	c, err := lxd.NewClient(config, remote)
@@ -133,7 +133,9 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 		return err
 	}
 
-	if public {
+	if c.IsPublic() || public {
+		config.Remotes[server] = lxd.RemoteConfig{Addr: addr, Public: true}
+
 		if err := c.Finger(); err != nil {
 			return err
 		}
