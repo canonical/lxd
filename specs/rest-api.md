@@ -189,6 +189,7 @@ Return value (if trusted):
 
     {
         'auth': "trusted",                              # Authentication state, one of "guest", "untrusted" or "trusted"
+        'public': true,                                 # Whether the server should be treated as a public (read-only) remote by the client
         'api_compat': 0,                                # Used to determine API functionality
         'config': {"trust_password": True},             # Host configuration
         'environment': {                                # Various information about the host (OS, kernel, ...)
