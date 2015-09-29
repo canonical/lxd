@@ -724,6 +724,14 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 		shared.Debugf("Error deleting image file %s: %s", fname, err)
 	}
 
+	fname = shared.VarPath("images", imgInfo.Fingerprint) + ".rootfs"
+	if shared.PathExists(fname) {
+		err = os.Remove(fname)
+		if err != nil {
+			shared.Debugf("Error deleting image file %s: %s", fname, err)
+		}
+	}
+
 	if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {
 		return err
 	}
