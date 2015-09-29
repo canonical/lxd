@@ -191,7 +191,7 @@ Return value (if trusted):
         'auth': "trusted",                              # Authentication state, one of "guest", "untrusted" or "trusted"
         'public': true,                                 # Whether the server should be treated as a public (read-only) remote by the client
         'api_compat': 0,                                # Used to determine API functionality
-        'config': {"trust_password": True},             # Host configuration
+        'config': {"trust_password": true},             # Host configuration
         'environment': {                                # Various information about the host (OS, kernel, ...)
                         'addresses': ["1.2.3.4:8443", "[1234::1234]:8443"],
                         'architectures': [1, 2],
@@ -245,7 +245,7 @@ Input (container based on a local image with the "ubuntu/devel" alias):
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
         'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
-        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'alias': "ubuntu/devel"},                                # Name of the alias
@@ -257,7 +257,7 @@ Input (container based on a local image identified by its fingerprint):
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
         'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
-        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'fingerprint': "SHA-256"},                               # Fingerprint
@@ -269,7 +269,7 @@ Input (container based on most recent match based on image properties):
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
         'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
-        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'properties': {                                          # Properties
@@ -285,7 +285,7 @@ Input (container without a pre-populated rootfs, useful when attaching to an exi
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
         'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
-        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "none"},                                         # Can be: "image", "migration", "copy" or "none"
     }
@@ -296,7 +296,7 @@ Input (using a public remote image):
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
         'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
-        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
@@ -311,7 +311,7 @@ Input (using a private remote image after having obtained a secret for that imag
         'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
         'architecture': 2,
         'profiles': ["default"],                                            # List of profiles
-        'ephemeral': True,                                                  # Whether to destroy the container on shutdown
+        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                     # Config override.
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
@@ -326,7 +326,7 @@ Input (using a remote container, sent over the migration websocket):
         'name': "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
         'architecture': 2,
         'profiles': ["default"],                                                        # List of profiles
-        'ephemeral': True,                                                              # Whether to destroy the container on shutdown
+        'ephemeral': true,                                                              # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                                 # Config override.
         'source': {'type': "migration",                                                 # Can be: "image", "migration", "copy" or "none"
                    'mode': "pull",                                                      # One of "pull" or "receive"
@@ -343,7 +343,7 @@ Input (using a local container):
         'name': "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
         'architecture': 2,
         'profiles': ["default"],                                                        # List of profiles
-        'ephemeral': True,                                                              # Whether to destroy the container on shutdown
+        'ephemeral': true,                                                              # Whether to destroy the container on shutdown
         'config': {'limits.cpus': "2"},                                                 # Config override.
         'source': {'type': "copy",                                                      # Can be: "image", "migration", "copy" or "none"
                    'source': "my-old-container"}                                        # Name of the source container
@@ -487,7 +487,7 @@ Input:
     {
         'action': "stop",       # State change action (stop, start, restart, freeze or unfreeze)
         'timeout': 30,          # A timeout after which the state change is considered as failed
-        'force': True           # Force the state change (currently only valid for stop and restart where it means killing the container)
+        'force': true           # Force the state change (currently only valid for stop and restart where it means killing the container)
     }
 
 ## /1.0/containers/\<name\>/files
@@ -539,7 +539,7 @@ Input:
 
     {
         'name': "my-snapshot",          # Name of the snapshot
-        'stateful': True                # Whether to include state too
+        'stateful': true                # Whether to include state too
     }
 
 ## /1.0/containers/\<name\>/snapshots/\<name\>
@@ -553,7 +553,7 @@ Return:
 
     {
         'name': "my-snapshot",
-        'stateful': True
+        'stateful': true
     }
 
 ### POST
@@ -730,7 +730,7 @@ In the http file upload case, The following headers may be set by the client:
 In the source image case, the following dict must be passed:
 
     {
-        "public": true,                         # True or False
+        "public": true,                         # true or false
         "source": {
             "type": "image",
             "mode": "pull",                     # One of "pull" or "receive"
@@ -744,7 +744,7 @@ In the source image case, the following dict must be passed:
 In the source container case, the following dict must be passed:
 
     {
-        "public":   true,         # True or False
+        "public":   true,         # true or false
         "filename": filename,     # Used for export
         "source": {
             "type": "container",  # One of "container" or "snapshot"
@@ -985,7 +985,7 @@ Return:
             'containers': ['/1.0/containers/1']              # List of affected resources
         },
         'metadata': {},                                      # Extra information about the operation (action, target, ...)
-        'may_cancel': True                                   # Whether it's possible to cancel the operation
+        'may_cancel': true                                   # Whether it's possible to cancel the operation
     }
 
 ### DELETE
