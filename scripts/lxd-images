@@ -620,7 +620,7 @@ if __name__ == "__main__":
 
             lxd.images_remove(image_hash)
             setup_alias(image_aliases, r['fingerprint'])
-            msg("Updated %s to %s" % (image_source, r['fingerprint']))
+            msg(_("Updated %s to %s") % (image_source, r['fingerprint']))
 
     parser = FriendlyParser(
         description=_("LXD: image store helper"),
