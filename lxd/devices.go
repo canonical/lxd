@@ -225,7 +225,7 @@ func validDeviceConfig(t, k, v string) bool {
 func tempNic() string {
 	randBytes := make([]byte, 4)
 	rand.Read(randBytes)
-	return "lxd" + hex.EncodeToString(randBytes)
+	return "veth" + hex.EncodeToString(randBytes)
 }
 
 func inList(l []string, s string) bool {
@@ -255,7 +255,7 @@ func nextUnusedNic(c container) string {
 	}
 }
 
-func setupNic(c container, d map[string]string) (string, error) {
+func setupNic(tx *sql.Tx, c container, name string, d map[string]string) (string, error) {
 	if d["nictype"] != "bridged" {
 		return "", fmt.Errorf("Unsupported nic type: %s\n", d["nictype"])
 	}
@@ -273,7 +273,42 @@ func setupNic(c container, d map[string]string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	err = exec.Command("brctl", "addif", d["parent"], n1).Run()
+	if err != nil {
+		removeInterface(n2)
+		return "", err
+	}
+
+	key := fmt.Sprintf("volatile.%s.hwaddr", name)
+	config := c.ConfigGet()
+	hwaddr := config[key]
+
+	if hwaddr == "" {
+		if d["hwaddr"] != "" {
+			hwaddr, err = generateMacAddr(d["hwaddr"])
+			if err != nil {
+				return "", err
+			}
+		} else {
+			hwaddr, err = generateMacAddr("00:16:3e:xx:xx:xx")
+			if err != nil {
+				return "", err
+			}
+		}
+
+		if hwaddr != d["hwaddr"] {
+			stmt := `INSERT OR REPLACE into containers_config (container_id, key, value) VALUES (?, ?, ?)`
+			_, err = tx.Exec(stmt, c.IDGet(), key, hwaddr)
+
+			if err != nil {
+				removeInterface(n2)
+				return "", err
+			}
+		}
+	}
+
+	err = exec.Command("ip", "link", "set", "dev", n2, "address", hwaddr).Run()
 	if err != nil {
 		removeInterface(n2)
 		return "", err
@@ -366,7 +401,7 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 		switch dev["type"] {
 		case "nic":
 			var tmpName string
-			if tmpName, err = setupNic(c, dev); err != nil {
+			if tmpName, err = setupNic(tx, c, key, dev); err != nil {
 				return fmt.Errorf("Unable to create nic %s for container %s: %s", dev["name"], c.NameGet(), err)
 			}
 			if err := lxContainer.AttachInterface(tmpName, dev["name"]); err != nil {

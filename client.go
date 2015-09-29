@@ -559,7 +559,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		"server":      c.BaseURL,
 		"fingerprint": fingerprint}
 
-	if info.Public == 0 {
+	if !shared.InterfaceToBool(info.Public) {
 		var operation string
 
 		resp, err := c.post("images/"+fingerprint+"/secret", nil, Async)
@@ -889,8 +889,11 @@ func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
 	return &info, nil
 }
 
-func (c *Client) PutImageProperties(name string, p shared.ImageProperties) error {
-	body := shared.Jmap{"properties": p}
+func (c *Client) PutImageInfo(name string, p shared.BriefImageInfo) error {
+	body := shared.Jmap{}
+	body["public"] = p.Public
+	body["properties"] = p.Properties
+
 	_, err := c.put(fmt.Sprintf("images/%s", name), body, Sync)
 	return err
 }
@@ -1088,7 +1091,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, fmt.Errorf(gettext.Gettext("The image architecture is incompatible with the target server"))
 		}
 
-		if imageinfo.Public == 0 {
+		if !shared.InterfaceToBool(imageinfo.Public) {
 			resp, err := tmpremote.post("images/"+fingerprint+"/secret", nil, Async)
 			if err != nil {
 				return nil, err
