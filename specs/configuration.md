@@ -70,6 +70,16 @@ volatile.base\_image        | string        | -                 | The hash of th
 volatile.last\_state.idmap  | string        | -                 | Serialized container uid/gid map
 volatile.last\_state.power  | string        | -                 | Container state as of last host shutdown
 
+
+Additionally, those user keys have become common with images (support isn't guaranteed):
+
+Key                         | Type          | Default           | Description
+:--                         | :---          | :------           | :----------
+user.meta\_data             | string        | -                 | Cloud-init meta-data, content is appended to seed value.
+user.network\_mode          | string        | dhcp              | One of "dhcp" or "link-local". Used to configure network in supported images.
+user.user\_data             | string        | #!cloud-config    | Cloud-init user-data, content is used as seed value.
+user.vendor\_data           | string        | #!cloud-config    | Cloud-init vendor-data, content is used as seed value.
+
 Note that while a type is defined above as a convenience, all values are
 stored as strings and should be exported over the REST API as strings
 (which makes it possible to support any extra values without breaking
