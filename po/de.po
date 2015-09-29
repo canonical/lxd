@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2015-09-14 13:04-0400\n"
+"POT-Creation-Date: 2015-09-29 19:31-0400\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -121,7 +121,7 @@ msgstr ""
 msgid "'/' not allowed in snapshot name"
 msgstr "'/' ist kein gültiges Zeichen im Namen eines Sicherungspunktes\n"
 
-#: lxc/info.go:73 lxc/profile.go:230
+#: lxc/info.go:72 lxc/profile.go:230
 msgid "(none)"
 msgstr ""
 
@@ -137,7 +137,7 @@ msgstr ""
 msgid "Accept certificate"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/remote.go:150
+#: lxc/remote.go:152
 #, c-format
 msgid "Admin password for %s: "
 msgstr "Administrator Passwort für %s: "
@@ -164,24 +164,24 @@ msgstr "Architektur: %s\n"
 msgid "Available commands:"
 msgstr ""
 
-#: client.go:817
+#: client.go:838
 #, fuzzy, c-format
 msgid "Bad image property: %s"
 msgstr "Ungültige Abbild Eigenschaft: %s\n"
 
-#: lxc/config.go:190
+#: lxc/config.go:199
 msgid "COMMON NAME"
 msgstr ""
 
-#: client.go:1660
+#: client.go:1690
 msgid "Cannot change profile name"
 msgstr "Profilname kann nicht geändert werden"
 
-#: lxc/profile.go:330
+#: lxc/profile.go:339
 msgid "Cannot provide container name to list"
 msgstr ""
 
-#: client.go:938
+#: client.go:962
 #, fuzzy, c-format
 msgid "Certificate fingerprint: %x"
 msgstr "Fingerabdruck des Zertifikats: % x\n"
@@ -197,9 +197,14 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/remote.go:173
+#: lxc/remote.go:175
 msgid "Client certificate stored at server: "
 msgstr "Gespeichertes Nutzerzertifikat auf dem Server: "
+
+#: lxc/config.go:412 lxc/profile.go:205
+#, fuzzy, c-format
+msgid "Config parsing error: %s"
+msgstr "YAML Analyse Fehler %v\n"
 
 #: lxc/main.go:33
 msgid "Connection refused; is LXD running?"
@@ -218,18 +223,19 @@ msgstr "Abbild mit Fingerabdruck %s importiert\n"
 msgid "Copy aliases from source"
 msgstr "Kopiere Aliasse von der Quelle"
 
-#: lxc/copy.go:24
+#: lxc/copy.go:25
 #, fuzzy
 msgid ""
 "Copy containers within or in between lxd instances.\n"
 "\n"
-"lxc copy [remote:]<source container> [remote:]<destination container>"
+"lxc copy [remote:]<source container> [remote:]<destination container> [--"
+"ephemeral|e]"
 msgstr ""
 "Kopiert Container innerhalb einer oder zwischen lxd Instanzen\n"
 "\n"
 "lxc copy <Quelle> <Ziel>\n"
 
-#: client.go:954
+#: client.go:978
 msgid "Could not create server cert dir"
 msgstr "Kann Verzeichnis für Zertifikate auf dem Server nicht erstellen"
 
@@ -249,11 +255,11 @@ msgstr ""
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:142
+#: lxc/init.go:141
 msgid "Creating"
 msgstr ""
 
-#: lxc/init.go:144 lxc/launch.go:107
+#: lxc/init.go:143 lxc/launch.go:106
 #, c-format
 msgid "Creating %s"
 msgstr ""
@@ -278,12 +284,12 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/config.go:441
+#: lxc/config.go:455
 #, fuzzy, c-format
 msgid "Device %s added to %s"
 msgstr "Gerät %s wurde zu %s hinzugefügt\n"
 
-#: lxc/config.go:469
+#: lxc/config.go:483
 #, fuzzy, c-format
 msgid "Device %s removed from %s"
 msgstr "Gerät %s wurde von %s entfernt\n"
@@ -292,11 +298,11 @@ msgstr "Gerät %s wurde von %s entfernt\n"
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/config.go:192
+#: lxc/config.go:201
 msgid "EXPIRY DATE"
 msgstr ""
 
-#: lxc/main.go:54 lxc/main.go:55
+#: lxc/main.go:54
 msgid "Enables debug mode."
 msgstr "Aktiviert Debug Modus"
 
@@ -304,11 +310,12 @@ msgstr "Aktiviert Debug Modus"
 msgid "Enables verbose mode."
 msgstr "Aktiviert ausführliche Ausgabe"
 
-#: lxc/init.go:104 lxc/init.go:105 lxc/launch.go:39 lxc/launch.go:40
+#: lxc/copy.go:32 lxc/copy.go:33 lxc/init.go:104 lxc/init.go:105
+#: lxc/launch.go:39 lxc/launch.go:40
 msgid "Ephemeral container"
 msgstr "Flüchtiger Container"
 
-#: client.go:593 client.go:603 client.go:850 client.go:1881
+#: client.go:614 client.go:624 client.go:871 client.go:1911
 #, fuzzy, c-format
 msgid "Error adding alias %s"
 msgstr "Fehler beim hinzufügen des Alias %s\n"
@@ -333,7 +340,7 @@ msgstr ""
 msgid "Expires: never"
 msgstr ""
 
-#: lxc/config.go:189 lxc/image.go:516 lxc/image.go:537
+#: lxc/config.go:198 lxc/image.go:516 lxc/image.go:537
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -362,6 +369,10 @@ msgstr "Zum Beispiel: 'lxd-images import ubuntu --alias ubuntu'.\n"
 msgid "Force the container to shutdown."
 msgstr "Herunterfahren des Containers erzwingen."
 
+#: lxc/main.go:55
+msgid "Force using the local unix socket."
+msgstr ""
+
 #: lxc/main.go:115
 #, fuzzy
 msgid "Generating a client certificate. This may take a minute..."
@@ -375,7 +386,7 @@ msgstr ""
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config.go:191
+#: lxc/config.go:200
 msgid "ISSUE DATE"
 msgstr ""
 
@@ -393,12 +404,12 @@ msgstr ""
 msgid "Image imported with fingerprint: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
 
-#: lxc/info.go:44
+#: lxc/info.go:43
 #, fuzzy
 msgid "Information about remotes not yet supported"
 msgstr "Informationen über entfernte Instanzen wird noch nicht unterstützt\n"
 
-#: lxc/info.go:60
+#: lxc/info.go:59
 #, c-format
 msgid "Init: %d"
 msgstr ""
@@ -441,7 +452,7 @@ msgstr "Ungültige Quelle %s"
 msgid "Invalid target %s"
 msgstr "Ungültiges Ziel %s"
 
-#: lxc/info.go:61
+#: lxc/info.go:60
 msgid "Ips:"
 msgstr ""
 
@@ -526,7 +537,7 @@ msgstr ""
 "* \"security.privileged=1\" listet alle privilegierten Container\n"
 "* \"s.privileged=1\" ebenfalls\n"
 
-#: lxc/info.go:102
+#: lxc/info.go:101
 msgid "Log:"
 msgstr ""
 
@@ -828,15 +839,15 @@ msgstr ""
 "\n"
 "lxc move <Quelle> <Ziel>\n"
 
-#: lxc/list.go:157 lxc/remote.go:234
+#: lxc/list.go:157 lxc/remote.go:236
 msgid "NAME"
 msgstr ""
 
-#: lxc/list.go:146 lxc/remote.go:228
+#: lxc/list.go:146 lxc/remote.go:230
 msgid "NO"
 msgstr ""
 
-#: lxc/info.go:57
+#: lxc/info.go:56
 #, c-format
 msgid "Name: %s"
 msgstr ""
@@ -845,15 +856,15 @@ msgstr ""
 msgid "New alias to define at target"
 msgstr ""
 
-#: lxc/config.go:203
+#: lxc/config.go:212
 msgid "No cert provided to add"
 msgstr "Kein Zertifikat zum hinzufügen bereitgestellt"
 
-#: client.go:925
+#: client.go:949
 msgid "No certificate on this connection"
 msgstr "Kein Zertifikat für diese Verbindung"
 
-#: lxc/config.go:226
+#: lxc/config.go:235
 msgid "No fingerprint specified."
 msgstr "Kein Fingerabdruck angegeben."
 
@@ -866,7 +877,7 @@ msgstr ""
 msgid "Output is in %s"
 msgstr ""
 
-#: lxc/image.go:517 lxc/remote.go:236
+#: lxc/image.go:517 lxc/remote.go:238
 msgid "PUBLIC"
 msgstr ""
 
@@ -885,11 +896,11 @@ msgstr ""
 "\n"
 "lxd help [—all]\n"
 
-#: lxc/image.go:387 lxc/profile.go:201
+#: lxc/image.go:387 lxc/profile.go:206
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:398
+#: lxc/config.go:413
 msgid "Press enter to start the editor again"
 msgstr ""
 
@@ -977,7 +988,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: client.go:945
+#: client.go:969
 msgid "Server certificate NACKed by user"
 msgstr "Server Zertifikat vom Benutzer nicht akzeptiert"
 
@@ -990,7 +1001,7 @@ msgstr ""
 "Server Zertifikat für Rechner %s hat sich geändert. Fürgen Sie das richtige "
 "Zertifikat hinzu oder löschen Sie das Zertifikat unter %s"
 
-#: lxc/remote.go:170
+#: lxc/remote.go:172
 msgid "Server doesn't trust us after adding our cert"
 msgstr ""
 "Der Server vertraut uns nicht nachdem er unser Zertifikat hinzugefügt hat"
@@ -1032,20 +1043,20 @@ msgstr "Zeige die letzten 100 Zeilen Protokoll des Containers?"
 msgid "Size: %.2vMB"
 msgstr "Größe: %.2vMB\n"
 
-#: lxc/info.go:85 lxc/list.go:172
+#: lxc/info.go:84 lxc/list.go:172
 msgid "Snapshots:"
 msgstr ""
 
-#: client.go:625
+#: client.go:646
 msgid "Split images can only be written to a directory."
 msgstr ""
 
-#: lxc/launch.go:114
+#: lxc/launch.go:113
 #, c-format
 msgid "Starting %s"
 msgstr ""
 
-#: lxc/info.go:58
+#: lxc/info.go:57
 #, c-format
 msgid "Status: %s"
 msgstr ""
@@ -1054,7 +1065,7 @@ msgstr ""
 msgid "Stopping container failed!"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: client.go:1067 client.go:1105
+#: client.go:1091 client.go:1129
 msgid "The image architecture is incompatible with the target server"
 msgstr ""
 
@@ -1075,11 +1086,16 @@ msgstr "Wartezeit bevor der Container gestoppt wird."
 msgid "Timestamps:"
 msgstr "Zeitstempel:\n"
 
+#: lxc/action.go:61
+#, c-format
+msgid "Try `lxc info --show-log %s` for more info"
+msgstr ""
+
 #: lxc/image.go:520
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/remote.go:235
+#: lxc/remote.go:237
 msgid "URL"
 msgstr ""
 
@@ -1088,12 +1104,12 @@ msgstr ""
 msgid "Unknown image command %s"
 msgstr "Unbekannter Befehl %s für Abbild"
 
-#: lxc/remote.go:294
+#: lxc/remote.go:296
 #, c-format
 msgid "Unknown remote subcommand %s"
 msgstr "Unbekannter Unterbefehl %s für entfernte Instanz"
 
-#: lxc/config.go:240
+#: lxc/config.go:249
 #, c-format
 msgid "Unkonwn config trust command %s"
 msgstr "Unbekannter config Befehl %s"
@@ -1136,16 +1152,16 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr "Zustand des laufenden Containers sichern oder nicht"
 
-#: lxc/config.go:397 lxc/image.go:386 lxc/profile.go:200
+#: lxc/image.go:386
 #, fuzzy, c-format
 msgid "YAML parse error %v"
 msgstr "YAML Analyse Fehler %v\n"
 
-#: lxc/list.go:144 lxc/remote.go:226
+#: lxc/list.go:144 lxc/remote.go:228
 msgid "YES"
 msgstr ""
 
-#: client.go:1045
+#: client.go:1069
 msgid "You must provide an image hash or alias name."
 msgstr ""
 
@@ -1153,7 +1169,7 @@ msgstr ""
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
 
-#: shared/util_linux.go:154 shared/util_linux.go:186
+#: shared/util_linux.go:155 shared/util_linux.go:187
 msgid "allocation failed"
 msgstr ""
 
@@ -1162,12 +1178,12 @@ msgstr ""
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "API Versionskonflikt: meine: %q, Hintergrund Dienst: %q"
 
-#: lxc/launch.go:100
+#: lxc/launch.go:99
 msgid "bad number of things scanned from image, container or snapshot"
 msgstr ""
 "Falsche Anzahl an Objekten im Abbild, Container oder Sicherungspunkt gelesen."
 
-#: client.go:1691
+#: client.go:1721
 #, c-format
 msgid "bad profile url %s"
 msgstr "Fehlerhafte Profil URL %s"
@@ -1176,15 +1192,15 @@ msgstr "Fehlerhafte Profil URL %s"
 msgid "bad result type from action"
 msgstr ""
 
-#: client.go:1695
+#: client.go:1725
 msgid "bad version in profile url"
 msgstr "Falsche Version in Profil URL"
 
-#: lxc/copy.go:77
+#: lxc/copy.go:81
 msgid "can't copy to the same container name"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: client.go:1101
+#: client.go:1125
 #, c-format
 msgid "can't get info for image '%s': %s"
 msgstr ""
@@ -1194,20 +1210,20 @@ msgstr ""
 msgid "cannot resolve unix socket address: %v"
 msgstr "kann unix Socket Adresse %v nicht auflösen"
 
-#: client.go:1744 client.go:1801
+#: client.go:1774 client.go:1831
 #, fuzzy
 msgid "device already exists"
 msgstr "entfernte Instanz %s existiert bereits"
 
-#: lxc/launch.go:84 lxc/launch.go:89
+#: lxc/launch.go:83 lxc/launch.go:88
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr ""
 
-#: lxc/init.go:165 lxc/init.go:167 lxc/launch.go:112 lxc/launch.go:124
+#: lxc/init.go:164 lxc/init.go:166 lxc/launch.go:111 lxc/launch.go:123
 msgid "done."
 msgstr ""
 
-#: lxc/init.go:158 lxc/launch.go:122
+#: lxc/init.go:157 lxc/launch.go:121
 #, fuzzy
 msgid "error."
 msgstr "Fehler: %v\n"
@@ -1227,12 +1243,12 @@ msgstr "Fehler: unbekannter Befehl: %s\n"
 msgid "expected error, got %s"
 msgstr ""
 
-#: shared/util_linux.go:168 shared/util_linux.go:200
+#: shared/util_linux.go:169 shared/util_linux.go:201
 #, c-format
 msgid "failed group lookup: %s"
 msgstr ""
 
-#: client.go:1305
+#: client.go:1330
 #, c-format
 msgid "got bad op status %s"
 msgstr ""
@@ -1242,7 +1258,7 @@ msgstr ""
 msgid "got bad response type, expected %s got %s"
 msgstr ""
 
-#: lxc/launch.go:104
+#: lxc/launch.go:103
 msgid "got bad version"
 msgstr "Versionskonflikt"
 
@@ -1251,7 +1267,7 @@ msgstr "Versionskonflikt"
 msgid "invalid argument %s"
 msgstr "ungültiges Argument %s"
 
-#: client.go:1468
+#: client.go:1494
 #, c-format
 msgid "invalid wait url %s"
 msgstr ""
@@ -1264,36 +1280,36 @@ msgstr ""
 msgid "no response!"
 msgstr "keine Antwort!"
 
-#: client.go:1737 client.go:1794
+#: client.go:1767 client.go:1824
 #, fuzzy, c-format
 msgid "no value found in %q"
 msgstr "kein Wert in %q gefunden\n"
 
-#: lxc/copy.go:99
+#: lxc/copy.go:103
 msgid "not all the profiles from the source exist on the target"
 msgstr "nicht alle Profile der Quelle sind am Ziel vorhanden."
 
-#: client.go:939
+#: client.go:963
 #, fuzzy
 msgid "ok (y/n)?"
 msgstr "OK (y/n)? "
 
-#: lxc/remote.go:254
+#: lxc/remote.go:256
 #, c-format
 msgid "remote %s already exists"
 msgstr "entfernte Instanz %s existiert bereits"
 
-#: lxc/remote.go:211 lxc/remote.go:250 lxc/remote.go:270 lxc/remote.go:282
+#: lxc/remote.go:213 lxc/remote.go:252 lxc/remote.go:272 lxc/remote.go:284
 #, c-format
 msgid "remote %s doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
 
-#: lxc/remote.go:196
+#: lxc/remote.go:198
 #, c-format
 msgid "remote %s exists as <%s>"
 msgstr "entfernte Instanz %s existiert als <%s>"
 
-#: shared/util_linux.go:172 shared/util_linux.go:204
+#: shared/util_linux.go:173 shared/util_linux.go:205
 #, fuzzy, c-format
 msgid "unknown group %s"
 msgstr "unbekannter entfernter Instanz Name: %q"
@@ -1303,7 +1319,7 @@ msgstr "unbekannter entfernter Instanz Name: %q"
 msgid "unknown profile cmd %s"
 msgstr "Unbekannter Befehl %s für Abbild"
 
-#: client.go:257
+#: client.go:256
 #, c-format
 msgid "unknown remote name: %q"
 msgstr "unbekannter entfernter Instanz Name: %q"
@@ -1325,7 +1341,7 @@ msgstr "falsche Anzahl an Parametern für Unterbefehl"
 msgid "yes"
 msgstr ""
 
-#: lxc/copy.go:37
+#: lxc/copy.go:41
 msgid "you must specify a source container name"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
