@@ -22,6 +22,7 @@ import uuid
 
 _ = gettext.gettext
 gettext.textdomain("lxd")
+quiet = False
 
 
 class FriendlyParser(argparse.ArgumentParser):
@@ -29,6 +30,11 @@ class FriendlyParser(argparse.ArgumentParser):
         sys.stderr.write('error: %s\n' % message)
         self.print_help()
         sys.exit(2)
+
+
+def msg(content, end=None):
+    if not quiet:
+        print(content, end=end)
 
 
 def find_on_path(command):
@@ -52,7 +58,7 @@ def report_download(blocks_read, block_size, total_size):
     if percent > 100:
         return
 
-    print(_("Progress: %.0f %%") % percent, end='\r')
+    msg(_("Progress: %.0f %%") % percent, end='\r')
 
 
 def local_architecture():
@@ -123,15 +129,29 @@ class LXD(object):
         return [alias.split("/1.0/images/aliases/")[-1]
                 for alias in data['metadata']]
 
-    def images_list(self):
-        status, data = self.rest_call("/1.0/images")
+    def images_remove(self, name):
+        status, data = self.rest_call("/1.0/images/%s" % name,
+                                      method="DELETE")
 
-        return [image.split("/1.0/images/")[-1] for image in data['metadata']]
+        if status != 200:
+            raise Exception("Failed to remove alias: %s" % name)
 
-    def images_upload(self, path, filename, public):
+    def images_list(self, recursive=False):
+        if recursive:
+            status, data = self.rest_call("/1.0/images?recursion=1")
+            return data['metadata']
+        else:
+            status, data = self.rest_call("/1.0/images")
+            return [image.split("/1.0/images/")[-1]
+                    for image in data['metadata']]
+
+    def images_upload(self, path, filename, public, sync=False):
         headers = {}
         if public:
             headers['X-LXD-public'] = "1"
+
+        if sync:
+            headers['X-LXD-properties'] = "lxd-images.sync=%s" % sync
 
         if isinstance(path, str):
             headers['Content-Type'] = "application/octet-stream"
@@ -179,7 +199,7 @@ class Image(object):
     """ Class for reuse of various functionality """
 
     def gpg_update(self):
-        print(_("Downloading the GPG key for %s" % self.server))
+        msg(_("Downloading the GPG key for %s" % self.server))
         gpg_environ = dict(os.environ)
         gpg_environ["GNUPGHOME"] = self.gpgdir
 
@@ -195,7 +215,7 @@ class Image(object):
             raise Exception("Failed to retrieve the GPG key")
 
     def gpg_verify(self, path):
-        print(_("Validating the GPG signature of %s" % path))
+        msg(_("Validating the GPG signature of %s" % path))
         gpg_environ = dict(os.environ)
         gpg_environ["GNUPGHOME"] = self.gpgdir
 
@@ -355,7 +375,7 @@ class Ubuntu(Image):
         if self.workdir:
             shutil.rmtree(self.workdir)
 
-    def image_download(self, release=None, architecture=None, version=None):
+    def image_lookup(self, release=None, architecture=None, version=None):
         if not release:
             release = "trusty"
 
@@ -412,12 +432,15 @@ class Ubuntu(Image):
         if not image:
             raise Exception("The requested image doesn't exist.")
 
-        print(_("Downloading the image."))
+        return image
+
+    def image_download(self, image):
+        msg(_("Downloading the image."))
         try:
-            print(_("Image manifest: %s") % "%s/%s" %
-                  (self.server, image['items']['manifest']['path']))
+            msg(_("Image manifest: %s") % "%s/%s" %
+                (self.server, image['items']['manifest']['path']))
         except KeyError:
-            print(_("No image manifest provided."))
+            msg(_("No image manifest provided."))
 
         def download_and_verify(file_to_download, prefix, pubname):
             """
@@ -465,14 +488,14 @@ if __name__ == "__main__":
         sys.exit(1)
     lxd = LXD(lxd_socket)
 
-    def setup_alias(parser, args, fingerprint):
+    def setup_alias(aliases, fingerprint):
         existing = lxd.aliases_list()
 
-        for alias in args.alias:
+        for alias in aliases:
             if alias in existing:
                 lxd.aliases_remove(alias)
             lxd.aliases_create(alias, fingerprint)
-            print(_("Setup alias: %s" % alias))
+            msg(_("Setup alias: %s" % alias))
 
     def import_busybox(parser, args):
         busybox = Busybox()
@@ -490,7 +513,7 @@ if __name__ == "__main__":
 
             r = lxd.images_upload((meta_path, rootfs_path),
                                   meta_path.split("/")[-1], args.public)
-            print(_("Image imported as: %s" % r['fingerprint']))
+            msg(_("Image imported as: %s" % r['fingerprint']))
         else:
             path = busybox.create_tarball()
 
@@ -501,30 +524,103 @@ if __name__ == "__main__":
                 parser.exit(1, _("This image is already in the store.\n"))
 
             r = lxd.images_upload(path, path.split("/")[-1], args.public)
-            print(_("Image imported as: %s" % r['fingerprint']))
+            msg(_("Image imported as: %s" % r['fingerprint']))
 
-        setup_alias(parser, args, fingerprint)
+        setup_alias(args.alias, fingerprint)
 
     def import_ubuntu(parser, args):
         ubuntu = Ubuntu(stream=args.stream)
 
-        meta_path, rootfs_path = ubuntu.image_download(args.release,
-                                                       args.architecture,
-                                                       args.version)
+        sync = False
+        if args.sync:
+            sync = "ubuntu:%s:%s:%s" % (args.stream, args.release,
+                                        args.architecture)
 
-        with open(meta_path, "rb") as meta_fd:
-            with open(rootfs_path, "rb") as rootfs_fd:
-                fingerprint = hashlib.sha256(meta_fd.read() +
-                                             rootfs_fd.read()).hexdigest()
+        image = ubuntu.image_lookup(args.release, args.architecture,
+                                    args.version)
+
+        fingerprint = \
+            image['items']['lxd.tar.xz']['combined_sha256'].split(" ")[0]
 
         if fingerprint in lxd.images_list():
-            parser.exit(1, _("This image is already in the store.\n"))
+            msg(_("Image already in the store, only setting up aliases."))
+            setup_alias(args.alias, fingerprint)
+            return
+
+        meta_path, rootfs_path = ubuntu.image_download(image)
 
         r = lxd.images_upload((meta_path, rootfs_path),
-                              meta_path.split("/")[-1], args.public)
-        print(_("Image imported as: %s" % r['fingerprint']))
+                              meta_path.split("/")[-1], args.public, sync)
 
-        setup_alias(parser, args, fingerprint)
+        msg(_("Image imported as: %s" % r['fingerprint']))
+
+        setup_alias(args.alias, fingerprint)
+
+    def sync(parser, args):
+        # Look for images that have been marked for syncing
+        for image in lxd.images_list(recursive=True):
+            if "lxd-images.sync" not in image['properties']:
+                continue
+
+            # Get the main image properties
+            image_hash = image['fingerprint']
+            image_public = image['public']
+            image_source = image['properties']['lxd-images.sync']
+            image_aliases = [alias['target'] for alias in image['aliases']]
+
+            # Extract the serialized lxd-images config
+            source_parts = image_source.split(":")
+            if not source_parts:
+                continue
+
+            # Only Ubuntu is supported right now
+            if source_parts[0] != "ubuntu":
+                continue
+
+            # Extract the serialized fields
+            if len(source_parts) != 4:
+                continue
+
+            source_stream, source_series, \
+                source_arch = source_parts[1:]
+
+            # Deal with cases where the user didn't provide a series or arch
+            if source_series == "None":
+                source_series = None
+
+            if source_arch == "None":
+                source_arch = None
+
+            # Look for a new image
+            ubuntu = Ubuntu(stream=source_stream)
+
+            try:
+                new_image = ubuntu.image_lookup(source_series, source_arch)
+            except:
+                msg(_("The latest image for \"%s\" couldn't be found.")
+                    % image_source)
+                continue
+
+            new_image_hash = \
+                new_image['items']['lxd.tar.xz']['combined_sha256'] \
+                .split(" ")[0]
+
+            if new_image_hash == image_hash:
+                continue
+
+            if new_image_hash in lxd.images_list():
+                continue
+
+            # Download the new image
+            meta_path, rootfs_path = ubuntu.image_download(new_image)
+
+            r = lxd.images_upload((meta_path, rootfs_path),
+                                  meta_path.split("/")[-1], image_public,
+                                  image_source)
+
+            lxd.images_remove(image_hash)
+            setup_alias(image_aliases, r['fingerprint'])
+            msg("Updated %s to %s" % (image_source, r['fingerprint']))
 
     parser = FriendlyParser(
         description=_("LXD: image store helper"),
@@ -535,7 +631,17 @@ if __name__ == "__main__":
 
  To import a basic busybox image:
     %s import busybox --alias busybox
-""" % (sys.argv[0], sys.argv[0])))
+
+
+ Some images can be kept in sync for you, use --sync for that:
+    %s import ubuntu --alias ubuntu --sync
+
+ Then make sure the following command is executed regularly (e.g. crontab):
+    %s sync
+""" % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])))
+
+    parser.add_argument("--quiet", action="store_true",
+                        default=False, help=_("Silence all non-error output"))
 
     parser_subparsers = parser.add_subparsers(dest="action")
     parser_subparsers.required = True
@@ -576,10 +682,22 @@ if __name__ == "__main__":
     parser_import_ubuntu.add_argument("--public", action="store_true",
                                       default=False,
                                       help=_("Make the image public"))
+    parser_import_ubuntu.add_argument("--sync", action="store_true",
+                                      default=False,
+                                      help=_("Keep this image up to date"))
     parser_import_ubuntu.set_defaults(func=import_ubuntu)
+
+    # Image sync
+    parser_import = parser_subparsers.add_parser(
+        "sync", help=_("Sync images"))
+    parser_import.set_defaults(func=sync)
 
     # Call the function
     args = parser.parse_args()
+
+    if args.quiet:
+        quiet = True
+
     try:
         args.func(parser, args)
     except Exception as e:
