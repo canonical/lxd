@@ -506,6 +506,27 @@ func (c *Client) AmTrusted() bool {
 	return auth == "trusted"
 }
 
+func (c *Client) IsPublic() bool {
+	resp, err := c.GetServerConfig()
+	if err != nil {
+		return false
+	}
+
+	shared.Debugf("%s", resp)
+
+	jmap, err := resp.MetadataAsMap()
+	if err != nil {
+		return false
+	}
+
+	public, err := jmap.GetBool("public")
+	if err != nil {
+		return false
+	}
+
+	return public
+}
+
 func (c *Client) ListContainers() ([]shared.ContainerInfo, error) {
 	resp, err := c.get("containers?recursion=1")
 	if err != nil {

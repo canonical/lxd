@@ -20,6 +20,7 @@ type ServerState struct {
 	Auth        string                 `json:"auth"`
 	Environment ServerStateEnvironment `json:"environment"`
 	Config      map[string]interface{} `json:"config"`
+	Public      bool                   `json:"public"`
 }
 
 type BriefServerState struct {
