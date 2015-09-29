@@ -213,7 +213,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 		fmt.Printf(gettext.Gettext("Fingerprint: %s")+"\n", info.Fingerprint)
 		public := gettext.Gettext("no")
-		if info.Public == 1 {
+		if shared.InterfaceToBool(info) {
 			public = gettext.Gettext("yes")
 		}
 		fmt.Printf(gettext.Gettext("Size: %.2vMB")+"\n", float64(info.Size)/1024.0/1024.0)
@@ -329,12 +329,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 				return err
 			}
 
-			newdata := shared.ImageProperties{}
+			newdata := shared.BriefImageInfo{}
 			err = yaml.Unmarshal(contents, &newdata)
 			if err != nil {
 				return err
 			}
-			return d.PutImageProperties(image, newdata)
+			return d.PutImageInfo(image, newdata)
 		}
 
 		info, err := d.GetImageInfo(image)
@@ -342,7 +342,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		properties := info.Properties
+		properties := info.BriefInfo()
 		editor := os.Getenv("VISUAL")
 		if editor == "" {
 			editor = os.Getenv("EDITOR")
@@ -380,7 +380,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			if err != nil {
 				return err
 			}
-			newdata := shared.ImageProperties{}
+			newdata := shared.BriefImageInfo{}
 			err = yaml.Unmarshal(contents, &newdata)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v")+"\n", err)
@@ -392,7 +392,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 
 				continue
 			}
-			err = d.PutImageProperties(image, newdata)
+			err = d.PutImageInfo(image, newdata)
 			break
 		}
 
@@ -447,7 +447,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		properties := info.Properties
+		properties := info.BriefInfo()
 
 		data, err := yaml.Marshal(&properties)
 		fmt.Printf("%s", data)
@@ -500,7 +500,7 @@ func showImages(images []shared.ImageInfo) error {
 		fp := image.Fingerprint[0:12]
 		public := gettext.Gettext("no")
 		description := findDescription(image.Properties)
-		if image.Public == 1 {
+		if shared.InterfaceToBool(image.Public) {
 			public = gettext.Gettext("yes")
 		}
 		const layout = "Jan 2, 2006 at 3:04pm (MST)"
