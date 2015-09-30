@@ -1257,6 +1257,11 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 		return fmt.Errorf("Cannot export a running container as image")
 	}
 
+	if err := c.StorageStart(); err != nil {
+		return err
+	}
+	defer c.StorageStop()
+
 	idmap, err := c.LastIdmapSetGet()
 	if err != nil {
 		return err

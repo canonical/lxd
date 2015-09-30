@@ -225,6 +225,9 @@ test_lvm_withpool() {
     lvs ${VGNAME}/test--container-superchill || die "superchill should exist"
     lvs ${VGNAME}/test--container-chillbro && die "chillbro should not exist"
 
+    lxc publish test-container || die "Couldn't publish test-container"
+    lxc publish test-container/unchillbro || die "Couldn't publish snapshot"
+
     # TODO busybox ignores SIGPWR, breaking restart:
     # check that 'shutdown' also unmounts:
     # lxc start test-container || die "Couldn't re-start test-container"
