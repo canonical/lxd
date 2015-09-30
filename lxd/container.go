@@ -45,10 +45,23 @@ func extractInterfaceFromConfigName(k string) (string, error) {
 
 func validateRawLxc(rawLxc string) error {
 	for _, line := range strings.Split(rawLxc, "\n") {
+		// Ignore empty lines
+		if len(line) == 0 {
+			continue
+		}
+
+		// Ignore comments
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Ensure the format is valid
 		membs := strings.SplitN(line, "=", 2)
 		if len(membs) != 2 {
 			return fmt.Errorf("invalid raw.lxc line: %s", line)
 		}
+
+		// Blacklist some keys
 		if strings.ToLower(strings.Trim(membs[0], " \t")) == "lxc.logfile" {
 			return fmt.Errorf("setting lxc.logfile is not allowed")
 		}
