@@ -42,6 +42,10 @@ const NESTING_AA_PROFILE = `
   mount,
   mount options=bind /var/lib/lxd/shmounts/** -> /var/lib/lxd/**,
   change_profile -> lxc-container-default,
+  # lxc-container-default-with-nesting also inherited these
+  # from start-container, and seems to need them.
+  ptrace,
+  signal,
 `
 
 const DEFAULT_AA_PROFILE = `
