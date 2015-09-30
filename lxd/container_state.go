@@ -69,7 +69,21 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			}
 		}
 	case shared.Restart:
-		do = c.Reboot
+		do = func() error {
+			if raw.Timeout == 0 || raw.Force {
+				if err = c.Stop(); err != nil {
+					return err
+				}
+			} else {
+				if err = c.Shutdown(time.Duration(raw.Timeout) * time.Second); err != nil {
+					return err
+				}
+			}
+			if err = c.Start(); err != nil {
+				return err
+			}
+			return nil
+		}
 	case shared.Freeze:
 		do = c.Freeze
 	case shared.Unfreeze:
