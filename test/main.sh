@@ -1,5 +1,5 @@
 #!/bin/sh -eu
-export PATH=${GOPATH}/bin:${PATH}
+[ -n "${GOPATH:-}" ] && export PATH=${GOPATH}/bin:${PATH}
 
 if [ -n "${LXD_DEBUG:-}" ]; then
   set -x
@@ -169,7 +169,7 @@ cleanup() {
       echo "failed test: ${TEST_CURRENT}"
     fi
 
-    echo "To poke around, use:\n LXD_DIR=${LXD_DIR} sudo -E ${GOPATH}/bin/lxc COMMAND --config ${LXD_CONF}"
+    echo "To poke around, use:\n LXD_DIR=${LXD_DIR} sudo -E ${GOPATH:-}/bin/lxc COMMAND --config ${LXD_CONF}"
     read -p "Tests Completed (${TEST_RESULT}): hit enter to continue" x
   fi
 
