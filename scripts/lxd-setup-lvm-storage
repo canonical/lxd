@@ -160,7 +160,8 @@ def destroy_image(args, lxd):
     print("Detaching loop device {}".format(pvname))
     check_output("losetup -d {}".format(pvname), shell=True)
     print("Deleting backing file {}".format(imgfname))
-    check_output("rm {}".format(imgfname), shell=True)
+    if os.path.exists(imgfname):
+        check_output("rm '{}'".format(imgfname), shell=True)
 
         
 def do_main():
