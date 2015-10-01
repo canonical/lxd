@@ -28,13 +28,13 @@ type ImageInfo struct {
  */
 type BriefImageInfo struct {
 	Properties map[string]string `json:"properties"`
-	Public     interface{}       `json:"public"`
+	Public     bool              `json:"public"`
 }
 
 func (i *ImageInfo) BriefInfo() BriefImageInfo {
 	retstate := BriefImageInfo{
 		Properties: i.Properties,
-		Public:     i.Public}
+		Public:     InterfaceToBool(i.Public)}
 	return retstate
 }
 
