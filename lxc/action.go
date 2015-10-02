@@ -13,10 +13,12 @@ import (
 type actionCmd struct {
 	action     shared.ContainerAction
 	hasTimeout bool
+	visible    bool
+	name       string
 }
 
 func (c *actionCmd) showByDefault() bool {
-	return true
+	return c.visible
 }
 
 var timeout = -1
@@ -26,7 +28,7 @@ func (c *actionCmd) usage() string {
 	return fmt.Sprintf(gettext.Gettext(
 		`Changes one or more containers state to %s.
 
-lxc %s <name> [<name>...]`), c.action, c.action)
+lxc %s <name> [<name>...]`), c.name, c.name)
 }
 
 func (c *actionCmd) flags() {

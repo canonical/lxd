@@ -1343,6 +1343,13 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 }
 
 func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool) (*Response, error) {
+	if action == "start" {
+		current, err := c.ContainerStatus(name)
+		if err == nil && current.Status.StatusCode == shared.Frozen {
+			action = "unfreeze"
+		}
+	}
+
 	body := shared.Jmap{"action": action, "timeout": timeout, "force": force}
 	return c.put(fmt.Sprintf("containers/%s/state", name), body, Async)
 }
