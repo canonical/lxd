@@ -157,6 +157,7 @@ type container interface {
 
 	IsPrivileged() bool
 	IsRunning() bool
+	IsFrozen() bool
 	IsEphemeral() bool
 	IsSnapshot() bool
 
@@ -801,6 +802,10 @@ func (c *containerLXD) IsPrivileged() bool {
 
 func (c *containerLXD) IsRunning() bool {
 	return c.c.Running()
+}
+
+func (c *containerLXD) IsFrozen() bool {
+	return c.StateGet() == "FROZEN"
 }
 
 func (c *containerLXD) Shutdown(timeout time.Duration) error {

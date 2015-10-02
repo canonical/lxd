@@ -36,7 +36,7 @@ var imageEditHelp string = gettext.Gettext(
 
 func (c *imageCmd) usage() string {
 	return gettext.Gettext(
-		`Manipulate container images
+		`Manipulate container images.
 
 lxc image import <tarball> [rootfs tarball] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
 

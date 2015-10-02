@@ -155,14 +155,15 @@ var commands = map[string]command{
 	"launch":   &launchCmd{},
 	"list":     &listCmd{},
 	"move":     &moveCmd{},
+	"pause":    &actionCmd{shared.Freeze, false, false, "pause"},
 	"profile":  &profileCmd{},
 	"publish":  &publishCmd{},
 	"remote":   &remoteCmd{},
-	"restart":  &actionCmd{shared.Restart, true},
+	"restart":  &actionCmd{shared.Restart, true, true, "restart"},
 	"restore":  &restoreCmd{},
 	"snapshot": &snapshotCmd{},
-	"start":    &actionCmd{shared.Start, false},
-	"stop":     &actionCmd{shared.Stop, true},
+	"start":    &actionCmd{shared.Start, false, true, "start"},
+	"stop":     &actionCmd{shared.Stop, true, true, "stop"},
 	"version":  &versionCmd{},
 }
 

@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-10-01 22:09-0400\n"
+        "POT-Creation-Date: 2015-10-02 12:55-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -121,7 +121,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: client.go:1694
+#: client.go:1699
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -134,7 +134,7 @@ msgstr  ""
 msgid   "Certificate fingerprint: %x"
 msgstr  ""
 
-#: lxc/action.go:26
+#: lxc/action.go:28
 #, c-format
 msgid   "Changes one or more containers state to %s.\n"
         "\n"
@@ -247,7 +247,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:614 client.go:624 client.go:871 client.go:1915
+#: client.go:614 client.go:624 client.go:871 client.go:1920
 #, c-format
 msgid   "Error adding alias %s"
 msgstr  ""
@@ -286,7 +286,7 @@ msgstr  ""
 msgid   "For example: 'lxd-images import ubuntu --alias ubuntu'."
 msgstr  ""
 
-#: lxc/action.go:35
+#: lxc/action.go:37
 msgid   "Force the container to shutdown."
 msgstr  ""
 
@@ -496,7 +496,7 @@ msgid   "Manage remote LXD servers.\n"
 msgstr  ""
 
 #: lxc/image.go:38
-msgid   "Manipulate container images\n"
+msgid   "Manipulate container images.\n"
         "\n"
         "lxc image import <tarball> [rootfs tarball] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]\n"
         "\n"
@@ -752,7 +752,7 @@ msgstr  ""
 msgid   "There is no \"image name\".  Did you want an alias?"
 msgstr  ""
 
-#: lxc/action.go:34
+#: lxc/action.go:36
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
@@ -760,7 +760,7 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
-#: lxc/action.go:61
+#: lxc/action.go:63
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -840,16 +840,16 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1725
+#: client.go:1730
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
 
-#: lxc/action.go:57
+#: lxc/action.go:59
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1729
+#: client.go:1734
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -867,7 +867,7 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: client.go:1778 client.go:1835
+#: client.go:1783 client.go:1840
 msgid   "device already exists"
 msgstr  ""
 
@@ -922,7 +922,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1498
+#: client.go:1503
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -935,7 +935,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1771 client.go:1828
+#: client.go:1776 client.go:1833
 #, c-format
 msgid   "no value found in %q"
 msgstr  ""
@@ -987,7 +987,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:169
+#: lxc/main.go:170
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 

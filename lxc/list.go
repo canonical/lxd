@@ -118,7 +118,7 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 			continue
 		}
 
-		if cstate.Status.StatusCode == shared.Running {
+		if cstate.Status.StatusCode == shared.Running || cstate.Status.StatusCode == shared.Frozen {
 			ipv4s := []string{}
 			ipv6s := []string{}
 			for _, ip := range cstate.Status.Ips {
