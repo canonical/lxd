@@ -1052,7 +1052,7 @@ func (c *Client) GetAlias(alias string) string {
 
 // Init creates a container from either a fingerprint or an alias; you must
 // provide at least one.
-func (c *Client) Init(name string, imgremote string, image string, profiles *[]string, ephem bool) (*Response, error) {
+func (c *Client) Init(name string, imgremote string, image string, profiles *[]string, config map[string]string, ephem bool) (*Response, error) {
 	var operation string
 	var tmpremote *Client
 	var err error
@@ -1139,6 +1139,10 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 	if profiles != nil {
 		body["profiles"] = *profiles
+	}
+
+	if config != nil {
+		body["config"] = config
 	}
 
 	if ephem {

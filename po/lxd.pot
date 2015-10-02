@@ -121,7 +121,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: client.go:1690
+#: client.go:1694
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -143,6 +143,10 @@ msgstr  ""
 
 #: lxc/remote.go:175
 msgid   "Client certificate stored at server: "
+msgstr  ""
+
+#: lxc/init.go:133 lxc/init.go:134 lxc/launch.go:37 lxc/launch.go:38
+msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
 #: lxc/config.go:412 lxc/profile.go:205
@@ -188,11 +192,11 @@ msgstr  ""
 msgid   "Created: %s"
 msgstr  ""
 
-#: lxc/init.go:141
+#: lxc/init.go:174
 msgid   "Creating"
 msgstr  ""
 
-#: lxc/init.go:143 lxc/launch.go:106
+#: lxc/init.go:176 lxc/launch.go:108
 #, c-format
 msgid   "Creating %s"
 msgstr  ""
@@ -239,11 +243,11 @@ msgstr  ""
 msgid   "Environment:"
 msgstr  ""
 
-#: lxc/copy.go:32 lxc/copy.go:33 lxc/init.go:104 lxc/init.go:105 lxc/launch.go:39 lxc/launch.go:40
+#: lxc/copy.go:32 lxc/copy.go:33 lxc/init.go:137 lxc/init.go:138 lxc/launch.go:41 lxc/launch.go:42
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:614 client.go:624 client.go:871 client.go:1911
+#: client.go:614 client.go:624 client.go:871 client.go:1915
 #, c-format
 msgid   "Error adding alias %s"
 msgstr  ""
@@ -324,10 +328,10 @@ msgstr  ""
 msgid   "Init: %d"
 msgstr  ""
 
-#: lxc/init.go:21
+#: lxc/init.go:22
 msgid   "Initialize a container from a particular image.\n"
         "\n"
-        "lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n"
+        "lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]\n"
         "\n"
         "Initializes a container using the specified image and name.\n"
         "\n"
@@ -336,6 +340,10 @@ msgid   "Initialize a container from a particular image.\n"
         "\n"
         "Example:\n"
         "lxc init ubuntu u1"
+msgstr  ""
+
+#: lxc/init.go:64 lxc/init.go:69
+msgid   "Invalid configuration key"
 msgstr  ""
 
 #: lxc/file.go:168
@@ -627,7 +635,7 @@ msgstr  ""
 msgid   "Profile %s deleted"
 msgstr  ""
 
-#: lxc/init.go:102 lxc/init.go:103 lxc/launch.go:37 lxc/launch.go:38
+#: lxc/init.go:135 lxc/init.go:136 lxc/launch.go:39 lxc/launch.go:40
 msgid   "Profile to apply to the new container"
 msgstr  ""
 
@@ -718,7 +726,7 @@ msgstr  ""
 msgid   "Split images can only be written to a directory."
 msgstr  ""
 
-#: lxc/launch.go:113
+#: lxc/launch.go:115
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
@@ -828,11 +836,11 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: lxc/launch.go:99
+#: lxc/launch.go:101
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1721
+#: client.go:1725
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -841,7 +849,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1725
+#: client.go:1729
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -859,19 +867,19 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: client.go:1774 client.go:1831
+#: client.go:1778 client.go:1835
 msgid   "device already exists"
 msgstr  ""
 
-#: lxc/launch.go:83 lxc/launch.go:88
+#: lxc/launch.go:85 lxc/launch.go:90
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
-#: lxc/init.go:164 lxc/init.go:166 lxc/launch.go:111 lxc/launch.go:123
+#: lxc/init.go:197 lxc/init.go:199 lxc/launch.go:113 lxc/launch.go:125
 msgid   "done."
 msgstr  ""
 
-#: lxc/init.go:157 lxc/launch.go:121
+#: lxc/init.go:190 lxc/launch.go:123
 msgid   "error."
 msgstr  ""
 
@@ -895,7 +903,7 @@ msgstr  ""
 msgid   "failed group lookup: %s"
 msgstr  ""
 
-#: client.go:1330
+#: client.go:1334
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -905,7 +913,7 @@ msgstr  ""
 msgid   "got bad response type, expected %s got %s"
 msgstr  ""
 
-#: lxc/launch.go:103
+#: lxc/launch.go:105
 msgid   "got bad version"
 msgstr  ""
 
@@ -914,7 +922,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1494
+#: client.go:1498
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -927,7 +935,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1767 client.go:1824
+#: client.go:1771 client.go:1828
 #, c-format
 msgid   "no value found in %q"
 msgstr  ""
