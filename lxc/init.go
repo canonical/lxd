@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/chai2010/gettext-go/gettext"
 
@@ -21,7 +22,7 @@ func (c *initCmd) usage() string {
 	return gettext.Gettext(
 		`Initialize a container from a particular image.
 
-lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]
+lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
 
 Initializes a container using the specified image and name.
 
@@ -33,6 +34,9 @@ lxc init ubuntu u1`)
 }
 
 type profileList []string
+type configList []string
+
+var configMap map[string]string
 
 func (f *profileList) String() string {
 	return fmt.Sprint(*f)
@@ -51,7 +55,31 @@ func (f *profileList) Set(value string) error {
 	return nil
 }
 
+func (f *configList) String() string {
+	return fmt.Sprint(configMap)
+}
+
+func (f *configList) Set(value string) error {
+	if value == "" {
+		return fmt.Errorf(gettext.Gettext("Invalid configuration key"))
+	}
+
+	items := strings.SplitN(value, "=", 2)
+	if len(items) < 2 {
+		return fmt.Errorf(gettext.Gettext("Invalid configuration key"))
+	}
+
+	if configMap == nil {
+		configMap = map[string]string{}
+	}
+
+	configMap[items[0]] = items[1]
+
+	return nil
+}
+
 var profArgs profileList
+var confArgs configList
 var requested_empty_profiles bool = false
 var ephem bool = false
 
@@ -80,14 +108,17 @@ func massage_args() {
 	if l < 2 {
 		return
 	}
+
 	if is_profile(os.Args[l-1]) {
 		requested_empty_profiles = true
 		os.Args = os.Args[0 : l-1]
 		return
 	}
+
 	if l < 3 {
 		return
 	}
+
 	/* catch "lxc init ubuntu -p -e */
 	if is_ephem(os.Args[l-1]) && is_profile(os.Args[l-2]) {
 		requested_empty_profiles = true
@@ -99,6 +130,8 @@ func massage_args() {
 
 func (c *initCmd) flags() {
 	massage_args()
+	gnuflag.Var(&confArgs, "config", gettext.Gettext("Config key/value to apply to the new container"))
+	gnuflag.Var(&confArgs, "c", gettext.Gettext("Config key/value to apply to the new container"))
 	gnuflag.Var(&profArgs, "profile", gettext.Gettext("Profile to apply to the new container"))
 	gnuflag.Var(&profArgs, "p", gettext.Gettext("Profile to apply to the new container"))
 	gnuflag.BoolVar(&ephem, "ephemeral", false, gettext.Gettext("Ephemeral container"))
@@ -143,9 +176,9 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		fmt.Printf(gettext.Gettext("Creating %s")+" ", name)
 	}
 	if !requested_empty_profiles && len(profiles) == 0 {
-		resp, err = d.Init(name, iremote, image, nil, ephem)
+		resp, err = d.Init(name, iremote, image, nil, configMap, ephem)
 	} else {
-		resp, err = d.Init(name, iremote, image, &profiles, ephem)
+		resp, err = d.Init(name, iremote, image, &profiles, configMap, ephem)
 	}
 
 	if err != nil {

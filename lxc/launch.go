@@ -34,6 +34,8 @@ lxc launch ubuntu u1`)
 
 func (c *launchCmd) flags() {
 	massage_args()
+	gnuflag.Var(&confArgs, "config", gettext.Gettext("Config key/value to apply to the new container"))
+	gnuflag.Var(&confArgs, "c", gettext.Gettext("Config key/value to apply to the new container"))
 	gnuflag.Var(&profArgs, "profile", gettext.Gettext("Profile to apply to the new container"))
 	gnuflag.Var(&profArgs, "p", gettext.Gettext("Profile to apply to the new container"))
 	gnuflag.BoolVar(&ephem, "ephemeral", false, gettext.Gettext("Ephemeral container"))
@@ -70,9 +72,9 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		profiles = append(profiles, p)
 	}
 	if !requested_empty_profiles && len(profiles) == 0 {
-		resp, err = d.Init(name, iremote, image, nil, ephem)
+		resp, err = d.Init(name, iremote, image, nil, configMap, ephem)
 	} else {
-		resp, err = d.Init(name, iremote, image, &profiles, ephem)
+		resp, err = d.Init(name, iremote, image, &profiles, configMap, ephem)
 	}
 	if err != nil {
 		return err

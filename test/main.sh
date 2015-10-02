@@ -74,7 +74,7 @@ lxc() {
   for arg in $@; do
     if [ "${arg}" = "--" ]; then
       injected=1
-      cmd="${cmd} \"--config\" \"${LXD_CONF}\" ${DEBUG:-}"
+      cmd="${cmd} ${DEBUG:-}"
       cmd="${cmd} --"
     else
       cmd="${cmd} \"${arg}\""
@@ -82,7 +82,7 @@ lxc() {
   done
 
   if [ "${injected}" = "0" ]; then
-    cmd="${cmd} \"--config\" \"${LXD_CONF}\" ${DEBUG-}"
+    cmd="${cmd} ${DEBUG-}"
   fi
   if [ -n "${LXD_DEBUG:-}" ]; then
     set -x
@@ -169,7 +169,7 @@ cleanup() {
       echo "failed test: ${TEST_CURRENT}"
     fi
 
-    echo "To poke around, use:\n LXD_DIR=${LXD_DIR} sudo -E ${GOPATH:-}/bin/lxc COMMAND --config ${LXD_CONF}"
+    echo "To poke around, use:\n LXD_DIR=${LXD_DIR} LXD_CONF=${LXD_CONF} sudo -E ${GOPATH:-}/bin/lxc COMMAND"
     read -p "Tests Completed (${TEST_RESULT}): hit enter to continue" x
   fi
 
@@ -225,7 +225,7 @@ if [ -n "${LXD_TMPFS:-}" ]; then
   mount -t tmpfs tmpfs ${TEST_DIR} -o mode=0751
 fi
 
-LXD_CONF=$(mktemp -d -p ${TEST_DIR} XXX)
+export LXD_CONF=$(mktemp -d -p ${TEST_DIR} XXX)
 
 # Setup the first LXD
 export LXD_DIR=$(mktemp -d -p ${TEST_DIR} XXX)
