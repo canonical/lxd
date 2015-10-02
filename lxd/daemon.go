@@ -25,6 +25,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stgraber/lxd-go-systemd/activation"
+	"github.com/syndtr/gocapability/capability"
 	"gopkg.in/tomb.v2"
 
 	"github.com/lxc/lxd"
@@ -511,6 +512,17 @@ func startDaemon() (*Daemon, error) {
 	return d, nil
 }
 
+func haveMacAdmin() bool {
+	c, err := capability.NewPid(0)
+	if err != nil {
+		return false
+	}
+	if c.Get(capability.EFFECTIVE, capability.CAP_MAC_ADMIN) {
+		return true
+	}
+	return false
+}
+
 func (d *Daemon) Init() error {
 	/* Setup logging */
 	if shared.Log == nil {
@@ -537,6 +549,11 @@ func (d *Daemon) Init() error {
 	if aaEnabled && !shared.IsDir("/sys/kernel/security/apparmor") {
 		aaEnabled = false
 		shared.Log.Warn("Per-container AppArmor profiles disabled because of lack of kernel support")
+	}
+
+	if aaEnabled && !haveMacAdmin() {
+		shared.Log.Warn("Per-container AppArmor profiles are disabled because mac_admin capability is missing.")
+		aaEnabled = false
 	}
 
 	_, err := exec.LookPath("apparmor_parser")
