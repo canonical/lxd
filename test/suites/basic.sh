@@ -75,6 +75,14 @@ test_basic_usage() {
   curl -k -s --cert ${LXD_CONF}/client3.crt --key ${LXD_CONF}/client3.key -X GET https://${LXD_ADDR}/1.0/images | grep "/1.0/images/"
   lxc image delete foo-image2
 
+  # Test invalid container names
+  ! lxc init testimage -abc
+  ! lxc init testimage abc-
+  ! lxc init testimage 1234
+  ! lxc init testimage 12test
+  ! lxc init testimage a_b_c
+  ! lxc init testimage aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
   # Test snapshot publish
   lxc snapshot bar
   lxc publish bar/snap0 --alias foo
