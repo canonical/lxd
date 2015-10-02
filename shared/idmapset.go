@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 /*
@@ -241,11 +242,36 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 			err = os.Lchown(path, int(newuid), int(newgid))
 			if err == nil {
 				m := fi.Mode()
+				/* Dropping privilege to ensure we don't accidently
+				   follow a symlink and change permissions for a file outside the
+				   container. Because this is a syscall, no goroutine should be started
+				   until uid is restored to 0.
+
+				   If this approach becomes a problem (either because of
+				   some goroutine races/locks) or because someone decides to deprecate
+				   Setreuid for some reason, an alternative would be to implement a cgo
+				   function which:
+				    - Drop privilege
+				    - lchown the path (possibly fchown)
+				    - chmod the path (possibly fchmod)
+				    - Restore privilege
+				*/
+				err = syscall.Setreuid(-1, newuid)
+				if err != nil {
+					syscall.Setreuid(-1, 0)
+					return err
+				}
+
 				if m&os.ModeSymlink == 0 {
 					err = os.Chmod(path, m)
 					if err != nil {
 						fmt.Printf("Error resetting mode on %q, continuing\n", path)
 					}
+				}
+
+				err = syscall.Setreuid(-1, 0)
+				if err != nil {
+					panic("Unable to switch back to uid 0.")
 				}
 			}
 		}
