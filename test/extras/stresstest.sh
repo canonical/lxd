@@ -36,8 +36,7 @@ lxc() {
     for arg in $@; do
         if [ "$arg" = "--" ]; then
             INJECTED=1
-            CMD="$CMD \"--config\" \"${LXD_CONF}\" $debug"
-            CMD="$CMD \"--debug\""
+            CMD="$CMD $debug"
             CMD="$CMD --"
         else
             CMD="$CMD \"$arg\""
@@ -45,7 +44,7 @@ lxc() {
     done
 
     if [ "$INJECTED" = "0" ]; then
-        CMD="$CMD \"--config\" \"${LXD_CONF}\" $debug"
+        CMD="$CMD $debug"
     fi
 
     eval "$CMD"

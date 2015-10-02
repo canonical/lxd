@@ -54,7 +54,10 @@ func run() error {
 	debug := gnuflag.Bool("debug", false, gettext.Gettext("Enables debug mode."))
 	forceLocal := gnuflag.Bool("force-local", false, gettext.Gettext("Force using the local unix socket."))
 
-	gnuflag.StringVar(&lxd.ConfigDir, "config", lxd.ConfigDir, gettext.Gettext("Alternate config directory."))
+	configDir := os.Getenv("LXD_CONF")
+	if configDir != "" {
+		lxd.ConfigDir = configDir
+	}
 
 	if len(os.Args) >= 3 && os.Args[1] == "config" && os.Args[2] == "profile" {
 		fmt.Fprintf(os.Stderr, gettext.Gettext("`lxc config profile` is deprecated, please use `lxc profile`")+"\n")
