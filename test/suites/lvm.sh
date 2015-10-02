@@ -27,7 +27,7 @@ cleanup_vg() {
   vgname=${1}
 
   if [ -n "${LXD_INSPECT_LVM:-}" ]; then
-    echo "To poke around, use:\n LXD_DIR=${LXD5_DIR} sudo -E ${GOPATH}/bin/lxc COMMAND --config ${LXD_CONF} "
+    echo "To poke around, use:\n LXD_DIR=${LXD5_DIR} LXD_CONF=${LXD_CONF} sudo -E ${GOPATH}/bin/lxc COMMAND"
     read -p "Pausing to inspect LVM state. Hit Enter to continue cleanup." x
   fi
 

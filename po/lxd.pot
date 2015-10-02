@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-09-29 19:31-0400\n"
+        "POT-Creation-Date: 2015-10-01 22:09-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -97,10 +97,6 @@ msgstr  ""
 
 #: lxc/image.go:238
 msgid   "Aliases:"
-msgstr  ""
-
-#: lxc/main.go:57
-msgid   "Alternate config directory."
 msgstr  ""
 
 #: lxc/exec.go:47
@@ -239,6 +235,10 @@ msgstr  ""
 msgid   "Enables verbose mode."
 msgstr  ""
 
+#: lxc/help.go:69
+msgid   "Environment:"
+msgstr  ""
+
 #: lxc/copy.go:32 lxc/copy.go:33 lxc/init.go:104 lxc/init.go:105 lxc/launch.go:39 lxc/launch.go:40
 msgid   "Ephemeral container"
 msgstr  ""
@@ -278,7 +278,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>"
 msgstr  ""
 
-#: lxc/main.go:123
+#: lxc/main.go:126
 msgid   "For example: 'lxd-images import ubuntu --alias ubuntu'."
 msgstr  ""
 
@@ -290,7 +290,7 @@ msgstr  ""
 msgid   "Force using the local unix socket."
 msgstr  ""
 
-#: lxc/main.go:115
+#: lxc/main.go:118
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
@@ -306,7 +306,7 @@ msgstr  ""
 msgid   "ISSUE DATE"
 msgstr  ""
 
-#: lxc/main.go:122
+#: lxc/main.go:125
 msgid   "If this is your first run, you will need to import images using the 'lxd-images' script."
 msgstr  ""
 
@@ -512,7 +512,7 @@ msgid   "Manipulate container images\n"
         "lxc image alias list store2:"
 msgstr  ""
 
-#: lxc/help.go:84
+#: lxc/help.go:87
 msgid   "Missing summary."
 msgstr  ""
 
@@ -555,7 +555,7 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: lxc/help.go:64 lxc/main.go:90
+#: lxc/help.go:64 lxc/main.go:93
 msgid   "Options:"
 msgstr  ""
 
@@ -566,6 +566,14 @@ msgstr  ""
 
 #: lxc/image.go:517 lxc/remote.go:238
 msgid   "PUBLIC"
+msgstr  ""
+
+#: lxc/help.go:70
+msgid   "Path to an alternate client configuration directory."
+msgstr  ""
+
+#: lxc/help.go:71
+msgid   "Path to an alternate server directory."
 msgstr  ""
 
 #: lxc/main.go:35
@@ -586,7 +594,7 @@ msgstr  ""
 msgid   "Press enter to start the editor again"
 msgstr  ""
 
-#: lxc/help.go:67
+#: lxc/help.go:66
 msgid   "Print debug information."
 msgstr  ""
 
@@ -594,7 +602,7 @@ msgstr  ""
 msgid   "Print less common commands."
 msgstr  ""
 
-#: lxc/help.go:68
+#: lxc/help.go:67
 msgid   "Print verbose information."
 msgstr  ""
 
@@ -777,17 +785,13 @@ msgstr  ""
 msgid   "Uploaded: %s"
 msgstr  ""
 
-#: lxc/main.go:90
+#: lxc/main.go:93
 #, c-format
 msgid   "Usage: %s"
 msgstr  ""
 
 #: lxc/help.go:49
 msgid   "Usage: lxc [subcommand] [options]"
-msgstr  ""
-
-#: lxc/help.go:66
-msgid   "Use an alternative config path."
 msgstr  ""
 
 #: lxc/restore.go:29
@@ -811,7 +815,7 @@ msgstr  ""
 msgid   "You must provide an image hash or alias name."
 msgstr  ""
 
-#: lxc/main.go:60
+#: lxc/main.go:63
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
@@ -871,12 +875,12 @@ msgstr  ""
 msgid   "error."
 msgstr  ""
 
-#: lxc/main.go:21 lxc/main.go:128
+#: lxc/main.go:21 lxc/main.go:131
 #, c-format
 msgid   "error: %v"
 msgstr  ""
 
-#: lxc/help.go:41 lxc/main.go:84
+#: lxc/help.go:41 lxc/main.go:87
 #, c-format
 msgid   "error: unknown command: %s"
 msgstr  ""
@@ -975,7 +979,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:166
+#: lxc/main.go:169
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
