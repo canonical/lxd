@@ -59,13 +59,16 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 			fmt.Printf("\t%-10s - %s\n", name, summaryLine(cmd.usage()))
 		}
 	}
-	fmt.Println()
 	if !showAll {
+		fmt.Println()
 		fmt.Println(gettext.Gettext("Options:"))
 		fmt.Println("  --all              " + gettext.Gettext("Print less common commands."))
-		fmt.Println("  --config <config>  " + gettext.Gettext("Use an alternative config path."))
 		fmt.Println("  --debug            " + gettext.Gettext("Print debug information."))
 		fmt.Println("  --verbose          " + gettext.Gettext("Print verbose information."))
+		fmt.Println()
+		fmt.Println(gettext.Gettext("Environment:"))
+		fmt.Println("  LXD_CONF           " + gettext.Gettext("Path to an alternate client configuration directory."))
+		fmt.Println("  LXD_DIR            " + gettext.Gettext("Path to an alternate server directory."))
 	}
 	return nil
 }
