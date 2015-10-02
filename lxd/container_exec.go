@@ -220,6 +220,10 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Container is not running."))
 	}
 
+	if c.IsFrozen() {
+		return BadRequest(fmt.Errorf("Container is frozen."))
+	}
+
 	post := commandPostContent{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
