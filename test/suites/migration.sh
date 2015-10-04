@@ -27,10 +27,6 @@ test_migration() {
   lxc copy l2:nonlive l1:nobase
   lxc delete l1:nobase
 
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    return
-  fi
-
   lxc start l1:nonlive2
   lxc list l1: | grep RUNNING | grep nonlive2
   lxc stop l1:nonlive2 --force
