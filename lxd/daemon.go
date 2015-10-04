@@ -424,17 +424,78 @@ func (d *Daemon) ListenAddresses() ([]string, error) {
 	return addresses, nil
 }
 
+func bytesZero(x []byte) bool {
+	for _, b := range x {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func bytesEqual(x, y []byte) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i, b := range x {
+		if y[i] != b {
+			return false
+		}
+	}
+	return true
+}
+
+func isZeroIP(x []byte) bool {
+	if x == nil {
+		return false
+	}
+
+	if bytesZero(x) {
+		return true
+	}
+
+	if len(x) != net.IPv6len {
+		return false
+	}
+
+	var v4InV6Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}
+	return bytesEqual(x[0:12], v4InV6Prefix) && bytesZero(x[12:])
+}
+
+func IpsEqual(ip1 net.IP, ip2 net.IP) bool {
+	if ip1.Equal(ip2) {
+		return true
+	}
+
+	/* the go std library Equal doesn't recognize [::] == 0.0.0.0, since it
+	 * tests for the ipv4 prefix, which isn't present in [::]. However,
+	 * they are in fact equal. Let's test for this case too.
+	 */
+	return isZeroIP(ip1) && isZeroIP(ip2)
+}
+
 func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 	var sockets []Socket
 
+	if oldAddress == newAddress {
+		return nil
+	}
+
 	if oldAddress != "" {
-		_, _, err := net.SplitHostPort(oldAddress)
+		oldHost, oldPort, err := net.SplitHostPort(oldAddress)
 		if err != nil {
-			oldAddress = fmt.Sprintf("%s:%s", oldAddress, shared.DefaultPort)
+			oldHost = oldAddress
+			oldPort = shared.DefaultPort
 		}
 
 		for _, socket := range d.Sockets {
-			if socket.Socket.Addr().String() == oldAddress {
+			host, port, err := net.SplitHostPort(socket.Socket.Addr().String())
+			if err != nil {
+				host = socket.Socket.Addr().String()
+				port = shared.DefaultPort
+			}
+
+			if IpsEqual(net.ParseIP(host), net.ParseIP(oldHost)) && port == oldPort {
 				socket.Socket.Close()
 			} else {
 				sockets = append(sockets, socket)
