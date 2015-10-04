@@ -40,39 +40,37 @@ test_config_profiles() {
   lxc profile device list onenic | grep eth0
   lxc profile device show onenic | grep lxcbr0
 
-  if [ -z "${TRAVIS_PULL_REQUEST:-}" ]; then
-    # test live-adding a nic
-    lxc start foo
-    lxc config show foo | grep -q "raw.lxc" && false
-    lxc config show foo | grep -v "volatile.eth0.hwaddr" | grep -q "eth0" && false
-    lxc config device add foo eth2 nic nictype=bridged parent=lxcbr0 name=eth10
-    lxc exec foo -- /sbin/ifconfig -a | grep eth0
-    lxc exec foo -- /sbin/ifconfig -a | grep eth10
-    lxc config device list foo | grep eth2
-    lxc config device remove foo eth2
+  # test live-adding a nic
+  lxc start foo
+  lxc config show foo | grep -q "raw.lxc" && false
+  lxc config show foo | grep -v "volatile.eth0.hwaddr" | grep -q "eth0" && false
+  lxc config device add foo eth2 nic nictype=bridged parent=lxcbr0 name=eth10
+  lxc exec foo -- /sbin/ifconfig -a | grep eth0
+  lxc exec foo -- /sbin/ifconfig -a | grep eth10
+  lxc config device list foo | grep eth2
+  lxc config device remove foo eth2
 
-    # test live-adding a disk
-    lxc config device add foo etc disk source=/etc path=/mnt2 readonly=true
-    lxc exec foo -- ls /mnt2/hosts
-    lxc stop foo --force
-    lxc start foo
-    lxc exec foo -- ls /mnt2/hosts
-    lxc config device remove foo etc
-    bad=0
-    lxc exec foo -- ls /mnt2/hosts && bad=1 || true
-    if [ "${bad}" -eq 1 ]; then
-      echo "disk was not hot-unplugged"
-      false
-    fi
-    lxc stop foo --force
-    lxc start foo
-    lxc exec foo -- ls /mnt2/hosts && bad=1 || true
-    if [ "${bad}" -eq 1 ]; then
-      echo "disk device re-appeared after stop and start"
-      false
-    fi
-    lxc stop foo --force
+  # test live-adding a disk
+  lxc config device add foo etc disk source=/etc path=/mnt2 readonly=true
+  lxc exec foo -- ls /mnt2/hosts
+  lxc stop foo --force
+  lxc start foo
+  lxc exec foo -- ls /mnt2/hosts
+  lxc config device remove foo etc
+  bad=0
+  lxc exec foo -- ls /mnt2/hosts && bad=1 || true
+  if [ "${bad}" -eq 1 ]; then
+    echo "disk was not hot-unplugged"
+    false
   fi
+  lxc stop foo --force
+  lxc start foo
+  lxc exec foo -- ls /mnt2/hosts && bad=1 || true
+  if [ "${bad}" -eq 1 ]; then
+    echo "disk device re-appeared after stop and start"
+    false
+  fi
+  lxc stop foo --force
 
   lxc config set foo user.prop value
   lxc list user.prop=value | grep foo
@@ -95,11 +93,6 @@ test_config_profiles() {
   fi
 
   lxc delete foo
-
-  # Anything below this will not get run inside Travis-CI
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    return
-  fi
 
   lxc init testimage foo
   lxc profile apply foo onenic,unconfined

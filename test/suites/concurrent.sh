@@ -13,10 +13,6 @@ test_concurrent() {
     lxc delete ${name}
   }
 
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    return
-  fi
-
   PIDS=""
 
   for id in $(seq 50); do

@@ -331,13 +331,9 @@ echo "==> TEST: migration"
 TEST_CURRENT=test_migration
 test_migration
 
-if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-  echo "===> SKIP: lvm backing (no loop device on Travis)"
-else
-  echo "==> TEST: lvm backing"
-  TEST_CURRENT=test_lvm
-  test_lvm
-fi
+echo "==> TEST: lvm backing"
+TEST_CURRENT=test_lvm
+test_lvm
 
 curversion=`dpkg -s lxc | awk '/^Version/ { print $2 }'`
 if dpkg --compare-versions "${curversion}" gt 1.1.2-0ubuntu3; then
