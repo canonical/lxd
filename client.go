@@ -186,16 +186,16 @@ func NewClient(config *Config, remote string) (*Client, error) {
 
 	c.name = remote
 
-	// TODO: Here, we don't support configurable local remotes, we only
-	// support the default local LXD at /var/lib/lxd/unix.socket.
 	if remote == "" {
-		c.BaseURL = "http://unix.socket"
-		c.BaseWSURL = "ws://unix.socket"
-		c.Transport = "unix"
-		c.http.Transport = &unixTransport
-		c.websocketDialer.NetDial = unixDial
-	} else if r, ok := config.Remotes[remote]; ok {
+		return nil, fmt.Errorf(gettext.Gettext("A remote name must be provided."))
+	}
+
+	if r, ok := config.Remotes[remote]; ok {
 		if r.Addr[0:5] == "unix:" {
+			if r.Addr == "unix://" {
+				r.Addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
+			}
+
 			c.BaseURL = "http://unix.socket"
 			c.BaseWSURL = "ws://unix.socket"
 			c.Transport = "unix"

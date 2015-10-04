@@ -33,10 +33,10 @@ type RemoteConfig struct {
 	Public bool   `yaml:"public"`
 }
 
-var localRemote = RemoteConfig{
-	Addr:   "unix://" + shared.VarPath("unix.socket"),
+var LocalRemote = RemoteConfig{
+	Addr:   "unix://",
 	Public: false}
-var defaultRemote = map[string]RemoteConfig{"local": localRemote}
+var defaultRemote = map[string]RemoteConfig{"local": LocalRemote}
 
 var DefaultConfig = Config{
 	Remotes:       defaultRemote,

@@ -91,7 +91,11 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 	if r_scheme == "unix" {
 		if addr[0:5] == "unix:" {
 			if addr[0:7] == "unix://" {
-				r_host = addr[8:]
+				if len(addr) > 8 {
+					r_host = addr[8:]
+				} else {
+					r_host = ""
+				}
 			} else {
 				r_host = addr[6:]
 			}
@@ -214,7 +218,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if config.DefaultRemote == args[1] {
-			config.DefaultRemote = ""
+			return fmt.Errorf(gettext.Gettext("can't remove the default remote"))
 		}
 
 		delete(config.Remotes, args[1])
@@ -278,11 +282,9 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		if args[1] != "" {
-			_, ok := config.Remotes[args[1]]
-			if !ok {
-				return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
-			}
+		_, ok := config.Remotes[args[1]]
+		if !ok {
+			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
 		}
 		config.DefaultRemote = args[1]
 

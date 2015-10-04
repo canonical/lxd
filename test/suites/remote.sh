@@ -50,8 +50,9 @@ test_remote_admin() {
   lxc remote list | grep -v 'localhost'
   [ "$(lxc remote get-default)" = "foo" ]
 
+  ! lxc remote remove foo
+  lxc remote set-default local
   lxc remote remove foo
-  [ "$(lxc remote get-default)" = "" ]
 
   # This is a test for #91, we expect this to hang asking for a password if we
   # tried to re-add our cert.
