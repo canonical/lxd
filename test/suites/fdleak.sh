@@ -14,11 +14,9 @@ test_fdleak() {
     for i in `seq 5`; do
       lxc init testimage leaktest${i}
       lxc info leaktest${i}
-      if [ -z "${TRAVIS_PULL_REQUEST:-}" ]; then
-        lxc start leaktest${i}
-        lxc exec leaktest${i} -- ps -ef
-        lxc stop leaktest${i} --force
-      fi
+      lxc start leaktest${i}
+      lxc exec leaktest${i} -- ps -ef
+      lxc stop leaktest${i} --force
       lxc delete leaktest${i}
     done
 

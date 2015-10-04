@@ -1,7 +1,6 @@
 language: go
 
 os:
-  - linux
   - osx
 
 go:
@@ -15,25 +14,13 @@ matrix:
   allow_failures:
     - go: tip
 
-before_install:
-  - "[ \"$TRAVIS_OS_NAME\" != \"linux\" ] || sudo apt-add-repository -y ppa:ubuntu-lxc/buildd-backports"
-  - "[ \"$TRAVIS_OS_NAME\" != \"linux\" ] || sudo apt-add-repository -y ppa:ubuntu-lxc/lxc-stable"
-  - "[ \"$TRAVIS_OS_NAME\" != \"linux\" ] || sudo apt-get update"
-  - "[ \"$TRAVIS_OS_NAME\" != \"linux\" ] || sudo apt-get install -y libssl1.0.0 libssl-dev libssl-doc curl libcurl3 libcurl3-gnutls libcurl4-openssl-dev gettext"
-  - "[ \"$TRAVIS_OS_NAME\" != \"linux\" ] || echo manual | sudo tee /etc/init/lxc-net.override"
-  - "[ \"$TRAVIS_OS_NAME\" != \"linux\" ] || sudo apt-get install -y acl cgmanager lxc lxc-dev sqlite3 jq busybox-static protobuf-compiler"
-
 install:
   - "go get -v github.com/golang/protobuf/..."
   - "go get golang.org/x/tools/cmd/vet"
   - "mkdir -p $GOPATH/github.com/lxc"
   - "rsync -az ${TRAVIS_BUILD_DIR}/ $HOME/gopath/src/github.com/lxc/lxd/"
-  - "[ \"$TRAVIS_OS_NAME\" != \"linux\" ] || echo \"root:100000:65536\" | sudo tee /etc/subuid"
-  - "[ \"$TRAVIS_OS_NAME\" != \"linux\" ] || echo \"root:100000:65536\" | sudo tee /etc/subgid"
-  - "[ \"$TRAVIS_OS_NAME\" != \"linux\" ] || sudo stop cgmanager"
 
 script:
-  - "[ \"$TRAVIS_OS_NAME\" != \"linux\" ] || sudo -E env PATH=$PATH make check"
   - "[ \"$TRAVIS_OS_NAME\" != \"osx\" ] || make client"
 
 notifications:

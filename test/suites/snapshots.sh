@@ -42,12 +42,6 @@ test_snapshots() {
 }
 
 test_snap_restore() {
-  # Skipping restore tests on Travis for now...
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    echo "SKIPPING"
-    return
-  fi
-
   ensure_import_testimage
   ensure_has_localhost_remote ${LXD_ADDR}
 
@@ -118,12 +112,6 @@ test_snap_restore() {
   fi
 
   ##########################################################
-
-  # Anything below this will not get run inside Travis-CI
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    lxc delete bar
-    return
-  fi
 
   # Start container and then restore snapshot to verify the running state after restore.
   lxc start bar

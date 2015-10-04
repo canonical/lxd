@@ -1,8 +1,4 @@
 test_filemanip() {
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    return
-  fi
-
   ensure_import_testimage
 
   lxc launch testimage filemanip

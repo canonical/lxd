@@ -122,10 +122,6 @@ test_remote_usage() {
   wait ${C1PID}
   lxc delete lxd2:c1
 
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    return
-  fi
-
   # launch testimage stored on localhost as container c1 on lxd2
   lxc launch localhost:testimage lxd2:c1
 
