@@ -223,6 +223,8 @@ func GetOwner(path string) (int, int, error) {
 }
 
 func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how string) error {
+	dir = strings.TrimRight(dir, "/")
+
 	convert := func(path string, fi os.FileInfo, err error) (e error) {
 		uid, gid, err := GetOwner(path)
 		if err != nil {
@@ -238,15 +240,9 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 		if testmode {
 			fmt.Printf("I would shift %q to %d %d\n", path, newuid, newgid)
 		} else {
-			err = os.Lchown(path, int(newuid), int(newgid))
-			if err == nil {
-				m := fi.Mode()
-				if m&os.ModeSymlink == 0 {
-					err = os.Chmod(path, m)
-					if err != nil {
-						fmt.Printf("Error resetting mode on %q, continuing\n", path)
-					}
-				}
+			err = ShiftOwner(dir, path, int(newuid), int(newgid))
+			if err != nil {
+				return err
 			}
 		}
 		return nil

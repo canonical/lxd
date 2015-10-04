@@ -1,8 +1,4 @@
 test_devlxd() {
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    return
-  fi
-
   ensure_import_testimage
 
   cd ${TEST_DIR}

@@ -131,11 +131,6 @@ test_basic_usage() {
   )
   kill_lxd ${LXD_ACTIVATION_DIR}
 
-  # Anything below this will not get run inside Travis-CI
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    return
-  fi
-
   # Create and start a container
   lxc launch testimage foo
   lxc list | grep foo | grep RUNNING

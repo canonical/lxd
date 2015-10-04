@@ -50,8 +50,9 @@ test_remote_admin() {
   lxc remote list | grep -v 'localhost'
   [ "$(lxc remote get-default)" = "foo" ]
 
+  ! lxc remote remove foo
+  lxc remote set-default local
   lxc remote remove foo
-  [ "$(lxc remote get-default)" = "" ]
 
   # This is a test for #91, we expect this to hang asking for a password if we
   # tried to re-add our cert.
@@ -120,10 +121,6 @@ test_remote_usage() {
 
   wait ${C1PID}
   lxc delete lxd2:c1
-
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    return
-  fi
 
   # launch testimage stored on localhost as container c1 on lxd2
   lxc launch localhost:testimage lxd2:c1

@@ -16,7 +16,7 @@ test_image_expiry() {
 
   lxc remote set-default l2
   lxc config set images.remote_cache_expiry 0
-  sed -i '/^default-remote:/d' ${LXD_CONF}/config.yml
+  lxc remote set-default local
 
   bad=0
   lxc image list l2: | grep -q ${fpbrief} && bad=1 || true
@@ -29,5 +29,5 @@ test_image_expiry() {
   # rest the default expiry
   lxc remote set-default l2
   lxc config set images.remote_cache_expiry 10
-  sed -i '/^default-remote:/d' ${LXD_CONF}/config.yml
+  lxc remote set-default local
 }

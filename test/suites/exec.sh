@@ -1,8 +1,4 @@
 test_concurrent_exec() {
-  if [ -n "${TRAVIS_PULL_REQUEST:-}" ]; then
-    return
-  fi
-
   ensure_import_testimage
 
   name=x1

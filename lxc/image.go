@@ -268,6 +268,10 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			}
 		}
 
+		if remote == "" {
+			remote = config.DefaultRemote
+		}
+
 		if imageFile == "" {
 			return errArgs
 		}
@@ -407,6 +411,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if inName == "" {
 			return errArgs
 		}
+
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err

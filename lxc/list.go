@@ -184,9 +184,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 
 	filters := []string{}
 
-	if len(args) == 0 {
-		remote = config.DefaultRemote
-	} else {
+	if len(args) != 0 {
 		filters = args
 		if strings.Contains(args[0], ":") {
 			remote, name = config.ParseRemoteAndContainer(args[0])
@@ -195,6 +193,10 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 			remote = config.DefaultRemote
 			name = args[0]
 		}
+	}
+
+	if remote == "" {
+		remote = config.DefaultRemote
 	}
 
 	d, err := lxd.NewClient(config, remote)
