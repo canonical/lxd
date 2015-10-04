@@ -109,6 +109,16 @@ func run() error {
 		if err != nil {
 			return err
 		}
+
+		// One time migration from old config
+		if config.DefaultRemote == "" {
+			_, ok := config.Remotes["local"]
+			if !ok {
+				config.Remotes["local"] = lxd.LocalRemote
+			}
+			config.DefaultRemote = "local"
+			lxd.SaveConfig(config)
+		}
 	}
 
 	certf := lxd.ConfigPath("client.crt")

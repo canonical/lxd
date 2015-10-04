@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-10-02 12:55-0400\n"
+        "POT-Creation-Date: 2015-10-04 06:40+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -78,6 +78,10 @@ msgstr  ""
 msgid   "(none)"
 msgstr  ""
 
+#: client.go:190
+msgid   "A remote name must be provided."
+msgstr  ""
+
 #: lxc/image.go:515 lxc/image.go:536
 msgid   "ALIAS"
 msgstr  ""
@@ -90,7 +94,7 @@ msgstr  ""
 msgid   "Accept certificate"
 msgstr  ""
 
-#: lxc/remote.go:152
+#: lxc/remote.go:156
 #, c-format
 msgid   "Admin password for %s: "
 msgstr  ""
@@ -121,7 +125,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: client.go:1699
+#: client.go:1701
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -141,7 +145,7 @@ msgid   "Changes one or more containers state to %s.\n"
         "lxc %s <name> [<name>...]"
 msgstr  ""
 
-#: lxc/remote.go:175
+#: lxc/remote.go:179
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
@@ -247,7 +251,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:614 client.go:624 client.go:871 client.go:1920
+#: client.go:614 client.go:624 client.go:871 client.go:1922
 #, c-format
 msgid   "Error adding alias %s"
 msgstr  ""
@@ -534,11 +538,11 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move [remote:]<source container> [remote:]<destination container>"
 msgstr  ""
 
-#: lxc/list.go:157 lxc/remote.go:236
+#: lxc/list.go:157 lxc/remote.go:240
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/list.go:146 lxc/remote.go:230
+#: lxc/list.go:146 lxc/remote.go:234
 msgid   "NO"
 msgstr  ""
 
@@ -572,7 +576,7 @@ msgstr  ""
 msgid   "Output is in %s"
 msgstr  ""
 
-#: lxc/image.go:517 lxc/remote.go:238
+#: lxc/image.go:517 lxc/remote.go:242
 msgid   "PUBLIC"
 msgstr  ""
 
@@ -683,7 +687,7 @@ msgstr  ""
 msgid   "Server certificate for host %s has changed. Add correct certificate or remove certificate in %s"
 msgstr  ""
 
-#: lxc/remote.go:172
+#: lxc/remote.go:176
 msgid   "Server doesn't trust us after adding our cert"
 msgstr  ""
 
@@ -769,7 +773,7 @@ msgstr  ""
 msgid   "UPLOAD DATE"
 msgstr  ""
 
-#: lxc/remote.go:237
+#: lxc/remote.go:241
 msgid   "URL"
 msgstr  ""
 
@@ -778,7 +782,7 @@ msgstr  ""
 msgid   "Unknown image command %s"
 msgstr  ""
 
-#: lxc/remote.go:296
+#: lxc/remote.go:300
 #, c-format
 msgid   "Unknown remote subcommand %s"
 msgstr  ""
@@ -815,7 +819,7 @@ msgstr  ""
 msgid   "YAML parse error %v"
 msgstr  ""
 
-#: lxc/list.go:144 lxc/remote.go:228
+#: lxc/list.go:144 lxc/remote.go:232
 msgid   "YES"
 msgstr  ""
 
@@ -827,7 +831,7 @@ msgstr  ""
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
-#: shared/util_linux.go:155 shared/util_linux.go:187
+#: shared/util_linux.go:230 shared/util_linux.go:262
 msgid   "allocation failed"
 msgstr  ""
 
@@ -840,7 +844,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1730
+#: client.go:1732
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -849,7 +853,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1734
+#: client.go:1736
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -862,12 +866,16 @@ msgstr  ""
 msgid   "can't get info for image '%s': %s"
 msgstr  ""
 
+#: lxc/remote.go:221
+msgid   "can't remove the default remote"
+msgstr  ""
+
 #: client.go:445 client.go:450
 #, c-format
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: client.go:1783 client.go:1840
+#: client.go:1785 client.go:1842
 msgid   "device already exists"
 msgstr  ""
 
@@ -898,7 +906,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: shared/util_linux.go:169 shared/util_linux.go:201
+#: shared/util_linux.go:244 shared/util_linux.go:276
 #, c-format
 msgid   "failed group lookup: %s"
 msgstr  ""
@@ -922,7 +930,7 @@ msgstr  ""
 msgid   "invalid argument %s"
 msgstr  ""
 
-#: client.go:1503
+#: client.go:1505
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -935,7 +943,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1776 client.go:1833
+#: client.go:1778 client.go:1835
 #, c-format
 msgid   "no value found in %q"
 msgstr  ""
@@ -948,22 +956,22 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/remote.go:256
+#: lxc/remote.go:260
 #, c-format
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:213 lxc/remote.go:252 lxc/remote.go:272 lxc/remote.go:284
+#: lxc/remote.go:217 lxc/remote.go:256 lxc/remote.go:276 lxc/remote.go:288
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""
 
-#: lxc/remote.go:198
+#: lxc/remote.go:202
 #, c-format
 msgid   "remote %s exists as <%s>"
 msgstr  ""
 
-#: shared/util_linux.go:173 shared/util_linux.go:205
+#: shared/util_linux.go:248 shared/util_linux.go:280
 #, c-format
 msgid   "unknown group %s"
 msgstr  ""
