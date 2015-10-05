@@ -36,6 +36,11 @@ func IsLoopback(iface *net.Interface) bool {
 func WebsocketSendStream(conn *websocket.Conn, r io.Reader) chan bool {
 	ch := make(chan bool)
 
+	if r == nil {
+		close(ch)
+		return ch
+	}
+
 	go func(conn *websocket.Conn, r io.Reader) {
 		in := ReaderToChannel(r)
 		for {
@@ -85,6 +90,10 @@ func WebsocketRecvStream(w io.WriteCloser, conn *websocket.Conn) chan bool {
 			if err != nil {
 				Debugf("Got error writing to writer %s", err)
 				break
+			}
+
+			if w == nil {
+				continue
 			}
 
 			i, err := w.Write(buf)
