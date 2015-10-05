@@ -1,15 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/chai2010/gettext-go/gettext"
+	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
@@ -47,6 +52,51 @@ func (c *execCmd) flags() {
 	gnuflag.Var(&envArgs, "env", gettext.Gettext("An environment variable of the form HOME=/home/foo"))
 }
 
+func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
+	for {
+		width, height, err := terminal.GetSize(syscall.Stdout)
+		if err != nil {
+			continue
+		}
+
+		shared.Debugf("Window size is now: %dx%d", width, height)
+
+		w, err := control.NextWriter(websocket.TextMessage)
+		if err != nil {
+			shared.Debugf("Got error getting next writer %s", err)
+			break
+		}
+
+		msg := shared.ContainerExecControl{}
+		msg.Command = "window-resize"
+		msg.Args = make(map[string]string)
+		msg.Args["width"] = strconv.Itoa(width)
+		msg.Args["height"] = strconv.Itoa(height)
+
+		buf, err := json.Marshal(msg)
+		if err != nil {
+			shared.Debugf("Failed to convert to json %s", err)
+			break
+		}
+		_, err = w.Write(buf)
+
+		w.Close()
+		if err != nil {
+			shared.Debugf("Got err writing %s", err)
+			break
+		}
+
+		ch := make(chan os.Signal)
+		signal.Notify(ch, syscall.SIGWINCH)
+		sig := <-ch
+
+		shared.Debugf("Received '%s signal', updating window geometry.", sig)
+	}
+
+	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+	control.WriteMessage(websocket.CloseMessage, closeMsg)
+}
+
 func (c *execCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 2 {
 		return errArgs
@@ -77,7 +127,8 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 
 	cfd := syscall.Stdout
 	var oldttystate *terminal.State
-	if terminal.IsTerminal(cfd) {
+	interactive := terminal.IsTerminal(cfd)
+	if interactive {
 		oldttystate, err = terminal.MakeRaw(cfd)
 		if err != nil {
 			return err
@@ -85,7 +136,12 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		defer terminal.Restore(cfd, oldttystate)
 	}
 
-	ret, err := d.Exec(name, args[1:], env, os.Stdin, os.Stdout, os.Stderr)
+	handler := controlSocketHandler
+	if !interactive {
+		handler = nil
+	}
+
+	ret, err := d.Exec(name, args[1:], env, os.Stdin, os.Stdout, os.Stderr, handler)
 	if err != nil {
 		return err
 	}
