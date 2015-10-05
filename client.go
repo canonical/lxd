@@ -16,16 +16,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/chai2010/gettext-go/gettext"
 	"github.com/gorilla/websocket"
-	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -1209,10 +1206,21 @@ type secretMd struct {
 	Secret string `json:"secret"`
 }
 
-func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error) {
-	interactive := terminal.IsTerminal(int(stdin.Fd()))
+// Exec runs a command inside the LXD container. For "interactive" use such as
+// `lxc exec ...`, one should pass a controlHandler that talks over the control
+// socket and handles things like SIGWINCH. If running non-interactive, passing
+// a nil controlHandler will cause Exec to return when all of the command
+// output is sent to the output buffers.
+func (c *Client) Exec(name string, cmd []string, env map[string]string,
+	stdin io.ReadCloser, stdout io.WriteCloser,
+	stderr io.WriteCloser, controlHandler func(*Client, *websocket.Conn)) (int, error) {
 
-	body := shared.Jmap{"command": cmd, "wait-for-websocket": true, "interactive": interactive, "environment": env}
+	body := shared.Jmap{
+		"command":            cmd,
+		"wait-for-websocket": true,
+		"interactive":        controlHandler != nil,
+		"environment":        env,
+	}
 
 	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body, Async)
 	if err != nil {
@@ -1224,57 +1232,13 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 		return -1, err
 	}
 
-	if interactive {
+	if controlHandler != nil {
 		if wsControl, ok := md.FDs["control"]; ok {
-			go func() {
-				control, err := c.websocket(resp.Operation, wsControl)
-				if err != nil {
-					return
-				}
-
-				for {
-					width, height, err := terminal.GetSize(syscall.Stdout)
-					if err != nil {
-						continue
-					}
-
-					shared.Debugf("Window size is now: %dx%d", width, height)
-
-					w, err := control.NextWriter(websocket.TextMessage)
-					if err != nil {
-						shared.Debugf("Got error getting next writer %s", err)
-						break
-					}
-
-					msg := shared.ContainerExecControl{}
-					msg.Command = "window-resize"
-					msg.Args = make(map[string]string)
-					msg.Args["width"] = strconv.Itoa(width)
-					msg.Args["height"] = strconv.Itoa(height)
-
-					buf, err := json.Marshal(msg)
-					if err != nil {
-						shared.Debugf("Failed to convert to json %s", err)
-						break
-					}
-					_, err = w.Write(buf)
-
-					w.Close()
-					if err != nil {
-						shared.Debugf("Got err writing %s", err)
-						break
-					}
-
-					ch := make(chan os.Signal)
-					signal.Notify(ch, syscall.SIGWINCH)
-					sig := <-ch
-
-					shared.Debugf("Received '%s signal', updating window geometry.", sig)
-				}
-
-				closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-				control.WriteMessage(websocket.CloseMessage, closeMsg)
-			}()
+			control, err := c.websocket(resp.Operation, wsControl)
+			if err != nil {
+				return -1, err
+			}
+			go controlHandler(c, control)
 		}
 
 		conn, err := c.websocket(resp.Operation, md.FDs["0"])
@@ -1284,20 +1248,22 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 		shared.WebsocketSendStream(conn, stdin)
 		<-shared.WebsocketRecvStream(stdout, conn)
 	} else {
-		sources := []*os.File{stdin, stdout, stderr}
 		conns := make([]*websocket.Conn, 3)
 		dones := make([]chan bool, 3)
-		for i := 0; i < 3; i++ {
+
+		conns[0], err = c.websocket(resp.Operation, md.FDs[strconv.Itoa(0)])
+		if err != nil {
+			return -1, err
+		}
+		dones[0] = shared.WebsocketSendStream(conns[0], stdin)
+
+		outputs := []io.WriteCloser{stdout, stderr}
+		for i := 1; i < 3; i++ {
 			conns[i], err = c.websocket(resp.Operation, md.FDs[strconv.Itoa(i)])
 			if err != nil {
 				return -1, err
 			}
-
-			if i == 0 {
-				dones[i] = shared.WebsocketSendStream(conns[i], sources[i])
-			} else {
-				dones[i] = shared.WebsocketRecvStream(sources[i], conns[i])
-			}
+			dones[i] = shared.WebsocketRecvStream(outputs[i-1], conns[i])
 		}
 
 		/*
@@ -1317,7 +1283,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string, stdin *o
 
 		// Once we're done, we explicitly close stdin, to signal the websockets
 		// we're done.
-		sources[0].Close()
+		stdin.Close()
 	}
 
 	// Now, get the operation's status too.
