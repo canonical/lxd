@@ -325,12 +325,6 @@ func containerLXDCreateInternal(
 
 	path := containerPathGet(name, args.Ctype == cTypeSnapshot)
 	if shared.PathExists(path) {
-		shared.Log.Error(
-			"The container already exists on disk",
-			log.Ctx{
-				"container": name,
-				"path":      path})
-
 		return nil, fmt.Errorf(
 			"The container already exists on disk, container: '%s', path: '%s'",
 			name,
