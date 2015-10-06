@@ -77,28 +77,6 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 	return string(output), err
 }
 
-func storageUnprivUserAclSet(c container, dpath string) error {
-	idmapset := c.IdmapSetGet()
-
-	if idmapset == nil {
-		return nil
-	}
-	uid, _ := idmapset.ShiftIntoNs(0, 0)
-	switch uid {
-	case -1:
-		shared.Debugf("No root id mapping")
-		return nil
-	case 0:
-		return nil
-	}
-	acl := fmt.Sprintf("%d:rx", uid)
-	output, err := exec.Command("setfacl", "-m", acl, dpath).CombinedOutput()
-	if err != nil {
-		shared.Debugf("Setfacl failed:\n%s", string(output))
-	}
-	return err
-}
-
 // storageType defines the type of a storage
 type storageType int
 
@@ -280,25 +258,29 @@ func (ss *storageShared) shiftRootfs(c container) error {
 }
 
 func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
-	if !c.IsPrivileged() {
-		err := storageUnprivUserAclSet(c, destPath)
+	idmapset := c.IdmapSetGet()
+
+	// Skip for privileged containers
+	if idmapset == nil {
+		return nil
+	}
+
+	// Make sure the map is valid. Skip if container uid 0 == host uid 0
+	uid, _ := idmapset.ShiftIntoNs(0, 0)
+	switch uid {
+	case -1:
+		return fmt.Errorf("Container doesn't have a uid 0 in its map")
+	case 0:
+		return nil
+	}
+
+	// Attempt to set a POSIX ACL first. Fallback to chmod if the fs doesn't support it.
+	acl := fmt.Sprintf("%d:rx", uid)
+	_, err := exec.Command("setfacl", "-m", acl, destPath).CombinedOutput()
+	if err != nil {
+		_, err := exec.Command("chmod", "+x", destPath).CombinedOutput()
 		if err != nil {
-			ss.log.Error(
-				"Adding acl for container root: falling back to chmod",
-				log.Ctx{"destPath": destPath})
-
-			output, err := exec.Command(
-				"chmod", "+x", destPath).CombinedOutput()
-
-			if err != nil {
-				ss.log.Error(
-					"chmoding the container root",
-					log.Ctx{
-						"destPath": destPath,
-						"output":   string(output)})
-
-				return err
-			}
+			return fmt.Errorf("Failed to chmod the container path.")
 		}
 	}
 
