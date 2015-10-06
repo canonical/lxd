@@ -641,7 +641,6 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 		Profiles:        c.profiles,
 		Config:          c.baseConfig,
 		ExpandedConfig:  c.config,
-		Userdata:        []byte{},
 		Status:          status,
 		Devices:         c.baseDevices,
 		ExpandedDevices: c.devices,

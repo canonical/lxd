@@ -238,6 +238,9 @@ func (d *Daemon) ImageDownload(
 		}
 	}
 
+	// By default, make all downloaded images private
+	info.Public = false
+
 	_, err = imageBuildFromInfo(d, info)
 	if err != nil {
 		shared.Log.Error(
