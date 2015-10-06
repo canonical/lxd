@@ -456,7 +456,7 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 		baseConfig:   baseConfig,
 		baseDevices:  baseDevices}
 
-	s, err := storageForFilename(d, c.PathGet(""))
+	s, err := storageForFilename(d, shared.VarPath("containers", strings.Split(name, "/")[0]))
 	if err != nil {
 		shared.Log.Warn("Couldn't detect storage.", log.Ctx{"container": c.NameGet()})
 		c.Storage = d.Storage
