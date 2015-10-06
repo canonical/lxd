@@ -33,7 +33,6 @@ type ContainerState struct {
 	Name            string            `json:"name"`
 	Profiles        []string          `json:"profiles"`
 	Status          ContainerStatus   `json:"status"`
-	Userdata        []byte            `json:"userdata"`
 }
 
 /*
