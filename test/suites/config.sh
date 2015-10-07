@@ -1,3 +1,40 @@
+ensure_removed() {
+  bad=0
+  lxc exec foo -- stat /dev/lxdkvm && bad=1 || true
+  if [ "${bad}" -eq 1 ]; then
+    echo "device should have been removed; $*"
+    false
+  fi
+}
+
+dounixdevtest() {
+    lxc start foo
+    lxc config device add foo kvm unix-char $*
+    lxc exec foo -- stat /dev/lxdkvm
+    lxc exec foo reboot
+    lxc exec foo -- stat /dev/lxdkvm
+    lxc restart foo
+    lxc exec foo -- stat /dev/lxdkvm
+    lxc config device remove foo kvm
+    ensure_removed "was not hot-removed"
+    lxc exec foo reboot
+    ensure_removed "removed device re-appeared after container reboot"
+    lxc restart foo
+    ensure_removed "removed device re-appaared after lxc reboot"
+    lxc stop foo
+}
+
+testunixdevs() {
+  rm -rf /dev/lxdkvm || true
+  if mknod /dev/lxdkvm c 10 232; then
+    echo "Testing /dev/lxdkvm"
+    dounixdevtest path=/dev/lxdkvm
+    rm -f /dev/lxdkvm
+  fi
+echo "Testing /dev/lxdkvm 10 232"
+  dounixdevtest path=/dev/lxdkvm major=10 minor=232
+}
+
 test_config_profiles() {
   ensure_import_testimage
 
@@ -91,6 +128,8 @@ test_config_profiles() {
   if [ "${bad}" -eq 1 ]; then
     echo "property set succeded when it shouldn't have"
   fi
+
+  testunixdevs
 
   lxc delete foo
 
