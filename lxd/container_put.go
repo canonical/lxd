@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -71,13 +73,17 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 			log.Ctx{
 				"container": name,
 				"err":       err})
-
 		return err
 	}
 
 	source, err := containerLXDLoad(d, snap)
 	if err != nil {
-		return err
+		switch err {
+		case sql.ErrNoRows:
+			return fmt.Errorf("snapshot %s does not exist", snap)
+		default:
+			return err
+		}
 	}
 
 	if err := c.Restore(source); err != nil {
