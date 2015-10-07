@@ -40,7 +40,7 @@ func (c *imageCmd) usage() string {
 
 lxc image import <tarball> [rootfs tarball] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
 
-lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-alias] [--public]
+lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public]
 lxc image delete [remote:]<image>
 lxc image edit [remote:]<image>
 lxc image export [remote:]<image>
