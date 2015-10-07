@@ -578,6 +578,19 @@ func (s *storageZfs) zfsCreate(path string) error {
 }
 
 func (s *storageZfs) zfsDestroy(path string) error {
+	mountpoint, err := s.zfsGet(path, "mountpoint")
+	if err != nil {
+		return err
+	}
+
+	if mountpoint != "none" {
+		output, err := exec.Command("umount", "-l", mountpoint).CombinedOutput()
+		if err != nil {
+			s.log.Error("umount failed", log.Ctx{"output": string(output)})
+			return err
+		}
+	}
+
 	output, err := exec.Command(
 		"zfs",
 		"destroy",
