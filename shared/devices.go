@@ -74,6 +74,10 @@ func liveUpdateable(devtype string) bool {
 		return true
 	case "disk":
 		return true
+	case "unix-block":
+		return true
+	case "unix-char":
+		return true
 	default:
 		return false
 	}
