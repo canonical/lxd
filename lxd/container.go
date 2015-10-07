@@ -325,12 +325,6 @@ func containerLXDCreateInternal(
 
 	path := containerPathGet(name, args.Ctype == cTypeSnapshot)
 	if shared.PathExists(path) {
-		shared.Log.Error(
-			"The container already exists on disk",
-			log.Ctx{
-				"container": name,
-				"path":      path})
-
 		return nil, fmt.Errorf(
 			"The container already exists on disk, container: '%s', path: '%s'",
 			name,
@@ -456,7 +450,7 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 		baseConfig:   baseConfig,
 		baseDevices:  baseDevices}
 
-	s, err := storageForFilename(d, c.PathGet(""))
+	s, err := storageForFilename(d, shared.VarPath("containers", strings.Split(name, "/")[0]))
 	if err != nil {
 		shared.Log.Warn("Couldn't detect storage.", log.Ctx{"container": c.NameGet()})
 		c.Storage = d.Storage
