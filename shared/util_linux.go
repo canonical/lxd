@@ -144,13 +144,13 @@ int shiftowner(char *basepath, char *path, int uid, int gid) {
 	}
 
 	if (strlen(realpath) < strlen(basepath)) {
-		printf("Invalid path, source is outside of basepath.\n");
+		printf("Invalid path, source (%s) is outside of basepath (%s).\n", realpath, basepath);
 		close(fd);
 		return 1;
 	}
 
 	if (strncmp(realpath, basepath, strlen(basepath))) {
-		printf("Invalid path, source is outside of basepath.\n");
+		printf("Invalid path, source (%s) is outside of basepath (%s).\n", realpath, basepath);
 		close(fd);
 		return 1;
 	}

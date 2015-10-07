@@ -68,12 +68,12 @@ func untar(tarball string, path string) error {
 
 	command := "tar"
 	args := []string{}
-	if !runningInUserns {
-		// if we are running in a userns where we cannot mknod,
-		// then run with a seccomp filter which turns mknod into a
-		// a noop.  The container config had better know how to bind
-		// mount the devices in at container start.
+	if runningInUserns {
+		args = append(args, "--wildcards")
 		args = append(args, "--exclude=dev/*")
+		args = append(args, "--exclude=./dev/*")
+		args = append(args, "--exclude=rootfs/dev/*")
+		args = append(args, "--exclude=rootfs/./dev/*")
 	}
 	args = append(args, "-C", path, "--numeric-owner")
 	args = append(args, extractArgs...)
