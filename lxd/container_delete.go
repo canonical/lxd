@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -12,6 +13,10 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return SmartError(err)
+	}
+
+	if c.IsRunning() {
+		return BadRequest(fmt.Errorf("container is running"))
 	}
 
 	rmct := func() error {

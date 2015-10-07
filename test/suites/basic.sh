@@ -178,6 +178,10 @@ test_basic_usage() {
   content=$(cat "${LXD_DIR}/containers/foo/rootfs/tmp/foo")
   [ "${content}" = "foo" ]
 
+  lxc launch testimage deleterunning
+  my_curl -X DELETE https://${LXD_ADDR}/1.0/containers/deleterunning | grep "container is running"
+  lxc delete deleterunning
+
   # cleanup
   lxc delete foo
 
