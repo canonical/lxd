@@ -42,7 +42,7 @@ func dbDevicesAdd(tx *sql.Tx, w string, cID int64, devices shared.Devices) error
 				continue
 			}
 			if !validDeviceConfig(v["type"], ck, cv) {
-				return fmt.Errorf("Invalid device config %s %s\n", ck, cv)
+				return fmt.Errorf("Invalid device config %s %s", ck, cv)
 			}
 			_, err = stmt2.Exec(id, ck, cv)
 			if err != nil {

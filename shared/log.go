@@ -36,7 +36,7 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool) error {
 	// FileHandler
 	if logfile != "" {
 		if !PathExists(filepath.Dir(logfile)) {
-			return fmt.Errorf("Log file path doesn't exist: %s\n", filepath.Dir(logfile))
+			return fmt.Errorf("Log file path doesn't exist: %s", filepath.Dir(logfile))
 		}
 
 		if !debug {
