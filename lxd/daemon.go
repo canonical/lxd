@@ -415,10 +415,7 @@ func (d *Daemon) ListenAddresses() ([]string, error) {
 			}
 		}
 	} else {
-		ip := net.ParseIP(localHost)
-		if ip != nil && ip.IsGlobalUnicast() {
-			addresses = append(addresses, value)
-		}
+		addresses = append(addresses, value)
 	}
 
 	return addresses, nil
