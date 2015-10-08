@@ -191,10 +191,10 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 		}
 		vgname := filepath.Base(filepath.Dir(lvPath))
 		config["vgName"] = vgname
-	} else if shared.PathExists(filename+".btrfs") || filesystem == "btrfs" {
-		storageType = storageTypeBtrfs
 	} else if shared.PathExists(filename + ".zfs") {
 		storageType = storageTypeZfs
+	} else if shared.PathExists(filename+".btrfs") || filesystem == "btrfs" {
+		storageType = storageTypeBtrfs
 	}
 
 	return newStorageWithConfig(d, storageType, config)
