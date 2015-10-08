@@ -488,6 +488,10 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 			oldPort = shared.DefaultPort
 		}
 
+		// Strip brackets around IPv6 once we've gotten rid of the port
+		oldHost = strings.TrimLeft(oldHost, "[")
+		oldHost = strings.TrimRight(oldHost, "]")
+
 		for _, socket := range d.Sockets {
 			host, port, err := net.SplitHostPort(socket.Socket.Addr().String())
 			if err != nil {
@@ -495,7 +499,11 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 				port = shared.DefaultPort
 			}
 
-			if IpsEqual(net.ParseIP(host), net.ParseIP(oldHost)) && port == oldPort {
+			// Strip brackets around IPv6 once we've gotten rid of the port
+			host = strings.TrimLeft(host, "[")
+			host = strings.TrimRight(host, "]")
+
+			if !shared.PathExists(host) && IpsEqual(net.ParseIP(host), net.ParseIP(oldHost)) && port == oldPort {
 				socket.Socket.Close()
 			} else {
 				sockets = append(sockets, socket)
@@ -508,7 +516,12 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 	if newAddress != "" {
 		_, _, err := net.SplitHostPort(newAddress)
 		if err != nil {
-			newAddress = fmt.Sprintf("%s:%s", newAddress, shared.DefaultPort)
+			ip := net.ParseIP(newAddress)
+			if ip != nil && ip.To4() == nil {
+				newAddress = fmt.Sprintf("[%s]:%s", newAddress, shared.DefaultPort)
+			} else {
+				newAddress = fmt.Sprintf("%s:%s", newAddress, shared.DefaultPort)
+			}
 		}
 
 		tlsConfig, err := shared.GetTLSConfig(d.certf, d.keyf)
