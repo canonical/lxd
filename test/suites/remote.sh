@@ -113,13 +113,13 @@ test_remote_usage() {
   lxc image alias create localhost:testimage ${sum}
 
   # test remote publish
-  lxc init testimage foo
-  lxc publish foo lxd2: --alias bar --public a=b
+  lxc init testimage pub
+  lxc publish pub lxd2: --alias bar --public a=b
   lxc image show lxd2:bar | grep -q "a: b"
   lxc image show lxd2:bar | grep -q "public: true"
   ! lxc image show bar
-  lxc delete foo
-  lxc image lxd2:bar
+  lxc delete pub
+  lxc image delete lxd2:bar
 
   # Double launch to test if the image downloads only once.
   lxc init localhost:testimage lxd2:c1 &
