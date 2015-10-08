@@ -608,7 +608,7 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	db := d.db
 
 	if prevVersion < 0 || prevVersion > DB_CURRENT_VERSION {
-		return fmt.Errorf("Bad database version: %d\n", prevVersion)
+		return fmt.Errorf("Bad database version: %d", prevVersion)
 	}
 	if prevVersion == DB_CURRENT_VERSION {
 		return nil

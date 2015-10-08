@@ -220,7 +220,7 @@ func initializeDbObject(d *Daemon, path string) (err error) {
 	// Table creation is indempotent, run it every time
 	err = createDb(d.db)
 	if err != nil {
-		return fmt.Errorf("Error creating database: %s\n", err)
+		return fmt.Errorf("Error creating database: %s", err)
 	}
 
 	// Run PRAGMA statements now since they are *per-connection*.
@@ -346,7 +346,7 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
 				integer := 0
 				ptrargs[i] = &integer
 			default:
-				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s\n", t)
+				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s", t)
 			}
 		}
 		err = rows.Scan(ptrargs...)
@@ -361,7 +361,7 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
 			case int:
 				newargs[i] = *ptrargs[i].(*int)
 			default:
-				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s\n", t)
+				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s", t)
 			}
 		}
 		result = append(result, newargs)
