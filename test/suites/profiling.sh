@@ -22,7 +22,14 @@ test_mem_profiling() {
   fi
 
   kill -USR1 ${lxdpid}
-  sleep 1s
+
+  timeout=50
+  while [ "${timeout}" != "0" ]; do
+    [ -e "${LXD4_DIR}/mem" ] && break
+    sleep 0.1
+    timeout=$((${timeout}-1))
+  done
+
   echo top5 | go tool pprof $(which lxd) ${LXD4_DIR}/mem
   echo ""
 
