@@ -51,7 +51,6 @@ spawn_lxd() {
   alive=0
   while [ ${alive} -eq 0 ]; do
     [ -e "${lxddir}/unix.socket" ] && LXD_DIR=${lxddir} lxc finger && alive=1
-    sleep 1s
   done
 
   echo "==> Binding to network"
@@ -145,8 +144,6 @@ kill_lxd() {
   done
 
   # Kill the daemon
-  kill -15 ${daemon_pid} 2>/dev/null || true
-  sleep 2
   kill -9 ${daemon_pid} 2>/dev/null || true
 
   # Cleanup shmounts
