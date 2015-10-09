@@ -298,7 +298,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
  */
 func startContainer(args []string) error {
 	if len(args) != 4 {
-		return fmt.Errorf("Bad arguments: %q\n", args)
+		return fmt.Errorf("Bad arguments: %q", args)
 	}
 	name := args[1]
 	lxcpath := args[2]

@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-10-07 11:57+0100\n"
+        "POT-Creation-Date: 2015-10-08 10:52-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -166,9 +166,9 @@ msgstr  ""
 msgid   "Container name is mandatory"
 msgstr  ""
 
-#: lxc/publish.go:86
+#: lxc/publish.go:82 lxc/publish.go:103
 #, c-format
-msgid   "Container published with fingerprint %s"
+msgid   "Container published with fingerprint: %s"
 msgstr  ""
 
 #: lxc/image.go:84
@@ -660,10 +660,6 @@ msgstr  ""
 msgid   "Publish containers as images.\n"
         "\n"
         "lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]..."
-msgstr  ""
-
-#: lxc/publish.go:67
-msgid   "Publish to remote server is not supported yet"
 msgstr  ""
 
 #: lxc/remote.go:46
