@@ -172,7 +172,7 @@ func dbContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error
 		}
 
 		if !ValidContainerConfigKey(k) {
-			return fmt.Errorf("Bad key: %s\n", k)
+			return fmt.Errorf("Bad key: %s", k)
 		}
 
 		_, err = stmt.Exec(id, k, v)

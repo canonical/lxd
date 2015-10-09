@@ -21,7 +21,7 @@ func remoteGetImageFingerprint(
 
 	var result shared.ImageAlias
 	if err = json.Unmarshal(resp.Metadata, &result); err != nil {
-		return "", fmt.Errorf("Error reading alias\n")
+		return "", fmt.Errorf("Error reading alias")
 	}
 	return result.Name, nil
 }

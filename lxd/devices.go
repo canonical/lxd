@@ -36,7 +36,7 @@ func deviceToLxc(d shared.Device) ([][]string, error) {
 		return nil, fmt.Errorf("Not implemented")
 	case "nic":
 		if d["nictype"] != "bridged" && d["nictype"] != "" {
-			return nil, fmt.Errorf("Bad nic type: %s\n", d["nictype"])
+			return nil, fmt.Errorf("Bad nic type: %s", d["nictype"])
 		}
 		var l1 = []string{"lxc.network.type", "veth"}
 		var lines = [][]string{l1}
@@ -77,11 +77,11 @@ func deviceToLxc(d shared.Device) ([][]string, error) {
 		if shared.IsBlockdevPath(d["source"]) {
 			fstype, err = shared.BlockFsDetect(d["source"])
 			if err != nil {
-				return nil, fmt.Errorf("Error setting up %s: %s\n", d["name"], err)
+				return nil, fmt.Errorf("Error setting up %s: %s", d["name"], err)
 			}
 			l, err := addBlockDev(d["source"])
 			if err != nil {
-				return nil, fmt.Errorf("Error adding blockdev: %s\n", err)
+				return nil, fmt.Errorf("Error adding blockdev: %s", err)
 			}
 			configLines = append(configLines, l)
 		} else if shared.IsDir(source) {
@@ -126,7 +126,7 @@ func dbDeviceTypeToString(t int) (string, error) {
 	case 4:
 		return "unix-block", nil
 	default:
-		return "", fmt.Errorf("Invalid device type %d\n", t)
+		return "", fmt.Errorf("Invalid device type %d", t)
 	}
 }
 
@@ -143,7 +143,7 @@ func deviceTypeToDbType(t string) (int, error) {
 	case "unix-block":
 		return 4, nil
 	default:
-		return -1, fmt.Errorf("Invalid device type %s\n", t)
+		return -1, fmt.Errorf("Invalid device type %s", t)
 	}
 }
 
@@ -257,10 +257,10 @@ func nextUnusedNic(c container) string {
 
 func setupNic(tx *sql.Tx, c container, name string, d map[string]string) (string, error) {
 	if d["nictype"] != "bridged" {
-		return "", fmt.Errorf("Unsupported nic type: %s\n", d["nictype"])
+		return "", fmt.Errorf("Unsupported nic type: %s", d["nictype"])
 	}
 	if d["parent"] == "" {
-		return "", fmt.Errorf("No bridge given\n")
+		return "", fmt.Errorf("No bridge given")
 	}
 	if d["name"] == "" {
 		d["name"] = nextUnusedNic(c)
@@ -385,7 +385,7 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 		switch dev["type"] {
 		case "nic":
 			if dev["name"] == "" {
-				return fmt.Errorf("Do not know a name for the nic for device %s\n", key)
+				return fmt.Errorf("Do not know a name for the nic for device %s", key)
 			}
 			if err := detachInterface(c, dev["name"]); err != nil {
 				return fmt.Errorf("Error removing device %s (nic %s) from container %s: %s", key, dev["name"], c.NameGet(), err)

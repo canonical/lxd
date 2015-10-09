@@ -58,15 +58,6 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		return fmt.Errorf(gettext.Gettext("There is no \"image name\".  Did you want an alias?"))
 	}
 
-	if cRemote != iRemote {
-		/*
-		 * Get the source remote to export the container over a websocket,
-		 * pass that ws to the dest remote, and have it import it as an
-		 * image
-		 */
-		return fmt.Errorf(gettext.Gettext("Publish to remote server is not supported yet"))
-	}
-
 	d, err := lxd.NewClient(config, iRemote)
 	if err != nil {
 		return err
@@ -80,10 +71,35 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		properties[entry[0]] = entry[1]
 	}
 
-	fp, err := d.ImageFromContainer(cName, makePublic, pAliases, properties)
+	var fp string
 
-	if err == nil {
-		fmt.Printf(gettext.Gettext("Container published with fingerprint %s")+"\n", fp)
+	// Optimized local publish
+	if cRemote == iRemote {
+		fp, err = d.ImageFromContainer(cName, makePublic, pAliases, properties)
+		if err != nil {
+			return err
+		}
+		fmt.Printf(gettext.Gettext("Container published with fingerprint: %s")+"\n", fp)
+		return nil
 	}
-	return err
+
+	s, err := lxd.NewClient(config, cRemote)
+	if err != nil {
+		return err
+	}
+
+	fp, err = s.ImageFromContainer(cName, false, nil, properties)
+	if err != nil {
+		return err
+	}
+	defer s.DeleteImage(fp)
+
+	err = s.CopyImage(fp, d, false, pAliases, makePublic)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(gettext.Gettext("Container published with fingerprint: %s")+"\n", fp)
+
+	return nil
 }
