@@ -1,11 +1,13 @@
+#!/bin/sh
+
 test_migration() {
   ensure_import_testimage
 
   if ! lxc remote list | grep -q l1; then
-    lxc remote add l1 ${LXD_ADDR} --accept-certificate --password foo
+    lxc remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
   fi
   if ! lxc remote list | grep -q l2; then
-    lxc remote add l2 ${LXD2_ADDR} --accept-certificate --password foo
+    lxc remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
   fi
 
   lxc init testimage nonlive
@@ -19,9 +21,9 @@ test_migration() {
 
   lxc copy l2:nonlive l2:nonlive2
   # should have the same base image tag
-  [ "`lxc config get l2:nonlive volatile.base_image`" = "`lxc config get l2:nonlive2 volatile.base_image`" ]
+  [ "$(lxc config get l2:nonlive volatile.base_image)" = "$(lxc config get l2:nonlive2 volatile.base_image)" ]
   # check that nonlive2 has a new addr in volatile
-  [ "`lxc config get l2:nonlive volatile.eth0.hwaddr`" != "`lxc config get l2:nonlive2 volatile.eth0.hwaddr`" ]
+  [ "$(lxc config get l2:nonlive volatile.eth0.hwaddr)" != "$(lxc config get l2:nonlive2 volatile.eth0.hwaddr)" ]
 
   lxc config unset l2:nonlive volatile.base_image
   lxc copy l2:nonlive l1:nobase
@@ -35,7 +37,7 @@ test_migration() {
   lxc list l2: | grep RUNNING | grep nonlive
   lxc stop l2:nonlive --force
 
-  if ! type criu >/dev/null 2>&1; then
+  if ! which criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return
   fi
