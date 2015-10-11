@@ -7,7 +7,7 @@ if [ -n "${LXD_DEBUG:-}" ]; then
 fi
 
 echo "==> Checking for dependencies"
-for dep in lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen; do
+for dep in lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen pyflakes3 pep8 shellcheck; do
   which "${dep}" >/dev/null 2>&1 || (echo "Missing dependency: ${dep}" >&2 && exit 1)
 done
 
@@ -72,7 +72,7 @@ lxc() {
   injected=0
   cmd=$(which lxc)
 
-  # shellcheck disable=SC2048
+  # shellcheck disable=SC2048,SC2068
   for arg in $@; do
     if [ "${arg}" = "--" ]; then
       injected=1
