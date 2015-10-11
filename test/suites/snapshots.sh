@@ -1,6 +1,8 @@
+#!/bin/sh
+
 test_snapshots() {
   ensure_import_testimage
-  ensure_has_localhost_remote ${LXD_ADDR}
+  ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc init testimage foo
 
@@ -20,7 +22,7 @@ test_snapshots() {
   [ ! -d "${LXD_DIR}/snapshots/foo/snap0" ]
 
   # no CLI for this, so we use the API directly (rename a snapshot)
-  wait_for ${LXD_ADDR} my_curl -X POST https://${LXD_ADDR}/1.0/containers/foo/snapshots/tester -d "{\"name\":\"tester2\"}"
+  wait_for "${LXD_ADDR}" my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/snapshots/tester" -d "{\"name\":\"tester2\"}"
   [ ! -d "${LXD_DIR}/snapshots/foo/tester" ]
 
   lxc move foo/tester2 foo/tester-two
@@ -43,7 +45,7 @@ test_snapshots() {
 
 test_snap_restore() {
   ensure_import_testimage
-  ensure_has_localhost_remote ${LXD_ADDR}
+  ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc launch testimage bar
 
@@ -105,7 +107,6 @@ test_snap_restore() {
 
   # Check config value in snapshot has been restored
   cpus=$(lxc config get bar limits.cpus)
-  echo ${cpus}
   if [ "${cpus}" != "limits.cpus: 1" ]; then
    echo "==> config didn't match expected value after restore (${cpus})"
    false
@@ -128,11 +129,10 @@ test_snap_restore() {
 
 restore_and_compare_fs() {
   snap=${1}
-  echo "\n ==> Restoring ${snap} \n"
+  echo "==> Restoring ${snap}"
 
-  lxc restore bar ${snap}
+  lxc restore bar "${snap}"
 
   # Recursive diff of container FS
-  echo "diff -r ${LXD_DIR}/containers/bar/rootfs ${LXD_DIR}/snapshots/bar/${snap}/rootfs"
   diff -r "${LXD_DIR}/containers/bar/rootfs" "${LXD_DIR}/snapshots/bar/${snap}/rootfs"
 }

@@ -1,13 +1,15 @@
+#!/bin/sh
+
 test_devlxd() {
   ensure_import_testimage
 
-  cd ${TEST_DIR}
+  cd "${TEST_DIR}"
   go build -tags netgo -a -installsuffix devlxd ../deps/devlxd-client.go
   cd -
 
   lxc launch testimage devlxd
 
-  lxc file push ${TEST_DIR}/devlxd-client devlxd/bin/
+  lxc file push "${TEST_DIR}/devlxd-client" devlxd/bin/
 
   lxc exec devlxd chmod +x /bin/devlxd-client
 
