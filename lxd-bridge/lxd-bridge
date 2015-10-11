@@ -147,7 +147,7 @@ start() {
     if [ "${LXD_IPV6_PROXY}" = "true" ]; then
         lxd-bridge-proxy -addr="[fe80::1%${LXD_BRIDGE}]:3128" &
         PID=$!
-        echo ${PID} > "${varrun}/proxy.pid"
+        echo "${PID}" > "${varrun}/proxy.pid"
     fi
 
     touch "${varrun}/network_up"
