@@ -135,7 +135,7 @@ The currently supported device types and their properties are:
     - path (path relative to the container's root)
     - major (optional, if not specified, the same path on the host is mirrored)
     - minor (optional, if not specified, the same path on the host is mirrored)
-    - uid (optional, if not specified, defaults t0 0)
+    - uid (optional, if not specified, defaults to 0)
     - gid (optional, if not specified, defaults to 0)
     - mode (optional, if not specified, defaults to 0660)
 
