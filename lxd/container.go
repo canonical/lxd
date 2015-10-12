@@ -860,7 +860,7 @@ func (c *containerLXD) setupUnixDev(m shared.Device) error {
 	}
 
 	if c.c.Running() {
-		// TODO - insert mount from 'source' to 'target'
+		// insert mount from 'source' to 'target'
 		err := c.insertMount(source, target, "none", syscall.MS_BIND, options)
 		if err != nil {
 			return fmt.Errorf("Failed to add mount for device %s: %s", m["path"], err)

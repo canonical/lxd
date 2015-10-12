@@ -165,8 +165,6 @@ func deviceToLxc(cntPath string, d shared.Device) ([][]string, error) {
 		} else {
 			p = d["path"]
 		}
-		/* TODO - check whether source is a disk, loopback, btrfs subvol, etc */
-		/* for now we only handle directory bind mounts */
 		source := d["source"]
 		options := []string{}
 		if shared.IsBlockdevPath(d["source"]) {
