@@ -1,7 +1,7 @@
 #!/bin/sh
 ensure_removed() {
   bad=0
-  lxc exec foo -- stat /dev/lxdkvm && bad=1 || true
+  lxc exec foo -- stat /dev/lxdkvm && bad=1
   if [ "${bad}" -eq 1 ]; then
     echo "device should have been removed; $*"
     false
@@ -10,7 +10,7 @@ ensure_removed() {
 
 dounixdevtest() {
     lxc start foo
-    lxc config device add foo kvm unix-char $*
+    lxc config device add foo kvm unix-char "$@"
     lxc exec foo -- stat /dev/lxdkvm
     lxc exec foo reboot
     lxc exec foo -- stat /dev/lxdkvm
@@ -38,7 +38,7 @@ testunixdevs() {
 
 ensure_fs_unmounted() {
   bad=0
-  lxc exec foo -- stat /mnt/hello && bad=1 || true
+  lxc exec foo -- stat /mnt/hello && bad=1
   if [ "${bad}" -eq 1 ]; then
     echo "device should have been removed; $*"
     false
@@ -46,18 +46,18 @@ ensure_fs_unmounted() {
 }
 
 testloopmounts() {
-  lpath=`losetup -f` || { echo "no loop support"; return; }
-  echo "${lpath}" >> ${TEST_DIR}/loops
-  loop=`basename "${lpath}"`
-  loopfile=`mktemp -p "${TEST_DIR}" loop_XXX`
-  dd if=/dev/zero of=${loopfile} bs=1M seek=200 count=1
-  mkfs.ext4 -F ${loopfile}
-  losetup ${loop} ${loopfile} || { echo "no loop support"; return; }
-  mount ${lpath} /mnt || { echo "loop mount failed"; return; }
+  lpath=$(losetup -f) || { echo "no loop support"; return; }
+  echo "${lpath}" >> "${TEST_DIR}/loops"
+  loop=$(basename "${lpath}")
+  loopfile=$(mktemp -p "${TEST_DIR}" loop_XXX)
+  dd if=/dev/zero of="${loopfile}" bs=1M seek=200 count=1
+  mkfs.ext4 -F "${loopfile}"
+  losetup "${loop}" "${loopfile}" || { echo "no loop support"; return; }
+  mount "${lpath}" /mnt || { echo "loop mount failed"; return; }
   touch /mnt/hello
   umount /mnt
   lxc start foo
-  lxc config device add foo loop disk source=${lpath} path=/mnt
+  lxc config device add foo loop disk source="${lpath}" path=/mnt
   lxc exec foo stat /mnt/hello
   # Note - we need to add a set_running_config_item to lxc
   # or work around its absence somehow.  Once that's done, we
@@ -73,8 +73,8 @@ testloopmounts() {
   lxc restart foo --force
   ensure_fs_unmounted "removed fs re-appeared after restart"
   lxc stop foo --force
-  losetup -d ${lpath}
-  sed -i '/${loop}/d' ${TEST_DIR}/loops
+  losetup -d "${lpath}"
+  sed -i "/${loop}/d" "${TEST_DIR}/loops"
 }
 
 test_config_profiles() {
