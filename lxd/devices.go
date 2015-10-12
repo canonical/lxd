@@ -49,14 +49,44 @@ func devGetOptions(d shared.Device) (string, error) {
 	return strings.Join(opts, ","), nil
 }
 
-func devModeOct(strmode string) (int, error) {
-	// todo - parse strmode
-	return 0660, nil
+func modeHasRead(mode int) bool {
+	if mode&0444 != 0 {
+		return true
+	}
+	return false
 }
 
-func devModeString(strmode string) string {
-	// todo - parse strmode
-	return "rwm"
+func modeHasWrite(mode int) bool {
+	if mode&0222 != 0 {
+		return true
+	}
+	return false
+}
+
+func devModeOct(strmode string) (int, error) {
+	if strmode == "" {
+		return 0660, nil
+	}
+	i, err := strconv.ParseInt(strmode, 8, 32)
+	if err != nil {
+		return 0, fmt.Errorf("Bad device mode: %s", strmode)
+	}
+	return int(i), nil
+}
+
+func devModeString(strmode string) (string, error) {
+	i, err := devModeOct(strmode)
+	if err != nil {
+		return "", err
+	}
+	mode := "m"
+	if modeHasRead(i) {
+		mode = mode + "r"
+	}
+	if modeHasWrite(i) {
+		mode = mode + "w"
+	}
+	return mode, nil
 }
 
 func getDev(path string) (int, int, error) {
@@ -106,7 +136,11 @@ func deviceCgroupInfo(dev shared.Device) (string, error) {
 		return "", fmt.Errorf("Both major and minor must be supplied for devices")
 	}
 
-	devcg := fmt.Sprintf("%s %d:%d %s", t, major, minor, devModeString(dev["mode"]))
+	mode, err := devModeString(dev["mode"])
+	if err != nil {
+		return "", err
+	}
+	devcg := fmt.Sprintf("%s %d:%d %s", t, major, minor, mode)
 	return devcg, nil
 }
 
