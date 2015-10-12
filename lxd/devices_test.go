@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/lxc/lxd/shared"
@@ -95,6 +96,37 @@ func Test_nic_device_returns_config_line(t *testing.T) {
 	for key := range unwrapped {
 		if unwrapped[key] != expected[key] {
 			t.Errorf("Expected '%s', got '%s' instead!", expected, unwrapped)
+		}
+	}
+}
+
+func devModeContains(str1, str2 string) bool {
+	for _, c := range str1 {
+		if !strings.Contains(str2, string(c)) {
+			return false
+		}
+	}
+	return true
+}
+
+func devModeEquiv(str1, str2 string) bool {
+	if devModeContains(str1, str2) && devModeContains(str2, str1) {
+		return true
+	}
+	return false
+}
+
+func Test_dev_mode_parse(t *testing.T) {
+	tests := [][]string{{"", "rwm"}, {"0660", "rwm"}, {"0040", "rm"}, {"0002", "wm"}}
+	for _, arr := range tests {
+		key := arr[0]
+		answer := arr[1]
+		reply, err := devModeString(key)
+		if err != nil {
+			t.Errorf("Unexpected unix mode parse failure: %s", err)
+		}
+		if !devModeEquiv(reply, answer) {
+			t.Errorf("Wrong unix mode result: Got %s expected %s", reply, answer)
 		}
 	}
 }
