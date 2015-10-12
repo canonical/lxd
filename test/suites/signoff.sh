@@ -1,3 +1,5 @@
+#!/bin/sh
+
 test_commits_signed_off() {
   # Skip the test when not running from a git repository
   if ! git status; then
