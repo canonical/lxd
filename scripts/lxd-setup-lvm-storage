@@ -2,19 +2,12 @@
 # Let's stick to core python3 modules
 import argparse
 import gettext
-import hashlib
 import http.client
-import io
 import json
 import os
-import shutil
 import socket
 from subprocess import check_output
 import sys
-import tarfile
-import tempfile
-import urllib.request
-import uuid
 
 
 DEFAULT_VGNAME = "LXDStorage"
@@ -40,7 +33,7 @@ class UnixHTTPConnection(http.client.HTTPConnection):
         sock.connect(self.path)
         self.sock = sock
 
-        
+
 class LXD(object):
     def __init__(self, path):
         self.lxd = UnixHTTPConnection(path)
@@ -71,15 +64,14 @@ class LXD(object):
 
         if status != 200:
             sys.stderr.write("Error in setting vgname:{}\n{}\n".format(status,
-                                                                   data))
-            raise Exception("Failed to set vgname: %s" % vgname)
+                                                                       data))
+            raise Exception("Failed to set vgname: %s" % val)
 
     def get_server_config(self):
         status, config = self.rest_call("/1.0", "", "GET")
         if status != 200:
-            sys.stderr.write("Error in setting vgname:{}\n{}\n".format(status,
-                                                                   data))
-            raise Exception("Failed to set vgname: %s" % vgname)
+            sys.stderr.write("Error in getting vgname\n")
+            raise Exception("Failed to get vgname")
 
         return config["metadata"]["config"]
 
@@ -98,15 +90,16 @@ def connect_to_socket():
         print(_("LXD isn't running."))
         sys.exit(1)
 
-    return LXD(lxd_socket) 
-    
-    
+    return LXD(lxd_socket)
+
+
 def create_image(args):
     imgfname = os.path.join(lxd_dir(), "{}.img".format(args.size))
     rollbacks = []
     try:
         print("Creating sparse backing file {}".format(imgfname), flush=True)
-        check_output("truncate -s {} {}".format(args.size, imgfname), shell=True)
+        check_output("truncate -s {} {}".format(args.size, imgfname),
+                     shell=True)
         rollbacks.append("rm {}".format(imgfname))
 
         print("Setting up loop device", flush=True)
@@ -119,7 +112,8 @@ def create_image(args):
         rollbacks.append("pvremove " + pvloopdev)
 
         print("Creating LVM VG {}".format(DEFAULT_VGNAME), flush=True)
-        check_output("vgcreate {} {}".format(DEFAULT_VGNAME, pvloopdev), shell=True)
+        check_output("vgcreate {} {}".format(DEFAULT_VGNAME, pvloopdev),
+                     shell=True)
         rollbacks.append("vgremove {}".format(DEFAULT_VGNAME))
 
     except Exception as e:
@@ -129,15 +123,18 @@ def create_image(args):
             check_output(rbcmd, shell=True)
         raise e
 
+
 def destroy_image(args, lxd):
     print("Checking current LXD configuration", flush=True)
     cfg = lxd.get_server_config()
     vgname = cfg.get("storage.lvm_vg_name", None)
     if vgname is None:
-        sys.stderr.write("LXD is not configured for LVM. No changes will be made.\n")
+        sys.stderr.write("LXD is not configured for LVM. "
+                         "No changes will be made.\n")
         return
 
-    lvnames = check_output("lvs {} -o name,lv_attr --noheadings".format(vgname), shell=True).decode().strip()
+    lvnames = check_output("lvs {} -o name,lv_attr --noheadings"
+                           .format(vgname), shell=True).decode().strip()
     used_lvs = []
     for lvline in lvnames.split("\n"):
         if lvline == '':
@@ -146,26 +143,29 @@ def destroy_image(args, lxd):
         if attrs.strip().startswith("V"):
             used_lvs.append(name)
     if len(used_lvs) > 0:
-        print("LVM storage is still in use by the following volumes: {}".format(used_lvs))
-        print("Please delete the corresponding images and/or containers before destroying storage.")
+        print("LVM storage is still in use by the following volumes: {}"
+              .format(used_lvs))
+        print("Please delete the corresponding images and/or "
+              "containers before destroying storage.")
         sys.exit()
 
-    pvname = check_output("sudo vgs {} --noheadings -o pv_name".format(vgname), shell=True).decode().strip()
+    pvname = check_output("sudo vgs {} --noheadings -o pv_name"
+                          .format(vgname), shell=True).decode().strip()
     print("Removing volume group {}".format(vgname))
     check_output("vgremove -f {}".format(vgname), shell=True)
     print("Removing physical volume {}".format(pvname))
     check_output("pvremove -y {}".format(pvname), shell=True)
-    
-    imgfname = check_output("losetup {} --list --output BACK-FILE --noheadings".format(pvname), shell=True).decode().strip()
+
+    imgfname = check_output("losetup {} --list --output BACK-FILE --noheadings"
+                            .format(pvname), shell=True).decode().strip()
     print("Detaching loop device {}".format(pvname))
     check_output("losetup -d {}".format(pvname), shell=True)
     print("Deleting backing file {}".format(imgfname))
     if os.path.exists(imgfname):
         check_output("rm '{}'".format(imgfname), shell=True)
 
-        
+
 def do_main():
-    
     parser = FriendlyParser(
         description=_("LXD: LVM storage helper"),
         formatter_class=argparse.RawTextHelpFormatter,
@@ -175,8 +175,10 @@ def do_main():
  To de-configure LXD and destroy the LVM volumes and backing file:
     %s --destroy
 """ % (sys.argv[0], sys.argv[0])))
-    parser.add_argument("-s", "--size", help=_("Size of backing file to register as LVM PV"))
-    parser.add_argument("--destroy", action="store_true", default=False, help=_("Un-configure LXD and delete image file"))
+    parser.add_argument("-s", "--size",
+                        help=_("Size of backing file to register as LVM PV"))
+    parser.add_argument("--destroy", action="store_true", default=False,
+                        help=_("Un-configure LXD and delete image file"))
 
     args = parser.parse_args()
     if os.geteuid() != 0:
@@ -210,7 +212,8 @@ def do_main():
                 print("Configuring LXD")
                 lxd.set_lvm_vgname(DEFAULT_VGNAME)
             except:
-                sys.stderr.write("Error configuring LXD, removing backing file\n")
+                sys.stderr.write("Error configuring LXD, "
+                                 "removing backing file\n")
                 destroy_image(args, lxd)
 
     print("Done.")
@@ -218,4 +221,3 @@ def do_main():
 
 if __name__ == "__main__":
     do_main()
-
