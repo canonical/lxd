@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -191,6 +192,110 @@ type container interface {
 
 	DetachMount(m shared.Device) error
 	AttachMount(m shared.Device) error
+	AttachUnixDev(dev shared.Device) error
+	DetachUnixDev(dev shared.Device) error
+}
+
+// unmount and unlink any directories called $path/blk.$(mktemp)
+func unmountTempBlocks(path string) {
+	dents, err := ioutil.ReadDir(path)
+	if err != nil {
+		return
+	}
+	for _, f := range dents {
+		bpath := f.Name()
+		dpath := filepath.Join(path, bpath)
+		if !strings.HasPrefix(bpath, "blk.") {
+			continue
+		}
+		if err = syscall.Unmount(dpath, syscall.MNT_DETACH); err != nil {
+			shared.Log.Warn("Failed to unmount block device", log.Ctx{"error": err, "path": dpath})
+			continue
+		}
+		if err = os.Remove(dpath); err != nil {
+			shared.Log.Warn("Failed to unlink block device mountpoint", log.Ctx{"error": err, "path": dpath})
+			continue
+		}
+	}
+}
+
+func getMountOptions(m shared.Device) ([]string, bool, bool) {
+	opts := []string{}
+	readonly := false
+	if m["readonly"] == "1" || m["readonly"] == "true" {
+		readonly = true
+		opts = append(opts, "ro")
+	}
+	optional := false
+	if m["optional"] == "1" || m["optional"] == "true" {
+		optional = true
+		opts = append(opts, "optional")
+	}
+
+	return opts, readonly, optional
+}
+
+/*
+ * This is called at container startup to mount any block
+ * devices (since a container with idmap cannot do so)
+ */
+func mountTmpBlockdev(cntPath string, d shared.Device) ([]string, error) {
+	source := d["source"]
+	fstype, err := shared.BlockFsDetect(source)
+	if err != nil {
+		return []string{}, fmt.Errorf("Error setting up %s: %s", source, err)
+	}
+	opts, readonly, optional := getMountOptions(d)
+
+	// Mount blockdev into $containerdir/blk.$(mktemp)
+	fnam := fmt.Sprintf("blk.%s", strings.Replace(source, "/", "-", -1))
+	blkmnt := filepath.Join(cntPath, fnam)
+	syscall.Unmount(blkmnt, syscall.MNT_DETACH)
+	os.Remove(blkmnt)
+	if err = os.Mkdir(blkmnt, 0660); err != nil {
+		if optional {
+			shared.Log.Warn("Failed to create block device mount directory",
+				log.Ctx{"error": err, "source": source})
+			return []string{}, nil
+		}
+		return []string{}, fmt.Errorf("Unable to create mountpoint for blockdev %s: %s", source, err)
+	}
+	flags := 0
+	if readonly {
+		flags |= syscall.MS_RDONLY
+	}
+	if err = syscall.Mount(source, blkmnt, fstype, uintptr(flags), ""); err != nil {
+		if optional {
+			shared.Log.Warn("Failed to mount block device", log.Ctx{"error": err, "source": source})
+			return []string{}, nil
+		}
+		return []string{}, fmt.Errorf("Unable to prepare blockdev mount for %s: %s", source, err)
+	}
+
+	opts = append(opts, "bind")
+	sb, err := os.Stat(source)
+	if err == nil {
+		if sb.IsDir() {
+			opts = append(opts, "create=dir")
+		} else {
+			opts = append(opts, "create=file")
+		}
+	}
+	tgtpath := d["path"]
+	for len(tgtpath) > 0 && filepath.IsAbs(tgtpath) {
+		tgtpath = tgtpath[1:]
+	}
+	if len(tgtpath) == 0 {
+		if optional {
+			shared.Log.Warn("Invalid mount target", log.Ctx{"target": d["path"]})
+			return []string{}, nil
+		}
+		return []string{}, fmt.Errorf("Invalid mount target %s", d["path"])
+	}
+	mtab := fmt.Sprintf("%s %s %s %s 0 0", blkmnt, tgtpath, "none", strings.Join(opts, ","))
+	shared.Debugf("adding mount entry for %s: .%s.\n", d["source"], mtab)
+
+	return []string{"lxc.mount.entry", mtab}, nil
 }
 
 func containerLXDCreateAsEmpty(d *Daemon, name string,
@@ -594,11 +699,6 @@ func (c *containerLXD) init() error {
 		c.devices[k] = v
 	}
 
-	/* now add the lxc.* entries for the configured devices */
-	if err := c.applyDevices(); err != nil {
-		return err
-	}
-
 	if !c.IsPrivileged() {
 		if c.daemon.IdmapSet == nil {
 			return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
@@ -642,6 +742,144 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 	}, nil
 }
 
+func (c *containerLXD) insertMount(source, target, fstype string, flags int, options string) error {
+	pid := c.c.InitPid()
+	if pid == -1 { // container not running - we're done
+		return nil
+	}
+
+	// now live-mount
+	var tmpMount string
+	var err error
+	if shared.IsDir(source) {
+		tmpMount, err = ioutil.TempDir(shared.VarPath("shmounts", c.name), "lxdmount_")
+	} else {
+		f, err := ioutil.TempFile(shared.VarPath("shmounts", c.name), "lxdmount_")
+		if err == nil {
+			tmpMount = f.Name()
+			f.Close()
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	err = syscall.Mount(source, tmpMount, fstype, uintptr(flags), "")
+	if err != nil {
+		return err
+	}
+
+	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
+	// finally we need to move-mount this in the container
+	pidstr := fmt.Sprintf("%d", pid)
+	err = exec.Command(os.Args[0], "forkmount", pidstr, mntsrc, target).Run()
+	syscall.Unmount(tmpMount, syscall.MNT_DETACH) // in case forkmount failed
+	os.Remove(tmpMount)
+
+	return err
+}
+
+func (c *containerLXD) createUnixDevice(m shared.Device) (string, string, error) {
+	devname := m["path"]
+	if !filepath.IsAbs(devname) {
+		devname = filepath.Join("/", devname)
+	}
+
+	// target must be a relative path, so that lxc will DTRT
+	tgtname := m["path"]
+	for len(tgtname) > 0 && filepath.IsAbs(tgtname) {
+		tgtname = tgtname[1:]
+	}
+	if len(tgtname) == 0 {
+		return "", "", fmt.Errorf("Failed to interpret path: %s", devname)
+	}
+
+	var err error
+	var major, minor int
+	if m["major"] == "" && m["minor"] == "" {
+		major, minor, err = getDev(devname)
+		if err != nil {
+			return "", "", fmt.Errorf("Device does not exist: %s", devname)
+		}
+	} else if m["major"] == "" || m["minor"] == "" {
+		return "", "", fmt.Errorf("Both major and minor must be supplied for devices")
+	} else {
+		/* ok we have a major:minor and need to create it */
+		major, err = strconv.Atoi(m["major"])
+		if err != nil {
+			return "", "", fmt.Errorf("Bad major %s in device %s", m["major"], m["path"])
+		}
+		minor, err = strconv.Atoi(m["minor"])
+		if err != nil {
+			return "", "", fmt.Errorf("Bad minor %s in device %s", m["minor"], m["path"])
+		}
+	}
+
+	name := strings.Replace(m["path"], "/", "-", -1)
+	devpath := path.Join(c.PathGet(""), name)
+	mode := os.FileMode(0660)
+	if m["type"] == "unix-block" {
+		mode |= syscall.S_IFBLK
+	} else {
+		mode |= syscall.S_IFCHR
+	}
+
+	if m["mode"] != "" {
+		tmp, err := devModeOct(m["mode"])
+		if err != nil {
+			return "", "", fmt.Errorf("Bad mode %s in device %s", m["mode"], m["path"])
+		}
+		mode = os.FileMode(tmp)
+	}
+
+	os.Remove(devpath)
+	if err := syscall.Mknod(devpath, uint32(mode), minor|(major<<8)); err != nil {
+		if shared.PathExists(devname) {
+			return devname, tgtname, nil
+		}
+		return "", "", fmt.Errorf("Failed to create device %s for %s: %s", devpath, m["path"], err)
+	}
+
+	if err := c.idmapset.ShiftFile(devpath); err != nil {
+		// uidshift failing is weird, but not a big problem.  Log and proceed
+		shared.Debugf("Failed to uidshift device %s: %s\n", m["path"], err)
+	}
+
+	return devpath, tgtname, nil
+}
+
+func (c *containerLXD) setupUnixDev(m shared.Device) error {
+	source, target, err := c.createUnixDevice(m)
+	if err != nil {
+		return fmt.Errorf("Failed to setup device %s: %s", m["path"], err)
+	}
+
+	options, err := devGetOptions(m)
+	if err != nil {
+		return err
+	}
+
+	if c.c.Running() {
+		// insert mount from 'source' to 'target'
+		err := c.insertMount(source, target, "none", syscall.MS_BIND, options)
+		if err != nil {
+			return fmt.Errorf("Failed to add mount for device %s: %s", m["path"], err)
+		}
+
+		// add the new device cgroup rule
+		entry, err := deviceCgroupInfo(m)
+		if err != nil {
+			return fmt.Errorf("Failed to add cgroup rule for device %s: %s", m["path"], err)
+		}
+		if err := c.c.SetCgroupItem("devices.allow", entry); err != nil {
+			return fmt.Errorf("Failed to add cgroup rule %s for device %s: %s", entry, m["path"], err)
+		}
+	}
+
+	entry := fmt.Sprintf("%s %s none %s", source, target, options)
+	return c.c.SetConfigItem("lxc.mount.entry", entry)
+}
+
 func (c *containerLXD) Start() error {
 	if c.IsRunning() {
 		return fmt.Errorf("the container is already running")
@@ -669,8 +907,17 @@ func (c *containerLXD) Start() error {
 		return err
 	}
 
+	/*
+	 * add the lxc.* entries for the configured devices,
+	 * and create if necessary
+	 */
+	if err := c.applyDevices(); err != nil {
+		return err
+	}
+
 	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
 	if err != nil {
+		unmountTempBlocks(c.PathGet(""))
 		c.StorageStop()
 		return err
 	}
@@ -678,6 +925,7 @@ func (c *containerLXD) Start() error {
 	if err = f.Chmod(0600); err != nil {
 		f.Close()
 		os.Remove(configPath)
+		unmountTempBlocks(c.PathGet(""))
 		c.StorageStop()
 		return err
 	}
@@ -685,12 +933,14 @@ func (c *containerLXD) Start() error {
 
 	err = c.c.SaveConfigFile(configPath)
 	if err != nil {
+		unmountTempBlocks(c.PathGet(""))
 		c.StorageStop()
 		return err
 	}
 
 	err = c.TemplateApply("start")
 	if err != nil {
+		unmountTempBlocks(c.PathGet(""))
 		c.StorageStop()
 		return err
 	}
@@ -700,6 +950,8 @@ func (c *containerLXD) Start() error {
 
 	lastIdmap, err := c.LastIdmapSetGet()
 	if err != nil {
+		unmountTempBlocks(c.PathGet(""))
+		c.StorageStop()
 		return err
 	}
 
@@ -707,6 +959,7 @@ func (c *containerLXD) Start() error {
 	if idmap != nil {
 		idmapBytes, err := json.Marshal(idmap.Idmap)
 		if err != nil {
+			unmountTempBlocks(c.PathGet(""))
 			c.StorageStop()
 			return err
 		}
@@ -720,6 +973,7 @@ func (c *containerLXD) Start() error {
 
 		if lastIdmap != nil {
 			if err := lastIdmap.UnshiftRootfs(c.RootfsPathGet()); err != nil {
+				unmountTempBlocks(c.PathGet(""))
 				c.StorageStop()
 				return err
 			}
@@ -727,6 +981,7 @@ func (c *containerLXD) Start() error {
 
 		if idmap != nil {
 			if err := idmap.ShiftRootfs(c.RootfsPathGet()); err != nil {
+				unmountTempBlocks(c.PathGet(""))
 				c.StorageStop()
 				return err
 			}
@@ -736,6 +991,7 @@ func (c *containerLXD) Start() error {
 	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
 
 	if err != nil {
+		unmountTempBlocks(c.PathGet(""))
 		c.StorageStop()
 		return err
 	}
@@ -749,6 +1005,7 @@ func (c *containerLXD) Start() error {
 		configPath).Run()
 
 	if err != nil {
+		unmountTempBlocks(c.PathGet(""))
 		c.StorageStop()
 		err = fmt.Errorf(
 			"Error calling 'lxd forkstart %s %s %s': err='%v'",
@@ -762,6 +1019,10 @@ func (c *containerLXD) Start() error {
 		containerWatchEphemeral(c.daemon, c)
 	}
 
+	if err != nil {
+		unmountTempBlocks(c.PathGet(""))
+		c.StorageStop()
+	}
 	return err
 }
 
@@ -813,6 +1074,8 @@ func (c *containerLXD) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
+	unmountTempBlocks(c.PathGet(""))
+
 	if err := AAUnloadProfile(c); err != nil {
 		return err
 	}
@@ -831,6 +1094,9 @@ func (c *containerLXD) Stop() error {
 	if err := c.StorageStop(); err != nil {
 		return err
 	}
+
+	// Clean up any mounts from previous runs
+	unmountTempBlocks(c.PathGet(""))
 
 	if err := AAUnloadProfile(c); err != nil {
 		return err
@@ -939,6 +1205,7 @@ func (c *containerLXD) Delete() error {
 		if err := c.Storage.ContainerDelete(c); err != nil {
 			return err
 		}
+		unmountTempBlocks(c.PathGet(""))
 	case cTypeSnapshot:
 		if err := c.Storage.ContainerSnapshotDelete(c); err != nil {
 			return err
@@ -1122,11 +1389,6 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	 * raw.apparmor need to be parsed once to make sure they make sense.
 	 */
 	preDevList := c.devices
-
-	/* Validate devices */
-	if err := validateConfig(c, newContainerArgs.Devices); err != nil {
-		return err
-	}
 
 	if err := c.applyConfig(newContainerArgs.Config); err != nil {
 		return err
@@ -1436,79 +1698,79 @@ func (c *containerLXD) DetachMount(m shared.Device) error {
 	return exec.Command(os.Args[0], "forkumount", pidstr, m["path"]).Run()
 }
 
+/* This is called when adding a mount to a *running* container */
 func (c *containerLXD) AttachMount(m shared.Device) error {
 	dest := m["path"]
 	source := m["source"]
-
-	opts := ""
-	fstype := "none"
 	flags := 0
+
 	sb, err := os.Stat(source)
 	if err != nil {
 		return err
 	}
-	if sb.IsDir() {
-		flags |= syscall.MS_BIND
-		opts = "bind,create=dir"
-	} else {
-		if !shared.IsBlockdev(sb.Mode()) {
-			// Not sure if we want to try dealing with loopdevs, but
-			// since we'd need to deal with partitions i think not.
-			// We also might want to support file bind mounting, but
-			// this doesn't do that.
-			return fmt.Errorf("non-block device file not supported")
-		}
 
-		fstype, err = shared.BlockFsDetect(source)
+	opts, readonly, optional := getMountOptions(m)
+	if readonly {
+		flags |= syscall.MS_RDONLY
+	}
+
+	if shared.IsBlockdev(sb.Mode()) {
+		fstype, err := shared.BlockFsDetect(source)
 		if err != nil {
+			if optional {
+				shared.Log.Warn("Failed to detect fstype for block device",
+					log.Ctx{"error": err, "source": source})
+				return nil
+			}
 			return fmt.Errorf("Unable to detect fstype for %s: %s", source, err)
 		}
-	}
 
-	// add a lxc.mount.entry = souce destination, in case of reboot
-	if m["readonly"] == "1" || m["readonly"] == "true" {
-		if opts == "" {
-			opts = "ro"
-		} else {
-			opts = opts + ",ro"
+		// Mount blockdev into $containerdir/blk.$(mktemp)
+		fnam := fmt.Sprintf("blk.%s", strings.Replace(source, "/", "-", -1))
+		blkmnt := filepath.Join(c.PathGet(""), fnam)
+		syscall.Unmount(blkmnt, syscall.MNT_DETACH)
+		os.Remove(blkmnt)
+		if err = os.Mkdir(blkmnt, 0660); err != nil {
+			if optional {
+				return nil
+			}
+			return fmt.Errorf("Unable to create mountpoint for blockdev %s: %s", source, err)
 		}
-	}
-	optional := false
-	if m["optional"] == "1" || m["optional"] == "true" {
-		optional = true
-		opts = opts + ",optional"
-	}
+		if err = syscall.Mount(source, blkmnt, fstype, uintptr(flags), ""); err != nil {
+			if optional {
+				return nil
+			}
+			return fmt.Errorf("Unable to prepare blockdev mount for %s: %s", source, err)
+		}
 
-	entry := fmt.Sprintf("%s %s %s %s 0 0", source, dest, fstype, opts)
+		source = blkmnt
+		opts = append(opts, "create=dir")
+	} else if sb.IsDir() {
+		opts = append(opts, "create=dir")
+	} else {
+		opts = append(opts, "create=file")
+	}
+	opts = append(opts, "bind")
+	flags |= syscall.MS_BIND
+	optstr := strings.Join(opts, ",")
+
+	entry := fmt.Sprintf("%s %s %s %s 0 0", source, dest, "none", optstr)
 	if err := setConfigItem(c, "lxc.mount.entry", entry); err != nil {
-		return err
+		if optional {
+			shared.Log.Warn("Failed to setup lxc mount for block device",
+				log.Ctx{"error": err, "source": source})
+		}
+		return fmt.Errorf("Failed to set up lxc mount entry for %s: %s", m["source"], err)
 	}
 
-	pid := c.c.InitPid()
-	if pid == -1 { // container not running - we're done
-		return nil
-	}
-
-	// now live-mount
-	tmpMount, err := ioutil.TempDir(shared.VarPath("shmounts", c.name), "lxdmount_")
+	err = c.insertMount(source, dest, "none", flags, optstr)
 	if err != nil {
-		return err
-	}
-
-	err = syscall.Mount(m["source"], tmpMount, fstype, uintptr(flags), "")
-	if err != nil {
-		return err
-	}
-
-	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
-	// finally we need to move-mount this in the container
-	pidstr := fmt.Sprintf("%d", pid)
-	err = exec.Command(os.Args[0], "forkmount", pidstr, mntsrc, m["path"]).Run()
-	syscall.Unmount(tmpMount, syscall.MNT_DETACH) // in case forkmount failed
-	os.Remove(tmpMount)
-
-	if err != nil && !optional {
-		return err
+		if optional {
+			shared.Log.Warn("Failed to insert mount for block device",
+				log.Ctx{"error": err, "source": m["source"]})
+			return nil
+		}
+		return fmt.Errorf("Failed to insert mount for %s: %s", m["source"], err)
 	}
 	return nil
 }
@@ -1778,7 +2040,7 @@ func (c *containerLXD) applyDevices() error {
 			continue
 		}
 
-		configs, err := deviceToLxc(d)
+		configs, err := deviceToLxc(c.PathGet(""), d)
 		if err != nil {
 			return fmt.Errorf("Failed configuring device %s: %s", name, err)
 		}
@@ -1786,6 +2048,11 @@ func (c *containerLXD) applyDevices() error {
 			err := setConfigItem(c, line[0], line[1])
 			if err != nil {
 				return fmt.Errorf("Failed configuring device %s: %s", name, err)
+			}
+		}
+		if d["type"] == "unix-block" || d["type"] == "unix-char" {
+			if err := c.setupUnixDev(d); err != nil {
+				return fmt.Errorf("Failed creating device %s: %s", d["name"], err)
 			}
 		}
 	}

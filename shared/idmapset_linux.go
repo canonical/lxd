@@ -275,6 +275,10 @@ func (set *IdmapSet) UnshiftRootfs(p string) error {
 	return set.doUidshiftIntoContainer(p, false, "out")
 }
 
+func (set *IdmapSet) ShiftFile(p string) error {
+	return set.ShiftRootfs(p)
+}
+
 const (
 	minIDRange = 65536
 )

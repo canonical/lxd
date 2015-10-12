@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -14,26 +16,155 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"gopkg.in/lxc/go-lxc.v2"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-func addBlockDev(dev string) ([]string, error) {
-	stat := syscall.Stat_t{}
-	err := syscall.Stat(dev, &stat)
-	if err != nil {
-		return []string{}, err
+func devGetOptions(d shared.Device) (string, error) {
+	opts := []string{"bind", "create=file"}
+	if d["uid"] != "" {
+		u, err := strconv.Atoi(d["uid"])
+		if err != nil {
+			return "", err
+		}
+		opts = append(opts, fmt.Sprintf("uid=%d", u))
 	}
-	k := "lxc.cgroup.devices.allow"
-	v := fmt.Sprintf("b %d:%d rwm", uint(stat.Rdev/256), uint(stat.Rdev%256))
-	line := []string{k, v}
-	return line, err
+	if d["gid"] != "" {
+		g, err := strconv.Atoi(d["gid"])
+		if err != nil {
+			return "", err
+		}
+		opts = append(opts, fmt.Sprintf("gid=%d", g))
+	}
+	if d["mode"] != "" {
+		m, err := devModeOct(d["mode"])
+		if err != nil {
+			return "", err
+		}
+		opts = append(opts, fmt.Sprintf("mode=%0d", m))
+	} else {
+		opts = append(opts, "mode=0660")
+	}
+
+	return strings.Join(opts, ","), nil
 }
 
-func deviceToLxc(d shared.Device) ([][]string, error) {
+func modeHasRead(mode int) bool {
+	if mode&0444 != 0 {
+		return true
+	}
+	return false
+}
+
+func modeHasWrite(mode int) bool {
+	if mode&0222 != 0 {
+		return true
+	}
+	return false
+}
+
+func devModeOct(strmode string) (int, error) {
+	if strmode == "" {
+		return 0660, nil
+	}
+	i, err := strconv.ParseInt(strmode, 8, 32)
+	if err != nil {
+		return 0, fmt.Errorf("Bad device mode: %s", strmode)
+	}
+	return int(i), nil
+}
+
+func devModeString(strmode string) (string, error) {
+	i, err := devModeOct(strmode)
+	if err != nil {
+		return "", err
+	}
+	mode := "m"
+	if modeHasRead(i) {
+		mode = mode + "r"
+	}
+	if modeHasWrite(i) {
+		mode = mode + "w"
+	}
+	return mode, nil
+}
+
+func getDev(path string) (int, int, error) {
+	stat := syscall.Stat_t{}
+	err := syscall.Stat(path, &stat)
+	if err != nil {
+		return 0, 0, err
+	}
+	major := int(stat.Rdev / 256)
+	minor := int(stat.Rdev % 256)
+	return major, minor, nil
+}
+
+func deviceCgroupInfo(dev shared.Device) (string, error) {
+	var err error
+
+	t := dev["type"]
+	switch t {
+	case "unix-char":
+		t = "c"
+	case "unix-block":
+		t = "b"
+	default: // internal error - look at how we were called
+		return "", fmt.Errorf("BUG: bad device type %s", dev["type"])
+	}
+
+	var major, minor int
+	if dev["major"] == "" && dev["minor"] == "" {
+		devname := dev["path"]
+		if !filepath.IsAbs(devname) {
+			devname = filepath.Join("/", devname)
+		}
+		major, minor, err = getDev(devname)
+		if err != nil {
+			return "", err
+		}
+	} else if dev["major"] != "" && dev["minor"] != "" {
+		major, err = strconv.Atoi(dev["major"])
+		if err != nil {
+			return "", err
+		}
+		minor, err = strconv.Atoi(dev["minor"])
+		if err != nil {
+			return "", err
+		}
+	} else {
+		return "", fmt.Errorf("Both major and minor must be supplied for devices")
+	}
+
+	mode, err := devModeString(dev["mode"])
+	if err != nil {
+		return "", err
+	}
+	devcg := fmt.Sprintf("%s %d:%d %s", t, major, minor, mode)
+	return devcg, nil
+}
+
+/*
+ * unixDevCgroup only grabs the cgroup devices.allow statement
+ * we need.  We'll add a mount.entry to bind mount the actual
+ * device later.
+ */
+func unixDevCgroup(dev shared.Device) ([][]string, error) {
+	devcg, err := deviceCgroupInfo(dev)
+	if err != nil {
+		return [][]string{}, err
+	}
+	entry := []string{"lxc.cgroup.devices.allow", devcg}
+	return [][]string{entry}, nil
+}
+
+func deviceToLxc(cntPath string, d shared.Device) ([][]string, error) {
 	switch d["type"] {
 	case "unix-char":
-		return nil, fmt.Errorf("Not implemented")
+		return unixDevCgroup(d)
 	case "unix-block":
-		return nil, fmt.Errorf("Not implemented")
+		return unixDevCgroup(d)
+
 	case "nic":
 		if d["nictype"] != "bridged" && d["nictype"] != "" {
 			return nil, fmt.Errorf("Bad nic type: %s", d["nictype"])
@@ -68,22 +199,15 @@ func deviceToLxc(d shared.Device) ([][]string, error) {
 		} else {
 			p = d["path"]
 		}
-		/* TODO - check whether source is a disk, loopback, btrfs subvol, etc */
-		/* for now we only handle directory bind mounts */
 		source := d["source"]
-		fstype := "none"
 		options := []string{}
-		var err error
 		if shared.IsBlockdevPath(d["source"]) {
-			fstype, err = shared.BlockFsDetect(d["source"])
-			if err != nil {
-				return nil, fmt.Errorf("Error setting up %s: %s", d["name"], err)
-			}
-			l, err := addBlockDev(d["source"])
+			l, err := mountTmpBlockdev(cntPath, d)
 			if err != nil {
 				return nil, fmt.Errorf("Error adding blockdev: %s", err)
 			}
 			configLines = append(configLines, l)
+			return configLines, nil
 		} else if shared.IsDir(source) {
 			options = append(options, "bind")
 			options = append(options, "create=dir")
@@ -103,7 +227,7 @@ func deviceToLxc(d shared.Device) ([][]string, error) {
 		if opts == "" {
 			opts = "defaults"
 		}
-		l := []string{"lxc.mount.entry", fmt.Sprintf("%s %s %s %s 0 0", source, p, fstype, opts)}
+		l := []string{"lxc.mount.entry", fmt.Sprintf("%s %s %s %s 0 0", source, p, "none", opts)}
 		configLines = append(configLines, l)
 		return configLines, nil
 	case "none":
@@ -370,6 +494,33 @@ func txUpdateNic(tx *sql.Tx, cId int, devname string, nicname string) error {
 	return err
 }
 
+func (c *containerLXD) DetachUnixDev(dev shared.Device) error {
+	cginfo, err := deviceCgroupInfo(dev)
+	if err != nil {
+		return err
+	}
+	c.c.SetCgroupItem("devices.remove", cginfo)
+	pid := c.c.InitPid()
+	if pid == -1 { // container not running
+		return nil
+	}
+	pidstr := fmt.Sprintf("%d", pid)
+	if err := exec.Command(os.Args[0], "forkumount", pidstr, dev["path"]).Run(); err != nil {
+		shared.Log.Warn("Error unmounting device", log.Ctx{"Error": err})
+		return err
+	}
+	if err := os.Remove(fmt.Sprintf("/proc/%d/root/%s", pid, dev["path"])); err != nil {
+		shared.Log.Warn("Error removing device", log.Ctx{"Error": err})
+		return err
+	}
+
+	return nil
+}
+
+func (c *containerLXD) AttachUnixDev(dev shared.Device) error {
+	return c.setupUnixDev(dev)
+}
+
 /*
  * Given a running container and a list of devices before and after a
  * config change, update the devices in the container.
@@ -392,6 +543,10 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 			}
 		case "disk":
 			return c.DetachMount(dev)
+		case "unix-block":
+			return c.DetachUnixDev(dev)
+		case "unix-char":
+			return c.DetachUnixDev(dev)
 		}
 	}
 
@@ -418,19 +573,12 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 				return fmt.Errorf("no source or destination given")
 			}
 			return c.AttachMount(dev)
+		case "unix-block":
+			return c.AttachUnixDev(dev)
+		case "unix-char":
+			return c.AttachUnixDev(dev)
 		}
 	}
 
-	return nil
-}
-
-func validateConfig(c container, devs shared.Devices) error {
-	for _, dev := range devs {
-		if dev["type"] == "disk" && shared.IsBlockdevPath(dev["source"]) {
-			if !c.IsPrivileged() {
-				return fmt.Errorf("Only privileged containers may mount block devices")
-			}
-		}
-	}
 	return nil
 }
