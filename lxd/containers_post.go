@@ -147,7 +147,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		if err != nil {
 			c.StorageStop()
 			c.Delete()
-			return shared.OperationError(err)
+			return shared.OperationError(fmt.Errorf("Error transferring container data: %s", err))
 		}
 
 		defer c.StorageStop()
