@@ -758,8 +758,10 @@ func (d *Daemon) Init() error {
 		}
 
 		/* Restart containers */
-		containersRestart(d)
-		containersWatch(d)
+		go func() {
+			containersWatch(d)
+			containersRestart(d)
+		}()
 
 		/* Setup the TLS authentication */
 		certf, keyf, err := readMyCert()
