@@ -24,6 +24,14 @@ func (a ByName) Swap(i, j int) {
 }
 
 func (a ByName) Less(i, j int) bool {
+	if a[i][0] == "" {
+		return false
+	}
+
+	if a[j][0] == "" {
+		return true
+	}
+
 	return a[i][0] < a[j][0]
 }
 

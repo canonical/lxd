@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-10-08 10:52-0400\n"
+        "POT-Creation-Date: 2015-10-12 21:34-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -82,11 +82,11 @@ msgstr  ""
 msgid   "A remote name must be provided."
 msgstr  ""
 
-#: lxc/image.go:520 lxc/image.go:541
+#: lxc/image.go:521 lxc/image.go:543
 msgid   "ALIAS"
 msgstr  ""
 
-#: lxc/image.go:524
+#: lxc/image.go:525
 msgid   "ARCH"
 msgstr  ""
 
@@ -166,7 +166,7 @@ msgstr  ""
 msgid   "Container name is mandatory"
 msgstr  ""
 
-#: lxc/publish.go:82 lxc/publish.go:103
+#: lxc/publish.go:82 lxc/publish.go:102
 #, c-format
 msgid   "Container published with fingerprint: %s"
 msgstr  ""
@@ -205,7 +205,7 @@ msgstr  ""
 msgid   "Creating %s"
 msgstr  ""
 
-#: lxc/image.go:523
+#: lxc/image.go:524
 msgid   "DESCRIPTION"
 msgstr  ""
 
@@ -271,7 +271,7 @@ msgstr  ""
 msgid   "Expires: never"
 msgstr  ""
 
-#: lxc/config.go:198 lxc/image.go:521 lxc/image.go:542
+#: lxc/config.go:198 lxc/image.go:522 lxc/image.go:544
 msgid   "FINGERPRINT"
 msgstr  ""
 
@@ -576,7 +576,7 @@ msgstr  ""
 msgid   "Output is in %s"
 msgstr  ""
 
-#: lxc/image.go:522 lxc/remote.go:242
+#: lxc/image.go:523 lxc/remote.go:242
 msgid   "PUBLIC"
 msgstr  ""
 
@@ -666,6 +666,10 @@ msgstr  ""
 msgid   "Remote admin password"
 msgstr  ""
 
+#: lxc/image.go:526
+msgid   "SIZE"
+msgstr  ""
+
 #: lxc/list.go:162
 msgid   "SNAPSHOTS"
 msgstr  ""
@@ -715,7 +719,7 @@ msgstr  ""
 
 #: lxc/image.go:219
 #, c-format
-msgid   "Size: %.2vMB"
+msgid   "Size: %.2fMB"
 msgstr  ""
 
 #: lxc/info.go:84 lxc/list.go:172
@@ -765,7 +769,7 @@ msgstr  ""
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
 
-#: lxc/image.go:525
+#: lxc/image.go:527
 msgid   "UPLOAD DATE"
 msgstr  ""
 
