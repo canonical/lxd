@@ -141,14 +141,16 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 
 		// Start the storage for this container (LVM mount/umount)
 		c.StorageStart()
-		defer c.StorageStop()
 
 		// And finaly run the migration.
 		err = sink()
 		if err != nil {
+			c.StorageStop()
 			c.Delete()
 			return shared.OperationError(err)
 		}
+
+		defer c.StorageStop()
 
 		err = c.TemplateApply("copy")
 		if err != nil {
