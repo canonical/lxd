@@ -36,7 +36,7 @@ func TestRsyncSendRecv(t *testing.T) {
 	f.Write([]byte(helloWorld))
 	f.Close()
 
-	send, sendConn, err := rsyncSendSetup(shared.AddSlash(source))
+	send, sendConn, _, err := rsyncSendSetup(shared.AddSlash(source))
 	if err != nil {
 		t.Error(err)
 		return
