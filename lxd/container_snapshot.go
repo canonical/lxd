@@ -50,7 +50,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			continue
 		}
 
-		snapName := strings.TrimLeft(name, regexp)
+		snapName := strings.TrimPrefix(name, regexp)
 		if recursion == 0 {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
