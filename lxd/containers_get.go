@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/lxc/lxd/shared"
@@ -71,7 +72,7 @@ func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
 	var body []string
 
 	for _, name := range results {
-		url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, name)
+		url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, strings.SplitN(name, shared.SnapshotDelimiter, 2)[1])
 		body = append(body, url)
 	}
 
