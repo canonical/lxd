@@ -174,6 +174,8 @@ func NewMigrationSource(c container) (shared.OperationWebsocket, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		c.StorageStart()
 	}
 
 	return &ret, nil
@@ -228,6 +230,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 	criuType := CRIUType_CRIU_RSYNC.Enum()
 	if !s.live {
 		criuType = nil
+		defer s.container.StorageStop()
 	}
 
 	idmaps := make([]*IDMapType, 0)
