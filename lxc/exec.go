@@ -125,7 +125,7 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		env[pieces[0]] = value
 	}
 
-	cfd := syscall.Stdout
+	cfd := syscall.Stdin
 	var oldttystate *terminal.State
 	interactive := terminal.IsTerminal(cfd)
 	if interactive {
