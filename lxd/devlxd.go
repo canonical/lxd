@@ -161,14 +161,14 @@ func setupDevLxdMount(c *containerLXD) error {
 	return setConfigItem(c, "lxc.mount.entry", mtab)
 }
 
-func devLxdServer(d *Daemon) http.Server {
+func devLxdServer(d *Daemon) *http.Server {
 	m := mux.NewRouter()
 
 	for _, handler := range handlers {
 		m.HandleFunc(handler.path, hoistReq(handler.f, d))
 	}
 
-	return http.Server{
+	return &http.Server{
 		Handler:   m,
 		ConnState: pidMapper.ConnStateHandler,
 	}
