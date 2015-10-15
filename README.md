@@ -40,7 +40,7 @@ host boot, but are needed if you'd like to use a particular backend:
 
 To run the testsuite, you'll also need:
 
-    sudo apt-get install curl gettext jq sqlite3
+    sudo apt-get install curl gettext jq sqlite3 uuid-runtime pyflakes pep8 shellcheck bzr
 
 ### Building the tools
 
