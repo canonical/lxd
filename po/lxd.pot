@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-10-12 21:34-0700\n"
+        "POT-Creation-Date: 2015-10-14 17:07-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -227,7 +227,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:161
+#: lxc/list.go:169
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -302,11 +302,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:159
+#: lxc/list.go:167
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:160
+#: lxc/list.go:168
 msgid   "IPV6"
 msgstr  ""
 
@@ -390,7 +390,7 @@ msgid   "List information on containers.\n"
         "lxc info [<remote>:]container [--show-log]"
 msgstr  ""
 
-#: lxc/list.go:37
+#: lxc/list.go:45
 msgid   "Lists the available resources.\n"
         "\n"
         "lxc list [resource] [filters]\n"
@@ -538,11 +538,11 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move [remote:]<source container> [remote:]<destination container>"
 msgstr  ""
 
-#: lxc/list.go:157 lxc/remote.go:240
+#: lxc/list.go:165 lxc/remote.go:240
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/list.go:146 lxc/remote.go:234
+#: lxc/list.go:154 lxc/remote.go:234
 msgid   "NO"
 msgstr  ""
 
@@ -670,11 +670,11 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:162
+#: lxc/list.go:170
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:158
+#: lxc/list.go:166
 msgid   "STATE"
 msgstr  ""
 
@@ -722,7 +722,7 @@ msgstr  ""
 msgid   "Size: %.2fMB"
 msgstr  ""
 
-#: lxc/info.go:84 lxc/list.go:172
+#: lxc/info.go:84 lxc/list.go:180
 msgid   "Snapshots:"
 msgstr  ""
 
@@ -819,7 +819,7 @@ msgstr  ""
 msgid   "YAML parse error %v"
 msgstr  ""
 
-#: lxc/list.go:144 lxc/remote.go:232
+#: lxc/list.go:152 lxc/remote.go:232
 msgid   "YES"
 msgstr  ""
 
