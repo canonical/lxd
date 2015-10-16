@@ -459,7 +459,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		return err
 
 	default:
-		return fmt.Errorf(gettext.Gettext("Unknown image command %s"), args[0])
+		return errArgs
 	}
 }
 
