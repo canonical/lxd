@@ -246,7 +246,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 			return d.CertificateRemove(args[len(args)-1])
 		default:
-			return fmt.Errorf(gettext.Gettext("Unkonwn config trust command %s"), args[1])
+			return errArgs
 		}
 
 	case "show":
