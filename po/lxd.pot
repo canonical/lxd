@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-10-14 17:07-0700\n"
+        "POT-Creation-Date: 2015-10-19 11:29-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,7 +158,7 @@ msgstr  ""
 msgid   "Config parsing error: %s"
 msgstr  ""
 
-#: lxc/main.go:33
+#: lxc/main.go:34
 msgid   "Connection refused; is LXD running?"
 msgstr  ""
 
@@ -235,11 +235,11 @@ msgstr  ""
 msgid   "EXPIRY DATE"
 msgstr  ""
 
-#: lxc/main.go:54
+#: lxc/main.go:55
 msgid   "Enables debug mode."
 msgstr  ""
 
-#: lxc/main.go:53
+#: lxc/main.go:54
 msgid   "Enables verbose mode."
 msgstr  ""
 
@@ -286,7 +286,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>"
 msgstr  ""
 
-#: lxc/main.go:136
+#: lxc/main.go:145
 msgid   "For example: 'lxd-images import ubuntu --alias ubuntu'."
 msgstr  ""
 
@@ -294,11 +294,11 @@ msgstr  ""
 msgid   "Force the container to shutdown."
 msgstr  ""
 
-#: lxc/main.go:55
+#: lxc/main.go:56
 msgid   "Force using the local unix socket."
 msgstr  ""
 
-#: lxc/main.go:128
+#: lxc/main.go:137
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
@@ -314,7 +314,7 @@ msgstr  ""
 msgid   "ISSUE DATE"
 msgstr  ""
 
-#: lxc/main.go:135
+#: lxc/main.go:144
 msgid   "If this is your first run, you will need to import images using the 'lxd-images' script."
 msgstr  ""
 
@@ -364,7 +364,7 @@ msgstr  ""
 msgid   "Ips:"
 msgstr  ""
 
-#: lxc/main.go:31
+#: lxc/main.go:32
 msgid   "LXD socket not found; is LXD running?"
 msgstr  ""
 
@@ -567,7 +567,7 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: lxc/help.go:64 lxc/main.go:93
+#: lxc/help.go:64 lxc/main.go:124
 msgid   "Options:"
 msgstr  ""
 
@@ -588,7 +588,7 @@ msgstr  ""
 msgid   "Path to an alternate server directory."
 msgstr  ""
 
-#: lxc/main.go:35
+#: lxc/main.go:36
 msgid   "Permisson denied, are you in the lxd group?"
 msgstr  ""
 
@@ -777,27 +777,12 @@ msgstr  ""
 msgid   "URL"
 msgstr  ""
 
-#: lxc/image.go:462
-#, c-format
-msgid   "Unknown image command %s"
-msgstr  ""
-
-#: lxc/remote.go:298
-#, c-format
-msgid   "Unknown remote subcommand %s"
-msgstr  ""
-
-#: lxc/config.go:249
-#, c-format
-msgid   "Unkonwn config trust command %s"
-msgstr  ""
-
 #: lxc/image.go:228
 #, c-format
 msgid   "Uploaded: %s"
 msgstr  ""
 
-#: lxc/main.go:93
+#: lxc/main.go:124
 #, c-format
 msgid   "Usage: %s"
 msgstr  ""
@@ -827,7 +812,7 @@ msgstr  ""
 msgid   "You must provide an image hash or alias name."
 msgstr  ""
 
-#: lxc/main.go:63
+#: lxc/main.go:64
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
@@ -891,12 +876,12 @@ msgstr  ""
 msgid   "error."
 msgstr  ""
 
-#: lxc/main.go:21 lxc/main.go:141
+#: lxc/main.go:22 lxc/main.go:154
 #, c-format
 msgid   "error: %v"
 msgstr  ""
 
-#: lxc/help.go:41 lxc/main.go:87
+#: lxc/help.go:41 lxc/main.go:118
 #, c-format
 msgid   "error: unknown command: %s"
 msgstr  ""
@@ -925,11 +910,6 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: lxc/file.go:270
-#, c-format
-msgid   "invalid argument %s"
-msgstr  ""
-
 #: client.go:1471
 #, c-format
 msgid   "invalid wait url %s"
@@ -956,6 +936,11 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
+#: lxc/main.go:217 lxc/main.go:221
+#, c-format
+msgid   "processing aliases failed %s\n"
+msgstr  ""
+
 #: lxc/remote.go:260
 #, c-format
 msgid   "remote %s already exists"
@@ -976,11 +961,6 @@ msgstr  ""
 msgid   "unknown group %s"
 msgstr  ""
 
-#: lxc/profile.go:127
-#, c-format
-msgid   "unknown profile cmd %s"
-msgstr  ""
-
 #: client.go:253
 #, c-format
 msgid   "unknown remote name: %q"
@@ -995,7 +975,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:180
+#: lxc/main.go:193
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
