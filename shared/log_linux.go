@@ -13,7 +13,7 @@ func GetSystemHandler(syslog string, debug bool) (log.Handler) {
 		if !debug {
 			return log.LvlFilterHandler(
 				log.LvlInfo,
-				log.Must.SyslogHandler(syslog, log.LogfmtFormat())
+				log.Must.SyslogHandler(syslog, log.LogfmtFormat()),
 			)
 		} else {
 			return log.Must.SyslogHandler(syslog, log.LogfmtFormat())
