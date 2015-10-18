@@ -13,6 +13,27 @@ import (
 	"github.com/chai2010/gettext-go/gettext"
 )
 
+func GetFileStat(p string) (uid int, gid int, major int, minor int,
+	inode uint64, nlink int, err error) {
+	var stat syscall.Stat_t
+	err = syscall.Lstat(p, &stat)
+	if err != nil {
+		return
+	}
+	uid = int(stat.Uid)
+	gid = int(stat.Gid)
+	inode = uint64(stat.Ino)
+	nlink = int(stat.Nlink)
+	major = -1
+	minor = -1
+	if stat.Mode&syscall.S_IFBLK != 0 || stat.Mode&syscall.S_IFCHR != 0 {
+		major = int(stat.Rdev / 256)
+		minor = int(stat.Rdev % 256)
+	}
+
+	return
+}
+
 // #cgo LDFLAGS: -lutil -lpthread
 /*
 #define _GNU_SOURCE
