@@ -18,9 +18,9 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool) error {
 
 	var handlers []log.Handler
 
-        var syshandler log.Handler
+	var syshandler log.Handler
 
-        // System specific handler
+	// System specific handler
 	syshandler = GetSystemHandler(syslog, debug)
 	if syshandler != nil {
 		handlers = append(handlers, syshandler)

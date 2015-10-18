@@ -7,7 +7,7 @@ import (
 )
 
 // GetSystemHandler on Linux writes messages to syslog.
-func GetSystemHandler(syslog string, debug bool) (log.Handler) {
+func GetSystemHandler(syslog string, debug bool) log.Handler {
 	// SyslogHandler
 	if syslog != "" {
 		if !debug {
