@@ -7,6 +7,6 @@ import (
 )
 
 // GetSystemHandler on Windows does nothing.
-func GetSystemHandler(syslog string, debug bool) (log.Handler) {
+func GetSystemHandler(syslog string, debug bool) log.Handler {
 	return nil
 }
