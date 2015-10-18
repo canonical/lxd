@@ -18,19 +18,12 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool) error {
 
 	var handlers []log.Handler
 
-	// SyslogHandler
-	if syslog != "" {
-		if !debug {
-			handlers = append(
-				handlers,
-				log.LvlFilterHandler(
-					log.LvlInfo,
-					log.Must.SyslogHandler(syslog, log.LogfmtFormat()),
-				),
-			)
-		} else {
-			handlers = append(handlers, log.Must.SyslogHandler(syslog, log.LogfmtFormat()))
-		}
+	var syshandler log.Handler
+
+	// System specific handler
+	syshandler = GetSystemHandler(syslog, debug)
+	if syshandler != nil {
+		handlers = append(handlers, syshandler)
 	}
 
 	// FileHandler
