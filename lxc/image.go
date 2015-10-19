@@ -327,7 +327,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			image = inName
 		}
 
-		if !terminal.IsTerminal(syscall.Stdin) {
+		if !terminal.IsTerminal(int(syscall.Stdin)) {
 			contents, err := ioutil.ReadAll(os.Stdin)
 			if err != nil {
 				return err

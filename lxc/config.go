@@ -96,7 +96,7 @@ func doSet(config *lxd.Config, args []string) error {
 	key := args[2]
 	value := args[3]
 
-	if !terminal.IsTerminal(syscall.Stdin) && value == "-" {
+	if !terminal.IsTerminal(int(syscall.Stdin)) && value == "-" {
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("Can't read from stdin: %s", err)
@@ -342,7 +342,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 }
 
 func doConfigEdit(client *lxd.Client, cont string) error {
-	if !terminal.IsTerminal(syscall.Stdin) {
+	if !terminal.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return err
