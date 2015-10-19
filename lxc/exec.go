@@ -52,7 +52,7 @@ func (c *execCmd) flags() {
 }
 
 func sendTermSize(control *websocket.Conn) error {
-	width, height, err := terminal.GetSize(syscall.Stdout)
+	width, height, err := terminal.GetSize(int(syscall.Stdout))
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		env[pieces[0]] = value
 	}
 
-	cfd := syscall.Stdin
+	cfd := int(syscall.Stdin)
 	var oldttystate *terminal.State
 	interactive := terminal.IsTerminal(cfd)
 	if interactive {
