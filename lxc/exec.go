@@ -53,6 +53,9 @@ func (c *execCmd) flags() {
 }
 
 func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGWINCH)
+
 	for {
 		width, height, err := terminal.GetSize(syscall.Stdout)
 		if err != nil {
@@ -86,8 +89,6 @@ func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
 			break
 		}
 
-		ch := make(chan os.Signal)
-		signal.Notify(ch, syscall.SIGWINCH)
 		sig := <-ch
 
 		shared.Debugf("Received '%s signal', updating window geometry.", sig)
