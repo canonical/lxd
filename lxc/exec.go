@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
@@ -52,49 +51,33 @@ func (c *execCmd) flags() {
 	gnuflag.Var(&envArgs, "env", gettext.Gettext("An environment variable of the form HOME=/home/foo"))
 }
 
-func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
-	for {
-		width, height, err := terminal.GetSize(syscall.Stdout)
-		if err != nil {
-			continue
-		}
-
-		shared.Debugf("Window size is now: %dx%d", width, height)
-
-		w, err := control.NextWriter(websocket.TextMessage)
-		if err != nil {
-			shared.Debugf("Got error getting next writer %s", err)
-			break
-		}
-
-		msg := shared.ContainerExecControl{}
-		msg.Command = "window-resize"
-		msg.Args = make(map[string]string)
-		msg.Args["width"] = strconv.Itoa(width)
-		msg.Args["height"] = strconv.Itoa(height)
-
-		buf, err := json.Marshal(msg)
-		if err != nil {
-			shared.Debugf("Failed to convert to json %s", err)
-			break
-		}
-		_, err = w.Write(buf)
-
-		w.Close()
-		if err != nil {
-			shared.Debugf("Got err writing %s", err)
-			break
-		}
-
-		ch := make(chan os.Signal)
-		signal.Notify(ch, syscall.SIGWINCH)
-		sig := <-ch
-
-		shared.Debugf("Received '%s signal', updating window geometry.", sig)
+func sendTermSize(control *websocket.Conn) error {
+	width, height, err := terminal.GetSize(syscall.Stdout)
+	if err != nil {
+		return err
 	}
 
-	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-	control.WriteMessage(websocket.CloseMessage, closeMsg)
+	shared.Debugf("Window size is now: %dx%d", width, height)
+
+	w, err := control.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return err
+	}
+
+	msg := shared.ContainerExecControl{}
+	msg.Command = "window-resize"
+	msg.Args = make(map[string]string)
+	msg.Args["width"] = strconv.Itoa(width)
+	msg.Args["height"] = strconv.Itoa(height)
+
+	buf, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(buf)
+
+	w.Close()
+	return err
 }
 
 func (c *execCmd) run(config *lxd.Config, args []string) error {
