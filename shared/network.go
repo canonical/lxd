@@ -81,6 +81,11 @@ func WebsocketRecvStream(w io.WriteCloser, conn *websocket.Conn) chan bool {
 				break
 			}
 
+			if mt == websocket.TextMessage {
+				Debugf("got message barrier")
+				break
+			}
+
 			if err != nil {
 				Debugf("Got error getting next reader %s, %s", err, w)
 				break
@@ -113,21 +118,30 @@ func WebsocketRecvStream(w io.WriteCloser, conn *websocket.Conn) chan bool {
 }
 
 // WebsocketMirror allows mirroring a reader to a websocket and taking the
-// result and writing it to a writer.
+// result and writing it to a writer. This function allows for multiple
+// mirrorings and correctly negotiates stream endings. However, it means any
+// websocket.Conns passed to it are live when it returns, and must be closed
+// explicitly.
 func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.Reader) chan bool {
 	done := make(chan bool, 2)
 	go func(conn *websocket.Conn, w io.WriteCloser) {
 		for {
 			mt, r, err := conn.NextReader()
+			if err != nil {
+				Debugf("Got error getting next reader %s, %s", err, w)
+				break
+			}
+
 			if mt == websocket.CloseMessage {
 				Debugf("Got close message for reader")
 				break
 			}
 
-			if err != nil {
-				Debugf("Got error getting next reader %s, %s", err, w)
+			if mt == websocket.TextMessage {
+				Debugf("Got message barrier, resetting stream")
 				break
 			}
+
 			buf, err := ioutil.ReadAll(r)
 			if err != nil {
 				Debugf("Got error writing to writer %s", err)
@@ -153,8 +167,7 @@ func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.Reader) chan b
 			buf, ok := <-in
 			if !ok {
 				done <- true
-				conn.WriteMessage(websocket.CloseMessage, []byte{})
-				conn.Close()
+				conn.WriteMessage(websocket.TextMessage, []byte{})
 				return
 			}
 			w, err := conn.NextWriter(websocket.BinaryMessage)

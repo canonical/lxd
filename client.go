@@ -1342,10 +1342,10 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		if err != nil {
 			return -1, err
 		}
-		defer conn.Close()
 
 		shared.WebsocketSendStream(conn, stdin)
 		<-shared.WebsocketRecvStream(stdout, conn)
+		conn.Close()
 
 	} else {
 		conns := make([]*websocket.Conn, 3)
