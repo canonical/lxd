@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
@@ -269,10 +268,24 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		}
 	}
 
+	sources, fsErr := s.container.Storage().MigrationSource(s.container)
+	/* the protocol says we have to send a header no matter what, so let's
+	 * do that, but then immediately send an error.
+	 */
+	snapshots := []string{}
+	if fsErr == nil {
+		for _, snap := range sources[1:] {
+			name := shared.ExtractSnapshotName(snap.Name())
+			snapshots = append(snapshots, name)
+		}
+	}
+
+	myType := s.container.Storage().MigrationType()
 	header := MigrationHeader{
-		Fs:    MigrationFSType_RSYNC.Enum(),
-		Criu:  criuType,
-		Idmap: idmaps,
+		Fs:        &myType,
+		Criu:      criuType,
+		Idmap:     idmaps,
+		Snapshots: snapshots,
 	}
 
 	if err := s.send(&header); err != nil {
@@ -280,13 +293,19 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		return err
 	}
 
+	if fsErr != nil {
+		s.sendControl(fsErr)
+		return fsErr
+	}
+
 	if err := s.recv(&header); err != nil {
 		s.sendControl(err)
 		return err
 	}
 
-	if *header.Fs != MigrationFSType_RSYNC {
-		err := fmt.Errorf("Formats other than rsync not understood")
+	// TODO: actually fall back on rsync.
+	if *header.Fs != myType {
+		err := fmt.Errorf("mismatched storage types not supported yet")
 		s.sendControl(err)
 		return err
 	}
@@ -337,10 +356,12 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		}
 	}
 
-	fsDir := s.container.RootfsPath()
-	if err := RsyncSend(shared.AddSlash(fsDir), s.fsConn); err != nil {
-		s.sendControl(err)
-		return err
+	for _, source := range sources {
+		shared.Debugf("sending fs object %s", source.Name())
+		if err := source.Send(s.fsConn); err != nil {
+			s.sendControl(err)
+			return err
+		}
 	}
 
 	msg := MigrationControl{}
@@ -431,8 +452,6 @@ func (c *migrationSink) do() error {
 		}
 	}
 
-	// For now, we just ignore whatever the server sends us. We only
-	// support RSYNC, so that's what we respond with.
 	header := MigrationHeader{}
 	if err := c.recv(&header); err != nil {
 		c.sendControl(err)
@@ -443,8 +462,17 @@ func (c *migrationSink) do() error {
 	if !c.live {
 		criuType = nil
 	}
+	myType := c.container.Storage().MigrationType()
+	resp := MigrationHeader{
+		Fs:   &myType,
+		Criu: criuType,
+	}
+	// If the storage type the source has doesn't match what we have, then
+	// we have to use rsync.
+	if header.Fs != resp.Fs {
+		resp.Fs = MigrationFSType_RSYNC.Enum()
+	}
 
-	resp := MigrationHeader{Fs: MigrationFSType_RSYNC.Enum(), Criu: criuType}
 	if err := c.send(&resp); err != nil {
 		c.sendControl(err)
 		return err
@@ -454,10 +482,6 @@ func (c *migrationSink) do() error {
 	go func(c *migrationSink) {
 		imagesDir := ""
 		srcIdmap := new(shared.IdmapSet)
-		dstIdmap := c.container.IdmapSet()
-		if dstIdmap == nil {
-			dstIdmap = new(shared.IdmapSet)
-		}
 
 		if c.live {
 			var err error
@@ -494,8 +518,8 @@ func (c *migrationSink) do() error {
 			 * opened by the process after it is in its user
 			 * namespace.
 			 */
-			if dstIdmap != nil {
-				if err := dstIdmap.ShiftRootfs(imagesDir); err != nil {
+			if c.container.IsPrivileged() {
+				if err := c.container.IdmapSet().ShiftRootfs(imagesDir); err != nil {
 					restore <- err
 					os.RemoveAll(imagesDir)
 					c.sendControl(err)
@@ -504,11 +528,30 @@ func (c *migrationSink) do() error {
 			}
 		}
 
-		fsDir := c.container.RootfsPath()
-		if err := RsyncRecv(shared.AddSlash(fsDir), c.fsConn); err != nil {
-			restore <- err
-			c.sendControl(err)
-			return
+		snapshots := []container{}
+		for _, snap := range header.Snapshots {
+			// TODO: we need to propagate snapshot configurations
+			// as well. Right now the container configuration is
+			// done through the initial migration post. Should we
+			// post the snapshots and their configs as well, or do
+			// it some other way?
+			args := containerLXDArgs{
+				Ctype:        cTypeSnapshot,
+				Config:       c.container.Config(),
+				Profiles:     c.container.Profiles(),
+				Ephemeral:    c.container.IsEphemeral(),
+				Architecture: c.container.Architecture(),
+				Devices:      c.container.Devices(),
+			}
+
+			name := c.container.Name() + shared.SnapshotDelimiter + snap
+			ct, err := containerLXDCreateEmptySnapshot(c.container.Daemon(), name, args)
+			if err != nil {
+				restore <- err
+				c.sendControl(err)
+				return
+			}
+			snapshots = append(snapshots, ct)
 		}
 
 		for _, idmap := range header.Idmap {
@@ -521,14 +564,20 @@ func (c *migrationSink) do() error {
 			srcIdmap.Idmap = shared.Extend(srcIdmap.Idmap, e)
 		}
 
-		if !reflect.DeepEqual(srcIdmap, dstIdmap) {
-			if err := srcIdmap.UnshiftRootfs(shared.VarPath("containers", c.container.Name())); err != nil {
-				restore <- err
-				c.sendControl(err)
-				return
-			}
+		if err := c.container.Storage().MigrationSink(c.container, snapshots, c.fsConn); err != nil {
+			restore <- err
+			c.sendControl(err)
+			return
+		}
 
-			if err := dstIdmap.ShiftRootfs(shared.VarPath("containers", c.container.Name())); err != nil {
+		if err := ShiftIfNecessary(c.container, srcIdmap); err != nil {
+			restore <- err
+			c.sendControl(err)
+			return
+		}
+
+		for _, snap := range snapshots {
+			if err := ShiftIfNecessary(snap, srcIdmap); err != nil {
 				restore <- err
 				c.sendControl(err)
 				return

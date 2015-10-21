@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -177,6 +179,11 @@ func (s *storageDir) ContainerSnapshotCreate(
 
 	return nil
 }
+
+func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
+	return os.MkdirAll(snapshotContainer.Path(""), 0700)
+}
+
 func (s *storageDir) ContainerSnapshotDelete(
 	snapshotContainer container) error {
 	err := s.ContainerDelete(snapshotContainer)
@@ -233,5 +240,55 @@ func (s *storageDir) ImageCreate(fingerprint string) error {
 }
 
 func (s *storageDir) ImageDelete(fingerprint string) error {
+	return nil
+}
+
+func (s *storageDir) MigrationType() MigrationFSType {
+	return MigrationFSType_RSYNC
+}
+
+type rsyncStorageSource struct {
+	container container
+}
+
+func (s *rsyncStorageSource) Name() string {
+	return s.container.Name()
+}
+
+func (s *rsyncStorageSource) Send(conn *websocket.Conn) error {
+	path := s.container.Path("")
+	return RsyncSend(shared.AddSlash(path), conn)
+}
+
+func (s *storageDir) MigrationSource(container container) ([]MigrationStorageSource, error) {
+	sources := []MigrationStorageSource{}
+
+	/* transfer the container, and then all the snapshots */
+	sources = append(sources, &rsyncStorageSource{container})
+	snaps, err := container.Snapshots()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, snap := range snaps {
+		sources = append(sources, &rsyncStorageSource{snap})
+	}
+
+	return sources, nil
+}
+
+func (s *storageDir) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
+
+	/* the first object is the actual container */
+	if err := RsyncRecv(shared.AddSlash(container.Path("")), conn); err != nil {
+		return err
+	}
+
+	for _, snap := range snapshots {
+		if err := RsyncRecv(shared.AddSlash(snap.Path("")), conn); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
