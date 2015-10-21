@@ -122,8 +122,9 @@ func WebsocketRecvStream(w io.WriteCloser, conn *websocket.Conn) chan bool {
 // mirrorings and correctly negotiates stream endings. However, it means any
 // websocket.Conns passed to it are live when it returns, and must be closed
 // explicitly.
-func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.Reader) chan bool {
-	done := make(chan bool, 2)
+func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser) (chan bool, chan bool) {
+	readDone := make(chan bool, 1)
+	writeDone := make(chan bool, 1)
 	go func(conn *websocket.Conn, w io.WriteCloser) {
 		for {
 			mt, r, err := conn.NextReader()
@@ -157,16 +158,18 @@ func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.Reader) chan b
 				break
 			}
 		}
-		done <- true
+		writeDone <- true
 		w.Close()
 	}(conn, w)
 
-	go func(conn *websocket.Conn, r io.Reader) {
+	go func(conn *websocket.Conn, r io.ReadCloser) {
 		in := ReaderToChannel(r)
 		for {
 			buf, ok := <-in
 			if !ok {
-				done <- true
+				readDone <- true
+				r.Close()
+				Debugf("sending write barrier")
 				conn.WriteMessage(websocket.TextMessage, []byte{})
 				return
 			}
@@ -185,8 +188,9 @@ func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.Reader) chan b
 		}
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 		conn.WriteMessage(websocket.CloseMessage, closeMsg)
-		done <- true
+		readDone <- true
+		r.Close()
 	}(conn, r)
 
-	return done
+	return readDone, writeDone
 }

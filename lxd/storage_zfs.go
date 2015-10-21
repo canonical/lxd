@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/shared"
 
 	"github.com/pborman/uuid"
@@ -473,6 +475,10 @@ func (s *storageZfs) ContainerSnapshotStop(container container) error {
 	}
 
 	return nil
+}
+
+func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
+	return fmt.Errorf("zfs empty snapshot create not implemented")
 }
 
 func (s *storageZfs) ImageCreate(fingerprint string) error {
@@ -991,4 +997,16 @@ func storageZFSSetPoolNameConfig(d *Daemon, poolname string) error {
 	}
 
 	return nil
+}
+
+func (s *storageZfs) MigrationType() MigrationFSType {
+	return MigrationFSType_ZFS
+}
+
+func (s *storageZfs) MigrationSource(container container) ([]MigrationStorageSource, error) {
+	return nil, fmt.Errorf("zfs migration source not implemented")
+}
+
+func (s *storageZfs) MigrationSink(container container, objects []container, conn *websocket.Conn) error {
+	return fmt.Errorf("zfs migration sink not implemented")
 }

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -562,6 +564,10 @@ func (s *storageLvm) ContainerSnapshotStop(container container) error {
 	return nil
 }
 
+func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
+	return fmt.Errorf("lvm empty snapshot create not implemented")
+}
+
 func (s *storageLvm) ImageCreate(fingerprint string) error {
 	finalName := shared.VarPath("images", fingerprint)
 
@@ -744,4 +750,16 @@ func (s *storageLvm) isLVMContainer(container container) bool {
 func (s *storageLvm) renameLV(oldName string, newName string) (string, error) {
 	output, err := exec.Command("lvrename", s.vgName, oldName, newName).CombinedOutput()
 	return string(output), err
+}
+
+func (s *storageLvm) MigrationType() MigrationFSType {
+	return MigrationFSType_RSYNC
+}
+
+func (s *storageLvm) MigrationSource(container container) ([]MigrationStorageSource, error) {
+	return nil, fmt.Errorf("lvm migration source not implemented")
+}
+
+func (s *storageLvm) MigrationSink(container container, objects []container, conn *websocket.Conn) error {
+	return fmt.Errorf("lvm migration sink not implemented")
 }

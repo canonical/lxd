@@ -137,6 +137,7 @@ type container interface {
 	Restore(sourceContainer container) error
 	Checkpoint(opts lxc.CheckpointOptions) error
 	StartFromMigration(imagesDir string) error
+	Snapshots() ([]container, error)
 
 	// Config handling
 	Rename(newName string) error
@@ -192,6 +193,7 @@ type container interface {
 	IdmapSet() *shared.IdmapSet
 	LastIdmapSet() (*shared.IdmapSet, error)
 	TemplateApply(trigger string) error
+	Daemon() *Daemon
 }
 
 type containerLXD struct {
@@ -420,6 +422,21 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 			c.Delete()
 			return nil, err
 		}
+	}
+
+	return c, nil
+}
+
+func containerLXDCreateEmptySnapshot(d *Daemon, fullName string,
+	args containerLXDArgs) (container, error) {
+
+	c, err := containerLXDCreateInternal(d, fullName, args)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.Storage().ContainerSnapshotCreateEmpty(c); err != nil {
+		return nil, err
 	}
 
 	return c, nil
@@ -2402,4 +2419,27 @@ func (c *containerLXD) StartFromMigration(imagesDir string) error {
 	)
 
 	return cmd.Run()
+}
+
+func (c *containerLXD) Snapshots() ([]container, error) {
+	snaps, err := dbContainerGetSnapshots(c.daemon.db, c.name)
+	if err != nil {
+		return nil, err
+	}
+
+	containers := []container{}
+	for _, snapName := range snaps {
+		snap, err := containerLXDLoad(c.daemon, snapName)
+		if err != nil {
+			return nil, err
+		}
+
+		containers = append(containers, snap)
+	}
+
+	return containers, nil
+}
+
+func (c *containerLXD) Daemon() *Daemon {
+	return c.daemon
 }
