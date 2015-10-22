@@ -28,13 +28,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	regexp := cname + shared.SnapshotDelimiter
-	length := len(regexp)
-	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
-	var name string
-	inargs := []interface{}{cTypeSnapshot, length, regexp}
-	outfmt := []interface{}{name}
-	results, err := dbQueryScan(d.db, q, inargs, outfmt)
+	results, err := dbContainerGetSnapshots(d.db, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -42,15 +36,14 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	resultString := []string{}
 	resultMap := []shared.Jmap{}
 
-	for _, r := range results {
-		name = r[0].(string)
+	for _, name := range results {
 		sc, err := containerLXDLoad(d, name)
 		if err != nil {
 			shared.Log.Error("Failed to load snapshot", log.Ctx{"snapshot": name})
 			continue
 		}
 
-		snapName := strings.TrimPrefix(name, regexp)
+		snapName := strings.TrimPrefix(name, name+shared.SnapshotDelimiter)
 		if recursion == 0 {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
