@@ -78,5 +78,5 @@ build-mo: $(MOFILES)
 static-analysis:
 	/bin/bash -x -c ". test/static_analysis.sh; static_analysis"
 
-tags:
+tags: *.go lxd/*.go shared/*.go lxc/*.go
 	find . | grep \.go | grep -v git | grep -v .swp | grep -v vagrant | xargs gotags > tags
