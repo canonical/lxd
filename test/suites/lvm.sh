@@ -13,14 +13,15 @@ create_vg() {
   if [ -n "${LXD_DEBUG:-}" ]; then
     VGDEBUG="-vv"
   fi
-  vgcreate "${VGDEBUG}" "${vgname}" "${pvloopdev}"
+  # shellcheck disable=SC2086
+  vgcreate ${VGDEBUG} "${vgname}" "${pvloopdev}"
   pvloopdevs_to_delete="${pvloopdevs_to_delete:-} ${pvloopdev}"
 }
 
 cleanup_vg_and_shutdown() {
   cleanup_vg "${VGNAME}" || true
-
-  losetup -d "${pvloopdevs_to_delete}" || echo "Couldn't delete loop devices ${pvloopdevs_to_delete}"
+  # shellcheck disable=SC2086
+  losetup -d ${pvloopdevs_to_delete} || echo "Couldn't delete loop devices ${pvloopdevs_to_delete}"
   wipe "${LOOP_IMG_DIR}" || echo "Couldn't remove ${pvfile}"
   cleanup
 }
