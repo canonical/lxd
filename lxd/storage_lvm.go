@@ -275,9 +275,9 @@ func (s *storageLvm) ContainerCreateFromImage(
 
 	if !container.IsPrivileged() {
 		if err = s.shiftRootfs(container); err != nil {
-			output, err2 = exec.Command("umount", destPath).CombinedOutput()
+			output, err2 := exec.Command("umount", destPath).CombinedOutput()
 			if err2 != nil {
-				return fmt.Errorf("Error in umount: '%s' while cleaning up after error in shiftRootfs: '%s'", err2, err)
+				return fmt.Errorf("Error in umount: '%s' while cleaning up after error in shiftRootfs: '%s'\n umount output: '%s'", err2, err, output)
 			}
 			s.ContainerDelete(container)
 			return fmt.Errorf("Error in shiftRootfs: %v", err)
