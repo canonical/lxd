@@ -267,25 +267,35 @@ func (s *storageLvm) ContainerCreateFromImage(
 		return err
 	}
 
-	if !container.IsPrivileged() {
-		output, err := exec.Command("mount", "-o", "discard", lvpath, destPath).CombinedOutput()
-		if err != nil {
-			s.ContainerDelete(container)
-			return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, string(output))
-		}
+	output, err := exec.Command("mount", "-o", "discard", lvpath, destPath).CombinedOutput()
+	if err != nil {
+		s.ContainerDelete(container)
+		return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, string(output))
+	}
 
+	if !container.IsPrivileged() {
 		if err = s.shiftRootfs(container); err != nil {
+			output, err2 = exec.Command("umount", destPath).CombinedOutput()
+			if err2 != nil {
+				return fmt.Errorf("Error in umount: '%s' while cleaning up after error in shiftRootfs: '%s'", err2, err)
+			}
 			s.ContainerDelete(container)
 			return fmt.Errorf("Error in shiftRootfs: %v", err)
 		}
-
-		output, err = exec.Command("umount", destPath).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("Error unmounting '%s' after shiftRootfs: %v", destPath, err)
-		}
 	}
 
-	return container.TemplateApply("create")
+	err = container.TemplateApply("create")
+	if err != nil {
+		s.log.Error("Error in create template during ContainerCreateFromImage, continuing to unmount",
+			log.Ctx{"err": err})
+	}
+
+	output, umounterr := exec.Command("umount", destPath).CombinedOutput()
+	if umounterr != nil {
+		return fmt.Errorf("Error unmounting '%s' after shiftRootfs: %v", destPath, umounterr)
+	}
+
+	return err
 }
 
 func (s *storageLvm) ContainerDelete(container container) error {
