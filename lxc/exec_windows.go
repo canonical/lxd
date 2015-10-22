@@ -4,9 +4,9 @@ package main
 
 import (
 	"github.com/gorilla/websocket"
-	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 )
 
 func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
@@ -14,7 +14,7 @@ func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
 	// windows and use that; for now if you resize your terminal it just
 	// won't work quite correctly.
 	err := sendTermSize(control)
-	if err != ni {
+	if err != nil {
 		shared.Debugf("error setting term size %s", err)
 	}
 }
