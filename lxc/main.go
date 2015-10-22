@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
 	"syscall"
 
@@ -81,23 +82,6 @@ func run() error {
 		commands["help"].run(nil, nil)
 		os.Exit(1)
 	}
-	name := os.Args[1]
-	cmd, ok := commands[name]
-	if !ok {
-		fmt.Fprintf(os.Stderr, gettext.Gettext("error: unknown command: %s")+"\n", name)
-		commands["help"].run(nil, nil)
-		os.Exit(1)
-	}
-	cmd.flags()
-	gnuflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, gettext.Gettext("Usage: %s")+"\n\n"+gettext.Gettext("Options:")+"\n\n", strings.TrimSpace(cmd.usage()))
-		gnuflag.PrintDefaults()
-	}
-
-	os.Args = os.Args[1:]
-	gnuflag.Parse(true)
-
-	shared.SetLogger("", "", *verbose, *debug)
 
 	var config *lxd.Config
 	var err error
@@ -121,6 +105,31 @@ func run() error {
 		}
 	}
 
+	// This is quite impolite, but it seems gnuflag needs us to shift our
+	// own exename out of the arguments before parsing them. However, this
+	// is useful for execIfAlias, which wants to know exactly the command
+	// line we received, and in some cases is called before this shift, and
+	// in others after. So, let's save the original args.
+	origArgs := os.Args
+	name := os.Args[1]
+	cmd, ok := commands[name]
+	if !ok {
+		execIfAliases(config, origArgs)
+		fmt.Fprintf(os.Stderr, gettext.Gettext("error: unknown command: %s")+"\n", name)
+		commands["help"].run(nil, nil)
+		os.Exit(1)
+	}
+	cmd.flags()
+	gnuflag.Usage = func() {
+		fmt.Fprintf(os.Stderr, gettext.Gettext("Usage: %s")+"\n\n"+gettext.Gettext("Options:")+"\n\n", strings.TrimSpace(cmd.usage()))
+		gnuflag.PrintDefaults()
+	}
+
+	os.Args = os.Args[1:]
+	gnuflag.Parse(true)
+
+	shared.SetLogger("", "", *verbose, *debug)
+
 	certf := lxd.ConfigPath("client.crt")
 	keyf := lxd.ConfigPath("client.key")
 
@@ -138,6 +147,10 @@ func run() error {
 
 	err = cmd.run(config, gnuflag.Args())
 	if err == errArgs {
+		/* If we got an error about invalid arguments, let's try to
+		 * expand this as an alias
+		 */
+		execIfAliases(config, origArgs)
 		fmt.Fprintf(os.Stderr, gettext.Gettext("error: %v")+"\n%s\n", err, cmd.usage())
 		os.Exit(1)
 	}
@@ -178,3 +191,34 @@ var commands = map[string]command{
 }
 
 var errArgs = fmt.Errorf(gettext.Gettext("wrong number of subcommand arguments"))
+
+func execIfAliases(config *lxd.Config, origArgs []string) {
+	newArgs := []string{}
+	expandedAlias := false
+	for _, arg := range origArgs {
+		changed := false
+		for k, v := range config.Aliases {
+			if k == arg {
+				expandedAlias = true
+				changed = true
+				newArgs = append(newArgs, strings.Split(v, " ")...)
+				break
+			}
+		}
+
+		if !changed {
+			newArgs = append(newArgs, arg)
+		}
+	}
+
+	if expandedAlias {
+		path, err := exec.LookPath(origArgs[0])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, gettext.Gettext("processing aliases failed %s\n"), err)
+			os.Exit(5)
+		}
+		ret := syscall.Exec(path, newArgs, syscall.Environ())
+		fmt.Fprintf(os.Stderr, gettext.Gettext("processing aliases failed %s\n"), ret)
+		os.Exit(5)
+	}
+}

@@ -124,7 +124,7 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 	case "show":
 		return doProfileShow(client, profile)
 	default:
-		return fmt.Errorf(gettext.Gettext("unknown profile cmd %s"), args[0])
+		return errArgs
 	}
 }
 

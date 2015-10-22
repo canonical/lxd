@@ -267,6 +267,6 @@ func (c *fileCmd) run(config *lxd.Config, args []string) error {
 	case "edit":
 		return c.edit(config, args[1:])
 	default:
-		return fmt.Errorf(gettext.Gettext("invalid argument %s"), args[0])
+		return errArgs
 	}
 }
