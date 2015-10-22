@@ -25,6 +25,9 @@ type Config struct {
 	// The implicit "local" remote is always available and communicates
 	// with the local daemon over a unix socket.
 	Remotes map[string]RemoteConfig `yaml:"remotes"`
+
+	// Command line aliases for `lxc`
+	Aliases map[string]string `yaml:"aliases"`
 }
 
 // RemoteConfig holds details for communication with a remote daemon.
@@ -40,7 +43,9 @@ var defaultRemote = map[string]RemoteConfig{"local": LocalRemote}
 
 var DefaultConfig = Config{
 	Remotes:       defaultRemote,
-	DefaultRemote: "local"}
+	DefaultRemote: "local",
+	Aliases:       map[string]string{},
+}
 
 var ConfigDir = "$HOME/.config/lxc"
 var configFileName = "config.yml"
