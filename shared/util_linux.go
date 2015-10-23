@@ -185,7 +185,13 @@ int shiftowner(char *basepath, char *path, int uid, int gid) {
 import "C"
 
 func ShiftOwner(basepath string, path string, uid int, gid int) error {
-	r := C.shiftowner(C.CString(basepath), C.CString(path), C.int(uid), C.int(gid))
+	cbasepath := C.CString(basepath)
+	defer C.free(unsafe.Pointer(cbasepath))
+
+	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+
+	r := C.shiftowner(cbasepath, cpath, C.int(uid), C.int(gid))
 	if r != 0 {
 		return fmt.Errorf("Failed to change ownership of: %s", path)
 	}
@@ -273,7 +279,10 @@ func GroupId(name string) (int, error) {
 	// mygetgrgid_r is a wrapper around getgrgid_r to
 	// to avoid using gid_t because C.gid_t(gid) for
 	// unknown reasons doesn't work on linux.
-	rv := C.getgrnam_r(C.CString(name),
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+
+	rv := C.getgrnam_r(cname,
 		&grp,
 		(*C.char)(buf),
 		bufSize,
