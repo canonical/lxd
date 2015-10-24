@@ -55,7 +55,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
 		} else {
-			body := shared.Jmap{"name": snapName, "stateful": shared.PathExists(sc.StateDirGet())}
+			body := shared.Jmap{"name": snapName, "stateful": shared.PathExists(sc.StateDir())}
 			resultMap = append(resultMap, body)
 		}
 	}
@@ -139,15 +139,15 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		snapshotName
 
 	snapshot := func() error {
-		config := c.ConfigGet()
+		config := c.Config()
 		args := containerLXDArgs{
 			Ctype:        cTypeSnapshot,
 			Config:       config,
-			Profiles:     c.ProfilesGet(),
+			Profiles:     c.Profiles(),
 			Ephemeral:    c.IsEphemeral(),
 			BaseImage:    config["volatile.base_image"],
-			Architecture: c.ArchitectureGet(),
-			Devices:      c.DevicesGet(),
+			Architecture: c.Architecture(),
+			Devices:      c.Devices(),
 		}
 
 		_, err := containerLXDCreateAsSnapshot(d, fullName, args, c, stateful)
@@ -187,7 +187,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 }
 
 func snapshotGet(sc container, name string) Response {
-	body := shared.Jmap{"name": name, "stateful": shared.PathExists(sc.StateDirGet())}
+	body := shared.Jmap{"name": name, "stateful": shared.PathExists(sc.StateDir())}
 	return SyncResponse(true, body)
 }
 

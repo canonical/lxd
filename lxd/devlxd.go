@@ -46,7 +46,7 @@ type devLxdHandler struct {
 
 var configGet = devLxdHandler{"/1.0/config", func(c container, r *http.Request) *devLxdResponse {
 	filtered := []string{}
-	for k, _ := range c.ConfigGet() {
+	for k, _ := range c.Config() {
 		if strings.HasPrefix(k, "user.") {
 			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
 		}
@@ -60,7 +60,7 @@ var configKeyGet = devLxdHandler{"/1.0/config/{key}", func(c container, r *http.
 		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
 	}
 
-	value, ok := c.ConfigGet()[key]
+	value, ok := c.Config()[key]
 	if !ok {
 		return &devLxdResponse{"not found", http.StatusNotFound, "raw"}
 	}
@@ -69,8 +69,8 @@ var configKeyGet = devLxdHandler{"/1.0/config/{key}", func(c container, r *http.
 }}
 
 var metadataGet = devLxdHandler{"/1.0/meta-data", func(c container, r *http.Request) *devLxdResponse {
-	value := c.ConfigGet()["user.meta-data"]
-	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", c.NameGet(), c.NameGet(), value), "raw")
+	value := c.Config()["user.meta-data"]
+	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", c.Name(), c.Name(), value), "raw")
 }}
 
 var handlers = []devLxdHandler{
@@ -352,7 +352,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 			return nil, err
 		}
 
-		initpid := c.InitPidGet()
+		initpid := c.InitPID()
 		pidNs, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/pid", initpid))
 		if err != nil {
 			return nil, err

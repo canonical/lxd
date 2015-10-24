@@ -22,7 +22,7 @@ func dbContainerRemove(db *sql.DB, name string) error {
 	return err
 }
 
-func dbContainerIDGet(db *sql.DB, name string) (int, error) {
+func dbContainerID(db *sql.DB, name string) (int, error) {
 	q := "SELECT id FROM containers WHERE name=?"
 	id := -1
 	arg1 := []interface{}{name}
@@ -52,13 +52,13 @@ func dbContainerGet(db *sql.DB, name string) (*containerLXDArgs, error) {
 		args.Ephemeral = true
 	}
 
-	config, err := dbContainerConfigGet(db, args.ID)
+	config, err := dbContainerConfig(db, args.ID)
 	if err != nil {
 		return nil, err
 	}
 	args.Config = config
 
-	profiles, err := dbContainerProfilesGet(db, args.ID)
+	profiles, err := dbContainerProfiles(db, args.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func dbContainerGet(db *sql.DB, name string) (*containerLXDArgs, error) {
 
 	args.Devices = shared.Devices{}
 	/* get container_devices */
-	newdevs, err := dbDevicesGet(db, name, false)
+	newdevs, err := dbDevices(db, name, false)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func dbContainerCreate(db *sql.DB, name string, args containerLXDArgs) (int, err
 		return 0, fmt.Errorf("Invalid container name")
 	}
 
-	id, err := dbContainerIDGet(db, name)
+	id, err := dbContainerID(db, name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
 	}
@@ -209,7 +209,7 @@ func dbContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
 }
 
 // Get a list of profiles for a given container id.
-func dbContainerProfilesGet(db *sql.DB, containerID int) ([]string, error) {
+func dbContainerProfiles(db *sql.DB, containerID int) ([]string, error) {
 	var name string
 	var profiles []string
 
@@ -235,8 +235,8 @@ func dbContainerProfilesGet(db *sql.DB, containerID int) ([]string, error) {
 	return profiles, nil
 }
 
-// dbContainerConfigGet gets the container configuration map from the DB
-func dbContainerConfigGet(db *sql.DB, containerID int) (map[string]string, error) {
+// dbContainerConfig gets the container configuration map from the DB
+func dbContainerConfig(db *sql.DB, containerID int) (map[string]string, error) {
 	var key, value string
 	q := `SELECT key, value FROM containers_config WHERE container_id=?`
 
