@@ -77,8 +77,8 @@ func (s *storageZfs) ContainerStop(container container) error {
 
 // Things we do have to care about
 func (s *storageZfs) ContainerCreate(container container) error {
-	cPath := container.PathGet("")
-	fs := fmt.Sprintf("containers/%s", container.NameGet())
+	cPath := container.Path("")
+	fs := fmt.Sprintf("containers/%s", container.Name())
 
 	err := s.zfsCreate(fs)
 	if err != nil {
@@ -106,10 +106,10 @@ func (s *storageZfs) ContainerCreate(container container) error {
 }
 
 func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint string) error {
-	cPath := container.PathGet("")
+	cPath := container.Path("")
 	imagePath := shared.VarPath("images", fingerprint)
 	subvol := fmt.Sprintf("%s.zfs", imagePath)
-	fs := fmt.Sprintf("containers/%s", container.NameGet())
+	fs := fmt.Sprintf("containers/%s", container.Name())
 	fsImage := fmt.Sprintf("images/%s", fingerprint)
 
 	if !shared.PathExists(subvol) {
@@ -152,7 +152,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 }
 
 func (s *storageZfs) ContainerDelete(container container) error {
-	fs := fmt.Sprintf("containers/%s", container.NameGet())
+	fs := fmt.Sprintf("containers/%s", container.Name())
 
 	removable := true
 	snaps, err := s.zfsListSnapshots(fs)
@@ -221,10 +221,10 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 	var sourceFs string
 	var sourceSnap string
 
-	sourceFields := strings.SplitN(sourceContainer.NameGet(), shared.SnapshotDelimiter, 2)
+	sourceFields := strings.SplitN(sourceContainer.Name(), shared.SnapshotDelimiter, 2)
 	sourceName := sourceFields[0]
 
-	destName := container.NameGet()
+	destName := container.Name()
 	destFs := fmt.Sprintf("containers/%s", destName)
 
 	if len(sourceFields) == 2 {
@@ -258,13 +258,13 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 			return err
 		}
 
-		output, err := storageRsyncCopy(sourceContainer.PathGet(""), container.PathGet(""))
+		output, err := storageRsyncCopy(sourceContainer.Path(""), container.Path(""))
 		if err != nil {
 			return fmt.Errorf("rsync failed: %s", string(output))
 		}
 	}
 
-	cPath := container.PathGet("")
+	cPath := container.Path("")
 	err := os.Symlink(cPath+".zfs", cPath)
 	if err != nil {
 		return err
@@ -286,7 +286,7 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 }
 
 func (s *storageZfs) ContainerRename(container container, newName string) error {
-	oldName := container.NameGet()
+	oldName := container.Name()
 
 	err := s.zfsRename(fmt.Sprintf("containers/%s", oldName), fmt.Sprintf("containers/%s", newName))
 	if err != nil {
@@ -312,7 +312,7 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 }
 
 func (s *storageZfs) ContainerRestore(container container, sourceContainer container) error {
-	fields := strings.SplitN(sourceContainer.NameGet(), shared.SnapshotDelimiter, 2)
+	fields := strings.SplitN(sourceContainer.Name(), shared.SnapshotDelimiter, 2)
 	cName := fields[0]
 	snapName := fmt.Sprintf("snapshot-%s", fields[1])
 
@@ -325,7 +325,7 @@ func (s *storageZfs) ContainerRestore(container container, sourceContainer conta
 }
 
 func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
-	fields := strings.SplitN(snapshotContainer.NameGet(), shared.SnapshotDelimiter, 2)
+	fields := strings.SplitN(snapshotContainer.Name(), shared.SnapshotDelimiter, 2)
 	cName := fields[0]
 	snapName := fmt.Sprintf("snapshot-%s", fields[1])
 
@@ -350,7 +350,7 @@ func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, source
 }
 
 func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error {
-	fields := strings.SplitN(snapshotContainer.NameGet(), shared.SnapshotDelimiter, 2)
+	fields := strings.SplitN(snapshotContainer.Name(), shared.SnapshotDelimiter, 2)
 	cName := fields[0]
 	snapName := fmt.Sprintf("snapshot-%s", fields[1])
 
@@ -384,7 +384,7 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 }
 
 func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newName string) error {
-	oldFields := strings.SplitN(snapshotContainer.NameGet(), shared.SnapshotDelimiter, 2)
+	oldFields := strings.SplitN(snapshotContainer.Name(), shared.SnapshotDelimiter, 2)
 	oldcName := oldFields[0]
 	oldName := fmt.Sprintf("snapshot-%s", oldFields[1])
 

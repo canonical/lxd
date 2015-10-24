@@ -54,7 +54,7 @@ func dbDevicesAdd(tx *sql.Tx, w string, cID int64, devices shared.Devices) error
 	return nil
 }
 
-func dbDeviceConfigGet(db *sql.DB, id int, isprofile bool) (shared.Device, error) {
+func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (shared.Device, error) {
 	var query string
 	var key, value string
 	newdev := shared.Device{} // That's a map[string]string
@@ -82,7 +82,7 @@ func dbDeviceConfigGet(db *sql.DB, id int, isprofile bool) (shared.Device, error
 	return newdev, nil
 }
 
-func dbDevicesGet(db *sql.DB, qName string, isprofile bool) (shared.Devices, error) {
+func dbDevices(db *sql.DB, qName string, isprofile bool) (shared.Devices, error) {
 	var q string
 	if isprofile {
 		q = `SELECT profiles_devices.id, profiles_devices.name, profiles_devices.type
@@ -112,7 +112,7 @@ func dbDevicesGet(db *sql.DB, qName string, isprofile bool) (shared.Devices, err
 		if err != nil {
 			return nil, err
 		}
-		newdev, err := dbDeviceConfigGet(db, id, isprofile)
+		newdev, err := dbDeviceConfig(db, id, isprofile)
 		if err != nil {
 			return nil, err
 		}

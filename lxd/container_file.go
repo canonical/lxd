@@ -33,13 +33,13 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("container is not running"))
 	}
 
-	initPid := c.InitPidGet()
+	initPid := c.InitPID()
 
 	switch r.Method {
 	case "GET":
 		return containerFileGet(initPid, r, targetPath)
 	case "POST":
-		idmapset, err := c.LastIdmapSetGet()
+		idmapset, err := c.LastIdmapSet()
 		if err != nil {
 			return InternalError(err)
 		}

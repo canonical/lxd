@@ -107,7 +107,7 @@ var containerCmd = Command{
 
 var containerStateCmd = Command{
 	name: "containers/{name}/state",
-	get:  containerStateGet,
+	get:  containerState,
 	put:  containerStatePut,
 }
 
@@ -143,7 +143,7 @@ func containerWatchEphemeral(d *Daemon, c container) {
 		lxContainer.Wait(lxc.RUNNING, 1*time.Second)
 		lxContainer.Wait(lxc.STOPPED, -1*time.Second)
 
-		_, err := dbContainerIDGet(d.db, c.NameGet())
+		_, err := dbContainerID(d.db, c.Name())
 		if err != nil {
 			return
 		}
@@ -240,7 +240,7 @@ func containersShutdown(d *Daemon) error {
 			return err
 		}
 
-		err = c.ConfigKeySet("volatile.last_state.power", c.StateGet())
+		err = c.ConfigKeySet("volatile.last_state.power", c.State())
 
 		if err != nil {
 			return err

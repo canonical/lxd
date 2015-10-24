@@ -35,7 +35,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_devices entries left.
-	devices, err := dbDevicesGet(d.db, "theprofile", true)
+	devices, err := dbDevices(d.db, "theprofile", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_config entries left.
-	config, err := dbProfileConfigGet(d.db, "theprofile")
+	config, err := dbProfileConfig(d.db, "theprofile")
 	if err == nil {
 		t.Fatal("found the profile!")
 	}

@@ -219,7 +219,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		return info, err
 	}
 
-	info.Architecture = c.ArchitectureGet()
+	info.Architecture = c.Architecture()
 	info.Properties = req.Properties
 
 	return info, nil

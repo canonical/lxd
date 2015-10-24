@@ -100,7 +100,7 @@ func generateMacAddr(template string) (string, error) {
 	return ret.String(), nil
 }
 
-func containerPathGet(name string, isSnapshot bool) string {
+func containerPath(name string, isSnapshot bool) string {
 	if isSnapshot {
 		return shared.VarPath("snapshots", name)
 	}
@@ -136,7 +136,7 @@ type containerLXD struct {
 	baseConfig  map[string]string
 	baseDevices shared.Devices
 
-	Storage storage
+	storage storage
 }
 
 type container interface {
@@ -154,7 +154,7 @@ type container interface {
 
 	StorageStart() error
 	StorageStop() error
-	StorageGet() storage
+	Storage() storage
 
 	IsPrivileged() bool
 	IsRunning() bool
@@ -162,24 +162,24 @@ type container interface {
 	IsEphemeral() bool
 	IsSnapshot() bool
 
-	IDGet() int
-	NameGet() string
-	ArchitectureGet() int
-	ConfigGet() map[string]string
+	ID() int
+	Name() string
+	Architecture() int
+	Config() map[string]string
 	ConfigKeySet(key string, value string) error
-	DevicesGet() shared.Devices
-	ProfilesGet() []string
-	PathGet(newName string) string
-	RootfsPathGet() string
-	TemplatesPathGet() string
-	StateDirGet() string
-	LogFilePathGet() string
-	LogPathGet() string
-	InitPidGet() int
-	StateGet() string
+	Devices() shared.Devices
+	Profiles() []string
+	Path(newName string) string
+	RootfsPath() string
+	TemplatesPath() string
+	StateDir() string
+	LogFilePath() string
+	LogPath() string
+	InitPID() int
+	State() string
 
-	IdmapSetGet() *shared.IdmapSet
-	LastIdmapSetGet() (*shared.IdmapSet, error)
+	IdmapSet() *shared.IdmapSet
+	LastIdmapSet() (*shared.IdmapSet, error)
 
 	TemplateApply(trigger string) error
 	ExportToTar(snap string, w io.Writer) error
@@ -308,7 +308,7 @@ func containerLXDCreateAsEmpty(d *Daemon, name string,
 	}
 
 	// Now create the empty storage
-	if err := c.Storage.ContainerCreate(c); err != nil {
+	if err := c.storage.ContainerCreate(c); err != nil {
 		c.Delete()
 		return nil, err
 	}
@@ -330,7 +330,7 @@ func containerLXDCreateFromImage(d *Daemon, name string,
 	}
 
 	// Now create the storage from an image
-	if err := c.Storage.ContainerCreateFromImage(c, hash); err != nil {
+	if err := c.storage.ContainerCreateFromImage(c, hash); err != nil {
 		c.Delete()
 		return nil, err
 	}
@@ -351,7 +351,7 @@ func containerLXDCreateAsCopy(d *Daemon, name string,
 		return nil, err
 	}
 
-	if err := c.Storage.ContainerCopy(c, sourceContainer); err != nil {
+	if err := c.storage.ContainerCopy(c, sourceContainer); err != nil {
 		c.Delete()
 		return nil, err
 	}
@@ -368,14 +368,14 @@ func containerLXDCreateAsSnapshot(d *Daemon, name string,
 		return nil, err
 	}
 
-	c.Storage = sourceContainer.StorageGet()
-	if err := c.Storage.ContainerSnapshotCreate(c, sourceContainer); err != nil {
+	c.storage = sourceContainer.Storage()
+	if err := c.storage.ContainerSnapshotCreate(c, sourceContainer); err != nil {
 		c.Delete()
 		return nil, err
 	}
 
 	if stateful {
-		stateDir := c.StateDirGet()
+		stateDir := c.StateDir()
 		err = os.MkdirAll(stateDir, 0700)
 		if err != nil {
 			c.Delete()
@@ -428,7 +428,7 @@ func containerLXDCreateInternal(
 		}
 	}
 
-	path := containerPathGet(name, args.Ctype == cTypeSnapshot)
+	path := containerPath(name, args.Ctype == cTypeSnapshot)
 	if shared.PathExists(path) {
 		return nil, fmt.Errorf(
 			"The container already exists on disk, container: '%s', path: '%s'",
@@ -452,7 +452,7 @@ func containerLXDCreateInternal(
 		args.Devices = shared.Devices{}
 	}
 
-	profiles, err := dbProfilesGet(d.db)
+	profiles, err := dbProfiles(d.db)
 	if err != nil {
 		return nil, err
 	}
@@ -495,14 +495,14 @@ func containerLXDCreateInternal(
 		baseDevices:  baseDevices}
 
 	// No need to detect storage here, its a new container.
-	c.Storage = d.Storage
+	c.storage = d.Storage
 
 	if err := c.init(); err != nil {
 		c.Delete() // Delete the container from the DB.
 		return nil, err
 	}
 
-	idmap := c.IdmapSetGet()
+	idmap := c.IdmapSet()
 
 	var jsonIdmap string
 	if idmap != nil {
@@ -557,10 +557,10 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 
 	s, err := storageForFilename(d, shared.VarPath("containers", strings.Split(name, "/")[0]))
 	if err != nil {
-		shared.Log.Warn("Couldn't detect storage.", log.Ctx{"container": c.NameGet()})
-		c.Storage = d.Storage
+		shared.Log.Warn("Couldn't detect storage.", log.Ctx{"container": c.Name()})
+		c.storage = d.Storage
 	} else {
-		c.Storage = s
+		c.storage = s
 	}
 
 	if err := c.init(); err != nil {
@@ -580,13 +580,13 @@ func (c *containerLXD) init() error {
 		templateConfDir = "/usr/share/lxc/config"
 	}
 
-	cc, err := lxc.NewContainer(c.NameGet(), c.daemon.lxcpath)
+	cc, err := lxc.NewContainer(c.Name(), c.daemon.lxcpath)
 	if err != nil {
 		return err
 	}
 	c.c = cc
 
-	logfile := c.LogFilePathGet()
+	logfile := c.LogFilePath()
 	if err := os.MkdirAll(filepath.Dir(logfile), 0700); err != nil {
 		return err
 	}
@@ -607,13 +607,13 @@ func (c *containerLXD) init() error {
 		return err
 	}
 
-	if err := setConfigItem(c, "lxc.rootfs", c.RootfsPathGet()); err != nil {
+	if err := setConfigItem(c, "lxc.rootfs", c.RootfsPath()); err != nil {
 		return err
 	}
 	if err := setConfigItem(c, "lxc.loglevel", "0"); err != nil {
 		return err
 	}
-	if err := setConfigItem(c, "lxc.utsname", c.NameGet()); err != nil {
+	if err := setConfigItem(c, "lxc.utsname", c.Name()); err != nil {
 		return err
 	}
 	if err := setConfigItem(c, "lxc.tty", "0"); err != nil {
@@ -725,7 +725,7 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 	}
 
 	if c.IsRunning() {
-		pid := c.InitPidGet()
+		pid := c.InitPID()
 		status.Init = pid
 		status.Ips = c.iPsGet()
 	}
@@ -816,7 +816,7 @@ func (c *containerLXD) createUnixDevice(m shared.Device) (string, string, error)
 	}
 
 	name := strings.Replace(m["path"], "/", "-", -1)
-	devpath := path.Join(c.PathGet(""), name)
+	devpath := path.Join(c.Path(""), name)
 	mode := os.FileMode(0660)
 	if m["type"] == "unix-block" {
 		mode |= syscall.S_IFBLK
@@ -917,7 +917,7 @@ func (c *containerLXD) Start() error {
 
 	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
 	if err != nil {
-		unmountTempBlocks(c.PathGet(""))
+		unmountTempBlocks(c.Path(""))
 		c.StorageStop()
 		return err
 	}
@@ -925,7 +925,7 @@ func (c *containerLXD) Start() error {
 	if err = f.Chmod(0600); err != nil {
 		f.Close()
 		os.Remove(configPath)
-		unmountTempBlocks(c.PathGet(""))
+		unmountTempBlocks(c.Path(""))
 		c.StorageStop()
 		return err
 	}
@@ -933,24 +933,24 @@ func (c *containerLXD) Start() error {
 
 	err = c.c.SaveConfigFile(configPath)
 	if err != nil {
-		unmountTempBlocks(c.PathGet(""))
+		unmountTempBlocks(c.Path(""))
 		c.StorageStop()
 		return err
 	}
 
 	err = c.TemplateApply("start")
 	if err != nil {
-		unmountTempBlocks(c.PathGet(""))
+		unmountTempBlocks(c.Path(""))
 		c.StorageStop()
 		return err
 	}
 
 	/* Deal with idmap changes */
-	idmap := c.IdmapSetGet()
+	idmap := c.IdmapSet()
 
-	lastIdmap, err := c.LastIdmapSetGet()
+	lastIdmap, err := c.LastIdmapSet()
 	if err != nil {
-		unmountTempBlocks(c.PathGet(""))
+		unmountTempBlocks(c.Path(""))
 		c.StorageStop()
 		return err
 	}
@@ -959,7 +959,7 @@ func (c *containerLXD) Start() error {
 	if idmap != nil {
 		idmapBytes, err := json.Marshal(idmap.Idmap)
 		if err != nil {
-			unmountTempBlocks(c.PathGet(""))
+			unmountTempBlocks(c.Path(""))
 			c.StorageStop()
 			return err
 		}
@@ -972,16 +972,16 @@ func (c *containerLXD) Start() error {
 		shared.Debugf("Container idmap changed, remapping")
 
 		if lastIdmap != nil {
-			if err := lastIdmap.UnshiftRootfs(c.RootfsPathGet()); err != nil {
-				unmountTempBlocks(c.PathGet(""))
+			if err := lastIdmap.UnshiftRootfs(c.RootfsPath()); err != nil {
+				unmountTempBlocks(c.Path(""))
 				c.StorageStop()
 				return err
 			}
 		}
 
 		if idmap != nil {
-			if err := idmap.ShiftRootfs(c.RootfsPathGet()); err != nil {
-				unmountTempBlocks(c.PathGet(""))
+			if err := idmap.ShiftRootfs(c.RootfsPath()); err != nil {
+				unmountTempBlocks(c.Path(""))
 				c.StorageStop()
 				return err
 			}
@@ -991,7 +991,7 @@ func (c *containerLXD) Start() error {
 	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
 
 	if err != nil {
-		unmountTempBlocks(c.PathGet(""))
+		unmountTempBlocks(c.Path(""))
 		c.StorageStop()
 		return err
 	}
@@ -1005,13 +1005,13 @@ func (c *containerLXD) Start() error {
 		configPath).Run()
 
 	if err != nil {
-		unmountTempBlocks(c.PathGet(""))
+		unmountTempBlocks(c.Path(""))
 		c.StorageStop()
 		err = fmt.Errorf(
 			"Error calling 'lxd forkstart %s %s %s': err='%v'",
 			c.name,
 			c.daemon.lxcpath,
-			path.Join(c.LogPathGet(), "lxc.conf"),
+			path.Join(c.LogPath(), "lxc.conf"),
 			err)
 	}
 
@@ -1020,7 +1020,7 @@ func (c *containerLXD) Start() error {
 	}
 
 	if err != nil {
-		unmountTempBlocks(c.PathGet(""))
+		unmountTempBlocks(c.Path(""))
 		c.StorageStop()
 	}
 	return err
@@ -1059,7 +1059,7 @@ func (c *containerLXD) IsRunning() bool {
 }
 
 func (c *containerLXD) IsFrozen() bool {
-	return c.StateGet() == "FROZEN"
+	return c.State() == "FROZEN"
 }
 
 func (c *containerLXD) Shutdown(timeout time.Duration) error {
@@ -1074,7 +1074,7 @@ func (c *containerLXD) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
-	unmountTempBlocks(c.PathGet(""))
+	unmountTempBlocks(c.Path(""))
 
 	if err := AAUnloadProfile(c); err != nil {
 		return err
@@ -1096,7 +1096,7 @@ func (c *containerLXD) Stop() error {
 	}
 
 	// Clean up any mounts from previous runs
-	unmountTempBlocks(c.PathGet(""))
+	unmountTempBlocks(c.Path(""))
 
 	if err := AAUnloadProfile(c); err != nil {
 		return err
@@ -1110,23 +1110,23 @@ func (c *containerLXD) Unfreeze() error {
 }
 
 func (c *containerLXD) StorageFromImage(hash string) error {
-	return c.Storage.ContainerCreateFromImage(c, hash)
+	return c.storage.ContainerCreateFromImage(c, hash)
 }
 
 func (c *containerLXD) StorageFromNone() error {
-	return c.Storage.ContainerCreate(c)
+	return c.storage.ContainerCreate(c)
 }
 
 func (c *containerLXD) StorageStart() error {
-	return c.Storage.ContainerStart(c)
+	return c.storage.ContainerStart(c)
 }
 
 func (c *containerLXD) StorageStop() error {
-	return c.Storage.ContainerStop(c)
+	return c.storage.ContainerStop(c)
 }
 
-func (c *containerLXD) StorageGet() storage {
-	return c.Storage
+func (c *containerLXD) Storage() storage {
+	return c.storage
 }
 
 func (c *containerLXD) Restore(sourceContainer container) error {
@@ -1146,42 +1146,42 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 			shared.Log.Error(
 				"RESTORE => could not stop container",
 				log.Ctx{
-					"container": c.NameGet(),
+					"container": c.Name(),
 					"err":       err})
 			return err
 		}
 		shared.Log.Debug(
 			"RESTORE => Stopped container",
-			log.Ctx{"container": c.NameGet()})
+			log.Ctx{"container": c.Name()})
 	}
 
 	// Restore the FS.
 	// TODO: I switched the FS and config restore, think thats the correct way
 	// (pcdummy)
-	err := c.Storage.ContainerRestore(c, sourceContainer)
+	err := c.storage.ContainerRestore(c, sourceContainer)
 
 	if err != nil {
 		shared.Log.Error("RESTORE => Restoring the filesystem failed",
 			log.Ctx{
-				"source":      sourceContainer.NameGet(),
-				"destination": c.NameGet()})
+				"source":      sourceContainer.Name(),
+				"destination": c.Name()})
 		return err
 	}
 
 	args := containerLXDArgs{
 		Ctype:        cTypeRegular,
-		Config:       sourceContainer.ConfigGet(),
-		Profiles:     sourceContainer.ProfilesGet(),
+		Config:       sourceContainer.Config(),
+		Profiles:     sourceContainer.Profiles(),
 		Ephemeral:    sourceContainer.IsEphemeral(),
-		Architecture: sourceContainer.ArchitectureGet(),
-		Devices:      sourceContainer.DevicesGet(),
+		Architecture: sourceContainer.Architecture(),
+		Devices:      sourceContainer.Devices(),
 	}
 	err = c.ConfigReplace(args)
 	if err != nil {
 		shared.Log.Error("RESTORE => Restore of the configuration failed",
 			log.Ctx{
-				"source":      sourceContainer.NameGet(),
-				"destination": c.NameGet()})
+				"source":      sourceContainer.Name(),
+				"destination": c.Name()})
 
 		return err
 	}
@@ -1194,27 +1194,27 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 }
 
 func (c *containerLXD) Delete() error {
-	shared.Log.Debug("containerLXD.Delete", log.Ctx{"c.name": c.NameGet(), "type": c.cType})
+	shared.Log.Debug("containerLXD.Delete", log.Ctx{"c.name": c.Name(), "type": c.cType})
 
 	switch c.cType {
 	case cTypeRegular:
-		if err := containerDeleteSnapshots(c.daemon, c.NameGet()); err != nil {
+		if err := containerDeleteSnapshots(c.daemon, c.Name()); err != nil {
 			return err
 		}
 
-		if err := c.Storage.ContainerDelete(c); err != nil {
+		if err := c.storage.ContainerDelete(c); err != nil {
 			return err
 		}
-		unmountTempBlocks(c.PathGet(""))
+		unmountTempBlocks(c.Path(""))
 	case cTypeSnapshot:
-		if err := c.Storage.ContainerSnapshotDelete(c); err != nil {
+		if err := c.storage.ContainerSnapshotDelete(c); err != nil {
 			return err
 		}
 	default:
 		return fmt.Errorf("Unknown cType: %d", c.cType)
 	}
 
-	if err := dbContainerRemove(c.daemon.db, c.NameGet()); err != nil {
+	if err := dbContainerRemove(c.daemon.db, c.Name()); err != nil {
 		return err
 	}
 
@@ -1225,7 +1225,7 @@ func (c *containerLXD) Delete() error {
 }
 
 func (c *containerLXD) Rename(newName string) error {
-	oldName := c.NameGet()
+	oldName := c.Name()
 
 	if !c.IsSnapshot() && !shared.ValidHostname(newName) {
 		return fmt.Errorf("Invalid container name")
@@ -1236,11 +1236,11 @@ func (c *containerLXD) Rename(newName string) error {
 	}
 
 	if c.IsSnapshot() {
-		if err := c.Storage.ContainerSnapshotRename(c, newName); err != nil {
+		if err := c.storage.ContainerSnapshotRename(c, newName); err != nil {
 			return err
 		}
 	} else {
-		if err := c.Storage.ContainerRename(c, newName); err != nil {
+		if err := c.storage.ContainerRename(c, newName); err != nil {
 			return err
 		}
 	}
@@ -1289,64 +1289,64 @@ func (c *containerLXD) IsSnapshot() bool {
 	return c.cType == cTypeSnapshot
 }
 
-func (c *containerLXD) IDGet() int {
+func (c *containerLXD) ID() int {
 	return c.id
 }
 
-func (c *containerLXD) NameGet() string {
+func (c *containerLXD) Name() string {
 	return c.name
 }
 
-func (c *containerLXD) ArchitectureGet() int {
+func (c *containerLXD) Architecture() int {
 	return c.architecture
 }
 
-func (c *containerLXD) PathGet(newName string) string {
+func (c *containerLXD) Path(newName string) string {
 	if newName != "" {
-		return containerPathGet(newName, c.IsSnapshot())
+		return containerPath(newName, c.IsSnapshot())
 	}
 
-	return containerPathGet(c.NameGet(), c.IsSnapshot())
+	return containerPath(c.Name(), c.IsSnapshot())
 }
 
-func (c *containerLXD) RootfsPathGet() string {
-	return path.Join(c.PathGet(""), "rootfs")
+func (c *containerLXD) RootfsPath() string {
+	return path.Join(c.Path(""), "rootfs")
 }
 
-func (c *containerLXD) TemplatesPathGet() string {
-	return path.Join(c.PathGet(""), "templates")
+func (c *containerLXD) TemplatesPath() string {
+	return path.Join(c.Path(""), "templates")
 }
 
-func (c *containerLXD) StateDirGet() string {
-	return path.Join(c.PathGet(""), "state")
+func (c *containerLXD) StateDir() string {
+	return path.Join(c.Path(""), "state")
 }
 
-func (c *containerLXD) LogPathGet() string {
-	return shared.LogPath(c.NameGet())
+func (c *containerLXD) LogPath() string {
+	return shared.LogPath(c.Name())
 }
 
-func (c *containerLXD) LogFilePathGet() string {
-	return filepath.Join(c.LogPathGet(), "lxc.log")
+func (c *containerLXD) LogFilePath() string {
+	return filepath.Join(c.LogPath(), "lxc.log")
 }
 
-func (c *containerLXD) InitPidGet() int {
+func (c *containerLXD) InitPID() int {
 	return c.c.InitPid()
 }
 
-func (c *containerLXD) StateGet() string {
+func (c *containerLXD) State() string {
 	return c.c.State().String()
 }
 
-func (c *containerLXD) IdmapSetGet() *shared.IdmapSet {
+func (c *containerLXD) IdmapSet() *shared.IdmapSet {
 	return c.idmapset
 }
 
-func (c *containerLXD) LastIdmapSetGet() (*shared.IdmapSet, error) {
-	config := c.ConfigGet()
+func (c *containerLXD) LastIdmapSet() (*shared.IdmapSet, error) {
+	config := c.Config()
 	lastJsonIdmap := config["volatile.last_state.idmap"]
 
 	if lastJsonIdmap == "" {
-		return c.IdmapSetGet(), nil
+		return c.IdmapSet(), nil
 	}
 
 	lastIdmap := new(shared.IdmapSet)
@@ -1403,13 +1403,13 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	if err = dbContainerConfigClear(tx, c.id); err != nil {
 		shared.Log.Debug(
 			"Error clearing configuration for container",
-			log.Ctx{"name": c.NameGet()})
+			log.Ctx{"name": c.Name()})
 		tx.Rollback()
 		return err
 	}
 
 	if err = dbContainerConfigInsert(tx, c.id, newContainerArgs.Config); err != nil {
-		shared.Debugf("Error inserting configuration for container %s: %s", c.NameGet(), err)
+		shared.Debugf("Error inserting configuration for container %s: %s", c.Name(), err)
 		tx.Rollback()
 		return err
 	}
@@ -1470,7 +1470,7 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 
 	// add devices from new profile list to the desired goal set
 	for _, p := range c.profiles {
-		profileDevs, err := dbDevicesGet(c.daemon.db, p, true)
+		profileDevs, err := dbDevices(c.daemon.db, p, true)
 		if err != nil {
 			return fmt.Errorf("Error reading devices from profile '%s': %v", p, err)
 		}
@@ -1494,15 +1494,15 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	return nil
 }
 
-func (c *containerLXD) ConfigGet() map[string]string {
+func (c *containerLXD) Config() map[string]string {
 	return c.config
 }
 
-func (c *containerLXD) DevicesGet() shared.Devices {
+func (c *containerLXD) Devices() shared.Devices {
 	return c.devices
 }
 
-func (c *containerLXD) ProfilesGet() []string {
+func (c *containerLXD) Profiles() []string {
 	return c.profiles
 }
 
@@ -1522,17 +1522,17 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 	}
 	defer c.StorageStop()
 
-	idmap, err := c.LastIdmapSetGet()
+	idmap, err := c.LastIdmapSet()
 	if err != nil {
 		return err
 	}
 
 	if idmap != nil {
-		if err := idmap.UnshiftRootfs(c.RootfsPathGet()); err != nil {
+		if err := idmap.UnshiftRootfs(c.RootfsPath()); err != nil {
 			return err
 		}
 
-		defer idmap.ShiftRootfs(c.RootfsPathGet())
+		defer idmap.ShiftRootfs(c.RootfsPath())
 	}
 
 	tw := tar.NewWriter(w)
@@ -1540,7 +1540,7 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 	// keep track of the first path we saw for each path with nlink>1
 	linkmap := map[uint64]string{}
 
-	cDir := c.PathGet("")
+	cDir := c.Path("")
 
 	// Path inside the tar image is the pathname starting after cDir
 	offset := len(cDir) + 1
@@ -1577,7 +1577,7 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 }
 
 func (c *containerLXD) TemplateApply(trigger string) error {
-	fname := path.Join(c.PathGet(""), "metadata.yaml")
+	fname := path.Join(c.Path(""), "metadata.yaml")
 
 	if !shared.PathExists(fname) {
 		return nil
@@ -1727,7 +1727,7 @@ func (c *containerLXD) AttachMount(m shared.Device) error {
 
 		// Mount blockdev into $containerdir/blk.$(mktemp)
 		fnam := fmt.Sprintf("blk.%s", strings.Replace(source, "/", "-", -1))
-		blkmnt := filepath.Join(c.PathGet(""), fnam)
+		blkmnt := filepath.Join(c.Path(""), fnam)
 		syscall.Unmount(blkmnt, syscall.MNT_DETACH)
 		os.Remove(blkmnt)
 		if err = os.Mkdir(blkmnt, 0660); err != nil {
@@ -1861,7 +1861,7 @@ func (c *containerLXD) applyProfile(p string) error {
 		config[k] = v
 	}
 
-	newdevs, err := dbDevicesGet(c.daemon.db, p, true)
+	newdevs, err := dbDevices(c.daemon.db, p, true)
 	if err != nil {
 		return err
 	}
@@ -2040,7 +2040,7 @@ func (c *containerLXD) applyDevices() error {
 			continue
 		}
 
-		configs, err := deviceToLxc(c.PathGet(""), d)
+		configs, err := deviceToLxc(c.Path(""), d)
 		if err != nil {
 			return fmt.Errorf("Failed configuring device %s: %s", name, err)
 		}
@@ -2187,7 +2187,7 @@ func (c *containerLXD) mkdirAllContainerRoot(path string, perm os.FileMode) erro
 }
 
 func (c *containerLXD) mountShared() error {
-	source := shared.VarPath("shmounts", c.NameGet())
+	source := shared.VarPath("shmounts", c.Name())
 	entry := fmt.Sprintf("%s dev/.lxd-mounts none bind,create=dir 0 0", source)
 	if !shared.PathExists(source) {
 		if err := c.mkdirAllContainerRoot(source, 0755); err != nil {
