@@ -36,7 +36,7 @@ Command                               | Result
 lxc info                              | Show some information on the local LXD server
 lxc info dakara:                      | Same but against the remote "dakara" server
 lxc info c1                           | Show information about the "c1" container
-lxc images info ubuntu/trusty/amd64   | Show information about the "ubuntu/trusty/amd64" image (alias)
+lxc image info ubuntu/trusty/amd64    | Show information about the "ubuntu/trusty/amd64" image (alias)
 lxc info dakara:c2/yesterday          | Show information about the "yesterday" snapshot of container "c2" on remote host "dakara"
 
 
