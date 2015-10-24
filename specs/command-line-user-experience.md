@@ -29,7 +29,7 @@ The lxc command interacts with resources. Currently supported resources are:
 lxc defaults to interacting with the local LXD daemon, remote operations
 must be prefixed with the remote server's name followed by a colon.
 
-Some examples with the "status" command:
+Some examples with the "info" command:
 
 Command                               | Result
 :------                               | :-----
