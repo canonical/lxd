@@ -29,14 +29,14 @@ The lxc command interacts with resources. Currently supported resources are:
 lxc defaults to interacting with the local LXD daemon, remote operations
 must be prefixed with the remote server's name followed by a colon.
 
-Some examples with the "status" command:
+Some examples with the "info" command:
 
 Command                               | Result
 :------                               | :-----
 lxc info                              | Show some information on the local LXD server
 lxc info dakara:                      | Same but against the remote "dakara" server
 lxc info c1                           | Show information about the "c1" container
-lxc images info ubuntu/trusty/amd64   | Show information about the "ubuntu/trusty/amd64" image (alias)
+lxc image info ubuntu/trusty/amd64    | Show information about the "ubuntu/trusty/amd64" image (alias)
 lxc info dakara:c2/yesterday          | Show information about the "yesterday" snapshot of container "c2" on remote host "dakara"
 
 
