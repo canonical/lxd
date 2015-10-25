@@ -9,7 +9,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func dbProfileIDGet(db *sql.DB, profile string) (int64, error) {
+func dbProfileID(db *sql.DB, profile string) (int64, error) {
 	id := int64(-1)
 
 	rows, err := dbQuery(db, "SELECT id FROM profiles WHERE name=?", profile)
@@ -27,8 +27,8 @@ func dbProfileIDGet(db *sql.DB, profile string) (int64, error) {
 	return id, nil
 }
 
-// dbProfilesGet returns a string list of profiles.
-func dbProfilesGet(db *sql.DB) ([]string, error) {
+// dbProfiles returns a string list of profiles.
+func dbProfiles(db *sql.DB) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM profiles")
 	inargs := []interface{}{}
 	var name string
@@ -85,7 +85,7 @@ func dbProfileCreate(db *sql.DB, profile string, config map[string]string,
 }
 
 func dbProfileCreateDefault(db *sql.DB) error {
-	id, err := dbProfileIDGet(db, "default")
+	id, err := dbProfileID(db, "default")
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func dbProfileCreateDefault(db *sql.DB) error {
 }
 
 func dbProfileCreateMigratable(db *sql.DB) error {
-	id, err := dbProfileIDGet(db, "migratable")
+	id, err := dbProfileID(db, "migratable")
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ lxc.seccomp =`,
 }
 
 // Get the profile configuration map from the DB
-func dbProfileConfigGet(db *sql.DB, name string) (map[string]string, error) {
+func dbProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 	var key, value string
 	query := `
         SELECT

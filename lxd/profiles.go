@@ -21,7 +21,7 @@ type profilesPostReq struct {
 }
 
 func profilesGet(d *Daemon, r *http.Request) Response {
-	results, err := dbProfilesGet(d.db)
+	results, err := dbProfiles(d.db)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -78,12 +78,12 @@ var profilesCmd = Command{
 	post: profilesPost}
 
 func doProfileGet(d *Daemon, name string) (*shared.ProfileConfig, error) {
-	config, err := dbProfileConfigGet(d.db, name)
+	config, err := dbProfileConfig(d.db, name)
 	if err != nil {
 		return nil, err
 	}
 
-	devices, err := dbDevicesGet(d.db, name, true)
+	devices, err := dbDevices(d.db, name, true)
 	if err != nil {
 		return nil, err
 	}
@@ -133,13 +133,13 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	preDevList, err := dbDevicesGet(d.db, name, true)
+	preDevList, err := dbDevices(d.db, name, true)
 	if err != nil {
 		return InternalError(err)
 	}
 	clist := getRunningContainersWithProfile(d, name)
 
-	id, err := dbProfileIDGet(d.db, name)
+	id, err := dbProfileID(d.db, name)
 	if err != nil {
 		return InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
 	}
@@ -174,9 +174,9 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		if !c.IsRunning() {
 			continue
 		}
-		fmt.Printf("Updating profile device list for %s\n", c.NameGet())
+		fmt.Printf("Updating profile device list for %s\n", c.Name())
 		if err := devicesApplyDeltaLive(tx, c, preDevList, postDevList); err != nil {
-			shared.Debugf("Warning: failed to update device list for container %s (profile %s updated)", c.NameGet(), name)
+			shared.Debugf("Warning: failed to update device list for container %s (profile %s updated)", c.Name(), name)
 		}
 	}
 

@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func containerStateGet(d *Daemon, r *http.Request) Response {
+func containerState(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	c, err := containerLXDLoad(d, name)
 	if err != nil {

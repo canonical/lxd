@@ -238,7 +238,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	opts.ClearEnv = true
 	opts.Env = []string{}
 
-	for k, v := range c.ConfigGet() {
+	for k, v := range c.Config() {
 		if strings.HasPrefix(k, "environment.") {
 			opts.Env = append(opts.Env, fmt.Sprintf("%s=%s", strings.TrimPrefix(k, "environment."), v))
 		}
@@ -256,7 +256,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
-		idmapset := c.IdmapSetGet()
+		idmapset := c.IdmapSet()
 		if idmapset != nil {
 			ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
 		}

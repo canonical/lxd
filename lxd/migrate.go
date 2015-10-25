@@ -124,7 +124,7 @@ func (c *migrationFields) controlChannel() <-chan MigrationControl {
 
 func CollectCRIULogFile(c container, imagesDir string, function string, method string) error {
 	t := time.Now().Format(time.RFC3339)
-	newPath := shared.LogPath(c.NameGet(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
+	newPath := shared.LogPath(c.Name(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
 	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
 }
 
@@ -235,7 +235,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 
 	idmaps := make([]*IDMapType, 0)
 
-	idmapset := s.container.IdmapSetGet()
+	idmapset := s.container.IdmapSet()
 	if idmapset != nil {
 		for _, ctnIdmap := range idmapset.Idmap {
 			idmap := IDMapType{
@@ -318,7 +318,7 @@ func (s *migrationSourceWs) Do() shared.OperationResult {
 		}
 	}
 
-	fsDir := s.container.RootfsPathGet()
+	fsDir := s.container.RootfsPath()
 	if err := RsyncSend(shared.AddSlash(fsDir), s.fsConn); err != nil {
 		s.sendControl(err)
 		return shared.OperationError(err)
@@ -431,7 +431,7 @@ func (c *migrationSink) do() error {
 	go func(c *migrationSink) {
 		imagesDir := ""
 		srcIdmap := new(shared.IdmapSet)
-		dstIdmap := c.container.IdmapSetGet()
+		dstIdmap := c.container.IdmapSet()
 		if dstIdmap == nil {
 			dstIdmap = new(shared.IdmapSet)
 		}
@@ -481,7 +481,7 @@ func (c *migrationSink) do() error {
 			}
 		}
 
-		fsDir := c.container.RootfsPathGet()
+		fsDir := c.container.RootfsPath()
 		if err := RsyncRecv(shared.AddSlash(fsDir), c.fsConn); err != nil {
 			restore <- err
 			c.sendControl(err)
@@ -499,13 +499,13 @@ func (c *migrationSink) do() error {
 		}
 
 		if !reflect.DeepEqual(srcIdmap, dstIdmap) {
-			if err := srcIdmap.UnshiftRootfs(shared.VarPath("containers", c.container.NameGet())); err != nil {
+			if err := srcIdmap.UnshiftRootfs(shared.VarPath("containers", c.container.Name())); err != nil {
 				restore <- err
 				c.sendControl(err)
 				return
 			}
 
-			if err := dstIdmap.ShiftRootfs(shared.VarPath("containers", c.container.NameGet())); err != nil {
+			if err := dstIdmap.ShiftRootfs(shared.VarPath("containers", c.container.Name())); err != nil {
 				restore <- err
 				c.sendControl(err)
 				return
