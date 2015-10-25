@@ -233,16 +233,16 @@ func (ss *storageShared) GetStorageTypeVersion() string {
 }
 
 func (ss *storageShared) shiftRootfs(c container) error {
-	dpath := c.PathGet("")
-	rpath := c.RootfsPathGet()
+	dpath := c.Path("")
+	rpath := c.RootfsPath()
 
 	shared.Log.Debug("Shifting root filesystem",
-		log.Ctx{"container": c.NameGet(), "rootfs": rpath})
+		log.Ctx{"container": c.Name(), "rootfs": rpath})
 
-	idmapset := c.IdmapSetGet()
+	idmapset := c.IdmapSet()
 
 	if idmapset == nil {
-		return fmt.Errorf("IdmapSet of container '%s' is nil", c.NameGet())
+		return fmt.Errorf("IdmapSet of container '%s' is nil", c.Name())
 	}
 
 	err := idmapset.ShiftRootfs(rpath)
@@ -258,7 +258,7 @@ func (ss *storageShared) shiftRootfs(c container) error {
 }
 
 func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
-	idmapset := c.IdmapSetGet()
+	idmapset := c.IdmapSet()
 
 	// Skip for privileged containers
 	if idmapset == nil {
@@ -318,7 +318,7 @@ func (lw *storageLogWrapper) ContainerCreate(container container) error {
 	lw.log.Debug(
 		"ContainerCreate",
 		log.Ctx{
-			"name":         container.NameGet(),
+			"name":         container.Name(),
 			"isPrivileged": container.IsPrivileged()})
 	return lw.w.ContainerCreate(container)
 }
@@ -330,13 +330,13 @@ func (lw *storageLogWrapper) ContainerCreateFromImage(
 		"ContainerCreateFromImage",
 		log.Ctx{
 			"imageFingerprint": imageFingerprint,
-			"name":             container.NameGet(),
+			"name":             container.Name(),
 			"isPrivileged":     container.IsPrivileged()})
 	return lw.w.ContainerCreateFromImage(container, imageFingerprint)
 }
 
 func (lw *storageLogWrapper) ContainerDelete(container container) error {
-	lw.log.Debug("ContainerDelete", log.Ctx{"container": container.NameGet()})
+	lw.log.Debug("ContainerDelete", log.Ctx{"container": container.Name()})
 	return lw.w.ContainerDelete(container)
 }
 
@@ -346,18 +346,18 @@ func (lw *storageLogWrapper) ContainerCopy(
 	lw.log.Debug(
 		"ContainerCopy",
 		log.Ctx{
-			"container": container.NameGet(),
-			"source":    sourceContainer.NameGet()})
+			"container": container.Name(),
+			"source":    sourceContainer.Name()})
 	return lw.w.ContainerCopy(container, sourceContainer)
 }
 
 func (lw *storageLogWrapper) ContainerStart(container container) error {
-	lw.log.Debug("ContainerStart", log.Ctx{"container": container.NameGet()})
+	lw.log.Debug("ContainerStart", log.Ctx{"container": container.Name()})
 	return lw.w.ContainerStart(container)
 }
 
 func (lw *storageLogWrapper) ContainerStop(container container) error {
-	lw.log.Debug("ContainerStop", log.Ctx{"container": container.NameGet()})
+	lw.log.Debug("ContainerStop", log.Ctx{"container": container.Name()})
 	return lw.w.ContainerStop(container)
 }
 
@@ -367,7 +367,7 @@ func (lw *storageLogWrapper) ContainerRename(
 	lw.log.Debug(
 		"ContainerRename",
 		log.Ctx{
-			"container": container.NameGet(),
+			"container": container.Name(),
 			"newName":   newName})
 	return lw.w.ContainerRename(container, newName)
 }
@@ -378,8 +378,8 @@ func (lw *storageLogWrapper) ContainerRestore(
 	lw.log.Debug(
 		"ContainerRestore",
 		log.Ctx{
-			"container": container.NameGet(),
-			"source":    sourceContainer.NameGet()})
+			"container": container.Name(),
+			"source":    sourceContainer.Name()})
 	return lw.w.ContainerRestore(container, sourceContainer)
 }
 
@@ -388,8 +388,8 @@ func (lw *storageLogWrapper) ContainerSnapshotCreate(
 
 	lw.log.Debug("ContainerSnapshotCreate",
 		log.Ctx{
-			"snapshotContainer": snapshotContainer.NameGet(),
-			"sourceContainer":   sourceContainer.NameGet()})
+			"snapshotContainer": snapshotContainer.Name(),
+			"sourceContainer":   sourceContainer.Name()})
 
 	return lw.w.ContainerSnapshotCreate(snapshotContainer, sourceContainer)
 }
@@ -397,7 +397,7 @@ func (lw *storageLogWrapper) ContainerSnapshotDelete(
 	snapshotContainer container) error {
 
 	lw.log.Debug("ContainerSnapshotDelete",
-		log.Ctx{"snapshotContainer": snapshotContainer.NameGet()})
+		log.Ctx{"snapshotContainer": snapshotContainer.Name()})
 	return lw.w.ContainerSnapshotDelete(snapshotContainer)
 }
 
@@ -406,7 +406,7 @@ func (lw *storageLogWrapper) ContainerSnapshotRename(
 
 	lw.log.Debug("ContainerSnapshotRename",
 		log.Ctx{
-			"snapshotContainer": snapshotContainer.NameGet(),
+			"snapshotContainer": snapshotContainer.Name(),
 			"newName":           newName})
 	return lw.w.ContainerSnapshotRename(snapshotContainer, newName)
 }

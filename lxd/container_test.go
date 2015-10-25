@@ -14,7 +14,7 @@ func (suite *lxdTestSuite) TestContainer_ProfilesDefault() {
 	suite.Req.Nil(err)
 	defer c.Delete()
 
-	profiles := c.ProfilesGet()
+	profiles := c.Profiles()
 	suite.Len(
 		profiles,
 		1,
@@ -49,7 +49,7 @@ func (suite *lxdTestSuite) TestContainer_ProfilesMulti() {
 	suite.Req.Nil(err)
 	defer c.Delete()
 
-	profiles := c.ProfilesGet()
+	profiles := c.Profiles()
 	suite.Len(
 		profiles,
 		2,
@@ -110,7 +110,7 @@ func (suite *lxdTestSuite) TestContainer_LoadFromDB() {
 		"The loaded container isn't excactly the same as the created one.")
 }
 
-func (suite *lxdTestSuite) TestContainer_PathGet_Regular() {
+func (suite *lxdTestSuite) TestContainer_Path_Regular() {
 	// Regular
 	args := containerLXDArgs{
 		Ctype:     cTypeRegular,
@@ -122,11 +122,11 @@ func (suite *lxdTestSuite) TestContainer_PathGet_Regular() {
 	defer c.Delete()
 
 	suite.Req.False(c.IsSnapshot(), "Shouldn't be a snapshot.")
-	suite.Req.Equal(shared.VarPath("containers", "testFoo"), c.PathGet(""))
-	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.PathGet("testFoo2"))
+	suite.Req.Equal(shared.VarPath("containers", "testFoo"), c.Path(""))
+	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.Path("testFoo2"))
 }
 
-func (suite *lxdTestSuite) TestContainer_PathGet_Snapshot() {
+func (suite *lxdTestSuite) TestContainer_Path_Snapshot() {
 	// Snapshot
 	args := containerLXDArgs{
 		Ctype:     cTypeSnapshot,
@@ -140,13 +140,13 @@ func (suite *lxdTestSuite) TestContainer_PathGet_Snapshot() {
 	suite.Req.True(c.IsSnapshot(), "Should be a snapshot.")
 	suite.Req.Equal(
 		shared.VarPath("snapshots", "test", "snap0"),
-		c.PathGet(""))
+		c.Path(""))
 	suite.Req.Equal(
 		shared.VarPath("snapshots", "test", "snap1"),
-		c.PathGet("test/snap1"))
+		c.Path("test/snap1"))
 }
 
-func (suite *lxdTestSuite) TestContainer_LogPathGet() {
+func (suite *lxdTestSuite) TestContainer_LogPath() {
 	args := containerLXDArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
@@ -156,7 +156,7 @@ func (suite *lxdTestSuite) TestContainer_LogPathGet() {
 	suite.Req.Nil(err)
 	defer c.Delete()
 
-	suite.Req.Equal(shared.VarPath("logs", "testFoo"), c.LogPathGet())
+	suite.Req.Equal(shared.VarPath("logs", "testFoo"), c.LogPath())
 }
 
 func (suite *lxdTestSuite) TestContainer_IsPrivileged_Privileged() {
@@ -200,5 +200,5 @@ func (suite *lxdTestSuite) TestContainer_Rename() {
 	defer c.Delete()
 
 	suite.Req.Nil(c.Rename("testFoo2"), "Failed to rename the container.")
-	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.PathGet(""))
+	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.Path(""))
 }

@@ -176,7 +176,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		return SmartError(err)
 	}
 
-	sourceConfig := source.ConfigGet()
+	sourceConfig := source.Config()
 
 	if req.Config == nil {
 		req.Config = make(map[string]string)
@@ -192,7 +192,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	if req.Profiles == nil {
-		req.Profiles = source.ProfilesGet()
+		req.Profiles = source.Profiles()
 	}
 
 	args := containerLXDArgs{

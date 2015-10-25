@@ -405,7 +405,7 @@ func setupNic(tx *sql.Tx, c container, name string, d map[string]string) (string
 	}
 
 	key := fmt.Sprintf("volatile.%s.hwaddr", name)
-	config := c.ConfigGet()
+	config := c.Config()
 	hwaddr := config[key]
 
 	if hwaddr == "" {
@@ -423,7 +423,7 @@ func setupNic(tx *sql.Tx, c container, name string, d map[string]string) (string
 
 		if hwaddr != d["hwaddr"] {
 			stmt := `INSERT OR REPLACE into containers_config (container_id, key, value) VALUES (?, ?, ?)`
-			_, err = tx.Exec(stmt, c.IDGet(), key, hwaddr)
+			_, err = tx.Exec(stmt, c.ID(), key, hwaddr)
 
 			if err != nil {
 				removeInterface(n2)
@@ -539,7 +539,7 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 				return fmt.Errorf("Do not know a name for the nic for device %s", key)
 			}
 			if err := detachInterface(c, dev["name"]); err != nil {
-				return fmt.Errorf("Error removing device %s (nic %s) from container %s: %s", key, dev["name"], c.NameGet(), err)
+				return fmt.Errorf("Error removing device %s (nic %s) from container %s: %s", key, dev["name"], c.Name(), err)
 			}
 		case "disk":
 			return c.DetachMount(dev)
@@ -557,14 +557,14 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 		case "nic":
 			var tmpName string
 			if tmpName, err = setupNic(tx, c, key, dev); err != nil {
-				return fmt.Errorf("Unable to create nic %s for container %s: %s", dev["name"], c.NameGet(), err)
+				return fmt.Errorf("Unable to create nic %s for container %s: %s", dev["name"], c.Name(), err)
 			}
 			if err := lxContainer.AttachInterface(tmpName, dev["name"]); err != nil {
 				removeInterface(tmpName)
-				return fmt.Errorf("Unable to move nic %s into container %s as %s: %s", tmpName, c.NameGet(), dev["name"], err)
+				return fmt.Errorf("Unable to move nic %s into container %s as %s: %s", tmpName, c.Name(), dev["name"], err)
 			}
 
-			if err := txUpdateNic(tx, c.IDGet(), key, dev["name"]); err != nil {
+			if err := txUpdateNic(tx, c.ID(), key, dev["name"]); err != nil {
 				shared.Debugf("Warning: failed to update database entry for new nic %s: %s", key, err)
 				return err
 			}
