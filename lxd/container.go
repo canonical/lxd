@@ -66,6 +66,10 @@ func validateRawLxc(rawLxc string) error {
 		if strings.ToLower(strings.Trim(membs[0], " \t")) == "lxc.logfile" {
 			return fmt.Errorf("setting lxc.logfile is not allowed")
 		}
+
+		if strings.HasPrefix(strings.ToLower(strings.Trim(membs[0], " \t")), "lxc.network.") {
+			return fmt.Errorf("setting lxc.network keys is not allowed")
+		}
 	}
 
 	return nil
