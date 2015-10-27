@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 
 	"github.com/chai2010/gettext-go/gettext"
+	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -39,16 +40,37 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	} else {
 		remote, cName = config.ParseRemoteAndContainer("")
 	}
-	if cName == "" {
-		fmt.Println(gettext.Gettext("Information about remotes not yet supported"))
-		return errArgs
-	}
 
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
-	ct, err := d.ContainerStatus(cName)
+
+	if cName == "" {
+		return remoteInfo(d)
+	} else {
+		return containerInfo(d, cName, c.showLog)
+	}
+}
+
+func remoteInfo(d *lxd.Client) error {
+	serverStatus, err := d.ServerStatus()
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&serverStatus)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
+}
+
+func containerInfo(d *lxd.Client, name string, showLog bool) error {
+	ct, err := d.ContainerStatus(name)
 	if err != nil {
 		return err
 	}
@@ -75,7 +97,7 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 
 	// List snapshots
 	first_snapshot := true
-	snaps, err := d.ListSnapshots(cName)
+	snaps, err := d.ListSnapshots(name)
 	if err != nil {
 		return nil
 	}
@@ -87,8 +109,8 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 		first_snapshot = false
 	}
 
-	if c.showLog {
-		log, err := d.GetLog(cName, "lxc.log")
+	if showLog {
+		log, err := d.GetLog(name, "lxc.log")
 		if err != nil {
 			return err
 		}
