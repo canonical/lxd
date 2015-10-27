@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/lxc/lxd/shared"
 
@@ -515,6 +516,32 @@ func (s *storageBtrfs) subvolsSnapshot(
  * else false.
  */
 func (s *storageBtrfs) isSubvolume(subvolPath string) bool {
+	if runningInUserns {
+		// subvolume show is restricted to real root, use a workaround
+
+		fs := syscall.Statfs_t{}
+		err := syscall.Statfs(subvolPath, &fs)
+		if err != nil {
+			return false
+		}
+
+		if fs.Type != filesystemSuperMagicBtrfs {
+			return false
+		}
+
+		parentFs := syscall.Statfs_t{}
+		err = syscall.Statfs(path.Dir(subvolPath), &parentFs)
+		if err != nil {
+			return false
+		}
+
+		if fs.Fsid == parentFs.Fsid {
+			return false
+		}
+
+		return true
+	}
+
 	output, err := exec.Command(
 		"btrfs",
 		"subvolume",
@@ -529,13 +556,43 @@ func (s *storageBtrfs) isSubvolume(subvolPath string) bool {
 
 // getSubVolumes returns a list of relative subvolume paths of "path".
 func (s *storageBtrfs) getSubVolumes(path string) ([]string, error) {
+	result := []string{}
+
+	if runningInUserns {
+		if !strings.HasSuffix(path, "/") {
+			path = path + "/"
+		}
+
+		// Unprivileged users can't get to fs internals
+		filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
+			if strings.TrimRight(fpath, "/") == strings.TrimRight(path, "/") {
+				return nil
+			}
+
+			if err != nil {
+				return nil
+			}
+
+			if !fi.IsDir() {
+				return nil
+			}
+
+			if s.isSubvolume(fpath) {
+				result = append(result, strings.TrimPrefix(fpath, path))
+			}
+			return nil
+		})
+
+		return result, nil
+	}
+
 	out, err := exec.Command(
 		"btrfs",
 		"inspect-internal",
 		"rootid",
 		path).CombinedOutput()
 	if err != nil {
-		return []string{}, fmt.Errorf(
+		return result, fmt.Errorf(
 			"Unable to get btrfs rootid, path='%s', err='%s'",
 			path,
 			err)
@@ -548,7 +605,7 @@ func (s *storageBtrfs) getSubVolumes(path string) ([]string, error) {
 		"subvolid-resolve",
 		rootid, path).CombinedOutput()
 	if err != nil {
-		return []string{}, fmt.Errorf(
+		return result, fmt.Errorf(
 			"Unable to resolve btrfs rootid, path='%s', err='%s'",
 			path,
 			err)
@@ -562,13 +619,12 @@ func (s *storageBtrfs) getSubVolumes(path string) ([]string, error) {
 		"-o",
 		path).CombinedOutput()
 	if err != nil {
-		return []string{}, fmt.Errorf(
+		return result, fmt.Errorf(
 			"Unable to list subvolumes, path='%s', err='%s'",
 			path,
 			err)
 	}
 
-	result := []string{}
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		if line == "" {

@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-10-19 11:29-0600\n"
+        "POT-Creation-Date: 2015-10-27 16:00-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -74,7 +74,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/info.go:72 lxc/profile.go:230
+#: lxc/info.go:94 lxc/profile.go:230
 msgid   "(none)"
 msgstr  ""
 
@@ -103,7 +103,7 @@ msgstr  ""
 msgid   "Aliases:"
 msgstr  ""
 
-#: lxc/exec.go:52
+#: lxc/exec.go:51
 msgid   "An environment variable of the form HOME=/home/foo"
 msgstr  ""
 
@@ -256,7 +256,7 @@ msgstr  ""
 msgid   "Error adding alias %s"
 msgstr  ""
 
-#: lxc/exec.go:28
+#: lxc/exec.go:27
 msgid   "Execute the specified command in a container.\n"
         "\n"
         "lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>"
@@ -323,11 +323,7 @@ msgstr  ""
 msgid   "Image imported with fingerprint: %s"
 msgstr  ""
 
-#: lxc/info.go:43
-msgid   "Information about remotes not yet supported"
-msgstr  ""
-
-#: lxc/info.go:59
+#: lxc/info.go:81
 #, c-format
 msgid   "Init: %d"
 msgstr  ""
@@ -360,7 +356,7 @@ msgstr  ""
 msgid   "Invalid target %s"
 msgstr  ""
 
-#: lxc/info.go:60
+#: lxc/info.go:82
 msgid   "Ips:"
 msgstr  ""
 
@@ -371,7 +367,7 @@ msgstr  ""
 #: lxc/launch.go:21
 msgid   "Launch a container from a particular image.\n"
         "\n"
-        "lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]\n"
+        "lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]\n"
         "\n"
         "Launches a container using the specified image and name.\n"
         "\n"
@@ -382,7 +378,7 @@ msgid   "Launch a container from a particular image.\n"
         "lxc launch ubuntu u1"
 msgstr  ""
 
-#: lxc/info.go:22
+#: lxc/info.go:23
 msgid   "List information on containers.\n"
         "\n"
         "This will support remotes and images as well, but only containers for now.\n"
@@ -404,7 +400,7 @@ msgid   "Lists the available resources.\n"
         "* \"s.privileged=1\" will do the same"
 msgstr  ""
 
-#: lxc/info.go:101
+#: lxc/info.go:123
 msgid   "Log:"
 msgstr  ""
 
@@ -546,7 +542,7 @@ msgstr  ""
 msgid   "NO"
 msgstr  ""
 
-#: lxc/info.go:56
+#: lxc/info.go:78
 #, c-format
 msgid   "Name: %s"
 msgstr  ""
@@ -713,7 +709,7 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/info.go:31
+#: lxc/info.go:32
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
 
@@ -722,7 +718,7 @@ msgstr  ""
 msgid   "Size: %.2fMB"
 msgstr  ""
 
-#: lxc/info.go:84 lxc/list.go:180
+#: lxc/info.go:106 lxc/list.go:180
 msgid   "Snapshots:"
 msgstr  ""
 
@@ -735,7 +731,7 @@ msgstr  ""
 msgid   "Starting %s"
 msgstr  ""
 
-#: lxc/info.go:57
+#: lxc/info.go:79
 #, c-format
 msgid   "Status: %s"
 msgstr  ""
@@ -816,7 +812,7 @@ msgstr  ""
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
-#: shared/util_linux.go:237 shared/util_linux.go:269
+#: shared/util_linux.go:243 shared/util_linux.go:275
 msgid   "allocation failed"
 msgstr  ""
 
@@ -891,7 +887,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: shared/util_linux.go:251 shared/util_linux.go:283
+#: shared/util_linux.go:257 shared/util_linux.go:292
 #, c-format
 msgid   "failed group lookup: %s"
 msgstr  ""
@@ -956,7 +952,7 @@ msgstr  ""
 msgid   "remote %s exists as <%s>"
 msgstr  ""
 
-#: shared/util_linux.go:255 shared/util_linux.go:287
+#: shared/util_linux.go:261 shared/util_linux.go:296
 #, c-format
 msgid   "unknown group %s"
 msgstr  ""
@@ -971,7 +967,7 @@ msgstr  ""
 msgid   "unknown transport type: %s"
 msgstr  ""
 
-#: lxc/exec.go:162
+#: lxc/exec.go:145
 msgid   "unreachable return reached"
 msgstr  ""
 
