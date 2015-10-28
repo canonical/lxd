@@ -534,3 +534,57 @@ func InterfaceToBool(value interface{}) bool {
 		return false
 	}
 }
+
+func TextEditor(inPath string, inContent []byte) ([]byte, error) {
+	var f *os.File
+	var err error
+	var path string
+
+	// Detect the text editor to use
+	editor := os.Getenv("VISUAL")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+		if editor == "" {
+			editor = "vi"
+		}
+	}
+
+	if inPath == "" {
+		// If provided input, create a new file
+		f, err = ioutil.TempFile("", "lxd_editor_")
+		if err != nil {
+			return []byte{}, err
+		}
+
+		if err = f.Chmod(0600); err != nil {
+			f.Close()
+			os.Remove(f.Name())
+			return []byte{}, err
+		}
+
+		f.Write(inContent)
+		f.Close()
+
+		path = f.Name()
+		defer os.Remove(path)
+	} else {
+		path = inPath
+	}
+
+	cmdParts := strings.Fields(editor)
+	cmd := exec.Command(cmdParts[0], append(cmdParts[1:], path)...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return content, nil
+}
