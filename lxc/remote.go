@@ -205,6 +205,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		err := addServer(config, args[1], args[2], c.acceptCert, c.password, c.public)
 		if err != nil {
 			delete(config.Remotes, args[1])
+			removeCertificate(args[1])
 			return err
 		}
 
