@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strings"
 	"syscall"
 
@@ -137,6 +136,7 @@ func doProfileCreate(client *lxd.Client, p string) error {
 }
 
 func doProfileEdit(client *lxd.Client, p string) error {
+	// If stdin isn't a terminal, read text from it
 	if !terminal.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
@@ -148,63 +148,45 @@ func doProfileEdit(client *lxd.Client, p string) error {
 		if err != nil {
 			return err
 		}
-		newdata.Name = p
 		return client.PutProfile(p, newdata)
 	}
 
+	// Extract the current value
 	profile, err := client.ProfileConfig(p)
 	if err != nil {
 		return err
 	}
-	editor := os.Getenv("VISUAL")
-	if editor == "" {
-		editor = os.Getenv("EDITOR")
-		if editor == "" {
-			editor = "vi"
-		}
-	}
+
 	data, err := yaml.Marshal(&profile)
-	f, err := ioutil.TempFile("", "lxd_lxc_profile_")
 	if err != nil {
 		return err
 	}
-	fname := f.Name()
-	if err = f.Chmod(0600); err != nil {
-		f.Close()
-		os.Remove(fname)
+
+	// Spawn the editor
+	content, err := shared.TextEditor("", []byte(profileEditHelp+"\n\n"+string(data)))
+	if err != nil {
 		return err
 	}
-	f.Write([]byte(profileEditHelp + "\n"))
-	f.Write(data)
-	f.Close()
-	defer os.Remove(fname)
 
 	for {
-		var err error
-		cmdParts := strings.Fields(editor)
-		cmd := exec.Command(cmdParts[0], append(cmdParts[1:], fname)...)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		err = cmd.Run()
-		if err != nil {
-			return err
-		}
-		contents, err := ioutil.ReadFile(fname)
-		if err != nil {
-			return err
-		}
+		// Parse the text received from the editor
 		newdata := shared.ProfileConfig{}
-
-		err = yaml.Unmarshal(contents, &newdata)
+		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
 			err = client.PutProfile(p, newdata)
 		}
 
+		// Respawn the editor
 		if err != nil {
 			fmt.Fprintf(os.Stderr, gettext.Gettext("Config parsing error: %s")+"\n", err)
 			fmt.Println(gettext.Gettext("Press enter to open the editor again"))
+
 			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
 			if err != nil {
 				return err
 			}
