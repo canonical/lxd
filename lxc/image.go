@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"syscall"
@@ -313,10 +312,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) < 2 {
 			return errArgs
 		}
+
 		remote, inName := config.ParseRemoteAndContainer(args[1])
 		if inName == "" {
 			return errArgs
 		}
+
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
@@ -327,80 +328,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			image = inName
 		}
 
-		if !terminal.IsTerminal(int(syscall.Stdin)) {
-			contents, err := ioutil.ReadAll(os.Stdin)
-			if err != nil {
-				return err
-			}
-
-			newdata := shared.BriefImageInfo{}
-			err = yaml.Unmarshal(contents, &newdata)
-			if err != nil {
-				return err
-			}
-			return d.PutImageInfo(image, newdata)
-		}
-
-		info, err := d.GetImageInfo(image)
-		if err != nil {
-			return err
-		}
-
-		properties := info.BriefInfo()
-		editor := os.Getenv("VISUAL")
-		if editor == "" {
-			editor = os.Getenv("EDITOR")
-			if editor == "" {
-				editor = "vi"
-			}
-		}
-		data, err := yaml.Marshal(&properties)
-		f, err := ioutil.TempFile("", "lxd_lxc_image_")
-		if err != nil {
-			return err
-		}
-		fname := f.Name()
-		if err = f.Chmod(0600); err != nil {
-			f.Close()
-			os.Remove(fname)
-			return err
-		}
-		f.Write([]byte(imageEditHelp + "\n"))
-		f.Write(data)
-		f.Close()
-		defer os.Remove(fname)
-
-		for {
-			cmdParts := strings.Fields(editor)
-			cmd := exec.Command(cmdParts[0], append(cmdParts[1:], fname)...)
-			cmd.Stdin = os.Stdin
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			err = cmd.Run()
-			if err != nil {
-				return err
-			}
-			contents, err := ioutil.ReadFile(fname)
-			if err != nil {
-				return err
-			}
-			newdata := shared.BriefImageInfo{}
-			err = yaml.Unmarshal(contents, &newdata)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, gettext.Gettext("YAML parse error %v")+"\n", err)
-				fmt.Println(gettext.Gettext("Press enter to open the editor again"))
-				_, err := os.Stdin.Read(make([]byte, 1))
-				if err != nil {
-					return err
-				}
-
-				continue
-			}
-			err = d.PutImageInfo(image, newdata)
-			break
-		}
-
-		return err
+		return doImageEdit(d, image)
 
 	case "export":
 		if len(args) < 2 {
@@ -548,5 +476,68 @@ func showAliases(aliases []shared.ImageAlias) error {
 	}
 	table.Render()
 
+	return nil
+}
+
+func doImageEdit(client *lxd.Client, image string) error {
+	// If stdin isn't a terminal, read text from it
+	if !terminal.IsTerminal(int(syscall.Stdin)) {
+		contents, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newdata := shared.BriefImageInfo{}
+		err = yaml.Unmarshal(contents, &newdata)
+		if err != nil {
+			return err
+		}
+		return client.PutImageInfo(image, newdata)
+	}
+
+	// Extract the current value
+	config, err := client.GetImageInfo(image)
+	if err != nil {
+		return err
+	}
+
+	brief := config.BriefInfo()
+	data, err := yaml.Marshal(&brief)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor
+	content, err := shared.TextEditor("", []byte(imageEditHelp+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor
+		newdata := shared.BriefImageInfo{}
+		err = yaml.Unmarshal(content, &newdata)
+		if err == nil {
+			err = client.PutImageInfo(image, newdata)
+		}
+
+		// Respawn the editor
+		if err != nil {
+			fmt.Fprintf(os.Stderr, gettext.Gettext("Config parsing error: %s")+"\n", err)
+			fmt.Println(gettext.Gettext("Press enter to start the editor again"))
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		break
+	}
 	return nil
 }
