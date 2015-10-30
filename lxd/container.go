@@ -1074,8 +1074,6 @@ func (c *containerLXD) IsFrozen() bool {
 
 func (c *containerLXD) Shutdown(timeout time.Duration) error {
 	if err := c.c.Shutdown(timeout); err != nil {
-		// Still try to unload the storage.
-		c.StorageStop()
 		return err
 	}
 
@@ -1098,8 +1096,6 @@ func (c *containerLXD) Stop() error {
 	c.c.Freeze()
 
 	if err := c.c.Stop(); err != nil {
-		// Still try to unload the storage.
-		c.StorageStop()
 		return err
 	}
 
