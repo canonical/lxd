@@ -1094,6 +1094,9 @@ func (c *containerLXD) Shutdown(timeout time.Duration) error {
 }
 
 func (c *containerLXD) Stop() error {
+	// Attempt to freeze the container first, helps massively with fork bombs
+	c.c.Freeze()
+
 	if err := c.c.Stop(); err != nil {
 		// Still try to unload the storage.
 		c.StorageStop()
