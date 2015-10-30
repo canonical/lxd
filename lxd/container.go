@@ -1001,12 +1001,18 @@ func (c *containerLXD) Start() error {
 	}
 
 	/* Actually start the container */
-	err = exec.Command(
+	out, err := exec.Command(
 		os.Args[0],
 		"forkstart",
 		c.name,
 		c.daemon.lxcpath,
-		configPath).Run()
+		configPath).CombinedOutput()
+
+	if string(out) != "" {
+		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+			shared.Debugf("forkstart: %s", line)
+		}
+	}
 
 	if err != nil {
 		unmountTempBlocks(c.Path(""))
