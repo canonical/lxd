@@ -111,6 +111,26 @@ func untarImage(imagefname string, destpath string) error {
 	return nil
 }
 
+func compressFile(path string, compress string) (string, error) {
+	cmd := exec.Command(compress, path, "-c")
+
+	outfile, err := os.Create(path + ".compressed")
+	if err != nil {
+		return "", err
+	}
+
+	defer outfile.Close()
+	cmd.Stdout = outfile
+
+	err = cmd.Run()
+	if err != nil {
+		os.Remove(outfile.Name())
+		return "", err
+	}
+
+	return outfile.Name(), nil
+}
+
 type templateEntry struct {
 	When       []string
 	Template   string
@@ -194,14 +214,28 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	}
 	tarfile.Close()
 
-	_, err = exec.Command("gzip", tarfile.Name()).CombinedOutput()
+	compress, err := d.ConfigValueGet("images.compression_algorithm")
 	if err != nil {
 		return info, err
 	}
-	gztarpath := fmt.Sprintf("%s.gz", tarfile.Name())
+
+	// Default to gzip for this
+	if compress == "" {
+		compress = "gzip"
+	}
+
+	var compressedPath string
+	if compress != "none" {
+		compressedPath, err = compressFile(tarfile.Name(), compress)
+		if err != nil {
+			return info, err
+		}
+	} else {
+		compressedPath = tarfile.Name()
+	}
 
 	sha256 := sha256.New()
-	tarf, err := os.Open(gztarpath)
+	tarf, err := os.Open(compressedPath)
 	if err != nil {
 		return info, err
 	}
@@ -214,7 +248,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 
 	/* rename the the file to the expected name so our caller can use it */
 	finalName := shared.VarPath("images", info.Fingerprint)
-	err = shared.FileMove(gztarpath, finalName)
+	err = shared.FileMove(compressedPath, finalName)
 	if err != nil {
 		return info, err
 	}
