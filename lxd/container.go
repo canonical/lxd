@@ -1001,12 +1001,18 @@ func (c *containerLXD) Start() error {
 	}
 
 	/* Actually start the container */
-	err = exec.Command(
+	out, err := exec.Command(
 		os.Args[0],
 		"forkstart",
 		c.name,
 		c.daemon.lxcpath,
-		configPath).Run()
+		configPath).CombinedOutput()
+
+	if string(out) != "" {
+		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+			shared.Debugf("forkstart: %s", line)
+		}
+	}
 
 	if err != nil {
 		unmountTempBlocks(c.Path(""))
@@ -1068,8 +1074,6 @@ func (c *containerLXD) IsFrozen() bool {
 
 func (c *containerLXD) Shutdown(timeout time.Duration) error {
 	if err := c.c.Shutdown(timeout); err != nil {
-		// Still try to unload the storage.
-		c.StorageStop()
 		return err
 	}
 
@@ -1088,9 +1092,10 @@ func (c *containerLXD) Shutdown(timeout time.Duration) error {
 }
 
 func (c *containerLXD) Stop() error {
+	// Attempt to freeze the container first, helps massively with fork bombs
+	c.c.Freeze()
+
 	if err := c.c.Stop(); err != nil {
-		// Still try to unload the storage.
-		c.StorageStop()
 		return err
 	}
 
