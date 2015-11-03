@@ -41,11 +41,14 @@ lxc image import <tarball> [rootfs tarball] [target] [--public] [--created-at=IS
 
 lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public]
 lxc image delete [remote:]<image>
-lxc image edit [remote:]<image>
 lxc image export [remote:]<image>
 lxc image info [remote:]<image>
 lxc image list [remote:] [filter]
 lxc image show [remote:]<image>
+lxc image edit [remote:]<image>
+    Edit image, either by launching external editor or reading STDIN.
+    Example: lxc image edit <image> # launch editor
+             cat image.yml | lxc image edit <image> # read from image.yml
 
 Lists the images at specified remote, or local images.
 Filters are not yet supported.
