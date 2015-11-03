@@ -148,3 +148,10 @@ Ubuntu), and do:
     lxc move host1:$somename host2:$somename
 
 And with luck you'll have migrated the container :)
+
+#### Can I bind mount my home directory in a container?
+
+Yes. The easiest way to do that is using a privileged container:
+
+    lxc launch ubuntu priv -c security.privileged=true
+    lxc config device add priv homedir disk source=/home/$USER path=/home/ubuntu
