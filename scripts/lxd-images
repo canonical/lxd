@@ -189,10 +189,19 @@ class LXD(object):
 
             status, data = self.rest_call("/1.0/images", body, "POST", headers)
 
-        if status != 200:
+        if status != 202:
             raise Exception("Failed to upload the image: %s" % status)
 
-        return data['metadata']
+        status, data = self.rest_call(data['operation'] + "/wait",
+                                      "", "GET", {})
+        if status != 200:
+            raise Exception("Failed to query the operation: %s" % status)
+
+        if data['status_code'] != 200:
+            raise Exception("Failed to import the image: %s" %
+                            data['metadata'])
+
+        return data['metadata']['metadata']
 
 
 class Image(object):
