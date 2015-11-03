@@ -19,7 +19,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("container is running"))
 	}
 
-	rmct := func() error {
+	rmct := func(id string) error {
 		return c.Delete()
 	}
 

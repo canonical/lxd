@@ -74,7 +74,7 @@ func (s *execWs) Connect(secret string, r *http.Request, w http.ResponseWriter) 
 	return os.ErrPermission
 }
 
-func (s *execWs) Do() shared.OperationResult {
+func (s *execWs) Do(id string) shared.OperationResult {
 	<-s.allConnected
 
 	var err error
@@ -285,7 +285,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return AsyncResponseWithWs(ws, nil)
 	}
 
-	run := func() shared.OperationResult {
+	run := func(id string) shared.OperationResult {
 
 		nullDev, err := os.OpenFile(os.DevNull, os.O_RDWR, 0666)
 		if err != nil {
