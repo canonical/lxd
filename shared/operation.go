@@ -50,6 +50,7 @@ func OperationError(err error) OperationResult {
 }
 
 type Operation struct {
+	Id         string              `json:"id"`
 	CreatedAt  time.Time           `json:"created_at"`
 	UpdatedAt  time.Time           `json:"updated_at"`
 	Status     string              `json:"status"`
