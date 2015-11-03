@@ -998,6 +998,8 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 		return true
 	case "images.remote_cache_expiry":
 		return true
+	case "images.compression_algorithm":
+		return true
 	}
 
 	return false

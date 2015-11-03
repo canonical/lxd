@@ -31,7 +31,7 @@ type OperationWebsocket interface {
 	Connect(secret string, r *http.Request, w http.ResponseWriter) error
 
 	// Run the actual operation and return its result.
-	Do() OperationResult
+	Do(id string) OperationResult
 }
 
 type OperationResult struct {
@@ -41,8 +41,8 @@ type OperationResult struct {
 
 var OperationSuccess OperationResult = OperationResult{}
 
-func OperationWrap(f func() error) func() OperationResult {
-	return func() OperationResult { return OperationError(f()) }
+func OperationWrap(f func(id string) error) func(id string) OperationResult {
+	return func(id string) OperationResult { return OperationError(f(id)) }
 }
 
 func OperationError(err error) OperationResult {
@@ -59,11 +59,11 @@ type Operation struct {
 	MayCancel  bool                `json:"may_cancel"`
 
 	/* The fields below are for use on the server side. */
-	Run func() OperationResult `json:"-"`
+	Run func(id string) OperationResult `json:"-"`
 
 	/* If this is not nil, the operation can be cancelled by calling this
 	 * function */
-	Cancel func() error `json:"-"`
+	Cancel func(id string) error `json:"-"`
 
 	/* This channel receives exactly one value, when the event is done and
 	 * the status is updated */

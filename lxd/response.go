@@ -168,8 +168,8 @@ type async struct {
 }
 
 type asyncResponse struct {
-	run       func() shared.OperationResult
-	cancel    func() error
+	run       func(id string) shared.OperationResult
+	cancel    func(id string) error
 	ws        shared.OperationWebsocket
 	resources map[string][]string
 	metadata  shared.Jmap
@@ -212,11 +212,11 @@ func (r *asyncResponse) Render(w http.ResponseWriter) error {
 	return WriteJSON(w, body)
 }
 
-func AsyncResponse(run func() shared.OperationResult, cancel func() error) Response {
+func AsyncResponse(run func(id string) shared.OperationResult, cancel func(id string) error) Response {
 	return &asyncResponse{run: run, cancel: cancel}
 }
 
-func AsyncResponseWithWs(ws shared.OperationWebsocket, cancel func() error) Response {
+func AsyncResponseWithWs(ws shared.OperationWebsocket, cancel func(id string) error) Response {
 	return &asyncResponse{run: ws.Do, cancel: cancel, ws: ws}
 }
 

@@ -43,10 +43,10 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	var do func() error
+	var do func(string) error
 	switch shared.ContainerAction(raw.Action) {
 	case shared.Start:
-		do = func() error {
+		do = func(id string) error {
 			if err = c.Start(); err != nil {
 				return err
 			}
@@ -54,14 +54,14 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		}
 	case shared.Stop:
 		if raw.Timeout == 0 || raw.Force {
-			do = func() error {
+			do = func(id string) error {
 				if err = c.Stop(); err != nil {
 					return err
 				}
 				return nil
 			}
 		} else {
-			do = func() error {
+			do = func(id string) error {
 				if err = c.Shutdown(time.Duration(raw.Timeout) * time.Second); err != nil {
 					return err
 				}
@@ -69,7 +69,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			}
 		}
 	case shared.Restart:
-		do = func() error {
+		do = func(id string) error {
 			if raw.Timeout == 0 || raw.Force {
 				if err = c.Stop(); err != nil {
 					return err
@@ -85,9 +85,13 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			return nil
 		}
 	case shared.Freeze:
-		do = c.Freeze
+		do = func(id string) error {
+			return c.Freeze()
+		}
 	case shared.Unfreeze:
-		do = c.Unfreeze
+		do = func(id string) error {
+			return c.Unfreeze()
+		}
 	default:
 		return BadRequest(fmt.Errorf("unknown action %s", raw.Action))
 	}
