@@ -131,7 +131,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		shared.SnapshotDelimiter +
 		snapshotName
 
-	snapshot := func() error {
+	snapshot := func(id string) error {
 		config := c.Config()
 		args := containerLXDArgs{
 			Ctype:        cTypeSnapshot,
@@ -195,14 +195,14 @@ func snapshotPost(r *http.Request, sc container, containerName string) Response 
 		return BadRequest(err)
 	}
 
-	rename := func() error {
+	rename := func(id string) error {
 		return sc.Rename(containerName + shared.SnapshotDelimiter + newName)
 	}
 	return AsyncResponse(shared.OperationWrap(rename), nil)
 }
 
 func snapshotDelete(sc container, name string) Response {
-	remove := func() error {
+	remove := func(id string) error {
 		return sc.Delete()
 	}
 	return AsyncResponse(shared.OperationWrap(remove), nil)

@@ -16,7 +16,7 @@ import (
 var lock sync.Mutex
 var operations map[string]*shared.Operation = make(map[string]*shared.Operation)
 
-func createOperation(metadata shared.Jmap, resources map[string][]string, run func() shared.OperationResult, cancel func() error, ws shared.OperationWebsocket) (string, error) {
+func createOperation(metadata shared.Jmap, resources map[string][]string, run func(id string) shared.OperationResult, cancel func(id string) error, ws shared.OperationWebsocket) (string, error) {
 	id := uuid.NewV4().String()
 	op := shared.Operation{}
 	op.CreatedAt = time.Now()
@@ -66,7 +66,7 @@ func startOperation(id string) error {
 
 	if op.Run != nil {
 		go func(op *shared.Operation) {
-			result := op.Run()
+			result := op.Run(id)
 
 			shared.Debugf("Operation %s finished: %s", op.Run, result)
 
@@ -78,6 +78,21 @@ func startOperation(id string) error {
 
 	op.SetStatus(shared.Running)
 	lock.Unlock()
+
+	return nil
+}
+
+func updateOperation(id string, metadata map[string]string) error {
+	op, ok := operations[id]
+	if !ok {
+		return fmt.Errorf("Operation doesn't exist")
+	}
+
+	md, err := json.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+	op.Metadata = md
 
 	return nil
 }
@@ -140,7 +155,7 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 		op.SetStatus(shared.Cancelling)
 		lock.Unlock()
 
-		err := cancel()
+		err := cancel(id)
 
 		lock.Lock()
 		op.SetStatusByErr(err)

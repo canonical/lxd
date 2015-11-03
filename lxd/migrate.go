@@ -224,7 +224,7 @@ func (s *migrationSourceWs) Connect(secret string, r *http.Request, w http.Respo
 	return nil
 }
 
-func (s *migrationSourceWs) Do() shared.OperationResult {
+func (s *migrationSourceWs) Do(id string) shared.OperationResult {
 	<-s.allConnected
 
 	criuType := CRIUType_CRIU_RSYNC.Enum()

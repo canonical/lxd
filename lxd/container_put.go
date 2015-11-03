@@ -28,11 +28,11 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	var do = func() error { return nil }
+	var do = func(string) error { return nil }
 
 	if configRaw.Restore == "" {
 		// Update container configuration
-		do = func() error {
+		do = func(id string) error {
 			args := containerLXDArgs{
 				Config:   configRaw.Config,
 				Devices:  configRaw.Devices,
@@ -46,7 +46,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		}
 	} else {
 		// Snapshot Restore
-		do = func() error {
+		do = func(id string) error {
 			return containerSnapRestore(d, name, configRaw.Restore)
 		}
 	}
