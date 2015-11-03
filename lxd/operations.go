@@ -19,6 +19,7 @@ var operations map[string]*shared.Operation = make(map[string]*shared.Operation)
 func createOperation(metadata shared.Jmap, resources map[string][]string, run func(id string) shared.OperationResult, cancel func(id string) error, ws shared.OperationWebsocket) (string, error) {
 	id := uuid.NewV4().String()
 	op := shared.Operation{}
+	op.Id = id
 	op.CreatedAt = time.Now()
 	op.UpdatedAt = op.CreatedAt
 	op.SetStatus(shared.Pending)
@@ -98,15 +99,31 @@ func updateOperation(id string, metadata map[string]string) error {
 }
 
 func operationsGet(d *Daemon, r *http.Request) Response {
-	ops := shared.Jmap{"pending": make([]string, 0, 0), "running": make([]string, 0, 0)}
+	var ops shared.Jmap
+
+	recursion := d.isRecursionRequest(r)
+
+	if recursion {
+		ops = shared.Jmap{"pending": make([]*shared.Operation, 0, 0), "running": make([]*shared.Operation, 0, 0)}
+	} else {
+		ops = shared.Jmap{"pending": make([]string, 0, 0), "running": make([]string, 0, 0)}
+	}
 
 	lock.Lock()
 	for k, v := range operations {
 		switch v.StatusCode {
 		case shared.Pending:
-			ops["pending"] = append(ops["pending"].([]string), k)
+			if recursion {
+				ops["pending"] = append(ops["pending"].([]*shared.Operation), operations[k])
+			} else {
+				ops["pending"] = append(ops["pending"].([]string), k)
+			}
 		case shared.Running:
-			ops["running"] = append(ops["running"].([]string), k)
+			if recursion {
+				ops["running"] = append(ops["running"].([]*shared.Operation), operations[k])
+			} else {
+				ops["running"] = append(ops["running"].([]string), k)
+			}
 		}
 	}
 	lock.Unlock()
