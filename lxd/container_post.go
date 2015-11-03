@@ -35,7 +35,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		return AsyncResponseWithWs(ws, nil)
 	}
 
-	run := func() error {
+	run := func(id string) error {
 		return c.Rename(body.Name)
 	}
 

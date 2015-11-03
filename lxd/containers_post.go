@@ -16,7 +16,7 @@ import (
 func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var hash string
 	var err error
-	var run func() shared.OperationResult
+	var run func(string) shared.OperationResult
 
 	if req.Source.Alias != "" {
 		if req.Source.Mode == "pull" && req.Source.Server != "" {
@@ -59,7 +59,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		Architecture: imgInfo.Architecture,
 	}
 
-	run = shared.OperationWrap(func() error {
+	run = shared.OperationWrap(func(id string) error {
 		_, err := containerLXDCreateFromImage(d, req.Name, args, hash)
 		return err
 	})
@@ -78,7 +78,7 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 		Ephemeral: req.Ephemeral,
 	}
 
-	run := shared.OperationWrap(func() error {
+	run := shared.OperationWrap(func(id string) error {
 		_, err := containerLXDCreateAsEmpty(d, req.Name, args)
 		return err
 	})
@@ -94,7 +94,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return NotImplemented
 	}
 
-	run := func() shared.OperationResult {
+	run := func(id string) shared.OperationResult {
 		createArgs := containerLXDArgs{
 			Ctype:     cTypeRegular,
 			Config:    req.Config,
@@ -203,7 +203,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		BaseImage: req.Source.BaseImage,
 	}
 
-	run := func() shared.OperationResult {
+	run := func(id string) shared.OperationResult {
 		_, err := containerLXDCreateAsCopy(d, req.Name, args, source)
 		if err != nil {
 			return shared.OperationError(err)
