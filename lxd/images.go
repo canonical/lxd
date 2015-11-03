@@ -259,53 +259,52 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	return info, nil
 }
 
-func imgPostRemoteInfo(d *Daemon, req imagePostReq) Response {
+func imgPostRemoteInfo(d *Daemon, req imagePostReq) (map[string]string, error) {
 	var err error
 	var hash string
+	metadata := make(map[string]string)
 
 	if req.Source["alias"] != "" {
 		if req.Source["mode"] == "pull" && req.Source["server"] != "" {
 			hash, err = remoteGetImageFingerprint(d, req.Source["server"], req.Source["alias"])
 			if err != nil {
-				return InternalError(err)
+				return metadata, err
 			}
 		} else {
 
 			hash, err = dbImageAliasGet(d.db, req.Source["alias"])
 			if err != nil {
-				return InternalError(err)
+				return metadata, err
 			}
 		}
 	} else if req.Source["fingerprint"] != "" {
 		hash = req.Source["fingerprint"]
 	} else {
-		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
+		return metadata, fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
 	err = d.ImageDownload(
 		req.Source["server"], hash, req.Source["secret"], false)
 
 	if err != nil {
-		return InternalError(err)
+		return metadata, err
 	}
 
 	info, err := dbImageGet(d.db, hash, false, false)
 	if err != nil {
-		return InternalError(err)
+		return metadata, err
 	}
 
 	if req.Public {
 		err = dbImageSetPublic(d.db, info.Id, req.Public)
 		if err != nil {
-			return InternalError(err)
+			return metadata, err
 		}
 	}
 
-	metadata := make(map[string]string)
 	metadata["fingerprint"] = info.Fingerprint
 	metadata["size"] = strconv.FormatInt(info.Size, 10)
-
-	return SyncResponse(true, metadata)
+	return metadata, nil
 }
 
 func getImgPostInfo(d *Daemon, r *http.Request,
@@ -588,37 +587,33 @@ func imageBuildFromInfo(d *Daemon, info shared.ImageInfo) (metadata map[string]s
 
 func imagesPost(d *Daemon, r *http.Request) Response {
 	var err error
-	var info shared.ImageInfo
-
-	dirname := shared.VarPath("images")
-	if err := os.MkdirAll(dirname, 0700); err != nil {
-		return InternalError(err)
-	}
 
 	// create a directory under which we keep everything while building
-	builddir, err := ioutil.TempDir(dirname, "lxd_build_")
+	builddir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_build_")
 	if err != nil {
 		return InternalError(err)
 	}
 
-	/* remove the builddir when done */
-	defer func() {
-		if err := os.RemoveAll(builddir); err != nil {
-			shared.Debugf("Error deleting temporary directory: %s", err)
+	cleanup := func(path string, fd *os.File) {
+		if fd != nil {
+			fd.Close()
 		}
-	}()
+
+		if err := os.RemoveAll(path); err != nil {
+			shared.Debugf("Error deleting temporary directory \"%s\": %s", path, err)
+		}
+	}
 
 	// Store the post data to disk
 	post, err := ioutil.TempFile(builddir, "lxd_post_")
 	if err != nil {
+		cleanup(builddir, nil)
 		return InternalError(err)
 	}
 
-	os.Remove(post.Name())
-	defer post.Close()
-
 	_, err = io.Copy(post, r.Body)
 	if err != nil {
+		cleanup(builddir, post)
 		return InternalError(err)
 	}
 
@@ -627,41 +622,55 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	decoder := json.NewDecoder(post)
 	req := imagePostReq{}
 	err = decoder.Decode(&req)
+	imageUpload := err != nil
 
-	if err == nil {
-		/* Processing image request */
-		if req.Source["type"] == "container" || req.Source["type"] == "snapshot" {
+	if !imageUpload && !shared.StringInSlice(req.Source["type"], []string{"container", "snapshot", "image"}) {
+		cleanup(builddir, post)
+		return InternalError(fmt.Errorf("Invalid images JSON"))
+	}
+
+	// Begin background operation
+	run := shared.OperationWrap(func(id string) error {
+		var info shared.ImageInfo
+
+		// Setup the cleanup function
+		defer cleanup(builddir, post)
+
+		/* Processing image copy from remote */
+		if !imageUpload && req.Source["type"] == "image" {
+			metadata, err := imgPostRemoteInfo(d, req)
+			if err != nil {
+				return err
+			}
+
+			updateOperation(id, metadata)
+			return nil
+		}
+
+		if imageUpload {
+			/* Processing image upload */
+			info, err = getImgPostInfo(d, r, builddir, post)
+			if err != nil {
+				return err
+			}
+		} else {
+			/* Processing image creation from container */
 			info, err = imgPostContInfo(d, r, req, builddir)
 			if err != nil {
-				return SmartError(err)
+				return err
 			}
-		} else if req.Source["type"] == "image" {
-			return imgPostRemoteInfo(d, req)
-		} else {
-			return InternalError(fmt.Errorf("Invalid images JSON"))
 		}
-	} else {
-		/* Processing image upload */
-		info, err = getImgPostInfo(d, r, builddir, post)
+
+		metadata, err := imageBuildFromInfo(d, info)
 		if err != nil {
-			return SmartError(err)
+			return err
 		}
-	}
 
-	defer func() {
-		if err := os.RemoveAll(builddir); err != nil {
-			shared.Log.Error(
-				"Deleting temporary directory",
-				log.Ctx{"builddir": builddir, "err": err})
-		}
-	}()
+		updateOperation(id, metadata)
+		return nil
+	})
 
-	metadata, err := imageBuildFromInfo(d, info)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	return SyncResponse(true, metadata)
+	return &asyncResponse{run: run}
 }
 
 func getImageMetadata(fname string) (*imageMetadata, error) {
