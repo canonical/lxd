@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -54,6 +55,15 @@ func (c *migrationFields) send(m proto.Message) error {
 	}
 
 	return shared.WriteAll(w, data)
+}
+
+func findCriu(host string) error {
+	_, err := exec.LookPath("criu")
+	if err != nil {
+		return fmt.Errorf("Couldn't find criu binary on the %s server. Is it installed in LXD's path?", host)
+	}
+
+	return nil
 }
 
 func (c *migrationFields) recv(m proto.Message) error {
@@ -169,6 +179,10 @@ func NewMigrationSource(c container) (shared.OperationWebsocket, error) {
 	}
 
 	if c.IsRunning() {
+		if err := findCriu("source"); err != nil {
+			return nil, err
+		}
+
 		ret.live = true
 		ret.criuSecret, err = shared.RandomCryptoString()
 		if err != nil {
@@ -373,6 +387,10 @@ func NewMigrationSink(args *MigrationSinkArgs) (func() error, error) {
 
 	sink.criuSecret, ok = args.Secrets["criu"]
 	sink.live = ok
+
+	if err := findCriu("destination"); sink.live && err != nil {
+		return nil, err
+	}
 
 	return sink.do, nil
 }
