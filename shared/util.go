@@ -195,7 +195,7 @@ func GetTLSConfig(certf string, keyf string) (*tls.Config, error) {
 
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
-		ClientAuth:         tls.RequireAnyClientCert,
+		ClientAuth:         tls.RequestClientCert,
 		Certificates:       []tls.Certificate{cert},
 		MinVersion:         tls.VersionTLS12,
 		MaxVersion:         tls.VersionTLS12,

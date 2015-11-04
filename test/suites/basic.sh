@@ -55,6 +55,9 @@ test_basic_usage() {
   # gen untrusted cert
   gen_third_cert
 
+  # don't allow requests without a cert to get trusted data
+  curl -k -s -X GET "https://${LXD_ADDR}/1.0/containers/foo" | grep 403
+
   # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
