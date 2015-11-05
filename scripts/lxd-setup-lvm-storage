@@ -149,7 +149,7 @@ def destroy_image(args, lxd):
               "containers before destroying storage.")
         sys.exit()
 
-    pvname = check_output("sudo vgs {} --noheadings -o pv_name"
+    pvname = check_output("vgs {} --noheadings -o pv_name"
                           .format(vgname), shell=True).decode().strip()
     print("Removing volume group {}".format(vgname))
     check_output("vgremove -f {}".format(vgname), shell=True)
