@@ -339,6 +339,16 @@ class Busybox(object):
         target_tarball.addfile(metadata_file,
                                io.BytesIO(metadata_yaml))
 
+        # Add an /etc/inittab; this is to work around:
+        # http://lists.busybox.net/pipermail/busybox/2015-November/083618.html
+        # Basically, since there are some hardcoded defaults that misbehave, we
+        # just pass an empty inittab so those aren't applied, and then busybox
+        # doesn't spin forever.
+        inittab = tarfile.TarInfo()
+        inittab.size = 1
+        inittab.name = "/rootfs/etc/inittab"
+        target_tarball.addfile(inittab, io.BytesIO(b"\n"))
+
         target_tarball.close()
         if split:
             target_tarball_rootfs.close()
