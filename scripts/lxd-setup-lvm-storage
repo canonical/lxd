@@ -187,7 +187,13 @@ def do_main():
     try:
         check_output("type vgcreate", shell=True)
     except:
-        sys.exit("lvm2 tools not found. try 'apt-get install lvm2'")
+        sys.exit("lvm2 tools not found. try 'apt-get install lvm2 "
+                 "thin-provisioning-tools'")
+    try:
+        check_output("type thin_check", shell=True)
+    except:
+        sys.exit("lvm thin provisioning tools are required. "
+                 "try 'apt-get install thin-provisioning-tools'")
 
     lxd = connect_to_socket()
 
