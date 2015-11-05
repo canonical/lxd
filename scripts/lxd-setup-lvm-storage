@@ -149,15 +149,16 @@ def destroy_image(args, lxd):
               "containers before destroying storage.")
         sys.exit()
 
-    pvname = check_output("sudo vgs {} --noheadings -o pv_name"
+    pvname = check_output("vgs {} --noheadings -o pv_name"
                           .format(vgname), shell=True).decode().strip()
     print("Removing volume group {}".format(vgname))
     check_output("vgremove -f {}".format(vgname), shell=True)
     print("Removing physical volume {}".format(pvname))
     check_output("pvremove -y {}".format(pvname), shell=True)
 
-    imgfname = check_output("losetup {} --list --output BACK-FILE --noheadings"
-                            .format(pvname), shell=True).decode().strip()
+    lostr = check_output("losetup -a | grep {}".format(pvname),
+                         shell=True).decode().strip()
+    imgfname = lostr.split('(')[-1].replace(')', '')
     print("Detaching loop device {}".format(pvname))
     check_output("losetup -d {}".format(pvname), shell=True)
     print("Deleting backing file {}".format(imgfname))
