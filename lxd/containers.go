@@ -313,6 +313,14 @@ func startContainer(args []string) error {
 		return fmt.Errorf("Error opening startup config file: %q", err)
 	}
 
+	/* due to https://github.com/golang/go/issues/13155 and the
+	 * CollectOutput call we make for the forkstart process, we need to
+	 * close our stdin/stdout/stderr here. Collecting some of the logs is
+	 * better than collecting no logs, though.
+	 */
+	os.Stdin.Close()
+	os.Stderr.Close()
+	os.Stdout.Close()
 	err = c.Start()
 	if err != nil {
 		os.Remove(configPath)
