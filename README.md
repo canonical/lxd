@@ -137,10 +137,15 @@ all of the seciruty that LXD provides. We are working on fixing this, but it
 requires several kernel changes that take time. You should not use migratable
 containers for untrusted workloads right now.
 
+Live migration requires a tool called [CRIU](http://criu.org), which is
+available via:
+
+    sudo apt-get install criu
+
 In order to create a migratable container, LXD provides a built in profile
 called "migratable". First, launch your container with the following,
 
-     lxc launch -p default -p migratable ubuntu $somename
+    lxc launch -p default -p migratable ubuntu $somename
 
 Ensure you have criu installed on both hosts (`sudo apt-get install criu` for
 Ubuntu), and do:
