@@ -196,8 +196,12 @@ func (s *execWs) Do(id string) shared.OperationResult {
 		tty.Close()
 	}
 
-	if s.interactive && s.conns[-1] == nil {
-		controlExit <- true
+	if s.conns[-1] == nil {
+		if s.interactive {
+			controlExit <- true
+		}
+	} else {
+		s.conns[-1].Close()
 	}
 
 	wgEOF.Wait()
