@@ -120,6 +120,84 @@ If you prefer live discussions, some of us also hang out in
 
 ## FAQ
 
+#### How do I configure alternative storage backends for LXD?
+
+LXD supports various storage backends; below are instructions on how to
+configure some of them. By default, we use a simple directory backed storage
+mechanism, but we recommend using ZFS for best results.
+
+###### ZFS
+
+First, you need to install the ZFS tooling. On Wily and above this is just:
+
+    sudo apt-get install zfsutils-linux
+
+ZFS has many different ways to procure a zpool, which is what you need to feed
+LXD. For example, if you have an extra block device laying around, you can
+just:
+
+    sudo zpool create lxd /dev/sdc6
+
+However, if you want to test things out on a laptop or don't have an extra disk
+laying around, ZFS has its own loopback driver and can be used directly on a
+(sparse) file. To do this, first create the sparse file:
+
+    sudo truncate -s 100G /var/lib/lxd.img
+
+then,
+
+    sudo zpool create lxd /var/lib/lxd.img
+
+Finally, whichever method you used to create your zpool, you need to tell LXD
+to use it:
+
+    lxc config set storage.zfs_pool_name lxd
+
+###### BTRFS
+
+The setup for btrfs is fairly simple, just mount /var/lib/lxd (or whatever your
+chosen `LXD_DIR` is) as a btrfs filesystem before you start LXD, and you're
+good to go. First install the btrfs userspace tools,
+
+    sudo apt-get install btrfs-tools
+
+Now, you need to create a btrfs filesystem. If you don't have an extra disk
+laying around, you'll have to create your own loopback device manually:
+
+    sudo truncate -s 100G /var/lib/lxd.img
+    sudo losetup /dev/loop0 /var/lib/lxd.img
+
+Once you've got a loopback device (or an actual device), you can create the
+btrfs filesystem and mount it:
+
+    sudo mkfs.btrfs /dev/loop0 # or your real device
+    sudo mount /dev/loop0 /var/lib/lxd
+
+###### LVM
+
+To set up LVM, the instructions are similar to the above. First, install the
+userspace tools:
+
+    sudo apt-get install lvm2 thin-provisioning-tools
+
+Then, if you have a block device laying around:
+
+    sudo pvcreate /dev/sdc6
+    sudo vgcreate lxd /dev/sdc6
+    lxc config set storage.lvm_vg_name lxd
+
+Alternatively, if you want to try it via a loopback device, there is a script
+provided in
+[/scripts/lxd-setup-lvm-storage](https://raw.githubusercontent.com/lxc/lxd/master/scripts/lxd-setup-lvm-storage)
+which will do it for you. It can be run via:
+
+    sudo apt-get install lvm2
+    ./scripts/lxd-setup-lvm-storage -s 10G
+
+And it has a --destroy argument to clean up the bits as well:
+
+    ./scripts/lxd-setup-lvm-storage --destroy
+
 #### When I do a `lxc remote add` over https, it asks for a password?
 
 By default, LXD has no password for security reasons, so you can't do a remote
@@ -137,10 +215,15 @@ all of the seciruty that LXD provides. We are working on fixing this, but it
 requires several kernel changes that take time. You should not use migratable
 containers for untrusted workloads right now.
 
+Live migration requires a tool called [CRIU](http://criu.org), which is
+available via:
+
+    sudo apt-get install criu
+
 In order to create a migratable container, LXD provides a built in profile
 called "migratable". First, launch your container with the following,
 
-     lxc launch -p default -p migratable ubuntu $somename
+    lxc launch -p default -p migratable ubuntu $somename
 
 Ensure you have criu installed on both hosts (`sudo apt-get install criu` for
 Ubuntu), and do:
