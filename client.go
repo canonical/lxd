@@ -1244,6 +1244,8 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 			if err != nil {
 				return -1, err
 			}
+			defer control.Close()
+
 			go controlHandler(c, control)
 		}
 
@@ -1251,12 +1253,11 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		if err != nil {
 			return -1, err
 		}
+		defer conn.Close()
+
 		shared.WebsocketSendStream(conn, stdin)
 		<-shared.WebsocketRecvStream(stdout, conn)
 
-		if control != nil {
-			control.Close()
-		}
 	} else {
 		conns := make([]*websocket.Conn, 3)
 		dones := make([]chan bool, 3)
@@ -1265,6 +1266,8 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		if err != nil {
 			return -1, err
 		}
+		defer conns[0].Close()
+
 		dones[0] = shared.WebsocketSendStream(conns[0], stdin)
 
 		outputs := []io.WriteCloser{stdout, stderr}
@@ -1273,6 +1276,8 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 			if err != nil {
 				return -1, err
 			}
+			defer conns[i].Close()
+
 			dones[i] = shared.WebsocketRecvStream(outputs[i-1], conns[i])
 		}
 
