@@ -45,7 +45,7 @@ func detectCompression(fname string) ([]string, string, error) {
 
 	switch {
 	case bytes.Equal(header[0:2], []byte{'B', 'Z'}):
-		return []string{"--jxf"}, ".tar.bz2", nil
+		return []string{"-jxf"}, ".tar.bz2", nil
 	case bytes.Equal(header[0:2], []byte{0x1f, 0x8b}):
 		return []string{"-zxf"}, ".tar.gz", nil
 	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] == 0xFD):
