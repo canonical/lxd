@@ -211,7 +211,7 @@ then use to do `lxc remote add`.
 #### How can I live migrate a container using LXD?
 
 **NOTE**: in order to have a migratable container, you need to disable almost
-all of the seciruty that LXD provides. We are working on fixing this, but it
+all of the security that LXD provides. We are working on fixing this, but it
 requires several kernel changes that take time. You should not use migratable
 containers for untrusted workloads right now.
 
