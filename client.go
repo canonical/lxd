@@ -1238,8 +1238,9 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 	}
 
 	if controlHandler != nil {
+		var control *websocket.Conn
 		if wsControl, ok := md.FDs["control"]; ok {
-			control, err := c.websocket(resp.Operation, wsControl)
+			control, err = c.websocket(resp.Operation, wsControl)
 			if err != nil {
 				return -1, err
 			}
@@ -1252,6 +1253,10 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		}
 		shared.WebsocketSendStream(conn, stdin)
 		<-shared.WebsocketRecvStream(stdout, conn)
+
+		if control != nil {
+			control.Close()
+		}
 	} else {
 		conns := make([]*websocket.Conn, 3)
 		dones := make([]chan bool, 3)
