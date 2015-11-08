@@ -3,11 +3,19 @@
 package main
 
 import (
+	"io"
+	"os"
+
 	"github.com/gorilla/websocket"
+	"github.com/shiena/ansicolor"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 )
+
+func getStdout() io.Writer {
+	return ansicolor.NewAnsiColorWriter(os.Stdout)
+}
 
 func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
 	// TODO: figure out what the equivalent of signal.SIGWINCH is on
