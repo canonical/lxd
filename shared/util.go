@@ -397,21 +397,6 @@ func isSharedMount(file *os.File, pathName string) int {
 	return 0
 }
 
-func IsSharedMount(pathName string) bool {
-	file, err := os.Open("/proc/self/mountinfo")
-	if err != nil {
-		return false
-	}
-	defer file.Close()
-
-	switch isSharedMount(file, pathName) {
-	case 1:
-		return true
-	default:
-		return false
-	}
-}
-
 func IsOnSharedMount(pathName string) bool {
 	file, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
