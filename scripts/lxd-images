@@ -709,7 +709,7 @@ if __name__ == "__main__":
     parser_import_ubuntu.add_argument("version", help=_("Version"),
                                       default=None, nargs="?")
     parser_import_ubuntu.add_argument("--stream", default="auto",
-                                      choices=("releases", "daily"),
+                                      choices=("auto", "releases", "daily"),
                                       help=_("The simplestream stream to use"))
     parser_import_ubuntu.add_argument("--alias", action="append", default=[],
                                       help=_("Aliases for the image"))
