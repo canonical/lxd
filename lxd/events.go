@@ -78,16 +78,24 @@ func eventSend(eventType string, eventMessage interface{}) error {
 	}
 
 	eventsLock.Lock()
-	for id, listener := range eventListeners {
-		err = listener.connection.WriteMessage(websocket.TextMessage, body)
-		if err != nil {
-			listener.connection.Close()
-			listener.active <- false
-			delete(eventListeners, id)
-			shared.Debugf("Disconnected events listener: %s", id)
-		}
-	}
+	listeners := eventListeners
 	eventsLock.Unlock()
+
+	for _, listener := range listeners {
+		go func(listener *eventListener, body []byte) {
+			err = listener.connection.WriteMessage(websocket.TextMessage, body)
+			if err != nil {
+				listener.connection.Close()
+				listener.active <- false
+
+				eventsLock.Lock()
+				delete(eventListeners, listener.id)
+				eventsLock.Unlock()
+
+				shared.Debugf("Disconnected events listener: %s", listener.id)
+			}
+		}(listener, body)
+	}
 
 	return nil
 }
