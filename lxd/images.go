@@ -849,7 +849,7 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 }
 
 func imageValidSecret(fingerprint string, secret string) bool {
-	lock.Lock()
+	operationLock.Lock()
 	for _, op := range operations {
 		if op.Resources == nil {
 			continue
@@ -891,11 +891,11 @@ func imageValidSecret(fingerprint string, secret string) bool {
 		}
 
 		if opSecret == secret {
-			lock.Unlock()
+			operationLock.Unlock()
 			return true
 		}
 	}
-	lock.Unlock()
+	operationLock.Unlock()
 
 	return false
 }
