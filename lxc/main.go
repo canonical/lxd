@@ -177,6 +177,7 @@ var commands = map[string]command{
 	"init":     &initCmd{},
 	"launch":   &launchCmd{},
 	"list":     &listCmd{},
+	"monitor":  &monitorCmd{},
 	"move":     &moveCmd{},
 	"pause":    &actionCmd{shared.Freeze, false, false, "pause"},
 	"profile":  &profileCmd{},
