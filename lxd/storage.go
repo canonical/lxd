@@ -70,6 +70,7 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 		"--devices",
 		"--delete",
 		"--checksum",
+		"--numeric-ids",
 		rsyncVerbosity,
 		shared.AddSlash(source),
 		dest).CombinedOutput()
