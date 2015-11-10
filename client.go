@@ -1211,6 +1211,37 @@ type secretMd struct {
 	Secret string `json:"secret"`
 }
 
+func (c *Client) Monitor(types []string, handler func(interface{})) error {
+	url := c.BaseWSURL + path.Join("/", "1.0", "events")
+	if len(types) != 0 {
+		url += "?types=" + strings.Join(types, ",")
+	}
+
+	conn, err := WebsocketDial(c.websocketDialer, url)
+	if err != nil {
+		return err
+	}
+
+	for {
+		message := make(map[string]interface{})
+
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+
+		err = json.Unmarshal(data, &message)
+		if err != nil {
+			break
+		}
+
+		handler(message)
+	}
+
+	conn.Close()
+	return nil
+}
+
 // Exec runs a command inside the LXD container. For "interactive" use such as
 // `lxc exec ...`, one should pass a controlHandler that talks over the control
 // socket and handles things like SIGWINCH. If running non-interactive, passing

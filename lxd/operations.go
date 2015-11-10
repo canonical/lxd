@@ -13,7 +13,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-var lock sync.Mutex
+var operationLock sync.Mutex
 var operations map[string]*shared.Operation = make(map[string]*shared.Operation)
 
 func createOperation(metadata shared.Jmap, resources map[string][]string, run func(id string) shared.OperationResult, cancel func(id string) error, ws shared.OperationWebsocket) (string, error) {
@@ -51,17 +51,20 @@ func createOperation(metadata shared.Jmap, resources map[string][]string, run fu
 
 	url := shared.OperationsURL(id)
 
-	lock.Lock()
+	operationLock.Lock()
 	operations[url] = &op
-	lock.Unlock()
+	operationLock.Unlock()
+
+	eventSend("operation", op)
+
 	return url, nil
 }
 
 func startOperation(id string) error {
-	lock.Lock()
+	operationLock.Lock()
 	op, ok := operations[id]
 	if !ok {
-		lock.Unlock()
+		operationLock.Unlock()
 		return fmt.Errorf("operation %s doesn't exist", id)
 	}
 
@@ -71,14 +74,16 @@ func startOperation(id string) error {
 
 			shared.Debugf("Operation %s finished: %s", op.Run, result)
 
-			lock.Lock()
+			operationLock.Lock()
 			op.SetResult(result)
-			lock.Unlock()
+			operationLock.Unlock()
 		}(op)
 	}
 
 	op.SetStatus(shared.Running)
-	lock.Unlock()
+	operationLock.Unlock()
+
+	eventSend("operation", op)
 
 	return nil
 }
@@ -95,6 +100,8 @@ func updateOperation(id string, metadata map[string]string) error {
 	}
 	op.Metadata = md
 
+	eventSend("operation", op)
+
 	return nil
 }
 
@@ -109,7 +116,7 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 		ops = shared.Jmap{"pending": make([]string, 0, 0), "running": make([]string, 0, 0)}
 	}
 
-	lock.Lock()
+	operationLock.Lock()
 	for k, v := range operations {
 		switch v.StatusCode {
 		case shared.Pending:
@@ -126,7 +133,7 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 			}
 		}
 	}
-	lock.Unlock()
+	operationLock.Unlock()
 
 	return SyncResponse(true, ops)
 }
@@ -136,8 +143,8 @@ var operationsCmd = Command{name: "operations", get: operationsGet}
 func operationGet(d *Daemon, r *http.Request) Response {
 	id := shared.OperationsURL(mux.Vars(r)["id"])
 
-	lock.Lock()
-	defer lock.Unlock()
+	operationLock.Lock()
+	defer operationLock.Unlock()
 	op, ok := operations[id]
 	if !ok {
 		return NotFound
@@ -147,43 +154,43 @@ func operationGet(d *Daemon, r *http.Request) Response {
 }
 
 func operationDelete(d *Daemon, r *http.Request) Response {
-	lock.Lock()
+	operationLock.Lock()
 	id := shared.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
 	if !ok {
-		lock.Unlock()
+		operationLock.Unlock()
 		return NotFound
 	}
 
 	if op.Cancel == nil && op.Run != nil {
-		lock.Unlock()
+		operationLock.Unlock()
 		return BadRequest(fmt.Errorf("Can't cancel %s!", id))
 	}
 
 	if op.StatusCode == shared.Cancelling || op.StatusCode.IsFinal() {
 		/* the user has already requested a cancel, or the status is
 		 * in a final state. */
-		lock.Unlock()
+		operationLock.Unlock()
 		return EmptySyncResponse
 	}
 
 	if op.Cancel != nil {
 		cancel := op.Cancel
 		op.SetStatus(shared.Cancelling)
-		lock.Unlock()
+		operationLock.Unlock()
 
 		err := cancel(id)
 
-		lock.Lock()
+		operationLock.Lock()
 		op.SetStatusByErr(err)
-		lock.Unlock()
+		operationLock.Unlock()
 
 		if err != nil {
 			return InternalError(err)
 		}
 	} else {
 		op.SetStatus(shared.Cancelled)
-		lock.Unlock()
+		operationLock.Unlock()
 	}
 
 	return EmptySyncResponse
@@ -202,16 +209,16 @@ func operationWaitGet(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	lock.Lock()
+	operationLock.Lock()
 	id := shared.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
 	if !ok {
-		lock.Unlock()
+		operationLock.Unlock()
 		return NotFound
 	}
 
 	status := op.StatusCode
-	lock.Unlock()
+	operationLock.Unlock()
 
 	if int(status) != targetStatus && (status == shared.Pending || status == shared.Running) {
 
@@ -227,8 +234,8 @@ func operationWaitGet(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	lock.Lock()
-	defer lock.Unlock()
+	operationLock.Lock()
+	defer operationLock.Unlock()
 	return SyncResponse(true, op)
 }
 
@@ -245,8 +252,8 @@ func (r *websocketServe) Render(w http.ResponseWriter) error {
 }
 
 func operationWebsocketGet(d *Daemon, r *http.Request) Response {
-	lock.Lock()
-	defer lock.Unlock()
+	operationLock.Lock()
+	defer operationLock.Unlock()
 	id := shared.OperationsURL(mux.Vars(r)["id"])
 	op, ok := operations[id]
 	if !ok {
