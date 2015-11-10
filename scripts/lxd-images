@@ -548,15 +548,30 @@ if __name__ == "__main__":
         setup_alias(args.alias, fingerprint)
 
     def import_ubuntu(parser, args):
-        ubuntu = Ubuntu(stream=args.stream)
+        if args.stream == "auto":
+            for stream in ("releases", "daily"):
+                ubuntu = Ubuntu(stream=stream)
+                try:
+                    image = ubuntu.image_lookup(args.release,
+                                                args.architecture,
+                                                args.version)
+                except:
+                    continue
+
+                args.stream = stream
+                break
+            else:
+                raise Exception("The requested image couldn't be found "
+                                "in any stream.")
+        else:
+            ubuntu = Ubuntu(stream=args.stream)
+            image = ubuntu.image_lookup(args.release, args.architecture,
+                                        args.version)
 
         sync = False
         if args.sync:
             sync = "ubuntu:%s:%s:%s" % (args.stream, args.release,
                                         args.architecture)
-
-        image = ubuntu.image_lookup(args.release, args.architecture,
-                                    args.version)
 
         fingerprint = \
             image['items']['lxd.tar.xz']['combined_sha256'].split(" ")[0]
@@ -693,7 +708,7 @@ if __name__ == "__main__":
                                       default=None, nargs="?")
     parser_import_ubuntu.add_argument("version", help=_("Version"),
                                       default=None, nargs="?")
-    parser_import_ubuntu.add_argument("--stream", default="releases",
+    parser_import_ubuntu.add_argument("--stream", default="auto",
                                       choices=("releases", "daily"),
                                       help=_("The simplestream stream to use"))
     parser_import_ubuntu.add_argument("--alias", action="append", default=[],
