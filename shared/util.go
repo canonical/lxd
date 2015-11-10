@@ -385,7 +385,7 @@ func isSharedMount(file *os.File, pathName string) int {
 	for scanner.Scan() {
 		line := scanner.Text()
 		rows := strings.Fields(line)
-		if !strings.HasSuffix(pathName, rows[3]) || rows[4] != pathName {
+		if !strings.HasSuffix(pathName, rows[3]) && rows[4] != pathName {
 			continue
 		}
 		if strings.HasPrefix(rows[6], "shared:") {
@@ -395,21 +395,6 @@ func isSharedMount(file *os.File, pathName string) int {
 		}
 	}
 	return 0
-}
-
-func IsSharedMount(pathName string) bool {
-	file, err := os.Open("/proc/self/mountinfo")
-	if err != nil {
-		return false
-	}
-	defer file.Close()
-
-	switch isSharedMount(file, pathName) {
-	case 1:
-		return true
-	default:
-		return false
-	}
 }
 
 func IsOnSharedMount(pathName string) bool {
