@@ -1445,6 +1445,7 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	}
 
 	if err := c.applyPostDeviceConfig(); err != nil {
+		tx.Rollback()
 		return err
 	}
 
