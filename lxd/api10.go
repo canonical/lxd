@@ -23,6 +23,7 @@ var api10 = []Command{
 	containerExecCmd,
 	aliasCmd,
 	aliasesCmd,
+	eventsCmd,
 	imageCmd,
 	imagesCmd,
 	imagesExportCmd,

@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-11-03 15:21-0500\n"
+        "POT-Creation-Date: 2015-11-10 13:39-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -125,7 +125,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: client.go:1672
+#: client.go:1713
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -251,9 +251,13 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:616 client.go:626 client.go:873 client.go:1915
+#: client.go:616 client.go:626 client.go:873 client.go:1956
 #, c-format
 msgid   "Error adding alias %s"
+msgstr  ""
+
+#: lxc/monitor.go:56
+msgid   "Event type to listen for"
 msgstr  ""
 
 #: lxc/exec.go:27
@@ -533,6 +537,20 @@ msgstr  ""
 
 #: lxc/help.go:87
 msgid   "Missing summary."
+msgstr  ""
+
+#: lxc/monitor.go:20
+msgid   "Monitor activity on the LXD server.\n"
+        "\n"
+        "lxc monitor [remote:] [--type=TYPE...]\n"
+        "\n"
+        "Connects to the monitoring interface of the specified LXD server.\n"
+        "\n"
+        "By default will listen to all message types.\n"
+        "Specific types to listen to can be specified with --type.\n"
+        "\n"
+        "Example:\n"
+        "lxc monitor --type=logging"
 msgstr  ""
 
 #: lxc/file.go:156
@@ -831,7 +849,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1703
+#: client.go:1744
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -840,7 +858,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1707
+#: client.go:1748
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -862,7 +880,7 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: client.go:1756 client.go:1813
+#: client.go:1797 client.go:1854
 msgid   "device already exists"
 msgstr  ""
 
@@ -898,7 +916,7 @@ msgstr  ""
 msgid   "failed group lookup: %s"
 msgstr  ""
 
-#: client.go:1305 client.go:1877
+#: client.go:1346 client.go:1918
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -912,7 +930,7 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:1476
+#: client.go:1517
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -925,7 +943,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1749 client.go:1806
+#: client.go:1790 client.go:1847
 #, c-format
 msgid   "no value found in %q"
 msgstr  ""
@@ -938,7 +956,7 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/main.go:217 lxc/main.go:221
+#: lxc/main.go:218 lxc/main.go:222
 #, c-format
 msgid   "processing aliases failed %s\n"
 msgstr  ""
@@ -977,7 +995,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:193
+#: lxc/main.go:194
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 

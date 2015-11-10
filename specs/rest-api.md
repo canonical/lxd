@@ -670,7 +670,7 @@ This URL isn't a real REST API endpoint, instead doing a GET query on it
 will upgrade the connection to a websocket on which notifications will
 be sent.
 
-### GET
+### GET (?type=operation,logging)
  * Description: websocket upgrade
  * Authentication: trusted
  * Operation: sync
@@ -680,22 +680,20 @@ Supported arguments are:
  * type: comma separated list of notifications to subscribe to (defaults to all)
 
 The notification types are:
- * operations
+ * operation
  * logging
 
 This never returns. Each notification is sent as a separate JSON dict:
 
     {
         'timestamp': "2015-06-09T19:07:24.379615253-06:00",                # Current timestamp
-        'type': "operations",                                              # Notification type
-        'resource': "/1.0/operations/<uuid>",                              # Resource URL
+        'type': "operation",                                               # Notification type
         'metadata': {}                                                     # Extra resource or type specific metadata
     }
 
     {
         'timestamp': "2015-06-09T19:07:24.379615253-06:00",
         'type': "logging",
-        'resource': "/1.0",
         'metadata' {'message': "Service started"}
     }
 
