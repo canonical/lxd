@@ -92,7 +92,16 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	 * hardcoding that at the other end, so we can just ignore it.
 	 */
 	rsyncCmd := fmt.Sprintf("sh -c \"nc -U %s\"", f.Name())
-	cmd := exec.Command("rsync", "-arvP", "--devices", "--partial", path, "localhost:/tmp/foo", "-e", rsyncCmd)
+	cmd := exec.Command(
+		"rsync",
+		"-arvP",
+		"--devices",
+		"--numeric-ids",
+		"--partial",
+		path,
+		"localhost:/tmp/foo",
+		"-e",
+		rsyncCmd)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -138,7 +147,14 @@ func RsyncSend(path string, conn *websocket.Conn) error {
 }
 
 func rsyncRecvCmd(path string) *exec.Cmd {
-	return exec.Command("rsync", "--server", "-vlogDtpre.iLsfx", "--devices", "--partial", ".", path)
+	return exec.Command("rsync",
+		"--server",
+		"-vlogDtpre.iLsfx",
+		"--numeric-ids",
+		"--devices",
+		"--partial",
+		".",
+		path)
 }
 
 // RsyncRecv sets up the receiving half of the websocket to rsync (the other
