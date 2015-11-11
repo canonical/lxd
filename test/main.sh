@@ -150,7 +150,7 @@ kill_lxd() {
   kill -9 "${daemon_pid}" 2>/dev/null || true
 
   # Cleanup shmounts
-  find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; || true
+  find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
 
   # Wipe the daemon directory
   wipe "${daemon_dir}"
