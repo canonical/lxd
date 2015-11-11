@@ -91,8 +91,17 @@ class UnixHTTPConnection(http.client.HTTPConnection):
 
 
 class LXD(object):
+    workdir = None
+
     def __init__(self, path):
         self.lxd = UnixHTTPConnection(path)
+
+        # Create our workdir
+        self.workdir = tempfile.mkdtemp()
+
+    def __del__(self):
+        if self.workdir:
+            shutil.rmtree(self.workdir)
 
     def rest_call(self, path, data=None, method="GET", headers={}):
         if method == "GET" and data:
@@ -162,32 +171,32 @@ class LXD(object):
             meta_path, rootfs_path = path
             boundary = str(uuid.uuid1())
 
-            form = []
+            upload_path = os.path.join(self.workdir, "upload")
+            body = open(upload_path, "wb+")
             for name, path in [("metadata", meta_path),
                                ("rootfs", rootfs_path)]:
                 filename = os.path.basename(path)
-                form.append("--%s" % boundary)
-                form.append("Content-Disposition: form-data; "
-                            "name=%s; filename=%s" % (name, filename))
-                form.append("Content-Type: application/octet-stream")
-                form.append("")
+                body.write(bytes("--%s\r\n" % boundary, "utf-8"))
+                body.write(bytes("Content-Disposition: form-data; "
+                                 "name=%s; filename=%s\r\n" %
+                                 (name, filename), "utf-8"))
+                body.write(b"Content-Type: application/octet-stream\r\n")
+                body.write(b"\r\n")
                 with open(path, "rb") as fd:
-                    form.append(fd.read())
+                    shutil.copyfileobj(fd, body)
+                body.write(b"\r\n")
 
-            form.append("--%s--" % boundary)
-            form.append("")
-
-            body = b""
-            for entry in form:
-                if isinstance(entry, bytes):
-                    body += entry + b"\r\n"
-                else:
-                    body += entry.encode() + b"\r\n"
+            body.write(bytes("--%s--\r\n" % boundary, "utf-8"))
+            body.write(b"\r\n")
+            body.close()
 
             headers['Content-Type'] = "multipart/form-data; boundary=%s" \
                 % boundary
 
-            status, data = self.rest_call("/1.0/images", body, "POST", headers)
+            shutil.copyfile(upload_path, "/tmp/debug")
+            status, data = self.rest_call("/1.0/images",
+                                          open(upload_path, "rb"),
+                                          "POST", headers)
 
         if status != 202:
             raise Exception("Failed to upload the image: %s" % status)
