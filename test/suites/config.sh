@@ -71,7 +71,7 @@ testloopmounts() {
   ensure_fs_unmounted "removed fs re-appeared after restart"
   lxc stop foo --force
   losetup -d "${lpath}"
-  sed -i "/${lpath}/d" "${TEST_DIR}/loops"
+  sed -i "\|^${lpath}|d" "${TEST_DIR}/loops"
 }
 
 test_config_profiles() {
