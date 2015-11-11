@@ -1,7 +1,7 @@
 #!/bin/sh
 ensure_removed() {
   bad=0
-  lxc exec foo -- stat /dev/lxdkvm && bad=1
+  lxc exec foo -- stat /dev/ttyS0 && bad=1
   if [ "${bad}" -eq 1 ]; then
     echo "device should have been removed; $*"
     false
@@ -10,13 +10,13 @@ ensure_removed() {
 
 dounixdevtest() {
     lxc start foo
-    lxc config device add foo kvm unix-char "$@"
-    lxc exec foo -- stat /dev/lxdkvm
+    lxc config device add foo tty unix-char "$@"
+    lxc exec foo -- stat /dev/ttyS0
     lxc exec foo reboot
-    lxc exec foo -- stat /dev/lxdkvm
+    lxc exec foo -- stat /dev/ttyS0
     lxc restart foo --force
-    lxc exec foo -- stat /dev/lxdkvm
-    lxc config device remove foo kvm
+    lxc exec foo -- stat /dev/ttyS0
+    lxc config device remove foo tty
     ensure_removed "was not hot-removed"
     lxc exec foo reboot
     ensure_removed "removed device re-appeared after container reboot"
@@ -26,14 +26,11 @@ dounixdevtest() {
 }
 
 testunixdevs() {
-  rm -rf /dev/lxdkvm || true
-  if mknod /dev/lxdkvm c 10 232; then
-    echo "Testing /dev/lxdkvm"
-    dounixdevtest path=/dev/lxdkvm
-    rm -f /dev/lxdkvm
-  fi
-  echo "Testing /dev/lxdkvm 10 232"
-  dounixdevtest path=/dev/lxdkvm major=10 minor=232
+  echo "Testing passing char device /dev/ttyS0"
+  dounixdevtest path=/dev/ttyS0
+
+  echo "Testing passing char device 4 64"
+  dounixdevtest path=/dev/ttyS0 major=4 minor=64
 }
 
 ensure_fs_unmounted() {
