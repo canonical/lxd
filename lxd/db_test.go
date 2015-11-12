@@ -27,7 +27,7 @@ const DB_FIXTURES string = `
 func createTestDb(t *testing.T) (db *sql.DB) {
 	// Setup logging if main() hasn't been called/when testing
 	if shared.Log == nil {
-		shared.SetLogger("", "", true, true)
+		shared.SetLogger("", "", true, true, nil)
 	}
 
 	var err error
