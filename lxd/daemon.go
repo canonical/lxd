@@ -810,6 +810,20 @@ func (d *Daemon) Init() error {
 
 		for _, listener := range listeners {
 			if shared.PathExists(listener.Addr().String()) {
+		                localSocketPath := listener.Addr().String()
+		                if err := os.Chmod(localSocketPath, 0660); err != nil {
+                                    return err
+		                }
+
+		                gid, err := shared.GroupId(*group)
+		                if err != nil {
+			            return err
+		                }
+
+		                if err := os.Chown(localSocketPath, os.Getuid(), gid); err != nil {
+			            return err
+		                }
+
 				sockets = append(sockets, Socket{Socket: listener, CloseOnExit: false})
 			} else {
 				tlsListener := tls.NewListener(listener, tlsConfig)
