@@ -13,7 +13,7 @@ var Log log.Logger
 var debug bool
 
 // SetLogger defines the *log.Logger where log messages are sent to.
-func SetLogger(syslog string, logfile string, verbose bool, debug bool) error {
+func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHandler log.Handler) error {
 	Log = log.New()
 
 	var handlers []log.Handler
@@ -66,6 +66,10 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool) error {
 				log.StderrHandler,
 			),
 		)
+	}
+
+	if customHandler != nil {
+		handlers = append(handlers, customHandler)
 	}
 
 	Log.SetHandler(log.MultiHandler(handlers...))

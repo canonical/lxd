@@ -597,9 +597,9 @@ func haveMacAdmin() bool {
 }
 
 func (d *Daemon) Init() error {
-	/* Setup logging */
+	/* Setup logging if that wasn't done before */
 	if shared.Log == nil {
-		shared.SetLogger("", "", true, true)
+		shared.SetLogger("", "", true, true, nil)
 	}
 
 	if !d.IsMock {
