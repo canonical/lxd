@@ -810,6 +810,15 @@ func (d *Daemon) Init() error {
 
 		for _, listener := range listeners {
 			if shared.PathExists(listener.Addr().String()) {
+				info, err := os.Stat(listener.Addr().String())
+				if err != nil {
+					return err
+				}
+				mode := info.Mode()
+				if mode & 0006 != 0 {
+					return fmt.Errorf("socket file %s is world read/writable", listener.Addr().String())
+				}
+
 				sockets = append(sockets, Socket{Socket: listener, CloseOnExit: false})
 			} else {
 				tlsListener := tls.NewListener(listener, tlsConfig)
