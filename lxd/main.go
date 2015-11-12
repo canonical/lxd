@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	log "gopkg.in/inconshreveable/log15.v2"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -26,6 +28,14 @@ var printGoroutines = gnuflag.Int("print-goroutines-every", -1, "For debugging, 
 var syslogFlag = gnuflag.Bool("syslog", false, "Enables syslog logging.")
 var verbose = gnuflag.Bool("verbose", false, "Enables verbose mode.")
 var version = gnuflag.Bool("version", false, "Print LXD's version number and exit.")
+
+type eventsHandler struct {
+}
+
+func (h eventsHandler) Log(r *log.Record) error {
+	eventSend("logging", r)
+	return nil
+}
 
 func init() {
 	myGroup, err := shared.GroupName(os.Getgid())
@@ -90,7 +100,9 @@ func run() error {
 		syslog = "lxd"
 	}
 
-	err := shared.SetLogger(syslog, *logfile, *verbose, *debug)
+	handler := eventsHandler{}
+
+	err := shared.SetLogger(syslog, *logfile, *verbose, *debug, handler)
 	if err != nil {
 		fmt.Printf("%s", err)
 		return nil
