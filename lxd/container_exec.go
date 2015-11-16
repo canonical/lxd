@@ -16,19 +16,14 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
-func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions) shared.OperationResult {
+func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions) (int, error) {
 	status, err := container.RunCommandStatus(command, options)
 	if err != nil {
 		shared.Debugf("Failed running command: %q", err.Error())
-		return shared.OperationError(err)
+		return 0, err
 	}
 
-	metadata, err := json.Marshal(shared.Jmap{"return": status})
-	if err != nil {
-		return shared.OperationError(err)
-	}
-
-	return shared.OperationResult{Metadata: metadata, Error: nil}
+	return status, nil
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -186,7 +181,7 @@ func (s *execWs) Do(id string) shared.OperationResult {
 		}
 	}
 
-	result := runCommand(
+	cmdResult, cmdErr := runCommand(
 		s.container,
 		s.command,
 		s.options,
@@ -210,7 +205,8 @@ func (s *execWs) Do(id string) shared.OperationResult {
 		pty.Close()
 	}
 
-	return result
+	metadata := shared.Jmap{"return": cmdResult}
+	return shared.OperationResult{Metadata: &metadata, Error: cmdErr}
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
@@ -289,11 +285,10 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return AsyncResponseWithWs(ws, nil)
 	}
 
-	run := func(id string) shared.OperationResult {
-
+	run := func(op *newOperation) error {
 		nullDev, err := os.OpenFile(os.DevNull, os.O_RDWR, 0666)
 		if err != nil {
-			return shared.OperationError(err)
+			return err
 		}
 		defer nullDev.Close()
 		nullfd := nullDev.Fd()
@@ -302,8 +297,17 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		opts.StdoutFd = nullfd
 		opts.StderrFd = nullfd
 
-		return runCommand(c.LXContainerGet(), post.Command, opts)
+		_, cmdErr := runCommand(c.LXContainerGet(), post.Command, opts)
+		return cmdErr
 	}
 
-	return AsyncResponse(run, nil)
+	resources := map[string][]string{}
+	resources["containers"] = []string{name}
+
+	op, err := newOperationCreate(newOperationClassTask, resources, nil, run, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }

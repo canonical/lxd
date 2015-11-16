@@ -630,7 +630,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Begin background operation
-	run := shared.OperationWrap(func(id string) error {
+	run := func(op *newOperation) error {
 		var info shared.ImageInfo
 
 		// Setup the cleanup function
@@ -643,7 +643,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 				return err
 			}
 
-			updateOperation(id, metadata)
+			op.UpdateMetadata(metadata)
 			return nil
 		}
 
@@ -666,11 +666,16 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			return err
 		}
 
-		updateOperation(id, metadata)
+		op.UpdateMetadata(metadata)
 		return nil
-	})
+	}
 
-	return &asyncResponse{run: run}
+	op, err := newOperationCreate(newOperationClassTask, nil, nil, run, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }
 
 func getImageMetadata(fname string) (*imageMetadata, error) {
