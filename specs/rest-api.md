@@ -50,9 +50,6 @@ The body is a dict with the following structure:
         'status': "OK",
         'status_code': 100,
         'operation': "/1.0/containers/<id>",                    # URL to the background operation
-        'resources': {
-            'containers': ["/1.0/containers/my-container"]      # List of affected resources
-        },
         'metadata': {}                                          # Metadata relevant to the operation
     }
 
@@ -979,9 +976,6 @@ Return:
         'updated_at': "2015-06-09T19:07:24.379615253-06:00", # Last update timestamp
         'status': "Running",
         'status_code': 103,
-        'resources': {
-            'containers': ['/1.0/containers/1']              # List of affected resources
-        },
         'metadata': {},                                      # Extra information about the operation (action, target, ...)
         'may_cancel': true                                   # Whether it's possible to cancel the operation
     }
@@ -1004,11 +998,11 @@ HTTP code for this should be 202 (Accepted).
  * Description: Wait for an operation to finish
  * Authentication: trusted
  * Operation: sync
- * Return: dict of the operation once its state changes to the request state
+ * Return: dict of the operation after its reach its final state
 
-Input (wait for any event): no argument
+Input (wait indefinitely for a final state): no argument
 
-Input (wait for the operation to succeed or timeout): ?status\_code=200&timeout=30
+Input (similar by times out after 30s): ?timeout=30
 
 ## /1.0/operations/\<uuid\>/websocket
 ### GET (?secret=...)
