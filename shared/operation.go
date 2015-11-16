@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -35,7 +34,7 @@ type OperationWebsocket interface {
 }
 
 type OperationResult struct {
-	Metadata json.RawMessage
+	Metadata interface{}
 	Error    error
 }
 
@@ -56,8 +55,9 @@ type Operation struct {
 	Status     string              `json:"status"`
 	StatusCode StatusCode          `json:"status_code"`
 	Resources  map[string][]string `json:"resources"`
-	Metadata   json.RawMessage     `json:"metadata"`
+	Metadata   interface{}         `json:"metadata"`
 	MayCancel  bool                `json:"may_cancel"`
+	Err        string              `json:"err"`
 
 	/* The fields below are for use on the server side. */
 	Run func(id string) OperationResult `json:"-"`
@@ -78,22 +78,13 @@ type Operation struct {
 
 func (o *Operation) GetError() error {
 	if o.StatusCode == Failure {
-		var s string
-		if err := json.Unmarshal(o.Metadata, &s); err != nil {
-			return err
-		}
-
-		return fmt.Errorf(s)
+		return fmt.Errorf(o.Err)
 	}
 	return nil
 }
 
 func (o *Operation) MetadataAsMap() (*Jmap, error) {
-	ret := Jmap{}
-	if err := json.Unmarshal(o.Metadata, &ret); err != nil {
-		return nil, err
-	}
-	return &ret, nil
+	return o.Metadata.(*Jmap), nil
 }
 
 func (o *Operation) SetStatus(status StatusCode) {
@@ -128,13 +119,7 @@ func (o *Operation) SetStatusByErr(err error) {
 		o.SetStatus(Success)
 	} else {
 		o.SetStatus(Failure)
-		md, err := json.Marshal(err.Error())
-
-		/* This isn't really fatal, it'll just be annoying for users */
-		if err != nil {
-			Debugf("Error converting %s to json", err)
-		}
-		o.Metadata = md
+		o.Err = err.Error()
 	}
 }
 
