@@ -1216,7 +1216,7 @@ type secretMd struct {
 func (c *Client) Monitor(types []string, handler func(interface{})) error {
 	url := c.BaseWSURL + path.Join("/", "1.0", "events")
 	if len(types) != 0 {
-		url += "?types=" + strings.Join(types, ",")
+		url += "?type=" + strings.Join(types, ",")
 	}
 
 	conn, err := WebsocketDial(c.websocketDialer, url)
