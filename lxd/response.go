@@ -220,6 +220,38 @@ func AsyncResponseWithWs(ws shared.OperationWebsocket, cancel func(id string) er
 	return &asyncResponse{run: ws.Do, cancel: cancel, ws: ws}
 }
 
+type operationResponse struct {
+	op *newOperation
+}
+
+func (r *operationResponse) Render(w http.ResponseWriter) error {
+	_, err := r.op.Run()
+	if err != nil {
+		return err
+	}
+
+	url, md, err := r.op.Render()
+	if err != nil {
+		return err
+	}
+
+	body := async{
+		Type:       lxd.Async,
+		Status:     shared.OK.String(),
+		StatusCode: shared.OK,
+		Operation:  url,
+		Metadata:   md}
+
+	w.Header().Set("Location", url)
+	w.WriteHeader(202)
+
+	return WriteJSON(w, body)
+}
+
+func OperationResponse(op *newOperation) Response {
+	return &operationResponse{op}
+}
+
 type ErrorResponse struct {
 	code int
 	msg  string
