@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-11-10 13:39-0500\n"
+        "POT-Creation-Date: 2015-11-16 21:18+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -74,7 +74,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/info.go:94 lxc/profile.go:215
+#: lxc/info.go:95 lxc/profile.go:215
 msgid   "(none)"
 msgstr  ""
 
@@ -360,7 +360,7 @@ msgstr  ""
 msgid   "Invalid target %s"
 msgstr  ""
 
-#: lxc/info.go:82
+#: lxc/info.go:83
 msgid   "Ips:"
 msgstr  ""
 
@@ -404,7 +404,7 @@ msgid   "Lists the available resources.\n"
         "* \"s.privileged=1\" will do the same"
 msgstr  ""
 
-#: lxc/info.go:123
+#: lxc/info.go:124
 msgid   "Log:"
 msgstr  ""
 
@@ -649,6 +649,11 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version"
 msgstr  ""
 
+#: lxc/info.go:82
+#, c-format
+msgid   "Processcount: %d"
+msgstr  ""
+
 #: lxc/profile.go:217
 #, c-format
 msgid   "Profile %s applied to %s"
@@ -747,7 +752,7 @@ msgstr  ""
 msgid   "Size: %.2fMB"
 msgstr  ""
 
-#: lxc/info.go:106 lxc/list.go:180
+#: lxc/info.go:107 lxc/list.go:180
 msgid   "Snapshots:"
 msgstr  ""
 
