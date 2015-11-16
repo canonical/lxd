@@ -79,6 +79,7 @@ func containerInfo(d *lxd.Client, name string, showLog bool) error {
 	fmt.Printf(gettext.Gettext("Status: %s")+"\n", ct.Status.Status)
 	if ct.Status.Init != 0 {
 		fmt.Printf(gettext.Gettext("Init: %d")+"\n", ct.Status.Init)
+		fmt.Printf(gettext.Gettext("Processcount: %d")+"\n", ct.Status.Processcount)
 		fmt.Printf(gettext.Gettext("Ips:") + "\n")
 		foundone := false
 		for _, ip := range ct.Status.Ips {
