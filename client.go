@@ -566,10 +566,11 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 
 		toScan := strings.Replace(resp.Operation, "/", " ", -1)
 		version := ""
-		count, err := fmt.Sscanf(toScan, " %s operations %s", &version, &operation)
+		count, err := fmt.Sscanf(toScan, " %s %s", &version, &operation)
 		if err != nil || count != 2 {
 			return err
 		}
+		operation = strings.Replace(operation, " ", "/", -1)
 
 		md := secretMd{}
 		if err := json.Unmarshal(resp.Metadata, &md); err != nil {
@@ -1101,10 +1102,11 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 			toScan := strings.Replace(resp.Operation, "/", " ", -1)
 			version := ""
-			count, err := fmt.Sscanf(toScan, " %s operations %s", &version, &operation)
+			count, err := fmt.Sscanf(toScan, " %s %s", &version, &operation)
 			if err != nil || count != 2 {
 				return nil, err
 			}
+			operation = strings.Replace(operation, " ", "/", -1)
 
 			md := secretMd{}
 			if err := json.Unmarshal(resp.Metadata, &md); err != nil {
@@ -1175,7 +1177,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 	}
 
 	if operation != "" {
-		_, _ = tmpremote.delete("operations/"+operation, nil, Sync)
+		_, _ = tmpremote.delete(operation, nil, Sync)
 	}
 
 	if err != nil {
