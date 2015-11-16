@@ -731,6 +731,7 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 	if c.IsRunning() {
 		pid := c.InitPID()
 		status.Init = pid
+		status.Processcount = c.pRocesscountGet()
 		status.Ips = c.iPsGet()
 	}
 
@@ -2109,6 +2110,32 @@ func (c *containerLXD) iPsGet() []shared.Ip {
 		}
 	}
 	return ips
+}
+
+func (c *containerLXD) pRocesscountGet() int {
+	pid := c.c.InitPid()
+	if pid == -1 { // container not running - we're done
+		return 0
+	}
+
+	pids := make([]int, 0)
+
+	pids = append(pids, pid)
+
+	for i := 0; i < len(pids); i++ {
+		fname := fmt.Sprintf("/proc/%d/task/%d/children", pids[i], pids[i])
+		fcont, _ := ioutil.ReadFile(fname)
+		content := strings.Split(string(fcont), " ")
+		for j := 0; j < len(content); j++ {
+			pid, err := strconv.Atoi(content[j])
+			if err == nil {
+				pids = append(pids, pid)
+			}
+		}
+	}
+
+	return len(pids)
+
 }
 
 func (c *containerLXD) tarStoreFile(linkmap map[uint64]string, offset int, tw *tar.Writer, path string, fi os.FileInfo) error {
