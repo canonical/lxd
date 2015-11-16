@@ -12,10 +12,11 @@ type Ip struct {
 }
 
 type ContainerStatus struct {
-	Status     string     `json:"status"`
-	StatusCode StatusCode `json:"status_code"`
-	Init       int        `json:"init"`
-	Ips        []Ip       `json:"ips"`
+	Status       string     `json:"status"`
+	StatusCode   StatusCode `json:"status_code"`
+	Init         int        `json:"init"`
+	Processcount int        `json:"processcount"`
+	Ips          []Ip       `json:"ips"`
 }
 
 type ContainerExecControl struct {
