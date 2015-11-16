@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -42,6 +41,7 @@ type newOperation struct {
 	url         string              `json:"string"`
 	resources   map[string][]string `json:"resources"`
 	metadata    interface{}         `json:"metadata"`
+	err         string              `json:"err"`
 
 	// Those functions are called at various points in the operation lifecycle
 	onRun     func(*newOperation) error                                     `json:"-"`
@@ -73,6 +73,7 @@ func (op *newOperation) Run() (chan error, error) {
 			if err != nil {
 				op.lock.Lock()
 				op.status = shared.Failure
+				op.err = err.Error()
 				op.chanRun <- err
 				close(op.chanDone)
 				op.lock.Unlock()
@@ -206,12 +207,6 @@ func (op *newOperation) Connect(r *http.Request, w http.ResponseWriter) (chan er
 }
 
 func (op *newOperation) Render() (string, *shared.Operation, error) {
-	// Metadata must be JSON-encoded
-	md, err := json.Marshal(op.metadata)
-	if err != nil {
-		return "", nil, err
-	}
-
 	// Setup the resource URLs
 	resources := op.resources
 	if resources != nil {
@@ -233,8 +228,9 @@ func (op *newOperation) Render() (string, *shared.Operation, error) {
 		Status:     op.status.String(),
 		StatusCode: op.status,
 		Resources:  resources,
-		Metadata:   md,
+		Metadata:   op.metadata,
 		MayCancel:  op.cancellable,
+		Err:        op.err,
 	}, nil
 }
 
@@ -253,14 +249,16 @@ func (op *newOperation) WaitFinal(timeout int) (bool, error) {
 	}
 
 	// Wait until timeout
-	timer := time.NewTimer(time.Duration(timeout) * time.Second)
-	for {
-		select {
-		case <-op.chanDone:
-			return false, nil
+	if timeout > 0 {
+		timer := time.NewTimer(time.Duration(timeout) * time.Second)
+		for {
+			select {
+			case <-op.chanDone:
+				return false, nil
 
-		case <-timer.C:
-			break
+			case <-timer.C:
+				break
+			}
 		}
 	}
 
