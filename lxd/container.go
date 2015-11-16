@@ -731,7 +731,7 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 	if c.IsRunning() {
 		pid := c.InitPID()
 		status.Init = pid
-		status.Processcount = c.pRocesscountGet()
+		status.Processcount = c.processcountGet()
 		status.Ips = c.iPsGet()
 	}
 
@@ -2112,7 +2112,7 @@ func (c *containerLXD) iPsGet() []shared.Ip {
 	return ips
 }
 
-func (c *containerLXD) pRocesscountGet() int {
+func (c *containerLXD) processcountGet() int {
 	pid := c.c.InitPid()
 	if pid == -1 { // container not running - we're done
 		return 0
