@@ -877,6 +877,8 @@ func imageValidSecret(fingerprint string, secret string) bool {
 		}
 
 		if opSecret == secret {
+			// Token is single-use, so cancel it now
+			op.Cancel()
 			return true
 		}
 	}
@@ -1134,7 +1136,7 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["images"] = []string{fingerprint}
 
-	op, err := newOperationCreate(newOperationClassTask, resources, meta, nil, nil, nil)
+	op, err := newOperationCreate(newOperationClassToken, resources, meta, nil, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

@@ -390,6 +390,16 @@ func newOperationCreate(opClass newOperationClass, opResources map[string][]stri
 		return nil, fmt.Errorf("Websocket operations must have a Connect hook")
 	}
 
+	if op.class == newOperationClassToken && op.onRun != nil {
+		return nil, fmt.Errorf("Token operations can't have a Run hook")
+	}
+
+	if op.class == newOperationClassToken && op.onCancel != nil {
+		return nil, fmt.Errorf("Token operations can't have a Cancel hook")
+	}
+
+	op.cancellable = op.onCancel != nil || op.class == newOperationClassToken
+
 	newOperationLock.Lock()
 	newOperations[op.id] = &op
 	newOperationLock.Unlock()
