@@ -124,7 +124,8 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		handler = nil
 	}
 
-	ret, err := d.Exec(name, args[1:], env, os.Stdin, os.Stdout, os.Stderr, handler)
+	stdout := getStdout()
+	ret, err := d.Exec(name, args[1:], env, os.Stdin, stdout, os.Stderr, handler)
 	if err != nil {
 		return err
 	}

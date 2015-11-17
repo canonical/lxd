@@ -3,11 +3,30 @@
 package main
 
 import (
+	"io"
+	"os"
+
 	"github.com/gorilla/websocket"
+	"github.com/shiena/ansicolor"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 )
+
+// Windows doesn't process ANSI sequences natively, so we wrap
+// os.Stdout for improved user experience for Windows client
+type WrappedWriteCloser struct {
+	io.Closer
+	wrapper io.Writer
+}
+
+func (wwc *WrappedWriteCloser) Write(p []byte) (int, error) {
+	return wwc.wrapper.Write(p)
+}
+
+func getStdout() io.WriteCloser {
+	return &WrappedWriteCloser{os.Stdout, ansicolor.NewAnsiColorWriter(os.Stdout)}
+}
 
 func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
 	// TODO: figure out what the equivalent of signal.SIGWINCH is on
