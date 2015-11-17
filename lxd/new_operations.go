@@ -59,6 +59,22 @@ type newOperation struct {
 	lock sync.Mutex
 }
 
+func (op *newOperation) done() {
+	newOperationLock.Lock()
+	_, ok := newOperations[op.id]
+	if !ok {
+		newOperationLock.Unlock()
+		return
+	}
+
+	op.lock.Lock()
+	close(op.chanDone)
+	op.lock.Unlock()
+
+	delete(newOperations, op.id)
+	newOperationLock.Unlock()
+}
+
 func (op *newOperation) Run() (chan error, error) {
 	if op.status != shared.Pending {
 		return nil, fmt.Errorf("Only pending operations can be started")
@@ -76,8 +92,8 @@ func (op *newOperation) Run() (chan error, error) {
 				op.status = shared.Failure
 				op.err = err.Error()
 				op.chanRun <- err
-				close(op.chanDone)
 				op.lock.Unlock()
+				op.done()
 
 				shared.Debugf("Failure for %s operation: %s", op.class.String(), op.id)
 
@@ -89,8 +105,8 @@ func (op *newOperation) Run() (chan error, error) {
 			op.lock.Lock()
 			op.status = shared.Success
 			op.chanRun <- nil
-			close(op.chanDone)
 			op.lock.Unlock()
+			op.done()
 
 			shared.Debugf("Success for %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
@@ -119,6 +135,7 @@ func (op *newOperation) Cancel() (chan error, error) {
 	op.chanCancel = make(chan error, 1)
 	oldStatus := op.status
 	op.status = shared.Cancelling
+	op.lock.Unlock()
 
 	if op.onCancel != nil {
 		go func(op *newOperation, oldStatus shared.StatusCode) {
@@ -138,8 +155,8 @@ func (op *newOperation) Cancel() (chan error, error) {
 			op.lock.Lock()
 			op.status = shared.Cancelled
 			op.chanCancel <- nil
-			close(op.chanDone)
 			op.lock.Unlock()
+			op.done()
 
 			shared.Debugf("Cancelled %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
@@ -152,12 +169,13 @@ func (op *newOperation) Cancel() (chan error, error) {
 	eventSend("operation", md)
 
 	if op.onCancel == nil {
+		op.lock.Lock()
 		op.status = shared.Cancelled
 		op.chanCancel <- nil
-		close(op.chanDone)
+		op.lock.Unlock()
+		op.done()
 	}
 
-	op.lock.Unlock()
 	shared.Debugf("Cancelled %s operation: %s", op.class.String(), op.id)
 	_, md, _ = op.Render()
 	eventSend("operation", md)
