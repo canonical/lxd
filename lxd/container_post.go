@@ -31,7 +31,15 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		return AsyncResponseWithWs(ws, nil)
+		resources := map[string][]string{}
+		resources["containers"] = []string{name}
+
+		op, err := newOperationCreate(newOperationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		return OperationResponse(op)
 	}
 
 	run := func(*newOperation) error {
