@@ -89,7 +89,7 @@ func updateOperation(id string, metadata map[string]string) error {
 		return fmt.Errorf("Operation doesn't exist")
 	}
 
-	newMetadata, err := parseMetadata(metadata)
+	newMetadata, err := shared.ParseMetadata(metadata)
 	if err != nil {
 		return err
 	}

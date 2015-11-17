@@ -9,27 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
-
-type execWs struct {
-	command          []string
-	container        *lxc.Container
-	rootUid          int
-	rootGid          int
-	options          lxc.AttachOptions
-	conns            map[int]*websocket.Conn
-	allConnected     chan bool
-	controlConnected chan bool
-	interactive      bool
-	done             chan shared.OperationResult
-	fds              map[int]string
-}
 
 type commandPostContent struct {
 	Command     []string          `json:"command"`

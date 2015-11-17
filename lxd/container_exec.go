@@ -12,8 +12,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/lxc/lxd/shared"
 	"gopkg.in/lxc/go-lxc.v2"
+
+	"github.com/lxc/lxd/shared"
 )
 
 func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions) (int, error) {
@@ -24,6 +25,20 @@ func runCommand(container *lxc.Container, command []string, options lxc.AttachOp
 	}
 
 	return status, nil
+}
+
+type execWs struct {
+	command          []string
+	container        *lxc.Container
+	rootUid          int
+	rootGid          int
+	options          lxc.AttachOptions
+	conns            map[int]*websocket.Conn
+	allConnected     chan bool
+	controlConnected chan bool
+	interactive      bool
+	done             chan shared.OperationResult
+	fds              map[int]string
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -39,7 +54,12 @@ func (s *execWs) Metadata() interface{} {
 	return shared.Jmap{"fds": fds}
 }
 
-func (s *execWs) Connect(secret string, r *http.Request, w http.ResponseWriter) error {
+func (s *execWs) Connect(op *newOperation, r *http.Request, w http.ResponseWriter) error {
+	secret := r.FormValue("secret")
+	if secret == "" {
+		return fmt.Errorf("missing secret")
+	}
+
 	for fd, fdSecret := range s.fds {
 		if secret == fdSecret {
 			conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
@@ -69,7 +89,7 @@ func (s *execWs) Connect(secret string, r *http.Request, w http.ResponseWriter) 
 	return os.ErrPermission
 }
 
-func (s *execWs) Do(id string) shared.OperationResult {
+func (s *execWs) Do(op *newOperation) error {
 	<-s.allConnected
 
 	var err error
@@ -89,7 +109,7 @@ func (s *execWs) Do(id string) shared.OperationResult {
 		for i := 0; i < len(ttys); i++ {
 			ptys[i], ttys[i], err = shared.Pipe()
 			if err != nil {
-				return shared.OperationError(err)
+				return err
 			}
 		}
 		s.options.StdinFd = ptys[0].Fd()
@@ -206,7 +226,12 @@ func (s *execWs) Do(id string) shared.OperationResult {
 	}
 
 	metadata := shared.Jmap{"return": cmdResult}
-	return shared.OperationResult{Metadata: &metadata, Error: cmdErr}
+	err = op.UpdateMetadata(metadata)
+	if err != nil {
+		return err
+	}
+
+	return cmdErr
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
@@ -282,7 +307,15 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		ws.command = post.Command
 		ws.container = c.LXContainerGet()
 
-		return AsyncResponseWithWs(ws, nil)
+		resources := map[string][]string{}
+		resources["containers"] = []string{ws.container.Name()}
+
+		op, err := newOperationCreate(newOperationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		return OperationResponse(op)
 	}
 
 	run := func(op *newOperation) error {

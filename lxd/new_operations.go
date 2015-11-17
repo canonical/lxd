@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -338,7 +337,7 @@ func (op *newOperation) UpdateMetadata(opMetadata interface{}) error {
 		return fmt.Errorf("Read-only operations can't be updated")
 	}
 
-	newMetadata, err := parseMetadata(opMetadata)
+	newMetadata, err := shared.ParseMetadata(opMetadata)
 	if err != nil {
 		return err
 	}
@@ -353,29 +352,6 @@ func (op *newOperation) UpdateMetadata(opMetadata interface{}) error {
 	eventSend("operation", md)
 
 	return nil
-}
-
-func parseMetadata(metadata interface{}) (map[string]interface{}, error) {
-	newMetadata := make(map[string]interface{})
-	s := reflect.ValueOf(metadata)
-	if !s.IsValid() {
-		return nil, nil
-	}
-
-	if s.Kind() == reflect.Map {
-		for _, k := range s.MapKeys() {
-			if k.Kind() != reflect.String {
-				return nil, fmt.Errorf("Invalid metadata provided (key isn't a string).")
-			}
-			newMetadata[k.String()] = s.MapIndex(k).Interface()
-		}
-	} else if s.Kind() == reflect.Ptr && !s.Elem().IsValid() {
-		return nil, nil
-	} else {
-		return nil, fmt.Errorf("Invalid metadata provided (type isn't a map).")
-	}
-
-	return newMetadata, nil
 }
 
 func newOperationCreate(opClass newOperationClass, opResources map[string][]string, opMetadata interface{},
@@ -394,7 +370,7 @@ func newOperationCreate(opClass newOperationClass, opResources map[string][]stri
 	op.resources = opResources
 	op.chanDone = make(chan error)
 
-	newMetadata, err := parseMetadata(opMetadata)
+	newMetadata, err := shared.ParseMetadata(opMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -412,14 +388,6 @@ func newOperationCreate(opClass newOperationClass, opResources map[string][]stri
 
 	if op.class == newOperationClassWebsocket && op.onConnect == nil {
 		return nil, fmt.Errorf("Websocket operations must have a Connect hook")
-	}
-
-	if op.class == newOperationClassWebsocket && op.onRun != nil {
-		return nil, fmt.Errorf("Websocket operations can't has a Run hook")
-	}
-
-	if op.class == newOperationClassWebsocket && op.onCancel != nil {
-		return nil, fmt.Errorf("Websocket operations can't has a Cancel hook")
 	}
 
 	newOperationLock.Lock()
