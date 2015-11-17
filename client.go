@@ -556,6 +556,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		"server":      c.BaseURL,
 		"fingerprint": fingerprint}
 
+	// FIXME: InterfaceToBool is there for backward compatibility
 	if !shared.InterfaceToBool(info.Public) {
 		var operation string
 
@@ -1094,6 +1095,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, fmt.Errorf(gettext.Gettext("The image architecture is incompatible with the target server"))
 		}
 
+		// FIXME: InterfaceToBool is there for backward compatibility
 		if !shared.InterfaceToBool(imageinfo.Public) {
 			resp, err := tmpremote.post("images/"+fingerprint+"/secret", nil, Async)
 			if err != nil {
@@ -1274,6 +1276,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 			return -1, err
 		}
 	} else {
+		// FIXME: This is a backward compatibility codepath
 		md := execMd{}
 		if err := json.Unmarshal(resp.Metadata, &md); err != nil {
 			return -1, err

@@ -215,9 +215,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 		fmt.Printf(gettext.Gettext("Fingerprint: %s")+"\n", info.Fingerprint)
 		public := gettext.Gettext("no")
+
+		// FIXME: InterfaceToBool is there for backward compatibility
 		if shared.InterfaceToBool(info) {
 			public = gettext.Gettext("yes")
 		}
+
 		fmt.Printf(gettext.Gettext("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
 		arch, _ := shared.ArchitectureName(info.Architecture)
 		fmt.Printf(gettext.Gettext("Architecture: %s")+"\n", arch)
@@ -436,9 +439,12 @@ func showImages(images []shared.ImageInfo) error {
 		fp := image.Fingerprint[0:12]
 		public := gettext.Gettext("no")
 		description := findDescription(image.Properties)
+
+		// FIXME: InterfaceToBool is there for backward compatibility
 		if shared.InterfaceToBool(image.Public) {
 			public = gettext.Gettext("yes")
 		}
+
 		const layout = "Jan 2, 2006 at 3:04pm (MST)"
 		uploaded := time.Unix(image.UploadDate, 0).Format(layout)
 		arch, _ := shared.ArchitectureName(image.Architecture)
