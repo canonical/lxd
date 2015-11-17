@@ -1362,19 +1362,18 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 	}
 
 	if op.StatusCode == shared.Failure {
-		return -1, op.GetError()
+		return -1, fmt.Errorf(op.Err)
 	}
 
 	if op.StatusCode != shared.Success {
 		return -1, fmt.Errorf(gettext.Gettext("got bad op status %s"), op.Status)
 	}
 
-	opMd, err := op.MetadataAsMap()
-	if err != nil {
-		return -1, err
+	if op.Metadata == nil {
+		return -1, fmt.Errorf(gettext.Gettext("no metadata received"))
 	}
 
-	return opMd.GetInt("return")
+	return op.Metadata.GetInt("return")
 }
 
 func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool) (*Response, error) {
@@ -1564,7 +1563,7 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 		return nil
 	}
 
-	return op.GetError()
+	return fmt.Errorf(op.Err)
 }
 
 func (c *Client) RestoreSnapshot(container string, snapshotName string, stateful bool) (*Response, error) {
@@ -1934,19 +1933,14 @@ func (c *Client) AsyncWaitMeta(resp *Response) (*shared.Jmap, error) {
 	}
 
 	if op.StatusCode == shared.Failure {
-		return nil, op.GetError()
+		return nil, fmt.Errorf(op.Err)
 	}
 
 	if op.StatusCode != shared.Success {
 		return nil, fmt.Errorf(gettext.Gettext("got bad op status %s"), op.Status)
 	}
 
-	jmap, err := op.MetadataAsMap()
-	if err != nil {
-		return nil, err
-	}
-
-	return jmap, nil
+	return op.Metadata, nil
 }
 
 func (c *Client) ImageFromContainer(cname string, public bool, aliases []string, properties map[string]string) (string, error) {
