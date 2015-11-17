@@ -857,53 +857,29 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 }
 
 func imageValidSecret(fingerprint string, secret string) bool {
-	operationLock.Lock()
-	for _, op := range operations {
-		if op.Resources == nil {
+	for _, op := range newOperations {
+		if op.resources == nil {
 			continue
 		}
 
-		opImages, ok := op.Resources["images"]
-		if ok == false {
+		opImages, ok := op.resources["images"]
+		if !ok {
 			continue
 		}
 
-		found := false
-		for img := range opImages {
-			toScan := strings.Replace(opImages[img], "/", " ", -1)
-			imgVersion := ""
-			imgFingerprint := ""
-			count, err := fmt.Sscanf(toScan, " %s images %s", &imgVersion, &imgFingerprint)
-			if err != nil || count != 2 {
-				continue
-			}
-
-			if imgFingerprint == fingerprint {
-				found = true
-				break
-			}
-		}
-
-		if found == false {
+		if !shared.StringInSlice(fingerprint, opImages) {
 			continue
 		}
 
-		opMetadata, err := op.MetadataAsMap()
-		if err != nil {
-			continue
-		}
-
-		opSecret, err := opMetadata.GetString("secret")
-		if err != nil {
+		opSecret, ok := op.metadata["secret"]
+		if !ok {
 			continue
 		}
 
 		if opSecret == secret {
-			operationLock.Unlock()
 			return true
 		}
 	}
-	operationLock.Unlock()
 
 	return false
 }
@@ -1155,9 +1131,15 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 	meta := shared.Jmap{}
 	meta["secret"] = secret
 
-	resources := make(map[string][]string)
+	resources := map[string][]string{}
 	resources["images"] = []string{fingerprint}
-	return &asyncResponse{resources: resources, metadata: meta}
+
+	op, err := newOperationCreate(newOperationClassTask, resources, meta, nil, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }
 
 var imagesExportCmd = Command{name: "images/{fingerprint}/export", untrustedGet: true, get: imageExport}
