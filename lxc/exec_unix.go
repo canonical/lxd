@@ -3,6 +3,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,6 +13,10 @@ import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 )
+
+func getStdout() io.WriteCloser {
+	return os.Stdout
+}
 
 func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
 	ch := make(chan os.Signal)
