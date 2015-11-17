@@ -134,7 +134,7 @@ func FileResponse(r *http.Request, files []fileResponseEntry, headers map[string
 
 // Operation response
 type operationResponse struct {
-	op *newOperation
+	op *operation
 }
 
 func (r *operationResponse) Render(w http.ResponseWriter) error {
@@ -161,7 +161,7 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 	return WriteJSON(w, body)
 }
 
-func OperationResponse(op *newOperation) Response {
+func OperationResponse(op *operation) Response {
 	return &operationResponse{op}
 }
 

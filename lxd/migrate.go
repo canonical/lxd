@@ -208,7 +208,7 @@ func (s *migrationSourceWs) Metadata() interface{} {
 	return secrets
 }
 
-func (s *migrationSourceWs) Connect(op *newOperation, r *http.Request, w http.ResponseWriter) error {
+func (s *migrationSourceWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -243,7 +243,7 @@ func (s *migrationSourceWs) Connect(op *newOperation, r *http.Request, w http.Re
 	return nil
 }
 
-func (s *migrationSourceWs) Do(op *newOperation) error {
+func (s *migrationSourceWs) Do(op *operation) error {
 	<-s.allConnected
 
 	criuType := CRIUType_CRIU_RSYNC.Enum()

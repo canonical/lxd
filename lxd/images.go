@@ -633,7 +633,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Begin background operation
-	run := func(op *newOperation) error {
+	run := func(op *operation) error {
 		var info shared.ImageInfo
 
 		// Setup the cleanup function
@@ -673,7 +673,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return nil
 	}
 
-	op, err := newOperationCreate(newOperationClassTask, nil, nil, run, nil, nil)
+	op, err := operationCreate(operationClassTask, nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -857,7 +857,7 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 }
 
 func imageValidSecret(fingerprint string, secret string) bool {
-	for _, op := range newOperations {
+	for _, op := range operations {
 		if op.resources == nil {
 			continue
 		}
@@ -1136,7 +1136,7 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["images"] = []string{fingerprint}
 
-	op, err := newOperationCreate(newOperationClassToken, resources, meta, nil, nil, nil)
+	op, err := operationCreate(operationClassToken, resources, meta, nil, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

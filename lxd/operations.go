@@ -14,29 +14,29 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-var newOperationLock sync.Mutex
-var newOperations map[string]*newOperation = make(map[string]*newOperation)
+var operationLock sync.Mutex
+var operations map[string]*operation = make(map[string]*operation)
 
-type newOperationClass int
+type operationClass int
 
 const (
-	newOperationClassTask      newOperationClass = 1
-	newOperationClassWebsocket newOperationClass = 2
-	newOperationClassToken     newOperationClass = 3
+	operationClassTask      operationClass = 1
+	operationClassWebsocket operationClass = 2
+	operationClassToken     operationClass = 3
 )
 
-func (t newOperationClass) String() string {
-	return map[newOperationClass]string{
-		newOperationClassTask:      "task",
-		newOperationClassWebsocket: "websocket",
-		newOperationClassToken:     "token",
+func (t operationClass) String() string {
+	return map[operationClass]string{
+		operationClassTask:      "task",
+		operationClassWebsocket: "websocket",
+		operationClassToken:     "token",
 	}[t]
 }
 
-type newOperation struct {
+type operation struct {
 	id          string
 	cancellable bool
-	class       newOperationClass
+	class       operationClass
 	createdAt   time.Time
 	updatedAt   time.Time
 	status      shared.StatusCode
@@ -47,9 +47,9 @@ type newOperation struct {
 	readonly    bool
 
 	// Those functions are called at various points in the operation lifecycle
-	onRun     func(*newOperation) error
-	onCancel  func(*newOperation) error
-	onConnect func(*newOperation, *http.Request, http.ResponseWriter) error
+	onRun     func(*operation) error
+	onCancel  func(*operation) error
+	onConnect func(*operation, *http.Request, http.ResponseWriter) error
 
 	// Those channels are used for error reporting of background actions
 	chanRun     chan error
@@ -61,7 +61,7 @@ type newOperation struct {
 	lock sync.Mutex
 }
 
-func (op *newOperation) done() {
+func (op *operation) done() {
 	if op.readonly {
 		return
 	}
@@ -72,15 +72,15 @@ func (op *newOperation) done() {
 	op.lock.Unlock()
 
 	time.AfterFunc(time.Second*5, func() {
-		newOperationLock.Lock()
-		_, ok := newOperations[op.id]
+		operationLock.Lock()
+		_, ok := operations[op.id]
 		if !ok {
-			newOperationLock.Unlock()
+			operationLock.Unlock()
 			return
 		}
 
-		delete(newOperations, op.id)
-		newOperationLock.Unlock()
+		delete(operations, op.id)
+		operationLock.Unlock()
 
 		/*
 		 * When we create a new lxc.Container, it adds a finalizer (via
@@ -96,7 +96,7 @@ func (op *newOperation) done() {
 	})
 }
 
-func (op *newOperation) Run() (chan error, error) {
+func (op *operation) Run() (chan error, error) {
 	if op.status != shared.Pending {
 		return nil, fmt.Errorf("Only pending operations can be started")
 	}
@@ -106,7 +106,7 @@ func (op *newOperation) Run() (chan error, error) {
 	op.status = shared.Running
 
 	if op.onRun != nil {
-		go func(op *newOperation) {
+		go func(op *operation) {
 			err := op.onRun(op)
 			if err != nil {
 				op.lock.Lock()
@@ -143,7 +143,7 @@ func (op *newOperation) Run() (chan error, error) {
 	return op.chanRun, nil
 }
 
-func (op *newOperation) Cancel() (chan error, error) {
+func (op *operation) Cancel() (chan error, error) {
 	if op.status != shared.Running {
 		return nil, fmt.Errorf("Only running operations can be cancelled")
 	}
@@ -159,7 +159,7 @@ func (op *newOperation) Cancel() (chan error, error) {
 	op.lock.Unlock()
 
 	if op.onCancel != nil {
-		go func(op *newOperation, oldStatus shared.StatusCode) {
+		go func(op *operation, oldStatus shared.StatusCode) {
 			err := op.onCancel(op)
 			if err != nil {
 				op.lock.Lock()
@@ -204,8 +204,8 @@ func (op *newOperation) Cancel() (chan error, error) {
 	return op.chanCancel, nil
 }
 
-func (op *newOperation) Connect(r *http.Request, w http.ResponseWriter) (chan error, error) {
-	if op.class != newOperationClassWebsocket {
+func (op *operation) Connect(r *http.Request, w http.ResponseWriter) (chan error, error) {
+	if op.class != operationClassWebsocket {
 		return nil, fmt.Errorf("Only websocket operations can be connected")
 	}
 
@@ -216,7 +216,7 @@ func (op *newOperation) Connect(r *http.Request, w http.ResponseWriter) (chan er
 	op.lock.Lock()
 	op.chanConnect = make(chan error, 1)
 
-	go func(op *newOperation) {
+	go func(op *operation) {
 		err := op.onConnect(op, r, w)
 		if err != nil {
 			op.lock.Lock()
@@ -246,7 +246,7 @@ func (op *newOperation) Connect(r *http.Request, w http.ResponseWriter) (chan er
 	return op.chanConnect, nil
 }
 
-func (op *newOperation) Render() (string, *shared.Operation, error) {
+func (op *operation) Render() (string, *shared.Operation, error) {
 	// Setup the resource URLs
 	resources := op.resources
 	if resources != nil {
@@ -276,7 +276,7 @@ func (op *newOperation) Render() (string, *shared.Operation, error) {
 	}, nil
 }
 
-func (op *newOperation) WaitFinal(timeout int) (bool, error) {
+func (op *operation) WaitFinal(timeout int) (bool, error) {
 	// Check current state
 	if op.status.IsFinal() {
 		return true, nil
@@ -307,7 +307,7 @@ func (op *newOperation) WaitFinal(timeout int) (bool, error) {
 	return false, nil
 }
 
-func (op *newOperation) UpdateResources(opResources map[string][]string) error {
+func (op *operation) UpdateResources(opResources map[string][]string) error {
 	if op.status != shared.Pending && op.status != shared.Running {
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
@@ -328,7 +328,7 @@ func (op *newOperation) UpdateResources(opResources map[string][]string) error {
 	return nil
 }
 
-func (op *newOperation) UpdateMetadata(opMetadata interface{}) error {
+func (op *operation) UpdateMetadata(opMetadata interface{}) error {
 	if op.status != shared.Pending && op.status != shared.Running {
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
@@ -354,19 +354,19 @@ func (op *newOperation) UpdateMetadata(opMetadata interface{}) error {
 	return nil
 }
 
-func newOperationCreate(opClass newOperationClass, opResources map[string][]string, opMetadata interface{},
-	onRun func(*newOperation) error,
-	onCancel func(*newOperation) error,
-	onConnect func(*newOperation, *http.Request, http.ResponseWriter) error) (*newOperation, error) {
+func operationCreate(opClass operationClass, opResources map[string][]string, opMetadata interface{},
+	onRun func(*operation) error,
+	onCancel func(*operation) error,
+	onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
 
 	// Main attributes
-	op := newOperation{}
+	op := operation{}
 	op.id = uuid.NewV4().String()
 	op.class = opClass
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
 	op.status = shared.Pending
-	op.url = fmt.Sprintf("/%s/new-operations/%s", shared.APIVersion, op.id)
+	op.url = fmt.Sprintf("/%s/operations/%s", shared.APIVersion, op.id)
 	op.resources = opResources
 	op.chanDone = make(chan error)
 
@@ -382,27 +382,27 @@ func newOperationCreate(opClass newOperationClass, opResources map[string][]stri
 	op.onConnect = onConnect
 
 	// Sanity check
-	if op.class != newOperationClassWebsocket && op.onConnect != nil {
+	if op.class != operationClassWebsocket && op.onConnect != nil {
 		return nil, fmt.Errorf("Only websocket operations can have a Connect hook")
 	}
 
-	if op.class == newOperationClassWebsocket && op.onConnect == nil {
+	if op.class == operationClassWebsocket && op.onConnect == nil {
 		return nil, fmt.Errorf("Websocket operations must have a Connect hook")
 	}
 
-	if op.class == newOperationClassToken && op.onRun != nil {
+	if op.class == operationClassToken && op.onRun != nil {
 		return nil, fmt.Errorf("Token operations can't have a Run hook")
 	}
 
-	if op.class == newOperationClassToken && op.onCancel != nil {
+	if op.class == operationClassToken && op.onCancel != nil {
 		return nil, fmt.Errorf("Token operations can't have a Cancel hook")
 	}
 
-	op.cancellable = op.onCancel != nil || op.class == newOperationClassToken
+	op.cancellable = op.onCancel != nil || op.class == operationClassToken
 
-	newOperationLock.Lock()
-	newOperations[op.id] = &op
-	newOperationLock.Unlock()
+	operationLock.Lock()
+	operations[op.id] = &op
+	operationLock.Unlock()
 
 	shared.Debugf("New %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
@@ -411,10 +411,10 @@ func newOperationCreate(opClass newOperationClass, opResources map[string][]stri
 	return &op, nil
 }
 
-func newOperationGet(id string) (*newOperation, error) {
-	newOperationLock.Lock()
-	op, ok := newOperations[id]
-	newOperationLock.Unlock()
+func operationGet(id string) (*operation, error) {
+	operationLock.Lock()
+	op, ok := operations[id]
+	operationLock.Unlock()
 
 	if !ok {
 		return nil, fmt.Errorf("Operation '%s' doesn't exist", id)
@@ -424,10 +424,10 @@ func newOperationGet(id string) (*newOperation, error) {
 }
 
 // API functions
-func newOperationAPIGet(d *Daemon, r *http.Request) Response {
+func operationAPIGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
 
-	op, err := newOperationGet(id)
+	op, err := operationGet(id)
 	if err != nil {
 		return NotFound
 	}
@@ -440,10 +440,10 @@ func newOperationAPIGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, body)
 }
 
-func newOperationAPIDelete(d *Daemon, r *http.Request) Response {
+func operationAPIDelete(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
 
-	op, err := newOperationGet(id)
+	op, err := operationGet(id)
 	if err != nil {
 		return NotFound
 	}
@@ -456,18 +456,18 @@ func newOperationAPIDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var newOperationCmd = Command{name: "new-operations/{id}", get: newOperationAPIGet, delete: newOperationAPIDelete}
+var operationCmd = Command{name: "operations/{id}", get: operationAPIGet, delete: operationAPIDelete}
 
-func newOperationsAPIGet(d *Daemon, r *http.Request) Response {
+func operationsAPIGet(d *Daemon, r *http.Request) Response {
 	var md shared.Jmap
 
 	recursion := d.isRecursionRequest(r)
 
 	md = shared.Jmap{}
 
-	newOperationLock.Lock()
-	ops := newOperations
-	newOperationLock.Unlock()
+	operationLock.Lock()
+	ops := operations
+	operationLock.Unlock()
 
 	for _, v := range ops {
 		status := strings.ToLower(v.status.String())
@@ -496,16 +496,16 @@ func newOperationsAPIGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, md)
 }
 
-var newOperationsCmd = Command{name: "new-operations", get: newOperationsAPIGet}
+var operationsCmd = Command{name: "operations", get: operationsAPIGet}
 
-func newOperationAPIWaitGet(d *Daemon, r *http.Request) Response {
+func operationAPIWaitGet(d *Daemon, r *http.Request) Response {
 	timeout, err := shared.AtoiEmptyDefault(r.FormValue("timeout"), -1)
 	if err != nil {
 		return InternalError(err)
 	}
 
 	id := mux.Vars(r)["id"]
-	op, err := newOperationGet(id)
+	op, err := operationGet(id)
 	if err != nil {
 		return NotFound
 	}
@@ -523,14 +523,14 @@ func newOperationAPIWaitGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, body)
 }
 
-var newOperationWait = Command{name: "new-operations/{id}/wait", get: newOperationAPIWaitGet}
+var operationWait = Command{name: "operations/{id}/wait", get: operationAPIWaitGet}
 
-type newOperationWebSocket struct {
+type operationWebSocket struct {
 	req *http.Request
-	op  *newOperation
+	op  *operation
 }
 
-func (r *newOperationWebSocket) Render(w http.ResponseWriter) error {
+func (r *operationWebSocket) Render(w http.ResponseWriter) error {
 	chanErr, err := r.op.Connect(r.req, w)
 	if err != nil {
 		return err
@@ -540,14 +540,14 @@ func (r *newOperationWebSocket) Render(w http.ResponseWriter) error {
 	return err
 }
 
-func newOperationAPIWebsocketGet(d *Daemon, r *http.Request) Response {
+func operationAPIWebsocketGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
-	op, err := newOperationGet(id)
+	op, err := operationGet(id)
 	if err != nil {
 		return NotFound
 	}
 
-	return &newOperationWebSocket{r, op}
+	return &operationWebSocket{r, op}
 }
 
-var newOperationWebsocket = Command{name: "new-operations/{id}/websocket", untrustedGet: true, get: newOperationAPIWebsocketGet}
+var operationWebsocket = Command{name: "operations/{id}/websocket", untrustedGet: true, get: operationAPIWebsocketGet}

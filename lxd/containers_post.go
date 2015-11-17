@@ -58,7 +58,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		Architecture: imgInfo.Architecture,
 	}
 
-	run := func(op *newOperation) error {
+	run := func(op *operation) error {
 		_, err := containerLXDCreateFromImage(d, req.Name, args, hash)
 		return err
 	}
@@ -66,7 +66,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := newOperationCreate(newOperationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -82,7 +82,7 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 		Ephemeral: req.Ephemeral,
 	}
 
-	run := func(op *newOperation) error {
+	run := func(op *operation) error {
 		_, err := containerLXDCreateAsEmpty(d, req.Name, args)
 		return err
 	}
@@ -90,7 +90,7 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := newOperationCreate(newOperationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -103,7 +103,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return NotImplemented
 	}
 
-	run := func(op *newOperation) error {
+	run := func(op *operation) error {
 		createArgs := containerLXDArgs{
 			Ctype:     cTypeRegular,
 			Config:    req.Config,
@@ -172,7 +172,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := newOperationCreate(newOperationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -217,7 +217,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		BaseImage: req.Source.BaseImage,
 	}
 
-	run := func(op *newOperation) error {
+	run := func(op *operation) error {
 		_, err := containerLXDCreateAsCopy(d, req.Name, args, source)
 		if err != nil {
 			return err
@@ -229,7 +229,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name, req.Source.Source}
 
-	op, err := newOperationCreate(newOperationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
