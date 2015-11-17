@@ -70,10 +70,10 @@ func WebsocketSendStream(conn *websocket.Conn, r io.Reader) chan bool {
 	return ch
 }
 
-func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
+func WebsocketRecvStream(w io.WriteCloser, conn *websocket.Conn) chan bool {
 	ch := make(chan bool)
 
-	go func(w io.Writer, conn *websocket.Conn) {
+	go func(w io.WriteCloser, conn *websocket.Conn) {
 		for {
 			mt, r, err := conn.NextReader()
 			if mt == websocket.CloseMessage {

@@ -14,7 +14,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func getStdout() io.Writer {
+func getStdout() io.WriteCloser {
 	return os.Stdout
 }
 

@@ -13,8 +13,19 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func getStdout() io.Writer {
-	return ansicolor.NewAnsiColorWriter(os.Stdout)
+// Windows doesn't process ANSI sequences natively, so we wrap
+// os.Stdout for improved user experience for Windows client
+type WrappedWriteCloser struct {
+	io.Closer
+	wrapper io.Writer
+}
+
+func (wwc *WrappedWriteCloser) Write(p []byte) (int, error) {
+	return wwc.wrapper.Write(p)
+}
+
+func getStdout() io.WriteCloser {
+	return &WrappedWriteCloser{os.Stdout, ansicolor.NewAnsiColorWriter(os.Stdout)}
 }
 
 func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {

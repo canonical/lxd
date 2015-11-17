@@ -1248,7 +1248,7 @@ func (c *Client) Monitor(types []string, handler func(interface{})) error {
 // a nil controlHandler will cause Exec to return when all of the command
 // output is sent to the output buffers.
 func (c *Client) Exec(name string, cmd []string, env map[string]string,
-	stdin io.ReadCloser, stdout io.Writer,
+	stdin io.ReadCloser, stdout io.WriteCloser,
 	stderr io.WriteCloser, controlHandler func(*Client, *websocket.Conn)) (int, error) {
 
 	body := shared.Jmap{
@@ -1301,7 +1301,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 
 		dones[0] = shared.WebsocketSendStream(conns[0], stdin)
 
-		outputs := []io.Writer{stdout, stderr}
+		outputs := []io.WriteCloser{stdout, stderr}
 		for i := 1; i < 3; i++ {
 			conns[i], err = c.websocket(resp.Operation, md.FDs[strconv.Itoa(i)])
 			if err != nil {
