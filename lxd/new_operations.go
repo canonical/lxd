@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,6 +45,7 @@ type newOperation struct {
 	resources   map[string][]string
 	metadata    map[string]interface{}
 	err         string
+	readonly    bool
 
 	// Those functions are called at various points in the operation lifecycle
 	onRun     func(*newOperation) error
@@ -60,19 +63,38 @@ type newOperation struct {
 }
 
 func (op *newOperation) done() {
-	newOperationLock.Lock()
-	_, ok := newOperations[op.id]
-	if !ok {
-		newOperationLock.Unlock()
+	if op.readonly {
 		return
 	}
 
 	op.lock.Lock()
+	op.readonly = true
 	close(op.chanDone)
 	op.lock.Unlock()
 
-	delete(newOperations, op.id)
-	newOperationLock.Unlock()
+	time.AfterFunc(time.Second*5, func() {
+		newOperationLock.Lock()
+		_, ok := newOperations[op.id]
+		if !ok {
+			newOperationLock.Unlock()
+			return
+		}
+
+		delete(newOperations, op.id)
+		newOperationLock.Unlock()
+
+		/*
+		 * When we create a new lxc.Container, it adds a finalizer (via
+		 * SetFinalizer) that frees the struct. However, it sometimes
+		 * takes the go GC a while to actually free the struct,
+		 * presumably since it is a small amount of memory.
+		 * Unfortunately, the struct also keeps the log fd open, so if
+		 * we leave too many of these around, we end up running out of
+		 * fds. So, let's explicitly do a GC to collect these at the
+		 * end of each request.
+		 */
+		runtime.GC()
+	})
 }
 
 func (op *newOperation) Run() (chan error, error) {
@@ -291,6 +313,10 @@ func (op *newOperation) UpdateResources(opResources map[string][]string) error {
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
 
+	if op.readonly {
+		return fmt.Errorf("Read-only operations can't be updated")
+	}
+
 	op.lock.Lock()
 	op.updatedAt = time.Now()
 	op.resources = opResources
@@ -306,6 +332,10 @@ func (op *newOperation) UpdateResources(opResources map[string][]string) error {
 func (op *newOperation) UpdateMetadata(opMetadata interface{}) error {
 	if op.status != shared.Pending && op.status != shared.Running {
 		return fmt.Errorf("Only pending or running operations can be updated")
+	}
+
+	if op.readonly {
+		return fmt.Errorf("Read-only operations can't be updated")
 	}
 
 	newMetadata, err := parseMetadata(opMetadata)
@@ -455,31 +485,34 @@ func newOperationsAPIGet(d *Daemon, r *http.Request) Response {
 
 	recursion := d.isRecursionRequest(r)
 
-	if recursion {
-		md = shared.Jmap{"pending": make([]*newOperation, 0, 0), "running": make([]*newOperation, 0, 0)}
-	} else {
-		md = shared.Jmap{"pending": make([]string, 0, 0), "running": make([]string, 0, 0)}
-	}
+	md = shared.Jmap{}
 
 	newOperationLock.Lock()
 	ops := newOperations
 	newOperationLock.Unlock()
 
-	for k, v := range ops {
-		switch v.status {
-		case shared.Pending:
+	for _, v := range ops {
+		status := strings.ToLower(v.status.String())
+		_, ok := md[status]
+		if !ok {
 			if recursion {
-				md["pending"] = append(md["pending"].([]*newOperation), v)
+				md[status] = make([]*shared.Operation, 0)
 			} else {
-				md["pending"] = append(md["pending"].([]string), k)
-			}
-		case shared.Running:
-			if recursion {
-				md["running"] = append(md["running"].([]*newOperation), v)
-			} else {
-				md["running"] = append(md["running"].([]string), k)
+				md[status] = make([]string, 0)
 			}
 		}
+
+		if !recursion {
+			md[status] = append(md[status].([]string), v.url)
+			continue
+		}
+
+		_, body, err := v.Render()
+		if err != nil {
+			continue
+		}
+
+		md[status] = append(md[status].([]*shared.Operation), body)
 	}
 
 	return SyncResponse(true, md)

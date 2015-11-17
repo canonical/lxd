@@ -23,6 +23,8 @@ test_fdleak() {
       lxc delete "leaktest${i}"
     done
 
+    sleep 5
+
     exit 0
   )
   afterfds=$(/bin/ls "/proc/${pid}/fd" | wc -l)
