@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 
@@ -40,7 +41,7 @@ type newOperation struct {
 	status      shared.StatusCode
 	url         string
 	resources   map[string][]string
-	metadata    interface{}
+	metadata    map[string]interface{}
 	err         string
 
 	// Those functions are called at various points in the operation lifecycle
@@ -221,6 +222,8 @@ func (op *newOperation) Render() (string, *shared.Operation, error) {
 		resources = tmpResources
 	}
 
+	md := shared.Jmap(op.metadata)
+
 	return op.url, &shared.Operation{
 		Id:         op.id,
 		CreatedAt:  op.createdAt,
@@ -228,7 +231,7 @@ func (op *newOperation) Render() (string, *shared.Operation, error) {
 		Status:     op.status.String(),
 		StatusCode: op.status,
 		Resources:  resources,
-		Metadata:   op.metadata,
+		Metadata:   &md,
 		MayCancel:  op.cancellable,
 		Err:        op.err,
 	}, nil
@@ -287,9 +290,14 @@ func (op *newOperation) UpdateMetadata(opMetadata interface{}) error {
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
 
+	newMetadata, err := parseMetadata(opMetadata)
+	if err != nil {
+		return err
+	}
+
 	op.lock.Lock()
 	op.updatedAt = time.Now()
-	op.metadata = opMetadata
+	op.metadata = newMetadata
 	op.lock.Unlock()
 
 	shared.Debugf("Updated metadata for %s operation: %s", op.class.String(), op.id)
@@ -297,6 +305,29 @@ func (op *newOperation) UpdateMetadata(opMetadata interface{}) error {
 	eventSend("operation", md)
 
 	return nil
+}
+
+func parseMetadata(metadata interface{}) (map[string]interface{}, error) {
+	newMetadata := make(map[string]interface{})
+	s := reflect.ValueOf(metadata)
+	if !s.IsValid() {
+		return nil, nil
+	}
+
+	if s.Kind() == reflect.Map {
+		for _, k := range s.MapKeys() {
+			if k.Kind() != reflect.String {
+				return nil, fmt.Errorf("Invalid metadata provided (key isn't a string).")
+			}
+			newMetadata[k.String()] = s.MapIndex(k).Interface()
+		}
+	} else if s.Kind() == reflect.Ptr && !s.Elem().IsValid() {
+		return nil, nil
+	} else {
+		return nil, fmt.Errorf("Invalid metadata provided (type isn't a map).")
+	}
+
+	return newMetadata, nil
 }
 
 func newOperationCreate(opClass newOperationClass, opResources map[string][]string, opMetadata interface{},
@@ -313,8 +344,13 @@ func newOperationCreate(opClass newOperationClass, opResources map[string][]stri
 	op.status = shared.Pending
 	op.url = fmt.Sprintf("/%s/new-operations/%s", shared.APIVersion, op.id)
 	op.resources = opResources
-	op.metadata = opMetadata
 	op.chanDone = make(chan error)
+
+	newMetadata, err := parseMetadata(opMetadata)
+	if err != nil {
+		return nil, err
+	}
+	op.metadata = newMetadata
 
 	// Callback functions
 	op.onRun = onRun
