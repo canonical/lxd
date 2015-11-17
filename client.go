@@ -558,27 +558,30 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 
 	// FIXME: InterfaceToBool is there for backward compatibility
 	if !shared.InterfaceToBool(info.Public) {
-		var operation string
+		var secret string
 
 		resp, err := c.post("images/"+fingerprint+"/secret", nil, Async)
 		if err != nil {
 			return err
 		}
 
-		toScan := strings.Replace(resp.Operation, "/", " ", -1)
-		version := ""
-		count, err := fmt.Sscanf(toScan, " %s %s", &version, &operation)
-		if err != nil || count != 2 {
-			return err
-		}
-		operation = strings.Replace(operation, " ", "/", -1)
+		op, err := resp.MetadataAsOperation()
+		if err == nil && op.Metadata != nil {
+			secret, err = op.Metadata.GetString("secret")
+			if err != nil {
+				return err
+			}
+		} else {
+			// FIXME: This is a backward compatibility codepath
+			md := secretMd{}
+			if err := json.Unmarshal(resp.Metadata, &md); err != nil {
+				return err
+			}
 
-		md := secretMd{}
-		if err := json.Unmarshal(resp.Metadata, &md); err != nil {
-			return err
+			secret = md.Secret
 		}
 
-		source["secret"] = md.Secret
+		source["secret"] = secret
 	}
 
 	addresses, err := c.Addresses()
