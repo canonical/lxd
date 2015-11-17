@@ -37,7 +37,6 @@ type execWs struct {
 	allConnected     chan bool
 	controlConnected chan bool
 	interactive      bool
-	done             chan shared.OperationResult
 	fds              map[int]string
 }
 
@@ -295,7 +294,6 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		ws.allConnected = make(chan bool, 1)
 		ws.controlConnected = make(chan bool, 1)
 		ws.interactive = post.Interactive
-		ws.done = make(chan shared.OperationResult, 1)
 		ws.options = opts
 		for i := -1; i < len(ws.conns)-1; i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
