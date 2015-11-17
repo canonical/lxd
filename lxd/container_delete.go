@@ -18,14 +18,14 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("container is running"))
 	}
 
-	rmct := func(op *newOperation) error {
+	rmct := func(op *operation) error {
 		return c.Delete()
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := newOperationCreate(newOperationClassTask, resources, nil, rmct, nil, nil)
+	op, err := operationCreate(operationClassTask, resources, nil, rmct, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

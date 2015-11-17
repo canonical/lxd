@@ -53,7 +53,7 @@ func (s *execWs) Metadata() interface{} {
 	return shared.Jmap{"fds": fds}
 }
 
-func (s *execWs) Connect(op *newOperation, r *http.Request, w http.ResponseWriter) error {
+func (s *execWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -88,7 +88,7 @@ func (s *execWs) Connect(op *newOperation, r *http.Request, w http.ResponseWrite
 	return os.ErrPermission
 }
 
-func (s *execWs) Do(op *newOperation) error {
+func (s *execWs) Do(op *operation) error {
 	<-s.allConnected
 
 	var err error
@@ -308,7 +308,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		resources := map[string][]string{}
 		resources["containers"] = []string{ws.container.Name()}
 
-		op, err := newOperationCreate(newOperationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -316,7 +316,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return OperationResponse(op)
 	}
 
-	run := func(op *newOperation) error {
+	run := func(op *operation) error {
 		nullDev, err := os.OpenFile(os.DevNull, os.O_RDWR, 0666)
 		if err != nil {
 			return err
@@ -335,7 +335,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := newOperationCreate(newOperationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

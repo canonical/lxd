@@ -131,7 +131,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		shared.SnapshotDelimiter +
 		snapshotName
 
-	snapshot := func(op *newOperation) error {
+	snapshot := func(op *operation) error {
 		config := c.Config()
 		args := containerLXDArgs{
 			Ctype:        cTypeSnapshot,
@@ -154,7 +154,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := newOperationCreate(newOperationClassTask, resources, nil, snapshot, nil, nil)
+	op, err := operationCreate(operationClassTask, resources, nil, snapshot, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -203,14 +203,14 @@ func snapshotPost(r *http.Request, sc container, containerName string) Response 
 		return BadRequest(err)
 	}
 
-	rename := func(op *newOperation) error {
+	rename := func(op *operation) error {
 		return sc.Rename(containerName + shared.SnapshotDelimiter + newName)
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{containerName}
 
-	op, err := newOperationCreate(newOperationClassTask, resources, nil, rename, nil, nil)
+	op, err := operationCreate(operationClassTask, resources, nil, rename, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -219,14 +219,14 @@ func snapshotPost(r *http.Request, sc container, containerName string) Response 
 }
 
 func snapshotDelete(sc container, name string) Response {
-	remove := func(op *newOperation) error {
+	remove := func(op *operation) error {
 		return sc.Delete()
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{sc.Name()}
 
-	op, err := newOperationCreate(newOperationClassTask, resources, nil, remove, nil, nil)
+	op, err := operationCreate(operationClassTask, resources, nil, remove, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
