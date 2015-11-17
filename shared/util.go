@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -572,4 +573,27 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 	}
 
 	return content, nil
+}
+
+func ParseMetadata(metadata interface{}) (map[string]interface{}, error) {
+	newMetadata := make(map[string]interface{})
+	s := reflect.ValueOf(metadata)
+	if !s.IsValid() {
+		return nil, nil
+	}
+
+	if s.Kind() == reflect.Map {
+		for _, k := range s.MapKeys() {
+			if k.Kind() != reflect.String {
+				return nil, fmt.Errorf("Invalid metadata provided (key isn't a string).")
+			}
+			newMetadata[k.String()] = s.MapIndex(k).Interface()
+		}
+	} else if s.Kind() == reflect.Ptr && !s.Elem().IsValid() {
+		return nil, nil
+	} else {
+		return nil, fmt.Errorf("Invalid metadata provided (type isn't a map).")
+	}
+
+	return newMetadata, nil
 }

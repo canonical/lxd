@@ -1265,15 +1265,30 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		return -1, err
 	}
 
-	md := execMd{}
-	if err := json.Unmarshal(resp.Metadata, &md); err != nil {
-		return -1, err
+	var fds shared.Jmap
+
+	op, err := resp.MetadataAsOperation()
+	if err == nil && op.Metadata != nil {
+		fds, err = op.Metadata.GetMap("fds")
+		if err != nil {
+			return -1, err
+		}
+	} else {
+		md := execMd{}
+		if err := json.Unmarshal(resp.Metadata, &md); err != nil {
+			return -1, err
+		}
+
+		fds, err = shared.ParseMetadata(md.FDs)
+		if err != nil {
+			return -1, err
+		}
 	}
 
 	if controlHandler != nil {
 		var control *websocket.Conn
-		if wsControl, ok := md.FDs["control"]; ok {
-			control, err = c.websocket(resp.Operation, wsControl)
+		if wsControl, ok := fds["control"]; ok {
+			control, err = c.websocket(resp.Operation, wsControl.(string))
 			if err != nil {
 				return -1, err
 			}
@@ -1282,7 +1297,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 			go controlHandler(c, control)
 		}
 
-		conn, err := c.websocket(resp.Operation, md.FDs["0"])
+		conn, err := c.websocket(resp.Operation, fds["0"].(string))
 		if err != nil {
 			return -1, err
 		}
@@ -1295,7 +1310,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		conns := make([]*websocket.Conn, 3)
 		dones := make([]chan bool, 3)
 
-		conns[0], err = c.websocket(resp.Operation, md.FDs[strconv.Itoa(0)])
+		conns[0], err = c.websocket(resp.Operation, fds[strconv.Itoa(0)].(string))
 		if err != nil {
 			return -1, err
 		}
@@ -1305,7 +1320,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 
 		outputs := []io.WriteCloser{stdout, stderr}
 		for i := 1; i < 3; i++ {
-			conns[i], err = c.websocket(resp.Operation, md.FDs[strconv.Itoa(i)])
+			conns[i], err = c.websocket(resp.Operation, fds[strconv.Itoa(i)].(string))
 			if err != nil {
 				return -1, err
 			}
@@ -1335,7 +1350,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 	}
 
 	// Now, get the operation's status too.
-	op, err := c.WaitFor(resp.Operation)
+	op, err = c.WaitFor(resp.Operation)
 	if err != nil {
 		return -1, err
 	}
