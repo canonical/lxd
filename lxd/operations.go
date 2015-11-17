@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -36,11 +35,7 @@ func createOperation(metadata shared.Jmap, resources map[string][]string, run fu
 		op.Resources = tmpResources
 	}
 
-	md, err := json.Marshal(metadata)
-	if err != nil {
-		return "", err
-	}
-	op.Metadata = md
+	op.Metadata = &metadata
 
 	op.MayCancel = ((run == nil && cancel == nil) || cancel != nil)
 
@@ -94,11 +89,13 @@ func updateOperation(id string, metadata map[string]string) error {
 		return fmt.Errorf("Operation doesn't exist")
 	}
 
-	md, err := json.Marshal(metadata)
+	newMetadata, err := parseMetadata(metadata)
 	if err != nil {
 		return err
 	}
-	op.Metadata = md
+
+	md := shared.Jmap(newMetadata)
+	op.Metadata = &md
 
 	eventSend("operation", op)
 

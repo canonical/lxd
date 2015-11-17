@@ -34,7 +34,7 @@ type OperationWebsocket interface {
 }
 
 type OperationResult struct {
-	Metadata interface{}
+	Metadata *Jmap
 	Error    error
 }
 
@@ -55,7 +55,7 @@ type Operation struct {
 	Status     string              `json:"status"`
 	StatusCode StatusCode          `json:"status_code"`
 	Resources  map[string][]string `json:"resources"`
-	Metadata   interface{}         `json:"metadata"`
+	Metadata   *Jmap               `json:"metadata"`
 	MayCancel  bool                `json:"may_cancel"`
 	Err        string              `json:"err"`
 
@@ -84,7 +84,7 @@ func (o *Operation) GetError() error {
 }
 
 func (o *Operation) MetadataAsMap() (*Jmap, error) {
-	return o.Metadata.(*Jmap), nil
+	return o.Metadata, nil
 }
 
 func (o *Operation) SetStatus(status StatusCode) {
