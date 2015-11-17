@@ -1060,7 +1060,6 @@ func (c *Client) GetAlias(alias string) string {
 // Init creates a container from either a fingerprint or an alias; you must
 // provide at least one.
 func (c *Client) Init(name string, imgremote string, image string, profiles *[]string, config map[string]string, ephem bool) (*Response, error) {
-	var operation string
 	var tmpremote *Client
 	var err error
 
@@ -1100,25 +1099,30 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 		// FIXME: InterfaceToBool is there for backward compatibility
 		if !shared.InterfaceToBool(imageinfo.Public) {
+			var secret string
+
 			resp, err := tmpremote.post("images/"+fingerprint+"/secret", nil, Async)
 			if err != nil {
 				return nil, err
 			}
 
-			toScan := strings.Replace(resp.Operation, "/", " ", -1)
-			version := ""
-			count, err := fmt.Sscanf(toScan, " %s %s", &version, &operation)
-			if err != nil || count != 2 {
-				return nil, err
-			}
-			operation = strings.Replace(operation, " ", "/", -1)
+			op, err := resp.MetadataAsOperation()
+			if err == nil && op.Metadata != nil {
+				secret, err = op.Metadata.GetString("secret")
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				// FIXME: This is a backward compatibility codepath
+				md := secretMd{}
+				if err := json.Unmarshal(resp.Metadata, &md); err != nil {
+					return nil, err
+				}
 
-			md := secretMd{}
-			if err := json.Unmarshal(resp.Metadata, &md); err != nil {
-				return nil, err
+				secret = md.Secret
 			}
 
-			source["secret"] = md.Secret
+			source["secret"] = secret
 		}
 
 		source["server"] = tmpremote.BaseURL
@@ -1179,10 +1183,6 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		}
 	} else {
 		resp, err = c.post("containers", body, Async)
-	}
-
-	if operation != "" {
-		_, _ = tmpremote.delete(operation, nil, Sync)
 	}
 
 	if err != nil {
