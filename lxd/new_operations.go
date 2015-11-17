@@ -32,30 +32,30 @@ func (t newOperationClass) String() string {
 }
 
 type newOperation struct {
-	id          string              `json:"id"`
-	cancellable bool                `json:"cancellable"`
-	class       newOperationClass   `json:"class"`
-	createdAt   time.Time           `json:"created_at"`
-	updatedAt   time.Time           `json:"updated_at"`
-	status      shared.StatusCode   `json:"status"`
-	url         string              `json:"string"`
-	resources   map[string][]string `json:"resources"`
-	metadata    interface{}         `json:"metadata"`
-	err         string              `json:"err"`
+	id          string
+	cancellable bool
+	class       newOperationClass
+	createdAt   time.Time
+	updatedAt   time.Time
+	status      shared.StatusCode
+	url         string
+	resources   map[string][]string
+	metadata    interface{}
+	err         string
 
 	// Those functions are called at various points in the operation lifecycle
-	onRun     func(*newOperation) error                                     `json:"-"`
-	onCancel  func(*newOperation) error                                     `json:"-"`
-	onConnect func(*newOperation, *http.Request, http.ResponseWriter) error `json:"-"`
+	onRun     func(*newOperation) error
+	onCancel  func(*newOperation) error
+	onConnect func(*newOperation, *http.Request, http.ResponseWriter) error
 
 	// Those channels are used for error reporting of background actions
-	chanRun     chan error `json:"-"`
-	chanCancel  chan error `json:"-"`
-	chanConnect chan error `json:"-"`
-	chanDone    chan error `json:"-"`
+	chanRun     chan error
+	chanCancel  chan error
+	chanConnect chan error
+	chanDone    chan error
 
 	// Locking for concurent access to the operation
-	lock sync.Mutex `json:"-"`
+	lock sync.Mutex
 }
 
 func (op *newOperation) Run() (chan error, error) {
