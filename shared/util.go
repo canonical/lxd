@@ -506,6 +506,7 @@ func ValidHostname(name string) bool {
 	return true
 }
 
+// FIXME: InterfaceToBool is there for backward compatibility
 func InterfaceToBool(value interface{}) bool {
 	switch t := value.(type) {
 	case bool:
