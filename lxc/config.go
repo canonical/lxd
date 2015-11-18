@@ -213,7 +213,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		case "add":
 			var remote string
 			if len(args) < 3 {
-				return fmt.Errorf(gettext.Gettext("No cert provided to add"))
+				return fmt.Errorf(gettext.Gettext("No certificate provided to add"))
 			} else if len(args) == 4 {
 				remote = config.ParseRemote(args[2])
 			} else {
