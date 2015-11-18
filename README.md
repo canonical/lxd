@@ -7,7 +7,7 @@ LXD is pronounced lex-dee.
 ## CI status
 
  * Travis: [![Build Status](https://travis-ci.org/lxc/lxd.svg?branch=master)](https://travis-ci.org/lxc/lxd)
- * Jenkins: [![Build Status](https://jenkins.linuxcontainers.org/job/lxd-trigger-github/badge/icon)](https://jenkins.linuxcontainers.org/job/lxd-trigger-github/)
+ * Jenkins: [![Build Status](https://jenkins.linuxcontainers.org/job/lxd-github-commit/badge/icon)](https://jenkins.linuxcontainers.org/job/lxd-trigger-github/)
 
 ## Getting started with LXD
 
