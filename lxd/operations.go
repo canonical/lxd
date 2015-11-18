@@ -68,6 +68,9 @@ func (op *operation) done() {
 
 	op.lock.Lock()
 	op.readonly = true
+	op.onRun = nil
+	op.onCancel = nil
+	op.onConnect = nil
 	close(op.chanDone)
 	op.lock.Unlock()
 
