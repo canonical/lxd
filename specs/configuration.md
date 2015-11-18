@@ -60,7 +60,7 @@ boot.autostart.delay        | int           | 0                 | Number of seco
 boot.autostart.priority     | int           | 0                 | What order to start the containers in (starting with highest)
 environment.\*              | string        | -                 | key/value environment variables to export to the container and set on exec
 limits.cpus                 | int           | 0 (all)           | Number of CPUs to expose to the container
-limits.memory               | int           | 0 (all)           | Size in MB of the memory allocation for the container
+limits.memory               | int           | 0 (all)           | Size in bytes of the memory allocation for the container (supported suffixes: k, K, m, M, g or G)
 raw.apparmor                | blob          | -                 | Apparmor profile entries to be appended to the generated profile
 raw.lxc                     | blob          | -                 | Raw LXC configuration to be appended to the generated one
 security.nesting            | boolean       | false             | Support running lxd (nested) inside the container
