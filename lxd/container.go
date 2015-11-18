@@ -2124,7 +2124,11 @@ func (c *containerLXD) processcountGet() int {
 
 	for i := 0; i < len(pids); i++ {
 		fname := fmt.Sprintf("/proc/%d/task/%d/children", pids[i], pids[i])
-		fcont, _ := ioutil.ReadFile(fname)
+		fcont, err := ioutil.ReadFile(fname)
+		if err != nil {
+			// the process terminated during execution of this loop
+			continue
+		}
 		content := strings.Split(string(fcont), " ")
 		for j := 0; j < len(content); j++ {
 			pid, err := strconv.Atoi(content[j])
