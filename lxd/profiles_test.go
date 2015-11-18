@@ -18,9 +18,9 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	statements := `
     INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
     INSERT INTO profiles (name) VALUES ('theprofile');
-    INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 3);
-    INSERT INTO profiles_devices (name, profile_id) VALUES ('somename', 3);
-    INSERT INTO profiles_config (key, value, profile_id) VALUES ('thekey', 'thevalue', 3);
+    INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
+    INSERT INTO profiles_devices (name, profile_id) VALUES ('somename', 2);
+    INSERT INTO profiles_config (key, value, profile_id) VALUES ('thekey', 'thevalue', 2);
     INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (1, 'something', 'boring');`
 
 	_, err = db.Exec(statements)
