@@ -34,28 +34,24 @@ func (t operationClass) String() string {
 }
 
 type operation struct {
-	id          string
-	cancellable bool
-	class       operationClass
-	createdAt   time.Time
-	updatedAt   time.Time
-	status      shared.StatusCode
-	url         string
-	resources   map[string][]string
-	metadata    map[string]interface{}
-	err         string
-	readonly    bool
+	id        string
+	class     operationClass
+	createdAt time.Time
+	updatedAt time.Time
+	status    shared.StatusCode
+	url       string
+	resources map[string][]string
+	metadata  map[string]interface{}
+	err       string
+	readonly  bool
 
 	// Those functions are called at various points in the operation lifecycle
 	onRun     func(*operation) error
 	onCancel  func(*operation) error
 	onConnect func(*operation, *http.Request, http.ResponseWriter) error
 
-	// Those channels are used for error reporting of background actions
-	chanRun     chan error
-	chanCancel  chan error
-	chanConnect chan error
-	chanDone    chan error
+	// Channels used for error reporting and state tracking of background actions
+	chanDone chan error
 
 	// Locking for concurent access to the operation
 	lock sync.Mutex
@@ -104,22 +100,23 @@ func (op *operation) Run() (chan error, error) {
 		return nil, fmt.Errorf("Only pending operations can be started")
 	}
 
+	chanRun := make(chan error, 1)
+
 	op.lock.Lock()
-	op.chanRun = make(chan error, 1)
 	op.status = shared.Running
 
 	if op.onRun != nil {
-		go func(op *operation) {
+		go func(op *operation, chanRun chan error) {
 			err := op.onRun(op)
 			if err != nil {
 				op.lock.Lock()
 				op.status = shared.Failure
 				op.err = err.Error()
-				op.chanRun <- err
 				op.lock.Unlock()
 				op.done()
+				chanRun <- err
 
-				shared.Debugf("Failure for %s operation: %s", op.class.String(), op.id)
+				shared.Debugf("Failure for %s operation: %s: %s", op.class.String(), op.id, err)
 
 				_, md, _ := op.Render()
 				eventSend("operation", md)
@@ -128,14 +125,14 @@ func (op *operation) Run() (chan error, error) {
 
 			op.lock.Lock()
 			op.status = shared.Success
-			op.chanRun <- nil
 			op.lock.Unlock()
 			op.done()
+			chanRun <- nil
 
 			shared.Debugf("Success for %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
 			eventSend("operation", md)
-		}(op)
+		}(op, chanRun)
 	}
 	op.lock.Unlock()
 
@@ -143,7 +140,7 @@ func (op *operation) Run() (chan error, error) {
 	_, md, _ := op.Render()
 	eventSend("operation", md)
 
-	return op.chanRun, nil
+	return chanRun, nil
 }
 
 func (op *operation) Cancel() (chan error, error) {
@@ -151,26 +148,27 @@ func (op *operation) Cancel() (chan error, error) {
 		return nil, fmt.Errorf("Only running operations can be cancelled")
 	}
 
-	if !op.cancellable {
+	if !op.mayCancel() {
 		return nil, fmt.Errorf("This operation can't be cancelled")
 	}
 
+	chanCancel := make(chan error, 1)
+
 	op.lock.Lock()
-	op.chanCancel = make(chan error, 1)
 	oldStatus := op.status
 	op.status = shared.Cancelling
 	op.lock.Unlock()
 
 	if op.onCancel != nil {
-		go func(op *operation, oldStatus shared.StatusCode) {
+		go func(op *operation, oldStatus shared.StatusCode, chanCancel chan error) {
 			err := op.onCancel(op)
 			if err != nil {
 				op.lock.Lock()
 				op.status = oldStatus
-				op.chanCancel <- err
 				op.lock.Unlock()
+				chanCancel <- err
 
-				shared.Debugf("Failed to cancel %s operation: %s", op.class.String(), op.id)
+				shared.Debugf("Failed to cancel %s operation: %s: %s", op.class.String(), op.id, err)
 				_, md, _ := op.Render()
 				eventSend("operation", md)
 				return
@@ -178,14 +176,14 @@ func (op *operation) Cancel() (chan error, error) {
 
 			op.lock.Lock()
 			op.status = shared.Cancelled
-			op.chanCancel <- nil
 			op.lock.Unlock()
 			op.done()
+			chanCancel <- nil
 
 			shared.Debugf("Cancelled %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
 			eventSend("operation", md)
-		}(op, oldStatus)
+		}(op, oldStatus, chanCancel)
 	}
 
 	shared.Debugf("Cancelling %s operation: %s", op.class.String(), op.id)
@@ -195,16 +193,16 @@ func (op *operation) Cancel() (chan error, error) {
 	if op.onCancel == nil {
 		op.lock.Lock()
 		op.status = shared.Cancelled
-		op.chanCancel <- nil
 		op.lock.Unlock()
 		op.done()
+		chanCancel <- nil
 	}
 
 	shared.Debugf("Cancelled %s operation: %s", op.class.String(), op.id)
 	_, md, _ = op.Render()
 	eventSend("operation", md)
 
-	return op.chanCancel, nil
+	return chanCancel, nil
 }
 
 func (op *operation) Connect(r *http.Request, w http.ResponseWriter) (chan error, error) {
@@ -216,37 +214,38 @@ func (op *operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 		return nil, fmt.Errorf("Only running operations can be connected")
 	}
 
-	op.lock.Lock()
-	op.chanConnect = make(chan error, 1)
+	chanConnect := make(chan error, 1)
 
-	go func(op *operation) {
+	op.lock.Lock()
+
+	go func(op *operation, chanConnect chan error) {
 		err := op.onConnect(op, r, w)
 		if err != nil {
-			op.lock.Lock()
-			op.chanConnect <- err
-			op.lock.Unlock()
+			chanConnect <- err
 
-			shared.Debugf("Failed to handle %s operation: %s", op.class.String(), op.id)
+			shared.Debugf("Failed to handle %s operation: %s: %s", op.class.String(), op.id, err)
 			_, md, _ := op.Render()
 			eventSend("operation", md)
 			return
 		}
 
-		op.lock.Lock()
-		op.chanConnect <- nil
-		op.lock.Unlock()
+		chanConnect <- nil
 
 		shared.Debugf("Handled %s operation: %s", op.class.String(), op.id)
 		_, md, _ := op.Render()
 		eventSend("operation", md)
-	}(op)
+	}(op, chanConnect)
 	op.lock.Unlock()
 
 	shared.Debugf("Connected %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
 	eventSend("operation", md)
 
-	return op.chanConnect, nil
+	return chanConnect, nil
+}
+
+func (op *operation) mayCancel() bool {
+	return op.onCancel != nil || op.class == operationClassToken
 }
 
 func (op *operation) Render() (string, *shared.Operation, error) {
@@ -275,7 +274,7 @@ func (op *operation) Render() (string, *shared.Operation, error) {
 		StatusCode: op.status,
 		Resources:  resources,
 		Metadata:   &md,
-		MayCancel:  op.cancellable,
+		MayCancel:  op.mayCancel(),
 		Err:        op.err,
 	}, nil
 }
@@ -401,8 +400,6 @@ func operationCreate(opClass operationClass, opResources map[string][]string, op
 	if op.class == operationClassToken && op.onCancel != nil {
 		return nil, fmt.Errorf("Token operations can't have a Cancel hook")
 	}
-
-	op.cancellable = op.onCancel != nil || op.class == operationClassToken
 
 	operationLock.Lock()
 	operations[op.id] = &op
