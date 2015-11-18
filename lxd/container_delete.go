@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/shared"
 )
 
 func containerDelete(d *Daemon, r *http.Request) Response {
@@ -19,9 +18,17 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("container is running"))
 	}
 
-	rmct := func(id string) error {
+	rmct := func(op *operation) error {
 		return c.Delete()
 	}
 
-	return AsyncResponse(shared.OperationWrap(rmct), nil)
+	resources := map[string][]string{}
+	resources["containers"] = []string{name}
+
+	op, err := operationCreate(operationClassTask, resources, nil, rmct, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }

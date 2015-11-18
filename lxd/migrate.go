@@ -164,7 +164,7 @@ type migrationSourceWs struct {
 	allConnected chan bool
 }
 
-func NewMigrationSource(c container) (shared.OperationWebsocket, error) {
+func NewMigrationSource(c container) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{migrationFields{container: c}, make(chan bool, 1)}
 
 	var err error
@@ -208,7 +208,12 @@ func (s *migrationSourceWs) Metadata() interface{} {
 	return secrets
 }
 
-func (s *migrationSourceWs) Connect(secret string, r *http.Request, w http.ResponseWriter) error {
+func (s *migrationSourceWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+	secret := r.FormValue("secret")
+	if secret == "" {
+		return fmt.Errorf("missing secret")
+	}
+
 	var conn **websocket.Conn
 
 	switch secret {
@@ -238,7 +243,7 @@ func (s *migrationSourceWs) Connect(secret string, r *http.Request, w http.Respo
 	return nil
 }
 
-func (s *migrationSourceWs) Do(id string) shared.OperationResult {
+func (s *migrationSourceWs) Do(op *operation) error {
 	<-s.allConnected
 
 	criuType := CRIUType_CRIU_RSYNC.Enum()
@@ -272,35 +277,35 @@ func (s *migrationSourceWs) Do(id string) shared.OperationResult {
 
 	if err := s.send(&header); err != nil {
 		s.sendControl(err)
-		return shared.OperationError(err)
+		return err
 	}
 
 	if err := s.recv(&header); err != nil {
 		s.sendControl(err)
-		return shared.OperationError(err)
+		return err
 	}
 
 	if *header.Fs != MigrationFSType_RSYNC {
 		err := fmt.Errorf("Formats other than rsync not understood")
 		s.sendControl(err)
-		return shared.OperationError(err)
+		return err
 	}
 
 	if s.live {
 		if header.Criu == nil {
 			err := fmt.Errorf("Got no CRIU socket type for live migration")
 			s.sendControl(err)
-			return shared.OperationError(err)
+			return err
 		} else if *header.Criu != CRIUType_CRIU_RSYNC {
 			err := fmt.Errorf("Formats other than criu rsync not understood")
 			s.sendControl(err)
-			return shared.OperationError(err)
+			return err
 		}
 
 		checkpointDir, err := ioutil.TempDir("", "lxd_migration_")
 		if err != nil {
 			s.sendControl(err)
-			return shared.OperationError(err)
+			return err
 		}
 		defer os.RemoveAll(checkpointDir)
 
@@ -316,7 +321,7 @@ func (s *migrationSourceWs) Do(id string) shared.OperationResult {
 
 			err = fmt.Errorf("checkpoint failed:\n%s", log)
 			s.sendControl(err)
-			return shared.OperationError(err)
+			return err
 		}
 
 		/*
@@ -328,29 +333,29 @@ func (s *migrationSourceWs) Do(id string) shared.OperationResult {
 		 */
 		if err := RsyncSend(shared.AddSlash(checkpointDir), s.criuConn); err != nil {
 			s.sendControl(err)
-			return shared.OperationError(err)
+			return err
 		}
 	}
 
 	fsDir := s.container.RootfsPath()
 	if err := RsyncSend(shared.AddSlash(fsDir), s.fsConn); err != nil {
 		s.sendControl(err)
-		return shared.OperationError(err)
+		return err
 	}
 
 	msg := MigrationControl{}
 	if err := s.recv(&msg); err != nil {
 		s.disconnect()
-		return shared.OperationError(err)
+		return err
 	}
 
 	// TODO: should we add some config here about automatically restarting
 	// the container migrate failure? What about the failures above?
 	if !*msg.Success {
-		return shared.OperationError(fmt.Errorf(*msg.Message))
+		return fmt.Errorf(*msg.Message)
 	}
 
-	return shared.OperationSuccess
+	return nil
 }
 
 type migrationSink struct {

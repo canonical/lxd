@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/shared"
 )
 
 func containerPost(d *Daemon, r *http.Request) Response {
@@ -32,12 +31,28 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		return AsyncResponseWithWs(ws, nil)
+		resources := map[string][]string{}
+		resources["containers"] = []string{name}
+
+		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		return OperationResponse(op)
 	}
 
-	run := func(id string) error {
+	run := func(*operation) error {
 		return c.Rename(body.Name)
 	}
 
-	return AsyncResponse(shared.OperationWrap(run), nil)
+	resources := map[string][]string{}
+	resources["containers"] = []string{name}
+
+	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }

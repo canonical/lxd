@@ -556,27 +556,32 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		"server":      c.BaseURL,
 		"fingerprint": fingerprint}
 
+	// FIXME: InterfaceToBool is there for backward compatibility
 	if !shared.InterfaceToBool(info.Public) {
-		var operation string
+		var secret string
 
 		resp, err := c.post("images/"+fingerprint+"/secret", nil, Async)
 		if err != nil {
 			return err
 		}
 
-		toScan := strings.Replace(resp.Operation, "/", " ", -1)
-		version := ""
-		count, err := fmt.Sscanf(toScan, " %s operations %s", &version, &operation)
-		if err != nil || count != 2 {
-			return err
+		op, err := resp.MetadataAsOperation()
+		if err == nil && op.Metadata != nil {
+			secret, err = op.Metadata.GetString("secret")
+			if err != nil {
+				return err
+			}
+		} else {
+			// FIXME: This is a backward compatibility codepath
+			md := secretMd{}
+			if err := json.Unmarshal(resp.Metadata, &md); err != nil {
+				return err
+			}
+
+			secret = md.Secret
 		}
 
-		md := secretMd{}
-		if err := json.Unmarshal(resp.Metadata, &md); err != nil {
-			return err
-		}
-
-		source["secret"] = md.Secret
+		source["secret"] = secret
 	}
 
 	addresses, err := c.Addresses()
@@ -1055,7 +1060,6 @@ func (c *Client) GetAlias(alias string) string {
 // Init creates a container from either a fingerprint or an alias; you must
 // provide at least one.
 func (c *Client) Init(name string, imgremote string, image string, profiles *[]string, config map[string]string, ephem bool) (*Response, error) {
-	var operation string
 	var tmpremote *Client
 	var err error
 
@@ -1093,25 +1097,32 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, fmt.Errorf(gettext.Gettext("The image architecture is incompatible with the target server"))
 		}
 
+		// FIXME: InterfaceToBool is there for backward compatibility
 		if !shared.InterfaceToBool(imageinfo.Public) {
+			var secret string
+
 			resp, err := tmpremote.post("images/"+fingerprint+"/secret", nil, Async)
 			if err != nil {
 				return nil, err
 			}
 
-			toScan := strings.Replace(resp.Operation, "/", " ", -1)
-			version := ""
-			count, err := fmt.Sscanf(toScan, " %s operations %s", &version, &operation)
-			if err != nil || count != 2 {
-				return nil, err
+			op, err := resp.MetadataAsOperation()
+			if err == nil && op.Metadata != nil {
+				secret, err = op.Metadata.GetString("secret")
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				// FIXME: This is a backward compatibility codepath
+				md := secretMd{}
+				if err := json.Unmarshal(resp.Metadata, &md); err != nil {
+					return nil, err
+				}
+
+				secret = md.Secret
 			}
 
-			md := secretMd{}
-			if err := json.Unmarshal(resp.Metadata, &md); err != nil {
-				return nil, err
-			}
-
-			source["secret"] = md.Secret
+			source["secret"] = secret
 		}
 
 		source["server"] = tmpremote.BaseURL
@@ -1174,10 +1185,6 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		resp, err = c.post("containers", body, Async)
 	}
 
-	if operation != "" {
-		_, _ = tmpremote.delete("operations/"+operation, nil, Sync)
-	}
-
 	if err != nil {
 		if LXDErrors[http.StatusNotFound] == err {
 			return nil, fmt.Errorf("image doesn't exist")
@@ -1214,7 +1221,7 @@ type secretMd struct {
 func (c *Client) Monitor(types []string, handler func(interface{})) error {
 	url := c.BaseWSURL + path.Join("/", "1.0", "events")
 	if len(types) != 0 {
-		url += "?types=" + strings.Join(types, ",")
+		url += "?type=" + strings.Join(types, ",")
 	}
 
 	conn, err := WebsocketDial(c.websocketDialer, url)
@@ -1263,15 +1270,31 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		return -1, err
 	}
 
-	md := execMd{}
-	if err := json.Unmarshal(resp.Metadata, &md); err != nil {
-		return -1, err
+	var fds shared.Jmap
+
+	op, err := resp.MetadataAsOperation()
+	if err == nil && op.Metadata != nil {
+		fds, err = op.Metadata.GetMap("fds")
+		if err != nil {
+			return -1, err
+		}
+	} else {
+		// FIXME: This is a backward compatibility codepath
+		md := execMd{}
+		if err := json.Unmarshal(resp.Metadata, &md); err != nil {
+			return -1, err
+		}
+
+		fds, err = shared.ParseMetadata(md.FDs)
+		if err != nil {
+			return -1, err
+		}
 	}
 
 	if controlHandler != nil {
 		var control *websocket.Conn
-		if wsControl, ok := md.FDs["control"]; ok {
-			control, err = c.websocket(resp.Operation, wsControl)
+		if wsControl, ok := fds["control"]; ok {
+			control, err = c.websocket(resp.Operation, wsControl.(string))
 			if err != nil {
 				return -1, err
 			}
@@ -1280,7 +1303,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 			go controlHandler(c, control)
 		}
 
-		conn, err := c.websocket(resp.Operation, md.FDs["0"])
+		conn, err := c.websocket(resp.Operation, fds["0"].(string))
 		if err != nil {
 			return -1, err
 		}
@@ -1293,7 +1316,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		conns := make([]*websocket.Conn, 3)
 		dones := make([]chan bool, 3)
 
-		conns[0], err = c.websocket(resp.Operation, md.FDs[strconv.Itoa(0)])
+		conns[0], err = c.websocket(resp.Operation, fds[strconv.Itoa(0)].(string))
 		if err != nil {
 			return -1, err
 		}
@@ -1303,7 +1326,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 
 		outputs := []io.WriteCloser{stdout, stderr}
 		for i := 1; i < 3; i++ {
-			conns[i], err = c.websocket(resp.Operation, md.FDs[strconv.Itoa(i)])
+			conns[i], err = c.websocket(resp.Operation, fds[strconv.Itoa(i)].(string))
 			if err != nil {
 				return -1, err
 			}
@@ -1333,25 +1356,24 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 	}
 
 	// Now, get the operation's status too.
-	op, err := c.WaitFor(resp.Operation)
+	op, err = c.WaitFor(resp.Operation)
 	if err != nil {
 		return -1, err
 	}
 
 	if op.StatusCode == shared.Failure {
-		return -1, op.GetError()
+		return -1, fmt.Errorf(op.Err)
 	}
 
 	if op.StatusCode != shared.Success {
 		return -1, fmt.Errorf(gettext.Gettext("got bad op status %s"), op.Status)
 	}
 
-	opMd, err := op.MetadataAsMap()
-	if err != nil {
-		return -1, err
+	if op.Metadata == nil {
+		return -1, fmt.Errorf(gettext.Gettext("no metadata received"))
 	}
 
-	return opMd.GetInt("return")
+	return op.Metadata.GetInt("return")
 }
 
 func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool) (*Response, error) {
@@ -1541,7 +1563,7 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 		return nil
 	}
 
-	return op.GetError()
+	return fmt.Errorf(op.Err)
 }
 
 func (c *Client) RestoreSnapshot(container string, snapshotName string, stateful bool) (*Response, error) {
@@ -1911,19 +1933,14 @@ func (c *Client) AsyncWaitMeta(resp *Response) (*shared.Jmap, error) {
 	}
 
 	if op.StatusCode == shared.Failure {
-		return nil, op.GetError()
+		return nil, fmt.Errorf(op.Err)
 	}
 
 	if op.StatusCode != shared.Success {
 		return nil, fmt.Errorf(gettext.Gettext("got bad op status %s"), op.Status)
 	}
 
-	jmap, err := op.MetadataAsMap()
-	if err != nil {
-		return nil, err
-	}
-
-	return jmap, nil
+	return op.Metadata, nil
 }
 
 func (c *Client) ImageFromContainer(cname string, public bool, aliases []string, properties map[string]string) (string, error) {

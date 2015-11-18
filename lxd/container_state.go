@@ -43,10 +43,10 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	var do func(string) error
+	var do func(*operation) error
 	switch shared.ContainerAction(raw.Action) {
 	case shared.Start:
-		do = func(id string) error {
+		do = func(op *operation) error {
 			if err = c.Start(); err != nil {
 				return err
 			}
@@ -54,14 +54,14 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		}
 	case shared.Stop:
 		if raw.Timeout == 0 || raw.Force {
-			do = func(id string) error {
+			do = func(op *operation) error {
 				if err = c.Stop(); err != nil {
 					return err
 				}
 				return nil
 			}
 		} else {
-			do = func(id string) error {
+			do = func(op *operation) error {
 				if err = c.Shutdown(time.Duration(raw.Timeout) * time.Second); err != nil {
 					return err
 				}
@@ -69,7 +69,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			}
 		}
 	case shared.Restart:
-		do = func(id string) error {
+		do = func(op *operation) error {
 			if raw.Timeout == 0 || raw.Force {
 				if err = c.Stop(); err != nil {
 					return err
@@ -85,16 +85,24 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			return nil
 		}
 	case shared.Freeze:
-		do = func(id string) error {
+		do = func(op *operation) error {
 			return c.Freeze()
 		}
 	case shared.Unfreeze:
-		do = func(id string) error {
+		do = func(op *operation) error {
 			return c.Unfreeze()
 		}
 	default:
 		return BadRequest(fmt.Errorf("unknown action %s", raw.Action))
 	}
 
-	return AsyncResponse(shared.OperationWrap(do), nil)
+	resources := map[string][]string{}
+	resources["containers"] = []string{name}
+
+	op, err := operationCreate(operationClassTask, resources, nil, do, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }

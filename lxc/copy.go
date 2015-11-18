@@ -122,8 +122,17 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		}
 
 		secrets := map[string]string{}
-		if err := json.Unmarshal(sourceWSResponse.Metadata, &secrets); err != nil {
-			return err
+
+		op, err := sourceWSResponse.MetadataAsOperation()
+		if err == nil && op.Metadata != nil {
+			for k, v := range *op.Metadata {
+				secrets[k] = v.(string)
+			}
+		} else {
+			// FIXME: This is a backward compatibility codepath
+			if err := json.Unmarshal(sourceWSResponse.Metadata, &secrets); err != nil {
+				return err
+			}
 		}
 
 		addresses, err := source.Addresses()

@@ -569,7 +569,10 @@ func imageBuildFromInfo(d *Daemon, info shared.ImageInfo) (metadata map[string]s
 		info.Fingerprint,
 		info.Filename,
 		info.Size,
+
+		// FIXME: InterfaceToBool is there for backward compatibility
 		shared.InterfaceToBool(info.Public),
+
 		info.Architecture,
 		info.CreationDate,
 		info.ExpiryDate,
@@ -630,7 +633,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Begin background operation
-	run := shared.OperationWrap(func(id string) error {
+	run := func(op *operation) error {
 		var info shared.ImageInfo
 
 		// Setup the cleanup function
@@ -643,7 +646,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 				return err
 			}
 
-			updateOperation(id, metadata)
+			op.UpdateMetadata(metadata)
 			return nil
 		}
 
@@ -666,11 +669,16 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			return err
 		}
 
-		updateOperation(id, metadata)
+		op.UpdateMetadata(metadata)
 		return nil
-	})
+	}
 
-	return &asyncResponse{run: run}
+	op, err := operationCreate(operationClassTask, nil, nil, run, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }
 
 func getImageMetadata(fname string) (*imageMetadata, error) {
@@ -849,53 +857,31 @@ func doImageGet(d *Daemon, fingerprint string, public bool) (shared.ImageInfo, R
 }
 
 func imageValidSecret(fingerprint string, secret string) bool {
-	operationLock.Lock()
 	for _, op := range operations {
-		if op.Resources == nil {
+		if op.resources == nil {
 			continue
 		}
 
-		opImages, ok := op.Resources["images"]
-		if ok == false {
+		opImages, ok := op.resources["images"]
+		if !ok {
 			continue
 		}
 
-		found := false
-		for img := range opImages {
-			toScan := strings.Replace(opImages[img], "/", " ", -1)
-			imgVersion := ""
-			imgFingerprint := ""
-			count, err := fmt.Sscanf(toScan, " %s images %s", &imgVersion, &imgFingerprint)
-			if err != nil || count != 2 {
-				continue
-			}
-
-			if imgFingerprint == fingerprint {
-				found = true
-				break
-			}
-		}
-
-		if found == false {
+		if !shared.StringInSlice(fingerprint, opImages) {
 			continue
 		}
 
-		opMetadata, err := op.MetadataAsMap()
-		if err != nil {
-			continue
-		}
-
-		opSecret, err := opMetadata.GetString("secret")
-		if err != nil {
+		opSecret, ok := op.metadata["secret"]
+		if !ok {
 			continue
 		}
 
 		if opSecret == secret {
-			operationLock.Unlock()
+			// Token is single-use, so cancel it now
+			op.Cancel()
 			return true
 		}
 	}
-	operationLock.Unlock()
 
 	return false
 }
@@ -1147,9 +1133,15 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 	meta := shared.Jmap{}
 	meta["secret"] = secret
 
-	resources := make(map[string][]string)
+	resources := map[string][]string{}
 	resources["images"] = []string{fingerprint}
-	return &asyncResponse{resources: resources, metadata: meta}
+
+	op, err := operationCreate(operationClassToken, resources, meta, nil, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }
 
 var imagesExportCmd = Command{name: "images/{fingerprint}/export", untrustedGet: true, get: imageExport}
