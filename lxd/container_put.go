@@ -28,11 +28,11 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	var do = func(string) error { return nil }
+	var do = func(*operation) error { return nil }
 
 	if configRaw.Restore == "" {
 		// Update container configuration
-		do = func(id string) error {
+		do = func(op *operation) error {
 			args := containerLXDArgs{
 				Config:   configRaw.Config,
 				Devices:  configRaw.Devices,
@@ -46,12 +46,20 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		}
 	} else {
 		// Snapshot Restore
-		do = func(id string) error {
+		do = func(op *operation) error {
 			return containerSnapRestore(d, name, configRaw.Restore)
 		}
 	}
 
-	return AsyncResponse(shared.OperationWrap(do), nil)
+	resources := map[string][]string{}
+	resources["containers"] = []string{name}
+
+	op, err := operationCreate(operationClassTask, resources, nil, do, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }
 
 func containerSnapRestore(d *Daemon, name string, snap string) error {

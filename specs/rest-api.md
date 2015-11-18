@@ -50,10 +50,31 @@ The body is a dict with the following structure:
         'status': "OK",
         'status_code': 100,
         'operation': "/1.0/containers/<id>",                    # URL to the background operation
-        'resources': {
-            'containers': ["/1.0/containers/my-container"]      # List of affected resources
+        'metadata': {}                                          # Operation metadata (see below)
+    }
+
+The operation metadata structure looks like:
+
+    {
+        "id": "a40f5541-5e98-454f-b3b6-8a51ef5dbd3c",           # UUID of the operation
+        "class": "websocket",                                   # Class of the operation (task, websocket or token)
+        "created_at": "2015-11-17T22:32:02.226176091-05:00",    # When the operation was created
+        "updated_at": "2015-11-17T22:32:02.226176091-05:00",    # Last time the operation was updated
+        "status": "Running",                                    # String version of the operation's status
+        "status_code": 103,                                     # Integer version of the operation's status (use this rather than status)
+        "resources": {                                          # Dictionary of resource types (container, snapshots, images) and affected resources
+          "containers": [
+            "/1.0/containers/test"
+          ]
         },
-        'metadata': {}                                          # Metadata relevant to the operation
+        "metadata": {                                           # Metadata specific to the operation in question (in this case, exec)
+          "fds": {
+            "0": "2a4a97af81529f6608dca31f03a7b7e47acc0b8dc6514496eb25e325f9e4fa6a",
+            "control": "5b64c661ef313b423b5317ba9cb6410e40b705806c28255f601c0ef603f079a7"
+          }
+        },
+        "may_cancel": false,                                    # Whether the operation can be canceled (DELETE over REST)
+        "err": ""                                               # The error string should the operation have failed
     }
 
 The body is mostly provided as a user friendly way of seeing what's
@@ -979,9 +1000,6 @@ Return:
         'updated_at': "2015-06-09T19:07:24.379615253-06:00", # Last update timestamp
         'status': "Running",
         'status_code': 103,
-        'resources': {
-            'containers': ['/1.0/containers/1']              # List of affected resources
-        },
         'metadata': {},                                      # Extra information about the operation (action, target, ...)
         'may_cancel': true                                   # Whether it's possible to cancel the operation
     }
@@ -1004,11 +1022,11 @@ HTTP code for this should be 202 (Accepted).
  * Description: Wait for an operation to finish
  * Authentication: trusted
  * Operation: sync
- * Return: dict of the operation once its state changes to the request state
+ * Return: dict of the operation after its reach its final state
 
-Input (wait for any event): no argument
+Input (wait indefinitely for a final state): no argument
 
-Input (wait for the operation to succeed or timeout): ?status\_code=200&timeout=30
+Input (similar by times out after 30s): ?timeout=30
 
 ## /1.0/operations/\<uuid\>/websocket
 ### GET (?secret=...)

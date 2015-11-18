@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -9,9 +10,37 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/satori/go.uuid"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
 )
+
+type eventsHandler struct {
+}
+
+func logContextMap(ctx []interface{}) map[string]string {
+	var key string
+	ctxMap := map[string]string{}
+
+	for _, entry := range ctx {
+		if key == "" {
+			key = entry.(string)
+		} else {
+			ctxMap[key] = fmt.Sprintf("%s", entry)
+			key = ""
+		}
+	}
+
+	return ctxMap
+}
+
+func (h eventsHandler) Log(r *log.Record) error {
+	eventSend("logging", shared.Jmap{
+		"message": r.Msg,
+		"level":   r.Lvl.String(),
+		"context": logContextMap(r.Ctx)})
+	return nil
+}
 
 var eventsLock sync.Mutex
 var eventListeners map[string]*eventListener = make(map[string]*eventListener)
@@ -36,7 +65,7 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
-		typeStr = "logging,operations"
+		typeStr = "logging,operation"
 	}
 
 	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
@@ -82,6 +111,10 @@ func eventSend(eventType string, eventMessage interface{}) error {
 	eventsLock.Unlock()
 
 	for _, listener := range listeners {
+		if !shared.StringInSlice(eventType, listener.messageTypes) {
+			continue
+		}
+
 		go func(listener *eventListener, body []byte) {
 			err = listener.connection.WriteMessage(websocket.TextMessage, body)
 			if err != nil {
