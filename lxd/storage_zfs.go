@@ -506,7 +506,7 @@ func (s *storageZfs) zfsCheckPool(pool string) error {
 	output, err := exec.Command(
 		"zfs", "get", "type", "-H", "-o", "value", pool).CombinedOutput()
 	if err != nil {
-		return err
+		return fmt.Errorf(strings.Split(string(output), "\n")[0])
 	}
 
 	poolType := strings.Split(string(output), "\n")[0]
@@ -862,27 +862,8 @@ func (s *storageZfs) zfsSnapshotRemovable(path string, name string) (bool, error
 	return false, nil
 }
 
-// Global functions
-func storageZFSGetPoolUsers(d *Daemon) ([]string, error) {
-	zfs := storageZfs{}
-
-	err := zfs.initShared()
-	if err != nil {
-		return []string{}, err
-	}
-
-	zfsPool, err := d.ConfigValueGet("storage.zfs_pool_name")
-	if err != nil {
-		return []string{}, err
-	}
-
-	if zfsPool == "" {
-		return []string{}, nil
-	}
-
-	zfs.zfsPool = zfsPool
-
-	subvols, err := zfs.zfsListSubvolumes("")
+func (s *storageZfs) zfsGetPoolUsers() ([]string, error) {
+	subvols, err := s.zfsListSubvolumes("")
 	if err != nil {
 		return []string{}, err
 	}
@@ -906,16 +887,44 @@ func storageZFSGetPoolUsers(d *Daemon) ([]string, error) {
 	return users, nil
 }
 
+// Global functions
 func storageZFSSetPoolNameConfig(d *Daemon, poolname string) error {
-	users, err := storageZFSGetPoolUsers(d)
+	s := storageZfs{}
+
+	// Confirm the backend is working
+	err := s.initShared()
 	if err != nil {
-		return fmt.Errorf("Error checking if a pool is already in use: %v", err)
+		return fmt.Errorf("Unable to initialize the ZFS backend: %v", err)
 	}
 
-	if len(users) > 0 {
-		return fmt.Errorf("Can not change ZFS config. Images or containers are still using the ZFS pool: %v", users)
+	// Confirm the new pool exists and is compatible
+	err = s.zfsCheckPool(poolname)
+	if err != nil {
+		return fmt.Errorf("Invalid ZFS pool: %v", err)
 	}
 
+	// Check if we're switching pools
+	oldPoolname, err := d.ConfigValueGet("storage.zfs_pool_name")
+	if err != nil {
+		return err
+	}
+
+	// Confirm the old pool isn't in use anymore
+	if oldPoolname != "" {
+		s.zfsPool = oldPoolname
+
+		users, err := s.zfsGetPoolUsers()
+		if err != nil {
+			return fmt.Errorf("Error checking if a pool is already in use: %v", err)
+		}
+
+		if len(users) > 0 {
+			return fmt.Errorf("Can not change ZFS config. Images or containers are still using the ZFS pool: %v", users)
+		}
+	}
+	s.zfsPool = poolname
+
+	// All good, set the new pool name
 	err = d.ConfigValueSet("storage.zfs_pool_name", poolname)
 	if err != nil {
 		return err
