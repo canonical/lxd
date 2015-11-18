@@ -268,6 +268,7 @@ func (op *operation) Render() (string, *shared.Operation, error) {
 
 	return op.url, &shared.Operation{
 		Id:         op.id,
+		Class:      op.class.String(),
 		CreatedAt:  op.createdAt,
 		UpdatedAt:  op.updatedAt,
 		Status:     op.status.String(),

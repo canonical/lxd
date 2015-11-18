@@ -50,7 +50,31 @@ The body is a dict with the following structure:
         'status': "OK",
         'status_code': 100,
         'operation': "/1.0/containers/<id>",                    # URL to the background operation
-        'metadata': {}                                          # Metadata relevant to the operation
+        'metadata': {}                                          # Operation metadata (see below)
+    }
+
+The operation metadata structure looks like:
+
+    {
+        "id": "a40f5541-5e98-454f-b3b6-8a51ef5dbd3c",           # UUID of the operation
+        "class": "websocket",                                   # Class of the operation (task, websocket or token)
+        "created_at": "2015-11-17T22:32:02.226176091-05:00",    # When the operation was created
+        "updated_at": "2015-11-17T22:32:02.226176091-05:00",    # Last time the operation was updated
+        "status": "Running",                                    # String version of the operation's status
+        "status_code": 103,                                     # Integer version of the operation's status (use this rather than status)
+        "resources": {                                          # Dictionary of resource types (container, snapshots, images) and affected resources
+          "containers": [
+            "/1.0/containers/test"
+          ]
+        },
+        "metadata": {                                           # Metadata specific to the operation in question (in this case, exec)
+          "fds": {
+            "0": "2a4a97af81529f6608dca31f03a7b7e47acc0b8dc6514496eb25e325f9e4fa6a",
+            "control": "5b64c661ef313b423b5317ba9cb6410e40b705806c28255f601c0ef603f079a7"
+          }
+        },
+        "may_cancel": false,                                    # Whether the operation can be canceled (DELETE over REST)
+        "err": ""                                               # The error string should the operation have failed
     }
 
 The body is mostly provided as a user friendly way of seeing what's
