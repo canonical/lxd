@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-11-17 18:37-0500\n"
+        "POT-Creation-Date: 2015-11-18 15:52-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -140,7 +140,7 @@ msgstr  ""
 
 #: lxc/action.go:28
 #, c-format
-msgid   "Changes one or more containers state to %s.\n"
+msgid   "Changes state of one or more containers to %s.\n"
         "\n"
         "lxc %s <name> [<name>...]"
 msgstr  ""
@@ -580,12 +580,12 @@ msgstr  ""
 msgid   "New alias to define at target"
 msgstr  ""
 
-#: lxc/config.go:216
-msgid   "No cert provided to add"
-msgstr  ""
-
 #: client.go:956
 msgid   "No certificate on this connection"
+msgstr  ""
+
+#: lxc/config.go:216
+msgid   "No certificate provided to add"
 msgstr  ""
 
 #: lxc/config.go:239
@@ -722,7 +722,7 @@ msgid   "Server doesn't trust us after adding our cert"
 msgstr  ""
 
 #: lxc/restore.go:22
-msgid   "Set the current state of a resource back to what it was when it was snapshotted.\n"
+msgid   "Set the current state of a resource back to its state at the time the snapshot was created.\n"
         "\n"
         "lxc restore [remote:]<resource> <snapshot name> [--stateful]"
 msgstr  ""
