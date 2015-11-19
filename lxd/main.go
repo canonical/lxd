@@ -55,6 +55,8 @@ func run() error {
 		fmt.Printf("        Check if LXD should be started (at boot) and if so, spawns it through socket activation\n")
 		fmt.Printf("    shutdown [--timeout=60]\n")
 		fmt.Printf("        Perform a clean shutdown of LXD and all running containers\n")
+		fmt.Printf("    waitready [--timeout=15]\n")
+		fmt.Printf("        Wait until LXD is ready to handle requests\n")
 
 		fmt.Printf("\nInternal commands (don't call those directly):\n")
 		fmt.Printf("    forkgetfile\n")
@@ -103,14 +105,16 @@ func run() error {
 	if len(os.Args) > 1 {
 		// "forkputfile" and "forkgetfile" are handled specially in copyfile.go
 		switch os.Args[1] {
-		case "forkstart":
-			return startContainer(os.Args[1:])
-		case "forkmigrate":
-			return MigrateContainer(os.Args[1:])
-		case "shutdown":
-			return cleanShutdown()
 		case "activateifneeded":
 			return activateIfNeeded()
+		case "forkmigrate":
+			return MigrateContainer(os.Args[1:])
+		case "forkstart":
+			return startContainer(os.Args[1:])
+		case "shutdown":
+			return cleanShutdown()
+		case "waitready":
+			return waitReady()
 		}
 	}
 
@@ -282,5 +286,40 @@ func activateIfNeeded() error {
 	}
 
 	shared.Debugf("No need to start the daemon now.")
+	return nil
+}
+
+func waitReady() error {
+	if *timeout < 0 {
+		*timeout = 15
+	}
+
+	finger := make(chan error, 1)
+	go func() {
+		for {
+			c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			if err != nil {
+				time.Sleep(500 * 1e6 * time.Nanosecond)
+				continue
+			}
+
+			err = c.Finger()
+			if err != nil {
+				time.Sleep(500 * 1e6 * time.Nanosecond)
+				continue
+			}
+
+			finger <- nil
+			return
+		}
+	}()
+
+	select {
+	case <-finger:
+		break
+	case <-time.After(time.Second * time.Duration(*timeout)):
+		return fmt.Errorf("LXD still not running after %ds timeout.", *timeout)
+	}
+
 	return nil
 }
