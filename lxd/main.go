@@ -58,7 +58,7 @@ func run() error {
 		fmt.Printf("    waitready [--timeout=15]\n")
 		fmt.Printf("        Wait until LXD is ready to handle requests\n")
 
-		fmt.Printf("\nInternal commands (don't call those directly):\n")
+		fmt.Printf("\nInternal commands (don't call these directly):\n")
 		fmt.Printf("    forkgetfile\n")
 		fmt.Printf("        Grab a file from a running container\n")
 		fmt.Printf("    forkmigrate\n")
