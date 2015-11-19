@@ -213,21 +213,19 @@ func cleanShutdown() error {
 		return err
 	}
 
-	// This should be replaced with a connection to /1.0/events once the
-	// events websocket is implemented as the polling loop is expensive.
-	timeout := 60 * 1e9
-	for timeout > 0 {
-		timeout -= 500 * 1e6
+	monitor := make(chan error, 1)
+	go func() {
+		monitor <- c.Monitor(nil, func(m interface{}) {})
+	}()
 
-		err := c.Finger()
-		if err != nil {
-			return nil
-		}
-
-		time.Sleep(500 * 1e6 * time.Nanosecond)
+	select {
+	case <-monitor:
+		break
+	case <-time.After(time.Second * 60):
+		return fmt.Errorf("LXD still running after 60s timeout.")
 	}
 
-	return fmt.Errorf("LXD still running after 60s timeout.")
+	return nil
 }
 
 func activateIfNeeded() error {
