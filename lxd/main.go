@@ -50,20 +50,20 @@ func run() error {
 		gnuflag.PrintDefaults()
 
 		fmt.Printf("\nCommands:\n")
+		fmt.Printf("    activateifneeded\n")
+		fmt.Printf("        Check if LXD should be started (at boot) and if so, spawns it through socket activation\n")
 		fmt.Printf("    shutdown\n")
 		fmt.Printf("        Perform a clean shutdown of LXD and all running containers\n")
-		fmt.Printf("    activateifneeded\n")
-		fmt.Printf("        Check if LXD should be started (at boot) and if so, spawn it through socket activation\n")
 
-		fmt.Printf("\nInternal commands (don't call directly):\n")
+		fmt.Printf("\nInternal commands (don't call those directly):\n")
 		fmt.Printf("    forkgetfile\n")
 		fmt.Printf("        Grab a file from a running container\n")
-		fmt.Printf("    forkputfile\n")
-		fmt.Printf("        Pushes a file to a running container\n")
-		fmt.Printf("    forkstart\n")
-		fmt.Printf("        Start a container\n")
 		fmt.Printf("    forkmigrate\n")
 		fmt.Printf("        Restore a container after migration\n")
+		fmt.Printf("    forkputfile\n")
+		fmt.Printf("        Push a file to a running container\n")
+		fmt.Printf("    forkstart\n")
+		fmt.Printf("        Start a container\n")
 	}
 
 	gnuflag.Parse(true)
