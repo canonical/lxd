@@ -24,6 +24,7 @@ var logfile = gnuflag.String("logfile", "", "Logfile to log to (e.g., /var/log/l
 var memProfile = gnuflag.String("memprofile", "", "Enable memory profiling into the specified file.")
 var printGoroutines = gnuflag.Int("print-goroutines-every", -1, "For debugging, print a complete stack trace every n seconds")
 var syslogFlag = gnuflag.Bool("syslog", false, "Enables syslog logging.")
+var timeout = gnuflag.Int("timeout", -1, "Timeout. Only used by the shutdown subcommand.")
 var verbose = gnuflag.Bool("verbose", false, "Enables verbose mode.")
 var version = gnuflag.Bool("version", false, "Print LXD's version number and exit.")
 
@@ -52,7 +53,7 @@ func run() error {
 		fmt.Printf("\nCommands:\n")
 		fmt.Printf("    activateifneeded\n")
 		fmt.Printf("        Check if LXD should be started (at boot) and if so, spawns it through socket activation\n")
-		fmt.Printf("    shutdown\n")
+		fmt.Printf("    shutdown [--timeout=60]\n")
 		fmt.Printf("        Perform a clean shutdown of LXD and all running containers\n")
 
 		fmt.Printf("\nInternal commands (don't call those directly):\n")
@@ -193,6 +194,10 @@ func run() error {
 }
 
 func cleanShutdown() error {
+	if *timeout < 0 {
+		*timeout = 60
+	}
+
 	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
 	if err != nil {
 		return err
@@ -221,8 +226,8 @@ func cleanShutdown() error {
 	select {
 	case <-monitor:
 		break
-	case <-time.After(time.Second * 60):
-		return fmt.Errorf("LXD still running after 60s timeout.")
+	case <-time.After(time.Second * time.Duration(*timeout)):
+		return fmt.Errorf("LXD still running after %ds timeout.", *timeout)
 	}
 
 	return nil
