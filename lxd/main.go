@@ -16,25 +16,24 @@ import (
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
-var cpuProfile = gnuflag.String("cpuprofile", "", "Enable cpu profiling into the specified file.")
-var debug = gnuflag.Bool("debug", false, "Enables debug mode.")
-var group = gnuflag.String("group", "", "Group which owns the shared socket.")
-var help = gnuflag.Bool("help", false, "Print this help message.")
-var logfile = gnuflag.String("logfile", "", "Logfile to log to (e.g., /var/log/lxd/lxd.log).")
-var memProfile = gnuflag.String("memprofile", "", "Enable memory profiling into the specified file.")
-var printGoroutines = gnuflag.Int("print-goroutines-every", -1, "For debugging, print a complete stack trace every n seconds")
-var syslogFlag = gnuflag.Bool("syslog", false, "Enables syslog logging.")
-var timeout = gnuflag.Int("timeout", -1, "Timeout. Only used by the shutdown subcommand.")
-var verbose = gnuflag.Bool("verbose", false, "Enables verbose mode.")
-var version = gnuflag.Bool("version", false, "Print LXD's version number and exit.")
+// Global arguments
+var argCPUProfile = gnuflag.String("cpuprofile", "", "")
+var argDebug = gnuflag.Bool("debug", false, "")
+var argGroup = gnuflag.String("group", "", "")
+var argHelp = gnuflag.Bool("help", false, "")
+var argLogfile = gnuflag.String("logfile", "", "")
+var argMemProfile = gnuflag.String("memprofile", "", "")
+var argPrintGoroutinesEvery = gnuflag.Int("print-goroutines-every", -1, "")
+var argSyslog = gnuflag.Bool("syslog", false, "")
+var argTimeout = gnuflag.Int("timeout", -1, "")
+var argVerbose = gnuflag.Bool("verbose", false, "")
+var argVersion = gnuflag.Bool("version", false, "")
+
+// Global variables
+var debug bool
+var verbose bool
 
 func init() {
-	myGroup, err := shared.GroupName(os.Getgid())
-	if err != nil {
-		shared.Debugf("Problem finding default group %s", err)
-	}
-	*group = myGroup
-
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
@@ -46,19 +45,55 @@ func main() {
 }
 
 func run() error {
+	// Our massive custom usage
 	gnuflag.Usage = func() {
-		fmt.Printf("Usage: lxd [command] [options]\n\nOptions:\n")
-		gnuflag.PrintDefaults()
+		fmt.Printf("Usage: lxd [command] [options]\n")
 
 		fmt.Printf("\nCommands:\n")
 		fmt.Printf("    activateifneeded\n")
 		fmt.Printf("        Check if LXD should be started (at boot) and if so, spawns it through socket activation\n")
+		fmt.Printf("    daemon [--group=lxd] (default command)\n")
+		fmt.Printf("        Start the main LXD daemon\n")
 		fmt.Printf("    shutdown [--timeout=60]\n")
 		fmt.Printf("        Perform a clean shutdown of LXD and all running containers\n")
 		fmt.Printf("    waitready [--timeout=15]\n")
 		fmt.Printf("        Wait until LXD is ready to handle requests\n")
 
-		fmt.Printf("\nInternal commands (don't call these directly):\n")
+		fmt.Printf("\n\nCommon options:\n")
+		fmt.Printf("    --debug\n")
+		fmt.Printf("        Enables debug mode.\n")
+		fmt.Printf("    --help\n")
+		fmt.Printf("        Print this help message.\n")
+		fmt.Printf("    --logfile FILE\n")
+		fmt.Printf("        Logfile to log to (e.g., /var/log/lxd/lxd.log).\n")
+		fmt.Printf("    --syslog\n")
+		fmt.Printf("        Enables syslog logging.\n")
+		fmt.Printf("    --verbose\n")
+		fmt.Printf("        Enables verbose mode.\n")
+		fmt.Printf("    --version\n")
+		fmt.Printf("        Print LXD's version number and exit.\n")
+
+		fmt.Printf("\nDaemon options:\n")
+		fmt.Printf("    --group GROUP\n")
+		fmt.Printf("        Group which owns the shared socket.\n")
+
+		fmt.Printf("\nDaemon debug options:\n")
+		fmt.Printf("    --cpuprofile FILE\n")
+		fmt.Printf("        Enable cpu profiling into the specified file.\n")
+		fmt.Printf("    --memprofile FILE\n")
+		fmt.Printf("        Enable memory profiling into the specified file.\n")
+		fmt.Printf("    --print-goroutines-every SECONDS\n")
+		fmt.Printf("        For debugging, print a complete stack trace every n seconds.\n")
+
+		fmt.Printf("\nShutdown options:\n")
+		fmt.Printf("    --timeout SECONDS\n")
+		fmt.Printf("        How long to wait before failing.\n")
+
+		fmt.Printf("\nWaitready options:\n")
+		fmt.Printf("    --timeout SECONDS\n")
+		fmt.Printf("        How long to wait before failing.\n")
+
+		fmt.Printf("\n\nInternal commands (don't call these directly):\n")
 		fmt.Printf("    forkgetfile\n")
 		fmt.Printf("        Grab a file from a running container\n")
 		fmt.Printf("    forkmigrate\n")
@@ -69,8 +104,14 @@ func run() error {
 		fmt.Printf("        Start a container\n")
 	}
 
+	// Parse the arguments
 	gnuflag.Parse(true)
-	if *help {
+
+	// Set the global variables
+	debug = *argDebug
+	verbose = *argVerbose
+
+	if *argHelp {
 		// The user asked for help via --help, so we shouldn't print to
 		// stderr.
 		gnuflag.SetOut(os.Stdout)
@@ -78,7 +119,8 @@ func run() error {
 		return nil
 	}
 
-	if *version {
+	// Deal with --version right here
+	if *argVersion {
 		fmt.Println(shared.Version)
 		return nil
 	}
@@ -89,13 +131,12 @@ func run() error {
 
 	// Configure logging
 	syslog := ""
-	if *syslogFlag {
+	if *argSyslog {
 		syslog = "lxd"
 	}
 
 	handler := eventsHandler{}
-
-	err := shared.SetLogger(syslog, *logfile, *verbose, *debug, handler)
+	err := shared.SetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
 	if err != nil {
 		fmt.Printf("%s", err)
 		return nil
@@ -107,6 +148,8 @@ func run() error {
 		switch os.Args[1] {
 		case "activateifneeded":
 			return activateIfNeeded()
+		case "daemon":
+			return daemon()
 		case "forkmigrate":
 			return MigrateContainer(os.Args[1:])
 		case "forkstart":
@@ -118,13 +161,18 @@ func run() error {
 		}
 	}
 
-	if gnuflag.NArg() != 0 {
+	// Fail if some other command is passed
+	if gnuflag.NArg() > 0 {
 		gnuflag.Usage()
 		return fmt.Errorf("Unknown arguments")
 	}
 
-	if *cpuProfile != "" {
-		f, err := os.Create(*cpuProfile)
+	return daemon()
+}
+
+func daemon() error {
+	if *argCPUProfile != "" {
+		f, err := os.Create(*argCPUProfile)
 		if err != nil {
 			fmt.Printf("Error opening cpu profile file: %s\n", err)
 			return nil
@@ -133,8 +181,8 @@ func run() error {
 		defer pprof.StopCPUProfile()
 	}
 
-	if *memProfile != "" {
-		go memProfiler()
+	if *argMemProfile != "" {
+		go memProfiler(*argMemProfile)
 	}
 
 	neededPrograms := []string{"setfacl", "rsync", "tar", "xz"}
@@ -145,16 +193,16 @@ func run() error {
 		}
 	}
 
-	if *printGoroutines > 0 {
+	if *argPrintGoroutinesEvery > 0 {
 		go func() {
 			for {
-				time.Sleep(time.Duration(*printGoroutines) * time.Second)
+				time.Sleep(time.Duration(*argPrintGoroutinesEvery) * time.Second)
 				shared.PrintStack()
 			}
 		}()
 	}
 
-	d, err := startDaemon()
+	d, err := startDaemon(*argGroup)
 
 	if err != nil {
 		if d != nil && d.db != nil {
@@ -198,8 +246,12 @@ func run() error {
 }
 
 func cleanShutdown() error {
-	if *timeout < 0 {
-		*timeout = 60
+	var timeout int
+
+	if *argTimeout == -1 {
+		timeout = 60
+	} else {
+		timeout = *argTimeout
 	}
 
 	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
@@ -230,8 +282,8 @@ func cleanShutdown() error {
 	select {
 	case <-monitor:
 		break
-	case <-time.After(time.Second * time.Duration(*timeout)):
-		return fmt.Errorf("LXD still running after %ds timeout.", *timeout)
+	case <-time.After(time.Second * time.Duration(timeout)):
+		return fmt.Errorf("LXD still running after %ds timeout.", timeout)
 	}
 
 	return nil
@@ -290,8 +342,12 @@ func activateIfNeeded() error {
 }
 
 func waitReady() error {
-	if *timeout < 0 {
-		*timeout = 15
+	var timeout int
+
+	if *argTimeout == -1 {
+		timeout = 15
+	} else {
+		timeout = *argTimeout
 	}
 
 	finger := make(chan error, 1)
@@ -317,8 +373,8 @@ func waitReady() error {
 	select {
 	case <-finger:
 		break
-	case <-time.After(time.Second * time.Duration(*timeout)):
-		return fmt.Errorf("LXD still not running after %ds timeout.", *timeout)
+	case <-time.After(time.Second * time.Duration(timeout)):
+		return fmt.Errorf("LXD still not running after %ds timeout.", timeout)
 	}
 
 	return nil

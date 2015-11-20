@@ -54,6 +54,7 @@ type Daemon struct {
 	certf         string
 	clientCerts   []x509.Certificate
 	db            *sql.DB
+	group         string
 	IdmapSet      *shared.IdmapSet
 	keyf          string
 	lxcpath       string
@@ -248,7 +249,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 			return
 		}
 
-		if *debug && r.Method != "GET" && isJSONRequest(r) {
+		if debug && r.Method != "GET" && isJSONRequest(r) {
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
@@ -571,8 +572,9 @@ SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 
 }
 
 // StartDaemon starts the shared daemon with the provided configuration.
-func startDaemon() (*Daemon, error) {
+func startDaemon(group string) (*Daemon, error) {
 	d := &Daemon{
+		group:                 group,
 		IsMock:                false,
 		imagesDownloading:     map[string]chan bool{},
 		imagesDownloadingLock: sync.RWMutex{},
@@ -852,9 +854,14 @@ func (d *Daemon) Init() error {
 			return err
 		}
 
-		gid, err := shared.GroupId(*group)
-		if err != nil {
-			return err
+		var gid int
+		if d.group != "" {
+			gid, err = shared.GroupId(d.group)
+			if err != nil {
+				return err
+			}
+		} else {
+			gid = os.Getgid()
 		}
 
 		if err := os.Chown(localSocketPath, os.Getuid(), gid); err != nil {

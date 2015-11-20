@@ -118,7 +118,7 @@ func TestHttpRequest(t *testing.T) {
 	}
 	defer os.RemoveAll(testDir)
 
-	d, err := startDaemon()
+	d, err := startDaemon("")
 	if err != nil {
 		t.Fatal(err)
 	}

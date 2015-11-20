@@ -59,7 +59,7 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 	}
 
 	rsyncVerbosity := "-q"
-	if *debug {
+	if debug {
 		rsyncVerbosity = "-vi"
 	}
 
