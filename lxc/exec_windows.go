@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/gorilla/websocket"
-	"github.com/shiena/ansicolor"
+	"github.com/mattn/go-colorable"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
@@ -25,7 +25,7 @@ func (wwc *WrappedWriteCloser) Write(p []byte) (int, error) {
 }
 
 func getStdout() io.WriteCloser {
-	return &WrappedWriteCloser{os.Stdout, ansicolor.NewAnsiColorWriter(os.Stdout)}
+	return &WrappedWriteCloser{os.Stdout, colorable.NewColorableStdout()}
 }
 
 func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
