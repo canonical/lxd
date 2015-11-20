@@ -38,11 +38,6 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 			return s, fmt.Errorf("ZFS isn't enabled")
 		}
 
-		err = s.zfsCheckPool(zfsPool)
-		if err != nil {
-			return s, err
-		}
-
 		s.zfsPool = zfsPool
 	} else {
 		s.zfsPool = config["zfsPool"].(string)
@@ -51,6 +46,19 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 	out, err := exec.LookPath("zfs")
 	if err != nil || len(out) == 0 {
 		return s, fmt.Errorf("The 'zfs' tool isn't available")
+	}
+
+	err = s.zfsCheckPool(s.zfsPool)
+	if err != nil {
+		if shared.PathExists(shared.VarPath("zfs.img")) {
+			output, err := exec.Command("zpool", "import",
+				"-d", shared.VarPath(), s.zfsPool).CombinedOutput()
+			if err != nil {
+				return s, fmt.Errorf("Unable to import the ZFS pool: %s", output)
+			}
+		} else {
+			return s, err
+		}
 	}
 
 	output, err := exec.Command("zfs", "get", "version", "-H", "-o", "value", s.zfsPool).CombinedOutput()
