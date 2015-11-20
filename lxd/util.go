@@ -14,7 +14,7 @@ func WriteJSON(w http.ResponseWriter, body interface{}) error {
 	var captured *bytes.Buffer
 
 	output = w
-	if *debug {
+	if debug {
 		captured = &bytes.Buffer{}
 		output = io.MultiWriter(w, captured)
 	}

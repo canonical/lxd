@@ -177,7 +177,7 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 	buf := &bytes.Buffer{}
 	output = buf
 	var captured *bytes.Buffer
-	if *debug {
+	if debug {
 		captured = &bytes.Buffer{}
 		output = io.MultiWriter(buf, captured)
 	}
@@ -188,7 +188,7 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 		return err
 	}
 
-	if *debug {
+	if debug {
 		shared.DebugJson(captured)
 	}
 	http.Error(w, buf.String(), r.code)
