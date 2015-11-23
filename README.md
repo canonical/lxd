@@ -118,6 +118,7 @@ find and subscribe to those at: https://lists.linuxcontainers.org
 If you prefer live discussions, some of us also hang out in
 [#lxcontainers](http://webchat.freenode.net/?channels=#lxcontainers) on irc.freenode.net.
 
+
 ## FAQ
 
 #### How to enable LXD server for remote access?
@@ -137,11 +138,21 @@ To set address to listen to, find out what addresses are available and use
     ip addr
     lxc config set core.https_address 192.168.1.15
 
-After that you need to set credentials for secure access. It is done by
-setting `core.trust_password` or by copying client certificate from
-`.config/lxc/client.crt` to server and adding it with:
+#### When I do a `lxc remote add` over https, it asks for a password?
+
+By default, LXD has no password for security reasons, so you can't do a remote
+add this way. In order to set a password, do:
+
+    lxc config set core.trust_password SECRET
+
+on the host LXD is running on. This will set the remote password that you can
+then use to do `lxc remote add`.
+
+You can also access server without setting password by copying client
+certificate from `.config/lxc/client.crt` to server and adding it with:
 
     lxc config trust add client.crt
+
 
 #### How do I configure alternative storage backends for LXD?
 
@@ -221,15 +232,7 @@ And it has a --destroy argument to clean up the bits as well:
 
     ./scripts/lxd-setup-lvm-storage --destroy
 
-#### When I do a `lxc remote add` over https, it asks for a password?
 
-By default, LXD has no password for security reasons, so you can't do a remote
-add this way. In order to set a password, do:
-
-    lxc config set core.trust_password SECRET
-
-on the host LXD is running on. This will set the remote password that you can
-then use to do `lxc remote add`.
 
 #### How can I live migrate a container using LXD?
 
