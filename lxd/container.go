@@ -575,8 +575,9 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 }
 
 // init prepares the LXContainer for this LXD Container
-// TODO: This gets called on each load of the container,
-//       we might be able to split this is up into c.Start().
+// TODO: This gets called on each load of the container, and things that modify
+//       stuff other than the config should probably go somewhere else. N.B.
+//       though, that they should go into containerUp instead of Start.
 func (c *containerLXD) init() error {
 	templateConfBase := "ubuntu"
 	templateConfDir := os.Getenv("LXD_LXC_TEMPLATE_CONFIG")
@@ -885,6 +886,28 @@ func (c *containerLXD) setupUnixDev(m shared.Device) error {
 	return c.c.SetConfigItem("lxc.mount.entry", entry)
 }
 
+/* Here are some things that we have to do every time a container comes "up",
+ * either for Start() or StartFromMigration(). We separate these from init
+ * since they may actually do stuff on the host, instead of just preparing the
+ * container's configuration.
+ */
+func (c *containerLXD) containerUp() error {
+
+	/*
+	 * add the lxc.* entries for the configured devices,
+	 * and create if necessary
+	 */
+	if err := c.applyDevices(); err != nil {
+		return err
+	}
+
+	if err := c.mountShared(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *containerLXD) Start() error {
 	if c.IsRunning() {
 		return fmt.Errorf("the container is already running")
@@ -908,15 +931,8 @@ func (c *containerLXD) Start() error {
 		return err
 	}
 
-	if err := c.mountShared(); err != nil {
-		return err
-	}
-
-	/*
-	 * add the lxc.* entries for the configured devices,
-	 * and create if necessary
-	 */
-	if err := c.applyDevices(); err != nil {
+	if err := c.containerUp(); err != nil {
+		c.StorageStop()
 		return err
 	}
 
@@ -2255,6 +2271,10 @@ func (c *containerLXD) StartFromMigration(imagesDir string) error {
 	}
 	f.Close()
 	os.Remove(f.Name())
+
+	if err := c.containerUp(); err != nil {
+		return err
+	}
 
 	if err := c.c.SaveConfigFile(f.Name()); err != nil {
 		return err
