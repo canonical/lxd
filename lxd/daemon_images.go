@@ -14,9 +14,44 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+type Progress struct {
+	io.Reader
+	total  int64
+	length int64
+	op     *operation
+}
+
+func (pt *Progress) Read(p []byte) (int, error) {
+	n, err := pt.Reader.Read(p)
+	if n > 0 {
+		pt.total += int64(n)
+		percentage := float64(pt.total) / float64(pt.length) * float64(100)
+
+		if pt.op != nil {
+			meta := pt.op.metadata
+			if meta == nil {
+				meta = make(map[string]interface{})
+			}
+
+			progressInt := 10 - (int(percentage) % 10) + int(percentage)
+			if progressInt > 100 {
+				progressInt = 100
+			}
+			progress := fmt.Sprintf("%d%%", progressInt)
+
+			if meta["download_progress"] != progress {
+				meta["download_progress"] = progress
+				pt.op.UpdateMetadata(meta)
+			}
+		}
+	}
+
+	return n, err
+}
+
 // ImageDownload checks if we have that Image Fingerprint else
 // downloads the image from a remote server.
-func (d *Daemon) ImageDownload(
+func (d *Daemon) ImageDownload(op *operation,
 	server, fp string, secret string, forContainer bool) error {
 
 	if _, err := dbImageGet(d.db, fp, false, false); err == nil {
@@ -137,9 +172,11 @@ func (d *Daemon) ImageDownload(
 		ctype = "application/octet-stream"
 	}
 
+	body := &Progress{Reader: raw.Body, length: raw.ContentLength, op: op}
+
 	if ctype == "multipart/form-data" {
 		// Parse the POST data
-		mr := multipart.NewReader(raw.Body, ctypeParams["boundary"])
+		mr := multipart.NewReader(body, ctypeParams["boundary"])
 
 		// Get the metadata tarball
 		part, err := mr.NextPart()
@@ -227,7 +264,7 @@ func (d *Daemon) ImageDownload(
 			return err
 		}
 
-		_, err = io.Copy(f, raw.Body)
+		_, err = io.Copy(f, body)
 		f.Close()
 
 		if err != nil {

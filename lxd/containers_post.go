@@ -36,30 +36,31 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
 	}
 
-	if req.Source.Server != "" {
-		err := d.ImageDownload(req.Source.Server, hash, req.Source.Secret, true)
-		if err != nil {
-			return InternalError(err)
-		}
-	}
-
-	imgInfo, err := dbImageGet(d.db, hash, false, false)
-	if err != nil {
-		return SmartError(err)
-	}
-	hash = imgInfo.Fingerprint
-
-	args := containerLXDArgs{
-		Ctype:        cTypeRegular,
-		Config:       req.Config,
-		Profiles:     req.Profiles,
-		Ephemeral:    req.Ephemeral,
-		BaseImage:    hash,
-		Architecture: imgInfo.Architecture,
-	}
-
 	run := func(op *operation) error {
-		_, err := containerLXDCreateFromImage(d, req.Name, args, hash)
+		if req.Source.Server != "" {
+			err := d.ImageDownload(op, req.Source.Server, hash, req.Source.Secret, true)
+			if err != nil {
+				return err
+			}
+		}
+
+		imgInfo, err := dbImageGet(d.db, hash, false, false)
+		if err != nil {
+			return err
+		}
+
+		hash = imgInfo.Fingerprint
+
+		args := containerLXDArgs{
+			Ctype:        cTypeRegular,
+			Config:       req.Config,
+			Profiles:     req.Profiles,
+			Ephemeral:    req.Ephemeral,
+			BaseImage:    hash,
+			Architecture: imgInfo.Architecture,
+		}
+
+		_, err = containerLXDCreateFromImage(d, req.Name, args, hash)
 		return err
 	}
 
