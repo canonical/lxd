@@ -120,6 +120,29 @@ If you prefer live discussions, some of us also hang out in
 
 ## FAQ
 
+#### How to enable LXD server for remote access?
+
+By default LXD server is not accessible from network, because it listens on
+local socket. You can make LXD available from the network by specifying
+additional interface to listen to. This is done with `core.https_address`
+config variable.
+
+To see current server configuration, issue:
+
+    lxc config show
+
+To set address to listen to, find out what addresses are available and use
+`config set` command on server:
+
+    ip addr
+    lxc config set core.https_address 192.168.1.15
+
+After that you need to set credentials for secure access. It is done by
+setting `core.trust_password` or by copying client certificate from
+`.config/lxc/client.crt` to server and adding it with:
+
+    lxc config trust add client.crt
+
 #### How do I configure alternative storage backends for LXD?
 
 LXD supports various storage backends; below are instructions on how to
