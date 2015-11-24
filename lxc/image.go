@@ -289,6 +289,8 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 
 		if strings.HasPrefix(imageFile, "https://") {
 			fingerprint, err = d.PostImageURL(imageFile, publicImage, addAliases)
+		} else if strings.HasPrefix(imageFile, "http://") {
+			return fmt.Errorf(gettext.Gettext("Only https:// is supported for remote image import."))
 		} else {
 			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, publicImage, addAliases)
 		}
