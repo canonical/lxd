@@ -1593,6 +1593,44 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 			tw.Close()
 			return err
 		}
+	} else {
+		f, err := ioutil.TempFile("", "lxd_lxd_metadata_")
+		if err != nil {
+			tw.Close()
+			return err
+		}
+		defer os.Remove(f.Name())
+
+		arch, err := shared.ArchitectureName(c.architecture)
+		if err != nil {
+			tw.Close()
+			return err
+		}
+
+		meta := imageMetadata{}
+		meta.Architecture = arch
+		meta.CreationDate = time.Now().UTC().Unix()
+
+		data, err := yaml.Marshal(&meta)
+		if err != nil {
+			tw.Close()
+			return err
+		}
+
+		f.Write(data)
+		f.Close()
+
+		fi, err := os.Lstat(f.Name())
+		if err != nil {
+			tw.Close()
+			return err
+		}
+
+		if err := c.tarStoreFile(linkmap, offset, tw, f.Name(), fi); err != nil {
+			shared.Debugf("Error writing to tarfile: %s", err)
+			tw.Close()
+			return err
+		}
 	}
 	fnam = filepath.Join(cDir, "rootfs")
 	filepath.Walk(fnam, writeToTar)
