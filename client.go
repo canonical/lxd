@@ -765,6 +765,44 @@ func (c *Client) ExportImage(image string, target string) (*Response, string, er
 	return nil, destpath, nil
 }
 
+func (c *Client) PostImageURL(imageFile string, public bool, aliases []string) (string, error) {
+	source := shared.Jmap{
+		"type": "url",
+		"mode": "pull",
+		"url":  imageFile}
+	body := shared.Jmap{"public": public, "source": source}
+
+	resp, err := c.post("images", body, Async)
+	if err != nil {
+		return "", err
+	}
+
+	op, err := c.WaitFor(resp.Operation)
+	if err != nil {
+		return "", err
+	}
+
+	if op.Metadata == nil {
+		return "", fmt.Errorf(gettext.Gettext("Missing operation metadata"))
+	}
+
+	fingerprint, err := op.Metadata.GetString("fingerprint")
+	if err != nil {
+		return "", err
+	}
+
+	/* add new aliases */
+	for _, alias := range aliases {
+		c.DeleteAlias(alias)
+		err = c.PostAlias(alias, alias, fingerprint)
+		if err != nil {
+			fmt.Printf(gettext.Gettext("Error adding alias %s")+"\n", alias)
+		}
+	}
+
+	return fingerprint, nil
+}
+
 func (c *Client) PostImage(imageFile string, rootfsFile string, properties []string, public bool, aliases []string) (string, error) {
 	uri := c.url(shared.APIVersion, "images")
 
