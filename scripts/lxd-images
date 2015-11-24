@@ -193,7 +193,6 @@ class LXD(object):
             headers['Content-Type'] = "multipart/form-data; boundary=%s" \
                 % boundary
 
-            shutil.copyfile(upload_path, "/tmp/debug")
             status, data = self.rest_call("/1.0/images",
                                           open(upload_path, "rb"),
                                           "POST", headers)
