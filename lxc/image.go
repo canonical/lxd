@@ -37,7 +37,7 @@ func (c *imageCmd) usage() string {
 	return gettext.Gettext(
 		`Manipulate container images.
 
-lxc image import <tarball> [rootfs tarball] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
+lxc image import <tarball> [rootfs tarball|URL] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
 
 lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public]
 lxc image delete [remote:]<image>
@@ -251,6 +251,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
+		var fingerprint string
 		var imageFile string
 		var rootfsFile string
 		var properties []string
@@ -286,11 +287,17 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		fingerprint, err := d.PostImage(imageFile, rootfsFile, properties, publicImage, addAliases)
+		if strings.HasPrefix(imageFile, "https://") {
+			fingerprint, err = d.PostImageURL(imageFile, publicImage, addAliases)
+		} else if strings.HasPrefix(imageFile, "http://") {
+			return fmt.Errorf(gettext.Gettext("Only https:// is supported for remote image import."))
+		} else {
+			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, publicImage, addAliases)
+		}
+
 		if err != nil {
 			return err
 		}
-
 		fmt.Printf(gettext.Gettext("Image imported with fingerprint: %s")+"\n", fingerprint)
 
 		return nil

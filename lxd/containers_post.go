@@ -38,7 +38,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	run := func(op *operation) error {
 		if req.Source.Server != "" {
-			err := d.ImageDownload(op, req.Source.Server, hash, req.Source.Secret, true)
+			err := d.ImageDownload(op, req.Source.Server, hash, req.Source.Secret, true, false)
 			if err != nil {
 				return err
 			}
