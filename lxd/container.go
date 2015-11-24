@@ -115,13 +115,13 @@ func containerPath(name string, isSnapshot bool) string {
 // containerLXDArgs contains every argument needed to create an LXD Container
 type containerLXDArgs struct {
 	ID           int // Leave it empty when you create one.
-	Ctype        containerType
-	Config       map[string]string
-	Profiles     []string
-	Ephemeral    bool
-	BaseImage    string
 	Architecture int
+	BaseImage    string
+	Config       map[string]string
+	Ctype        containerType
 	Devices      shared.Devices
+	Ephemeral    bool
+	Profiles     []string
 }
 
 type containerLXD struct {
@@ -172,6 +172,8 @@ type container interface {
 	Config() map[string]string
 	ConfigKeySet(key string, value string) error
 	Devices() shared.Devices
+	BaseConfig() map[string]string
+	BaseDevices() shared.Devices
 	Profiles() []string
 	Path(newName string) string
 	RootfsPath() string
@@ -347,11 +349,6 @@ func containerLXDCreateAsCopy(d *Daemon, name string,
 
 	c, err := containerLXDCreateInternal(d, name, args)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := c.ConfigReplace(args); err != nil {
-		c.Delete()
 		return nil, err
 	}
 
@@ -1520,6 +1517,14 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	}
 
 	return nil
+}
+
+func (c *containerLXD) BaseConfig() map[string]string {
+	return c.baseConfig
+}
+
+func (c *containerLXD) BaseDevices() shared.Devices {
+	return c.baseDevices
 }
 
 func (c *containerLXD) Config() map[string]string {

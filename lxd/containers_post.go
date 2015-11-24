@@ -111,6 +111,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 			BaseImage:    req.Source.BaseImage,
 			Config:       req.Config,
 			Ctype:        cTypeRegular,
+			Devices:      req.Devices,
 			Ephemeral:    req.Ephemeral,
 			Profiles:     req.Profiles,
 		}
@@ -193,7 +194,8 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		return SmartError(err)
 	}
 
-	sourceConfig := source.Config()
+	// Config override
+	sourceConfig := source.BaseConfig()
 
 	if req.Config == nil {
 		req.Config = make(map[string]string)
@@ -205,9 +207,16 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 				log.Ctx{"key": key})
 			continue
 		}
+
+		_, exists := req.Config[key]
+		if exists {
+			continue
+		}
+
 		req.Config[key] = value
 	}
 
+	// Profiles override
 	if req.Profiles == nil {
 		req.Profiles = source.Profiles()
 	}
@@ -217,6 +226,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
 		Ctype:        cTypeRegular,
+		Devices:      source.BaseDevices(),
 		Ephemeral:    req.Ephemeral,
 		Profiles:     req.Profiles,
 	}
