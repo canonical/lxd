@@ -737,6 +737,7 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 	}
 
 	return &shared.ContainerState{
+		Architecture:    c.architecture,
 		Name:            c.name,
 		Profiles:        c.profiles,
 		Config:          c.baseConfig,
@@ -1589,6 +1590,55 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 			return err
 		}
 		if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
+			shared.Debugf("Error writing to tarfile: %s", err)
+			tw.Close()
+			return err
+		}
+	} else {
+		f, err := ioutil.TempFile("", "lxd_lxd_metadata_")
+		if err != nil {
+			tw.Close()
+			return err
+		}
+		defer os.Remove(f.Name())
+
+		var arch string
+		if c.cType == cTypeSnapshot {
+			parentName := strings.SplitN(c.name, shared.SnapshotDelimiter, 2)[0]
+			parent, err := containerLXDLoad(c.daemon, parentName)
+			if err != nil {
+				tw.Close()
+				return err
+			}
+
+			arch, _ = shared.ArchitectureName(parent.Architecture())
+		} else {
+			arch, _ = shared.ArchitectureName(c.architecture)
+		}
+
+		meta := imageMetadata{}
+
+		if arch != "" {
+			meta.Architecture = arch
+		}
+		meta.CreationDate = time.Now().UTC().Unix()
+
+		data, err := yaml.Marshal(&meta)
+		if err != nil {
+			tw.Close()
+			return err
+		}
+
+		f.Write(data)
+		f.Close()
+
+		fi, err := os.Lstat(f.Name())
+		if err != nil {
+			tw.Close()
+			return err
+		}
+
+		if err := c.tarStoreFile(linkmap, offset, tw, f.Name(), fi); err != nil {
 			shared.Debugf("Error writing to tarfile: %s", err)
 			tw.Close()
 			return err

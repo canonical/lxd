@@ -1497,7 +1497,7 @@ func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
 	return c.post(fmt.Sprintf("containers/%s", container), body, Async)
 }
 
-func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string, config map[string]string, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
+func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string, architecture int, config map[string]string, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
 	source := shared.Jmap{
 		"type":       "migration",
 		"mode":       "pull",
@@ -1506,11 +1506,12 @@ func (c *Client) MigrateFrom(name string, operation string, secrets map[string]s
 		"base-image": baseImage,
 	}
 	body := shared.Jmap{
-		"source":    source,
-		"name":      name,
-		"config":    config,
-		"profiles":  profiles,
-		"ephemeral": ephemeral,
+		"source":       source,
+		"name":         name,
+		"architecture": architecture,
+		"config":       config,
+		"profiles":     profiles,
+		"ephemeral":    ephemeral,
 	}
 
 	return c.post("containers", body, Async)

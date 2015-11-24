@@ -88,6 +88,10 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 
 		return source.WaitForSuccess(cp.Operation)
 	} else {
+		if strings.Contains(sourceName, shared.SnapshotDelimiter) {
+			return fmt.Errorf("Copying from a remote snapshot isn't implemented yet.")
+		}
+
 		dest, err := lxd.NewClient(config, destRemote)
 		if err != nil {
 			return err
@@ -144,7 +148,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			sourceWSUrl := "wss://" + addr + path.Join(sourceWSResponse.Operation, "websocket")
 
 			var migration *lxd.Response
-			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Config, status.Profiles, baseImage, ephemeral == 1)
+			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Profiles, baseImage, ephemeral == 1)
 			if err != nil {
 				continue
 			}

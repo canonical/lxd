@@ -42,11 +42,12 @@ type containerPostBody struct {
 }
 
 type containerPostReq struct {
-	Name      string               `json:"name"`
-	Source    containerImageSource `json:"source"`
-	Config    map[string]string    `json:"config"`
-	Profiles  []string             `json:"profiles"`
-	Ephemeral bool                 `json:"ephemeral"`
+	Architecture int                  `json:"architecture"`
+	Config       map[string]string    `json:"config"`
+	Ephemeral    bool                 `json:"ephemeral"`
+	Name         string               `json:"name"`
+	Profiles     []string             `json:"profiles"`
+	Source       containerImageSource `json:"source"`
 }
 
 type containerImageSource struct {
