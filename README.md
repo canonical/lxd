@@ -4,6 +4,8 @@ REST API, command line tool and OpenStack integration plugin for LXC.
 
 LXD is pronounced lex-dee.
 
+To easily see what LXD is about, you can [try it online](https://linuxcontainers.org/lxd/try-it).
+
 ## CI status
 
  * Travis: [![Build Status](https://travis-ci.org/lxc/lxd.svg?branch=master)](https://travis-ci.org/lxc/lxd)
