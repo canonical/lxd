@@ -739,6 +739,7 @@ Input (one of):
  * Standard http file upload
  * Source image dictionary (transfers a remote image)
  * Source container dictionary (makes an image out of a local container)
+ * Remote image URL dictionary (downloads a remote image)
 
 In the http file upload case, The following headers may be set by the client:
  * X-LXD-fingerprint: SHA-256 (if set, uploaded file must match)
@@ -771,6 +772,16 @@ In the source container case, the following dict must be passed:
         },
         "properties": {           # Image properties
             "os": "Ubuntu",
+        }
+    }
+
+In the remote image URL case, the following dict must be passed:
+
+    {
+        "public": true,                                    # true or false
+        "source": {
+            "type": "url",
+            "url": "https://www.some-server.com/image"     # URL for the image
         }
     }
 
