@@ -121,9 +121,10 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 	err = d.WaitForSuccess(resp.Operation)
 	if err != nil {
 		fmt.Println(gettext.Gettext("error."))
-	} else {
-		fmt.Println(gettext.Gettext("done."))
+		return fmt.Errorf("%s\n"+gettext.Gettext("Try `lxc info --show-log %s` for more info"), err, name)
 	}
 
-	return err
+	fmt.Println(gettext.Gettext("done."))
+
+	return nil
 }
