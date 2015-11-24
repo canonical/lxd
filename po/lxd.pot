@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-11-18 15:52-0500\n"
+        "POT-Creation-Date: 2015-11-23 22:19-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -125,7 +125,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: client.go:1735
+#: client.go:1736
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -153,7 +153,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:392 lxc/image.go:535 lxc/profile.go:184
+#: lxc/config.go:413 lxc/image.go:535 lxc/profile.go:184
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -217,12 +217,12 @@ msgid   "Delete containers or container snapshots.\n"
         "Destroy containers or snapshots with any attached data (configuration, snapshots, ...)."
 msgstr  ""
 
-#: lxc/config.go:440
+#: lxc/config.go:461
 #, c-format
 msgid   "Device %s added to %s"
 msgstr  ""
 
-#: lxc/config.go:468
+#: lxc/config.go:489
 #, c-format
 msgid   "Device %s removed from %s"
 msgstr  ""
@@ -251,7 +251,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:621 client.go:631 client.go:878 client.go:1973
+#: client.go:621 client.go:631 client.go:878 client.go:1974
 #, c-format
 msgid   "Error adding alias %s"
 msgstr  ""
@@ -627,7 +627,7 @@ msgstr  ""
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
-#: lxc/config.go:393 lxc/image.go:536
+#: lxc/config.go:414 lxc/image.go:536
 msgid   "Press enter to start the editor again"
 msgstr  ""
 
@@ -854,7 +854,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1766
+#: client.go:1767
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -863,7 +863,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1770
+#: client.go:1771
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -885,7 +885,7 @@ msgstr  ""
 msgid   "cannot resolve unix socket address: %v"
 msgstr  ""
 
-#: client.go:1819 client.go:1876
+#: client.go:1820 client.go:1877
 msgid   "device already exists"
 msgstr  ""
 
@@ -921,7 +921,7 @@ msgstr  ""
 msgid   "failed group lookup: %s"
 msgstr  ""
 
-#: client.go:1369 client.go:1940
+#: client.go:1369 client.go:1941
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -935,7 +935,7 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:1539
+#: client.go:1540
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -952,12 +952,12 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1812 client.go:1869
+#: client.go:1813 client.go:1870
 #, c-format
 msgid   "no value found in %q"
 msgstr  ""
 
-#: lxc/copy.go:103
+#: lxc/copy.go:107
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 

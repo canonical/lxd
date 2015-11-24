@@ -88,6 +88,10 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 
 		return source.WaitForSuccess(cp.Operation)
 	} else {
+		if strings.Contains(sourceName, shared.SnapshotDelimiter) {
+			return fmt.Errorf("Copying from a remote snapshot isn't implemented yet.")
+		}
+
 		dest, err := lxd.NewClient(config, destRemote)
 		if err != nil {
 			return err
