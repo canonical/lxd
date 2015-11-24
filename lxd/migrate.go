@@ -60,7 +60,7 @@ func (c *migrationFields) send(m proto.Message) error {
 func findCriu(host string) error {
 	_, err := exec.LookPath("criu")
 	if err != nil {
-		return fmt.Errorf("CRIU is required for live migration but its binary on the %s server. Is it installed in LXD's path?", host)
+		return fmt.Errorf("CRIU is required for live migration but its binary couldn't be found on the %s server. Is it installed in LXD's path?", host)
 	}
 
 	return nil
