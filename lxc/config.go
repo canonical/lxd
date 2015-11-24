@@ -323,9 +323,9 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			if value == nil {
 				value = ""
 			} else if value == true {
-				value = "TRUE"
+				value = "true"
 			} else if value == false {
-				value = "FALSE"
+				value = "false"
 			}
 
 			fmt.Printf("%s: %s\n", key, value)
