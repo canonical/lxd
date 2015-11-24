@@ -290,21 +290,42 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		return nil
 
 	case "get":
-		if len(args) != 3 {
+		if len(args) > 3 || len(args) < 2 {
 			return errArgs
 		}
 
-		remote, container := config.ParseRemoteAndContainer(args[1])
+		remote := config.DefaultRemote
+		container := ""
+		key := args[1]
+		if len(args) > 2 {
+			remote, container = config.ParseRemoteAndContainer(args[1])
+			key = args[2]
+		}
+
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
 
-		resp, err := d.ContainerStatus(container)
-		if err != nil {
-			return err
+		if container != "" {
+			resp, err := d.ContainerStatus(container)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s: %s\n", key, resp.Config[key])
+		} else {
+			resp, err := d.ServerStatus()
+			if err != nil {
+				return err
+			}
+
+			value := resp.Config[key]
+			if value == nil {
+				value = ""
+			}
+
+			fmt.Printf("%s: %s\n", key, value)
 		}
-		fmt.Printf("%s: %s\n", args[2], resp.Config[args[2]])
 		return nil
 
 	case "profile":
