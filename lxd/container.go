@@ -737,6 +737,7 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 	}
 
 	return &shared.ContainerState{
+		Architecture:    c.architecture,
 		Name:            c.name,
 		Profiles:        c.profiles,
 		Config:          c.baseConfig,
@@ -1601,14 +1602,25 @@ func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
 		}
 		defer os.Remove(f.Name())
 
-		arch, err := shared.ArchitectureName(c.architecture)
-		if err != nil {
-			tw.Close()
-			return err
+		var arch string
+		if c.cType == cTypeSnapshot {
+			parentName := strings.SplitN(c.name, shared.SnapshotDelimiter, 2)[0]
+			parent, err := containerLXDLoad(c.daemon, parentName)
+			if err != nil {
+				tw.Close()
+				return err
+			}
+
+			arch, _ = shared.ArchitectureName(parent.Architecture())
+		} else {
+			arch, _ = shared.ArchitectureName(c.architecture)
 		}
 
 		meta := imageMetadata{}
-		meta.Architecture = arch
+
+		if arch != "" {
+			meta.Architecture = arch
+		}
 		meta.CreationDate = time.Now().UTC().Unix()
 
 		data, err := yaml.Marshal(&meta)
