@@ -16,9 +16,10 @@ import (
 
 type Progress struct {
 	io.Reader
-	total  int64
-	length int64
-	op     *operation
+	total      int64
+	length     int64
+	percentage float64
+	op         *operation
 }
 
 func (pt *Progress) Read(p []byte) (int, error) {
@@ -27,7 +28,7 @@ func (pt *Progress) Read(p []byte) (int, error) {
 		pt.total += int64(n)
 		percentage := float64(pt.total) / float64(pt.length) * float64(100)
 
-		if pt.op != nil {
+		if percentage-pt.percentage > 9 && pt.op != nil {
 			meta := pt.op.metadata
 			if meta == nil {
 				meta = make(map[string]interface{})
@@ -43,6 +44,8 @@ func (pt *Progress) Read(p []byte) (int, error) {
 				meta["download_progress"] = progress
 				pt.op.UpdateMetadata(meta)
 			}
+
+			pt.percentage = percentage
 		}
 	}
 
