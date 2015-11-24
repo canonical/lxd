@@ -125,17 +125,17 @@ If you prefer live discussions, some of us also hang out in
 
 #### How to enable LXD server for remote access?
 
-By default LXD server is not accessible from the network, because it only listens
+By default LXD server is not accessible from the networks as it only listens
 on a local unix socket. You can make LXD available from the network by specifying
-additional interface to listen to. This is done with the `core.https_address`
+additional addresses to listen to. This is done with the `core.https_address`
 config variable.
 
-To see the current server configuration, issue:
+To see the current server configuration, run:
 
     lxc config show
 
 To set the address to listen to, find out what addresses are available and use
-`config set` command on the server:
+the `config set` command on the server:
 
     ip addr
     lxc config set core.https_address 192.168.1.15
