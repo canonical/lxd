@@ -259,7 +259,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	return info, nil
 }
 
-func imgPostRemoteInfo(d *Daemon, req imagePostReq) (map[string]string, error) {
+func imgPostRemoteInfo(d *Daemon, req imagePostReq, op *operation) (map[string]string, error) {
 	var err error
 	var hash string
 	metadata := make(map[string]string)
@@ -283,7 +283,7 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq) (map[string]string, error) {
 		return metadata, fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	err = d.ImageDownload(
+	err = d.ImageDownload(op,
 		req.Source["server"], hash, req.Source["secret"], false)
 
 	if err != nil {
@@ -641,7 +641,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 		/* Processing image copy from remote */
 		if !imageUpload && req.Source["type"] == "image" {
-			metadata, err := imgPostRemoteInfo(d, req)
+			metadata, err := imgPostRemoteInfo(d, req, op)
 			if err != nil {
 				return err
 			}
