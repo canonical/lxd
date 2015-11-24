@@ -44,6 +44,7 @@ type containerPostBody struct {
 type containerPostReq struct {
 	Architecture int                  `json:"architecture"`
 	Config       map[string]string    `json:"config"`
+	Devices      shared.Devices       `json:"devices"`
 	Ephemeral    bool                 `json:"ephemeral"`
 	Name         string               `json:"name"`
 	Profiles     []string             `json:"profiles"`
