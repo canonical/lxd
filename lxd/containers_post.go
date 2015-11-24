@@ -52,12 +52,12 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		hash = imgInfo.Fingerprint
 
 		args := containerLXDArgs{
-			Ctype:        cTypeRegular,
-			Config:       req.Config,
-			Profiles:     req.Profiles,
-			Ephemeral:    req.Ephemeral,
-			BaseImage:    hash,
 			Architecture: imgInfo.Architecture,
+			BaseImage:    hash,
+			Config:       req.Config,
+			Ctype:        cTypeRegular,
+			Ephemeral:    req.Ephemeral,
+			Profiles:     req.Profiles,
 		}
 
 		_, err = containerLXDCreateFromImage(d, req.Name, args, hash)
@@ -77,10 +77,11 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
 	args := containerLXDArgs{
-		Ctype:     cTypeRegular,
-		Config:    req.Config,
-		Profiles:  req.Profiles,
-		Ephemeral: req.Ephemeral,
+		Architecture: req.Architecture,
+		Config:       req.Config,
+		Ctype:        cTypeRegular,
+		Ephemeral:    req.Ephemeral,
+		Profiles:     req.Profiles,
 	}
 
 	run := func(op *operation) error {
@@ -106,11 +107,12 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 
 	run := func(op *operation) error {
 		createArgs := containerLXDArgs{
-			Ctype:     cTypeRegular,
-			Config:    req.Config,
-			Profiles:  req.Profiles,
-			Ephemeral: req.Ephemeral,
-			BaseImage: req.Source.BaseImage,
+			Architecture: req.Architecture,
+			BaseImage:    req.Source.BaseImage,
+			Config:       req.Config,
+			Ctype:        cTypeRegular,
+			Ephemeral:    req.Ephemeral,
+			Profiles:     req.Profiles,
 		}
 
 		var c container
@@ -211,11 +213,12 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	args := containerLXDArgs{
-		Ctype:     cTypeRegular,
-		Config:    req.Config,
-		Profiles:  req.Profiles,
-		Ephemeral: req.Ephemeral,
-		BaseImage: req.Source.BaseImage,
+		Architecture: source.Architecture(),
+		BaseImage:    req.Source.BaseImage,
+		Config:       req.Config,
+		Ctype:        cTypeRegular,
+		Ephemeral:    req.Ephemeral,
+		Profiles:     req.Profiles,
 	}
 
 	run := func(op *operation) error {
