@@ -130,7 +130,8 @@ LXD supports the following device types:
 
 ID (database)   | Name          | Description
 :--             | :--           | :--
-1               | none          | Inheritance blocker
+0               | none          | Inheritance blocker
+1               | nic           | Network interface
 2               | disk          | Mountpoint inside the container
 3               | unix-char     | Unix character device
 4               | unix-block    | Unix block device
