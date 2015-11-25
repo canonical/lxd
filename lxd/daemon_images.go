@@ -140,7 +140,7 @@ func (d *Daemon) ImageDownload(op *operation,
 				"Failed to download image metadata",
 				log.Ctx{"image": fp, "err": err})
 
-			return nil
+			return err
 		}
 
 		if err := json.Unmarshal(resp.Metadata, &info); err != nil {
