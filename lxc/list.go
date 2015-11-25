@@ -135,13 +135,13 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 				}
 
 				if ip.Protocol == "IPV6" {
-					ipv6s = append(ipv6s, ip.Address)
+					ipv6s = append(ipv6s, fmt.Sprintf("%s (%s)", ip.Address, ip.Interface))
 				} else {
-					ipv4s = append(ipv4s, ip.Address)
+					ipv4s = append(ipv4s, fmt.Sprintf("%s (%s)", ip.Address, ip.Interface))
 				}
 			}
-			ipv4 := strings.Join(ipv4s, ", ")
-			ipv6 := strings.Join(ipv6s, ", ")
+			ipv4 := strings.Join(ipv4s, "\n")
+			ipv6 := strings.Join(ipv6s, "\n")
 			d = append(d, ipv4)
 			d = append(d, ipv6)
 		} else {
@@ -161,6 +161,8 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps b
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
 	table.SetHeader([]string{
 		gettext.Gettext("NAME"),
 		gettext.Gettext("STATE"),
