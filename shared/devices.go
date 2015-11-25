@@ -21,14 +21,10 @@ func nicEqual(d1 Device, d2 Device) bool {
 }
 
 func nicSettingsEqual(d1 Device, d2 Device) bool {
-	if d1.get("nictype") != d2.get("nictype") {
-		return false
-	}
-	if d1.get("name") != d2.get("name") || d1.get("parent") != d2.get("parent") {
-		return false
-	}
-	if d1.get("mtu") != d2.get("mtu") {
-		return false
+	for _, prop := range([]string{"nictype", "name", "parent", "mtu", "hwaddr"}) {
+		if d1.get(prop) != d2.get(prop) {
+			return false
+		}
 	}
 	return true
 }
