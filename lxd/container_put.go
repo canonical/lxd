@@ -28,6 +28,14 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	if configRaw.Devices == nil {
+		configRaw.Devices = shared.Devices{}
+	}
+
+	if configRaw.Config == nil {
+		configRaw.Config = map[string]string{}
+	}
+
 	var do = func(*operation) error { return nil }
 
 	if configRaw.Restore == "" {
