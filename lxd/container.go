@@ -1509,6 +1509,7 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	}
 
 	if err := devicesApplyDeltaLive(tx, c, preDevList, newContainerArgs.Devices); err != nil {
+		tx.Rollback()
 		return err
 	}
 
