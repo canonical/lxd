@@ -637,11 +637,6 @@ func (d *Daemon) Init() error {
 		shared.Log.Warn("Per-container AppArmor profiles disabled because 'apparmor_parser' couldn't be found")
 	}
 
-	if aaEnabled && runningInUserns {
-		aaEnabled = false
-		shared.Log.Warn("Per-container AppArmor profiles disabled because LXD is running inside a user namespace")
-	}
-
 	/* Get the list of supported architectures */
 	var architectures = []int{}
 

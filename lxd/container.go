@@ -678,8 +678,8 @@ func (c *containerLXD) init() error {
 	if aaEnabled {
 		if aaConfined() {
 			curProfile := aaProfile()
-			shared.Debugf("Running %s in current profile %s (nested container)", c.name, curProfile)
 			curProfile = strings.TrimSuffix(curProfile, " (enforce)")
+			shared.Debugf("Running %s in current profile %s (nested container)", c.name, curProfile)
 			if err := setConfigItem(c, "lxc.aa_profile", curProfile); err != nil {
 				return err
 			}
