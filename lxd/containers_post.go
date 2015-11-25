@@ -264,6 +264,14 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		shared.Debugf("No name provided, creating %s", req.Name)
 	}
 
+	if req.Devices == nil {
+		req.Devices = shared.Devices{}
+	}
+
+	if req.Config == nil {
+		req.Config = map[string]string{}
+	}
+
 	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
 		return BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
 	}
