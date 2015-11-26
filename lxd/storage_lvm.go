@@ -299,7 +299,6 @@ func (s *storageLvm) ContainerCreateFromImage(
 }
 
 func (s *storageLvm) ContainerDelete(container container) error {
-
 	lvName := containerNameToLVName(container.Name())
 	if err := s.removeLV(lvName); err != nil {
 		return err
@@ -513,6 +512,53 @@ func (s *storageLvm) ContainerSnapshotRename(
 		if ok, _ := shared.PathIsEmpty(filepath.Dir(oldPath)); ok {
 			os.Remove(filepath.Dir(oldPath))
 		}
+	}
+
+	return nil
+}
+
+func (s *storageLvm) ContainerSnapshotStart(container container) error {
+	srcName := containerNameToLVName(container.Name())
+	destName := containerNameToLVName(container.Name() + "/rw")
+
+	shared.Log.Debug(
+		"Creating snapshot",
+		log.Ctx{"srcName": srcName, "destName": destName})
+
+	lvpath, err := s.createSnapshotLV(destName, srcName, false)
+	if err != nil {
+		return fmt.Errorf("Error creating snapshot LV: %v", err)
+	}
+
+	destPath := container.Path("")
+	if !shared.PathExists(destPath) {
+		if err := os.MkdirAll(destPath, 0755); err != nil {
+			return fmt.Errorf("Error creating container directory: %v", err)
+		}
+	}
+
+	output, err := exec.Command(
+		"mount", "-o", "discard", lvpath, container.Path("")).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf(
+			"Error mounting snapshot LV path='%s': %v\noutput:'%s'",
+			container.Path(""),
+			err,
+			string(output))
+	}
+
+	return nil
+}
+
+func (s *storageLvm) ContainerSnapshotStop(container container) error {
+	err := s.ContainerStop(container)
+	if err != nil {
+		return err
+	}
+
+	lvName := containerNameToLVName(container.Name() + "/rw")
+	if err := s.removeLV(lvName); err != nil {
+		return err
 	}
 
 	return nil

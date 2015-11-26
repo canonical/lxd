@@ -220,6 +220,14 @@ func (s *storageDir) ContainerSnapshotRename(
 	return nil
 }
 
+func (s *storageDir) ContainerSnapshotStart(container container) error {
+	return nil
+}
+
+func (s *storageDir) ContainerSnapshotStop(container container) error {
+	return nil
+}
+
 func (s *storageDir) ImageCreate(fingerprint string) error {
 	return nil
 }

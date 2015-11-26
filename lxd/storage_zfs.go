@@ -127,7 +127,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 		}
 	}
 
-	err := s.zfsClone(fsImage, "readonly", fs)
+	err := s.zfsClone(fsImage, "readonly", fs, true)
 	if err != nil {
 		return err
 	}
@@ -222,6 +222,8 @@ func (s *storageZfs) ContainerDelete(container container) error {
 		}
 	}
 
+	s.zfsDestroy(fmt.Sprintf("snapshots/%s", container.Name()))
+
 	return nil
 }
 
@@ -256,7 +258,7 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 	}
 
 	if sourceFs != "" {
-		err := s.zfsClone(sourceFs, sourceSnap, destFs)
+		err := s.zfsClone(sourceFs, sourceSnap, destFs, true)
 		if err != nil {
 			return err
 		}
@@ -435,6 +437,42 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 	return nil
 }
 
+func (s *storageZfs) ContainerSnapshotStart(container container) error {
+	fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
+	if len(fields) < 2 {
+		return fmt.Errorf("Invalid snapshot name: %s", container.Name())
+	}
+	cName := fields[0]
+	sName := fields[1]
+	sourceFs := fmt.Sprintf("containers/%s", cName)
+	sourceSnap := fmt.Sprintf("snapshot-%s", sName)
+	destFs := fmt.Sprintf("snapshots/%s/%s", cName, sName)
+
+	err := s.zfsClone(sourceFs, sourceSnap, destFs, false)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageZfs) ContainerSnapshotStop(container container) error {
+	fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
+	if len(fields) < 2 {
+		return fmt.Errorf("Invalid snapshot name: %s", container.Name())
+	}
+	cName := fields[0]
+	sName := fields[1]
+	destFs := fmt.Sprintf("snapshots/%s/%s", cName, sName)
+
+	err := s.zfsDestroy(destFs)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *storageZfs) ImageCreate(fingerprint string) error {
 	imagePath := shared.VarPath("images", fingerprint)
 	subvol := fmt.Sprintf("%s.zfs", imagePath)
@@ -525,12 +563,19 @@ func (s *storageZfs) zfsCheckPool(pool string) error {
 	return nil
 }
 
-func (s *storageZfs) zfsClone(source string, name string, dest string) error {
+func (s *storageZfs) zfsClone(source string, name string, dest string, dotZfs bool) error {
+	var mountpoint string
+
+	mountpoint = shared.VarPath(dest)
+	if dotZfs {
+		mountpoint += ".zfs"
+	}
+
 	output, err := exec.Command(
 		"zfs",
 		"clone",
 		"-p",
-		"-o", fmt.Sprintf("mountpoint=%s.zfs", shared.VarPath(dest)),
+		"-o", fmt.Sprintf("mountpoint=%s", mountpoint),
 		fmt.Sprintf("%s/%s@%s", s.zfsPool, source, name),
 		fmt.Sprintf("%s/%s", s.zfsPool, dest)).CombinedOutput()
 	if err != nil {
@@ -554,11 +599,16 @@ func (s *storageZfs) zfsClone(source string, name string, dest string) error {
 		}
 
 		destSubvol := dest + strings.TrimPrefix(sub, source)
+		mountpoint = shared.VarPath(destSubvol)
+		if dotZfs {
+			mountpoint += ".zfs"
+		}
+
 		output, err := exec.Command(
 			"zfs",
 			"clone",
 			"-p",
-			"-o", fmt.Sprintf("mountpoint=%s.zfs", shared.VarPath(destSubvol)),
+			"-o", fmt.Sprintf("mountpoint=%s", mountpoint),
 			fmt.Sprintf("%s/%s@%s", s.zfsPool, sub, name),
 			fmt.Sprintf("%s/%s", s.zfsPool, destSubvol)).CombinedOutput()
 		if err != nil {
