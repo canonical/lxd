@@ -112,7 +112,7 @@ func untarImage(imagefname string, destpath string) error {
 }
 
 func compressFile(path string, compress string) (string, error) {
-	cmd := exec.Command(compress, path, "-c")
+	cmd := exec.Command(compress, path, "-c", "-n")
 
 	outfile, err := os.Create(path + ".compressed")
 	if err != nil {
