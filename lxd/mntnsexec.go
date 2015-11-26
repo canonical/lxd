@@ -47,6 +47,29 @@ package main
 //
 #define CMDLINE_SIZE (8 * PATH_MAX)
 
+int mkdir_p(const char *dir, mode_t mode)
+{
+	const char *tmp = dir;
+	const char *orig = dir;
+	char *makeme;
+
+	do {
+		dir = tmp + strspn(tmp, "/");
+		tmp = dir + strcspn(dir, "/");
+		makeme = strndup(orig, dir - orig);
+		if (*makeme) {
+			if (mkdir(makeme, mode) && errno != EEXIST) {
+				printf("failed to create directory '%s'", makeme);
+				free(makeme);
+				return -1;
+			}
+		}
+		free(makeme);
+	} while(tmp != dir);
+
+	return 0;
+}
+
 int copy(int target, int source)
 {
 	ssize_t n;
@@ -161,7 +184,6 @@ void ensure_dir(char *dest) {
 
 void ensure_file(char *dest) {
 	struct stat sb;
-	char *copy, *destdir;
 	int fd;
 
 	if (stat(dest, &sb) == 0) {
@@ -172,10 +194,6 @@ void ensure_file(char *dest) {
 			_exit(1);
 		}
 	}
-	copy = alloca(strlen(dest) + 1);
-	strcpy(copy, dest);
-	destdir = dirname(copy);
-	ensure_dir(copy);
 
 	fd = creat(dest, 0755);
 	if (fd < 0) {
@@ -186,11 +204,22 @@ void ensure_file(char *dest) {
 }
 
 void create(char *src, char *dest) {
+	char *destdirname;
 	struct stat sb;
 	if (stat(src, &sb) < 0) {
 		printf("source %s does not exist\n", src);
 		_exit(1);
 	}
+
+	destdirname = strdup(dest);
+	destdirname = dirname(destdirname);
+
+	if (mkdir_p(destdirname, 0755) < 0) {
+		printf("failed to create path: %s\n", destdirname);
+		free(destdirname);
+		_exit(1);
+	}
+
 	switch (sb.st_mode & S_IFMT) {
 	case S_IFDIR:
 		ensure_dir(dest);
@@ -199,6 +228,8 @@ void create(char *src, char *dest) {
 		ensure_file(dest);
 		return;
 	}
+
+	free(destdirname);
 }
 
 void forkmount(char *buf, char *cur, ssize_t size) {
