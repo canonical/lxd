@@ -21,7 +21,7 @@ func nicEqual(d1 Device, d2 Device) bool {
 }
 
 func nicSettingsEqual(d1 Device, d2 Device) bool {
-	for _, prop := range []string{"nictype", "name", "parent", "mtu", "hwaddr"} {
+	for _, prop := range []string{"nictype", "name", "parent", "mtu"} {
 		if d1.get(prop) != d2.get(prop) {
 			return false
 		}
@@ -102,22 +102,11 @@ func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device
 }
 
 func (newBaseDevices Devices) ExtendFromProfile(currentFullDevices Devices, newDevicesFromProfile Devices) error {
+	// For any entry which exists in a profile and doesn't in the container config, add it
 
-	// Add devices from profile to a list of new devices. If a nic
-	// is already in currentFullDevices and only differs by
-	// hwaddr, keep the existing one instead of overwriting it
-	// with the one from the profile
 	for name, newDev := range newDevicesFromProfile {
-		if newDev["type"] == "nic" {
-			if curDev, ok := currentFullDevices[name]; ok {
-				if nicSettingsEqual(newDev, curDev) {
-					newBaseDevices[name] = curDev
-				} else {
-					newBaseDevices[name] = newDev
-				}
-			} else {
-				newBaseDevices[name] = newDev
-			}
+		if curDev, ok := currentFullDevices[name]; ok {
+			newBaseDevices[name] = curDev
 		} else {
 			newBaseDevices[name] = newDev
 		}
