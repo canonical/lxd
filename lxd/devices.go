@@ -610,11 +610,20 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 				return fmt.Errorf("Error removing device %s (nic %s) from container %s: %s", key, dev["name"], c.Name(), err)
 			}
 		case "disk":
-			return c.DetachMount(dev)
+			err = c.DetachMount(dev)
+			if err != nil {
+				return err
+			}
 		case "unix-block":
-			return c.DetachUnixDev(dev)
+			err = c.DetachUnixDev(dev)
+			if err != nil {
+				return err
+			}
 		case "unix-char":
-			return c.DetachUnixDev(dev)
+			err = c.DetachUnixDev(dev)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -640,11 +649,20 @@ func devicesApplyDeltaLive(tx *sql.Tx, c container, preDevList shared.Devices, p
 			if dev["source"] == "" || dev["path"] == "" {
 				return fmt.Errorf("no source or destination given")
 			}
-			return c.AttachMount(dev)
+			err = c.AttachMount(dev)
+			if err != nil {
+				return err
+			}
 		case "unix-block":
-			return c.AttachUnixDev(dev)
+			err = c.AttachUnixDev(dev)
+			if err != nil {
+				return err
+			}
 		case "unix-char":
-			return c.AttachUnixDev(dev)
+			err = c.AttachUnixDev(dev)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

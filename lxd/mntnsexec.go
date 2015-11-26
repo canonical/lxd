@@ -47,6 +47,29 @@ package main
 //
 #define CMDLINE_SIZE (8 * PATH_MAX)
 
+int mkdir_p(const char *dir, mode_t mode)
+{
+	const char *tmp = dir;
+	const char *orig = dir;
+	char *makeme;
+
+	do {
+		dir = tmp + strspn(tmp, "/");
+		tmp = dir + strcspn(dir, "/");
+		makeme = strndup(orig, dir - orig);
+		if (*makeme) {
+			if (mkdir(makeme, mode) && errno != EEXIST) {
+				printf("failed to create directory '%s'", makeme);
+				free(makeme);
+				return -1;
+			}
+		}
+		free(makeme);
+	} while(tmp != dir);
+
+	return 0;
+}
+
 int copy(int target, int source)
 {
 	ssize_t n;
@@ -186,11 +209,21 @@ void ensure_file(char *dest) {
 }
 
 void create(char *src, char *dest) {
+	char *destdirname;
 	struct stat sb;
 	if (stat(src, &sb) < 0) {
 		printf("source %s does not exist\n", src);
 		_exit(1);
 	}
+
+	destdirname = strdup(dest);
+	destdirname = dirname(destdirname);
+
+	if (mkdir_p(destdirname, 0755) < 0) {
+		printf("failed to create path: %s\n", destdirname);
+		_exit(1);
+	}
+
 	switch (sb.st_mode & S_IFMT) {
 	case S_IFDIR:
 		ensure_dir(dest);
