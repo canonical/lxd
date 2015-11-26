@@ -184,7 +184,6 @@ void ensure_dir(char *dest) {
 
 void ensure_file(char *dest) {
 	struct stat sb;
-	char *copy, *destdir;
 	int fd;
 
 	if (stat(dest, &sb) == 0) {
@@ -195,10 +194,6 @@ void ensure_file(char *dest) {
 			_exit(1);
 		}
 	}
-	copy = alloca(strlen(dest) + 1);
-	strcpy(copy, dest);
-	destdir = dirname(copy);
-	ensure_dir(copy);
 
 	fd = creat(dest, 0755);
 	if (fd < 0) {
@@ -221,6 +216,7 @@ void create(char *src, char *dest) {
 
 	if (mkdir_p(destdirname, 0755) < 0) {
 		printf("failed to create path: %s\n", destdirname);
+		free(destdirname);
 		_exit(1);
 	}
 
@@ -232,6 +228,8 @@ void create(char *src, char *dest) {
 		ensure_file(dest);
 		return;
 	}
+
+	free(destdirname);
 }
 
 void forkmount(char *buf, char *cur, ssize_t size) {
