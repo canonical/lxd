@@ -1,4 +1,4 @@
-// +build 386 arm ppc
+// +build 386 arm ppc s390
 
 package main
 
