@@ -166,28 +166,57 @@ func deviceToLxc(cntPath string, d shared.Device) ([][]string, error) {
 		return unixDevCgroup(d)
 
 	case "nic":
-		if d["nictype"] != "bridged" && d["nictype"] != "" {
+		// A few checks
+		if d["nictype"] == "" {
+			return nil, fmt.Errorf("Missing nic type")
+		}
+
+		if !shared.StringInSlice(d["nictype"], []string{"bridged", "physical", "p2p", "macvlan"}) {
 			return nil, fmt.Errorf("Bad nic type: %s", d["nictype"])
 		}
-		var l1 = []string{"lxc.network.type", "veth"}
-		var lines = [][]string{l1}
-		var l2 []string
+
+		if shared.StringInSlice(d["nictype"], []string{"bridged", "physical", "macvlan"}) && d["parent"] == "" {
+			return nil, fmt.Errorf("Missing parent for %s type nic.", d["nictype"])
+		}
+
+		// Generate the LXC config
+		var line []string
+		var lines = [][]string{}
+
+		if shared.StringInSlice(d["nictype"], []string{"bridged", "p2p"}) {
+			line = []string{"lxc.network.type", "veth"}
+			lines = append(lines, line)
+		} else if d["nictype"] == "physical" {
+			line = []string{"lxc.network.type", "phys"}
+			lines = append(lines, line)
+		} else if d["nictype"] == "macvlan" {
+			line = []string{"lxc.network.type", "macvlan"}
+			lines = append(lines, line)
+
+			line = []string{"lxc.network.macvlan.mode", "bridge"}
+			lines = append(lines, line)
+		}
+
 		if d["hwaddr"] != "" {
-			l2 = []string{"lxc.network.hwaddr", d["hwaddr"]}
-			lines = append(lines, l2)
+			line = []string{"lxc.network.hwaddr", d["hwaddr"]}
+			lines = append(lines, line)
 		}
+
 		if d["mtu"] != "" {
-			l2 = []string{"lxc.network.mtu", d["mtu"]}
-			lines = append(lines, l2)
+			line = []string{"lxc.network.mtu", d["mtu"]}
+			lines = append(lines, line)
 		}
-		if d["parent"] != "" {
-			l2 = []string{"lxc.network.link", d["parent"]}
-			lines = append(lines, l2)
+
+		if shared.StringInSlice(d["nictype"], []string{"bridged", "physical", "macvlan"}) {
+			line = []string{"lxc.network.link", d["parent"]}
+			lines = append(lines, line)
 		}
+
 		if d["name"] != "" {
-			l2 = []string{"lxc.network.name", d["name"]}
-			lines = append(lines, l2)
+			line = []string{"lxc.network.name", d["name"]}
+			lines = append(lines, line)
 		}
+
 		return lines, nil
 	case "disk":
 		var p string
@@ -321,10 +350,7 @@ func validDeviceConfig(t, k, v string) bool {
 		case "mtu":
 			return true
 		case "nictype":
-			if v != "bridged" && v != "" {
-				return false
-			}
-			return true
+			return shared.StringInSlice(v, []string{"physical", "bridged", "p2p", "macvlan"})
 		default:
 			return false
 		}
@@ -380,30 +406,27 @@ func nextUnusedNic(c container) string {
 }
 
 func setupNic(tx *sql.Tx, c container, name string, d map[string]string) (string, error) {
-	if d["nictype"] != "bridged" {
-		return "", fmt.Errorf("Unsupported nic type: %s", d["nictype"])
+	var err error
+
+	// A few checks
+	if d["nictype"] == "" {
+		return "", fmt.Errorf("Missing nic type")
 	}
-	if d["parent"] == "" {
-		return "", fmt.Errorf("No bridge given")
+
+	if !shared.StringInSlice(d["nictype"], []string{"bridged", "physical", "p2p", "macvlan"}) {
+		return "", fmt.Errorf("Bad nic type: %s", d["nictype"])
 	}
+
+	if shared.StringInSlice(d["nictype"], []string{"bridged", "physical", "macvlan"}) && d["parent"] == "" {
+		return "", fmt.Errorf("Missing parent for %s type nic.", d["nictype"])
+	}
+
+	// Fill missing fields
 	if d["name"] == "" {
 		d["name"] = nextUnusedNic(c)
 	}
 
-	n1 := tempNic()
-	n2 := tempNic()
-
-	err := exec.Command("ip", "link", "add", n1, "type", "veth", "peer", "name", n2).Run()
-	if err != nil {
-		return "", err
-	}
-
-	err = exec.Command("brctl", "addif", d["parent"], n1).Run()
-	if err != nil {
-		removeInterface(n2)
-		return "", err
-	}
-
+	// Generate MAC if needed
 	key := fmt.Sprintf("volatile.%s.hwaddr", name)
 	config := c.Config()
 	hwaddr := config[key]
@@ -426,19 +449,64 @@ func setupNic(tx *sql.Tx, c container, name string, d map[string]string) (string
 			_, err = tx.Exec(stmt, c.ID(), key, hwaddr)
 
 			if err != nil {
-				removeInterface(n2)
 				return "", err
 			}
 		}
 	}
 
-	err = exec.Command("ip", "link", "set", "dev", n2, "address", hwaddr).Run()
+	// Create the device
+	var dev string
+
+	if shared.StringInSlice(d["nictype"], []string{"bridged", "p2p"}) {
+		n1 := tempNic()
+		n2 := tempNic()
+
+		err := exec.Command("ip", "link", "add", n1, "type", "veth", "peer", "name", n2).Run()
+		if err != nil {
+			return "", err
+		}
+
+		if d["nictype"] == "bridge" {
+			err = exec.Command("brctl", "addif", d["parent"], n1).Run()
+			if err != nil {
+				removeInterface(n2)
+				return "", err
+			}
+		}
+
+		dev = n2
+	}
+
+	if d["nictype"] == "physical" {
+		dev = d["parent"]
+	}
+
+	if d["nictype"] == "macvlan" {
+		n1 := tempNic()
+
+		err := exec.Command("ip", "link", "add", n1, "type", "macvlan", "link", d["parent"], "mode", "bridge").Run()
+		if err != nil {
+			return "", err
+		}
+
+		dev = n1
+	}
+
+	// Set the MAC address
+	err = exec.Command("ip", "link", "set", "dev", dev, "address", hwaddr).Run()
 	if err != nil {
-		removeInterface(n2)
+		removeInterface(dev)
 		return "", err
 	}
 
-	return n2, nil
+	// Bring the interface up
+	err = exec.Command("ip", "link", "set", "dev", dev, "up").Run()
+	if err != nil {
+		removeInterface(dev)
+		return "", err
+	}
+
+	return dev, nil
 }
 
 func removeInterface(nic string) {
