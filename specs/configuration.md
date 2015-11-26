@@ -172,6 +172,7 @@ Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
 path        | string    | -                 | yes       | Path inside the container where the disk will be mounted
 source      | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
+optional    | boolean   | false             | no        | Controls whether to fail if the source doesn't exist
 readonly    | boolean   | false             | no        | Controls whether to make the mount read-only
 
 ### Type: unix-char

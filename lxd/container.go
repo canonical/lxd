@@ -819,14 +819,13 @@ func (c *containerLXD) createUnixDevice(m shared.Device) (string, string, error)
 		}
 	}
 
-	name := strings.Replace(m["path"], "/", "-", -1)
-	devpath := path.Join(c.Path(""), name)
-	mode := os.FileMode(0660)
-	if m["type"] == "unix-block" {
-		mode |= syscall.S_IFBLK
-	} else {
-		mode |= syscall.S_IFCHR
+	if !shared.PathExists(path.Join(c.Path(""), "devices")) {
+		os.Mkdir(path.Join(c.Path(""), "devices"), 0711)
 	}
+
+	name := strings.Replace(m["path"], "/", "-", -1)
+	devpath := path.Join(c.Path(""), "devices", name)
+	mode := os.FileMode(0660)
 
 	if m["mode"] != "" {
 		tmp, err := devModeOct(m["mode"])
@@ -834,6 +833,29 @@ func (c *containerLXD) createUnixDevice(m shared.Device) (string, string, error)
 			return "", "", fmt.Errorf("Bad mode %s in device %s", m["mode"], m["path"])
 		}
 		mode = os.FileMode(tmp)
+	}
+
+	if m["type"] == "unix-block" {
+		mode |= syscall.S_IFBLK
+	} else {
+		mode |= syscall.S_IFCHR
+	}
+
+	uid := 0
+	gid := 0
+
+	if m["uid"] != "" {
+		uid, err = strconv.Atoi(m["uid"])
+		if err != nil {
+			return "", "", fmt.Errorf("Invalid uid %s in device %s", m["uid"], m["path"])
+		}
+	}
+
+	if m["gid"] != "" {
+		gid, err = strconv.Atoi(m["gid"])
+		if err != nil {
+			return "", "", fmt.Errorf("Invalid gid %s in device %s", m["gid"], m["path"])
+		}
 	}
 
 	os.Remove(devpath)
@@ -844,9 +866,15 @@ func (c *containerLXD) createUnixDevice(m shared.Device) (string, string, error)
 		return "", "", fmt.Errorf("Failed to create device %s for %s: %s", devpath, m["path"], err)
 	}
 
-	if err := c.idmapset.ShiftFile(devpath); err != nil {
-		// uidshift failing is weird, but not a big problem.  Log and proceed
-		shared.Debugf("Failed to uidshift device %s: %s\n", m["path"], err)
+	if err := os.Chown(devpath, uid, gid); err != nil {
+		return "", "", fmt.Errorf("failed to chown device %s: %s", devpath, err)
+	}
+
+	if c.idmapset != nil {
+		if err := c.idmapset.ShiftFile(devpath); err != nil {
+			// uidshift failing is weird, but not a big problem.  Log and proceed
+			shared.Debugf("Failed to uidshift device %s: %s\n", m["path"], err)
+		}
 	}
 
 	return devpath, tgtname, nil

@@ -85,7 +85,7 @@ pretty common.
 
 For templates, the "when" key can be one or more of:
  - create (run at the time a new container is created from the image)
- - copy (run when a container is created from an existing one, either copy or move)
+ - copy (run when a container is created from an existing one)
  - start (run every time the container is started)
 
 The templates will always receive the following context:
