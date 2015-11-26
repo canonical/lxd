@@ -87,6 +87,7 @@ func Test_nic_device_returns_config_line(t *testing.T) {
 
 	device["type"] = "nic"
 	device["nictype"] = "bridged"
+	device["parent"] = "lxcbr0"
 
 	result, _ := deviceToLxc("", device)
 	unwrapped := result[0]
