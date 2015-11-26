@@ -33,7 +33,9 @@ cleanup_vg() {
     # shellcheck disable=SC2086
     printf "To poke around, use:\n LXD_DIR=%s LXD_CONF=%s sudo -E %s/bin/lxc COMMAND\n" "${LXD5_DIR}" "${LXD_CONF}" ${GOPATH:-}
     echo "Pausing to inspect LVM state. Hit Enter to continue cleanup."
-    read
+
+    # shellcheck disable=SC2034
+    read nothing
   fi
 
   if [ -d "${LXD5_DIR}"/containers/testcontainer ]; then
@@ -234,8 +236,11 @@ test_lvm_withpool() {
     lvs "${VGNAME}/test--container-superchill" || die "superchill should exist"
     lvs "${VGNAME}/test--container-chillbro" && die "chillbro should not exist"
 
-    lxc publish test-container || die "Couldn't publish test-container"
-    lxc publish test-container/unchillbro || die "Couldn't publish snapshot"
+    lxc publish test-container --alias image || die "Couldn't publish test-container"
+    lxc image delete image
+
+    lxc publish test-container/unchillbro --alias image || die "Couldn't publish snapshot"
+    lxc image delete image
 
     # TODO busybox ignores SIGPWR, breaking restart:
     # check that 'shutdown' also unmounts:
