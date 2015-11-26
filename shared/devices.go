@@ -56,11 +56,26 @@ func (list Devices) Contains(k string, d Device) bool {
 		if !nicEqual(ld, d) {
 			return false
 		}
+		return true
 	case "disk":
 		if !diskEqual(ld, d) {
 			return false
 		}
+		return true
 	}
+
+	for k, _ := range d {
+		if d[k] != ld[k] {
+			return false
+		}
+	}
+
+	for k, _ := range ld {
+		if d[k] != ld[k] {
+			return false
+		}
+	}
+
 	return true
 }
 
