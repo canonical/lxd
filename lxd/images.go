@@ -112,7 +112,7 @@ func untarImage(imagefname string, destpath string) error {
 }
 
 func compressFile(path string, compress string) (string, error) {
-	cmd := exec.Command(compress, path, "-c")
+	cmd := exec.Command(compress, path, "-c", "-n")
 
 	outfile, err := os.Create(path + ".compressed")
 	if err != nil {
@@ -187,16 +187,6 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		info.Public = false
 	}
 
-	snap := ""
-	if ctype == "snapshot" {
-		fields := strings.SplitN(name, "/", 2)
-		if len(fields) != 2 {
-			return info, fmt.Errorf("Not a snapshot")
-		}
-		name = fields[0]
-		snap = fields[1]
-	}
-
 	c, err := containerLXDLoad(d, name)
 	if err != nil {
 		return info, err
@@ -208,7 +198,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		return info, err
 	}
 
-	if err := c.ExportToTar(snap, tarfile); err != nil {
+	if err := c.ExportToTar(tarfile); err != nil {
 		tarfile.Close()
 		return info, fmt.Errorf("imgPostContInfo: exportToTar failed: %s", err)
 	}

@@ -188,7 +188,7 @@ type container interface {
 	LastIdmapSet() (*shared.IdmapSet, error)
 
 	TemplateApply(trigger string) error
-	ExportToTar(snap string, w io.Writer) error
+	ExportToTar(w io.Writer) error
 
 	Checkpoint(opts lxc.CheckpointOptions) error
 	StartFromMigration(imagesDir string) error
@@ -1170,10 +1170,18 @@ func (c *containerLXD) StorageFromNone() error {
 }
 
 func (c *containerLXD) StorageStart() error {
+	if c.cType == cTypeSnapshot {
+		return c.storage.ContainerSnapshotStart(c)
+	}
+
 	return c.storage.ContainerStart(c)
 }
 
 func (c *containerLXD) StorageStop() error {
+	if c.cType == cTypeSnapshot {
+		return c.storage.ContainerSnapshotStop(c)
+	}
+
 	return c.storage.ContainerStop(c)
 }
 
@@ -1574,8 +1582,8 @@ func (c *containerLXD) Profiles() []string {
  *     metadata.yaml
  *     rootfs/
  */
-func (c *containerLXD) ExportToTar(snap string, w io.Writer) error {
-	if snap == "" && c.IsRunning() {
+func (c *containerLXD) ExportToTar(w io.Writer) error {
+	if c.IsRunning() {
 		return fmt.Errorf("Cannot export a running container as image")
 	}
 

@@ -172,7 +172,9 @@ cleanup() {
     # shellcheck disable=SC2086
     printf "To poke around, use:\n LXD_DIR=%s LXD_CONF=%s sudo -E %s/bin/lxc COMMAND\n" "${LXD_DIR}" "${LXD_CONF}" ${GOPATH:-}
     echo "Tests Completed (${TEST_RESULT}): hit enter to continue"
-    read
+
+    # shellcheck disable=SC2034
+    read nothing
   fi
 
   echo "==> Cleaning up"

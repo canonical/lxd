@@ -641,7 +641,8 @@ func setupLXD() error {
 		if shared.StringInSlice(storageMode, []string{"loop", "device"}) {
 			output, err := exec.Command(
 				"zpool",
-				"create", storagePool, storageDevice).CombinedOutput()
+				"create", storagePool, storageDevice,
+				"-m", "none").CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 			}
