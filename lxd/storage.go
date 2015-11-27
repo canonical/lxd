@@ -128,6 +128,8 @@ type storage interface {
 		snapshotContainer container, sourceContainer container) error
 	ContainerSnapshotDelete(snapshotContainer container) error
 	ContainerSnapshotRename(snapshotContainer container, newName string) error
+	ContainerSnapshotStart(container container) error
+	ContainerSnapshotStop(container container) error
 
 	ImageCreate(fingerprint string) error
 	ImageDelete(fingerprint string) error
@@ -410,6 +412,16 @@ func (lw *storageLogWrapper) ContainerSnapshotRename(
 			"snapshotContainer": snapshotContainer.Name(),
 			"newName":           newName})
 	return lw.w.ContainerSnapshotRename(snapshotContainer, newName)
+}
+
+func (lw *storageLogWrapper) ContainerSnapshotStart(container container) error {
+	lw.log.Debug("ContainerStart", log.Ctx{"container": container.Name()})
+	return lw.w.ContainerSnapshotStart(container)
+}
+
+func (lw *storageLogWrapper) ContainerSnapshotStop(container container) error {
+	lw.log.Debug("ContainerStop", log.Ctx{"container": container.Name()})
+	return lw.w.ContainerSnapshotStop(container)
 }
 
 func (lw *storageLogWrapper) ImageCreate(fingerprint string) error {

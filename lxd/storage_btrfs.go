@@ -288,6 +288,42 @@ func (s *storageBtrfs) ContainerSnapshotDelete(
 	return nil
 }
 
+func (s *storageBtrfs) ContainerSnapshotStart(container container) error {
+	if shared.PathExists(container.Path("") + ".ro") {
+		return fmt.Errorf("The snapshot is already mounted read-write.")
+	}
+
+	err := os.Rename(container.Path(""), container.Path("")+".ro")
+	if err != nil {
+		return err
+	}
+
+	err = s.subvolsSnapshot(container.Path("")+".ro", container.Path(""), false)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageBtrfs) ContainerSnapshotStop(container container) error {
+	if !shared.PathExists(container.Path("") + ".ro") {
+		return fmt.Errorf("The snapshot isn't currently mounted read-write.")
+	}
+
+	err := s.subvolsDelete(container.Path(""))
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(container.Path("")+".ro", container.Path(""))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ContainerSnapshotRename renames a snapshot of a container.
 func (s *storageBtrfs) ContainerSnapshotRename(
 	snapshotContainer container, newName string) error {
