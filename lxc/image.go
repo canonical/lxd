@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/chai2010/gettext-go/gettext"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
@@ -25,7 +25,7 @@ func (c *imageCmd) showByDefault() bool {
 	return true
 }
 
-var imageEditHelp string = gettext.Gettext(
+var imageEditHelp string = i18n.G(
 	`### This is a yaml representation of the image properties.
 ### Any line starting with a '# will be ignored.
 ###
@@ -34,7 +34,7 @@ var imageEditHelp string = gettext.Gettext(
 ###  description: My custom image`)
 
 func (c *imageCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Manipulate container images.
 
 lxc image import <tarball> [rootfs tarball|URL] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
@@ -82,9 +82,9 @@ var publicImage bool = false
 var copyAliases bool = false
 
 func (c *imageCmd) flags() {
-	gnuflag.BoolVar(&publicImage, "public", false, gettext.Gettext("Make image public"))
-	gnuflag.BoolVar(&copyAliases, "copy-aliases", false, gettext.Gettext("Copy aliases from source"))
-	gnuflag.Var(&addAliases, "alias", gettext.Gettext("New alias to define at target"))
+	gnuflag.BoolVar(&publicImage, "public", false, i18n.G("Make image public"))
+	gnuflag.BoolVar(&copyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
+	gnuflag.Var(&addAliases, "alias", i18n.G("New alias to define at target"))
 }
 
 func doImageAlias(config *lxd.Config, args []string) error {
@@ -213,34 +213,34 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf(gettext.Gettext("Fingerprint: %s")+"\n", info.Fingerprint)
-		public := gettext.Gettext("no")
+		fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
+		public := i18n.G("no")
 
 		// FIXME: InterfaceToBool is there for backward compatibility
 		if shared.InterfaceToBool(info) {
-			public = gettext.Gettext("yes")
+			public = i18n.G("yes")
 		}
 
-		fmt.Printf(gettext.Gettext("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
+		fmt.Printf(i18n.G("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
 		arch, _ := shared.ArchitectureName(info.Architecture)
-		fmt.Printf(gettext.Gettext("Architecture: %s")+"\n", arch)
-		fmt.Printf(gettext.Gettext("Public: %s")+"\n", public)
-		fmt.Printf(gettext.Gettext("Timestamps:") + "\n")
+		fmt.Printf(i18n.G("Architecture: %s")+"\n", arch)
+		fmt.Printf(i18n.G("Public: %s")+"\n", public)
+		fmt.Printf(i18n.G("Timestamps:") + "\n")
 		const layout = "2006/01/02 15:04 UTC"
 		if info.CreationDate != 0 {
-			fmt.Printf("    "+gettext.Gettext("Created: %s")+"\n", time.Unix(info.CreationDate, 0).UTC().Format(layout))
+			fmt.Printf("    "+i18n.G("Created: %s")+"\n", time.Unix(info.CreationDate, 0).UTC().Format(layout))
 		}
-		fmt.Printf("    "+gettext.Gettext("Uploaded: %s")+"\n", time.Unix(info.UploadDate, 0).UTC().Format(layout))
+		fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", time.Unix(info.UploadDate, 0).UTC().Format(layout))
 		if info.ExpiryDate != 0 {
-			fmt.Printf("    "+gettext.Gettext("Expires: %s")+"\n", time.Unix(info.ExpiryDate, 0).UTC().Format(layout))
+			fmt.Printf("    "+i18n.G("Expires: %s")+"\n", time.Unix(info.ExpiryDate, 0).UTC().Format(layout))
 		} else {
-			fmt.Printf("    " + gettext.Gettext("Expires: never") + "\n")
+			fmt.Printf("    " + i18n.G("Expires: never") + "\n")
 		}
-		fmt.Println(gettext.Gettext("Properties:"))
+		fmt.Println(i18n.G("Properties:"))
 		for key, value := range info.Properties {
 			fmt.Printf("    %s: %s\n", key, value)
 		}
-		fmt.Println(gettext.Gettext("Aliases:"))
+		fmt.Println(i18n.G("Aliases:"))
 		for _, alias := range info.Aliases {
 			fmt.Printf("    - %s\n", alias.Name)
 		}
@@ -290,7 +290,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if strings.HasPrefix(imageFile, "https://") {
 			fingerprint, err = d.PostImageURL(imageFile, publicImage, addAliases)
 		} else if strings.HasPrefix(imageFile, "http://") {
-			return fmt.Errorf(gettext.Gettext("Only https:// is supported for remote image import."))
+			return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
 		} else {
 			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, publicImage, addAliases)
 		}
@@ -298,7 +298,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf(gettext.Gettext("Image imported with fingerprint: %s")+"\n", fingerprint)
+		fmt.Printf(i18n.G("Image imported with fingerprint: %s")+"\n", fingerprint)
 
 		return nil
 
@@ -370,7 +370,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if target != "-" {
-			fmt.Printf(gettext.Gettext("Output is in %s")+"\n", outfile)
+			fmt.Printf(i18n.G("Output is in %s")+"\n", outfile)
 		}
 		return nil
 
@@ -441,15 +441,15 @@ func showImages(images []shared.ImageInfo) error {
 	for _, image := range images {
 		shortest := shortestAlias(image.Aliases)
 		if len(image.Aliases) > 1 {
-			shortest = fmt.Sprintf(gettext.Gettext("%s (%d more)"), shortest, len(image.Aliases)-1)
+			shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
 		}
 		fp := image.Fingerprint[0:12]
-		public := gettext.Gettext("no")
+		public := i18n.G("no")
 		description := findDescription(image.Properties)
 
 		// FIXME: InterfaceToBool is there for backward compatibility
 		if shared.InterfaceToBool(image.Public) {
-			public = gettext.Gettext("yes")
+			public = i18n.G("yes")
 		}
 
 		const layout = "Jan 2, 2006 at 3:04pm (MST)"
@@ -462,13 +462,13 @@ func showImages(images []shared.ImageInfo) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetColWidth(50)
 	table.SetHeader([]string{
-		gettext.Gettext("ALIAS"),
-		gettext.Gettext("FINGERPRINT"),
-		gettext.Gettext("PUBLIC"),
-		gettext.Gettext("DESCRIPTION"),
-		gettext.Gettext("ARCH"),
-		gettext.Gettext("SIZE"),
-		gettext.Gettext("UPLOAD DATE")})
+		i18n.G("ALIAS"),
+		i18n.G("FINGERPRINT"),
+		i18n.G("PUBLIC"),
+		i18n.G("DESCRIPTION"),
+		i18n.G("ARCH"),
+		i18n.G("SIZE"),
+		i18n.G("UPLOAD DATE")})
 	sort.Sort(ByName(data))
 	table.AppendBulk(data)
 	table.Render()
@@ -484,8 +484,8 @@ func showAliases(aliases []shared.ImageAlias) error {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{
-		gettext.Gettext("ALIAS"),
-		gettext.Gettext("FINGERPRINT")})
+		i18n.G("ALIAS"),
+		i18n.G("FINGERPRINT")})
 
 	for _, v := range data {
 		table.Append(v)
@@ -539,8 +539,8 @@ func doImageEdit(client *lxd.Client, image string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, gettext.Gettext("Config parsing error: %s")+"\n", err)
-			fmt.Println(gettext.Gettext("Press enter to start the editor again"))
+			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to start the editor again"))
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {

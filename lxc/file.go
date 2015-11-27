@@ -12,10 +12,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/chai2010/gettext-go/gettext"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
@@ -30,7 +30,7 @@ func (c *fileCmd) showByDefault() bool {
 }
 
 func (c *fileCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Manage files on a container.
 
 lxc file pull <source> [<source>...] <target>
@@ -42,9 +42,9 @@ This operation is only supported on containers that are currently running`)
 }
 
 func (c *fileCmd) flags() {
-	gnuflag.IntVar(&c.uid, "uid", -1, gettext.Gettext("Set the file's uid on push"))
-	gnuflag.IntVar(&c.gid, "gid", -1, gettext.Gettext("Set the file's gid on push"))
-	gnuflag.StringVar(&c.mode, "mode", "0644", gettext.Gettext("Set the file's perms on push"))
+	gnuflag.IntVar(&c.uid, "uid", -1, i18n.G("Set the file's uid on push"))
+	gnuflag.IntVar(&c.gid, "gid", -1, i18n.G("Set the file's gid on push"))
+	gnuflag.StringVar(&c.mode, "mode", "0644", i18n.G("Set the file's perms on push"))
 }
 
 func (c *fileCmd) push(config *lxd.Config, args []string) error {
@@ -56,7 +56,7 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 	pathSpec := strings.SplitAfterN(target, "/", 2)
 
 	if len(pathSpec) != 2 {
-		return fmt.Errorf(gettext.Gettext("Invalid target %s"), target)
+		return fmt.Errorf(i18n.G("Invalid target %s"), target)
 	}
 
 	targetPath := pathSpec[1]
@@ -153,7 +153,7 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 	if err == nil {
 		targetIsDir = sb.IsDir()
 		if !targetIsDir && len(args)-1 > 1 {
-			return fmt.Errorf(gettext.Gettext("More than one file to download, but target is not a directory"))
+			return fmt.Errorf(i18n.G("More than one file to download, but target is not a directory"))
 		}
 	} else if strings.HasSuffix(target, string(os.PathSeparator)) || len(args)-1 > 1 {
 		if err := os.MkdirAll(target, 0755); err != nil {
@@ -165,7 +165,7 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 	for _, f := range args[:len(args)-1] {
 		pathSpec := strings.SplitN(f, "/", 2)
 		if len(pathSpec) != 2 {
-			return fmt.Errorf(gettext.Gettext("Invalid source %s"), f)
+			return fmt.Errorf(i18n.G("Invalid source %s"), f)
 		}
 
 		remote, container := config.ParseRemoteAndContainer(pathSpec[0])

@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/chai2010/gettext-go/gettext"
-
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -16,7 +15,7 @@ func (c *deleteCmd) showByDefault() bool {
 }
 
 func (c *deleteCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Delete containers or container snapshots.
 
 lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/<snapshot>]...]
@@ -67,7 +66,7 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 			}
 
 			if op.StatusCode == shared.Failure {
-				return fmt.Errorf(gettext.Gettext("Stopping container failed!"))
+				return fmt.Errorf(i18n.G("Stopping container failed!"))
 			}
 
 			if ct.Ephemeral == true {
