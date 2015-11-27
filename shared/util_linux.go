@@ -9,8 +9,6 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
-
-	"github.com/chai2010/gettext-go/gettext"
 )
 
 // #cgo LDFLAGS: -lutil -lpthread
@@ -240,7 +238,7 @@ func GroupName(gid int) (string, error) {
 	bufSize := C.size_t(C.sysconf(C._SC_GETGR_R_SIZE_MAX))
 	buf := C.malloc(bufSize)
 	if buf == nil {
-		return "", fmt.Errorf(gettext.Gettext("allocation failed"))
+		return "", fmt.Errorf("allocation failed")
 	}
 	defer C.free(buf)
 
@@ -254,11 +252,11 @@ func GroupName(gid int) (string, error) {
 		&result)
 
 	if rv != 0 {
-		return "", fmt.Errorf(gettext.Gettext("failed group lookup: %s"), syscall.Errno(rv))
+		return "", fmt.Errorf("failed group lookup: %s", syscall.Errno(rv))
 	}
 
 	if result == nil {
-		return "", fmt.Errorf(gettext.Gettext("unknown group %s"), gid)
+		return "", fmt.Errorf("unknown group %d", gid)
 	}
 
 	return C.GoString(result.gr_name), nil
@@ -272,7 +270,7 @@ func GroupId(name string) (int, error) {
 	bufSize := C.size_t(C.sysconf(C._SC_GETGR_R_SIZE_MAX))
 	buf := C.malloc(bufSize)
 	if buf == nil {
-		return -1, fmt.Errorf(gettext.Gettext("allocation failed"))
+		return -1, fmt.Errorf("allocation failed")
 	}
 	defer C.free(buf)
 
@@ -289,11 +287,11 @@ func GroupId(name string) (int, error) {
 		&result)
 
 	if rv != 0 {
-		return -1, fmt.Errorf(gettext.Gettext("failed group lookup: %s"), syscall.Errno(rv))
+		return -1, fmt.Errorf("failed group lookup: %s", syscall.Errno(rv))
 	}
 
 	if result == nil {
-		return -1, fmt.Errorf(gettext.Gettext("unknown group %s"), name)
+		return -1, fmt.Errorf("unknown group %s", name)
 	}
 
 	return int(C.int(result.gr_gid)), nil
