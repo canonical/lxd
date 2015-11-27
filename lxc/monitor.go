@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/chai2010/gettext-go/gettext"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
@@ -17,7 +17,7 @@ func (c *monitorCmd) showByDefault() bool {
 }
 
 func (c *monitorCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Monitor activity on the LXD server.
 
 lxc monitor [remote:] [--type=TYPE...]
@@ -53,7 +53,7 @@ func (f *typeList) Set(value string) error {
 var typeArgs typeList
 
 func (c *monitorCmd) flags() {
-	gnuflag.Var(&typeArgs, "type", gettext.Gettext("Event type to listen for"))
+	gnuflag.Var(&typeArgs, "type", i18n.G("Event type to listen for"))
 }
 
 func (c *monitorCmd) run(config *lxd.Config, args []string) error {

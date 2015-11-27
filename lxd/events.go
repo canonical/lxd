@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/satori/go.uuid"
+	"github.com/pborman/uuid"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
@@ -75,7 +75,7 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 
 	listener.active = make(chan bool, 1)
 	listener.connection = c
-	listener.id = uuid.NewV4().String()
+	listener.id = uuid.NewRandom().String()
 	listener.messageTypes = strings.Split(typeStr, ",")
 
 	eventsLock.Lock()

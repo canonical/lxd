@@ -1,9 +1,8 @@
 package main
 
 import (
-	"github.com/chai2010/gettext-go/gettext"
-
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 )
 
 type fingerCmd struct {
@@ -15,7 +14,7 @@ func (c *fingerCmd) showByDefault() bool {
 }
 
 func (c *fingerCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Fingers the LXD instance to check if it is up and working.
 
 lxc finger <remote>`)

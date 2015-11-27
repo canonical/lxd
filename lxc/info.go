@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/chai2010/gettext-go/gettext"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
@@ -20,7 +20,7 @@ func (c *infoCmd) showByDefault() bool {
 }
 
 func (c *infoCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`List information on containers.
 
 This will support remotes and images as well, but only containers for now.
@@ -29,7 +29,7 @@ lxc info [<remote>:]container [--show-log]`)
 }
 
 func (c *infoCmd) flags() {
-	gnuflag.BoolVar(&c.showLog, "show-log", false, gettext.Gettext("Show the container's last 100 log lines?"))
+	gnuflag.BoolVar(&c.showLog, "show-log", false, i18n.G("Show the container's last 100 log lines?"))
 }
 
 func (c *infoCmd) run(config *lxd.Config, args []string) error {
@@ -75,12 +75,12 @@ func containerInfo(d *lxd.Client, name string, showLog bool) error {
 		return err
 	}
 
-	fmt.Printf(gettext.Gettext("Name: %s")+"\n", ct.Name)
-	fmt.Printf(gettext.Gettext("Status: %s")+"\n", ct.Status.Status)
+	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
+	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status.Status)
 	if ct.Status.Init != 0 {
-		fmt.Printf(gettext.Gettext("Init: %d")+"\n", ct.Status.Init)
-		fmt.Printf(gettext.Gettext("Processcount: %d")+"\n", ct.Status.Processcount)
-		fmt.Printf(gettext.Gettext("Ips:") + "\n")
+		fmt.Printf(i18n.G("Init: %d")+"\n", ct.Status.Init)
+		fmt.Printf(i18n.G("Processcount: %d")+"\n", ct.Status.Processcount)
+		fmt.Printf(i18n.G("Ips:") + "\n")
 		foundone := false
 		for _, ip := range ct.Status.Ips {
 			vethStr := ""
@@ -92,7 +92,7 @@ func containerInfo(d *lxd.Client, name string, showLog bool) error {
 			foundone = true
 		}
 		if !foundone {
-			fmt.Println(gettext.Gettext("(none)"))
+			fmt.Println(i18n.G("(none)"))
 		}
 	}
 
@@ -104,7 +104,7 @@ func containerInfo(d *lxd.Client, name string, showLog bool) error {
 	}
 	for _, snap := range snaps {
 		if first_snapshot {
-			fmt.Println(gettext.Gettext("Snapshots:"))
+			fmt.Println(i18n.G("Snapshots:"))
 		}
 		fmt.Printf("  %s\n", snap)
 		first_snapshot = false
@@ -121,7 +121,7 @@ func containerInfo(d *lxd.Client, name string, showLog bool) error {
 			return err
 		}
 
-		fmt.Printf("\n"+gettext.Gettext("Log:")+"\n\n%s\n", string(stuff))
+		fmt.Printf("\n"+i18n.G("Log:")+"\n\n%s\n", string(stuff))
 	}
 
 	return nil

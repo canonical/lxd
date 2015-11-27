@@ -8,11 +8,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/chai2010/gettext-go/gettext"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
@@ -29,7 +29,7 @@ func (c *remoteCmd) showByDefault() bool {
 }
 
 func (c *remoteCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Manage remote LXD servers.
 
 lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD] [--public]    Add the remote <name> at <url>.
@@ -42,9 +42,9 @@ lxc remote get-default                                                          
 }
 
 func (c *remoteCmd) flags() {
-	gnuflag.BoolVar(&c.acceptCert, "accept-certificate", false, gettext.Gettext("Accept certificate"))
-	gnuflag.StringVar(&c.password, "password", "", gettext.Gettext("Remote admin password"))
-	gnuflag.BoolVar(&c.public, "public", false, gettext.Gettext("Public image server"))
+	gnuflag.BoolVar(&c.acceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
+	gnuflag.StringVar(&c.password, "password", "", i18n.G("Remote admin password"))
+	gnuflag.BoolVar(&c.public, "public", false, i18n.G("Public image server"))
 }
 
 func addServer(config *lxd.Config, server string, addr string, acceptCert bool, password string, public bool) error {
@@ -153,7 +153,7 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 	}
 
 	if password == "" {
-		fmt.Printf(gettext.Gettext("Admin password for %s: "), server)
+		fmt.Printf(i18n.G("Admin password for %s: "), server)
 		pwd, err := terminal.ReadPassword(0)
 		if err != nil {
 			/* We got an error, maybe this isn't a terminal, let's try to
@@ -173,10 +173,10 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 	}
 
 	if !c.AmTrusted() {
-		return fmt.Errorf(gettext.Gettext("Server doesn't trust us after adding our cert"))
+		return fmt.Errorf(i18n.G("Server doesn't trust us after adding our cert"))
 	}
 
-	fmt.Println(gettext.Gettext("Client certificate stored at server: "), server)
+	fmt.Println(i18n.G("Client certificate stored at server: "), server)
 	return nil
 }
 
@@ -199,7 +199,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if rc, ok := config.Remotes[args[1]]; ok {
-			return fmt.Errorf(gettext.Gettext("remote %s exists as <%s>"), args[1], rc.Addr)
+			return fmt.Errorf(i18n.G("remote %s exists as <%s>"), args[1], rc.Addr)
 		}
 
 		err := addServer(config, args[1], args[2], c.acceptCert, c.password, c.public)
@@ -215,11 +215,11 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if _, ok := config.Remotes[args[1]]; !ok {
-			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
+			return fmt.Errorf(i18n.G("remote %s doesn't exist"), args[1])
 		}
 
 		if config.DefaultRemote == args[1] {
-			return fmt.Errorf(gettext.Gettext("can't remove the default remote"))
+			return fmt.Errorf(i18n.G("can't remove the default remote"))
 		}
 
 		delete(config.Remotes, args[1])
@@ -230,17 +230,17 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		data := [][]string{}
 		for name, rc := range config.Remotes {
 			if rc.Public {
-				data = append(data, []string{name, rc.Addr, gettext.Gettext("YES")})
+				data = append(data, []string{name, rc.Addr, i18n.G("YES")})
 			} else {
-				data = append(data, []string{name, rc.Addr, gettext.Gettext("NO")})
+				data = append(data, []string{name, rc.Addr, i18n.G("NO")})
 			}
 		}
 
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetHeader([]string{
-			gettext.Gettext("NAME"),
-			gettext.Gettext("URL"),
-			gettext.Gettext("PUBLIC")})
+			i18n.G("NAME"),
+			i18n.G("URL"),
+			i18n.G("PUBLIC")})
 		sort.Sort(ByName(data))
 		table.AppendBulk(data)
 		table.Render()
@@ -254,11 +254,11 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 
 		rc, ok := config.Remotes[args[1]]
 		if !ok {
-			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
+			return fmt.Errorf(i18n.G("remote %s doesn't exist"), args[1])
 		}
 
 		if _, ok := config.Remotes[args[2]]; ok {
-			return fmt.Errorf(gettext.Gettext("remote %s already exists"), args[2])
+			return fmt.Errorf(i18n.G("remote %s already exists"), args[2])
 		}
 
 		config.Remotes[args[2]] = rc
@@ -274,7 +274,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 		_, ok := config.Remotes[args[1]]
 		if !ok {
-			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
+			return fmt.Errorf(i18n.G("remote %s doesn't exist"), args[1])
 		}
 		config.Remotes[args[1]] = lxd.RemoteConfig{Addr: args[2]}
 
@@ -285,7 +285,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 
 		_, ok := config.Remotes[args[1]]
 		if !ok {
-			return fmt.Errorf(gettext.Gettext("remote %s doesn't exist"), args[1])
+			return fmt.Errorf(i18n.G("remote %s doesn't exist"), args[1])
 		}
 		config.DefaultRemote = args[1]
 

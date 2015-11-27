@@ -7,11 +7,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/chai2010/gettext-go/gettext"
 	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -23,7 +23,7 @@ func (c *profileCmd) showByDefault() bool {
 	return true
 }
 
-var profileEditHelp string = gettext.Gettext(
+var profileEditHelp string = i18n.G(
 	`### This is a yaml representation of the profile.
 ### Any line starting with a '# will be ignored.
 ###
@@ -43,7 +43,7 @@ var profileEditHelp string = gettext.Gettext(
 ### Note that the name is shown but cannot be changed`)
 
 func (c *profileCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Manage configuration profiles.
 
 lxc profile list [filters]                     List available profiles.
@@ -133,7 +133,7 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 func doProfileCreate(client *lxd.Client, p string) error {
 	err := client.ProfileCreate(p)
 	if err == nil {
-		fmt.Printf(gettext.Gettext("Profile %s created")+"\n", p)
+		fmt.Printf(i18n.G("Profile %s created")+"\n", p)
 	}
 	return err
 }
@@ -181,8 +181,8 @@ func doProfileEdit(client *lxd.Client, p string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, gettext.Gettext("Config parsing error: %s")+"\n", err)
-			fmt.Println(gettext.Gettext("Press enter to open the editor again"))
+			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to open the editor again"))
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
@@ -203,7 +203,7 @@ func doProfileEdit(client *lxd.Client, p string) error {
 func doProfileDelete(client *lxd.Client, p string) error {
 	err := client.ProfileDelete(p)
 	if err == nil {
-		fmt.Printf(gettext.Gettext("Profile %s deleted")+"\n", p)
+		fmt.Printf(i18n.G("Profile %s deleted")+"\n", p)
 	}
 	return err
 }
@@ -212,9 +212,9 @@ func doProfileApply(client *lxd.Client, c string, p string) error {
 	resp, err := client.ApplyProfile(c, p)
 	if err == nil {
 		if p == "" {
-			p = gettext.Gettext("(none)")
+			p = i18n.G("(none)")
 		}
-		fmt.Printf(gettext.Gettext("Profile %s applied to %s")+"\n", p, c)
+		fmt.Printf(i18n.G("Profile %s applied to %s")+"\n", p, c)
 	} else {
 		return err
 	}
@@ -321,7 +321,7 @@ func doProfileList(config *lxd.Config, args []string) error {
 		var name string
 		remote, name = config.ParseRemoteAndContainer(args[1])
 		if name != "" {
-			return fmt.Errorf(gettext.Gettext("Cannot provide container name to list"))
+			return fmt.Errorf(i18n.G("Cannot provide container name to list"))
 		}
 	} else {
 		remote = config.DefaultRemote
