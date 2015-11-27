@@ -1,9 +1,8 @@
 package main
 
 import (
-	"github.com/chai2010/gettext-go/gettext"
-
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -16,7 +15,7 @@ func (c *moveCmd) showByDefault() bool {
 }
 
 func (c *moveCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Move containers within or in between lxd instances.
 
 lxc move [remote:]<source container> [remote:]<destination container>`)

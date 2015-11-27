@@ -8,7 +8,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 
-	"github.com/satori/go.uuid"
+	"github.com/pborman/uuid"
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
@@ -202,7 +202,7 @@ func (s *storageZfs) ContainerDelete(container container) error {
 			return err
 		}
 
-		err = s.zfsRename(fs, fmt.Sprintf("deleted/containers/%s", uuid.NewV4().String()))
+		err = s.zfsRename(fs, fmt.Sprintf("deleted/containers/%s", uuid.NewRandom().String()))
 		if err != nil {
 			return err
 		}
@@ -243,7 +243,7 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 
 	if sourceSnap == "" {
 		if s.zfsExists(fmt.Sprintf("containers/%s", sourceName)) {
-			sourceSnap = fmt.Sprintf("copy-%s", uuid.NewV4().String())
+			sourceSnap = fmt.Sprintf("copy-%s", uuid.NewRandom().String())
 			sourceFs = fmt.Sprintf("containers/%s", sourceName)
 			err := s.zfsSnapshotCreate(fmt.Sprintf("containers/%s", sourceName), sourceSnap)
 			if err != nil {
@@ -371,7 +371,7 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 			return err
 		}
 	} else {
-		err = s.zfsSnapshotRename(fmt.Sprintf("containers/%s", cName), snapName, fmt.Sprintf("copy-%s", uuid.NewV4().String()))
+		err = s.zfsSnapshotRename(fmt.Sprintf("containers/%s", cName), snapName, fmt.Sprintf("copy-%s", uuid.NewRandom().String()))
 		if err != nil {
 			return err
 		}

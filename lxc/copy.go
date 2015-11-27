@@ -6,9 +6,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/chai2010/gettext-go/gettext"
-
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
@@ -22,15 +21,15 @@ func (c *copyCmd) showByDefault() bool {
 }
 
 func (c *copyCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Copy containers within or in between lxd instances.
 
 lxc copy [remote:]<source container> [remote:]<destination container> [--ephemeral|e]`)
 }
 
 func (c *copyCmd) flags() {
-	gnuflag.BoolVar(&c.ephem, "ephemeral", false, gettext.Gettext("Ephemeral container"))
-	gnuflag.BoolVar(&c.ephem, "e", false, gettext.Gettext("Ephemeral container"))
+	gnuflag.BoolVar(&c.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
+	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
 }
 
 func copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int) error {
@@ -38,7 +37,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 	destRemote, destName := config.ParseRemoteAndContainer(destResource)
 
 	if sourceName == "" {
-		return fmt.Errorf(gettext.Gettext("you must specify a source container name"))
+		return fmt.Errorf(i18n.G("you must specify a source container name"))
 	}
 
 	if destName == "" {
@@ -78,7 +77,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 	// Do a local copy if the remotes are the same, otherwise do a migration
 	if sourceRemote == destRemote {
 		if sourceName == destName {
-			return fmt.Errorf(gettext.Gettext("can't copy to the same container name"))
+			return fmt.Errorf(i18n.G("can't copy to the same container name"))
 		}
 
 		cp, err := source.LocalCopy(sourceName, destName, status.Config, status.Profiles, ephemeral == 1)
@@ -104,7 +103,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		}
 
 		if !sourceProfs.IsSubset(shared.NewStringSet(destProfs)) {
-			return fmt.Errorf(gettext.Gettext("not all the profiles from the source exist on the target"))
+			return fmt.Errorf(i18n.G("not all the profiles from the source exist on the target"))
 		}
 
 		if ephemeral == -1 {

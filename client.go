@@ -21,9 +21,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chai2010/gettext-go/gettext"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -110,7 +110,7 @@ func (r *Response) MetadataAsOperation() (*shared.Operation, error) {
 // response (e.g. to inspect the error code).
 func ParseResponse(r *http.Response) (*Response, error) {
 	if r == nil {
-		return nil, fmt.Errorf(gettext.Gettext("no response!"))
+		return nil, fmt.Errorf(i18n.G("no response!"))
 	}
 	defer r.Body.Close()
 	ret := Response{}
@@ -146,7 +146,7 @@ func HoistResponse(r *http.Response, rtype ResponseType) (*Response, error) {
 	}
 
 	if resp.Type != rtype {
-		return nil, fmt.Errorf(gettext.Gettext("got bad response type, expected %s got %s"), rtype, resp.Type)
+		return nil, fmt.Errorf(i18n.G("got bad response type, expected %s got %s"), rtype, resp.Type)
 	}
 
 	return resp, nil
@@ -184,7 +184,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 	c.name = remote
 
 	if remote == "" {
-		return nil, fmt.Errorf(gettext.Gettext("A remote name must be provided."))
+		return nil, fmt.Errorf(i18n.G("A remote name must be provided."))
 	}
 
 	if r, ok := config.Remotes[remote]; ok {
@@ -250,7 +250,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			c.Remote = &r
 		}
 	} else {
-		return nil, fmt.Errorf(gettext.Gettext("unknown remote name: %q"), remote)
+		return nil, fmt.Errorf(i18n.G("unknown remote name: %q"), remote)
 	}
 
 	if err := c.Finger(); err != nil {
@@ -272,11 +272,11 @@ func (c *Client) Addresses() ([]string, error) {
 	} else if c.Transport == "https" {
 		addresses = append(addresses, c.BaseURL[8:])
 	} else {
-		return nil, fmt.Errorf(gettext.Gettext("unknown transport type: %s"), c.Transport)
+		return nil, fmt.Errorf(i18n.G("unknown transport type: %s"), c.Transport)
 	}
 
 	if len(addresses) == 0 {
-		return nil, fmt.Errorf(gettext.Gettext("The source remote isn't available over the network"))
+		return nil, fmt.Errorf(i18n.G("The source remote isn't available over the network"))
 	}
 
 	return addresses, nil
@@ -304,7 +304,7 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 	if c.scert != nil && resp.TLS != nil {
 		if !bytes.Equal(resp.TLS.PeerCertificates[0].Raw, c.scert.Raw) {
 			pUrl, _ := url.Parse(getUrl)
-			return nil, fmt.Errorf(gettext.Gettext("Server certificate for host %s has changed. Add correct certificate or remove certificate in %s"), pUrl.Host, ConfigPath("servercerts"))
+			return nil, fmt.Errorf(i18n.G("Server certificate for host %s has changed. Add correct certificate or remove certificate in %s"), pUrl.Host, ConfigPath("servercerts"))
 		}
 	}
 
@@ -391,7 +391,7 @@ func (c *Client) getRaw(uri string) (*http.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf(gettext.Gettext("expected error, got %s"), resp)
+		return nil, fmt.Errorf(i18n.G("expected error, got %s"), resp)
 	}
 
 	return raw, nil
@@ -439,12 +439,12 @@ func unixDial(networ, addr string) (net.Conn, error) {
 	if addr == "unix.socket:80" {
 		raddr, err = net.ResolveUnixAddr("unix", shared.VarPath("unix.socket"))
 		if err != nil {
-			return nil, fmt.Errorf(gettext.Gettext("cannot resolve unix socket address: %v"), err)
+			return nil, fmt.Errorf(i18n.G("cannot resolve unix socket address: %v"), err)
 		}
 	} else { // TODO - I think this is dead code
 		raddr, err = net.ResolveUnixAddr("unix", addr)
 		if err != nil {
-			return nil, fmt.Errorf(gettext.Gettext("cannot resolve unix socket address: %v"), err)
+			return nil, fmt.Errorf(i18n.G("cannot resolve unix socket address: %v"), err)
 		}
 	}
 	return net.DialUnix("unix", nil, raddr)
@@ -476,7 +476,7 @@ func (c *Client) Finger() error {
 	}
 
 	if serverAPICompat != shared.APICompat {
-		return fmt.Errorf(gettext.Gettext("api version mismatch: mine: %q, daemon: %q"), shared.APICompat, serverAPICompat)
+		return fmt.Errorf(i18n.G("api version mismatch: mine: %q, daemon: %q"), shared.APICompat, serverAPICompat)
 	}
 	shared.Debugf("Pong received")
 	return nil
@@ -618,7 +618,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 			dest.DeleteAlias(alias.Name)
 			err = dest.PostAlias(alias.Name, alias.Description, info.Fingerprint)
 			if err != nil {
-				fmt.Printf(gettext.Gettext("Error adding alias %s")+"\n", alias.Name)
+				fmt.Printf(i18n.G("Error adding alias %s")+"\n", alias.Name)
 			}
 		}
 	}
@@ -628,7 +628,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		dest.DeleteAlias(alias)
 		err = dest.PostAlias(alias, alias, info.Fingerprint)
 		if err != nil {
-			fmt.Printf(gettext.Gettext("Error adding alias %s")+"\n", alias)
+			fmt.Printf(i18n.G("Error adding alias %s")+"\n", alias)
 		}
 	}
 
@@ -650,7 +650,7 @@ func (c *Client) ExportImage(image string, target string) (*Response, string, er
 	// Deal with split images
 	if ctype == "multipart/form-data" {
 		if !shared.IsDir(target) {
-			return nil, "", fmt.Errorf(gettext.Gettext("Split images can only be written to a directory."))
+			return nil, "", fmt.Errorf(i18n.G("Split images can only be written to a directory."))
 		}
 
 		// Parse the POST data
@@ -783,7 +783,7 @@ func (c *Client) PostImageURL(imageFile string, public bool, aliases []string) (
 	}
 
 	if op.Metadata == nil {
-		return "", fmt.Errorf(gettext.Gettext("Missing operation metadata"))
+		return "", fmt.Errorf(i18n.G("Missing operation metadata"))
 	}
 
 	fingerprint, err := op.Metadata.GetString("fingerprint")
@@ -796,7 +796,7 @@ func (c *Client) PostImageURL(imageFile string, public bool, aliases []string) (
 		c.DeleteAlias(alias)
 		err = c.PostAlias(alias, alias, fingerprint)
 		if err != nil {
-			fmt.Printf(gettext.Gettext("Error adding alias %s")+"\n", alias)
+			fmt.Printf(i18n.G("Error adding alias %s")+"\n", alias)
 		}
 	}
 
@@ -880,7 +880,7 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 			if eqIndex > -1 {
 				imgProps.Set(value[:eqIndex], value[eqIndex+1:])
 			} else {
-				return "", fmt.Errorf(gettext.Gettext("Bad image property: %s"), value)
+				return "", fmt.Errorf(i18n.G("Bad image property: %s"), value)
 			}
 
 		}
@@ -913,7 +913,7 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		c.DeleteAlias(alias)
 		err = c.PostAlias(alias, alias, fingerprint)
 		if err != nil {
-			fmt.Printf(gettext.Gettext("Error adding alias %s")+"\n", alias)
+			fmt.Printf(i18n.G("Error adding alias %s")+"\n", alias)
 		}
 	}
 
@@ -991,7 +991,7 @@ func (c *Client) ListAliases() ([]shared.ImageAlias, error) {
 
 func (c *Client) UserAuthServerCert(name string, acceptCert bool) error {
 	if !c.scertDigestSet {
-		return fmt.Errorf(gettext.Gettext("No certificate on this connection"))
+		return fmt.Errorf(i18n.G("No certificate on this connection"))
 	}
 
 	if c.scert != nil {
@@ -1004,14 +1004,14 @@ func (c *Client) UserAuthServerCert(name string, acceptCert bool) error {
 	})
 	if err != nil {
 		if acceptCert == false {
-			fmt.Printf(gettext.Gettext("Certificate fingerprint: %x")+"\n", c.scertDigest)
-			fmt.Printf(gettext.Gettext("ok (y/n)?") + " ")
+			fmt.Printf(i18n.G("Certificate fingerprint: %x")+"\n", c.scertDigest)
+			fmt.Printf(i18n.G("ok (y/n)?") + " ")
 			line, err := shared.ReadStdin()
 			if err != nil {
 				return err
 			}
 			if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
-				return fmt.Errorf(gettext.Gettext("Server certificate NACKed by user"))
+				return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
 			}
 		}
 	}
@@ -1020,7 +1020,7 @@ func (c *Client) UserAuthServerCert(name string, acceptCert bool) error {
 	dnam := ConfigPath("servercerts")
 	err = os.MkdirAll(dnam, 0750)
 	if err != nil {
-		return fmt.Errorf(gettext.Gettext("Could not create server cert dir"))
+		return fmt.Errorf(i18n.G("Could not create server cert dir"))
 	}
 	certf := fmt.Sprintf("%s/%s.crt", dnam, c.name)
 	certOut, err := os.Create(certf)
@@ -1110,7 +1110,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 	source := shared.Jmap{"type": "image"}
 
 	if image == "" {
-		return nil, fmt.Errorf(gettext.Gettext("You must provide an image hash or alias name."))
+		return nil, fmt.Errorf(i18n.G("You must provide an image hash or alias name."))
 	}
 
 	if imgremote != c.name {
@@ -1132,7 +1132,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		}
 
 		if len(architectures) != 0 && !shared.IntInSlice(imageinfo.Architecture, architectures) {
-			return nil, fmt.Errorf(gettext.Gettext("The image architecture is incompatible with the target server"))
+			return nil, fmt.Errorf(i18n.G("The image architecture is incompatible with the target server"))
 		}
 
 		// FIXME: InterfaceToBool is there for backward compatibility
@@ -1173,11 +1173,11 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 		imageinfo, err := c.GetImageInfo(fingerprint)
 		if err != nil {
-			return nil, fmt.Errorf(gettext.Gettext("can't get info for image '%s': %s"), image, err)
+			return nil, fmt.Errorf(i18n.G("can't get info for image '%s': %s"), image, err)
 		}
 
 		if len(architectures) != 0 && !shared.IntInSlice(imageinfo.Architecture, architectures) {
-			return nil, fmt.Errorf(gettext.Gettext("The image architecture is incompatible with the target server"))
+			return nil, fmt.Errorf(i18n.G("The image architecture is incompatible with the target server"))
 		}
 		source["fingerprint"] = fingerprint
 	}
@@ -1404,11 +1404,11 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 	}
 
 	if op.StatusCode != shared.Success {
-		return -1, fmt.Errorf(gettext.Gettext("got bad op status %s"), op.Status)
+		return -1, fmt.Errorf(i18n.G("got bad op status %s"), op.Status)
 	}
 
 	if op.Metadata == nil {
-		return -1, fmt.Errorf(gettext.Gettext("no metadata received"))
+		return -1, fmt.Errorf(i18n.G("no metadata received"))
 	}
 
 	return op.Metadata.GetInt("return")
@@ -1576,7 +1576,7 @@ func (c *Client) Rename(name string, newName string) (*Response, error) {
 /* Wait for an operation */
 func (c *Client) WaitFor(waitURL string) (*shared.Operation, error) {
 	if len(waitURL) < 1 {
-		return nil, fmt.Errorf(gettext.Gettext("invalid wait url %s"), waitURL)
+		return nil, fmt.Errorf(i18n.G("invalid wait url %s"), waitURL)
 	}
 
 	/* For convenience, waitURL is expected to be in the form of a
@@ -1772,7 +1772,7 @@ func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 
 func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
 	if profile.Name != name {
-		return fmt.Errorf(gettext.Gettext("Cannot change profile name"))
+		return fmt.Errorf(i18n.G("Cannot change profile name"))
 	}
 	body := shared.Jmap{"name": name, "config": profile.Config, "devices": profile.Devices}
 	_, err := c.put(fmt.Sprintf("profiles/%s", name), body, Sync)
@@ -1803,11 +1803,11 @@ func (c *Client) ListProfiles() ([]string, error) {
 		}
 
 		if count != 2 {
-			return nil, fmt.Errorf(gettext.Gettext("bad profile url %s"), url)
+			return nil, fmt.Errorf(i18n.G("bad profile url %s"), url)
 		}
 
 		if version != shared.APIVersion {
-			return nil, fmt.Errorf(gettext.Gettext("bad version in profile url"))
+			return nil, fmt.Errorf(i18n.G("bad version in profile url"))
 		}
 
 		names = append(names, name)
@@ -1849,14 +1849,14 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 	for _, p := range props {
 		results := strings.SplitN(p, "=", 2)
 		if len(results) != 2 {
-			return nil, fmt.Errorf(gettext.Gettext("no value found in %q"), p)
+			return nil, fmt.Errorf(i18n.G("no value found in %q"), p)
 		}
 		k := results[0]
 		v := results[1]
 		newdev[k] = v
 	}
 	if st.Devices != nil && st.Devices.ContainsName(devname) {
-		return nil, fmt.Errorf(gettext.Gettext("device already exists"))
+		return nil, fmt.Errorf(i18n.G("device already exists"))
 	}
 	newdev["type"] = devtype
 	if st.Devices == nil {
@@ -1906,14 +1906,14 @@ func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []stri
 	for _, p := range props {
 		results := strings.SplitN(p, "=", 2)
 		if len(results) != 2 {
-			return nil, fmt.Errorf(gettext.Gettext("no value found in %q"), p)
+			return nil, fmt.Errorf(i18n.G("no value found in %q"), p)
 		}
 		k := results[0]
 		v := results[1]
 		newdev[k] = v
 	}
 	if st.Devices != nil && st.Devices.ContainsName(devname) {
-		return nil, fmt.Errorf(gettext.Gettext("device already exists"))
+		return nil, fmt.Errorf(i18n.G("device already exists"))
 	}
 	newdev["type"] = devtype
 	if st.Devices == nil {
@@ -1977,7 +1977,7 @@ func (c *Client) AsyncWaitMeta(resp *Response) (*shared.Jmap, error) {
 	}
 
 	if op.StatusCode != shared.Success {
-		return nil, fmt.Errorf(gettext.Gettext("got bad op status %s"), op.Status)
+		return nil, fmt.Errorf(i18n.G("got bad op status %s"), op.Status)
 	}
 
 	return op.Metadata, nil
@@ -2010,7 +2010,7 @@ func (c *Client) ImageFromContainer(cname string, public bool, aliases []string,
 		c.DeleteAlias(alias)
 		err = c.PostAlias(alias, alias, fingerprint)
 		if err != nil {
-			fmt.Printf(gettext.Gettext("Error adding alias %s")+"\n", alias)
+			fmt.Printf(i18n.G("Error adding alias %s")+"\n", alias)
 		}
 	}
 

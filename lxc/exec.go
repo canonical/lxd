@@ -8,11 +8,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/chai2010/gettext-go/gettext"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
@@ -24,7 +24,7 @@ func (c *execCmd) showByDefault() bool {
 }
 
 func (c *execCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Execute the specified command in a container.
 
 lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>`)
@@ -48,7 +48,7 @@ func (f *envFlag) Set(value string) error {
 var envArgs envFlag
 
 func (c *execCmd) flags() {
-	gnuflag.Var(&envArgs, "env", gettext.Gettext("An environment variable of the form HOME=/home/foo"))
+	gnuflag.Var(&envArgs, "env", i18n.G("An environment variable of the form HOME=/home/foo"))
 }
 
 func sendTermSize(control *websocket.Conn) error {
@@ -143,5 +143,5 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 
 	/* we get the result of waitpid() here so we need to transform it */
 	os.Exit(ret >> 8)
-	return fmt.Errorf(gettext.Gettext("unreachable return reached"))
+	return fmt.Errorf(i18n.G("unreachable return reached"))
 }

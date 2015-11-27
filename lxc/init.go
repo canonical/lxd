@@ -6,9 +6,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/chai2010/gettext-go/gettext"
-
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
@@ -19,7 +18,7 @@ func (c *initCmd) showByDefault() bool {
 }
 
 func (c *initCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Initialize a container from a particular image.
 
 lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
@@ -61,12 +60,12 @@ func (f *configList) String() string {
 
 func (f *configList) Set(value string) error {
 	if value == "" {
-		return fmt.Errorf(gettext.Gettext("Invalid configuration key"))
+		return fmt.Errorf(i18n.G("Invalid configuration key"))
 	}
 
 	items := strings.SplitN(value, "=", 2)
 	if len(items) < 2 {
-		return fmt.Errorf(gettext.Gettext("Invalid configuration key"))
+		return fmt.Errorf(i18n.G("Invalid configuration key"))
 	}
 
 	if configMap == nil {
@@ -130,12 +129,12 @@ func massage_args() {
 
 func (c *initCmd) flags() {
 	massage_args()
-	gnuflag.Var(&confArgs, "config", gettext.Gettext("Config key/value to apply to the new container"))
-	gnuflag.Var(&confArgs, "c", gettext.Gettext("Config key/value to apply to the new container"))
-	gnuflag.Var(&profArgs, "profile", gettext.Gettext("Profile to apply to the new container"))
-	gnuflag.Var(&profArgs, "p", gettext.Gettext("Profile to apply to the new container"))
-	gnuflag.BoolVar(&ephem, "ephemeral", false, gettext.Gettext("Ephemeral container"))
-	gnuflag.BoolVar(&ephem, "e", false, gettext.Gettext("Ephemeral container"))
+	gnuflag.Var(&confArgs, "config", i18n.G("Config key/value to apply to the new container"))
+	gnuflag.Var(&confArgs, "c", i18n.G("Config key/value to apply to the new container"))
+	gnuflag.Var(&profArgs, "profile", i18n.G("Profile to apply to the new container"))
+	gnuflag.Var(&profArgs, "p", i18n.G("Profile to apply to the new container"))
+	gnuflag.BoolVar(&ephem, "ephemeral", false, i18n.G("Ephemeral container"))
+	gnuflag.BoolVar(&ephem, "e", false, i18n.G("Ephemeral container"))
 }
 
 func (c *initCmd) run(config *lxd.Config, args []string) error {
@@ -171,9 +170,9 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 
 	var resp *lxd.Response
 	if name == "" {
-		fmt.Printf(gettext.Gettext("Creating") + " ")
+		fmt.Printf(i18n.G("Creating") + " ")
 	} else {
-		fmt.Printf(gettext.Gettext("Creating %s")+" ", name)
+		fmt.Printf(i18n.G("Creating %s")+" ", name)
 	}
 	if !requested_empty_profiles && len(profiles) == 0 {
 		resp, err = d.Init(name, iremote, image, nil, configMap, ephem)
@@ -187,16 +186,16 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 
 	err = d.WaitForSuccess(resp.Operation)
 	if err != nil {
-		fmt.Println(gettext.Gettext("error."))
+		fmt.Println(i18n.G("error."))
 		return err
 	} else {
 		containers := resp.Resources["containers"]
 
 		if len(containers) == 1 && name == "" {
 			cname := path.Base(containers[0])
-			fmt.Println(cname, gettext.Gettext("done."))
+			fmt.Println(cname, i18n.G("done."))
 		} else {
-			fmt.Println(gettext.Gettext("done."))
+			fmt.Println(i18n.G("done."))
 		}
 	}
 	return nil

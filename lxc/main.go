@@ -9,9 +9,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/chai2010/gettext-go/gettext"
-
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
@@ -19,7 +18,7 @@ import (
 func main() {
 	if err := run(); err != nil {
 		// The action we take depends on the error we get.
-		msg := fmt.Sprintf(gettext.Gettext("error: %v"), err)
+		msg := fmt.Sprintf(i18n.G("error: %v"), err)
 		switch t := err.(type) {
 		case *url.Error:
 			switch u := t.Err.(type) {
@@ -29,11 +28,11 @@ func main() {
 					case syscall.Errno:
 						switch errno {
 						case syscall.ENOENT:
-							msg = gettext.Gettext("LXD socket not found; is LXD running?")
+							msg = i18n.G("LXD socket not found; is LXD running?")
 						case syscall.ECONNREFUSED:
-							msg = gettext.Gettext("Connection refused; is LXD running?")
+							msg = i18n.G("Connection refused; is LXD running?")
 						case syscall.EACCES:
-							msg = gettext.Gettext("Permisson denied, are you in the lxd group?")
+							msg = i18n.G("Permisson denied, are you in the lxd group?")
 						default:
 							msg = fmt.Sprintf("%d %s", uintptr(errno), errno.Error())
 						}
@@ -48,12 +47,9 @@ func main() {
 }
 
 func run() error {
-	gettext.BindTextdomain("lxd", "", nil)
-	gettext.Textdomain("lxd")
-
-	verbose := gnuflag.Bool("verbose", false, gettext.Gettext("Enables verbose mode."))
-	debug := gnuflag.Bool("debug", false, gettext.Gettext("Enables debug mode."))
-	forceLocal := gnuflag.Bool("force-local", false, gettext.Gettext("Force using the local unix socket."))
+	verbose := gnuflag.Bool("verbose", false, i18n.G("Enables verbose mode."))
+	debug := gnuflag.Bool("debug", false, i18n.G("Enables debug mode."))
+	forceLocal := gnuflag.Bool("force-local", false, i18n.G("Force using the local unix socket."))
 
 	configDir := os.Getenv("LXD_CONF")
 	if configDir != "" {
@@ -61,7 +57,7 @@ func run() error {
 	}
 
 	if len(os.Args) >= 3 && os.Args[1] == "config" && os.Args[2] == "profile" {
-		fmt.Fprintf(os.Stderr, gettext.Gettext("`lxc config profile` is deprecated, please use `lxc profile`")+"\n")
+		fmt.Fprintf(os.Stderr, i18n.G("`lxc config profile` is deprecated, please use `lxc profile`")+"\n")
 		os.Args = append(os.Args[:1], os.Args[2:]...)
 	}
 
@@ -115,13 +111,13 @@ func run() error {
 	cmd, ok := commands[name]
 	if !ok {
 		execIfAliases(config, origArgs)
-		fmt.Fprintf(os.Stderr, gettext.Gettext("error: unknown command: %s")+"\n", name)
+		fmt.Fprintf(os.Stderr, i18n.G("error: unknown command: %s")+"\n", name)
 		commands["help"].run(nil, nil)
 		os.Exit(1)
 	}
 	cmd.flags()
 	gnuflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, gettext.Gettext("Usage: %s")+"\n\n"+gettext.Gettext("Options:")+"\n\n", strings.TrimSpace(cmd.usage()))
+		fmt.Fprintf(os.Stderr, i18n.G("Usage: %s")+"\n\n"+i18n.G("Options:")+"\n\n", strings.TrimSpace(cmd.usage()))
 		gnuflag.PrintDefaults()
 	}
 
@@ -134,15 +130,15 @@ func run() error {
 	keyf := lxd.ConfigPath("client.key")
 
 	if !*forceLocal && os.Args[0] != "help" && os.Args[0] != "version" && (!shared.PathExists(certf) || !shared.PathExists(keyf)) {
-		fmt.Fprintf(os.Stderr, gettext.Gettext("Generating a client certificate. This may take a minute...")+"\n")
+		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
 
 		err = shared.FindOrGenCert(certf, keyf)
 		if err != nil {
 			return err
 		}
 
-		fmt.Fprintf(os.Stderr, gettext.Gettext("If this is your first run, you will need to import images using the 'lxd-images' script.")+"\n")
-		fmt.Fprintf(os.Stderr, gettext.Gettext("For example: 'lxd-images import ubuntu --alias ubuntu'.")+"\n")
+		fmt.Fprintf(os.Stderr, i18n.G("If this is your first run, you will need to import images using the 'lxd-images' script.")+"\n")
+		fmt.Fprintf(os.Stderr, i18n.G("For example: 'lxd-images import ubuntu --alias ubuntu'.")+"\n")
 	}
 
 	err = cmd.run(config, gnuflag.Args())
@@ -151,7 +147,7 @@ func run() error {
 		 * expand this as an alias
 		 */
 		execIfAliases(config, origArgs)
-		fmt.Fprintf(os.Stderr, gettext.Gettext("error: %v")+"\n%s\n", err, cmd.usage())
+		fmt.Fprintf(os.Stderr, i18n.G("error: %v")+"\n%s\n", err, cmd.usage())
 		os.Exit(1)
 	}
 	return err
@@ -191,7 +187,7 @@ var commands = map[string]command{
 	"version":  &versionCmd{},
 }
 
-var errArgs = fmt.Errorf(gettext.Gettext("wrong number of subcommand arguments"))
+var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
 
 func execIfAliases(config *lxd.Config, origArgs []string) {
 	newArgs := []string{}
@@ -215,11 +211,11 @@ func execIfAliases(config *lxd.Config, origArgs []string) {
 	if expandedAlias {
 		path, err := exec.LookPath(origArgs[0])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, gettext.Gettext("processing aliases failed %s\n"), err)
+			fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), err)
 			os.Exit(5)
 		}
 		ret := syscall.Exec(path, newArgs, syscall.Environ())
-		fmt.Fprintf(os.Stderr, gettext.Gettext("processing aliases failed %s\n"), ret)
+		fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), ret)
 		os.Exit(5)
 	}
 }
