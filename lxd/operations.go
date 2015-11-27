@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/satori/go.uuid"
+	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -364,7 +364,7 @@ func operationCreate(opClass operationClass, opResources map[string][]string, op
 
 	// Main attributes
 	op := operation{}
-	op.id = uuid.NewV4().String()
+	op.id = uuid.NewRandom().String()
 	op.class = opClass
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
