@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chai2010/gettext-go/gettext"
-
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
@@ -18,7 +17,7 @@ func (c *launchCmd) showByDefault() bool {
 }
 
 func (c *launchCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Launch a container from a particular image.
 
 lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
@@ -34,12 +33,12 @@ lxc launch ubuntu u1`)
 
 func (c *launchCmd) flags() {
 	massage_args()
-	gnuflag.Var(&confArgs, "config", gettext.Gettext("Config key/value to apply to the new container"))
-	gnuflag.Var(&confArgs, "c", gettext.Gettext("Config key/value to apply to the new container"))
-	gnuflag.Var(&profArgs, "profile", gettext.Gettext("Profile to apply to the new container"))
-	gnuflag.Var(&profArgs, "p", gettext.Gettext("Profile to apply to the new container"))
-	gnuflag.BoolVar(&ephem, "ephemeral", false, gettext.Gettext("Ephemeral container"))
-	gnuflag.BoolVar(&ephem, "e", false, gettext.Gettext("Ephemeral container"))
+	gnuflag.Var(&confArgs, "config", i18n.G("Config key/value to apply to the new container"))
+	gnuflag.Var(&confArgs, "c", i18n.G("Config key/value to apply to the new container"))
+	gnuflag.Var(&profArgs, "profile", i18n.G("Profile to apply to the new container"))
+	gnuflag.Var(&profArgs, "p", i18n.G("Profile to apply to the new container"))
+	gnuflag.BoolVar(&ephem, "ephemeral", false, i18n.G("Ephemeral container"))
+	gnuflag.BoolVar(&ephem, "e", false, i18n.G("Ephemeral container"))
 }
 
 func (c *launchCmd) run(config *lxd.Config, args []string) error {
@@ -82,12 +81,12 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 
 	if name == "" {
 		if resp.Resources == nil {
-			return fmt.Errorf(gettext.Gettext("didn't get any affected image, container or snapshot from server"))
+			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
 		}
 
 		containers, ok := resp.Resources["containers"]
 		if !ok || len(containers) == 0 {
-			return fmt.Errorf(gettext.Gettext("didn't get any affected image, container or snapshot from server"))
+			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
 		}
 
 		var version string
@@ -98,21 +97,21 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if count != 2 {
-			return fmt.Errorf(gettext.Gettext("bad number of things scanned from image, container or snapshot"))
+			return fmt.Errorf(i18n.G("bad number of things scanned from image, container or snapshot"))
 		}
 
 		if version != shared.APIVersion {
-			return fmt.Errorf(gettext.Gettext("got bad version"))
+			return fmt.Errorf(i18n.G("got bad version"))
 		}
 	}
-	fmt.Printf(gettext.Gettext("Creating %s")+" ", name)
+	fmt.Printf(i18n.G("Creating %s")+" ", name)
 
 	if err = d.WaitForSuccess(resp.Operation); err != nil {
 		return err
 	}
-	fmt.Println(gettext.Gettext("done."))
+	fmt.Println(i18n.G("done."))
 
-	fmt.Printf(gettext.Gettext("Starting %s")+" ", name)
+	fmt.Printf(i18n.G("Starting %s")+" ", name)
 	resp, err = d.Action(name, shared.Start, -1, false)
 	if err != nil {
 		return err
@@ -120,11 +119,11 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 
 	err = d.WaitForSuccess(resp.Operation)
 	if err != nil {
-		fmt.Println(gettext.Gettext("error."))
-		return fmt.Errorf("%s\n"+gettext.Gettext("Try `lxc info --show-log %s` for more info"), err, name)
+		fmt.Println(i18n.G("error."))
+		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, name)
 	}
 
-	fmt.Println(gettext.Gettext("done."))
+	fmt.Println(i18n.G("done."))
 
 	return nil
 }

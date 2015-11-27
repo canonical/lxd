@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/chai2010/gettext-go/gettext"
-
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -16,7 +15,7 @@ func (c *versionCmd) showByDefault() bool {
 }
 
 func (c *versionCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Prints the version number of LXD.
 
 lxc version`)

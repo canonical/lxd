@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chai2010/gettext-go/gettext"
-
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
@@ -17,7 +16,7 @@ func (c *publishCmd) showByDefault() bool {
 }
 
 func (c *publishCmd) usage() string {
-	return gettext.Gettext(
+	return i18n.G(
 		`Publish containers as images.
 
 lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]...`)
@@ -27,8 +26,8 @@ var pAliases aliasList // aliasList defined in lxc/image.go
 var makePublic bool
 
 func (c *publishCmd) flags() {
-	gnuflag.BoolVar(&makePublic, "public", false, gettext.Gettext("Make the image public"))
-	gnuflag.Var(&pAliases, "alias", gettext.Gettext("New alias to define at target"))
+	gnuflag.BoolVar(&makePublic, "public", false, i18n.G("Make the image public"))
+	gnuflag.Var(&pAliases, "alias", i18n.G("New alias to define at target"))
 }
 
 func (c *publishCmd) run(config *lxd.Config, args []string) error {
@@ -52,10 +51,10 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if cName == "" {
-		return fmt.Errorf(gettext.Gettext("Container name is mandatory"))
+		return fmt.Errorf(i18n.G("Container name is mandatory"))
 	}
 	if iName != "" {
-		return fmt.Errorf(gettext.Gettext("There is no \"image name\".  Did you want an alias?"))
+		return fmt.Errorf(i18n.G("There is no \"image name\".  Did you want an alias?"))
 	}
 
 	d, err := lxd.NewClient(config, iRemote)
@@ -79,7 +78,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf(gettext.Gettext("Container published with fingerprint: %s")+"\n", fp)
+		fmt.Printf(i18n.G("Container published with fingerprint: %s")+"\n", fp)
 		return nil
 	}
 
@@ -99,7 +98,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	fmt.Printf(gettext.Gettext("Container published with fingerprint: %s")+"\n", fp)
+	fmt.Printf(i18n.G("Container published with fingerprint: %s")+"\n", fp)
 
 	return nil
 }
