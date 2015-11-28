@@ -53,23 +53,23 @@ currently supported:
 
 The currently supported keys are:
 
-Key                         | Type          | Default           | Description
-:--                         | :---          | :------           | :----------
-boot.autostart              | boolean       | false             | Always start the container when LXD starts
-boot.autostart.delay        | integer       | 0                 | Number of seconds to wait after the container started before starting the next one
-boot.autostart.priority     | integer       | 0                 | What order to start the containers in (starting with highest)
-environment.\*              | string        | -                 | key/value environment variables to export to the container and set on exec
-limits.cpus                 | integer       | 0 (all)           | Number of CPUs to expose to the container
-limits.memory               | integer       | 0 (all)           | Size in bytes of the memory allocation for the container (supported suffixes: k, K, m, M, g or G)
-raw.apparmor                | blob          | -                 | Apparmor profile entries to be appended to the generated profile
-raw.lxc                     | blob          | -                 | Raw LXC configuration to be appended to the generated one
-security.nesting            | boolean       | false             | Support running lxd (nested) inside the container
-security.privileged         | boolean       | false             | Runs the container in privileged mode
-user.\*                     | string        | -                 | Free form user key/value storage (can be used in search)
-volatile.\<name\>.hwaddr    | string        | -                 | Unique MAC address for a given interface (generated and set by LXD when the hwaddr field of a "nic" type device isn't set)
-volatile.base\_image        | string        | -                 | The hash of the image the container was created from, if any.
-volatile.last\_state.idmap  | string        | -                 | Serialized container uid/gid map
-volatile.last\_state.power  | string        | -                 | Container state as of last host shutdown
+Key                             | Type          | Default           | Description
+:--                             | :---          | :------           | :----------
+boot.autostart                  | boolean       | false             | Always start the container when LXD starts
+boot.autostart.delay            | integer       | 0                 | Number of seconds to wait after the container started before starting the next one
+boot.autostart.priority         | integer       | 0                 | What order to start the containers in (starting with highest)
+environment.\*                  | string        | -                 | key/value environment variables to export to the container and set on exec
+limits.cpu                      | string        | - (all)           | Number or range of CPUs to expose to the container
+limits.memory                   | string        | - (all)           | Size in bytes of the memory allocation for the container (supported suffixes: k, K, m, M, g or G)
+raw.apparmor                    | blob          | -                 | Apparmor profile entries to be appended to the generated profile
+raw.lxc                         | blob          | -                 | Raw LXC configuration to be appended to the generated one
+security.nesting                | boolean       | false             | Support running lxd (nested) inside the container
+security.privileged             | boolean       | false             | Runs the container in privileged mode
+user.\*                         | string        | -                 | Free form user key/value storage (can be used in search)
+volatile.\<name\>.hwaddr        | string        | -                 | Unique MAC address for a given interface (generated and set by LXD when the hwaddr field of a "nic" type device isn't set)
+volatile.base\_image            | string        | -                 | The hash of the image the container was created from, if any.
+volatile.last\_state.idmap      | string        | -                 | Serialized container uid/gid map
+volatile.last\_state.power      | string        | -                 | Container state as of last host shutdown
 
 
 Additionally, those user keys have become common with images (support isn't guaranteed):
@@ -231,7 +231,7 @@ configurations would look like:
         'profiles': ["default"],
         'architecture': 'x86_64',
         'config': {
-            'limits.cpus': '3',
+            'limits.cpu': '3',
             'security.privileged': 'true'
         },
         'devices': {

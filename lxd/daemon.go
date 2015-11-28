@@ -764,6 +764,9 @@ func (d *Daemon) Init() error {
 			containersRestart(d)
 		}()
 
+		/* Start the scheduler */
+		go deviceTaskScheduler(d)
+
 		/* Setup the TLS authentication */
 		certf, keyf, err := readMyCert()
 		if err != nil {

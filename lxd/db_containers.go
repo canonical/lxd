@@ -349,7 +349,7 @@ func ValidContainerConfigKey(k string) bool {
 		return true
 	case "boot.autostart.priority":
 		return true
-	case "limits.cpus":
+	case "limits.cpu":
 		return true
 	case "limits.memory":
 		return true
