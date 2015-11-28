@@ -147,6 +147,7 @@ type container interface {
 	Export(w io.Writer) error
 
 	// Live configuration
+	SetCGroup(key string, value string) error
 	ConfigKeySet(key string, value string) error
 
 	// Status
@@ -1107,6 +1108,8 @@ func (c *containerLXD) OnStart() error {
 		return err
 	}
 
+	deviceSchedRebalance <- []string{"container", c.name, "started"}
+
 	return nil
 }
 
@@ -1194,6 +1197,8 @@ func (c *containerLXD) OnStop() error {
 			}
 		}
 	}(c)
+
+	deviceSchedRebalance <- []string{"container", c.name, "stopped"}
 
 	return nil
 }
@@ -1378,6 +1383,10 @@ func (c *containerLXD) Rename(newName string) error {
 	return nil
 }
 
+func (c *containerLXD) SetCGroup(key string, value string) error {
+	return c.c.SetCgroupItem(key, value)
+}
+
 func (c *containerLXD) IsEphemeral() bool {
 	return c.ephemeral
 }
@@ -1485,7 +1494,17 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	 * successfully before saving it. in particular, raw.lxc and
 	 * raw.apparmor need to be parsed once to make sure they make sense.
 	 */
-	preDevList := c.devices
+
+	// Get a copy of the old expanded entries
+	preDevices := shared.Devices{}
+	if err := shared.DeepCopy(&c.devices, &preDevices); err != nil {
+		return err
+	}
+
+	preConfig := map[string]string{}
+	if err := shared.DeepCopy(&c.config, &preConfig); err != nil {
+		return err
+	}
 
 	if err := c.applyConfig(newContainerArgs.Config); err != nil {
 		return err
@@ -1573,7 +1592,7 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 			return fmt.Errorf("Error reading devices from profile '%s': %v", p, err)
 		}
 
-		newContainerArgs.Devices.ExtendFromProfile(preDevList, profileDevs)
+		newContainerArgs.Devices.ExtendFromProfile(preDevices, profileDevs)
 	}
 
 	tx, err = dbBegin(c.daemon.db)
@@ -1581,13 +1600,37 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 		return err
 	}
 
-	if err := devicesApplyDeltaLive(tx, c, preDevList, newContainerArgs.Devices); err != nil {
+	if err := devicesApplyDeltaLive(tx, c, preDevices, newContainerArgs.Devices); err != nil {
 		tx.Rollback()
 		return err
 	}
 
 	if err := txCommit(tx); err != nil {
 		return err
+	}
+
+	// deal with config changes
+	changedKeys := []string{}
+	for key, _ := range preConfig {
+		if preConfig[key] != c.config[key] {
+			if !shared.StringInSlice(key, changedKeys) {
+				changedKeys = append(changedKeys, key)
+			}
+		}
+	}
+
+	for key, _ := range c.config {
+		if preConfig[key] != c.config[key] {
+			if !shared.StringInSlice(key, changedKeys) {
+				changedKeys = append(changedKeys, key)
+			}
+		}
+	}
+
+	for _, key := range changedKeys {
+		if key == "limits.cpu" {
+			deviceSchedRebalance <- []string{"container", c.name, "changed"}
+		}
 	}
 
 	return nil
@@ -1935,19 +1978,6 @@ func (c *containerLXD) applyConfig(config map[string]string) error {
 	var err error
 	for k, v := range config {
 		switch k {
-		case "limits.cpus":
-			// TODO - Come up with a way to choose cpus for multiple
-			// containers
-			var vint int
-			count, err := fmt.Sscanf(v, "%d", &vint)
-			if err != nil {
-				return err
-			}
-			if count != 1 || vint < 0 || vint > 65000 {
-				return fmt.Errorf("Bad cpu limit: %s", v)
-			}
-			cpuset := fmt.Sprintf("0-%d", vint-1)
-			err = setConfigItem(c, "lxc.cgroup.cpuset.cpus", cpuset)
 		case "limits.memory":
 			err = setConfigItem(c, "lxc.cgroup.memory.limit_in_bytes", v)
 
