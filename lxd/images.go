@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
@@ -23,6 +24,15 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
+
+/* We only want a single publish running at any one time.
+   The CPU and I/O load of publish is such that running multiple ones in
+   parallel takes longer than running them serially.
+
+   Additionaly, publishing the same container or container snapshot
+   twice would lead to storage problem, not to mention a conflict at the
+   end for whichever finishes last. */
+var imagePublishLock sync.Mutex
 
 func detectCompression(fname string) ([]string, string, error) {
 	f, err := os.Open(fname)
@@ -738,10 +748,13 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			}
 		} else {
 			/* Processing image creation from container */
+			imagePublishLock.Lock()
 			info, err = imgPostContInfo(d, r, req, builddir)
 			if err != nil {
+				imagePublishLock.Unlock()
 				return err
 			}
+			imagePublishLock.Unlock()
 		}
 
 		metadata, err := imageBuildFromInfo(d, info)
