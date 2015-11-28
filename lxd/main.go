@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -137,6 +138,8 @@ func run() error {
 		fmt.Printf("        Push a file to a running container\n")
 		fmt.Printf("    forkstart\n")
 		fmt.Printf("        Start a container\n")
+		fmt.Printf("    setstatus\n")
+		fmt.Printf("        Advises LXD of container status\n")
 	}
 
 	// Parse the arguments
@@ -189,6 +192,8 @@ func run() error {
 			return MigrateContainer(os.Args[1:])
 		case "forkstart":
 			return startContainer(os.Args[1:])
+		case "setstatus":
+			return setStatus(os.Args[1:])
 		case "init":
 			return setupLXD()
 		case "shutdown":
@@ -205,6 +210,44 @@ func run() error {
 	}
 
 	return daemon()
+}
+
+func setStatus(args []string) error {
+	if len(args) < 4 {
+		return fmt.Errorf("Invalid arguments")
+	}
+
+	path := args[1]
+	id := args[2]
+	state := args[3]
+
+	err := os.Setenv("LXD_DIR", path)
+	if err != nil {
+		return err
+	}
+
+	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/internal/containers/%s/on%s", c.BaseURL, id, state), nil)
+	if err != nil {
+		return err
+	}
+
+	raw, err := c.Http.Do(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = lxd.HoistResponse(raw, lxd.Sync)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("called for %s in state %s with path %s\n", id, state, path)
+	return nil
 }
 
 func daemon() error {
@@ -267,6 +310,18 @@ func daemon() error {
 	}()
 
 	go func() {
+		<-d.shutdownChan
+
+		shared.Log.Info(
+			fmt.Sprintf("Asked to shutdown by API, shutting down containers."))
+
+		containersShutdown(d)
+
+		ret = d.Stop()
+		wg.Done()
+	}()
+
+	go func() {
 		ch := make(chan os.Signal)
 		signal.Notify(ch, syscall.SIGINT)
 		signal.Notify(ch, syscall.SIGQUIT)
@@ -296,17 +351,12 @@ func cleanShutdown() error {
 		return err
 	}
 
-	serverStatus, err := c.ServerStatus()
+	req, err := http.NewRequest("PUT", c.BaseURL+"/internal/shutdown", nil)
 	if err != nil {
 		return err
 	}
 
-	pid := serverStatus.Environment.ServerPid
-	if pid < 1 {
-		return fmt.Errorf("Invalid server PID: %d", pid)
-	}
-
-	err = syscall.Kill(pid, syscall.SIGPWR)
+	_, err = c.Http.Do(req)
 	if err != nil {
 		return err
 	}

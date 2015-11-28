@@ -166,6 +166,9 @@ type container interface {
 	IsEphemeral() bool
 	IsSnapshot() bool
 
+	OnStart() error
+	OnStop() error
+
 	ID() int
 	Name() string
 	Architecture() int
@@ -634,6 +637,12 @@ func (c *containerLXD) init() error {
 	if err := setConfigItem(c, "lxc.console", "none"); err != nil {
 		return err
 	}
+	if err := setConfigItem(c, "lxc.hook.pre-start", fmt.Sprintf("%s setstatus %s %d start", os.Args[0], shared.VarPath(""), c.id)); err != nil {
+		return err
+	}
+	if err := setConfigItem(c, "lxc.hook.post-stop", fmt.Sprintf("%s setstatus %s %d stop", os.Args[0], shared.VarPath(""), c.id)); err != nil {
+		return err
+	}
 	if err := setupDevLxdMount(c); err != nil {
 		return err
 	}
@@ -935,7 +944,6 @@ func (c *containerLXD) setupUnixDev(m shared.Device) error {
  * container's configuration.
  */
 func (c *containerLXD) containerUp() error {
-
 	/*
 	 * add the lxc.* entries for the configured devices,
 	 * and create if necessary
@@ -948,6 +956,10 @@ func (c *containerLXD) containerUp() error {
 		return err
 	}
 
+	if err := SeccompCreateProfile(c); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -956,66 +968,11 @@ func (c *containerLXD) Start() error {
 		return fmt.Errorf("the container is already running")
 	}
 
-	// Start the storage for this container
-	if err := c.StorageStart(); err != nil {
-		return err
-	}
-
-	/* (Re)Load the AA profile; we set it in the container's config above
-	 * in init()
-	 */
-	if err := AALoadProfile(c); err != nil {
-		c.StorageStop()
-		return err
-	}
-
-	if err := SeccompCreateProfile(c); err != nil {
-		c.StorageStop()
-		return err
-	}
-
-	if err := c.containerUp(); err != nil {
-		c.StorageStop()
-		return err
-	}
-
-	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
-	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
-		return err
-	}
-	configPath := f.Name()
-	if err = f.Chmod(0600); err != nil {
-		f.Close()
-		os.Remove(configPath)
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
-		return err
-	}
-	f.Close()
-
-	err = c.c.SaveConfigFile(configPath)
-	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
-		return err
-	}
-
-	err = c.TemplateApply("start")
-	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
-		return err
-	}
-
 	/* Deal with idmap changes */
 	idmap := c.IdmapSet()
 
 	lastIdmap, err := c.LastIdmapSet()
 	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
 		return err
 	}
 
@@ -1023,8 +980,6 @@ func (c *containerLXD) Start() error {
 	if idmap != nil {
 		idmapBytes, err := json.Marshal(idmap.Idmap)
 		if err != nil {
-			unmountTempBlocks(c.Path(""))
-			c.StorageStop()
 			return err
 		}
 		jsonIdmap = string(idmapBytes)
@@ -1035,9 +990,10 @@ func (c *containerLXD) Start() error {
 	if !reflect.DeepEqual(idmap, lastIdmap) {
 		shared.Debugf("Container idmap changed, remapping")
 
+		c.StorageStart()
+
 		if lastIdmap != nil {
 			if err := lastIdmap.UnshiftRootfs(c.RootfsPath()); err != nil {
-				unmountTempBlocks(c.Path(""))
 				c.StorageStop()
 				return err
 			}
@@ -1045,7 +1001,6 @@ func (c *containerLXD) Start() error {
 
 		if idmap != nil {
 			if err := idmap.ShiftRootfs(c.RootfsPath()); err != nil {
-				unmountTempBlocks(c.Path(""))
 				c.StorageStop()
 				return err
 			}
@@ -1055,12 +1010,33 @@ func (c *containerLXD) Start() error {
 	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
 
 	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
 		return err
 	}
 
-	/* Actually start the container */
+	if err := c.containerUp(); err != nil {
+		return err
+	}
+
+	// Generate the LXC config
+	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
+	if err != nil {
+		return err
+	}
+
+	configPath := f.Name()
+	if err = f.Chmod(0600); err != nil {
+		f.Close()
+		os.Remove(configPath)
+		return err
+	}
+	f.Close()
+
+	err = c.c.SaveConfigFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	// Start the LXC container
 	out, err := exec.Command(
 		os.Args[0],
 		"forkstart",
@@ -1075,9 +1051,7 @@ func (c *containerLXD) Start() error {
 	}
 
 	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"Error calling 'lxd forkstart %s %s %s': err='%v'",
 			c.name,
 			c.daemon.lxcpath,
@@ -1085,15 +1059,30 @@ func (c *containerLXD) Start() error {
 			err)
 	}
 
-	if err == nil && c.ephemeral == true {
-		containerWatchEphemeral(c.daemon, c)
+	return nil
+}
+
+func (c *containerLXD) OnStart() error {
+	// Start the storage for this container
+	if err := c.StorageStart(); err != nil {
+		return err
 	}
 
-	if err != nil {
-		unmountTempBlocks(c.Path(""))
+	/* (Re)Load the AA profile; we set it in the container's config above
+	 * in init()
+	 */
+	if err := AALoadProfile(c); err != nil {
 		c.StorageStop()
+		return err
 	}
-	return err
+
+	err := c.TemplateApply("start")
+	if err != nil {
+		c.StorageStop()
+		return err
+	}
+
+	return nil
 }
 
 func (c *containerLXD) Reboot() error {
@@ -1137,17 +1126,6 @@ func (c *containerLXD) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
-	// Stop the storage for this container
-	if err := c.StorageStop(); err != nil {
-		return err
-	}
-
-	unmountTempBlocks(c.Path(""))
-
-	if err := AAUnloadProfile(c); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -1159,17 +1137,38 @@ func (c *containerLXD) Stop() error {
 		return err
 	}
 
+	return nil
+}
+
+func (c *containerLXD) OnStop() error {
 	// Stop the storage for this container
 	if err := c.StorageStop(); err != nil {
 		return err
 	}
 
-	// Clean up any mounts from previous runs
-	unmountTempBlocks(c.Path(""))
-
+	// Unlock the apparmor profile
 	if err := AAUnloadProfile(c); err != nil {
 		return err
 	}
+
+	go func(c *containerLXD) {
+		time.Sleep(5 * time.Second)
+
+		// Clean up any mounts from previous runs
+		unmountTempBlocks(c.Path(""))
+
+		// Destroy ephemeral containers
+		if c.ephemeral {
+			id, err := dbContainerID(c.daemon.db, c.Name())
+			if err != nil || id != c.id {
+				return
+			}
+
+			if !c.IsRunning() {
+				c.Delete()
+			}
+		}
+	}(c)
 
 	return nil
 }
@@ -1282,7 +1281,7 @@ func (c *containerLXD) Delete() error {
 		if err := c.storage.ContainerDelete(c); err != nil {
 			return err
 		}
-		unmountTempBlocks(c.Path(""))
+		unmountTempBlocks(c.Path("devices"))
 	case cTypeSnapshot:
 		if err := c.storage.ContainerSnapshotDelete(c); err != nil {
 			return err
@@ -2386,19 +2385,6 @@ func (c *containerLXD) StartFromMigration(imagesDir string) error {
 	}
 
 	if err := c.c.SaveConfigFile(f.Name()); err != nil {
-		return err
-	}
-
-	/* (Re)Load the AA profile; we set it in the container's config above
-	 * in init()
-	 */
-	if err := AALoadProfile(c); err != nil {
-		c.StorageStop()
-		return err
-	}
-
-	if err := SeccompCreateProfile(c); err != nil {
-		c.StorageStop()
 		return err
 	}
 

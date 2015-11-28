@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"sort"
 	"strconv"
 	"sync"
@@ -120,54 +119,6 @@ var containerSnapshotCmd = Command{
 var containerExecCmd = Command{
 	name: "containers/{name}/exec",
 	post: containerExecPost,
-}
-
-func containerWatchEphemeral(d *Daemon, c container) {
-	go func() {
-		lxContainer := c.LXContainerGet()
-
-		lxContainer.Wait(lxc.STOPPED, -1*time.Second)
-		lxContainer.Wait(lxc.RUNNING, 1*time.Second)
-		lxContainer.Wait(lxc.STOPPED, -1*time.Second)
-
-		_, err := dbContainerID(d.db, c.Name())
-		if err != nil {
-			return
-		}
-
-		c.Delete()
-	}()
-}
-
-func containersWatch(d *Daemon) error {
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=?")
-	inargs := []interface{}{cTypeRegular}
-	var name string
-	outfmt := []interface{}{name}
-
-	result, err := dbQueryScan(d.db, q, inargs, outfmt)
-	if err != nil {
-		return err
-	}
-
-	for _, r := range result {
-		container, err := containerLXDLoad(d, string(r[0].(string)))
-		if err != nil {
-			return err
-		}
-
-		if container.IsEphemeral() && container.IsRunning() {
-			containerWatchEphemeral(d, container)
-		}
-	}
-
-	/*
-	 * force collect the containers we created above; see comment in
-	 * daemon.go:createCmd.
-	 */
-	runtime.GC()
-
-	return nil
 }
 
 func containersRestart(d *Daemon) error {
