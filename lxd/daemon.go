@@ -61,6 +61,7 @@ type Daemon struct {
 	mux           *mux.Router
 	tomb          tomb.Tomb
 	pruneChan     chan bool
+	shutdownChan  chan bool
 
 	Storage storage
 
@@ -599,6 +600,8 @@ func haveMacAdmin() bool {
 }
 
 func (d *Daemon) Init() error {
+	d.shutdownChan = make(chan bool)
+
 	/* Setup logging if that wasn't done before */
 	if shared.Log == nil {
 		shared.SetLogger("", "", true, true, nil)
@@ -758,7 +761,6 @@ func (d *Daemon) Init() error {
 
 		/* Restart containers */
 		go func() {
-			containersWatch(d)
 			containersRestart(d)
 		}()
 
@@ -787,6 +789,10 @@ func (d *Daemon) Init() error {
 
 	for _, c := range api10 {
 		d.createCmd("1.0", c)
+	}
+
+	for _, c := range apiInternal {
+		d.createCmd("internal", c)
 	}
 
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

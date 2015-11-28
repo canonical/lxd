@@ -216,9 +216,20 @@ test_basic_usage() {
 
   # Ephemeral
   lxc launch testimage foo -e
+
+  OLD_INIT=$(lxc info foo | grep ^Init)
   lxc exec foo reboot
-  sleep 2
+
+  # shellcheck disable=SC2034
+  for i in $(seq 10); do
+    NEW_INIT=$(lxc info foo | grep ^Init)
+    [ "$OLD_INIT" != "$NEW_INIT" ] && break
+
+    sleep 0.5
+  done
+
+  [ "$OLD_INIT" != "$NEW_INIT" ]
+
   lxc stop foo --force
-  sleep 2
   ! lxc list | grep -q foo
 }
