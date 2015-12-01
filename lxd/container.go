@@ -281,7 +281,7 @@ func mountTmpBlockdev(cntPath string, d shared.Device) ([]string, error) {
 	opts = append(opts, "bind")
 	sb, err := os.Stat(source)
 	if err == nil {
-		if sb.IsDir() {
+		if sb.IsDir() || shared.IsBlockdevPath(source) {
 			opts = append(opts, "create=dir")
 		} else {
 			opts = append(opts, "create=file")
