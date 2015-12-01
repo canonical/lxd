@@ -180,12 +180,7 @@ func createDb(db *sql.DB) (err error) {
 		}
 	}
 
-	err = dbProfileCreateDefault(db)
-	if err != nil {
-		return err
-	}
-
-	return dbProfileCreateMigratable(db)
+	return dbProfileCreateDefault(db)
 }
 
 func dbGetSchema(db *sql.DB) (v int) {
