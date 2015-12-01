@@ -30,7 +30,7 @@ func storageLVMCheckVolumeGroup(vgName string) error {
 }
 
 func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
-	output, err := exec.Command("vgs", "--noheadings", "-o", "lv_attr", fmt.Sprintf("%s/%s", vgName, poolName)).CombinedOutput()
+	output, err := exec.Command("vgs", "--noheadings", "-o", "lv_attr", fmt.Sprintf("%s/%s", vgName, poolName)).Output()
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			waitStatus := exitError.Sys().(syscall.WaitStatus)
