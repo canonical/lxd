@@ -621,9 +621,6 @@ func (c *containerLXD) init() error {
 	if err := setConfigItem(c, "lxc.tty", "0"); err != nil {
 		return err
 	}
-	if err := setConfigItem(c, "lxc.cgroup.devices.deny", "c 5:1 rwm"); err != nil {
-		return err
-	}
 	if err := setConfigItem(c, "lxc.console", "none"); err != nil {
 		return err
 	}
@@ -647,6 +644,10 @@ func (c *containerLXD) init() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if err := setConfigItem(c, "lxc.cgroup.devices.deny", "c 5:1 rwm"); err != nil {
+		return err
 	}
 
 	if c.IsNesting() {
