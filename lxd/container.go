@@ -204,13 +204,13 @@ type container interface {
 
 // unmount and unlink any directories called $path/blk.$(mktemp)
 func unmountTempBlocks(path string) {
-	dents, err := ioutil.ReadDir(path)
+	dents, err := ioutil.ReadDir(filepath.Join(path, "devices"))
 	if err != nil {
 		return
 	}
 	for _, f := range dents {
 		bpath := f.Name()
-		dpath := filepath.Join(path, bpath)
+		dpath := filepath.Join(path, "devices", bpath)
 		if !strings.HasPrefix(bpath, "blk.") {
 			continue
 		}
@@ -253,9 +253,14 @@ func mountTmpBlockdev(cntPath string, d shared.Device) ([]string, error) {
 	}
 	opts, readonly, optional := getMountOptions(d)
 
+	if !shared.PathExists(filepath.Join(cntPath, "devices")) {
+		os.Mkdir(filepath.Join(cntPath, "devices"), 0711)
+	}
+
 	// Mount blockdev into $containerdir/blk.$(mktemp)
 	fnam := fmt.Sprintf("blk.%s", strings.Replace(source, "/", "-", -1))
-	blkmnt := filepath.Join(cntPath, fnam)
+	blkmnt := filepath.Join(cntPath, "devices", fnam)
+
 	syscall.Unmount(blkmnt, syscall.MNT_DETACH)
 	os.Remove(blkmnt)
 	if err = os.Mkdir(blkmnt, 0660); err != nil {
@@ -266,10 +271,12 @@ func mountTmpBlockdev(cntPath string, d shared.Device) ([]string, error) {
 		}
 		return []string{}, fmt.Errorf("Unable to create mountpoint for blockdev %s: %s", source, err)
 	}
+
 	flags := 0
 	if readonly {
 		flags |= syscall.MS_RDONLY
 	}
+
 	if err = syscall.Mount(source, blkmnt, fstype, uintptr(flags), ""); err != nil {
 		if optional {
 			shared.Log.Warn("Failed to mount block device", log.Ctx{"error": err, "source": source})
@@ -287,10 +294,12 @@ func mountTmpBlockdev(cntPath string, d shared.Device) ([]string, error) {
 			opts = append(opts, "create=file")
 		}
 	}
+
 	tgtpath := d["path"]
 	for len(tgtpath) > 0 && filepath.IsAbs(tgtpath) {
 		tgtpath = tgtpath[1:]
 	}
+
 	if len(tgtpath) == 0 {
 		if optional {
 			shared.Log.Warn("Invalid mount target", log.Ctx{"target": d["path"]})
@@ -298,6 +307,7 @@ func mountTmpBlockdev(cntPath string, d shared.Device) ([]string, error) {
 		}
 		return []string{}, fmt.Errorf("Invalid mount target %s", d["path"])
 	}
+
 	mtab := fmt.Sprintf("%s %s %s %s 0 0", blkmnt, tgtpath, "none", strings.Join(opts, ","))
 	shared.Debugf("adding mount entry for %s: .%s.\n", d["source"], mtab)
 
@@ -826,12 +836,12 @@ func (c *containerLXD) createUnixDevice(m shared.Device) (string, string, error)
 		}
 	}
 
-	if !shared.PathExists(path.Join(c.Path(""), "devices")) {
-		os.Mkdir(path.Join(c.Path(""), "devices"), 0711)
+	if !shared.PathExists(filepath.Join(c.Path(""), "devices")) {
+		os.Mkdir(filepath.Join(c.Path(""), "devices"), 0711)
 	}
 
 	name := strings.Replace(m["path"], "/", "-", -1)
-	devpath := path.Join(c.Path(""), "devices", name)
+	devpath := filepath.Join(c.Path(""), "devices", name)
 	mode := os.FileMode(0660)
 
 	if m["mode"] != "" {
@@ -1071,7 +1081,7 @@ func (c *containerLXD) Start() error {
 			"Error calling 'lxd forkstart %s %s %s': err='%v'",
 			c.name,
 			c.daemon.lxcpath,
-			path.Join(c.LogPath(), "lxc.conf"),
+			filepath.Join(c.LogPath(), "lxc.conf"),
 			err)
 	}
 
@@ -1377,15 +1387,15 @@ func (c *containerLXD) Path(newName string) string {
 }
 
 func (c *containerLXD) RootfsPath() string {
-	return path.Join(c.Path(""), "rootfs")
+	return filepath.Join(c.Path(""), "rootfs")
 }
 
 func (c *containerLXD) TemplatesPath() string {
-	return path.Join(c.Path(""), "templates")
+	return filepath.Join(c.Path(""), "templates")
 }
 
 func (c *containerLXD) StateDir() string {
-	return path.Join(c.Path(""), "state")
+	return filepath.Join(c.Path(""), "state")
 }
 
 func (c *containerLXD) LogPath() string {
@@ -1703,7 +1713,7 @@ func (c *containerLXD) ExportToTar(w io.Writer) error {
 }
 
 func (c *containerLXD) TemplateApply(trigger string) error {
-	fname := path.Join(c.Path(""), "metadata.yaml")
+	fname := filepath.Join(c.Path(""), "metadata.yaml")
 
 	if !shared.PathExists(fname) {
 		return nil
@@ -1853,7 +1863,7 @@ func (c *containerLXD) AttachMount(m shared.Device) error {
 
 		// Mount blockdev into $containerdir/blk.$(mktemp)
 		fnam := fmt.Sprintf("blk.%s", strings.Replace(source, "/", "-", -1))
-		blkmnt := filepath.Join(c.Path(""), fnam)
+		blkmnt := filepath.Join(c.Path(""), "devices", fnam)
 		syscall.Unmount(blkmnt, syscall.MNT_DETACH)
 		os.Remove(blkmnt)
 		if err = os.Mkdir(blkmnt, 0660); err != nil {
