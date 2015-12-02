@@ -166,10 +166,10 @@ type container interface {
 	ID() int
 	Name() string
 	Architecture() int
-	Config() map[string]string
-	Devices() shared.Devices
-	BaseConfig() map[string]string
-	BaseDevices() shared.Devices
+	ExpandedConfig() map[string]string
+	ExpandedDevices() shared.Devices
+	LocalConfig() map[string]string
+	LocalDevices() shared.Devices
 	Profiles() []string
 	InitPID() int
 	State() string
@@ -198,22 +198,25 @@ type container interface {
 }
 
 type containerLXD struct {
-	c            *lxc.Container
-	daemon       *Daemon
+	// Properties
 	id           int
 	name         string
-	config       map[string]string
-	profiles     []string
-	devices      shared.Devices
 	architecture int
 	ephemeral    bool
-	idmapset     *shared.IdmapSet
 	cType        containerType
 
-	baseConfig  map[string]string
-	baseDevices shared.Devices
+	// Config
+	profiles         []string
+	localConfig      map[string]string
+	localDevices     shared.Devices
+	expandedConfig  map[string]string
+	expandedDevices shared.Devices
 
-	storage storage
+	// Cache
+	idmapset *shared.IdmapSet
+	storage  storage
+	c        *lxc.Container
+	daemon   *Daemon
 }
 
 // unmount and unlink any directories called $path/blk.$(mktemp)
@@ -512,27 +515,27 @@ func containerLXDCreateInternal(
 		"Container created in the DB",
 		log.Ctx{"container": name, "id": id})
 
-	baseConfig := map[string]string{}
-	if err := shared.DeepCopy(&args.Config, &baseConfig); err != nil {
+	localConfig := map[string]string{}
+	if err := shared.DeepCopy(&args.Config, &localConfig); err != nil {
 		return nil, err
 	}
-	baseDevices := shared.Devices{}
-	if err := shared.DeepCopy(&args.Devices, &baseDevices); err != nil {
+	localDevices := shared.Devices{}
+	if err := shared.DeepCopy(&args.Devices, &localDevices); err != nil {
 		return nil, err
 	}
 
 	c := &containerLXD{
-		daemon:       d,
-		id:           id,
-		name:         name,
-		ephemeral:    args.Ephemeral,
-		architecture: args.Architecture,
-		config:       args.Config,
-		profiles:     args.Profiles,
-		devices:      args.Devices,
-		cType:        args.Ctype,
-		baseConfig:   baseConfig,
-		baseDevices:  baseDevices}
+		daemon:           d,
+		id:               id,
+		name:             name,
+		ephemeral:        args.Ephemeral,
+		architecture:     args.Architecture,
+		cType:            args.Ctype,
+		profiles:         args.Profiles,
+		expandedConfig:  args.Config,
+		expandedDevices: args.Devices,
+		localConfig:      localConfig,
+		localDevices:     localDevices}
 
 	// No need to detect storage here, its a new container.
 	c.storage = d.Storage
@@ -573,27 +576,27 @@ func containerLXDLoad(d *Daemon, name string) (container, error) {
 		return nil, err
 	}
 
-	baseConfig := map[string]string{}
-	if err := shared.DeepCopy(&args.Config, &baseConfig); err != nil {
+	localConfig := map[string]string{}
+	if err := shared.DeepCopy(&args.Config, &localConfig); err != nil {
 		return nil, err
 	}
-	baseDevices := shared.Devices{}
-	if err := shared.DeepCopy(&args.Devices, &baseDevices); err != nil {
+	localDevices := shared.Devices{}
+	if err := shared.DeepCopy(&args.Devices, &localDevices); err != nil {
 		return nil, err
 	}
 
 	c := &containerLXD{
-		daemon:       d,
-		id:           args.ID,
-		name:         name,
-		ephemeral:    args.Ephemeral,
-		architecture: args.Architecture,
-		config:       args.Config,
-		profiles:     args.Profiles,
-		devices:      args.Devices,
-		cType:        args.Ctype,
-		baseConfig:   baseConfig,
-		baseDevices:  baseDevices}
+		daemon:           d,
+		id:               args.ID,
+		name:             name,
+		ephemeral:        args.Ephemeral,
+		architecture:     args.Architecture,
+		cType:            args.Ctype,
+		profiles:         args.Profiles,
+		expandedConfig:  args.Config,
+		expandedDevices: args.Devices,
+		localConfig:      localConfig,
+		localDevices:     localDevices}
 
 	s, err := storageForFilename(d, shared.VarPath("containers", strings.Split(name, "/")[0]))
 	if err != nil {
@@ -680,7 +683,7 @@ func (c *containerLXD) init() error {
 	}
 
 	// base per-container config should override profile config, so we apply it second
-	if err := c.applyConfig(c.baseConfig); err != nil {
+	if err := c.applyConfig(c.localConfig); err != nil {
 		return err
 	}
 
@@ -749,8 +752,8 @@ func (c *containerLXD) init() error {
 	}
 
 	// Allow overwrites of devices
-	for k, v := range c.baseDevices {
-		c.devices[k] = v
+	for k, v := range c.localDevices {
+		c.expandedDevices[k] = v
 	}
 
 	if !c.IsPrivileged() {
@@ -789,11 +792,11 @@ func (c *containerLXD) RenderState() (*shared.ContainerState, error) {
 		Architecture:    c.architecture,
 		Name:            c.name,
 		Profiles:        c.profiles,
-		Config:          c.baseConfig,
-		ExpandedConfig:  c.config,
+		Config:          c.localConfig,
+		ExpandedConfig:  c.expandedConfig,
 		Status:          status,
-		Devices:         c.baseDevices,
-		ExpandedDevices: c.devices,
+		Devices:         c.localDevices,
+		ExpandedDevices: c.expandedDevices,
 		Ephemeral:       c.ephemeral,
 	}, nil
 }
@@ -1122,7 +1125,7 @@ func (c *containerLXD) Freeze() error {
 }
 
 func (c *containerLXD) IsNesting() bool {
-	switch strings.ToLower(c.config["security.nesting"]) {
+	switch strings.ToLower(c.expandedConfig["security.nesting"]) {
 	case "1":
 		return true
 	case "true":
@@ -1132,7 +1135,7 @@ func (c *containerLXD) IsNesting() bool {
 }
 
 func (c *containerLXD) IsPrivileged() bool {
-	switch strings.ToLower(c.config["security.privileged"]) {
+	switch strings.ToLower(c.expandedConfig["security.privileged"]) {
 	case "1":
 		return true
 	case "true":
@@ -1269,12 +1272,12 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 
 	// Restore the configuration
 	args := containerLXDArgs{
-		Ctype:        cTypeRegular,
-		Config:       sourceContainer.Config(),
-		Profiles:     sourceContainer.Profiles(),
-		Ephemeral:    sourceContainer.IsEphemeral(),
 		Architecture: sourceContainer.Architecture(),
-		Devices:      sourceContainer.Devices(),
+		Ctype:        cTypeRegular,
+		Ephemeral:    sourceContainer.IsEphemeral(),
+		Profiles:     sourceContainer.Profiles(),
+		Config:       sourceContainer.ExpandedConfig(),
+		Devices:      sourceContainer.ExpandedDevices(),
 	}
 
 	err = c.ConfigReplace(args)
@@ -1448,7 +1451,7 @@ func (c *containerLXD) IdmapSet() *shared.IdmapSet {
 }
 
 func (c *containerLXD) LastIdmapSet() (*shared.IdmapSet, error) {
-	config := c.Config()
+	config := c.ExpandedConfig()
 	lastJsonIdmap := config["volatile.last_state.idmap"]
 
 	if lastJsonIdmap == "" {
@@ -1469,15 +1472,15 @@ func (c *containerLXD) LastIdmapSet() (*shared.IdmapSet, error) {
 }
 
 func (c *containerLXD) ConfigKeySet(key string, value string) error {
-	c.baseConfig[key] = value
+	c.localConfig[key] = value
 
 	args := containerLXDArgs{
 		Ctype:        c.cType,
-		Config:       c.baseConfig,
+		Config:       c.localConfig,
 		Profiles:     c.profiles,
 		Ephemeral:    c.ephemeral,
 		Architecture: c.architecture,
-		Devices:      c.baseDevices,
+		Devices:      c.localDevices,
 	}
 
 	return c.ConfigReplace(args)
@@ -1497,12 +1500,12 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 
 	// Get a copy of the old expanded entries
 	preDevices := shared.Devices{}
-	if err := shared.DeepCopy(&c.devices, &preDevices); err != nil {
+	if err := shared.DeepCopy(&c.expandedDevices, &preDevices); err != nil {
 		return err
 	}
 
 	preConfig := map[string]string{}
-	if err := shared.DeepCopy(&c.config, &preConfig); err != nil {
+	if err := shared.DeepCopy(&c.expandedConfig, &preConfig); err != nil {
 		return err
 	}
 
@@ -1556,8 +1559,8 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 		return err
 	}
 
-	c.baseConfig = newContainerArgs.Config
-	c.baseDevices = newContainerArgs.Devices
+	c.localConfig = newContainerArgs.Config
+	c.localDevices = newContainerArgs.Devices
 
 	/* Let's try to load the apparmor profile again, in case the
 	 * raw.apparmor config was changed (or deleted). Make sure we do this
@@ -1612,15 +1615,15 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	// deal with config changes
 	changedKeys := []string{}
 	for key, _ := range preConfig {
-		if preConfig[key] != c.config[key] {
+		if preConfig[key] != c.expandedConfig[key] {
 			if !shared.StringInSlice(key, changedKeys) {
 				changedKeys = append(changedKeys, key)
 			}
 		}
 	}
 
-	for key, _ := range c.config {
-		if preConfig[key] != c.config[key] {
+	for key, _ := range c.expandedConfig {
+		if preConfig[key] != c.expandedConfig[key] {
 			if !shared.StringInSlice(key, changedKeys) {
 				changedKeys = append(changedKeys, key)
 			}
@@ -1636,20 +1639,20 @@ func (c *containerLXD) ConfigReplace(newContainerArgs containerLXDArgs) error {
 	return nil
 }
 
-func (c *containerLXD) BaseConfig() map[string]string {
-	return c.baseConfig
+func (c *containerLXD) LocalConfig() map[string]string {
+	return c.localConfig
 }
 
-func (c *containerLXD) BaseDevices() shared.Devices {
-	return c.baseDevices
+func (c *containerLXD) LocalDevices() shared.Devices {
+	return c.localDevices
 }
 
-func (c *containerLXD) Config() map[string]string {
-	return c.config
+func (c *containerLXD) ExpandedConfig() map[string]string {
+	return c.expandedConfig
 }
 
-func (c *containerLXD) Devices() shared.Devices {
-	return c.devices
+func (c *containerLXD) ExpandedDevices() shared.Devices {
+	return c.expandedDevices
 }
 
 func (c *containerLXD) Profiles() []string {
@@ -1862,7 +1865,7 @@ func (c *containerLXD) TemplateApply(trigger string) error {
 		}
 
 		configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
-			val, ok := c.config[confKey.String()]
+			val, ok := c.expandedConfig[confKey.String()]
 			if !ok {
 				return confDefault
 			}
@@ -1873,8 +1876,8 @@ func (c *containerLXD) TemplateApply(trigger string) error {
 		tpl.ExecuteWriter(pongo2.Context{"trigger": trigger,
 			"path":       filepath,
 			"container":  containerMeta,
-			"config":     c.config,
-			"devices":    c.devices,
+			"config":     c.expandedConfig,
+			"devices":    c.expandedDevices,
 			"properties": template.Properties,
 			"config_get": configGet}, w)
 	}
@@ -1987,7 +1990,7 @@ func (c *containerLXD) applyConfig(config map[string]string) error {
 			}
 
 			/* Things like security.privileged need to be propagated */
-			c.config[k] = v
+			c.expandedConfig[k] = v
 		}
 		if err != nil {
 			shared.Debugf("Error setting %s: %q", k, err)
@@ -2001,7 +2004,7 @@ func (c *containerLXD) applyPostDeviceConfig() error {
 	// applies config that must be delayed until after devices are
 	// instantiated, see bug #588 and fix #635
 
-	if lxcConfig, ok := c.config["raw.lxc"]; ok {
+	if lxcConfig, ok := c.expandedConfig["raw.lxc"]; ok {
 		if err := validateRawLxc(lxcConfig); err != nil {
 			return err
 		}
@@ -2052,23 +2055,23 @@ func (c *containerLXD) applyProfile(p string) error {
 		return err
 	}
 	for k, v := range newdevs {
-		c.devices[k] = v
+		c.expandedDevices[k] = v
 	}
 
 	return c.applyConfig(config)
 }
 
 func (c *containerLXD) updateContainerHWAddr(k, v string) {
-	for name, d := range c.devices {
+	for name, d := range c.expandedDevices {
 		if d["type"] != "nic" {
 			continue
 		}
 
-		for key := range c.config {
+		for key := range c.expandedConfig {
 			device, err := extractInterfaceFromConfigName(key)
 			if err == nil && device == name {
 				d["hwaddr"] = v
-				c.config[key] = v
+				c.expandedConfig[key] = v
 				return
 			}
 		}
@@ -2078,14 +2081,14 @@ func (c *containerLXD) updateContainerHWAddr(k, v string) {
 func (c *containerLXD) setupMacAddresses() error {
 	newConfigEntries := map[string]string{}
 
-	for name, d := range c.devices {
+	for name, d := range c.expandedDevices {
 		if d["type"] != "nic" {
 			continue
 		}
 
 		found := false
 
-		for key, val := range c.config {
+		for key, val := range c.expandedConfig {
 			device, err := extractInterfaceFromConfigName(key)
 			if err == nil && device == name {
 				found = true
@@ -2111,15 +2114,14 @@ func (c *containerLXD) setupMacAddresses() error {
 			if hwaddr != d["hwaddr"] {
 				d["hwaddr"] = hwaddr
 				key := fmt.Sprintf("volatile.%s.hwaddr", name)
-				c.config[key] = hwaddr
-				c.baseConfig[key] = hwaddr
+				c.expandedConfig[key] = hwaddr
+				c.localConfig[key] = hwaddr
 				newConfigEntries[key] = hwaddr
 			}
 		}
 	}
 
 	if len(newConfigEntries) > 0 {
-
 		tx, err := dbBegin(c.daemon.db)
 		if err != nil {
 			return err
@@ -2215,13 +2217,13 @@ func (c *containerLXD) applyIdmapSet() error {
 
 func (c *containerLXD) applyDevices() error {
 	var keys []string
-	for k := range c.devices {
+	for k := range c.expandedDevices {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
 	for _, name := range keys {
-		d := c.devices[name]
+		d := c.expandedDevices[name]
 		if name == "type" {
 			continue
 		}

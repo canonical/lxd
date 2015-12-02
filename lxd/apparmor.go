@@ -79,7 +79,7 @@ func AAProfileShort(c *containerLXD) string {
 // container. This includes the stock lxc includes as well as stuff from
 // raw.apparmor.
 func getAAProfileContent(c *containerLXD) string {
-	rawApparmor, ok := c.config["raw.apparmor"]
+	rawApparmor, ok := c.expandedConfig["raw.apparmor"]
 	if !ok {
 		rawApparmor = ""
 	}

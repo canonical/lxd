@@ -265,7 +265,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	opts.ClearEnv = true
 	opts.Env = []string{}
 
-	for k, v := range c.Config() {
+	for k, v := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "environment.") {
 			opts.Env = append(opts.Env, fmt.Sprintf("%s=%s", strings.TrimPrefix(k, "environment."), v))
 		}

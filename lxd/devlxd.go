@@ -46,7 +46,7 @@ type devLxdHandler struct {
 
 var configGet = devLxdHandler{"/1.0/config", func(c container, r *http.Request) *devLxdResponse {
 	filtered := []string{}
-	for k, _ := range c.Config() {
+	for k, _ := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "user.") {
 			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
 		}
@@ -60,7 +60,7 @@ var configKeyGet = devLxdHandler{"/1.0/config/{key}", func(c container, r *http.
 		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
 	}
 
-	value, ok := c.Config()[key]
+	value, ok := c.ExpandedConfig()[key]
 	if !ok {
 		return &devLxdResponse{"not found", http.StatusNotFound, "raw"}
 	}
@@ -69,7 +69,7 @@ var configKeyGet = devLxdHandler{"/1.0/config/{key}", func(c container, r *http.
 }}
 
 var metadataGet = devLxdHandler{"/1.0/meta-data", func(c container, r *http.Request) *devLxdResponse {
-	value := c.Config()["user.meta-data"]
+	value := c.ExpandedConfig()["user.meta-data"]
 	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", c.Name(), c.Name(), value), "raw")
 }}
 
