@@ -166,6 +166,9 @@ type container interface {
 	IsEphemeral() bool
 	IsSnapshot() bool
 
+	OnStart() error
+	OnStop() error
+
 	ID() int
 	Name() string
 	Architecture() int
@@ -204,13 +207,13 @@ type container interface {
 
 // unmount and unlink any directories called $path/blk.$(mktemp)
 func unmountTempBlocks(path string) {
-	dents, err := ioutil.ReadDir(path)
+	dents, err := ioutil.ReadDir(filepath.Join(path, "devices"))
 	if err != nil {
 		return
 	}
 	for _, f := range dents {
 		bpath := f.Name()
-		dpath := filepath.Join(path, bpath)
+		dpath := filepath.Join(path, "devices", bpath)
 		if !strings.HasPrefix(bpath, "blk.") {
 			continue
 		}
@@ -253,9 +256,14 @@ func mountTmpBlockdev(cntPath string, d shared.Device) ([]string, error) {
 	}
 	opts, readonly, optional := getMountOptions(d)
 
+	if !shared.PathExists(filepath.Join(cntPath, "devices")) {
+		os.Mkdir(filepath.Join(cntPath, "devices"), 0711)
+	}
+
 	// Mount blockdev into $containerdir/blk.$(mktemp)
 	fnam := fmt.Sprintf("blk.%s", strings.Replace(source, "/", "-", -1))
-	blkmnt := filepath.Join(cntPath, fnam)
+	blkmnt := filepath.Join(cntPath, "devices", fnam)
+
 	syscall.Unmount(blkmnt, syscall.MNT_DETACH)
 	os.Remove(blkmnt)
 	if err = os.Mkdir(blkmnt, 0660); err != nil {
@@ -266,10 +274,12 @@ func mountTmpBlockdev(cntPath string, d shared.Device) ([]string, error) {
 		}
 		return []string{}, fmt.Errorf("Unable to create mountpoint for blockdev %s: %s", source, err)
 	}
+
 	flags := 0
 	if readonly {
 		flags |= syscall.MS_RDONLY
 	}
+
 	if err = syscall.Mount(source, blkmnt, fstype, uintptr(flags), ""); err != nil {
 		if optional {
 			shared.Log.Warn("Failed to mount block device", log.Ctx{"error": err, "source": source})
@@ -281,16 +291,18 @@ func mountTmpBlockdev(cntPath string, d shared.Device) ([]string, error) {
 	opts = append(opts, "bind")
 	sb, err := os.Stat(source)
 	if err == nil {
-		if sb.IsDir() {
+		if sb.IsDir() || shared.IsBlockdevPath(source) {
 			opts = append(opts, "create=dir")
 		} else {
 			opts = append(opts, "create=file")
 		}
 	}
+
 	tgtpath := d["path"]
 	for len(tgtpath) > 0 && filepath.IsAbs(tgtpath) {
 		tgtpath = tgtpath[1:]
 	}
+
 	if len(tgtpath) == 0 {
 		if optional {
 			shared.Log.Warn("Invalid mount target", log.Ctx{"target": d["path"]})
@@ -298,6 +310,7 @@ func mountTmpBlockdev(cntPath string, d shared.Device) ([]string, error) {
 		}
 		return []string{}, fmt.Errorf("Invalid mount target %s", d["path"])
 	}
+
 	mtab := fmt.Sprintf("%s %s %s %s 0 0", blkmnt, tgtpath, "none", strings.Join(opts, ","))
 	shared.Debugf("adding mount entry for %s: .%s.\n", d["source"], mtab)
 
@@ -624,6 +637,12 @@ func (c *containerLXD) init() error {
 	if err := setConfigItem(c, "lxc.console", "none"); err != nil {
 		return err
 	}
+	if err := setConfigItem(c, "lxc.hook.pre-start", fmt.Sprintf("%s setstatus %s %d start", os.Args[0], shared.VarPath(""), c.id)); err != nil {
+		return err
+	}
+	if err := setConfigItem(c, "lxc.hook.post-stop", fmt.Sprintf("%s setstatus %s %d stop", os.Args[0], shared.VarPath(""), c.id)); err != nil {
+		return err
+	}
 	if err := setupDevLxdMount(c); err != nil {
 		return err
 	}
@@ -826,12 +845,12 @@ func (c *containerLXD) createUnixDevice(m shared.Device) (string, string, error)
 		}
 	}
 
-	if !shared.PathExists(path.Join(c.Path(""), "devices")) {
-		os.Mkdir(path.Join(c.Path(""), "devices"), 0711)
+	if !shared.PathExists(filepath.Join(c.Path(""), "devices")) {
+		os.Mkdir(filepath.Join(c.Path(""), "devices"), 0711)
 	}
 
 	name := strings.Replace(m["path"], "/", "-", -1)
-	devpath := path.Join(c.Path(""), "devices", name)
+	devpath := filepath.Join(c.Path(""), "devices", name)
 	mode := os.FileMode(0660)
 
 	if m["mode"] != "" {
@@ -925,7 +944,6 @@ func (c *containerLXD) setupUnixDev(m shared.Device) error {
  * container's configuration.
  */
 func (c *containerLXD) containerUp() error {
-
 	/*
 	 * add the lxc.* entries for the configured devices,
 	 * and create if necessary
@@ -938,6 +956,10 @@ func (c *containerLXD) containerUp() error {
 		return err
 	}
 
+	if err := SeccompCreateProfile(c); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -946,66 +968,11 @@ func (c *containerLXD) Start() error {
 		return fmt.Errorf("the container is already running")
 	}
 
-	// Start the storage for this container
-	if err := c.StorageStart(); err != nil {
-		return err
-	}
-
-	/* (Re)Load the AA profile; we set it in the container's config above
-	 * in init()
-	 */
-	if err := AALoadProfile(c); err != nil {
-		c.StorageStop()
-		return err
-	}
-
-	if err := SeccompCreateProfile(c); err != nil {
-		c.StorageStop()
-		return err
-	}
-
-	if err := c.containerUp(); err != nil {
-		c.StorageStop()
-		return err
-	}
-
-	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
-	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
-		return err
-	}
-	configPath := f.Name()
-	if err = f.Chmod(0600); err != nil {
-		f.Close()
-		os.Remove(configPath)
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
-		return err
-	}
-	f.Close()
-
-	err = c.c.SaveConfigFile(configPath)
-	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
-		return err
-	}
-
-	err = c.TemplateApply("start")
-	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
-		return err
-	}
-
 	/* Deal with idmap changes */
 	idmap := c.IdmapSet()
 
 	lastIdmap, err := c.LastIdmapSet()
 	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
 		return err
 	}
 
@@ -1013,8 +980,6 @@ func (c *containerLXD) Start() error {
 	if idmap != nil {
 		idmapBytes, err := json.Marshal(idmap.Idmap)
 		if err != nil {
-			unmountTempBlocks(c.Path(""))
-			c.StorageStop()
 			return err
 		}
 		jsonIdmap = string(idmapBytes)
@@ -1025,9 +990,10 @@ func (c *containerLXD) Start() error {
 	if !reflect.DeepEqual(idmap, lastIdmap) {
 		shared.Debugf("Container idmap changed, remapping")
 
+		c.StorageStart()
+
 		if lastIdmap != nil {
 			if err := lastIdmap.UnshiftRootfs(c.RootfsPath()); err != nil {
-				unmountTempBlocks(c.Path(""))
 				c.StorageStop()
 				return err
 			}
@@ -1035,7 +1001,6 @@ func (c *containerLXD) Start() error {
 
 		if idmap != nil {
 			if err := idmap.ShiftRootfs(c.RootfsPath()); err != nil {
-				unmountTempBlocks(c.Path(""))
 				c.StorageStop()
 				return err
 			}
@@ -1045,12 +1010,33 @@ func (c *containerLXD) Start() error {
 	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
 
 	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
 		return err
 	}
 
-	/* Actually start the container */
+	if err := c.containerUp(); err != nil {
+		return err
+	}
+
+	// Generate the LXC config
+	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
+	if err != nil {
+		return err
+	}
+
+	configPath := f.Name()
+	if err = f.Chmod(0600); err != nil {
+		f.Close()
+		os.Remove(configPath)
+		return err
+	}
+	f.Close()
+
+	err = c.c.SaveConfigFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	// Start the LXC container
 	out, err := exec.Command(
 		os.Args[0],
 		"forkstart",
@@ -1065,25 +1051,38 @@ func (c *containerLXD) Start() error {
 	}
 
 	if err != nil {
-		unmountTempBlocks(c.Path(""))
-		c.StorageStop()
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"Error calling 'lxd forkstart %s %s %s': err='%v'",
 			c.name,
 			c.daemon.lxcpath,
-			path.Join(c.LogPath(), "lxc.conf"),
+			filepath.Join(c.LogPath(), "lxc.conf"),
 			err)
 	}
 
-	if err == nil && c.ephemeral == true {
-		containerWatchEphemeral(c.daemon, c)
+	return nil
+}
+
+func (c *containerLXD) OnStart() error {
+	// Start the storage for this container
+	if err := c.StorageStart(); err != nil {
+		return err
 	}
 
-	if err != nil {
-		unmountTempBlocks(c.Path(""))
+	/* (Re)Load the AA profile; we set it in the container's config above
+	 * in init()
+	 */
+	if err := AALoadProfile(c); err != nil {
 		c.StorageStop()
+		return err
 	}
-	return err
+
+	err := c.TemplateApply("start")
+	if err != nil {
+		c.StorageStop()
+		return err
+	}
+
+	return nil
 }
 
 func (c *containerLXD) Reboot() error {
@@ -1127,17 +1126,6 @@ func (c *containerLXD) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
-	// Stop the storage for this container
-	if err := c.StorageStop(); err != nil {
-		return err
-	}
-
-	unmountTempBlocks(c.Path(""))
-
-	if err := AAUnloadProfile(c); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -1149,17 +1137,38 @@ func (c *containerLXD) Stop() error {
 		return err
 	}
 
+	return nil
+}
+
+func (c *containerLXD) OnStop() error {
 	// Stop the storage for this container
 	if err := c.StorageStop(); err != nil {
 		return err
 	}
 
-	// Clean up any mounts from previous runs
-	unmountTempBlocks(c.Path(""))
-
+	// Unlock the apparmor profile
 	if err := AAUnloadProfile(c); err != nil {
 		return err
 	}
+
+	go func(c *containerLXD) {
+		time.Sleep(5 * time.Second)
+
+		// Clean up any mounts from previous runs
+		unmountTempBlocks(c.Path(""))
+
+		// Destroy ephemeral containers
+		if c.ephemeral {
+			id, err := dbContainerID(c.daemon.db, c.Name())
+			if err != nil || id != c.id {
+				return
+			}
+
+			if !c.IsRunning() {
+				c.Delete()
+			}
+		}
+	}(c)
 
 	return nil
 }
@@ -1272,7 +1281,7 @@ func (c *containerLXD) Delete() error {
 		if err := c.storage.ContainerDelete(c); err != nil {
 			return err
 		}
-		unmountTempBlocks(c.Path(""))
+		unmountTempBlocks(c.Path("devices"))
 	case cTypeSnapshot:
 		if err := c.storage.ContainerSnapshotDelete(c); err != nil {
 			return err
@@ -1377,15 +1386,15 @@ func (c *containerLXD) Path(newName string) string {
 }
 
 func (c *containerLXD) RootfsPath() string {
-	return path.Join(c.Path(""), "rootfs")
+	return filepath.Join(c.Path(""), "rootfs")
 }
 
 func (c *containerLXD) TemplatesPath() string {
-	return path.Join(c.Path(""), "templates")
+	return filepath.Join(c.Path(""), "templates")
 }
 
 func (c *containerLXD) StateDir() string {
-	return path.Join(c.Path(""), "state")
+	return filepath.Join(c.Path(""), "state")
 }
 
 func (c *containerLXD) LogPath() string {
@@ -1703,7 +1712,7 @@ func (c *containerLXD) ExportToTar(w io.Writer) error {
 }
 
 func (c *containerLXD) TemplateApply(trigger string) error {
-	fname := path.Join(c.Path(""), "metadata.yaml")
+	fname := filepath.Join(c.Path(""), "metadata.yaml")
 
 	if !shared.PathExists(fname) {
 		return nil
@@ -1853,7 +1862,7 @@ func (c *containerLXD) AttachMount(m shared.Device) error {
 
 		// Mount blockdev into $containerdir/blk.$(mktemp)
 		fnam := fmt.Sprintf("blk.%s", strings.Replace(source, "/", "-", -1))
-		blkmnt := filepath.Join(c.Path(""), fnam)
+		blkmnt := filepath.Join(c.Path(""), "devices", fnam)
 		syscall.Unmount(blkmnt, syscall.MNT_DETACH)
 		os.Remove(blkmnt)
 		if err = os.Mkdir(blkmnt, 0660); err != nil {
@@ -2376,19 +2385,6 @@ func (c *containerLXD) StartFromMigration(imagesDir string) error {
 	}
 
 	if err := c.c.SaveConfigFile(f.Name()); err != nil {
-		return err
-	}
-
-	/* (Re)Load the AA profile; we set it in the container's config above
-	 * in init()
-	 */
-	if err := AALoadProfile(c); err != nil {
-		c.StorageStop()
-		return err
-	}
-
-	if err := SeccompCreateProfile(c); err != nil {
-		c.StorageStop()
 		return err
 	}
 

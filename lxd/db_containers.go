@@ -22,6 +22,15 @@ func dbContainerRemove(db *sql.DB, name string) error {
 	return err
 }
 
+func dbContainerName(db *sql.DB, id int) (string, error) {
+	q := "SELECT name FROM containers WHERE id=?"
+	name := ""
+	arg1 := []interface{}{id}
+	arg2 := []interface{}{&name}
+	err := dbQueryRowScan(db, q, arg1, arg2)
+	return name, err
+}
+
 func dbContainerID(db *sql.DB, name string) (int, error) {
 	q := "SELECT id FROM containers WHERE name=?"
 	id := -1

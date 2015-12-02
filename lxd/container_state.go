@@ -58,12 +58,21 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 				if err = c.Stop(); err != nil {
 					return err
 				}
+
+				if c.IsEphemeral() {
+					c.Delete()
+				}
+
 				return nil
 			}
 		} else {
 			do = func(op *operation) error {
 				if err = c.Shutdown(time.Duration(raw.Timeout) * time.Second); err != nil {
 					return err
+				}
+
+				if c.IsEphemeral() {
+					c.Delete()
 				}
 				return nil
 			}

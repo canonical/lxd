@@ -29,13 +29,14 @@ import (
 
 // Client can talk to a LXD daemon.
 type Client struct {
-	config          Config
-	Remote          *RemoteConfig
-	name            string
-	http            http.Client
-	BaseURL         string
-	BaseWSURL       string
-	Transport       string
+	BaseURL   string
+	BaseWSURL string
+	Config    Config
+	Http      http.Client
+	Name      string
+	Remote    *RemoteConfig
+	Transport string
+
 	certf           string
 	keyf            string
 	websocketDialer websocket.Dialer
@@ -165,9 +166,9 @@ func readMyCert() (string, string, error) {
  * load the server cert from disk
  */
 func (c *Client) loadServerCert() {
-	cert, err := shared.ReadCert(ServerCertPath(c.name))
+	cert, err := shared.ReadCert(ServerCertPath(c.Name))
 	if err != nil {
-		shared.Debugf("Error reading the server certificate for %s: %v", c.name, err)
+		shared.Debugf("Error reading the server certificate for %s: %v", c.Name, err)
 		return
 	}
 
@@ -177,11 +178,11 @@ func (c *Client) loadServerCert() {
 // NewClient returns a new LXD client.
 func NewClient(config *Config, remote string) (*Client, error) {
 	c := Client{
-		config: *config,
-		http:   http.Client{},
+		Config: *config,
+		Http:   http.Client{},
 	}
 
-	c.name = remote
+	c.Name = remote
 
 	if remote == "" {
 		return nil, fmt.Errorf(i18n.G("A remote name must be provided."))
@@ -209,7 +210,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 				}
 				return net.DialUnix("unix", nil, raddr)
 			}
-			c.http.Transport = &http.Transport{Dial: uDial}
+			c.Http.Transport = &http.Transport{Dial: uDial}
 			c.websocketDialer.NetDial = uDial
 			c.Remote = &r
 		} else {
@@ -245,7 +246,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 				c.BaseWSURL = "wss://" + r.Addr
 			}
 			c.Transport = "https"
-			c.http.Transport = tr
+			c.Http.Transport = tr
 			c.loadServerCert()
 			c.Remote = &r
 		}
@@ -296,7 +297,7 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 
 	req.Header.Set("User-Agent", shared.UserAgent)
 
-	resp, err := c.http.Do(req)
+	resp, err := c.Http.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +340,7 @@ func (c *Client) put(base string, args shared.Jmap, rtype ResponseType) (*Respon
 	req.Header.Set("User-Agent", shared.UserAgent)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.http.Do(req)
+	resp, err := c.Http.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +366,7 @@ func (c *Client) post(base string, args shared.Jmap, rtype ResponseType) (*Respo
 	req.Header.Set("User-Agent", shared.UserAgent)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.http.Do(req)
+	resp, err := c.Http.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +381,7 @@ func (c *Client) getRaw(uri string) (*http.Response, error) {
 	}
 	req.Header.Set("User-Agent", shared.UserAgent)
 
-	raw, err := c.http.Do(req)
+	raw, err := c.Http.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +416,7 @@ func (c *Client) delete(base string, args shared.Jmap, rtype ResponseType) (*Res
 	req.Header.Set("User-Agent", shared.UserAgent)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.http.Do(req)
+	resp, err := c.Http.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -888,7 +889,7 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		req.Header.Set("X-LXD-properties", imgProps.Encode())
 	}
 
-	raw, err := c.http.Do(req)
+	raw, err := c.Http.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -1022,7 +1023,7 @@ func (c *Client) UserAuthServerCert(name string, acceptCert bool) error {
 	if err != nil {
 		return fmt.Errorf(i18n.G("Could not create server cert dir"))
 	}
-	certf := fmt.Sprintf("%s/%s.crt", dnam, c.name)
+	certf := fmt.Sprintf("%s/%s.crt", dnam, c.Name)
 	certOut, err := os.Create(certf)
 	if err != nil {
 		return err
@@ -1113,10 +1114,10 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		return nil, fmt.Errorf(i18n.G("You must provide an image hash or alias name."))
 	}
 
-	if imgremote != c.name {
+	if imgremote != c.Name {
 		source["type"] = "image"
 		source["mode"] = "pull"
-		tmpremote, err = NewClient(&c.config, imgremote)
+		tmpremote, err = NewClient(&c.Config, imgremote)
 		if err != nil {
 			return nil, err
 		}
@@ -1202,7 +1203,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 	var resp *Response
 
-	if imgremote != c.name {
+	if imgremote != c.Name {
 		var addresses []string
 		addresses, err = tmpremote.Addresses()
 		if err != nil {
@@ -1507,7 +1508,7 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 	req.Header.Set("X-LXD-uid", strconv.FormatUint(uint64(uid), 10))
 	req.Header.Set("X-LXD-gid", strconv.FormatUint(uint64(gid), 10))
 
-	raw, err := c.http.Do(req)
+	raw, err := c.Http.Do(req)
 	if err != nil {
 		return err
 	}
