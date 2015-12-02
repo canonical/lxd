@@ -195,7 +195,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	}
 
 	// Config override
-	sourceConfig := source.BaseConfig()
+	sourceConfig := source.LocalConfig()
 
 	if req.Config == nil {
 		req.Config = make(map[string]string)
@@ -226,7 +226,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
 		Ctype:        cTypeRegular,
-		Devices:      source.BaseDevices(),
+		Devices:      source.LocalDevices(),
 		Ephemeral:    req.Ephemeral,
 		Profiles:     req.Profiles,
 	}

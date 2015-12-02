@@ -158,7 +158,7 @@ func deviceTaskBalance(d *Daemon) {
 			continue
 		}
 
-		conf := c.Config()
+		conf := c.ExpandedConfig()
 		cpu, ok := conf["limits.cpu"]
 		if !ok || cpu == "" {
 			cpu = fmt.Sprintf("%d", len(cpus))
@@ -726,7 +726,7 @@ func setupNic(tx *sql.Tx, c container, name string, d map[string]string) (string
 
 	// Generate MAC if needed
 	key := fmt.Sprintf("volatile.%s.hwaddr", name)
-	config := c.Config()
+	config := c.ExpandedConfig()
 	hwaddr := config[key]
 
 	if hwaddr == "" {

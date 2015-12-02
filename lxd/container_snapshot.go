@@ -132,7 +132,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		snapshotName
 
 	snapshot := func(op *operation) error {
-		config := c.Config()
+		config := c.ExpandedConfig()
 		args := containerLXDArgs{
 			Ctype:        cTypeSnapshot,
 			Config:       config,
@@ -140,7 +140,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			Ephemeral:    c.IsEphemeral(),
 			BaseImage:    config["volatile.base_image"],
 			Architecture: c.Architecture(),
-			Devices:      c.Devices(),
+			Devices:      c.ExpandedDevices(),
 		}
 
 		_, err := containerLXDCreateAsSnapshot(d, fullName, args, c, stateful)
