@@ -197,7 +197,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		info.Public = false
 	}
 
-	c, err := containerLXDLoad(d, name)
+	c, err := containerLoadByName(d, name)
 	if err != nil {
 		return info, err
 	}

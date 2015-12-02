@@ -5,7 +5,7 @@ import (
 )
 
 func (suite *lxdTestSuite) TestContainer_ProfilesDefault() {
-	args := containerLXDArgs{
+	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 	}
@@ -39,7 +39,7 @@ func (suite *lxdTestSuite) TestContainer_ProfilesMulti() {
 		dbProfileDelete(suite.d.db, "unprivileged")
 	}()
 
-	args := containerLXDArgs{
+	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 		Profiles:  []string{"default", "unprivileged"},
@@ -61,7 +61,7 @@ func (suite *lxdTestSuite) TestContainer_ProfilesMulti() {
 }
 
 func (suite *lxdTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
-	args := containerLXDArgs{
+	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
@@ -88,7 +88,7 @@ func (suite *lxdTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 }
 
 func (suite *lxdTestSuite) TestContainer_LoadFromDB() {
-	args := containerLXDArgs{
+	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
@@ -103,7 +103,7 @@ func (suite *lxdTestSuite) TestContainer_LoadFromDB() {
 	suite.Req.Nil(err)
 	defer c.Delete()
 
-	c2, err := containerLXDLoad(suite.d, "testFoo")
+	c2, err := containerLoadByName(suite.d, "testFoo")
 	suite.Exactly(
 		c,
 		c2,
@@ -112,7 +112,7 @@ func (suite *lxdTestSuite) TestContainer_LoadFromDB() {
 
 func (suite *lxdTestSuite) TestContainer_Path_Regular() {
 	// Regular
-	args := containerLXDArgs{
+	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 	}
@@ -128,7 +128,7 @@ func (suite *lxdTestSuite) TestContainer_Path_Regular() {
 
 func (suite *lxdTestSuite) TestContainer_Path_Snapshot() {
 	// Snapshot
-	args := containerLXDArgs{
+	args := containerArgs{
 		Ctype:     cTypeSnapshot,
 		Ephemeral: false,
 	}
@@ -147,7 +147,7 @@ func (suite *lxdTestSuite) TestContainer_Path_Snapshot() {
 }
 
 func (suite *lxdTestSuite) TestContainer_LogPath() {
-	args := containerLXDArgs{
+	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 	}
@@ -160,7 +160,7 @@ func (suite *lxdTestSuite) TestContainer_LogPath() {
 }
 
 func (suite *lxdTestSuite) TestContainer_IsPrivileged_Privileged() {
-	args := containerLXDArgs{
+	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
@@ -175,7 +175,7 @@ func (suite *lxdTestSuite) TestContainer_IsPrivileged_Privileged() {
 }
 
 func (suite *lxdTestSuite) TestContainer_IsPrivileged_Unprivileged() {
-	args := containerLXDArgs{
+	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "false"},
@@ -190,7 +190,7 @@ func (suite *lxdTestSuite) TestContainer_IsPrivileged_Unprivileged() {
 }
 
 func (suite *lxdTestSuite) TestContainer_Rename() {
-	args := containerLXDArgs{
+	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 	}

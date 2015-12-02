@@ -18,10 +18,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func socketPath() string {
-	return shared.VarPath("devlxd")
-}
-
 type devLxdResponse struct {
 	content interface{}
 	code    int
@@ -116,11 +112,11 @@ func hoistReq(f func(container, *http.Request) *devLxdResponse, d *Daemon) func(
 }
 
 func createAndBindDevLxd() (*net.UnixListener, error) {
-	if err := os.MkdirAll(socketPath(), 0777); err != nil {
+	if err := os.MkdirAll(shared.VarPath("devlxd"), 0777); err != nil {
 		return nil, err
 	}
 
-	sockFile := path.Join(socketPath(), "sock")
+	sockFile := path.Join(shared.VarPath("devlxd"), "sock")
 
 	/*
 	 * If this socket exists, that means a previous lxd died and didn't
@@ -154,11 +150,6 @@ func createAndBindDevLxd() (*net.UnixListener, error) {
 	}
 
 	return unixl, nil
-}
-
-func setupDevLxdMount(c *containerLXD) error {
-	mtab := fmt.Sprintf("%s dev/lxd none bind,create=dir 0 0", socketPath())
-	return setConfigItem(c, "lxc.mount.entry", mtab)
 }
 
 func devLxdServer(d *Daemon) *http.Server {
@@ -313,7 +304,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 			parts := strings.Split(string(cmdline), " ")
 			name := parts[len(parts)-1]
 
-			return containerLXDLoad(d, name)
+			return containerLoadByName(d, name)
 		}
 
 		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
@@ -347,7 +338,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 	}
 
 	for _, container := range containers {
-		c, err := containerLXDLoad(d, container)
+		c, err := containerLoadByName(d, container)
 		if err != nil {
 			return nil, err
 		}

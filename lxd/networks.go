@@ -117,7 +117,7 @@ func doNetworkGet(d *Daemon, name string) (network, error) {
 	} else if isBridge(iface) {
 		n.Type = "bridge"
 		for _, ct := range lxc.ActiveContainerNames(d.lxcpath) {
-			c, err := containerLXDLoad(d, ct)
+			c, err := containerLoadByName(d, ct)
 			if err != nil {
 				return network{}, err
 			}

@@ -10,6 +10,27 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func validateConfig(config map[string]string) error {
+	if config == nil {
+		return nil
+	}
+
+	for k, _ := range config {
+		if k == "raw.lxc" {
+			err := validateRawLxc(config["raw.lxc"])
+			if err != nil {
+				return err
+			}
+		}
+
+		if !ValidContainerConfigKey(k) {
+			return fmt.Errorf("Bad key: %s", k)
+		}
+	}
+
+	return nil
+}
+
 type containerType int
 
 const (
@@ -31,7 +52,7 @@ func dbContainerName(db *sql.DB, id int) (string, error) {
 	return name, err
 }
 
-func dbContainerID(db *sql.DB, name string) (int, error) {
+func dbContainerId(db *sql.DB, name string) (int, error) {
 	q := "SELECT id FROM containers WHERE name=?"
 	id := -1
 	arg1 := []interface{}{name}
@@ -40,58 +61,55 @@ func dbContainerID(db *sql.DB, name string) (int, error) {
 	return id, err
 }
 
-func dbContainerGet(db *sql.DB, name string) (*containerLXDArgs, error) {
-	args := &containerLXDArgs{
-		Ephemeral: false,
-	}
+func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
+	args := &containerArgs{}
+	args.Name = name
 
 	ephemInt := -1
 	q := "SELECT id, architecture, type, ephemeral FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&args.ID, &args.Architecture, &args.Ctype, &ephemInt}
+	arg2 := []interface{}{&args.Id, &args.Architecture, &args.Ctype, &ephemInt}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
-		return nil, err
+		return *args, err
 	}
-	if args.ID == -1 {
-		return nil, fmt.Errorf("Unknown container")
+
+	if args.Id == -1 {
+		return *args, fmt.Errorf("Unknown container")
 	}
 
 	if ephemInt == 1 {
 		args.Ephemeral = true
 	}
 
-	config, err := dbContainerConfig(db, args.ID)
+	config, err := dbContainerConfig(db, args.Id)
 	if err != nil {
-		return nil, err
+		return *args, err
 	}
 	args.Config = config
 
-	profiles, err := dbContainerProfiles(db, args.ID)
+	profiles, err := dbContainerProfiles(db, args.Id)
 	if err != nil {
-		return nil, err
+		return *args, err
 	}
 	args.Profiles = profiles
 
-	args.Devices = shared.Devices{}
 	/* get container_devices */
+	args.Devices = shared.Devices{}
 	newdevs, err := dbDevices(db, name, false)
 	if err != nil {
-		return nil, err
+		return *args, err
 	}
+
 	for k, v := range newdevs {
 		args.Devices[k] = v
 	}
 
-	return args, nil
+	return *args, nil
 }
 
-func dbContainerCreate(db *sql.DB, name string, args containerLXDArgs) (int, error) {
-	if args.Ctype == cTypeRegular && !shared.ValidHostname(name) {
-		return 0, fmt.Errorf("Invalid container name")
-	}
-
-	id, err := dbContainerID(db, name)
+func dbContainerCreate(db *sql.DB, args containerArgs) (int, error) {
+	id, err := dbContainerId(db, args.Name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
 	}
@@ -112,7 +130,7 @@ func dbContainerCreate(db *sql.DB, name string, args containerLXDArgs) (int, err
 		return 0, err
 	}
 	defer stmt.Close()
-	result, err := stmt.Exec(name, args.Architecture, args.Ctype, ephemInt)
+	result, err := stmt.Exec(args.Name, args.Architecture, args.Ctype, ephemInt)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -121,7 +139,7 @@ func dbContainerCreate(db *sql.DB, name string, args containerLXDArgs) (int, err
 	id64, err := result.LastInsertId()
 	if err != nil {
 		tx.Rollback()
-		return 0, fmt.Errorf("Error inserting %s into database", name)
+		return 0, fmt.Errorf("Error inserting %s into database", args.Name)
 	}
 	// TODO: is this really int64? we should fix it everywhere if so
 	id = int(id64)
@@ -165,6 +183,11 @@ func dbContainerConfigClear(tx *sql.Tx, id int) error {
 }
 
 func dbContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
+	err := validateConfig(config)
+	if err != nil {
+		return err
+	}
+
 	str := "INSERT INTO containers_config (container_id, key, value) values (?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	if err != nil {
@@ -173,18 +196,7 @@ func dbContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error
 	defer stmt.Close()
 
 	for k, v := range config {
-		if k == "raw.lxc" {
-			err := validateRawLxc(config["raw.lxc"])
-			if err != nil {
-				return err
-			}
-		}
-
-		if !ValidContainerConfigKey(k) {
-			return fmt.Errorf("Bad key: %s", k)
-		}
-
-		_, err = stmt.Exec(id, k, v)
+		_, err := stmt.Exec(id, k, v)
 		if err != nil {
 			shared.Debugf("Error adding configuration item %s = %s to container %d",
 				k, v, id)
@@ -193,6 +205,11 @@ func dbContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error
 	}
 
 	return nil
+}
+
+func dbContainerConfigRemove(db *sql.DB, id int, name string) error {
+	_, err := dbExec(db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
+	return err
 }
 
 func dbContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
@@ -218,7 +235,7 @@ func dbContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
 }
 
 // Get a list of profiles for a given container id.
-func dbContainerProfiles(db *sql.DB, containerID int) ([]string, error) {
+func dbContainerProfiles(db *sql.DB, containerId int) ([]string, error) {
 	var name string
 	var profiles []string
 
@@ -227,7 +244,7 @@ func dbContainerProfiles(db *sql.DB, containerID int) ([]string, error) {
         JOIN profiles ON containers_profiles.profile_id=profiles.id
 		WHERE container_id=?
         ORDER BY containers_profiles.apply_order`
-	inargs := []interface{}{containerID}
+	inargs := []interface{}{containerId}
 	outfmt := []interface{}{name}
 
 	results, err := dbQueryScan(db, query, inargs, outfmt)
@@ -245,11 +262,11 @@ func dbContainerProfiles(db *sql.DB, containerID int) ([]string, error) {
 }
 
 // dbContainerConfig gets the container configuration map from the DB
-func dbContainerConfig(db *sql.DB, containerID int) (map[string]string, error) {
+func dbContainerConfig(db *sql.DB, containerId int) (map[string]string, error) {
 	var key, value string
 	q := `SELECT key, value FROM containers_config WHERE container_id=?`
 
-	inargs := []interface{}{containerID}
+	inargs := []interface{}{containerId}
 	outfmt := []interface{}{key, value}
 
 	// Results is already a slice here, not db Rows anymore.
@@ -369,8 +386,14 @@ func ValidContainerConfigKey(k string) bool {
 		return true
 	}
 
-	if _, err := extractInterfaceFromConfigName(k); err == nil {
-		return true
+	if strings.HasPrefix(k, "volatile.") {
+		if strings.HasSuffix(k, ".hwaddr") {
+			return true
+		}
+
+		if strings.HasSuffix(k, ".name") {
+			return true
+		}
 	}
 
 	if strings.HasPrefix(k, "environment.") {

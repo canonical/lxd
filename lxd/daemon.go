@@ -938,7 +938,7 @@ func (d *Daemon) numRunningContainers() (int, error) {
 
 	count := 0
 	for _, r := range results {
-		container, err := containerLXDLoad(d, r)
+		container, err := containerLoadByName(d, r)
 		if err != nil {
 			continue
 		}
