@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -111,11 +110,6 @@ func storageTypeToString(sType storageType) string {
 type MigrationStorageSource interface {
 	Name() string
 	Send(conn *websocket.Conn) error
-}
-
-type ReaderWriter struct {
-	reader io.Reader
-	writer io.WriteCloser
 }
 
 type storage interface {
@@ -275,7 +269,7 @@ func (ss *storageShared) GetStorageTypeVersion() string {
 }
 
 func (ss *storageShared) shiftRootfs(c container) error {
-	dpath := c.Path("")
+	dpath := c.Path()
 	rpath := c.RootfsPath()
 
 	shared.Log.Debug("Shifting root filesystem",
@@ -516,11 +510,11 @@ func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
 	}
 
 	if !reflect.DeepEqual(srcIdmap, dstIdmap) {
-		if err := srcIdmap.UnshiftRootfs(container.Path("")); err != nil {
+		if err := srcIdmap.UnshiftRootfs(container.Path()); err != nil {
 			return err
 		}
 
-		if err := dstIdmap.ShiftRootfs(container.Path("")); err != nil {
+		if err := dstIdmap.ShiftRootfs(container.Path()); err != nil {
 			return err
 		}
 	}
@@ -537,7 +531,7 @@ func (s *rsyncStorageSource) Name() string {
 }
 
 func (s *rsyncStorageSource) Send(conn *websocket.Conn) error {
-	path := s.container.Path("")
+	path := s.container.Path()
 	return RsyncSend(shared.AddSlash(path), conn)
 }
 
@@ -561,14 +555,12 @@ func rsyncMigrationSource(container container) ([]MigrationStorageSource, error)
 func rsyncMigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
 
 	/* the first object is the actual container */
-	shared.Log.Error("receiving fs object", log.Ctx{"name": container.Name()})
-	if err := RsyncRecv(shared.AddSlash(container.Path("")), conn); err != nil {
+	if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
 		return err
 	}
 
 	for _, snap := range snapshots {
-		shared.Log.Error("receiving fs object", log.Ctx{"name": snap.Name()})
-		if err := RsyncRecv(shared.AddSlash(snap.Path("")), conn); err != nil {
+		if err := RsyncRecv(shared.AddSlash(snap.Path()), conn); err != nil {
 			return err
 		}
 	}

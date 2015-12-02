@@ -23,7 +23,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	cname := mux.Vars(r)["name"]
 	// Makes sure the requested container exists.
-	_, err = containerLXDLoad(d, cname)
+	_, err = containerLoadByName(d, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -37,7 +37,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	resultMap := []shared.Jmap{}
 
 	for _, name := range results {
-		sc, err := containerLXDLoad(d, name)
+		sc, err := containerLoadByName(d, name)
 		if err != nil {
 			shared.Log.Error("Failed to load snapshot", log.Ctx{"snapshot": name})
 			continue
@@ -48,7 +48,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
 		} else {
-			body := shared.Jmap{"name": snapName, "stateful": shared.PathExists(sc.StateDir())}
+			body := shared.Jmap{"name": snapName, "stateful": shared.PathExists(sc.StatePath())}
 			resultMap = append(resultMap, body)
 		}
 	}
@@ -105,7 +105,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	 * 2. copy the database info over
 	 * 3. copy over the rootfs
 	 */
-	c, err := containerLXDLoad(d, name)
+	c, err := containerLoadByName(d, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -133,7 +133,8 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	snapshot := func(op *operation) error {
 		config := c.ExpandedConfig()
-		args := containerLXDArgs{
+		args := containerArgs{
+			Name:         fullName,
 			Ctype:        cTypeSnapshot,
 			Config:       config,
 			Profiles:     c.Profiles(),
@@ -143,7 +144,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			Devices:      c.ExpandedDevices(),
 		}
 
-		_, err := containerLXDCreateAsSnapshot(d, fullName, args, c, stateful)
+		_, err := containerCreateAsSnapshot(d, args, c, stateful)
 		if err != nil {
 			return err
 		}
@@ -166,7 +167,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	containerName := mux.Vars(r)["name"]
 	snapshotName := mux.Vars(r)["snapshotName"]
 
-	sc, err := containerLXDLoad(
+	sc, err := containerLoadByName(
 		d,
 		containerName+
 			shared.SnapshotDelimiter+
@@ -188,7 +189,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 }
 
 func snapshotGet(sc container, name string) Response {
-	body := shared.Jmap{"name": name, "stateful": shared.PathExists(sc.StateDir())}
+	body := shared.Jmap{"name": name, "stateful": shared.PathExists(sc.StatePath())}
 	return SyncResponse(true, body)
 }
 

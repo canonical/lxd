@@ -57,6 +57,15 @@ func (c *ContainerState) BriefState() BriefContainerState {
 	return retstate
 }
 
+func (c *ContainerState) BriefStateExpanded() BriefContainerState {
+	retstate := BriefContainerState{Name: c.Name,
+		Profiles:  c.Profiles,
+		Config:    c.ExpandedConfig,
+		Devices:   c.ExpandedDevices,
+		Ephemeral: c.Ephemeral}
+	return retstate
+}
+
 type ContainerInfo struct {
 	State ContainerState `json:"state"`
 	Snaps []string       `json:"snaps"`

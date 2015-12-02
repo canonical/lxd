@@ -535,17 +535,18 @@ func (c *migrationSink) do() error {
 			// done through the initial migration post. Should we
 			// post the snapshots and their configs as well, or do
 			// it some other way?
-			args := containerLXDArgs{
+			name := c.container.Name() + shared.SnapshotDelimiter + snap
+			args := containerArgs{
 				Ctype:        cTypeSnapshot,
-				Config:       c.container.Config(),
+				Config:       c.container.LocalConfig(),
 				Profiles:     c.container.Profiles(),
 				Ephemeral:    c.container.IsEphemeral(),
 				Architecture: c.container.Architecture(),
-				Devices:      c.container.Devices(),
+				Devices:      c.container.LocalDevices(),
+				Name:         name,
 			}
 
-			name := c.container.Name() + shared.SnapshotDelimiter + snap
-			ct, err := containerLXDCreateEmptySnapshot(c.container.Daemon(), name, args)
+			ct, err := containerCreateEmptySnapshot(c.container.Daemon(), args)
 			if err != nil {
 				restore <- err
 				c.sendControl(err)

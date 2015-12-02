@@ -89,7 +89,7 @@ func (s *storageZfs) ContainerStop(container container) error {
 
 // Things we do have to care about
 func (s *storageZfs) ContainerCreate(container container) error {
-	cPath := container.Path("")
+	cPath := container.Path()
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
 	err := s.zfsCreate(fs)
@@ -118,7 +118,7 @@ func (s *storageZfs) ContainerCreate(container container) error {
 }
 
 func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint string) error {
-	cPath := container.Path("")
+	cPath := container.Path()
 	imagePath := shared.VarPath("images", fingerprint)
 	subvol := fmt.Sprintf("%s.zfs", imagePath)
 	fs := fmt.Sprintf("containers/%s", container.Name())
@@ -272,13 +272,13 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 			return err
 		}
 
-		output, err := storageRsyncCopy(sourceContainer.Path(""), container.Path(""))
+		output, err := storageRsyncCopy(sourceContainer.Path(), container.Path())
 		if err != nil {
 			return fmt.Errorf("rsync failed: %s", string(output))
 		}
 	}
 
-	cPath := container.Path("")
+	cPath := container.Path()
 	err := os.Symlink(cPath+".zfs", cPath)
 	if err != nil {
 		return err
@@ -320,6 +320,13 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	err = os.Remove(shared.VarPath(fmt.Sprintf("containers/%s", oldName)))
 	if err != nil {
 		return err
+	}
+
+	if shared.PathExists(shared.VarPath(fmt.Sprintf("snapshots/%s", oldName))) {
+		err = os.Rename(shared.VarPath(fmt.Sprintf("snapshots/%s", oldName)), shared.VarPath(fmt.Sprintf("snapshots/%s", newName)))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

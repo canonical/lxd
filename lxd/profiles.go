@@ -63,7 +63,17 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	_, err := dbProfileCreate(d.db, req.Name, req.Config, req.Devices)
+	err := validateConfig(req.Config)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	err = validateDevices(req.Devices)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	_, err = dbProfileCreate(d.db, req.Name, req.Config, req.Devices)
 	if err != nil {
 		return InternalError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
@@ -115,7 +125,7 @@ func getRunningContainersWithProfile(d *Daemon, profile string) []container {
 	}
 
 	for _, name := range output {
-		c, err := containerLXDLoad(d, name)
+		c, err := containerLoadByName(d, name)
 		if err != nil {
 			shared.Log.Error("Failed opening container", log.Ctx{"container": name})
 			continue
@@ -133,10 +143,16 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	preDevList, err := dbDevices(d.db, name, true)
+	err := validateConfig(req.Config)
 	if err != nil {
-		return InternalError(err)
+		return BadRequest(err)
 	}
+
+	err = validateDevices(req.Devices)
+	if err != nil {
+		return BadRequest(err)
+	}
+
 	clist := getRunningContainersWithProfile(d, name)
 
 	id, err := dbProfileID(d.db, name)
@@ -167,22 +183,27 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	postDevList := req.Devices
-	// do our best to update the device list for each container using
-	// this profile
+	err = txCommit(tx)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	// Update all the containers using the profile. Must be done after txCommit due to DB lock.
 	for _, c := range clist {
 		if !c.IsRunning() {
 			continue
 		}
-		fmt.Printf("Updating profile device list for %s\n", c.Name())
-		if err := devicesApplyDeltaLive(tx, c, preDevList, postDevList); err != nil {
-			shared.Debugf("Warning: failed to update device list for container %s (profile %s updated)", c.Name(), name)
-		}
-	}
 
-	err = txCommit(tx)
-	if err != nil {
-		return InternalError(err)
+		err = c.Update(containerArgs{
+			Architecture: c.Architecture(),
+			Ephemeral:    c.IsEphemeral(),
+			Config:       c.LocalConfig(),
+			Devices:      c.LocalDevices(),
+			Profiles:     c.Profiles()}, true)
+
+		if err != nil {
+			return SmartError(fmt.Errorf("Failed to update container '%s': %s", c.Name(), err))
+		}
 	}
 
 	return EmptySyncResponse

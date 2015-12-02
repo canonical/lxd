@@ -22,13 +22,6 @@ type commandPostContent struct {
 	Environment map[string]string `json:"environment"`
 }
 
-type containerConfigReq struct {
-	Profiles []string          `json:"profiles"`
-	Config   map[string]string `json:"config"`
-	Devices  shared.Devices    `json:"devices"`
-	Restore  string            `json:"restore"`
-}
-
 type containerStatePutReq struct {
 	Action  string `json:"action"`
 	Timeout int    `json:"timeout"`
@@ -48,6 +41,15 @@ type containerPostReq struct {
 	Name         string               `json:"name"`
 	Profiles     []string             `json:"profiles"`
 	Source       containerImageSource `json:"source"`
+}
+
+type containerPutReq struct {
+	Architecture int               `json:"architecture"`
+	Config       map[string]string `json:"config"`
+	Devices      shared.Devices    `json:"devices"`
+	Ephemeral    bool              `json:"ephemeral"`
+	Profiles     []string          `json:"profiles"`
+	Restore      string            `json:"restore"`
 }
 
 type containerImageSource struct {
@@ -138,7 +140,7 @@ func containersRestart(d *Daemon) error {
 		autoStartDelay := container.State.ExpandedConfig["boot.autostart.delay"]
 
 		if lastState == "RUNNING" || autoStart == "true" {
-			c, err := containerLXDLoad(d, container.State.Name)
+			c, err := containerLoadByName(d, container.State.Name)
 			if err != nil {
 				return err
 			}
@@ -173,7 +175,7 @@ func containersShutdown(d *Daemon) error {
 	var wg sync.WaitGroup
 
 	for _, r := range results {
-		c, err := containerLXDLoad(d, r)
+		c, err := containerLoadByName(d, r)
 		if err != nil {
 			return err
 		}
@@ -208,7 +210,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 	}
 
 	for _, sname := range results {
-		sc, err := containerLXDLoad(d, sname)
+		sc, err := containerLoadByName(d, sname)
 		if err != nil {
 			shared.Log.Error(
 				"containerDeleteSnapshots: Failed to load the snapshotcontainer",
