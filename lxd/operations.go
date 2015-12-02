@@ -14,7 +14,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-var operationLock sync.Mutex
+var operationsLock sync.Mutex
 var operations map[string]*operation = make(map[string]*operation)
 
 type operationClass int
@@ -71,15 +71,15 @@ func (op *operation) done() {
 	op.lock.Unlock()
 
 	time.AfterFunc(time.Second*5, func() {
-		operationLock.Lock()
+		operationsLock.Lock()
 		_, ok := operations[op.id]
 		if !ok {
-			operationLock.Unlock()
+			operationsLock.Unlock()
 			return
 		}
 
 		delete(operations, op.id)
-		operationLock.Unlock()
+		operationsLock.Unlock()
 
 		/*
 		 * When we create a new lxc.Container, it adds a finalizer (via
@@ -401,9 +401,9 @@ func operationCreate(opClass operationClass, opResources map[string][]string, op
 		return nil, fmt.Errorf("Token operations can't have a Cancel hook")
 	}
 
-	operationLock.Lock()
+	operationsLock.Lock()
 	operations[op.id] = &op
-	operationLock.Unlock()
+	operationsLock.Unlock()
 
 	shared.Debugf("New %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
@@ -413,9 +413,9 @@ func operationCreate(opClass operationClass, opResources map[string][]string, op
 }
 
 func operationGet(id string) (*operation, error) {
-	operationLock.Lock()
+	operationsLock.Lock()
 	op, ok := operations[id]
-	operationLock.Unlock()
+	operationsLock.Unlock()
 
 	if !ok {
 		return nil, fmt.Errorf("Operation '%s' doesn't exist", id)
@@ -466,9 +466,9 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 
 	md = shared.Jmap{}
 
-	operationLock.Lock()
+	operationsLock.Lock()
 	ops := operations
-	operationLock.Unlock()
+	operationsLock.Unlock()
 
 	for _, v := range ops {
 		status := strings.ToLower(v.status.String())
