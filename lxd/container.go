@@ -124,6 +124,76 @@ type containerLXDArgs struct {
 	Profiles     []string
 }
 
+type container interface {
+	// Container actions
+	Freeze() error
+	Reboot() error
+	Shutdown(timeout time.Duration) error
+	Start() error
+	Stop() error
+	Unfreeze() error
+
+	// Snapshots & migration
+	Restore(sourceContainer container) error
+	Checkpoint(opts lxc.CheckpointOptions) error
+	StartFromMigration(imagesDir string) error
+
+	// Config handling
+	Rename(newName string) error
+	ConfigReplace(newConfig containerLXDArgs) error
+
+	Delete() error
+	Export(w io.Writer) error
+
+	// Live configuration
+	ConfigKeySet(key string, value string) error
+
+	// Status
+	RenderState() (*shared.ContainerState, error)
+	IsPrivileged() bool
+	IsRunning() bool
+	IsFrozen() bool
+	IsEphemeral() bool
+	IsSnapshot() bool
+
+	// Hooks
+	OnStart() error
+	OnStop() error
+
+	// Properties
+	ID() int
+	Name() string
+	Architecture() int
+	Config() map[string]string
+	Devices() shared.Devices
+	BaseConfig() map[string]string
+	BaseDevices() shared.Devices
+	Profiles() []string
+	InitPID() int
+	State() string
+
+	// Paths
+	Path(newName string) string
+	RootfsPath() string
+	TemplatesPath() string
+	StateDir() string
+	LogFilePath() string
+	LogPath() string
+
+	// FIXME: Those should be internal functions
+	LXContainerGet() *lxc.Container
+	StorageStart() error
+	StorageStop() error
+	Storage() storage
+	DetachMount(m shared.Device) error
+	AttachMount(m shared.Device) error
+	AttachUnixDev(dev shared.Device) error
+	DetachUnixDev(dev shared.Device) error
+	IdmapSet() *shared.IdmapSet
+	LastIdmapSet() (*shared.IdmapSet, error)
+	TemplateApply(trigger string) error
+}
+
 type containerLXD struct {
 	c            *lxc.Container
 	daemon       *Daemon
@@ -141,68 +211,6 @@ type containerLXD struct {
 	baseDevices shared.Devices
 
 	storage storage
-}
-
-type container interface {
-	RenderState() (*shared.ContainerState, error)
-	Reboot() error
-	Freeze() error
-	Shutdown(timeout time.Duration) error
-	Start() error
-	Stop() error
-	Unfreeze() error
-	Delete() error
-	Restore(sourceContainer container) error
-	Rename(newName string) error
-	ConfigReplace(newConfig containerLXDArgs) error
-
-	StorageStart() error
-	StorageStop() error
-	Storage() storage
-
-	IsPrivileged() bool
-	IsRunning() bool
-	IsFrozen() bool
-	IsEphemeral() bool
-	IsSnapshot() bool
-
-	OnStart() error
-	OnStop() error
-
-	ID() int
-	Name() string
-	Architecture() int
-	Config() map[string]string
-	ConfigKeySet(key string, value string) error
-	Devices() shared.Devices
-	BaseConfig() map[string]string
-	BaseDevices() shared.Devices
-	Profiles() []string
-	Path(newName string) string
-	RootfsPath() string
-	TemplatesPath() string
-	StateDir() string
-	LogFilePath() string
-	LogPath() string
-	InitPID() int
-	State() string
-
-	IdmapSet() *shared.IdmapSet
-	LastIdmapSet() (*shared.IdmapSet, error)
-
-	TemplateApply(trigger string) error
-	ExportToTar(w io.Writer) error
-
-	Checkpoint(opts lxc.CheckpointOptions) error
-	StartFromMigration(imagesDir string) error
-
-	// TODO: Remove every use of this and remove it.
-	LXContainerGet() *lxc.Container
-
-	DetachMount(m shared.Device) error
-	AttachMount(m shared.Device) error
-	AttachUnixDev(dev shared.Device) error
-	DetachUnixDev(dev shared.Device) error
 }
 
 // unmount and unlink any directories called $path/blk.$(mktemp)
@@ -1214,36 +1222,30 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 	 */
 
 	// Stop the container
-	// TODO: stateful restore ?
 	wasRunning := false
 	if c.IsRunning() {
 		wasRunning = true
 		if err := c.Stop(); err != nil {
 			shared.Log.Error(
-				"RESTORE => could not stop container",
+				"Could not stop container",
 				log.Ctx{
 					"container": c.Name(),
 					"err":       err})
 			return err
 		}
-		shared.Log.Debug(
-			"RESTORE => Stopped container",
-			log.Ctx{"container": c.Name()})
 	}
 
 	// Restore the FS.
-	// TODO: I switched the FS and config restore, think thats the correct way
-	// (pcdummy)
 	err := c.storage.ContainerRestore(c, sourceContainer)
-
 	if err != nil {
-		shared.Log.Error("RESTORE => Restoring the filesystem failed",
+		shared.Log.Error("Restoring the filesystem failed",
 			log.Ctx{
 				"source":      sourceContainer.Name(),
 				"destination": c.Name()})
 		return err
 	}
 
+	// Restore the configuration
 	args := containerLXDArgs{
 		Ctype:        cTypeRegular,
 		Config:       sourceContainer.Config(),
@@ -1252,9 +1254,10 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 		Architecture: sourceContainer.Architecture(),
 		Devices:      sourceContainer.Devices(),
 	}
+
 	err = c.ConfigReplace(args)
 	if err != nil {
-		shared.Log.Error("RESTORE => Restore of the configuration failed",
+		shared.Log.Error("Restoring the configuration failed",
 			log.Ctx{
 				"source":      sourceContainer.Name(),
 				"destination": c.Name()})
@@ -1262,6 +1265,7 @@ func (c *containerLXD) Restore(sourceContainer container) error {
 		return err
 	}
 
+	// Restart the container
 	if wasRunning {
 		c.Start()
 	}
@@ -1598,7 +1602,7 @@ func (c *containerLXD) Profiles() []string {
  *     metadata.yaml
  *     rootfs/
  */
-func (c *containerLXD) ExportToTar(w io.Writer) error {
+func (c *containerLXD) Export(w io.Writer) error {
 	if c.IsRunning() {
 		return fmt.Errorf("Cannot export a running container as image")
 	}
@@ -1643,7 +1647,7 @@ func (c *containerLXD) ExportToTar(w io.Writer) error {
 	if shared.PathExists(fnam) {
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			shared.Debugf("Error statting %s during exportToTar", fnam)
+			shared.Debugf("Error statting %s during export", fnam)
 			tw.Close()
 			return err
 		}
