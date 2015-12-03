@@ -577,7 +577,7 @@ Return:
     }
 
 ### POST
- * Description: used to rename the snapshot
+ * Description: used to rename/migrate the snapshot
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
@@ -586,6 +586,12 @@ Input:
 
     {
         'name': "new-name"
+    }
+
+Input (copy snapshot across lxd instances):
+
+    {
+        "migration": true,
     }
 
 Renaming to an existing name must return the 409 (Conflict) HTTP code.
