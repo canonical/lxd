@@ -23,6 +23,9 @@ test_migration() {
   [ -d "${LXD_DIR}/snapshots/nonlive2/snap0/rootfs/bin" ]
   [ -d "${LXD2_DIR}/containers/nonlive/rootfs/bin" ]
 
+  lxc copy l1:nonlive2/snap0 l2:nonlive3
+  [ -d "${LXD2_DIR}/containers/nonlive3/rootfs/bin" ]
+
   lxc copy l2:nonlive l2:nonlive2
   # should have the same base image tag
   [ "$(lxc config get l2:nonlive volatile.base_image)" = "$(lxc config get l2:nonlive2 volatile.base_image)" ]
