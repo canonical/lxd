@@ -456,7 +456,6 @@ Input (simple rename):
 Input (migration across lxd instances):
     {
         "migration": true,
-        "name": "new-name"
     }
 
 The migration does not actually start until someone (i.e. another lxd instance)
