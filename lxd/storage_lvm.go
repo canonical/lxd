@@ -757,9 +757,9 @@ func (s *storageLvm) MigrationType() MigrationFSType {
 }
 
 func (s *storageLvm) MigrationSource(container container) ([]MigrationStorageSource, error) {
-	return nil, fmt.Errorf("lvm migration source not implemented")
+	return rsyncMigrationSource(container)
 }
 
-func (s *storageLvm) MigrationSink(container container, objects []container, conn *websocket.Conn) error {
-	return fmt.Errorf("lvm migration sink not implemented")
+func (s *storageLvm) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
+	return rsyncMigrationSink(container, snapshots, conn)
 }

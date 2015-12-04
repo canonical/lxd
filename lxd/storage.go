@@ -527,3 +527,49 @@ func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
 
 	return nil
 }
+
+type rsyncStorageSource struct {
+	container container
+}
+
+func (s *rsyncStorageSource) Name() string {
+	return s.container.Name()
+}
+
+func (s *rsyncStorageSource) Send(conn *websocket.Conn) error {
+	path := s.container.Path("")
+	return RsyncSend(shared.AddSlash(path), conn)
+}
+
+func rsyncMigrationSource(container container) ([]MigrationStorageSource, error) {
+	sources := []MigrationStorageSource{}
+
+	/* transfer the container, and then all the snapshots */
+	sources = append(sources, &rsyncStorageSource{container})
+	snaps, err := container.Snapshots()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, snap := range snaps {
+		sources = append(sources, &rsyncStorageSource{snap})
+	}
+
+	return sources, nil
+}
+
+func rsyncMigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
+
+	/* the first object is the actual container */
+	if err := RsyncRecv(shared.AddSlash(container.Path("")), conn); err != nil {
+		return err
+	}
+
+	for _, snap := range snapshots {
+		if err := RsyncRecv(shared.AddSlash(snap.Path("")), conn); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
