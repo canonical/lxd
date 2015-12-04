@@ -1000,13 +1000,13 @@ func storageZFSSetPoolNameConfig(d *Daemon, poolname string) error {
 }
 
 func (s *storageZfs) MigrationType() MigrationFSType {
-	return MigrationFSType_ZFS
+	return MigrationFSType_RSYNC
 }
 
 func (s *storageZfs) MigrationSource(container container) ([]MigrationStorageSource, error) {
-	return nil, fmt.Errorf("zfs migration source not implemented")
+	return rsyncMigrationSource(container)
 }
 
-func (s *storageZfs) MigrationSink(container container, objects []container, conn *websocket.Conn) error {
-	return fmt.Errorf("zfs migration sink not implemented")
+func (s *storageZfs) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
+	return rsyncMigrationSink(container, snapshots, conn)
 }

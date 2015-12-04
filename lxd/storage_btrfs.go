@@ -681,13 +681,13 @@ func (s *storageBtrfs) getSubVolumes(path string) ([]string, error) {
 }
 
 func (s *storageBtrfs) MigrationType() MigrationFSType {
-	return MigrationFSType_BTRFS
+	return MigrationFSType_RSYNC
 }
 
 func (s *storageBtrfs) MigrationSource(container container) ([]MigrationStorageSource, error) {
-	return nil, fmt.Errorf("btrfs migration source not implemented")
+	return rsyncMigrationSource(container)
 }
 
-func (s *storageBtrfs) MigrationSink(container container, objects []container, conn *websocket.Conn) error {
-	return fmt.Errorf("btrfs migration sink not implemented")
+func (s *storageBtrfs) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
+	return rsyncMigrationSink(container, snapshots, conn)
 }
