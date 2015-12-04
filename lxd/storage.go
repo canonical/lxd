@@ -516,11 +516,11 @@ func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
 	}
 
 	if !reflect.DeepEqual(srcIdmap, dstIdmap) {
-		if err := srcIdmap.UnshiftRootfs(shared.VarPath("containers", container.Name())); err != nil {
+		if err := srcIdmap.UnshiftRootfs(container.Path("")); err != nil {
 			return err
 		}
 
-		if err := dstIdmap.ShiftRootfs(shared.VarPath("containers", container.Name())); err != nil {
+		if err := dstIdmap.ShiftRootfs(container.Path("")); err != nil {
 			return err
 		}
 	}
