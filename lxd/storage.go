@@ -561,11 +561,13 @@ func rsyncMigrationSource(container container) ([]MigrationStorageSource, error)
 func rsyncMigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
 
 	/* the first object is the actual container */
+	shared.Log.Error("receiving fs object", log.Ctx{"name": container.Name()})
 	if err := RsyncRecv(shared.AddSlash(container.Path("")), conn); err != nil {
 		return err
 	}
 
 	for _, snap := range snapshots {
+		shared.Log.Error("receiving fs object", log.Ctx{"name": snap.Name()})
 		if err := RsyncRecv(shared.AddSlash(snap.Path("")), conn); err != nil {
 			return err
 		}

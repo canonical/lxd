@@ -13,7 +13,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func rsyncWebsocket(cmd *exec.Cmd, conn *websocket.Conn) error {
+func rsyncWebsocket(path string, cmd *exec.Cmd, conn *websocket.Conn) error {
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err
@@ -33,18 +33,20 @@ func rsyncWebsocket(cmd *exec.Cmd, conn *websocket.Conn) error {
 		return err
 	}
 
-	shared.WebsocketMirror(conn, stdin, stdout)
+	readDone, writeDone := shared.WebsocketMirror(conn, stdin, stdout)
 	data, err2 := ioutil.ReadAll(stderr)
 	if err2 != nil {
 		shared.Debugf("error reading rsync stderr: %s", err2)
 		return err2
 	}
-	shared.Debugf("Stderr from rsync: %s", data)
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.Debugf("rsync recv error %s: %s", err, string(data))
+		shared.Debugf("rsync recv error for path %s: %s: %s", path, err, string(data))
 	}
+
+	<-readDone
+	<-writeDone
 
 	return err
 }
@@ -132,7 +134,7 @@ func RsyncSend(path string, conn *websocket.Conn) error {
 		return err
 	}
 
-	shared.WebsocketMirror(conn, dataSocket, dataSocket)
+	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, dataSocket)
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
@@ -140,8 +142,11 @@ func RsyncSend(path string, conn *websocket.Conn) error {
 	}
 
 	if err := cmd.Wait(); err != nil {
-		shared.Debugf("problem with rsync send %s: %s", err, string(output))
+		shared.Debugf("problem with rsync send of %s: %s: %s", path, err, string(output))
 	}
+
+	<-readDone
+	<-writeDone
 
 	return err
 }
@@ -161,5 +166,5 @@ func rsyncRecvCmd(path string) *exec.Cmd {
 // half set up by RsyncSend), putting the contents in the directory specified
 // by path.
 func RsyncRecv(path string, conn *websocket.Conn) error {
-	return rsyncWebsocket(rsyncRecvCmd(path), conn)
+	return rsyncWebsocket(path, rsyncRecvCmd(path), conn)
 }
