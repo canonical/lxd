@@ -5,8 +5,6 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/lxc/lxd/shared"
-
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
@@ -121,6 +119,6 @@ func (s *storageMock) MigrationType() MigrationFSType {
 func (s *storageMock) MigrationSource(container container) ([]MigrationStorageSource, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-func (s *storageMock) MigrationSink(container container, idmap *shared.IdmapSet, objects []container, conn *websocket.Conn) error {
+func (s *storageMock) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
 	return nil
 }
