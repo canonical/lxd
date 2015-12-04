@@ -14,8 +14,6 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-var sysSyncfsTrapNum uintptr = 306
-
 var storageLvmDefaultThinLVSize = "10GiB"
 var storageLvmDefaultThinPoolName = "LXDPool"
 

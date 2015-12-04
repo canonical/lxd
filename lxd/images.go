@@ -208,9 +208,9 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		return info, err
 	}
 
-	if err := c.ExportToTar(tarfile); err != nil {
+	if err := c.Export(tarfile); err != nil {
 		tarfile.Close()
-		return info, fmt.Errorf("imgPostContInfo: exportToTar failed: %s", err)
+		return info, fmt.Errorf("imgPostContInfo: export failed: %s", err)
 	}
 	tarfile.Close()
 

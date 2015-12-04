@@ -451,10 +451,6 @@ func unixDial(networ, addr string) (net.Conn, error) {
 	return net.DialUnix("unix", nil, raddr)
 }
 
-var unixTransport = http.Transport{
-	Dial: unixDial,
-}
-
 func (c *Client) GetServerConfig() (*Response, error) {
 	return c.baseGet(c.url(shared.APIVersion))
 }
