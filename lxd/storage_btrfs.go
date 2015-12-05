@@ -9,6 +9,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -358,6 +360,10 @@ func (s *storageBtrfs) ContainerSnapshotRename(
 	return nil
 }
 
+func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
+	return fmt.Errorf("btrfs empty snapshot create not implemented")
+}
+
 func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 	imagePath := shared.VarPath("images", fingerprint)
 	subvol := fmt.Sprintf("%s.btrfs", imagePath)
@@ -672,4 +678,16 @@ func (s *storageBtrfs) getSubVolumes(path string) ([]string, error) {
 	}
 
 	return result, nil
+}
+
+func (s *storageBtrfs) MigrationType() MigrationFSType {
+	return MigrationFSType_RSYNC
+}
+
+func (s *storageBtrfs) MigrationSource(container container) ([]MigrationStorageSource, error) {
+	return rsyncMigrationSource(container)
+}
+
+func (s *storageBtrfs) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
+	return rsyncMigrationSink(container, snapshots, conn)
 }

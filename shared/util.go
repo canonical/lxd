@@ -288,6 +288,10 @@ func IsSnapshot(name string) bool {
 	return strings.Contains(name, SnapshotDelimiter)
 }
 
+func ExtractSnapshotName(name string) string {
+	return strings.SplitN(name, SnapshotDelimiter, 2)[1]
+}
+
 func ReadDir(p string) ([]string, error) {
 	ents, err := ioutil.ReadDir(p)
 	if err != nil {

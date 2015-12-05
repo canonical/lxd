@@ -2,15 +2,24 @@
 // source: lxd/migrate.proto
 // DO NOT EDIT!
 
+/*
+Package main is a generated protocol buffer package.
+
+It is generated from these files:
+	lxd/migrate.proto
+
+It has these top-level messages:
+	IDMapType
+	MigrationHeader
+	MigrationControl
+*/
 package main
 
 import proto "github.com/golang/protobuf/proto"
-import json "encoding/json"
 import math "math"
 
-// Reference proto, json, and math imports to suppress error if they are not otherwise used.
+// Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
-var _ = &json.SyntaxError{}
 var _ = math.Inf
 
 type MigrationFSType int32
@@ -18,15 +27,18 @@ type MigrationFSType int32
 const (
 	MigrationFSType_RSYNC MigrationFSType = 0
 	MigrationFSType_BTRFS MigrationFSType = 1
+	MigrationFSType_ZFS   MigrationFSType = 2
 )
 
 var MigrationFSType_name = map[int32]string{
 	0: "RSYNC",
 	1: "BTRFS",
+	2: "ZFS",
 }
 var MigrationFSType_value = map[string]int32{
 	"RSYNC": 0,
 	"BTRFS": 1,
+	"ZFS":   2,
 }
 
 func (x MigrationFSType) Enum() *MigrationFSType {
@@ -36,9 +48,6 @@ func (x MigrationFSType) Enum() *MigrationFSType {
 }
 func (x MigrationFSType) String() string {
 	return proto.EnumName(MigrationFSType_name, int32(x))
-}
-func (x MigrationFSType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.String())
 }
 func (x *MigrationFSType) UnmarshalJSON(data []byte) error {
 	value, err := proto.UnmarshalJSONEnum(MigrationFSType_value, data, "MigrationFSType")
@@ -72,9 +81,6 @@ func (x CRIUType) Enum() *CRIUType {
 }
 func (x CRIUType) String() string {
 	return proto.EnumName(CRIUType_name, int32(x))
-}
-func (x CRIUType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.String())
 }
 func (x *CRIUType) UnmarshalJSON(data []byte) error {
 	value, err := proto.UnmarshalJSONEnum(CRIUType_value, data, "CRIUType")
@@ -137,6 +143,7 @@ type MigrationHeader struct {
 	Fs               *MigrationFSType `protobuf:"varint,1,req,name=fs,enum=main.MigrationFSType" json:"fs,omitempty"`
 	Criu             *CRIUType        `protobuf:"varint,2,opt,name=criu,enum=main.CRIUType" json:"criu,omitempty"`
 	Idmap            []*IDMapType     `protobuf:"bytes,3,rep,name=idmap" json:"idmap,omitempty"`
+	Snapshots        []string         `protobuf:"bytes,4,rep,name=snapshots" json:"snapshots,omitempty"`
 	XXX_unrecognized []byte           `json:"-"`
 }
 
@@ -148,19 +155,26 @@ func (m *MigrationHeader) GetFs() MigrationFSType {
 	if m != nil && m.Fs != nil {
 		return *m.Fs
 	}
-	return 0
+	return MigrationFSType_RSYNC
 }
 
 func (m *MigrationHeader) GetCriu() CRIUType {
 	if m != nil && m.Criu != nil {
 		return *m.Criu
 	}
-	return 0
+	return CRIUType_CRIU_RSYNC
 }
 
 func (m *MigrationHeader) GetIdmap() []*IDMapType {
 	if m != nil {
 		return m.Idmap
+	}
+	return nil
+}
+
+func (m *MigrationHeader) GetSnapshots() []string {
+	if m != nil {
+		return m.Snapshots
 	}
 	return nil
 }

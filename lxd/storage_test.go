@@ -1,6 +1,12 @@
 package main
 
-import log "gopkg.in/inconshreveable/log15.v2"
+import (
+	"fmt"
+
+	"github.com/gorilla/websocket"
+
+	log "gopkg.in/inconshreveable/log15.v2"
+)
 
 type storageMock struct {
 	d     *Daemon
@@ -94,10 +100,25 @@ func (s *storageMock) ContainerSnapshotStop(container container) error {
 	return nil
 }
 
+func (s *storageMock) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
+	return nil
+}
+
 func (s *storageMock) ImageCreate(fingerprint string) error {
 	return nil
 }
 
 func (s *storageMock) ImageDelete(fingerprint string) error {
+	return nil
+}
+
+func (s *storageMock) MigrationType() MigrationFSType {
+	return MigrationFSType_RSYNC
+}
+
+func (s *storageMock) MigrationSource(container container) ([]MigrationStorageSource, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (s *storageMock) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
 	return nil
 }
