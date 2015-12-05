@@ -1342,10 +1342,10 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		if err != nil {
 			return -1, err
 		}
-		defer conn.Close()
 
 		shared.WebsocketSendStream(conn, stdin)
 		<-shared.WebsocketRecvStream(stdout, conn)
+		conn.Close()
 
 	} else {
 		conns := make([]*websocket.Conn, 3)
@@ -1529,7 +1529,17 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 
 func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
 	body := shared.Jmap{"migration": true}
-	return c.post(fmt.Sprintf("containers/%s", container), body, Async)
+	url := fmt.Sprintf("containers/%s", container)
+	if shared.IsSnapshot(container) {
+		pieces := strings.SplitN(container, shared.SnapshotDelimiter, 2)
+		if len(pieces) != 2 {
+			return nil, fmt.Errorf("invalid snapshot name %s", container)
+		}
+
+		url = fmt.Sprintf("containers/%s/snapshots/%s", pieces[0], pieces[1])
+	}
+
+	return c.post(url, body, Async)
 }
 
 func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string, architecture int, config map[string]string, devices shared.Devices, profiles []string, baseImage string, ephemeral bool) (*Response, error) {

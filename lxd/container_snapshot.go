@@ -198,6 +198,24 @@ func snapshotPost(r *http.Request, sc container, containerName string) Response 
 		return BadRequest(err)
 	}
 
+	migration, err := raw.GetBool("migration")
+	if err == nil && migration {
+		ws, err := NewMigrationSource(sc)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		resources := map[string][]string{}
+		resources["containers"] = []string{containerName}
+
+		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		return OperationResponse(op)
+	}
+
 	newName, err := raw.GetString("name")
 	if err != nil {
 		return BadRequest(err)

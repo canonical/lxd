@@ -3,6 +3,7 @@ package main;
 enum MigrationFSType {
   RSYNC     = 0;
   BTRFS     = 1;
+  ZFS       = 2;
 }
 
 enum CRIUType {
@@ -19,9 +20,11 @@ message IDMapType {
 }
 
 message MigrationHeader {
-  required MigrationFSType  fs      = 1;
-  optional CRIUType         criu    = 2;
-  repeated IDMapType        idmap   = 3;
+  required MigrationFSType  fs        = 1;
+  optional CRIUType         criu      = 2;
+  repeated IDMapType        idmap     = 3;
+
+  repeated string           snapshots = 4;
 }
 
 message MigrationControl {

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -177,6 +179,11 @@ func (s *storageDir) ContainerSnapshotCreate(
 
 	return nil
 }
+
+func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
+	return os.MkdirAll(snapshotContainer.Path(""), 0700)
+}
+
 func (s *storageDir) ContainerSnapshotDelete(
 	snapshotContainer container) error {
 	err := s.ContainerDelete(snapshotContainer)
@@ -234,4 +241,16 @@ func (s *storageDir) ImageCreate(fingerprint string) error {
 
 func (s *storageDir) ImageDelete(fingerprint string) error {
 	return nil
+}
+
+func (s *storageDir) MigrationType() MigrationFSType {
+	return MigrationFSType_RSYNC
+}
+
+func (s *storageDir) MigrationSource(container container) ([]MigrationStorageSource, error) {
+	return rsyncMigrationSource(container)
+}
+
+func (s *storageDir) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
+	return rsyncMigrationSink(container, snapshots, conn)
 }
