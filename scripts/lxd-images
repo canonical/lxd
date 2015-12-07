@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Let's stick to core python3 modules
 import argparse
+import atexit
 import gettext
 import hashlib
 import http.client
@@ -98,8 +99,9 @@ class LXD(object):
 
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
+        print("workdir is " + self.workdir)
 
-    def __del__(self):
+    def cleanup(self):
         if self.workdir:
             shutil.rmtree(self.workdir)
 
@@ -268,7 +270,7 @@ class Busybox(object):
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
 
-    def __del__(self):
+    def cleanup(self):
         if self.workdir:
             shutil.rmtree(self.workdir)
 
@@ -398,7 +400,7 @@ class Ubuntu(Image):
         # Get ready to work with this server
         self.gpg_update()
 
-    def __del__(self):
+    def cleanup(self):
         if self.workdir:
             shutil.rmtree(self.workdir)
 
@@ -514,6 +516,7 @@ if __name__ == "__main__":
         print(_("LXD isn't running."))
         sys.exit(1)
     lxd = LXD(lxd_socket)
+    atexit.register(lxd.cleanup)
 
     def setup_alias(aliases, fingerprint):
         existing = lxd.aliases_list()
@@ -526,6 +529,7 @@ if __name__ == "__main__":
 
     def import_busybox(parser, args):
         busybox = Busybox()
+        atexit.register(busybox.cleanup)
 
         if args.split:
             meta_path, rootfs_path = busybox.create_tarball(split=True)
@@ -576,6 +580,7 @@ if __name__ == "__main__":
             image = ubuntu.image_lookup(args.release, args.architecture,
                                         args.version)
 
+        atexit.register(ubuntu.cleanup)
         sync = False
         if args.sync:
             sync = "ubuntu:%s:%s:%s" % (args.stream, args.release,
