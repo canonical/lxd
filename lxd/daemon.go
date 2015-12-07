@@ -34,7 +34,9 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-var aaEnabled = true
+var aaAdmin = true
+var aaAvailable = true
+var aaConfined = false
 var runningInUserns = false
 
 const (
@@ -618,26 +620,44 @@ func (d *Daemon) Init() error {
 	/* Detect user namespaces */
 	runningInUserns = shared.RunningInUserNS()
 
-	/* Detect apparmor support */
-	if aaEnabled && os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
-		aaEnabled = false
-		shared.Log.Warn("Per-container AppArmor profiles have been manually disabled")
+	/* Detect AppArmor support */
+	if aaAvailable && os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
+		aaAvailable = false
+		aaAdmin = false
+		shared.Log.Warn("AppArmor support has been manually disabled")
 	}
 
-	if aaEnabled && !shared.IsDir("/sys/kernel/security/apparmor") {
-		aaEnabled = false
-		shared.Log.Warn("Per-container AppArmor profiles disabled because of lack of kernel support")
-	}
-
-	if aaEnabled && !haveMacAdmin() {
-		shared.Log.Warn("Per-container AppArmor profiles are disabled because mac_admin capability is missing.")
-		aaEnabled = false
+	if aaAvailable && !shared.IsDir("/sys/kernel/security/apparmor") {
+		aaAvailable = false
+		aaAdmin = false
+		shared.Log.Warn("AppArmor support has been disabled because of lack of kernel support")
 	}
 
 	_, err := exec.LookPath("apparmor_parser")
-	if aaEnabled && err != nil {
-		aaEnabled = false
-		shared.Log.Warn("Per-container AppArmor profiles disabled because 'apparmor_parser' couldn't be found")
+	if aaAvailable && err != nil {
+		aaAvailable = false
+		aaAdmin = false
+		shared.Log.Warn("AppArmor support has been disabled because 'apparmor_parser' couldn't be found")
+	}
+
+	/* Detect AppArmor admin support */
+	if aaAdmin && !haveMacAdmin() {
+		aaAdmin = false
+		shared.Log.Warn("Per-container AppArmor profiles are disabled because the mac_admin capability is missing.")
+	}
+
+	if aaAdmin && runningInUserns {
+		aaAdmin = false
+		shared.Log.Warn("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container.")
+	}
+
+	/* Detect AppArmor confinment */
+	if !aaConfined {
+		profile := aaProfile()
+		if profile != "unconfined" && profile != "" {
+			aaConfined = true
+			shared.Log.Warn("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
+		}
 	}
 
 	/* Get the list of supported architectures */

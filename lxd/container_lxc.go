@@ -320,8 +320,8 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup AppArmor
-	if aaEnabled {
-		if aaConfined() {
+	if aaAvailable {
+		if aaConfined || !aaAdmin {
 			// If confined but otherwise able to use AppArmor, use our own profile
 			curProfile := aaProfile()
 			curProfile = strings.TrimSuffix(curProfile, " (enforce)")
