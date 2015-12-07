@@ -448,7 +448,6 @@ func BlockFsDetect(dev string) (string, error) {
 
 // DeepCopy copies src to dest by using encoding/gob so its not that fast.
 func DeepCopy(src, dest interface{}) error {
-
 	buff := new(bytes.Buffer)
 	enc := gob.NewEncoder(buff)
 	dec := gob.NewDecoder(buff)

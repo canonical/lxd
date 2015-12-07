@@ -33,6 +33,8 @@ protobuf:
 
 .PHONY: check
 check: default
+	go get -v -x github.com/remyoudompheng/go-misc/deadcode
+	go get -v -x golang.org/x/tools/cmd/vet
 	go test -v ./...
 	cd test && ./main.sh
 
