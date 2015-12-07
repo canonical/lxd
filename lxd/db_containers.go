@@ -10,12 +10,16 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-func validateConfig(config map[string]string) error {
+func validateConfig(config map[string]string, profile bool) error {
 	if config == nil {
 		return nil
 	}
 
 	for k, _ := range config {
+		if profile && strings.HasPrefix(k, "volatile.") {
+			return fmt.Errorf("Volatile keys can only be set on containers.")
+		}
+
 		if k == "raw.lxc" {
 			err := validateRawLxc(config["raw.lxc"])
 			if err != nil {
@@ -183,7 +187,7 @@ func dbContainerConfigClear(tx *sql.Tx, id int) error {
 }
 
 func dbContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
-	err := validateConfig(config)
+	err := validateConfig(config, false)
 	if err != nil {
 		return err
 	}

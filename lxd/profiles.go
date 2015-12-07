@@ -63,7 +63,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	err := validateConfig(req.Config)
+	err := validateConfig(req.Config, true)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -143,7 +143,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err := validateConfig(req.Config)
+	err := validateConfig(req.Config, true)
 	if err != nil {
 		return BadRequest(err)
 	}
