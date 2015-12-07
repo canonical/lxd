@@ -1211,7 +1211,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Validate the new config
-	err := validateConfig(args.Config)
+	err := validateConfig(args.Config, false)
 	if err != nil {
 		return err
 	}
