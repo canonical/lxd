@@ -103,11 +103,14 @@ func (suite *lxdTestSuite) TestContainer_LoadFromDB() {
 		Name: "testFoo",
 	}
 
+	// Create the container
 	c, err := containerCreateInternal(suite.d, args)
 	suite.Req.Nil(err)
 	defer c.Delete()
 
+	// Load the container and trigger initLXC()
 	c2, err := containerLoadByName(suite.d, "testFoo")
+	c2.IsRunning()
 	suite.Req.Nil(err)
 
 	suite.Exactly(

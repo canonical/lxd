@@ -214,6 +214,10 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 	config := make(map[string]interface{})
 	storageType := storageTypeDir
 
+	if d.IsMock {
+		return newStorageWithConfig(d, storageTypeMock, config)
+	}
+
 	filesystem, err := filesystemDetect(filename)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't detect filesystem for '%s': %v", filename, err)
