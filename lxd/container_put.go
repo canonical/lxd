@@ -12,6 +12,15 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+type containerPutReq struct {
+	Architecture int               `json:"architecture"`
+	Config       map[string]string `json:"config"`
+	Devices      shared.Devices    `json:"devices"`
+	Ephemeral    bool              `json:"ephemeral"`
+	Profiles     []string          `json:"profiles"`
+	Restore      string            `json:"restore"`
+}
+
 /*
  * Update configuration, or, if 'restore:snapshot-name' is present, restore
  * the named snapshot

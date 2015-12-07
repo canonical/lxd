@@ -13,6 +13,43 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+type containerImageSource struct {
+	Type string `json:"type"`
+
+	/* for "image" type */
+	Alias       string `json:"alias"`
+	Fingerprint string `json:"fingerprint"`
+	Server      string `json:"server"`
+	Secret      string `json:"secret"`
+
+	/*
+	 * for "migration" and "copy" types, as an optimization users can
+	 * provide an image hash to extract before the filesystem is rsync'd,
+	 * potentially cutting down filesystem transfer time. LXD will not go
+	 * and fetch this image, it will simply use it if it exists in the
+	 * image store.
+	 */
+	BaseImage string `json:"base-image"`
+
+	/* for "migration" type */
+	Mode       string            `json:"mode"`
+	Operation  string            `json:"operation"`
+	Websockets map[string]string `json:"secrets"`
+
+	/* for "copy" type */
+	Source string `json:"source"`
+}
+
+type containerPostReq struct {
+	Architecture int                  `json:"architecture"`
+	Config       map[string]string    `json:"config"`
+	Devices      shared.Devices       `json:"devices"`
+	Ephemeral    bool                 `json:"ephemeral"`
+	Name         string               `json:"name"`
+	Profiles     []string             `json:"profiles"`
+	Source       containerImageSource `json:"source"`
+}
+
 func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var hash string
 	var err error

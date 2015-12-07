@@ -10,6 +10,12 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+type containerStatePutReq struct {
+	Action  string `json:"action"`
+	Timeout int    `json:"timeout"`
+	Force   bool   `json:"force"`
+}
+
 func containerState(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)
