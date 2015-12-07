@@ -924,7 +924,7 @@ func (c *containerLXC) OnStop(target string) error {
 		}
 
 		// Trigger a rebalance
-		deviceTaskSchedulerTrigger("container", c.name, "started")
+		deviceTaskSchedulerTrigger("container", c.name, "stopped")
 
 		// Destroy ephemeral containers
 		if c.ephemeral {

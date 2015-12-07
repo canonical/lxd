@@ -8,6 +8,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type containerPostBody struct {
+	Migration bool   `json:"migration"`
+	Name      string `json:"name"`
+}
+
 func containerPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)

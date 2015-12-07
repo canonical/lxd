@@ -17,6 +17,13 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+type commandPostContent struct {
+	Command     []string          `json:"command"`
+	WaitForWS   bool              `json:"wait-for-websocket"`
+	Interactive bool              `json:"interactive"`
+	Environment map[string]string `json:"environment"`
+}
+
 func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions) (int, error) {
 	status, err := container.RunCommandStatus(command, options)
 	if err != nil {

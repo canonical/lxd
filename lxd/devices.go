@@ -424,7 +424,6 @@ func deviceMountDisk(srcPath string, dstPath string, readonly bool) error {
 	}
 
 	// Detect the filesystem
-	shared.Debugf("stgraber: %s isdevice=%s", srcPath, deviceIsDevice(srcPath))
 	fstype := "none"
 	if deviceIsDevice(srcPath) {
 		fstype, err = shared.BlockFsDetect(srcPath)

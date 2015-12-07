@@ -66,7 +66,7 @@ func dbContainerId(db *sql.DB, name string) (int, error) {
 }
 
 func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
-	args := &containerArgs{}
+	args := containerArgs{}
 	args.Name = name
 
 	ephemInt := -1
@@ -75,11 +75,11 @@ func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
 	arg2 := []interface{}{&args.Id, &args.Architecture, &args.Ctype, &ephemInt}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
-		return *args, err
+		return args, err
 	}
 
 	if args.Id == -1 {
-		return *args, fmt.Errorf("Unknown container")
+		return args, fmt.Errorf("Unknown container")
 	}
 
 	if ephemInt == 1 {
@@ -88,13 +88,13 @@ func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
 
 	config, err := dbContainerConfig(db, args.Id)
 	if err != nil {
-		return *args, err
+		return args, err
 	}
 	args.Config = config
 
 	profiles, err := dbContainerProfiles(db, args.Id)
 	if err != nil {
-		return *args, err
+		return args, err
 	}
 	args.Profiles = profiles
 
@@ -102,14 +102,14 @@ func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
 	args.Devices = shared.Devices{}
 	newdevs, err := dbDevices(db, name, false)
 	if err != nil {
-		return *args, err
+		return args, err
 	}
 
 	for k, v := range newdevs {
 		args.Devices[k] = v
 	}
 
-	return *args, nil
+	return args, nil
 }
 
 func dbContainerCreate(db *sql.DB, args containerArgs) (int, error) {
