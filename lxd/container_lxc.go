@@ -2338,6 +2338,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m shared.Device) (shared.D
 			}
 
 			c.localConfig[configKey] = volatileHwaddr
+			c.expandedConfig[configKey] = volatileHwaddr
 
 			// Update the database
 			tx, err := dbBegin(c.daemon.db)
@@ -2371,6 +2372,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m shared.Device) (shared.D
 			}
 
 			c.localConfig[configKey] = volatileName
+			c.expandedConfig[configKey] = volatileName
 
 			// Update the database
 			tx, err := dbBegin(c.daemon.db)
