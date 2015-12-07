@@ -76,8 +76,7 @@ type Response struct {
 	StatusCode int    `json:"status_code"`
 
 	/* Valid only for Async responses */
-	Operation string              `json:"operation"`
-	Resources map[string][]string `json:"resources"`
+	Operation string `json:"operation"`
 
 	/* Valid only for Error responses */
 	Code  int    `json:"error_code"`

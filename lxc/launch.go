@@ -80,11 +80,12 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if name == "" {
-		if resp.Resources == nil {
+		op, err := resp.MetadataAsOperation()
+		if err != nil {
 			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
 		}
 
-		containers, ok := resp.Resources["containers"]
+		containers, ok := op.Resources["containers"]
 		if !ok || len(containers) == 0 {
 			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
 		}
