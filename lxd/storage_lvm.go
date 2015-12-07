@@ -565,7 +565,7 @@ func (s *storageLvm) ContainerSnapshotStop(container container) error {
 }
 
 func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
-	return fmt.Errorf("lvm empty snapshot create not implemented")
+	return s.ContainerCreate(snapshotContainer)
 }
 
 func (s *storageLvm) ImageCreate(fingerprint string) error {
