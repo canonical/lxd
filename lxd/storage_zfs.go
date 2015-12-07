@@ -478,7 +478,7 @@ func (s *storageZfs) ContainerSnapshotStop(container container) error {
 }
 
 func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
-	return fmt.Errorf("zfs empty snapshot create not implemented")
+	return fmt.Errorf("can't transfer snapshots to zfs from non-zfs backend")
 }
 
 func (s *storageZfs) ImageCreate(fingerprint string) error {

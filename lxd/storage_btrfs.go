@@ -361,7 +361,8 @@ func (s *storageBtrfs) ContainerSnapshotRename(
 }
 
 func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
-	return fmt.Errorf("btrfs empty snapshot create not implemented")
+	dpath := snapshotContainer.Path("")
+	return s.subvolCreate(dpath)
 }
 
 func (s *storageBtrfs) ImageCreate(fingerprint string) error {
