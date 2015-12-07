@@ -647,6 +647,10 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", err
 	}
 
+	// Cleanup any existing leftover devices
+	c.removeUnixDevices()
+	c.removeDiskDevices()
+
 	// Create the devices
 	for k, m := range c.expandedDevices {
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
