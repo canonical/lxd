@@ -217,7 +217,6 @@ func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 }
 
 func (s *storageLvm) ContainerCreate(container container) error {
-
 	containerName := containerNameToLVName(container.Name())
 	lvpath, err := s.createThinLV(containerName)
 	if err != nil {
@@ -679,7 +678,6 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 }
 
 func (s *storageLvm) createThinLV(lvname string) (string, error) {
-
 	poolname, err := s.d.ConfigValueGet("storage.lvm_thinpool_name")
 	if err != nil {
 		return "", fmt.Errorf("Error checking server config, err=%v", err)

@@ -79,7 +79,6 @@ func readSavedClientCAList(d *Daemon) {
 }
 
 func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
-
 	baseCert := new(dbCertInfo)
 	baseCert.Fingerprint = certGenerateFingerprint(cert)
 	baseCert.Type = 1

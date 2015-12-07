@@ -503,7 +503,6 @@ func (lw *storageLogWrapper) MigrationSink(container container, objects []contai
 }
 
 func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
-
 	dstIdmap := container.IdmapSet()
 	if dstIdmap == nil {
 		dstIdmap = new(shared.IdmapSet)
@@ -553,7 +552,6 @@ func rsyncMigrationSource(container container) ([]MigrationStorageSource, error)
 }
 
 func rsyncMigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
-
 	/* the first object is the actual container */
 	if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
 		return err
