@@ -93,8 +93,7 @@ func getAAProfileContent(c container) string {
 }
 
 func runApparmor(command string, c container) error {
-	if aaConfined() {
-		shared.Log.Debug("Already apparmor-confined (nested?), skipping aa profile actions")
+	if !aaAvailable {
 		return nil
 	}
 
@@ -113,33 +112,10 @@ func runApparmor(command string, c container) error {
 	return err
 }
 
-/*
- * lxd could be confined by some other profile, but we'll only support
- * running under lxc-container-default-with-nesting or lxd-*
- */
-func aaConfined() bool {
-	curProfile := aaProfile()
-
-	switch {
-	case strings.HasPrefix(curProfile, "lxc-container-default-with-nesting"):
-		return true
-	case strings.HasPrefix(curProfile, "lxd-"):
-		return true
-	}
-
-	return false
-}
-
 // Ensure that the container's policy is loaded into the kernel so the
 // container can boot.
 func AALoadProfile(c container) error {
-	if runningInUserns || !aaEnabled {
-		shared.Log.Debug("Apparmor not enabled, skipping profile load")
-		return nil
-	}
-
-	if aaConfined() {
-		shared.Log.Debug("Already apparmor confined, skipping profile load")
+	if !aaAdmin {
 		return nil
 	}
 
@@ -178,13 +154,7 @@ func AALoadProfile(c container) error {
 // Ensure that the container's policy is unloaded to free kernel memory. This
 // does not delete the policy from disk or cache.
 func AAUnloadProfile(c container) error {
-	if runningInUserns || !aaEnabled {
-		shared.Log.Debug("Apparmor not enabled, skipping profile unload")
-		return nil
-	}
-
-	if aaConfined() {
-		shared.Log.Debug("Already apparmor confined, skipping profile unload")
+	if !aaAdmin {
 		return nil
 	}
 
@@ -193,14 +163,7 @@ func AAUnloadProfile(c container) error {
 
 // Parse the profile without loading it into the kernel.
 func AAParseProfile(c container) error {
-	if runningInUserns || !aaEnabled {
-		shared.Log.Debug("Apparmor not enabled, skipping profile parse")
-		return nil
-	}
-
-	if aaConfined() {
-		shared.Log.Debug("Already apparmor confined, skipping profile parse")
-		return nil
+	if !aaAvailable {
 	}
 
 	return runApparmor(APPARMOR_CMD_PARSE, c)
@@ -208,13 +171,7 @@ func AAParseProfile(c container) error {
 
 // Delete the policy from cache/disk.
 func AADeleteProfile(c container) {
-	if runningInUserns || !aaEnabled {
-		shared.Log.Debug("Apparmor not enabled, skipping profile delete")
-		return
-	}
-
-	if aaConfined() {
-		shared.Log.Debug("Already apparmor confined, skipping profile delete")
+	if !aaAdmin {
 		return
 	}
 
