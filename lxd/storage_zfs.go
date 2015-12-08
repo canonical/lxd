@@ -656,7 +656,7 @@ func (s *storageZfs) zfsDestroy(path string) error {
 		return err
 	}
 
-	if mountpoint != "none" {
+	if mountpoint != "none" && shared.IsMountPoint(mountpoint) {
 		output, err := exec.Command("umount", "-l", mountpoint).CombinedOutput()
 		if err != nil {
 			s.log.Error("umount failed", log.Ctx{"output": string(output)})
