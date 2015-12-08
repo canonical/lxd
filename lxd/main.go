@@ -138,8 +138,8 @@ func run() error {
 		fmt.Printf("        Push a file to a running container\n")
 		fmt.Printf("    forkstart\n")
 		fmt.Printf("        Start a container\n")
-		fmt.Printf("    setstatus\n")
-		fmt.Printf("        Advises LXD of container status\n")
+		fmt.Printf("    callhook\n")
+		fmt.Printf("        Call a container hook\n")
 	}
 
 	// Parse the arguments
@@ -192,8 +192,8 @@ func run() error {
 			return MigrateContainer(os.Args[1:])
 		case "forkstart":
 			return startContainer(os.Args[1:])
-		case "setstatus":
-			return setStatus(os.Args[1:])
+		case "callhook":
+			return callHook(os.Args[1:])
 		case "init":
 			return setupLXD()
 		case "shutdown":
@@ -212,7 +212,7 @@ func run() error {
 	return daemon()
 }
 
-func setStatus(args []string) error {
+func callHook(args []string) error {
 	if len(args) < 4 {
 		return fmt.Errorf("Invalid arguments")
 	}
@@ -220,6 +220,7 @@ func setStatus(args []string) error {
 	path := args[1]
 	id := args[2]
 	state := args[3]
+	target := ""
 
 	err := os.Setenv("LXD_DIR", path)
 	if err != nil {
@@ -231,7 +232,17 @@ func setStatus(args []string) error {
 		return err
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/internal/containers/%s/on%s", c.BaseURL, id, state), nil)
+	url := fmt.Sprintf("%s/internal/containers/%s/on%s", c.BaseURL, id, state)
+
+	if state == "stop" {
+		target = os.Getenv("LXC_TARGET")
+		if target == "" {
+			target = "unknown"
+		}
+		url = fmt.Sprintf("%s?target=%s", url, target)
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
@@ -246,7 +257,10 @@ func setStatus(args []string) error {
 		return err
 	}
 
-	fmt.Printf("called for %s in state %s with path %s\n", id, state, path)
+	if target == "reboot" {
+		return fmt.Errorf("Reboot must be handled by LXD.")
+	}
+
 	return nil
 }
 

@@ -18,10 +18,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func socketPath() string {
-	return shared.VarPath("devlxd")
-}
-
 type devLxdResponse struct {
 	content interface{}
 	code    int
@@ -46,7 +42,7 @@ type devLxdHandler struct {
 
 var configGet = devLxdHandler{"/1.0/config", func(c container, r *http.Request) *devLxdResponse {
 	filtered := []string{}
-	for k, _ := range c.Config() {
+	for k, _ := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "user.") {
 			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
 		}
@@ -60,7 +56,7 @@ var configKeyGet = devLxdHandler{"/1.0/config/{key}", func(c container, r *http.
 		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
 	}
 
-	value, ok := c.Config()[key]
+	value, ok := c.ExpandedConfig()[key]
 	if !ok {
 		return &devLxdResponse{"not found", http.StatusNotFound, "raw"}
 	}
@@ -69,7 +65,7 @@ var configKeyGet = devLxdHandler{"/1.0/config/{key}", func(c container, r *http.
 }}
 
 var metadataGet = devLxdHandler{"/1.0/meta-data", func(c container, r *http.Request) *devLxdResponse {
-	value := c.Config()["user.meta-data"]
+	value := c.ExpandedConfig()["user.meta-data"]
 	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", c.Name(), c.Name(), value), "raw")
 }}
 
@@ -116,11 +112,11 @@ func hoistReq(f func(container, *http.Request) *devLxdResponse, d *Daemon) func(
 }
 
 func createAndBindDevLxd() (*net.UnixListener, error) {
-	if err := os.MkdirAll(socketPath(), 0777); err != nil {
+	if err := os.MkdirAll(shared.VarPath("devlxd"), 0777); err != nil {
 		return nil, err
 	}
 
-	sockFile := path.Join(socketPath(), "sock")
+	sockFile := path.Join(shared.VarPath("devlxd"), "sock")
 
 	/*
 	 * If this socket exists, that means a previous lxd died and didn't
@@ -154,11 +150,6 @@ func createAndBindDevLxd() (*net.UnixListener, error) {
 	}
 
 	return unixl, nil
-}
-
-func setupDevLxdMount(c *containerLXD) error {
-	mtab := fmt.Sprintf("%s dev/lxd none bind,create=dir 0 0", socketPath())
-	return setConfigItem(c, "lxc.mount.entry", mtab)
 }
 
 func devLxdServer(d *Daemon) *http.Server {
@@ -313,7 +304,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 			parts := strings.Split(string(cmdline), " ")
 			name := parts[len(parts)-1]
 
-			return containerLXDLoad(d, name)
+			return containerLoadByName(d, name)
 		}
 
 		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
@@ -347,7 +338,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 	}
 
 	for _, container := range containers {
-		c, err := containerLXDLoad(d, container)
+		c, err := containerLoadByName(d, container)
 		if err != nil {
 			return nil, err
 		}

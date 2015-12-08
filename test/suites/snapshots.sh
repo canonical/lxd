@@ -85,7 +85,7 @@ test_snap_restore() {
   # Delete the state file we created to prevent leaking.
   rm state
 
-  lxc config set bar limits.cpus 1
+  lxc config set bar limits.cpu 1
 
   lxc snapshot bar snap1
 
@@ -93,9 +93,9 @@ test_snap_restore() {
 
   restore_and_compare_fs snap0
 
-  # Check container config has been restored (limits.cpus is unset)
-  cpus=$(lxc config get bar limits.cpus)
-  if [ "${cpus}" != "limits.cpus: " ]; then
+  # Check container config has been restored (limits.cpu is unset)
+  cpus=$(lxc config get bar limits.cpu)
+  if [ "${cpus}" != "limits.cpu: " ]; then
    echo "==> config didn't match expected value after restore (${cpus})"
    false
   fi
@@ -106,8 +106,8 @@ test_snap_restore() {
   restore_and_compare_fs snap1
 
   # Check config value in snapshot has been restored
-  cpus=$(lxc config get bar limits.cpus)
-  if [ "${cpus}" != "limits.cpus: 1" ]; then
+  cpus=$(lxc config get bar limits.cpu)
+  if [ "${cpus}" != "limits.cpu: 1" ]; then
    echo "==> config didn't match expected value after restore (${cpus})"
    false
   fi

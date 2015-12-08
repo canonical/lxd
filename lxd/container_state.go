@@ -10,9 +10,15 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+type containerStatePutReq struct {
+	Action  string `json:"action"`
+	Timeout int    `json:"timeout"`
+	Force   bool   `json:"force"`
+}
+
 func containerState(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := containerLXDLoad(d, name)
+	c, err := containerLoadByName(d, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -38,7 +44,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	c, err := containerLXDLoad(d, name)
+	c, err := containerLoadByName(d, name)
 	if err != nil {
 		return SmartError(err)
 	}

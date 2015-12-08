@@ -22,16 +22,16 @@ delete_module errno 1
 
 var seccompPath = shared.VarPath("security", "seccomp")
 
-func SeccompProfilePath(c *containerLXD) string {
-	return path.Join(seccompPath, c.name)
+func SeccompProfilePath(c container) string {
+	return path.Join(seccompPath, c.Name())
 }
 
-func getSeccompProfileContent(c *containerLXD) string {
+func getSeccompProfileContent(c container) string {
 	/* for now there are no seccomp knobs. */
 	return DEFAULT_SECCOMP_POLICY
 }
 
-func SeccompCreateProfile(c *containerLXD) error {
+func SeccompCreateProfile(c container) error {
 	/* Unlike apparmor, there is no way to "cache" profiles, and profiles
 	 * are automatically unloaded when a task dies. Thus, we don't need to
 	 * unload them when a container stops, and we don't have to worry about
@@ -46,7 +46,7 @@ func SeccompCreateProfile(c *containerLXD) error {
 	return ioutil.WriteFile(SeccompProfilePath(c), []byte(profile), 0600)
 }
 
-func SeccompDeleteProfile(c *containerLXD) {
+func SeccompDeleteProfile(c container) {
 	/* similar to AppArmor, if we've never started this container, the
 	 * delete can fail and that's ok.
 	 */

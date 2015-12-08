@@ -30,7 +30,7 @@ func (s *storageDir) Init(config map[string]interface{}) (storage, error) {
 }
 
 func (s *storageDir) ContainerCreate(container container) error {
-	cPath := container.Path("")
+	cPath := container.Path()
 	if err := os.MkdirAll(cPath, 0755); err != nil {
 		return fmt.Errorf("Error creating containers directory")
 	}
@@ -53,13 +53,13 @@ func (s *storageDir) ContainerCreateFromImage(
 	}
 
 	if container.IsPrivileged() {
-		if err := os.Chmod(container.Path(""), 0700); err != nil {
+		if err := os.Chmod(container.Path(), 0700); err != nil {
 			return err
 		}
 	}
 
 	imagePath := shared.VarPath("images", imageFingerprint)
-	if err := untarImage(imagePath, container.Path("")); err != nil {
+	if err := untarImage(imagePath, container.Path()); err != nil {
 		os.RemoveAll(rootfsPath)
 		return err
 	}
@@ -75,7 +75,7 @@ func (s *storageDir) ContainerCreateFromImage(
 }
 
 func (s *storageDir) ContainerDelete(container container) error {
-	cPath := container.Path("")
+	cPath := container.Path()
 
 	err := os.RemoveAll(cPath)
 	if err != nil {
@@ -102,7 +102,7 @@ func (s *storageDir) ContainerCopy(
 		return fmt.Errorf("rsync failed: %s", string(output))
 	}
 
-	err = s.setUnprivUserAcl(sourceContainer, container.Path(""))
+	err = s.setUnprivUserAcl(sourceContainer, container.Path())
 	if err != nil {
 		return err
 	}
@@ -118,14 +118,21 @@ func (s *storageDir) ContainerStop(container container) error {
 	return nil
 }
 
-func (s *storageDir) ContainerRename(
-	container container, newName string) error {
+func (s *storageDir) ContainerRename(container container, newName string) error {
+	oldName := container.Name()
 
-	oldPath := container.Path("")
-	newPath := container.Path(newName)
+	oldPath := container.Path()
+	newPath := containerPath(newName, false)
 
 	if err := os.Rename(oldPath, newPath); err != nil {
 		return err
+	}
+
+	if shared.PathExists(shared.VarPath(fmt.Sprintf("snapshots/%s", oldName))) {
+		err := os.Rename(shared.VarPath(fmt.Sprintf("snapshots/%s", oldName)), shared.VarPath(fmt.Sprintf("snapshots/%s", newName)))
+		if err != nil {
+			return err
+		}
 	}
 
 	// TODO: No TemplateApply here?
@@ -135,8 +142,8 @@ func (s *storageDir) ContainerRename(
 func (s *storageDir) ContainerRestore(
 	container container, sourceContainer container) error {
 
-	targetPath := container.Path("")
-	sourcePath := sourceContainer.Path("")
+	targetPath := container.Path()
+	sourcePath := sourceContainer.Path()
 
 	// Restore using rsync
 	output, err := storageRsyncCopy(
@@ -162,8 +169,8 @@ func (s *storageDir) ContainerRestore(
 func (s *storageDir) ContainerSnapshotCreate(
 	snapshotContainer container, sourceContainer container) error {
 
-	oldPath := sourceContainer.Path("")
-	newPath := snapshotContainer.Path("")
+	oldPath := sourceContainer.Path()
+	newPath := snapshotContainer.Path()
 
 	/*
 	 * Copy by using rsync
@@ -181,7 +188,7 @@ func (s *storageDir) ContainerSnapshotCreate(
 }
 
 func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
-	return os.MkdirAll(snapshotContainer.Path(""), 0700)
+	return os.MkdirAll(snapshotContainer.Path(), 0700)
 }
 
 func (s *storageDir) ContainerSnapshotDelete(
@@ -191,7 +198,7 @@ func (s *storageDir) ContainerSnapshotDelete(
 		return fmt.Errorf("Error deleting snapshot %s: %s", snapshotContainer.Name(), err)
 	}
 
-	oldPathParent := filepath.Dir(snapshotContainer.Path(""))
+	oldPathParent := filepath.Dir(snapshotContainer.Path())
 	if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
 		os.Remove(oldPathParent)
 	}
@@ -202,8 +209,8 @@ func (s *storageDir) ContainerSnapshotDelete(
 func (s *storageDir) ContainerSnapshotRename(
 	snapshotContainer container, newName string) error {
 
-	oldPath := snapshotContainer.Path("")
-	newPath := snapshotContainer.Path(newName)
+	oldPath := snapshotContainer.Path()
+	newPath := containerPath(newName, true)
 
 	// Create the new parent.
 	if strings.Contains(snapshotContainer.Name(), "/") {

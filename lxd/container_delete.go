@@ -9,7 +9,7 @@ import (
 
 func containerDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := containerLXDLoad(d, name)
+	c, err := containerLoadByName(d, name)
 	if err != nil {
 		return SmartError(err)
 	}

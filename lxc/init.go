@@ -189,7 +189,15 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		fmt.Println(i18n.G("error."))
 		return err
 	} else {
-		containers := resp.Resources["containers"]
+		op, err := resp.MetadataAsOperation()
+		if err != nil {
+			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+		}
+
+		containers, ok := op.Resources["containers"]
+		if !ok || len(containers) == 0 {
+			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+		}
 
 		if len(containers) == 1 && name == "" {
 			cname := path.Base(containers[0])

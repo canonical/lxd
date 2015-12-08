@@ -48,7 +48,7 @@ func (s *storageBtrfs) Init(config map[string]interface{}) (storage, error) {
 }
 
 func (s *storageBtrfs) ContainerCreate(container container) error {
-	cPath := container.Path("")
+	cPath := container.Path()
 
 	// MkdirAll the pardir of the BTRFS Subvolume.
 	if err := os.MkdirAll(filepath.Dir(cPath), 0755); err != nil {
@@ -85,7 +85,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(
 	}
 
 	// Now make a snapshot of the image subvol
-	err := s.subvolsSnapshot(imageSubvol, container.Path(""), false)
+	err := s.subvolsSnapshot(imageSubvol, container.Path(), false)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(
 			return err
 		}
 	} else {
-		if err := os.Chmod(container.Path(""), 0700); err != nil {
+		if err := os.Chmod(container.Path(), 0700); err != nil {
 			return err
 		}
 	}
@@ -105,7 +105,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(
 }
 
 func (s *storageBtrfs) ContainerDelete(container container) error {
-	cPath := container.Path("")
+	cPath := container.Path()
 
 	// First remove the subvol (if it was one).
 	if s.isSubvolume(cPath) {
@@ -125,8 +125,8 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 }
 
 func (s *storageBtrfs) ContainerCopy(container container, sourceContainer container) error {
-	subvol := sourceContainer.Path("")
-	dpath := container.Path("")
+	subvol := sourceContainer.Path()
+	dpath := container.Path()
 
 	if s.isSubvolume(subvol) {
 		// Snapshot the sourcecontainer
@@ -144,8 +144,8 @@ func (s *storageBtrfs) ContainerCopy(container container, sourceContainer contai
 		 * Copy by using rsync
 		 */
 		output, err := storageRsyncCopy(
-			sourceContainer.Path(""),
-			container.Path(""))
+			sourceContainer.Path(),
+			container.Path())
 		if err != nil {
 			s.ContainerDelete(container)
 
@@ -170,14 +170,20 @@ func (s *storageBtrfs) ContainerStop(container container) error {
 	return nil
 }
 
-func (s *storageBtrfs) ContainerRename(
-	container container, newName string) error {
-
-	oldPath := container.Path("")
-	newPath := container.Path(newName)
+func (s *storageBtrfs) ContainerRename(container container, newName string) error {
+	oldName := container.Name()
+	oldPath := container.Path()
+	newPath := containerPath(newName, false)
 
 	if err := os.Rename(oldPath, newPath); err != nil {
 		return err
+	}
+
+	if shared.PathExists(shared.VarPath(fmt.Sprintf("snapshots/%s", oldName))) {
+		err := os.Rename(shared.VarPath(fmt.Sprintf("snapshots/%s", oldName)), shared.VarPath(fmt.Sprintf("snapshots/%s", newName)))
+		if err != nil {
+			return err
+		}
 	}
 
 	// TODO: No TemplateApply here?
@@ -187,12 +193,12 @@ func (s *storageBtrfs) ContainerRename(
 func (s *storageBtrfs) ContainerRestore(
 	container container, sourceContainer container) error {
 
-	targetSubVol := container.Path("")
-	sourceSubVol := sourceContainer.Path("")
-	sourceBackupPath := container.Path("") + ".back"
+	targetSubVol := container.Path()
+	sourceSubVol := sourceContainer.Path()
+	sourceBackupPath := container.Path() + ".back"
 
 	// Create a backup of the container
-	err := os.Rename(container.Path(""), sourceBackupPath)
+	err := os.Rename(container.Path(), sourceBackupPath)
 	if err != nil {
 		return err
 	}
@@ -231,7 +237,7 @@ func (s *storageBtrfs) ContainerRestore(
 	if failure != nil {
 		// Restore original container
 		s.ContainerDelete(container)
-		os.Rename(sourceBackupPath, container.Path(""))
+		os.Rename(sourceBackupPath, container.Path())
 	} else {
 		// Remove the backup, we made
 		if s.isSubvolume(sourceBackupPath) {
@@ -246,8 +252,8 @@ func (s *storageBtrfs) ContainerRestore(
 func (s *storageBtrfs) ContainerSnapshotCreate(
 	snapshotContainer container, sourceContainer container) error {
 
-	subvol := sourceContainer.Path("")
-	dpath := snapshotContainer.Path("")
+	subvol := sourceContainer.Path()
+	dpath := snapshotContainer.Path()
 
 	if s.isSubvolume(subvol) {
 		// Create a readonly snapshot of the source.
@@ -283,7 +289,7 @@ func (s *storageBtrfs) ContainerSnapshotDelete(
 		return fmt.Errorf("Error deleting snapshot %s: %s", snapshotContainer.Name(), err)
 	}
 
-	oldPathParent := filepath.Dir(snapshotContainer.Path(""))
+	oldPathParent := filepath.Dir(snapshotContainer.Path())
 	if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
 		os.Remove(oldPathParent)
 	}
@@ -291,16 +297,16 @@ func (s *storageBtrfs) ContainerSnapshotDelete(
 }
 
 func (s *storageBtrfs) ContainerSnapshotStart(container container) error {
-	if shared.PathExists(container.Path("") + ".ro") {
+	if shared.PathExists(container.Path() + ".ro") {
 		return fmt.Errorf("The snapshot is already mounted read-write.")
 	}
 
-	err := os.Rename(container.Path(""), container.Path("")+".ro")
+	err := os.Rename(container.Path(), container.Path()+".ro")
 	if err != nil {
 		return err
 	}
 
-	err = s.subvolsSnapshot(container.Path("")+".ro", container.Path(""), false)
+	err = s.subvolsSnapshot(container.Path()+".ro", container.Path(), false)
 	if err != nil {
 		return err
 	}
@@ -309,16 +315,16 @@ func (s *storageBtrfs) ContainerSnapshotStart(container container) error {
 }
 
 func (s *storageBtrfs) ContainerSnapshotStop(container container) error {
-	if !shared.PathExists(container.Path("") + ".ro") {
+	if !shared.PathExists(container.Path() + ".ro") {
 		return fmt.Errorf("The snapshot isn't currently mounted read-write.")
 	}
 
-	err := s.subvolsDelete(container.Path(""))
+	err := s.subvolsDelete(container.Path())
 	if err != nil {
 		return err
 	}
 
-	err = os.Rename(container.Path("")+".ro", container.Path(""))
+	err = os.Rename(container.Path()+".ro", container.Path())
 	if err != nil {
 		return err
 	}
@@ -330,8 +336,8 @@ func (s *storageBtrfs) ContainerSnapshotStop(container container) error {
 func (s *storageBtrfs) ContainerSnapshotRename(
 	snapshotContainer container, newName string) error {
 
-	oldPath := snapshotContainer.Path("")
-	newPath := snapshotContainer.Path(newName)
+	oldPath := snapshotContainer.Path()
+	newPath := containerPath(newName, true)
 
 	// Create the new parent.
 	if !shared.PathExists(filepath.Dir(newPath)) {
@@ -361,7 +367,7 @@ func (s *storageBtrfs) ContainerSnapshotRename(
 }
 
 func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
-	dpath := snapshotContainer.Path("")
+	dpath := snapshotContainer.Path()
 	return s.subvolCreate(dpath)
 }
 

@@ -13,7 +13,7 @@ import (
 )
 
 func containerLogsGet(d *Daemon, r *http.Request) Response {
-	/* Let's explicitly *not* try to do a containerLXDLoad here. In some
+	/* Let's explicitly *not* try to do a containerLoadByName here. In some
 	 * cases (e.g. when container creation failed), the container won't
 	 * exist in the DB but it does have some log files on disk.
 	 *
