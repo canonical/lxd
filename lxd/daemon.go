@@ -351,15 +351,15 @@ func (d *Daemon) SetupStorageDriver() error {
 
 func setupSharedMounts() error {
 	path := shared.VarPath("shmounts")
-	if shared.IsOnSharedMount(path) {
-		// / may already be ms-shared, or shmounts may have
-		// been mounted by a previous lxd run
-		return nil
-	}
 	if !shared.PathExists(path) {
 		if err := os.Mkdir(path, 0755); err != nil {
 			return err
 		}
+	}
+	if shared.IsOnSharedMount(path) {
+		// / may already be ms-shared, or shmounts may have
+		// been mounted by a previous lxd run
+		return nil
 	}
 	if err := syscall.Mount(path, path, "none", syscall.MS_BIND, ""); err != nil {
 		return err
