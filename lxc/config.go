@@ -128,18 +128,30 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		// 2 args means we're unsetting a server key
+		// Deal with local server
 		if len(args) == 2 {
-			key := args[1]
 			c, err := lxd.NewClient(config, config.DefaultRemote)
 			if err != nil {
 				return err
 			}
-			_, err = c.SetServerConfig(key, "")
+
+			_, err = c.SetServerConfig(args[1], "")
 			return err
 		}
 
-		// 3 args is a container config key
+		// Deal with remote server
+		remote, container := config.ParseRemoteAndContainer(args[1])
+		if container == "" {
+			c, err := lxd.NewClient(config, remote)
+			if err != nil {
+				return err
+			}
+
+			_, err = c.SetServerConfig(args[2], "")
+			return err
+		}
+
+		// Deal with container
 		args = append(args, "")
 		return doSet(config, args)
 
@@ -148,18 +160,30 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		// 3 args means we're setting a server key
+		// Deal with local server
 		if len(args) == 3 {
-			key := args[1]
 			c, err := lxd.NewClient(config, config.DefaultRemote)
 			if err != nil {
 				return err
 			}
-			_, err = c.SetServerConfig(key, args[2])
+
+			_, err = c.SetServerConfig(args[1], args[2])
 			return err
 		}
 
-		// 4 args is a container config key
+		// Deal with remote server
+		remote, container := config.ParseRemoteAndContainer(args[1])
+		if container == "" {
+			c, err := lxd.NewClient(config, remote)
+			if err != nil {
+				return err
+			}
+
+			_, err = c.SetServerConfig(args[2], args[3])
+			return err
+		}
+
+		// Deal with container
 		return doSet(config, args)
 
 	case "trust":

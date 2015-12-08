@@ -64,6 +64,7 @@ type Daemon struct {
 	tomb          tomb.Tomb
 	pruneChan     chan bool
 	shutdownChan  chan bool
+	execPath      string
 
 	Storage storage
 
@@ -421,7 +422,7 @@ func (d *Daemon) ListenAddresses() ([]string, error) {
 			}
 		}
 	} else {
-		addresses = append(addresses, value)
+		addresses = append(addresses, fmt.Sprintf("%s:%s", localHost, localPort))
 	}
 
 	return addresses, nil
@@ -604,6 +605,13 @@ func haveMacAdmin() bool {
 func (d *Daemon) Init() error {
 	d.shutdownChan = make(chan bool)
 
+	/* Set the executable path */
+	absPath, err := os.Readlink("/proc/self/exe")
+	if err != nil {
+		return err
+	}
+	d.execPath = absPath
+
 	/* Setup logging if that wasn't done before */
 	if shared.Log == nil {
 		shared.SetLogger("", "", true, true, nil)
@@ -633,7 +641,7 @@ func (d *Daemon) Init() error {
 		shared.Log.Warn("AppArmor support has been disabled because of lack of kernel support")
 	}
 
-	_, err := exec.LookPath("apparmor_parser")
+	_, err = exec.LookPath("apparmor_parser")
 	if aaAvailable && err != nil {
 		aaAvailable = false
 		aaAdmin = false
