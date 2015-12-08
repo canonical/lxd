@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/gnuflag"
 )
 
 type configCmd struct {
@@ -24,6 +25,12 @@ type configCmd struct {
 
 func (c *configCmd) showByDefault() bool {
 	return true
+}
+
+var expanded bool
+
+func (c *configCmd) flags() {
+	gnuflag.BoolVar(&expanded, "expanded", false, i18n.G("Whether to show the expanded configuration"))
 }
 
 var configEditHelp string = i18n.G(
@@ -59,7 +66,7 @@ lxc config set [remote:]<container> key value                               Set 
 lxc config unset [remote:]<container> key                                   Unset container configuration key.
 lxc config set key value                                                    Set server configuration key.
 lxc config unset key                                                        Unset server configuration key.
-lxc config show [remote:]<container>                                        Show container configuration.
+lxc config show [--expanded] [remote:]<container>                           Show container configuration.
 lxc config edit [remote:]<container>                                        Edit container configuration in external editor.
     Edit configuration, either by launching external editor or reading STDIN.
     Example: lxc config edit <container> # launch editor
@@ -82,8 +89,6 @@ To listen on IPv4 and IPv6 port 8443 (you can omit the 8443 its the default):
 To set the server trust password:
     lxc config set core.trust_password blah`)
 }
-
-func (c *configCmd) flags() {}
 
 func doSet(config *lxd.Config, args []string) error {
 	if len(args) != 4 {
@@ -282,6 +287,9 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			}
 
 			brief := config.BriefState()
+			if expanded {
+				brief = config.BriefStateExpanded()
+			}
 			data, err = yaml.Marshal(&brief)
 		}
 

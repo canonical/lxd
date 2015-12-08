@@ -13,6 +13,43 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+type containerImageSource struct {
+	Type string `json:"type"`
+
+	/* for "image" type */
+	Alias       string `json:"alias"`
+	Fingerprint string `json:"fingerprint"`
+	Server      string `json:"server"`
+	Secret      string `json:"secret"`
+
+	/*
+	 * for "migration" and "copy" types, as an optimization users can
+	 * provide an image hash to extract before the filesystem is rsync'd,
+	 * potentially cutting down filesystem transfer time. LXD will not go
+	 * and fetch this image, it will simply use it if it exists in the
+	 * image store.
+	 */
+	BaseImage string `json:"base-image"`
+
+	/* for "migration" type */
+	Mode       string            `json:"mode"`
+	Operation  string            `json:"operation"`
+	Websockets map[string]string `json:"secrets"`
+
+	/* for "copy" type */
+	Source string `json:"source"`
+}
+
+type containerPostReq struct {
+	Architecture int                  `json:"architecture"`
+	Config       map[string]string    `json:"config"`
+	Devices      shared.Devices       `json:"devices"`
+	Ephemeral    bool                 `json:"ephemeral"`
+	Name         string               `json:"name"`
+	Profiles     []string             `json:"profiles"`
+	Source       containerImageSource `json:"source"`
+}
+
 func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var hash string
 	var err error
@@ -51,16 +88,17 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 		hash = imgInfo.Fingerprint
 
-		args := containerLXDArgs{
+		args := containerArgs{
 			Architecture: imgInfo.Architecture,
 			BaseImage:    hash,
 			Config:       req.Config,
 			Ctype:        cTypeRegular,
 			Ephemeral:    req.Ephemeral,
+			Name:         req.Name,
 			Profiles:     req.Profiles,
 		}
 
-		_, err = containerLXDCreateFromImage(d, req.Name, args, hash)
+		_, err = containerCreateFromImage(d, args, hash)
 		return err
 	}
 
@@ -76,16 +114,17 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 }
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
-	args := containerLXDArgs{
+	args := containerArgs{
 		Architecture: req.Architecture,
 		Config:       req.Config,
 		Ctype:        cTypeRegular,
 		Ephemeral:    req.Ephemeral,
+		Name:         req.Name,
 		Profiles:     req.Profiles,
 	}
 
 	run := func(op *operation) error {
-		_, err := containerLXDCreateAsEmpty(d, req.Name, args)
+		_, err := containerCreateAsEmpty(d, args)
 		return err
 	}
 
@@ -106,26 +145,25 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	}
 
 	run := func(op *operation) error {
-		createArgs := containerLXDArgs{
+		args := containerArgs{
 			Architecture: req.Architecture,
 			BaseImage:    req.Source.BaseImage,
 			Config:       req.Config,
 			Ctype:        cTypeRegular,
 			Devices:      req.Devices,
 			Ephemeral:    req.Ephemeral,
+			Name:         req.Name,
 			Profiles:     req.Profiles,
 		}
 
 		var c container
 		if _, err := dbImageGet(d.db, req.Source.BaseImage, false, true); err == nil {
-			c, err = containerLXDCreateFromImage(
-				d, req.Name, createArgs, req.Source.BaseImage)
-
+			c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
 			if err != nil {
 				return err
 			}
 		} else {
-			c, err = containerLXDCreateAsEmpty(d, req.Name, createArgs)
+			c, err = containerCreateAsEmpty(d, args)
 			if err != nil {
 				return err
 			}
@@ -137,7 +175,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 			return err
 		}
 
-		args := MigrationSinkArgs{
+		migrationArgs := MigrationSinkArgs{
 			Url: req.Source.Operation,
 			Dialer: websocket.Dialer{
 				TLSClientConfig: config,
@@ -146,7 +184,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 			Secrets:   req.Source.Websockets,
 		}
 
-		sink, err := NewMigrationSink(&args)
+		sink, err := NewMigrationSink(&migrationArgs)
 		if err != nil {
 			c.Delete()
 			return err
@@ -189,13 +227,13 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		return BadRequest(fmt.Errorf("must specify a source container"))
 	}
 
-	source, err := containerLXDLoad(d, req.Source.Source)
+	source, err := containerLoadByName(d, req.Source.Source)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	// Config override
-	sourceConfig := source.BaseConfig()
+	sourceConfig := source.LocalConfig()
 
 	if req.Config == nil {
 		req.Config = make(map[string]string)
@@ -221,18 +259,19 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		req.Profiles = source.Profiles()
 	}
 
-	args := containerLXDArgs{
+	args := containerArgs{
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
 		Ctype:        cTypeRegular,
-		Devices:      source.BaseDevices(),
+		Devices:      source.LocalDevices(),
 		Ephemeral:    req.Ephemeral,
+		Name:         req.Name,
 		Profiles:     req.Profiles,
 	}
 
 	run := func(op *operation) error {
-		_, err := containerLXDCreateAsCopy(d, req.Name, args, source)
+		_, err := containerCreateAsCopy(d, args, source)
 		if err != nil {
 			return err
 		}

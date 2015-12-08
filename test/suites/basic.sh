@@ -228,8 +228,6 @@ test_basic_usage() {
     sleep 0.5
   done
 
-  [ "$OLD_INIT" != "$NEW_INIT" ]
-
   lxc stop foo --force
   ! lxc list | grep -q foo
 }

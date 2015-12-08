@@ -76,8 +76,7 @@ type Response struct {
 	StatusCode int    `json:"status_code"`
 
 	/* Valid only for Async responses */
-	Operation string              `json:"operation"`
-	Resources map[string][]string `json:"resources"`
+	Operation string `json:"operation"`
 
 	/* Valid only for Error responses */
 	Code  int    `json:"error_code"`
@@ -432,23 +431,6 @@ func (c *Client) websocket(operation string, secret string) (*websocket.Conn, er
 
 func (c *Client) url(elem ...string) string {
 	return c.BaseURL + "/" + path.Join(elem...)
-}
-
-func unixDial(networ, addr string) (net.Conn, error) {
-	var raddr *net.UnixAddr
-	var err error
-	if addr == "unix.socket:80" {
-		raddr, err = net.ResolveUnixAddr("unix", shared.VarPath("unix.socket"))
-		if err != nil {
-			return nil, fmt.Errorf(i18n.G("cannot resolve unix socket address: %v"), err)
-		}
-	} else { // TODO - I think this is dead code
-		raddr, err = net.ResolveUnixAddr("unix", addr)
-		if err != nil {
-			return nil, fmt.Errorf(i18n.G("cannot resolve unix socket address: %v"), err)
-		}
-	}
-	return net.DialUnix("unix", nil, raddr)
 }
 
 func (c *Client) GetServerConfig() (*Response, error) {

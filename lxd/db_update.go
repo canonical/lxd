@@ -14,6 +14,16 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV17(db *sql.DB) error {
+	stmt := `
+DELETE FROM profiles_config WHERE key LIKE 'volatile.%';
+UPDATE containers_config SET key='limits.cpu' WHERE key='limits.cpus';
+UPDATE profiles_config SET key='limits.cpu' WHERE key='limits.cpus';
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 18)
+	return err
+}
+
 func dbUpdateFromV16(db *sql.DB) error {
 	stmt := `
 UPDATE config SET key='storage.lvm_vg_name' WHERE key = 'core.lvm_vg_name';
@@ -712,6 +722,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 17 {
 		err = dbUpdateFromV16(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 18 {
+		err = dbUpdateFromV17(db)
 		if err != nil {
 			return err
 		}

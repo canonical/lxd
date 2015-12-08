@@ -17,6 +17,13 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+type commandPostContent struct {
+	Command     []string          `json:"command"`
+	WaitForWS   bool              `json:"wait-for-websocket"`
+	Interactive bool              `json:"interactive"`
+	Environment map[string]string `json:"environment"`
+}
+
 func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions) (int, error) {
 	status, err := container.RunCommandStatus(command, options)
 	if err != nil {
@@ -238,7 +245,7 @@ func (s *execWs) Do(op *operation) error {
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := containerLXDLoad(d, name)
+	c, err := containerLoadByName(d, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -265,7 +272,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	opts.ClearEnv = true
 	opts.Env = []string{}
 
-	for k, v := range c.Config() {
+	for k, v := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "environment.") {
 			opts.Env = append(opts.Env, fmt.Sprintf("%s=%s", strings.TrimPrefix(k, "environment."), v))
 		}

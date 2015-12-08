@@ -439,12 +439,15 @@ func IsBlockdevPath(pathName string) bool {
 
 func BlockFsDetect(dev string) (string, error) {
 	out, err := exec.Command("blkid", "-s", "TYPE", "-o", "value", dev).Output()
-	return strings.TrimSpace(string(out)), err
+	if err != nil {
+		return "", fmt.Errorf("Failed to run blkid on: %s", dev)
+	}
+
+	return strings.TrimSpace(string(out)), nil
 }
 
 // DeepCopy copies src to dest by using encoding/gob so its not that fast.
 func DeepCopy(src, dest interface{}) error {
-
 	buff := new(bytes.Buffer)
 	enc := gob.NewEncoder(buff)
 	dec := gob.NewDecoder(buff)

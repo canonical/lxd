@@ -15,68 +15,6 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-type commandPostContent struct {
-	Command     []string          `json:"command"`
-	WaitForWS   bool              `json:"wait-for-websocket"`
-	Interactive bool              `json:"interactive"`
-	Environment map[string]string `json:"environment"`
-}
-
-type containerConfigReq struct {
-	Profiles []string          `json:"profiles"`
-	Config   map[string]string `json:"config"`
-	Devices  shared.Devices    `json:"devices"`
-	Restore  string            `json:"restore"`
-}
-
-type containerStatePutReq struct {
-	Action  string `json:"action"`
-	Timeout int    `json:"timeout"`
-	Force   bool   `json:"force"`
-}
-
-type containerPostBody struct {
-	Migration bool   `json:"migration"`
-	Name      string `json:"name"`
-}
-
-type containerPostReq struct {
-	Architecture int                  `json:"architecture"`
-	Config       map[string]string    `json:"config"`
-	Devices      shared.Devices       `json:"devices"`
-	Ephemeral    bool                 `json:"ephemeral"`
-	Name         string               `json:"name"`
-	Profiles     []string             `json:"profiles"`
-	Source       containerImageSource `json:"source"`
-}
-
-type containerImageSource struct {
-	Type string `json:"type"`
-
-	/* for "image" type */
-	Alias       string `json:"alias"`
-	Fingerprint string `json:"fingerprint"`
-	Server      string `json:"server"`
-	Secret      string `json:"secret"`
-
-	/*
-	 * for "migration" and "copy" types, as an optimization users can
-	 * provide an image hash to extract before the filesystem is rsync'd,
-	 * potentially cutting down filesystem transfer time. LXD will not go
-	 * and fetch this image, it will simply use it if it exists in the
-	 * image store.
-	 */
-	BaseImage string `json:"base-image"`
-
-	/* for "migration" type */
-	Mode       string            `json:"mode"`
-	Operation  string            `json:"operation"`
-	Websockets map[string]string `json:"secrets"`
-
-	/* for "copy" type */
-	Source string `json:"source"`
-}
-
 var containersCmd = Command{
 	name: "containers",
 	get:  containersGet,
@@ -138,7 +76,7 @@ func containersRestart(d *Daemon) error {
 		autoStartDelay := container.State.ExpandedConfig["boot.autostart.delay"]
 
 		if lastState == "RUNNING" || autoStart == "true" {
-			c, err := containerLXDLoad(d, container.State.Name)
+			c, err := containerLoadByName(d, container.State.Name)
 			if err != nil {
 				return err
 			}
@@ -173,7 +111,7 @@ func containersShutdown(d *Daemon) error {
 	var wg sync.WaitGroup
 
 	for _, r := range results {
-		c, err := containerLXDLoad(d, r)
+		c, err := containerLoadByName(d, r)
 		if err != nil {
 			return err
 		}
@@ -208,7 +146,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 	}
 
 	for _, sname := range results {
-		sc, err := containerLXDLoad(d, sname)
+		sc, err := containerLoadByName(d, sname)
 		if err != nil {
 			shared.Log.Error(
 				"containerDeleteSnapshots: Failed to load the snapshotcontainer",

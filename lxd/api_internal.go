@@ -25,12 +25,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	name, err := dbContainerName(d.db, id)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	c, err := containerLXDLoad(d, name)
+	c, err := containerLoadById(d, id)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -49,17 +44,17 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	name, err := dbContainerName(d.db, id)
+	target := r.FormValue("target")
+	if target == "" {
+		target = "unknown"
+	}
+
+	c, err := containerLoadById(d, id)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	c, err := containerLXDLoad(d, name)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	err = c.OnStop()
+	err = c.OnStop(target)
 	if err != nil {
 		return SmartError(err)
 	}

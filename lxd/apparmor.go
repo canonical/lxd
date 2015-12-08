@@ -60,26 +60,26 @@ profile "%s" flags=(attach_disconnected,mediate_deleted) {
     change_profile -> "%s",
 }`
 
-func AAProfileFull(c *containerLXD) string {
+func AAProfileFull(c container) string {
 	lxddir := shared.VarPath("")
-	if len(c.name)+len(lxddir)+7 >= 253 {
+	if len(c.Name())+len(lxddir)+7 >= 253 {
 		hash := sha256.New()
 		io.WriteString(hash, lxddir)
 		lxddir = fmt.Sprintf("%x", hash.Sum(nil))
 	}
 
-	return fmt.Sprintf("lxd-%s_<%s>", c.name, lxddir)
+	return fmt.Sprintf("lxd-%s_<%s>", c.Name(), lxddir)
 }
 
-func AAProfileShort(c *containerLXD) string {
-	return fmt.Sprintf("lxd-%s", c.name)
+func AAProfileShort(c container) string {
+	return fmt.Sprintf("lxd-%s", c.Name())
 }
 
 // getProfileContent generates the apparmor profile template from the given
 // container. This includes the stock lxc includes as well as stuff from
 // raw.apparmor.
-func getAAProfileContent(c *containerLXD) string {
-	rawApparmor, ok := c.config["raw.apparmor"]
+func getAAProfileContent(c container) string {
+	rawApparmor, ok := c.ExpandedConfig()["raw.apparmor"]
 	if !ok {
 		rawApparmor = ""
 	}
@@ -92,9 +92,8 @@ func getAAProfileContent(c *containerLXD) string {
 	return fmt.Sprintf(DEFAULT_AA_PROFILE, AAProfileFull(c), rawApparmor, nesting, AAProfileFull(c))
 }
 
-func runApparmor(command string, c *containerLXD) error {
-	if aaConfined() {
-		shared.Log.Debug("Already apparmor-confined (nested?), skipping aa profile actions")
+func runApparmor(command string, c container) error {
+	if !aaAvailable {
 		return nil
 	}
 
@@ -113,33 +112,10 @@ func runApparmor(command string, c *containerLXD) error {
 	return err
 }
 
-/*
- * lxd could be confined by some other profile, but we'll only support
- * running under lxc-container-default-with-nesting or lxd-*
- */
-func aaConfined() bool {
-	curProfile := aaProfile()
-
-	switch {
-	case strings.HasPrefix(curProfile, "lxc-container-default-with-nesting"):
-		return true
-	case strings.HasPrefix(curProfile, "lxd-"):
-		return true
-	}
-
-	return false
-}
-
 // Ensure that the container's policy is loaded into the kernel so the
 // container can boot.
-func AALoadProfile(c *containerLXD) error {
-	if runningInUserns || !aaEnabled {
-		shared.Log.Debug("Apparmor not enabled, skipping profile load")
-		return nil
-	}
-
-	if aaConfined() {
-		shared.Log.Debug("Already apparmor confined, skipping profile load")
+func AALoadProfile(c container) error {
+	if !aaAdmin {
 		return nil
 	}
 
@@ -177,14 +153,8 @@ func AALoadProfile(c *containerLXD) error {
 
 // Ensure that the container's policy is unloaded to free kernel memory. This
 // does not delete the policy from disk or cache.
-func AAUnloadProfile(c *containerLXD) error {
-	if runningInUserns || !aaEnabled {
-		shared.Log.Debug("Apparmor not enabled, skipping profile unload")
-		return nil
-	}
-
-	if aaConfined() {
-		shared.Log.Debug("Already apparmor confined, skipping profile unload")
+func AAUnloadProfile(c container) error {
+	if !aaAdmin {
 		return nil
 	}
 
@@ -192,29 +162,16 @@ func AAUnloadProfile(c *containerLXD) error {
 }
 
 // Parse the profile without loading it into the kernel.
-func AAParseProfile(c *containerLXD) error {
-	if runningInUserns || !aaEnabled {
-		shared.Log.Debug("Apparmor not enabled, skipping profile parse")
-		return nil
-	}
-
-	if aaConfined() {
-		shared.Log.Debug("Already apparmor confined, skipping profile parse")
-		return nil
+func AAParseProfile(c container) error {
+	if !aaAvailable {
 	}
 
 	return runApparmor(APPARMOR_CMD_PARSE, c)
 }
 
 // Delete the policy from cache/disk.
-func AADeleteProfile(c *containerLXD) {
-	if runningInUserns || !aaEnabled {
-		shared.Log.Debug("Apparmor not enabled, skipping profile delete")
-		return
-	}
-
-	if aaConfined() {
-		shared.Log.Debug("Already apparmor confined, skipping profile delete")
+func AADeleteProfile(c container) {
+	if !aaAdmin {
 		return
 	}
 

@@ -12,28 +12,29 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+type containerPutReq struct {
+	Architecture int               `json:"architecture"`
+	Config       map[string]string `json:"config"`
+	Devices      shared.Devices    `json:"devices"`
+	Ephemeral    bool              `json:"ephemeral"`
+	Profiles     []string          `json:"profiles"`
+	Restore      string            `json:"restore"`
+}
+
 /*
  * Update configuration, or, if 'restore:snapshot-name' is present, restore
  * the named snapshot
  */
 func containerPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := containerLXDLoad(d, name)
+	c, err := containerLoadByName(d, name)
 	if err != nil {
 		return NotFound
 	}
 
-	configRaw := containerConfigReq{}
+	configRaw := containerPutReq{}
 	if err := json.NewDecoder(r.Body).Decode(&configRaw); err != nil {
 		return BadRequest(err)
-	}
-
-	if configRaw.Devices == nil {
-		configRaw.Devices = shared.Devices{}
-	}
-
-	if configRaw.Config == nil {
-		configRaw.Config = map[string]string{}
 	}
 
 	var do = func(*operation) error { return nil }
@@ -41,11 +42,15 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	if configRaw.Restore == "" {
 		// Update container configuration
 		do = func(op *operation) error {
-			args := containerLXDArgs{
-				Config:   configRaw.Config,
-				Devices:  configRaw.Devices,
-				Profiles: configRaw.Profiles}
-			err = c.ConfigReplace(args)
+			args := containerArgs{
+				Architecture: configRaw.Architecture,
+				Config:       configRaw.Config,
+				Devices:      configRaw.Devices,
+				Ephemeral:    configRaw.Ephemeral,
+				Profiles:     configRaw.Profiles}
+
+			// FIXME: should set to true when not migrating
+			err = c.Update(args, false)
 			if err != nil {
 				return err
 			}
@@ -82,7 +87,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 			"snapshot":  snap,
 			"container": name})
 
-	c, err := containerLXDLoad(d, name)
+	c, err := containerLoadByName(d, name)
 	if err != nil {
 		shared.Log.Error(
 			"RESTORE => loadcontainerLXD() failed",
@@ -92,7 +97,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 		return err
 	}
 
-	source, err := containerLXDLoad(d, snap)
+	source, err := containerLoadByName(d, snap)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -107,14 +112,4 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 	}
 
 	return nil
-}
-
-func emptyProfile(l []string) bool {
-	if len(l) == 0 {
-		return true
-	}
-	if len(l) == 1 && l[0] == "" {
-		return true
-	}
-	return false
 }

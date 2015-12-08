@@ -1,36 +1,66 @@
 #!/bin/sh
 
 safe_pot_hash() {
-  grep ^msgid "${toplevel}/po/lxd.pot" | md5sum | cut -f1 -d" "
+  grep ^msgid "po/lxd.pot" | md5sum | cut -f1 -d" "
 }
 
 test_static_analysis() {
-  # Python3 static analysis
-  pep8 ../scripts/lxd-images ../scripts/lxd-setup-lvm-storage
-  pyflakes3 ../scripts/lxd-images ../scripts/lxd-setup-lvm-storage
+  (
+    set -e
 
-  # Shell static analysis
-  shellcheck ../lxd-bridge/lxd-bridge ../test/main.sh ../test/suites/*
+    cd ../
+    # Python3 static analysis
+    pep8 scripts/lxd-images scripts/lxd-setup-lvm-storage
+    pyflakes3 scripts/lxd-images scripts/lxd-setup-lvm-storage
 
-  # Skip the test when not running from a git repository
-  if ! git status; then
-    return
-  fi
+    # Shell static analysis
+    shellcheck lxd-bridge/lxd-bridge test/main.sh test/suites/*
 
-  toplevel="$(git rev-parse --show-toplevel)"
+    # Go static analysis
+    ## Functions starting by empty line
+    OUT=$(grep -r "^$" -B1 . | grep "func " | grep -v "}$" || true)
+    if [ -n "${OUT}" ]; then
+      echo "${OUT}"
+      false
+    fi
 
-  # go tools
-  git add -u :/
-  (cd "${toplevel}" && go fmt ./... && go vet ./...)
-  git diff --exit-code
+    ## go vet
+    go vet ./...
 
-  # make sure the .pot is updated
-  cp "${toplevel}/po/lxd.pot" "${toplevel}/po/lxd.pot.bak"
-  hash1=$(safe_pot_hash)
-  (cd "${toplevel}" && make i18n -s)
-  hash2=$(safe_pot_hash)
-  mv "${toplevel}/po/lxd.pot.bak" "${toplevel}/po/lxd.pot"
-  if [ "${hash1}" != "${hash2}" ]; then
-    echo "==> Please update the .pot file in your commit (make i18n)" && false
-  fi
+    ## vet
+    if which vet >/dev/null 2>&1; then
+      vet --all .
+    fi
+
+    ## deadcode
+    if which deadcode >/dev/null 2>&1; then
+      for path in . lxc/ lxd/ shared/ i18n/ fuidshift/ lxd-bridge/lxd-bridge-proxy/; do
+        OUT=$(deadcode ${path} 2>&1 | grep -v lxd/migrate.pb.go || true)
+        if [ -n "${OUT}" ]; then
+          echo "${OUT}" >&2
+          false
+        fi
+      done
+    fi
+
+    # Skip the tests which require git
+    if ! git status; then
+      return
+    fi
+
+    # go fmt
+    git add -u :/
+    go fmt ./...
+    git diff --exit-code
+
+    # make sure the .pot is updated
+    cp "po/lxd.pot" "po/lxd.pot.bak"
+    hash1=$(safe_pot_hash)
+    make i18n -s
+    hash2=$(safe_pot_hash)
+    mv "po/lxd.pot.bak" "po/lxd.pot"
+    if [ "${hash1}" != "${hash2}" ]; then
+      echo "==> Please update the .pot file in your commit (make i18n)" && false
+    fi
+  )
 }
