@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/logging"
 )
 

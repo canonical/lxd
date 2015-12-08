@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 
@@ -43,7 +44,7 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 
 	// FileHandler
 	if logfile != "" {
-		if !PathExists(filepath.Dir(logfile)) {
+		if !pathExists(filepath.Dir(logfile)) {
 			return fmt.Errorf("Log file path doesn't exist: %s", filepath.Dir(logfile))
 		}
 
@@ -87,7 +88,7 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 		handlers = append(handlers, customHandler)
 	}
 
-	Log.SetHandler(log.MultiHandler(handlers...))
+	LxdLog.SetHandler(log.MultiHandler(handlers...))
 
 	return nil
 }
@@ -95,8 +96,8 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 // Logf sends to the logger registered via SetLogger the string resulting
 // from running format and args through Sprintf.
 func Logf(format string, args ...interface{}) {
-	if Log != nil {
-		Log.Info(fmt.Sprintf(format, args...))
+	if LxdLog != nil {
+		LxdLog.Info(fmt.Sprintf(format, args...))
 	}
 }
 
@@ -104,8 +105,8 @@ func Logf(format string, args ...interface{}) {
 // from running format and args through Sprintf, but only if debugging was
 // enabled via SetDebug.
 func Debugf(format string, args ...interface{}) {
-	if Log != nil {
-		Log.Debug(fmt.Sprintf(format, args...))
+	if LxdLog != nil {
+		LxdLog.Debug(fmt.Sprintf(format, args...))
 	}
 }
 
@@ -113,4 +114,12 @@ func PrintStack() {
 	buf := make([]byte, 1<<16)
 	runtime.Stack(buf, true)
 	Debugf("%s", buf)
+}
+
+func pathExists(name string) bool {
+	_, err := os.Lstat(name)
+	if err != nil && os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
