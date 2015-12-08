@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 
@@ -664,11 +665,21 @@ func (s *storageZfs) zfsDestroy(path string) error {
 		}
 	}
 
-	output, err := exec.Command(
-		"zfs",
-		"destroy",
-		"-r",
-		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
+	// Due to open fds or kernel refs, this may fail for a bit, give it 5s
+	var output []byte
+	for i := 0; i < 10; i++ {
+		output, err = exec.Command(
+			"zfs",
+			"destroy",
+			"-r",
+			fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
+
+		if err == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	if err != nil {
 		s.log.Error("zfs destroy failed", log.Ctx{"output": string(output)})
 		return err
