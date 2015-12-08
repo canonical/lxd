@@ -1691,6 +1691,7 @@ func (c *containerLXC) TemplateApply(trigger string) error {
 			}
 			w.Chmod(0644)
 		}
+		defer w.Close()
 
 		// Read the template
 		tplString, err := ioutil.ReadFile(filepath.Join(c.TemplatesPath(), template.Template))
