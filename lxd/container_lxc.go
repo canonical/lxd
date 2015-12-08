@@ -275,12 +275,12 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup the hooks
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", os.Args[0], shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", c.daemon.execPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", os.Args[0], shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", c.daemon.execPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
@@ -755,7 +755,7 @@ func (c *containerLXC) Start() error {
 
 	// Start the LXC container
 	out, err := exec.Command(
-		os.Args[0],
+		c.daemon.execPath,
 		"forkstart",
 		c.name,
 		c.daemon.lxcpath,
@@ -788,7 +788,7 @@ func (c *containerLXC) StartFromMigration(imagesDir string) error {
 
 	// Start the LXC container
 	out, err := exec.Command(
-		os.Args[0],
+		c.daemon.execPath,
 		"forkmigrate",
 		c.name,
 		c.daemon.lxcpath,
@@ -1691,6 +1691,7 @@ func (c *containerLXC) TemplateApply(trigger string) error {
 			}
 			w.Chmod(0644)
 		}
+		defer w.Close()
 
 		// Read the template
 		tplString, err := ioutil.ReadFile(filepath.Join(c.TemplatesPath(), template.Template))
@@ -1970,7 +1971,7 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	err = exec.Command(os.Args[0], "forkmount", pidStr, mntsrc, target).Run()
+	err = exec.Command(c.daemon.execPath, "forkmount", pidStr, mntsrc, target).Run()
 	if err != nil {
 		return fmt.Errorf("forkmount failed: %s", err)
 	}
@@ -1988,7 +1989,7 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	// Remove the mount from the container
 	pidStr := fmt.Sprintf("%d", pid)
-	err := exec.Command(os.Args[0], "forkumount", pidStr, mount).Run()
+	err := exec.Command(c.daemon.execPath, "forkumount", pidStr, mount).Run()
 	if err != nil {
 		return fmt.Errorf("forkumount failed: %s", err)
 	}

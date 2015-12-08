@@ -37,19 +37,19 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 
 	switch r.Method {
 	case "GET":
-		return containerFileGet(initPid, r, targetPath)
+		return containerFileGet(d, initPid, r, targetPath)
 	case "POST":
 		idmapset, err := c.LastIdmapSet()
 		if err != nil {
 			return InternalError(err)
 		}
-		return containerFilePut(initPid, r, targetPath, idmapset)
+		return containerFilePut(d, initPid, r, targetPath, idmapset)
 	default:
 		return NotFound
 	}
 }
 
-func containerFileGet(pid int, r *http.Request, path string) Response {
+func containerFileGet(d *Daemon, pid int, r *http.Request, path string) Response {
 	/*
 	 * Copy out of the ns to a temporary file, and then use that to serve
 	 * the request from. This prevents us from having to worry about stuff
@@ -64,7 +64,7 @@ func containerFileGet(pid int, r *http.Request, path string) Response {
 	defer temp.Close()
 
 	cmd := exec.Command(
-		os.Args[0],
+		d.execPath,
 		"forkgetfile",
 		temp.Name(),
 		fmt.Sprintf("%d", pid),
@@ -99,7 +99,7 @@ func containerFileGet(pid int, r *http.Request, path string) Response {
 	return FileResponse(r, files, headers, true)
 }
 
-func containerFilePut(pid int, r *http.Request, p string, idmapset *shared.IdmapSet) Response {
+func containerFilePut(d *Daemon, pid int, r *http.Request, p string, idmapset *shared.IdmapSet) Response {
 	uid, gid, mode := shared.ParseLXDFileHeaders(r.Header)
 
 	if idmapset != nil {
@@ -121,7 +121,7 @@ func containerFilePut(pid int, r *http.Request, p string, idmapset *shared.Idmap
 	}
 
 	cmd := exec.Command(
-		os.Args[0],
+		d.execPath,
 		"forkputfile",
 		temp.Name(),
 		fmt.Sprintf("%d", pid),
