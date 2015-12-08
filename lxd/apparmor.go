@@ -11,8 +11,6 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 const (
@@ -105,8 +103,8 @@ func runApparmor(command string, c container) error {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		shared.Log.Error("Running apparmor",
-			log.Ctx{"action": command, "output": string(output), "err": err})
+		shared.Log("error", "Running apparmor",
+			shared.Ctx{"action": command, "output": string(output), "err": err})
 	}
 
 	return err

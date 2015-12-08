@@ -39,7 +39,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	for _, name := range results {
 		sc, err := containerLoadByName(d, name)
 		if err != nil {
-			shared.Log.Error("Failed to load snapshot", log.Ctx{"snapshot": name})
+			shared.Log("error", "Failed to load snapshot", log.Ctx{"snapshot": name})
 			continue
 		}
 

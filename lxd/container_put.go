@@ -81,7 +81,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 		snap = name + shared.SnapshotDelimiter + snap
 	}
 
-	shared.Log.Info(
+	shared.Log("info",
 		"RESTORE => Restoring snapshot",
 		log.Ctx{
 			"snapshot":  snap,
@@ -89,7 +89,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		shared.Log.Error(
+		shared.Log("error",
 			"RESTORE => loadcontainerLXD() failed",
 			log.Ctx{
 				"container": name,

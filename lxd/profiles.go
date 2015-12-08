@@ -9,8 +9,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 /* This is used for both profiles post and profile put */
@@ -38,7 +36,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 		} else {
 			profile, err := doProfileGet(d, name)
 			if err != nil {
-				shared.Log.Error("Failed to get profile", log.Ctx{"profile": name})
+				shared.Log("error", "Failed to get profile", shared.Ctx{"profile": name})
 				continue
 			}
 			resultMap[i] = profile
@@ -127,7 +125,7 @@ func getRunningContainersWithProfile(d *Daemon, profile string) []container {
 	for _, name := range output {
 		c, err := containerLoadByName(d, name)
 		if err != nil {
-			shared.Log.Error("Failed opening container", log.Ctx{"container": name})
+			shared.Log("error", "Failed opening container", shared.Ctx{"container": name})
 			continue
 		}
 		results = append(results, c)

@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
+	log "github.com/lxc/lxd/shared/logging"
 )
 
 // Global arguments
@@ -174,7 +175,7 @@ func run() error {
 	}
 
 	handler := eventsHandler{}
-	err := shared.SetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
+	err := log.SetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
 	if err != nil {
 		fmt.Printf("%s", err)
 		return nil
@@ -291,7 +292,7 @@ func daemon() error {
 		go func() {
 			for {
 				time.Sleep(time.Duration(*argPrintGoroutinesEvery) * time.Second)
-				shared.PrintStack()
+				log.PrintStack()
 			}
 		}()
 	}
@@ -314,7 +315,7 @@ func daemon() error {
 		signal.Notify(ch, syscall.SIGPWR)
 		sig := <-ch
 
-		shared.Log.Info(
+		shared.Log("info",
 			fmt.Sprintf("Received '%s signal', shutting down containers.", sig))
 
 		containersShutdown(d)
@@ -326,7 +327,7 @@ func daemon() error {
 	go func() {
 		<-d.shutdownChan
 
-		shared.Log.Info(
+		shared.Log("info",
 			fmt.Sprintf("Asked to shutdown by API, shutting down containers."))
 
 		containersShutdown(d)
@@ -342,7 +343,7 @@ func daemon() error {
 		signal.Notify(ch, syscall.SIGTERM)
 		sig := <-ch
 
-		shared.Log.Info(fmt.Sprintf("Received '%s signal', exiting.\n", sig))
+		shared.Log("info", fmt.Sprintf("Received '%s signal', exiting.\n", sig))
 		ret = d.Stop()
 		wg.Done()
 	}()

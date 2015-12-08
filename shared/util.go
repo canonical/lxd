@@ -383,7 +383,7 @@ func IntInSlice(key int, list []int) bool {
 func isSharedMount(file *os.File, pathName string) int {
 	_, err := file.Seek(0, 0)
 	if err != nil {
-		Debugf("Error rewinding mountinfo file: %s\n", err)
+		Log("debug", "Error rewinding mountinfo file: %s\n", err)
 		return 0
 	}
 	scanner := bufio.NewScanner(file)

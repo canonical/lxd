@@ -10,8 +10,6 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func dbUpdateFromV17(db *sql.DB) error {
@@ -63,11 +61,11 @@ func dbUpdateFromV15(d *Daemon) error {
 		newLVName = strings.Replace(newLVName, shared.SnapshotDelimiter, "-", -1)
 
 		if cName == newLVName {
-			shared.Log.Debug("No need to rename, skipping", log.Ctx{"cName": cName, "newLVName": newLVName})
+			shared.Log("debug", "No need to rename, skipping", shared.Ctx{"cName": cName, "newLVName": newLVName})
 			continue
 		}
 
-		shared.Log.Debug("About to rename cName in lv upgrade", log.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
+		shared.Log("debug", "About to rename cName in lv upgrade", shared.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
 
 		output, err := exec.Command("lvrename", vgName, cName, newLVName).CombinedOutput()
 		if err != nil {
@@ -158,9 +156,9 @@ func dbUpdateFromV11(d *Daemon) error {
 		oldPath := shared.VarPath("containers", snappieces[0], "snapshots", snappieces[1])
 		newPath := shared.VarPath("snapshots", snappieces[0], snappieces[1])
 		if shared.PathExists(oldPath) && !shared.PathExists(newPath) {
-			shared.Log.Info(
+			shared.Log("info",
 				"Moving snapshot",
-				log.Ctx{
+				shared.Ctx{
 					"snapshot": cName,
 					"oldPath":  oldPath,
 					"newPath":  newPath})
@@ -171,9 +169,9 @@ func dbUpdateFromV11(d *Daemon) error {
 			// snapshots/<container>/<snap0>
 			output, err := storageRsyncCopy(oldPath, newPath)
 			if err != nil {
-				shared.Log.Error(
+				shared.Log("error",
 					"Failed rsync snapshot",
-					log.Ctx{
+					shared.Ctx{
 						"snapshot": cName,
 						"output":   string(output),
 						"err":      err})
@@ -183,9 +181,9 @@ func dbUpdateFromV11(d *Daemon) error {
 
 			// Remove containers/<container>/snapshots/<snap0>
 			if err := os.RemoveAll(oldPath); err != nil {
-				shared.Log.Error(
+				shared.Log("error",
 					"Failed to remove the old snapshot path",
-					log.Ctx{
+					shared.Ctx{
 						"snapshot": cName,
 						"oldPath":  oldPath,
 						"err":      err})

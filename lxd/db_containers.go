@@ -6,8 +6,6 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func validateConfig(config map[string]string, profile bool) error {
@@ -327,9 +325,9 @@ func dbContainerRename(db *sql.DB, oldName string, newName string) error {
 	}
 	defer stmt.Close()
 
-	shared.Log.Debug(
+	shared.Log("debug",
 		"Calling SQL Query",
-		log.Ctx{
+		shared.Ctx{
 			"query":   "UPDATE containers SET name = ? WHERE name = ?",
 			"oldName": oldName,
 			"newName": newName})

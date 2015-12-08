@@ -21,7 +21,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
-
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
@@ -394,7 +393,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 	builddir string, post *os.File) (info shared.ImageInfo, err error) {
 
 	var imageMeta *imageMetadata
-	logger := shared.Log.New(log.Ctx{"function": "getImgPostInfo"})
+	logger := log.New(shared.Ctx{"function": "getImgPostInfo"})
 
 	public, _ := strconv.Atoi(r.Header.Get("X-LXD-public"))
 	info.Public = public == 1
@@ -435,7 +434,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		if err != nil {
 			logger.Error(
 				"Failed to copy the image tarfile",
-				log.Ctx{"err": err})
+				shared.Ctx{"err": err})
 			return info, err
 		}
 
@@ -444,7 +443,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		if err != nil {
 			logger.Error(
 				"Failed to get the next part",
-				log.Ctx{"err": err})
+				shared.Ctx{"err": err})
 			return info, err
 		}
 
@@ -468,7 +467,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		if err != nil {
 			logger.Error(
 				"Failed to copy the rootfs tarfile",
-				log.Ctx{"err": err})
+				shared.Ctx{"err": err})
 			return info, err
 		}
 
@@ -486,7 +485,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		if err != nil {
 			logger.Error(
 				"Failed to move the image tarfile",
-				log.Ctx{
+				shared.Ctx{
 					"err":    err,
 					"source": imageTarf.Name(),
 					"dest":   imgfname})
@@ -498,7 +497,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		if err != nil {
 			logger.Error(
 				"Failed to move the rootfs tarfile",
-				log.Ctx{
+				shared.Ctx{
 					"err":    err,
 					"source": rootfsTarf.Name(),
 					"dest":   imgfname})
@@ -509,7 +508,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		if err != nil {
 			logger.Error(
 				"Failed to get image metadata",
-				log.Ctx{"err": err})
+				shared.Ctx{"err": err})
 			return info, err
 		}
 	} else {
@@ -517,11 +516,11 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		size, err = io.Copy(io.MultiWriter(imageTarf, sha256), post)
 		info.Size = size
 		imageTarf.Close()
-		logger.Debug("Tar size", log.Ctx{"size": size})
+		logger.Debug("Tar size", shared.Ctx{"size": size})
 		if err != nil {
 			logger.Error(
 				"Failed to copy the tarfile",
-				log.Ctx{"err": err})
+				shared.Ctx{"err": err})
 			return info, err
 		}
 
@@ -532,7 +531,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
 			logger.Error(
 				"Fingerprints don't match",
-				log.Ctx{
+				shared.Ctx{
 					"got":      info.Fingerprint,
 					"expected": expectedFingerprint})
 			err = fmt.Errorf(
@@ -547,7 +546,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		if err != nil {
 			logger.Error(
 				"Failed to move the tarfile",
-				log.Ctx{
+				shared.Ctx{
 					"err":    err,
 					"source": imageTarf.Name(),
 					"dest":   imgfname})
@@ -558,7 +557,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		if err != nil {
 			logger.Error(
 				"Failed to get image metadata",
-				log.Ctx{"err": err})
+				shared.Ctx{"err": err})
 			return info, err
 		}
 	}

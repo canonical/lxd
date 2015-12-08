@@ -10,8 +10,6 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // Helper functions
@@ -223,7 +221,7 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 		err = sourceContainer.Checkpoint(opts)
 		err2 := CollectCRIULogFile(sourceContainer, stateDir, "snapshot", "dump")
 		if err2 != nil {
-			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
+			shared.Log("warn", "failed to collect criu log file", shared.Ctx{"error": err2})
 		}
 
 		if err != nil {

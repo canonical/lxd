@@ -22,8 +22,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // Helper functions
@@ -912,13 +910,13 @@ func (c *containerLXC) OnStop(target string) error {
 		// Clean all the unix devices
 		err = c.removeUnixDevices()
 		if err != nil {
-			shared.Log.Error("Unable to remove unix devices")
+			shared.Log("error", "Unable to remove unix devices")
 		}
 
 		// Clean all the disk devices
 		err = c.removeDiskDevices()
 		if err != nil {
-			shared.Log.Error("Unable to remove disk devices")
+			shared.Log("error", "Unable to remove disk devices")
 		}
 
 		// Reboot the container
@@ -1028,9 +1026,9 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	if c.IsRunning() {
 		wasRunning = true
 		if err := c.Stop(); err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Could not stop container",
-				log.Ctx{
+				shared.Ctx{
 					"container": c.Name(),
 					"err":       err})
 			return err
@@ -1040,8 +1038,8 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	// Restore the rootfs
 	err := c.storage.ContainerRestore(c, sourceContainer)
 	if err != nil {
-		shared.Log.Error("Restoring the filesystem failed",
-			log.Ctx{
+		shared.Log("error", "Restoring the filesystem failed",
+			shared.Ctx{
 				"source":      sourceContainer.Name(),
 				"destination": c.Name()})
 		return err
@@ -1058,8 +1056,8 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 
 	err = c.Update(args, false)
 	if err != nil {
-		shared.Log.Error("Restoring the configuration failed",
-			log.Ctx{
+		shared.Log("error", "Restoring the configuration failed",
+			shared.Ctx{
 				"source":      sourceContainer.Name(),
 				"destination": c.Name()})
 

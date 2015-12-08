@@ -18,8 +18,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 var deviceSchedRebalance = make(chan []string, 0)
@@ -115,7 +113,7 @@ func deviceTaskBalance(d *Daemon) {
 	cpus := []int{}
 	dents, err := ioutil.ReadDir("/sys/bus/cpu/devices/")
 	if err != nil {
-		shared.Log.Error("balance: Unable to list CPUs", log.Ctx{"err": err})
+		shared.Log("error", "balance: Unable to list CPUs", shared.Ctx{"err": err})
 		return
 	}
 
@@ -123,7 +121,7 @@ func deviceTaskBalance(d *Daemon) {
 		id := -1
 		count, err := fmt.Sscanf(f.Name(), "cpu%d", &id)
 		if count != 1 || id == -1 {
-			shared.Log.Error("balance: Bad CPU", log.Ctx{"path": f.Name()})
+			shared.Log("error", "balance: Bad CPU", shared.Ctx{"path": f.Name()})
 			continue
 		}
 
@@ -136,7 +134,7 @@ func deviceTaskBalance(d *Daemon) {
 
 		online, err := ioutil.ReadFile(onlinePath)
 		if err != nil {
-			shared.Log.Error("balance: Bad CPU", log.Ctx{"path": f.Name(), "err": err})
+			shared.Log("error", "balance: Bad CPU", shared.Ctx{"path": f.Name(), "err": err})
 			continue
 		}
 
@@ -180,19 +178,19 @@ func deviceTaskBalance(d *Daemon) {
 					// Range
 					fields := strings.SplitN(chunk, "-", 2)
 					if len(fields) != 2 {
-						shared.Log.Error("Invalid limits.cpu value.", log.Ctx{"container": c.Name(), "value": cpu})
+						shared.Log("error", "Invalid limits.cpu value.", shared.Ctx{"container": c.Name(), "value": cpu})
 						continue
 					}
 
 					low, err := strconv.Atoi(fields[0])
 					if err != nil {
-						shared.Log.Error("Invalid limits.cpu value.", log.Ctx{"container": c.Name(), "value": cpu})
+						shared.Log("error", "Invalid limits.cpu value.", shared.Ctx{"container": c.Name(), "value": cpu})
 						continue
 					}
 
 					high, err := strconv.Atoi(fields[1])
 					if err != nil {
-						shared.Log.Error("Invalid limits.cpu value.", log.Ctx{"container": c.Name(), "value": cpu})
+						shared.Log("error", "Invalid limits.cpu value.", shared.Ctx{"container": c.Name(), "value": cpu})
 						continue
 					}
 
@@ -212,7 +210,7 @@ func deviceTaskBalance(d *Daemon) {
 					// Simple entry
 					nr, err := strconv.Atoi(chunk)
 					if err != nil {
-						shared.Log.Error("Invalid limits.cpu value.", log.Ctx{"container": c.Name(), "value": cpu})
+						shared.Log("error", "Invalid limits.cpu value.", shared.Ctx{"container": c.Name(), "value": cpu})
 						continue
 					}
 
@@ -282,7 +280,7 @@ func deviceTaskBalance(d *Daemon) {
 		sort.Strings(set)
 		err := ctn.CGroupSet("cpuset.cpus", strings.Join(set, ","))
 		if err != nil {
-			shared.Log.Error("balance: Unable to set cpuset", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
+			shared.Log("error", "balance: Unable to set cpuset", shared.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
 		}
 	}
 }
@@ -290,7 +288,7 @@ func deviceTaskBalance(d *Daemon) {
 func deviceTaskScheduler(d *Daemon) {
 	chHotplug, err := deviceMonitorProcessors()
 	if err != nil {
-		shared.Log.Error("scheduler: couldn't setup uevent watcher, no automatic re-balance")
+		shared.Log("error", "scheduler: couldn't setup uevent watcher, no automatic re-balance")
 		return
 	}
 
@@ -301,14 +299,14 @@ func deviceTaskScheduler(d *Daemon) {
 		select {
 		case e := <-chHotplug:
 			if len(e) != 2 {
-				shared.Log.Error("Scheduler: received an invalid hotplug event")
+				shared.Log("error", "Scheduler: received an invalid hotplug event")
 				continue
 			}
 			shared.Debugf("Scheduler: %s is now %s: re-balancing", e[0], e[1])
 			deviceTaskBalance(d)
 		case e := <-deviceSchedRebalance:
 			if len(e) != 3 {
-				shared.Log.Error("Scheduler: received an invalid rebalance event")
+				shared.Log("error", "Scheduler: received an invalid rebalance event")
 				continue
 			}
 			shared.Debugf("Scheduler: %s %s %s: re-balancing", e[0], e[1], e[2])

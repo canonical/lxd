@@ -58,12 +58,12 @@ func (d *Daemon) ImageDownload(op *operation,
 	server, fp string, secret string, forContainer bool, directDownload bool) error {
 
 	if _, err := dbImageGet(d.db, fp, false, false); err == nil {
-		shared.Log.Debug("Image already exists in the db", log.Ctx{"image": fp})
+		shared.Log("debug", "Image already exists in the db", log.Ctx{"image": fp})
 		// already have it
 		return nil
 	}
 
-	shared.Log.Info(
+	shared.Log("info",
 		"Image not in the db, downloading it",
 		log.Ctx{"image": fp, "server": server})
 
@@ -73,24 +73,24 @@ func (d *Daemon) ImageDownload(op *operation,
 		// We already download the image
 		d.imagesDownloadingLock.RUnlock()
 
-		shared.Log.Info(
+		shared.Log("info",
 			"Already downloading the image, waiting for it to succeed",
 			log.Ctx{"image": fp})
 
 		// Wait until the download finishes (channel closes)
 		if _, ok := <-waitChannel; ok {
-			shared.Log.Warn("Value transmitted over image lock semaphore?")
+			shared.Log("warn", "Value transmitted over image lock semaphore?")
 		}
 
 		if _, err := dbImageGet(d.db, fp, false, true); err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Previous download didn't succeed",
 				log.Ctx{"image": fp})
 
 			return fmt.Errorf("Previous download didn't succeed")
 		}
 
-		shared.Log.Info(
+		shared.Log("info",
 			"Previous download succeeded",
 			log.Ctx{"image": fp})
 
@@ -99,7 +99,7 @@ func (d *Daemon) ImageDownload(op *operation,
 
 	d.imagesDownloadingLock.RUnlock()
 
-	shared.Log.Info(
+	shared.Log("info",
 		"Downloading the image",
 		log.Ctx{"image": fp})
 
@@ -136,7 +136,7 @@ func (d *Daemon) ImageDownload(op *operation,
 
 		resp, err := d.httpGetSync(url)
 		if err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Failed to download image metadata",
 				log.Ctx{"image": fp, "err": err})
 
@@ -162,7 +162,7 @@ func (d *Daemon) ImageDownload(op *operation,
 
 	raw, err := d.httpGetFile(exporturl)
 	if err != nil {
-		shared.Log.Error(
+		shared.Log("error",
 			"Failed to download image",
 			log.Ctx{"image": fp, "err": err})
 		return err
@@ -189,7 +189,7 @@ func (d *Daemon) ImageDownload(op *operation,
 		// Get the metadata tarball
 		part, err := mr.NextPart()
 		if err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Invalid multipart image",
 				log.Ctx{"image": fp, "err": err})
 
@@ -197,7 +197,7 @@ func (d *Daemon) ImageDownload(op *operation,
 		}
 
 		if part.FormName() != "metadata" {
-			shared.Log.Error(
+			shared.Log("error",
 				"Invalid multipart image",
 				log.Ctx{"image": fp, "err": err})
 
@@ -207,7 +207,7 @@ func (d *Daemon) ImageDownload(op *operation,
 		destName = filepath.Join(destDir, info.Fingerprint)
 		f, err := os.Create(destName)
 		if err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Failed to save image",
 				log.Ctx{"image": fp, "err": err})
 
@@ -218,7 +218,7 @@ func (d *Daemon) ImageDownload(op *operation,
 		f.Close()
 
 		if err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Failed to save image",
 				log.Ctx{"image": fp, "err": err})
 
@@ -228,7 +228,7 @@ func (d *Daemon) ImageDownload(op *operation,
 		// Get the rootfs tarball
 		part, err = mr.NextPart()
 		if err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Invalid multipart image",
 				log.Ctx{"image": fp, "err": err})
 
@@ -236,7 +236,7 @@ func (d *Daemon) ImageDownload(op *operation,
 		}
 
 		if part.FormName() != "rootfs" {
-			shared.Log.Error(
+			shared.Log("error",
 				"Invalid multipart image",
 				log.Ctx{"image": fp})
 			return fmt.Errorf("Invalid multipart image")
@@ -245,7 +245,7 @@ func (d *Daemon) ImageDownload(op *operation,
 		destName = filepath.Join(destDir, info.Fingerprint+".rootfs")
 		f, err = os.Create(destName)
 		if err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Failed to save image",
 				log.Ctx{"image": fp, "err": err})
 			return err
@@ -255,7 +255,7 @@ func (d *Daemon) ImageDownload(op *operation,
 		f.Close()
 
 		if err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Failed to save image",
 				log.Ctx{"image": fp, "err": err})
 			return err
@@ -265,7 +265,7 @@ func (d *Daemon) ImageDownload(op *operation,
 
 		f, err := os.Create(destName)
 		if err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Failed to save image",
 				log.Ctx{"image": fp, "err": err})
 
@@ -276,7 +276,7 @@ func (d *Daemon) ImageDownload(op *operation,
 		f.Close()
 
 		if err != nil {
-			shared.Log.Error(
+			shared.Log("error",
 				"Failed to save image",
 				log.Ctx{"image": fp, "err": err})
 			return err
@@ -300,14 +300,14 @@ func (d *Daemon) ImageDownload(op *operation,
 
 	_, err = imageBuildFromInfo(d, info)
 	if err != nil {
-		shared.Log.Error(
+		shared.Log("error",
 			"Failed to create image",
 			log.Ctx{"image": fp, "err": err})
 
 		return err
 	}
 
-	shared.Log.Info(
+	shared.Log("info",
 		"Download succeeded",
 		log.Ctx{"image": fp})
 

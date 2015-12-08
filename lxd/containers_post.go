@@ -241,7 +241,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 
 	for key, value := range sourceConfig {
 		if len(key) > 8 && key[0:8] == "volatile" && key[9:] != "base_image" {
-			shared.Log.Debug("Skipping volatile key from copy source",
+			shared.Log("debug", "Skipping volatile key from copy source",
 				log.Ctx{"key": key})
 			continue
 		}

@@ -12,8 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 var storageLvmDefaultThinLVSize = "10GiB"
@@ -22,7 +20,7 @@ var storageLvmDefaultThinPoolName = "LXDPool"
 func storageLVMCheckVolumeGroup(vgName string) error {
 	output, err := exec.Command("vgdisplay", "-s", vgName).CombinedOutput()
 	if err != nil {
-		shared.Log.Debug("vgdisplay failed to find vg", log.Ctx{"output": string(output)})
+		shared.Log("debug", "vgdisplay failed to find vg", shared.Ctx{"output": string(output)})
 		return fmt.Errorf("LVM volume group '%s' not found", vgName)
 	}
 
@@ -286,7 +284,7 @@ func (s *storageLvm) ContainerCreateFromImage(
 	err = container.TemplateApply("create")
 	if err != nil {
 		s.log.Error("Error in create template during ContainerCreateFromImage, continuing to unmount",
-			log.Ctx{"err": err})
+			shared.Ctx{"err": err})
 	}
 
 	output, umounterr := exec.Command("umount", destPath).CombinedOutput()
@@ -310,7 +308,7 @@ func (s *storageLvm) ContainerDelete(container container) error {
 
 	cPath := container.Path()
 	if err := os.RemoveAll(cPath); err != nil {
-		s.log.Error("ContainerDelete: failed to remove path", log.Ctx{"cPath": cPath, "err": err})
+		s.log.Error("ContainerDelete: failed to remove path", shared.Ctx{"cPath": cPath, "err": err})
 		return fmt.Errorf("Cleaning up %s: %s", cPath, err)
 	}
 
@@ -320,19 +318,19 @@ func (s *storageLvm) ContainerDelete(container container) error {
 func (s *storageLvm) ContainerCopy(container container, sourceContainer container) error {
 	if s.isLVMContainer(sourceContainer) {
 		if err := s.createSnapshotContainer(container, sourceContainer, false); err != nil {
-			s.log.Error("Error creating snapshot LV for copy", log.Ctx{"err": err})
+			s.log.Error("Error creating snapshot LV for copy", shared.Ctx{"err": err})
 			return err
 		}
 	} else {
-		s.log.Info("Copy from Non-LVM container", log.Ctx{"container": container.Name(),
+		s.log.Info("Copy from Non-LVM container", shared.Ctx{"container": container.Name(),
 			"sourceContainer": sourceContainer.Name()})
 		if err := s.ContainerCreate(container); err != nil {
-			s.log.Error("Error creating empty container", log.Ctx{"err": err})
+			s.log.Error("Error creating empty container", shared.Ctx{"err": err})
 			return err
 		}
 
 		if err := s.ContainerStart(container); err != nil {
-			s.log.Error("Error starting/mounting container", log.Ctx{"err": err, "container": container.Name()})
+			s.log.Error("Error starting/mounting container", shared.Ctx{"err": err, "container": container.Name()})
 			s.ContainerDelete(container)
 			return err
 		}
@@ -341,7 +339,7 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 			sourceContainer.Path(),
 			container.Path())
 		if err != nil {
-			s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": string(output)})
+			s.log.Error("ContainerCopy: rsync failed", shared.Ctx{"output": string(output)})
 			s.ContainerDelete(container)
 			return fmt.Errorf("rsync failed: %s", string(output))
 		}
@@ -390,7 +388,7 @@ func (s *storageLvm) ContainerRename(
 	output, err := s.renameLV(oldName, newName)
 	if err != nil {
 		s.log.Error("Failed to rename a container LV",
-			log.Ctx{"oldName": oldName,
+			shared.Ctx{"oldName": oldName,
 				"newName": newName,
 				"err":     err,
 				"output":  string(output)})
@@ -403,7 +401,7 @@ func (s *storageLvm) ContainerRename(
 	newSymPath := fmt.Sprintf("%s.lv", containerPath(newName, false))
 	if err := os.Rename(oldSymPath, newSymPath); err != nil {
 		s.log.Error("Rename of the symlink failed",
-			log.Ctx{"oldPath": oldSymPath,
+			shared.Ctx{"oldPath": oldSymPath,
 				"newPath": newSymPath,
 				"err":     err})
 
@@ -458,9 +456,9 @@ func (s *storageLvm) createSnapshotContainer(
 
 	srcName := containerNameToLVName(sourceContainer.Name())
 	destName := containerNameToLVName(snapshotContainer.Name())
-	shared.Log.Debug(
+	shared.Log("debug",
 		"Creating snapshot",
-		log.Ctx{"srcName": srcName, "destName": destName})
+		shared.Ctx{"srcName": srcName, "destName": destName})
 
 	lvpath, err := s.createSnapshotLV(destName, srcName, readonly)
 	if err != nil {
@@ -503,7 +501,7 @@ func (s *storageLvm) ContainerSnapshotRename(
 	output, err := s.renameLV(oldName, newName)
 	if err != nil {
 		s.log.Error("Failed to rename a snapshot LV",
-			log.Ctx{"oldName": oldName, "newName": newName, "err": err, "output": string(output)})
+			shared.Ctx{"oldName": oldName, "newName": newName, "err": err, "output": string(output)})
 		return fmt.Errorf("Failed to rename a container LV, oldName='%s', newName='%s', err='%s'", oldName, newName, err)
 	}
 
@@ -513,7 +511,7 @@ func (s *storageLvm) ContainerSnapshotRename(
 	newSymPath := fmt.Sprintf("%s.lv", newPath)
 
 	if err := os.Rename(oldSymPath, newSymPath); err != nil {
-		s.log.Error("Failed to rename symlink", log.Ctx{"oldSymPath": oldSymPath, "newSymPath": newSymPath, "err": err})
+		s.log.Error("Failed to rename symlink", shared.Ctx{"oldSymPath": oldSymPath, "newSymPath": newSymPath, "err": err})
 		return fmt.Errorf("Failed to rename symlink err='%s'", err)
 	}
 
@@ -536,9 +534,9 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 	srcName := containerNameToLVName(container.Name())
 	destName := containerNameToLVName(container.Name() + "/rw")
 
-	shared.Log.Debug(
+	shared.Log("debug",
 		"Creating snapshot",
-		log.Ctx{"srcName": srcName, "destName": destName})
+		shared.Ctx{"srcName": srcName, "destName": destName})
 
 	lvpath, err := s.createSnapshotLV(destName, srcName, false)
 	if err != nil {
@@ -588,7 +586,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 
 	lvpath, err := s.createThinLV(fingerprint)
 	if err != nil {
-		s.log.Error("LVMCreateThinLV", log.Ctx{"err": err})
+		s.log.Error("LVMCreateThinLV", shared.Ctx{"err": err})
 		return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
 	}
 
@@ -604,7 +602,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	}
 	defer func() {
 		if err := os.RemoveAll(tempLVMountPoint); err != nil {
-			s.log.Error("Deleting temporary LVM mount point", log.Ctx{"err": err})
+			s.log.Error("Deleting temporary LVM mount point", shared.Ctx{"err": err})
 		}
 	}()
 
@@ -625,7 +623,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	output, err = exec.Command("umount", tempLVMountPoint).CombinedOutput()
 	if err != nil {
 		s.log.Warn("could not unmount LV. Will not remove",
-			log.Ctx{"lvpath": lvpath, "mountpoint": tempLVMountPoint, "err": err})
+			shared.Ctx{"lvpath": lvpath, "mountpoint": tempLVMountPoint, "err": err})
 		if untarErr == nil {
 			return err
 		}
@@ -666,7 +664,7 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 	if err != nil {
 		s.log.Debug(
 			"Could not create thin pool",
-			log.Ctx{
+			shared.Ctx{
 				"name":   storageLvmDefaultThinPoolName,
 				"err":    err,
 				"output": string(output)})
@@ -690,7 +688,7 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 		}
 		err = storageLVMSetThinPoolNameConfig(s.d, poolname)
 		if err != nil {
-			s.log.Error("Setting thin pool name", log.Ctx{"err": err})
+			s.log.Error("Setting thin pool name", shared.Ctx{"err": err})
 			return "", fmt.Errorf("Error setting LVM thin pool config: %v", err)
 		}
 	}
@@ -703,7 +701,7 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 		fmt.Sprintf("%s/%s", s.vgName, poolname)).CombinedOutput()
 
 	if err != nil {
-		s.log.Debug("Could not create LV", log.Ctx{"lvname": lvname, "output": string(output)})
+		s.log.Debug("Could not create LV", shared.Ctx{"lvname": lvname, "output": string(output)})
 		return "", fmt.Errorf("Could not create thin LV named %s", lvname)
 	}
 
@@ -714,7 +712,7 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 		lvpath).CombinedOutput()
 
 	if err != nil {
-		s.log.Error("mkfs.ext4", log.Ctx{"output": string(output)})
+		s.log.Error("mkfs.ext4", shared.Ctx{"output": string(output)})
 		return "", fmt.Errorf("Error making filesystem on image LV: %v", err)
 	}
 
@@ -725,7 +723,7 @@ func (s *storageLvm) removeLV(lvname string) error {
 	output, err := exec.Command(
 		"lvremove", "-f", fmt.Sprintf("%s/%s", s.vgName, lvname)).CombinedOutput()
 	if err != nil {
-		s.log.Debug("Could not remove LV", log.Ctx{"lvname": lvname, "output": string(output)})
+		s.log.Debug("Could not remove LV", shared.Ctx{"lvname": lvname, "output": string(output)})
 		return fmt.Errorf("Could not remove LV named %s", lvname)
 	}
 	return nil
@@ -738,7 +736,7 @@ func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly
 		"-n", lvname,
 		"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname)).CombinedOutput()
 	if err != nil {
-		s.log.Debug("Could not create LV snapshot", log.Ctx{"lvname": lvname, "origlvname": origlvname, "output": string(output)})
+		s.log.Debug("Could not create LV snapshot", shared.Ctx{"lvname": lvname, "origlvname": origlvname, "output": string(output)})
 		return "", fmt.Errorf("Could not create snapshot LV named %s", lvname)
 	}
 

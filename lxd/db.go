@@ -8,6 +8,7 @@ import (
 	"github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/logging"
 )
 
 var (
@@ -265,7 +266,7 @@ func dbBegin(db *sql.DB) (*sql.Tx, error) {
 			return nil, err
 		}
 		shared.Debugf("DbBegin: DB was locked")
-		shared.PrintStack()
+		log.PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -281,7 +282,7 @@ func txCommit(tx *sql.Tx) error {
 			return err
 		}
 		shared.Debugf("Txcommit: db was locked")
-		shared.PrintStack()
+		log.PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -299,7 +300,7 @@ func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 			return err
 		}
 		shared.Debugf("DbQueryRowScan: query %q args %q, DB was locked", q, args)
-		shared.PrintStack()
+		log.PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -315,7 +316,7 @@ func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 			return nil, err
 		}
 		shared.Debugf("DbQuery: query %q args %q, DB was locked", q, args)
-		shared.PrintStack()
+		log.PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -388,7 +389,7 @@ func dbQueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{
 			return nil, err
 		}
 		shared.Debugf("DbQueryscan: query %q inargs %q, DB was locked", q, inargs)
-		shared.PrintStack()
+		log.PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -404,7 +405,7 @@ func dbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 			return nil, err
 		}
 		shared.Debugf("DbExec: query %q args %q, DB was locked", q, args)
-		shared.PrintStack()
+		log.PrintStack()
 		time.Sleep(1 * time.Second)
 	}
 }

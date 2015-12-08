@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
-
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
@@ -254,8 +253,8 @@ type storageShared struct {
 }
 
 func (ss *storageShared) initShared() error {
-	ss.log = shared.Log.New(
-		log.Ctx{"driver": fmt.Sprintf("storage/%s", ss.sTypeName)},
+	ss.log = log.New(
+		shared.Ctx{"driver": fmt.Sprintf("storage/%s", ss.sTypeName)},
 	)
 	return nil
 }
@@ -276,8 +275,8 @@ func (ss *storageShared) shiftRootfs(c container) error {
 	dpath := c.Path()
 	rpath := c.RootfsPath()
 
-	shared.Log.Debug("Shifting root filesystem",
-		log.Ctx{"container": c.Name(), "rootfs": rpath})
+	shared.Log("debug", "Shifting root filesystem",
+		shared.Ctx{"container": c.Name(), "rootfs": rpath})
 
 	idmapset := c.IdmapSet()
 
@@ -334,8 +333,8 @@ type storageLogWrapper struct {
 
 func (lw *storageLogWrapper) Init(config map[string]interface{}) (storage, error) {
 	_, err := lw.w.Init(config)
-	lw.log = shared.Log.New(
-		log.Ctx{"driver": fmt.Sprintf("storage/%s", lw.w.GetStorageTypeName())},
+	lw.log = log.New(
+		shared.Ctx{"driver": fmt.Sprintf("storage/%s", lw.w.GetStorageTypeName())},
 	)
 
 	lw.log.Info("Init")
@@ -357,7 +356,7 @@ func (lw *storageLogWrapper) GetStorageTypeVersion() string {
 func (lw *storageLogWrapper) ContainerCreate(container container) error {
 	lw.log.Debug(
 		"ContainerCreate",
-		log.Ctx{
+		shared.Ctx{
 			"name":         container.Name(),
 			"isPrivileged": container.IsPrivileged()})
 	return lw.w.ContainerCreate(container)
@@ -368,7 +367,7 @@ func (lw *storageLogWrapper) ContainerCreateFromImage(
 
 	lw.log.Debug(
 		"ContainerCreateFromImage",
-		log.Ctx{
+		shared.Ctx{
 			"imageFingerprint": imageFingerprint,
 			"name":             container.Name(),
 			"isPrivileged":     container.IsPrivileged()})
@@ -376,7 +375,7 @@ func (lw *storageLogWrapper) ContainerCreateFromImage(
 }
 
 func (lw *storageLogWrapper) ContainerDelete(container container) error {
-	lw.log.Debug("ContainerDelete", log.Ctx{"container": container.Name()})
+	lw.log.Debug("ContainerDelete", shared.Ctx{"container": container.Name()})
 	return lw.w.ContainerDelete(container)
 }
 
@@ -385,19 +384,19 @@ func (lw *storageLogWrapper) ContainerCopy(
 
 	lw.log.Debug(
 		"ContainerCopy",
-		log.Ctx{
+		shared.Ctx{
 			"container": container.Name(),
 			"source":    sourceContainer.Name()})
 	return lw.w.ContainerCopy(container, sourceContainer)
 }
 
 func (lw *storageLogWrapper) ContainerStart(container container) error {
-	lw.log.Debug("ContainerStart", log.Ctx{"container": container.Name()})
+	lw.log.Debug("ContainerStart", shared.Ctx{"container": container.Name()})
 	return lw.w.ContainerStart(container)
 }
 
 func (lw *storageLogWrapper) ContainerStop(container container) error {
-	lw.log.Debug("ContainerStop", log.Ctx{"container": container.Name()})
+	lw.log.Debug("ContainerStop", shared.Ctx{"container": container.Name()})
 	return lw.w.ContainerStop(container)
 }
 
@@ -406,7 +405,7 @@ func (lw *storageLogWrapper) ContainerRename(
 
 	lw.log.Debug(
 		"ContainerRename",
-		log.Ctx{
+		shared.Ctx{
 			"container": container.Name(),
 			"newName":   newName})
 	return lw.w.ContainerRename(container, newName)
@@ -417,7 +416,7 @@ func (lw *storageLogWrapper) ContainerRestore(
 
 	lw.log.Debug(
 		"ContainerRestore",
-		log.Ctx{
+		shared.Ctx{
 			"container": container.Name(),
 			"source":    sourceContainer.Name()})
 	return lw.w.ContainerRestore(container, sourceContainer)
@@ -427,7 +426,7 @@ func (lw *storageLogWrapper) ContainerSnapshotCreate(
 	snapshotContainer container, sourceContainer container) error {
 
 	lw.log.Debug("ContainerSnapshotCreate",
-		log.Ctx{
+		shared.Ctx{
 			"snapshotContainer": snapshotContainer.Name(),
 			"sourceContainer":   sourceContainer.Name()})
 
@@ -436,7 +435,7 @@ func (lw *storageLogWrapper) ContainerSnapshotCreate(
 
 func (lw *storageLogWrapper) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
 	lw.log.Debug("ContainerSnapshotCreateEmpty",
-		log.Ctx{
+		shared.Ctx{
 			"snapshotContainer": snapshotContainer.Name()})
 
 	return lw.w.ContainerSnapshotCreateEmpty(snapshotContainer)
@@ -446,7 +445,7 @@ func (lw *storageLogWrapper) ContainerSnapshotDelete(
 	snapshotContainer container) error {
 
 	lw.log.Debug("ContainerSnapshotDelete",
-		log.Ctx{"snapshotContainer": snapshotContainer.Name()})
+		shared.Ctx{"snapshotContainer": snapshotContainer.Name()})
 	return lw.w.ContainerSnapshotDelete(snapshotContainer)
 }
 
@@ -454,31 +453,31 @@ func (lw *storageLogWrapper) ContainerSnapshotRename(
 	snapshotContainer container, newName string) error {
 
 	lw.log.Debug("ContainerSnapshotRename",
-		log.Ctx{
+		shared.Ctx{
 			"snapshotContainer": snapshotContainer.Name(),
 			"newName":           newName})
 	return lw.w.ContainerSnapshotRename(snapshotContainer, newName)
 }
 
 func (lw *storageLogWrapper) ContainerSnapshotStart(container container) error {
-	lw.log.Debug("ContainerStart", log.Ctx{"container": container.Name()})
+	lw.log.Debug("ContainerStart", shared.Ctx{"container": container.Name()})
 	return lw.w.ContainerSnapshotStart(container)
 }
 
 func (lw *storageLogWrapper) ContainerSnapshotStop(container container) error {
-	lw.log.Debug("ContainerStop", log.Ctx{"container": container.Name()})
+	lw.log.Debug("ContainerStop", shared.Ctx{"container": container.Name()})
 	return lw.w.ContainerSnapshotStop(container)
 }
 
 func (lw *storageLogWrapper) ImageCreate(fingerprint string) error {
 	lw.log.Debug(
 		"ImageCreate",
-		log.Ctx{"fingerprint": fingerprint})
+		shared.Ctx{"fingerprint": fingerprint})
 	return lw.w.ImageCreate(fingerprint)
 }
 
 func (lw *storageLogWrapper) ImageDelete(fingerprint string) error {
-	lw.log.Debug("ImageDelete", log.Ctx{"fingerprint": fingerprint})
+	lw.log.Debug("ImageDelete", shared.Ctx{"fingerprint": fingerprint})
 	return lw.w.ImageDelete(fingerprint)
 
 }
@@ -488,7 +487,7 @@ func (lw *storageLogWrapper) MigrationType() MigrationFSType {
 }
 
 func (lw *storageLogWrapper) MigrationSource(container container) ([]MigrationStorageSource, error) {
-	lw.log.Debug("MigrationSource", log.Ctx{"container": container.Name()})
+	lw.log.Debug("MigrationSource", shared.Ctx{"container": container.Name()})
 	return lw.w.MigrationSource(container)
 }
 
@@ -498,7 +497,7 @@ func (lw *storageLogWrapper) MigrationSink(container container, objects []contai
 		objNames = append(objNames, obj.Name())
 	}
 
-	lw.log.Debug("MigrationSink", log.Ctx{
+	lw.log.Debug("MigrationSink", shared.Ctx{
 		"container": container.Name(),
 		"objects":   objNames,
 	})

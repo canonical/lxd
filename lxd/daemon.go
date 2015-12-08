@@ -31,7 +31,7 @@ import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 
-	log "gopkg.in/inconshreveable/log15.v2"
+	log "github.com/lxc/lxd/shared/logging"
 )
 
 var aaAdmin = true
@@ -177,7 +177,7 @@ func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
 func readMyCert() (string, string, error) {
 	certf := shared.VarPath("server.crt")
 	keyf := shared.VarPath("server.key")
-	shared.Log.Info("Looking for existing certificates", log.Ctx{"cert": certf, "key": keyf})
+	shared.Log("info", "Looking for existing certificates", shared.Ctx{"cert": certf, "key": keyf})
 
 	err := shared.FindOrGenCert(certf, keyf)
 
@@ -233,21 +233,21 @@ func (d *Daemon) createCmd(version string, c Command) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if d.isTrustedClient(r) {
-			shared.Log.Info(
+			shared.Log("info",
 				"handling",
-				log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+				shared.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if r.Method == "GET" && c.untrustedGet {
-			shared.Log.Info(
+			shared.Log("info",
 				"allowing untrusted GET",
-				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+				shared.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if r.Method == "POST" && c.untrustedPost {
-			shared.Log.Info(
+			shared.Log("info",
 				"allowing untrusted POST",
-				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+				shared.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
-			shared.Log.Warn(
+			shared.Log("warn",
 				"rejecting request from untrusted client",
-				log.Ctx{"ip": r.RemoteAddr})
+				shared.Ctx{"ip": r.RemoteAddr})
 			Forbidden.Render(w)
 			return
 		}
@@ -292,7 +292,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 		if err := resp.Render(w); err != nil {
 			err := InternalError(err).Render(w)
 			if err != nil {
-				shared.Log.Error("Failed writing error for error, giving up")
+				shared.Log("error", "Failed writing error for error, giving up")
 			}
 		}
 
@@ -606,15 +606,15 @@ func (d *Daemon) Init() error {
 
 	/* Setup logging if that wasn't done before */
 	if shared.Log == nil {
-		shared.SetLogger("", "", true, true, nil)
+		log.SetLogger("", "", true, true, nil)
 	}
 
 	if !d.IsMock {
-		shared.Log.Info("LXD is starting",
-			log.Ctx{"path": shared.VarPath("")})
+		shared.Log("info", "LXD is starting",
+			shared.Ctx{"path": shared.VarPath("")})
 	} else {
-		shared.Log.Info("Mock LXD is starting",
-			log.Ctx{"path": shared.VarPath("")})
+		shared.Log("info", "Mock LXD is starting",
+			shared.Ctx{"path": shared.VarPath("")})
 	}
 
 	/* Detect user namespaces */
@@ -624,31 +624,31 @@ func (d *Daemon) Init() error {
 	if aaAvailable && os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
 		aaAvailable = false
 		aaAdmin = false
-		shared.Log.Warn("AppArmor support has been manually disabled")
+		shared.Log("warn", "AppArmor support has been manually disabled")
 	}
 
 	if aaAvailable && !shared.IsDir("/sys/kernel/security/apparmor") {
 		aaAvailable = false
 		aaAdmin = false
-		shared.Log.Warn("AppArmor support has been disabled because of lack of kernel support")
+		shared.Log("warn", "AppArmor support has been disabled because of lack of kernel support")
 	}
 
 	_, err := exec.LookPath("apparmor_parser")
 	if aaAvailable && err != nil {
 		aaAvailable = false
 		aaAdmin = false
-		shared.Log.Warn("AppArmor support has been disabled because 'apparmor_parser' couldn't be found")
+		shared.Log("warn", "AppArmor support has been disabled because 'apparmor_parser' couldn't be found")
 	}
 
 	/* Detect AppArmor admin support */
 	if aaAdmin && !haveMacAdmin() {
 		aaAdmin = false
-		shared.Log.Warn("Per-container AppArmor profiles are disabled because the mac_admin capability is missing.")
+		shared.Log("warn", "Per-container AppArmor profiles are disabled because the mac_admin capability is missing.")
 	}
 
 	if aaAdmin && runningInUserns {
 		aaAdmin = false
-		shared.Log.Warn("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container.")
+		shared.Log("warn", "Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container.")
 	}
 
 	/* Detect AppArmor confinment */
@@ -656,7 +656,7 @@ func (d *Daemon) Init() error {
 		profile := aaProfile()
 		if profile != "unconfined" && profile != "" {
 			aaConfined = true
-			shared.Log.Warn("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
+			shared.Log("warn", "Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
 		}
 	}
 
@@ -712,18 +712,18 @@ func (d *Daemon) Init() error {
 	/* Detect the filesystem */
 	d.BackingFs, err = filesystemDetect(d.lxcpath)
 	if err != nil {
-		shared.Log.Error("Error detecting backing fs", log.Ctx{"err": err})
+		shared.Log("error", "Error detecting backing fs", shared.Ctx{"err": err})
 	}
 
 	/* Read the uid/gid allocation */
 	d.IdmapSet, err = shared.DefaultIdmapSet()
 	if err != nil {
-		shared.Log.Warn("Error reading idmap", log.Ctx{"err": err.Error()})
-		shared.Log.Warn("Only privileged containers will be able to run")
+		shared.Log("warn", "Error reading idmap", shared.Ctx{"err": err.Error()})
+		shared.Log("warn", "Only privileged containers will be able to run")
 	} else {
-		shared.Log.Info("Default uid/gid map:")
+		shared.Log("info", "Default uid/gid map:")
 		for _, lxcmap := range d.IdmapSet.ToLxcString() {
-			shared.Log.Info(strings.TrimRight(" - "+lxcmap, "\n"))
+			shared.Log("info", strings.TrimRight(" - "+lxcmap, "\n"))
 		}
 	}
 
@@ -819,7 +819,7 @@ func (d *Daemon) Init() error {
 	}
 
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		shared.Log.Debug("Sending top level 404", log.Ctx{"url": r.URL})
+		shared.Log("debug", "Sending top level 404", shared.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")
 		NotFound.Render(w)
 	})
@@ -832,7 +832,7 @@ func (d *Daemon) Init() error {
 	var sockets []Socket
 
 	if len(listeners) > 0 {
-		shared.Log.Info("LXD is socket activated")
+		shared.Log("info", "LXD is socket activated")
 
 		for _, listener := range listeners {
 			if shared.PathExists(listener.Addr().String()) {
@@ -843,7 +843,7 @@ func (d *Daemon) Init() error {
 			}
 		}
 	} else {
-		shared.Log.Info("LXD isn't socket activated")
+		shared.Log("info", "LXD isn't socket activated")
 
 		localSocketPath := shared.VarPath("unix.socket")
 
@@ -852,7 +852,7 @@ func (d *Daemon) Init() error {
 		if shared.PathExists(localSocketPath) {
 			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
 			if err != nil {
-				shared.Log.Debug("Detected stale unix socket, deleting")
+				shared.Log("debug", "Detected stale unix socket, deleting")
 				// Connecting failed, so let's delete the socket and
 				// listen on it ourselves.
 				err = os.Remove(localSocketPath)
@@ -908,7 +908,7 @@ func (d *Daemon) Init() error {
 
 		tcpl, err := tls.Listen("tcp", listenAddr, tlsConfig)
 		if err != nil {
-			shared.Log.Error("cannot listen on https socket, skipping...", log.Ctx{"err": err})
+			shared.Log("error", "cannot listen on https socket, skipping...", shared.Ctx{"err": err})
 		} else {
 			sockets = append(sockets, Socket{Socket: tcpl, CloseOnExit: true})
 		}
@@ -921,9 +921,9 @@ func (d *Daemon) Init() error {
 	}
 
 	d.tomb.Go(func() error {
-		shared.Log.Info("REST API daemon:")
+		shared.Log("info", "REST API daemon:")
 		for _, socket := range d.Sockets {
-			shared.Log.Info(" - binding socket", log.Ctx{"socket": socket.Socket.Addr()})
+			shared.Log("info", " - binding socket", shared.Ctx{"socket": socket.Socket.Addr()})
 			current_socket := socket
 			d.tomb.Go(func() error { return http.Serve(current_socket.Socket, d.mux) })
 		}
@@ -942,10 +942,10 @@ func (d *Daemon) Init() error {
 func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 	for k, v := range d.clientCerts {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			shared.Log.Debug("Found cert", log.Ctx{"k": k})
+			shared.Log("debug", "Found cert", shared.Ctx{"k": k})
 			return true
 		}
-		shared.Log.Debug("Client cert != key", log.Ctx{"k": k})
+		shared.Log("debug", "Client cert != key", shared.Ctx{"k": k})
 	}
 	return false
 }
@@ -978,19 +978,19 @@ func (d *Daemon) Stop() error {
 	forceStop := false
 
 	d.tomb.Kill(errStop)
-	shared.Log.Info("Stopping REST API handler:")
+	shared.Log("info", "Stopping REST API handler:")
 	for _, socket := range d.Sockets {
 		if socket.CloseOnExit {
-			shared.Log.Info(" - closing socket", log.Ctx{"socket": socket.Socket.Addr()})
+			shared.Log("info", " - closing socket", shared.Ctx{"socket": socket.Socket.Addr()})
 			socket.Socket.Close()
 		} else {
-			shared.Log.Info(" - skipping socket-activated socket", log.Ctx{"socket": socket.Socket.Addr()})
+			shared.Log("info", " - skipping socket-activated socket", shared.Ctx{"socket": socket.Socket.Addr()})
 			forceStop = true
 		}
 	}
 
 	if n, err := d.numRunningContainers(); err != nil || n == 0 {
-		shared.Log.Debug("Unmounting shmounts")
+		shared.Log("debug", "Unmounting shmounts")
 
 		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
 		os.RemoveAll(shared.VarPath("shmounts"))
@@ -998,10 +998,10 @@ func (d *Daemon) Stop() error {
 		shared.Debugf("Not unmounting shmounts (containers are still running)")
 	}
 
-	shared.Log.Debug("Closing the database")
+	shared.Log("debug", "Closing the database")
 	d.db.Close()
 
-	shared.Log.Debug("Stopping /dev/lxd handler")
+	shared.Log("debug", "Stopping /dev/lxd handler")
 	d.devlxd.Close()
 
 	if d.IsMock || forceStop {
@@ -1092,7 +1092,7 @@ func (d *Daemon) ConfigValueSet(key string, value string) error {
 
 // PasswordSet sets the password to the new value.
 func (d *Daemon) PasswordSet(password string) error {
-	shared.Log.Info("Setting new https password")
+	shared.Log("info", "Setting new https password")
 	var value = password
 	if password != "" {
 		buf := make([]byte, pwSaltBytes)
@@ -1123,7 +1123,7 @@ func (d *Daemon) PasswordSet(password string) error {
 func (d *Daemon) PasswordCheck(password string) bool {
 	value, err := d.ConfigValueGet("core.trust_password")
 	if err != nil {
-		shared.Log.Error("verifyAdminPwd", log.Ctx{"err": err})
+		shared.Log("error", "verifyAdminPwd", shared.Ctx{"err": err})
 		return false
 	}
 
@@ -1134,20 +1134,20 @@ func (d *Daemon) PasswordCheck(password string) bool {
 
 	buff, err := hex.DecodeString(value)
 	if err != nil {
-		shared.Log.Error("hex decode failed", log.Ctx{"err": err})
+		shared.Log("error", "hex decode failed", shared.Ctx{"err": err})
 		return false
 	}
 
 	salt := buff[0:pwSaltBytes]
 	hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, pwHashBytes)
 	if err != nil {
-		shared.Log.Error("Failed to create hash to check", log.Ctx{"err": err})
+		shared.Log("error", "Failed to create hash to check", shared.Ctx{"err": err})
 		return false
 	}
 	if !bytes.Equal(hash, buff[pwSaltBytes:]) {
-		shared.Log.Error("Bad password received", log.Ctx{"err": err})
+		shared.Log("error", "Bad password received", shared.Ctx{"err": err})
 		return false
 	}
-	shared.Log.Debug("Verified the admin password")
+	shared.Log("debug", "Verified the admin password")
 	return true
 }
