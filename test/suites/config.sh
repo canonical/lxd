@@ -50,9 +50,10 @@ testloopmounts() {
   dd if=/dev/zero of="${loopfile}" bs=1M seek=200 count=1
   mkfs.ext4 -F "${loopfile}"
   losetup "${loop}" "${loopfile}" || { echo "no loop support"; return; }
-  mount "${lpath}" /mnt || { echo "loop mount failed"; return; }
-  touch /mnt/hello
-  umount /mnt
+  mkdir -p "${TEST_DIR}/mnt"
+  mount "${lpath}" "${TEST_DIR}/mnt" || { echo "loop mount failed"; return; }
+  touch "${TEST_DIR}/mnt/hello"
+  umount "${TEST_DIR}/mnt"
   lxc start foo
   lxc config device add foo loop disk source="${lpath}" path=/mnt
   lxc exec foo stat /mnt/hello
@@ -96,7 +97,7 @@ test_config_profiles() {
   lxc config show foo | grep BADCONF
   lxc config unset foo user.user_data
 
-  lxc config device add foo home disk source=/mnt path=/mnt readonly=true
+  lxc config device add foo home disk source=/mnt path=/home readonly=true
   lxc profile create onenic
   lxc profile device add onenic eth0 nic nictype=bridged parent=lxcbr0
   lxc profile apply foo onenic
@@ -105,7 +106,7 @@ test_config_profiles() {
   lxc profile apply foo onenic,unconfined
 
   lxc config device list foo | grep home
-  lxc config device show foo | grep "/mnt"
+  lxc config device show foo | grep "/home"
   lxc config show foo | grep "onenic" -A1 | grep "unconfined"
   lxc profile list | grep onenic
   lxc profile device list onenic | grep eth0
