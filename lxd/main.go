@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
+	log "github.com/lxc/lxd/shared/logging"
 )
 
 // Global arguments
@@ -174,7 +175,7 @@ func run() error {
 	}
 
 	handler := eventsHandler{}
-	err := shared.SetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
+	err := log.SetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
 	if err != nil {
 		fmt.Printf("%s", err)
 		return nil

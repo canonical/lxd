@@ -11,8 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
+	log "github.com/lxc/lxd/shared/logging"
 )
 
 /* Some interesting filesystems */
@@ -254,7 +253,7 @@ type storageShared struct {
 }
 
 func (ss *storageShared) initShared() error {
-	ss.log = shared.Log.New(
+	ss.log = log.Log.New(
 		log.Ctx{"driver": fmt.Sprintf("storage/%s", ss.sTypeName)},
 	)
 	return nil
@@ -334,7 +333,7 @@ type storageLogWrapper struct {
 
 func (lw *storageLogWrapper) Init(config map[string]interface{}) (storage, error) {
 	_, err := lw.w.Init(config)
-	lw.log = shared.Log.New(
+	lw.log = log.Log.New(
 		log.Ctx{"driver": fmt.Sprintf("storage/%s", lw.w.GetStorageTypeName())},
 	)
 
