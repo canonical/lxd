@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"syscall"
 	"unsafe"
 )
@@ -321,6 +322,16 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 }
 
 func IsMountPoint(name string) bool {
+	_, err := exec.LookPath("mountpoint")
+	if err == nil {
+		err = exec.Command("mountpoint", "-q", name).Run()
+		if err != nil {
+			return false
+		}
+
+		return true
+	}
+
 	stat, err := os.Stat(name)
 	if err != nil {
 		return false
