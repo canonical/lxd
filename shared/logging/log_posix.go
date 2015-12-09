@@ -6,8 +6,8 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-// GetSystemHandler on Linux writes messages to syslog.
-func GetSystemHandler(syslog string, debug bool) log.Handler {
+// getSystemHandler on Linux writes messages to syslog.
+func getSystemHandler(syslog string, debug bool) log.Handler {
 	// SyslogHandler
 	if syslog != "" {
 		if !debug {

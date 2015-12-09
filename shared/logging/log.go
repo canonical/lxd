@@ -2,8 +2,8 @@ package shared
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
-	"runtime"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -11,6 +11,24 @@ import (
 // Logger is the log15 Logger we use everywhere.
 var Log log.Logger
 var debug bool
+
+type Ctx map[string]interface{}
+type Logger log.Logger
+
+func LxdLog(lvl string, msg string, ctx ...interface{}) {
+	switch lvl {
+	case "debug":
+		Log.Debug(msg, ctx)
+	case "info":
+		Log.Info(msg, ctx)
+	case "warn":
+		Log.Warn(msg, ctx)
+	case "error":
+		Log.Error(msg, ctx)
+	case "crit":
+		Log.Crit(msg, ctx)
+	}
+}
 
 // SetLogger defines the *log.Logger where log messages are sent to.
 func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHandler log.Handler) error {
@@ -21,14 +39,14 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 	var syshandler log.Handler
 
 	// System specific handler
-	syshandler = GetSystemHandler(syslog, debug)
+	syshandler = getSystemHandler(syslog, debug)
 	if syshandler != nil {
 		handlers = append(handlers, syshandler)
 	}
 
 	// FileHandler
 	if logfile != "" {
-		if !PathExists(filepath.Dir(logfile)) {
+		if !pathExists(filepath.Dir(logfile)) {
 			return fmt.Errorf("Log file path doesn't exist: %s", filepath.Dir(logfile))
 		}
 
@@ -94,8 +112,10 @@ func Debugf(format string, args ...interface{}) {
 	}
 }
 
-func PrintStack() {
-	buf := make([]byte, 1<<16)
-	runtime.Stack(buf, true)
-	Debugf("%s", buf)
+func pathExists(name string) bool {
+	_, err := os.Lstat(name)
+	if err != nil && os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
