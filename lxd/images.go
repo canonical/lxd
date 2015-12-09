@@ -21,8 +21,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
+	log "github.com/lxc/lxd/shared/logging"
 )
 
 /* We only want a single publish running at any one time.
@@ -394,7 +393,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 	builddir string, post *os.File) (info shared.ImageInfo, err error) {
 
 	var imageMeta *imageMetadata
-	logger := shared.Log.New(log.Ctx{"function": "getImgPostInfo"})
+	logger := log.Log.New(log.Ctx{"function": "getImgPostInfo"})
 
 	public, _ := strconv.Atoi(r.Header.Get("X-LXD-public"))
 	info.Public = public == 1
