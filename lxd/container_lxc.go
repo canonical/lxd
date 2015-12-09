@@ -2624,13 +2624,8 @@ func (c *containerLXC) removeDiskDevices() error {
 			continue
 		}
 
-		// Unmount the host side
-		if shared.IsMountPoint(filepath.Join(c.DevicesPath(), f.Name())) {
-			err = syscall.Unmount(filepath.Join(c.DevicesPath(), f.Name()), syscall.MNT_DETACH)
-			if err != nil {
-				return err
-			}
-		}
+		// Always try to unmount the host side
+		_ = syscall.Unmount(filepath.Join(c.DevicesPath(), f.Name()), syscall.MNT_DETACH)
 
 		// Remove the entry
 		err := os.Remove(filepath.Join(c.DevicesPath(), f.Name()))

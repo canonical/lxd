@@ -53,9 +53,9 @@ testloopmounts() {
   mkdir -p "${TEST_DIR}/mnt"
   mount "${lpath}" "${TEST_DIR}/mnt" || { echo "loop mount failed"; return; }
   touch "${TEST_DIR}/mnt/hello"
-  umount "${TEST_DIR}/mnt"
+  umount -l "${TEST_DIR}/mnt"
   lxc start foo
-  lxc config device add foo loop disk source="${lpath}" path=/mnt
+  lxc config device add foo mnt disk source="${lpath}" path=/mnt
   lxc exec foo stat /mnt/hello
   # Note - we need to add a set_running_config_item to lxc
   # or work around its absence somehow.  Once that's done, we
@@ -64,7 +64,7 @@ testloopmounts() {
   #lxc exec foo stat /mnt/hello
   lxc restart foo --force
   lxc exec foo stat /mnt/hello
-  lxc config device remove foo loop
+  lxc config device remove foo mnt
   ensure_fs_unmounted "fs should have been hot-unmounted"
   lxc exec foo reboot
   ensure_fs_unmounted "removed fs re-appeared after reboot"
@@ -97,7 +97,8 @@ test_config_profiles() {
   lxc config show foo | grep BADCONF
   lxc config unset foo user.user_data
 
-  lxc config device add foo home disk source=/mnt path=/home readonly=true
+  mkdir -p "${TEST_DIR}/mnt1"
+  lxc config device add foo mnt1 disk source="${TEST_DIR}/mnt1" path=/mnt1 readonly=true
   lxc profile create onenic
   lxc profile device add onenic eth0 nic nictype=bridged parent=lxcbr0
   lxc profile apply foo onenic
@@ -105,8 +106,8 @@ test_config_profiles() {
   lxc profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
   lxc profile apply foo onenic,unconfined
 
-  lxc config device list foo | grep home
-  lxc config device show foo | grep "/home"
+  lxc config device list foo | grep mnt1
+  lxc config device show foo | grep "/mnt1"
   lxc config show foo | grep "onenic" -A1 | grep "unconfined"
   lxc profile list | grep onenic
   lxc profile device list onenic | grep eth0
@@ -125,12 +126,14 @@ test_config_profiles() {
   lxc config device remove foo eth2
 
   # test live-adding a disk
-  lxc config device add foo etc disk source=/etc path=/mnt2 readonly=true
+  mkdir "${TEST_DIR}/mnt2"
+  touch "${TEST_DIR}/mnt2/hosts"
+  lxc config device add foo mnt2 disk source="${TEST_DIR}/mnt2" path=/mnt2 readonly=true
   lxc exec foo -- ls /mnt2/hosts
   lxc stop foo --force
   lxc start foo
   lxc exec foo -- ls /mnt2/hosts
-  lxc config device remove foo etc
+  lxc config device remove foo mnt2
   ! lxc exec foo -- ls /mnt2/hosts
   lxc stop foo --force
   lxc start foo

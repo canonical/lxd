@@ -40,7 +40,7 @@ cleanup_vg() {
 
   if [ -d "${LXD5_DIR}"/containers/testcontainer ]; then
     echo "unmounting testcontainer LV"
-    umount "${LXD5_DIR}"/containers/testcontainer || echo "Couldn't unmount testcontainer, skipping"
+    umount -l "${LXD5_DIR}"/containers/testcontainer || echo "Couldn't unmount testcontainer, skipping"
   fi
 
   # -f removes any LVs in the VG
