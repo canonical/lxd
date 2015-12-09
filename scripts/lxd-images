@@ -704,7 +704,8 @@ to import and launch images"""))
     # Image import
     parser_import = parser_subparsers.add_parser(
         "import", help=_("Import images"))
-    parser_import_subparsers = parser_import.add_subparsers(dest="source")
+    parser_import_subparsers = parser_import.add_subparsers(
+        dest="source", metavar="{busybox,ubuntu}")
     parser_import_subparsers.required = True
 
     # # Busybox
@@ -743,8 +744,7 @@ to import and launch images"""))
     parser_import_ubuntu.set_defaults(func=import_ubuntu)
 
     # # legacy LXC
-    parser_import_lxc = parser_import_subparsers.add_parser(
-        "lxc", help=_("Error message for legacy LXC images"))
+    parser_import_lxc = parser_import_subparsers.add_parser("lxc")
     parser_import_lxc.set_defaults(func=import_lxc)
 
     # Image sync
