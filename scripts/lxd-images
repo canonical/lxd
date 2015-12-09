@@ -602,6 +602,15 @@ if __name__ == "__main__":
 
         setup_alias(args.alias, fingerprint)
 
+    def import_lxc(parser, args):
+        msg(_("""Importing LXC images is no longer supported via lxd-images.
+Please use:
+    lxc remote add images images.linuxcontainers.org
+    lxc image list
+    lxc launch images:ubuntu/trusty/amd64
+to import and launch images"""))
+        sys.exit(2)
+
     def sync(parser, args):
         # Look for images that have been marked for syncing
         for image in lxd.images_list(recursive=True):
@@ -732,6 +741,11 @@ if __name__ == "__main__":
                                       default=False,
                                       help=_("Keep this image up to date"))
     parser_import_ubuntu.set_defaults(func=import_ubuntu)
+
+    # # legacy LXC
+    parser_import_lxc = parser_import_subparsers.add_parser(
+        "lxc", help=_("Error message for legacy LXC images"))
+    parser_import_lxc.set_defaults(func=import_lxc)
 
     # Image sync
     parser_import = parser_subparsers.add_parser(
