@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2015-11-24 18:10-0500\n"
+"POT-Creation-Date: 2015-12-08 19:00-0500\n"
 "PO-Revision-Date: 2015-03-13 23:44+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -16,7 +16,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lxc/config.go:29
+#: lxc/config.go:36
 msgid ""
 "### This is a yaml representation of the configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -73,7 +73,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr ""
 
-#: lxc/snapshot.go:52
+#: lxc/snapshot.go:51
 #, fuzzy
 msgid "'/' not allowed in snapshot name"
 msgstr "'/' はスナップショットの名前には使用できません。\n"
@@ -117,20 +117,20 @@ msgstr ""
 msgid "Architecture: %s"
 msgstr ""
 
-#: lxc/help.go:50
+#: lxc/help.go:49
 msgid "Available commands:"
 msgstr ""
 
-#: client.go:883
+#: client.go:862
 #, fuzzy, c-format
 msgid "Bad image property: %s"
 msgstr "(不正なイメージプロパティ形式: %s\n"
 
-#: lxc/config.go:203
+#: lxc/config.go:232
 msgid "COMMON NAME"
 msgstr ""
 
-#: client.go:1775
+#: client.go:1764
 msgid "Cannot change profile name"
 msgstr "プロファイル名を変更できません"
 
@@ -138,12 +138,12 @@ msgstr "プロファイル名を変更できません"
 msgid "Cannot provide container name to list"
 msgstr ""
 
-#: client.go:1007
+#: client.go:986
 #, fuzzy, c-format
 msgid "Certificate fingerprint: %x"
 msgstr "証明書のフィンガープリント: % x\n"
 
-#: lxc/action.go:28
+#: lxc/action.go:27
 #, fuzzy, c-format
 msgid ""
 "Changes state of one or more containers to %s.\n"
@@ -155,25 +155,25 @@ msgstr "コンテナの状態を %s に変更します。\n"
 msgid "Client certificate stored at server: "
 msgstr "クライアント証明書がサーバに格納されました: "
 
-#: lxc/init.go:133 lxc/init.go:134 lxc/launch.go:37 lxc/launch.go:38
+#: lxc/init.go:132 lxc/init.go:133 lxc/launch.go:36 lxc/launch.go:37
 msgid "Config key/value to apply to the new container"
 msgstr ""
 
-#: lxc/config.go:417 lxc/image.go:542 lxc/profile.go:184
+#: lxc/config.go:449 lxc/image.go:542 lxc/profile.go:184
 #, fuzzy, c-format
 msgid "Config parsing error: %s"
 msgstr "エラー: %v\n"
 
-#: lxc/main.go:34
+#: lxc/main.go:33
 msgid "Connection refused; is LXD running?"
 msgstr ""
 
-#: lxc/publish.go:55
+#: lxc/publish.go:54
 #, fuzzy
 msgid "Container name is mandatory"
 msgstr "コンテナが見つかりません"
 
-#: lxc/publish.go:82 lxc/publish.go:102
+#: lxc/publish.go:81 lxc/publish.go:101
 #, fuzzy, c-format
 msgid "Container published with fingerprint: %s"
 msgstr "証明書のフィンガープリント: % x\n"
@@ -182,7 +182,7 @@ msgstr "証明書のフィンガープリント: % x\n"
 msgid "Copy aliases from source"
 msgstr ""
 
-#: lxc/copy.go:25
+#: lxc/copy.go:24
 msgid ""
 "Copy containers within or in between lxd instances.\n"
 "\n"
@@ -190,11 +190,11 @@ msgid ""
 "ephemeral|e]"
 msgstr ""
 
-#: client.go:1023
+#: client.go:1002
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません。"
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:21
 #, fuzzy
 msgid ""
 "Create a read-only snapshot of a container.\n"
@@ -207,11 +207,11 @@ msgstr "コンテナの読み取り専用スナップショットを作成しま
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:174
+#: lxc/init.go:173
 msgid "Creating"
 msgstr ""
 
-#: lxc/init.go:176 lxc/launch.go:108
+#: lxc/init.go:175 lxc/launch.go:108
 #, c-format
 msgid "Creating %s"
 msgstr ""
@@ -220,7 +220,7 @@ msgstr ""
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/delete.go:19
+#: lxc/delete.go:18
 msgid ""
 "Delete containers or container snapshots.\n"
 "\n"
@@ -231,42 +231,42 @@ msgid ""
 "snapshots, ...)."
 msgstr ""
 
-#: lxc/config.go:465
+#: lxc/config.go:497
 #, fuzzy, c-format
 msgid "Device %s added to %s"
 msgstr "デバイス %s が %s に追加されました\n"
 
-#: lxc/config.go:493
+#: lxc/config.go:525
 #, fuzzy, c-format
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました\n"
 
-#: lxc/list.go:169
+#: lxc/list.go:171
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/config.go:205
+#: lxc/config.go:234
 msgid "EXPIRY DATE"
 msgstr ""
 
-#: lxc/main.go:55
+#: lxc/main.go:51
 msgid "Enables debug mode."
 msgstr "デバッグモードを有効にします。"
 
-#: lxc/main.go:54
+#: lxc/main.go:50
 msgid "Enables verbose mode."
 msgstr "詳細モードを有効にします。"
 
-#: lxc/help.go:69
+#: lxc/help.go:68
 msgid "Environment:"
 msgstr ""
 
-#: lxc/copy.go:32 lxc/copy.go:33 lxc/init.go:137 lxc/init.go:138
-#: lxc/launch.go:41 lxc/launch.go:42
+#: lxc/copy.go:31 lxc/copy.go:32 lxc/init.go:136 lxc/init.go:137
+#: lxc/launch.go:40 lxc/launch.go:41
 msgid "Ephemeral container"
 msgstr ""
 
-#: client.go:621 client.go:631 client.go:799 client.go:916 client.go:2013
+#: client.go:600 client.go:610 client.go:778 client.go:895 client.go:2002
 #, c-format
 msgid "Error adding alias %s"
 msgstr ""
@@ -292,7 +292,7 @@ msgstr ""
 msgid "Expires: never"
 msgstr ""
 
-#: lxc/config.go:202 lxc/image.go:466 lxc/image.go:488
+#: lxc/config.go:231 lxc/image.go:466 lxc/image.go:488
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -301,7 +301,7 @@ msgstr ""
 msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: % x\n"
 
-#: lxc/finger.go:18
+#: lxc/finger.go:17
 #, fuzzy
 msgid ""
 "Fingers the LXD instance to check if it is up and working.\n"
@@ -309,36 +309,36 @@ msgid ""
 "lxc finger <remote>"
 msgstr "LXDインスタンスが稼働中かを確認します。\n"
 
-#: lxc/main.go:145
+#: lxc/main.go:141
 msgid "For example: 'lxd-images import ubuntu --alias ubuntu'."
 msgstr ""
 
-#: lxc/action.go:37
+#: lxc/action.go:36
 msgid "Force the container to shutdown."
 msgstr "コンテナを強制シャットダウンします。"
 
-#: lxc/main.go:56
+#: lxc/main.go:52
 msgid "Force using the local unix socket."
 msgstr ""
 
-#: lxc/main.go:137
+#: lxc/main.go:133
 #, fuzzy
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります…\n"
 
-#: lxc/list.go:167
+#: lxc/list.go:169
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:168
+#: lxc/list.go:170
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config.go:204
+#: lxc/config.go:233
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:144
+#: lxc/main.go:140
 msgid ""
 "If this is your first run, you will need to import images using the 'lxd-"
 "images' script."
@@ -354,7 +354,7 @@ msgstr "証明書のフィンガープリント: % x\n"
 msgid "Init: %d"
 msgstr ""
 
-#: lxc/init.go:22
+#: lxc/init.go:21
 msgid ""
 "Initialize a container from a particular image.\n"
 "\n"
@@ -370,7 +370,7 @@ msgid ""
 "lxc init ubuntu u1"
 msgstr ""
 
-#: lxc/init.go:64 lxc/init.go:69
+#: lxc/init.go:63 lxc/init.go:68
 #, fuzzy
 msgid "Invalid configuration key"
 msgstr "設定を管理します。\n"
@@ -389,11 +389,11 @@ msgstr "不正な送り先 %s"
 msgid "Ips:"
 msgstr ""
 
-#: lxc/main.go:32
+#: lxc/main.go:31
 msgid "LXD socket not found; is LXD running?"
 msgstr ""
 
-#: lxc/launch.go:21
+#: lxc/launch.go:20
 msgid ""
 "Launch a container from a particular image.\n"
 "\n"
@@ -444,7 +444,7 @@ msgstr ""
 msgid "Make image public"
 msgstr ""
 
-#: lxc/publish.go:30
+#: lxc/publish.go:29
 msgid "Make the image public"
 msgstr ""
 
@@ -486,7 +486,7 @@ msgid ""
 "    using the specified profile."
 msgstr ""
 
-#: lxc/config.go:49
+#: lxc/config.go:56
 msgid ""
 "Manage configuration.\n"
 "\n"
@@ -509,7 +509,7 @@ msgid ""
 "Set server configuration key.\n"
 "lxc config unset key                                                        "
 "Unset server configuration key.\n"
-"lxc config show [remote:]<container>                                        "
+"lxc config show [--expanded] [remote:]<container>                           "
 "Show container configuration.\n"
 "lxc config edit [remote:]<container>                                        "
 "Edit container configuration in external editor.\n"
@@ -615,11 +615,11 @@ msgid ""
 "lxc image alias list store2:"
 msgstr ""
 
-#: client.go:786
+#: client.go:765
 msgid "Missing operation metadata"
 msgstr ""
 
-#: lxc/help.go:87
+#: lxc/help.go:86
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
@@ -644,14 +644,14 @@ msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
 "せん。"
 
-#: lxc/move.go:19
+#: lxc/move.go:18
 msgid ""
 "Move containers within or in between lxd instances.\n"
 "\n"
 "lxc move [remote:]<source container> [remote:]<destination container>"
 msgstr ""
 
-#: lxc/list.go:165 lxc/remote.go:241
+#: lxc/list.go:167 lxc/remote.go:241
 msgid "NAME"
 msgstr ""
 
@@ -664,20 +664,20 @@ msgstr ""
 msgid "Name: %s"
 msgstr ""
 
-#: lxc/image.go:87 lxc/publish.go:31
+#: lxc/image.go:87 lxc/publish.go:30
 msgid "New alias to define at target"
 msgstr ""
 
-#: client.go:994
+#: client.go:973
 msgid "No certificate on this connection"
 msgstr "この接続に使用する証明書がありません"
 
-#: lxc/config.go:216
+#: lxc/config.go:245
 #, fuzzy
 msgid "No certificate provided to add"
 msgstr "追加すべき証明書が提供されていません"
 
-#: lxc/config.go:239
+#: lxc/config.go:268
 msgid "No fingerprint specified."
 msgstr "フィンガープリントが指定されていません。"
 
@@ -685,7 +685,7 @@ msgstr "フィンガープリントが指定されていません。"
 msgid "Only https:// is supported for remote image import."
 msgstr ""
 
-#: lxc/help.go:64 lxc/main.go:124
+#: lxc/help.go:63 lxc/main.go:120
 #, fuzzy
 msgid "Options:"
 msgstr "操作 %s"
@@ -699,21 +699,21 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/help.go:70
+#: lxc/help.go:69
 #, fuzzy
 msgid "Path to an alternate client configuration directory."
 msgstr "別の設定ディレクトリ"
 
-#: lxc/help.go:71
+#: lxc/help.go:70
 #, fuzzy
 msgid "Path to an alternate server directory."
 msgstr "別の設定ディレクトリ"
 
-#: lxc/main.go:36
+#: lxc/main.go:35
 msgid "Permisson denied, are you in the lxd group?"
 msgstr ""
 
-#: lxc/help.go:24
+#: lxc/help.go:23
 #, fuzzy
 msgid ""
 "Presents details on how to use LXD.\n"
@@ -725,23 +725,23 @@ msgstr "LXDの使い方の詳細を表示します。\n"
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:418 lxc/image.go:543
+#: lxc/config.go:450 lxc/image.go:543
 msgid "Press enter to start the editor again"
 msgstr ""
 
-#: lxc/help.go:66
+#: lxc/help.go:65
 msgid "Print debug information."
 msgstr ""
 
-#: lxc/help.go:65
+#: lxc/help.go:64
 msgid "Print less common commands."
 msgstr ""
 
-#: lxc/help.go:67
+#: lxc/help.go:66
 msgid "Print verbose information."
 msgstr ""
 
-#: lxc/version.go:19
+#: lxc/version.go:18
 #, fuzzy
 msgid ""
 "Prints the version number of LXD.\n"
@@ -769,7 +769,7 @@ msgstr ""
 msgid "Profile %s deleted"
 msgstr ""
 
-#: lxc/init.go:135 lxc/init.go:136 lxc/launch.go:39 lxc/launch.go:40
+#: lxc/init.go:134 lxc/init.go:135 lxc/launch.go:38 lxc/launch.go:39
 msgid "Profile to apply to the new container"
 msgstr ""
 
@@ -786,7 +786,7 @@ msgstr ""
 msgid "Public: %s"
 msgstr ""
 
-#: lxc/publish.go:20
+#: lxc/publish.go:19
 msgid ""
 "Publish containers as images.\n"
 "\n"
@@ -802,15 +802,15 @@ msgstr ""
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:170
+#: lxc/list.go:172
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/list.go:166
+#: lxc/list.go:168
 msgid "STATE"
 msgstr ""
 
-#: client.go:1014
+#: client.go:993
 msgid "Server certificate NACKed by user"
 msgstr "ユーザによりサーバ証明書が拒否されました"
 
@@ -825,7 +825,7 @@ msgstr ""
 msgid "Server doesn't trust us after adding our cert"
 msgstr "サーバが我々の証明書を追加した後我々を信頼していません"
 
-#: lxc/restore.go:22
+#: lxc/restore.go:21
 #, fuzzy
 msgid ""
 "Set the current state of a resource back to its state at the time the "
@@ -846,7 +846,7 @@ msgstr "プッシュ時にファイルのパーミションを設定します"
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
-#: lxc/help.go:33
+#: lxc/help.go:32
 msgid "Show all commands (not just interesting ones)"
 msgstr "全てコマンドを表示します (主なコマンドだけではなく)"
 
@@ -859,11 +859,11 @@ msgstr ""
 msgid "Size: %.2fMB"
 msgstr ""
 
-#: lxc/info.go:107 lxc/list.go:180
+#: lxc/info.go:107 lxc/list.go:182
 msgid "Snapshots:"
 msgstr ""
 
-#: client.go:653
+#: client.go:632
 msgid "Split images can only be written to a directory."
 msgstr ""
 
@@ -877,11 +877,11 @@ msgstr ""
 msgid "Status: %s"
 msgstr ""
 
-#: lxc/delete.go:70
+#: lxc/delete.go:69
 msgid "Stopping container failed!"
 msgstr "コンテナの停止に失敗しました！"
 
-#: client.go:1135 client.go:1180
+#: client.go:1114 client.go:1159
 msgid "The image architecture is incompatible with the target server"
 msgstr ""
 
@@ -889,11 +889,11 @@ msgstr ""
 msgid "The source remote isn't available over the network"
 msgstr ""
 
-#: lxc/publish.go:58
+#: lxc/publish.go:57
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
-#: lxc/action.go:36
+#: lxc/action.go:35
 msgid "Time to wait for the container before killing it."
 msgstr "コンテナを強制停止するまでの時間"
 
@@ -901,7 +901,7 @@ msgstr "コンテナを強制停止するまでの時間"
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/action.go:63
+#: lxc/action.go:62 lxc/launch.go:124
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -919,7 +919,7 @@ msgstr ""
 msgid "Uploaded: %s"
 msgstr ""
 
-#: lxc/main.go:124
+#: lxc/main.go:120
 #, fuzzy, c-format
 msgid "Usage: %s"
 msgstr ""
@@ -928,41 +928,41 @@ msgstr ""
 "Options:\n"
 "\n"
 
-#: lxc/help.go:49
+#: lxc/help.go:48
 #, fuzzy
 msgid "Usage: lxc [subcommand] [options]"
 msgstr ""
 "使い方: lxc [サブコマンド] [オプション]\n"
 "利用可能なコマンド:\n"
 
-#: lxc/restore.go:29
+#: lxc/restore.go:28
 #, fuzzy
 msgid ""
 "Whether or not to restore the container's running state from snapshot (if "
 "available)"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
 
-#: lxc/snapshot.go:29
+#: lxc/snapshot.go:28
 msgid "Whether or not to snapshot the container's running state"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
+
+#: lxc/config.go:33
+msgid "Whether to show the expanded configuration"
+msgstr ""
 
 #: lxc/list.go:152 lxc/remote.go:233
 msgid "YES"
 msgstr ""
 
-#: client.go:1113
+#: client.go:1092
 msgid "You must provide an image hash or alias name."
 msgstr ""
 
-#: lxc/main.go:64
+#: lxc/main.go:60
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
 
-#: shared/util_linux.go:243 shared/util_linux.go:275
-msgid "allocation failed"
-msgstr ""
-
-#: client.go:479
+#: client.go:458
 #, c-format
 msgid "api version mismatch: mine: %q, daemon: %q"
 msgstr "APIのバージョン不一致: クライアント: %q, サーバ: %q"
@@ -972,25 +972,25 @@ msgstr "APIのバージョン不一致: クライアント: %q, サーバ: %q"
 msgid "bad number of things scanned from image, container or snapshot"
 msgstr "リソースからスキャンされた数が不正"
 
-#: client.go:1806
+#: client.go:1795
 #, fuzzy, c-format
 msgid "bad profile url %s"
 msgstr "プロファイルURLが不正 %s"
 
-#: lxc/action.go:59
+#: lxc/action.go:58
 msgid "bad result type from action"
 msgstr "アクションからの結果タイプが不正！"
 
-#: client.go:1810
+#: client.go:1799
 #, fuzzy
 msgid "bad version in profile url"
 msgstr "プロファイルURL内のバージョンが不正"
 
-#: lxc/copy.go:81
+#: lxc/copy.go:80
 msgid "can't copy to the same container name"
 msgstr ""
 
-#: client.go:1176
+#: client.go:1155
 #, c-format
 msgid "can't get info for image '%s': %s"
 msgstr ""
@@ -999,36 +999,31 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: client.go:442 client.go:447
-#, c-format
-msgid "cannot resolve unix socket address: %v"
-msgstr "UNIXソケットのアドレスを解決できません: %v"
-
-#: client.go:1859 client.go:1916
+#: client.go:1848 client.go:1905
 #, fuzzy
 msgid "device already exists"
 msgstr "リモート %s は既に存在します"
 
-#: lxc/launch.go:85 lxc/launch.go:90
+#: lxc/init.go:194 lxc/init.go:199 lxc/launch.go:85 lxc/launch.go:90
 #, fuzzy
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr "サーバから変更されたリソースを取得できませんでした"
 
-#: lxc/init.go:197 lxc/init.go:199 lxc/launch.go:113 lxc/launch.go:125
+#: lxc/init.go:204 lxc/init.go:206 lxc/launch.go:113 lxc/launch.go:127
 msgid "done."
 msgstr ""
 
-#: lxc/init.go:190 lxc/launch.go:123
+#: lxc/init.go:189 lxc/launch.go:123
 #, fuzzy
 msgid "error."
 msgstr "エラー: %v\n"
 
-#: lxc/main.go:22 lxc/main.go:154
+#: lxc/main.go:21 lxc/main.go:150
 #, fuzzy, c-format
 msgid "error: %v"
 msgstr "エラー: %v\n"
 
-#: lxc/help.go:41 lxc/main.go:118
+#: lxc/help.go:40 lxc/main.go:114
 #, fuzzy, c-format
 msgid "error: unknown command: %s"
 msgstr "エラー: 未知のコマンド: %s\n"
@@ -1038,12 +1033,7 @@ msgstr "エラー: 未知のコマンド: %s\n"
 msgid "expected error, got %s"
 msgstr ""
 
-#: shared/util_linux.go:257 shared/util_linux.go:292
-#, c-format
-msgid "failed group lookup: %s"
-msgstr ""
-
-#: client.go:1407 client.go:1980
+#: client.go:1386 client.go:1969
 #, c-format
 msgid "got bad op status %s"
 msgstr "不正な操作ステータスを得ました %s"
@@ -1057,7 +1047,7 @@ msgstr "\"exec\"から不正な応答タイプを得ました"
 msgid "got bad version"
 msgstr "不正なバージョンを得ました"
 
-#: client.go:1579
+#: client.go:1568
 #, c-format
 msgid "invalid wait url %s"
 msgstr "待つURLが不正 %s"
@@ -1066,7 +1056,7 @@ msgstr "待つURLが不正 %s"
 msgid "no"
 msgstr ""
 
-#: client.go:1411
+#: client.go:1390
 msgid "no metadata received"
 msgstr ""
 
@@ -1074,21 +1064,21 @@ msgstr ""
 msgid "no response!"
 msgstr "応答がありません！"
 
-#: client.go:1852 client.go:1909
+#: client.go:1841 client.go:1898
 #, c-format
 msgid "no value found in %q"
 msgstr ""
 
-#: lxc/copy.go:107
+#: lxc/copy.go:102
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
-#: client.go:1008
+#: client.go:987
 #, fuzzy
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
-#: lxc/main.go:218 lxc/main.go:222
+#: lxc/main.go:214 lxc/main.go:218
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr ""
@@ -1108,11 +1098,6 @@ msgstr "リモート %s は存在しません"
 msgid "remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"
 
-#: shared/util_linux.go:261 shared/util_linux.go:296
-#, fuzzy, c-format
-msgid "unknown group %s"
-msgstr "未知のリモート名: %q"
-
 #: client.go:253
 #, c-format
 msgid "unknown remote name: %q"
@@ -1127,7 +1112,7 @@ msgstr "未知のリモート名: %q"
 msgid "unreachable return reached"
 msgstr "到達しないはずのreturnに到達しました"
 
-#: lxc/main.go:194
+#: lxc/main.go:190
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
@@ -1135,9 +1120,16 @@ msgstr "サブコマンドの引数の数が正しくありません"
 msgid "yes"
 msgstr ""
 
-#: lxc/copy.go:41
+#: lxc/copy.go:40
 msgid "you must specify a source container name"
 msgstr ""
+
+#~ msgid "cannot resolve unix socket address: %v"
+#~ msgstr "UNIXソケットのアドレスを解決できません: %v"
+
+#, fuzzy
+#~ msgid "unknown group %s"
+#~ msgstr "未知のリモート名: %q"
 
 #, fuzzy
 #~ msgid "Information about remotes not yet supported"
