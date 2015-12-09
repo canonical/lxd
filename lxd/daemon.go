@@ -555,7 +555,7 @@ func (d *Daemon) pruneExpiredImages() {
 	}
 
 	q := `
-SELECT fingerprint FROM images WHERE cached=1 AND last_use_date<=strftime('%s', 'now', '-` + expiry + ` day')`
+SELECT fingerprint FROM images WHERE cached=1 AND creation_date<=strftime('%s', date('now', '-` + expiry + ` day'))`
 	inargs := []interface{}{}
 	var fingerprint string
 	outfmt := []interface{}{fingerprint}
@@ -744,26 +744,16 @@ func (d *Daemon) Init() error {
 	/* Prune images */
 	d.pruneChan = make(chan bool)
 	go func() {
+		d.pruneExpiredImages()
 		for {
-			expiryStr, err := dbImageExpiryGet(d.db)
-			var expiry int
-			if err != nil {
-				expiry = 10
-			} else {
-				expiry, err = strconv.Atoi(expiryStr)
-				if err != nil {
-					expiry = 10
-				}
-				if expiry <= 0 {
-					expiry = 1
-				}
-			}
-			timer := time.NewTimer(time.Duration(expiry) * 24 * time.Hour)
+			timer := time.NewTimer(24 * time.Hour)
 			timeChan := timer.C
 			select {
 			case <-timeChan:
+				/* run once per day */
 				d.pruneExpiredImages()
 			case <-d.pruneChan:
+				/* run when image.remote_cache_expiry is changed */
 				d.pruneExpiredImages()
 				timer.Stop()
 			}
