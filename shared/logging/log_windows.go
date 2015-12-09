@@ -1,6 +1,6 @@
 // +build windows
 
-package shared
+package logging
 
 import (
 	log "gopkg.in/inconshreveable/log15.v2"
