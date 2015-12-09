@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-12-08 19:00-0500\n"
+        "POT-Creation-Date: 2015-12-09 02:00-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -103,7 +103,7 @@ msgstr  ""
 msgid   "Aliases:"
 msgstr  ""
 
-#: lxc/exec.go:51
+#: lxc/exec.go:53
 msgid   "An environment variable of the form HOME=/home/foo"
 msgstr  ""
 
@@ -263,7 +263,7 @@ msgstr  ""
 #: lxc/exec.go:27
 msgid   "Execute the specified command in a container.\n"
         "\n"
-        "lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>"
+        "lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... <command>"
 msgstr  ""
 
 #: lxc/image.go:235
@@ -607,6 +607,10 @@ msgstr  ""
 #: lxc/image.go:373
 #, c-format
 msgid   "Output is in %s"
+msgstr  ""
+
+#: lxc/exec.go:54
+msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
 #: lxc/image.go:467 lxc/remote.go:243
@@ -993,7 +997,7 @@ msgstr  ""
 msgid   "unknown transport type: %s"
 msgstr  ""
 
-#: lxc/exec.go:146
+#: lxc/exec.go:158
 msgid   "unreachable return reached"
 msgstr  ""
 
