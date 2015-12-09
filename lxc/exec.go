@@ -27,8 +27,10 @@ func (c *execCmd) usage() string {
 	return i18n.G(
 		`Execute the specified command in a container.
 
-lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>`)
+lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... <command>`)
 }
+
+var modeFlag string
 
 type envFlag []string
 
@@ -49,6 +51,7 @@ var envArgs envFlag
 
 func (c *execCmd) flags() {
 	gnuflag.Var(&envArgs, "env", i18n.G("An environment variable of the form HOME=/home/foo"))
+	gnuflag.StringVar(&modeFlag, "mode", "auto", i18n.G("Override the terminal mode (auto, interactive or non-interactive)"))
 }
 
 func sendTermSize(control *websocket.Conn) error {
@@ -109,8 +112,17 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	cfd := int(syscall.Stdin)
+
+	var interactive bool
+	if modeFlag == "interactive" {
+		interactive = true
+	} else if modeFlag == "non-interactive" {
+		interactive = false
+	} else {
+		interactive = terminal.IsTerminal(cfd)
+	}
+
 	var oldttystate *terminal.State
-	interactive := terminal.IsTerminal(cfd)
 	if interactive {
 		oldttystate, err = terminal.MakeRaw(cfd)
 		if err != nil {
