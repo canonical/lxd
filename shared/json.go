@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type Jmap map[string]interface{}
@@ -53,7 +51,7 @@ func (m Jmap) GetBool(key string) (bool, error) {
 func DebugJson(r *bytes.Buffer) {
 	pretty := &bytes.Buffer{}
 	if err := json.Indent(pretty, r.Bytes(), "\t", "\t"); err != nil {
-		Log.Error("error indenting json", log.Ctx{"err": err})
+		Log.Error("error indenting json", Ctx{"err": err})
 		return
 	}
 
