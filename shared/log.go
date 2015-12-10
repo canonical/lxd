@@ -1,97 +1,39 @@
 package shared
 
 import (
-	"fmt"
-	"path/filepath"
 	"runtime"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-// Logger is the log15 Logger we use everywhere.
-var Log log.Logger
-var debug bool
+var Logfunc func(string, string, ...interface{})
+var Debugf func(string, ...interface{})
+var Logf func(string, ...interface{})
 
-// SetLogger defines the *log.Logger where log messages are sent to.
-func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHandler log.Handler) error {
-	Log = log.New()
+var Log logger
 
-	var handlers []log.Handler
+type logger struct{}
 
-	var syshandler log.Handler
-
-	// System specific handler
-	syshandler = GetSystemHandler(syslog, debug)
-	if syshandler != nil {
-		handlers = append(handlers, syshandler)
-	}
-
-	// FileHandler
-	if logfile != "" {
-		if !PathExists(filepath.Dir(logfile)) {
-			return fmt.Errorf("Log file path doesn't exist: %s", filepath.Dir(logfile))
-		}
-
-		if !debug {
-			handlers = append(
-				handlers,
-				log.LvlFilterHandler(
-					log.LvlInfo,
-					log.Must.FileHandler(logfile, log.LogfmtFormat()),
-				),
-			)
-		} else {
-			handlers = append(handlers, log.Must.FileHandler(logfile, log.LogfmtFormat()))
-		}
-	}
-
-	// StderrHandler
-	if verbose || debug {
-		if !debug {
-			handlers = append(
-				handlers,
-				log.LvlFilterHandler(
-					log.LvlInfo,
-					log.StderrHandler,
-				),
-			)
-		} else {
-			handlers = append(handlers, log.StderrHandler)
-		}
-	} else {
-		handlers = append(
-			handlers,
-			log.LvlFilterHandler(
-				log.LvlWarn,
-				log.StderrHandler,
-			),
-		)
-	}
-
-	if customHandler != nil {
-		handlers = append(handlers, customHandler)
-	}
-
-	Log.SetHandler(log.MultiHandler(handlers...))
-
-	return nil
+func (l *logger) Debug(msg string, ctx ...interface{}) {
+	Logfunc("debug", msg, ctx)
+}
+func (l *logger) Info(msg string, ctx ...interface{}) {
+	Logfunc("info", msg, ctx)
+}
+func (l *logger) Warn(msg string, ctx ...interface{}) {
+	Logfunc("warn", msg, ctx)
+}
+func (l *logger) Error(msg string, ctx ...interface{}) {
+	Logfunc("error", msg, ctx)
+}
+func (l *logger) Crit(msg string, ctx ...interface{}) {
+	Logfunc("crit", msg, ctx)
 }
 
-// Logf sends to the logger registered via SetLogger the string resulting
-// from running format and args through Sprintf.
-func Logf(format string, args ...interface{}) {
-	if Log != nil {
-		Log.Info(fmt.Sprintf(format, args...))
-	}
-}
+type Ctx map[string]interface{}
 
-// Debugf sends to the logger registered via SetLogger the string resulting
-// from running format and args through Sprintf, but only if debugging was
-// enabled via SetDebug.
-func Debugf(format string, args ...interface{}) {
-	if Log != nil {
-		Log.Debug(fmt.Sprintf(format, args...))
-	}
+func init() {
+	Logfunc = func(string, string, ...interface{}) {}
+	Debugf = func(string, ...interface{}) {}
+	Logf = func(string, ...interface{}) {}
 }
 
 func PrintStack() {

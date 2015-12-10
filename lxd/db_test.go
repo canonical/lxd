@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 const DB_FIXTURES string = `
@@ -26,8 +27,8 @@ const DB_FIXTURES string = `
 //  This Helper will initialize a test in-memory DB.
 func createTestDb(t *testing.T) (db *sql.DB) {
 	// Setup logging if main() hasn't been called/when testing
-	if shared.Log == nil {
-		shared.SetLogger("", "", true, true, nil)
+	if logging.Log == nil {
+		logging.SetLogger("", "", true, true, nil)
 	}
 
 	var err error
