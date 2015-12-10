@@ -13,19 +13,19 @@ var Log logger
 type logger struct{}
 
 func (l *logger) Debug(msg string, ctx ...interface{}) {
-	Logfunc("debug", msg, ctx)
+	Logfunc("debug", msg, ctx...)
 }
 func (l *logger) Info(msg string, ctx ...interface{}) {
-	Logfunc("info", msg, ctx)
+	Logfunc("info", msg, ctx...)
 }
 func (l *logger) Warn(msg string, ctx ...interface{}) {
-	Logfunc("warn", msg, ctx)
+	Logfunc("warn", msg, ctx...)
 }
 func (l *logger) Error(msg string, ctx ...interface{}) {
-	Logfunc("error", msg, ctx)
+	Logfunc("error", msg, ctx...)
 }
 func (l *logger) Crit(msg string, ctx ...interface{}) {
-	Logfunc("crit", msg, ctx)
+	Logfunc("crit", msg, ctx...)
 }
 
 type Ctx map[string]interface{}
