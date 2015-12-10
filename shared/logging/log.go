@@ -18,15 +18,15 @@ type Logger log.Logger
 func LxdLog(lvl string, msg string, ctx ...interface{}) {
 	switch lvl {
 	case "debug":
-		Log.Debug(msg, ctx)
+		Log.Debug(msg, ctx...)
 	case "info":
-		Log.Info(msg, ctx)
+		Log.Info(msg, ctx...)
 	case "warn":
-		Log.Warn(msg, ctx)
+		Log.Warn(msg, ctx...)
 	case "error":
-		Log.Error(msg, ctx)
+		Log.Error(msg, ctx...)
 	case "crit":
-		Log.Crit(msg, ctx)
+		Log.Crit(msg, ctx...)
 	}
 }
 
