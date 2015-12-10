@@ -13,6 +13,7 @@ const (
 	ARCH_32BIT_POWERPC_BIG_ENDIAN    = 5
 	ARCH_64BIT_POWERPC_BIG_ENDIAN    = 6
 	ARCH_64BIT_POWERPC_LITTLE_ENDIAN = 7
+	ARCH_64BIT_S390_BIG_ENDIAN       = 8
 )
 
 var architectureNames = map[int]string{
@@ -23,6 +24,7 @@ var architectureNames = map[int]string{
 	ARCH_32BIT_POWERPC_BIG_ENDIAN:    "ppc",
 	ARCH_64BIT_POWERPC_BIG_ENDIAN:    "ppc64",
 	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: "ppc64le",
+	ARCH_64BIT_S390_BIG_ENDIAN:       "s390x",
 }
 
 var architecturePersonalities = map[int]string{
@@ -33,6 +35,7 @@ var architecturePersonalities = map[int]string{
 	ARCH_32BIT_POWERPC_BIG_ENDIAN:    "linux32",
 	ARCH_64BIT_POWERPC_BIG_ENDIAN:    "linux64",
 	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: "linux64",
+	ARCH_64BIT_S390_BIG_ENDIAN:       "linux64",
 }
 
 var architectureSupportedPersonalities = map[int][]int{
@@ -43,6 +46,7 @@ var architectureSupportedPersonalities = map[int][]int{
 	ARCH_32BIT_POWERPC_BIG_ENDIAN:    []int{},
 	ARCH_64BIT_POWERPC_BIG_ENDIAN:    []int{ARCH_32BIT_POWERPC_BIG_ENDIAN},
 	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: []int{},
+	ARCH_64BIT_S390_BIG_ENDIAN:       []int{},
 }
 
 func ArchitectureName(arch int) (string, error) {
