@@ -192,15 +192,27 @@ var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
 func execIfAliases(config *lxd.Config, origArgs []string) {
 	newArgs := []string{}
 	expandedAlias := false
-	for _, arg := range origArgs {
+	done := false
+	for i, arg := range origArgs {
 		changed := false
 		for k, v := range config.Aliases {
 			if k == arg {
 				expandedAlias = true
 				changed = true
-				newArgs = append(newArgs, strings.Split(v, " ")...)
+				for _, aliasArg := range strings.Split(v, " ") {
+					if aliasArg == "@ARGS@" && len(origArgs) > i {
+						done = true
+						newArgs = append(newArgs, origArgs[i+1:]...)
+					} else {
+						newArgs = append(newArgs, aliasArg)
+					}
+				}
 				break
 			}
+		}
+
+		if done {
+			break
 		}
 
 		if !changed {
