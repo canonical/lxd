@@ -60,6 +60,8 @@ boot.autostart.delay            | integer       | 0                 | Number of 
 boot.autostart.priority         | integer       | 0                 | What order to start the containers in (starting with highest)
 environment.\*                  | string        | -                 | key/value environment variables to export to the container and set on exec
 limits.cpu                      | string        | - (all)           | Number or range of CPUs to expose to the container
+limits.cpu.allowance            | string        | 100%              | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
+limits.cpu.priority             | integer       | 10 (maximum)      | CPU scheduling priority compared to other containers sharing the same CPUs (overcommit)
 limits.memory                   | string        | - (all)           | Size in bytes of the memory allocation for the container (supported suffixes: k, K, m, M, g or G)
 raw.apparmor                    | blob          | -                 | Apparmor profile entries to be appended to the generated profile
 raw.lxc                         | blob          | -                 | Raw LXC configuration to be appended to the generated one

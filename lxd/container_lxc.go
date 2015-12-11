@@ -365,12 +365,44 @@ func (c *containerLXC) initLXC() error {
 		}
 	}
 
-	// Setup limits
-	limitMemory, ok := c.expandedConfig["limits.memory"]
-	if ok && limitMemory != "" {
+	// Memory limits
+	limitMemory := c.expandedConfig["limits.memory"]
+	if limitMemory != "" {
 		err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", limitMemory)
 		if err != nil {
 			return err
+		}
+	}
+
+	// CPU limits
+	cpuPriority := c.expandedConfig["limits.cpu.priority"]
+	cpuAllowance := c.expandedConfig["limits.cpu.allowance"]
+
+	if cpuPriority != "" || cpuAllowance != "" {
+		cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(cpuAllowance, cpuPriority)
+		if err != nil {
+			return err
+		}
+
+		if cpuShares != "1024" {
+			err = lxcSetConfigItem(cc, "lxc.cgroup.cpu.shares", cpuShares)
+			if err != nil {
+				return err
+			}
+		}
+
+		if cpuCfsPeriod != "-1" {
+			err = lxcSetConfigItem(cc, "lxc.cgroup.cpu.cfs_period_us", cpuCfsPeriod)
+			if err != nil {
+				return err
+			}
+		}
+
+		if cpuCfsQuota != "-1" {
+			err = lxcSetConfigItem(cc, "lxc.cgroup.cpu.cfs_quota_us", cpuCfsQuota)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1388,9 +1420,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					undoChanges()
 					return err
 				}
-			} else if key == "limits.cpu" {
-				// Trigger a scheduler re-run
-				deviceTaskSchedulerTrigger("container", c.name, "changed")
 			} else if key == "limits.memory" {
 				// Apply new memory limit
 				if value == "" {
@@ -1400,6 +1429,30 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				err = c.CGroupSet("memory.limit_in_bytes", value)
 				if err != nil {
 					undoChanges()
+					return err
+				}
+			} else if key == "limits.cpu" {
+				// Trigger a scheduler re-run
+				deviceTaskSchedulerTrigger("container", c.name, "changed")
+			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
+				// Apply new CPU limits
+				cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(c.expandedConfig["limits.cpu.allowance"], c.expandedConfig["limits.cpu.priority"])
+				if err != nil {
+					return err
+				}
+
+				err = c.CGroupSet("cpu.shares", cpuShares)
+				if err != nil {
+					return err
+				}
+
+				err = c.CGroupSet("cpu.cfs_period_us", cpuCfsPeriod)
+				if err != nil {
+					return err
+				}
+
+				err = c.CGroupSet("cpu.cfs_quota_us", cpuCfsQuota)
+				if err != nil {
 					return err
 				}
 			}
