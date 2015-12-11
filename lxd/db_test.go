@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 const DB_FIXTURES string = `
@@ -27,7 +28,11 @@ const DB_FIXTURES string = `
 func createTestDb(t *testing.T) (db *sql.DB) {
 	// Setup logging if main() hasn't been called/when testing
 	if shared.Log == nil {
-		shared.SetLogger("", "", true, true, nil)
+		var err error
+		shared.Log, err = logging.GetLogger("", "", true, true, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	var err error
