@@ -1,39 +1,49 @@
 package shared
 
 import (
+	"fmt"
 	"runtime"
 )
 
-var Logfunc func(string, string, ...interface{})
-var Debugf func(string, ...interface{})
-var Logf func(string, ...interface{})
-
-var Log logger
-
-type logger struct{}
-
-func (l *logger) Debug(msg string, ctx ...interface{}) {
-	Logfunc("debug", msg, ctx...)
-}
-func (l *logger) Info(msg string, ctx ...interface{}) {
-	Logfunc("info", msg, ctx...)
-}
-func (l *logger) Warn(msg string, ctx ...interface{}) {
-	Logfunc("warn", msg, ctx...)
-}
-func (l *logger) Error(msg string, ctx ...interface{}) {
-	Logfunc("error", msg, ctx...)
-}
-func (l *logger) Crit(msg string, ctx ...interface{}) {
-	Logfunc("crit", msg, ctx...)
-}
-
 type Ctx map[string]interface{}
 
+type Logger interface {
+	Debug(msg string, ctx ...interface{})
+	Info(msg string, ctx ...interface{})
+	Warn(msg string, ctx ...interface{})
+	Error(msg string, ctx ...interface{})
+	Crit(msg string, ctx ...interface{})
+}
+
+var Log Logger
+
+type nullLogger struct{}
+
+func (nl nullLogger) Debug(msg string, ctx ...interface{}) {}
+func (nl nullLogger) Info(msg string, ctx ...interface{})  {}
+func (nl nullLogger) Warn(msg string, ctx ...interface{})  {}
+func (nl nullLogger) Error(msg string, ctx ...interface{}) {}
+func (nl nullLogger) Crit(msg string, ctx ...interface{})  {}
+
 func init() {
-	Logfunc = func(string, string, ...interface{}) {}
-	Debugf = func(string, ...interface{}) {}
-	Logf = func(string, ...interface{}) {}
+	Log = nullLogger{}
+}
+
+// Logf sends to the logger registered via SetLogger the string resulting
+// from running format and args through Sprintf.
+func Logf(format string, args ...interface{}) {
+	if Log != nil {
+		Log.Info(fmt.Sprintf(format, args...))
+	}
+}
+
+// Debugf sends to the logger registered via SetLogger the string resulting
+// from running format and args through Sprintf, but only if debugging was
+// enabled via SetDebug.
+func Debugf(format string, args ...interface{}) {
+	if Log != nil {
+		Log.Debug(fmt.Sprintf(format, args...))
+	}
 }
 
 func PrintStack() {

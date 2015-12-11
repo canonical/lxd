@@ -251,11 +251,12 @@ type storageShared struct {
 	sTypeName    string
 	sTypeVersion string
 
-	log log.Logger
+	log shared.Logger
 }
 
 func (ss *storageShared) initShared() error {
-	ss.log = logging.Log.New(
+	ss.log = logging.AddContext(
+		shared.Log,
 		log.Ctx{"driver": fmt.Sprintf("storage/%s", ss.sTypeName)},
 	)
 	return nil
@@ -330,12 +331,13 @@ func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
 
 type storageLogWrapper struct {
 	w   storage
-	log log.Logger
+	log shared.Logger
 }
 
 func (lw *storageLogWrapper) Init(config map[string]interface{}) (storage, error) {
 	_, err := lw.w.Init(config)
-	lw.log = logging.Log.New(
+	lw.log = logging.AddContext(
+		shared.Log,
 		log.Ctx{"driver": fmt.Sprintf("storage/%s", lw.w.GetStorageTypeName())},
 	)
 

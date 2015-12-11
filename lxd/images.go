@@ -395,7 +395,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 	builddir string, post *os.File) (info shared.ImageInfo, err error) {
 
 	var imageMeta *imageMetadata
-	logger := logging.Log.New(log.Ctx{"function": "getImgPostInfo"})
+	logger := logging.AddContext(shared.Log, log.Ctx{"function": "getImgPostInfo"})
 
 	public, _ := strconv.Atoi(r.Header.Get("X-LXD-public"))
 	info.Public = public == 1

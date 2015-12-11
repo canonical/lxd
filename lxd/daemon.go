@@ -614,8 +614,11 @@ func (d *Daemon) Init() error {
 	d.execPath = absPath
 
 	/* Setup logging if that wasn't done before */
-	if logging.Log == nil {
-		logging.SetLogger("", "", true, true, nil)
+	if shared.Log == nil {
+		shared.Log, err = logging.GetLogger("", "", true, true, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	if !d.IsMock {

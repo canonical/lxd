@@ -125,7 +125,10 @@ func run() error {
 	os.Args = os.Args[1:]
 	gnuflag.Parse(true)
 
-	logging.SetLogger("", "", *verbose, *debug, nil)
+	shared.Log, err = logging.GetLogger("", "", *verbose, *debug, nil)
+	if err != nil {
+		return err
+	}
 
 	certf := lxd.ConfigPath("client.crt")
 	keyf := lxd.ConfigPath("client.key")
