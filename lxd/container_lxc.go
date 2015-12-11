@@ -1379,6 +1379,8 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	if c.IsRunning() {
 		// Live update the container config
 		for _, key := range changedConfig {
+			value := c.expandedConfig[key]
+
 			if key == "raw.apparmor" {
 				// Update the AppArmor profile
 				err = AALoadProfile(c)
@@ -1389,6 +1391,17 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			} else if key == "limits.cpu" {
 				// Trigger a scheduler re-run
 				deviceTaskSchedulerTrigger("container", c.name, "changed")
+			} else if key == "limits.memory" {
+				// Apply new memory limit
+				if value == "" {
+					value = "-1"
+				}
+
+				err = c.CGroupSet("memory.limit_in_bytes", value)
+				if err != nil {
+					undoChanges()
+					return err
+				}
 			}
 		}
 
