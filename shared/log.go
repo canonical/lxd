@@ -2,79 +2,31 @@ package shared
 
 import (
 	"fmt"
-	"path/filepath"
 	"runtime"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-// Logger is the log15 Logger we use everywhere.
-var Log log.Logger
-var debug bool
+type Ctx map[string]interface{}
 
-// SetLogger defines the *log.Logger where log messages are sent to.
-func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHandler log.Handler) error {
-	Log = log.New()
+type Logger interface {
+	Debug(msg string, ctx ...interface{})
+	Info(msg string, ctx ...interface{})
+	Warn(msg string, ctx ...interface{})
+	Error(msg string, ctx ...interface{})
+	Crit(msg string, ctx ...interface{})
+}
 
-	var handlers []log.Handler
+var Log Logger
 
-	var syshandler log.Handler
+type nullLogger struct{}
 
-	// System specific handler
-	syshandler = GetSystemHandler(syslog, debug)
-	if syshandler != nil {
-		handlers = append(handlers, syshandler)
-	}
+func (nl nullLogger) Debug(msg string, ctx ...interface{}) {}
+func (nl nullLogger) Info(msg string, ctx ...interface{})  {}
+func (nl nullLogger) Warn(msg string, ctx ...interface{})  {}
+func (nl nullLogger) Error(msg string, ctx ...interface{}) {}
+func (nl nullLogger) Crit(msg string, ctx ...interface{})  {}
 
-	// FileHandler
-	if logfile != "" {
-		if !PathExists(filepath.Dir(logfile)) {
-			return fmt.Errorf("Log file path doesn't exist: %s", filepath.Dir(logfile))
-		}
-
-		if !debug {
-			handlers = append(
-				handlers,
-				log.LvlFilterHandler(
-					log.LvlInfo,
-					log.Must.FileHandler(logfile, log.LogfmtFormat()),
-				),
-			)
-		} else {
-			handlers = append(handlers, log.Must.FileHandler(logfile, log.LogfmtFormat()))
-		}
-	}
-
-	// StderrHandler
-	if verbose || debug {
-		if !debug {
-			handlers = append(
-				handlers,
-				log.LvlFilterHandler(
-					log.LvlInfo,
-					log.StderrHandler,
-				),
-			)
-		} else {
-			handlers = append(handlers, log.StderrHandler)
-		}
-	} else {
-		handlers = append(
-			handlers,
-			log.LvlFilterHandler(
-				log.LvlWarn,
-				log.StderrHandler,
-			),
-		)
-	}
-
-	if customHandler != nil {
-		handlers = append(handlers, customHandler)
-	}
-
-	Log.SetHandler(log.MultiHandler(handlers...))
-
-	return nil
+func init() {
+	Log = nullLogger{}
 }
 
 // Logf sends to the logger registered via SetLogger the string resulting

@@ -30,6 +30,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logging"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -614,7 +615,10 @@ func (d *Daemon) Init() error {
 
 	/* Setup logging if that wasn't done before */
 	if shared.Log == nil {
-		shared.SetLogger("", "", true, true, nil)
+		shared.Log, err = logging.GetLogger("", "", true, true, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	if !d.IsMock {
