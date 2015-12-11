@@ -73,7 +73,8 @@ def local_architecture():
                        'armv7l': "armhf",
                        'aarch64': "arm64",
                        'ppc': "powerpc",
-                       'ppc64le': "ppc64el"}
+                       'ppc64le': "ppc64el",
+                       's390x': "s390x"}
 
         kernel_arch = os.uname().machine
 
