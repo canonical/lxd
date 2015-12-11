@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"path"
 	"strings"
 
 	"github.com/lxc/lxd"
@@ -140,16 +139,26 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		}
 
 		for _, addr := range addresses {
-			sourceWSUrl := "wss://" + addr + path.Join(sourceWSResponse.Operation, "websocket")
-
 			var migration *lxd.Response
+
+			sourceWSUrl := "https://" + addr + sourceWSResponse.Operation
 			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
 			if err != nil {
 				continue
 			}
 
 			if err = dest.WaitForSuccess(migration.Operation); err != nil {
-				continue
+				// FIXME: This is a backward compatibility codepath
+				sourceWSUrl := "wss://" + addr + sourceWSResponse.Operation + "/websocket"
+
+				migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
+				if err != nil {
+					continue
+				}
+
+				if err = dest.WaitForSuccess(migration.Operation); err != nil {
+					continue
+				}
 			}
 
 			return nil

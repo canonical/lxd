@@ -424,8 +424,19 @@ func NewMigrationSink(args *MigrationSinkArgs) (func() error, error) {
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
 	query := url.Values{"secret": []string{secret}}
 
-	// TODO: we shouldn't assume this is a HTTP URL
-	url := c.url + "?" + query.Encode()
+	// The URL is a https URL to the operation, mangle to be a wss URL to the secret
+	url := c.url
+	if strings.HasPrefix(url, "https://") {
+		url = fmt.Sprintf("wss://%s", strings.TrimPrefix(url, "https://"))
+	}
+
+	// FIXME: This is a backward compatibility codepath
+	if !strings.HasSuffix(url, "/websocket") {
+		url = fmt.Sprintf("%s/websocket", url)
+	}
+
+	// Append the secret suffix
+	url = fmt.Sprintf("%s?%s", url, query.Encode())
 
 	return lxd.WebsocketDial(c.dialer, url)
 }
