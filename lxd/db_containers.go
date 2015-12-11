@@ -372,6 +372,10 @@ func ValidContainerConfigKey(k string) bool {
 		return true
 	case "limits.cpu":
 		return true
+	case "limits.cpu.allowance":
+		return true
+	case "limits.cpu.priority":
+		return true
 	case "limits.memory":
 		return true
 	case "security.privileged":
