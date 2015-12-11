@@ -175,7 +175,8 @@ func run() error {
 	}
 
 	handler := eventsHandler{}
-	err := logging.SetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
+	var err error
+	shared.Log, err = logging.GetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
 	if err != nil {
 		fmt.Printf("%s", err)
 		return nil

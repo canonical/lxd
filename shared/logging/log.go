@@ -5,34 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/lxc/lxd/shared"
+
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-// Logger is the log15 Logger we use everywhere.
-var Log log.Logger
-var debug bool
-
-type Ctx map[string]interface{}
-type Logger log.Logger
-
-func LxdLog(lvl string, msg string, ctx ...interface{}) {
-	switch lvl {
-	case "debug":
-		Log.Debug(msg, ctx...)
-	case "info":
-		Log.Info(msg, ctx...)
-	case "warn":
-		Log.Warn(msg, ctx...)
-	case "error":
-		Log.Error(msg, ctx...)
-	case "crit":
-		Log.Crit(msg, ctx...)
-	}
-}
-
-// SetLogger defines the *log.Logger where log messages are sent to.
-func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHandler log.Handler) error {
-	Log = log.New()
+// GetLogger returns a logger suitable for using as shared.Log.
+func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHandler log.Handler) (shared.Logger, error) {
+	Log := log.New()
 
 	var handlers []log.Handler
 
@@ -47,7 +27,7 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 	// FileHandler
 	if logfile != "" {
 		if !pathExists(filepath.Dir(logfile)) {
-			return fmt.Errorf("Log file path doesn't exist: %s", filepath.Dir(logfile))
+			return nil, fmt.Errorf("Log file path doesn't exist: %s", filepath.Dir(logfile))
 		}
 
 		if !debug {
@@ -92,24 +72,17 @@ func SetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 
 	Log.SetHandler(log.MultiHandler(handlers...))
 
-	return nil
+	return Log, nil
 }
 
-// Logf sends to the logger registered via SetLogger the string resulting
-// from running format and args through Sprintf.
-func Logf(format string, args ...interface{}) {
-	if Log != nil {
-		Log.Info(fmt.Sprintf(format, args...))
+func AddContext(logger shared.Logger, ctx log.Ctx) shared.Logger {
+	log15logger, ok := logger.(log.Logger)
+	if !ok {
+		logger.Error("couldn't downcast logger to add context", shared.Ctx{"logger": log15logger, "ctx": ctx})
+		return logger
 	}
-}
 
-// Debugf sends to the logger registered via SetLogger the string resulting
-// from running format and args through Sprintf, but only if debugging was
-// enabled via SetDebug.
-func Debugf(format string, args ...interface{}) {
-	if Log != nil {
-		Log.Debug(fmt.Sprintf(format, args...))
-	}
+	return log15logger.New(ctx)
 }
 
 func pathExists(name string) bool {
