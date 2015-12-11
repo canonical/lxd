@@ -29,6 +29,7 @@ ID    | Name          | Notes                           | Personalities
 5     | ppc           | 32bit PowerPC big-endian        |
 6     | ppc64         | 64bit PowerPC big-endian        | powerpc
 7     | ppc64le       | 64bit PowerPC little-endian     |
+8     | s390x         | 64bit ESA/390 big-endian        |
 
 The architecture names above are typically aligned with the Linux kernel
 architecture names.
