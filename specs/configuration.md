@@ -62,7 +62,10 @@ environment.\*                  | string        | -                 | key/value 
 limits.cpu                      | string        | - (all)           | Number or range of CPUs to expose to the container
 limits.cpu.allowance            | string        | 100%              | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
 limits.cpu.priority             | integer       | 10 (maximum)      | CPU scheduling priority compared to other containers sharing the same CPUs (overcommit)
-limits.memory                   | string        | - (all)           | Size in bytes of the memory allocation for the container (supported suffixes: k, K, m, M, g or G)
+limits.memory                   | string        | - (all)           | Percentage of the host's memory or fixed value in bytes (supports kB, MB, GB, TB, PB and EB suffixes)
+limits.memory.enforce           | string        | hard              | Whether to allow the container to go past its limit if host resources are available
+limits.memory.swap              | boolean       | true              | Whether to allow some of the container's memory to be swapped out to disk
+limits.memory.swap.priority     | integer       | 10 (maximum)      | The higher this is set, the least likely the container is to be swapped to disk
 raw.apparmor                    | blob          | -                 | Apparmor profile entries to be appended to the generated profile
 raw.lxc                         | blob          | -                 | Raw LXC configuration to be appended to the generated one
 security.nesting                | boolean       | false             | Support running lxd (nested) inside the container
