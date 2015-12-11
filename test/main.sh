@@ -29,6 +29,15 @@ local_tcp_port() {
   done
 }
 
+# import all the backends
+for backend in backends/*.sh; do
+  . "${backend}"
+done
+
+if [ -z "${LXD_BACKEND:-}" ]; then
+  LXD_BACKEND=dir
+fi
+
 spawn_lxd() {
   set +x
   # LXD_DIR is local here because since $(lxc) is actually a function, it
@@ -41,6 +50,9 @@ spawn_lxd() {
   # Copy pre generated Certs
   cp deps/server.crt "${lxddir}"
   cp deps/server.key "${lxddir}"
+
+  # setup storage
+  "$LXD_BACKEND"_setup "${lxddir}"
 
   echo "==> Spawning lxd in ${lxddir}"
   # shellcheck disable=SC2086
@@ -65,6 +77,9 @@ spawn_lxd() {
   if [ -n "${LXD_DEBUG:-}" ]; then
     set -x
   fi
+
+  echo "==> Configuring storage backend"
+  "$LXD_BACKEND"_configure "${lxddir}"
 }
 
 lxc() {
@@ -151,6 +166,9 @@ kill_lxd() {
 
   # Cleanup shmounts
   find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
+
+  # teardown storage
+  "$LXD_BACKEND"_teardown "${daemon_dir}"
 
   # Wipe the daemon directory
   wipe "${daemon_dir}"
