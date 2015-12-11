@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
@@ -507,4 +508,79 @@ func deviceParseCPU(cpuAllowance string, cpuPriority string) (string, string, st
 	}
 
 	return fmt.Sprintf("%d", cpuShares), cpuCfsQuota, cpuCfsPeriod, nil
+}
+
+func deviceParseBytes(input string) (int, error) {
+	if len(input) < 3 {
+		return -1, fmt.Errorf("Invalid value: %s", input)
+	}
+
+	// Extract the suffix
+	suffix := input[len(input)-2:]
+
+	// Extract the value
+	value := input[0 : len(input)-2]
+	valueInt, err := strconv.Atoi(value)
+	if err != nil {
+		return -1, fmt.Errorf("Invalid integer: %s", input)
+	}
+
+	if valueInt < 0 {
+		return -1, fmt.Errorf("Invalid value: %d", valueInt)
+	}
+
+	// Figure out the multiplicator
+	multiplicator := 0
+	switch suffix {
+	case "kB":
+		multiplicator = 1024
+	case "MB":
+		multiplicator = 1024 * 1024
+	case "GB":
+		multiplicator = 1024 * 1024 * 1024
+	case "TB":
+		multiplicator = 1024 * 1024 * 1024 * 1024
+	case "PB":
+		multiplicator = 1024 * 1024 * 1024 * 1024 * 1024
+	case "EB":
+		multiplicator = 1024 * 1024 * 1024 * 1024 * 1024 * 1024
+	default:
+		return -1, fmt.Errorf("Unsupported suffix: %s", suffix)
+	}
+
+	return valueInt * multiplicator, nil
+}
+
+func deviceTotalMemory() (int, error) {
+	// Open /proc/meminfo
+	f, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return -1, err
+	}
+	defer f.Close()
+
+	// Read it line by line
+	scan := bufio.NewScanner(f)
+	for scan.Scan() {
+		line := scan.Text()
+
+		// We only care about MemTotal
+		if !strings.HasPrefix(line, "MemTotal:") {
+			continue
+		}
+
+		// Extract the before last (value) and last (unit) fields
+		fields := strings.Split(line, " ")
+		value := fields[len(fields)-2] + fields[len(fields)-1]
+
+		// Feed the result to deviceParseBytes to get an int value
+		valueBytes, err := deviceParseBytes(value)
+		if err != nil {
+			return -1, err
+		}
+
+		return valueBytes, nil
+	}
+
+	return -1, fmt.Errorf("Couldn't find MemTotal")
 }

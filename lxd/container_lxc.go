@@ -366,11 +366,74 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Memory limits
-	limitMemory := c.expandedConfig["limits.memory"]
-	if limitMemory != "" && cgMemoryController {
-		err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", limitMemory)
-		if err != nil {
-			return err
+	if cgMemoryController {
+		memory := c.expandedConfig["limits.memory"]
+		memoryEnforce := c.expandedConfig["limits.memory.enforce"]
+		memorySwap := c.expandedConfig["limits.memory.swap"]
+		memorySwapPriority := c.expandedConfig["limits.memory.swap.priority"]
+
+		// Configure the memory limits
+		if memory != "" {
+			var valueInt int
+			if strings.HasSuffix(memory, "%") {
+				percent, err := strconv.Atoi(strings.TrimSuffix(memory, "%"))
+				if err != nil {
+					return err
+				}
+
+				memoryTotal, err := deviceTotalMemory()
+				if err != nil {
+					return err
+				}
+
+				valueInt = int((memoryTotal / 100) * percent)
+			} else {
+				valueInt, err = deviceParseBytes(memory)
+				if err != nil {
+					return err
+				}
+			}
+
+			if memoryEnforce == "soft" {
+				err = lxcSetConfigItem(cc, "lxc.cgroup.memory.soft_limit_in_bytes", fmt.Sprintf("%d", valueInt))
+				if err != nil {
+					return err
+				}
+			} else {
+				if memorySwap != "false" && cgSwapAccounting {
+					err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", fmt.Sprintf("%d", valueInt))
+					if err != nil {
+						return err
+					}
+					err = lxcSetConfigItem(cc, "lxc.cgroup.memory.memsw.limit_in_bytes", fmt.Sprintf("%d", valueInt))
+					if err != nil {
+						return err
+					}
+				} else {
+					err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", fmt.Sprintf("%d", valueInt))
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+
+		// Configure the swappiness
+		if memorySwap == "false" {
+			err = lxcSetConfigItem(cc, "lxc.cgroup.memory.swappiness", "0")
+			if err != nil {
+				return err
+			}
+		} else if memorySwapPriority != "" {
+			priority, err := strconv.Atoi(memorySwapPriority)
+			if err != nil {
+				return err
+			}
+
+			err = lxcSetConfigItem(cc, "lxc.cgroup.memory.swappiness", fmt.Sprintf("%d", 60-10+priority))
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1411,8 +1474,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	if c.IsRunning() {
 		// Live update the container config
 		for _, key := range changedConfig {
-			value := c.expandedConfig[key]
-
 			if key == "raw.apparmor" {
 				// Update the AppArmor profile
 				err = AALoadProfile(c)
@@ -1420,21 +1481,117 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					undoChanges()
 					return err
 				}
-			} else if key == "limits.memory" {
+			} else if key == "limits.memory" || strings.HasPrefix(key, "limits.memory.") {
 				// Skip if no memory CGroup
 				if !cgMemoryController {
 					continue
 				}
 
-				// Apply new memory limit
-				if value == "" {
-					value = "-1"
+				// Set the new memory limit
+				memory := c.expandedConfig["limits.memory"]
+				memoryEnforce := c.expandedConfig["limits.memory.enforce"]
+				memorySwap := c.expandedConfig["limits.memory.swap"]
+
+				// Parse memory
+				if memory == "" {
+					memory = "-1"
+				} else if strings.HasSuffix(memory, "%") {
+					percent, err := strconv.Atoi(strings.TrimSuffix(memory, "%"))
+					if err != nil {
+						return err
+					}
+
+					memoryTotal, err := deviceTotalMemory()
+					if err != nil {
+						return err
+					}
+
+					memory = fmt.Sprintf("%d", int((memoryTotal/100)*percent))
+				} else {
+					valueInt, err := deviceParseBytes(memory)
+					if err != nil {
+						undoChanges()
+						return err
+					}
+					memory = fmt.Sprintf("%d", valueInt)
 				}
 
-				err = c.CGroupSet("memory.limit_in_bytes", value)
+				// Reset everything
+				if cgSwapAccounting {
+					err = c.CGroupSet("memory.memsw.limit_in_bytes", "-1")
+					if err != nil {
+						undoChanges()
+						return err
+					}
+				}
+
+				err = c.CGroupSet("memory.limit_in_bytes", "-1")
 				if err != nil {
 					undoChanges()
 					return err
+				}
+
+				err = c.CGroupSet("memory.soft_limit_in_bytes", "-1")
+				if err != nil {
+					undoChanges()
+					return err
+				}
+
+				// Set the new values
+				if memoryEnforce == "soft" {
+					// Set new limit
+					err = c.CGroupSet("memory.soft_limit_in_bytes", memory)
+					if err != nil {
+						undoChanges()
+						return err
+					}
+				} else {
+					if memorySwap != "false" && cgSwapAccounting {
+						err = c.CGroupSet("memory.limit_in_bytes", memory)
+						if err != nil {
+							undoChanges()
+							return err
+						}
+						err = c.CGroupSet("memory.memsw.limit_in_bytes", memory)
+						if err != nil {
+							undoChanges()
+							return err
+						}
+					} else {
+						err = c.CGroupSet("memory.limit_in_bytes", memory)
+						if err != nil {
+							undoChanges()
+							return err
+						}
+					}
+				}
+
+				// Configure the swappiness
+				if key == "limits.memory.swap" || key == "limits.memory.swap.priority" {
+					memorySwap := c.expandedConfig["limits.memory.swap"]
+					memorySwapPriority := c.expandedConfig["limits.memory.swap.priority"]
+					if memorySwap == "false" {
+						err = c.CGroupSet("memory.swappiness", "0")
+						if err != nil {
+							undoChanges()
+							return err
+						}
+					} else {
+						priority := 0
+						if memorySwapPriority != "" {
+							priority, err = strconv.Atoi(memorySwapPriority)
+							if err != nil {
+								undoChanges()
+								return err
+							}
+						}
+
+						err = c.CGroupSet("memory.swappiness", fmt.Sprintf("%d", 60-10+priority))
+						if err != nil {
+							undoChanges()
+							return err
+						}
+					}
 				}
 			} else if key == "limits.cpu" {
 				// Trigger a scheduler re-run
@@ -1448,21 +1605,25 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				// Apply new CPU limits
 				cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(c.expandedConfig["limits.cpu.allowance"], c.expandedConfig["limits.cpu.priority"])
 				if err != nil {
+					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("cpu.shares", cpuShares)
 				if err != nil {
+					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("cpu.cfs_period_us", cpuCfsPeriod)
 				if err != nil {
+					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("cpu.cfs_quota_us", cpuCfsQuota)
 				if err != nil {
+					undoChanges()
 					return err
 				}
 			}
