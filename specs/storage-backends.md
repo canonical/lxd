@@ -4,17 +4,18 @@
 LXD supports using plain dirs, Btrfs, LVM, and ZFS for storage of images and containers.  
 Where possible, LXD tries to use the advanced features of each system to optimize operations.
 
-Feature                         | Directory | Btrfs | LVM   | ZFS
-:---                            | :---      | :---  | :---  | :---
-Optimized image storage         | no        | yes   | yes   | yes
-Optimized container creation    | no        | yes   | yes   | yes
-Optimized snapshot creation     | no        | yes   | yes   | yes
-Optimized image transfer        | no        | no    | no    | no
-Optimized container transfer    | no        | no    | no    | no
-Copy on write                   | no        | yes   | yes   | yes
-Block based                     | no        | no    | yes   | no
-Instant cloning                 | no        | yes   | yes   | yes
-Nesting support                 | yes       | yes   | no    | no
+Feature                                     | Directory | Btrfs | LVM   | ZFS
+:---                                        | :---      | :---  | :---  | :---
+Optimized image storage                     | no        | yes   | yes   | yes
+Optimized container creation                | no        | yes   | yes   | yes
+Optimized snapshot creation                 | no        | yes   | yes   | yes
+Optimized image transfer                    | no        | no    | no    | no
+Optimized container transfer                | no        | no    | no    | no
+Copy on write                               | no        | yes   | yes   | yes
+Block based                                 | no        | no    | yes   | no
+Instant cloning                             | no        | yes   | yes   | yes
+Nesting support                             | yes       | yes   | no    | no
+Restore from older snapshots (not latest)   | yes       | yes   | yes   | no
 
 ## Mixed storage
 When switching storage backend after some containers or images already exist, LXD will create any new container  
@@ -58,3 +59,7 @@ rsync is used to transfer the container content across.
    can safely be removed.
  - ZFS as it is today doesn't support delegating part of a pool to a
    container user. Upstream is actively working on this.
+ - ZFS doesn't support restoring from snapshots other than the latest
+   one. You can however create new containers from older snapshots which
+   makes it possible to confirm the snapshots is indeed what you want to
+   restore before you remove the newer snapshots.

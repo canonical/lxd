@@ -45,6 +45,10 @@ func (s *storageMock) ContainerCreateFromImage(
 	return nil
 }
 
+func (s *storageMock) ContainerCanRestore(container container, sourceContainer container) error {
+	return nil
+}
+
 func (s *storageMock) ContainerDelete(container container) error {
 	return nil
 }
