@@ -378,6 +378,12 @@ func ValidContainerConfigKey(k string) bool {
 		return true
 	case "limits.memory":
 		return true
+	case "limits.memory.enforce":
+		return true
+	case "limits.memory.swap":
+		return true
+	case "limits.memory.swap.priority":
+		return true
 	case "security.privileged":
 		return true
 	case "security.nesting":

@@ -7,12 +7,95 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
+
+func dbUpdateFromV18(db *sql.DB) error {
+	var id int
+	var value string
+
+	// Update container config
+	rows, err := dbQueryScan(db, "SELECT id, value FROM containers_config WHERE key='limits.memory'", nil, []interface{}{id, value})
+	if err != nil {
+		return err
+	}
+
+	for _, row := range rows {
+		id = row[0].(int)
+		value = row[1].(string)
+
+		// If already an integer, don't touch
+		_, err := strconv.Atoi(value)
+		if err == nil {
+			continue
+		}
+
+		// Generate the new value
+		value = strings.ToUpper(value)
+		value += "B"
+
+		// Deal with completely broken values
+		_, err = deviceParseBytes(value)
+		if err != nil {
+			shared.Debugf("Invalid container memory limit, id=%d value=%s, removing.", id, value)
+			_, err = db.Exec("DELETE FROM containers_config WHERE id=?;", id)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Set the new value
+		_, err = db.Exec("UPDATE containers_config SET value=? WHERE id=?", value, id)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update profiles config
+	rows, err = dbQueryScan(db, "SELECT id, value FROM profiles_config WHERE key='limits.memory'", nil, []interface{}{id, value})
+	if err != nil {
+		return err
+	}
+
+	for _, row := range rows {
+		id = row[0].(int)
+		value = row[1].(string)
+
+		// If already an integer, don't touch
+		_, err := strconv.Atoi(value)
+		if err == nil {
+			continue
+		}
+
+		// Generate the new value
+		value = strings.ToUpper(value)
+		value += "B"
+
+		// Deal with completely broken values
+		_, err = deviceParseBytes(value)
+		if err != nil {
+			shared.Debugf("Invalid profile memory limit, id=%d value=%s, removing.", id, value)
+			_, err = db.Exec("DELETE FROM profiles_config WHERE id=?;", id)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Set the new value
+		_, err = db.Exec("UPDATE profiles_config SET value=? WHERE id=?", value, id)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = db.Exec("INSERT INTO schema (version, updated_at) VALUES (?, strftime(\"%s\"));", 19)
+	return err
+}
 
 func dbUpdateFromV17(db *sql.DB) error {
 	stmt := `
@@ -728,6 +811,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 18 {
 		err = dbUpdateFromV17(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 19 {
+		err = dbUpdateFromV18(db)
 		if err != nil {
 			return err
 		}
