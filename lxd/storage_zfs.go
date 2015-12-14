@@ -499,7 +499,9 @@ func (s *storageZfs) ContainerSnapshotStop(container container) error {
 		return err
 	}
 
-	return nil
+	/* zfs creates this directory on clone (start), so we need to clean it
+	 * up on stop */
+	return os.RemoveAll(container.Path())
 }
 
 func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
