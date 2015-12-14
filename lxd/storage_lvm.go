@@ -297,6 +297,10 @@ func (s *storageLvm) ContainerCreateFromImage(
 	return err
 }
 
+func (s *storageLvm) ContainerCanRestore(container container, sourceContainer container) error {
+	return nil
+}
+
 func (s *storageLvm) ContainerDelete(container container) error {
 	lvName := containerNameToLVName(container.Name())
 	if err := s.removeLV(lvName); err != nil {

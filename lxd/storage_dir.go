@@ -74,6 +74,10 @@ func (s *storageDir) ContainerCreateFromImage(
 	return container.TemplateApply("create")
 }
 
+func (s *storageDir) ContainerCanRestore(container container, sourceContainer container) error {
+	return nil
+}
+
 func (s *storageDir) ContainerDelete(container container) error {
 	cPath := container.Path()
 
