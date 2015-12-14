@@ -126,6 +126,7 @@ type storage interface {
 	// ContainerCreateFromImage creates a container from a image.
 	ContainerCreateFromImage(container container, imageFingerprint string) error
 
+	ContainerCanRestore(container container, sourceContainer container) error
 	ContainerDelete(container container) error
 	ContainerCopy(container container, sourceContainer container) error
 	ContainerStart(container container) error
@@ -376,6 +377,11 @@ func (lw *storageLogWrapper) ContainerCreateFromImage(
 			"name":             container.Name(),
 			"isPrivileged":     container.IsPrivileged()})
 	return lw.w.ContainerCreateFromImage(container, imageFingerprint)
+}
+
+func (lw *storageLogWrapper) ContainerCanRestore(container container, sourceContainer container) error {
+	lw.log.Debug("ContainerCanRestore", log.Ctx{"container": container.Name()})
+	return lw.w.ContainerCanRestore(container, sourceContainer)
 }
 
 func (lw *storageLogWrapper) ContainerDelete(container container) error {

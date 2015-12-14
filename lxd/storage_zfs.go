@@ -164,6 +164,23 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	return container.TemplateApply("create")
 }
 
+func (s *storageZfs) ContainerCanRestore(container container, sourceContainer container) error {
+	fields := strings.SplitN(sourceContainer.Name(), shared.SnapshotDelimiter, 2)
+	cName := fields[0]
+	snapName := fmt.Sprintf("snapshot-%s", fields[1])
+
+	snapshots, err := s.zfsListSnapshots(fmt.Sprintf("containers/%s", cName))
+	if err != nil {
+		return err
+	}
+
+	if snapshots[len(snapshots)-1] != snapName {
+		return fmt.Errorf("ZFS only supports restoring state to the latest snapshot.")
+	}
+
+	return nil
+}
+
 func (s *storageZfs) ContainerDelete(container container) error {
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
@@ -904,6 +921,7 @@ func (s *storageZfs) zfsListSnapshots(path string) ([]string, error) {
 		"-o", "name",
 		"-H",
 		"-d", "1",
+		"-s", "creation",
 		"-r", fullPath).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs list failed", log.Ctx{"output": string(output)})
