@@ -367,7 +367,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Memory limits
 	limitMemory := c.expandedConfig["limits.memory"]
-	if limitMemory != "" {
+	if limitMemory != "" && cgMemoryController {
 		err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", limitMemory)
 		if err != nil {
 			return err
@@ -378,7 +378,7 @@ func (c *containerLXC) initLXC() error {
 	cpuPriority := c.expandedConfig["limits.cpu.priority"]
 	cpuAllowance := c.expandedConfig["limits.cpu.allowance"]
 
-	if cpuPriority != "" || cpuAllowance != "" {
+	if (cpuPriority != "" || cpuAllowance != "") && cgCpuController {
 		cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(cpuAllowance, cpuPriority)
 		if err != nil {
 			return err
@@ -1421,6 +1421,11 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					return err
 				}
 			} else if key == "limits.memory" {
+				// Skip if no memory CGroup
+				if !cgMemoryController {
+					continue
+				}
+
 				// Apply new memory limit
 				if value == "" {
 					value = "-1"
@@ -1435,6 +1440,11 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				// Trigger a scheduler re-run
 				deviceTaskSchedulerTrigger("container", c.name, "changed")
 			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
+				// Skip if no cpu CGroup
+				if !cgCpuController {
+					continue
+				}
+
 				// Apply new CPU limits
 				cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(c.expandedConfig["limits.cpu.allowance"], c.expandedConfig["limits.cpu.priority"])
 				if err != nil {
