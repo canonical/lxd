@@ -374,9 +374,9 @@ func (c *containerLXC) initLXC() error {
 
 		// Configure the memory limits
 		if memory != "" {
-			var valueInt int
+			var valueInt int64
 			if strings.HasSuffix(memory, "%") {
-				percent, err := strconv.Atoi(strings.TrimSuffix(memory, "%"))
+				percent, err := strconv.ParseInt(strings.TrimSuffix(memory, "%"), 10, 64)
 				if err != nil {
 					return err
 				}
@@ -386,7 +386,7 @@ func (c *containerLXC) initLXC() error {
 					return err
 				}
 
-				valueInt = int((memoryTotal / 100) * percent)
+				valueInt = int64((memoryTotal / 100) * percent)
 			} else {
 				valueInt, err = deviceParseBytes(memory)
 				if err != nil {
@@ -1496,7 +1496,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				if memory == "" {
 					memory = "-1"
 				} else if strings.HasSuffix(memory, "%") {
-					percent, err := strconv.Atoi(strings.TrimSuffix(memory, "%"))
+					percent, err := strconv.ParseInt(strings.TrimSuffix(memory, "%"), 10, 64)
 					if err != nil {
 						return err
 					}
@@ -1506,7 +1506,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						return err
 					}
 
-					memory = fmt.Sprintf("%d", int((memoryTotal/100)*percent))
+					memory = fmt.Sprintf("%d", int64((memoryTotal/100)*percent))
 				} else {
 					valueInt, err := deviceParseBytes(memory)
 					if err != nil {

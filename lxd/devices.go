@@ -510,7 +510,7 @@ func deviceParseCPU(cpuAllowance string, cpuPriority string) (string, string, st
 	return fmt.Sprintf("%d", cpuShares), cpuCfsQuota, cpuCfsPeriod, nil
 }
 
-func deviceParseBytes(input string) (int, error) {
+func deviceParseBytes(input string) (int64, error) {
 	if len(input) < 3 {
 		return -1, fmt.Errorf("Invalid value: %s", input)
 	}
@@ -520,7 +520,7 @@ func deviceParseBytes(input string) (int, error) {
 
 	// Extract the value
 	value := input[0 : len(input)-2]
-	valueInt, err := strconv.Atoi(value)
+	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return -1, fmt.Errorf("Invalid integer: %s", input)
 	}
@@ -530,7 +530,7 @@ func deviceParseBytes(input string) (int, error) {
 	}
 
 	// Figure out the multiplicator
-	multiplicator := 0
+	multiplicator := int64(0)
 	switch suffix {
 	case "kB":
 		multiplicator = 1024
@@ -551,7 +551,7 @@ func deviceParseBytes(input string) (int, error) {
 	return valueInt * multiplicator, nil
 }
 
-func deviceTotalMemory() (int, error) {
+func deviceTotalMemory() (int64, error) {
 	// Open /proc/meminfo
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {
