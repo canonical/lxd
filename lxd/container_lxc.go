@@ -1111,12 +1111,11 @@ func (c *containerLXC) Snapshots() ([]container, error) {
 }
 
 func (c *containerLXC) Restore(sourceContainer container) error {
-	/*
-	 * restore steps:
-	 * 1. stop container if already running
-	 * 2. copy snapshot rootfs to container
-	 * 3. overwrite existing config with snapshot config
-	 */
+	// Check if we can restore the container
+	err := c.storage.ContainerCanRestore(c, sourceContainer)
+	if err != nil {
+		return err
+	}
 
 	// Stop the container
 	wasRunning := false
@@ -1133,7 +1132,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	}
 
 	// Restore the rootfs
-	err := c.storage.ContainerRestore(c, sourceContainer)
+	err = c.storage.ContainerRestore(c, sourceContainer)
 	if err != nil {
 		shared.Log.Error("Restoring the filesystem failed",
 			log.Ctx{

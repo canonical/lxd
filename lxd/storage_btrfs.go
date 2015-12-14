@@ -104,6 +104,10 @@ func (s *storageBtrfs) ContainerCreateFromImage(
 	return container.TemplateApply("create")
 }
 
+func (s *storageBtrfs) ContainerCanRestore(container container, sourceContainer container) error {
+	return nil
+}
+
 func (s *storageBtrfs) ContainerDelete(container container) error {
 	cPath := container.Path()
 
