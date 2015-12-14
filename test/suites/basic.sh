@@ -212,10 +212,7 @@ test_basic_usage() {
   lxc profile create unconfined
   lxc profile set unconfined security.privileged true
   lxc init testimage foo2 -p unconfined
-  # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" = "dir" ]; then
-    [ "$(stat -c "%a" "${LXD_DIR}/containers/foo2")" = "700" ]
-  fi
+  [ "$(stat -L -c "%a" "${LXD_DIR}/containers/foo2")" = "700" ]
   lxc delete foo2
   lxc profile delete unconfined
 
