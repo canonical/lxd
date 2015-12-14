@@ -35,9 +35,18 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+// AppArmor
 var aaAdmin = true
 var aaAvailable = true
 var aaConfined = false
+
+// CGroup
+var cgCpuController = false
+var cgCpusetController = false
+var cgMemoryController = false
+var cgSwapAccounting = false
+
+// UserNS
 var runningInUserns = false
 
 const (
@@ -670,6 +679,27 @@ func (d *Daemon) Init() error {
 			aaConfined = true
 			shared.Log.Warn("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
 		}
+	}
+
+	/* Detect CGroup support */
+	cgCpuController = shared.PathExists("/sys/fs/cgroup/cpu/")
+	if !cgCpuController {
+		shared.Log.Warn("Couldn't find the CGroup CPU controller, CPU time limits will be ignored.")
+	}
+
+	cgCpusetController = shared.PathExists("/sys/fs/cgroup/cpuset/")
+	if !cgCpusetController {
+		shared.Log.Warn("Couldn't find the CGroup CPUset controller, CPU pinning will be ignored.")
+	}
+
+	cgMemoryController = shared.PathExists("/sys/fs/cgroup/memory/")
+	if !cgCpusetController {
+		shared.Log.Warn("Couldn't find the CGroup memory controller, memory limits will be ignored.")
+	}
+
+	cgSwapAccounting = shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes")
+	if !cgCpusetController {
+		shared.Log.Warn("CGroup memory swap accounting is disabled, swap limits will be ignored.")
 	}
 
 	/* Get the list of supported architectures */
