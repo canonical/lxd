@@ -111,6 +111,11 @@ func deviceTaskBalance(d *Daemon) {
 		return y
 	}
 
+	// Don't bother running when CGroup support isn't there
+	if !cgCpusetController {
+		return
+	}
+
 	// Count CPUs
 	cpus := []int{}
 	dents, err := ioutil.ReadDir("/sys/bus/cpu/devices/")
