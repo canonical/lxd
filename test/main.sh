@@ -67,6 +67,7 @@ spawn_lxd() {
   done
 
   echo "==> Binding to network"
+  # shellcheck disable=SC2034
   for i in $(seq 10); do
     addr="127.0.0.1:$(local_tcp_port)"
     LXD_DIR="${lxddir}" lxc config set core.https_address "${addr}" || continue
