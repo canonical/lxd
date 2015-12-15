@@ -266,10 +266,10 @@ func (s *storageLvm) ContainerCreateFromImage(
 		return err
 	}
 
-	output, err := exec.Command("mount", "-o", "discard", lvpath, destPath).CombinedOutput()
+	err = syscall.Mount(lvpath, destPath, "ext4", 0, "discard")
 	if err != nil {
 		s.ContainerDelete(container)
-		return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, string(output))
+		return fmt.Errorf("Error mounting snapshot LV: %v", err)
 	}
 
 	if !container.IsPrivileged() {
@@ -360,14 +360,12 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 func (s *storageLvm) ContainerStart(container container) error {
 	lvName := containerNameToLVName(container.Name())
 	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvName)
-	output, err := exec.Command(
-		"mount", "-o", "discard", lvpath, container.Path()).CombinedOutput()
+	err := syscall.Mount(lvpath, container.Path(), "ext4", 0, "discard")
 	if err != nil {
 		return fmt.Errorf(
-			"Error mounting snapshot LV path='%s': %v\noutput:'%s'",
+			"Error mounting snapshot LV path='%s': %v",
 			container.Path(),
-			err,
-			string(output))
+			err)
 	}
 
 	return nil
@@ -555,14 +553,12 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 		}
 	}
 
-	output, err := exec.Command(
-		"mount", "-o", "discard", lvpath, container.Path()).CombinedOutput()
+	err = syscall.Mount(lvpath, container.Path(), "ext4", 0, "discard")
 	if err != nil {
 		return fmt.Errorf(
-			"Error mounting snapshot LV path='%s': %v\noutput:'%s'",
+			"Error mounting snapshot LV path='%s': %v",
 			container.Path(),
-			err,
-			string(output))
+			err)
 	}
 
 	return nil
@@ -611,14 +607,9 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 		}
 	}()
 
-	output, err := exec.Command(
-		"mount",
-		"-o", "discard",
-		lvpath,
-		tempLVMountPoint).CombinedOutput()
-
+	err = syscall.Mount(lvpath, tempLVMountPoint, "ext4", 0, "discard")
 	if err != nil {
-		shared.Logf("Error mounting image LV for untarring: '%s'", string(output))
+		shared.Logf("Error mounting image LV for untarring: %v", err)
 		return fmt.Errorf("Error mounting image LV: %v", err)
 
 	}
