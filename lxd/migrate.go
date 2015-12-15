@@ -480,7 +480,7 @@ func (c *migrationSink) do() error {
 	}
 	// If the storage type the source has doesn't match what we have, then
 	// we have to use rsync.
-	if header.Fs != resp.Fs {
+	if *header.Fs != *resp.Fs {
 		resp.Fs = MigrationFSType_RSYNC.Enum()
 	}
 
