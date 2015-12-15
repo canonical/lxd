@@ -78,7 +78,7 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 func AddContext(logger shared.Logger, ctx log.Ctx) shared.Logger {
 	log15logger, ok := logger.(log.Logger)
 	if !ok {
-		logger.Error("couldn't downcast logger to add context", shared.Ctx{"logger": log15logger, "ctx": ctx})
+		logger.Error("couldn't downcast logger to add context", log.Ctx{"logger": log15logger, "ctx": ctx})
 		return logger
 	}
 
