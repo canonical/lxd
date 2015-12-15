@@ -144,19 +144,23 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			sourceWSUrl := "https://" + addr + sourceWSResponse.Operation
 			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
 			if err != nil {
+				shared.Debugf("intermediate error: %s", err)
 				continue
 			}
 
 			if err = dest.WaitForSuccess(migration.Operation); err != nil {
+				shared.Debugf("intermediate error: %s", err)
 				// FIXME: This is a backward compatibility codepath
 				sourceWSUrl := "wss://" + addr + sourceWSResponse.Operation + "/websocket"
 
 				migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
 				if err != nil {
+					shared.Debugf("intermediate error: %s", err)
 					continue
 				}
 
 				if err = dest.WaitForSuccess(migration.Operation); err != nil {
+					shared.Debugf("intermediate error: %s", err)
 					continue
 				}
 			}
