@@ -274,9 +274,9 @@ func (s *storageLvm) ContainerCreateFromImage(
 
 	if !container.IsPrivileged() {
 		if err = s.shiftRootfs(container); err != nil {
-			output, err2 := exec.Command("umount", destPath).CombinedOutput()
+			err2 := syscall.Unmount(destPath, 0)
 			if err2 != nil {
-				return fmt.Errorf("Error in umount: '%s' while cleaning up after error in shiftRootfs: '%s'\n umount output: '%s'", err2, err, output)
+				return fmt.Errorf("Error in umount: '%s' while cleaning up after error in shiftRootfs: '%s'", err2, err)
 			}
 			s.ContainerDelete(container)
 			return fmt.Errorf("Error in shiftRootfs: %v", err)
@@ -289,7 +289,7 @@ func (s *storageLvm) ContainerCreateFromImage(
 			log.Ctx{"err": err})
 	}
 
-	output, umounterr := exec.Command("umount", destPath).CombinedOutput()
+	umounterr := syscall.Unmount(destPath, 0)
 	if umounterr != nil {
 		return fmt.Errorf("Error unmounting '%s' after shiftRootfs: %v", destPath, umounterr)
 	}
@@ -374,13 +374,12 @@ func (s *storageLvm) ContainerStart(container container) error {
 }
 
 func (s *storageLvm) ContainerStop(container container) error {
-	output, err := exec.Command("umount", container.Path()).CombinedOutput()
+	err := syscall.Unmount(container.Path(), 0)
 	if err != nil {
 		return fmt.Errorf(
-			"failed to unmount container path '%s'.\nError: %v\nOutput: %s",
+			"failed to unmount container path '%s'.\nError: %v",
 			container.Path(),
-			err,
-			string(output))
+			err)
 	}
 
 	return nil
@@ -626,7 +625,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 
 	untarErr := untarImage(finalName, tempLVMountPoint)
 
-	output, err = exec.Command("umount", tempLVMountPoint).CombinedOutput()
+	err = syscall.Unmount(tempLVMountPoint, 0)
 	if err != nil {
 		s.log.Warn("could not unmount LV. Will not remove",
 			log.Ctx{"lvpath": lvpath, "mountpoint": tempLVMountPoint, "err": err})

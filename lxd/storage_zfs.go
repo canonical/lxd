@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -677,9 +678,9 @@ func (s *storageZfs) zfsDestroy(path string) error {
 	}
 
 	if mountpoint != "none" && shared.IsMountPoint(mountpoint) {
-		output, err := exec.Command("umount", "-l", mountpoint).CombinedOutput()
+		err := syscall.Unmount(mountpoint, syscall.MNT_DETACH)
 		if err != nil {
-			s.log.Error("umount failed", log.Ctx{"output": string(output)})
+			s.log.Error("umount failed", log.Ctx{"err": err})
 			return err
 		}
 	}
