@@ -14,7 +14,7 @@ test_static_analysis() {
     pyflakes3 scripts/lxd-images scripts/lxd-setup-lvm-storage
 
     # Shell static analysis
-    shellcheck lxd-bridge/lxd-bridge test/main.sh test/suites/*
+    shellcheck lxd-bridge/lxd-bridge test/main.sh test/suites/* test/backends/*
 
     # Go static analysis
     ## Functions starting by empty line
