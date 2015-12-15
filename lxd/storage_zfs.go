@@ -914,7 +914,7 @@ func (s *storageZfs) zfsSnapshotRename(path string, oldName string, newName stri
 		fmt.Sprintf("%s/%s@%s", s.zfsPool, path, oldName),
 		fmt.Sprintf("%s/%s@%s", s.zfsPool, path, newName)).CombinedOutput()
 	if err != nil {
-		s.log.Error("zfs rename failed", log.Ctx{"output": string(output)})
+		s.log.Error("zfs snapshot rename failed", log.Ctx{"output": string(output)})
 		return err
 	}
 
