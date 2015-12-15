@@ -5,8 +5,6 @@ import (
 	"runtime"
 )
 
-type Ctx map[string]interface{}
-
 type Logger interface {
 	Debug(msg string, ctx ...interface{})
 	Info(msg string, ctx ...interface{})
