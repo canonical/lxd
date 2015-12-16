@@ -224,8 +224,11 @@ test_basic_usage() {
 
   # shellcheck disable=SC2034
   for i in $(seq 10); do
-    NEW_INIT=$(lxc info foo | grep ^Init)
-    [ "$OLD_INIT" != "$NEW_INIT" ] && break
+    NEW_INIT=$(lxc info foo | grep ^Init || true)
+
+    if [ -n "${NEW_INIT}" ] && [ "${OLD_INIT}" != "${NEW_INIT}" ]; then
+      break
+    fi
 
     sleep 0.5
   done

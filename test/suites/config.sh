@@ -43,13 +43,17 @@ ensure_fs_unmounted() {
 }
 
 testloopmounts() {
-  lpath=$(losetup -f) || { echo "no loop support"; return; }
-  echo "${lpath}" >> "${TEST_DIR}/loops"
-  loop=$(basename "${lpath}")
   loopfile=$(mktemp -p "${TEST_DIR}" loop_XXX)
   dd if=/dev/zero of="${loopfile}" bs=1M seek=200 count=1
   mkfs.ext4 -F "${loopfile}"
-  losetup "${loop}" "${loopfile}" || { echo "no loop support"; return; }
+
+  lpath=$(losetup --show -f "${loopfile}")
+  if [ ! -e "${lpath}" ]; then
+    echo "failed to setup loop"
+    false
+  fi
+  echo "${lpath}" >> "${TEST_DIR}/loops"
+
   mkdir -p "${TEST_DIR}/mnt"
   mount "${lpath}" "${TEST_DIR}/mnt" || { echo "loop mount failed"; return; }
   touch "${TEST_DIR}/mnt/hello"
