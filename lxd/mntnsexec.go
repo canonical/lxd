@@ -59,7 +59,7 @@ int mkdir_p(const char *dir, mode_t mode)
 		makeme = strndup(orig, dir - orig);
 		if (*makeme) {
 			if (mkdir(makeme, mode) && errno != EEXIST) {
-				printf("failed to create directory '%s'", makeme);
+				fprintf(stderr, "failed to create directory '%s'", makeme);
 				free(makeme);
 				return -1;
 			}
@@ -161,7 +161,7 @@ close_host:
 			cur++;					\
 		cur++;						\
 		if (size <= cur - buf) {			\
-			printf("not enough arguments\n");	\
+			fprintf(stderr, "not enough arguments\n");	\
 			_exit(1);				\
 		}						\
 	} while(0)
@@ -172,12 +172,12 @@ void ensure_dir(char *dest) {
 		if ((sb.st_mode & S_IFMT) == S_IFDIR)
 			return;
 		if (unlink(dest) < 0) {
-			printf("Failed to remove old %s: %s\n", dest, strerror(errno));
+			fprintf(stderr, "Failed to remove old %s: %s\n", dest, strerror(errno));
 			_exit(1);
 		}
 	}
 	if (mkdir(dest, 0755) < 0) {
-		printf("Failed to mkdir %s: %s\n", dest, strerror(errno));
+		fprintf(stderr, "Failed to mkdir %s: %s\n", dest, strerror(errno));
 		_exit(1);
 	}
 }
@@ -190,14 +190,14 @@ void ensure_file(char *dest) {
 		if ((sb.st_mode & S_IFMT) != S_IFDIR)
 			return;
 		if (rmdir(dest) < 0) {
-			printf("Failed to remove old %s: %s\n", dest, strerror(errno));
+			fprintf(stderr, "Failed to remove old %s: %s\n", dest, strerror(errno));
 			_exit(1);
 		}
 	}
 
 	fd = creat(dest, 0755);
 	if (fd < 0) {
-		printf("Failed to mkdir %s: %s\n", dest, strerror(errno));
+		fprintf(stderr, "Failed to mkdir %s: %s\n", dest, strerror(errno));
 		_exit(1);
 	}
 	close(fd);
@@ -207,7 +207,7 @@ void create(char *src, char *dest) {
 	char *destdirname;
 	struct stat sb;
 	if (stat(src, &sb) < 0) {
-		printf("source %s does not exist\n", src);
+		fprintf(stderr, "source %s does not exist\n", src);
 		_exit(1);
 	}
 
@@ -215,7 +215,7 @@ void create(char *src, char *dest) {
 	destdirname = dirname(destdirname);
 
 	if (mkdir_p(destdirname, 0755) < 0) {
-		printf("failed to create path: %s\n", destdirname);
+		fprintf(stderr, "failed to create path: %s\n", destdirname);
 		free(destdirname);
 		_exit(1);
 	}
@@ -235,12 +235,13 @@ void create(char *src, char *dest) {
 void forkmount(char *buf, char *cur, ssize_t size) {
 	char *src, *dest, *opts;
 
-	printf("called for forkmount\n");
 	ADVANCE_ARG_REQUIRED();
 	int pid = atoi(cur);
 
-	if (dosetns(pid, "mnt") < 0)
+	if (dosetns(pid, "mnt") < 0) {
+		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
+	}
 
 	ADVANCE_ARG_REQUIRED();
 	src = cur;
@@ -250,12 +251,20 @@ void forkmount(char *buf, char *cur, ssize_t size) {
 
 	create(src, dest);
 
-	printf("mounting %s onto %s\n", src, dest);
-	if (mount(src, dest, "none", MS_MOVE, NULL) < 0) {
-		printf("Failed mounting %s onto %s: %s\n", src, dest, strerror(errno));
+	if (access(src, F_OK) < 0) {
+		fprintf(stderr, "Mount source doesn't exist: %s\n", strerror(errno));
 		_exit(1);
 	}
-	printf("mounting passed\n");
+
+	if (access(dest, F_OK) < 0) {
+		fprintf(stderr, "Mount destination doesn't exist: %s\n", strerror(errno));
+		_exit(1);
+	}
+
+	if (mount(src, dest, "none", MS_MOVE, NULL) < 0) {
+		fprintf(stderr, "Failed mounting %s onto %s: %s\n", src, dest, strerror(errno));
+		_exit(1);
+	}
 
 	_exit(0);
 }
@@ -264,12 +273,19 @@ void forkumount(char *buf, char *cur, ssize_t size) {
 	ADVANCE_ARG_REQUIRED();
 	int pid = atoi(cur);
 
-	if (dosetns(pid, "mnt") < 0)
+	if (dosetns(pid, "mnt") < 0) {
+		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
+	}
 
 	ADVANCE_ARG_REQUIRED();
+	if (access(cur, F_OK) < 0) {
+		fprintf(stderr, "Mount path doesn't exist: %s\n", strerror(errno));
+		_exit(1);
+	}
+
 	if (umount2(cur, MNT_DETACH) < 0) {
-		printf("Error unmounting %s: %s\n", cur, strerror(errno));
+		fprintf(stderr, "Error unmounting %s: %s\n", cur, strerror(errno));
 		_exit(1);
 	}
 	_exit(0);

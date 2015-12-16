@@ -67,10 +67,14 @@ spawn_lxd() {
   done
 
   echo "==> Binding to network"
-  addr="127.0.0.1:$(local_tcp_port)"
-  LXD_DIR="${lxddir}" lxc config set core.https_address "${addr}"
-  echo "${addr}" > "${lxddir}/lxd.addr"
-  echo "==> Bound to ${addr}"
+  # shellcheck disable=SC2034
+  for i in $(seq 10); do
+    addr="127.0.0.1:$(local_tcp_port)"
+    LXD_DIR="${lxddir}" lxc config set core.https_address "${addr}" || continue
+    echo "${addr}" > "${lxddir}/lxd.addr"
+    echo "==> Bound to ${addr}"
+    break
+  done
 
   echo "==> Setting trust password"
   LXD_DIR="${lxddir}" lxc config set core.trust_password foo

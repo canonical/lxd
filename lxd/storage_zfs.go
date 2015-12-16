@@ -321,26 +321,59 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 func (s *storageZfs) ContainerRename(container container, newName string) error {
 	oldName := container.Name()
 
-	err := s.zfsRename(fmt.Sprintf("containers/%s", oldName), fmt.Sprintf("containers/%s", newName))
+	// Unmount the filesystem
+	err := s.zfsUnmount(fmt.Sprintf("containers/%s", oldName))
 	if err != nil {
 		return err
 	}
 
-	err = s.zfsSet(fmt.Sprintf("containers/%s", newName), "mountpoint", shared.VarPath(fmt.Sprintf("containers/%s", newName)))
+	// Rename the filesystem
+	err = s.zfsRename(fmt.Sprintf("containers/%s", oldName), fmt.Sprintf("containers/%s", newName))
 	if err != nil {
 		return err
 	}
 
-	err = os.Rename(shared.VarPath(fmt.Sprintf("containers/%s.zfs", oldName)), shared.VarPath(fmt.Sprintf("containers/%s.zfs", newName)))
+	// Update to the new mountpoint
+	err = s.zfsSet(fmt.Sprintf("containers/%s", newName), "mountpoint", shared.VarPath(fmt.Sprintf("containers/%s.zfs", newName)))
 	if err != nil {
 		return err
 	}
 
+	// In case ZFS didn't mount the filesystem, do it ourselves
+	if !shared.PathExists(shared.VarPath(fmt.Sprintf("containers/%s.zfs", newName))) {
+		for i := 0; i < 10; i++ {
+			err = s.zfsMount(fmt.Sprintf("containers/%s", newName))
+			if err == nil {
+				break
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	// In case the change of mountpoint didn't remove the old path, do it ourselves
+	if shared.PathExists(shared.VarPath(fmt.Sprintf("containers/%s.zfs", oldName))) {
+		err = os.Remove(shared.VarPath(fmt.Sprintf("containers/%s.zfs", oldName)))
+		if err != nil {
+			return err
+		}
+	}
+
+	// Remove the old symlink
 	err = os.Remove(shared.VarPath(fmt.Sprintf("containers/%s", oldName)))
 	if err != nil {
 		return err
 	}
 
+	// Create a new symlink
+	err = os.Symlink(shared.VarPath(fmt.Sprintf("containers/%s.zfs", newName)), shared.VarPath(fmt.Sprintf("containers/%s", newName)))
+	if err != nil {
+		return err
+	}
+
+	// Rename the snapshot path
 	if shared.PathExists(shared.VarPath(fmt.Sprintf("snapshots/%s", oldName))) {
 		err = os.Rename(shared.VarPath(fmt.Sprintf("snapshots/%s", oldName)), shared.VarPath(fmt.Sprintf("snapshots/%s", newName)))
 		if err != nil {
@@ -763,6 +796,19 @@ func (s *storageZfs) zfsGet(path string, key string) (string, error) {
 	return strings.TrimRight(string(output), "\n"), nil
 }
 
+func (s *storageZfs) zfsMount(path string) error {
+	output, err := exec.Command(
+		"zfs",
+		"mount",
+		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
+	if err != nil {
+		s.log.Error("zfs mount failed", log.Ctx{"output": string(output)})
+		return err
+	}
+
+	return nil
+}
+
 func (s *storageZfs) zfsRename(source string, dest string) error {
 	output, err := exec.Command(
 		"zfs",
@@ -869,6 +915,19 @@ func (s *storageZfs) zfsSnapshotRename(path string, oldName string, newName stri
 		fmt.Sprintf("%s/%s@%s", s.zfsPool, path, newName)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs rename failed", log.Ctx{"output": string(output)})
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageZfs) zfsUnmount(path string) error {
+	output, err := exec.Command(
+		"zfs",
+		"unmount",
+		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
+	if err != nil {
+		s.log.Error("zfs unmount failed", log.Ctx{"output": string(output)})
 		return err
 	}
 
