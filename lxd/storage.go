@@ -110,6 +110,7 @@ func storageTypeToString(sType storageType) string {
 
 type MigrationStorageSource interface {
 	Name() string
+	IsSnapshot() bool
 	Send(conn *websocket.Conn) error
 }
 
@@ -540,6 +541,10 @@ type rsyncStorageSource struct {
 
 func (s *rsyncStorageSource) Name() string {
 	return s.container.Name()
+}
+
+func (s *rsyncStorageSource) IsSnapshot() bool {
+	return s.container.IsSnapshot()
 }
 
 func (s *rsyncStorageSource) Send(conn *websocket.Conn) error {
