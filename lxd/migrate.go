@@ -274,9 +274,19 @@ func (s *migrationSourceWs) Do(op *operation) error {
 	 */
 	snapshots := []string{}
 	if fsErr == nil {
-		for _, snap := range sources[1:] {
-			name := shared.ExtractSnapshotName(snap.Name())
-			snapshots = append(snapshots, name)
+		/* A bit of a special case here: doing lxc launch
+		 * host2:c1/snap1 host1:container we're sending a snapshot, but
+		 * it ends up as the container on the other end. So, we want to
+		 * send it as the main container (i.e. ignore its IsSnapshot()).
+		 */
+		if len(sources) > 1 {
+			for _, snap := range sources {
+				if !snap.IsSnapshot() {
+					continue
+				}
+				name := shared.ExtractSnapshotName(snap.Name())
+				snapshots = append(snapshots, name)
+			}
 		}
 	}
 
