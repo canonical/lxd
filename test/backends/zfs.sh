@@ -11,7 +11,7 @@ zfs_setup() {
   truncate -s 100G "${LXD_DIR}/zfspool"
   # prefix lxdtest- here, as zfs pools must start with a letter, but tempdir
   # won't necessarily generate one that does.
-  zpool create "lxdtest-$(basename "${LXD_DIR}")" "${LXD_DIR}/zfspool"
+  zpool create "lxdtest-$(basename "${LXD_DIR}")" "${LXD_DIR}/zfspool" -m none
 }
 
 zfs_configure() {
