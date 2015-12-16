@@ -375,52 +375,40 @@ func IntInSlice(key int, list []int) bool {
 	return false
 }
 
-/*
- * returns 1 if path is mounted shared:
- * returns 0 if path is not listed
- * returns -1 if path is explicitly mounted as not-shared
- */
-func isSharedMount(file *os.File, pathName string) int {
-	_, err := file.Seek(0, 0)
+func IsOnSharedMount(pathName string) (bool, error) {
+	file, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
-		Debugf("Error rewinding mountinfo file: %s\n", err)
-		return 0
+		return false, err
 	}
+	defer file.Close()
+
+	absPath, err := filepath.Abs(pathName)
+	if err != nil {
+		return false, err
+	}
+
+	expPath, err := os.Readlink(absPath)
+	if err != nil {
+		expPath = absPath
+	}
+
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
 		rows := strings.Fields(line)
-		if !strings.HasSuffix(pathName, rows[3]) && rows[4] != pathName {
+
+		if rows[4] != expPath {
 			continue
 		}
+
 		if strings.HasPrefix(rows[6], "shared:") {
-			return 1
+			return true, nil
 		} else {
-			return -1
+			return false, nil
 		}
 	}
-	return 0
-}
 
-func IsOnSharedMount(pathName string) bool {
-	file, err := os.Open("/proc/self/mountinfo")
-	if err != nil {
-		return false
-	}
-	defer file.Close()
-
-	for {
-		switch isSharedMount(file, pathName) {
-		case 1:
-			return true
-		case -1:
-			return false
-		}
-		if pathName == "/" || pathName == "." {
-			return false
-		}
-		pathName = filepath.Dir(pathName)
-	}
+	return false, nil
 }
 
 func IsBlockdev(fm os.FileMode) bool {

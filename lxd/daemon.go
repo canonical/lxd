@@ -367,18 +367,27 @@ func setupSharedMounts() error {
 			return err
 		}
 	}
-	if shared.IsOnSharedMount(path) {
+
+	isShared, err := shared.IsOnSharedMount(path)
+	if err != nil {
+		return err
+	}
+
+	if isShared {
 		// / may already be ms-shared, or shmounts may have
 		// been mounted by a previous lxd run
 		return nil
 	}
+
 	if err := syscall.Mount(path, path, "none", syscall.MS_BIND, ""); err != nil {
 		return err
 	}
+
 	var flags uintptr = syscall.MS_SHARED | syscall.MS_REC
 	if err := syscall.Mount(path, path, "none", flags, ""); err != nil {
 		return err
 	}
+
 	return nil
 }
 
