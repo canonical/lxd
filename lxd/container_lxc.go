@@ -2207,9 +2207,21 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	err = exec.Command(c.daemon.execPath, "forkmount", pidStr, mntsrc, target).Run()
+	out, err := exec.Command(c.daemon.execPath, "forkmount", pidStr, mntsrc, target).CombinedOutput()
+
+	if string(out) != "" {
+		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+			shared.Debugf("forkmount: %s", line)
+		}
+	}
+
 	if err != nil {
-		return fmt.Errorf("forkmount failed: %s", err)
+		return fmt.Errorf(
+			"Error calling 'lxd forkmount %s %s %s': err='%v'",
+			pidStr,
+			mntsrc,
+			target,
+			err)
 	}
 
 	return nil
@@ -2225,9 +2237,20 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	// Remove the mount from the container
 	pidStr := fmt.Sprintf("%d", pid)
-	err := exec.Command(c.daemon.execPath, "forkumount", pidStr, mount).Run()
+	out, err := exec.Command(c.daemon.execPath, "forkumount", pidStr, mount).CombinedOutput()
+
+	if string(out) != "" {
+		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+			shared.Debugf("forkumount: %s", line)
+		}
+	}
+
 	if err != nil {
-		return fmt.Errorf("forkumount failed: %s", err)
+		return fmt.Errorf(
+			"Error calling 'lxd forkumount %s %s': err='%v'",
+			pidStr,
+			mount,
+			err)
 	}
 
 	return nil
