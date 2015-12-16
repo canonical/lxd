@@ -11,13 +11,8 @@ test_migration() {
   fi
 
   lxc init testimage nonlive
-  # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" = "dir" ]; then
-    # Turns out most of this (snapshot transfer) is completely horked on
-    # non-dir backends :)
-    # test moving snapshots
-    lxc snapshot l1:nonlive
-  fi
+  # test moving snapshots
+  lxc snapshot l1:nonlive
   lxc move l1:nonlive l2:
   [ -d "${LXD2_DIR}/containers/nonlive/rootfs" ]
   [ ! -d "${LXD_DIR}/containers/nonlive" ]
@@ -34,12 +29,8 @@ test_migration() {
     [ -d "${LXD_DIR}/snapshots/nonlive2/snap0/rootfs/bin" ]
   fi
 
-  # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" = "dir" ]; then
-    # since we didn't snapshot above, we can't do this here
-    lxc copy l1:nonlive2/snap0 l2:nonlive3
-    [ -d "${LXD2_DIR}/containers/nonlive3/rootfs/bin" ]
-  fi
+  lxc copy l1:nonlive2/snap0 l2:nonlive3
+  [ -d "${LXD2_DIR}/containers/nonlive3/rootfs/bin" ]
 
   lxc copy l2:nonlive l2:nonlive2
   # should have the same base image tag
