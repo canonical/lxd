@@ -157,7 +157,22 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		}
 
 		var c container
-		if _, err := dbImageGet(d.db, req.Source.BaseImage, false, true); err == nil {
+		_, err := dbImageGet(d.db, req.Source.BaseImage, false, true)
+
+		/* Only create a container from an image if we're going to
+		 * rsync over the top of it. In the case of a better file
+		 * transfer mechanism, let's just use that.
+		 *
+		 * TODO: we could invent some negotiation here, where if the
+		 * source and sink both have the same image, we can clone from
+		 * it, but we have to know before sending the snapshot that
+		 * we're sending the whole thing or just a delta from the
+		 * image, so one extra negotiation round trip is needed. An
+		 * alternative is to move actual container object to a later
+		 * point and just negotiate it over the migration control
+		 * socket. Anyway, it'll happen later :)
+		 */
+		if err == nil && d.Storage.MigrationType() == MigrationFSType_RSYNC {
 			c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
 			if err != nil {
 				return err
