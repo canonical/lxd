@@ -235,12 +235,13 @@ void create(char *src, char *dest) {
 void forkmount(char *buf, char *cur, ssize_t size) {
 	char *src, *dest, *opts;
 
-	printf("called for forkmount\n");
 	ADVANCE_ARG_REQUIRED();
 	int pid = atoi(cur);
 
-	if (dosetns(pid, "mnt") < 0)
+	if (dosetns(pid, "mnt") < 0) {
+		printf("Failed setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
+	}
 
 	ADVANCE_ARG_REQUIRED();
 	src = cur;
@@ -250,12 +251,10 @@ void forkmount(char *buf, char *cur, ssize_t size) {
 
 	create(src, dest);
 
-	printf("mounting %s onto %s\n", src, dest);
 	if (mount(src, dest, "none", MS_MOVE, NULL) < 0) {
 		printf("Failed mounting %s onto %s: %s\n", src, dest, strerror(errno));
 		_exit(1);
 	}
-	printf("mounting passed\n");
 
 	_exit(0);
 }
@@ -264,8 +263,10 @@ void forkumount(char *buf, char *cur, ssize_t size) {
 	ADVANCE_ARG_REQUIRED();
 	int pid = atoi(cur);
 
-	if (dosetns(pid, "mnt") < 0)
+	if (dosetns(pid, "mnt") < 0) {
+		printf("Failed setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
+	}
 
 	ADVANCE_ARG_REQUIRED();
 	if (umount2(cur, MNT_DETACH) < 0) {
