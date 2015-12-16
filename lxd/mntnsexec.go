@@ -251,6 +251,16 @@ void forkmount(char *buf, char *cur, ssize_t size) {
 
 	create(src, dest);
 
+	if (access(src, F_OK) < 0) {
+		fprintf(stderr, "Mount source doesn't exist: %s\n", strerror(errno));
+		_exit(1);
+	}
+
+	if (access(dest, F_OK) < 0) {
+		fprintf(stderr, "Mount destination doesn't exist: %s\n", strerror(errno));
+		_exit(1);
+	}
+
 	if (mount(src, dest, "none", MS_MOVE, NULL) < 0) {
 		fprintf(stderr, "Failed mounting %s onto %s: %s\n", src, dest, strerror(errno));
 		_exit(1);
@@ -269,6 +279,11 @@ void forkumount(char *buf, char *cur, ssize_t size) {
 	}
 
 	ADVANCE_ARG_REQUIRED();
+	if (access(cur, F_OK) < 0) {
+		fprintf(stderr, "Mount path doesn't exist: %s\n", strerror(errno));
+		_exit(1);
+	}
+
 	if (umount2(cur, MNT_DETACH) < 0) {
 		fprintf(stderr, "Error unmounting %s: %s\n", cur, strerror(errno));
 		_exit(1);
