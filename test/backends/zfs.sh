@@ -1,3 +1,5 @@
+#!/bin/sh
+
 zfs_setup() {
   local LXD_DIR
   LXD_DIR=$1

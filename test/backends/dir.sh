@@ -1,3 +1,4 @@
+#!/bin/sh
 # Nothing need be done for the dir backed, but we still need some functions.
 # This file can also serve as a skel file for what needs to be done to
 # implement a new backend.
