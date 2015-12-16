@@ -1288,6 +1288,16 @@ func (s *storageZfs) MigrationSink(container container, snapshots []container, c
 		if err := zfsRecv(name); err != nil {
 			return err
 		}
+
+		err := os.MkdirAll(shared.VarPath(fmt.Sprintf("snapshots/%s", fields[0])), 0700)
+		if err != nil {
+			return err
+		}
+
+		err = os.Symlink("on-zfs", shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", fields[0], fields[1])))
+		if err != nil {
+			return err
+		}
 	}
 
 	/* finally, do the real container */
