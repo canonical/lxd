@@ -212,6 +212,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		err = sink()
 		if err != nil {
 			c.StorageStop()
+			shared.Log.Error("Error during migration sink", "err", err)
 			c.Delete()
 			return fmt.Errorf("Error transferring container data: %s", err)
 		}
