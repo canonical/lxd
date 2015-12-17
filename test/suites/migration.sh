@@ -14,7 +14,10 @@ test_migration() {
   # test moving snapshots
   lxc snapshot l1:nonlive
   lxc move l1:nonlive l2:
-  [ -d "${LXD2_DIR}/containers/nonlive/rootfs" ]
+  # FIXME: make this backend agnostic
+  if [ "${LXD_BACKEND}" != "lvm" ]; then
+    [ -d "${LXD2_DIR}/containers/nonlive/rootfs" ]
+  fi
   [ ! -d "${LXD_DIR}/containers/nonlive" ]
   # FIXME: make this backend agnostic
   if [ "${LXD_BACKEND}" = "dir" ]; then
@@ -23,14 +26,20 @@ test_migration() {
 
   lxc copy l2:nonlive l1:nonlive2
   [ -d "${LXD_DIR}/containers/nonlive2" ]
-  [ -d "${LXD2_DIR}/containers/nonlive/rootfs/bin" ]
+  # FIXME: make this backend agnostic
+  if [ "${LXD_BACKEND}" != "lvm" ]; then
+    [ -d "${LXD2_DIR}/containers/nonlive/rootfs/bin" ]
+  fi
   # FIXME: make this backend agnostic
   if [ "${LXD_BACKEND}" = "dir" ]; then
     [ -d "${LXD_DIR}/snapshots/nonlive2/snap0/rootfs/bin" ]
   fi
 
   lxc copy l1:nonlive2/snap0 l2:nonlive3
-  [ -d "${LXD2_DIR}/containers/nonlive3/rootfs/bin" ]
+  # FIXME: make this backend agnostic
+  if [ "${LXD_BACKEND}" != "lvm" ]; then
+    [ -d "${LXD2_DIR}/containers/nonlive3/rootfs/bin" ]
+  fi
 
   lxc copy l2:nonlive l2:nonlive2
   # should have the same base image tag
