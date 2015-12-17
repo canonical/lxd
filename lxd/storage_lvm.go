@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/websocket"
 
@@ -227,6 +228,18 @@ func (s *storageLvm) ContainerCreate(container container) error {
 		return err
 	}
 
+	var mode os.FileMode
+	if container.IsPrivileged() {
+		mode = 0700
+	} else {
+		mode = 0755
+	}
+
+	err = os.Chmod(container.Path(), mode)
+	if err != nil {
+		return err
+	}
+
 	dst := shared.VarPath("containers", fmt.Sprintf("%s.lv", container.Name()))
 	err = os.Symlink(lvpath, dst)
 	if err != nil {
@@ -260,6 +273,18 @@ func (s *storageLvm) ContainerCreateFromImage(
 		return fmt.Errorf("Error creating container directory: %v", err)
 	}
 
+	var mode os.FileMode
+	if container.IsPrivileged() {
+		mode = 0700
+	} else {
+		mode = 0755
+	}
+
+	err = os.Chmod(destPath, mode)
+	if err != nil {
+		return err
+	}
+
 	dst := shared.VarPath("containers", fmt.Sprintf("%s.lv", container.Name()))
 	err = os.Symlink(lvpath, dst)
 	if err != nil {
@@ -274,7 +299,7 @@ func (s *storageLvm) ContainerCreateFromImage(
 
 	if !container.IsPrivileged() {
 		if err = s.shiftRootfs(container); err != nil {
-			err2 := syscall.Unmount(destPath, 0)
+			err2 := tryUnmount(destPath, 0)
 			if err2 != nil {
 				return fmt.Errorf("Error in umount: '%s' while cleaning up after error in shiftRootfs: '%s'", err2, err)
 			}
@@ -289,7 +314,7 @@ func (s *storageLvm) ContainerCreateFromImage(
 			log.Ctx{"err": err})
 	}
 
-	umounterr := syscall.Unmount(destPath, 0)
+	umounterr := tryUnmount(destPath, 0)
 	if umounterr != nil {
 		return fmt.Errorf("Error unmounting '%s' after shiftRootfs: %v", destPath, umounterr)
 	}
@@ -372,12 +397,31 @@ func (s *storageLvm) ContainerStart(container container) error {
 }
 
 func (s *storageLvm) ContainerStop(container container) error {
-	err := syscall.Unmount(container.Path(), 0)
+	err := tryUnmount(container.Path(), 0)
 	if err != nil {
 		return fmt.Errorf(
 			"failed to unmount container path '%s'.\nError: %v",
 			container.Path(),
 			err)
+	}
+
+	return nil
+}
+
+func tryUnmount(path string, flags int) error {
+	var err error
+
+	for i := 0; i < 10; i++ {
+		err = syscall.Unmount(path, flags)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -399,18 +443,7 @@ func (s *storageLvm) ContainerRename(
 		return fmt.Errorf("Failed to rename a container LV, oldName='%s', newName='%s', err='%s'", oldName, newName, err)
 	}
 
-	// Rename the Symlink
-	oldSymPath := fmt.Sprintf("%s.lv", container.Path())
-	newSymPath := fmt.Sprintf("%s.lv", containerPath(newName, false))
-	if err := os.Rename(oldSymPath, newSymPath); err != nil {
-		s.log.Error("Rename of the symlink failed",
-			log.Ctx{"oldPath": oldSymPath,
-				"newPath": newSymPath,
-				"err":     err})
-
-		return err
-	}
-
+	// Rename the snapshots
 	if !container.IsSnapshot() {
 		snaps, err := container.Snapshots()
 		if err != nil {
@@ -425,6 +458,26 @@ func (s *storageLvm) ContainerRename(
 				return err
 			}
 		}
+	}
+
+	// Create a new symlink
+	newSymPath := fmt.Sprintf("%s.lv", containerPath(newName, false))
+	err = os.Symlink(fmt.Sprintf("/dev/%s/%s", s.vgName, newName), newSymPath)
+	if err != nil {
+		return err
+	}
+
+	// Remove the old symlink
+	oldSymPath := fmt.Sprintf("%s.lv", container.Path())
+	err = os.Remove(oldSymPath)
+	if err != nil {
+		return err
+	}
+
+	// Rename the directory
+	err = os.Rename(container.Path(), containerPath(newName, false))
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -473,6 +526,18 @@ func (s *storageLvm) createSnapshotContainer(
 		return fmt.Errorf("Error creating container directory: %v", err)
 	}
 
+	var mode os.FileMode
+	if snapshotContainer.IsPrivileged() {
+		mode = 0700
+	} else {
+		mode = 0755
+	}
+
+	err = os.Chmod(destPath, mode)
+	if err != nil {
+		return err
+	}
+
 	dest := fmt.Sprintf("%s.lv", snapshotContainer.Path())
 	err = os.Symlink(lvpath, dest)
 	if err != nil {
@@ -501,6 +566,12 @@ func (s *storageLvm) ContainerSnapshotRename(
 	snapshotContainer container, newContainerName string) error {
 	oldName := containerNameToLVName(snapshotContainer.Name())
 	newName := containerNameToLVName(newContainerName)
+	oldPath := snapshotContainer.Path()
+	oldSymPath := fmt.Sprintf("%s.lv", oldPath)
+	newPath := containerPath(newContainerName, true)
+	newSymPath := fmt.Sprintf("%s.lv", newPath)
+
+	// Rename the LV
 	output, err := s.renameLV(oldName, newName)
 	if err != nil {
 		s.log.Error("Failed to rename a snapshot LV",
@@ -508,26 +579,22 @@ func (s *storageLvm) ContainerSnapshotRename(
 		return fmt.Errorf("Failed to rename a container LV, oldName='%s', newName='%s', err='%s'", oldName, newName, err)
 	}
 
-	oldPath := snapshotContainer.Path()
-	oldSymPath := fmt.Sprintf("%s.lv", oldPath)
-	newPath := containerPath(newName, true)
-	newSymPath := fmt.Sprintf("%s.lv", newPath)
-
-	if err := os.Rename(oldSymPath, newSymPath); err != nil {
-		s.log.Error("Failed to rename symlink", log.Ctx{"oldSymPath": oldSymPath, "newSymPath": newSymPath, "err": err})
-		return fmt.Errorf("Failed to rename symlink err='%s'", err)
+	// Delete the symlink
+	err = os.Remove(oldSymPath)
+	if err != nil {
+		return fmt.Errorf("Failed to remove old symlink: %s", err)
 	}
 
-	if strings.Contains(snapshotContainer.Name(), "/") {
-		if !shared.PathExists(filepath.Dir(newPath)) {
-			os.MkdirAll(filepath.Dir(newPath), 0700)
-		}
+	// Create the symlink
+	err = os.Symlink(fmt.Sprintf("/dev/%s/%s", s.vgName, newName), newSymPath)
+	if err != nil {
+		return fmt.Errorf("Failed to create symlink: %s", err)
 	}
 
-	if strings.Contains(snapshotContainer.Name(), "/") {
-		if ok, _ := shared.PathIsEmpty(filepath.Dir(oldPath)); ok {
-			os.Remove(filepath.Dir(oldPath))
-		}
+	// Rename the mount point
+	err = os.Rename(oldPath, newPath)
+	if err != nil {
+		return fmt.Errorf("Failed to rename mountpoint: %s", err)
 	}
 
 	return nil
@@ -616,7 +683,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 
 	untarErr := untarImage(finalName, tempLVMountPoint)
 
-	err = syscall.Unmount(tempLVMountPoint, 0)
+	err = tryUnmount(tempLVMountPoint, 0)
 	if err != nil {
 		s.log.Warn("could not unmount LV. Will not remove",
 			log.Ctx{"lvpath": lvpath, "mountpoint": tempLVMountPoint, "err": err})
