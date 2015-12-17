@@ -25,7 +25,10 @@ test_snapshots() {
   fi
 
   lxc copy foo/tester foosnap1
-  [ -d "${LXD_DIR}/containers/foosnap1/rootfs" ]
+  # FIXME: make this backend agnostic
+  if [ "${LXD_BACKEND}" != "lvm" ]; then
+    [ -d "${LXD_DIR}/containers/foosnap1/rootfs" ]
+  fi
 
   lxc delete foo/snap0
   # FIXME: make this backend agnostic
@@ -71,8 +74,6 @@ test_snap_restore() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc launch testimage bar
-
   ##########################################################
   # PREPARATION
   ##########################################################
@@ -80,31 +81,33 @@ test_snap_restore() {
   ## create some state we will check for when snapshot is restored
 
   ## prepare snap0
+  lxc launch testimage bar
   echo snap0 > state
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap0
-  lxc stop bar --force
+
   mkdir "${LXD_DIR}/containers/bar/rootfs/root/dir_only_in_snap0"
   cd "${LXD_DIR}/containers/bar/rootfs/root/"
   ln -s ./file_only_in_snap0 statelink
   cd -
+  lxc stop bar --force
 
   lxc snapshot bar snap0
 
   ## prepare snap1
-  echo snap1 > state
   lxc start bar
+  echo snap1 > state
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap1
-  lxc stop bar --force
-  cd "${LXD_DIR}/containers/bar/rootfs/root/"
 
+  cd "${LXD_DIR}/containers/bar/rootfs/root/"
   rmdir dir_only_in_snap0
   rm    file_only_in_snap0
   rm    statelink
   ln -s ./file_only_in_snap1 statelink
   mkdir dir_only_in_snap1
   cd -
+  lxc stop bar --force
 
   # Delete the state file we created to prevent leaking.
   rm state

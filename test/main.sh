@@ -367,10 +367,6 @@ echo "==> TEST: migration"
 TEST_CURRENT=test_migration
 test_migration
 
-echo "==> TEST: lvm backing"
-TEST_CURRENT=test_lvm
-test_lvm
-
 curversion=$(dpkg -s lxc | awk '/^Version/ { print $2 }')
 if dpkg --compare-versions "${curversion}" gt 1.1.2-0ubuntu3; then
   echo "==> TEST: fdleak"
