@@ -1250,7 +1250,8 @@ func (s *storageZfs) MigrationSource(container container) ([]MigrationStorageSou
 }
 
 func (s *storageZfs) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
-	zfsRecv := func(zfsFsName string) error {
+	zfsRecv := func(zfsName string) error {
+		zfsFsName := fmt.Sprintf("%s/%s", s.zfsPool, zfsName)
 		args := []string{"receive", "-F", "-u", zfsFsName}
 		cmd := exec.Command("zfs", args...)
 
@@ -1282,9 +1283,20 @@ func (s *storageZfs) MigrationSink(container container, snapshots []container, c
 		return err
 	}
 
+	/* In some versions of zfs we can write `zfs recv -F` to mounted
+	 * filesystems, and in some versions we can't. So, let's always unmount
+	 * this fs (it's empty anyway) before we zfs recv. N.B. that `zfs recv`
+	 * of a snapshot also needs tha actual fs that it has snapshotted
+	 * unmounted, so we do this before receiving anything.
+	 */
+	zfsName := fmt.Sprintf("containers/%s", container.Name())
+	if err := s.zfsUnmount(zfsName); err != nil {
+		shared.Log.Error("zfs umount error for", "path", zfsName, "err", err)
+	}
+
 	for _, snap := range snapshots {
 		fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
-		name := fmt.Sprintf("%s/containers/%s@snapshot-%s", s.zfsPool, fields[0], fields[1])
+		name := fmt.Sprintf("containers/%s@snapshot-%s", fields[0], fields[1])
 		if err := zfsRecv(name); err != nil {
 			return err
 		}
@@ -1301,6 +1313,15 @@ func (s *storageZfs) MigrationSink(container container, snapshots []container, c
 	}
 
 	/* finally, do the real container */
-	name := fmt.Sprintf("%s/containers/%s", s.zfsPool, container.Name())
-	return zfsRecv(name)
+	if err := zfsRecv(zfsName); err != nil {
+		return err
+	}
+
+	/* Sometimes, zfs recv mounts this anyway, even if we pass -u
+	 * (https://forums.freebsd.org/threads/zfs-receive-u-shouldnt-mount-received-filesystem-right.36844/)
+	 * but sometimes it doesn't. Let's try to mount, but not complain about
+	 * failure.
+	 */
+	s.zfsMount(zfsName)
+	return nil
 }
