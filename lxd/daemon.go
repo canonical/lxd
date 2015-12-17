@@ -702,12 +702,12 @@ func (d *Daemon) Init() error {
 	}
 
 	cgMemoryController = shared.PathExists("/sys/fs/cgroup/memory/")
-	if !cgCpusetController {
+	if !cgMemoryController {
 		shared.Log.Warn("Couldn't find the CGroup memory controller, memory limits will be ignored.")
 	}
 
 	cgSwapAccounting = shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes")
-	if !cgCpusetController {
+	if !cgSwapAccounting {
 		shared.Log.Warn("CGroup memory swap accounting is disabled, swap limits will be ignored.")
 	}
 
