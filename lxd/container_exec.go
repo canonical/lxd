@@ -41,6 +41,7 @@ type execWs struct {
 	rootGid          int
 	options          lxc.AttachOptions
 	conns            map[int]*websocket.Conn
+	connsLock        sync.Mutex
 	allConnected     chan bool
 	controlConnected chan bool
 	interactive      bool
@@ -73,7 +74,9 @@ func (s *execWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) 
 				return err
 			}
 
+			s.connsLock.Lock()
 			s.conns[fd] = conn
+			s.connsLock.Unlock()
 
 			if fd == -1 {
 				s.controlConnected <- true
