@@ -248,10 +248,6 @@ func (c *containerLXC) initLXC() error {
 
 	// Setup logging
 	logfile := c.LogFilePath()
-	err = os.MkdirAll(filepath.Dir(logfile), 0700)
-	if err != nil {
-		return err
-	}
 
 	err = cc.SetLogFile(logfile)
 	if err != nil {
@@ -774,13 +770,20 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 	}
 
-	// Create shmounts path
-	source := shared.VarPath("shmounts", c.Name())
-	if !shared.PathExists(source) {
-		err = os.MkdirAll(source, 0750)
-		if err != nil {
-			return "", err
-		}
+	// Create any missing directory
+	err = os.MkdirAll(c.LogPath(), 0700)
+	if err != nil {
+		return "", err
+	}
+
+	err = os.MkdirAll(shared.VarPath("devices", c.Name()), 0700)
+	if err != nil {
+		return "", err
+	}
+
+	err = os.MkdirAll(shared.VarPath("shmounts", c.Name()), 0700)
+	if err != nil {
+		return "", err
 	}
 
 	// Cleanup any leftover volatile entries
@@ -1168,6 +1171,22 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	return nil
 }
 
+func (c *containerLXC) cleanup() {
+	// Unmount any leftovers
+	c.removeUnixDevices()
+	c.removeDiskDevices()
+
+	// Remove the security profiles
+	AADeleteProfile(c)
+	SeccompDeleteProfile(c)
+
+	// Remove the devices path
+	os.RemoveAll(c.DevicesPath())
+
+	// Remove the shmounts path
+	os.RemoveAll(shared.VarPath("shmounts", c.Name()))
+}
+
 func (c *containerLXC) Delete() error {
 	if c.IsSnapshot() {
 		// Remove the snapshot
@@ -1180,13 +1199,8 @@ func (c *containerLXC) Delete() error {
 			return err
 		}
 
-		// Unmount any leftovers
-		c.removeUnixDevices()
-		c.removeDiskDevices()
-
-		// Remove the security profiles
-		AADeleteProfile(c)
-		SeccompDeleteProfile(c)
+		// Clean things up
+		c.cleanup()
 
 		// Delete the container from disk
 		if err := c.storage.ContainerDelete(c); err != nil {
@@ -1212,6 +1226,16 @@ func (c *containerLXC) Rename(newName string) error {
 
 	if c.IsRunning() {
 		return fmt.Errorf("renaming of running container not allowed")
+	}
+
+	// Clean things up
+	c.cleanup()
+
+	// Rename the logging path
+	os.RemoveAll(shared.LogPath(newName))
+	err := os.Rename(c.LogPath(), shared.LogPath(newName))
+	if err != nil {
+		return err
 	}
 
 	// Rename the storage entry
@@ -3033,7 +3057,7 @@ func (c *containerLXC) Path() string {
 }
 
 func (c *containerLXC) DevicesPath() string {
-	return filepath.Join(c.Path(), "devices")
+	return shared.VarPath("devices", c.Name())
 }
 
 func (c *containerLXC) LogPath() string {

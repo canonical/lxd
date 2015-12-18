@@ -362,11 +362,6 @@ func (d *Daemon) SetupStorageDriver() error {
 
 func setupSharedMounts() error {
 	path := shared.VarPath("shmounts")
-	if !shared.PathExists(path) {
-		if err := os.Mkdir(path, 0755); err != nil {
-			return err
-		}
-	}
 
 	isShared, err := shared.IsOnSharedMount(path)
 	if err != nil {
@@ -631,6 +626,12 @@ func (d *Daemon) Init() error {
 	}
 	d.execPath = absPath
 
+	/* Set the LVM environment */
+	err = os.Setenv("LVM_SUPPRESS_FD_WARNINGS", "1")
+	if err != nil {
+		return err
+	}
+
 	/* Setup logging if that wasn't done before */
 	if shared.Log == nil {
 		shared.Log, err = logging.GetLogger("", "", true, true, nil)
@@ -742,21 +743,29 @@ func (d *Daemon) Init() error {
 	}
 	d.architectures = architectures
 
-	/* Create required paths */
+	/* Set container path */
 	d.lxcpath = shared.VarPath("containers")
-	err = os.MkdirAll(d.lxcpath, 0755)
-	if err != nil {
-		return err
-	}
 
-	// Create default directories
-	if err := os.MkdirAll(shared.VarPath("images"), 0700); err != nil {
+	/* Make sure all our directories are available */
+	if err := os.MkdirAll(shared.VarPath("containers"), 0711); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(shared.VarPath("snapshots"), 0700); err != nil {
+	if err := os.MkdirAll(shared.VarPath("devices"), 0711); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(shared.VarPath("devlxd"), 0755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(shared.VarPath("images"), 0700); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(shared.VarPath("security"), 0700); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(shared.VarPath("shmounts"), 0711); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(shared.VarPath("snapshots"), 0700); err != nil {
 		return err
 	}
 
@@ -1034,7 +1043,6 @@ func (d *Daemon) Stop() error {
 		shared.Log.Debug("Unmounting shmounts")
 
 		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
-		os.RemoveAll(shared.VarPath("shmounts"))
 	} else {
 		shared.Debugf("Not unmounting shmounts (containers are still running)")
 	}

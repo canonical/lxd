@@ -139,37 +139,61 @@ ensure_import_testimage() {
   fi
 }
 
+check_empty() {
+  if [ "$(find "${1}" 2> /dev/null | wc -l)" -gt "1" ]; then
+    echo "${1} is not empty, content:"
+    find "${1}"
+    false
+  fi
+}
+
 kill_lxd() {
+  # LXD_DIR is local here because since $(lxc) is actually a function, it
+  # overwrites the environment and we would lose LXD_DIR's value otherwise.
+  local LXD_DIR
   daemon_dir=${1}
-  daemon_addr=$(cat "${daemon_dir}/lxd.addr")
+  LXD_DIR=${daemon_dir}
   daemon_pid=$(cat "${daemon_dir}/lxd.pid")
   echo "==> Killing LXD at ${daemon_dir}"
 
-  [ -d "${daemon_dir}" ] || return
+  if [ -e "${daemon_dir}/unix.socket" ]; then
+    # Delete all containers
+    echo "==> Deleting all containers"
+    for container in $(lxc list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
+      lxc delete "${container}" --force-local || true
+    done
 
-  # Delete all containers
-  echo "==> Deleting all containers"
-  my_curl "https://${daemon_addr}/1.0/containers" | jq -r .metadata[] 2>/dev/null | while read -r line; do
-    wait_for "${daemon_addr}" my_curl -X PUT "https://${daemon_addr}${line}/state" -d "{\"action\":\"stop\",\"force\":true}" >/dev/null
-    wait_for "${daemon_addr}" my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
-  done
+    # Delete all images
+    echo "==> Deleting all images"
+    for image in $(lxc image list --force-local | tail -n+3 | grep "^| " | cut -d'|' -f3 | sed "s/^ //g"); do
+      lxc image delete "${image}" --force-local || true
+    done
 
-  # Delete all images
-  echo "==> Deleting all images"
-  my_curl "https://${daemon_addr}/1.0/images" | jq -r .metadata[] 2>/dev/null | while read -r line; do
-    wait_for "${daemon_addr}" my_curl -X DELETE "https://${daemon_addr}${line}" >/dev/null
-  done
+    echo "==> Checking for locked DB tables"
+    for table in $(echo .tables | sqlite3 "${daemon_dir}/lxd.db"); do
+      echo "SELECT * FROM ${table};" | sqlite3 "${daemon_dir}/lxd.db" >/dev/null
+    done
 
-  echo "==> Checking for locked DB tables"
-  for table in $(echo .tables | sqlite3 "${daemon_dir}/lxd.db"); do
-    echo "SELECT * FROM ${table};" | sqlite3 "${daemon_dir}/lxd.db" >/dev/null
-  done
+    # Kill the daemon
+    kill -9 "${daemon_pid}" 2>/dev/null || true
 
-  # Kill the daemon
-  kill -9 "${daemon_pid}" 2>/dev/null || true
+    # Cleanup shmounts (needed due to the forceful kill)
+    find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
+  fi
 
-  # Cleanup shmounts
-  find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
+  echo "==> Checking for leftover files"
+  rm -f "${daemon_dir}/containers/lxc-monitord.log"
+  rm -f "${daemon_dir}/security/apparmor/cache/.features"
+  check_empty "${daemon_dir}/containers/"
+  check_empty "${daemon_dir}/devices/"
+  check_empty "${daemon_dir}/images/"
+  # FIXME: Once container logging rework is done, uncomment
+  # check_empty "${daemon_dir}/logs/"
+  check_empty "${daemon_dir}/security/apparmor/cache/"
+  check_empty "${daemon_dir}/security/apparmor/profiles/"
+  check_empty "${daemon_dir}/security/seccomp/"
+  check_empty "${daemon_dir}/shmounts/"
+  check_empty "${daemon_dir}/snapshots/"
 
   # teardown storage
   "$LXD_BACKEND"_teardown "${daemon_dir}"
