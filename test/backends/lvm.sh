@@ -37,9 +37,23 @@ lvm_teardown() {
 
   echo "==> Tearing down lvm backend in ${LXD_DIR}"
 
-  vgremove -f "lxdtest-$(basename "${LXD_DIR}")"
-  pvremove -f "$(cat "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg")"
-  losetup -d "$(cat "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg")"
+  SUCCESS=0
+  # shellcheck disable=SC2034
+  for i in $(seq 10); do
+    vgremove -f "lxdtest-$(basename "${LXD_DIR}")" >/dev/null 2>&1 || true
+    pvremove -f "$(cat "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg")" >/dev/null 2>&1 || true
+    if losetup -d "$(cat "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg")"; then
+      SUCCESS=1
+      break
+    fi
+
+    sleep 0.5
+  done
+
+  if [ "${SUCCESS}" = "0" ]; then
+    echo "Failed to tear down LVM"
+    false
+  fi
 
   rm -f "${TEST_DIR}/$(basename "${LXD_DIR}").lvm"
   rm -f "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg"
