@@ -285,6 +285,9 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 		return nil, fmt.Errorf("The container already exists")
 	}
 
+	// Wipe any existing log for this container name
+	os.RemoveAll(shared.LogPath(args.Name))
+
 	// Create the container entry
 	id, err := dbContainerCreate(d.db, args)
 	if err != nil {
