@@ -1230,13 +1230,13 @@ func (c *containerLXC) Rename(newName string) error {
 		return err
 	}
 
-	// Rename all the snapshots
-	results, err := dbContainerGetSnapshots(c.daemon.db, oldName)
-	if err != nil {
-		return err
-	}
-
 	if !c.IsSnapshot() {
+		// Rename all the snapshots
+		results, err := dbContainerGetSnapshots(c.daemon.db, oldName)
+		if err != nil {
+			return err
+		}
+
 		for _, sname := range results {
 			// Rename the snapshot
 			baseSnapName := filepath.Base(sname)
