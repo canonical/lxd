@@ -1233,7 +1233,7 @@ func (s *storageZfs) MigrationSource(container container) ([]MigrationStorageSou
 	/* We can't send running fses, so let's snapshot the fs and send
 	 * the snapshot.
 	 */
-	snapshotName := fmt.Sprintf("migration-send-%s", time.Now().Format(time.RFC3339))
+	snapshotName := fmt.Sprintf("migration-send-%s", uuid.NewRandom().String())
 	if err := s.zfsSnapshotCreate(fmt.Sprintf("containers/%s", container.Name()), snapshotName); err != nil {
 		return nil, err
 	}
