@@ -62,8 +62,7 @@ func WebsocketSendStream(conn *websocket.Conn, r io.Reader) chan bool {
 				break
 			}
 		}
-		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		conn.WriteMessage(websocket.CloseMessage, closeMsg)
+		conn.WriteMessage(websocket.TextMessage, []byte{})
 		ch <- true
 	}(conn, r)
 
