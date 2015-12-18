@@ -1288,10 +1288,24 @@ func (s *storageZfs) MigrationSink(container container, snapshots []container, c
 	 * this fs (it's empty anyway) before we zfs recv. N.B. that `zfs recv`
 	 * of a snapshot also needs tha actual fs that it has snapshotted
 	 * unmounted, so we do this before receiving anything.
+	 *
+	 * Further, `zfs unmount` doesn't actually unmount things right away,
+	 * so we ask /proc/self/mountinfo whether or not this path is mounted
+	 * before continuing so that we're sure the fs is actually unmounted
+	 * before doing a recv.
 	 */
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
-	if err := s.zfsUnmount(zfsName); err != nil {
-		shared.Log.Error("zfs umount error for", "path", zfsName, "err", err)
+	fsPath := shared.VarPath(fmt.Sprintf("containers/%s.zfs", container.Name()))
+	for i := 0; i < 10; i++ {
+		if shared.IsMountPoint(fsPath) {
+			if err := s.zfsUnmount(zfsName); err != nil {
+				shared.Log.Error("zfs umount error for", "path", zfsName, "err", err)
+			}
+		} else {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	for _, snap := range snapshots {
