@@ -717,10 +717,11 @@ func (s *storageLvm) ImageDelete(fingerprint string) error {
 }
 
 func (s *storageLvm) createDefaultThinPool() (string, error) {
+	// Create a tiny 1G thinpool
 	output, err := exec.Command(
 		"lvcreate",
 		"--poolmetadatasize", "1G",
-		"-l", "100%FREE",
+		"-L", "1G",
 		"--thinpool",
 		fmt.Sprintf("%s/%s", s.vgName, storageLvmDefaultThinPoolName)).CombinedOutput()
 
@@ -735,6 +736,26 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 		return "", fmt.Errorf(
 			"Could not create LVM thin pool named %s", storageLvmDefaultThinPoolName)
 	}
+
+	// Grow it to the maximum VG size (two step process required by old LVM)
+	output, err = exec.Command(
+		"lvextend",
+		"--alloc", "anywhere",
+		"-l", "100%FREE",
+		fmt.Sprintf("%s/%s", s.vgName, storageLvmDefaultThinPoolName)).CombinedOutput()
+
+	if err != nil {
+		s.log.Debug(
+			"Could not grow thin pool",
+			log.Ctx{
+				"name":   storageLvmDefaultThinPoolName,
+				"err":    err,
+				"output": string(output)})
+
+		return "", fmt.Errorf(
+			"Could not grow LVM thin pool named %s", storageLvmDefaultThinPoolName)
+	}
+
 	return storageLvmDefaultThinPoolName, nil
 }
 
@@ -795,7 +816,7 @@ func (s *storageLvm) removeLV(lvname string) error {
 func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly bool) (string, error) {
 	output, err := exec.Command(
 		"lvcreate",
-		"-kn",
+		"-aay",
 		"-n", lvname,
 		"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname)).CombinedOutput()
 	if err != nil {
