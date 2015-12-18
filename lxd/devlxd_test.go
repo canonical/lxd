@@ -43,6 +43,8 @@ func setupDir() error {
 		return err
 	}
 
+	os.MkdirAll(fmt.Sprintf("%s/devlxd", testDir), 0755)
+
 	return os.Setenv("LXD_DIR", testDir)
 }
 

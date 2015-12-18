@@ -139,6 +139,10 @@ func AALoadProfile(c container) error {
 	updated := getAAProfileContent(c)
 
 	if string(content) != string(updated) {
+		if err := os.MkdirAll(path.Join(aaPath, "cache"), 0700); err != nil {
+			return err
+		}
+
 		if err := os.MkdirAll(path.Join(aaPath, "profiles"), 0700); err != nil {
 			return err
 		}

@@ -112,10 +112,6 @@ func hoistReq(f func(container, *http.Request) *devLxdResponse, d *Daemon) func(
 }
 
 func createAndBindDevLxd() (*net.UnixListener, error) {
-	if err := os.MkdirAll(shared.VarPath("devlxd"), 0777); err != nil {
-		return nil, err
-	}
-
 	sockFile := path.Join(shared.VarPath("devlxd"), "sock")
 
 	/*
