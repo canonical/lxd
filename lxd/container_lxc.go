@@ -1202,9 +1202,6 @@ func (c *containerLXC) Delete() error {
 		// Clean things up
 		c.cleanup()
 
-		// Remove the logging path
-		os.RemoveAll(c.LogPath())
-
 		// Delete the container from disk
 		if err := c.storage.ContainerDelete(c); err != nil {
 			return err
