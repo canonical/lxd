@@ -631,6 +631,12 @@ func (d *Daemon) Init() error {
 	}
 	d.execPath = absPath
 
+	/* Set the LVM environment */
+	err = os.Setenv("LVM_SUPPRESS_FD_WARNINGS", "1")
+	if err != nil {
+		return err
+	}
+
 	/* Setup logging if that wasn't done before */
 	if shared.Log == nil {
 		shared.Log, err = logging.GetLogger("", "", true, true, nil)
