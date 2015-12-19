@@ -22,7 +22,7 @@ func containerLogsGet(d *Daemon, r *http.Request) Response {
 	 */
 	name := mux.Vars(r)["name"]
 
-	if err := validContainerName(name); err != nil {
+	if err := containerValidName(name); err != nil {
 		return BadRequest(err)
 	}
 
@@ -62,7 +62,7 @@ func containerLogGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	file := mux.Vars(r)["file"]
 
-	if err := validContainerName(name); err != nil {
+	if err := containerValidName(name); err != nil {
 		return BadRequest(err)
 	}
 
@@ -82,7 +82,7 @@ func containerLogDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	file := mux.Vars(r)["file"]
 
-	if err := validContainerName(name); err != nil {
+	if err := containerValidName(name); err != nil {
 		return BadRequest(err)
 	}
 
