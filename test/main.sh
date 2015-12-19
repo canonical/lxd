@@ -155,6 +155,14 @@ check_empty() {
   fi
 }
 
+check_empty_table() {
+  if [ -n "$(sqlite3 "${1}" "SELECT * FROM ${2};")" ]; then
+    echo "DB table ${2} is not empty, content:"
+    sqlite3 "${1}" "SELECT * FROM ${2};"
+    false
+  fi
+}
+
 kill_lxd() {
   # LXD_DIR is local here because since $(lxc) is actually a function, it
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
@@ -202,6 +210,16 @@ kill_lxd() {
   check_empty "${daemon_dir}/security/seccomp/"
   check_empty "${daemon_dir}/shmounts/"
   check_empty "${daemon_dir}/snapshots/"
+
+  echo "==> Checking for leftover DB entries"
+  check_empty_table "${daemon_dir}/lxd.db" "containers"
+  check_empty_table "${daemon_dir}/lxd.db" "containers_config"
+  check_empty_table "${daemon_dir}/lxd.db" "containers_devices"
+  check_empty_table "${daemon_dir}/lxd.db" "containers_devices_config"
+  check_empty_table "${daemon_dir}/lxd.db" "containers_profiles"
+  check_empty_table "${daemon_dir}/lxd.db" "images"
+  check_empty_table "${daemon_dir}/lxd.db" "images_aliases"
+  check_empty_table "${daemon_dir}/lxd.db" "images_properties"
 
   # teardown storage
   "$LXD_BACKEND"_teardown "${daemon_dir}"
