@@ -240,7 +240,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 		return err
 	}
 
-	dst := shared.VarPath("containers", fmt.Sprintf("%s.lv", container.Name()))
+	dst := fmt.Sprintf("%s.lv", container.Path())
 	err = os.Symlink(lvpath, dst)
 	if err != nil {
 		return err
@@ -291,7 +291,7 @@ func (s *storageLvm) ContainerCreateFromImage(
 		return err
 	}
 
-	err = syscall.Mount(lvpath, destPath, "ext4", 0, "discard")
+	err = s.tryMount(lvpath, destPath, "ext4", 0, "discard")
 	if err != nil {
 		s.ContainerDelete(container)
 		return fmt.Errorf("Error mounting snapshot LV: %v", err)
@@ -299,7 +299,7 @@ func (s *storageLvm) ContainerCreateFromImage(
 
 	if !container.IsPrivileged() {
 		if err = s.shiftRootfs(container); err != nil {
-			err2 := tryUnmount(destPath, 0)
+			err2 := s.tryUnmount(destPath, 0)
 			if err2 != nil {
 				return fmt.Errorf("Error in umount: '%s' while cleaning up after error in shiftRootfs: '%s'", err2, err)
 			}
@@ -314,7 +314,7 @@ func (s *storageLvm) ContainerCreateFromImage(
 			log.Ctx{"err": err})
 	}
 
-	umounterr := tryUnmount(destPath, 0)
+	umounterr := s.tryUnmount(destPath, 0)
 	if umounterr != nil {
 		return fmt.Errorf("Error unmounting '%s' after shiftRootfs: %v", destPath, umounterr)
 	}
@@ -385,7 +385,7 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 func (s *storageLvm) ContainerStart(container container) error {
 	lvName := containerNameToLVName(container.Name())
 	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvName)
-	err := syscall.Mount(lvpath, container.Path(), "ext4", 0, "discard")
+	err := s.tryMount(lvpath, container.Path(), "ext4", 0, "discard")
 	if err != nil {
 		return fmt.Errorf(
 			"Error mounting snapshot LV path='%s': %v",
@@ -397,7 +397,7 @@ func (s *storageLvm) ContainerStart(container container) error {
 }
 
 func (s *storageLvm) ContainerStop(container container) error {
-	err := tryUnmount(container.Path(), 0)
+	err := s.tryUnmount(container.Path(), 0)
 	if err != nil {
 		return fmt.Errorf(
 			"failed to unmount container path '%s'.\nError: %v",
@@ -408,7 +408,42 @@ func (s *storageLvm) ContainerStop(container container) error {
 	return nil
 }
 
-func tryUnmount(path string, flags int) error {
+func (s *storageLvm) tryExec(name string, arg ...string) ([]byte, error) {
+	var err error
+	var output []byte
+
+	for i := 0; i < 10; i++ {
+		output, err = exec.Command(name, arg...).CombinedOutput()
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return output, err
+}
+
+func (s *storageLvm) tryMount(src string, dst string, fs string, flags uintptr, options string) error {
+	var err error
+
+	for i := 0; i < 10; i++ {
+		err = syscall.Mount(src, dst, fs, flags, options)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageLvm) tryUnmount(path string, flags int) error {
 	var err error
 
 	for i := 0; i < 10; i++ {
@@ -457,11 +492,22 @@ func (s *storageLvm) ContainerRename(
 			if err != nil {
 				return err
 			}
+
+			oldPathParent := filepath.Dir(snap.Path())
+			if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
+				os.Remove(oldPathParent)
+			}
 		}
 	}
 
 	// Create a new symlink
-	newSymPath := fmt.Sprintf("%s.lv", containerPath(newName, false))
+	newSymPath := fmt.Sprintf("%s.lv", containerPath(newContainerName, container.IsSnapshot()))
+
+	err = os.MkdirAll(filepath.Dir(containerPath(newContainerName, container.IsSnapshot())), 0700)
+	if err != nil {
+		return err
+	}
+
 	err = os.Symlink(fmt.Sprintf("/dev/%s/%s", s.vgName, newName), newSymPath)
 	if err != nil {
 		return err
@@ -475,7 +521,7 @@ func (s *storageLvm) ContainerRename(
 	}
 
 	// Rename the directory
-	err = os.Rename(container.Path(), containerPath(newName, false))
+	err = os.Rename(container.Path(), containerPath(newContainerName, container.IsSnapshot()))
 	if err != nil {
 		return err
 	}
@@ -620,7 +666,7 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 		}
 	}
 
-	err = syscall.Mount(lvpath, container.Path(), "ext4", 0, "discard")
+	err = s.tryMount(lvpath, container.Path(), "ext4", 0, "discard")
 	if err != nil {
 		return fmt.Errorf(
 			"Error mounting snapshot LV path='%s': %v",
@@ -674,7 +720,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 		}
 	}()
 
-	err = syscall.Mount(lvpath, tempLVMountPoint, "ext4", 0, "discard")
+	err = s.tryMount(lvpath, tempLVMountPoint, "ext4", 0, "discard")
 	if err != nil {
 		shared.Logf("Error mounting image LV for untarring: %v", err)
 		return fmt.Errorf("Error mounting image LV: %v", err)
@@ -683,7 +729,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 
 	untarErr := untarImage(finalName, tempLVMountPoint)
 
-	err = tryUnmount(tempLVMountPoint, 0)
+	err = s.tryUnmount(tempLVMountPoint, 0)
 	if err != nil {
 		s.log.Warn("could not unmount LV. Will not remove",
 			log.Ctx{"lvpath": lvpath, "mountpoint": tempLVMountPoint, "err": err})
@@ -718,12 +764,12 @@ func (s *storageLvm) ImageDelete(fingerprint string) error {
 
 func (s *storageLvm) createDefaultThinPool() (string, error) {
 	// Create a tiny 1G thinpool
-	output, err := exec.Command(
+	output, err := s.tryExec(
 		"lvcreate",
 		"--poolmetadatasize", "1G",
 		"-L", "1G",
 		"--thinpool",
-		fmt.Sprintf("%s/%s", s.vgName, storageLvmDefaultThinPoolName)).CombinedOutput()
+		fmt.Sprintf("%s/%s", s.vgName, storageLvmDefaultThinPoolName))
 
 	if err != nil {
 		s.log.Debug(
@@ -738,11 +784,11 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 	}
 
 	// Grow it to the maximum VG size (two step process required by old LVM)
-	output, err = exec.Command(
+	output, err = s.tryExec(
 		"lvextend",
 		"--alloc", "anywhere",
 		"-l", "100%FREE",
-		fmt.Sprintf("%s/%s", s.vgName, storageLvmDefaultThinPoolName)).CombinedOutput()
+		fmt.Sprintf("%s/%s", s.vgName, storageLvmDefaultThinPoolName))
 
 	if err != nil {
 		s.log.Debug(
@@ -777,12 +823,12 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 		}
 	}
 
-	output, err := exec.Command(
+	output, err := s.tryExec(
 		"lvcreate",
 		"--thin",
 		"-n", lvname,
 		"--virtualsize", storageLvmDefaultThinLVSize,
-		fmt.Sprintf("%s/%s", s.vgName, poolname)).CombinedOutput()
+		fmt.Sprintf("%s/%s", s.vgName, poolname))
 
 	if err != nil {
 		s.log.Debug("Could not create LV", log.Ctx{"lvname": lvname, "output": string(output)})
@@ -790,10 +836,11 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 	}
 
 	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvname)
-	output, err = exec.Command(
+
+	output, err = s.tryExec(
 		"mkfs.ext4",
 		"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0",
-		lvpath).CombinedOutput()
+		lvpath)
 
 	if err != nil {
 		s.log.Error("mkfs.ext4", log.Ctx{"output": string(output)})
@@ -804,21 +851,26 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 }
 
 func (s *storageLvm) removeLV(lvname string) error {
-	output, err := exec.Command(
-		"lvremove", "-f", fmt.Sprintf("%s/%s", s.vgName, lvname)).CombinedOutput()
+	var err error
+	var output []byte
+
+	output, err = s.tryExec(
+		"lvremove", "-f", fmt.Sprintf("%s/%s", s.vgName, lvname))
+
 	if err != nil {
 		s.log.Debug("Could not remove LV", log.Ctx{"lvname": lvname, "output": string(output)})
 		return fmt.Errorf("Could not remove LV named %s", lvname)
 	}
+
 	return nil
 }
 
 func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly bool) (string, error) {
-	output, err := exec.Command(
+	output, err := s.tryExec(
 		"lvcreate",
 		"-aay",
 		"-n", lvname,
-		"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname)).CombinedOutput()
+		"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname))
 	if err != nil {
 		s.log.Debug("Could not create LV snapshot", log.Ctx{"lvname": lvname, "origlvname": origlvname, "output": string(output)})
 		return "", fmt.Errorf("Could not create snapshot LV named %s", lvname)
@@ -827,9 +879,9 @@ func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly
 	snapshotFullName := fmt.Sprintf("/dev/%s/%s", s.vgName, lvname)
 
 	if readonly {
-		output, err = exec.Command("lvchange", "-ay", "-pr", snapshotFullName).CombinedOutput()
+		output, err = s.tryExec("lvchange", "-ay", "-pr", snapshotFullName)
 	} else {
-		output, err = exec.Command("lvchange", "-ay", snapshotFullName).CombinedOutput()
+		output, err = s.tryExec("lvchange", "-ay", snapshotFullName)
 	}
 
 	if err != nil {
@@ -844,7 +896,7 @@ func (s *storageLvm) isLVMContainer(container container) bool {
 }
 
 func (s *storageLvm) renameLV(oldName string, newName string) (string, error) {
-	output, err := exec.Command("lvrename", s.vgName, oldName, newName).CombinedOutput()
+	output, err := s.tryExec("lvrename", s.vgName, oldName, newName)
 	return string(output), err
 }
 
