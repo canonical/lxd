@@ -40,7 +40,7 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 	return nil
 }
 
-func validateRawLxc(rawLxc string) error {
+func lxcValidConfig(rawLxc string) error {
 	for _, line := range strings.Split(rawLxc, "\n") {
 		// Ignore empty lines
 		if len(line) == 0 {
@@ -599,10 +599,6 @@ func (c *containerLXC) initLXC() error {
 
 	// Apply raw.lxc
 	if lxcConfig, ok := c.expandedConfig["raw.lxc"]; ok {
-		if err := validateRawLxc(lxcConfig); err != nil {
-			return err
-		}
-
 		f, err := ioutil.TempFile("", "lxd_config_")
 		if err != nil {
 			return err
@@ -1336,13 +1332,13 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Validate the new config
-	err := validateConfig(args.Config, false)
+	err := containerValidConfig(args.Config, false)
 	if err != nil {
 		return err
 	}
 
 	// Validate the new devices
-	err = validateDevices(args.Devices)
+	err = containerValidDevices(args.Devices)
 	if err != nil {
 		return err
 	}
