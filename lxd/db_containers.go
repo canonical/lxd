@@ -43,8 +43,29 @@ const (
 )
 
 func dbContainerRemove(db *sql.DB, name string) error {
-	_, err := dbExec(db, "DELETE FROM containers WHERE name=?", name)
-	return err
+	id, err := dbContainerId(db, name)
+	if err != nil {
+		return err
+	}
+
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	err = dbContainerConfigClear(tx, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM containers WHERE id=?", id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return txCommit(tx)
 }
 
 func dbContainerName(db *sql.DB, id int) (string, error) {
@@ -122,6 +143,7 @@ func dbContainerCreate(db *sql.DB, args containerArgs) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	ephemInt := 0
 	if args.Ephemeral == true {
 		ephemInt = 1
