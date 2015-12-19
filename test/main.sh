@@ -61,10 +61,7 @@ spawn_lxd() {
   echo "${lxddir}" >> "${TEST_DIR}/daemons"
 
   echo "==> Confirming lxd is responsive"
-  alive=0
-  while [ "${alive}" -eq 0 ]; do
-    [ -e "${lxddir}/unix.socket" ] && LXD_DIR="${lxddir}" lxc finger && alive=1
-  done
+  LXD_DIR="${lxddir}" lxd waitready --timeout=300
 
   echo "==> Binding to network"
   # shellcheck disable=SC2034
@@ -186,7 +183,7 @@ kill_lxd() {
     done
 
     # Kill the daemon
-    kill -9 "${daemon_pid}" 2>/dev/null || true
+    lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
 
     # Cleanup shmounts (needed due to the forceful kill)
     find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
