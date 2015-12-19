@@ -87,6 +87,14 @@ spawn_lxd() {
 }
 
 lxc() {
+  LXC_LOCAL=1
+  lxc_remote "$@"
+  RET=$?
+  unset LXC_LOCAL
+  return ${RET}
+}
+
+lxc_remote() {
   set +x
   injected=0
   cmd=$(which lxc)
@@ -96,7 +104,10 @@ lxc() {
     if [ "${arg}" = "--" ]; then
       injected=1
       cmd="${cmd} ${DEBUG:-}"
+      [ -n "${LXC_LOCAL}" ] && cmd="${cmd} --force-local"
       cmd="${cmd} --"
+    elif [ "${arg}" = "--force-local" ]; then
+      continue
     else
       cmd="${cmd} \"${arg}\""
     fi
