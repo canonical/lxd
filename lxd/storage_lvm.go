@@ -240,7 +240,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 		return err
 	}
 
-	dst := shared.VarPath("containers", fmt.Sprintf("%s.lv", container.Name()))
+	dst := fmt.Sprintf("%s.lv", container.Path())
 	err = os.Symlink(lvpath, dst)
 	if err != nil {
 		return err
