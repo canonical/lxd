@@ -492,11 +492,22 @@ func (s *storageLvm) ContainerRename(
 			if err != nil {
 				return err
 			}
+
+			oldPathParent := filepath.Dir(snap.Path())
+			if ok, _ := shared.PathIsEmpty(oldPathParent); ok {
+				os.Remove(oldPathParent)
+			}
 		}
 	}
 
 	// Create a new symlink
-	newSymPath := fmt.Sprintf("%s.lv", containerPath(newName, false))
+	newSymPath := fmt.Sprintf("%s.lv", containerPath(newContainerName, container.IsSnapshot()))
+
+	err = os.MkdirAll(filepath.Dir(containerPath(newContainerName, container.IsSnapshot())), 0700)
+	if err != nil {
+		return err
+	}
+
 	err = os.Symlink(fmt.Sprintf("/dev/%s/%s", s.vgName, newName), newSymPath)
 	if err != nil {
 		return err
@@ -510,7 +521,7 @@ func (s *storageLvm) ContainerRename(
 	}
 
 	// Rename the directory
-	err = os.Rename(container.Path(), containerPath(newName, false))
+	err = os.Rename(container.Path(), containerPath(newContainerName, container.IsSnapshot()))
 	if err != nil {
 		return err
 	}
