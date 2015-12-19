@@ -156,12 +156,14 @@ test_config_profiles() {
   lxc list user.prop=value | grep foo && bad=1
   if [ "${bad}" -eq 1 ]; then
     echo "property unset failed"
+    false
   fi
 
   bad=0
   lxc config set foo user.prop 2>/dev/null && bad=1
   if [ "${bad}" -eq 1 ]; then
     echo "property set succeded when it shouldn't have"
+    false
   fi
 
   testunixdevs
