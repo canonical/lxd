@@ -262,7 +262,10 @@ func (c *containerLXC) initLXC() error {
 	// Setup architecture
 	personality, err := shared.ArchitecturePersonality(c.architecture)
 	if err != nil {
-		return err
+		personality, err = shared.ArchitecturePersonality(c.daemon.architectures[0])
+		if err != nil {
+			return err
+		}
 	}
 
 	err = lxcSetConfigItem(cc, "lxc.arch", personality)
@@ -1811,12 +1814,16 @@ func (c *containerLXC) Export(w io.Writer) error {
 			arch, _ = shared.ArchitectureName(c.architecture)
 		}
 
+		if arch == "" {
+			arch, err = shared.ArchitectureName(c.daemon.architectures[0])
+			if err != nil {
+				return err
+			}
+		}
+
 		// Fill in the metadata
 		meta := imageMetadata{}
-
-		if arch != "" {
-			meta.Architecture = arch
-		}
+		meta.Architecture = arch
 		meta.CreationDate = time.Now().UTC().Unix()
 
 		data, err := yaml.Marshal(&meta)
@@ -1964,10 +1971,19 @@ func (c *containerLXC) TemplateApply(trigger string) error {
 			return err
 		}
 
+		// Figure out the architecture
+		arch, err := shared.ArchitectureName(c.architecture)
+		if err != nil {
+			arch, err = shared.ArchitectureName(c.daemon.architectures[0])
+			if err != nil {
+				return err
+			}
+		}
+
 		// Generate the metadata
 		containerMeta := make(map[string]string)
 		containerMeta["name"] = c.name
-		containerMeta["architecture"], _ = shared.ArchitectureName(c.architecture)
+		containerMeta["architecture"] = arch
 
 		if c.ephemeral {
 			containerMeta["ephemeral"] = "true"
