@@ -119,12 +119,6 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			}
 		}
 
-		expiry, err := dbImageExpiryGet(d.db)
-		if err != nil || expiry == "" {
-			expiry = "10"
-		}
-		config["images.remote_cache_expiry"] = expiry
-
 		body["config"] = config
 	} else {
 		body["auth"] = "untrusted"
