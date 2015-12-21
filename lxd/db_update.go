@@ -15,6 +15,19 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV19(db *sql.DB) error {
+	stmt := `
+DELETE FROM containers_config WHERE container_id NOT IN (SELECT id FROM containers);
+DELETE FROM containers_devices_config WHERE container_device_id NOT IN (SELECT id FROM containers_devices WHERE container_id IN (SELECT id FROM containers));
+DELETE FROM containers_devices WHERE container_id NOT IN (SELECT id FROM containers);
+DELETE FROM containers_profiles WHERE container_id NOT IN (SELECT id FROM containers);
+DELETE FROM images_aliases WHERE image_id NOT IN (SELECT id FROM images);
+DELETE FROM images_properties WHERE image_id NOT IN (SELECT id FROM images);
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 20)
+	return err
+}
+
 func dbUpdateFromV18(db *sql.DB) error {
 	var id int
 	var value string
@@ -817,6 +830,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 19 {
 		err = dbUpdateFromV18(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 20 {
+		err = dbUpdateFromV19(db)
 		if err != nil {
 			return err
 		}
