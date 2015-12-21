@@ -794,28 +794,37 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	for k, _ := range c.localConfig {
+		// We only care about volatile
 		if !strings.HasPrefix(k, "volatile.") {
 			continue
 		}
 
+		// Confirm it's a key of format volatile.<device>.<key>
 		fields := strings.SplitN(k, ".", 3)
 		if len(fields) != 3 {
 			continue
 		}
 
+		// The only device keys we care about are name and hwaddr
 		if !shared.StringInSlice(fields[2], []string{"name", "hwaddr"}) {
 			continue
 		}
 
+		// Check if the device still exists
 		if shared.StringInSlice(fields[1], netNames) {
-			continue
+			// Don't remove the volatile entry if the device doesn't have the matching field set
+			if c.expandedDevices[fields[1]][fields[2]] == "" {
+				continue
+			}
 		}
 
+		// Remove the volatile key from the DB
 		err := dbContainerConfigRemove(c.daemon.db, c.id, k)
 		if err != nil {
 			return "", err
 		}
 
+		// Remove the volatile key from the in-memory configs
 		delete(c.localConfig, k)
 		delete(c.expandedConfig, k)
 	}
