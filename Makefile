@@ -24,6 +24,12 @@ client:
 	go install -v ./lxc
 	@echo "LXD client built succesfuly"
 
+.PHONY: update
+update:
+	-go get -t -v -d -u ./...
+	go get -t -v -d -u ./...
+	@echo "Dependencies updated"
+
 # This only needs to be done when migrate.proto is actually changed; since we
 # commit the .pb.go in the tree and it's not expected to change very often,
 # it's not a default build step.
