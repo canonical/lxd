@@ -12,6 +12,7 @@ ARCHIVE=lxd-$(VERSION).tar
 
 .PHONY: default
 default:
+	# Must run twice due to go get race
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
 	go install -v ./...
@@ -19,10 +20,18 @@ default:
 
 .PHONY: client
 client:
+	# Must run twice due to go get race
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
 	go install -v ./lxc
 	@echo "LXD client built succesfuly"
+
+.PHONY: update
+update:
+	# Must run twice due to go get race
+	-go get -t -v -d -u ./...
+	go get -t -v -d -u ./...
+	@echo "Dependencies updated"
 
 # This only needs to be done when migrate.proto is actually changed; since we
 # commit the .pb.go in the tree and it's not expected to change very often,
