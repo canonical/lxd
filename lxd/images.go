@@ -208,6 +208,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	if err != nil {
 		return info, err
 	}
+	defer os.Remove(tarfile.Name())
 
 	if err := c.Export(tarfile); err != nil {
 		tarfile.Close()
@@ -234,6 +235,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	} else {
 		compressedPath = tarfile.Name()
 	}
+	defer os.Remove(compressedPath)
 
 	sha256 := sha256.New()
 	tarf, err := os.Open(compressedPath)
@@ -246,6 +248,11 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		return info, err
 	}
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
+
+	_, err = dbImageGet(d.db, info.Fingerprint, false, true)
+	if err == nil {
+		return info, fmt.Errorf("The image already exists: %s", info.Fingerprint)
+	}
 
 	/* rename the the file to the expected name so our caller can use it */
 	finalName := shared.VarPath("images", info.Fingerprint)
