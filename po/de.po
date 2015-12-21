@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2015-12-08 19:00-0500\n"
+"POT-Creation-Date: 2015-12-21 17:33-0500\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -151,7 +151,7 @@ msgstr "Administrator Passwort für %s: "
 msgid "Aliases:"
 msgstr "Aliasse:\n"
 
-#: lxc/exec.go:51
+#: lxc/exec.go:53
 msgid "An environment variable of the form HOME=/home/foo"
 msgstr ""
 
@@ -211,7 +211,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Config parsing error: %s"
 msgstr "YAML Analyse Fehler %v\n"
 
-#: lxc/main.go:33
+#: lxc/main.go:34
 msgid "Connection refused; is LXD running?"
 msgstr ""
 
@@ -228,7 +228,7 @@ msgstr "Abbild mit Fingerabdruck %s importiert\n"
 msgid "Copy aliases from source"
 msgstr "Kopiere Aliasse von der Quelle"
 
-#: lxc/copy.go:24
+#: lxc/copy.go:23
 #, fuzzy
 msgid ""
 "Copy containers within or in between lxd instances.\n"
@@ -307,11 +307,11 @@ msgstr ""
 msgid "EXPIRY DATE"
 msgstr ""
 
-#: lxc/main.go:51
+#: lxc/main.go:52
 msgid "Enables debug mode."
 msgstr "Aktiviert Debug Modus"
 
-#: lxc/main.go:50
+#: lxc/main.go:51
 msgid "Enables verbose mode."
 msgstr "Aktiviert ausführliche Ausgabe"
 
@@ -319,7 +319,7 @@ msgstr "Aktiviert ausführliche Ausgabe"
 msgid "Environment:"
 msgstr ""
 
-#: lxc/copy.go:31 lxc/copy.go:32 lxc/init.go:136 lxc/init.go:137
+#: lxc/copy.go:30 lxc/copy.go:31 lxc/init.go:136 lxc/init.go:137
 #: lxc/launch.go:40 lxc/launch.go:41
 msgid "Ephemeral container"
 msgstr "Flüchtiger Container"
@@ -338,7 +338,8 @@ msgstr ""
 msgid ""
 "Execute the specified command in a container.\n"
 "\n"
-"lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>"
+"lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env "
+"EDITOR=/usr/bin/vim]... <command>"
 msgstr ""
 "Führt den angegebenen Befehl in einem Container aus.\n"
 "\n"
@@ -373,7 +374,7 @@ msgstr ""
 "\n"
 "lxc finger <remote>\n"
 
-#: lxc/main.go:141
+#: lxc/main.go:145
 #, fuzzy
 msgid "For example: 'lxd-images import ubuntu --alias ubuntu'."
 msgstr "Zum Beispiel: 'lxd-images import ubuntu --alias ubuntu'.\n"
@@ -382,11 +383,11 @@ msgstr "Zum Beispiel: 'lxd-images import ubuntu --alias ubuntu'.\n"
 msgid "Force the container to shutdown."
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/main.go:52
+#: lxc/main.go:53
 msgid "Force using the local unix socket."
 msgstr ""
 
-#: lxc/main.go:133
+#: lxc/main.go:137
 #, fuzzy
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Generiere Nutzerzertifikat. Dies kann wenige Minuten dauern...\n"
@@ -403,7 +404,7 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:140
+#: lxc/main.go:144
 #, fuzzy
 msgid ""
 "If this is your first run, you will need to import images using the 'lxd-"
@@ -468,7 +469,7 @@ msgstr "Ungültiges Ziel %s"
 msgid "Ips:"
 msgstr ""
 
-#: lxc/main.go:31
+#: lxc/main.go:32
 msgid "LXD socket not found; is LXD running?"
 msgstr ""
 
@@ -917,13 +918,17 @@ msgstr "Kein Fingerabdruck angegeben."
 msgid "Only https:// is supported for remote image import."
 msgstr ""
 
-#: lxc/help.go:63 lxc/main.go:120
+#: lxc/help.go:63 lxc/main.go:121
 msgid "Options:"
 msgstr ""
 
 #: lxc/image.go:373
 #, c-format
 msgid "Output is in %s"
+msgstr ""
+
+#: lxc/exec.go:54
+msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
 #: lxc/image.go:467 lxc/remote.go:243
@@ -940,7 +945,7 @@ msgstr "Alternatives config Verzeichnis."
 msgid "Path to an alternate server directory."
 msgstr "Alternatives config Verzeichnis."
 
-#: lxc/main.go:35
+#: lxc/main.go:36
 msgid "Permisson denied, are you in the lxd group?"
 msgstr ""
 
@@ -1165,7 +1170,7 @@ msgstr ""
 msgid "Uploaded: %s"
 msgstr ""
 
-#: lxc/main.go:120
+#: lxc/main.go:121
 #, fuzzy, c-format
 msgid "Usage: %s"
 msgstr ""
@@ -1205,7 +1210,7 @@ msgstr ""
 msgid "You must provide an image hash or alias name."
 msgstr ""
 
-#: lxc/main.go:60
+#: lxc/main.go:61
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
 
@@ -1232,7 +1237,7 @@ msgstr ""
 msgid "bad version in profile url"
 msgstr "Falsche Version in Profil URL"
 
-#: lxc/copy.go:80
+#: lxc/copy.go:79
 msgid "can't copy to the same container name"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
@@ -1263,12 +1268,12 @@ msgstr ""
 msgid "error."
 msgstr "Fehler: %v\n"
 
-#: lxc/main.go:21 lxc/main.go:150
+#: lxc/main.go:22 lxc/main.go:154
 #, fuzzy, c-format
 msgid "error: %v"
 msgstr "Fehler: %v\n"
 
-#: lxc/help.go:40 lxc/main.go:114
+#: lxc/help.go:40 lxc/main.go:115
 #, fuzzy, c-format
 msgid "error: unknown command: %s"
 msgstr "Fehler: unbekannter Befehl: %s\n"
@@ -1314,7 +1319,7 @@ msgstr "keine Antwort!"
 msgid "no value found in %q"
 msgstr "kein Wert in %q gefunden\n"
 
-#: lxc/copy.go:102
+#: lxc/copy.go:101
 msgid "not all the profiles from the source exist on the target"
 msgstr "nicht alle Profile der Quelle sind am Ziel vorhanden."
 
@@ -1323,7 +1328,7 @@ msgstr "nicht alle Profile der Quelle sind am Ziel vorhanden."
 msgid "ok (y/n)?"
 msgstr "OK (y/n)? "
 
-#: lxc/main.go:214 lxc/main.go:218
+#: lxc/main.go:230 lxc/main.go:234
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr ""
@@ -1353,11 +1358,11 @@ msgstr "unbekannter entfernter Instanz Name: %q"
 msgid "unknown transport type: %s"
 msgstr "unbekannter entfernter Instanz Name: %q"
 
-#: lxc/exec.go:146
+#: lxc/exec.go:158
 msgid "unreachable return reached"
 msgstr ""
 
-#: lxc/main.go:190
+#: lxc/main.go:194
 msgid "wrong number of subcommand arguments"
 msgstr "falsche Anzahl an Parametern für Unterbefehl"
 
@@ -1365,7 +1370,7 @@ msgstr "falsche Anzahl an Parametern für Unterbefehl"
 msgid "yes"
 msgstr ""
 
-#: lxc/copy.go:40
+#: lxc/copy.go:39
 msgid "you must specify a source container name"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
