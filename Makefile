@@ -12,6 +12,7 @@ ARCHIVE=lxd-$(VERSION).tar
 
 .PHONY: default
 default:
+	# Must run twice due to go get race
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
 	go install -v ./...
@@ -19,6 +20,7 @@ default:
 
 .PHONY: client
 client:
+	# Must run twice due to go get race
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
 	go install -v ./lxc
@@ -26,6 +28,7 @@ client:
 
 .PHONY: update
 update:
+	# Must run twice due to go get race
 	-go get -t -v -d -u ./...
 	go get -t -v -d -u ./...
 	@echo "Dependencies updated"
