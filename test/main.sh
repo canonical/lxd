@@ -61,10 +61,7 @@ spawn_lxd() {
   echo "${lxddir}" >> "${TEST_DIR}/daemons"
 
   echo "==> Confirming lxd is responsive"
-  alive=0
-  while [ "${alive}" -eq 0 ]; do
-    [ -e "${lxddir}/unix.socket" ] && LXD_DIR="${lxddir}" lxc finger && alive=1
-  done
+  LXD_DIR="${lxddir}" lxd waitready --timeout=300
 
   echo "==> Binding to network"
   # shellcheck disable=SC2034
@@ -87,6 +84,14 @@ spawn_lxd() {
 }
 
 lxc() {
+  LXC_LOCAL=1
+  lxc_remote "$@"
+  RET=$?
+  unset LXC_LOCAL
+  return ${RET}
+}
+
+lxc_remote() {
   set +x
   injected=0
   cmd=$(which lxc)
@@ -96,7 +101,10 @@ lxc() {
     if [ "${arg}" = "--" ]; then
       injected=1
       cmd="${cmd} ${DEBUG:-}"
+      [ -n "${LXC_LOCAL}" ] && cmd="${cmd} --force-local"
       cmd="${cmd} --"
+    elif [ "${arg}" = "--force-local" ]; then
+      continue
     else
       cmd="${cmd} \"${arg}\""
     fi
@@ -147,6 +155,14 @@ check_empty() {
   fi
 }
 
+check_empty_table() {
+  if [ -n "$(sqlite3 "${1}" "SELECT * FROM ${2};")" ]; then
+    echo "DB table ${2} is not empty, content:"
+    sqlite3 "${1}" "SELECT * FROM ${2};"
+    false
+  fi
+}
+
 kill_lxd() {
   # LXD_DIR is local here because since $(lxc) is actually a function, it
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
@@ -175,7 +191,7 @@ kill_lxd() {
     done
 
     # Kill the daemon
-    kill -9 "${daemon_pid}" 2>/dev/null || true
+    lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
 
     # Cleanup shmounts (needed due to the forceful kill)
     find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
@@ -194,6 +210,16 @@ kill_lxd() {
   check_empty "${daemon_dir}/security/seccomp/"
   check_empty "${daemon_dir}/shmounts/"
   check_empty "${daemon_dir}/snapshots/"
+
+  echo "==> Checking for leftover DB entries"
+  check_empty_table "${daemon_dir}/lxd.db" "containers"
+  check_empty_table "${daemon_dir}/lxd.db" "containers_config"
+  check_empty_table "${daemon_dir}/lxd.db" "containers_devices"
+  check_empty_table "${daemon_dir}/lxd.db" "containers_devices_config"
+  check_empty_table "${daemon_dir}/lxd.db" "containers_profiles"
+  check_empty_table "${daemon_dir}/lxd.db" "images"
+  check_empty_table "${daemon_dir}/lxd.db" "images_aliases"
+  check_empty_table "${daemon_dir}/lxd.db" "images_properties"
 
   # teardown storage
   "$LXD_BACKEND"_teardown "${daemon_dir}"

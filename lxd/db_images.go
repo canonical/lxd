@@ -105,7 +105,7 @@ func dbImageDelete(db *sql.DB, id int) error {
 	}
 
 	_, _ = tx.Exec("DELETE FROM images_aliases WHERE image_id=?", id)
-	_, _ = tx.Exec("DELETE FROM images_properties WHERE image_id?", id)
+	_, _ = tx.Exec("DELETE FROM images_properties WHERE image_id=?", id)
 	_, _ = tx.Exec("DELETE FROM images WHERE id=?", id)
 
 	if err := txCommit(tx); err != nil {

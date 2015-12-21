@@ -4,7 +4,7 @@ gen_third_cert() {
   [ -f "${LXD_CONF}/client3.crt" ] && return
   mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
   mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
-  lxc list > /dev/null 2>&1
+  lxc_remote list > /dev/null 2>&1
   mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client3.crt"
   mv "${LXD_CONF}/client.key" "${LXD_CONF}/client3.key"
   mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
