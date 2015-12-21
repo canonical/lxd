@@ -59,20 +59,22 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	// Sanity checks
 	if req.Name == "" {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	err := validateConfig(req.Config, true)
+	err := containerValidConfig(req.Config, true)
 	if err != nil {
 		return BadRequest(err)
 	}
 
-	err = validateDevices(req.Devices)
+	err = containerValidDevices(req.Devices)
 	if err != nil {
 		return BadRequest(err)
 	}
 
+	// Update DB entry
 	_, err = dbProfileCreate(d.db, req.Name, req.Config, req.Devices)
 	if err != nil {
 		return InternalError(
@@ -143,18 +145,18 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err := validateConfig(req.Config, true)
+	// Sanity checks
+	err := containerValidConfig(req.Config, true)
 	if err != nil {
 		return BadRequest(err)
 	}
 
-	err = validateDevices(req.Devices)
+	err = containerValidDevices(req.Devices)
 	if err != nil {
 		return BadRequest(err)
 	}
 
-	clist := getRunningContainersWithProfile(d, name)
-
+	// Update the database
 	id, err := dbProfileID(d.db, name)
 	if err != nil {
 		return InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
@@ -189,6 +191,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update all the containers using the profile. Must be done after txCommit due to DB lock.
+	clist := getRunningContainersWithProfile(d, name)
 	for _, c := range clist {
 		if !c.IsRunning() {
 			continue

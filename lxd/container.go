@@ -23,7 +23,7 @@ func containerPath(name string, isSnapshot bool) string {
 	return shared.VarPath("containers", name)
 }
 
-func validContainerName(name string) error {
+func containerValidName(name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		return fmt.Errorf(
 			"The character '%s' is reserved for snapshots.",
@@ -32,6 +32,213 @@ func validContainerName(name string) error {
 
 	if !shared.ValidHostname(name) {
 		return fmt.Errorf("Container name isn't a valid hostname.")
+	}
+
+	return nil
+}
+
+func containerValidConfigKey(k string) bool {
+	switch k {
+	case "boot.autostart":
+		return true
+	case "boot.autostart.delay":
+		return true
+	case "boot.autostart.priority":
+		return true
+	case "limits.cpu":
+		return true
+	case "limits.cpu.allowance":
+		return true
+	case "limits.cpu.priority":
+		return true
+	case "limits.memory":
+		return true
+	case "limits.memory.enforce":
+		return true
+	case "limits.memory.swap":
+		return true
+	case "limits.memory.swap.priority":
+		return true
+	case "security.privileged":
+		return true
+	case "security.nesting":
+		return true
+	case "raw.apparmor":
+		return true
+	case "raw.lxc":
+		return true
+	case "volatile.base_image":
+		return true
+	case "volatile.last_state.idmap":
+		return true
+	case "volatile.last_state.power":
+		return true
+	}
+
+	if strings.HasPrefix(k, "volatile.") {
+		if strings.HasSuffix(k, ".hwaddr") {
+			return true
+		}
+
+		if strings.HasSuffix(k, ".name") {
+			return true
+		}
+	}
+
+	if strings.HasPrefix(k, "environment.") {
+		return true
+	}
+
+	if strings.HasPrefix(k, "user.") {
+		return true
+	}
+
+	return false
+}
+
+func containerValidDeviceConfigKey(t, k string) bool {
+	if k == "type" {
+		return true
+	}
+
+	switch t {
+	case "unix-char":
+		switch k {
+		case "path":
+			return true
+		case "major":
+			return true
+		case "minor":
+			return true
+		case "uid":
+			return true
+		case "gid":
+			return true
+		case "mode":
+			return true
+		default:
+			return false
+		}
+	case "unix-block":
+		switch k {
+		case "path":
+			return true
+		case "major":
+			return true
+		case "minor":
+			return true
+		case "uid":
+			return true
+		case "gid":
+			return true
+		case "mode":
+			return true
+		default:
+			return false
+		}
+	case "nic":
+		switch k {
+		case "parent":
+			return true
+		case "name":
+			return true
+		case "hwaddr":
+			return true
+		case "mtu":
+			return true
+		case "nictype":
+			return true
+		default:
+			return false
+		}
+	case "disk":
+		switch k {
+		case "path":
+			return true
+		case "source":
+			return true
+		case "readonly":
+			return true
+		case "optional":
+			return true
+		default:
+			return false
+		}
+	case "none":
+		return false
+	default:
+		return false
+	}
+}
+
+func containerValidConfig(config map[string]string, profile bool) error {
+	if config == nil {
+		return nil
+	}
+
+	for k, _ := range config {
+		if profile && strings.HasPrefix(k, "volatile.") {
+			return fmt.Errorf("Volatile keys can only be set on containers.")
+		}
+
+		if k == "raw.lxc" {
+			err := lxcValidConfig(config["raw.lxc"])
+			if err != nil {
+				return err
+			}
+		}
+
+		if !containerValidConfigKey(k) {
+			return fmt.Errorf("Bad key: %s", k)
+		}
+	}
+
+	return nil
+}
+
+func containerValidDevices(devices shared.Devices) error {
+	// Empty device list
+	if devices == nil {
+		return nil
+	}
+
+	// Check each device individually
+	for _, m := range devices {
+		for k, _ := range m {
+			if !containerValidDeviceConfigKey(m["type"], k) {
+				return fmt.Errorf("Invalid device configuration key for %s: %s", m["type"], k)
+			}
+		}
+
+		if m["type"] == "nic" {
+			if m["nictype"] == "" {
+				return fmt.Errorf("Missing nic type")
+			}
+
+			if !shared.StringInSlice(m["nictype"], []string{"bridged", "physical", "p2p", "macvlan"}) {
+				return fmt.Errorf("Bad nic type: %s", m["nictype"])
+			}
+
+			if shared.StringInSlice(m["nictype"], []string{"bridged", "physical", "macvlan"}) && m["parent"] == "" {
+				return fmt.Errorf("Missing parent for %s type nic.", m["nictype"])
+			}
+		} else if m["type"] == "disk" {
+			if m["path"] == "" {
+				return fmt.Errorf("Disk entry is missing the required \"path\" property.")
+			}
+
+			if m["source"] == "" && m["path"] != "/" {
+				return fmt.Errorf("Disk entry is missing the required \"source\" property.")
+			}
+		} else if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
+			if m["path"] == "" {
+				return fmt.Errorf("Unix device entry is missing the required \"path\" property.")
+			}
+		} else if m["type"] == "none" {
+			continue
+		} else {
+			return fmt.Errorf("Invalid device type: %s", m["type"])
+		}
 	}
 
 	return nil
@@ -257,18 +464,33 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 		args.Architecture = d.architectures[0]
 	}
 
-	// Sanity checks
+	// Validate container name
 	if args.Ctype == cTypeRegular {
-		if err := validContainerName(args.Name); err != nil {
+		err := containerValidName(args.Name)
+		if err != nil {
 			return nil, err
 		}
 	}
 
-	_, err := shared.ArchitectureName(args.Architecture)
+	// Validate container config
+	err := containerValidConfig(args.Config, false)
 	if err != nil {
 		return nil, err
 	}
 
+	// Validate container devices
+	err = containerValidDevices(args.Devices)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate architecture
+	_, err = shared.ArchitectureName(args.Architecture)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate profiles
 	profiles, err := dbProfiles(d.db)
 	if err != nil {
 		return nil, err
