@@ -6,10 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/gorilla/mux"
@@ -24,32 +22,22 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	targetPath := r.FormValue("path")
-	if targetPath == "" {
+	path := r.FormValue("path")
+	if path == "" {
 		return BadRequest(fmt.Errorf("missing path argument"))
 	}
 
-	if !c.IsRunning() {
-		return BadRequest(fmt.Errorf("container is not running"))
-	}
-
-	initPid := c.InitPID()
-
 	switch r.Method {
 	case "GET":
-		return containerFileGet(d, initPid, r, targetPath)
+		return containerFileGet(c, path, r)
 	case "POST":
-		idmapset, err := c.LastIdmapSet()
-		if err != nil {
-			return InternalError(err)
-		}
-		return containerFilePut(d, initPid, r, targetPath, idmapset)
+		return containerFilePut(c, path, r)
 	default:
 		return NotFound
 	}
 }
 
-func containerFileGet(d *Daemon, pid int, r *http.Request, path string) Response {
+func containerFileGet(c container, path string, r *http.Request) Response {
 	/*
 	 * Copy out of the ns to a temporary file, and then use that to serve
 	 * the request from. This prevents us from having to worry about stuff
@@ -63,17 +51,13 @@ func containerFileGet(d *Daemon, pid int, r *http.Request, path string) Response
 	}
 	defer temp.Close()
 
-	cmd := exec.Command(
-		d.execPath,
-		"forkgetfile",
-		temp.Name(),
-		fmt.Sprintf("%d", pid),
-		path,
-	)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return InternalError(fmt.Errorf(strings.TrimRight(string(out), "\n")))
+	// Pul the file from the container
+	err = c.FilePull(path, temp.Name())
+	if err != nil {
+		return InternalError(err)
 	}
 
+	// Get file attributes
 	fi, err := temp.Stat()
 	if err != nil {
 		return SmartError(err)
@@ -91,6 +75,7 @@ func containerFileGet(d *Daemon, pid int, r *http.Request, path string) Response
 		"X-LXD-mode": fmt.Sprintf("%04o", fi.Mode()&os.ModePerm),
 	}
 
+	// Make a file response struct
 	files := make([]fileResponseEntry, 1)
 	files[0].identifier = filepath.Base(path)
 	files[0].path = temp.Name()
@@ -99,13 +84,11 @@ func containerFileGet(d *Daemon, pid int, r *http.Request, path string) Response
 	return FileResponse(r, files, headers, true)
 }
 
-func containerFilePut(d *Daemon, pid int, r *http.Request, p string, idmapset *shared.IdmapSet) Response {
+func containerFilePut(c container, path string, r *http.Request) Response {
+	// Extract file ownership and mode from headers
 	uid, gid, mode := shared.ParseLXDFileHeaders(r.Header)
 
-	if idmapset != nil {
-		uid, gid = idmapset.ShiftIntoNs(uid, gid)
-	}
-
+	// Write file content to a tempfile
 	temp, err := ioutil.TempFile("", "lxd_forkputfile_")
 	if err != nil {
 		return InternalError(err)
@@ -120,19 +103,10 @@ func containerFilePut(d *Daemon, pid int, r *http.Request, p string, idmapset *s
 		return InternalError(err)
 	}
 
-	cmd := exec.Command(
-		d.execPath,
-		"forkputfile",
-		temp.Name(),
-		fmt.Sprintf("%d", pid),
-		p,
-		fmt.Sprintf("%d", uid),
-		fmt.Sprintf("%d", gid),
-		fmt.Sprintf("%d", mode&os.ModePerm),
-	)
-	out, err := cmd.CombinedOutput()
+	// Transfer the file into the container
+	err = c.FilePush(temp.Name(), path, uid, gid, mode)
 	if err != nil {
-		return InternalError(fmt.Errorf(strings.TrimRight(string(out), "\n")))
+		return InternalError(err)
 	}
 
 	return EmptySyncResponse
