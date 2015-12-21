@@ -111,7 +111,7 @@ int dosetns(int pid, char *nstype) {
 	return 0;
 }
 
-int manip_file_in_ns(char *host, int pid, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode) {
+int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode) {
 	int host_fd, container_fd;
 	int ret = -1;
 	int container_open_flags;
@@ -126,8 +126,16 @@ int manip_file_in_ns(char *host, int pid, char *container, bool is_put, uid_t ui
 	if (is_put)
 		container_open_flags |= O_CREAT;
 
-	if (dosetns(pid, "mnt") < 0)
-		goto close_host;
+	if (pid > 0) {
+		if (dosetns(pid, "mnt") < 0)
+			goto close_host;
+	} else {
+		if (chroot(rootfs) < 0)
+			goto close_host;
+
+		if (chdir("/") < 0)
+			goto close_host;
+	}
 
 	container_fd = open(container, container_open_flags, mode);
 	if (container_fd < 0) {
@@ -295,14 +303,17 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 	uid_t uid = 0;
 	gid_t gid = 0;
 	mode_t mode = 0;
-	char *command = cur, *source = NULL, *target = NULL;
+	char *command = cur, *rootfs = NULL, *source = NULL, *target = NULL;
 	pid_t pid;
 
 	ADVANCE_ARG_REQUIRED();
-	source = cur;
+	rootfs = cur;
 
 	ADVANCE_ARG_REQUIRED();
 	pid = atoi(cur);
+
+	ADVANCE_ARG_REQUIRED();
+	source = cur;
 
 	ADVANCE_ARG_REQUIRED();
 	target = cur;
@@ -326,7 +337,7 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 	printf("gid: %d\n", gid);
 	printf("mode: %d\n", mode);
 
-	_exit(manip_file_in_ns(source, pid, target, is_put, uid, gid, mode));
+	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, uid, gid, mode));
 }
 
 __attribute__((constructor)) void init(void) {
