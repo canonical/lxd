@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2015-12-08 19:00-0500\n"
+"POT-Creation-Date: 2015-12-21 17:33-0500\n"
 "PO-Revision-Date: 2015-03-13 23:44+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -108,7 +108,7 @@ msgstr "%s の管理者パスワード: "
 msgid "Aliases:"
 msgstr "エイリアス:\n"
 
-#: lxc/exec.go:51
+#: lxc/exec.go:53
 msgid "An environment variable of the form HOME=/home/foo"
 msgstr ""
 
@@ -164,7 +164,7 @@ msgstr ""
 msgid "Config parsing error: %s"
 msgstr "エラー: %v\n"
 
-#: lxc/main.go:33
+#: lxc/main.go:34
 msgid "Connection refused; is LXD running?"
 msgstr ""
 
@@ -182,7 +182,7 @@ msgstr "証明書のフィンガープリント: % x\n"
 msgid "Copy aliases from source"
 msgstr ""
 
-#: lxc/copy.go:24
+#: lxc/copy.go:23
 msgid ""
 "Copy containers within or in between lxd instances.\n"
 "\n"
@@ -249,11 +249,11 @@ msgstr ""
 msgid "EXPIRY DATE"
 msgstr ""
 
-#: lxc/main.go:51
+#: lxc/main.go:52
 msgid "Enables debug mode."
 msgstr "デバッグモードを有効にします。"
 
-#: lxc/main.go:50
+#: lxc/main.go:51
 msgid "Enables verbose mode."
 msgstr "詳細モードを有効にします。"
 
@@ -261,7 +261,7 @@ msgstr "詳細モードを有効にします。"
 msgid "Environment:"
 msgstr ""
 
-#: lxc/copy.go:31 lxc/copy.go:32 lxc/init.go:136 lxc/init.go:137
+#: lxc/copy.go:30 lxc/copy.go:31 lxc/init.go:136 lxc/init.go:137
 #: lxc/launch.go:40 lxc/launch.go:41
 msgid "Ephemeral container"
 msgstr ""
@@ -280,7 +280,8 @@ msgstr ""
 msgid ""
 "Execute the specified command in a container.\n"
 "\n"
-"lxc exec [remote:]container [--env EDITOR=/usr/bin/vim]... <command>"
+"lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env "
+"EDITOR=/usr/bin/vim]... <command>"
 msgstr "コンテナで指定したコマンドを実行します。\n"
 
 #: lxc/image.go:235
@@ -309,7 +310,7 @@ msgid ""
 "lxc finger <remote>"
 msgstr "LXDインスタンスが稼働中かを確認します。\n"
 
-#: lxc/main.go:141
+#: lxc/main.go:145
 msgid "For example: 'lxd-images import ubuntu --alias ubuntu'."
 msgstr ""
 
@@ -317,11 +318,11 @@ msgstr ""
 msgid "Force the container to shutdown."
 msgstr "コンテナを強制シャットダウンします。"
 
-#: lxc/main.go:52
+#: lxc/main.go:53
 msgid "Force using the local unix socket."
 msgstr ""
 
-#: lxc/main.go:133
+#: lxc/main.go:137
 #, fuzzy
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります…\n"
@@ -338,7 +339,7 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:140
+#: lxc/main.go:144
 msgid ""
 "If this is your first run, you will need to import images using the 'lxd-"
 "images' script."
@@ -389,7 +390,7 @@ msgstr "不正な送り先 %s"
 msgid "Ips:"
 msgstr ""
 
-#: lxc/main.go:31
+#: lxc/main.go:32
 msgid "LXD socket not found; is LXD running?"
 msgstr ""
 
@@ -685,7 +686,7 @@ msgstr "フィンガープリントが指定されていません。"
 msgid "Only https:// is supported for remote image import."
 msgstr ""
 
-#: lxc/help.go:63 lxc/main.go:120
+#: lxc/help.go:63 lxc/main.go:121
 #, fuzzy
 msgid "Options:"
 msgstr "操作 %s"
@@ -693,6 +694,10 @@ msgstr "操作 %s"
 #: lxc/image.go:373
 #, c-format
 msgid "Output is in %s"
+msgstr ""
+
+#: lxc/exec.go:54
+msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
 #: lxc/image.go:467 lxc/remote.go:243
@@ -709,7 +714,7 @@ msgstr "別の設定ディレクトリ"
 msgid "Path to an alternate server directory."
 msgstr "別の設定ディレクトリ"
 
-#: lxc/main.go:35
+#: lxc/main.go:36
 msgid "Permisson denied, are you in the lxd group?"
 msgstr ""
 
@@ -919,7 +924,7 @@ msgstr ""
 msgid "Uploaded: %s"
 msgstr ""
 
-#: lxc/main.go:120
+#: lxc/main.go:121
 #, fuzzy, c-format
 msgid "Usage: %s"
 msgstr ""
@@ -958,7 +963,7 @@ msgstr ""
 msgid "You must provide an image hash or alias name."
 msgstr ""
 
-#: lxc/main.go:60
+#: lxc/main.go:61
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
 
@@ -986,7 +991,7 @@ msgstr "アクションからの結果タイプが不正！"
 msgid "bad version in profile url"
 msgstr "プロファイルURL内のバージョンが不正"
 
-#: lxc/copy.go:80
+#: lxc/copy.go:79
 msgid "can't copy to the same container name"
 msgstr ""
 
@@ -1018,12 +1023,12 @@ msgstr ""
 msgid "error."
 msgstr "エラー: %v\n"
 
-#: lxc/main.go:21 lxc/main.go:150
+#: lxc/main.go:22 lxc/main.go:154
 #, fuzzy, c-format
 msgid "error: %v"
 msgstr "エラー: %v\n"
 
-#: lxc/help.go:40 lxc/main.go:114
+#: lxc/help.go:40 lxc/main.go:115
 #, fuzzy, c-format
 msgid "error: unknown command: %s"
 msgstr "エラー: 未知のコマンド: %s\n"
@@ -1069,7 +1074,7 @@ msgstr "応答がありません！"
 msgid "no value found in %q"
 msgstr ""
 
-#: lxc/copy.go:102
+#: lxc/copy.go:101
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
@@ -1078,7 +1083,7 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
-#: lxc/main.go:214 lxc/main.go:218
+#: lxc/main.go:230 lxc/main.go:234
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr ""
@@ -1108,11 +1113,11 @@ msgstr "未知のリモート名: %q"
 msgid "unknown transport type: %s"
 msgstr "未知のリモート名: %q"
 
-#: lxc/exec.go:146
+#: lxc/exec.go:158
 msgid "unreachable return reached"
 msgstr "到達しないはずのreturnに到達しました"
 
-#: lxc/main.go:190
+#: lxc/main.go:194
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
@@ -1120,7 +1125,7 @@ msgstr "サブコマンドの引数の数が正しくありません"
 msgid "yes"
 msgstr ""
 
-#: lxc/copy.go:40
+#: lxc/copy.go:39
 msgid "you must specify a source container name"
 msgstr ""
 

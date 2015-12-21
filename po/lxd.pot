@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-12-09 02:00-0500\n"
+        "POT-Creation-Date: 2015-12-21 17:33-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,7 +158,7 @@ msgstr  ""
 msgid   "Config parsing error: %s"
 msgstr  ""
 
-#: lxc/main.go:33
+#: lxc/main.go:34
 msgid   "Connection refused; is LXD running?"
 msgstr  ""
 
@@ -175,7 +175,7 @@ msgstr  ""
 msgid   "Copy aliases from source"
 msgstr  ""
 
-#: lxc/copy.go:24
+#: lxc/copy.go:23
 msgid   "Copy containers within or in between lxd instances.\n"
         "\n"
         "lxc copy [remote:]<source container> [remote:]<destination container> [--ephemeral|e]"
@@ -235,11 +235,11 @@ msgstr  ""
 msgid   "EXPIRY DATE"
 msgstr  ""
 
-#: lxc/main.go:51
+#: lxc/main.go:52
 msgid   "Enables debug mode."
 msgstr  ""
 
-#: lxc/main.go:50
+#: lxc/main.go:51
 msgid   "Enables verbose mode."
 msgstr  ""
 
@@ -247,7 +247,7 @@ msgstr  ""
 msgid   "Environment:"
 msgstr  ""
 
-#: lxc/copy.go:31 lxc/copy.go:32 lxc/init.go:136 lxc/init.go:137 lxc/launch.go:40 lxc/launch.go:41
+#: lxc/copy.go:30 lxc/copy.go:31 lxc/init.go:136 lxc/init.go:137 lxc/launch.go:40 lxc/launch.go:41
 msgid   "Ephemeral container"
 msgstr  ""
 
@@ -290,7 +290,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>"
 msgstr  ""
 
-#: lxc/main.go:141
+#: lxc/main.go:145
 msgid   "For example: 'lxd-images import ubuntu --alias ubuntu'."
 msgstr  ""
 
@@ -298,11 +298,11 @@ msgstr  ""
 msgid   "Force the container to shutdown."
 msgstr  ""
 
-#: lxc/main.go:52
+#: lxc/main.go:53
 msgid   "Force using the local unix socket."
 msgstr  ""
 
-#: lxc/main.go:133
+#: lxc/main.go:137
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
@@ -318,7 +318,7 @@ msgstr  ""
 msgid   "ISSUE DATE"
 msgstr  ""
 
-#: lxc/main.go:140
+#: lxc/main.go:144
 msgid   "If this is your first run, you will need to import images using the 'lxd-images' script."
 msgstr  ""
 
@@ -364,7 +364,7 @@ msgstr  ""
 msgid   "Ips:"
 msgstr  ""
 
-#: lxc/main.go:31
+#: lxc/main.go:32
 msgid   "LXD socket not found; is LXD running?"
 msgstr  ""
 
@@ -600,7 +600,7 @@ msgstr  ""
 msgid   "Only https:// is supported for remote image import."
 msgstr  ""
 
-#: lxc/help.go:63 lxc/main.go:120
+#: lxc/help.go:63 lxc/main.go:121
 msgid   "Options:"
 msgstr  ""
 
@@ -625,7 +625,7 @@ msgstr  ""
 msgid   "Path to an alternate server directory."
 msgstr  ""
 
-#: lxc/main.go:35
+#: lxc/main.go:36
 msgid   "Permisson denied, are you in the lxd group?"
 msgstr  ""
 
@@ -824,7 +824,7 @@ msgstr  ""
 msgid   "Uploaded: %s"
 msgstr  ""
 
-#: lxc/main.go:120
+#: lxc/main.go:121
 #, c-format
 msgid   "Usage: %s"
 msgstr  ""
@@ -853,7 +853,7 @@ msgstr  ""
 msgid   "You must provide an image hash or alias name."
 msgstr  ""
 
-#: lxc/main.go:60
+#: lxc/main.go:61
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
@@ -879,7 +879,7 @@ msgstr  ""
 msgid   "bad version in profile url"
 msgstr  ""
 
-#: lxc/copy.go:80
+#: lxc/copy.go:79
 msgid   "can't copy to the same container name"
 msgstr  ""
 
@@ -908,12 +908,12 @@ msgstr  ""
 msgid   "error."
 msgstr  ""
 
-#: lxc/main.go:21 lxc/main.go:150
+#: lxc/main.go:22 lxc/main.go:154
 #, c-format
 msgid   "error: %v"
 msgstr  ""
 
-#: lxc/help.go:40 lxc/main.go:114
+#: lxc/help.go:40 lxc/main.go:115
 #, c-format
 msgid   "error: unknown command: %s"
 msgstr  ""
@@ -959,7 +959,7 @@ msgstr  ""
 msgid   "no value found in %q"
 msgstr  ""
 
-#: lxc/copy.go:102
+#: lxc/copy.go:101
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
@@ -967,7 +967,7 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/main.go:214 lxc/main.go:218
+#: lxc/main.go:230 lxc/main.go:234
 #, c-format
 msgid   "processing aliases failed %s\n"
 msgstr  ""
@@ -1001,7 +1001,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:190
+#: lxc/main.go:194
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
@@ -1009,7 +1009,7 @@ msgstr  ""
 msgid   "yes"
 msgstr  ""
 
-#: lxc/copy.go:40
+#: lxc/copy.go:39
 msgid   "you must specify a source container name"
 msgstr  ""
 
