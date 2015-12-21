@@ -808,7 +808,9 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 
 		if shared.StringInSlice(fields[1], netNames) {
-			continue
+			if c.expandedDevices[fields[1]][fields[2]] == "" {
+				continue
+			}
 		}
 
 		err := dbContainerConfigRemove(c.daemon.db, c.id, k)
