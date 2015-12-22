@@ -11,7 +11,15 @@ import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/gnuflag"
 )
+
+type Column struct {
+	Name string
+	Data columnData
+}
+
+type columnData func(shared.ContainerInfo) string
 
 type ByName [][]string
 
@@ -45,7 +53,7 @@ func (c *listCmd) usage() string {
 	return i18n.G(
 		`Lists the available resources.
 
-lxc list [resource] [filters]
+lxc list [resource] [filters] -c [columns]
 
 The filters are:
 * A single keyword like "web" which will list any container with "web" in its name.
@@ -53,10 +61,23 @@ The filters are:
 * "user.blah=abc" will list all containers with the "blah" user property set to "abc"
 * "u.blah=abc" will do the same
 * "security.privileged=1" will list all privileged containers
-* "s.privileged=1" will do the same`)
+* "s.privileged=1" will do the same
+
+The columns are:
+* n - name
+* s - state
+* 4 - IP4
+* 6 - IP6
+* e - ephemeral
+* S - snapshots
+* p - pid of container init process`)
 }
 
-func (c *listCmd) flags() {}
+var chosenColumnRunes string
+
+func (c *listCmd) flags() {
+	gnuflag.StringVar(&chosenColumnRunes, "c", "ns46eS", i18n.G("Columns"))
+}
 
 // This seems a little excessive.
 func dotPrefixMatch(short string, full string) bool {
@@ -115,61 +136,28 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 	return true
 }
 
-func listContainers(cinfos []shared.ContainerInfo, filters []string, listsnaps bool) error {
+func listContainers(cinfos []shared.ContainerInfo, filters []string, columns []Column, listsnaps bool) error {
+	headers := []string{}
+	for _, column := range columns {
+		headers = append(headers, column.Name)
+	}
+
 	data := [][]string{}
-
 	for _, cinfo := range cinfos {
-		cstate := cinfo.State
-		d := []string{cstate.Name, strings.ToUpper(cstate.Status.Status)}
-
-		if !shouldShow(filters, &cstate) {
+		if !shouldShow(filters, &cinfo.State) {
 			continue
 		}
-
-		if cstate.Status.StatusCode == shared.Running || cstate.Status.StatusCode == shared.Frozen {
-			ipv4s := []string{}
-			ipv6s := []string{}
-			for _, ip := range cstate.Status.Ips {
-				if ip.Interface == "lo" {
-					continue
-				}
-
-				if ip.Protocol == "IPV6" {
-					ipv6s = append(ipv6s, fmt.Sprintf("%s (%s)", ip.Address, ip.Interface))
-				} else {
-					ipv4s = append(ipv4s, fmt.Sprintf("%s (%s)", ip.Address, ip.Interface))
-				}
-			}
-			ipv4 := strings.Join(ipv4s, "\n")
-			ipv6 := strings.Join(ipv6s, "\n")
-			d = append(d, ipv4)
-			d = append(d, ipv6)
-		} else {
-			d = append(d, "")
-			d = append(d, "")
+		d := []string{}
+		for _, column := range columns {
+			d = append(d, column.Data(cinfo))
 		}
-		if cstate.Ephemeral {
-			d = append(d, i18n.G("YES"))
-		} else {
-			d = append(d, i18n.G("NO"))
-		}
-		// List snapshots
-		csnaps := cinfo.Snaps
-		d = append(d, fmt.Sprintf("%d", len(csnaps)))
-
 		data = append(data, d)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 	table.SetRowLine(true)
-	table.SetHeader([]string{
-		i18n.G("NAME"),
-		i18n.G("STATE"),
-		i18n.G("IPV4"),
-		i18n.G("IPV6"),
-		i18n.G("EPHEMERAL"),
-		i18n.G("SNAPSHOTS")})
+	table.SetHeader(headers)
 	sort.Sort(ByName(data))
 	table.AppendBulk(data)
 	table.Render()
@@ -230,5 +218,88 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		}
 	}
 
-	return listContainers(cts, filters, len(cts) == 1)
+	columns_map := map[rune]Column{
+		'n': Column{i18n.G("NAME"), nameColumnData},
+		's': Column{i18n.G("STATE"), statusColumnData},
+		'4': Column{i18n.G("IPV4"), IP4ColumnData},
+		'6': Column{i18n.G("IPV6"), IP6ColumnData},
+		'e': Column{i18n.G("EPHEMERAL"), isEphemeralColumnData},
+		'S': Column{i18n.G("SNAPSHOTS"), numberSnapshotsColumnData},
+		'p': Column{i18n.G("PID"), PIDColumnData},
+	}
+
+	columns := []Column{}
+	for _, columnRune := range chosenColumnRunes {
+		if column, ok := columns_map[columnRune]; ok {
+			columns = append(columns, column)
+		} else {
+			return fmt.Errorf("%s does contain invalid column characters\n", chosenColumnRunes)
+		}
+	}
+
+	return listContainers(cts, filters, columns, len(cts) == 1)
+}
+
+func nameColumnData(cinfo shared.ContainerInfo) string {
+	return cinfo.State.Name
+}
+
+func statusColumnData(cinfo shared.ContainerInfo) string {
+	return strings.ToUpper(cinfo.State.Status.Status)
+}
+
+func IP4ColumnData(cinfo shared.ContainerInfo) string {
+	if cinfo.State.Status.StatusCode == shared.Running || cinfo.State.Status.StatusCode == shared.Frozen {
+		ipv4s := []string{}
+		for _, ip := range cinfo.State.Status.Ips {
+			if ip.Interface == "lo" {
+				continue
+			}
+
+			if ip.Protocol == "IPV4" {
+				ipv4s = append(ipv4s, fmt.Sprintf("%s (%s)", ip.Address, ip.Interface))
+			}
+		}
+		return strings.Join(ipv4s, "\n")
+	} else {
+		return ""
+	}
+}
+
+func IP6ColumnData(cinfo shared.ContainerInfo) string {
+	if cinfo.State.Status.StatusCode == shared.Running || cinfo.State.Status.StatusCode == shared.Frozen {
+		ipv6s := []string{}
+		for _, ip := range cinfo.State.Status.Ips {
+			if ip.Interface == "lo" {
+				continue
+			}
+
+			if ip.Protocol == "IPV6" {
+				ipv6s = append(ipv6s, fmt.Sprintf("%s (%s)", ip.Address, ip.Interface))
+			}
+		}
+		return strings.Join(ipv6s, "\n")
+	} else {
+		return ""
+	}
+}
+
+func isEphemeralColumnData(cinfo shared.ContainerInfo) string {
+	if cinfo.State.Ephemeral {
+		return i18n.G("YES")
+	} else {
+		return i18n.G("NO")
+	}
+}
+
+func numberSnapshotsColumnData(cinfo shared.ContainerInfo) string {
+	return fmt.Sprintf("%d", len(cinfo.Snaps))
+}
+
+func PIDColumnData(cinfo shared.ContainerInfo) string {
+	if cinfo.State.Status.Init != 0 {
+		return fmt.Sprintf("%d", cinfo.State.Status.Init)
+	} else {
+		return ""
+	}
 }
