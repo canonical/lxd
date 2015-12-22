@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2015-12-21 17:33-0500\n"
+        "POT-Creation-Date: 2016-01-02 12:17+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -116,7 +116,7 @@ msgstr  ""
 msgid   "Available commands:"
 msgstr  ""
 
-#: client.go:862
+#: client.go:858
 #, c-format
 msgid   "Bad image property: %s"
 msgstr  ""
@@ -125,7 +125,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: client.go:1764
+#: client.go:1766
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -133,7 +133,7 @@ msgstr  ""
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
-#: client.go:986
+#: client.go:988
 #, c-format
 msgid   "Certificate fingerprint: %x"
 msgstr  ""
@@ -147,6 +147,10 @@ msgstr  ""
 
 #: lxc/remote.go:179
 msgid   "Client certificate stored at server: "
+msgstr  ""
+
+#: lxc/list.go:79
+msgid   "Columns"
 msgstr  ""
 
 #: lxc/init.go:132 lxc/init.go:133 lxc/launch.go:36 lxc/launch.go:37
@@ -181,7 +185,7 @@ msgid   "Copy containers within or in between lxd instances.\n"
         "lxc copy [remote:]<source container> [remote:]<destination container> [--ephemeral|e]"
 msgstr  ""
 
-#: client.go:1002
+#: client.go:1004
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -227,7 +231,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:171
+#: lxc/list.go:226
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -251,7 +255,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:600 client.go:610 client.go:778 client.go:895 client.go:2002
+#: client.go:596 client.go:606 client.go:774 client.go:891 client.go:2004
 #, c-format
 msgid   "Error adding alias %s"
 msgstr  ""
@@ -306,11 +310,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:169
+#: lxc/list.go:224
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:170
+#: lxc/list.go:225
 msgid   "IPV6"
 msgstr  ""
 
@@ -390,10 +394,10 @@ msgid   "List information on containers.\n"
         "lxc info [<remote>:]container [--show-log]"
 msgstr  ""
 
-#: lxc/list.go:45
+#: lxc/list.go:53
 msgid   "Lists the available resources.\n"
         "\n"
-        "lxc list [resource] [filters]\n"
+        "lxc list [resource] [filters] -c [columns]\n"
         "\n"
         "The filters are:\n"
         "* A single keyword like \"web\" which will list any container with \"web\" in its name.\n"
@@ -401,7 +405,16 @@ msgid   "Lists the available resources.\n"
         "* \"user.blah=abc\" will list all containers with the \"blah\" user property set to \"abc\"\n"
         "* \"u.blah=abc\" will do the same\n"
         "* \"security.privileged=1\" will list all privileged containers\n"
-        "* \"s.privileged=1\" will do the same"
+        "* \"s.privileged=1\" will do the same\n"
+        "\n"
+        "The columns are:\n"
+        "* n - name\n"
+        "* s - state\n"
+        "* 4 - IP4\n"
+        "* 6 - IP6\n"
+        "* e - ephemeral\n"
+        "* S - snapshots\n"
+        "* p - pid of container init process"
 msgstr  ""
 
 #: lxc/info.go:124
@@ -535,7 +548,7 @@ msgid   "Manipulate container images.\n"
         "lxc image alias list store2:"
 msgstr  ""
 
-#: client.go:765
+#: client.go:761
 msgid   "Missing operation metadata"
 msgstr  ""
 
@@ -567,11 +580,11 @@ msgid   "Move containers within or in between lxd instances.\n"
         "lxc move [remote:]<source container> [remote:]<destination container>"
 msgstr  ""
 
-#: lxc/list.go:167 lxc/remote.go:241
+#: lxc/list.go:222 lxc/remote.go:241
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/list.go:154 lxc/remote.go:235
+#: lxc/list.go:291 lxc/remote.go:235
 msgid   "NO"
 msgstr  ""
 
@@ -584,7 +597,7 @@ msgstr  ""
 msgid   "New alias to define at target"
 msgstr  ""
 
-#: client.go:973
+#: client.go:974
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -611,6 +624,10 @@ msgstr  ""
 
 #: lxc/exec.go:54
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
+msgstr  ""
+
+#: lxc/list.go:228
+msgid   "PID"
 msgstr  ""
 
 #: lxc/image.go:467 lxc/remote.go:243
@@ -712,19 +729,19 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:172
+#: lxc/list.go:227
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:168
+#: lxc/list.go:223
 msgid   "STATE"
 msgstr  ""
 
-#: client.go:993
+#: client.go:995
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
-#: client.go:307
+#: client.go:303
 #, c-format
 msgid   "Server certificate for host %s has changed. Add correct certificate or remove certificate in %s"
 msgstr  ""
@@ -764,11 +781,11 @@ msgstr  ""
 msgid   "Size: %.2fMB"
 msgstr  ""
 
-#: lxc/info.go:107 lxc/list.go:182
+#: lxc/info.go:107 lxc/list.go:170
 msgid   "Snapshots:"
 msgstr  ""
 
-#: client.go:632
+#: client.go:628
 msgid   "Split images can only be written to a directory."
 msgstr  ""
 
@@ -786,11 +803,11 @@ msgstr  ""
 msgid   "Stopping container failed!"
 msgstr  ""
 
-#: client.go:1114 client.go:1159
+#: client.go:1116 client.go:1161
 msgid   "The image architecture is incompatible with the target server"
 msgstr  ""
 
-#: client.go:279
+#: client.go:275
 msgid   "The source remote isn't available over the network"
 msgstr  ""
 
@@ -845,11 +862,11 @@ msgstr  ""
 msgid   "Whether to show the expanded configuration"
 msgstr  ""
 
-#: lxc/list.go:152 lxc/remote.go:233
+#: lxc/list.go:289 lxc/remote.go:233
 msgid   "YES"
 msgstr  ""
 
-#: client.go:1092
+#: client.go:1094
 msgid   "You must provide an image hash or alias name."
 msgstr  ""
 
@@ -857,7 +874,7 @@ msgstr  ""
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
-#: client.go:458
+#: client.go:454
 #, c-format
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
@@ -866,7 +883,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1795
+#: client.go:1797
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -875,7 +892,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1799
+#: client.go:1801
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -883,7 +900,7 @@ msgstr  ""
 msgid   "can't copy to the same container name"
 msgstr  ""
 
-#: client.go:1155
+#: client.go:1157
 #, c-format
 msgid   "can't get info for image '%s': %s"
 msgstr  ""
@@ -892,7 +909,7 @@ msgstr  ""
 msgid   "can't remove the default remote"
 msgstr  ""
 
-#: client.go:1848 client.go:1905
+#: client.go:1850 client.go:1907
 msgid   "device already exists"
 msgstr  ""
 
@@ -918,12 +935,12 @@ msgstr  ""
 msgid   "error: unknown command: %s"
 msgstr  ""
 
-#: client.go:394
+#: client.go:390
 #, c-format
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1386 client.go:1969
+#: client.go:1388 client.go:1971
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -937,7 +954,7 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:1568
+#: client.go:1570
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -946,7 +963,7 @@ msgstr  ""
 msgid   "no"
 msgstr  ""
 
-#: client.go:1390
+#: client.go:1392
 msgid   "no metadata received"
 msgstr  ""
 
@@ -954,7 +971,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1841 client.go:1898
+#: client.go:1843 client.go:1900
 #, c-format
 msgid   "no value found in %q"
 msgstr  ""
@@ -963,7 +980,7 @@ msgstr  ""
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: client.go:987
+#: client.go:989
 msgid   "ok (y/n)?"
 msgstr  ""
 
@@ -992,7 +1009,7 @@ msgstr  ""
 msgid   "unknown remote name: %q"
 msgstr  ""
 
-#: client.go:275
+#: client.go:271
 #, c-format
 msgid   "unknown transport type: %s"
 msgstr  ""
