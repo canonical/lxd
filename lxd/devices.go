@@ -166,7 +166,13 @@ func deviceTaskBalance(d *Daemon) {
 		conf := c.ExpandedConfig()
 		cpu, ok := conf["limits.cpu"]
 		if !ok || cpu == "" {
-			cpu = fmt.Sprintf("%d", len(cpus))
+			currentCPUs, err := deviceGetCurrentCPUs()
+			if err != nil {
+				shared.Debugf("Couldn't get current CPU list: %s", err)
+				cpu = fmt.Sprintf("%d", len(cpus))
+			} else {
+				cpu = currentCPUs
+			}
 		}
 
 		if !c.IsRunning() {
@@ -291,6 +297,34 @@ func deviceTaskBalance(d *Daemon) {
 			shared.Log.Error("balance: Unable to set cpuset", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
 		}
 	}
+}
+
+func deviceGetCurrentCPUs() (string, error) {
+	// Open /proc/self/status
+	f, err := os.Open("/proc/self/status")
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	// Read it line by line
+	scan := bufio.NewScanner(f)
+	for scan.Scan() {
+		line := scan.Text()
+
+		// We only care about MemTotal
+		if !strings.HasPrefix(line, "Cpus_allowed_list:") {
+			continue
+		}
+
+		// Extract the before last (value) and last (unit) fields
+		fields := strings.Split(line, "\t")
+		value := fields[len(fields)-1]
+
+		return value, nil
+	}
+
+	return "", fmt.Errorf("Couldn't find cpus_allowed_list")
 }
 
 func deviceTaskScheduler(d *Daemon) {
