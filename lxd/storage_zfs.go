@@ -319,6 +319,23 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 	return container.TemplateApply("copy")
 }
 
+func (s *storageZfs) zfsMounted(path string) bool {
+	output, err := exec.Command("zfs", "mount").CombinedOutput()
+	if err != nil {
+		shared.Log.Error("error listing zfs mounts", "err", err)
+		return false
+	}
+
+	for _, line := range strings.Split(string(output), "\n") {
+		zfsName := strings.Split(line, " ")[0]
+		if zfsName == fmt.Sprintf("%s/%s", s.zfsPool, path) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (s *storageZfs) ContainerRename(container container, newName string) error {
 	oldName := container.Name()
 
@@ -1297,7 +1314,7 @@ func (s *storageZfs) MigrationSink(container container, snapshots []container, c
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
 	fsPath := shared.VarPath(fmt.Sprintf("containers/%s.zfs", container.Name()))
 	for i := 0; i < 10; i++ {
-		if shared.IsMountPoint(fsPath) {
+		if shared.IsMountPoint(fsPath) || s.zfsMounted(zfsName) {
 			if err := s.zfsUnmount(zfsName); err != nil {
 				shared.Log.Error("zfs umount error for", "path", zfsName, "err", err)
 			}
