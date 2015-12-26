@@ -775,12 +775,12 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", err
 	}
 
-	err = os.MkdirAll(shared.VarPath("devices", c.Name()), 0700)
+	err = os.MkdirAll(shared.VarPath("devices", c.Name()), 0711)
 	if err != nil {
 		return "", err
 	}
 
-	err = os.MkdirAll(shared.VarPath("shmounts", c.Name()), 0700)
+	err = os.MkdirAll(shared.VarPath("shmounts", c.Name()), 0711)
 	if err != nil {
 		return "", err
 	}
