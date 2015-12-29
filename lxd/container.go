@@ -148,8 +148,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "nictype":
 			return true
-                case "host_name":
-                        return true
+		case "host_name":
+			return true
 		default:
 			return false
 		}
