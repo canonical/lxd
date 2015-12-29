@@ -515,13 +515,13 @@ func (c *containerLXC) initLXC() error {
 				}
 			}
 
-                        // Host Virtual NIC name
-                        if m["host_name"] != "" {
-                                err = lxcSetConfigItem(cc, "lxc.network.veth.pair", m["host_name"])
-                                if err != nil {
-                                        return err
-                                }
-                        }
+			// Host Virtual NIC name
+			if m["host_name"] != "" {
+				err = lxcSetConfigItem(cc, "lxc.network.veth.pair", m["host_name"])
+				if err != nil {
+					return err
+				}
+			}
 
 			// MAC address
 			if m["hwaddr"] != "" {
