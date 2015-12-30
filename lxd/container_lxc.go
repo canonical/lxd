@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -25,6 +26,10 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
+
+// Global variables
+var lxcStoppingContainersLock sync.Mutex
+var lxcStoppingContainers map[int]*sync.WaitGroup = make(map[int]*sync.WaitGroup)
 
 // Helper functions
 func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
@@ -853,6 +858,12 @@ func (c *containerLXC) startCommon() (string, error) {
 }
 
 func (c *containerLXC) Start() error {
+	// Wait for container tear down to finish
+	wgStopping, stopping := lxcStoppingContainers[c.id]
+	if stopping {
+		wgStopping.Wait()
+	}
+
 	// Run the shared start code
 	configPath, err := c.startCommon()
 	if err != nil {
@@ -950,6 +961,33 @@ func (c *containerLXC) OnStart() error {
 	return nil
 }
 
+// Container shutdown locking
+func (c *containerLXC) setupStopping() *sync.WaitGroup {
+	// Handle locking
+	lxcStoppingContainersLock.Lock()
+	defer lxcStoppingContainersLock.Unlock()
+
+	// Existing entry
+	wg, stopping := lxcStoppingContainers[c.id]
+	if stopping {
+		return wg
+	}
+
+	// Setup new entry
+	lxcStoppingContainers[c.id] = &sync.WaitGroup{}
+
+	go func(wg *sync.WaitGroup, id int) {
+		wg.Wait()
+
+		lxcStoppingContainersLock.Lock()
+		defer lxcStoppingContainersLock.Unlock()
+
+		delete(lxcStoppingContainers, id)
+	}(lxcStoppingContainers[c.id], c.id)
+
+	return lxcStoppingContainers[c.id]
+}
+
 // Stop functions
 func (c *containerLXC) Stop() error {
 	// Load the go-lxc struct
@@ -961,10 +999,21 @@ func (c *containerLXC) Stop() error {
 	// Attempt to freeze the container first, helps massively with fork bombs
 	c.Freeze()
 
+	// Handle locking
+	wg := c.setupStopping()
+
 	// Stop the container
+	wg.Add(1)
 	if err := c.c.Stop(); err != nil {
+		wg.Done()
 		return err
 	}
+
+	// Mark ourselves as done
+	wg.Done()
+
+	// Wait for any other teardown routines to finish
+	wg.Wait()
 
 	return nil
 }
@@ -976,15 +1025,32 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
+	// Handle locking
+	wg := c.setupStopping()
+
 	// Shutdown the container
+	wg.Add(1)
 	if err := c.c.Shutdown(timeout); err != nil {
+		wg.Done()
 		return err
 	}
+
+	// Mark ourselves as done
+	wg.Done()
+
+	// Wait for any other teardown routines to finish
+	wg.Wait()
 
 	return nil
 }
 
 func (c *containerLXC) OnStop(target string) error {
+	// Get locking
+	wg, stopping := lxcStoppingContainers[c.id]
+	if wg != nil {
+		wg.Add(1)
+	}
+
 	// Make sure we can't call go-lxc functions by mistake
 	c.fromHook = true
 
@@ -1001,7 +1067,16 @@ func (c *containerLXC) OnStop(target string) error {
 	}
 
 	// FIXME: The go routine can go away once we can rely on LXC_TARGET
-	go func(c *containerLXC, target string) {
+	go func(c *containerLXC, target string, wg *sync.WaitGroup) {
+		// Unlock on return
+		if wg != nil {
+			defer wg.Done()
+		}
+
+		if target == "unknown" && stopping {
+			target = "stop"
+		}
+
 		if target == "unknown" {
 			time.Sleep(5 * time.Second)
 
@@ -1044,7 +1119,7 @@ func (c *containerLXC) OnStop(target string) error {
 		if c.ephemeral {
 			c.Delete()
 		}
-	}(c, target)
+	}(c, target, wg)
 
 	return nil
 }
