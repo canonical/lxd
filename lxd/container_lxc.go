@@ -1005,12 +1005,16 @@ func (c *containerLXC) OnStop(target string) error {
 		if target == "unknown" {
 			time.Sleep(5 * time.Second)
 
-			id, err := dbContainerId(c.daemon.db, c.Name())
-			if err != nil || id != c.id {
+			newContainer, err := containerLoadByName(c.daemon, c.Name())
+			if err != nil {
 				return
 			}
 
-			if c.IsRunning() {
+			if newContainer.Id() != c.id {
+				return
+			}
+
+			if newContainer.IsRunning() {
 				return
 			}
 		}
