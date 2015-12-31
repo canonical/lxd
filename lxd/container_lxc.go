@@ -520,6 +520,14 @@ func (c *containerLXC) initLXC() error {
 				}
 			}
 
+			// Host Virtual NIC name
+			if m["host_name"] != "" {
+				err = lxcSetConfigItem(cc, "lxc.network.veth.pair", m["host_name"])
+				if err != nil {
+					return err
+				}
+			}
+
 			// MAC address
 			if m["hwaddr"] != "" {
 				err = lxcSetConfigItem(cc, "lxc.network.hwaddr", m["hwaddr"])
@@ -2592,11 +2600,19 @@ func (c *containerLXC) removeUnixDevices() error {
 
 // Network device handling
 func (c *containerLXC) createNetworkDevice(name string, m shared.Device) (string, error) {
-	var dev string
+	var dev, n1 string
+
+	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p", "macvlan"}) {
+		// Host Virtual NIC name
+		if m["host_name"] != "" {
+			n1 = m["host_name"]
+		} else {
+			n1 = deviceNextVeth()
+		}
+	}
 
 	// Handle bridged and p2p
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-		n1 := deviceNextVeth()
 		n2 := deviceNextVeth()
 
 		err := exec.Command("ip", "link", "add", n1, "type", "veth", "peer", "name", n2).Run()
@@ -2622,7 +2638,6 @@ func (c *containerLXC) createNetworkDevice(name string, m shared.Device) (string
 
 	// Handle macvlan
 	if m["nictype"] == "macvlan" {
-		n1 := deviceNextVeth()
 
 		err := exec.Command("ip", "link", "add", n1, "link", m["parent"], "type", "macvlan", "mode", "bridge").Run()
 		if err != nil {
