@@ -253,10 +253,6 @@ func NewClient(config *Config, remote string) (*Client, error) {
 		return nil, fmt.Errorf(i18n.G("unknown remote name: %q"), remote)
 	}
 
-	if err := c.Finger(); err != nil {
-		return nil, err
-	}
-
 	return &c, nil
 }
 
@@ -970,7 +966,13 @@ func (c *Client) ListAliases() ([]shared.ImageAlias, error) {
 
 func (c *Client) UserAuthServerCert(name string, acceptCert bool) error {
 	if !c.scertDigestSet {
-		return fmt.Errorf(i18n.G("No certificate on this connection"))
+		if err := c.Finger(); err != nil {
+			return err
+		}
+
+		if !c.scertDigestSet {
+			return fmt.Errorf(i18n.G("No certificate on this connection"))
+		}
 	}
 
 	if c.scert != nil {

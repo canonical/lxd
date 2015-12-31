@@ -249,14 +249,31 @@ func callHook(args []string) error {
 		return err
 	}
 
-	raw, err := c.Http.Do(req)
-	if err != nil {
-		return err
-	}
+	hook := make(chan error, 1)
+	go func() {
+		raw, err := c.Http.Do(req)
+		if err != nil {
+			hook <- err
+			return
+		}
 
-	_, err = lxd.HoistResponse(raw, lxd.Sync)
-	if err != nil {
-		return err
+		_, err = lxd.HoistResponse(raw, lxd.Sync)
+		if err != nil {
+			hook <- err
+			return
+		}
+
+		hook <- nil
+	}()
+
+	select {
+	case err := <-hook:
+		if err != nil {
+			return err
+		}
+		break
+	case <-time.After(30 * time.Second):
+		return fmt.Errorf("Hook didn't finish within 30s")
 	}
 
 	if target == "reboot" {
