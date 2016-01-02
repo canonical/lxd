@@ -335,10 +335,6 @@ if [ "$#" -gt 0 ]; then
   exit
 fi
 
-echo "==> TEST: commit sign-off"
-TEST_CURRENT=test_commits_signed_off
-test_commits_signed_off
-
 echo "==> TEST: doing static analysis of commits"
 TEST_CURRENT=test_static_analysis
 test_static_analysis
