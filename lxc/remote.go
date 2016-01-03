@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -259,6 +260,16 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 
 		if _, ok := config.Remotes[args[2]]; ok {
 			return fmt.Errorf(i18n.G("remote %s already exists"), args[2])
+		}
+
+		// Rename the certificate file
+		oldPath := filepath.Join(lxd.ConfigPath("servercerts"), fmt.Sprintf("%s.crt", args[1]))
+		newPath := filepath.Join(lxd.ConfigPath("servercerts"), fmt.Sprintf("%s.crt", args[2]))
+		if shared.PathExists(oldPath) {
+			err := os.Rename(oldPath, newPath)
+			if err != nil {
+				return err
+			}
 		}
 
 		config.Remotes[args[2]] = rc
