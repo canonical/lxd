@@ -2111,6 +2111,114 @@ func (c *containerLXC) TemplateApply(trigger string) error {
 	return nil
 }
 
+func (c *containerLXC) FilePull(srcpath string, dstpath string) error {
+	// Setup container storage if needed
+	if !c.IsRunning() {
+		err := c.StorageStart()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Get the file from the container
+	out, err := exec.Command(
+		c.daemon.execPath,
+		"forkgetfile",
+		c.RootfsPath(),
+		fmt.Sprintf("%d", c.InitPID()),
+		dstpath,
+		srcpath,
+	).CombinedOutput()
+
+	// Tear down container storage if needed
+	if !c.IsRunning() {
+		err := c.StorageStop()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Process forkgetfile response
+	if string(out) != "" {
+		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+			shared.Debugf("forkgetfile: %s", line)
+		}
+	}
+
+	if err != nil {
+		return fmt.Errorf(
+			"Error calling 'lxd forkgetfile %s %d %s': err='%v'",
+			dstpath,
+			c.InitPID(),
+			srcpath,
+			err)
+	}
+
+	return nil
+}
+
+func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int, mode os.FileMode) error {
+	// Map uid and gid if needed
+	idmapset, err := c.LastIdmapSet()
+	if err != nil {
+		return err
+	}
+
+	if idmapset != nil {
+		uid, gid = idmapset.ShiftIntoNs(uid, gid)
+	}
+
+	// Setup container storage if needed
+	if !c.IsRunning() {
+		err := c.StorageStart()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Push the file to the container
+	out, err := exec.Command(
+		c.daemon.execPath,
+		"forkputfile",
+		c.RootfsPath(),
+		fmt.Sprintf("%d", c.InitPID()),
+		srcpath,
+		dstpath,
+		fmt.Sprintf("%d", uid),
+		fmt.Sprintf("%d", gid),
+		fmt.Sprintf("%d", mode&os.ModePerm),
+	).CombinedOutput()
+
+	// Tear down container storage if needed
+	if !c.IsRunning() {
+		err := c.StorageStop()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Process forkputfile response
+	if string(out) != "" {
+		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+			shared.Debugf("forkgetfile: %s", line)
+		}
+	}
+
+	if err != nil {
+		return fmt.Errorf(
+			"Error calling 'lxd forkputfile %s %d %s %d %d %d': err='%v'",
+			srcpath,
+			c.InitPID(),
+			dstpath,
+			uid,
+			gid,
+			mode,
+			err)
+	}
+
+	return nil
+}
+
 func (c *containerLXC) ipsGet() []shared.Ip {
 	ips := []shared.Ip{}
 

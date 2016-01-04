@@ -22,7 +22,7 @@ test_remote_url() {
   done
 
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
-  if [ -z "${LXD_TEST_DRACONIAN_PROXY:-}" ]; then
+  if [ -z "${LXD_OFFLINE:-}" ]; then
     urls="images.linuxcontainers.org https://images.linuxcontainers.org ${urls}"
   fi
 
@@ -72,7 +72,7 @@ test_remote_admin() {
   # Check that we can add domains with valid certs without confirmation:
 
   # avoid default high port behind some proxies:
-  if [ -z "${LXD_TEST_DRACONIAN_PROXY:-}" ]; then
+  if [ -z "${LXD_OFFLINE:-}" ]; then
     lxc_remote remote add images images.linuxcontainers.org
     lxc_remote remote add images2 images.linuxcontainers.org:443
   fi
