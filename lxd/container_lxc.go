@@ -2399,14 +2399,6 @@ func (c *containerLXC) StorageStop() error {
 	return c.storage.ContainerStop(c)
 }
 
-func (c *containerLXC) StorageFromImage(hash string) error {
-	return c.storage.ContainerCreateFromImage(c, hash)
-}
-
-func (c *containerLXC) StorageFromNone() error {
-	return c.storage.ContainerCreate(c)
-}
-
 // Mount handling
 func (c *containerLXC) insertMount(source, target, fstype string, flags int) error {
 	var err error
