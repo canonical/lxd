@@ -75,6 +75,13 @@ test_basic_usage() {
   lxc delete barpriv
   lxc profile delete priv
 
+  # Test that containers without metadata.yaml are published successfully
+  lxc init testimage nometadata
+  rm "${LXD_DIR}/containers/nometadata/metadata.yaml"
+  lxc publish nometadata --alias=nometadata-image
+  lxc image delete nometadata-image
+  lxc delete nometadata
+
   # Test public images
   lxc publish --public bar --alias=foo-image2
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/"
