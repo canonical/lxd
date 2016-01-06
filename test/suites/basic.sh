@@ -75,12 +75,18 @@ test_basic_usage() {
   lxc delete barpriv
   lxc profile delete priv
 
-  # Test that containers without metadata.yaml are published successfully
-  lxc init testimage nometadata
-  rm "${LXD_DIR}/containers/nometadata/metadata.yaml"
-  lxc publish nometadata --alias=nometadata-image
-  lxc image delete nometadata-image
-  lxc delete nometadata
+  # Test that containers without metadata.yaml are published successfully.
+  # Note that this quick hack won't work for LVM, since it doesn't always mount
+  # the container's filesystem. That's ok though: the logic we're trying to
+  # test here is independent of storage backend, so running it for just one
+  # backend (or all non-lvm backends) is enough.
+  if [ "${LXD_BACKEND}" != "lvm" ]; then
+    lxc init testimage nometadata
+    rm "${LXD_DIR}/containers/nometadata/metadata.yaml"
+    lxc publish nometadata --alias=nometadata-image
+    lxc image delete nometadata-image
+    lxc delete nometadata
+  fi
 
   # Test public images
   lxc publish --public bar --alias=foo-image2
