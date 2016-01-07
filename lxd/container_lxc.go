@@ -1934,27 +1934,28 @@ func (c *containerLXC) Export(w io.Writer) error {
 			return err
 		}
 
-		if err := c.tarStoreFile(linkmap, offset, tw, f.Name(), fi); err != nil {
+		tmpOffset := len(path.Dir(f.Name())) + 1
+		if err := c.tarStoreFile(linkmap, tmpOffset, tw, f.Name(), fi); err != nil {
 			shared.Debugf("Error writing to tarfile: %s", err)
 			tw.Close()
 			return err
 		}
 
 		fnam = f.Name()
-	}
+	} else {
+		// Include metadata.yaml in the tarball
+		fi, err := os.Lstat(fnam)
+		if err != nil {
+			shared.Debugf("Error statting %s during export", fnam)
+			tw.Close()
+			return err
+		}
 
-	// Include metadata.yaml in the tarball
-	fi, err := os.Lstat(fnam)
-	if err != nil {
-		shared.Debugf("Error statting %s during export", fnam)
-		tw.Close()
-		return err
-	}
-
-	if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
-		shared.Debugf("Error writing to tarfile: %s", err)
-		tw.Close()
-		return err
+		if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
+			shared.Debugf("Error writing to tarfile: %s", err)
+			tw.Close()
+			return err
+		}
 	}
 
 	// Include all the rootfs files
