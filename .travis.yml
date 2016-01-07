@@ -16,7 +16,6 @@ matrix:
 
 install:
   - "go get -v github.com/golang/protobuf/..."
-  - "go get golang.org/x/tools/cmd/vet"
   - "mkdir -p $GOPATH/github.com/lxc"
   - "rsync -az ${TRAVIS_BUILD_DIR}/ $HOME/gopath/src/github.com/lxc/lxd/"
 
