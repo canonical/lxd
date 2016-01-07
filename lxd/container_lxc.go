@@ -100,6 +100,55 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
+	// Look for a rootfs entry
+	rootfs := false
+	for _, m := range c.expandedDevices {
+		if m["type"] == "disk" && m["path"] == "/" {
+			rootfs = true
+			break
+		}
+	}
+
+	if !rootfs {
+		deviceName := "root"
+		for {
+			if c.expandedDevices[deviceName] == nil {
+				break
+			}
+
+			deviceName += "_"
+		}
+
+		c.localDevices[deviceName] = shared.Device{"type": "disk", "path": "/"}
+
+		updateArgs := containerArgs{
+			Architecture: c.architecture,
+			Config:       c.localConfig,
+			Devices:      c.localDevices,
+			Ephemeral:    c.ephemeral,
+			Profiles:     c.profiles,
+		}
+
+		err = c.Update(updateArgs, false)
+		if err != nil {
+			c.Delete()
+			return nil, err
+		}
+	}
+
+	// Validate expanded config
+	err = containerValidConfig(c.expandedConfig, false, true)
+	if err != nil {
+		c.Delete()
+		return nil, err
+	}
+
+	err = containerValidDevices(c.expandedDevices, false, true)
+	if err != nil {
+		c.Delete()
+		return nil, err
+	}
+
 	// Setup initial idmap config
 	idmap := c.IdmapSet()
 	var jsonIdmap string
@@ -301,12 +350,6 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	err = lxcSetConfigItem(cc, "lxc.cgroup.devices.deny", "c 5:1 rwm")
-	if err != nil {
-		return err
-	}
-
-	// Setup the rootfs
-	err = lxcSetConfigItem(cc, "lxc.rootfs", c.RootfsPath())
 	if err != nil {
 		return err
 	}
@@ -565,19 +608,17 @@ func (c *containerLXC) initLXC() error {
 
 			// Deal with a rootfs
 			if tgtPath == "" {
-				if m["source"] != "" {
-					// Set the rootfs to the temporary mount
-					err = lxcSetConfigItem(cc, "lxc.rootfs", devPath)
+				// Set the rootfs path
+				err = lxcSetConfigItem(cc, "lxc.rootfs", c.RootfsPath())
+				if err != nil {
+					return err
+				}
+
+				// Read-only rootfs (unlikely to work very well)
+				if isReadOnly {
+					err = lxcSetConfigItem(cc, "lxc.rootfs.options", "ro")
 					if err != nil {
 						return err
-					}
-
-					// Read-only rootfs (unlikely to work very well)
-					if isReadOnly {
-						err = lxcSetConfigItem(cc, "lxc.rootfs.options", "ro")
-						if err != nil {
-							return err
-						}
 					}
 				}
 			} else {
@@ -775,9 +816,11 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 		} else if m["type"] == "disk" {
 			// Disk device
-			_, err := c.createDiskDevice(k, m)
-			if err != nil {
-				return "", err
+			if m["path"] != "/" {
+				_, err := c.createDiskDevice(k, m)
+				if err != nil {
+					return "", err
+				}
 			}
 		}
 	}
@@ -1430,13 +1473,13 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Validate the new config
-	err := containerValidConfig(args.Config, false)
+	err := containerValidConfig(args.Config, false, false)
 	if err != nil {
 		return err
 	}
 
 	// Validate the new devices
-	err = containerValidDevices(args.Devices)
+	err = containerValidDevices(args.Devices, false, false)
 	if err != nil {
 		return err
 	}
@@ -1579,6 +1622,20 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	// Diff the devices
 	removeDevices, addDevices := oldExpandedDevices.Update(c.expandedDevices)
 
+	// Do some validation of the config diff
+	err = containerValidConfig(c.expandedConfig, false, true)
+	if err != nil {
+		undoChanges()
+		return err
+	}
+
+	// Do some validation of the devices diff
+	err = containerValidDevices(c.expandedDevices, false, true)
+	if err != nil {
+		undoChanges()
+		return err
+	}
+
 	// If raw.apparmor changed, re-validate the apparmor profile
 	for _, key := range changedConfig {
 		if key == "raw.apparmor" {
@@ -1592,6 +1649,28 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 	// Apply the live changes
 	if c.IsRunning() {
+		// Confirm that the rootfs source didn't change
+		var oldRootfs shared.Device
+		for _, m := range oldExpandedDevices {
+			if m["type"] == "disk" && m["path"] == "/" {
+				oldRootfs = m
+				break
+			}
+		}
+
+		var newRootfs shared.Device
+		for _, m := range c.expandedDevices {
+			if m["type"] == "disk" && m["path"] == "/" {
+				newRootfs = m
+				break
+			}
+		}
+
+		if oldRootfs["source"] != newRootfs["source"] {
+			undoChanges()
+			return fmt.Errorf("Cannot change the rootfs path of a running container")
+		}
+
 		// Live update the container config
 		for _, key := range changedConfig {
 			if key == "raw.apparmor" {
@@ -1757,7 +1836,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					undoChanges()
 					return err
 				}
-			} else if m["type"] == "disk" {
+			} else if m["type"] == "disk" && m["path"] != "/" {
 				err = c.removeDiskDevice(k, m)
 				if err != nil {
 					undoChanges()
@@ -1779,7 +1858,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					undoChanges()
 					return err
 				}
-			} else if m["type"] == "disk" {
+			} else if m["type"] == "disk" && m["path"] != "/" {
 				err = c.insertDiskDevice(k, m)
 				if err != nil {
 					undoChanges()
