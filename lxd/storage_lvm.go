@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -215,6 +216,48 @@ func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 	}
 
 	return s, nil
+}
+
+func versionSplit(versionString string) (int, int, int, error) {
+	fs := strings.Split(versionString, ".")
+	majs, mins, incs := fs[0], fs[1], fs[2]
+
+	maj, err := strconv.Atoi(majs)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	min, err := strconv.Atoi(mins)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	incs = strings.Split(incs, "(")[0]
+	inc, err := strconv.Atoi(incs)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return maj, min, inc, nil
+}
+
+func (s *storageLvm) lvmVersionIsAtLeast(versionString string) (bool, error) {
+	lvmVersion := strings.Split(s.sTypeVersion, "/")[0]
+
+	lvmMaj, lvmMin, lvmInc, err := versionSplit(lvmVersion)
+	if err != nil {
+		return false, err
+	}
+
+	inMaj, inMin, inInc, err := versionSplit(versionString)
+	if err != nil {
+		return false, err
+	}
+
+	if lvmMaj < inMaj || lvmMin < inMin || lvmInc < inInc {
+		return false, nil
+	}else{
+		return true, nil
+	}
+
 }
 
 func (s *storageLvm) ContainerCreate(container container) error {
@@ -866,11 +909,24 @@ func (s *storageLvm) removeLV(lvname string) error {
 }
 
 func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly bool) (string, error) {
-	output, err := s.tryExec(
-		"lvcreate",
-		"-aay",
-		"-n", lvname,
-		"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname))
+	s.log.Debug("in createSnapshotLV:", log.Ctx{"lvname": lvname, "dev string": fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname)})
+	isRecent, err := s.lvmVersionIsAtLeast("2.02.99")
+	if err != nil {
+		return "", fmt.Errorf("Error checking LVM version: %v", err)
+	}
+	var output []byte
+	if isRecent {
+		output, err = s.tryExec(
+			"lvcreate",
+			"-kn",
+			"-n", lvname,
+			"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname))
+	}else{
+		output, err = s.tryExec(
+			"lvcreate",
+			"-n", lvname,
+			"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname))
+	}
 	if err != nil {
 		s.log.Debug("Could not create LV snapshot", log.Ctx{"lvname": lvname, "origlvname": origlvname, "output": string(output)})
 		return "", fmt.Errorf("Could not create snapshot LV named %s", lvname)
