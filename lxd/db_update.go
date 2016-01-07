@@ -15,6 +15,60 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV20(d *Daemon) error {
+	cNames, err := dbContainersList(d.db, cTypeRegular)
+	if err != nil {
+		return err
+	}
+
+	for _, name := range cNames {
+		c, err := containerLoadByName(d, name)
+		if err != nil {
+			return err
+		}
+
+		rootfs := false
+		for _, m := range c.ExpandedDevices() {
+			if m["type"] == "disk" && m["path"] == "/" {
+				rootfs = true
+				break
+			}
+		}
+
+		if !rootfs {
+			deviceName := "root"
+			for {
+				if c.ExpandedDevices()[deviceName] == nil {
+					break
+				}
+
+				deviceName += "_"
+			}
+
+			newDevices := c.LocalDevices()
+			newDevices[deviceName] = shared.Device{"type": "disk", "path": "/"}
+
+			updateArgs := containerArgs{
+				Architecture: c.Architecture(),
+				Config:       c.LocalConfig(),
+				Devices:      newDevices,
+				Ephemeral:    c.IsEphemeral(),
+				Profiles:     c.Profiles(),
+			}
+
+			err = c.Update(updateArgs, false)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	stmt := `
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err = d.db.Exec(stmt, 21)
+	return err
+}
+
 func dbUpdateFromV19(db *sql.DB) error {
 	stmt := `
 DELETE FROM containers_config WHERE container_id NOT IN (SELECT id FROM containers);
@@ -836,6 +890,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 20 {
 		err = dbUpdateFromV19(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 21 {
+		err = dbUpdateFromV20(d)
 		if err != nil {
 			return err
 		}
