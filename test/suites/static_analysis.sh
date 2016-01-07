@@ -54,7 +54,7 @@ test_static_analysis() {
     git diff --exit-code
 
     # make sure the .pot is updated
-    cp "po/lxd.pot" "po/lxd.pot.bak"
+    cp --preserve "po/lxd.pot" "po/lxd.pot.bak"
     hash1=$(safe_pot_hash)
     make i18n -s
     hash2=$(safe_pot_hash)
