@@ -138,28 +138,50 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			return err
 		}
 
+		/* Since we're trying a bunch of different network ports that
+		 * may be invalid, we can get "bad handshake" errors when the
+		 * websocket code tries to connect. If the first error is a
+		 * real error, but the subsequent errors are only network
+		 * errors, we should try to report the first real error. Of
+		 * course, if all the errors are websocket errors, let's just
+		 * report that.
+		 */
+		var realError error
+
 		for _, addr := range addresses {
 			var migration *lxd.Response
 
 			sourceWSUrl := "https://" + addr + sourceWSResponse.Operation
 			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
 			if err != nil {
+				if !strings.Contains(err.Error(), "websocket: bad handshake") {
+					realError = err
+				}
 				shared.Debugf("intermediate error: %s", err)
 				continue
 			}
 
 			if err = dest.WaitForSuccess(migration.Operation); err != nil {
+				if !strings.Contains(err.Error(), "websocket: bad handshake") {
+					realError = err
+				}
 				shared.Debugf("intermediate error: %s", err)
 				// FIXME: This is a backward compatibility codepath
 				sourceWSUrl := "wss://" + addr + sourceWSResponse.Operation + "/websocket"
 
 				migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
 				if err != nil {
+					if !strings.Contains(err.Error(), "websocket: bad handshake") {
+						realError = err
+					}
 					shared.Debugf("intermediate error: %s", err)
 					continue
 				}
 
 				if err = dest.WaitForSuccess(migration.Operation); err != nil {
+					if !strings.Contains(err.Error(), "websocket: bad handshake") {
+						realError = err
+					}
 					shared.Debugf("intermediate error: %s", err)
 					continue
 				}
@@ -168,7 +190,11 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			return nil
 		}
 
-		return err
+		if realError != nil {
+			return realError
+		} else {
+			return err
+		}
 	}
 }
 
