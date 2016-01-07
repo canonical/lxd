@@ -254,7 +254,7 @@ func (s *storageLvm) lvmVersionIsAtLeast(versionString string) (bool, error) {
 
 	if lvmMaj < inMaj || lvmMin < inMin || lvmInc < inInc {
 		return false, nil
-	}else{
+	} else {
 		return true, nil
 	}
 
@@ -921,7 +921,7 @@ func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly
 			"-kn",
 			"-n", lvname,
 			"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname))
-	}else{
+	} else {
 		output, err = s.tryExec(
 			"lvcreate",
 			"-n", lvname,
