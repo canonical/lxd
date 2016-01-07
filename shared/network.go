@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -20,7 +21,7 @@ func RFC3493Dialer(network, address string) (net.Conn, error) {
 		return nil, err
 	}
 	for _, a := range addrs {
-		c, err := net.Dial(network, net.JoinHostPort(a, port))
+		c, err := net.DialTimeout(network, net.JoinHostPort(a, port), 10*time.Second)
 		if err != nil {
 			continue
 		}
