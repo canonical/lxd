@@ -1,0 +1,95 @@
+have lxc && {
+  _lxd_complete()
+  {
+    _lxd_names()
+    {
+      COMPREPLY=( $( compgen -W \
+        "$( lxc list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
+      )
+    }
+
+    _lxd_images()
+    {
+      COMPREPLY=( $( compgen -W \
+        "$( lxc image list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
+      )
+    }
+
+    local cur prev
+
+    COMPREPLY=()
+    cur=${COMP_WORDS[COMP_CWORD]}
+    prev=${COMP_WORDS[COMP_CWORD-1]}
+    lxc_cmds="config copy delete exec file help image info init launch \
+      list move profile publish remote restart restore snapshot start stop \
+      version"
+
+    if [ $COMP_CWORD -eq 1 ]; then
+      COMPREPLY=( $(compgen -W "$lxc_cmds" -- $cur) )
+    elif [ $COMP_CWORD -eq 2 ]; then
+      case "$prev" in
+        "config")
+          COMPREPLY=( $(compgen -W "device edit get set show trust" -- $cur) )
+          ;;
+        "copy")
+          _lxd_names
+          ;;
+        "delete")
+          _lxd_names
+          ;;
+        "exec")
+          _lxd_names
+          ;;
+        "exec")
+          COMPREPLY=( $(compgen -W "pull push" -- $cur) )
+          ;;
+        "help")
+          COMPREPLY=( $(compgen -W "$lxc_cmds" -- $cur) )
+          ;;
+        "image")
+          COMPREPLY=( $(compgen -W "copy delete edit export info list" -- $cur) )
+          ;;
+        "info")
+          _lxd_names
+          ;;
+        "launch")
+          _lxd_images
+          ;;
+        "profile")
+          COMPREPLY=( $(compgen -W \
+            "list show create edit copy set delete apply" -- $cur) )
+          ;;
+        "publish")
+          _lxd_names
+          ;;
+        "remote")
+          COMPREPLY=( $(compgen -W \
+            "add remove list rename set-url set-default get-default" -- $cur) )
+          ;;
+        "restart")
+          _lxd_names
+          ;;
+        "restore")
+          _lxd_names
+          ;;
+        "snapshot")
+          _lxd_names
+          ;;
+        "start")
+          # should check if containers are stopped
+          _lxd_names
+          ;;
+        "stop")
+          # should check if containers are started
+          _lxd_names
+          ;;
+        *)
+          ;;
+      esac
+    fi
+
+    return 0
+  }
+
+  complete -F _lxd_complete lxc
+}
