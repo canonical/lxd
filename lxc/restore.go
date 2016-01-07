@@ -21,7 +21,14 @@ func (c *restoreCmd) usage() string {
 	return i18n.G(
 		`Set the current state of a resource back to its state at the time the snapshot was created.
 
-lxc restore [remote:]<resource> <snapshot name> [--stateful]`)
+lxc restore [remote:]<container> <snapshot name> [--stateful]
+
+Restores a container from a snapshot (optionally with running state, see
+snapshot help for details).
+
+For example:
+lxc snapshot u1 snap0 # create the snapshot
+lxc restore u1 snap0 # restore the snapshot`)
 }
 
 func (c *restoreCmd) flags() {
