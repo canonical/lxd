@@ -24,8 +24,12 @@ test_static_analysis() {
       false
     fi
 
-    ## go vet
-    go vet ./...
+    ## go vet, if it exists
+    have_go_vet=1
+    go help vet || have_go_vet=0
+    if [ "${have_go_vet}" -eq 1 ]; then
+      go vet ./...
+    fi
 
     ## vet
     if which vet >/dev/null 2>&1; then

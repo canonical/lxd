@@ -43,7 +43,8 @@ protobuf:
 .PHONY: check
 check: default
 	go get -v -x github.com/remyoudompheng/go-misc/deadcode
-	go get -v -x golang.org/x/tools/cmd/vet
+	@# go vet can (and does on go < 1.5) fail
+	go get -v -x golang.org/x/tools/cmd/vet || true
 	go test -v ./...
 	cd test && ./main.sh
 
