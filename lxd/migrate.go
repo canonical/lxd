@@ -137,10 +137,10 @@ func CollectCRIULogFile(c container, imagesDir string, function string, method s
 	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
 }
 
-func GetCRIULogErrors(imagesDir string, method string) string {
+func GetCRIULogErrors(imagesDir string, method string) (string, error) {
 	f, err := os.Open(path.Join(imagesDir, fmt.Sprintf("%s.log", method)))
 	if err != nil {
-		return fmt.Sprintf("Problem accessing CRIU log: %s", err)
+		return "", err
 	}
 
 	defer f.Close()
@@ -154,7 +154,7 @@ func GetCRIULogErrors(imagesDir string, method string) string {
 		}
 	}
 
-	return strings.Join(ret, "\n")
+	return strings.Join(ret, "\n"), nil
 }
 
 type migrationSourceWs struct {
@@ -346,7 +346,14 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		}
 
 		if err != nil {
-			log := GetCRIULogErrors(checkpointDir, "dump")
+			log, err2 := GetCRIULogErrors(checkpointDir, "dump")
+
+			/* couldn't find the CRIU log file which means we
+			 * didn't even get that far; give back the liblxc
+			 * error. */
+			if err2 != nil {
+				log = err.Error()
+			}
 
 			err = fmt.Errorf("checkpoint failed:\n%s", log)
 			s.sendControl(err)
@@ -609,7 +616,12 @@ func (c *migrationSink) do() error {
 		if c.live {
 			err := c.container.StartFromMigration(imagesDir)
 			if err != nil {
-				log := GetCRIULogErrors(imagesDir, "restore")
+				log, err2 := GetCRIULogErrors(imagesDir, "restore")
+				/* restore failed before CRIU was invoked, give
+				 * back the liblxc error */
+				if err2 != nil {
+					log = err.Error()
+				}
 				err = fmt.Errorf("restore failed:\n%s", log)
 			}
 
