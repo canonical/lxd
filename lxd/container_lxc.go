@@ -1298,8 +1298,10 @@ func (c *containerLXC) Delete() error {
 		c.cleanup()
 
 		// Delete the container from disk
-		if err := c.storage.ContainerDelete(c); err != nil {
-			return err
+		if shared.PathExists(c.Path()) {
+			if err := c.storage.ContainerDelete(c); err != nil {
+				return err
+			}
 		}
 	}
 
