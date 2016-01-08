@@ -9,7 +9,7 @@ test_concurrent() {
     name=concurrent-${1}
 
     lxc launch testimage "${name}"
-    lxc list "${name}" | grep RUNNING
+    lxc info "${name}" | grep Running
     echo abc | lxc exec "${name}" -- cat | grep abc
     lxc stop "${name}" --force
     lxc delete "${name}"
@@ -17,7 +17,7 @@ test_concurrent() {
 
   PIDS=""
 
-  for id in $(seq 50); do
+  for id in $(seq $(($(find /sys/bus/cpu/devices/ -type l | wc -l)*8))); do
     spawn_container "${id}" 2>&1 | tee "${LXD_DIR}/lxc-${id}.out" &
     PIDS="${PIDS} $!"
   done
