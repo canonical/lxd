@@ -546,7 +546,7 @@ func (c *migrationSink) do() error {
 			 * opened by the process after it is in its user
 			 * namespace.
 			 */
-			if c.container.IsPrivileged() {
+			if !c.container.IsPrivileged() {
 				if err := c.container.IdmapSet().ShiftRootfs(imagesDir); err != nil {
 					restore <- err
 					os.RemoveAll(imagesDir)
