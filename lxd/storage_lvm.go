@@ -357,7 +357,7 @@ func (s *storageLvm) ContainerCreateFromImage(
 			lvpath).CombinedOutput()
 		if err != nil {
 			s.ContainerDelete(container)
-			return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, string(output))
+			return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, string(output))
 		}
 	}
 
@@ -755,7 +755,7 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 			lvpath).CombinedOutput()
 		if err != nil {
 			s.ContainerDelete(container)
-			return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, string(output))
+			return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, string(output))
 		}
 	}
 
@@ -827,7 +827,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 			lvpath).CombinedOutput()
 		if err != nil {
 			// s.ContainerDelete(container)
-			return fmt.Errorf("Error mounting snapshot LV: %v\noutput:'%s'", err, string(output))
+			return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, string(output))
 		}
 	}
 
