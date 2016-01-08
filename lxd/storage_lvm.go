@@ -412,7 +412,7 @@ func (s *storageLvm) tryExec(name string, arg ...string) ([]byte, error) {
 	var err error
 	var output []byte
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		output, err = exec.Command(name, arg...).CombinedOutput()
 		if err == nil {
 			break
@@ -427,7 +427,7 @@ func (s *storageLvm) tryExec(name string, arg ...string) ([]byte, error) {
 func (s *storageLvm) tryMount(src string, dst string, fs string, flags uintptr, options string) error {
 	var err error
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		err = syscall.Mount(src, dst, fs, flags, options)
 		if err == nil {
 			break
@@ -446,7 +446,7 @@ func (s *storageLvm) tryMount(src string, dst string, fs string, flags uintptr, 
 func (s *storageLvm) tryUnmount(path string, flags int) error {
 	var err error
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		err = syscall.Unmount(path, flags)
 		if err == nil {
 			break

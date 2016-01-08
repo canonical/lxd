@@ -359,7 +359,7 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 
 	// In case ZFS didn't mount the filesystem, do it ourselves
 	if !shared.PathExists(shared.VarPath(fmt.Sprintf("containers/%s.zfs", newName))) {
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 20; i++ {
 			err = s.zfsMount(fmt.Sprintf("containers/%s", newName))
 			if err == nil {
 				break
@@ -737,9 +737,9 @@ func (s *storageZfs) zfsDestroy(path string) error {
 		}
 	}
 
-	// Due to open fds or kernel refs, this may fail for a bit, give it 5s
+	// Due to open fds or kernel refs, this may fail for a bit, give it 10s
 	var output []byte
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		output, err = exec.Command(
 			"zfs",
 			"destroy",
@@ -1313,7 +1313,7 @@ func (s *storageZfs) MigrationSink(container container, snapshots []container, c
 	 */
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
 	fsPath := shared.VarPath(fmt.Sprintf("containers/%s.zfs", container.Name()))
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		if shared.IsMountPoint(fsPath) || s.zfsMounted(zfsName) {
 			if err := s.zfsUnmount(zfsName); err != nil {
 				shared.Log.Error("zfs umount error for", "path", zfsName, "err", err)
