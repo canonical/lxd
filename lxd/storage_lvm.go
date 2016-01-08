@@ -170,6 +170,18 @@ func storageLVMSetFsTypeConfig(d *Daemon, fstype string) error {
 	return nil
 }
 
+func xfsGenerateNewUUID(lvpath string) error {
+	output, err := exec.Command(
+		"xfs_admin",
+		"-U", "generate",
+		lvpath).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, string(output))
+	}
+
+	return nil
+}
+
 func containerNameToLVName(containerName string) string {
 	lvName := strings.Replace(containerName, "-", "--", -1)
 	return strings.Replace(lvName, shared.SnapshotDelimiter, "-", -1)
@@ -351,13 +363,10 @@ func (s *storageLvm) ContainerCreateFromImage(
 
 	// Generate a new xfs's UUID
 	if fstype == "xfs" {
-		output, err := exec.Command(
-			"xfs_admin",
-			"-U", "generate",
-			lvpath).CombinedOutput()
+		err := xfsGenerateNewUUID(lvpath)
 		if err != nil {
 			s.ContainerDelete(container)
-			return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, string(output))
+			return err
 		}
 	}
 
@@ -749,13 +758,10 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 
 	// Generate a new xfs's UUID
 	if fstype == "xfs" {
-		output, err := exec.Command(
-			"xfs_admin",
-			"-U", "generate",
-			lvpath).CombinedOutput()
+		err := xfsGenerateNewUUID(lvpath)
 		if err != nil {
 			s.ContainerDelete(container)
-			return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, string(output))
+			return err
 		}
 	}
 
@@ -817,18 +823,6 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	fstype, err = s.d.ConfigValueGet("storage.lvm_fstype")
 	if err != nil {
 		return fmt.Errorf("Error checking server config, err=%v", err)
-	}
-
-	// Generate a new xfs's UUID
-	if fstype == "xfs" {
-		output, err := exec.Command(
-			"xfs_admin",
-			"-U", "generate",
-			lvpath).CombinedOutput()
-		if err != nil {
-			// s.ContainerDelete(container)
-			return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, string(output))
-		}
 	}
 
 	err = s.tryMount(lvpath, tempLVMountPoint, fstype, 0, "discard")
