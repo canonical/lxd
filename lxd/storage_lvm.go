@@ -361,6 +361,10 @@ func (s *storageLvm) ContainerCreateFromImage(
 		return fmt.Errorf("Error checking server config, err=%v", err)
 	}
 
+	if fstype == "" {
+		fstype = "ext4"
+	}
+
 	// Generate a new xfs's UUID
 	if fstype == "xfs" {
 		err := xfsGenerateNewUUID(lvpath)
@@ -467,6 +471,10 @@ func (s *storageLvm) ContainerStart(container container) error {
 	fstype, err := s.d.ConfigValueGet("storage.lvm_fstype")
 	if err != nil {
 		return fmt.Errorf("Error checking server config, err=%v", err)
+	}
+
+	if fstype == "" {
+		fstype = "ext4"
 	}
 
 	err = s.tryMount(lvpath, container.Path(), fstype, 0, "discard")
@@ -756,6 +764,10 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 		return fmt.Errorf("Error checking server config, err=%v", err)
 	}
 
+	if fstype == "" {
+		fstype = "ext4"
+	}
+
 	// Generate a new xfs's UUID
 	if fstype == "xfs" {
 		err := xfsGenerateNewUUID(lvpath)
@@ -823,6 +835,10 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	fstype, err = s.d.ConfigValueGet("storage.lvm_fstype")
 	if err != nil {
 		return fmt.Errorf("Error checking server config, err=%v", err)
+	}
+
+	if fstype == "" {
+		fstype = "ext4"
 	}
 
 	err = s.tryMount(lvpath, tempLVMountPoint, fstype, 0, "discard")
