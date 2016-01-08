@@ -10,7 +10,7 @@ import (
 )
 
 func containersGet(d *Daemon, r *http.Request) Response {
-	for {
+	for i := 0; i < 100; i++ {
 		result, err := doContainersGet(d, d.isRecursionRequest(r))
 		if err == nil {
 			return SyncResponse(true, result)
@@ -21,10 +21,12 @@ func containersGet(d *Daemon, r *http.Request) Response {
 		}
 		// 1 s may seem drastic, but we really don't want to thrash
 		// perhaps we should use a random amount
-		shared.Debugf("DBERR: containersGet, db is locked")
-		shared.PrintStack()
-		time.Sleep(1 * time.Second)
+		time.Sleep(100 * time.Millisecond)
 	}
+
+	shared.Debugf("DBERR: containersGet, db is locked")
+	shared.PrintStack()
+	return InternalError(fmt.Errorf("DB is locked"))
 }
 
 func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
