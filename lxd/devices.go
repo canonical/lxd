@@ -291,6 +291,11 @@ func deviceTaskBalance(d *Daemon) {
 
 	// Set the new pinning
 	for ctn, set := range pinning {
+		// Confirm the container didn't just stop
+		if !ctn.IsRunning() {
+			continue
+		}
+
 		sort.Strings(set)
 		err := ctn.CGroupSet("cpuset.cpus", strings.Join(set, ","))
 		if err != nil {
