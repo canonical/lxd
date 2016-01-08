@@ -161,6 +161,27 @@ func storageLVMSetVolumeGroupNameConfig(d *Daemon, vgname string) error {
 	return nil
 }
 
+func storageLVMSetFsTypeConfig(d *Daemon, fstype string) error {
+	err := d.ConfigValueSet("storage.lvm_fstype", fstype)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func xfsGenerateNewUUID(lvpath string) error {
+	output, err := exec.Command(
+		"xfs_admin",
+		"-U", "generate",
+		lvpath).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, string(output))
+	}
+
+	return nil
+}
+
 func containerNameToLVName(containerName string) string {
 	lvName := strings.Replace(containerName, "-", "--", -1)
 	return strings.Replace(lvName, shared.SnapshotDelimiter, "-", -1)
@@ -334,7 +355,26 @@ func (s *storageLvm) ContainerCreateFromImage(
 		return err
 	}
 
-	err = s.tryMount(lvpath, destPath, "ext4", 0, "discard")
+	var fstype string
+	fstype, err = s.d.ConfigValueGet("storage.lvm_fstype")
+	if err != nil {
+		return fmt.Errorf("Error checking server config, err=%v", err)
+	}
+
+	if fstype == "" {
+		fstype = "ext4"
+	}
+
+	// Generate a new xfs's UUID
+	if fstype == "xfs" {
+		err := xfsGenerateNewUUID(lvpath)
+		if err != nil {
+			s.ContainerDelete(container)
+			return err
+		}
+	}
+
+	err = s.tryMount(lvpath, destPath, fstype, 0, "discard")
 	if err != nil {
 		s.ContainerDelete(container)
 		return fmt.Errorf("Error mounting snapshot LV: %v", err)
@@ -428,7 +468,16 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 func (s *storageLvm) ContainerStart(container container) error {
 	lvName := containerNameToLVName(container.Name())
 	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvName)
-	err := s.tryMount(lvpath, container.Path(), "ext4", 0, "discard")
+	fstype, err := s.d.ConfigValueGet("storage.lvm_fstype")
+	if err != nil {
+		return fmt.Errorf("Error checking server config, err=%v", err)
+	}
+
+	if fstype == "" {
+		fstype = "ext4"
+	}
+
+	err = s.tryMount(lvpath, container.Path(), fstype, 0, "discard")
 	if err != nil {
 		return fmt.Errorf(
 			"Error mounting snapshot LV path='%s': %v",
@@ -709,7 +758,26 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 		}
 	}
 
-	err = s.tryMount(lvpath, container.Path(), "ext4", 0, "discard")
+	var fstype string
+	fstype, err = s.d.ConfigValueGet("storage.lvm_fstype")
+	if err != nil {
+		return fmt.Errorf("Error checking server config, err=%v", err)
+	}
+
+	if fstype == "" {
+		fstype = "ext4"
+	}
+
+	// Generate a new xfs's UUID
+	if fstype == "xfs" {
+		err := xfsGenerateNewUUID(lvpath)
+		if err != nil {
+			s.ContainerDelete(container)
+			return err
+		}
+	}
+
+	err = s.tryMount(lvpath, container.Path(), fstype, 0, "discard")
 	if err != nil {
 		return fmt.Errorf(
 			"Error mounting snapshot LV path='%s': %v",
@@ -763,7 +831,17 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 		}
 	}()
 
-	err = s.tryMount(lvpath, tempLVMountPoint, "ext4", 0, "discard")
+	var fstype string
+	fstype, err = s.d.ConfigValueGet("storage.lvm_fstype")
+	if err != nil {
+		return fmt.Errorf("Error checking server config, err=%v", err)
+	}
+
+	if fstype == "" {
+		fstype = "ext4"
+	}
+
+	err = s.tryMount(lvpath, tempLVMountPoint, fstype, 0, "discard")
 	if err != nil {
 		shared.Logf("Error mounting image LV for untarring: %v", err)
 		return fmt.Errorf("Error mounting image LV: %v", err)
@@ -880,10 +958,20 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 
 	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvname)
 
-	output, err = s.tryExec(
-		"mkfs.ext4",
-		"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0",
-		lvpath)
+	fstype, err := s.d.ConfigValueGet("storage.lvm_fstype")
+
+	switch fstype {
+	case "xfs":
+		output, err = s.tryExec(
+			"mkfs.xfs",
+			lvpath)
+	default:
+		// default = ext4
+		output, err = s.tryExec(
+			"mkfs.ext4",
+			"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0",
+			lvpath)
+	}
 
 	if err != nil {
 		s.log.Error("mkfs.ext4", log.Ctx{"output": string(output)})

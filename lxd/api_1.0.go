@@ -161,6 +161,11 @@ func api10Put(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return InternalError(err)
 			}
+		} else if key == "storage.lvm_fstype" {
+			err := storageLVMSetFsTypeConfig(d, value.(string))
+			if err != nil {
+				return InternalError(err)
+			}
 		} else if key == "storage.zfs_pool_name" {
 			err := storageZFSSetPoolNameConfig(d, value.(string))
 			if err != nil {
