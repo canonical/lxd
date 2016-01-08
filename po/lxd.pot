@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-01-04 17:15-0500\n"
+        "POT-Creation-Date: 2016-01-07 17:02-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -70,7 +70,7 @@ msgstr  ""
 msgid   "%s (%d more)"
 msgstr  ""
 
-#: lxc/snapshot.go:51
+#: lxc/snapshot.go:61
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
@@ -192,7 +192,17 @@ msgstr  ""
 #: lxc/snapshot.go:21
 msgid   "Create a read-only snapshot of a container.\n"
         "\n"
-        "lxc snapshot [remote:]<source> <snapshot name> [--stateful]"
+        "lxc snapshot [remote:]<source> <snapshot name> [--stateful]\n"
+        "\n"
+        "Creates a snapshot of the container (optionally with the container's memory\n"
+        "state). When --stateful is used, LXD attempts to checkpoint the container's\n"
+        "running state, including process memory state, TCP connections, etc. so that it\n"
+        "can be restored (via lxc restore) at a later time (although some things, e.g.\n"
+        "TCP connections after the TCP timeout window has expired, may not be restored\n"
+        "successfully).\n"
+        "\n"
+        "Example:\n"
+        "lxc snapshot u1 snap0"
 msgstr  ""
 
 #: lxc/image.go:231
@@ -753,7 +763,14 @@ msgstr  ""
 #: lxc/restore.go:21
 msgid   "Set the current state of a resource back to its state at the time the snapshot was created.\n"
         "\n"
-        "lxc restore [remote:]<resource> <snapshot name> [--stateful]"
+        "lxc restore [remote:]<container> <snapshot name> [--stateful]\n"
+        "\n"
+        "Restores a container from a snapshot (optionally with running state, see\n"
+        "snapshot help for details).\n"
+        "\n"
+        "For example:\n"
+        "lxc snapshot u1 snap0 # create the snapshot\n"
+        "lxc restore u1 snap0 # restore the snapshot"
 msgstr  ""
 
 #: lxc/file.go:46
@@ -850,11 +867,11 @@ msgstr  ""
 msgid   "Usage: lxc [subcommand] [options]"
 msgstr  ""
 
-#: lxc/restore.go:28
+#: lxc/restore.go:35
 msgid   "Whether or not to restore the container's running state from snapshot (if available)"
 msgstr  ""
 
-#: lxc/snapshot.go:28
+#: lxc/snapshot.go:38
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 

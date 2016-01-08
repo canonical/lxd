@@ -1,7 +1,7 @@
 #!/bin/sh
 
 safe_pot_hash() {
-  grep ^msgid "po/lxd.pot" | md5sum | cut -f1 -d" "
+  sed -e "/Project-Id-Version/,/Content-Transfer-Encoding/d" -e "/^#/d" "po/lxd.pot" | tee /tmp/foo | md5sum | cut -f1 -d" "
 }
 
 test_static_analysis() {
@@ -58,7 +58,7 @@ test_static_analysis() {
     git diff --exit-code
 
     # make sure the .pot is updated
-    cp "po/lxd.pot" "po/lxd.pot.bak"
+    cp --preserve "po/lxd.pot" "po/lxd.pot.bak"
     hash1=$(safe_pot_hash)
     make i18n -s
     hash2=$(safe_pot_hash)
