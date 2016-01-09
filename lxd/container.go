@@ -474,38 +474,47 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 		return nil, err
 	}
 
-	// Clone the container
-	if err := sourceContainer.Storage().ContainerSnapshotCreate(c, sourceContainer); err != nil {
-		c.Delete()
-		return nil, err
-	}
-
 	// Deal with state
 	if stateful {
-		stateDir := c.StatePath()
+		stateDir := sourceContainer.StatePath()
 		err = os.MkdirAll(stateDir, 0700)
 		if err != nil {
 			c.Delete()
 			return nil, err
 		}
 
-		// TODO - shouldn't we freeze for the duration of rootfs snapshot below?
 		if !sourceContainer.IsRunning() {
 			c.Delete()
-			return nil, fmt.Errorf("Container not running")
+			return nil, fmt.Errorf("Container not running, cannot do stateful snapshot")
 		}
 
-		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
+		/* TODO: ideally we would freeze here and unfreeze below after
+		 * we've copied the filesystem, to make sure there are no
+		 * changes by the container while snapshotting. Unfortunately
+		 * there is abug in CRIU where it doesn't leave the container
+		 * in the same state it found it w.r.t. freezing, i.e. CRIU
+		 * freezes too, and then /always/ thaws, even if the container
+		 * was frozen. Until that's fixed, all calls to Unfreeze()
+		 * after snapshotting will fail.
+		 */
+
+		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: false, Verbose: true}
 		err = sourceContainer.Checkpoint(opts)
 		err2 := CollectCRIULogFile(sourceContainer, stateDir, "snapshot", "dump")
 		if err2 != nil {
 			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
 		}
+	}
 
-		if err != nil {
-			c.Delete()
-			return nil, err
-		}
+	// Clone the container
+	if err := sourceContainer.Storage().ContainerSnapshotCreate(c, sourceContainer); err != nil {
+		c.Delete()
+		return nil, err
+	}
+
+	// Once we're done, remove the state directory
+	if stateful {
+		os.RemoveAll(sourceContainer.StatePath())
 	}
 
 	return c, nil
