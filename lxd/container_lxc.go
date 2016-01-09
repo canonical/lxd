@@ -1442,7 +1442,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 
 	// Restart the container
 	if wasRunning {
-		c.Start()
+		return c.Start()
 	}
 
 	return nil
