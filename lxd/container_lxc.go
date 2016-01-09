@@ -265,22 +265,64 @@ func (c *containerLXC) initLXC() error {
 		return err
 	}
 
-	// Load base config
-	templateConfBase := "ubuntu"
+	// Base config
+	err = lxcSetConfigItem(cc, "lxc.cap.drop", "mac_admin mac_override sys_time sys_module")
+	if err != nil {
+		return err
+	}
+
+	err = lxcSetConfigItem(cc, "lxc.mount.auto", "cgroup:mixed proc:mixed sys:mixed")
+	if err != nil {
+		return err
+	}
+
+	err = lxcSetConfigItem(cc, "lxc.autodev", "1")
+	if err != nil {
+		return err
+	}
+
+	err = lxcSetConfigItem(cc, "lxc.pts", "1024")
+	if err != nil {
+		return err
+	}
+
+	err = lxcSetConfigItem(cc, "lxc.mount.entry", "mqueue dev/mqueue mqueue rw,relatime,create=dir,optional")
+	if err != nil {
+		return err
+	}
+
+	for _, mnt := range []string{"/proc/sys/fs/binfmt_misc", "/sys/firmware/efi/efivars", "/sys/fs/fuse/connections", "/sys/fs/pstore", "/sys/kernel/debug", "/sys/kernel/security"} {
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,optional", mnt, strings.TrimPrefix(mnt, "/")))
+		if err != nil {
+			return err
+		}
+	}
+
+	// For lxcfs
 	templateConfDir := os.Getenv("LXD_LXC_TEMPLATE_CONFIG")
 	if templateConfDir == "" {
 		templateConfDir = "/usr/share/lxc/config"
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.include", fmt.Sprintf("%s/%s.common.conf", templateConfDir, templateConfBase))
-	if err != nil {
-		return err
-	}
-
-	if !c.IsPrivileged() || runningInUserns {
-		err = lxcSetConfigItem(cc, "lxc.include", fmt.Sprintf("%s/%s.userns.conf", templateConfDir, templateConfBase))
+	if shared.PathExists(fmt.Sprintf("%s/common.conf.d/", templateConfDir)) {
+		err = lxcSetConfigItem(cc, "lxc.include", fmt.Sprintf("%s/common.conf.d/", templateConfDir))
 		if err != nil {
 			return err
+		}
+	}
+
+	// Configure devices cgroup
+	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+		err = lxcSetConfigItem(cc, "lxc.cgroup.devices.deny", "a")
+		if err != nil {
+			return err
+		}
+
+		for _, dev := range []string{"c *:* m", "b *:* m", "c 5:1 rwm", "c 1:7 rwm", "c 1:3 rwm", "c 1:8 rwm", "c 1:9 rwm", "c 5:2 rwm", "c 136:* rwm"} {
+			err = lxcSetConfigItem(cc, "lxc.cgroup.devices.allow", dev)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -344,6 +386,7 @@ func (c *containerLXC) initLXC() error {
 		return err
 	}
 
+	// FIXME: Should go away once CRIU supports checkpoint/restore of /dev/console
 	err = lxcSetConfigItem(cc, "lxc.console", "none")
 	if err != nil {
 		return err

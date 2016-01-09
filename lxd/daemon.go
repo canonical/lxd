@@ -43,6 +43,7 @@ var aaConfined = false
 // CGroup
 var cgCpuController = false
 var cgCpusetController = false
+var cgDevicesController = false
 var cgMemoryController = false
 var cgSwapAccounting = false
 
@@ -700,6 +701,11 @@ func (d *Daemon) Init() error {
 	cgCpusetController = shared.PathExists("/sys/fs/cgroup/cpuset/")
 	if !cgCpusetController {
 		shared.Log.Warn("Couldn't find the CGroup CPUset controller, CPU pinning will be ignored.")
+	}
+
+	cgDevicesController = shared.PathExists("/sys/fs/cgroup/devices/")
+	if !cgDevicesController {
+		shared.Log.Warn("Couldn't find the CGroup devices controller, device access control won't work.")
 	}
 
 	cgMemoryController = shared.PathExists("/sys/fs/cgroup/memory/")
