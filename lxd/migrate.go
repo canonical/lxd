@@ -688,6 +688,11 @@ func MigrateContainer(args []string) error {
 		return err
 	}
 
+	/* see https://github.com/golang/go/issues/13155, startContainer, and dc3a229 */
+	os.Stdin.Close()
+	os.Stdout.Close()
+	os.Stderr.Close()
+
 	return c.Restore(lxc.RestoreOptions{
 		Directory: imagesDir,
 		Verbose:   true,
