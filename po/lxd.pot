@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-01-10 13:48+0200\n"
+        "POT-Creation-Date: 2016-01-10 13:51+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -615,7 +615,11 @@ msgstr  ""
 #: lxc/move.go:18
 msgid   "Move containers within or in between lxd instances.\n"
         "\n"
-        "lxc move [remote:]<source container> [remote:]<destination container>"
+        "lxc move [remote:]<source container> [remote:]<destination container>\n"
+        "    Move a container between two hosts, renaming it if destination name differs.\n"
+        "\n"
+        "lxc move <old name> <new name>\n"
+        "    Rename a local container.\n"
 msgstr  ""
 
 #: lxc/list.go:222 lxc/remote.go:242
