@@ -1251,25 +1251,23 @@ func (c *Client) Monitor(types []string, handler func(interface{})) error {
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 
 	for {
 		message := make(map[string]interface{})
 
 		_, data, err := conn.ReadMessage()
 		if err != nil {
-			break
+			return err
 		}
 
 		err = json.Unmarshal(data, &message)
 		if err != nil {
-			break
+			return err
 		}
 
 		handler(message)
 	}
-
-	conn.Close()
-	return nil
 }
 
 // Exec runs a command inside the LXD container. For "interactive" use such as

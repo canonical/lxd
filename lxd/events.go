@@ -50,6 +50,7 @@ type eventListener struct {
 	messageTypes []string
 	active       chan bool
 	id           string
+	msgLock      sync.Mutex
 }
 
 type eventsServe struct {
@@ -116,7 +117,9 @@ func eventSend(eventType string, eventMessage interface{}) error {
 		}
 
 		go func(listener *eventListener, body []byte) {
+			listener.msgLock.Lock()
 			err = listener.connection.WriteMessage(websocket.TextMessage, body)
+			listener.msgLock.Unlock()
 			if err != nil {
 				listener.connection.Close()
 				listener.active <- false
