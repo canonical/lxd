@@ -37,29 +37,60 @@ func (c *imageCmd) usage() string {
 	return i18n.G(
 		`Manipulate container images.
 
-lxc image import <tarball> [rootfs tarball|URL] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
+In LXD containers are created from images. Those images were themselves
+either generated from an existing container or downloaded from an image
+server.
+
+When using remote images, LXD will automatically cache images for you
+and remove them upon expiration.
+
+The image unique identifier is the hash (sha-256) of its representation
+as a compressed tarball (or for split images, the concatenation of the
+metadata and rootfs tarballs).
+
+Images can be referenced by their full hash, shortest unique partial
+hash or alias name (if one is set).
+
+
+lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
+    Import an image tarball (or tarballs) into the LXD image store.
 
 lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public]
+    Copy an image from one LXD daemon to another over the network.
+
 lxc image delete [remote:]<image>
+    Delete an image from the LXD image store.
+
 lxc image export [remote:]<image>
+    Export an image from the LXD image store into a distributable tarball.
+
 lxc image info [remote:]<image>
+    Print everything LXD knows about a given image.
+
 lxc image list [remote:] [filter]
+    List images in the LXD image store. Filters may be of the
+    <key>=<value> form for property based filtering, or part of the image
+    hash or part of the image alias name.
+
 lxc image show [remote:]<image>
+    Yaml output of the user modifiable properties of an image.
+
 lxc image edit [remote:]<image>
     Edit image, either by launching external editor or reading STDIN.
     Example: lxc image edit <image> # launch editor
              cat image.yml | lxc image edit <image> # read from image.yml
 
-Lists the images at specified remote, or local images.
 Filters are not yet supported.
 
-lxc image alias create <alias> <target>
-lxc image alias delete <alias>
-lxc image alias list [remote:]
+lxc image alias create [remote:]<alias> <fingerprint>
+    Create a new alias for an existing image.
 
-Create, delete, list image aliases. Example:
-lxc remote add store2 images.linuxcontainers.org
-lxc image alias list store2:`)
+lxc image alias delete [remote:]<alias>
+    Delete an alias.
+
+lxc image alias list [remote:]
+    List the aliases.
+`)
 }
 
 type aliasList []string
