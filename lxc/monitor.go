@@ -77,6 +77,7 @@ func (c *monitorCmd) run(config *lxd.Config, args []string) error {
 	handler := func(message interface{}) {
 		render, err := yaml.Marshal(&message)
 		if err != nil {
+			fmt.Printf("error: %s\n", err)
 			return
 		}
 
