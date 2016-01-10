@@ -514,7 +514,7 @@ func (c *Client) ListContainers() ([]shared.ContainerInfo, error) {
 	return result, nil
 }
 
-func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string, public bool) error {
+func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string, public bool, progressHandler func(progress string)) error {
 	fingerprint := c.GetAlias(image)
 	if fingerprint == "" {
 		fingerprint = image
@@ -564,6 +564,41 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		return err
 	}
 
+	operation := ""
+	handler := func(msg interface{}) {
+		if msg == nil {
+			return
+		}
+
+		event := msg.(map[string]interface{})
+		if event["type"].(string) != "operation" {
+			return
+		}
+
+		if event["metadata"] == nil {
+			return
+		}
+
+		md := event["metadata"].(map[string]interface{})
+		if !strings.HasSuffix(operation, md["id"].(string)) {
+			return
+		}
+
+		if md["metadata"] == nil {
+			return
+		}
+
+		opMd := md["metadata"].(map[string]interface{})
+		_, ok := opMd["download_progress"]
+		if ok {
+			progressHandler(opMd["download_progress"].(string))
+		}
+	}
+
+	if progressHandler != nil {
+		go dest.Monitor([]string{"operation"}, handler)
+	}
+
 	for _, addr := range addresses {
 		sourceUrl := "https://" + addr
 
@@ -574,6 +609,8 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		if err != nil {
 			continue
 		}
+
+		operation = resp.Operation
 
 		err = dest.WaitForSuccess(resp.Operation)
 		if err != nil {

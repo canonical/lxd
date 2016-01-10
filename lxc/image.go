@@ -205,7 +205,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 		image := dereferenceAlias(d, inName)
-		return d.CopyImage(image, dest, copyAliases, addAliases, publicImage)
+
+		progressHandler := func(progress string) {
+			fmt.Printf(i18n.G("Copying the image: %s")+"\r", progress)
+		}
+
+		return d.CopyImage(image, dest, copyAliases, addAliases, publicImage, progressHandler)
 
 	case "delete":
 		/* delete [<remote>:]<image> */
