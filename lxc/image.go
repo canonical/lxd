@@ -80,8 +80,6 @@ lxc image edit [remote:]<image>
     Example: lxc image edit <image> # launch editor
              cat image.yml | lxc image edit <image> # read from image.yml
 
-Filters are not yet supported.
-
 lxc image alias create [remote:]<alias> <fingerprint>
     Create a new alias for an existing image.
 
@@ -334,10 +332,24 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		return nil
 
 	case "list":
+		filters := []string{}
+
 		if len(args) > 1 {
-			remote, _ = config.ParseRemoteAndContainer(args[1])
+			result := strings.SplitN(args[1], ":", 2)
+			if len(result) == 1 {
+				filters = append(filters, args[1])
+				remote, _ = config.ParseRemoteAndContainer("")
+			} else {
+				remote, _ = config.ParseRemoteAndContainer(args[1])
+			}
 		} else {
 			remote, _ = config.ParseRemoteAndContainer("")
+		}
+
+		if len(args) > 2 {
+			for _, filter := range args[2:] {
+				filters = append(filters, filter)
+			}
 		}
 
 		d, err := lxd.NewClient(config, remote)
@@ -350,7 +362,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		return showImages(images)
+		return showImages(images, filters)
 
 	case "edit":
 		if len(args) < 2 {
@@ -467,9 +479,13 @@ func findDescription(props map[string]string) string {
 	return ""
 }
 
-func showImages(images []shared.ImageInfo) error {
+func showImages(images []shared.ImageInfo, filters []string) error {
 	data := [][]string{}
 	for _, image := range images {
+		if !imageShouldShow(filters, &image) {
+			continue
+		}
+
 		shortest := shortestAlias(image.Aliases)
 		if len(image.Aliases) > 1 {
 			shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
@@ -587,4 +603,50 @@ func doImageEdit(client *lxd.Client, image string) error {
 		break
 	}
 	return nil
+}
+
+func imageShouldShow(filters []string, state *shared.ImageInfo) bool {
+	if len(filters) == 0 {
+		return true
+	}
+
+	for _, filter := range filters {
+		found := false
+		if strings.Contains(filter, "=") {
+			membs := strings.SplitN(filter, "=", 2)
+
+			key := membs[0]
+			var value string
+			if len(membs) < 2 {
+				value = ""
+			} else {
+				value = membs[1]
+			}
+
+			for configKey, configValue := range state.Properties {
+				if dotPrefixMatch(key, configKey) {
+					if value == configValue {
+						found = true
+						break
+					}
+				}
+			}
+		} else {
+			for _, alias := range state.Aliases {
+				if strings.Contains(alias.Name, filter) {
+					found = true
+					break
+				}
+			}
+			if strings.Contains(state.Fingerprint, filter) {
+				found = true
+			}
+		}
+
+		if !found {
+			return false
+		}
+	}
+
+	return true
 }
