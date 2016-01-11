@@ -37,29 +37,58 @@ func (c *imageCmd) usage() string {
 	return i18n.G(
 		`Manipulate container images.
 
-lxc image import <tarball> [rootfs tarball|URL] [target] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
+In LXD containers are created from images. Those images were themselves
+either generated from an existing container or downloaded from an image
+server.
+
+When using remote images, LXD will automatically cache images for you
+and remove them upon expiration.
+
+The image unique identifier is the hash (sha-256) of its representation
+as a compressed tarball (or for split images, the concatenation of the
+metadata and rootfs tarballs).
+
+Images can be referenced by their full hash, shortest unique partial
+hash or alias name (if one is set).
+
+
+lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
+    Import an image tarball (or tarballs) into the LXD image store.
 
 lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public]
+    Copy an image from one LXD daemon to another over the network.
+
 lxc image delete [remote:]<image>
+    Delete an image from the LXD image store.
+
 lxc image export [remote:]<image>
+    Export an image from the LXD image store into a distributable tarball.
+
 lxc image info [remote:]<image>
+    Print everything LXD knows about a given image.
+
 lxc image list [remote:] [filter]
+    List images in the LXD image store. Filters may be of the
+    <key>=<value> form for property based filtering, or part of the image
+    hash or part of the image alias name.
+
 lxc image show [remote:]<image>
+    Yaml output of the user modifiable properties of an image.
+
 lxc image edit [remote:]<image>
     Edit image, either by launching external editor or reading STDIN.
     Example: lxc image edit <image> # launch editor
              cat image.yml | lxc image edit <image> # read from image.yml
 
-Lists the images at specified remote, or local images.
-Filters are not yet supported.
+lxc image alias create [remote:]<alias> <fingerprint>
+    Create a new alias for an existing image.
 
-lxc image alias create <alias> <target>
-lxc image alias delete <alias>
+lxc image alias delete [remote:]<alias>
+    Delete an alias.
+
 lxc image alias list [remote:]
-
-Create, delete, list image aliases. Example:
-lxc remote add store2 images.linuxcontainers.org
-lxc image alias list store2:`)
+    List the aliases.
+`)
 }
 
 type aliasList []string
@@ -176,7 +205,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 		image := dereferenceAlias(d, inName)
-		return d.CopyImage(image, dest, copyAliases, addAliases, publicImage)
+
+		progressHandler := func(progress string) {
+			fmt.Printf(i18n.G("Copying the image: %s")+"\r", progress)
+		}
+
+		return d.CopyImage(image, dest, copyAliases, addAliases, publicImage, progressHandler)
 
 	case "delete":
 		/* delete [<remote>:]<image> */
@@ -303,10 +337,24 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		return nil
 
 	case "list":
+		filters := []string{}
+
 		if len(args) > 1 {
-			remote, _ = config.ParseRemoteAndContainer(args[1])
+			result := strings.SplitN(args[1], ":", 2)
+			if len(result) == 1 {
+				filters = append(filters, args[1])
+				remote, _ = config.ParseRemoteAndContainer("")
+			} else {
+				remote, _ = config.ParseRemoteAndContainer(args[1])
+			}
 		} else {
 			remote, _ = config.ParseRemoteAndContainer("")
+		}
+
+		if len(args) > 2 {
+			for _, filter := range args[2:] {
+				filters = append(filters, filter)
+			}
 		}
 
 		d, err := lxd.NewClient(config, remote)
@@ -319,7 +367,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		return showImages(images)
+		return showImages(images, filters)
 
 	case "edit":
 		if len(args) < 2 {
@@ -436,9 +484,13 @@ func findDescription(props map[string]string) string {
 	return ""
 }
 
-func showImages(images []shared.ImageInfo) error {
+func showImages(images []shared.ImageInfo, filters []string) error {
 	data := [][]string{}
 	for _, image := range images {
+		if !imageShouldShow(filters, &image) {
+			continue
+		}
+
 		shortest := shortestAlias(image.Aliases)
 		if len(image.Aliases) > 1 {
 			shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
@@ -556,4 +608,50 @@ func doImageEdit(client *lxd.Client, image string) error {
 		break
 	}
 	return nil
+}
+
+func imageShouldShow(filters []string, state *shared.ImageInfo) bool {
+	if len(filters) == 0 {
+		return true
+	}
+
+	for _, filter := range filters {
+		found := false
+		if strings.Contains(filter, "=") {
+			membs := strings.SplitN(filter, "=", 2)
+
+			key := membs[0]
+			var value string
+			if len(membs) < 2 {
+				value = ""
+			} else {
+				value = membs[1]
+			}
+
+			for configKey, configValue := range state.Properties {
+				if dotPrefixMatch(key, configKey) {
+					if value == configValue {
+						found = true
+						break
+					}
+				}
+			}
+		} else {
+			for _, alias := range state.Aliases {
+				if strings.Contains(alias.Name, filter) {
+					found = true
+					break
+				}
+			}
+			if strings.Contains(state.Fingerprint, filter) {
+				found = true
+			}
+		}
+
+		if !found {
+			return false
+		}
+	}
+
+	return true
 }

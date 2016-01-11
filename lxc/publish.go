@@ -93,7 +93,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 	}
 	defer s.DeleteImage(fp)
 
-	err = s.CopyImage(fp, d, false, pAliases, makePublic)
+	err = s.CopyImage(fp, d, false, pAliases, makePublic, nil)
 	if err != nil {
 		return err
 	}
