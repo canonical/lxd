@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-01-10 14:34+0200\n"
+        "POT-Creation-Date: 2016-01-12 17:06+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -74,7 +74,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/info.go:95 lxc/profile.go:215
+#: lxc/info.go:95 lxc/profile.go:216
 msgid   "(none)"
 msgstr  ""
 
@@ -125,11 +125,11 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: client.go:1807
+#: client.go:1805
 msgid   "Cannot change profile name"
 msgstr  ""
 
-#: lxc/profile.go:324
+#: lxc/profile.go:325
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -157,7 +157,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:449 lxc/image.go:594 lxc/profile.go:184
+#: lxc/config.go:449 lxc/image.go:594 lxc/profile.go:185
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -270,7 +270,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:633 client.go:643 client.go:811 client.go:928 client.go:2045
+#: client.go:633 client.go:643 client.go:811 client.go:928 client.go:2043
 #, c-format
 msgid   "Error adding alias %s"
 msgstr  ""
@@ -451,9 +451,10 @@ msgid   "Manage configuration profiles.\n"
         "lxc profile show <profile>                     Show details of a profile.\n"
         "lxc profile create <profile>                   Create a profile.\n"
         "lxc profile copy <profile> <remote>            Copy the profile to the specified remote.\n"
+        "lxc profile set <profile> <key>                Get profile configuration.\n"
         "lxc profile set <profile> <key> <value>        Set profile configuration.\n"
         "lxc profile delete <profile>                   Delete a profile.\n"
-        "lxc profile edit <profile>                     \n"
+        "lxc profile edit <profile>\n"
         "    Edit profile, either by launching external editor or reading STDIN.\n"
         "    Example: lxc profile edit <profile> # launch editor\n"
         "             cat profile.yml | lxc profile edit <profile> # read from profile.yml\n"
@@ -699,7 +700,7 @@ msgid   "Presents details on how to use LXD.\n"
         "lxd help [--all]"
 msgstr  ""
 
-#: lxc/profile.go:185
+#: lxc/profile.go:186
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -730,17 +731,17 @@ msgstr  ""
 msgid   "Processcount: %d"
 msgstr  ""
 
-#: lxc/profile.go:217
+#: lxc/profile.go:218
 #, c-format
 msgid   "Profile %s applied to %s"
 msgstr  ""
 
-#: lxc/profile.go:136
+#: lxc/profile.go:137
 #, c-format
 msgid   "Profile %s created"
 msgstr  ""
 
-#: lxc/profile.go:206
+#: lxc/profile.go:207
 #, c-format
 msgid   "Profile %s deleted"
 msgstr  ""
@@ -937,7 +938,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1838
+#: client.go:1836
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -946,7 +947,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1842
+#: client.go:1840
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -963,7 +964,7 @@ msgstr  ""
 msgid   "can't remove the default remote"
 msgstr  ""
 
-#: client.go:1891 client.go:1948
+#: client.go:1889 client.go:1946
 msgid   "device already exists"
 msgstr  ""
 
@@ -994,7 +995,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1429 client.go:2012
+#: client.go:1427 client.go:2010
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -1008,7 +1009,7 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:1611
+#: client.go:1609
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -1017,7 +1018,7 @@ msgstr  ""
 msgid   "no"
 msgstr  ""
 
-#: client.go:1433
+#: client.go:1431
 msgid   "no metadata received"
 msgstr  ""
 
@@ -1025,7 +1026,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1884 client.go:1941
+#: client.go:1882 client.go:1939
 #, c-format
 msgid   "no value found in %q"
 msgstr  ""

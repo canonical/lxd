@@ -50,9 +50,10 @@ lxc profile list [filters]                     List available profiles.
 lxc profile show <profile>                     Show details of a profile.
 lxc profile create <profile>                   Create a profile.
 lxc profile copy <profile> <remote>            Copy the profile to the specified remote.
+lxc profile get <profile> <key>                Get profile configuration.
 lxc profile set <profile> <key> <value>        Set profile configuration.
 lxc profile delete <profile>                   Delete a profile.
-lxc profile edit <profile>                     
+lxc profile edit <profile>
     Edit profile, either by launching external editor or reading STDIN.
     Example: lxc profile edit <profile> # launch editor
              cat profile.yml | lxc profile edit <profile> # read from profile.yml
