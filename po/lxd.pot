@@ -628,11 +628,11 @@ msgid   "Move containers within or in between lxd instances.\n"
         "    Rename a local container.\n"
 msgstr  ""
 
-#: lxc/list.go:222 lxc/remote.go:242
+#: lxc/list.go:222 lxc/remote.go:247
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/list.go:291 lxc/remote.go:236
+#: lxc/list.go:291 lxc/remote.go:233
 msgid   "NO"
 msgstr  ""
 
@@ -678,7 +678,7 @@ msgstr  ""
 msgid   "PID"
 msgstr  ""
 
-#: lxc/image.go:519 lxc/remote.go:244
+#: lxc/image.go:519 lxc/remote.go:249
 msgid   "PUBLIC"
 msgstr  ""
 
@@ -895,7 +895,7 @@ msgstr  ""
 msgid   "UPLOAD DATE"
 msgstr  ""
 
-#: lxc/remote.go:243
+#: lxc/remote.go:248
 msgid   "URL"
 msgstr  ""
 
@@ -925,7 +925,7 @@ msgstr  ""
 msgid   "Whether to show the expanded configuration"
 msgstr  ""
 
-#: lxc/list.go:289 lxc/remote.go:234
+#: lxc/list.go:289 lxc/remote.go:235
 msgid   "YES"
 msgstr  ""
 
@@ -970,6 +970,10 @@ msgstr  ""
 
 #: lxc/remote.go:223
 msgid   "can't remove the default remote"
+msgstr  ""
+
+#: lxc/remote.go:240
+msgid   "default"
 msgstr  ""
 
 #: client.go:1889 client.go:1946
@@ -1052,12 +1056,12 @@ msgstr  ""
 msgid   "processing aliases failed %s\n"
 msgstr  ""
 
-#: lxc/remote.go:262
+#: lxc/remote.go:267
 #, c-format
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:219 lxc/remote.go:258 lxc/remote.go:288 lxc/remote.go:299
+#: lxc/remote.go:219 lxc/remote.go:263 lxc/remote.go:293 lxc/remote.go:304
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""

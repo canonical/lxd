@@ -230,11 +230,16 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 	case "list":
 		data := [][]string{}
 		for name, rc := range config.Remotes {
+			strPublic := i18n.G("NO")
 			if rc.Public {
-				data = append(data, []string{name, rc.Addr, i18n.G("YES")})
-			} else {
-				data = append(data, []string{name, rc.Addr, i18n.G("NO")})
+				strPublic = i18n.G("YES")
 			}
+
+			strName := name
+			if name == config.DefaultRemote {
+				strName = fmt.Sprintf("%s (%s)", name, i18n.G("default"))
+			}
+			data = append(data, []string{strName, rc.Addr, strPublic})
 		}
 
 		table := tablewriter.NewWriter(os.Stdout)
