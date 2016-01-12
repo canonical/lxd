@@ -77,6 +77,11 @@ func containerInfo(d *lxd.Client, name string, showLog bool) error {
 
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
 	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status.Status)
+	if ct.Ephemeral {
+		fmt.Printf(i18n.G("Type: ephemeral") + "\n")
+	} else {
+		fmt.Printf(i18n.G("Type: persistent") + "\n")
+	}
 	if ct.Status.Init != 0 {
 		fmt.Printf(i18n.G("Init: %d")+"\n", ct.Status.Init)
 		fmt.Printf(i18n.G("Processcount: %d")+"\n", ct.Status.Processcount)

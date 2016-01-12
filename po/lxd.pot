@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-01-12 17:06+0200\n"
+        "POT-Creation-Date: 2016-01-12 17:21+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -74,7 +74,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/info.go:95 lxc/profile.go:216
+#: lxc/info.go:100 lxc/profile.go:216
 msgid   "(none)"
 msgstr  ""
 
@@ -346,7 +346,7 @@ msgstr  ""
 msgid   "Image imported with fingerprint: %s"
 msgstr  ""
 
-#: lxc/info.go:81
+#: lxc/info.go:86
 #, c-format
 msgid   "Init: %d"
 msgstr  ""
@@ -379,7 +379,7 @@ msgstr  ""
 msgid   "Invalid target %s"
 msgstr  ""
 
-#: lxc/info.go:83
+#: lxc/info.go:88
 msgid   "Ips:"
 msgstr  ""
 
@@ -432,7 +432,7 @@ msgid   "Lists the available resources.\n"
         "* p - pid of container init process"
 msgstr  ""
 
-#: lxc/info.go:124
+#: lxc/info.go:129
 msgid   "Log:"
 msgstr  ""
 
@@ -726,7 +726,7 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version"
 msgstr  ""
 
-#: lxc/info.go:82
+#: lxc/info.go:87
 #, c-format
 msgid   "Processcount: %d"
 msgstr  ""
@@ -836,7 +836,7 @@ msgstr  ""
 msgid   "Size: %.2fMB"
 msgstr  ""
 
-#: lxc/info.go:107 lxc/list.go:170
+#: lxc/info.go:112 lxc/list.go:170
 msgid   "Snapshots:"
 msgstr  ""
 
@@ -881,6 +881,14 @@ msgstr  ""
 #: lxc/action.go:62 lxc/launch.go:124
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
+msgstr  ""
+
+#: lxc/info.go:81
+msgid   "Type: ephemeral"
+msgstr  ""
+
+#: lxc/info.go:83
+msgid   "Type: persistent"
 msgstr  ""
 
 #: lxc/image.go:523
