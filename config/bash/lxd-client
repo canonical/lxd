@@ -1,4 +1,4 @@
-have lxc && {
+_have lxc && {
   _lxd_complete()
   {
     _lxd_names()
