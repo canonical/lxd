@@ -986,7 +986,7 @@ func (d *Daemon) Init() error {
 		for _, socket := range d.Sockets {
 			shared.Log.Info(" - binding socket", log.Ctx{"socket": socket.Socket.Addr()})
 			current_socket := socket
-			d.tomb.Go(func() error { return http.Serve(current_socket.Socket, d.mux) })
+			d.tomb.Go(func() error { return http.Serve(current_socket.Socket, &lxdHttpServer{d.mux, d}) })
 		}
 
 		d.tomb.Go(func() error {
@@ -1080,6 +1080,8 @@ func (d *Daemon) Stop() error {
 func (d *Daemon) ConfigKeyIsValid(key string) bool {
 	switch key {
 	case "core.https_address":
+		return true
+	case "core.https_allowed_origin":
 		return true
 	case "core.trust_password":
 		return true
@@ -1212,4 +1214,25 @@ func (d *Daemon) PasswordCheck(password string) bool {
 	}
 	shared.Log.Debug("Verified the admin password")
 	return true
+}
+
+type lxdHttpServer struct {
+	r *mux.Router
+	d *Daemon
+}
+
+func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	allowedOrigin, _ := s.d.ConfigValueGet("core.https_allowed_origin")
+	origin := req.Header.Get("Origin")
+	if allowedOrigin != "" && origin != "" {
+		rw.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+	}
+
+	// OPTIONS request don't need any further processing
+	if req.Method == "OPTIONS" {
+		return
+	}
+
+	// Call the original server
+	s.r.ServeHTTP(rw, req)
 }
