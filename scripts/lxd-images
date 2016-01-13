@@ -28,7 +28,7 @@ quiet = False
 
 class FriendlyParser(argparse.ArgumentParser):
     def error(self, message):
-        sys.stderr.write('error: %s\n' % message)
+        sys.stderr.write('\nerror: %s\n' % message)
         self.print_help()
         sys.exit(2)
 
