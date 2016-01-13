@@ -28,13 +28,13 @@ func (pt *Progress) Read(p []byte) (int, error) {
 		pt.total += int64(n)
 		percentage := float64(pt.total) / float64(pt.length) * float64(100)
 
-		if percentage-pt.percentage > 9 && pt.op != nil {
+		if percentage-pt.percentage > 0.9 && pt.op != nil {
 			meta := pt.op.metadata
 			if meta == nil {
 				meta = make(map[string]interface{})
 			}
 
-			progressInt := 10 - (int(percentage) % 10) + int(percentage)
+			progressInt := 1 - (int(percentage) % 1) + int(percentage)
 			if progressInt > 100 {
 				progressInt = 100
 			}
