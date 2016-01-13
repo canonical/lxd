@@ -70,14 +70,18 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 	for _, p := range profArgs {
 		profiles = append(profiles, p)
 	}
+
 	if !requested_empty_profiles && len(profiles) == 0 {
 		resp, err = d.Init(name, iremote, image, nil, configMap, ephem)
 	} else {
 		resp, err = d.Init(name, iremote, image, &profiles, configMap, ephem)
 	}
+
 	if err != nil {
 		return err
 	}
+
+	initProgressTracker(d, resp.Operation)
 
 	if name == "" {
 		op, err := resp.MetadataAsOperation()
@@ -105,14 +109,14 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf(i18n.G("got bad version"))
 		}
 	}
-	fmt.Printf(i18n.G("Creating %s")+" ", name)
+	fmt.Printf(i18n.G("Creating %s")+"\n", name)
 
 	if err = d.WaitForSuccess(resp.Operation); err != nil {
 		return err
 	}
-	fmt.Println(i18n.G("done."))
+	fmt.Printf("\n")
 
-	fmt.Printf(i18n.G("Starting %s")+" ", name)
+	fmt.Printf(i18n.G("Starting %s")+"\n", name)
 	resp, err = d.Action(name, shared.Start, -1, false)
 	if err != nil {
 		return err
@@ -120,11 +124,8 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 
 	err = d.WaitForSuccess(resp.Operation)
 	if err != nil {
-		fmt.Println(i18n.G("error."))
 		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, name)
 	}
-
-	fmt.Println(i18n.G("done."))
 
 	return nil
 }
