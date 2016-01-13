@@ -68,6 +68,7 @@ limits.memory                   | string        | - (all)           | Percentage
 limits.memory.enforce           | string        | hard              | If hard, container can't exceed its memory limit. If soft, the container can exceed its memory limit when extra host memory is available.
 limits.memory.swap              | boolean       | true              | Whether to allow some of the container's memory to be swapped out to disk
 limits.memory.swap.priority     | integer       | 10 (maximum)      | The higher this is set, the least likely the container is to be swapped to disk
+linux.kernel\_modules           | string        | -                 | Comma separated list of kernel modules to load before starting the container
 raw.apparmor                    | blob          | -                 | Apparmor profile entries to be appended to the generated profile
 raw.lxc                         | blob          | -                 | Raw LXC configuration to be appended to the generated one
 security.nesting                | boolean       | false             | Support running lxd (nested) inside the container
