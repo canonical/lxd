@@ -156,6 +156,17 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	// Get the running container list
+	clist := getRunningContainersWithProfile(d, name)
+	var containers []container
+	for _, c := range clist {
+		if !c.IsRunning() {
+			continue
+		}
+
+		containers = append(containers, c)
+	}
+
 	// Update the database
 	id, err := dbProfileID(d.db, name)
 	if err != nil {
@@ -191,12 +202,8 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update all the containers using the profile. Must be done after txCommit due to DB lock.
-	clist := getRunningContainersWithProfile(d, name)
-	for _, c := range clist {
-		if !c.IsRunning() {
-			continue
-		}
-
+	failures := map[string]error{}
+	for _, c := range containers {
 		err = c.Update(containerArgs{
 			Architecture: c.Architecture(),
 			Ephemeral:    c.IsEphemeral(),
@@ -205,8 +212,16 @@ func profilePut(d *Daemon, r *http.Request) Response {
 			Profiles:     c.Profiles()}, true)
 
 		if err != nil {
-			return SmartError(fmt.Errorf("Failed to update container '%s': %s", c.Name(), err))
+			failures[c.Name()] = err
 		}
+	}
+
+	if len(failures) != 0 {
+		msg := "The following containers failed to update (profile change still saved):\n"
+		for cname, err := range failures {
+			msg += fmt.Sprintf(" - %s: %s\n", cname, err)
+		}
+		return InternalError(fmt.Errorf("%s", msg))
 	}
 
 	return EmptySyncResponse
