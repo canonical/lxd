@@ -59,6 +59,8 @@ func containerValidConfigKey(k string) bool {
 		return true
 	case "limits.memory.swap.priority":
 		return true
+	case "linux.kernel_modules":
+		return true
 	case "security.privileged":
 		return true
 	case "security.nesting":

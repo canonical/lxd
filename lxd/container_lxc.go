@@ -780,6 +780,18 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", fmt.Errorf("The container is already running")
 	}
 
+	// Load any required kernel modules
+	kernelModules := c.expandedConfig["linux.kernel_modules"]
+	if kernelModules != "" {
+		for _, module := range strings.Split(kernelModules, ",") {
+			module = strings.TrimPrefix(module, " ")
+			out, err := exec.Command("modprobe", module).CombinedOutput()
+			if err != nil {
+				return "", fmt.Errorf("Failed to load kernel module '%s': %s", module, out)
+			}
+		}
+	}
+
 	/* Deal with idmap changes */
 	idmap := c.IdmapSet()
 
