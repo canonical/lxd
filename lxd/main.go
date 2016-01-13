@@ -664,7 +664,7 @@ func setupLXD() error {
 					storageDevice = askString("Path to the existing block device: ")
 					storageMode = "device"
 				} else {
-					storageLoopSize = askInt("Size in GB of the new loop device: ", 10, -1)
+					storageLoopSize = askInt("Size in GB of the new loop device (1GB minimum): ", 1, -1)
 					storageMode = "loop"
 				}
 			} else {

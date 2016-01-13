@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-01-13 10:38+0200\n"
+        "POT-Creation-Date: 2016-01-13 15:24+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -153,7 +153,7 @@ msgstr  ""
 msgid   "Columns"
 msgstr  ""
 
-#: lxc/init.go:132 lxc/init.go:133 lxc/launch.go:36 lxc/launch.go:37
+#: lxc/init.go:131 lxc/init.go:132 lxc/launch.go:36 lxc/launch.go:37
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
@@ -168,6 +168,11 @@ msgstr  ""
 
 #: lxc/publish.go:54
 msgid   "Container name is mandatory"
+msgstr  ""
+
+#: lxc/init.go:206
+#, c-format
+msgid   "Container name is: %s"
 msgstr  ""
 
 #: lxc/publish.go:81 lxc/publish.go:101
@@ -215,13 +220,13 @@ msgstr  ""
 msgid   "Created: %s"
 msgstr  ""
 
-#: lxc/init.go:173
-msgid   "Creating"
-msgstr  ""
-
-#: lxc/init.go:175 lxc/launch.go:108
+#: lxc/init.go:174 lxc/launch.go:112
 #, c-format
 msgid   "Creating %s"
+msgstr  ""
+
+#: lxc/init.go:172
+msgid   "Creating the container"
 msgstr  ""
 
 #: lxc/image.go:520
@@ -266,7 +271,7 @@ msgstr  ""
 msgid   "Environment:"
 msgstr  ""
 
-#: lxc/copy.go:30 lxc/copy.go:31 lxc/init.go:136 lxc/init.go:137 lxc/launch.go:40 lxc/launch.go:41
+#: lxc/copy.go:30 lxc/copy.go:31 lxc/init.go:135 lxc/init.go:136 lxc/launch.go:40 lxc/launch.go:41
 msgid   "Ephemeral container"
 msgstr  ""
 
@@ -351,7 +356,7 @@ msgstr  ""
 msgid   "Init: %d"
 msgstr  ""
 
-#: lxc/init.go:21
+#: lxc/init.go:20
 msgid   "Initialize a container from a particular image.\n"
         "\n"
         "lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]\n"
@@ -365,7 +370,7 @@ msgid   "Initialize a container from a particular image.\n"
         "lxc init ubuntu u1"
 msgstr  ""
 
-#: lxc/init.go:63 lxc/init.go:68
+#: lxc/init.go:62 lxc/init.go:67
 msgid   "Invalid configuration key"
 msgstr  ""
 
@@ -746,7 +751,7 @@ msgstr  ""
 msgid   "Profile %s deleted"
 msgstr  ""
 
-#: lxc/init.go:134 lxc/init.go:135 lxc/launch.go:38 lxc/launch.go:39
+#: lxc/init.go:133 lxc/init.go:134 lxc/launch.go:38 lxc/launch.go:39
 msgid   "Profile to apply to the new container"
 msgstr  ""
 
@@ -771,6 +776,11 @@ msgstr  ""
 
 #: lxc/remote.go:47
 msgid   "Remote admin password"
+msgstr  ""
+
+#: lxc/init.go:239
+#, c-format
+msgid   "Retrieving image: %s"
 msgstr  ""
 
 #: lxc/image.go:522
@@ -844,7 +854,7 @@ msgstr  ""
 msgid   "Split images can only be written to a directory."
 msgstr  ""
 
-#: lxc/launch.go:115
+#: lxc/launch.go:119
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
@@ -878,7 +888,7 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
-#: lxc/action.go:62 lxc/launch.go:124
+#: lxc/action.go:62 lxc/launch.go:127
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -942,7 +952,7 @@ msgstr  ""
 msgid   "api version mismatch: mine: %q, daemon: %q"
 msgstr  ""
 
-#: lxc/launch.go:101
+#: lxc/launch.go:105
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
@@ -980,16 +990,8 @@ msgstr  ""
 msgid   "device already exists"
 msgstr  ""
 
-#: lxc/init.go:194 lxc/init.go:199 lxc/launch.go:85 lxc/launch.go:90
+#: lxc/init.go:197 lxc/init.go:202 lxc/launch.go:89 lxc/launch.go:94
 msgid   "didn't get any affected image, container or snapshot from server"
-msgstr  ""
-
-#: lxc/init.go:204 lxc/init.go:206 lxc/launch.go:113 lxc/launch.go:127
-msgid   "done."
-msgstr  ""
-
-#: lxc/init.go:189 lxc/launch.go:123
-msgid   "error."
 msgstr  ""
 
 #: lxc/main.go:22 lxc/main.go:154
@@ -1017,7 +1019,7 @@ msgstr  ""
 msgid   "got bad response type, expected %s got %s"
 msgstr  ""
 
-#: lxc/launch.go:105
+#: lxc/launch.go:109
 msgid   "got bad version"
 msgstr  ""
 

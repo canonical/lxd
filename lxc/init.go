@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path"
 	"strings"
 
 	"github.com/lxc/lxd"
@@ -170,10 +169,11 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 
 	var resp *lxd.Response
 	if name == "" {
-		fmt.Printf(i18n.G("Creating") + " ")
+		fmt.Printf(i18n.G("Creating the container") + "\n")
 	} else {
-		fmt.Printf(i18n.G("Creating %s")+" ", name)
+		fmt.Printf(i18n.G("Creating %s")+"\n", name)
 	}
+
 	if !requested_empty_profiles && len(profiles) == 0 {
 		resp, err = d.Init(name, iremote, image, nil, configMap, ephem)
 	} else {
@@ -184,9 +184,12 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
+	initProgressTracker(d, resp.Operation)
+
 	err = d.WaitForSuccess(resp.Operation)
+	fmt.Printf("\n")
+
 	if err != nil {
-		fmt.Println(i18n.G("error."))
 		return err
 	} else {
 		op, err := resp.MetadataAsOperation()
@@ -200,11 +203,41 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if len(containers) == 1 && name == "" {
-			cname := path.Base(containers[0])
-			fmt.Println(cname, i18n.G("done."))
-		} else {
-			fmt.Println(i18n.G("done."))
+			fmt.Printf(i18n.G("Container name is: %s"), name)
 		}
 	}
 	return nil
+}
+
+func initProgressTracker(d *lxd.Client, operation string) {
+	handler := func(msg interface{}) {
+		if msg == nil {
+			return
+		}
+
+		event := msg.(map[string]interface{})
+		if event["type"].(string) != "operation" {
+			return
+		}
+
+		if event["metadata"] == nil {
+			return
+		}
+
+		md := event["metadata"].(map[string]interface{})
+		if !strings.HasSuffix(operation, md["id"].(string)) {
+			return
+		}
+
+		if md["metadata"] == nil {
+			return
+		}
+
+		opMd := md["metadata"].(map[string]interface{})
+		_, ok := opMd["download_progress"]
+		if ok {
+			fmt.Printf(i18n.G("Retrieving image: %s")+"\r", opMd["download_progress"].(string))
+		}
+	}
+	go d.Monitor([]string{"operation"}, handler)
 }
