@@ -181,8 +181,8 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 	return nil
 }
 
-func removeCertificate(remote string) {
-	certf := lxd.ServerCertPath(remote)
+func removeCertificate(config *lxd.Config, remote string) {
+	certf := config.ServerCertPath(remote)
 	shared.Debugf("Trying to remove %s", certf)
 
 	os.Remove(certf)
@@ -206,7 +206,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		err := addServer(config, args[1], args[2], c.acceptCert, c.password, c.public)
 		if err != nil {
 			delete(config.Remotes, args[1])
-			removeCertificate(args[1])
+			removeCertificate(config, args[1])
 			return err
 		}
 
@@ -225,7 +225,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 
 		delete(config.Remotes, args[1])
 
-		removeCertificate(args[1])
+		removeCertificate(config, args[1])
 
 	case "list":
 		data := [][]string{}
@@ -268,8 +268,8 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		// Rename the certificate file
-		oldPath := filepath.Join(lxd.ConfigPath("servercerts"), fmt.Sprintf("%s.crt", args[1]))
-		newPath := filepath.Join(lxd.ConfigPath("servercerts"), fmt.Sprintf("%s.crt", args[2]))
+		oldPath := filepath.Join(config.ConfigPath("servercerts"), fmt.Sprintf("%s.crt", args[1]))
+		newPath := filepath.Join(config.ConfigPath("servercerts"), fmt.Sprintf("%s.crt", args[2]))
 		if shared.PathExists(oldPath) {
 			err := os.Rename(oldPath, newPath)
 			if err != nil {
@@ -315,5 +315,5 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	return lxd.SaveConfig(config)
+	return lxd.SaveConfig(config, configPath)
 }
