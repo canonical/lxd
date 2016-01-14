@@ -765,6 +765,9 @@ func (d *Daemon) Init() error {
 	if err := os.MkdirAll(shared.VarPath("images"), 0700); err != nil {
 		return err
 	}
+	if err := os.MkdirAll(shared.LogPath(), 0700); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(shared.VarPath("security"), 0700); err != nil {
 		return err
 	}
