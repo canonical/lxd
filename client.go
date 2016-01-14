@@ -1673,8 +1673,9 @@ func (c *Client) ListSnapshots(container string) ([]string, error) {
 }
 
 func (c *Client) GetServerConfigString() ([]string, error) {
-	ss, err := c.ServerStatus()
 	var resp []string
+
+	ss, err := c.ServerStatus()
 	if err != nil {
 		return resp, err
 	}
@@ -1695,7 +1696,25 @@ func (c *Client) GetServerConfigString() ([]string, error) {
 }
 
 func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
-	body := shared.Jmap{"config": shared.Jmap{key: value}}
+	ss, err := c.ServerStatus()
+	if err != nil {
+		return nil, err
+	}
+
+	ss.Config[key] = value
+	body := shared.Jmap{
+		"api_compat":  ss.APICompat,
+		"auth":        ss.Auth,
+		"environment": ss.Environment,
+		"config":      ss.Config,
+		"public":      ss.Public}
+
+	return c.put("", body, Sync)
+}
+
+func (c *Client) UpdateServerConfig(ss shared.BriefServerState) (*Response, error) {
+	body := shared.Jmap{"config": ss.Config}
+
 	return c.put("", body, Sync)
 }
 
@@ -1703,8 +1722,9 @@ func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
  * return string array representing a container's full configuration
  */
 func (c *Client) GetContainerConfig(container string) ([]string, error) {
-	st, err := c.ContainerStatus(container)
 	var resp []string
+
+	st, err := c.ContainerStatus(container)
 	if err != nil {
 		return resp, err
 	}

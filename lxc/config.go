@@ -67,7 +67,7 @@ lxc config unset [remote:]<container> key                                   Unse
 lxc config set key value                                                    Set server configuration key.
 lxc config unset key                                                        Unset server configuration key.
 lxc config show [--expanded] [remote:]<container>                           Show container configuration.
-lxc config edit [remote:]<container>                                        Edit container configuration in external editor.
+lxc config edit [remote:][container]                                        Edit container configuration in external editor.
     Edit configuration, either by launching external editor or reading STDIN.
     Example: lxc config edit <container> # launch editor
              cat config.yml | lxc config edit <config> # read from config.yml
@@ -383,17 +383,26 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 	case "edit":
-		if len(args) != 2 {
+		if len(args) != 1 {
 			return errArgs
 		}
 
-		remote, container := config.ParseRemoteAndContainer(args[1])
+		remote := config.DefaultRemote
+		container := ""
+		if len(args) > 1 {
+			remote, container = config.ParseRemoteAndContainer(args[1])
+		}
+
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
 
-		return doConfigEdit(d, container)
+		if len(args) == 1 || container == "" {
+			return doDaemonConfigEdit(d)
+		}
+
+		return doContainerConfigEdit(d, container)
 
 	default:
 		return errArgs
@@ -402,7 +411,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 	return errArgs
 }
 
-func doConfigEdit(client *lxd.Client, cont string) error {
+func doContainerConfigEdit(client *lxd.Client, cont string) error {
 	// If stdin isn't a terminal, read text from it
 	if !terminal.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -442,6 +451,71 @@ func doConfigEdit(client *lxd.Client, cont string) error {
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
 			err = client.UpdateContainerConfig(cont, newdata)
+		}
+
+		// Respawn the editor
+		if err != nil {
+			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to start the editor again"))
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		break
+	}
+	return nil
+}
+
+func doDaemonConfigEdit(client *lxd.Client) error {
+	// If stdin isn't a terminal, read text from it
+	if !terminal.IsTerminal(int(syscall.Stdin)) {
+		contents, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newdata := shared.BriefServerState{}
+		err = yaml.Unmarshal(contents, &newdata)
+		if err != nil {
+			return err
+		}
+
+		_, err = client.UpdateServerConfig(newdata)
+		return err
+	}
+
+	// Extract the current value
+	config, err := client.ServerStatus()
+	if err != nil {
+		return err
+	}
+
+	brief := config.BriefState()
+	data, err := yaml.Marshal(&brief)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor
+	content, err := shared.TextEditor("", []byte(configEditHelp+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor
+		newdata := shared.BriefServerState{}
+		err = yaml.Unmarshal(content, &newdata)
+		if err == nil {
+			_, err = client.UpdateServerConfig(newdata)
 		}
 
 		// Respawn the editor

@@ -865,10 +865,6 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 		return err
 	}
 
-	if err = dbImageDelete(d.db, imgInfo.Id); err != nil {
-		return err
-	}
-
 	// get storage before deleting images/$fp because we need to
 	// look at the path
 	s, err := storageForImage(d, imgInfo)
@@ -876,12 +872,21 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 		return err
 	}
 
-	fname := shared.VarPath("images", imgInfo.Fingerprint)
-	err = os.Remove(fname)
-	if err != nil {
-		shared.Debugf("Error deleting image file %s: %s", fname, err)
+	// Remove the image from storage backend
+	if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {
+		return err
 	}
 
+	// Remove main image file
+	fname := shared.VarPath("images", imgInfo.Fingerprint)
+	if shared.PathExists(fname) {
+		err = os.Remove(fname)
+		if err != nil {
+			shared.Debugf("Error deleting image file %s: %s", fname, err)
+		}
+	}
+
+	// Remote the rootfs file
 	fname = shared.VarPath("images", imgInfo.Fingerprint) + ".rootfs"
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
@@ -890,7 +895,8 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 		}
 	}
 
-	if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {
+	// Remove the DB entry
+	if err = dbImageDelete(d.db, imgInfo.Id); err != nil {
 		return err
 	}
 
