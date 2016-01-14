@@ -860,6 +860,7 @@ func (d *Daemon) Init() error {
 
 	/* Setup the web server */
 	d.mux = mux.NewRouter()
+	d.mux.StrictSlash(false)
 
 	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
