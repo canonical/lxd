@@ -150,8 +150,8 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 
 	body := resp{
 		Type:       lxd.Async,
-		Status:     shared.OK.String(),
-		StatusCode: shared.OK,
+		Status:     shared.OperationCreated.String(),
+		StatusCode: shared.OperationCreated,
 		Operation:  url,
 		Metadata:   md}
 

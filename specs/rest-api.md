@@ -119,7 +119,7 @@ The codes are always 3 digits, with the following ranges:
 
 Code  | Meaning
 :---  | :------
-100   | OK
+100   | Operation created
 101   | Started
 102   | Stopped
 103   | Running
