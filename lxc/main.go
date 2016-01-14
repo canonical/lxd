@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"syscall"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/logging"
 )
+
+var configPath string
 
 func main() {
 	if err := run(); err != nil {
@@ -52,10 +55,11 @@ func run() error {
 	debug := gnuflag.Bool("debug", false, i18n.G("Enables debug mode."))
 	forceLocal := gnuflag.Bool("force-local", false, i18n.G("Force using the local unix socket."))
 
-	configDir := os.Getenv("LXD_CONF")
-	if configDir != "" {
-		lxd.ConfigDir = configDir
+	configDir := "$HOME/.config/lxc"
+	if os.Getenv("LXD_CONF") != "" {
+		configDir = os.Getenv("LXD_CONF")
 	}
+	configPath = os.ExpandEnv(path.Join(configDir, "config.yml"))
 
 	if len(os.Args) >= 3 && os.Args[1] == "config" && os.Args[2] == "profile" {
 		fmt.Fprintf(os.Stderr, i18n.G("`lxc config profile` is deprecated, please use `lxc profile`")+"\n")
@@ -86,7 +90,7 @@ func run() error {
 	if *forceLocal {
 		config = &lxd.DefaultConfig
 	} else {
-		config, err = lxd.LoadConfig()
+		config, err = lxd.LoadConfig(configPath)
 		if err != nil {
 			return err
 		}
@@ -98,7 +102,7 @@ func run() error {
 				config.Remotes["local"] = lxd.LocalRemote
 			}
 			config.DefaultRemote = "local"
-			lxd.SaveConfig(config)
+			lxd.SaveConfig(config, configPath)
 		}
 	}
 
@@ -130,8 +134,8 @@ func run() error {
 		return err
 	}
 
-	certf := lxd.ConfigPath("client.crt")
-	keyf := lxd.ConfigPath("client.key")
+	certf := config.ConfigPath("client.crt")
+	keyf := config.ConfigPath("client.key")
 
 	if !*forceLocal && os.Args[0] != "help" && os.Args[0] != "version" && (!shared.PathExists(certf) || !shared.PathExists(keyf)) {
 		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
