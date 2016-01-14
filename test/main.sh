@@ -16,6 +16,11 @@ if [ "${USER:-'root'}" != "root" ]; then
   exit 1
 fi
 
+if [ -n "${LXD_LOGS:-}" ] && [ ! -d "${LXD_LOGS}" ]; then
+  echo "Your LXD_LOGS path doesn't exist: ${LXD_LOGS}"
+  exit 1
+fi
+
 # Helper functions
 local_tcp_port() {
   while :; do
@@ -57,8 +62,10 @@ spawn_lxd() {
   echo "==> Spawning lxd in ${lxddir}"
   # shellcheck disable=SC2086
   LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" ${DEBUG-} "$@" 2>&1 &
-  echo "$!" > "${lxddir}/lxd.pid"
+  LXD_PID=$!
+  echo "${LXD_PID}" > "${lxddir}/lxd.pid"
   echo "${lxddir}" >> "${TEST_DIR}/daemons"
+  echo "==> Spawned LXD (PID is ${LXD_PID})"
 
   echo "==> Confirming lxd is responsive"
   LXD_DIR="${lxddir}" lxd waitready --timeout=300
@@ -195,6 +202,13 @@ kill_lxd() {
 
     # Cleanup shmounts (needed due to the forceful kill)
     find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
+  fi
+
+  if [ -n "${LXD_LOGS:-}" ]; then
+    echo "==> Copying the logs"
+    mkdir -p "${LXD_LOGS}/${daemon_pid}"
+    cp -R "${daemon_dir}/logs/" "${LXD_LOGS}/${daemon_pid}/"
+    cp "${daemon_dir}/lxd.log" "${LXD_LOGS}/${daemon_pid}/"
   fi
 
   echo "==> Checking for leftover files"
