@@ -176,7 +176,7 @@ def do_main():
  To de-configure LXD and destroy the LVM volumes and backing file:
     %s --destroy
 """ % (sys.argv[0], sys.argv[0])))
-    parser.add_argument("-s", "--size",
+    parser.add_argument("-s", "--size", default="10G",
                         help=_("Size of backing file to register as LVM PV"))
     parser.add_argument("--destroy", action="store_true", default=False,
                         help=_("Un-configure LXD and delete image file"))
