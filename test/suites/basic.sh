@@ -28,6 +28,10 @@ test_basic_usage() {
   # Test image delete
   lxc image delete testimage
 
+  # test PUT /1.0, since the client always puts to /1.0/
+  my_curl -f -X PUT "https://${LXD_ADDR}/1.0" -d "{\"config\": {\"core.trust_password\":\"tester2\"}}"
+  my_curl -f -X PUT "https://${LXD_ADDR}/1.0" -d "{\"config\": {\"core.trust_password\":\"foo\"}}"
+
   # Re-import the image
   mv "${LXD_DIR}/${name}" "${LXD_DIR}/testimage.tar.xz"
   lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage
