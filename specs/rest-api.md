@@ -525,7 +525,7 @@ The following headers will be set (on top of standard size and mimetype headers)
 This is designed to be easily usable from the command line or even a web
 browser. This is only supported for currently running containers.
 
-### POST
+### POST (?path=/path/inside/the/container)
  * Description: upload a file to the container
  * Authentication: trusted
  * Operation: sync
