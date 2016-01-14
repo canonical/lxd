@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-01-13 15:24+0200\n"
+        "POT-Creation-Date: 2016-01-14 13:20+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -125,7 +125,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: client.go:1805
+#: client.go:1825
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -157,7 +157,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:449 lxc/image.go:594 lxc/profile.go:185
+#: lxc/config.go:458 lxc/config.go:523 lxc/image.go:594 lxc/profile.go:185
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -241,12 +241,12 @@ msgid   "Delete containers or container snapshots.\n"
         "Destroy containers or snapshots with any attached data (configuration, snapshots, ...)."
 msgstr  ""
 
-#: lxc/config.go:497
+#: lxc/config.go:571
 #, c-format
 msgid   "Device %s added to %s"
 msgstr  ""
 
-#: lxc/config.go:525
+#: lxc/config.go:599
 #, c-format
 msgid   "Device %s removed from %s"
 msgstr  ""
@@ -275,7 +275,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:633 client.go:643 client.go:811 client.go:928 client.go:2043
+#: client.go:633 client.go:643 client.go:811 client.go:928 client.go:2063
 #, c-format
 msgid   "Error adding alias %s"
 msgstr  ""
@@ -495,7 +495,7 @@ msgid   "Manage configuration.\n"
         "lxc config set key value                                                    Set server configuration key.\n"
         "lxc config unset key                                                        Unset server configuration key.\n"
         "lxc config show [--expanded] [remote:]<container>                           Show container configuration.\n"
-        "lxc config edit [remote:]<container>                                        Edit container configuration in external editor.\n"
+        "lxc config edit [remote:][container]                                        Edit container configuration in external editor.\n"
         "    Edit configuration, either by launching external editor or reading STDIN.\n"
         "    Example: lxc config edit <container> # launch editor\n"
         "             cat config.yml | lxc config edit <config> # read from config.yml\n"
@@ -709,7 +709,7 @@ msgstr  ""
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
-#: lxc/config.go:450 lxc/image.go:595
+#: lxc/config.go:459 lxc/config.go:524 lxc/image.go:595
 msgid   "Press enter to start the editor again"
 msgstr  ""
 
@@ -956,7 +956,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1836
+#: client.go:1856
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -965,7 +965,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1840
+#: client.go:1860
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -986,7 +986,7 @@ msgstr  ""
 msgid   "default"
 msgstr  ""
 
-#: client.go:1889 client.go:1946
+#: client.go:1909 client.go:1966
 msgid   "device already exists"
 msgstr  ""
 
@@ -1009,7 +1009,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1427 client.go:2010
+#: client.go:1427 client.go:2030
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -1040,7 +1040,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1882 client.go:1939
+#: client.go:1902 client.go:1959
 #, c-format
 msgid   "no value found in %q"
 msgstr  ""
