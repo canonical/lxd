@@ -1081,9 +1081,11 @@ func storageZFSSetPoolNameConfig(d *Daemon, poolname string) error {
 	}
 
 	// Confirm the new pool exists and is compatible
-	err = s.zfsCheckPool(poolname)
-	if err != nil {
-		return fmt.Errorf("Invalid ZFS pool: %v", err)
+	if poolname != "" {
+		err = s.zfsCheckPool(poolname)
+		if err != nil {
+			return fmt.Errorf("Invalid ZFS pool: %v", err)
+		}
 	}
 
 	// Check if we're switching pools
