@@ -132,18 +132,45 @@ type apiPut struct {
 }
 
 func api10Put(d *Daemon, r *http.Request) Response {
+	oldConfig, err := dbConfigValuesGet(d.db)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	req := apiPut{}
 
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
 		return BadRequest(err)
 	}
 
+	// Diff the configs
+	changedConfig := map[string]interface{}{}
+	for key, value := range oldConfig {
+		if req.Config[key] != value {
+			changedConfig[key] = req.Config[key]
+		}
+	}
+
 	for key, value := range req.Config {
+		if oldConfig[key] != value {
+			changedConfig[key] = req.Config[key]
+		}
+	}
+
+	for key, value := range changedConfig {
+		if value == nil {
+			value = ""
+		}
+
 		if !d.ConfigKeyIsValid(key) {
 			return BadRequest(fmt.Errorf("Bad server config key: '%s'", key))
 		}
 
 		if key == "core.trust_password" {
+			if value == true {
+				continue
+			}
+
 			err := d.PasswordSet(value.(string))
 			if err != nil {
 				return InternalError(err)
