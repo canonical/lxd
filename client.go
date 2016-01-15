@@ -152,9 +152,9 @@ func HoistResponse(r *http.Response, rtype ResponseType) (*Response, error) {
 	return resp, nil
 }
 
-func readMyCert() (string, string, error) {
-	certf := ConfigPath("client.crt")
-	keyf := ConfigPath("client.key")
+func readMyCert(configDir string) (string, string, error) {
+	certf := path.Join(configDir, "client.crt")
+	keyf := path.Join(configDir, "client.key")
 
 	err := shared.FindOrGenCert(certf, keyf)
 
@@ -165,7 +165,7 @@ func readMyCert() (string, string, error) {
  * load the server cert from disk
  */
 func (c *Client) loadServerCert() {
-	cert, err := shared.ReadCert(ServerCertPath(c.Name))
+	cert, err := shared.ReadCert(c.Config.ServerCertPath(c.Name))
 	if err != nil {
 		shared.Debugf("Error reading the server certificate for %s: %v", c.Name, err)
 		return
@@ -213,7 +213,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			c.websocketDialer.NetDial = uDial
 			c.Remote = &r
 		} else {
-			certf, keyf, err := readMyCert()
+			certf, keyf, err := readMyCert(config.ConfigDir)
 			if err != nil {
 				return nil, err
 			}
@@ -300,7 +300,7 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 	if c.scert != nil && resp.TLS != nil {
 		if !bytes.Equal(resp.TLS.PeerCertificates[0].Raw, c.scert.Raw) {
 			pUrl, _ := url.Parse(getUrl)
-			return nil, fmt.Errorf(i18n.G("Server certificate for host %s has changed. Add correct certificate or remove certificate in %s"), pUrl.Host, ConfigPath("servercerts"))
+			return nil, fmt.Errorf(i18n.G("Server certificate for host %s has changed. Add correct certificate or remove certificate in %s"), pUrl.Host, c.Config.ConfigPath("servercerts"))
 		}
 	}
 
@@ -1039,7 +1039,7 @@ func (c *Client) UserAuthServerCert(name string, acceptCert bool) error {
 	}
 
 	// User acked the cert, now add it to our store
-	dnam := ConfigPath("servercerts")
+	dnam := c.Config.ConfigPath("servercerts")
 	err = os.MkdirAll(dnam, 0750)
 	if err != nil {
 		return fmt.Errorf(i18n.G("Could not create server cert dir"))
