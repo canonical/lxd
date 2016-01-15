@@ -114,7 +114,6 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 	if err = d.WaitForSuccess(resp.Operation); err != nil {
 		return err
 	}
-	fmt.Printf("\n")
 
 	fmt.Printf(i18n.G("Starting %s")+"\n", name)
 	resp, err = d.Action(name, shared.Start, -1, false)
