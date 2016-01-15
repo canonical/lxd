@@ -840,23 +840,13 @@ HTTP code for this should be 202 (Accepted).
 
 Input:
 
-TODO: examples
-
-### POST
- * Description: rename or move an image
- * Authentication: trusted
- * Operation: async
- * Return: background operation or standard error
-
-Input (rename an image):
-
     {
-        'name': "new-name"
+        'properties': {
+            'architecture': "x86_64",
+            'description': "Some description"
+        },
+        'public': false
     }
-
-Renaming to an existing name must return the 409 (Conflict) HTTP code.
-
-TODO: move to remote host
 
 ## /1.0/images/\<fingerprint\>/export
 ### GET (optional secret=SECRET)
@@ -1107,7 +1097,7 @@ property can't be changed (see POST for that).
 
 
 ### POST
- * Description: rename or move a profile
+ * Description: rename a profile
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
@@ -1123,8 +1113,6 @@ HTTP return value must be 204 (No content) and Location must point to
 the renamed resource.
 
 Renaming to an existing name must return the 409 (Conflict) HTTP code.
-
-TODO: move profile to another host
 
 
 ### DELETE
