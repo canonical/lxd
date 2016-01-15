@@ -383,7 +383,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 	case "edit":
-		if len(args) != 1 {
+		if len(args) < 2 {
 			return errArgs
 		}
 
