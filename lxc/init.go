@@ -7,6 +7,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/i18n"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
@@ -187,7 +188,6 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 	initProgressTracker(d, resp.Operation)
 
 	err = d.WaitForSuccess(resp.Operation)
-	fmt.Printf("\n")
 
 	if err != nil {
 		return err
@@ -230,6 +230,11 @@ func initProgressTracker(d *lxd.Client, operation string) {
 		}
 
 		if md["metadata"] == nil {
+			return
+		}
+
+		if shared.StatusCode(md["status_code"].(float64)).IsFinal() {
+			fmt.Printf("\n")
 			return
 		}
 
