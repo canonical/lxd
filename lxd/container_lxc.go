@@ -2857,7 +2857,7 @@ func (c *containerLXC) createNetworkDevice(name string, m shared.Device) (string
 			return "", fmt.Errorf("Failed to create the veth interface: %s", err)
 		}
 
-		if m["nictype"] == "bridge" {
+		if m["nictype"] == "bridged" {
 			err = exec.Command("brctl", "addif", m["parent"], n1).Run()
 			if err != nil {
 				deviceRemoveInterface(n2)
