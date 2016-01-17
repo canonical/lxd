@@ -1,0 +1,419 @@
+#!/usr/bin/python3
+
+import argparse
+import json
+import lxc
+import os
+import subprocess
+import time
+from pylxd import api as api
+
+
+# Fetch a config key as a list
+def config_get(config, key, default=None):
+    result = []
+    for line in config:
+        fields = line.split("=", 1)
+        if fields[0].strip() == key:
+            result.append(fields[-1].strip())
+
+    if len(result) == 0:
+        return default
+    else:
+        return result
+
+
+# Parse a LXC configuration file, called recursively for includes
+def config_parse(path):
+    config = []
+    with open(path, "r") as fd:
+        for line in fd:
+            line = line.strip()
+            key = line.split("=", 1)[0].strip()
+            value = line.split("=", 1)[-1].strip()
+
+            # Parse user-added includes
+            if key == "lxc.include":
+                # Ignore our own default configs
+                if value.startswith("/usr/share/lxc/config/"):
+                    continue
+
+                if os.path.isfile(value):
+                    config += config_parse(value)
+                    continue
+                elif os.path.isdir(value):
+                    for entry in os.listdir(value):
+                        if not entry.endswith(".conf"):
+                            continue
+
+                        config += config_parse(os.path.join(value, entry))
+                    continue
+                else:
+                    print("Invalid include: %s", line)
+
+            # Expand any fstab
+            if key == "lxc.mount":
+                if not os.path.exists(value):
+                    print("Container fstab file doesn't exist, skipping...")
+                    return False
+
+                with open(value, "r") as fd:
+                    for line in fd:
+                        line = line.strip()
+                        if line and not line.startswith("#"):
+                            config.append("lxc.mount.entry = %s" % line)
+                continue
+
+            # Proces normal configuration keys
+            if line and not line.startswith("#"):
+                config.append(line)
+
+    return config
+
+
+# Convert a LXC container to a LXD one
+def convert_container(container_name, args):
+    # Connect to LXD
+    if args.lxdpath:
+        os.environ['LXD_DIR'] = args.lxdpath
+    lxd = api.API()
+
+    print("==> Processing container: %s" % container_name)
+
+    # Load the container
+    try:
+        container = lxc.Container(container_name, args.lxcpath)
+    except:
+        print("Invalid container configuration, skipping...")
+        return False
+
+    if container.running:
+        print("Only stopped containers can be migrated, skipping...")
+        return False
+
+    # As some keys can't be queried over the API, parse the config ourselves
+    print("Parsing LXC configuration")
+    lxc_config = config_parse(container.config_file_name)
+
+    if args.debug:
+        print("Container configuration:")
+        print(" ", end="")
+        print("\n ".join(lxc_config))
+        print("")
+
+    if config_get(lxc_config, "lxd.migrated"):
+        print("Container has already been migrated, skipping...")
+        return False
+
+    # Make sure we don't have a conflict
+    print("Checking for existing containers")
+    if lxd.container_defined(container_name):
+        print("Container already exists, skipping...")
+        return False
+
+    # Validate lxc.utsname
+    print("Validating container name")
+    value = config_get(lxc_config, "lxc.utsname")
+    if value and value[0] != container_name:
+        print("Container name doesn't match lxc.utsname, skipping...")
+        return False
+
+    # Detect privileged containers
+    print("Validating container mode")
+    if config_get(lxc_config, "lxc.id_map"):
+        print("Unprivileged containers aren't supported, skipping...")
+        return False
+
+    # Detect hooks in config
+    for line in lxc_config:
+        if line.startswith("lxc.hook."):
+            print("Hooks aren't supported, skipping...")
+            return False
+
+    # Extract and valid rootfs key
+    print("Validating container rootfs")
+    value = config_get(lxc_config, "lxc.rootfs")
+    if not value:
+        print("Invalid container, missing lxc.rootfs key, skipping...")
+        return False
+
+    rootfs = value[0]
+
+    if not os.path.exists(rootfs):
+        print("Couldn't find the container rootfs '%s', skipping..." % rootfs)
+        return False
+
+    # Base config
+    config = {}
+    config['security.privileged'] = "true"
+    devices = {}
+    devices['eth0'] = {'type': "none"}
+
+    # Convert network configuration
+    print("Processing network configuration")
+    try:
+        count = len(container.get_config_item("lxc.network"))
+    except:
+        count = 0
+
+    for i in range(count):
+        device = {"type": "nic"}
+
+        # Get the device type
+        device["nictype"] = container.get_config_item("lxc.network")[i]
+
+        # Get everything else
+        dev = container.network[i]
+
+        # Validate configuration
+        if dev.ipv4 or dev.ipv4_gateway:
+            print("IPv4 network configuration isn't supported, skipping...")
+            return False
+
+        if dev.ipv6 or dev.ipv6_gateway:
+            print("IPv6 network configuration isn't supported, skipping...")
+            return False
+
+        if dev.script_up or dev.script_down:
+            print("Network config scripts aren't supported, skipping...")
+            return False
+
+        if device["nictype"] == "none":
+            print("\"none\" network mode isn't supported, skipping...")
+            return False
+
+        if device["nictype"] == "vlan":
+            print("\"vlan\" network mode isn't supported, skipping...")
+            return False
+
+        # Convert the configuration
+        if dev.hwaddr:
+            device['hwaddr'] = dev.hwaddr
+
+        if dev.link:
+            device['parent'] = dev.link
+
+        if dev.mtu:
+            device['mtu'] = int(dev.mtu)
+
+        if dev.name:
+            device['name'] = dev.name
+
+        if dev.veth_pair:
+            device['host_name'] = dev.veth_pair
+
+        if device["nictype"] == "veth":
+            if "parent" in device:
+                device["nictype"] = "bridged"
+            else:
+                device["nictype"] = "p2p"
+
+        if device["nictype"] == "phys":
+            device["nictype"] = "physical"
+
+        if device["nictype"] == "empty":
+            continue
+
+        devices['convert_net%d' % i] = device
+        count += 1
+
+    # Convert storage configuration
+    value = config_get(lxc_config, "lxc.mount.entry", [])
+    i = 0
+    for entry in value:
+        mount = entry.split(" ")
+        if len(mount) < 4:
+            print("Invalid mount configuration, skipping...")
+            return False
+
+        device = {'type': "disk"}
+
+        # Deal with read-only mounts
+        if "ro" in mount[3].split(","):
+            device['readonly'] = "true"
+
+        # Deal with optional mounts
+        if "optional" in mount[3].split(","):
+            device['optional'] = "true"
+
+        # Set the source
+        device['source'] = mount[0]
+
+        # Figure out the target
+        if mount[1][0] != "/":
+            device['path'] = "/%s" % mount[1]
+        else:
+            device['path'] = mount[1].split(rootfs, 1)[-1]
+
+        devices['convert_mount%d' % i] = device
+        i += 1
+
+    # Convert environment
+    print("Processing environment configuration")
+    value = config_get(lxc_config, "lxc.environment", [])
+    for env in value:
+        entry = env.split("=", 1)
+        config['environment.%s' % entry[0].strip()] = entry[-1].strip()
+
+    # Convert auto-start
+    print("Processing container boot configuration")
+    value = config_get(lxc_config, "lxc.start.auto")
+    if value and int(value[0]) > 0:
+        config['boot.autostart'] = "true"
+
+    value = config_get(lxc_config, "lxc.start.delay")
+    if value and int(value[0]) > 0:
+        config['boot.autostart.delay'] = value[0]
+
+    value = config_get(lxc_config, "lxc.start.order")
+    if value and int(value[0]) > 0:
+        config['boot.autostart.priority'] = value[0]
+
+    # Convert apparmor
+    print("Processing container apparmor configuration")
+    value = config_get(lxc_config, "lxc.aa_profile")
+    if value:
+        if value[0] == "lxc-container-default-with-nesting":
+            config['security.nesting'] = "true"
+        elif value[0] != "lxc-container-default":
+            print("Unsupported custom apparmor profile, skipping...")
+            return False
+
+    # Convert seccomp
+    print("Processing container seccomp configuration")
+    value = config_get(lxc_config, "lxc.seccomp")
+    if value:
+        print("Custom seccomp profiles aren't supported, skipping...")
+        return False
+
+    # Convert SELinux
+    print("Processing container SELinux configuration")
+    value = config_get(lxc_config, "lxc.se_context")
+    if value:
+        print("Custom SELinux policies aren't supported, skipping...")
+        return False
+
+    # Convert capabilities
+    print("Processing container capabilities configuration")
+    value = config_get(lxc_config, "lxc.cap.drop")
+    if value:
+        print("Custom capabilities aren't supported, skipping...")
+        return False
+
+    value = config_get(lxc_config, "lxc.cap.keep")
+    if value:
+        print("Custom capabilities aren't supported, skipping...")
+        return False
+
+    # Setup the container creation request
+    new = {'name': container_name,
+           'source': {'type': 'none'},
+           'config': config,
+           'devices': devices,
+           'profiles': ["default"]}
+
+    # Set the container architecture if set in LXC
+    print("Converting container architecture configuration")
+    arches = {'i686': 1,
+              'x86_64': 2,
+              'armhf': 3,
+              'arm64': 4,
+              'powerpc': 5,
+              'powerpc64': 6,
+              'ppc64el': 7,
+              's390x': 8}
+
+    arch = None
+    try:
+        arch = config_get(lxc_config, "lxc.arch", None)
+
+        if arch and arch[0] in arches:
+            new['architecture'] = arches[arch[0]]
+        else:
+            print("Unknown architecture, assuming native.")
+    except:
+        print("Couldn't find container architecture, assuming native.")
+
+    # Define the container in LXD
+    if args.debug:
+        print("LXD container config:")
+        print(json.dumps(new, indent=True, sort_keys=True))
+
+    if args.dry_run:
+        return True
+
+    try:
+        print("Creating the container")
+        lxd.container_init(new)
+    except Exception as e:
+        print("Failed to create the container: %s" % e)
+        return False
+    time.sleep(1)
+
+    # Transfer the filesystem
+    lxd_rootfs = os.path.join("/var/lib/lxd/", "containers",
+                              container_name, "rootfs")
+
+    if args.copy_rootfs:
+        print("Copying container rootfs")
+        if not os.path.exists(lxd_rootfs):
+            os.mkdir(lxd_rootfs)
+
+        if subprocess.call(["rsync", "-Aa", "--sparse",
+                            "--acls", "--numeric-ids", "--hard-links",
+                            "%s/" % rootfs, "%s/" % lxd_rootfs]) != 0:
+            print("Failed to transfer the container rootfs, skipping...")
+            return False
+    else:
+        if os.path.exists(lxd_rootfs):
+            os.rmdir(lxd_rootfs)
+
+        if subprocess.call(["mv", rootfs, lxd_rootfs]) != 0:
+            print("Failed to move the container rootfs, skipping...")
+            return False
+
+        os.mkdir(rootfs)
+
+    # Delete the source
+    if args.delete:
+        print("Deleting source container")
+        container.delete()
+
+    # Mark the container as migrated
+    with open(container.config_file_name, "a") as fd:
+        fd.write("lxd.migrated=true\n")
+    print("Container is ready to use")
+
+
+# Argument parsing
+parser = argparse.ArgumentParser()
+parser.add_argument("--dry-run", action="store_true", default=False,
+                    help="Dry run mode")
+parser.add_argument("--debug", action="store_true", default=False,
+                    help="Print debugging output")
+parser.add_argument("--all", action="store_true", default=False,
+                    help="Import all containers")
+parser.add_argument("--delete", action="store_true", default=False,
+                    help="Delete the source container")
+parser.add_argument("--copy-rootfs", action="store_true", default=False,
+                    help="Copy the container rootfs rather than moving it")
+parser.add_argument("--lxcpath", type=str, default=False,
+                    help="Alternate LXC path")
+parser.add_argument("--lxdpath", type=str, default=False,
+                    help="Alternate LXD path")
+parser.add_argument(dest='containers', metavar="CONTAINER", type=str,
+                    help="Container to import", nargs="*")
+args = parser.parse_args()
+
+# Sanity checks
+if not os.geteuid() == 0:
+    parser.error("You must be root to run this tool")
+
+if (not args.containers and not args.all) or (args.containers and args.all):
+    parser.error("You must either pass container names or --all")
+
+for container_name in lxc.list_containers(config_path=args.lxcpath):
+    if args.containers and container_name not in args.containers:
+        continue
+
+    convert_container(container_name, args)
