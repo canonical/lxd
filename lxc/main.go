@@ -116,8 +116,8 @@ func run() error {
 	cmd, ok := commands[name]
 	if !ok {
 		execIfAliases(config, origArgs)
-		fmt.Fprintf(os.Stderr, i18n.G("error: unknown command: %s")+"\n", name)
 		commands["help"].run(nil, nil)
+		fmt.Fprintf(os.Stderr, "\n"+i18n.G("error: unknown command: %s")+"\n", name)
 		os.Exit(1)
 	}
 	cmd.flags()
@@ -155,7 +155,7 @@ func run() error {
 		 * expand this as an alias
 		 */
 		execIfAliases(config, origArgs)
-		fmt.Fprintf(os.Stderr, i18n.G("error: %v")+"\n%s\n", err, cmd.usage())
+		fmt.Fprintf(os.Stderr, "%s\n\n"+i18n.G("error: %v")+"\n", cmd.usage(), err)
 		os.Exit(1)
 	}
 	return err
