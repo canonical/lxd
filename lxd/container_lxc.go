@@ -1691,9 +1691,9 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
-	// If raw.apparmor changed, re-validate the apparmor profile
+	// If apparmor changed, re-validate the apparmor profile
 	for _, key := range changedConfig {
-		if key == "raw.apparmor" {
+		if key == "raw.apparmor" || key == "security.nesting" {
 			err = AAParseProfile(c)
 			if err != nil {
 				undoChanges()
@@ -1755,7 +1755,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		for _, key := range changedConfig {
 			value := c.expandedConfig[key]
 
-			if key == "raw.apparmor" {
+			if key == "raw.apparmor" || key == "security.nesting" {
 				// Update the AppArmor profile
 				err = AALoadProfile(c)
 				if err != nil {
