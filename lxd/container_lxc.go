@@ -1702,6 +1702,31 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 	}
 
+	// Apply disk quota changes
+	for _, m := range addDevices {
+		var oldRootfsSize string
+		for _, m := range oldExpandedDevices {
+			if m["type"] == "disk" && m["path"] == "/" {
+				oldRootfsSize = m["size"]
+				break
+			}
+		}
+
+		if m["size"] != oldRootfsSize {
+			size, err := deviceParseBytes(m["size"])
+			if err != nil {
+				undoChanges()
+				return err
+			}
+
+			err = c.storage.ContainerSetQuota(c, size)
+			if err != nil {
+				undoChanges()
+				return err
+			}
+		}
+	}
+
 	// Apply the live changes
 	if c.IsRunning() {
 		// Confirm that the rootfs source didn't change

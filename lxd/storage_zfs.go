@@ -322,7 +322,7 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 func (s *storageZfs) zfsMounted(path string) bool {
 	output, err := exec.Command("zfs", "mount").CombinedOutput()
 	if err != nil {
-		shared.Log.Error("error listing zfs mounts", "err", err)
+		shared.Log.Error("error listing zfs mounts", "err", output)
 		return false
 	}
 
@@ -408,6 +408,24 @@ func (s *storageZfs) ContainerRestore(container container, sourceContainer conta
 	snapName := fmt.Sprintf("snapshot-%s", fields[1])
 
 	err := s.zfsSnapshotRestore(fmt.Sprintf("containers/%s", cName), snapName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageZfs) ContainerSetQuota(container container, size int64) error {
+	var err error
+
+	fs := fmt.Sprintf("containers/%s", container.Name())
+
+	if size > 0 {
+		err = s.zfsSet(fs, "quota", fmt.Sprintf("%d", size))
+	} else {
+		err = s.zfsSet(fs, "quota", "none")
+	}
+
 	if err != nil {
 		return err
 	}
@@ -668,7 +686,7 @@ func (s *storageZfs) zfsClone(source string, name string, dest string, dotZfs bo
 		fmt.Sprintf("%s/%s", s.zfsPool, dest)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs clone failed", log.Ctx{"output": string(output)})
-		return err
+		return fmt.Errorf("Failed to clone the filesystem: %s", output)
 	}
 
 	subvols, err := s.zfsListSubvolumes(source)
@@ -701,7 +719,7 @@ func (s *storageZfs) zfsClone(source string, name string, dest string, dotZfs bo
 			fmt.Sprintf("%s/%s", s.zfsPool, destSubvol)).CombinedOutput()
 		if err != nil {
 			s.log.Error("zfs clone failed", log.Ctx{"output": string(output)})
-			return err
+			return fmt.Errorf("Failed to clone the sub-volume: %s", output)
 		}
 	}
 
@@ -717,7 +735,7 @@ func (s *storageZfs) zfsCreate(path string) error {
 		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs create failed", log.Ctx{"output": string(output)})
-		return err
+		return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
 	}
 
 	return nil
@@ -754,7 +772,7 @@ func (s *storageZfs) zfsDestroy(path string) error {
 
 	if err != nil {
 		s.log.Error("zfs destroy failed", log.Ctx{"output": string(output)})
-		return err
+		return fmt.Errorf("Failed to destroy ZFS filesystem: %s", output)
 	}
 
 	return nil
@@ -809,7 +827,7 @@ func (s *storageZfs) zfsGet(path string, key string) (string, error) {
 		key,
 		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
 	if err != nil {
-		return string(output), err
+		return string(output), fmt.Errorf("Failed to get ZFS config: %s", output)
 	}
 
 	return strings.TrimRight(string(output), "\n"), nil
@@ -822,7 +840,7 @@ func (s *storageZfs) zfsMount(path string) error {
 		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs mount failed", log.Ctx{"output": string(output)})
-		return err
+		return fmt.Errorf("Failed to mount ZFS filesystem: %s", output)
 	}
 
 	return nil
@@ -838,7 +856,7 @@ func (s *storageZfs) zfsRename(source string, dest string) error {
 	if err != nil {
 		if s.zfsExists(source) || !s.zfsExists(dest) {
 			s.log.Error("zfs rename failed", log.Ctx{"output": string(output)})
-			return err
+			return fmt.Errorf("Failed to rename ZFS filesystem: %s", output)
 		}
 	}
 
@@ -853,7 +871,7 @@ func (s *storageZfs) zfsSet(path string, key string, value string) error {
 		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs set failed", log.Ctx{"output": string(output)})
-		return err
+		return fmt.Errorf("Failed to set ZFS config: %s", output)
 	}
 
 	return nil
@@ -867,7 +885,7 @@ func (s *storageZfs) zfsSnapshotCreate(path string, name string) error {
 		fmt.Sprintf("%s/%s@%s", s.zfsPool, path, name)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs snapshot failed", log.Ctx{"output": string(output)})
-		return err
+		return fmt.Errorf("Failed to create ZFS snapshot: %s", output)
 	}
 
 	return nil
@@ -881,7 +899,7 @@ func (s *storageZfs) zfsSnapshotDestroy(path string, name string) error {
 		fmt.Sprintf("%s/%s@%s", s.zfsPool, path, name)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs destroy failed", log.Ctx{"output": string(output)})
-		return err
+		return fmt.Errorf("Failed to destroy ZFS snapshot: %s", output)
 	}
 
 	return nil
@@ -894,7 +912,7 @@ func (s *storageZfs) zfsSnapshotRestore(path string, name string) error {
 		fmt.Sprintf("%s/%s@%s", s.zfsPool, path, name)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs rollback failed", log.Ctx{"output": string(output)})
-		return err
+		return fmt.Errorf("Failed to restore ZFS snapshot: %s", output)
 	}
 
 	subvols, err := s.zfsListSubvolumes(path)
@@ -918,7 +936,7 @@ func (s *storageZfs) zfsSnapshotRestore(path string, name string) error {
 			fmt.Sprintf("%s/%s@%s", s.zfsPool, sub, name)).CombinedOutput()
 		if err != nil {
 			s.log.Error("zfs rollback failed", log.Ctx{"output": string(output)})
-			return err
+			return fmt.Errorf("Failed to restore ZFS sub-volume snapshot: %s", output)
 		}
 	}
 
@@ -934,7 +952,7 @@ func (s *storageZfs) zfsSnapshotRename(path string, oldName string, newName stri
 		fmt.Sprintf("%s/%s@%s", s.zfsPool, path, newName)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs snapshot rename failed", log.Ctx{"output": string(output)})
-		return err
+		return fmt.Errorf("Failed to rename ZFS snapshot: %s", output)
 	}
 
 	return nil
@@ -947,7 +965,7 @@ func (s *storageZfs) zfsUnmount(path string) error {
 		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs unmount failed", log.Ctx{"output": string(output)})
-		return err
+		return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
 	}
 
 	return nil
@@ -969,7 +987,7 @@ func (s *storageZfs) zfsListSubvolumes(path string) ([]string, error) {
 		"-r", fullPath).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs list failed", log.Ctx{"output": string(output)})
-		return []string{}, err
+		return []string{}, fmt.Errorf("Failed to list ZFS filesystems: %s", output)
 	}
 
 	children := []string{}
@@ -1006,7 +1024,7 @@ func (s *storageZfs) zfsListSnapshots(path string) ([]string, error) {
 		"-r", fullPath).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs list failed", log.Ctx{"output": string(output)})
-		return []string{}, err
+		return []string{}, fmt.Errorf("Failed to list ZFS snapshots: %s", output)
 	}
 
 	children := []string{}
@@ -1054,6 +1072,7 @@ func (s *storageZfs) zfsGetPoolUsers() ([]string, error) {
 	exceptions := []string{
 		"containers",
 		"images",
+		"snapshots",
 		"deleted",
 		"deleted/containers",
 		"deleted/images"}
