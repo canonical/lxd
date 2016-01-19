@@ -640,6 +640,10 @@ func (s *storageLvm) ContainerRestore(
 	return nil
 }
 
+func (s *storageLvm) ContainerSetQuota(container container, size int64) error {
+	return fmt.Errorf("The directory container backend doesn't support quotas.")
+}
+
 func (s *storageLvm) ContainerSnapshotCreate(
 	snapshotContainer container, sourceContainer container) error {
 	return s.createSnapshotContainer(snapshotContainer, sourceContainer, true)
