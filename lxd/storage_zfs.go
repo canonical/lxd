@@ -1072,6 +1072,7 @@ func (s *storageZfs) zfsGetPoolUsers() ([]string, error) {
 	exceptions := []string{
 		"containers",
 		"images",
+		"snapshots",
 		"deleted",
 		"deleted/containers",
 		"deleted/images"}
