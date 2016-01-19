@@ -253,6 +253,28 @@ func (s *storageBtrfs) ContainerRestore(
 	return failure
 }
 
+func (s *storageBtrfs) ContainerSetQuota(container container, size int64) error {
+	subvol := container.Path()
+
+	_, err := s.subvolQGroup(subvol)
+	if err != nil {
+		return err
+	}
+
+	output, err := exec.Command(
+		"btrfs",
+		"qgroup",
+		"limit",
+		"-e", fmt.Sprintf("%d", size),
+		subvol).CombinedOutput()
+
+	if err != nil {
+		return fmt.Errorf("Failed to set btrfs quota: %s", output)
+	}
+
+	return nil
+}
+
 func (s *storageBtrfs) ContainerSnapshotCreate(
 	snapshotContainer container, sourceContainer container) error {
 
@@ -425,7 +447,60 @@ func (s *storageBtrfs) subvolCreate(subvol string) error {
 	return nil
 }
 
+func (s *storageBtrfs) subvolQGroup(subvol string) (string, error) {
+	output, err := exec.Command(
+		"btrfs",
+		"qgroup",
+		"show",
+		subvol,
+		"-e",
+		"-f").CombinedOutput()
+
+	if err != nil {
+		return "", fmt.Errorf("btrfs quotas not supported. Try enabling them with 'btrfs quota enable'.")
+	}
+
+	var qgroup string
+	for _, line := range strings.Split(string(output), "\n") {
+		if line == "" || strings.HasPrefix(line, "qgroupid") || strings.HasPrefix(line, "---") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) != 4 {
+			continue
+		}
+
+		qgroup = fields[0]
+	}
+
+	if qgroup == "" {
+		return "", fmt.Errorf("Unable to find quota group")
+	}
+
+	return qgroup, nil
+}
+
 func (s *storageBtrfs) subvolDelete(subvol string) error {
+	// Attempt (but don't fail on) to delete any qgroup on the subvolume
+	qgroup, err := s.subvolQGroup(subvol)
+	if err == nil {
+		output, err := exec.Command(
+			"btrfs",
+			"qgroup",
+			"destroy",
+			qgroup,
+			subvol).CombinedOutput()
+
+		if err != nil {
+			s.log.Warn(
+				"subvolume qgroup delete failed",
+				log.Ctx{"subvol": subvol, "output": string(output)},
+			)
+		}
+	}
+
+	// Delete the subvolume itself
 	output, err := exec.Command(
 		"btrfs",
 		"subvolume",
