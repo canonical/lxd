@@ -9,13 +9,14 @@ Feature                                     | Directory | Btrfs | LVM   | ZFS
 Optimized image storage                     | no        | yes   | yes   | yes
 Optimized container creation                | no        | yes   | yes   | yes
 Optimized snapshot creation                 | no        | yes   | yes   | yes
-Optimized image transfer                    | no        | no    | no    | no
-Optimized container transfer                | no        | no    | no    | no
+Optimized image transfer                    | no        | no    | no    | yes
+Optimized container transfer                | no        | no    | no    | yes
 Copy on write                               | no        | yes   | yes   | yes
 Block based                                 | no        | no    | yes   | no
 Instant cloning                             | no        | yes   | yes   | yes
 Nesting support                             | yes       | yes   | no    | no
 Restore from older snapshots (not latest)   | yes       | yes   | yes   | no
+Storage quotas                              | no        | yes   | no    | yes
 
 ## Mixed storage
 When switching storage backend after some containers or images already exist, LXD will create any new container  

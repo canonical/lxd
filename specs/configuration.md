@@ -161,14 +161,14 @@ LXD supports different kind of network devices:
 
 Different network interface types have different additional properties, the current list is:
 
-Key       | Type      | Default           | Required  | Used by                       | Description
-:--       | :--       | :--               | :--       | :--                           | :--
-nictype   | string    | -                 | yes       | all                           | The device type, one of "physical", "bridged", "macvlan" or "p2p"
-name      | string    | kernel assigned   | no        | all                           | The name of the interface inside the container
-host_name | string    | randomly assigned | no        | bridged, p2p, macvlan         | The name of the interface inside the host
-hwaddr    | string    | randomly assigned | no        | all                           | The MAC address of the new interface
-mtu       | integer   | parent MTU        | no        | all                           | The MTU of the new interface
-parent    | string    | -                 | yes       | physical, bridged, macvlan    | The name of the host device or bridge
+Key        | Type      | Default           | Required  | Used by                       | Description
+:--        | :--       | :--               | :--       | :--                           | :--
+nictype    | string    | -                 | yes       | all                           | The device type, one of "physical", "bridged", "macvlan" or "p2p"
+name       | string    | kernel assigned   | no        | all                           | The name of the interface inside the container
+host\_name | string    | randomly assigned | no        | bridged, p2p, macvlan         | The name of the interface inside the host
+hwaddr     | string    | randomly assigned | no        | all                           | The MAC address of the new interface
+mtu        | integer   | parent MTU        | no        | all                           | The MTU of the new interface
+parent     | string    | -                 | yes       | physical, bridged, macvlan    | The name of the host device or bridge
 
 ### Type: disk
 Disk entries are essentially mountpoints inside the container. They can
@@ -183,6 +183,7 @@ path        | string    | -                 | yes       | Path inside the contai
 source      | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
 optional    | boolean   | false             | no        | Controls whether to fail if the source doesn't exist
 readonly    | boolean   | false             | no        | Controls whether to make the mount read-only
+size        | string    | -                 | no        | Disk size in bytes (supports kB, MB, GB, TB, PB and EB suffixes). This is only supported for the rootfs (/).
 
 ### Type: unix-char
 Unix character device entries simply make the requested character device

@@ -79,6 +79,12 @@ func (s *storageMock) ContainerRestore(
 	return nil
 }
 
+func (s *storageMock) ContainerSetQuota(
+	container container, size int64) error {
+
+	return nil
+}
+
 func (s *storageMock) ContainerSnapshotCreate(
 	snapshotContainer container, sourceContainer container) error {
 

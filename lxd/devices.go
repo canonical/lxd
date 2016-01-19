@@ -550,6 +550,10 @@ func deviceParseCPU(cpuAllowance string, cpuPriority string) (string, string, st
 }
 
 func deviceParseBytes(input string) (int64, error) {
+	if input == "" {
+		return 0, nil
+	}
+
 	if len(input) < 3 {
 		return -1, fmt.Errorf("Invalid value: %s", input)
 	}
