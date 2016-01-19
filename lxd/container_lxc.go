@@ -1691,9 +1691,9 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
-	// If raw.apparmor changed, re-validate the apparmor profile
+	// If apparmor changed, re-validate the apparmor profile
 	for _, key := range changedConfig {
-		if key == "raw.apparmor" {
+		if key == "raw.apparmor" || key == "security.nesting" {
 			err = AAParseProfile(c)
 			if err != nil {
 				undoChanges()
@@ -1753,12 +1753,23 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 		// Live update the container config
 		for _, key := range changedConfig {
-			if key == "raw.apparmor" {
+			value := c.expandedConfig[key]
+
+			if key == "raw.apparmor" || key == "security.nesting" {
 				// Update the AppArmor profile
 				err = AALoadProfile(c)
 				if err != nil {
 					undoChanges()
 					return err
+				}
+			} else if key == "linux.kernel_modules" && value != "" {
+				for _, module := range strings.Split(value, ",") {
+					module = strings.TrimPrefix(module, " ")
+					out, err := exec.Command("modprobe", module).CombinedOutput()
+					if err != nil {
+						undoChanges()
+						return fmt.Errorf("Failed to load kernel module '%s': %s", module, out)
+					}
 				}
 			} else if key == "limits.memory" || strings.HasPrefix(key, "limits.memory.") {
 				// Skip if no memory CGroup
