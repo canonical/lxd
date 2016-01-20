@@ -568,6 +568,7 @@ if __name__ == "__main__":
                                                 args.architecture,
                                                 args.version)
                 except:
+                    ubuntu.cleanup()
                     continue
 
                 args.stream = stream
