@@ -41,6 +41,7 @@ var aaAvailable = true
 var aaConfined = false
 
 // CGroup
+var cgBlkioController = false
 var cgCpuController = false
 var cgCpusetController = false
 var cgDevicesController = false
@@ -693,6 +694,11 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Detect CGroup support */
+	cgBlkioController = shared.PathExists("/sys/fs/cgroup/blkio/")
+	if !cgBlkioController {
+		shared.Log.Warn("Couldn't find the CGroup blkio controller, I/O limits will be ignored.")
+	}
+
 	cgCpuController = shared.PathExists("/sys/fs/cgroup/cpu/")
 	if !cgCpuController {
 		shared.Log.Warn("Couldn't find the CGroup CPU controller, CPU time limits will be ignored.")
