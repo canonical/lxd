@@ -1171,6 +1171,11 @@ func doAliasGet(d *Daemon, name string, isTrustedClient bool) (shared.ImageAlias
 
 func aliasDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+	_, err := doAliasGet(d, name, true)
+	if err != nil {
+		return SmartError(err)
+	}
+
 	_, _ = dbExec(d.db, "DELETE FROM images_aliases WHERE name=?", name)
 
 	return EmptySyncResponse
