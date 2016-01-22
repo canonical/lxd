@@ -64,6 +64,7 @@ environment.\*              | string    | -             | yes (exec)    | key/va
 limits.cpu                  | string    | - (all)       | yes           | Number or range of CPUs to expose to the container
 limits.cpu.allowance        | string    | 100%          | yes           | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
 limits.cpu.priority         | integer   | 10 (maximum)  | yes           | CPU scheduling priority compared to other containers sharing the same CPUs (overcommit)
+limits.disk.priority        | integer   | 5 (medium)    | yes           | When under load, how much priority to give to the container's I/O requests
 limits.memory               | string    | - (all)       | yes           | Percentage of the host's memory or fixed value in bytes (supports kB, MB, GB, TB, PB and EB suffixes)
 limits.memory.enforce       | string    | hard          | yes           | If hard, container can't exceed its memory limit. If soft, the container can exceed its memory limit when extra host memory is available.
 limits.memory.swap          | boolean   | true          | yes           | Whether to allow some of the container's memory to be swapped out to disk
@@ -183,13 +184,19 @@ if the source is a block device, a regular mount.
 
 The following properties exist:
 
-Key         | Type      | Default           | Required  | Description
-:--         | :--       | :--               | :--       | :--
-path        | string    | -                 | yes       | Path inside the container where the disk will be mounted
-source      | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
-optional    | boolean   | false             | no        | Controls whether to fail if the source doesn't exist
-readonly    | boolean   | false             | no        | Controls whether to make the mount read-only
-size        | string    | -                 | no        | Disk size in bytes (supports kB, MB, GB, TB, PB and EB suffixes). This is only supported for the rootfs (/).
+Key             | Type      | Default           | Required  | Description
+:--             | :--       | :--               | :--       | :--
+limits.read     | string    | -                 | no        | I/O limit in byte/s (supports kB, MB, GB, TB, PB and EB suffixes) or in iops (must be prefixed with "iops")
+limits.write    | string    | -                 | no        | I/O limit in byte/s (supports kB, MB, GB, TB, PB and EB suffixes) or in iops (must be prefixed with "iops")
+limits.max      | string    | -                 | no        | Same as modifying both limits.read and limits.write
+path            | string    | -                 | yes       | Path inside the container where the disk will be mounted
+source          | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
+optional        | boolean   | false             | no        | Controls whether to fail if the source doesn't exist
+readonly        | boolean   | false             | no        | Controls whether to make the mount read-only
+size            | string    | -                 | no        | Disk size in bytes (supports kB, MB, GB, TB, PB and EB suffixes). This is only supported for the rootfs (/).
+
+If multiple disks, backed by the same block device, have I/O limits set,
+the average of the limits will be used.
 
 ### Type: unix-char
 Unix character device entries simply make the requested character device
