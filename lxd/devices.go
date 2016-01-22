@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +25,13 @@ import (
 )
 
 var deviceSchedRebalance = make(chan []string, 0)
+
+type deviceBlockLimit struct {
+	readBps   int64
+	readIops  int64
+	writeBps  int64
+	writeIops int64
+}
 
 type deviceTaskCPU struct {
 	id    int
@@ -626,4 +634,221 @@ func deviceTotalMemory() (int64, error) {
 	}
 
 	return -1, fmt.Errorf("Couldn't find MemTotal")
+}
+
+func deviceGetParentBlock(path string) ([]string, error) {
+	// Expand the mount path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+
+	expPath, err := os.Readlink(absPath)
+	if err != nil {
+		expPath = absPath
+	}
+
+	// Find the source mount of the path
+	file, err := os.Open("/proc/self/mountinfo")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	match := ""
+	for scanner.Scan() {
+		line := scanner.Text()
+		rows := strings.Fields(line)
+
+		if !strings.HasPrefix(expPath, rows[4]) || len(rows[4]) <= len(match) {
+			continue
+		}
+
+		match = rows[8]
+	}
+
+	if match == "" {
+		return nil, fmt.Errorf("Couldn't find a match /proc/self/mountinfo entry")
+	}
+
+	// Expand the device path
+	absDev, err := filepath.Abs(match)
+	if err != nil {
+		return nil, err
+	}
+
+	expDev, err := os.Readlink(absDev)
+	if err != nil {
+		expDev = absDev
+	}
+
+	// Deal with per-filesystem oddities
+	fs, _ := filesystemDetect(expPath)
+
+	// ZFS can be backed by multiple block devices
+	if fs == "zfs" {
+		return nil, fmt.Errorf("Not implemented")
+	}
+
+	// btrfs can be backed by multiple block devices
+	if fs == "btrfs" {
+		return nil, fmt.Errorf("Not implemented")
+	}
+
+	return []string{expDev}, nil
+}
+
+func deviceGetParentBlocks(path string) ([]string, error) {
+	var devices []string
+
+	// Expand the mount path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+
+	expPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		expPath = absPath
+	}
+
+	// Find the source mount of the path
+	file, err := os.Open("/proc/self/mountinfo")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	device := ""
+	match := ""
+	for scanner.Scan() {
+		line := scanner.Text()
+		rows := strings.Fields(line)
+
+		if len(rows[4]) <= len(match) {
+			continue
+		}
+
+		if expPath != rows[4] && !strings.HasPrefix(expPath, rows[4]) {
+			continue
+		}
+
+		match = rows[4]
+		device = rows[8]
+	}
+
+	if device == "" {
+		return nil, fmt.Errorf("Couldn't find a match /proc/self/mountinfo entry")
+	}
+
+	// Deal with per-filesystem oddities
+	fs, _ := filesystemDetect(expPath)
+
+	if fs == "zfs" {
+		poolName := strings.Split(device, "/")[0]
+
+		output, err := exec.Command("zpool", "status", poolName).CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to query zfs filesystem information: %s", output)
+		}
+
+		for _, line := range strings.Split(string(output), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) < 5 {
+				continue
+			}
+
+			if fields[1] != "ONLINE" {
+				continue
+			}
+
+			if shared.PathExists(fields[0]) {
+				if shared.IsBlockdevPath(fields[0]) {
+					devices = append(devices, fields[0])
+				} else {
+					subDevices, err := deviceGetParentBlock(fields[0])
+					if err != nil {
+						return nil, err
+					}
+
+					for _, dev := range subDevices {
+						devices = append(devices, dev)
+					}
+				}
+			} else if shared.PathExists(fmt.Sprintf("/dev/%s", fields[0])) {
+				devices = append(devices, fmt.Sprintf("/dev/%s", fields[0]))
+			} else if shared.PathExists(fmt.Sprintf("/dev/disk/by-id/%s", fields[0])) {
+				devices = append(devices, fmt.Sprintf("/dev/disk/by-id/%s", fields[0]))
+			} else {
+				continue
+			}
+		}
+	} else if fs == "btrfs" {
+		output, err := exec.Command("btrfs", "filesystem", "show", device).CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to query btrfs filesystem information: %s", output)
+		}
+
+		for _, line := range strings.Split(string(output), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) == 0 || fields[0] != "devid" {
+				continue
+			}
+
+			devices = append(devices, fields[len(fields)-1])
+		}
+	} else if shared.PathExists(device) {
+		devices = append(devices, device)
+	}
+
+	// Expand the device paths
+	for i, dev := range devices {
+		target, err := filepath.EvalSymlinks(dev)
+		if err == nil {
+			devices[i] = target
+		}
+	}
+
+	return devices, nil
+}
+
+func deviceParseDiskLimit(readSpeed string, writeSpeed string) (int64, int64, int64, int64, error) {
+	parseValue := func(value string) (int64, int64, error) {
+		var err error
+
+		bps := int64(0)
+		iops := int64(0)
+
+		if readSpeed == "" {
+			return bps, iops, nil
+		}
+
+		if strings.HasSuffix(value, "iops") {
+			iops, err = strconv.ParseInt(strings.TrimSuffix(value, "iops"), 10, 64)
+			if err != nil {
+				return -1, -1, err
+			}
+		} else {
+			bps, err = deviceParseBytes(value)
+			if err != nil {
+				return -1, -1, err
+			}
+		}
+
+		return bps, iops, nil
+	}
+
+	readBps, readIops, err := parseValue(readSpeed)
+	if err != nil {
+		return -1, -1, -1, -1, err
+	}
+
+	writeBps, writeIops, err := parseValue(writeSpeed)
+	if err != nil {
+		return -1, -1, -1, -1, err
+	}
+
+	return readBps, readIops, writeBps, writeIops, nil
 }

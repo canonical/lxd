@@ -51,6 +51,8 @@ func containerValidConfigKey(k string) bool {
 		return true
 	case "limits.cpu.priority":
 		return true
+	case "limits.disk.priority":
+		return true
 	case "limits.memory":
 		return true
 	case "limits.memory.enforce":
@@ -157,6 +159,12 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		}
 	case "disk":
 		switch k {
+		case "limits.max":
+			return true
+		case "limits.read":
+			return true
+		case "limits.write":
+			return true
 		case "optional":
 			return true
 		case "path":

@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/i18n"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
@@ -211,37 +211,25 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
+	// If stdin isn't a terminal, read text from it
 	if !terminal.IsTerminal(int(syscall.Stdin)) {
-		_, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return err
-		}
+		return c.push(config, append([]string{os.Stdin.Name()}, args[0]))
 	}
 
+	// Create temp file
 	f, err := ioutil.TempFile("", "lxd_file_edit_")
 	fname := f.Name()
 	f.Close()
 	os.Remove(fname)
 	defer os.Remove(fname)
+
+	// Extract current value
 	err = c.pull(config, append([]string{args[0]}, fname))
 	if err != nil {
 		return err
 	}
 
-	editor := os.Getenv("VISUAL")
-	if editor == "" {
-		editor = os.Getenv("EDITOR")
-		if editor == "" {
-			editor = "vi"
-		}
-	}
-
-	cmdParts := strings.Fields(editor)
-	cmd := exec.Command(cmdParts[0], append(cmdParts[1:], fname)...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
+	_, err = shared.TextEditor(fname, []byte{})
 	if err != nil {
 		return err
 	}
@@ -251,7 +239,7 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	return err
+	return nil
 }
 
 func (c *fileCmd) run(config *lxd.Config, args []string) error {
