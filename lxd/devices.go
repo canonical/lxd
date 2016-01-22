@@ -44,7 +44,7 @@ func (c deviceTaskCPUs) Len() int           { return len(c) }
 func (c deviceTaskCPUs) Less(i, j int) bool { return *c[i].count < *c[j].count }
 func (c deviceTaskCPUs) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
-func deviceMonitorProcessors() (chan []string, error) {
+func deviceNetlinkListener() (chan []string, error) {
 	NETLINK_KOBJECT_UEVENT := 15
 	UEVENT_BUFFER_SIZE := 2048
 
@@ -97,15 +97,25 @@ func deviceMonitorProcessors() (chan []string, error) {
 				}
 			}
 
-			if props["SUBSYSTEM"] != "cpu" || props["DRIVER"] != "processor" {
-				continue
+			if props["SUBSYSTEM"] == "cpu" {
+				if props["DRIVER"] != "processor" {
+					continue
+				}
+
+				if props["ACTION"] != "offline" && props["ACTION"] != "online" {
+					continue
+				}
+
+				ch <- []string{"cpu", path.Base(props["DEVPATH"]), props["ACTION"]}
 			}
 
-			if props["ACTION"] != "offline" && props["ACTION"] != "online" {
-				continue
-			}
+			if props["SUBSYSTEM"] == "net" {
+				if props["ACTION"] != "add" && props["ACTION"] != "removed" {
+					continue
+				}
 
-			ch <- []string{path.Base(props["DEVPATH"]), props["ACTION"]}
+				ch <- []string{"net", props["INTERFACE"], props["ACTION"]}
+			}
 		}
 	}(ch)
 
@@ -340,25 +350,66 @@ func deviceGetCurrentCPUs() (string, error) {
 	return "", fmt.Errorf("Couldn't find cpus_allowed_list")
 }
 
-func deviceTaskScheduler(d *Daemon) {
-	chHotplug, err := deviceMonitorProcessors()
-	if err != nil {
-		shared.Log.Error("scheduler: couldn't setup uevent watcher, no automatic re-balance")
+func deviceNetworkPriority(d *Daemon, netif string) {
+	// Don't bother running when CGroup support isn't there
+	if !cgNetPrioController {
 		return
 	}
 
-	shared.Debugf("Scheduler: doing initial balance")
-	deviceTaskBalance(d)
+	containers, err := dbContainersList(d.db, cTypeRegular)
+	if err != nil {
+		return
+	}
+
+	for _, name := range containers {
+		// Get the container struct
+		c, err := containerLoadByName(d, name)
+		if err != nil {
+			continue
+		}
+
+		// Extract the current priority
+		networkPriority := c.ExpandedConfig()["limits.network.priority"]
+		if networkPriority == "" {
+			continue
+		}
+
+		networkInt, err := strconv.Atoi(networkPriority)
+		if err != nil {
+			continue
+		}
+
+		// Set the value for the new interface
+		c.CGroupSet("net_prio.ifpriomap", fmt.Sprintf("%s %d", netif, networkInt))
+	}
+
+	return
+}
+
+func deviceEventListener(d *Daemon) {
+	chNetlink, err := deviceNetlinkListener()
+	if err != nil {
+		shared.Log.Error("scheduler: couldn't setup netlink listener")
+		return
+	}
 
 	for {
 		select {
-		case e := <-chHotplug:
-			if len(e) != 2 {
+		case e := <-chNetlink:
+			if len(e) != 3 {
 				shared.Log.Error("Scheduler: received an invalid hotplug event")
 				continue
 			}
-			shared.Debugf("Scheduler: %s is now %s: re-balancing", e[0], e[1])
-			deviceTaskBalance(d)
+
+			if e[0] == "cpu" {
+				shared.Debugf("Scheduler: %s: %s is now %s: re-balancing", e[0], e[1], e[2])
+				deviceTaskBalance(d)
+			}
+
+			if e[0] == "net" && e[2] == "add" {
+				shared.Debugf("Scheduler: %s: %s has been added: updating network priorities", e[0], e[1])
+				deviceNetworkPriority(d, e[1])
+			}
 		case e := <-deviceSchedRebalance:
 			if len(e) != 3 {
 				shared.Log.Error("Scheduler: received an invalid rebalance event")
@@ -555,6 +606,51 @@ func deviceParseCPU(cpuAllowance string, cpuPriority string) (string, string, st
 	}
 
 	return fmt.Sprintf("%d", cpuShares), cpuCfsQuota, cpuCfsPeriod, nil
+}
+
+func deviceParseBits(input string) (int64, error) {
+	if input == "" {
+		return 0, nil
+	}
+
+	if len(input) < 5 {
+		return -1, fmt.Errorf("Invalid value: %s", input)
+	}
+
+	// Extract the suffix
+	suffix := input[len(input)-4:]
+
+	// Extract the value
+	value := input[0 : len(input)-4]
+	valueInt, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return -1, fmt.Errorf("Invalid integer: %s", input)
+	}
+
+	if valueInt < 0 {
+		return -1, fmt.Errorf("Invalid value: %d", valueInt)
+	}
+
+	// Figure out the multiplicator
+	multiplicator := int64(0)
+	switch suffix {
+	case "kbit":
+		multiplicator = 1000
+	case "Mbit":
+		multiplicator = 1000 * 1000
+	case "Gbit":
+		multiplicator = 1000 * 1000 * 1000
+	case "Tbit":
+		multiplicator = 1000 * 1000 * 1000 * 1000
+	case "Pbit":
+		multiplicator = 1000 * 1000 * 1000 * 1000 * 1000
+	case "Ebit":
+		multiplicator = 1000 * 1000 * 1000 * 1000 * 1000 * 1000
+	default:
+		return -1, fmt.Errorf("Unsupported suffix: %s", suffix)
+	}
+
+	return valueInt * multiplicator, nil
 }
 
 func deviceParseBytes(input string) (int64, error) {
