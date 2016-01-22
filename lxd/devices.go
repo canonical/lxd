@@ -736,7 +736,9 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 		}
 
 		match = rows[4]
-		device = rows[8]
+
+		// Go backward to avoid problems with optional fields
+		device = rows[len(rows)-2]
 	}
 
 	if device == "" {
@@ -751,7 +753,7 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 
 		output, err := exec.Command("zpool", "status", poolName).CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query zfs filesystem information: %s", output)
+			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %s", device, output)
 		}
 
 		for _, line := range strings.Split(string(output), "\n") {
@@ -788,7 +790,7 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 	} else if fs == "btrfs" {
 		output, err := exec.Command("btrfs", "filesystem", "show", device).CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query btrfs filesystem information: %s", output)
+			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %s", device, output)
 		}
 
 		for _, line := range strings.Split(string(output), "\n") {
