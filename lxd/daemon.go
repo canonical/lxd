@@ -46,6 +46,7 @@ var cgCpuController = false
 var cgCpusetController = false
 var cgDevicesController = false
 var cgMemoryController = false
+var cgNetPrioController = false
 var cgSwapAccounting = false
 
 // UserNS
@@ -719,6 +720,11 @@ func (d *Daemon) Init() error {
 		shared.Log.Warn("Couldn't find the CGroup memory controller, memory limits will be ignored.")
 	}
 
+	cgNetPrioController = shared.PathExists("/sys/fs/cgroup/net_cls/")
+	if !cgMemoryController {
+		shared.Log.Warn("Couldn't find the CGroup network class controller, network limits will be ignored.")
+	}
+
 	cgSwapAccounting = shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes")
 	if !cgSwapAccounting {
 		shared.Log.Warn("CGroup memory swap accounting is disabled, swap limits will be ignored.")
@@ -850,7 +856,10 @@ func (d *Daemon) Init() error {
 		}()
 
 		/* Start the scheduler */
-		go deviceTaskScheduler(d)
+		go deviceEventListener(d)
+
+		/* Re-balance in case things changed while LXD was down */
+		deviceTaskBalance(d)
 
 		/* Setup the TLS authentication */
 		certf, keyf, err := readMyCert()

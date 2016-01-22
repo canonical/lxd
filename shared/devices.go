@@ -22,6 +22,10 @@ func (list Devices) Contains(k string, d Device) bool {
 
 	old := list[k]
 
+	return deviceEquals(old, d)
+}
+
+func deviceEquals(old Device, d Device) bool {
 	// Check for any difference and addition/removal of properties
 	for k, _ := range d {
 		if d[k] != old[k] {
@@ -38,9 +42,10 @@ func (list Devices) Contains(k string, d Device) bool {
 	return true
 }
 
-func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device) {
+func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device, map[string]Device) {
 	rmlist := map[string]Device{}
 	addlist := map[string]Device{}
+	updatelist := map[string]Device{}
 
 	for key, d := range old {
 		if !newlist.Contains(key, d) {
@@ -54,7 +59,34 @@ func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device
 		}
 	}
 
-	return rmlist, addlist
+	for key, d := range addlist {
+		srcOldDevice := rmlist[key]
+		var oldDevice Device
+		err := DeepCopy(&srcOldDevice, &oldDevice)
+		if err != nil {
+			continue
+		}
+
+		srcNewDevice := newlist[key]
+		var newDevice Device
+		err = DeepCopy(&srcNewDevice, &newDevice)
+		if err != nil {
+			continue
+		}
+
+		for _, k := range []string{"limits.max", "limits.read", "limits.write", "limits.egress", "limits.ingress"} {
+			delete(oldDevice, k)
+			delete(newDevice, k)
+		}
+
+		if deviceEquals(oldDevice, newDevice) {
+			delete(rmlist, key)
+			delete(addlist, key)
+			updatelist[key] = d
+		}
+	}
+
+	return rmlist, addlist, updatelist
 }
 
 func (newBaseDevices Devices) ExtendFromProfile(currentFullDevices Devices, newDevicesFromProfile Devices) error {
