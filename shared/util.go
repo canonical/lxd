@@ -527,7 +527,16 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 	if editor == "" {
 		editor = os.Getenv("EDITOR")
 		if editor == "" {
-			editor = "vi"
+			for _, p := range []string{"editor", "vi", "emacs", "nano"} {
+				_, err := exec.LookPath(p)
+				if err == nil {
+					editor = p
+					break
+				}
+			}
+			if editor == "" {
+				return []byte{}, fmt.Errorf("No text editor found, please set the EDITOR environment variable.")
+			}
 		}
 	}
 
