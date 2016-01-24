@@ -439,7 +439,11 @@ func (d *Daemon) ListenAddresses() ([]string, error) {
 			}
 		}
 	} else {
-		addresses = append(addresses, fmt.Sprintf("%s:%s", localHost, localPort))
+		if strings.Contains(localHost, ":") {
+			addresses = append(addresses, fmt.Sprintf("[%s]:%s", localHost, localPort))
+		} else {
+			addresses = append(addresses, fmt.Sprintf("%s:%s", localHost, localPort))
+		}
 	}
 
 	return addresses, nil
