@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"gopkg.in/lxc/go-lxc.v2"
@@ -176,6 +177,7 @@ func startContainer(args []string) error {
 	if len(args) != 4 {
 		return fmt.Errorf("Bad arguments: %q", args)
 	}
+
 	name := args[1]
 	lxcpath := args[2]
 	configPath := args[3]
@@ -184,6 +186,7 @@ func startContainer(args []string) error {
 	if err != nil {
 		return fmt.Errorf("Error initializing container for start: %q", err)
 	}
+
 	err = c.LoadConfigFile(configPath)
 	if err != nil {
 		return fmt.Errorf("Error opening startup config file: %q", err)
@@ -197,12 +200,21 @@ func startContainer(args []string) error {
 	os.Stdin.Close()
 	os.Stderr.Close()
 	os.Stdout.Close()
-	err = c.Start()
-	if err != nil {
-		os.Remove(configPath)
-	} else {
-		shared.FileMove(configPath, shared.LogPath(name, "lxc.conf"))
+
+	// Redirect stdout and stderr to a log file
+	logPath := shared.LogPath(name, "forkstart.log")
+	if shared.PathExists(logPath) {
+		os.Remove(logPath)
 	}
 
-	return err
+	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
+	if err == nil {
+		syscall.Dup2(int(logFile.Fd()), 1)
+		syscall.Dup2(int(logFile.Fd()), 2)
+	}
+
+	// Move the config so we can inspect it on failure
+	shared.FileMove(configPath, shared.LogPath(name, "lxc.conf"))
+
+	return c.Start()
 }
