@@ -593,6 +593,10 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		if ok {
 			progressHandler(opMd["download_progress"].(string))
 		}
+
+		if shared.StatusCode(md["status_code"].(float64)).IsFinal() {
+			fmt.Printf("Image copied successfully!\n")
+		}
 	}
 
 	if progressHandler != nil {
