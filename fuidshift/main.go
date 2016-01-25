@@ -10,7 +10,7 @@ import (
 func help(me string, status int) {
 	fmt.Printf("Usage: %s directory [-t] [-r] <range1> [<range2> ...]\n", me)
 	fmt.Printf("  -t implies test mode.  No file ownerships will be changed.\n")
-	fmt.Printf("  -r means reverse, that is shift the uids out of hte container.\n")
+	fmt.Printf("  -r means reverse, that is shift the uids out of the container.\n")
 	fmt.Printf("\n")
 	fmt.Printf("  A range is [u|b|g]:<first_container_id:first_host_id:range>.\n")
 	fmt.Printf("  where u means shift uids, g means shift gids, b means shift both.\n")
