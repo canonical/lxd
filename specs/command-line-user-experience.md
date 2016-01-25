@@ -194,8 +194,7 @@ tar cf - /opt/myapp \| lxc exec dakara:c2 -- tar xvf -    | Make a tarball of /o
     file pull <source> [<source>...] <target>
 
 **Description**
-Copies file to or from the container. Supports rewriting the uid/gid/mode. This
-is only allowed for containers that are currently running.
+Copies file to or from the container. Supports rewriting the uid/gid/mode.
 
 **Examples**
 
