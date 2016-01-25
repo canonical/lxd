@@ -37,8 +37,7 @@ lxc file pull <source> [<source>...] <target>
 lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
 lxc file edit <file>
 
-<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>
-This operation is only supported on containers that are currently running`)
+<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>`)
 }
 
 func (c *fileCmd) flags() {
