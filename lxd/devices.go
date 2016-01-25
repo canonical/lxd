@@ -401,12 +401,12 @@ func deviceEventListener(d *Daemon) {
 				continue
 			}
 
-			if e[0] == "cpu" {
+			if e[0] == "cpu" && cgCpusetController {
 				shared.Debugf("Scheduler: %s: %s is now %s: re-balancing", e[0], e[1], e[2])
 				deviceTaskBalance(d)
 			}
 
-			if e[0] == "net" && e[2] == "add" {
+			if e[0] == "net" && e[2] == "add" && cgNetPrioController {
 				shared.Debugf("Scheduler: %s: %s has been added: updating network priorities", e[0], e[1])
 				deviceNetworkPriority(d, e[1])
 			}
@@ -415,8 +415,11 @@ func deviceEventListener(d *Daemon) {
 				shared.Log.Error("Scheduler: received an invalid rebalance event")
 				continue
 			}
-			shared.Debugf("Scheduler: %s %s %s: re-balancing", e[0], e[1], e[2])
-			deviceTaskBalance(d)
+
+			if cgCpusetController {
+				shared.Debugf("Scheduler: %s %s %s: re-balancing", e[0], e[1], e[2])
+				deviceTaskBalance(d)
+			}
 		}
 	}
 }
