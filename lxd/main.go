@@ -184,7 +184,7 @@ func run() error {
 
 	// Process sub-commands
 	if len(os.Args) > 1 {
-		// "forkputfile" and "forkgetfile" are handled specially in copyfile.go
+		// "forkputfile" and "forkgetfile" are handled specially in mntnsexec.go
 		switch os.Args[1] {
 		case "activateifneeded":
 			return activateIfNeeded()
