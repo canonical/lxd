@@ -61,6 +61,8 @@ func containerValidConfigKey(k string) bool {
 		return true
 	case "limits.memory.swap.priority":
 		return true
+	case "limits.network.priority":
+		return true
 	case "linux.kernel_modules":
 		return true
 	case "security.privileged":
@@ -142,6 +144,12 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		}
 	case "nic":
 		switch k {
+		case "limits.max":
+			return true
+		case "limits.ingress":
+			return true
+		case "limits.egress":
+			return true
 		case "host_name":
 			return true
 		case "hwaddr":

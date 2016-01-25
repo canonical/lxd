@@ -619,6 +619,9 @@ func (c *containerLXC) initLXC() error {
 		} else if m["type"] == "nic" {
 			// Fill in some fields from volatile
 			m, err = c.fillNetworkDevice(k, m)
+			if err != nil {
+				return err
+			}
 
 			// Interface type specific configuration
 			if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
@@ -1106,6 +1109,36 @@ func (c *containerLXC) OnStart() error {
 
 	// Trigger a rebalance
 	deviceTaskSchedulerTrigger("container", c.name, "started")
+
+	// Apply network priority
+	if c.expandedConfig["limits.network.priority"] != "" {
+		go func(c *containerLXC) {
+			c.fromHook = false
+			err := c.setNetworkPriority()
+			if err != nil {
+				shared.Log.Error("Failed to apply network priority", log.Ctx{"container": c.name, "err": err})
+			}
+		}(c)
+	}
+
+	// Apply network limits
+	for name, m := range c.expandedDevices {
+		if m["type"] != "nic" {
+			continue
+		}
+
+		if m["limits.max"] == "" && m["limits.ingress"] == "" && m["limits.egress"] == "" {
+			continue
+		}
+
+		go func(c *containerLXC, name string, m shared.Device) {
+			c.fromHook = false
+			err = c.setNetworkLimits(name, m)
+			if err != nil {
+				shared.Log.Error("Failed to apply network limits", log.Ctx{"container": c.name, "err": err})
+			}
+		}(c, name, m)
+	}
 
 	return nil
 }
@@ -1718,7 +1751,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Diff the devices
-	removeDevices, addDevices := oldExpandedDevices.Update(c.expandedDevices)
+	removeDevices, addDevices, updateDevices := oldExpandedDevices.Update(c.expandedDevices)
 
 	// Do some validation of the config diff
 	err = containerValidConfig(c.expandedConfig, false, true)
@@ -1944,6 +1977,11 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						}
 					}
 				}
+			} else if key == "limits.network.priority" {
+				err := c.setNetworkPriority()
+				if err != nil {
+					return err
+				}
 			} else if key == "limits.cpu" {
 				// Trigger a scheduler re-run
 				deviceTaskSchedulerTrigger("container", c.name, "changed")
@@ -1981,7 +2019,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 
 		// Live update the devices
-		updateDiskLimit := false
 		for k, m := range removeDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 				err = c.removeUnixDevice(k, m)
@@ -1989,14 +2026,11 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					undoChanges()
 					return err
 				}
-			} else if m["type"] == "disk" {
-				updateDiskLimit = true
-				if m["path"] != "/" {
-					err = c.removeDiskDevice(k, m)
-					if err != nil {
-						undoChanges()
-						return err
-					}
+			} else if m["type"] == "disk" && m["path"] != "/" {
+				err = c.removeDiskDevice(k, m)
+				if err != nil {
+					undoChanges()
+					return err
 				}
 			} else if m["type"] == "nic" {
 				err = c.removeNetworkDevice(k, m)
@@ -2014,14 +2048,11 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					undoChanges()
 					return err
 				}
-			} else if m["type"] == "disk" {
-				updateDiskLimit = true
-				if m["path"] != "/" {
-					err = c.insertDiskDevice(k, m)
-					if err != nil {
-						undoChanges()
-						return err
-					}
+			} else if m["type"] == "disk" && m["path"] != "/" {
+				err = c.insertDiskDevice(k, m)
+				if err != nil {
+					undoChanges()
+					return err
 				}
 			} else if m["type"] == "nic" {
 				err = c.insertNetworkDevice(k, m)
@@ -2032,30 +2063,49 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			}
 		}
 
+		updateDiskLimit := false
+		for k, m := range updateDevices {
+			if m["type"] == "disk" {
+				updateDiskLimit = true
+			} else if m["type"] == "nic" {
+				err = c.setNetworkLimits(k, m)
+				if err != nil {
+					undoChanges()
+					return err
+				}
+			}
+		}
+
+		// Disk limits parse all devices, so just apply them once
 		if updateDiskLimit && cgBlkioController {
 			diskLimits, err := c.getDiskLimits()
 			if err != nil {
+				undoChanges()
 				return err
 			}
 
 			for block, limit := range diskLimits {
 				err = c.CGroupSet("blkio.throttle.read_bps_device", fmt.Sprintf("%s %d", block, limit.readBps))
 				if err != nil {
+					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("blkio.throttle.read_iops_device", fmt.Sprintf("%s %d", block, limit.readIops))
 				if err != nil {
+					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("blkio.throttle.write_bps_device", fmt.Sprintf("%s %d", block, limit.writeBps))
 				if err != nil {
+					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("blkio.throttle.write_iops_device", fmt.Sprintf("%s %d", block, limit.writeIops))
 				if err != nil {
+					undoChanges()
 					return err
 				}
 			}
@@ -3420,6 +3470,7 @@ func (c *containerLXC) getDiskLimits() (map[string]deviceBlockLimit, error) {
 			continue
 		}
 
+		// Apply max limit
 		if m["limits.max"] != "" {
 			m["limits.read"] = m["limits.max"]
 			m["limits.write"] = m["limits.max"]
@@ -3516,6 +3567,156 @@ func (c *containerLXC) getDiskLimits() (map[string]deviceBlockLimit, error) {
 	}
 
 	return result, nil
+}
+
+// Network I/O limits
+func (c *containerLXC) setNetworkPriority() error {
+	// Check that the container is running
+	if !c.IsRunning() {
+		return fmt.Errorf("Can't set network priority on stopped container")
+	}
+
+	// Don't bother if the cgroup controller doesn't exist
+	if !cgNetPrioController {
+		return nil
+	}
+
+	// Extract the current priority
+	networkPriority := c.expandedConfig["limits.network.priority"]
+	if networkPriority == "" {
+		networkPriority = "0"
+	}
+
+	networkInt, err := strconv.Atoi(networkPriority)
+	if err != nil {
+		return err
+	}
+
+	// Get all the interfaces
+	netifs, err := net.Interfaces()
+	if err != nil {
+		return err
+	}
+
+	// Check that we at least succeeded to set an entry
+	success := false
+	var last_error error
+	for _, netif := range netifs {
+		err = c.CGroupSet("net_prio.ifpriomap", fmt.Sprintf("%s %d", netif.Name, networkInt))
+		if err == nil {
+			success = true
+		} else {
+			last_error = err
+		}
+	}
+
+	if !success {
+		return fmt.Errorf("Failed to set network device priority: %s", last_error)
+	}
+
+	return nil
+}
+
+func (c *containerLXC) setNetworkLimits(name string, m shared.Device) error {
+	// We can only do limits on some network type
+	if m["nictype"] != "bridged" && m["nictype"] != "p2p" {
+		return fmt.Errorf("Network limits are only supported on bridged and p2p interfaces")
+	}
+
+	// Load the go-lxc struct
+	err := c.initLXC()
+	if err != nil {
+		return err
+	}
+
+	// Check that the container is running
+	if !c.IsRunning() {
+		return fmt.Errorf("Can't set network limits on stopped container")
+	}
+
+	// Fill in some fields from volatile
+	m, err = c.fillNetworkDevice(name, m)
+	if err != nil {
+		return nil
+	}
+
+	// Look for the host side interface name
+	veth := m["host_name"]
+
+	if veth == "" {
+		for i := 0; i < len(c.c.ConfigItem("lxc.network")); i++ {
+			nicName := c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.name", i))[0]
+			if nicName != m["name"] {
+				continue
+			}
+
+			veth = c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.veth.pair", i))[0]
+			break
+		}
+	}
+
+	if veth == "" {
+		return fmt.Errorf("LXC doesn't now about this device and the host_name property isn't set, can't find host side veth name")
+	}
+
+	// Apply max limit
+	if m["limits.max"] != "" {
+		m["limits.ingress"] = m["limits.max"]
+		m["limits.egress"] = m["limits.max"]
+	}
+
+	// Parse the values
+	var ingressInt int64
+	if m["limits.ingress"] != "" {
+		ingressInt, err = deviceParseBits(m["limits.ingress"])
+		if err != nil {
+			return err
+		}
+	}
+
+	var egressInt int64
+	if m["limits.egress"] != "" {
+		egressInt, err = deviceParseBits(m["limits.egress"])
+		if err != nil {
+			return err
+		}
+	}
+
+	// Clean any existing entry
+	_, _ = exec.Command("tc", "qdisc", "del", "dev", veth, "root").CombinedOutput()
+	_, _ = exec.Command("tc", "qdisc", "del", "dev", veth, "ingress").CombinedOutput()
+
+	// Apply new limits
+	if m["limits.ingress"] != "" {
+		out, err := exec.Command("tc", "qdisc", "add", "dev", veth, "root", "handle", "1:0", "htb", "default", "10").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed to create root tc qdisc: %s", out)
+		}
+
+		out, err = exec.Command("tc", "class", "add", "dev", veth, "parent", "1:0", "classid", "1:10", "htb", "rate", fmt.Sprintf("%dbit", ingressInt)).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed to create limit tc class: %s", out)
+		}
+
+		out, err = exec.Command("tc", "filter", "add", "dev", veth, "parent", "1:0", "protocol", "all", "u32", "match", "u32", "0", "0", "flowid", "1:1").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed to create tc filter: %s", out)
+		}
+	}
+
+	if m["limits.egress"] != "" {
+		out, err := exec.Command("tc", "qdisc", "add", "dev", veth, "handle", "ffff:0", "ingress").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
+		}
+
+		out, err = exec.Command("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop", "flowid", ":1").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
+		}
+	}
+
+	return nil
 }
 
 // Various state query functions

@@ -69,6 +69,7 @@ limits.memory               | string    | - (all)       | yes           | Percen
 limits.memory.enforce       | string    | hard          | yes           | If hard, container can't exceed its memory limit. If soft, the container can exceed its memory limit when extra host memory is available.
 limits.memory.swap          | boolean   | true          | yes           | Whether to allow some of the container's memory to be swapped out to disk
 limits.memory.swap.priority | integer   | 10 (maximum)  | yes           | The higher this is set, the least likely the container is to be swapped to disk
+limits.network.priority     | integer   | 0 (minimum)   | yes           | When under load, how much priority to give to the container's network requests
 linux.kernel\_modules       | string    | -             | yes           | Comma separated list of kernel modules to load before starting the container
 raw.apparmor                | blob      | -             | yes           | Apparmor profile entries to be appended to the generated profile
 raw.lxc                     | blob      | -             | no            | Raw LXC configuration to be appended to the generated one
@@ -168,14 +169,17 @@ LXD supports different kind of network devices:
 
 Different network interface types have different additional properties, the current list is:
 
-Key        | Type      | Default           | Required  | Used by                       | Description
-:--        | :--       | :--               | :--       | :--                           | :--
-nictype    | string    | -                 | yes       | all                           | The device type, one of "physical", "bridged", "macvlan" or "p2p"
-name       | string    | kernel assigned   | no        | all                           | The name of the interface inside the container
-host\_name | string    | randomly assigned | no        | bridged, p2p, macvlan         | The name of the interface inside the host
-hwaddr     | string    | randomly assigned | no        | all                           | The MAC address of the new interface
-mtu        | integer   | parent MTU        | no        | all                           | The MTU of the new interface
-parent     | string    | -                 | yes       | physical, bridged, macvlan    | The name of the host device or bridge
+Key             | Type      | Default           | Required  | Used by                       | Description
+:--             | :--       | :--               | :--       | :--                           | :--
+nictype         | string    | -                 | yes       | all                           | The device type, one of "physical", "bridged", "macvlan" or "p2p"
+limits.ingress  | string    | -                 | no        | bridged, p2p                  | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
+limits.egress   | string    | -                 | no        | bridged, p2p                  | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
+limits.max      | string    | -                 | no        | bridged, p2p                  | Same as modifying both limits.read and limits.write
+name            | string    | kernel assigned   | no        | all                           | The name of the interface inside the container
+host\_name      | string    | randomly assigned | no        | bridged, p2p, macvlan         | The name of the interface inside the host
+hwaddr          | string    | randomly assigned | no        | all                           | The MAC address of the new interface
+mtu             | integer   | parent MTU        | no        | all                           | The MTU of the new interface
+parent          | string    | -                 | yes       | physical, bridged, macvlan    | The name of the host device or bridge
 
 ### Type: disk
 Disk entries are essentially mountpoints inside the container. They can
@@ -186,8 +190,8 @@ The following properties exist:
 
 Key             | Type      | Default           | Required  | Description
 :--             | :--       | :--               | :--       | :--
-limits.read     | string    | -                 | no        | I/O limit in byte/s (supports kB, MB, GB, TB, PB and EB suffixes) or in iops (must be prefixed with "iops")
-limits.write    | string    | -                 | no        | I/O limit in byte/s (supports kB, MB, GB, TB, PB and EB suffixes) or in iops (must be prefixed with "iops")
+limits.read     | string    | -                 | no        | I/O limit in byte/s (supports kB, MB, GB, TB, PB and EB suffixes) or in iops (must be suffixed with "iops")
+limits.write    | string    | -                 | no        | I/O limit in byte/s (supports kB, MB, GB, TB, PB and EB suffixes) or in iops (must be suffixed with "iops")
 limits.max      | string    | -                 | no        | Same as modifying both limits.read and limits.write
 path            | string    | -                 | yes       | Path inside the container where the disk will be mounted
 source          | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
