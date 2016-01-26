@@ -212,7 +212,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 
 		err = d.CopyImage(image, dest, copyAliases, addAliases, publicImage, progressHandler)
 		if err == nil {
-			fmt.Println(i18n.G("Image copied sucessfully!"))
+			fmt.Println(i18n.G("Image copied successfully!"))
 		}
 		return err
 
