@@ -318,7 +318,7 @@ func (c *containerLXC) initLXC() error {
 			return err
 		}
 
-		for _, dev := range []string{"c *:* m", "b *:* m", "c 5:1 rwm", "c 1:7 rwm", "c 1:3 rwm", "c 1:8 rwm", "c 1:9 rwm", "c 5:2 rwm", "c 136:* rwm"} {
+		for _, dev := range []string{"c *:* m", "b *:* m", "c 5:0 rwm", "c 5:1 rwm", "c 1:7 rwm", "c 1:3 rwm", "c 1:8 rwm", "c 1:9 rwm", "c 5:2 rwm", "c 136:* rwm"} {
 			err = lxcSetConfigItem(cc, "lxc.cgroup.devices.allow", dev)
 			if err != nil {
 				return err
