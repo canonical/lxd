@@ -836,7 +836,12 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		}
 		defer fRootfs.Close()
 
-		body := &bytes.Buffer{}
+		body, err := ioutil.TempFile("", "lxc_image_")
+		if err != nil {
+			return "", err
+		}
+		defer os.Remove(body.Name())
+
 		w := multipart.NewWriter(body)
 
 		// Metadata file
@@ -862,6 +867,11 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		}
 
 		w.Close()
+
+		_, err = body.Seek(0, 0)
+		if err != nil {
+			return "", err
+		}
 
 		req, err = http.NewRequest("POST", uri, body)
 		req.Header.Set("Content-Type", w.FormDataContentType())
