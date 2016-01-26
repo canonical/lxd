@@ -3516,7 +3516,7 @@ func (c *containerLXC) getDiskLimits() (map[string]deviceBlockLimit, error) {
 				return nil, fmt.Errorf("Invalid major:minor: %s", block)
 			}
 
-			if !shared.PathExists(fmt.Sprintf("/sys/class/block/%s/partition", dev)) {
+			if shared.PathExists(fmt.Sprintf("/sys/class/block/%s/partition", dev)) {
 				fields[1] = "0"
 			}
 
