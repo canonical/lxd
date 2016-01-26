@@ -172,7 +172,7 @@ ZFS has many different ways to procure a zpool, which is what you need to feed
 LXD. For example, if you have an extra block device laying around, you can
 just:
 
-    sudo zpool create lxd /dev/sdc6
+    sudo zpool create lxd /dev/sdc6 -m none
 
 However, if you want to test things out on a laptop or don't have an extra disk
 laying around, ZFS has its own loopback driver and can be used directly on a
@@ -182,7 +182,7 @@ laying around, ZFS has its own loopback driver and can be used directly on a
 
 then,
 
-    sudo zpool create lxd /var/lib/lxd.img
+    sudo zpool create lxd /var/lib/lxd.img -m none
 
 Finally, whichever method you used to create your zpool, you need to tell LXD
 to use it:
