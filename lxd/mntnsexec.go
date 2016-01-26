@@ -75,6 +75,11 @@ int copy(int target, int source)
 	ssize_t n;
 	char buf[1024];
 
+	if (ftruncate(target, 0) < 0) {
+		perror("truncate");
+		return -1;
+	}
+
 	while ((n = read(source, buf, 1024)) > 0) {
 		if (write(target, buf, n) != n) {
 			perror("write");
