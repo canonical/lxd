@@ -1486,12 +1486,12 @@ func (c *containerLXC) Delete() error {
 	if c.IsSnapshot() {
 		// Remove the snapshot
 		if err := c.storage.ContainerSnapshotDelete(c); err != nil {
-			return err
+			shared.Log.Warn("failed to delete snapshot", "name", c.Name(), "err", err)
 		}
 	} else {
 		// Remove all snapshot
 		if err := containerDeleteSnapshots(c.daemon, c.Name()); err != nil {
-			return err
+			shared.Log.Warn("failed to delete snapshots", "name", c.Name(), "err", err)
 		}
 
 		// Clean things up
