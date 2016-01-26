@@ -108,6 +108,10 @@ Those keys can be set using the lxc tool with:
 
 Volatile keys can't be set by the user and can only be set directly against a container.
 
+The raw keys allow direct interaction with the backend features that LXD
+itself uses, setting those may very well break LXD in non-obvious ways
+and should whenever possible be avoided.
+
 
 ## Devices configuration
 LXD will always provide the container with the basic devices which are
