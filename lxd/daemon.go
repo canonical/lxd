@@ -724,8 +724,8 @@ func (d *Daemon) Init() error {
 		shared.Log.Warn("Couldn't find the CGroup memory controller, memory limits will be ignored.")
 	}
 
-	cgNetPrioController = shared.PathExists("/sys/fs/cgroup/net_cls/")
-	if !cgMemoryController {
+	cgNetPrioController = shared.PathExists("/sys/fs/cgroup/net_prio/")
+	if !cgNetPrioController {
 		shared.Log.Warn("Couldn't find the CGroup network class controller, network limits will be ignored.")
 	}
 

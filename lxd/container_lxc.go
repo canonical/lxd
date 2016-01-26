@@ -3749,7 +3749,8 @@ func (c *containerLXC) IsPrivileged() bool {
 }
 
 func (c *containerLXC) IsRunning() bool {
-	return c.State() != "STOPPED"
+	state := c.State()
+	return state != "BROKEN" && state != "STOPPED"
 }
 
 func (c *containerLXC) IsSnapshot() bool {
@@ -3844,7 +3845,7 @@ func (c *containerLXC) State() string {
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
-		return ""
+		return "BROKEN"
 	}
 
 	return c.c.State().String()
