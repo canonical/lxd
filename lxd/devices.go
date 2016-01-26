@@ -782,7 +782,8 @@ func deviceGetParentBlock(path string) ([]string, error) {
 		expDev = absDev
 	}
 
-	// Deal with per-filesystem oddities
+	// Deal with per-filesystem oddities. We don't care about failures here
+	// because any non-special filesystem => directory backend.
 	fs, _ := filesystemDetect(expPath)
 
 	// ZFS can be backed by multiple block devices
@@ -844,7 +845,8 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 		return nil, fmt.Errorf("Couldn't find a match /proc/self/mountinfo entry")
 	}
 
-	// Deal with per-filesystem oddities
+	// Deal with per-filesystem oddities. We don't care about failures here
+	// because any non-special filesystem => directory backend.
 	fs, _ := filesystemDetect(expPath)
 
 	if fs == "zfs" {
