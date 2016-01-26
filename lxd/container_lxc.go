@@ -580,24 +580,32 @@ func (c *containerLXC) initLXC() error {
 		}
 
 		for block, limit := range diskLimits {
-			err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.read_bps_device", fmt.Sprintf("%s %d", block, limit.readBps))
-			if err != nil {
-				return err
+			if limit.readBps > 0 {
+				err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.read_bps_device", fmt.Sprintf("%s %d", block, limit.readBps))
+				if err != nil {
+					return err
+				}
 			}
 
-			err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.read_iops_device", fmt.Sprintf("%s %d", block, limit.readIops))
-			if err != nil {
-				return err
+			if limit.readIops > 0 {
+				err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.read_iops_device", fmt.Sprintf("%s %d", block, limit.readIops))
+				if err != nil {
+					return err
+				}
 			}
 
-			err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.write_bps_device", fmt.Sprintf("%s %d", block, limit.writeBps))
-			if err != nil {
-				return err
+			if limit.writeBps > 0 {
+				err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.write_bps_device", fmt.Sprintf("%s %d", block, limit.writeBps))
+				if err != nil {
+					return err
+				}
 			}
 
-			err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.write_iops_device", fmt.Sprintf("%s %d", block, limit.writeIops))
-			if err != nil {
-				return err
+			if limit.writeIops > 0 {
+				err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.write_iops_device", fmt.Sprintf("%s %d", block, limit.writeIops))
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
