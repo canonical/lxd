@@ -735,70 +735,6 @@ func deviceTotalMemory() (int64, error) {
 	return -1, fmt.Errorf("Couldn't find MemTotal")
 }
 
-func deviceGetParentBlock(path string) ([]string, error) {
-	// Expand the mount path
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return nil, err
-	}
-
-	expPath, err := os.Readlink(absPath)
-	if err != nil {
-		expPath = absPath
-	}
-
-	// Find the source mount of the path
-	file, err := os.Open("/proc/self/mountinfo")
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	match := ""
-	for scanner.Scan() {
-		line := scanner.Text()
-		rows := strings.Fields(line)
-
-		if !strings.HasPrefix(expPath, rows[4]) || len(rows[4]) <= len(match) {
-			continue
-		}
-
-		match = rows[8]
-	}
-
-	if match == "" {
-		return nil, fmt.Errorf("Couldn't find a match /proc/self/mountinfo entry")
-	}
-
-	// Expand the device path
-	absDev, err := filepath.Abs(match)
-	if err != nil {
-		return nil, err
-	}
-
-	expDev, err := os.Readlink(absDev)
-	if err != nil {
-		expDev = absDev
-	}
-
-	// Deal with per-filesystem oddities. We don't care about failures here
-	// because any non-special filesystem => directory backend.
-	fs, _ := filesystemDetect(expPath)
-
-	// ZFS can be backed by multiple block devices
-	if fs == "zfs" {
-		return nil, fmt.Errorf("Not implemented")
-	}
-
-	// btrfs can be backed by multiple block devices
-	if fs == "btrfs" {
-		return nil, fmt.Errorf("Not implemented")
-	}
-
-	return []string{expDev}, nil
-}
-
 func deviceGetParentBlocks(path string) ([]string, error) {
 	var devices []string
 
@@ -871,7 +807,7 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 				if shared.IsBlockdevPath(fields[0]) {
 					devices = append(devices, fields[0])
 				} else {
-					subDevices, err := deviceGetParentBlock(fields[0])
+					subDevices, err := deviceGetParentBlocks(fields[0])
 					if err != nil {
 						return nil, err
 					}
