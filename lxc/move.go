@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/i18n"
-	"github.com/lxc/lxd/shared"
 )
 
 type moveCmd struct {
@@ -47,24 +46,12 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		canRename := false
-		if shared.IsSnapshot(sourceName) {
-			canRename = true
-		} else {
-			status, err := source.ContainerStatus(sourceName)
-			if err != nil {
-				return err
-			}
-			canRename = status.Status.StatusCode != shared.Running
+		rename, err := source.Rename(sourceName, destName)
+		if err != nil {
+			return err
 		}
 
-		if canRename {
-			rename, err := source.Rename(sourceName, destName)
-			if err != nil {
-				return err
-			}
-			return source.WaitForSuccess(rename.Operation)
-		}
+		return source.WaitForSuccess(rename.Operation)
 	}
 
 	// A move is just a copy followed by a delete; however, we want to
