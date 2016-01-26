@@ -1440,9 +1440,27 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 		return err
 	}
 
+	// If the container wasn't running but was stateful, should we restore
+	// it as running?
+	if shared.PathExists(c.StatePath()) {
+		err := c.c.Restore(lxc.RestoreOptions{
+			Directory: c.StatePath(),
+			Verbose:   true,
+		})
+
+		// Remove the state from the parent container; we only keep
+		// this in snapshots.
+		err2 := os.RemoveAll(c.StatePath())
+		if err2 != nil {
+			shared.Log.Error("failed to delete snapshot state", "path", c.StatePath(), "err", err2)
+		}
+
+		return err
+	}
+
 	// Restart the container
 	if wasRunning {
-		c.Start()
+		return c.Start()
 	}
 
 	return nil
@@ -1468,12 +1486,12 @@ func (c *containerLXC) Delete() error {
 	if c.IsSnapshot() {
 		// Remove the snapshot
 		if err := c.storage.ContainerSnapshotDelete(c); err != nil {
-			return err
+			shared.Log.Warn("failed to delete snapshot", "name", c.Name(), "err", err)
 		}
 	} else {
 		// Remove all snapshot
 		if err := containerDeleteSnapshots(c.daemon, c.Name()); err != nil {
-			return err
+			shared.Log.Warn("failed to delete snapshots", "name", c.Name(), "err", err)
 		}
 
 		// Clean things up
@@ -3885,5 +3903,5 @@ func (c *containerLXC) TemplatesPath() string {
 }
 
 func (c *containerLXC) StatePath() string {
-	return filepath.Join(c.Path(), "state")
+	return filepath.Join(c.RootfsPath(), "state")
 }
