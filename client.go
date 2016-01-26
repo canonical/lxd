@@ -644,7 +644,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		}
 	}
 
-	return nil
+	return err
 }
 
 func (c *Client) ExportImage(image string, target string) (*Response, string, error) {

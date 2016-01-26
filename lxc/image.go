@@ -210,7 +210,11 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			fmt.Printf(i18n.G("Copying the image: %s")+"\r", progress)
 		}
 
-		return d.CopyImage(image, dest, copyAliases, addAliases, publicImage, progressHandler)
+		err = d.CopyImage(image, dest, copyAliases, addAliases, publicImage, progressHandler)
+		if err == nil {
+			fmt.Println(i18n.G("Image copied sucessfully!"))
+		}
+		return err
 
 	case "delete":
 		/* delete [<remote>:]<image> */
