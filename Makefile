@@ -7,7 +7,7 @@ POTFILE=po/$(DOMAIN).pot
 # dist is primarily for use when packaging; for development we still manage
 # dependencies via `go get` explicitly.
 # TODO: use git describe for versioning
-VERSION=$(shell grep "var Version" shared/flex.go | sed -r -e 's/.*"([0-9\.]*)"/\1/')
+VERSION=$(shell grep "var Version" shared/flex.go | cut -d'"' -f2)
 ARCHIVE=lxd-$(VERSION).tar
 
 .PHONY: default

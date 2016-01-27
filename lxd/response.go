@@ -94,7 +94,10 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 		http.ServeContent(w, r.req, r.files[0].filename, fi.ModTime(), f)
 		if r.removeAfterServe {
-			os.Remove(r.files[0].filename)
+			err = os.Remove(r.files[0].path)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
