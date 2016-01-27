@@ -209,8 +209,8 @@ func startContainer(args []string) error {
 
 	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
 	if err == nil {
-		syscall.Dup2(int(logFile.Fd()), 1)
-		syscall.Dup2(int(logFile.Fd()), 2)
+		syscall.Dup3(int(logFile.Fd()), 1, 0)
+		syscall.Dup3(int(logFile.Fd()), 2, 0)
 	}
 
 	// Move the config so we can inspect it on failure
