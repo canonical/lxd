@@ -785,7 +785,7 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 	// because any non-special filesystem => directory backend.
 	fs, _ := filesystemDetect(expPath)
 
-	if fs == "zfs" {
+	if fs == "zfs" && shared.PathExists("/dev/zfs") {
 		poolName := strings.Split(device, "/")[0]
 
 		output, err := exec.Command("zpool", "status", poolName).CombinedOutput()
@@ -824,7 +824,7 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 				continue
 			}
 		}
-	} else if fs == "btrfs" {
+	} else if fs == "btrfs" && shared.PathExists(device) {
 		output, err := exec.Command("btrfs", "filesystem", "show", device).CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %s", device, output)
