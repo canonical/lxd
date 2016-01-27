@@ -81,6 +81,22 @@ def local_architecture():
         return arch_tables[kernel_arch]
 
 
+def make_workdir():
+    """Create a working directory.
+
+    This directory can be used for the lifetime of the process, but will be
+    cleaned up when the process exits.
+    """
+    tmpdir = tempfile.mkdtemp(prefix="tmp-lxd-images-")
+    def cleanup():
+        # shutil.rmtree will throw an exception if this directory has already
+        # been cleaned up by some other mechanism.
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir)
+    atexit.register(cleanup)
+    return tmpdir
+
+
 class UnixHTTPConnection(http.client.HTTPConnection):
     def __init__(self, path):
         http.client.HTTPConnection.__init__(self, 'localhost')
@@ -99,11 +115,7 @@ class LXD(object):
         self.lxd = UnixHTTPConnection(path)
 
         # Create our workdir
-        self.workdir = tempfile.mkdtemp()
-
-    def cleanup(self):
-        if self.workdir:
-            shutil.rmtree(self.workdir)
+        self.workdir = make_workdir()
 
     def rest_call(self, path, data=None, method="GET", headers={}):
         if method == "GET" and data:
@@ -268,11 +280,7 @@ class Busybox(object):
 
     def __init__(self):
         # Create our workdir
-        self.workdir = tempfile.mkdtemp()
-
-    def cleanup(self):
-        if self.workdir:
-            shutil.rmtree(self.workdir)
+        self.workdir = make_workdir()
 
     def create_tarball(self, split=False):
         xz = "pxz" if find_on_path("pxz") else "xz"
@@ -388,7 +396,7 @@ class Ubuntu(Image):
                  gpgkey="7FF3F408476CF100"):
 
         # Create our workdir
-        self.workdir = tempfile.mkdtemp()
+        self.workdir = make_workdir()
         self.gpgdir = "%s/gpg" % self.workdir
         os.mkdir(self.gpgdir, 0o700)
 
@@ -399,10 +407,6 @@ class Ubuntu(Image):
 
         # Get ready to work with this server
         self.gpg_update()
-
-    def cleanup(self):
-        if self.workdir:
-            shutil.rmtree(self.workdir)
 
     def image_lookup(self, release=None, architecture=None, version=None):
         if not release:
@@ -516,7 +520,6 @@ if __name__ == "__main__":
         print(_("LXD isn't running."))
         sys.exit(1)
     lxd = LXD(lxd_socket)
-    atexit.register(lxd.cleanup)
 
     def setup_alias(aliases, fingerprint):
         existing = lxd.aliases_list()
@@ -529,7 +532,6 @@ if __name__ == "__main__":
 
     def import_busybox(parser, args):
         busybox = Busybox()
-        atexit.register(busybox.cleanup)
 
         if args.split:
             meta_path, rootfs_path = busybox.create_tarball(split=True)
@@ -580,7 +582,6 @@ if __name__ == "__main__":
             image = ubuntu.image_lookup(args.release, args.architecture,
                                         args.version)
 
-        atexit.register(ubuntu.cleanup)
         sync = False
         if args.sync:
             sync = "ubuntu:%s:%s:%s" % (args.stream, args.release,
