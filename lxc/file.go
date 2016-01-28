@@ -43,7 +43,7 @@ lxc file edit <file>
 func (c *fileCmd) flags() {
 	gnuflag.IntVar(&c.uid, "uid", -1, i18n.G("Set the file's uid on push"))
 	gnuflag.IntVar(&c.gid, "gid", -1, i18n.G("Set the file's gid on push"))
-	gnuflag.StringVar(&c.mode, "mode", "0644", i18n.G("Set the file's perms on push"))
+	gnuflag.StringVar(&c.mode, "mode", "", i18n.G("Set the file's perms on push"))
 }
 
 func (c *fileCmd) push(config *lxd.Config, args []string) error {
@@ -121,7 +121,21 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 		if targetfilename == "" {
 			fpath = path.Join(fpath, path.Base(f.Name()))
 		}
-		err := d.PushFile(container, fpath, gid, uid, mode, f)
+		/* If not specified, preserve file permissions */
+		fInfo, err := f.Stat()
+		if err != nil {
+			return err
+		}
+		if c.mode == "" {
+			mode = fInfo.Mode()
+		}
+		if c.uid == -1 {
+			uid = int(fInfo.Sys().(*syscall.Stat_t).Uid)
+		}
+		if c.gid == -1 {
+			gid = int(fInfo.Sys().(*syscall.Stat_t).Gid)
+		}
+		err = d.PushFile(container, fpath, gid, uid, mode, f)
 		if err != nil {
 			return err
 		}
