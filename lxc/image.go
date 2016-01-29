@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"regexp"
 
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
@@ -634,7 +635,13 @@ func imageShouldShow(filters []string, state *shared.ImageInfo) bool {
 
 			for configKey, configValue := range state.Properties {
 				if dotPrefixMatch(key, configKey) {
-					if value == configValue {
+					r, err := regexp.Compile(value)
+					if err != nil {
+						if value == configValue {
+							found = true
+							break
+						}
+					}	else if r.MatchString(configValue) == true {
 						found = true
 						break
 					}
