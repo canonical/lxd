@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-01-26 12:59+0530\n"
+        "POT-Creation-Date: 2016-01-29 02:55+0530\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -116,7 +116,7 @@ msgstr  ""
 msgid   "Available commands:"
 msgstr  ""
 
-#: client.go:895
+#: client.go:905
 #, c-format
 msgid   "Bad image property: %s"
 msgstr  ""
@@ -125,7 +125,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: client.go:1825
+#: client.go:1835
 msgid   "Cannot change profile name"
 msgstr  ""
 
@@ -133,7 +133,7 @@ msgstr  ""
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
-#: client.go:1029
+#: client.go:1039
 #, c-format
 msgid   "Certificate fingerprint: %x"
 msgstr  ""
@@ -195,7 +195,7 @@ msgstr  ""
 msgid   "Copying the image: %s"
 msgstr  ""
 
-#: client.go:1045
+#: client.go:1055
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -275,7 +275,7 @@ msgstr  ""
 msgid   "Ephemeral container"
 msgstr  ""
 
-#: client.go:633 client.go:643 client.go:811 client.go:928 client.go:2063
+#: client.go:633 client.go:643 client.go:811 client.go:938 client.go:2073
 #, c-format
 msgid   "Error adding alias %s"
 msgstr  ""
@@ -378,7 +378,7 @@ msgstr  ""
 msgid   "Invalid configuration key"
 msgstr  ""
 
-#: lxc/file.go:167
+#: lxc/file.go:181
 #, c-format
 msgid   "Invalid source %s"
 msgstr  ""
@@ -622,11 +622,11 @@ msgid   "Monitor activity on the LXD server.\n"
         "lxc monitor --type=logging"
 msgstr  ""
 
-#: lxc/file.go:155
+#: lxc/file.go:169
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
-#: lxc/move.go:18
+#: lxc/move.go:17
 msgid   "Move containers within or in between lxd instances.\n"
         "\n"
         "lxc move [remote:]<source container> [remote:]<destination container>\n"
@@ -653,7 +653,7 @@ msgstr  ""
 msgid   "New alias to define at target"
 msgstr  ""
 
-#: client.go:1011
+#: client.go:1021
 msgid   "No certificate on this connection"
 msgstr  ""
 
@@ -798,7 +798,7 @@ msgstr  ""
 msgid   "STATE"
 msgstr  ""
 
-#: client.go:1037
+#: client.go:1047
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
@@ -871,7 +871,7 @@ msgstr  ""
 msgid   "Stopping container failed!"
 msgstr  ""
 
-#: client.go:1157 client.go:1202
+#: client.go:1167 client.go:1212
 msgid   "The image architecture is incompatible with the target server"
 msgstr  ""
 
@@ -942,7 +942,7 @@ msgstr  ""
 msgid   "YES"
 msgstr  ""
 
-#: client.go:1135
+#: client.go:1145
 msgid   "You must provide an image hash or alias name."
 msgstr  ""
 
@@ -959,7 +959,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: client.go:1856
+#: client.go:1866
 #, c-format
 msgid   "bad profile url %s"
 msgstr  ""
@@ -968,7 +968,7 @@ msgstr  ""
 msgid   "bad result type from action"
 msgstr  ""
 
-#: client.go:1860
+#: client.go:1870
 msgid   "bad version in profile url"
 msgstr  ""
 
@@ -976,7 +976,7 @@ msgstr  ""
 msgid   "can't copy to the same container name"
 msgstr  ""
 
-#: client.go:1198
+#: client.go:1208
 #, c-format
 msgid   "can't get info for image '%s': %s"
 msgstr  ""
@@ -989,7 +989,7 @@ msgstr  ""
 msgid   "default"
 msgstr  ""
 
-#: client.go:1909 client.go:1966
+#: client.go:1919 client.go:1976
 msgid   "device already exists"
 msgstr  ""
 
@@ -1012,7 +1012,7 @@ msgstr  ""
 msgid   "expected error, got %s"
 msgstr  ""
 
-#: client.go:1427 client.go:2030
+#: client.go:1437 client.go:2040
 #, c-format
 msgid   "got bad op status %s"
 msgstr  ""
@@ -1026,7 +1026,7 @@ msgstr  ""
 msgid   "got bad version"
 msgstr  ""
 
-#: client.go:1609
+#: client.go:1619
 #, c-format
 msgid   "invalid wait url %s"
 msgstr  ""
@@ -1035,7 +1035,7 @@ msgstr  ""
 msgid   "no"
 msgstr  ""
 
-#: client.go:1431
+#: client.go:1441
 msgid   "no metadata received"
 msgstr  ""
 
@@ -1043,7 +1043,7 @@ msgstr  ""
 msgid   "no response!"
 msgstr  ""
 
-#: client.go:1902 client.go:1959
+#: client.go:1912 client.go:1969
 #, c-format
 msgid   "no value found in %q"
 msgstr  ""
@@ -1052,7 +1052,7 @@ msgstr  ""
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: client.go:1030
+#: client.go:1040
 msgid   "ok (y/n)?"
 msgstr  ""
 
