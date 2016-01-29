@@ -25,7 +25,7 @@ After you've got LXD installed, you can take your [first steps](#first-steps).
 
 We recommend having the latest versions of liblxc (>= 1.1 required) and CRIU
 (>= 1.7 recommended) available for LXD development. Additionally, LXD requires
-Golang 1.3 or later to work. All the right verisons dependencies are available
+Golang 1.3 or later to work. All the right versions dependencies are available
 via the LXD PPA:
 
     sudo apt-get install software-properties-common
