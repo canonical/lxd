@@ -162,7 +162,7 @@ configthread() {
     echo "configthread: I am $$"
     for i in `seq 1 20`; do
         lxc profile create p$i
-        lxc profile set p$i limits.memory 100M
+        lxc profile set p$i limits.memory 100MB
         lxc profile delete p$i
     done
     exit 0
