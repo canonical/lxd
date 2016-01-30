@@ -5,7 +5,8 @@ import (
 	"os"
 	"sort"
 	"strings"
-
+	"regexp"
+	
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/lxc/lxd"
@@ -113,12 +114,18 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 			found := false
 			for configKey, configValue := range state.Config {
 				if dotPrefixMatch(key, configKey) {
-					if value == configValue {
+					r, err := regexp.Compile(value)
+					if err != nil {
+						if value == configValue {
+							found = true
+							break
+						} else {
+							// the property was found but didn't match
+							return false
+						}
+					}	else if r.MatchString(configValue) == true {
 						found = true
 						break
-					} else {
-						// the property was found but didn't match
-						return false
 					}
 				}
 			}
