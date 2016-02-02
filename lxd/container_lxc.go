@@ -386,17 +386,6 @@ func (c *containerLXC) initLXC() error {
 		return err
 	}
 
-	// FIXME: Should go away once CRIU supports checkpoint/restore of /dev/console
-	err = lxcSetConfigItem(cc, "lxc.console", "none")
-	if err != nil {
-		return err
-	}
-
-	err = lxcSetConfigItem(cc, "lxc.cgroup.devices.deny", "c 5:1 rwm")
-	if err != nil {
-		return err
-	}
-
 	// Setup the hostname
 	err = lxcSetConfigItem(cc, "lxc.utsname", c.Name())
 	if err != nil {
