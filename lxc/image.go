@@ -635,7 +635,13 @@ func imageShouldShow(filters []string, state *shared.ImageInfo) bool {
 
 			for configKey, configValue := range state.Properties {
 				if dotPrefixMatch(key, configKey) {
-					r, err := regexp.Compile(value)
+					//try to test filter value as a regexp
+					regexpValue := value
+					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
+							regexpValue = "^" + regexpValue + "$"
+					}
+					r, err := regexp.Compile(regexpValue)
+					//if not regexp compatible use original value
 					if err != nil {
 						if value == configValue {
 							found = true
