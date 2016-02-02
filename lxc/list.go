@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 	"regexp"
-	
+
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/lxc/lxd"
@@ -114,7 +114,13 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 			found := false
 			for configKey, configValue := range state.Config {
 				if dotPrefixMatch(key, configKey) {
-					r, err := regexp.Compile(value)
+					//try to test filter value as a regexp
+					regexpValue := value
+					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
+							regexpValue = "^" + regexpValue + "$"
+					}
+					r, err := regexp.Compile(regexpValue)
+					//if not regexp compatible use original value
 					if err != nil {
 						if value == configValue {
 							found = true
