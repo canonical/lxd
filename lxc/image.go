@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"syscall"
 	"time"
-	"regexp"
 
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
@@ -638,7 +638,7 @@ func imageShouldShow(filters []string, state *shared.ImageInfo) bool {
 					//try to test filter value as a regexp
 					regexpValue := value
 					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
-							regexpValue = "^" + regexpValue + "$"
+						regexpValue = "^" + regexpValue + "$"
 					}
 					r, err := regexp.Compile(regexpValue)
 					//if not regexp compatible use original value
@@ -647,7 +647,7 @@ func imageShouldShow(filters []string, state *shared.ImageInfo) bool {
 							found = true
 							break
 						}
-					}	else if r.MatchString(configValue) == true {
+					} else if r.MatchString(configValue) == true {
 						found = true
 						break
 					}

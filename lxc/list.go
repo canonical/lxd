@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
-	"regexp"
 
 	"github.com/olekukonko/tablewriter"
 
@@ -117,7 +117,7 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 					//try to test filter value as a regexp
 					regexpValue := value
 					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
-							regexpValue = "^" + regexpValue + "$"
+						regexpValue = "^" + regexpValue + "$"
 					}
 					r, err := regexp.Compile(regexpValue)
 					//if not regexp compatible use original value
@@ -129,7 +129,7 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 							// the property was found but didn't match
 							return false
 						}
-					}	else if r.MatchString(configValue) == true {
+					} else if r.MatchString(configValue) == true {
 						found = true
 						break
 					}
