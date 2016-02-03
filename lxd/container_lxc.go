@@ -3509,8 +3509,13 @@ func (c *containerLXC) getDiskLimits() (map[string]deviceBlockLimit, error) {
 
 		for _, block := range blocks {
 			dev := strings.TrimPrefix(block, "/dev/")
+
+			if strings.Contains(dev, "/") {
+				continue
+			}
+
 			if !shared.PathExists(fmt.Sprintf("/sys/class/block/%s/dev", dev)) {
-				return nil, fmt.Errorf("Disk is missing /sys/class/block entry")
+				return nil, fmt.Errorf("Disk %s is missing /sys/class/block entry", dev)
 			}
 
 			block, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/block/%s/dev", dev))
