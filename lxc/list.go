@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -113,12 +114,24 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 			found := false
 			for configKey, configValue := range state.Config {
 				if dotPrefixMatch(key, configKey) {
-					if value == configValue {
+					//try to test filter value as a regexp
+					regexpValue := value
+					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
+						regexpValue = "^" + regexpValue + "$"
+					}
+					r, err := regexp.Compile(regexpValue)
+					//if not regexp compatible use original value
+					if err != nil {
+						if value == configValue {
+							found = true
+							break
+						} else {
+							// the property was found but didn't match
+							return false
+						}
+					} else if r.MatchString(configValue) == true {
 						found = true
 						break
-					} else {
-						// the property was found but didn't match
-						return false
 					}
 				}
 			}

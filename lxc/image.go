@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"syscall"
@@ -634,7 +635,19 @@ func imageShouldShow(filters []string, state *shared.ImageInfo) bool {
 
 			for configKey, configValue := range state.Properties {
 				if dotPrefixMatch(key, configKey) {
-					if value == configValue {
+					//try to test filter value as a regexp
+					regexpValue := value
+					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
+						regexpValue = "^" + regexpValue + "$"
+					}
+					r, err := regexp.Compile(regexpValue)
+					//if not regexp compatible use original value
+					if err != nil {
+						if value == configValue {
+							found = true
+							break
+						}
+					} else if r.MatchString(configValue) == true {
 						found = true
 						break
 					}
