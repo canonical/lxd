@@ -152,7 +152,7 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 			}
 
 			if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
-				return fmt.Errorf("Server certificate NACKed by user")
+				return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
 			}
 		}
 	}
