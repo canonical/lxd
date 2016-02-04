@@ -510,6 +510,15 @@ func setupLXD() error {
 	var networkPort int       // Port
 	var trustPassword string  // Trust password
 
+	backendsAvailable := []string{"dir"}
+	backendsSupported := []string{"dir", "zfs"}
+
+	// Detect zfs
+	out, err := exec.LookPath("zfs")
+	if err == nil && len(out) != 0 {
+		backendsAvailable = append(backendsAvailable, "zfs")
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 
 	askBool := func(question string) bool {
@@ -613,6 +622,14 @@ func setupLXD() error {
 
 	if *argAuto {
 		// Do a bunch of sanity checks
+		if !shared.StringInSlice(*argStorageBackend, backendsSupported) {
+			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", *argStorageBackend)
+		}
+
+		if !shared.StringInSlice(*argStorageBackend, backendsAvailable) {
+			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", *argStorageBackend)
+		}
+
 		if *argStorageBackend == "dir" {
 			if *argStorageCreateLoop != -1 || *argStorageCreateDevice != "" || *argStoragePool != "" {
 				return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-pool may be used with the 'dir' backend.")
@@ -655,7 +672,15 @@ func setupLXD() error {
 		networkPort = *argNetworkPort
 		trustPassword = *argTrustPassword
 	} else {
-		storageBackend = askChoice("Name of the storage backend to use (dir or zfs): ", []string{"dir", "zfs"})
+		storageBackend = askChoice("Name of the storage backend to use (dir or zfs): ", backendsSupported)
+
+		if !shared.StringInSlice(storageBackend, backendsSupported) {
+			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
+		}
+
+		if !shared.StringInSlice(storageBackend, backendsAvailable) {
+			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", storageBackend)
+		}
 
 		if storageBackend == "zfs" {
 			if askBool("Create a new ZFS pool (yes/no)? ") {
@@ -698,10 +723,7 @@ func setupLXD() error {
 	}
 
 	if storageBackend == "zfs" {
-		out, err := exec.LookPath("zfs")
-		if err != nil || len(out) == 0 {
-			return fmt.Errorf("The 'zfs' tool isn't available")
-		}
+		_ = exec.Command("modprobe", "zfs").Run()
 
 		if storageMode == "loop" {
 			storageDevice = shared.VarPath("zfs.img")
@@ -725,7 +747,7 @@ func setupLXD() error {
 			output, err := exec.Command(
 				"zpool",
 				"create", storagePool, storageDevice,
-				"-m", "none").CombinedOutput()
+				"-f", "-m", "none").CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 			}
