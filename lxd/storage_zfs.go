@@ -56,7 +56,7 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 	err = s.zfsCheckPool(s.zfsPool)
 	if err != nil {
 		if shared.PathExists(shared.VarPath("zfs.img")) {
-			_, _ = exec.Command("modprobe", "zfs").CombinedOutput()
+			_ = exec.Command("modprobe", "zfs").Run()
 
 			output, err := exec.Command("zpool", "import",
 				"-d", shared.VarPath(), s.zfsPool).CombinedOutput()

@@ -723,7 +723,7 @@ func setupLXD() error {
 	}
 
 	if storageBackend == "zfs" {
-		_, _ = exec.Command("modprobe", "zfs").CombinedOutput()
+		_ = exec.Command("modprobe", "zfs").Run()
 
 		if storageMode == "loop" {
 			storageDevice = shared.VarPath("zfs.img")
