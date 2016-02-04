@@ -745,7 +745,7 @@ func setupLXD() error {
 			output, err := exec.Command(
 				"zpool",
 				"create", storagePool, storageDevice,
-				"-m", "none").CombinedOutput()
+				"-f", "-m", "none").CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 			}
