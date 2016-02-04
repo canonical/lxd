@@ -3703,8 +3703,8 @@ func (c *containerLXC) setNetworkLimits(name string, m shared.Device) error {
 	}
 
 	// Clean any existing entry
-	_, _ = exec.Command("tc", "qdisc", "del", "dev", veth, "root").CombinedOutput()
-	_, _ = exec.Command("tc", "qdisc", "del", "dev", veth, "ingress").CombinedOutput()
+	_ = exec.Command("tc", "qdisc", "del", "dev", veth, "root").Run()
+	_ = exec.Command("tc", "qdisc", "del", "dev", veth, "ingress").Run()
 
 	// Apply new limits
 	if m["limits.ingress"] != "" {
