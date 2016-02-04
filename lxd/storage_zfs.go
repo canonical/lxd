@@ -286,6 +286,24 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 		if err != nil {
 			return err
 		}
+
+		cPath := container.Path()
+		err = os.Symlink(cPath+".zfs", cPath)
+		if err != nil {
+			return err
+		}
+
+		var mode os.FileMode
+		if container.IsPrivileged() {
+			mode = 0700
+		} else {
+			mode = 0755
+		}
+
+		err = os.Chmod(cPath, mode)
+		if err != nil {
+			return err
+		}
 	} else {
 		err := s.ContainerCreate(container)
 		if err != nil {
@@ -296,24 +314,6 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 		if err != nil {
 			return fmt.Errorf("rsync failed: %s", string(output))
 		}
-	}
-
-	cPath := container.Path()
-	err := os.Symlink(cPath+".zfs", cPath)
-	if err != nil {
-		return err
-	}
-
-	var mode os.FileMode
-	if container.IsPrivileged() {
-		mode = 0700
-	} else {
-		mode = 0755
-	}
-
-	err = os.Chmod(cPath, mode)
-	if err != nil {
-		return err
 	}
 
 	return container.TemplateApply("copy")
