@@ -386,7 +386,7 @@ func (c *Client) getRaw(uri string) (*http.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("expected error, got %s", resp)
+		return nil, fmt.Errorf("expected error, got %v", *resp)
 	}
 
 	return raw, nil
