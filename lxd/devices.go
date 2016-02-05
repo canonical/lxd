@@ -737,6 +737,7 @@ func deviceTotalMemory() (int64, error) {
 
 func deviceGetParentBlocks(path string) ([]string, error) {
 	var devices []string
+	var device []string
 
 	// Expand the mount path
 	absPath, err := filepath.Abs(path)
@@ -757,7 +758,6 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	device := ""
 	match := ""
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -774,11 +774,16 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 		match = rows[4]
 
 		// Go backward to avoid problems with optional fields
-		device = rows[len(rows)-2]
+		device = []string{rows[2], rows[len(rows)-2]}
 	}
 
-	if device == "" {
+	if device == nil {
 		return nil, fmt.Errorf("Couldn't find a match /proc/self/mountinfo entry")
+	}
+
+	// Handle the most simple case
+	if !strings.HasPrefix(device[0], "0:") {
+		return []string{device[0]}, nil
 	}
 
 	// Deal with per-filesystem oddities. We don't care about failures here
@@ -786,11 +791,12 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 	fs, _ := filesystemDetect(expPath)
 
 	if fs == "zfs" && shared.PathExists("/dev/zfs") {
-		poolName := strings.Split(device, "/")[0]
+		// Accessible zfs filesystems
+		poolName := strings.Split(device[1], "/")[0]
 
 		output, err := exec.Command("zpool", "status", poolName).CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %s", device, output)
+			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %s", device[1], output)
 		}
 
 		for _, line := range strings.Split(string(output), "\n") {
@@ -803,9 +809,10 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 				continue
 			}
 
+			var path string
 			if shared.PathExists(fields[0]) {
 				if shared.IsBlockdevPath(fields[0]) {
-					devices = append(devices, fields[0])
+					path = fields[0]
 				} else {
 					subDevices, err := deviceGetParentBlocks(fields[0])
 					if err != nil {
@@ -817,17 +824,27 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 					}
 				}
 			} else if shared.PathExists(fmt.Sprintf("/dev/%s", fields[0])) {
-				devices = append(devices, fmt.Sprintf("/dev/%s", fields[0]))
+				path = fmt.Sprintf("/dev/%s", fields[0])
 			} else if shared.PathExists(fmt.Sprintf("/dev/disk/by-id/%s", fields[0])) {
-				devices = append(devices, fmt.Sprintf("/dev/disk/by-id/%s", fields[0]))
+				path = fmt.Sprintf("/dev/disk/by-id/%s", fields[0])
 			} else {
-				continue
+				return nil, fmt.Errorf("Unsupported zfs backing device: %s", fields[0])
+			}
+
+			if path != "" {
+				_, major, minor, err := deviceGetAttributes(fields[len(fields)-1])
+				if err != nil {
+					return nil, err
+				}
+
+				devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
 			}
 		}
-	} else if fs == "btrfs" && shared.PathExists(device) {
-		output, err := exec.Command("btrfs", "filesystem", "show", device).CombinedOutput()
+	} else if fs == "btrfs" && shared.PathExists(device[1]) {
+		// Accessible btrfs filesystems
+		output, err := exec.Command("btrfs", "filesystem", "show", device[1]).CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %s", device, output)
+			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %s", device[1], output)
 		}
 
 		for _, line := range strings.Split(string(output), "\n") {
@@ -836,18 +853,23 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 				continue
 			}
 
-			devices = append(devices, fields[len(fields)-1])
-		}
-	} else if shared.PathExists(device) {
-		devices = append(devices, device)
-	}
+			_, major, minor, err := deviceGetAttributes(fields[len(fields)-1])
+			if err != nil {
+				return nil, err
+			}
 
-	// Expand the device paths
-	for i, dev := range devices {
-		target, err := filepath.EvalSymlinks(dev)
-		if err == nil {
-			devices[i] = target
+			devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
 		}
+	} else if shared.PathExists(device[1]) {
+		// Anything else with a valid path
+		_, major, minor, err := deviceGetAttributes(device[1])
+		if err != nil {
+			return nil, err
+		}
+
+		devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
+	} else {
+		return nil, fmt.Errorf("Invalid block device: %s", device[1])
 	}
 
 	return devices, nil
