@@ -19,7 +19,14 @@ builds right now. They're available via:
     sudo add-apt-repository ppa:ubuntu-lxc/lxd-git-master && sudo apt-get update
     sudo apt-get install lxd
 
-After you've got LXD installed, you can take your [first steps](#first-steps).
+Because group membership is only applied at login, you then either need to
+close and re-open your user session or use the "newgrp lxd" command in the
+shell you're going to interact with lxd from.
+
+    newgrp lxd
+
+After you've got LXD installed and a session with the right permissions, you
+can take your [first steps](#first-steps).
 
 ## Building from source
 
