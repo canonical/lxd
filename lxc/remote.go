@@ -133,7 +133,31 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 		return nil
 	}
 
-	err = c.UserAuthServerCert(host, acceptCert)
+	/* grab the server's cert */
+	err = c.Finger()
+	if err != nil {
+		return err
+	}
+
+	if !acceptCert {
+		// Try to use the CAs on localhost to verify the cert so we
+		// don't have to bother the user.
+		digest, err := c.TryVerifyServerCert(host)
+		if err != nil {
+			fmt.Printf(i18n.G("Certificate fingerprint: %x")+"\n", digest)
+			fmt.Printf(i18n.G("ok (y/n)?") + " ")
+			line, err := shared.ReadStdin()
+			if err != nil {
+				return err
+			}
+
+			if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
+				return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
+			}
+		}
+	}
+
+	err = c.SaveCert(host)
 	if err != nil {
 		return err
 	}
