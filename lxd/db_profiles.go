@@ -98,6 +98,7 @@ func dbProfileCreateDefault(db *sql.DB) error {
 	// TODO: We should the scan for bridges and use the best available as default.
 	devices := shared.Devices{
 		"eth0": shared.Device{
+			"name":    "eth0",
 			"type":    "nic",
 			"nictype": "bridged",
 			"parent":  "lxcbr0"}}
