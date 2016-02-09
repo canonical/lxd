@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -10,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
+	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/shared"
 
@@ -766,14 +768,235 @@ func (s *storageBtrfs) getSubVolumes(path string) ([]string, error) {
 	return result, nil
 }
 
-func (s *storageBtrfs) MigrationType() MigrationFSType {
-	return MigrationFSType_RSYNC
+type btrfsMigrationSource struct {
+	lxdName            string
+	deleteAfterSending bool
+	btrfsPath          string
+	btrfsParent        string
+
+	btrfs *storageBtrfs
 }
 
-func (s *storageBtrfs) MigrationSource(container container) ([]MigrationStorageSource, error) {
-	return rsyncMigrationSource(container)
+func (s btrfsMigrationSource) Name() string {
+	return s.lxdName
+}
+
+func (s btrfsMigrationSource) IsSnapshot() bool {
+	return !s.deleteAfterSending
+}
+
+func (s btrfsMigrationSource) Send(conn *websocket.Conn) error {
+	args := []string{"send", s.btrfsPath}
+	if s.btrfsParent != "" {
+		args = append(args, "-p", s.btrfsParent)
+	}
+
+	cmd := exec.Command("btrfs", args...)
+
+	deleteAfterSending := func(path string) {
+		s.btrfs.subvolsDelete(path)
+		os.Remove(filepath.Dir(path))
+	}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		if s.deleteAfterSending {
+			deleteAfterSending(s.btrfsPath)
+		}
+		return err
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		if s.deleteAfterSending {
+			deleteAfterSending(s.btrfsPath)
+		}
+		return err
+	}
+
+	if err := cmd.Start(); err != nil {
+		if s.deleteAfterSending {
+			deleteAfterSending(s.btrfsPath)
+		}
+		return err
+	}
+
+	<-shared.WebsocketSendStream(conn, stdout)
+
+	output, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		shared.Log.Error("problem reading btrfs send stderr", "err", err)
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		shared.Log.Error("problem with btrfs send", "output", string(output))
+	}
+	if s.deleteAfterSending {
+		deleteAfterSending(s.btrfsPath)
+	}
+	return err
+}
+
+func (s *storageBtrfs) MigrationType() MigrationFSType {
+	if runningInUserns {
+		return MigrationFSType_RSYNC
+	} else {
+		return MigrationFSType_BTRFS
+	}
+}
+
+func (s *storageBtrfs) MigrationSource(c container) ([]MigrationStorageSource, error) {
+	if runningInUserns {
+		return rsyncMigrationSource(c)
+	}
+
+	sources := []MigrationStorageSource{}
+
+	/* If the container is a snapshot, let's just send that; we don't need
+	 * to send anything else, because that's all the user asked for.
+	 */
+	if c.IsSnapshot() {
+		sources = append(sources, btrfsMigrationSource{c.Name(), false, c.Path(), "", s})
+		return sources, nil
+	}
+
+	/* List all the snapshots in order of reverse creation. The idea here
+	 * is that we send the oldest to newest snapshot, hopefully saving on
+	 * xfer costs. Then, after all that, we send the container itself.
+	 */
+	snapshots, err := c.Snapshots()
+	if err != nil {
+		return nil, err
+	}
+
+	for i, snap := range snapshots {
+		var prev container
+		if i > 0 {
+			prev = snapshots[i-1]
+		}
+
+		btrfsPath := snap.Path()
+		parentName := ""
+		if prev != nil {
+			parentName = prev.Path()
+		}
+
+		sources = append(sources, btrfsMigrationSource{snap.Name(), false, btrfsPath, parentName, s})
+	}
+
+	/* We can't send running fses, so let's snapshot the fs and send
+	 * the snapshot.
+	 */
+
+	tmpPath := containerPath(fmt.Sprintf("%s/.migration-send-%s", c.Name(), uuid.NewRandom().String()), true)
+	err = os.MkdirAll(tmpPath, 0700)
+	if err != nil {
+		return nil, err
+	}
+
+	btrfsPath := fmt.Sprintf("%s/.root", tmpPath)
+	if err := s.subvolSnapshot(c.Path(), btrfsPath, true); err != nil {
+		return nil, err
+	}
+
+	btrfsParent := ""
+	if len(sources) > 0 {
+		btrfsParent = sources[len(sources)-1].(btrfsMigrationSource).btrfsPath
+	}
+
+	sources = append(sources, btrfsMigrationSource{c.Name(), true, btrfsPath, btrfsParent, s})
+
+	return sources, nil
 }
 
 func (s *storageBtrfs) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
-	return rsyncMigrationSink(container, snapshots, conn)
+	if runningInUserns {
+		return rsyncMigrationSink(container, snapshots, conn)
+	}
+
+	cName := container.Name()
+
+	snapshotsPath := shared.VarPath(fmt.Sprintf("snapshots/%s", cName))
+	if !shared.PathExists(snapshotsPath) {
+		err := os.MkdirAll(shared.VarPath(fmt.Sprintf("snapshots/%s", cName)), 0700)
+		if err != nil {
+			return err
+		}
+	}
+
+	btrfsRecv := func(btrfsPath string, targetPath string, issnapshot bool) error {
+		args := []string{"receive", "-e", btrfsPath}
+		cmd := exec.Command("btrfs", args...)
+
+		// Remove the existing pre-created subvolume
+		err := s.subvolsDelete(targetPath)
+		if err != nil {
+			return err
+		}
+
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			return err
+		}
+
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return err
+		}
+
+		if err := cmd.Start(); err != nil {
+			return err
+		}
+
+		<-shared.WebsocketRecvStream(stdin, conn)
+
+		output, err := ioutil.ReadAll(stderr)
+		if err != nil {
+			shared.Debugf("problem reading btrfs receive stderr %s", err)
+		}
+
+		err = cmd.Wait()
+		if err != nil {
+			shared.Log.Error("problem with btrfs receive", log.Ctx{"output": string(output)})
+			return err
+		}
+
+		if !issnapshot {
+			err := s.subvolSnapshot(containerPath(fmt.Sprintf("%s/.root", cName), true), targetPath, false)
+			if err != nil {
+				shared.Log.Error("problem with btrfs snapshot", log.Ctx{"err": err})
+				return err
+			}
+
+			err = s.subvolsDelete(containerPath(fmt.Sprintf("%s/.root", cName), true))
+			if err != nil {
+				shared.Log.Error("problem with btrfs delete", log.Ctx{"err": err})
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	for _, snap := range snapshots {
+		if err := btrfsRecv(containerPath(cName, true), snap.Path(), true); err != nil {
+			return err
+		}
+	}
+
+	/* finally, do the real container */
+	if err := btrfsRecv(containerPath(cName, true), container.Path(), false); err != nil {
+		return err
+	}
+
+	// Cleanup
+	if ok, _ := shared.PathIsEmpty(snapshotsPath); ok {
+		err := os.Remove(snapshotsPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
