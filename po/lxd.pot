@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-02-04 15:39-0700\n"
+        "POT-Creation-Date: 2016-02-09 08:33-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -74,7 +74,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/info.go:100 lxc/profile.go:216
+#: lxc/info.go:100 lxc/profile.go:221
 msgid   "(none)"
 msgstr  ""
 
@@ -116,7 +116,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: lxc/profile.go:325
+#: lxc/profile.go:329
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -709,7 +709,7 @@ msgstr  ""
 msgid   "Processcount: %d"
 msgstr  ""
 
-#: lxc/profile.go:218
+#: lxc/profile.go:223
 #, c-format
 msgid   "Profile %s applied to %s"
 msgstr  ""
