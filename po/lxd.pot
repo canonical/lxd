@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-02-09 15:57-0500\n"
+        "POT-Creation-Date: 2016-02-09 15:53-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -74,7 +74,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/info.go:100 lxc/profile.go:221
+#: lxc/info.go:102 lxc/profile.go:221
 msgid   "(none)"
 msgstr  ""
 
@@ -333,7 +333,7 @@ msgstr  ""
 msgid   "Image imported with fingerprint: %s"
 msgstr  ""
 
-#: lxc/info.go:86
+#: lxc/info.go:88
 #, c-format
 msgid   "Init: %d"
 msgstr  ""
@@ -366,7 +366,7 @@ msgstr  ""
 msgid   "Invalid target %s"
 msgstr  ""
 
-#: lxc/info.go:88
+#: lxc/info.go:90
 msgid   "Ips:"
 msgstr  ""
 
@@ -388,7 +388,7 @@ msgid   "Launch a container from a particular image.\n"
         "lxc launch ubuntu u1"
 msgstr  ""
 
-#: lxc/info.go:23
+#: lxc/info.go:24
 msgid   "List information on containers.\n"
         "\n"
         "This will support remotes and images as well, but only containers for now.\n"
@@ -419,7 +419,7 @@ msgid   "Lists the available resources.\n"
         "* p - pid of container init process"
 msgstr  ""
 
-#: lxc/info.go:129
+#: lxc/info.go:131
 msgid   "Log:"
 msgstr  ""
 
@@ -618,7 +618,7 @@ msgstr  ""
 msgid   "NO"
 msgstr  ""
 
-#: lxc/info.go:78
+#: lxc/info.go:79
 #, c-format
 msgid   "Name: %s"
 msgstr  ""
@@ -704,7 +704,7 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version"
 msgstr  ""
 
-#: lxc/info.go:87
+#: lxc/info.go:89
 #, c-format
 msgid   "Processcount: %d"
 msgstr  ""
@@ -726,6 +726,11 @@ msgstr  ""
 
 #: lxc/init.go:134 lxc/init.go:135 lxc/launch.go:38 lxc/launch.go:39
 msgid   "Profile to apply to the new container"
+msgstr  ""
+
+#: lxc/info.go:86
+#, c-format
+msgid   "Profiles: %s"
 msgstr  ""
 
 #: lxc/image.go:278
@@ -805,7 +810,7 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/info.go:32
+#: lxc/info.go:33
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
 
@@ -814,7 +819,7 @@ msgstr  ""
 msgid   "Size: %.2fMB"
 msgstr  ""
 
-#: lxc/info.go:112 lxc/list.go:183
+#: lxc/info.go:114 lxc/list.go:183
 msgid   "Snapshots:"
 msgstr  ""
 
@@ -823,7 +828,7 @@ msgstr  ""
 msgid   "Starting %s"
 msgstr  ""
 
-#: lxc/info.go:79
+#: lxc/info.go:80
 #, c-format
 msgid   "Status: %s"
 msgstr  ""
@@ -849,11 +854,11 @@ msgstr  ""
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
 
-#: lxc/info.go:81
+#: lxc/info.go:82
 msgid   "Type: ephemeral"
 msgstr  ""
 
-#: lxc/info.go:83
+#: lxc/info.go:84
 msgid   "Type: persistent"
 msgstr  ""
 
