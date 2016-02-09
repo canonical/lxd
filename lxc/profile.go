@@ -211,15 +211,19 @@ func doProfileDelete(client *lxd.Client, p string) error {
 
 func doProfileApply(client *lxd.Client, c string, p string) error {
 	resp, err := client.ApplyProfile(c, p)
+	if err != nil {
+		return err
+	}
+
+	err = client.WaitForSuccess(resp.Operation)
 	if err == nil {
 		if p == "" {
 			p = i18n.G("(none)")
 		}
 		fmt.Printf(i18n.G("Profile %s applied to %s")+"\n", p, c)
-	} else {
-		return err
 	}
-	return client.WaitForSuccess(resp.Operation)
+
+	return err
 }
 
 func doProfileShow(client *lxd.Client, p string) error {
