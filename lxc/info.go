@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 
@@ -82,6 +83,7 @@ func containerInfo(d *lxd.Client, name string, showLog bool) error {
 	} else {
 		fmt.Printf(i18n.G("Type: persistent") + "\n")
 	}
+	fmt.Printf(i18n.G("Profiles: %s")+"\n", strings.Join(ct.Profiles, ", "))
 	if ct.Status.Init != 0 {
 		fmt.Printf(i18n.G("Init: %d")+"\n", ct.Status.Init)
 		fmt.Printf(i18n.G("Processcount: %d")+"\n", ct.Status.Processcount)
