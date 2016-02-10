@@ -90,7 +90,7 @@ To set the server trust password:
     lxc config set core.trust_password blah`)
 }
 
-func doSet(config *lxd.Config, args []string) error {
+func doSet(config *lxd.Config, args []string, unset bool) error {
 	if len(args) != 4 {
 		return errArgs
 	}
@@ -108,9 +108,21 @@ func doSet(config *lxd.Config, args []string) error {
 	if !terminal.IsTerminal(int(syscall.Stdin)) && value == "-" {
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			return fmt.Errorf("Can't read from stdin: %s", err)
+			return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
 		}
 		value = string(buf[:])
+	}
+
+	if unset {
+		st, err := d.ContainerStatus(container)
+		if err != nil {
+			return err
+		}
+
+		_, ok := st.Config[key]
+		if !ok {
+			return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set."), key)
+		}
 	}
 
 	return d.SetContainerConfig(container, key, value)
@@ -135,6 +147,16 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 				return err
 			}
 
+			ss, err := c.ServerStatus()
+			if err != nil {
+				return err
+			}
+
+			_, ok := ss.Config[args[1]]
+			if !ok {
+				return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set."), args[1])
+			}
+
 			_, err = c.SetServerConfig(args[1], "")
 			return err
 		}
@@ -147,13 +169,23 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 				return err
 			}
 
+			ss, err := c.ServerStatus()
+			if err != nil {
+				return err
+			}
+
+			_, ok := ss.Config[args[1]]
+			if !ok {
+				return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set."), args[1])
+			}
+
 			_, err = c.SetServerConfig(args[2], "")
 			return err
 		}
 
 		// Deal with container
 		args = append(args, "")
-		return doSet(config, args)
+		return doSet(config, args, true)
 
 	case "set":
 		if len(args) < 3 {
@@ -184,7 +216,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		// Deal with container
-		return doSet(config, args)
+		return doSet(config, args, false)
 
 	case "trust":
 		if len(args) < 2 {
