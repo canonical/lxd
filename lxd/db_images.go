@@ -150,9 +150,9 @@ func dbImageSetPublic(db *sql.DB, id int, public bool) error {
 	return err
 }
 
-// Insert an alias into the database.
+// Insert an alias ento the database.
 func dbImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
-	stmt := `INSERT into images_aliases (name, image_id, description) values (?, ?, ?)`
+	stmt := `INSERT INTO images_aliases (name, image_id, description) values (?, ?, ?)`
 	_, err := dbExec(db, stmt, name, imageID, desc)
 	return err
 }

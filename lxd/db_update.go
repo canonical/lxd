@@ -15,6 +15,14 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV21(db *sql.DB) error {
+	stmt := `
+ALTER TABLE containers ADD COLUMN creation_date DATETIME NOT NULL DEFAULT 0;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 22)
+	return err
+}
+
 func dbUpdateFromV20(d *Daemon) error {
 	cNames, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
@@ -896,6 +904,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 21 {
 		err = dbUpdateFromV20(d)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 22 {
+		err = dbUpdateFromV21(db)
 		if err != nil {
 			return err
 		}

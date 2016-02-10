@@ -10,8 +10,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
@@ -22,13 +20,12 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	cname := mux.Vars(r)["name"]
-	// Makes sure the requested container exists.
-	_, err = containerLoadByName(d, cname)
+	c, err := containerLoadByName(d, cname)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	results, err := dbContainerGetSnapshots(d.db, cname)
+	snaps, err := c.Snapshots()
 	if err != nil {
 		return SmartError(err)
 	}
@@ -36,19 +33,16 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	resultString := []string{}
 	resultMap := []shared.Jmap{}
 
-	for _, name := range results {
-		sc, err := containerLoadByName(d, name)
-		if err != nil {
-			shared.Log.Error("Failed to load snapshot", log.Ctx{"snapshot": name})
-			continue
-		}
-
-		snapName := strings.SplitN(name, shared.SnapshotDelimiter, 2)[1]
+	for _, snap := range snaps {
+		snapName := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)[1]
 		if recursion == 0 {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
 		} else {
-			body := shared.Jmap{"name": snapName, "stateful": shared.PathExists(sc.StatePath())}
+			body := shared.Jmap{
+				"name":          snapName,
+				"creation_date": snap.CreationDate().Unix(),
+				"stateful":      shared.PathExists(snap.StatePath())}
 			resultMap = append(resultMap, body)
 		}
 	}
@@ -189,7 +183,10 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 }
 
 func snapshotGet(sc container, name string) Response {
-	body := shared.Jmap{"name": name, "stateful": shared.PathExists(sc.StatePath())}
+	body := shared.Jmap{
+		"name":          name,
+		"creation_date": sc.CreationDate().Unix(),
+		"stateful":      shared.PathExists(sc.StatePath())}
 	return SyncResponse(true, body)
 }
 

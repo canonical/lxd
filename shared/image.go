@@ -15,14 +15,11 @@ type ImageInfo struct {
 	Fingerprint  string            `json:"fingerprint"`
 	Filename     string            `json:"filename"`
 	Properties   map[string]string `json:"properties"`
-
-	// FIXME: This is an interface{] instead of a bool for backward compatibility
-	Public interface{} `json:"public"`
-
-	Size         int64 `json:"size"`
-	CreationDate int64 `json:"created_at"`
-	ExpiryDate   int64 `json:"expires_at"`
-	UploadDate   int64 `json:"uploaded_at"`
+	Public       bool              `json:"public"`
+	Size         int64             `json:"size"`
+	CreationDate int64             `json:"created_at"`
+	ExpiryDate   int64             `json:"expires_at"`
+	UploadDate   int64             `json:"uploaded_at"`
 }
 
 /*
@@ -37,21 +34,16 @@ type BriefImageInfo struct {
 func (i *ImageInfo) BriefInfo() BriefImageInfo {
 	retstate := BriefImageInfo{
 		Properties: i.Properties,
-
-		// FIXME: InterfaceToBool is there for backward compatibility
-		Public: InterfaceToBool(i.Public)}
+		Public:     i.Public}
 	return retstate
 }
 
 type ImageBaseInfo struct {
-	Id          int
-	Fingerprint string
-	Filename    string
-	Size        int64
-
-	// FIXME: This is an interface{] instead of a bool for backward compatibility
-	Public interface{}
-
+	Id           int
+	Fingerprint  string
+	Filename     string
+	Size         int64
+	Public       bool
 	Architecture int
 	CreationDate int64
 	ExpiryDate   int64

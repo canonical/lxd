@@ -255,8 +255,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
 		public := i18n.G("no")
 
-		// FIXME: InterfaceToBool is there for backward compatibility
-		if shared.InterfaceToBool(info) {
+		if info.Public {
 			public = i18n.G("yes")
 		}
 
@@ -504,8 +503,7 @@ func showImages(images []shared.ImageInfo, filters []string) error {
 		public := i18n.G("no")
 		description := findDescription(image.Properties)
 
-		// FIXME: InterfaceToBool is there for backward compatibility
-		if shared.InterfaceToBool(image.Public) {
+		if image.Public {
 			public = i18n.G("yes")
 		}
 
