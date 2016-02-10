@@ -1624,30 +1624,20 @@ func (c *Client) Snapshot(container string, snapshotName string, stateful bool) 
 	return c.post(fmt.Sprintf("containers/%s/snapshots", container), body, Async)
 }
 
-func (c *Client) ListSnapshots(container string) ([]string, error) {
+func (c *Client) ListSnapshots(container string) ([]shared.SnapshotState, error) {
 	qUrl := fmt.Sprintf("containers/%s/snapshots?recursion=1", container)
 	resp, err := c.get(qUrl)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []shared.Jmap
+	var result []shared.SnapshotState
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
 	}
 
-	names := []string{}
-
-	for _, snapjmap := range result {
-		name, err := snapjmap.GetString("name")
-		if err != nil {
-			continue
-		}
-		names = append(names, name)
-	}
-
-	return names, nil
+	return result, nil
 }
 
 func (c *Client) GetServerConfigString() ([]string, error) {

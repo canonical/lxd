@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-02-10 14:55-0500\n"
+        "POT-Creation-Date: 2016-02-10 16:04-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -74,7 +74,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/info.go:102 lxc/profile.go:221
+#: lxc/info.go:109 lxc/profile.go:221
 msgid   "(none)"
 msgstr  ""
 
@@ -208,7 +208,7 @@ msgid   "Create a read-only snapshot of a container.\n"
         "lxc snapshot u1 snap0"
 msgstr  ""
 
-#: lxc/image.go:269
+#: lxc/image.go:269 lxc/info.go:84
 #, c-format
 msgid   "Created: %s"
 msgstr  ""
@@ -244,7 +244,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:239
+#: lxc/list.go:228
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -322,11 +322,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:237
+#: lxc/list.go:226
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:238
+#: lxc/list.go:227
 msgid   "IPV6"
 msgstr  ""
 
@@ -347,7 +347,7 @@ msgstr  ""
 msgid   "Image imported with fingerprint: %s"
 msgstr  ""
 
-#: lxc/info.go:88
+#: lxc/info.go:95
 #, c-format
 msgid   "Init: %d"
 msgstr  ""
@@ -380,7 +380,7 @@ msgstr  ""
 msgid   "Invalid target %s"
 msgstr  ""
 
-#: lxc/info.go:90
+#: lxc/info.go:97
 msgid   "Ips:"
 msgstr  ""
 
@@ -402,7 +402,7 @@ msgid   "Launch a container from a particular image.\n"
         "lxc launch ubuntu u1"
 msgstr  ""
 
-#: lxc/info.go:24
+#: lxc/info.go:25
 msgid   "List information on containers.\n"
         "\n"
         "This will support remotes and images as well, but only containers for now.\n"
@@ -433,7 +433,7 @@ msgid   "Lists the available resources.\n"
         "* p - pid of container init process"
 msgstr  ""
 
-#: lxc/info.go:131
+#: lxc/info.go:151
 msgid   "Log:"
 msgstr  ""
 
@@ -624,15 +624,15 @@ msgid   "Move containers within or in between lxd instances.\n"
         "    Rename a local container.\n"
 msgstr  ""
 
-#: lxc/list.go:235 lxc/remote.go:271
+#: lxc/list.go:224 lxc/remote.go:271
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/list.go:304 lxc/remote.go:257
+#: lxc/list.go:293 lxc/remote.go:257
 msgid   "NO"
 msgstr  ""
 
-#: lxc/info.go:79
+#: lxc/info.go:82
 #, c-format
 msgid   "Name: %s"
 msgstr  ""
@@ -666,7 +666,7 @@ msgstr  ""
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:241
+#: lxc/list.go:230
 msgid   "PID"
 msgstr  ""
 
@@ -718,7 +718,7 @@ msgid   "Prints the version number of LXD.\n"
         "lxc version"
 msgstr  ""
 
-#: lxc/info.go:89
+#: lxc/info.go:96
 #, c-format
 msgid   "Processcount: %d"
 msgstr  ""
@@ -742,7 +742,7 @@ msgstr  ""
 msgid   "Profile to apply to the new container"
 msgstr  ""
 
-#: lxc/info.go:86
+#: lxc/info.go:93
 #, c-format
 msgid   "Profiles: %s"
 msgstr  ""
@@ -788,11 +788,11 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:240
+#: lxc/list.go:229
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:236
+#: lxc/list.go:225
 msgid   "STATE"
 msgstr  ""
 
@@ -833,7 +833,7 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/info.go:33
+#: lxc/info.go:34
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
 
@@ -842,7 +842,7 @@ msgstr  ""
 msgid   "Size: %.2fMB"
 msgstr  ""
 
-#: lxc/info.go:114 lxc/list.go:183
+#: lxc/info.go:122
 msgid   "Snapshots:"
 msgstr  ""
 
@@ -851,7 +851,7 @@ msgstr  ""
 msgid   "Starting %s"
 msgstr  ""
 
-#: lxc/info.go:80
+#: lxc/info.go:87
 #, c-format
 msgid   "Status: %s"
 msgstr  ""
@@ -881,11 +881,11 @@ msgstr  ""
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
 
-#: lxc/info.go:82
+#: lxc/info.go:89
 msgid   "Type: ephemeral"
 msgstr  ""
 
-#: lxc/info.go:84
+#: lxc/info.go:91
 msgid   "Type: persistent"
 msgstr  ""
 
@@ -927,7 +927,7 @@ msgstr  ""
 msgid   "Whether to show the expanded configuration"
 msgstr  ""
 
-#: lxc/list.go:302 lxc/remote.go:259
+#: lxc/list.go:291 lxc/remote.go:259
 msgid   "YES"
 msgstr  ""
 
@@ -1003,6 +1003,19 @@ msgstr  ""
 #: lxc/remote.go:227
 #, c-format
 msgid   "remote %s exists as <%s>"
+msgstr  ""
+
+#: lxc/info.go:131
+msgid   "stateful"
+msgstr  ""
+
+#: lxc/info.go:133
+msgid   "stateless"
+msgstr  ""
+
+#: lxc/info.go:127
+#, c-format
+msgid   "taken at %s"
 msgstr  ""
 
 #: lxc/exec.go:158
