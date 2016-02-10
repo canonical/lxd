@@ -660,10 +660,7 @@ func imageBuildFromInfo(d *Daemon, info shared.ImageInfo) (metadata map[string]s
 		info.Fingerprint,
 		info.Filename,
 		info.Size,
-
-		// FIXME: InterfaceToBool is there for backward compatibility
-		shared.InterfaceToBool(info.Public),
-
+		info.Public,
 		info.Architecture,
 		info.CreationDate,
 		info.ExpiryDate,

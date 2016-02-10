@@ -183,7 +183,7 @@ kill_lxd() {
     # Delete all containers
     echo "==> Deleting all containers"
     for container in $(lxc list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
-      lxc delete "${container}" --force-local || true
+      lxc delete "${container}" --force-local -f || true
     done
 
     # Delete all images

@@ -10,5 +10,5 @@ test_filemanip() {
   [ ! -f /tmp/main.sh ]
   [ -f "${LXD_DIR}/containers/filemanip/rootfs/tmp/main.sh" ]
 
-  lxc delete filemanip
+  lxc delete filemanip -f
 }

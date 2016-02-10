@@ -501,22 +501,6 @@ func ValidHostname(name string) bool {
 	return true
 }
 
-// FIXME: InterfaceToBool is there for backward compatibility
-func InterfaceToBool(value interface{}) bool {
-	switch t := value.(type) {
-	case bool:
-		return t
-	case float32:
-		return t == 1
-	case float64:
-		return t == 1
-	case int:
-		return t == 1
-	default:
-		return false
-	}
-}
-
 func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 	var f *os.File
 	var err error

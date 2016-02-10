@@ -530,8 +530,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		"server":      c.BaseURL,
 		"fingerprint": fingerprint}
 
-	// FIXME: InterfaceToBool is there for backward compatibility
-	if !shared.InterfaceToBool(info.Public) {
+	if !info.Public {
 		var secret string
 
 		resp, err := c.post("images/"+fingerprint+"/secret", nil, Async)
@@ -540,19 +539,13 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		}
 
 		op, err := resp.MetadataAsOperation()
-		if err == nil && op.Metadata != nil {
-			secret, err = op.Metadata.GetString("secret")
-			if err != nil {
-				return err
-			}
-		} else {
-			// FIXME: This is a backward compatibility codepath
-			md := secretMd{}
-			if err := json.Unmarshal(resp.Metadata, &md); err != nil {
-				return err
-			}
+		if err != nil {
+			return err
+		}
 
-			secret = md.Secret
+		secret, err = op.Metadata.GetString("secret")
+		if err != nil {
+			return err
 		}
 
 		source["secret"] = secret
@@ -1158,8 +1151,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, fmt.Errorf("The image architecture is incompatible with the target server")
 		}
 
-		// FIXME: InterfaceToBool is there for backward compatibility
-		if !shared.InterfaceToBool(imageinfo.Public) {
+		if !imageinfo.Public {
 			var secret string
 
 			resp, err := tmpremote.post("images/"+fingerprint+"/secret", nil, Async)
@@ -1168,19 +1160,13 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			}
 
 			op, err := resp.MetadataAsOperation()
-			if err == nil && op.Metadata != nil {
-				secret, err = op.Metadata.GetString("secret")
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				// FIXME: This is a backward compatibility codepath
-				md := secretMd{}
-				if err := json.Unmarshal(resp.Metadata, &md); err != nil {
-					return nil, err
-				}
+			if err != nil {
+				return nil, err
+			}
 
-				secret = md.Secret
+			secret, err = op.Metadata.GetString("secret")
+			if err != nil {
+				return nil, err
 			}
 
 			source["secret"] = secret
@@ -1271,14 +1257,6 @@ func (c *Client) LocalCopy(source string, name string, config map[string]string,
 	return c.post("containers", body, Async)
 }
 
-type execMd struct {
-	FDs map[string]string `json:"fds"`
-}
-
-type secretMd struct {
-	Secret string `json:"secret"`
-}
-
 func (c *Client) Monitor(types []string, handler func(interface{})) error {
 	url := c.BaseWSURL + path.Join("/", "1.0", "events")
 	if len(types) != 0 {
@@ -1332,22 +1310,13 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 	var fds shared.Jmap
 
 	op, err := resp.MetadataAsOperation()
-	if err == nil && op.Metadata != nil {
-		fds, err = op.Metadata.GetMap("fds")
-		if err != nil {
-			return -1, err
-		}
-	} else {
-		// FIXME: This is a backward compatibility codepath
-		md := execMd{}
-		if err := json.Unmarshal(resp.Metadata, &md); err != nil {
-			return -1, err
-		}
+	if err != nil {
+		return -1, err
+	}
 
-		fds, err = shared.ParseMetadata(md.FDs)
-		if err != nil {
-			return -1, err
-		}
+	fds, err = op.Metadata.GetMap("fds")
+	if err != nil {
+		return -1, err
 	}
 
 	if controlHandler != nil {
@@ -1647,30 +1616,20 @@ func (c *Client) Snapshot(container string, snapshotName string, stateful bool) 
 	return c.post(fmt.Sprintf("containers/%s/snapshots", container), body, Async)
 }
 
-func (c *Client) ListSnapshots(container string) ([]string, error) {
+func (c *Client) ListSnapshots(container string) ([]shared.SnapshotState, error) {
 	qUrl := fmt.Sprintf("containers/%s/snapshots?recursion=1", container)
 	resp, err := c.get(qUrl)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []shared.Jmap
+	var result []shared.SnapshotState
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
 	}
 
-	names := []string{}
-
-	for _, snapjmap := range result {
-		name, err := snapjmap.GetString("name")
-		if err != nil {
-			continue
-		}
-		names = append(names, name)
-	}
-
-	return names, nil
+	return result, nil
 }
 
 func (c *Client) GetServerConfigString() ([]string, error) {

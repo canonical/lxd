@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/lxc/lxd/shared"
 
@@ -65,9 +66,9 @@ func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
 	args.Name = name
 
 	ephemInt := -1
-	q := "SELECT id, architecture, type, ephemeral FROM containers WHERE name=?"
+	q := "SELECT id, architecture, type, ephemeral, creation_date FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&args.Id, &args.Architecture, &args.Ctype, &ephemInt}
+	arg2 := []interface{}{&args.Id, &args.Architecture, &args.Ctype, &ephemInt, &args.CreationDate}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		return args, err
@@ -123,14 +124,17 @@ func dbContainerCreate(db *sql.DB, args containerArgs) (int, error) {
 		ephemInt = 1
 	}
 
-	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral) VALUES (?, ?, ?, ?)")
+	now := time.Now().UTC()
+	args.CreationDate = &now
+
+	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral, creation_date) VALUES (?, ?, ?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 	defer stmt.Close()
-	result, err := stmt.Exec(args.Name, args.Architecture, args.Ctype, ephemInt)
+	result, err := stmt.Exec(args.Name, args.Architecture, args.Ctype, ephemInt, args.CreationDate.Unix())
 	if err != nil {
 		tx.Rollback()
 		return 0, err

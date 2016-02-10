@@ -211,10 +211,10 @@ test_basic_usage() {
 
   lxc launch testimage deleterunning
   my_curl -X DELETE "https://${LXD_ADDR}/1.0/containers/deleterunning" | grep "container is running"
-  lxc delete deleterunning
+  lxc delete deleterunning -f
 
   # cleanup
-  lxc delete foo
+  lxc delete foo -f
 
   # check that an apparmor profile is created for this container, that it is
   # unloaded on stop, and that it is deleted when the container is deleted
