@@ -857,7 +857,18 @@ func (s *storageBtrfs) MigrationSource(c container) ([]MigrationStorageSource, e
 	 * to send anything else, because that's all the user asked for.
 	 */
 	if c.IsSnapshot() {
-		sources = append(sources, btrfsMigrationSource{c.Name(), false, c.Path(), "", s})
+		tmpPath := containerPath(fmt.Sprintf("%s/.migration-send-%s", c.Name(), uuid.NewRandom().String()), true)
+		err := os.MkdirAll(tmpPath, 0700)
+		if err != nil {
+			return nil, err
+		}
+
+		btrfsPath := fmt.Sprintf("%s/.root", tmpPath)
+		if err := s.subvolSnapshot(c.Path(), btrfsPath, true); err != nil {
+			return nil, err
+		}
+
+		sources = append(sources, btrfsMigrationSource{c.Name(), true, btrfsPath, "", s})
 		return sources, nil
 	}
 
@@ -888,7 +899,6 @@ func (s *storageBtrfs) MigrationSource(c container) ([]MigrationStorageSource, e
 	/* We can't send running fses, so let's snapshot the fs and send
 	 * the snapshot.
 	 */
-
 	tmpPath := containerPath(fmt.Sprintf("%s/.migration-send-%s", c.Name(), uuid.NewRandom().String()), true)
 	err = os.MkdirAll(tmpPath, 0700)
 	if err != nil {
@@ -925,7 +935,7 @@ func (s *storageBtrfs) MigrationSink(container container, snapshots []container,
 		}
 	}
 
-	btrfsRecv := func(btrfsPath string, targetPath string, issnapshot bool) error {
+	btrfsRecv := func(btrfsPath string, targetPath string, isSnapshot bool) error {
 		args := []string{"receive", "-e", btrfsPath}
 		cmd := exec.Command("btrfs", args...)
 
@@ -962,14 +972,16 @@ func (s *storageBtrfs) MigrationSink(container container, snapshots []container,
 			return err
 		}
 
-		if !issnapshot {
-			err := s.subvolSnapshot(containerPath(fmt.Sprintf("%s/.root", cName), true), targetPath, false)
+		if !isSnapshot {
+			cPath := containerPath(fmt.Sprintf("%s/.root", cName), true)
+
+			err := s.subvolSnapshot(cPath, targetPath, false)
 			if err != nil {
 				shared.Log.Error("problem with btrfs snapshot", log.Ctx{"err": err})
 				return err
 			}
 
-			err = s.subvolsDelete(containerPath(fmt.Sprintf("%s/.root", cName), true))
+			err = s.subvolsDelete(cPath)
 			if err != nil {
 				shared.Log.Error("problem with btrfs delete", log.Ctx{"err": err})
 				return err
