@@ -187,8 +187,6 @@ func NewMigrationSource(c container) (*migrationSourceWs, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		c.StorageStart()
 	}
 
 	return &ret, nil
@@ -248,6 +246,12 @@ func (s *migrationSourceWs) Do(op *operation) error {
 	criuType := CRIUType_CRIU_RSYNC.Enum()
 	if !s.live {
 		criuType = nil
+
+		err := s.container.StorageStart()
+		if err != nil {
+			return err
+		}
+
 		defer s.container.StorageStop()
 	}
 
