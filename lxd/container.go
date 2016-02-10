@@ -296,6 +296,7 @@ type containerArgs struct {
 	Architecture int
 	BaseImage    string
 	Config       map[string]string
+	CreationDate *time.Time
 	Ctype        containerType
 	Devices      shared.Devices
 	Ephemeral    bool
@@ -350,6 +351,7 @@ type container interface {
 	Id() int
 	Name() string
 	Architecture() int
+	CreationDate() *time.Time
 	ExpandedConfig() map[string]string
 	ExpandedDevices() shared.Devices
 	LocalConfig() map[string]string
