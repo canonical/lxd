@@ -187,8 +187,6 @@ func NewMigrationSource(c container) (*migrationSourceWs, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		c.StorageStart()
 	}
 
 	return &ret, nil
@@ -248,6 +246,12 @@ func (s *migrationSourceWs) Do(op *operation) error {
 	criuType := CRIUType_CRIU_RSYNC.Enum()
 	if !s.live {
 		criuType = nil
+
+		err := s.container.StorageStart()
+		if err != nil {
+			return err
+		}
+
 		defer s.container.StorageStop()
 	}
 
@@ -313,11 +317,11 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		return err
 	}
 
-	// TODO: actually fall back on rsync.
 	if *header.Fs != myType {
-		err := fmt.Errorf("mismatched storage types not supported yet")
-		s.sendControl(err)
-		return err
+		myType = MigrationFSType_RSYNC
+		header.Fs = &myType
+
+		sources, _ = rsyncMigrationSource(s.container)
 	}
 
 	if s.live {
@@ -490,15 +494,20 @@ func (c *migrationSink) do() error {
 	if !c.live {
 		criuType = nil
 	}
+
+	mySink := c.container.Storage().MigrationSink
 	myType := c.container.Storage().MigrationType()
 	resp := MigrationHeader{
 		Fs:   &myType,
 		Criu: criuType,
 	}
+
 	// If the storage type the source has doesn't match what we have, then
 	// we have to use rsync.
 	if *header.Fs != *resp.Fs {
-		resp.Fs = MigrationFSType_RSYNC.Enum()
+		mySink = rsyncMigrationSink
+		myType = MigrationFSType_RSYNC
+		resp.Fs = &myType
 	}
 
 	if err := c.send(&resp); err != nil {
@@ -593,7 +602,7 @@ func (c *migrationSink) do() error {
 			srcIdmap.Idmap = shared.Extend(srcIdmap.Idmap, e)
 		}
 
-		if err := c.container.Storage().MigrationSink(c.container, snapshots, c.fsConn); err != nil {
+		if err := mySink(c.container, snapshots, c.fsConn); err != nil {
 			restore <- err
 			c.sendControl(err)
 			return
