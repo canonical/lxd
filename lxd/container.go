@@ -597,6 +597,13 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	}
 	args.Id = id
 
+	// Read the timestamp from the database
+	dbArgs, err := dbContainerGet(d.db, args.Name)
+	if err != nil {
+		return nil, err
+	}
+	args.CreationDate = dbArgs.CreationDate
+
 	return containerLXCCreate(d, args)
 }
 
