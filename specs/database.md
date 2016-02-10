@@ -109,8 +109,8 @@ id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 name            | VARCHAR(255)  | -             | NOT NULL          | Container name
 architecture    | INTEGER       | -             | NOT NULL          | Container architecture
 type            | INTEGER       | 0             | NOT NULL          | Container type (0 = container, 1 = container snapshot)
-power\_state    | INTEGER       | 0             | NOT NULL          | Container power state (0 = off, 1 = on)
 ephemeral       | INTEGER       | 0             | NOT NULL          | Whether the container is ephemeral (0 = persistent, 1 = ephemeral)
+creation\_date  | DATETIME      | -             |                   | Image creation date (user supplied, 0 = unknown)
 
 Index: UNIQUE ON id AND name
 
@@ -190,6 +190,20 @@ last\_use\_date | DATETIME      | -             |                   | Last time 
 Index: UNIQUE ON id AND fingerprint
 
 
+## images\_aliases
+
+Column          | Type          | Default       | Constraint        | Description
+:-----          | :---          | :------       | :---------        | :----------
+id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
+name            | VARCHAR(255)  | -             | NOT NULL          | Alias name
+image\_id       | INTEGER       | -             | NOT NULL          | images.id FK
+description     | VARCHAR(255)  | -             |                   | Description of the alias
+
+Index: UNIQUE ON id AND name
+
+Foreign keys: image\_id REFERENCES images(id)
+
+
 ## images\_properties
 
 Column          | Type          | Default       | Constraint        | Description
@@ -201,20 +215,6 @@ key             | VARCHAR(255)  | -             | NOT NULL          | Property n
 value           | TEXT          | -             |                   | Property value (NULL for unset)
 
 Index: UNIQUE ON id
-
-Foreign keys: image\_id REFERENCES images(id)
-
-
-## images\_aliases
-
-Column          | Type          | Default       | Constraint        | Description
-:-----          | :---          | :------       | :---------        | :----------
-id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
-name            | VARCHAR(255)  | -             | NOT NULL          | Alias name
-image\_id       | INTEGER       | -             | NOT NULL          | images.id FK
-description     | VARCHAR(255)  | -             |                   | Description of the alias
-
-Index: UNIQUE ON id AND name
 
 Foreign keys: image\_id REFERENCES images(id)
 
