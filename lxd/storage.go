@@ -596,6 +596,13 @@ func rsyncMigrationSink(container container, snapshots []container, conn *websoc
 		return err
 	}
 
+	if len(snapshots) > 0 {
+		err := os.MkdirAll(shared.VarPath(fmt.Sprintf("snapshots/%s", container.Name())), 0700)
+		if err != nil {
+			return err
+		}
+	}
+
 	for _, snap := range snapshots {
 		if err := RsyncRecv(shared.AddSlash(snap.Path()), conn); err != nil {
 			return err
