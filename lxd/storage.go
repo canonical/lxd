@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -535,11 +536,19 @@ func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
 	}
 
 	if !reflect.DeepEqual(srcIdmap, dstIdmap) {
-		if err := srcIdmap.UnshiftRootfs(container.Path()); err != nil {
-			return err
+		var jsonIdmap string
+		if srcIdmap != nil {
+			idmapBytes, err := json.Marshal(srcIdmap.Idmap)
+			if err != nil {
+				return err
+			}
+			jsonIdmap = string(idmapBytes)
+		} else {
+			jsonIdmap = "[]"
 		}
 
-		if err := dstIdmap.ShiftRootfs(container.Path()); err != nil {
+		err := container.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
+		if err != nil {
 			return err
 		}
 	}
@@ -585,6 +594,13 @@ func rsyncMigrationSink(container container, snapshots []container, conn *websoc
 	/* the first object is the actual container */
 	if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
 		return err
+	}
+
+	if len(snapshots) > 0 {
+		err := os.MkdirAll(shared.VarPath(fmt.Sprintf("snapshots/%s", container.Name())), 0700)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, snap := range snapshots {
