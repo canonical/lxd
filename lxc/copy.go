@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -122,15 +121,12 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		secrets := map[string]string{}
 
 		op, err := sourceWSResponse.MetadataAsOperation()
-		if err == nil && op.Metadata != nil {
-			for k, v := range *op.Metadata {
-				secrets[k] = v.(string)
-			}
-		} else {
-			// FIXME: This is a backward compatibility codepath
-			if err := json.Unmarshal(sourceWSResponse.Metadata, &secrets); err != nil {
-				return err
-			}
+		if err != nil {
+			return err
+		}
+
+		for k, v := range *op.Metadata {
+			secrets[k] = v.(string)
 		}
 
 		addresses, err := source.Addresses()
@@ -146,55 +142,23 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 		 * course, if all the errors are websocket errors, let's just
 		 * report that.
 		 */
-		var realError error
-
 		for _, addr := range addresses {
 			var migration *lxd.Response
 
 			sourceWSUrl := "https://" + addr + sourceWSResponse.Operation
 			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
 			if err != nil {
-				if !strings.Contains(err.Error(), "websocket: bad handshake") {
-					realError = err
-				}
-				shared.Debugf("intermediate error: %s", err)
 				continue
 			}
 
 			if err = dest.WaitForSuccess(migration.Operation); err != nil {
-				if !strings.Contains(err.Error(), "websocket: bad handshake") {
-					realError = err
-				}
-				shared.Debugf("intermediate error: %s", err)
-				// FIXME: This is a backward compatibility codepath
-				sourceWSUrl := "wss://" + addr + sourceWSResponse.Operation + "/websocket"
-
-				migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
-				if err != nil {
-					if !strings.Contains(err.Error(), "websocket: bad handshake") {
-						realError = err
-					}
-					shared.Debugf("intermediate error: %s", err)
-					continue
-				}
-
-				if err = dest.WaitForSuccess(migration.Operation); err != nil {
-					if !strings.Contains(err.Error(), "websocket: bad handshake") {
-						realError = err
-					}
-					shared.Debugf("intermediate error: %s", err)
-					continue
-				}
+				return err
 			}
 
 			return nil
 		}
 
-		if realError != nil {
-			return realError
-		} else {
-			return err
-		}
+		return err
 	}
 }
 
