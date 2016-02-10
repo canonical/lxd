@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -535,11 +536,19 @@ func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
 	}
 
 	if !reflect.DeepEqual(srcIdmap, dstIdmap) {
-		if err := srcIdmap.UnshiftRootfs(container.Path()); err != nil {
-			return err
+		var jsonIdmap string
+		if srcIdmap != nil {
+			idmapBytes, err := json.Marshal(srcIdmap.Idmap)
+			if err != nil {
+				return err
+			}
+			jsonIdmap = string(idmapBytes)
+		} else {
+			jsonIdmap = "[]"
 		}
 
-		if err := dstIdmap.ShiftRootfs(container.Path()); err != nil {
+		err := container.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
+		if err != nil {
 			return err
 		}
 	}
