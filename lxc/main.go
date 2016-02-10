@@ -54,6 +54,7 @@ func run() error {
 	verbose := gnuflag.Bool("verbose", false, i18n.G("Enables verbose mode."))
 	debug := gnuflag.Bool("debug", false, i18n.G("Enables debug mode."))
 	forceLocal := gnuflag.Bool("force-local", false, i18n.G("Force using the local unix socket."))
+	noAlias := gnuflag.Bool("no-alias", false, i18n.G("Ignore aliases when determine what command to run."))
 
 	configDir := "$HOME/.config/lxc"
 	if os.Getenv("LXD_CONF") != "" {
@@ -113,9 +114,15 @@ func run() error {
 	// in others after. So, let's save the original args.
 	origArgs := os.Args
 	name := os.Args[1]
+
+	/* at this point we haven't parsed the args, so we have to look for
+	 * --no-alias by hand.
+	 */
+	if !shared.StringInSlice("--no-alias", origArgs) {
+		execIfAliases(config, origArgs)
+	}
 	cmd, ok := commands[name]
 	if !ok {
-		execIfAliases(config, origArgs)
 		commands["help"].run(nil, nil)
 		fmt.Fprintf(os.Stderr, "\n"+i18n.G("error: unknown command: %s")+"\n", name)
 		os.Exit(1)
@@ -154,7 +161,9 @@ func run() error {
 		/* If we got an error about invalid arguments, let's try to
 		 * expand this as an alias
 		 */
-		execIfAliases(config, origArgs)
+		if !*noAlias {
+			execIfAliases(config, origArgs)
+		}
 		fmt.Fprintf(os.Stderr, "%s\n\n"+i18n.G("error: %v")+"\n", cmd.usage(), err)
 		os.Exit(1)
 	}
@@ -227,6 +236,11 @@ func execIfAliases(config *lxd.Config, origArgs []string) {
 			newArgs = append(newArgs, arg)
 		}
 	}
+
+	/* don't re-do aliases the next time; this allows us to have recursive
+	 * aliases, e.g. `lxc list` to `lxc list -c n`
+	 */
+	newArgs = append(newArgs[:2], append([]string{"--no-alias"}, newArgs[2:]...)...)
 
 	if expandedAlias {
 		path, err := exec.LookPath(origArgs[0])
