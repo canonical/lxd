@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -76,7 +77,13 @@ func containerInfo(d *lxd.Client, name string, showLog bool) error {
 		return err
 	}
 
+	const layout = "2006/01/02 15:04 UTC"
+
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
+	if ct.CreationDate != 0 {
+		fmt.Printf(i18n.G("Created: %s")+"\n", time.Unix(ct.CreationDate, 0).UTC().Format(layout))
+	}
+
 	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status.Status)
 	if ct.Ephemeral {
 		fmt.Printf(i18n.G("Type: ephemeral") + "\n")
@@ -109,11 +116,24 @@ func containerInfo(d *lxd.Client, name string, showLog bool) error {
 	if err != nil {
 		return nil
 	}
+
 	for _, snap := range snaps {
 		if first_snapshot {
 			fmt.Println(i18n.G("Snapshots:"))
 		}
-		fmt.Printf("  %s\n", snap)
+		fmt.Printf("  %s", snap.Name)
+
+		if snap.CreationDate != 0 {
+			fmt.Printf(" ("+i18n.G("taken at %s")+")", time.Unix(snap.CreationDate, 0).UTC().Format(layout))
+		}
+
+		if snap.Stateful {
+			fmt.Printf(" (" + i18n.G("stateful") + ")")
+		} else {
+			fmt.Printf(" (" + i18n.G("stateless") + ")")
+		}
+		fmt.Printf("\n")
+
 		first_snapshot = false
 	}
 

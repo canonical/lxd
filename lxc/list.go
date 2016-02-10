@@ -149,7 +149,7 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 	return true
 }
 
-func listContainers(cinfos []shared.ContainerInfo, filters []string, columns []Column, listsnaps bool) error {
+func listContainers(cinfos []shared.ContainerInfo, filters []string, columns []Column) error {
 	headers := []string{}
 	for _, column := range columns {
 		headers = append(headers, column.Name)
@@ -175,17 +175,6 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, columns []C
 	table.AppendBulk(data)
 	table.Render()
 
-	if listsnaps && len(cinfos) == 1 {
-		csnaps := cinfos[0].Snaps
-		first_snapshot := true
-		for _, snap := range csnaps {
-			if first_snapshot {
-				fmt.Println(i18n.G("Snapshots:"))
-			}
-			fmt.Printf("  %s\n", snap)
-			first_snapshot = false
-		}
-	}
 	return nil
 }
 
@@ -250,7 +239,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		}
 	}
 
-	return listContainers(cts, filters, columns, len(cts) == 1)
+	return listContainers(cts, filters, columns)
 }
 
 func nameColumnData(cinfo shared.ContainerInfo) string {
