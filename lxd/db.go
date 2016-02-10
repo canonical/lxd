@@ -34,7 +34,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 21
+const DB_CURRENT_VERSION int = 22
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS containers (
     architecture INTEGER NOT NULL,
     type INTEGER NOT NULL,
     ephemeral INTEGER NOT NULL DEFAULT 0,
+    creation_date DATETIME,
     UNIQUE (name)
 );
 CREATE TABLE IF NOT EXISTS containers_config (

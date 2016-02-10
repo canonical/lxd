@@ -24,9 +24,16 @@ type ContainerExecControl struct {
 	Args    map[string]string `json:"args"`
 }
 
+type SnapshotState struct {
+	CreationDate int64  `json:"creation_date"`
+	Name         string `json:"name"`
+	Stateful     bool   `json:"stateful"`
+}
+
 type ContainerState struct {
 	Architecture    int               `json:"architecture"`
 	Config          map[string]string `json:"config"`
+	CreationDate    int64             `json:"creation_date"`
 	Devices         Devices           `json:"devices"`
 	Ephemeral       bool              `json:"ephemeral"`
 	ExpandedConfig  map[string]string `json:"expanded_config"`

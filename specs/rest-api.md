@@ -385,6 +385,8 @@ Output:
         'profiles': ["default"],
         'architecture': 2,
         'config': {"limits.cpu": "3"},
+        'ephemeral': false,
+        'creation_date': 1455136027,
         'expanded_config': {"limits.cpu": "3"}  # the result of expanding profiles and adding the container's local config
         'devices': {
             'rootfs': {
@@ -572,6 +574,7 @@ Input:
 Return:
 
     {
+        'creation_date': 1455139453,
         'name': "my-snapshot",
         'stateful': true
     }

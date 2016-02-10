@@ -86,6 +86,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
 		cType:        args.Ctype,
+		creationDate: args.CreationDate,
 		profiles:     args.Profiles,
 		localConfig:  args.Config,
 		localDevices: args.Devices}
@@ -181,6 +182,7 @@ func containerLXCLoad(d *Daemon, args containerArgs) (container, error) {
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
 		cType:        args.Ctype,
+		creationDate: args.CreationDate,
 		profiles:     args.Profiles,
 		localConfig:  args.Config,
 		localDevices: args.Devices}
@@ -206,6 +208,7 @@ type containerLXC struct {
 	// Properties
 	architecture int
 	cType        containerType
+	creationDate *time.Time
 	ephemeral    bool
 	id           int
 	name         string
@@ -1362,6 +1365,7 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 	return &shared.ContainerState{
 		Architecture:    c.architecture,
 		Config:          c.localConfig,
+		CreationDate:    c.creationDate.Unix(),
 		Devices:         c.localDevices,
 		Ephemeral:       c.ephemeral,
 		ExpandedConfig:  c.expandedConfig,
@@ -3825,6 +3829,9 @@ func (c *containerLXC) Architecture() int {
 	return c.architecture
 }
 
+func (c *containerLXC) CreationDate() *time.Time {
+	return c.creationDate
+}
 func (c *containerLXC) ExpandedConfig() map[string]string {
 	return c.expandedConfig
 }
