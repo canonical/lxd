@@ -1,14 +1,21 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/gnuflag"
 )
 
-type deleteCmd struct{}
+type deleteCmd struct {
+	force       bool
+	interactive bool
+}
 
 func (c *deleteCmd) showByDefault() bool {
 	return true
@@ -23,9 +30,24 @@ lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/<snapshot>].
 Destroy containers or snapshots with any attached data (configuration, snapshots, ...).`)
 }
 
-func (c *deleteCmd) flags() {}
+func (c *deleteCmd) flags() {
+	gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the removal of stopped containers."))
+	gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the removal of stopped containers."))
+	gnuflag.BoolVar(&c.interactive, "i", false, i18n.G("Require user confirmation."))
+	gnuflag.BoolVar(&c.interactive, "interactive", false, i18n.G("Require user confirmation."))
+}
 
-func doDelete(d *lxd.Client, name string) error {
+func (c *deleteCmd) doDelete(d *lxd.Client, name string) error {
+	if c.interactive {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Printf(i18n.G("Remove %s (yes/no): "), name)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSuffix(input, "\n")
+		if !shared.StringInSlice(strings.ToLower(input), []string{i18n.G("yes")}) {
+			return fmt.Errorf(i18n.G("User aborted delete operation."))
+		}
+	}
+
 	resp, err := d.Delete(name)
 	if err != nil {
 		return err
@@ -47,14 +69,20 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		ct, err := d.ContainerStatus(name)
+		if shared.IsSnapshot(name) {
+			return c.doDelete(d, name)
+		}
 
+		ct, err := d.ContainerStatus(name)
 		if err != nil {
-			// Could be a snapshot
-			return doDelete(d, name)
+			return err
 		}
 
 		if ct.Status.StatusCode != 0 && ct.Status.StatusCode != shared.Stopped {
+			if !c.force {
+				return fmt.Errorf(i18n.G("The container is currently running, stop it first or pass --force."))
+			}
+
 			resp, err := d.Action(name, shared.Stop, -1, true)
 			if err != nil {
 				return err
@@ -73,10 +101,10 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 				return nil
 			}
 		}
-		if err := doDelete(d, name); err != nil {
+
+		if err := c.doDelete(d, name); err != nil {
 			return err
 		}
 	}
 	return nil
-
 }
