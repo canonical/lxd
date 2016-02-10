@@ -1257,14 +1257,6 @@ func (c *Client) LocalCopy(source string, name string, config map[string]string,
 	return c.post("containers", body, Async)
 }
 
-type execMd struct {
-	FDs map[string]string `json:"fds"`
-}
-
-type secretMd struct {
-	Secret string `json:"secret"`
-}
-
 func (c *Client) Monitor(types []string, handler func(interface{})) error {
 	url := c.BaseWSURL + path.Join("/", "1.0", "events")
 	if len(types) != 0 {
