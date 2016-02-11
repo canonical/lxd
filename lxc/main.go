@@ -54,6 +54,7 @@ func run() error {
 	verbose := gnuflag.Bool("verbose", false, i18n.G("Enables verbose mode."))
 	debug := gnuflag.Bool("debug", false, i18n.G("Enables debug mode."))
 	forceLocal := gnuflag.Bool("force-local", false, i18n.G("Force using the local unix socket."))
+	noAlias := gnuflag.Bool("no-alias", false, i18n.G("Ignore aliases when determining what command to run."))
 
 	configDir := "$HOME/.config/lxc"
 	if os.Getenv("LXD_CONF") != "" {
@@ -113,9 +114,15 @@ func run() error {
 	// in others after. So, let's save the original args.
 	origArgs := os.Args
 	name := os.Args[1]
+
+	/* at this point we haven't parsed the args, so we have to look for
+	 * --no-alias by hand.
+	 */
+	if !shared.StringInSlice("--no-alias", origArgs) {
+		execIfAliases(config, origArgs)
+	}
 	cmd, ok := commands[name]
 	if !ok {
-		execIfAliases(config, origArgs)
 		commands["help"].run(nil, nil)
 		fmt.Fprintf(os.Stderr, "\n"+i18n.G("error: unknown command: %s")+"\n", name)
 		os.Exit(1)
@@ -154,7 +161,9 @@ func run() error {
 		/* If we got an error about invalid arguments, let's try to
 		 * expand this as an alias
 		 */
-		execIfAliases(config, origArgs)
+		if !*noAlias {
+			execIfAliases(config, origArgs)
+		}
 		fmt.Fprintf(os.Stderr, "%s\n\n"+i18n.G("error: %v")+"\n", cmd.usage(), err)
 		os.Exit(1)
 	}
@@ -197,45 +206,75 @@ var commands = map[string]command{
 
 var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
 
-func execIfAliases(config *lxd.Config, origArgs []string) {
-	newArgs := []string{}
-	expandedAlias := false
-	done := false
-	for i, arg := range origArgs {
-		changed := false
-		for k, v := range config.Aliases {
-			if k == arg {
-				expandedAlias = true
-				changed = true
-				for _, aliasArg := range strings.Split(v, " ") {
-					if aliasArg == "@ARGS@" && len(origArgs) > i {
-						done = true
-						newArgs = append(newArgs, origArgs[i+1:]...)
-					} else {
-						newArgs = append(newArgs, aliasArg)
-					}
-				}
+func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
+	foundAlias := false
+	aliasKey := []string{}
+	aliasValue := []string{}
+
+	for k, v := range config.Aliases {
+		matches := false
+		for i, key := range strings.Split(k, " ") {
+			if len(origArgs) <= i+1 {
+				break
+			}
+
+			if origArgs[i+1] == key {
+				matches = true
+				aliasKey = strings.Split(k, " ")
+				aliasValue = strings.Split(v, " ")
 				break
 			}
 		}
 
-		if done {
-			break
+		if !matches {
+			continue
 		}
 
-		if !changed {
-			newArgs = append(newArgs, arg)
+		foundAlias = true
+		break
+	}
+
+	if !foundAlias {
+		return []string{}, false
+	}
+
+	newArgs := []string{origArgs[0]}
+	hasReplacedArgsVar := false
+
+	for i, aliasArg := range aliasValue {
+		if aliasArg == "@ARGS@" && len(origArgs) > i {
+			newArgs = append(newArgs, origArgs[i+1:]...)
+			hasReplacedArgsVar = true
+		} else {
+			newArgs = append(newArgs, aliasArg)
 		}
 	}
 
-	if expandedAlias {
-		path, err := exec.LookPath(origArgs[0])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), err)
-			os.Exit(5)
-		}
-		ret := syscall.Exec(path, newArgs, syscall.Environ())
-		fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), ret)
+	if !hasReplacedArgsVar {
+		/* add the rest of the arguments */
+		newArgs = append(newArgs, origArgs[len(aliasKey)+1:]...)
+	}
+
+	/* don't re-do aliases the next time; this allows us to have recursive
+	 * aliases, e.g. `lxc list` to `lxc list -c n`
+	 */
+	newArgs = append(newArgs[:2], append([]string{"--no-alias"}, newArgs[2:]...)...)
+
+	return newArgs, true
+}
+
+func execIfAliases(config *lxd.Config, origArgs []string) {
+	newArgs, expanded := expandAlias(config, origArgs)
+	if !expanded {
+		return
+	}
+
+	path, err := exec.LookPath(origArgs[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), err)
 		os.Exit(5)
 	}
+	ret := syscall.Exec(path, newArgs, syscall.Environ())
+	fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), ret)
+	os.Exit(5)
 }
