@@ -146,7 +146,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			var migration *lxd.Response
 
 			sourceWSUrl := "https://" + addr + sourceWSResponse.Operation
-			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
+			migration, err = dest.MigrateFrom(destName, sourceWSUrl, source.Certificate, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
 			if err != nil {
 				continue
 			}

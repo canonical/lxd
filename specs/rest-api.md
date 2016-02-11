@@ -322,6 +322,7 @@ Input (using a public remote image):
         'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
                    'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
                    'server': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
+                   'certificate': "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
                    'alias': "ubuntu/devel"},                                # Name of the alias
     }
 
@@ -338,6 +339,7 @@ Input (using a private remote image after having obtained a secret for that imag
                    'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
                    'server': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
                    'secret': "my-secret-string",                            # Secret to use to retrieve the image (pull mode only)
+                   'certificate': "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
                    'alias': "ubuntu/devel"},                                # Name of the alias
     }
 
@@ -352,6 +354,7 @@ Input (using a remote container, sent over the migration websocket):
         'source': {'type': "migration",                                                 # Can be: "image", "migration", "copy" or "none"
                    'mode': "pull",                                                      # One of "pull" or "receive"
                    'operation': "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
+                   'certificate': "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
                    'base-image': "<some hash>"                                          # Optional, the base image the container was created from
                    'secrets': {'control': "my-secret-string",                           # Secrets to use when talking to the migration source
                                'criu':    "my-other-secret",
@@ -764,6 +767,7 @@ In the source image case, the following dict must be passed:
             "mode": "pull",                     # One of "pull" or "receive"
             "server": "https://10.0.2.3:8443",  # Remote server (pull mode only)
             "secret": "my-secret-string",       # Secret (pull mode only, private images only)
+            'certificate': "PEM certificate",   # Optional PEM certificate. If not mentioned, system CA is used.
             "fingerprint": "SHA256",            # Fingerprint of the image (must be set if alias isn't)
             "alias": "ubuntu/devel",            # Name of the alias (must be set if fingerprint isn't)
         }

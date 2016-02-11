@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,12 +27,13 @@ import (
 
 // Client can talk to a LXD daemon.
 type Client struct {
-	BaseURL   string
-	BaseWSURL string
-	Config    Config
-	Name      string
-	Remote    *RemoteConfig
-	Transport string
+	BaseURL     string
+	BaseWSURL   string
+	Config      Config
+	Name        string
+	Remote      *RemoteConfig
+	Transport   string
+	Certificate string
 
 	Http            http.Client
 	websocketDialer websocket.Dialer
@@ -199,6 +201,8 @@ func NewClient(config *Config, remote string) (*Client, error) {
 				if err != nil {
 					return nil, err
 				}
+
+				c.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
 			}
 
 			tlsconfig, err := shared.GetTLSConfig(certf, keyf, cert)
@@ -489,6 +493,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		"type":        "image",
 		"mode":        "pull",
 		"server":      c.BaseURL,
+		"certificate": c.Certificate,
 		"fingerprint": fingerprint}
 
 	if !info.Public {
@@ -1087,6 +1092,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		}
 
 		source["server"] = tmpremote.BaseURL
+		source["certificate"] = tmpremote.Certificate
 		source["fingerprint"] = fingerprint
 	} else {
 		fingerprint := c.GetAlias(image)
@@ -1449,13 +1455,14 @@ func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
 	return c.post(url, body, Async)
 }
 
-func (c *Client) MigrateFrom(name string, operation string, secrets map[string]string, architecture int, config map[string]string, devices shared.Devices, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
+func (c *Client) MigrateFrom(name string, operation string, certificate string, secrets map[string]string, architecture int, config map[string]string, devices shared.Devices, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
 	source := shared.Jmap{
-		"type":       "migration",
-		"mode":       "pull",
-		"operation":  operation,
-		"secrets":    secrets,
-		"base-image": baseImage,
+		"type":        "migration",
+		"mode":        "pull",
+		"operation":   operation,
+		"certificate": certificate,
+		"secrets":     secrets,
+		"base-image":  baseImage,
 	}
 	body := shared.Jmap{
 		"architecture": architecture,
