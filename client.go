@@ -2,11 +2,9 @@ package lxd
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -31,21 +29,12 @@ type Client struct {
 	BaseURL   string
 	BaseWSURL string
 	Config    Config
-	Http      http.Client
 	Name      string
 	Remote    *RemoteConfig
 	Transport string
 
-	certf           string
-	keyf            string
+	Http            http.Client
 	websocketDialer websocket.Dialer
-
-	scert *x509.Certificate // the cert stored on disk
-
-	scertWire          *x509.Certificate // the cert from the tls connection
-	scertIntermediates *x509.CertPool
-	scertDigest        [sha256.Size]byte // fingerprint of server cert from connection
-	scertDigestSet     bool              // whether we've stored the fingerprint
 }
 
 type ResponseType string
@@ -160,19 +149,6 @@ func readMyCert(configDir string) (string, string, error) {
 	return certf, keyf, err
 }
 
-/*
- * load the server cert from disk
- */
-func (c *Client) loadServerCert() {
-	cert, err := shared.ReadCert(c.Config.ServerCertPath(c.Name))
-	if err != nil {
-		shared.Debugf("Error reading the server certificate for %s: %v", c.Name, err)
-		return
-	}
-
-	c.scert = cert
-}
-
 // NewClient returns a new LXD client.
 func NewClient(config *Config, remote string) (*Client, error) {
 	c := Client{
@@ -217,7 +193,15 @@ func NewClient(config *Config, remote string) (*Client, error) {
 				return nil, err
 			}
 
-			tlsconfig, err := shared.GetTLSConfig(certf, keyf)
+			var cert *x509.Certificate
+			if shared.PathExists(c.Config.ServerCertPath(c.Name)) {
+				cert, err = shared.ReadCert(c.Config.ServerCertPath(c.Name))
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			tlsconfig, err := shared.GetTLSConfig(certf, keyf, cert)
 			if err != nil {
 				return nil, err
 			}
@@ -231,9 +215,6 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			c.websocketDialer.NetDial = shared.RFC3493Dialer
 			c.websocketDialer.TLSClientConfig = tlsconfig
 
-			c.certf = certf
-			c.keyf = keyf
-
 			if r.Addr[0:8] == "https://" {
 				c.BaseURL = "https://" + r.Addr[8:]
 				c.BaseWSURL = "wss://" + r.Addr[8:]
@@ -243,7 +224,6 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			}
 			c.Transport = "https"
 			c.Http.Transport = tr
-			c.loadServerCert()
 			c.Remote = &r
 		}
 	} else {
@@ -292,23 +272,6 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 	resp, err := c.Http.Do(req)
 	if err != nil {
 		return nil, err
-	}
-
-	if c.scert != nil && resp.TLS != nil {
-		if !bytes.Equal(resp.TLS.PeerCertificates[0].Raw, c.scert.Raw) {
-			pUrl, _ := url.Parse(getUrl)
-			return nil, fmt.Errorf("Server certificate for host %s has changed. Add correct certificate or remove certificate in %s", pUrl.Host, c.Config.ConfigPath("servercerts"))
-		}
-	}
-
-	if c.scertDigestSet == false && resp.TLS != nil {
-		c.scertWire = resp.TLS.PeerCertificates[0]
-		c.scertIntermediates = x509.NewCertPool()
-		for _, cert := range resp.TLS.PeerCertificates {
-			c.scertIntermediates.AddCert(cert)
-		}
-		c.scertDigest = sha256.Sum256(resp.TLS.PeerCertificates[0].Raw)
-		c.scertDigestSet = true
 	}
 
 	return HoistResponse(resp, Sync)
@@ -999,53 +962,6 @@ func (c *Client) ListAliases() ([]shared.ImageAlias, error) {
 	}
 
 	return result, nil
-}
-
-// Try to verify the server's cert with the current host's CA list.
-func (c *Client) TryVerifyServerCert(name string) (string, error) {
-	digest := fmt.Sprintf("%x", c.scertDigest)
-	if !c.scertDigestSet {
-		if err := c.Finger(); err != nil {
-			return digest, err
-		}
-
-		if !c.scertDigestSet {
-			return digest, fmt.Errorf("No certificate on this connection")
-		}
-	}
-
-	if c.scert != nil {
-		return digest, nil
-	}
-
-	_, err := c.scertWire.Verify(x509.VerifyOptions{
-		DNSName:       name,
-		Intermediates: c.scertIntermediates,
-	})
-	return digest, err
-}
-
-func (c *Client) SaveCert(name string) error {
-	if c.scertWire == nil {
-		return fmt.Errorf("can't save empty server cert")
-	}
-
-	// User acked the cert, now add it to our store
-	dnam := c.Config.ConfigPath("servercerts")
-	err := os.MkdirAll(dnam, 0750)
-	if err != nil {
-		return fmt.Errorf("Could not create server cert dir")
-	}
-	certf := fmt.Sprintf("%s/%s.crt", dnam, c.Name)
-	certOut, err := os.Create(certf)
-	if err != nil {
-		return err
-	}
-
-	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: c.scertWire.Raw})
-
-	certOut.Close()
-	return err
 }
 
 func (c *Client) CertificateList() ([]shared.CertInfo, error) {

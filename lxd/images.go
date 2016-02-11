@@ -324,7 +324,7 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 	}
 
 	// Resolve the image URL
-	tlsConfig, err := shared.GetTLSConfig("", "")
+	tlsConfig, err := shared.GetTLSConfig("", "", nil)
 	if err != nil {
 		return err
 	}

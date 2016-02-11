@@ -107,7 +107,7 @@ type Command struct {
 func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
 	var err error
 
-	tlsConfig, err := shared.GetTLSConfig("", "")
+	tlsConfig, err := shared.GetTLSConfig("", "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
 func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
 	var err error
 
-	tlsConfig, err := shared.GetTLSConfig("", "")
+	tlsConfig, err := shared.GetTLSConfig("", "", nil)
 	if err != nil {
 		return nil, err
 	}
