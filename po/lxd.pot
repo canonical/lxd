@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-02-10 16:04-0500\n"
+        "POT-Creation-Date: 2016-02-10 17:50-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -302,7 +302,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>"
 msgstr  ""
 
-#: lxc/main.go:149
+#: lxc/main.go:156
 msgid   "For example: 'lxd-images import ubuntu --alias ubuntu'."
 msgstr  ""
 
@@ -318,7 +318,7 @@ msgstr  ""
 msgid   "Force using the local unix socket."
 msgstr  ""
 
-#: lxc/main.go:141
+#: lxc/main.go:148
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
@@ -334,8 +334,12 @@ msgstr  ""
 msgid   "ISSUE DATE"
 msgstr  ""
 
-#: lxc/main.go:148
+#: lxc/main.go:155
 msgid   "If this is your first run, you will need to import images using the 'lxd-images' script."
+msgstr  ""
+
+#: lxc/main.go:57
+msgid   "Ignore aliases when determining what command to run."
 msgstr  ""
 
 #: lxc/image.go:216
@@ -653,7 +657,7 @@ msgstr  ""
 msgid   "Only https:// is supported for remote image import."
 msgstr  ""
 
-#: lxc/help.go:63 lxc/main.go:125
+#: lxc/help.go:63 lxc/main.go:132
 msgid   "Options:"
 msgstr  ""
 
@@ -902,7 +906,7 @@ msgstr  ""
 msgid   "Uploaded: %s"
 msgstr  ""
 
-#: lxc/main.go:125
+#: lxc/main.go:132
 #, c-format
 msgid   "Usage: %s"
 msgstr  ""
@@ -931,7 +935,7 @@ msgstr  ""
 msgid   "YES"
 msgstr  ""
 
-#: lxc/main.go:65
+#: lxc/main.go:66
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
@@ -959,12 +963,12 @@ msgstr  ""
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
-#: lxc/main.go:25 lxc/main.go:158
+#: lxc/main.go:25 lxc/main.go:167
 #, c-format
 msgid   "error: %v"
 msgstr  ""
 
-#: lxc/help.go:40 lxc/main.go:120
+#: lxc/help.go:40 lxc/main.go:127
 #, c-format
 msgid   "error: unknown command: %s"
 msgstr  ""
@@ -985,7 +989,7 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/main.go:234 lxc/main.go:238
+#: lxc/main.go:277 lxc/main.go:281
 #, c-format
 msgid   "processing aliases failed %s\n"
 msgstr  ""
@@ -1022,7 +1026,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:198
+#: lxc/main.go:207
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
