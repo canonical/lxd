@@ -339,7 +339,7 @@ msgid   "If this is your first run, you will need to import images using the 'lx
 msgstr  ""
 
 #: lxc/main.go:57
-msgid   "Ignore aliases when determine what command to run."
+msgid   "Ignore aliases when determining what command to run."
 msgstr  ""
 
 #: lxc/image.go:216
@@ -989,7 +989,7 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/main.go:248 lxc/main.go:252
+#: lxc/main.go:277 lxc/main.go:281
 #, c-format
 msgid   "processing aliases failed %s\n"
 msgstr  ""
