@@ -324,15 +324,13 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 	}
 
 	// Resolve the image URL
-	if d.tlsconfig == nil {
-		d.tlsconfig, err = shared.GetTLSConfig(d.certf, d.keyf)
-		if err != nil {
-			return err
-		}
+	tlsConfig, err := shared.GetTLSConfig("", "")
+	if err != nil {
+		return err
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: d.tlsconfig,
+		TLSClientConfig: tlsConfig,
 		Dial:            shared.RFC3493Dialer,
 		Proxy:           http.ProxyFromEnvironment,
 	}

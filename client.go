@@ -228,10 +228,8 @@ func NewClient(config *Config, remote string) (*Client, error) {
 				Proxy:           http.ProxyFromEnvironment,
 			}
 
-			c.websocketDialer = websocket.Dialer{
-				NetDial:         shared.RFC3493Dialer,
-				TLSClientConfig: tlsconfig,
-			}
+			c.websocketDialer.NetDial = shared.RFC3493Dialer
+			c.websocketDialer.TLSClientConfig = tlsconfig
 
 			c.certf = certf
 			c.keyf = keyf
