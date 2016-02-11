@@ -13,11 +13,11 @@ type aliasTestcase struct {
 
 func slicesEqual(a, b []string) bool {
 	if a == nil && b == nil {
-		return true;
+		return true
 	}
 
 	if a == nil || b == nil {
-		return false;
+		return false
 	}
 
 	if len(a) != len(b) {
@@ -36,7 +36,7 @@ func slicesEqual(a, b []string) bool {
 func TestExpandAliases(t *testing.T) {
 	aliases := map[string]string{
 		"tester 12": "list",
-		"foo": "list @ARGS@ -c n",
+		"foo":       "list @ARGS@ -c n",
 	}
 
 	testcases := []aliasTestcase{
