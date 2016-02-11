@@ -216,6 +216,7 @@ Return value (if trusted):
         'environment': {                                # Various information about the host (OS, kernel, ...)
                         'addresses': ["1.2.3.4:8443", "[1234::1234]:8443"],
                         'architectures': [1, 2],
+                        'certificate': 'PEM certificate',
                         'driver': "lxc",
                         'driver_version': "1.0.6",
                         'kernel': "Linux",

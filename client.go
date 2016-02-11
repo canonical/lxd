@@ -189,6 +189,12 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			c.Http.Transport = &http.Transport{Dial: uDial}
 			c.websocketDialer.NetDial = uDial
 			c.Remote = &r
+
+			st, err := c.ServerStatus()
+			if err != nil {
+				return nil, err
+			}
+			c.Certificate = st.Environment.Certificate
 		} else {
 			certf, keyf, err := readMyCert(config.ConfigDir)
 			if err != nil {
