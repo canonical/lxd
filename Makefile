@@ -16,7 +16,7 @@ default:
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
 	go install -v $(DEBUG) ./...
-	@echo "LXD built succesfuly"
+	@echo "LXD built successfully"
 
 .PHONY: client
 client:
@@ -24,7 +24,7 @@ client:
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
 	go install -v $(DEBUG) ./lxc
-	@echo "LXD client built succesfuly"
+	@echo "LXD client built successfully"
 
 .PHONY: update
 update:
@@ -50,7 +50,7 @@ check: default
 
 gccgo:
 	go build -compiler gccgo ./...
-	@echo "LXD built succesfuly with gccgo"
+	@echo "LXD built successfully with gccgo"
 
 .PHONY: dist
 dist:

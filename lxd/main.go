@@ -774,6 +774,6 @@ func setupLXD() error {
 		}
 	}
 
-	fmt.Printf("LXD has been succesfuly configured.\n")
+	fmt.Printf("LXD has been successfully configured.\n")
 	return nil
 }
