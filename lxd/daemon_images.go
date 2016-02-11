@@ -54,9 +54,7 @@ func (pt *Progress) Read(p []byte) (int, error) {
 
 // ImageDownload checks if we have that Image Fingerprint else
 // downloads the image from a remote server.
-func (d *Daemon) ImageDownload(op *operation,
-	server, fp string, secret string, forContainer bool, directDownload bool) error {
-
+func (d *Daemon) ImageDownload(op *operation, server string, certificate string, secret string, fp string, forContainer bool, directDownload bool) error {
 	if _, err := dbImageGet(d.db, fp, false, false); err == nil {
 		shared.Log.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		// already have it
@@ -134,7 +132,7 @@ func (d *Daemon) ImageDownload(op *operation,
 			url = fmt.Sprintf("%s/%s/images/%s", server, shared.APIVersion, fp)
 		}
 
-		resp, err := d.httpGetSync(url)
+		resp, err := d.httpGetSync(url, certificate)
 		if err != nil {
 			shared.Log.Error(
 				"Failed to download image metadata",
@@ -160,7 +158,7 @@ func (d *Daemon) ImageDownload(op *operation,
 		}
 	}
 
-	raw, err := d.httpGetFile(exporturl)
+	raw, err := d.httpGetFile(exporturl, certificate)
 	if err != nil {
 		shared.Log.Error(
 			"Failed to download image",
