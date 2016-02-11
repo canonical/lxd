@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-02-10 22:15-0500\n"
+        "POT-Creation-Date: 2016-02-11 18:17-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -86,11 +86,11 @@ msgstr  ""
 msgid   "ARCH"
 msgstr  ""
 
-#: lxc/remote.go:46
+#: lxc/remote.go:49
 msgid   "Accept certificate"
 msgstr  ""
 
-#: lxc/remote.go:181
+#: lxc/remote.go:205
 #, c-format
 msgid   "Admin password for %s: "
 msgstr  ""
@@ -130,7 +130,7 @@ msgstr  ""
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
-#: lxc/remote.go:147
+#: lxc/remote.go:155
 #, c-format
 msgid   "Certificate fingerprint: %x"
 msgstr  ""
@@ -142,7 +142,7 @@ msgid   "Changes state of one or more containers to %s.\n"
         "lxc %s <name> [<name>...]"
 msgstr  ""
 
-#: lxc/remote.go:204
+#: lxc/remote.go:228
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
@@ -190,6 +190,10 @@ msgstr  ""
 #: lxc/image.go:211
 #, c-format
 msgid   "Copying the image: %s"
+msgstr  ""
+
+#: lxc/remote.go:170
+msgid   "Could not create server cert dir"
 msgstr  ""
 
 #: lxc/snapshot.go:21
@@ -528,7 +532,7 @@ msgid   "Manage files on a container.\n"
         "<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>"
 msgstr  ""
 
-#: lxc/remote.go:33
+#: lxc/remote.go:36
 msgid   "Manage remote LXD servers.\n"
         "\n"
         "lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD] [--public]    Add the remote <name> at <url>.\n"
@@ -628,11 +632,11 @@ msgid   "Move containers within or in between lxd instances.\n"
         "    Rename a local container.\n"
 msgstr  ""
 
-#: lxc/list.go:224 lxc/remote.go:271
+#: lxc/list.go:224 lxc/remote.go:295
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/list.go:293 lxc/remote.go:257
+#: lxc/list.go:293 lxc/remote.go:281
 msgid   "NO"
 msgstr  ""
 
@@ -674,7 +678,7 @@ msgstr  ""
 msgid   "PID"
 msgstr  ""
 
-#: lxc/image.go:522 lxc/remote.go:273
+#: lxc/image.go:522 lxc/remote.go:297
 msgid   "PUBLIC"
 msgstr  ""
 
@@ -755,7 +759,7 @@ msgstr  ""
 msgid   "Properties:"
 msgstr  ""
 
-#: lxc/remote.go:48
+#: lxc/remote.go:51
 msgid   "Public image server"
 msgstr  ""
 
@@ -770,7 +774,7 @@ msgid   "Publish containers as images.\n"
         "lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]..."
 msgstr  ""
 
-#: lxc/remote.go:47
+#: lxc/remote.go:50
 msgid   "Remote admin password"
 msgstr  ""
 
@@ -800,11 +804,11 @@ msgstr  ""
 msgid   "STATE"
 msgstr  ""
 
-#: lxc/remote.go:155
+#: lxc/remote.go:163
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
-#: lxc/remote.go:201
+#: lxc/remote.go:225
 msgid   "Server doesn't trust us after adding our cert"
 msgstr  ""
 
@@ -897,7 +901,7 @@ msgstr  ""
 msgid   "UPLOAD DATE"
 msgstr  ""
 
-#: lxc/remote.go:272
+#: lxc/remote.go:296
 msgid   "URL"
 msgstr  ""
 
@@ -931,7 +935,7 @@ msgstr  ""
 msgid   "Whether to show the expanded configuration"
 msgstr  ""
 
-#: lxc/list.go:291 lxc/remote.go:259
+#: lxc/list.go:291 lxc/remote.go:283
 msgid   "YES"
 msgstr  ""
 
@@ -951,11 +955,11 @@ msgstr  ""
 msgid   "can't copy to the same container name"
 msgstr  ""
 
-#: lxc/remote.go:247
+#: lxc/remote.go:271
 msgid   "can't remove the default remote"
 msgstr  ""
 
-#: lxc/remote.go:264
+#: lxc/remote.go:288
 msgid   "default"
 msgstr  ""
 
@@ -985,7 +989,7 @@ msgstr  ""
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: lxc/remote.go:148
+#: lxc/remote.go:156
 msgid   "ok (y/n)?"
 msgstr  ""
 
@@ -994,17 +998,17 @@ msgstr  ""
 msgid   "processing aliases failed %s\n"
 msgstr  ""
 
-#: lxc/remote.go:291
+#: lxc/remote.go:315
 #, c-format
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:243 lxc/remote.go:287 lxc/remote.go:317 lxc/remote.go:328
+#: lxc/remote.go:267 lxc/remote.go:311 lxc/remote.go:341 lxc/remote.go:352
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""
 
-#: lxc/remote.go:227
+#: lxc/remote.go:251
 #, c-format
 msgid   "remote %s exists as <%s>"
 msgstr  ""
