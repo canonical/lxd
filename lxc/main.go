@@ -232,8 +232,6 @@ func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
 
 		foundAlias = true
 		break
-
-		break
 	}
 
 	if !foundAlias {
