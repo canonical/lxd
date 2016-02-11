@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"net/url"
@@ -133,17 +136,22 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 		return nil
 	}
 
-	/* grab the server's cert */
+	var certificate *x509.Certificate
+
+	/* Attempt to connect using the system root CA */
 	err = c.Finger()
 	if err != nil {
-		return err
+		// Failed to connect using the system CA, so retrieve the remote certificate
+		certificate, err = shared.GetRemoteCertificate(addr)
+		if err != nil {
+			return err
+		}
 	}
 
-	if !acceptCert {
-		// Try to use the CAs on localhost to verify the cert so we
-		// don't have to bother the user.
-		digest, err := c.TryVerifyServerCert(host)
-		if err != nil {
+	if certificate != nil {
+		if !acceptCert {
+			digest := sha256.Sum256(certificate.Raw)
+
 			fmt.Printf(i18n.G("Certificate fingerprint: %x")+"\n", digest)
 			fmt.Printf(i18n.G("ok (y/n)?") + " ")
 			line, err := shared.ReadStdin()
@@ -155,11 +163,27 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 				return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
 			}
 		}
-	}
 
-	err = c.SaveCert(host)
-	if err != nil {
-		return err
+		dnam := c.Config.ConfigPath("servercerts")
+		err := os.MkdirAll(dnam, 0750)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Could not create server cert dir"))
+		}
+
+		certf := fmt.Sprintf("%s/%s.crt", dnam, c.Name)
+		certOut, err := os.Create(certf)
+		if err != nil {
+			return err
+		}
+
+		pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
+		certOut.Close()
+
+		// Setup a new connection, this time with the remote certificate
+		c, err = lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
 	}
 
 	if c.IsPublic() || public {

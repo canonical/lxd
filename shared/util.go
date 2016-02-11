@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/rand"
-	"crypto/tls"
 	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
@@ -186,33 +185,6 @@ func ReadStdin() ([]byte, error) {
 		return nil, err
 	}
 	return line, nil
-}
-
-// FIXME: Remove
-func GetTLSConfig(certf string, keyf string) (*tls.Config, error) {
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		ClientAuth:         tls.RequestClientCert,
-		MinVersion:         tls.VersionTLS12,
-		MaxVersion:         tls.VersionTLS12,
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
-		PreferServerCipherSuites: true,
-	}
-
-	if certf != "" && keyf != "" {
-		cert, err := tls.LoadX509KeyPair(certf, keyf)
-		if err != nil {
-			return nil, err
-		}
-
-		tlsConfig.Certificates = []tls.Certificate{cert}
-	}
-
-	tlsConfig.BuildNameToCertificate()
-
-	return tlsConfig, nil
 }
 
 func WriteAll(w io.Writer, buf []byte) error {
