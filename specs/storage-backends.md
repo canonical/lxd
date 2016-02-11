@@ -9,8 +9,8 @@ Feature                                     | Directory | Btrfs | LVM   | ZFS
 Optimized image storage                     | no        | yes   | yes   | yes
 Optimized container creation                | no        | yes   | yes   | yes
 Optimized snapshot creation                 | no        | yes   | yes   | yes
-Optimized image transfer                    | no        | no    | no    | yes
-Optimized container transfer                | no        | no    | no    | yes
+Optimized image transfer                    | no        | yes   | no    | yes
+Optimized container transfer                | no        | yes   | no    | yes
 Copy on write                               | no        | yes   | yes   | yes
 Block based                                 | no        | no    | yes   | no
 Instant cloning                             | no        | yes   | yes   | yes

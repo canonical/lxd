@@ -100,6 +100,7 @@ class LXD(object):
 
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
+        atexit.register(self.cleanup)
 
     def cleanup(self):
         if self.workdir:
@@ -269,6 +270,7 @@ class Busybox(object):
     def __init__(self):
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
+        atexit.register(self.cleanup)
 
     def cleanup(self):
         if self.workdir:
@@ -389,6 +391,8 @@ class Ubuntu(Image):
 
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
+        atexit.register(self.cleanup)
+
         self.gpgdir = "%s/gpg" % self.workdir
         os.mkdir(self.gpgdir, 0o700)
 
@@ -516,7 +520,6 @@ if __name__ == "__main__":
         print(_("LXD isn't running."))
         sys.exit(1)
     lxd = LXD(lxd_socket)
-    atexit.register(lxd.cleanup)
 
     def setup_alias(aliases, fingerprint):
         existing = lxd.aliases_list()
@@ -529,7 +532,6 @@ if __name__ == "__main__":
 
     def import_busybox(parser, args):
         busybox = Busybox()
-        atexit.register(busybox.cleanup)
 
         if args.split:
             meta_path, rootfs_path = busybox.create_tarball(split=True)
@@ -580,7 +582,6 @@ if __name__ == "__main__":
             image = ubuntu.image_lookup(args.release, args.architecture,
                                         args.version)
 
-        atexit.register(ubuntu.cleanup)
         sync = False
         if args.sync:
             sync = "ubuntu:%s:%s:%s" % (args.stream, args.release,

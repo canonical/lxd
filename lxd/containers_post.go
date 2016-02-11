@@ -186,7 +186,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 			}
 		}
 
-		config, err := shared.GetTLSConfig(d.certf, d.keyf)
+		config, err := shared.GetTLSConfig("", "")
 		if err != nil {
 			c.Delete()
 			return err

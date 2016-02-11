@@ -22,9 +22,9 @@ import (
 
 	"golang.org/x/crypto/scrypt"
 
+	"github.com/coreos/go-systemd/activation"
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/stgraber/lxd-go-systemd/activation"
 	"github.com/syndtr/gocapability/capability"
 	"gopkg.in/tomb.v2"
 
@@ -66,12 +66,10 @@ type Socket struct {
 type Daemon struct {
 	architectures []int
 	BackingFs     string
-	certf         string
 	clientCerts   []x509.Certificate
 	db            *sql.DB
 	group         string
 	IdmapSet      *shared.IdmapSet
-	keyf          string
 	lxcpath       string
 	mux           *mux.Router
 	tomb          tomb.Tomb
@@ -83,8 +81,6 @@ type Daemon struct {
 
 	Sockets []Socket
 
-	tlsconfig *tls.Config
-
 	devlxd *net.UnixListener
 
 	configValues map[string]string
@@ -93,6 +89,8 @@ type Daemon struct {
 
 	imagesDownloading     map[string]chan bool
 	imagesDownloadingLock sync.RWMutex
+
+	tlsConfig *tls.Config
 }
 
 // Command is the basic structure for every API call.
@@ -108,14 +106,14 @@ type Command struct {
 
 func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
 	var err error
-	if d.tlsconfig == nil {
-		d.tlsconfig, err = shared.GetTLSConfig(d.certf, d.keyf)
-		if err != nil {
-			return nil, err
-		}
+
+	tlsConfig, err := shared.GetTLSConfig("", "")
+	if err != nil {
+		return nil, err
 	}
+
 	tr := &http.Transport{
-		TLSClientConfig: d.tlsconfig,
+		TLSClientConfig: tlsConfig,
 		Dial:            shared.RFC3493Dialer,
 		Proxy:           http.ProxyFromEnvironment,
 	}
@@ -149,14 +147,14 @@ func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
 
 func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
 	var err error
-	if d.tlsconfig == nil {
-		d.tlsconfig, err = shared.GetTLSConfig(d.certf, d.keyf)
-		if err != nil {
-			return nil, err
-		}
+
+	tlsConfig, err := shared.GetTLSConfig("", "")
+	if err != nil {
+		return nil, err
 	}
+
 	tr := &http.Transport{
-		TLSClientConfig: d.tlsconfig,
+		TLSClientConfig: tlsConfig,
 		Dial:            shared.RFC3493Dialer,
 		Proxy:           http.ProxyFromEnvironment,
 	}
@@ -549,12 +547,7 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 			}
 		}
 
-		tlsConfig, err := shared.GetTLSConfig(d.certf, d.keyf)
-		if err != nil {
-			return err
-		}
-
-		tcpl, err := tls.Listen("tcp", newAddress, tlsConfig)
+		tcpl, err := tls.Listen("tcp", newAddress, d.tlsConfig)
 		if err != nil {
 			return fmt.Errorf("cannot listen on https socket: %v", err)
 		}
@@ -847,7 +840,6 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
-	var tlsConfig *tls.Config
 	if !d.IsMock {
 		err = d.SetupStorageDriver()
 		if err != nil {
@@ -870,14 +862,28 @@ func (d *Daemon) Init() error {
 		if err != nil {
 			return err
 		}
-		d.certf = certf
-		d.keyf = keyf
-		readSavedClientCAList(d)
 
-		tlsConfig, err = shared.GetTLSConfig(d.certf, d.keyf)
+		cert, err := tls.LoadX509KeyPair(certf, keyf)
 		if err != nil {
 			return err
 		}
+
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: true,
+			ClientAuth:         tls.RequestClientCert,
+			Certificates:       []tls.Certificate{cert},
+			MinVersion:         tls.VersionTLS12,
+			MaxVersion:         tls.VersionTLS12,
+			CipherSuites: []uint16{
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+			PreferServerCipherSuites: true,
+		}
+		tlsConfig.BuildNameToCertificate()
+
+		d.tlsConfig = tlsConfig
+
+		readSavedClientCAList(d)
 	}
 
 	/* Setup the web server */
@@ -917,7 +923,7 @@ func (d *Daemon) Init() error {
 			if shared.PathExists(listener.Addr().String()) {
 				sockets = append(sockets, Socket{Socket: listener, CloseOnExit: false})
 			} else {
-				tlsListener := tls.NewListener(listener, tlsConfig)
+				tlsListener := tls.NewListener(listener, d.tlsConfig)
 				sockets = append(sockets, Socket{Socket: tlsListener, CloseOnExit: false})
 			}
 		}
@@ -990,7 +996,7 @@ func (d *Daemon) Init() error {
 			listenAddr = fmt.Sprintf("%s:%s", listenAddr, shared.DefaultPort)
 		}
 
-		tcpl, err := tls.Listen("tcp", listenAddr, tlsConfig)
+		tcpl, err := tls.Listen("tcp", listenAddr, d.tlsConfig)
 		if err != nil {
 			shared.Log.Error("cannot listen on https socket, skipping...", log.Ctx{"err": err})
 		} else {
