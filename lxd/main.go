@@ -473,13 +473,7 @@ func waitReady() error {
 	finger := make(chan error, 1)
 	go func() {
 		for {
-			c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
-			if err != nil {
-				time.Sleep(500 * time.Millisecond)
-				continue
-			}
-
-			err = c.Finger()
+			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
 			if err != nil {
 				time.Sleep(500 * time.Millisecond)
 				continue
