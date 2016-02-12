@@ -9,7 +9,10 @@ import (
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
-type publishCmd struct{}
+type publishCmd struct {
+	pAliases   aliasList // aliasList defined in lxc/image.go
+	makePublic bool
+}
 
 func (c *publishCmd) showByDefault() bool {
 	return true
@@ -22,12 +25,9 @@ func (c *publishCmd) usage() string {
 lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]...`)
 }
 
-var pAliases aliasList // aliasList defined in lxc/image.go
-var makePublic bool
-
 func (c *publishCmd) flags() {
-	gnuflag.BoolVar(&makePublic, "public", false, i18n.G("Make the image public"))
-	gnuflag.Var(&pAliases, "alias", i18n.G("New alias to define at target"))
+	gnuflag.BoolVar(&c.makePublic, "public", false, i18n.G("Make the image public"))
+	gnuflag.Var(&c.pAliases, "alias", i18n.G("New alias to define at target"))
 }
 
 func (c *publishCmd) run(config *lxd.Config, args []string) error {
@@ -74,7 +74,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 
 	// Optimized local publish
 	if cRemote == iRemote {
-		fp, err = d.ImageFromContainer(cName, makePublic, pAliases, properties)
+		fp, err = d.ImageFromContainer(cName, c.makePublic, c.pAliases, properties)
 		if err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 	}
 	defer s.DeleteImage(fp)
 
-	err = s.CopyImage(fp, d, false, pAliases, makePublic, nil)
+	err = s.CopyImage(fp, d, false, c.pAliases, c.makePublic, nil)
 	if err != nil {
 		return err
 	}

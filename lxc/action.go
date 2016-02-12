@@ -14,14 +14,13 @@ type actionCmd struct {
 	hasTimeout bool
 	visible    bool
 	name       string
+	timeout    int
+	force      bool
 }
 
 func (c *actionCmd) showByDefault() bool {
 	return c.visible
 }
-
-var timeout = -1
-var force = false
 
 func (c *actionCmd) usage() string {
 	return fmt.Sprintf(i18n.G(
@@ -32,8 +31,8 @@ lxc %s <name> [<name>...]`), c.name, c.name)
 
 func (c *actionCmd) flags() {
 	if c.hasTimeout {
-		gnuflag.IntVar(&timeout, "timeout", -1, i18n.G("Time to wait for the container before killing it."))
-		gnuflag.BoolVar(&force, "force", false, i18n.G("Force the container to shutdown."))
+		gnuflag.IntVar(&c.timeout, "timeout", -1, i18n.G("Time to wait for the container before killing it."))
+		gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the container to shutdown."))
 	}
 }
 
@@ -49,7 +48,7 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		resp, err := d.Action(name, c.action, timeout, force)
+		resp, err := d.Action(name, c.action, c.timeout, c.force)
 		if err != nil {
 			return err
 		}

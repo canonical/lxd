@@ -78,9 +78,6 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 	// For a single file, return it inline
 	if len(r.files) == 1 {
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.files[0].filename))
-
 		f, err := os.Open(r.files[0].path)
 		if err != nil {
 			return err
@@ -91,6 +88,10 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 		if err != nil {
 			return err
 		}
+
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", fi.Size()))
+		w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.files[0].filename))
 
 		http.ServeContent(w, r.req, r.files[0].filename, fi.ModTime(), f)
 		if r.removeAfterServe {
@@ -124,9 +125,11 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 			return err
 		}
 	}
-
 	mw.Close()
+
 	w.Header().Set("Content-Type", mw.FormDataContentType())
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", body.Len()))
+
 	_, err := io.Copy(w, body)
 	return err
 }

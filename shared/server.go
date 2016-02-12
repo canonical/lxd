@@ -3,6 +3,7 @@ package shared
 type ServerStateEnvironment struct {
 	Addresses          []string `json:"addresses"`
 	Architectures      []int    `json:"architectures"`
+	Certificate        string   `json:"certificate"`
 	Driver             string   `json:"driver"`
 	DriverVersion      string   `json:"driver_version"`
 	Kernel             string   `json:"kernel"`

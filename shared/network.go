@@ -1,10 +1,13 @@
 package shared
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -28,6 +31,76 @@ func RFC3493Dialer(network, address string) (net.Conn, error) {
 		return c, err
 	}
 	return nil, fmt.Errorf("Unable to connect to: " + address)
+}
+
+func GetRemoteCertificate(address string) (*x509.Certificate, error) {
+	// Setup a permissive TLS config
+	tlsConfig, err := GetTLSConfig("", "", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig.InsecureSkipVerify = true
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+
+	// Connect
+	client := &http.Client{Transport: tr}
+	resp, err := client.Get(address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve the certificate
+	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
+		return nil, fmt.Errorf("Unable to read remote TLS certificate")
+	}
+
+	return resp.TLS.PeerCertificates[0], nil
+}
+
+func GetTLSConfig(tlsClientCert string, tlsClientKey string, tlsRemoteCert *x509.Certificate) (*tls.Config, error) {
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		MaxVersion: tls.VersionTLS12,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+		PreferServerCipherSuites: true,
+	}
+
+	// Client authentication
+	if tlsClientCert != "" && tlsClientKey != "" {
+		cert, err := tls.LoadX509KeyPair(tlsClientCert, tlsClientKey)
+		if err != nil {
+			return nil, err
+		}
+
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	// Trusted certificates
+	if tlsRemoteCert != nil {
+		caCertPool := x509.NewCertPool()
+
+		// Make it a valid RootCA
+		tlsRemoteCert.IsCA = true
+		tlsRemoteCert.KeyUsage = x509.KeyUsageCertSign
+
+		// Setup the pool
+		caCertPool.AddCert(tlsRemoteCert)
+		tlsConfig.RootCAs = caCertPool
+
+		// Set the ServerName
+		if tlsRemoteCert.DNSNames != nil {
+			tlsConfig.ServerName = tlsRemoteCert.DNSNames[0]
+		}
+	}
+
+	tlsConfig.BuildNameToCertificate()
+
+	return tlsConfig, nil
 }
 
 func IsLoopback(iface *net.Interface) bool {

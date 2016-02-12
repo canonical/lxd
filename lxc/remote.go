@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"net/url"
@@ -48,7 +51,7 @@ func (c *remoteCmd) flags() {
 	gnuflag.BoolVar(&c.public, "public", false, i18n.G("Public image server"))
 }
 
-func addServer(config *lxd.Config, server string, addr string, acceptCert bool, password string, public bool) error {
+func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, acceptCert bool, password string, public bool) error {
 	var r_scheme string
 	var r_host string
 	var r_port string
@@ -122,7 +125,7 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 	config.Remotes[server] = lxd.RemoteConfig{Addr: addr}
 
 	remote := config.ParseRemote(server)
-	c, err := lxd.NewClient(config, remote)
+	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
@@ -133,17 +136,22 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 		return nil
 	}
 
-	/* grab the server's cert */
-	err = c.Finger()
+	var certificate *x509.Certificate
+
+	/* Attempt to connect using the system root CA */
+	err = d.Finger()
 	if err != nil {
-		return err
+		// Failed to connect using the system CA, so retrieve the remote certificate
+		certificate, err = shared.GetRemoteCertificate(addr)
+		if err != nil {
+			return err
+		}
 	}
 
-	if !acceptCert {
-		// Try to use the CAs on localhost to verify the cert so we
-		// don't have to bother the user.
-		digest, err := c.TryVerifyServerCert(host)
-		if err != nil {
+	if certificate != nil {
+		if !acceptCert {
+			digest := sha256.Sum256(certificate.Raw)
+
 			fmt.Printf(i18n.G("Certificate fingerprint: %x")+"\n", digest)
 			fmt.Printf(i18n.G("ok (y/n)?") + " ")
 			line, err := shared.ReadStdin()
@@ -155,24 +163,40 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 				return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
 			}
 		}
+
+		dnam := d.Config.ConfigPath("servercerts")
+		err := os.MkdirAll(dnam, 0750)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Could not create server cert dir"))
+		}
+
+		certf := fmt.Sprintf("%s/%s.crt", dnam, d.Name)
+		certOut, err := os.Create(certf)
+		if err != nil {
+			return err
+		}
+
+		pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
+		certOut.Close()
+
+		// Setup a new connection, this time with the remote certificate
+		d, err = lxd.NewClient(config, remote)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = c.SaveCert(host)
-	if err != nil {
-		return err
-	}
-
-	if c.IsPublic() || public {
+	if d.IsPublic() || public {
 		config.Remotes[server] = lxd.RemoteConfig{Addr: addr, Public: true}
 
-		if err := c.Finger(); err != nil {
+		if err := d.Finger(); err != nil {
 			return err
 		}
 
 		return nil
 	}
 
-	if c.AmTrusted() {
+	if d.AmTrusted() {
 		// server already has our cert, so we're done
 		return nil
 	}
@@ -192,12 +216,12 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 		password = string(pwd)
 	}
 
-	err = c.AddMyCertToServer(password)
+	err = d.AddMyCertToServer(password)
 	if err != nil {
 		return err
 	}
 
-	if !c.AmTrusted() {
+	if !d.AmTrusted() {
 		return fmt.Errorf(i18n.G("Server doesn't trust us after adding our cert"))
 	}
 
@@ -205,7 +229,7 @@ func addServer(config *lxd.Config, server string, addr string, acceptCert bool, 
 	return nil
 }
 
-func removeCertificate(config *lxd.Config, remote string) {
+func (c *remoteCmd) removeCertificate(config *lxd.Config, remote string) {
 	certf := config.ServerCertPath(remote)
 	shared.Debugf("Trying to remove %s", certf)
 
@@ -227,10 +251,10 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf(i18n.G("remote %s exists as <%s>"), args[1], rc.Addr)
 		}
 
-		err := addServer(config, args[1], args[2], c.acceptCert, c.password, c.public)
+		err := c.addServer(config, args[1], args[2], c.acceptCert, c.password, c.public)
 		if err != nil {
 			delete(config.Remotes, args[1])
-			removeCertificate(config, args[1])
+			c.removeCertificate(config, args[1])
 			return err
 		}
 
@@ -249,7 +273,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 
 		delete(config.Remotes, args[1])
 
-		removeCertificate(config, args[1])
+		c.removeCertificate(config, args[1])
 
 	case "list":
 		data := [][]string{}

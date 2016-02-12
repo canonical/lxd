@@ -273,7 +273,7 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq, op *operation) error {
 
 	if req.Source["alias"] != "" {
 		if req.Source["mode"] == "pull" && req.Source["server"] != "" {
-			hash, err = remoteGetImageFingerprint(d, req.Source["server"], req.Source["alias"])
+			hash, err = remoteGetImageFingerprint(d, req.Source["server"], req.Source["certificate"], req.Source["alias"])
 			if err != nil {
 				return err
 			}
@@ -289,8 +289,7 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq, op *operation) error {
 		return fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	err = d.ImageDownload(op,
-		req.Source["server"], hash, req.Source["secret"], false, false)
+	err = d.ImageDownload(op, req.Source["server"], req.Source["certificate"], req.Source["secret"], hash, false, false)
 
 	if err != nil {
 		return err
@@ -324,7 +323,7 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 	}
 
 	// Resolve the image URL
-	tlsConfig, err := shared.GetTLSConfig("", "")
+	tlsConfig, err := shared.GetTLSConfig("", "", nil)
 	if err != nil {
 		return err
 	}
@@ -369,8 +368,7 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 	}
 
 	// Import the image
-	err = d.ImageDownload(op,
-		url, hash, "", false, true)
+	err = d.ImageDownload(op, url, "", "", hash, false, true)
 
 	if err != nil {
 		return err
