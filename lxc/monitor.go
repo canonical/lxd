@@ -10,7 +10,28 @@ import (
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
-type monitorCmd struct{}
+type typeList []string
+
+func (f *typeList) String() string {
+	return fmt.Sprint(*f)
+}
+
+func (f *typeList) Set(value string) error {
+	if value == "" {
+		return fmt.Errorf("Invalid type: %s", value)
+	}
+
+	if f == nil {
+		*f = make(typeList, 1)
+	} else {
+		*f = append(*f, value)
+	}
+	return nil
+}
+
+type monitorCmd struct {
+	typeArgs typeList
+}
 
 func (c *monitorCmd) showByDefault() bool {
 	return false
@@ -31,29 +52,8 @@ Example:
 lxc monitor --type=logging`)
 }
 
-type typeList []string
-
-func (f *typeList) String() string {
-	return fmt.Sprint(*f)
-}
-
-func (f *typeList) Set(value string) error {
-	if value == "" {
-		return fmt.Errorf("Invalid type: %s", value)
-	}
-
-	if f == nil {
-		*f = make(typeList, 1)
-	} else {
-		*f = append(*f, value)
-	}
-	return nil
-}
-
-var typeArgs typeList
-
 func (c *monitorCmd) flags() {
-	gnuflag.Var(&typeArgs, "type", i18n.G("Event type to listen for"))
+	gnuflag.Var(&c.typeArgs, "type", i18n.G("Event type to listen for"))
 }
 
 func (c *monitorCmd) run(config *lxd.Config, args []string) error {
@@ -84,5 +84,5 @@ func (c *monitorCmd) run(config *lxd.Config, args []string) error {
 		fmt.Printf("%s\n\n", render)
 	}
 
-	return d.Monitor(typeArgs, handler)
+	return d.Monitor(c.typeArgs, handler)
 }

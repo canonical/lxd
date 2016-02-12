@@ -7,10 +7,11 @@ import (
 )
 
 func TestDotPrefixMatch(t *testing.T) {
-	pass := true
+	list := listCmd{}
 
-	pass = pass && dotPrefixMatch("s.privileged", "security.privileged")
-	pass = pass && dotPrefixMatch("u.blah", "user.blah")
+	pass := true
+	pass = pass && list.dotPrefixMatch("s.privileged", "security.privileged")
+	pass = pass && list.dotPrefixMatch("u.blah", "user.blah")
 
 	if !pass {
 		t.Error("failed prefix matching")
@@ -18,6 +19,8 @@ func TestDotPrefixMatch(t *testing.T) {
 }
 
 func TestShouldShow(t *testing.T) {
+	list := listCmd{}
+
 	state := &shared.ContainerState{
 		Name: "foo",
 		Config: map[string]string{
@@ -26,19 +29,19 @@ func TestShouldShow(t *testing.T) {
 		},
 	}
 
-	if !shouldShow([]string{"u.blah=abc"}, state) {
+	if !list.shouldShow([]string{"u.blah=abc"}, state) {
 		t.Error("u.blah=abc didn't match")
 	}
 
-	if !shouldShow([]string{"user.blah=abc"}, state) {
+	if !list.shouldShow([]string{"user.blah=abc"}, state) {
 		t.Error("user.blah=abc didn't match")
 	}
 
-	if shouldShow([]string{"bar", "u.blah=abc"}, state) {
+	if list.shouldShow([]string{"bar", "u.blah=abc"}, state) {
 		t.Errorf("name filter didn't work")
 	}
 
-	if shouldShow([]string{"bar", "u.blah=other"}, state) {
+	if list.shouldShow([]string{"bar", "u.blah=other"}, state) {
 		t.Errorf("value filter didn't work")
 	}
 }

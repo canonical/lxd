@@ -49,13 +49,13 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if cName == "" {
-		return remoteInfo(d)
+		return c.remoteInfo(d)
 	} else {
-		return containerInfo(d, cName, c.showLog)
+		return c.containerInfo(d, cName, c.showLog)
 	}
 }
 
-func remoteInfo(d *lxd.Client) error {
+func (c *infoCmd) remoteInfo(d *lxd.Client) error {
 	serverStatus, err := d.ServerStatus()
 	if err != nil {
 		return err
@@ -71,7 +71,7 @@ func remoteInfo(d *lxd.Client) error {
 	return nil
 }
 
-func containerInfo(d *lxd.Client, name string, showLog bool) error {
+func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error {
 	ct, err := d.ContainerStatus(name)
 	if err != nil {
 		return err

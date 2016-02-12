@@ -17,21 +17,6 @@ import (
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
-type execCmd struct{}
-
-func (c *execCmd) showByDefault() bool {
-	return true
-}
-
-func (c *execCmd) usage() string {
-	return i18n.G(
-		`Execute the specified command in a container.
-
-lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... <command>`)
-}
-
-var modeFlag string
-
 type envFlag []string
 
 func (f *envFlag) String() string {
@@ -47,14 +32,28 @@ func (f *envFlag) Set(value string) error {
 	return nil
 }
 
-var envArgs envFlag
-
-func (c *execCmd) flags() {
-	gnuflag.Var(&envArgs, "env", i18n.G("An environment variable of the form HOME=/home/foo"))
-	gnuflag.StringVar(&modeFlag, "mode", "auto", i18n.G("Override the terminal mode (auto, interactive or non-interactive)"))
+type execCmd struct {
+	modeFlag string
+	envArgs  envFlag
 }
 
-func sendTermSize(control *websocket.Conn) error {
+func (c *execCmd) showByDefault() bool {
+	return true
+}
+
+func (c *execCmd) usage() string {
+	return i18n.G(
+		`Execute the specified command in a container.
+
+lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... <command>`)
+}
+
+func (c *execCmd) flags() {
+	gnuflag.Var(&c.envArgs, "env", i18n.G("An environment variable of the form HOME=/home/foo"))
+	gnuflag.StringVar(&c.modeFlag, "mode", "auto", i18n.G("Override the terminal mode (auto, interactive or non-interactive)"))
+}
+
+func (c *execCmd) sendTermSize(control *websocket.Conn) error {
 	width, height, err := terminal.GetSize(int(syscall.Stdout))
 	if err != nil {
 		return err
@@ -102,7 +101,7 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		}
 	}
 
-	for _, arg := range envArgs {
+	for _, arg := range c.envArgs {
 		pieces := strings.SplitN(arg, "=", 2)
 		value := ""
 		if len(pieces) > 1 {
@@ -114,9 +113,9 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 	cfd := int(syscall.Stdin)
 
 	var interactive bool
-	if modeFlag == "interactive" {
+	if c.modeFlag == "interactive" {
 		interactive = true
-	} else if modeFlag == "non-interactive" {
+	} else if c.modeFlag == "non-interactive" {
 		interactive = false
 	} else {
 		interactive = terminal.IsTerminal(cfd)
@@ -131,12 +130,12 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		defer terminal.Restore(cfd, oldttystate)
 	}
 
-	handler := controlSocketHandler
+	handler := c.controlSocketHandler
 	if !interactive {
 		handler = nil
 	}
 
-	stdout := getStdout()
+	stdout := c.getStdout()
 	ret, err := d.Exec(name, args[1:], env, os.Stdin, stdout, os.Stderr, handler)
 	if err != nil {
 		return err
