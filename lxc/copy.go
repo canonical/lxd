@@ -30,7 +30,7 @@ func (c *copyCmd) flags() {
 	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
 }
 
-func copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int) error {
+func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int) error {
 	sourceRemote, sourceName := config.ParseRemoteAndContainer(sourceResource)
 	destRemote, destName := config.ParseRemoteAndContainer(destResource)
 
@@ -146,7 +146,7 @@ func copyContainer(config *lxd.Config, sourceResource string, destResource strin
 			var migration *lxd.Response
 
 			sourceWSUrl := "https://" + addr + sourceWSResponse.Operation
-			migration, err = dest.MigrateFrom(destName, sourceWSUrl, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
+			migration, err = dest.MigrateFrom(destName, sourceWSUrl, source.Certificate, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
 			if err != nil {
 				continue
 			}
@@ -172,5 +172,5 @@ func (c *copyCmd) run(config *lxd.Config, args []string) error {
 		ephem = 1
 	}
 
-	return copyContainer(config, args[0], args[1], false, ephem)
+	return c.copyContainer(config, args[0], args[1], false, ephem)
 }

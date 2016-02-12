@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
@@ -104,10 +105,20 @@ type Command struct {
 	delete        func(d *Daemon, r *http.Request) Response
 }
 
-func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
+func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, error) {
 	var err error
 
-	tlsConfig, err := shared.GetTLSConfig("", "")
+	var cert *x509.Certificate
+	if certificate != "" {
+		certBlock, _ := pem.Decode([]byte(certificate))
+
+		cert, err = x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tlsConfig, err := shared.GetTLSConfig("", "", cert)
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +128,7 @@ func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
 		Dial:            shared.RFC3493Dialer,
 		Proxy:           http.ProxyFromEnvironment,
 	}
+
 	myhttp := http.Client{
 		Transport: tr,
 	}
@@ -145,10 +157,20 @@ func (d *Daemon) httpGetSync(url string) (*lxd.Response, error) {
 	return resp, nil
 }
 
-func (d *Daemon) httpGetFile(url string) (*http.Response, error) {
+func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, error) {
 	var err error
 
-	tlsConfig, err := shared.GetTLSConfig("", "")
+	var cert *x509.Certificate
+	if certificate != "" {
+		certBlock, _ := pem.Decode([]byte(certificate))
+
+		cert, err = x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tlsConfig, err := shared.GetTLSConfig("", "", cert)
 	if err != nil {
 		return nil, err
 	}
@@ -935,12 +957,7 @@ func (d *Daemon) Init() error {
 		// If the socket exists, let's try to connect to it and see if there's
 		// a lxd running.
 		if shared.PathExists(localSocketPath) {
-			c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
-			if err != nil {
-				return err
-			}
-
-			err = c.Finger()
+			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
 			if err != nil {
 				shared.Log.Debug("Detected stale unix socket, deleting")
 				// Connecting failed, so let's delete the socket and

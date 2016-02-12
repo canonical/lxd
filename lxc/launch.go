@@ -10,7 +10,9 @@ import (
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
-type launchCmd struct{}
+type launchCmd struct {
+	init initCmd
+}
 
 func (c *launchCmd) showByDefault() bool {
 	return true
@@ -32,13 +34,15 @@ lxc launch ubuntu u1`)
 }
 
 func (c *launchCmd) flags() {
-	massage_args()
-	gnuflag.Var(&confArgs, "config", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&confArgs, "c", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&profArgs, "profile", i18n.G("Profile to apply to the new container"))
-	gnuflag.Var(&profArgs, "p", i18n.G("Profile to apply to the new container"))
-	gnuflag.BoolVar(&ephem, "ephemeral", false, i18n.G("Ephemeral container"))
-	gnuflag.BoolVar(&ephem, "e", false, i18n.G("Ephemeral container"))
+	c.init = initCmd{}
+
+	c.init.massage_args()
+	gnuflag.Var(&c.init.confArgs, "config", i18n.G("Config key/value to apply to the new container"))
+	gnuflag.Var(&c.init.confArgs, "c", i18n.G("Config key/value to apply to the new container"))
+	gnuflag.Var(&c.init.profArgs, "profile", i18n.G("Profile to apply to the new container"))
+	gnuflag.Var(&c.init.profArgs, "p", i18n.G("Profile to apply to the new container"))
+	gnuflag.BoolVar(&c.init.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
+	gnuflag.BoolVar(&c.init.ephem, "e", false, i18n.G("Ephemeral container"))
 }
 
 func (c *launchCmd) run(config *lxd.Config, args []string) error {
@@ -62,26 +66,26 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	/*
-	 * requested_empty_profiles means user requested empty
-	 * !requested_empty_profiles but len(profArgs) == 0 means use profile default
+	 * initRequestedEmptyProfiles means user requested empty
+	 * !initRequestedEmptyProfiles but len(profArgs) == 0 means use profile default
 	 */
 	var resp *lxd.Response
 	profiles := []string{}
-	for _, p := range profArgs {
+	for _, p := range c.init.profArgs {
 		profiles = append(profiles, p)
 	}
 
-	if !requested_empty_profiles && len(profiles) == 0 {
-		resp, err = d.Init(name, iremote, image, nil, configMap, ephem)
+	if !initRequestedEmptyProfiles && len(profiles) == 0 {
+		resp, err = d.Init(name, iremote, image, nil, configMap, c.init.ephem)
 	} else {
-		resp, err = d.Init(name, iremote, image, &profiles, configMap, ephem)
+		resp, err = d.Init(name, iremote, image, &profiles, configMap, c.init.ephem)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	initProgressTracker(d, resp.Operation)
+	c.init.initProgressTracker(d, resp.Operation)
 
 	if name == "" {
 		op, err := resp.MetadataAsOperation()

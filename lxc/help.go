@@ -13,7 +13,9 @@ import (
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
-type helpCmd struct{}
+type helpCmd struct {
+	showAll bool
+}
 
 func (c *helpCmd) showByDefault() bool {
 	return true
@@ -26,10 +28,8 @@ func (c *helpCmd) usage() string {
 lxd help [--all]`)
 }
 
-var showAll bool
-
 func (c *helpCmd) flags() {
-	gnuflag.BoolVar(&showAll, "all", false, i18n.G("Show all commands (not just interesting ones)"))
+	gnuflag.BoolVar(&c.showAll, "all", false, i18n.G("Show all commands (not just interesting ones)"))
 }
 
 func (c *helpCmd) run(_ *lxd.Config, args []string) error {
@@ -54,11 +54,11 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 	sort.Strings(names)
 	for _, name := range names {
 		cmd := commands[name]
-		if showAll || cmd.showByDefault() {
-			fmt.Printf("\t%-10s - %s\n", name, summaryLine(cmd.usage()))
+		if c.showAll || cmd.showByDefault() {
+			fmt.Printf("\t%-10s - %s\n", name, c.summaryLine(cmd.usage()))
 		}
 	}
-	if !showAll {
+	if !c.showAll {
 		fmt.Println()
 		fmt.Println(i18n.G("Options:"))
 		fmt.Println("  --all              " + i18n.G("Print less common commands."))
@@ -75,7 +75,7 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 // summaryLine returns the first line of the help text. Conventionally, this
 // should be a one-line command summary, potentially followed by a longer
 // explanation.
-func summaryLine(usage string) string {
+func (c *helpCmd) summaryLine(usage string) string {
 	usage = strings.TrimSpace(usage)
 	s := bufio.NewScanner(bytes.NewBufferString(usage))
 	if s.Scan() {

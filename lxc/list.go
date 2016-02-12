@@ -44,7 +44,9 @@ func (a ByName) Less(i, j int) bool {
 	return a[i][0] < a[j][0]
 }
 
-type listCmd struct{}
+type listCmd struct {
+	chosenColumnRunes string
+}
 
 func (c *listCmd) showByDefault() bool {
 	return true
@@ -74,14 +76,12 @@ The columns are:
 * p - pid of container init process`)
 }
 
-var chosenColumnRunes string
-
 func (c *listCmd) flags() {
-	gnuflag.StringVar(&chosenColumnRunes, "c", "ns46eS", i18n.G("Columns"))
+	gnuflag.StringVar(&c.chosenColumnRunes, "c", "ns46eS", i18n.G("Columns"))
 }
 
 // This seems a little excessive.
-func dotPrefixMatch(short string, full string) bool {
+func (c *listCmd) dotPrefixMatch(short string, full string) bool {
 	fullMembs := strings.Split(full, ".")
 	shortMembs := strings.Split(short, ".")
 
@@ -98,7 +98,7 @@ func dotPrefixMatch(short string, full string) bool {
 	return true
 }
 
-func shouldShow(filters []string, state *shared.ContainerState) bool {
+func (c *listCmd) shouldShow(filters []string, state *shared.ContainerState) bool {
 	for _, filter := range filters {
 		if strings.Contains(filter, "=") {
 			membs := strings.SplitN(filter, "=", 2)
@@ -113,7 +113,7 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 
 			found := false
 			for configKey, configValue := range state.Config {
-				if dotPrefixMatch(key, configKey) {
+				if c.dotPrefixMatch(key, configKey) {
 					//try to test filter value as a regexp
 					regexpValue := value
 					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
@@ -149,7 +149,7 @@ func shouldShow(filters []string, state *shared.ContainerState) bool {
 	return true
 }
 
-func listContainers(cinfos []shared.ContainerInfo, filters []string, columns []Column) error {
+func (c *listCmd) listContainers(cinfos []shared.ContainerInfo, filters []string, columns []Column) error {
 	headers := []string{}
 	for _, column := range columns {
 		headers = append(headers, column.Name)
@@ -157,7 +157,7 @@ func listContainers(cinfos []shared.ContainerInfo, filters []string, columns []C
 
 	data := [][]string{}
 	for _, cinfo := range cinfos {
-		if !shouldShow(filters, &cinfo.State) {
+		if !c.shouldShow(filters, &cinfo.State) {
 			continue
 		}
 		d := []string{}
@@ -221,36 +221,36 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	columns_map := map[rune]Column{
-		'n': Column{i18n.G("NAME"), nameColumnData},
-		's': Column{i18n.G("STATE"), statusColumnData},
-		'4': Column{i18n.G("IPV4"), IP4ColumnData},
-		'6': Column{i18n.G("IPV6"), IP6ColumnData},
-		'e': Column{i18n.G("EPHEMERAL"), isEphemeralColumnData},
-		'S': Column{i18n.G("SNAPSHOTS"), numberSnapshotsColumnData},
-		'p': Column{i18n.G("PID"), PIDColumnData},
+		'n': Column{i18n.G("NAME"), c.nameColumnData},
+		's': Column{i18n.G("STATE"), c.statusColumnData},
+		'4': Column{i18n.G("IPV4"), c.IP4ColumnData},
+		'6': Column{i18n.G("IPV6"), c.IP6ColumnData},
+		'e': Column{i18n.G("EPHEMERAL"), c.isEphemeralColumnData},
+		'S': Column{i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData},
+		'p': Column{i18n.G("PID"), c.PIDColumnData},
 	}
 
 	columns := []Column{}
-	for _, columnRune := range chosenColumnRunes {
+	for _, columnRune := range c.chosenColumnRunes {
 		if column, ok := columns_map[columnRune]; ok {
 			columns = append(columns, column)
 		} else {
-			return fmt.Errorf("%s does contain invalid column characters\n", chosenColumnRunes)
+			return fmt.Errorf("%s does contain invalid column characters\n", c.chosenColumnRunes)
 		}
 	}
 
-	return listContainers(cts, filters, columns)
+	return c.listContainers(cts, filters, columns)
 }
 
-func nameColumnData(cinfo shared.ContainerInfo) string {
+func (c *listCmd) nameColumnData(cinfo shared.ContainerInfo) string {
 	return cinfo.State.Name
 }
 
-func statusColumnData(cinfo shared.ContainerInfo) string {
+func (c *listCmd) statusColumnData(cinfo shared.ContainerInfo) string {
 	return strings.ToUpper(cinfo.State.Status.Status)
 }
 
-func IP4ColumnData(cinfo shared.ContainerInfo) string {
+func (c *listCmd) IP4ColumnData(cinfo shared.ContainerInfo) string {
 	if cinfo.State.Status.StatusCode == shared.Running || cinfo.State.Status.StatusCode == shared.Frozen {
 		ipv4s := []string{}
 		for _, ip := range cinfo.State.Status.Ips {
@@ -268,7 +268,7 @@ func IP4ColumnData(cinfo shared.ContainerInfo) string {
 	}
 }
 
-func IP6ColumnData(cinfo shared.ContainerInfo) string {
+func (c *listCmd) IP6ColumnData(cinfo shared.ContainerInfo) string {
 	if cinfo.State.Status.StatusCode == shared.Running || cinfo.State.Status.StatusCode == shared.Frozen {
 		ipv6s := []string{}
 		for _, ip := range cinfo.State.Status.Ips {
@@ -286,7 +286,7 @@ func IP6ColumnData(cinfo shared.ContainerInfo) string {
 	}
 }
 
-func isEphemeralColumnData(cinfo shared.ContainerInfo) string {
+func (c *listCmd) isEphemeralColumnData(cinfo shared.ContainerInfo) string {
 	if cinfo.State.Ephemeral {
 		return i18n.G("YES")
 	} else {
@@ -294,11 +294,11 @@ func isEphemeralColumnData(cinfo shared.ContainerInfo) string {
 	}
 }
 
-func numberSnapshotsColumnData(cinfo shared.ContainerInfo) string {
+func (c *listCmd) numberSnapshotsColumnData(cinfo shared.ContainerInfo) string {
 	return fmt.Sprintf("%d", len(cinfo.Snaps))
 }
 
-func PIDColumnData(cinfo shared.ContainerInfo) string {
+func (c *listCmd) PIDColumnData(cinfo shared.ContainerInfo) string {
 	if cinfo.State.Status.Init != 0 {
 		return fmt.Sprintf("%d", cinfo.State.Status.Init)
 	} else {

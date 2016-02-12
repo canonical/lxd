@@ -14,16 +14,16 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func getStdout() io.WriteCloser {
+func (c *execCmd) getStdout() io.WriteCloser {
 	return os.Stdout
 }
 
-func controlSocketHandler(c *lxd.Client, control *websocket.Conn) {
+func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGWINCH)
 
 	for {
-		err := sendTermSize(control)
+		err := c.sendTermSize(control)
 		if err != nil {
 			shared.Debugf("error setting term size %s", err)
 			break

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
@@ -88,9 +89,15 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
+		var certificate string
+		if len(d.tlsConfig.Certificates) != 0 {
+			certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: d.tlsConfig.Certificates[0].Certificate[0]}))
+		}
+
 		env := shared.Jmap{
 			"addresses":           addresses,
 			"architectures":       d.architectures,
+			"certificate":         certificate,
 			"driver":              "lxc",
 			"driver_version":      lxc.Version(),
 			"kernel":              kernel,

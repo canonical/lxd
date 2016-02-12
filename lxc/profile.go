@@ -23,8 +23,9 @@ func (c *profileCmd) showByDefault() bool {
 	return true
 }
 
-var profileEditHelp string = i18n.G(
-	`### This is a yaml representation of the profile.
+func (c *profileCmd) profileEditHelp() string {
+	return i18n.G(
+		`### This is a yaml representation of the profile.
 ### Any line starting with a '# will be ignored.
 ###
 ### A profile consists of a set of configuration items followed by a set of
@@ -41,6 +42,7 @@ var profileEditHelp string = i18n.G(
 ###     type: nic
 ###
 ### Note that the name is shown but cannot be changed`)
+}
 
 func (c *profileCmd) usage() string {
 	return i18n.G(
@@ -83,7 +85,7 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if args[0] == "list" {
-		return doProfileList(config, args)
+		return c.doProfileList(config, args)
 	}
 
 	if len(args) < 2 {
@@ -98,13 +100,13 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 
 	switch args[0] {
 	case "create":
-		return doProfileCreate(client, profile)
+		return c.doProfileCreate(client, profile)
 	case "delete":
-		return doProfileDelete(client, profile)
+		return c.doProfileDelete(client, profile)
 	case "device":
-		return doProfileDevice(config, args)
+		return c.doProfileDevice(config, args)
 	case "edit":
-		return doProfileEdit(client, profile)
+		return c.doProfileEdit(client, profile)
 	case "apply":
 		container := profile
 		switch len(args) {
@@ -115,23 +117,23 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 		default:
 			return errArgs
 		}
-		return doProfileApply(client, container, profile)
+		return c.doProfileApply(client, container, profile)
 	case "get":
-		return doProfileGet(client, profile, args[2:])
+		return c.doProfileGet(client, profile, args[2:])
 	case "set":
-		return doProfileSet(client, profile, args[2:])
+		return c.doProfileSet(client, profile, args[2:])
 	case "unset":
-		return doProfileSet(client, profile, args[2:])
+		return c.doProfileSet(client, profile, args[2:])
 	case "copy":
-		return doProfileCopy(config, client, profile, args[2:])
+		return c.doProfileCopy(config, client, profile, args[2:])
 	case "show":
-		return doProfileShow(client, profile)
+		return c.doProfileShow(client, profile)
 	default:
 		return errArgs
 	}
 }
 
-func doProfileCreate(client *lxd.Client, p string) error {
+func (c *profileCmd) doProfileCreate(client *lxd.Client, p string) error {
 	err := client.ProfileCreate(p)
 	if err == nil {
 		fmt.Printf(i18n.G("Profile %s created")+"\n", p)
@@ -139,7 +141,7 @@ func doProfileCreate(client *lxd.Client, p string) error {
 	return err
 }
 
-func doProfileEdit(client *lxd.Client, p string) error {
+func (c *profileCmd) doProfileEdit(client *lxd.Client, p string) error {
 	// If stdin isn't a terminal, read text from it
 	if !terminal.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -167,7 +169,7 @@ func doProfileEdit(client *lxd.Client, p string) error {
 	}
 
 	// Spawn the editor
-	content, err := shared.TextEditor("", []byte(profileEditHelp+"\n\n"+string(data)))
+	content, err := shared.TextEditor("", []byte(c.profileEditHelp()+"\n\n"+string(data)))
 	if err != nil {
 		return err
 	}
@@ -201,7 +203,7 @@ func doProfileEdit(client *lxd.Client, p string) error {
 	return nil
 }
 
-func doProfileDelete(client *lxd.Client, p string) error {
+func (c *profileCmd) doProfileDelete(client *lxd.Client, p string) error {
 	err := client.ProfileDelete(p)
 	if err == nil {
 		fmt.Printf(i18n.G("Profile %s deleted")+"\n", p)
@@ -209,8 +211,8 @@ func doProfileDelete(client *lxd.Client, p string) error {
 	return err
 }
 
-func doProfileApply(client *lxd.Client, c string, p string) error {
-	resp, err := client.ApplyProfile(c, p)
+func (c *profileCmd) doProfileApply(client *lxd.Client, d string, p string) error {
+	resp, err := client.ApplyProfile(d, p)
 	if err != nil {
 		return err
 	}
@@ -220,13 +222,13 @@ func doProfileApply(client *lxd.Client, c string, p string) error {
 		if p == "" {
 			p = i18n.G("(none)")
 		}
-		fmt.Printf(i18n.G("Profile %s applied to %s")+"\n", p, c)
+		fmt.Printf(i18n.G("Profile %s applied to %s")+"\n", p, d)
 	}
 
 	return err
 }
 
-func doProfileShow(client *lxd.Client, p string) error {
+func (c *profileCmd) doProfileShow(client *lxd.Client, p string) error {
 	profile, err := client.ProfileConfig(p)
 	if err != nil {
 		return err
@@ -238,7 +240,7 @@ func doProfileShow(client *lxd.Client, p string) error {
 	return nil
 }
 
-func doProfileCopy(config *lxd.Config, client *lxd.Client, p string, args []string) error {
+func (c *profileCmd) doProfileCopy(config *lxd.Config, client *lxd.Client, p string, args []string) error {
 	if len(args) != 1 {
 		return errArgs
 	}
@@ -255,28 +257,31 @@ func doProfileCopy(config *lxd.Config, client *lxd.Client, p string, args []stri
 	return client.ProfileCopy(p, newname, dest)
 }
 
-func doProfileDevice(config *lxd.Config, args []string) error {
+func (c *profileCmd) doProfileDevice(config *lxd.Config, args []string) error {
 	// device add b1 eth0 nic type=bridged
 	// device list b1
 	// device remove b1 eth0
 	if len(args) < 3 {
 		return errArgs
 	}
+
+	cfg := configCmd{}
+
 	switch args[1] {
 	case "add":
-		return deviceAdd(config, "profile", args)
+		return cfg.deviceAdd(config, "profile", args)
 	case "remove":
-		return deviceRm(config, "profile", args)
+		return cfg.deviceRm(config, "profile", args)
 	case "list":
-		return deviceList(config, "profile", args)
+		return cfg.deviceList(config, "profile", args)
 	case "show":
-		return deviceShow(config, "profile", args)
+		return cfg.deviceShow(config, "profile", args)
 	default:
 		return errArgs
 	}
 }
 
-func doProfileGet(client *lxd.Client, p string, args []string) error {
+func (c *profileCmd) doProfileGet(client *lxd.Client, p string, args []string) error {
 	// we shifted @args so so it should read "<key>"
 	if len(args) != 1 {
 		return errArgs
@@ -294,7 +299,7 @@ func doProfileGet(client *lxd.Client, p string, args []string) error {
 	return nil
 }
 
-func doProfileSet(client *lxd.Client, p string, args []string) error {
+func (c *profileCmd) doProfileSet(client *lxd.Client, p string, args []string) error {
 	// we shifted @args so so it should read "<key> [<value>]"
 	if len(args) < 1 {
 		return errArgs
@@ -320,7 +325,7 @@ func doProfileSet(client *lxd.Client, p string, args []string) error {
 	return err
 }
 
-func doProfileList(config *lxd.Config, args []string) error {
+func (c *profileCmd) doProfileList(config *lxd.Config, args []string) error {
 	var remote string
 	if len(args) > 1 {
 		var name string
