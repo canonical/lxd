@@ -957,12 +957,7 @@ func (d *Daemon) Init() error {
 		// If the socket exists, let's try to connect to it and see if there's
 		// a lxd running.
 		if shared.PathExists(localSocketPath) {
-			c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
-			if err != nil {
-				return err
-			}
-
-			err = c.Finger()
+			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
 			if err != nil {
 				shared.Log.Debug("Detected stale unix socket, deleting")
 				// Connecting failed, so let's delete the socket and
