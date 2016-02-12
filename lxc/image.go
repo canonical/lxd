@@ -20,19 +20,40 @@ import (
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
-type imageCmd struct{}
+type aliasList []string
+
+func (f *aliasList) String() string {
+	return fmt.Sprint(*f)
+}
+
+func (f *aliasList) Set(value string) error {
+	if f == nil {
+		*f = make(aliasList, 1)
+	} else {
+		*f = append(*f, value)
+	}
+	return nil
+}
+
+type imageCmd struct {
+	addAliases  aliasList
+	publicImage bool
+	copyAliases bool
+}
 
 func (c *imageCmd) showByDefault() bool {
 	return true
 }
 
-var imageEditHelp string = i18n.G(
-	`### This is a yaml representation of the image properties.
+func (c *imageCmd) imageEditHelp() string {
+	return i18n.G(
+		`### This is a yaml representation of the image properties.
 ### Any line starting with a '# will be ignored.
 ###
 ### Each property is represented by a single line:
 ### An example would be:
 ###  description: My custom image`)
+}
 
 func (c *imageCmd) usage() string {
 	return i18n.G(
@@ -92,32 +113,13 @@ lxc image alias list [remote:]
 `)
 }
 
-type aliasList []string
-
-func (f *aliasList) String() string {
-	return fmt.Sprint(*f)
-}
-
-func (f *aliasList) Set(value string) error {
-	if f == nil {
-		*f = make(aliasList, 1)
-	} else {
-		*f = append(*f, value)
-	}
-	return nil
-}
-
-var addAliases aliasList
-var publicImage bool = false
-var copyAliases bool = false
-
 func (c *imageCmd) flags() {
-	gnuflag.BoolVar(&publicImage, "public", false, i18n.G("Make image public"))
-	gnuflag.BoolVar(&copyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
-	gnuflag.Var(&addAliases, "alias", i18n.G("New alias to define at target"))
+	gnuflag.BoolVar(&c.publicImage, "public", false, i18n.G("Make image public"))
+	gnuflag.BoolVar(&c.copyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
+	gnuflag.Var(&c.addAliases, "alias", i18n.G("New alias to define at target"))
 }
 
-func doImageAlias(config *lxd.Config, args []string) error {
+func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
 	var remote string
 	switch args[1] {
 	case "list":
@@ -137,7 +139,7 @@ func doImageAlias(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		showAliases(resp)
+		c.showAliases(resp)
 
 		return nil
 	case "create":
@@ -182,7 +184,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) < 2 {
 			return errArgs
 		}
-		return doImageAlias(config, args)
+		return c.doImageAlias(config, args)
 
 	case "copy":
 		/* copy [<remote>:]<image> [<rmeote>:]<image> */
@@ -205,13 +207,13 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		image := dereferenceAlias(d, inName)
+		image := c.dereferenceAlias(d, inName)
 
 		progressHandler := func(progress string) {
 			fmt.Printf(i18n.G("Copying the image: %s")+"\r", progress)
 		}
 
-		err = d.CopyImage(image, dest, copyAliases, addAliases, publicImage, progressHandler)
+		err = d.CopyImage(image, dest, c.copyAliases, c.addAliases, c.publicImage, progressHandler)
 		if err == nil {
 			fmt.Println(i18n.G("Image copied successfully!"))
 		}
@@ -230,7 +232,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		image := dereferenceAlias(d, inName)
+		image := c.dereferenceAlias(d, inName)
 		err = d.DeleteImage(image)
 		return err
 
@@ -247,7 +249,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		image := dereferenceAlias(d, inName)
+		image := c.dereferenceAlias(d, inName)
 		info, err := d.GetImageInfo(image)
 		if err != nil {
 			return err
@@ -326,11 +328,11 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if strings.HasPrefix(imageFile, "https://") {
-			fingerprint, err = d.PostImageURL(imageFile, publicImage, addAliases)
+			fingerprint, err = d.PostImageURL(imageFile, c.publicImage, c.addAliases)
 		} else if strings.HasPrefix(imageFile, "http://") {
 			return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
 		} else {
-			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, publicImage, addAliases)
+			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, c.publicImage, c.addAliases)
 		}
 
 		if err != nil {
@@ -371,7 +373,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		return showImages(images, filters)
+		return c.showImages(images, filters)
 
 	case "edit":
 		if len(args) < 2 {
@@ -388,12 +390,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		image := dereferenceAlias(d, inName)
+		image := c.dereferenceAlias(d, inName)
 		if image == "" {
 			image = inName
 		}
 
-		return doImageEdit(d, image)
+		return c.doImageEdit(d, image)
 
 	case "export":
 		if len(args) < 2 {
@@ -410,7 +412,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		image := dereferenceAlias(d, inName)
+		image := c.dereferenceAlias(d, inName)
 
 		target := "."
 		if len(args) > 2 {
@@ -439,7 +441,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		image := dereferenceAlias(d, inName)
+		image := c.dereferenceAlias(d, inName)
 		info, err := d.GetImageInfo(image)
 		if err != nil {
 			return err
@@ -456,7 +458,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 	}
 }
 
-func dereferenceAlias(d *lxd.Client, inName string) string {
+func (c *imageCmd) dereferenceAlias(d *lxd.Client, inName string) string {
 	result := d.GetAlias(inName)
 	if result == "" {
 		return inName
@@ -464,7 +466,7 @@ func dereferenceAlias(d *lxd.Client, inName string) string {
 	return result
 }
 
-func shortestAlias(list shared.ImageAliases) string {
+func (c *imageCmd) shortestAlias(list shared.ImageAliases) string {
 	shortest := ""
 	for _, l := range list {
 		if shortest == "" {
@@ -479,7 +481,7 @@ func shortestAlias(list shared.ImageAliases) string {
 	return shortest
 }
 
-func findDescription(props map[string]string) string {
+func (c *imageCmd) findDescription(props map[string]string) string {
 	for k, v := range props {
 		if k == "description" {
 			return v
@@ -488,20 +490,20 @@ func findDescription(props map[string]string) string {
 	return ""
 }
 
-func showImages(images []shared.ImageInfo, filters []string) error {
+func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error {
 	data := [][]string{}
 	for _, image := range images {
-		if !imageShouldShow(filters, &image) {
+		if !c.imageShouldShow(filters, &image) {
 			continue
 		}
 
-		shortest := shortestAlias(image.Aliases)
+		shortest := c.shortestAlias(image.Aliases)
 		if len(image.Aliases) > 1 {
 			shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
 		}
 		fp := image.Fingerprint[0:12]
 		public := i18n.G("no")
-		description := findDescription(image.Properties)
+		description := c.findDescription(image.Properties)
 
 		if image.Public {
 			public = i18n.G("yes")
@@ -531,7 +533,7 @@ func showImages(images []shared.ImageInfo, filters []string) error {
 	return nil
 }
 
-func showAliases(aliases []shared.ImageAlias) error {
+func (c *imageCmd) showAliases(aliases []shared.ImageAlias) error {
 	data := [][]string{}
 	for _, alias := range aliases {
 		data = append(data, []string{alias.Description, alias.Name[0:12]})
@@ -550,7 +552,7 @@ func showAliases(aliases []shared.ImageAlias) error {
 	return nil
 }
 
-func doImageEdit(client *lxd.Client, image string) error {
+func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 	// If stdin isn't a terminal, read text from it
 	if !terminal.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -579,7 +581,7 @@ func doImageEdit(client *lxd.Client, image string) error {
 	}
 
 	// Spawn the editor
-	content, err := shared.TextEditor("", []byte(imageEditHelp+"\n\n"+string(data)))
+	content, err := shared.TextEditor("", []byte(c.imageEditHelp()+"\n\n"+string(data)))
 	if err != nil {
 		return err
 	}
@@ -613,7 +615,7 @@ func doImageEdit(client *lxd.Client, image string) error {
 	return nil
 }
 
-func imageShouldShow(filters []string, state *shared.ImageInfo) bool {
+func (c *imageCmd) imageShouldShow(filters []string, state *shared.ImageInfo) bool {
 	if len(filters) == 0 {
 		return true
 	}
@@ -632,7 +634,8 @@ func imageShouldShow(filters []string, state *shared.ImageInfo) bool {
 			}
 
 			for configKey, configValue := range state.Properties {
-				if dotPrefixMatch(key, configKey) {
+				list := listCmd{}
+				if list.dotPrefixMatch(key, configKey) {
 					//try to test filter value as a regexp
 					regexpValue := value
 					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
