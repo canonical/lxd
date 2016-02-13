@@ -15,6 +15,15 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV22(db *sql.DB) error {
+	stmt := `
+DELETE FROM containers_devices_config WHERE key='type';
+DELETE FROM profiles_devices_config WHERE key='type';
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 23)
+	return err
+}
+
 func dbUpdateFromV21(db *sql.DB) error {
 	stmt := `
 ALTER TABLE containers ADD COLUMN creation_date DATETIME NOT NULL DEFAULT 0;
@@ -23,57 +32,17 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	return err
 }
 
-func dbUpdateFromV20(d *Daemon) error {
-	cNames, err := dbContainersList(d.db, cTypeRegular)
-	if err != nil {
-		return err
-	}
-
-	for _, name := range cNames {
-		c, err := containerLoadByName(d, name)
-		if err != nil {
-			return err
-		}
-
-		rootfs := false
-		for _, m := range c.ExpandedDevices() {
-			if m["type"] == "disk" && m["path"] == "/" {
-				rootfs = true
-				break
-			}
-		}
-
-		if !rootfs {
-			deviceName := "root"
-			for {
-				if c.ExpandedDevices()[deviceName] == nil {
-					break
-				}
-
-				deviceName += "_"
-			}
-
-			newDevices := c.LocalDevices()
-			newDevices[deviceName] = shared.Device{"type": "disk", "path": "/"}
-
-			updateArgs := containerArgs{
-				Architecture: c.Architecture(),
-				Config:       c.LocalConfig(),
-				Devices:      newDevices,
-				Ephemeral:    c.IsEphemeral(),
-				Profiles:     c.Profiles(),
-			}
-
-			err = c.Update(updateArgs, false)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
+func dbUpdateFromV20(db *sql.DB) error {
 	stmt := `
+UPDATE containers_devices SET name='__lxd_upgrade_root' WHERE name='root';
+UPDATE profiles_devices SET name='__lxd_upgrade_root' WHERE name='root';
+
+INSERT INTO containers_devices (container_id, name, type) SELECT id, "root", 2 FROM containers;
+INSERT INTO containers_devices_config (container_device_id, key, value) SELECT id, "path", "/" FROM containers_devices WHERE name='root';
+
 INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
-	_, err = d.db.Exec(stmt, 21)
+	_, err := db.Exec(stmt, 21)
+
 	return err
 }
 
@@ -903,13 +872,19 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 		}
 	}
 	if prevVersion < 21 {
-		err = dbUpdateFromV20(d)
+		err = dbUpdateFromV20(db)
 		if err != nil {
 			return err
 		}
 	}
 	if prevVersion < 22 {
 		err = dbUpdateFromV21(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 23 {
+		err = dbUpdateFromV22(db)
 		if err != nil {
 			return err
 		}
