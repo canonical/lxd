@@ -79,6 +79,11 @@ func dbDevicesAdd(tx *sql.Tx, w string, cID int64, devices shared.Devices) error
 		id := int(id64)
 
 		for ck, cv := range v {
+			// The type is stored as int in the parent entry
+			if ck == "type" {
+				continue
+			}
+
 			_, err = stmt2.Exec(id, ck, cv)
 			if err != nil {
 				return err
