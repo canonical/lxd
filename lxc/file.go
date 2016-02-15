@@ -122,21 +122,23 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 			fpath = path.Join(fpath, path.Base(f.Name()))
 		}
 
-		fMode, fUid, fGid, err := c.getOwner(f)
-		if err != nil {
-			return err
-		}
+		if c.mode == "" || c.uid == -1 || c.gid == -1 {
+			fMode, fUid, fGid, err := c.getOwner(f)
+			if err != nil {
+				return err
+			}
 
-		if c.mode != "" {
-			mode = fMode
-		}
+			if c.mode == "" {
+				mode = fMode
+			}
 
-		if c.uid == -1 {
-			uid = fUid
-		}
+			if c.uid == -1 {
+				uid = fUid
+			}
 
-		if c.gid == -1 {
-			gid = fGid
+			if c.gid == -1 {
+				gid = fGid
+			}
 		}
 
 		err = d.PushFile(container, fpath, gid, uid, mode, f)
