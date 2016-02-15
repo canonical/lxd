@@ -1073,7 +1073,7 @@ Input:
 
     {
         'name': "my-profile'name",
-        'config': {"resources.memory": "2GB"},
+        'config': {"limits.memory": "2GB"},
                    "network.0.bridge": "lxcbr0"}
     }
 
@@ -1088,7 +1088,7 @@ Output:
 
     {
         'name': "my-profile'name",
-        'config': {"resources.memory": "2GB"},
+        'config': {"limits.memory": "2GB"},
                    "network.0.bridge": "lxcbr0"}
     }
 
