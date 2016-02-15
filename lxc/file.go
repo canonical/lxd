@@ -121,20 +121,24 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 		if targetfilename == "" {
 			fpath = path.Join(fpath, path.Base(f.Name()))
 		}
-		/* If not specified, preserve file permissions */
-		fInfo, err := f.Stat()
+
+		fMode, fUid, fGid, err := c.getOwner(f)
 		if err != nil {
 			return err
 		}
-		if c.mode == "" {
-			mode = fInfo.Mode()
+
+		if c.mode != "" {
+			mode = fMode
 		}
+
 		if c.uid == -1 {
-			uid = int(fInfo.Sys().(*syscall.Stat_t).Uid)
+			uid = fUid
 		}
+
 		if c.gid == -1 {
-			gid = int(fInfo.Sys().(*syscall.Stat_t).Gid)
+			gid = fGid
 		}
+
 		err = d.PushFile(container, fpath, gid, uid, mode, f)
 		if err != nil {
 			return err
