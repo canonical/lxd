@@ -43,6 +43,8 @@ func GetRemoteCertificate(address string) (*x509.Certificate, error) {
 	tlsConfig.InsecureSkipVerify = true
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
+		Dial:            RFC3493Dialer,
+		Proxy:           http.ProxyFromEnvironment,
 	}
 
 	// Connect
