@@ -20,6 +20,40 @@ import (
 	"github.com/lxc/lxd/shared/gnuflag"
 )
 
+type SortImage [][]string
+
+func (a SortImage) Len() int {
+	return len(a)
+}
+
+func (a SortImage) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a SortImage) Less(i, j int) bool {
+	if a[i][0] == a[j][0] {
+		if a[i][3] == "" {
+			return false
+		}
+
+		if a[j][3] == "" {
+			return true
+		}
+
+		return a[i][3] < a[j][3]
+	}
+
+	if a[i][0] == "" {
+		return false
+	}
+
+	if a[j][0] == "" {
+		return true
+	}
+
+	return a[i][0] < a[j][0]
+}
+
 type aliasList []string
 
 func (f *aliasList) String() string {
@@ -526,7 +560,7 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 		i18n.G("ARCH"),
 		i18n.G("SIZE"),
 		i18n.G("UPLOAD DATE")})
-	sort.Sort(ByName(data))
+	sort.Sort(SortImage(data))
 	table.AppendBulk(data)
 	table.Render()
 
