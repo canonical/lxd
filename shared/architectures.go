@@ -27,6 +27,16 @@ var architectureNames = map[int]string{
 	ARCH_64BIT_S390_BIG_ENDIAN:       "s390x",
 }
 
+var architectureAliases = map[int][]string{
+	ARCH_32BIT_INTEL_X86:             []string{"i386"},
+	ARCH_64BIT_INTEL_X86:             []string{"amd64"},
+	ARCH_32BIT_ARMV7_LITTLE_ENDIAN:   []string{"armel", "armhf"},
+	ARCH_64BIT_ARMV8_LITTLE_ENDIAN:   []string{"arm64"},
+	ARCH_32BIT_POWERPC_BIG_ENDIAN:    []string{"powerpc"},
+	ARCH_64BIT_POWERPC_BIG_ENDIAN:    []string{"powerpc64"},
+	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: []string{"ppc64el"},
+}
+
 var architecturePersonalities = map[int]string{
 	ARCH_32BIT_INTEL_X86:             "linux32",
 	ARCH_64BIT_INTEL_X86:             "linux64",
@@ -62,6 +72,14 @@ func ArchitectureId(arch string) (int, error) {
 	for arch_id, arch_name := range architectureNames {
 		if arch_name == arch {
 			return arch_id, nil
+		}
+	}
+
+	for arch_id, arch_aliases := range architectureAliases {
+		for _, arch_name := range arch_aliases {
+			if arch_name == arch {
+				return arch_id, nil
+			}
 		}
 	}
 
