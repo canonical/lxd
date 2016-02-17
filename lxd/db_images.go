@@ -177,6 +177,11 @@ func dbImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, shared
 	return id, shared.ImageAliasesEntry{Name: name, Target: fingerprint, Description: description}, nil
 }
 
+func dbImageAliasRename(db *sql.DB, id int, name string) error {
+	_, err := dbExec(db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
+	return err
+}
+
 func dbImageAliasDelete(db *sql.DB, name string) error {
 	_, err := dbExec(db, "DELETE FROM images_aliases WHERE name=?", name)
 	return err
