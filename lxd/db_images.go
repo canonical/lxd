@@ -171,6 +171,10 @@ func dbImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, shared
 	arg2 := []interface{}{&id, &fingerprint, &description}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, shared.ImageAliasesEntry{}, NoSuchObjectError
+		}
+
 		return -1, shared.ImageAliasesEntry{}, err
 	}
 

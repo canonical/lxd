@@ -453,7 +453,8 @@ func Test_dbImageAliasGet_alias_exists(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	result, err = dbImageAliasGet(db, "somealias")
+	_, alias, err := dbImageAliasGet(db, "somealias", true)
+	result = alias.Target
 
 	if err != nil {
 		t.Fatal(err)
@@ -472,12 +473,11 @@ func Test_dbImageAliasGet_alias_does_not_exists(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	_, err = dbImageAliasGet(db, "whatever")
+	_, _, err = dbImageAliasGet(db, "whatever", true)
 
 	if err != NoSuchObjectError {
 		t.Fatal("Error should be NoSuchObjectError")
 	}
-
 }
 
 func Test_dbImageAliasAdd(t *testing.T) {
@@ -493,10 +493,11 @@ func Test_dbImageAliasAdd(t *testing.T) {
 		t.Fatal("Error inserting Image alias.")
 	}
 
-	result, err = dbImageAliasGet(db, "Chaosphere")
+	_, alias, err := dbImageAliasGet(db, "Chaosphere", true)
 	if err != nil {
 		t.Fatal(err)
 	}
+	result = alias.Target
 
 	if result != "fingerprint" {
 		t.Fatal("Couldn't retrieve newly created alias.")
