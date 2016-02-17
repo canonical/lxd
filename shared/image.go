@@ -32,21 +32,9 @@ type BriefImageInfo struct {
 	Public     bool              `json:"public"`
 }
 
-func (i *ImageInfo) BriefInfo() BriefImageInfo {
+func (i *ImageInfo) Brief() BriefImageInfo {
 	retstate := BriefImageInfo{
 		Properties: i.Properties,
 		Public:     i.Public}
 	return retstate
-}
-
-type ImageBaseInfo struct {
-	Id           int
-	Fingerprint  string
-	Filename     string
-	Size         int64
-	Public       bool
-	Architecture int
-	CreationDate int64
-	ExpiryDate   int64
-	UploadDate   int64
 }

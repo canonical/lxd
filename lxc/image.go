@@ -481,7 +481,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		properties := info.BriefInfo()
+		properties := info.Brief()
 
 		data, err := yaml.Marshal(&properties)
 		fmt.Printf("%s", data)
@@ -609,7 +609,7 @@ func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 		return err
 	}
 
-	brief := config.BriefInfo()
+	brief := config.Brief()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err

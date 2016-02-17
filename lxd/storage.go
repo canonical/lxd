@@ -245,7 +245,7 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 	return newStorageWithConfig(d, storageType, config)
 }
 
-func storageForImage(d *Daemon, imgInfo *shared.ImageBaseInfo) (storage, error) {
+func storageForImage(d *Daemon, imgInfo *shared.ImageInfo) (storage, error) {
 	imageFilename := shared.VarPath("images", imgInfo.Fingerprint)
 	return storageForFilename(d, imageFilename)
 }
