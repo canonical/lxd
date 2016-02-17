@@ -396,7 +396,7 @@ func (c *Client) websocket(operation string, secret string) (*websocket.Conn, er
 }
 
 func (c *Client) url(elem ...string) string {
-	return c.BaseURL + "/" + path.Join(elem...)
+	return c.BaseURL + "/" + strings.Join(elem, "/")
 }
 
 func (c *Client) GetServerConfig() (*Response, error) {
