@@ -3,8 +3,9 @@ package shared
 type ImageProperties map[string]string
 
 type ImageAlias struct {
-	Name        string `json:"target"`
+	Name        string `json:"name"`
 	Description string `json:"description"`
+	Target      string `json:"target"`
 }
 
 type ImageAliases []ImageAlias
