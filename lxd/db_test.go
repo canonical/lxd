@@ -398,12 +398,12 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 func Test_dbImageGet_finds_image_for_fingerprint(t *testing.T) {
 	var db *sql.DB
 	var err error
-	var result *shared.ImageBaseInfo
+	var result *shared.ImageInfo
 
 	db = createTestDb(t)
 	defer db.Close()
 
-	result, err = dbImageGet(db, "fingerprint", false, false)
+	_, result, err = dbImageGet(db, "fingerprint", false, false)
 
 	if err != nil {
 		t.Fatal(err)
@@ -437,7 +437,7 @@ func Test_dbImageGet_for_missing_fingerprint(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	_, err = dbImageGet(db, "unknown", false, false)
+	_, _, err = dbImageGet(db, "unknown", false, false)
 
 	if err != sql.ErrNoRows {
 		t.Fatal("Wrong err type returned")
