@@ -1341,6 +1341,31 @@ func (c *containerLXC) Unfreeze() error {
 	return c.c.Unfreeze()
 }
 
+func (c *containerLXC) Render() (*shared.ContainerInfo, error) {
+	// Load the go-lxc struct
+	err := c.initLXC()
+	if err != nil {
+		return nil, err
+	}
+
+	// FIXME: Render shouldn't directly access the go-lxc struct
+	statusCode := shared.FromLXCState(int(c.c.State()))
+
+	return &shared.ContainerInfo{
+		Architecture:    c.architecture,
+		Config:          c.localConfig,
+		CreationDate:    c.creationDate.Unix(),
+		Devices:         c.localDevices,
+		Ephemeral:       c.ephemeral,
+		ExpandedConfig:  c.expandedConfig,
+		ExpandedDevices: c.expandedDevices,
+		Name:            c.name,
+		Profiles:        c.profiles,
+		Status:          statusCode.String(),
+		StatusCode:      statusCode,
+	}, nil
+}
+
 func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 	// Load the go-lxc struct
 	err := c.initLXC()
@@ -1350,7 +1375,7 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 
 	// FIXME: RenderState shouldn't directly access the go-lxc struct
 	statusCode := shared.FromLXCState(int(c.c.State()))
-	status := shared.ContainerStatus{
+	status := shared.ContainerState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
 	}
@@ -1362,18 +1387,7 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 		status.Ips = c.ipsGet()
 	}
 
-	return &shared.ContainerState{
-		Architecture:    c.architecture,
-		Config:          c.localConfig,
-		CreationDate:    c.creationDate.Unix(),
-		Devices:         c.localDevices,
-		Ephemeral:       c.ephemeral,
-		ExpandedConfig:  c.expandedConfig,
-		ExpandedDevices: c.expandedDevices,
-		Name:            c.name,
-		Profiles:        c.profiles,
-		Status:          status,
-	}, nil
+	return &status, nil
 }
 
 func (c *containerLXC) Snapshots() ([]container, error) {

@@ -20,7 +20,7 @@ type Column struct {
 	Data columnData
 }
 
-type columnData func(shared.ContainerInfo) string
+type columnData func(shared.ContainerInfo, shared.ContainerState, []shared.SnapshotInfo) string
 
 type ByName [][]string
 
@@ -98,7 +98,7 @@ func (c *listCmd) dotPrefixMatch(short string, full string) bool {
 	return true
 }
 
-func (c *listCmd) shouldShow(filters []string, state *shared.ContainerState) bool {
+func (c *listCmd) shouldShow(filters []string, state *shared.ContainerInfo) bool {
 	for _, filter := range filters {
 		if strings.Contains(filter, "=") {
 			membs := strings.SplitN(filter, "=", 2)
@@ -149,22 +149,33 @@ func (c *listCmd) shouldShow(filters []string, state *shared.ContainerState) boo
 	return true
 }
 
-func (c *listCmd) listContainers(cinfos []shared.ContainerInfo, filters []string, columns []Column) error {
+func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, filters []string, columns []Column) error {
 	headers := []string{}
 	for _, column := range columns {
 		headers = append(headers, column.Name)
 	}
 
 	data := [][]string{}
-	for _, cinfo := range cinfos {
-		if !c.shouldShow(filters, &cinfo.State) {
+	for _, cInfo := range cinfos {
+		cState, err := d.ContainerState(cInfo.Name)
+		if err != nil {
+			return err
+		}
+
+		cSnapshots, err := d.ListSnapshots(cInfo.Name)
+		if err != nil {
+			return err
+		}
+
+		if !c.shouldShow(filters, &cInfo) {
 			continue
 		}
-		d := []string{}
+
+		col := []string{}
 		for _, column := range columns {
-			d = append(d, column.Data(cinfo))
+			col = append(col, column.Data(cInfo, *cState, cSnapshots))
 		}
-		data = append(data, d)
+		data = append(data, col)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -214,7 +225,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		cts = ctslist
 	} else {
 		for _, cinfo := range ctslist {
-			if len(cinfo.State.Name) >= len(name) && cinfo.State.Name[0:len(name)] == name {
+			if len(cinfo.Name) >= len(name) && cinfo.Name[0:len(name)] == name {
 				cts = append(cts, cinfo)
 			}
 		}
@@ -239,21 +250,21 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		}
 	}
 
-	return c.listContainers(cts, filters, columns)
+	return c.listContainers(d, cts, filters, columns)
 }
 
-func (c *listCmd) nameColumnData(cinfo shared.ContainerInfo) string {
-	return cinfo.State.Name
+func (c *listCmd) nameColumnData(cInfo shared.ContainerInfo, cState shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
+	return cInfo.Name
 }
 
-func (c *listCmd) statusColumnData(cinfo shared.ContainerInfo) string {
-	return strings.ToUpper(cinfo.State.Status.Status)
+func (c *listCmd) statusColumnData(cInfo shared.ContainerInfo, cState shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
+	return strings.ToUpper(cInfo.Status)
 }
 
-func (c *listCmd) IP4ColumnData(cinfo shared.ContainerInfo) string {
-	if cinfo.State.Status.StatusCode == shared.Running || cinfo.State.Status.StatusCode == shared.Frozen {
+func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
+	if cInfo.StatusCode == shared.Running || cInfo.StatusCode == shared.Frozen {
 		ipv4s := []string{}
-		for _, ip := range cinfo.State.Status.Ips {
+		for _, ip := range cState.Ips {
 			if ip.Interface == "lo" {
 				continue
 			}
@@ -268,10 +279,10 @@ func (c *listCmd) IP4ColumnData(cinfo shared.ContainerInfo) string {
 	}
 }
 
-func (c *listCmd) IP6ColumnData(cinfo shared.ContainerInfo) string {
-	if cinfo.State.Status.StatusCode == shared.Running || cinfo.State.Status.StatusCode == shared.Frozen {
+func (c *listCmd) IP6ColumnData(cInfo shared.ContainerInfo, cState shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
+	if cInfo.StatusCode == shared.Running || cInfo.StatusCode == shared.Frozen {
 		ipv6s := []string{}
-		for _, ip := range cinfo.State.Status.Ips {
+		for _, ip := range cState.Ips {
 			if ip.Interface == "lo" {
 				continue
 			}
@@ -286,21 +297,21 @@ func (c *listCmd) IP6ColumnData(cinfo shared.ContainerInfo) string {
 	}
 }
 
-func (c *listCmd) isEphemeralColumnData(cinfo shared.ContainerInfo) string {
-	if cinfo.State.Ephemeral {
+func (c *listCmd) isEphemeralColumnData(cInfo shared.ContainerInfo, cState shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
+	if cInfo.Ephemeral {
 		return i18n.G("YES")
 	} else {
 		return i18n.G("NO")
 	}
 }
 
-func (c *listCmd) numberSnapshotsColumnData(cinfo shared.ContainerInfo) string {
-	return fmt.Sprintf("%d", len(cinfo.Snaps))
+func (c *listCmd) numberSnapshotsColumnData(cInfo shared.ContainerInfo, cState shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
+	return fmt.Sprintf("%d", len(cSnaps))
 }
 
-func (c *listCmd) PIDColumnData(cinfo shared.ContainerInfo) string {
-	if cinfo.State.Status.Init != 0 {
-		return fmt.Sprintf("%d", cinfo.State.Status.Init)
+func (c *listCmd) PIDColumnData(cInfo shared.ContainerInfo, cState shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
+	if cState.Init != 0 {
+		return fmt.Sprintf("%d", cState.Init)
 	} else {
 		return ""
 	}

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/lxc/lxd/shared"
@@ -36,10 +35,11 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 	}
 
 	resultString := []string{}
-	resultMap := shared.ContainerInfoList{}
+	resultList := []*shared.ContainerInfo{}
 	if err != nil {
 		return []string{}, err
 	}
+
 	for _, container := range result {
 		if !recursion {
 			url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
@@ -49,7 +49,7 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 			if response != nil {
 				continue
 			}
-			resultMap = append(resultMap, container)
+			resultList = append(resultList, container)
 		}
 	}
 
@@ -57,34 +57,19 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 		return resultString, nil
 	}
 
-	return resultMap, nil
+	return resultList, nil
 }
 
-func doContainerGet(d *Daemon, cname string) (shared.ContainerInfo, Response) {
+func doContainerGet(d *Daemon, cname string) (*shared.ContainerInfo, Response) {
 	c, err := containerLoadByName(d, cname)
 	if err != nil {
-		return shared.ContainerInfo{}, SmartError(err)
+		return nil, SmartError(err)
 	}
 
-	results, err := dbContainerGetSnapshots(d.db, cname)
+	cts, err := c.Render()
 	if err != nil {
-		return shared.ContainerInfo{}, SmartError(err)
+		return nil, SmartError(err)
 	}
 
-	var body []string
-
-	for _, name := range results {
-		url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, strings.SplitN(name, shared.SnapshotDelimiter, 2)[1])
-		body = append(body, url)
-	}
-
-	cts, err := c.RenderState()
-	if err != nil {
-		return shared.ContainerInfo{}, SmartError(err)
-	}
-
-	containerinfo := shared.ContainerInfo{State: *cts,
-		Snaps: body}
-
-	return containerinfo, nil
+	return cts, nil
 }

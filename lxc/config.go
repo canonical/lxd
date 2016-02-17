@@ -115,7 +115,7 @@ func (c *configCmd) doSet(config *lxd.Config, args []string, unset bool) error {
 	}
 
 	if unset {
-		st, err := d.ContainerStatus(container)
+		st, err := d.ContainerInfo(container)
 		if err != nil {
 			return err
 		}
@@ -335,17 +335,17 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 				return err
 			}
 
-			brief := config.BriefState()
+			brief := config.Brief()
 			data, err = yaml.Marshal(&brief)
 		} else {
-			config, err := d.ContainerStatus(container)
+			config, err := d.ContainerInfo(container)
 			if err != nil {
 				return err
 			}
 
-			brief := config.BriefState()
+			brief := config.Brief()
 			if c.expanded {
-				brief = config.BriefStateExpanded()
+				brief = config.BriefExpanded()
 			}
 			data, err = yaml.Marshal(&brief)
 		}
@@ -373,7 +373,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if container != "" {
-			resp, err := d.ContainerStatus(container)
+			resp, err := d.ContainerInfo(container)
 			if err != nil {
 				return err
 			}
@@ -452,7 +452,7 @@ func (c *configCmd) doContainerConfigEdit(client *lxd.Client, cont string) error
 			return err
 		}
 
-		newdata := shared.BriefContainerState{}
+		newdata := shared.BriefContainerInfo{}
 		err = yaml.Unmarshal(contents, &newdata)
 		if err != nil {
 			return err
@@ -461,12 +461,12 @@ func (c *configCmd) doContainerConfigEdit(client *lxd.Client, cont string) error
 	}
 
 	// Extract the current value
-	config, err := client.ContainerStatus(cont)
+	config, err := client.ContainerInfo(cont)
 	if err != nil {
 		return err
 	}
 
-	brief := config.BriefState()
+	brief := config.Brief()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err
@@ -480,7 +480,7 @@ func (c *configCmd) doContainerConfigEdit(client *lxd.Client, cont string) error
 
 	for {
 		// Parse the text received from the editor
-		newdata := shared.BriefContainerState{}
+		newdata := shared.BriefContainerInfo{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
 			err = client.UpdateContainerConfig(cont, newdata)
@@ -531,7 +531,7 @@ func (c *configCmd) doDaemonConfigEdit(client *lxd.Client) error {
 		return err
 	}
 
-	brief := config.BriefState()
+	brief := config.Brief()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err
@@ -681,7 +681,7 @@ func (c *configCmd) deviceShow(config *lxd.Config, which string, args []string) 
 
 		devices = resp.Devices
 	} else {
-		resp, err := client.ContainerStatus(name)
+		resp, err := client.ContainerInfo(name)
 		if err != nil {
 			return err
 		}

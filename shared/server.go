@@ -28,7 +28,7 @@ type BriefServerState struct {
 	Config map[string]interface{} `json:"config"`
 }
 
-func (c *ServerState) BriefState() BriefServerState {
+func (c *ServerState) Brief() BriefServerState {
 	retstate := BriefServerState{Config: c.Config}
 	return retstate
 }

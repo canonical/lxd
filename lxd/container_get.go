@@ -13,7 +13,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	state, err := c.RenderState()
+	state, err := c.Render()
 	if err != nil {
 		return InternalError(err)
 	}
