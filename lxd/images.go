@@ -990,7 +990,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 	responseStr := []string{}
-	responseMap := []shared.ImageAlias{}
+	responseMap := shared.ImageAliases{}
 	for _, res := range results {
 		name = res[0].(string)
 		if !recursion {
@@ -1024,7 +1024,7 @@ func aliasGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, alias)
 }
 
-func doAliasGet(d *Daemon, name string, isTrustedClient bool) (shared.ImageAlias, error) {
+func doAliasGet(d *Daemon, name string, isTrustedClient bool) (shared.ImageAliasesEntry, error) {
 	q := `SELECT images.fingerprint, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
@@ -1039,10 +1039,10 @@ func doAliasGet(d *Daemon, name string, isTrustedClient bool) (shared.ImageAlias
 	arg2 := []interface{}{&fingerprint, &description}
 	err := dbQueryRowScan(d.db, q, arg1, arg2)
 	if err != nil {
-		return shared.ImageAlias{}, err
+		return shared.ImageAliasesEntry{}, err
 	}
 
-	return shared.ImageAlias{Name: name, Target: fingerprint, Description: description}, nil
+	return shared.ImageAliasesEntry{Name: name, Target: fingerprint, Description: description}, nil
 }
 
 func aliasDelete(d *Daemon, r *http.Request) Response {

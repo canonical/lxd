@@ -960,13 +960,13 @@ func (c *Client) DeleteAlias(alias string) error {
 	return err
 }
 
-func (c *Client) ListAliases() ([]shared.ImageAlias, error) {
+func (c *Client) ListAliases() (shared.ImageAliases, error) {
 	resp, err := c.get("images/aliases?recursion=1")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []shared.ImageAlias
+	var result shared.ImageAliases
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
@@ -1029,7 +1029,7 @@ func (c *Client) GetAlias(alias string) string {
 		return ""
 	}
 
-	var result shared.ImageAlias
+	var result shared.ImageAliasesEntry
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return ""
 	}

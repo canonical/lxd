@@ -124,7 +124,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 		return -1, nil, err
 	}
 
-	aliases := shared.ImageAliases{}
+	aliases := []shared.ImageAlias{}
 	for _, r := range results {
 		name = r[0].(string)
 		desc = r[0].(string)
