@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
-	"path"
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -51,43 +48,30 @@ func networksGet(d *Daemon, r *http.Request) Response {
 var networksCmd = Command{name: "networks", get: networksGet}
 
 type network struct {
-	Name    string   `json:"name"`
-	Type    string   `json:"type"`
-	Members []string `json:"members"`
+	Name   string   `json:"name"`
+	Type   string   `json:"type"`
+	UsedBy []string `json:"used_by"`
 }
 
-func children(iface string) []string {
-	p := path.Join("/sys/class/net", iface, "brif")
+func isOnBridge(c container, bridge string) bool {
+	for _, device := range c.ExpandedDevices() {
+		if device["type"] != "nic" {
+			continue
+		}
 
-	ret, _ := shared.ReadDir(p)
+		if !shared.StringInSlice(device["nictype"], []string{"bridged", "macvlan"}) {
+			continue
+		}
 
-	return ret
-}
+		if device["parent"] == "" {
+			continue
+		}
 
-func isBridge(iface *net.Interface) bool {
-	p := path.Join("/sys/class/net", iface.Name, "bridge")
-	stat, err := os.Stat(p)
-	if err != nil {
-		return false
-	}
-
-	return stat.IsDir()
-}
-
-func isOnBridge(c *lxc.Container, bridge string) bool {
-	kids := children(bridge)
-	for i := 0; i < len(c.ConfigItem("lxc.network")); i++ {
-		interfaceType := c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.type", i))
-		if interfaceType[0] == "veth" {
-			cif := c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.veth.pair", i))[0]
-			for _, kif := range kids {
-				if cif == kif {
-					return true
-				}
-
-			}
+		if device["parent"] == bridge {
+			return true
 		}
 	}
+
 	return false
 }
 
@@ -108,24 +92,35 @@ func doNetworkGet(d *Daemon, name string) (network, error) {
 		return network{}, err
 	}
 
+	// Prepare the response
 	n := network{}
 	n.Name = iface.Name
-	n.Members = make([]string, 0)
+	n.UsedBy = []string{}
 
+	// Look for containers using the interface
+	cts, err := dbContainersList(d.db, cTypeRegular)
+	if err != nil {
+		return network{}, err
+	}
+
+	for _, ct := range cts {
+		c, err := containerLoadByName(d, ct)
+		if err != nil {
+			return network{}, err
+		}
+
+		if isOnBridge(c, n.Name) {
+			n.UsedBy = append(n.UsedBy, fmt.Sprintf("/%s/containers/%s", shared.APIVersion, ct))
+		}
+	}
+
+	// Set the device type as needed
 	if shared.IsLoopback(iface) {
 		n.Type = "loopback"
-	} else if isBridge(iface) {
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
 		n.Type = "bridge"
-		for _, ct := range lxc.ActiveContainerNames(d.lxcpath) {
-			c, err := containerLoadByName(d, ct)
-			if err != nil {
-				return network{}, err
-			}
-
-			if isOnBridge(c.LXContainerGet(), n.Name) {
-				n.Members = append(n.Members, ct)
-			}
-		}
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device", n.Name)) {
+		n.Type = "physical"
 	} else {
 		n.Type = "unknown"
 	}
