@@ -60,28 +60,56 @@ var containerExecCmd = Command{
 	post: containerExecPost,
 }
 
-func containersRestart(d *Daemon) error {
-	containers, err := doContainersGet(d, true)
+type containerAutostartList []container
 
+func (slice containerAutostartList) Len() int {
+	return len(slice)
+}
+
+func (slice containerAutostartList) Less(i, j int) bool {
+	iOrder := slice[i].ExpandedConfig()["boot.autostart.priority"]
+	jOrder := slice[j].ExpandedConfig()["boot.autostart.priority"]
+
+	if iOrder != jOrder {
+		iOrderInt, _ := strconv.Atoi(iOrder)
+		jOrderInt, _ := strconv.Atoi(jOrder)
+		return iOrderInt > jOrderInt
+	}
+
+	return slice[i].Name() < slice[j].Name()
+}
+
+func (slice containerAutostartList) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func containersRestart(d *Daemon) error {
+	result, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return err
 	}
 
-	containerInfo := containers.(shared.ContainerInfoList)
-	sort.Sort(containerInfo)
+	containers := []container{}
 
-	for _, container := range containerInfo {
-		lastState := container.State.Config["volatile.last_state.power"]
+	for _, name := range result {
+		c, err := containerLoadByName(d, name)
+		if err != nil {
+			return err
+		}
 
-		autoStart := container.State.ExpandedConfig["boot.autostart"]
-		autoStartDelay := container.State.ExpandedConfig["boot.autostart.delay"]
+		containers = append(containers, c)
+	}
+
+	sort.Sort(containerAutostartList(containers))
+
+	for _, c := range containers {
+		config := c.ExpandedConfig()
+		lastState := config["volatile.last_state.power"]
+
+		autoStart := config["boot.autostart"]
+		autoStartDelay := config["boot.autostart.delay"]
 
 		if lastState == "RUNNING" || autoStart == "true" {
-			c, err := containerLoadByName(d, container.State.Name)
-			if err != nil {
-				return err
-			}
-
 			if c.IsRunning() {
 				continue
 			}

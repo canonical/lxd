@@ -73,12 +73,12 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 			return c.doDelete(d, name)
 		}
 
-		ct, err := d.ContainerStatus(name)
+		ct, err := d.ContainerInfo(name)
 		if err != nil {
 			return err
 		}
 
-		if ct.Status.StatusCode != 0 && ct.Status.StatusCode != shared.Stopped {
+		if ct.StatusCode != 0 && ct.StatusCode != shared.Stopped {
 			if !c.force {
 				return fmt.Errorf(i18n.G("The container is currently running, stop it first or pass --force."))
 			}

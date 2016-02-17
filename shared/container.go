@@ -1,8 +1,6 @@
 package shared
 
-import (
-	"strconv"
-)
+import ()
 
 type Ip struct {
 	Interface string `json:"interface"`
@@ -11,7 +9,7 @@ type Ip struct {
 	HostVeth  string `json:"host_veth"`
 }
 
-type ContainerStatus struct {
+type ContainerState struct {
 	Status       string     `json:"status"`
 	StatusCode   StatusCode `json:"status_code"`
 	Init         int        `json:"init"`
@@ -24,13 +22,13 @@ type ContainerExecControl struct {
 	Args    map[string]string `json:"args"`
 }
 
-type SnapshotState struct {
+type SnapshotInfo struct {
 	CreationDate int64  `json:"creation_date"`
 	Name         string `json:"name"`
 	Stateful     bool   `json:"stateful"`
 }
 
-type ContainerState struct {
+type ContainerInfo struct {
 	Architecture    int               `json:"architecture"`
 	Config          map[string]string `json:"config"`
 	CreationDate    int64             `json:"creation_date"`
@@ -40,14 +38,15 @@ type ContainerState struct {
 	ExpandedDevices Devices           `json:"expanded_devices"`
 	Name            string            `json:"name"`
 	Profiles        []string          `json:"profiles"`
-	Status          ContainerStatus   `json:"status"`
+	Status          string            `json:"status"`
+	StatusCode      StatusCode        `json:"status_code"`
 }
 
 /*
  * BriefContainerState contains a subset of the fields in
  * ContainerState, namely those which a user may update
  */
-type BriefContainerState struct {
+type BriefContainerInfo struct {
 	Name      string            `json:"name"`
 	Profiles  []string          `json:"profiles"`
 	Config    map[string]string `json:"config"`
@@ -55,8 +54,8 @@ type BriefContainerState struct {
 	Ephemeral bool              `json:"ephemeral"`
 }
 
-func (c *ContainerState) BriefState() BriefContainerState {
-	retstate := BriefContainerState{Name: c.Name,
+func (c *ContainerInfo) Brief() BriefContainerInfo {
+	retstate := BriefContainerInfo{Name: c.Name,
 		Profiles:  c.Profiles,
 		Config:    c.Config,
 		Devices:   c.Devices,
@@ -64,41 +63,13 @@ func (c *ContainerState) BriefState() BriefContainerState {
 	return retstate
 }
 
-func (c *ContainerState) BriefStateExpanded() BriefContainerState {
-	retstate := BriefContainerState{Name: c.Name,
+func (c *ContainerInfo) BriefExpanded() BriefContainerInfo {
+	retstate := BriefContainerInfo{Name: c.Name,
 		Profiles:  c.Profiles,
 		Config:    c.ExpandedConfig,
 		Devices:   c.ExpandedDevices,
 		Ephemeral: c.Ephemeral}
 	return retstate
-}
-
-type ContainerInfo struct {
-	State ContainerState `json:"state"`
-	Snaps []string       `json:"snaps"`
-}
-
-type ContainerInfoList []ContainerInfo
-
-func (slice ContainerInfoList) Len() int {
-	return len(slice)
-}
-
-func (slice ContainerInfoList) Less(i, j int) bool {
-	iOrder := slice[i].State.ExpandedConfig["boot.autostart.priority"]
-	jOrder := slice[j].State.ExpandedConfig["boot.autostart.priority"]
-
-	if iOrder != jOrder {
-		iOrderInt, _ := strconv.Atoi(iOrder)
-		jOrderInt, _ := strconv.Atoi(jOrder)
-		return iOrderInt > jOrderInt
-	}
-
-	return slice[i].State.Name < slice[j].State.Name
-}
-
-func (slice ContainerInfoList) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
 }
 
 type ContainerAction string

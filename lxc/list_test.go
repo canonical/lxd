@@ -21,7 +21,7 @@ func TestDotPrefixMatch(t *testing.T) {
 func TestShouldShow(t *testing.T) {
 	list := listCmd{}
 
-	state := &shared.ContainerState{
+	state := &shared.ContainerInfo{
 		Name: "foo",
 		Config: map[string]string{
 			"security.privileged": "1",
