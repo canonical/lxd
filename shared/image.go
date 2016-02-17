@@ -1,5 +1,9 @@
 package shared
 
+import (
+	"time"
+)
+
 type ImageProperties map[string]string
 
 type ImageAlias struct {
@@ -18,9 +22,9 @@ type ImageInfo struct {
 	Properties   map[string]string `json:"properties"`
 	Public       bool              `json:"public"`
 	Size         int64             `json:"size"`
-	CreationDate int64             `json:"created_at"`
-	ExpiryDate   int64             `json:"expires_at"`
-	UploadDate   int64             `json:"uploaded_at"`
+	CreationDate time.Time         `json:"created_at"`
+	ExpiryDate   time.Time         `json:"expires_at"`
+	UploadDate   time.Time         `json:"uploaded_at"`
 }
 
 /*

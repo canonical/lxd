@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
@@ -581,8 +582,8 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 	}
 
 	info.Architecture, _ = shared.ArchitectureId(imageMeta.Architecture)
-	info.CreationDate = imageMeta.CreationDate
-	info.ExpiryDate = imageMeta.ExpiryDate
+	info.CreationDate = time.Unix(imageMeta.CreationDate, 0)
+	info.ExpiryDate = time.Unix(imageMeta.ExpiryDate, 0)
 
 	info.Properties = imageMeta.Properties
 	if len(propHeaders) > 0 {
@@ -751,14 +752,14 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 		return nil, fmt.Errorf("Could not extract image metadata %s from tar: %v (%s)", metadataName, err, outputLines[0])
 	}
 
-	metadata := new(imageMetadata)
+	metadata := imageMetadata{}
 	err = yaml.Unmarshal(output, &metadata)
 
 	if err != nil {
 		return nil, fmt.Errorf("Could not parse %s: %v", metadataName, err)
 	}
 
-	return metadata, nil
+	return &metadata, nil
 }
 
 func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {

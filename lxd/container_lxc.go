@@ -208,7 +208,7 @@ type containerLXC struct {
 	// Properties
 	architecture int
 	cType        containerType
-	creationDate *time.Time
+	creationDate time.Time
 	ephemeral    bool
 	id           int
 	name         string
@@ -1354,7 +1354,7 @@ func (c *containerLXC) Render() (*shared.ContainerInfo, error) {
 	return &shared.ContainerInfo{
 		Architecture:    c.architecture,
 		Config:          c.localConfig,
-		CreationDate:    c.creationDate.Unix(),
+		CreationDate:    c.creationDate,
 		Devices:         c.localDevices,
 		Ephemeral:       c.ephemeral,
 		ExpandedConfig:  c.expandedConfig,
@@ -3843,7 +3843,7 @@ func (c *containerLXC) Architecture() int {
 	return c.architecture
 }
 
-func (c *containerLXC) CreationDate() *time.Time {
+func (c *containerLXC) CreationDate() time.Time {
 	return c.creationDate
 }
 func (c *containerLXC) ExpandedConfig() map[string]string {
