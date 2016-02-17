@@ -171,6 +171,23 @@ func dbProfileDelete(db *sql.DB, name string) error {
 	return err
 }
 
+func dbProfileUpdate(db *sql.DB, name string, newName string) error {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE profiles SET name=? WHERE name=?", newName, name)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = txCommit(tx)
+
+	return err
+}
+
 func dbProfileConfigClear(tx *sql.Tx, id int64) error {
 	_, err := tx.Exec("DELETE FROM profiles_config WHERE profile_id=?", id)
 	if err != nil {
