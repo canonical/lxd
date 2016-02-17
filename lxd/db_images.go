@@ -154,27 +154,27 @@ func dbImageDelete(db *sql.DB, id int) error {
 	return nil
 }
 
-// Get an image's fingerprint for a given alias name.
-func dbImageAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
-	q := `
-        SELECT
-            fingerprint
-        FROM images AS i JOIN images_aliases AS a
-        ON a.image_id == i.id
-        WHERE name=?`
-
-	inargs := []interface{}{name}
-	outfmt := []interface{}{&fingerprint}
-
-	err = dbQueryRowScan(db, q, inargs, outfmt)
-
-	if err == sql.ErrNoRows {
-		return "", NoSuchObjectError
+func dbImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, shared.ImageAliasesEntry, error) {
+	q := `SELECT images_aliases.id, images.fingerprint, images_aliases.description
+			 FROM images_aliases
+			 INNER JOIN images
+			 ON images_aliases.image_id=images.id
+			 WHERE images_aliases.name=?`
+	if !isTrustedClient {
+		q = q + ` AND images.public=1`
 	}
+
+	var fingerprint, description string
+	id := -1
+
+	arg1 := []interface{}{name}
+	arg2 := []interface{}{&id, &fingerprint, &description}
+	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
-		return "", err
+		return -1, shared.ImageAliasesEntry{}, err
 	}
-	return fingerprint, nil
+
+	return id, shared.ImageAliasesEntry{Name: name, Target: fingerprint, Description: description}, nil
 }
 
 func dbImageAliasDelete(db *sql.DB, name string) error {
@@ -186,6 +186,12 @@ func dbImageAliasDelete(db *sql.DB, name string) error {
 func dbImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
 	stmt := `INSERT INTO images_aliases (name, image_id, description) values (?, ?, ?)`
 	_, err := dbExec(db, stmt, name, imageID, desc)
+	return err
+}
+
+func dbImageAliasUpdate(db *sql.DB, id int, imageID int, desc string) error {
+	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
+	_, err := dbExec(db, stmt, imageID, desc, id)
 	return err
 }
 
