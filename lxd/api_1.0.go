@@ -110,6 +110,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"server_version":      shared.Version}
 
 		body["environment"] = env
+		body["public"] = false
 
 		serverConfig, err := d.ConfigValuesGet()
 		if err != nil {
@@ -129,6 +130,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		body["config"] = config
 	} else {
 		body["auth"] = "untrusted"
+		body["public"] = false
 	}
 
 	return SyncResponse(true, body)
