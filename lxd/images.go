@@ -279,10 +279,12 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq, op *operation) error {
 				return err
 			}
 		} else {
-			hash, err = dbImageAliasGet(d.db, req.Source["alias"])
+			_, alias, err := dbImageAliasGet(d.db, req.Source["alias"], true)
 			if err != nil {
 				return err
 			}
+
+			hash = alias.Target
 		}
 	} else if req.Source["fingerprint"] != "" {
 		hash = req.Source["fingerprint"]
@@ -949,6 +951,11 @@ type aliasPostReq struct {
 	Target      string `json:"target"`
 }
 
+type aliasPutReq struct {
+	Description string `json:"description"`
+	Target      string `json:"target"`
+}
+
 func aliasesPost(d *Daemon, r *http.Request) Response {
 	req := aliasPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -960,7 +967,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// This is just to see if the alias name already exists.
-	_, err := dbImageAliasGet(d.db, req.Name)
+	_, _, err := dbImageAliasGet(d.db, req.Name, true)
 	if err == nil {
 		return Conflict
 	}
@@ -998,7 +1005,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 			responseStr = append(responseStr, url)
 
 		} else {
-			alias, err := doAliasGet(d, name, d.isTrustedClient(r))
+			_, alias, err := dbImageAliasGet(d.db, name, d.isTrustedClient(r))
 			if err != nil {
 				continue
 			}
@@ -1016,7 +1023,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 func aliasGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	alias, err := doAliasGet(d, name, d.isTrustedClient(r))
+	_, alias, err := dbImageAliasGet(d.db, name, d.isTrustedClient(r))
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1024,35 +1031,40 @@ func aliasGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, alias)
 }
 
-func doAliasGet(d *Daemon, name string, isTrustedClient bool) (shared.ImageAliasesEntry, error) {
-	q := `SELECT images.fingerprint, images_aliases.description
-			 FROM images_aliases
-			 INNER JOIN images
-			 ON images_aliases.image_id=images.id
-			 WHERE images_aliases.name=?`
-	if !isTrustedClient {
-		q = q + ` AND images.public=1`
-	}
-
-	var fingerprint, description string
-	arg1 := []interface{}{name}
-	arg2 := []interface{}{&fingerprint, &description}
-	err := dbQueryRowScan(d.db, q, arg1, arg2)
-	if err != nil {
-		return shared.ImageAliasesEntry{}, err
-	}
-
-	return shared.ImageAliasesEntry{Name: name, Target: fingerprint, Description: description}, nil
-}
-
 func aliasDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	_, err := doAliasGet(d, name, true)
+	_, _, err := dbImageAliasGet(d.db, name, true)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	err = dbImageAliasDelete(d.db, name)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
+}
+
+func aliasPut(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+
+	req := aliasPutReq{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	id, _, err := dbImageAliasGet(d.db, name, true)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	imageId, _, err := dbImageGet(d.db, req.Target, false, false)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	err = dbImageAliasUpdate(d.db, id, imageId, req.Description)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1140,4 +1152,4 @@ var imagesSecretCmd = Command{name: "images/{fingerprint}/secret", post: imageSe
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 
-var aliasCmd = Command{name: "images/aliases/{name:.*}", untrustedGet: true, get: aliasGet, delete: aliasDelete}
+var aliasCmd = Command{name: "images/aliases/{name:.*}", untrustedGet: true, get: aliasGet, delete: aliasDelete, put: aliasPut}
