@@ -416,6 +416,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 	if err != nil {
 		return info, err
 	}
+	defer os.Remove(imageTarf.Name())
 
 	if ctype == "multipart/form-data" {
 		// Parse the POST data
@@ -464,6 +465,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		if err != nil {
 			return info, err
 		}
+		defer os.Remove(rootfsTarf.Name())
 
 		size, err = io.Copy(io.MultiWriter(rootfsTarf, sha256), part)
 		info.Size += size
@@ -482,6 +484,14 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
 		if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
 			err = fmt.Errorf("fingerprints don't match, got %s expected %s", info.Fingerprint, expectedFingerprint)
+			return info, err
+		}
+
+		imageMeta, err = getImageMetadata(imageTarf.Name())
+		if err != nil {
+			logger.Error(
+				"Failed to get image metadata",
+				log.Ctx{"err": err})
 			return info, err
 		}
 
@@ -506,14 +516,6 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 					"err":    err,
 					"source": rootfsTarf.Name(),
 					"dest":   imgfname})
-			return info, err
-		}
-
-		imageMeta, err = getImageMetadata(imgfname)
-		if err != nil {
-			logger.Error(
-				"Failed to get image metadata",
-				log.Ctx{"err": err})
 			return info, err
 		}
 	} else {
@@ -546,6 +548,14 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 			return info, err
 		}
 
+		imageMeta, err = getImageMetadata(imageTarf.Name())
+		if err != nil {
+			logger.Error(
+				"Failed to get image metadata",
+				log.Ctx{"err": err})
+			return info, err
+		}
+
 		imgfname := shared.VarPath("images", info.Fingerprint)
 		err = shared.FileMove(imageTarf.Name(), imgfname)
 		if err != nil {
@@ -555,14 +565,6 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 					"err":    err,
 					"source": imageTarf.Name(),
 					"dest":   imgfname})
-			return info, err
-		}
-
-		imageMeta, err = getImageMetadata(imgfname)
-		if err != nil {
-			logger.Error(
-				"Failed to get image metadata",
-				log.Ctx{"err": err})
 			return info, err
 		}
 	}
