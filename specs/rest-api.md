@@ -31,10 +31,10 @@ There are three standard return types:
 For a standard synchronous operation, the following dict is returned:
 
     {
-        'type': "sync",
-        'status': "Success",
-        'status_code': 200,
-        'metadata': {}                          # Extra resource/action specific metadata
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "metadata": {}                          # Extra resource/action specific metadata
     }
 
 HTTP code must be 200.
@@ -46,11 +46,11 @@ and the Location HTTP header is set to the operation URL.
 The body is a dict with the following structure:
 
     {
-        'type': "async",
-        'status': "OK",
-        'status_code': 100,
-        'operation': "/1.0/containers/<id>",                    # URL to the background operation
-        'metadata': {}                                          # Operation metadata (see below)
+        "type": "async",
+        "status": "OK",
+        "status_code": 100,
+        "operation": "/1.0/containers/<id>",                    # URL to the background operation
+        "metadata": {}                                          # Operation metadata (see below)
     }
 
 The operation metadata structure looks like:
@@ -86,10 +86,10 @@ There are various situations in which something may immediately go
 wrong, in those cases, the following return value is used:
 
     {
-        'type': "error",
-        'error': "Failure",
-        'error_code': 400,
-        'metadata': {}                      # More details about the error
+        "type": "error",
+        "error": "Failure",
+        "error_code": 400,
+        "metadata": {}                      # More details about the error
     }
 
 HTTP code must be one of of 400, 401, 403, 404, 409, 412 or 500.
@@ -162,6 +162,9 @@ The default value is 0 which means that collection member URLs are
 returned. Setting it to 1 will have those URLs be replaced by the object
 they point to (typically a dict).
 
+Recursion is implemented by simply replacing any pointer to an job (URL)
+by the object itself.
+
 # API structure
  * /
    * /1.0
@@ -197,7 +200,13 @@ they point to (typically a dict).
  * Description: List of supported APIs
  * Authentication: guest
  * Operation: sync
- * Return: list of supported API endpoint URLs (by default ['/1.0'])
+ * Return: list of supported API endpoint URLs
+
+Return value:
+
+    [
+        "/1.0"
+    ]
 
 ## /1.0/
 ### GET
@@ -209,31 +218,42 @@ they point to (typically a dict).
 Return value (if trusted):
 
     {
-        'auth': "trusted",                              # Authentication state, one of "guest", "untrusted" or "trusted"
-        'public': true,                                 # Whether the server should be treated as a public (read-only) remote by the client
-        'api_compat': 0,                                # Used to determine API functionality
-        'config': {"trust_password": true},             # Host configuration
-        'environment': {                                # Various information about the host (OS, kernel, ...)
-                        'addresses': ["1.2.3.4:8443", "[1234::1234]:8443"],
-                        'architectures': [1, 2],
-                        'certificate': 'PEM certificate',
-                        'driver': "lxc",
-                        'driver_version': "1.0.6",
-                        'kernel': "Linux",
-                        'kernel_architecture': "x86_64",
-                        'kernel_version': "3.16",
-                        'storage': "btrfs",
-                        'storage_version': "3.19",
-                        'server': "lxd",
-                        'server_pid': 10224,
-                        'server_version': "0.8.1"}
+        "api_compat": 1,                                # Used to determine API functionality
+        "auth": "trusted",                              # Authentication state, one of "guest", "untrusted" or "trusted"
+        "config": {                                     # Host configuration
+            "core.trust_password": true,
+            "core.https_address": "[::]:8443"
+        },
+        "environment": {                                # Various information about the host (OS, kernel, ...)
+            "addresses": [
+                "1.2.3.4:8443",
+                "[1234::1234]:8443"
+            ],
+            "architectures": [
+                2,
+                1
+            ],
+            "certificate": "PEM certificate",
+            "driver": "lxc",
+            "driver_version": "1.0.6",
+            "kernel": "Linux",
+            "kernel_architecture": "x86_64",
+            "kernel_version": "3.16",
+            "server": "lxd",
+            "server_pid": 10224,
+            "server_version": "0.8.1"}
+            "storage": "btrfs",
+            "storage_version": "3.19",
+        },
+        "public": false,                                # Whether the server should be treated as a public (read-only) remote by the client
     }
 
 Return value (if guest or untrusted):
 
     {
-        'auth': "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
-        'api_compat': 0,                        # Used to determine API functionality
+        "api_compat": 1,                        # Used to determine API functionality
+        "auth": "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
+        "public": false,                        # Whether the server should be treated as a public (read-only) remote by the client
     }
 
 ### PUT
@@ -242,18 +262,98 @@ Return value (if guest or untrusted):
  * Operation: sync
  * Return: standard return value or standard error
 
+Input (replaces any existing config with the provided one):
+
+    {
+        "config": {
+            "core.trust_password": "my-new-password",
+            "storage.zfs_pool_name": "lxd"
+        }
+    }
+
+## /1.0/certificates
+### GET
+ * Description: list of trusted certificates
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs for trusted certificates
+
+Return:
+
+    [
+        "/1.0/certificates/3ee64be3c3c7d617a7470e14f2d847081ad467c8c26e1caad841c8f67f7c7b09"
+    ]
+
+### POST
+ * Description: add a new trusted certificate
+ * Authentication: trusted or untrusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
 Input:
 
     {
-        'config': {"trust_password": "my-new-password"}
+        "type": "client",                       # Certificate type (keyring), currently only client
+        "certificate": "BASE64",                # If provided, a valid x509 certificate. If not, the client certificate of the connection will be used
+        "name": "foo"                           # An optional name for the certificate. If nothing is provided, the host in the TLS header for the request is used.
+        "password": "server-trust-password"     # The trust password for that server (only required if untrusted)
     }
 
+## /1.0/certificates/\<fingerprint\>
+### GET
+ * Description: trusted certificate information
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing a trusted certificate
+
+Output:
+
+    {
+        "type": "client",
+        "certificate": "PEM certificate"
+        "fingerprint": "SHA256 Hash of the raw certificate"
+    }
+
+### DELETE
+ * Description: Remove a trusted certificate
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+    {
+    }
+
+HTTP code for this should be 202 (Accepted).
+
+# Async operations
+Any operation which may take more than a second to be done must be done
+in the background, returning a background operation ID to the client.
+
+The client will then be able to either poll for a status update or wait
+for a notification using the long-poll API.
+
+# Notifications
+A long-poll API is available for notifications, different notification
+types exist to limit the traffic going to the client.
+
+It's recommend that the client always subscribes to the operations
+notification type before triggering remote operations so that it doesn't
+have to then poll for their status.
 ## /1.0/containers
 ### GET
  * Description: List of containers
  * Authentication: trusted
  * Operation: sync
  * Return: list of URLs for containers this server publishes
+
+Return value:
+
+    [
+        "/1.0/containers/blah",
+        "/1.0/containers/blah1"
+    ]
 
 ### POST
  * Description: Create a new container
@@ -264,114 +364,114 @@ Input:
 Input (container based on a local image with the "ubuntu/devel" alias):
 
     {
-        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': 2,
-        'profiles': ["default"],                                            # List of profiles
-        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
-        'config': {'limits.cpu': "2"},                                      # Config override.
-        'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
-                   'alias': "ubuntu/devel"},                                # Name of the alias
+        "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        "architecture": 2,
+        "profiles": ["default"],                                            # List of profiles
+        "ephemeral": true,                                                  # Whether to destroy the container on shutdown
+        "config": {"limits.cpu": "2"},                                      # Config override.
+        "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
+                   "alias": "ubuntu/devel"},                                # Name of the alias
     }
 
 Input (container based on a local image identified by its fingerprint):
 
     {
-        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': 2,
-        'profiles': ["default"],                                            # List of profiles
-        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
-        'config': {'limits.cpu': "2"},                                      # Config override.
-        'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
-                   'fingerprint': "SHA-256"},                               # Fingerprint
+        "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        "architecture": 2,
+        "profiles": ["default"],                                            # List of profiles
+        "ephemeral": true,                                                  # Whether to destroy the container on shutdown
+        "config": {"limits.cpu": "2"},                                      # Config override.
+        "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
+                   "fingerprint": "SHA-256"},                               # Fingerprint
     }
 
 Input (container based on most recent match based on image properties):
 
     {
-        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': 2,
-        'profiles': ["default"],                                            # List of profiles
-        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
-        'config': {'limits.cpu': "2"},                                      # Config override.
-        'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
-                   'properties': {                                          # Properties
-                        'os': "ubuntu",
-                        'release': "14.04",
-                        'architecture': "x86_64"
+        "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        "architecture": 2,
+        "profiles": ["default"],                                            # List of profiles
+        "ephemeral": true,                                                  # Whether to destroy the container on shutdown
+        "config": {"limits.cpu": "2"},                                      # Config override.
+        "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
+                   "properties": {                                          # Properties
+                        "os": "ubuntu",
+                        "release": "14.04",
+                        "architecture": "x86_64"
                     }},
     }
 
 Input (container without a pre-populated rootfs, useful when attaching to an existing one):
 
     {
-        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': 2,
-        'profiles': ["default"],                                            # List of profiles
-        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
-        'config': {'limits.cpu': "2"},                                      # Config override.
-        'source': {'type': "none"},                                         # Can be: "image", "migration", "copy" or "none"
+        "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        "architecture": 2,
+        "profiles": ["default"],                                            # List of profiles
+        "ephemeral": true,                                                  # Whether to destroy the container on shutdown
+        "config": {"limits.cpu": "2"},                                      # Config override.
+        "source": {"type": "none"},                                         # Can be: "image", "migration", "copy" or "none"
     }
 
 Input (using a public remote image):
 
     {
-        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': 2,
-        'profiles': ["default"],                                            # List of profiles
-        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
-        'config': {'limits.cpu': "2"},                                      # Config override.
-        'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
-                   'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
-                   'server': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
-                   'certificate': "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
-                   'alias': "ubuntu/devel"},                                # Name of the alias
+        "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        "architecture": 2,
+        "profiles": ["default"],                                            # List of profiles
+        "ephemeral": true,                                                  # Whether to destroy the container on shutdown
+        "config": {"limits.cpu": "2"},                                      # Config override.
+        "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
+                   "mode": "pull",                                          # One of "local" (default) or "pull"
+                   "server": "https://10.0.2.3:8443",                       # Remote server (pull mode only)
+                   "certificate": "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
+                   "alias": "ubuntu/devel"},                                # Name of the alias
     }
 
 
 Input (using a private remote image after having obtained a secret for that image):
 
     {
-        'name': "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': 2,
-        'profiles': ["default"],                                            # List of profiles
-        'ephemeral': true,                                                  # Whether to destroy the container on shutdown
-        'config': {'limits.cpu': "2"},                                      # Config override.
-        'source': {'type': "image",                                         # Can be: "image", "migration", "copy" or "none"
-                   'mode': "pull",                                          # One of "local" (default), "pull" or "receive"
-                   'server': "https://10.0.2.3:8443",                       # Remote server (pull mode only)
-                   'secret': "my-secret-string",                            # Secret to use to retrieve the image (pull mode only)
-                   'certificate': "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
-                   'alias': "ubuntu/devel"},                                # Name of the alias
+        "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
+        "architecture": 2,
+        "profiles": ["default"],                                            # List of profiles
+        "ephemeral": true,                                                  # Whether to destroy the container on shutdown
+        "config": {"limits.cpu": "2"},                                      # Config override.
+        "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
+                   "mode": "pull",                                          # One of "local" (default) or "pull"
+                   "server": "https://10.0.2.3:8443",                       # Remote server (pull mode only)
+                   "secret": "my-secret-string",                            # Secret to use to retrieve the image (pull mode only)
+                   "certificate": "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
+                   "alias": "ubuntu/devel"},                                # Name of the alias
     }
 
 Input (using a remote container, sent over the migration websocket):
 
     {
-        'name': "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': 2,
-        'profiles': ["default"],                                                        # List of profiles
-        'ephemeral': true,                                                              # Whether to destroy the container on shutdown
-        'config': {'limits.cpu': "2"},                                                  # Config override.
-        'source': {'type': "migration",                                                 # Can be: "image", "migration", "copy" or "none"
-                   'mode': "pull",                                                      # One of "pull" or "receive"
-                   'operation': "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
-                   'certificate': "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
-                   'base-image': "<some hash>"                                          # Optional, the base image the container was created from
-                   'secrets': {'control': "my-secret-string",                           # Secrets to use when talking to the migration source
-                               'criu':    "my-other-secret",
-                               'fs':      "my third secret"},
+        "name": "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
+        "architecture": 2,
+        "profiles": ["default"],                                                        # List of profiles
+        "ephemeral": true,                                                              # Whether to destroy the container on shutdown
+        "config": {"limits.cpu": "2"},                                                  # Config override.
+        "source": {"type": "migration",                                                 # Can be: "image", "migration", "copy" or "none"
+                   "mode": "pull",                                                      # Only "pull" is supported for now
+                   "operation": "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
+                   "certificate": "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
+                   "base-image": "<some hash>"                                          # Optional, the base image the container was created from
+                   "secrets": {"control": "my-secret-string",                           # Secrets to use when talking to the migration source
+                               "criu":    "my-other-secret",
+                               "fs":      "my third secret"},
     }
 
 Input (using a local container):
 
     {
-        'name': "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
-        'architecture': 2,
-        'profiles': ["default"],                                                        # List of profiles
-        'ephemeral': true,                                                              # Whether to destroy the container on shutdown
-        'config': {'limits.cpu': "2"},                                                  # Config override.
-        'source': {'type': "copy",                                                      # Can be: "image", "migration", "copy" or "none"
-                   'source': "my-old-container"}                                        # Name of the source container
+        "name": "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
+        "architecture": 2,
+        "profiles": ["default"],                                                        # List of profiles
+        "ephemeral": true,                                                              # Whether to destroy the container on shutdown
+        "config": {"limits.cpu": "2"},                                                  # Config override.
+        "source": {"type": "copy",                                                      # Can be: "image", "migration", "copy" or "none"
+                   "source": "my-old-container"}                                        # Name of the source container
     }
 
 
@@ -385,45 +485,43 @@ Input (using a local container):
 Output:
 
     {
-        'name': "my-container",
-        'profiles': ["default"],
-        'architecture': 2,
-        'config': {"limits.cpu": "3"},
-        'ephemeral': false,
-        'creation_date': 1455136027,
-        'expanded_config': {"limits.cpu": "3"}  # the result of expanding profiles and adding the container's local config
-        'devices': {
-            'rootfs': {
-                'type': "disk",
-                'path': "/",
-                'source': "UUID=8f7fdf5e-dc60-4524-b9fe-634f82ac2fb6"
+        "architecture": 2,
+        "config": {
+            "limits.cpu": "3",
+            "volatile.base_image": "97d97a3d1d053840ca19c86cdd0596cf1be060c5157d31407f2a4f9f350c78cc",
+            "volatile.eth0.hwaddr": "00:16:3e:1c:94:38"
+        },
+        "created_at": "2016-02-16T01:05:05Z",
+        "devices": {
+            "rootfs": {
+                "path": "/",
+                "type": "disk"
             }
         },
-        'expanded_devices': {  # the result of expanding profiles and adding the container's local devices
-            'rootfs': {
-                'type': "disk",
-                'path': "/",
-                'source': "UUID=8f7fdf5e-dc60-4524-b9fe-634f82ac2fb6"}
-            },
+        "ephemeral": false,
+        "expanded_config": {    # the result of expanding profiles and adding the container's local config
+            "limits.cpu": "3",
+            "volatile.base_image": "97d97a3d1d053840ca19c86cdd0596cf1be060c5157d31407f2a4f9f350c78cc",
+            "volatile.eth0.hwaddr": "00:16:3e:1c:94:38"
+        },
+        "expanded_devices": {   # the result of expanding profiles and adding the container's local devices
             "eth0": {
-                "type": "nic"
-                "parent": "lxcbr0",
-                "hwaddr": "00:16:3e:f4:e7:1c",
                 "name": "eth0",
                 "nictype": "bridged",
+                "parent": "lxcbr0",
+                "type": "nic"
+            },
+            "root": {
+                "path": "/",
+                "type": "disk"
             }
         },
-        'status': {
-                    'status': "Running",
-                    'status_code': 103,
-                    'ips': [{'interface': "eth0",
-                             'protocol': "INET6",
-                             'address': "2001:470:b368:1020:1::2",
-                             'host_veth': "vethGMDIY9"},
-                            {'interface': "eth0",
-                             'protocol': "INET",
-                             'address': "172.16.15.30",
-                             'host_veth': "vethGMDIY9"}]},
+        "name": "my-container",
+        "profiles": [
+            "default"
+        ],
+        "status": "Running",
+        "status_code": 103
     }
 
 
@@ -435,6 +533,26 @@ Output:
 
 Input (update container configuration):
 
+    {
+        "architecture": 2,
+        "config": {
+            "limits.cpu": "4",
+            "volatile.base_image": "97d97a3d1d053840ca19c86cdd0596cf1be060c5157d31407f2a4f9f350c78cc",
+            "volatile.eth0.hwaddr": "00:16:3e:1c:94:38"
+        },
+        "devices": {
+            "rootfs": {
+                "path": "/",
+                "type": "disk"
+            }
+        },
+        "ephemeral": true,
+        "profiles": [
+            "default"
+        ]
+    }
+
+
 Takes the same structure as that returned by GET but doesn't allow name
 changes (see POST below) or changes to the status sub-dict (since that's
 read-only).
@@ -442,7 +560,7 @@ read-only).
 Input (restore snapshot):
 
     {
-        'restore': "snapshot-name"
+        "restore": "snapshot-name"
     }
 
 ### POST
@@ -456,12 +574,12 @@ Renaming to an existing name must return the 409 (Conflict) HTTP code.
 Input (simple rename):
 
     {
-        'name': "new-name"
+        "name": "new-name"
     }
 
 Input (migration across lxd instances):
     {
-        "migration": true,
+        "migration": true
     }
 
 The migration does not actually start until someone (i.e. another lxd instance)
@@ -470,9 +588,9 @@ connects to all the websockets and begins negotiation with the source.
 Output in metadata section (for migration):
 
     {
-        "control": "secret1",
-        "criu": "secret2",
-        "fs": "secret3",
+        "control": "secret1",       # Migration control socket
+        "criu": "secret2",          # State transfer socket (only if live migrating)
+        "fs": "secret3"             # Filesystem transfer socket
     }
 
 These are the secrets that should be passed to the create call.
@@ -498,8 +616,36 @@ HTTP code for this should be 202 (Accepted).
  * Return: dict representing current state
 
     {
-        'status': "Running",
-        'status_code': 103
+        "status": "Running",
+        "status_code": 103,
+        "init": 16126,
+        "processcount": 7,
+        "ips": [
+            {
+                "interface": "eth0",
+                "protocol": "IPV4",
+                "address": "172.17.0.242",
+                "host_veth": ""
+            },
+            {
+                "interface": "eth0",
+                "protocol": "IPV6",
+                "address": "2607:f2c0:f00f:2700:216:3eff:fe1c:9438",
+                "host_veth": ""
+            },
+            {
+                "interface": "lo",
+                "protocol": "IPV4",
+                "address": "127.0.0.1",
+                "host_veth": ""
+            },
+            {
+                "interface": "lo",
+                "protocol": "IPV6",
+                "address": "::1",
+                "host_veth": ""
+            }
+        ]
     }
 
 ### PUT
@@ -511,9 +657,9 @@ HTTP code for this should be 202 (Accepted).
 Input:
 
     {
-        'action': "stop",       # State change action (stop, start, restart, freeze or unfreeze)
-        'timeout': 30,          # A timeout after which the state change is considered as failed
-        'force': true           # Force the state change (currently only valid for stop and restart where it means killing the container)
+        "action": "stop",       # State change action (stop, start, restart, freeze or unfreeze)
+        "timeout": 30,          # A timeout after which the state change is considered as failed
+        "force": true           # Force the state change (currently only valid for stop and restart where it means killing the container)
     }
 
 ## /1.0/containers/\<name\>/files
@@ -529,7 +675,7 @@ The following headers will be set (on top of standard size and mimetype headers)
  * X-LXD-mode: 0700
 
 This is designed to be easily usable from the command line or even a web
-browser. This is only supported for currently running containers.
+browser.
 
 ### POST (?path=/path/inside/the/container)
  * Description: upload a file to the container
@@ -546,7 +692,7 @@ The following headers may be set by the client:
  * X-LXD-mode: 0700
 
 This is designed to be easily usable from the command line or even a web
-browser. This is only supported for currently running containers.
+browser.
 
 ## /1.0/containers/\<name\>/snapshots
 ### GET
@@ -554,6 +700,12 @@ browser. This is only supported for currently running containers.
  * Authentication: trusted
  * Operation: sync
  * Return: list of URLs for snapshots for this container
+
+Return value:
+
+    [
+        "/1.0/containers/blah/snapshots/snap0"
+    ]
 
 ### POST
  * Description: create a new snapshot
@@ -564,8 +716,8 @@ browser. This is only supported for currently running containers.
 Input:
 
     {
-        'name': "my-snapshot",          # Name of the snapshot
-        'stateful': true                # Whether to include state too
+        "name": "my-snapshot",          # Name of the snapshot
+        "stateful": true                # Whether to include state too
     }
 
 ## /1.0/containers/\<name\>/snapshots/\<name\>
@@ -578,9 +730,9 @@ Input:
 Return:
 
     {
-        'creation_date': 1455139453,
-        'name': "my-snapshot",
-        'stateful': true
+        "created_at": "2016-02-16T01:05:05Z",
+        "name": "my-snapshot",
+        "stateful": true
     }
 
 ### POST
@@ -589,16 +741,23 @@ Return:
  * Operation: async
  * Return: background operation or standard error
 
-Input:
+Input (rename the snapshot):
 
     {
-        'name': "new-name"
+        "name": "new-name"
     }
 
-Input (copy snapshot across lxd instances):
+Input (setup the migration source):
 
     {
         "migration": true,
+    }
+
+Return (with migration=true):
+
+    {
+        "control": "secret1",       # Migration control socket
+        "fs": "secret3"             # Filesystem transfer socket
     }
 
 Renaming to an existing name must return the 409 (Conflict) HTTP code.
@@ -626,22 +785,15 @@ HTTP code for this should be 202 (Accepted).
 Input (run bash):
 
     {
-        'command': ["/bin/bash"],       # Command and arguments
-        'environment': {},              # Optional extra environment variables to set
-        'wait-for-websocket': false,    # Whether to wait for a connection before starting the process
-        'interactive': true             # Whether to allocate a pts device instead of PIPEs
+        "command": ["/bin/bash"],       # Command and arguments
+        "environment": {},              # Optional extra environment variables to set
+        "wait-for-websocket": false,    # Whether to wait for a connection before starting the process
+        "interactive": true             # Whether to allocate a pts device instead of PIPEs
     }
 
 `wait-for-websocket` indicates whether the operation should block and wait for
 a websocket connection to start (so that users can pass stdin and read
 stdout), or simply run to completion with /dev/null as stdin and stdout.
-
-When the exec command finishes, its exit status is available from the
-operation's metadata:
-
-    {
-        'return': 0
-    }
 
 If interactive is set to true, a single websocket is returned and is mapped to a
 pts device for stdin, stdout and stderr of the execed process.
@@ -653,20 +805,32 @@ Depending on the state of the interactive flag, one or three different
 websocket/secret pairs will be returned, which are valid for connecting to this
 operations /websocket endpoint.
 
-Response metadata (interactive=true); the output of the pty is mirrored over
-this websocket:
+Return (with wait-for-websocket=true and interactive=false):
 
     {
-        "-1": "secret"
+        "fds": {
+            "0": "f5b6c760c0aa37a6430dd2a00c456430282d89f6e1661a077a926ed1bf3d1c21",
+            "1": "464dcf9f8fdce29d0d6478284523a9f26f4a31ae365d94cd38bac41558b797cf",
+            "2": "25b70415b686360e3b03131e33d6d94ee85a7f19b0f8d141d6dca5a1fc7b00eb",
+            "control": "20c479d9532ab6d6c3060f6cdca07c1f177647c9d96f0c143ab61874160bd8a5"
+        }
     }
 
-Response metadata (interactive=false); each of the process' fds are hooked up
-to these (i.e. you can only write to 0, and read from 1 and 2):
+Return (with wait-for-websocket=true and interactive=true):
 
     {
-        "0": "secret0",
-        "1": "secret1",
-        "2": "secret2",
+        "fds": {
+            "0": "f5b6c760c0aa37a6430dd2a00c456430282d89f6e1661a077a926ed1bf3d1c21",
+            "control": "20c479d9532ab6d6c3060f6cdca07c1f177647c9d96f0c143ab61874160bd8a5"
+        }
+    }
+
+
+When the exec command finishes, its exit status is available from the
+operation's metadata:
+
+    {
+        "return": 0
     }
 
 ## /1.0/containers/\<name\>/logs
@@ -681,8 +845,9 @@ to these (i.e. you can only write to 0, and read from 1 and 2):
 Return:
 
     [
-        'lxc.log',
-        'migration_dump_2015-03-31T14:30:59Z.log'
+        "/1.0/containers/blah/logs/forkstart.log",
+        "/1.0/containers/blah/logs/lxc.conf",
+        "/1.0/containers/blah/logs/lxc.log"
     ]
 
 ## /1.0/containers/\<name\>/logs/\<logfile\>
@@ -713,33 +878,47 @@ Supported arguments are:
  * type: comma separated list of notifications to subscribe to (defaults to all)
 
 The notification types are:
- * operation
- * logging
+ * operation (notification about creation, updates and termination of all background operations)
+ * logging (every log entry from the server)
 
 This never returns. Each notification is sent as a separate JSON dict:
 
     {
-        'timestamp': "2015-06-09T19:07:24.379615253-06:00",                # Current timestamp
-        'type': "operation",                                               # Notification type
-        'metadata': {}                                                     # Extra resource or type specific metadata
+        "timestamp": "2015-06-09T19:07:24.379615253-06:00",                # Current timestamp
+        "type": "operation",                                               # Notification type
+        "metadata": {}                                                     # Extra resource or type specific metadata
     }
 
     {
-        'timestamp': "2015-06-09T19:07:24.379615253-06:00",
-        'type': "logging",
-        'metadata' {'message': "Service started"}
+        "timestamp": "2016-02-17T11:44:28.572721913-05:00",
+        "type": "logging",
+        "metadata": {
+            "context": {
+                "ip": "@",
+                "method": "GET"
+                "url": "/1.0/containers/xen/snapshots",
+            },
+            "level": "info",
+            "message": "handling"
+        }
     }
 
 
 ## /1.0/images
-### GET (?key=value&key1=value1...)
+### GET
  * Description: list of images (public or private)
  * Authentication: guest or trusted
  * Operation: sync
  * Return: list of URLs for images this server publishes
 
-Filtering can be done by specifying a list of key and values in the
-query URL.
+Return:
+
+    [
+        "/1.0/images/54c8caac1f61901ed86c68f24af5f5d3672bdc62c71d04f06df3a59e95684473",
+        "/1.0/images/97d97a3d1d053840ca19c86cdd0596cf1be060c5157d31407f2a4f9f350c78cc",
+        "/1.0/images/a49d26ce5808075f5175bf31f5cb90561f5023dcd408da8ac5e834096d46b2d8",
+        "/1.0/images/c9b6e738fae75286d52f497415463a8ecc61bbcb046536f220d797b0e500a41f"
+    ]
 
 ### POST
  * Description: create and publish a new image
@@ -759,42 +938,50 @@ In the http file upload case, The following headers may be set by the client:
  * X-LXD-public: true/false (defaults to false)
  * X-LXD-properties: URL-encoded key value pairs without duplicate keys (optional properties)
 
-In the source image case, the following dict must be passed:
+In the source image case, the following dict must be used:
 
     {
-        "public": true,                         # true or false
+        "filename": filename,                   # Used for export (optional)
+        "public": true,                         # Whether the image can be downloaded by untrusted users (defaults to false
+        "properties": {                         # Image properties (optional, applied on top of source properties)
+            "os": "Ubuntu"
+        },
         "source": {
             "type": "image",
-            "mode": "pull",                     # One of "pull" or "receive"
+            "mode": "pull",                     # Only pull is supported for now
             "server": "https://10.0.2.3:8443",  # Remote server (pull mode only)
             "secret": "my-secret-string",       # Secret (pull mode only, private images only)
-            'certificate': "PEM certificate",   # Optional PEM certificate. If not mentioned, system CA is used.
+            "certificate": "PEM certificate",   # Optional PEM certificate. If not mentioned, system CA is used.
             "fingerprint": "SHA256",            # Fingerprint of the image (must be set if alias isn't)
             "alias": "ubuntu/devel",            # Name of the alias (must be set if fingerprint isn't)
         }
     }
 
-In the source container case, the following dict must be passed:
+In the source container case, the following dict must be used:
 
     {
-        "public":   true,         # true or false
-        "filename": filename,     # Used for export
+        "filename": filename,     # Used for export (optional)
+        "public":   true,         # Whether the image can be downloaded by untrusted users  (defaults to false)
+        "properties": {           # Image properties (optional)
+            "os": "Ubuntu"
+        },
         "source": {
             "type": "container",  # One of "container" or "snapshot"
             "name": "abc"
-        },
-        "properties": {           # Image properties
-            "os": "Ubuntu",
         }
     }
 
-In the remote image URL case, the following dict must be passed:
+In the remote image URL case, the following dict must be used:
 
     {
-        "public": true,                                    # true or false
+        "filename": filename,                           # Used for export (optional)
+        "public":   true,                               # Whether the image can be downloaded by untrusted users  (defaults to false)
+        "properties": {                                 # Image properties (optional)
+            "os": "Ubuntu"
+        },
         "source": {
             "type": "url",
-            "url": "https://www.some-server.com/image"     # URL for the image
+            "url": "https://www.some-server.com/image"  # URL for the image
         }
     }
 
@@ -804,7 +991,7 @@ which will add the image to the store and possibly do some backend
 filesystem-specific optimizations.
 
 ## /1.0/images/\<fingerprint\>
-### GET (optional secret=SECRET)
+### GET (optional ?secret=SECRET)
  * Description: Image description and metadata
  * Authentication: guest or trusted
  * Operation: sync
@@ -813,18 +1000,26 @@ filesystem-specific optimizations.
 Output:
 
     {
-        'aliases': ['alias1', ...],
-        'architecture': 2,
-        'fingerprint': "a3625aeada09576673620d1d048eed7ac101c4c2409f527a1f77e237fa280e32",
-        'filename': "busybox-amd64.tar.xz",
-        'properties': {
-            'key': 'value'
+        "aliases": [
+            {
+                "name": "trusty",
+                "description": "",
+            }
+        ],
+        "architecture": 2,
+        "fingerprint": "54c8caac1f61901ed86c68f24af5f5d3672bdc62c71d04f06df3a59e95684473",
+        "filename": "ubuntu-trusty-14.04-amd64-server-20160201.tar.xz",
+        "properties": {
+            "architecture": "x86_64",
+            "description": "Ubuntu 14.04 LTS server (20160201)",
+            "os": "ubuntu",
+            "release": "trusty"
         },
-        'public': true,
-        'size': 11031704,
-        'created_at': "2015-06-09T19:07:24.379615253-06:00",
-        'expires_at': "2015-06-19T19:07:24.379615253-06:00",
-        'uploaded_at': "2015-06-09T19:07:24.379615253-06:00"
+        "public": false,
+        "size": 123792592,
+        "created_at": "2016-02-01T21:07:41Z",
+        "expires_at": "1970-01-01T00:00:00Z",
+        "uploaded_at": "2016-02-16T00:44:47Z"
     }
 
 ### DELETE
@@ -849,15 +1044,17 @@ HTTP code for this should be 202 (Accepted).
 Input:
 
     {
-        'properties': {
-            'architecture': "x86_64",
-            'description': "Some description"
+        "properties": {
+            "architecture": "x86_64",
+            "description": "Ubuntu 14.04 LTS server (20160201)",
+            "os": "ubuntu",
+            "release": "trusty"
         },
-        'public': false
+        "public": true,
     }
 
 ## /1.0/images/\<fingerprint\>/export
-### GET (optional secret=SECRET)
+### GET (optional ?secret=SECRET)
  * Description: Download the image tarball
  * Authentication: guest or trusted
  * Operation: sync
@@ -884,12 +1081,18 @@ Input:
     {
     }
 
-Output:
+Return:
+
+    {
+        "secret": "52e9ec5885562aa24d05d7b4846ebb8b5f1f7bf5cd6e285639b569d9eaf54c9b"
+    }
 
 Standard backround operation with "secret" set to the generated secret
 string in metadata.
 
-The operation should be DELETEd once the secret is no longer in use.
+The secret is automatically invalidated 5s after an image URL using it
+has been accessed. This allows to both retried the image information and
+then hit /export with the same secret.
 
 ## /1.0/images/aliases
 ### GET
@@ -897,6 +1100,14 @@ The operation should be DELETEd once the secret is no longer in use.
  * Authentication: guest or trusted
  * Operation: sync
  * Return: list of URLs for aliases this server knows about
+
+Return:
+
+    [
+        "/1.0/images/aliases/sl6",
+        "/1.0/images/aliases/trusty",
+        "/1.0/images/aliases/xenial"
+    ]
 
 ### POST
  * Description: create a new alias
@@ -907,9 +1118,9 @@ The operation should be DELETEd once the secret is no longer in use.
 Input:
 
     {
-        'description': "The alias description",
-        'target': "SHA-256",
-        'name': "alias-name"
+        "description": "The alias description",
+        "target": "SHA-256",
+        "name": "alias-name"
     }
 
 ## /1.0/images/aliases/\<name\>
@@ -921,8 +1132,9 @@ Input:
 
 Output:
     {
-        'description': "The alias description",
-        'target': "SHA-256"
+        "name": "test",
+        "description": "my description",
+        "target": "c9b6e738fae75286d52f497415463a8ecc61bbcb046536f220d797b0e500a41f"
     }
 
 ### PUT
@@ -934,8 +1146,8 @@ Output:
 Input:
 
     {
-        'description': "New description",
-        'target': "SHA-256"
+        "description": "New description",
+        "target": "54c8caac1f61901ed86c68f24af5f5d3672bdc62c71d04f06df3a59e95684473"
     }
 
 ### POST
@@ -947,7 +1159,7 @@ Input:
 Input:
 
     {
-        'name': "new-name"
+        "name": "new-name"
     }
 
 Renaming to an existing name must return the 409 (Conflict) HTTP code.
@@ -971,7 +1183,7 @@ Input (none at present):
  * Return: list of URLs for networks that are current defined on the host
 
     [
-        "/1.0/networks/eth0",
+        "/1.0/networks/eth0",,
         "/1.0/networks/lxcbr0"
     ]
 
@@ -983,9 +1195,11 @@ Input (none at present):
  * Return: dict representing a network
 
     {
-        'name': "lxcbr0",
-        'type': "bridge",
-        'members': ["/1.0/containers/blah"]
+        "name": "lxcbr0",
+        "type": "bridge",
+        "used_by": [
+            "/1.0/containers/blah"
+        ]
     }
 
 ## /1.0/operations
@@ -1010,12 +1224,22 @@ Input (none at present):
 Return:
 
     {
-        'created_at': "2015-06-09T19:07:24.379615253-06:00", # Creation timestamp
-        'updated_at': "2015-06-09T19:07:24.379615253-06:00", # Last update timestamp
-        'status': "Running",
-        'status_code': 103,
-        'metadata': {},                                      # Extra information about the operation (action, target, ...)
-        'may_cancel': true                                   # Whether it's possible to cancel the operation
+        "id": "b8d84888-1dc2-44fd-b386-7f679e171ba5",
+        "class": "token",                                                                       # One of "task" (background task), "websocket" (set of websockets and crendentials) or "token" (temporary credentials)
+        "created_at": "2016-02-17T16:59:27.237628195-05:00",                                    # Creation timestamp
+        "updated_at": "2016-02-17T16:59:27.237628195-05:00",                                    # Last update timestamp
+        "status": "Running",
+        "status_code": 103,
+        "resources": {                                                                          # List of affected resources
+            "images": [
+                "/1.0/images/54c8caac1f61901ed86c68f24af5f5d3672bdc62c71d04f06df3a59e95684473"
+            ]
+        },
+        "metadata": {                                                                           # Extra information about the operation (action, target, ...)
+            "secret": "c9209bee6df99315be1660dd215acde4aec89b8e5336039712fc11008d918b0d"
+        },
+        "may_cancel": true,                                                                     # Whether it's possible to cancel the operation (DELETE)
+        "err": ""
     }
 
 ### DELETE
@@ -1032,18 +1256,18 @@ Input (none at present):
 HTTP code for this should be 202 (Accepted).
 
 ## /1.0/operations/\<uuid\>/wait
-### GET (?status\_code=200&timeout=30)
+### GET (optional ?timeout=30)
  * Description: Wait for an operation to finish
  * Authentication: trusted
  * Operation: sync
- * Return: dict of the operation after its reach its final state
+ * Return: dict of the operation after it's reached its final state
 
 Input (wait indefinitely for a final state): no argument
 
-Input (similar by times out after 30s): ?timeout=30
+Input (similar but times out after 30s): ?timeout=30
 
 ## /1.0/operations/\<uuid\>/websocket
-### GET (?secret=...)
+### GET (?secret=SECRET)
  * Description: This connection is upgraded into a websocket connection
    speaking the protocol defined by the operation type. For example, in the
    case of an exec operation, the websocket is the bidirectional pipe for
@@ -1063,6 +1287,13 @@ Input (similar by times out after 30s): ?timeout=30
  * Operation: sync
  * Return: list of URLs to defined profiles
 
+Return:
+
+    [
+        "/1.0/profiles/default"
+    ]
+
+
 ### POST
  * Description: define a new profile
  * Authentication: trusted
@@ -1072,9 +1303,16 @@ Input (similar by times out after 30s): ?timeout=30
 Input:
 
     {
-        'name': "my-profile'name",
-        'config': {"limits.memory": "2GB"},
-                   "network.0.bridge": "lxcbr0"}
+        "name": "my-profilename",
+        "config": {
+            "limits.memory": "2GB"
+        },
+        "devices": {
+            "kvm": {
+                "type": "unix-char",
+                "path": "/dev/kvm"
+            }
+        }
     }
 
 ## /1.0/profiles/\<name\>
@@ -1087,9 +1325,16 @@ Input:
 Output:
 
     {
-        'name': "my-profile'name",
-        'config': {"limits.memory": "2GB"},
-                   "network.0.bridge": "lxcbr0"}
+        "name": "test",
+        "config": {
+            "limits.memory": "2GB"
+        },
+        "devices": {
+            "kvm": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            }
+        }
     }
 
 ### PUT
@@ -1099,6 +1344,18 @@ Output:
  * Return: standard return value or standard error
 
 Input:
+
+    {
+        "config": {
+            "limits.memory": "4GB"
+        },
+        "devices": {
+            "kvm": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            }
+        }
+    }
 
 Same dict as used for initial creation and coming from GET. The name
 property can't be changed (see POST for that).
@@ -1113,7 +1370,7 @@ property can't be changed (see POST for that).
 Input (rename a profile):
 
     {
-        'name': "new-name"
+        "name": "new-name"
     }
 
 
@@ -1135,68 +1392,3 @@ Input (none at present):
     }
 
 HTTP code for this should be 202 (Accepted).
-
-## /1.0/certificates
-### GET
- * Description: list of trusted certificates
- * Authentication: trusted
- * Operation: sync
- * Return: list of URLs for trusted certificates
-
-### POST
- * Description: add a new trusted certificate
- * Authentication: trusted or untrusted
- * Operation: sync
- * Return: standard return value or standard error
-
-Input:
-
-    {
-        'type': "client",                       # Certificate type (keyring), currently only client
-        'certificate': "BASE64",                # If provided, a valid x509 certificate. If not, the client certificate of the connection will be used
-        'name': "foo"                           # An optional name for the certificate. If nothing is provided, the host in the TLS header for the request is used.
-        'password': "server-trust-password"     # The trust password for that server (only required if untrusted)
-    }
-
-## /1.0/certificates/\<fingerprint\>
-### GET
- * Description: trusted certificate information
- * Authentication: trusted
- * Operation: sync
- * Return: dict representing a trusted certificate
-
-Output:
-
-    {
-        'type': "client",
-        'certificate': "PEM certificate"
-        'fingerprint': "SHA256 Hash of the raw certificate"
-    }
-
-### DELETE
- * Description: Remove a trusted certificate
- * Authentication: trusted
- * Operation: sync
- * Return: standard return value or standard error
-
-Input (none at present):
-
-    {
-    }
-
-HTTP code for this should be 202 (Accepted).
-
-# Async operations
-Any operation which may take more than a second to be done must be done
-in the background, returning a background operation ID to the client.
-
-The client will then be able to either poll for a status update or wait
-for a notification using the long-poll API.
-
-# Notifications
-A long-poll API is available for notifications, different notification
-types exist to limit the traffic going to the client.
-
-It's recommend that the client always subscribes to the operations
-notification type before triggering remote operations so that it doesn't
-have to then poll for their status.
