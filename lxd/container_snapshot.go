@@ -45,9 +45,9 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			resultString = append(resultString, url)
 		} else {
 			body := shared.Jmap{
-				"name":          snapName,
-				"creation_date": snap.CreationDate().Unix(),
-				"stateful":      shared.PathExists(snap.StatePath())}
+				"name":       snapName,
+				"created_at": snap.CreationDate(),
+				"stateful":   shared.PathExists(snap.StatePath())}
 			resultMap = append(resultMap, body)
 		}
 	}
@@ -183,9 +183,9 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 
 func snapshotGet(sc container, name string) Response {
 	body := shared.Jmap{
-		"name":          name,
-		"creation_date": sc.CreationDate().Unix(),
-		"stateful":      shared.PathExists(sc.StatePath())}
+		"name":       name,
+		"created_at": sc.CreationDate(),
+		"stateful":   shared.PathExists(sc.StatePath())}
 	return SyncResponse(true, body)
 }
 

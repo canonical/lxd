@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/lxc/lxd/shared"
 
@@ -288,8 +289,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, certificate string,
 		}
 
 		info.Architecture, _ = shared.ArchitectureId(imageMeta.Architecture)
-		info.CreationDate = imageMeta.CreationDate
-		info.ExpiryDate = imageMeta.ExpiryDate
+		info.CreationDate = time.Unix(imageMeta.CreationDate, 0)
+		info.ExpiryDate = time.Unix(imageMeta.ExpiryDate, 0)
 		info.Properties = imageMeta.Properties
 	}
 

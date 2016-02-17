@@ -84,17 +84,17 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 
 	// Some of the dates can be nil in the DB, let's process them.
 	if create != nil {
-		image.CreationDate = create.Unix()
+		image.CreationDate = *create
 	} else {
-		image.CreationDate = 0
+		image.CreationDate = time.Time{}
 	}
 	if expire != nil {
-		image.ExpiryDate = expire.Unix()
+		image.ExpiryDate = *expire
 	} else {
-		image.ExpiryDate = 0
+		image.ExpiryDate = time.Time{}
 	}
 	// The upload date is enforced by NOT NULL in the schema, so it can never be nil.
-	image.UploadDate = upload.Unix()
+	image.UploadDate = *upload
 
 	// Get the properties
 	q := "SELECT key, value FROM images_properties where image_id=?"
@@ -217,7 +217,7 @@ func dbImageExpiryGet(db *sql.DB) (string, error) {
 	}
 }
 
-func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, arch int, creationDate int64, expiryDate int64, properties map[string]string) error {
+func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, arch int, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
 	tx, err := dbBegin(db)
 	if err != nil {
 		return err
@@ -264,7 +264,7 @@ func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, arch
 	return nil
 }
 
-func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, arch int, creationDate int64, expiryDate int64, properties map[string]string) error {
+func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, arch int, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
 	tx, err := dbBegin(db)
 	if err != nil {
 		return err

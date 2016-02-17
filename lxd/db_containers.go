@@ -124,8 +124,7 @@ func dbContainerCreate(db *sql.DB, args containerArgs) (int, error) {
 		ephemInt = 1
 	}
 
-	now := time.Now().UTC()
-	args.CreationDate = &now
+	args.CreationDate = time.Now().UTC()
 
 	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral, creation_date) VALUES (?, ?, ?, ?, ?)")
 	stmt, err := tx.Prepare(str)

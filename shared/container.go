@@ -1,6 +1,8 @@
 package shared
 
-import ()
+import (
+	"time"
+)
 
 type Ip struct {
 	Interface string `json:"interface"`
@@ -23,15 +25,15 @@ type ContainerExecControl struct {
 }
 
 type SnapshotInfo struct {
-	CreationDate int64  `json:"creation_date"`
-	Name         string `json:"name"`
-	Stateful     bool   `json:"stateful"`
+	CreationDate time.Time `json:"created_at"`
+	Name         string    `json:"name"`
+	Stateful     bool      `json:"stateful"`
 }
 
 type ContainerInfo struct {
 	Architecture    int               `json:"architecture"`
 	Config          map[string]string `json:"config"`
-	CreationDate    int64             `json:"creation_date"`
+	CreationDate    time.Time         `json:"created_at"`
 	Devices         Devices           `json:"devices"`
 	Ephemeral       bool              `json:"ephemeral"`
 	ExpandedConfig  map[string]string `json:"expanded_config"`

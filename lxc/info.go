@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -85,8 +84,8 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 	const layout = "2006/01/02 15:04 UTC"
 
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
-	if ct.CreationDate != 0 {
-		fmt.Printf(i18n.G("Created: %s")+"\n", time.Unix(ct.CreationDate, 0).UTC().Format(layout))
+	if ct.CreationDate.UTC().Unix() != 0 {
+		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreationDate.UTC().Format(layout))
 	}
 
 	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status)
@@ -128,8 +127,8 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		}
 		fmt.Printf("  %s", snap.Name)
 
-		if snap.CreationDate != 0 {
-			fmt.Printf(" ("+i18n.G("taken at %s")+")", time.Unix(snap.CreationDate, 0).UTC().Format(layout))
+		if snap.CreationDate.UTC().Unix() != 0 {
+			fmt.Printf(" ("+i18n.G("taken at %s")+")", snap.CreationDate.UTC().Format(layout))
 		}
 
 		if snap.Stateful {
