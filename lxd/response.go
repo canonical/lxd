@@ -16,7 +16,14 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-type resp struct {
+type syncResp struct {
+	Type       lxd.ResponseType  `json:"type"`
+	Status     string            `json:"status"`
+	StatusCode shared.StatusCode `json:"status_code"`
+	Metadata   interface{}       `json:"metadata"`
+}
+
+type asyncResp struct {
 	Type       lxd.ResponseType  `json:"type"`
 	Status     string            `json:"status"`
 	StatusCode shared.StatusCode `json:"status_code"`
@@ -40,7 +47,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 		status = shared.Failure
 	}
 
-	resp := resp{Type: lxd.Sync, Status: status.String(), StatusCode: status, Metadata: r.metadata}
+	resp := syncResp{Type: lxd.Sync, Status: status.String(), StatusCode: status, Metadata: r.metadata}
 	return WriteJSON(w, resp)
 }
 
@@ -154,7 +161,7 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 		return err
 	}
 
-	body := resp{
+	body := asyncResp{
 		Type:       lxd.Async,
 		Status:     shared.OperationCreated.String(),
 		StatusCode: shared.OperationCreated,
