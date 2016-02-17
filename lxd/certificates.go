@@ -44,7 +44,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 
 	body := []string{}
 	for _, cert := range d.clientCerts {
-		fingerprint := certGenerateFingerprint(&cert)
+		fingerprint := fmt.Sprintf("/%s/certificates/%s", shared.APIVersion, certGenerateFingerprint(&cert))
 		body = append(body, fingerprint)
 	}
 
