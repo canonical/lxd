@@ -499,7 +499,7 @@ func (c *imageCmd) dereferenceAlias(d *lxd.Client, inName string) string {
 	return result
 }
 
-func (c *imageCmd) shortestAlias(list shared.ImageAliases) string {
+func (c *imageCmd) shortestAlias(list []shared.ImageAlias) string {
 	shortest := ""
 	for _, l := range list {
 		if shortest == "" {
@@ -566,7 +566,7 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 	return nil
 }
 
-func (c *imageCmd) showAliases(aliases []shared.ImageAlias) error {
+func (c *imageCmd) showAliases(aliases shared.ImageAliases) error {
 	data := [][]string{}
 	for _, alias := range aliases {
 		data = append(data, []string{alias.Name, alias.Target[0:12], alias.Description})
@@ -690,7 +690,7 @@ func (c *imageCmd) imageShouldShow(filters []string, state *shared.ImageInfo) bo
 			}
 		} else {
 			for _, alias := range state.Aliases {
-				if strings.Contains(alias.Target, filter) {
+				if strings.Contains(alias.Name, filter) {
 					found = true
 					break
 				}

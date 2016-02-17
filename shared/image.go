@@ -6,16 +6,21 @@ import (
 
 type ImageProperties map[string]string
 
-type ImageAlias struct {
+type ImageAliasesEntry struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Target      string `json:"target"`
 }
 
-type ImageAliases []ImageAlias
+type ImageAliases []ImageAliasesEntry
+
+type ImageAlias struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
 
 type ImageInfo struct {
-	Aliases      ImageAliases      `json:"aliases"`
+	Aliases      []ImageAlias      `json:"aliases"`
 	Architecture int               `json:"architecture"`
 	Fingerprint  string            `json:"fingerprint"`
 	Filename     string            `json:"filename"`
