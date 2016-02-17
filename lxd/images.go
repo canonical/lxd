@@ -1072,9 +1072,6 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 	if req.Name == "" || req.Target == "" {
 		return BadRequest(fmt.Errorf("name and target are required"))
 	}
-	if req.Description == "" {
-		req.Description = req.Name
-	}
 
 	// This is just to see if the alias name already exists.
 	_, err := dbImageAliasGet(d.db, req.Name)
@@ -1159,7 +1156,7 @@ func doAliasGet(d *Daemon, name string, isTrustedClient bool) (shared.ImageAlias
 		return shared.ImageAlias{}, err
 	}
 
-	return shared.ImageAlias{Name: fingerprint, Description: description}, nil
+	return shared.ImageAlias{Name: name, Target: fingerprint, Description: description}, nil
 }
 
 func aliasDelete(d *Daemon, r *http.Request) Response {

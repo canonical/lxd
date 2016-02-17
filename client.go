@@ -1033,7 +1033,7 @@ func (c *Client) GetAlias(alias string) string {
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return ""
 	}
-	return result.Name
+	return result.Target
 }
 
 // Init creates a container from either a fingerprint or an alias; you must
