@@ -570,13 +570,14 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 func (c *imageCmd) showAliases(aliases []shared.ImageAlias) error {
 	data := [][]string{}
 	for _, alias := range aliases {
-		data = append(data, []string{alias.Description, alias.Name[0:12]})
+		data = append(data, []string{alias.Name, alias.Target[0:12], alias.Description})
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{
 		i18n.G("ALIAS"),
-		i18n.G("FINGERPRINT")})
+		i18n.G("FINGERPRINT"),
+		i18n.G("DESCRIPTION")})
 
 	for _, v := range data {
 		table.Append(v)
@@ -690,7 +691,7 @@ func (c *imageCmd) imageShouldShow(filters []string, state *shared.ImageInfo) bo
 			}
 		} else {
 			for _, alias := range state.Aliases {
-				if strings.Contains(alias.Name, filter) {
+				if strings.Contains(alias.Target, filter) {
 					found = true
 					break
 				}
