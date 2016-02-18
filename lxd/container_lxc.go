@@ -2194,6 +2194,13 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
+	err = dbContainerUpdate(tx, c.id, c.architecture, c.ephemeral)
+	if err != nil {
+		tx.Rollback()
+		undoChanges()
+		return err
+	}
+
 	if err := txCommit(tx); err != nil {
 		undoChanges()
 		return err
