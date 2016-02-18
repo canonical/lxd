@@ -1,26 +1,35 @@
 package shared
 
+import (
+	"time"
+)
+
 type ImageProperties map[string]string
 
-type ImageAlias struct {
+type ImageAliasesEntry struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Target      string `json:"target"`
 }
 
-type ImageAliases []ImageAlias
+type ImageAliases []ImageAliasesEntry
+
+type ImageAlias struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
 
 type ImageInfo struct {
-	Aliases      ImageAliases      `json:"aliases"`
+	Aliases      []ImageAlias      `json:"aliases"`
 	Architecture int               `json:"architecture"`
 	Fingerprint  string            `json:"fingerprint"`
 	Filename     string            `json:"filename"`
 	Properties   map[string]string `json:"properties"`
 	Public       bool              `json:"public"`
 	Size         int64             `json:"size"`
-	CreationDate int64             `json:"created_at"`
-	ExpiryDate   int64             `json:"expires_at"`
-	UploadDate   int64             `json:"uploaded_at"`
+	CreationDate time.Time         `json:"created_at"`
+	ExpiryDate   time.Time         `json:"expires_at"`
+	UploadDate   time.Time         `json:"uploaded_at"`
 }
 
 /*
@@ -32,21 +41,9 @@ type BriefImageInfo struct {
 	Public     bool              `json:"public"`
 }
 
-func (i *ImageInfo) BriefInfo() BriefImageInfo {
+func (i *ImageInfo) Brief() BriefImageInfo {
 	retstate := BriefImageInfo{
 		Properties: i.Properties,
 		Public:     i.Public}
 	return retstate
-}
-
-type ImageBaseInfo struct {
-	Id           int
-	Fingerprint  string
-	Filename     string
-	Size         int64
-	Public       bool
-	Architecture int
-	CreationDate int64
-	ExpiryDate   int64
-	UploadDate   int64
 }

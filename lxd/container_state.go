@@ -28,7 +28,7 @@ func containerState(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	return SyncResponse(true, state.Status)
+	return SyncResponse(true, state)
 }
 
 func containerStatePut(d *Daemon, r *http.Request) Response {

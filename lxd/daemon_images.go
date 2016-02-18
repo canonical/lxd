@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/lxc/lxd/shared"
 
@@ -55,7 +56,7 @@ func (pt *Progress) Read(p []byte) (int, error) {
 // ImageDownload checks if we have that Image Fingerprint else
 // downloads the image from a remote server.
 func (d *Daemon) ImageDownload(op *operation, server string, certificate string, secret string, fp string, forContainer bool, directDownload bool) error {
-	if _, err := dbImageGet(d.db, fp, false, false); err == nil {
+	if _, _, err := dbImageGet(d.db, fp, false, false); err == nil {
 		shared.Log.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		// already have it
 		return nil
@@ -80,7 +81,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, certificate string,
 			shared.Log.Warn("Value transmitted over image lock semaphore?")
 		}
 
-		if _, err := dbImageGet(d.db, fp, false, true); err != nil {
+		if _, _, err := dbImageGet(d.db, fp, false, true); err != nil {
 			shared.Log.Error(
 				"Previous download didn't succeed",
 				log.Ctx{"image": fp})
@@ -288,8 +289,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, certificate string,
 		}
 
 		info.Architecture, _ = shared.ArchitectureId(imageMeta.Architecture)
-		info.CreationDate = imageMeta.CreationDate
-		info.ExpiryDate = imageMeta.ExpiryDate
+		info.CreationDate = time.Unix(imageMeta.CreationDate, 0)
+		info.ExpiryDate = time.Unix(imageMeta.ExpiryDate, 0)
 		info.Properties = imageMeta.Properties
 	}
 

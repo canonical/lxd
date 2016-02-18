@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -72,7 +71,12 @@ func (c *infoCmd) remoteInfo(d *lxd.Client) error {
 }
 
 func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error {
-	ct, err := d.ContainerStatus(name)
+	ct, err := d.ContainerInfo(name)
+	if err != nil {
+		return err
+	}
+
+	cs, err := d.ContainerState(name)
 	if err != nil {
 		return err
 	}
@@ -80,23 +84,23 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 	const layout = "2006/01/02 15:04 UTC"
 
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
-	if ct.CreationDate != 0 {
-		fmt.Printf(i18n.G("Created: %s")+"\n", time.Unix(ct.CreationDate, 0).UTC().Format(layout))
+	if ct.CreationDate.UTC().Unix() != 0 {
+		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreationDate.UTC().Format(layout))
 	}
 
-	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status.Status)
+	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status)
 	if ct.Ephemeral {
 		fmt.Printf(i18n.G("Type: ephemeral") + "\n")
 	} else {
 		fmt.Printf(i18n.G("Type: persistent") + "\n")
 	}
 	fmt.Printf(i18n.G("Profiles: %s")+"\n", strings.Join(ct.Profiles, ", "))
-	if ct.Status.Init != 0 {
-		fmt.Printf(i18n.G("Init: %d")+"\n", ct.Status.Init)
-		fmt.Printf(i18n.G("Processcount: %d")+"\n", ct.Status.Processcount)
+	if cs.Init != 0 {
+		fmt.Printf(i18n.G("Init: %d")+"\n", cs.Init)
+		fmt.Printf(i18n.G("Processcount: %d")+"\n", cs.Processcount)
 		fmt.Printf(i18n.G("Ips:") + "\n")
 		foundone := false
-		for _, ip := range ct.Status.Ips {
+		for _, ip := range cs.Ips {
 			vethStr := ""
 			if ip.HostVeth != "" {
 				vethStr = fmt.Sprintf("\t%s", ip.HostVeth)
@@ -123,8 +127,8 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		}
 		fmt.Printf("  %s", snap.Name)
 
-		if snap.CreationDate != 0 {
-			fmt.Printf(" ("+i18n.G("taken at %s")+")", time.Unix(snap.CreationDate, 0).UTC().Format(layout))
+		if snap.CreationDate.UTC().Unix() != 0 {
+			fmt.Printf(" ("+i18n.G("taken at %s")+")", snap.CreationDate.UTC().Format(layout))
 		}
 
 		if snap.Stateful {

@@ -208,7 +208,7 @@ type containerLXC struct {
 	// Properties
 	architecture int
 	cType        containerType
-	creationDate *time.Time
+	creationDate time.Time
 	ephemeral    bool
 	id           int
 	name         string
@@ -1341,6 +1341,31 @@ func (c *containerLXC) Unfreeze() error {
 	return c.c.Unfreeze()
 }
 
+func (c *containerLXC) Render() (*shared.ContainerInfo, error) {
+	// Load the go-lxc struct
+	err := c.initLXC()
+	if err != nil {
+		return nil, err
+	}
+
+	// FIXME: Render shouldn't directly access the go-lxc struct
+	statusCode := shared.FromLXCState(int(c.c.State()))
+
+	return &shared.ContainerInfo{
+		Architecture:    c.architecture,
+		Config:          c.localConfig,
+		CreationDate:    c.creationDate,
+		Devices:         c.localDevices,
+		Ephemeral:       c.ephemeral,
+		ExpandedConfig:  c.expandedConfig,
+		ExpandedDevices: c.expandedDevices,
+		Name:            c.name,
+		Profiles:        c.profiles,
+		Status:          statusCode.String(),
+		StatusCode:      statusCode,
+	}, nil
+}
+
 func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 	// Load the go-lxc struct
 	err := c.initLXC()
@@ -1350,7 +1375,7 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 
 	// FIXME: RenderState shouldn't directly access the go-lxc struct
 	statusCode := shared.FromLXCState(int(c.c.State()))
-	status := shared.ContainerStatus{
+	status := shared.ContainerState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
 	}
@@ -1362,18 +1387,7 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 		status.Ips = c.ipsGet()
 	}
 
-	return &shared.ContainerState{
-		Architecture:    c.architecture,
-		Config:          c.localConfig,
-		CreationDate:    c.creationDate.Unix(),
-		Devices:         c.localDevices,
-		Ephemeral:       c.ephemeral,
-		ExpandedConfig:  c.expandedConfig,
-		ExpandedDevices: c.expandedDevices,
-		Name:            c.name,
-		Profiles:        c.profiles,
-		Status:          status,
-	}, nil
+	return &status, nil
 }
 
 func (c *containerLXC) Snapshots() ([]container, error) {
@@ -2180,6 +2194,13 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
+	err = dbContainerUpdate(tx, c.id, c.architecture, c.ephemeral)
+	if err != nil {
+		tx.Rollback()
+		undoChanges()
+		return err
+	}
+
 	if err := txCommit(tx); err != nil {
 		undoChanges()
 		return err
@@ -2190,7 +2211,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 func (c *containerLXC) Export(w io.Writer) error {
 	if c.IsRunning() {
-		return fmt.Errorf("Cannot export a running container as image")
+		return fmt.Errorf("Cannot export a running container as an image")
 	}
 
 	// Start the storage
@@ -3829,7 +3850,7 @@ func (c *containerLXC) Architecture() int {
 	return c.architecture
 }
 
-func (c *containerLXC) CreationDate() *time.Time {
+func (c *containerLXC) CreationDate() time.Time {
 	return c.creationDate
 }
 func (c *containerLXC) ExpandedConfig() map[string]string {

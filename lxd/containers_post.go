@@ -65,10 +65,12 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			}
 		} else {
 
-			hash, err = dbImageAliasGet(d.db, req.Source.Alias)
+			_, alias, err := dbImageAliasGet(d.db, req.Source.Alias, true)
 			if err != nil {
 				return InternalError(err)
 			}
+
+			hash = alias.Target
 		}
 	} else if req.Source.Fingerprint != "" {
 		hash = req.Source.Fingerprint
@@ -84,7 +86,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			}
 		}
 
-		imgInfo, err := dbImageGet(d.db, hash, false, false)
+		_, imgInfo, err := dbImageGet(d.db, hash, false, false)
 		if err != nil {
 			return err
 		}
@@ -162,7 +164,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		}
 
 		var c container
-		_, err := dbImageGet(d.db, req.Source.BaseImage, false, true)
+		_, _, err := dbImageGet(d.db, req.Source.BaseImage, false, true)
 
 		/* Only create a container from an image if we're going to
 		 * rsync over the top of it. In the case of a better file

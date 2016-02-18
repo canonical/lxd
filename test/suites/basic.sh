@@ -25,6 +25,11 @@ test_basic_usage() {
   fi
   [ "${sum}" = "$(sha256sum "${LXD_DIR}/${name}" | cut -d' ' -f1)" ]
 
+  # Test an alias with slashes
+  lxc image show "${sum}"
+  lxc image alias create a/b/ "${sum}"
+  lxc image alias delete a/b/
+
   # Test image delete
   lxc image delete testimage
 

@@ -396,7 +396,18 @@ func (c *Client) websocket(operation string, secret string) (*websocket.Conn, er
 }
 
 func (c *Client) url(elem ...string) string {
-	return c.BaseURL + "/" + path.Join(elem...)
+	path := strings.Join(elem, "/")
+	uri := c.BaseURL + "/" + path
+
+	if strings.HasPrefix(path, "1.0/images/aliases") {
+		return uri
+	}
+
+	if strings.Contains(path, "?") {
+		return uri
+	}
+
+	return strings.TrimSuffix(uri, "/")
 }
 
 func (c *Client) GetServerConfig() (*Response, error) {
@@ -960,13 +971,13 @@ func (c *Client) DeleteAlias(alias string) error {
 	return err
 }
 
-func (c *Client) ListAliases() ([]shared.ImageAlias, error) {
+func (c *Client) ListAliases() (shared.ImageAliases, error) {
 	resp, err := c.get("images/aliases?recursion=1")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []shared.ImageAlias
+	var result shared.ImageAliases
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
@@ -1029,7 +1040,7 @@ func (c *Client) GetAlias(alias string) string {
 		return ""
 	}
 
-	var result shared.ImageAlias
+	var result shared.ImageAliasesEntry
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return ""
 	}
@@ -1332,8 +1343,8 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 
 func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool) (*Response, error) {
 	if action == "start" {
-		current, err := c.ContainerStatus(name)
-		if err == nil && current.Status.StatusCode == shared.Frozen {
+		current, err := c.ContainerState(name)
+		if err == nil && current.StatusCode == shared.Frozen {
 			action = "unfreeze"
 		}
 	}
@@ -1369,10 +1380,25 @@ func (c *Client) ServerStatus() (*shared.ServerState, error) {
 	return &ss, nil
 }
 
-func (c *Client) ContainerStatus(name string) (*shared.ContainerState, error) {
-	ct := shared.ContainerState{}
+func (c *Client) ContainerInfo(name string) (*shared.ContainerInfo, error) {
+	ct := shared.ContainerInfo{}
 
 	resp, err := c.get(fmt.Sprintf("containers/%s", name))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(resp.Metadata, &ct); err != nil {
+		return nil, err
+	}
+
+	return &ct, nil
+}
+
+func (c *Client) ContainerState(name string) (*shared.ContainerState, error) {
+	ct := shared.ContainerState{}
+
+	resp, err := c.get(fmt.Sprintf("containers/%s/state", name))
 	if err != nil {
 		return nil, err
 	}
@@ -1543,14 +1569,14 @@ func (c *Client) Snapshot(container string, snapshotName string, stateful bool) 
 	return c.post(fmt.Sprintf("containers/%s/snapshots", container), body, Async)
 }
 
-func (c *Client) ListSnapshots(container string) ([]shared.SnapshotState, error) {
+func (c *Client) ListSnapshots(container string) ([]shared.SnapshotInfo, error) {
 	qUrl := fmt.Sprintf("containers/%s/snapshots?recursion=1", container)
 	resp, err := c.get(qUrl)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []shared.SnapshotState
+	var result []shared.SnapshotInfo
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
@@ -1611,7 +1637,7 @@ func (c *Client) UpdateServerConfig(ss shared.BriefServerState) (*Response, erro
 func (c *Client) GetContainerConfig(container string) ([]string, error) {
 	var resp []string
 
-	st, err := c.ContainerStatus(container)
+	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return resp, err
 	}
@@ -1629,7 +1655,7 @@ func (c *Client) GetContainerConfig(container string) ([]string, error) {
 }
 
 func (c *Client) SetContainerConfig(container, key, value string) error {
-	st, err := c.ContainerStatus(container)
+	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return err
 	}
@@ -1654,7 +1680,7 @@ func (c *Client) SetContainerConfig(container, key, value string) error {
 	return c.WaitForSuccess(resp.Operation)
 }
 
-func (c *Client) UpdateContainerConfig(container string, st shared.BriefContainerState) error {
+func (c *Client) UpdateContainerConfig(container string, st shared.BriefContainerInfo) error {
 	body := shared.Jmap{"name": container,
 		"profiles":  st.Profiles,
 		"config":    st.Config,
@@ -1754,7 +1780,7 @@ func (c *Client) ListProfiles() ([]string, error) {
 }
 
 func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
-	st, err := c.ContainerStatus(container)
+	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return nil, err
 	}
@@ -1765,7 +1791,7 @@ func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
 }
 
 func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, error) {
-	st, err := c.ContainerStatus(container)
+	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return nil, err
 	}
@@ -1777,7 +1803,7 @@ func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, er
 }
 
 func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []string) (*Response, error) {
-	st, err := c.ContainerStatus(container)
+	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return nil, err
 	}
@@ -1806,7 +1832,7 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 }
 
 func (c *Client) ContainerListDevices(container string) ([]string, error) {
-	st, err := c.ContainerStatus(container)
+	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return nil, err
 	}
