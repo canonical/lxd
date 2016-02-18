@@ -7,11 +7,14 @@ import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared/gnuflag"
+
+	"github.com/lxc/lxd/shared"
 )
 
 type publishCmd struct {
 	pAliases   aliasList // aliasList defined in lxc/image.go
 	makePublic bool
+	Force      bool
 }
 
 func (c *publishCmd) showByDefault() bool {
@@ -28,6 +31,8 @@ lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value
 func (c *publishCmd) flags() {
 	gnuflag.BoolVar(&c.makePublic, "public", false, i18n.G("Make the image public"))
 	gnuflag.Var(&c.pAliases, "alias", i18n.G("New alias to define at target"))
+	gnuflag.BoolVar(&c.Force, "force", false, i18n.G("Stop the container if currently running"))
+	gnuflag.BoolVar(&c.Force, "f", false, i18n.G("Stop the container if currently running"))
 }
 
 func (c *publishCmd) run(config *lxd.Config, args []string) error {
@@ -60,6 +65,51 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 	d, err := lxd.NewClient(config, iRemote)
 	if err != nil {
 		return err
+	}
+
+	ct, err := d.ContainerInfo(cName)
+	if err != nil {
+		return err
+	}
+
+	wasRunning := ct.StatusCode != 0 && ct.StatusCode != shared.Stopped
+	wasEphemeral := ct.Ephemeral
+
+	if wasRunning {
+		if !c.Force {
+			return fmt.Errorf("The container is currently running. Use --force to have it stopped and restarted.")
+		}
+
+		if ct.Ephemeral {
+			ct.Ephemeral = false
+			err := d.UpdateContainerConfig(cName, ct.Brief())
+			if err != nil {
+				return err
+			}
+		}
+
+		resp, err := d.Action(cName, shared.Stop, -1, true)
+		if err != nil {
+			return err
+		}
+
+		op, err := d.WaitFor(resp.Operation)
+		if err != nil {
+			return err
+		}
+
+		if op.StatusCode == shared.Failure {
+			return fmt.Errorf(i18n.G("Stopping container failed!"))
+		}
+		defer d.Action(cName, shared.Start, -1, true)
+
+		if wasEphemeral {
+			ct.Ephemeral = true
+			err := d.UpdateContainerConfig(cName, ct.Brief())
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	for i := firstprop; i < len(args); i++ {
