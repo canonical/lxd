@@ -12,6 +12,11 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+type containerSnapshotPostReq struct {
+	Name     string `json:"name"`
+	Stateful bool   `json:"stateful"`
+}
+
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	recursionStr := r.FormValue("recursion")
 	recursion, err := strconv.Atoi(recursionStr)
@@ -40,9 +45,9 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			resultString = append(resultString, url)
 		} else {
 			body := shared.Jmap{
-				"name":          snapName,
-				"creation_date": snap.CreationDate().Unix(),
-				"stateful":      shared.PathExists(snap.StatePath())}
+				"name":       snapName,
+				"created_at": snap.CreationDate(),
+				"stateful":   shared.PathExists(snap.StatePath())}
 			resultMap = append(resultMap, body)
 		}
 	}
@@ -104,26 +109,20 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	raw := shared.Jmap{}
-	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+	req := containerSnapshotPostReq{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
 
-	snapshotName, err := raw.GetString("name")
-	if err != nil || snapshotName == "" {
+	if req.Name == "" {
 		// come up with a name
 		i := nextSnapshot(d, name)
-		snapshotName = fmt.Sprintf("snap%d", i)
-	}
-
-	stateful, err := raw.GetBool("stateful")
-	if err != nil {
-		return BadRequest(err)
+		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
 	fullName := name +
 		shared.SnapshotDelimiter +
-		snapshotName
+		req.Name
 
 	snapshot := func(op *operation) error {
 		config := c.ExpandedConfig()
@@ -138,7 +137,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			Devices:      c.ExpandedDevices(),
 		}
 
-		_, err := containerCreateAsSnapshot(d, args, c, stateful)
+		_, err := containerCreateAsSnapshot(d, args, c, req.Stateful)
 		if err != nil {
 			return err
 		}
@@ -184,9 +183,9 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 
 func snapshotGet(sc container, name string) Response {
 	body := shared.Jmap{
-		"name":          name,
-		"creation_date": sc.CreationDate().Unix(),
-		"stateful":      shared.PathExists(sc.StatePath())}
+		"name":       name,
+		"created_at": sc.CreationDate(),
+		"stateful":   shared.PathExists(sc.StatePath())}
 	return SyncResponse(true, body)
 }
 

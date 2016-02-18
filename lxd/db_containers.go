@@ -124,8 +124,7 @@ func dbContainerCreate(db *sql.DB, args containerArgs) (int, error) {
 		ephemInt = 1
 	}
 
-	now := time.Now().UTC()
-	args.CreationDate = &now
+	args.CreationDate = time.Now().UTC()
 
 	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral, creation_date) VALUES (?, ?, ?, ?, ?)")
 	stmt, err := tx.Prepare(str)
@@ -330,6 +329,26 @@ func dbContainerRename(db *sql.DB, oldName string, newName string) error {
 	}
 
 	return txCommit(tx)
+}
+
+func dbContainerUpdate(tx *sql.Tx, id int, architecture int, ephemeral bool) error {
+	str := fmt.Sprintf("UPDATE containers SET architecture=?, ephemeral=? WHERE id=?")
+	stmt, err := tx.Prepare(str)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	ephemeralInt := 0
+	if ephemeral {
+		ephemeralInt = 1
+	}
+
+	if _, err := stmt.Exec(architecture, ephemeralInt, id); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func dbContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {

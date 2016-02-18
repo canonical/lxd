@@ -52,7 +52,7 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 	}
 
 	target := args[len(args)-1]
-	pathSpec := strings.SplitAfterN(target, "/", 2)
+	pathSpec := strings.SplitN(target, "/", 2)
 
 	if len(pathSpec) != 2 {
 		return fmt.Errorf(i18n.G("Invalid target %s"), target)

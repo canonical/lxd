@@ -36,15 +36,16 @@ func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) (*shared.ImageBaseInfo, error) {
+func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) (int, *shared.ImageInfo, error) {
 	var err error
 	var create, expire, upload *time.Time // These hold the db-returned times
 
 	// The object we'll actually return
-	image := new(shared.ImageBaseInfo)
+	image := shared.ImageInfo{}
+	id := -1
 
 	// These two humongous things will be filled by the call to DbQueryRowScan
-	outfmt := []interface{}{&image.Id, &image.Fingerprint, &image.Filename,
+	outfmt := []interface{}{&id, &image.Fingerprint, &image.Filename,
 		&image.Size, &image.Public, &image.Architecture,
 		&create, &expire, &upload}
 
@@ -78,24 +79,62 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 	err = dbQueryRowScan(db, query, inargs, outfmt)
 
 	if err != nil {
-		return nil, err // Likely: there are no rows for this fingerprint
+		return -1, nil, err // Likely: there are no rows for this fingerprint
 	}
 
 	// Some of the dates can be nil in the DB, let's process them.
 	if create != nil {
-		image.CreationDate = create.Unix()
+		image.CreationDate = *create
 	} else {
-		image.CreationDate = 0
+		image.CreationDate = time.Time{}
 	}
 	if expire != nil {
-		image.ExpiryDate = expire.Unix()
+		image.ExpiryDate = *expire
 	} else {
-		image.ExpiryDate = 0
+		image.ExpiryDate = time.Time{}
 	}
 	// The upload date is enforced by NOT NULL in the schema, so it can never be nil.
-	image.UploadDate = upload.Unix()
+	image.UploadDate = *upload
 
-	return image, nil
+	// Get the properties
+	q := "SELECT key, value FROM images_properties where image_id=?"
+	var key, value, name, desc string
+	inargs = []interface{}{id}
+	outfmt = []interface{}{key, value}
+	results, err := dbQueryScan(db, q, inargs, outfmt)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	properties := map[string]string{}
+	for _, r := range results {
+		key = r[0].(string)
+		value = r[1].(string)
+		properties[key] = value
+	}
+
+	image.Properties = properties
+
+	// Get the aliases
+	q = "SELECT name, description FROM images_aliases WHERE image_id=?"
+	inargs = []interface{}{id}
+	outfmt = []interface{}{name, desc}
+	results, err = dbQueryScan(db, q, inargs, outfmt)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	aliases := []shared.ImageAlias{}
+	for _, r := range results {
+		name = r[0].(string)
+		desc = r[0].(string)
+		a := shared.ImageAlias{Name: name, Description: desc}
+		aliases = append(aliases, a)
+	}
+
+	image.Aliases = aliases
+
+	return id, &image, nil
 }
 
 func dbImageDelete(db *sql.DB, id int) error {
@@ -115,38 +154,40 @@ func dbImageDelete(db *sql.DB, id int) error {
 	return nil
 }
 
-// Get an image's fingerprint for a given alias name.
-func dbImageAliasGet(db *sql.DB, name string) (fingerprint string, err error) {
-	q := `
-        SELECT
-            fingerprint
-        FROM images AS i JOIN images_aliases AS a
-        ON a.image_id == i.id
-        WHERE name=?`
-
-	inargs := []interface{}{name}
-	outfmt := []interface{}{&fingerprint}
-
-	err = dbQueryRowScan(db, q, inargs, outfmt)
-
-	if err == sql.ErrNoRows {
-		return "", NoSuchObjectError
+func dbImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, shared.ImageAliasesEntry, error) {
+	q := `SELECT images_aliases.id, images.fingerprint, images_aliases.description
+			 FROM images_aliases
+			 INNER JOIN images
+			 ON images_aliases.image_id=images.id
+			 WHERE images_aliases.name=?`
+	if !isTrustedClient {
+		q = q + ` AND images.public=1`
 	}
+
+	var fingerprint, description string
+	id := -1
+
+	arg1 := []interface{}{name}
+	arg2 := []interface{}{&id, &fingerprint, &description}
+	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
-		return "", err
+		if err == sql.ErrNoRows {
+			return -1, shared.ImageAliasesEntry{}, NoSuchObjectError
+		}
+
+		return -1, shared.ImageAliasesEntry{}, err
 	}
-	return fingerprint, nil
+
+	return id, shared.ImageAliasesEntry{Name: name, Target: fingerprint, Description: description}, nil
 }
 
-func dbImageSetPublic(db *sql.DB, id int, public bool) error {
-	var err error
+func dbImageAliasRename(db *sql.DB, id int, name string) error {
+	_, err := dbExec(db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
+	return err
+}
 
-	if public {
-		_, err = dbExec(db, "UPDATE images SET public=1 WHERE id=?", id)
-	} else {
-		_, err = dbExec(db, "UPDATE images SET public=0 WHERE id=?", id)
-	}
-
+func dbImageAliasDelete(db *sql.DB, name string) error {
+	_, err := dbExec(db, "DELETE FROM images_aliases WHERE name=?", name)
 	return err
 }
 
@@ -154,6 +195,12 @@ func dbImageSetPublic(db *sql.DB, id int, public bool) error {
 func dbImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
 	stmt := `INSERT INTO images_aliases (name, image_id, description) values (?, ?, ?)`
 	_, err := dbExec(db, stmt, name, imageID, desc)
+	return err
+}
+
+func dbImageAliasUpdate(db *sql.DB, id int, imageID int, desc string) error {
+	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
+	_, err := dbExec(db, stmt, imageID, desc, id)
 	return err
 }
 
@@ -183,4 +230,110 @@ func dbImageExpiryGet(db *sql.DB) (string, error) {
 	default:
 		return "", err
 	}
+}
+
+func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, arch int, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	sqlPublic := 0
+	if public {
+		sqlPublic = 1
+	}
+
+	stmt, err := tx.Prepare(`UPDATE images SET filename=?, size=?, public=?, architecture=?, creation_date=?, expiry_date=? WHERE id=?`)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(fname, sz, sqlPublic, arch, creationDate, expiryDate, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec(`DELETE FROM images_properties WHERE image_id=?`, id)
+
+	stmt, err = tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, ?, ?, ?)`)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for key, value := range properties {
+		_, err = stmt.Exec(id, 0, key, value)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	if err := txCommit(tx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, arch int, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	sqlPublic := 0
+	if public {
+		sqlPublic = 1
+	}
+
+	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, strftime("%s"))`)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+
+	result, err := stmt.Exec(fp, fname, sz, sqlPublic, arch, creationDate, expiryDate)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if len(properties) > 0 {
+		id64, err := result.LastInsertId()
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		id := int(id64)
+
+		pstmt, err := tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, 0, ?, ?)`)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		defer pstmt.Close()
+
+		for k, v := range properties {
+
+			// we can assume, that there is just one
+			// value per key
+			_, err = pstmt.Exec(id, k, v)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+
+	}
+
+	if err := txCommit(tx); err != nil {
+		return err
+	}
+
+	return nil
 }

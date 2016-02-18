@@ -296,7 +296,7 @@ type containerArgs struct {
 	Architecture int
 	BaseImage    string
 	Config       map[string]string
-	CreationDate *time.Time
+	CreationDate time.Time
 	Ctype        containerType
 	Devices      shared.Devices
 	Ephemeral    bool
@@ -335,6 +335,7 @@ type container interface {
 	FilePush(srcpath string, dstpath string, uid int, gid int, mode os.FileMode) error
 
 	// Status
+	Render() (*shared.ContainerInfo, error)
 	RenderState() (*shared.ContainerState, error)
 	IsPrivileged() bool
 	IsRunning() bool
@@ -351,7 +352,7 @@ type container interface {
 	Id() int
 	Name() string
 	Architecture() int
-	CreationDate() *time.Time
+	CreationDate() time.Time
 	ExpandedConfig() map[string]string
 	ExpandedDevices() shared.Devices
 	LocalConfig() map[string]string

@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/crypto/ssh/terminal"
@@ -301,12 +300,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		fmt.Printf(i18n.G("Public: %s")+"\n", public)
 		fmt.Printf(i18n.G("Timestamps:") + "\n")
 		const layout = "2006/01/02 15:04 UTC"
-		if info.CreationDate != 0 {
-			fmt.Printf("    "+i18n.G("Created: %s")+"\n", time.Unix(info.CreationDate, 0).UTC().Format(layout))
+		if info.CreationDate.UTC().Unix() != 0 {
+			fmt.Printf("    "+i18n.G("Created: %s")+"\n", info.CreationDate.UTC().Format(layout))
 		}
-		fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", time.Unix(info.UploadDate, 0).UTC().Format(layout))
-		if info.ExpiryDate != 0 {
-			fmt.Printf("    "+i18n.G("Expires: %s")+"\n", time.Unix(info.ExpiryDate, 0).UTC().Format(layout))
+		fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", info.UploadDate.UTC().Format(layout))
+		if info.ExpiryDate.UTC().Unix() != 0 {
+			fmt.Printf("    "+i18n.G("Expires: %s")+"\n", info.ExpiryDate.UTC().Format(layout))
 		} else {
 			fmt.Printf("    " + i18n.G("Expires: never") + "\n")
 		}
@@ -481,7 +480,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		properties := info.BriefInfo()
+		properties := info.Brief()
 
 		data, err := yaml.Marshal(&properties)
 		fmt.Printf("%s", data)
@@ -500,7 +499,7 @@ func (c *imageCmd) dereferenceAlias(d *lxd.Client, inName string) string {
 	return result
 }
 
-func (c *imageCmd) shortestAlias(list shared.ImageAliases) string {
+func (c *imageCmd) shortestAlias(list []shared.ImageAlias) string {
 	shortest := ""
 	for _, l := range list {
 		if shortest == "" {
@@ -544,7 +543,7 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 		}
 
 		const layout = "Jan 2, 2006 at 3:04pm (MST)"
-		uploaded := time.Unix(image.UploadDate, 0).Format(layout)
+		uploaded := image.UploadDate.UTC().Format(layout)
 		arch, _ := shared.ArchitectureName(image.Architecture)
 		size := fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
 		data = append(data, []string{shortest, fp, public, description, arch, size, uploaded})
@@ -567,7 +566,7 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 	return nil
 }
 
-func (c *imageCmd) showAliases(aliases []shared.ImageAlias) error {
+func (c *imageCmd) showAliases(aliases shared.ImageAliases) error {
 	data := [][]string{}
 	for _, alias := range aliases {
 		data = append(data, []string{alias.Name, alias.Target[0:12], alias.Description})
@@ -609,7 +608,7 @@ func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 		return err
 	}
 
-	brief := config.BriefInfo()
+	brief := config.Brief()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err
@@ -691,7 +690,7 @@ func (c *imageCmd) imageShouldShow(filters []string, state *shared.ImageInfo) bo
 			}
 		} else {
 			for _, alias := range state.Aliases {
-				if strings.Contains(alias.Target, filter) {
+				if strings.Contains(alias.Name, filter) {
 					found = true
 					break
 				}

@@ -227,6 +227,28 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
+// The handler for the post operation.
+func profilePost(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+
+	req := profilesPostReq{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	// Sanity checks
+	if req.Name == "" {
+		return BadRequest(fmt.Errorf("No name provided"))
+	}
+
+	err := dbProfileUpdate(d.db, name, req.Name)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return EmptySyncResponse
+}
+
 // The handler for the delete operation.
 func profileDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
@@ -239,4 +261,4 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var profileCmd = Command{name: "profiles/{name}", get: profileGet, put: profilePut, delete: profileDelete}
+var profileCmd = Command{name: "profiles/{name}", get: profileGet, put: profilePut, delete: profileDelete, post: profilePost}

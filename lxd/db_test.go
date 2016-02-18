@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
@@ -398,12 +399,12 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 func Test_dbImageGet_finds_image_for_fingerprint(t *testing.T) {
 	var db *sql.DB
 	var err error
-	var result *shared.ImageBaseInfo
+	var result *shared.ImageInfo
 
 	db = createTestDb(t)
 	defer db.Close()
 
-	result, err = dbImageGet(db, "fingerprint", false, false)
+	_, result, err = dbImageGet(db, "fingerprint", false, false)
 
 	if err != nil {
 		t.Fatal(err)
@@ -417,16 +418,16 @@ func Test_dbImageGet_finds_image_for_fingerprint(t *testing.T) {
 		t.Fatal("Filename should be set.")
 	}
 
-	if result.CreationDate != 1431547174 {
-		t.Fatal(result.CreationDate)
+	if result.CreationDate != time.Unix(1431547174, 0).UTC() {
+		t.Fatal(fmt.Sprintf("%s != %s", result.CreationDate, time.Unix(1431547174, 0)))
 	}
 
-	if result.ExpiryDate != 1431547175 { // It was short lived
-		t.Fatal(result.ExpiryDate)
+	if result.ExpiryDate != time.Unix(1431547175, 0).UTC() { // It was short lived
+		t.Fatal(fmt.Sprintf("%s != %s", result.ExpiryDate, time.Unix(1431547175, 0)))
 	}
 
-	if result.UploadDate != 1431547176 {
-		t.Fatal(result.UploadDate)
+	if result.UploadDate != time.Unix(1431547176, 0).UTC() {
+		t.Fatal(fmt.Sprintf("%s != %s", result.UploadDate, time.Unix(1431547176, 0)))
 	}
 }
 
@@ -437,7 +438,7 @@ func Test_dbImageGet_for_missing_fingerprint(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	_, err = dbImageGet(db, "unknown", false, false)
+	_, _, err = dbImageGet(db, "unknown", false, false)
 
 	if err != sql.ErrNoRows {
 		t.Fatal("Wrong err type returned")
@@ -452,7 +453,8 @@ func Test_dbImageAliasGet_alias_exists(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	result, err = dbImageAliasGet(db, "somealias")
+	_, alias, err := dbImageAliasGet(db, "somealias", true)
+	result = alias.Target
 
 	if err != nil {
 		t.Fatal(err)
@@ -471,12 +473,11 @@ func Test_dbImageAliasGet_alias_does_not_exists(t *testing.T) {
 	db = createTestDb(t)
 	defer db.Close()
 
-	_, err = dbImageAliasGet(db, "whatever")
+	_, _, err = dbImageAliasGet(db, "whatever", true)
 
 	if err != NoSuchObjectError {
 		t.Fatal("Error should be NoSuchObjectError")
 	}
-
 }
 
 func Test_dbImageAliasAdd(t *testing.T) {
@@ -492,10 +493,11 @@ func Test_dbImageAliasAdd(t *testing.T) {
 		t.Fatal("Error inserting Image alias.")
 	}
 
-	result, err = dbImageAliasGet(db, "Chaosphere")
+	_, alias, err := dbImageAliasGet(db, "Chaosphere", true)
 	if err != nil {
 		t.Fatal(err)
 	}
+	result = alias.Target
 
 	if result != "fingerprint" {
 		t.Fatal("Couldn't retrieve newly created alias.")

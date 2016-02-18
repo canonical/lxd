@@ -26,7 +26,7 @@ func containerLogsGet(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	result := []map[string]interface{}{}
+	result := []string{}
 
 	dents, err := ioutil.ReadDir(shared.LogPath(name))
 	if err != nil {
@@ -34,10 +34,7 @@ func containerLogsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	for _, f := range dents {
-		result = append(result, map[string]interface{}{
-			"name": f.Name(),
-			"size": f.Size(),
-		})
+		result = append(result, fmt.Sprintf("/%s/containers/%s/logs/%s", shared.APIVersion, name, f.Name()))
 	}
 
 	return SyncResponse(true, result)

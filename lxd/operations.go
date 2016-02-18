@@ -302,7 +302,7 @@ func (op *operation) WaitFinal(timeout int) (bool, error) {
 				return false, nil
 
 			case <-timer.C:
-				break
+				return false, nil
 			}
 		}
 	}
