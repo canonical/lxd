@@ -67,47 +67,49 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	ct, err := d.ContainerInfo(cName)
-	if err != nil {
-		return err
-	}
-
-	wasRunning := ct.StatusCode != 0 && ct.StatusCode != shared.Stopped
-	wasEphemeral := ct.Ephemeral
-
-	if wasRunning {
-		if !c.Force {
-			return fmt.Errorf("The container is currently running. Use --force to have it stopped and restarted.")
+	if !shared.IsSnapshot(cName) {
+		ct, err := d.ContainerInfo(cName)
+		if err != nil {
+			return err
 		}
 
-		if ct.Ephemeral {
-			ct.Ephemeral = false
-			err := d.UpdateContainerConfig(cName, ct.Brief())
+		wasRunning := ct.StatusCode != 0 && ct.StatusCode != shared.Stopped
+		wasEphemeral := ct.Ephemeral
+
+		if wasRunning {
+			if !c.Force {
+				return fmt.Errorf("The container is currently running. Use --force to have it stopped and restarted.")
+			}
+
+			if ct.Ephemeral {
+				ct.Ephemeral = false
+				err := d.UpdateContainerConfig(cName, ct.Brief())
+				if err != nil {
+					return err
+				}
+			}
+
+			resp, err := d.Action(cName, shared.Stop, -1, true)
 			if err != nil {
 				return err
 			}
-		}
 
-		resp, err := d.Action(cName, shared.Stop, -1, true)
-		if err != nil {
-			return err
-		}
-
-		op, err := d.WaitFor(resp.Operation)
-		if err != nil {
-			return err
-		}
-
-		if op.StatusCode == shared.Failure {
-			return fmt.Errorf(i18n.G("Stopping container failed!"))
-		}
-		defer d.Action(cName, shared.Start, -1, true)
-
-		if wasEphemeral {
-			ct.Ephemeral = true
-			err := d.UpdateContainerConfig(cName, ct.Brief())
+			op, err := d.WaitFor(resp.Operation)
 			if err != nil {
 				return err
+			}
+
+			if op.StatusCode == shared.Failure {
+				return fmt.Errorf(i18n.G("Stopping container failed!"))
+			}
+			defer d.Action(cName, shared.Start, -1, true)
+
+			if wasEphemeral {
+				ct.Ephemeral = true
+				err := d.UpdateContainerConfig(cName, ct.Brief())
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
