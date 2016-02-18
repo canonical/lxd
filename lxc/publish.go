@@ -78,7 +78,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 
 		if wasRunning {
 			if !c.Force {
-				return fmt.Errorf("The container is currently running. Use --force to have it stopped and restarted.")
+				return fmt.Errorf(i18n.G("The container is currently running. Use --force to have it stopped and restarted."))
 			}
 
 			if ct.Ephemeral {
