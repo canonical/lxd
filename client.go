@@ -396,7 +396,18 @@ func (c *Client) websocket(operation string, secret string) (*websocket.Conn, er
 }
 
 func (c *Client) url(elem ...string) string {
-	return c.BaseURL + "/" + strings.Join(elem, "/")
+	path := strings.Join(elem, "/")
+	uri := c.BaseURL + "/" + path
+
+	if strings.HasPrefix(path, "1.0/images/aliases") {
+		return uri
+	}
+
+	if strings.Contains(path, "?") {
+		return uri
+	}
+
+	return strings.TrimSuffix(uri, "/")
 }
 
 func (c *Client) GetServerConfig() (*Response, error) {
