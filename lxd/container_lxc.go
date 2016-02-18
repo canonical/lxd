@@ -2204,7 +2204,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 func (c *containerLXC) Export(w io.Writer) error {
 	if c.IsRunning() {
-		return fmt.Errorf("Cannot export a running container as image")
+		return fmt.Errorf("Cannot export a running container as an image")
 	}
 
 	// Start the storage
