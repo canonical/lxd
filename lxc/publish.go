@@ -67,8 +67,16 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
+	s := d
+	if cRemote != iRemote {
+		s, err = lxd.NewClient(config, cRemote)
+		if err != nil {
+			return err
+		}
+	}
+
 	if !shared.IsSnapshot(cName) {
-		ct, err := d.ContainerInfo(cName)
+		ct, err := s.ContainerInfo(cName)
 		if err != nil {
 			return err
 		}
@@ -83,18 +91,18 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 
 			if ct.Ephemeral {
 				ct.Ephemeral = false
-				err := d.UpdateContainerConfig(cName, ct.Brief())
+				err := s.UpdateContainerConfig(cName, ct.Brief())
 				if err != nil {
 					return err
 				}
 			}
 
-			resp, err := d.Action(cName, shared.Stop, -1, true)
+			resp, err := s.Action(cName, shared.Stop, -1, true)
 			if err != nil {
 				return err
 			}
 
-			op, err := d.WaitFor(resp.Operation)
+			op, err := s.WaitFor(resp.Operation)
 			if err != nil {
 				return err
 			}
@@ -102,11 +110,11 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 			if op.StatusCode == shared.Failure {
 				return fmt.Errorf(i18n.G("Stopping container failed!"))
 			}
-			defer d.Action(cName, shared.Start, -1, true)
+			defer s.Action(cName, shared.Start, -1, true)
 
 			if wasEphemeral {
 				ct.Ephemeral = true
-				err := d.UpdateContainerConfig(cName, ct.Brief())
+				err := s.UpdateContainerConfig(cName, ct.Brief())
 				if err != nil {
 					return err
 				}
@@ -132,11 +140,6 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		}
 		fmt.Printf(i18n.G("Container published with fingerprint: %s")+"\n", fp)
 		return nil
-	}
-
-	s, err := lxd.NewClient(config, cRemote)
-	if err != nil {
-		return err
 	}
 
 	fp, err = s.ImageFromContainer(cName, false, nil, properties)
