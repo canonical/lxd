@@ -38,7 +38,7 @@ test_static_analysis() {
 
     ## deadcode
     if which deadcode >/dev/null 2>&1; then
-      for path in . lxc/ lxd/ shared/ i18n/ fuidshift/ lxd-bridge/lxd-bridge-proxy/; do
+      for path in . lxc/ lxd/ shared/ shared/i18n shared/termios fuidshift/ lxd-bridge/lxd-bridge-proxy/; do
         OUT=$(deadcode ${path} 2>&1 | grep -v lxd/migrate.pb.go || true)
         if [ -n "${OUT}" ]; then
           echo "${OUT}" >&2
