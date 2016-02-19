@@ -11,8 +11,8 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 type profileCmd struct {
