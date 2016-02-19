@@ -10,13 +10,13 @@ import (
 	"syscall"
 
 	"github.com/olekukonko/tablewriter"
-	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
+	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type configCmd struct {
@@ -106,7 +106,7 @@ func (c *configCmd) doSet(config *lxd.Config, args []string, unset bool) error {
 	key := args[2]
 	value := args[3]
 
-	if !terminal.IsTerminal(int(syscall.Stdin)) && value == "-" {
+	if !termios.IsTerminal(int(syscall.Stdin)) && value == "-" {
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
@@ -446,7 +446,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 func (c *configCmd) doContainerConfigEdit(client *lxd.Client, cont string) error {
 	// If stdin isn't a terminal, read text from it
-	if !terminal.IsTerminal(int(syscall.Stdin)) {
+	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return err
@@ -509,7 +509,7 @@ func (c *configCmd) doContainerConfigEdit(client *lxd.Client, cont string) error
 
 func (c *configCmd) doDaemonConfigEdit(client *lxd.Client) error {
 	// If stdin isn't a terminal, read text from it
-	if !terminal.IsTerminal(int(syscall.Stdin)) {
+	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return err

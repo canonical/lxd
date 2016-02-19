@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-02-17 21:05-0500\n"
+        "POT-Creation-Date: 2016-02-19 14:15-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -172,7 +172,7 @@ msgstr  ""
 msgid   "Container name is: %s"
 msgstr  ""
 
-#: lxc/publish.go:133 lxc/publish.go:153
+#: lxc/publish.go:141 lxc/publish.go:156
 #, c-format
 msgid   "Container published with fingerprint: %s"
 msgstr  ""
@@ -778,7 +778,7 @@ msgstr  ""
 msgid   "Remote admin password"
 msgstr  ""
 
-#: lxc/delete.go:43
+#: lxc/delete.go:42
 #, c-format
 msgid   "Remove %s (yes/no): "
 msgstr  ""
@@ -868,15 +868,15 @@ msgstr  ""
 msgid   "Stop the container if currently running"
 msgstr  ""
 
-#: lxc/delete.go:97 lxc/publish.go:103
+#: lxc/delete.go:106 lxc/publish.go:111
 msgid   "Stopping container failed!"
 msgstr  ""
 
-#: lxc/delete.go:83
+#: lxc/delete.go:92
 msgid   "The container is currently running, stop it first or pass --force."
 msgstr  ""
 
-#: lxc/publish.go:81
+#: lxc/publish.go:89
 msgid   "The container is currently running. Use --force to have it stopped and restarted."
 msgstr  ""
 
@@ -927,7 +927,7 @@ msgstr  ""
 msgid   "Usage: lxc [subcommand] [options]"
 msgstr  ""
 
-#: lxc/delete.go:47
+#: lxc/delete.go:46
 msgid   "User aborted delete operation."
 msgstr  ""
 
@@ -1042,7 +1042,7 @@ msgstr  ""
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
-#: lxc/delete.go:46 lxc/image.go:294 lxc/image.go:542
+#: lxc/delete.go:45 lxc/image.go:294 lxc/image.go:542
 msgid   "yes"
 msgstr  ""
 

@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 type profileList []string

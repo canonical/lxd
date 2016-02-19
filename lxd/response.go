@@ -204,7 +204,12 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 	if debug {
 		shared.DebugJson(captured)
 	}
-	http.Error(w, buf.String(), r.code)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(r.code)
+	fmt.Fprintln(w, buf.String())
+
 	return nil
 }
 

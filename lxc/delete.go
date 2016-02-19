@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 type deleteCmd struct {
@@ -37,17 +37,19 @@ func (c *deleteCmd) flags() {
 	gnuflag.BoolVar(&c.interactive, "interactive", false, i18n.G("Require user confirmation."))
 }
 
-func (c *deleteCmd) doDelete(d *lxd.Client, name string) error {
-	if c.interactive {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Printf(i18n.G("Remove %s (yes/no): "), name)
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSuffix(input, "\n")
-		if !shared.StringInSlice(strings.ToLower(input), []string{i18n.G("yes")}) {
-			return fmt.Errorf(i18n.G("User aborted delete operation."))
-		}
+func (c *deleteCmd) promptDelete(name string) error {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Printf(i18n.G("Remove %s (yes/no): "), name)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSuffix(input, "\n")
+	if !shared.StringInSlice(strings.ToLower(input), []string{i18n.G("yes")}) {
+		return fmt.Errorf(i18n.G("User aborted delete operation."))
 	}
 
+	return nil
+}
+
+func (c *deleteCmd) doDelete(d *lxd.Client, name string) error {
 	resp, err := d.Delete(name)
 	if err != nil {
 		return err
@@ -67,6 +69,13 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
+		}
+
+		if c.interactive {
+			err := c.promptDelete(name)
+			if err != nil {
+				return err
+			}
 		}
 
 		if shared.IsSnapshot(name) {

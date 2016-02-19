@@ -99,7 +99,6 @@ func hoistReq(f func(container, *http.Request) *devLxdResponse, d *Daemon) func(
 
 		resp := f(c, r)
 		if resp.code != http.StatusOK {
-			w.Header().Set("Content-Type", "application/octet-stream")
 			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
 		} else if resp.ctype == "json" {
 			w.Header().Set("Content-Type", "application/json")
