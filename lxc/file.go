@@ -11,12 +11,11 @@ import (
 	"strings"
 	"syscall"
 
-	"golang.org/x/crypto/ssh/terminal"
-
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type fileCmd struct {
@@ -231,7 +230,7 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 	}
 
 	// If stdin isn't a terminal, read text from it
-	if !terminal.IsTerminal(int(syscall.Stdin)) {
+	if !termios.IsTerminal(int(syscall.Stdin)) {
 		return c.push(config, append([]string{os.Stdin.Name()}, args[0]))
 	}
 
