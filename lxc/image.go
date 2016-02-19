@@ -10,13 +10,13 @@ import (
 	"syscall"
 
 	"github.com/olekukonko/tablewriter"
-	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type SortImage [][]string
@@ -588,7 +588,7 @@ func (c *imageCmd) showAliases(aliases shared.ImageAliases) error {
 
 func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 	// If stdin isn't a terminal, read text from it
-	if !terminal.IsTerminal(int(syscall.Stdin)) {
+	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return err

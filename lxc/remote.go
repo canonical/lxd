@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
+
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"

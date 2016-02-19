@@ -9,12 +9,12 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
-	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type envFlag []string
@@ -54,7 +54,7 @@ func (c *execCmd) flags() {
 }
 
 func (c *execCmd) sendTermSize(control *websocket.Conn) error {
-	width, height, err := terminal.GetSize(int(syscall.Stdout))
+	width, height, err := termios.GetSize(int(syscall.Stdout))
 	if err != nil {
 		return err
 	}
@@ -118,16 +118,16 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 	} else if c.modeFlag == "non-interactive" {
 		interactive = false
 	} else {
-		interactive = terminal.IsTerminal(cfd)
+		interactive = termios.IsTerminal(cfd)
 	}
 
-	var oldttystate *terminal.State
+	var oldttystate *termios.State
 	if interactive {
-		oldttystate, err = terminal.MakeRaw(cfd)
+		oldttystate, err = termios.MakeRaw(cfd)
 		if err != nil {
 			return err
 		}
-		defer terminal.Restore(cfd, oldttystate)
+		defer termios.Restore(cfd, oldttystate)
 	}
 
 	handler := c.controlSocketHandler
@@ -149,7 +149,7 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		 * Additionally, since os.Exit() exits without running deferred
 		 * functions, we restore the terminal explicitly.
 		 */
-		terminal.Restore(cfd, oldttystate)
+		termios.Restore(cfd, oldttystate)
 	}
 
 	/* we get the result of waitpid() here so we need to transform it */
