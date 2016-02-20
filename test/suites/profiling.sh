@@ -7,6 +7,7 @@ test_cpu_profiling() {
   lxdpid=$(cat "${LXD3_DIR}/lxd.pid")
   kill -TERM "${lxdpid}"
   wait "${lxdpid}" || true
+  export PPROF_TMPDIR="${TEST_DIR}/pprof"
   echo top5 | go tool pprof "$(which lxd)" "${LXD3_DIR}/cpu.out"
   echo ""
 
@@ -32,6 +33,7 @@ test_mem_profiling() {
     timeout=$((timeout-1))
   done
 
+  export PPROF_TMPDIR="${TEST_DIR}/pprof"
   echo top5 | go tool pprof "$(which lxd)" "${LXD4_DIR}/mem"
   echo ""
 
