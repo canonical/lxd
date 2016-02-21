@@ -3100,7 +3100,7 @@ func (c *containerLXC) createNetworkDevice(name string, m shared.Device) (string
 		}
 
 		if m["nictype"] == "bridged" {
-			err = exec.Command("brctl", "addif", m["parent"], n1).Run()
+			err = exec.Command("ip", "link", "set", n1, "master", m["parent"]).Run()
 			if err != nil {
 				deviceRemoveInterface(n2)
 				return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
