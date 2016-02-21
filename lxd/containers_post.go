@@ -44,7 +44,7 @@ type containerImageSource struct {
 }
 
 type containerPostReq struct {
-	Architecture int                  `json:"architecture"`
+	Architecture string               `json:"architecture"`
 	Config       map[string]string    `json:"config"`
 	Devices      shared.Devices       `json:"devices"`
 	Ephemeral    bool                 `json:"ephemeral"`
@@ -93,8 +93,13 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 		hash = imgInfo.Fingerprint
 
+		architecture, err := shared.ArchitectureId(imgInfo.Architecture)
+		if err != nil {
+			architecture = 0
+		}
+
 		args := containerArgs{
-			Architecture: imgInfo.Architecture,
+			Architecture: architecture,
 			BaseImage:    hash,
 			Config:       req.Config,
 			Ctype:        cTypeRegular,
@@ -120,8 +125,13 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 }
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
+	architecture, err := shared.ArchitectureId(req.Architecture)
+	if err != nil {
+		architecture = 0
+	}
+
 	args := containerArgs{
-		Architecture: req.Architecture,
+		Architecture: architecture,
 		Config:       req.Config,
 		Ctype:        cTypeRegular,
 		Devices:      req.Devices,
@@ -151,9 +161,14 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return NotImplemented
 	}
 
+	architecture, err := shared.ArchitectureId(req.Architecture)
+	if err != nil {
+		architecture = 0
+	}
+
 	run := func(op *operation) error {
 		args := containerArgs{
-			Architecture: req.Architecture,
+			Architecture: architecture,
 			BaseImage:    req.Source.BaseImage,
 			Config:       req.Config,
 			Ctype:        cTypeRegular,

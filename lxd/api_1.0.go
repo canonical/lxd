@@ -94,9 +94,19 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: d.tlsConfig.Certificates[0].Certificate[0]}))
 		}
 
+		architectures := []string{}
+
+		for _, architecture := range d.architectures {
+			architectureName, err := shared.ArchitectureName(architecture)
+			if err != nil {
+				return InternalError(err)
+			}
+			architectures = append(architectures, architectureName)
+		}
+
 		env := shared.Jmap{
 			"addresses":           addresses,
-			"architectures":       d.architectures,
+			"architectures":       architectures,
 			"certificate":         certificate,
 			"driver":              "lxc",
 			"driver_version":      lxc.Version(),

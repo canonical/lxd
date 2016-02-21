@@ -13,7 +13,7 @@ import (
 )
 
 type containerPutReq struct {
-	Architecture int               `json:"architecture"`
+	Architecture string            `json:"architecture"`
 	Config       map[string]string `json:"config"`
 	Devices      shared.Devices    `json:"devices"`
 	Ephemeral    bool              `json:"ephemeral"`
@@ -37,13 +37,18 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	architecture, err := shared.ArchitectureId(configRaw.Architecture)
+	if err != nil {
+		architecture = 0
+	}
+
 	var do = func(*operation) error { return nil }
 
 	if configRaw.Restore == "" {
 		// Update container configuration
 		do = func(op *operation) error {
 			args := containerArgs{
-				Architecture: configRaw.Architecture,
+				Architecture: architecture,
 				Config:       configRaw.Config,
 				Devices:      configRaw.Devices,
 				Ephemeral:    configRaw.Ephemeral,
