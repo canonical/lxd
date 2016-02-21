@@ -295,8 +295,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		fmt.Printf(i18n.G("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
-		arch, _ := shared.ArchitectureName(info.Architecture)
-		fmt.Printf(i18n.G("Architecture: %s")+"\n", arch)
+		fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
 		fmt.Printf(i18n.G("Public: %s")+"\n", public)
 		fmt.Printf(i18n.G("Timestamps:") + "\n")
 		const layout = "2006/01/02 15:04 UTC"
@@ -544,9 +543,8 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 
 		const layout = "Jan 2, 2006 at 3:04pm (MST)"
 		uploaded := image.UploadDate.UTC().Format(layout)
-		arch, _ := shared.ArchitectureName(image.Architecture)
 		size := fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
-		data = append(data, []string{shortest, fp, public, description, arch, size, uploaded})
+		data = append(data, []string{shortest, fp, public, description, image.Architecture, size, uploaded})
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)

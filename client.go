@@ -1083,7 +1083,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, err
 		}
 
-		if len(architectures) != 0 && !shared.IntInSlice(imageinfo.Architecture, architectures) {
+		if len(architectures) != 0 && !shared.StringInSlice(imageinfo.Architecture, architectures) {
 			return nil, fmt.Errorf("The image architecture is incompatible with the target server")
 		}
 
@@ -1122,7 +1122,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, fmt.Errorf("can't get info for image '%s': %s", image, err)
 		}
 
-		if len(architectures) != 0 && !shared.IntInSlice(imageinfo.Architecture, architectures) {
+		if len(architectures) != 0 && !shared.StringInSlice(imageinfo.Architecture, architectures) {
 			return nil, fmt.Errorf("The image architecture is incompatible with the target server")
 		}
 		source["fingerprint"] = fingerprint
@@ -1487,7 +1487,7 @@ func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
 	return c.post(url, body, Async)
 }
 
-func (c *Client) MigrateFrom(name string, operation string, certificate string, secrets map[string]string, architecture int, config map[string]string, devices shared.Devices, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
+func (c *Client) MigrateFrom(name string, operation string, certificate string, secrets map[string]string, architecture string, config map[string]string, devices shared.Devices, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
 	source := shared.Jmap{
 		"type":        "migration",
 		"mode":        "pull",
