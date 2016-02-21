@@ -18,7 +18,7 @@ The list of supported major API versions can be retrieved using GET /.
 The reason for a major API bump is if the API breaks backward compatibility.
 
 Feature additions done without breaking backward compatibility only
-result in a bump of the compat version which can be used by the client
+result in addition to api\_extensions which can be used by the client
 to check if a given feature is supported by the server.
 
 # Return values
@@ -218,7 +218,9 @@ Return value:
 Return value (if trusted):
 
     {
-        "api_compat": 1,                                # Used to determine API functionality
+        "api_extensions": [],                           # List of API extensions added after the API was marked stable
+        "api_status": "development",                    # API implementation status (one of, development, stable or deprecated)
+        "api_version": "1.0",                           # The API version as a string
         "auth": "trusted",                              # Authentication state, one of "guest", "untrusted" or "trusted"
         "config": {                                     # Host configuration
             "core.trust_password": true,
@@ -251,7 +253,9 @@ Return value (if trusted):
 Return value (if guest or untrusted):
 
     {
-        "api_compat": 1,                        # Used to determine API functionality
+        "api_extensions": [],                   # List of API extensions added after the API was marked stable
+        "api_status": "development",            # API implementation status (one of, development, stable or deprecated)
+        "api_version": "1.0",                   # The API version as a string
         "auth": "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
         "public": false,                        # Whether the server should be treated as a public (read-only) remote by the client
     }
