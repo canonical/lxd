@@ -416,24 +416,11 @@ func (c *Client) GetServerConfig() (*Response, error) {
 
 func (c *Client) Finger() error {
 	shared.Debugf("Fingering the daemon")
-	resp, err := c.GetServerConfig()
+	_, err := c.GetServerConfig()
 	if err != nil {
 		return err
 	}
 
-	jmap, err := resp.MetadataAsMap()
-	if err != nil {
-		return err
-	}
-
-	serverAPICompat, err := jmap.GetInt("api_compat")
-	if err != nil {
-		return err
-	}
-
-	if serverAPICompat != shared.APICompat {
-		return fmt.Errorf("api version mismatch: mine: %q, daemon: %q", shared.APICompat, serverAPICompat)
-	}
 	shared.Debugf("Pong received")
 	return nil
 }
@@ -1615,12 +1602,7 @@ func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
 	}
 
 	ss.Config[key] = value
-	body := shared.Jmap{
-		"api_compat":  ss.APICompat,
-		"auth":        ss.Auth,
-		"environment": ss.Environment,
-		"config":      ss.Config,
-		"public":      ss.Public}
+	body := shared.Jmap{"config": ss.Config}
 
 	return c.put("", body, Sync)
 }

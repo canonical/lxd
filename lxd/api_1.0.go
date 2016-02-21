@@ -43,7 +43,11 @@ var api10 = []Command{
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {
-	body := shared.Jmap{"api_compat": shared.APICompat}
+	body := shared.Jmap{
+		"api_extensions": []string{},
+		"api_status":     "development",
+		"api_version":    shared.APIVersion,
+	}
 
 	if d.isTrustedClient(r) {
 		body["auth"] = "trusted"

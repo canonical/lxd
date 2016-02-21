@@ -74,7 +74,7 @@ var handlers = []devLxdHandler{
 		return okResponse([]string{"/1.0"}, "json")
 	}},
 	devLxdHandler{"/1.0", func(c container, r *http.Request) *devLxdResponse {
-		return okResponse(shared.Jmap{"api_compat": 0}, "json")
+		return okResponse(shared.Jmap{"api_version": shared.APIVersion}, "json")
 	}},
 	configGet,
 	configKeyGet,
