@@ -1351,8 +1351,11 @@ func (c *containerLXC) Render() (*shared.ContainerInfo, error) {
 	// FIXME: Render shouldn't directly access the go-lxc struct
 	statusCode := shared.FromLXCState(int(c.c.State()))
 
+	// Ignore err as the arch string on error is correct (unknown)
+	architectureName, _ := shared.ArchitectureName(c.architecture)
+
 	return &shared.ContainerInfo{
-		Architecture:    c.architecture,
+		Architecture:    architectureName,
 		Config:          c.localConfig,
 		CreationDate:    c.creationDate,
 		Devices:         c.localDevices,

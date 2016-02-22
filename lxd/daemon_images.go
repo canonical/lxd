@@ -288,7 +288,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, certificate string,
 			return err
 		}
 
-		info.Architecture, _ = shared.ArchitectureId(imageMeta.Architecture)
+		info.Architecture = imageMeta.Architecture
 		info.CreationDate = time.Unix(imageMeta.CreationDate, 0)
 		info.ExpiryDate = time.Unix(imageMeta.ExpiryDate, 0)
 		info.Properties = imageMeta.Properties

@@ -31,7 +31,7 @@ type SnapshotInfo struct {
 }
 
 type ContainerInfo struct {
-	Architecture    int               `json:"architecture"`
+	Architecture    string            `json:"architecture"`
 	Config          map[string]string `json:"config"`
 	CreationDate    time.Time         `json:"created_at"`
 	Devices         Devices           `json:"devices"`
