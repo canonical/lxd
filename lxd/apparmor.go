@@ -52,6 +52,9 @@ const DEFAULT_AA_PROFILE = `
 profile "%s" flags=(attach_disconnected,mediate_deleted) {
     #include <abstractions/lxc/container-base>
 
+    # Special exception for cgroup namespaces
+    %s
+
     # user input raw.apparmor below here
     %s
 
@@ -75,6 +78,13 @@ func AAProfileShort(c container) string {
 	return fmt.Sprintf("lxd-%s", c.Name())
 }
 
+func AAProfileCgns() string {
+	if shared.PathExists("/proc/self/ns/cgroup") {
+		return "  mount fstype=cgroup -> /sys/fs/cgroup/**,"
+	}
+	return ""
+}
+
 // getProfileContent generates the apparmor profile template from the given
 // container. This includes the stock lxc includes as well as stuff from
 // raw.apparmor.
@@ -89,7 +99,7 @@ func getAAProfileContent(c container) string {
 		nesting = NESTING_AA_PROFILE
 	}
 
-	return fmt.Sprintf(DEFAULT_AA_PROFILE, AAProfileFull(c), rawApparmor, nesting, AAProfileFull(c))
+	return fmt.Sprintf(DEFAULT_AA_PROFILE, AAProfileFull(c), AAProfileCgns(), rawApparmor, nesting, AAProfileFull(c))
 }
 
 func runApparmor(command string, c container) error {
