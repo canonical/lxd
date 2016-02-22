@@ -11,5 +11,4 @@ var UserAgent = "LXD " + Version
  *
  * Version 1.0: ping
  */
-var APICompat = 1
 var APIVersion = "1.0"

@@ -18,7 +18,7 @@ The list of supported major API versions can be retrieved using GET /.
 The reason for a major API bump is if the API breaks backward compatibility.
 
 Feature additions done without breaking backward compatibility only
-result in a bump of the compat version which can be used by the client
+result in addition to api\_extensions which can be used by the client
 to check if a given feature is supported by the server.
 
 # Return values
@@ -218,7 +218,9 @@ Return value:
 Return value (if trusted):
 
     {
-        "api_compat": 1,                                # Used to determine API functionality
+        "api_extensions": [],                           # List of API extensions added after the API was marked stable
+        "api_status": "development",                    # API implementation status (one of, development, stable or deprecated)
+        "api_version": "1.0",                           # The API version as a string
         "auth": "trusted",                              # Authentication state, one of "guest", "untrusted" or "trusted"
         "config": {                                     # Host configuration
             "core.trust_password": true,
@@ -230,8 +232,8 @@ Return value (if trusted):
                 "[1234::1234]:8443"
             ],
             "architectures": [
-                2,
-                1
+                "x86_64",
+                "i686"
             ],
             "certificate": "PEM certificate",
             "driver": "lxc",
@@ -251,7 +253,9 @@ Return value (if trusted):
 Return value (if guest or untrusted):
 
     {
-        "api_compat": 1,                        # Used to determine API functionality
+        "api_extensions": [],                   # List of API extensions added after the API was marked stable
+        "api_status": "development",            # API implementation status (one of, development, stable or deprecated)
+        "api_version": "1.0",                   # The API version as a string
         "auth": "guest",                        # Authentication state, one of "guest", "untrusted" or "trusted"
         "public": false,                        # Whether the server should be treated as a public (read-only) remote by the client
     }
@@ -365,7 +369,7 @@ Input (container based on a local image with the "ubuntu/devel" alias):
 
     {
         "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        "architecture": 2,
+        "architecture": "x86_64",
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
@@ -377,7 +381,7 @@ Input (container based on a local image identified by its fingerprint):
 
     {
         "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        "architecture": 2,
+        "architecture": "x86_64",
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
@@ -389,7 +393,7 @@ Input (container based on most recent match based on image properties):
 
     {
         "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        "architecture": 2,
+        "architecture": "x86_64",
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
@@ -405,7 +409,7 @@ Input (container without a pre-populated rootfs, useful when attaching to an exi
 
     {
         "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        "architecture": 2,
+        "architecture": "x86_64",
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
@@ -416,7 +420,7 @@ Input (using a public remote image):
 
     {
         "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        "architecture": 2,
+        "architecture": "x86_64",
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
@@ -432,7 +436,7 @@ Input (using a private remote image after having obtained a secret for that imag
 
     {
         "name": "my-new-container",                                         # 64 chars max, ASCII, no slash, no colon and no comma
-        "architecture": 2,
+        "architecture": "x86_64",
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
@@ -448,7 +452,7 @@ Input (using a remote container, sent over the migration websocket):
 
     {
         "name": "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
-        "architecture": 2,
+        "architecture": "x86_64",
         "profiles": ["default"],                                                        # List of profiles
         "ephemeral": true,                                                              # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                                  # Config override.
@@ -466,7 +470,7 @@ Input (using a local container):
 
     {
         "name": "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
-        "architecture": 2,
+        "architecture": "x86_64",
         "profiles": ["default"],                                                        # List of profiles
         "ephemeral": true,                                                              # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                                  # Config override.
@@ -485,7 +489,7 @@ Input (using a local container):
 Output:
 
     {
-        "architecture": 2,
+        "architecture": "x86_64",
         "config": {
             "limits.cpu": "3",
             "volatile.base_image": "97d97a3d1d053840ca19c86cdd0596cf1be060c5157d31407f2a4f9f350c78cc",
@@ -534,7 +538,7 @@ Output:
 Input (update container configuration):
 
     {
-        "architecture": 2,
+        "architecture": "x86_64",
         "config": {
             "limits.cpu": "4",
             "volatile.base_image": "97d97a3d1d053840ca19c86cdd0596cf1be060c5157d31407f2a4f9f350c78cc",
@@ -1006,7 +1010,7 @@ Output:
                 "description": "",
             }
         ],
-        "architecture": 2,
+        "architecture": "x86_64",
         "fingerprint": "54c8caac1f61901ed86c68f24af5f5d3672bdc62c71d04f06df3a59e95684473",
         "filename": "ubuntu-trusty-14.04-amd64-server-20160201.tar.xz",
         "properties": {

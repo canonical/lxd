@@ -21,7 +21,7 @@ type ImageAlias struct {
 
 type ImageInfo struct {
 	Aliases      []ImageAlias      `json:"aliases"`
-	Architecture int               `json:"architecture"`
+	Architecture string            `json:"architecture"`
 	Fingerprint  string            `json:"fingerprint"`
 	Filename     string            `json:"filename"`
 	Properties   map[string]string `json:"properties"`

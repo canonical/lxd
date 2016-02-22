@@ -623,7 +623,7 @@ to import and launch images"""))
             image_hash = image['fingerprint']
             image_public = image['public']
             image_source = image['properties']['lxd-images.sync']
-            image_aliases = [alias['target'] for alias in image['aliases']]
+            image_aliases = [alias['name'] for alias in image['aliases']]
 
             # Extract the serialized lxd-images config
             source_parts = image_source.split(":")

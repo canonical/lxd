@@ -43,10 +43,11 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 	// The object we'll actually return
 	image := shared.ImageInfo{}
 	id := -1
+	arch := -1
 
 	// These two humongous things will be filled by the call to DbQueryRowScan
 	outfmt := []interface{}{&id, &image.Fingerprint, &image.Filename,
-		&image.Size, &image.Public, &image.Architecture,
+		&image.Size, &image.Public, &arch,
 		&create, &expire, &upload}
 
 	var query string
@@ -88,11 +89,15 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 	} else {
 		image.CreationDate = time.Time{}
 	}
+
 	if expire != nil {
 		image.ExpiryDate = *expire
 	} else {
 		image.ExpiryDate = time.Time{}
 	}
+
+	image.Architecture, _ = shared.ArchitectureName(arch)
+
 	// The upload date is enforced by NOT NULL in the schema, so it can never be nil.
 	image.UploadDate = *upload
 
@@ -232,7 +237,12 @@ func dbImageExpiryGet(db *sql.DB) (string, error) {
 	}
 }
 
-func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, arch int, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
+func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, architecture string, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
+	arch, err := shared.ArchitectureId(architecture)
+	if err != nil {
+		arch = 0
+	}
+
 	tx, err := dbBegin(db)
 	if err != nil {
 		return err
@@ -279,7 +289,12 @@ func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, arch
 	return nil
 }
 
-func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, arch int, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
+func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, architecture string, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
+	arch, err := shared.ArchitectureId(architecture)
+	if err != nil {
+		arch = 0
+	}
+
 	tx, err := dbBegin(db)
 	if err != nil {
 		return err
