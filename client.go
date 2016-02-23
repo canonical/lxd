@@ -142,7 +142,7 @@ func HoistResponse(r *http.Response, rtype ResponseType) (*Response, error) {
 	return resp, nil
 }
 
-func readMyCert(configDir string) (string, string, error) {
+func ensureMyCert(configDir string) (string, string, error) {
 	certf := path.Join(configDir, "client.crt")
 	keyf := path.Join(configDir, "client.key")
 
@@ -153,94 +153,181 @@ func readMyCert(configDir string) (string, string, error) {
 
 // NewClient returns a new LXD client.
 func NewClient(config *Config, remote string) (*Client, error) {
-	c := Client{
-		Config: *config,
-		Http:   http.Client{},
-	}
-
-	c.Name = remote
-
 	if remote == "" {
 		return nil, fmt.Errorf("A remote name must be provided.")
 	}
 
-	if r, ok := config.Remotes[remote]; ok {
-		if r.Addr[0:5] == "unix:" {
-			if r.Addr == "unix://" {
-				r.Addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
-			}
-
-			c.BaseURL = "http://unix.socket"
-			c.BaseWSURL = "ws://unix.socket"
-			c.Transport = "unix"
-			uDial := func(networ, addr string) (net.Conn, error) {
-				var err error
-				var raddr *net.UnixAddr
-				if r.Addr[7:] == "unix://" {
-					raddr, err = net.ResolveUnixAddr("unix", r.Addr[7:])
-				} else {
-					raddr, err = net.ResolveUnixAddr("unix", r.Addr[5:])
-				}
-				if err != nil {
-					return nil, err
-				}
-				return net.DialUnix("unix", nil, raddr)
-			}
-			c.Http.Transport = &http.Transport{Dial: uDial}
-			c.websocketDialer.NetDial = uDial
-			c.Remote = &r
-
-			st, err := c.ServerStatus()
-			if err != nil {
-				return nil, err
-			}
-			c.Certificate = st.Environment.Certificate
-		} else {
-			certf, keyf, err := readMyCert(config.ConfigDir)
-			if err != nil {
-				return nil, err
-			}
-
-			var cert *x509.Certificate
-			if shared.PathExists(c.Config.ServerCertPath(c.Name)) {
-				cert, err = shared.ReadCert(c.Config.ServerCertPath(c.Name))
-				if err != nil {
-					return nil, err
-				}
-
-				c.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
-			}
-
-			tlsconfig, err := shared.GetTLSConfig(certf, keyf, cert)
-			if err != nil {
-				return nil, err
-			}
-
-			tr := &http.Transport{
-				TLSClientConfig: tlsconfig,
-				Dial:            shared.RFC3493Dialer,
-				Proxy:           http.ProxyFromEnvironment,
-			}
-
-			c.websocketDialer.NetDial = shared.RFC3493Dialer
-			c.websocketDialer.TLSClientConfig = tlsconfig
-
-			if r.Addr[0:8] == "https://" {
-				c.BaseURL = "https://" + r.Addr[8:]
-				c.BaseWSURL = "wss://" + r.Addr[8:]
-			} else {
-				c.BaseURL = "https://" + r.Addr
-				c.BaseWSURL = "wss://" + r.Addr
-			}
-			c.Transport = "https"
-			c.Http.Transport = tr
-			c.Remote = &r
-		}
-	} else {
+	r, ok := config.Remotes[remote]
+	if !ok {
 		return nil, fmt.Errorf("unknown remote name: %q", remote)
 	}
+	info := ConnectInfo{
+		Name: remote,
+		Addr: r.Addr,
+	}
+	if r.Addr[0:5] != "unix:" {
+		certf, keyf, err := ensureMyCert(config.ConfigDir)
+		if err != nil {
+			return nil, err
+		}
+		certBytes, err := ioutil.ReadFile(certf)
+		if err != nil {
+			return nil, err
+		}
+		keyBytes, err := ioutil.ReadFile(keyf)
+		if err != nil {
+			return nil, err
+		}
+		info.ClientPEMCert = string(certBytes)
+		info.ClientPEMKey = string(keyBytes)
+		serverCertPath := config.ServerCertPath(remote)
+		if shared.PathExists(serverCertPath) {
+			cert, err := shared.ReadCert(serverCertPath)
+			if err != nil {
+				return nil, err
+			}
 
-	return &c, nil
+			info.ServerPEMCert = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+		}
+	}
+	c, err := NewClientFromInfo(info)
+	if err != nil {
+		return nil, err
+	}
+	c.Config = *config
+	return c, nil
+}
+
+// ConnectInfo contains the information we need to connect to a specific LXD server
+type ConnectInfo struct {
+	// Name is a simple identifier for the remote server. In 'lxc' it is
+	// the name used to lookup the address and other information in the
+	// config.yml file.
+	Name string
+	// Addr is the host address to connect to. It can be unix: to indicate
+	// we should connect over a unix socket, or it can be an IP Address or
+	// Hostname, or an https:// URL.
+	Addr string
+	// ClientPEMCert is the PEM encoded bytes of the client's certificate.
+	// If Addr indicates a Unix socket, the certificate and key bytes will
+	// not be used.
+	ClientPEMCert string
+	// ClientPEMKey is the PEM encoded private bytes of the client's key associated with its certificate
+	ClientPEMKey string
+	// ServerPEMCert is the PEM encoded server certificate that we are
+	// connecting to. It can be the empty string if we do not know the
+	// server's certificate yet.
+	ServerPEMCert string
+}
+
+// how to handle ServerCerts that we want to cache?
+
+func connectViaUnix(c *Client, addr string) error {
+	if addr == "unix://" {
+		addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
+	}
+
+	c.BaseURL = "http://unix.socket"
+	c.BaseWSURL = "ws://unix.socket"
+	c.Transport = "unix"
+	r := &RemoteConfig{
+		Addr: addr,
+		// TODO: (jam) RemoteConfig.Public is not relevant for the purposes of
+		// an active connection. It only seems to be used to display server
+		// information in "list", though if we aren't getting that information
+		// from the service itself, it seems like it can't be guaranteed to be
+		// correct, as it is just the local information about a remote server.
+		// Is there another reason it is here?
+		Public: false,
+	}
+	uDial := func(networ, addr string) (net.Conn, error) {
+		// TODO: (jam) Why are we ignoring the passed in 'addr' and only using our own Addr?
+		// Do we allow other code to mutate Client.Remote.Addr and
+		// change what we connect to, and still ignore the 'adrd'
+		// passed to Dial?
+		var err error
+		var raddr *net.UnixAddr
+		if r.Addr[7:] == "unix://" {
+			raddr, err = net.ResolveUnixAddr("unix", r.Addr[7:])
+		} else {
+			raddr, err = net.ResolveUnixAddr("unix", r.Addr[5:])
+		}
+		if err != nil {
+			return nil, err
+		}
+		return net.DialUnix("unix", nil, raddr)
+	}
+	c.Http.Transport = &http.Transport{Dial: uDial}
+	c.websocketDialer.NetDial = uDial
+	c.Remote = r
+
+	st, err := c.ServerStatus()
+	if err != nil {
+		return err
+	}
+	c.Certificate = st.Environment.Certificate
+	return nil
+}
+
+func connectViaHttp(c *Client, addr, clientCert, clientKey, serverCert string) error {
+
+	tlsconfig, err := shared.GetTLSConfigMem(clientCert, clientKey, serverCert)
+	if err != nil {
+		return err
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig: tlsconfig,
+		Dial:            shared.RFC3493Dialer,
+		Proxy:           http.ProxyFromEnvironment,
+	}
+
+	c.websocketDialer.NetDial = shared.RFC3493Dialer
+	c.websocketDialer.TLSClientConfig = tlsconfig
+
+	if addr[0:8] == "https://" {
+		c.BaseURL = "https://" + addr[8:]
+		c.BaseWSURL = "wss://" + addr[8:]
+	} else {
+		c.BaseURL = "https://" + addr
+		c.BaseWSURL = "wss://" + addr
+	}
+	c.Transport = "https"
+	c.Http.Transport = tr
+	c.Remote = &RemoteConfig{
+		Addr: addr,
+		// TODO: (jam) RemoteConfig.Public is not relevant for the purposes of
+		// an active connection. It only seems to be used to display server
+		// information in "list", though if we aren't getting that information
+		// from the service itself, it seems like it can't be guaranteed to be
+		// correct, as it is just the local information about a remote server.
+		// Is there another reason it is here?
+		Public: false,
+	}
+	// TODO: (jam) It is odd to me that the Unix socket path actually
+	// connects to the service, but the HTTP path just sets up a transport
+	// and socket dialer, but doesn't actually try to connect.
+	return nil
+}
+
+// NewClientFromInfo returns a new LXD client.
+func NewClientFromInfo(info ConnectInfo) (*Client, error) {
+	c := &Client{
+		// Config: *config,
+		Http: http.Client{},
+	}
+	c.Name = info.Name
+	var err error
+	if info.Addr[0:5] == "unix:" {
+		err = connectViaUnix(c, info.Addr)
+	} else {
+		err = connectViaHttp(c, info.Addr, info.ClientPEMCert, info.ClientPEMKey, info.ServerPEMCert)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }
 
 func (c *Client) Addresses() ([]string, error) {

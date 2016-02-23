@@ -3,6 +3,7 @@ package shared
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -62,8 +63,8 @@ func GetRemoteCertificate(address string) (*x509.Certificate, error) {
 	return resp.TLS.PeerCertificates[0], nil
 }
 
-func GetTLSConfig(tlsClientCert string, tlsClientKey string, tlsRemoteCert *x509.Certificate) (*tls.Config, error) {
-	tlsConfig := &tls.Config{
+func initTLSConfig() *tls.Config {
+	return &tls.Config{
 		MinVersion: tls.VersionTLS12,
 		MaxVersion: tls.VersionTLS12,
 		CipherSuites: []uint16{
@@ -71,17 +72,9 @@ func GetTLSConfig(tlsClientCert string, tlsClientKey string, tlsRemoteCert *x509
 			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
 		PreferServerCipherSuites: true,
 	}
+}
 
-	// Client authentication
-	if tlsClientCert != "" && tlsClientKey != "" {
-		cert, err := tls.LoadX509KeyPair(tlsClientCert, tlsClientKey)
-		if err != nil {
-			return nil, err
-		}
-
-		tlsConfig.Certificates = []tls.Certificate{cert}
-	}
-
+func finalizeTLSConfig(tlsConfig *tls.Config, tlsRemoteCert *x509.Certificate) {
 	// Trusted certificates
 	if tlsRemoteCert != nil {
 		caCertPool := x509.NewCertPool()
@@ -101,6 +94,52 @@ func GetTLSConfig(tlsClientCert string, tlsClientKey string, tlsRemoteCert *x509
 	}
 
 	tlsConfig.BuildNameToCertificate()
+}
+
+func GetTLSConfig(tlsClientCertFile string, tlsClientKeyFile string, tlsRemoteCert *x509.Certificate) (*tls.Config, error) {
+	tlsConfig := initTLSConfig()
+
+	// Client authentication
+	if tlsClientCertFile != "" && tlsClientKeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(tlsClientCertFile, tlsClientKeyFile)
+		if err != nil {
+			return nil, err
+		}
+
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	finalizeTLSConfig(tlsConfig, tlsRemoteCert)
+	return tlsConfig, nil
+}
+
+func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsRemoteCertPEM string) (*tls.Config, error) {
+	tlsConfig := initTLSConfig()
+
+	// Client authentication
+	if tlsClientCert != "" && tlsClientKey != "" {
+		cert, err := tls.X509KeyPair([]byte(tlsClientCert), []byte(tlsClientKey))
+		if err != nil {
+			return nil, err
+		}
+
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	var tlsRemoteCert *x509.Certificate
+	if tlsRemoteCertPEM != "" {
+		/// XXX: jam 2016-02-23 shared.ReadCert ignores any trailing
+		//content. Is that secure? I know there were security holes in
+		//some gpg decrypt usage because it would pass on extra bytes
+		//outside of the signed portion.
+		certBlock, _ := pem.Decode([]byte(tlsRemoteCertPEM))
+		var err error
+		tlsRemoteCert, err = x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			return nil, err
+		}
+	}
+	finalizeTLSConfig(tlsConfig, tlsRemoteCert)
 
 	return tlsConfig, nil
 }
