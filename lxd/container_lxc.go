@@ -616,6 +616,22 @@ func (c *containerLXC) initLXC() error {
 		}
 	}
 
+	// Processes
+	if cgPidsController {
+		processes := c.expandedConfig["limits.processes"]
+		if processes != "" {
+			valueInt, err := strconv.ParseInt(processes, 10, 64)
+			if err != nil {
+				return err
+			}
+
+			err = lxcSetConfigItem(cc, "lxc.cgroup.pids.max", fmt.Sprintf("%d", valueInt))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// Setup devices
 	for k, m := range c.expandedDevices {
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
@@ -2064,6 +2080,30 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				if err != nil {
 					undoChanges()
 					return err
+				}
+			} else if key == "limits.processes" {
+				if !cgPidsController {
+					continue
+				}
+
+				if value == "" {
+					err = c.CGroupSet("pids.max", "max")
+					if err != nil {
+						undoChanges()
+						return err
+					}
+				} else {
+					valueInt, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						undoChanges()
+						return err
+					}
+
+					err = c.CGroupSet("pids.max", fmt.Sprintf("%d", valueInt))
+					if err != nil {
+						undoChanges()
+						return err
+					}
 				}
 			}
 		}
