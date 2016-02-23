@@ -70,6 +70,7 @@ limits.memory.enforce       | string    | hard          | yes           | If har
 limits.memory.swap          | boolean   | true          | yes           | Whether to allow some of the container's memory to be swapped out to disk
 limits.memory.swap.priority | integer   | 10 (maximum)  | yes           | The higher this is set, the least likely the container is to be swapped to disk
 limits.network.priority     | integer   | 0 (minimum)   | yes           | When under load, how much priority to give to the container's network requests
+limits.processes            | integer   | - (max)       | yes           | Maximum number of processes that can run in the container
 linux.kernel\_modules       | string    | -             | yes           | Comma separated list of kernel modules to load before starting the container
 raw.apparmor                | blob      | -             | yes           | Apparmor profile entries to be appended to the generated profile
 raw.lxc                     | blob      | -             | no            | Raw LXC configuration to be appended to the generated one
