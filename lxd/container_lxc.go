@@ -616,6 +616,22 @@ func (c *containerLXC) initLXC() error {
 		}
 	}
 
+	// Processes
+	if cgPidsController {
+		processes := c.expandedConfig["limits.processes"]
+		if processes != "" {
+			valueInt, err := strconv.ParseInt(processes, 10, 64)
+			if err != nil {
+				return err
+			}
+
+			err = lxcSetConfigItem(cc, "lxc.cgroup.pids.max", fmt.Sprintf("%d", valueInt))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// Setup devices
 	for k, m := range c.expandedDevices {
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
@@ -1601,6 +1617,22 @@ func (c *containerLXC) Rename(newName string) error {
 	return nil
 }
 
+func (c *containerLXC) CGroupGet(key string) (string, error) {
+	// Load the go-lxc struct
+	err := c.initLXC()
+	if err != nil {
+		return "", err
+	}
+
+	// Make sure the container is running
+	if !c.IsRunning() {
+		return "", fmt.Errorf("Can't get cgroups on a stopped container")
+	}
+
+	value := c.c.CgroupItem(key)
+	return strings.Join(value, "\n"), nil
+}
+
 func (c *containerLXC) CGroupSet(key string, value string) error {
 	// Load the go-lxc struct
 	err := c.initLXC()
@@ -2064,6 +2096,30 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				if err != nil {
 					undoChanges()
 					return err
+				}
+			} else if key == "limits.processes" {
+				if !cgPidsController {
+					continue
+				}
+
+				if value == "" {
+					err = c.CGroupSet("pids.max", "max")
+					if err != nil {
+						undoChanges()
+						return err
+					}
+				} else {
+					valueInt, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						undoChanges()
+						return err
+					}
+
+					err = c.CGroupSet("pids.max", fmt.Sprintf("%d", valueInt))
+					if err != nil {
+						undoChanges()
+						return err
+					}
 				}
 			}
 		}
@@ -2661,6 +2717,16 @@ func (c *containerLXC) processcountGet() int {
 	pid := c.InitPID()
 	if pid == -1 {
 		return 0
+	}
+
+	if cgPidsController {
+		value, err := c.CGroupGet("pids.current")
+		valueInt, err := strconv.Atoi(value)
+		if err != nil {
+			return 0
+		}
+
+		return valueInt
 	}
 
 	pids := []int{pid}
