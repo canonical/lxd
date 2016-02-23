@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -433,6 +434,24 @@ func (s *storageZfs) ContainerSetQuota(container container, size int64) error {
 	return nil
 }
 
+func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
+	var err error
+
+	fs := fmt.Sprintf("containers/%s", container.Name())
+
+	value, err := s.zfsGet(fs, "used")
+	if err != nil {
+		return -1, err
+	}
+
+	valueInt, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return -1, err
+	}
+
+	return valueInt, nil
+}
+
 func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
 	fields := strings.SplitN(snapshotContainer.Name(), shared.SnapshotDelimiter, 2)
 	cName := fields[0]
@@ -823,6 +842,7 @@ func (s *storageZfs) zfsGet(path string, key string) (string, error) {
 		"zfs",
 		"get",
 		"-H",
+		"-p",
 		"-o", "value",
 		key,
 		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
