@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/olekukonko/tablewriter"
 
@@ -152,12 +153,106 @@ func (c *listCmd) shouldShow(filters []string, state *shared.ContainerInfo) bool
 }
 
 func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, filters []string, columns []Column) error {
-	var err error
-
 	headers := []string{}
 	for _, column := range columns {
 		headers = append(headers, column.Name)
 	}
+
+	cStates := map[string]*shared.ContainerState{}
+	cStatesLock := sync.Mutex{}
+	cStatesQueue := make(chan string, 1)
+	cStatesWg := sync.WaitGroup{}
+
+	cSnapshots := map[string][]shared.SnapshotInfo{}
+	cSnapshotsLock := sync.Mutex{}
+	cSnapshotsQueue := make(chan string, 1)
+	cSnapshotsWg := sync.WaitGroup{}
+
+	threads := 10
+	if len(cinfos) < threads {
+		threads = len(cinfos)
+	}
+
+	for i := 0; i < threads; i++ {
+		cStatesWg.Add(1)
+		go func() {
+			for {
+				cName, more := <-cStatesQueue
+				if !more {
+					break
+				}
+
+				state, err := d.ContainerState(cName)
+				if err != nil {
+					continue
+				}
+
+				cStatesLock.Lock()
+				cStates[cName] = state
+				cStatesLock.Unlock()
+			}
+			cStatesWg.Done()
+		}()
+
+		cSnapshotsWg.Add(1)
+		go func() {
+			for {
+				cName, more := <-cSnapshotsQueue
+				if !more {
+					break
+				}
+
+				snaps, err := d.ListSnapshots(cName)
+				if err != nil {
+					continue
+				}
+
+				cSnapshotsLock.Lock()
+				cSnapshots[cName] = snaps
+				cSnapshotsLock.Unlock()
+			}
+			cSnapshotsWg.Done()
+		}()
+	}
+
+	for _, cInfo := range cinfos {
+		if !c.shouldShow(filters, &cInfo) {
+			continue
+		}
+
+		for _, column := range columns {
+			if column.NeedsState && cInfo.StatusCode != shared.Stopped {
+				_, ok := cStates[cInfo.Name]
+				if ok {
+					continue
+				}
+
+				cStatesLock.Lock()
+				cStates[cInfo.Name] = nil
+				cStatesLock.Unlock()
+
+				cStatesQueue <- cInfo.Name
+			}
+
+			if column.NeedsSnapshots {
+				_, ok := cSnapshots[cInfo.Name]
+				if ok {
+					continue
+				}
+
+				cSnapshotsLock.Lock()
+				cSnapshots[cInfo.Name] = nil
+				cSnapshotsLock.Unlock()
+
+				cSnapshotsQueue <- cInfo.Name
+			}
+		}
+	}
+
+	close(cStatesQueue)
+	close(cSnapshotsQueue)
+	cStatesWg.Wait()
+	cSnapshotsWg.Wait()
 
 	data := [][]string{}
 	for _, cInfo := range cinfos {
@@ -165,26 +260,9 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 			continue
 		}
 
-		var cState *shared.ContainerState
-		var cSnapshots []shared.SnapshotInfo
-
 		col := []string{}
 		for _, column := range columns {
-			if column.NeedsState && cState == nil {
-				cState, err = d.ContainerState(cInfo.Name)
-				if err != nil {
-					return err
-				}
-			}
-
-			if column.NeedsSnapshots && cSnapshots == nil {
-				cSnapshots, err = d.ListSnapshots(cInfo.Name)
-				if err != nil {
-					return err
-				}
-			}
-
-			col = append(col, column.Data(cInfo, cState, cSnapshots))
+			col = append(col, column.Data(cInfo, cStates[cInfo.Name], cSnapshots[cInfo.Name]))
 		}
 		data = append(data, col)
 	}
@@ -273,7 +351,7 @@ func (c *listCmd) statusColumnData(cInfo shared.ContainerInfo, cState *shared.Co
 }
 
 func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
-	if cInfo.StatusCode == shared.Running || cInfo.StatusCode == shared.Frozen {
+	if cInfo.StatusCode != shared.Stopped {
 		ipv4s := []string{}
 		for netName, net := range cState.Network {
 			if net.Type == "loopback" {
@@ -293,7 +371,7 @@ func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState *shared.Conta
 }
 
 func (c *listCmd) IP6ColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
-	if cInfo.StatusCode == shared.Running || cInfo.StatusCode == shared.Frozen {
+	if cInfo.StatusCode != shared.Stopped {
 		ipv6s := []string{}
 		for netName, net := range cState.Network {
 			if net.Type == "loopback" {
