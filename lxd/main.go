@@ -134,7 +134,7 @@ func run() error {
 		fmt.Printf("        How long to wait before failing\n")
 
 		fmt.Printf("\n\nInternal commands (don't call these directly):\n")
-		fmt.Printf("    forkgetnett\n")
+		fmt.Printf("    forkgetnet\n")
 		fmt.Printf("        Get container network information\n")
 		fmt.Printf("    forkgetfile\n")
 		fmt.Printf("        Grab a file from a running container\n")
