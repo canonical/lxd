@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -277,6 +278,10 @@ func (s *storageBtrfs) ContainerSetQuota(container container, size int64) error 
 	return nil
 }
 
+func (s *storageBtrfs) ContainerGetUsage(container container) (int64, error) {
+	return s.subvolQGroupUsage(container.Path())
+}
+
 func (s *storageBtrfs) ContainerSnapshotCreate(
 	snapshotContainer container, sourceContainer container) error {
 
@@ -481,6 +486,40 @@ func (s *storageBtrfs) subvolQGroup(subvol string) (string, error) {
 	}
 
 	return qgroup, nil
+}
+
+func (s *storageBtrfs) subvolQGroupUsage(subvol string) (int64, error) {
+	output, err := exec.Command(
+		"btrfs",
+		"qgroup",
+		"show",
+		subvol,
+		"-e",
+		"-f").CombinedOutput()
+
+	if err != nil {
+		return -1, fmt.Errorf("btrfs quotas not supported. Try enabling them with 'btrfs quota enable'.")
+	}
+
+	for _, line := range strings.Split(string(output), "\n") {
+		if line == "" || strings.HasPrefix(line, "qgroupid") || strings.HasPrefix(line, "---") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) != 4 {
+			continue
+		}
+
+		usage, err := strconv.ParseInt(fields[2], 10, 64)
+		if err != nil {
+			continue
+		}
+
+		return usage, nil
+	}
+
+	return -1, fmt.Errorf("Unable to find current qgroup usage")
 }
 
 func (s *storageBtrfs) subvolDelete(subvol string) error {

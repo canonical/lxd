@@ -275,13 +275,15 @@ func (c *listCmd) statusColumnData(cInfo shared.ContainerInfo, cState *shared.Co
 func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
 	if cInfo.StatusCode == shared.Running || cInfo.StatusCode == shared.Frozen {
 		ipv4s := []string{}
-		for _, ip := range cState.Ips {
-			if ip.Interface == "lo" {
+		for netName, net := range cState.Network {
+			if net.Type == "loopback" {
 				continue
 			}
 
-			if ip.Protocol == "IPV4" {
-				ipv4s = append(ipv4s, fmt.Sprintf("%s (%s)", ip.Address, ip.Interface))
+			for _, addr := range net.Addresses {
+				if addr.Family == "inet" {
+					ipv4s = append(ipv4s, fmt.Sprintf("%s (%s)", addr.Address, netName))
+				}
 			}
 		}
 		return strings.Join(ipv4s, "\n")
@@ -293,13 +295,15 @@ func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState *shared.Conta
 func (c *listCmd) IP6ColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
 	if cInfo.StatusCode == shared.Running || cInfo.StatusCode == shared.Frozen {
 		ipv6s := []string{}
-		for _, ip := range cState.Ips {
-			if ip.Interface == "lo" {
+		for netName, net := range cState.Network {
+			if net.Type == "loopback" {
 				continue
 			}
 
-			if ip.Protocol == "IPV6" {
-				ipv6s = append(ipv6s, fmt.Sprintf("%s (%s)", ip.Address, ip.Interface))
+			for _, addr := range net.Addresses {
+				if addr.Family == "inet6" {
+					ipv6s = append(ipv6s, fmt.Sprintf("%s (%s)", addr.Address, netName))
+				}
 			}
 		}
 		return strings.Join(ipv6s, "\n")
@@ -321,8 +325,8 @@ func (c *listCmd) numberSnapshotsColumnData(cInfo shared.ContainerInfo, cState *
 }
 
 func (c *listCmd) PIDColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
-	if cState.Init != 0 {
-		return fmt.Sprintf("%d", cState.Init)
+	if cState.Pid != 0 {
+		return fmt.Sprintf("%d", cState.Pid)
 	} else {
 		return ""
 	}

@@ -1400,10 +1400,22 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 	}
 
 	if c.IsRunning() {
+		memory, err := c.memoryState()
+		if err != nil {
+			return nil, err
+		}
+
+		network, err := c.networkState()
+		if err != nil {
+			return nil, err
+		}
+
 		pid := c.InitPID()
-		status.Init = pid
-		status.Processcount = c.processcountGet()
-		status.Ips = c.ipsGet()
+		status.Disk = c.diskState()
+		status.Memory = *memory
+		status.Network = network
+		status.Pid = int64(pid)
+		status.Processes = c.processesState()
 	}
 
 	return &status, nil
@@ -2652,67 +2664,111 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 	return nil
 }
 
-func (c *containerLXC) ipsGet() []shared.Ip {
-	ips := []shared.Ip{}
+func (c *containerLXC) diskState() map[string]shared.ContainerStateDisk {
+	disk := map[string]shared.ContainerStateDisk{}
 
-	// Load the go-lxc struct
-	err := c.initLXC()
-	if err != nil {
-		return nil
-	}
+	for name, d := range c.expandedDevices {
+		if d["type"] != "disk" {
+			continue
+		}
 
-	// Return empty list if not running
-	if !c.IsRunning() {
-		return ips
-	}
+		if d["path"] != "/" {
+			continue
+		}
 
-	// Get the list of interfaces
-	names, err := c.c.Interfaces()
-	if err != nil {
-		return nil
-	}
-
-	// Build the IPs list by iterating through all the interfaces
-	for _, n := range names {
-		// Get all the IPs
-		addresses, err := c.c.IPAddress(n)
+		usage, err := c.storage.ContainerGetUsage(c)
 		if err != nil {
 			continue
 		}
 
-		// Look for the host side interface name
-		veth := ""
-		for i := 0; i < len(c.c.ConfigItem("lxc.network")); i++ {
-			nicName := c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.name", i))[0]
-			if nicName != n {
-				continue
-			}
-
-			interfaceType := c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.type", i))
-			if interfaceType[0] != "veth" {
-				continue
-			}
-
-			veth = c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.veth.pair", i))[0]
-			break
-		}
-
-		// Render the result
-		for _, a := range addresses {
-			ip := shared.Ip{Interface: n, Address: a, HostVeth: veth}
-			if net.ParseIP(a).To4() == nil {
-				ip.Protocol = "IPV6"
-			} else {
-				ip.Protocol = "IPV4"
-			}
-			ips = append(ips, ip)
-		}
+		disk[name] = shared.ContainerStateDisk{Usage: usage}
 	}
 
-	return ips
+	return disk
 }
 
-func (c *containerLXC) processcountGet() int {
+func (c *containerLXC) memoryState() (*shared.ContainerStateMemory, error) {
+	memory := shared.ContainerStateMemory{}
+
+	if !cgMemoryController {
+		return &memory, nil
+	}
+
+	// Memory in bytes
+	value, err := c.CGroupGet("memory.usage_in_bytes")
+	valueInt, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	memory.Usage = valueInt
+
+	// Memory peak in bytes
+	value, err = c.CGroupGet("memory.max_usage_in_bytes")
+	valueInt, err = strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	memory.UsagePeak = valueInt
+
+	if cgSwapAccounting {
+		// Swap in bytes
+		value, err := c.CGroupGet("memory.memsw.usage_in_bytes")
+		valueInt, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		memory.SwapUsage = valueInt - memory.Usage
+
+		// Swap peak in bytes
+		value, err = c.CGroupGet("memory.memsw.max_usage_in_bytes")
+		valueInt, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		memory.SwapUsagePeak = valueInt - memory.UsagePeak
+	}
+
+	return &memory, nil
+}
+
+func (c *containerLXC) networkState() (map[string]shared.ContainerStateNetwork, error) {
+	pid := c.InitPID()
+	if pid < 1 {
+		return nil, fmt.Errorf("Container isn't running")
+	}
+
+	// Get the network state from the container
+	out, err := exec.Command(
+		c.daemon.execPath,
+		"forkgetnet",
+		fmt.Sprintf("%d", pid)).CombinedOutput()
+
+	// Process forkgetnet response
+	if err != nil {
+		return nil, fmt.Errorf("Error calling 'lxd forkgetnet %d': %s", pid, string(out))
+	}
+
+	networks := map[string]shared.ContainerStateNetwork{}
+
+	err = json.Unmarshal(out, &networks)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add HostName field
+	result := map[string]shared.ContainerStateNetwork{}
+	for netName, net := range networks {
+		net.HostName = c.getHostInterface(netName)
+		result[netName] = net
+	}
+
+	return result, nil
+}
+
+func (c *containerLXC) processesState() int64 {
 	// Return 0 if not running
 	pid := c.InitPID()
 	if pid == -1 {
@@ -2721,15 +2777,15 @@ func (c *containerLXC) processcountGet() int {
 
 	if cgPidsController {
 		value, err := c.CGroupGet("pids.current")
-		valueInt, err := strconv.Atoi(value)
+		valueInt, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return 0
+			return -1
 		}
 
 		return valueInt
 	}
 
-	pids := []int{pid}
+	pids := []int64{int64(pid)}
 
 	// Go through the pid list, adding new pids at the end so we go through them all
 	for i := 0; i < len(pids); i++ {
@@ -2742,14 +2798,14 @@ func (c *containerLXC) processcountGet() int {
 
 		content := strings.Split(string(fcont), " ")
 		for j := 0; j < len(content); j++ {
-			pid, err := strconv.Atoi(content[j])
+			pid, err := strconv.ParseInt(content[j], 10, 64)
 			if err == nil {
 				pids = append(pids, pid)
 			}
 		}
 	}
 
-	return len(pids)
+	return int64(len(pids))
 }
 
 func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *tar.Writer, path string, fi os.FileInfo) error {
@@ -3774,6 +3830,41 @@ func (c *containerLXC) setNetworkPriority() error {
 	return nil
 }
 
+func (c *containerLXC) getHostInterface(name string) string {
+	if c.IsRunning() {
+		for i := 0; i < len(c.c.ConfigItem("lxc.network")); i++ {
+			nicName := c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.name", i))[0]
+			if nicName != name {
+				continue
+			}
+
+			veth := c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.veth.pair", i))[0]
+			if veth != "" {
+				return veth
+			}
+		}
+	}
+
+	for _, dev := range c.expandedDevices {
+		if dev["type"] != "nic" {
+			continue
+		}
+
+		m, err := c.fillNetworkDevice(name, dev)
+		if err != nil {
+			m = dev
+		}
+
+		if m["name"] != name {
+			continue
+		}
+
+		return m["host_name"]
+	}
+
+	return ""
+}
+
 func (c *containerLXC) setNetworkLimits(name string, m shared.Device) error {
 	// We can only do limits on some network type
 	if m["nictype"] != "bridged" && m["nictype"] != "p2p" {
@@ -3798,19 +3889,7 @@ func (c *containerLXC) setNetworkLimits(name string, m shared.Device) error {
 	}
 
 	// Look for the host side interface name
-	veth := m["host_name"]
-
-	if veth == "" {
-		for i := 0; i < len(c.c.ConfigItem("lxc.network")); i++ {
-			nicName := c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.name", i))[0]
-			if nicName != m["name"] {
-				continue
-			}
-
-			veth = c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.veth.pair", i))[0]
-			break
-		}
-	}
+	veth := c.getHostInterface(m["name"])
 
 	if veth == "" {
 		return fmt.Errorf("LXC doesn't now about this device and the host_name property isn't set, can't find host side veth name")

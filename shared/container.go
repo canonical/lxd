@@ -4,19 +4,48 @@ import (
 	"time"
 )
 
-type Ip struct {
-	Interface string `json:"interface"`
-	Protocol  string `json:"protocol"`
-	Address   string `json:"address"`
-	HostVeth  string `json:"host_veth"`
+type ContainerState struct {
+	Status     string                           `json:"status"`
+	StatusCode StatusCode                       `json:"status_code"`
+	Disk       map[string]ContainerStateDisk    `json:"disk"`
+	Memory     ContainerStateMemory             `json:"memory"`
+	Network    map[string]ContainerStateNetwork `json:"network"`
+	Pid        int64                            `json:"pid"`
+	Processes  int64                            `json:"processes"`
 }
 
-type ContainerState struct {
-	Status       string     `json:"status"`
-	StatusCode   StatusCode `json:"status_code"`
-	Init         int        `json:"init"`
-	Processcount int        `json:"processcount"`
-	Ips          []Ip       `json:"ips"`
+type ContainerStateDisk struct {
+	Usage int64 `json:"usage"`
+}
+
+type ContainerStateMemory struct {
+	Usage         int64 `json:"usage"`
+	UsagePeak     int64 `json:"usage_peak"`
+	SwapUsage     int64 `json:"swap_usage"`
+	SwapUsagePeak int64 `json:"swap_usage_peak"`
+}
+
+type ContainerStateNetwork struct {
+	Addresses []ContainerStateNetworkAddress `json:"addresses"`
+	Counters  ContainerStateNetworkCounters  `json:"counters"`
+	Hwaddr    string                         `json:"hwaddr"`
+	HostName  string                         `json:"host_name"`
+	Mtu       int                            `json:"mtu"`
+	State     string                         `json:"state"`
+	Type      string                         `json:"type"`
+}
+
+type ContainerStateNetworkAddress struct {
+	Family  string `json:"family"`
+	Address string `json:"address"`
+	Netmask string `json:"netmask"`
+}
+
+type ContainerStateNetworkCounters struct {
+	BytesReceived   int64 `json:"bytes_received"`
+	BytesSent       int64 `json:"bytes_sent"`
+	PacketsReceived int64 `json:"packets_received"`
+	PacketsSent     int64 `json:"packets_sent"`
 }
 
 type ContainerExecControl struct {
