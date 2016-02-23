@@ -1432,7 +1432,7 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 	}
 	req.Header.Set("User-Agent", shared.UserAgent)
 
-	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode))
+	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode.Perm()))
 	req.Header.Set("X-LXD-uid", strconv.FormatUint(uint64(uid), 10))
 	req.Header.Set("X-LXD-gid", strconv.FormatUint(uint64(gid), 10))
 
