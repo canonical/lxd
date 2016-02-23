@@ -96,22 +96,25 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		fmt.Printf(i18n.G("Type: persistent") + "\n")
 	}
 	fmt.Printf(i18n.G("Profiles: %s")+"\n", strings.Join(ct.Profiles, ", "))
-	if cs.Init != 0 {
-		fmt.Printf(i18n.G("Init: %d")+"\n", cs.Init)
-		fmt.Printf(i18n.G("Processcount: %d")+"\n", cs.Processcount)
-		fmt.Printf(i18n.G("Ips:") + "\n")
-		foundone := false
-		for _, ip := range cs.Ips {
+	if cs.Pid != 0 {
+		fmt.Printf(i18n.G("Pid: %d")+"\n", cs.Pid)
+		fmt.Printf(i18n.G("Processes: %d")+"\n", cs.Processes)
+
+		ipInfo := ""
+		for netName, net := range cs.Network {
 			vethStr := ""
-			if ip.HostVeth != "" {
-				vethStr = fmt.Sprintf("\t%s", ip.HostVeth)
+			if net.HostName != "" {
+				vethStr = fmt.Sprintf("\t%s", net.HostName)
 			}
 
-			fmt.Printf("  %s:\t%s\t%s%s\n", ip.Interface, ip.Protocol, ip.Address, vethStr)
-			foundone = true
+			for _, addr := range net.Addresses {
+				ipInfo += fmt.Sprintf("  %s:\t%s\t%s%s\n", netName, addr.Family, addr.Address, vethStr)
+			}
 		}
-		if !foundone {
-			fmt.Println(i18n.G("(none)"))
+
+		if ipInfo != "" {
+			fmt.Printf(i18n.G("Ips:") + "\n")
+			fmt.Printf(ipInfo)
 		}
 	}
 

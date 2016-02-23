@@ -2,8 +2,11 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -131,6 +134,8 @@ func run() error {
 		fmt.Printf("        How long to wait before failing\n")
 
 		fmt.Printf("\n\nInternal commands (don't call these directly):\n")
+		fmt.Printf("    forkgetnet\n")
+		fmt.Printf("        Get container network information\n")
 		fmt.Printf("    forkgetfile\n")
 		fmt.Printf("        Grab a file from a running container\n")
 		fmt.Printf("    forkmigrate\n")
@@ -184,12 +189,15 @@ func run() error {
 
 	// Process sub-commands
 	if len(os.Args) > 1 {
-		// "forkputfile" and "forkgetfile" are handled specially in mntnsexec.go
+		// "forkputfile", "forkgetfile", "forkmount" and "forkumount" are handled specially in nsexec.go
+		// "forkgetnet" is partially handled in nsexec.go (setns)
 		switch os.Args[1] {
 		case "activateifneeded":
 			return activateIfNeeded()
 		case "daemon":
 			return daemon()
+		case "forkgetnet":
+			return printnet()
 		case "forkmigrate":
 			return MigrateContainer(os.Args[1:])
 		case "forkstart":
@@ -774,5 +782,121 @@ func setupLXD() error {
 	}
 
 	fmt.Printf("LXD has been successfully configured.\n")
+	return nil
+}
+
+func printnet() error {
+	networks := map[string]shared.ContainerStateNetwork{}
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return err
+	}
+
+	stats := map[string][]int64{}
+
+	content, err := ioutil.ReadFile("/proc/net/dev")
+	if err == nil {
+		for _, line := range strings.Split(string(content), "\n") {
+			fields := strings.Fields(line)
+
+			if len(fields) != 17 {
+				continue
+			}
+
+			rxBytes, err := strconv.ParseInt(fields[1], 10, 64)
+			if err != nil {
+				continue
+			}
+
+			rxPackets, err := strconv.ParseInt(fields[2], 10, 64)
+			if err != nil {
+				continue
+			}
+
+			txBytes, err := strconv.ParseInt(fields[9], 10, 64)
+			if err != nil {
+				continue
+			}
+
+			txPackets, err := strconv.ParseInt(fields[10], 10, 64)
+			if err != nil {
+				continue
+			}
+
+			intName := strings.TrimSuffix(fields[0], ":")
+			stats[intName] = []int64{rxBytes, rxPackets, txBytes, txPackets}
+		}
+	}
+
+	for _, netIf := range interfaces {
+		netState := "down"
+		netType := "unknown"
+
+		if netIf.Flags&net.FlagBroadcast > 0 {
+			netType = "broadcast"
+		}
+
+		if netIf.Flags&net.FlagPointToPoint > 0 {
+			netType = "point-to-point"
+		}
+
+		if netIf.Flags&net.FlagLoopback > 0 {
+			netType = "loopback"
+		}
+
+		if netIf.Flags&net.FlagUp > 0 {
+			netState = "up"
+		}
+
+		network := shared.ContainerStateNetwork{
+			Addresses: []shared.ContainerStateNetworkAddress{},
+			Counters:  shared.ContainerStateNetworkCounters{},
+			Hwaddr:    netIf.HardwareAddr.String(),
+			Mtu:       netIf.MTU,
+			State:     netState,
+			Type:      netType,
+		}
+
+		addrs, err := netIf.Addrs()
+		if err == nil {
+			for _, addr := range addrs {
+				fields := strings.SplitN(addr.String(), "/", 2)
+				if len(fields) != 2 {
+					continue
+				}
+
+				family := "inet"
+				if strings.Contains(fields[0], ":") {
+					family = "inet6"
+				}
+
+				address := shared.ContainerStateNetworkAddress{}
+				address.Family = family
+				address.Address = fields[0]
+				address.Netmask = fields[1]
+
+				network.Addresses = append(network.Addresses, address)
+			}
+		}
+
+		counters, ok := stats[netIf.Name]
+		if ok {
+			network.Counters.BytesReceived = counters[0]
+			network.Counters.PacketsReceived = counters[1]
+			network.Counters.BytesSent = counters[2]
+			network.Counters.PacketsSent = counters[3]
+		}
+
+		networks[netIf.Name] = network
+	}
+
+	buf, err := json.Marshal(networks)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s\n", buf)
+
 	return nil
 }
