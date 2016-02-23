@@ -620,37 +620,135 @@ HTTP code for this should be 202 (Accepted).
  * Return: dict representing current state
 
     {
-        "status": "Running",
-        "status_code": 103,
-        "init": 16126,
-        "processcount": 7,
-        "ips": [
-            {
-                "interface": "eth0",
-                "protocol": "IPV4",
-                "address": "172.17.0.242",
-                "host_veth": ""
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "metadata": {
+            "status": "Running",
+            "status_code": 103,
+            "disk": {
+                "root": {
+                    "usage": 422330368
+                }
             },
-            {
-                "interface": "eth0",
-                "protocol": "IPV6",
-                "address": "2607:f2c0:f00f:2700:216:3eff:fe1c:9438",
-                "host_veth": ""
+            "memory": {
+                "usage": 51126272,
+                "usage_peak": 70246400,
+                "swap_usage": 0,
+                "swap_usage_peak": 0
             },
-            {
-                "interface": "lo",
-                "protocol": "IPV4",
-                "address": "127.0.0.1",
-                "host_veth": ""
+            "network": {
+                "eth0": {
+                    "addresses": [
+                        {
+                            "family": "inet",
+                            "address": "10.0.3.27",
+                            "netmask": "24"
+                        },
+                        {
+                            "family": "inet6",
+                            "address": "fe80::216:3eff:feec:65a8",
+                            "netmask": "64"
+                        }
+                    ],
+                    "counters": {
+                        "bytes_received": 33942,
+                        "bytes_sent": 30810,
+                        "packets_received": 402,
+                        "packets_sent": 178
+                    },
+                    "hwaddr": "00:16:3e:ec:65:a8",
+                    "host_name": "vethBWTSU5",
+                    "mtu": 1500,
+                    "state": "up",
+                    "type": "broadcast"
+                },
+                "lo": {
+                    "addresses": [
+                        {
+                            "family": "inet",
+                            "address": "127.0.0.1",
+                            "netmask": "8"
+                        },
+                        {
+                            "family": "inet6",
+                            "address": "::1",
+                            "netmask": "128"
+                        }
+                    ],
+                    "counters": {
+                        "bytes_received": 86816,
+                        "bytes_sent": 86816,
+                        "packets_received": 1226,
+                        "packets_sent": 1226
+                    },
+                    "hwaddr": "",
+                    "host_name": "",
+                    "mtu": 65536,
+                    "state": "up",
+                    "type": "loopback"
+                },
+                "lxcbr0": {
+                    "addresses": [
+                        {
+                            "family": "inet",
+                            "address": "10.0.3.1",
+                            "netmask": "24"
+                        },
+                        {
+                            "family": "inet6",
+                            "address": "fe80::68d4:87ff:fe40:7769",
+                            "netmask": "64"
+                        }
+                    ],
+                    "counters": {
+                        "bytes_received": 0,
+                        "bytes_sent": 570,
+                        "packets_received": 0,
+                        "packets_sent": 7
+                    },
+                    "hwaddr": "6a:d4:87:40:77:69",
+                    "host_name": "",
+                    "mtu": 1500,
+                    "state": "up",
+                    "type": "broadcast"
+               },
+               "zt0": {
+                    "addresses": [
+                        {
+                            "family": "inet",
+                            "address": "29.17.181.59",
+                            "netmask": "7"
+                        },
+                        {
+                            "family": "inet6",
+                            "address": "fd80:56c2:e21c:0:199:9379:e711:b3e1",
+                            "netmask": "88"
+                        },
+                        {
+                            "family": "inet6",
+                            "address": "fe80::79:e7ff:fe0d:5123",
+                            "netmask": "64"
+                        }
+                    ],
+                    "counters": {
+                        "bytes_received": 0,
+                        "bytes_sent": 806,
+                        "packets_received": 0,
+                        "packets_sent": 9
+                    },
+                    "hwaddr": "02:79:e7:0d:51:23",
+                    "host_name": "",
+                    "mtu": 2800,
+                    "state": "up",
+                    "type": "broadcast"
+                }
             },
-            {
-                "interface": "lo",
-                "protocol": "IPV6",
-                "address": "::1",
-                "host_veth": ""
-            }
-        ]
+            "pid": 13663,
+            "processes": 32
+        }
     }
+
 
 ### PUT
  * Description: change the container state

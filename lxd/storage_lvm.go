@@ -641,7 +641,11 @@ func (s *storageLvm) ContainerRestore(
 }
 
 func (s *storageLvm) ContainerSetQuota(container container, size int64) error {
-	return fmt.Errorf("The directory container backend doesn't support quotas.")
+	return fmt.Errorf("The LVM container backend doesn't support quotas.")
+}
+
+func (s *storageLvm) ContainerGetUsage(container container) (int64, error) {
+	return -1, fmt.Errorf("The LVM container backend doesn't support quotas.")
 }
 
 func (s *storageLvm) ContainerSnapshotCreate(

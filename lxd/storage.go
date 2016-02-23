@@ -136,6 +136,7 @@ type storage interface {
 	ContainerRename(container container, newName string) error
 	ContainerRestore(container container, sourceContainer container) error
 	ContainerSetQuota(container container, size int64) error
+	ContainerGetUsage(container container) (int64, error)
 
 	ContainerSnapshotCreate(
 		snapshotContainer container, sourceContainer container) error
@@ -444,6 +445,16 @@ func (lw *storageLogWrapper) ContainerSetQuota(
 			"container": container.Name(),
 			"size":      size})
 	return lw.w.ContainerSetQuota(container, size)
+}
+
+func (lw *storageLogWrapper) ContainerGetUsage(
+	container container) (int64, error) {
+
+	lw.log.Debug(
+		"ContainerGetUsage",
+		log.Ctx{
+			"container": container.Name()})
+	return lw.w.ContainerGetUsage(container)
 }
 
 func (lw *storageLogWrapper) ContainerSnapshotCreate(

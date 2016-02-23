@@ -36,6 +36,7 @@ package main
 #include <errno.h>
 #include <alloca.h>
 #include <libgen.h>
+#include <ifaddrs.h>
 
 // This expects:
 //  ./lxd forkputfile /source/path <pid> /target/path
@@ -345,6 +346,18 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, uid, gid, mode));
 }
 
+void forkgetnet(char *buf, char *cur, ssize_t size) {
+	ADVANCE_ARG_REQUIRED();
+	int pid = atoi(cur);
+
+	if (dosetns(pid, "net") < 0) {
+		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
+		_exit(1);
+	}
+
+	// The rest happens in Go
+}
+
 __attribute__((constructor)) void init(void) {
 	int cmdline;
 	char buf[CMDLINE_SIZE];
@@ -381,6 +394,8 @@ __attribute__((constructor)) void init(void) {
 		forkmount(buf, cur, size);
 	} else if (strcmp(cur, "forkumount") == 0) {
 		forkumount(buf, cur, size);
+	} else if (strcmp(cur, "forkgetnet") == 0) {
+		forkgetnet(buf, cur, size);
 	}
 }
 */
