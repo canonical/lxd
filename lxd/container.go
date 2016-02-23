@@ -63,6 +63,8 @@ func containerValidConfigKey(k string) bool {
 		return true
 	case "limits.network.priority":
 		return true
+	case "limits.processes":
+		return true
 	case "linux.kernel_modules":
 		return true
 	case "security.privileged":
