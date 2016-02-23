@@ -158,20 +158,20 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 		headers = append(headers, column.Name)
 	}
 
-	cStates := map[string]*shared.ContainerState{}
-	cStatesLock := sync.Mutex{}
-	cStatesQueue := make(chan string, 1)
-	cStatesWg := sync.WaitGroup{}
-
-	cSnapshots := map[string][]shared.SnapshotInfo{}
-	cSnapshotsLock := sync.Mutex{}
-	cSnapshotsQueue := make(chan string, 1)
-	cSnapshotsWg := sync.WaitGroup{}
-
 	threads := 10
 	if len(cinfos) < threads {
 		threads = len(cinfos)
 	}
+
+	cStates := map[string]*shared.ContainerState{}
+	cStatesLock := sync.Mutex{}
+	cStatesQueue := make(chan string, threads)
+	cStatesWg := sync.WaitGroup{}
+
+	cSnapshots := map[string][]shared.SnapshotInfo{}
+	cSnapshotsLock := sync.Mutex{}
+	cSnapshotsQueue := make(chan string, threads)
+	cSnapshotsWg := sync.WaitGroup{}
 
 	for i := 0; i < threads; i++ {
 		cStatesWg.Add(1)
