@@ -1617,6 +1617,22 @@ func (c *containerLXC) Rename(newName string) error {
 	return nil
 }
 
+func (c *containerLXC) CGroupGet(key string) (string, error) {
+	// Load the go-lxc struct
+	err := c.initLXC()
+	if err != nil {
+		return "", err
+	}
+
+	// Make sure the container is running
+	if !c.IsRunning() {
+		return "", fmt.Errorf("Can't get cgroups on a stopped container")
+	}
+
+	value := c.c.CgroupItem(key)
+	return strings.Join(value, "\n"), nil
+}
+
 func (c *containerLXC) CGroupSet(key string, value string) error {
 	// Load the go-lxc struct
 	err := c.initLXC()
@@ -2701,6 +2717,16 @@ func (c *containerLXC) processcountGet() int {
 	pid := c.InitPID()
 	if pid == -1 {
 		return 0
+	}
+
+	if cgPidsController {
+		value, err := c.CGroupGet("pids.current")
+		valueInt, err := strconv.Atoi(value)
+		if err != nil {
+			return 0
+		}
+
+		return valueInt
 	}
 
 	pids := []int{pid}

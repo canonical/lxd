@@ -329,6 +329,7 @@ type container interface {
 	Export(w io.Writer) error
 
 	// Live configuration
+	CGroupGet(key string) (string, error)
 	CGroupSet(key string, value string) error
 	ConfigKeySet(key string, value string) error
 
