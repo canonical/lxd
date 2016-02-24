@@ -406,7 +406,7 @@ func deviceEventListener(d *Daemon) {
 				deviceTaskBalance(d)
 			}
 
-			if e[0] == "net" && e[2] == "add" && cgNetPrioController {
+			if e[0] == "net" && e[2] == "add" && cgNetPrioController && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", e[1])) {
 				shared.Debugf("Scheduler: %s: %s has been added: updating network priorities", e[0], e[1])
 				deviceNetworkPriority(d, e[1])
 			}
