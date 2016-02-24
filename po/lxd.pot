@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-02-23 00:41-0500\n"
+        "POT-Creation-Date: 2016-02-23 19:02-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -86,6 +86,10 @@ msgstr  ""
 msgid   "ARCH"
 msgstr  ""
 
+#: lxc/list.go:334
+msgid   "ARCHITECTURE"
+msgstr  ""
+
 #: lxc/remote.go:50
 msgid   "Accept certificate"
 msgstr  ""
@@ -114,6 +118,10 @@ msgstr  ""
 
 #: lxc/config.go:265
 msgid   "COMMON NAME"
+msgstr  ""
+
+#: lxc/list.go:335
+msgid   "CREATED AT"
 msgstr  ""
 
 #: lxc/config.go:112
@@ -146,7 +154,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/list.go:82
+#: lxc/list.go:89 lxc/list.go:90
 msgid   "Columns"
 msgstr  ""
 
@@ -248,7 +256,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:250
+#: lxc/list.go:410
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -295,6 +303,10 @@ msgstr  ""
 msgid   "FINGERPRINT"
 msgstr  ""
 
+#: lxc/list.go:91
+msgid   "Fast mode (same as --columns=nsacPt"
+msgstr  ""
+
 #: lxc/image.go:290
 #, c-format
 msgid   "Fingerprint: %s"
@@ -326,11 +338,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:248
+#: lxc/list.go:332
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:249
+#: lxc/list.go:333
 msgid   "IPV6"
 msgstr  ""
 
@@ -413,10 +425,10 @@ msgid   "List information on containers.\n"
         "lxc info [<remote>:]container [--show-log]"
 msgstr  ""
 
-#: lxc/list.go:58
+#: lxc/list.go:60
 msgid   "Lists the available resources.\n"
         "\n"
-        "lxc list [resource] [filters] -c [columns]\n"
+        "lxc list [resource] [filters] [-c columns] [--fast]\n"
         "\n"
         "The filters are:\n"
         "* A single keyword like \"web\" which will list any container with \"web\" in its name.\n"
@@ -427,13 +439,18 @@ msgid   "Lists the available resources.\n"
         "* \"s.privileged=1\" will do the same\n"
         "\n"
         "The columns are:\n"
+        "* 4 - IPv4 address\n"
+        "* 6 - IPv6 address\n"
+        "* a - architecture\n"
+        "* c - creation date\n"
         "* n - name\n"
+        "* p - pid of container init process\n"
+        "* P - profiles\n"
         "* s - state\n"
-        "* 4 - IP4\n"
-        "* 6 - IP6\n"
-        "* e - ephemeral\n"
-        "* S - snapshots\n"
-        "* p - pid of container init process"
+        "* t - type (persistent or ephemeral)\n"
+        "\n"
+        "Default column layout: ns46tS\n"
+        "Fast column layout: nsacPt"
 msgstr  ""
 
 #: lxc/info.go:159
@@ -627,11 +644,11 @@ msgid   "Move containers within or in between lxd instances.\n"
         "    Rename a local container.\n"
 msgstr  ""
 
-#: lxc/list.go:246 lxc/remote.go:296
+#: lxc/list.go:336 lxc/remote.go:296
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/list.go:319 lxc/remote.go:282
+#: lxc/remote.go:282
 msgid   "NO"
 msgstr  ""
 
@@ -669,8 +686,16 @@ msgstr  ""
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:252
+#: lxc/list.go:412
+msgid   "PERSISTENT"
+msgstr  ""
+
+#: lxc/list.go:337
 msgid   "PID"
+msgstr  ""
+
+#: lxc/list.go:338
+msgid   "PROFILES"
 msgstr  ""
 
 #: lxc/image.go:555 lxc/remote.go:298
@@ -796,11 +821,11 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:251
+#: lxc/list.go:339
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:247
+#: lxc/list.go:340
 msgid   "STATE"
 msgstr  ""
 
@@ -870,6 +895,10 @@ msgstr  ""
 
 #: lxc/delete.go:106 lxc/publish.go:111
 msgid   "Stopping container failed!"
+msgstr  ""
+
+#: lxc/list.go:341
+msgid   "TYPE"
 msgstr  ""
 
 #: lxc/delete.go:92
@@ -943,7 +972,7 @@ msgstr  ""
 msgid   "Whether to show the expanded configuration"
 msgstr  ""
 
-#: lxc/list.go:317 lxc/remote.go:284
+#: lxc/remote.go:284
 msgid   "YES"
 msgstr  ""
 
