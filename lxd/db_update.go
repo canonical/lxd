@@ -84,7 +84,7 @@ func dbUpdateFromV18(db *sql.DB) error {
 		value += "B"
 
 		// Deal with completely broken values
-		_, err = deviceParseBytes(value)
+		_, err = shared.ParseByteSizeString(value)
 		if err != nil {
 			shared.Debugf("Invalid container memory limit, id=%d value=%s, removing.", id, value)
 			_, err = db.Exec("DELETE FROM containers_config WHERE id=?;", id)
@@ -121,7 +121,7 @@ func dbUpdateFromV18(db *sql.DB) error {
 		value += "B"
 
 		// Deal with completely broken values
-		_, err = deviceParseBytes(value)
+		_, err = shared.ParseByteSizeString(value)
 		if err != nil {
 			shared.Debugf("Invalid profile memory limit, id=%d value=%s, removing.", id, value)
 			_, err = db.Exec("DELETE FROM profiles_config WHERE id=?;", id)

@@ -656,51 +656,6 @@ func deviceParseBits(input string) (int64, error) {
 	return valueInt * multiplicator, nil
 }
 
-func deviceParseBytes(input string) (int64, error) {
-	if input == "" {
-		return 0, nil
-	}
-
-	if len(input) < 3 {
-		return -1, fmt.Errorf("Invalid value: %s", input)
-	}
-
-	// Extract the suffix
-	suffix := input[len(input)-2:]
-
-	// Extract the value
-	value := input[0 : len(input)-2]
-	valueInt, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return -1, fmt.Errorf("Invalid integer: %s", input)
-	}
-
-	if valueInt < 0 {
-		return -1, fmt.Errorf("Invalid value: %d", valueInt)
-	}
-
-	// Figure out the multiplicator
-	multiplicator := int64(0)
-	switch suffix {
-	case "kB":
-		multiplicator = 1024
-	case "MB":
-		multiplicator = 1024 * 1024
-	case "GB":
-		multiplicator = 1024 * 1024 * 1024
-	case "TB":
-		multiplicator = 1024 * 1024 * 1024 * 1024
-	case "PB":
-		multiplicator = 1024 * 1024 * 1024 * 1024 * 1024
-	case "EB":
-		multiplicator = 1024 * 1024 * 1024 * 1024 * 1024 * 1024
-	default:
-		return -1, fmt.Errorf("Unsupported suffix: %s", suffix)
-	}
-
-	return valueInt * multiplicator, nil
-}
-
 func deviceTotalMemory() (int64, error) {
 	// Open /proc/meminfo
 	f, err := os.Open("/proc/meminfo")
@@ -723,8 +678,8 @@ func deviceTotalMemory() (int64, error) {
 		fields := strings.Split(line, " ")
 		value := fields[len(fields)-2] + fields[len(fields)-1]
 
-		// Feed the result to deviceParseBytes to get an int value
-		valueBytes, err := deviceParseBytes(value)
+		// Feed the result to shared.ParseByteSizeString to get an int value
+		valueBytes, err := shared.ParseByteSizeString(value)
 		if err != nil {
 			return -1, err
 		}
@@ -892,7 +847,7 @@ func deviceParseDiskLimit(readSpeed string, writeSpeed string) (int64, int64, in
 				return -1, -1, err
 			}
 		} else {
-			bps, err = deviceParseBytes(value)
+			bps, err = shared.ParseByteSizeString(value)
 			if err != nil {
 				return -1, -1, err
 			}
