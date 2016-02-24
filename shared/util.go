@@ -609,3 +609,50 @@ func ParseByteSizeString(input string) (int64, error) {
 
 	return valueInt * multiplicator, nil
 }
+
+// Parse a size string in bits (e.g. 200kbit or 5Gbit) into the number of bits
+// it represents. Supports suffixes up to Ebit. "" == 0.
+func ParseBitSizeString(input string) (int64, error) {
+	if input == "" {
+		return 0, nil
+	}
+
+	if len(input) < 5 {
+		return -1, fmt.Errorf("Invalid value: %s", input)
+	}
+
+	// Extract the suffix
+	suffix := input[len(input)-4:]
+
+	// Extract the value
+	value := input[0 : len(input)-4]
+	valueInt, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return -1, fmt.Errorf("Invalid integer: %s", input)
+	}
+
+	if valueInt < 0 {
+		return -1, fmt.Errorf("Invalid value: %d", valueInt)
+	}
+
+	// Figure out the multiplicator
+	multiplicator := int64(0)
+	switch suffix {
+	case "kbit":
+		multiplicator = 1000
+	case "Mbit":
+		multiplicator = 1000 * 1000
+	case "Gbit":
+		multiplicator = 1000 * 1000 * 1000
+	case "Tbit":
+		multiplicator = 1000 * 1000 * 1000 * 1000
+	case "Pbit":
+		multiplicator = 1000 * 1000 * 1000 * 1000 * 1000
+	case "Ebit":
+		multiplicator = 1000 * 1000 * 1000 * 1000 * 1000 * 1000
+	default:
+		return -1, fmt.Errorf("Unsupported suffix: %s", suffix)
+	}
+
+	return valueInt * multiplicator, nil
+}
