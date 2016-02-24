@@ -79,16 +79,11 @@ func FindOrGenCert(certf string, keyf string) error {
 	return nil
 }
 
+// GenCert will create and populate a certificate file and a key file
 func GenCert(certf string, keyf string) error {
-	privk, err := rsa.GenerateKey(rand.Reader, 4096)
-	if err != nil {
-		log.Fatalf("failed to generate key")
-		return err
-	}
-
 	/* Create the basenames if needed */
 	dir := path.Dir(certf)
-	err = os.MkdirAll(dir, 0750)
+	err := os.MkdirAll(dir, 0750)
 	if err != nil {
 		return err
 	}
@@ -98,10 +93,42 @@ func GenCert(certf string, keyf string) error {
 		return err
 	}
 
+	certBytes, keyBytes, err := GenerateMemCert()
+	if err != nil {
+		return err
+	}
+
+	certOut, err := os.Create(certf)
+	if err != nil {
+		log.Fatalf("failed to open %s for writing: %s", certf, err)
+		return err
+	}
+	certOut.Write(certBytes)
+	certOut.Close()
+
+	keyOut, err := os.OpenFile(keyf, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		log.Printf("failed to open %s for writing: %s", keyf, err)
+		return err
+	}
+	keyOut.Write(keyBytes)
+	keyOut.Close()
+	return nil
+}
+
+// GenerateMemCert creates a certificate and key pair, returning them as byte
+// arrays in memory.
+func GenerateMemCert() ([]byte, []byte, error) {
+	privk, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		log.Fatalf("failed to generate key")
+		return nil, nil, err
+	}
+
 	hosts, err := mynames()
 	if err != nil {
 		log.Fatalf("Failed to get my hostname")
-		return err
+		return nil, nil, err
 	}
 
 	validFrom := time.Now()
@@ -111,7 +138,7 @@ func GenCert(certf string, keyf string) error {
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
 		log.Fatalf("failed to generate serial number: %s", err)
-		return err
+		return nil, nil, err
 	}
 
 	userEntry, err := user.Current()
@@ -155,25 +182,12 @@ func GenCert(certf string, keyf string) error {
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privk.PublicKey, privk)
 	if err != nil {
 		log.Fatalf("Failed to create certificate: %s", err)
-		return err
+		return nil, nil, err
 	}
 
-	certOut, err := os.Create(certf)
-	if err != nil {
-		log.Fatalf("failed to open %s for writing: %s", certf, err)
-		return err
-	}
-	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	certOut.Close()
-
-	keyOut, err := os.OpenFile(keyf, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		log.Printf("failed to open %s for writing: %s", keyf, err)
-		return err
-	}
-	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privk)})
-	keyOut.Close()
-	return nil
+	cert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	key := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privk)})
+	return cert, key, nil
 }
 
 func ReadCert(fpath string) (*x509.Certificate, error) {
