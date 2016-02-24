@@ -165,10 +165,11 @@ func NewClient(config *Config, remote string) (*Client, error) {
 		Name: remote,
 		Addr: r.Addr,
 	}
+
 	if strings.HasPrefix(r.Addr, "unix:") {
 		// replace "unix://" with the official "unix:/var/lib/lxd/unix.socket"
-		if r.Addr == "unix://" {
-			r.Addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
+		if info.Addr == "unix://" {
+			info.Addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
 		}
 	} else {
 		certf, keyf, err := ensureMyCert(config.ConfigDir)
