@@ -374,6 +374,10 @@ func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState *shared.Conta
 			}
 
 			for _, addr := range net.Addresses {
+				if shared.StringInSlice(addr.Scope, []string{"link", "local"}) {
+					continue
+				}
+
 				if addr.Family == "inet" {
 					ipv4s = append(ipv4s, fmt.Sprintf("%s (%s)", addr.Address, netName))
 				}
@@ -394,6 +398,10 @@ func (c *listCmd) IP6ColumnData(cInfo shared.ContainerInfo, cState *shared.Conta
 			}
 
 			for _, addr := range net.Addresses {
+				if shared.StringInSlice(addr.Scope, []string{"link", "local"}) {
+					continue
+				}
+
 				if addr.Family == "inet6" {
 					ipv6s = append(ipv6s, fmt.Sprintf("%s (%s)", addr.Address, netName))
 				}

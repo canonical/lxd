@@ -871,10 +871,28 @@ func printnet() error {
 					family = "inet6"
 				}
 
+				scope := "global"
+				if strings.HasPrefix(fields[0], "127") {
+					scope = "local"
+				}
+
+				if fields[0] == "::1" {
+					scope = "local"
+				}
+
+				if strings.HasPrefix(fields[0], "169.254") {
+					scope = "link"
+				}
+
+				if strings.HasPrefix(fields[0], "fe80:") {
+					scope = "link"
+				}
+
 				address := shared.ContainerStateNetworkAddress{}
 				address.Family = family
 				address.Address = fields[0]
 				address.Netmask = fields[1]
+				address.Scope = scope
 
 				network.Addresses = append(network.Addresses, address)
 			}
