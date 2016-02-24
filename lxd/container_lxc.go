@@ -63,13 +63,24 @@ func lxcValidConfig(rawLxc string) error {
 			return fmt.Errorf("Invalid raw.lxc line: %s", line)
 		}
 
+		key := strings.ToLower(strings.Trim(membs[0], " \t"))
+
 		// Blacklist some keys
-		if strings.ToLower(strings.Trim(membs[0], " \t")) == "lxc.logfile" {
+		if key == "lxc.logfile" {
 			return fmt.Errorf("Setting lxc.logfile is not allowed")
 		}
 
-		if strings.HasPrefix(strings.ToLower(strings.Trim(membs[0], " \t")), "lxc.network.") {
-			return fmt.Errorf("Setting lxc.network keys is not allowed")
+		if strings.HasPrefix(key, "lxc.network.") {
+			fields := strings.Split(key, ".")
+			if len(fields) == 4 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) {
+				continue
+			}
+
+			if len(fields) == 5 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
+				continue
+			}
+
+			return fmt.Errorf("Only interface-specific ipv4/ipv6 lxc.network keys are allowed")
 		}
 	}
 
@@ -675,6 +686,12 @@ func (c *containerLXC) initLXC() error {
 					return err
 				}
 			}
+
+			err = lxcSetConfigItem(cc, "lxc.network.flags", "up")
+			if err != nil {
+				return err
+			}
+
 			if shared.StringInSlice(m["nictype"], []string{"bridged", "physical", "macvlan"}) {
 				err = lxcSetConfigItem(cc, "lxc.network.link", m["parent"])
 				if err != nil {
