@@ -3,7 +3,7 @@
  */
 package shared
 
-var Version = "2.0.0.beta3"
+var Version = "2.0.0.beta4"
 var UserAgent = "LXD " + Version
 
 /*
@@ -11,5 +11,4 @@ var UserAgent = "LXD " + Version
  *
  * Version 1.0: ping
  */
-var APICompat = 1
 var APIVersion = "1.0"

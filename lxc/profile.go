@@ -7,12 +7,12 @@ import (
 	"strings"
 	"syscall"
 
-	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type profileCmd struct {
@@ -143,7 +143,7 @@ func (c *profileCmd) doProfileCreate(client *lxd.Client, p string) error {
 
 func (c *profileCmd) doProfileEdit(client *lxd.Client, p string) error {
 	// If stdin isn't a terminal, read text from it
-	if !terminal.IsTerminal(int(syscall.Stdin)) {
+	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return err
@@ -313,7 +313,7 @@ func (c *profileCmd) doProfileSet(client *lxd.Client, p string, args []string) e
 		value = args[1]
 	}
 
-	if !terminal.IsTerminal(int(syscall.Stdin)) && value == "-" {
+	if !termios.IsTerminal(int(syscall.Stdin)) && value == "-" {
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("Can't read from stdin: %s", err)

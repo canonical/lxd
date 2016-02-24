@@ -48,6 +48,7 @@ var cgCpusetController = false
 var cgDevicesController = false
 var cgMemoryController = false
 var cgNetPrioController = false
+var cgPidsController = false
 var cgSwapAccounting = false
 
 // UserNS
@@ -742,6 +743,11 @@ func (d *Daemon) Init() error {
 	cgNetPrioController = shared.PathExists("/sys/fs/cgroup/net_prio/")
 	if !cgNetPrioController {
 		shared.Log.Warn("Couldn't find the CGroup network class controller, network limits will be ignored.")
+	}
+
+	cgPidsController = shared.PathExists("/sys/fs/cgroup/pids/")
+	if !cgPidsController {
+		shared.Log.Warn("Couldn't find the CGroup pids controller, process limits will be ignored.")
 	}
 
 	cgSwapAccounting = shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes")

@@ -484,24 +484,11 @@ func (c *Client) GetServerConfig() (*Response, error) {
 
 func (c *Client) Finger() error {
 	shared.Debugf("Fingering the daemon")
-	resp, err := c.GetServerConfig()
+	_, err := c.GetServerConfig()
 	if err != nil {
 		return err
 	}
 
-	jmap, err := resp.MetadataAsMap()
-	if err != nil {
-		return err
-	}
-
-	serverAPICompat, err := jmap.GetInt("api_compat")
-	if err != nil {
-		return err
-	}
-
-	if serverAPICompat != shared.APICompat {
-		return fmt.Errorf("api version mismatch: mine: %q, daemon: %q", shared.APICompat, serverAPICompat)
-	}
 	shared.Debugf("Pong received")
 	return nil
 }
@@ -1151,7 +1138,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, err
 		}
 
-		if len(architectures) != 0 && !shared.IntInSlice(imageinfo.Architecture, architectures) {
+		if len(architectures) != 0 && !shared.StringInSlice(imageinfo.Architecture, architectures) {
 			return nil, fmt.Errorf("The image architecture is incompatible with the target server")
 		}
 
@@ -1190,7 +1177,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, fmt.Errorf("can't get info for image '%s': %s", image, err)
 		}
 
-		if len(architectures) != 0 && !shared.IntInSlice(imageinfo.Architecture, architectures) {
+		if len(architectures) != 0 && !shared.StringInSlice(imageinfo.Architecture, architectures) {
 			return nil, fmt.Errorf("The image architecture is incompatible with the target server")
 		}
 		source["fingerprint"] = fingerprint
@@ -1513,7 +1500,7 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 	}
 	req.Header.Set("User-Agent", shared.UserAgent)
 
-	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode))
+	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode.Perm()))
 	req.Header.Set("X-LXD-uid", strconv.FormatUint(uint64(uid), 10))
 	req.Header.Set("X-LXD-gid", strconv.FormatUint(uint64(gid), 10))
 
@@ -1555,7 +1542,7 @@ func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
 	return c.post(url, body, Async)
 }
 
-func (c *Client) MigrateFrom(name string, operation string, certificate string, secrets map[string]string, architecture int, config map[string]string, devices shared.Devices, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
+func (c *Client) MigrateFrom(name string, operation string, certificate string, secrets map[string]string, architecture string, config map[string]string, devices shared.Devices, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
 	source := shared.Jmap{
 		"type":        "migration",
 		"mode":        "pull",
@@ -1683,12 +1670,7 @@ func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
 	}
 
 	ss.Config[key] = value
-	body := shared.Jmap{
-		"api_compat":  ss.APICompat,
-		"auth":        ss.Auth,
-		"environment": ss.Environment,
-		"config":      ss.Config,
-		"public":      ss.Public}
+	body := shared.Jmap{"config": ss.Config}
 
 	return c.put("", body, Sync)
 }

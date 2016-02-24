@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/i18n"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 type moveCmd struct {

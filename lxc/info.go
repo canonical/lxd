@@ -8,8 +8,8 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/i18n"
 	"github.com/lxc/lxd/shared/gnuflag"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 type infoCmd struct {
@@ -84,6 +84,7 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 	const layout = "2006/01/02 15:04 UTC"
 
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
+	fmt.Printf(i18n.G("Architecture: %s")+"\n", ct.Architecture)
 	if ct.CreationDate.UTC().Unix() != 0 {
 		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreationDate.UTC().Format(layout))
 	}
@@ -95,22 +96,25 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		fmt.Printf(i18n.G("Type: persistent") + "\n")
 	}
 	fmt.Printf(i18n.G("Profiles: %s")+"\n", strings.Join(ct.Profiles, ", "))
-	if cs.Init != 0 {
-		fmt.Printf(i18n.G("Init: %d")+"\n", cs.Init)
-		fmt.Printf(i18n.G("Processcount: %d")+"\n", cs.Processcount)
-		fmt.Printf(i18n.G("Ips:") + "\n")
-		foundone := false
-		for _, ip := range cs.Ips {
+	if cs.Pid != 0 {
+		fmt.Printf(i18n.G("Pid: %d")+"\n", cs.Pid)
+		fmt.Printf(i18n.G("Processes: %d")+"\n", cs.Processes)
+
+		ipInfo := ""
+		for netName, net := range cs.Network {
 			vethStr := ""
-			if ip.HostVeth != "" {
-				vethStr = fmt.Sprintf("\t%s", ip.HostVeth)
+			if net.HostName != "" {
+				vethStr = fmt.Sprintf("\t%s", net.HostName)
 			}
 
-			fmt.Printf("  %s:\t%s\t%s%s\n", ip.Interface, ip.Protocol, ip.Address, vethStr)
-			foundone = true
+			for _, addr := range net.Addresses {
+				ipInfo += fmt.Sprintf("  %s:\t%s\t%s%s\n", netName, addr.Family, addr.Address, vethStr)
+			}
 		}
-		if !foundone {
-			fmt.Println(i18n.G("(none)"))
+
+		if ipInfo != "" {
+			fmt.Printf(i18n.G("Ips:") + "\n")
+			fmt.Printf(ipInfo)
 		}
 	}
 

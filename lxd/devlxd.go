@@ -74,7 +74,7 @@ var handlers = []devLxdHandler{
 		return okResponse([]string{"/1.0"}, "json")
 	}},
 	devLxdHandler{"/1.0", func(c container, r *http.Request) *devLxdResponse {
-		return okResponse(shared.Jmap{"api_compat": 0}, "json")
+		return okResponse(shared.Jmap{"api_version": shared.APIVersion}, "json")
 	}},
 	configGet,
 	configKeyGet,
@@ -99,7 +99,6 @@ func hoistReq(f func(container, *http.Request) *devLxdResponse, d *Daemon) func(
 
 		resp := f(c, r)
 		if resp.code != http.StatusOK {
-			w.Header().Set("Content-Type", "application/octet-stream")
 			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
 		} else if resp.ctype == "json" {
 			w.Header().Set("Content-Type", "application/json")
