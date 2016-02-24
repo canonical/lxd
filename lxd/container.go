@@ -618,7 +618,7 @@ func containerConfigureInternal(c container) error {
 			continue
 		}
 
-		size, err := deviceParseBytes(m["size"])
+		size, err := shared.ParseByteSizeString(m["size"])
 		if err != nil {
 			return err
 		}

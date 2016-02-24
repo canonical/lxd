@@ -470,7 +470,7 @@ func (c *containerLXC) initLXC() error {
 
 				valueInt = int64((memoryTotal / 100) * percent)
 			} else {
-				valueInt, err = deviceParseBytes(memory)
+				valueInt, err = shared.ParseByteSizeString(memory)
 				if err != nil {
 					return err
 				}
@@ -1883,7 +1883,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 
 		if m["size"] != oldRootfsSize {
-			size, err := deviceParseBytes(m["size"])
+			size, err := shared.ParseByteSizeString(m["size"])
 			if err != nil {
 				undoChanges()
 				return err
@@ -1986,7 +1986,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 					memory = fmt.Sprintf("%d", int64((memoryTotal/100)*percent))
 				} else {
-					valueInt, err := deviceParseBytes(memory)
+					valueInt, err := shared.ParseByteSizeString(memory)
 					if err != nil {
 						undoChanges()
 						return err
