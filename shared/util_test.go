@@ -91,7 +91,6 @@ func TestReadLastNLines(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	// fmt.Println(lines)
 
 	split = strings.Split(lines, "\n")
 	for i := 0; i < 100; i++ {
