@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -31,6 +32,7 @@ type migrationFields struct {
 
 	controlSecret string
 	controlConn   *websocket.Conn
+	controlLock   sync.Mutex
 
 	criuSecret string
 	criuConn   *websocket.Conn
@@ -42,6 +44,19 @@ type migrationFields struct {
 }
 
 func (c *migrationFields) send(m proto.Message) error {
+	/* gorilla websocket doesn't allow concurrent writes, and
+	 * panic()s if it sees them (which is reasonable). If e.g. we
+	 * happen to fail, get scheduled, start our write, then get
+	 * unscheduled before the write is bit to a new thread which is
+	 * receiving an error from the other side (due to our previous
+	 * close), we can engage in these concurrent writes, which
+	 * casuses the whole daemon to panic.
+	 *
+	 * Instead, let's lock sends to the controlConn so that we only ever
+	 * write one message at the time.
+	 */
+	c.controlLock.Lock()
+	defer c.controlLock.Unlock()
 	w, err := c.controlConn.NextWriter(websocket.BinaryMessage)
 	if err != nil {
 		return err
@@ -85,16 +100,28 @@ func (c *migrationFields) recv(m proto.Message) error {
 
 func (c *migrationFields) disconnect() {
 	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+
+	c.controlLock.Lock()
 	if c.controlConn != nil {
 		c.controlConn.WriteMessage(websocket.CloseMessage, closeMsg)
+		c.controlConn = nil /* don't close twice */
 	}
+	c.controlLock.Unlock()
 
+	/* Below we just Close(), which doesn't actually write to the
+	 * websocket, it just closes the underlying connection. If e.g. there
+	 * is still a filesystem transfer going on, but the other side has run
+	 * out of disk space, writing an actual CloseMessage here will cause
+	 * gorilla websocket to panic. Instead, we just force close this
+	 * connection, since we report the error over the control channel
+	 * anyway.
+	 */
 	if c.fsConn != nil {
-		c.fsConn.WriteMessage(websocket.CloseMessage, closeMsg)
+		c.fsConn.Close()
 	}
 
 	if c.criuConn != nil {
-		c.criuConn.WriteMessage(websocket.CloseMessage, closeMsg)
+		c.criuConn.Close()
 	}
 }
 
