@@ -369,7 +369,7 @@ func daemon() error {
 		signal.Notify(ch, syscall.SIGTERM)
 		sig := <-ch
 
-		shared.Log.Info(fmt.Sprintf("Received '%s signal', exiting.\n", sig))
+		shared.Log.Info(fmt.Sprintf("Received '%s signal', exiting.", sig))
 		ret = d.Stop()
 		wg.Done()
 	}()
