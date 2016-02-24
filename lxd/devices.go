@@ -633,8 +633,8 @@ func deviceTotalMemory() (int64, error) {
 		fields := strings.Split(line, " ")
 		value := fields[len(fields)-2] + fields[len(fields)-1]
 
-		// Feed the result to shared.ParseSizeString to get an int value
-		valueBytes, err := shared.ParseSizeString(value)
+		// Feed the result to shared.ParseByteSizeString to get an int value
+		valueBytes, err := shared.ParseByteSizeString(value)
 		if err != nil {
 			return -1, err
 		}
@@ -802,7 +802,7 @@ func deviceParseDiskLimit(readSpeed string, writeSpeed string) (int64, int64, in
 				return -1, -1, err
 			}
 		} else {
-			bps, err = shared.ParseSizeString(value)
+			bps, err = shared.ParseByteSizeString(value)
 			if err != nil {
 				return -1, -1, err
 			}

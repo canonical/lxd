@@ -3904,7 +3904,7 @@ func (c *containerLXC) setNetworkLimits(name string, m shared.Device) error {
 	// Parse the values
 	var ingressInt int64
 	if m["limits.ingress"] != "" {
-		ingressInt, err = deviceParseBits(m["limits.ingress"])
+		ingressInt, err = shared.ParseBitSizeString(m["limits.ingress"])
 		if err != nil {
 			return err
 		}
@@ -3912,7 +3912,7 @@ func (c *containerLXC) setNetworkLimits(name string, m shared.Device) error {
 
 	var egressInt int64
 	if m["limits.egress"] != "" {
-		egressInt, err = deviceParseBits(m["limits.egress"])
+		egressInt, err = shared.ParseBitSizeString(m["limits.egress"])
 		if err != nil {
 			return err
 		}
