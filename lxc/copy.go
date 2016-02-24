@@ -84,82 +84,82 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		}
 
 		return source.WaitForSuccess(cp.Operation)
-	} else {
-		dest, err := lxd.NewClient(config, destRemote)
-		if err != nil {
-			return err
-		}
+	}
 
-		sourceProfs := shared.NewStringSet(status.Profiles)
-		destProfs, err := dest.ListProfiles()
-		if err != nil {
-			return err
-		}
-
-		if !sourceProfs.IsSubset(shared.NewStringSet(destProfs)) {
-			return fmt.Errorf(i18n.G("not all the profiles from the source exist on the target"))
-		}
-
-		if ephemeral == -1 {
-			ct, err := source.ContainerInfo(sourceName)
-			if err != nil {
-				return err
-			}
-
-			if ct.Ephemeral {
-				ephemeral = 1
-			} else {
-				ephemeral = 0
-			}
-		}
-
-		sourceWSResponse, err := source.GetMigrationSourceWS(sourceName)
-		if err != nil {
-			return err
-		}
-
-		secrets := map[string]string{}
-
-		op, err := sourceWSResponse.MetadataAsOperation()
-		if err != nil {
-			return err
-		}
-
-		for k, v := range *op.Metadata {
-			secrets[k] = v.(string)
-		}
-
-		addresses, err := source.Addresses()
-		if err != nil {
-			return err
-		}
-
-		/* Since we're trying a bunch of different network ports that
-		 * may be invalid, we can get "bad handshake" errors when the
-		 * websocket code tries to connect. If the first error is a
-		 * real error, but the subsequent errors are only network
-		 * errors, we should try to report the first real error. Of
-		 * course, if all the errors are websocket errors, let's just
-		 * report that.
-		 */
-		for _, addr := range addresses {
-			var migration *lxd.Response
-
-			sourceWSUrl := "https://" + addr + sourceWSResponse.Operation
-			migration, err = dest.MigrateFrom(destName, sourceWSUrl, source.Certificate, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
-			if err != nil {
-				continue
-			}
-
-			if err = dest.WaitForSuccess(migration.Operation); err != nil {
-				return err
-			}
-
-			return nil
-		}
-
+	dest, err := lxd.NewClient(config, destRemote)
+	if err != nil {
 		return err
 	}
+
+	sourceProfs := shared.NewStringSet(status.Profiles)
+	destProfs, err := dest.ListProfiles()
+	if err != nil {
+		return err
+	}
+
+	if !sourceProfs.IsSubset(shared.NewStringSet(destProfs)) {
+		return fmt.Errorf(i18n.G("not all the profiles from the source exist on the target"))
+	}
+
+	if ephemeral == -1 {
+		ct, err := source.ContainerInfo(sourceName)
+		if err != nil {
+			return err
+		}
+
+		if ct.Ephemeral {
+			ephemeral = 1
+		} else {
+			ephemeral = 0
+		}
+	}
+
+	sourceWSResponse, err := source.GetMigrationSourceWS(sourceName)
+	if err != nil {
+		return err
+	}
+
+	secrets := map[string]string{}
+
+	op, err := sourceWSResponse.MetadataAsOperation()
+	if err != nil {
+		return err
+	}
+
+	for k, v := range *op.Metadata {
+		secrets[k] = v.(string)
+	}
+
+	addresses, err := source.Addresses()
+	if err != nil {
+		return err
+	}
+
+	/* Since we're trying a bunch of different network ports that
+	 * may be invalid, we can get "bad handshake" errors when the
+	 * websocket code tries to connect. If the first error is a
+	 * real error, but the subsequent errors are only network
+	 * errors, we should try to report the first real error. Of
+	 * course, if all the errors are websocket errors, let's just
+	 * report that.
+	 */
+	for _, addr := range addresses {
+		var migration *lxd.Response
+
+		sourceWSUrl := "https://" + addr + sourceWSResponse.Operation
+		migration, err = dest.MigrateFrom(destName, sourceWSUrl, source.Certificate, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
+		if err != nil {
+			continue
+		}
+
+		if err = dest.WaitForSuccess(migration.Operation); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return err
 }
 
 func (c *copyCmd) run(config *lxd.Config, args []string) error {
