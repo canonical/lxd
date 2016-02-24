@@ -611,51 +611,6 @@ func deviceParseCPU(cpuAllowance string, cpuPriority string) (string, string, st
 	return fmt.Sprintf("%d", cpuShares), cpuCfsQuota, cpuCfsPeriod, nil
 }
 
-func deviceParseBits(input string) (int64, error) {
-	if input == "" {
-		return 0, nil
-	}
-
-	if len(input) < 5 {
-		return -1, fmt.Errorf("Invalid value: %s", input)
-	}
-
-	// Extract the suffix
-	suffix := input[len(input)-4:]
-
-	// Extract the value
-	value := input[0 : len(input)-4]
-	valueInt, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return -1, fmt.Errorf("Invalid integer: %s", input)
-	}
-
-	if valueInt < 0 {
-		return -1, fmt.Errorf("Invalid value: %d", valueInt)
-	}
-
-	// Figure out the multiplicator
-	multiplicator := int64(0)
-	switch suffix {
-	case "kbit":
-		multiplicator = 1000
-	case "Mbit":
-		multiplicator = 1000 * 1000
-	case "Gbit":
-		multiplicator = 1000 * 1000 * 1000
-	case "Tbit":
-		multiplicator = 1000 * 1000 * 1000 * 1000
-	case "Pbit":
-		multiplicator = 1000 * 1000 * 1000 * 1000 * 1000
-	case "Ebit":
-		multiplicator = 1000 * 1000 * 1000 * 1000 * 1000 * 1000
-	default:
-		return -1, fmt.Errorf("Unsupported suffix: %s", suffix)
-	}
-
-	return valueInt * multiplicator, nil
-}
-
 func deviceTotalMemory() (int64, error) {
 	// Open /proc/meminfo
 	f, err := os.Open("/proc/meminfo")
@@ -678,8 +633,8 @@ func deviceTotalMemory() (int64, error) {
 		fields := strings.Split(line, " ")
 		value := fields[len(fields)-2] + fields[len(fields)-1]
 
-		// Feed the result to shared.ParseByteSizeString to get an int value
-		valueBytes, err := shared.ParseByteSizeString(value)
+		// Feed the result to shared.ParseSizeString to get an int value
+		valueBytes, err := shared.ParseSizeString(value)
 		if err != nil {
 			return -1, err
 		}
@@ -847,7 +802,7 @@ func deviceParseDiskLimit(readSpeed string, writeSpeed string) (int64, int64, in
 				return -1, -1, err
 			}
 		} else {
-			bps, err = shared.ParseByteSizeString(value)
+			bps, err = shared.ParseSizeString(value)
 			if err != nil {
 				return -1, -1, err
 			}
