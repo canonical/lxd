@@ -128,10 +128,7 @@ func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsRemoteCertPEM
 
 	var tlsRemoteCert *x509.Certificate
 	if tlsRemoteCertPEM != "" {
-		/// XXX: jam 2016-02-23 shared.ReadCert ignores any trailing
-		//content. Is that secure? I know there were security holes in
-		//some gpg decrypt usage because it would pass on extra bytes
-		//outside of the signed portion.
+		// Ignore any content outside of the PEM bytes we care about
 		certBlock, _ := pem.Decode([]byte(tlsRemoteCertPEM))
 		var err error
 		tlsRemoteCert, err = x509.ParseCertificate(certBlock.Bytes)

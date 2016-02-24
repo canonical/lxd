@@ -166,6 +166,10 @@ func NewClient(config *Config, remote string) (*Client, error) {
 		Addr: r.Addr,
 	}
 	if r.Addr[0:5] != "unix:" {
+		if r.Addr == "unix://" {
+			r.Addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
+		}
+
 		certf, keyf, err := ensureMyCert(config.ConfigDir)
 		if err != nil {
 			return nil, err
@@ -204,9 +208,12 @@ type ConnectInfo struct {
 	// the name used to lookup the address and other information in the
 	// config.yml file.
 	Name string
-	// Addr is the host address to connect to. It can be unix: to indicate
-	// we should connect over a unix socket, or it can be an IP Address or
+	// Addr is the host address to connect to. It can be
+	// unix:/path/to/socket to indicate we should connect over a unix
+	// socket, or it can be an IP Address or
 	// Hostname, or an https:// URL.
+	// The standard unix socket is located at $LXD_DIR/unix.socket
+	// See also github.com/lxc/lxd/shared.VarPath("unix.socket")
 	Addr string
 	// ClientPEMCert is the PEM encoded bytes of the client's certificate.
 	// If Addr indicates a Unix socket, the certificate and key bytes will
@@ -221,10 +228,6 @@ type ConnectInfo struct {
 }
 
 func connectViaUnix(c *Client, addr string) error {
-	if addr == "unix://" {
-		addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
-	}
-
 	c.BaseURL = "http://unix.socket"
 	c.BaseWSURL = "ws://unix.socket"
 	c.Transport = "unix"
