@@ -285,7 +285,21 @@ func (c *containerLXC) initLXC() error {
 		return err
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.mount.auto", "cgroup:mixed proc:mixed sys:mixed")
+	// Set an appropriate /proc, /sys/ and /sys/fs/cgroup
+	mounts := []string{}
+	if c.IsPrivileged() && !runningInUserns {
+		mounts = append(mounts, "proc:mixed")
+		mounts = append(mounts, "sys:mixed")
+	} else {
+		mounts = append(mounts, "proc:rw")
+		mounts = append(mounts, "sys:rw")
+	}
+
+	if !shared.PathExists("/proc/self/ns/cgroup") {
+		mounts = append(mounts, "cgroup:mixed")
+	}
+
+	err = lxcSetConfigItem(cc, "lxc.mount.auto", strings.Join(mounts, " "))
 	if err != nil {
 		return err
 	}
