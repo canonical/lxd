@@ -306,6 +306,10 @@ wipe() {
   rm -Rf "${1}"
 }
 
+# Must be set before cleanup()
+TEST_CURRENT=setup
+TEST_RESULT=failure
+
 trap cleanup EXIT HUP INT TERM
 
 # Import all the testsuites
@@ -338,9 +342,6 @@ chmod +x "${LXD2_DIR}"
 spawn_lxd "${LXD2_DIR}"
 LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 export LXD2_ADDR
-
-TEST_CURRENT=setup
-TEST_RESULT=failure
 
 # allow for running a specific set of tests
 if [ "$#" -gt 0 ]; then
