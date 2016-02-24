@@ -34,7 +34,13 @@ func (c *fingerCmd) run(config *lxd.Config, args []string) error {
 		remote = config.DefaultRemote
 	}
 
-	// NewClient will finger the server to test the connection before returning.
-	_, err := lxd.NewClient(config, remote)
+	// New client may or may not need to connect to the remote host, but
+	// client.ServerStatus will at least request the basic information from
+	// the server.
+	client, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+	_, err = client.ServerStatus()
 	return err
 }
