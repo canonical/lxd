@@ -165,11 +165,12 @@ func NewClient(config *Config, remote string) (*Client, error) {
 		Name: remote,
 		Addr: r.Addr,
 	}
-	if r.Addr[0:5] != "unix:" {
+	if strings.HasPrefix(r.Addr, "unix:") {
+		// replace "unix://" with the official "unix:/var/lib/lxd/unix.socket"
 		if r.Addr == "unix://" {
 			r.Addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
 		}
-
+	} else {
 		certf, keyf, err := ensureMyCert(config.ConfigDir)
 		if err != nil {
 			return nil, err
@@ -235,15 +236,18 @@ func connectViaUnix(c *Client, addr string) error {
 	uDial := func(network, addr string) (net.Conn, error) {
 		// The arguments 'network' and 'addr' are ignored because
 		// they are the wrong information.
-		// Addr takes unix://unix.socket and tries to connect to
+		// addr is generated from BaseURL which becomes
 		// 'unix.socket:80' which is certainly not what we want.
-		var err error
-		var raddr *net.UnixAddr
-		if r.Addr[7:] == "unix://" {
-			raddr, err = net.ResolveUnixAddr("unix", r.Addr[7:])
-		} else {
-			raddr, err = net.ResolveUnixAddr("unix", r.Addr[5:])
+		// handle:
+		//   unix:///path/to/socket
+		//   unix:/path/to/socket
+		//   unix:path/to/socket
+		path := strings.TrimPrefix(r.Addr, "unix:")
+		if strings.HasPrefix(path, "///") {
+			// translate unix:///path/to, to just "/path/to"
+			path = path[2:]
 		}
+		raddr, err := net.ResolveUnixAddr("unix", path)
 		if err != nil {
 			return nil, err
 		}
@@ -276,13 +280,9 @@ func connectViaHttp(c *Client, addr, clientCert, clientKey, serverCert string) e
 	c.websocketDialer.NetDial = shared.RFC3493Dialer
 	c.websocketDialer.TLSClientConfig = tlsconfig
 
-	if addr[0:8] == "https://" {
-		c.BaseURL = "https://" + addr[8:]
-		c.BaseWSURL = "wss://" + addr[8:]
-	} else {
-		c.BaseURL = "https://" + addr
-		c.BaseWSURL = "wss://" + addr
-	}
+	justAddr := strings.TrimPrefix(addr, "https://")
+	c.BaseURL = "https://" + justAddr
+	c.BaseWSURL = "wss://" + justAddr
 	c.Transport = "https"
 	c.Http.Transport = tr
 	c.Remote = &RemoteConfig{Addr: addr}
