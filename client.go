@@ -228,21 +228,12 @@ func connectViaUnix(c *Client, addr string) error {
 	c.BaseURL = "http://unix.socket"
 	c.BaseWSURL = "ws://unix.socket"
 	c.Transport = "unix"
-	r := &RemoteConfig{
-		Addr: addr,
-		// TODO: (jam) RemoteConfig.Public is not relevant for the purposes of
-		// an active connection. It only seems to be used to display server
-		// information in "list", though if we aren't getting that information
-		// from the service itself, it seems like it can't be guaranteed to be
-		// correct, as it is just the local information about a remote server.
-		// Is there another reason it is here?
-		Public: false,
-	}
-	uDial := func(networ, addr string) (net.Conn, error) {
-		// TODO: (jam) Why are we ignoring the passed in 'addr' and only using our own Addr?
-		// Do we allow other code to mutate Client.Remote.Addr and
-		// change what we connect to, and still ignore the 'adrd'
-		// passed to Dial?
+	r := &RemoteConfig{Addr: addr}
+	uDial := func(network, addr string) (net.Conn, error) {
+		// The arguments 'network' and 'addr' are ignored because
+		// they are the wrong information.
+		// Addr takes unix://unix.socket and tries to connect to
+		// 'unix.socket:80' which is certainly not what we want.
 		var err error
 		var raddr *net.UnixAddr
 		if r.Addr[7:] == "unix://" {
@@ -292,9 +283,8 @@ func connectViaHttp(c *Client, addr, clientCert, clientKey, serverCert string) e
 	c.Transport = "https"
 	c.Http.Transport = tr
 	c.Remote = &RemoteConfig{Addr: addr}
-	// TODO: (jam) It is odd to me that the Unix socket path actually
-	// connects to the service, but the HTTP path just sets up a transport
-	// and socket dialer, but doesn't actually try to connect.
+	// We don't actually need to connect yet, defer that until someone
+	// needs something from the server.
 	return nil
 }
 
