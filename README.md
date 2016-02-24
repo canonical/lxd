@@ -119,6 +119,13 @@ this by:
     lxc remote add local 127.0.0.1:8443
     wget --no-check-certificate https://127.0.0.1:8443/1.0 --certificate=$HOME/.config/lxc/client.crt --private-key=$HOME/.config/lxc/client.key -O - -q
 
+## Upgrading
+
+The `lxd` and `lxc` (`lxd-client`) binaries should be upgraded at the same time with:
+
+    apt-get update
+    apt-get install lxd lxd-client
+
 ## Support and discussions
 
 We use the LXC mailing-lists for developer and user discussions, you can
