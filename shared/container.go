@@ -39,6 +39,7 @@ type ContainerStateNetworkAddress struct {
 	Family  string `json:"family"`
 	Address string `json:"address"`
 	Netmask string `json:"netmask"`
+	Scope   string `json:"scope"`
 }
 
 type ContainerStateNetworkCounters struct {
