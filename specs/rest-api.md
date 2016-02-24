@@ -643,12 +643,14 @@ HTTP code for this should be 202 (Accepted).
                         {
                             "family": "inet",
                             "address": "10.0.3.27",
-                            "netmask": "24"
+                            "netmask": "24",
+                            "scope": "global"
                         },
                         {
                             "family": "inet6",
                             "address": "fe80::216:3eff:feec:65a8",
-                            "netmask": "64"
+                            "netmask": "64",
+                            "scope": "link"
                         }
                     ],
                     "counters": {
@@ -668,12 +670,14 @@ HTTP code for this should be 202 (Accepted).
                         {
                             "family": "inet",
                             "address": "127.0.0.1",
-                            "netmask": "8"
+                            "netmask": "8",
+                            "scope": "local"
                         },
                         {
                             "family": "inet6",
                             "address": "::1",
-                            "netmask": "128"
+                            "netmask": "128",
+                            "scope": "local"
                         }
                     ],
                     "counters": {
@@ -693,12 +697,14 @@ HTTP code for this should be 202 (Accepted).
                         {
                             "family": "inet",
                             "address": "10.0.3.1",
-                            "netmask": "24"
+                            "netmask": "24",
+                            "scope": "global"
                         },
                         {
                             "family": "inet6",
                             "address": "fe80::68d4:87ff:fe40:7769",
-                            "netmask": "64"
+                            "netmask": "64",
+                            "scope": "link"
                         }
                     ],
                     "counters": {
@@ -718,17 +724,20 @@ HTTP code for this should be 202 (Accepted).
                         {
                             "family": "inet",
                             "address": "29.17.181.59",
-                            "netmask": "7"
+                            "netmask": "7",
+                            "scope": "global"
                         },
                         {
                             "family": "inet6",
                             "address": "fd80:56c2:e21c:0:199:9379:e711:b3e1",
-                            "netmask": "88"
+                            "netmask": "88",
+                            "scope": "global"
                         },
                         {
                             "family": "inet6",
                             "address": "fe80::79:e7ff:fe0d:5123",
-                            "netmask": "64"
+                            "netmask": "64",
+                            "scope": "link"
                         }
                     ],
                     "counters": {
