@@ -15,17 +15,17 @@ import (
 
 // Windows doesn't process ANSI sequences natively, so we wrap
 // os.Stdout for improved user experience for Windows client
-type WrappedWriteCloser struct {
+type wrappedWriteCloser struct {
 	io.Closer
 	wrapper io.Writer
 }
 
-func (wwc *WrappedWriteCloser) Write(p []byte) (int, error) {
+func (wwc *wrappedWriteCloser) Write(p []byte) (int, error) {
 	return wwc.wrapper.Write(p)
 }
 
 func (c *execCmd) getStdout() io.WriteCloser {
-	return &WrappedWriteCloser{os.Stdout, colorable.NewColorableStdout()}
+	return &wrappedWriteCloser{os.Stdout, colorable.NewColorableStdout()}
 }
 
 func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {

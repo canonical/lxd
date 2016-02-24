@@ -1,33 +1,22 @@
 package main
 
 import (
+	"github.com/codegangsta/cli"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type moveCmd struct {
-	httpAddr string
+var commandMove = cli.Command{
+	Name:      "move",
+	Usage:     i18n.G("Move containers within or in between lxd instances."),
+	ArgsUsage: i18n.G("[remote:]<source container> [remote:]<destination container>"),
+
+	Flags:  commandGlobalFlags,
+	Action: commandWrapper(commmandActionMove),
 }
 
-func (c *moveCmd) showByDefault() bool {
-	return true
-}
-
-func (c *moveCmd) usage() string {
-	return i18n.G(
-		`Move containers within or in between lxd instances.
-
-lxc move [remote:]<source container> [remote:]<destination container>
-    Move a container between two hosts, renaming it if destination name differs.
-
-lxc move <old name> <new name>
-    Rename a local container.
-`)
-}
-
-func (c *moveCmd) flags() {}
-
-func (c *moveCmd) run(config *lxd.Config, args []string) error {
+func commmandActionMove(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
 	if len(args) != 2 {
 		return errArgs
 	}
@@ -54,13 +43,12 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 		return source.WaitForSuccess(rename.Operation)
 	}
 
-	cpy := copyCmd{}
-
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the container.
-	if err := cpy.copyContainer(config, args[0], args[1], true, -1); err != nil {
+	if err := copyContainer(config, args[0], args[1], true, -1); err != nil {
 		return err
 	}
 
-	return commands["delete"].run(config, args[:1])
+	var cmd = &deleteCmd{}
+	return cmd.run(config, args[:1])
 }

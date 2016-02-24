@@ -9,27 +9,601 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/codegangsta/cli"
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
 )
 
-type SortImage [][]string
+var commandImage = cli.Command{
+	Name:  "image",
+	Usage: i18n.G("Manipulate container images."),
+	Description: i18n.G(`Manipulate container images.
 
-func (a SortImage) Len() int {
+   In LXD containers are created from images. Those images were themselves
+   either generated from an existing container or downloaded from an image
+   server.
+
+   When using remote images, LXD will automatically cache images for you
+   and remove them upon expiration.
+
+   The image unique identifier is the hash (sha-256) of its representation
+   as a compressed tarball (or for split images, the concatenation of the
+   metadata and rootfs tarballs).
+
+   Images can be referenced by their full hash, shortest unique partial
+   hash or alias name (if one is set).
+
+
+   lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--alias=ALIAS]... [prop=value]...
+   Import an image tarball (or tarballs) into the LXD image store.
+
+   lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public]
+   Copy an image from one LXD daemon to another over the network.
+
+   lxc image delete [remote:]<image>
+   Delete an image from the LXD image store.
+
+   lxc image export [remote:]<image>
+   Export an image from the LXD image store into a distributable tarball.
+
+   lxc image info [remote:]<image>
+   Print everything LXD knows about a given image.
+
+   lxc image list [remote:] [filter]
+   List images in the LXD image store. Filters may be of the
+   <key>=<value> form for property based filtering, or part of the image
+   hash or part of the image alias name.
+
+   lxc image show [remote:]<image>
+   Yaml output of the user modifiable properties of an image.
+
+   lxc image edit [remote:]<image>
+   Edit image, either by launching external editor or reading STDIN.
+   Example: lxc image edit <image> # launch editor
+	   			 cat image.yml | lxc image edit <image> # read from image.yml
+
+   lxc image alias create [remote:]<alias> <fingerprint>
+   Create a new alias for an existing image.
+
+   lxc image alias delete [remote:]<alias>
+   Delete an alias.
+
+   lxc image alias list [remote:]
+   List the aliases.`),
+
+	Flags: commandGlobalFlags,
+	Subcommands: []cli.Command{
+
+		cli.Command{
+			Name:      "import",
+			ArgsUsage: i18n.G("<tarball> [rootfs tarball|URL] [remote:] [--public] [--alias=ALIAS]... [prop=value]..."),
+			Usage:     i18n.G("Import an image tarball (or tarballs) into the LXD image store."),
+
+			Flags: append(commandGlobalFlags,
+				cli.BoolFlag{
+					Name:  "public",
+					Usage: i18n.G("Make image public."),
+				},
+				cli.StringSliceFlag{
+					Name:  "alias",
+					Usage: i18n.G("An alias for this image."),
+				},
+			),
+			Action: commandWrapper(commandActionImageImport),
+		},
+
+		cli.Command{
+			Name:      "copy",
+			ArgsUsage: i18n.G("[remote:]<image> <remote>:"),
+			Usage:     i18n.G("Copy an image to another destination."),
+
+			Flags: append(commandGlobalFlags,
+				cli.StringSliceFlag{
+					Name:  "alias",
+					Usage: i18n.G("An alias for this image."),
+				},
+				cli.BoolFlag{
+					Name:  "copy-aliases",
+					Usage: i18n.G("Also copy aliases."),
+				},
+				cli.BoolFlag{
+					Name:  "public",
+					Usage: i18n.G("Make image public."),
+				},
+				cli.BoolFlag{
+					Name:  "auto-update",
+					Usage: i18n.G("Keep the image up to date after initial copy."),
+				},
+			),
+			Action: commandWrapper(commandActionImageCopy),
+		},
+
+		cli.Command{
+			Name:      "delete",
+			ArgsUsage: i18n.G("[remote:]<image>"),
+			Usage:     i18n.G("Delete an image."),
+
+			Flags:  commandGlobalFlags,
+			Action: commandWrapper(commandActionImageDelete),
+		},
+
+		cli.Command{
+			Name:      "export",
+			ArgsUsage: i18n.G("[remote:]<image>"),
+			Usage:     i18n.G("Export an image."),
+
+			Flags:  commandGlobalFlags,
+			Action: commandWrapper(commandActionImageExport),
+		},
+
+		cli.Command{
+			Name:      "info",
+			ArgsUsage: i18n.G("[remote:]<image>"),
+			Usage:     i18n.G("Get informations form an image."),
+
+			Flags:  commandGlobalFlags,
+			Action: commandWrapper(commandActionImageInfo),
+		},
+
+		cli.Command{
+			Name:      "list",
+			ArgsUsage: i18n.G("[resource] [filters] [-c columns] [--fast]"),
+			Usage:     i18n.G("List images."),
+
+			Flags:  commandGlobalFlags,
+			Action: commandWrapper(commandActionImageList),
+		},
+
+		cli.Command{
+			Name:      "show",
+			ArgsUsage: i18n.G("[remote:]<image>"),
+			Usage:     i18n.G("Show an image."),
+
+			Flags:  commandGlobalFlags,
+			Action: commandWrapper(commandActionImageShow),
+		},
+
+		cli.Command{
+			Name:      "edit",
+			ArgsUsage: i18n.G("[remote:]<image>"),
+			Usage:     i18n.G("Edit an image."),
+
+			Flags:  commandGlobalFlags,
+			Action: commandWrapper(commandActionImageEdit),
+		},
+
+		cli.Command{
+			Name:  "alias",
+			Usage: i18n.G("Manipulate aliases."),
+
+			Subcommands: []cli.Command{
+
+				cli.Command{
+					Name:      "create",
+					ArgsUsage: i18n.G("<alias> <target>"),
+					Usage:     i18n.G("Create an alias."),
+					Flags:     commandGlobalFlags,
+					Action:    commandWrapper(commandActionImageAliasCreate),
+				},
+
+				cli.Command{
+					Name:      "delete",
+					ArgsUsage: i18n.G("<alias>"),
+					Usage:     i18n.G("Delete an alias."),
+					Flags:     commandGlobalFlags,
+					Action:    commandWrapper(commandActionImageAliasDelete),
+				},
+
+				cli.Command{
+					Name:      "list",
+					ArgsUsage: i18n.G("[remote:]"),
+					Usage:     i18n.G("List aliases."),
+					Flags:     commandGlobalFlags,
+					Action:    commandWrapper(commandActionImageAliasList),
+				},
+			},
+		},
+	},
+}
+
+func commandActionImageImport(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+	var public = context.Bool("public")
+	var alias = context.StringSlice("alias")
+
+	if len(args) < 1 {
+		return errArgs
+	}
+
+	var fingerprint string
+	var imageFile string
+	var rootfsFile string
+	var properties []string
+	var remote string
+
+	for _, arg := range args {
+		split := strings.Split(arg, "=")
+		if len(split) == 1 || shared.PathExists(arg) {
+			if strings.HasSuffix(arg, ":") {
+				remote = config.ParseRemote(arg)
+			} else {
+				if imageFile == "" {
+					imageFile = args[0]
+				} else {
+					rootfsFile = arg
+				}
+			}
+		} else {
+			properties = append(properties, arg)
+		}
+	}
+
+	if remote == "" {
+		remote = config.DefaultRemote
+	}
+
+	if imageFile == "" {
+		return errArgs
+	}
+
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	handler := func(percent int) {
+		fmt.Printf(i18n.G("Transferring image: %d%%")+"\r", percent)
+		if percent == 100 {
+			fmt.Printf("\n")
+		}
+	}
+
+	if strings.HasPrefix(imageFile, "https://") {
+		fingerprint, err = d.PostImageURL(imageFile, public, alias)
+	} else if strings.HasPrefix(imageFile, "http://") {
+		return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
+	} else {
+		fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, public, alias, handler)
+	}
+
+	if err != nil {
+		return err
+	}
+	fmt.Printf(i18n.G("Image imported with fingerprint: %s")+"\n", fingerprint)
+
+	return nil
+}
+
+func commandActionImageCopy(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+	var public = context.Bool("public")
+	var alias = context.StringSlice("alias")
+	var copyAliases = context.Bool("copy-aliases")
+
+	/* [<remote>:]<image> [<remote>:]<image> */
+	if len(args) != 2 {
+		return errArgs
+	}
+	remote, inName := config.ParseRemoteAndContainer(args[0])
+	if inName == "" {
+		return errArgs
+	}
+	destRemote, outName := config.ParseRemoteAndContainer(args[1])
+	if outName != "" {
+		return errArgs
+	}
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+	dest, err := lxd.NewClient(config, destRemote)
+	if err != nil {
+		return err
+	}
+
+	progressHandler := func(progress string) {
+		fmt.Printf(i18n.G("Copying the image: %s")+"\r", progress)
+	}
+
+	err = d.CopyImage(inName, dest, copyAliases, alias, public, context.Bool("auto-update"), progressHandler)
+	if err == nil {
+		fmt.Println(i18n.G("Image copied successfully!"))
+	}
+	return err
+}
+
+func commandActionImageDelete(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+	/* [<remote>:]<image> */
+	if len(args) < 1 {
+		return errArgs
+	}
+	remote, inName := config.ParseRemoteAndContainer(args[0])
+	if inName == "" {
+		inName = "default"
+	}
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+	var cmd = &imageCmd{}
+	image := cmd.dereferenceAlias(d, inName)
+	err = d.DeleteImage(image)
+	return err
+}
+
+func commandActionImageInfo(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+
+	if len(args) < 1 {
+		return errArgs
+	}
+	remote, inName := config.ParseRemoteAndContainer(args[0])
+	if inName == "" {
+		inName = "default"
+	}
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	var cmd = &imageCmd{}
+	image := cmd.dereferenceAlias(d, inName)
+
+	info, err := d.GetImageInfo(image)
+	if err != nil {
+		return err
+	}
+
+	public := i18n.G("no")
+
+	if info.Public {
+		public = i18n.G("yes")
+	}
+
+	autoUpdate := i18n.G("disabled")
+	if info.AutoUpdate {
+		autoUpdate = i18n.G("enabled")
+	}
+
+	fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
+	fmt.Printf(i18n.G("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
+	fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
+	fmt.Printf(i18n.G("Public: %s")+"\n", public)
+	fmt.Printf(i18n.G("Timestamps:") + "\n")
+	const layout = "2006/01/02 15:04 UTC"
+	if info.CreationDate.UTC().Unix() != 0 {
+		fmt.Printf("    "+i18n.G("Created: %s")+"\n", info.CreationDate.UTC().Format(layout))
+	}
+	fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", info.UploadDate.UTC().Format(layout))
+	if info.ExpiryDate.UTC().Unix() != 0 {
+		fmt.Printf("    "+i18n.G("Expires: %s")+"\n", info.ExpiryDate.UTC().Format(layout))
+	} else {
+		fmt.Printf("    " + i18n.G("Expires: never") + "\n")
+	}
+	fmt.Println(i18n.G("Properties:"))
+	for key, value := range info.Properties {
+		fmt.Printf("    %s: %s\n", key, value)
+	}
+	fmt.Println(i18n.G("Aliases:"))
+	for _, alias := range info.Aliases {
+		fmt.Printf("    - %s\n", alias.Name)
+	}
+	fmt.Printf(i18n.G("Auto update: %s")+"\n", autoUpdate)
+	if info.Source != nil {
+		fmt.Println(i18n.G("Source:"))
+		fmt.Printf("    Server: %s\n", info.Source.Server)
+		fmt.Printf("    Protocol: %s\n", info.Source.Protocol)
+		fmt.Printf("    Alias: %s\n", info.Source.Alias)
+	}
+	return nil
+}
+
+func commandActionImageExport(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+
+	if len(args) < 1 {
+		return errArgs
+	}
+
+	remote, inName := config.ParseRemoteAndContainer(args[0])
+	if inName == "" {
+		inName = "default"
+	}
+
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	var cmd = &imageCmd{}
+	image := cmd.dereferenceAlias(d, inName)
+
+	target := "."
+	if len(args) > 1 {
+		target = args[1]
+	}
+	outfile, err := d.ExportImage(image, target)
+	if err != nil {
+		return err
+	}
+
+	if target != "-" {
+		fmt.Printf(i18n.G("Output is in %s")+"\n", outfile)
+	}
+	return nil
+}
+
+func commandActionImageList(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+	filters := []string{}
+
+	var remote string
+
+	if len(args) > 0 {
+		result := strings.SplitN(args[0], ":", 2)
+		if len(result) == 1 {
+			filters = append(filters, args[0])
+			remote, _ = config.ParseRemoteAndContainer("")
+		} else {
+			remote, _ = config.ParseRemoteAndContainer(args[0])
+		}
+	} else {
+		remote, _ = config.ParseRemoteAndContainer("")
+	}
+
+	if len(args) > 1 {
+		for _, filter := range args[1:] {
+			filters = append(filters, filter)
+		}
+	}
+
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	images, err := d.ListImages()
+	if err != nil {
+		return err
+	}
+
+	var cmd = &imageCmd{}
+	return cmd.showImages(images, filters)
+}
+
+func commandActionImageShow(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+
+	if len(args) < 1 {
+		return errArgs
+	}
+
+	remote, inName := config.ParseRemoteAndContainer(args[0])
+	if inName == "" {
+		inName = "default"
+	}
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	var cmd = &imageCmd{}
+	image := cmd.dereferenceAlias(d, inName)
+	info, err := d.GetImageInfo(image)
+	if err != nil {
+		return err
+	}
+
+	properties := info.Brief()
+
+	data, err := yaml.Marshal(&properties)
+	fmt.Printf("%s", data)
+	return err
+}
+
+func commandActionImageEdit(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+
+	if len(args) < 1 {
+		return errArgs
+	}
+
+	remote, inName := config.ParseRemoteAndContainer(args[0])
+	if inName == "" {
+		inName = "default"
+	}
+
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	var cmd = &imageCmd{}
+	image := cmd.dereferenceAlias(d, inName)
+	if image == "" {
+		image = inName
+	}
+
+	return cmd.doImageEdit(d, image)
+}
+
+func commandActionImageAliasCreate(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+
+	/* [<remote>:]<alias> <target> */
+	if len(args) < 2 {
+		return errArgs
+	}
+	remote, alias := config.ParseRemoteAndContainer(args[0])
+	target := args[1]
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+	/* TODO - what about description? */
+	err = d.PostAlias(alias, alias, target)
+	return err
+}
+
+func commandActionImageAliasDelete(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+
+	/* [<remote>:]<alias> */
+	if len(args) < 1 {
+		return errArgs
+	}
+	remote, alias := config.ParseRemoteAndContainer(args[0])
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+	err = d.DeleteAlias(alias)
+	return err
+}
+
+func commandActionImageAliasList(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+	var remote string
+
+	/* alias list [<remote>:] */
+	if len(args) > 1 {
+		remote, _ = config.ParseRemoteAndContainer(args[0])
+	} else {
+		remote, _ = config.ParseRemoteAndContainer("")
+	}
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	resp, err := d.ListAliases()
+	if err != nil {
+		return err
+	}
+
+	var cmd = &imageCmd{}
+	cmd.showAliases(resp)
+
+	return nil
+}
+
+type sortImage [][]string
+
+func (a sortImage) Len() int {
 	return len(a)
 }
 
-func (a SortImage) Swap(i, j int) {
+func (a sortImage) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-func (a SortImage) Less(i, j int) bool {
+func (a sortImage) Less(i, j int) bool {
 	if a[i][0] == a[j][0] {
 		if a[i][3] == "" {
 			return false
@@ -72,11 +646,6 @@ type imageCmd struct {
 	addAliases  aliasList
 	publicImage bool
 	copyAliases bool
-	autoUpdate  bool
-}
-
-func (c *imageCmd) showByDefault() bool {
-	return true
 }
 
 func (c *imageCmd) imageEditHelp() string {
@@ -87,442 +656,6 @@ func (c *imageCmd) imageEditHelp() string {
 ### Each property is represented by a single line:
 ### An example would be:
 ###  description: My custom image`)
-}
-
-func (c *imageCmd) usage() string {
-	return i18n.G(
-		`Manipulate container images.
-
-In LXD containers are created from images. Those images were themselves
-either generated from an existing container or downloaded from an image
-server.
-
-When using remote images, LXD will automatically cache images for you
-and remove them upon expiration.
-
-The image unique identifier is the hash (sha-256) of its representation
-as a compressed tarball (or for split images, the concatenation of the
-metadata and rootfs tarballs).
-
-Images can be referenced by their full hash, shortest unique partial
-hash or alias name (if one is set).
-
-
-lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
-    Import an image tarball (or tarballs) into the LXD image store.
-
-lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public] [--auto-update]
-    Copy an image from one LXD daemon to another over the network.
-
-    The auto-update flag instructs the server to keep this image up to
-    date. It requires the source to be an alias and for it to be public.
-
-lxc image delete [remote:]<image>
-    Delete an image from the LXD image store.
-
-lxc image export [remote:]<image>
-    Export an image from the LXD image store into a distributable tarball.
-
-lxc image info [remote:]<image>
-    Print everything LXD knows about a given image.
-
-lxc image list [remote:] [filter]
-    List images in the LXD image store. Filters may be of the
-    <key>=<value> form for property based filtering, or part of the image
-    hash or part of the image alias name.
-
-lxc image show [remote:]<image>
-    Yaml output of the user modifiable properties of an image.
-
-lxc image edit [remote:]<image>
-    Edit image, either by launching external editor or reading STDIN.
-    Example: lxc image edit <image> # launch editor
-             cat image.yml | lxc image edit <image> # read from image.yml
-
-lxc image alias create [remote:]<alias> <fingerprint>
-    Create a new alias for an existing image.
-
-lxc image alias delete [remote:]<alias>
-    Delete an alias.
-
-lxc image alias list [remote:]
-    List the aliases.
-`)
-}
-
-func (c *imageCmd) flags() {
-	gnuflag.BoolVar(&c.publicImage, "public", false, i18n.G("Make image public"))
-	gnuflag.BoolVar(&c.copyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
-	gnuflag.BoolVar(&c.autoUpdate, "auto-update", false, i18n.G("Keep the image up to date after initial copy"))
-	gnuflag.Var(&c.addAliases, "alias", i18n.G("New alias to define at target"))
-}
-
-func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
-	var remote string
-	switch args[1] {
-	case "list":
-		/* alias list [<remote>:] */
-		if len(args) > 2 {
-			remote, _ = config.ParseRemoteAndContainer(args[2])
-		} else {
-			remote, _ = config.ParseRemoteAndContainer("")
-		}
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		resp, err := d.ListAliases()
-		if err != nil {
-			return err
-		}
-
-		c.showAliases(resp)
-
-		return nil
-	case "create":
-		/* alias create [<remote>:]<alias> <target> */
-		if len(args) < 4 {
-			return errArgs
-		}
-		remote, alias := config.ParseRemoteAndContainer(args[2])
-		target := args[3]
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-		/* TODO - what about description? */
-		err = d.PostAlias(alias, alias, target)
-		return err
-	case "delete":
-		/* alias delete [<remote>:]<alias> */
-		if len(args) < 3 {
-			return errArgs
-		}
-		remote, alias := config.ParseRemoteAndContainer(args[2])
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-		err = d.DeleteAlias(alias)
-		return err
-	}
-	return errArgs
-}
-
-func (c *imageCmd) run(config *lxd.Config, args []string) error {
-	var remote string
-
-	if len(args) < 1 {
-		return errArgs
-	}
-
-	switch args[0] {
-	case "alias":
-		if len(args) < 2 {
-			return errArgs
-		}
-		return c.doImageAlias(config, args)
-
-	case "copy":
-		/* copy [<remote>:]<image> [<rmeote>:]<image> */
-		if len(args) != 3 {
-			return errArgs
-		}
-
-		remote, inName := config.ParseRemoteAndContainer(args[1])
-		if inName == "" {
-			inName = "default"
-		}
-
-		destRemote, outName := config.ParseRemoteAndContainer(args[2])
-		if outName != "" {
-			return errArgs
-		}
-
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		dest, err := lxd.NewClient(config, destRemote)
-		if err != nil {
-			return err
-		}
-
-		progressHandler := func(progress string) {
-			fmt.Printf(i18n.G("Copying the image: %s")+"\r", progress)
-		}
-
-		err = d.CopyImage(inName, dest, c.copyAliases, c.addAliases, c.publicImage, c.autoUpdate, progressHandler)
-		if err == nil {
-			fmt.Println(i18n.G("Image copied successfully!"))
-		}
-		return err
-
-	case "delete":
-		/* delete [<remote>:]<image> */
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		remote, inName := config.ParseRemoteAndContainer(args[1])
-		if inName == "" {
-			inName = "default"
-		}
-
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		image := c.dereferenceAlias(d, inName)
-		err = d.DeleteImage(image)
-		return err
-
-	case "info":
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		remote, inName := config.ParseRemoteAndContainer(args[1])
-		if inName == "" {
-			inName = "default"
-		}
-
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		image := c.dereferenceAlias(d, inName)
-		info, err := d.GetImageInfo(image)
-		if err != nil {
-			return err
-		}
-
-		public := i18n.G("no")
-		if info.Public {
-			public = i18n.G("yes")
-		}
-
-		autoUpdate := i18n.G("disabled")
-		if info.AutoUpdate {
-			autoUpdate = i18n.G("enabled")
-		}
-
-		fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
-		fmt.Printf(i18n.G("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
-		fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
-		fmt.Printf(i18n.G("Public: %s")+"\n", public)
-		fmt.Printf(i18n.G("Timestamps:") + "\n")
-		const layout = "2006/01/02 15:04 UTC"
-		if info.CreationDate.UTC().Unix() != 0 {
-			fmt.Printf("    "+i18n.G("Created: %s")+"\n", info.CreationDate.UTC().Format(layout))
-		}
-		fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", info.UploadDate.UTC().Format(layout))
-		if info.ExpiryDate.UTC().Unix() != 0 {
-			fmt.Printf("    "+i18n.G("Expires: %s")+"\n", info.ExpiryDate.UTC().Format(layout))
-		} else {
-			fmt.Printf("    " + i18n.G("Expires: never") + "\n")
-		}
-		fmt.Println(i18n.G("Properties:"))
-		for key, value := range info.Properties {
-			fmt.Printf("    %s: %s\n", key, value)
-		}
-		fmt.Println(i18n.G("Aliases:"))
-		for _, alias := range info.Aliases {
-			fmt.Printf("    - %s\n", alias.Name)
-		}
-		fmt.Printf(i18n.G("Auto update: %s")+"\n", autoUpdate)
-		if info.Source != nil {
-			fmt.Println(i18n.G("Source:"))
-			fmt.Printf("    Server: %s\n", info.Source.Server)
-			fmt.Printf("    Protocol: %s\n", info.Source.Protocol)
-			fmt.Printf("    Alias: %s\n", info.Source.Alias)
-		}
-		return nil
-
-	case "import":
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		var fingerprint string
-		var imageFile string
-		var rootfsFile string
-		var properties []string
-		var remote string
-
-		for _, arg := range args[1:] {
-			split := strings.Split(arg, "=")
-			if len(split) == 1 || shared.PathExists(arg) {
-				if strings.HasSuffix(arg, ":") {
-					remote = config.ParseRemote(arg)
-				} else {
-					if imageFile == "" {
-						imageFile = args[1]
-					} else {
-						rootfsFile = arg
-					}
-				}
-			} else {
-				properties = append(properties, arg)
-			}
-		}
-
-		if remote == "" {
-			remote = config.DefaultRemote
-		}
-
-		if imageFile == "" {
-			return errArgs
-		}
-
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		handler := func(percent int) {
-			fmt.Printf(i18n.G("Transferring image: %d%%")+"\r", percent)
-			if percent == 100 {
-				fmt.Printf("\n")
-			}
-		}
-
-		if strings.HasPrefix(imageFile, "https://") {
-			fingerprint, err = d.PostImageURL(imageFile, c.publicImage, c.addAliases)
-		} else if strings.HasPrefix(imageFile, "http://") {
-			return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
-		} else {
-			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, c.publicImage, c.addAliases, handler)
-		}
-
-		if err != nil {
-			return err
-		}
-		fmt.Printf(i18n.G("Image imported with fingerprint: %s")+"\n", fingerprint)
-
-		return nil
-
-	case "list":
-		filters := []string{}
-
-		if len(args) > 1 {
-			result := strings.SplitN(args[1], ":", 2)
-			if len(result) == 1 {
-				filters = append(filters, args[1])
-				remote, _ = config.ParseRemoteAndContainer("")
-			} else {
-				remote, _ = config.ParseRemoteAndContainer(args[1])
-			}
-		} else {
-			remote, _ = config.ParseRemoteAndContainer("")
-		}
-
-		if len(args) > 2 {
-			for _, filter := range args[2:] {
-				filters = append(filters, filter)
-			}
-		}
-
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		images, err := d.ListImages()
-		if err != nil {
-			return err
-		}
-
-		return c.showImages(images, filters)
-
-	case "edit":
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		remote, inName := config.ParseRemoteAndContainer(args[1])
-		if inName == "" {
-			inName = "default"
-		}
-
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		image := c.dereferenceAlias(d, inName)
-		if image == "" {
-			image = inName
-		}
-
-		return c.doImageEdit(d, image)
-
-	case "export":
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		remote, inName := config.ParseRemoteAndContainer(args[1])
-		if inName == "" {
-			inName = "default"
-		}
-
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		image := c.dereferenceAlias(d, inName)
-
-		target := "."
-		if len(args) > 2 {
-			target = args[2]
-		}
-
-		outfile, err := d.ExportImage(image, target)
-		if err != nil {
-			return err
-		}
-
-		if target != "-" {
-			fmt.Printf(i18n.G("Output is in %s")+"\n", outfile)
-		}
-		return nil
-
-	case "show":
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		remote, inName := config.ParseRemoteAndContainer(args[1])
-		if inName == "" {
-			inName = "default"
-		}
-
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		image := c.dereferenceAlias(d, inName)
-		info, err := d.GetImageInfo(image)
-		if err != nil {
-			return err
-		}
-
-		properties := info.Brief()
-
-		data, err := yaml.Marshal(&properties)
-		fmt.Printf("%s", data)
-		return err
-
-	default:
-		return errArgs
-	}
 }
 
 func (c *imageCmd) dereferenceAlias(d *lxd.Client, inName string) string {
@@ -594,7 +727,7 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 		i18n.G("ARCH"),
 		i18n.G("SIZE"),
 		i18n.G("UPLOAD DATE")})
-	sort.Sort(SortImage(data))
+	sort.Sort(sortImage(data))
 	table.AppendBulk(data)
 	table.Render()
 
@@ -615,7 +748,7 @@ func (c *imageCmd) showAliases(aliases shared.ImageAliases) error {
 		i18n.G("ALIAS"),
 		i18n.G("FINGERPRINT"),
 		i18n.G("DESCRIPTION")})
-	sort.Sort(SortImage(data))
+	sort.Sort(sortImage(data))
 	table.AppendBulk(data)
 	table.Render()
 

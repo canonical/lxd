@@ -10,17 +10,182 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/logging"
 )
 
-var configPath string
+var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
+
+// Gets set in commandGetConfig
+var commandConfigPath string
+
+var commandGlobalFlags = []cli.Flag{
+	cli.StringFlag{
+		Name:   "directory",
+		Usage:  i18n.G("Path to an alternate server directory."),
+		EnvVar: "LXD_DIR",
+	},
+
+	// BoolFlag is a switch that defaults to false
+	cli.BoolFlag{
+		Name:  "debug",
+		Usage: i18n.G("Print debug information."),
+	},
+
+	cli.BoolFlag{
+		Name:  "verbose",
+		Usage: i18n.G("Print verbose information."),
+	},
+
+	cli.BoolFlag{
+		Name:  "no-alias",
+		Usage: i18n.G("Magic flag to run lxc without alias support."),
+	},
+
+	cli.BoolFlag{
+		Name:  "force-local",
+		Usage: i18n.G("Force using the local unix socket."),
+	},
+}
 
 func main() {
-	if err := run(); err != nil {
+	app := cli.NewApp()
+	app.Name = "lxc"
+	app.Version = shared.Version
+	app.Usage = "LXD is pronounced lex-dee."
+	app.Flags = append(commandGlobalFlags, cli.StringFlag{
+		Name:   "config",
+		Usage:  i18n.G("Alternate config directory."),
+		EnvVar: "LXD_CONF",
+	})
+	app.Commands = []cli.Command{
+		commandConfig,
+		commandCopy,
+		commandDelete,
+		commandExec,
+		commandFile,
+		commandFinger,
+		commandImage,
+		commandInfo,
+		commandInit,
+		commandLaunch,
+		commandList,
+		commandMonitor,
+		commandMove,
+		commandProfile,
+		commandPublish,
+		commandRemote,
+		commandRestart,
+		commandRestore,
+		commandSnapshot,
+		commandStart,
+		commandStop,
+
+		cli.Command{
+			Name:      "version",
+			Usage:     i18n.G("Prints the version number of LXD."),
+			ArgsUsage: i18n.G(""),
+
+			Action: commandActionVersion,
+		},
+	}
+
+	app.Run(os.Args)
+}
+
+func commandWrapper(callable func(*lxd.Config, *cli.Context) error) func(*cli.Context) {
+	return func(c *cli.Context) {
+		var err error
+
+		// LXD_DIR
+		var lxddir = c.String("directory")
+		if lxddir == "" {
+			lxddir = c.GlobalString("directory")
+		}
+		if lxddir != "" {
+			os.Setenv("LXD_DIR", lxddir)
+		}
+
+		// Config
+		var configDir = "$HOME/.config/lxc"
+		if c.GlobalString("config") != "" {
+			configDir = c.GlobalString("config")
+		}
+		commandConfigPath = os.ExpandEnv(path.Join(configDir, "config.yml"))
+
+		var config *lxd.Config
+		var forceLocal = false
+		if c.GlobalBool("force-local") || c.Bool("force-local") {
+			forceLocal = true
+		}
+		if forceLocal {
+			config = &lxd.DefaultConfig
+		} else {
+			config, err = lxd.LoadConfig(commandConfigPath)
+			if err != nil {
+				commandExitError(err)
+			}
+
+			// One time migration from old config
+			if config.DefaultRemote == "" {
+				_, ok := config.Remotes["local"]
+				if !ok {
+					config.Remotes["local"] = lxd.LocalRemote
+				}
+				config.DefaultRemote = "local"
+				lxd.SaveConfig(config, commandConfigPath)
+			}
+		}
+
+		// Handle command aliases
+		var noAlias = false
+		if c.GlobalBool("no-alias") || c.Bool("no-alias") {
+			noAlias = true
+		}
+		if !noAlias {
+			// syscall.Exec replaces that process.
+			commandExecIfAliases(config, os.Args)
+		}
+
+		// Configure logging
+		var verbose = false
+		if c.GlobalBool("verbose") || c.Bool("verbose") {
+			verbose = true
+		}
+
+		var debug = false
+		if c.GlobalBool("debug") || c.Bool("debug") {
+			debug = true
+		}
+
+		shared.Log, err = logging.GetLogger("", "", verbose, debug, nil)
+		if err != nil {
+			commandExitError(err)
+		}
+
+		// Create a client cert on first start.
+		certf := config.ConfigPath("client.crt")
+		keyf := config.ConfigPath("client.key")
+
+		if !forceLocal && (!shared.PathExists(certf) || !shared.PathExists(keyf)) {
+			fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
+
+			err = shared.FindOrGenCert(certf, keyf)
+			if err != nil {
+				commandExitError(err)
+			}
+		}
+
+		commandExitError(callable(config, c))
+	}
+}
+
+func commandExitError(err error) {
+	if err != nil {
 		// The action we take depends on the error we get.
 		msg := fmt.Sprintf(i18n.G("error: %v"), err)
 		switch t := err.(type) {
@@ -50,150 +215,11 @@ func main() {
 	}
 }
 
-func run() error {
-	verbose := gnuflag.Bool("verbose", false, i18n.G("Enables verbose mode."))
-	debug := gnuflag.Bool("debug", false, i18n.G("Enables debug mode."))
-	forceLocal := gnuflag.Bool("force-local", false, i18n.G("Force using the local unix socket."))
-	noAlias := gnuflag.Bool("no-alias", false, i18n.G("Ignore aliases when determining what command to run."))
-
-	configDir := "$HOME/.config/lxc"
-	if os.Getenv("LXD_CONF") != "" {
-		configDir = os.Getenv("LXD_CONF")
-	}
-	configPath = os.ExpandEnv(path.Join(configDir, "config.yml"))
-
-	if len(os.Args) >= 3 && os.Args[1] == "config" && os.Args[2] == "profile" {
-		fmt.Fprintf(os.Stderr, i18n.G("`lxc config profile` is deprecated, please use `lxc profile`")+"\n")
-		os.Args = append(os.Args[:1], os.Args[2:]...)
-	}
-
-	if len(os.Args) >= 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
-		os.Args[1] = "help"
-	}
-
-	if len(os.Args) >= 2 && (os.Args[1] == "--all") {
-		os.Args[1] = "help"
-		os.Args = append(os.Args, "--all")
-	}
-
-	if len(os.Args) == 2 && os.Args[1] == "--version" {
-		os.Args[1] = "version"
-	}
-
-	if len(os.Args) < 2 {
-		commands["help"].run(nil, nil)
-		os.Exit(1)
-	}
-
-	var config *lxd.Config
-	var err error
-
-	if *forceLocal {
-		config = &lxd.DefaultConfig
-	} else {
-		config, err = lxd.LoadConfig(configPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	// This is quite impolite, but it seems gnuflag needs us to shift our
-	// own exename out of the arguments before parsing them. However, this
-	// is useful for execIfAlias, which wants to know exactly the command
-	// line we received, and in some cases is called before this shift, and
-	// in others after. So, let's save the original args.
-	origArgs := os.Args
-	name := os.Args[1]
-
-	/* at this point we haven't parsed the args, so we have to look for
-	 * --no-alias by hand.
-	 */
-	if !shared.StringInSlice("--no-alias", origArgs) {
-		execIfAliases(config, origArgs)
-	}
-	cmd, ok := commands[name]
-	if !ok {
-		commands["help"].run(nil, nil)
-		fmt.Fprintf(os.Stderr, "\n"+i18n.G("error: unknown command: %s")+"\n", name)
-		os.Exit(1)
-	}
-	cmd.flags()
-	gnuflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, i18n.G("Usage: %s")+"\n\n"+i18n.G("Options:")+"\n\n", strings.TrimSpace(cmd.usage()))
-		gnuflag.PrintDefaults()
-	}
-
-	os.Args = os.Args[1:]
-	gnuflag.Parse(true)
-
-	shared.Log, err = logging.GetLogger("", "", *verbose, *debug, nil)
-	if err != nil {
-		return err
-	}
-
-	certf := config.ConfigPath("client.crt")
-	keyf := config.ConfigPath("client.key")
-
-	if !*forceLocal && os.Args[0] != "help" && os.Args[0] != "version" && (!shared.PathExists(certf) || !shared.PathExists(keyf)) {
-		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
-
-		err = shared.FindOrGenCert(certf, keyf)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = cmd.run(config, gnuflag.Args())
-	if err == errArgs {
-		/* If we got an error about invalid arguments, let's try to
-		 * expand this as an alias
-		 */
-		if !*noAlias {
-			execIfAliases(config, origArgs)
-		}
-		fmt.Fprintf(os.Stderr, "%s\n\n"+i18n.G("error: %v")+"\n", cmd.usage(), err)
-		os.Exit(1)
-	}
-	return err
+func commandActionVersion(c *cli.Context) {
+	println(shared.Version)
 }
 
-type command interface {
-	usage() string
-	flags()
-	showByDefault() bool
-	run(config *lxd.Config, args []string) error
-}
-
-var commands = map[string]command{
-	"config":   &configCmd{},
-	"copy":     &copyCmd{},
-	"delete":   &deleteCmd{},
-	"exec":     &execCmd{},
-	"file":     &fileCmd{},
-	"finger":   &fingerCmd{},
-	"help":     &helpCmd{},
-	"image":    &imageCmd{},
-	"info":     &infoCmd{},
-	"init":     &initCmd{},
-	"launch":   &launchCmd{},
-	"list":     &listCmd{},
-	"monitor":  &monitorCmd{},
-	"move":     &moveCmd{},
-	"pause":    &actionCmd{shared.Freeze, false, false, "pause", -1, false, false, false},
-	"profile":  &profileCmd{},
-	"publish":  &publishCmd{},
-	"remote":   &remoteCmd{},
-	"restart":  &actionCmd{shared.Restart, true, true, "restart", -1, false, false, false},
-	"restore":  &restoreCmd{},
-	"snapshot": &snapshotCmd{},
-	"start":    &actionCmd{shared.Start, false, true, "start", -1, false, false, false},
-	"stop":     &actionCmd{shared.Stop, true, true, "stop", -1, false, false, false},
-	"version":  &versionCmd{},
-}
-
-var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
-
-func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
+func commandExpandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
 	foundAlias := false
 	aliasKey := []string{}
 	aliasValue := []string{}
@@ -250,8 +276,8 @@ func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
 	return newArgs, true
 }
 
-func execIfAliases(config *lxd.Config, origArgs []string) {
-	newArgs, expanded := expandAlias(config, origArgs)
+func commandExecIfAliases(config *lxd.Config, origArgs []string) {
+	newArgs, expanded := commandExpandAlias(config, origArgs)
 	if !expanded {
 		return
 	}

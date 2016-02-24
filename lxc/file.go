@@ -11,38 +11,93 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/codegangsta/cli"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
 )
+
+var commandFile = cli.Command{
+	Name:  "file",
+	Usage: i18n.G("Manage files on a container."),
+	Description: i18n.G(`Manage files on a container.
+
+   lxc file pull <source> [<source>...] <target>
+   lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
+	 lxc file edit <file>
+
+   <source> in the case of pull and <target> in the case of push are <container name>/<path>`),
+	Flags: commandGlobalFlags,
+	Subcommands: []cli.Command{
+
+		cli.Command{
+			Name:      "pull",
+			ArgsUsage: i18n.G("<source> [<source>...] <target>"),
+			Usage:     i18n.G("Get a file from a container."),
+
+			Flags:  commandGlobalFlags,
+			Action: commandWrapper(commandActionFilePull),
+		},
+
+		cli.Command{
+			Name:      "push",
+			ArgsUsage: i18n.G("[--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>"),
+			Usage:     i18n.G("Push a file to a container."),
+
+			Flags: append(commandGlobalFlags,
+				cli.IntFlag{
+					Name:  "gid",
+					Value: -1,
+					Usage: i18n.G("Set the file's gid on push."),
+				},
+				cli.IntFlag{
+					Name:  "uid",
+					Value: -1,
+					Usage: i18n.G("Set the file's uid on push."),
+				},
+				cli.StringFlag{
+					Name:  "mode",
+					Value: "",
+					Usage: i18n.G("Set the file's perms on push."),
+				},
+			),
+			Action: commandWrapper(commandActionFilePush),
+		},
+
+		cli.Command{
+			Name:      "edit",
+			ArgsUsage: i18n.G("<file>"),
+			Usage:     i18n.G("Edit a file from a container."),
+
+			Flags:  commandGlobalFlags,
+			Action: commandWrapper(commandActionFileEdit),
+		},
+	},
+}
+
+func commandActionFilePull(config *lxd.Config, context *cli.Context) error {
+	var cmd = &fileCmd{}
+	return cmd.pull(config, context.Args())
+}
+
+func commandActionFilePush(config *lxd.Config, context *cli.Context) error {
+	var cmd = &fileCmd{}
+	cmd.uid = context.Int("uid")
+	cmd.gid = context.Int("gid")
+	cmd.mode = context.String("mode")
+	return cmd.push(config, context.Args())
+}
+
+func commandActionFileEdit(config *lxd.Config, context *cli.Context) error {
+	var cmd = &fileCmd{}
+	return cmd.edit(config, context.Args())
+}
 
 type fileCmd struct {
 	uid  int
 	gid  int
 	mode string
-}
-
-func (c *fileCmd) showByDefault() bool {
-	return true
-}
-
-func (c *fileCmd) usage() string {
-	return i18n.G(
-		`Manage files on a container.
-
-lxc file pull <source> [<source>...] <target>
-lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
-lxc file edit <file>
-
-<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>`)
-}
-
-func (c *fileCmd) flags() {
-	gnuflag.IntVar(&c.uid, "uid", -1, i18n.G("Set the file's uid on push"))
-	gnuflag.IntVar(&c.gid, "gid", -1, i18n.G("Set the file's gid on push"))
-	gnuflag.StringVar(&c.mode, "mode", "", i18n.G("Set the file's perms on push"))
 }
 
 func (c *fileCmd) push(config *lxd.Config, args []string) error {
@@ -122,7 +177,7 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 		}
 
 		if c.mode == "" || c.uid == -1 || c.gid == -1 {
-			fMode, fUid, fGid, err := c.getOwner(f)
+			fMode, fUID, fGID, err := c.getOwner(f)
 			if err != nil {
 				return err
 			}
@@ -132,11 +187,11 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 			}
 
 			if c.uid == -1 {
-				uid = fUid
+				uid = fUID
 			}
 
 			if c.gid == -1 {
-				gid = fGid
+				gid = fGID
 			}
 		}
 
@@ -258,21 +313,4 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 	}
 
 	return nil
-}
-
-func (c *fileCmd) run(config *lxd.Config, args []string) error {
-	if len(args) < 1 {
-		return errArgs
-	}
-
-	switch args[0] {
-	case "push":
-		return c.push(config, args[1:])
-	case "pull":
-		return c.pull(config, args[1:])
-	case "edit":
-		return c.edit(config, args[1:])
-	default:
-		return errArgs
-	}
 }

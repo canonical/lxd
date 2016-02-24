@@ -68,7 +68,7 @@ test_basic_usage() {
   curl -k -s -X GET "https://${LXD_ADDR}/1.0/containers/foo" | grep 403
 
   # Test unprivileged container publish
-  lxc publish bar --alias=foo-image prop1=val1
+  lxc publish --alias=foo-image bar prop1=val1
   lxc image show foo-image | grep val1
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
   lxc image delete foo-image
@@ -77,7 +77,7 @@ test_basic_usage() {
   lxc profile create priv
   lxc profile set priv security.privileged true
   lxc init testimage barpriv -p default -p priv
-  lxc publish barpriv --alias=foo-image prop1=val1
+  lxc publish --alias=foo-image barpriv prop1=val1
   lxc image show foo-image | grep val1
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
   lxc image delete foo-image
@@ -98,7 +98,7 @@ test_basic_usage() {
   fi
 
   # Test public images
-  lxc publish --public bar --alias=foo-image2
+  lxc publish bar --alias=foo-image2 --public
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/"
   lxc image delete foo-image2
 

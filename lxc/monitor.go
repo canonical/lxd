@@ -5,10 +5,31 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/codegangsta/cli"
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
+
+var commandMonitor = cli.Command{
+	Name:      "monitor",
+	Usage:     i18n.G("Monitor activity on the LXD server."),
+	ArgsUsage: i18n.G("[remote:] [--type=TYPE...]"),
+
+	Flags: append(commandGlobalFlags,
+		cli.StringSliceFlag{
+			Name:  "type",
+			Usage: i18n.G("Event type to listen for"),
+		},
+	),
+	Action: commandWrapper(commmandActionMonitor),
+}
+
+func commmandActionMonitor(config *lxd.Config, context *cli.Context) error {
+	var cmd = &monitorCmd{
+		typeArgs: context.StringSlice("type"),
+	}
+	return cmd.run(config, context.Args())
+}
 
 type typeList []string
 
@@ -31,29 +52,6 @@ func (f *typeList) Set(value string) error {
 
 type monitorCmd struct {
 	typeArgs typeList
-}
-
-func (c *monitorCmd) showByDefault() bool {
-	return false
-}
-
-func (c *monitorCmd) usage() string {
-	return i18n.G(
-		`Monitor activity on the LXD server.
-
-lxc monitor [remote:] [--type=TYPE...]
-
-Connects to the monitoring interface of the specified LXD server.
-
-By default will listen to all message types.
-Specific types to listen to can be specified with --type.
-
-Example:
-lxc monitor --type=logging`)
-}
-
-func (c *monitorCmd) flags() {
-	gnuflag.Var(&c.typeArgs, "type", i18n.G("Event type to listen for"))
 }
 
 func (c *monitorCmd) run(config *lxd.Config, args []string) error {

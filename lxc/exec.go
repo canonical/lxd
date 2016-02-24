@@ -8,14 +8,44 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/codegangsta/cli"
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
 )
+
+var commandExec = cli.Command{
+	Name:      "exec",
+	Usage:     i18n.G("Execute the specified command in a container."),
+	ArgsUsage: i18n.G("[remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... <command>"),
+	Description: i18n.G(`Execute the specified command in a container.
+
+	 Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`),
+
+	Flags: append(commandGlobalFlags,
+		cli.StringSliceFlag{
+			Name:  "env",
+			Usage: i18n.G("An environment variable of the form HOME=/home/foo."),
+		},
+		cli.StringFlag{
+			Name:  "mode",
+			Value: "auto",
+			Usage: i18n.G("Override the terminal mode (auto, interactive or non-interactive)"),
+		},
+	),
+	Action: commandWrapper(commandActionExec),
+}
+
+func commandActionExec(config *lxd.Config, context *cli.Context) error {
+	var cmd = &execCmd{}
+	cmd.envArgs = context.StringSlice("env")
+	cmd.modeFlag = context.String("mode")
+
+	return cmd.run(config, context.Args())
+}
 
 type envFlag []string
 
@@ -35,24 +65,6 @@ func (f *envFlag) Set(value string) error {
 type execCmd struct {
 	modeFlag string
 	envArgs  envFlag
-}
-
-func (c *execCmd) showByDefault() bool {
-	return true
-}
-
-func (c *execCmd) usage() string {
-	return i18n.G(
-		`Execute the specified command in a container.
-
-lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... <command>
-
-Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`)
-}
-
-func (c *execCmd) flags() {
-	gnuflag.Var(&c.envArgs, "env", i18n.G("An environment variable of the form HOME=/home/foo"))
-	gnuflag.StringVar(&c.modeFlag, "mode", "auto", i18n.G("Override the terminal mode (auto, interactive or non-interactive)"))
 }
 
 func (c *execCmd) sendTermSize(control *websocket.Conn) error {
@@ -146,7 +158,12 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	stdout := c.getStdout()
-	ret, err := d.Exec(name, args[1:], env, os.Stdin, stdout, os.Stderr, handler, width, height)
+	if args[1] == "--" {
+		args = args[2:]
+	} else {
+		args = args[1:]
+	}
+	ret, err := d.Exec(name, args, env, os.Stdin, stdout, os.Stderr, handler, width, height)
 	if err != nil {
 		return err
 	}

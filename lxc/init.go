@@ -2,14 +2,71 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/codegangsta/cli"
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
+
+// TODO: Make this a "hidden" command.
+var commandInit = cli.Command{
+	Name:      "init",
+	Usage:     i18n.G("Initializes a container using the specified image and name."),
+	ArgsUsage: i18n.G("[remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]"),
+
+	Description: `Initialize a container from a particular image.
+
+   lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
+
+   Initializes a container using the specified image and name.
+
+   Not specifying -p will result in the default profile.
+   Specifying "-p" with an empty argument will result in no profile.
+
+   Example:
+   lxc init ubuntu u1`,
+
+	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: i18n.G("Print debug information."),
+		},
+
+		cli.BoolFlag{
+			Name:  "verbose",
+			Usage: i18n.G("Print verbose information."),
+		},
+
+		cli.BoolFlag{
+			Name:  "ephemeral, e",
+			Usage: i18n.G("Ephemeral container."),
+		},
+
+		cli.StringSliceFlag{
+			Name:  "config, c",
+			Value: nil,
+			Usage: i18n.G("Config key/value to apply to the new container."),
+		},
+
+		cli.StringSliceFlag{
+			Name:  "profile, p",
+			Value: nil,
+			Usage: i18n.G("Profile to apply to the new container."),
+		},
+	},
+	Action: commandWrapper(commandActionInit),
+}
+
+func commandActionInit(config *lxd.Config, context *cli.Context) error {
+	var cmd = &initCmd{}
+	cmd.confArgs = context.StringSlice("config")
+	cmd.profArgs = context.StringSlice("profile")
+	cmd.ephem = context.Bool("ephemeral")
+
+	return cmd.run(config, context.Args())
+}
 
 type profileList []string
 
@@ -63,80 +120,6 @@ type initCmd struct {
 	profArgs profileList
 	confArgs configList
 	ephem    bool
-}
-
-func (c *initCmd) showByDefault() bool {
-	return false
-}
-
-func (c *initCmd) usage() string {
-	return i18n.G(
-		`Initialize a container from a particular image.
-
-lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
-
-Initializes a container using the specified image and name.
-
-Not specifying -p will result in the default profile.
-Specifying "-p" with no argument will result in no profile.
-
-Example:
-lxc init ubuntu u1`)
-}
-
-func (c *initCmd) is_ephem(s string) bool {
-	switch s {
-	case "-e":
-		return true
-	case "--ephemeral":
-		return true
-	}
-	return false
-}
-
-func (c *initCmd) is_profile(s string) bool {
-	switch s {
-	case "-p":
-		return true
-	case "--profile":
-		return true
-	}
-	return false
-}
-
-func (c *initCmd) massage_args() {
-	l := len(os.Args)
-	if l < 2 {
-		return
-	}
-
-	if c.is_profile(os.Args[l-1]) {
-		initRequestedEmptyProfiles = true
-		os.Args = os.Args[0 : l-1]
-		return
-	}
-
-	if l < 3 {
-		return
-	}
-
-	/* catch "lxc init ubuntu -p -e */
-	if c.is_ephem(os.Args[l-1]) && c.is_profile(os.Args[l-2]) {
-		initRequestedEmptyProfiles = true
-		newargs := os.Args[0 : l-2]
-		newargs = append(newargs, os.Args[l-1])
-		return
-	}
-}
-
-func (c *initCmd) flags() {
-	c.massage_args()
-	gnuflag.Var(&c.confArgs, "config", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&c.confArgs, "c", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&c.profArgs, "profile", i18n.G("Profile to apply to the new container"))
-	gnuflag.Var(&c.profArgs, "p", i18n.G("Profile to apply to the new container"))
-	gnuflag.BoolVar(&c.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
-	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
 }
 
 func (c *initCmd) run(config *lxd.Config, args []string) error {
@@ -193,22 +176,22 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 
 	if err != nil {
 		return err
-	} else {
-		op, err := resp.MetadataAsOperation()
-		if err != nil {
-			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
-		}
-
-		containers, ok := op.Resources["containers"]
-		if !ok || len(containers) == 0 {
-			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
-		}
-
-		if len(containers) == 1 && name == "" {
-			fields := strings.Split(containers[0], "/")
-			fmt.Printf(i18n.G("Container name is: %s")+"\n", fields[len(fields)-1])
-		}
 	}
+
+	op, err := resp.MetadataAsOperation()
+	if err != nil {
+		return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+	}
+
+	containers, ok := op.Resources["containers"]
+	if !ok || len(containers) == 0 {
+		return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+	}
+
+	if len(containers) == 1 && name == "" {
+		fmt.Printf(i18n.G("Container name is: %s"), name)
+	}
+
 	return nil
 }
 
