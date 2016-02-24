@@ -287,8 +287,10 @@ func connectViaHttp(c *Client, addr, clientCert, clientKey, serverCert string) e
 	c.Transport = "https"
 	c.Http.Transport = tr
 	c.Remote = &RemoteConfig{Addr: addr}
+	c.Certificate = serverCert
 	// We don't actually need to connect yet, defer that until someone
 	// needs something from the server.
+
 	return nil
 }
 
