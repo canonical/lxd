@@ -220,8 +220,6 @@ type ConnectInfo struct {
 	ServerPEMCert string
 }
 
-// how to handle ServerCerts that we want to cache?
-
 func connectViaUnix(c *Client, addr string) error {
 	if addr == "unix://" {
 		addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
@@ -270,7 +268,6 @@ func connectViaUnix(c *Client, addr string) error {
 }
 
 func connectViaHttp(c *Client, addr, clientCert, clientKey, serverCert string) error {
-
 	tlsconfig, err := shared.GetTLSConfigMem(clientCert, clientKey, serverCert)
 	if err != nil {
 		return err
@@ -294,16 +291,7 @@ func connectViaHttp(c *Client, addr, clientCert, clientKey, serverCert string) e
 	}
 	c.Transport = "https"
 	c.Http.Transport = tr
-	c.Remote = &RemoteConfig{
-		Addr: addr,
-		// TODO: (jam) RemoteConfig.Public is not relevant for the purposes of
-		// an active connection. It only seems to be used to display server
-		// information in "list", though if we aren't getting that information
-		// from the service itself, it seems like it can't be guaranteed to be
-		// correct, as it is just the local information about a remote server.
-		// Is there another reason it is here?
-		Public: false,
-	}
+	c.Remote = &RemoteConfig{Addr: addr}
 	// TODO: (jam) It is odd to me that the Unix socket path actually
 	// connects to the service, but the HTTP path just sets up a transport
 	// and socket dialer, but doesn't actually try to connect.
