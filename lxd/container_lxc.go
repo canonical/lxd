@@ -1431,20 +1431,10 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 	}
 
 	if c.IsRunning() {
-		memory, err := c.memoryState()
-		if err != nil {
-			return nil, err
-		}
-
-		network, err := c.networkState()
-		if err != nil {
-			return nil, err
-		}
-
 		pid := c.InitPID()
 		status.Disk = c.diskState()
-		status.Memory = *memory
-		status.Network = network
+		status.Memory = c.memoryState()
+		status.Network = c.networkState()
 		status.Pid = int64(pid)
 		status.Processes = c.processesState()
 	}
@@ -2718,18 +2708,18 @@ func (c *containerLXC) diskState() map[string]shared.ContainerStateDisk {
 	return disk
 }
 
-func (c *containerLXC) memoryState() (*shared.ContainerStateMemory, error) {
+func (c *containerLXC) memoryState() shared.ContainerStateMemory {
 	memory := shared.ContainerStateMemory{}
 
 	if !cgMemoryController {
-		return &memory, nil
+		return memory
 	}
 
 	// Memory in bytes
 	value, err := c.CGroupGet("memory.usage_in_bytes")
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return nil, err
+		valueInt = -1
 	}
 	memory.Usage = valueInt
 
@@ -2737,7 +2727,7 @@ func (c *containerLXC) memoryState() (*shared.ContainerStateMemory, error) {
 	value, err = c.CGroupGet("memory.max_usage_in_bytes")
 	valueInt, err = strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return nil, err
+		valueInt = -1
 	}
 
 	memory.UsagePeak = valueInt
@@ -2747,7 +2737,7 @@ func (c *containerLXC) memoryState() (*shared.ContainerStateMemory, error) {
 		value, err := c.CGroupGet("memory.memsw.usage_in_bytes")
 		valueInt, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return nil, err
+			valueInt = -1
 		}
 
 		memory.SwapUsage = valueInt - memory.Usage
@@ -2756,19 +2746,21 @@ func (c *containerLXC) memoryState() (*shared.ContainerStateMemory, error) {
 		value, err = c.CGroupGet("memory.memsw.max_usage_in_bytes")
 		valueInt, err = strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return nil, err
+			valueInt = -1
 		}
 
 		memory.SwapUsagePeak = valueInt - memory.UsagePeak
 	}
 
-	return &memory, nil
+	return memory
 }
 
-func (c *containerLXC) networkState() (map[string]shared.ContainerStateNetwork, error) {
+func (c *containerLXC) networkState() map[string]shared.ContainerStateNetwork {
+	result := map[string]shared.ContainerStateNetwork{}
+
 	pid := c.InitPID()
 	if pid < 1 {
-		return nil, fmt.Errorf("Container isn't running")
+		return result
 	}
 
 	// Get the network state from the container
@@ -2779,24 +2771,25 @@ func (c *containerLXC) networkState() (map[string]shared.ContainerStateNetwork, 
 
 	// Process forkgetnet response
 	if err != nil {
-		return nil, fmt.Errorf("Error calling 'lxd forkgetnet %d': %s", pid, string(out))
+		shared.Log.Error("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "output": string(out), "pid": pid})
+		return result
 	}
 
 	networks := map[string]shared.ContainerStateNetwork{}
 
 	err = json.Unmarshal(out, &networks)
 	if err != nil {
-		return nil, err
+		shared.Log.Error("Failure to read forkgetnet json", log.Ctx{"container": c.name, "err": err})
+		return result
 	}
 
 	// Add HostName field
-	result := map[string]shared.ContainerStateNetwork{}
 	for netName, net := range networks {
 		net.HostName = c.getHostInterface(netName)
 		result[netName] = net
 	}
 
-	return result, nil
+	return result
 }
 
 func (c *containerLXC) processesState() int64 {
