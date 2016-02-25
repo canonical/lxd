@@ -16,7 +16,7 @@ import (
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type Column struct {
+type column struct {
 	Name           string
 	Data           columnData
 	NeedsState     bool
@@ -25,17 +25,17 @@ type Column struct {
 
 type columnData func(shared.ContainerInfo, *shared.ContainerState, []shared.SnapshotInfo) string
 
-type ByName [][]string
+type byName [][]string
 
-func (a ByName) Len() int {
+func (a byName) Len() int {
 	return len(a)
 }
 
-func (a ByName) Swap(i, j int) {
+func (a byName) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-func (a ByName) Less(i, j int) bool {
+func (a byName) Less(i, j int) bool {
 	if a[i][0] == "" {
 		return false
 	}
@@ -160,7 +160,7 @@ func (c *listCmd) shouldShow(filters []string, state *shared.ContainerInfo) bool
 	return true
 }
 
-func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, filters []string, columns []Column) error {
+func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, filters []string, columns []column) error {
 	headers := []string{}
 	for _, column := range columns {
 		headers = append(headers, column.Name)
@@ -279,7 +279,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 	table.SetAutoWrapText(false)
 	table.SetRowLine(true)
 	table.SetHeader(headers)
-	sort.Sort(ByName(data))
+	sort.Sort(byName(data))
 	table.AppendBulk(data)
 	table.Render()
 
@@ -328,24 +328,24 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		}
 	}
 
-	columns_map := map[rune]Column{
-		'4': Column{i18n.G("IPV4"), c.IP4ColumnData, true, false},
-		'6': Column{i18n.G("IPV6"), c.IP6ColumnData, true, false},
-		'a': Column{i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
-		'c': Column{i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
-		'n': Column{i18n.G("NAME"), c.nameColumnData, false, false},
-		'p': Column{i18n.G("PID"), c.PIDColumnData, true, false},
-		'P': Column{i18n.G("PROFILES"), c.ProfilesColumnData, false, false},
-		'S': Column{i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
-		's': Column{i18n.G("STATE"), c.statusColumnData, false, false},
-		't': Column{i18n.G("TYPE"), c.typeColumnData, false, false},
+	columns_map := map[rune]column{
+		'4': column{i18n.G("IPV4"), c.IP4ColumnData, true, false},
+		'6': column{i18n.G("IPV6"), c.IP6ColumnData, true, false},
+		'a': column{i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
+		'c': column{i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
+		'n': column{i18n.G("NAME"), c.nameColumnData, false, false},
+		'p': column{i18n.G("PID"), c.PIDColumnData, true, false},
+		'P': column{i18n.G("PROFILES"), c.ProfilesColumnData, false, false},
+		'S': column{i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
+		's': column{i18n.G("STATE"), c.statusColumnData, false, false},
+		't': column{i18n.G("TYPE"), c.typeColumnData, false, false},
 	}
 
 	if c.fast {
 		c.chosenColumnRunes = "nsacPt"
 	}
 
-	columns := []Column{}
+	columns := []column{}
 	for _, columnRune := range c.chosenColumnRunes {
 		if column, ok := columns_map[columnRune]; ok {
 			columns = append(columns, column)
