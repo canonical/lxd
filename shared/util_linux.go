@@ -59,6 +59,8 @@ void configure_pty(int fd) {
 
 	term_settings.c_cflag |= HUPCL;
 
+	term_settings.c_oflag &= ~ONLCR;
+
 	if (tcsetattr(fd, TCSANOW, &term_settings) < 0) {
 		fprintf(stderr, "Failed to set settings: %s\n", strerror(errno));
 		return;
