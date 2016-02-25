@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-02-23 19:02-0500\n"
+        "POT-Creation-Date: 2016-02-25 16:37-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -103,7 +103,7 @@ msgstr  ""
 msgid   "Aliases:"
 msgstr  ""
 
-#: lxc/exec.go:52
+#: lxc/exec.go:54
 msgid   "An environment variable of the form HOME=/home/foo"
 msgstr  ""
 
@@ -256,7 +256,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:410
+#: lxc/list.go:418
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -287,7 +287,9 @@ msgstr  ""
 #: lxc/exec.go:45
 msgid   "Execute the specified command in a container.\n"
         "\n"
-        "lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... <command>"
+        "lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... <command>\n"
+        "\n"
+        "Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored)."
 msgstr  ""
 
 #: lxc/image.go:307
@@ -682,11 +684,11 @@ msgstr  ""
 msgid   "Output is in %s"
 msgstr  ""
 
-#: lxc/exec.go:53
+#: lxc/exec.go:55
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:412
+#: lxc/list.go:420
 msgid   "PERSISTENT"
 msgstr  ""
 
@@ -1022,7 +1024,7 @@ msgstr  ""
 msgid   "no"
 msgstr  ""
 
-#: lxc/copy.go:100
+#: lxc/copy.go:101
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
@@ -1063,7 +1065,7 @@ msgstr  ""
 msgid   "taken at %s"
 msgstr  ""
 
-#: lxc/exec.go:157
+#: lxc/exec.go:159
 msgid   "unreachable return reached"
 msgstr  ""
 
