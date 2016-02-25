@@ -53,69 +53,69 @@ func (c *remoteCmd) flags() {
 }
 
 func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, acceptCert bool, password string, public bool) error {
-	var r_scheme string
-	var r_host string
-	var r_port string
+	var rScheme string
+	var rHost string
+	var rPort string
 
 	/* Complex remote URL parsing */
-	remote_url, err := url.Parse(addr)
+	remoteURL, err := url.Parse(addr)
 	if err != nil {
 		return err
 	}
 
-	if remote_url.Scheme != "" {
-		if remote_url.Scheme != "unix" && remote_url.Scheme != "https" {
-			r_scheme = "https"
+	if remoteURL.Scheme != "" {
+		if remoteURL.Scheme != "unix" && remoteURL.Scheme != "https" {
+			rScheme = "https"
 		} else {
-			r_scheme = remote_url.Scheme
+			rScheme = remoteURL.Scheme
 		}
 	} else if addr[0] == '/' {
-		r_scheme = "unix"
+		rScheme = "unix"
 	} else {
 		if !shared.PathExists(addr) {
-			r_scheme = "https"
+			rScheme = "https"
 		} else {
-			r_scheme = "unix"
+			rScheme = "unix"
 		}
 	}
 
-	if remote_url.Host != "" {
-		r_host = remote_url.Host
+	if remoteURL.Host != "" {
+		rHost = remoteURL.Host
 	} else {
-		r_host = addr
+		rHost = addr
 	}
 
-	host, port, err := net.SplitHostPort(r_host)
+	host, port, err := net.SplitHostPort(rHost)
 	if err == nil {
-		r_host = host
-		r_port = port
+		rHost = host
+		rPort = port
 	} else {
-		r_port = shared.DefaultPort
+		rPort = shared.DefaultPort
 	}
 
-	if r_scheme == "unix" {
+	if rScheme == "unix" {
 		if addr[0:5] == "unix:" {
 			if addr[0:7] == "unix://" {
 				if len(addr) > 8 {
-					r_host = addr[8:]
+					rHost = addr[8:]
 				} else {
-					r_host = ""
+					rHost = ""
 				}
 			} else {
-				r_host = addr[6:]
+				rHost = addr[6:]
 			}
 		}
-		r_port = ""
+		rPort = ""
 	}
 
-	if strings.Contains(r_host, ":") && !strings.HasPrefix(r_host, "[") {
-		r_host = fmt.Sprintf("[%s]", r_host)
+	if strings.Contains(rHost, ":") && !strings.HasPrefix(rHost, "[") {
+		rHost = fmt.Sprintf("[%s]", rHost)
 	}
 
-	if r_port != "" {
-		addr = r_scheme + "://" + r_host + ":" + r_port
+	if rPort != "" {
+		addr = rScheme + "://" + rHost + ":" + rPort
 	} else {
-		addr = r_scheme + "://" + r_host
+		addr = rScheme + "://" + rHost
 	}
 
 	if config.Remotes == nil {
@@ -296,7 +296,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			i18n.G("NAME"),
 			i18n.G("URL"),
 			i18n.G("PUBLIC")})
-		sort.Sort(ByName(data))
+		sort.Sort(byName(data))
 		table.AppendBulk(data)
 		table.Render()
 
