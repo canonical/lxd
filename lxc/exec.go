@@ -45,7 +45,9 @@ func (c *execCmd) usage() string {
 	return i18n.G(
 		`Execute the specified command in a container.
 
-lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... <command>`)
+lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... <command>
+
+Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`)
 }
 
 func (c *execCmd) flags() {
@@ -118,7 +120,7 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 	} else if c.modeFlag == "non-interactive" {
 		interactive = false
 	} else {
-		interactive = termios.IsTerminal(cfd)
+		interactive = termios.IsTerminal(cfd) && termios.IsTerminal(int(syscall.Stdout))
 	}
 
 	var oldttystate *termios.State
