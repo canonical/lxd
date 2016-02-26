@@ -205,7 +205,8 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if len(containers) == 1 && name == "" {
-			fmt.Printf(i18n.G("Container name is: %s"), name)
+			fields := strings.Split(containers[0], "/")
+			fmt.Printf(i18n.G("Container name is: %s")+"\n", fields[len(fields)-1])
 		}
 	}
 	return nil
