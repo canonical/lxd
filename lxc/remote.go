@@ -292,6 +292,8 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetRowLine(true)
 		table.SetHeader([]string{
 			i18n.G("NAME"),
 			i18n.G("URL"),
