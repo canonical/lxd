@@ -3714,7 +3714,7 @@ func (c *containerLXC) getDiskLimits() (map[string]deviceBlockLimit, error) {
 
 		// Set the source path
 		source := m["source"]
-		if m["path"] == "" {
+		if source == "" {
 			source = c.RootfsPath()
 		}
 
