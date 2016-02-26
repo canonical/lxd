@@ -1101,6 +1101,7 @@ Output:
             }
         ],
         "architecture": "x86_64",
+        "cached": false,
         "fingerprint": "54c8caac1f61901ed86c68f24af5f5d3672bdc62c71d04f06df3a59e95684473",
         "filename": "ubuntu-trusty-14.04-amd64-server-20160201.tar.xz",
         "properties": {
@@ -1113,6 +1114,7 @@ Output:
         "size": 123792592,
         "created_at": "2016-02-01T21:07:41Z",
         "expires_at": "1970-01-01T00:00:00Z",
+        "last_used_at": "1970-01-01T00:00:00Z",
         "uploaded_at": "2016-02-16T00:44:47Z"
     }
 
