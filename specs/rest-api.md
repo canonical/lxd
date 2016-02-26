@@ -136,24 +136,6 @@ Code  | Meaning
 401   | Cancelled
 
 
-# Safety for concurrent updates
-The API uses the HTTP ETAG to prevent potential problems when a resource
-changes on the server between the time it was accessed by the client and
-the time it is sent back for update.
-
-All GET queries come with an Etag HTTP header which is a short hash of
-the content that is relevant for an update. Any information which is
-read-only, shouldn't be included in the hash.
-
-On update (PUT), the same Etag field can be set by the client in its
-request alongside a If-Match header.. If it's set, the server will
-then compute the current Etag for the resource and compare the two.
-The update will then only be done if the two match.
-If they don't, an error will be returned instead using HTTP error code
-412 (Precondition failed).
-
-For consistency in LXD's use of hashes, the Etag hash should be a SHA-256.
-
 # Recursion
 To optimize queries of large lists, recursion is implemented for collections.
 A "recursion" argument can be passed to a GET query against a collection.
@@ -459,8 +441,8 @@ Input (using a remote container, sent over the migration websocket):
         "source": {"type": "migration",                                                 # Can be: "image", "migration", "copy" or "none"
                    "mode": "pull",                                                      # Only "pull" is supported for now
                    "operation": "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
-                   "certificate": "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
-                   "base-image": "<some hash>"                                          # Optional, the base image the container was created from
+                   "certificate": "PEM certificate",                                    # Optional PEM certificate. If not mentioned, system CA is used.
+                   "base-image": "<fingerprint>",                                       # Optional, the base image the container was created from
                    "secrets": {"control": "my-secret-string",                           # Secrets to use when talking to the migration source
                                "criu":    "my-other-secret",
                                "fs":      "my third secret"},
