@@ -165,7 +165,7 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 				}
 			}
 
-			downloads[fingerprint] = [][]string{[]string{metaPath, metaHash}, []string{rootfsPath, rootfsHash}}
+			downloads[fingerprint] = [][]string{[]string{metaPath, metaHash, "meta"}, []string{rootfsPath, rootfsHash, "root"}}
 			images = append(images, image)
 		}
 	}
@@ -469,7 +469,7 @@ func (s *SimpleStreams) getPaths(fingerprint string) ([][]string, error) {
 			if strings.HasPrefix(image.Fingerprint, fingerprint) {
 				urls := [][]string{}
 				for _, path := range downloads[image.Fingerprint] {
-					urls = append(urls, []string{path[0], path[1]})
+					urls = append(urls, []string{path[0], path[1], path[2]})
 				}
 				return urls, nil
 			}
@@ -477,6 +477,51 @@ func (s *SimpleStreams) getPaths(fingerprint string) ([][]string, error) {
 	}
 
 	return nil, fmt.Errorf("Couldn't find the requested image")
+}
+
+func (s *SimpleStreams) downloadFile(path string, hash string, target string, progress func(int)) error {
+	download := func(url string, hash string, target string) error {
+		out, err := os.Create(target)
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+
+		resp, err := s.http.Get(url)
+		if err != nil {
+		}
+		defer resp.Body.Close()
+
+		body := &TransferProgress{Reader: resp.Body, Length: resp.ContentLength, Handler: progress}
+
+		sha256 := sha256.New()
+		_, err = io.Copy(io.MultiWriter(out, sha256), body)
+		if err != nil {
+			return err
+		}
+
+		if fmt.Sprintf("%x", sha256.Sum(nil)) != hash {
+			os.Remove(target)
+			return fmt.Errorf("Hash mismatch")
+		}
+
+		return nil
+	}
+
+	// Try http first
+	if strings.HasPrefix(s.url, "https://") {
+		err := download(fmt.Sprintf("http://%s/%s", strings.TrimPrefix(s.url, "https://"), path), hash, target)
+		if err == nil {
+			return nil
+		}
+	}
+
+	err := download(fmt.Sprintf("%s/%s", s.url, path), hash, target)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *SimpleStreams) ListAliases() (ImageAliases, error) {
@@ -528,68 +573,42 @@ func (s *SimpleStreams) GetImageInfo(fingerprint string) (*ImageInfo, error) {
 	return nil, fmt.Errorf("The requested image couldn't be found.")
 }
 
-func (s *SimpleStreams) downloadFile(path string, hash string, target string) error {
-	if !IsDir(target) {
-		return fmt.Errorf("Split images can only be written to a directory.")
-	}
-
-	download := func(url string, hash string, target string) error {
-		out, err := os.Create(target)
-		if err != nil {
-			return err
-		}
-		defer out.Close()
-
-		resp, err := s.http.Get(url)
-		if err != nil {
-		}
-		defer resp.Body.Close()
-
-		sha256 := sha256.New()
-		_, err = io.Copy(io.MultiWriter(out, sha256), resp.Body)
-		if err != nil {
-			return err
-		}
-
-		if fmt.Sprintf("%x", sha256.Sum(nil)) != hash {
-			os.Remove(target)
-			return fmt.Errorf("Hash mismatch")
-		}
-
-		return nil
-	}
-
-	fields := strings.Split(path, "/")
-	targetFile := filepath.Join(target, fields[len(fields)-1])
-
-	// Try http first
-	if strings.HasPrefix(s.url, "https://") {
-		err := download(fmt.Sprintf("http://%s/%s", strings.TrimPrefix(s.url, "https://"), path), hash, targetFile)
-		if err == nil {
-			return nil
-		}
-	}
-
-	err := download(fmt.Sprintf("%s/%s", s.url, path), hash, targetFile)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (s *SimpleStreams) ExportImage(image string, target string) (string, error) {
+	if !IsDir(target) {
+		return "", fmt.Errorf("Split images can only be written to a directory.")
+	}
+
 	paths, err := s.getPaths(image)
 	if err != nil {
 		return "", err
 	}
 
 	for _, path := range paths {
-		err := s.downloadFile(path[0], path[1], target)
+		fields := strings.Split(path[0], "/")
+		targetFile := filepath.Join(target, fields[len(fields)-1])
+
+		err := s.downloadFile(path[0], path[1], targetFile, nil)
 		if err != nil {
 			return "", err
 		}
 	}
 
 	return target, nil
+}
+
+func (s *SimpleStreams) Download(image string, file string, target string, progress func(int)) error {
+	paths, err := s.getPaths(image)
+	if err != nil {
+		return err
+	}
+
+	for _, path := range paths {
+		if file != path[2] {
+			continue
+		}
+
+		return s.downloadFile(path[0], path[1], target, progress)
+	}
+
+	return fmt.Errorf("The file couldn't be found.")
 }
