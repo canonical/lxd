@@ -240,13 +240,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		image := c.dereferenceAlias(d, inName)
 
 		progressHandler := func(progress string) {
 			fmt.Printf(i18n.G("Copying the image: %s")+"\r", progress)
 		}
 
-		err = d.CopyImage(image, dest, c.copyAliases, c.addAliases, c.publicImage, progressHandler)
+		err = d.CopyImage(inName, dest, c.copyAliases, c.addAliases, c.publicImage, progressHandler)
 		if err == nil {
 			fmt.Println(i18n.G("Image copied successfully!"))
 		}
@@ -450,7 +449,8 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) > 2 {
 			target = args[2]
 		}
-		_, outfile, err := d.ExportImage(image, target)
+
+		outfile, err := d.ExportImage(image, target)
 		if err != nil {
 			return err
 		}

@@ -37,6 +37,7 @@ type Client struct {
 
 	Http            http.Client
 	websocketDialer websocket.Dialer
+	simplestreams   *shared.SimpleStreams
 }
 
 type ResponseType string
@@ -201,6 +202,17 @@ func NewClient(config *Config, remote string) (*Client, error) {
 		return nil, err
 	}
 	c.Config = *config
+	c.Remote = &r
+
+	if c.Remote.Protocol == "simplestreams" {
+		ss, err := shared.SimpleStreamsClient(c.Remote.Addr)
+		if err != nil {
+			return nil, err
+		}
+
+		c.simplestreams = ss
+	}
+
 	return c, nil
 }
 
@@ -554,42 +566,46 @@ func (c *Client) ListContainers() ([]shared.ContainerInfo, error) {
 }
 
 func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string, public bool, progressHandler func(progress string)) error {
-	fingerprint := c.GetAlias(image)
-	if fingerprint == "" {
-		fingerprint = image
-	}
-
-	info, err := c.GetImageInfo(fingerprint)
-	if err != nil {
-		return err
-	}
-
 	source := shared.Jmap{
 		"type":        "image",
 		"mode":        "pull",
 		"server":      c.BaseURL,
+		"protocol":    c.Remote.Protocol,
 		"certificate": c.Certificate,
-		"fingerprint": fingerprint}
+		"fingerprint": image}
 
-	if !info.Public {
-		var secret string
+	target := c.GetAlias(image)
+	if target != "" {
+		image = target
+	}
 
-		resp, err := c.post("images/"+fingerprint+"/secret", nil, Async)
-		if err != nil {
-			return err
+	info, err := c.GetImageInfo(image)
+	if err != nil {
+		return err
+	}
+
+	if c.Remote.Protocol != "simplestreams" {
+		if !info.Public {
+			var secret string
+
+			resp, err := c.post("images/"+image+"/secret", nil, Async)
+			if err != nil {
+				return err
+			}
+
+			op, err := resp.MetadataAsOperation()
+			if err != nil {
+				return err
+			}
+
+			secret, err = op.Metadata.GetString("secret")
+			if err != nil {
+				return err
+			}
+
+			source["secret"] = secret
 		}
-
-		op, err := resp.MetadataAsOperation()
-		if err != nil {
-			return err
-		}
-
-		secret, err = op.Metadata.GetString("secret")
-		if err != nil {
-			return err
-		}
-
-		source["secret"] = secret
+		source["fingerprint"] = image
 	}
 
 	addresses, err := c.Addresses()
@@ -680,11 +696,15 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 	return err
 }
 
-func (c *Client) ExportImage(image string, target string) (*Response, string, error) {
+func (c *Client) ExportImage(image string, target string) (string, error) {
+	if c.Remote.Protocol == "simplestreams" && c.simplestreams != nil {
+		return c.simplestreams.ExportImage(image, target)
+	}
+
 	uri := c.url(shared.APIVersion, "images", image, "export")
 	raw, err := c.getRaw(uri)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
 	ctype, ctypeParams, err := mime.ParseMediaType(raw.Header.Get("Content-Type"))
@@ -695,7 +715,7 @@ func (c *Client) ExportImage(image string, target string) (*Response, string, er
 	// Deal with split images
 	if ctype == "multipart/form-data" {
 		if !shared.IsDir(target) {
-			return nil, "", fmt.Errorf("Split images can only be written to a directory.")
+			return "", fmt.Errorf("Split images can only be written to a directory.")
 		}
 
 		// Parse the POST data
@@ -704,48 +724,48 @@ func (c *Client) ExportImage(image string, target string) (*Response, string, er
 		// Get the metadata tarball
 		part, err := mr.NextPart()
 		if err != nil {
-			return nil, "", err
+			return "", err
 		}
 
 		if part.FormName() != "metadata" {
-			return nil, "", fmt.Errorf("Invalid multipart image")
+			return "", fmt.Errorf("Invalid multipart image")
 		}
 
-		imageTarf, err := os.OpenFile(part.FileName(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		imageTarf, err := os.OpenFile(filepath.Join(target, part.FileName()), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
-			return nil, "", err
+			return "", err
 		}
 
 		_, err = io.Copy(imageTarf, part)
 
 		imageTarf.Close()
 		if err != nil {
-			return nil, "", err
+			return "", err
 		}
 
 		// Get the rootfs tarball
 		part, err = mr.NextPart()
 		if err != nil {
-			return nil, "", err
+			return "", err
 		}
 
 		if part.FormName() != "rootfs" {
-			return nil, "", fmt.Errorf("Invalid multipart image")
+			return "", fmt.Errorf("Invalid multipart image")
 		}
 
-		rootfsTarf, err := os.OpenFile(part.FileName(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		rootfsTarf, err := os.OpenFile(filepath.Join(part.FileName()), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
-			return nil, "", err
+			return "", err
 		}
 
 		_, err = io.Copy(rootfsTarf, part)
 
 		rootfsTarf.Close()
 		if err != nil {
-			return nil, "", err
+			return "", err
 		}
 
-		return nil, target, nil
+		return target, nil
 	}
 
 	// Deal with unified images
@@ -768,7 +788,7 @@ func (c *Client) ExportImage(image string, target string) (*Response, string, er
 			defer f.Close()
 
 			if err != nil {
-				return nil, "", err
+				return "", err
 			}
 
 			wr = f
@@ -780,14 +800,12 @@ func (c *Client) ExportImage(image string, target string) (*Response, string, er
 			defer f.Close()
 
 			if err != nil {
-				return nil, "", err
+				return "", err
 			}
 
 			wr = f
 		}
-
 	} else {
-
 		// write as simple file
 		destpath = target
 		f, err := os.Create(destpath)
@@ -795,19 +813,18 @@ func (c *Client) ExportImage(image string, target string) (*Response, string, er
 
 		wr = f
 		if err != nil {
-			return nil, "", err
+			return "", err
 		}
-
 	}
 
 	_, err = io.Copy(wr, raw.Body)
 
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
 	// it streams to stdout or file, so no response returned
-	return nil, destpath, nil
+	return destpath, nil
 }
 
 func (c *Client) PostImageURL(imageFile string, public bool, aliases []string) (string, error) {
@@ -976,6 +993,10 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 }
 
 func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
+	if c.Remote.Protocol == "simplestreams" && c.simplestreams != nil {
+		return c.simplestreams.GetImageInfo(image)
+	}
+
 	resp, err := c.get(fmt.Sprintf("images/%s", image))
 	if err != nil {
 		return nil, err
@@ -999,6 +1020,10 @@ func (c *Client) PutImageInfo(name string, p shared.BriefImageInfo) error {
 }
 
 func (c *Client) ListImages() ([]shared.ImageInfo, error) {
+	if c.Remote.Protocol == "simplestreams" && c.simplestreams != nil {
+		return c.simplestreams.ListImages()
+	}
+
 	resp, err := c.get("images?recursion=1")
 	if err != nil {
 		return nil, err
@@ -1030,6 +1055,10 @@ func (c *Client) DeleteAlias(alias string) error {
 }
 
 func (c *Client) ListAliases() (shared.ImageAliases, error) {
+	if c.Remote.Protocol == "simplestreams" && c.simplestreams != nil {
+		return c.simplestreams.ListAliases()
+	}
+
 	resp, err := c.get("images/aliases?recursion=1")
 	if err != nil {
 		return nil, err
@@ -1089,6 +1118,10 @@ func (c *Client) IsAlias(alias string) (bool, error) {
 }
 
 func (c *Client) GetAlias(alias string) string {
+	if c.Remote.Protocol == "simplestreams" && c.simplestreams != nil {
+		return c.simplestreams.GetAlias(alias)
+	}
+
 	resp, err := c.get(fmt.Sprintf("images/aliases/%s", alias))
 	if err != nil {
 		return ""
@@ -1131,44 +1164,47 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			return nil, err
 		}
 
-		fingerprint := tmpremote.GetAlias(image)
-		if fingerprint == "" {
-			fingerprint = image
-		}
+		if tmpremote.Remote.Protocol != "simplestreams" {
+			target := tmpremote.GetAlias(image)
+			if target != "" {
+				image = target
+			}
 
-		imageinfo, err := tmpremote.GetImageInfo(fingerprint)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(architectures) != 0 && !shared.StringInSlice(imageinfo.Architecture, architectures) {
-			return nil, fmt.Errorf("The image architecture is incompatible with the target server")
-		}
-
-		if !imageinfo.Public {
-			var secret string
-
-			resp, err := tmpremote.post("images/"+fingerprint+"/secret", nil, Async)
+			imageinfo, err := tmpremote.GetImageInfo(image)
 			if err != nil {
 				return nil, err
 			}
 
-			op, err := resp.MetadataAsOperation()
-			if err != nil {
-				return nil, err
+			if len(architectures) != 0 && !shared.StringInSlice(imageinfo.Architecture, architectures) {
+				return nil, fmt.Errorf("The image architecture is incompatible with the target server")
 			}
 
-			secret, err = op.Metadata.GetString("secret")
-			if err != nil {
-				return nil, err
-			}
+			if !imageinfo.Public {
+				var secret string
 
-			source["secret"] = secret
+				resp, err := tmpremote.post("images/"+image+"/secret", nil, Async)
+				if err != nil {
+					return nil, err
+				}
+
+				op, err := resp.MetadataAsOperation()
+				if err != nil {
+					return nil, err
+				}
+
+				secret, err = op.Metadata.GetString("secret")
+				if err != nil {
+					return nil, err
+				}
+
+				source["secret"] = secret
+			}
 		}
 
 		source["server"] = tmpremote.BaseURL
+		source["protocol"] = tmpremote.Remote.Protocol
 		source["certificate"] = tmpremote.Certificate
-		source["fingerprint"] = fingerprint
+		source["fingerprint"] = image
 	} else {
 		fingerprint := c.GetAlias(image)
 		if fingerprint == "" {

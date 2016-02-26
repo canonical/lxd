@@ -410,6 +410,7 @@ Input (using a public remote image):
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
                    "mode": "pull",                                          # One of "local" (default) or "pull"
                    "server": "https://10.0.2.3:8443",                       # Remote server (pull mode only)
+                   "protocol": "lxd",                                       # Protocol (one of lxd or simplestreams, defaults to lxd)
                    "certificate": "PEM certificate",                        # Optional PEM certificate. If not mentioned, system CA is used.
                    "alias": "ubuntu/devel"},                                # Name of the alias
     }
@@ -1044,6 +1045,7 @@ In the source image case, the following dict must be used:
             "type": "image",
             "mode": "pull",                     # Only pull is supported for now
             "server": "https://10.0.2.3:8443",  # Remote server (pull mode only)
+            "protocol": "lxd",                  # Protocol (one of lxd or simplestreams, defaults to lxd)
             "secret": "my-secret-string",       # Secret (pull mode only, private images only)
             "certificate": "PEM certificate",   # Optional PEM certificate. If not mentioned, system CA is used.
             "fingerprint": "SHA256",            # Fingerprint of the image (must be set if alias isn't)

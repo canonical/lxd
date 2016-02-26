@@ -292,8 +292,7 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq, op *operation) error {
 		return fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	err = d.ImageDownload(op, req.Source["server"], req.Source["certificate"], req.Source["secret"], hash, false, false)
-
+	hash, err = d.ImageDownload(op, req.Source["server"], req.Source["protocol"], req.Source["certificate"], req.Source["secret"], hash, false)
 	if err != nil {
 		return err
 	}
@@ -377,8 +376,7 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 	}
 
 	// Import the image
-	err = d.ImageDownload(op, url, "", "", hash, false, true)
-
+	hash, err = d.ImageDownload(op, url, "direct", "", "", hash, false)
 	if err != nil {
 		return err
 	}

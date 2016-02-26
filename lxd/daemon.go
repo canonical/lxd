@@ -758,17 +758,9 @@ func (d *Daemon) Init() error {
 	/* Get the list of supported architectures */
 	var architectures = []int{}
 
-	uname := syscall.Utsname{}
-	if err := syscall.Uname(&uname); err != nil {
+	architectureName, err := shared.ArchitectureGetLocal()
+	if err != nil {
 		return err
-	}
-
-	architectureName := ""
-	for _, c := range uname.Machine {
-		if c == 0 {
-			break
-		}
-		architectureName += string(byte(c))
 	}
 
 	architecture, err := shared.ArchitectureId(architectureName)

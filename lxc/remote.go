@@ -264,8 +264,13 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		if _, ok := config.Remotes[args[1]]; !ok {
+		rc, ok := config.Remotes[args[1]]
+		if !ok {
 			return fmt.Errorf(i18n.G("remote %s doesn't exist"), args[1])
+		}
+
+		if rc.Static {
+			return fmt.Errorf(i18n.G("remote %s is static and cannot be modified"), args[1])
 		}
 
 		if config.DefaultRemote == args[1] {
@@ -284,11 +289,20 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 				strPublic = i18n.G("YES")
 			}
 
+			strStatic := i18n.G("NO")
+			if rc.Static {
+				strStatic = i18n.G("YES")
+			}
+
+			if rc.Protocol == "" {
+				rc.Protocol = "lxd"
+			}
+
 			strName := name
 			if name == config.DefaultRemote {
 				strName = fmt.Sprintf("%s (%s)", name, i18n.G("default"))
 			}
-			data = append(data, []string{strName, rc.Addr, strPublic})
+			data = append(data, []string{strName, rc.Addr, rc.Protocol, strPublic, strStatic})
 		}
 
 		table := tablewriter.NewWriter(os.Stdout)
@@ -297,7 +311,9 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		table.SetHeader([]string{
 			i18n.G("NAME"),
 			i18n.G("URL"),
-			i18n.G("PUBLIC")})
+			i18n.G("PROTOCOL"),
+			i18n.G("PUBLIC"),
+			i18n.G("STATIC")})
 		sort.Sort(byName(data))
 		table.AppendBulk(data)
 		table.Render()
@@ -312,6 +328,10 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		rc, ok := config.Remotes[args[1]]
 		if !ok {
 			return fmt.Errorf(i18n.G("remote %s doesn't exist"), args[1])
+		}
+
+		if rc.Static {
+			return fmt.Errorf(i18n.G("remote %s is static and cannot be modified"), args[1])
 		}
 
 		if _, ok := config.Remotes[args[2]]; ok {
@@ -339,10 +359,16 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 		if len(args) != 3 {
 			return errArgs
 		}
-		_, ok := config.Remotes[args[1]]
+
+		rc, ok := config.Remotes[args[1]]
 		if !ok {
 			return fmt.Errorf(i18n.G("remote %s doesn't exist"), args[1])
 		}
+
+		if rc.Static {
+			return fmt.Errorf(i18n.G("remote %s is static and cannot be modified"), args[1])
+		}
+
 		config.Remotes[args[1]] = lxd.RemoteConfig{Addr: args[2]}
 
 	case "set-default":
