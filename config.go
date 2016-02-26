@@ -51,6 +51,10 @@ var LocalRemote = RemoteConfig{
 	Static: true,
 	Public: false}
 
+var ImagesRemote = RemoteConfig{
+	Addr:   "https://images.linuxcontainers.org",
+	Public: true}
+
 var UbuntuRemote = RemoteConfig{
 	Addr:     "https://cloud-images.ubuntu.com/releases",
 	Static:   true,
@@ -68,8 +72,14 @@ var StaticRemotes = map[string]RemoteConfig{
 	"ubuntu":       UbuntuRemote,
 	"ubuntu-daily": UbuntuDailyRemote}
 
+var DefaultRemotes = map[string]RemoteConfig{
+	"images":       ImagesRemote,
+	"local":        LocalRemote,
+	"ubuntu":       UbuntuRemote,
+	"ubuntu-daily": UbuntuDailyRemote}
+
 var DefaultConfig = Config{
-	Remotes:       StaticRemotes,
+	Remotes:       DefaultRemotes,
 	DefaultRemote: "local",
 	Aliases:       map[string]string{},
 }
