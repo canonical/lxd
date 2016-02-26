@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -260,15 +261,15 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			}
 
 			table := tablewriter.NewWriter(os.Stdout)
+			table.SetAutoWrapText(false)
+			table.SetRowLine(true)
 			table.SetHeader([]string{
 				i18n.G("FINGERPRINT"),
 				i18n.G("COMMON NAME"),
 				i18n.G("ISSUE DATE"),
 				i18n.G("EXPIRY DATE")})
-
-			for _, v := range data {
-				table.Append(v)
-			}
+			sort.Sort(SortImage(data))
+			table.AppendBulk(data)
 			table.Render()
 
 			return nil

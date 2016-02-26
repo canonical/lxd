@@ -548,7 +548,8 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetColWidth(50)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
 	table.SetHeader([]string{
 		i18n.G("ALIAS"),
 		i18n.G("FINGERPRINT"),
@@ -571,14 +572,14 @@ func (c *imageCmd) showAliases(aliases shared.ImageAliases) error {
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
 	table.SetHeader([]string{
 		i18n.G("ALIAS"),
 		i18n.G("FINGERPRINT"),
 		i18n.G("DESCRIPTION")})
-
-	for _, v := range data {
-		table.Append(v)
-	}
+	sort.Sort(SortImage(data))
+	table.AppendBulk(data)
 	table.Render()
 
 	return nil
