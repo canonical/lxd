@@ -59,6 +59,8 @@ var architectureSupportedPersonalities = map[int][]int{
 	ARCH_64BIT_S390_BIG_ENDIAN:       []int{},
 }
 
+const ArchitectureDefault = "x86_64"
+
 func ArchitectureName(arch int) (string, error) {
 	arch_name, exists := architectureNames[arch]
 	if exists {

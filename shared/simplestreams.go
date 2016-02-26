@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -344,18 +343,7 @@ func (s *SimpleStreams) applyAliases(images []ImageInfo) ([]ImageInfo, map[strin
 		return &ImageAlias{Name: name}
 	}
 
-	uname := syscall.Utsname{}
-	if err := syscall.Uname(&uname); err != nil {
-		return nil, nil, err
-	}
-
-	architectureName := ""
-	for _, c := range uname.Machine {
-		if c == 0 {
-			break
-		}
-		architectureName += string(byte(c))
-	}
+	architectureName, _ := ArchitectureGetLocal()
 
 	newImages := []ImageInfo{}
 	for _, image := range images {
