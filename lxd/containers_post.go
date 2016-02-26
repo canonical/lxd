@@ -24,6 +24,7 @@ type containerImageSource struct {
 	Fingerprint string `json:"fingerprint"`
 	Server      string `json:"server"`
 	Secret      string `json:"secret"`
+	Protocol    string `json:"protocol"`
 
 	/*
 	 * for "migration" and "copy" types, as an optimization users can
@@ -80,7 +81,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	run := func(op *operation) error {
 		if req.Source.Server != "" {
-			err := d.ImageDownload(op, req.Source.Server, req.Source.Certificate, req.Source.Secret, hash, true, false)
+			hash, err = d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, true)
 			if err != nil {
 				return err
 			}
