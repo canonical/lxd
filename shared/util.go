@@ -656,3 +656,38 @@ func ParseBitSizeString(input string) (int64, error) {
 
 	return valueInt * multiplicator, nil
 }
+
+type TransferProgress struct {
+	io.Reader
+	percentage float64
+	total      int64
+
+	Length  int64
+	Handler func(int)
+}
+
+func (pt *TransferProgress) Read(p []byte) (int, error) {
+	n, err := pt.Reader.Read(p)
+
+	if pt.Handler == nil {
+		return n, err
+	}
+
+	if n > 0 {
+		pt.total += int64(n)
+		percentage := float64(pt.total) / float64(pt.Length) * float64(100)
+
+		if percentage-pt.percentage > 0.9 {
+			pt.percentage = percentage
+
+			progressInt := 1 - (int(percentage) % 1) + int(percentage)
+			if progressInt > 100 {
+				progressInt = 100
+			}
+
+			pt.Handler(progressInt)
+		}
+	}
+
+	return n, err
+}

@@ -40,17 +40,46 @@ type Config struct {
 
 // RemoteConfig holds details for communication with a remote daemon.
 type RemoteConfig struct {
-	Addr   string `yaml:"addr"`
-	Public bool   `yaml:"public"`
+	Addr     string `yaml:"addr"`
+	Public   bool   `yaml:"public"`
+	Protocol string `yaml:"protocol,omitempty"`
+	Static   bool   `yaml:"-"`
 }
 
 var LocalRemote = RemoteConfig{
 	Addr:   "unix://",
+	Static: true,
 	Public: false}
-var defaultRemote = map[string]RemoteConfig{"local": LocalRemote}
+
+var ImagesRemote = RemoteConfig{
+	Addr:   "https://images.linuxcontainers.org",
+	Public: true}
+
+var UbuntuRemote = RemoteConfig{
+	Addr:     "https://cloud-images.ubuntu.com/releases",
+	Static:   true,
+	Public:   true,
+	Protocol: "simplestreams"}
+
+var UbuntuDailyRemote = RemoteConfig{
+	Addr:     "https://cloud-images.ubuntu.com/daily",
+	Static:   true,
+	Public:   true,
+	Protocol: "simplestreams"}
+
+var StaticRemotes = map[string]RemoteConfig{
+	"local":        LocalRemote,
+	"ubuntu":       UbuntuRemote,
+	"ubuntu-daily": UbuntuDailyRemote}
+
+var DefaultRemotes = map[string]RemoteConfig{
+	"images":       ImagesRemote,
+	"local":        LocalRemote,
+	"ubuntu":       UbuntuRemote,
+	"ubuntu-daily": UbuntuDailyRemote}
 
 var DefaultConfig = Config{
-	Remotes:       defaultRemote,
+	Remotes:       DefaultRemotes,
 	DefaultRemote: "local",
 	Aliases:       map[string]string{},
 }
@@ -79,11 +108,19 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	c.ConfigDir = filepath.Dir(path)
 
+	for k, v := range StaticRemotes {
+		c.Remotes[k] = v
+	}
+
 	return &c, nil
 }
 
 // SaveConfig writes the provided configuration to the config file.
 func SaveConfig(c *Config, fname string) error {
+	for k, _ := range StaticRemotes {
+		delete(c.Remotes, k)
+	}
+
 	// Ignore errors on these two calls. Create will report any problems.
 	os.Remove(fname + ".new")
 	os.Mkdir(filepath.Dir(fname), 0700)
