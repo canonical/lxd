@@ -95,16 +95,6 @@ func run() error {
 		if err != nil {
 			return err
 		}
-
-		// One time migration from old config
-		if config.DefaultRemote == "" {
-			_, ok := config.Remotes["local"]
-			if !ok {
-				config.Remotes["local"] = lxd.LocalRemote
-			}
-			config.DefaultRemote = "local"
-			lxd.SaveConfig(config, configPath)
-		}
 	}
 
 	// This is quite impolite, but it seems gnuflag needs us to shift our
