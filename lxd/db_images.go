@@ -38,7 +38,7 @@ func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
 // enforced by a UNIQUE constraint in the schema.
 func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) (int, *shared.ImageInfo, error) {
 	var err error
-	var create, expire, upload *time.Time // These hold the db-returned times
+	var create, expire, used, upload *time.Time // These hold the db-returned times
 
 	// The object we'll actually return
 	image := shared.ImageInfo{}
@@ -47,8 +47,8 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 
 	// These two humongous things will be filled by the call to DbQueryRowScan
 	outfmt := []interface{}{&id, &image.Fingerprint, &image.Filename,
-		&image.Size, &image.Public, &arch,
-		&create, &expire, &upload}
+		&image.Size, &image.Cached, &image.Public, &arch,
+		&create, &expire, &used, &upload}
 
 	var query string
 
@@ -57,8 +57,8 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 		inargs = []interface{}{fingerprint}
 		query = `
         SELECT
-            id, fingerprint, filename, size, public, architecture,
-            creation_date, expiry_date, upload_date
+            id, fingerprint, filename, size, cached, public, architecture,
+            creation_date, expiry_date, last_use_date, upload_date
         FROM
             images
         WHERE fingerprint = ?`
@@ -66,8 +66,8 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 		inargs = []interface{}{fingerprint + "%"}
 		query = `
         SELECT
-            id, fingerprint, filename, size, public, architecture,
-            creation_date, expiry_date, upload_date
+            id, fingerprint, filename, size, cached, public, architecture,
+            creation_date, expiry_date, last_use_date, upload_date
         FROM
             images
         WHERE fingerprint LIKE ?`
@@ -94,6 +94,12 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 		image.ExpiryDate = *expire
 	} else {
 		image.ExpiryDate = time.Time{}
+	}
+
+	if used != nil {
+		image.LastUsedDate = *used
+	} else {
+		image.LastUsedDate = time.Time{}
 	}
 
 	image.Architecture, _ = shared.ArchitectureName(arch)

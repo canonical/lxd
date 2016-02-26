@@ -22,6 +22,7 @@ type ImageAlias struct {
 type ImageInfo struct {
 	Aliases      []ImageAlias      `json:"aliases"`
 	Architecture string            `json:"architecture"`
+	Cached       bool              `json:"cached"`
 	Fingerprint  string            `json:"fingerprint"`
 	Filename     string            `json:"filename"`
 	Properties   map[string]string `json:"properties"`
@@ -29,6 +30,7 @@ type ImageInfo struct {
 	Size         int64             `json:"size"`
 	CreationDate time.Time         `json:"created_at"`
 	ExpiryDate   time.Time         `json:"expires_at"`
+	LastUsedDate time.Time         `json:"last_used_at"`
 	UploadDate   time.Time         `json:"uploaded_at"`
 }
 
