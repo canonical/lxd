@@ -147,6 +147,21 @@ they point to (typically a dict).
 Recursion is implemented by simply replacing any pointer to an job (URL)
 by the object itself.
 
+# Async operations
+Any operation which may take more than a second to be done must be done
+in the background, returning a background operation ID to the client.
+
+The client will then be able to either poll for a status update or wait
+for a notification using the long-poll API.
+
+# Notifications
+A websocket based API is available for notifications, different notification
+types exist to limit the traffic going to the client.
+
+It's recommended that the client always subscribes to the operations
+notification type before triggering remote operations so that it doesn't
+have to then poll for their status.
+
 # API structure
  * /
    * /1.0
@@ -313,20 +328,6 @@ Input (none at present):
 
 HTTP code for this should be 202 (Accepted).
 
-# Async operations
-Any operation which may take more than a second to be done must be done
-in the background, returning a background operation ID to the client.
-
-The client will then be able to either poll for a status update or wait
-for a notification using the long-poll API.
-
-# Notifications
-A long-poll API is available for notifications, different notification
-types exist to limit the traffic going to the client.
-
-It's recommend that the client always subscribes to the operations
-notification type before triggering remote operations so that it doesn't
-have to then poll for their status.
 ## /1.0/containers
 ### GET
  * Description: List of containers
