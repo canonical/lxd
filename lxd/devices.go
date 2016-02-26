@@ -737,18 +737,24 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 				path = fmt.Sprintf("/dev/%s", fields[0])
 			} else if shared.PathExists(fmt.Sprintf("/dev/disk/by-id/%s", fields[0])) {
 				path = fmt.Sprintf("/dev/disk/by-id/%s", fields[0])
+			} else if shared.PathExists(fmt.Sprintf("/dev/mapper/%s", fields[0])) {
+				path = fmt.Sprintf("/dev/mapper/%s", fields[0])
 			} else {
-				return nil, fmt.Errorf("Unsupported zfs backing device: %s", fields[0])
+				continue
 			}
 
 			if path != "" {
-				_, major, minor, err := deviceGetAttributes(fields[len(fields)-1])
+				_, major, minor, err := deviceGetAttributes(path)
 				if err != nil {
-					return nil, err
+					continue
 				}
 
 				devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
 			}
+		}
+
+		if len(devices) == 0 {
+			return nil, fmt.Errorf("Unable to find backing block for zfs pool: %s", poolName)
 		}
 	} else if fs == "btrfs" && shared.PathExists(device[1]) {
 		// Accessible btrfs filesystems

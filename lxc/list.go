@@ -426,11 +426,11 @@ func (c *listCmd) numberSnapshotsColumnData(cInfo shared.ContainerInfo, cState *
 }
 
 func (c *listCmd) PIDColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
-	if cState.Pid != 0 {
+	if cInfo.StatusCode != shared.Stopped {
 		return fmt.Sprintf("%d", cState.Pid)
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 func (c *listCmd) ArchitectureColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
