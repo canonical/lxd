@@ -1826,7 +1826,7 @@ func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
 	if profile.Name != name {
 		return fmt.Errorf("Cannot change profile name")
 	}
-	body := shared.Jmap{"name": name, "config": profile.Config, "devices": profile.Devices}
+	body := shared.Jmap{"name": name, "description": profile.Description, "config": profile.Config, "devices": profile.Devices}
 	_, err := c.put(fmt.Sprintf("profiles/%s", name), body, Sync)
 	return err
 }

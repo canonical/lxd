@@ -115,7 +115,8 @@ const (
 )
 
 type ProfileConfig struct {
-	Name    string            `json:"name"`
-	Config  map[string]string `json:"config"`
-	Devices Devices           `json:"devices"`
+	Name        string            `json:"name"`
+	Config      map[string]string `json:"config"`
+	Description string            `json:"description"`
+	Devices     Devices           `json:"devices"`
 }
