@@ -65,8 +65,9 @@ test_remote_admin() {
 
   # now re-add under a different alias
   lxc_remote config trust add "${LXD_CONF}/client2.crt"
-  if [ "$(lxc_remote config trust list | wc -l)" -ne 6 ]; then
+  if [ "$(lxc_remote config trust list | wc -l)" -ne 7 ]; then
     echo "wrong number of certs"
+    false
   fi
 
   # Check that we can add domains with valid certs without confirmation:
