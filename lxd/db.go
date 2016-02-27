@@ -163,27 +163,29 @@ CREATE TABLE IF NOT EXISTS schema (
 );`
 
 // Create the initial (current) schema for a given SQLite DB connection.
-// This should stay indempotent.
 func createDb(db *sql.DB) (err error) {
-	_, err = db.Exec(CURRENT_SCHEMA)
-	if err != nil {
-		return err
-	}
-
-	// To make the schema creation indempotent, only insert the schema version
-	// if there isn't one already.
 	latestVersion := dbGetSchema(db)
 
 	if latestVersion == 0 {
+		_, err = db.Exec(CURRENT_SCHEMA)
+		if err != nil {
+			return err
+		}
+
 		// There isn't an entry for schema version, let's put it in.
 		insertStmt := `INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
 		_, err = db.Exec(insertStmt, DB_CURRENT_VERSION)
 		if err != nil {
 			return err
 		}
+
+		err = dbProfileCreateDefault(db)
+		if err != nil {
+			return err
+		}
 	}
 
-	return dbProfileCreateDefault(db)
+	return nil
 }
 
 func dbGetSchema(db *sql.DB) (v int) {
@@ -213,7 +215,7 @@ func initializeDbObject(d *Daemon, path string) (err error) {
 		return err
 	}
 
-	// Table creation is indempotent, run it every time
+	// Create the DB if it doesn't exist.
 	err = createDb(d.db)
 	if err != nil {
 		return fmt.Errorf("Error creating database: %s", err)
