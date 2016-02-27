@@ -97,24 +97,21 @@ func dbProfileCreate(db *sql.DB, profile string, description string, config map[
 }
 
 func dbProfileCreateDefault(db *sql.DB) error {
-	id, _, err := dbProfileGet(db, "default")
-	if err != nil {
-		return err
-	}
+	id, _, _ := dbProfileGet(db, "default")
 
 	if id != -1 {
 		// default profile already exists
 		return nil
 	}
 
-	// TODO: We should the scan for bridges and use the best available as default.
+	// TODO: We should scan for bridges and use the best available as default.
 	devices := shared.Devices{
 		"eth0": shared.Device{
 			"name":    "eth0",
 			"type":    "nic",
 			"nictype": "bridged",
 			"parent":  "lxcbr0"}}
-	id, err = dbProfileCreate(db, "default", "Default LXD profile", map[string]string{}, devices)
+	id, err := dbProfileCreate(db, "default", "Default LXD profile", map[string]string{}, devices)
 	if err != nil {
 		return err
 	}
