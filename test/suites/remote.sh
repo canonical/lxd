@@ -73,7 +73,7 @@ test_remote_admin() {
 
   # avoid default high port behind some proxies:
   if [ -z "${LXD_OFFLINE:-}" ]; then
-    lxc_remote remote add images images.linuxcontainers.org
+    lxc_remote remote add images1 images.linuxcontainers.org
     lxc_remote remote add images2 images.linuxcontainers.org:443
   fi
 }
