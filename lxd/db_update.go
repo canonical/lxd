@@ -15,6 +15,14 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV24(db *sql.DB) error {
+	stmt := `
+ALTER TABLE containers ADD COLUMN stateful INTEGER NOT NULL DEFAULT 0;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 25)
+	return err
+}
+
 func dbUpdateFromV23(db *sql.DB) error {
 	stmt := `
 ALTER TABLE profiles ADD COLUMN description TEXT;
@@ -899,6 +907,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 24 {
 		err = dbUpdateFromV23(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 25 {
+		err = dbUpdateFromV24(db)
 		if err != nil {
 			return err
 		}

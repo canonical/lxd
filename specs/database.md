@@ -110,6 +110,7 @@ name            | VARCHAR(255)  | -             | NOT NULL          | Container 
 architecture    | INTEGER       | -             | NOT NULL          | Container architecture
 type            | INTEGER       | 0             | NOT NULL          | Container type (0 = container, 1 = container snapshot)
 ephemeral       | INTEGER       | 0             | NOT NULL          | Whether the container is ephemeral (0 = persistent, 1 = ephemeral)
+stateful        | INTEGER       | 0             | NOT NULL          | Whether the snapshot contains state (snapshot only)
 creation\_date  | DATETIME      | -             |                   | Image creation date (user supplied, 0 = unknown)
 
 Index: UNIQUE ON id AND name
