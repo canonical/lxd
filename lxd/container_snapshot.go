@@ -47,7 +47,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			body := shared.Jmap{
 				"name":       snapName,
 				"created_at": snap.CreationDate(),
-				"stateful":   shared.PathExists(snap.StatePath())}
+				"stateful":   snap.IsStateful()}
 			resultMap = append(resultMap, body)
 		}
 	}
@@ -134,9 +134,10 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			BaseImage:    c.ExpandedConfig()["volatile.base_image"],
 			Architecture: c.Architecture(),
 			Devices:      c.LocalDevices(),
+			Stateful:     req.Stateful,
 		}
 
-		_, err := containerCreateAsSnapshot(d, args, c, req.Stateful)
+		_, err := containerCreateAsSnapshot(d, args, c)
 		if err != nil {
 			return err
 		}

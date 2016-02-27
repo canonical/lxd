@@ -97,10 +97,12 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
 		cType:        args.Ctype,
+		stateful:     args.Stateful,
 		creationDate: args.CreationDate,
 		profiles:     args.Profiles,
 		localConfig:  args.Config,
-		localDevices: args.Devices}
+		localDevices: args.Devices,
+	}
 
 	// No need to detect storage here, its a new container.
 	c.storage = d.Storage
@@ -196,7 +198,8 @@ func containerLXCLoad(d *Daemon, args containerArgs) (container, error) {
 		creationDate: args.CreationDate,
 		profiles:     args.Profiles,
 		localConfig:  args.Config,
-		localDevices: args.Devices}
+		localDevices: args.Devices,
+		stateful:     args.Stateful}
 
 	// Detect the storage backend
 	s, err := storageForFilename(d, shared.VarPath("containers", strings.Split(c.name, "/")[0]))
@@ -223,6 +226,7 @@ type containerLXC struct {
 	ephemeral    bool
 	id           int
 	name         string
+	stateful     bool
 
 	// Config
 	expandedConfig  map[string]string
@@ -3980,6 +3984,10 @@ func (c *containerLXC) setNetworkLimits(name string, m shared.Device) error {
 }
 
 // Various state query functions
+func (c *containerLXC) IsStateful() bool {
+	return c.stateful
+}
+
 func (c *containerLXC) IsEphemeral() bool {
 	return c.ephemeral
 }
