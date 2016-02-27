@@ -225,6 +225,7 @@ Column          | Type          | Default       | Constraint        | Descriptio
 :-----          | :---          | :------       | :---------        | :----------
 id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 name            | VARCHAR(255)  | -             | NOT NULL          | Profile name
+description     | TEXT          | -             |                   | Description of the profile
 
 Index: UNIQUE on id AND name
 

@@ -15,6 +15,14 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV23(db *sql.DB) error {
+	stmt := `
+ALTER TABLE profiles ADD COLUMN description TEXT;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 24)
+	return err
+}
+
 func dbUpdateFromV22(db *sql.DB) error {
 	stmt := `
 DELETE FROM containers_devices_config WHERE key='type';
@@ -885,6 +893,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 23 {
 		err = dbUpdateFromV22(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 24 {
+		err = dbUpdateFromV23(db)
 		if err != nil {
 			return err
 		}

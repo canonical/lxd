@@ -9,24 +9,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func dbProfileID(db *sql.DB, profile string) (int64, error) {
-	id := int64(-1)
-
-	rows, err := dbQuery(db, "SELECT id FROM profiles WHERE name=?", profile)
-	if err != nil {
-		return id, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var xID int64
-		rows.Scan(&xID)
-		id = xID
-	}
-
-	return id, nil
-}
-
 // dbProfiles returns a string list of profiles.
 func dbProfiles(db *sql.DB) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM profiles")
@@ -46,14 +28,44 @@ func dbProfiles(db *sql.DB) ([]string, error) {
 	return response, nil
 }
 
-func dbProfileCreate(db *sql.DB, profile string, config map[string]string,
+func dbProfileGet(db *sql.DB, profile string) (int64, *shared.ProfileConfig, error) {
+	id := int64(-1)
+	description := sql.NullString{}
+
+	q := "SELECT id, description FROM profiles WHERE name=?"
+	arg1 := []interface{}{profile}
+	arg2 := []interface{}{&id, &description}
+	err := dbQueryRowScan(db, q, arg1, arg2)
+	if err != nil {
+		return -1, nil, fmt.Errorf("here: %s", err)
+	}
+
+	config, err := dbProfileConfig(db, profile)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	devices, err := dbDevices(db, profile, true)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	return id, &shared.ProfileConfig{
+		Name:        profile,
+		Config:      config,
+		Description: description.String,
+		Devices:     devices,
+	}, nil
+}
+
+func dbProfileCreate(db *sql.DB, profile string, description string, config map[string]string,
 	devices shared.Devices) (int64, error) {
 
 	tx, err := dbBegin(db)
 	if err != nil {
 		return -1, err
 	}
-	result, err := tx.Exec("INSERT INTO profiles (name) VALUES (?)", profile)
+	result, err := tx.Exec("INSERT INTO profiles (name, description) VALUES (?, ?)", profile, description)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -85,7 +97,7 @@ func dbProfileCreate(db *sql.DB, profile string, config map[string]string,
 }
 
 func dbProfileCreateDefault(db *sql.DB) error {
-	id, err := dbProfileID(db, "default")
+	id, _, err := dbProfileGet(db, "default")
 	if err != nil {
 		return err
 	}
@@ -102,7 +114,7 @@ func dbProfileCreateDefault(db *sql.DB) error {
 			"type":    "nic",
 			"nictype": "bridged",
 			"parent":  "lxcbr0"}}
-	id, err = dbProfileCreate(db, "default", map[string]string{}, devices)
+	id, err = dbProfileCreate(db, "default", "Default LXD profile", map[string]string{}, devices)
 	if err != nil {
 		return err
 	}
@@ -185,6 +197,11 @@ func dbProfileUpdate(db *sql.DB, name string, newName string) error {
 
 	err = txCommit(tx)
 
+	return err
+}
+
+func dbProfileDescriptionUpdate(tx *sql.Tx, id int64, description string) error {
+	_, err := tx.Exec("UPDATE profiles SET description=? WHERE id=?", description, id)
 	return err
 }
 
