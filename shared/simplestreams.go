@@ -150,6 +150,7 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 			image.Properties = map[string]string{
 				"os":           product.OperatingSystem,
 				"release":      product.Release,
+				"version":      product.Version,
 				"architecture": product.Architecture,
 				"label":        version.Label,
 				"serial":       name,
@@ -358,6 +359,26 @@ func (s *SimpleStreams) applyAliases(images []ImageInfo) ([]ImageInfo, map[strin
 			if alias != nil {
 				image.Aliases = append(image.Aliases, *alias)
 			}
+
+			alias = addAlias(fmt.Sprintf("%s/%c", image.Properties["os"], image.Properties["release"][0]), image.Fingerprint)
+			if alias != nil {
+				image.Aliases = append(image.Aliases, *alias)
+			}
+
+			alias = addAlias(fmt.Sprintf("%s/%c/%s", image.Properties["os"], image.Properties["release"][0], image.Properties["serial"]), image.Fingerprint)
+			if alias != nil {
+				image.Aliases = append(image.Aliases, *alias)
+			}
+
+			alias = addAlias(fmt.Sprintf("%s/%s", image.Properties["os"], image.Properties["version"]), image.Fingerprint)
+			if alias != nil {
+				image.Aliases = append(image.Aliases, *alias)
+			}
+
+			alias = addAlias(fmt.Sprintf("%s/%s/%s", image.Properties["os"], image.Properties["version"], image.Properties["serial"]), image.Fingerprint)
+			if alias != nil {
+				image.Aliases = append(image.Aliases, *alias)
+			}
 		}
 
 		// Medium
@@ -366,8 +387,28 @@ func (s *SimpleStreams) applyAliases(images []ImageInfo) ([]ImageInfo, map[strin
 			image.Aliases = append(image.Aliases, *alias)
 		}
 
+		alias = addAlias(fmt.Sprintf("%s/%c/%s", image.Properties["os"], image.Properties["release"][0], image.Properties["architecture"]), image.Fingerprint)
+		if alias != nil {
+			image.Aliases = append(image.Aliases, *alias)
+		}
+
+		alias = addAlias(fmt.Sprintf("%s/%s/%s", image.Properties["os"], image.Properties["version"], image.Properties["architecture"]), image.Fingerprint)
+		if alias != nil {
+			image.Aliases = append(image.Aliases, *alias)
+		}
+
 		// Medium
 		alias = addAlias(fmt.Sprintf("%s/%s/%s/%s", image.Properties["os"], image.Properties["release"], image.Properties["architecture"], image.Properties["serial"]), image.Fingerprint)
+		if alias != nil {
+			image.Aliases = append(image.Aliases, *alias)
+		}
+
+		alias = addAlias(fmt.Sprintf("%s/%c/%s/%s", image.Properties["os"], image.Properties["release"][0], image.Properties["architecture"], image.Properties["serial"]), image.Fingerprint)
+		if alias != nil {
+			image.Aliases = append(image.Aliases, *alias)
+		}
+
+		alias = addAlias(fmt.Sprintf("%s/%s/%s/%s", image.Properties["os"], image.Properties["version"], image.Properties["architecture"], image.Properties["serial"]), image.Fingerprint)
 		if alias != nil {
 			image.Aliases = append(image.Aliases, *alias)
 		}
