@@ -512,6 +512,10 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 		if err2 != nil {
 			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
 		}
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Clone the container
