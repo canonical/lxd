@@ -15,6 +15,16 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV25(db *sql.DB) error {
+	if err := dbProfileCreateDocker(db); err != nil {
+		return err
+	}
+	stmt := `
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 26)
+	return err
+}
+
 func dbUpdateFromV24(db *sql.DB) error {
 	stmt := `
 ALTER TABLE containers ADD COLUMN stateful INTEGER NOT NULL DEFAULT 0;
@@ -918,6 +928,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 25 {
 		err = dbUpdateFromV24(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 26 {
+		err = dbUpdateFromV25(db)
 		if err != nil {
 			return err
 		}
