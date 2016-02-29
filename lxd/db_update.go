@@ -16,11 +16,15 @@ import (
 )
 
 func dbUpdateFromV25(db *sql.DB) error {
-	if err := dbProfileCreateDocker(db); err != nil {
-		return err
-	}
 	stmt := `
-INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+INSERT INTO profiles (name, description) VALUES ("docker", "Profile supporting docker in containers");
+INSERT INTO profiles_config (profile_id, key, value) SELECT id, "security.nesting", "true" FROM profiles WHERE name="docker";
+INSERT INTO profiles_config (profile_id, key, value) SELECT id, "linux.kernel_modules", "overlay, nf_nat" FROM profiles WHERE name="docker";
+INSERT INTO profiles_devices (profile_id, name, type) SELECT id, "fuse", "unix-char" FROM profiles WHERE name="docker";
+INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "path", "/dev/fuse" FROM profiles_devices LEFT JOIN profiles WHERE profiles_devices.profile_id = profiles.id AND profiles.name = "docker";`
+	db.Exec(stmt)
+
+	stmt = `INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	_, err := db.Exec(stmt, 26)
 	return err
 }
