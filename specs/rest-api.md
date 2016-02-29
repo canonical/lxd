@@ -1402,6 +1402,7 @@ Input:
 
     {
         "name": "my-profilename",
+        "description": "Some description string",
         "config": {
             "limits.memory": "2GB"
         },
@@ -1424,6 +1425,7 @@ Output:
 
     {
         "name": "test",
+        "description": "Some description string",
         "config": {
             "limits.memory": "2GB"
         },
@@ -1447,6 +1449,7 @@ Input:
         "config": {
             "limits.memory": "4GB"
         },
+        "description": "Some description string",
         "devices": {
             "kvm": {
                 "path": "/dev/kvm",

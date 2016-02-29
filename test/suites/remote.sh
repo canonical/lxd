@@ -65,15 +65,16 @@ test_remote_admin() {
 
   # now re-add under a different alias
   lxc_remote config trust add "${LXD_CONF}/client2.crt"
-  if [ "$(lxc_remote config trust list | wc -l)" -ne 6 ]; then
+  if [ "$(lxc_remote config trust list | wc -l)" -ne 7 ]; then
     echo "wrong number of certs"
+    false
   fi
 
   # Check that we can add domains with valid certs without confirmation:
 
   # avoid default high port behind some proxies:
   if [ -z "${LXD_OFFLINE:-}" ]; then
-    lxc_remote remote add images images.linuxcontainers.org
+    lxc_remote remote add images1 images.linuxcontainers.org
     lxc_remote remote add images2 images.linuxcontainers.org:443
   fi
 }

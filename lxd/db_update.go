@@ -15,6 +15,22 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV24(db *sql.DB) error {
+	stmt := `
+ALTER TABLE containers ADD COLUMN stateful INTEGER NOT NULL DEFAULT 0;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 25)
+	return err
+}
+
+func dbUpdateFromV23(db *sql.DB) error {
+	stmt := `
+ALTER TABLE profiles ADD COLUMN description TEXT;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 24)
+	return err
+}
+
 func dbUpdateFromV22(db *sql.DB) error {
 	stmt := `
 DELETE FROM containers_devices_config WHERE key='type';
@@ -641,11 +657,16 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 }
 
 func dbUpdateFromV3(db *sql.DB) error {
-	err := dbProfileCreateDefault(db)
-	if err != nil {
-		return err
-	}
-	_, err = db.Exec(`INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`, 4)
+	// Attempt to create a default profile (but don't fail if already there)
+	stmt := `INSERT INTO profiles (name) VALUES ("default");
+INSERT INTO profiles_devices (profile_id, name, type) SELECT id, "eth0", "nic" FROM profiles WHERE profiles.name="default";
+INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "nictype", "bridged" FROM profiles_devices LEFT JOIN profiles ON profiles.id=profiles_devices.profile_id WHERE profiles.name == "default";
+INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, 'name', "eth0" FROM profiles_devices LEFT JOIN profiles ON profiles.id=profiles_devices.profile_id WHERE profiles.name == "default";
+INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "parent", "lxcbr0" FROM profiles_devices LEFT JOIN profiles ON profiles.id=profiles_devices.profile_id WHERE profiles.name == "default";`
+	db.Exec(stmt)
+
+	stmt = `INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 4)
 	return err
 }
 
@@ -705,7 +726,7 @@ CREATE TABLE IF NOT EXISTS profiles_devices_config (
     UNIQUE (profile_device_id, key),
     FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id)
 );
-INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	_, err := db.Exec(stmt, 3)
 	return err
 }
@@ -722,7 +743,7 @@ CREATE TABLE IF NOT EXISTS images_aliases (
     FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
     UNIQUE (name)
 );
-INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	_, err := db.Exec(stmt, 2)
 	return err
 }
@@ -736,7 +757,7 @@ CREATE TABLE IF NOT EXISTS schema (
     updated_at DATETIME NOT NULL,
     UNIQUE (version)
 );
-INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 	_, err := db.Exec(stmt, 1)
 	return err
 }
@@ -885,6 +906,18 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 23 {
 		err = dbUpdateFromV22(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 24 {
+		err = dbUpdateFromV23(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 25 {
+		err = dbUpdateFromV24(db)
 		if err != nil {
 			return err
 		}
