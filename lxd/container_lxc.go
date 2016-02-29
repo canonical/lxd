@@ -1088,7 +1088,11 @@ func (c *containerLXC) Start(stateful bool) error {
 	}
 
 	// If stateful, restore now
-	if stateful && shared.PathExists(c.StatePath()) {
+	if stateful {
+		if !c.stateful {
+			return fmt.Errorf("Container has no existing state to restore.")
+		}
+
 		err := c.c.Restore(lxc.RestoreOptions{
 			Directory: c.StatePath(),
 			Verbose:   true,
@@ -1099,6 +1103,12 @@ func (c *containerLXC) Start(stateful bool) error {
 			return err2
 		}
 
+		if err != nil {
+			return err
+		}
+
+		c.stateful = false
+		err = dbContainerSetStateful(c.daemon.db, c.id, false)
 		if err != nil {
 			return err
 		}
@@ -1275,6 +1285,12 @@ func (c *containerLXC) Stop(stateful bool) error {
 			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
 		}
 
+		if err != nil {
+			return err
+		}
+
+		c.stateful = true
+		err = dbContainerSetStateful(c.daemon.db, c.id, true)
 		if err != nil {
 			return err
 		}
@@ -1462,6 +1478,7 @@ func (c *containerLXC) Render() (*shared.ContainerInfo, error) {
 		Profiles:        c.profiles,
 		Status:          statusCode.String(),
 		StatusCode:      statusCode,
+		Stateful:        c.stateful,
 	}, nil
 }
 

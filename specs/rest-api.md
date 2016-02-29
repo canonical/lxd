@@ -508,6 +508,7 @@ Output:
         "profiles": [
             "default"
         ],
+        "stateful": false,      # If true, indicates that the container has some stored state that can be restored on startup
         "status": "Running",
         "status_code": 103
     }
