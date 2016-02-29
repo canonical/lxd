@@ -34,7 +34,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 25
+const DB_CURRENT_VERSION int = 26
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
@@ -166,26 +166,28 @@ CREATE TABLE IF NOT EXISTS schema (
 func createDb(db *sql.DB) (err error) {
 	latestVersion := dbGetSchema(db)
 
-	if latestVersion == 0 {
-		_, err = db.Exec(CURRENT_SCHEMA)
-		if err != nil {
-			return err
-		}
-
-		// There isn't an entry for schema version, let's put it in.
-		insertStmt := `INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
-		_, err = db.Exec(insertStmt, DB_CURRENT_VERSION)
-		if err != nil {
-			return err
-		}
-
-		err = dbProfileCreateDefault(db)
-		if err != nil {
-			return err
-		}
+	if latestVersion != 0 {
+		return nil
 	}
 
-	return nil
+	_, err = db.Exec(CURRENT_SCHEMA)
+	if err != nil {
+		return err
+	}
+
+	// There isn't an entry for schema version, let's put it in.
+	insertStmt := `INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
+	_, err = db.Exec(insertStmt, DB_CURRENT_VERSION)
+	if err != nil {
+		return err
+	}
+
+	err = dbProfileCreateDefault(db)
+	if err != nil {
+		return err
+	}
+
+	return dbProfileCreateDocker(db)
 }
 
 func dbGetSchema(db *sql.DB) (v int) {

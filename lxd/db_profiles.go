@@ -119,6 +119,27 @@ func dbProfileCreateDefault(db *sql.DB) error {
 	return nil
 }
 
+func dbProfileCreateDocker(db *sql.DB) error {
+	id, _, err := dbProfileGet(db, "docker")
+
+	if id != -1 {
+		// docker profile already exists
+		return nil
+	}
+
+	config := map[string]string{
+		"security.nesting":     "true",
+		"linux.kernel_modules": "overlay, nf_nat"}
+	fusedev := map[string]string{
+		"path": "/dev/fuse",
+		"type": "unix-char",
+	}
+	devices := map[string]shared.Device{"fuse": fusedev}
+
+	_, err = dbProfileCreate(db, "docker", "Profile supporting docker in containers", config, devices)
+	return err
+}
+
 // Get the profile configuration map from the DB
 func dbProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 	var key, value string
