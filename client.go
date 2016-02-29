@@ -1441,13 +1441,6 @@ func (c *Client) Action(name string, action shared.ContainerAction, timeout int,
 		"timeout": timeout,
 		"force":   force}
 
-	if action == "start" {
-		current, err := c.ContainerState(name)
-		if err == nil && current.StatusCode == shared.Frozen {
-			body["action"] = "unfreeze"
-		}
-	}
-
 	if shared.StringInSlice(string(action), []string{"start", "stop"}) {
 		body["stateful"] = stateful
 	}
