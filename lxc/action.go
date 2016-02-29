@@ -16,6 +16,8 @@ type actionCmd struct {
 	name       string
 	timeout    int
 	force      bool
+	stateful   bool
+	stateless  bool
 }
 
 func (c *actionCmd) showByDefault() bool {
@@ -33,12 +35,26 @@ func (c *actionCmd) flags() {
 	if c.hasTimeout {
 		gnuflag.IntVar(&c.timeout, "timeout", -1, i18n.G("Time to wait for the container before killing it."))
 		gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the container to shutdown."))
+		gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Store the container state (only for stop)."))
+		gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Ignore the container state (only forstart)."))
 	}
 }
 
 func (c *actionCmd) run(config *lxd.Config, args []string) error {
 	if len(args) == 0 {
 		return errArgs
+	}
+
+	state := false
+
+	// Never store state unless asked to
+	if c.action == "start" && !c.stateless {
+		state = true
+	}
+
+	// Always restore state (if present) unless asked not to
+	if c.action == "stop" && c.stateful {
+		state = true
 	}
 
 	for _, nameArg := range args {
@@ -48,7 +64,7 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		resp, err := d.Action(name, c.action, c.timeout, c.force)
+		resp, err := d.Action(name, c.action, c.timeout, c.force, state)
 		if err != nil {
 			return err
 		}

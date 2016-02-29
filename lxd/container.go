@@ -312,8 +312,8 @@ type container interface {
 	// Container actions
 	Freeze() error
 	Shutdown(timeout time.Duration) error
-	Start() error
-	Stop() error
+	Start(stateful bool) error
+	Stop(stateful bool) error
 	Unfreeze() error
 
 	// Snapshots & migration
