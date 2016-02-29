@@ -32,6 +32,7 @@ func (suite *lxdTestSuite) TestContainer_ProfilesMulti() {
 	_, err := dbProfileCreate(
 		suite.d.db,
 		"unprivileged",
+		"unprivileged",
 		map[string]string{"security.privileged": "true"},
 		shared.Devices{})
 

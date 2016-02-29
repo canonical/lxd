@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
@@ -15,9 +16,10 @@ import (
 
 /* This is used for both profiles post and profile put */
 type profilesPostReq struct {
-	Name    string            `json:"name"`
-	Config  map[string]string `json:"config"`
-	Devices shared.Devices    `json:"devices"`
+	Name        string            `json:"name"`
+	Config      map[string]string `json:"config"`
+	Description string            `json:"description"`
+	Devices     shared.Devices    `json:"devices"`
 }
 
 func profilesGet(d *Daemon, r *http.Request) Response {
@@ -75,7 +77,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update DB entry
-	_, err = dbProfileCreate(d.db, req.Name, req.Config, req.Devices)
+	_, err = dbProfileCreate(d.db, req.Name, req.Description, req.Config, req.Devices)
 	if err != nil {
 		return InternalError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
@@ -90,21 +92,8 @@ var profilesCmd = Command{
 	post: profilesPost}
 
 func doProfileGet(d *Daemon, name string) (*shared.ProfileConfig, error) {
-	config, err := dbProfileConfig(d.db, name)
-	if err != nil {
-		return nil, err
-	}
-
-	devices, err := dbDevices(d.db, name, true)
-	if err != nil {
-		return nil, err
-	}
-
-	return &shared.ProfileConfig{
-		Name:    name,
-		Config:  config,
-		Devices: devices,
-	}, nil
+	_, profile, err := dbProfileGet(d.db, name)
+	return profile, err
 }
 
 func profileGet(d *Daemon, r *http.Request) Response {
@@ -168,7 +157,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update the database
-	id, err := dbProfileID(d.db, name)
+	id, profile, err := dbProfileGet(d.db, name)
 	if err != nil {
 		return InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
 	}
@@ -176,6 +165,24 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	tx, err := dbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
+	}
+
+	if profile.Description != req.Description {
+		err = dbProfileDescriptionUpdate(tx, id, req.Description)
+		if err != nil {
+			tx.Rollback()
+			return InternalError(err)
+		}
+	}
+
+	// Optimize for description-only changes
+	if reflect.DeepEqual(profile.Config, req.Config) && reflect.DeepEqual(profile.Devices, req.Devices) {
+		err = txCommit(tx)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		return EmptySyncResponse
 	}
 
 	err = dbProfileConfigClear(tx, id)
