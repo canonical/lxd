@@ -1074,7 +1074,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	return configPath, nil
 }
 
-func (c *containerLXC) Start() error {
+func (c *containerLXC) Start(stateful bool) error {
 	// Wait for container tear down to finish
 	wgStopping, stopping := lxcStoppingContainers[c.id]
 	if stopping {
@@ -1085,6 +1085,25 @@ func (c *containerLXC) Start() error {
 	configPath, err := c.startCommon()
 	if err != nil {
 		return err
+	}
+
+	// If stateful, restore now
+	if stateful && shared.PathExists(c.StatePath()) {
+		err := c.c.Restore(lxc.RestoreOptions{
+			Directory: c.StatePath(),
+			Verbose:   true,
+		})
+
+		err2 := os.RemoveAll(c.StatePath())
+		if err2 != nil {
+			return err2
+		}
+
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	// Start the LXC container
@@ -1236,7 +1255,33 @@ func (c *containerLXC) setupStopping() *sync.WaitGroup {
 }
 
 // Stop functions
-func (c *containerLXC) Stop() error {
+func (c *containerLXC) Stop(stateful bool) error {
+	// Handle stateful stop
+	if stateful {
+		// Cleanup any existing state
+		stateDir := c.StatePath()
+		os.RemoveAll(stateDir)
+
+		err := os.MkdirAll(stateDir, 0700)
+		if err != nil {
+			return err
+		}
+
+		// Checkpoint
+		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
+		err = c.Checkpoint(opts)
+		err2 := CollectCRIULogFile(c, stateDir, "snapshot", "dump")
+		if err2 != nil {
+			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
+		}
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
@@ -1355,7 +1400,7 @@ func (c *containerLXC) OnStop(target string) error {
 
 		// Reboot the container
 		if target == "reboot" {
-			c.Start()
+			c.Start(false)
 			return
 		}
 
@@ -1478,7 +1523,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	wasRunning := false
 	if c.IsRunning() {
 		wasRunning = true
-		if err := c.Stop(); err != nil {
+		if err := c.Stop(false); err != nil {
 			shared.Log.Error(
 				"Could not stop container",
 				log.Ctx{
@@ -1532,12 +1577,16 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 			shared.Log.Error("failed to delete snapshot state", "path", c.StatePath(), "err", err2)
 		}
 
-		return err
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	// Restart the container
 	if wasRunning {
-		return c.Start()
+		return c.Start(false)
 	}
 
 	return nil

@@ -92,7 +92,7 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 				return fmt.Errorf(i18n.G("The container is currently running, stop it first or pass --force."))
 			}
 
-			resp, err := d.Action(name, shared.Stop, -1, true)
+			resp, err := d.Action(name, shared.Stop, -1, true, false)
 			if err != nil {
 				return err
 			}

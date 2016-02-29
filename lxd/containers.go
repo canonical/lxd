@@ -114,7 +114,7 @@ func containersRestart(d *Daemon) error {
 				continue
 			}
 
-			c.Start()
+			c.Start(false)
 
 			autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
 			if err == nil {
@@ -155,7 +155,7 @@ func containersShutdown(d *Daemon) error {
 			wg.Add(1)
 			go func() {
 				c.Shutdown(time.Second * 30)
-				c.Stop()
+				c.Stop(false)
 				wg.Done()
 			}()
 		}

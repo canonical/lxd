@@ -7,13 +7,15 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
 	"github.com/lxc/lxd/shared"
 )
 
 type containerStatePutReq struct {
-	Action  string `json:"action"`
-	Timeout int    `json:"timeout"`
-	Force   bool   `json:"force"`
+	Action   string `json:"action"`
+	Timeout  int    `json:"timeout"`
+	Force    bool   `json:"force"`
+	Stateful bool   `json:"stateful"`
 }
 
 func containerState(d *Daemon, r *http.Request) Response {
@@ -53,15 +55,25 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	switch shared.ContainerAction(raw.Action) {
 	case shared.Start:
 		do = func(op *operation) error {
-			if err = c.Start(); err != nil {
+			if err = c.Start(raw.Stateful); err != nil {
 				return err
 			}
 			return nil
 		}
 	case shared.Stop:
-		if raw.Timeout == 0 || raw.Force {
+		if raw.Stateful {
 			do = func(op *operation) error {
-				if err = c.Stop(); err != nil {
+				err := c.Stop(raw.Stateful)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			}
+		} else if raw.Timeout == 0 || raw.Force {
+			do = func(op *operation) error {
+				err = c.Stop(false)
+				if err != nil {
 					return err
 				}
 
@@ -73,30 +85,36 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			}
 		} else {
 			do = func(op *operation) error {
-				if err = c.Shutdown(time.Duration(raw.Timeout) * time.Second); err != nil {
+				err = c.Shutdown(time.Duration(raw.Timeout) * time.Second)
+				if err != nil {
 					return err
 				}
 
 				if c.IsEphemeral() {
 					c.Delete()
 				}
+
 				return nil
 			}
 		}
 	case shared.Restart:
 		do = func(op *operation) error {
 			if raw.Timeout == 0 || raw.Force {
-				if err = c.Stop(); err != nil {
+				err = c.Stop(false)
+				if err != nil {
 					return err
 				}
 			} else {
-				if err = c.Shutdown(time.Duration(raw.Timeout) * time.Second); err != nil {
+				err = c.Shutdown(time.Duration(raw.Timeout) * time.Second)
+				if err != nil {
 					return err
 				}
 			}
-			if err = c.Start(); err != nil {
+			err = c.Start(false)
+			if err != nil {
 				return err
 			}
+
 			return nil
 		}
 	case shared.Freeze:
