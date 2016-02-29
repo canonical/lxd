@@ -220,6 +220,16 @@ func dbContainerConfigRemove(db *sql.DB, id int, name string) error {
 	return err
 }
 
+func dbContainerSetStateful(db *sql.DB, id int, stateful bool) error {
+	statefulInt := 0
+	if stateful {
+		statefulInt = 1
+	}
+
+	_, err := dbExec(db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
+	return err
+}
+
 func dbContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
 	applyOrder := 1
 	str := `INSERT INTO containers_profiles (container_id, profile_id, apply_order) VALUES

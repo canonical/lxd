@@ -70,6 +70,7 @@ type ContainerInfo struct {
 	ExpandedDevices Devices           `json:"expanded_devices"`
 	Name            string            `json:"name"`
 	Profiles        []string          `json:"profiles"`
+	Stateful        bool              `json:"stateful"`
 	Status          string            `json:"status"`
 	StatusCode      StatusCode        `json:"status_code"`
 }

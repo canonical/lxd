@@ -47,12 +47,7 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 
 	state := false
 
-	// Never store state unless asked to
-	if c.action == "start" && !c.stateless {
-		state = true
-	}
-
-	// Always restore state (if present) unless asked not to
+	// Only store state if asked to
 	if c.action == "stop" && c.stateful {
 		state = true
 	}
@@ -62,6 +57,23 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
+		}
+
+		if c.action == shared.Start || c.action == shared.Stop {
+			current, err := d.ContainerInfo(name)
+			if err != nil {
+				return err
+			}
+
+			// "start" for a frozen container means "unfreeze"
+			if current.StatusCode == shared.Frozen {
+				c.action = shared.Unfreeze
+			}
+
+			// Always restore state (if present) unless asked not to
+			if c.action == shared.Start && current.Stateful && !c.stateless {
+				state = true
+			}
 		}
 
 		resp, err := d.Action(name, c.action, c.timeout, c.force, state)
