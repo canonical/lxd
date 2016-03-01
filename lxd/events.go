@@ -51,6 +51,7 @@ type eventListener struct {
 	active       chan bool
 	id           string
 	msgLock      sync.Mutex
+	wgUsed       sync.WaitGroup
 }
 
 type eventsServe struct {
@@ -109,18 +110,20 @@ func eventSend(eventType string, eventMessage interface{}) error {
 
 	eventsLock.Lock()
 	listeners := eventListeners
-	eventsLock.Unlock()
-
 	for _, listener := range listeners {
 		if !shared.StringInSlice(eventType, listener.messageTypes) {
 			continue
 		}
 
+		listener.wgUsed.Add(1)
 		go func(listener *eventListener, body []byte) {
 			listener.msgLock.Lock()
 			err = listener.connection.WriteMessage(websocket.TextMessage, body)
 			listener.msgLock.Unlock()
+			listener.wgUsed.Done()
+
 			if err != nil {
+				listener.wgUsed.Wait()
 				listener.connection.Close()
 				listener.active <- false
 
@@ -129,9 +132,12 @@ func eventSend(eventType string, eventMessage interface{}) error {
 				eventsLock.Unlock()
 
 				shared.Debugf("Disconnected events listener: %s", listener.id)
+				return
 			}
+
 		}(listener, body)
 	}
+	eventsLock.Unlock()
 
 	return nil
 }
