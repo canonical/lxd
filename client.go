@@ -370,7 +370,7 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 	return HoistResponse(resp, Sync)
 }
 
-func (c *Client) put(base string, args shared.Jmap, rtype ResponseType) (*Response, error) {
+func (c *Client) put(base string, args interface{}, rtype ResponseType) (*Response, error) {
 	uri := c.url(shared.APIVersion, base)
 
 	buf := bytes.Buffer{}
@@ -396,7 +396,7 @@ func (c *Client) put(base string, args shared.Jmap, rtype ResponseType) (*Respon
 	return HoistResponse(resp, rtype)
 }
 
-func (c *Client) post(base string, args shared.Jmap, rtype ResponseType) (*Response, error) {
+func (c *Client) post(base string, args interface{}, rtype ResponseType) (*Response, error) {
 	uri := c.url(shared.APIVersion, base)
 
 	buf := bytes.Buffer{}
@@ -446,7 +446,7 @@ func (c *Client) getRaw(uri string) (*http.Response, error) {
 	return raw, nil
 }
 
-func (c *Client) delete(base string, args shared.Jmap, rtype ResponseType) (*Response, error) {
+func (c *Client) delete(base string, args interface{}, rtype ResponseType) (*Response, error) {
 	uri := c.url(shared.APIVersion, base)
 
 	buf := bytes.Buffer{}
@@ -1031,11 +1031,7 @@ func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
 }
 
 func (c *Client) PutImageInfo(name string, p shared.BriefImageInfo) error {
-	body := shared.Jmap{}
-	body["public"] = p.Public
-	body["properties"] = p.Properties
-
-	_, err := c.put(fmt.Sprintf("images/%s", name), body, Sync)
+	_, err := c.put(fmt.Sprintf("images/%s", name), p, Sync)
 	return err
 }
 
@@ -1730,15 +1726,12 @@ func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
 	}
 
 	ss.Config[key] = value
-	body := shared.Jmap{"config": ss.Config}
 
-	return c.put("", body, Sync)
+	return c.put("", ss, Sync)
 }
 
 func (c *Client) UpdateServerConfig(ss shared.BriefServerState) (*Response, error) {
-	body := shared.Jmap{"config": ss.Config}
-
-	return c.put("", body, Sync)
+	return c.put("", ss, Sync)
 }
 
 /*
@@ -1776,13 +1769,12 @@ func (c *Client) SetContainerConfig(container, key, value string) error {
 		st.Config[key] = value
 	}
 
-	body := shared.Jmap{"config": st.Config, "profiles": st.Profiles, "name": container, "devices": st.Devices}
 	/*
 	 * Although container config is an async operation (we PUT to restore a
 	 * snapshot), we expect config to be a sync operation, so let's just
 	 * handle it here.
 	 */
-	resp, err := c.put(fmt.Sprintf("containers/%s", container), body, Async)
+	resp, err := c.put(fmt.Sprintf("containers/%s", container), st, Async)
 	if err != nil {
 		return err
 	}
@@ -1791,12 +1783,7 @@ func (c *Client) SetContainerConfig(container, key, value string) error {
 }
 
 func (c *Client) UpdateContainerConfig(container string, st shared.BriefContainerInfo) error {
-	body := shared.Jmap{"name": container,
-		"profiles":  st.Profiles,
-		"config":    st.Config,
-		"devices":   st.Devices,
-		"ephemeral": st.Ephemeral}
-	resp, err := c.put(fmt.Sprintf("containers/%s", container), body, Async)
+	resp, err := c.put(fmt.Sprintf("containers/%s", container), st, Async)
 	if err != nil {
 		return err
 	}
@@ -1838,8 +1825,7 @@ func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 		st.Config[key] = value
 	}
 
-	body := shared.Jmap{"name": profile, "config": st.Config, "devices": st.Devices}
-	_, err = c.put(fmt.Sprintf("profiles/%s", profile), body, Sync)
+	_, err = c.put(fmt.Sprintf("profiles/%s", profile), st, Sync)
 	return err
 }
 
@@ -1847,8 +1833,8 @@ func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
 	if profile.Name != name {
 		return fmt.Errorf("Cannot change profile name")
 	}
-	body := shared.Jmap{"name": name, "description": profile.Description, "config": profile.Config, "devices": profile.Devices}
-	_, err := c.put(fmt.Sprintf("profiles/%s", name), body, Sync)
+
+	_, err := c.put(fmt.Sprintf("profiles/%s", name), profile, Sync)
 	return err
 }
 
@@ -1894,10 +1880,10 @@ func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	profiles := strings.Split(profile, ",")
-	body := shared.Jmap{"config": st.Config, "profiles": profiles, "name": st.Name, "devices": st.Devices}
 
-	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
+	st.Profiles = strings.Split(profile, ",")
+
+	return c.put(fmt.Sprintf("containers/%s", container), st, Async)
 }
 
 func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, error) {
@@ -1908,8 +1894,7 @@ func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, er
 
 	delete(st.Devices, devname)
 
-	body := shared.Jmap{"config": st.Config, "profiles": st.Profiles, "name": st.Name, "devices": st.Devices}
-	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
+	return c.put(fmt.Sprintf("containers/%s", container), st, Async)
 }
 
 func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []string) (*Response, error) {
@@ -1928,17 +1913,19 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 		v := results[1]
 		newdev[k] = v
 	}
+
 	if st.Devices != nil && st.Devices.ContainsName(devname) {
 		return nil, fmt.Errorf("device already exists")
 	}
+
 	newdev["type"] = devtype
 	if st.Devices == nil {
 		st.Devices = shared.Devices{}
 	}
+
 	st.Devices[devname] = newdev
 
-	body := shared.Jmap{"config": st.Config, "profiles": st.Profiles, "name": st.Name, "devices": st.Devices}
-	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
+	return c.put(fmt.Sprintf("containers/%s", container), st, Async)
 }
 
 func (c *Client) ContainerListDevices(container string) ([]string, error) {
@@ -1965,8 +1952,7 @@ func (c *Client) ProfileDeviceDelete(profile, devname string) (*Response, error)
 		}
 	}
 
-	body := shared.Jmap{"config": st.Config, "name": st.Name, "devices": st.Devices}
-	return c.put(fmt.Sprintf("profiles/%s", profile), body, Sync)
+	return c.put(fmt.Sprintf("profiles/%s", profile), st, Sync)
 }
 
 func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []string) (*Response, error) {
@@ -1994,8 +1980,7 @@ func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []stri
 	}
 	st.Devices[devname] = newdev
 
-	body := shared.Jmap{"config": st.Config, "name": st.Name, "devices": st.Devices}
-	return c.put(fmt.Sprintf("profiles/%s", profile), body, Sync)
+	return c.put(fmt.Sprintf("profiles/%s", profile), st, Sync)
 }
 
 func (c *Client) ProfileListDevices(profile string) ([]string, error) {
