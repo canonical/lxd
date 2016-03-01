@@ -358,12 +358,19 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
+		handler := func(percent int) {
+			fmt.Printf(i18n.G("Transfering image: %d%%")+"\r", percent)
+			if percent == 100 {
+				fmt.Printf("\n")
+			}
+		}
+
 		if strings.HasPrefix(imageFile, "https://") {
 			fingerprint, err = d.PostImageURL(imageFile, c.publicImage, c.addAliases)
 		} else if strings.HasPrefix(imageFile, "http://") {
 			return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
 		} else {
-			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, c.publicImage, c.addAliases)
+			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, c.publicImage, c.addAliases, handler)
 		}
 
 		if err != nil {
