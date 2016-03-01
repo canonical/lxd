@@ -1376,6 +1376,8 @@ func (c *containerLXC) OnStop(target string) error {
 
 	// FIXME: The go routine can go away once we can rely on LXC_TARGET
 	go func(c *containerLXC, target string, wg *sync.WaitGroup) {
+		c.fromHook = false
+
 		// Unlock on return
 		if wg != nil {
 			defer wg.Done()
@@ -1416,6 +1418,23 @@ func (c *containerLXC) OnStop(target string) error {
 
 		// Reboot the container
 		if target == "reboot" {
+
+			/* This part is a hack to workaround a LXC bug where a
+			   failure from a post-stop script doesn't prevent the container to restart. */
+			ephemeral := c.ephemeral
+			args := containerArgs{
+				Architecture: c.Architecture(),
+				Config:       c.LocalConfig(),
+				Devices:      c.LocalDevices(),
+				Ephemeral:    false,
+				Profiles:     c.Profiles(),
+			}
+			c.Update(args, false)
+			c.Stop(false)
+			args.Ephemeral = ephemeral
+			c.Update(args, true)
+
+			// Start the container again
 			c.Start(false)
 			return
 		}

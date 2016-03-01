@@ -244,17 +244,26 @@ test_basic_usage() {
   OLD_INIT=$(lxc info foo | grep ^Pid)
   lxc exec foo reboot
 
+  REBOOTED="false"
+
   # shellcheck disable=SC2034
   for i in $(seq 10); do
     NEW_INIT=$(lxc info foo | grep ^Pid || true)
 
     if [ -n "${NEW_INIT}" ] && [ "${OLD_INIT}" != "${NEW_INIT}" ]; then
+      REBOOTED="true"
       break
     fi
 
     sleep 0.5
   done
 
-  lxc stop foo --force
+  [ "${REBOOTED}" = "true" ]
+
+  # Workaround for LXC bug which causes LXD to double-start containers
+  # on reboot
+  sleep 2
+
+  lxc stop foo --force || true
   ! lxc list | grep -q foo
 }
