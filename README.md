@@ -38,7 +38,7 @@ via the LXD PPA:
     sudo apt-get install software-properties-common
     sudo add-apt-repository ppa:ubuntu-lxc/lxd-git-master
     sudo apt-get update
-    sudo apt-get install golang lxc lxc-dev mercurial git pkg-config protobuf-compiler golang-goprotobuf-dev xz-utils tar acl
+    sudo apt-get install golang lxc lxc-dev mercurial git pkg-config protobuf-compiler golang-goprotobuf-dev xz-utils tar acl make
 
 There are a few storage backends for LXD besides the default "directory"
 backend. Installing these tools adds a bit to initramfs and may slow down your
