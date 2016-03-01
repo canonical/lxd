@@ -72,6 +72,7 @@ type imageCmd struct {
 	addAliases  aliasList
 	publicImage bool
 	copyAliases bool
+	autoUpdate  bool
 }
 
 func (c *imageCmd) showByDefault() bool {
@@ -110,8 +111,11 @@ hash or alias name (if one is set).
 lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]
     Import an image tarball (or tarballs) into the LXD image store.
 
-lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public]
+lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public] [--auto-update]
     Copy an image from one LXD daemon to another over the network.
+
+    The auto-update flag instructs the server to keep this image up to
+    date. It requires the source to be an alias and for it to be public.
 
 lxc image delete [remote:]<image>
     Delete an image from the LXD image store.
@@ -149,6 +153,7 @@ lxc image alias list [remote:]
 func (c *imageCmd) flags() {
 	gnuflag.BoolVar(&c.publicImage, "public", false, i18n.G("Make image public"))
 	gnuflag.BoolVar(&c.copyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
+	gnuflag.BoolVar(&c.autoUpdate, "auto-update", false, i18n.G("Keep the image up to date after initial copy"))
 	gnuflag.Var(&c.addAliases, "alias", i18n.G("New alias to define at target"))
 }
 
@@ -245,7 +250,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			fmt.Printf(i18n.G("Copying the image: %s")+"\r", progress)
 		}
 
-		err = d.CopyImage(inName, dest, c.copyAliases, c.addAliases, c.publicImage, progressHandler)
+		err = d.CopyImage(inName, dest, c.copyAliases, c.addAliases, c.publicImage, c.autoUpdate, progressHandler)
 		if err == nil {
 			fmt.Println(i18n.G("Image copied successfully!"))
 		}
@@ -286,13 +291,18 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
-		public := i18n.G("no")
 
+		public := i18n.G("no")
 		if info.Public {
 			public = i18n.G("yes")
 		}
 
+		autoUpdate := i18n.G("disabled")
+		if info.AutoUpdate {
+			autoUpdate = i18n.G("enabled")
+		}
+
+		fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
 		fmt.Printf(i18n.G("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
 		fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
 		fmt.Printf(i18n.G("Public: %s")+"\n", public)
@@ -314,6 +324,13 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		fmt.Println(i18n.G("Aliases:"))
 		for _, alias := range info.Aliases {
 			fmt.Printf("    - %s\n", alias.Name)
+		}
+		fmt.Printf(i18n.G("Auto update: %s")+"\n", autoUpdate)
+		if info.Source != nil {
+			fmt.Println(i18n.G("Source:"))
+			fmt.Printf("    Server: %s\n", info.Source.Server)
+			fmt.Printf("    Protocol: %s\n", info.Source.Protocol)
+			fmt.Printf("    Alias: %s\n", info.Source.Alias)
 		}
 		return nil
 

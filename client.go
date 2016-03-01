@@ -565,7 +565,7 @@ func (c *Client) ListContainers() ([]shared.ContainerInfo, error) {
 	return result, nil
 }
 
-func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string, public bool, progressHandler func(progress string)) error {
+func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliases []string, public bool, autoUpdate bool, progressHandler func(progress string)) error {
 	source := shared.Jmap{
 		"type":        "image",
 		"mode":        "pull",
@@ -652,7 +652,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		sourceUrl := "https://" + addr
 
 		source["server"] = sourceUrl
-		body := shared.Jmap{"public": public, "source": source}
+		body := shared.Jmap{"public": public, "auto_update": autoUpdate, "source": source}
 
 		resp, err := dest.post("images", body, Async)
 		if err != nil {

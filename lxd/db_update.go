@@ -15,6 +15,23 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV26(db *sql.DB) error {
+	stmt := `
+ALTER TABLE images ADD COLUMN auto_update INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS images_source (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    image_id INTEGER NOT NULL,
+    server TEXT NOT NULL,
+    protocol INTEGER NOT NULL,
+    certificate TEXT NOT NULL,
+    alias VARCHAR(255) NOT NULL,
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
+);
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 27)
+	return err
+}
+
 func dbUpdateFromV25(db *sql.DB) error {
 	stmt := `
 INSERT INTO profiles (name, description) VALUES ("docker", "Profile supporting docker in containers");
@@ -938,6 +955,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 26 {
 		err = dbUpdateFromV25(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 27 {
+		err = dbUpdateFromV26(db)
 		if err != nil {
 			return err
 		}
