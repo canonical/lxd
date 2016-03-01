@@ -2,12 +2,19 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
 )
+
+var dbImageSourceProtocol = map[int]string{
+	0: "lxd",
+	1: "direct",
+	2: "simplestreams",
+}
 
 func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
 	q := "SELECT fingerprint FROM images"
@@ -31,6 +38,72 @@ func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
 	return results, nil
 }
 
+func dbImagesGetExpired(db *sql.DB, expiry int) ([]string, error) {
+	q := `SELECT fingerprint FROM images WHERE cached=1 AND creation_date<=strftime('%s', date('now', '-` + fmt.Sprintf("%d", expiry) + ` day'))`
+
+	var fp string
+	inargs := []interface{}{}
+	outfmt := []interface{}{fp}
+	dbResults, err := dbQueryScan(db, q, inargs, outfmt)
+	if err != nil {
+		return []string{}, err
+	}
+
+	results := []string{}
+	for _, r := range dbResults {
+		results = append(results, r[0].(string))
+	}
+
+	return results, nil
+}
+
+func dbImageSourceInsert(db *sql.DB, imageId int, server string, protocol string, certificate string, alias string) error {
+	stmt := `INSERT INTO images_source (image_id, server, protocol, certificate, alias) values (?, ?, ?, ?, ?)`
+
+	protocolInt := -1
+	for protoInt, protoString := range dbImageSourceProtocol {
+		if protoString == protocol {
+			protocolInt = protoInt
+		}
+	}
+
+	if protocolInt == -1 {
+		return fmt.Errorf("Invalid protocol: %s", protocol)
+	}
+
+	_, err := dbExec(db, stmt, imageId, server, protocolInt, certificate, alias)
+	return err
+}
+
+func dbImageSourceGet(db *sql.DB, imageId int) (int, shared.ImageSource, error) {
+	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
+
+	id := 0
+	protocolInt := -1
+	result := shared.ImageSource{}
+
+	arg1 := []interface{}{imageId}
+	arg2 := []interface{}{&id, &result.Server, &protocolInt, &result.Certificate, &result.Alias}
+	err := dbQueryRowScan(db, q, arg1, arg2)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, shared.ImageSource{}, NoSuchObjectError
+		}
+
+		return -1, shared.ImageSource{}, err
+	}
+
+	protocol, found := dbImageSourceProtocol[protocolInt]
+	if !found {
+		return -1, shared.ImageSource{}, fmt.Errorf("Invalid protocol: %d", protocolInt)
+	}
+
+	result.Protocol = protocol
+
+	return id, result, nil
+
+}
+
 // dbImageGet gets an ImageBaseInfo object from the database.
 // The argument fingerprint will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
@@ -47,7 +120,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 
 	// These two humongous things will be filled by the call to DbQueryRowScan
 	outfmt := []interface{}{&id, &image.Fingerprint, &image.Filename,
-		&image.Size, &image.Cached, &image.Public, &arch,
+		&image.Size, &image.Cached, &image.Public, &image.AutoUpdate, &arch,
 		&create, &expire, &used, &upload}
 
 	var query string
@@ -57,7 +130,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 		inargs = []interface{}{fingerprint}
 		query = `
         SELECT
-            id, fingerprint, filename, size, cached, public, architecture,
+            id, fingerprint, filename, size, cached, public, auto_update, architecture,
             creation_date, expiry_date, last_use_date, upload_date
         FROM
             images
@@ -66,7 +139,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 		inargs = []interface{}{fingerprint + "%"}
 		query = `
         SELECT
-            id, fingerprint, filename, size, cached, public, architecture,
+            id, fingerprint, filename, size, cached, public, auto_update, architecture,
             creation_date, expiry_date, last_use_date, upload_date
         FROM
             images
@@ -145,6 +218,11 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 
 	image.Aliases = aliases
 
+	_, source, err := dbImageSourceGet(db, id)
+	if err == nil {
+		image.Source = &source
+	}
+
 	return id, &image, nil
 }
 
@@ -156,6 +234,7 @@ func dbImageDelete(db *sql.DB, id int) error {
 
 	_, _ = tx.Exec("DELETE FROM images_aliases WHERE image_id=?", id)
 	_, _ = tx.Exec("DELETE FROM images_properties WHERE image_id=?", id)
+	_, _ = tx.Exec("DELETE FROM images_source WHERE image_id=?", id)
 	_, _ = tx.Exec("DELETE FROM images WHERE id=?", id)
 
 	if err := txCommit(tx); err != nil {
@@ -202,6 +281,11 @@ func dbImageAliasDelete(db *sql.DB, name string) error {
 	return err
 }
 
+func dbImageAliasesMove(db *sql.DB, source int, destination int) error {
+	_, err := dbExec(db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
+	return err
+}
+
 // Insert an alias ento the database.
 func dbImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
 	stmt := `INSERT INTO images_aliases (name, image_id, description) values (?, ?, ?)`
@@ -215,9 +299,9 @@ func dbImageAliasUpdate(db *sql.DB, id int, imageID int, desc string) error {
 	return err
 }
 
-func dbImageLastAccessUpdate(db *sql.DB, fingerprint string) error {
-	stmt := `UPDATE images SET last_use_date=strftime("%s") WHERE fingerprint=?`
-	_, err := dbExec(db, stmt, fingerprint)
+func dbImageLastAccessUpdate(db *sql.DB, fingerprint string, date time.Time) error {
+	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
+	_, err := dbExec(db, stmt, date, fingerprint)
 	return err
 }
 
@@ -227,23 +311,7 @@ func dbImageLastAccessInit(db *sql.DB, fingerprint string) error {
 	return err
 }
 
-func dbImageExpiryGet(db *sql.DB) (string, error) {
-	q := `SELECT value FROM config WHERE key='images.remote_cache_expiry'`
-	arg1 := []interface{}{}
-	var expiry string
-	arg2 := []interface{}{&expiry}
-	err := dbQueryRowScan(db, q, arg1, arg2)
-	switch err {
-	case sql.ErrNoRows:
-		return "10", nil
-	case nil:
-		return expiry, nil
-	default:
-		return "", err
-	}
-}
-
-func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, architecture string, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
+func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
 	arch, err := shared.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -254,19 +322,24 @@ func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, arch
 		return err
 	}
 
-	sqlPublic := 0
+	publicInt := 0
 	if public {
-		sqlPublic = 1
+		publicInt = 1
 	}
 
-	stmt, err := tx.Prepare(`UPDATE images SET filename=?, size=?, public=?, architecture=?, creation_date=?, expiry_date=? WHERE id=?`)
+	autoUpdateInt := 0
+	if autoUpdate {
+		autoUpdateInt = 1
+	}
+
+	stmt, err := tx.Prepare(`UPDATE images SET filename=?, size=?, public=?, auto_update=?, architecture=?, creation_date=?, expiry_date=? WHERE id=?`)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(fname, sz, sqlPublic, arch, creationDate, expiryDate, id)
+	_, err = stmt.Exec(fname, sz, publicInt, autoUpdateInt, arch, creationDate, expiryDate, id)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -295,7 +368,7 @@ func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, arch
 	return nil
 }
 
-func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, architecture string, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
+func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
 	arch, err := shared.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -306,19 +379,24 @@ func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, a
 		return err
 	}
 
-	sqlPublic := 0
+	publicInt := 0
 	if public {
-		sqlPublic = 1
+		publicInt = 1
 	}
 
-	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, strftime("%s"))`)
+	autoUpdateInt := 0
+	if autoUpdate {
+		autoUpdateInt = 1
+	}
+
+	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime("%s"))`)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 	defer stmt.Close()
 
-	result, err := stmt.Exec(fp, fname, sz, sqlPublic, arch, creationDate, expiryDate)
+	result, err := stmt.Exec(fp, fname, sz, publicInt, autoUpdateInt, arch, creationDate, expiryDate)
 	if err != nil {
 		tx.Rollback()
 		return err
