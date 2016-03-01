@@ -865,7 +865,7 @@ func (c *Client) PostImageURL(imageFile string, public bool, aliases []string) (
 	return fingerprint, nil
 }
 
-func (c *Client) PostImage(imageFile string, rootfsFile string, properties []string, public bool, aliases []string) (string, error) {
+func (c *Client) PostImage(imageFile string, rootfsFile string, properties []string, public bool, aliases []string, progressHandler func(percent int)) (string, error) {
 	uri := c.url(shared.APIVersion, "images")
 
 	var err error
@@ -873,13 +873,13 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 	var fRootfs *os.File
 	var req *http.Request
 
-	fImage, err = os.Open(imageFile)
-	if err != nil {
-		return "", err
-	}
-	defer fImage.Close()
-
 	if rootfsFile != "" {
+		fImage, err = os.Open(imageFile)
+		if err != nil {
+			return "", err
+		}
+		defer fImage.Close()
+
 		fRootfs, err = os.Open(rootfsFile)
 		if err != nil {
 			return "", err
@@ -918,15 +918,35 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 
 		w.Close()
 
+		size, err := body.Seek(0, 2)
+		if err != nil {
+			return "", err
+		}
+
 		_, err = body.Seek(0, 0)
 		if err != nil {
 			return "", err
 		}
 
-		req, err = http.NewRequest("POST", uri, body)
+		progress := &shared.TransferProgress{Reader: body, Length: size, Handler: progressHandler}
+
+		req, err = http.NewRequest("POST", uri, progress)
 		req.Header.Set("Content-Type", w.FormDataContentType())
 	} else {
-		req, err = http.NewRequest("POST", uri, fImage)
+		fImage, err = os.Open(imageFile)
+		if err != nil {
+			return "", err
+		}
+		defer fImage.Close()
+
+		stat, err := fImage.Stat()
+		if err != nil {
+			return "", err
+		}
+
+		progress := &shared.TransferProgress{Reader: fImage, Length: stat.Size(), Handler: progressHandler}
+
+		req, err = http.NewRequest("POST", uri, progress)
 		req.Header.Set("X-LXD-filename", filepath.Base(imageFile))
 		req.Header.Set("Content-Type", "application/octet-stream")
 	}
