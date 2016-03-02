@@ -59,6 +59,10 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
+		if name == "" {
+			return fmt.Errorf(i18n.G("Must supply container name for: ")+"\"%s\"", nameArg)
+		}
+
 		if c.action == shared.Start || c.action == shared.Stop {
 			current, err := d.ContainerInfo(name)
 			if err != nil {
