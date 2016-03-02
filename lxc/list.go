@@ -79,6 +79,7 @@ The columns are:
 * p - pid of container init process
 * P - profiles
 * s - state
+* S - number of snapshots
 * t - type (persistent or ephemeral)
 
 Default column layout: ns46tS
