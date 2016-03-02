@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-03-02 16:32-0500\n"
+        "POT-Creation-Date: 2016-03-02 17:16-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -86,7 +86,7 @@ msgstr  ""
 msgid   "ARCH"
 msgstr  ""
 
-#: lxc/list.go:335
+#: lxc/list.go:336
 msgid   "ARCHITECTURE"
 msgstr  ""
 
@@ -125,7 +125,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: lxc/list.go:336
+#: lxc/list.go:337
 msgid   "CREATED AT"
 msgstr  ""
 
@@ -159,7 +159,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/list.go:89 lxc/list.go:90
+#: lxc/list.go:90 lxc/list.go:91
 msgid   "Columns"
 msgstr  ""
 
@@ -261,7 +261,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:419
+#: lxc/list.go:420
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -310,7 +310,7 @@ msgstr  ""
 msgid   "FINGERPRINT"
 msgstr  ""
 
-#: lxc/list.go:91
+#: lxc/list.go:92
 msgid   "Fast mode (same as --columns=nsacPt"
 msgstr  ""
 
@@ -341,11 +341,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:333
+#: lxc/list.go:334
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:334
+#: lxc/list.go:335
 msgid   "IPV6"
 msgstr  ""
 
@@ -454,6 +454,7 @@ msgid   "Lists the available resources.\n"
         "* p - pid of container init process\n"
         "* P - profiles\n"
         "* s - state\n"
+        "* S - number of snapshots\n"
         "* t - type (persistent or ephemeral)\n"
         "\n"
         "Default column layout: ns46tS\n"
@@ -659,7 +660,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:337 lxc/remote.go:323
+#: lxc/list.go:338 lxc/remote.go:323
 msgid   "NAME"
 msgstr  ""
 
@@ -701,15 +702,15 @@ msgstr  ""
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:421
+#: lxc/list.go:422
 msgid   "PERSISTENT"
 msgstr  ""
 
-#: lxc/list.go:338
+#: lxc/list.go:339
 msgid   "PID"
 msgstr  ""
 
-#: lxc/list.go:339
+#: lxc/list.go:340
 msgid   "PROFILES"
 msgstr  ""
 
@@ -840,11 +841,11 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:340
+#: lxc/list.go:341
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:341
+#: lxc/list.go:342
 msgid   "STATE"
 msgstr  ""
 
@@ -932,7 +933,7 @@ msgstr  ""
 msgid   "Store the container state (only for stop)."
 msgstr  ""
 
-#: lxc/list.go:342
+#: lxc/list.go:343
 msgid   "TYPE"
 msgstr  ""
 
