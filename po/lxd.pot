@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-03-01 00:43-0500\n"
+        "POT-Creation-Date: 2016-03-02 14:02-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -650,6 +650,10 @@ msgid   "Move containers within or in between lxd instances.\n"
         "    Rename a local container.\n"
 msgstr  ""
 
+#: lxc/action.go:63
+msgid   "Must supply container name for: "
+msgstr  ""
+
 #: lxc/list.go:336 lxc/remote.go:312
 msgid   "NAME"
 msgstr  ""
@@ -944,7 +948,7 @@ msgstr  ""
 msgid   "Transfering image: %d%%"
 msgstr  ""
 
-#: lxc/action.go:89 lxc/launch.go:130
+#: lxc/action.go:93 lxc/launch.go:130
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -1007,7 +1011,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: lxc/action.go:85
+#: lxc/action.go:89
 msgid   "bad result type from action"
 msgstr  ""
 
