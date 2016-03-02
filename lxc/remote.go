@@ -27,6 +27,7 @@ type remoteCmd struct {
 	acceptCert bool
 	password   string
 	public     bool
+	protocol   string
 }
 
 func (c *remoteCmd) showByDefault() bool {
@@ -37,25 +38,38 @@ func (c *remoteCmd) usage() string {
 	return i18n.G(
 		`Manage remote LXD servers.
 
-lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD] [--public]    Add the remote <name> at <url>.
-lxc remote remove <name>                                                               Remove the remote <name>.
-lxc remote list                                                                        List all remotes.
-lxc remote rename <old> <new>                                                          Rename remote <old> to <new>.
-lxc remote set-url <name> <url>                                                        Update <name>'s url to <url>.
-lxc remote set-default <name>                                                          Set the default remote.
-lxc remote get-default                                                                 Print the default remote.`)
+lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD]
+                            [--public] [--protocol=PROTOCOL]                Add the remote <name> at <url>.
+lxc remote remove <name>                                                    Remove the remote <name>.
+lxc remote list                                                             List all remotes.
+lxc remote rename <old> <new>                                               Rename remote <old> to <new>.
+lxc remote set-url <name> <url>                                             Update <name>'s url to <url>.
+lxc remote set-default <name>                                               Set the default remote.
+lxc remote get-default                                                      Print the default remote.`)
 }
 
 func (c *remoteCmd) flags() {
 	gnuflag.BoolVar(&c.acceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
 	gnuflag.StringVar(&c.password, "password", "", i18n.G("Remote admin password"))
+	gnuflag.StringVar(&c.protocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)"))
 	gnuflag.BoolVar(&c.public, "public", false, i18n.G("Public image server"))
 }
 
-func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, acceptCert bool, password string, public bool) error {
+func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, acceptCert bool, password string, public bool, protocol string) error {
 	var rScheme string
 	var rHost string
 	var rPort string
+
+	// Setup the remotes list
+	if config.Remotes == nil {
+		config.Remotes = make(map[string]lxd.RemoteConfig)
+	}
+
+	// Fast track simplestreams
+	if protocol == "simplestreams" {
+		config.Remotes[server] = lxd.RemoteConfig{Addr: addr, Public: true, Protocol: protocol}
+		return nil
+	}
 
 	/* Complex remote URL parsing */
 	remoteURL, err := url.Parse(addr)
@@ -118,12 +132,8 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 		addr = rScheme + "://" + rHost
 	}
 
-	if config.Remotes == nil {
-		config.Remotes = make(map[string]lxd.RemoteConfig)
-	}
-
 	/* Actually add the remote */
-	config.Remotes[server] = lxd.RemoteConfig{Addr: addr}
+	config.Remotes[server] = lxd.RemoteConfig{Addr: addr, Protocol: protocol}
 
 	remote := config.ParseRemote(server)
 	d, err := lxd.NewClient(config, remote)
@@ -252,7 +262,7 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf(i18n.G("remote %s exists as <%s>"), args[1], rc.Addr)
 		}
 
-		err := c.addServer(config, args[1], args[2], c.acceptCert, c.password, c.public)
+		err := c.addServer(config, args[1], args[2], c.acceptCert, c.password, c.public, c.protocol)
 		if err != nil {
 			delete(config.Remotes, args[1])
 			c.removeCertificate(config, args[1])
