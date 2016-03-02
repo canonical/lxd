@@ -1169,7 +1169,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 	source := shared.Jmap{"type": "image"}
 
 	if image == "" {
-		return nil, fmt.Errorf("You must provide an image hash or alias name.")
+		image = "default"
 	}
 
 	if imgremote != c.Name {
