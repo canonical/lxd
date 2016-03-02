@@ -322,6 +322,9 @@ func getFromMap(fname string, username string) (int, int, error) {
 			}
 			min = int(bigmin)
 			idrange = int(bigIdrange)
+			if idrange < minIDRange {
+				continue
+			}
 			return min, idrange, nil
 		}
 	}
@@ -373,14 +376,6 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if urange < minIDRange {
-		return nil, fmt.Errorf("uidrange less than %d", minIDRange)
-	}
-
-	if grange < minIDRange {
-		return nil, fmt.Errorf("gidrange less than %d", minIDRange)
 	}
 
 	m := new(IdmapSet)
