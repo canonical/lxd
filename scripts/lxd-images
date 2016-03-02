@@ -562,6 +562,12 @@ if __name__ == "__main__":
         setup_alias(args.alias, fingerprint)
 
     def import_ubuntu(parser, args):
+        sys.stderr.write(
+            'lxd-images is deprecated and will gone by LXD 2.0 final\n')
+        sys.stderr.write(
+            'Please update use the ubuntu: and ubuntu-daily: remotes\n')
+        sys.stderr.write('\n')
+
         if args.stream == "auto":
             for stream in ("releases", "daily"):
                 ubuntu = Ubuntu(stream=stream)
