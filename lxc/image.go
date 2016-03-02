@@ -229,18 +229,22 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) != 3 {
 			return errArgs
 		}
+
 		remote, inName := config.ParseRemoteAndContainer(args[1])
 		if inName == "" {
-			return errArgs
+			inName = "default"
 		}
+
 		destRemote, outName := config.ParseRemoteAndContainer(args[2])
 		if outName != "" {
 			return errArgs
 		}
+
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
+
 		dest, err := lxd.NewClient(config, destRemote)
 		if err != nil {
 			return err
@@ -261,14 +265,17 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) < 2 {
 			return errArgs
 		}
+
 		remote, inName := config.ParseRemoteAndContainer(args[1])
 		if inName == "" {
-			return errArgs
+			inName = "default"
 		}
+
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
 		}
+
 		image := c.dereferenceAlias(d, inName)
 		err = d.DeleteImage(image)
 		return err
@@ -277,10 +284,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) < 2 {
 			return errArgs
 		}
+
 		remote, inName := config.ParseRemoteAndContainer(args[1])
 		if inName == "" {
-			return errArgs
+			inName = "default"
 		}
+
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
@@ -437,7 +446,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 
 		remote, inName := config.ParseRemoteAndContainer(args[1])
 		if inName == "" {
-			return errArgs
+			inName = "default"
 		}
 
 		d, err := lxd.NewClient(config, remote)
@@ -459,7 +468,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 
 		remote, inName := config.ParseRemoteAndContainer(args[1])
 		if inName == "" {
-			return errArgs
+			inName = "default"
 		}
 
 		d, err := lxd.NewClient(config, remote)
@@ -488,10 +497,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) < 2 {
 			return errArgs
 		}
+
 		remote, inName := config.ParseRemoteAndContainer(args[1])
 		if inName == "" {
-			return errArgs
+			inName = "default"
 		}
+
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
