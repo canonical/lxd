@@ -34,7 +34,7 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 26
+const DB_CURRENT_VERSION int = 27
 
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS images (
     filename VARCHAR(255) NOT NULL,
     size INTEGER NOT NULL,
     public INTEGER NOT NULL DEFAULT 0,
+    auto_update INTEGER NOT NULL DEFAULT 0,
     architecture INTEGER NOT NULL,
     creation_date DATETIME,
     expiry_date DATETIME,
@@ -123,6 +124,15 @@ CREATE TABLE IF NOT EXISTS images_properties (
     type INTEGER NOT NULL,
     key VARCHAR(255) NOT NULL,
     value TEXT,
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS images_source (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    image_id INTEGER NOT NULL,
+    server TEXT NOT NULL,
+    protocol INTEGER NOT NULL,
+    certificate TEXT NOT NULL,
+    alias VARCHAR(255) NOT NULL,
     FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS profiles (

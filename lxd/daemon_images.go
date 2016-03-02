@@ -17,19 +17,36 @@ import (
 
 // ImageDownload checks if we have that Image Fingerprint else
 // downloads the image from a remote server.
-func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, fp string, forContainer bool) (string, error) {
+func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool) (string, error) {
 	var err error
 	var ss *shared.SimpleStreams
+	fp := alias
 
+	// Expand aliases
 	if protocol == "simplestreams" {
 		ss, err = shared.SimpleStreamsClient(server)
 		if err != nil {
 			return "", err
 		}
 
-		fp = ss.GetAlias(fp)
-		if fp == "" {
-			return "", fmt.Errorf("The requested image couldn't be found.")
+		target := ss.GetAlias(fp)
+		if target != "" {
+			fp = target
+		}
+
+		image, err := ss.GetImageInfo(fp)
+		if err != nil {
+			return "", err
+		}
+
+		if fp == alias {
+			alias = image.Fingerprint
+		}
+		fp = image.Fingerprint
+	} else if protocol == "lxd" {
+		target, err := remoteGetImageFingerprint(d, server, certificate, fp)
+		if err == nil && target != "" {
+			fp = target
 		}
 	}
 
@@ -175,10 +192,23 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 
 		info.Public = false
+		info.AutoUpdate = autoUpdate
 
 		_, err = imageBuildFromInfo(d, *info)
 		if err != nil {
 			return "", err
+		}
+
+		if alias != fp {
+			id, _, err := dbImageGet(d.db, fp, false, true)
+			if err != nil {
+				return "", err
+			}
+
+			err = dbImageSourceInsert(d.db, id, server, protocol, "", alias)
+			if err != nil {
+				return "", err
+			}
 		}
 
 		if forContainer {
@@ -319,6 +349,18 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// By default, make all downloaded images private
 	info.Public = false
+
+	if alias != fp {
+		id, _, err := dbImageGet(d.db, fp, false, true)
+		if err != nil {
+			return "", err
+		}
+
+		err = dbImageSourceInsert(d.db, id, server, protocol, "", alias)
+		if err != nil {
+			return "", err
+		}
+	}
 
 	_, err = imageBuildFromInfo(d, info)
 	if err != nil {

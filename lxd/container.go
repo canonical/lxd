@@ -432,7 +432,7 @@ func containerCreateFromImage(d *Daemon, args containerArgs, hash string) (conta
 		return nil, err
 	}
 
-	if err := dbImageLastAccessUpdate(d.db, hash); err != nil {
+	if err := dbImageLastAccessUpdate(d.db, hash, time.Now().UTC()); err != nil {
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 

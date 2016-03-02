@@ -58,14 +58,12 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	var hash string
 	var err error
 
-	if req.Source.Alias != "" {
-		if req.Source.Mode == "pull" && req.Source.Server != "" {
-			hash, err = remoteGetImageFingerprint(d, req.Source.Server, req.Source.Certificate, req.Source.Alias)
-			if err != nil {
-				return InternalError(err)
-			}
+	if req.Source.Fingerprint != "" {
+		hash = req.Source.Fingerprint
+	} else if req.Source.Alias != "" {
+		if req.Source.Server != "" {
+			hash = req.Source.Alias
 		} else {
-
 			_, alias, err := dbImageAliasGet(d.db, req.Source.Alias, true)
 			if err != nil {
 				return InternalError(err)
@@ -81,7 +79,8 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	run := func(op *operation) error {
 		if req.Source.Server != "" {
-			hash, err = d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, true)
+			updateCached, _ := d.ConfigValueGet("images.auto_update_cached")
+			hash, err = d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, true, updateCached != "false")
 			if err != nil {
 				return err
 			}

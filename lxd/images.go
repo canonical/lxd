@@ -154,6 +154,7 @@ type imagePostReq struct {
 	Public     bool              `json:"public"`
 	Source     map[string]string `json:"source"`
 	Properties map[string]string `json:"properties"`
+	AutoUpdate bool              `json:"auto_update"`
 }
 
 type imageMetadata struct {
@@ -272,27 +273,15 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq, op *operation) error {
 	var err error
 	var hash string
 
-	if req.Source["alias"] != "" {
-		if req.Source["mode"] == "pull" && req.Source["server"] != "" {
-			hash, err = remoteGetImageFingerprint(d, req.Source["server"], req.Source["certificate"], req.Source["alias"])
-			if err != nil {
-				return err
-			}
-		} else {
-			_, alias, err := dbImageAliasGet(d.db, req.Source["alias"], true)
-			if err != nil {
-				return err
-			}
-
-			hash = alias.Target
-		}
-	} else if req.Source["fingerprint"] != "" {
+	if req.Source["fingerprint"] != "" {
 		hash = req.Source["fingerprint"]
+	} else if req.Source["alias"] != "" {
+		hash = req.Source["alias"]
 	} else {
 		return fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	hash, err = d.ImageDownload(op, req.Source["server"], req.Source["protocol"], req.Source["certificate"], req.Source["secret"], hash, false)
+	hash, err = d.ImageDownload(op, req.Source["server"], req.Source["protocol"], req.Source["certificate"], req.Source["secret"], hash, false, req.AutoUpdate)
 	if err != nil {
 		return err
 	}
@@ -308,8 +297,8 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq, op *operation) error {
 	}
 
 	// Update the DB record if needed
-	if req.Public || req.Filename != "" || len(req.Properties) > 0 {
-		err = dbImageUpdate(d.db, id, req.Filename, info.Size, req.Public, info.Architecture, info.CreationDate, info.ExpiryDate, info.Properties)
+	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
+		err = dbImageUpdate(d.db, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreationDate, info.ExpiryDate, info.Properties)
 		if err != nil {
 			return err
 		}
@@ -376,7 +365,7 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 	}
 
 	// Import the image
-	hash, err = d.ImageDownload(op, url, "direct", "", "", hash, false)
+	hash, err = d.ImageDownload(op, url, "direct", "", "", hash, false, req.AutoUpdate)
 	if err != nil {
 		return err
 	}
@@ -391,8 +380,8 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 		info.Properties[k] = v
 	}
 
-	if req.Public || req.Filename != "" || len(req.Properties) > 0 {
-		err = dbImageUpdate(d.db, id, req.Filename, info.Size, req.Public, info.Architecture, info.CreationDate, info.ExpiryDate, info.Properties)
+	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
+		err = dbImageUpdate(d.db, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreationDate, info.ExpiryDate, info.Properties)
 		if err != nil {
 			return err
 		}
@@ -610,6 +599,7 @@ func imageBuildFromInfo(d *Daemon, info shared.ImageInfo) (metadata map[string]s
 		info.Filename,
 		info.Size,
 		info.Public,
+		info.AutoUpdate,
 		info.Architecture,
 		info.CreationDate,
 		info.ExpiryDate,
@@ -805,6 +795,96 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
 
+func autoUpdateImages(d *Daemon) {
+	shared.Debugf("Updating images")
+
+	images, err := dbImagesGet(d.db, false)
+	if err != nil {
+		shared.Log.Error("Unable to retrieve the list of images", log.Ctx{"err": err})
+		return
+	}
+
+	for _, fp := range images {
+		id, info, err := dbImageGet(d.db, fp, false, true)
+		if err != nil {
+			shared.Log.Error("Error loading image", log.Ctx{"err": err, "fp": fp})
+			continue
+		}
+
+		if !info.AutoUpdate {
+			continue
+		}
+
+		_, source, err := dbImageSourceGet(d.db, id)
+		if err != nil {
+			continue
+		}
+
+		shared.Log.Debug("Processing image", log.Ctx{"fp": fp, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
+
+		hash, err := d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true)
+		if hash == fp {
+			shared.Log.Debug("Already up to date", log.Ctx{"fp": fp})
+			continue
+		}
+
+		newId, _, err := dbImageGet(d.db, hash, false, true)
+		if err != nil {
+			shared.Log.Error("Error loading image", log.Ctx{"err": err, "fp": hash})
+			continue
+		}
+
+		err = dbImageLastAccessUpdate(d.db, hash, info.LastUsedDate)
+		if err != nil {
+			shared.Log.Error("Error setting last use date", log.Ctx{"err": err, "fp": hash})
+			continue
+		}
+
+		err = dbImageAliasesMove(d.db, id, newId)
+		if err != nil {
+			shared.Log.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
+			continue
+		}
+
+		err = doDeleteImage(d, fp)
+		if err != nil {
+			shared.Log.Error("Error deleting image", log.Ctx{"err": err, "fp": fp})
+		}
+	}
+}
+
+func pruneExpiredImages(d *Daemon) {
+	shared.Debugf("Pruning expired images")
+	expiry, err := d.ConfigValueGet("images.remote_cache_expiry")
+	if err != nil {
+		shared.Log.Error("Unable to read the images.remote_cache_expiry key")
+		return
+	}
+
+	if expiry == "" {
+		expiry = "10"
+	}
+
+	expiryInt, err := strconv.Atoi(expiry)
+	if err != nil {
+		shared.Log.Error("Invalid value for images.remote_cache_expiry", log.Ctx{"err": err})
+		return
+	}
+
+	images, err := dbImagesGetExpired(d.db, expiryInt)
+	if err != nil {
+		shared.Log.Error("Unable to retrieve the list of expired images", log.Ctx{"err": err})
+		return
+	}
+
+	for _, fp := range images {
+		if err := doDeleteImage(d, fp); err != nil {
+			shared.Log.Error("Error deleting image", log.Ctx{"err": err, "fp": fp})
+		}
+	}
+	shared.Debugf("Done pruning expired images")
+}
+
 func doDeleteImage(d *Daemon, fingerprint string) error {
 	id, imgInfo, err := dbImageGet(d.db, fingerprint, false, false)
 	if err != nil {
@@ -918,6 +998,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 type imagePutReq struct {
 	Properties map[string]string `json:"properties"`
 	Public     bool              `json:"public"`
+	AutoUpdate bool              `json:"auto_update"`
 }
 
 func imagePut(d *Daemon, r *http.Request) Response {
@@ -933,7 +1014,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = dbImageUpdate(d.db, id, info.Filename, info.Size, req.Public, info.Architecture, info.CreationDate, info.ExpiryDate, req.Properties)
+	err = dbImageUpdate(d.db, id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreationDate, info.ExpiryDate, req.Properties)
 	if err != nil {
 		return SmartError(err)
 	}
