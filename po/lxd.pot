@@ -90,11 +90,11 @@ msgstr  ""
 msgid   "ARCHITECTURE"
 msgstr  ""
 
-#: lxc/remote.go:50
+#: lxc/remote.go:52
 msgid   "Accept certificate"
 msgstr  ""
 
-#: lxc/remote.go:206
+#: lxc/remote.go:216
 #, c-format
 msgid   "Admin password for %s: "
 msgstr  ""
@@ -143,7 +143,7 @@ msgstr  ""
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
-#: lxc/remote.go:156
+#: lxc/remote.go:166
 #, c-format
 msgid   "Certificate fingerprint: %x"
 msgstr  ""
@@ -155,7 +155,7 @@ msgid   "Changes state of one or more containers to %s.\n"
         "lxc %s <name> [<name>...]"
 msgstr  ""
 
-#: lxc/remote.go:229
+#: lxc/remote.go:239
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
@@ -205,7 +205,7 @@ msgstr  ""
 msgid   "Copying the image: %s"
 msgstr  ""
 
-#: lxc/remote.go:171
+#: lxc/remote.go:181
 msgid   "Could not create server cert dir"
 msgstr  ""
 
@@ -559,16 +559,17 @@ msgid   "Manage files on a container.\n"
         "<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>"
 msgstr  ""
 
-#: lxc/remote.go:37
+#: lxc/remote.go:38
 msgid   "Manage remote LXD servers.\n"
         "\n"
-        "lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD] [--public]    Add the remote <name> at <url>.\n"
-        "lxc remote remove <name>                                                               Remove the remote <name>.\n"
-        "lxc remote list                                                                        List all remotes.\n"
-        "lxc remote rename <old> <new>                                                          Rename remote <old> to <new>.\n"
-        "lxc remote set-url <name> <url>                                                        Update <name>'s url to <url>.\n"
-        "lxc remote set-default <name>                                                          Set the default remote.\n"
-        "lxc remote get-default                                                                 Print the default remote."
+        "lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD]\n"
+        "                            [--public] [--protocol=PROTOCOL]                Add the remote <name> at <url>.\n"
+        "lxc remote remove <name>                                                    Remove the remote <name>.\n"
+        "lxc remote list                                                             List all remotes.\n"
+        "lxc remote rename <old> <new>                                               Rename remote <old> to <new>.\n"
+        "lxc remote set-url <name> <url>                                             Update <name>'s url to <url>.\n"
+        "lxc remote set-default <name>                                               Set the default remote.\n"
+        "lxc remote get-default                                                      Print the default remote."
 msgstr  ""
 
 #: lxc/image.go:93
@@ -666,11 +667,11 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:336 lxc/remote.go:312
+#: lxc/list.go:336 lxc/remote.go:322
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/remote.go:287 lxc/remote.go:292
+#: lxc/remote.go:297 lxc/remote.go:302
 msgid   "NO"
 msgstr  ""
 
@@ -720,11 +721,11 @@ msgstr  ""
 msgid   "PROFILES"
 msgstr  ""
 
-#: lxc/remote.go:314
+#: lxc/remote.go:324
 msgid   "PROTOCOL"
 msgstr  ""
 
-#: lxc/image.go:580 lxc/remote.go:315
+#: lxc/image.go:580 lxc/remote.go:325
 msgid   "PUBLIC"
 msgstr  ""
 
@@ -810,7 +811,7 @@ msgstr  ""
 msgid   "Properties:"
 msgstr  ""
 
-#: lxc/remote.go:52
+#: lxc/remote.go:55
 msgid   "Public image server"
 msgstr  ""
 
@@ -825,7 +826,7 @@ msgid   "Publish containers as images.\n"
         "lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]..."
 msgstr  ""
 
-#: lxc/remote.go:51
+#: lxc/remote.go:53
 msgid   "Remote admin password"
 msgstr  ""
 
@@ -855,16 +856,20 @@ msgstr  ""
 msgid   "STATE"
 msgstr  ""
 
-#: lxc/remote.go:316
+#: lxc/remote.go:326
 msgid   "STATIC"
 msgstr  ""
 
-#: lxc/remote.go:164
+#: lxc/remote.go:174
 msgid   "Server certificate NACKed by user"
 msgstr  ""
 
-#: lxc/remote.go:226
+#: lxc/remote.go:236
 msgid   "Server doesn't trust us after adding our cert"
+msgstr  ""
+
+#: lxc/remote.go:54
+msgid   "Server protocol (lxd or simplestreams)"
 msgstr  ""
 
 #: lxc/restore.go:21
@@ -981,7 +986,7 @@ msgstr  ""
 msgid   "UPLOAD DATE"
 msgstr  ""
 
-#: lxc/remote.go:313
+#: lxc/remote.go:323
 msgid   "URL"
 msgstr  ""
 
@@ -1015,7 +1020,7 @@ msgstr  ""
 msgid   "Whether to show the expanded configuration"
 msgstr  ""
 
-#: lxc/remote.go:289 lxc/remote.go:294
+#: lxc/remote.go:299 lxc/remote.go:304
 msgid   "YES"
 msgstr  ""
 
@@ -1035,11 +1040,11 @@ msgstr  ""
 msgid   "can't copy to the same container name"
 msgstr  ""
 
-#: lxc/remote.go:277
+#: lxc/remote.go:287
 msgid   "can't remove the default remote"
 msgstr  ""
 
-#: lxc/remote.go:303
+#: lxc/remote.go:313
 msgid   "default"
 msgstr  ""
 
@@ -1077,7 +1082,7 @@ msgstr  ""
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 
-#: lxc/remote.go:157
+#: lxc/remote.go:167
 msgid   "ok (y/n)?"
 msgstr  ""
 
@@ -1086,22 +1091,22 @@ msgstr  ""
 msgid   "processing aliases failed %s\n"
 msgstr  ""
 
-#: lxc/remote.go:338
+#: lxc/remote.go:348
 #, c-format
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:269 lxc/remote.go:330 lxc/remote.go:365 lxc/remote.go:381
+#: lxc/remote.go:279 lxc/remote.go:340 lxc/remote.go:375 lxc/remote.go:391
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""
 
-#: lxc/remote.go:252
+#: lxc/remote.go:262
 #, c-format
 msgid   "remote %s exists as <%s>"
 msgstr  ""
 
-#: lxc/remote.go:273 lxc/remote.go:334 lxc/remote.go:369
+#: lxc/remote.go:283 lxc/remote.go:344 lxc/remote.go:379
 #, c-format
 msgid   "remote %s is static and cannot be modified"
 msgstr  ""
