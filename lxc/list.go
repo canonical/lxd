@@ -277,6 +277,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowLine(true)
 	table.SetHeader(headers)
 	sort.Sort(byName(data))

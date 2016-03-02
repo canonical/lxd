@@ -584,6 +584,7 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowLine(true)
 	table.SetHeader([]string{
 		i18n.G("ALIAS"),
@@ -608,6 +609,7 @@ func (c *imageCmd) showAliases(aliases shared.ImageAliases) error {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowLine(true)
 	table.SetHeader([]string{
 		i18n.G("ALIAS"),
