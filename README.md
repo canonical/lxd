@@ -85,18 +85,13 @@ group to talk to LXD; you can create your own group if you want):
 
 LXD has two parts, the daemon (the `lxd` binary), and the client (the `lxc`
 binary). Now that the daemon is all configured and running (either via the
-packaging or via the from-source instructions above), you can import an image:
+packaging or via the from-source instructions above), you can create a container:
 
-    $GOPATH/src/github.com/lxc/lxd/scripts/lxd-images import ubuntu --alias ubuntu
-
-With that image imported into LXD, you can now start containers:
-
-    $GOPATH/bin/lxc launch ubuntu
+    $GOPATH/bin/lxc launch ubuntu:14.04
 
 Alternatively, you can also use a remote LXD host as a source of images.
-Those will be automatically cached for you for up at container startup time:
+One comes pre-configured in LXD, called "images" (images.linuxcontainers.org)
 
-    $GOPATH/bin/lxc remote add images images.linuxcontainers.org
     $GOPATH/bin/lxc launch images:centos/7/amd64 centos
 
 ## Bug reports

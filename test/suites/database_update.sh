@@ -11,12 +11,12 @@ test_database_update(){
   spawn_lxd "${LXD_MIGRATE_DIR}"
 
   # Assert there are enough tables.
-  expected_tables=15
+  expected_tables=16
   tables=$(sqlite3 "${MIGRATE_DB}" ".dump" | grep -c "CREATE TABLE")
   [ "${tables}" -eq "${expected_tables}" ] || { echo "FAIL: Wrong number of tables after database migration. Found: ${tables}, expected ${expected_tables}"; false; }
 
   # There should be 10 "ON DELETE CASCADE" occurences
-  expected_cascades=10
+  expected_cascades=11
   cascades=$(sqlite3 "${MIGRATE_DB}" ".dump" | grep -c "ON DELETE CASCADE")
   [ "${cascades}" -eq "${expected_cascades}" ] || { echo "FAIL: Wrong number of ON DELETE CASCADE foreign keys. Found: ${cascades}, exected: ${expected_cascades}"; false; }
 }

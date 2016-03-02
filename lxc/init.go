@@ -237,7 +237,6 @@ func (c *initCmd) initProgressTracker(d *lxd.Client, operation string) {
 		}
 
 		if shared.StatusCode(md["status_code"].(float64)).IsFinal() {
-			fmt.Printf("\n")
 			return
 		}
 
@@ -245,6 +244,10 @@ func (c *initCmd) initProgressTracker(d *lxd.Client, operation string) {
 		_, ok := opMd["download_progress"]
 		if ok {
 			fmt.Printf(i18n.G("Retrieving image: %s")+"\r", opMd["download_progress"].(string))
+		}
+
+		if opMd["download_progress"].(string) == "100%" {
+			fmt.Printf("\n")
 		}
 	}
 	go d.Monitor([]string{"operation"}, handler)

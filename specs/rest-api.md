@@ -295,7 +295,7 @@ Input:
 
     {
         "type": "client",                       # Certificate type (keyring), currently only client
-        "certificate": "BASE64",                # If provided, a valid x509 certificate. If not, the client certificate of the connection will be used
+        "certificate": "PEM certificate",       # If provided, a valid x509 certificate. If not, the client certificate of the connection will be used
         "name": "foo"                           # An optional name for the certificate. If nothing is provided, the host in the TLS header for the request is used.
         "password": "server-trust-password"     # The trust password for that server (only required if untrusted)
     }
@@ -1105,6 +1105,7 @@ Output:
             }
         ],
         "architecture": "x86_64",
+        "auto_update": true,
         "cached": false,
         "fingerprint": "54c8caac1f61901ed86c68f24af5f5d3672bdc62c71d04f06df3a59e95684473",
         "filename": "ubuntu-trusty-14.04-amd64-server-20160201.tar.xz",
@@ -1113,6 +1114,12 @@ Output:
             "description": "Ubuntu 14.04 LTS server (20160201)",
             "os": "ubuntu",
             "release": "trusty"
+        },
+        "update_source": {
+            "server": "https://10.1.2.4:8443",
+            "protocol": "lxd",
+            "certificate": "PEM certificate",
+            "alias": "ubuntu/trusty/amd64"
         },
         "public": false,
         "size": 123792592,
@@ -1144,6 +1151,7 @@ HTTP code for this should be 202 (Accepted).
 Input:
 
     {
+        "auto_update": true,
         "properties": {
             "architecture": "x86_64",
             "description": "Ubuntu 14.04 LTS server (20160201)",

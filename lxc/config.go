@@ -262,6 +262,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 			table := tablewriter.NewWriter(os.Stdout)
 			table.SetAutoWrapText(false)
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
 			table.SetRowLine(true)
 			table.SetHeader([]string{
 				i18n.G("FINGERPRINT"),

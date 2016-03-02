@@ -66,18 +66,19 @@ type Socket struct {
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
-	architectures []int
-	BackingFs     string
-	clientCerts   []x509.Certificate
-	db            *sql.DB
-	group         string
-	IdmapSet      *shared.IdmapSet
-	lxcpath       string
-	mux           *mux.Router
-	tomb          tomb.Tomb
-	pruneChan     chan bool
-	shutdownChan  chan bool
-	execPath      string
+	architectures       []int
+	BackingFs           string
+	clientCerts         []x509.Certificate
+	db                  *sql.DB
+	group               string
+	IdmapSet            *shared.IdmapSet
+	lxcpath             string
+	mux                 *mux.Router
+	tomb                tomb.Tomb
+	pruneChan           chan bool
+	shutdownChan        chan bool
+	resetAutoUpdateChan chan bool
+	execPath            string
 
 	Storage storage
 
@@ -583,35 +584,6 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 	return nil
 }
 
-func (d *Daemon) pruneExpiredImages() {
-	shared.Debugf("Pruning expired images")
-	expiry, err := dbImageExpiryGet(d.db)
-	if err != nil { // no expiry
-		shared.Debugf("Failed getting the cached image expiry timeout")
-		return
-	}
-
-	q := `
-SELECT fingerprint FROM images WHERE cached=1 AND creation_date<=strftime('%s', date('now', '-` + expiry + ` day'))`
-	inargs := []interface{}{}
-	var fingerprint string
-	outfmt := []interface{}{fingerprint}
-
-	result, err := dbQueryScan(d.db, q, inargs, outfmt)
-	if err != nil {
-		shared.Debugf("Error making cache expiry query: %s", err)
-		return
-	}
-	shared.Debugf("Found %d expired images", len(result))
-
-	for _, r := range result {
-		if err := doDeleteImage(d, r[0].(string)); err != nil {
-			shared.Debugf("Error deleting image: %s", err)
-		}
-	}
-	shared.Debugf("Done pruning expired images")
-}
-
 // StartDaemon starts the shared daemon with the provided configuration.
 func startDaemon(group string) (*Daemon, error) {
 	d := &Daemon{
@@ -834,18 +806,53 @@ func (d *Daemon) Init() error {
 	/* Prune images */
 	d.pruneChan = make(chan bool)
 	go func() {
-		d.pruneExpiredImages()
+		pruneExpiredImages(d)
 		for {
 			timer := time.NewTimer(24 * time.Hour)
 			timeChan := timer.C
 			select {
 			case <-timeChan:
 				/* run once per day */
-				d.pruneExpiredImages()
+				pruneExpiredImages(d)
 			case <-d.pruneChan:
 				/* run when image.remote_cache_expiry is changed */
-				d.pruneExpiredImages()
+				pruneExpiredImages(d)
 				timer.Stop()
+			}
+		}
+	}()
+
+	/* Auto-update images */
+	d.resetAutoUpdateChan = make(chan bool)
+	go func() {
+		autoUpdateImages(d)
+
+		for {
+			interval, _ := d.ConfigValueGet("images.auto_update_interval")
+			if interval == "" {
+				interval = "6"
+			}
+
+			intervalInt, err := strconv.Atoi(interval)
+			if err != nil {
+				intervalInt = 0
+			}
+
+			if intervalInt > 0 {
+				timer := time.NewTimer(time.Duration(intervalInt) * time.Hour)
+				timeChan := timer.C
+
+				select {
+				case <-timeChan:
+					autoUpdateImages(d)
+				case <-d.resetAutoUpdateChan:
+					timer.Stop()
+				}
+			} else {
+				select {
+				case <-d.resetAutoUpdateChan:
+					continue
+				}
 			}
 		}
 	}()
@@ -1140,6 +1147,10 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 	case "images.remote_cache_expiry":
 		return true
 	case "images.compression_algorithm":
+		return true
+	case "images.auto_update_interval":
+		return true
+	case "images.auto_update_cached":
 		return true
 	}
 
