@@ -141,9 +141,6 @@ func run() error {
 		if err != nil {
 			return err
 		}
-
-		fmt.Fprintf(os.Stderr, i18n.G("If this is your first run, you will need to import images using the 'lxd-images' script.")+"\n")
-		fmt.Fprintf(os.Stderr, i18n.G("For example: 'lxd-images import ubuntu --alias ubuntu'.")+"\n")
 	}
 
 	err = cmd.run(config, gnuflag.Args())
