@@ -15,6 +15,14 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV27(db *sql.DB) error {
+	stmt := `
+UPDATE profiles_devices SET type=3 WHERE type='unix-char';
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 28)
+	return err
+}
+
 func dbUpdateFromV26(db *sql.DB) error {
 	stmt := `
 ALTER TABLE images ADD COLUMN auto_update INTEGER NOT NULL DEFAULT 0;
@@ -961,6 +969,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 27 {
 		err = dbUpdateFromV26(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 28 {
+		err = dbUpdateFromV27(db)
 		if err != nil {
 			return err
 		}
