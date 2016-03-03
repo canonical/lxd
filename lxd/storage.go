@@ -109,10 +109,26 @@ func storageTypeToString(sType storageType) string {
 	return "dir"
 }
 
-type MigrationStorageSource interface {
-	Name() string
-	IsSnapshot() bool
-	Send(conn *websocket.Conn) error
+type MigrationStorageSourceDriver interface {
+	/* snapshots for this container, if any */
+	Snapshots() []container
+
+	/* send any bits of the container/snapshots that are possible while the
+	 * container is still running.
+	 */
+	SendWhileRunning(conn *websocket.Conn) error
+
+	/* send the final bits (e.g. a final delta snapshot for zfs, btrfs, or
+	 * do a final rsync) of the fs after the container has been
+	 * checkpointed. This will only be called when a container is actually
+	 * being live migrated.
+	 */
+	SendAfterCheckpoint(conn *websocket.Conn) error
+
+	/* Called after either success or failure of a migration, can be used
+	 * to clean up any temporary snapshots, etc.
+	 */
+	Cleanup()
 }
 
 type storage interface {
@@ -170,8 +186,8 @@ type storage interface {
 	// We leave sending containers which are snapshots of other containers
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
-	MigrationSource(container container) ([]MigrationStorageSource, error)
-	MigrationSink(container container, objects []container, conn *websocket.Conn) error
+	MigrationSource(container container) (MigrationStorageSourceDriver, error)
+	MigrationSink(live bool, container container, objects []container, conn *websocket.Conn) error
 }
 
 func newStorage(d *Daemon, sType storageType) (storage, error) {
@@ -521,23 +537,24 @@ func (lw *storageLogWrapper) MigrationType() MigrationFSType {
 	return lw.w.MigrationType()
 }
 
-func (lw *storageLogWrapper) MigrationSource(container container) ([]MigrationStorageSource, error) {
+func (lw *storageLogWrapper) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
 	lw.log.Debug("MigrationSource", log.Ctx{"container": container.Name()})
 	return lw.w.MigrationSource(container)
 }
 
-func (lw *storageLogWrapper) MigrationSink(container container, objects []container, conn *websocket.Conn) error {
+func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []container, conn *websocket.Conn) error {
 	objNames := []string{}
 	for _, obj := range objects {
 		objNames = append(objNames, obj.Name())
 	}
 
 	lw.log.Debug("MigrationSink", log.Ctx{
+		"live":      live,
 		"container": container.Name(),
 		"objects":   objNames,
 	})
 
-	return lw.w.MigrationSink(container, objects, conn)
+	return lw.w.MigrationSink(live, container, objects, conn)
 }
 
 func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
@@ -567,41 +584,47 @@ func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
 	return nil
 }
 
-type rsyncStorageSource struct {
+type rsyncStorageSourceDriver struct {
 	container container
+	snapshots []container
 }
 
-func (s *rsyncStorageSource) Name() string {
-	return s.container.Name()
+func (s rsyncStorageSourceDriver) Snapshots() []container {
+	return s.snapshots
 }
 
-func (s *rsyncStorageSource) IsSnapshot() bool {
-	return s.container.IsSnapshot()
+func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
+	toSend := append([]container{s.container}, s.snapshots...)
+
+	for _, send := range toSend {
+		path := send.Path()
+		if err := RsyncSend(shared.AddSlash(path), conn); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (s *rsyncStorageSource) Send(conn *websocket.Conn) error {
-	path := s.container.Path()
-	return RsyncSend(shared.AddSlash(path), conn)
+func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
+	/* resync anything that changed between our first send and the checkpoint */
+	return RsyncSend(shared.AddSlash(s.container.Path()), conn)
 }
 
-func rsyncMigrationSource(container container) ([]MigrationStorageSource, error) {
-	sources := []MigrationStorageSource{}
+func (s rsyncStorageSourceDriver) Cleanup() {
+	/* no-op */
+}
 
-	/* transfer the container, and then all the snapshots */
-	sources = append(sources, &rsyncStorageSource{container})
-	snaps, err := container.Snapshots()
+func rsyncMigrationSource(container container) (MigrationStorageSourceDriver, error) {
+	snapshots, err := container.Snapshots()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, snap := range snaps {
-		sources = append(sources, &rsyncStorageSource{snap})
-	}
-
-	return sources, nil
+	return rsyncStorageSourceDriver{container, snapshots}, nil
 }
 
-func rsyncMigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
+func rsyncMigrationSink(live bool, container container, snapshots []container, conn *websocket.Conn) error {
 	/* the first object is the actual container */
 	if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
 		return err
@@ -616,6 +639,13 @@ func rsyncMigrationSink(container container, snapshots []container, conn *websoc
 
 	for _, snap := range snapshots {
 		if err := RsyncRecv(shared.AddSlash(snap.Path()), conn); err != nil {
+			return err
+		}
+	}
+
+	if live {
+		/* now receive the final sync */
+		if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
 			return err
 		}
 	}
