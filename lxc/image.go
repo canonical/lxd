@@ -385,7 +385,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		handler := func(percent int) {
-			fmt.Printf(i18n.G("Transfering image: %d%%")+"\r", percent)
+			fmt.Printf(i18n.G("Transferring image: %d%%")+"\r", percent)
 			if percent == 100 {
 				fmt.Printf("\n")
 			}
