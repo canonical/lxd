@@ -15,7 +15,7 @@ var commandStart = cli.Command{
 	Usage:     i18n.G("Changes one or more containers state to start."),
 	ArgsUsage: i18n.G("<name> [<name>...]"),
 
-	Flags: append(commandGlobalFlags,
+	Flags: commandGlobalFlagsWrapper(
 		cli.BoolFlag{
 			Name:  "stateless",
 			Usage: i18n.G("Ignore the container state."),
@@ -43,6 +43,15 @@ var commandStop = cli.Command{
 			Usage: i18n.G("Store the container state."),
 		},
 	),
+	Action: commandWrapper(commandActionAction),
+}
+
+var commandPause = cli.Command{
+	Name:      "pause",
+	Usage:     i18n.G("Changes one or more containers state to pause."),
+	ArgsUsage: i18n.G("<name> [<name>...]"),
+
+	Flags:  commandGlobalFlags,
 	Action: commandWrapper(commandActionAction),
 }
 
@@ -98,6 +107,7 @@ func commandActionAction(config *lxd.Config, c *cli.Context) error {
 			action = shared.Start
 		case "restart":
 			action = shared.Restart
+		case "pause":
 		case "freeze":
 			action = shared.Freeze
 		case "unfreeze":

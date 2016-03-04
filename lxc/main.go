@@ -76,6 +76,7 @@ func main() {
 		commandList,
 		commandMonitor,
 		commandMove,
+		commandPause,
 		commandProfile,
 		commandPublish,
 		commandRemote,
