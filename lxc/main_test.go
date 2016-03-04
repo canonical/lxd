@@ -57,7 +57,7 @@ func TestExpandAliases(t *testing.T) {
 	conf := &lxd.Config{Aliases: aliases}
 
 	for _, tc := range testcases {
-		result, expanded := expandAlias(conf, tc.input)
+		result, expanded := commandExpandAlias(conf, tc.input)
 		if !expanded {
 			if !slicesEqual(tc.input, tc.expected) {
 				t.Errorf("didn't expand when expected to: %s", tc.input)
