@@ -199,7 +199,7 @@ var commandConfig = cli.Command{
 			ArgsUsage: i18n.G("[--expanded] [remote:]<container>"),
 			Usage:     i18n.G("Show container configuration."),
 
-			Flags: append(commandGlobalFlags, cli.BoolFlag{
+			Flags: commandGlobalFlagsWrapper(cli.BoolFlag{
 				Name:  "expanded",
 				Usage: i18n.G("Whether to show the expanded configuration."),
 			}),

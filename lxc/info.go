@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/i18n"
@@ -19,7 +20,7 @@ var commandInfo = cli.Command{
 	ArgsUsage:   i18n.G("[<remote>:]container [--show-log]"),
 	Description: i18n.G("This will support remotes and images as well, but only containers for now."),
 
-	Flags: append(commandGlobalFlags, cli.BoolFlag{
+	Flags: commandGlobalFlagsWrapper(cli.BoolFlag{
 		Name:  "show-log",
 		Usage: i18n.G("Also show the log."),
 	}),

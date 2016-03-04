@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/codegangsta/cli"
+	
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/i18n"
@@ -27,7 +28,7 @@ var commandSnapshot = cli.Command{
    Example:
    lxc snapshot u1 snap0`),
 
-	Flags: append(commandGlobalFlags,
+	Flags: commandGlobalFlagsWrapper(
 		cli.BoolFlag{
 			Name:  "stateful",
 			Usage: i18n.G("Whether or not to snapshot the container's running state."),

@@ -45,7 +45,7 @@ var commandList = cli.Command{
    Default column layout: ns46tS
    Fast column layout: nsacPt`),
 
-	Flags: append(commandGlobalFlags,
+	Flags: commandGlobalFlagsWrapper(
 		cli.StringFlag{
 			Name:  "columns, c",
 			Value: "ns46tS",

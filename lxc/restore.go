@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/i18n"
@@ -24,7 +25,7 @@ var commandRestore = cli.Command{
    lxc snapshot u1 snap0 # create the snapshot
    lxc restore u1 snap0 # restore the snapshot`),
 
-	Flags: append(commandGlobalFlags,
+	Flags: commandGlobalFlagsWrapper(
 		cli.BoolFlag{
 			Name:  "stateful",
 			Usage: i18n.G("Whether or not to restore the container's running state from snapshot (if available)."),

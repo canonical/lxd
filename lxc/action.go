@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/i18n"
@@ -28,7 +29,7 @@ var commandStop = cli.Command{
 	Usage:     i18n.G("Changes one or more containers state to stop."),
 	ArgsUsage: i18n.G("<name> [<name>...]"),
 
-	Flags: append(commandGlobalFlags,
+	Flags: commandGlobalFlagsWrapper(
 		cli.BoolFlag{
 			Name:  "force",
 			Usage: i18n.G("Force the container to shutdown."),
@@ -50,7 +51,7 @@ var commandRestart = cli.Command{
 	Usage:     i18n.G("Changes one or more containers state to restart."),
 	ArgsUsage: i18n.G("<name> [<name>...]"),
 
-	Flags: append(commandGlobalFlags,
+	Flags: commandGlobalFlagsWrapper(
 		cli.BoolFlag{
 			Name:  "force",
 			Usage: i18n.G("Force the container to shutdown."),

@@ -57,7 +57,7 @@ func main() {
 	app.Name = "lxc"
 	app.Version = shared.Version
 	app.Usage = "LXD is pronounced lex-dee."
-	app.Flags = append(commandGlobalFlags, cli.StringFlag{
+	app.Flags = commandGlobalFlagsWrapper(cli.StringFlag{
 		Name:   "config",
 		Usage:  i18n.G("Alternate config directory."),
 		EnvVar: "LXD_CONF",
@@ -95,6 +95,10 @@ func main() {
 	}
 
 	app.Run(os.Args)
+}
+
+func commandGlobalFlagsWrapper(flags ...cli.Flag) []cli.Flag {
+	return append(commandGlobalFlags, flags...)
 }
 
 func commandWrapper(callable func(*lxd.Config, *cli.Context) error) func(*cli.Context) {

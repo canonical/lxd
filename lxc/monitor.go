@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -15,7 +16,7 @@ var commandMonitor = cli.Command{
 	Usage:     i18n.G("Monitor activity on the LXD server."),
 	ArgsUsage: i18n.G("[remote:] [--type=TYPE...]"),
 
-	Flags: append(commandGlobalFlags,
+	Flags: commandGlobalFlagsWrapper(
 		cli.StringSliceFlag{
 			Name:  "type",
 			Usage: i18n.G("Event type to listen for"),

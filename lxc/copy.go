@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/i18n"
@@ -15,7 +16,7 @@ var commandCopy = cli.Command{
 	Usage:     i18n.G("Copy containers within or in between lxd instances."),
 	ArgsUsage: i18n.G("[remote:]<source container> [remote:]<destination container>"),
 
-	Flags: append(commandGlobalFlags, cli.BoolFlag{
+	Flags: commandGlobalFlagsWrapper(cli.BoolFlag{
 		Name:  "ephemeral, e",
 		Usage: i18n.G("Create a ephemeral copy."),
 	}),

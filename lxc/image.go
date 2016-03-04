@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/codegangsta/cli"
+	
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
@@ -84,7 +85,7 @@ var commandImage = cli.Command{
 			ArgsUsage: i18n.G("<tarball> [rootfs tarball|URL] [remote:] [--public] [--alias=ALIAS]... [prop=value]..."),
 			Usage:     i18n.G("Import an image tarball (or tarballs) into the LXD image store."),
 
-			Flags: append(commandGlobalFlags,
+			Flags: commandGlobalFlagsWrapper(
 				cli.BoolFlag{
 					Name:  "public",
 					Usage: i18n.G("Make image public."),
@@ -102,7 +103,7 @@ var commandImage = cli.Command{
 			ArgsUsage: i18n.G("[remote:]<image> <remote>:"),
 			Usage:     i18n.G("Copy an image to another destination."),
 
-			Flags: append(commandGlobalFlags,
+			Flags: commandGlobalFlagsWrapper(
 				cli.StringSliceFlag{
 					Name:  "alias",
 					Usage: i18n.G("An alias for this image."),

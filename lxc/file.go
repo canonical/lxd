@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/i18n"
@@ -45,7 +46,7 @@ var commandFile = cli.Command{
 			ArgsUsage: i18n.G("[--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>"),
 			Usage:     i18n.G("Push a file to a container."),
 
-			Flags: append(commandGlobalFlags,
+			Flags: commandGlobalFlagsWrapper(
 				cli.IntFlag{
 					Name:  "gid",
 					Value: -1,

@@ -15,7 +15,6 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/olekukonko/tablewriter"
-
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
@@ -43,7 +42,7 @@ var commandRemote = cli.Command{
 			ArgsUsage: i18n.G("<name> <url> [--accept-certificate] [--password=PASSWORD] [--public] [--protocol=PROTOCOL]"),
 			Usage:     i18n.G("Add the remote <name> at <url>."),
 
-			Flags: append(commandGlobalFlags,
+			Flags: commandGlobalFlagsWrapper(
 				cli.BoolFlag{
 					Name:  "accept-certificate",
 					Usage: i18n.G("Accept certificate."),

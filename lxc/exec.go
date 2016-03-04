@@ -25,7 +25,7 @@ var commandExec = cli.Command{
 
 	 Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`),
 
-	Flags: append(commandGlobalFlags,
+	Flags: commandGlobalFlagsWrapper(
 		cli.StringSliceFlag{
 			Name:  "env",
 			Usage: i18n.G("An environment variable of the form HOME=/home/foo."),

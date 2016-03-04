@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/codegangsta/cli"
+	
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/i18n"
@@ -18,7 +19,7 @@ var commandDelete = cli.Command{
 	ArgsUsage:   i18n.G("[remote:]<container>[/<snapshot>] [remote:][<container>[/<snapshot>]...] [--force|-f] [--interactive|-i]"),
 	Description: i18n.G("Destroy containers or snapshots with any attached data (configuration, snapshots, ...)."),
 
-	Flags: append(commandGlobalFlags,
+	Flags: commandGlobalFlagsWrapper(
 		cli.BoolFlag{
 			Name:  "force, f",
 			Usage: i18n.G("Force the removal of stopped containers."),

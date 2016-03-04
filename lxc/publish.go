@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"github.com/codegangsta/cli"
-	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared/i18n"
 
+	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 var commandPublish = cli.Command{
@@ -16,7 +16,7 @@ var commandPublish = cli.Command{
 	Usage:     i18n.G("Publish containers as images."),
 	ArgsUsage: i18n.G("[remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]..."),
 
-	Flags: append(commandGlobalFlags,
+	Flags: commandGlobalFlagsWrapper(
 		cli.BoolFlag{
 			Name:  "force",
 			Usage: i18n.G("Stop the container if currently running."),
