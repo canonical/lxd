@@ -803,6 +803,14 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
+	/* Setup the storage driver */
+	if !d.IsMock {
+		err = d.SetupStorageDriver()
+		if err != nil {
+			return fmt.Errorf("Failed to setup storage: %s", err)
+		}
+	}
+
 	/* Prune images */
 	d.pruneChan = make(chan bool)
 	go func() {
@@ -868,11 +876,6 @@ func (d *Daemon) Init() error {
 	}
 
 	if !d.IsMock {
-		err = d.SetupStorageDriver()
-		if err != nil {
-			return fmt.Errorf("Failed to setup storage: %s", err)
-		}
-
 		/* Start the scheduler */
 		go deviceEventListener(d)
 
