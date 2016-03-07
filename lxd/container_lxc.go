@@ -3958,12 +3958,12 @@ func (c *containerLXC) getHostInterface(name string) string {
 		}
 	}
 
-	for _, dev := range c.expandedDevices {
+	for k, dev := range c.expandedDevices {
 		if dev["type"] != "nic" {
 			continue
 		}
 
-		m, err := c.fillNetworkDevice(name, dev)
+		m, err := c.fillNetworkDevice(k, dev)
 		if err != nil {
 			m = dev
 		}
