@@ -81,8 +81,6 @@ start() {
 
     # set up the lxd network
     [ ! -d "/sys/class/net/${LXD_BRIDGE}" ] && ip link add dev "${LXD_BRIDGE}" type bridge
-    echo 1 > /proc/sys/net/ipv4/ip_forward
-    echo 0 > "/proc/sys/net/ipv6/conf/${LXD_BRIDGE}/accept_dad" || true
 
     # if we are run from systemd on a system with selinux enabled,
     # the mkdir will create /run/lxd as init_var_run_t which dnsmasq
@@ -98,6 +96,7 @@ start() {
 
     LXD_IPV4_ARG=""
     if [ -n "${LXD_IPV4_ADDR}" ] && [ -n "${LXD_IPV4_NETMASK}" ] && [ -n "${LXD_IPV4_NETWORK}" ]; then
+        echo 1 > /proc/sys/net/ipv4/ip_forward
         if [ "${LXD_IPV4_NAT}" = "true" ]; then
             iptables "${use_iptables_lock}" -t nat -A POSTROUTING -s "${LXD_IPV4_NETWORK}" ! -d "${LXD_IPV4_NETWORK}" -j MASQUERADE
         fi
@@ -108,6 +107,7 @@ start() {
     if [ -n "${LXD_IPV6_ADDR}" ] && [ -n "${LXD_IPV6_MASK}" ] && [ -n "${LXD_IPV6_NETWORK}" ]; then
         echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
         echo 0 > "/proc/sys/net/ipv6/conf/${LXD_BRIDGE}/autoconf"
+        echo 0 > "/proc/sys/net/ipv6/conf/${LXD_BRIDGE}/accept_dad" || true
         ip -6 addr add dev "${LXD_BRIDGE}" "${LXD_IPV6_ADDR}/${LXD_IPV6_MASK}"
         if [ "${LXD_IPV6_NAT}" = "true" ]; then
             ip6tables "${use_iptables_lock}" -t nat -A POSTROUTING -s "${LXD_IPV6_NETWORK}" ! -d "${LXD_IPV6_NETWORK}" -j MASQUERADE
