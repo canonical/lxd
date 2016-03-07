@@ -311,6 +311,10 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 	c := &Client{
 		// Config: *config,
 		Http: http.Client{},
+		Config: Config{
+			Remotes: DefaultRemotes,
+			Aliases: map[string]string{},
+		},
 	}
 	c.Name = info.Name
 	var err error
