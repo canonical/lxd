@@ -873,16 +873,8 @@ func (d *Daemon) Init() error {
 			return fmt.Errorf("Failed to setup storage: %s", err)
 		}
 
-		/* Restart containers */
-		go func() {
-			containersRestart(d)
-		}()
-
 		/* Start the scheduler */
 		go deviceEventListener(d)
-
-		/* Re-balance in case things changed while LXD was down */
-		deviceTaskBalance(d)
 
 		/* Setup the TLS authentication */
 		certf, keyf, err := readMyCert()
@@ -1046,6 +1038,15 @@ func (d *Daemon) Init() error {
 		})
 		return nil
 	})
+
+	// Restore containers
+	if !d.IsMock {
+		/* Restart containers */
+		go containersRestart(d)
+
+		/* Re-balance in case things changed while LXD was down */
+		deviceTaskBalance(d)
+	}
 
 	return nil
 }
