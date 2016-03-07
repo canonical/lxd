@@ -1134,6 +1134,10 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 		return true
 	case "core.https_allowed_origin":
 		return true
+	case "core.https_allowed_methods":
+		return true
+	case "core.https_allowed_headers":
+		return true
 	case "core.trust_password":
 		return true
 	case "storage.lvm_vg_name":
@@ -1281,6 +1285,16 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	origin := req.Header.Get("Origin")
 	if allowedOrigin != "" && origin != "" {
 		rw.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+	}
+
+	allowedMethods, _ := s.d.ConfigValueGet("core.https_allowed_methods")
+	if allowedMethods != "" && origin != "" {
+		rw.Header().Set("Access-Control-Allow-Methods", allowedMethods)
+	}
+
+	allowedHeaders, _ := s.d.ConfigValueGet("core.https_allowed_headers")
+	if allowedHeaders != "" && origin != "" {
+		rw.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
 	}
 
 	// OPTIONS request don't need any further processing
