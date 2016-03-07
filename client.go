@@ -164,13 +164,13 @@ func NewClient(config *Config, remote string) (*Client, error) {
 	}
 	info := ConnectInfo{
 		Name: remote,
-		Addr: r.Addr,
+		RemoteConfig: r,
 	}
 
 	if strings.HasPrefix(r.Addr, "unix:") {
 		// replace "unix://" with the official "unix:/var/lib/lxd/unix.socket"
-		if info.Addr == "unix://" {
-			info.Addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
+		if info.RemoteConfig.Addr == "unix://" {
+			info.RemoteConfig.Addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
 		}
 	} else {
 		certf, keyf, err := ensureMyCert(config.ConfigDir)
@@ -202,16 +202,6 @@ func NewClient(config *Config, remote string) (*Client, error) {
 		return nil, err
 	}
 	c.Config = *config
-	c.Remote = &r
-
-	if c.Remote.Protocol == "simplestreams" {
-		ss, err := shared.SimpleStreamsClient(c.Remote.Addr)
-		if err != nil {
-			return nil, err
-		}
-
-		c.simplestreams = ss
-	}
 
 	return c, nil
 }
@@ -222,13 +212,10 @@ type ConnectInfo struct {
 	// the name used to lookup the address and other information in the
 	// config.yml file.
 	Name string
-	// Addr is the host address to connect to. It can be
-	// unix:/path/to/socket to indicate we should connect over a unix
-	// socket, or it can be an IP Address or
-	// Hostname, or an https:// URL.
-	// The standard unix socket is located at $LXD_DIR/unix.socket
-	// See also github.com/lxc/lxd/shared.VarPath("unix.socket")
-	Addr string
+	// RemoteConfig is the information about the Remote that we are
+	// connecting to. This includes information like if the remote is
+	// Public and/or Static.
+	RemoteConfig RemoteConfig
 	// ClientPEMCert is the PEM encoded bytes of the client's certificate.
 	// If Addr indicates a Unix socket, the certificate and key bytes will
 	// not be used.
@@ -241,11 +228,10 @@ type ConnectInfo struct {
 	ServerPEMCert string
 }
 
-func connectViaUnix(c *Client, addr string) error {
+func connectViaUnix(c *Client, remote *RemoteConfig) error {
 	c.BaseURL = "http://unix.socket"
 	c.BaseWSURL = "ws://unix.socket"
 	c.Transport = "unix"
-	r := &RemoteConfig{Addr: addr}
 	uDial := func(network, addr string) (net.Conn, error) {
 		// The arguments 'network' and 'addr' are ignored because
 		// they are the wrong information.
@@ -255,7 +241,7 @@ func connectViaUnix(c *Client, addr string) error {
 		//   unix:///path/to/socket
 		//   unix:/path/to/socket
 		//   unix:path/to/socket
-		path := strings.TrimPrefix(r.Addr, "unix:")
+		path := strings.TrimPrefix(remote.Addr, "unix:")
 		if strings.HasPrefix(path, "///") {
 			// translate unix:///path/to, to just "/path/to"
 			path = path[2:]
@@ -268,7 +254,7 @@ func connectViaUnix(c *Client, addr string) error {
 	}
 	c.Http.Transport = &http.Transport{Dial: uDial}
 	c.websocketDialer.NetDial = uDial
-	c.Remote = r
+	c.Remote = remote
 
 	st, err := c.ServerStatus()
 	if err != nil {
@@ -278,7 +264,7 @@ func connectViaUnix(c *Client, addr string) error {
 	return nil
 }
 
-func connectViaHttp(c *Client, addr, clientCert, clientKey, serverCert string) error {
+func connectViaHttp(c *Client, remote *RemoteConfig, clientCert, clientKey, serverCert string) error {
 	tlsconfig, err := shared.GetTLSConfigMem(clientCert, clientKey, serverCert)
 	if err != nil {
 		return err
@@ -293,12 +279,12 @@ func connectViaHttp(c *Client, addr, clientCert, clientKey, serverCert string) e
 	c.websocketDialer.NetDial = shared.RFC3493Dialer
 	c.websocketDialer.TLSClientConfig = tlsconfig
 
-	justAddr := strings.TrimPrefix(addr, "https://")
+	justAddr := strings.TrimPrefix(remote.Addr, "https://")
 	c.BaseURL = "https://" + justAddr
 	c.BaseWSURL = "wss://" + justAddr
 	c.Transport = "https"
 	c.Http.Transport = tr
-	c.Remote = &RemoteConfig{Addr: addr}
+	c.Remote = remote
 	c.Certificate = serverCert
 	// We don't actually need to connect yet, defer that until someone
 	// needs something from the server.
@@ -314,13 +300,22 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 	}
 	c.Name = info.Name
 	var err error
-	if info.Addr[0:5] == "unix:" {
-		err = connectViaUnix(c, info.Addr)
+	if strings.HasPrefix(info.RemoteConfig.Addr, "unix:") {
+		err = connectViaUnix(c, &info.RemoteConfig)
 	} else {
-		err = connectViaHttp(c, info.Addr, info.ClientPEMCert, info.ClientPEMKey, info.ServerPEMCert)
+		err = connectViaHttp(c, &info.RemoteConfig, info.ClientPEMCert, info.ClientPEMKey, info.ServerPEMCert)
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if info.RemoteConfig.Protocol == "simplestreams" {
+		ss, err := shared.SimpleStreamsClient(c.Remote.Addr)
+		if err != nil {
+			return nil, err
+		}
+
+		c.simplestreams = ss
 	}
 
 	return c, nil
