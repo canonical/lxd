@@ -517,6 +517,11 @@ func setupLXD() error {
 	var networkPort int       // Port
 	var trustPassword string  // Trust password
 
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
+
 	backendsAvailable := []string{"dir"}
 	backendsSupported := []string{"dir", "zfs"}
 
