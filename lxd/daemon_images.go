@@ -20,6 +20,11 @@ import (
 func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool) (string, error) {
 	var err error
 	var ss *shared.SimpleStreams
+
+	if protocol == "" {
+		protocol = "lxd"
+	}
+
 	fp := alias
 
 	// Expand aliases
@@ -140,7 +145,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 	}
 
-	if protocol == "" || protocol == "lxc" {
+	if protocol == "lxd" {
 		/* grab the metadata from /1.0/images/%s */
 		var url string
 		if secret != "" {
