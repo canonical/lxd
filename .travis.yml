@@ -6,6 +6,7 @@ os:
 go:
   - 1.4
   - 1.5
+  - 1.6
   - tip
 
 matrix:
@@ -14,12 +15,11 @@ matrix:
     - go: tip
 
 install:
-  - "go get -v github.com/golang/protobuf/..."
   - "mkdir -p $GOPATH/github.com/lxc"
   - "rsync -az ${TRAVIS_BUILD_DIR}/ $HOME/gopath/src/github.com/lxc/lxd/"
 
 script:
-  - "[ \"$TRAVIS_OS_NAME\" != \"osx\" ] || make client"
+  - "make client"
 
 notifications:
   webhooks: https://linuxcontainers.org/webhook-lxcbot/
