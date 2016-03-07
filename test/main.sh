@@ -149,7 +149,7 @@ ensure_import_testimage() {
     if [ -e "${LXD_TEST_IMAGE:-}" ]; then
       lxc image import "${LXD_TEST_IMAGE}" --alias testimage
     else
-      ../scripts/lxd-images import busybox --alias testimage
+      deps/import-busybox --alias testimage
     fi
   fi
 }
