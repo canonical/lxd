@@ -16,7 +16,7 @@ if [ "x${2}" != "xnotime" ]; then
   exit 0
 fi
 
-${MYDIR}/../scripts/lxd-images import busybox --alias busybox
+${MYDIR}/deps/import-busybox --alias busybox
 
 PIDS=""
 for c in $(seq 1 $count); do
