@@ -37,7 +37,7 @@ func dbProfileGet(db *sql.DB, profile string) (int64, *shared.ProfileConfig, err
 	arg2 := []interface{}{&id, &description}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
-		return -1, nil, fmt.Errorf("here: %s", err)
+		return -1, nil, err
 	}
 
 	config, err := dbProfileConfig(db, profile)
