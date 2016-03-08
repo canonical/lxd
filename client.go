@@ -163,7 +163,7 @@ func NewClient(config *Config, remote string) (*Client, error) {
 		return nil, fmt.Errorf("unknown remote name: %q", remote)
 	}
 	info := ConnectInfo{
-		Name: remote,
+		Name:         remote,
 		RemoteConfig: r,
 	}
 
