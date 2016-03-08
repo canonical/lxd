@@ -1171,7 +1171,8 @@ func (s *zfsMigrationSourceDriver) Snapshots() []container {
 }
 
 func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zfsParent string) error {
-	args := []string{"send", fmt.Sprintf("%s/containers/%s@%s", s.zfs.zfsPool, s.container.Name(), zfsName)}
+	fields := strings.SplitN(s.container.Name(), shared.SnapshotDelimiter, 2)
+	args := []string{"send", fmt.Sprintf("%s/containers/%s@%s", s.zfs.zfsPool, fields[0], zfsName)}
 	if zfsParent != "" {
 		args = append(args, "-i", fmt.Sprintf("%s/containers/%s@%s", s.zfs.zfsPool, s.container.Name(), zfsParent))
 	}
@@ -1210,7 +1211,7 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
 	if s.container.IsSnapshot() {
 		fields := strings.SplitN(s.container.Name(), shared.SnapshotDelimiter, 2)
-		snapshotName := fmt.Sprintf("containers/%s@snapshot-%s", fields[0], fields[1])
+		snapshotName := fmt.Sprintf("snapshot-%s", fields[1])
 		return s.send(conn, snapshotName, "")
 	}
 
@@ -1274,7 +1275,7 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 	 * to send anything else, because that's all the user asked for.
 	 */
 	if ct.IsSnapshot() {
-		return &zfsMigrationSourceDriver{container: ct}, nil
+		return &zfsMigrationSourceDriver{container: ct, zfs: s}, nil
 	}
 
 	driver := zfsMigrationSourceDriver{
@@ -1304,15 +1305,13 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", ct.Name(), shared.SnapshotDelimiter, snap[len("snapshot-"):])
-		zfsName := fmt.Sprintf("containers/%s@%s", ct.Name(), snap)
-
 		snapshot, err := containerLoadByName(s.d, lxdName)
 		if err != nil {
 			return nil, err
 		}
 
 		driver.snapshots = append(driver.snapshots, snapshot)
-		driver.zfsSnapshotNames = append(driver.zfsSnapshotNames, zfsName)
+		driver.zfsSnapshotNames = append(driver.zfsSnapshotNames, snap)
 	}
 
 	return &driver, nil
