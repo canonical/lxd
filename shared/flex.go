@@ -3,7 +3,7 @@
  */
 package shared
 
-var Version = "2.0.0.rc1"
+var Version = "2.0.0.rc2"
 var UserAgent = "LXD " + Version
 
 /*
