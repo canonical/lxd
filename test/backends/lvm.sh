@@ -10,7 +10,7 @@ lvm_setup() {
     echo "Couldn't find the lvm binary"; false
   fi
 
-  truncate -s 100G "${TEST_DIR}/$(basename "${LXD_DIR}").lvm"
+  truncate -s 4G "${TEST_DIR}/$(basename "${LXD_DIR}").lvm"
   pvloopdev=$(losetup --show -f "${TEST_DIR}/$(basename "${LXD_DIR}").lvm")
   if [ ! -e "${pvloopdev}" ]; then
     echo "failed to setup loop"
@@ -28,6 +28,7 @@ lvm_configure() {
 
   echo "==> Configuring lvm backend in ${LXD_DIR}"
 
+  export LXD_LVM_LVSIZE="10Mib"
   lxc config set storage.lvm_vg_name "lxdtest-$(basename "${LXD_DIR}")"
 }
 

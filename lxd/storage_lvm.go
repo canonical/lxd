@@ -952,11 +952,16 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 		}
 	}
 
+	lvSize := os.Getenv("LXD_LVM_LVSIZE")
+	if lvSize == "" {
+		lvSize = storageLvmDefaultThinLVSize
+	}
+
 	output, err := s.tryExec(
 		"lvcreate",
 		"--thin",
 		"-n", lvname,
-		"--virtualsize", storageLvmDefaultThinLVSize,
+		"--virtualsize", lvSize,
 		fmt.Sprintf("%s/%s", s.vgName, poolname))
 
 	if err != nil {
