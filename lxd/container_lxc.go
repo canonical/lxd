@@ -324,7 +324,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	for _, mnt := range []string{"/proc/sys/fs/binfmt_misc", "/sys/firmware/efi/efivars", "/sys/fs/fuse/connections", "/sys/fs/pstore", "/sys/kernel/debug", "/sys/kernel/security"} {
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,optional", mnt, strings.TrimPrefix(mnt, "/")))
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none rbind,optional", mnt, strings.TrimPrefix(mnt, "/")))
 		if err != nil {
 			return err
 		}
