@@ -418,15 +418,15 @@ func Test_dbImageGet_finds_image_for_fingerprint(t *testing.T) {
 		t.Fatal("Filename should be set.")
 	}
 
-	if result.CreationDate != time.Unix(1431547174, 0).UTC() {
+	if result.CreationDate.UTC() != time.Unix(1431547174, 0).UTC() {
 		t.Fatal(fmt.Sprintf("%s != %s", result.CreationDate, time.Unix(1431547174, 0)))
 	}
 
-	if result.ExpiryDate != time.Unix(1431547175, 0).UTC() { // It was short lived
+	if result.ExpiryDate.UTC() != time.Unix(1431547175, 0).UTC() { // It was short lived
 		t.Fatal(fmt.Sprintf("%s != %s", result.ExpiryDate, time.Unix(1431547175, 0)))
 	}
 
-	if result.UploadDate != time.Unix(1431547176, 0).UTC() {
+	if result.UploadDate.UTC() != time.Unix(1431547176, 0).UTC() {
 		t.Fatal(fmt.Sprintf("%s != %s", result.UploadDate, time.Unix(1431547176, 0)))
 	}
 }
