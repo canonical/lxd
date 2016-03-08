@@ -807,56 +807,38 @@ func (s *storageBtrfs) getSubVolumes(path string) ([]string, error) {
 	return result, nil
 }
 
-type btrfsMigrationSource struct {
-	lxdName            string
-	deleteAfterSending bool
-	btrfsPath          string
-	btrfsParent        string
-
-	btrfs *storageBtrfs
+type btrfsMigrationSourceDriver struct {
+	container          container
+	snapshots          []container
+	btrfsSnapshotNames []string
+	btrfs              *storageBtrfs
+	runningSnapName    string
+	stoppedSnapName    string
 }
 
-func (s btrfsMigrationSource) Name() string {
-	return s.lxdName
+func (s *btrfsMigrationSourceDriver) Snapshots() []container {
+	return s.snapshots
 }
 
-func (s btrfsMigrationSource) IsSnapshot() bool {
-	return !s.deleteAfterSending
-}
-
-func (s btrfsMigrationSource) Send(conn *websocket.Conn) error {
-	args := []string{"send", s.btrfsPath}
-	if s.btrfsParent != "" {
-		args = append(args, "-p", s.btrfsParent)
+func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string, btrfsParent string) error {
+	args := []string{"send", btrfsPath}
+	if btrfsParent != "" {
+		args = append(args, "-p", btrfsParent)
 	}
 
 	cmd := exec.Command("btrfs", args...)
 
-	deleteAfterSending := func(path string) {
-		s.btrfs.subvolsDelete(path)
-		os.Remove(filepath.Dir(path))
-	}
-
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		if s.deleteAfterSending {
-			deleteAfterSending(s.btrfsPath)
-		}
 		return err
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		if s.deleteAfterSending {
-			deleteAfterSending(s.btrfsPath)
-		}
 		return err
 	}
 
 	if err := cmd.Start(); err != nil {
-		if s.deleteAfterSending {
-			deleteAfterSending(s.btrfsPath)
-		}
 		return err
 	}
 
@@ -871,10 +853,83 @@ func (s btrfsMigrationSource) Send(conn *websocket.Conn) error {
 	if err != nil {
 		shared.Log.Error("problem with btrfs send", "output", string(output))
 	}
-	if s.deleteAfterSending {
-		deleteAfterSending(s.btrfsPath)
-	}
 	return err
+}
+
+func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
+	if s.container.IsSnapshot() {
+		tmpPath := containerPath(fmt.Sprintf("%s/.migration-send-%s", s.container.Name(), uuid.NewRandom().String()), true)
+		err := os.MkdirAll(tmpPath, 0700)
+		if err != nil {
+			return err
+		}
+
+		btrfsPath := fmt.Sprintf("%s/.root", tmpPath)
+		if err := s.btrfs.subvolSnapshot(s.container.Path(), btrfsPath, true); err != nil {
+			return err
+		}
+
+		defer s.btrfs.subvolDelete(btrfsPath)
+
+		return s.send(conn, btrfsPath, "")
+	}
+
+	for i, snap := range s.snapshots {
+		prev := ""
+		if i > 0 {
+			prev = s.snapshots[i-1].Path()
+		}
+
+		if err := s.send(conn, snap.Path(), prev); err != nil {
+			return err
+		}
+	}
+
+	/* We can't send running fses, so let's snapshot the fs and send
+	 * the snapshot.
+	 */
+	tmpPath := containerPath(fmt.Sprintf("%s/.migration-send-%s", s.container.Name(), uuid.NewRandom().String()), true)
+	err := os.MkdirAll(tmpPath, 0700)
+	if err != nil {
+		return err
+	}
+
+	s.runningSnapName = fmt.Sprintf("%s/.root", tmpPath)
+	if err := s.btrfs.subvolSnapshot(s.container.Path(), s.runningSnapName, true); err != nil {
+		return err
+	}
+
+	btrfsParent := ""
+	if len(s.btrfsSnapshotNames) > 0 {
+		btrfsParent = s.btrfsSnapshotNames[len(s.btrfsSnapshotNames)-1]
+	}
+
+	return s.send(conn, s.runningSnapName, btrfsParent)
+}
+
+func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
+	tmpPath := containerPath(fmt.Sprintf("%s/.migration-send-%s", s.container.Name(), uuid.NewRandom().String()), true)
+	err := os.MkdirAll(tmpPath, 0700)
+	if err != nil {
+		return err
+	}
+
+	s.stoppedSnapName = fmt.Sprintf("%s/.root", tmpPath)
+	if err := s.btrfs.subvolSnapshot(s.container.Path(), s.stoppedSnapName, true); err != nil {
+		return err
+	}
+
+	return s.send(conn, s.stoppedSnapName, s.runningSnapName)
+}
+
+func (s *btrfsMigrationSourceDriver) Cleanup() {
+	if s.stoppedSnapName != "" {
+		s.btrfs.subvolDelete(s.stoppedSnapName)
+	}
+
+	if s.runningSnapName != "" {
+		s.btrfs.subvolDelete(s.runningSnapName)
+	}
 }
 
 func (s *storageBtrfs) MigrationType() MigrationFSType {
@@ -885,30 +940,9 @@ func (s *storageBtrfs) MigrationType() MigrationFSType {
 	}
 }
 
-func (s *storageBtrfs) MigrationSource(c container) ([]MigrationStorageSource, error) {
+func (s *storageBtrfs) MigrationSource(c container) (MigrationStorageSourceDriver, error) {
 	if runningInUserns {
 		return rsyncMigrationSource(c)
-	}
-
-	sources := []MigrationStorageSource{}
-
-	/* If the container is a snapshot, let's just send that; we don't need
-	 * to send anything else, because that's all the user asked for.
-	 */
-	if c.IsSnapshot() {
-		tmpPath := containerPath(fmt.Sprintf("%s/.migration-send-%s", c.Name(), uuid.NewRandom().String()), true)
-		err := os.MkdirAll(tmpPath, 0700)
-		if err != nil {
-			return nil, err
-		}
-
-		btrfsPath := fmt.Sprintf("%s/.root", tmpPath)
-		if err := s.subvolSnapshot(c.Path(), btrfsPath, true); err != nil {
-			return nil, err
-		}
-
-		sources = append(sources, btrfsMigrationSource{c.Name(), true, btrfsPath, "", s})
-		return sources, nil
 	}
 
 	/* List all the snapshots in order of reverse creation. The idea here
@@ -920,48 +954,24 @@ func (s *storageBtrfs) MigrationSource(c container) ([]MigrationStorageSource, e
 		return nil, err
 	}
 
-	for i, snap := range snapshots {
-		var prev container
-		if i > 0 {
-			prev = snapshots[i-1]
-		}
+	driver := &btrfsMigrationSourceDriver{
+		container:          c,
+		snapshots:          snapshots,
+		btrfsSnapshotNames: []string{},
+		btrfs:              s,
+	}
 
+	for _, snap := range snapshots {
 		btrfsPath := snap.Path()
-		parentName := ""
-		if prev != nil {
-			parentName = prev.Path()
-		}
-
-		sources = append(sources, btrfsMigrationSource{snap.Name(), false, btrfsPath, parentName, s})
+		driver.btrfsSnapshotNames = append(driver.btrfsSnapshotNames, btrfsPath)
 	}
 
-	/* We can't send running fses, so let's snapshot the fs and send
-	 * the snapshot.
-	 */
-	tmpPath := containerPath(fmt.Sprintf("%s/.migration-send-%s", c.Name(), uuid.NewRandom().String()), true)
-	err = os.MkdirAll(tmpPath, 0700)
-	if err != nil {
-		return nil, err
-	}
-
-	btrfsPath := fmt.Sprintf("%s/.root", tmpPath)
-	if err := s.subvolSnapshot(c.Path(), btrfsPath, true); err != nil {
-		return nil, err
-	}
-
-	btrfsParent := ""
-	if len(sources) > 0 {
-		btrfsParent = sources[len(sources)-1].(btrfsMigrationSource).btrfsPath
-	}
-
-	sources = append(sources, btrfsMigrationSource{c.Name(), true, btrfsPath, btrfsParent, s})
-
-	return sources, nil
+	return driver, nil
 }
 
-func (s *storageBtrfs) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
+func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []container, conn *websocket.Conn) error {
 	if runningInUserns {
-		return rsyncMigrationSink(container, snapshots, conn)
+		return rsyncMigrationSink(live, container, snapshots, conn)
 	}
 
 	cName := container.Name()
@@ -1039,6 +1049,12 @@ func (s *storageBtrfs) MigrationSink(container container, snapshots []container,
 	/* finally, do the real container */
 	if err := btrfsRecv(containerPath(cName, true), container.Path(), false); err != nil {
 		return err
+	}
+
+	if live {
+		if err := btrfsRecv(containerPath(cName, true), container.Path(), false); err != nil {
+			return err
+		}
 	}
 
 	// Cleanup

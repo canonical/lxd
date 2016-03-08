@@ -1061,10 +1061,10 @@ func (s *storageLvm) MigrationType() MigrationFSType {
 	return MigrationFSType_RSYNC
 }
 
-func (s *storageLvm) MigrationSource(container container) ([]MigrationStorageSource, error) {
+func (s *storageLvm) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
 	return rsyncMigrationSource(container)
 }
 
-func (s *storageLvm) MigrationSink(container container, snapshots []container, conn *websocket.Conn) error {
-	return rsyncMigrationSink(container, snapshots, conn)
+func (s *storageLvm) MigrationSink(live bool, container container, snapshots []container, conn *websocket.Conn) error {
+	return rsyncMigrationSink(live, container, snapshots, conn)
 }
