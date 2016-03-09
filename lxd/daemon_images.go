@@ -27,9 +27,14 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	fp := alias
 
+	proxy, err := d.proxyFunc()
+	if err != nil {
+		return "", err
+	}
+
 	// Expand aliases
 	if protocol == "simplestreams" {
-		ss, err = shared.SimpleStreamsClient(server)
+		ss, err = shared.SimpleStreamsClient(server, proxy)
 		if err != nil {
 			return "", err
 		}

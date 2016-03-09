@@ -314,7 +314,7 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 	}
 
 	if info.RemoteConfig.Protocol == "simplestreams" {
-		ss, err := shared.SimpleStreamsClient(c.Remote.Addr)
+		ss, err := shared.SimpleStreamsClient(c.Remote.Addr, http.ProxyFromEnvironment)
 		if err != nil {
 			return nil, err
 		}

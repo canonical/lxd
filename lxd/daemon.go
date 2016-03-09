@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -107,6 +108,25 @@ type Command struct {
 	delete        func(d *Daemon, r *http.Request) Response
 }
 
+func (d *Daemon) proxyFunc() (func(req *http.Request) (*url.URL, error), error) {
+	httpsProxy, err := d.ConfigValueGet("core.proxy_https")
+	if err != nil {
+		return nil, err
+	}
+
+	httpProxy, err := d.ConfigValueGet("core.proxy_http")
+	if err != nil {
+		return nil, err
+	}
+
+	noProxy, err := d.ConfigValueGet("core.proxy_ignore_hosts")
+	if err != nil {
+		return nil, err
+	}
+
+	return shared.ProxyFromConfig(httpsProxy, httpProxy, noProxy), nil
+}
+
 func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, error) {
 	var err error
 
@@ -125,10 +145,15 @@ func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, err
 		return nil, err
 	}
 
+	proxy, err := d.proxyFunc()
+	if err != nil {
+		return nil, err
+	}
+
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Dial:            shared.RFC3493Dialer,
-		Proxy:           http.ProxyFromEnvironment,
+		Proxy:           proxy,
 	}
 
 	myhttp := http.Client{
@@ -177,10 +202,15 @@ func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, er
 		return nil, err
 	}
 
+	proxy, err := d.proxyFunc()
+	if err != nil {
+		return nil, err
+	}
+
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Dial:            shared.RFC3493Dialer,
-		Proxy:           http.ProxyFromEnvironment,
+		Proxy:           proxy,
 	}
 	myhttp := http.Client{
 		Transport: tr,
@@ -1141,6 +1171,12 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 	case "core.https_allowed_methods":
 		return true
 	case "core.https_allowed_headers":
+		return true
+	case "core.proxy_https":
+		return true
+	case "core.proxy_http":
+		return true
+	case "core.proxy_disable":
 		return true
 	case "core.trust_password":
 		return true
