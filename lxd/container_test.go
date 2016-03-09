@@ -81,8 +81,10 @@ func (suite *lxdTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 
 	suite.True(c.IsPrivileged(), "This container should be privileged.")
 
-	state, err := c.Render()
+	out, err := c.Render()
 	suite.Req.Nil(err)
+
+	state := out.(*shared.ContainerInfo)
 	defer c.Delete()
 
 	suite.Equal(

@@ -71,5 +71,5 @@ func doContainerGet(d *Daemon, cname string) (*shared.ContainerInfo, Response) {
 		return nil, SmartError(err)
 	}
 
-	return cts, nil
+	return cts.(*shared.ContainerInfo), nil
 }

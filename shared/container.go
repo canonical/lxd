@@ -55,9 +55,16 @@ type ContainerExecControl struct {
 }
 
 type SnapshotInfo struct {
-	CreationDate time.Time `json:"created_at"`
-	Name         string    `json:"name"`
-	Stateful     bool      `json:"stateful"`
+	Architecture    string            `json:"architecture"`
+	Config          map[string]string `json:"config"`
+	CreationDate    time.Time         `json:"created_at"`
+	Devices         Devices           `json:"devices"`
+	Ephemeral       bool              `json:"ephemeral"`
+	ExpandedConfig  map[string]string `json:"expanded_config"`
+	ExpandedDevices Devices           `json:"expanded_devices"`
+	Name            string            `json:"name"`
+	Profiles        []string          `json:"profiles"`
+	Stateful        bool              `json:"stateful"`
 }
 
 type ContainerInfo struct {

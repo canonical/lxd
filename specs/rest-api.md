@@ -827,9 +827,50 @@ Input:
 Return:
 
     {
-        "created_at": "2016-02-16T01:05:05Z",
-        "name": "my-snapshot",
-        "stateful": true
+        "architecture": "x86_64",
+        "config": {
+            "security.nesting": "true",
+            "volatile.base_image": "a49d26ce5808075f5175bf31f5cb90561f5023dcd408da8ac5e834096d46b2d8",
+            "volatile.eth0.hwaddr": "00:16:3e:ec:65:a8",
+            "volatile.last_state.idmap": "[{\"Isuid\":true,\"Isgid\":false,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536},{\"Isuid\":false,\"Isgid\":true,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536}]",
+        },
+        "created_at": "2016-03-08T23:55:08Z",
+        "devices": {
+            "eth0": {
+                "name": "eth0",
+                "nictype": "bridged",
+                "parent": "lxcbr0",
+                "type": "nic"
+            },
+            "root": {
+                "path": "/",
+                "type": "disk"
+            },
+        },
+        "ephemeral": false,
+        "expanded_config": {
+            "security.nesting": "true",
+            "volatile.base_image": "a49d26ce5808075f5175bf31f5cb90561f5023dcd408da8ac5e834096d46b2d8",
+            "volatile.eth0.hwaddr": "00:16:3e:ec:65:a8",
+            "volatile.last_state.idmap": "[{\"Isuid\":true,\"Isgid\":false,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536},{\"Isuid\":false,\"Isgid\":true,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536}]",
+        },
+        "expanded_devices": {
+            "eth0": {
+                "name": "eth0",
+                "nictype": "bridged",
+                "parent": "lxcbr0",
+                "type": "nic"
+            },
+            "root": {
+                "path": "/",
+                "type": "disk"
+            },
+        },
+        "name": "zerotier/blah",
+        "profiles": [
+            "default"
+        ],
+        "stateful": false
     }
 
 ### POST
