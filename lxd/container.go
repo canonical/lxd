@@ -339,7 +339,7 @@ type container interface {
 	FilePush(srcpath string, dstpath string, uid int, gid int, mode os.FileMode) error
 
 	// Status
-	Render() (*shared.ContainerInfo, error)
+	Render() (interface{}, error)
 	RenderState() (*shared.ContainerState, error)
 	IsPrivileged() bool
 	IsRunning() bool
