@@ -758,7 +758,7 @@ func (c *containerLXC) initLXC() error {
 			// Various option checks
 			isOptional := m["optional"] == "1" || m["optional"] == "true"
 			isReadOnly := m["readonly"] == "1" || m["readonly"] == "true"
-			isFile := !shared.IsDir(srcPath) && !deviceIsDevice(srcPath)
+			isFile := !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
 
 			// Deal with a rootfs
 			if tgtPath == "" {
@@ -3611,7 +3611,7 @@ func (c *containerLXC) createDiskDevice(name string, m shared.Device) (string, e
 	// Check if read-only
 	isOptional := m["optional"] == "1" || m["optional"] == "true"
 	isReadOnly := m["readonly"] == "1" || m["readonly"] == "true"
-	isFile := !shared.IsDir(srcPath) && !deviceIsDevice(srcPath)
+	isFile := !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
 
 	// Check if the source exists
 	if !shared.PathExists(srcPath) {
