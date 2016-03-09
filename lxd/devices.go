@@ -709,6 +709,7 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %s", device[1], output)
 		}
 
+		header := true
 		for _, line := range strings.Split(string(output), "\n") {
 			fields := strings.Fields(line)
 			if len(fields) < 5 {
@@ -716,6 +717,11 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 			}
 
 			if fields[1] != "ONLINE" {
+				continue
+			}
+
+			if header {
+				header = false
 				continue
 			}
 
