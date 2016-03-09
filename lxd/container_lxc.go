@@ -1472,33 +1472,48 @@ func (c *containerLXC) Unfreeze() error {
 	return c.c.Unfreeze()
 }
 
-func (c *containerLXC) Render() (*shared.ContainerInfo, error) {
+func (c *containerLXC) Render() (interface{}, error) {
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
 		return nil, err
 	}
 
-	// FIXME: Render shouldn't directly access the go-lxc struct
-	statusCode := shared.FromLXCState(int(c.c.State()))
-
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := shared.ArchitectureName(c.architecture)
 
-	return &shared.ContainerInfo{
-		Architecture:    architectureName,
-		Config:          c.localConfig,
-		CreationDate:    c.creationDate,
-		Devices:         c.localDevices,
-		Ephemeral:       c.ephemeral,
-		ExpandedConfig:  c.expandedConfig,
-		ExpandedDevices: c.expandedDevices,
-		Name:            c.name,
-		Profiles:        c.profiles,
-		Status:          statusCode.String(),
-		StatusCode:      statusCode,
-		Stateful:        c.stateful,
-	}, nil
+	if c.IsSnapshot() {
+		return &shared.SnapshotInfo{
+			Architecture:    architectureName,
+			Config:          c.localConfig,
+			CreationDate:    c.creationDate,
+			Devices:         c.localDevices,
+			Ephemeral:       c.ephemeral,
+			ExpandedConfig:  c.expandedConfig,
+			ExpandedDevices: c.expandedDevices,
+			Name:            c.name,
+			Profiles:        c.profiles,
+			Stateful:        c.stateful,
+		}, nil
+	} else {
+		// FIXME: Render shouldn't directly access the go-lxc struct
+		statusCode := shared.FromLXCState(int(c.c.State()))
+
+		return &shared.ContainerInfo{
+			Architecture:    architectureName,
+			Config:          c.localConfig,
+			CreationDate:    c.creationDate,
+			Devices:         c.localDevices,
+			Ephemeral:       c.ephemeral,
+			ExpandedConfig:  c.expandedConfig,
+			ExpandedDevices: c.expandedDevices,
+			Name:            c.name,
+			Profiles:        c.profiles,
+			Status:          statusCode.String(),
+			StatusCode:      statusCode,
+			Stateful:        c.stateful,
+		}, nil
+	}
 }
 
 func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
