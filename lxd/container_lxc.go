@@ -1076,7 +1076,9 @@ func (c *containerLXC) startCommon() (string, error) {
 
 func (c *containerLXC) Start(stateful bool) error {
 	// Wait for container tear down to finish
+	lxcStoppingContainersLock.Lock()
 	wgStopping, stopping := lxcStoppingContainers[c.id]
+	lxcStoppingContainersLock.Unlock()
 	if stopping {
 		wgStopping.Wait()
 	}
@@ -1354,7 +1356,9 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 
 func (c *containerLXC) OnStop(target string) error {
 	// Get locking
+	lxcStoppingContainersLock.Lock()
 	wg, stopping := lxcStoppingContainers[c.id]
+	lxcStoppingContainersLock.Unlock()
 	if wg != nil {
 		wg.Add(1)
 	}
