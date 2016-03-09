@@ -36,7 +36,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	resultString := []string{}
-	resultMap := []shared.Jmap{}
+	resultMap := []*shared.SnapshotInfo{}
 
 	for _, snap := range snaps {
 		snapName := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)[1]
@@ -44,11 +44,12 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
 		} else {
-			body := shared.Jmap{
-				"name":       snapName,
-				"created_at": snap.CreationDate(),
-				"stateful":   snap.IsStateful()}
-			resultMap = append(resultMap, body)
+			render, err := snap.Render()
+			if err != nil {
+				continue
+			}
+
+			resultMap = append(resultMap, render.(*shared.SnapshotInfo))
 		}
 	}
 
@@ -182,11 +183,12 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 }
 
 func snapshotGet(sc container, name string) Response {
-	body := shared.Jmap{
-		"name":       name,
-		"created_at": sc.CreationDate(),
-		"stateful":   shared.PathExists(sc.StatePath())}
-	return SyncResponse(true, body)
+	render, err := sc.Render()
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return SyncResponse(true, render.(*shared.SnapshotInfo))
 }
 
 func snapshotPost(r *http.Request, sc container, containerName string) Response {
