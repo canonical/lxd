@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -215,7 +216,7 @@ type SimpleStreamsIndexStream struct {
 	Products []string `json:"products"`
 }
 
-func SimpleStreamsClient(url string) (*SimpleStreams, error) {
+func SimpleStreamsClient(url string, proxy func(*http.Request) (*url.URL, error)) (*SimpleStreams, error) {
 	// Setup a http client
 	tlsConfig, err := GetTLSConfig("", "", nil)
 	if err != nil {
@@ -225,7 +226,7 @@ func SimpleStreamsClient(url string) (*SimpleStreams, error) {
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Dial:            RFC3493Dialer,
-		Proxy:           http.ProxyFromEnvironment,
+		Proxy:           proxy,
 	}
 
 	myHttp := http.Client{
