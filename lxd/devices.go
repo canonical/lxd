@@ -431,17 +431,12 @@ func deviceTaskSchedulerTrigger(srcType string, srcName string, srcStatus string
 	}()
 }
 
-func deviceIsDevice(path string) bool {
+func deviceIsBlockdev(path string) bool {
 	// Get a stat struct from the provided path
 	stat := syscall.Stat_t{}
 	err := syscall.Stat(path, &stat)
 	if err != nil {
 		return false
-	}
-
-	// Check if it's a character device
-	if stat.Mode&syscall.S_IFMT == syscall.S_IFCHR {
-		return true
 	}
 
 	// Check if it's a block device
@@ -532,7 +527,7 @@ func deviceMountDisk(srcPath string, dstPath string, readonly bool) error {
 
 	// Detect the filesystem
 	fstype := "none"
-	if deviceIsDevice(srcPath) {
+	if deviceIsBlockdev(srcPath) {
 		fstype, err = shared.BlockFsDetect(srcPath)
 		if err != nil {
 			return err
