@@ -37,7 +37,7 @@ var argMemProfile = gnuflag.String("memprofile", "", "")
 var argNetworkAddress = gnuflag.String("network-address", "", "")
 var argNetworkPort = gnuflag.Int("network-port", -1, "")
 var argPrintGoroutinesEvery = gnuflag.Int("print-goroutines-every", -1, "")
-var argStorageBackend = gnuflag.String("storage-backend", "dir", "")
+var argStorageBackend = gnuflag.String("storage-backend", "", "")
 var argStorageCreateDevice = gnuflag.String("storage-create-device", "", "")
 var argStorageCreateLoop = gnuflag.Int("storage-create-loop", -1, "")
 var argStoragePool = gnuflag.String("storage-pool", "", "")
@@ -110,6 +110,8 @@ func run() error {
 		fmt.Printf("\nInit options:\n")
 		fmt.Printf("    --auto\n")
 		fmt.Printf("        Automatic (non-interactive) mode\n")
+
+		fmt.Printf("\nInit options for non-interactive mode (--auto):\n")
 		fmt.Printf("    --network-address ADDRESS\n")
 		fmt.Printf("        Address to bind LXD to (default: none)\n")
 		fmt.Printf("    --network-port PORT\n")
@@ -633,6 +635,10 @@ func setupLXD() error {
 	}
 
 	if *argAuto {
+		if *argStorageBackend == "" {
+			*argStorageBackend = "dir"
+		}
+
 		// Do a bunch of sanity checks
 		if !shared.StringInSlice(*argStorageBackend, backendsSupported) {
 			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", *argStorageBackend)
@@ -684,6 +690,10 @@ func setupLXD() error {
 		networkPort = *argNetworkPort
 		trustPassword = *argTrustPassword
 	} else {
+		if *argStorageBackend != "" || *argStorageCreateDevice != "" || *argStorageCreateLoop != -1 || *argStoragePool != "" || *argNetworkAddress != "" || *argNetworkPort != -1 || *argTrustPassword != "" {
+			return fmt.Errorf("Init configuration is only valid with --auto")
+		}
+
 		storageBackend = askChoice("Name of the storage backend to use (dir or zfs): ", backendsSupported)
 
 		if !shared.StringInSlice(storageBackend, backendsSupported) {
