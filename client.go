@@ -143,15 +143,6 @@ func HoistResponse(r *http.Response, rtype ResponseType) (*Response, error) {
 	return resp, nil
 }
 
-func ensureMyCert(configDir string) (string, string, error) {
-	certf := path.Join(configDir, "client.crt")
-	keyf := path.Join(configDir, "client.key")
-
-	err := shared.FindOrGenCert(certf, keyf)
-
-	return certf, keyf, err
-}
-
 // NewClient returns a new LXD client.
 func NewClient(config *Config, remote string) (*Client, error) {
 	if remote == "" {
@@ -173,20 +164,29 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			info.RemoteConfig.Addr = fmt.Sprintf("unix:%s", shared.VarPath("unix.socket"))
 		}
 	} else {
-		certf, keyf, err := ensureMyCert(config.ConfigDir)
-		if err != nil {
-			return nil, err
+		// Read the client certificate (if it exists)
+		clientCertPath := path.Join(config.ConfigDir, "client.crt")
+		if shared.PathExists(clientCertPath) {
+			certBytes, err := ioutil.ReadFile(clientCertPath)
+			if err != nil {
+				return nil, err
+			}
+
+			info.ClientPEMCert = string(certBytes)
 		}
-		certBytes, err := ioutil.ReadFile(certf)
-		if err != nil {
-			return nil, err
+
+		// Read the client key (if it exists)
+		clientKeyPath := path.Join(config.ConfigDir, "client.key")
+		if shared.PathExists(clientKeyPath) {
+			keyBytes, err := ioutil.ReadFile(clientKeyPath)
+			if err != nil {
+				return nil, err
+			}
+
+			info.ClientPEMKey = string(keyBytes)
 		}
-		keyBytes, err := ioutil.ReadFile(keyf)
-		if err != nil {
-			return nil, err
-		}
-		info.ClientPEMCert = string(certBytes)
-		info.ClientPEMKey = string(keyBytes)
+
+		// Read the server certificate (if it exists)
 		serverCertPath := config.ServerCertPath(remote)
 		if shared.PathExists(serverCertPath) {
 			cert, err := shared.ReadCert(serverCertPath)
