@@ -77,19 +77,19 @@ int copy(int target, int source)
 	char buf[1024];
 
 	if (ftruncate(target, 0) < 0) {
-		perror("truncate");
+		perror("error: truncate");
 		return -1;
 	}
 
 	while ((n = read(source, buf, 1024)) > 0) {
 		if (write(target, buf, n) != n) {
-			perror("write");
+			perror("error: write");
 			return -1;
 		}
 	}
 
 	if (n < 0) {
-		perror("read");
+		perror("error: read");
 		return -1;
 	}
 
@@ -103,12 +103,12 @@ int dosetns(int pid, char *nstype) {
 	sprintf(buf, "/proc/%d/ns/%s", pid, nstype);
 	mntns = open(buf, O_RDONLY);
 	if (mntns < 0) {
-		perror("open mntns");
+		perror("error: open mntns");
 		return -1;
 	}
 
 	if (setns(mntns, 0) < 0) {
-		perror("setns");
+		perror("error: setns");
 		close(mntns);
 		return -1;
 	}
@@ -124,7 +124,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 
 	host_fd = open(host, O_RDWR);
 	if (host_fd < 0) {
-		perror("open host");
+		perror("error: open");
 		return -1;
 	}
 
@@ -133,28 +133,36 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		container_open_flags |= O_CREAT;
 
 	if (pid > 0) {
-		if (dosetns(pid, "mnt") < 0)
+		if (dosetns(pid, "mnt") < 0) {
+			perror("error: setns");
 			goto close_host;
+		}
 	} else {
-		if (chroot(rootfs) < 0)
+		if (chroot(rootfs) < 0) {
+			perror("error: chroot");
 			goto close_host;
+		}
 
-		if (chdir("/") < 0)
+		if (chdir("/") < 0) {
+			perror("error: chdir");
 			goto close_host;
+		}
 	}
 
 	container_fd = open(container, container_open_flags, mode);
 	if (container_fd < 0) {
-		fprintf(stderr, "%s\n", strerror(errno));
+		perror("error: open");
 		goto close_host;
 	}
 
 	if (is_put) {
-		if (copy(container_fd, host_fd) < 0)
+		if (copy(container_fd, host_fd) < 0) {
+			perror("error: copy");
 			goto close_container;
+		}
 
 		if (fchown(container_fd, uid, gid) < 0) {
-			perror("fchown");
+			perror("error: chown");
 			goto close_container;
 		}
 
@@ -366,14 +374,14 @@ __attribute__((constructor)) void init(void) {
 
 	cmdline = open("/proc/self/cmdline", O_RDONLY);
 	if (cmdline < 0) {
-		perror("open");
+		perror("error: open");
 		_exit(232);
 	}
 
 	memset(buf, 0, sizeof(buf));
 	if ((size = read(cmdline, buf, sizeof(buf)-1)) < 0) {
 		close(cmdline);
-		perror("read");
+		perror("error: read");
 		_exit(232);
 	}
 	close(cmdline);
