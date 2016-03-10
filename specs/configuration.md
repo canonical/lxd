@@ -24,8 +24,8 @@ core.https\_allowed\_origin     | string        | -                         | Ac
 core.https\_allowed\_methods    | string        | -                         | Access-Control-Allow-Methods http header value
 core.https\_allowed\_headers    | string        | -                         | Access-Control-Allow-Headers http header value
 core.proxy\_https               | string        | -                         | https proxy to use, if any (falls back to HTTPS_PROXY environment variable)
-core.proxy\_http                | string        | -                         | http proxy to use, if any (falls back to HTTP_PROXY)
-core.proxy\_ignore\_hosts       | string        | -                         | hosts which don't need the proxy for use (similar format to NO_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO_PROXY)
+core.proxy\_http                | string        | -                         | http proxy to use, if any (falls back to HTTP_PROXY environment variable)
+core.proxy\_ignore\_hosts       | string        | -                         | hosts which don't need the proxy for use (similar format to NO_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO_PROXY environment varialbe)
 core.trust\_password            | string        | -                         | Password to be provided by clients to setup a trust
 storage.lvm\_vg\_name           | string        | -                         | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
 storage.lvm\_thinpool\_name     | string        | "LXDPool"                 | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
