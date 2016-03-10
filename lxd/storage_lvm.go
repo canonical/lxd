@@ -24,7 +24,7 @@ var storageLvmDefaultThinPoolName = "LXDPool"
 func storageLVMCheckVolumeGroup(vgName string) error {
 	output, err := exec.Command("vgdisplay", "-s", vgName).CombinedOutput()
 	if err != nil {
-		shared.Log.Error("vgdisplay failed to find vg", log.Ctx{"output": string(output)})
+		shared.Log.Debug("vgdisplay failed to find vg", log.Ctx{"output": string(output)})
 		return fmt.Errorf("LVM volume group '%s' not found", vgName)
 	}
 
