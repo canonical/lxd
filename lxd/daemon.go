@@ -847,6 +847,7 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
+	/* set the initial proxy function based on config values in the DB */
 	d.updateProxy()
 
 	/* Auto-update images */
