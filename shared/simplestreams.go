@@ -93,8 +93,12 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 		}
 
 		for name, version := range product.Versions {
-			// Short of anything better, use the name as date
-			creationDate, err := time.Parse(nameLayout, name)
+			// Short of anything better, use the name as date (see format above)
+			if len(name) < 8 {
+				continue
+			}
+
+			creationDate, err := time.Parse(nameLayout, name[0:8])
 			if err != nil {
 				continue
 			}
