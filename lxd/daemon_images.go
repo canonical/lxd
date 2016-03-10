@@ -376,6 +376,10 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	// By default, make all downloaded images private
 	info.Public = false
 
+	if alias != fp && secret == "" {
+		info.AutoUpdate = autoUpdate
+	}
+
 	_, err = imageBuildFromInfo(d, info)
 	if err != nil {
 		shared.Log.Error(
