@@ -273,7 +273,7 @@ func connectViaHttp(c *Client, remote *RemoteConfig, clientCert, clientKey, serv
 	tr := &http.Transport{
 		TLSClientConfig: tlsconfig,
 		Dial:            shared.RFC3493Dialer,
-		Proxy:           http.ProxyFromEnvironment,
+		Proxy:           shared.ProxyFromEnvironment,
 	}
 
 	c.websocketDialer.NetDial = shared.RFC3493Dialer
@@ -314,7 +314,7 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 	}
 
 	if info.RemoteConfig.Protocol == "simplestreams" {
-		ss, err := shared.SimpleStreamsClient(c.Remote.Addr)
+		ss, err := shared.SimpleStreamsClient(c.Remote.Addr, shared.ProxyFromEnvironment)
 		if err != nil {
 			return nil, err
 		}

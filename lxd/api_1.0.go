@@ -239,6 +239,13 @@ func api10Put(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return InternalError(err)
 			}
+		} else if key == "core.proxy_https" || key == "core.proxy_http" || key == "core.proxy_ignore_hosts" {
+			err = d.ConfigValueSet(key, value.(string))
+			if err != nil {
+				return InternalError(err)
+			}
+
+			d.updateProxy()
 		} else {
 			err := d.ConfigValueSet(key, value.(string))
 			if err != nil {
