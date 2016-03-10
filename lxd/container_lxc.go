@@ -2714,6 +2714,10 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) error {
 
 	// Process forkgetfile response
 	if string(out) != "" {
+		if strings.HasPrefix(string(out), "error:") {
+			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(string(out), "\n"), "error: "))
+		}
+
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
 			shared.Debugf("forkgetfile: %s", line)
 		}
@@ -2773,6 +2777,10 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 
 	// Process forkputfile response
 	if string(out) != "" {
+		if strings.HasPrefix(string(out), "error:") {
+			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(string(out), "\n"), "error: "))
+		}
+
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
 			shared.Debugf("forkgetfile: %s", line)
 		}
