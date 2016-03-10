@@ -95,6 +95,8 @@ type Daemon struct {
 	imagesDownloadingLock sync.RWMutex
 
 	tlsConfig *tls.Config
+
+	proxy func(req *http.Request) (*url.URL, error)
 }
 
 // Command is the basic structure for every API call.
@@ -108,23 +110,12 @@ type Command struct {
 	delete        func(d *Daemon, r *http.Request) Response
 }
 
-func (d *Daemon) proxyFunc() (func(req *http.Request) (*url.URL, error), error) {
-	httpsProxy, err := d.ConfigValueGet("core.proxy_https")
-	if err != nil {
-		return nil, err
-	}
-
-	httpProxy, err := d.ConfigValueGet("core.proxy_http")
-	if err != nil {
-		return nil, err
-	}
-
-	noProxy, err := d.ConfigValueGet("core.proxy_ignore_hosts")
-	if err != nil {
-		return nil, err
-	}
-
-	return shared.ProxyFromConfig(httpsProxy, httpProxy, noProxy), nil
+func (d *Daemon) updateProxy() {
+	d.proxy = shared.ProxyFromConfig(
+		d.configValues["core.proxy_https"],
+		d.configValues["core.proxy_http"],
+		d.configValues["core.proxy_ignore_hosts"],
+	)
 }
 
 func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, error) {
@@ -145,15 +136,10 @@ func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, err
 		return nil, err
 	}
 
-	proxy, err := d.proxyFunc()
-	if err != nil {
-		return nil, err
-	}
-
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Dial:            shared.RFC3493Dialer,
-		Proxy:           proxy,
+		Proxy:           d.proxy,
 	}
 
 	myhttp := http.Client{
@@ -202,15 +188,10 @@ func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, er
 		return nil, err
 	}
 
-	proxy, err := d.proxyFunc()
-	if err != nil {
-		return nil, err
-	}
-
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Dial:            shared.RFC3493Dialer,
-		Proxy:           proxy,
+		Proxy:           d.proxy,
 	}
 	myhttp := http.Client{
 		Transport: tr,
@@ -860,6 +841,14 @@ func (d *Daemon) Init() error {
 		}
 	}()
 
+	/* Load all config values from the database */
+	_, err = d.ConfigValuesGet()
+	if err != nil {
+		return err
+	}
+
+	d.updateProxy()
+
 	/* Auto-update images */
 	d.resetAutoUpdateChan = make(chan bool)
 	go func() {
@@ -1176,7 +1165,7 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 		return true
 	case "core.proxy_http":
 		return true
-	case "core.proxy_disable":
+	case "core.proxy_ignore_hosts":
 		return true
 	case "core.trust_password":
 		return true
