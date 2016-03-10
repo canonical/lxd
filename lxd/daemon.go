@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -94,6 +95,8 @@ type Daemon struct {
 	imagesDownloadingLock sync.RWMutex
 
 	tlsConfig *tls.Config
+
+	proxy func(req *http.Request) (*url.URL, error)
 }
 
 // Command is the basic structure for every API call.
@@ -105,6 +108,14 @@ type Command struct {
 	put           func(d *Daemon, r *http.Request) Response
 	post          func(d *Daemon, r *http.Request) Response
 	delete        func(d *Daemon, r *http.Request) Response
+}
+
+func (d *Daemon) updateProxy() {
+	d.proxy = shared.ProxyFromConfig(
+		d.configValues["core.proxy_https"],
+		d.configValues["core.proxy_http"],
+		d.configValues["core.proxy_ignore_hosts"],
+	)
 }
 
 func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, error) {
@@ -128,7 +139,7 @@ func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, err
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Dial:            shared.RFC3493Dialer,
-		Proxy:           http.ProxyFromEnvironment,
+		Proxy:           d.proxy,
 	}
 
 	myhttp := http.Client{
@@ -180,7 +191,7 @@ func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, er
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Dial:            shared.RFC3493Dialer,
-		Proxy:           http.ProxyFromEnvironment,
+		Proxy:           d.proxy,
 	}
 	myhttp := http.Client{
 		Transport: tr,
@@ -830,6 +841,15 @@ func (d *Daemon) Init() error {
 		}
 	}()
 
+	/* Load all config values from the database */
+	_, err = d.ConfigValuesGet()
+	if err != nil {
+		return err
+	}
+
+	/* set the initial proxy function based on config values in the DB */
+	d.updateProxy()
+
 	/* Auto-update images */
 	d.resetAutoUpdateChan = make(chan bool)
 	go func() {
@@ -1141,6 +1161,12 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 	case "core.https_allowed_methods":
 		return true
 	case "core.https_allowed_headers":
+		return true
+	case "core.proxy_https":
+		return true
+	case "core.proxy_http":
+		return true
+	case "core.proxy_ignore_hosts":
 		return true
 	case "core.trust_password":
 		return true

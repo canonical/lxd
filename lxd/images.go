@@ -328,7 +328,7 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Dial:            shared.RFC3493Dialer,
-		Proxy:           http.ProxyFromEnvironment,
+		Proxy:           d.proxy,
 	}
 
 	myhttp := http.Client{

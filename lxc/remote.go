@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -53,6 +54,35 @@ func (c *remoteCmd) flags() {
 	gnuflag.StringVar(&c.password, "password", "", i18n.G("Remote admin password"))
 	gnuflag.StringVar(&c.protocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)"))
 	gnuflag.BoolVar(&c.public, "public", false, i18n.G("Public image server"))
+}
+
+func getRemoteCertificate(address string) (*x509.Certificate, error) {
+	// Setup a permissive TLS config
+	tlsConfig, err := shared.GetTLSConfig("", "", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig.InsecureSkipVerify = true
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		Dial:            shared.RFC3493Dialer,
+		Proxy:           shared.ProxyFromEnvironment,
+	}
+
+	// Connect
+	client := &http.Client{Transport: tr}
+	resp, err := client.Get(address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve the certificate
+	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
+		return nil, fmt.Errorf("Unable to read remote TLS certificate")
+	}
+
+	return resp.TLS.PeerCertificates[0], nil
 }
 
 func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, acceptCert bool, password string, public bool, protocol string) error {
@@ -153,7 +183,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 	err = d.Finger()
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = shared.GetRemoteCertificate(addr)
+		certificate, err = getRemoteCertificate(addr)
 		if err != nil {
 			return err
 		}
