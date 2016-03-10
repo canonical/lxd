@@ -594,6 +594,9 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 
 	path := containerPath(args.Name, args.Ctype == cTypeSnapshot)
 	if shared.PathExists(path) {
+		if shared.IsSnapshot(args.Name) {
+			return nil, fmt.Errorf("Snapshot '%s' already exists", args.Name)
+		}
 		return nil, fmt.Errorf("The container already exists")
 	}
 
