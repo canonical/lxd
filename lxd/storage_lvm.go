@@ -24,7 +24,7 @@ var storageLvmDefaultThinPoolName = "LXDPool"
 func storageLVMCheckVolumeGroup(vgName string) error {
 	output, err := exec.Command("vgdisplay", "-s", vgName).CombinedOutput()
 	if err != nil {
-		shared.Log.Debug("vgdisplay failed to find vg", log.Ctx{"output": string(output)})
+		shared.Log.Error("vgdisplay failed to find vg", log.Ctx{"output": string(output)})
 		return fmt.Errorf("LVM volume group '%s' not found", vgName)
 	}
 
@@ -901,7 +901,7 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 		fmt.Sprintf("%s/%s", s.vgName, storageLvmDefaultThinPoolName))
 
 	if err != nil {
-		s.log.Debug(
+		s.log.Error(
 			"Could not create thin pool",
 			log.Ctx{
 				"name":   storageLvmDefaultThinPoolName,
@@ -920,7 +920,7 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 		fmt.Sprintf("%s/%s", s.vgName, storageLvmDefaultThinPoolName))
 
 	if err != nil {
-		s.log.Debug(
+		s.log.Error(
 			"Could not grow thin pool",
 			log.Ctx{
 				"name":   storageLvmDefaultThinPoolName,
@@ -965,7 +965,7 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 		fmt.Sprintf("%s/%s", s.vgName, poolname))
 
 	if err != nil {
-		s.log.Debug("Could not create LV", log.Ctx{"lvname": lvname, "output": string(output)})
+		s.log.Error("Could not create LV", log.Ctx{"lvname": lvname, "output": string(output)})
 		return "", fmt.Errorf("Could not create thin LV named %s", lvname)
 	}
 
@@ -1002,7 +1002,7 @@ func (s *storageLvm) removeLV(lvname string) error {
 		"lvremove", "-f", fmt.Sprintf("%s/%s", s.vgName, lvname))
 
 	if err != nil {
-		s.log.Debug("Could not remove LV", log.Ctx{"lvname": lvname, "output": string(output)})
+		s.log.Error("Could not remove LV", log.Ctx{"lvname": lvname, "output": string(output)})
 		return fmt.Errorf("Could not remove LV named %s", lvname)
 	}
 
@@ -1029,7 +1029,7 @@ func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly
 			"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname))
 	}
 	if err != nil {
-		s.log.Debug("Could not create LV snapshot", log.Ctx{"lvname": lvname, "origlvname": origlvname, "output": string(output)})
+		s.log.Error("Could not create LV snapshot", log.Ctx{"lvname": lvname, "origlvname": origlvname, "output": string(output)})
 		return "", fmt.Errorf("Could not create snapshot LV named %s", lvname)
 	}
 
