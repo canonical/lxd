@@ -516,7 +516,7 @@ func deviceRemoveInterface(nic string) error {
 	return exec.Command("ip", "link", "del", nic).Run()
 }
 
-func deviceMountDisk(srcPath string, dstPath string, readonly bool) error {
+func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bool) error {
 	var err error
 
 	// Prepare the mount flags
@@ -534,6 +534,9 @@ func deviceMountDisk(srcPath string, dstPath string, readonly bool) error {
 		}
 	} else {
 		flags |= syscall.MS_BIND
+		if recursive {
+			flags |= syscall.MS_REC
+		}
 	}
 
 	// Mount the filesystem
