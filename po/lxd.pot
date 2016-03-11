@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-03-28 19:47+0200\n"
+        "POT-Creation-Date: 2016-03-28 20:04+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -203,6 +203,10 @@ msgstr  ""
 msgid   "Add the remote <name> at <url>."
 msgstr  ""
 
+#: lxd/main.go:119
+msgid   "Address to bind LXD to (default: none)."
+msgstr  ""
+
 #: lxc/remote.go:496
 #, c-format
 msgid   "Admin password for %s: "
@@ -258,6 +262,10 @@ msgstr  ""
 msgid   "Auto update: %s"
 msgstr  ""
 
+#: lxd/main.go:114
+msgid   "Automatic (non-interactive) mode."
+msgstr  ""
+
 #: lxc/info.go:171
 msgid   "Bytes received"
 msgstr  ""
@@ -307,6 +315,10 @@ msgstr  ""
 
 #: lxc/action.go:29
 msgid   "Changes one or more containers state to stop."
+msgstr  ""
+
+#: lxd/main.go:73
+msgid   "Check if LXD should be started (at boot) and if so, spawns it through socket activation."
 msgstr  ""
 
 #: lxc/remote.go:519
@@ -483,6 +495,18 @@ msgstr  ""
 msgid   "Edit container configuration in external editor."
 msgstr  ""
 
+#: lxd/main.go:90
+msgid   "Enable cpu profiling into the specified file."
+msgstr  ""
+
+#: lxd/main.go:95
+msgid   "Enable memory profiling into the specified file."
+msgstr  ""
+
+#: lxd/main.go:48
+msgid   "Enable syslog logging"
+msgstr  ""
+
 #: lxc/init.go:45
 msgid   "Ephemeral container."
 msgstr  ""
@@ -535,6 +559,10 @@ msgstr  ""
 msgid   "Fingers the LXD instance to check if it is up and working."
 msgstr  ""
 
+#: lxd/main.go:101
+msgid   "For debugging, print a complete stack trace every n seconds."
+msgstr  ""
+
 #: lxc/action.go:35 lxc/action.go:66
 msgid   "Force the container to shutdown."
 msgstr  ""
@@ -565,6 +593,38 @@ msgstr  ""
 
 #: lxc/profile.go:102
 msgid   "Get profile configuration."
+msgstr  ""
+
+#: lxd/main.go:85
+msgid   "Group which owns the shared socket."
+msgstr  ""
+
+#: lxd/main.go:160
+msgid   "How long to wait before failing."
+msgstr  ""
+
+#: lxd/main.go:233
+msgid   "INTERNAL: Call a container hook."
+msgstr  ""
+
+#: lxd/main.go:193
+msgid   "INTERNAL: Get container network information."
+msgstr  ""
+
+#: lxd/main.go:201
+msgid   "INTERNAL: Grab a file from a running container."
+msgstr  ""
+
+#: lxd/main.go:217
+msgid   "INTERNAL: Push a file to a running container."
+msgstr  ""
+
+#: lxd/main.go:209
+msgid   "INTERNAL: Restore a container after migration."
+msgstr  ""
+
+#: lxd/main.go:225
+msgid   "INTERNAL: Start a container."
 msgstr  ""
 
 #: lxc/list.go:345
@@ -707,6 +767,10 @@ msgstr  ""
 
 #: lxc/info.go:221
 msgid   "Log:"
+msgstr  ""
+
+#: lxd/main.go:43
+msgid   "Logfile to log to (e.g., /var/log/lxd/lxd.log)."
 msgstr  ""
 
 #: lxc/main.go:46
@@ -989,8 +1053,16 @@ msgstr  ""
 msgid   "Packets sent"
 msgstr  ""
 
+#: lxd/main.go:146
+msgid   "Password required to add new clients."
+msgstr  ""
+
 #: lxc/main.go:29
 msgid   "Path to an alternate server directory."
+msgstr  ""
+
+#: lxd/main.go:154
+msgid   "Perform a clean shutdown of LXD and all running containers."
 msgstr  ""
 
 #: lxc/main.go:209
@@ -1002,6 +1074,10 @@ msgstr  ""
 msgid   "Pid: %d"
 msgstr  ""
 
+#: lxd/main.go:124
+msgid   "Port to bind LXD to (default: 8443)."
+msgstr  ""
+
 #: lxc/profile.go:363
 msgid   "Press enter to open the editor again"
 msgstr  ""
@@ -1010,7 +1086,7 @@ msgstr  ""
 msgid   "Press enter to start the editor again"
 msgstr  ""
 
-#: lxc/init.go:35 lxc/launch.go:26 lxc/main.go:36
+#: lxc/init.go:35 lxc/launch.go:26 lxc/main.go:36 lxd/main.go:33
 msgid   "Print debug information."
 msgstr  ""
 
@@ -1018,11 +1094,11 @@ msgstr  ""
 msgid   "Print the default remote."
 msgstr  ""
 
-#: lxc/init.go:40 lxc/launch.go:31 lxc/main.go:41
+#: lxc/init.go:40 lxc/launch.go:31 lxc/main.go:41 lxd/main.go:38
 msgid   "Print verbose information."
 msgstr  ""
 
-#: lxc/main.go:91
+#: lxc/main.go:91 lxd/main.go:184
 msgid   "Prints the version number of LXD."
 msgstr  ""
 
@@ -1191,6 +1267,14 @@ msgstr  ""
 msgid   "Set the file's uid on push."
 msgstr  ""
 
+#: lxd/main.go:136
+msgid   "Setup loop based storage with SIZE in GB."
+msgstr  ""
+
+#: lxd/main.go:109
+msgid   "Setup storage and networking"
+msgstr  ""
+
 #: lxc/image.go:166
 msgid   "Show an image."
 msgstr  ""
@@ -1224,6 +1308,10 @@ msgstr  ""
 msgid   "Source:"
 msgstr  ""
 
+#: lxd/main.go:80
+msgid   "Start the main LXD daemon."
+msgstr  ""
+
 #: lxc/launch.go:146
 #, c-format
 msgid   "Starting %s"
@@ -1240,6 +1328,14 @@ msgstr  ""
 
 #: lxc/delete.go:114 lxc/publish.go:116
 msgid   "Stopping container failed!"
+msgstr  ""
+
+#: lxd/main.go:130
+msgid   "Storage backend to use (zfs or dir, default: dir)."
+msgstr  ""
+
+#: lxd/main.go:141
+msgid   "Storage pool to use or create."
 msgstr  ""
 
 #: lxc/action.go:43
@@ -1350,6 +1446,10 @@ msgstr  ""
 msgid   "User aborted delete operation."
 msgstr  ""
 
+#: lxd/main.go:169 lxd/main.go:175
+msgid   "Wait until LXD is ready to handle requests."
+msgstr  ""
+
 #: lxc/restore.go:31
 msgid   "Whether or not to restore the container's running state from snapshot (if available)."
 msgstr  ""
@@ -1366,8 +1466,24 @@ msgstr  ""
 msgid   "YES"
 msgstr  ""
 
+#: lxd/main.go:110
+msgid   "[--auto] [--network-address=IP] [--network-port=8443] [--storage-backend=dir] [--storage-create-device=DEVICE] [--storage-create-loop=SIZE] [--storage-pool=POOL] [--trust-password=]"
+msgstr  ""
+
 #: lxc/config.go:199
 msgid   "[--expanded] [remote:]<container>"
+msgstr  ""
+
+#: lxd/main.go:81
+msgid   "[--group=lxd] [--cpuprofile=FILE] [--memprofile=FILE] [--print-goroutines-every=SECONDS]"
+msgstr  ""
+
+#: lxd/main.go:170
+msgid   "[--timeout=15]"
+msgstr  ""
+
+#: lxd/main.go:155
+msgid   "[--timeout=60]"
 msgstr  ""
 
 #: lxc/file.go:46

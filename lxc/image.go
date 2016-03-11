@@ -10,7 +10,7 @@ import (
 	"syscall"
 
 	"github.com/codegangsta/cli"
-	
+
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
