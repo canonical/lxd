@@ -1417,13 +1417,13 @@ func (c *containerLXC) OnStop(target string) error {
 		// Clean all the unix devices
 		err = c.removeUnixDevices()
 		if err != nil {
-			shared.Log.Error("Unable to remove unix devices")
+			shared.Log.Error("Unable to remove unix devices", "err", err)
 		}
 
 		// Clean all the disk devices
 		err = c.removeDiskDevices()
 		if err != nil {
-			shared.Log.Error("Unable to remove disk devices")
+			shared.Log.Error("Unable to remove disk devices", "err", err)
 		}
 
 		// Reboot the container
