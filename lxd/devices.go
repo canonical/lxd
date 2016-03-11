@@ -544,6 +544,11 @@ func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bo
 		return fmt.Errorf("Unable to mount %s at %s: %s", srcPath, dstPath, err)
 	}
 
+	flags = syscall.MS_REC | syscall.MS_SLAVE
+	if err = syscall.Mount("", dstPath, "", uintptr(flags), ""); err != nil {
+		return fmt.Errorf("unable to make mount %s private: %s", dstPath, err)
+	}
+
 	return nil
 }
 
