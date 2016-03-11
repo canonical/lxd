@@ -3109,7 +3109,7 @@ func (c *containerLXC) removeMount(mount string) error {
 	pid := c.InitPID()
 	if pid == -1 {
 		// Container isn't running
-		return fmt.Errorf("Can't insert mount into stopped container")
+		return fmt.Errorf("Can't remove mount from stopped container")
 	}
 
 	// Remove the mount from the container
