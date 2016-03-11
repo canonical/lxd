@@ -603,11 +603,13 @@ func (c *configCmd) deviceAdd(config *lxd.Config, which string, args []string) e
 	if err != nil {
 		return err
 	}
-	fmt.Printf(i18n.G("Device %s added to %s")+"\n", devname, name)
-	if which == "profile" {
-		return nil
+	if which != "profile" {
+		err = client.WaitForSuccess(resp.Operation)
 	}
-	return client.WaitForSuccess(resp.Operation)
+	if err == nil {
+		fmt.Printf(i18n.G("Device %s added to %s")+"\n", devname, name)
+	}
+	return err
 }
 
 func (c *configCmd) deviceRm(config *lxd.Config, which string, args []string) error {
@@ -631,11 +633,13 @@ func (c *configCmd) deviceRm(config *lxd.Config, which string, args []string) er
 	if err != nil {
 		return err
 	}
-	fmt.Printf(i18n.G("Device %s removed from %s")+"\n", devname, name)
-	if which == "profile" {
-		return nil
+	if which != "profile" {
+		err = client.WaitForSuccess(resp.Operation)
 	}
-	return client.WaitForSuccess(resp.Operation)
+	if err == nil {
+		fmt.Printf(i18n.G("Device %s removed from %s")+"\n", devname, name)
+	}
+	return err
 }
 
 func (c *configCmd) deviceList(config *lxd.Config, which string, args []string) error {
