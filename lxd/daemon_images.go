@@ -8,12 +8,21 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
+
+type imageStreamCacheEntry struct {
+	ss     *shared.SimpleStreams
+	expiry time.Time
+}
+
+var imageStreamCache = map[string]*imageStreamCacheEntry{}
+var imageStreamCacheLock sync.Mutex
 
 // ImageDownload checks if we have that Image Fingerprint else
 // downloads the image from a remote server.
@@ -29,10 +38,22 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// Expand aliases
 	if protocol == "simplestreams" {
-		ss, err = shared.SimpleStreamsClient(server, d.proxy)
-		if err != nil {
-			return "", err
+		imageStreamCacheLock.Lock()
+		entry, _ := imageStreamCache[server]
+		if entry == nil || entry.expiry.Before(time.Now()) {
+			ss, err = shared.SimpleStreamsClient(server, d.proxy)
+			if err != nil {
+				imageStreamCacheLock.Unlock()
+				return "", err
+			}
+
+			entry = &imageStreamCacheEntry{ss: ss, expiry: time.Now().Add(time.Hour)}
+			imageStreamCache[server] = entry
+		} else {
+			shared.Debugf("Using SimpleStreams cache entry for %s, expires at %s", server, entry.expiry)
+			ss = entry.ss
 		}
+		imageStreamCacheLock.Unlock()
 
 		target := ss.GetAlias(fp)
 		if target != "" {
@@ -354,6 +375,10 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// By default, make all downloaded images private
 	info.Public = false
+
+	if alias != fp && secret == "" {
+		info.AutoUpdate = autoUpdate
+	}
 
 	_, err = imageBuildFromInfo(d, info)
 	if err != nil {
