@@ -1181,11 +1181,11 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 		if tmpremote.Remote.Protocol != "simplestreams" {
 			target := tmpremote.GetAlias(image)
-			if target != "" {
-				image = target
+			if target == "" {
+				target = image
 			}
 
-			imageinfo, err := tmpremote.GetImageInfo(image)
+			imageinfo, err := tmpremote.GetImageInfo(target)
 			if err != nil {
 				return nil, err
 			}
@@ -1196,6 +1196,8 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 			if !imageinfo.Public {
 				var secret string
+
+				image = target
 
 				resp, err := tmpremote.post("images/"+image+"/secret", nil, Async)
 				if err != nil {
