@@ -341,19 +341,20 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		driver, _ = rsyncMigrationSource(s.container)
 	}
 
-	defer driver.Cleanup()
-
 	if err := driver.SendWhileRunning(s.fsConn); err != nil {
+		driver.Cleanup()
 		s.sendControl(err)
 		return err
 	}
 
 	if s.live {
 		if header.Criu == nil {
+			driver.Cleanup()
 			err := fmt.Errorf("Got no CRIU socket type for live migration")
 			s.sendControl(err)
 			return err
 		} else if *header.Criu != CRIUType_CRIU_RSYNC {
+			driver.Cleanup()
 			err := fmt.Errorf("Formats other than criu rsync not understood")
 			s.sendControl(err)
 			return err
@@ -361,6 +362,7 @@ func (s *migrationSourceWs) Do(op *operation) error {
 
 		checkpointDir, err := ioutil.TempDir("", "lxd_checkpoint_")
 		if err != nil {
+			driver.Cleanup()
 			s.sendControl(err)
 			return err
 		}
@@ -374,6 +376,7 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		}
 
 		if err != nil {
+			driver.Cleanup()
 			log, err2 := GetCRIULogErrors(checkpointDir, "dump")
 
 			/* couldn't find the CRIU log file which means we
@@ -396,15 +399,19 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
 		if err := RsyncSend(shared.AddSlash(checkpointDir), s.criuConn); err != nil {
+			driver.Cleanup()
 			s.sendControl(err)
 			return err
 		}
 
 		if err := driver.SendAfterCheckpoint(s.fsConn); err != nil {
+			driver.Cleanup()
 			s.sendControl(err)
 			return err
 		}
 	}
+
+	driver.Cleanup()
 
 	msg := MigrationControl{}
 	if err := s.recv(&msg); err != nil {
