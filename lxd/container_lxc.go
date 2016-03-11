@@ -758,6 +758,7 @@ func (c *containerLXC) initLXC() error {
 			// Various option checks
 			isOptional := m["optional"] == "1" || m["optional"] == "true"
 			isReadOnly := m["readonly"] == "1" || m["readonly"] == "true"
+			isRecursive := m["recursive"] == "1" || m["recursive"] == "true"
 			isFile := !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
 
 			// Deal with a rootfs
@@ -776,6 +777,7 @@ func (c *containerLXC) initLXC() error {
 					}
 				}
 			} else {
+				rbind := ""
 				options := []string{}
 				if isReadOnly {
 					options = append(options, "ro")
@@ -785,13 +787,17 @@ func (c *containerLXC) initLXC() error {
 					options = append(options, "optional")
 				}
 
+				if isRecursive {
+					rbind = "r"
+				}
+
 				if isFile {
 					options = append(options, "create=file")
 				} else {
 					options = append(options, "create=dir")
 				}
 
-				err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,%s", devPath, tgtPath, strings.Join(options, ",")))
+				err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none %sbind,%s", devPath, tgtPath, rbind, strings.Join(options, ",")))
 				if err != nil {
 					return err
 				}
@@ -3638,6 +3644,7 @@ func (c *containerLXC) createDiskDevice(name string, m shared.Device) (string, e
 	// Check if read-only
 	isOptional := m["optional"] == "1" || m["optional"] == "true"
 	isReadOnly := m["readonly"] == "1" || m["readonly"] == "true"
+	isRecursive := m["recursive"] == "1" || m["recursive"] == "true"
 	isFile := !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
 
 	// Check if the source exists
@@ -3680,7 +3687,7 @@ func (c *containerLXC) createDiskDevice(name string, m shared.Device) (string, e
 	}
 
 	// Mount the fs
-	err := deviceMountDisk(srcPath, devPath, isReadOnly)
+	err := deviceMountDisk(srcPath, devPath, isReadOnly, isRecursive)
 	if err != nil {
 		return "", err
 	}
@@ -3694,15 +3701,22 @@ func (c *containerLXC) insertDiskDevice(name string, m shared.Device) error {
 		return fmt.Errorf("Can't insert device into stopped container")
 	}
 
+	isRecursive := m["recursive"] == "1" || m["recursive"] == "true"
+
 	// Create the device on the host
 	devPath, err := c.createDiskDevice(name, m)
 	if err != nil {
 		return fmt.Errorf("Failed to setup device: %s", err)
 	}
 
+	flags := syscall.MS_BIND
+	if isRecursive {
+		flags |= syscall.MS_REC
+	}
+
 	// Bind-mount it into the container
 	tgtPath := strings.TrimSuffix(m["path"], "/")
-	err = c.insertMount(devPath, tgtPath, "none", syscall.MS_BIND)
+	err = c.insertMount(devPath, tgtPath, "none", flags)
 	if err != nil {
 		return fmt.Errorf("Failed to add mount for device: %s", err)
 	}
