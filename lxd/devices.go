@@ -516,7 +516,7 @@ func deviceRemoveInterface(nic string) error {
 	return exec.Command("ip", "link", "del", nic).Run()
 }
 
-func deviceMountDisk(srcPath string, dstPath string, readonly bool) error {
+func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bool) error {
 	var err error
 
 	// Prepare the mount flags
@@ -534,11 +534,19 @@ func deviceMountDisk(srcPath string, dstPath string, readonly bool) error {
 		}
 	} else {
 		flags |= syscall.MS_BIND
+		if recursive {
+			flags |= syscall.MS_REC
+		}
 	}
 
 	// Mount the filesystem
 	if err = syscall.Mount(srcPath, dstPath, fstype, uintptr(flags), ""); err != nil {
 		return fmt.Errorf("Unable to mount %s at %s: %s", srcPath, dstPath, err)
+	}
+
+	flags = syscall.MS_REC | syscall.MS_SLAVE
+	if err = syscall.Mount("", dstPath, "", uintptr(flags), ""); err != nil {
+		return fmt.Errorf("unable to make mount %s private: %s", dstPath, err)
 	}
 
 	return nil

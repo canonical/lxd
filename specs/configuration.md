@@ -210,6 +210,7 @@ source          | string    | -                 | yes       | Path on the host, 
 optional        | boolean   | false             | no        | Controls whether to fail if the source doesn't exist
 readonly        | boolean   | false             | no        | Controls whether to make the mount read-only
 size            | string    | -                 | no        | Disk size in bytes (supports kB, MB, GB, TB, PB and EB suffixes). This is only supported for the rootfs (/).
+recursive       | boolean   | false             | no        | Whether or not to recursively mount the source path
 
 If multiple disks, backed by the same block device, have I/O limits set,
 the average of the limits will be used.

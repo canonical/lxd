@@ -185,6 +185,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "source":
 			return true
+		case "recursive":
+			return true
 		default:
 			return false
 		}
@@ -261,6 +263,10 @@ func containerValidDevices(devices shared.Devices, profile bool, expanded bool) 
 
 			if m["size"] != "" && m["path"] != "/" {
 				return fmt.Errorf("Only the root disk may have a size quota.")
+			}
+
+			if (m["path"] == "/" || !shared.IsDir(m["source"])) && m["recursive"] != "" {
+				return fmt.Errorf("The recursive option is only supported for additional bind-mounted paths.")
 			}
 		} else if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			if m["path"] == "" {
