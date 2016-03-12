@@ -283,7 +283,10 @@ void forkmount(char *buf, char *cur, ssize_t size) {
 		_exit(1);
 	}
 
-	if (mount(src, dest, "none", MS_MOVE, NULL) < 0) {
+	// Here, we always move recursively, because we sometimes allow
+	// recursive mounts. If the mount has no kids then it doesn't matter,
+	// but if it does, we want to move those too.
+	if (mount(src, dest, "none", MS_MOVE | MS_REC, NULL) < 0) {
 		fprintf(stderr, "Failed mounting %s onto %s: %s\n", src, dest, strerror(errno));
 		_exit(1);
 	}
