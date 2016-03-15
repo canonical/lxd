@@ -22,7 +22,7 @@ const DB_FIXTURES string = `
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
     INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'thekey', 'thevalue');
     INSERT INTO profiles_devices (profile_id, name, type) VALUES (3, 'devicename', 1);
-    INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (3, 'devicekey', 'devicevalue');
+    INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (4, 'devicekey', 'devicevalue');
     `
 
 //  This Helper will initialize a test in-memory DB.
@@ -147,7 +147,7 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	}
 
 	// Make sure there are 0 profiles_devices_config entries left.
-	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 3;`
+	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 4;`
 	err = db.QueryRow(statements).Scan(&count)
 
 	if count != 0 {
