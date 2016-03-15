@@ -82,6 +82,17 @@ type ContainerInfo struct {
 	StatusCode      StatusCode        `json:"status_code"`
 }
 
+func (c ContainerInfo) IsActive() bool {
+	switch c.StatusCode {
+	case Stopped:
+		return false
+	case Error:
+		return false
+	default:
+		return true
+	}
+}
+
 /*
  * BriefContainerState contains a subset of the fields in
  * ContainerState, namely those which a user may update

@@ -230,7 +230,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 		}
 
 		for _, column := range columns {
-			if column.NeedsState && cInfo.StatusCode != shared.Stopped {
+			if column.NeedsState && cInfo.IsActive() {
 				_, ok := cStates[cInfo.Name]
 				if ok {
 					continue
@@ -368,7 +368,7 @@ func (c *listCmd) statusColumnData(cInfo shared.ContainerInfo, cState *shared.Co
 }
 
 func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
-	if cInfo.StatusCode != shared.Stopped {
+	if cInfo.IsActive() {
 		ipv4s := []string{}
 		for netName, net := range cState.Network {
 			if net.Type == "loopback" {
@@ -392,7 +392,7 @@ func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState *shared.Conta
 }
 
 func (c *listCmd) IP6ColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
-	if cInfo.StatusCode != shared.Stopped {
+	if cInfo.IsActive() {
 		ipv6s := []string{}
 		for netName, net := range cState.Network {
 			if net.Type == "loopback" {
@@ -428,7 +428,7 @@ func (c *listCmd) numberSnapshotsColumnData(cInfo shared.ContainerInfo, cState *
 }
 
 func (c *listCmd) PIDColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
-	if cInfo.StatusCode != shared.Stopped {
+	if cInfo.IsActive() {
 		return fmt.Sprintf("%d", cState.Pid)
 	}
 

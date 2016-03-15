@@ -67,7 +67,13 @@ func doContainerGet(d *Daemon, cname string) (*shared.ContainerInfo, Response) {
 	}
 
 	cts, err := c.Render()
-	if err != nil {
+	if err == LxcMonitorStateError {
+		return &shared.ContainerInfo{
+			Name:       cname,
+			Status:     shared.Error.String(),
+			StatusCode: shared.Error,
+		}, nil
+	} else if err != nil {
 		return nil, SmartError(err)
 	}
 
