@@ -1,9 +1,6 @@
 # Introduction
 Communication between the hosted workload (container) and its host while
-not strictly needed is a pretty useful feature. This allows querying for
-configuration options, reporting errors back to the host as well as
-adding support for a range of new features by allowing events to be sent
-in either directions.
+not strictly needed is a pretty useful feature.
 
 In LXD, this feature is implemented through a /dev/lxd/sock node which is
 created and setup for all LXD containers.
@@ -42,7 +39,6 @@ authentication support in the /dev/lxd/sock API.
    * /1.0
      * /1.0/config
        * /1.0/config/{key}
-     * /1.0/events
      * /1.0/meta-data
 
 ## API details
@@ -50,6 +46,12 @@ authentication support in the /dev/lxd/sock API.
 #### GET
  * Description: List of supported APIs
  * Return: list of supported API endpoint URLs (by default ['/1.0'])
+
+Return value:
+
+    [
+        "/1.0"
+    ]
 
 ### /1.0
 #### GET
@@ -59,7 +61,7 @@ authentication support in the /dev/lxd/sock API.
 Return value:
 
     {
-        'api_compat': 0      # Used to determine API functionality
+        "api_version": "1.0"
     }
 
 ### /1.0/config
@@ -70,22 +72,24 @@ Return value:
 Note that the configuration key names match those in the container
 config, however not all configuration namespaces will be exported to
 /dev/lxd/sock.
-We'll initially only support the user namespace (user.\* keys).
+Currently only the user.\* keys are accessible to the container.
 
 At this time, there also aren't any container-writable namespace.
+
+Return value:
+
+    [
+        "/1.0/config/user.a"
+    ]
 
 ### /1.0/config/\<KEY\>
 #### GET
  * Description: Value of that key
  * Return: Plain-text value
 
-### /1.0/events
-#### GET
- * Description: event interface
- * Return: websocket upgrade (similar to /1.0/events on main API)
+Return value:
 
-#### POST
- * Description: post a new event
+    blah
 
 ### /1.0/meta-data
 #### GET

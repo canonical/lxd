@@ -51,13 +51,13 @@ certificates for all the LXD daemons.
 Those certificates and keys are manually put in place on the various
 machines, replacing the automatically generated ones.
 
-The CA certificate is also added to all lxc clients and LXD daemons.
+The CA certificate is also added to all machines.
 A CRL may also accompany the CA certificate.
 
 In that mode, any connection to a LXD daemon will be done using the
 preseeded CA certificate. If the server certificate isn't signed by the
-CA, or if it has been revoked, the connection will simply fail with no
-way obvious way for the user to bypass this.
+CA, or if it has been revoked, the connection will simply go through the
+normal authentication mechanism.
 
 If the server certificate is valid and signed by the CA, then the
 connection continues without prompting the user for the certificate.
@@ -73,7 +73,7 @@ server and send by the client when adding itself.
 
 A remote add operation should therefore go like this:
  1. Call GET /1.0
- 2. If we're not in a PKI setup with a ca.crt, ask the user to confirm the fingerprint.
+ 2. If we're not in a PKI setup ask the user to confirm the fingerprint.
  3. Look at the dict we received back from the server. If "auth" is
     "untrusted", ask the user for the server's password and do a POST to
     /1.0/certificates, then call /1.0 again to check that we're indeed
@@ -91,16 +91,10 @@ In such cases the client will refuse to connect to the server since the
 certificate fringerprint will not match that in the config for this
 remote.
 
-This is a fatal error and so the client shouldn't attempt to recover
-from it. Instead it must print a message to the console saying that the
-server certificate changed and that this may either be due to the server
-having been reinstalled or because the communication is being
-intercepted.
-
-That message can also tell the user that if this is expected, they can
-resolve the situation by removing the remote and adding it again (the
-message should include the two commands required to achieve that in a
-copy/pastable manner).
+It is then up to the user to contact the server administrator to check
+if the certificate did in fact change. If it did, then the certificate
+can be replaced by the new one or the remote be removed altogether and
+re-added.
 
 
 ## Server trust relationship revoked
@@ -110,9 +104,3 @@ trusted.
 
 This happens if another trusted client or the local server administrator
 removed the trust entry on the server.
-
-As with the other failure scenario, this is a fatal error. A message
-must be displayed to the user explaining that this client isn't trusted
-by the server and that to re-establish the trust relationship, the user
-must remove the remote and add it again (and as above, provide the
-commands to do so).
