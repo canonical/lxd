@@ -4272,12 +4272,11 @@ func (c *containerLXC) State() string {
 		return "BROKEN"
 	}
 
-	cString := "Error"
 	state, err := c.getLxcState()
-	if err == nil {
-		cString = state.String()
+	if err != nil {
+		return shared.Error.String()
 	}
-	return cString
+	return state.String()
 }
 
 // Various container paths
