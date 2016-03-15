@@ -1,6 +1,7 @@
 # Introduction
 
-This specification covers some of the daemon's behavior, such as reaction to given signals, crashes, ...
+This specification covers some of the daemon's behavior, such as
+reaction to given signals, crashes, ...
 
 # Startup
 On every start, LXD checks that its directory structure exists. If it
@@ -8,8 +9,8 @@ doesn't, it'll create the required directories, generate a keypair and
 initialize the database.
 
 Once the daemon is ready for work, LXD will scan the containers table
-for any container for which the stored power\_state differs from the
-current one. If a container's power\_state in the database is 1 and the
+for any container for which the stored power state differs from the
+current one. If a container's power state was recorded as running and the
 container isn't running, LXD will start it.
 
 # Signal handling
