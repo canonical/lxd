@@ -15,6 +15,7 @@ const (
 	Freezing         StatusCode = 109
 	Frozen           StatusCode = 110
 	Thawed           StatusCode = 111
+	Error            StatusCode = 112
 
 	Success StatusCode = 200
 
@@ -39,6 +40,7 @@ func (o StatusCode) String() string {
 		Freezing:         "Freezing",
 		Frozen:           "Frozen",
 		Thawed:           "Thawed",
+		Error:            "Error",
 	}[o]
 }
 
@@ -61,5 +63,6 @@ func FromLXCState(state int) StatusCode {
 		6: Freezing,
 		7: Frozen,
 		8: Thawed,
+		9: Error,
 	}[state]
 }
