@@ -134,7 +134,12 @@ func dbProfileCreateDocker(db *sql.DB) error {
 		"path": "/dev/fuse",
 		"type": "unix-char",
 	}
-	devices := map[string]shared.Device{"fuse": fusedev}
+	aadisable := map[string]string{
+		"path":   "/sys/module/apparmor/parameters/enabled",
+		"type":   "disk",
+		"source": "/dev/null",
+	}
+	devices := map[string]shared.Device{"fuse": fusedev, "aadisable": aadisable}
 
 	_, err = dbProfileCreate(db, "docker", "Profile supporting docker in containers", config, devices)
 	return err
