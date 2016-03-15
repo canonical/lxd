@@ -15,6 +15,18 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV28(db *sql.DB) error {
+	stmt := `
+INSERT INTO profiles_devices (profile_id, name, type) SELECT id, "aadisable", 2 FROM profiles WHERE name="docker";
+INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "source", "/dev/null" FROM profiles_devices LEFT JOIN profiles WHERE profiles_devices.profile_id = profiles.id AND profiles.name = "docker" AND profiles_devices.name = "aadisable";
+INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "path", "/sys/module/apparmor/parameters/enabled" FROM profiles_devices LEFT JOIN profiles WHERE profiles_devices.profile_id = profiles.id AND profiles.name = "docker" AND profiles_devices.name = "aadisable";`
+	db.Exec(stmt)
+
+	stmt = `INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 29)
+	return err
+}
+
 func dbUpdateFromV27(db *sql.DB) error {
 	stmt := `
 UPDATE profiles_devices SET type=3 WHERE type='unix-char';
@@ -975,6 +987,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 28 {
 		err = dbUpdateFromV27(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 29 {
+		err = dbUpdateFromV28(db)
 		if err != nil {
 			return err
 		}
