@@ -1556,7 +1556,6 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 		return nil, err
 	}
 
-	// FIXME: RenderState shouldn't directly access the go-lxc struct
 	cState, err := c.getLxcState()
 	if err != nil {
 		return nil, err
