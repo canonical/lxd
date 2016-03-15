@@ -144,9 +144,10 @@ func compressFile(path string, compress string) (string, error) {
 }
 
 type templateEntry struct {
-	When       []string
-	Template   string
-	Properties map[string]string
+	When       []string          `yaml:"when"`
+	CreateOnly bool              `yaml:"create_only"`
+	Template   string            `yaml:"template"`
+	Properties map[string]string `yaml:"properties"`
 }
 
 type imagePostReq struct {
