@@ -41,17 +41,16 @@ rsync is used to transfer the container content across.
 
 ### LVM
 
- - LXD uses LVM with thinpool support to offer fast, scalable container and image storage.
  - A LVM VG must be created and then storage.lvm\_vg\_name set to point to it.
  - If a thinpool doesn't already exist, one will be created, the name of the thinpool can be set with storage.lvm\_thinpool\_name .
  - Uses LVs for images, then LV snapshots for containers and container snapshots.
- - The filesystem used for the LVs is ext4.
- - LVs are created with a default size of 100GiB.
+ - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
+ - LVs are created with a default size of 10GiB (can be configured through).
 
 ### ZFS
 
  - LXD can use any zpool or part of a zpool. storage.zfs\_pool\_name must be set to the path to be used.
- - ZFS doesn't have (and shouldn't be) mounted on /var/lib/lxd
+ - ZFS doesn't have to (and shouldn't be) mounted on /var/lib/lxd
  - Uses ZFS filesystems for images, then snapshots and clones to create containers and snapshots.
  - Due to the way copy-on-write works in ZFS, parent filesystems can't
    be removed until all children are gone. As a result, LXD will
