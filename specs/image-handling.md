@@ -77,6 +77,11 @@ LXD, at the moment, this contains:
         when:
           - start
         template: hostname.tpl
+      /etc/network/interfaces:
+        when:
+          - create
+        template: interfaces.tpl
+        create_only: true
 
 The architecture and creation\_date fields are mandatory, the properties
 are just a set of default properties for the image. The os, release,
@@ -95,6 +100,8 @@ The templates will always receive the following context:
  - config: key/value map of the container's configuration (map[string]string)
  - devices: key/value map of the devices assigned to this container (map[string]map[string]string)
  - properties: key/value map of the template properties specified in metadata.yaml (map[string]string)
+
+The "create\_only" key can be set to have LXD only only create missing files but not overwrite an existing file.
 
 As a general rule, you should never template a file which is owned by a
 package or is otherwise expected to be overwritten by normal operation
