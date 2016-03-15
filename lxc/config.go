@@ -695,12 +695,12 @@ func (c *configCmd) deviceShow(config *lxd.Config, which string, args []string) 
 		devices = resp.Devices
 	}
 
-	for n, d := range devices {
-		fmt.Printf("%s\n", n)
-		for attr, val := range d {
-			fmt.Printf("  %s: %s\n", attr, val)
-		}
+	data, err := yaml.Marshal(&devices)
+	if err != nil {
+		return err
 	}
+
+	fmt.Printf(string(data))
 
 	return nil
 }
