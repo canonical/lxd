@@ -1482,6 +1482,25 @@ func (c *containerLXC) Unfreeze() error {
 	return c.c.Unfreeze()
 }
 
+var LxcMonitorStateError = fmt.Errorf("Monitor is hung")
+
+// Get lxc container state, with 1 second timeout
+// If we don't get a reply, assume the lxc monitor is hung
+func (c *containerLXC) GetLxcState() (lxc.State, error) {
+	monitor := make(chan lxc.State, 1)
+
+	go func(c *lxc.Container) {
+		monitor <- c.State()
+	}(c.c)
+
+	select {
+	case state := <-monitor:
+		return state, nil
+	case <-time.After(time.Second):
+		return lxc.StateMap["FROZEN"], LxcMonitorStateError
+	}
+}
+
 func (c *containerLXC) Render() (interface{}, error) {
 	// Load the go-lxc struct
 	err := c.initLXC()
@@ -1507,7 +1526,11 @@ func (c *containerLXC) Render() (interface{}, error) {
 		}, nil
 	} else {
 		// FIXME: Render shouldn't directly access the go-lxc struct
-		statusCode := shared.FromLXCState(int(c.c.State()))
+		cState, err := c.GetLxcState()
+		if err != nil {
+			return nil, err
+		}
+		statusCode := shared.FromLXCState(int(cState))
 
 		return &shared.ContainerInfo{
 			Architecture:    architectureName,
@@ -1534,7 +1557,11 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 	}
 
 	// FIXME: RenderState shouldn't directly access the go-lxc struct
-	statusCode := shared.FromLXCState(int(c.c.State()))
+	cState, err := c.GetLxcState()
+	if err != nil {
+		return nil, err
+	}
+	statusCode := shared.FromLXCState(int(cState))
 	status := shared.ContainerState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
@@ -4245,7 +4272,12 @@ func (c *containerLXC) State() string {
 		return "BROKEN"
 	}
 
-	return c.c.State().String()
+	cString := "Error"
+	state, err := c.GetLxcState()
+	if err == nil {
+		cString = state.String()
+	}
+	return cString
 }
 
 // Various container paths
