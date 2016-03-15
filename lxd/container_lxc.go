@@ -2626,6 +2626,10 @@ func (c *containerLXC) TemplateApply(trigger string) error {
 		// Open the file to template, create if needed
 		fullpath := filepath.Join(c.RootfsPath(), strings.TrimLeft(templatePath, "/"))
 		if shared.PathExists(fullpath) {
+			if template.CreateOnly {
+				continue
+			}
+
 			// Open the existing file
 			w, err = os.Create(fullpath)
 			if err != nil {
