@@ -1486,7 +1486,7 @@ var LxcMonitorStateError = fmt.Errorf("Monitor is hung")
 
 // Get lxc container state, with 1 second timeout
 // If we don't get a reply, assume the lxc monitor is hung
-func (c *containerLXC) GetLxcState() (lxc.State, error) {
+func (c *containerLXC) getLxcState() (lxc.State, error) {
 	monitor := make(chan lxc.State, 1)
 
 	go func(c *lxc.Container) {
@@ -1526,7 +1526,7 @@ func (c *containerLXC) Render() (interface{}, error) {
 		}, nil
 	} else {
 		// FIXME: Render shouldn't directly access the go-lxc struct
-		cState, err := c.GetLxcState()
+		cState, err := c.getLxcState()
 		if err != nil {
 			return nil, err
 		}
@@ -1557,7 +1557,7 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 	}
 
 	// FIXME: RenderState shouldn't directly access the go-lxc struct
-	cState, err := c.GetLxcState()
+	cState, err := c.getLxcState()
 	if err != nil {
 		return nil, err
 	}
@@ -4273,7 +4273,7 @@ func (c *containerLXC) State() string {
 	}
 
 	cString := "Error"
-	state, err := c.GetLxcState()
+	state, err := c.getLxcState()
 	if err == nil {
 		cString = state.String()
 	}
