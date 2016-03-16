@@ -297,7 +297,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 		if strings.HasPrefix(string(cmdline), "[lxc monitor]") {
 			// container names can't have spaces
 			parts := strings.Split(string(cmdline), " ")
-			name := parts[len(parts)-1]
+			name := strings.TrimSuffix(parts[len(parts)-1], "\x00")
 
 			return containerLoadByName(d, name)
 		}
