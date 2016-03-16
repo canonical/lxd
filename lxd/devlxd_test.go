@@ -87,13 +87,13 @@ func TestCredsSendRecv(t *testing.T) {
 		}
 		defer conn.Close()
 
-		pid, err := getPid(conn)
+		cred, err := getCred(conn)
 		if err != nil {
 			t.Log(err)
 			result <- -1
 			return
 		}
-		result <- pid
+		result <- cred.pid
 	}()
 
 	conn, err := connect(fmt.Sprintf("%s/devlxd/sock", testDir))
