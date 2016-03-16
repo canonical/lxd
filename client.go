@@ -493,18 +493,11 @@ func (c *Client) url(elem ...string) string {
 }
 
 func (c *Client) GetServerConfig() (*Response, error) {
-	return c.baseGet(c.url(shared.APIVersion))
-}
-
-func (c *Client) Finger() error {
-	shared.Debugf("Fingering the daemon")
-	_, err := c.GetServerConfig()
-	if err != nil {
-		return err
+	if c.Remote.Protocol == "simplestreams" {
+		return nil, fmt.Errorf("This function isn't supported by simplestreams remote.")
 	}
 
-	shared.Debugf("Pong received")
-	return nil
+	return c.baseGet(c.url(shared.APIVersion))
 }
 
 func (c *Client) AmTrusted() bool {
@@ -550,6 +543,10 @@ func (c *Client) IsPublic() bool {
 }
 
 func (c *Client) ListContainers() ([]shared.ContainerInfo, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	resp, err := c.get("containers?recursion=1")
 	if err != nil {
 		return nil, err
@@ -827,6 +824,10 @@ func (c *Client) ExportImage(image string, target string) (string, error) {
 }
 
 func (c *Client) PostImageURL(imageFile string, public bool, aliases []string) (string, error) {
+	if c.Remote.Public {
+		return "", fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	source := shared.Jmap{
 		"type": "url",
 		"mode": "pull",
@@ -865,6 +866,10 @@ func (c *Client) PostImageURL(imageFile string, public bool, aliases []string) (
 }
 
 func (c *Client) PostImage(imageFile string, rootfsFile string, properties []string, public bool, aliases []string, progressHandler func(percent int)) (string, error) {
+	if c.Remote.Public {
+		return "", fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	uri := c.url(shared.APIVersion, "images")
 
 	var err error
@@ -1030,6 +1035,10 @@ func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
 }
 
 func (c *Client) PutImageInfo(name string, p shared.BriefImageInfo) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	_, err := c.put(fmt.Sprintf("images/%s", name), p, Sync)
 	return err
 }
@@ -1053,11 +1062,19 @@ func (c *Client) ListImages() ([]shared.ImageInfo, error) {
 }
 
 func (c *Client) DeleteImage(image string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	_, err := c.delete(fmt.Sprintf("images/%s", image), nil, Sync)
 	return err
 }
 
 func (c *Client) PostAlias(alias string, desc string, target string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	body := shared.Jmap{"description": desc, "target": target, "name": alias}
 
 	_, err := c.post("images/aliases", body, Sync)
@@ -1065,6 +1082,10 @@ func (c *Client) PostAlias(alias string, desc string, target string) error {
 }
 
 func (c *Client) DeleteAlias(alias string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	_, err := c.delete(fmt.Sprintf("images/aliases/%s", alias), nil, Sync)
 	return err
 }
@@ -1089,6 +1110,10 @@ func (c *Client) ListAliases() (shared.ImageAliases, error) {
 }
 
 func (c *Client) CertificateList() ([]shared.CertInfo, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	resp, err := c.get("certificates?recursion=1")
 	if err != nil {
 		return nil, err
@@ -1103,6 +1128,10 @@ func (c *Client) CertificateList() ([]shared.CertInfo, error) {
 }
 
 func (c *Client) AddMyCertToServer(pwd string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	body := shared.Jmap{"type": "client", "password": pwd}
 
 	_, err := c.post("certificates", body, Sync)
@@ -1110,12 +1139,20 @@ func (c *Client) AddMyCertToServer(pwd string) error {
 }
 
 func (c *Client) CertificateAdd(cert *x509.Certificate, name string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	b64 := base64.StdEncoding.EncodeToString(cert.Raw)
 	_, err := c.post("certificates", shared.Jmap{"type": "client", "certificate": b64, "name": name}, Sync)
 	return err
 }
 
 func (c *Client) CertificateRemove(fingerprint string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	_, err := c.delete(fmt.Sprintf("certificates/%s", fingerprint), nil, Sync)
 	return err
 }
@@ -1156,6 +1193,10 @@ func (c *Client) GetAlias(alias string) string {
 // Init creates a container from either a fingerprint or an alias; you must
 // provide at least one.
 func (c *Client) Init(name string, imgremote string, image string, profiles *[]string, config map[string]string, ephem bool) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	var tmpremote *Client
 	var err error
 
@@ -1291,6 +1332,10 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 }
 
 func (c *Client) LocalCopy(source string, name string, config map[string]string, profiles []string, ephemeral bool) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	body := shared.Jmap{
 		"source": shared.Jmap{
 			"type":   "copy",
@@ -1306,6 +1351,10 @@ func (c *Client) LocalCopy(source string, name string, config map[string]string,
 }
 
 func (c *Client) Monitor(types []string, handler func(interface{})) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	url := c.BaseWSURL + path.Join("/", "1.0", "events")
 	if len(types) != 0 {
 		url += "?type=" + strings.Join(types, ",")
@@ -1342,6 +1391,10 @@ func (c *Client) Monitor(types []string, handler func(interface{})) error {
 func (c *Client) Exec(name string, cmd []string, env map[string]string,
 	stdin io.ReadCloser, stdout io.WriteCloser,
 	stderr io.WriteCloser, controlHandler func(*Client, *websocket.Conn)) (int, error) {
+
+	if c.Remote.Public {
+		return -1, fmt.Errorf("This function isn't supported by public remotes.")
+	}
 
 	body := shared.Jmap{
 		"command":            cmd,
@@ -1453,6 +1506,10 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 }
 
 func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool, stateful bool) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	body := shared.Jmap{
 		"action":  action,
 		"timeout": timeout,
@@ -1466,6 +1523,10 @@ func (c *Client) Action(name string, action shared.ContainerAction, timeout int,
 }
 
 func (c *Client) Delete(name string) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	var url string
 	s := strings.SplitN(name, "/", 2)
 	if len(s) == 2 {
@@ -1493,6 +1554,10 @@ func (c *Client) ServerStatus() (*shared.ServerState, error) {
 }
 
 func (c *Client) ContainerInfo(name string) (*shared.ContainerInfo, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	ct := shared.ContainerInfo{}
 
 	resp, err := c.get(fmt.Sprintf("containers/%s", name))
@@ -1508,6 +1573,10 @@ func (c *Client) ContainerInfo(name string) (*shared.ContainerInfo, error) {
 }
 
 func (c *Client) ContainerState(name string) (*shared.ContainerState, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	ct := shared.ContainerState{}
 
 	resp, err := c.get(fmt.Sprintf("containers/%s/state", name))
@@ -1523,6 +1592,10 @@ func (c *Client) ContainerState(name string) (*shared.ContainerState, error) {
 }
 
 func (c *Client) GetLog(container string, log string) (io.Reader, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	uri := c.url(shared.APIVersion, "containers", container, "logs", log)
 	resp, err := c.getRaw(uri)
 	if err != nil {
@@ -1533,6 +1606,10 @@ func (c *Client) GetLog(container string, log string) (io.Reader, error) {
 }
 
 func (c *Client) ProfileConfig(name string) (*shared.ProfileConfig, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	ct := shared.ProfileConfig{}
 
 	resp, err := c.get(fmt.Sprintf("profiles/%s", name))
@@ -1548,6 +1625,10 @@ func (c *Client) ProfileConfig(name string) (*shared.ProfileConfig, error) {
 }
 
 func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.FileMode, buf io.ReadSeeker) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	query := url.Values{"path": []string{p}}
 	uri := c.url(shared.APIVersion, "containers", container, "files") + "?" + query.Encode()
 
@@ -1571,6 +1652,10 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 }
 
 func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io.ReadCloser, error) {
+	if c.Remote.Public {
+		return 0, 0, 0, nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	uri := c.url(shared.APIVersion, "containers", container, "files")
 	query := url.Values{"path": []string{p}}
 
@@ -1585,6 +1670,10 @@ func (c *Client) PullFile(container string, p string) (int, int, os.FileMode, io
 }
 
 func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	body := shared.Jmap{"migration": true}
 	url := fmt.Sprintf("containers/%s", container)
 	if shared.IsSnapshot(container) {
@@ -1600,6 +1689,10 @@ func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
 }
 
 func (c *Client) MigrateFrom(name string, operation string, certificate string, secrets map[string]string, architecture string, config map[string]string, devices shared.Devices, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	source := shared.Jmap{
 		"type":        "migration",
 		"mode":        "pull",
@@ -1622,6 +1715,10 @@ func (c *Client) MigrateFrom(name string, operation string, certificate string, 
 }
 
 func (c *Client) Rename(name string, newName string) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	oldNameParts := strings.SplitN(name, "/", 2)
 	newNameParts := strings.SplitN(newName, "/", 2)
 	if len(oldNameParts) != len(newNameParts) {
@@ -1672,16 +1769,28 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 }
 
 func (c *Client) RestoreSnapshot(container string, snapshotName string, stateful bool) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	body := shared.Jmap{"restore": snapshotName, "stateful": stateful}
 	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
 }
 
 func (c *Client) Snapshot(container string, snapshotName string, stateful bool) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	body := shared.Jmap{"name": snapshotName, "stateful": stateful}
 	return c.post(fmt.Sprintf("containers/%s/snapshots", container), body, Async)
 }
 
 func (c *Client) ListSnapshots(container string) ([]shared.SnapshotInfo, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	qUrl := fmt.Sprintf("containers/%s/snapshots?recursion=1", container)
 	resp, err := c.get(qUrl)
 	if err != nil {
@@ -1721,6 +1830,10 @@ func (c *Client) GetServerConfigString() ([]string, error) {
 }
 
 func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	ss, err := c.ServerStatus()
 	if err != nil {
 		return nil, err
@@ -1732,6 +1845,10 @@ func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
 }
 
 func (c *Client) UpdateServerConfig(ss shared.BriefServerState) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	return c.put("", ss, Sync)
 }
 
@@ -1739,6 +1856,10 @@ func (c *Client) UpdateServerConfig(ss shared.BriefServerState) (*Response, erro
  * return string array representing a container's full configuration
  */
 func (c *Client) GetContainerConfig(container string) ([]string, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	var resp []string
 
 	st, err := c.ContainerInfo(container)
@@ -1759,6 +1880,10 @@ func (c *Client) GetContainerConfig(container string) ([]string, error) {
 }
 
 func (c *Client) SetContainerConfig(container, key, value string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return err
@@ -1784,6 +1909,10 @@ func (c *Client) SetContainerConfig(container, key, value string) error {
 }
 
 func (c *Client) UpdateContainerConfig(container string, st shared.BriefContainerInfo) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	resp, err := c.put(fmt.Sprintf("containers/%s", container), st, Async)
 	if err != nil {
 		return err
@@ -1793,6 +1922,10 @@ func (c *Client) UpdateContainerConfig(container string, st shared.BriefContaine
 }
 
 func (c *Client) ProfileCreate(p string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	body := shared.Jmap{"name": p}
 
 	_, err := c.post("profiles", body, Sync)
@@ -1800,11 +1933,19 @@ func (c *Client) ProfileCreate(p string) error {
 }
 
 func (c *Client) ProfileDelete(p string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	_, err := c.delete(fmt.Sprintf("profiles/%s", p), nil, Sync)
 	return err
 }
 
 func (c *Client) GetProfileConfig(profile string) (map[string]string, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ProfileConfig(profile)
 	if err != nil {
 		return nil, err
@@ -1814,6 +1955,10 @@ func (c *Client) GetProfileConfig(profile string) (map[string]string, error) {
 }
 
 func (c *Client) SetProfileConfigItem(profile, key, value string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ProfileConfig(profile)
 	if err != nil {
 		shared.Debugf("Error getting profile %s to update", profile)
@@ -1831,6 +1976,10 @@ func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 }
 
 func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	if profile.Name != name {
 		return fmt.Errorf("Cannot change profile name")
 	}
@@ -1840,6 +1989,10 @@ func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
 }
 
 func (c *Client) ListProfiles() ([]string, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	resp, err := c.get("profiles")
 	if err != nil {
 		return nil, err
@@ -1877,6 +2030,10 @@ func (c *Client) ListProfiles() ([]string, error) {
 }
 
 func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return nil, err
@@ -1888,6 +2045,10 @@ func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
 }
 
 func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return nil, err
@@ -1899,6 +2060,10 @@ func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, er
 }
 
 func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []string) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return nil, err
@@ -1930,6 +2095,10 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 }
 
 func (c *Client) ContainerListDevices(container string) ([]string, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ContainerInfo(container)
 	if err != nil {
 		return nil, err
@@ -1942,6 +2111,10 @@ func (c *Client) ContainerListDevices(container string) ([]string, error) {
 }
 
 func (c *Client) ProfileDeviceDelete(profile, devname string) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ProfileConfig(profile)
 	if err != nil {
 		return nil, err
@@ -1957,6 +2130,10 @@ func (c *Client) ProfileDeviceDelete(profile, devname string) (*Response, error)
 }
 
 func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []string) (*Response, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ProfileConfig(profile)
 	if err != nil {
 		return nil, err
@@ -1985,6 +2162,10 @@ func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []stri
 }
 
 func (c *Client) ProfileListDevices(profile string) ([]string, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ProfileConfig(profile)
 	if err != nil {
 		return nil, err
@@ -1994,7 +2175,6 @@ func (c *Client) ProfileListDevices(profile string) ([]string, error) {
 		devs = append(devs, fmt.Sprintf("%s: %s", n, d["type"]))
 	}
 	return devs, nil
-
 }
 
 // WebsocketDial attempts to dial a websocket to a LXD instance, parsing
@@ -2015,6 +2195,10 @@ func WebsocketDial(dialer websocket.Dialer, url string) (*websocket.Conn, error)
 }
 
 func (c *Client) ProfileCopy(name, newname string, dest *Client) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	st, err := c.ProfileConfig(name)
 	if err != nil {
 		return err
@@ -2043,6 +2227,10 @@ func (c *Client) AsyncWaitMeta(resp *Response) (*shared.Jmap, error) {
 }
 
 func (c *Client) ImageFromContainer(cname string, public bool, aliases []string, properties map[string]string) (string, error) {
+	if c.Remote.Public {
+		return "", fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
 	source := shared.Jmap{"type": "container", "name": cname}
 	if shared.IsSnapshot(cname) {
 		source["type"] = "snapshot"
