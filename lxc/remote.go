@@ -79,7 +79,7 @@ func getRemoteCertificate(address string) (*x509.Certificate, error) {
 
 	// Retrieve the certificate
 	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
-		return nil, fmt.Errorf("Unable to read remote TLS certificate")
+		return nil, fmt.Errorf(i18n.G("Unable to read remote TLS certificate"))
 	}
 
 	return resp.TLS.PeerCertificates[0], nil
@@ -95,24 +95,28 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 		config.Remotes = make(map[string]lxd.RemoteConfig)
 	}
 
-	// Fast track simplestreams
-	if protocol == "simplestreams" {
-		config.Remotes[server] = lxd.RemoteConfig{Addr: addr, Public: true, Protocol: protocol}
-		return nil
-	}
-
 	/* Complex remote URL parsing */
 	remoteURL, err := url.Parse(addr)
 	if err != nil {
 		return err
 	}
 
+	// Fast track simplestreams
+	if protocol == "simplestreams" {
+		if remoteURL.Scheme != "https" {
+			return fmt.Errorf(i18n.G("Only https URLs are supported for simplestreams"))
+		}
+
+		config.Remotes[server] = lxd.RemoteConfig{Addr: addr, Public: true, Protocol: protocol}
+		return nil
+	}
+
 	if remoteURL.Scheme != "" {
 		if remoteURL.Scheme != "unix" && remoteURL.Scheme != "https" {
-			rScheme = "https"
-		} else {
-			rScheme = remoteURL.Scheme
+			return fmt.Errorf(i18n.G("Invalid URL scheme \"%s\" in \"%s\""), remoteURL.Scheme, addr)
 		}
+
+		rScheme = remoteURL.Scheme
 	} else if addr[0] == '/' {
 		rScheme = "unix"
 	} else {
