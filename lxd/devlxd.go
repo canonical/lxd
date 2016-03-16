@@ -85,15 +85,29 @@ var handlers = []devLxdHandler{
 func hoistReq(f func(container, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn := extractUnderlyingConn(w)
-		pid, ok := pidMapper.m[conn]
+		cred, ok := pidMapper.m[conn]
 		if !ok {
 			http.Error(w, pidNotInContainerErr.Error(), 500)
 			return
 		}
 
-		c, err := findContainerForPid(pid, d)
+		c, err := findContainerForPid(cred.pid, d)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		// Access control
+		rootUid := int64(0)
+
+		idmapset, err := c.LastIdmapSet()
+		if err == nil && idmapset != nil {
+			uid, _ := idmapset.ShiftIntoNs(0, 0)
+			rootUid = int64(uid)
+		}
+
+		if rootUid != cred.uid {
+			http.Error(w, "Access denied for non-root user", 401)
 			return
 		}
 
@@ -185,21 +199,27 @@ func devLxdServer(d *Daemon) *http.Server {
  * from our http handlers, since there appears to be no way to pass information
  * around here.
  */
-var pidMapper = ConnPidMapper{m: map[*net.UnixConn]int32{}}
+var pidMapper = ConnPidMapper{m: map[*net.UnixConn]*ucred{}}
+
+type ucred struct {
+	pid int32
+	uid int64
+	gid int64
+}
 
 type ConnPidMapper struct {
-	m map[*net.UnixConn]int32
+	m map[*net.UnixConn]*ucred
 }
 
 func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	unixConn := conn.(*net.UnixConn)
 	switch state {
 	case http.StateNew:
-		pid, err := getPid(unixConn)
+		cred, err := getCred(unixConn)
 		if err != nil {
-			shared.Debugf("Error getting pid for conn %s", err)
+			shared.Debugf("Error getting ucred for conn %s", err)
 		} else {
-			m.m[unixConn] = pid
+			m.m[unixConn] = cred
 		}
 	case http.StateActive:
 		return
@@ -234,15 +254,15 @@ func extractUnderlyingFd(unixConnPtr *net.UnixConn) int {
 	return int(fd.Int())
 }
 
-func getPid(conn *net.UnixConn) (int32, error) {
+func getCred(conn *net.UnixConn) (*ucred, error) {
 	fd := extractUnderlyingFd(conn)
 
-	_, _, pid, err := getUcred(fd)
+	uid, gid, pid, err := getUcred(fd)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return pid, nil
+	return &ucred{pid, int64(uid), int64(gid)}, nil
 }
 
 /*
@@ -297,7 +317,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 		if strings.HasPrefix(string(cmdline), "[lxc monitor]") {
 			// container names can't have spaces
 			parts := strings.Split(string(cmdline), " ")
-			name := parts[len(parts)-1]
+			name := strings.TrimSuffix(parts[len(parts)-1], "\x00")
 
 			return containerLoadByName(d, name)
 		}
