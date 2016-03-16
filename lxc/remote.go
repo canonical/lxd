@@ -184,7 +184,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 	var certificate *x509.Certificate
 
 	/* Attempt to connect using the system root CA */
-	err = d.Finger()
+	_, err = d.GetServerConfig()
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
 		certificate, err = getRemoteCertificate(addr)
@@ -234,7 +234,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 	if d.IsPublic() || public {
 		config.Remotes[server] = lxd.RemoteConfig{Addr: addr, Public: true}
 
-		if err := d.Finger(); err != nil {
+		if _, err := d.GetServerConfig(); err != nil {
 			return err
 		}
 
