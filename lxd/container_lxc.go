@@ -284,7 +284,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Base config
-	err = lxcSetConfigItem(cc, "lxc.cap.drop", "mac_admin mac_override sys_time sys_module")
+	err = lxcSetConfigItem(cc, "lxc.cap.drop", "mac_admin mac_override sys_time sys_module sys_rawio")
 	if err != nil {
 		return err
 	}
