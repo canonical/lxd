@@ -651,9 +651,16 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	// Is this a container request?
 	post.Seek(0, 0)
 	decoder := json.NewDecoder(post)
+	imageUpload := false
+
 	req := imagePostReq{}
 	err = decoder.Decode(&req)
-	imageUpload := err != nil
+	if err != nil {
+		if r.Header.Get("Content-Type") == "application/json" {
+			return BadRequest(err)
+		}
+		imageUpload = true
+	}
 
 	if !imageUpload && !shared.StringInSlice(req.Source["type"], []string{"container", "snapshot", "image", "url"}) {
 		cleanup(builddir, post)
