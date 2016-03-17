@@ -482,24 +482,16 @@ func containerCreateAsCopy(d *Daemon, args containerArgs, sourceContainer contai
 }
 
 func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer container) (container, error) {
-	// Create the snapshot
-	c, err := containerCreateInternal(d, args)
-	if err != nil {
-		return nil, err
-	}
-
 	// Deal with state
 	if args.Stateful {
-		stateDir := sourceContainer.StatePath()
-		err = os.MkdirAll(stateDir, 0700)
-		if err != nil {
-			c.Delete()
-			return nil, err
+		if !sourceContainer.IsRunning() {
+			return nil, fmt.Errorf("Container not running, cannot do stateful snapshot")
 		}
 
-		if !sourceContainer.IsRunning() {
-			c.Delete()
-			return nil, fmt.Errorf("Container not running, cannot do stateful snapshot")
+		stateDir := sourceContainer.StatePath()
+		err := os.MkdirAll(stateDir, 0700)
+		if err != nil {
+			return nil, err
 		}
 
 		/* TODO: ideally we would freeze here and unfreeze below after
@@ -520,8 +512,15 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 		}
 
 		if err != nil {
+			os.RemoveAll(sourceContainer.StatePath())
 			return nil, err
 		}
+	}
+
+	// Create the snapshot
+	c, err := containerCreateInternal(d, args)
+	if err != nil {
+		return nil, err
 	}
 
 	// Clone the container
