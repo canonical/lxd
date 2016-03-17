@@ -159,8 +159,8 @@ func containersShutdown(d *Daemon) error {
 				wg.Done()
 			}()
 		}
-		wg.Wait()
 	}
+	wg.Wait()
 
 	return nil
 }
