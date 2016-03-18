@@ -1670,10 +1670,34 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	// If the container wasn't running but was stateful, should we restore
 	// it as running?
 	if shared.PathExists(c.StatePath()) {
-		err := c.c.Restore(lxc.RestoreOptions{
-			Directory: c.StatePath(),
-			Verbose:   true,
-		})
+		configPath, err := c.startCommon()
+		if err != nil {
+			return err
+		}
+
+		if !c.IsPrivileged() {
+			if err := c.IdmapSet().ShiftRootfs(c.StatePath()); err != nil {
+				return err
+			}
+		}
+
+		out, err := exec.Command(
+			c.daemon.execPath,
+			"forkmigrate",
+			c.name,
+			c.daemon.lxcpath,
+			configPath,
+			c.StatePath()).CombinedOutput()
+		if string(out) != "" {
+			for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+				shared.Debugf("forkmigrate: %s", line)
+			}
+		}
+		CollectCRIULogFile(c, c.StatePath(), "snapshot", "restore")
+
+		if err != nil {
+			return err
+		}
 
 		// Remove the state from the parent container; we only keep
 		// this in snapshots.
