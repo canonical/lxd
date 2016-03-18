@@ -1080,7 +1080,8 @@ In the source image case, the following dict must be used:
 
     {
         "filename": filename,                   # Used for export (optional)
-        "public": true,                         # Whether the image can be downloaded by untrusted users (defaults to false
+        "public": true,                         # Whether the image can be downloaded by untrusted users (defaults to false)
+        "auto_update": true,                    # Whether the image should be auto-updated (optional; defaults to false)
         "properties": {                         # Image properties (optional, applied on top of source properties)
             "os": "Ubuntu"
         },
