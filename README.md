@@ -271,9 +271,7 @@ Yes. The easiest way to do that is using a privileged container:
 
 #### How can I run docker inside a LXD container?
 
-Create a container with the migrateable profile:
-
-	lxc launch ubuntu:xenial my-docker-host -p default -p docker
-
-Then run a version of docker with the needed patches, for instance version
-v1.10.0.serge.2 branch of github.com/hallyn/docker.
+To run docker inside a lxd container, you must be running a kernel with cgroup
+namespaces (Ubuntu 4.4 kernel or newer, or upstream 4.6 or newer), and must
+apply the docker profile to your container.  The container must be using the
+Ubuntu 1.10.2-0ubuntu4 or newer docker package.
