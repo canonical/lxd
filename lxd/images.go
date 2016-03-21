@@ -940,11 +940,19 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 func imageDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	if err := doDeleteImage(d, fingerprint); err != nil {
-		return SmartError(err)
+	rmimg := func(op *operation) error {
+		return doDeleteImage(d, fingerprint)
 	}
 
-	return EmptySyncResponse
+	resources := map[string][]string{}
+	resources["images"] = []string{fingerprint}
+
+	op, err := operationCreate(operationClassTask, resources, nil, rmimg, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }
 
 func doImageGet(d *Daemon, fingerprint string, public bool) (*shared.ImageInfo, Response) {
