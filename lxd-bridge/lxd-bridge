@@ -28,7 +28,7 @@ LXD_IPV6_NETWORK=""
 LXD_IPV6_NAT="false"
 LXD_IPV6_PROXY="true"
 
-[ ! -f "${distrosysconfdir}/lxd" ] || . "${distrosysconfdir}/lxd"
+[ ! -f "${distrosysconfdir}/lxd-bridge" ] || . "${distrosysconfdir}/lxd-bridge"
 
 use_iptables_lock="-w"
 iptables -w -L -n > /dev/null 2>&1 || use_iptables_lock=""
@@ -141,8 +141,10 @@ start() {
         fi
     done
 
-    # shellcheck disable=SC2086
-    dnsmasq ${LXD_CONFILE_ARG} ${LXD_DOMAIN_ARG} -u "${DNSMASQ_USER}" --strict-order --bind-interfaces --pid-file="${varrun}/dnsmasq.pid" --dhcp-no-override --except-interface=lo --interface="${LXD_BRIDGE}" --dhcp-leasefile="${varlib}/misc/dnsmasq.${LXD_BRIDGE}.leases" --dhcp-authoritative ${LXD_IPV4_ARG} ${LXD_IPV6_ARG} || cleanup
+    if [ -n "${LXD_IPV4_ADDR}" ] || [ -n "${LXD_IPV6_ADDR}" ]; then
+        # shellcheck disable=SC2086
+        dnsmasq ${LXD_CONFILE_ARG} ${LXD_DOMAIN_ARG} -u "${DNSMASQ_USER}" --strict-order --bind-interfaces --pid-file="${varrun}/dnsmasq.pid" --dhcp-no-override --except-interface=lo --interface="${LXD_BRIDGE}" --dhcp-leasefile="${varlib}/misc/dnsmasq.${LXD_BRIDGE}.leases" --dhcp-authoritative ${LXD_IPV4_ARG} ${LXD_IPV6_ARG} || cleanup
+    fi
 
     if [ "${LXD_IPV6_PROXY}" = "true" ]; then
         lxd-bridge-proxy -addr="[fe80::1%${LXD_BRIDGE}]:3128" &
@@ -177,11 +179,16 @@ stop() {
             ip6tables ${use_iptables_lock} -t nat -D POSTROUTING -s ${LXD_IPV6_NETWORK} ! -d ${LXD_IPV6_NETWORK} -j MASQUERADE
         fi
 
-        pid=$(cat "${varrun}/dnsmasq.pid" 2>/dev/null) && kill -9 "${pid}"
-        rm -f "${varrun}/dnsmasq.pid"
+        if [ -e "${varrun}/dnsmasq.pid" ]; then
+            pid=$(cat "${varrun}/dnsmasq.pid" 2>/dev/null) && kill -9 "${pid}"
+            rm -f "${varrun}/dnsmasq.pid"
+        fi
 
-        pid=$(cat "${varrun}/proxy.pid" 2>/dev/null) && kill -9 "${pid}"
-        rm -f "${varrun}/proxy.pid"
+        if [ -e "${varrun}/proxy.pid" ]; then
+            pid=$(cat "${varrun}/proxy.pid" 2>/dev/null) && kill -9 "${pid}"
+            rm -f "${varrun}/proxy.pid"
+        fi
+
         # if ${LXD_BRIDGE} has attached interfaces, don't destroy the bridge
         ls /sys/class/net/${LXD_BRIDGE}/brif/* > /dev/null 2>&1 || ip link delete "${LXD_BRIDGE}"
     fi
