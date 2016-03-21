@@ -1526,7 +1526,7 @@ func (c *containerLXC) getLxcState() (lxc.State, error) {
 	select {
 	case state := <-monitor:
 		return state, nil
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		return lxc.StateMap["FROZEN"], LxcMonitorStateError
 	}
 }
