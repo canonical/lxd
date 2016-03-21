@@ -1066,8 +1066,13 @@ func (c *Client) DeleteImage(image string) error {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	_, err := c.delete(fmt.Sprintf("images/%s", image), nil, Sync)
-	return err
+	resp, err := c.delete(fmt.Sprintf("images/%s", image), nil, Async)
+
+	if err != nil {
+		return err
+	}
+
+	return c.WaitForSuccess(resp.Operation)
 }
 
 func (c *Client) PostAlias(alias string, desc string, target string) error {
