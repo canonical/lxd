@@ -605,7 +605,7 @@ func setupLXD() error {
 			inSecond := string(pwd)
 			inSecond = strings.TrimSuffix(inSecond, "\n")
 
-			if len(inFirst) != 0 && inFirst == inSecond {
+			if inFirst == inSecond {
 				return inFirst
 			}
 
