@@ -528,8 +528,6 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 func startDaemon(group string) (*Daemon, error) {
 	d := &Daemon{
 		group:                 group,
-		imagesDownloading:     map[string]chan bool{},
-		imagesDownloadingLock: sync.RWMutex{},
 	}
 
 	if err := d.Init(); err != nil {
@@ -551,6 +549,9 @@ func haveMacAdmin() bool {
 }
 
 func (d *Daemon) Init() error {
+	/* Initialize some variables */
+	d.imagesDownloading = map[string]chan bool{}
+
 	d.shutdownChan = make(chan bool)
 
 	/* Set the executable path */
