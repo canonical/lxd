@@ -605,7 +605,7 @@ func setupLXD() error {
 			inSecond := string(pwd)
 			inSecond = strings.TrimSuffix(inSecond, "\n")
 
-			if len(inFirst) != 0 && inFirst == inSecond {
+			if inFirst == inSecond {
 				return inFirst
 			}
 
@@ -721,8 +721,8 @@ func setupLXD() error {
 		}
 
 		if askBool("Would you like LXD to be available over the network (yes/no)? ") {
-			networkAddress = askString("Address to bind LXD to: ")
-			networkPort = askInt("Port to bind LXD to: ", 1, 65535)
+			networkAddress = askString("Address to bind LXD to (not including port): ")
+			networkPort = askInt("Port to bind LXD to (8443 recommended): ", 1, 65535)
 			trustPassword = askPassword("Trust password for new clients: ")
 		}
 	}
