@@ -273,5 +273,11 @@ Yes. The easiest way to do that is using a privileged container:
 
 To run docker inside a lxd container, you must be running a kernel with cgroup
 namespaces (Ubuntu 4.4 kernel or newer, or upstream 4.6 or newer), and must
-apply the docker profile to your container.  The container must be using the
-Ubuntu 1.10.2-0ubuntu4 or newer docker package.
+apply the docker profile to your container.
+
+    lxc launch ubuntu:xenial my-docker-host -p default -p docker
+
+Note that the docker profile does not provide a network interface, so the
+common case will want to compose the default and docker profiles.
+
+The container must be using the Ubuntu 1.10.2-0ubuntu4 or newer docker package.
