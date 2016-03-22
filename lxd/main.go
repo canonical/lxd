@@ -422,7 +422,6 @@ func cleanShutdown() error {
 func activateIfNeeded() error {
 	// Don't start a full daemon, we just need DB access
 	d := &Daemon{
-		IsMock:                false,
 		imagesDownloading:     map[string]chan bool{},
 		imagesDownloadingLock: sync.RWMutex{},
 	}

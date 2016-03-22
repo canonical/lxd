@@ -334,7 +334,7 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 }
 
 func dbUpdateFromV11(d *Daemon) error {
-	if d.IsMock {
+	if d.MockMode {
 		// No need to move snapshots no mock runs,
 		// dbUpdateFromV12 will then set the db version to 13
 		return nil
@@ -412,7 +412,7 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 }
 
 func dbUpdateFromV10(d *Daemon) error {
-	if d.IsMock {
+	if d.MockMode {
 		// No need to move lxc to containers in mock runs,
 		// dbUpdateFromV12 will then set the db version to 13
 		return nil
