@@ -90,7 +90,7 @@ type Daemon struct {
 
 	configValues map[string]string
 
-	IsMock bool
+	MockMode bool
 
 	imagesDownloading     map[string]chan bool
 	imagesDownloadingLock sync.RWMutex
@@ -528,7 +528,6 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 func startDaemon(group string) (*Daemon, error) {
 	d := &Daemon{
 		group:                 group,
-		IsMock:                false,
 		imagesDownloading:     map[string]chan bool{},
 		imagesDownloadingLock: sync.RWMutex{},
 	}
@@ -575,11 +574,11 @@ func (d *Daemon) Init() error {
 		}
 	}
 
-	if !d.IsMock {
-		shared.Log.Info("LXD is starting",
+	if d.MockMode {
+		shared.Log.Info("Mock LXD is starting",
 			log.Ctx{"path": shared.VarPath("")})
 	} else {
-		shared.Log.Info("Mock LXD is starting",
+		shared.Log.Info("LXD is starting",
 			log.Ctx{"path": shared.VarPath("")})
 	}
 
@@ -744,7 +743,7 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Setup the storage driver */
-	if !d.IsMock {
+	if !d.MockMode {
 		err = d.SetupStorageDriver()
 		if err != nil {
 			return fmt.Errorf("Failed to setup storage: %s", err)
@@ -824,7 +823,7 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
-	if !d.IsMock {
+	if !d.MockMode {
 		/* Start the scheduler */
 		go deviceEventListener(d)
 
@@ -992,7 +991,7 @@ func (d *Daemon) Init() error {
 	})
 
 	// Restore containers
-	if !d.IsMock {
+	if !d.MockMode {
 		/* Restart containers */
 		go containersRestart(d)
 
@@ -1072,7 +1071,7 @@ func (d *Daemon) Stop() error {
 	shared.Log.Debug("Stopping /dev/lxd handler")
 	d.devlxd.Close()
 
-	if d.IsMock || forceStop {
+	if d.MockMode || forceStop {
 		return nil
 	}
 
