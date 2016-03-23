@@ -59,19 +59,18 @@ func (c *configCmd) usage() string {
 		`Manage configuration.
 
 lxc config device add <[remote:]container> <name> <type> [key=value]...     Add a device to a container.
+lxc config device get <[remote:]container> <name> <key>                     Get a device property.
 lxc config device set <[remote:]container> <name> <key> <value>             Set a device property.
 lxc config device unset <[remote:]container> <name> <key>                   Unset a device property.
-lxc config device list [remote:]<container>                                 List devices for container.
-lxc config device show [remote:]<container>                                 Show full device details for container.
-lxc config device remove [remote:]<container> <name>                        Remove device from container.
+lxc config device list <[remote:]container>                                 List devices for container.
+lxc config device show <[remote:]container>                                 Show full device details for container.
+lxc config device remove <[remote:]container> <name>                        Remove device from container.
 
-lxc config get [remote:]<container> key                                     Get configuration key.
-lxc config set [remote:]<container> key value                               Set container configuration key.
-lxc config unset [remote:]<container> key                                   Unset container configuration key.
-lxc config set key value                                                    Set server configuration key.
-lxc config unset key                                                        Unset server configuration key.
-lxc config show [--expanded] [remote:]<container>                           Show container configuration.
-lxc config edit [remote:][container]                                        Edit container configuration in external editor.
+lxc config get [remote:][container] <key>                                   Get container or server configuration key.
+lxc config set [remote:][container] <key> <value>                           Set container or server configuration key.
+lxc config unset [remote:][container] <key>                                 Unset container or server configuration key.
+lxc config show [remote:][container] [--expanded]                           Show container or server configuration.
+lxc config edit [remote:][container]                                        Edit container or server configuration in external editor.
     Edit configuration, either by launching external editor or reading STDIN.
     Example: lxc config edit <container> # launch editor
              cat config.yml | lxc config edit <config> # read from config.yml
@@ -381,7 +380,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("%s: %s\n", key, resp.Config[key])
+			fmt.Println(resp.Config[key])
 		} else {
 			resp, err := d.ServerStatus()
 			if err != nil {
@@ -397,7 +396,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 				value = "false"
 			}
 
-			fmt.Printf("%s: %s\n", key, value)
+			fmt.Println(value)
 		}
 		return nil
 
@@ -413,6 +412,8 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return c.deviceAdd(config, "container", args)
 		case "remove":
 			return c.deviceRm(config, "container", args)
+		case "get":
+			return c.deviceGet(config, "container", args)
 		case "set":
 			return c.deviceSet(config, "container", args)
 		case "unset":
@@ -616,6 +617,50 @@ func (c *configCmd) deviceAdd(config *lxd.Config, which string, args []string) e
 		fmt.Printf(i18n.G("Device %s added to %s")+"\n", devname, name)
 	}
 	return err
+}
+
+func (c *configCmd) deviceGet(config *lxd.Config, which string, args []string) error {
+	if len(args) < 5 {
+		return errArgs
+	}
+
+	remote, name := config.ParseRemoteAndContainer(args[2])
+
+	client, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	devname := args[3]
+	key := args[4]
+
+	if which == "profile" {
+		st, err := client.ProfileConfig(name)
+		if err != nil {
+			return err
+		}
+
+		dev, ok := st.Devices[devname]
+		if !ok {
+			return fmt.Errorf(i18n.G("The device doesn't exist"))
+		}
+
+		fmt.Println(dev[key])
+	} else {
+		st, err := client.ContainerInfo(name)
+		if err != nil {
+			return err
+		}
+
+		dev, ok := st.Devices[devname]
+		if !ok {
+			return fmt.Errorf(i18n.G("The device doesn't exist"))
+		}
+
+		fmt.Println(dev[key])
+	}
+
+	return nil
 }
 
 func (c *configCmd) deviceSet(config *lxd.Config, which string, args []string) error {

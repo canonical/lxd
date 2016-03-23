@@ -126,7 +126,7 @@ test_snap_restore() {
 
     # Check container config has been restored (limits.cpu is unset)
     cpus=$(lxc config get bar limits.cpu)
-    if [ "${cpus}" != "limits.cpu: " ]; then
+    if [ -n "${cpus}" ]; then
      echo "==> config didn't match expected value after restore (${cpus})"
      false
     fi
@@ -139,7 +139,7 @@ test_snap_restore() {
 
   # Check config value in snapshot has been restored
   cpus=$(lxc config get bar limits.cpu)
-  if [ "${cpus}" != "limits.cpu: 1" ]; then
+  if [ "${cpus}" != "1" ]; then
    echo "==> config didn't match expected value after restore (${cpus})"
    false
   fi

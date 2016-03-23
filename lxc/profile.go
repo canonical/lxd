@@ -72,8 +72,9 @@ Devices:
 lxc profile device list <profile>                                   List devices in the given profile.
 lxc profile device show <profile>                                   Show full device details in the given profile.
 lxc profile device remove <profile> <name>                          Remove a device from a profile.
-lxc profile device set <[remote:]container> <name> <key> <value>    Set a device property.
-lxc profile device unset <[remote:]container> <name> <key>          Unset a device property.
+lxc profile device get <[remote:]profile> <name> <key>              Get a device property.
+lxc profile device set <[remote:]profile> <name> <key> <value>      Set a device property.
+lxc profile device unset <[remote:]profile> <name> <key>            Unset a device property.
 lxc profile device add <profile name> <device name> <device type> [key=value]...
     Add a profile device, such as a disk or a nic, to the containers
     using the specified profile.`)
@@ -278,6 +279,8 @@ func (c *profileCmd) doProfileDevice(config *lxd.Config, args []string) error {
 		return cfg.deviceList(config, "profile", args)
 	case "show":
 		return cfg.deviceShow(config, "profile", args)
+	case "get":
+		return cfg.deviceGet(config, "profile", args)
 	case "set":
 		return cfg.deviceSet(config, "profile", args)
 	case "unset":
