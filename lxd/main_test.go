@@ -12,7 +12,7 @@ import (
 
 func mockStartDaemon() (*Daemon, error) {
 	d := &Daemon{
-		IsMock:                true,
+		MockMode:              true,
 		imagesDownloading:     map[string]chan bool{},
 		imagesDownloadingLock: sync.RWMutex{},
 	}

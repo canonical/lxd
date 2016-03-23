@@ -196,7 +196,7 @@ func newStorage(d *Daemon, sType storageType) (storage, error) {
 }
 
 func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interface{}) (storage, error) {
-	if d.IsMock {
+	if d.MockMode {
 		return d.Storage, nil
 	}
 
@@ -236,7 +236,7 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 	config := make(map[string]interface{})
 	storageType := storageTypeDir
 
-	if d.IsMock {
+	if d.MockMode {
 		return newStorageWithConfig(d, storageTypeMock, config)
 	}
 

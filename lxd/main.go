@@ -76,6 +76,8 @@ func run() error {
 		fmt.Printf("         [--storage-create-device=DEVICE] [--storage-create-loop=SIZE] [--storage-pool=POOL]\n")
 		fmt.Printf("         [--trust-password=]\n")
 		fmt.Printf("        Setup storage and networking\n")
+		fmt.Printf("    ready\n")
+		fmt.Printf("        Tells LXD that any setup-mode configuration has been done and that it can start containers.\n")
 		fmt.Printf("    shutdown [--timeout=60]\n")
 		fmt.Printf("        Perform a clean shutdown of LXD and all running containers\n")
 		fmt.Printf("    waitready [--timeout=15]\n")
@@ -194,24 +196,29 @@ func run() error {
 		// "forkputfile", "forkgetfile", "forkmount" and "forkumount" are handled specially in nsexec.go
 		// "forkgetnet" is partially handled in nsexec.go (setns)
 		switch os.Args[1] {
+		// Main commands
 		case "activateifneeded":
-			return activateIfNeeded()
+			return cmdActivateIfNeeded()
 		case "daemon":
-			return daemon()
+			return cmdDaemon()
+		case "callhook":
+			return cmdCallHook(os.Args[1:])
+		case "init":
+			return cmdInit()
+		case "ready":
+			return cmdReady()
+		case "shutdown":
+			return cmdShutdown()
+		case "waitready":
+			return cmdWaitReady()
+
+		// Internal commands
 		case "forkgetnet":
 			return printnet()
 		case "forkmigrate":
 			return MigrateContainer(os.Args[1:])
 		case "forkstart":
 			return startContainer(os.Args[1:])
-		case "callhook":
-			return callHook(os.Args[1:])
-		case "init":
-			return setupLXD()
-		case "shutdown":
-			return cleanShutdown()
-		case "waitready":
-			return waitReady()
 		}
 	}
 
@@ -221,10 +228,10 @@ func run() error {
 		return fmt.Errorf("Unknown arguments")
 	}
 
-	return daemon()
+	return cmdDaemon()
 }
 
-func callHook(args []string) error {
+func cmdCallHook(args []string) error {
 	if len(args) < 4 {
 		return fmt.Errorf("Invalid arguments")
 	}
@@ -293,7 +300,7 @@ func callHook(args []string) error {
 	return nil
 }
 
-func daemon() error {
+func cmdDaemon() error {
 	if *argCPUProfile != "" {
 		f, err := os.Create(*argCPUProfile)
 		if err != nil {
@@ -325,8 +332,10 @@ func daemon() error {
 		}()
 	}
 
-	d, err := startDaemon(*argGroup)
-
+	d := &Daemon{
+		group:     *argGroup,
+		SetupMode: shared.PathExists(shared.VarPath(".setup_mode"))}
+	err := d.Init()
 	if err != nil {
 		if d != nil && d.db != nil {
 			d.db.Close()
@@ -380,7 +389,31 @@ func daemon() error {
 	return ret
 }
 
-func cleanShutdown() error {
+func cmdReady() error {
+	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PUT", c.BaseURL+"/internal/ready", nil)
+	if err != nil {
+		return err
+	}
+
+	raw, err := c.Http.Do(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = lxd.HoistResponse(raw, lxd.Sync)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func cmdShutdown() error {
 	var timeout int
 
 	if *argTimeout == -1 {
@@ -419,10 +452,9 @@ func cleanShutdown() error {
 	return nil
 }
 
-func activateIfNeeded() error {
+func cmdActivateIfNeeded() error {
 	// Don't start a full daemon, we just need DB access
 	d := &Daemon{
-		IsMock:                false,
 		imagesDownloading:     map[string]chan bool{},
 		imagesDownloadingLock: sync.RWMutex{},
 	}
@@ -476,7 +508,7 @@ func activateIfNeeded() error {
 	return nil
 }
 
-func waitReady() error {
+func cmdWaitReady() error {
 	var timeout int
 
 	if *argTimeout == -1 {
@@ -488,7 +520,25 @@ func waitReady() error {
 	finger := make(chan error, 1)
 	go func() {
 		for {
-			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			if err != nil {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+
+			req, err := http.NewRequest("GET", c.BaseURL+"/internal/ready", nil)
+			if err != nil {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+
+			raw, err := c.Http.Do(req)
+			if err != nil {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+
+			_, err = lxd.HoistResponse(raw, lxd.Sync)
 			if err != nil {
 				time.Sleep(500 * time.Millisecond)
 				continue
@@ -509,7 +559,7 @@ func waitReady() error {
 	return nil
 }
 
-func setupLXD() error {
+func cmdInit() error {
 	var storageBackend string // dir or zfs
 	var storageMode string    // existing, loop or device
 	var storageLoopSize int   // Size in GB

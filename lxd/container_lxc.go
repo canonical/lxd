@@ -3308,6 +3308,11 @@ func (c *containerLXC) createUnixDevice(name string, m shared.Device) (string, e
 		return "", fmt.Errorf("Failed to chown device %s: %s", devPath, err)
 	}
 
+	// Needed as mknod respects the umask
+	if err := os.Chmod(devPath, mode); err != nil {
+		return "", fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
+	}
+
 	if c.idmapset != nil {
 		if err := c.idmapset.ShiftFile(devPath); err != nil {
 			// uidshift failing is weird, but not a big problem.  Log and proceed
