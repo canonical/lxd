@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-03-22 21:56-0400\n"
+        "POT-Creation-Date: 2016-03-23 17:02-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -74,7 +74,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/profile.go:225
+#: lxc/profile.go:226
 msgid   "(none)"
 msgstr  ""
 
@@ -121,7 +121,7 @@ msgstr  ""
 msgid   "Available commands:"
 msgstr  ""
 
-#: lxc/config.go:271
+#: lxc/config.go:270
 msgid   "COMMON NAME"
 msgstr  ""
 
@@ -129,17 +129,17 @@ msgstr  ""
 msgid   "CREATED AT"
 msgstr  ""
 
-#: lxc/config.go:115
+#: lxc/config.go:114
 #, c-format
 msgid   "Can't read from stdin: %s"
 msgstr  ""
 
-#: lxc/config.go:128 lxc/config.go:161 lxc/config.go:183
+#: lxc/config.go:127 lxc/config.go:160 lxc/config.go:182
 #, c-format
 msgid   "Can't unset key '%s', it's not currently set."
 msgstr  ""
 
-#: lxc/profile.go:340
+#: lxc/profile.go:343
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -167,7 +167,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:499 lxc/config.go:564 lxc/image.go:669 lxc/profile.go:189
+#: lxc/config.go:500 lxc/config.go:565 lxc/image.go:669 lxc/profile.go:190
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -251,12 +251,12 @@ msgid   "Delete containers or container snapshots.\n"
         "Destroy containers or snapshots with any attached data (configuration, snapshots, ...)."
 msgstr  ""
 
-#: lxc/config.go:616
+#: lxc/config.go:617
 #, c-format
 msgid   "Device %s added to %s"
 msgstr  ""
 
-#: lxc/config.go:759
+#: lxc/config.go:804
 #, c-format
 msgid   "Device %s removed from %s"
 msgstr  ""
@@ -265,7 +265,7 @@ msgstr  ""
 msgid   "EPHEMERAL"
 msgstr  ""
 
-#: lxc/config.go:273
+#: lxc/config.go:272
 msgid   "EXPIRY DATE"
 msgstr  ""
 
@@ -306,7 +306,7 @@ msgstr  ""
 msgid   "Expires: never"
 msgstr  ""
 
-#: lxc/config.go:270 lxc/image.go:591 lxc/image.go:616
+#: lxc/config.go:269 lxc/image.go:591 lxc/image.go:616
 msgid   "FINGERPRINT"
 msgstr  ""
 
@@ -349,7 +349,7 @@ msgstr  ""
 msgid   "IPV6"
 msgstr  ""
 
-#: lxc/config.go:272
+#: lxc/config.go:271
 msgid   "ISSUE DATE"
 msgstr  ""
 
@@ -505,8 +505,9 @@ msgid   "Manage configuration profiles.\n"
         "lxc profile device list <profile>                                   List devices in the given profile.\n"
         "lxc profile device show <profile>                                   Show full device details in the given profile.\n"
         "lxc profile device remove <profile> <name>                          Remove a device from a profile.\n"
-        "lxc profile device set <[remote:]container> <name> <key> <value>    Set a device property.\n"
-        "lxc profile device unset <[remote:]container> <name> <key>          Unset a device property.\n"
+        "lxc profile device get <[remote:]profile> <name> <key>              Get a device property.\n"
+        "lxc profile device set <[remote:]profile> <name> <key> <value>      Set a device property.\n"
+        "lxc profile device unset <[remote:]profile> <name> <key>            Unset a device property.\n"
         "lxc profile device add <profile name> <device name> <device type> [key=value]...\n"
         "    Add a profile device, such as a disk or a nic, to the containers\n"
         "    using the specified profile."
@@ -516,19 +517,18 @@ msgstr  ""
 msgid   "Manage configuration.\n"
         "\n"
         "lxc config device add <[remote:]container> <name> <type> [key=value]...     Add a device to a container.\n"
+        "lxc config device get <[remote:]container> <name> <key>                     Get a device property.\n"
         "lxc config device set <[remote:]container> <name> <key> <value>             Set a device property.\n"
         "lxc config device unset <[remote:]container> <name> <key>                   Unset a device property.\n"
-        "lxc config device list [remote:]<container>                                 List devices for container.\n"
-        "lxc config device show [remote:]<container>                                 Show full device details for container.\n"
-        "lxc config device remove [remote:]<container> <name>                        Remove device from container.\n"
+        "lxc config device list <[remote:]container>                                 List devices for container.\n"
+        "lxc config device show <[remote:]container>                                 Show full device details for container.\n"
+        "lxc config device remove <[remote:]container> <name>                        Remove device from container.\n"
         "\n"
-        "lxc config get [remote:]<container> key                                     Get configuration key.\n"
-        "lxc config set [remote:]<container> key value                               Set container configuration key.\n"
-        "lxc config unset [remote:]<container> key                                   Unset container configuration key.\n"
-        "lxc config set key value                                                    Set server configuration key.\n"
-        "lxc config unset key                                                        Unset server configuration key.\n"
-        "lxc config show [--expanded] [remote:]<container>                           Show container configuration.\n"
-        "lxc config edit [remote:][container]                                        Edit container configuration in external editor.\n"
+        "lxc config get [remote:][container] <key>                                   Get container or server configuration key.\n"
+        "lxc config set [remote:][container] <key> <value>                           Set container or server configuration key.\n"
+        "lxc config unset [remote:][container] <key>                                 Unset container or server configuration key.\n"
+        "lxc config show [remote:][container] [--expanded]                           Show container or server configuration.\n"
+        "lxc config edit [remote:][container]                                        Edit container or server configuration in external editor.\n"
         "    Edit configuration, either by launching external editor or reading STDIN.\n"
         "    Example: lxc config edit <container> # launch editor\n"
         "             cat config.yml | lxc config edit <config> # read from config.yml\n"
@@ -686,11 +686,11 @@ msgstr  ""
 msgid   "New alias to define at target"
 msgstr  ""
 
-#: lxc/config.go:282
+#: lxc/config.go:281
 msgid   "No certificate provided to add"
 msgstr  ""
 
-#: lxc/config.go:305
+#: lxc/config.go:304
 msgid   "No fingerprint specified."
 msgstr  ""
 
@@ -758,11 +758,11 @@ msgid   "Presents details on how to use LXD.\n"
         "lxd help [--all]"
 msgstr  ""
 
-#: lxc/profile.go:190
+#: lxc/profile.go:191
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
-#: lxc/config.go:500 lxc/config.go:565 lxc/image.go:670
+#: lxc/config.go:501 lxc/config.go:566 lxc/image.go:670
 msgid   "Press enter to start the editor again"
 msgstr  ""
 
@@ -789,17 +789,17 @@ msgstr  ""
 msgid   "Processes: %d"
 msgstr  ""
 
-#: lxc/profile.go:227
+#: lxc/profile.go:228
 #, c-format
 msgid   "Profile %s applied to %s"
 msgstr  ""
 
-#: lxc/profile.go:141
+#: lxc/profile.go:142
 #, c-format
 msgid   "Profile %s created"
 msgstr  ""
 
-#: lxc/profile.go:211
+#: lxc/profile.go:212
 #, c-format
 msgid   "Profile %s deleted"
 msgstr  ""
@@ -958,7 +958,7 @@ msgstr  ""
 msgid   "The container is currently running. Use --force to have it stopped and restarted."
 msgstr  ""
 
-#: lxc/config.go:645 lxc/config.go:663 lxc/config.go:701 lxc/config.go:719
+#: lxc/config.go:645 lxc/config.go:657 lxc/config.go:690 lxc/config.go:708 lxc/config.go:746 lxc/config.go:764
 msgid   "The device doesn't exist"
 msgstr  ""
 
