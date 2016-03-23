@@ -524,19 +524,6 @@ func (d *Daemon) UpdateHTTPsPort(oldAddress string, newAddress string) error {
 	return nil
 }
 
-// StartDaemon starts the shared daemon with the provided configuration.
-func startDaemon(group string) (*Daemon, error) {
-	d := &Daemon{
-		group:                 group,
-	}
-
-	if err := d.Init(); err != nil {
-		return nil, err
-	}
-
-	return d, nil
-}
-
 func haveMacAdmin() bool {
 	c, err := capability.NewPid(0)
 	if err != nil {

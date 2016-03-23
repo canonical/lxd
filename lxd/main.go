@@ -325,8 +325,8 @@ func daemon() error {
 		}()
 	}
 
-	d, err := startDaemon(*argGroup)
-
+	d := &Daemon{group: *argGroup}
+	err := d.Init()
 	if err != nil {
 		if d != nil && d.db != nil {
 			d.db.Close()
