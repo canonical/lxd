@@ -90,7 +90,8 @@ type Daemon struct {
 
 	configValues map[string]string
 
-	MockMode bool
+	MockMode  bool
+	SetupMode bool
 
 	imagesDownloading     map[string]chan bool
 	imagesDownloadingLock sync.RWMutex
@@ -562,11 +563,15 @@ func (d *Daemon) Init() error {
 		}
 	}
 
+	/* Print welcome message */
 	if d.MockMode {
-		shared.Log.Info("Mock LXD is starting",
+		shared.Log.Info("LXD is starting in mock mode",
+			log.Ctx{"path": shared.VarPath("")})
+	} else if d.SetupMode {
+		shared.Log.Info("LXD is starting in setup mode",
 			log.Ctx{"path": shared.VarPath("")})
 	} else {
-		shared.Log.Info("LXD is starting",
+		shared.Log.Info("LXD is starting in normal mode",
 			log.Ctx{"path": shared.VarPath("")})
 	}
 
@@ -738,25 +743,6 @@ func (d *Daemon) Init() error {
 		}
 	}
 
-	/* Prune images */
-	d.pruneChan = make(chan bool)
-	go func() {
-		pruneExpiredImages(d)
-		for {
-			timer := time.NewTimer(24 * time.Hour)
-			timeChan := timer.C
-			select {
-			case <-timeChan:
-				/* run once per day */
-				pruneExpiredImages(d)
-			case <-d.pruneChan:
-				/* run when image.remote_cache_expiry is changed */
-				pruneExpiredImages(d)
-				timer.Stop()
-			}
-		}
-	}()
-
 	/* Load all config values from the database */
 	_, err = d.ConfigValuesGet()
 	if err != nil {
@@ -765,41 +751,6 @@ func (d *Daemon) Init() error {
 
 	/* set the initial proxy function based on config values in the DB */
 	d.updateProxy()
-
-	/* Auto-update images */
-	d.resetAutoUpdateChan = make(chan bool)
-	go func() {
-		autoUpdateImages(d)
-
-		for {
-			interval, _ := d.ConfigValueGet("images.auto_update_interval")
-			if interval == "" {
-				interval = "6"
-			}
-
-			intervalInt, err := strconv.Atoi(interval)
-			if err != nil {
-				intervalInt = 0
-			}
-
-			if intervalInt > 0 {
-				timer := time.NewTimer(time.Duration(intervalInt) * time.Hour)
-				timeChan := timer.C
-
-				select {
-				case <-timeChan:
-					autoUpdateImages(d)
-				case <-d.resetAutoUpdateChan:
-					timer.Stop()
-				}
-			} else {
-				select {
-				case <-d.resetAutoUpdateChan:
-					continue
-				}
-			}
-		}
-	}()
 
 	/* Setup /dev/lxd */
 	d.devlxd, err = createAndBindDevLxd()
@@ -978,14 +929,76 @@ func (d *Daemon) Init() error {
 		return nil
 	})
 
-	// Restore containers
-	if !d.MockMode {
-		/* Restart containers */
-		go containersRestart(d)
-
-		/* Re-balance in case things changed while LXD was down */
-		deviceTaskBalance(d)
+	if !d.MockMode && !d.SetupMode {
+		err := d.Ready()
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
+}
+
+func (d *Daemon) Ready() error {
+	/* Prune images */
+	d.pruneChan = make(chan bool)
+	go func() {
+		pruneExpiredImages(d)
+		for {
+			timer := time.NewTimer(24 * time.Hour)
+			timeChan := timer.C
+			select {
+			case <-timeChan:
+				/* run once per day */
+				pruneExpiredImages(d)
+			case <-d.pruneChan:
+				/* run when image.remote_cache_expiry is changed */
+				pruneExpiredImages(d)
+				timer.Stop()
+			}
+		}
+	}()
+
+	/* Auto-update images */
+	d.resetAutoUpdateChan = make(chan bool)
+	go func() {
+		autoUpdateImages(d)
+
+		for {
+			interval, _ := d.ConfigValueGet("images.auto_update_interval")
+			if interval == "" {
+				interval = "6"
+			}
+
+			intervalInt, err := strconv.Atoi(interval)
+			if err != nil {
+				intervalInt = 0
+			}
+
+			if intervalInt > 0 {
+				timer := time.NewTimer(time.Duration(intervalInt) * time.Hour)
+				timeChan := timer.C
+
+				select {
+				case <-timeChan:
+					autoUpdateImages(d)
+				case <-d.resetAutoUpdateChan:
+					timer.Stop()
+				}
+			} else {
+				select {
+				case <-d.resetAutoUpdateChan:
+					continue
+				}
+			}
+		}
+	}()
+
+	/* Restore containers */
+	go containersRestart(d)
+
+	/* Re-balance in case things changed while LXD was down */
+	deviceTaskBalance(d)
 
 	return nil
 }
