@@ -59,6 +59,8 @@ func (c *configCmd) usage() string {
 		`Manage configuration.
 
 lxc config device add <[remote:]container> <name> <type> [key=value]...     Add a device to a container.
+lxc config device set <[remote:]container> <name> <key> <value>             Set a device property.
+lxc config device unset <[remote:]container> <name> <key>                   Unset a device property.
 lxc config device list [remote:]<container>                                 List devices for container.
 lxc config device show [remote:]<container>                                 Show full device details for container.
 lxc config device remove [remote:]<container> <name>                        Remove device from container.
@@ -411,6 +413,10 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return c.deviceAdd(config, "container", args)
 		case "remove":
 			return c.deviceRm(config, "container", args)
+		case "set":
+			return c.deviceSet(config, "container", args)
+		case "unset":
+			return c.deviceUnset(config, "container", args)
 		case "show":
 			return c.deviceShow(config, "container", args)
 		default:
@@ -609,6 +615,119 @@ func (c *configCmd) deviceAdd(config *lxd.Config, which string, args []string) e
 	if err == nil {
 		fmt.Printf(i18n.G("Device %s added to %s")+"\n", devname, name)
 	}
+	return err
+}
+
+func (c *configCmd) deviceSet(config *lxd.Config, which string, args []string) error {
+	if len(args) < 6 {
+		return errArgs
+	}
+
+	remote, name := config.ParseRemoteAndContainer(args[2])
+
+	client, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	devname := args[3]
+	key := args[4]
+	value := args[5]
+
+	if which == "profile" {
+		st, err := client.ProfileConfig(name)
+		if err != nil {
+			return err
+		}
+
+		dev, ok := st.Devices[devname]
+		if !ok {
+			return fmt.Errorf(i18n.G("The device doesn't exist"))
+		}
+
+		dev[key] = value
+		st.Devices[devname] = dev
+
+		err = client.PutProfile(name, *st)
+		if err != nil {
+			return err
+		}
+	} else {
+		st, err := client.ContainerInfo(name)
+		if err != nil {
+			return err
+		}
+
+		dev, ok := st.Devices[devname]
+		if !ok {
+			return fmt.Errorf(i18n.G("The device doesn't exist"))
+		}
+
+		dev[key] = value
+		st.Devices[devname] = dev
+
+		err = client.UpdateContainerConfig(name, st.Brief())
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
+func (c *configCmd) deviceUnset(config *lxd.Config, which string, args []string) error {
+	if len(args) < 5 {
+		return errArgs
+	}
+
+	remote, name := config.ParseRemoteAndContainer(args[2])
+
+	client, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	devname := args[3]
+	key := args[4]
+
+	if which == "profile" {
+		st, err := client.ProfileConfig(name)
+		if err != nil {
+			return err
+		}
+
+		dev, ok := st.Devices[devname]
+		if !ok {
+			return fmt.Errorf(i18n.G("The device doesn't exist"))
+		}
+
+		delete(dev, key)
+		st.Devices[devname] = dev
+
+		err = client.PutProfile(name, *st)
+		if err != nil {
+			return err
+		}
+	} else {
+		st, err := client.ContainerInfo(name)
+		if err != nil {
+			return err
+		}
+
+		dev, ok := st.Devices[devname]
+		if !ok {
+			return fmt.Errorf(i18n.G("The device doesn't exist"))
+		}
+
+		delete(dev, key)
+		st.Devices[devname] = dev
+
+		err = client.UpdateContainerConfig(name, st.Brief())
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
 }
 
