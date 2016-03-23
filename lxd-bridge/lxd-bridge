@@ -157,8 +157,6 @@ start() {
 }
 
 stop() {
-    [ "x${USE_LXD_BRIDGE}" = "xtrue" ] || { exit 0; }
-
     [ -f "${varrun}/network_up" ] || [ "${1}" = "force" ] || { echo "lxd-bridge isn't running"; exit 1; }
 
     if [ -d /sys/class/net/${LXD_BRIDGE} ]; then
