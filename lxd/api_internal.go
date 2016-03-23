@@ -30,6 +30,12 @@ func internalReady(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
+func internalWaitReady(d *Daemon, r *http.Request) Response {
+	<-d.readyChan
+
+	return EmptySyncResponse
+}
+
 func internalShutdown(d *Daemon, r *http.Request) Response {
 	d.shutdownChan <- true
 
@@ -80,6 +86,6 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 }
 
 var internalShutdownCmd = Command{name: "shutdown", put: internalShutdown}
-var internalReadyCmd = Command{name: "ready", put: internalReady}
+var internalReadyCmd = Command{name: "ready", put: internalReady, get: internalWaitReady}
 var internalContainerOnStartCmd = Command{name: "containers/{id}/onstart", get: internalContainerOnStart}
 var internalContainerOnStopCmd = Command{name: "containers/{id}/onstop", get: internalContainerOnStop}

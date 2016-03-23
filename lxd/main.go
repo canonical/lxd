@@ -520,7 +520,25 @@ func cmdWaitReady() error {
 	finger := make(chan error, 1)
 	go func() {
 		for {
-			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			if err != nil {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+
+			req, err := http.NewRequest("GET", c.BaseURL+"/internal/ready", nil)
+			if err != nil {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+
+			raw, err := c.Http.Do(req)
+			if err != nil {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+
+			_, err = lxd.HoistResponse(raw, lxd.Sync)
 			if err != nil {
 				time.Sleep(500 * time.Millisecond)
 				continue
