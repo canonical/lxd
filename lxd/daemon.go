@@ -76,6 +76,7 @@ type Daemon struct {
 	lxcpath             string
 	mux                 *mux.Router
 	tomb                tomb.Tomb
+	readyChan           chan bool
 	pruneChan           chan bool
 	shutdownChan        chan bool
 	resetAutoUpdateChan chan bool
@@ -540,6 +541,7 @@ func (d *Daemon) Init() error {
 	/* Initialize some variables */
 	d.imagesDownloading = map[string]chan bool{}
 
+	d.readyChan = make(chan bool)
 	d.shutdownChan = make(chan bool)
 
 	/* Set the executable path */
@@ -999,6 +1001,8 @@ func (d *Daemon) Ready() error {
 
 	/* Re-balance in case things changed while LXD was down */
 	deviceTaskBalance(d)
+
+	close(d.readyChan)
 
 	return nil
 }
