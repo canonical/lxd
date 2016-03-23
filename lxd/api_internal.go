@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -8,9 +9,31 @@ import (
 )
 
 var apiInternal = []Command{
+	internalReadyCmd,
 	internalShutdownCmd,
 	internalContainerOnStartCmd,
 	internalContainerOnStopCmd,
+}
+
+func internalReady(d *Daemon, r *http.Request) Response {
+	if !d.SetupMode {
+		return InternalError(fmt.Errorf("The server isn't currently in setup mode"))
+	}
+
+	err := d.Ready()
+	if err != nil {
+		return InternalError(err)
+	}
+
+	d.SetupMode = false
+
+	return EmptySyncResponse
+}
+
+func internalWaitReady(d *Daemon, r *http.Request) Response {
+	<-d.readyChan
+
+	return EmptySyncResponse
 }
 
 func internalShutdown(d *Daemon, r *http.Request) Response {
@@ -63,5 +86,6 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 }
 
 var internalShutdownCmd = Command{name: "shutdown", put: internalShutdown}
+var internalReadyCmd = Command{name: "ready", put: internalReady, get: internalWaitReady}
 var internalContainerOnStartCmd = Command{name: "containers/{id}/onstart", get: internalContainerOnStart}
 var internalContainerOnStopCmd = Command{name: "containers/{id}/onstop", get: internalContainerOnStop}

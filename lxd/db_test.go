@@ -37,7 +37,7 @@ func createTestDb(t *testing.T) (db *sql.DB) {
 	}
 
 	var err error
-	d := &Daemon{IsMock: true}
+	d := &Daemon{MockMode: true}
 	err = initializeDbObject(d, ":memory:")
 	db = d.db
 
@@ -195,7 +195,7 @@ func Test_initializing_db_is_indempotent(t *testing.T) {
 	var err error
 
 	// This calls "createDb" once already.
-	d := &Daemon{IsMock: true}
+	d := &Daemon{MockMode: true}
 	err = initializeDbObject(d, ":memory:")
 	db = d.db
 
@@ -230,7 +230,7 @@ func Test_running_dbUpdateFromV6_adds_on_delete_cascade(t *testing.T) {
 	var err error
 	var count int
 
-	d := &Daemon{IsMock: true}
+	d := &Daemon{MockMode: true}
 	err = initializeDbObject(d, ":memory:")
 	defer d.db.Close()
 
@@ -372,7 +372,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 
 	// The "foreign key" on containers_config now points to nothing.
 	// Let's run the schema upgrades.
-	d := &Daemon{IsMock: true}
+	d := &Daemon{MockMode: true}
 	d.db = db
 	err = dbUpdate(d, 1)
 
