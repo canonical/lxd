@@ -76,6 +76,8 @@ func run() error {
 		fmt.Printf("         [--storage-create-device=DEVICE] [--storage-create-loop=SIZE] [--storage-pool=POOL]\n")
 		fmt.Printf("         [--trust-password=]\n")
 		fmt.Printf("        Setup storage and networking\n")
+		fmt.Printf("    ready\n")
+		fmt.Printf("        Tells LXD that any setup-mode configuration has been done and that it can start containers.\n")
 		fmt.Printf("    shutdown [--timeout=60]\n")
 		fmt.Printf("        Perform a clean shutdown of LXD and all running containers\n")
 		fmt.Printf("    waitready [--timeout=15]\n")
@@ -208,6 +210,8 @@ func run() error {
 			return callHook(os.Args[1:])
 		case "init":
 			return setupLXD()
+		case "ready":
+			return cmdReady()
 		case "shutdown":
 			return cleanShutdown()
 		case "waitready":
@@ -325,7 +329,9 @@ func daemon() error {
 		}()
 	}
 
-	d := &Daemon{group: *argGroup}
+	d := &Daemon{
+		group:     *argGroup,
+		SetupMode: shared.PathExists(shared.VarPath(".setup_mode"))}
 	err := d.Init()
 	if err != nil {
 		if d != nil && d.db != nil {
@@ -378,6 +384,30 @@ func daemon() error {
 
 	wg.Wait()
 	return ret
+}
+
+func cmdReady() error {
+	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PUT", c.BaseURL+"/internal/ready", nil)
+	if err != nil {
+		return err
+	}
+
+	raw, err := c.Http.Do(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = lxd.HoistResponse(raw, lxd.Sync)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func cleanShutdown() error {
