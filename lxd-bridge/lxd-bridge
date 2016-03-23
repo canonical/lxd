@@ -116,11 +116,11 @@ start() {
     if [ -n "${LXD_IPV6_ADDR}" ] && [ -n "${LXD_IPV6_MASK}" ] && [ -n "${LXD_IPV6_NETWORK}" ]; then
         # IPv6 sysctls don't respect the "all" path...
         for interface in /proc/sys/net/ipv6/conf/*; do
-            echo 2 > ${interface}/accept_ra
+            echo 2 > "${interface}/accept_ra"
         done
 
         for interface in /proc/sys/net/ipv6/conf/*; do
-            echo 1 > ${interface}/forwarding
+            echo 1 > "${interface}/forwarding"
         done
 
         ip -6 addr add dev "${LXD_BRIDGE}" "${LXD_IPV6_ADDR}/${LXD_IPV6_MASK}"
@@ -162,7 +162,7 @@ start() {
     fi
 
     if [ "${LXD_IPV6_PROXY}" = "true" ]; then
-        PATH=${PATH}:$(dirname ${0}) lxd-bridge-proxy --addr="[fe80::1%${LXD_BRIDGE}]:3128" &
+        PATH="${PATH}:$(dirname "${0}")" lxd-bridge-proxy --addr="[fe80::1%${LXD_BRIDGE}]:3128" &
         PID=$!
         echo "${PID}" > "${varrun}/proxy.pid"
     fi
