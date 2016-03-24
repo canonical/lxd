@@ -45,11 +45,14 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 			url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
 			resultString = append(resultString, url)
 		} else {
-			container, response := doContainerGet(d, container)
-			if response != nil {
-				continue
+			c, err := doContainerGet(d, container)
+			if err != nil {
+				c = &shared.ContainerInfo{
+					Name:       container,
+					Status:     shared.Error.String(),
+					StatusCode: shared.Error}
 			}
-			resultList = append(resultList, container)
+			resultList = append(resultList, c)
 		}
 	}
 
@@ -60,21 +63,15 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 	return resultList, nil
 }
 
-func doContainerGet(d *Daemon, cname string) (*shared.ContainerInfo, Response) {
+func doContainerGet(d *Daemon, cname string) (*shared.ContainerInfo, error) {
 	c, err := containerLoadByName(d, cname)
 	if err != nil {
-		return nil, SmartError(err)
+		return nil, err
 	}
 
 	cts, err := c.Render()
-	if err == LxcMonitorStateError {
-		return &shared.ContainerInfo{
-			Name:       cname,
-			Status:     shared.Error.String(),
-			StatusCode: shared.Error,
-		}, nil
-	} else if err != nil {
-		return nil, SmartError(err)
+	if err != nil {
+		return nil, err
 	}
 
 	return cts.(*shared.ContainerInfo), nil
