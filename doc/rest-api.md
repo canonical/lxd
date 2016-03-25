@@ -926,7 +926,9 @@ Input (run bash):
         "command": ["/bin/bash"],       # Command and arguments
         "environment": {},              # Optional extra environment variables to set
         "wait-for-websocket": false,    # Whether to wait for a connection before starting the process
-        "interactive": true             # Whether to allocate a pts device instead of PIPEs
+        "interactive": true,            # Whether to allocate a pts device instead of PIPEs
+        "width": 80,                    # initial width of the terminal (optional)
+        "height": 25,                   # initial height of the terminal (optional)
     }
 
 `wait-for-websocket` indicates whether the operation should block and wait for
