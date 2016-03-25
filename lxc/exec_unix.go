@@ -23,15 +23,15 @@ func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {
 	signal.Notify(ch, syscall.SIGWINCH)
 
 	for {
+		sig := <-ch
+
+		shared.Debugf("Received '%s signal', updating window geometry.", sig)
+
 		err := c.sendTermSize(control)
 		if err != nil {
 			shared.Debugf("error setting term size %s", err)
 			break
 		}
-
-		sig := <-ch
-
-		shared.Debugf("Received '%s signal', updating window geometry.", sig)
 	}
 
 	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
