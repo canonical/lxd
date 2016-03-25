@@ -183,11 +183,6 @@ func (s *execWs) Do(op *operation) error {
 						continue
 					}
 				}
-
-				if err != nil {
-					shared.Debugf("Got error writing to writer %s", err)
-					break
-				}
 			}
 		}()
 		go func() {
