@@ -22,6 +22,8 @@ type commandPostContent struct {
 	WaitForWS   bool              `json:"wait-for-websocket"`
 	Interactive bool              `json:"interactive"`
 	Environment map[string]string `json:"environment"`
+	Width       int               `json:"width"`
+	Height      int               `json:"height"`
 }
 
 func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions) (int, error) {
@@ -46,6 +48,8 @@ type execWs struct {
 	controlConnected chan bool
 	interactive      bool
 	fds              map[int]string
+	width            int
+	height           int
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -112,6 +116,10 @@ func (s *execWs) Do(op *operation) error {
 		s.options.StdinFd = ttys[0].Fd()
 		s.options.StdoutFd = ttys[0].Fd()
 		s.options.StderrFd = ttys[0].Fd()
+
+		if s.width > 0 && s.height > 0 {
+			shared.SetSize(int(ptys[0].Fd()), s.width, s.height)
+		}
 	} else {
 		ttys = make([]*os.File, 3)
 		ptys = make([]*os.File, 3)
@@ -317,6 +325,8 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 		ws.command = post.Command
 		ws.container = c.LXContainerGet()
+		ws.width = post.Width
+		ws.height = post.Height
 
 		resources := map[string][]string{}
 		resources["containers"] = []string{ws.container.Name()}

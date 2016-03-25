@@ -137,8 +137,13 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		handler = nil
 	}
 
+	width, height, err := termios.GetSize(int(syscall.Stdout))
+	if err != nil {
+		return err
+	}
+
 	stdout := c.getStdout()
-	ret, err := d.Exec(name, args[1:], env, os.Stdin, stdout, os.Stderr, handler)
+	ret, err := d.Exec(name, args[1:], env, os.Stdin, stdout, os.Stderr, handler, width, height)
 	if err != nil {
 		return err
 	}
