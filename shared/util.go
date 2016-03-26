@@ -657,6 +657,23 @@ func ParseBitSizeString(input string) (int64, error) {
 	return valueInt * multiplicator, nil
 }
 
+func GetByteSizeString(input int64) string {
+	if input < 1024 {
+		return fmt.Sprintf("%d bytes", input)
+	}
+
+	value := float64(input)
+
+	for _, unit := range []string{"kB", "MB", "GB", "TB", "PB", "EB"} {
+		value = value / 1024
+		if value < 1024 {
+			return fmt.Sprintf("%.2f%s", value, unit)
+		}
+	}
+
+	return fmt.Sprintf("%.2fEB", value)
+}
+
 type TransferProgress struct {
 	io.Reader
 	percentage float64
