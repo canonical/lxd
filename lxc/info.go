@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -98,8 +99,8 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 	fmt.Printf(i18n.G("Profiles: %s")+"\n", strings.Join(ct.Profiles, ", "))
 	if cs.Pid != 0 {
 		fmt.Printf(i18n.G("Pid: %d")+"\n", cs.Pid)
-		fmt.Printf(i18n.G("Processes: %d")+"\n", cs.Processes)
 
+		// IP addresses
 		ipInfo := ""
 		for netName, net := range cs.Network {
 			vethStr := ""
@@ -113,8 +114,63 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		}
 
 		if ipInfo != "" {
-			fmt.Printf(i18n.G("Ips:") + "\n")
+			fmt.Println(i18n.G("Ips:"))
 			fmt.Printf(ipInfo)
+		}
+		fmt.Println(i18n.G("Resources:"))
+
+		// Processes
+		fmt.Printf("  "+i18n.G("Processes: %d")+"\n", cs.Processes)
+
+		// Disk usage
+		diskInfo := ""
+		for entry, disk := range cs.Disk {
+			if disk.Usage != 0 {
+				diskInfo += fmt.Sprintf("    %s: %s\n", entry, shared.GetByteSizeString(disk.Usage))
+			}
+		}
+
+		if diskInfo != "" {
+			fmt.Println(i18n.G("  Disk usage:"))
+			fmt.Printf(diskInfo)
+		}
+
+		// Memory usage
+		memoryInfo := ""
+		if cs.Memory.Usage != 0 {
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), shared.GetByteSizeString(cs.Memory.Usage))
+		}
+
+		if cs.Memory.UsagePeak != 0 {
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), shared.GetByteSizeString(cs.Memory.UsagePeak))
+		}
+
+		if cs.Memory.SwapUsage != 0 {
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), shared.GetByteSizeString(cs.Memory.SwapUsage))
+		}
+
+		if cs.Memory.SwapUsagePeak != 0 {
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), shared.GetByteSizeString(cs.Memory.SwapUsagePeak))
+		}
+
+		if memoryInfo != "" {
+			fmt.Println(i18n.G("  Memory usage:"))
+			fmt.Printf(memoryInfo)
+		}
+
+		// Network usage
+		networkInfo := ""
+		for netName, net := range cs.Network {
+			networkInfo += fmt.Sprintf("    %s:\n", netName)
+			networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), shared.GetByteSizeString(net.Counters.BytesReceived))
+			networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), shared.GetByteSizeString(net.Counters.BytesSent))
+			networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets received"), net.Counters.PacketsReceived)
+			networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets sent"), net.Counters.PacketsReceived)
+		}
+
+		if networkInfo != "" {
+			fmt.Println(i18n.G("  Network usage:"))
+			fmt.Printf(networkInfo)
 		}
 	}
 
