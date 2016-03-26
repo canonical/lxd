@@ -40,8 +40,8 @@ _have lxc && {
         "exec")
           _lxd_names
           ;;
-        "exec")
-          COMPREPLY=( $(compgen -W "pull push" -- $cur) )
+        "file")
+          COMPREPLY=( $(compgen -W "pull push edit" -- $cur) )
           ;;
         "help")
           COMPREPLY=( $(compgen -W "$lxc_cmds" -- $cur) )
@@ -91,5 +91,5 @@ _have lxc && {
     return 0
   }
 
-  complete -F _lxd_complete lxc
+  complete -o default -F _lxd_complete lxc
 }
