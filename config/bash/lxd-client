@@ -47,17 +47,23 @@ _have lxc && {
           COMPREPLY=( $(compgen -W "$lxc_cmds" -- $cur) )
           ;;
         "image")
-          COMPREPLY=( $(compgen -W "copy delete edit export info list" -- $cur) )
+          COMPREPLY=( $(compgen -W "import copy delete edit export info list show alias" -- $cur) )
           ;;
         "info")
           _lxd_names
           ;;
+        "init")
+          _lxd_images
+          ;;
         "launch")
           _lxd_images
           ;;
+        "move")
+          _lxd_names
+          ;;
         "profile")
           COMPREPLY=( $(compgen -W \
-            "list show create edit copy set delete apply" -- $cur) )
+            "list show create edit copy get set delete apply device" -- $cur) )
           ;;
         "publish")
           _lxd_names
