@@ -328,13 +328,13 @@ func run(c *cli.Context) error {
 }
 
 func cmdCallHook(args []string) error {
-	if len(args) < 4 {
+	if len(args) < 3 {
 		return fmt.Errorf("Invalid arguments")
 	}
 
-	path := args[1]
-	id := args[2]
-	state := args[3]
+	path := args[0]
+	id := args[1]
+	state := args[2]
 	target := ""
 
 	err := os.Setenv("LXD_DIR", path)
