@@ -20,11 +20,12 @@ type containerImageSource struct {
 	Certificate string `json:"certificate"`
 
 	/* for "image" type */
-	Alias       string `json:"alias"`
-	Fingerprint string `json:"fingerprint"`
-	Server      string `json:"server"`
-	Secret      string `json:"secret"`
-	Protocol    string `json:"protocol"`
+	Alias       string            `json:"alias"`
+	Fingerprint string            `json:"fingerprint"`
+	Properties  map[string]string `json:"properties"`
+	Server      string            `json:"server"`
+	Secret      string            `json:"secret"`
+	Protocol    string            `json:"protocol"`
 
 	/*
 	 * for "migration" and "copy" types, as an optimization users can
@@ -73,8 +74,50 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		}
 	} else if req.Source.Fingerprint != "" {
 		hash = req.Source.Fingerprint
+	} else if req.Source.Properties != nil {
+		if req.Source.Server != "" {
+			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
+		}
+
+		hashes, err := dbImagesGet(d.db, false)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		var image *shared.ImageInfo
+
+		for _, hash := range hashes {
+			_, img, err := dbImageGet(d.db, hash, false, true)
+			if err != nil {
+				continue
+			}
+
+			if image != nil && img.CreationDate.Before(image.CreationDate) {
+				continue
+			}
+
+			match := true
+			for key, value := range req.Source.Properties {
+				if img.Properties[key] != value {
+					match = false
+					break
+				}
+			}
+
+			if !match {
+				continue
+			}
+
+			image = img
+		}
+
+		if image == nil {
+			return BadRequest(fmt.Errorf("No matching image could be found"))
+		}
+
+		hash = image.Fingerprint
 	} else {
-		return BadRequest(fmt.Errorf("must specify one of alias or fingerprint for init from image"))
+		return BadRequest(fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image"))
 	}
 
 	run := func(op *operation) error {
