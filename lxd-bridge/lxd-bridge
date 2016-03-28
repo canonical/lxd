@@ -32,6 +32,10 @@ LXD_IPV6_PROXY="true"
 use_iptables_lock="-w"
 iptables -w -L -n > /dev/null 2>&1 || use_iptables_lock=""
 
+HAS_IPV6=false
+[ -e "/proc/sys/net/ipv6/conf/default/disable_ipv6" ] && \
+    [ "$(cat /proc/sys/net/ipv6/conf/default/disable_ipv6)" = "0" ] && HAS_IPV6=true
+
 _netmask2cidr ()
 {
     # Assumes there's no "255." after a non-255 byte in the mask
@@ -47,7 +51,7 @@ ifdown() {
 }
 
 ifup() {
-    ip addr add fe80::1/64 dev "${1}"
+    [ "${HAS_IPV6}" = "true" ] && ip addr add fe80::1/64 dev "${1}"
     if [ -n "${LXD_IPV4_NETMASK}" ] && [ -n "${LXD_IPV4_ADDR}" ]; then
         MASK=$(_netmask2cidr ${LXD_IPV4_NETMASK})
         CIDR_ADDR="${LXD_IPV4_ADDR}/${MASK}"
@@ -81,8 +85,10 @@ start() {
     # set up the lxd network
     [ ! -d "/sys/class/net/${LXD_BRIDGE}" ] && ip link add dev "${LXD_BRIDGE}" type bridge
 
-    echo 0 > "/proc/sys/net/ipv6/conf/${LXD_BRIDGE}/autoconf" || true
-    echo 0 > "/proc/sys/net/ipv6/conf/${LXD_BRIDGE}/accept_dad" || true
+    if [ "${HAS_IPV6}" = "true" ]; then
+        echo 0 > "/proc/sys/net/ipv6/conf/${LXD_BRIDGE}/autoconf" || true
+        echo 0 > "/proc/sys/net/ipv6/conf/${LXD_BRIDGE}/accept_dad" || true
+    fi
 
     # if we are run from systemd on a system with selinux enabled,
     # the mkdir will create /run/lxd as init_var_run_t which dnsmasq
@@ -113,7 +119,7 @@ start() {
     fi
 
     LXD_IPV6_ARG=""
-    if [ -n "${LXD_IPV6_ADDR}" ] && [ -n "${LXD_IPV6_MASK}" ] && [ -n "${LXD_IPV6_NETWORK}" ]; then
+    if [ "${HAS_IPV6}" = "true" ] && [ -n "${LXD_IPV6_ADDR}" ] && [ -n "${LXD_IPV6_MASK}" ] && [ -n "${LXD_IPV6_NETWORK}" ]; then
         # IPv6 sysctls don't respect the "all" path...
         for interface in /proc/sys/net/ipv6/conf/*; do
             echo 2 > "${interface}/accept_ra"
@@ -161,7 +167,7 @@ start() {
         dnsmasq ${LXD_CONFILE_ARG} ${LXD_DOMAIN_ARG} -u "${DNSMASQ_USER}" --strict-order --bind-interfaces --pid-file="${varrun}/dnsmasq.pid" --dhcp-no-override --except-interface=lo --interface="${LXD_BRIDGE}" --dhcp-leasefile="${varlib}/dnsmasq.${LXD_BRIDGE}.leases" --dhcp-authoritative ${LXD_IPV4_ARG} ${LXD_IPV6_ARG} || cleanup
     fi
 
-    if [ "${LXD_IPV6_PROXY}" = "true" ]; then
+    if [ "${HAS_IPV6}" = "true" ] && [ "${LXD_IPV6_PROXY}" = "true" ]; then
         PATH="${PATH}:$(dirname "${0}")" lxd-bridge-proxy --addr="[fe80::1%${LXD_BRIDGE}]:3128" &
         PID=$!
         echo "${PID}" > "${varrun}/proxy.pid"
@@ -188,7 +194,7 @@ stop() {
             iptables ${use_iptables_lock} -t nat -D POSTROUTING -s ${LXD_IPV4_NETWORK} ! -d ${LXD_IPV4_NETWORK} -j MASQUERADE
         fi
 
-        if [ -n "${LXD_IPV6_NETWORK}" ] && [ "${LXD_IPV6_NAT}" = "true" ]; then
+        if [ "${HAS_IPV6}" = "true" ] && [ -n "${LXD_IPV6_NETWORK}" ] && [ "${LXD_IPV6_NAT}" = "true" ]; then
             ip6tables ${use_iptables_lock} -t nat -D POSTROUTING -s ${LXD_IPV6_NETWORK} ! -d ${LXD_IPV6_NETWORK} -j MASQUERADE
         fi
 
