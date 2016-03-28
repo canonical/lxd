@@ -43,7 +43,7 @@ var commandImage = cli.Command{
    lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--alias=ALIAS]... [prop=value]...
    Import an image tarball (or tarballs) into the LXD image store.
 
-   lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public]
+   lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public] [--auto-update]
    Copy an image from one LXD daemon to another over the network.
 
    lxc image delete [remote:]<image>
@@ -100,7 +100,7 @@ var commandImage = cli.Command{
 
 		cli.Command{
 			Name:      "copy",
-			ArgsUsage: i18n.G("[remote:]<image> <remote>:"),
+			ArgsUsage: i18n.G("[remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public] [--auto-update]"),
 			Usage:     i18n.G("Copy an image to another destination."),
 
 			Flags: commandGlobalFlagsWrapper(
