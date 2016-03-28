@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-03-28 20:04+0200\n"
+        "POT-Creation-Date: 2016-03-28 20:06+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -924,7 +924,7 @@ msgid   "Manipulate container images.\n"
         "   lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--alias=ALIAS]... [prop=value]...\n"
         "   Import an image tarball (or tarballs) into the LXD image store.\n"
         "\n"
-        "   lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public]\n"
+        "   lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public] [--auto-update]\n"
         "   Copy an image from one LXD daemon to another over the network.\n"
         "\n"
         "   lxc image delete [remote:]<image>\n"
@@ -1531,7 +1531,7 @@ msgid   "[remote:]<image>"
 msgstr  ""
 
 #: lxc/image.go:103
-msgid   "[remote:]<image> <remote>:"
+msgid   "[remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public] [--auto-update]"
 msgstr  ""
 
 #: lxc/init.go:18 lxc/launch.go:17
