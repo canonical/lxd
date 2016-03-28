@@ -1,6 +1,9 @@
 #!/bin/sh -eu
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
+# Don't translate lxc output for parsing in it in tests.
+export "LC_ALL=C"
+
 if [ -n "${LXD_DEBUG:-}" ]; then
   set -x
   DEBUG="--debug"
