@@ -111,6 +111,12 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 		return nil
 	}
 
+	// Fix broken URL parser
+	if !strings.Contains(addr, "://") && remoteURL.Scheme != "" && remoteURL.Scheme != "unix" && remoteURL.Host == "" {
+		remoteURL.Host = remoteURL.Scheme
+		remoteURL.Scheme = ""
+	}
+
 	if remoteURL.Scheme != "" {
 		if remoteURL.Scheme != "unix" && remoteURL.Scheme != "https" {
 			return fmt.Errorf(i18n.G("Invalid URL scheme \"%s\" in \"%s\""), remoteURL.Scheme, addr)
