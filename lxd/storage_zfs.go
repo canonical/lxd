@@ -178,7 +178,7 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 	}
 
 	if snapshots[len(snapshots)-1] != snapName {
-		return fmt.Errorf("ZFS only supports restoring state to the latest snapshot.")
+		return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead.")
 	}
 
 	return nil
