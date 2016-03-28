@@ -158,7 +158,7 @@ test_snap_restore() {
     lxc list | grep bar | grep RUNNING
   fi
 
-  lxc stop --force bar
+  lxc stop bar --force
 
   lxc delete bar
 }
