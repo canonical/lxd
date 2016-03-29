@@ -4,45 +4,69 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
+var commandLaunch = cli.Command{
+	Name:      "launch",
+	Usage:     i18n.G("Launch a container from a particular image."),
+	ArgsUsage: i18n.G("[remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...]"),
+	Description: i18n.G(`Launches a container using the specified image and name.
+
+   Not specifying -p will result in the default profile.
+   Specifying "-p" with no argument will result in no profile.`),
+
+	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: i18n.G("Print debug information."),
+		},
+
+		cli.BoolFlag{
+			Name:  "verbose",
+			Usage: i18n.G("Print verbose information."),
+		},
+
+		cli.BoolFlag{
+			Name:  "ephemeral, e",
+			Usage: i18n.G("Ephemeral."),
+		},
+
+		cli.StringSliceFlag{
+			Name:  "config, c",
+			Usage: i18n.G("Config key/value to apply to the new container."),
+		},
+
+		cli.StringSliceFlag{
+			Name:  "profile, p",
+			Usage: i18n.G("Profile to apply to the new container."),
+		},
+	},
+
+	Action: commandWrapper(commandActionLaunch),
+}
+
+func commandActionLaunch(config *lxd.Config, c *cli.Context) error {
+	var cmd = &launchCmd{}
+	cmd.init.confArgs = c.StringSlice("config")
+	var profiles = c.StringSlice("profile")
+	if len(profiles) == 1 && profiles[0] == "" {
+		initRequestedEmptyProfiles = true
+		profiles = []string{}
+	}
+	cmd.init.profArgs = profiles
+
+	cmd.init.ephem = c.Bool("ephemeral")
+
+	return cmd.run(config, c.Args())
+}
+
 type launchCmd struct {
 	init initCmd
-}
-
-func (c *launchCmd) showByDefault() bool {
-	return true
-}
-
-func (c *launchCmd) usage() string {
-	return i18n.G(
-		`Launch a container from a particular image.
-
-lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
-
-Launches a container using the specified image and name.
-
-Not specifying -p will result in the default profile.
-Specifying "-p" with no argument will result in no profile.
-
-Example:
-lxc launch ubuntu u1`)
-}
-
-func (c *launchCmd) flags() {
-	c.init = initCmd{}
-
-	c.init.massage_args()
-	gnuflag.Var(&c.init.confArgs, "config", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&c.init.confArgs, "c", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&c.init.profArgs, "profile", i18n.G("Profile to apply to the new container"))
-	gnuflag.Var(&c.init.profArgs, "p", i18n.G("Profile to apply to the new container"))
-	gnuflag.BoolVar(&c.init.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
-	gnuflag.BoolVar(&c.init.ephem, "e", false, i18n.G("Ephemeral container"))
 }
 
 func (c *launchCmd) run(config *lxd.Config, args []string) error {

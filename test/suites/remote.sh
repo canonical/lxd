@@ -34,6 +34,8 @@ test_remote_url() {
 }
 
 test_remote_admin() {
+  lxc_remote remote list
+  lxc_remote config trust list
   lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --password bad || true
   ! lxc_remote list badpass:
 
@@ -113,7 +115,7 @@ test_remote_usage() {
 
   # test remote publish
   lxc_remote init testimage pub
-  lxc_remote publish pub lxd2: --alias bar --public a=b
+  lxc_remote publish pub lxd2: a=b --alias bar --public
   lxc_remote image show lxd2:bar | grep -q "a: b"
   lxc_remote image show lxd2:bar | grep -q "public: true"
   ! lxc_remote image show bar

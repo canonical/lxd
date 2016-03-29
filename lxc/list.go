@@ -8,13 +8,64 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/codegangsta/cli"
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
+
+var commandList = cli.Command{
+	Name:      "list",
+	ArgsUsage: i18n.G("[resource] [filters] [-c columns] [--fast]"),
+	Usage:     i18n.G("Lists the available resources."),
+	Description: i18n.G(`Lists the available resources.
+
+   The filters are:
+   * A single keyword like "web" which will list any container with "web" in its name.
+   * A key/value pair referring to a configuration item. For those, the namespace can be abreviated to the smallest unambiguous identifier:
+   * "user.blah=abc" will list all containers with the "blah" user property set to "abc"
+   * "u.blah=abc" will do the same
+   * "security.privileged=1" will list all privileged containers
+   * "s.privileged=1" will do the same
+
+   The columns are:
+   * 4 - IPv4 address
+   * 6 - IPv6 address
+   * a - architecture
+   * c - creation date
+   * n - name
+   * p - pid of container init process
+   * P - profiles
+   * s - state
+	 * S - number of snapshots
+   * t - type (persistent or ephemeral)
+
+   Default column layout: ns46tS
+   Fast column layout: nsacPt`),
+
+	Flags: commandGlobalFlagsWrapper(
+		cli.StringFlag{
+			Name:  "columns, c",
+			Value: "ns46tS",
+			Usage: i18n.G("Columns."),
+		},
+		cli.BoolFlag{
+			Name:  "fast",
+			Usage: i18n.G("Fast mode (same as --columns=nsacPt."),
+		},
+	),
+	Action: commandWrapper(commandActionList),
+}
+
+func commandActionList(config *lxd.Config, c *cli.Context) error {
+	var cmd = &listCmd{}
+	cmd.chosenColumnRunes = c.String("columns")
+	cmd.fast = c.Bool("fast")
+
+	return cmd.run(config, c.Args())
+}
 
 type column struct {
 	Name           string
@@ -52,46 +103,6 @@ type listCmd struct {
 	fast              bool
 }
 
-func (c *listCmd) showByDefault() bool {
-	return true
-}
-
-func (c *listCmd) usage() string {
-	return i18n.G(
-		`Lists the available resources.
-
-lxc list [resource] [filters] [-c columns] [--fast]
-
-The filters are:
-* A single keyword like "web" which will list any container with "web" in its name.
-* A key/value pair referring to a configuration item. For those, the namespace can be abreviated to the smallest unambiguous identifier:
-* "user.blah=abc" will list all containers with the "blah" user property set to "abc"
-* "u.blah=abc" will do the same
-* "security.privileged=1" will list all privileged containers
-* "s.privileged=1" will do the same
-
-The columns are:
-* 4 - IPv4 address
-* 6 - IPv6 address
-* a - architecture
-* c - creation date
-* n - name
-* p - pid of container init process
-* P - profiles
-* s - state
-* S - number of snapshots
-* t - type (persistent or ephemeral)
-
-Default column layout: ns46tS
-Fast column layout: nsacPt`)
-}
-
-func (c *listCmd) flags() {
-	gnuflag.StringVar(&c.chosenColumnRunes, "c", "ns46tS", i18n.G("Columns"))
-	gnuflag.StringVar(&c.chosenColumnRunes, "columns", "ns46tS", i18n.G("Columns"))
-	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt"))
-}
-
 // This seems a little excessive.
 func (c *listCmd) dotPrefixMatch(short string, full string) bool {
 	fullMembs := strings.Split(full, ".")
@@ -101,7 +112,7 @@ func (c *listCmd) dotPrefixMatch(short string, full string) bool {
 		return false
 	}
 
-	for i, _ := range fullMembs {
+	for i := range fullMembs {
 		if !strings.HasPrefix(fullMembs[i], shortMembs[i]) {
 			return false
 		}
@@ -294,7 +305,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 
 	filters := []string{}
 
-	if len(args) != 0 {
+	if len(args) > 0 {
 		filters = args
 		if strings.Contains(args[0], ":") {
 			remote, name = config.ParseRemoteAndContainer(args[0])
@@ -330,7 +341,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		}
 	}
 
-	columns_map := map[rune]column{
+	columnsMap := map[rune]column{
 		'4': column{i18n.G("IPV4"), c.IP4ColumnData, true, false},
 		'6': column{i18n.G("IPV6"), c.IP6ColumnData, true, false},
 		'a': column{i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
@@ -349,7 +360,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 
 	columns := []column{}
 	for _, columnRune := range c.chosenColumnRunes {
-		if column, ok := columns_map[columnRune]; ok {
+		if column, ok := columnsMap[columnRune]; ok {
 			columns = append(columns, column)
 		} else {
 			return fmt.Errorf("%s does contain invalid column characters\n", c.chosenColumnRunes)
@@ -386,9 +397,9 @@ func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState *shared.Conta
 			}
 		}
 		return strings.Join(ipv4s, "\n")
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 func (c *listCmd) IP6ColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
@@ -410,17 +421,17 @@ func (c *listCmd) IP6ColumnData(cInfo shared.ContainerInfo, cState *shared.Conta
 			}
 		}
 		return strings.Join(ipv6s, "\n")
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 func (c *listCmd) typeColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
 	if cInfo.Ephemeral {
 		return i18n.G("EPHEMERAL")
-	} else {
-		return i18n.G("PERSISTENT")
 	}
+
+	return i18n.G("PERSISTENT")
 }
 
 func (c *listCmd) numberSnapshotsColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {

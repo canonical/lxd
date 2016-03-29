@@ -6,35 +6,43 @@ import (
 	"os"
 	"strings"
 
+	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
+
+var commandDelete = cli.Command{
+	Name:        "delete",
+	Usage:       i18n.G("Delete containers or container snapshots."),
+	ArgsUsage:   i18n.G("[remote:]<container>[/<snapshot>] [remote:][<container>[/<snapshot>]...] [--force|-f] [--interactive|-i]"),
+	Description: i18n.G("Destroy containers or snapshots with any attached data (configuration, snapshots, ...)."),
+
+	Flags: commandGlobalFlagsWrapper(
+		cli.BoolFlag{
+			Name:  "force, f",
+			Usage: i18n.G("Force the removal of stopped containers."),
+		},
+
+		cli.BoolFlag{
+			Name:  "interactive, i",
+			Usage: i18n.G("Require user confirmation."),
+		},
+	),
+	Action: commandWrapper(commandActionDelete),
+}
+
+func commandActionDelete(config *lxd.Config, context *cli.Context) error {
+	var cmd = &deleteCmd{}
+	cmd.force = context.Bool("force")
+	cmd.interactive = context.Bool("interactive")
+	return cmd.run(config, context.Args())
+}
 
 type deleteCmd struct {
 	force       bool
 	interactive bool
-}
-
-func (c *deleteCmd) showByDefault() bool {
-	return true
-}
-
-func (c *deleteCmd) usage() string {
-	return i18n.G(
-		`Delete containers or container snapshots.
-
-lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/<snapshot>]...]
-
-Destroy containers or snapshots with any attached data (configuration, snapshots, ...).`)
-}
-
-func (c *deleteCmd) flags() {
-	gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the removal of stopped containers."))
-	gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the removal of stopped containers."))
-	gnuflag.BoolVar(&c.interactive, "i", false, i18n.G("Require user confirmation."))
-	gnuflag.BoolVar(&c.interactive, "interactive", false, i18n.G("Require user confirmation."))
 }
 
 func (c *deleteCmd) promptDelete(name string) error {

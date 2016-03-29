@@ -4,38 +4,43 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared/gnuflag"
-	"github.com/lxc/lxd/shared/i18n"
+	"github.com/codegangsta/cli"
 
+	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
-type publishCmd struct {
-	pAliases   aliasList // aliasList defined in lxc/image.go
-	makePublic bool
-	Force      bool
+var commandPublish = cli.Command{
+	Name:      "publish",
+	Usage:     i18n.G("Publish containers as images."),
+	ArgsUsage: i18n.G("[remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]..."),
+
+	Flags: commandGlobalFlagsWrapper(
+		cli.BoolFlag{
+			Name:  "force",
+			Usage: i18n.G("Stop the container if currently running."),
+		},
+
+		cli.StringSliceFlag{
+			Name:  "alias",
+			Usage: i18n.G("New alias to define at target."),
+		},
+
+		cli.BoolFlag{
+			Name:  "public",
+			Usage: i18n.G("Make the image public."),
+		},
+	),
+	Action: commandWrapper(commmandActionPublish),
 }
 
-func (c *publishCmd) showByDefault() bool {
-	return true
-}
+func commmandActionPublish(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+	var pAliases = context.StringSlice("alias")
+	var makePublic = context.Bool("public")
+	var force = context.Bool("force")
 
-func (c *publishCmd) usage() string {
-	return i18n.G(
-		`Publish containers as images.
-
-lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-value]...`)
-}
-
-func (c *publishCmd) flags() {
-	gnuflag.BoolVar(&c.makePublic, "public", false, i18n.G("Make the image public"))
-	gnuflag.Var(&c.pAliases, "alias", i18n.G("New alias to define at target"))
-	gnuflag.BoolVar(&c.Force, "force", false, i18n.G("Stop the container if currently running"))
-	gnuflag.BoolVar(&c.Force, "f", false, i18n.G("Stop the container if currently running"))
-}
-
-func (c *publishCmd) run(config *lxd.Config, args []string) error {
 	var cRemote string
 	var cName string
 	iName := ""
@@ -85,7 +90,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		wasEphemeral := ct.Ephemeral
 
 		if wasRunning {
-			if !c.Force {
+			if !force {
 				return fmt.Errorf(i18n.G("The container is currently running. Use --force to have it stopped and restarted."))
 			}
 
@@ -134,7 +139,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 
 	// Optimized local publish
 	if cRemote == iRemote {
-		fp, err = d.ImageFromContainer(cName, c.makePublic, c.pAliases, properties)
+		fp, err = d.ImageFromContainer(cName, makePublic, pAliases, properties)
 		if err != nil {
 			return err
 		}
@@ -148,7 +153,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 	}
 	defer s.DeleteImage(fp)
 
-	err = s.CopyImage(fp, d, false, c.pAliases, c.makePublic, false, nil)
+	err = s.CopyImage(fp, d, false, pAliases, makePublic, false, nil)
 	if err != nil {
 		return err
 	}

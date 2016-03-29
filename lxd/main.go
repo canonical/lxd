@@ -18,34 +18,229 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/codegangsta/cli"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/logging"
+	"github.com/ubuntu-core/snappy/i18n"
 )
 
-// Global arguments
-var argAuto = gnuflag.Bool("auto", false, "")
-var argCPUProfile = gnuflag.String("cpuprofile", "", "")
-var argDebug = gnuflag.Bool("debug", false, "")
-var argGroup = gnuflag.String("group", "", "")
-var argHelp = gnuflag.Bool("help", false, "")
-var argLogfile = gnuflag.String("logfile", "", "")
-var argMemProfile = gnuflag.String("memprofile", "", "")
-var argNetworkAddress = gnuflag.String("network-address", "", "")
-var argNetworkPort = gnuflag.Int("network-port", -1, "")
-var argPrintGoroutinesEvery = gnuflag.Int("print-goroutines-every", -1, "")
-var argStorageBackend = gnuflag.String("storage-backend", "", "")
-var argStorageCreateDevice = gnuflag.String("storage-create-device", "", "")
-var argStorageCreateLoop = gnuflag.Int("storage-create-loop", -1, "")
-var argStoragePool = gnuflag.String("storage-pool", "", "")
-var argSyslog = gnuflag.Bool("syslog", false, "")
-var argTimeout = gnuflag.Int("timeout", -1, "")
-var argTrustPassword = gnuflag.String("trust-password", "", "")
-var argVerbose = gnuflag.Bool("verbose", false, "")
-var argVersion = gnuflag.Bool("version", false, "")
+var commandGlobalFlags = []cli.Flag{
+	cli.BoolFlag{
+		Name:  "debug",
+		Usage: i18n.G("Print debug information."),
+	},
+
+	cli.BoolFlag{
+		Name:  "verbose",
+		Usage: i18n.G("Print verbose information."),
+	},
+
+	cli.StringFlag{
+		Name:  "logfile",
+		Usage: i18n.G("Logfile to log to (e.g., /var/log/lxd/lxd.log)."),
+	},
+
+	cli.BoolFlag{
+		Name:  "syslog",
+		Usage: i18n.G("Enable syslog logging"),
+	},
+}
+
+func commandGlobalFlagsWrapper(flags ...cli.Flag) []cli.Flag {
+	return append(commandGlobalFlags, flags...)
+}
+
+func commandAction(c *cli.Context) {
+	if err := run(c); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func main() {
+	app := cli.NewApp()
+	app.Name = "lxd"
+	app.Version = shared.Version
+	app.Usage = "LXD is pronounced lex-dee."
+	app.Flags = commandGlobalFlags
+	app.Commands = []cli.Command{
+
+		cli.Command{
+			Name:   "activateifneeded",
+			Usage:  i18n.G("Check if LXD should be started (at boot) and if so, spawns it through socket activation."),
+			Flags:  commandGlobalFlags,
+			Action: commandAction,
+		},
+
+		cli.Command{
+			Name:      "daemon",
+			Usage:     i18n.G("Start the main LXD daemon."),
+			ArgsUsage: i18n.G("[--group=lxd] [--cpuprofile=FILE] [--memprofile=FILE] [--print-goroutines-every=SECONDS]"),
+			Flags: commandGlobalFlagsWrapper(
+				cli.StringFlag{
+					Name:  "group",
+					Usage: i18n.G("Group which owns the shared socket."),
+				},
+
+				cli.StringFlag{
+					Name:  "cpuprofile",
+					Usage: i18n.G("Enable cpu profiling into the specified file."),
+				},
+
+				cli.StringFlag{
+					Name:  "memprofile",
+					Usage: i18n.G("Enable memory profiling into the specified file."),
+				},
+
+				cli.IntFlag{
+					Name:  "print-goroutines-every",
+					Value: -1,
+					Usage: i18n.G("For debugging, print a complete stack trace every n seconds."),
+				},
+			),
+			Action: commandAction,
+		},
+
+		cli.Command{
+			Name:      "init",
+			Usage:     i18n.G("Setup storage and networking"),
+			ArgsUsage: i18n.G("[--auto] [--network-address=IP] [--network-port=8443] [--storage-backend=dir] [--storage-create-device=DEVICE] [--storage-create-loop=SIZE] [--storage-pool=POOL] [--trust-password=]"),
+			Flags: commandGlobalFlagsWrapper(
+				cli.BoolFlag{
+					Name:  "auto",
+					Usage: i18n.G("Automatic (non-interactive) mode."),
+				},
+
+				cli.StringFlag{
+					Name:  "network-address",
+					Usage: i18n.G("Address to bind LXD to (default: none)."),
+				},
+
+				cli.IntFlag{
+					Name:  "network-port",
+					Usage: i18n.G("Port to bind LXD to (default: 8443)."),
+				},
+
+				cli.StringFlag{
+					Name:  "storage-backend",
+					Value: "dir",
+					Usage: i18n.G("Storage backend to use (zfs or dir, default: dir)."),
+				},
+
+				cli.IntFlag{
+					Name:  "storage-create-loop",
+					Value: -1,
+					Usage: i18n.G("Setup loop based storage with SIZE in GB."),
+				},
+
+				cli.StringFlag{
+					Name:  "storage-pool",
+					Usage: i18n.G("Storage pool to use or create."),
+				},
+
+				cli.StringFlag{
+					Name:  "trust-password",
+					Usage: i18n.G("Password required to add new clients."),
+				},
+			),
+			Action: commandAction,
+		},
+
+		cli.Command{
+			Name:      "shutdown",
+			Usage:     i18n.G("Perform a clean shutdown of LXD and all running containers."),
+			ArgsUsage: i18n.G("[--timeout=60]"),
+			Flags: commandGlobalFlagsWrapper(
+				cli.IntFlag{
+					Name:  "timeout",
+					Value: 60,
+					Usage: i18n.G("How long to wait before failing."),
+				},
+			),
+
+			Action: commandAction,
+		},
+
+		cli.Command{
+			Name:      "waitready",
+			Usage:     i18n.G("Wait until LXD is ready to handle requests."),
+			ArgsUsage: i18n.G("[--timeout=15]"),
+			Flags: commandGlobalFlagsWrapper(
+				cli.IntFlag{
+					Name:  "timeout",
+					Value: 15,
+					Usage: i18n.G("Wait until LXD is ready to handle requests."),
+				},
+			),
+
+			Action: commandAction,
+		},
+
+		cli.Command{
+			Name:  "version",
+			Usage: i18n.G("Prints the version number of LXD."),
+
+			Action: func(c *cli.Context) {
+				println(shared.Version)
+			},
+		},
+
+		cli.Command{
+			Name:  "forkgetnet",
+			Usage: i18n.G("INTERNAL: Get container network information."),
+			Flags: commandGlobalFlags,
+
+			Action: commandAction,
+		},
+
+		cli.Command{
+			Name:  "forkgetfile",
+			Usage: i18n.G("INTERNAL: Grab a file from a running container."),
+			Flags: commandGlobalFlags,
+
+			Action: commandAction,
+		},
+
+		cli.Command{
+			Name:  "forkmigrate",
+			Usage: i18n.G("INTERNAL: Restore a container after migration."),
+			Flags: commandGlobalFlags,
+
+			Action: commandAction,
+		},
+
+		cli.Command{
+			Name:  "forkputfile",
+			Usage: i18n.G("INTERNAL: Push a file to a running container."),
+			Flags: commandGlobalFlags,
+
+			Action: commandAction,
+		},
+
+		cli.Command{
+			Name:  "forkstart",
+			Usage: i18n.G("INTERNAL: Start a container."),
+			Flags: commandGlobalFlags,
+
+			Action: commandAction,
+		},
+
+		cli.Command{
+			Name:  "callhook",
+			Usage: i18n.G("INTERNAL: Call a container hook."),
+			Flags: commandGlobalFlags,
+
+			Action: commandAction,
+		},
+	}
+
+	app.Action = commandAction
+
+	app.Run(os.Args)
+}
 
 // Global variables
 var debug bool
@@ -55,122 +250,15 @@ func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
-func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func run() error {
-	// Our massive custom usage
-	gnuflag.Usage = func() {
-		fmt.Printf("Usage: lxd [command] [options]\n")
-
-		fmt.Printf("\nCommands:\n")
-		fmt.Printf("    activateifneeded\n")
-		fmt.Printf("        Check if LXD should be started (at boot) and if so, spawns it through socket activation\n")
-		fmt.Printf("    daemon [--group=lxd] (default command)\n")
-		fmt.Printf("        Start the main LXD daemon\n")
-		fmt.Printf("    init [--auto] [--network-address=IP] [--network-port=8443] [--storage-backend=dir]\n")
-		fmt.Printf("         [--storage-create-device=DEVICE] [--storage-create-loop=SIZE] [--storage-pool=POOL]\n")
-		fmt.Printf("         [--trust-password=]\n")
-		fmt.Printf("        Setup storage and networking\n")
-		fmt.Printf("    ready\n")
-		fmt.Printf("        Tells LXD that any setup-mode configuration has been done and that it can start containers.\n")
-		fmt.Printf("    shutdown [--timeout=60]\n")
-		fmt.Printf("        Perform a clean shutdown of LXD and all running containers\n")
-		fmt.Printf("    waitready [--timeout=15]\n")
-		fmt.Printf("        Wait until LXD is ready to handle requests\n")
-
-		fmt.Printf("\n\nCommon options:\n")
-		fmt.Printf("    --debug\n")
-		fmt.Printf("        Enable debug mode\n")
-		fmt.Printf("    --help\n")
-		fmt.Printf("        Print this help message\n")
-		fmt.Printf("    --logfile FILE\n")
-		fmt.Printf("        Logfile to log to (e.g., /var/log/lxd/lxd.log)\n")
-		fmt.Printf("    --syslog\n")
-		fmt.Printf("        Enable syslog logging\n")
-		fmt.Printf("    --verbose\n")
-		fmt.Printf("        Enable verbose mode\n")
-		fmt.Printf("    --version\n")
-		fmt.Printf("        Print LXD's version number and exit\n")
-
-		fmt.Printf("\nDaemon options:\n")
-		fmt.Printf("    --group GROUP\n")
-		fmt.Printf("        Group which owns the shared socket\n")
-
-		fmt.Printf("\nDaemon debug options:\n")
-		fmt.Printf("    --cpuprofile FILE\n")
-		fmt.Printf("        Enable cpu profiling into the specified file\n")
-		fmt.Printf("    --memprofile FILE\n")
-		fmt.Printf("        Enable memory profiling into the specified file\n")
-		fmt.Printf("    --print-goroutines-every SECONDS\n")
-		fmt.Printf("        For debugging, print a complete stack trace every n seconds\n")
-
-		fmt.Printf("\nInit options:\n")
-		fmt.Printf("    --auto\n")
-		fmt.Printf("        Automatic (non-interactive) mode\n")
-
-		fmt.Printf("\nInit options for non-interactive mode (--auto):\n")
-		fmt.Printf("    --network-address ADDRESS\n")
-		fmt.Printf("        Address to bind LXD to (default: none)\n")
-		fmt.Printf("    --network-port PORT\n")
-		fmt.Printf("        Port to bind LXD to (default: 8443)\n")
-		fmt.Printf("    --storage-backend NAME\n")
-		fmt.Printf("        Storage backend to use (zfs or dir, default: dir)\n")
-		fmt.Printf("    --storage-create-device DEVICE\n")
-		fmt.Printf("        Setup device based storage using DEVICE\n")
-		fmt.Printf("    --storage-create-loop SIZE\n")
-		fmt.Printf("        Setup loop based storage with SIZE in GB\n")
-		fmt.Printf("    --storage-pool NAME\n")
-		fmt.Printf("        Storage pool to use or create\n")
-		fmt.Printf("    --trust-password PASSWORD\n")
-		fmt.Printf("        Password required to add new clients\n")
-
-		fmt.Printf("\nShutdown options:\n")
-		fmt.Printf("    --timeout SECONDS\n")
-		fmt.Printf("        How long to wait before failing\n")
-
-		fmt.Printf("\nWaitready options:\n")
-		fmt.Printf("    --timeout SECONDS\n")
-		fmt.Printf("        How long to wait before failing\n")
-
-		fmt.Printf("\n\nInternal commands (don't call these directly):\n")
-		fmt.Printf("    forkgetnet\n")
-		fmt.Printf("        Get container network information\n")
-		fmt.Printf("    forkgetfile\n")
-		fmt.Printf("        Grab a file from a running container\n")
-		fmt.Printf("    forkmigrate\n")
-		fmt.Printf("        Restore a container after migration\n")
-		fmt.Printf("    forkputfile\n")
-		fmt.Printf("        Push a file to a running container\n")
-		fmt.Printf("    forkstart\n")
-		fmt.Printf("        Start a container\n")
-		fmt.Printf("    callhook\n")
-		fmt.Printf("        Call a container hook\n")
-	}
-
-	// Parse the arguments
-	gnuflag.Parse(true)
-
+func run(c *cli.Context) error {
 	// Set the global variables
-	debug = *argDebug
-	verbose = *argVerbose
-
-	if *argHelp {
-		// The user asked for help via --help, so we shouldn't print to
-		// stderr.
-		gnuflag.SetOut(os.Stdout)
-		gnuflag.Usage()
-		return nil
+	debug = false
+	if c.GlobalBool("debug") || c.Bool("debug") {
+		debug = true
 	}
-
-	// Deal with --version right here
-	if *argVersion {
-		fmt.Println(shared.Version)
-		return nil
+	verbose = false
+	if c.GlobalBool("verbose") || c.Bool("verbose") {
+		verbose = true
 	}
 
 	if len(shared.VarPath("unix.sock")) > 107 {
@@ -179,66 +267,74 @@ func run() error {
 
 	// Configure logging
 	syslog := ""
-	if *argSyslog {
-		syslog = "lxd"
+	if c.String("syslog") != "" {
+		syslog = c.String("syslog")
+	}
+	if syslog == "" && c.GlobalString("syslog") != "" {
+		syslog = c.GlobalString("syslog")
+	}
+
+	logfile := ""
+	if c.String("logfile") != "" {
+		logfile = c.String("logfile")
+	}
+	if logfile == "" && c.GlobalString("logfile") != "" {
+		logfile = c.GlobalString("logfile")
 	}
 
 	handler := eventsHandler{}
 	var err error
-	shared.Log, err = logging.GetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
+	shared.Log, err = logging.GetLogger(syslog, logfile, verbose, debug, handler)
 	if err != nil {
 		fmt.Printf("%s", err)
 		return nil
 	}
 
 	// Process sub-commands
-	if len(os.Args) > 1 {
+	if c.Command.Name != "" {
 		// "forkputfile", "forkgetfile", "forkmount" and "forkumount" are handled specially in nsexec.go
 		// "forkgetnet" is partially handled in nsexec.go (setns)
-		switch os.Args[1] {
-		// Main commands
+		switch c.Command.Name {
 		case "activateifneeded":
 			return cmdActivateIfNeeded()
 		case "daemon":
-			return cmdDaemon()
+			return cmdDaemon(c)
 		case "callhook":
-			return cmdCallHook(os.Args[1:])
+			return cmdCallHook(c.Args())
 		case "init":
-			return cmdInit()
+			return cmdInit(c)
 		case "ready":
 			return cmdReady()
 		case "shutdown":
-			return cmdShutdown()
+			return cmdShutdown(c)
 		case "waitready":
-			return cmdWaitReady()
+			return cmdWaitReady(c)
 
 		// Internal commands
 		case "forkgetnet":
 			return printnet()
 		case "forkmigrate":
-			return MigrateContainer(os.Args[1:])
+			return MigrateContainer(c.Args())
 		case "forkstart":
-			return startContainer(os.Args[1:])
+			return startContainer(c.Args())
 		}
 	}
 
-	// Fail if some other command is passed
-	if gnuflag.NArg() > 0 {
-		gnuflag.Usage()
-		return fmt.Errorf("Unknown arguments")
+	if len(c.Args()) > 0 {
+		return fmt.Errorf("Unknown arguments, run 'lxd help' for the usage.")
 	}
 
-	return cmdDaemon()
+	return cmdDaemon(c)
 }
 
 func cmdCallHook(args []string) error {
-	if len(args) < 4 {
+	if len(args) < 3 {
 		return fmt.Errorf("Invalid arguments")
 	}
 
-	path := args[1]
-	id := args[2]
-	state := args[3]
+	path := args[0]
+	id := args[1]
+	state := args[2]
 	target := ""
 
 	err := os.Setenv("LXD_DIR", path)
@@ -300,9 +396,9 @@ func cmdCallHook(args []string) error {
 	return nil
 }
 
-func cmdDaemon() error {
-	if *argCPUProfile != "" {
-		f, err := os.Create(*argCPUProfile)
+func cmdDaemon(c *cli.Context) error {
+	if c.String("cpuprofile") != "" {
+		f, err := os.Create(c.String("cpuprofile"))
 		if err != nil {
 			fmt.Printf("Error opening cpu profile file: %s\n", err)
 			return nil
@@ -311,8 +407,8 @@ func cmdDaemon() error {
 		defer pprof.StopCPUProfile()
 	}
 
-	if *argMemProfile != "" {
-		go memProfiler(*argMemProfile)
+	if c.String("memprofile") != "" {
+		go memProfiler(c.String("memprofile"))
 	}
 
 	neededPrograms := []string{"setfacl", "rsync", "tar", "xz"}
@@ -323,19 +419,20 @@ func cmdDaemon() error {
 		}
 	}
 
-	if *argPrintGoroutinesEvery > 0 {
+	if c.Int("print-goroutines-every") > 0 {
 		go func() {
 			for {
-				time.Sleep(time.Duration(*argPrintGoroutinesEvery) * time.Second)
+				time.Sleep(time.Duration(c.Int("print-goroutines-every")) * time.Second)
 				shared.PrintStack()
 			}
 		}()
 	}
 
 	d := &Daemon{
-		group:     *argGroup,
+		group:     c.String("group"),
 		SetupMode: shared.PathExists(shared.VarPath(".setup_mode"))}
 	err := d.Init()
+
 	if err != nil {
 		if d != nil && d.db != nil {
 			d.db.Close()
@@ -413,14 +510,8 @@ func cmdReady() error {
 	return nil
 }
 
-func cmdShutdown() error {
-	var timeout int
-
-	if *argTimeout == -1 {
-		timeout = 60
-	} else {
-		timeout = *argTimeout
-	}
+func cmdShutdown(context *cli.Context) error {
+	timeout := context.Int("timeout")
 
 	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
 	if err != nil {
@@ -446,7 +537,7 @@ func cmdShutdown() error {
 	case <-monitor:
 		break
 	case <-time.After(time.Second * time.Duration(timeout)):
-		return fmt.Errorf("LXD still running after %ds timeout.", timeout)
+		return fmt.Errorf("LXD still running after %ds timeout", timeout)
 	}
 
 	return nil
@@ -508,14 +599,8 @@ func cmdActivateIfNeeded() error {
 	return nil
 }
 
-func cmdWaitReady() error {
-	var timeout int
-
-	if *argTimeout == -1 {
-		timeout = 15
-	} else {
-		timeout = *argTimeout
-	}
+func cmdWaitReady(context *cli.Context) error {
+	timeout := context.Int("timeout")
 
 	finger := make(chan error, 1)
 	go func() {
@@ -553,13 +638,13 @@ func cmdWaitReady() error {
 	case <-finger:
 		break
 	case <-time.After(time.Second * time.Duration(timeout)):
-		return fmt.Errorf("LXD still not running after %ds timeout.", timeout)
+		return fmt.Errorf("LXD still not running after %ds timeout", timeout)
 	}
 
 	return nil
 }
 
-func cmdInit() error {
+func cmdInit(context *cli.Context) error {
 	var storageBackend string // dir or zfs
 	var storageMode string    // existing, loop or device
 	var storageLoopSize int   // Size in GB
@@ -684,63 +769,66 @@ func cmdInit() error {
 		return fmt.Errorf("You have existing containers or images. lxd init requires an empty LXD.")
 	}
 
-	if *argAuto {
-		if *argStorageBackend == "" {
-			*argStorageBackend = "dir"
-		}
-
+	if context.Bool("auto") {
 		// Do a bunch of sanity checks
-		if !shared.StringInSlice(*argStorageBackend, backendsSupported) {
-			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", *argStorageBackend)
+		if !shared.StringInSlice(context.String("storage-backend"), backendsSupported) {
+			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", context.String("storage-backend"))
 		}
 
-		if !shared.StringInSlice(*argStorageBackend, backendsAvailable) {
-			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", *argStorageBackend)
+		if !shared.StringInSlice(context.String("storage-backend"), backendsAvailable) {
+			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", context.String("storage-backend"))
 		}
 
-		if *argStorageBackend == "dir" {
-			if *argStorageCreateLoop != -1 || *argStorageCreateDevice != "" || *argStoragePool != "" {
+		if context.String("storage-backend") == "dir" {
+			if context.Int("storage-create-loop") != -1 || context.String("storage-create-device") != "" || context.String("storage-pool") != "" {
 				return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-pool may be used with the 'dir' backend.")
 			}
 		}
 
-		if *argStorageBackend == "zfs" {
-			if *argStorageCreateLoop != -1 && *argStorageCreateDevice != "" {
+		if context.String("storage-backend") == "zfs" {
+			if context.Int("storage-create-loop") != -1 && context.String("storage-create-device") != "" {
 				return fmt.Errorf("Only one of --storage-create-device or --storage-create-pool can be specified with the 'zfs' backend.")
 			}
 
-			if *argStoragePool == "" {
-				return fmt.Errorf("--storage-pool must be specified with the 'zfs' backend.")
+			if context.String("storage-pool") == "" {
+				return fmt.Errorf("--storage-pool must be specified with the 'zfs' backend")
 			}
 		}
 
-		if *argNetworkAddress == "" {
-			if *argNetworkPort != -1 {
-				return fmt.Errorf("--network-port cannot be used without --network-address.")
+		if context.String("network-address") == "" {
+			if context.Int("network-port") != -1 {
+				return fmt.Errorf("--network-port cannot be used without --network-address")
 			}
-			if *argTrustPassword != "" {
-				return fmt.Errorf("--trust-password cannot be used without --network-address.")
+			if context.String("trust-password") != "" {
+				return fmt.Errorf("--trust-password cannot be used without --network-address")
 			}
 		}
 
 		// Set the local variables
-		if *argStorageCreateDevice != "" {
+		if context.String("storage-create-device") != "" {
 			storageMode = "device"
-		} else if *argStorageCreateLoop != -1 {
+		} else if context.Int("storage-create-loop") != -1 {
 			storageMode = "loop"
 		} else {
 			storageMode = "existing"
 		}
 
-		storageBackend = *argStorageBackend
-		storageLoopSize = *argStorageCreateLoop
-		storageDevice = *argStorageCreateDevice
-		storagePool = *argStoragePool
-		networkAddress = *argNetworkAddress
-		networkPort = *argNetworkPort
-		trustPassword = *argTrustPassword
+		storageBackend = context.String("storage-backend")
+		storageLoopSize = context.Int("storage-create-loop")
+		storageDevice = context.String("storage-create-device")
+		storagePool = context.String("storage-pool")
+		networkAddress = context.String("network-address")
+		networkPort = context.Int("network-port")
+		trustPassword = context.String("trust-password")
 	} else {
-		if *argStorageBackend != "" || *argStorageCreateDevice != "" || *argStorageCreateLoop != -1 || *argStoragePool != "" || *argNetworkAddress != "" || *argNetworkPort != -1 || *argTrustPassword != "" {
+		if context.String("storage-backend") != "" ||
+			context.String("storage-create-device") != "" ||
+			context.Int("storage-create-loop") != -1 ||
+			context.String("storage-pool") != "" ||
+			context.String("network-address") != "" ||
+			context.Int("network-port") != -1 ||
+			context.String("trust-password") != "" {
+
 			return fmt.Errorf("Init configuration is only valid with --auto")
 		}
 

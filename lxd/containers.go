@@ -202,13 +202,13 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
  * We expect to read the lxcconfig over fd 3.
  */
 func startContainer(args []string) error {
-	if len(args) != 4 {
+	if len(args) != 3 {
 		return fmt.Errorf("Bad arguments: %q", args)
 	}
 
-	name := args[1]
-	lxcpath := args[2]
-	configPath := args[3]
+	name := args[0]
+	lxcpath := args[1]
+	configPath := args[2]
 
 	c, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {

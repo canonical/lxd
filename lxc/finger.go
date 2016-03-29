@@ -1,28 +1,24 @@
 package main
 
 import (
+	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type fingerCmd struct {
-	httpAddr string
+// TODO: Make this a "hidden" command.
+var commandFinger = cli.Command{
+	Name:      "finger",
+	Usage:     i18n.G("Fingers the LXD instance to check if it is up and working."),
+	ArgsUsage: i18n.G("<remote>"),
+
+	Flags:  commandGlobalFlags,
+	Action: commandWrapper(commandActionFinger),
 }
 
-func (c *fingerCmd) showByDefault() bool {
-	return false
-}
-
-func (c *fingerCmd) usage() string {
-	return i18n.G(
-		`Fingers the LXD instance to check if it is up and working.
-
-lxc finger <remote>`)
-}
-
-func (c *fingerCmd) flags() {}
-
-func (c *fingerCmd) run(config *lxd.Config, args []string) error {
+func commandActionFinger(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
 	if len(args) > 1 {
 		return errArgs
 	}

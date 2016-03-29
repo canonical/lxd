@@ -703,14 +703,14 @@ func (c *migrationSink) do() error {
  * footprint when we fork tasks that will never free golang's memory, etc.)
  */
 func MigrateContainer(args []string) error {
-	if len(args) != 5 {
+	if len(args) != 4 {
 		return fmt.Errorf("Bad arguments %q", args)
 	}
 
-	name := args[1]
-	lxcpath := args[2]
-	configPath := args[3]
-	imagesDir := args[4]
+	name := args[0]
+	lxcpath := args[1]
+	configPath := args[2]
+	imagesDir := args[3]
 
 	defer os.Remove(configPath)
 

@@ -3,53 +3,84 @@ package main
 import (
 	"fmt"
 
+	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type actionCmd struct {
-	action     shared.ContainerAction
-	hasTimeout bool
-	visible    bool
-	name       string
-	timeout    int
-	force      bool
-	stateful   bool
-	stateless  bool
+var commandStart = cli.Command{
+	Name:      "start",
+	Usage:     i18n.G("Changes one or more containers state to start."),
+	ArgsUsage: i18n.G("<name> [<name>...]"),
+
+	Flags: commandGlobalFlagsWrapper(
+		cli.BoolFlag{
+			Name:  "stateless",
+			Usage: i18n.G("Ignore the container state."),
+		},
+	),
+	Action: commandWrapper(commandActionAction),
 }
 
-func (c *actionCmd) showByDefault() bool {
-	return c.visible
+var commandStop = cli.Command{
+	Name:      "stop",
+	Usage:     i18n.G("Changes one or more containers state to stop."),
+	ArgsUsage: i18n.G("<name> [<name>...]"),
+
+	Flags: commandGlobalFlagsWrapper(
+		cli.BoolFlag{
+			Name:  "force",
+			Usage: i18n.G("Force the container to shutdown."),
+		},
+		cli.IntFlag{
+			Name:  "timeout",
+			Usage: i18n.G("Time to wait for the container before killing it."),
+		},
+		cli.BoolFlag{
+			Name:  "statefull",
+			Usage: i18n.G("Store the container state."),
+		},
+	),
+	Action: commandWrapper(commandActionAction),
 }
 
-func (c *actionCmd) usage() string {
-	return fmt.Sprintf(i18n.G(
-		`Changes state of one or more containers to %s.
+var commandPause = cli.Command{
+	Name:      "pause",
+	Usage:     i18n.G("Changes one or more containers state to pause."),
+	ArgsUsage: i18n.G("<name> [<name>...]"),
 
-lxc %s <name> [<name>...]`), c.name, c.name)
+	Flags:  commandGlobalFlags,
+	Action: commandWrapper(commandActionAction),
 }
 
-func (c *actionCmd) flags() {
-	if c.hasTimeout {
-		gnuflag.IntVar(&c.timeout, "timeout", -1, i18n.G("Time to wait for the container before killing it."))
-		gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the container to shutdown."))
-		gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Store the container state (only for stop)."))
-		gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Ignore the container state (only forstart)."))
-	}
+var commandRestart = cli.Command{
+	Name:      "restart",
+	Usage:     i18n.G("Changes one or more containers state to restart."),
+	ArgsUsage: i18n.G("<name> [<name>...]"),
+
+	Flags: commandGlobalFlagsWrapper(
+		cli.BoolFlag{
+			Name:  "force",
+			Usage: i18n.G("Force the container to shutdown."),
+		},
+		cli.IntFlag{
+			Name:  "timeout",
+			Usage: i18n.G("Time to wait for the container before killing it."),
+		},
+	),
+	Action: commandWrapper(commandActionAction),
 }
 
-func (c *actionCmd) run(config *lxd.Config, args []string) error {
+func commandActionAction(config *lxd.Config, c *cli.Context) error {
+	var actionName = c.Command.Name
+	var timeout = c.Int("timeout")
+	var force = c.Bool("force")
+	var args = c.Args()
+
 	if len(args) == 0 {
 		return errArgs
-	}
-
-	state := false
-
-	// Only store state if asked to
-	if c.action == "stop" && c.stateful {
-		state = true
 	}
 
 	for _, nameArg := range args {
@@ -63,7 +94,27 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf(i18n.G("Must supply container name for: ")+"\"%s\"", nameArg)
 		}
 
-		if c.action == shared.Start || c.action == shared.Stop {
+		var action shared.ContainerAction
+		state := false
+		switch actionName {
+		case "stop":
+			if c.Bool("stateful") {
+				state = true
+			}
+			action = shared.Stop
+		case "start":
+
+			action = shared.Start
+		case "restart":
+			action = shared.Restart
+		case "pause":
+		case "freeze":
+			action = shared.Freeze
+		case "unfreeze":
+			action = shared.Unfreeze
+		}
+
+		if action == shared.Start {
 			current, err := d.ContainerInfo(name)
 			if err != nil {
 				return err
@@ -71,16 +122,15 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 
 			// "start" for a frozen container means "unfreeze"
 			if current.StatusCode == shared.Frozen {
-				c.action = shared.Unfreeze
+				action = shared.Unfreeze
 			}
 
-			// Always restore state (if present) unless asked not to
-			if c.action == shared.Start && current.Stateful && !c.stateless {
+			if current.Stateful && !c.Bool("stateless") {
 				state = true
 			}
 		}
 
-		resp, err := d.Action(name, c.action, c.timeout, c.force, state)
+		resp, err := d.Action(name, action, timeout, force, state)
 		if err != nil {
 			return err
 		}

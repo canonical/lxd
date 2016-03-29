@@ -4,33 +4,40 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/codegangsta/cli"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type copyCmd struct {
-	ephem bool
+var commandCopy = cli.Command{
+	Name:      "copy",
+	Usage:     i18n.G("Copy containers within or in between lxd instances."),
+	ArgsUsage: i18n.G("[remote:]<source container> [remote:]<destination container>"),
+
+	Flags: commandGlobalFlagsWrapper(cli.BoolFlag{
+		Name:  "ephemeral, e",
+		Usage: i18n.G("Create a ephemeral copy."),
+	}),
+	Action: commandWrapper(commandActionCopy),
 }
 
-func (c *copyCmd) showByDefault() bool {
-	return true
+func commandActionCopy(config *lxd.Config, context *cli.Context) error {
+	var args = context.Args()
+	if len(args) < 2 {
+		return errArgs
+	}
+
+	ephemeral := 0
+	if context.Bool("ephemeral") {
+		ephemeral = 1
+	}
+
+	return copyContainer(config, args[0], args[1], false, ephemeral)
 }
 
-func (c *copyCmd) usage() string {
-	return i18n.G(
-		`Copy containers within or in between lxd instances.
-
-lxc copy [remote:]<source container> [remote:]<destination container> [--ephemeral|e]`)
-}
-
-func (c *copyCmd) flags() {
-	gnuflag.BoolVar(&c.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
-	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
-}
-
-func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int) error {
+func copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int) error {
 	sourceRemote, sourceName := config.ParseRemoteAndContainer(sourceResource)
 	destRemote, destName := config.ParseRemoteAndContainer(destResource)
 
@@ -160,17 +167,4 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 	}
 
 	return err
-}
-
-func (c *copyCmd) run(config *lxd.Config, args []string) error {
-	if len(args) != 2 {
-		return errArgs
-	}
-
-	ephem := 0
-	if c.ephem {
-		ephem = 1
-	}
-
-	return c.copyContainer(config, args[0], args[1], false, ephem)
 }

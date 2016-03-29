@@ -68,7 +68,7 @@ test_basic_usage() {
   curl -k -s -X GET "https://${LXD_ADDR}/1.0/containers/foo" | grep 403
 
   # Test unprivileged container publish
-  lxc publish bar --alias=foo-image prop1=val1
+  lxc publish bar prop1=val1 --alias=foo-image
   lxc image show foo-image | grep val1
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
   lxc image delete foo-image
@@ -77,7 +77,7 @@ test_basic_usage() {
   lxc profile create priv
   lxc profile set priv security.privileged true
   lxc init testimage barpriv -p default -p priv
-  lxc publish barpriv --alias=foo-image prop1=val1
+  lxc publish barpriv prop1=val1 --alias=foo-image
   lxc image show foo-image | grep val1
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
   lxc image delete foo-image
@@ -98,7 +98,7 @@ test_basic_usage() {
   fi
 
   # Test public images
-  lxc publish --public bar --alias=foo-image2
+  lxc publish bar --alias=foo-image2 --public
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/"
   lxc image delete foo-image2
 
@@ -183,25 +183,25 @@ test_basic_usage() {
   fi
 
   # check that we can set the environment
-  lxc exec foo pwd | grep /root
-  lxc exec --env BEST_BAND=meshuggah foo env | grep meshuggah
-  lxc exec foo ip link show | grep eth0
+  lxc exec foo -- pwd | grep /root
+  lxc exec --env BEST_BAND=meshuggah -- foo env | grep meshuggah
+  lxc exec foo -- ip link show | grep eth0
 
   # test file transfer
   echo abc > "${LXD_DIR}/in"
 
   lxc file push "${LXD_DIR}/in" foo/root/
-  lxc exec foo /bin/cat /root/in | grep abc
+  lxc exec foo -- /bin/cat /root/in | grep abc
   lxc exec foo -- /bin/rm -f root/in
 
   lxc file push "${LXD_DIR}/in" foo/root/in1
-  lxc exec foo /bin/cat /root/in1 | grep abc
+  lxc exec foo -- /bin/cat /root/in1 | grep abc
   lxc exec foo -- /bin/rm -f root/in1
 
   # make sure stdin is chowned to our container root uid (Issue #590)
   [ -t 0 ] && [ -t 1 ] && lxc exec foo -- chown 1000:1000 /proc/self/fd/0
 
-  echo foo | lxc exec foo tee /tmp/foo
+  echo foo | lxc exec foo -- tee /tmp/foo
 
   # Detect regressions/hangs in exec
   sum=$(ps aux | tee "${LXD_DIR}/out" | lxc exec foo md5sum | cut -d' ' -f1)
@@ -242,7 +242,7 @@ test_basic_usage() {
   lxc launch testimage foo -e
 
   OLD_INIT=$(lxc info foo | grep ^Pid)
-  lxc exec foo reboot
+  lxc exec foo -- reboot
 
   REBOOTED="false"
 
