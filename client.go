@@ -1409,6 +1409,11 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		"environment":        env,
 	}
 
+	if width > 0 && height > 0 {
+		body["width"] = width
+		body["height"] = height
+	}
+
 	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body, Async)
 	if err != nil {
 		return -1, err
