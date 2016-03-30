@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2016-02-10 22:15-0500\n"
+"POT-Creation-Date: 2016-03-25 20:07-0400\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -16,7 +16,19 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lxc/config.go:36
+#: lxc/info.go:134
+msgid "  Disk usage:"
+msgstr ""
+
+#: lxc/info.go:157
+msgid "  Memory usage:"
+msgstr ""
+
+#: lxc/info.go:172
+msgid "  Network usage:"
+msgstr ""
+
+#: lxc/config.go:37
 msgid ""
 "### This is a yaml representation of the configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -37,7 +49,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/image.go:29
+#: lxc/image.go:83
 msgid ""
 "### This is a yaml representation of the image properties.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -47,7 +59,7 @@ msgid ""
 "###  description: My custom image"
 msgstr ""
 
-#: lxc/profile.go:26
+#: lxc/profile.go:27
 msgid ""
 "### This is a yaml representation of the profile.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -68,7 +80,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/image.go:500
+#: lxc/image.go:569
 #, c-format
 msgid "%s (%d more)"
 msgstr ""
@@ -78,68 +90,89 @@ msgstr ""
 msgid "'/' not allowed in snapshot name"
 msgstr "'/' n'est pas autorisé dans le nom d'un instantané (snapshot)\n"
 
-#: lxc/info.go:109 lxc/profile.go:221
+#: lxc/profile.go:226
 msgid "(none)"
 msgstr ""
 
-#: lxc/image.go:520 lxc/image.go:542
+#: lxc/image.go:590 lxc/image.go:615
 msgid "ALIAS"
 msgstr ""
 
-#: lxc/image.go:524
+#: lxc/image.go:594
 msgid "ARCH"
 msgstr ""
 
-#: lxc/remote.go:46
+#: lxc/list.go:336
+msgid "ARCHITECTURE"
+msgstr ""
+
+#: lxc/remote.go:53
 msgid "Accept certificate"
 msgstr ""
 
-#: lxc/remote.go:181
+#: lxc/remote.go:250
 #, c-format
 msgid "Admin password for %s: "
 msgstr "Mot de passe administrateur pour %s: "
 
-#: lxc/image.go:281
+#: lxc/image.go:333
 msgid "Aliases:"
 msgstr ""
 
-#: lxc/exec.go:53
+#: lxc/exec.go:54
 msgid "An environment variable of the form HOME=/home/foo"
 msgstr ""
 
-#: lxc/image.go:264
+#: lxc/image.go:316 lxc/info.go:88
 #, c-format
 msgid "Architecture: %s"
+msgstr ""
+
+#: lxc/image.go:337
+#, c-format
+msgid "Auto update: %s"
 msgstr ""
 
 #: lxc/help.go:49
 msgid "Available commands:"
 msgstr ""
 
-#: lxc/config.go:264
+#: lxc/info.go:165
+msgid "Bytes received"
+msgstr ""
+
+#: lxc/info.go:166
+msgid "Bytes sent"
+msgstr ""
+
+#: lxc/config.go:270
 msgid "COMMON NAME"
 msgstr ""
 
-#: lxc/config.go:111
+#: lxc/list.go:337
+msgid "CREATED AT"
+msgstr ""
+
+#: lxc/config.go:114
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr ""
 
-#: lxc/config.go:124 lxc/config.go:157 lxc/config.go:179
+#: lxc/config.go:127 lxc/config.go:160 lxc/config.go:182
 #, c-format
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
 
-#: lxc/profile.go:329
+#: lxc/profile.go:343
 msgid "Cannot provide container name to list"
 msgstr ""
 
-#: lxc/remote.go:147
+#: lxc/remote.go:200
 #, fuzzy, c-format
 msgid "Certificate fingerprint: %x"
 msgstr "Empreinte du certificat: % x\n"
 
-#: lxc/action.go:27
+#: lxc/action.go:28
 #, fuzzy, c-format
 msgid ""
 "Changes state of one or more containers to %s.\n"
@@ -147,19 +180,19 @@ msgid ""
 "lxc %s <name> [<name>...]"
 msgstr "Change l'état du conteneur à %s.\n"
 
-#: lxc/remote.go:204
+#: lxc/remote.go:273
 msgid "Client certificate stored at server: "
 msgstr "Certificat client enregistré avec le serveur: "
 
-#: lxc/list.go:80
+#: lxc/list.go:90 lxc/list.go:91
 msgid "Columns"
 msgstr ""
 
-#: lxc/init.go:132 lxc/init.go:133 lxc/launch.go:36 lxc/launch.go:37
+#: lxc/init.go:134 lxc/init.go:135 lxc/launch.go:40 lxc/launch.go:41
 msgid "Config key/value to apply to the new container"
 msgstr ""
 
-#: lxc/config.go:490 lxc/config.go:555 lxc/image.go:597 lxc/profile.go:185
+#: lxc/config.go:500 lxc/config.go:565 lxc/image.go:669 lxc/profile.go:190
 #, fuzzy, c-format
 msgid "Config parsing error: %s"
 msgstr "erreur: %v\n"
@@ -168,21 +201,21 @@ msgstr "erreur: %v\n"
 msgid "Connection refused; is LXD running?"
 msgstr ""
 
-#: lxc/publish.go:54
+#: lxc/publish.go:59
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/init.go:206
+#: lxc/init.go:209
 #, c-format
 msgid "Container name is: %s"
 msgstr ""
 
-#: lxc/publish.go:81 lxc/publish.go:101
+#: lxc/publish.go:141 lxc/publish.go:156
 #, fuzzy, c-format
 msgid "Container published with fingerprint: %s"
 msgstr "Empreinte du certificat: % x\n"
 
-#: lxc/image.go:116
+#: lxc/image.go:155
 msgid "Copy aliases from source"
 msgstr ""
 
@@ -194,10 +227,14 @@ msgid ""
 "ephemeral|e]"
 msgstr ""
 
-#: lxc/image.go:211
+#: lxc/image.go:254
 #, c-format
 msgid "Copying the image: %s"
 msgstr ""
+
+#: lxc/remote.go:215
+msgid "Could not create server cert dir"
+msgstr "Le dossier de stockage des certificats serveurs n'a pas pû être créé"
 
 #: lxc/snapshot.go:21
 msgid ""
@@ -219,21 +256,21 @@ msgid ""
 "lxc snapshot u1 snap0"
 msgstr ""
 
-#: lxc/image.go:269 lxc/info.go:84
+#: lxc/image.go:321 lxc/info.go:90
 #, c-format
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:175 lxc/launch.go:112
+#: lxc/init.go:177 lxc/launch.go:116
 #, c-format
 msgid "Creating %s"
 msgstr ""
 
-#: lxc/init.go:173
+#: lxc/init.go:175
 msgid "Creating the container"
 msgstr ""
 
-#: lxc/image.go:523
+#: lxc/image.go:593 lxc/image.go:617
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -248,21 +285,21 @@ msgid ""
 "snapshots, ...)."
 msgstr ""
 
-#: lxc/config.go:603
+#: lxc/config.go:617
 #, c-format
 msgid "Device %s added to %s"
 msgstr ""
 
-#: lxc/config.go:631
+#: lxc/config.go:804
 #, c-format
 msgid "Device %s removed from %s"
 msgstr ""
 
-#: lxc/list.go:228
+#: lxc/list.go:420
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/config.go:266
+#: lxc/config.go:272
 msgid "EXPIRY DATE"
 msgstr ""
 
@@ -278,8 +315,8 @@ msgstr "Active le mode verbeux."
 msgid "Environment:"
 msgstr ""
 
-#: lxc/copy.go:29 lxc/copy.go:30 lxc/init.go:136 lxc/init.go:137
-#: lxc/launch.go:40 lxc/launch.go:41
+#: lxc/copy.go:29 lxc/copy.go:30 lxc/init.go:138 lxc/init.go:139
+#: lxc/launch.go:44 lxc/launch.go:45
 msgid "Ephemeral container"
 msgstr ""
 
@@ -287,29 +324,36 @@ msgstr ""
 msgid "Event type to listen for"
 msgstr ""
 
-#: lxc/exec.go:27
+#: lxc/exec.go:45
 #, fuzzy
 msgid ""
 "Execute the specified command in a container.\n"
 "\n"
 "lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env "
-"EDITOR=/usr/bin/vim]... <command>"
+"EDITOR=/usr/bin/vim]... <command>\n"
+"\n"
+"Mode defaults to non-interactive, interactive mode is selected if both stdin "
+"AND stdout are terminals (stderr is ignored)."
 msgstr "Exécute la commande spécifiée dans un conteneur.\n"
 
-#: lxc/image.go:273
+#: lxc/image.go:325
 #, c-format
 msgid "Expires: %s"
 msgstr ""
 
-#: lxc/image.go:275
+#: lxc/image.go:327
 msgid "Expires: never"
 msgstr ""
 
-#: lxc/config.go:263 lxc/image.go:521 lxc/image.go:543
+#: lxc/config.go:269 lxc/image.go:591 lxc/image.go:616
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/image.go:255
+#: lxc/list.go:92
+msgid "Fast mode (same as --columns=nsacPt"
+msgstr ""
+
+#: lxc/image.go:314
 #, fuzzy, c-format
 msgid "Fingerprint: %s"
 msgstr "Empreinte du certificat: % x\n"
@@ -322,11 +366,7 @@ msgid ""
 "lxc finger <remote>"
 msgstr "Contacte LXD pour voir s'il est fonctionel.\n"
 
-#: lxc/main.go:156
-msgid "For example: 'lxd-images import ubuntu --alias ubuntu'."
-msgstr ""
-
-#: lxc/action.go:36
+#: lxc/action.go:37
 msgid "Force the container to shutdown."
 msgstr "Force l'arrêt du conteneur."
 
@@ -338,48 +378,42 @@ msgstr ""
 msgid "Force using the local unix socket."
 msgstr ""
 
-#: lxc/main.go:148
+#: lxc/main.go:138
 #, fuzzy
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Géneration d'un certificat client. Ceci peut prendre une minute...\n"
 
-#: lxc/list.go:226
+#: lxc/list.go:334
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:227
+#: lxc/list.go:335
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config.go:265
+#: lxc/config.go:271
 msgid "ISSUE DATE"
-msgstr ""
-
-#: lxc/main.go:155
-msgid ""
-"If this is your first run, you will need to import images using the 'lxd-"
-"images' script."
 msgstr ""
 
 #: lxc/main.go:57
 msgid "Ignore aliases when determining what command to run."
 msgstr ""
 
-#: lxc/image.go:216
+#: lxc/action.go:39
+#, fuzzy
+msgid "Ignore the container state (only forstart)."
+msgstr "Force l'arrêt du conteneur."
+
+#: lxc/image.go:259
 msgid "Image copied successfully!"
 msgstr ""
 
-#: lxc/image.go:339
+#: lxc/image.go:405
 #, fuzzy, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr "Empreinte du certificat: % x\n"
 
-#: lxc/info.go:95
-#, c-format
-msgid "Init: %d"
-msgstr ""
-
-#: lxc/init.go:21
+#: lxc/init.go:73
 msgid ""
 "Initialize a container from a particular image.\n"
 "\n"
@@ -395,30 +429,39 @@ msgid ""
 "lxc init ubuntu u1"
 msgstr ""
 
-#: lxc/init.go:63 lxc/init.go:68
+#: lxc/remote.go:116
+#, c-format
+msgid "Invalid URL scheme \"%s\" in \"%s\""
+msgstr ""
+
+#: lxc/init.go:30 lxc/init.go:35
 #, fuzzy
 msgid "Invalid configuration key"
 msgstr "Gérer la configuration.\n"
 
-#: lxc/file.go:181
+#: lxc/file.go:186
 #, c-format
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:58
+#: lxc/file.go:57
 #, c-format
 msgid "Invalid target %s"
 msgstr "Destination invalide %s"
 
-#: lxc/info.go:97
+#: lxc/info.go:117
 msgid "Ips:"
+msgstr ""
+
+#: lxc/image.go:156
+msgid "Keep the image up to date after initial copy"
 msgstr ""
 
 #: lxc/main.go:35
 msgid "LXD socket not found; is LXD running?"
 msgstr ""
 
-#: lxc/launch.go:20
+#: lxc/launch.go:22
 msgid ""
 "Launch a container from a particular image.\n"
 "\n"
@@ -443,11 +486,11 @@ msgid ""
 "lxc info [<remote>:]container [--show-log]"
 msgstr ""
 
-#: lxc/list.go:54
+#: lxc/list.go:60
 msgid ""
 "Lists the available resources.\n"
 "\n"
-"lxc list [resource] [filters] -c [columns]\n"
+"lxc list [resource] [filters] [-c columns] [--fast]\n"
 "\n"
 "The filters are:\n"
 "* A single keyword like \"web\" which will list any container with \"web\" "
@@ -461,28 +504,34 @@ msgid ""
 "* \"s.privileged=1\" will do the same\n"
 "\n"
 "The columns are:\n"
+"* 4 - IPv4 address\n"
+"* 6 - IPv6 address\n"
+"* a - architecture\n"
+"* c - creation date\n"
 "* n - name\n"
+"* p - pid of container init process\n"
+"* P - profiles\n"
 "* s - state\n"
-"* 4 - IP4\n"
-"* 6 - IP6\n"
-"* e - ephemeral\n"
-"* S - snapshots\n"
-"* p - pid of container init process"
+"* S - number of snapshots\n"
+"* t - type (persistent or ephemeral)\n"
+"\n"
+"Default column layout: ns46tS\n"
+"Fast column layout: nsacPt"
 msgstr ""
 
-#: lxc/info.go:151
+#: lxc/info.go:215
 msgid "Log:"
 msgstr ""
 
-#: lxc/image.go:115
+#: lxc/image.go:154
 msgid "Make image public"
 msgstr ""
 
-#: lxc/publish.go:29
+#: lxc/publish.go:32
 msgid "Make the image public"
 msgstr ""
 
-#: lxc/profile.go:46
+#: lxc/profile.go:48
 msgid ""
 "Manage configuration profiles.\n"
 "\n"
@@ -509,45 +558,53 @@ msgid ""
 "             lxc profile apply bar,default # Apply default second now\n"
 "\n"
 "Devices:\n"
-"lxc profile device list <profile>              List devices in the given "
-"profile.\n"
-"lxc profile device show <profile>              Show full device details in "
-"the given profile.\n"
-"lxc profile device remove <profile> <name>     Remove a device from a "
-"profile.\n"
+"lxc profile device list <profile>                                   List "
+"devices in the given profile.\n"
+"lxc profile device show <profile>                                   Show "
+"full device details in the given profile.\n"
+"lxc profile device remove <profile> <name>                          Remove a "
+"device from a profile.\n"
+"lxc profile device get <[remote:]profile> <name> <key>              Get a "
+"device property.\n"
+"lxc profile device set <[remote:]profile> <name> <key> <value>      Set a "
+"device property.\n"
+"lxc profile device unset <[remote:]profile> <name> <key>            Unset a "
+"device property.\n"
 "lxc profile device add <profile name> <device name> <device type> "
 "[key=value]...\n"
 "    Add a profile device, such as a disk or a nic, to the containers\n"
 "    using the specified profile."
 msgstr ""
 
-#: lxc/config.go:56
+#: lxc/config.go:58
 msgid ""
 "Manage configuration.\n"
 "\n"
 "lxc config device add <[remote:]container> <name> <type> [key=value]...     "
 "Add a device to a container.\n"
-"lxc config device list [remote:]<container>                                 "
+"lxc config device get <[remote:]container> <name> <key>                     "
+"Get a device property.\n"
+"lxc config device set <[remote:]container> <name> <key> <value>             "
+"Set a device property.\n"
+"lxc config device unset <[remote:]container> <name> <key>                   "
+"Unset a device property.\n"
+"lxc config device list <[remote:]container>                                 "
 "List devices for container.\n"
-"lxc config device show [remote:]<container>                                 "
+"lxc config device show <[remote:]container>                                 "
 "Show full device details for container.\n"
-"lxc config device remove [remote:]<container> <name>                        "
+"lxc config device remove <[remote:]container> <name>                        "
 "Remove device from container.\n"
 "\n"
-"lxc config get [remote:]<container> key                                     "
-"Get configuration key.\n"
-"lxc config set [remote:]<container> key value                               "
-"Set container configuration key.\n"
-"lxc config unset [remote:]<container> key                                   "
-"Unset container configuration key.\n"
-"lxc config set key value                                                    "
-"Set server configuration key.\n"
-"lxc config unset key                                                        "
-"Unset server configuration key.\n"
-"lxc config show [--expanded] [remote:]<container>                           "
-"Show container configuration.\n"
+"lxc config get [remote:][container] <key>                                   "
+"Get container or server configuration key.\n"
+"lxc config set [remote:][container] <key> <value>                           "
+"Set container or server configuration key.\n"
+"lxc config unset [remote:][container] <key>                                 "
+"Unset container or server configuration key.\n"
+"lxc config show [remote:][container] [--expanded]                           "
+"Show container or server configuration.\n"
 "lxc config edit [remote:][container]                                        "
-"Edit container configuration in external editor.\n"
+"Edit container or server configuration in external editor.\n"
 "    Edit configuration, either by launching external editor or reading "
 "STDIN.\n"
 "    Example: lxc config edit <container> # launch editor\n"
@@ -578,7 +635,7 @@ msgid ""
 "    lxc config set core.trust_password blah"
 msgstr ""
 
-#: lxc/file.go:33
+#: lxc/file.go:32
 msgid ""
 "Manage files on a container.\n"
 "\n"
@@ -591,33 +648,28 @@ msgid ""
 "case of edit are <container name>/<path>"
 msgstr ""
 
-#: lxc/remote.go:33
+#: lxc/remote.go:39
 msgid ""
 "Manage remote LXD servers.\n"
 "\n"
-"lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD] [--"
-"public]    Add the remote <name> at <url>.\n"
-"lxc remote remove "
-"<name>                                                               Remove "
-"the remote <name>.\n"
-"lxc remote "
-"list                                                                        "
+"lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD]\n"
+"                            [--public] [--protocol=PROTOCOL]                "
+"Add the remote <name> at <url>.\n"
+"lxc remote remove <name>                                                    "
+"Remove the remote <name>.\n"
+"lxc remote list                                                             "
 "List all remotes.\n"
-"lxc remote rename <old> "
-"<new>                                                          Rename remote "
-"<old> to <new>.\n"
-"lxc remote set-url <name> "
-"<url>                                                        Update <name>'s "
-"url to <url>.\n"
-"lxc remote set-default "
-"<name>                                                          Set the "
-"default remote.\n"
-"lxc remote get-"
-"default                                                                 "
+"lxc remote rename <old> <new>                                               "
+"Rename remote <old> to <new>.\n"
+"lxc remote set-url <name> <url>                                             "
+"Update <name>'s url to <url>.\n"
+"lxc remote set-default <name>                                               "
+"Set the default remote.\n"
+"lxc remote get-default                                                      "
 "Print the default remote."
 msgstr ""
 
-#: lxc/image.go:38
+#: lxc/image.go:93
 msgid ""
 "Manipulate container images.\n"
 "\n"
@@ -642,8 +694,11 @@ msgid ""
 "    Import an image tarball (or tarballs) into the LXD image store.\n"
 "\n"
 "lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] "
-"[--public]\n"
+"[--public] [--auto-update]\n"
 "    Copy an image from one LXD daemon to another over the network.\n"
+"\n"
+"    The auto-update flag instructs the server to keep this image up to\n"
+"    date. It requires the source to be an alias and for it to be public.\n"
 "\n"
 "lxc image delete [remote:]<image>\n"
 "    Delete an image from the LXD image store.\n"
@@ -677,11 +732,19 @@ msgid ""
 "    List the aliases.\n"
 msgstr ""
 
+#: lxc/info.go:141
+msgid "Memory (current)"
+msgstr ""
+
+#: lxc/info.go:145
+msgid "Memory (peak)"
+msgstr ""
+
 #: lxc/help.go:86
 msgid "Missing summary."
 msgstr "Sommaire manquant."
 
-#: lxc/monitor.go:20
+#: lxc/monitor.go:41
 msgid ""
 "Monitor activity on the LXD server.\n"
 "\n"
@@ -696,7 +759,7 @@ msgid ""
 "lxc monitor --type=logging"
 msgstr ""
 
-#: lxc/file.go:169
+#: lxc/file.go:174
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger mais la destination n'est pas un dossier"
@@ -713,56 +776,84 @@ msgid ""
 "    Rename a local container.\n"
 msgstr ""
 
-#: lxc/list.go:224 lxc/remote.go:271
+#: lxc/action.go:63
+msgid "Must supply container name for: "
+msgstr ""
+
+#: lxc/list.go:338 lxc/remote.go:357
 msgid "NAME"
 msgstr ""
 
-#: lxc/list.go:293 lxc/remote.go:257
+#: lxc/remote.go:331 lxc/remote.go:336
 msgid "NO"
 msgstr ""
 
-#: lxc/info.go:82
+#: lxc/info.go:87
 #, c-format
 msgid "Name: %s"
 msgstr ""
 
-#: lxc/image.go:117 lxc/publish.go:30
+#: lxc/image.go:157 lxc/publish.go:33
 msgid "New alias to define at target"
 msgstr ""
 
-#: lxc/config.go:277
+#: lxc/config.go:281
 #, fuzzy
 msgid "No certificate provided to add"
 msgstr "Un certificat n'a pas été fournis"
 
-#: lxc/config.go:300
+#: lxc/config.go:304
 msgid "No fingerprint specified."
 msgstr "Aucune empreinte n'a été spécifié."
 
-#: lxc/image.go:331
+#: lxc/remote.go:107
+msgid "Only https URLs are supported for simplestreams"
+msgstr ""
+
+#: lxc/image.go:397
 msgid "Only https:// is supported for remote image import."
 msgstr ""
 
-#: lxc/help.go:63 lxc/main.go:132
+#: lxc/help.go:63 lxc/main.go:122
 #, fuzzy
 msgid "Options:"
 msgstr "Opération %s"
 
-#: lxc/image.go:425
+#: lxc/image.go:492
 #, c-format
 msgid "Output is in %s"
 msgstr ""
 
-#: lxc/exec.go:54
+#: lxc/exec.go:55
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
-#: lxc/list.go:230
+#: lxc/list.go:422
+msgid "PERSISTENT"
+msgstr ""
+
+#: lxc/list.go:339
 msgid "PID"
 msgstr ""
 
-#: lxc/image.go:522 lxc/remote.go:273
+#: lxc/list.go:340
+msgid "PROFILES"
+msgstr ""
+
+#: lxc/remote.go:359
+msgid "PROTOCOL"
+msgstr ""
+
+#: lxc/image.go:592 lxc/remote.go:360
 msgid "PUBLIC"
+msgstr ""
+
+#: lxc/info.go:167
+msgid "Packets received"
+msgstr ""
+
+#: lxc/info.go:168
+msgid "Packets sent"
 msgstr ""
 
 #: lxc/help.go:69
@@ -779,7 +870,12 @@ msgstr "Dossier de configuration alternatif."
 msgid "Permisson denied, are you in the lxd group?"
 msgstr ""
 
-#: lxc/help.go:23
+#: lxc/info.go:101
+#, c-format
+msgid "Pid: %d"
+msgstr ""
+
+#: lxc/help.go:25
 #, fuzzy
 msgid ""
 "Presents details on how to use LXD.\n"
@@ -787,11 +883,11 @@ msgid ""
 "lxd help [--all]"
 msgstr "Explique comment utiliser LXD.\n"
 
-#: lxc/profile.go:186
+#: lxc/profile.go:191
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:491 lxc/config.go:556 lxc/image.go:598
+#: lxc/config.go:501 lxc/config.go:566 lxc/image.go:670
 msgid "Press enter to start the editor again"
 msgstr ""
 
@@ -815,49 +911,49 @@ msgid ""
 "lxc version"
 msgstr "Montre le numéro de version de LXD.\n"
 
-#: lxc/info.go:96
-#, c-format
-msgid "Processcount: %d"
-msgstr ""
+#: lxc/info.go:123
+#, fuzzy, c-format
+msgid "Processes: %d"
+msgstr "Mauvaise URL pour le conteneur %s"
 
-#: lxc/profile.go:223
+#: lxc/profile.go:228
 #, c-format
 msgid "Profile %s applied to %s"
 msgstr ""
 
-#: lxc/profile.go:137
+#: lxc/profile.go:142
 #, c-format
 msgid "Profile %s created"
 msgstr ""
 
-#: lxc/profile.go:207
+#: lxc/profile.go:212
 #, c-format
 msgid "Profile %s deleted"
 msgstr ""
 
-#: lxc/init.go:134 lxc/init.go:135 lxc/launch.go:38 lxc/launch.go:39
+#: lxc/init.go:136 lxc/init.go:137 lxc/launch.go:42 lxc/launch.go:43
 msgid "Profile to apply to the new container"
 msgstr ""
 
-#: lxc/info.go:93
+#: lxc/info.go:99
 #, fuzzy, c-format
 msgid "Profiles: %s"
 msgstr "Mauvaise URL pour le conteneur %s"
 
-#: lxc/image.go:277
+#: lxc/image.go:329
 msgid "Properties:"
 msgstr ""
 
-#: lxc/remote.go:48
+#: lxc/remote.go:56
 msgid "Public image server"
 msgstr ""
 
-#: lxc/image.go:265
+#: lxc/image.go:317
 #, c-format
 msgid "Public: %s"
 msgstr ""
 
-#: lxc/publish.go:19
+#: lxc/publish.go:25
 msgid ""
 "Publish containers as images.\n"
 "\n"
@@ -865,11 +961,11 @@ msgid ""
 "value]..."
 msgstr ""
 
-#: lxc/remote.go:47
+#: lxc/remote.go:54
 msgid "Remote admin password"
 msgstr ""
 
-#: lxc/delete.go:43
+#: lxc/delete.go:42
 #, c-format
 msgid "Remove %s (yes/no): "
 msgstr ""
@@ -878,30 +974,42 @@ msgstr ""
 msgid "Require user confirmation."
 msgstr ""
 
-#: lxc/init.go:244
+#: lxc/info.go:120
+msgid "Resources:"
+msgstr ""
+
+#: lxc/init.go:246
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/image.go:525
+#: lxc/image.go:595
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:229
+#: lxc/list.go:341
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/list.go:225
+#: lxc/list.go:342
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:155
+#: lxc/remote.go:361
+msgid "STATIC"
+msgstr ""
+
+#: lxc/remote.go:208
 msgid "Server certificate NACKed by user"
 msgstr "Le certificat serveur a été rejeté par l'utilisateur"
 
-#: lxc/remote.go:201
+#: lxc/remote.go:270
 msgid "Server doesn't trust us after adding our cert"
 msgstr "Identification refuse après l'ajout du certificat client"
+
+#: lxc/remote.go:55
+msgid "Server protocol (lxd or simplestreams)"
+msgstr ""
 
 #: lxc/restore.go:21
 msgid ""
@@ -917,15 +1025,15 @@ msgid ""
 "lxc restore u1 snap0 # restore the snapshot"
 msgstr ""
 
-#: lxc/file.go:45
+#: lxc/file.go:44
 msgid "Set the file's gid on push"
 msgstr "Définit le gid lors de l'envoi"
 
-#: lxc/file.go:46
+#: lxc/file.go:45
 msgid "Set the file's perms on push"
 msgstr "Définit les permissions lors de l'envoi"
 
-#: lxc/file.go:44
+#: lxc/file.go:43
 msgid "Set the file's uid on push"
 msgstr "Définit le uid lors de l'envoi"
 
@@ -937,72 +1045,118 @@ msgstr "Affiche toutes les comandes (pas seulement les intéresantes)"
 msgid "Show the container's last 100 log lines?"
 msgstr ""
 
-#: lxc/image.go:262
+#: lxc/image.go:315
 #, c-format
 msgid "Size: %.2fMB"
 msgstr ""
 
-#: lxc/info.go:122
+#: lxc/info.go:186
 msgid "Snapshots:"
 msgstr ""
 
-#: lxc/launch.go:118
+#: lxc/image.go:339
+msgid "Source:"
+msgstr ""
+
+#: lxc/launch.go:122
 #, c-format
 msgid "Starting %s"
 msgstr ""
 
-#: lxc/info.go:87
+#: lxc/info.go:93
 #, c-format
 msgid "Status: %s"
 msgstr ""
 
-#: lxc/delete.go:97
+#: lxc/publish.go:34 lxc/publish.go:35
+msgid "Stop the container if currently running"
+msgstr ""
+
+#: lxc/delete.go:106 lxc/publish.go:111
 msgid "Stopping container failed!"
 msgstr "L'arrêt du conteneur a échoué!"
 
-#: lxc/delete.go:83
+#: lxc/action.go:38
+#, fuzzy
+msgid "Store the container state (only for stop)."
+msgstr "Force l'arrêt du conteneur."
+
+#: lxc/info.go:149
+msgid "Swap (current)"
+msgstr ""
+
+#: lxc/info.go:153
+msgid "Swap (peak)"
+msgstr ""
+
+#: lxc/list.go:343
+msgid "TYPE"
+msgstr ""
+
+#: lxc/delete.go:92
 msgid "The container is currently running, stop it first or pass --force."
 msgstr ""
 
-#: lxc/publish.go:57
+#: lxc/publish.go:89
+msgid ""
+"The container is currently running. Use --force to have it stopped and "
+"restarted."
+msgstr ""
+
+#: lxc/config.go:645 lxc/config.go:657 lxc/config.go:690 lxc/config.go:708
+#: lxc/config.go:746 lxc/config.go:764
+#, fuzzy
+msgid "The device doesn't exist"
+msgstr "le serveur distant %s n'existe pas"
+
+#: lxc/publish.go:62
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
-#: lxc/action.go:35
+#: lxc/action.go:36
 msgid "Time to wait for the container before killing it."
 msgstr "Temps d'attente avant de tuer le conteneur."
 
-#: lxc/image.go:266
+#: lxc/image.go:318
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/action.go:62 lxc/launch.go:126
+#: lxc/image.go:388
+#, c-format
+msgid "Transferring image: %d%%"
+msgstr ""
+
+#: lxc/action.go:93 lxc/launch.go:130
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
 
-#: lxc/info.go:89
+#: lxc/info.go:95
 msgid "Type: ephemeral"
 msgstr ""
 
-#: lxc/info.go:91
+#: lxc/info.go:97
 msgid "Type: persistent"
 msgstr ""
 
-#: lxc/image.go:526
+#: lxc/image.go:596
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/remote.go:272
+#: lxc/remote.go:358
 msgid "URL"
 msgstr ""
 
-#: lxc/image.go:271
+#: lxc/remote.go:82
+msgid "Unable to read remote TLS certificate"
+msgstr ""
+
+#: lxc/image.go:323
 #, c-format
 msgid "Uploaded: %s"
 msgstr ""
 
-#: lxc/main.go:132
+#: lxc/main.go:122
 #, fuzzy, c-format
 msgid "Usage: %s"
 msgstr ""
@@ -1018,7 +1172,7 @@ msgstr ""
 "Utilisation: lxc [sous commande] [options]\n"
 "Comande disponibles:\n"
 
-#: lxc/delete.go:47
+#: lxc/delete.go:46
 msgid "User aborted delete operation."
 msgstr ""
 
@@ -1041,7 +1195,7 @@ msgstr ""
 msgid "Whether to show the expanded configuration"
 msgstr ""
 
-#: lxc/list.go:291 lxc/remote.go:259
+#: lxc/remote.go:333 lxc/remote.go:338
 msgid "YES"
 msgstr ""
 
@@ -1049,12 +1203,12 @@ msgstr ""
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
 
-#: lxc/launch.go:105
+#: lxc/launch.go:109
 #, fuzzy
 msgid "bad number of things scanned from image, container or snapshot"
 msgstr "nombre de propriété invalide pour la ressource"
 
-#: lxc/action.go:58
+#: lxc/action.go:89
 msgid "bad result type from action"
 msgstr "mauvais type de réponse pour l'action!"
 
@@ -1062,88 +1216,101 @@ msgstr "mauvais type de réponse pour l'action!"
 msgid "can't copy to the same container name"
 msgstr ""
 
-#: lxc/remote.go:247
+#: lxc/remote.go:321
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/remote.go:264
+#: lxc/remote.go:347
 msgid "default"
 msgstr ""
 
-#: lxc/init.go:197 lxc/init.go:202 lxc/launch.go:89 lxc/launch.go:94
+#: lxc/init.go:199 lxc/init.go:204 lxc/launch.go:93 lxc/launch.go:98
 #, fuzzy
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr "N'a pas pû obtenir de resource du serveur"
 
-#: lxc/main.go:25 lxc/main.go:167
+#: lxc/image.go:309
+msgid "disabled"
+msgstr ""
+
+#: lxc/image.go:311
+msgid "enabled"
+msgstr ""
+
+#: lxc/main.go:25 lxc/main.go:154
 #, fuzzy, c-format
 msgid "error: %v"
 msgstr "erreur: %v\n"
 
-#: lxc/help.go:40 lxc/main.go:127
+#: lxc/help.go:40 lxc/main.go:117
 #, fuzzy, c-format
 msgid "error: unknown command: %s"
 msgstr "erreur: comande inconnue: %s\n"
 
-#: lxc/launch.go:109
+#: lxc/launch.go:113
 msgid "got bad version"
 msgstr "reçu une version invalide"
 
-#: lxc/image.go:256 lxc/image.go:503
+#: lxc/image.go:304 lxc/image.go:572
 msgid "no"
 msgstr ""
 
-#: lxc/copy.go:100
+#: lxc/copy.go:101
 msgid "not all the profiles from the source exist on the target"
 msgstr ""
 
-#: lxc/remote.go:148
+#: lxc/remote.go:201
 #, fuzzy
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
-#: lxc/main.go:274 lxc/main.go:278
+#: lxc/main.go:261 lxc/main.go:265
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr ""
 
-#: lxc/remote.go:291
+#: lxc/remote.go:383
 #, c-format
 msgid "remote %s already exists"
 msgstr "le serveur distant %s existe déjà"
 
-#: lxc/remote.go:243 lxc/remote.go:287 lxc/remote.go:317 lxc/remote.go:328
+#: lxc/remote.go:313 lxc/remote.go:375 lxc/remote.go:410 lxc/remote.go:426
 #, c-format
 msgid "remote %s doesn't exist"
 msgstr "le serveur distant %s n'existe pas"
 
-#: lxc/remote.go:227
+#: lxc/remote.go:296
 #, c-format
 msgid "remote %s exists as <%s>"
 msgstr "le serveur distant %s existe en tant que <%s>"
 
-#: lxc/info.go:131
+#: lxc/remote.go:317 lxc/remote.go:379 lxc/remote.go:414
+#, c-format
+msgid "remote %s is static and cannot be modified"
+msgstr ""
+
+#: lxc/info.go:195
 msgid "stateful"
 msgstr ""
 
-#: lxc/info.go:133
+#: lxc/info.go:197
 msgid "stateless"
 msgstr ""
 
-#: lxc/info.go:127
+#: lxc/info.go:191
 #, c-format
 msgid "taken at %s"
 msgstr ""
 
-#: lxc/exec.go:158
+#: lxc/exec.go:167
 msgid "unreachable return reached"
 msgstr "Un retour inacessible à été atteint"
 
-#: lxc/main.go:207
+#: lxc/main.go:194
 msgid "wrong number of subcommand arguments"
 msgstr "nombre d'argument incorrect pour la sous-comande"
 
-#: lxc/delete.go:46 lxc/image.go:259 lxc/image.go:507
+#: lxc/delete.go:45 lxc/image.go:306 lxc/image.go:576
 msgid "yes"
 msgstr ""
 
@@ -1154,10 +1321,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Bad image property: %s"
 #~ msgstr "(Image invalide: %s\n"
-
-#~ msgid "Could not create server cert dir"
-#~ msgstr ""
-#~ "Le dossier de stockage des certificats serveurs n'a pas pû être créé"
 
 #, fuzzy
 #~ msgid ""
