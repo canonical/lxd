@@ -30,6 +30,17 @@ test_basic_usage() {
   lxc image alias create a/b/ "${sum}"
   lxc image alias delete a/b/
 
+  # Test alias list filtering
+  lxc image alias create foo "${sum}"
+  lxc image alias create bar "${sum}"
+  lxc image alias list local: | grep -q foo
+  lxc image alias list local: | grep -q bar
+  lxc image alias list local: foo | grep -q -v bar
+  lxc image alias list local: "${sum}" | grep -q foo
+  lxc image alias list local: non-existent | grep -q -v non-existent
+  lxc image alias delete foo
+  lxc image alias delete bar
+
   # Test image delete
   lxc image delete testimage
 
