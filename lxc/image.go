@@ -145,8 +145,8 @@ lxc image alias create [remote:]<alias> <fingerprint>
 lxc image alias delete [remote:]<alias>
     Delete an alias.
 
-lxc image alias list [remote:]
-    List the aliases.
+lxc image alias list [remote:] [filter]
+    List the aliases. Filters may be part of the image hash or part of the image alias name.
 `)
 }
 
@@ -161,12 +161,26 @@ func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
 	var remote string
 	switch args[1] {
 	case "list":
-		/* alias list [<remote>:] */
+		filters := []string{}
+
 		if len(args) > 2 {
-			remote, _ = config.ParseRemoteAndContainer(args[2])
+			result := strings.SplitN(args[2], ":", 2)
+			if len(result) == 1 {
+				filters = append(filters, args[2])
+				remote, _ = config.ParseRemoteAndContainer("")
+			} else {
+				remote, _ = config.ParseRemoteAndContainer(args[2])
+			}
 		} else {
 			remote, _ = config.ParseRemoteAndContainer("")
 		}
+
+		if len(args) > 3 {
+			for _, filter := range args[3:] {
+				filters = append(filters, filter)
+			}
+		}
+
 		d, err := lxd.NewClient(config, remote)
 		if err != nil {
 			return err
@@ -177,7 +191,7 @@ func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		c.showAliases(resp)
+		c.showAliases(resp, filters)
 
 		return nil
 	case "create":
@@ -601,9 +615,13 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 	return nil
 }
 
-func (c *imageCmd) showAliases(aliases shared.ImageAliases) error {
+func (c *imageCmd) showAliases(aliases shared.ImageAliases, filters []string) error {
 	data := [][]string{}
 	for _, alias := range aliases {
+		if !c.aliasShouldShow(filters, &alias) {
+			continue
+		}
+
 		data = append(data, []string{alias.Name, alias.Target[0:12], alias.Description})
 	}
 
@@ -742,4 +760,18 @@ func (c *imageCmd) imageShouldShow(filters []string, state *shared.ImageInfo) bo
 	}
 
 	return true
+}
+
+func (c *imageCmd) aliasShouldShow(filters []string, state *shared.ImageAliasesEntry) bool {
+	if len(filters) == 0 {
+		return true
+	}
+
+	for _, filter := range filters {
+		if strings.Contains(state.Name, filter) || strings.Contains(state.Target, filter) {
+			return true
+		}
+	}
+
+	return false
 }
