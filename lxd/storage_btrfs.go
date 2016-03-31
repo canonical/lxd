@@ -193,7 +193,6 @@ func (s *storageBtrfs) ContainerRename(container container, newName string) erro
 		}
 	}
 
-	// TODO: No TemplateApply here?
 	return nil
 }
 
