@@ -364,11 +364,6 @@ func (s *SimpleStreams) applyAliases(images []ImageInfo) ([]ImageInfo, map[strin
 					if alias != nil {
 						image.Aliases = append(image.Aliases, *alias)
 					}
-
-					alias = addAlias(fmt.Sprintf("%s/%s", entry, image.Properties["serial"]), image.Fingerprint)
-					if alias != nil {
-						image.Aliases = append(image.Aliases, *alias)
-					}
 				}
 
 				// Medium
@@ -376,78 +371,6 @@ func (s *SimpleStreams) applyAliases(images []ImageInfo) ([]ImageInfo, map[strin
 				if alias != nil {
 					image.Aliases = append(image.Aliases, *alias)
 				}
-
-				// Long
-				alias = addAlias(fmt.Sprintf("%s/%s/%s", entry, image.Properties["architecture"], image.Properties["serial"]), image.Fingerprint)
-				if alias != nil {
-					image.Aliases = append(image.Aliases, *alias)
-				}
-			}
-		} else {
-			// FIXME: This is backward compatibility needed until cloud-images.ubuntu.com supports the aliases field
-			// Short
-			if image.Architecture == architectureName {
-				alias := addAlias(fmt.Sprintf("%s/%s", image.Properties["os"], image.Properties["release"]), image.Fingerprint)
-				if alias != nil {
-					image.Aliases = append(image.Aliases, *alias)
-				}
-
-				alias = addAlias(fmt.Sprintf("%s/%s/%s", image.Properties["os"], image.Properties["release"], image.Properties["serial"]), image.Fingerprint)
-				if alias != nil {
-					image.Aliases = append(image.Aliases, *alias)
-				}
-
-				alias = addAlias(fmt.Sprintf("%s/%c", image.Properties["os"], image.Properties["release"][0]), image.Fingerprint)
-				if alias != nil {
-					image.Aliases = append(image.Aliases, *alias)
-				}
-
-				alias = addAlias(fmt.Sprintf("%s/%c/%s", image.Properties["os"], image.Properties["release"][0], image.Properties["serial"]), image.Fingerprint)
-				if alias != nil {
-					image.Aliases = append(image.Aliases, *alias)
-				}
-
-				alias = addAlias(fmt.Sprintf("%s/%s", image.Properties["os"], image.Properties["version"]), image.Fingerprint)
-				if alias != nil {
-					image.Aliases = append(image.Aliases, *alias)
-				}
-
-				alias = addAlias(fmt.Sprintf("%s/%s/%s", image.Properties["os"], image.Properties["version"], image.Properties["serial"]), image.Fingerprint)
-				if alias != nil {
-					image.Aliases = append(image.Aliases, *alias)
-				}
-			}
-
-			// Medium
-			alias := addAlias(fmt.Sprintf("%s/%s/%s", image.Properties["os"], image.Properties["release"], image.Properties["architecture"]), image.Fingerprint)
-			if alias != nil {
-				image.Aliases = append(image.Aliases, *alias)
-			}
-
-			alias = addAlias(fmt.Sprintf("%s/%c/%s", image.Properties["os"], image.Properties["release"][0], image.Properties["architecture"]), image.Fingerprint)
-			if alias != nil {
-				image.Aliases = append(image.Aliases, *alias)
-			}
-
-			alias = addAlias(fmt.Sprintf("%s/%s/%s", image.Properties["os"], image.Properties["version"], image.Properties["architecture"]), image.Fingerprint)
-			if alias != nil {
-				image.Aliases = append(image.Aliases, *alias)
-			}
-
-			// Long
-			alias = addAlias(fmt.Sprintf("%s/%s/%s/%s", image.Properties["os"], image.Properties["release"], image.Properties["architecture"], image.Properties["serial"]), image.Fingerprint)
-			if alias != nil {
-				image.Aliases = append(image.Aliases, *alias)
-			}
-
-			alias = addAlias(fmt.Sprintf("%s/%c/%s/%s", image.Properties["os"], image.Properties["release"][0], image.Properties["architecture"], image.Properties["serial"]), image.Fingerprint)
-			if alias != nil {
-				image.Aliases = append(image.Aliases, *alias)
-			}
-
-			alias = addAlias(fmt.Sprintf("%s/%s/%s/%s", image.Properties["os"], image.Properties["version"], image.Properties["architecture"], image.Properties["serial"]), image.Fingerprint)
-			if alias != nil {
-				image.Aliases = append(image.Aliases, *alias)
 			}
 		}
 
