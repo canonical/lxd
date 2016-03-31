@@ -2921,6 +2921,46 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 	return nil
 }
 
+func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error) {
+	envSlice := []string{}
+
+	for k, v := range env {
+		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	args := []string{c.daemon.execPath, "forkexec", c.name, c.daemon.lxcpath, filepath.Join(c.LogPath(), "lxc.conf")}
+
+	args = append(args, "--")
+	args = append(args, "env")
+	args = append(args, envSlice...)
+
+	args = append(args, "--")
+	args = append(args, "cmd")
+	args = append(args, command...)
+
+	cmd := exec.Cmd{}
+	cmd.Path = c.daemon.execPath
+	cmd.Args = args
+	cmd.Stdin = stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	err := cmd.Run()
+	if err != nil {
+		exitErr, ok := err.(*exec.ExitError)
+		if ok {
+			status, ok := exitErr.Sys().(syscall.WaitStatus)
+			if ok {
+				return status.ExitStatus(), nil
+			}
+		}
+
+		return -1, err
+	}
+
+	return 0, nil
+}
+
 func (c *containerLXC) diskState() map[string]shared.ContainerStateDisk {
 	disk := map[string]shared.ContainerStateDisk{}
 
@@ -4330,18 +4370,6 @@ func (c *containerLXC) LastIdmapSet() (*shared.IdmapSet, error) {
 	}
 
 	return lastIdmap, nil
-}
-
-func (c *containerLXC) LXContainerGet() *lxc.Container {
-	// FIXME: This function should go away
-
-	// Load the go-lxc struct
-	err := c.initLXC()
-	if err != nil {
-		return nil
-	}
-
-	return c.c
 }
 
 func (c *containerLXC) Daemon() *Daemon {
