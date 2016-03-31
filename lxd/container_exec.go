@@ -12,7 +12,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -26,22 +25,13 @@ type commandPostContent struct {
 	Height      int               `json:"height"`
 }
 
-func runCommand(container *lxc.Container, command []string, options lxc.AttachOptions) (int, error) {
-	status, err := container.RunCommandStatus(command, options)
-	if err != nil {
-		shared.Debugf("Failed running command: %q", err.Error())
-		return 0, err
-	}
-
-	return status, nil
-}
-
 type execWs struct {
-	command          []string
-	container        *lxc.Container
+	command   []string
+	container container
+	env       map[string]string
+
 	rootUid          int
 	rootGid          int
-	options          lxc.AttachOptions
 	conns            map[int]*websocket.Conn
 	connsLock        sync.Mutex
 	allConnected     chan bool
@@ -109,13 +99,18 @@ func (s *execWs) Do(op *operation) error {
 	var ttys []*os.File
 	var ptys []*os.File
 
+	var stdin *os.File
+	var stdout *os.File
+	var stderr *os.File
+
 	if s.interactive {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
 		ptys[0], ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
-		s.options.StdinFd = ttys[0].Fd()
-		s.options.StdoutFd = ttys[0].Fd()
-		s.options.StderrFd = ttys[0].Fd()
+
+		stdin = ttys[0]
+		stdout = ttys[0]
+		stderr = ttys[0]
 
 		if s.width > 0 && s.height > 0 {
 			shared.SetSize(int(ptys[0].Fd()), s.width, s.height)
@@ -129,9 +124,10 @@ func (s *execWs) Do(op *operation) error {
 				return err
 			}
 		}
-		s.options.StdinFd = ptys[0].Fd()
-		s.options.StdoutFd = ttys[1].Fd()
-		s.options.StderrFd = ttys[2].Fd()
+
+		stdin = ptys[0]
+		stdout = ttys[1]
+		stderr = ttys[2]
 	}
 
 	controlExit := make(chan bool)
@@ -216,11 +212,7 @@ func (s *execWs) Do(op *operation) error {
 		}
 	}
 
-	cmdResult, cmdErr := runCommand(
-		s.container,
-		s.command,
-		s.options,
-	)
+	cmdResult, cmdErr := s.container.Exec(s.command, s.env, stdin, stdout, stderr)
 
 	for _, tty := range ttys {
 		tty.Close()
@@ -274,22 +266,17 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	opts := lxc.DefaultAttachOptions
-	opts.ClearEnv = true
-	opts.Env = []string{}
+	env := map[string]string{}
 
 	for k, v := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "environment.") {
-			opts.Env = append(opts.Env, fmt.Sprintf("%s=%s", strings.TrimPrefix(k, "environment."), v))
+			env[strings.TrimPrefix(k, "environment.")] = v
 		}
 	}
 
 	if post.Environment != nil {
 		for k, v := range post.Environment {
-			if k == "HOME" {
-				opts.Cwd = v
-			}
-			opts.Env = append(opts.Env, fmt.Sprintf("%s=%s", k, v))
+			env[k] = v
 		}
 	}
 
@@ -310,7 +297,6 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		ws.allConnected = make(chan bool, 1)
 		ws.controlConnected = make(chan bool, 1)
 		ws.interactive = post.Interactive
-		ws.options = opts
 		for i := -1; i < len(ws.conns)-1; i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
@@ -319,7 +305,9 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		}
 
 		ws.command = post.Command
-		ws.container = c.LXContainerGet()
+		ws.container = c
+		ws.env = env
+
 		ws.width = post.Width
 		ws.height = post.Height
 
@@ -340,13 +328,8 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			return err
 		}
 		defer nullDev.Close()
-		nullfd := nullDev.Fd()
 
-		opts.StdinFd = nullfd
-		opts.StdoutFd = nullfd
-		opts.StderrFd = nullfd
-
-		_, cmdErr := runCommand(c.LXContainerGet(), post.Command, opts)
+		_, cmdErr := c.Exec(post.Command, env, nil, nil, nil)
 		return cmdErr
 	}
 

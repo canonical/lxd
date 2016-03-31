@@ -138,6 +138,8 @@ func run() error {
 		fmt.Printf("        How long to wait before failing\n")
 
 		fmt.Printf("\n\nInternal commands (don't call these directly):\n")
+		fmt.Printf("    forkexec\n")
+		fmt.Printf("        Execute a command in a container\n")
 		fmt.Printf("    forkgetnet\n")
 		fmt.Printf("        Get container network information\n")
 		fmt.Printf("    forkgetfile\n")
@@ -219,6 +221,12 @@ func run() error {
 			return MigrateContainer(os.Args[1:])
 		case "forkstart":
 			return startContainer(os.Args[1:])
+		case "forkexec":
+			ret, err := execContainer(os.Args[1:])
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			}
+			os.Exit(ret)
 		}
 	}
 

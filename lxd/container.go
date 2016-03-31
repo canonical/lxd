@@ -346,6 +346,9 @@ type container interface {
 	FilePull(srcpath string, dstpath string) error
 	FilePush(srcpath string, dstpath string, uid int, gid int, mode os.FileMode) error
 
+	// Command execution
+	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error)
+
 	// Status
 	Render() (interface{}, error)
 	RenderState() (*shared.ContainerState, error)
@@ -383,7 +386,6 @@ type container interface {
 	LogPath() string
 
 	// FIXME: Those should be internal functions
-	LXContainerGet() *lxc.Container
 	StorageStart() error
 	StorageStop() error
 	Storage() storage
