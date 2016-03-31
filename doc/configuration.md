@@ -23,13 +23,14 @@ core.https\_address             | string        | -                         | Ad
 core.https\_allowed\_origin     | string        | -                         | Access-Control-Allow-Origin http header value
 core.https\_allowed\_methods    | string        | -                         | Access-Control-Allow-Methods http header value
 core.https\_allowed\_headers    | string        | -                         | Access-Control-Allow-Headers http header value
-core.proxy\_https               | string        | -                         | https proxy to use, if any (falls back to HTTPS_PROXY environment variable)
-core.proxy\_http                | string        | -                         | http proxy to use, if any (falls back to HTTP_PROXY environment variable)
-core.proxy\_ignore\_hosts       | string        | -                         | hosts which don't need the proxy for use (similar format to NO_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO_PROXY environment varialbe)
+core.proxy\_https               | string        | -                         | https proxy to use, if any (falls back to HTTPS\_PROXY environment variable)
+core.proxy\_http                | string        | -                         | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
+core.proxy\_ignore\_hosts       | string        | -                         | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)
 core.trust\_password            | string        | -                         | Password to be provided by clients to setup a trust
 storage.lvm\_vg\_name           | string        | -                         | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
 storage.lvm\_thinpool\_name     | string        | "LXDPool"                 | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
 storage.lvm\_fstype             | string        | ext4                      | Format LV with filesystem, for now it's value can be only ext4 (default) or xfs.
+storage.lvm\_volume\_size       | string        | 10GiB                     | Size of the logical volume
 storage.zfs\_pool\_name         | string        | -                         | ZFS pool name
 images.compression\_algorithm   | string        | gzip                      | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
 images.remote\_cache\_expiry    | integer       | 10                        | Number of days after which an unused cached remote image will be flushed
@@ -91,6 +92,7 @@ Key                         | Type      | Default       | Description
 :--                         | :---      | :------       | :----------
 volatile.\<name\>.hwaddr    | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
 volatile.\<name\>.name      | string    | -             | Network device name (when no name propery is set on the device itself)
+volatile.apply\_template    | string    | -             | The name of a template hook which should be triggered upon next startup
 volatile.base\_image        | string    | -             | The hash of the image the container was created from, if any.
 volatile.last\_state.idmap  | string    | -             | Serialized container uid/gid map
 volatile.last\_state.power  | string    | -             | Container state as of last host shutdown

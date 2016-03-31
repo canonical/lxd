@@ -1113,6 +1113,8 @@ func (d *Daemon) ConfigKeyIsValid(key string) bool {
 		return true
 	case "storage.lvm_fstype":
 		return true
+	case "storage.lvm_volume_size":
+		return true
 	case "storage.zfs_pool_name":
 		return true
 	case "images.remote_cache_expiry":

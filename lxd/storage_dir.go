@@ -144,7 +144,6 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 		}
 	}
 
-	// TODO: No TemplateApply here?
 	return nil
 }
 
