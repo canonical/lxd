@@ -162,7 +162,6 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		termios.Restore(cfd, oldttystate)
 	}
 
-	/* we get the result of waitpid() here so we need to transform it */
-	os.Exit(ret >> 8)
+	os.Exit(ret)
 	return fmt.Errorf(i18n.G("unreachable return reached"))
 }
