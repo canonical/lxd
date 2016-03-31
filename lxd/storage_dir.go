@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -60,7 +61,7 @@ func (s *storageDir) ContainerCreateFromImage(
 
 	imagePath := shared.VarPath("images", imageFingerprint)
 	if err := untarImage(imagePath, container.Path()); err != nil {
-		os.RemoveAll(rootfsPath)
+		s.ContainerDelete(container)
 		return err
 	}
 
@@ -83,8 +84,12 @@ func (s *storageDir) ContainerDelete(container container) error {
 
 	err := os.RemoveAll(cPath)
 	if err != nil {
-		s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "err": err})
-		return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
+		// RemovaAll fails on very long paths, so attempt an rm -Rf
+		output, err := exec.Command("rm", "-Rf", cPath).CombinedOutput()
+		if err != nil {
+			s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "output": output})
+			return fmt.Errorf("Error cleaning up %s: %s", cPath, string(output))
+		}
 	}
 
 	return nil
