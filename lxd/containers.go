@@ -298,7 +298,8 @@ func execContainer(args []string) (int, error) {
 
 	section := ""
 	for _, arg := range args[5:len(args)] {
-		if arg == "--" {
+		// The "cmd" section must come last as it may contain a --
+		if arg == "--" && section != "cmd" {
 			section = ""
 			continue
 		}
