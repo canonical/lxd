@@ -20,4 +20,3 @@ Name                            | Description
 :---                            | :----
 LXD\_SECURITY\_APPARMOR         | If set to "false", forces AppArmor off
 LXD\_LXC\_TEMPLATE\_CONFIG      | Path to the LXC template configuration directory
-LXD\_LVM\_LVSIZE                | Size of the default LVM LV (10Gib by default)
