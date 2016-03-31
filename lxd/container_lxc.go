@@ -1233,7 +1233,24 @@ func (c *containerLXC) OnStart() error {
 	}
 
 	// Template anything that needs templating
-	err = c.TemplateApply("start")
+	key := "volatile.apply_template"
+	if c.localConfig[key] != "" {
+		// Run any template that needs running
+		err = c.templateApplyNow(c.localConfig[key])
+		if err != nil {
+			c.StorageStop()
+			return err
+		}
+
+		// Remove the volatile key from the DB
+		err := dbContainerConfigRemove(c.daemon.db, c.id, key)
+		if err != nil {
+			c.StorageStop()
+			return err
+		}
+	}
+
+	err = c.templateApplyNow("start")
 	if err != nil {
 		c.StorageStop()
 		return err
@@ -2641,6 +2658,19 @@ func (c *containerLXC) Checkpoint(opts lxc.CheckpointOptions) error {
 }
 
 func (c *containerLXC) TemplateApply(trigger string) error {
+	// "create" and "copy" are deferred until next start
+	if shared.StringInSlice(trigger, []string{"create", "copy"}) {
+		// The two events are mutually exclusive so only keep the last one
+		err := c.ConfigKeySet("volatile.apply_template", trigger)
+		if err != nil {
+			return err
+		}
+	}
+
+	return c.templateApplyNow(trigger)
+}
+
+func (c *containerLXC) templateApplyNow(trigger string) error {
 	// If there's no metadata, just return
 	fname := filepath.Join(c.Path(), "metadata.yaml")
 	if !shared.PathExists(fname) {

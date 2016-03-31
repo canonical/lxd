@@ -75,6 +75,8 @@ func containerValidConfigKey(k string) bool {
 		return true
 	case "raw.lxc":
 		return true
+	case "volatile.apply_template":
+		return true
 	case "volatile.base_image":
 		return true
 	case "volatile.last_state.idmap":

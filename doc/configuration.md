@@ -91,6 +91,7 @@ Key                         | Type      | Default       | Description
 :--                         | :---      | :------       | :----------
 volatile.\<name\>.hwaddr    | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
 volatile.\<name\>.name      | string    | -             | Network device name (when no name propery is set on the device itself)
+volatile.apply\_template    | string    | -             | The name of a template hook which should be triggered upon next startup
 volatile.base\_image        | string    | -             | The hash of the image the container was created from, if any.
 volatile.last\_state.idmap  | string    | -             | Serialized container uid/gid map
 volatile.last\_state.power  | string    | -             | Container state as of last host shutdown
