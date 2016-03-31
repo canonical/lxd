@@ -161,15 +161,6 @@ func storageLVMSetVolumeGroupNameConfig(d *Daemon, vgname string) error {
 	return nil
 }
 
-func storageLVMSetFsTypeConfig(d *Daemon, fstype string) error {
-	err := d.ConfigValueSet("storage.lvm_fstype", fstype)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func xfsGenerateNewUUID(lvpath string) error {
 	output, err := exec.Command(
 		"xfs_admin",
@@ -952,7 +943,11 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 		}
 	}
 
-	lvSize := os.Getenv("LXD_LVM_LVSIZE")
+	lvSize, err := s.d.ConfigValueGet("storage.lvm_volume_size")
+	if err != nil {
+		return "", fmt.Errorf("Error checking server config, err=%v", err)
+	}
+
 	if lvSize == "" {
 		lvSize = storageLvmDefaultThinLVSize
 	}
