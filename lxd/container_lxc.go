@@ -1422,6 +1422,7 @@ func (c *containerLXC) OnStop(target string) error {
 	// Stop the storage for this container
 	err := c.StorageStop()
 	if err != nil {
+		wg.Done()
 		return err
 	}
 
