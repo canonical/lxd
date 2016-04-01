@@ -963,6 +963,11 @@ func (c *containerLXC) startCommon() (string, error) {
 				return "", err
 			}
 		}
+
+		err = c.StorageStop()
+		if err != nil {
+			return "", err
+		}
 	}
 
 	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
