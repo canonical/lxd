@@ -1422,14 +1422,12 @@ func (c *containerLXC) OnStop(target string) error {
 	// Stop the storage for this container
 	err := c.StorageStop()
 	if err != nil {
+		wg.Done()
 		return err
 	}
 
-	// Unlock the apparmor profile
-	err = AAUnloadProfile(c)
-	if err != nil {
-		return err
-	}
+	// Unload the apparmor profile
+	AAUnloadProfile(c)
 
 	// FIXME: The go routine can go away once we can rely on LXC_TARGET
 	go func(c *containerLXC, target string, wg *sync.WaitGroup) {
