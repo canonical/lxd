@@ -168,7 +168,7 @@ start() {
     fi
 
     if [ "${HAS_IPV6}" = "true" ] && [ "${LXD_IPV6_PROXY}" = "true" ]; then
-        PATH="${PATH}:$(dirname "${0}")" lxd-bridge-proxy --addr="[fe80::1%${LXD_BRIDGE}]:3128" &
+        PATH="${PATH}:$(dirname "${0}")" lxd-bridge-proxy --addr="[fe80::1%${LXD_BRIDGE}]:13128" &
         PID=$!
         echo "${PID}" > "${varrun}/proxy.pid"
     fi
