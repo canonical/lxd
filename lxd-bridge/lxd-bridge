@@ -155,7 +155,7 @@ start() {
     fi
 
     # https://lists.linuxcontainers.org/pipermail/lxc-devel/2014-October/010561.html
-    for DNSMASQ_USER in lxd-dnsmasq dnsmasq nobody
+    for DNSMASQ_USER in lxd dnsmasq nobody
     do
         if getent passwd "${DNSMASQ_USER}" >/dev/null; then
             break
