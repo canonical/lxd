@@ -368,7 +368,7 @@ func (c *listCmd) statusColumnData(cInfo shared.ContainerInfo, cState *shared.Co
 }
 
 func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
-	if cInfo.IsActive() {
+	if cInfo.IsActive() && cState.Network != nil {
 		ipv4s := []string{}
 		for netName, net := range cState.Network {
 			if net.Type == "loopback" {
@@ -392,7 +392,7 @@ func (c *listCmd) IP4ColumnData(cInfo shared.ContainerInfo, cState *shared.Conta
 }
 
 func (c *listCmd) IP6ColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
-	if cInfo.IsActive() {
+	if cInfo.IsActive() && cState.Network != nil {
 		ipv6s := []string{}
 		for netName, net := range cState.Network {
 			if net.Type == "loopback" {
