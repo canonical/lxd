@@ -18,7 +18,7 @@ func NewProxy() *httputil.ReverseProxy {
 }
 
 func main() {
-	addr := flag.String("addr", "[fe80::1%lxdbr0]:3128", "proxy listen address")
+	addr := flag.String("addr", "[fe80::1%lxdbr0]:13128", "proxy listen address")
 	flag.Parse()
 
 	log.Fatal(http.ListenAndServe(*addr, NewProxy()))

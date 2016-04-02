@@ -1138,7 +1138,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 		CollectCRIULogFile(c, c.StatePath(), "snapshot", "restore")
 
-		if err != nil {
+		if err != nil && !c.IsRunning() {
 			return err
 		}
 
@@ -1173,7 +1173,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 	}
 
-	if err != nil {
+	if err != nil && !c.IsRunning() {
 		return fmt.Errorf(
 			"Error calling 'lxd forkstart %s %s %s': err='%v'",
 			c.name,
@@ -1207,7 +1207,7 @@ func (c *containerLXC) StartFromMigration(imagesDir string) error {
 		}
 	}
 
-	if err != nil {
+	if err != nil && !c.IsRunning() {
 		return fmt.Errorf(
 			"Error calling 'lxd forkmigrate %s %s %s %s': err='%v'",
 			c.name,
