@@ -102,14 +102,16 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 
 		// IP addresses
 		ipInfo := ""
-		for netName, net := range cs.Network {
-			vethStr := ""
-			if net.HostName != "" {
-				vethStr = fmt.Sprintf("\t%s", net.HostName)
-			}
+		if cs.Network != nil {
+			for netName, net := range cs.Network {
+				vethStr := ""
+				if net.HostName != "" {
+					vethStr = fmt.Sprintf("\t%s", net.HostName)
+				}
 
-			for _, addr := range net.Addresses {
-				ipInfo += fmt.Sprintf("  %s:\t%s\t%s%s\n", netName, addr.Family, addr.Address, vethStr)
+				for _, addr := range net.Addresses {
+					ipInfo += fmt.Sprintf("  %s:\t%s\t%s%s\n", netName, addr.Family, addr.Address, vethStr)
+				}
 			}
 		}
 
@@ -124,9 +126,11 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 
 		// Disk usage
 		diskInfo := ""
-		for entry, disk := range cs.Disk {
-			if disk.Usage != 0 {
-				diskInfo += fmt.Sprintf("    %s: %s\n", entry, shared.GetByteSizeString(disk.Usage))
+		if cs.Disk != nil {
+			for entry, disk := range cs.Disk {
+				if disk.Usage != 0 {
+					diskInfo += fmt.Sprintf("    %s: %s\n", entry, shared.GetByteSizeString(disk.Usage))
+				}
 			}
 		}
 
@@ -160,12 +164,14 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 
 		// Network usage
 		networkInfo := ""
-		for netName, net := range cs.Network {
-			networkInfo += fmt.Sprintf("    %s:\n", netName)
-			networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), shared.GetByteSizeString(net.Counters.BytesReceived))
-			networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), shared.GetByteSizeString(net.Counters.BytesSent))
-			networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets received"), net.Counters.PacketsReceived)
-			networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets sent"), net.Counters.PacketsSent)
+		if cs.Network != nil {
+			for netName, net := range cs.Network {
+				networkInfo += fmt.Sprintf("    %s:\n", netName)
+				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), shared.GetByteSizeString(net.Counters.BytesReceived))
+				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), shared.GetByteSizeString(net.Counters.BytesSent))
+				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets received"), net.Counters.PacketsReceived)
+				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets sent"), net.Counters.PacketsSent)
+			}
 		}
 
 		if networkInfo != "" {
