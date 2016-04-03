@@ -4,7 +4,7 @@ _have lxc && {
     _lxd_names()
     {
       COMPREPLY=( $( compgen -W \
-        "$( lxc list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
+        "$( lxc list --fast | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
       )
     }
 
