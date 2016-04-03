@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/gorilla/websocket"
 
@@ -320,23 +319,6 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 	return container.TemplateApply("copy")
 }
 
-func (s *storageZfs) zfsMounted(path string) bool {
-	output, err := exec.Command("zfs", "mount").CombinedOutput()
-	if err != nil {
-		shared.Log.Error("error listing zfs mounts", "err", output)
-		return false
-	}
-
-	for _, line := range strings.Split(string(output), "\n") {
-		zfsName := strings.Split(line, " ")[0]
-		if zfsName == fmt.Sprintf("%s/%s", s.zfsPool, path) {
-			return true
-		}
-	}
-
-	return false
-}
-
 func (s *storageZfs) ContainerRename(container container, newName string) error {
 	oldName := container.Name()
 
@@ -359,17 +341,9 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	}
 
 	// In case ZFS didn't mount the filesystem, do it ourselves
-	if !shared.PathExists(shared.VarPath(fmt.Sprintf("containers/%s.zfs", newName))) {
-		for i := 0; i < 20; i++ {
-			err = s.zfsMount(fmt.Sprintf("containers/%s", newName))
-			if err == nil {
-				break
-			}
-			time.Sleep(500 * time.Millisecond)
-		}
-		if err != nil {
-			return err
-		}
+	err = s.zfsMount(fmt.Sprintf("containers/%s", newName))
+	if err != nil {
+		return err
 	}
 
 	// In case the change of mountpoint didn't remove the old path, do it ourselves
@@ -560,6 +534,7 @@ func (s *storageZfs) ContainerSnapshotStart(container container) error {
 	if len(fields) < 2 {
 		return fmt.Errorf("Invalid snapshot name: %s", container.Name())
 	}
+
 	cName := fields[0]
 	sName := fields[1]
 	sourceFs := fmt.Sprintf("containers/%s", cName)
@@ -775,19 +750,11 @@ func (s *storageZfs) zfsDestroy(path string) error {
 	}
 
 	// Due to open fds or kernel refs, this may fail for a bit, give it 10s
-	var output []byte
-	for i := 0; i < 20; i++ {
-		output, err = exec.Command(
-			"zfs",
-			"destroy",
-			"-r",
-			fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
-
-		if err == nil {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	output, err := tryExec(
+		"zfs",
+		"destroy",
+		"-r",
+		fmt.Sprintf("%s/%s", s.zfsPool, path))
 
 	if err != nil {
 		s.log.Error("zfs destroy failed", log.Ctx{"output": string(output)})
@@ -853,26 +820,13 @@ func (s *storageZfs) zfsGet(path string, key string) (string, error) {
 	return strings.TrimRight(string(output), "\n"), nil
 }
 
-func (s *storageZfs) zfsMount(path string) error {
-	output, err := exec.Command(
-		"zfs",
-		"mount",
-		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
-	if err != nil {
-		s.log.Error("zfs mount failed", log.Ctx{"output": string(output)})
-		return fmt.Errorf("Failed to mount ZFS filesystem: %s", output)
-	}
-
-	return nil
-}
-
 func (s *storageZfs) zfsRename(source string, dest string) error {
-	output, err := exec.Command(
+	output, err := tryExec(
 		"zfs",
 		"rename",
 		"-p",
 		fmt.Sprintf("%s/%s", s.zfsPool, source),
-		fmt.Sprintf("%s/%s", s.zfsPool, dest)).CombinedOutput()
+		fmt.Sprintf("%s/%s", s.zfsPool, dest))
 	if err != nil {
 		if s.zfsExists(source) || !s.zfsExists(dest) {
 			s.log.Error("zfs rename failed", log.Ctx{"output": string(output)})
@@ -926,10 +880,10 @@ func (s *storageZfs) zfsSnapshotDestroy(path string, name string) error {
 }
 
 func (s *storageZfs) zfsSnapshotRestore(path string, name string) error {
-	output, err := exec.Command(
+	output, err := tryExec(
 		"zfs",
 		"rollback",
-		fmt.Sprintf("%s/%s@%s", s.zfsPool, path, name)).CombinedOutput()
+		fmt.Sprintf("%s/%s@%s", s.zfsPool, path, name))
 	if err != nil {
 		s.log.Error("zfs rollback failed", log.Ctx{"output": string(output)})
 		return fmt.Errorf("Failed to restore ZFS snapshot: %s", output)
@@ -950,10 +904,10 @@ func (s *storageZfs) zfsSnapshotRestore(path string, name string) error {
 			continue
 		}
 
-		output, err := exec.Command(
+		output, err := tryExec(
 			"zfs",
 			"rollback",
-			fmt.Sprintf("%s/%s@%s", s.zfsPool, sub, name)).CombinedOutput()
+			fmt.Sprintf("%s/%s@%s", s.zfsPool, sub, name))
 		if err != nil {
 			s.log.Error("zfs rollback failed", log.Ctx{"output": string(output)})
 			return fmt.Errorf("Failed to restore ZFS sub-volume snapshot: %s", output)
@@ -978,11 +932,24 @@ func (s *storageZfs) zfsSnapshotRename(path string, oldName string, newName stri
 	return nil
 }
 
+func (s *storageZfs) zfsMount(path string) error {
+	output, err := tryExec(
+		"zfs",
+		"mount",
+		fmt.Sprintf("%s/%s", s.zfsPool, path))
+	if err != nil {
+		s.log.Error("zfs mount failed", log.Ctx{"output": string(output)})
+		return fmt.Errorf("Failed to mount ZFS filesystem: %s", output)
+	}
+
+	return nil
+}
+
 func (s *storageZfs) zfsUnmount(path string) error {
-	output, err := exec.Command(
+	output, err := tryExec(
 		"zfs",
 		"unmount",
-		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
+		fmt.Sprintf("%s/%s", s.zfsPool, path))
 	if err != nil {
 		s.log.Error("zfs unmount failed", log.Ctx{"output": string(output)})
 		return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
@@ -1218,7 +1185,6 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) error 
 	lastSnap := ""
 
 	for i, snap := range s.zfsSnapshotNames {
-
 		prev := ""
 		if i > 0 {
 			prev = s.zfsSnapshotNames[i-1]
@@ -1356,24 +1322,11 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []c
 	 * this fs (it's empty anyway) before we zfs recv. N.B. that `zfs recv`
 	 * of a snapshot also needs tha actual fs that it has snapshotted
 	 * unmounted, so we do this before receiving anything.
-	 *
-	 * Further, `zfs unmount` doesn't actually unmount things right away,
-	 * so we ask /proc/self/mountinfo whether or not this path is mounted
-	 * before continuing so that we're sure the fs is actually unmounted
-	 * before doing a recv.
 	 */
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
-	fsPath := shared.VarPath(fmt.Sprintf("containers/%s.zfs", container.Name()))
-	for i := 0; i < 20; i++ {
-		if shared.IsMountPoint(fsPath) || s.zfsMounted(zfsName) {
-			if err := s.zfsUnmount(zfsName); err != nil {
-				shared.Log.Error("zfs umount error for", "path", zfsName, "err", err)
-			}
-		} else {
-			break
-		}
-
-		time.Sleep(500 * time.Millisecond)
+	err := s.zfsUnmount(zfsName)
+	if err != nil {
+		return err
 	}
 
 	for _, snap := range snapshots {
