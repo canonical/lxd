@@ -96,11 +96,12 @@ test_basic_usage() {
   lxc profile delete priv
 
   # Test that containers without metadata.yaml are published successfully.
-  # Note that this quick hack won't work for LVM, since it doesn't always mount
-  # the container's filesystem. That's ok though: the logic we're trying to
-  # test here is independent of storage backend, so running it for just one
-  # backend (or all non-lvm backends) is enough.
-  if [ "${LXD_BACKEND}" != "lvm" ]; then
+  # Note that this quick hack won't work for mounted backend as the
+  # container filesystem isn't visible on the host. That's ok though:
+  # the logic we're trying to test here is independent of storage
+  # backend, so running it for just one backend (or all non-mounted
+  # backends) is enough.
+  if [ "${LXD_BACKEND}" != "lvm" ] && [ "${LXD_BACKEND}" != "zfs" ]; then
     lxc init testimage nometadata
     rm "${LXD_DIR}/containers/nometadata/metadata.yaml"
     lxc publish nometadata --alias=nometadata-image
@@ -242,18 +243,23 @@ test_basic_usage() {
   [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
 
   # make sure that privileged containers are not world-readable
-  lxc profile create unconfined
-  lxc profile set unconfined security.privileged true
-  lxc init testimage foo2 -p unconfined
-  [ "$(stat -L -c "%a" "${LXD_DIR}/containers/foo2")" = "700" ]
-  lxc delete foo2
-  lxc profile delete unconfined
+  if [ "${LXD_BACKEND}" != "lvm" ] && [ "${LXD_BACKEND}" != "zfs" ]; then
+    lxc profile create unconfined
+    lxc profile set unconfined security.privileged true
+    lxc init testimage foo2 -p unconfined
+    [ "$(stat -L -c "%a" "${LXD_DIR}/containers/foo2")" = "700" ]
+    lxc delete foo2
+    lxc profile delete unconfined
+  fi
 
   # Ephemeral
   lxc launch testimage foo -e
 
   OLD_INIT=$(lxc info foo | grep ^Pid)
+
+  sleep 5
   lxc exec foo reboot
+  sleep 5
 
   REBOOTED="false"
 

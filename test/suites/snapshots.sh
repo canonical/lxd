@@ -26,7 +26,7 @@ test_snapshots() {
 
   lxc copy foo/tester foosnap1
   # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" != "lvm" ]; then
+  if [ "${LXD_BACKEND}" != "lvm" ] && [ "${LXD_BACKEND}" != "zfs" ]; then
     [ -d "${LXD_DIR}/containers/foosnap1/rootfs" ]
   fi
 
@@ -85,11 +85,8 @@ test_snap_restore() {
   echo snap0 > state
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap0
-
-  mkdir "${LXD_DIR}/containers/bar/rootfs/root/dir_only_in_snap0"
-  cd "${LXD_DIR}/containers/bar/rootfs/root/"
-  ln -s ./file_only_in_snap0 statelink
-  cd -
+  lxc exec bar -- mkdir /root/dir_only_in_snap0
+  lxc exec bar -- ln -s file_only_in_snap0 /root/statelink
   lxc stop bar --force
 
   lxc snapshot bar snap0
@@ -100,13 +97,11 @@ test_snap_restore() {
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap1
 
-  cd "${LXD_DIR}/containers/bar/rootfs/root/"
-  rmdir dir_only_in_snap0
-  rm    file_only_in_snap0
-  rm    statelink
-  ln -s ./file_only_in_snap1 statelink
-  mkdir dir_only_in_snap1
-  cd -
+  lxc exec bar -- rmdir /root/dir_only_in_snap0
+  lxc exec bar -- rm /root/file_only_in_snap0
+  lxc exec bar -- rm /root/statelink
+  lxc exec bar -- ln -s file_only_in_snap1 /root/statelink
+  lxc exec bar -- mkdir /root/dir_only_in_snap1
   lxc stop bar --force
 
   # Delete the state file we created to prevent leaking.
@@ -118,8 +113,7 @@ test_snap_restore() {
 
   ##########################################################
 
-  # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" = "dir" ]; then
+  if [ "${LXD_BACKEND}" != "zfs" ]; then
     # The problem here is that you can't `zfs rollback` to a snapshot with a
     # parent, which snap0 has (snap1).
     restore_and_compare_fs snap0
@@ -127,8 +121,8 @@ test_snap_restore() {
     # Check container config has been restored (limits.cpu is unset)
     cpus=$(lxc config get bar limits.cpu)
     if [ -n "${cpus}" ]; then
-     echo "==> config didn't match expected value after restore (${cpus})"
-     false
+      echo "==> config didn't match expected value after restore (${cpus})"
+      false
     fi
   fi
 
@@ -149,8 +143,7 @@ test_snap_restore() {
   # Start container and then restore snapshot to verify the running state after restore.
   lxc start bar
 
-  # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" = "dir" ]; then
+  if [ "${LXD_BACKEND}" != "zfs" ]; then
     # see comment above about snap0
     restore_and_compare_fs snap0
 
