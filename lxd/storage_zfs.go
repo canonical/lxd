@@ -84,10 +84,24 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 
 // Things we don't need to care about
 func (s *storageZfs) ContainerStart(container container) error {
+	fs := fmt.Sprintf("containers/%s", container.Name())
+
+	err := s.zfsMount(fs)
+	if err != nil && !s.zfsMounted(fs) {
+		return err
+	}
+
 	return nil
 }
 
 func (s *storageZfs) ContainerStop(container container) error {
+	fs := fmt.Sprintf("containers/%s", container.Name())
+
+	err := s.zfsUnmount(fs)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -100,6 +114,12 @@ func (s *storageZfs) ContainerCreate(container container) error {
 	if err != nil {
 		return err
 	}
+
+	err = s.zfsMount(fs)
+	if err != nil && !s.zfsMounted(fs) {
+		return err
+	}
+	defer s.zfsUnmount(fs)
 
 	err = os.Symlink(cPath+".zfs", cPath)
 	if err != nil {
@@ -139,6 +159,12 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	if err != nil {
 		return err
 	}
+
+	err = s.zfsMount(fs)
+	if err != nil && !s.zfsMounted(fs) {
+		return err
+	}
+	defer s.zfsUnmount(fs)
 
 	err = os.Symlink(cPath+".zfs", cPath)
 	if err != nil {
@@ -288,6 +314,12 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 			return err
 		}
 
+		err = s.zfsMount(destFs)
+		if err != nil && !s.zfsMounted(destFs) {
+			return nil
+		}
+		defer s.zfsUnmount(destFs)
+
 		cPath := container.Path()
 		err = os.Symlink(cPath+".zfs", cPath)
 		if err != nil {
@@ -310,6 +342,12 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 		if err != nil {
 			return err
 		}
+
+		err = s.zfsMount(destFs)
+		if err != nil && !s.zfsMounted(destFs) {
+			return nil
+		}
+		defer s.zfsUnmount(destFs)
 
 		output, err := storageRsyncCopy(sourceContainer.Path(), container.Path())
 		if err != nil {
@@ -358,20 +396,6 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 		return err
 	}
 
-	// In case ZFS didn't mount the filesystem, do it ourselves
-	if !shared.PathExists(shared.VarPath(fmt.Sprintf("containers/%s.zfs", newName))) {
-		for i := 0; i < 20; i++ {
-			err = s.zfsMount(fmt.Sprintf("containers/%s", newName))
-			if err == nil {
-				break
-			}
-			time.Sleep(500 * time.Millisecond)
-		}
-		if err != nil {
-			return err
-		}
-	}
-
 	// In case the change of mountpoint didn't remove the old path, do it ourselves
 	if shared.PathExists(shared.VarPath(fmt.Sprintf("containers/%s.zfs", oldName))) {
 		err = os.Remove(shared.VarPath(fmt.Sprintf("containers/%s.zfs", oldName)))
@@ -384,6 +408,14 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	err = os.Remove(shared.VarPath(fmt.Sprintf("containers/%s", oldName)))
 	if err != nil {
 		return err
+	}
+
+	// Create the mountpoint if missing
+	if !shared.PathExists(shared.VarPath(fmt.Sprintf("containers/%s.zfs", newName))) {
+		err := os.MkdirAll(shared.VarPath(fmt.Sprintf("containers/%s.zfs", newName)), 0700)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Create a new symlink
@@ -571,6 +603,11 @@ func (s *storageZfs) ContainerSnapshotStart(container container) error {
 		return err
 	}
 
+	err = s.zfsMount(destFs)
+	if err != nil && !s.zfsMounted(destFs) {
+		return nil
+	}
+
 	return nil
 }
 
@@ -583,7 +620,12 @@ func (s *storageZfs) ContainerSnapshotStop(container container) error {
 	sName := fields[1]
 	destFs := fmt.Sprintf("snapshots/%s/%s", cName, sName)
 
-	err := s.zfsDestroy(destFs)
+	err := s.zfsUnmount(destFs)
+	if err != nil {
+		return nil
+	}
+
+	err = s.zfsDestroy(destFs)
 	if err != nil {
 		return err
 	}
@@ -621,6 +663,12 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 	if err != nil {
 		return err
 	}
+
+	err = s.zfsMount(fs)
+	if err != nil && !s.zfsMounted(fs) {
+		return err
+	}
+	defer s.zfsUnmount(fs)
 
 	err = untarImage(imagePath, subvol)
 	if err != nil {
@@ -701,6 +749,7 @@ func (s *storageZfs) zfsClone(source string, name string, dest string, dotZfs bo
 		"clone",
 		"-p",
 		"-o", fmt.Sprintf("mountpoint=%s", mountpoint),
+		"-o", "canmount=noauto",
 		fmt.Sprintf("%s/%s@%s", s.zfsPool, source, name),
 		fmt.Sprintf("%s/%s", s.zfsPool, dest)).CombinedOutput()
 	if err != nil {
@@ -734,6 +783,7 @@ func (s *storageZfs) zfsClone(source string, name string, dest string, dotZfs bo
 			"clone",
 			"-p",
 			"-o", fmt.Sprintf("mountpoint=%s", mountpoint),
+			"-o", "canmount=noauto",
 			fmt.Sprintf("%s/%s@%s", s.zfsPool, sub, name),
 			fmt.Sprintf("%s/%s", s.zfsPool, destSubvol)).CombinedOutput()
 		if err != nil {
@@ -751,6 +801,7 @@ func (s *storageZfs) zfsCreate(path string) error {
 		"create",
 		"-p",
 		"-o", fmt.Sprintf("mountpoint=%s.zfs", shared.VarPath(path)),
+		"-o", "canmount=noauto",
 		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
 	if err != nil {
 		s.log.Error("zfs create failed", log.Ctx{"output": string(output)})
@@ -858,7 +909,7 @@ func (s *storageZfs) zfsMount(path string) error {
 		"zfs",
 		"mount",
 		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
-	if err != nil {
+	if err != nil && !s.zfsMounted(path) {
 		s.log.Error("zfs mount failed", log.Ctx{"output": string(output)})
 		return fmt.Errorf("Failed to mount ZFS filesystem: %s", output)
 	}
@@ -983,7 +1034,7 @@ func (s *storageZfs) zfsUnmount(path string) error {
 		"zfs",
 		"unmount",
 		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
-	if err != nil {
+	if err != nil && s.zfsMounted(path) {
 		s.log.Error("zfs unmount failed", log.Ctx{"output": string(output)})
 		return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
 	}
@@ -1363,9 +1414,8 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []c
 	 * before doing a recv.
 	 */
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
-	fsPath := shared.VarPath(fmt.Sprintf("containers/%s.zfs", container.Name()))
 	for i := 0; i < 20; i++ {
-		if shared.IsMountPoint(fsPath) || s.zfsMounted(zfsName) {
+		if s.zfsMounted(zfsName) {
 			if err := s.zfsUnmount(zfsName); err != nil {
 				shared.Log.Error("zfs umount error for", "path", zfsName, "err", err)
 			}
