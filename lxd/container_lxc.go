@@ -1151,9 +1151,15 @@ func (c *containerLXC) Start(stateful bool) error {
 			return err
 		}
 
+		err = c.StorageStop()
+		if err != nil {
+			return err
+		}
+
 		os.RemoveAll(c.StatePath())
 		c.stateful = false
 		return dbContainerSetStateful(c.daemon.db, c.id, false)
+
 	} else if c.stateful {
 		/* stateless start required when we have state, let's delete it */
 		err := os.RemoveAll(c.StatePath())
@@ -1189,6 +1195,11 @@ func (c *containerLXC) Start(stateful bool) error {
 			c.daemon.lxcpath,
 			filepath.Join(c.LogPath(), "lxc.conf"),
 			err)
+	}
+
+	err = c.StorageStop()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -1433,13 +1444,6 @@ func (c *containerLXC) OnStop(target string) error {
 	// Make sure we can't call go-lxc functions by mistake
 	c.fromHook = true
 
-	// Stop the storage for this container
-	err := c.StorageStop()
-	if err != nil {
-		wg.Done()
-		return err
-	}
-
 	// Unload the apparmor profile
 	AAUnloadProfile(c)
 
@@ -1474,7 +1478,7 @@ func (c *containerLXC) OnStop(target string) error {
 		}
 
 		// Clean all the unix devices
-		err = c.removeUnixDevices()
+		err := c.removeUnixDevices()
 		if err != nil {
 			shared.Log.Error("Unable to remove unix devices", log.Ctx{"err": err})
 		}
