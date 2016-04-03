@@ -775,6 +775,15 @@ func (c *containerLXC) initLXC() error {
 
 			// Deal with a rootfs
 			if tgtPath == "" {
+				// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
+				err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
+				if err == nil {
+					value := cc.ConfigItem("lxc.rootfs.backend")
+					if len(value) == 0 || value[0] != "dir" {
+						lxcSetConfigItem(cc, "lxc.rootfs.backend", "")
+					}
+				}
+
 				// Set the rootfs path
 				err = lxcSetConfigItem(cc, "lxc.rootfs", c.RootfsPath())
 				if err != nil {
