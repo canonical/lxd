@@ -51,7 +51,7 @@ ifdown() {
 }
 
 ifup() {
-    [ "${HAS_IPV6}" = "true" ] && ip addr add fe80::1/64 dev "${1}"
+    [ "${HAS_IPV6}" = "true" ] && [ "${LXD_IPV6_PROXY}" = "true" ] && ip addr add fe80::1/64 dev "${1}"
     if [ -n "${LXD_IPV4_NETMASK}" ] && [ -n "${LXD_IPV4_ADDR}" ]; then
         MASK=$(_netmask2cidr ${LXD_IPV4_NETMASK})
         CIDR_ADDR="${LXD_IPV4_ADDR}/${MASK}"
