@@ -15,7 +15,7 @@ test_migration() {
   lxc_remote snapshot l1:nonlive
   lxc_remote move l1:nonlive l2:
   # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" != "lvm" ]; then
+  if [ "${LXD_BACKEND}" != "lvm" ] && [ "${LXD_BACKEND}" != "zfs" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive/rootfs" ]
   fi
   [ ! -d "${LXD_DIR}/containers/nonlive" ]
@@ -27,7 +27,7 @@ test_migration() {
   lxc_remote copy l2:nonlive l1:nonlive2
   [ -d "${LXD_DIR}/containers/nonlive2" ]
   # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" != "lvm" ]; then
+  if [ "${LXD_BACKEND}" != "lvm" ] && [ "${LXD_BACKEND}" != "zfs" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive/rootfs/bin" ]
   fi
   # FIXME: make this backend agnostic
@@ -37,7 +37,7 @@ test_migration() {
 
   lxc_remote copy l1:nonlive2/snap0 l2:nonlive3
   # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" != "lvm" ]; then
+  if [ "${LXD_BACKEND}" != "lvm" ] && [ "${LXD_BACKEND}" != "zfs" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive3/rootfs/bin" ]
   fi
 
