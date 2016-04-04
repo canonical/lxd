@@ -1149,6 +1149,10 @@ func aliasPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	if req.Target == "" {
+		return BadRequest(fmt.Errorf("The target field is required"))
+	}
+
 	id, _, err := dbImageAliasGet(d.db, name, true)
 	if err != nil {
 		return SmartError(err)
