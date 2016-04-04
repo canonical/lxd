@@ -14,6 +14,7 @@ import (
 )
 
 var argCount = gnuflag.Int("count", 100, "Number of containers to create")
+var argParallel = gnuflag.Int("parallel", -1, "Number of threads to use")
 var argImage = gnuflag.String("image", "ubuntu:", "Image to use for the test")
 var argPrivileged = gnuflag.Bool("privileged", false, "Use privileged containers")
 
@@ -32,8 +33,8 @@ func run(args []string) error {
 	gnuflag.Parse(true)
 
 	if len(os.Args) == 1 || !shared.StringInSlice(os.Args[1], []string{"spawn", "delete"}) {
-		fmt.Printf("Usage: %s spawn [--count=COUNT] [--image=IMAGE] [--privileged=BOOL]\n", os.Args[0])
-		fmt.Printf("       %s delete\n\n", os.Args[0])
+		fmt.Printf("Usage: %s spawn [--count=COUNT] [--image=IMAGE] [--privileged=BOOL] [--parallel=COUNT]\n", os.Args[0])
+		fmt.Printf("       %s delete [--parallel=COUNT]\n\n", os.Args[0])
 		gnuflag.Usage()
 		fmt.Printf("\n")
 		return fmt.Errorf("An action (spawn or delete) must be passed.")
@@ -60,13 +61,17 @@ func logf(format string, args ...interface{}) {
 }
 
 func spawnContainers(c *lxd.Client, count int, image string, privileged bool) error {
-	// Detect the number of parallel actions
-	cpus, err := ioutil.ReadDir("/sys/bus/cpu/devices")
-	if err != nil {
-		return err
+	batch := *argParallel
+	if batch < 1 {
+		// Detect the number of parallel actions
+		cpus, err := ioutil.ReadDir("/sys/bus/cpu/devices")
+		if err != nil {
+			return err
+		}
+
+		batch = len(cpus)
 	}
 
-	batch := len(cpus)
 	batches := count / batch
 	remainder := count % batch
 
@@ -214,10 +219,15 @@ func spawnContainers(c *lxd.Client, count int, image string, privileged bool) er
 }
 
 func deleteContainers(c *lxd.Client) error {
-	// Detect the number of parallel actions
-	cpus, err := ioutil.ReadDir("/sys/bus/cpu/devices")
-	if err != nil {
-		return err
+	batch := *argParallel
+	if batch < 1 {
+		// Detect the number of parallel actions
+		cpus, err := ioutil.ReadDir("/sys/bus/cpu/devices")
+		if err != nil {
+			return err
+		}
+
+		batch = len(cpus)
 	}
 
 	// List all the containers
@@ -239,7 +249,6 @@ func deleteContainers(c *lxd.Client) error {
 	count := len(containers)
 	logf("%d containers to delete", count)
 
-	batch := len(cpus)
 	batches := count / batch
 
 	deletedCount := 0

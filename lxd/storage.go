@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/websocket"
 
@@ -511,12 +512,12 @@ func (lw *storageLogWrapper) ContainerSnapshotRename(
 }
 
 func (lw *storageLogWrapper) ContainerSnapshotStart(container container) error {
-	lw.log.Debug("ContainerStart", log.Ctx{"container": container.Name()})
+	lw.log.Debug("ContainerSnapshotStart", log.Ctx{"container": container.Name()})
 	return lw.w.ContainerSnapshotStart(container)
 }
 
 func (lw *storageLogWrapper) ContainerSnapshotStop(container container) error {
-	lw.log.Debug("ContainerStop", log.Ctx{"container": container.Name()})
+	lw.log.Debug("ContainerSnapshotStop", log.Ctx{"container": container.Name()})
 	return lw.w.ContainerSnapshotStop(container)
 }
 
@@ -648,6 +649,61 @@ func rsyncMigrationSink(live bool, container container, snapshots []container, c
 		if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// Useful functions for unreliable backends
+func tryExec(name string, arg ...string) ([]byte, error) {
+	var err error
+	var output []byte
+
+	for i := 0; i < 20; i++ {
+		output, err = exec.Command(name, arg...).CombinedOutput()
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return output, err
+}
+
+func tryMount(src string, dst string, fs string, flags uintptr, options string) error {
+	var err error
+
+	for i := 0; i < 20; i++ {
+		err = syscall.Mount(src, dst, fs, flags, options)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func tryUnmount(path string, flags int) error {
+	var err error
+
+	for i := 0; i < 20; i++ {
+		err = syscall.Unmount(path, flags)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if err != nil {
+		return err
 	}
 
 	return nil
