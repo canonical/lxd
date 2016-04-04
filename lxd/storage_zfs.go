@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/gorilla/websocket"
 
@@ -82,12 +81,12 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 	return s, nil
 }
 
-// Things we don't need to care about
 func (s *storageZfs) ContainerStart(container container) error {
 	fs := fmt.Sprintf("containers/%s", container.Name())
+	fsPath := shared.VarPath(fmt.Sprintf("%s.zfs", fs))
 
 	err := s.zfsMount(fs)
-	if err != nil && !s.zfsMounted(fs) {
+	if err != nil && !shared.IsMountPoint(fsPath) {
 		return err
 	}
 
@@ -105,7 +104,6 @@ func (s *storageZfs) ContainerStop(container container) error {
 	return nil
 }
 
-// Things we do have to care about
 func (s *storageZfs) ContainerCreate(container container) error {
 	cPath := container.Path()
 	fs := fmt.Sprintf("containers/%s", container.Name())
@@ -116,7 +114,7 @@ func (s *storageZfs) ContainerCreate(container container) error {
 	}
 
 	err = s.zfsMount(fs)
-	if err != nil && !s.zfsMounted(fs) {
+	if err != nil {
 		return err
 	}
 	defer s.zfsUnmount(fs)
@@ -161,7 +159,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	}
 
 	err = s.zfsMount(fs)
-	if err != nil && !s.zfsMounted(fs) {
+	if err != nil {
 		return err
 	}
 	defer s.zfsUnmount(fs)
@@ -315,8 +313,8 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 		}
 
 		err = s.zfsMount(destFs)
-		if err != nil && !s.zfsMounted(destFs) {
-			return nil
+		if err != nil {
+			return err
 		}
 		defer s.zfsUnmount(destFs)
 
@@ -344,8 +342,8 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 		}
 
 		err = s.zfsMount(destFs)
-		if err != nil && !s.zfsMounted(destFs) {
-			return nil
+		if err != nil {
+			return err
 		}
 		defer s.zfsUnmount(destFs)
 
@@ -356,23 +354,6 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 	}
 
 	return container.TemplateApply("copy")
-}
-
-func (s *storageZfs) zfsMounted(path string) bool {
-	output, err := exec.Command("zfs", "mount").CombinedOutput()
-	if err != nil {
-		shared.Log.Error("error listing zfs mounts", "err", output)
-		return false
-	}
-
-	for _, line := range strings.Split(string(output), "\n") {
-		zfsName := strings.Split(line, " ")[0]
-		if zfsName == fmt.Sprintf("%s/%s", s.zfsPool, path) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (s *storageZfs) ContainerRename(container container, newName string) error {
@@ -592,6 +573,7 @@ func (s *storageZfs) ContainerSnapshotStart(container container) error {
 	if len(fields) < 2 {
 		return fmt.Errorf("Invalid snapshot name: %s", container.Name())
 	}
+
 	cName := fields[0]
 	sName := fields[1]
 	sourceFs := fmt.Sprintf("containers/%s", cName)
@@ -604,8 +586,8 @@ func (s *storageZfs) ContainerSnapshotStart(container container) error {
 	}
 
 	err = s.zfsMount(destFs)
-	if err != nil && !s.zfsMounted(destFs) {
-		return nil
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -622,7 +604,7 @@ func (s *storageZfs) ContainerSnapshotStop(container container) error {
 
 	err := s.zfsUnmount(destFs)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	err = s.zfsDestroy(destFs)
@@ -665,7 +647,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 	}
 
 	err = s.zfsMount(fs)
-	if err != nil && !s.zfsMounted(fs) {
+	if err != nil {
 		return err
 	}
 	defer s.zfsUnmount(fs)
@@ -757,6 +739,11 @@ func (s *storageZfs) zfsClone(source string, name string, dest string, dotZfs bo
 		return fmt.Errorf("Failed to clone the filesystem: %s", output)
 	}
 
+	err = os.MkdirAll(mountpoint, 0700)
+	if err != nil {
+		return err
+	}
+
 	subvols, err := s.zfsListSubvolumes(source)
 	if err != nil {
 		return err
@@ -808,6 +795,11 @@ func (s *storageZfs) zfsCreate(path string) error {
 		return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
 	}
 
+	err = os.MkdirAll(shared.VarPath(fmt.Sprintf("%s.zfs", path)), 0700)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -826,19 +818,11 @@ func (s *storageZfs) zfsDestroy(path string) error {
 	}
 
 	// Due to open fds or kernel refs, this may fail for a bit, give it 10s
-	var output []byte
-	for i := 0; i < 20; i++ {
-		output, err = exec.Command(
-			"zfs",
-			"destroy",
-			"-r",
-			fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
-
-		if err == nil {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	output, err := tryExec(
+		"zfs",
+		"destroy",
+		"-r",
+		fmt.Sprintf("%s/%s", s.zfsPool, path))
 
 	if err != nil {
 		s.log.Error("zfs destroy failed", log.Ctx{"output": string(output)})
@@ -902,19 +886,6 @@ func (s *storageZfs) zfsGet(path string, key string) (string, error) {
 	}
 
 	return strings.TrimRight(string(output), "\n"), nil
-}
-
-func (s *storageZfs) zfsMount(path string) error {
-	output, err := exec.Command(
-		"zfs",
-		"mount",
-		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
-	if err != nil && !s.zfsMounted(path) {
-		s.log.Error("zfs mount failed", log.Ctx{"output": string(output)})
-		return fmt.Errorf("Failed to mount ZFS filesystem: %s", output)
-	}
-
-	return nil
 }
 
 func (s *storageZfs) zfsRename(source string, dest string) error {
@@ -1029,14 +1000,52 @@ func (s *storageZfs) zfsSnapshotRename(path string, oldName string, newName stri
 	return nil
 }
 
+func (s *storageZfs) zfsMount(path string) error {
+	var err error
+
+	fsPath := shared.VarPath(path) + ".zfs"
+	if !shared.IsDir(fsPath) {
+		fsPath, err = s.zfsGet(path, "mountpoint")
+		if err != nil {
+			return err
+		}
+	}
+
+	// "zfs mount" is just a wrapper for the "mount" command
+	// so save ourselves some forks
+
+	fs := fmt.Sprintf("%s/%s", s.zfsPool, path)
+	err = tryMount(fs, fsPath, "zfs", 0, "rw,zfsutil")
+	if err != nil && !shared.IsMountPoint(fsPath) {
+		s.log.Error("zfs mount failed", log.Ctx{"err": err, "source": fs, "target": fsPath})
+		return fmt.Errorf("Failed to mount ZFS filesystem: %s", err)
+	}
+
+	return nil
+}
+
 func (s *storageZfs) zfsUnmount(path string) error {
-	output, err := exec.Command(
-		"zfs",
-		"unmount",
-		fmt.Sprintf("%s/%s", s.zfsPool, path)).CombinedOutput()
-	if err != nil && s.zfsMounted(path) {
-		s.log.Error("zfs unmount failed", log.Ctx{"output": string(output)})
-		return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
+	var err error
+
+	fsPath := shared.VarPath(path) + ".zfs"
+	if !shared.IsDir(fsPath) {
+		fsPath, err = s.zfsGet(path, "mountpoint")
+		if err != nil {
+			return err
+		}
+	}
+
+	// "zfs unmount" is just a wrapper for the "umount" command
+	// so save ourselves some forks
+
+	err = syscall.Unmount(fsPath, 0)
+	if err != nil && shared.IsMountPoint(fsPath) {
+		// Do a lazy unmount, we only care about it fully gone at
+		// destroy and "zfs destroy" will complain appropriately
+		err = tryUnmount(fsPath, syscall.MNT_DETACH)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1269,7 +1278,6 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) error 
 	lastSnap := ""
 
 	for i, snap := range s.zfsSnapshotNames {
-
 		prev := ""
 		if i > 0 {
 			prev = s.zfsSnapshotNames[i-1]
@@ -1407,23 +1415,11 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []c
 	 * this fs (it's empty anyway) before we zfs recv. N.B. that `zfs recv`
 	 * of a snapshot also needs tha actual fs that it has snapshotted
 	 * unmounted, so we do this before receiving anything.
-	 *
-	 * Further, `zfs unmount` doesn't actually unmount things right away,
-	 * so we ask /proc/self/mountinfo whether or not this path is mounted
-	 * before continuing so that we're sure the fs is actually unmounted
-	 * before doing a recv.
 	 */
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
-	for i := 0; i < 20; i++ {
-		if s.zfsMounted(zfsName) {
-			if err := s.zfsUnmount(zfsName); err != nil {
-				shared.Log.Error("zfs umount error for", "path", zfsName, "err", err)
-			}
-		} else {
-			break
-		}
-
-		time.Sleep(500 * time.Millisecond)
+	err := s.zfsUnmount(zfsName)
+	if err != nil {
+		return err
 	}
 
 	for _, snap := range snapshots {
