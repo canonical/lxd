@@ -24,7 +24,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-var deviceSchedRebalance = make(chan []string, 0)
+var deviceSchedRebalance = make(chan []string, 2)
 
 type deviceBlockLimit struct {
 	readBps   int64
@@ -44,7 +44,7 @@ func (c deviceTaskCPUs) Len() int           { return len(c) }
 func (c deviceTaskCPUs) Less(i, j int) bool { return *c[i].count < *c[j].count }
 func (c deviceTaskCPUs) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
-func deviceNetlinkListener() (chan []string, error) {
+func deviceNetlinkListener() (chan []string, chan []string, error) {
 	NETLINK_KOBJECT_UEVENT := 15
 	UEVENT_BUFFER_SIZE := 2048
 
@@ -54,7 +54,7 @@ func deviceNetlinkListener() (chan []string, error) {
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	nl := syscall.SockaddrNetlink{
@@ -65,12 +65,13 @@ func deviceNetlinkListener() (chan []string, error) {
 
 	err = syscall.Bind(fd, &nl)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	ch := make(chan []string, 0)
+	chCPU := make(chan []string, 1)
+	chNetwork := make(chan []string, 0)
 
-	go func(ch chan []string) {
+	go func(chCPU chan []string, chNetwork chan []string) {
 		b := make([]byte, UEVENT_BUFFER_SIZE*2)
 		for {
 			_, err := syscall.Read(fd, b)
@@ -106,7 +107,12 @@ func deviceNetlinkListener() (chan []string, error) {
 					continue
 				}
 
-				ch <- []string{"cpu", path.Base(props["DEVPATH"]), props["ACTION"]}
+				// As CPU re-balancing affects all containers, no need to queue them
+				select {
+				case chCPU <- []string{path.Base(props["DEVPATH"]), props["ACTION"]}:
+				default:
+					// Channel is full, drop the event
+				}
 			}
 
 			if props["SUBSYSTEM"] == "net" {
@@ -114,12 +120,17 @@ func deviceNetlinkListener() (chan []string, error) {
 					continue
 				}
 
-				ch <- []string{"net", props["INTERFACE"], props["ACTION"]}
+				if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", props["INTERFACE"])) {
+					continue
+				}
+
+				// Network balancing is interface specific, so queue everything
+				chNetwork <- []string{props["INTERFACE"], props["ACTION"]}
 			}
 		}
-	}(ch)
+	}(chCPU, chNetwork)
 
-	return ch, nil
+	return chCPU, chNetwork, nil
 }
 
 func deviceTaskBalance(d *Daemon) {
@@ -387,7 +398,7 @@ func deviceNetworkPriority(d *Daemon, netif string) {
 }
 
 func deviceEventListener(d *Daemon) {
-	chNetlink, err := deviceNetlinkListener()
+	chNetlinkCPU, chNetlinkNetwork, err := deviceNetlinkListener()
 	if err != nil {
 		shared.Log.Error("scheduler: couldn't setup netlink listener")
 		return
@@ -395,40 +406,53 @@ func deviceEventListener(d *Daemon) {
 
 	for {
 		select {
-		case e := <-chNetlink:
-			if len(e) != 3 {
-				shared.Log.Error("Scheduler: received an invalid hotplug event")
+		case e := <-chNetlinkCPU:
+			if len(e) != 2 {
+				shared.Log.Error("Scheduler: received an invalid cpu hotplug event")
 				continue
 			}
 
-			if e[0] == "cpu" && cgCpusetController {
-				shared.Debugf("Scheduler: %s: %s is now %s: re-balancing", e[0], e[1], e[2])
-				deviceTaskBalance(d)
+			if !cgCpusetController {
+				continue
 			}
 
-			if e[0] == "net" && e[2] == "add" && cgNetPrioController && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", e[1])) {
-				shared.Debugf("Scheduler: %s: %s has been added: updating network priorities", e[0], e[1])
-				deviceNetworkPriority(d, e[1])
+			shared.Debugf("Scheduler: cpu: %s is now %s: re-balancing", e[0], e[1])
+			deviceTaskBalance(d)
+		case e := <-chNetlinkNetwork:
+			if len(e) != 2 {
+				shared.Log.Error("Scheduler: received an invalid network hotplug event")
+				continue
 			}
+
+			if !cgNetPrioController {
+				continue
+			}
+
+			shared.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
+			deviceNetworkPriority(d, e[0])
 		case e := <-deviceSchedRebalance:
 			if len(e) != 3 {
 				shared.Log.Error("Scheduler: received an invalid rebalance event")
 				continue
 			}
 
-			if cgCpusetController {
-				shared.Debugf("Scheduler: %s %s %s: re-balancing", e[0], e[1], e[2])
-				deviceTaskBalance(d)
+			if !cgCpusetController {
+				continue
 			}
+
+			shared.Debugf("Scheduler: %s %s %s: re-balancing", e[0], e[1], e[2])
+			deviceTaskBalance(d)
 		}
 	}
 }
 
 func deviceTaskSchedulerTrigger(srcType string, srcName string, srcStatus string) {
 	// Spawn a go routine which then triggers the scheduler
-	go func() {
-		deviceSchedRebalance <- []string{srcType, srcName, srcStatus}
-	}()
+	select {
+	case deviceSchedRebalance <- []string{srcType, srcName, srcStatus}:
+	default:
+		// Channel is full, drop the event
+	}
 }
 
 func deviceIsBlockdev(path string) bool {
