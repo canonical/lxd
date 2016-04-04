@@ -8,7 +8,7 @@ test_filemanip() {
   lxc file push main.sh filemanip/tmp/outside/
 
   [ ! -f /tmp/main.sh ]
-  [ -f "${LXD_DIR}/containers/filemanip/rootfs/tmp/main.sh" ]
+  lxc exec filemanip -- ls /tmp/main.sh
 
   lxc delete filemanip -f
 }
