@@ -259,7 +259,7 @@ coming from the profiles.
 
 
 If not present, LXD will create a "default" profile which comes with a
-network interface connected to LXD's default bridge (lxcbr0).
+network interface connected to LXD's default bridge (lxdbr0).
 
 The "default" profile is set for any new container created which doesn't
 specify a different profiles list.
@@ -277,7 +277,7 @@ configurations would look like:
             'security.privileged': 'true'
         },
         'devices': {
-            'nic-lxcbr0': {
+            'nic-lxdbr0': {
                 'type': 'none'
             },
             'nic-mybr0': {
