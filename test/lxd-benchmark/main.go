@@ -17,6 +17,7 @@ var argCount = gnuflag.Int("count", 100, "Number of containers to create")
 var argParallel = gnuflag.Int("parallel", -1, "Number of threads to use")
 var argImage = gnuflag.String("image", "ubuntu:", "Image to use for the test")
 var argPrivileged = gnuflag.Bool("privileged", false, "Use privileged containers")
+var argFreeze = gnuflag.Bool("freeze", false, "Freeze the container right after start")
 
 func main() {
 	err := run(os.Args)
@@ -86,6 +87,11 @@ func spawnContainers(c *lxd.Client, count int, image string, privileged bool) er
 		privilegedStr = "privileged"
 	}
 
+	mode := "normal startup"
+	if *argFreeze {
+		mode = "start and freeze"
+	}
+
 	fmt.Printf("Test environment:\n")
 	fmt.Printf("  Server backend: %s\n", st.Environment.Server)
 	fmt.Printf("  Server version: %s\n", st.Environment.ServerVersion)
@@ -100,6 +106,7 @@ func spawnContainers(c *lxd.Client, count int, image string, privileged bool) er
 	fmt.Printf("Test variables:\n")
 	fmt.Printf("  Container count: %d\n", count)
 	fmt.Printf("  Container mode: %s\n", privilegedStr)
+	fmt.Printf("  Startup mode: %s\n", mode)
 	fmt.Printf("  Image: %s\n", image)
 	fmt.Printf("  Batches: %d\n", batches)
 	fmt.Printf("  Batch size: %d\n", batch)
@@ -181,6 +188,21 @@ func spawnContainers(c *lxd.Client, count int, image string, privileged bool) er
 		if err != nil {
 			logf(fmt.Sprintf("Failed to spawn container '%s': %s", name, err))
 			return
+		}
+
+		// Freeze
+		if *argFreeze {
+			resp, err = c.Action(name, "freeze", -1, false, false)
+			if err != nil {
+				logf(fmt.Sprintf("Failed to spawn container '%s': %s", name, err))
+				return
+			}
+
+			err = c.WaitForSuccess(resp.Operation)
+			if err != nil {
+				logf(fmt.Sprintf("Failed to spawn container '%s': %s", name, err))
+				return
+			}
 		}
 	}
 
