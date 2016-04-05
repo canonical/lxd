@@ -713,7 +713,7 @@ func dbUpdateFromV3(db *sql.DB) error {
 INSERT INTO profiles_devices (profile_id, name, type) SELECT id, "eth0", "nic" FROM profiles WHERE profiles.name="default";
 INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "nictype", "bridged" FROM profiles_devices LEFT JOIN profiles ON profiles.id=profiles_devices.profile_id WHERE profiles.name == "default";
 INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, 'name', "eth0" FROM profiles_devices LEFT JOIN profiles ON profiles.id=profiles_devices.profile_id WHERE profiles.name == "default";
-INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "parent", "lxcbr0" FROM profiles_devices LEFT JOIN profiles ON profiles.id=profiles_devices.profile_id WHERE profiles.name == "default";`
+INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "parent", "lxdbr0" FROM profiles_devices LEFT JOIN profiles ON profiles.id=profiles_devices.profile_id WHERE profiles.name == "default";`
 	db.Exec(stmt)
 
 	stmt = `INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`

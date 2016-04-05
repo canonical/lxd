@@ -496,7 +496,7 @@ Output:
             "eth0": {
                 "name": "eth0",
                 "nictype": "bridged",
-                "parent": "lxcbr0",
+                "parent": "lxdbr0",
                 "type": "nic"
             },
             "root": {
@@ -677,7 +677,7 @@ HTTP code for this should be 202 (Accepted).
                     "state": "up",
                     "type": "loopback"
                 },
-                "lxcbr0": {
+                "lxdbr0": {
                     "addresses": [
                         {
                             "family": "inet",
@@ -839,7 +839,7 @@ Return:
             "eth0": {
                 "name": "eth0",
                 "nictype": "bridged",
-                "parent": "lxcbr0",
+                "parent": "lxdbr0",
                 "type": "nic"
             },
             "root": {
@@ -858,7 +858,7 @@ Return:
             "eth0": {
                 "name": "eth0",
                 "nictype": "bridged",
-                "parent": "lxcbr0",
+                "parent": "lxdbr0",
                 "type": "nic"
             },
             "root": {
@@ -1336,7 +1336,7 @@ Input (none at present):
 
     [
         "/1.0/networks/eth0",,
-        "/1.0/networks/lxcbr0"
+        "/1.0/networks/lxdbr0"
     ]
 
 ## /1.0/networks/\<name\>
@@ -1347,7 +1347,7 @@ Input (none at present):
  * Return: dict representing a network
 
     {
-        "name": "lxcbr0",
+        "name": "lxdbr0",
         "type": "bridge",
         "used_by": [
             "/1.0/containers/blah"

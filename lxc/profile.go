@@ -38,7 +38,7 @@ func (c *profileCmd) profileEditHelp() string {
 ### devices:
 ###   eth0:
 ###     nictype: bridged
-###     parent: lxcbr0
+###     parent: lxdbr0
 ###     type: nic
 ###
 ### Note that the name is shown but cannot be changed`)
