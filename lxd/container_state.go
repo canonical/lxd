@@ -46,6 +46,9 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	// Don't mess with containers while in setup mode
+	<-d.readyChan
+
 	c, err := containerLoadByName(d, name)
 	if err != nil {
 		return SmartError(err)
