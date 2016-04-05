@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"os/exec"
@@ -133,6 +132,42 @@ func deviceNetlinkListener() (chan []string, chan []string, error) {
 	return chCPU, chNetwork, nil
 }
 
+func parseCpuset(cpu string) ([]int, error) {
+	cpus := []int{}
+	chunks := strings.Split(cpu, ",")
+	for _, chunk := range chunks {
+		if strings.Contains(chunk, "-") {
+			// Range
+			fields := strings.SplitN(chunk, "-", 2)
+			if len(fields) != 2 {
+				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+			}
+
+			low, err := strconv.Atoi(fields[0])
+			if err != nil {
+				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+			}
+
+			high, err := strconv.Atoi(fields[1])
+			if err != nil {
+				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+			}
+
+			for i := low; i <= high; i++ {
+				cpus = append(cpus, i)
+			}
+		} else {
+			// Simple entry
+			nr, err := strconv.Atoi(chunk)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+			}
+			cpus = append(cpus, nr)
+		}
+	}
+	return cpus, nil
+}
+
 func deviceTaskBalance(d *Daemon) {
 	min := func(x, y int) int {
 		if x < y {
@@ -146,40 +181,20 @@ func deviceTaskBalance(d *Daemon) {
 		return
 	}
 
-	// Count CPUs
-	cpus := []int{}
-	dents, err := ioutil.ReadDir("/sys/bus/cpu/devices/")
+	// Get effective cpus list - those are all guaranteed to be online
+	effectiveCpus, err := cGroupGet("cpuset", "/", "cpuset.effective_cpus")
 	if err != nil {
-		shared.Log.Error("balance: Unable to list CPUs", log.Ctx{"err": err})
+		shared.Log.Error("Error reading host's cpuset.effective_cpus")
 		return
 	}
-
-	for _, f := range dents {
-		id := -1
-		count, err := fmt.Sscanf(f.Name(), "cpu%d", &id)
-		if count != 1 || id == -1 {
-			shared.Log.Error("balance: Bad CPU", log.Ctx{"path": f.Name()})
-			continue
-		}
-
-		onlinePath := fmt.Sprintf("/sys/bus/cpu/devices/%s/online", f.Name())
-		if !shared.PathExists(onlinePath) {
-			// CPUs without an online file are non-hotplug so are always online
-			cpus = append(cpus, id)
-			continue
-		}
-
-		online, err := ioutil.ReadFile(onlinePath)
-		if err != nil {
-			shared.Log.Error("balance: Bad CPU", log.Ctx{"path": f.Name(), "err": err})
-			continue
-		}
-
-		if online[0] == byte('0') {
-			continue
-		}
-
-		cpus = append(cpus, id)
+	err = cGroupSet("cpuset", "/lxc", "cpuset.cpus", effectiveCpus)
+	if err != nil && shared.PathExists("/sys/fs/cgroup/cpuset/lxc") {
+		shared.Log.Warn("Error setting lxd's cpuset.cpus", log.Ctx{"err": err})
+	}
+	cpus, err := parseCpuset(effectiveCpus)
+	if err != nil {
+		shared.Log.Error("Error parsing host's cpuset.effective_cpus", log.Ctx{"cpuset": effectiveCpus, "err": err})
+		return
 	}
 
 	// Iterate through the containers
@@ -193,80 +208,36 @@ func deviceTaskBalance(d *Daemon) {
 		}
 
 		conf := c.ExpandedConfig()
-		cpu, ok := conf["limits.cpu"]
-		if !ok || cpu == "" {
-			currentCPUs, err := deviceGetCurrentCPUs()
-			if err != nil {
-				shared.Debugf("Couldn't get current CPU list: %s", err)
-				cpu = fmt.Sprintf("%d", len(cpus))
-			} else {
-				cpu = currentCPUs
-			}
+		cpulimit, ok := conf["limits.cpu"]
+		if !ok || cpulimit == "" {
+			cpulimit = effectiveCpus
 		}
 
 		if !c.IsRunning() {
 			continue
 		}
 
-		count, err := strconv.Atoi(cpu)
+		count, err := strconv.Atoi(cpulimit)
 		if err == nil {
 			// Load-balance
 			count = min(count, len(cpus))
 			balancedContainers[c] = count
 		} else {
 			// Pinned
-			chunks := strings.Split(cpu, ",")
-			for _, chunk := range chunks {
-				if strings.Contains(chunk, "-") {
-					// Range
-					fields := strings.SplitN(chunk, "-", 2)
-					if len(fields) != 2 {
-						shared.Log.Error("Invalid limits.cpu value.", log.Ctx{"container": c.Name(), "value": cpu})
-						continue
-					}
+			containerCpus, err := parseCpuset(cpulimit)
+			if err != nil {
+				return
+			}
+			for _, nr := range containerCpus {
+				if !shared.IntInSlice(nr, cpus) {
+					continue
+				}
 
-					low, err := strconv.Atoi(fields[0])
-					if err != nil {
-						shared.Log.Error("Invalid limits.cpu value.", log.Ctx{"container": c.Name(), "value": cpu})
-						continue
-					}
-
-					high, err := strconv.Atoi(fields[1])
-					if err != nil {
-						shared.Log.Error("Invalid limits.cpu value.", log.Ctx{"container": c.Name(), "value": cpu})
-						continue
-					}
-
-					for i := low; i <= high; i++ {
-						if !shared.IntInSlice(i, cpus) {
-							continue
-						}
-
-						_, ok := fixedContainers[i]
-						if ok {
-							fixedContainers[i] = append(fixedContainers[i], c)
-						} else {
-							fixedContainers[i] = []container{c}
-						}
-					}
+				_, ok := fixedContainers[nr]
+				if ok {
+					fixedContainers[nr] = append(fixedContainers[nr], c)
 				} else {
-					// Simple entry
-					nr, err := strconv.Atoi(chunk)
-					if err != nil {
-						shared.Log.Error("Invalid limits.cpu value.", log.Ctx{"container": c.Name(), "value": cpu})
-						continue
-					}
-
-					if !shared.IntInSlice(nr, cpus) {
-						continue
-					}
-
-					_, ok := fixedContainers[nr]
-					if ok {
-						fixedContainers[nr] = append(fixedContainers[nr], c)
-					} else {
-						fixedContainers[nr] = []container{c}
-					}
+					fixedContainers[nr] = []container{c}
 				}
 			}
 		}
@@ -331,34 +302,6 @@ func deviceTaskBalance(d *Daemon) {
 			shared.Log.Error("balance: Unable to set cpuset", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
 		}
 	}
-}
-
-func deviceGetCurrentCPUs() (string, error) {
-	// Open /proc/self/status
-	f, err := os.Open("/proc/self/status")
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	// Read it line by line
-	scan := bufio.NewScanner(f)
-	for scan.Scan() {
-		line := scan.Text()
-
-		// We only care about MemTotal
-		if !strings.HasPrefix(line, "Cpus_allowed_list:") {
-			continue
-		}
-
-		// Extract the before last (value) and last (unit) fields
-		fields := strings.Split(line, "\t")
-		value := fields[len(fields)-1]
-
-		return value, nil
-	}
-
-	return "", fmt.Errorf("Couldn't find cpus_allowed_list")
 }
 
 func deviceNetworkPriority(d *Daemon, netif string) {
