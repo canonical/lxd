@@ -104,7 +104,7 @@ test_config_profiles() {
   mkdir -p "${TEST_DIR}/mnt1"
   lxc config device add foo mnt1 disk source="${TEST_DIR}/mnt1" path=/mnt1 readonly=true
   lxc profile create onenic
-  lxc profile device add onenic eth0 nic nictype=bridged parent=lxcbr0
+  lxc profile device add onenic eth0 nic nictype=bridged parent=lxdbr0
   lxc profile apply foo onenic
   lxc profile create unconfined
   lxc profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
@@ -115,7 +115,7 @@ test_config_profiles() {
   lxc config show foo | grep "onenic" -A1 | grep "unconfined"
   lxc profile list | grep onenic
   lxc profile device list onenic | grep eth0
-  lxc profile device show onenic | grep lxcbr0
+  lxc profile device show onenic | grep lxdbr0
 
   # test live-adding a nic
   lxc start foo
@@ -123,7 +123,7 @@ test_config_profiles() {
   lxc config show foo --expanded | grep -q "raw.lxc"
   ! lxc config show foo | grep -v "volatile.eth0" | grep -q "eth0"
   lxc config show foo --expanded | grep -v "volatile.eth0" | grep -q "eth0"
-  lxc config device add foo eth2 nic nictype=bridged parent=lxcbr0 name=eth10
+  lxc config device add foo eth2 nic nictype=bridged parent=lxdbr0 name=eth10
   lxc exec foo -- /sbin/ifconfig -a | grep eth0
   lxc exec foo -- /sbin/ifconfig -a | grep eth10
   lxc config device list foo | grep eth2
