@@ -465,6 +465,7 @@ func cmdActivateIfNeeded() error {
 	d := &Daemon{
 		imagesDownloading:     map[string]chan bool{},
 		imagesDownloadingLock: sync.RWMutex{},
+		lxcpath:               shared.VarPath("containers"),
 	}
 
 	err := initializeDbObject(d, shared.VarPath("lxd.db"))
@@ -504,6 +505,12 @@ func cmdActivateIfNeeded() error {
 		config := c.ExpandedConfig()
 		lastState := config["volatile.last_state.power"]
 		autoStart := config["boot.autostart"]
+
+		if c.IsRunning() {
+			shared.Debugf("Daemon has running containers, activating...")
+			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			return err
+		}
 
 		if lastState == "RUNNING" || lastState == "Running" || autoStart == "true" {
 			shared.Debugf("Daemon has auto-started containers, activating...")
