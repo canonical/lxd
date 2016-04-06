@@ -245,7 +245,7 @@ func deviceTaskBalance(d *Daemon) {
 
 	// Balance things
 	pinning := map[container][]string{}
-	usage := make(deviceTaskCPUs, 0)
+	usage := map[int]deviceTaskCPU{}
 
 	for _, id := range cpus {
 		cpu := deviceTaskCPU{}
@@ -254,11 +254,16 @@ func deviceTaskBalance(d *Daemon) {
 		count := 0
 		cpu.count = &count
 
-		usage = append(usage, cpu)
+		usage[id] = cpu
 	}
 
 	for cpu, ctns := range fixedContainers {
-		id := usage[cpu].strId
+		c, ok := usage[cpu]
+		if !ok {
+			shared.Log.Error("Internal error: container using unavailable cpu")
+			continue
+		}
+		id := c.strId
 		for _, ctn := range ctns {
 			_, ok := pinning[ctn]
 			if ok {
@@ -266,13 +271,18 @@ func deviceTaskBalance(d *Daemon) {
 			} else {
 				pinning[ctn] = []string{id}
 			}
-			*usage[cpu].count += 1
+			*c.count += 1
 		}
 	}
 
+	sortedUsage := make(deviceTaskCPUs, 0)
+	for _, value := range usage {
+		sortedUsage = append(sortedUsage, value)
+	}
+
 	for ctn, count := range balancedContainers {
-		sort.Sort(usage)
-		for _, cpu := range usage {
+		sort.Sort(sortedUsage)
+		for _, cpu := range sortedUsage {
 			if count == 0 {
 				break
 			}
