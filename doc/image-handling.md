@@ -24,7 +24,7 @@ LXD can keep images up to date. By default, any image which comes from a
 remote server and was requested through an alias will be automatically
 updated by LXD. This can be changed with images.auto\_update\_cached.
 
-On startup and then every 3 hours (unless images.auto\_update\_interval
+On startup and then every 6 hours (unless images.auto\_update\_interval
 is set), the LXD daemon will go look for more recent version of all the
 images in the store which are marked as auto-update and have a recorded
 source server.
