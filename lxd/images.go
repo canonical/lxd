@@ -124,7 +124,14 @@ func untarImage(imagefname string, destpath string) error {
 }
 
 func compressFile(path string, compress string) (string, error) {
-	cmd := exec.Command(compress, path, "-c", "-n")
+	reproducible := []string{"gzip"}
+
+	args := []string{path, "-c"}
+	if shared.StringInSlice(compress, reproducible) {
+		args = append(args, "-n")
+	}
+
+	cmd := exec.Command(compress, args...)
 
 	outfile, err := os.Create(path + ".compressed")
 	if err != nil {
