@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-03-31 06:43+0000\n"
+        "POT-Creation-Date: 2016-04-07 13:05-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,15 +16,15 @@ msgstr  "Project-Id-Version: lxd\n"
         "Content-Type: text/plain; charset=CHARSET\n"
         "Content-Transfer-Encoding: 8bit\n"
 
-#: lxc/info.go:134
+#: lxc/info.go:140
 msgid   "  Disk usage:"
 msgstr  ""
 
-#: lxc/info.go:157
+#: lxc/info.go:163
 msgid   "  Memory usage:"
 msgstr  ""
 
-#: lxc/info.go:172
+#: lxc/info.go:180
 msgid   "  Network usage:"
 msgstr  ""
 
@@ -119,7 +119,7 @@ msgstr  ""
 msgid   "An environment variable of the form HOME=/home/foo"
 msgstr  ""
 
-#: lxc/image.go:330 lxc/info.go:88
+#: lxc/image.go:330 lxc/info.go:90
 #, c-format
 msgid   "Architecture: %s"
 msgstr  ""
@@ -133,11 +133,11 @@ msgstr  ""
 msgid   "Available commands:"
 msgstr  ""
 
-#: lxc/info.go:165
+#: lxc/info.go:172
 msgid   "Bytes received"
 msgstr  ""
 
-#: lxc/info.go:166
+#: lxc/info.go:173
 msgid   "Bytes sent"
 msgstr  ""
 
@@ -245,7 +245,7 @@ msgid   "Create a read-only snapshot of a container.\n"
         "lxc snapshot u1 snap0"
 msgstr  ""
 
-#: lxc/image.go:335 lxc/info.go:90
+#: lxc/image.go:335 lxc/info.go:92
 #, c-format
 msgid   "Created: %s"
 msgstr  ""
@@ -423,7 +423,7 @@ msgstr  ""
 msgid   "Invalid target %s"
 msgstr  ""
 
-#: lxc/info.go:117
+#: lxc/info.go:121
 msgid   "Ips:"
 msgstr  ""
 
@@ -450,11 +450,13 @@ msgid   "Launch a container from a particular image.\n"
 msgstr  ""
 
 #: lxc/info.go:25
-msgid   "List information on containers.\n"
+msgid   "List information on LXD servers and containers.\n"
         "\n"
-        "This will support remotes and images as well, but only containers for now.\n"
+        "For a container:\n"
+        " lxc info [<remote>:]container [--show-log]\n"
         "\n"
-        "lxc info [<remote>:]container [--show-log]"
+        "For a server:\n"
+        " lxc info [<remote>:]"
 msgstr  ""
 
 #: lxc/list.go:60
@@ -486,7 +488,7 @@ msgid   "Lists the available resources.\n"
         "Fast column layout: nsacPt"
 msgstr  ""
 
-#: lxc/info.go:215
+#: lxc/info.go:223
 msgid   "Log:"
 msgstr  ""
 
@@ -653,11 +655,11 @@ msgid   "Manipulate container images.\n"
         "    List the aliases. Filters may be part of the image hash or part of the image alias name.\n"
 msgstr  ""
 
-#: lxc/info.go:141
+#: lxc/info.go:147
 msgid   "Memory (current)"
 msgstr  ""
 
-#: lxc/info.go:145
+#: lxc/info.go:151
 msgid   "Memory (peak)"
 msgstr  ""
 
@@ -705,7 +707,7 @@ msgstr  ""
 msgid   "NO"
 msgstr  ""
 
-#: lxc/info.go:87
+#: lxc/info.go:89
 #, c-format
 msgid   "Name: %s"
 msgstr  ""
@@ -763,11 +765,11 @@ msgstr  ""
 msgid   "PUBLIC"
 msgstr  ""
 
-#: lxc/info.go:167
+#: lxc/info.go:174
 msgid   "Packets received"
 msgstr  ""
 
-#: lxc/info.go:168
+#: lxc/info.go:175
 msgid   "Packets sent"
 msgstr  ""
 
@@ -783,7 +785,7 @@ msgstr  ""
 msgid   "Permisson denied, are you in the lxd group?"
 msgstr  ""
 
-#: lxc/info.go:101
+#: lxc/info.go:103
 #, c-format
 msgid   "Pid: %d"
 msgstr  ""
@@ -815,12 +817,12 @@ msgid   "Print verbose information."
 msgstr  ""
 
 #: lxc/version.go:18
-msgid   "Prints the version number of LXD.\n"
+msgid   "Prints the version number of this client tool.\n"
         "\n"
         "lxc version"
 msgstr  ""
 
-#: lxc/info.go:123
+#: lxc/info.go:127
 #, c-format
 msgid   "Processes: %d"
 msgstr  ""
@@ -844,7 +846,7 @@ msgstr  ""
 msgid   "Profile to apply to the new container"
 msgstr  ""
 
-#: lxc/info.go:99
+#: lxc/info.go:101
 #, c-format
 msgid   "Profiles: %s"
 msgstr  ""
@@ -881,7 +883,7 @@ msgstr  ""
 msgid   "Require user confirmation."
 msgstr  ""
 
-#: lxc/info.go:120
+#: lxc/info.go:124
 msgid   "Resources:"
 msgstr  ""
 
@@ -947,7 +949,7 @@ msgstr  ""
 msgid   "Show all commands (not just interesting ones)"
 msgstr  ""
 
-#: lxc/info.go:34
+#: lxc/info.go:36
 msgid   "Show the container's last 100 log lines?"
 msgstr  ""
 
@@ -956,7 +958,7 @@ msgstr  ""
 msgid   "Size: %.2fMB"
 msgstr  ""
 
-#: lxc/info.go:186
+#: lxc/info.go:194
 msgid   "Snapshots:"
 msgstr  ""
 
@@ -969,7 +971,7 @@ msgstr  ""
 msgid   "Starting %s"
 msgstr  ""
 
-#: lxc/info.go:93
+#: lxc/info.go:95
 #, c-format
 msgid   "Status: %s"
 msgstr  ""
@@ -986,11 +988,11 @@ msgstr  ""
 msgid   "Store the container state (only for stop)."
 msgstr  ""
 
-#: lxc/info.go:149
+#: lxc/info.go:155
 msgid   "Swap (current)"
 msgstr  ""
 
-#: lxc/info.go:153
+#: lxc/info.go:159
 msgid   "Swap (peak)"
 msgstr  ""
 
@@ -1032,11 +1034,11 @@ msgstr  ""
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
 
-#: lxc/info.go:95
+#: lxc/info.go:97
 msgid   "Type: ephemeral"
 msgstr  ""
 
-#: lxc/info.go:97
+#: lxc/info.go:99
 msgid   "Type: persistent"
 msgstr  ""
 
@@ -1173,20 +1175,20 @@ msgstr  ""
 msgid   "remote %s is static and cannot be modified"
 msgstr  ""
 
-#: lxc/info.go:195
+#: lxc/info.go:203
 msgid   "stateful"
 msgstr  ""
 
-#: lxc/info.go:197
+#: lxc/info.go:205
 msgid   "stateless"
 msgstr  ""
 
-#: lxc/info.go:191
+#: lxc/info.go:199
 #, c-format
 msgid   "taken at %s"
 msgstr  ""
 
-#: lxc/exec.go:167
+#: lxc/exec.go:166
 msgid   "unreachable return reached"
 msgstr  ""
 
