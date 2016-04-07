@@ -343,7 +343,7 @@ type container interface {
 	ConfigKeySet(key string, value string) error
 
 	// File handling
-	FilePull(srcpath string, dstpath string) error
+	FilePull(srcpath string, dstpath string) (int, int, os.FileMode, error)
 	FilePush(srcpath string, dstpath string, uid int, gid int, mode os.FileMode) error
 
 	// Command execution
