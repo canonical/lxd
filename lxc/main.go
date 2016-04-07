@@ -141,6 +141,10 @@ func run() error {
 		if err != nil {
 			return err
 		}
+
+		if shared.PathExists("/var/lib/lxd/") {
+			fmt.Fprintf(os.Stderr, i18n.G("If this is your first time using LXD, you should also run: sudo lxd init")+"\n\n")
+		}
 	}
 
 	err = cmd.run(config, gnuflag.Args())
