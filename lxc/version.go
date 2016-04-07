@@ -16,7 +16,7 @@ func (c *versionCmd) showByDefault() bool {
 
 func (c *versionCmd) usage() string {
 	return i18n.G(
-		`Prints the version number of LXD.
+		`Prints the version number of this client tool.
 
 lxc version`)
 }

@@ -23,11 +23,13 @@ func (c *infoCmd) showByDefault() bool {
 
 func (c *infoCmd) usage() string {
 	return i18n.G(
-		`List information on containers.
+		`List information on LXD servers and containers.
 
-This will support remotes and images as well, but only containers for now.
+For a container:
+ lxc info [<remote>:]container [--show-log]
 
-lxc info [<remote>:]container [--show-log]`)
+For a server:
+ lxc info [<remote>:]`)
 }
 
 func (c *infoCmd) flags() {
