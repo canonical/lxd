@@ -23,7 +23,7 @@ func TestShouldShow(t *testing.T) {
 
 	state := &shared.ContainerInfo{
 		Name: "foo",
-		Config: map[string]string{
+		ExpandedConfig: map[string]string{
 			"security.privileged": "1",
 			"user.blah":           "abc",
 		},
