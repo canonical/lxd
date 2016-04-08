@@ -150,6 +150,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		}
 	}
 
+	umask(0);
 	container_fd = open(container, container_open_flags, mode);
 	if (container_fd < 0) {
 		perror("error: open");
