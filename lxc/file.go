@@ -67,6 +67,10 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 
 	mode := os.FileMode(0755)
 	if c.mode != "" {
+		if len(c.mode) == 3 {
+			c.mode = "0" + c.mode
+		}
+
 		m, err := strconv.ParseInt(c.mode, 0, 0)
 		if err != nil {
 			return err
