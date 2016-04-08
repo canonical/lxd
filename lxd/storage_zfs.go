@@ -1066,6 +1066,14 @@ func (s *storageZfs) zfsGetPoolUsers() ([]string, error) {
 
 	users := []string{}
 	for _, subvol := range subvols {
+		path := strings.Split(subvol, "/")
+
+		// Only care about plausible LXD paths
+		if !shared.StringInSlice(path[0], exceptions) {
+			continue
+		}
+
+		// Ignore empty paths
 		if shared.StringInSlice(subvol, exceptions) {
 			continue
 		}
