@@ -2901,7 +2901,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 			err)
 	}
 
-	// Unap uid and gid if needed
+	// Unmap uid and gid if needed
 	idmapset, err := c.LastIdmapSet()
 	if err != nil {
 		return -1, -1, 0, err
