@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-04-07 13:05-0400\n"
+        "POT-Creation-Date: 2016-04-07 18:36-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -371,6 +371,10 @@ msgstr  ""
 
 #: lxc/config.go:271
 msgid   "ISSUE DATE"
+msgstr  ""
+
+#: lxc/main.go:146
+msgid   "If this is your first time using LXD, you should also run: sudo lxd init"
 msgstr  ""
 
 #: lxc/main.go:57
@@ -1124,7 +1128,7 @@ msgstr  ""
 msgid   "enabled"
 msgstr  ""
 
-#: lxc/main.go:25 lxc/main.go:154
+#: lxc/main.go:25 lxc/main.go:158
 #, c-format
 msgid   "error: %v"
 msgstr  ""
@@ -1150,7 +1154,7 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/main.go:261 lxc/main.go:265
+#: lxc/main.go:265 lxc/main.go:269
 #, c-format
 msgid   "processing aliases failed %s\n"
 msgstr  ""
@@ -1192,7 +1196,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:194
+#: lxc/main.go:198
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
