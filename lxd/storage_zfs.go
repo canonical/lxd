@@ -1349,14 +1349,15 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []c
 
 	defer func() {
 		/* clean up our migration-send snapshots that we got from recv. */
-		snapshots, err := s.zfsListSnapshots(fmt.Sprintf("containers/%s", container.Name()))
+		zfsSnapshots, err := s.zfsListSnapshots(fmt.Sprintf("containers/%s", container.Name()))
 		if err != nil {
 			shared.Log.Error("failed listing snapshots post migration", "err", err)
 			return
 		}
 
-		for _, snap := range snapshots {
-			if !strings.HasPrefix(snap, "migration-send") {
+		for _, snap := range zfsSnapshots {
+			// If we received a bunch of snapshots, remove the migration-send-* ones, if not, wipe any snapshot we got
+			if snapshots != nil && len(snapshots) > 0 && !strings.HasPrefix(snap, "migration-send") {
 				continue
 			}
 
