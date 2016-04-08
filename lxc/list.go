@@ -124,7 +124,7 @@ func (c *listCmd) shouldShow(filters []string, state *shared.ContainerInfo) bool
 			}
 
 			found := false
-			for configKey, configValue := range state.Config {
+			for configKey, configValue := range state.ExpandedConfig {
 				if c.dotPrefixMatch(key, configKey) {
 					//try to test filter value as a regexp
 					regexpValue := value
