@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
-	"syscall"
 
 	"github.com/gorilla/mux"
 
@@ -52,27 +50,15 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 	defer temp.Close()
 
 	// Pul the file from the container
-	err = c.FilePull(path, temp.Name())
+	uid, gid, mode, err := c.FilePull(path, temp.Name())
 	if err != nil {
 		return InternalError(err)
 	}
 
-	// Get file attributes
-	fi, err := temp.Stat()
-	if err != nil {
-		return SmartError(err)
-	}
-
-	/*
-	 * Unfortunately, there's no portable way to do this:
-	 * https://groups.google.com/forum/#!topic/golang-nuts/tGYjYyrwsGM
-	 * https://groups.google.com/forum/#!topic/golang-nuts/ywS7xQYJkHY
-	 */
-	sb := fi.Sys().(*syscall.Stat_t)
 	headers := map[string]string{
-		"X-LXD-uid":  strconv.FormatUint(uint64(sb.Uid), 10),
-		"X-LXD-gid":  strconv.FormatUint(uint64(sb.Gid), 10),
-		"X-LXD-mode": fmt.Sprintf("%04o", fi.Mode()&os.ModePerm),
+		"X-LXD-uid":  fmt.Sprintf("%d", uid),
+		"X-LXD-gid":  fmt.Sprintf("%d", gid),
+		"X-LXD-mode": fmt.Sprintf("%04o", mode),
 	}
 
 	// Make a file response struct

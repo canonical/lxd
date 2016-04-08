@@ -121,6 +121,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 	int host_fd, container_fd;
 	int ret = -1;
 	int container_open_flags;
+	struct stat st;
 
 	host_fd = open(host, O_RDWR);
 	if (host_fd < 0) {
@@ -167,8 +168,18 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		}
 
 		ret = 0;
-	} else
+	} else {
 		ret = copy(host_fd, container_fd);
+
+		if (fstat(container_fd, &st) < 0) {
+			perror("error: stat");
+			goto close_container;
+		}
+
+		fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
+		fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
+		fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+	}
 
 close_container:
 	close(container_fd);
@@ -345,14 +356,6 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 		ADVANCE_ARG_REQUIRED();
 		mode = atoi(cur);
 	}
-
-	printf("command: %s\n", command);
-	printf("source: %s\n", source);
-	printf("pid: %d\n", pid);
-	printf("target: %s\n", target);
-	printf("uid: %d\n", uid);
-	printf("gid: %d\n", gid);
-	printf("mode: %d\n", mode);
 
 	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, uid, gid, mode));
 }
