@@ -63,6 +63,9 @@ test_basic_usage() {
   lxc list | grep foo | grep STOPPED
   lxc list fo | grep foo | grep STOPPED
 
+  # Test list json format
+  lxc list --format json | jq '.[]|select(.name="foo")' | grep '"name": "foo"'
+
   # Test container rename
   lxc move foo bar
   lxc list | grep -v foo
