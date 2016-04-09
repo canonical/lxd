@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -47,9 +48,15 @@ func (a byName) Less(i, j int) bool {
 	return a[i][0] < a[j][0]
 }
 
+const (
+	listFormatTable = "table"
+	listFormatJSON  = "json"
+)
+
 type listCmd struct {
 	chosenColumnRunes string
 	fast              bool
+	format            string
 }
 
 func (c *listCmd) showByDefault() bool {
@@ -60,7 +67,7 @@ func (c *listCmd) usage() string {
 	return i18n.G(
 		`Lists the available resources.
 
-lxc list [resource] [filters] [-c columns] [--fast]
+lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]
 
 The filters are:
 * A single keyword like "web" which will list any container with "web" in its name.
@@ -70,7 +77,7 @@ The filters are:
 * "security.privileged=1" will list all privileged containers
 * "s.privileged=1" will do the same
 
-The columns are:
+Columns for table format are:
 * 4 - IPv4 address
 * 6 - IPv6 address
 * a - architecture
@@ -89,6 +96,7 @@ Fast column layout: nsacPt`)
 func (c *listCmd) flags() {
 	gnuflag.StringVar(&c.chosenColumnRunes, "c", "ns46tS", i18n.G("Columns"))
 	gnuflag.StringVar(&c.chosenColumnRunes, "columns", "ns46tS", i18n.G("Columns"))
+	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format"))
 	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt"))
 }
 
@@ -263,29 +271,52 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 	cStatesWg.Wait()
 	cSnapshotsWg.Wait()
 
-	data := [][]string{}
-	for _, cInfo := range cinfos {
-		if !c.shouldShow(filters, &cInfo) {
-			continue
+	switch c.format {
+	case listFormatTable:
+		data := [][]string{}
+		for _, cInfo := range cinfos {
+			if !c.shouldShow(filters, &cInfo) {
+				continue
+			}
+
+			col := []string{}
+			for _, column := range columns {
+				col = append(col, column.Data(cInfo, cStates[cInfo.Name], cSnapshots[cInfo.Name]))
+			}
+			data = append(data, col)
 		}
 
-		col := []string{}
-		for _, column := range columns {
-			col = append(col, column.Data(cInfo, cStates[cInfo.Name], cSnapshots[cInfo.Name]))
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		table.SetRowLine(true)
+		table.SetHeader(headers)
+		sort.Sort(byName(data))
+		table.AppendBulk(data)
+		table.Render()
+	case listFormatJSON:
+		data := make([]listContainerItem, len(cinfos))
+		for i := range cinfos {
+			data[i].ContainerInfo = &cinfos[i]
+			data[i].State = cStates[cinfos[i].Name]
+			data[i].Snapshots = cSnapshots[cinfos[i].Name]
 		}
-		data = append(data, col)
+		enc := json.NewEncoder(os.Stdout)
+		err := enc.Encode(data)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("invalid format %q", c.format)
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
-	table.SetHeader(headers)
-	sort.Sort(byName(data))
-	table.AppendBulk(data)
-	table.Render()
-
 	return nil
+}
+
+type listContainerItem struct {
+	*shared.ContainerInfo
+	State     *shared.ContainerState `json:"state"`
+	Snapshots []shared.SnapshotInfo  `json:"snapshots"`
 }
 
 func (c *listCmd) run(config *lxd.Config, args []string) error {
