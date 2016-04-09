@@ -193,7 +193,9 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		if first_snapshot {
 			fmt.Println(i18n.G("Snapshots:"))
 		}
-		fmt.Printf("  %s", snap.Name)
+
+		fields := strings.Split(snap.Name, shared.SnapshotDelimiter)
+		fmt.Printf("  %s", fields[len(fields)-1])
 
 		if snap.CreationDate.UTC().Unix() != 0 {
 			fmt.Printf(" ("+i18n.G("taken at %s")+")", snap.CreationDate.UTC().Format(layout))
