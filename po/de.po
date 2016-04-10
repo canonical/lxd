@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2016-04-07 18:36-0400\n"
+"POT-Creation-Date: 2016-04-08 18:17-0500\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -145,7 +145,7 @@ msgstr ""
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:336
+#: lxc/list.go:367
 msgid "ARCHITECTURE"
 msgstr ""
 
@@ -193,7 +193,7 @@ msgstr ""
 msgid "COMMON NAME"
 msgstr ""
 
-#: lxc/list.go:337
+#: lxc/list.go:368
 msgid "CREATED AT"
 msgstr ""
 
@@ -231,7 +231,7 @@ msgstr ""
 msgid "Client certificate stored at server: "
 msgstr "Gespeichertes Nutzerzertifikat auf dem Server: "
 
-#: lxc/list.go:90 lxc/list.go:91
+#: lxc/list.go:97 lxc/list.go:98
 msgid "Columns"
 msgstr ""
 
@@ -353,7 +353,7 @@ msgstr "Gerät %s wurde zu %s hinzugefügt\n"
 msgid "Device %s removed from %s"
 msgstr "Gerät %s wurde von %s entfernt\n"
 
-#: lxc/list.go:420
+#: lxc/list.go:451
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -410,7 +410,7 @@ msgstr ""
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/list.go:92
+#: lxc/list.go:100
 msgid "Fast mode (same as --columns=nsacPt"
 msgstr ""
 
@@ -442,16 +442,20 @@ msgstr ""
 msgid "Force using the local unix socket."
 msgstr ""
 
+#: lxc/list.go:99
+msgid "Format"
+msgstr ""
+
 #: lxc/main.go:138
 #, fuzzy
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Generiere Nutzerzertifikat. Dies kann wenige Minuten dauern...\n"
 
-#: lxc/list.go:334
+#: lxc/list.go:365
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:335
+#: lxc/list.go:366
 msgid "IPV6"
 msgstr ""
 
@@ -519,7 +523,7 @@ msgstr ""
 msgid "Invalid configuration key"
 msgstr ""
 
-#: lxc/file.go:186
+#: lxc/file.go:190
 #, c-format
 msgid "Invalid source %s"
 msgstr "Ungültige Quelle %s"
@@ -587,12 +591,12 @@ msgstr ""
 "\n"
 "lxc info [<remote>:]Container [--show-log]\n"
 
-#: lxc/list.go:60
+#: lxc/list.go:67
 #, fuzzy
 msgid ""
 "Lists the available resources.\n"
 "\n"
-"lxc list [resource] [filters] [-c columns] [--fast]\n"
+"lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]\n"
 "\n"
 "The filters are:\n"
 "* A single keyword like \"web\" which will list any container with \"web\" "
@@ -605,7 +609,7 @@ msgid ""
 "* \"security.privileged=1\" will list all privileged containers\n"
 "* \"s.privileged=1\" will do the same\n"
 "\n"
-"The columns are:\n"
+"Columns for table format are:\n"
 "* 4 - IPv4 address\n"
 "* 6 - IPv6 address\n"
 "* a - architecture\n"
@@ -970,7 +974,7 @@ msgid ""
 "lxc monitor --type=logging"
 msgstr ""
 
-#: lxc/file.go:174
+#: lxc/file.go:178
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Mehr als eine Datei herunterzuladen, aber das Ziel ist kein Verzeichnis"
@@ -996,7 +1000,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/list.go:338 lxc/remote.go:363
+#: lxc/list.go:369 lxc/remote.go:363
 msgid "NAME"
 msgstr ""
 
@@ -1043,15 +1047,15 @@ msgstr ""
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
-#: lxc/list.go:422
+#: lxc/list.go:453
 msgid "PERSISTENT"
 msgstr ""
 
-#: lxc/list.go:339
+#: lxc/list.go:370
 msgid "PID"
 msgstr ""
 
-#: lxc/list.go:340
+#: lxc/list.go:371
 msgid "PROFILES"
 msgstr ""
 
@@ -1210,11 +1214,11 @@ msgstr ""
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:341
+#: lxc/list.go:372
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/list.go:342
+#: lxc/list.go:373
 msgid "STATE"
 msgstr ""
 
@@ -1313,7 +1317,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:343
+#: lxc/list.go:374
 msgid "TYPE"
 msgstr ""
 
