@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2016-04-08 18:17-0500\n"
+"POT-Creation-Date: 2016-04-11 15:01-0400\n"
 "PO-Revision-Date: 2016-04-10 23:40+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -592,11 +592,14 @@ msgstr ""
 "lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]\n"
 "\n"
 "フィルタの指定:\n"
-"* 単一の \"web\" のようなキーワードを指定すると、名前に \"web\" が含まれるコンテ\n"
+"* 単一の \"web\" のようなキーワードを指定すると、名前に \"web\" が含まれるコ"
+"ンテ\n"
 "  ナが一覧表示されます。\n"
-"* 設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することがで\n"
+"* 設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することが"
+"で\n"
 "  きます:\n"
-"* \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定されている\n"
+"* \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定されて"
+"いる\n"
 "  コンテナをすべて一覧表示します。\n"
 "* \"u.blah\" は上記と同じ意味になります。\n"
 "* \"security.privileged=1\" は特権コンテナをすべて一覧表示します。\n"
@@ -617,7 +620,7 @@ msgstr ""
 "デフォルトのカラムレイアウト: ns46tS\n"
 "Fast モードのカラムレイアウト: nsacPt"
 
-#: lxc/info.go:223
+#: lxc/info.go:225
 msgid "Log:"
 msgstr "ログ:"
 
@@ -972,11 +975,14 @@ msgstr ""
 "る場合は) エイリアスで参照できます。\n"
 "\n"
 "\n"
-"lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [prop=value]\n"
+"lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--"
+"created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] "
+"[prop=value]\n"
 "    イメージの tarball (複数も可能) を LXD のイメージストアにインポートしま\n"
 "    す。\n"
 "\n"
-"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public] [--auto-update]\n"
+"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] "
+"[--public] [--auto-update]\n"
 "    ネットワーク経由である LXD デーモンから他の LXD デーモンへイメージを\n"
 "    コピーします。\n"
 "\n"
@@ -1013,7 +1019,8 @@ msgstr ""
 "    エイリアスを削除します。\n"
 "\n"
 "lxc image alias list [remote:] [filter]\n"
-"    エイリアスを一覧表示します。イメージハッシュの一部やイメージのエイリアス\n"
+"    エイリアスを一覧表示します。イメージハッシュの一部やイメージのエイリア"
+"ス\n"
 "    名の一部をフィルタとして指定できます。\n"
 
 #: lxc/info.go:147
@@ -1430,7 +1437,8 @@ msgstr "デバイスが存在しません"
 #: lxc/publish.go:62
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
-"publish 先にはイメージ名は指定できません。\"--alias\" オプションを使ってくだ\n"
+"publish 先にはイメージ名は指定できません。\"--alias\" オプションを使ってく"
+"だ\n"
 "さい。"
 
 #: lxc/action.go:36
@@ -1598,15 +1606,15 @@ msgstr "リモート %s は <%s> として存在します"
 msgid "remote %s is static and cannot be modified"
 msgstr "リモート %s は static ですので変更できません"
 
-#: lxc/info.go:203
+#: lxc/info.go:205
 msgid "stateful"
 msgstr ""
 
-#: lxc/info.go:205
+#: lxc/info.go:207
 msgid "stateless"
 msgstr ""
 
-#: lxc/info.go:199
+#: lxc/info.go:201
 #, c-format
 msgid "taken at %s"
 msgstr "%s に取得しました"
