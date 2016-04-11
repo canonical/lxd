@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2016-04-08 18:17-0500\n"
+"POT-Creation-Date: 2016-04-11 15:01-0400\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -639,7 +639,7 @@ msgstr ""
 "* \"security.privileged=1\" listet alle privilegierten Container\n"
 "* \"s.privileged=1\" ebenfalls\n"
 
-#: lxc/info.go:223
+#: lxc/info.go:225
 msgid "Log:"
 msgstr ""
 
@@ -1514,15 +1514,15 @@ msgstr "entfernte Instanz %s existiert als <%s>"
 msgid "remote %s is static and cannot be modified"
 msgstr ""
 
-#: lxc/info.go:203
+#: lxc/info.go:205
 msgid "stateful"
 msgstr ""
 
-#: lxc/info.go:205
+#: lxc/info.go:207
 msgid "stateless"
 msgstr ""
 
-#: lxc/info.go:199
+#: lxc/info.go:201
 #, c-format
 msgid "taken at %s"
 msgstr ""
