@@ -1115,6 +1115,10 @@ func (c *containerLXC) Start(stateful bool) error {
 		wgStopping.Wait()
 	}
 
+	if !c.daemon.SharedMounts {
+		return fmt.Errorf("Daemon failed to setup shared mounts")
+	}
+
 	// Run the shared start code
 	configPath, err := c.startCommon()
 	if err != nil {
