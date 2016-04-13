@@ -404,7 +404,6 @@ var sharedMounted bool
 var sharedMountsLock sync.Mutex
 
 func setupSharedMounts() error {
-
 	if sharedMounted {
 		return nil
 	}
