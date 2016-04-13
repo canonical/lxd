@@ -1116,7 +1116,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	}
 
 	if err := setupSharedMounts(); err != nil {
-		return fmt.Errorf("Daemon failed to setup shared mounts base: %s", err)
+		return fmt.Errorf("Daemon failed to setup shared mounts base: %s.\nDoes security.nesting need to be turned on?", err)
 	}
 
 	// Run the shared start code
