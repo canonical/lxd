@@ -81,8 +81,6 @@ type Daemon struct {
 	shutdownChan        chan bool
 	resetAutoUpdateChan chan bool
 	execPath            string
-	// did we manage to setup shared mounts?
-	SharedMounts bool
 
 	Storage storage
 
@@ -401,7 +399,23 @@ func (d *Daemon) SetupStorageDriver() error {
 	return err
 }
 
+// have we setup shared mounts?
+var sharedMounted bool
+var sharedMountsLock sync.Mutex
+
 func setupSharedMounts() error {
+
+	if sharedMounted {
+		return nil
+	}
+
+	sharedMountsLock.Lock()
+	defer sharedMountsLock.Unlock()
+
+	if sharedMounted {
+		return nil
+	}
+
 	path := shared.VarPath("shmounts")
 
 	isShared, err := shared.IsOnSharedMount(path)
@@ -412,6 +426,7 @@ func setupSharedMounts() error {
 	if isShared {
 		// / may already be ms-shared, or shmounts may have
 		// been mounted by a previous lxd run
+		sharedMounted = true
 		return nil
 	}
 
@@ -424,6 +439,7 @@ func setupSharedMounts() error {
 		return err
 	}
 
+	sharedMounted = true
 	return nil
 }
 
@@ -760,13 +776,6 @@ func (d *Daemon) Init() error {
 	d.devlxd, err = createAndBindDevLxd()
 	if err != nil {
 		return err
-	}
-
-	if err := setupSharedMounts(); err != nil {
-		d.SharedMounts = false
-		shared.Log.Error("Error setting up shared mounts base", log.Ctx{"err": err})
-	} else {
-		d.SharedMounts = true
 	}
 
 	if !d.MockMode {
