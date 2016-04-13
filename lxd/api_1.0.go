@@ -240,7 +240,16 @@ func api10Put(d *Daemon, r *http.Request) Response {
 				return InternalError(err)
 			}
 
+			// Update the cached proxy function
 			d.updateProxy()
+
+			// Clear the simplestreams cache as it's tied to the old proxy config
+			imageStreamCacheLock.Lock()
+			for k, _ := range imageStreamCache {
+				delete(imageStreamCache, k)
+			}
+			imageStreamCacheLock.Unlock()
+
 		} else {
 			err := d.ConfigValueSet(key, value.(string))
 			if err != nil {
