@@ -81,6 +81,8 @@ type Daemon struct {
 	shutdownChan        chan bool
 	resetAutoUpdateChan chan bool
 	execPath            string
+	// did we manage to setup shared mounts?
+	SharedMounts bool
 
 	Storage storage
 
@@ -761,7 +763,10 @@ func (d *Daemon) Init() error {
 	}
 
 	if err := setupSharedMounts(); err != nil {
-		return err
+		d.SharedMounts = false
+		shared.Log.Error("Error setting up shared mounts base", log.Ctx{"err": err})
+	} else {
+		d.SharedMounts = true
 	}
 
 	if !d.MockMode {
