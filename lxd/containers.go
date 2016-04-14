@@ -240,9 +240,6 @@ func startContainer(args []string) error {
 		syscall.Dup3(int(logFile.Fd()), 2, 0)
 	}
 
-	// Move the config so we can inspect it on failure
-	shared.FileMove(configPath, shared.LogPath(name, "lxc.conf"))
-
 	return c.Start()
 }
 
