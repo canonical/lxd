@@ -1084,19 +1084,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	// Generate the LXC config
-	f, err := ioutil.TempFile("", "lxd_lxc_startconfig_")
-	if err != nil {
-		return "", err
-	}
-
-	configPath := f.Name()
-	if err = f.Chmod(0600); err != nil {
-		f.Close()
-		os.Remove(configPath)
-		return "", err
-	}
-	f.Close()
-
+	configPath := filepath.Join(c.LogPath(), "lxc.conf")
 	err = c.c.SaveConfigFile(configPath)
 	if err != nil {
 		os.Remove(configPath)
