@@ -399,7 +399,22 @@ func (d *Daemon) SetupStorageDriver() error {
 	return err
 }
 
+// have we setup shared mounts?
+var sharedMounted bool
+var sharedMountsLock sync.Mutex
+
 func setupSharedMounts() error {
+	if sharedMounted {
+		return nil
+	}
+
+	sharedMountsLock.Lock()
+	defer sharedMountsLock.Unlock()
+
+	if sharedMounted {
+		return nil
+	}
+
 	path := shared.VarPath("shmounts")
 
 	isShared, err := shared.IsOnSharedMount(path)
@@ -410,6 +425,7 @@ func setupSharedMounts() error {
 	if isShared {
 		// / may already be ms-shared, or shmounts may have
 		// been mounted by a previous lxd run
+		sharedMounted = true
 		return nil
 	}
 
@@ -422,6 +438,7 @@ func setupSharedMounts() error {
 		return err
 	}
 
+	sharedMounted = true
 	return nil
 }
 
@@ -757,10 +774,6 @@ func (d *Daemon) Init() error {
 	/* Setup /dev/lxd */
 	d.devlxd, err = createAndBindDevLxd()
 	if err != nil {
-		return err
-	}
-
-	if err := setupSharedMounts(); err != nil {
 		return err
 	}
 
