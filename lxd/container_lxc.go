@@ -2991,7 +2991,13 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	args := []string{c.daemon.execPath, "forkexec", c.name, c.daemon.lxcpath, filepath.Join(c.LogPath(), "lxc.conf")}
+	configPath := filepath.Join(c.LogPath(), "lxc.conf")
+	err := c.c.SaveConfigFile(configPath)
+	if err != nil {
+		return -1, err
+	}
+
+	args := []string{c.daemon.execPath, "forkexec", c.name, c.daemon.lxcpath, configPath}
 
 	args = append(args, "--")
 	args = append(args, "env")
@@ -3008,7 +3014,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if ok {
