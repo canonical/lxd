@@ -259,10 +259,15 @@ func profilePost(d *Daemon, r *http.Request) Response {
 // The handler for the delete operation.
 func profileDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	err := dbProfileDelete(d.db, name)
 
+	_, err := doProfileGet(d, name)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
+	}
+
+	err = dbProfileDelete(d.db, name)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	return EmptySyncResponse
