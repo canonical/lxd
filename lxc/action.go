@@ -35,9 +35,9 @@ func (c *actionCmd) flags() {
 	if c.hasTimeout {
 		gnuflag.IntVar(&c.timeout, "timeout", -1, i18n.G("Time to wait for the container before killing it."))
 		gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the container to shutdown."))
-		gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Store the container state (only for stop)."))
-		gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Ignore the container state (only forstart)."))
 	}
+	gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Store the container state (only for stop)."))
+	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Ignore the container state (only forstart)."))
 }
 
 func (c *actionCmd) run(config *lxd.Config, args []string) error {
