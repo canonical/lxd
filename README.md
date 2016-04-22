@@ -28,6 +28,39 @@ shell you're going to interact with lxd from.
 After you've got LXD installed and a session with the right permissions, you
 can take your [first steps](#first-steps).
 
+## Using the REST API
+Here's a simple example of REST API usage via cURL:
+```bash
+curl -k -L -I \
+    --cert ${LXD_API_CRT} \
+    --key ${LXD_API_KEY} \
+    -H "Content-Type: application/json" \
+    -X POST \
+    -d @hello-ubuntu.json \
+    "${LXD_API_URL}/containers"
+```
+where `hello-ubuntu.json` could contain:
+```json
+{
+    "name":"some-ubuntu",
+    "architecture":"x86_64",
+    "profiles":[
+        "default"
+    ],
+    "ephemeral":true,
+    "config":{
+        "limits.cpu":"2"
+    },
+    "source": {
+        "type":"image",
+        "mode":"pull",
+        "protocol":"simplestreams",
+        "server":"https://cloud-images.ubuntu.com/releases",
+        "alias":"14.04"
+    }
+}
+```
+
 ## Building from source
 
 We recommend having the latest versions of liblxc (>= 1.1 required) and CRIU
