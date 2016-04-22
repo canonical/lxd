@@ -32,21 +32,17 @@ can take your [first steps](#first-steps).
 Here's a simple example of REST API usage via cURL:
 ```bash
 curl -k -L -I \
-    --cert ${LXD_API_CRT} \
-    --key ${LXD_API_KEY} \
+    --cert ~/.config/lxc/client.crt \
+    --key ~/.config/lxc/client.key \
     -H "Content-Type: application/json" \
     -X POST \
     -d @hello-ubuntu.json \
-    "${LXD_API_URL}/containers"
+    "https://127.0.0.1:8443/1.0/containers"
 ```
 where `hello-ubuntu.json` could contain:
 ```json
 {
     "name":"some-ubuntu",
-    "architecture":"x86_64",
-    "profiles":[
-        "default"
-    ],
     "ephemeral":true,
     "config":{
         "limits.cpu":"2"
