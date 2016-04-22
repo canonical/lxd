@@ -482,6 +482,10 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 		}
 		defer resp.Body.Close()
 
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("invalid simplestreams source: got %d looking for %s", resp.StatusCode, path)
+		}
+
 		body := &TransferProgress{Reader: resp.Body, Length: resp.ContentLength, Handler: progress}
 
 		sha256 := sha256.New()
@@ -490,9 +494,10 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 			return err
 		}
 
-		if fmt.Sprintf("%x", sha256.Sum(nil)) != hash {
+		result := fmt.Sprintf("%x", sha256.Sum(nil))
+		if result != hash {
 			os.Remove(target)
-			return fmt.Errorf("Hash mismatch")
+			return fmt.Errorf("Hash mismatch for %s: %s != %s", path, result, hash)
 		}
 
 		return nil
