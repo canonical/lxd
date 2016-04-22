@@ -28,7 +28,7 @@ shell you're going to interact with lxd from.
 After you've got LXD installed and a session with the right permissions, you
 can take your [first steps](#first-steps).
 
-## Using the REST API directly
+## Using the REST API
 Here's a simple example of REST API usage via cURL:
 ```bash
 curl -k -L -I \
