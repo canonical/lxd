@@ -841,6 +841,9 @@ func autoUpdateImages(d *Daemon) {
 		if hash == fp {
 			shared.Log.Debug("Already up to date", log.Ctx{"fp": fp})
 			continue
+		} else if err != nil {
+			shared.Log.Error("Failed to update the image", log.Ctx{"err": err, "fp": fp})
+			continue
 		}
 
 		newId, _, err := dbImageGet(d.db, hash, false, true)
