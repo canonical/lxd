@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-04-18 15:47+0100\n"
+        "POT-Creation-Date: 2016-04-24 15:13-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -86,7 +86,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/profile.go:226
+#: lxc/profile.go:251
 msgid   "(none)"
 msgstr  ""
 
@@ -159,7 +159,7 @@ msgstr  ""
 msgid   "Can't unset key '%s', it's not currently set."
 msgstr  ""
 
-#: lxc/profile.go:343
+#: lxc/profile.go:417
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -187,7 +187,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:500 lxc/config.go:565 lxc/image.go:687 lxc/profile.go:190
+#: lxc/config.go:500 lxc/config.go:565 lxc/image.go:687 lxc/profile.go:215
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -385,7 +385,7 @@ msgstr  ""
 msgid   "Ignore aliases when determining what command to run."
 msgstr  ""
 
-#: lxc/action.go:39
+#: lxc/action.go:40
 msgid   "Ignore the container state (only for start)."
 msgstr  ""
 
@@ -522,6 +522,7 @@ msgid   "Manage configuration profiles.\n"
         "    Edit profile, either by launching external editor or reading STDIN.\n"
         "    Example: lxc profile edit <profile> # launch editor\n"
         "             cat profile.yml | lxc profile edit <profile> # read from profile.yml\n"
+        "\n"
         "lxc profile apply <container> <profiles>\n"
         "    Apply a comma-separated list of profiles to a container, in order.\n"
         "    All profiles passed in this call (and only those) will be applied\n"
@@ -530,6 +531,8 @@ msgid   "Manage configuration profiles.\n"
         "             lxc profile apply foo default # Only default is active\n"
         "             lxc profile apply '' # no profiles are applied anymore\n"
         "             lxc profile apply bar,default # Apply default second now\n"
+        "lxc profile apply-add <container> <profile>\n"
+        "lxc profile apply-remove <container> <profile>\n"
         "\n"
         "Devices:\n"
         "lxc profile device list <profile>                                   List devices in the given profile.\n"
@@ -804,7 +807,7 @@ msgid   "Presents details on how to use LXD.\n"
         "lxd help [--all]"
 msgstr  ""
 
-#: lxc/profile.go:191
+#: lxc/profile.go:216
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -835,23 +838,33 @@ msgstr  ""
 msgid   "Processes: %d"
 msgstr  ""
 
-#: lxc/profile.go:228
+#: lxc/profile.go:272
 #, c-format
-msgid   "Profile %s applied to %s"
+msgid   "Profile %s added to %s"
 msgstr  ""
 
-#: lxc/profile.go:142
+#: lxc/profile.go:167
 #, c-format
 msgid   "Profile %s created"
 msgstr  ""
 
-#: lxc/profile.go:212
+#: lxc/profile.go:237
 #, c-format
 msgid   "Profile %s deleted"
 msgstr  ""
 
+#: lxc/profile.go:303
+#, c-format
+msgid   "Profile %s removed from %s"
+msgstr  ""
+
 #: lxc/init.go:136 lxc/init.go:137 lxc/launch.go:42 lxc/launch.go:43
 msgid   "Profile to apply to the new container"
+msgstr  ""
+
+#: lxc/profile.go:253
+#, c-format
+msgid   "Profiles %s applied to %s"
 msgstr  ""
 
 #: lxc/info.go:101
@@ -992,7 +1005,7 @@ msgstr  ""
 msgid   "Stopping container failed!"
 msgstr  ""
 
-#: lxc/action.go:38
+#: lxc/action.go:39
 msgid   "Store the container state (only for stop)."
 msgstr  ""
 
