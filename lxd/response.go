@@ -33,6 +33,7 @@ type asyncResp struct {
 
 type Response interface {
 	Render(w http.ResponseWriter) error
+	String() string
 }
 
 // Sync response
@@ -53,6 +54,14 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 
 func SyncResponse(success bool, metadata interface{}) Response {
 	return &syncResponse{success, metadata}
+}
+
+func (r *syncResponse) String() string {
+	if r.success {
+		return "success"
+	}
+
+	return "failure"
 }
 
 var EmptySyncResponse = &syncResponse{true, make(map[string]interface{})}
@@ -141,6 +150,10 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 	return err
 }
 
+func (r *fileResponse) String() string {
+	return fmt.Sprintf("%d files", len(r.files))
+}
+
 func FileResponse(r *http.Request, files []fileResponseEntry, headers map[string]string, removeAfterServe bool) Response {
 	return &fileResponse{r, files, headers, removeAfterServe}
 }
@@ -174,6 +187,15 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 	return WriteJSON(w, body)
 }
 
+func (r *operationResponse) String() string {
+	_, md, err := r.op.Render()
+	if err != nil {
+		return fmt.Sprintf("error: %s", err)
+	}
+
+	return md.Id
+}
+
 func OperationResponse(op *operation) Response {
 	return &operationResponse{op}
 }
@@ -182,6 +204,10 @@ func OperationResponse(op *operation) Response {
 type errorResponse struct {
 	code int
 	msg  string
+}
+
+func (r *errorResponse) String() string {
+	return r.msg
 }
 
 func (r *errorResponse) Render(w http.ResponseWriter) error {
