@@ -1034,6 +1034,10 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
+#: lxc/main.go:147
+msgid   "To start your first container, try: lxc launch ubuntu:16.04"
+msgstr  ""
+
 #: lxc/image.go:402
 #, c-format
 msgid   "Transferring image: %d%%"
@@ -1134,7 +1138,7 @@ msgstr  ""
 msgid   "enabled"
 msgstr  ""
 
-#: lxc/main.go:25 lxc/main.go:158
+#: lxc/main.go:25 lxc/main.go:159
 #, c-format
 msgid   "error: %v"
 msgstr  ""
@@ -1160,7 +1164,7 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/main.go:265 lxc/main.go:269
+#: lxc/main.go:266 lxc/main.go:270
 #, c-format
 msgid   "processing aliases failed %s\n"
 msgstr  ""
@@ -1202,7 +1206,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:198
+#: lxc/main.go:199
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
