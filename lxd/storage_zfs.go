@@ -622,16 +622,19 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 
 	err = untarImage(imagePath, subvol)
 	if err != nil {
+		s.zfsDestroy(fs)
 		return err
 	}
 
 	err = s.zfsSet(fs, "readonly", "on")
 	if err != nil {
+		s.zfsDestroy(fs)
 		return err
 	}
 
 	err = s.zfsSnapshotCreate(fs, "readonly")
 	if err != nil {
+		s.zfsDestroy(fs)
 		return err
 	}
 
