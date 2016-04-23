@@ -111,7 +111,7 @@ func (op *operation) Run() (chan error, error) {
 			if err != nil {
 				op.lock.Lock()
 				op.status = shared.Failure
-				op.err = err.Error()
+				op.err = SmartError(err).String()
 				op.lock.Unlock()
 				op.done()
 				chanRun <- err
@@ -539,6 +539,15 @@ func (r *operationWebSocket) Render(w http.ResponseWriter) error {
 
 	err = <-chanErr
 	return err
+}
+
+func (r *operationWebSocket) String() string {
+	_, md, err := r.op.Render()
+	if err != nil {
+		return fmt.Sprintf("error: %s", err)
+	}
+
+	return md.Id
 }
 
 func operationAPIWebsocketGet(d *Daemon, r *http.Request) Response {
