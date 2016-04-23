@@ -807,7 +807,12 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 			tempLVMountPoint, untarErr)
 	}
 
-	return untarErr
+	if untarErr != nil {
+		s.removeLV(fingerprint)
+		return untarErr
+	}
+
+	return nil
 }
 
 func (s *storageLvm) ImageDelete(fingerprint string) error {
