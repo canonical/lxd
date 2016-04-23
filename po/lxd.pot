@@ -200,7 +200,7 @@ msgstr  ""
 msgid   "Container name is mandatory"
 msgstr  ""
 
-#: lxc/init.go:209
+#: lxc/init.go:210
 #, c-format
 msgid   "Container name is: %s"
 msgstr  ""
@@ -250,7 +250,7 @@ msgstr  ""
 msgid   "Created: %s"
 msgstr  ""
 
-#: lxc/init.go:177 lxc/launch.go:116
+#: lxc/init.go:177 lxc/launch.go:118
 #, c-format
 msgid   "Creating %s"
 msgstr  ""
@@ -897,7 +897,7 @@ msgstr  ""
 msgid   "Resources:"
 msgstr  ""
 
-#: lxc/init.go:246
+#: lxc/init.go:247
 #, c-format
 msgid   "Retrieving image: %s"
 msgstr  ""
@@ -976,7 +976,7 @@ msgstr  ""
 msgid   "Source:"
 msgstr  ""
 
-#: lxc/launch.go:122
+#: lxc/launch.go:124
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
@@ -1022,6 +1022,11 @@ msgstr  ""
 msgid   "The device doesn't exist"
 msgstr  ""
 
+#: lxc/init.go:277
+#, c-format
+msgid   "The local image '%s' couldn't be found, trying '%s:' instead."
+msgstr  ""
+
 #: lxc/publish.go:62
 msgid   "There is no \"image name\".  Did you want an alias?"
 msgstr  ""
@@ -1043,7 +1048,7 @@ msgstr  ""
 msgid   "Transferring image: %d%%"
 msgstr  ""
 
-#: lxc/action.go:93 lxc/launch.go:130
+#: lxc/action.go:93 lxc/launch.go:132
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -1106,7 +1111,7 @@ msgstr  ""
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
-#: lxc/launch.go:109
+#: lxc/launch.go:111
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
@@ -1126,7 +1131,7 @@ msgstr  ""
 msgid   "default"
 msgstr  ""
 
-#: lxc/init.go:199 lxc/init.go:204 lxc/launch.go:93 lxc/launch.go:98
+#: lxc/init.go:200 lxc/init.go:205 lxc/launch.go:95 lxc/launch.go:100
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
@@ -1148,7 +1153,7 @@ msgstr  ""
 msgid   "error: unknown command: %s"
 msgstr  ""
 
-#: lxc/launch.go:113
+#: lxc/launch.go:115
 msgid   "got bad version"
 msgstr  ""
 
