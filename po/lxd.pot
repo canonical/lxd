@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-04-18 15:47+0100\n"
+        "POT-Creation-Date: 2016-05-11 18:48-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -98,7 +98,7 @@ msgstr  ""
 msgid   "ARCH"
 msgstr  ""
 
-#: lxc/list.go:367
+#: lxc/list.go:374
 msgid   "ARCHITECTURE"
 msgstr  ""
 
@@ -145,7 +145,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: lxc/list.go:368
+#: lxc/list.go:375
 msgid   "CREATED AT"
 msgstr  ""
 
@@ -179,7 +179,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/list.go:97 lxc/list.go:98
+#: lxc/list.go:99 lxc/list.go:100
 msgid   "Columns"
 msgstr  ""
 
@@ -281,7 +281,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:451
+#: lxc/list.go:458
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -330,7 +330,7 @@ msgstr  ""
 msgid   "FINGERPRINT"
 msgstr  ""
 
-#: lxc/list.go:100
+#: lxc/list.go:102
 msgid   "Fast mode (same as --columns=nsacPt"
 msgstr  ""
 
@@ -357,7 +357,7 @@ msgstr  ""
 msgid   "Force using the local unix socket."
 msgstr  ""
 
-#: lxc/list.go:99
+#: lxc/list.go:101
 msgid   "Format"
 msgstr  ""
 
@@ -365,11 +365,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:365
+#: lxc/list.go:372
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:366
+#: lxc/list.go:373
 msgid   "IPV6"
 msgstr  ""
 
@@ -385,7 +385,7 @@ msgstr  ""
 msgid   "Ignore aliases when determining what command to run."
 msgstr  ""
 
-#: lxc/action.go:39
+#: lxc/action.go:40
 msgid   "Ignore the container state (only for start)."
 msgstr  ""
 
@@ -473,12 +473,14 @@ msgid   "Lists the available resources.\n"
         "lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]\n"
         "\n"
         "The filters are:\n"
-        "* A single keyword like \"web\" which will list any container with \"web\" in its name.\n"
+        "* A single keyword like \"web\" which will list any container with a name starting by \"web\".\n"
+        "* A regular expression on the container name. (e.g. .*web.*01$)\n"
         "* A key/value pair referring to a configuration item. For those, the namespace can be abreviated to the smallest unambiguous identifier:\n"
-        "* \"user.blah=abc\" will list all containers with the \"blah\" user property set to \"abc\"\n"
-        "* \"u.blah=abc\" will do the same\n"
-        "* \"security.privileged=1\" will list all privileged containers\n"
-        "* \"s.privileged=1\" will do the same\n"
+        " * \"user.blah=abc\" will list all containers with the \"blah\" user property set to \"abc\".\n"
+        " * \"u.blah=abc\" will do the same\n"
+        " * \"security.privileged=1\" will list all privileged containers\n"
+        " * \"s.privileged=1\" will do the same\n"
+        "* A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*)\n"
         "\n"
         "Columns for table format are:\n"
         "* 4 - IPv4 address\n"
@@ -707,7 +709,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:369 lxc/remote.go:363
+#: lxc/list.go:376 lxc/remote.go:363
 msgid   "NAME"
 msgstr  ""
 
@@ -753,15 +755,15 @@ msgstr  ""
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:453
+#: lxc/list.go:460
 msgid   "PERSISTENT"
 msgstr  ""
 
-#: lxc/list.go:370
+#: lxc/list.go:377
 msgid   "PID"
 msgstr  ""
 
-#: lxc/list.go:371
+#: lxc/list.go:378
 msgid   "PROFILES"
 msgstr  ""
 
@@ -904,11 +906,11 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:372
+#: lxc/list.go:379
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:373
+#: lxc/list.go:380
 msgid   "STATE"
 msgstr  ""
 
@@ -992,7 +994,7 @@ msgstr  ""
 msgid   "Stopping container failed!"
 msgstr  ""
 
-#: lxc/action.go:38
+#: lxc/action.go:39
 msgid   "Store the container state (only for stop)."
 msgstr  ""
 
@@ -1004,7 +1006,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:374
+#: lxc/list.go:381
 msgid   "TYPE"
 msgstr  ""
 
