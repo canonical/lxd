@@ -177,12 +177,13 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		fmt.Printf(i18n.G("Creating %s")+"\n", name)
 	}
 
+	iremote, image = c.guessImage(config, d, remote, iremote, image)
+
 	if !initRequestedEmptyProfiles && len(profiles) == 0 {
 		resp, err = d.Init(name, iremote, image, nil, configMap, c.ephem)
 	} else {
 		resp, err = d.Init(name, iremote, image, &profiles, configMap, c.ephem)
 	}
-
 	if err != nil {
 		return err
 	}
@@ -251,4 +252,28 @@ func (c *initCmd) initProgressTracker(d *lxd.Client, operation string) {
 		}
 	}
 	go d.Monitor([]string{"operation"}, handler)
+}
+
+func (c *initCmd) guessImage(config *lxd.Config, d *lxd.Client, remote string, iremote string, image string) (string, string) {
+	if remote != iremote {
+		return iremote, image
+	}
+
+	_, ok := config.Remotes[image]
+	if !ok {
+		return iremote, image
+	}
+
+	target := d.GetAlias(image)
+	if target != "" {
+		return iremote, image
+	}
+
+	_, err := d.GetImageInfo(image)
+	if err == nil {
+		return iremote, image
+	}
+
+	fmt.Fprintf(os.Stderr, i18n.G("The local image '%s' couldn't be found, trying '%s:' instead.")+"\n", image, image)
+	return image, "default"
 }
