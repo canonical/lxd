@@ -61,6 +61,10 @@ func (r *eventsServe) Render(w http.ResponseWriter) error {
 	return eventsSocket(r.req, w)
 }
 
+func (r *eventsServe) String() string {
+	return "event handler"
+}
+
 func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 	listener := eventListener{}
 

@@ -412,6 +412,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 	}
 
 	if err := untarImage(imagePath, subvol); err != nil {
+		s.subvolDelete(subvol)
 		return err
 	}
 

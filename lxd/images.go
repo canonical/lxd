@@ -107,8 +107,8 @@ func untarImage(imagefname string, destpath string) error {
 		return err
 	}
 
+	rootfsPath := fmt.Sprintf("%s/rootfs", destpath)
 	if shared.PathExists(imagefname + ".rootfs") {
-		rootfsPath := fmt.Sprintf("%s/rootfs", destpath)
 		err = os.MkdirAll(rootfsPath, 0755)
 		if err != nil {
 			return fmt.Errorf("Error creating rootfs directory")
@@ -118,6 +118,10 @@ func untarImage(imagefname string, destpath string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if !shared.PathExists(rootfsPath) {
+		return fmt.Errorf("Image is missing a rootfs: %s", imagefname)
 	}
 
 	return nil
@@ -598,6 +602,9 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 func imageBuildFromInfo(d *Daemon, info shared.ImageInfo) (metadata map[string]string, err error) {
 	err = d.Storage.ImageCreate(info.Fingerprint)
 	if err != nil {
+		os.Remove(shared.VarPath("images", info.Fingerprint))
+		os.Remove(shared.VarPath("images", info.Fingerprint) + ".rootfs")
+
 		return metadata, err
 	}
 
@@ -754,7 +761,7 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 
 	if err != nil {
 		outputLines := strings.Split(string(output), "\n")
-		return nil, fmt.Errorf("Could not extract image metadata %s from tar: %v (%s)", metadataName, err, outputLines[0])
+		return nil, fmt.Errorf("Could not extract image %s from tar: %v (%s)", metadataName, err, outputLines[0])
 	}
 
 	metadata := imageMetadata{}
@@ -762,6 +769,15 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 
 	if err != nil {
 		return nil, fmt.Errorf("Could not parse %s: %v", metadataName, err)
+	}
+
+	_, err = shared.ArchitectureId(metadata.Architecture)
+	if err != nil {
+		return nil, err
+	}
+
+	if metadata.CreationDate == 0 {
+		return nil, fmt.Errorf("Missing creation date.")
 	}
 
 	return &metadata, nil
@@ -840,6 +856,9 @@ func autoUpdateImages(d *Daemon) {
 		hash, err := d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true)
 		if hash == fp {
 			shared.Log.Debug("Already up to date", log.Ctx{"fp": fp})
+			continue
+		} else if err != nil {
+			shared.Log.Error("Failed to update the image", log.Ctx{"err": err, "fp": fp})
 			continue
 		}
 
@@ -927,7 +946,7 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 		}
 	}
 
-	// Remote the rootfs file
+	// Remove the rootfs file
 	fname = shared.VarPath("images", imgInfo.Fingerprint) + ".rootfs"
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)

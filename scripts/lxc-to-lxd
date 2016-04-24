@@ -5,8 +5,7 @@ import json
 import lxc
 import os
 import subprocess
-import time
-from pylxd import api as api
+from pylxd.client import Client
 
 
 # Fetch a config key as a list
@@ -76,7 +75,7 @@ def convert_container(container_name, args):
     # Connect to LXD
     if args.lxdpath:
         os.environ['LXD_DIR'] = args.lxdpath
-    lxd = api.API()
+    lxd = Client()
 
     print("==> Processing container: %s" % container_name)
 
@@ -107,9 +106,12 @@ def convert_container(container_name, args):
 
     # Make sure we don't have a conflict
     print("Checking for existing containers")
-    if lxd.container_defined(container_name):
+    try:
+        lxd.containers.get(container_name)
         print("Container already exists, skipping...")
         return False
+    except NameError:
+        pass
 
     # Validate lxc.utsname
     print("Validating container name")
@@ -314,14 +316,14 @@ def convert_container(container_name, args):
 
     # Set the container architecture if set in LXC
     print("Converting container architecture configuration")
-    arches = {'i686': 1,
-              'x86_64': 2,
-              'armhf': 3,
-              'arm64': 4,
-              'powerpc': 5,
-              'powerpc64': 6,
-              'ppc64el': 7,
-              's390x': 8}
+    arches = {'i686': "i686",
+              'x86_64': "x86_64",
+              'armhf': "armv7l",
+              'arm64': "aarch64",
+              'powerpc': "ppc",
+              'powerpc64': "ppc64",
+              'ppc64el': "ppc64le",
+              's390x': "s390x"}
 
     arch = None
     try:
@@ -344,11 +346,11 @@ def convert_container(container_name, args):
 
     try:
         print("Creating the container")
-        lxd.container_init(new)
+        lxd.containers.create(new, wait=True)
     except Exception as e:
+        raise
         print("Failed to create the container: %s" % e)
         return False
-    time.sleep(1)
 
     # Transfer the filesystem
     lxd_rootfs = os.path.join("/var/lib/lxd/", "containers",

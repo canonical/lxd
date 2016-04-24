@@ -59,6 +59,7 @@ lxc profile edit <profile>
     Edit profile, either by launching external editor or reading STDIN.
     Example: lxc profile edit <profile> # launch editor
              cat profile.yml | lxc profile edit <profile> # read from profile.yml
+
 lxc profile apply <container> <profiles>
     Apply a comma-separated list of profiles to a container, in order.
     All profiles passed in this call (and only those) will be applied
@@ -67,6 +68,8 @@ lxc profile apply <container> <profiles>
              lxc profile apply foo default # Only default is active
              lxc profile apply '' # no profiles are applied anymore
              lxc profile apply bar,default # Apply default second now
+lxc profile apply-add <container> <profile>
+lxc profile apply-remove <container> <profile>
 
 Devices:
 lxc profile device list <profile>                                   List devices in the given profile.
@@ -121,6 +124,28 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 		return c.doProfileApply(client, container, profile)
+	case "apply-add":
+		container := profile
+		switch len(args) {
+		case 2:
+			profile = ""
+		case 3:
+			profile = args[2]
+		default:
+			return errArgs
+		}
+		return c.doProfileApplyAdd(client, container, profile)
+	case "apply-remove":
+		container := profile
+		switch len(args) {
+		case 2:
+			profile = ""
+		case 3:
+			profile = args[2]
+		default:
+			return errArgs
+		}
+		return c.doProfileApplyRemove(client, container, profile)
 	case "get":
 		return c.doProfileGet(client, profile, args[2:])
 	case "set":
@@ -225,8 +250,57 @@ func (c *profileCmd) doProfileApply(client *lxd.Client, d string, p string) erro
 		if p == "" {
 			p = i18n.G("(none)")
 		}
-		fmt.Printf(i18n.G("Profile %s applied to %s")+"\n", p, d)
+		fmt.Printf(i18n.G("Profiles %s applied to %s")+"\n", p, d)
 	}
+
+	return err
+}
+
+func (c *profileCmd) doProfileApplyAdd(client *lxd.Client, d string, p string) error {
+	ct, err := client.ContainerInfo(d)
+	if err != nil {
+		return err
+	}
+
+	ct.Profiles = append(ct.Profiles, p)
+
+	err = client.UpdateContainerConfig(d, ct.Brief())
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Profile %s added to %s")+"\n", p, d)
+
+	return err
+}
+
+func (c *profileCmd) doProfileApplyRemove(client *lxd.Client, d string, p string) error {
+	ct, err := client.ContainerInfo(d)
+	if err != nil {
+		return err
+	}
+
+	if !shared.StringInSlice(p, ct.Profiles) {
+		return fmt.Errorf("Profile %s isn't currently applied to %s", p, d)
+	}
+
+	profiles := []string{}
+	for _, profile := range ct.Profiles {
+		if profile == p {
+			continue
+		}
+
+		profiles = append(profiles, profile)
+	}
+
+	ct.Profiles = profiles
+
+	err = client.UpdateContainerConfig(d, ct.Brief())
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Profile %s removed from %s")+"\n", p, d)
 
 	return err
 }
