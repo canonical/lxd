@@ -267,6 +267,11 @@ func (c *containerLXC) init() error {
 }
 
 func (c *containerLXC) initLXC() error {
+	// No need to go through all that for snapshots
+	if c.IsSnapshot() {
+		return nil
+	}
+
 	// Check if being called from a hook
 	if c.fromHook {
 		return fmt.Errorf("You can't use go-lxc from inside a LXC hook.")
@@ -1538,6 +1543,10 @@ var LxcMonitorStateError = fmt.Errorf("Monitor is hung")
 // Get lxc container state, with 1 second timeout
 // If we don't get a reply, assume the lxc monitor is hung
 func (c *containerLXC) getLxcState() (lxc.State, error) {
+	if c.IsSnapshot() {
+		return lxc.StateMap["STOPPED"], nil
+	}
+
 	monitor := make(chan lxc.State, 1)
 
 	go func(c *lxc.Container) {
@@ -1818,9 +1827,11 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Rename the logging path
 	os.RemoveAll(shared.LogPath(newName))
-	err := os.Rename(c.LogPath(), shared.LogPath(newName))
-	if err != nil {
-		return err
+	if shared.PathExists(c.LogPath()) {
+		err := os.Rename(c.LogPath(), shared.LogPath(newName))
+		if err != nil {
+			return err
+		}
 	}
 
 	// Rename the storage entry
