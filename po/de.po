@@ -474,7 +474,7 @@ msgstr ""
 
 #: lxc/action.go:39
 #, fuzzy
-msgid "Ignore the container state (only forstart)."
+msgid "Ignore the container state (only for start)."
 msgstr "Herunterfahren des Containers erzwingen."
 
 #: lxc/image.go:273
