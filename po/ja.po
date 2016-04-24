@@ -441,7 +441,7 @@ msgid "Ignore aliases when determining what command to run."
 msgstr "コマンドを実行する際にエイリアスを無視します。"
 
 #: lxc/action.go:39
-msgid "Ignore the container state (only forstart)."
+msgid "Ignore the container state (only for start)."
 msgstr "コンテナの状態を無視します (startのみ)。"
 
 #: lxc/image.go:273

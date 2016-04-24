@@ -386,7 +386,7 @@ msgid   "Ignore aliases when determining what command to run."
 msgstr  ""
 
 #: lxc/action.go:39
-msgid   "Ignore the container state (only forstart)."
+msgid   "Ignore the container state (only for start)."
 msgstr  ""
 
 #: lxc/image.go:273
