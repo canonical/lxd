@@ -167,17 +167,22 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 }
 
 func (s *storageZfs) ContainerCanRestore(container container, sourceContainer container) error {
-	fields := strings.SplitN(sourceContainer.Name(), shared.SnapshotDelimiter, 2)
-	cName := fields[0]
-	snapName := fmt.Sprintf("snapshot-%s", fields[1])
-
-	snapshots, err := s.zfsListSnapshots(fmt.Sprintf("containers/%s", cName))
+	snaps, err := container.Snapshots()
 	if err != nil {
 		return err
 	}
 
-	if snapshots[len(snapshots)-1] != snapName {
-		return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead.")
+	if snaps[len(snaps)-1].Name() != sourceContainer.Name() {
+		v, err := s.d.ConfigValueGet("storage.zfs_remove_snapshots")
+		if err != nil {
+			return err
+		}
+
+		if v != "true" {
+			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead.")
+		}
+
+		return nil
 	}
 
 	return nil
@@ -378,11 +383,29 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 }
 
 func (s *storageZfs) ContainerRestore(container container, sourceContainer container) error {
+	// Remove any needed snapshot
+	snaps, err := container.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	for i := len(snaps) - 1; i != 0; i-- {
+		if snaps[i].Name() == sourceContainer.Name() {
+			break
+		}
+
+		err := snaps[i].Delete()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Restore the snapshot
 	fields := strings.SplitN(sourceContainer.Name(), shared.SnapshotDelimiter, 2)
 	cName := fields[0]
 	snapName := fmt.Sprintf("snapshot-%s", fields[1])
 
-	err := s.zfsSnapshotRestore(fmt.Sprintf("containers/%s", cName), snapName)
+	err = s.zfsSnapshotRestore(fmt.Sprintf("containers/%s", cName), snapName)
 	if err != nil {
 		return err
 	}
@@ -599,16 +622,19 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 
 	err = untarImage(imagePath, subvol)
 	if err != nil {
+		s.zfsDestroy(fs)
 		return err
 	}
 
 	err = s.zfsSet(fs, "readonly", "on")
 	if err != nil {
+		s.zfsDestroy(fs)
 		return err
 	}
 
 	err = s.zfsSnapshotCreate(fs, "readonly")
 	if err != nil {
+		s.zfsDestroy(fs)
 		return err
 	}
 
