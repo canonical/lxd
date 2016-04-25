@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-05-11 18:48-0400\n"
+        "POT-Creation-Date: 2016-05-11 18:51-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -98,7 +98,7 @@ msgstr  ""
 msgid   "ARCH"
 msgstr  ""
 
-#: lxc/list.go:374
+#: lxc/list.go:378
 msgid   "ARCHITECTURE"
 msgstr  ""
 
@@ -145,7 +145,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: lxc/list.go:375
+#: lxc/list.go:379
 msgid   "CREATED AT"
 msgstr  ""
 
@@ -281,7 +281,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:458
+#: lxc/list.go:462
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -365,11 +365,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:372
+#: lxc/list.go:376
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:373
+#: lxc/list.go:377
 msgid   "IPV6"
 msgstr  ""
 
@@ -454,7 +454,7 @@ msgid   "Launch a container from a particular image.\n"
         "Specifying \"-p\" with no argument will result in no profile.\n"
         "\n"
         "Example:\n"
-        "lxc launch ubuntu u1"
+        "lxc launch ubuntu:16.04 u1"
 msgstr  ""
 
 #: lxc/info.go:25
@@ -709,7 +709,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:376 lxc/remote.go:363
+#: lxc/list.go:380 lxc/remote.go:363
 msgid   "NAME"
 msgstr  ""
 
@@ -755,15 +755,15 @@ msgstr  ""
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:460
+#: lxc/list.go:464
 msgid   "PERSISTENT"
 msgstr  ""
 
-#: lxc/list.go:377
+#: lxc/list.go:381
 msgid   "PID"
 msgstr  ""
 
-#: lxc/list.go:378
+#: lxc/list.go:382
 msgid   "PROFILES"
 msgstr  ""
 
@@ -906,11 +906,11 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:379
+#: lxc/list.go:383
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:380
+#: lxc/list.go:384
 msgid   "STATE"
 msgstr  ""
 
@@ -1006,7 +1006,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:381
+#: lxc/list.go:385
 msgid   "TYPE"
 msgstr  ""
 
