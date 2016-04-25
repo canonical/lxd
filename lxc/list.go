@@ -158,6 +158,10 @@ func (c *listCmd) shouldShow(filters []string, state *shared.ContainerInfo) bool
 				}
 			}
 
+			if state.ExpandedConfig[key] == value {
+				return true
+			}
+
 			if !found {
 				return false
 			}
