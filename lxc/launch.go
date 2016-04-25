@@ -30,7 +30,7 @@ Not specifying -p will result in the default profile.
 Specifying "-p" with no argument will result in no profile.
 
 Example:
-lxc launch ubuntu u1`)
+lxc launch ubuntu:16.04 u1`)
 }
 
 func (c *launchCmd) flags() {
