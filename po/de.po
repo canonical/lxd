@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2016-04-11 15:01-0400\n"
+"POT-Creation-Date: 2016-04-25 14:47-0500\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -133,7 +133,7 @@ msgstr ""
 msgid "'/' not allowed in snapshot name"
 msgstr "'/' ist kein gültiges Zeichen im Namen eines Sicherungspunktes\n"
 
-#: lxc/profile.go:226
+#: lxc/profile.go:251
 msgid "(none)"
 msgstr ""
 
@@ -145,7 +145,7 @@ msgstr ""
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:367
+#: lxc/list.go:378
 msgid "ARCHITECTURE"
 msgstr ""
 
@@ -193,7 +193,7 @@ msgstr ""
 msgid "COMMON NAME"
 msgstr ""
 
-#: lxc/list.go:368
+#: lxc/list.go:379
 msgid "CREATED AT"
 msgstr ""
 
@@ -207,7 +207,7 @@ msgstr ""
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
 
-#: lxc/profile.go:343
+#: lxc/profile.go:417
 msgid "Cannot provide container name to list"
 msgstr ""
 
@@ -231,7 +231,7 @@ msgstr ""
 msgid "Client certificate stored at server: "
 msgstr "Gespeichertes Nutzerzertifikat auf dem Server: "
 
-#: lxc/list.go:97 lxc/list.go:98
+#: lxc/list.go:99 lxc/list.go:100
 msgid "Columns"
 msgstr ""
 
@@ -240,7 +240,7 @@ msgstr ""
 msgid "Config key/value to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/config.go:500 lxc/config.go:565 lxc/image.go:687 lxc/profile.go:190
+#: lxc/config.go:500 lxc/config.go:565 lxc/image.go:687 lxc/profile.go:215
 #, fuzzy, c-format
 msgid "Config parsing error: %s"
 msgstr "YAML Analyse Fehler %v\n"
@@ -253,7 +253,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/init.go:209
+#: lxc/init.go:210
 #, c-format
 msgid "Container name is: %s"
 msgstr ""
@@ -313,7 +313,7 @@ msgstr ""
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:177 lxc/launch.go:116
+#: lxc/init.go:177 lxc/launch.go:118
 #, c-format
 msgid "Creating %s"
 msgstr ""
@@ -353,7 +353,7 @@ msgstr "Gerät %s wurde zu %s hinzugefügt\n"
 msgid "Device %s removed from %s"
 msgstr "Gerät %s wurde von %s entfernt\n"
 
-#: lxc/list.go:451
+#: lxc/list.go:462
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -410,7 +410,7 @@ msgstr ""
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/list.go:100
+#: lxc/list.go:102
 msgid "Fast mode (same as --columns=nsacPt"
 msgstr ""
 
@@ -442,7 +442,7 @@ msgstr ""
 msgid "Force using the local unix socket."
 msgstr ""
 
-#: lxc/list.go:99
+#: lxc/list.go:101
 msgid "Format"
 msgstr ""
 
@@ -451,11 +451,11 @@ msgstr ""
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Generiere Nutzerzertifikat. Dies kann wenige Minuten dauern...\n"
 
-#: lxc/list.go:365
+#: lxc/list.go:376
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:366
+#: lxc/list.go:377
 msgid "IPV6"
 msgstr ""
 
@@ -472,7 +472,7 @@ msgstr ""
 msgid "Ignore aliases when determining what command to run."
 msgstr ""
 
-#: lxc/action.go:39
+#: lxc/action.go:40
 #, fuzzy
 msgid "Ignore the container state (only for start)."
 msgstr "Herunterfahren des Containers erzwingen."
@@ -559,7 +559,7 @@ msgid ""
 "Specifying \"-p\" with no argument will result in no profile.\n"
 "\n"
 "Example:\n"
-"lxc launch ubuntu u1"
+"lxc launch ubuntu:16.04 u1"
 msgstr ""
 "Starte Container von gegebenem Abbild.\n"
 "\n"
@@ -599,15 +599,18 @@ msgid ""
 "lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]\n"
 "\n"
 "The filters are:\n"
-"* A single keyword like \"web\" which will list any container with \"web\" "
-"in its name.\n"
+"* A single keyword like \"web\" which will list any container with a name "
+"starting by \"web\".\n"
+"* A regular expression on the container name. (e.g. .*web.*01$)\n"
 "* A key/value pair referring to a configuration item. For those, the "
 "namespace can be abreviated to the smallest unambiguous identifier:\n"
-"* \"user.blah=abc\" will list all containers with the \"blah\" user property "
-"set to \"abc\"\n"
-"* \"u.blah=abc\" will do the same\n"
-"* \"security.privileged=1\" will list all privileged containers\n"
-"* \"s.privileged=1\" will do the same\n"
+" * \"user.blah=abc\" will list all containers with the \"blah\" user "
+"property set to \"abc\".\n"
+" * \"u.blah=abc\" will do the same\n"
+" * \"security.privileged=1\" will list all privileged containers\n"
+" * \"s.privileged=1\" will do the same\n"
+"* A regular expression matching a configuration item or its value. (e.g. "
+"volatile.eth0.hwaddr=00:16:3e:.*)\n"
 "\n"
 "Columns for table format are:\n"
 "* 4 - IPv4 address\n"
@@ -670,6 +673,7 @@ msgid ""
 "    Example: lxc profile edit <profile> # launch editor\n"
 "             cat profile.yml | lxc profile edit <profile> # read from "
 "profile.yml\n"
+"\n"
 "lxc profile apply <container> <profiles>\n"
 "    Apply a comma-separated list of profiles to a container, in order.\n"
 "    All profiles passed in this call (and only those) will be applied\n"
@@ -678,6 +682,8 @@ msgid ""
 "             lxc profile apply foo default # Only default is active\n"
 "             lxc profile apply '' # no profiles are applied anymore\n"
 "             lxc profile apply bar,default # Apply default second now\n"
+"lxc profile apply-add <container> <profile>\n"
+"lxc profile apply-remove <container> <profile>\n"
 "\n"
 "Devices:\n"
 "lxc profile device list <profile>                                   List "
@@ -903,8 +909,8 @@ msgid ""
 "\n"
 "\n"
 "lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--"
-"created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] "
-"[prop=value]\n"
+"created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--"
+"alias=ALIAS].. [prop=value]\n"
 "    Import an image tarball (or tarballs) into the LXD image store.\n"
 "\n"
 "lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] "
@@ -1000,7 +1006,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/list.go:369 lxc/remote.go:363
+#: lxc/list.go:380 lxc/remote.go:363
 msgid "NAME"
 msgstr ""
 
@@ -1047,15 +1053,15 @@ msgstr ""
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
-#: lxc/list.go:453
+#: lxc/list.go:464
 msgid "PERSISTENT"
 msgstr ""
 
-#: lxc/list.go:370
+#: lxc/list.go:381
 msgid "PID"
 msgstr ""
 
-#: lxc/list.go:371
+#: lxc/list.go:382
 msgid "PROFILES"
 msgstr ""
 
@@ -1105,7 +1111,7 @@ msgstr ""
 "\n"
 "lxd help [—all]\n"
 
-#: lxc/profile.go:191
+#: lxc/profile.go:216
 msgid "Press enter to open the editor again"
 msgstr ""
 
@@ -1141,25 +1147,35 @@ msgstr ""
 msgid "Processes: %d"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/profile.go:228
+#: lxc/profile.go:272
 #, fuzzy, c-format
-msgid "Profile %s applied to %s"
+msgid "Profile %s added to %s"
 msgstr "Profil %s wurde auf %s angewandt\n"
 
-#: lxc/profile.go:142
+#: lxc/profile.go:167
 #, fuzzy, c-format
 msgid "Profile %s created"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/profile.go:212
+#: lxc/profile.go:237
 #, fuzzy, c-format
 msgid "Profile %s deleted"
 msgstr "Profil %s gelöscht\n"
+
+#: lxc/profile.go:303
+#, fuzzy, c-format
+msgid "Profile %s removed from %s"
+msgstr "Gerät %s wurde von %s entfernt\n"
 
 #: lxc/init.go:136 lxc/init.go:137 lxc/launch.go:42 lxc/launch.go:43
 #, fuzzy
 msgid "Profile to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
+
+#: lxc/profile.go:253
+#, fuzzy, c-format
+msgid "Profiles %s applied to %s"
+msgstr "Profil %s wurde auf %s angewandt\n"
 
 #: lxc/info.go:101
 #, fuzzy, c-format
@@ -1205,7 +1221,7 @@ msgstr ""
 msgid "Resources:"
 msgstr ""
 
-#: lxc/init.go:246
+#: lxc/init.go:247
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -1214,11 +1230,11 @@ msgstr ""
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:372
+#: lxc/list.go:383
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/list.go:373
+#: lxc/list.go:384
 msgid "STATE"
 msgstr ""
 
@@ -1286,7 +1302,7 @@ msgstr ""
 msgid "Source:"
 msgstr ""
 
-#: lxc/launch.go:122
+#: lxc/launch.go:124
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -1304,7 +1320,7 @@ msgstr ""
 msgid "Stopping container failed!"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/action.go:38
+#: lxc/action.go:39
 #, fuzzy
 msgid "Store the container state (only for stop)."
 msgstr "Herunterfahren des Containers erzwingen."
@@ -1317,7 +1333,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:374
+#: lxc/list.go:385
 msgid "TYPE"
 msgstr ""
 
@@ -1337,6 +1353,11 @@ msgstr ""
 msgid "The device doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
 
+#: lxc/init.go:277
+#, c-format
+msgid "The local image '%s' couldn't be found, trying '%s:' instead."
+msgstr ""
+
 #: lxc/publish.go:62
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
@@ -1350,12 +1371,16 @@ msgstr "Wartezeit bevor der Container gestoppt wird."
 msgid "Timestamps:"
 msgstr "Zeitstempel:\n"
 
+#: lxc/main.go:147
+msgid "To start your first container, try: lxc launch ubuntu:16.04"
+msgstr ""
+
 #: lxc/image.go:402
 #, c-format
 msgid "Transferring image: %d%%"
 msgstr ""
 
-#: lxc/action.go:93 lxc/launch.go:130
+#: lxc/action.go:93 lxc/launch.go:132
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -1429,7 +1454,7 @@ msgstr ""
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
 
-#: lxc/launch.go:109
+#: lxc/launch.go:111
 msgid "bad number of things scanned from image, container or snapshot"
 msgstr ""
 "Falsche Anzahl an Objekten im Abbild, Container oder Sicherungspunkt gelesen."
@@ -1450,7 +1475,7 @@ msgstr ""
 msgid "default"
 msgstr ""
 
-#: lxc/init.go:199 lxc/init.go:204 lxc/launch.go:93 lxc/launch.go:98
+#: lxc/init.go:200 lxc/init.go:205 lxc/launch.go:95 lxc/launch.go:100
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr ""
 
@@ -1462,7 +1487,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/main.go:25 lxc/main.go:158
+#: lxc/main.go:25 lxc/main.go:159
 #, fuzzy, c-format
 msgid "error: %v"
 msgstr "Fehler: %v\n"
@@ -1472,7 +1497,7 @@ msgstr "Fehler: %v\n"
 msgid "error: unknown command: %s"
 msgstr "Fehler: unbekannter Befehl: %s\n"
 
-#: lxc/launch.go:113
+#: lxc/launch.go:115
 msgid "got bad version"
 msgstr "Versionskonflikt"
 
@@ -1489,7 +1514,7 @@ msgstr "nicht alle Profile der Quelle sind am Ziel vorhanden."
 msgid "ok (y/n)?"
 msgstr "OK (y/n)? "
 
-#: lxc/main.go:265 lxc/main.go:269
+#: lxc/main.go:266 lxc/main.go:270
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr ""
@@ -1531,7 +1556,7 @@ msgstr ""
 msgid "unreachable return reached"
 msgstr ""
 
-#: lxc/main.go:198
+#: lxc/main.go:199
 msgid "wrong number of subcommand arguments"
 msgstr "falsche Anzahl an Parametern für Unterbefehl"
 
