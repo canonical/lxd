@@ -34,11 +34,7 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 	}
 
 	if config["zfsPool"] == nil {
-		zfsPool, err := s.d.ConfigValueGet("storage.zfs_pool_name")
-		if err != nil {
-			return s, fmt.Errorf("Error checking server config: %v", err)
-		}
-
+		zfsPool := daemonConfig["storage.zfs_pool_name"].Get()
 		if zfsPool == "" {
 			return s, fmt.Errorf("ZFS isn't enabled")
 		}
@@ -173,12 +169,7 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 	}
 
 	if snaps[len(snaps)-1].Name() != sourceContainer.Name() {
-		v, err := s.d.ConfigValueGet("storage.zfs_remove_snapshots")
-		if err != nil {
-			return err
-		}
-
-		if v != "true" {
+		if !daemonConfig["storage.zfs_remove_snapshots"].GetBool() {
 			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead.")
 		}
 
@@ -1111,7 +1102,7 @@ func (s *storageZfs) zfsGetPoolUsers() ([]string, error) {
 }
 
 // Global functions
-func storageZFSSetPoolNameConfig(d *Daemon, poolname string) error {
+func storageZFSValidatePoolName(d *Daemon, key string, value string) error {
 	s := storageZfs{}
 
 	// Confirm the backend is working
@@ -1121,20 +1112,15 @@ func storageZFSSetPoolNameConfig(d *Daemon, poolname string) error {
 	}
 
 	// Confirm the new pool exists and is compatible
-	if poolname != "" {
-		err = s.zfsCheckPool(poolname)
+	if value != "" {
+		err = s.zfsCheckPool(value)
 		if err != nil {
 			return fmt.Errorf("Invalid ZFS pool: %v", err)
 		}
 	}
 
-	// Check if we're switching pools
-	oldPoolname, err := d.ConfigValueGet("storage.zfs_pool_name")
-	if err != nil {
-		return err
-	}
-
 	// Confirm the old pool isn't in use anymore
+	oldPoolname := daemonConfig["storage.zfs_pool_name"].Get()
 	if oldPoolname != "" {
 		s.zfsPool = oldPoolname
 
@@ -1146,13 +1132,6 @@ func storageZFSSetPoolNameConfig(d *Daemon, poolname string) error {
 		if len(users) > 0 {
 			return fmt.Errorf("Can not change ZFS config. Images or containers are still using the ZFS pool: %v", users)
 		}
-	}
-	s.zfsPool = poolname
-
-	// All good, set the new pool name
-	err = d.ConfigValueSet("storage.zfs_pool_name", poolname)
-	if err != nil {
-		return err
 	}
 
 	return nil

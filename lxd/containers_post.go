@@ -122,8 +122,9 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 	run := func(op *operation) error {
 		if req.Source.Server != "" {
-			updateCached, _ := d.ConfigValueGet("images.auto_update_cached")
-			hash, err = d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, true, updateCached != "false")
+			hash, err = d.ImageDownload(
+				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret,
+				hash, true, daemonConfig["images.auto_update_cached"].GetBool())
 			if err != nil {
 				return err
 			}
