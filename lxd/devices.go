@@ -184,8 +184,12 @@ func deviceTaskBalance(d *Daemon) {
 	// Get effective cpus list - those are all guaranteed to be online
 	effectiveCpus, err := cGroupGet("cpuset", "/", "cpuset.effective_cpus")
 	if err != nil {
-		shared.Log.Error("Error reading host's cpuset.effective_cpus")
-		return
+		// Older kernel - use cpuset.cpus
+		effectiveCpus, err = cGroupGet("cpuset", "/", "cpuset.cpus")
+		if err != nil {
+			shared.Log.Error("Error reading host's cpuset.cpus")
+			return
+		}
 	}
 	err = cGroupSet("cpuset", "/lxc", "cpuset.cpus", effectiveCpus)
 	if err != nil && shared.PathExists("/sys/fs/cgroup/cpuset/lxc") {
@@ -193,7 +197,7 @@ func deviceTaskBalance(d *Daemon) {
 	}
 	cpus, err := parseCpuset(effectiveCpus)
 	if err != nil {
-		shared.Log.Error("Error parsing host's cpuset.effective_cpus", log.Ctx{"cpuset": effectiveCpus, "err": err})
+		shared.Log.Error("Error parsing host's cpu set", log.Ctx{"cpuset": effectiveCpus, "err": err})
 		return
 	}
 
