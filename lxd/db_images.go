@@ -38,7 +38,7 @@ func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
 	return results, nil
 }
 
-func dbImagesGetExpired(db *sql.DB, expiry int) ([]string, error) {
+func dbImagesGetExpired(db *sql.DB, expiry int64) ([]string, error) {
 	q := `SELECT fingerprint FROM images WHERE cached=1 AND creation_date<=strftime('%s', date('now', '-` + fmt.Sprintf("%d", expiry) + ` day'))`
 
 	var fp string

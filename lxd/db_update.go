@@ -236,10 +236,12 @@ func dbUpdateFromV15(d *Daemon) error {
 		return err
 	}
 
-	vgName, err := d.ConfigValueGet("storage.lvm_vg_name")
+	err = daemonConfigInit(d.db)
 	if err != nil {
-		return fmt.Errorf("Error checking server config: %v", err)
+		return err
 	}
+
+	vgName := daemonConfig["storage.lvm_vg_name"].Get()
 
 	for _, cName := range cNames {
 		var lvLinkPath string

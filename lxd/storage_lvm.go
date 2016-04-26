@@ -17,9 +17,6 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-var storageLvmDefaultThinLVSize = "10GiB"
-var storageLvmDefaultThinPoolName = "LXDPool"
-
 func storageLVMCheckVolumeGroup(vgName string) error {
 	output, err := exec.Command("vgdisplay", "-s", vgName).CombinedOutput()
 	if err != nil {
@@ -53,18 +50,8 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 
 func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 	results := []string{}
-	vgname, err := d.ConfigValueGet("storage.lvm_vg_name")
-	if err != nil {
-		return results, fmt.Errorf("Error getting lvm_vg_name config")
-	}
-	if vgname == "" {
-		return results, nil
-	}
-	poolname, err := d.ConfigValueGet("storage.lvm_thinpool_name")
-	if err != nil {
-		return results, fmt.Errorf("Error getting lvm_thinpool_name config")
-	}
-	if poolname == "" {
+
+	if daemonConfig["storage.lvm_vg_name"].Get() == "" {
 		return results, nil
 	}
 
@@ -72,6 +59,7 @@ func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 	if err != nil {
 		return results, err
 	}
+
 	for _, cName := range cNames {
 		var lvLinkPath string
 		if strings.Contains(cName, shared.SnapshotDelimiter) {
@@ -100,61 +88,50 @@ func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 	return results, nil
 }
 
-func storageLVMSetThinPoolNameConfig(d *Daemon, poolname string) error {
+func storageLVMValidateThinPoolName(d *Daemon, key string, value string) error {
 	users, err := storageLVMGetThinPoolUsers(d)
 	if err != nil {
 		return fmt.Errorf("Error checking if a pool is already in use: %v", err)
 	}
+
 	if len(users) > 0 {
 		return fmt.Errorf("Can not change LVM config. Images or containers are still using LVs: %v", users)
 	}
 
-	vgname, err := d.ConfigValueGet("storage.lvm_vg_name")
-	if err != nil {
-		return fmt.Errorf("Error getting lvm_vg_name config: %v", err)
-	}
-
-	if poolname != "" {
+	vgname := daemonConfig["storage.lvm_vg_name"].Get()
+	if value != "" {
 		if vgname == "" {
 			return fmt.Errorf("Can not set lvm_thinpool_name without lvm_vg_name set.")
 		}
 
-		poolExists, err := storageLVMThinpoolExists(vgname, poolname)
+		poolExists, err := storageLVMThinpoolExists(vgname, value)
 		if err != nil {
-			return fmt.Errorf("Error checking for thin pool '%s' in '%s': %v", poolname, vgname, err)
+			return fmt.Errorf("Error checking for thin pool '%s' in '%s': %v", value, vgname, err)
 		}
-		if !poolExists {
-			return fmt.Errorf("Pool '%s' does not exist in Volume Group '%s'", poolname, vgname)
-		}
-	}
 
-	err = d.ConfigValueSet("storage.lvm_thinpool_name", poolname)
-	if err != nil {
-		return err
+		if !poolExists {
+			return fmt.Errorf("Pool '%s' does not exist in Volume Group '%s'", value, vgname)
+		}
 	}
 
 	return nil
 }
 
-func storageLVMSetVolumeGroupNameConfig(d *Daemon, vgname string) error {
+func storageLVMValidateVolumeGroupName(d *Daemon, key string, value string) error {
 	users, err := storageLVMGetThinPoolUsers(d)
 	if err != nil {
 		return fmt.Errorf("Error checking if a pool is already in use: %v", err)
 	}
+
 	if len(users) > 0 {
 		return fmt.Errorf("Can not change LVM config. Images or containers are still using LVs: %v", users)
 	}
 
-	if vgname != "" {
-		err = storageLVMCheckVolumeGroup(vgname)
+	if value != "" {
+		err = storageLVMCheckVolumeGroup(value)
 		if err != nil {
 			return err
 		}
-	}
-
-	err = d.ConfigValueSet("storage.lvm_vg_name", vgname)
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -210,10 +187,7 @@ func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 	}
 
 	if config["vgName"] == nil {
-		vgName, err := s.d.ConfigValueGet("storage.lvm_vg_name")
-		if err != nil {
-			return s, fmt.Errorf("Error checking server config: %v", err)
-		}
+		vgName := daemonConfig["storage.lvm_vg_name"].Get()
 		if vgName == "" {
 			return s, fmt.Errorf("LVM isn't enabled")
 		}
@@ -345,17 +319,8 @@ func (s *storageLvm) ContainerCreateFromImage(
 		return err
 	}
 
-	var fstype string
-	fstype, err = s.d.ConfigValueGet("storage.lvm_fstype")
-	if err != nil {
-		return fmt.Errorf("Error checking server config, err=%v", err)
-	}
-
-	if fstype == "" {
-		fstype = "ext4"
-	}
-
 	// Generate a new xfs's UUID
+	fstype := daemonConfig["storage.lvm_fstype"].Get()
 	if fstype == "xfs" {
 		err := xfsGenerateNewUUID(lvpath)
 		if err != nil {
@@ -458,16 +423,9 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 func (s *storageLvm) ContainerStart(container container) error {
 	lvName := containerNameToLVName(container.Name())
 	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvName)
-	fstype, err := s.d.ConfigValueGet("storage.lvm_fstype")
-	if err != nil {
-		return fmt.Errorf("Error checking server config, err=%v", err)
-	}
+	fstype := daemonConfig["storage.lvm_fstype"].Get()
 
-	if fstype == "" {
-		fstype = "ext4"
-	}
-
-	err = tryMount(lvpath, container.Path(), fstype, 0, "discard")
+	err := tryMount(lvpath, container.Path(), fstype, 0, "discard")
 	if err != nil {
 		return fmt.Errorf(
 			"Error mounting snapshot LV path='%s': %v",
@@ -702,17 +660,8 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 		}
 	}
 
-	var fstype string
-	fstype, err = s.d.ConfigValueGet("storage.lvm_fstype")
-	if err != nil {
-		return fmt.Errorf("Error checking server config, err=%v", err)
-	}
-
-	if fstype == "" {
-		fstype = "ext4"
-	}
-
 	// Generate a new xfs's UUID
+	fstype := daemonConfig["storage.lvm_fstype"].Get()
 	if fstype == "xfs" {
 		err := xfsGenerateNewUUID(lvpath)
 		if err != nil {
@@ -775,21 +724,11 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 		}
 	}()
 
-	var fstype string
-	fstype, err = s.d.ConfigValueGet("storage.lvm_fstype")
-	if err != nil {
-		return fmt.Errorf("Error checking server config, err=%v", err)
-	}
-
-	if fstype == "" {
-		fstype = "ext4"
-	}
-
+	fstype := daemonConfig["storage.lvm_fstype"].Get()
 	err = tryMount(lvpath, tempLVMountPoint, fstype, 0, "discard")
 	if err != nil {
 		shared.Logf("Error mounting image LV for untarring: %v", err)
 		return fmt.Errorf("Error mounting image LV: %v", err)
-
 	}
 
 	untarErr := untarImage(finalName, tempLVMountPoint)
@@ -833,24 +772,26 @@ func (s *storageLvm) ImageDelete(fingerprint string) error {
 }
 
 func (s *storageLvm) createDefaultThinPool() (string, error) {
+	thinPoolName := daemonConfig["storage.lvm_thinpool_name"].Get()
+
 	// Create a tiny 1G thinpool
 	output, err := tryExec(
 		"lvcreate",
 		"--poolmetadatasize", "1G",
 		"-L", "1G",
 		"--thinpool",
-		fmt.Sprintf("%s/%s", s.vgName, storageLvmDefaultThinPoolName))
+		fmt.Sprintf("%s/%s", s.vgName, thinPoolName))
 
 	if err != nil {
 		s.log.Error(
 			"Could not create thin pool",
 			log.Ctx{
-				"name":   storageLvmDefaultThinPoolName,
+				"name":   thinPoolName,
 				"err":    err,
 				"output": string(output)})
 
 		return "", fmt.Errorf(
-			"Could not create LVM thin pool named %s", storageLvmDefaultThinPoolName)
+			"Could not create LVM thin pool named %s", thinPoolName)
 	}
 
 	// Grow it to the maximum VG size (two step process required by old LVM)
@@ -858,49 +799,41 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 		"lvextend",
 		"--alloc", "anywhere",
 		"-l", "100%FREE",
-		fmt.Sprintf("%s/%s", s.vgName, storageLvmDefaultThinPoolName))
+		fmt.Sprintf("%s/%s", s.vgName, thinPoolName))
 
 	if err != nil {
 		s.log.Error(
 			"Could not grow thin pool",
 			log.Ctx{
-				"name":   storageLvmDefaultThinPoolName,
+				"name":   thinPoolName,
 				"err":    err,
 				"output": string(output)})
 
 		return "", fmt.Errorf(
-			"Could not grow LVM thin pool named %s", storageLvmDefaultThinPoolName)
+			"Could not grow LVM thin pool named %s", thinPoolName)
 	}
 
-	return storageLvmDefaultThinPoolName, nil
+	return thinPoolName, nil
 }
 
 func (s *storageLvm) createThinLV(lvname string) (string, error) {
-	poolname, err := s.d.ConfigValueGet("storage.lvm_thinpool_name")
-	if err != nil {
-		return "", fmt.Errorf("Error checking server config, err=%v", err)
-	}
+	var err error
 
+	poolname := daemonConfig["storage.lvm_thinpool_name"].Get()
 	if poolname == "" {
 		poolname, err = s.createDefaultThinPool()
 		if err != nil {
 			return "", fmt.Errorf("Error creating LVM thin pool: %v", err)
 		}
-		err = storageLVMSetThinPoolNameConfig(s.d, poolname)
+
+		err = storageLVMValidateThinPoolName(s.d, "", poolname)
 		if err != nil {
 			s.log.Error("Setting thin pool name", log.Ctx{"err": err})
 			return "", fmt.Errorf("Error setting LVM thin pool config: %v", err)
 		}
 	}
 
-	lvSize, err := s.d.ConfigValueGet("storage.lvm_volume_size")
-	if err != nil {
-		return "", fmt.Errorf("Error checking server config, err=%v", err)
-	}
-
-	if lvSize == "" {
-		lvSize = storageLvmDefaultThinLVSize
-	}
+	lvSize := daemonConfig["storage.lvm_volume_size"].Get()
 
 	output, err := tryExec(
 		"lvcreate",
@@ -908,7 +841,6 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 		"-n", lvname,
 		"--virtualsize", lvSize,
 		fmt.Sprintf("%s/%s", s.vgName, poolname))
-
 	if err != nil {
 		s.log.Error("Could not create LV", log.Ctx{"lvname": lvname, "output": string(output)})
 		return "", fmt.Errorf("Could not create thin LV named %s", lvname)
@@ -916,8 +848,7 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 
 	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvname)
 
-	fstype, err := s.d.ConfigValueGet("storage.lvm_fstype")
-
+	fstype := daemonConfig["storage.lvm_fstype"].Get()
 	switch fstype {
 	case "xfs":
 		output, err = tryExec(
@@ -932,7 +863,7 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 	}
 
 	if err != nil {
-		s.log.Error("mkfs.ext4", log.Ctx{"output": string(output)})
+		s.log.Error("Filesystem creation failed", log.Ctx{"output": string(output)})
 		return "", fmt.Errorf("Error making filesystem on image LV: %v", err)
 	}
 
