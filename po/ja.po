@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2016-04-11 15:01-0400\n"
-"PO-Revision-Date: 2016-04-10 23:40+0900\n"
+"POT-Creation-Date: 2016-04-25 14:47-0500\n"
+"PO-Revision-Date: 2016-04-26 14:31+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
 "Language: \n"
@@ -89,7 +89,7 @@ msgstr ""
 msgid "'/' not allowed in snapshot name"
 msgstr "'/' はスナップショットの名前には使用できません。"
 
-#: lxc/profile.go:226
+#: lxc/profile.go:251
 msgid "(none)"
 msgstr ""
 
@@ -101,7 +101,7 @@ msgstr ""
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:367
+#: lxc/list.go:378
 msgid "ARCHITECTURE"
 msgstr ""
 
@@ -148,7 +148,7 @@ msgstr "送信バイト数"
 msgid "COMMON NAME"
 msgstr ""
 
-#: lxc/list.go:368
+#: lxc/list.go:379
 msgid "CREATED AT"
 msgstr ""
 
@@ -162,7 +162,7 @@ msgstr "標準入力から読み込めません: %s"
 msgid "Can't unset key '%s', it's not currently set."
 msgstr "キー '%s' が指定されていないので削除できません。"
 
-#: lxc/profile.go:343
+#: lxc/profile.go:417
 msgid "Cannot provide container name to list"
 msgstr "コンテナ名を取得できません"
 
@@ -186,7 +186,7 @@ msgstr ""
 msgid "Client certificate stored at server: "
 msgstr "クライアント証明書がサーバに格納されました: "
 
-#: lxc/list.go:97 lxc/list.go:98
+#: lxc/list.go:99 lxc/list.go:100
 msgid "Columns"
 msgstr "カラムレイアウト"
 
@@ -194,7 +194,7 @@ msgstr "カラムレイアウト"
 msgid "Config key/value to apply to the new container"
 msgstr "設定キー/値の組を新しいコンテナに適用しました"
 
-#: lxc/config.go:500 lxc/config.go:565 lxc/image.go:687 lxc/profile.go:190
+#: lxc/config.go:500 lxc/config.go:565 lxc/image.go:687 lxc/profile.go:215
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -207,7 +207,7 @@ msgstr "接続が拒否されました。LXDが実行されていますか?"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/init.go:209
+#: lxc/init.go:210
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -279,7 +279,7 @@ msgstr ""
 msgid "Created: %s"
 msgstr "作成日時: %s"
 
-#: lxc/init.go:177 lxc/launch.go:116
+#: lxc/init.go:177 lxc/launch.go:118
 #, c-format
 msgid "Creating %s"
 msgstr "%s を作成中"
@@ -320,7 +320,7 @@ msgstr "デバイス %s が %s に追加されました"
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
-#: lxc/list.go:451
+#: lxc/list.go:462
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -380,7 +380,7 @@ msgstr "失効日時: 失効しない"
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/list.go:100
+#: lxc/list.go:102
 msgid "Fast mode (same as --columns=nsacPt"
 msgstr "Fast モード (--columns=nsacPt と同じ)"
 
@@ -411,7 +411,7 @@ msgstr "停止したコンテナを強制的に削除します。"
 msgid "Force using the local unix socket."
 msgstr "強制的にローカルのUNIXソケットを使います。"
 
-#: lxc/list.go:99
+#: lxc/list.go:101
 msgid "Format"
 msgstr ""
 
@@ -419,11 +419,11 @@ msgstr ""
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
 
-#: lxc/list.go:365
+#: lxc/list.go:376
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:366
+#: lxc/list.go:377
 msgid "IPV6"
 msgstr ""
 
@@ -440,7 +440,7 @@ msgstr "初めて LXD を使う場合、sudo lxd init と実行する必要が�
 msgid "Ignore aliases when determining what command to run."
 msgstr "コマンドを実行する際にエイリアスを無視します。"
 
-#: lxc/action.go:39
+#: lxc/action.go:40
 msgid "Ignore the container state (only for start)."
 msgstr "コンテナの状態を無視します (startのみ)。"
 
@@ -525,17 +525,19 @@ msgid ""
 "Specifying \"-p\" with no argument will result in no profile.\n"
 "\n"
 "Example:\n"
-"lxc launch ubuntu u1"
+"lxc launch ubuntu:16.04 u1"
 msgstr ""
 "指定したイメージからコンテナを起動します。\n"
 "\n"
-"lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p "
-"<profile>...] [--config|-c <key=value>...]\n"
+"lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]\n"
 "\n"
 "指定したイメージと名前を使ってコンテナを起動します。\n"
 "\n"
 "-p を指定しない場合はデフォルトのプロファイルを使います。\n"
-"\"-p\" のように引数なしで -p を使うとプロファイルなしとなります。"
+"\"-p\" のように引数なしで -p を使うとプロファイルなしとなります。\n"
+"\n"
+"例:\n"
+"lxc launch ubuntu:16.04 u1"
 
 #: lxc/info.go:25
 msgid ""
@@ -562,15 +564,18 @@ msgid ""
 "lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]\n"
 "\n"
 "The filters are:\n"
-"* A single keyword like \"web\" which will list any container with \"web\" "
-"in its name.\n"
+"* A single keyword like \"web\" which will list any container with a name "
+"starting by \"web\".\n"
+"* A regular expression on the container name. (e.g. .*web.*01$)\n"
 "* A key/value pair referring to a configuration item. For those, the "
 "namespace can be abreviated to the smallest unambiguous identifier:\n"
-"* \"user.blah=abc\" will list all containers with the \"blah\" user property "
-"set to \"abc\"\n"
-"* \"u.blah=abc\" will do the same\n"
-"* \"security.privileged=1\" will list all privileged containers\n"
-"* \"s.privileged=1\" will do the same\n"
+" * \"user.blah=abc\" will list all containers with the \"blah\" user "
+"property set to \"abc\".\n"
+" * \"u.blah=abc\" will do the same\n"
+" * \"security.privileged=1\" will list all privileged containers\n"
+" * \"s.privileged=1\" will do the same\n"
+"* A regular expression matching a configuration item or its value. (e.g. "
+"volatile.eth0.hwaddr=00:16:3e:.*)\n"
 "\n"
 "Columns for table format are:\n"
 "* 4 - IPv4 address\n"
@@ -592,18 +597,17 @@ msgstr ""
 "lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]\n"
 "\n"
 "フィルタの指定:\n"
-"* 単一の \"web\" のようなキーワードを指定すると、名前に \"web\" が含まれるコ"
-"ンテ\n"
+"* 単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるコンテ\n"
 "  ナが一覧表示されます。\n"
-"* 設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することが"
-"で\n"
+"* コンテナ名の正規表現 (例: .*web.*01$)\n"
+"* 設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することがで\n"
 "  きます:\n"
-"* \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定されて"
-"いる\n"
+" * \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定されている\n"
 "  コンテナをすべて一覧表示します。\n"
-"* \"u.blah\" は上記と同じ意味になります。\n"
-"* \"security.privileged=1\" は特権コンテナをすべて一覧表示します。\n"
-"* \"s.privilaged=1\" は上記と同じ意味になります。\n"
+" * \"u.blah=abc\" は上記と同じ意味になります。\n"
+" * \"security.privileged=1\" は特権コンテナをすべて一覧表示します。\n"
+" * \"s.privilaged=1\" は上記と同じ意味になります。\n"
+" * 設定項目もしくは値とマッチする正規表現 (例:volatile.eth0.hwaddr=00:16:3e:.*)\n"
 "\n"
 "表のカラムの指定:\n"
 "* 4 - IPv4 アドレス\n"
@@ -649,6 +653,7 @@ msgid ""
 "    Example: lxc profile edit <profile> # launch editor\n"
 "             cat profile.yml | lxc profile edit <profile> # read from "
 "profile.yml\n"
+"\n"
 "lxc profile apply <container> <profiles>\n"
 "    Apply a comma-separated list of profiles to a container, in order.\n"
 "    All profiles passed in this call (and only those) will be applied\n"
@@ -657,6 +662,8 @@ msgid ""
 "             lxc profile apply foo default # Only default is active\n"
 "             lxc profile apply '' # no profiles are applied anymore\n"
 "             lxc profile apply bar,default # Apply default second now\n"
+"lxc profile apply-add <container> <profile>\n"
+"lxc profile apply-remove <container> <profile>\n"
 "\n"
 "Devices:\n"
 "lxc profile device list <profile>                                   List "
@@ -695,8 +702,8 @@ msgstr ""
 "lxc profile edit <profile>\n"
 "    プロファイルを編集します。外部エディタもしくはSTDINから読み込みます。\n"
 "    例: lxc profile edit <profile> # エディタの起動\n"
-"        cat profile.yml | lxc profile edit <profile> # profile.yml から読み込"
-"み\n"
+"        cat profile.yml | lxc profile edit <profile> # profile.yml から読み込み\n"
+"\n"
 "lxc profile apply <container> <profiles>\n"
 "    プロファイルのコンマ区切りのリストをコンテナに順番に適用します。\n"
 "    このコマンドで指定したプロファイルだけが対象のコンテナに適用されます。\n"
@@ -704,6 +711,8 @@ msgstr ""
 "        lxc profile apply foo default # defaultだけを有効化\n"
 "        lxc profile apply '' # 一切のプロファイルを適用しない\n"
 "        lxc profile apply bar,default # defaultを2番目に適用\n"
+"lxc profile apply-add <container> <profile>\n"
+"lxc profile apply-remove <container> <profile>\n"
 "\n"
 "デバイス:\n"
 "lxc profile device list <profile>\n"
@@ -718,8 +727,7 @@ msgstr ""
 "    デバイスプロパティを設定します\n"
 "lxc profile device unset <[remote:]profile> <name> <key>\n"
 "    デバイスプロパティを削除します\n"
-"lxc profile device add <profile name> <device name> <device type> "
-"[key=value]...\n"
+"lxc profile device add <profile name> <device name> <device type> [key=value]...\n"
 "    ディスクやNICのようなプロファイルデバイスを指定したプロファイルを使って\n"
 "    コンテナに追加します。"
 
@@ -917,8 +925,8 @@ msgid ""
 "\n"
 "\n"
 "lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--"
-"created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] "
-"[prop=value]\n"
+"created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--"
+"alias=ALIAS].. [prop=value]\n"
 "    Import an image tarball (or tarballs) into the LXD image store.\n"
 "\n"
 "lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] "
@@ -975,14 +983,11 @@ msgstr ""
 "る場合は) エイリアスで参照できます。\n"
 "\n"
 "\n"
-"lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--"
-"created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] "
-"[prop=value]\n"
+"lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--alias=ALIAS].. [prop=value]\n"
 "    イメージの tarball (複数も可能) を LXD のイメージストアにインポートしま\n"
 "    す。\n"
 "\n"
-"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] "
-"[--public] [--auto-update]\n"
+"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public] [--auto-update]\n"
 "    ネットワーク経由である LXD デーモンから他の LXD デーモンへイメージを\n"
 "    コピーします。\n"
 "\n"
@@ -1019,8 +1024,7 @@ msgstr ""
 "    エイリアスを削除します。\n"
 "\n"
 "lxc image alias list [remote:] [filter]\n"
-"    エイリアスを一覧表示します。イメージハッシュの一部やイメージのエイリア"
-"ス\n"
+"    エイリアスを一覧表示します。イメージハッシュの一部やイメージのエイリアス\n"
 "    名の一部をフィルタとして指定できます。\n"
 
 #: lxc/info.go:147
@@ -1091,7 +1095,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
-#: lxc/list.go:369 lxc/remote.go:363
+#: lxc/list.go:380 lxc/remote.go:363
 msgid "NAME"
 msgstr ""
 
@@ -1137,15 +1141,15 @@ msgstr "%s に出力されます"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "ターミナルモードを上書きします (auto, interactive, non-interactive)"
 
-#: lxc/list.go:453
+#: lxc/list.go:464
 msgid "PERSISTENT"
 msgstr ""
 
-#: lxc/list.go:370
+#: lxc/list.go:381
 msgid "PID"
 msgstr ""
 
-#: lxc/list.go:371
+#: lxc/list.go:382
 msgid "PROFILES"
 msgstr ""
 
@@ -1192,7 +1196,7 @@ msgstr ""
 "\n"
 "lxd help [--all]"
 
-#: lxc/profile.go:191
+#: lxc/profile.go:216
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
@@ -1227,24 +1231,34 @@ msgstr ""
 msgid "Processes: %d"
 msgstr "プロセス数: %d"
 
-#: lxc/profile.go:228
+#: lxc/profile.go:272
 #, c-format
-msgid "Profile %s applied to %s"
+msgid "Profile %s added to %s"
 msgstr "プロファイル %s が %s に追加されました"
 
-#: lxc/profile.go:142
+#: lxc/profile.go:167
 #, c-format
 msgid "Profile %s created"
 msgstr "プロファイル %s を作成しました"
 
-#: lxc/profile.go:212
+#: lxc/profile.go:237
 #, c-format
 msgid "Profile %s deleted"
 msgstr "プロファイル %s を削除しました"
 
+#: lxc/profile.go:303
+#, c-format
+msgid "Profile %s removed from %s"
+msgstr "プロファイル %s が %s から削除されました"
+
 #: lxc/init.go:136 lxc/init.go:137 lxc/launch.go:42 lxc/launch.go:43
 msgid "Profile to apply to the new container"
 msgstr "プロファイルが新しいコンテナに適用されました"
+
+#: lxc/profile.go:253
+#, c-format
+msgid "Profiles %s applied to %s"
+msgstr "プロファイル %s が %s に追加されました"
 
 #: lxc/info.go:101
 #, c-format
@@ -1293,7 +1307,7 @@ msgstr "ユーザの確認を要求する。"
 msgid "Resources:"
 msgstr "リソース:"
 
-#: lxc/init.go:246
+#: lxc/init.go:247
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
@@ -1302,11 +1316,11 @@ msgstr "イメージの取得中: %s"
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:372
+#: lxc/list.go:383
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/list.go:373
+#: lxc/list.go:384
 msgid "STATE"
 msgstr ""
 
@@ -1383,7 +1397,7 @@ msgstr "スナップショット:"
 msgid "Source:"
 msgstr "取得元:"
 
-#: lxc/launch.go:122
+#: lxc/launch.go:124
 #, c-format
 msgid "Starting %s"
 msgstr "%s を起動中"
@@ -1401,7 +1415,7 @@ msgstr "実行中の場合、コンテナを停止します"
 msgid "Stopping container failed!"
 msgstr "コンテナの停止に失敗しました！"
 
-#: lxc/action.go:38
+#: lxc/action.go:39
 msgid "Store the container state (only for stop)."
 msgstr "コンテナの状態を保存します (stopのみ)。"
 
@@ -1413,7 +1427,7 @@ msgstr "Swap (現在値)"
 msgid "Swap (peak)"
 msgstr "Swap (ピーク)"
 
-#: lxc/list.go:374
+#: lxc/list.go:385
 msgid "TYPE"
 msgstr ""
 
@@ -1434,6 +1448,11 @@ msgstr ""
 msgid "The device doesn't exist"
 msgstr "デバイスが存在しません"
 
+#: lxc/init.go:277
+#, c-format
+msgid "The local image '%s' couldn't be found, trying '%s:' instead."
+msgstr "ローカルイメージ '%s' が見つかりません。代わりに '%s:' を試してみてください。"
+
 #: lxc/publish.go:62
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
@@ -1449,12 +1468,18 @@ msgstr "コンテナを強制停止するまでの時間"
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
+#: lxc/main.go:147
+msgid "To start your first container, try: lxc launch ubuntu:16.04"
+msgstr ""
+"初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ\n"
+"さい。"
+
 #: lxc/image.go:402
 #, c-format
 msgid "Transferring image: %d%%"
 msgstr "イメージを転送中: %d%%"
 
-#: lxc/action.go:93 lxc/launch.go:130
+#: lxc/action.go:93 lxc/launch.go:132
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log` を実行してみてください"
@@ -1520,7 +1545,7 @@ msgstr ""
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr "`lxc config profile` は廃止されました。`lxc profile` を使ってください"
 
-#: lxc/launch.go:109
+#: lxc/launch.go:111
 msgid "bad number of things scanned from image, container or snapshot"
 msgstr ""
 "イメージ、コンテナ、スナップショットのいずれかからスキャンされた数が不正"
@@ -1541,7 +1566,7 @@ msgstr "デフォルトのリモートは削除できません"
 msgid "default"
 msgstr ""
 
-#: lxc/init.go:199 lxc/init.go:204 lxc/launch.go:93 lxc/launch.go:98
+#: lxc/init.go:200 lxc/init.go:205 lxc/launch.go:95 lxc/launch.go:100
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr ""
 "サーバから変更されたイメージ、コンテナ、スナップショットを取得できませんで\n"
@@ -1555,7 +1580,7 @@ msgstr "無効"
 msgid "enabled"
 msgstr "有効"
 
-#: lxc/main.go:25 lxc/main.go:158
+#: lxc/main.go:25 lxc/main.go:159
 #, c-format
 msgid "error: %v"
 msgstr "エラー: %v"
@@ -1565,7 +1590,7 @@ msgstr "エラー: %v"
 msgid "error: unknown command: %s"
 msgstr "エラー: 未知のコマンド: %s"
 
-#: lxc/launch.go:113
+#: lxc/launch.go:115
 msgid "got bad version"
 msgstr "不正なバージョンを得ました"
 
@@ -1581,7 +1606,7 @@ msgstr "コピー元の全てのプロファイルがターゲットに存在し
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
-#: lxc/main.go:265 lxc/main.go:269
+#: lxc/main.go:266 lxc/main.go:270
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
@@ -1623,7 +1648,7 @@ msgstr "%s に取得しました"
 msgid "unreachable return reached"
 msgstr "到達しないはずのreturnに到達しました"
 
-#: lxc/main.go:198
+#: lxc/main.go:199
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
