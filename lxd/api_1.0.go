@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 	"syscall"
 
 	"gopkg.in/lxc/go-lxc.v2"
@@ -125,23 +126,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 		body["environment"] = env
 		body["public"] = false
-
-		serverConfig, err := d.ConfigValuesGet()
-		if err != nil {
-			return InternalError(err)
-		}
-
-		config := shared.Jmap{}
-
-		for key, value := range serverConfig {
-			if key == "core.trust_password" {
-				config[key] = true
-			} else {
-				config[key] = value
-			}
-		}
-
-		body["config"] = config
+		body["config"] = daemonConfigRender()
 	} else {
 		body["auth"] = "untrusted"
 		body["public"] = false
@@ -166,6 +151,14 @@ func api10Put(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	// Deal with special keys
+	for k, v := range req.Config {
+		config := daemonConfig[k]
+		if config != nil && config.hiddenValue && v == true {
+			req.Config[k] = oldConfig[k]
+		}
+	}
+
 	// Diff the configs
 	changedConfig := map[string]interface{}{}
 	for key, value := range oldConfig {
@@ -180,84 +173,26 @@ func api10Put(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	for key, value := range changedConfig {
-		if value == nil {
-			value = ""
+	for key, valueRaw := range changedConfig {
+		if valueRaw == nil {
+			valueRaw = ""
 		}
 
-		if !d.ConfigKeyIsValid(key) {
+		s := reflect.ValueOf(valueRaw)
+		if !s.IsValid() || s.Kind() != reflect.String {
+			return BadRequest(fmt.Errorf("Invalid value type for '%s'", key))
+		}
+
+		value := valueRaw.(string)
+
+		confKey, ok := daemonConfig[key]
+		if !ok {
 			return BadRequest(fmt.Errorf("Bad server config key: '%s'", key))
 		}
 
-		if key == "core.trust_password" {
-			if value == true {
-				continue
-			}
-
-			err := d.PasswordSet(value.(string))
-			if err != nil {
-				return InternalError(err)
-			}
-		} else if key == "storage.lvm_vg_name" {
-			err := storageLVMSetVolumeGroupNameConfig(d, value.(string))
-			if err != nil {
-				return InternalError(err)
-			}
-			if err = d.SetupStorageDriver(); err != nil {
-				return InternalError(err)
-			}
-		} else if key == "storage.lvm_thinpool_name" {
-			err := storageLVMSetThinPoolNameConfig(d, value.(string))
-			if err != nil {
-				return InternalError(err)
-			}
-		} else if key == "storage.zfs_pool_name" {
-			err := storageZFSSetPoolNameConfig(d, value.(string))
-			if err != nil {
-				return InternalError(err)
-			}
-			if err = d.SetupStorageDriver(); err != nil {
-				return InternalError(err)
-			}
-		} else if key == "core.https_address" {
-			old_address, err := d.ConfigValueGet("core.https_address")
-			if err != nil {
-				return InternalError(err)
-			}
-
-			err = d.UpdateHTTPsPort(old_address, value.(string))
-			if err != nil {
-				return InternalError(err)
-			}
-
-			err = d.ConfigValueSet(key, value.(string))
-			if err != nil {
-				return InternalError(err)
-			}
-		} else if key == "core.proxy_https" || key == "core.proxy_http" || key == "core.proxy_ignore_hosts" {
-			err = d.ConfigValueSet(key, value.(string))
-			if err != nil {
-				return InternalError(err)
-			}
-
-			// Update the cached proxy function
-			d.updateProxy()
-
-			// Clear the simplestreams cache as it's tied to the old proxy config
-			imageStreamCacheLock.Lock()
-			for k, _ := range imageStreamCache {
-				delete(imageStreamCache, k)
-			}
-			imageStreamCacheLock.Unlock()
-
-		} else {
-			err := d.ConfigValueSet(key, value.(string))
-			if err != nil {
-				return InternalError(err)
-			}
-			if key == "images.remote_cache_expiry" {
-				d.pruneChan <- true
-			}
+		err := confKey.Set(d, value)
+		if err != nil {
+			return BadRequest(err)
 		}
 	}
 
