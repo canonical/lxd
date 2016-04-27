@@ -819,8 +819,14 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 func (s *storageLvm) createThinLV(lvname string) (string, error) {
 	var err error
 
+	vgname := daemonConfig["storage.lvm_vg_name"].Get()
 	poolname := daemonConfig["storage.lvm_thinpool_name"].Get()
-	if poolname == "" {
+	exists, err := storageLVMThinpoolExists(vgname, poolname)
+	if err != nil {
+		return "", err
+	}
+
+	if !exists {
 		poolname, err = s.createDefaultThinPool()
 		if err != nil {
 			return "", fmt.Errorf("Error creating LVM thin pool: %v", err)
