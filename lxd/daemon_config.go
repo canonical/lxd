@@ -98,24 +98,26 @@ func (k *daemonConfigKey) Set(d *Daemon, value string) error {
 		return err
 	}
 
+	// Actually apply the change
+	name = k.name()
+	daemonConfigLock.Lock()
+	k.currentValue = value
 	// Run external setting function
 	if k.setter != nil {
-		value, err = k.setter(d, k.name(), value)
+		value, err = k.setter(d, name, value)
 		if err != nil {
+			k.currentValue = oldValue
+			daemonConfigLock.Unlock()
 			return err
 		}
 	}
+	daemonConfigLock.Unlock()
 
 	// Get the configuration key and make sure daemonConfig is sane
 	name = k.name()
 	if name == "" {
 		return fmt.Errorf("Corrupted configuration cache")
 	}
-
-	// Actually apply the change
-	daemonConfigLock.Lock()
-	k.currentValue = value
-	daemonConfigLock.Unlock()
 
 	err = dbConfigValueSet(d.db, name, value)
 	if err != nil {
