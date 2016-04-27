@@ -140,7 +140,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	if !d.isTrustedClient(r) && !d.PasswordCheck(req.Password) {
+	if !d.isTrustedClient(r) && d.PasswordCheck(req.Password) != nil {
 		return Forbidden
 	}
 

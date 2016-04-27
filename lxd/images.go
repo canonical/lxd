@@ -230,17 +230,8 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	}
 	tarfile.Close()
 
-	compress, err := d.ConfigValueGet("images.compression_algorithm")
-	if err != nil {
-		return info, err
-	}
-
-	// Default to gzip for this
-	if compress == "" {
-		compress = "gzip"
-	}
-
 	var compressedPath string
+	compress := daemonConfig["images.compression_algorithm"].Get()
 	if compress != "none" {
 		compressedPath, err = compressFile(tarfile.Name(), compress)
 		if err != nil {
@@ -889,33 +880,22 @@ func autoUpdateImages(d *Daemon) {
 
 func pruneExpiredImages(d *Daemon) {
 	shared.Debugf("Pruning expired images")
-	expiry, err := d.ConfigValueGet("images.remote_cache_expiry")
-	if err != nil {
-		shared.Log.Error("Unable to read the images.remote_cache_expiry key")
-		return
-	}
 
-	if expiry == "" {
-		expiry = "10"
-	}
-
-	expiryInt, err := strconv.Atoi(expiry)
-	if err != nil {
-		shared.Log.Error("Invalid value for images.remote_cache_expiry", log.Ctx{"err": err})
-		return
-	}
-
-	images, err := dbImagesGetExpired(d.db, expiryInt)
+	// Get the list of expires images
+	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
+	images, err := dbImagesGetExpired(d.db, expiry)
 	if err != nil {
 		shared.Log.Error("Unable to retrieve the list of expired images", log.Ctx{"err": err})
 		return
 	}
 
+	// Delete them
 	for _, fp := range images {
 		if err := doDeleteImage(d, fp); err != nil {
 			shared.Log.Error("Error deleting image", log.Ctx{"err": err, "fp": fp})
 		}
 	}
+
 	shared.Debugf("Done pruning expired images")
 }
 
