@@ -374,8 +374,9 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	// Let's run the schema upgrades.
 	d := &Daemon{MockMode: true}
 	d.db = db
-	err = dbUpdate(d, 1)
+	daemonConfigInit(db)
 
+	err = dbUpdate(d, 1)
 	if err != nil {
 		t.Error("Error upgrading database schema!")
 		t.Fatal(err)

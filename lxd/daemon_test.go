@@ -4,23 +4,24 @@ func (suite *lxdTestSuite) Test_config_value_set_empty_removes_val() {
 	var err error
 	d := suite.d
 
-	err = d.ConfigValueSet("storage.lvm_vg_name", "foo")
+	err = daemonConfig["core.trust_password"].Set(d, "foo")
 	suite.Req.Nil(err)
 
-	val, err := d.ConfigValueGet("storage.lvm_vg_name")
-	suite.Req.Nil(err)
-	suite.Req.Equal(val, "foo")
+	val := daemonConfig["core.trust_password"].Get()
+	suite.Req.Equal(len(val), 192)
 
-	err = d.ConfigValueSet("storage.lvm_vg_name", "")
+	valMap := daemonConfigRender()
+	value, present := valMap["core.trust_password"]
+	suite.Req.True(present)
+	suite.Req.Equal(value, true)
+
+	err = daemonConfig["core.trust_password"].Set(d, "")
 	suite.Req.Nil(err)
 
-	val, err = d.ConfigValueGet("storage.lvm_vg_name")
-	suite.Req.Nil(err)
+	val = daemonConfig["core.trust_password"].Get()
 	suite.Req.Equal(val, "")
 
-	valMap, err := d.ConfigValuesGet()
-	suite.Req.Nil(err)
-
-	_, present := valMap["storage.lvm_vg_name"]
+	valMap = daemonConfigRender()
+	_, present = valMap["core.trust_password"]
 	suite.Req.False(present)
 }

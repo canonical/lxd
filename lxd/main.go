@@ -473,12 +473,14 @@ func cmdActivateIfNeeded() error {
 		return err
 	}
 
-	// Look for network socket
-	value, err := d.ConfigValueGet("core.https_address")
+	/* Load all config values from the database */
+	err = daemonConfigInit(d.db)
 	if err != nil {
 		return err
 	}
 
+	// Look for network socket
+	value := daemonConfig["core.https_address"].Get()
 	if value != "" {
 		shared.Debugf("Daemon has core.https_address set, activating...")
 		_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
