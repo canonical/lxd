@@ -712,8 +712,6 @@ func MigrateContainer(args []string) error {
 	configPath := args[3]
 	imagesDir := args[4]
 
-	defer os.Remove(configPath)
-
 	c, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
 		return err
