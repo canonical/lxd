@@ -252,23 +252,20 @@ func daemonConfigSetPassword(d *Daemon, key string, value string) (string, error
 }
 
 func daemonConfigSetStorage(d *Daemon, key string, value string) (string, error) {
-	driver := ""
+	// The storage driver looks at daemonConfig so just set it temporarily
+	daemonConfigLock.Lock()
+	oldValue := daemonConfig[key].Get()
+	daemonConfig[key].currentValue = value
+	daemonConfigLock.Unlock()
 
-	// Guess the driver name from the key
-	switch key {
-	case "storage.lvm_vg_name":
-		driver = "lvm"
-	case "storage.zfs_pool_name":
-		driver = "zfs"
-	}
-
-	// Should never actually hit this
-	if driver == "" {
-		return "", fmt.Errorf("Invalid storage key: %s", key)
-	}
+	defer func() {
+		daemonConfigLock.Lock()
+		daemonConfig[key].currentValue = oldValue
+		daemonConfigLock.Unlock()
+	}()
 
 	// Update the current storage driver
-	err := d.SetupStorageDriver(driver)
+	err := d.SetupStorageDriver()
 	if err != nil {
 		return "", err
 	}
