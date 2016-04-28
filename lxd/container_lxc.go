@@ -4005,9 +4005,10 @@ func (c *containerLXC) removeDiskDevices() error {
 		_ = syscall.Unmount(filepath.Join(c.DevicesPath(), f.Name()), syscall.MNT_DETACH)
 
 		// Remove the entry
-		err := os.Remove(filepath.Join(c.DevicesPath(), f.Name()))
+		diskPath := filepath.Join(c.DevicesPath(), f.Name())
+		err := os.Remove(diskPath)
 		if err != nil {
-			return err
+			shared.Log.Error("Failed to remove disk device path", log.Ctx{"err": err, "path": diskPath})
 		}
 	}
 
