@@ -604,6 +604,8 @@ HTTP code for this should be 202 (Accepted).
  * Operation: sync
  * Return: dict representing current state
 
+Output:
+
     {
         "type": "sync",
         "status": "Success",
@@ -1283,6 +1285,7 @@ Input:
  * Return: dict representing an alias description and target
 
 Output:
+
     {
         "name": "test",
         "description": "my description",
