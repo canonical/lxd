@@ -1763,10 +1763,14 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	return nil
 }
 
-func (c *containerLXC) cleanup() {
+func (c *containerLXC) cleanup() error {
 	// Unmount any leftovers
-	c.removeUnixDevices()
-	c.removeDiskDevices()
+	if err := c.removeUnixDevices(); err != nil {
+		return err
+	}
+	if err := c.removeDiskDevices(); err != nil {
+		return err
+	}
 
 	// Remove the security profiles
 	AADeleteProfile(c)
@@ -1777,6 +1781,8 @@ func (c *containerLXC) cleanup() {
 
 	// Remove the shmounts path
 	os.RemoveAll(shared.VarPath("shmounts", c.Name()))
+
+	return nil
 }
 
 func (c *containerLXC) Delete() error {
@@ -1792,7 +1798,9 @@ func (c *containerLXC) Delete() error {
 		}
 
 		// Clean things up
-		c.cleanup()
+		if err := c.cleanup(); err != nil {
+			return err
+		}
 
 		// Delete the container from disk
 		if shared.PathExists(c.Path()) {
@@ -1823,7 +1831,9 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	// Clean things up
-	c.cleanup()
+	if err := c.cleanup(); err != nil {
+		return err
+	}
 
 	// Rename the logging path
 	os.RemoveAll(shared.LogPath(newName))
