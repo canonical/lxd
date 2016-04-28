@@ -1773,7 +1773,7 @@ func (c *containerLXC) cleanup() {
 	SeccompDeleteProfile(c)
 
 	// Remove the devices path
-	os.RemoveAll(c.DevicesPath())
+	os.Remove(c.DevicesPath())
 
 	// Remove the shmounts path
 	os.RemoveAll(shared.VarPath("shmounts", c.Name()))
