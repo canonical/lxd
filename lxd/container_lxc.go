@@ -1773,7 +1773,7 @@ func (c *containerLXC) cleanup() {
 	SeccompDeleteProfile(c)
 
 	// Remove the devices path
-	os.RemoveAll(c.DevicesPath())
+	os.Remove(c.DevicesPath())
 
 	// Remove the shmounts path
 	os.RemoveAll(shared.VarPath("shmounts", c.Name()))
@@ -3555,9 +3555,10 @@ func (c *containerLXC) removeUnixDevices() error {
 		}
 
 		// Remove the entry
-		err := os.Remove(filepath.Join(c.DevicesPath(), f.Name()))
+		devicePath := filepath.Join(c.DevicesPath(), f.Name())
+		err := os.Remove(devicePath)
 		if err != nil {
-			return err
+			shared.Log.Error("failed removing unix device", log.Ctx{"err": err, "path": devicePath})
 		}
 	}
 
@@ -4005,9 +4006,10 @@ func (c *containerLXC) removeDiskDevices() error {
 		_ = syscall.Unmount(filepath.Join(c.DevicesPath(), f.Name()), syscall.MNT_DETACH)
 
 		// Remove the entry
-		err := os.Remove(filepath.Join(c.DevicesPath(), f.Name()))
+		diskPath := filepath.Join(c.DevicesPath(), f.Name())
+		err := os.Remove(diskPath)
 		if err != nil {
-			return err
+			shared.Log.Error("Failed to remove disk device path", log.Ctx{"err": err, "path": diskPath})
 		}
 	}
 
