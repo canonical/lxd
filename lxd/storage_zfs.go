@@ -178,61 +178,63 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 func (s *storageZfs) ContainerDelete(container container) error {
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
-	removable := true
-	snaps, err := s.zfsListSnapshots(fs)
-	if err != nil {
-		return err
-	}
-
-	for _, snap := range snaps {
-		var err error
-		removable, err = s.zfsSnapshotRemovable(fs, snap)
+	if s.zfsExists(fs) {
+		removable := true
+		snaps, err := s.zfsListSnapshots(fs)
 		if err != nil {
 			return err
 		}
 
-		if !removable {
-			break
-		}
-	}
+		for _, snap := range snaps {
+			var err error
+			removable, err = s.zfsSnapshotRemovable(fs, snap)
+			if err != nil {
+				return err
+			}
 
-	if removable {
-		origin, err := s.zfsGet(fs, "origin")
-		if err != nil {
-			return err
-		}
-		origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", s.zfsPool))
-
-		err = s.zfsDestroy(fs)
-		if err != nil {
-			return err
+			if !removable {
+				break
+			}
 		}
 
-		err = s.zfsCleanup(origin)
-		if err != nil {
-			return err
-		}
-	} else {
-		err := s.zfsSet(fs, "mountpoint", "none")
-		if err != nil {
-			return err
-		}
+		if removable {
+			origin, err := s.zfsGet(fs, "origin")
+			if err != nil {
+				return err
+			}
+			origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", s.zfsPool))
 
-		err = s.zfsRename(fs, fmt.Sprintf("deleted/containers/%s", uuid.NewRandom().String()))
-		if err != nil {
-			return err
+			err = s.zfsDestroy(fs)
+			if err != nil {
+				return err
+			}
+
+			err = s.zfsCleanup(origin)
+			if err != nil {
+				return err
+			}
+		} else {
+			err := s.zfsSet(fs, "mountpoint", "none")
+			if err != nil {
+				return err
+			}
+
+			err = s.zfsRename(fs, fmt.Sprintf("deleted/containers/%s", uuid.NewRandom().String()))
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	if shared.PathExists(shared.VarPath(fs)) {
-		os.Remove(shared.VarPath(fs))
+		err := os.Remove(shared.VarPath(fs))
 		if err != nil {
 			return err
 		}
 	}
 
 	if shared.PathExists(shared.VarPath(fs) + ".zfs") {
-		os.Remove(shared.VarPath(fs) + ".zfs")
+		err := os.Remove(shared.VarPath(fs) + ".zfs")
 		if err != nil {
 			return err
 		}
@@ -448,27 +450,32 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 	cName := fields[0]
 	snapName := fmt.Sprintf("snapshot-%s", fields[1])
 
-	removable, err := s.zfsSnapshotRemovable(fmt.Sprintf("containers/%s", cName), snapName)
-	if removable {
-		err = s.zfsSnapshotDestroy(fmt.Sprintf("containers/%s", cName), snapName)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = s.zfsSnapshotRename(fmt.Sprintf("containers/%s", cName), snapName, fmt.Sprintf("copy-%s", uuid.NewRandom().String()))
-		if err != nil {
-			return err
+	if s.zfsExists(fmt.Sprintf("containers/%s@%s", cName, snapName)) {
+		removable, err := s.zfsSnapshotRemovable(fmt.Sprintf("containers/%s", cName), snapName)
+		if removable {
+			err = s.zfsSnapshotDestroy(fmt.Sprintf("containers/%s", cName), snapName)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = s.zfsSnapshotRename(fmt.Sprintf("containers/%s", cName), snapName, fmt.Sprintf("copy-%s", uuid.NewRandom().String()))
+			if err != nil {
+				return err
+			}
 		}
 	}
 
-	err = os.Remove(shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", cName, fields[1])))
-	if err != nil {
-		return err
+	snapPath := shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", cName, fields[1]))
+	if shared.PathExists(snapPath) {
+		err := os.Remove(snapPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	parent := shared.VarPath(fmt.Sprintf("snapshots/%s", cName))
 	if ok, _ := shared.PathIsEmpty(parent); ok {
-		err = os.Remove(parent)
+		err := os.Remove(parent)
 		if err != nil {
 			return err
 		}
@@ -613,32 +620,34 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 func (s *storageZfs) ImageDelete(fingerprint string) error {
 	fs := fmt.Sprintf("images/%s", fingerprint)
 
-	removable, err := s.zfsSnapshotRemovable(fs, "readonly")
-
-	if err != nil {
-		return err
-	}
-
-	if removable {
-		err := s.zfsDestroy(fs)
-		if err != nil {
-			return err
-		}
-	} else {
-		err := s.zfsSet(fs, "mountpoint", "none")
+	if s.zfsExists(fs) {
+		removable, err := s.zfsSnapshotRemovable(fs, "readonly")
 		if err != nil {
 			return err
 		}
 
-		err = s.zfsRename(fs, fmt.Sprintf("deleted/%s", fs))
-		if err != nil {
-			return err
+		if removable {
+			err := s.zfsDestroy(fs)
+			if err != nil {
+				return err
+			}
+		} else {
+			err := s.zfsSet(fs, "mountpoint", "none")
+			if err != nil {
+				return err
+			}
+
+			err = s.zfsRename(fs, fmt.Sprintf("deleted/%s", fs))
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	if shared.PathExists(shared.VarPath(fs + ".zfs")) {
 		os.Remove(shared.VarPath(fs + ".zfs"))
 	}
+
 	return nil
 }
 
