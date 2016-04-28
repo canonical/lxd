@@ -3555,9 +3555,10 @@ func (c *containerLXC) removeUnixDevices() error {
 		}
 
 		// Remove the entry
-		err := os.Remove(filepath.Join(c.DevicesPath(), f.Name()))
+		devicePath := filepath.Join(c.DevicesPath(), f.Name())
+		err := os.Remove(devicePath)
 		if err != nil {
-			return err
+			shared.Log.Error("failed removing unix device", log.Ctx{"err": err, "path": devicePath})
 		}
 	}
 
