@@ -122,10 +122,12 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 	}
 
 	// Then the directory (if it still exists).
-	err := os.RemoveAll(cPath)
-	if err != nil {
-		s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "err": err})
-		return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
+	if shared.PathExists(cPath) {
+		err := os.RemoveAll(cPath)
+		if err != nil {
+			s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "err": err})
+			return fmt.Errorf("Error cleaning up %s: %s", cPath, err)
+		}
 	}
 
 	return nil
@@ -423,7 +425,13 @@ func (s *storageBtrfs) ImageDelete(fingerprint string) error {
 	imagePath := shared.VarPath("images", fingerprint)
 	subvol := fmt.Sprintf("%s.btrfs", imagePath)
 
-	return s.subvolDelete(subvol)
+	if s.isSubvolume(subvol) {
+		if err := s.subvolsDelete(subvol); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *storageBtrfs) subvolCreate(subvol string) error {
