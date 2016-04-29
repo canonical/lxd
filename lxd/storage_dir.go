@@ -82,6 +82,10 @@ func (s *storageDir) ContainerCanRestore(container container, sourceContainer co
 func (s *storageDir) ContainerDelete(container container) error {
 	cPath := container.Path()
 
+	if !shared.PathExists(cPath) {
+		return nil
+	}
+
 	err := os.RemoveAll(cPath)
 	if err != nil {
 		// RemovaAll fails on very long paths, so attempt an rm -Rf

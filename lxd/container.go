@@ -112,24 +112,7 @@ func containerValidDeviceConfigKey(t, k string) bool {
 	}
 
 	switch t {
-	case "unix-char":
-		switch k {
-		case "gid":
-			return true
-		case "major":
-			return true
-		case "minor":
-			return true
-		case "mode":
-			return true
-		case "path":
-			return true
-		case "uid":
-			return true
-		default:
-			return false
-		}
-	case "unix-block":
+	case "unix-char", "unix-block":
 		switch k {
 		case "gid":
 			return true
