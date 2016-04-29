@@ -1088,6 +1088,16 @@ func (c *containerLXC) startCommon() (string, error) {
 		delete(c.expandedConfig, k)
 	}
 
+	// Rotate the log file
+	logfile := c.LogFilePath()
+	if shared.PathExists(logfile) {
+		os.Remove(logfile + ".old")
+		err := os.Rename(logfile, logfile+".old")
+		if err != nil {
+			return "", err
+		}
+	}
+
 	// Generate the LXC config
 	configPath := filepath.Join(c.LogPath(), "lxc.conf")
 	err = c.c.SaveConfigFile(configPath)
