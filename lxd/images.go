@@ -876,6 +876,8 @@ func autoUpdateImages(d *Daemon) {
 			shared.Log.Error("Error deleting image", log.Ctx{"err": err, "fp": fp})
 		}
 	}
+
+	shared.Debugf("Done updating images")
 }
 
 func pruneExpiredImages(d *Daemon) {
