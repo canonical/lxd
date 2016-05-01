@@ -327,7 +327,7 @@ type container interface {
 
 	// File handling
 	FilePull(srcpath string, dstpath string) (int, int, os.FileMode, error)
-	FilePush(srcpath string, dstpath string, uid int, gid int, mode os.FileMode) error
+	FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error
 
 	// Command execution
 	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error)
