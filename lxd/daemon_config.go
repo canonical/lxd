@@ -145,11 +145,7 @@ func (k *daemonConfigKey) GetBool() bool {
 	}
 
 	// Convert to boolean
-	if shared.StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"}) {
-		return true
-	}
-
-	return false
+	return shared.IsTrue(value)
 }
 
 func (k *daemonConfigKey) GetInt64() int64 {
