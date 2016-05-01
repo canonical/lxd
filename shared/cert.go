@@ -197,5 +197,9 @@ func ReadCert(fpath string) (*x509.Certificate, error) {
 	}
 
 	certBlock, _ := pem.Decode(cf)
+	if certBlock == nil {
+		return nil, fmt.Errorf("Invalid certificate file")
+	}
+
 	return x509.ParseCertificate(certBlock.Bytes)
 }
