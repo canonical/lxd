@@ -2927,7 +2927,10 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 	return uid, gid, os.FileMode(mode), nil
 }
 
-func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int, mode os.FileMode) error {
+func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error {
+	var rootUid = 0
+	var rootGid = 0
+
 	// Map uid and gid if needed
 	idmapset, err := c.LastIdmapSet()
 	if err != nil {
@@ -2936,6 +2939,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 
 	if idmapset != nil {
 		uid, gid = idmapset.ShiftIntoNs(uid, gid)
+		rootUid, rootGid = idmapset.ShiftIntoNs(0, 0)
 	}
 
 	// Setup container storage if needed
@@ -2956,7 +2960,10 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 		dstpath,
 		fmt.Sprintf("%d", uid),
 		fmt.Sprintf("%d", gid),
-		fmt.Sprintf("%d", mode&os.ModePerm),
+		fmt.Sprintf("%d", mode),
+		fmt.Sprintf("%d", rootUid),
+		fmt.Sprintf("%d", rootGid),
+		fmt.Sprintf("%d", int(os.FileMode(0640)&os.ModePerm)),
 	).CombinedOutput()
 
 	// Tear down container storage if needed
