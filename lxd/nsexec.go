@@ -117,11 +117,12 @@ int dosetns(int pid, char *nstype) {
 	return 0;
 }
 
-int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode) {
+int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode) {
 	int host_fd, container_fd;
 	int ret = -1;
 	int container_open_flags;
 	struct stat st;
+	int exists = 1;
 
 	host_fd = open(host, O_RDWR);
 	if (host_fd < 0) {
@@ -150,16 +151,38 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		}
 	}
 
+	if (is_put && stat(container, &st) < 0)
+		exists = 0;
+
 	umask(0);
-	container_fd = open(container, container_open_flags, mode);
+	container_fd = open(container, container_open_flags, 0);
 	if (container_fd < 0) {
 		perror("error: open");
 		goto close_host;
 	}
 
 	if (is_put) {
+		if (!exists) {
+			if (mode == -1) {
+				mode = defaultMode;
+			}
+
+			if (uid == -1) {
+				uid = defaultUid;
+			}
+
+			if (gid == -1) {
+				gid = defaultGid;
+			}
+		}
+
 		if (copy(container_fd, host_fd) < 0) {
 			perror("error: copy");
+			goto close_container;
+		}
+
+		if (mode != -1 && fchmod(container_fd, mode) < 0) {
+			perror("error: chmod");
 			goto close_container;
 		}
 
@@ -332,6 +355,9 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 	uid_t uid = 0;
 	gid_t gid = 0;
 	mode_t mode = 0;
+	uid_t defaultUid = 0;
+	gid_t defaultGid = 0;
+	mode_t defaultMode = 0;
 	char *command = cur, *rootfs = NULL, *source = NULL, *target = NULL;
 	pid_t pid;
 
@@ -356,9 +382,18 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 
 		ADVANCE_ARG_REQUIRED();
 		mode = atoi(cur);
+
+		ADVANCE_ARG_REQUIRED();
+		defaultUid = atoi(cur);
+
+		ADVANCE_ARG_REQUIRED();
+		defaultGid = atoi(cur);
+
+		ADVANCE_ARG_REQUIRED();
+		defaultMode = atoi(cur);
 	}
 
-	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, uid, gid, mode));
+	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, uid, gid, mode, defaultUid, defaultGid, defaultMode));
 }
 
 void forkgetnet(char *buf, char *cur, ssize_t size) {
