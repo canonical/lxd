@@ -645,7 +645,10 @@ func (s *storageZfs) ImageDelete(fingerprint string) error {
 	}
 
 	if shared.PathExists(shared.VarPath(fs + ".zfs")) {
-		os.Remove(shared.VarPath(fs + ".zfs"))
+		err := os.Remove(shared.VarPath(fs + ".zfs"))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
