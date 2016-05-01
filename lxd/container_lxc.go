@@ -528,7 +528,7 @@ func (c *containerLXC) initLXC() error {
 					return err
 				}
 			} else {
-				if memorySwap != "false" && cgSwapAccounting {
+				if cgSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 					err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", fmt.Sprintf("%d", valueInt))
 					if err != nil {
 						return err
@@ -547,7 +547,7 @@ func (c *containerLXC) initLXC() error {
 		}
 
 		// Configure the swappiness
-		if memorySwap == "false" {
+		if memorySwap != "" && !shared.IsTrue(memorySwap) {
 			err = lxcSetConfigItem(cc, "lxc.cgroup.memory.swappiness", "0")
 			if err != nil {
 				return err
@@ -773,9 +773,9 @@ func (c *containerLXC) initLXC() error {
 			devPath := filepath.Join(c.DevicesPath(), devName)
 
 			// Various option checks
-			isOptional := m["optional"] == "1" || m["optional"] == "true"
-			isReadOnly := m["readonly"] == "1" || m["readonly"] == "true"
-			isRecursive := m["recursive"] == "1" || m["recursive"] == "true"
+			isOptional := shared.IsTrue(m["optional"])
+			isReadOnly := shared.IsTrue(m["readonly"])
+			isRecursive := shared.IsTrue(m["recursive"])
 			isFile := !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
 
 			// Deal with a rootfs
@@ -2281,7 +2281,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						return err
 					}
 				} else {
-					if memorySwap != "false" && cgSwapAccounting {
+					if cgSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 						err = c.CGroupSet("memory.limit_in_bytes", memory)
 						if err != nil {
 							undoChanges()
@@ -2305,7 +2305,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				if key == "limits.memory.swap" || key == "limits.memory.swap.priority" {
 					memorySwap := c.expandedConfig["limits.memory.swap"]
 					memorySwapPriority := c.expandedConfig["limits.memory.swap.priority"]
-					if memorySwap == "false" {
+					if memorySwap != "" && !shared.IsTrue(memorySwap) {
 						err = c.CGroupSet("memory.swappiness", "0")
 						if err != nil {
 							undoChanges()
@@ -3881,9 +3881,9 @@ func (c *containerLXC) createDiskDevice(name string, m shared.Device) (string, e
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	// Check if read-only
-	isOptional := m["optional"] == "1" || m["optional"] == "true"
-	isReadOnly := m["readonly"] == "1" || m["readonly"] == "true"
-	isRecursive := m["recursive"] == "1" || m["recursive"] == "true"
+	isOptional := shared.IsTrue(m["optional"])
+	isReadOnly := shared.IsTrue(m["readonly"])
+	isRecursive := shared.IsTrue(m["recursive"])
 	isFile := !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
 
 	// Check if the source exists
@@ -3940,7 +3940,7 @@ func (c *containerLXC) insertDiskDevice(name string, m shared.Device) error {
 		return fmt.Errorf("Can't insert device into stopped container")
 	}
 
-	isRecursive := m["recursive"] == "1" || m["recursive"] == "true"
+	isRecursive := shared.IsTrue(m["recursive"])
 
 	// Create the device on the host
 	devPath, err := c.createDiskDevice(name, m)
@@ -4363,23 +4363,11 @@ func (c *containerLXC) IsFrozen() bool {
 }
 
 func (c *containerLXC) IsNesting() bool {
-	switch strings.ToLower(c.expandedConfig["security.nesting"]) {
-	case "1":
-		return true
-	case "true":
-		return true
-	}
-	return false
+	return shared.IsTrue(c.expandedConfig["security.nesting"])
 }
 
 func (c *containerLXC) IsPrivileged() bool {
-	switch strings.ToLower(c.expandedConfig["security.privileged"]) {
-	case "1":
-		return true
-	case "true":
-		return true
-	}
-	return false
+	return shared.IsTrue(c.expandedConfig["security.privileged"])
 }
 
 func (c *containerLXC) IsRunning() bool {
