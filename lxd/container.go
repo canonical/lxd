@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,73 +38,110 @@ func containerValidName(name string) error {
 	return nil
 }
 
-func containerValidConfigKey(k string) bool {
-	switch k {
+func containerValidConfigKey(key string, value string) error {
+	isInt64 := func(key string, value string) error {
+		if value == "" {
+			return nil
+		}
+
+		_, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("Invalid value for an integer: %s", value)
+		}
+
+		return nil
+	}
+
+	isBool := func(key string, value string) error {
+		if value == "" {
+			return nil
+		}
+
+		if !shared.StringInSlice(strings.ToLower(value), []string{"true", "false", "yes", "no", "1", "0", "on", "off"}) {
+			return fmt.Errorf("Invalid value for a boolean: %s", value)
+		}
+
+		return nil
+	}
+
+	isOneOf := func(key string, value string, valid []string) error {
+		if value == "" {
+			return nil
+		}
+
+		if !shared.StringInSlice(value, valid) {
+			return fmt.Errorf("Invalid value: %s (not one of %s)", value, valid)
+		}
+
+		return nil
+	}
+
+	switch key {
 	case "boot.autostart":
-		return true
+		return isBool(key, value)
 	case "boot.autostart.delay":
-		return true
+		return isInt64(key, value)
 	case "boot.autostart.priority":
-		return true
+		return isInt64(key, value)
 	case "limits.cpu":
-		return true
+		return nil
 	case "limits.cpu.allowance":
-		return true
+		return nil
 	case "limits.cpu.priority":
-		return true
+		return isInt64(key, value)
 	case "limits.disk.priority":
-		return true
+		return isInt64(key, value)
 	case "limits.memory":
-		return true
+		return nil
 	case "limits.memory.enforce":
-		return true
+		return isOneOf(key, value, []string{"soft", "hard"})
 	case "limits.memory.swap":
-		return true
+		return isBool(key, value)
 	case "limits.memory.swap.priority":
-		return true
+		return isInt64(key, value)
 	case "limits.network.priority":
-		return true
+		return isInt64(key, value)
 	case "limits.processes":
-		return true
+		return isInt64(key, value)
 	case "linux.kernel_modules":
-		return true
+		return nil
 	case "security.privileged":
-		return true
+		return isBool(key, value)
 	case "security.nesting":
-		return true
+		return isBool(key, value)
 	case "raw.apparmor":
-		return true
+		return nil
 	case "raw.lxc":
-		return true
+		return lxcValidConfig(value)
 	case "volatile.apply_template":
-		return true
+		return nil
 	case "volatile.base_image":
-		return true
+		return nil
 	case "volatile.last_state.idmap":
-		return true
+		return nil
 	case "volatile.last_state.power":
-		return true
+		return nil
 	}
 
-	if strings.HasPrefix(k, "volatile.") {
-		if strings.HasSuffix(k, ".hwaddr") {
-			return true
+	if strings.HasPrefix(key, "volatile.") {
+		if strings.HasSuffix(key, ".hwaddr") {
+			return nil
 		}
 
-		if strings.HasSuffix(k, ".name") {
-			return true
+		if strings.HasSuffix(key, ".name") {
+			return nil
 		}
 	}
 
-	if strings.HasPrefix(k, "environment.") {
-		return true
+	if strings.HasPrefix(key, "environment.") {
+		return nil
 	}
 
-	if strings.HasPrefix(k, "user.") {
-		return true
+	if strings.HasPrefix(key, "user.") {
+		return nil
 	}
 
-	return false
+	return fmt.Errorf("Bad key: %s", key)
 }
 
 func containerValidDeviceConfigKey(t, k string) bool {
@@ -187,20 +225,14 @@ func containerValidConfig(config map[string]string, profile bool, expanded bool)
 		return nil
 	}
 
-	for k, _ := range config {
+	for k, v := range config {
 		if profile && strings.HasPrefix(k, "volatile.") {
 			return fmt.Errorf("Volatile keys can only be set on containers.")
 		}
 
-		if k == "raw.lxc" {
-			err := lxcValidConfig(config["raw.lxc"])
-			if err != nil {
-				return err
-			}
-		}
-
-		if !containerValidConfigKey(k) {
-			return fmt.Errorf("Bad key: %s", k)
+		err := containerValidConfigKey(k, v)
+		if err != nil {
+			return err
 		}
 	}
 

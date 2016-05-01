@@ -353,6 +353,14 @@ func IntInSlice(key int, list []int) bool {
 	return false
 }
 
+func IsTrue(value string) bool {
+	if StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"}) {
+		return true
+	}
+
+	return false
+}
+
 func IsOnSharedMount(pathName string) (bool, error) {
 	file, err := os.Open("/proc/self/mountinfo")
 	if err != nil {

@@ -514,7 +514,7 @@ func cmdActivateIfNeeded() error {
 			return err
 		}
 
-		if lastState == "RUNNING" || lastState == "Running" || autoStart == "true" {
+		if lastState == "RUNNING" || lastState == "Running" || shared.IsTrue(autoStart) {
 			shared.Debugf("Daemon has auto-started containers, activating...")
 			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
 			return err
@@ -612,9 +612,9 @@ func cmdInit() error {
 			fmt.Printf(question)
 			input, _ := reader.ReadString('\n')
 			input = strings.TrimSuffix(input, "\n")
-			if shared.StringInSlice(strings.ToLower(input), []string{"yes", "y", "true"}) {
+			if shared.StringInSlice(strings.ToLower(input), []string{"yes", "y"}) {
 				return true
-			} else if shared.StringInSlice(strings.ToLower(input), []string{"no", "n", "false"}) {
+			} else if shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
 				return false
 			}
 
