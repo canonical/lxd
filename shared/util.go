@@ -96,24 +96,26 @@ func LogPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
-func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode os.FileMode) {
+func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode int) {
 	uid, err := strconv.Atoi(headers.Get("X-LXD-uid"))
 	if err != nil {
-		uid = 0
+		uid = -1
 	}
 
 	gid, err = strconv.Atoi(headers.Get("X-LXD-gid"))
 	if err != nil {
-		gid = 0
+		gid = -1
 	}
 
-	/* Allow people to send stuff with a leading 0 for octal or a regular
-	 * int that represents the perms when redered in octal. */
-	rawMode, err := strconv.ParseInt(headers.Get("X-LXD-mode"), 0, 0)
+	mode, err = strconv.Atoi(headers.Get("X-LXD-mode"))
 	if err != nil {
-		rawMode = 0644
+		mode = -1
+	} else {
+		rawMode, err := strconv.ParseInt(headers.Get("X-LXD-mode"), 0, 0)
+		if err == nil {
+			mode = int(os.FileMode(rawMode) & os.ModePerm)
+		}
 	}
-	mode = os.FileMode(rawMode)
 
 	return uid, gid, mode
 }
@@ -348,6 +350,14 @@ func IntInSlice(key int, list []int) bool {
 			return true
 		}
 	}
+	return false
+}
+
+func IsTrue(value string) bool {
+	if StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"}) {
+		return true
+	}
+
 	return false
 }
 

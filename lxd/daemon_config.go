@@ -55,7 +55,7 @@ func (k *daemonConfigKey) Validate(d *Daemon, value string) error {
 	}
 
 	// Validate booleans
-	if k.valueType == "bool" && !shared.StringInSlice(strings.ToLower(value), []string{"true", "false", "1", "0", "yes", "no"}) {
+	if k.valueType == "bool" && !shared.StringInSlice(strings.ToLower(value), []string{"true", "false", "1", "0", "yes", "no", "on", "off"}) {
 		return fmt.Errorf("Invalid value for a boolean: %s", value)
 	}
 
@@ -145,11 +145,7 @@ func (k *daemonConfigKey) GetBool() bool {
 	}
 
 	// Convert to boolean
-	if shared.StringInSlice(strings.ToLower(value), []string{"true", "1", "yes"}) {
-		return true
-	}
-
-	return false
+	return shared.IsTrue(value)
 }
 
 func (k *daemonConfigKey) GetInt64() int64 {
