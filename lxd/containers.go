@@ -110,7 +110,7 @@ func containersRestart(d *Daemon) error {
 		autoStart := config["boot.autostart"]
 		autoStartDelay := config["boot.autostart.delay"]
 
-		if lastState == "RUNNING" || autoStart == "true" {
+		if lastState == "RUNNING" || shared.IsTrue(autoStart) {
 			if c.IsRunning() {
 				continue
 			}

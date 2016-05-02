@@ -178,6 +178,7 @@ func AAUnloadProfile(c container) error {
 // Parse the profile without loading it into the kernel.
 func AAParseProfile(c container) error {
 	if !aaAvailable {
+		return nil
 	}
 
 	return runApparmor(APPARMOR_CMD_PARSE, c)
