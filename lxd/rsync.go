@@ -141,7 +141,8 @@ func RsyncSend(path string, conn *websocket.Conn) error {
 		shared.Debugf("problem reading rsync stderr %s", err)
 	}
 
-	if err := cmd.Wait(); err != nil {
+	err = cmd.Wait()
+	if err != nil {
 		shared.Debugf("problem with rsync send of %s: %s: %s", path, err, string(output))
 	}
 
