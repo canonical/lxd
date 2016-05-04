@@ -4494,5 +4494,13 @@ func (c *containerLXC) TemplatesPath() string {
 }
 
 func (c *containerLXC) StatePath() string {
-	return filepath.Join(c.RootfsPath(), "state")
+	/* FIXME: backwards compatibility: we used to use Join(RootfsPath(),
+	 * "state"), which was bad. Let's just check to see if that directory
+	 * exists.
+	 */
+	oldStatePath := filepath.Join(c.RootfsPath(), "state")
+	if shared.IsDir(oldStatePath) {
+		return oldStatePath
+	}
+	return filepath.Join(c.Path(), "state")
 }
