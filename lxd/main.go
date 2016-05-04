@@ -158,6 +158,8 @@ func run() error {
 		fmt.Printf("        Start a container\n")
 		fmt.Printf("    callhook\n")
 		fmt.Printf("        Call a container hook\n")
+		fmt.Printf("    netcat\n")
+		fmt.Printf("        Mirror a unix socket to stdin/stdout")
 	}
 
 	// Parse the arguments
@@ -233,6 +235,8 @@ func run() error {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			}
 			os.Exit(ret)
+		case "netcat":
+			return Netcat(os.Args[1:])
 		}
 	}
 
