@@ -50,9 +50,15 @@ var argVersion = gnuflag.Bool("version", false, "")
 // Global variables
 var debug bool
 var verbose bool
+var execPath string
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
+	absPath, err := os.Readlink("/proc/self/exe")
+	if err != nil {
+		absPath = "bad-exec-path"
+	}
+	execPath = absPath
 }
 
 func main() {
@@ -152,6 +158,8 @@ func run() error {
 		fmt.Printf("        Start a container\n")
 		fmt.Printf("    callhook\n")
 		fmt.Printf("        Call a container hook\n")
+		fmt.Printf("    netcat\n")
+		fmt.Printf("        Mirror a unix socket to stdin/stdout")
 	}
 
 	// Parse the arguments
@@ -227,6 +235,8 @@ func run() error {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			}
 			os.Exit(ret)
+		case "netcat":
+			return Netcat(os.Args[1:])
 		}
 	}
 

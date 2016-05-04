@@ -75,7 +75,6 @@ type Daemon struct {
 	pruneChan           chan bool
 	shutdownChan        chan bool
 	resetAutoUpdateChan chan bool
-	execPath            string
 
 	Storage storage
 
@@ -544,14 +543,8 @@ func (d *Daemon) Init() error {
 	d.shutdownChan = make(chan bool)
 
 	/* Set the executable path */
-	absPath, err := os.Readlink("/proc/self/exe")
-	if err != nil {
-		return err
-	}
-	d.execPath = absPath
-
 	/* Set the LVM environment */
-	err = os.Setenv("LVM_SUPPRESS_FD_WARNINGS", "1")
+	err := os.Setenv("LVM_SUPPRESS_FD_WARNINGS", "1")
 	if err != nil {
 		return err
 	}
