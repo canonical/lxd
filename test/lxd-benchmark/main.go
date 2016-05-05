@@ -165,7 +165,7 @@ func spawnContainers(c *lxd.Client, count int, image string, privileged bool) er
 		config["user.lxd-benchmark"] = "true"
 
 		// Create
-		resp, err := c.Init(name, "local", fingerprint, nil, config, false)
+		resp, err := c.Init(name, "local", fingerprint, nil, config, nil, false)
 		if err != nil {
 			logf(fmt.Sprintf("Failed to spawn container '%s': %s", name, err))
 			return

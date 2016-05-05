@@ -78,9 +78,9 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 	iremote, image = c.init.guessImage(config, d, remote, iremote, image)
 
 	if !initRequestedEmptyProfiles && len(profiles) == 0 {
-		resp, err = d.Init(name, iremote, image, nil, configMap, c.init.ephem)
+		resp, err = d.Init(name, iremote, image, nil, configMap, nil, c.init.ephem)
 	} else {
-		resp, err = d.Init(name, iremote, image, &profiles, configMap, c.init.ephem)
+		resp, err = d.Init(name, iremote, image, &profiles, configMap, nil, c.init.ephem)
 	}
 
 	if err != nil {
