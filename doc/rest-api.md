@@ -356,10 +356,10 @@ Input (container based on a local image with the "ubuntu/devel" alias):
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
-        "devices": {                                                        # any devices the container should have
+        "devices": {                                                        # optional list of devices the container should have
             "rootfs": {
-                "path": "/",
-                "type": "disk"
+                "path": "/dev/kvm",
+                "type": "unix-char"
             },
         },
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
@@ -374,10 +374,10 @@ Input (container based on a local image identified by its fingerprint):
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
-        "devices": {                                                        # any devices the container should have
+        "devices": {                                                        # optional list of devices the container should have
             "rootfs": {
-                "path": "/",
-                "type": "disk"
+                "path": "/dev/kvm",
+                "type": "unix-char"
             },
         },
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
@@ -392,10 +392,10 @@ Input (container based on most recent match based on image properties):
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
-        "devices": {                                                        # any devices the container should have
+        "devices": {                                                        # optional list of devices the container should have
             "rootfs": {
-                "path": "/",
-                "type": "disk"
+                "path": "/dev/kvm",
+                "type": "unix-char"
             },
         },
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
@@ -414,10 +414,10 @@ Input (container without a pre-populated rootfs, useful when attaching to an exi
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
-        "devices": {                                                        # any devices the container should have
+        "devices": {                                                        # optional list of devices the container should have
             "rootfs": {
-                "path": "/",
-                "type": "disk"
+                "path": "/dev/kvm",
+                "type": "unix-char"
             },
         },
         "source": {"type": "none"},                                         # Can be: "image", "migration", "copy" or "none"
@@ -431,10 +431,10 @@ Input (using a public remote image):
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
-        "devices": {                                                        # any devices the container should have
+        "devices": {                                                        # optional list of devices the container should have
             "rootfs": {
-                "path": "/",
-                "type": "disk"
+                "path": "/dev/kvm",
+                "type": "unix-char"
             },
         },
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
@@ -454,10 +454,10 @@ Input (using a private remote image after having obtained a secret for that imag
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
-        "devices": {                                                        # any devices the container should have
+        "devices": {                                                        # optional list of devices the container should have
             "rootfs": {
-                "path": "/",
-                "type": "disk"
+                "path": "/dev/kvm",
+                "type": "unix-char"
             },
         },
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
@@ -476,10 +476,10 @@ Input (using a remote container, sent over the migration websocket):
         "profiles": ["default"],                                                        # List of profiles
         "ephemeral": true,                                                              # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                                  # Config override.
-        "devices": {                                                                    # any devices the container should have
+        "devices": {                                                                    # optional list of devices the container should have
             "rootfs": {
-                "path": "/",
-                "type": "disk"
+                "path": "/dev/kvm",
+                "type": "unix-char"
             },
         },
         "source": {"type": "migration",                                                 # Can be: "image", "migration", "copy" or "none"
