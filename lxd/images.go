@@ -911,12 +911,12 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 	// look at the path
 	s, err := storageForImage(d, imgInfo)
 	if err != nil {
-		return err
-	}
-
-	// Remove the image from storage backend
-	if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {
-		return err
+		shared.Log.Error("error detecting image storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
+	} else {
+		// Remove the image from storage backend
+		if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {
+			shared.Log.Error("error deleting the image from storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
+		}
 	}
 
 	// Remove main image file
