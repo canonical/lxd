@@ -178,7 +178,7 @@ msgid ""
 "\n"
 "lxc %s <name> [<name>...]"
 msgstr ""
-"コンテナの状態を %s に変更します。\n"
+"1つまたは複数のコンテナの状態を %s に変更します。\n"
 "\n"
 "lxc %s <name> [<name>...]"
 
@@ -192,7 +192,7 @@ msgstr "カラムレイアウト"
 
 #: lxc/init.go:134 lxc/init.go:135 lxc/launch.go:40 lxc/launch.go:41
 msgid "Config key/value to apply to the new container"
-msgstr "設定キー/値の組を新しいコンテナに適用しました"
+msgstr "新しいコンテナに適用するキー/値の設定"
 
 #: lxc/config.go:500 lxc/config.go:565 lxc/image.go:687 lxc/profile.go:215
 #, c-format
@@ -359,7 +359,7 @@ msgid ""
 "Mode defaults to non-interactive, interactive mode is selected if both stdin "
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
-"コンテナで指定したコマンドを実行します。\n"
+"指定したコマンドをコンテナ内で実行します。\n"
 "\n"
 "lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env "
 "EDITOR=/usr/bin/vim]... <command>\n"
@@ -438,7 +438,7 @@ msgstr "初めて LXD を使う場合、sudo lxd init と実行する必要が�
 
 #: lxc/main.go:57
 msgid "Ignore aliases when determining what command to run."
-msgstr "コマンドを実行する際にエイリアスを無視します。"
+msgstr "どのコマンドを実行するか決める際にエイリアスを無視します。"
 
 #: lxc/action.go:40
 msgid "Ignore the container state (only for start)."
@@ -856,7 +856,7 @@ msgid ""
 "<source> in the case of pull, <target> in the case of push and <file> in the "
 "case of edit are <container name>/<path>"
 msgstr ""
-"コンテナ上のファイルの管理\n"
+"コンテナ上のファイルを管理します。\n"
 "\n"
 "lxc file pull <source> [<source>...] <target>\n"
 "lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] "
@@ -1206,7 +1206,7 @@ msgstr "再度エディタを起動するには Enter キーを押します"
 
 #: lxc/help.go:65
 msgid "Print debug information."
-msgstr "デバッグ情報を表示します"
+msgstr "デバッグ情報を表示します。"
 
 #: lxc/help.go:64
 msgid "Print less common commands."
@@ -1253,7 +1253,7 @@ msgstr "プロファイル %s が %s から削除されました"
 
 #: lxc/init.go:136 lxc/init.go:137 lxc/launch.go:42 lxc/launch.go:43
 msgid "Profile to apply to the new container"
-msgstr "プロファイルが新しいコンテナに適用されました"
+msgstr "新しいコンテナに適用するプロファイル"
 
 #: lxc/profile.go:253
 #, c-format
