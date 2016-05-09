@@ -180,9 +180,9 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 	iremote, image = c.guessImage(config, d, remote, iremote, image)
 
 	if !initRequestedEmptyProfiles && len(profiles) == 0 {
-		resp, err = d.Init(name, iremote, image, nil, configMap, c.ephem)
+		resp, err = d.Init(name, iremote, image, nil, configMap, nil, c.ephem)
 	} else {
-		resp, err = d.Init(name, iremote, image, &profiles, configMap, c.ephem)
+		resp, err = d.Init(name, iremote, image, &profiles, configMap, nil, c.ephem)
 	}
 	if err != nil {
 		return err

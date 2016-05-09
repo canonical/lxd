@@ -356,6 +356,12 @@ Input (container based on a local image with the "ubuntu/devel" alias):
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
+        "devices": {                                                        # optional list of devices the container should have
+            "rootfs": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            },
+        },
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
                    "alias": "ubuntu/devel"},                                # Name of the alias
     }
@@ -368,6 +374,12 @@ Input (container based on a local image identified by its fingerprint):
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
+        "devices": {                                                        # optional list of devices the container should have
+            "rootfs": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            },
+        },
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
                    "fingerprint": "SHA-256"},                               # Fingerprint
     }
@@ -380,6 +392,12 @@ Input (container based on most recent match based on image properties):
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
+        "devices": {                                                        # optional list of devices the container should have
+            "rootfs": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            },
+        },
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
                    "properties": {                                          # Properties
                         "os": "ubuntu",
@@ -396,6 +414,12 @@ Input (container without a pre-populated rootfs, useful when attaching to an exi
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
+        "devices": {                                                        # optional list of devices the container should have
+            "rootfs": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            },
+        },
         "source": {"type": "none"},                                         # Can be: "image", "migration", "copy" or "none"
     }
 
@@ -407,6 +431,12 @@ Input (using a public remote image):
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
+        "devices": {                                                        # optional list of devices the container should have
+            "rootfs": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            },
+        },
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
                    "mode": "pull",                                          # One of "local" (default) or "pull"
                    "server": "https://10.0.2.3:8443",                       # Remote server (pull mode only)
@@ -424,6 +454,12 @@ Input (using a private remote image after having obtained a secret for that imag
         "profiles": ["default"],                                            # List of profiles
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
+        "devices": {                                                        # optional list of devices the container should have
+            "rootfs": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            },
+        },
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
                    "mode": "pull",                                          # One of "local" (default) or "pull"
                    "server": "https://10.0.2.3:8443",                       # Remote server (pull mode only)
@@ -440,6 +476,12 @@ Input (using a remote container, sent over the migration websocket):
         "profiles": ["default"],                                                        # List of profiles
         "ephemeral": true,                                                              # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                                  # Config override.
+        "devices": {                                                                    # optional list of devices the container should have
+            "rootfs": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            },
+        },
         "source": {"type": "migration",                                                 # Can be: "image", "migration", "copy" or "none"
                    "mode": "pull",                                                      # Only "pull" is supported for now
                    "operation": "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
