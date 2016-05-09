@@ -507,6 +507,10 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 			return nil, fmt.Errorf("Container not running, cannot do stateful snapshot")
 		}
 
+		if err := findCriu("snapshot"); err != nil {
+			return nil, err
+		}
+
 		stateDir := sourceContainer.StatePath()
 		err := os.MkdirAll(stateDir, 0700)
 		if err != nil {
