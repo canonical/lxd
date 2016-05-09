@@ -1197,7 +1197,7 @@ func (c *Client) GetAlias(alias string) string {
 
 // Init creates a container from either a fingerprint or an alias; you must
 // provide at least one.
-func (c *Client) Init(name string, imgremote string, image string, profiles *[]string, config map[string]string, ephem bool) (*Response, error) {
+func (c *Client) Init(name string, imgremote string, image string, profiles *[]string, config map[string]string, devices shared.Devices, ephem bool) (*Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1297,6 +1297,10 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 	if config != nil {
 		body["config"] = config
+	}
+
+	if devices != nil {
+		body["devices"] = devices
 	}
 
 	if ephem {
