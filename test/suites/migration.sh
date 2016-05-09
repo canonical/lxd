@@ -64,8 +64,12 @@ test_migration() {
     return
   fi
 
-  lxc_remote launch testimage migratee
+  lxc_remote launch testimage l1:migratee
 
-  lxc_remote move l1:migratee l2:migratee
-  lxc_remote stop l2:migratee --force
+  # let the container do some interesting things
+  sleep 1s
+
+  lxc_remote stop --stateful l1:migratee
+  lxc_remote start l1:migratee
+  lxc_remote stop --force l1:migratee
 }
