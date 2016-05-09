@@ -1134,6 +1134,10 @@ func (c *containerLXC) Start(stateful bool) error {
 			return fmt.Errorf("Container has no existing state to restore.")
 		}
 
+		if err := findCriu("snapshot"); err != nil {
+			return err
+		}
+
 		if !c.IsPrivileged() {
 			if err := c.IdmapSet().ShiftRootfs(c.StatePath()); err != nil {
 				return err
@@ -1344,6 +1348,10 @@ func (c *containerLXC) setupStopping() *sync.WaitGroup {
 func (c *containerLXC) Stop(stateful bool) error {
 	// Handle stateful stop
 	if stateful {
+		if err := findCriu("snapshot"); err != nil {
+			return err
+		}
+
 		// Cleanup any existing state
 		stateDir := c.StatePath()
 		os.RemoveAll(stateDir)
@@ -1674,6 +1682,15 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	err := c.storage.ContainerCanRestore(c, sourceContainer)
 	if err != nil {
 		return err
+	}
+
+	/* let's also check for CRIU if necessary, before doing a bunch of
+	 * filesystem manipulations
+	 */
+	if shared.PathExists(c.StatePath()) {
+		if err := findCriu("snapshot"); err != nil {
+			return err
+		}
 	}
 
 	// Stop the container
