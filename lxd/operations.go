@@ -129,9 +129,11 @@ func (op *operation) Run() (chan error, error) {
 			op.done()
 			chanRun <- nil
 
+			op.lock.Lock()
 			shared.Debugf("Success for %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
 			eventSend("operation", md)
+			op.lock.Unlock()
 		}(op, chanRun)
 	}
 	op.lock.Unlock()
@@ -224,22 +226,16 @@ func (op *operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 			chanConnect <- err
 
 			shared.Debugf("Failed to handle %s operation: %s: %s", op.class.String(), op.id, err)
-			_, md, _ := op.Render()
-			eventSend("operation", md)
 			return
 		}
 
 		chanConnect <- nil
 
 		shared.Debugf("Handled %s operation: %s", op.class.String(), op.id)
-		_, md, _ := op.Render()
-		eventSend("operation", md)
 	}(op, chanConnect)
 	op.lock.Unlock()
 
 	shared.Debugf("Connected %s operation: %s", op.class.String(), op.id)
-	_, md, _ := op.Render()
-	eventSend("operation", md)
 
 	return chanConnect, nil
 }
