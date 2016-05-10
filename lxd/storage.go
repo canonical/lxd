@@ -234,6 +234,9 @@ func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interf
 }
 
 func storageForFilename(d *Daemon, filename string) (storage, error) {
+	var filesystem string
+	var err error
+
 	config := make(map[string]interface{})
 	storageType := storageTypeDir
 
@@ -241,9 +244,11 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 		return newStorageWithConfig(d, storageTypeMock, config)
 	}
 
-	filesystem, err := filesystemDetect(filename)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't detect filesystem for '%s': %v", filename, err)
+	if shared.PathExists(filename) {
+		filesystem, err = filesystemDetect(filename)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't detect filesystem for '%s': %v", filename, err)
+		}
 	}
 
 	if shared.PathExists(filename + ".lv") {
