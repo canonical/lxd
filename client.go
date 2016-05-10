@@ -580,27 +580,25 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		return err
 	}
 
-	if c.Remote.Protocol != "simplestreams" {
-		if !info.Public {
-			var secret string
+	if c.Remote.Protocol != "simplestreams" && !info.Public {
+		var secret string
 
-			resp, err := c.post("images/"+image+"/secret", nil, Async)
-			if err != nil {
-				return err
-			}
-
-			op, err := resp.MetadataAsOperation()
-			if err != nil {
-				return err
-			}
-
-			secret, err = op.Metadata.GetString("secret")
-			if err != nil {
-				return err
-			}
-
-			source["secret"] = secret
+		resp, err := c.post("images/"+image+"/secret", nil, Async)
+		if err != nil {
+			return err
 		}
+
+		op, err := resp.MetadataAsOperation()
+		if err != nil {
+			return err
+		}
+
+		secret, err = op.Metadata.GetString("secret")
+		if err != nil {
+			return err
+		}
+
+		source["secret"] = secret
 		source["fingerprint"] = image
 	}
 
