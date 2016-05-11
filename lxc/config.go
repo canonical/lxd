@@ -341,16 +341,43 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			brief := config.Brief()
 			data, err = yaml.Marshal(&brief)
 		} else {
-			config, err := d.ContainerInfo(container)
+			var brief shared.BriefContainerInfo
+			if shared.IsSnapshot(container) {
+				config, err := d.SnapshotInfo(container)
+				if err != nil {
+					return err
+				}
+
+				brief = shared.BriefContainerInfo{
+					Profiles:  config.Profiles,
+					Config:    config.Config,
+					Devices:   config.Devices,
+					Ephemeral: config.Ephemeral,
+				}
+				if c.expanded {
+					brief = shared.BriefContainerInfo{
+						Profiles:  config.Profiles,
+						Config:    config.ExpandedConfig,
+						Devices:   config.ExpandedDevices,
+						Ephemeral: config.Ephemeral,
+					}
+				}
+			} else {
+				config, err := d.ContainerInfo(container)
+				if err != nil {
+					return err
+				}
+
+				brief = config.Brief()
+				if c.expanded {
+					brief = config.BriefExpanded()
+				}
+			}
+
+			data, err = yaml.Marshal(&brief)
 			if err != nil {
 				return err
 			}
-
-			brief := config.Brief()
-			if c.expanded {
-				brief = config.BriefExpanded()
-			}
-			data, err = yaml.Marshal(&brief)
 		}
 
 		fmt.Printf("%s", data)
