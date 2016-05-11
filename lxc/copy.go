@@ -47,7 +47,12 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		return err
 	}
 
-	status := &shared.ContainerInfo{}
+	var status struct {
+		Architecture string
+		Devices      shared.Devices
+		Config       map[string]string
+		Profiles     []string
+	}
 
 	// TODO: presumably we want to do this for copying snapshots too? We
 	// need to think a bit more about how we track the baseImage in the
@@ -56,18 +61,34 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 	baseImage := ""
 
 	if !shared.IsSnapshot(sourceName) {
-		status, err = source.ContainerInfo(sourceName)
+		result, err := source.ContainerInfo(sourceName)
 		if err != nil {
 			return err
 		}
 
-		baseImage = status.Config["volatile.base_image"]
+		status.Architecture = result.Architecture
+		status.Devices = result.Devices
+		status.Config = result.Config
+		status.Profiles = result.Profiles
 
-		if !keepVolatile {
-			for k := range status.Config {
-				if strings.HasPrefix(k, "volatile") {
-					delete(status.Config, k)
-				}
+	} else {
+		result, err := source.SnapshotInfo(sourceName)
+		if err != nil {
+			return err
+		}
+
+		status.Architecture = result.Architecture
+		status.Devices = result.Devices
+		status.Config = result.Config
+		status.Profiles = result.Profiles
+	}
+
+	baseImage = status.Config["volatile.base_image"]
+
+	if !keepVolatile {
+		for k := range status.Config {
+			if strings.HasPrefix(k, "volatile") {
+				delete(status.Config, k)
 			}
 		}
 	}
