@@ -795,28 +795,63 @@ func (s *storageZfs) zfsDestroy(path string) error {
 
 func (s *storageZfs) zfsCleanup(path string) error {
 	if strings.HasPrefix(path, "deleted/") {
+		// Cleanup of filesystems kept for refcount reason
 		removablePath, err := s.zfsSnapshotRemovable(path, "")
 		if err != nil {
 			return err
 		}
 
+		// Confirm that there are no more clones
 		if removablePath {
-			subPath := strings.SplitN(path, "@", 2)[0]
+			if strings.Contains(path, "@") {
+				// Cleanup snapshots
+				err = s.zfsDestroy(path)
+				if err != nil {
+					return err
+				}
 
-			origin, err := s.zfsGet(subPath, "origin")
-			if err != nil {
-				return err
+				// Check if the parent can now be deleted
+				subPath := strings.SplitN(path, "@", 2)[0]
+				snaps, err := s.zfsListSnapshots(subPath)
+				if err != nil {
+					return err
+				}
+
+				if len(snaps) == 0 {
+					err := s.zfsCleanup(subPath)
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				// Cleanup filesystems
+				origin, err := s.zfsGet(path, "origin")
+				if err != nil {
+					return err
+				}
+				origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", s.zfsPool))
+
+				err = s.zfsDestroy(path)
+				if err != nil {
+					return err
+				}
+
+				// Attempt to remove its parent
+				if origin != "-" {
+					err := s.zfsCleanup(origin)
+					if err != nil {
+						return err
+					}
+				}
 			}
-			origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", s.zfsPool))
-
-			err = s.zfsDestroy(subPath)
-			if err != nil {
-				return err
-			}
-
-			s.zfsCleanup(origin)
 
 			return nil
+		}
+	} else if strings.HasPrefix(path, "containers") {
+		// Just remove the copy- snapshot for copies of active containers
+		err := s.zfsDestroy(path)
+		if err != nil {
+			return err
 		}
 	}
 
