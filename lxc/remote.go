@@ -58,7 +58,7 @@ func (c *remoteCmd) flags() {
 
 func getRemoteCertificate(address string) (*x509.Certificate, error) {
 	// Setup a permissive TLS config
-	tlsConfig, err := shared.GetTLSConfig("", "", nil)
+	tlsConfig, err := shared.GetTLSConfig("", "", "", nil)
 	if err != nil {
 		return nil, err
 	}

@@ -45,9 +45,17 @@ var api10 = []Command{
 
 func api10Get(d *Daemon, r *http.Request) Response {
 	body := shared.Jmap{
+		/* List of API extensions in the order they were added
+		 * Is considered an API extension, any new configuration keys,
+		 * any new argument to a REST endpoint or any new REST endpoint.
+		 *
+		 * Extra authentication methods should also be included.
+		 */
 		"api_extensions": []string{
 			"syscall_filtering",
+			"auth_pki",
 		},
+
 		"api_status":  "stable",
 		"api_version": shared.APIVersion,
 	}

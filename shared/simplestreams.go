@@ -222,7 +222,7 @@ type SimpleStreamsIndexStream struct {
 
 func SimpleStreamsClient(url string, proxy func(*http.Request) (*url.URL, error)) (*SimpleStreams, error) {
 	// Setup a http client
-	tlsConfig, err := GetTLSConfig("", "", nil)
+	tlsConfig, err := GetTLSConfig("", "", "", nil)
 	if err != nil {
 		return nil, err
 	}
