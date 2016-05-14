@@ -118,7 +118,7 @@ func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, err
 		}
 	}
 
-	tlsConfig, err := shared.GetTLSConfig("", "", cert)
+	tlsConfig, err := shared.GetTLSConfig("", "", "", cert)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, er
 		}
 	}
 
-	tlsConfig, err := shared.GetTLSConfig("", "", cert)
+	tlsConfig, err := shared.GetTLSConfig("", "", "", cert)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +212,6 @@ func readMyCert() (string, string, error) {
 	certf := shared.VarPath("server.crt")
 	keyf := shared.VarPath("server.key")
 	shared.Log.Info("Looking for existing certificates", log.Ctx{"cert": certf, "key": keyf})
-
 	err := shared.FindOrGenCert(certf, keyf)
 
 	return certf, keyf, err
@@ -223,14 +222,17 @@ func (d *Daemon) isTrustedClient(r *http.Request) bool {
 		// Unix socket
 		return true
 	}
+
 	if r.TLS == nil {
 		return false
 	}
+
 	for i := range r.TLS.PeerCertificates {
 		if d.CheckTrustState(*r.TLS.PeerCertificates[i]) {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -247,6 +249,7 @@ func isJSONRequest(r *http.Request) bool {
 
 func (d *Daemon) isRecursionRequest(r *http.Request) bool {
 	recursionStr := r.FormValue("recursion")
+
 	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
 		return false
@@ -798,6 +801,21 @@ func (d *Daemon) Init() error {
 				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
 			PreferServerCipherSuites: true,
 		}
+
+		if shared.PathExists(shared.VarPath("server.ca")) {
+			ca, err := shared.ReadCert(shared.VarPath("server.ca"))
+			if err != nil {
+				return err
+			}
+
+			caPool := x509.NewCertPool()
+			caPool.AddCert(ca)
+			tlsConfig.RootCAs = caPool
+			tlsConfig.ClientCAs = caPool
+
+			shared.Log.Info("LXD is in CA mode, only CA-signed certificates will be allowed")
+		}
+
 		tlsConfig.BuildNameToCertificate()
 
 		d.tlsConfig = tlsConfig
@@ -1009,8 +1027,8 @@ func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 			shared.Log.Debug("Found cert", log.Ctx{"k": k})
 			return true
 		}
-		shared.Log.Debug("Client cert != key", log.Ctx{"k": k})
 	}
+
 	return false
 }
 
