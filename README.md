@@ -29,7 +29,22 @@ After you've got LXD installed and a session with the right permissions, you
 can take your [first steps](#first-steps).
 
 ## Using the REST API
-Here's a simple example of REST API usage via cURL:
+The LXD REST API can be used locally via unauthenticated Unix socket or remotely via SSL encapsulated TCP.
+
+#### via Unix socket
+```bash
+curl --unix-socket /var/lib/lxd/unix.socket \
+    -H "Content-Type: application/json" \
+    -X POST \
+    -d @hello-ubuntu.json \
+    "https://127.0.0.1:8443/1.0/containers"
+```
+
+#### via TCP
+TCP requires some additional configuration and is not enabled by default.
+```bash
+lxc config set core.https_address "[::]:8443"
+```
 ```bash
 curl -k -L -I \
     --cert ~/.config/lxc/client.crt \
@@ -39,7 +54,8 @@ curl -k -L -I \
     -d @hello-ubuntu.json \
     "https://127.0.0.1:8443/1.0/containers"
 ```
-where `hello-ubuntu.json` could contain:
+#### JSON payload
+The `hello-ubuntu.json` file referenced above could contain something like:
 ```json
 {
     "name":"some-ubuntu",
