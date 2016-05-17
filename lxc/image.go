@@ -629,13 +629,12 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 		data := make([]*shared.ImageInfo, len(images))
 		for i := range images {
 			data[i] = &images[i]
-			enc := json.NewEncoder(os.Stdout)
-			err := enc.Encode(data)
-			if err != nil {
-				return err
-			}
 		}
-
+		enc := json.NewEncoder(os.Stdout)
+		err := enc.Encode(data)
+		if err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("invalid format %q", c.format)
 	}
