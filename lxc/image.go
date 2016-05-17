@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -73,6 +74,7 @@ type imageCmd struct {
 	publicImage bool
 	copyAliases bool
 	autoUpdate  bool
+	format      string
 }
 
 func (c *imageCmd) showByDefault() bool {
@@ -126,7 +128,7 @@ lxc image export [remote:]<image>
 lxc image info [remote:]<image>
     Print everything LXD knows about a given image.
 
-lxc image list [remote:] [filter]
+lxc image list [remote:] [filter] [--format table|json]
     List images in the LXD image store. Filters may be of the
     <key>=<value> form for property based filtering, or part of the image
     hash or part of the image alias name.
@@ -155,6 +157,7 @@ func (c *imageCmd) flags() {
 	gnuflag.BoolVar(&c.copyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
 	gnuflag.BoolVar(&c.autoUpdate, "auto-update", false, i18n.G("Keep the image up to date after initial copy"))
 	gnuflag.Var(&c.addAliases, "alias", i18n.G("New alias to define at target"))
+	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format"))
 }
 
 func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
@@ -446,9 +449,18 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		images, err := d.ListImages()
+		var images []shared.ImageInfo
+		allImages, err := d.ListImages()
 		if err != nil {
 			return err
+		}
+
+		for _, image := range allImages {
+			if !c.imageShouldShow(filters, &image) {
+				continue
+			}
+
+			images = append(images, image)
 		}
 
 		return c.showImages(images, filters)
@@ -572,45 +584,60 @@ func (c *imageCmd) findDescription(props map[string]string) string {
 }
 
 func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error {
-	data := [][]string{}
-	for _, image := range images {
-		if !c.imageShouldShow(filters, &image) {
-			continue
+	switch c.format {
+	case listFormatTable:
+		data := [][]string{}
+		for _, image := range images {
+			if !c.imageShouldShow(filters, &image) {
+				continue
+			}
+
+			shortest := c.shortestAlias(image.Aliases)
+			if len(image.Aliases) > 1 {
+				shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
+			}
+			fp := image.Fingerprint[0:12]
+			public := i18n.G("no")
+			description := c.findDescription(image.Properties)
+
+			if image.Public {
+				public = i18n.G("yes")
+			}
+
+			const layout = "Jan 2, 2006 at 3:04pm (MST)"
+			uploaded := image.UploadDate.UTC().Format(layout)
+			size := fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
+			data = append(data, []string{shortest, fp, public, description, image.Architecture, size, uploaded})
 		}
 
-		shortest := c.shortestAlias(image.Aliases)
-		if len(image.Aliases) > 1 {
-			shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		table.SetRowLine(true)
+		table.SetHeader([]string{
+			i18n.G("ALIAS"),
+			i18n.G("FINGERPRINT"),
+			i18n.G("PUBLIC"),
+			i18n.G("DESCRIPTION"),
+			i18n.G("ARCH"),
+			i18n.G("SIZE"),
+			i18n.G("UPLOAD DATE")})
+		sort.Sort(SortImage(data))
+		table.AppendBulk(data)
+		table.Render()
+	case listFormatJSON:
+		data := make([]*shared.ImageInfo, len(images))
+		for i := range images {
+			data[i] = &images[i]
 		}
-		fp := image.Fingerprint[0:12]
-		public := i18n.G("no")
-		description := c.findDescription(image.Properties)
-
-		if image.Public {
-			public = i18n.G("yes")
+		enc := json.NewEncoder(os.Stdout)
+		err := enc.Encode(data)
+		if err != nil {
+			return err
 		}
-
-		const layout = "Jan 2, 2006 at 3:04pm (MST)"
-		uploaded := image.UploadDate.UTC().Format(layout)
-		size := fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
-		data = append(data, []string{shortest, fp, public, description, image.Architecture, size, uploaded})
+	default:
+		return fmt.Errorf("invalid format %q", c.format)
 	}
-
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
-	table.SetHeader([]string{
-		i18n.G("ALIAS"),
-		i18n.G("FINGERPRINT"),
-		i18n.G("PUBLIC"),
-		i18n.G("DESCRIPTION"),
-		i18n.G("ARCH"),
-		i18n.G("SIZE"),
-		i18n.G("UPLOAD DATE")})
-	sort.Sort(SortImage(data))
-	table.AppendBulk(data)
-	table.Render()
 
 	return nil
 }
