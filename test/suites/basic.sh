@@ -41,6 +41,12 @@ test_basic_usage() {
   lxc image alias delete foo
   lxc image alias delete bar
 
+  # Test image list output formats (table & json)
+  lxc image list --format table | grep -q testimage
+  lxc image list --format json \
+    | jq '.[]|select(.alias[0].name="testimage")' \
+    | grep -q '"name": "testimage"'
+
   # Test image delete
   lxc image delete testimage
 
