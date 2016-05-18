@@ -81,7 +81,9 @@ var DefaultRemotes = map[string]RemoteConfig{
 var DefaultConfig = Config{
 	Remotes:       DefaultRemotes,
 	DefaultRemote: "local",
-	Aliases:       map[string]string{},
+	Aliases: map[string]string{
+		"shell": "exec @ARGS@ -- login -f root",
+	},
 }
 
 // LoadConfig reads the configuration from the config path; if the path does
