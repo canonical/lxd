@@ -2067,7 +2067,7 @@ func (c *Client) ListProfiles() ([]string, error) {
 	return names, nil
 }
 
-func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
+func (c *Client) AssignProfile(container, profile string) (*Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -2077,7 +2077,11 @@ func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
 		return nil, err
 	}
 
-	st.Profiles = strings.Split(profile, ",")
+	if profile != "" {
+		st.Profiles = strings.Split(profile, ",")
+	} else {
+		st.Profiles = nil
+	}
 
 	return c.put(fmt.Sprintf("containers/%s", container), st, Async)
 }

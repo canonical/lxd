@@ -60,16 +60,18 @@ lxc profile edit <profile>
     Example: lxc profile edit <profile> # launch editor
              cat profile.yml | lxc profile edit <profile> # read from profile.yml
 
-lxc profile apply <container> <profiles>
-    Apply a comma-separated list of profiles to a container, in order.
+lxc profile assign <container> <profiles>
+    Assign a comma-separated list of profiles to a container, in order.
     All profiles passed in this call (and only those) will be applied
-    to the specified container.
+    to the specified container, i.e. it sets the list of profiles exactly to
+    those specified in this command. To add/remove a particular profile from a
+    container, use {add|remove} below.
     Example: lxc profile apply foo default,bar # Apply default and bar
              lxc profile apply foo default # Only default is active
              lxc profile apply '' # no profiles are applied anymore
              lxc profile apply bar,default # Apply default second now
-lxc profile apply-add <container> <profile>
-lxc profile apply-remove <container> <profile>
+lxc profile add <container> <profile> # add a profile to a container
+lxc profile remove <container> <profile> # remove the profile from a container
 
 Devices:
 lxc profile device list <profile>                                   List devices in the given profile.
@@ -113,7 +115,7 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 		return c.doProfileDevice(config, args)
 	case "edit":
 		return c.doProfileEdit(client, profile)
-	case "apply":
+	case "apply", "assign":
 		container := profile
 		switch len(args) {
 		case 2:
@@ -123,8 +125,8 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 		default:
 			return errArgs
 		}
-		return c.doProfileApply(client, container, profile)
-	case "apply-add":
+		return c.doProfileAssign(client, container, profile)
+	case "add":
 		container := profile
 		switch len(args) {
 		case 2:
@@ -134,8 +136,8 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 		default:
 			return errArgs
 		}
-		return c.doProfileApplyAdd(client, container, profile)
-	case "apply-remove":
+		return c.doProfileAdd(client, container, profile)
+	case "remove":
 		container := profile
 		switch len(args) {
 		case 2:
@@ -145,7 +147,7 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 		default:
 			return errArgs
 		}
-		return c.doProfileApplyRemove(client, container, profile)
+		return c.doProfileRemove(client, container, profile)
 	case "get":
 		return c.doProfileGet(client, profile, args[2:])
 	case "set":
@@ -239,8 +241,8 @@ func (c *profileCmd) doProfileDelete(client *lxd.Client, p string) error {
 	return err
 }
 
-func (c *profileCmd) doProfileApply(client *lxd.Client, d string, p string) error {
-	resp, err := client.ApplyProfile(d, p)
+func (c *profileCmd) doProfileAssign(client *lxd.Client, d string, p string) error {
+	resp, err := client.AssignProfile(d, p)
 	if err != nil {
 		return err
 	}
@@ -256,7 +258,7 @@ func (c *profileCmd) doProfileApply(client *lxd.Client, d string, p string) erro
 	return err
 }
 
-func (c *profileCmd) doProfileApplyAdd(client *lxd.Client, d string, p string) error {
+func (c *profileCmd) doProfileAdd(client *lxd.Client, d string, p string) error {
 	ct, err := client.ContainerInfo(d)
 	if err != nil {
 		return err
@@ -274,7 +276,7 @@ func (c *profileCmd) doProfileApplyAdd(client *lxd.Client, d string, p string) e
 	return err
 }
 
-func (c *profileCmd) doProfileApplyRemove(client *lxd.Client, d string, p string) error {
+func (c *profileCmd) doProfileRemove(client *lxd.Client, d string, p string) error {
 	ct, err := client.ContainerInfo(d)
 	if err != nil {
 		return err
