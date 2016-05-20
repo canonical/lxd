@@ -92,6 +92,18 @@ test_config_profiles() {
   # into the database and never let the user edit the container again.
   ! lxc config set foo raw.lxc "lxc.notaconfigkey = invalid"
 
+  # check that various profile application mechanisms work
+  lxc profile create one
+  lxc profile create two
+  lxc profile assign foo one,two
+  [ "$(lxc info foo | grep Profiles)" = "Profiles: one, two" ]
+  lxc profile assign foo ""
+  [ "$(lxc info foo | grep Profiles)" = "Profiles: " ]
+  lxc profile add foo one
+  [ "$(lxc info foo | grep Profiles)" = "Profiles: one" ]
+  lxc profile remove foo one
+  [ "$(lxc info foo | grep Profiles)" = "Profiles: " ]
+
   lxc profile create stdintest
   echo "BADCONF" | lxc profile set stdintest user.user_data -
   lxc profile show stdintest | grep BADCONF
