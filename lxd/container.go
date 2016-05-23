@@ -111,10 +111,20 @@ func containerValidConfigKey(key string, value string) error {
 		return isBool(key, value)
 	case "security.nesting":
 		return isBool(key, value)
+	case "security.syscalls.blacklist_default":
+		return isBool(key, value)
+	case "security.syscalls.blacklist_compat":
+		return isBool(key, value)
+	case "security.syscalls.blacklist":
+		return nil
+	case "security.syscalls.whitelist":
+		return nil
 	case "raw.apparmor":
 		return nil
 	case "raw.lxc":
 		return lxcValidConfig(value)
+	case "raw.seccomp":
+		return nil
 	case "volatile.apply_template":
 		return nil
 	case "volatile.base_image":
@@ -236,6 +246,20 @@ func containerValidConfig(config map[string]string, profile bool, expanded bool)
 		if err != nil {
 			return err
 		}
+	}
+
+	_, rawSeccomp := config["raw.seccomp"]
+	_, whitelist := config["security.syscalls.whitelist"]
+	_, blacklist := config["securtiy.syscalls.blacklist"]
+	blacklistDefault := shared.IsTrue(config["security.syscalls.blacklist_default"])
+	blacklistCompat := shared.IsTrue(config["security.syscalls.blacklist_compat"])
+
+	if rawSeccomp && (whitelist || blacklist || blacklistDefault || blacklistCompat) {
+		return fmt.Errorf("raw.seccomp is mutually exclusive with security.syscalls*")
+	}
+
+	if whitelist && (blacklist || blacklistDefault || blacklistCompat) {
+		return fmt.Errorf("security.syscalls.whitelist is mutually exclusive with security.syscalls.blacklist*")
 	}
 
 	return nil
