@@ -1446,7 +1446,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 			return -1, err
 		}
 
-		shared.WebsocketSendStream(conn, stdin)
+		shared.WebsocketSendStream(conn, stdin, -1)
 		<-shared.WebsocketRecvStream(stdout, conn)
 		conn.Close()
 
@@ -1460,7 +1460,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		}
 		defer conns[0].Close()
 
-		dones[0] = shared.WebsocketSendStream(conns[0], stdin)
+		dones[0] = shared.WebsocketSendStream(conns[0], stdin, -1)
 
 		outputs := []io.WriteCloser{stdout, stderr}
 		for i := 1; i < 3; i++ {

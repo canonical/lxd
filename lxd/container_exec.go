@@ -204,7 +204,7 @@ func (s *execWs) Do(op *operation) error {
 					<-shared.WebsocketRecvStream(ttys[i], s.conns[i])
 					ttys[i].Close()
 				} else {
-					<-shared.WebsocketSendStream(s.conns[i], ptys[i])
+					<-shared.WebsocketSendStream(s.conns[i], ptys[i], -1)
 					ptys[i].Close()
 					wgEOF.Done()
 				}
