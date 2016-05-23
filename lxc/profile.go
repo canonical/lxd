@@ -66,10 +66,10 @@ lxc profile assign <container> <profiles>
     to the specified container, i.e. it sets the list of profiles exactly to
     those specified in this command. To add/remove a particular profile from a
     container, use {add|remove} below.
-    Example: lxc profile apply foo default,bar # Apply default and bar
-             lxc profile apply foo default # Only default is active
-             lxc profile apply '' # no profiles are applied anymore
-             lxc profile apply bar,default # Apply default second now
+    Example: lxc profile assign foo default,bar # Apply default and bar
+             lxc profile assign foo default # Only default is active
+             lxc profile assign '' # no profiles are applied anymore
+             lxc profile assign bar,default # Apply default second now
 lxc profile add <container> <profile> # add a profile to a container
 lxc profile remove <container> <profile> # remove the profile from a container
 
