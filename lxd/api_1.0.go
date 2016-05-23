@@ -45,9 +45,11 @@ var api10 = []Command{
 
 func api10Get(d *Daemon, r *http.Request) Response {
 	body := shared.Jmap{
-		"api_extensions": []string{},
-		"api_status":     "stable",
-		"api_version":    shared.APIVersion,
+		"api_extensions": []string{
+			"syscall_filtering",
+		},
+		"api_status":  "stable",
+		"api_version": shared.APIVersion,
 	}
 
 	if d.isTrustedClient(r) {

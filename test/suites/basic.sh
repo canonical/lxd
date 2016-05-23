@@ -250,6 +250,16 @@ test_basic_usage() {
   lxc delete lxd-apparmor-test
   [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
 
+  lxc launch testimage lxd-seccomp-test
+  init=$(lxc info lxd-seccomp-test | grep Pid | cut -f2 -d" ")
+  [ "$(grep Seccomp "/proc/${init}/status" | cut -f2)" -eq "2" ]
+  lxc stop --force lxd-seccomp-test
+  lxc config set lxd-seccomp-test security.syscalls.blacklist_default false
+  lxc start lxd-seccomp-test
+  init=$(lxc info lxd-seccomp-test | grep Pid | cut -f2 -d" ")
+  [ "$(grep Seccomp "/proc/${init}/status" | cut -f2)" -eq "0" ]
+  lxc stop --force lxd-seccomp-test
+
   # make sure that privileged containers are not world-readable
   lxc profile create unconfined
   lxc profile set unconfined security.privileged true
