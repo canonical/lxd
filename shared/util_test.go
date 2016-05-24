@@ -1,8 +1,10 @@
 package shared
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"strings"
 	"testing"
@@ -97,6 +99,46 @@ func TestReadLastNLines(t *testing.T) {
 		if fmt.Sprintf("%d", i+50) != split[i] {
 			t.Error(fmt.Sprintf("got %s expected %d", split[i], i))
 			return
+		}
+	}
+}
+
+func TestReaderToChannel(t *testing.T) {
+	buf := make([]byte, 64*1024*1024)
+	rand.Read(buf)
+
+	offset := 0
+	finished := false
+
+	ch := ReaderToChannel(bytes.NewBuffer(buf), -1)
+	for {
+		data, ok := <-ch
+		if len(data) > 0 {
+			for i := 0; i < len(data); i++ {
+				if buf[offset+i] != data[i] {
+					t.Error(fmt.Sprintf("byte %d didn't match", offset+i))
+					return
+				}
+			}
+
+			offset += len(data)
+			if offset > len(buf) {
+				t.Error("read too much data")
+				return
+			}
+
+			if offset == len(buf) {
+				finished = true
+			}
+		}
+
+		if !ok {
+			if !finished {
+				t.Error("connection closed too early")
+				return
+			} else {
+				break
+			}
 		}
 	}
 }
