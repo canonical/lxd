@@ -4,16 +4,52 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
+
+func dbUpdateFromV30(db *sql.DB) error {
+	entries, err := ioutil.ReadDir(shared.VarPath("containers"))
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if !shared.IsDir(shared.VarPath("containers", entry.Name(), "rootfs")) {
+			continue
+		}
+
+		info, err := os.Stat(shared.VarPath("containers", entry.Name(), "rootfs"))
+		if err != nil {
+			return err
+		}
+
+		if int(info.Sys().(*syscall.Stat_t).Uid) == 0 {
+			err := os.Chmod(shared.VarPath("containers", entry.Name()), 0700)
+			if err != nil {
+				return err
+			}
+
+			err = os.Chown(shared.VarPath("containers", entry.Name()), 0, 0)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	stmt := `INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err = db.Exec(stmt, 31)
+	return err
+}
 
 func dbUpdateFromV29(db *sql.DB) error {
 	if shared.PathExists(shared.VarPath("zfs.img")) {
@@ -1014,6 +1050,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 30 {
 		err = dbUpdateFromV29(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 31 {
+		err = dbUpdateFromV30(db)
 		if err != nil {
 			return err
 		}
