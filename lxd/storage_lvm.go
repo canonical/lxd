@@ -301,14 +301,7 @@ func (s *storageLvm) ContainerCreateFromImage(
 		return fmt.Errorf("Error creating container directory: %v", err)
 	}
 
-	var mode os.FileMode
-	if container.IsPrivileged() {
-		mode = 0700
-	} else {
-		mode = 0755
-	}
-
-	err = os.Chmod(destPath, mode)
+	err = os.Chmod(destPath, 0700)
 	if err != nil {
 		return err
 	}
@@ -333,6 +326,18 @@ func (s *storageLvm) ContainerCreateFromImage(
 	if err != nil {
 		s.ContainerDelete(container)
 		return fmt.Errorf("Error mounting snapshot LV: %v", err)
+	}
+
+	var mode os.FileMode
+	if container.IsPrivileged() {
+		mode = 0700
+	} else {
+		mode = 0755
+	}
+
+	err = os.Chmod(destPath, mode)
+	if err != nil {
+		return err
 	}
 
 	if !container.IsPrivileged() {

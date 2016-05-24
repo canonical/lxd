@@ -978,6 +978,29 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 		}
 
+		var mode os.FileMode
+		var uid int
+		var gid int
+
+		if c.IsPrivileged() {
+			mode = 0700
+		} else {
+			mode = 0755
+			if idmap != nil {
+				uid, gid = idmap.ShiftIntoNs(0, 0)
+			}
+		}
+
+		err = os.Chmod(c.Path(), mode)
+		if err != nil {
+			return "", err
+		}
+
+		err = os.Chown(c.Path(), uid, gid)
+		if err != nil {
+			return "", err
+		}
+
 		err = c.StorageStop()
 		if err != nil {
 			return "", err
