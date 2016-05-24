@@ -377,6 +377,10 @@ echo "==> TEST: basic usage"
 TEST_CURRENT=test_basic_usage
 test_basic_usage
 
+echo "==> TEST: security"
+TEST_CURRENT=test_security
+test_security
+
 echo "==> TEST: images (and cached image expiry)"
 TEST_CURRENT=test_image_expiry
 test_image_expiry
