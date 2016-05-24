@@ -159,7 +159,7 @@ func run() error {
 		fmt.Printf("    callhook\n")
 		fmt.Printf("        Call a container hook\n")
 		fmt.Printf("    netcat\n")
-		fmt.Printf("        Mirror a unix socket to stdin/stdout")
+		fmt.Printf("        Mirror a unix socket to stdin/stdout\n")
 	}
 
 	// Parse the arguments
