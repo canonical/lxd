@@ -855,6 +855,11 @@ they otherwise would.
 				return fmt.Errorf("Failed to open %s: %s", storageDevice, err)
 			}
 
+			err = f.Chmod(0600)
+			if err != nil {
+				return fmt.Errorf("Failed to chmod %s: %s", storageDevice, err)
+			}
+
 			err = f.Truncate(int64(storageLoopSize * 1024 * 1024 * 1024))
 			if err != nil {
 				return fmt.Errorf("Failed to create sparse file %s: %s", storageDevice, err)
