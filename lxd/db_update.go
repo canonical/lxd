@@ -15,6 +15,19 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV29(db *sql.DB) error {
+	if shared.PathExists(shared.VarPath("zfs.img")) {
+		err := os.Chmod(shared.VarPath("zfs.img"), 0600)
+		if err != nil {
+			return err
+		}
+	}
+
+	stmt := `INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 30)
+	return err
+}
+
 func dbUpdateFromV28(db *sql.DB) error {
 	stmt := `
 INSERT INTO profiles_devices (profile_id, name, type) SELECT id, "aadisable", 2 FROM profiles WHERE name="docker";
@@ -995,6 +1008,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 29 {
 		err = dbUpdateFromV28(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 30 {
+		err = dbUpdateFromV29(db)
 		if err != nil {
 			return err
 		}
