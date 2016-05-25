@@ -99,6 +99,9 @@ test_config_profiles() {
   [ "$(lxc info foo | grep Profiles)" = "Profiles: one, two" ]
   lxc profile assign foo ""
   [ "$(lxc info foo | grep Profiles)" = "Profiles: " ]
+  lxc profile apply foo one # backwards compat check with `lxc profile apply`
+  [ "$(lxc info foo | grep Profiles)" = "Profiles: one" ]
+  lxc profile assign foo ""
   lxc profile add foo one
   [ "$(lxc info foo | grep Profiles)" = "Profiles: one" ]
   lxc profile remove foo one
@@ -117,10 +120,10 @@ test_config_profiles() {
   lxc config device add foo mnt1 disk source="${TEST_DIR}/mnt1" path=/mnt1 readonly=true
   lxc profile create onenic
   lxc profile device add onenic eth0 nic nictype=bridged parent=lxdbr0
-  lxc profile apply foo onenic
+  lxc profile assign foo onenic
   lxc profile create unconfined
   lxc profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
-  lxc profile apply foo onenic,unconfined
+  lxc profile assign foo onenic,unconfined
 
   lxc config device list foo | grep mnt1
   lxc config device show foo | grep "/mnt1"
@@ -185,7 +188,7 @@ test_config_profiles() {
   lxc delete foo
 
   lxc init testimage foo
-  lxc profile apply foo onenic,unconfined
+  lxc profile assign foo onenic,unconfined
   lxc start foo
 
   lxc exec foo -- cat /proc/self/attr/current | grep unconfined
