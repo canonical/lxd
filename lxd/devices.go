@@ -723,11 +723,11 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 						devices = append(devices, dev)
 					}
 				}
-			} else if shared.PathExists(fmt.Sprintf("/dev/%s", fields[0])) {
+			} else if deviceIsBlockdev(fmt.Sprintf("/dev/%s", fields[0])) {
 				path = fmt.Sprintf("/dev/%s", fields[0])
-			} else if shared.PathExists(fmt.Sprintf("/dev/disk/by-id/%s", fields[0])) {
+			} else if deviceIsBlockdev(fmt.Sprintf("/dev/disk/by-id/%s", fields[0])) {
 				path = fmt.Sprintf("/dev/disk/by-id/%s", fields[0])
-			} else if shared.PathExists(fmt.Sprintf("/dev/mapper/%s", fields[0])) {
+			} else if deviceIsBlockdev(fmt.Sprintf("/dev/mapper/%s", fields[0])) {
 				path = fmt.Sprintf("/dev/mapper/%s", fields[0])
 			} else {
 				continue
