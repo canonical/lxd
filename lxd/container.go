@@ -83,6 +83,8 @@ func containerValidConfigKey(key string, value string) error {
 		return isInt64(key, value)
 	case "boot.autostart.priority":
 		return isInt64(key, value)
+	case "boot.force_shutdown_timeout":
+		return isInt64(key, value)
 	case "limits.cpu":
 		return nil
 	case "limits.cpu.allowance":

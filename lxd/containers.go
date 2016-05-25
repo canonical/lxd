@@ -152,10 +152,19 @@ func containersShutdown(d *Daemon) error {
 			return err
 		}
 
+		var timeoutSeconds int
+
+		value, ok := c.ExpandedConfig()["boot.force_shutdown_timeout"]
+		if ok {
+			timeoutSeconds, _ = strconv.Atoi(value)
+		} else {
+			timeoutSeconds = 30
+		}
+
 		if c.IsRunning() {
 			wg.Add(1)
 			go func() {
-				c.Shutdown(time.Second * 30)
+				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
 				c.Stop(false)
 				wg.Done()
 			}()
