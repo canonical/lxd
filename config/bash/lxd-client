@@ -47,8 +47,8 @@ _have lxc && {
       images.auto_update_cached"
 
     container_keys="boot.autostart boot.autostart.delay boot.autostart.priority \
-      limits.cpu limits.cpu.allowance limits.cpu.priority limits.disk.priority \
-      limits.memory limits.memory.enforce limits.memory.swap \
+      boot.force_shutdown_timeout limits.cpu limits.cpu.allowance limits.cpu.priority \
+      limits.disk.priority limits.memory limits.memory.enforce limits.memory.swap \
       limits.memory.swap.priority limits.network.priority limits.processes \
       linux.kernel_modules raw.apparmor raw.lxc security.nesting \
       security.privileged volatile.apply_template volatile.base_image \
