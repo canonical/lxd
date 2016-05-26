@@ -151,7 +151,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Validate expanded config
-	err = containerValidConfig(c.expandedConfig, false, true)
+	err = containerValidConfig(d, c.expandedConfig, false, true)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -1974,7 +1974,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Validate the new config
-	err := containerValidConfig(args.Config, false, false)
+	err := containerValidConfig(c.daemon, args.Config, false, false)
 	if err != nil {
 		return err
 	}
@@ -2124,7 +2124,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	removeDevices, addDevices, updateDevices := oldExpandedDevices.Update(c.expandedDevices)
 
 	// Do some validation of the config diff
-	err = containerValidConfig(c.expandedConfig, false, true)
+	err = containerValidConfig(c.daemon, c.expandedConfig, false, true)
 	if err != nil {
 		undoChanges()
 		return err

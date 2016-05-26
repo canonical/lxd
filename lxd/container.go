@@ -38,7 +38,7 @@ func containerValidName(name string) error {
 	return nil
 }
 
-func containerValidConfigKey(key string, value string) error {
+func containerValidConfigKey(d *Daemon, key string, value string) error {
 	isInt64 := func(key string, value string) error {
 		if value == "" {
 			return nil
@@ -114,7 +114,17 @@ func containerValidConfigKey(key string, value string) error {
 	case "security.syscalls.blacklist_default":
 		return isBool(key, value)
 	case "security.syscalls.blacklist_compat":
-		return isBool(key, value)
+		if err := isBool(key, value); err != nil {
+			return err
+		}
+		for _, arch := range d.architectures {
+			if arch == shared.ARCH_64BIT_INTEL_X86 ||
+				arch == shared.ARCH_64BIT_ARMV8_LITTLE_ENDIAN ||
+				arch == shared.ARCH_64BIT_POWERPC_BIG_ENDIAN {
+				return nil
+			}
+		}
+		return fmt.Errorf("security.syscalls.blacklist_compat is only valid on x86_64")
 	case "security.syscalls.blacklist":
 		return nil
 	case "security.syscalls.whitelist":
@@ -232,7 +242,7 @@ func containerValidDeviceConfigKey(t, k string) bool {
 	}
 }
 
-func containerValidConfig(config map[string]string, profile bool, expanded bool) error {
+func containerValidConfig(d *Daemon, config map[string]string, profile bool, expanded bool) error {
 	if config == nil {
 		return nil
 	}
@@ -242,7 +252,7 @@ func containerValidConfig(config map[string]string, profile bool, expanded bool)
 			return fmt.Errorf("Volatile keys can only be set on containers.")
 		}
 
-		err := containerValidConfigKey(k, v)
+		err := containerValidConfigKey(d, k, v)
 		if err != nil {
 			return err
 		}
@@ -617,7 +627,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Validate container config
-	err := containerValidConfig(args.Config, false, false)
+	err := containerValidConfig(d, args.Config, false, false)
 	if err != nil {
 		return nil, err
 	}
