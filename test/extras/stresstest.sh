@@ -173,7 +173,7 @@ disturbthread() {
     while [ 1 ]; do
         lxc profile create empty
         lxc init busybox disturb1
-        lxc profile apply disturb1 empty
+        lxc profile assign disturb1 empty
         lxc start disturb1
         lxc exec disturb1 -- ps -ef
         lxc stop disturb1 --force
