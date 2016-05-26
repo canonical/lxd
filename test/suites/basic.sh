@@ -258,6 +258,13 @@ test_basic_usage() {
   lxc delete foo2
   lxc profile delete unconfined
 
+  # Test boot.host_shutdown_timeout config setting
+  lxc init testimage configtest --config boot.host_shutdown_timeout=45
+  [ "$(lxc config get configtest boot.host_shutdown_timeout)" -eq 45 ]
+  lxc config set configtest boot.host_shutdown_timeout 15
+  [ "$(lxc config get configtest boot.host_shutdown_timeout)" -eq 15 ]
+  lxc delete configtest
+
   # Ephemeral
   lxc launch testimage foo -e
 
