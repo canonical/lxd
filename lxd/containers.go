@@ -154,7 +154,7 @@ func containersShutdown(d *Daemon) error {
 
 		var timeoutSeconds int
 
-		value, ok := c.ExpandedConfig()["boot.force_shutdown_timeout"]
+		value, ok := c.ExpandedConfig()["boot.host_shutdown_timeout"]
 		if ok {
 			timeoutSeconds, _ = strconv.Atoi(value)
 		} else {
