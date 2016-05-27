@@ -1660,6 +1660,29 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 	return err
 }
 
+func (c *Client) PushFileEdit(container string, p string, buf io.ReadSeeker) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	query := url.Values{"path": []string{p}}
+	uri := c.url(shared.APIVersion, "containers", container, "files") + "?" + query.Encode()
+
+	req, err := http.NewRequest("POST", uri, buf)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", shared.UserAgent)
+
+	raw, err := c.Http.Do(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = HoistResponse(raw, Sync)
+	return err
+}
+
 func (c *Client) PullFile(container string, p string) (int, int, int, io.ReadCloser, error) {
 	if c.Remote.Public {
 		return 0, 0, 0, nil, fmt.Errorf("This function isn't supported by public remotes.")
