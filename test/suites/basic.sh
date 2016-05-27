@@ -212,6 +212,14 @@ test_basic_usage() {
   lxc exec foo /bin/cat /root/in1 | grep abc
   lxc exec foo -- /bin/rm -f root/in1
 
+  # test lxc file edit doesn't change target file's owner and permissions
+  echo "content" | lxc file push - foo/tmp/edit_test
+  lxc exec foo -- chown 55.55 /tmp/edit_test
+  lxc exec foo -- chmod 555 /tmp/edit_test
+  echo "new content" | lxc file edit foo/tmp/edit_test
+  [ "$(lxc exec foo -- cat /tmp/edit_test)" = "new content" ]
+  [ "$(lxc exec foo -- stat -c \"%u %g %a\" /tmp/edit_test)" = "55 55 555" ]
+
   # make sure stdin is chowned to our container root uid (Issue #590)
   [ -t 0 ] && [ -t 1 ] && lxc exec foo -- chown 1000:1000 /proc/self/fd/0
 
