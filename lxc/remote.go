@@ -113,7 +113,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 
 	// Fix broken URL parser
 	if !strings.Contains(addr, "://") && remoteURL.Scheme != "" && remoteURL.Scheme != "unix" && remoteURL.Host == "" {
-		remoteURL.Host = remoteURL.Scheme
+		remoteURL.Host = addr
 		remoteURL.Scheme = ""
 	}
 
