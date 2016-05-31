@@ -2909,6 +2909,9 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 
 		// Extract errors
 		if strings.HasPrefix(line, "error: ") {
+			if strings.HasSuffix(line, "No such file or directory") {
+				return -1, -1, 0, os.ErrNotExist
+			}
 			return -1, -1, 0, fmt.Errorf(strings.TrimPrefix(line, "error: "))
 		}
 
