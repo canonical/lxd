@@ -52,7 +52,7 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 	// Pul the file from the container
 	uid, gid, mode, err := c.FilePull(path, temp.Name())
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	headers := map[string]string{

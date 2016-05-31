@@ -2901,6 +2901,8 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 	gid := -1
 	mode := -1
 
+	var errStr string
+
 	// Process forkgetfile response
 	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
 		if line == "" {
@@ -2909,7 +2911,16 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 
 		// Extract errors
 		if strings.HasPrefix(line, "error: ") {
-			return -1, -1, 0, fmt.Errorf(strings.TrimPrefix(line, "error: "))
+			errStr = strings.TrimPrefix(line, "error: ")
+			continue
+		}
+
+		if strings.HasPrefix(line, "errno: ") {
+			errno := strings.TrimPrefix(line, "errno: ")
+			if errno == "2" {
+				return -1, -1, 0, os.ErrNotExist
+			}
+			return -1, -1, 0, fmt.Errorf(errStr)
 		}
 
 		// Extract the uid
