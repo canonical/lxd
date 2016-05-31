@@ -48,6 +48,14 @@ package main
 //
 #define CMDLINE_SIZE (8 * PATH_MAX)
 
+void error(char *msg)
+{
+	int old_errno = errno;
+
+	perror(msg);
+	fprintf(stderr, "errno: %d\n", old_errno);
+}
+
 int mkdir_p(const char *dir, mode_t mode)
 {
 	const char *tmp = dir;
@@ -77,19 +85,19 @@ int copy(int target, int source)
 	char buf[1024];
 
 	if (ftruncate(target, 0) < 0) {
-		perror("error: truncate");
+		error("error: truncate");
 		return -1;
 	}
 
 	while ((n = read(source, buf, 1024)) > 0) {
 		if (write(target, buf, n) != n) {
-			perror("error: write");
+			error("error: write");
 			return -1;
 		}
 	}
 
 	if (n < 0) {
-		perror("error: read");
+		error("error: read");
 		return -1;
 	}
 
@@ -103,12 +111,12 @@ int dosetns(int pid, char *nstype) {
 	sprintf(buf, "/proc/%d/ns/%s", pid, nstype);
 	mntns = open(buf, O_RDONLY);
 	if (mntns < 0) {
-		perror("error: open mntns");
+		error("error: open mntns");
 		return -1;
 	}
 
 	if (setns(mntns, 0) < 0) {
-		perror("error: setns");
+		error("error: setns");
 		close(mntns);
 		return -1;
 	}
@@ -126,7 +134,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 
 	host_fd = open(host, O_RDWR);
 	if (host_fd < 0) {
-		perror("error: open");
+		error("error: open");
 		return -1;
 	}
 
@@ -136,17 +144,17 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 
 	if (pid > 0) {
 		if (dosetns(pid, "mnt") < 0) {
-			perror("error: setns");
+			error("error: setns");
 			goto close_host;
 		}
 	} else {
 		if (chroot(rootfs) < 0) {
-			perror("error: chroot");
+			error("error: chroot");
 			goto close_host;
 		}
 
 		if (chdir("/") < 0) {
-			perror("error: chdir");
+			error("error: chdir");
 			goto close_host;
 		}
 	}
@@ -157,7 +165,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 	umask(0);
 	container_fd = open(container, container_open_flags, 0);
 	if (container_fd < 0) {
-		perror("error: open");
+		error("error: open");
 		goto close_host;
 	}
 
@@ -177,17 +185,17 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		}
 
 		if (copy(container_fd, host_fd) < 0) {
-			perror("error: copy");
+			error("error: copy");
 			goto close_container;
 		}
 
 		if (mode != -1 && fchmod(container_fd, mode) < 0) {
-			perror("error: chmod");
+			error("error: chmod");
 			goto close_container;
 		}
 
 		if (fchown(container_fd, uid, gid) < 0) {
-			perror("error: chown");
+			error("error: chown");
 			goto close_container;
 		}
 
@@ -196,7 +204,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		ret = copy(host_fd, container_fd);
 
 		if (fstat(container_fd, &st) < 0) {
-			perror("error: stat");
+			error("error: stat");
 			goto close_container;
 		}
 
@@ -416,14 +424,14 @@ __attribute__((constructor)) void init(void) {
 
 	cmdline = open("/proc/self/cmdline", O_RDONLY);
 	if (cmdline < 0) {
-		perror("error: open");
+		error("error: open");
 		_exit(232);
 	}
 
 	memset(buf, 0, sizeof(buf));
 	if ((size = read(cmdline, buf, sizeof(buf)-1)) < 0) {
 		close(cmdline);
-		perror("error: read");
+		error("error: read");
 		_exit(232);
 	}
 	close(cmdline);
