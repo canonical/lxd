@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -22,7 +23,7 @@ finit_module errno 38
 delete_module errno 38
 `
 const COMPAT_BLOCKING_POLICY = `
-[x86_64]
+[%s]
 compat_sys_rt_sigaction errno 38
 stub_x32_rt_sigreturn errno 38
 compat_sys_ioctl errno 38
@@ -97,12 +98,12 @@ func ContainerNeedsSeccomp(c container) bool {
 	return false
 }
 
-func getSeccompProfileContent(c container) string {
+func getSeccompProfileContent(c container) (string, error) {
 	config := c.ExpandedConfig()
 
 	raw := config["raw.seccomp"]
 	if raw != "" {
-		return raw
+		return raw, nil
 	}
 
 	policy := SECCOMP_HEADER
@@ -111,7 +112,7 @@ func getSeccompProfileContent(c container) string {
 	if whitelist != "" {
 		policy += "whitelist\n[all]\n"
 		policy += whitelist
-		return policy
+		return policy, nil
 	}
 
 	policy += "blacklist\n"
@@ -123,10 +124,14 @@ func getSeccompProfileContent(c container) string {
 
 	compat := config["security.syscalls.blacklist_compat"]
 	if shared.IsTrue(compat) {
-		policy += COMPAT_BLOCKING_POLICY
+		arch, err := shared.ArchitectureName(c.Architecture())
+		if err != nil {
+			return "", err
+		}
+		policy += fmt.Sprintf(COMPAT_BLOCKING_POLICY, arch)
 	}
 
-	return policy
+	return policy, nil
 }
 
 func SeccompCreateProfile(c container) error {
@@ -140,7 +145,11 @@ func SeccompCreateProfile(c container) error {
 		return nil
 	}
 
-	profile := getSeccompProfileContent(c)
+	profile, err := getSeccompProfileContent(c)
+	if err != nil {
+		return nil
+	}
+
 	if err := os.MkdirAll(seccompPath, 0700); err != nil {
 		return err
 	}
