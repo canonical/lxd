@@ -274,6 +274,10 @@ func (s *storageDir) MigrationType() MigrationFSType {
 	return MigrationFSType_RSYNC
 }
 
+func (s *storageDir) PreservesInodes() bool {
+	return false
+}
+
 func (s *storageDir) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
 	return rsyncMigrationSource(container)
 }

@@ -169,6 +169,10 @@ type storage interface {
 	ImageDelete(fingerprint string) error
 
 	MigrationType() MigrationFSType
+	/* does this storage backend preserve inodes when it is moved across
+	 * LXD hosts?
+	 */
+	PreservesInodes() bool
 
 	// Get the pieces required to migrate the source. This contains a list
 	// of the "object" (i.e. container or snapshot, depending on whether or
@@ -541,6 +545,10 @@ func (lw *storageLogWrapper) ImageDelete(fingerprint string) error {
 
 func (lw *storageLogWrapper) MigrationType() MigrationFSType {
 	return lw.w.MigrationType()
+}
+
+func (lw *storageLogWrapper) PreservesInodes() bool {
+	return lw.w.PreservesInodes()
 }
 
 func (lw *storageLogWrapper) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
