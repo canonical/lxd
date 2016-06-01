@@ -275,10 +275,10 @@ func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser) (c
 		for {
 			buf, ok := <-in
 			if !ok {
-				readDone <- true
 				r.Close()
 				Debugf("sending write barrier")
 				conn.WriteMessage(websocket.TextMessage, []byte{})
+				readDone <- true
 				return
 			}
 			w, err := conn.NextWriter(websocket.BinaryMessage)
