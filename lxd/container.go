@@ -377,7 +377,7 @@ type container interface {
 
 	// Snapshots & migration
 	Restore(sourceContainer container) error
-	Checkpoint(opts lxc.CheckpointOptions) error
+	Migrate(cmd uint, stateDir string, stop bool) error
 	StartFromMigration(imagesDir string) error
 	Snapshots() ([]container, error)
 
@@ -563,8 +563,7 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 		 * after snapshotting will fail.
 		 */
 
-		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: false, Verbose: true}
-		err = sourceContainer.Checkpoint(opts)
+		err = sourceContainer.Migrate(lxc.MIGRATE_DUMP, stateDir, false)
 		err2 := CollectCRIULogFile(sourceContainer, stateDir, "snapshot", "dump")
 		if err2 != nil {
 			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})

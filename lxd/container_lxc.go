@@ -1387,8 +1387,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		}
 
 		// Checkpoint
-		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
-		err = c.Checkpoint(opts)
+		err = c.Migrate(lxc.MIGRATE_DUMP, stateDir, true)
 		err2 := CollectCRIULogFile(c, stateDir, "snapshot", "dump")
 		if err2 != nil {
 			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
@@ -2714,14 +2713,28 @@ func (c *containerLXC) Export(w io.Writer) error {
 	return tw.Close()
 }
 
-func (c *containerLXC) Checkpoint(opts lxc.CheckpointOptions) error {
-	// Load the go-lxc struct
+func (c *containerLXC) Migrate(cmd uint, stateDir string, stop bool) error {
 	err := c.initLXC()
 	if err != nil {
 		return err
 	}
 
-	return c.c.Checkpoint(opts)
+	preservesInodes := c.storage.PreservesInodes()
+	/* This feature was only added in 2.0.1, let's not ask for it
+	 * before then or migrations will fail.
+	 */
+	if !lxc.VersionAtLeast(2, 0, 1) {
+		preservesInodes = false
+	}
+
+	opts := lxc.MigrateOptions{
+		Stop: stop,
+		Directory: stateDir,
+		Verbose: true,
+		PreservesInodes: preservesInodes,
+	}
+
+	return c.c.Migrate(cmd, opts)
 }
 
 func (c *containerLXC) TemplateApply(trigger string) error {
