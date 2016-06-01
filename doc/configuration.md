@@ -17,26 +17,26 @@ currently supported:
  - images (image configuration)
  - storage (storage configuration)
 
-Key                             | Type          | Default                   | Description
-:--                             | :---          | :------                   | :----------
-core.https\_address             | string        | -                         | Address to bind for the remote API
-core.https\_allowed\_origin     | string        | -                         | Access-Control-Allow-Origin http header value
-core.https\_allowed\_methods    | string        | -                         | Access-Control-Allow-Methods http header value
-core.https\_allowed\_headers    | string        | -                         | Access-Control-Allow-Headers http header value
-core.proxy\_https               | string        | -                         | https proxy to use, if any (falls back to HTTPS\_PROXY environment variable)
-core.proxy\_http                | string        | -                         | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
-core.proxy\_ignore\_hosts       | string        | -                         | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)
-core.trust\_password            | string        | -                         | Password to be provided by clients to setup a trust
-storage.lvm\_vg\_name           | string        | -                         | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
-storage.lvm\_thinpool\_name     | string        | "LXDPool"                 | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
-storage.lvm\_fstype             | string        | ext4                      | Format LV with filesystem, for now it's value can be only ext4 (default) or xfs.
-storage.lvm\_volume\_size       | string        | 10GiB                     | Size of the logical volume
-storage.zfs\_pool\_name         | string        | -                         | ZFS pool name
-storage.zfs\_remove\_snapshots  | boolean       | false                     | Automatically remove any needed snapshot when attempting a container restore
-images.compression\_algorithm   | string        | gzip                      | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
-images.remote\_cache\_expiry    | integer       | 10                        | Number of days after which an unused cached remote image will be flushed
-images.auto\_update\_interval   | integer       | 6                         | Interval in hours at which to look for update to cached images (0 disables it)
-images.auto\_update\_cached     | boolean       | true                      | Whether to automatically update any image that LXD caches
+Key                             | Type      | Default   | API extension                     | Description
+:--                             | :---      | :------   | :------------                     | :----------
+core.https\_address             | string    | -         | -                                 | Address to bind for the remote API
+core.https\_allowed\_origin     | string    | -         | -                                 | Access-Control-Allow-Origin http header value
+core.https\_allowed\_methods    | string    | -         | -                                 | Access-Control-Allow-Methods http header value
+core.https\_allowed\_headers    | string    | -         | -                                 | Access-Control-Allow-Headers http header value
+core.proxy\_https               | string    | -         | -                                 | https proxy to use, if any (falls back to HTTPS\_PROXY environment variable)
+core.proxy\_http                | string    | -         | -                                 | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
+core.proxy\_ignore\_hosts       | string    | -         | -                                 | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)
+core.trust\_password            | string    | -         | -                                 | Password to be provided by clients to setup a trust
+storage.lvm\_vg\_name           | string    | -         | -                                 | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
+storage.lvm\_thinpool\_name     | string    | "LXDPool" | -                                 | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
+storage.lvm\_fstype             | string    | ext4      | -                                 | Format LV with filesystem, for now it's value can be only ext4 (default) or xfs.
+storage.lvm\_volume\_size       | string    | 10GiB     | -                                 | Size of the logical volume
+storage.zfs\_pool\_name         | string    | -         | -                                 | ZFS pool name
+storage.zfs\_remove\_snapshots  | boolean   | false     | storage\_zfs\_remove\_snapshots   | Automatically remove any needed snapshot when attempting a container restore
+images.compression\_algorithm   | string    | gzip      | -                                 | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
+images.remote\_cache\_expiry    | integer   | 10        | -                                 | Number of days after which an unused cached remote image will be flushed
+images.auto\_update\_interval   | integer   | 6         | -                                 | Interval in hours at which to look for update to cached images (0 disables it)
+images.auto\_update\_cached     | boolean   | true      | -                                 | Whether to automatically update any image that LXD caches
 
 Those keys can be set using the lxc tool with:
 
@@ -64,33 +64,33 @@ currently supported:
 
 The currently supported keys are:
 
-Key                                  | Type      | Default       | Live update   | Description
-:--                                  | :---      | :------       | :----------   | :----------
-boot.autostart                       | boolean   | false         | n/a           | Always start the container when LXD starts
-boot.autostart.delay                 | integer   | 0             | n/a           | Number of seconds to wait after the container started before starting the next one
-boot.autostart.priority              | integer   | 0             | n/a           | What order to start the containers in (starting with highest)
-boot.host_shutdown_timeout           | integer   | 30            | yes           | Seconds to wait for container to shutdown before it is force stopped
-environment.\*                       | string    | -             | yes (exec)    | key/value environment variables to export to the container and set on exec
-limits.cpu                           | string    | - (all)       | yes           | Number or range of CPUs to expose to the container
-limits.cpu.allowance                 | string    | 100%          | yes           | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
-limits.cpu.priority                  | integer   | 10 (maximum)  | yes           | CPU scheduling priority compared to other containers sharing the same CPUs (overcommit)
-limits.disk.priority                 | integer   | 5 (medium)    | yes           | When under load, how much priority to give to the container's I/O requests
-limits.memory                        | string    | - (all)       | yes           | Percentage of the host's memory or fixed value in bytes (supports kB, MB, GB, TB, PB and EB suffixes)
-limits.memory.enforce                | string    | hard          | yes           | If hard, container can't exceed its memory limit. If soft, the container can exceed its memory limit when extra host memory is available.
-limits.memory.swap                   | boolean   | true          | yes           | Whether to allow some of the container's memory to be swapped out to disk
-limits.memory.swap.priority          | integer   | 10 (maximum)  | yes           | The higher this is set, the least likely the container is to be swapped to disk
-limits.network.priority              | integer   | 0 (minimum)   | yes           | When under load, how much priority to give to the container's network requests
-limits.processes                     | integer   | - (max)       | yes           | Maximum number of processes that can run in the container
-linux.kernel\_modules                | string    | -             | yes           | Comma separated list of kernel modules to load before starting the container
-raw.apparmor                         | blob      | -             | yes           | Apparmor profile entries to be appended to the generated profile
-raw.lxc                              | blob      | -             | no            | Raw LXC configuration to be appended to the generated one
-security.nesting                     | boolean   | false         | yes           | Support running lxd (nested) inside the container
-security.privileged                  | boolean   | false         | no            | Runs the container in privileged mode
-security.syscalls.blacklist\_default | boolean   | true          | no            | Enables the default syscall blacklist
-security.syscalls.blacklist\_compat  | boolean   | false         | no            | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
-security.syscalls.blacklist          | string    | -             | no            | A '\n' separated list of syscalls to blacklist
-seucrity.syscalls.whitelist          | string    | -             | no            | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
-user.\*                              | string    | -             | n/a           | Free form user key/value storage (can be used in search)
+Key                                  | Type      | Default       | Live update   | API extension                        | Description
+:--                                  | :---      | :------       | :----------   | :------------                        | :----------
+boot.autostart                       | boolean   | false         | n/a           | -                                    | Always start the container when LXD starts
+boot.autostart.delay                 | integer   | 0             | n/a           | -                                    | Number of seconds to wait after the container started before starting the next one
+boot.autostart.priority              | integer   | 0             | n/a           | -                                    | What order to start the containers in (starting with highest)
+boot.host\_shutdown\_timeout         | integer   | 30            | yes           | container\_host\_shutdown\_timeout   | Seconds to wait for container to shutdown before it is force stopped
+environment.\*                       | string    | -             | yes (exec)    | -                                    | key/value environment variables to export to the container and set on exec
+limits.cpu                           | string    | - (all)       | yes           | -                                    | Number or range of CPUs to expose to the container
+limits.cpu.allowance                 | string    | 100%          | yes           | -                                    | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
+limits.cpu.priority                  | integer   | 10 (maximum)  | yes           | -                                    | CPU scheduling priority compared to other containers sharing the same CPUs (overcommit)
+limits.disk.priority                 | integer   | 5 (medium)    | yes           | -                                    | When under load, how much priority to give to the container's I/O requests
+limits.memory                        | string    | - (all)       | yes           | -                                    | Percentage of the host's memory or fixed value in bytes (supports kB, MB, GB, TB, PB and EB suffixes)
+limits.memory.enforce                | string    | hard          | yes           | -                                    | If hard, container can't exceed its memory limit. If soft, the container can exceed its memory limit when extra host memory is available.
+limits.memory.swap                   | boolean   | true          | yes           | -                                    | Whether to allow some of the container's memory to be swapped out to disk
+limits.memory.swap.priority          | integer   | 10 (maximum)  | yes           | -                                    | The higher this is set, the least likely the container is to be swapped to disk
+limits.network.priority              | integer   | 0 (minimum)   | yes           | -                                    | When under load, how much priority to give to the container's network requests
+limits.processes                     | integer   | - (max)       | yes           | -                                    | Maximum number of processes that can run in the container
+linux.kernel\_modules                | string    | -             | yes           | -                                    | Comma separated list of kernel modules to load before starting the container
+raw.apparmor                         | blob      | -             | yes           | -                                    | Apparmor profile entries to be appended to the generated profile
+raw.lxc                              | blob      | -             | no            | -                                    | Raw LXC configuration to be appended to the generated one
+security.nesting                     | boolean   | false         | yes           | -                                    | Support running lxd (nested) inside the container
+security.privileged                  | boolean   | false         | no            | -                                    | Runs the container in privileged mode
+security.syscalls.blacklist\_default | boolean   | true          | no            | container\_syscall\_filtering        | Enables the default syscall blacklist
+security.syscalls.blacklist\_compat  | boolean   | false         | no            | container\_syscall\_filtering        | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
+security.syscalls.blacklist          | string    | -             | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to blacklist
+security.syscalls.whitelist          | string    | -             | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
+user.\*                              | string    | -             | n/a           | -                                    |Free form user key/value storage (can be used in search)
 
 The following volatile keys are currently internally used by LXD:
 
