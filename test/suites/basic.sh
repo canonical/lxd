@@ -265,6 +265,25 @@ test_basic_usage() {
   [ "$(lxc config get configtest boot.host_shutdown_timeout)" -eq 15 ]
   lxc delete configtest
 
+  # Test deleting multiple images
+  # Start 3 containers to create 3 different images
+  lxc launch testimage c1
+  lxc launch testimage c2
+  lxc launch testimage c3
+  lxc exec c1 -- touch /tmp/c1
+  lxc exec c2 -- touch /tmp/c2
+  lxc exec c3 -- touch /tmp/c3
+  lxc publish --force c1 --alias=image1
+  lxc publish --force c2 --alias=image2
+  lxc publish --force c3 --alias=image3
+  # Delete multiple images with lxc delete and confirm they're deleted
+  lxc image delete image1 image2 image3
+  ! lxc image list | grep -q image1
+  ! lxc image list | grep -q image2
+  ! lxc image list | grep -q image3
+  # Cleanup the containers
+  lxc delete --force c1 c2 c3
+
   # Ephemeral
   lxc launch testimage foo -e
 
