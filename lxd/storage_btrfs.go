@@ -948,6 +948,14 @@ func (s *storageBtrfs) MigrationType() MigrationFSType {
 	}
 }
 
+func (s *storageBtrfs) PreservesInodes() bool {
+	if runningInUserns {
+		return false
+	} else {
+		return true
+	}
+}
+
 func (s *storageBtrfs) MigrationSource(c container) (MigrationStorageSourceDriver, error) {
 	if runningInUserns {
 		return rsyncMigrationSource(c)

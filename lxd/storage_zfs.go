@@ -1290,6 +1290,10 @@ func (s *storageZfs) MigrationType() MigrationFSType {
 	return MigrationFSType_ZFS
 }
 
+func (s *storageZfs) PreservesInodes() bool {
+	return true
+}
+
 func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver, error) {
 	/* If the container is a snapshot, let's just send that; we don't need
 	 * to send anything else, because that's all the user asked for.
