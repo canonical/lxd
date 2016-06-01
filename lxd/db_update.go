@@ -57,7 +57,13 @@ func dbUpdateFromV30(db *sql.DB, mockMode bool) error {
 	return err
 }
 
-func dbUpdateFromV29(db *sql.DB) error {
+func dbUpdateFromV29(db *sql.DB, mockMode bool) error {
+	if mockMode {
+		stmt := `INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+		_, err := db.Exec(stmt, 30)
+		return err
+	}
+
 	if shared.PathExists(shared.VarPath("zfs.img")) {
 		err := os.Chmod(shared.VarPath("zfs.img"), 0600)
 		if err != nil {
@@ -1055,7 +1061,7 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 		}
 	}
 	if prevVersion < 30 {
-		err = dbUpdateFromV29(db)
+		err = dbUpdateFromV29(db, d.MockMode)
 		if err != nil {
 			return err
 		}
