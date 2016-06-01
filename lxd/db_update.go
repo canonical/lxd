@@ -17,7 +17,13 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-func dbUpdateFromV30(db *sql.DB) error {
+func dbUpdateFromV30(db *sql.DB, mockMode bool) error {
+	if mockMode {
+		stmt := `INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+		_, err := db.Exec(stmt, 31)
+		return err
+	}
+
 	entries, err := ioutil.ReadDir(shared.VarPath("containers"))
 	if err != nil {
 		return err
@@ -1055,7 +1061,7 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 		}
 	}
 	if prevVersion < 31 {
-		err = dbUpdateFromV30(db)
+		err = dbUpdateFromV30(db, d.MockMode)
 		if err != nil {
 			return err
 		}
