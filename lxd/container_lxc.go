@@ -2728,9 +2728,9 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, stop bool) error {
 	}
 
 	opts := lxc.MigrateOptions{
-		Stop: stop,
-		Directory: stateDir,
-		Verbose: true,
+		Stop:            stop,
+		Directory:       stateDir,
+		Verbose:         true,
 		PreservesInodes: preservesInodes,
 	}
 
