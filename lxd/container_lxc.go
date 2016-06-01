@@ -2717,10 +2717,19 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, stop bool) error {
 		return err
 	}
 
+	preservesInodes := c.storage.PreservesInodes()
+	/* This feature was only added in 2.0.1, let's not ask for it
+	 * before then or migrations will fail.
+	 */
+	if !lxc.VersionAtLeast(2, 0, 1) {
+		preservesInodes = false
+	}
+
 	opts := lxc.MigrateOptions{
 		Stop: stop,
 		Directory: stateDir,
 		Verbose: true,
+		PreservesInodes: preservesInodes,
 	}
 
 	return c.c.Migrate(cmd, opts)
