@@ -131,6 +131,10 @@ func (s *storageMock) MigrationType() MigrationFSType {
 	return MigrationFSType_RSYNC
 }
 
+func (s *storageMock) PreservesInodes() bool {
+	return false
+}
+
 func (s *storageMock) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
 	return nil, fmt.Errorf("not implemented")
 }
