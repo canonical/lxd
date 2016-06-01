@@ -66,7 +66,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	err := containerValidConfig(req.Config, true, false)
+	err := containerValidConfig(d, req.Config, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -135,7 +135,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Sanity checks
-	err := containerValidConfig(req.Config, true, false)
+	err := containerValidConfig(d, req.Config, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
