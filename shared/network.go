@@ -47,7 +47,10 @@ func initTLSConfig() *tls.Config {
 func finalizeTLSConfig(tlsConfig *tls.Config, tlsRemoteCert *x509.Certificate) {
 	// Trusted certificates
 	if tlsRemoteCert != nil {
-		caCertPool := x509.NewCertPool()
+		caCertPool := tlsConfig.RootCAs
+		if caCertPool == nil {
+			caCertPool = x509.NewCertPool()
+		}
 
 		// Make it a valid RootCA
 		tlsRemoteCert.IsCA = true
@@ -66,7 +69,7 @@ func finalizeTLSConfig(tlsConfig *tls.Config, tlsRemoteCert *x509.Certificate) {
 	tlsConfig.BuildNameToCertificate()
 }
 
-func GetTLSConfig(tlsClientCertFile string, tlsClientKeyFile string, tlsRemoteCert *x509.Certificate) (*tls.Config, error) {
+func GetTLSConfig(tlsClientCertFile string, tlsClientKeyFile string, tlsClientCAFile string, tlsRemoteCert *x509.Certificate) (*tls.Config, error) {
 	tlsConfig := initTLSConfig()
 
 	// Client authentication
@@ -79,11 +82,23 @@ func GetTLSConfig(tlsClientCertFile string, tlsClientKeyFile string, tlsRemoteCe
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
+	if tlsClientCAFile != "" {
+		caCertificates, err := ioutil.ReadFile(tlsClientCAFile)
+		if err != nil {
+			return nil, err
+		}
+
+		caPool := x509.NewCertPool()
+		caPool.AppendCertsFromPEM(caCertificates)
+
+		tlsConfig.RootCAs = caPool
+	}
+
 	finalizeTLSConfig(tlsConfig, tlsRemoteCert)
 	return tlsConfig, nil
 }
 
-func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsRemoteCertPEM string) (*tls.Config, error) {
+func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsClientCA string, tlsRemoteCertPEM string) (*tls.Config, error) {
 	tlsConfig := initTLSConfig()
 
 	// Client authentication
@@ -106,6 +121,14 @@ func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsRemoteCertPEM
 			return nil, err
 		}
 	}
+
+	if tlsClientCA != "" {
+		caPool := x509.NewCertPool()
+		caPool.AppendCertsFromPEM([]byte(tlsClientCA))
+
+		tlsConfig.RootCAs = caPool
+	}
+
 	finalizeTLSConfig(tlsConfig, tlsRemoteCert)
 
 	return tlsConfig, nil
