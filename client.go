@@ -1637,7 +1637,7 @@ func (c *Client) ProfileConfig(name string) (*shared.ProfileConfig, error) {
 	return &ct, nil
 }
 
-func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.FileMode, buf io.ReadSeeker) error {
+func (c *Client) PushFile(container string, p string, gid int, uid int, mode string, buf io.ReadSeeker) error {
 	if c.Remote.Public {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1651,32 +1651,15 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 	}
 	req.Header.Set("User-Agent", shared.UserAgent)
 
-	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode.Perm()))
-	req.Header.Set("X-LXD-uid", strconv.FormatUint(uint64(uid), 10))
-	req.Header.Set("X-LXD-gid", strconv.FormatUint(uint64(gid), 10))
-
-	raw, err := c.Http.Do(req)
-	if err != nil {
-		return err
+	if mode != "" {
+		req.Header.Set("X-LXD-mode", mode)
 	}
-
-	_, err = HoistResponse(raw, Sync)
-	return err
-}
-
-func (c *Client) PushFileEdit(container string, p string, buf io.ReadSeeker) error {
-	if c.Remote.Public {
-		return fmt.Errorf("This function isn't supported by public remotes.")
+	if uid != -1 {
+		req.Header.Set("X-LXD-uid", strconv.FormatUint(uint64(uid), 10))
 	}
-
-	query := url.Values{"path": []string{p}}
-	uri := c.url(shared.APIVersion, "containers", container, "files") + "?" + query.Encode()
-
-	req, err := http.NewRequest("POST", uri, buf)
-	if err != nil {
-		return err
+	if gid != -1 {
+		req.Header.Set("X-LXD-gid", strconv.FormatUint(uint64(gid), 10))
 	}
-	req.Header.Set("User-Agent", shared.UserAgent)
 
 	raw, err := c.Http.Do(req)
 	if err != nil {
