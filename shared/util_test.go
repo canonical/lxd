@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
+	"crypto/rand"
 	"os"
 	"strings"
 	"testing"
