@@ -58,7 +58,7 @@ func (c *remoteCmd) flags() {
 
 func getRemoteCertificate(address string) (*x509.Certificate, error) {
 	// Setup a permissive TLS config
-	tlsConfig, err := shared.GetTLSConfig("", "", nil)
+	tlsConfig, err := shared.GetTLSConfig("", "", "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 
 	// Fix broken URL parser
 	if !strings.Contains(addr, "://") && remoteURL.Scheme != "" && remoteURL.Scheme != "unix" && remoteURL.Host == "" {
-		remoteURL.Host = remoteURL.Scheme
+		remoteURL.Host = addr
 		remoteURL.Scheme = ""
 	}
 

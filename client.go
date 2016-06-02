@@ -186,6 +186,17 @@ func NewClient(config *Config, remote string) (*Client, error) {
 			info.ClientPEMKey = string(keyBytes)
 		}
 
+		// Read the client key (if it exists)
+		clientCaPath := path.Join(config.ConfigDir, "client.ca")
+		if shared.PathExists(clientCaPath) {
+			caBytes, err := ioutil.ReadFile(clientCaPath)
+			if err != nil {
+				return nil, err
+			}
+
+			info.ClientPEMCa = string(caBytes)
+		}
+
 		// Read the server certificate (if it exists)
 		serverCertPath := config.ServerCertPath(remote)
 		if shared.PathExists(serverCertPath) {
@@ -222,6 +233,8 @@ type ConnectInfo struct {
 	ClientPEMCert string
 	// ClientPEMKey is the PEM encoded private bytes of the client's key associated with its certificate
 	ClientPEMKey string
+	// ClientPEMCa is the PEM encoded client certificate authority (if any)
+	ClientPEMCa string
 	// ServerPEMCert is the PEM encoded server certificate that we are
 	// connecting to. It can be the empty string if we do not know the
 	// server's certificate yet.
@@ -264,8 +277,8 @@ func connectViaUnix(c *Client, remote *RemoteConfig) error {
 	return nil
 }
 
-func connectViaHttp(c *Client, remote *RemoteConfig, clientCert, clientKey, serverCert string) error {
-	tlsconfig, err := shared.GetTLSConfigMem(clientCert, clientKey, serverCert)
+func connectViaHttp(c *Client, remote *RemoteConfig, clientCert, clientKey, clientCA, serverCert string) error {
+	tlsconfig, err := shared.GetTLSConfigMem(clientCert, clientKey, clientCA, serverCert)
 	if err != nil {
 		return err
 	}
@@ -307,7 +320,7 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 	if strings.HasPrefix(info.RemoteConfig.Addr, "unix:") {
 		err = connectViaUnix(c, &info.RemoteConfig)
 	} else {
-		err = connectViaHttp(c, &info.RemoteConfig, info.ClientPEMCert, info.ClientPEMKey, info.ServerPEMCert)
+		err = connectViaHttp(c, &info.RemoteConfig, info.ClientPEMCert, info.ClientPEMKey, info.ClientPEMCa, info.ServerPEMCert)
 	}
 	if err != nil {
 		return nil, err

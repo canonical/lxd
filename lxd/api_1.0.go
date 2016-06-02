@@ -45,9 +45,22 @@ var api10 = []Command{
 
 func api10Get(d *Daemon, r *http.Request) Response {
 	body := shared.Jmap{
+		/* List of API extensions in the order they were added.
+		 *
+		 * The following kind of changes require an addition to api_extensions:
+		 *  - New configuration key
+		 *  - New valid values for a configuration key
+		 *  - New REST API endpoint
+		 *  - New argument inside an existing REST API call
+		 *  - New HTTPs authentication mechanisms or protocols
+		 */
 		"api_extensions": []string{
-			"syscall_filtering",
+			"storage_zfs_remove_snapshots",
+			"container_host_shutdown_timeout",
+			"container_syscall_filtering",
+			"auth_pki",
 		},
+
 		"api_status":  "stable",
 		"api_version": shared.APIVersion,
 	}

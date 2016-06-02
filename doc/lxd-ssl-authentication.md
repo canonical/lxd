@@ -56,8 +56,8 @@ A CRL may also accompany the CA certificate.
 
 In that mode, any connection to a LXD daemon will be done using the
 preseeded CA certificate. If the server certificate isn't signed by the
-CA, or if it has been revoked, the connection will simply go through the
-normal authentication mechanism.
+CA, the connection will simply go through the normal authentication
+mechanism.
 
 If the server certificate is valid and signed by the CA, then the
 connection continues without prompting the user for the certificate.
@@ -66,6 +66,15 @@ After that, the user must enter the trust password for that server, if
 it matches, the client certificate is added to the server's trust store
 and the client can now connect to the server without having to provide
 any additional credentials.
+
+Enabling PKI mode is done by adding a client.ca file in the
+client's configuration directory (~/.config/lxc) and a server.ca file in
+the server's configuration directory (/var/lib/lxd). Then a client
+certificate must be issued by the CA for the client and a server
+certificate for the server. Those must then replace the existing
+pre-generated files.
+
+After this is done, restarting the server will have it run in PKI mode.
 
 # Password prompt
 To establish a new trust relationship, a password must be set on the
