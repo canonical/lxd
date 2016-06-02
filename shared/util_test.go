@@ -2,9 +2,9 @@ package shared
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"io/ioutil"
-	"crypto/rand"
 	"os"
 	"strings"
 	"testing"
