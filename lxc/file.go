@@ -45,7 +45,7 @@ func (c *fileCmd) flags() {
 	gnuflag.StringVar(&c.mode, "mode", "", i18n.G("Set the file's perms on push"))
 }
 
-func (c *fileCmd) push(config *lxd.Config, args []string) error {
+func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
@@ -125,72 +125,34 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 			fpath = path.Join(fpath, path.Base(f.Name()))
 		}
 
-		if c.mode == "" || c.uid == -1 || c.gid == -1 {
-			fMode, fUid, fGid, err := c.getOwner(f)
-			if err != nil {
-				return err
+		if send_file_perms {
+			if c.mode == "" || c.uid == -1 || c.gid == -1 {
+				fMode, fUid, fGid, err := c.getOwner(f)
+				if err != nil {
+					return err
+				}
+
+				if c.mode == "" {
+					mode = fMode
+				}
+
+				if c.uid == -1 {
+					uid = fUid
+				}
+
+				if c.gid == -1 {
+					gid = fGid
+				}
 			}
 
-			if c.mode == "" {
-				mode = fMode
-			}
-
-			if c.uid == -1 {
-				uid = fUid
-			}
-
-			if c.gid == -1 {
-				gid = fGid
-			}
+			err = d.PushFile(container, fpath, gid, uid, fmt.Sprintf("%04o", mode.Perm()), f)
+		} else {
+			err = d.PushFile(container, fpath, -1, -1, "", f)
 		}
 
-		err = d.PushFile(container, fpath, gid, uid, mode, f)
 		if err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (c *fileCmd) pushEditedFile(config *lxd.Config, args []string) error {
-	if len(args) < 2 {
-		return errArgs
-	}
-
-	target := args[len(args)-1]
-	pathSpec := strings.SplitN(target, "/", 2)
-
-	if len(pathSpec) != 2 {
-		return fmt.Errorf(i18n.G("Invalid target %s"), target)
-	}
-
-	targetPath := pathSpec[1]
-	remote, container := config.ParseRemoteAndContainer(pathSpec[0])
-
-	d, err := lxd.NewClient(config, remote)
-	if err != nil {
-		return err
-	}
-
-	sourcefilename := args[0]
-
-	/* Make sure file is accessible by us before trying to push */
-	var file *os.File
-	if sourcefilename == "-" {
-		file = os.Stdin
-	} else {
-		file, err = os.Open(sourcefilename)
-		if err != nil {
-			return err
-		}
-	}
-
-	defer file.Close()
-
-	err = d.PushFileEdit(container, targetPath, file)
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -278,7 +240,7 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
-		return c.pushEditedFile(config, append([]string{os.Stdin.Name()}, args[0]))
+		return c.push(config, false, append([]string{os.Stdin.Name()}, args[0]))
 	}
 
 	// Create temp file
@@ -299,7 +261,7 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	err = c.pushEditedFile(config, append([]string{fname}, args[0]))
+	err = c.push(config, false, append([]string{fname}, args[0]))
 	if err != nil {
 		return err
 	}
@@ -314,7 +276,7 @@ func (c *fileCmd) run(config *lxd.Config, args []string) error {
 
 	switch args[0] {
 	case "push":
-		return c.push(config, args[1:])
+		return c.push(config, true, args[1:])
 	case "pull":
 		return c.pull(config, args[1:])
 	case "edit":
