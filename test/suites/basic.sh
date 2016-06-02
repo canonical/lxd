@@ -277,7 +277,7 @@ test_basic_usage() {
   lxc publish --force c2 --alias=image2
   lxc publish --force c3 --alias=image3
   # Delete multiple images with lxc delete and confirm they're deleted
-  lxc image delete image1 image2 image3
+  lxc image delete local:image1 local:image2 local:image3
   ! lxc image list | grep -q image1
   ! lxc image list | grep -q image2
   ! lxc image list | grep -q image3
