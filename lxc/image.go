@@ -119,7 +119,7 @@ lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--
     The auto-update flag instructs the server to keep this image up to
     date. It requires the source to be an alias and for it to be public.
 
-lxc image delete [remote:]<image> [<image>...]
+lxc image delete [remote:]<image> [remote:][<image>...]
     Delete one or more images from the LXD image store.
 
 lxc image export [remote:]<image>
@@ -278,29 +278,23 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		return err
 
 	case "delete":
-		/* delete [<remote>:]<image> [<image>...] */
+		/* delete [<remote>:]<image> [<remote>:][<image>...] */
 		if len(args) < 2 {
 			return errArgs
 		}
 
-		remote, inName := config.ParseRemoteAndContainer(args[1])
-		if inName == "" {
-			inName = "default"
-		}
+		for _, arg := range args[1:] {
+			remote, inName := config.ParseRemoteAndContainer(arg)
+			if inName == "" {
+				inName = "default"
+			}
 
-		imageNames := []string{inName}
+			d, err := lxd.NewClient(config, remote)
+			if err != nil {
+				return err
+			}
 
-		if len(args) > 2 {
-			imageNames = append(imageNames, args[2:]...)
-		}
-
-		d, err := lxd.NewClient(config, remote)
-		if err != nil {
-			return err
-		}
-
-		for _, imageName := range imageNames {
-			image := c.dereferenceAlias(d, imageName)
+			image := c.dereferenceAlias(d, inName)
 			err = d.DeleteImage(image)
 			if err != nil {
 				return err
