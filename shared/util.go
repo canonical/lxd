@@ -145,7 +145,7 @@ func ReaderToChannel(r io.Reader, bufferSize int) <-chan []byte {
 			read := buf[offset : offset+readSize]
 			nr, err := r.Read(read)
 			offset += nr
-			if offset+readSize >= bufferSize || err != nil {
+			if offset > 0 && (offset+readSize >= bufferSize || err != nil) {
 				ch <- buf[0:offset]
 				offset = 0
 				buf = make([]byte, bufferSize)
