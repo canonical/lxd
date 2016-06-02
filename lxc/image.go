@@ -291,9 +291,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		imageNames := []string{inName}
 
 		if len(args) > 2 {
-			for _, extraImage := range args[2:] {
-				imageNames = append(imageNames, extraImage)
-			}
+			imageNames = append(imageNames, args[2:]...)
 		}
 
 		d, err := lxd.NewClient(config, remote)
