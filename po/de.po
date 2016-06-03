@@ -542,7 +542,7 @@ msgid "Keep the image up to date after initial copy"
 msgstr ""
 
 #: lxc/main.go:35
-msgid "LXD socket not found; is LXD running?"
+msgid "LXD socket not found; is LXD installed and running?"
 msgstr ""
 
 #: lxc/launch.go:22
