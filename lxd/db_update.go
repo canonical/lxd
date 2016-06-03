@@ -892,12 +892,14 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
 func dbUpdate(d *Daemon, prevVersion int) error {
 	db := d.db
 
-	if prevVersion < 0 || prevVersion > DB_CURRENT_VERSION {
-		return fmt.Errorf("Bad database version: %d", prevVersion)
-	}
 	if prevVersion == DB_CURRENT_VERSION {
 		return nil
 	}
+
+	if prevVersion < 0 || prevVersion > DB_CURRENT_VERSION {
+		return fmt.Errorf("Bad database version: %d", prevVersion)
+	}
+
 	var err error
 	if prevVersion < 1 {
 		err = dbUpdateFromV0(db)
