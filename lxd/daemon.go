@@ -738,11 +738,17 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
-	/* Setup the storage driver */
 	if !d.MockMode {
+		/* Setup the storage driver */
 		err = d.SetupStorageDriver()
 		if err != nil {
 			return fmt.Errorf("Failed to setup storage: %s", err)
+		}
+
+		/* Apply all patches */
+		err = patchesApplyAll(d)
+		if err != nil {
+			return err
 		}
 	}
 
