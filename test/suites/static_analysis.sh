@@ -20,7 +20,7 @@ test_static_analysis() {
     ## Functions starting by empty line
     OUT=$(grep -r "^$" -B1 . | grep "func " | grep -v "}$" || true)
     if [ -n "${OUT}" ]; then
-      echo "${OUT}"
+      echo "ERROR: Functions must not start with an empty line: ${OUT}"
       false
     fi
 

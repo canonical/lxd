@@ -509,7 +509,7 @@ msgid "Keep the image up to date after initial copy"
 msgstr "最初にコピーした後も常にイメージを最新の状態に保つ"
 
 #: lxc/main.go:35
-msgid "LXD socket not found; is LXD running?"
+msgid "LXD socket not found; is LXD installed and running?"
 msgstr "LXD のソケットが見つかりません。LXD が実行されていますか?"
 
 #: lxc/launch.go:22
