@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 
@@ -498,6 +499,47 @@ func (c *Client) GetServerConfig() (*Response, error) {
 	}
 
 	return c.baseGet(c.url(shared.APIVersion))
+}
+
+// GetLocalLXDErr determines whether or not an error is likely due to a
+// local LXD configuration issue, and if so, returns the underlying error.
+// GetLocalLXDErr can be used to provide customized error messages to help
+// the user identify basic system issues, e.g. LXD daemon not running.
+//
+// Returns syscall.ENOENT, syscall.ECONNREFUSED or syscall.EACCES when a
+// local LXD configuration issue is detected, nil otherwise.
+func GetLocalLXDErr(err error) error {
+	t, ok := err.(*url.Error)
+	if !ok {
+		return nil
+	}
+
+	u, ok := t.Err.(*net.OpError)
+	if !ok {
+		return nil
+	}
+
+	if u.Op == "dial" && u.Net == "unix" {
+		var lxdErr error
+
+		sysErr, ok := u.Err.(*os.SyscallError)
+		if ok {
+			lxdErr = sysErr.Err
+		} else {
+			// syscall.Errno may be returned on some systems, e.g. CentOS
+			lxdErr, ok = u.Err.(syscall.Errno)
+			if !ok {
+				return nil
+			}
+		}
+
+		switch lxdErr {
+		case syscall.ENOENT, syscall.ECONNREFUSED, syscall.EACCES:
+			return lxdErr
+		}
+	}
+
+	return nil
 }
 
 func (c *Client) AmTrusted() bool {
