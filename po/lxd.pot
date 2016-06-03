@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-06-02 08:59-0400\n"
+        "POT-Creation-Date: 2016-06-03 07:27-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -192,7 +192,7 @@ msgstr  ""
 msgid   "Config parsing error: %s"
 msgstr  ""
 
-#: lxc/main.go:37
+#: lxc/main.go:29
 msgid   "Connection refused; is LXD running?"
 msgstr  ""
 
@@ -289,11 +289,11 @@ msgstr  ""
 msgid   "EXPIRY DATE"
 msgstr  ""
 
-#: lxc/main.go:55
+#: lxc/main.go:41
 msgid   "Enables debug mode."
 msgstr  ""
 
-#: lxc/main.go:54
+#: lxc/main.go:40
 msgid   "Enables verbose mode."
 msgstr  ""
 
@@ -353,7 +353,7 @@ msgstr  ""
 msgid   "Force the removal of stopped containers."
 msgstr  ""
 
-#: lxc/main.go:56
+#: lxc/main.go:42
 msgid   "Force using the local unix socket."
 msgstr  ""
 
@@ -361,7 +361,7 @@ msgstr  ""
 msgid   "Format"
 msgstr  ""
 
-#: lxc/main.go:138
+#: lxc/main.go:124
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
@@ -377,11 +377,11 @@ msgstr  ""
 msgid   "ISSUE DATE"
 msgstr  ""
 
-#: lxc/main.go:146
+#: lxc/main.go:132
 msgid   "If this is your first time using LXD, you should also run: sudo lxd init"
 msgstr  ""
 
-#: lxc/main.go:57
+#: lxc/main.go:43
 msgid   "Ignore aliases when determining what command to run."
 msgstr  ""
 
@@ -439,8 +439,8 @@ msgstr  ""
 msgid   "Keep the image up to date after initial copy"
 msgstr  ""
 
-#: lxc/main.go:35
-msgid   "LXD socket not found; is LXD running?"
+#: lxc/main.go:27
+msgid   "LXD socket not found; is LXD installed and running?"
 msgstr  ""
 
 #: lxc/launch.go:22
@@ -747,7 +747,7 @@ msgstr  ""
 msgid   "Only https:// is supported for remote image import."
 msgstr  ""
 
-#: lxc/help.go:63 lxc/main.go:122
+#: lxc/help.go:63 lxc/main.go:108
 msgid   "Options:"
 msgstr  ""
 
@@ -796,7 +796,7 @@ msgstr  ""
 msgid   "Path to an alternate server directory."
 msgstr  ""
 
-#: lxc/main.go:39
+#: lxc/main.go:31
 msgid   "Permisson denied, are you in the lxd group?"
 msgstr  ""
 
@@ -1054,7 +1054,7 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
-#: lxc/main.go:147
+#: lxc/main.go:133
 msgid   "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr  ""
 
@@ -1093,7 +1093,7 @@ msgstr  ""
 msgid   "Uploaded: %s"
 msgstr  ""
 
-#: lxc/main.go:122
+#: lxc/main.go:108
 #, c-format
 msgid   "Usage: %s"
 msgstr  ""
@@ -1122,7 +1122,7 @@ msgstr  ""
 msgid   "YES"
 msgstr  ""
 
-#: lxc/main.go:66
+#: lxc/main.go:52
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
@@ -1158,12 +1158,12 @@ msgstr  ""
 msgid   "enabled"
 msgstr  ""
 
-#: lxc/main.go:25 lxc/main.go:159
+#: lxc/main.go:22 lxc/main.go:145
 #, c-format
 msgid   "error: %v"
 msgstr  ""
 
-#: lxc/help.go:40 lxc/main.go:117
+#: lxc/help.go:40 lxc/main.go:103
 #, c-format
 msgid   "error: unknown command: %s"
 msgstr  ""
@@ -1184,7 +1184,7 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/main.go:266 lxc/main.go:270
+#: lxc/main.go:252 lxc/main.go:256
 #, c-format
 msgid   "processing aliases failed %s\n"
 msgstr  ""
@@ -1226,7 +1226,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:199
+#: lxc/main.go:185
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
