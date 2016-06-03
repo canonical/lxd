@@ -45,7 +45,7 @@ func (c *fileCmd) flags() {
 	gnuflag.StringVar(&c.mode, "mode", "", i18n.G("Set the file's perms on push"))
 }
 
-func (c *fileCmd) push(config *lxd.Config, args []string) error {
+func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
@@ -125,26 +125,31 @@ func (c *fileCmd) push(config *lxd.Config, args []string) error {
 			fpath = path.Join(fpath, path.Base(f.Name()))
 		}
 
-		if c.mode == "" || c.uid == -1 || c.gid == -1 {
-			fMode, fUid, fGid, err := c.getOwner(f)
-			if err != nil {
-				return err
+		if send_file_perms {
+			if c.mode == "" || c.uid == -1 || c.gid == -1 {
+				fMode, fUid, fGid, err := c.getOwner(f)
+				if err != nil {
+					return err
+				}
+
+				if c.mode == "" {
+					mode = fMode
+				}
+
+				if c.uid == -1 {
+					uid = fUid
+				}
+
+				if c.gid == -1 {
+					gid = fGid
+				}
 			}
 
-			if c.mode == "" {
-				mode = fMode
-			}
-
-			if c.uid == -1 {
-				uid = fUid
-			}
-
-			if c.gid == -1 {
-				gid = fGid
-			}
+			err = d.PushFile(container, fpath, gid, uid, fmt.Sprintf("%04o", mode.Perm()), f)
+		} else {
+			err = d.PushFile(container, fpath, -1, -1, "", f)
 		}
 
-		err = d.PushFile(container, fpath, gid, uid, mode, f)
 		if err != nil {
 			return err
 		}
@@ -235,7 +240,7 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
-		return c.push(config, append([]string{os.Stdin.Name()}, args[0]))
+		return c.push(config, false, append([]string{os.Stdin.Name()}, args[0]))
 	}
 
 	// Create temp file
@@ -256,7 +261,7 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	err = c.push(config, append([]string{fname}, args[0]))
+	err = c.push(config, false, append([]string{fname}, args[0]))
 	if err != nil {
 		return err
 	}
@@ -271,7 +276,7 @@ func (c *fileCmd) run(config *lxd.Config, args []string) error {
 
 	switch args[0] {
 	case "push":
-		return c.push(config, args[1:])
+		return c.push(config, true, args[1:])
 	case "pull":
 		return c.pull(config, args[1:])
 	case "edit":

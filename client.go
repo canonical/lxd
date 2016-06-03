@@ -1650,7 +1650,7 @@ func (c *Client) ProfileConfig(name string) (*shared.ProfileConfig, error) {
 	return &ct, nil
 }
 
-func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.FileMode, buf io.ReadSeeker) error {
+func (c *Client) PushFile(container string, p string, gid int, uid int, mode string, buf io.ReadSeeker) error {
 	if c.Remote.Public {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1664,9 +1664,15 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode os.
 	}
 	req.Header.Set("User-Agent", shared.UserAgent)
 
-	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode.Perm()))
-	req.Header.Set("X-LXD-uid", strconv.FormatUint(uint64(uid), 10))
-	req.Header.Set("X-LXD-gid", strconv.FormatUint(uint64(gid), 10))
+	if mode != "" {
+		req.Header.Set("X-LXD-mode", mode)
+	}
+	if uid != -1 {
+		req.Header.Set("X-LXD-uid", strconv.FormatUint(uint64(uid), 10))
+	}
+	if gid != -1 {
+		req.Header.Set("X-LXD-gid", strconv.FormatUint(uint64(gid), 10))
+	}
 
 	raw, err := c.Http.Do(req)
 	if err != nil {
