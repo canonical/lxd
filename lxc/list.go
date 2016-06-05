@@ -84,6 +84,7 @@ Columns for table format are:
 * 6 - IPv6 address
 * a - architecture
 * c - creation date
+* l - last used date
 * n - name
 * p - pid of container init process
 * P - profiles
@@ -377,6 +378,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		'6': column{i18n.G("IPV6"), c.IP6ColumnData, true, false},
 		'a': column{i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
 		'c': column{i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
+		'l': column{i18n.G("LAST USED AT"), c.LastUsedColumnData, false, false},
 		'n': column{i18n.G("NAME"), c.nameColumnData, false, false},
 		'p': column{i18n.G("PID"), c.PIDColumnData, true, false},
 		'P': column{i18n.G("PROFILES"), c.ProfilesColumnData, false, false},
@@ -494,6 +496,16 @@ func (c *listCmd) CreatedColumnData(cInfo shared.ContainerInfo, cState *shared.C
 
 	if cInfo.CreationDate.UTC().Unix() != 0 {
 		return cInfo.CreationDate.UTC().Format(layout)
+	}
+
+	return ""
+}
+
+func (c *listCmd) LastUsedColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
+	layout := "2006/01/02 15:04 UTC"
+
+	if cInfo.LastUsedDate.UTC().Unix() != 0 {
+		return cInfo.LastUsedDate.UTC().Format(layout)
 	}
 
 	return ""
