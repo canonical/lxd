@@ -380,6 +380,12 @@ func dbContainerUpdate(tx *sql.Tx, id int, architecture int, ephemeral bool) err
 	return nil
 }
 
+func dbContainerLastUsedUpdate(db *sql.DB, id int, date time.Time) error {
+	stmt := `UPDATE containers SET last_use_date=? WHERE id=?`
+	_, err := dbExec(db, stmt, date, id)
+	return err
+}
+
 func dbContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {
 	result := []string{}
 
