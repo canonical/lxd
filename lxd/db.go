@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS containers (
     ephemeral INTEGER NOT NULL DEFAULT 0,
     stateful INTEGER NOT NULL DEFAULT 0,
     creation_date DATETIME,
+    last_use_date DATETIME,
     UNIQUE (name)
 );
 CREATE TABLE IF NOT EXISTS containers_config (
