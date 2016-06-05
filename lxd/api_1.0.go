@@ -55,6 +55,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		 *  - New HTTPs authentication mechanisms or protocols
 		 */
 		"api_extensions": []string{
+			"container_last_used_at",
 			"storage_zfs_remove_snapshots",
 			"container_host_shutdown_timeout",
 			"container_syscall_filtering",
