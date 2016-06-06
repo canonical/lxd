@@ -504,7 +504,7 @@ func (c *listCmd) CreatedColumnData(cInfo shared.ContainerInfo, cState *shared.C
 func (c *listCmd) LastUsedColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
 	layout := "2006/01/02 15:04 UTC"
 
-	if cInfo.LastUsedDate.UTC().Unix() != 0 {
+	if !cInfo.LastUsedDate.IsZero() && cInfo.LastUsedDate.UTC().Unix() != 0 {
 		return cInfo.LastUsedDate.UTC().Format(layout)
 	}
 
