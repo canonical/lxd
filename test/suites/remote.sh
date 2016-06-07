@@ -1,16 +1,5 @@
 #!/bin/sh
 
-gen_second_cert() {
-  [ -f "${LXD_CONF}/client2.crt" ] && return
-  mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
-  mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
-  lxc_remote list > /dev/null 2>&1
-  mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client2.crt"
-  mv "${LXD_CONF}/client.key" "${LXD_CONF}/client2.key"
-  mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
-  mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
-}
-
 test_remote_url() {
   for url in "${LXD_ADDR}" "https://${LXD_ADDR}"; do
     lxc_remote remote add test "${url}" --accept-certificate --password foo
@@ -58,7 +47,7 @@ test_remote_admin() {
 
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
-  gen_second_cert
+  gen_cert client2
 
   # Test for #623
   lxc_remote remote add test-623 "${LXD_ADDR}" --accept-certificate --password foo
@@ -80,6 +69,9 @@ test_remote_admin() {
 }
 
 test_remote_usage() {
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
   lxc_remote remote add lxd2 "${LXD2_ADDR}" --accept-certificate --password foo
 
   # we need a public image on localhost
@@ -138,4 +130,22 @@ test_remote_usage() {
   lxc_remote info lxd2:c1
   lxc_remote stop lxd2:c1 --force
   lxc_remote delete lxd2:c1
+
+  # Test that local and public servers can be accessed without a client cert
+	mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
+  mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
+  
+  # testimage should still exist on the local server.  Count the number of
+  # matches so the output isn't polluted with the results.
+  lxc_remote image list local: | grep -c testimage
+
+  # Skip the truly remote servers in offline mode.  There should always be
+  # Ubuntu images in the results for the remote servers.
+  if [ -z "${LXD_OFFLINE:-}" ]; then
+    lxc_remote image list images: | grep -i -c ubuntu
+    lxc_remote image list ubuntu: | grep -i -c ubuntu
+  fi
+
+  mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
+  mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
 }

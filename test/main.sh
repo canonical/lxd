@@ -129,6 +129,22 @@ lxc_remote() {
   eval "${cmd}"
 }
 
+gen_cert() {
+  # Temporarily move the existing cert to trick LXC into generating a
+  # second cert.  LXC will only generate a cert when adding a remote
+  # server with a HTTPS scheme.  The remote server URL just needs to
+  # be syntactically correct to get past initial checks; in fact, we
+  # don't want it to succeed, that way we don't have to delete it later.
+  [ -f "${LXD_CONF}/${1}.crt" ] && return
+  mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
+  mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
+  lxc_remote remote add "$(uuidgen)" https://0.0.0.0 || true
+  mv "${LXD_CONF}/client.crt" "${LXD_CONF}/${1}.crt"
+  mv "${LXD_CONF}/client.key" "${LXD_CONF}/${1}.key"
+  mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
+  mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
+}
+
 my_curl() {
   curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" "$@"
 }
