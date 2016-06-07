@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-06-03 07:27-0700\n"
+        "POT-Creation-Date: 2016-06-05 01:51-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -98,7 +98,7 @@ msgstr  ""
 msgid   "ARCH"
 msgstr  ""
 
-#: lxc/list.go:378
+#: lxc/list.go:379
 msgid   "ARCHITECTURE"
 msgstr  ""
 
@@ -145,7 +145,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: lxc/list.go:379
+#: lxc/list.go:380
 msgid   "CREATED AT"
 msgstr  ""
 
@@ -179,7 +179,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/list.go:99 lxc/list.go:100
+#: lxc/list.go:100 lxc/list.go:101
 msgid   "Columns"
 msgstr  ""
 
@@ -281,7 +281,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:462
+#: lxc/list.go:464
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -330,7 +330,7 @@ msgstr  ""
 msgid   "FINGERPRINT"
 msgstr  ""
 
-#: lxc/list.go:102
+#: lxc/list.go:103
 msgid   "Fast mode (same as --columns=nsacPt"
 msgstr  ""
 
@@ -357,7 +357,7 @@ msgstr  ""
 msgid   "Force using the local unix socket."
 msgstr  ""
 
-#: lxc/image.go:160 lxc/list.go:101
+#: lxc/image.go:160 lxc/list.go:102
 msgid   "Format"
 msgstr  ""
 
@@ -365,11 +365,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:376
+#: lxc/list.go:377
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:377
+#: lxc/list.go:378
 msgid   "IPV6"
 msgstr  ""
 
@@ -421,7 +421,7 @@ msgstr  ""
 msgid   "Invalid configuration key"
 msgstr  ""
 
-#: lxc/file.go:190
+#: lxc/file.go:195
 #, c-format
 msgid   "Invalid source %s"
 msgstr  ""
@@ -437,6 +437,10 @@ msgstr  ""
 
 #: lxc/image.go:158
 msgid   "Keep the image up to date after initial copy"
+msgstr  ""
+
+#: lxc/list.go:381
+msgid   "LAST USED AT"
 msgstr  ""
 
 #: lxc/main.go:27
@@ -487,6 +491,7 @@ msgid   "Lists the available resources.\n"
         "* 6 - IPv6 address\n"
         "* a - architecture\n"
         "* c - creation date\n"
+        "* l - last used date\n"
         "* n - name\n"
         "* p - pid of container init process\n"
         "* P - profiles\n"
@@ -696,7 +701,7 @@ msgid   "Monitor activity on the LXD server.\n"
         "lxc monitor --type=logging"
 msgstr  ""
 
-#: lxc/file.go:178
+#: lxc/file.go:183
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
@@ -714,7 +719,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:380 lxc/remote.go:363
+#: lxc/list.go:382 lxc/remote.go:363
 msgid   "NAME"
 msgstr  ""
 
@@ -760,15 +765,15 @@ msgstr  ""
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:464
+#: lxc/list.go:466
 msgid   "PERSISTENT"
 msgstr  ""
 
-#: lxc/list.go:381
+#: lxc/list.go:383
 msgid   "PID"
 msgstr  ""
 
-#: lxc/list.go:382
+#: lxc/list.go:384
 msgid   "PROFILES"
 msgstr  ""
 
@@ -921,11 +926,11 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:383
+#: lxc/list.go:385
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:384
+#: lxc/list.go:386
 msgid   "STATE"
 msgstr  ""
 
@@ -1021,7 +1026,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:385
+#: lxc/list.go:387
 msgid   "TYPE"
 msgstr  ""
 

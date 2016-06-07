@@ -202,6 +202,12 @@ test_basic_usage() {
     false
   fi
 
+  # Test last_used_at field is working properly
+  lxc init testimage last-used-at-test
+  lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep '1970-01-01T00:00:00Z'
+  lxc start last-used-at-test
+  lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep -v '1970-01-01T00:00:00Z'
+
   # check that we can set the environment
   lxc exec foo pwd | grep /root
   lxc exec --env BEST_BAND=meshuggah foo env | grep meshuggah

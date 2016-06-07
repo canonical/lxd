@@ -62,6 +62,7 @@ type SnapshotInfo struct {
 	Ephemeral       bool              `json:"ephemeral"`
 	ExpandedConfig  map[string]string `json:"expanded_config"`
 	ExpandedDevices Devices           `json:"expanded_devices"`
+	LastUsedDate    time.Time         `json:"last_used_at"`
 	Name            string            `json:"name"`
 	Profiles        []string          `json:"profiles"`
 	Stateful        bool              `json:"stateful"`
@@ -75,6 +76,7 @@ type ContainerInfo struct {
 	Ephemeral       bool              `json:"ephemeral"`
 	ExpandedConfig  map[string]string `json:"expanded_config"`
 	ExpandedDevices Devices           `json:"expanded_devices"`
+	LastUsedDate    time.Time         `json:"last_used_at"`
 	Name            string            `json:"name"`
 	Profiles        []string          `json:"profiles"`
 	Stateful        bool              `json:"stateful"`

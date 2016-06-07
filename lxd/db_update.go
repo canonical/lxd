@@ -17,6 +17,14 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+func dbUpdateFromV32(db *sql.DB) error {
+	stmt := `
+ALTER TABLE containers ADD COLUMN last_use_date DATETIME;
+INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"));`
+	_, err := db.Exec(stmt, 33)
+	return err
+}
+
 func dbUpdateFromV31(db *sql.DB) error {
 	stmt := `
 CREATE TABLE IF NOT EXISTS patches (
@@ -1089,6 +1097,12 @@ func dbUpdate(d *Daemon, prevVersion int) error {
 	}
 	if prevVersion < 32 {
 		err = dbUpdateFromV31(db)
+		if err != nil {
+			return err
+		}
+	}
+	if prevVersion < 33 {
+		err = dbUpdateFromV32(db)
 		if err != nil {
 			return err
 		}
