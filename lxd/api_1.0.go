@@ -59,6 +59,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"container_host_shutdown_timeout",
 			"container_syscall_filtering",
 			"auth_pki",
+			"container_last_used_at",
 		},
 
 		"api_status":  "stable",

@@ -38,3 +38,11 @@ This indicates support for PKI authentication mode.
 In this mode, the client and server both must use certificates issued by the same PKI.
 
 See lxd-ssl-authentication.md for details.
+
+## container\_last\_used\_at
+A last\_used\_at field was added to the /1.0/containers/\<name\> GET endpoint.
+
+It is a timestamp of the last time the container was started.
+
+If a container has been created but not started yet, last\_used\_at field
+will be 1970-01-01T00:00:00Z

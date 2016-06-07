@@ -546,6 +546,7 @@ Output:
                 "type": "disk"
             }
         },
+        "last_used_at": "2016-02-16T01:05:05Z",
         "name": "my-container",
         "profiles": [
             "default"

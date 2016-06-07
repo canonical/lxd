@@ -62,14 +62,16 @@ func dbContainerId(db *sql.DB, name string) (int, error) {
 }
 
 func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
+	var used *time.Time // Hold the db-returned time
+
 	args := containerArgs{}
 	args.Name = name
 
 	ephemInt := -1
 	statefulInt := -1
-	q := "SELECT id, architecture, type, ephemeral, stateful, creation_date FROM containers WHERE name=?"
+	q := "SELECT id, architecture, type, ephemeral, stateful, creation_date, last_use_date FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&args.Id, &args.Architecture, &args.Ctype, &ephemInt, &statefulInt, &args.CreationDate}
+	arg2 := []interface{}{&args.Id, &args.Architecture, &args.Ctype, &ephemInt, &statefulInt, &args.CreationDate, &used}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		return args, err
@@ -85,6 +87,12 @@ func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
 
 	if statefulInt == 1 {
 		args.Stateful = true
+	}
+
+	if used != nil {
+		args.LastUsedDate = *used
+	} else {
+		args.LastUsedDate = time.Unix(0, 0).UTC()
 	}
 
 	config, err := dbContainerConfig(db, args.Id)
@@ -135,15 +143,16 @@ func dbContainerCreate(db *sql.DB, args containerArgs) (int, error) {
 	}
 
 	args.CreationDate = time.Now().UTC()
+	args.LastUsedDate = time.Unix(0, 0).UTC()
 
-	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral, creation_date, stateful) VALUES (?, ?, ?, ?, ?, ?)")
+	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral, creation_date, last_use_date, stateful) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 	defer stmt.Close()
-	result, err := stmt.Exec(args.Name, args.Architecture, args.Ctype, ephemInt, args.CreationDate.Unix(), statefulInt)
+	result, err := stmt.Exec(args.Name, args.Architecture, args.Ctype, ephemInt, args.CreationDate.Unix(), args.LastUsedDate.Unix(), statefulInt)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -369,6 +378,12 @@ func dbContainerUpdate(tx *sql.Tx, id int, architecture int, ephemeral bool) err
 	}
 
 	return nil
+}
+
+func dbContainerLastUsedUpdate(db *sql.DB, id int, date time.Time) error {
+	stmt := `UPDATE containers SET last_use_date=? WHERE id=?`
+	_, err := dbExec(db, stmt, date, id)
+	return err
 }
 
 func dbContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {

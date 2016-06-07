@@ -99,6 +99,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		cType:        args.Ctype,
 		stateful:     args.Stateful,
 		creationDate: args.CreationDate,
+		lastUsedDate: args.LastUsedDate,
 		profiles:     args.Profiles,
 		localConfig:  args.Config,
 		localDevices: args.Devices,
@@ -196,6 +197,7 @@ func containerLXCLoad(d *Daemon, args containerArgs) (container, error) {
 		architecture: args.Architecture,
 		cType:        args.Ctype,
 		creationDate: args.CreationDate,
+		lastUsedDate: args.LastUsedDate,
 		profiles:     args.Profiles,
 		localConfig:  args.Config,
 		localDevices: args.Devices,
@@ -223,6 +225,7 @@ type containerLXC struct {
 	architecture int
 	cType        containerType
 	creationDate time.Time
+	lastUsedDate time.Time
 	ephemeral    bool
 	id           int
 	name         string
@@ -1131,6 +1134,12 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", err
 	}
 
+	// Update time container was last started
+	err = dbContainerLastUsedUpdate(c.daemon.db, c.id, time.Now().UTC())
+	if err != nil {
+		fmt.Printf("Error updating last used: %v", err)
+	}
+
 	return configPath, nil
 }
 
@@ -1622,6 +1631,7 @@ func (c *containerLXC) Render() (interface{}, error) {
 			Ephemeral:       c.ephemeral,
 			ExpandedConfig:  c.expandedConfig,
 			ExpandedDevices: c.expandedDevices,
+			LastUsedDate:    c.lastUsedDate,
 			Name:            c.name,
 			Profiles:        c.profiles,
 			Stateful:        c.stateful,
@@ -1642,6 +1652,7 @@ func (c *containerLXC) Render() (interface{}, error) {
 			Ephemeral:       c.ephemeral,
 			ExpandedConfig:  c.expandedConfig,
 			ExpandedDevices: c.expandedDevices,
+			LastUsedDate:    c.lastUsedDate,
 			Name:            c.name,
 			Profiles:        c.profiles,
 			Status:          statusCode.String(),
@@ -4452,6 +4463,9 @@ func (c *containerLXC) Architecture() int {
 
 func (c *containerLXC) CreationDate() time.Time {
 	return c.creationDate
+}
+func (c *containerLXC) LastUsedDate() time.Time {
+	return c.lastUsedDate
 }
 func (c *containerLXC) ExpandedConfig() map[string]string {
 	return c.expandedConfig
