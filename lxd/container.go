@@ -681,6 +681,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 	args.CreationDate = dbArgs.CreationDate
+	args.LastUsedDate = time.Unix(0, 0).UTC()
 
 	return containerLXCCreate(d, args)
 }
