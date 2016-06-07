@@ -56,6 +56,21 @@ func (c *remoteCmd) flags() {
 	gnuflag.BoolVar(&c.public, "public", false, i18n.G("Public image server"))
 }
 
+func generateClientCertificate(config *lxd.Config) error {
+	// Generate a client certificate if necessary.  The default repositories are
+	// either local or public, neither of which requires a client certificate.
+	// Generation of the cert is delayed to avoid unnecessary overhead, e.g in
+	// testing scenarios where only the default repositories are used.
+	certf := config.ConfigPath("client.crt")
+	keyf := config.ConfigPath("client.key")
+	if !shared.PathExists(certf) || !shared.PathExists(keyf) {
+		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
+
+		return shared.FindOrGenCert(certf, keyf)
+	}
+	return nil
+}
+
 func getRemoteCertificate(address string) (*x509.Certificate, error) {
 	// Setup a permissive TLS config
 	tlsConfig, err := shared.GetTLSConfig("", "", "", nil)
@@ -162,7 +177,15 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 		addr = rScheme + "://" + rHost
 	}
 
-	/* Actually add the remote */
+	// Finally, actually add the remote, almost...  If the remote is a private
+	// HTTPS server then we need to ensure we have a client certificate before
+	// adding the remote server.
+	if rScheme != "unix" && !public {
+		err = generateClientCertificate(config)
+		if err != nil {
+			return err
+		}
+	}
 	config.Remotes[server] = lxd.RemoteConfig{Addr: addr, Protocol: protocol}
 
 	remote := config.ParseRemote(server)

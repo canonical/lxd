@@ -117,21 +117,20 @@ func run() error {
 		return err
 	}
 
-	certf := config.ConfigPath("client.crt")
-	keyf := config.ConfigPath("client.key")
+	// If the user is running a command that may attempt to connect to the local daemon
+	// and this is the first time the client has been run by the user, then check to see
+	// if LXD has been properly configured.  Don't display the message if the var path
+	// does not exist (LXD not installed), as the user may be targeting a remote daemon.
+	if os.Args[0] != "help" && os.Args[0] != "version" && shared.PathExists(shared.VarPath("")) && !shared.PathExists(config.ConfigDir) {
 
-	if !*forceLocal && os.Args[0] != "help" && os.Args[0] != "version" && (!shared.PathExists(certf) || !shared.PathExists(keyf)) {
-		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
-
-		err = shared.FindOrGenCert(certf, keyf)
+		// Create the config dir so that we don't get in here again for this user.
+		err = os.MkdirAll(config.ConfigDir, 0750)
 		if err != nil {
 			return err
 		}
 
-		if shared.PathExists("/var/lib/lxd/") {
-			fmt.Fprintf(os.Stderr, i18n.G("If this is your first time using LXD, you should also run: sudo lxd init")+"\n")
-			fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:16.04")+"\n\n")
-		}
+		fmt.Fprintf(os.Stderr, i18n.G("If this is your first time using LXD, you should also run: sudo lxd init")+"\n")
+		fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:16.04")+"\n\n")
 	}
 
 	err = cmd.run(config, gnuflag.Args())
