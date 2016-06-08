@@ -23,7 +23,7 @@ func TestLocalLXDError(t *testing.T) {
 		Name:   "test",
 		Config: DefaultConfig,
 		Remote: &RemoteConfig{
-			Addr:   fmt.Sprintf("unix:/%s", f.Name()),
+			Addr:   fmt.Sprintf("unix:%s", f.Name()),
 			Static: true,
 			Public: false,
 		},

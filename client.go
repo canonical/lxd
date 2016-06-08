@@ -242,11 +242,7 @@ func connectViaUnix(c *Client, remote *RemoteConfig) error {
 		//   unix:///path/to/socket
 		//   unix:/path/to/socket
 		//   unix:path/to/socket
-		path := strings.TrimPrefix(remote.Addr, "unix:")
-		if strings.HasPrefix(path, "///") {
-			// translate unix:///path/to, to just "/path/to"
-			path = path[2:]
-		}
+		path := strings.TrimPrefix(strings.TrimPrefix(remote.Addr, "unix:"), "//")
 		raddr, err := net.ResolveUnixAddr("unix", path)
 		if err != nil {
 			return nil, err
