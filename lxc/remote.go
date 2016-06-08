@@ -126,7 +126,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 	} else if addr[0] == '/' {
 		rScheme = "unix"
 	} else {
-		if !shared.PathExists(addr) {
+		if !shared.IsUnixSocket(addr) {
 			rScheme = "https"
 		} else {
 			rScheme = "unix"
@@ -148,17 +148,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 	}
 
 	if rScheme == "unix" {
-		if addr[0:5] == "unix:" {
-			if addr[0:7] == "unix://" {
-				if len(addr) > 8 {
-					rHost = addr[8:]
-				} else {
-					rHost = ""
-				}
-			} else {
-				rHost = addr[6:]
-			}
-		}
+		rHost = strings.TrimPrefix(strings.TrimPrefix(addr, "unix:"), "//")
 		rPort = ""
 	}
 
@@ -181,7 +171,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 		return err
 	}
 
-	if len(addr) > 5 && addr[0:5] == "unix:" {
+	if strings.HasPrefix(addr, "unix:") {
 		// NewClient succeeded so there was a lxd there (we fingered
 		// it) so just accept it
 		return nil

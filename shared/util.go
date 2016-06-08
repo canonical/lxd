@@ -70,6 +70,16 @@ func IsDir(name string) bool {
 	return stat.IsDir()
 }
 
+// IsUnixSocket returns true if the given path is either a Unix socket
+// or a symbolic link pointing at a Unix socket.
+func IsUnixSocket(path string) bool {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return (stat.Mode() & os.ModeSocket) == os.ModeSocket
+}
+
 // VarPath returns the provided path elements joined by a slash and
 // appended to the end of $LXD_DIR, which defaults to /var/lib/lxd.
 func VarPath(path ...string) string {
