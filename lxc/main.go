@@ -190,26 +190,19 @@ func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
 	aliasValue := []string{}
 
 	for k, v := range config.Aliases {
-		matches := false
-		for i, key := range strings.Split(k, " ") {
-			if len(origArgs) <= i+1 {
-				break
-			}
-
-			if origArgs[i+1] == key {
-				matches = true
-				aliasKey = strings.Split(k, " ")
-				aliasValue = strings.Split(v, " ")
-				break
-			}
-		}
-
-		if !matches {
-			continue
-		}
-
 		foundAlias = true
-		break
+		for i, key := range strings.Split(k, " ") {
+			if len(origArgs) <= i+1 || origArgs[i+1] != key {
+				foundAlias = false
+				break
+			}
+		}
+
+		if foundAlias {
+			aliasKey = strings.Split(k, " ")
+			aliasValue = strings.Split(v, " ")
+			break
+		}
 	}
 
 	if !foundAlias {
