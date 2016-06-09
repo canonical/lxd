@@ -239,7 +239,7 @@ gid         | int       | 0                 | no        | GID of the device owne
 mode        | int       | 0660              | no        | Mode of the device in the container
 
 ### Type: unix-block
-Unix block device entries simply make the requested character device
+Unix block device entries simply make the requested block device
 appear in the container's /dev and allow read/write operations to it.
 
 The following properties exist:
