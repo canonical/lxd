@@ -63,3 +63,5 @@ func patchesApplyAll(d *Daemon) error {
 
 	return nil
 }
+
+// Patches begin here
