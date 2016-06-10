@@ -1,16 +1,5 @@
 #!/bin/sh
 
-gen_third_cert() {
-  [ -f "${LXD_CONF}/client3.crt" ] && return
-  mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
-  mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
-  lxc_remote list > /dev/null 2>&1
-  mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client3.crt"
-  mv "${LXD_CONF}/client.key" "${LXD_CONF}/client3.key"
-  mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
-  mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
-}
-
 test_basic_usage() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
@@ -82,7 +71,7 @@ test_basic_usage() {
   lxc delete foo
 
   # gen untrusted cert
-  gen_third_cert
+  gen_cert client3
 
   # don't allow requests without a cert to get trusted data
   curl -k -s -X GET "https://${LXD_ADDR}/1.0/containers/foo" | grep 403
