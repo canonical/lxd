@@ -34,8 +34,6 @@ type Profile struct {
 // Profiles will contain a list of all Profiles.
 type Profiles []Profile
 
-const DB_CURRENT_VERSION int = 32
-
 // CURRENT_SCHEMA contains the current SQLite SQL Schema.
 const CURRENT_SCHEMA string = `
 CREATE TABLE IF NOT EXISTS certificates (
@@ -193,7 +191,7 @@ func createDb(db *sql.DB) (err error) {
 
 	// There isn't an entry for schema version, let's put it in.
 	insertStmt := `INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
-	_, err = db.Exec(insertStmt, DB_CURRENT_VERSION)
+	_, err = db.Exec(insertStmt, dbGetLatestSchema())
 	if err != nil {
 		return err
 	}
@@ -215,6 +213,10 @@ func dbGetSchema(db *sql.DB) (v int) {
 		return 0
 	}
 	return v
+}
+
+func dbGetLatestSchema() int {
+	return dbUpdates[len(dbUpdates)-1].version
 }
 
 // Create a database connection object and return it.
@@ -242,13 +244,10 @@ func initializeDbObject(d *Daemon, path string) (err error) {
 	// Run PRAGMA statements now since they are *per-connection*.
 	d.db.Exec("PRAGMA foreign_keys=ON;") // This allows us to use ON DELETE CASCADE
 
-	v := dbGetSchema(d.db)
-
-	if v != DB_CURRENT_VERSION {
-		err = dbUpdate(d, v)
-		if err != nil {
-			return err
-		}
+	// Apply any update
+	err = dbUpdatesApplyAll(d)
+	if err != nil {
+		return err
 	}
 
 	return nil
