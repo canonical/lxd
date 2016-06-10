@@ -267,6 +267,12 @@ kill_lxd() {
 cleanup() {
   set +e
 
+  if [ "${TEST_RESULT}" != "success" ]; then
+    echo "failed test: ${TEST_CURRENT}, sleeping..."
+
+    sleep 1h
+  fi
+
   # Allow for inspection
   if [ -n "${LXD_INSPECT:-}" ]; then
     echo "==> Test result: ${TEST_RESULT}"
