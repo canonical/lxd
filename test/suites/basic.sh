@@ -13,7 +13,7 @@ test_basic_usage() {
     name=${sum}.tar.xz
   fi
   [ "${sum}" = "$(sha256sum "${LXD_DIR}/${name}" | cut -d' ' -f1)" ]
-
+  
   # Test an alias with slashes
   lxc image show "${sum}"
   lxc image alias create a/b/ "${sum}"
@@ -52,6 +52,34 @@ test_basic_usage() {
   lxc image export testimage "${LXD_DIR}/"
   [ "${sum}" = "$(sha256sum "${LXD_DIR}/testimage.tar.xz" | cut -d' ' -f1)" ]
   rm "${LXD_DIR}/testimage.tar.xz"
+
+
+  # Test image export with a split image.
+  deps/import-busybox --split --alias splitimage
+
+  sum=$(lxc image info splitimage | grep ^Fingerprint | cut -d' ' -f2)
+
+  lxc image export splitimage "${LXD_DIR}"
+  [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar.xz" "${LXD_DIR}/${sum}.tar.xz" | sha256sum | cut -d' ' -f1)" ]
+  
+  # Delete the split image and exported files
+  rm "${LXD_DIR}/${sum}.tar.xz"
+  rm "${LXD_DIR}/meta-${sum}.tar.xz"
+  lxc image delete splitimage
+
+  # Redo the split image export test, this time with the --filename flag
+  # to tell import-busybox to set the 'busybox' filename in the upload.
+  # The sum should remain the same as its the same image.
+  deps/import-busybox --split --filename --alias splitimage
+
+  lxc image export splitimage "${LXD_DIR}"
+  [ "${sum}" = "$(cat "${LXD_DIR}/meta-busybox.tar.xz" "${LXD_DIR}/busybox.tar.xz" | sha256sum | cut -d' ' -f1)" ]
+  
+  # Delete the split image and exported files
+  rm "${LXD_DIR}/busybox.tar.xz"
+  rm "${LXD_DIR}/meta-busybox.tar.xz"
+  lxc image delete splitimage
+
 
   # Test container creation
   lxc init testimage foo
