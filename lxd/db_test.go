@@ -262,7 +262,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	}
 
 	// Run the upgrade from V6 code
-	err = dbUpdateFromV6(d.db)
+	err = dbUpdateFromV6(5, 6, d)
 
 	// Make sure the inserted data is still there.
 	statements = `SELECT count(*) FROM containers_config;`
@@ -376,15 +376,15 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	d.db = db
 	daemonConfigInit(db)
 
-	err = dbUpdate(d, 1)
+	err = dbUpdatesApplyAll(d)
 	if err != nil {
 		t.Error("Error upgrading database schema!")
 		t.Fatal(err)
 	}
 
 	result := dbGetSchema(db)
-	if result != DB_CURRENT_VERSION {
-		t.Fatal(fmt.Sprintf("The schema is not at the latest version after update! Found: %d, should be: %d", result, DB_CURRENT_VERSION))
+	if result != dbGetLatestSchema() {
+		t.Fatal(fmt.Sprintf("The schema is not at the latest version after update! Found: %d, should be: %d", result, dbGetLatestSchema()))
 	}
 
 	// Make sure there are 0 containers_config entries left.
