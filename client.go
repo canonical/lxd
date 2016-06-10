@@ -798,7 +798,7 @@ func (c *Client) ExportImage(image string, target string) (string, error) {
 			return "", fmt.Errorf("Invalid multipart image")
 		}
 
-		rootfsTarf, err := os.OpenFile(filepath.Join(part.FileName()), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		rootfsTarf, err := os.OpenFile(filepath.Join(target, part.FileName()), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
 			return "", err
 		}
