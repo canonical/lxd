@@ -489,17 +489,33 @@ func (c *Client) websocket(operation string, secret string) (*websocket.Conn, er
 }
 
 func (c *Client) url(elem ...string) string {
+	// Normalize the URL
 	path := strings.Join(elem, "/")
+	entries := []string{}
+	fields := strings.Split(path, "/")
+	for i, entry := range fields {
+		if entry == "" && i+1 < len(fields) {
+			continue
+		}
+
+		entries = append(entries, entry)
+	}
+	path = strings.Join(entries, "/")
+
+	// Assemble the final URL
 	uri := c.BaseURL + "/" + path
 
+	// Aliases may contain a trailing slash
 	if strings.HasPrefix(path, "1.0/images/aliases") {
 		return uri
 	}
 
+	// File paths may contain a trailing slash
 	if strings.Contains(path, "?") {
 		return uri
 	}
 
+	// Nothing else should contain a trailing slash
 	return strings.TrimSuffix(uri, "/")
 }
 
