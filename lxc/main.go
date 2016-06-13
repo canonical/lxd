@@ -181,14 +181,39 @@ var commands = map[string]command{
 	"version":  &versionCmd{},
 }
 
+// defaultAliases contains LXC's built-in command line aliases.  The built-in
+// aliases are checked only if no user-defined alias was found.
+var defaultAliases = map[string]string{
+	"shell": "exec @ARGS@ -- login -f root",
+
+	"cp": "copy",
+	"ls": "list",
+	"mv": "move",
+	"rm": "delete",
+
+	"image cp": "image copy",
+	"image ls": "image list",
+	"image rm": "image delete",
+
+	"image alias ls": "image alias list",
+	"image alias rm": "image alias delete",
+
+	"remote ls": "remote list",
+	"remote mv": "remote rename",
+	"remote rm": "remote remove",
+
+	"config device ls": "config device list",
+	"config device rm": "config device remove",
+}
+
 var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
 
-func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
+func findAlias(aliases map[string]string, origArgs []string) ([]string, []string, bool) {
 	foundAlias := false
 	aliasKey := []string{}
 	aliasValue := []string{}
 
-	for k, v := range config.Aliases {
+	for k, v := range aliases {
 		foundAlias = true
 		for i, key := range strings.Split(k, " ") {
 			if len(origArgs) <= i+1 || origArgs[i+1] != key {
@@ -204,8 +229,16 @@ func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
 		}
 	}
 
+	return aliasKey, aliasValue, foundAlias
+}
+
+func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
+	aliasKey, aliasValue, foundAlias := findAlias(config.Aliases, origArgs)
 	if !foundAlias {
-		return []string{}, false
+		aliasKey, aliasValue, foundAlias = findAlias(defaultAliases, origArgs)
+		if !foundAlias {
+			return []string{}, false
+		}
 	}
 
 	newArgs := []string{origArgs[0]}

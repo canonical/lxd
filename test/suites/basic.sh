@@ -155,9 +155,33 @@ test_basic_usage() {
   lxc delete bar2
   lxc image delete foo
 
-  # test basic alias support
-  printf "aliases:\n  ls: list" >> "${LXD_CONF}/config.yml"
-  lxc ls
+  # Test alias support
+  cp "${LXD_CONF}/config.yml" "${LXD_CONF}/config.yml.bak"
+
+  #   1. Basic built-in alias functionality
+  [ "$(lxc ls)" = "$(lxc list)" ]
+  #   2. Basic user-defined alias functionality
+  printf "aliases:\n  l: list\n" >> "${LXD_CONF}/config.yml"
+  [ "$(lxc l)" = "$(lxc list)" ]
+  #   3. Built-in aliases and user-defined aliases can coexist
+  [ "$(lxc ls)" = "$(lxc l)" ]
+  #   4. Multi-argument alias keys and values
+  printf "  i ls: image list\n" >> "${LXD_CONF}/config.yml"
+  [ "$(lxc i ls)" = "$(lxc image list)" ]
+  #   5. Aliases where len(keys) != len(values) (expansion/contraction of number of arguments)
+  printf "  ils: image list\n  container ls: list\n" >> "${LXD_CONF}/config.yml"
+  [ "$(lxc ils)" = "$(lxc image list)" ]
+  [ "$(lxc container ls)" = "$(lxc list)" ]
+  #   6. User-defined aliases override built-in aliases
+  printf "  cp: list\n" >> "${LXD_CONF}/config.yml"
+  [ "$(lxc ls)" = "$(lxc cp)" ]
+  #   7. User-defined aliases override commands and don't recurse
+  LXC_LIST_DEBUG=$(lxc list --debug 2>&1 | grep -o "Raw.*")
+  printf "  list: list --debug\n" >> "${LXD_CONF}/config.yml"
+  [ "$(lxc list  2>&1 | grep -o 'Raw.*')" = "$LXC_LIST_DEBUG" ]
+
+  # Restore the config to remove the aliases
+  mv "${LXD_CONF}/config.yml.bak" "${LXD_CONF}/config.yml"
 
   # Delete the bar container we've used for several tests
   lxc delete bar
