@@ -11,8 +11,6 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // Helper functions
@@ -378,8 +376,7 @@ type container interface {
 
 	// Snapshots & migration
 	Restore(sourceContainer container) error
-	Migrate(cmd uint, stateDir string, stop bool) error
-	StartFromMigration(imagesDir string) error
+	Migrate(cmd uint, stateDir string, function string, stop bool) error
 	Snapshots() ([]container, error)
 
 	// Config handling
@@ -565,12 +562,7 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 		 * after snapshotting will fail.
 		 */
 
-		err = sourceContainer.Migrate(lxc.MIGRATE_DUMP, stateDir, false)
-		err2 := CollectCRIULogFile(sourceContainer, stateDir, "snapshot", "dump")
-		if err2 != nil {
-			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
-		}
-
+		err = sourceContainer.Migrate(lxc.MIGRATE_DUMP, stateDir, "snapshot", false)
 		if err != nil {
 			os.RemoveAll(sourceContainer.StatePath())
 			return nil, err

@@ -6,18 +6,13 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
-	"path"
-	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
@@ -69,15 +64,6 @@ func (c *migrationFields) send(m proto.Message) error {
 	}
 
 	return shared.WriteAll(w, data)
-}
-
-func findCriu(host string) error {
-	_, err := exec.LookPath("criu")
-	if err != nil {
-		return fmt.Errorf("CRIU is required for live migration but its binary couldn't be found on the %s server. Is it installed in LXD's path?", host)
-	}
-
-	return nil
 }
 
 func (c *migrationFields) recv(m proto.Message) error {
@@ -156,32 +142,6 @@ func (c *migrationFields) controlChannel() <-chan MigrationControl {
 	}()
 
 	return ch
-}
-
-func CollectCRIULogFile(c container, imagesDir string, function string, method string) error {
-	t := time.Now().Format(time.RFC3339)
-	newPath := shared.LogPath(c.Name(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
-	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
-}
-
-func GetCRIULogErrors(imagesDir string, method string) (string, error) {
-	f, err := os.Open(path.Join(imagesDir, fmt.Sprintf("%s.log", method)))
-	if err != nil {
-		return "", err
-	}
-
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	ret := []string{}
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, "Error") {
-			ret = append(ret, scanner.Text())
-		}
-	}
-
-	return strings.Join(ret, "\n"), nil
 }
 
 type migrationSourceWs struct {
@@ -368,24 +328,8 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		}
 		defer os.RemoveAll(checkpointDir)
 
-		err = s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, true)
-
-		if err2 := CollectCRIULogFile(s.container, checkpointDir, "migration", "dump"); err2 != nil {
-			shared.Debugf("Error collecting checkpoint log file %s", err)
-		}
-
+		err = s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true)
 		if err != nil {
-			driver.Cleanup()
-			log, err2 := GetCRIULogErrors(checkpointDir, "dump")
-
-			/* couldn't find the CRIU log file which means we
-			 * didn't even get that far; give back the liblxc
-			 * error. */
-			if err2 != nil {
-				log = err.Error()
-			}
-
-			err = fmt.Errorf("checkpoint failed:\n%s", log)
 			s.sendControl(err)
 			return err
 		}
@@ -601,35 +545,11 @@ func (c *migrationSink) do() error {
 				return
 			}
 
-			defer func() {
-				err := CollectCRIULogFile(c.container, imagesDir, "migration", "restore")
-				/*
-				 * If the checkpoint fails, we won't have any log to collect,
-				 * so don't warn about that.
-				 */
-				if err != nil && !os.IsNotExist(err) {
-					shared.Debugf("Error collectiong migration log file %s", err)
-				}
-
-				os.RemoveAll(imagesDir)
-			}()
+			defer os.RemoveAll(imagesDir)
 
 			if err := RsyncRecv(shared.AddSlash(imagesDir), c.criuConn); err != nil {
 				restore <- err
 				return
-			}
-
-			/*
-			 * For unprivileged containers we need to shift the
-			 * perms on the images images so that they can be
-			 * opened by the process after it is in its user
-			 * namespace.
-			 */
-			if !c.container.IsPrivileged() {
-				if err := c.container.IdmapSet().ShiftRootfs(imagesDir); err != nil {
-					restore <- err
-					return
-				}
 			}
 		}
 
@@ -640,15 +560,8 @@ func (c *migrationSink) do() error {
 		}
 
 		if c.live {
-			err := c.container.StartFromMigration(imagesDir)
+			err = c.container.Migrate(lxc.MIGRATE_RESTORE, imagesDir, "migration", false)
 			if err != nil {
-				log, err2 := GetCRIULogErrors(imagesDir, "restore")
-				/* restore failed before CRIU was invoked, give
-				 * back the liblxc error */
-				if err2 != nil {
-					log = err.Error()
-				}
-				err = fmt.Errorf("restore failed:\n%s", log)
 				restore <- err
 				return
 			}
