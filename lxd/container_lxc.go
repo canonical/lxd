@@ -2838,7 +2838,8 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 			c.name,
 			c.daemon.lxcpath,
 			configPath,
-			stateDir).CombinedOutput()
+			stateDir,
+			fmt.Sprintf("%v", preservesInodes)).CombinedOutput()
 
 		if string(out) != "" {
 			for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
