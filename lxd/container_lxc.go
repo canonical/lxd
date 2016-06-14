@@ -2686,6 +2686,14 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		shared.Log.Warn("unknown migrate call", log.Ctx{"cmd": cmd})
 	}
 
+	preservesInodes := c.storage.PreservesInodes()
+	/* This feature was only added in 2.0.1, let's not ask for it
+	 * before then or migrations will fail.
+	 */
+	if !lxc.VersionAtLeast(2, 0, 1) {
+		preservesInodes = false
+	}
+
 	var migrateErr error
 
 	/* For restore, we need an extra fork so that we daemonize monitor
@@ -2720,7 +2728,8 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 			c.name,
 			c.daemon.lxcpath,
 			configPath,
-			stateDir).CombinedOutput()
+			stateDir,
+			fmt.Sprintf("%v", preservesInodes)).CombinedOutput()
 
 		if string(out) != "" {
 			for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
@@ -2743,14 +2752,6 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		err := c.initLXC()
 		if err != nil {
 			return err
-		}
-
-		preservesInodes := c.storage.PreservesInodes()
-		/* This feature was only added in 2.0.1, let's not ask for it
-		 * before then or migrations will fail.
-		 */
-		if !lxc.VersionAtLeast(2, 0, 1) {
-			preservesInodes = false
 		}
 
 		opts := lxc.MigrateOptions{
