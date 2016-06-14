@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -606,7 +607,7 @@ func (c *migrationSink) do() error {
 /*
  * Similar to forkstart, this is called when lxd is invoked as:
  *
- *    lxd forkmigrate <container> <lxcpath> <path_to_config> <path_to_criu_images>
+ *    lxd forkmigrate <container> <lxcpath> <path_to_config> <path_to_criu_images> <preserves_inodes>
  *
  * liblxc's restore() sets up the processes in such a way that the monitor ends
  * up being a child of the process that calls it, in our case lxd. However, we
@@ -615,7 +616,7 @@ func (c *migrationSink) do() error {
  * footprint when we fork tasks that will never free golang's memory, etc.)
  */
 func MigrateContainer(args []string) error {
-	if len(args) != 5 {
+	if len(args) != 6 {
 		return fmt.Errorf("Bad arguments %q", args)
 	}
 
@@ -623,6 +624,7 @@ func MigrateContainer(args []string) error {
 	lxcpath := args[2]
 	configPath := args[3]
 	imagesDir := args[4]
+	preservesInodes, err := strconv.ParseBool(args[5])
 
 	c, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
@@ -638,8 +640,9 @@ func MigrateContainer(args []string) error {
 	os.Stdout.Close()
 	os.Stderr.Close()
 
-	return c.Restore(lxc.RestoreOptions{
-		Directory: imagesDir,
-		Verbose:   true,
+	return c.Migrate(lxc.MIGRATE_RESTORE, lxc.MigrateOptions{
+		Directory:       imagesDir,
+		Verbose:         true,
+		PreservesInodes: preservesInodes,
 	})
 }
