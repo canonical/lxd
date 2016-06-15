@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1157,30 +1158,7 @@ func (c *containerLXC) Start(stateful bool) error {
 			return fmt.Errorf("Container has no existing state to restore.")
 		}
 
-		if err := findCriu("snapshot"); err != nil {
-			return err
-		}
-
-		if !c.IsPrivileged() {
-			if err := c.IdmapSet().ShiftRootfs(c.StatePath()); err != nil {
-				return err
-			}
-		}
-
-		out, err := exec.Command(
-			execPath,
-			"forkmigrate",
-			c.name,
-			c.daemon.lxcpath,
-			configPath,
-			c.StatePath()).CombinedOutput()
-		if string(out) != "" {
-			for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-				shared.Debugf("forkmigrate: %s", line)
-			}
-		}
-		CollectCRIULogFile(c, c.StatePath(), "snapshot", "restore")
-
+		err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false)
 		if err != nil && !c.IsRunning() {
 			return err
 		}
@@ -1222,41 +1200,6 @@ func (c *containerLXC) Start(stateful bool) error {
 			c.name,
 			c.daemon.lxcpath,
 			filepath.Join(c.LogPath(), "lxc.conf"),
-			err)
-	}
-
-	return nil
-}
-
-func (c *containerLXC) StartFromMigration(imagesDir string) error {
-	// Run the shared start code
-	configPath, err := c.startCommon()
-	if err != nil {
-		return err
-	}
-
-	// Start the LXC container
-	out, err := exec.Command(
-		execPath,
-		"forkmigrate",
-		c.name,
-		c.daemon.lxcpath,
-		configPath,
-		imagesDir).CombinedOutput()
-
-	if string(out) != "" {
-		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-			shared.Debugf("forkmigrate: %s", line)
-		}
-	}
-
-	if err != nil && !c.IsRunning() {
-		return fmt.Errorf(
-			"Error calling 'lxd forkmigrate %s %s %s %s': err='%v'",
-			c.name,
-			c.daemon.lxcpath,
-			filepath.Join(c.LogPath(), "lxc.conf"),
-			imagesDir,
 			err)
 	}
 
@@ -1371,10 +1314,6 @@ func (c *containerLXC) setupStopping() *sync.WaitGroup {
 func (c *containerLXC) Stop(stateful bool) error {
 	// Handle stateful stop
 	if stateful {
-		if err := findCriu("snapshot"); err != nil {
-			return err
-		}
-
 		// Cleanup any existing state
 		stateDir := c.StatePath()
 		os.RemoveAll(stateDir)
@@ -1385,13 +1324,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		}
 
 		// Checkpoint
-		opts := lxc.CheckpointOptions{Directory: stateDir, Stop: true, Verbose: true}
-		err = c.Checkpoint(opts)
-		err2 := CollectCRIULogFile(c, stateDir, "snapshot", "dump")
-		if err2 != nil {
-			shared.Log.Warn("failed to collect criu log file", log.Ctx{"error": err2})
-		}
-
+		err = c.Migrate(lxc.MIGRATE_DUMP, stateDir, "snapshot", true)
 		if err != nil {
 			return err
 		}
@@ -1762,32 +1695,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	// If the container wasn't running but was stateful, should we restore
 	// it as running?
 	if shared.PathExists(c.StatePath()) {
-		configPath, err := c.startCommon()
-		if err != nil {
-			return err
-		}
-
-		if !c.IsPrivileged() {
-			if err := c.IdmapSet().ShiftRootfs(c.StatePath()); err != nil {
-				return err
-			}
-		}
-
-		out, err := exec.Command(
-			execPath,
-			"forkmigrate",
-			c.name,
-			c.daemon.lxcpath,
-			configPath,
-			c.StatePath()).CombinedOutput()
-		if string(out) != "" {
-			for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-				shared.Debugf("forkmigrate: %s", line)
-			}
-		}
-		CollectCRIULogFile(c, c.StatePath(), "snapshot", "restore")
-
-		if err != nil {
+		if err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false); err != nil {
 			return err
 		}
 
@@ -2712,14 +2620,140 @@ func (c *containerLXC) Export(w io.Writer) error {
 	return tw.Close()
 }
 
-func (c *containerLXC) Checkpoint(opts lxc.CheckpointOptions) error {
-	// Load the go-lxc struct
-	err := c.initLXC()
+func collectCRIULogFile(c container, imagesDir string, function string, method string) error {
+	t := time.Now().Format(time.RFC3339)
+	newPath := shared.LogPath(c.Name(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
+	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
+}
+
+func getCRIULogErrors(imagesDir string, method string) (string, error) {
+	f, err := os.Open(path.Join(imagesDir, fmt.Sprintf("%s.log", method)))
 	if err != nil {
+		return "", err
+	}
+
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	ret := []string{}
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "Error") {
+			ret = append(ret, scanner.Text())
+		}
+	}
+
+	return strings.Join(ret, "\n"), nil
+}
+
+func findCriu(host string) error {
+	_, err := exec.LookPath("criu")
+	if err != nil {
+		return fmt.Errorf("CRIU is required for live migration but its binary couldn't be found on the %s server. Is it installed in LXD's path?", host)
+	}
+
+	return nil
+}
+
+func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop bool) error {
+	if err := findCriu(function); err != nil {
 		return err
 	}
 
-	return c.c.Checkpoint(opts)
+	prettyCmd := ""
+	switch cmd {
+	case lxc.MIGRATE_PRE_DUMP:
+		prettyCmd = "pre-dump"
+	case lxc.MIGRATE_DUMP:
+		prettyCmd = "dump"
+	case lxc.MIGRATE_RESTORE:
+		prettyCmd = "restore"
+	default:
+		prettyCmd = "unknown"
+		shared.Log.Warn("unknown migrate call", log.Ctx{"cmd": cmd})
+	}
+
+	var migrateErr error
+
+	/* For restore, we need an extra fork so that we daemonize monitor
+	 * instead of having it be a child of LXD, so let's hijack the command
+	 * here and do the extra fork.
+	 */
+	if cmd == lxc.MIGRATE_RESTORE {
+		// Run the shared start
+		_, err := c.startCommon()
+		if err != nil {
+			return err
+		}
+
+		/*
+		 * For unprivileged containers we need to shift the
+		 * perms on the images images so that they can be
+		 * opened by the process after it is in its user
+		 * namespace.
+		 */
+		if !c.IsPrivileged() {
+			if err := c.IdmapSet().ShiftRootfs(stateDir); err != nil {
+				return err
+			}
+		}
+
+		configPath := filepath.Join(c.LogPath(), "lxc.conf")
+
+		var out []byte
+		out, migrateErr = exec.Command(
+			execPath,
+			"forkmigrate",
+			c.name,
+			c.daemon.lxcpath,
+			configPath,
+			stateDir).CombinedOutput()
+
+		if string(out) != "" {
+			for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+				shared.Debugf("forkmigrate: %s", line)
+			}
+		}
+
+		if migrateErr != nil && !c.IsRunning() {
+			migrateErr = fmt.Errorf(
+				"Error calling 'lxd forkmigrate %s %s %s %s': err='%v' out='%v'",
+				c.name,
+				c.daemon.lxcpath,
+				filepath.Join(c.LogPath(), "lxc.conf"),
+				stateDir,
+				err,
+				string(out))
+		}
+
+	} else {
+		err := c.initLXC()
+		if err != nil {
+			return err
+		}
+
+		opts := lxc.MigrateOptions{
+			Stop:      stop,
+			Directory: stateDir,
+			Verbose:   true,
+		}
+
+		migrateErr = c.c.Migrate(cmd, opts)
+	}
+
+	collectErr := collectCRIULogFile(c, stateDir, function, prettyCmd)
+	if collectErr != nil {
+		shared.Log.Error("Error collecting checkpoint log file", log.Ctx{"err": collectErr})
+	}
+
+	if migrateErr != nil {
+		log, err2 := getCRIULogErrors(stateDir, prettyCmd)
+		if err2 == nil {
+			migrateErr = fmt.Errorf("%s %s failed\n%s", function, prettyCmd, log)
+		}
+	}
+
+	return migrateErr
 }
 
 func (c *containerLXC) TemplateApply(trigger string) error {
