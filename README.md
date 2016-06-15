@@ -311,10 +311,15 @@ lxc-devel, and we can escalate to CRIU lists as necessary.
 
 Yes. The easiest way to do that is using a privileged container:
 
+1.a) create a container.
+
     lxc launch ubuntu privilegedContainerName -c security.privileged=true
-    "or, if your container already exists"
+    
+1.b) or, if your container already exists.
+
         lxc config set privilegedContainerName security.privileged true
-    "then"
+2) then.
+
     lxc config device add privilegedContainerName shareName disk source=/home/$USER path=/home/ubuntu
 
 #### How can I run docker inside a LXD container?
