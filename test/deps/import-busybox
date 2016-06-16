@@ -83,7 +83,7 @@ class LXD(object):
 
         status, data = self.rest_call("/1.0/images/aliases", data, "POST")
 
-        if status != 200:
+        if status not in (200, 201):
             raise Exception("Failed to create alias: %s" % name)
 
     def aliases_remove(self, name):
