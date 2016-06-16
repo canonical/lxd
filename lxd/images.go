@@ -1016,7 +1016,8 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	return SyncResponse(true, info)
+	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
+	return SyncResponseETag(true, info, etag)
 }
 
 type imagePutReq struct {
@@ -1026,16 +1027,23 @@ type imagePutReq struct {
 }
 
 func imagePut(d *Daemon, r *http.Request) Response {
+	// Get current value
 	fingerprint := mux.Vars(r)["fingerprint"]
+	id, info, err := dbImageGet(d.db, fingerprint, false, false)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Validate ETag
+	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
+	err = etagCheck(r, etag)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
 
 	req := imagePutReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
-	}
-
-	id, info, err := dbImageGet(d.db, fingerprint, false, false)
-	if err != nil {
-		return SmartError(err)
 	}
 
 	err = dbImageUpdate(d.db, id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreationDate, info.ExpiryDate, req.Properties)
@@ -1131,7 +1139,7 @@ func aliasGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponse(true, alias)
+	return SyncResponseETag(true, alias, alias)
 }
 
 func aliasDelete(d *Daemon, r *http.Request) Response {
@@ -1150,7 +1158,18 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 }
 
 func aliasPut(d *Daemon, r *http.Request) Response {
+	// Get current value
 	name := mux.Vars(r)["name"]
+	id, alias, err := dbImageAliasGet(d.db, name, true)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Validate ETag
+	err = etagCheck(r, alias)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
 
 	req := aliasPutReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1159,11 +1178,6 @@ func aliasPut(d *Daemon, r *http.Request) Response {
 
 	if req.Target == "" {
 		return BadRequest(fmt.Errorf("The target field is required"))
-	}
-
-	id, _, err := dbImageAliasGet(d.db, name, true)
-	if err != nil {
-		return SmartError(err)
 	}
 
 	imageId, _, err := dbImageGet(d.db, req.Target, false, false)

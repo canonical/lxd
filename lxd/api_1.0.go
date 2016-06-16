@@ -60,6 +60,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"container_syscall_filtering",
 			"auth_pki",
 			"container_last_used_at",
+			"etag",
 		},
 
 		"api_status":  "stable",
@@ -148,7 +149,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		body["public"] = false
 	}
 
-	return SyncResponse(true, body)
+	return SyncResponseETag(true, body, body["config"])
 }
 
 type apiPut struct {
@@ -161,8 +162,12 @@ func api10Put(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	req := apiPut{}
+	err = etagCheck(r, oldConfig)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
 
+	req := apiPut{}
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
 		return BadRequest(err)
 	}

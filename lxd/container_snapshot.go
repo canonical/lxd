@@ -44,7 +44,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
 		} else {
-			render, err := snap.Render()
+			render, _, err := snap.Render()
 			if err != nil {
 				continue
 			}
@@ -183,7 +183,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 }
 
 func snapshotGet(sc container, name string) Response {
-	render, err := sc.Render()
+	render, _, err := sc.Render()
 	if err != nil {
 		return SmartError(err)
 	}
