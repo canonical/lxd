@@ -58,10 +58,6 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	return WriteJSON(w, resp)
 }
 
-func SyncResponse(success bool, metadata interface{}) Response {
-	return &syncResponse{success, metadata}
-}
-
 func (r *syncResponse) String() string {
 	if r.success {
 		return "success"
