@@ -63,3 +63,11 @@ rsync is used to transfer the container content across.
    one. You can however create new containers from older snapshots which
    makes it possible to confirm the snapshots is indeed what you want to
    restore before you remove the newer snapshots.
+
+   Also note that container copies use ZFS snapshots, so you also cannot
+   restore a container to a snapshot taken before the last copy without
+   having to also delete container copies.
+
+   Copying the wanted snapshot into a new container and then deleting
+   the old container does however work, at the cost of losing any other
+   snapshot the container may have had.
