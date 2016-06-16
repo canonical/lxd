@@ -117,6 +117,10 @@ func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsClientCA stri
 	if tlsRemoteCertPEM != "" {
 		// Ignore any content outside of the PEM bytes we care about
 		certBlock, _ := pem.Decode([]byte(tlsRemoteCertPEM))
+		if certBlock == nil {
+			return nil, fmt.Errorf("Invalid remote certificate")
+		}
+
 		var err error
 		tlsRemoteCert, err = x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {

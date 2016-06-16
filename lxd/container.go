@@ -399,7 +399,7 @@ type container interface {
 	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error)
 
 	// Status
-	Render() (interface{}, error)
+	Render() (interface{}, interface{}, error)
 	RenderState() (*shared.ContainerState, error)
 	IsPrivileged() bool
 	IsRunning() bool

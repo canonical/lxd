@@ -46,3 +46,16 @@ It is a timestamp of the last time the container was started.
 
 If a container has been created but not started yet, last\_used\_at field
 will be 1970-01-01T00:00:00Z
+
+## etag
+Add support for the ETag header on all relevant endpoints.
+
+This adds the following HTTP header on answers to GET:
+ - ETag (SHA-256 of user modifiable content)
+
+And adds support for the following HTTP header on PUT requests:
+ - If-Match (ETag value retrieved through previous GET)
+
+This makes it possible to GET a LXD object, modify it and PUT it without
+risking to hit a race condition where LXD or another client modified the
+object in the mean time.
