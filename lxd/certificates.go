@@ -141,7 +141,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	fingerprint := certGenerateFingerprint(cert)
 	for _, existingCert := range d.clientCerts {
 		if fingerprint == certGenerateFingerprint(&existingCert) {
-			return EmptySyncResponse
+			return BadRequest(fmt.Errorf("Certificate already in trust store"))
 		}
 	}
 
