@@ -34,6 +34,7 @@ lxc %s <name> [<name>...]`), c.name, c.name)
 func (c *actionCmd) flags() {
 	if c.hasTimeout {
 		gnuflag.IntVar(&c.timeout, "timeout", -1, i18n.G("Time to wait for the container before killing it."))
+		gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the container to shutdown."))
 		gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the container to shutdown."))
 	}
 	gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Store the container state (only for stop)."))
