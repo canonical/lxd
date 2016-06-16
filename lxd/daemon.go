@@ -111,6 +111,9 @@ func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, err
 	var cert *x509.Certificate
 	if certificate != "" {
 		certBlock, _ := pem.Decode([]byte(certificate))
+		if certBlock == nil {
+			return nil, fmt.Errorf("Invalid certificate")
+		}
 
 		cert, err = x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
@@ -163,6 +166,9 @@ func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, er
 	var cert *x509.Certificate
 	if certificate != "" {
 		certBlock, _ := pem.Decode([]byte(certificate))
+		if certBlock == nil {
+			return nil, fmt.Errorf("Invalid certificate")
+		}
 
 		cert, err = x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {

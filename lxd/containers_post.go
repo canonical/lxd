@@ -253,6 +253,9 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		var cert *x509.Certificate
 		if req.Source.Certificate != "" {
 			certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
+			if certBlock == nil {
+				return fmt.Errorf("Invalid certificate")
+			}
 
 			cert, err = x509.ParseCertificate(certBlock.Bytes)
 			if err != nil {
