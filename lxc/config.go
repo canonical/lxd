@@ -250,6 +250,10 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 				fp := cert.Fingerprint[0:12]
 
 				certBlock, _ := pem.Decode([]byte(cert.Certificate))
+				if certBlock == nil {
+					return fmt.Errorf(i18n.G("Invalid certificate"))
+				}
+
 				cert, err := x509.ParseCertificate(certBlock.Bytes)
 				if err != nil {
 					return err
