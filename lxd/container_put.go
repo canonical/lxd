@@ -26,10 +26,18 @@ type containerPutReq struct {
  * the named snapshot
  */
 func containerPut(d *Daemon, r *http.Request) Response {
+	// Get the container
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)
 	if err != nil {
 		return NotFound
+	}
+
+	// Validate the ETag
+	etag := []interface{}{c.Architecture(), c.LocalConfig(), c.LocalDevices(), c.IsEphemeral(), c.Profiles()}
+	err = etagCheck(r, etag)
+	if err != nil {
+		return PreconditionFailed(err)
 	}
 
 	configRaw := containerPutReq{}

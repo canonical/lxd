@@ -1612,15 +1612,18 @@ func (c *containerLXC) getLxcState() (lxc.State, error) {
 	}
 }
 
-func (c *containerLXC) Render() (interface{}, error) {
+func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := shared.ArchitectureName(c.architecture)
+
+	// Prepare the ETag
+	etag := []interface{}{c.architecture, c.localConfig, c.localDevices, c.ephemeral, c.profiles}
 
 	if c.IsSnapshot() {
 		return &shared.SnapshotInfo{
@@ -1635,12 +1638,12 @@ func (c *containerLXC) Render() (interface{}, error) {
 			Name:            c.name,
 			Profiles:        c.profiles,
 			Stateful:        c.stateful,
-		}, nil
+		}, etag, nil
 	} else {
 		// FIXME: Render shouldn't directly access the go-lxc struct
 		cState, err := c.getLxcState()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		statusCode := shared.FromLXCState(int(cState))
 
@@ -1658,7 +1661,7 @@ func (c *containerLXC) Render() (interface{}, error) {
 			Status:          statusCode.String(),
 			StatusCode:      statusCode,
 			Stateful:        c.stateful,
-		}, nil
+		}, etag, nil
 	}
 }
 

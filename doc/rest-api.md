@@ -257,7 +257,7 @@ Return value (if guest or untrusted):
         "public": false,                        # Whether the server should be treated as a public (read-only) remote by the client
     }
 
-### PUT
+### PUT (ETag supported)
  * Description: Updates the server configuration or other properties
  * Authentication: trusted
  * Operation: sync
@@ -557,7 +557,7 @@ Output:
     }
 
 
-### PUT
+### PUT (ETag supported)
  * Description: update container configuration or restore snapshot
  * Authentication: trusted
  * Operation: async
@@ -1231,7 +1231,7 @@ Input (none at present):
 
 HTTP code for this should be 202 (Accepted).
 
-### PUT
+### PUT (ETag supported)
  * Description: Updates the image properties
  * Authentication: trusted
  * Operation: sync
@@ -1335,7 +1335,7 @@ Output:
         "target": "c9b6e738fae75286d52f497415463a8ecc61bbcb046536f220d797b0e500a41f"
     }
 
-### PUT
+### PUT (ETag supported)
  * Description: Updates the alias target or description
  * Authentication: trusted
  * Operation: sync
@@ -1537,7 +1537,7 @@ Output:
         }
     }
 
-### PUT
+### PUT (ETag supported)
  * Description: update the profile
  * Authentication: trusted
  * Operation: sync
