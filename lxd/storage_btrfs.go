@@ -249,7 +249,7 @@ func (s *storageBtrfs) ContainerRestore(
 	} else {
 		// Remove the backup, we made
 		if s.isSubvolume(sourceBackupPath) {
-			return s.subvolDelete(sourceBackupPath)
+			return s.subvolsDelete(sourceBackupPath)
 		}
 		os.RemoveAll(sourceBackupPath)
 	}
