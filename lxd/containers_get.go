@@ -69,7 +69,7 @@ func doContainerGet(d *Daemon, cname string) (*shared.ContainerInfo, error) {
 		return nil, err
 	}
 
-	cts, err := c.Render()
+	cts, _, err := c.Render()
 	if err != nil {
 		return nil, err
 	}

@@ -13,10 +13,10 @@ func containerGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	state, err := c.Render()
+	state, etag, err := c.Render()
 	if err != nil {
 		return InternalError(err)
 	}
 
-	return SyncResponse(true, state)
+	return SyncResponseETag(true, state, etag)
 }

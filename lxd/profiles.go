@@ -104,7 +104,7 @@ func profileGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponse(true, resp)
+	return SyncResponseETag(true, resp, resp)
 }
 
 func getRunningContainersWithProfile(d *Daemon, profile string) []container {
@@ -127,7 +127,18 @@ func getRunningContainersWithProfile(d *Daemon, profile string) []container {
 }
 
 func profilePut(d *Daemon, r *http.Request) Response {
+	// Get the profile
 	name := mux.Vars(r)["name"]
+	id, profile, err := dbProfileGet(d.db, name)
+	if err != nil {
+		return InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
+	}
+
+	// Validate the ETag
+	err = etagCheck(r, profile)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
 
 	req := profilesPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -135,7 +146,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Sanity checks
-	err := containerValidConfig(d, req.Config, true, false)
+	err = containerValidConfig(d, req.Config, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -157,11 +168,6 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update the database
-	id, profile, err := dbProfileGet(d.db, name)
-	if err != nil {
-		return InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
-	}
-
 	tx, err := dbBegin(d.db)
 	if err != nil {
 		return InternalError(err)
