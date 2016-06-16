@@ -83,7 +83,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
-	return EmptySyncResponse
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, req.Name))
 }
 
 var profilesCmd = Command{
@@ -253,7 +253,7 @@ func profilePost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	return EmptySyncResponse
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, req.Name))
 }
 
 // The handler for the delete operation.

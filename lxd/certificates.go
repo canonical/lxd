@@ -96,20 +96,25 @@ func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 }
 
 func certificatesPost(d *Daemon, r *http.Request) Response {
+	// Parse the request
 	req := certificatesPostBody{}
-
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
 		return BadRequest(err)
+	}
+
+	// Access check
+	if !d.isTrustedClient(r) && d.PasswordCheck(req.Password) != nil {
+		return Forbidden
 	}
 
 	if req.Type != "client" {
 		return BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
 	}
 
+	// Extract the certificate
 	var cert *x509.Certificate
 	var name string
 	if req.Certificate != "" {
-
 		data, err := base64.StdEncoding.DecodeString(req.Certificate)
 		if err != nil {
 			return BadRequest(err)
@@ -120,9 +125,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 			return BadRequest(err)
 		}
 		name = req.Name
-
 	} else if r.TLS != nil {
-
 		if len(r.TLS.PeerCertificates) < 1 {
 			return BadRequest(fmt.Errorf("No client certificate provided"))
 		}
@@ -145,10 +148,6 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	if !d.isTrustedClient(r) && d.PasswordCheck(req.Password) != nil {
-		return Forbidden
-	}
-
 	err := saveCert(d, name, cert)
 	if err != nil {
 		return SmartError(err)
@@ -156,7 +155,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 
 	d.clientCerts = append(d.clientCerts, *cert)
 
-	return EmptySyncResponse
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", shared.APIVersion, fingerprint))
 }
 
 var certificatesCmd = Command{

@@ -40,12 +40,18 @@ type Response interface {
 type syncResponse struct {
 	success  bool
 	metadata interface{}
+	location string
 }
 
 func (r *syncResponse) Render(w http.ResponseWriter) error {
 	status := shared.Success
 	if !r.success {
 		status = shared.Failure
+	}
+
+	if r.location != "" {
+		w.Header().Set("Location", r.location)
+		w.WriteHeader(201)
 	}
 
 	resp := syncResp{Type: lxd.Sync, Status: status.String(), StatusCode: status, Metadata: r.metadata}
@@ -64,7 +70,15 @@ func (r *syncResponse) String() string {
 	return "failure"
 }
 
-var EmptySyncResponse = &syncResponse{true, make(map[string]interface{})}
+func SyncResponse(success bool, metadata interface{}) Response {
+	return &syncResponse{success: success, metadata: metadata}
+}
+
+func SyncResponseLocation(success bool, metadata interface{}, location string) Response {
+	return &syncResponse{success: success, metadata: metadata, location: location}
+}
+
+var EmptySyncResponse = &syncResponse{success: true, metadata: make(map[string]interface{})}
 
 // File transfer response
 type fileResponseEntry struct {

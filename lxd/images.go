@@ -1085,7 +1085,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	return EmptySyncResponse
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, req.Name))
 }
 
 func aliasesGet(d *Daemon, r *http.Request) Response {
@@ -1197,7 +1197,7 @@ func aliasPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, req.Name))
 }
 
 func imageExport(d *Daemon, r *http.Request) Response {
