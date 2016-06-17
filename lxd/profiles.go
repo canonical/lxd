@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 
@@ -145,8 +147,73 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	return doProfileUpdate(d, name, id, profile, req)
+}
+
+func profilePatch(d *Daemon, r *http.Request) Response {
+	// Get the profile
+	name := mux.Vars(r)["name"]
+	id, profile, err := dbProfileGet(d.db, name)
+	if err != nil {
+		return InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
+	}
+
+	// Validate the ETag
+	err = etagCheck(r, profile)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
+
+	body, _ := ioutil.ReadAll(r.Body)
+	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
+	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
+
+	reqRaw := shared.Jmap{}
+	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
+		return BadRequest(err)
+	}
+
+	req := profilesPostReq{}
+	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	// Get Description
+	_, err = reqRaw.GetString("description")
+	if err != nil {
+		req.Description = profile.Description
+	}
+
+	// Get Config
+	if req.Config == nil {
+		req.Config = profile.Config
+	} else {
+		for k, v := range profile.Config {
+			_, ok := req.Config[k]
+			if !ok {
+				req.Config[k] = v
+			}
+		}
+	}
+
+	// Get Devices
+	if req.Devices == nil {
+		req.Devices = profile.Devices
+	} else {
+		for k, v := range profile.Devices {
+			_, ok := req.Devices[k]
+			if !ok {
+				req.Devices[k] = v
+			}
+		}
+	}
+
+	return doProfileUpdate(d, name, id, profile, req)
+}
+
+func doProfileUpdate(d *Daemon, name string, id int64, profile *shared.ProfileConfig, req profilesPostReq) Response {
 	// Sanity checks
-	err = containerValidConfig(d, req.Config, true, false)
+	err := containerValidConfig(d, req.Config, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -279,4 +346,4 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var profileCmd = Command{name: "profiles/{name}", get: profileGet, put: profilePut, delete: profileDelete, post: profilePost}
+var profileCmd = Command{name: "profiles/{name}", get: profileGet, put: profilePut, delete: profileDelete, post: profilePost, patch: profilePatch}
