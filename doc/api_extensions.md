@@ -59,3 +59,8 @@ And adds support for the following HTTP header on PUT requests:
 This makes it possible to GET a LXD object, modify it and PUT it without
 risking to hit a race condition where LXD or another client modified the
 object in the mean time.
+
+## patch
+Add support for the HTTP PATCH method.
+
+PATCH allows for partial update of an object in place of PUT.

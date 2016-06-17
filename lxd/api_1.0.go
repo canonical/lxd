@@ -172,6 +172,40 @@ func api10Put(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	return doApi10Update(d, oldConfig, req)
+}
+
+func api10Patch(d *Daemon, r *http.Request) Response {
+	oldConfig, err := dbConfigValuesGet(d.db)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	err = etagCheck(r, oldConfig)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
+
+	req := apiPut{}
+	if err := shared.ReadToJSON(r.Body, &req); err != nil {
+		return BadRequest(err)
+	}
+
+	if req.Config == nil {
+		return EmptySyncResponse
+	}
+
+	for k, v := range oldConfig {
+		_, ok := req.Config[k]
+		if !ok {
+			req.Config[k] = v
+		}
+	}
+
+	return doApi10Update(d, oldConfig, req)
+}
+
+func doApi10Update(d *Daemon, oldConfig map[string]string, req apiPut) Response {
 	// Deal with special keys
 	for k, v := range req.Config {
 		config := daemonConfig[k]
@@ -213,11 +247,11 @@ func api10Put(d *Daemon, r *http.Request) Response {
 
 		err := confKey.Set(d, value)
 		if err != nil {
-			return BadRequest(err)
+			return SmartError(err)
 		}
 	}
 
 	return EmptySyncResponse
 }
 
-var api10Cmd = Command{name: "", untrustedGet: true, get: api10Get, put: api10Put}
+var api10Cmd = Command{name: "", untrustedGet: true, get: api10Get, put: api10Put, patch: api10Patch}

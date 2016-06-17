@@ -1054,7 +1054,69 @@ func imagePut(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var imageCmd = Command{name: "images/{fingerprint}", untrustedGet: true, get: imageGet, put: imagePut, delete: imageDelete}
+func imagePatch(d *Daemon, r *http.Request) Response {
+	// Get current value
+	fingerprint := mux.Vars(r)["fingerprint"]
+	id, info, err := dbImageGet(d.db, fingerprint, false, false)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Validate ETag
+	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
+	err = etagCheck(r, etag)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
+
+	body, _ := ioutil.ReadAll(r.Body)
+	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
+	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
+
+	reqRaw := shared.Jmap{}
+	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
+		return BadRequest(err)
+	}
+
+	req := imagePutReq{}
+	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	// Get AutoUpdate
+	autoUpdate, err := reqRaw.GetBool("auto_update")
+	if err == nil {
+		info.AutoUpdate = autoUpdate
+	}
+
+	// Get Public
+	public, err := reqRaw.GetBool("public")
+	if err == nil {
+		info.Public = public
+	}
+
+	// Get Properties
+	_, ok := reqRaw["properties"]
+	if ok {
+		properties := req.Properties
+		for k, v := range info.Properties {
+			_, ok := req.Properties[k]
+			if !ok {
+				properties[k] = v
+			}
+		}
+		info.Properties = properties
+	}
+
+	err = dbImageUpdate(d.db, id, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreationDate, info.ExpiryDate, info.Properties)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
+}
+
+var imageCmd = Command{name: "images/{fingerprint}", untrustedGet: true, get: imageGet, put: imagePut, delete: imageDelete, patch: imagePatch}
 
 type aliasPostReq struct {
 	Name        string `json:"name"`
@@ -1193,6 +1255,58 @@ func aliasPut(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
+func aliasPatch(d *Daemon, r *http.Request) Response {
+	// Get current value
+	name := mux.Vars(r)["name"]
+	id, alias, err := dbImageAliasGet(d.db, name, true)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Validate ETag
+	err = etagCheck(r, alias)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
+
+	req := shared.Jmap{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	_, ok := req["target"]
+	if ok {
+		target, err := req.GetString("target")
+		if err != nil {
+			return BadRequest(err)
+		}
+
+		alias.Target = target
+	}
+
+	_, ok = req["description"]
+	if ok {
+		description, err := req.GetString("description")
+		if err != nil {
+			return BadRequest(err)
+		}
+
+		alias.Description = description
+	}
+
+	imageId, _, err := dbImageGet(d.db, alias.Target, false, false)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	err = dbImageAliasUpdate(d.db, id, imageId, alias.Description)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
+}
+
 func aliasPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
@@ -1294,4 +1408,4 @@ var imagesSecretCmd = Command{name: "images/{fingerprint}/secret", post: imageSe
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 
-var aliasCmd = Command{name: "images/aliases/{name:.*}", untrustedGet: true, get: aliasGet, delete: aliasDelete, put: aliasPut, post: aliasPost}
+var aliasCmd = Command{name: "images/aliases/{name:.*}", untrustedGet: true, get: aliasGet, delete: aliasDelete, put: aliasPut, post: aliasPost, patch: aliasPatch}
