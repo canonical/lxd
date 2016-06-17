@@ -49,7 +49,7 @@ const NESTING_AA_PROFILE = `
 
 const DEFAULT_AA_PROFILE = `
 #include <tunables/global>
-profile "%s" flags=(attach_disconnected,mediate_deleted) {
+profile "lxd-default" flags=(attach_disconnected,mediate_deleted) {
     #include <abstractions/lxc/container-base>
 
     # Special exception for cgroup namespaces
@@ -60,11 +60,14 @@ profile "%s" flags=(attach_disconnected,mediate_deleted) {
 
     # nesting support goes here if needed
     %s
-    change_profile -> "%s",
+    change_profile -> ":%s://*",
 }`
 
-func AAProfileFull(c container) string {
-	lxddir := shared.VarPath("")
+func AANamespace(c container) string {
+	/* / is not allowed in apparmor namespace names; let's also trim the
+	 * leading / so it doesn't look like "-var-lib-lxd"
+	 */
+	lxddir := strings.Replace(shared.VarPath("")[1:], "/", "-", -1)
 	if len(c.Name())+len(lxddir)+7 >= 253 {
 		hash := sha256.New()
 		io.WriteString(hash, lxddir)
@@ -72,6 +75,10 @@ func AAProfileFull(c container) string {
 	}
 
 	return fmt.Sprintf("lxd-%s_<%s>", c.Name(), lxddir)
+}
+
+func AAProfileFull(c container) string {
+	return fmt.Sprintf(":%s://lxd-default", AANamespace(c))
 }
 
 func AAProfileShort(c container) string {
@@ -99,7 +106,7 @@ func getAAProfileContent(c container) string {
 		nesting = NESTING_AA_PROFILE
 	}
 
-	return fmt.Sprintf(DEFAULT_AA_PROFILE, AAProfileFull(c), AAProfileCgns(), rawApparmor, nesting, AAProfileFull(c))
+	return fmt.Sprintf(DEFAULT_AA_PROFILE, AAProfileCgns(), rawApparmor, nesting, AANamespace(c))
 }
 
 func runApparmor(command string, c container) error {
@@ -108,6 +115,8 @@ func runApparmor(command string, c container) error {
 	}
 
 	cmd := exec.Command("apparmor_parser", []string{
+		"-n",
+		AANamespace(c),
 		fmt.Sprintf("-%sWL", command),
 		path.Join(aaPath, "cache"),
 		path.Join(aaPath, "profiles", AAProfileShort(c)),
@@ -165,14 +174,16 @@ func AALoadProfile(c container) error {
 	return runApparmor(APPARMOR_CMD_LOAD, c)
 }
 
-// Ensure that the container's policy is unloaded to free kernel memory. This
-// does not delete the policy from disk or cache.
-func AAUnloadProfile(c container) error {
+// Ensure that the container's policy namespace is unloaded to free kernel
+// memory. This does not delete the policy from disk or cache.
+func AADestroyNamespace(c container) error {
 	if !aaAdmin {
 		return nil
 	}
 
-	return runApparmor(APPARMOR_CMD_UNLOAD, c)
+	content := []byte(fmt.Sprintf(":%s:", AANamespace(c)))
+
+	return ioutil.WriteFile("/sys/kernel/security/apparmor/.remove", content, 0)
 }
 
 // Parse the profile without loading it into the kernel.

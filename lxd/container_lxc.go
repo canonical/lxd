@@ -1423,7 +1423,9 @@ func (c *containerLXC) OnStop(target string) error {
 	}
 
 	// Unload the apparmor profile
-	AAUnloadProfile(c)
+	if err := AADestroyNamespace(c); err != nil {
+		shared.Log.Error("failed to destroy apparmor namespace", log.Ctx{"container": c.Name(), "err": err})
+	}
 
 	// FIXME: The go routine can go away once we can rely on LXC_TARGET
 	go func(c *containerLXC, target string, wg *sync.WaitGroup) {
