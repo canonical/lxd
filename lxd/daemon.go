@@ -40,6 +40,7 @@ import (
 var aaAdmin = true
 var aaAvailable = true
 var aaConfined = false
+var aaStacking = false
 
 // CGroup
 var cgBlkioController = false
@@ -614,6 +615,48 @@ func (d *Daemon) Init() error {
 			aaConfined = true
 			shared.LogWarnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
 		}
+	}
+
+	if aaAvailable {
+		canStack := func() bool {
+			contentBytes, err := ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/stack")
+			if err != nil {
+				return false
+			}
+
+			if string(contentBytes) != "yes\n" {
+				return false
+			}
+
+			contentBytes, err = ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/version")
+			if err != nil {
+				return false
+			}
+
+			content := string(contentBytes)
+
+			parts := strings.Split(strings.TrimSpace(content), ".")
+			if len(parts) != 2 {
+				shared.LogWarn("unknown apparmor domain version", log.Ctx{"version": content})
+				return false
+			}
+
+			major, err := strconv.Atoi(parts[0])
+			if err != nil {
+				shared.LogWarn("unknown apparmor domain version", log.Ctx{"version": content})
+				return false
+			}
+
+			minor, err := strconv.Atoi(parts[1])
+			if err != nil {
+				shared.LogWarn("unknown apparmor domain version", log.Ctx{"version": content})
+				return false
+			}
+
+			return major >= 1 && minor >= 1
+		}
+
+		aaStacking = canStack()
 	}
 
 	/* Detect CGroup support */
