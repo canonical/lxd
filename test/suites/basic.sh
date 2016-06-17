@@ -299,9 +299,10 @@ test_basic_usage() {
   # check that an apparmor profile is created for this container, that it is
   # unloaded on stop, and that it is deleted when the container is deleted
   lxc launch testimage lxd-apparmor-test
-  aa-status | grep "lxd-lxd-apparmor-test_<${LXD_DIR}>"
+  aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
+  aa-status | grep ":${aa_namespace}://lxd-default"
   lxc stop lxd-apparmor-test --force
-  ! aa-status | grep -q "lxd-lxd-apparmor-test_<${LXD_DIR}>"
+  ! aa-status | grep -q ":${aa_namespace}://lxd-default"
   lxc delete lxd-apparmor-test
   [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
 

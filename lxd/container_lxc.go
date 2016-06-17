@@ -293,7 +293,12 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Base config
-	err = lxcSetConfigItem(cc, "lxc.cap.drop", "mac_admin mac_override sys_time sys_module sys_rawio")
+	toDrop := "sys_time sys_module sys_rawio"
+	if !aaStacking || c.IsPrivileged() {
+		toDrop = toDrop + " mac_admin mac_override"
+	}
+
+	err = lxcSetConfigItem(cc, "lxc.cap.drop", toDrop)
 	if err != nil {
 		return err
 	}
@@ -490,7 +495,19 @@ func (c *containerLXC) initLXC() error {
 			}
 		} else {
 			// If not currently confined, use the container's profile
-			err := lxcSetConfigItem(cc, "lxc.aa_profile", AAProfileFull(c))
+			profile := AAProfileFull(c)
+
+			/* In the unprivileged case, we're relying on the user
+			 * namespace to do all the access control. We can thus
+			 * just move the container into a namespace and leave
+			 * it unconfined, so it can load its own profiles if it
+			 * wants to.
+			 */
+			if aaStacking && !c.IsPrivileged() {
+				profile = fmt.Sprintf(":%s:", AANamespace(c))
+			}
+
+			err := lxcSetConfigItem(cc, "lxc.aa_profile", profile)
 			if err != nil {
 				return err
 			}
@@ -1450,7 +1467,9 @@ func (c *containerLXC) OnStop(target string) error {
 	}
 
 	// Unload the apparmor profile
-	AAUnloadProfile(c)
+	if err := AADestroy(c); err != nil {
+		shared.Log.Error("failed to destroy apparmor namespace", log.Ctx{"container": c.Name(), "err": err})
+	}
 
 	// FIXME: The go routine can go away once we can rely on LXC_TARGET
 	go func(c *containerLXC, target string, wg *sync.WaitGroup) {

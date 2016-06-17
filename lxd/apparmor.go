@@ -47,6 +47,22 @@ const NESTING_AA_PROFILE = `
   signal,
 `
 
+const DEFAULT_AA_NAMESPACE_PROFILE = `
+#include <tunables/global>
+profile "lxd-default" flags=(attach_disconnected,mediate_deleted) {
+    #include <abstractions/lxc/container-base>
+
+    # Special exception for cgroup namespaces
+    %s
+
+    # user input raw.apparmor below here
+    %s
+
+    # nesting support goes here if needed
+    %s
+    change_profile -> ":%s://*",
+}`
+
 const DEFAULT_AA_PROFILE = `
 #include <tunables/global>
 profile "%s" flags=(attach_disconnected,mediate_deleted) {
@@ -63,15 +79,33 @@ profile "%s" flags=(attach_disconnected,mediate_deleted) {
     change_profile -> "%s",
 }`
 
-func AAProfileFull(c container) string {
-	lxddir := shared.VarPath("")
-	if len(c.Name())+len(lxddir)+7 >= 253 {
+func mkApparmorName(name string) string {
+	if len(name)+7 >= 253 {
 		hash := sha256.New()
-		io.WriteString(hash, lxddir)
-		lxddir = fmt.Sprintf("%x", hash.Sum(nil))
+		io.WriteString(hash, name)
+		return fmt.Sprintf("%x", hash.Sum(nil))
 	}
 
+	return name
+}
+
+func AANamespace(c container) string {
+	/* / is not allowed in apparmor namespace names; let's also trim the
+	 * leading / so it doesn't look like "-var-lib-lxd"
+	 */
+	lxddir := strings.Replace(shared.VarPath("")[1:], "/", "-", -1)
+	lxddir = mkApparmorName(lxddir)
 	return fmt.Sprintf("lxd-%s_<%s>", c.Name(), lxddir)
+}
+
+func AAProfileFull(c container) string {
+	if aaStacking {
+		return fmt.Sprintf(":%s://lxd-default", AANamespace(c))
+	} else {
+		lxddir := shared.VarPath("")
+		lxddir = mkApparmorName(lxddir)
+		return fmt.Sprintf("lxd-%s_<%s>", c.Name(), lxddir)
+	}
 }
 
 func AAProfileShort(c container) string {
@@ -99,7 +133,26 @@ func getAAProfileContent(c container) string {
 		nesting = NESTING_AA_PROFILE
 	}
 
-	return fmt.Sprintf(DEFAULT_AA_PROFILE, AAProfileFull(c), AAProfileCgns(), rawApparmor, nesting, AAProfileFull(c))
+	if aaStacking {
+		return fmt.Sprintf(
+			DEFAULT_AA_NAMESPACE_PROFILE,
+			AAProfileCgns(),
+			rawApparmor,
+			nesting,
+			AANamespace(c),
+		)
+	} else {
+		full := AAProfileFull(c)
+
+		return fmt.Sprintf(
+			DEFAULT_AA_PROFILE,
+			full,
+			AAProfileCgns(),
+			rawApparmor,
+			nesting,
+			full,
+		)
+	}
 }
 
 func runApparmor(command string, c container) error {
@@ -107,12 +160,17 @@ func runApparmor(command string, c container) error {
 		return nil
 	}
 
-	cmd := exec.Command("apparmor_parser", []string{
+	args := []string{
 		fmt.Sprintf("-%sWL", command),
 		path.Join(aaPath, "cache"),
 		path.Join(aaPath, "profiles", AAProfileShort(c)),
-	}...)
+	}
 
+	if aaStacking {
+		args = append([]string{"-n", AANamespace(c)}, args...)
+	}
+
+	cmd := exec.Command("apparmor_parser", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		shared.Log.Error("Running apparmor",
@@ -165,14 +223,19 @@ func AALoadProfile(c container) error {
 	return runApparmor(APPARMOR_CMD_LOAD, c)
 }
 
-// Ensure that the container's policy is unloaded to free kernel memory. This
-// does not delete the policy from disk or cache.
-func AAUnloadProfile(c container) error {
+// Ensure that the container's policy namespace is unloaded to free kernel
+// memory. This does not delete the policy from disk or cache.
+func AADestroy(c container) error {
 	if !aaAdmin {
 		return nil
 	}
 
-	return runApparmor(APPARMOR_CMD_UNLOAD, c)
+	if aaStacking {
+		content := []byte(fmt.Sprintf(":%s:", AANamespace(c)))
+		return ioutil.WriteFile("/sys/kernel/security/apparmor/.remove", content, 0)
+	} else {
+		return runApparmor(APPARMOR_CMD_UNLOAD, c)
+	}
 }
 
 // Parse the profile without loading it into the kernel.
