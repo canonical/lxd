@@ -138,7 +138,7 @@ gen_cert() {
   [ -f "${LXD_CONF}/${1}.crt" ] && return
   mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
   mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
-  lxc_remote remote add "$(uuidgen)" https://0.0.0.0 || true
+  echo y | lxc_remote remote add "$(uuidgen)" https://0.0.0.0 || true
   mv "${LXD_CONF}/client.crt" "${LXD_CONF}/${1}.crt"
   mv "${LXD_CONF}/client.key" "${LXD_CONF}/${1}.key"
   mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
