@@ -94,7 +94,7 @@ const AA_PROFILE_BASE = `
   mount fstype=sysfs -> /sys/,
   mount options=(rw, nosuid, nodev, noexec, remount) -> /sys/,
   deny /sys/firmware/efi/efivars/** rwklx,
-  deny /sys/kernel/security/** rwklx,
+  # note, /sys/kernel/security/** handled below
   mount options=(move) /sys/fs/cgroup/cgmanager/ -> /sys/fs/cgroup/cgmanager.lower/,
   mount options=(ro, nosuid, nodev, noexec, remount, strictatime) -> /sys/fs/cgroup/,
 
@@ -186,7 +186,7 @@ const AA_PROFILE_BASE = `
   deny /proc/sys/n[^e]*{,/**} wklx,
   deny /proc/sys/ne[^t]*{,/**} wklx,
   deny /proc/sys/net?*{,/**} wklx,
-  deny /sys/[^fdc]*{,/**} wklx,
+  deny /sys/[^fdck]*{,/**} wklx,
   deny /sys/c[^l]*{,/**} wklx,
   deny /sys/cl[^a]*{,/**} wklx,
   deny /sys/cla[^s]*{,/**} wklx,
@@ -250,14 +250,28 @@ const AA_PROFILE_NESTING = `
   mount options=bind /var/lib/lxd/shmounts/** -> /var/lib/lxd/**,
 `
 
-func AAProfileFull(c container) string {
-	lxddir := shared.VarPath("")
-	if len(c.Name())+len(lxddir)+7 >= 253 {
+func mkApparmorName(name string) string {
+	if len(name)+7 >= 253 {
 		hash := sha256.New()
-		io.WriteString(hash, lxddir)
-		lxddir = fmt.Sprintf("%x", hash.Sum(nil))
+		io.WriteString(hash, name)
+		return fmt.Sprintf("%x", hash.Sum(nil))
 	}
 
+	return name
+}
+
+func AANamespace(c container) string {
+	/* / is not allowed in apparmor namespace names; let's also trim the
+	 * leading / so it doesn't look like "-var-lib-lxd"
+	 */
+	lxddir := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
+	lxddir = mkApparmorName(lxddir)
+	return fmt.Sprintf("lxd-%s_<%s>", c.Name(), lxddir)
+}
+
+func AAProfileFull(c container) string {
+	lxddir := shared.VarPath("")
+	lxddir = mkApparmorName(lxddir)
 	return fmt.Sprintf("lxd-%s_<%s>", c.Name(), lxddir)
 }
 
@@ -289,11 +303,50 @@ func getAAProfileContent(c container) string {
 		profile += "  mount fstype=cgroup -> /sys/fs/cgroup/**,\n"
 	}
 
-	// Apply nesting bits
+	if aaStacking {
+		profile += "\n  ### Feature: apparmor stacking\n"
+
+		if c.IsPrivileged() {
+			profile += "\n  ### Configuration: apparmor loading disabled in privileged containers\n"
+			profile += "  deny /sys/k*{,/**} rwklx,\n"
+		} else {
+			profile += `  ### Configuration: apparmor loading in unprivileged containers
+  deny /sys/k[^e]*{,/**} wklx,
+  deny /sys/ke[^r]*{,/**} wklx,
+  deny /sys/ker[^n]*{,/**} wklx,
+  deny /sys/kern[^e]*{,/**} wklx,
+  deny /sys/kerne[^l]*{,/**} wklx,
+  deny /sys/kernel/[^s]*{,/**} wklx,
+  deny /sys/kernel/s[^e]*{,/**} wklx,
+  deny /sys/kernel/se[^c]*{,/**} wklx,
+  deny /sys/kernel/sec[^u]*{,/**} wklx,
+  deny /sys/kernel/secu[^r]*{,/**} wklx,
+  deny /sys/kernel/secur[^i]*{,/**} wklx,
+  deny /sys/kernel/securi[^t]*{,/**} wklx,
+  deny /sys/kernel/securit[^y]*{,/**} wklx,
+  deny /sys/kernel/security/[^a]*{,/**} wklx,
+  deny /sys/kernel/security/a[^p]*{,/**} wklx,
+  deny /sys/kernel/security/ap[^p]*{,/**} wklx,
+  deny /sys/kernel/security/app[^a]*{,/**} wklx,
+  deny /sys/kernel/security/appa[^r]*{,/**} wklx,
+  deny /sys/kernel/security/appar[^m]*{,/**} wklx,
+  deny /sys/kernel/security/apparm[^o]*{,/**} wklx,
+  deny /sys/kernel/security/apparmo[^r]*{,/**} wklx,
+  deny /sys/kernel/security/apparmor?*{,/**} wklx,
+  deny /sys/kernel/security?*{,/**} wklx,
+  deny /sys/kernel?*{,/**} wklx,
+`
+			profile += fmt.Sprintf("  change_profile -> \":%s://*\",\n", AANamespace(c))
+		}
+	}
+
 	if c.IsNesting() {
+		// Apply nesting bits
 		profile += "\n  ### Configuration: nesting\n"
 		profile += strings.TrimLeft(AA_PROFILE_NESTING, "\n")
-		profile += fmt.Sprintf("  change_profile -> \"%s\",\n", AAProfileFull(c))
+		if !aaStacking || c.IsPrivileged() {
+			profile += fmt.Sprintf("  change_profile -> \"%s\",\n", AAProfileFull(c))
+		}
 	}
 
 	// Append raw.apparmor
@@ -332,11 +385,28 @@ func runApparmor(command string, c container) error {
 	return err
 }
 
+func mkApparmorNamespace(namespace string) error {
+	if !aaStacking {
+		return nil
+	}
+
+	p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", namespace)
+	if err := os.Mkdir(p, 0755); !os.IsExist(err) {
+		return err
+	}
+
+	return nil
+}
+
 // Ensure that the container's policy is loaded into the kernel so the
 // container can boot.
 func AALoadProfile(c container) error {
 	if !aaAdmin {
 		return nil
+	}
+
+	if err := mkApparmorNamespace(AANamespace(c)); err != nil {
+		return err
 	}
 
 	/* In order to avoid forcing a profile parse (potentially slow) on
@@ -375,11 +445,18 @@ func AALoadProfile(c container) error {
 	return runApparmor(APPARMOR_CMD_LOAD, c)
 }
 
-// Ensure that the container's policy is unloaded to free kernel memory. This
-// does not delete the policy from disk or cache.
-func AAUnloadProfile(c container) error {
+// Ensure that the container's policy namespace is unloaded to free kernel
+// memory. This does not delete the policy from disk or cache.
+func AADestroy(c container) error {
 	if !aaAdmin {
 		return nil
+	}
+
+	if aaStacking {
+		p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", AANamespace(c))
+		if err := os.Remove(p); err != nil {
+			shared.LogError("error removing apparmor namespace", log.Ctx{"err": err, "ns": p})
+		}
 	}
 
 	return runApparmor(APPARMOR_CMD_UNLOAD, c)
