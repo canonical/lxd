@@ -175,7 +175,7 @@ func daemonConfigInit(db *sql.DB) error {
 
 		"images.auto_update_cached":    &daemonConfigKey{valueType: "bool", defaultValue: "true"},
 		"images.auto_update_interval":  &daemonConfigKey{valueType: "int", defaultValue: "6"},
-		"images.compression_algorithm": &daemonConfigKey{valueType: "string", validator: daemonConfigValidateCommand, defaultValue: "gzip"},
+		"images.compression_algorithm": &daemonConfigKey{valueType: "string", validator: daemonConfigValidateCompression, defaultValue: "gzip"},
 		"images.remote_cache_expiry":   &daemonConfigKey{valueType: "int", defaultValue: "10", trigger: daemonConfigTriggerExpiry},
 
 		"storage.lvm_fstype":        &daemonConfigKey{valueType: "string", defaultValue: "ext4", validValues: []string{"ext4", "xfs"}},
@@ -311,7 +311,11 @@ func daemonConfigTriggerExpiry(d *Daemon, key string, value string) {
 	d.pruneChan <- true
 }
 
-func daemonConfigValidateCommand(d *Daemon, key string, value string) error {
+func daemonConfigValidateCompression(d *Daemon, key string, value string) error {
+	if value == "none" {
+		return nil
+	}
+
 	_, err := exec.LookPath(value)
 	return err
 }
