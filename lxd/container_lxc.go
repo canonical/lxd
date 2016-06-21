@@ -325,6 +325,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	bindMounts := []string{
+		"/dev/fuse",
 		"/proc/sys/fs/binfmt_misc",
 		"/sys/firmware/efi/efivars",
 		"/sys/fs/fuse/connections",
@@ -369,17 +370,18 @@ func (c *containerLXC) initLXC() error {
 		}
 
 		devices := []string{
-			"b *:* m",     // Allow mknod of block devices
-			"c *:* m",     // Allow mknod of char devices
-			"c 136:* rwm", // /dev/pts devices
-			"c 1:3 rwm",   // /dev/null
-			"c 1:5 rwm",   // /dev/zero
-			"c 1:7 rwm",   // /dev/full
-			"c 1:8 rwm",   // /dev/random
-			"c 1:9 rwm",   // /dev/urandom
-			"c 5:0 rwm",   // /dev/tty
-			"c 5:1 rwm",   // /dev/console
-			"c 5:2 rwm",   // /dev/ptmx
+			"b *:* m",      // Allow mknod of block devices
+			"c *:* m",      // Allow mknod of char devices
+			"c 136:* rwm",  // /dev/pts devices
+			"c 1:3 rwm",    // /dev/null
+			"c 1:5 rwm",    // /dev/zero
+			"c 1:7 rwm",    // /dev/full
+			"c 1:8 rwm",    // /dev/random
+			"c 1:9 rwm",    // /dev/urandom
+			"c 5:0 rwm",    // /dev/tty
+			"c 5:1 rwm",    // /dev/console
+			"c 5:2 rwm",    // /dev/ptmx
+			"c 10:229 rwm", // /dev/fuse
 		}
 
 		for _, dev := range devices {
