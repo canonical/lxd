@@ -346,9 +346,20 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	for _, mnt := range bindMounts {
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none rbind,create=dir,optional", mnt, strings.TrimPrefix(mnt, "/")))
-		if err != nil {
-			return err
+		if !shared.PathExists(mnt) {
+			continue
+		}
+
+		if shared.IsDir(mnt) {
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none rbind,create=dir,optional", mnt, strings.TrimPrefix(mnt, "/")))
+			if err != nil {
+				return err
+			}
+		} else {
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file,optional", mnt, strings.TrimPrefix(mnt, "/")))
+			if err != nil {
+				return err
+			}
 		}
 	}
 
