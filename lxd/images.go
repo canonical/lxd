@@ -66,30 +66,41 @@ func detectCompression(fname string) ([]string, string, error) {
 		return []string{"--lzma", "-xf"}, ".tar.lzma", nil
 	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
 		return []string{"-xf"}, ".tar", nil
+	case bytes.Equal(header[0:4], []byte{'h', 's', 'q', 's'}):
+		return []string{""}, ".squashfs", nil
 	default:
 		return []string{""}, "", fmt.Errorf("Unsupported compression.")
 	}
 
 }
 
-func untar(tarball string, path string) error {
-	extractArgs, _, err := detectCompression(tarball)
+func unpack(file string, path string) error {
+	extractArgs, extension, err := detectCompression(file)
 	if err != nil {
 		return err
 	}
 
-	command := "tar"
+	command := ""
 	args := []string{}
-	if runningInUserns {
-		args = append(args, "--wildcards")
-		args = append(args, "--exclude=dev/*")
-		args = append(args, "--exclude=./dev/*")
-		args = append(args, "--exclude=rootfs/dev/*")
-		args = append(args, "--exclude=rootfs/./dev/*")
+	if strings.HasPrefix(extension, ".tar") {
+		command = "tar"
+		if runningInUserns {
+			args = append(args, "--wildcards")
+			args = append(args, "--exclude=dev/*")
+			args = append(args, "--exclude=./dev/*")
+			args = append(args, "--exclude=rootfs/dev/*")
+			args = append(args, "--exclude=rootfs/./dev/*")
+		}
+		args = append(args, "-C", path, "--numeric-owner")
+		args = append(args, extractArgs...)
+		args = append(args, file)
+	} else if strings.HasPrefix(extension, ".squashfs") {
+		command = "unsquashfs"
+		args = append(args, "-f", "-d", path, "-n")
+		args = append(args, file)
+	} else {
+		return fmt.Errorf("Unsupported image format: %s", extension)
 	}
-	args = append(args, "-C", path, "--numeric-owner")
-	args = append(args, extractArgs...)
-	args = append(args, tarball)
 
 	output, err := exec.Command(command, args...).CombinedOutput()
 	if err != nil {
@@ -101,8 +112,8 @@ func untar(tarball string, path string) error {
 	return nil
 }
 
-func untarImage(imagefname string, destpath string) error {
-	err := untar(imagefname, destpath)
+func unpackImage(imagefname string, destpath string) error {
+	err := unpack(imagefname, destpath)
 	if err != nil {
 		return err
 	}
@@ -114,7 +125,7 @@ func untarImage(imagefname string, destpath string) error {
 			return fmt.Errorf("Error creating rootfs directory")
 		}
 
-		err = untar(imagefname+".rootfs", rootfsPath)
+		err = unpack(imagefname+".rootfs", rootfsPath)
 		if err != nil {
 			return err
 		}

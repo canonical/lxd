@@ -625,7 +625,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 
-	err = untarImage(imagePath, subvol)
+	err = unpackImage(imagePath, subvol)
 	if err != nil {
 		s.zfsDestroy(fs)
 		return err
