@@ -103,6 +103,7 @@ type Command struct {
 	put           func(d *Daemon, r *http.Request) Response
 	post          func(d *Daemon, r *http.Request) Response
 	delete        func(d *Daemon, r *http.Request) Response
+	patch         func(d *Daemon, r *http.Request) Response
 }
 
 func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, error) {
@@ -327,6 +328,10 @@ func (d *Daemon) createCmd(version string, c Command) {
 		case "DELETE":
 			if c.delete != nil {
 				resp = c.delete(d, r)
+			}
+		case "PATCH":
+			if c.patch != nil {
+				resp = c.patch(d, r)
 			}
 		default:
 			resp = NotFound

@@ -158,15 +158,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", shared.APIVersion, fingerprint))
 }
 
-var certificatesCmd = Command{
-	"certificates",
-	false,
-	true,
-	certificatesGet,
-	nil,
-	certificatesPost,
-	nil,
-}
+var certificatesCmd = Command{name: "certificates", untrustedPost: true, get: certificatesGet, post: certificatesPost}
 
 func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
@@ -215,12 +207,4 @@ func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var certificateFingerprintCmd = Command{
-	"certificates/{fingerprint}",
-	false,
-	false,
-	certificateFingerprintGet,
-	nil,
-	nil,
-	certificateFingerprintDelete,
-}
+var certificateFingerprintCmd = Command{name: "certificates/{fingerprint}", get: certificateFingerprintGet, delete: certificateFingerprintDelete}

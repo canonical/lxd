@@ -29,6 +29,7 @@ var containerCmd = Command{
 	put:    containerPut,
 	delete: containerDelete,
 	post:   containerPost,
+	patch:  containerPatch,
 }
 
 var containerStateCmd = Command{
