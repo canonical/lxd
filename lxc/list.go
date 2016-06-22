@@ -91,16 +91,19 @@ Columns for table format are:
 * s - state
 * S - number of snapshots
 * t - type (persistent or ephemeral)
+* b - base image
 
 Default column layout: ns46tS
-Fast column layout: nsacPt`)
+Fast column layout: nsacPtb`)
 }
+
+const fastColumns string = "nsacPtb"
 
 func (c *listCmd) flags() {
 	gnuflag.StringVar(&c.chosenColumnRunes, "c", "ns46tS", i18n.G("Columns"))
 	gnuflag.StringVar(&c.chosenColumnRunes, "columns", "ns46tS", i18n.G("Columns"))
 	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format"))
-	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt"))
+	gnuflag.BoolVar(&c.fast, "fast", false, fmt.Sprintf(i18n.G("Fast mode (same as --columns=%s)"), fastColumns))
 }
 
 // This seems a little excessive.
@@ -385,10 +388,11 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		'S': column{i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
 		's': column{i18n.G("STATE"), c.statusColumnData, false, false},
 		't': column{i18n.G("TYPE"), c.typeColumnData, false, false},
+		'b': column{i18n.G("BASE IMAGE"), c.baseImageColumnData, false, false},
 	}
 
 	if c.fast {
-		c.chosenColumnRunes = "nsacPt"
+		c.chosenColumnRunes = fastColumns
 	}
 
 	columns := []column{}
@@ -508,5 +512,18 @@ func (c *listCmd) LastUsedColumnData(cInfo shared.ContainerInfo, cState *shared.
 		return cInfo.LastUsedDate.UTC().Format(layout)
 	}
 
+	return ""
+}
+
+func (c *listCmd) baseImageColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
+	if bi, ok := cInfo.Config["volatile.base_image"]; ok {
+		// Truncate the hash ID to the same length as the column title,
+		// i.e. print as many characters as possible without increasing
+		// the width of the column.
+		if len(bi) >= len("BASE IMAGE") {
+			return bi[:len("BASE IMAGE")]
+		}
+		return bi
+	}
 	return ""
 }
