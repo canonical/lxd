@@ -2008,18 +2008,24 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
-	// Define a function which reverts everything
-	undoChanges := func() {
-		c.architecture = oldArchitecture
-		c.ephemeral = oldEphemeral
-		c.expandedConfig = oldExpandedConfig
-		c.expandedDevices = oldExpandedDevices
-		c.localConfig = oldLocalConfig
-		c.localDevices = oldLocalDevices
-		c.profiles = oldProfiles
-		c.initLXC()
-		deviceTaskSchedulerTrigger("container", c.name, "changed")
-	}
+	// Define a function which reverts everything.  Defer this function
+	// so that it doesn't need to be explicitly called in every failing
+	// return path.  Track whether or not we want to undo the changes
+	// using a closure.
+	undoChanges := true
+	defer func() {
+		if undoChanges {
+			c.architecture = oldArchitecture
+			c.ephemeral = oldEphemeral
+			c.expandedConfig = oldExpandedConfig
+			c.expandedDevices = oldExpandedDevices
+			c.localConfig = oldLocalConfig
+			c.localDevices = oldLocalDevices
+			c.profiles = oldProfiles
+			c.initLXC()
+			deviceTaskSchedulerTrigger("container", c.name, "changed")
+		}
+	}()
 
 	// Apply the various changes
 	c.architecture = args.Architecture
@@ -2031,19 +2037,16 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	// Expand the config and refresh the LXC config
 	err = c.expandConfig()
 	if err != nil {
-		undoChanges()
 		return err
 	}
 
 	err = c.expandDevices()
 	if err != nil {
-		undoChanges()
 		return err
 	}
 
 	err = c.initLXC()
 	if err != nil {
-		undoChanges()
 		return err
 	}
 
@@ -2071,14 +2074,12 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	// Do some validation of the config diff
 	err = containerValidConfig(c.daemon, c.expandedConfig, false, true)
 	if err != nil {
-		undoChanges()
 		return err
 	}
 
 	// Do some validation of the devices diff
 	err = containerValidDevices(c.expandedDevices, false, true)
 	if err != nil {
-		undoChanges()
 		return err
 	}
 
@@ -2087,7 +2088,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		if key == "raw.apparmor" || key == "security.nesting" {
 			err = AAParseProfile(c)
 			if err != nil {
-				undoChanges()
 				return err
 			}
 		}
@@ -2106,13 +2106,11 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		if m["size"] != oldRootfsSize {
 			size, err := shared.ParseByteSizeString(m["size"])
 			if err != nil {
-				undoChanges()
 				return err
 			}
 
 			err = c.storage.ContainerSetQuota(c, size)
 			if err != nil {
-				undoChanges()
 				return err
 			}
 		}
@@ -2138,7 +2136,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 
 		if oldRootfs["source"] != newRootfs["source"] {
-			undoChanges()
 			return fmt.Errorf("Cannot change the rootfs path of a running container")
 		}
 
@@ -2150,7 +2147,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				// Update the AppArmor profile
 				err = AALoadProfile(c)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 			} else if key == "linux.kernel_modules" && value != "" {
@@ -2158,7 +2154,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					module = strings.TrimPrefix(module, " ")
 					out, err := exec.Command("modprobe", module).CombinedOutput()
 					if err != nil {
-						undoChanges()
 						return fmt.Errorf("Failed to load kernel module '%s': %s", module, out)
 					}
 				}
@@ -2209,7 +2204,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				} else {
 					valueInt, err := shared.ParseByteSizeString(memory)
 					if err != nil {
-						undoChanges()
 						return err
 					}
 					memory = fmt.Sprintf("%d", valueInt)
@@ -2219,20 +2213,17 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				if cgSwapAccounting {
 					err = c.CGroupSet("memory.memsw.limit_in_bytes", "-1")
 					if err != nil {
-						undoChanges()
 						return err
 					}
 				}
 
 				err = c.CGroupSet("memory.limit_in_bytes", "-1")
 				if err != nil {
-					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("memory.soft_limit_in_bytes", "-1")
 				if err != nil {
-					undoChanges()
 					return err
 				}
 
@@ -2241,25 +2232,21 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					// Set new limit
 					err = c.CGroupSet("memory.soft_limit_in_bytes", memory)
 					if err != nil {
-						undoChanges()
 						return err
 					}
 				} else {
 					if cgSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 						err = c.CGroupSet("memory.limit_in_bytes", memory)
 						if err != nil {
-							undoChanges()
 							return err
 						}
 						err = c.CGroupSet("memory.memsw.limit_in_bytes", memory)
 						if err != nil {
-							undoChanges()
 							return err
 						}
 					} else {
 						err = c.CGroupSet("memory.limit_in_bytes", memory)
 						if err != nil {
-							undoChanges()
 							return err
 						}
 					}
@@ -2272,7 +2259,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					if memorySwap != "" && !shared.IsTrue(memorySwap) {
 						err = c.CGroupSet("memory.swappiness", "0")
 						if err != nil {
-							undoChanges()
 							return err
 						}
 					} else {
@@ -2280,14 +2266,12 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						if memorySwapPriority != "" {
 							priority, err = strconv.Atoi(memorySwapPriority)
 							if err != nil {
-								undoChanges()
 								return err
 							}
 						}
 
 						err = c.CGroupSet("memory.swappiness", fmt.Sprintf("%d", 60-10+priority))
 						if err != nil {
-							undoChanges()
 							return err
 						}
 					}
@@ -2309,25 +2293,21 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				// Apply new CPU limits
 				cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(c.expandedConfig["limits.cpu.allowance"], c.expandedConfig["limits.cpu.priority"])
 				if err != nil {
-					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("cpu.shares", cpuShares)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("cpu.cfs_period_us", cpuCfsPeriod)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("cpu.cfs_quota_us", cpuCfsQuota)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 			} else if key == "limits.processes" {
@@ -2338,19 +2318,16 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				if value == "" {
 					err = c.CGroupSet("pids.max", "max")
 					if err != nil {
-						undoChanges()
 						return err
 					}
 				} else {
 					valueInt, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						undoChanges()
 						return err
 					}
 
 					err = c.CGroupSet("pids.max", fmt.Sprintf("%d", valueInt))
 					if err != nil {
-						undoChanges()
 						return err
 					}
 				}
@@ -2362,19 +2339,16 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 				err = c.removeUnixDevice(k, m)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 			} else if m["type"] == "disk" && m["path"] != "/" {
 				err = c.removeDiskDevice(k, m)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 			} else if m["type"] == "nic" {
 				err = c.removeNetworkDevice(k, m)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 			}
@@ -2384,19 +2358,16 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 				err = c.insertUnixDevice(k, m)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 			} else if m["type"] == "disk" && m["path"] != "/" {
 				err = c.insertDiskDevice(k, m)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 			} else if m["type"] == "nic" {
 				err = c.insertNetworkDevice(k, m)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 			}
@@ -2409,7 +2380,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			} else if m["type"] == "nic" {
 				err = c.setNetworkLimits(k, m)
 				if err != nil {
-					undoChanges()
 					return err
 				}
 			}
@@ -2419,32 +2389,27 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		if updateDiskLimit && cgBlkioController {
 			diskLimits, err := c.getDiskLimits()
 			if err != nil {
-				undoChanges()
 				return err
 			}
 
 			for block, limit := range diskLimits {
 				err = c.CGroupSet("blkio.throttle.read_bps_device", fmt.Sprintf("%s %d", block, limit.readBps))
 				if err != nil {
-					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("blkio.throttle.read_iops_device", fmt.Sprintf("%s %d", block, limit.readIops))
 				if err != nil {
-					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("blkio.throttle.write_bps_device", fmt.Sprintf("%s %d", block, limit.writeBps))
 				if err != nil {
-					undoChanges()
 					return err
 				}
 
 				err = c.CGroupSet("blkio.throttle.write_iops_device", fmt.Sprintf("%s %d", block, limit.writeIops))
 				if err != nil {
-					undoChanges()
 					return err
 				}
 			}
@@ -2454,49 +2419,45 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	// Finally, apply the changes to the database
 	tx, err := dbBegin(c.daemon.db)
 	if err != nil {
-		undoChanges()
 		return err
 	}
 
 	err = dbContainerConfigClear(tx, c.id)
 	if err != nil {
 		tx.Rollback()
-		undoChanges()
 		return err
 	}
 
 	err = dbContainerConfigInsert(tx, c.id, args.Config)
 	if err != nil {
 		tx.Rollback()
-		undoChanges()
 		return err
 	}
 
 	err = dbContainerProfilesInsert(tx, c.id, args.Profiles)
 	if err != nil {
 		tx.Rollback()
-		undoChanges()
 		return err
 	}
 
 	err = dbDevicesAdd(tx, "container", int64(c.id), args.Devices)
 	if err != nil {
 		tx.Rollback()
-		undoChanges()
 		return err
 	}
 
 	err = dbContainerUpdate(tx, c.id, c.architecture, c.ephemeral)
 	if err != nil {
 		tx.Rollback()
-		undoChanges()
 		return err
 	}
 
 	if err := txCommit(tx); err != nil {
-		undoChanges()
 		return err
 	}
+
+	// Success, update the closure to mark that the changes should be kept.
+	undoChanges = false
 
 	return nil
 }
