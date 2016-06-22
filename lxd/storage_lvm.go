@@ -732,28 +732,28 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	fstype := daemonConfig["storage.lvm_fstype"].Get()
 	err = tryMount(lvpath, tempLVMountPoint, fstype, 0, "discard")
 	if err != nil {
-		shared.Logf("Error mounting image LV for untarring: %v", err)
+		shared.Logf("Error mounting image LV for unpacking: %v", err)
 		return fmt.Errorf("Error mounting image LV: %v", err)
 	}
 
-	untarErr := untarImage(finalName, tempLVMountPoint)
+	unpackErr := unpackImage(finalName, tempLVMountPoint)
 
 	err = tryUnmount(tempLVMountPoint, 0)
 	if err != nil {
 		s.log.Warn("could not unmount LV. Will not remove",
 			log.Ctx{"lvpath": lvpath, "mountpoint": tempLVMountPoint, "err": err})
-		if untarErr == nil {
+		if unpackErr == nil {
 			return err
 		}
 
 		return fmt.Errorf(
 			"Error unmounting '%s' during cleanup of error %v",
-			tempLVMountPoint, untarErr)
+			tempLVMountPoint, unpackErr)
 	}
 
-	if untarErr != nil {
+	if unpackErr != nil {
 		s.removeLV(fingerprint)
-		return untarErr
+		return unpackErr
 	}
 
 	return nil
