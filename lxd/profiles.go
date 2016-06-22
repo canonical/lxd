@@ -164,7 +164,11 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 		return PreconditionFailed(err)
 	}
 
-	body, _ := ioutil.ReadAll(r.Body)
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
 	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
 
