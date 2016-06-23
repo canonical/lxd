@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -54,9 +55,9 @@ const (
 )
 
 type listCmd struct {
-	chosenColumnRunes string
-	fast              bool
-	format            string
+	columnsRaw string
+	fast       bool
+	format     string
 }
 
 func (c *listCmd) showByDefault() bool {
@@ -79,7 +80,13 @@ The filters are:
  * "s.privileged=1" will do the same
 * A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*)
 
-Columns for table format are:
+The -c option takes a comma separated list of arguments that control
+which container attributes to output when displaying in table format.
+Column arguments are either pre-defined shorthand chars (see below),
+or (extended) config keys.  Commas between consecutive shorthand chars
+are optional.
+
+Pre-defined shorthand chars:
 * 4 - IPv4 address
 * 6 - IPv6 address
 * a - architecture
@@ -92,13 +99,27 @@ Columns for table format are:
 * S - number of snapshots
 * t - type (persistent or ephemeral)
 
+Config key syntax: key[:name][:maxWidth]
+* key      - The (extended) config key to display
+* name     - Name to display in the column header, defaults to the key
+             if not specified or if empty (to allow defining maxWidth
+             without a custom name, e.g. user.key::0)
+* maxWidth - Max width of the column (longer results are truncated).
+             -1 == unlimited
+              0 == width of column header
+             >0 == max width in chars
+             Default is -1 (unlimited)
+
 Default column layout: ns46tS
-Fast column layout: nsacPt`)
+Fast column layout: nsacPt
+
+Example: lxc list -c n,volatile.base_image:"BASE IMAGE":0,s46,volatile.eth0.hwaddr:MAC
+`)
 }
 
 func (c *listCmd) flags() {
-	gnuflag.StringVar(&c.chosenColumnRunes, "c", "ns46tS", i18n.G("Columns"))
-	gnuflag.StringVar(&c.chosenColumnRunes, "columns", "ns46tS", i18n.G("Columns"))
+	gnuflag.StringVar(&c.columnsRaw, "c", "ns46tS", i18n.G("Columns"))
+	gnuflag.StringVar(&c.columnsRaw, "columns", "ns46tS", i18n.G("Columns"))
 	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format"))
 	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt"))
 }
@@ -373,7 +394,16 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		cts = append(cts, cinfo)
 	}
 
-	columns_map := map[rune]column{
+	columns, err := c.parseColumns()
+	if err != nil {
+		return err
+	}
+
+	return c.listContainers(d, cts, filters, columns)
+}
+
+func (c *listCmd) parseColumns() ([]column, error) {
+	columnsShorthandMap := map[rune]column{
 		'4': column{i18n.G("IPV4"), c.IP4ColumnData, true, false},
 		'6': column{i18n.G("IPV6"), c.IP6ColumnData, true, false},
 		'a': column{i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
@@ -388,19 +418,79 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if c.fast {
-		c.chosenColumnRunes = "nsacPt"
+		c.columnsRaw = "nsacPt"
 	}
+
+	columnList := strings.Split(c.columnsRaw, ",")
 
 	columns := []column{}
-	for _, columnRune := range c.chosenColumnRunes {
-		if column, ok := columns_map[columnRune]; ok {
-			columns = append(columns, column)
+	for _, columnEntry := range columnList {
+		if columnEntry == "" {
+			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in '%s'", c.columnsRaw)
+		}
+
+		// Config keys always contain a period, parse anything without a
+		// period as a series of shorthand runes.
+		if !strings.Contains(columnEntry, ".") {
+			for _, columnRune := range columnEntry {
+				if column, ok := columnsShorthandMap[columnRune]; ok {
+					columns = append(columns, column)
+				} else {
+					return nil, fmt.Errorf("Unknown column shorthand char '%c' in '%s'", columnRune, columnEntry)
+				}
+			}
 		} else {
-			return fmt.Errorf("%s does contain invalid column characters\n", c.chosenColumnRunes)
+			cc := strings.Split(columnEntry, ":")
+			if len(cc) > 3 {
+				return nil, fmt.Errorf("Invalid config key column format (too many fields): '%s'", columnEntry)
+			}
+
+			k := cc[0]
+			if _, err := shared.ConfigKeyChecker(k); err != nil {
+				return nil, fmt.Errorf("Invalid config key '%s' in '%s'", k, columnEntry)
+			}
+
+			column := column{Name: k}
+			if len(cc) > 1 {
+				if len(cc[1]) == 0 && len(cc) != 3 {
+					return nil, fmt.Errorf("Invalid name in '%s', empty string is only allowed when defining maxWidth", columnEntry)
+				}
+				column.Name = cc[1]
+			}
+
+			maxWidth := -1
+			if len(cc) > 2 {
+				temp, err := strconv.ParseInt(cc[2], 10, 64)
+				if err != nil {
+					return nil, fmt.Errorf("Invalid max width (must be an integer) '%s' in '%s'", cc[2], columnEntry)
+				}
+				if temp < -1 {
+					return nil, fmt.Errorf("Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'", cc[2], columnEntry)
+				}
+				if temp == 0 {
+					maxWidth = len(column.Name)
+				} else {
+					maxWidth = int(temp)
+				}
+			}
+
+			column.Data = func(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {
+				v, ok := cInfo.Config[k]
+				if !ok {
+					v, ok = cInfo.ExpandedConfig[k]
+				}
+
+				// Truncate the data according to the max width.  A negative max width
+				// indicates there is no effective limit.
+				if maxWidth > 0 && len(v) > maxWidth {
+					return v[:maxWidth]
+				}
+				return v
+			}
+			columns = append(columns, column)
 		}
 	}
-
-	return c.listContainers(d, cts, filters, columns)
+	return columns, nil
 }
 
 func (c *listCmd) nameColumnData(cInfo shared.ContainerInfo, cState *shared.ContainerState, cSnaps []shared.SnapshotInfo) string {

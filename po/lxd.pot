@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-06-16 15:51-0400\n"
+        "POT-Creation-Date: 2016-06-24 08:22-0700\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -98,7 +98,7 @@ msgstr  ""
 msgid   "ARCH"
 msgstr  ""
 
-#: lxc/list.go:379
+#: lxc/list.go:409
 msgid   "ARCHITECTURE"
 msgstr  ""
 
@@ -145,7 +145,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: lxc/list.go:380
+#: lxc/list.go:410
 msgid   "CREATED AT"
 msgstr  ""
 
@@ -179,7 +179,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/list.go:100 lxc/list.go:101
+#: lxc/list.go:121 lxc/list.go:122
 msgid   "Columns"
 msgstr  ""
 
@@ -281,7 +281,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:464
+#: lxc/list.go:554
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -330,7 +330,7 @@ msgstr  ""
 msgid   "FINGERPRINT"
 msgstr  ""
 
-#: lxc/list.go:103
+#: lxc/list.go:124
 msgid   "Fast mode (same as --columns=nsacPt"
 msgstr  ""
 
@@ -345,7 +345,7 @@ msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "lxc finger <remote>"
 msgstr  ""
 
-#: lxc/action.go:37
+#: lxc/action.go:37 lxc/action.go:38
 msgid   "Force the container to shutdown."
 msgstr  ""
 
@@ -357,7 +357,7 @@ msgstr  ""
 msgid   "Force using the local unix socket."
 msgstr  ""
 
-#: lxc/image.go:160 lxc/list.go:102
+#: lxc/image.go:160 lxc/list.go:123
 msgid   "Format"
 msgstr  ""
 
@@ -365,11 +365,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:377
+#: lxc/list.go:407
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:378
+#: lxc/list.go:408
 msgid   "IPV6"
 msgstr  ""
 
@@ -385,7 +385,7 @@ msgstr  ""
 msgid   "Ignore aliases when determining what command to run."
 msgstr  ""
 
-#: lxc/action.go:40
+#: lxc/action.go:41
 msgid   "Ignore the container state (only for start)."
 msgstr  ""
 
@@ -443,7 +443,7 @@ msgstr  ""
 msgid   "Keep the image up to date after initial copy"
 msgstr  ""
 
-#: lxc/list.go:381
+#: lxc/list.go:411
 msgid   "LAST USED AT"
 msgstr  ""
 
@@ -475,7 +475,7 @@ msgid   "List information on LXD servers and containers.\n"
         " lxc info [<remote>:]"
 msgstr  ""
 
-#: lxc/list.go:67
+#: lxc/list.go:68
 msgid   "Lists the available resources.\n"
         "\n"
         "lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]\n"
@@ -490,7 +490,13 @@ msgid   "Lists the available resources.\n"
         " * \"s.privileged=1\" will do the same\n"
         "* A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*)\n"
         "\n"
-        "Columns for table format are:\n"
+        "The -c option takes a comma separated list of arguments that control\n"
+        "which container attributes to output when displaying in table format.\n"
+        "Column arguments are either pre-defined shorthand chars (see below),\n"
+        "or (extended) config keys.  Commas between consecutive shorthand chars\n"
+        "are optional.\n"
+        "\n"
+        "Pre-defined shorthand chars:\n"
         "* 4 - IPv4 address\n"
         "* 6 - IPv6 address\n"
         "* a - architecture\n"
@@ -503,8 +509,21 @@ msgid   "Lists the available resources.\n"
         "* S - number of snapshots\n"
         "* t - type (persistent or ephemeral)\n"
         "\n"
+        "Config key syntax: key[:name][:maxWidth]\n"
+        "* key      - The (extended) config key to display\n"
+        "* name     - Name to display in the column header, defaults to the key\n"
+        "             if not specified or if empty (to allow defining maxWidth\n"
+        "             without a custom name, e.g. user.key::0)\n"
+        "* maxWidth - Max width of the column (longer results are truncated).\n"
+        "             -1 == unlimited\n"
+        "              0 == width of column header\n"
+        "             >0 == max width in chars\n"
+        "             Default is -1 (unlimited)\n"
+        "\n"
         "Default column layout: ns46tS\n"
-        "Fast column layout: nsacPt"
+        "Fast column layout: nsacPt\n"
+        "\n"
+        "Example: lxc list -c n,volatile.base_image:\"BASE IMAGE\":0,s46,volatile.eth0.hwaddr:MAC\n"
 msgstr  ""
 
 #: lxc/info.go:225
@@ -719,11 +738,11 @@ msgid   "Move containers within or in between lxd instances.\n"
         "    Rename a local container.\n"
 msgstr  ""
 
-#: lxc/action.go:63
+#: lxc/action.go:64
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:382 lxc/remote.go:376
+#: lxc/list.go:412 lxc/remote.go:376
 msgid   "NAME"
 msgstr  ""
 
@@ -769,15 +788,15 @@ msgstr  ""
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:466
+#: lxc/list.go:556
 msgid   "PERSISTENT"
 msgstr  ""
 
-#: lxc/list.go:383
+#: lxc/list.go:413
 msgid   "PID"
 msgstr  ""
 
-#: lxc/list.go:384
+#: lxc/list.go:414
 msgid   "PROFILES"
 msgstr  ""
 
@@ -930,11 +949,11 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:385
+#: lxc/list.go:415
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:386
+#: lxc/list.go:416
 msgid   "STATE"
 msgstr  ""
 
@@ -1018,7 +1037,7 @@ msgstr  ""
 msgid   "Stopping container failed!"
 msgstr  ""
 
-#: lxc/action.go:39
+#: lxc/action.go:40
 msgid   "Store the container state (only for stop)."
 msgstr  ""
 
@@ -1030,7 +1049,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:387
+#: lxc/list.go:417
 msgid   "TYPE"
 msgstr  ""
 
@@ -1072,7 +1091,7 @@ msgstr  ""
 msgid   "Transferring image: %d%%"
 msgstr  ""
 
-#: lxc/action.go:93 lxc/launch.go:132
+#: lxc/action.go:94 lxc/launch.go:132
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -1139,7 +1158,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: lxc/action.go:89
+#: lxc/action.go:90
 msgid   "bad result type from action"
 msgstr  ""
 
