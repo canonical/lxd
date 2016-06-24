@@ -93,7 +93,7 @@ func AANamespace(c container) string {
 	/* / is not allowed in apparmor namespace names; let's also trim the
 	 * leading / so it doesn't look like "-var-lib-lxd"
 	 */
-	lxddir := strings.Replace(shared.VarPath("")[1:], "/", "-", -1)
+	lxddir := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
 	lxddir = mkApparmorName(lxddir)
 	return fmt.Sprintf("lxd-%s_<%s>", c.Name(), lxddir)
 }
