@@ -301,37 +301,39 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		driver, _ = rsyncMigrationSource(s.container)
 	}
 
-	if err := driver.SendWhileRunning(s.fsConn); err != nil {
+	// All failure paths need to do a few things to correctly handle errors before returning.
+	// Unfortunately, handling errors is not well-suited to defer as the code depends on the
+	// status of driver and the error value.  The error value is especially tricky due to the
+	// common case of creating a new err variable (intentional or not) due to scoping and use
+	// of ":=".  Capturing err in a closure for use in defer would be fragile, which defeats
+	// the purpose of using defer.  An abort function reduces the odds of mishandling errors
+	// without introducing the fragility of closing on err.
+	abort := func(err error) error {
 		driver.Cleanup()
 		s.sendControl(err)
 		return err
 	}
 
+	if err := driver.SendWhileRunning(s.fsConn); err != nil {
+		return abort(err)
+	}
+
 	if s.live {
 		if header.Criu == nil {
-			driver.Cleanup()
-			err := fmt.Errorf("Got no CRIU socket type for live migration")
-			s.sendControl(err)
-			return err
+			return abort(fmt.Errorf("Got no CRIU socket type for live migration"))
 		} else if *header.Criu != CRIUType_CRIU_RSYNC {
-			driver.Cleanup()
-			err := fmt.Errorf("Formats other than criu rsync not understood")
-			s.sendControl(err)
-			return err
+			return abort(fmt.Errorf("Formats other than criu rsync not understood"))
 		}
 
 		checkpointDir, err := ioutil.TempDir("", "lxd_checkpoint_")
 		if err != nil {
-			driver.Cleanup()
-			s.sendControl(err)
-			return err
+			return abort(err)
 		}
 		defer os.RemoveAll(checkpointDir)
 
 		err = s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true)
 		if err != nil {
-			s.sendControl(err)
-			return err
+			return abort(err)
 		}
 
 		/*
@@ -342,15 +344,11 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
 		if err := RsyncSend(shared.AddSlash(checkpointDir), s.criuConn); err != nil {
-			driver.Cleanup()
-			s.sendControl(err)
-			return err
+			return abort(err)
 		}
 
 		if err := driver.SendAfterCheckpoint(s.fsConn); err != nil {
-			driver.Cleanup()
-			s.sendControl(err)
-			return err
+			return abort(err)
 		}
 	}
 
