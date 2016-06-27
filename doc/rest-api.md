@@ -296,7 +296,7 @@ Input:
     {
         "type": "client",                       # Certificate type (keyring), currently only client
         "certificate": "PEM certificate",       # If provided, a valid x509 certificate. If not, the client certificate of the connection will be used
-        "name": "foo"                           # An optional name for the certificate. If nothing is provided, the host in the TLS header for the request is used.
+        "name": "foo",                          # An optional name for the certificate. If nothing is provided, the host in the TLS header for the request is used.
         "password": "server-trust-password"     # The trust password for that server (only required if untrusted)
     }
 
@@ -311,7 +311,8 @@ Output:
 
     {
         "type": "client",
-        "certificate": "PEM certificate"
+        "certificate": "PEM certificate",
+        "name": "foo",
         "fingerprint": "SHA256 Hash of the raw certificate"
     }
 
