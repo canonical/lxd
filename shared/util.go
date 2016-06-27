@@ -704,6 +704,18 @@ func GetByteSizeString(input int64) string {
 	return fmt.Sprintf("%.2fEB", value)
 }
 
+// RemoveDuplicatesFromString removes all duplicates of the string 'sep'
+// from the specified string 's'.  Leading and trailing occurences of sep
+// are NOT removed (duplicate leading/trailing are).  Performs poorly if
+// there are multiple consecutive redundant separators.
+func RemoveDuplicatesFromString(s string, sep string) string {
+	dup := sep + sep
+	for s = strings.Replace(s, dup, sep, -1); strings.Contains(s, dup); s = strings.Replace(s, dup, sep, -1) {
+
+	}
+	return s
+}
+
 type TransferProgress struct {
 	io.Reader
 	percentage float64
