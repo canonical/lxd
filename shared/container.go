@@ -1,6 +1,9 @@
 package shared
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -140,4 +143,117 @@ type ProfileConfig struct {
 	Config      map[string]string `json:"config"`
 	Description string            `json:"description"`
 	Devices     Devices           `json:"devices"`
+}
+
+func isInt64(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fmt.Errorf("Invalid value for an integer: %s", value)
+	}
+
+	return nil
+}
+
+func isBool(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	if !StringInSlice(strings.ToLower(value), []string{"true", "false", "yes", "no", "1", "0", "on", "off"}) {
+		return fmt.Errorf("Invalid value for a boolean: %s", value)
+	}
+
+	return nil
+}
+
+func isOneOf(value string, valid []string) error {
+	if value == "" {
+		return nil
+	}
+
+	if !StringInSlice(value, valid) {
+		return fmt.Errorf("Invalid value: %s (not one of %s)", value, valid)
+	}
+
+	return nil
+}
+
+func isAny(value string) error {
+	return nil
+}
+
+// KnownContainerConfigKeys maps all fully defined, well-known config keys
+// to an appropriate checker function, which validates whether or not a
+// given value is syntactically legal.
+var KnownContainerConfigKeys = map[string]func(value string) error{
+	"boot.autostart":             isBool,
+	"boot.autostart.delay":       isInt64,
+	"boot.autostart.priority":    isInt64,
+	"boot.host_shutdown_timeout": isInt64,
+
+	"limits.cpu":           isAny,
+	"limits.disk.priority": isInt64,
+	"limits.memory":        isAny,
+	"limits.memory.enforce": func(value string) error {
+		return isOneOf(value, []string{"soft", "hard"})
+	},
+	"limits.memory.swap":          isBool,
+	"limits.memory.swap.priority": isInt64,
+	"limits.network.priority":     isInt64,
+	"limits.processes":            isInt64,
+
+	"linux.kernel_modules": isAny,
+
+	"security.privileged":                 isBool,
+	"security.nesting":                    isBool,
+	"security.syscalls.blacklist_default": isBool,
+	"security.syscalls.blacklist_compat":  isBool,
+	"security.syscalls.blacklist":         isAny,
+	"security.syscalls.whitelist":         isAny,
+
+	// Caller is responsible for full validation of any raw.* value
+	"raw.apparmor": isAny,
+	"raw.lxc":      isAny,
+	"raw.seccomp":  isAny,
+
+	"volatile.apply_template":   isAny,
+	"volatile.base_image":       isAny,
+	"volatile.last_state.idmap": isAny,
+	"volatile.last_state.power": isAny,
+}
+
+// ConfigKeyChecker returns a function that will check whether or not
+// a provide value is valid for the associate config key.  Returns an
+// error if the key is not known.  The checker function only performs
+// syntactic checking of the value, semantic and usage checking must
+// be done by the caller.  User defined keys are always considered to
+// be valid, e.g. user.* and environment.* keys.
+func ConfigKeyChecker(key string) (func(value string) error, error) {
+	if f, ok := KnownContainerConfigKeys[key]; ok {
+		return f, nil
+	}
+
+	if strings.HasPrefix(key, "volatile.") {
+		if strings.HasSuffix(key, ".hwaddr") {
+			return isAny, nil
+		}
+
+		if strings.HasSuffix(key, ".name") {
+			return isAny, nil
+		}
+	}
+
+	if strings.HasPrefix(key, "environment.") {
+		return isAny, nil
+	}
+
+	if strings.HasPrefix(key, "user.") {
+		return isAny, nil
+	}
+
+	return nil, fmt.Errorf("Bad key: %s", key)
 }
