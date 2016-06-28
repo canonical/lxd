@@ -697,6 +697,8 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		go dest.Monitor([]string{"operation"}, handler)
 	}
 
+	fingerprint := info.Fingerprint
+
 	for _, addr := range addresses {
 		sourceUrl := "https://" + addr
 
@@ -710,9 +712,16 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 
 		operation = resp.Operation
 
-		err = dest.WaitForSuccess(resp.Operation)
+		op, err := dest.WaitForSuccessOp(resp.Operation)
 		if err != nil {
 			return err
+		}
+
+		if op.Metadata != nil {
+			value, err := op.Metadata.GetString("fingerprint")
+			if err == nil {
+				fingerprint = value
+			}
 		}
 
 		break
@@ -726,7 +735,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 	if copy_aliases {
 		for _, alias := range info.Aliases {
 			dest.DeleteAlias(alias.Name)
-			err = dest.PostAlias(alias.Name, alias.Description, info.Fingerprint)
+			err = dest.PostAlias(alias.Name, alias.Description, fingerprint)
 			if err != nil {
 				return fmt.Errorf("Error adding alias %s: %s", alias.Name, err)
 			}
@@ -736,7 +745,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 	/* add new aliases */
 	for _, alias := range aliases {
 		dest.DeleteAlias(alias)
-		err = dest.PostAlias(alias, alias, info.Fingerprint)
+		err = dest.PostAlias(alias, alias, fingerprint)
 		if err != nil {
 			return fmt.Errorf("Error adding alias %s: %s\n", alias, err)
 		}
@@ -1845,6 +1854,19 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 	}
 
 	return fmt.Errorf(op.Err)
+}
+
+func (c *Client) WaitForSuccessOp(waitURL string) (*shared.Operation, error) {
+	op, err := c.WaitFor(waitURL)
+	if err != nil {
+		return nil, err
+	}
+
+	if op.StatusCode == shared.Success {
+		return op, nil
+	}
+
+	return op, fmt.Errorf(op.Err)
 }
 
 func (c *Client) RestoreSnapshot(container string, snapshotName string, stateful bool) (*Response, error) {
