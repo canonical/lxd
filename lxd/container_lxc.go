@@ -3990,7 +3990,7 @@ func (c *containerLXC) createDiskDevice(name string, m shared.Device) (string, e
 		if isOptional {
 			return "", nil
 		}
-		return "", fmt.Errorf("Source path doesn't exist")
+		return "", fmt.Errorf("Source path %s doesn't exist for device %s", srcPath, name)
 	}
 
 	// Create the devices directory if missing
