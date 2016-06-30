@@ -3901,8 +3901,8 @@ func (c *containerLXC) insertNetworkDevice(name string, m shared.Device) error {
 		return nil
 	}
 
-	if m["hwaddr"] == "" || m["name"] == "" {
-		return fmt.Errorf("wtf? hwaddr=%s name=%s", m["hwaddr"], m["name"])
+	if m["parent"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["parent"])) {
+		return fmt.Errorf("Parent device '%s' doesn't exist", m["parent"])
 	}
 
 	// Return empty list if not running
