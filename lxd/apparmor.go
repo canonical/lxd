@@ -23,31 +23,7 @@ const (
 
 var aaPath = shared.VarPath("security", "apparmor")
 
-const NESTING_AA_PROFILE = `
-  pivot_root,
-  mount /var/lib/lxd/shmounts/ -> /var/lib/lxd/shmounts/,
-  mount none -> /var/lib/lxd/shmounts/,
-  mount fstype=proc -> /usr/lib/*/lxc/**,
-  mount fstype=sysfs -> /usr/lib/*/lxc/**,
-  mount options=(rw,bind),
-  mount options=(rw,rbind),
-  deny /dev/.lxd/proc/** rw,
-  deny /dev/.lxd/sys/** rw,
-  mount options=(rw,make-rshared),
-
-  # there doesn't seem to be a way to ask for:
-  # mount options=(ro,nosuid,nodev,noexec,remount,bind),
-  # as we always get mount to $cdir/proc/sys with those flags denied
-  # So allow all mounts until that is straightened out:
-  mount,
-  mount options=bind /var/lib/lxd/shmounts/** -> /var/lib/lxd/**,
-  # lxc-container-default-with-nesting also inherited these
-  # from start-container, and seems to need them.
-  ptrace,
-  signal,
-`
-
-const DEFAULT_AA_PROFILE = `
+const AA_PROFILE_BASE = `
   network,
   capability,
   file,
@@ -268,6 +244,30 @@ const DEFAULT_AA_PROFILE = `
   deny /sys/fs?*{,/**} wklx,
 `
 
+const AA_PROFILE_NESTING = `
+  pivot_root,
+  mount /var/lib/lxd/shmounts/ -> /var/lib/lxd/shmounts/,
+  mount none -> /var/lib/lxd/shmounts/,
+  mount fstype=proc -> /usr/lib/*/lxc/**,
+  mount fstype=sysfs -> /usr/lib/*/lxc/**,
+  mount options=(rw,bind),
+  mount options=(rw,rbind),
+  deny /dev/.lxd/proc/** rw,
+  deny /dev/.lxd/sys/** rw,
+  mount options=(rw,make-rshared),
+
+  # there doesn't seem to be a way to ask for:
+  # mount options=(ro,nosuid,nodev,noexec,remount,bind),
+  # as we always get mount to $cdir/proc/sys with those flags denied
+  # So allow all mounts until that is straightened out:
+  mount,
+  mount options=bind /var/lib/lxd/shmounts/** -> /var/lib/lxd/**,
+  # lxc-container-default-with-nesting also inherited these
+  # from start-container, and seems to need them.
+  ptrace,
+  signal,
+`
+
 func AAProfileFull(c container) string {
 	lxddir := shared.VarPath("")
 	if len(c.Name())+len(lxddir)+7 >= 253 {
@@ -287,7 +287,7 @@ func AAProfileShort(c container) string {
 // container. This includes the stock lxc includes as well as stuff from
 // raw.apparmor.
 func getAAProfileContent(c container) string {
-	profile := strings.TrimLeft(DEFAULT_AA_PROFILE, "\n")
+	profile := strings.TrimLeft(AA_PROFILE_BASE, "\n")
 
 	// Apply cgns bits
 	if shared.PathExists("/proc/self/ns/cgroup") {
@@ -298,7 +298,7 @@ func getAAProfileContent(c container) string {
 	// Apply nesting bits
 	if c.IsNesting() {
 		profile += "\n  # Container nesting support\n"
-		profile += strings.TrimLeft(NESTING_AA_PROFILE, "\n")
+		profile += strings.TrimLeft(AA_PROFILE_NESTING, "\n")
 		profile += fmt.Sprintf("  change_profile -> \"%s\",\n", AAProfileFull(c))
 	}
 
