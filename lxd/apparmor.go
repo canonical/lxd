@@ -48,8 +48,6 @@ const NESTING_AA_PROFILE = `
 `
 
 const DEFAULT_AA_PROFILE = `
-#include <tunables/global>
-profile "%s" flags=(attach_disconnected,mediate_deleted) {
   network,
   capability,
   file,
@@ -268,17 +266,7 @@ profile "%s" flags=(attach_disconnected,mediate_deleted) {
   deny /sys/fs/cgrou[^p]*{,/**} wklx,
   deny /sys/fs/cgroup?*{,/**} wklx,
   deny /sys/fs?*{,/**} wklx,
-
-  # Special exception for cgroup namespaces
-%s
-
-  # user input raw.apparmor below here
-  %s
-
-  # nesting support goes here if needed
-%s
-  change_profile -> "%s",
-}`
+`
 
 func AAProfileFull(c container) string {
 	lxddir := shared.VarPath("")
@@ -295,28 +283,39 @@ func AAProfileShort(c container) string {
 	return fmt.Sprintf("lxd-%s", c.Name())
 }
 
-func AAProfileCgns() string {
-	if shared.PathExists("/proc/self/ns/cgroup") {
-		return "  mount fstype=cgroup -> /sys/fs/cgroup/**,"
-	}
-	return ""
-}
-
 // getProfileContent generates the apparmor profile template from the given
 // container. This includes the stock lxc includes as well as stuff from
 // raw.apparmor.
 func getAAProfileContent(c container) string {
-	rawApparmor, ok := c.ExpandedConfig()["raw.apparmor"]
-	if !ok {
-		rawApparmor = ""
+	profile := strings.TrimLeft(DEFAULT_AA_PROFILE, "\n")
+
+	// Apply cgns bits
+	if shared.PathExists("/proc/self/ns/cgroup") {
+		profile += "\n  # Cgroup namespace support\n"
+		profile += "  mount fstype=cgroup -> /sys/fs/cgroup/**,\n"
 	}
 
-	nesting := ""
+	// Apply nesting bits
 	if c.IsNesting() {
-		nesting = NESTING_AA_PROFILE
+		profile += "\n  # Container nesting support\n"
+		profile += strings.TrimLeft(NESTING_AA_PROFILE, "\n")
+		profile += fmt.Sprintf("  change_profile -> \"%s\",\n", AAProfileFull(c))
 	}
 
-	return fmt.Sprintf(DEFAULT_AA_PROFILE, AAProfileFull(c), AAProfileCgns(), rawApparmor, nesting, AAProfileFull(c))
+	// Append raw.apparmor
+	rawApparmor, ok := c.ExpandedConfig()["raw.apparmor"]
+	if ok {
+		profile += "\n  # User input (raw.apparmor)\n"
+		for _, line := range strings.Split(strings.Trim(rawApparmor, "\n"), "\n") {
+			profile += fmt.Sprintf("  %s\n", line)
+		}
+	}
+
+	return fmt.Sprintf(`#include <tunables/global>
+profile "%s" flags=(attach_disconnected,mediate_deleted) {
+%s
+}
+`, AAProfileFull(c), strings.Trim(profile, "\n"))
 }
 
 func runApparmor(command string, c container) error {
