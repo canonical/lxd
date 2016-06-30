@@ -153,7 +153,7 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 				}
 			}
 
-			if found != 2 || size == 0 || filename == "" || fingerprint == "" {
+			if found < 2 || size == 0 || filename == "" || fingerprint == "" {
 				// Invalid image
 				continue
 			}
