@@ -5,9 +5,7 @@ import (
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type fingerCmd struct {
-	httpAddr string
-}
+type fingerCmd struct{}
 
 func (c *fingerCmd) showByDefault() bool {
 	return false
