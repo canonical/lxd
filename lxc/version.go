@@ -11,7 +11,7 @@ import (
 type versionCmd struct{}
 
 func (c *versionCmd) showByDefault() bool {
-	return true
+	return false
 }
 
 func (c *versionCmd) usage() string {
