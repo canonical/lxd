@@ -1,11 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
@@ -18,9 +14,18 @@ func (c *teleportCmd) showByDefault() bool {
 
 func (c *teleportCmd) usage() string {
 	return i18n.G(
-		`Makes port from inside container available on local interface.
+		`Make port from inside container available on local interface.
 
 lxd teleport [remote:]container there=:<port> here=<host>:<port>
 `)
+}
 
+func (c *teleportCmd) flags() {
+}
+
+func (c *teleportCmd) run(config *lxd.Config, args []string) error {
+	if len(args) == 0 {
+		return errArgs
+	}
+	return nil
 }
