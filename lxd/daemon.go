@@ -41,6 +41,7 @@ import (
 var aaAdmin = true
 var aaAvailable = true
 var aaConfined = false
+var aaStacking = false
 
 // CGroup
 var cgBlkioController = false
@@ -623,6 +624,16 @@ func (d *Daemon) Init() error {
 		if profile != "unconfined" && profile != "" {
 			aaConfined = true
 			shared.Log.Warn("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
+		}
+	}
+
+	if aaAvailable {
+		content, err := ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/stack")
+		if err == nil && string(content) == "yes\n" {
+			aaStacking = true
+			shared.Log.Warn("Enabled apparmor stacking")
+		} else {
+			shared.Log.Warn("Kernel doesn't support apparmor stacking")
 		}
 	}
 
