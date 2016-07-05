@@ -35,11 +35,11 @@ var argHelp = gnuflag.Bool("help", false, "")
 var argLogfile = gnuflag.String("logfile", "", "")
 var argMemProfile = gnuflag.String("memprofile", "", "")
 var argNetworkAddress = gnuflag.String("network-address", "", "")
-var argNetworkPort = gnuflag.Int("network-port", -1, "")
+var argNetworkPort = gnuflag.Int64("network-port", -1, "")
 var argPrintGoroutinesEvery = gnuflag.Int("print-goroutines-every", -1, "")
 var argStorageBackend = gnuflag.String("storage-backend", "", "")
 var argStorageCreateDevice = gnuflag.String("storage-create-device", "", "")
-var argStorageCreateLoop = gnuflag.Int("storage-create-loop", -1, "")
+var argStorageCreateLoop = gnuflag.Int64("storage-create-loop", -1, "")
 var argStoragePool = gnuflag.String("storage-pool", "", "")
 var argSyslog = gnuflag.Bool("syslog", false, "")
 var argTimeout = gnuflag.Int("timeout", -1, "")
@@ -590,11 +590,11 @@ func cmdInit() error {
 	var defaultPrivileged int // controls whether we set security.privileged=true
 	var storageBackend string // dir or zfs
 	var storageMode string    // existing, loop or device
-	var storageLoopSize int   // Size in GB
+	var storageLoopSize int64 // Size in GB
 	var storageDevice string  // Path
 	var storagePool string    // pool name
 	var networkAddress string // Address
-	var networkPort int       // Port
+	var networkPort int64     // Port
 	var trustPassword string  // Trust password
 
 	// Detect userns
@@ -645,12 +645,12 @@ func cmdInit() error {
 		}
 	}
 
-	askInt := func(question string, min int, max int) int {
+	askInt := func(question string, min int64, max int64) int64 {
 		for {
 			fmt.Printf(question)
 			input, _ := reader.ReadString('\n')
 			input = strings.TrimSuffix(input, "\n")
-			intInput, err := strconv.Atoi(input)
+			intInput, err := strconv.ParseInt(input, 10, 64)
 
 			if err == nil && (min == -1 || intInput >= min) && (max == -1 || intInput <= max) {
 				return intInput
