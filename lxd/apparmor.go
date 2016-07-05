@@ -24,23 +24,14 @@ const (
 var aaPath = shared.VarPath("security", "apparmor")
 
 const AA_PROFILE_BASE = `
-  network,
+  ### Base profile
   capability,
+  dbus,
   file,
+  network,
   umount,
 
-  # dbus, signal, ptrace and unix are only supported by recent apparmor
-  # versions. Comment them if the apparmor parser doesn't recognize them.
-
-  # This also needs additional rules to reach outside of the container via
-  # DBus, so just let all of DBus within the container.
-  dbus,
-
-  # Allow us to receive signals from anywhere. Note: if per-container profiles
-  # are supported, for container isolation this should be changed to something
-  # like:
-  #   signal (receive) peer=unconfined,
-  #   signal (receive) peer=/usr/bin/lxc-start,
+  # Allow us to receive signals from anywhere.
   signal (receive),
 
   # Allow us to send signals to ourselves
@@ -59,15 +50,6 @@ const AA_PROFILE_BASE = `
 
   # Allow us to ptrace ourselves
   ptrace peer=@{profile_name},
-
-  # Allow receive via unix sockets from anywhere. Note: if per-container
-  # profiles are supported, for container isolation this should be changed to
-  # something like:
-  #   unix (receive) peer=(label=unconfined),
-  unix (receive),
-
-  # Allow all unix in the container
-  unix peer=(label=@{profile_name}),
 
   # ignore DENIED message on / remount
   deny mount options=(ro, remount) -> /,
@@ -246,14 +228,18 @@ const AA_PROFILE_BASE = `
 
 const AA_PROFILE_NESTING = `
   pivot_root,
+  ptrace,
+  signal,
+
+  deny /dev/.lxd/proc/** rw,
+  deny /dev/.lxd/sys/** rw,
+
   mount /var/lib/lxd/shmounts/ -> /var/lib/lxd/shmounts/,
   mount none -> /var/lib/lxd/shmounts/,
   mount fstype=proc -> /usr/lib/*/lxc/**,
   mount fstype=sysfs -> /usr/lib/*/lxc/**,
   mount options=(rw,bind),
   mount options=(rw,rbind),
-  deny /dev/.lxd/proc/** rw,
-  deny /dev/.lxd/sys/** rw,
   mount options=(rw,make-rshared),
 
   # there doesn't seem to be a way to ask for:
@@ -262,10 +248,6 @@ const AA_PROFILE_NESTING = `
   # So allow all mounts until that is straightened out:
   mount,
   mount options=bind /var/lib/lxd/shmounts/** -> /var/lib/lxd/**,
-  # lxc-container-default-with-nesting also inherited these
-  # from start-container, and seems to need them.
-  ptrace,
-  signal,
 `
 
 func AAProfileFull(c container) string {
@@ -289,15 +271,27 @@ func AAProfileShort(c container) string {
 func getAAProfileContent(c container) string {
 	profile := strings.TrimLeft(AA_PROFILE_BASE, "\n")
 
+	// Apply new features
+	if aaParserSupports("unix") {
+		profile += `
+  ### Feature: unix
+  # Allow receive via unix sockets from anywhere
+  unix (receive),
+
+  # Allow all unix in the container
+  unix peer=(label=@{profile_name}),
+`
+	}
+
 	// Apply cgns bits
 	if shared.PathExists("/proc/self/ns/cgroup") {
-		profile += "\n  # Cgroup namespace support\n"
+		profile += "\n  ### Feature: cgroup namespace\n"
 		profile += "  mount fstype=cgroup -> /sys/fs/cgroup/**,\n"
 	}
 
 	// Apply nesting bits
 	if c.IsNesting() {
-		profile += "\n  # Container nesting support\n"
+		profile += "\n  ### Configuration: nesting\n"
 		profile += strings.TrimLeft(AA_PROFILE_NESTING, "\n")
 		profile += fmt.Sprintf("  change_profile -> \"%s\",\n", AAProfileFull(c))
 	}
@@ -305,7 +299,7 @@ func getAAProfileContent(c container) string {
 	// Append raw.apparmor
 	rawApparmor, ok := c.ExpandedConfig()["raw.apparmor"]
 	if ok {
-		profile += "\n  # User input (raw.apparmor)\n"
+		profile += "\n  ### Configuration: raw.apparmor\n"
 		for _, line := range strings.Split(strings.Trim(rawApparmor, "\n"), "\n") {
 			profile += fmt.Sprintf("  %s\n", line)
 		}
@@ -420,4 +414,37 @@ func aaProfile() string {
 		return strings.TrimSpace(string(contents))
 	}
 	return ""
+}
+
+func aaParserSupports(feature string) bool {
+	out, err := exec.Command("apparmor_parser", "--version").CombinedOutput()
+	if err != nil {
+		return false
+	}
+
+	major := 0
+	minor := 0
+	micro := 0
+
+	_, err = fmt.Sscanf(strings.Split(string(out), "\n")[0], "AppArmor parser version %d.%d.%d", &major, &minor, &micro)
+	if err != nil {
+		return false
+	}
+
+	switch feature {
+	case "unix":
+		if major < 2 {
+			return false
+		}
+
+		if major == 2 && minor < 10 {
+			return false
+		}
+
+		if major == 2 && minor == 10 && micro < 95 {
+			return false
+		}
+	}
+
+	return true
 }
