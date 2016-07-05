@@ -832,7 +832,7 @@ func (s *storageZfs) zfsCleanup(path string) error {
 
 			return nil
 		}
-	} else if strings.HasPrefix(path, "containers") {
+	} else if strings.HasPrefix(path, "containers") && strings.Contains(path, "@copy-") {
 		// Just remove the copy- snapshot for copies of active containers
 		err := s.zfsDestroy(path)
 		if err != nil {
