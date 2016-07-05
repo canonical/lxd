@@ -326,6 +326,7 @@ func (c *containerLXC) initLXC() error {
 
 	bindMounts := []string{
 		"/dev/fuse",
+		"/dev/net/tun",
 		"/proc/sys/fs/binfmt_misc",
 		"/sys/firmware/efi/efivars",
 		"/sys/fs/fuse/connections",
@@ -393,6 +394,7 @@ func (c *containerLXC) initLXC() error {
 			"c 5:1 rwm",    // /dev/console
 			"c 5:2 rwm",    // /dev/ptmx
 			"c 10:229 rwm", // /dev/fuse
+			"c 10:200 rwm", // /dev/net/tun
 		}
 
 		for _, dev := range devices {
