@@ -171,34 +171,35 @@ var commands = map[string]command{
 	"monitor": &monitorCmd{},
 	"move":    &moveCmd{},
 	"pause": &actionCmd{
-		action:  shared.Freeze,
-		name:    "pause",
+		action:         shared.Freeze,
+		name:           "pause",
+		additionalHelp: i18n.G("The opposite of `lxc pause` is `lxc start`."),
 	},
-	"profile":  &profileCmd{},
-	"publish":  &publishCmd{},
-	"remote":   &remoteCmd{},
-	"restart":  &actionCmd{
-		action: shared.Restart,
+	"profile": &profileCmd{},
+	"publish": &publishCmd{},
+	"remote":  &remoteCmd{},
+	"restart": &actionCmd{
+		action:     shared.Restart,
 		hasTimeout: true,
-		visible: true,
-		name: "restart",
-		timeout: -1,
+		visible:    true,
+		name:       "restart",
+		timeout:    -1,
 	},
 	"restore":  &restoreCmd{},
 	"snapshot": &snapshotCmd{},
-	"start":    &actionCmd{
-		action: shared.Start,
+	"start": &actionCmd{
+		action:  shared.Start,
 		visible: true,
-		name: "start",
+		name:    "start",
 	},
-	"stop":     &actionCmd{
-		action: shared.Stop,
+	"stop": &actionCmd{
+		action:     shared.Stop,
 		hasTimeout: true,
-		visible: true,
-		name: "stop",
-		timeout: -1,
+		visible:    true,
+		name:       "stop",
+		timeout:    -1,
 	},
-	"version":  &versionCmd{},
+	"version": &versionCmd{},
 }
 
 var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
