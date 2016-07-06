@@ -88,6 +88,13 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			}
 		} else {
 			do = func(op *operation) error {
+				if c.IsFrozen() {
+					err := c.Unfreeze()
+					if err != nil {
+						return err
+					}
+				}
+
 				err = c.Shutdown(time.Duration(raw.Timeout) * time.Second)
 				if err != nil {
 					return err
