@@ -133,7 +133,7 @@ start() {
         if [ "${LXD_IPV6_NAT}" = "true" ]; then
             ip6tables "${use_iptables_lock}" -t nat -A POSTROUTING -s "${LXD_IPV6_NETWORK}" ! -d "${LXD_IPV6_NETWORK}" -j MASQUERADE
         fi
-        LXD_IPV6_ARG="--dhcp-range=${LXD_IPV6_ADDR},ra-only --listen-address ${LXD_IPV6_ADDR}"
+        LXD_IPV6_ARG="--dhcp-range=${LXD_IPV6_ADDR},ra-stateless,ra-names --listen-address ${LXD_IPV6_ADDR}"
     fi
 
     iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p udp --dport 67 -j ACCEPT
