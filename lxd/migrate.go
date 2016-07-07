@@ -540,7 +540,7 @@ func (c *migrationSink) do() error {
 			var err error
 			imagesDir, err = ioutil.TempDir("", "lxd_restore_")
 			if err != nil {
-				os.RemoveAll(imagesDir)
+				restore <- err
 				return
 			}
 
