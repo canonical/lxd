@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-06-27 17:34-0400\n"
+        "POT-Creation-Date: 2016-08-11 11:20-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -168,11 +168,11 @@ msgstr  ""
 msgid   "Certificate fingerprint: %x"
 msgstr  ""
 
-#: lxc/action.go:28
+#: lxc/action.go:33
 #, c-format
 msgid   "Changes state of one or more containers to %s.\n"
         "\n"
-        "lxc %s <name> [<name>...]"
+        "lxc %s <name> [<name>...]%s"
 msgstr  ""
 
 #: lxc/remote.go:269
@@ -339,13 +339,13 @@ msgstr  ""
 msgid   "Fingerprint: %s"
 msgstr  ""
 
-#: lxc/finger.go:17
+#: lxc/finger.go:15
 msgid   "Fingers the LXD instance to check if it is up and working.\n"
         "\n"
         "lxc finger <remote>"
 msgstr  ""
 
-#: lxc/action.go:37 lxc/action.go:38
+#: lxc/action.go:42 lxc/action.go:43
 msgid   "Force the container to shutdown."
 msgstr  ""
 
@@ -385,7 +385,7 @@ msgstr  ""
 msgid   "Ignore aliases when determining what command to run."
 msgstr  ""
 
-#: lxc/action.go:41
+#: lxc/action.go:46
 msgid   "Ignore the container state (only for start)."
 msgstr  ""
 
@@ -709,7 +709,7 @@ msgid   "Move containers within or in between lxd instances.\n"
         "    Rename a local container.\n"
 msgstr  ""
 
-#: lxc/action.go:64
+#: lxc/action.go:69
 msgid   "Must supply container name for: "
 msgstr  ""
 
@@ -998,7 +998,7 @@ msgstr  ""
 msgid   "Stopping container failed!"
 msgstr  ""
 
-#: lxc/action.go:40
+#: lxc/action.go:45
 msgid   "Store the container state (only for stop)."
 msgstr  ""
 
@@ -1031,11 +1031,15 @@ msgstr  ""
 msgid   "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr  ""
 
+#: lxc/main.go:176
+msgid   "The opposite of `lxc pause` is `lxc start`."
+msgstr  ""
+
 #: lxc/publish.go:62
 msgid   "There is no \"image name\".  Did you want an alias?"
 msgstr  ""
 
-#: lxc/action.go:36
+#: lxc/action.go:41
 msgid   "Time to wait for the container before killing it."
 msgstr  ""
 
@@ -1052,7 +1056,7 @@ msgstr  ""
 msgid   "Transferring image: %d%%"
 msgstr  ""
 
-#: lxc/action.go:94 lxc/launch.go:132
+#: lxc/action.go:99 lxc/launch.go:132
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -1119,7 +1123,7 @@ msgstr  ""
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
-#: lxc/action.go:90
+#: lxc/action.go:95
 msgid   "bad result type from action"
 msgstr  ""
 
@@ -1173,7 +1177,7 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/main.go:245 lxc/main.go:249
+#: lxc/main.go:265 lxc/main.go:269
 #, c-format
 msgid   "processing aliases failed %s\n"
 msgstr  ""
@@ -1215,7 +1219,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:185
+#: lxc/main.go:205
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
