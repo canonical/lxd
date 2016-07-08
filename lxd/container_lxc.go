@@ -1216,7 +1216,7 @@ func (c *containerLXC) Start(stateful bool) error {
 			return fmt.Errorf("Container has no existing state to restore.")
 		}
 
-		err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false)
+		err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false, false)
 		if err != nil && !c.IsRunning() {
 			return err
 		}
@@ -1411,7 +1411,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		}
 
 		// Checkpoint
-		err = c.Migrate(lxc.MIGRATE_DUMP, stateDir, "snapshot", true)
+		err = c.Migrate(lxc.MIGRATE_DUMP, stateDir, "snapshot", true, false)
 		if err != nil {
 			return err
 		}
@@ -1787,7 +1787,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	// If the container wasn't running but was stateful, should we restore
 	// it as running?
 	if shared.PathExists(c.StatePath()) {
-		if err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false); err != nil {
+		if err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false, false); err != nil {
 			return err
 		}
 
@@ -2708,7 +2708,7 @@ func findCriu(host string) error {
 	return nil
 }
 
-func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop bool) error {
+func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop bool, actionScript bool) error {
 	if err := findCriu(function); err != nil {
 		return err
 	}
@@ -2794,11 +2794,17 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 			return err
 		}
 
+		script := ""
+		if actionScript {
+			script = filepath.Join(stateDir, "action.sh")
+		}
+
 		opts := lxc.MigrateOptions{
 			Stop:            stop,
 			Directory:       stateDir,
 			Verbose:         true,
 			PreservesInodes: preservesInodes,
+			ActionScript:    script,
 		}
 
 		migrateErr = c.c.Migrate(cmd, opts)

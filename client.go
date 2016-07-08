@@ -482,7 +482,7 @@ func (c *Client) delete(base string, args interface{}, rtype ResponseType) (*Res
 	return HoistResponse(resp, rtype)
 }
 
-func (c *Client) websocket(operation string, secret string) (*websocket.Conn, error) {
+func (c *Client) Websocket(operation string, secret string) (*websocket.Conn, error) {
 	query := url.Values{"secret": []string{secret}}
 	url := c.BaseWSURL + path.Join(operation, "websocket") + "?" + query.Encode()
 	return WebsocketDial(c.websocketDialer, url)
@@ -1513,7 +1513,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 	if controlHandler != nil {
 		var control *websocket.Conn
 		if wsControl, ok := fds["control"]; ok {
-			control, err = c.websocket(resp.Operation, wsControl.(string))
+			control, err = c.Websocket(resp.Operation, wsControl.(string))
 			if err != nil {
 				return -1, err
 			}
@@ -1522,7 +1522,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 			go controlHandler(c, control)
 		}
 
-		conn, err := c.websocket(resp.Operation, fds["0"].(string))
+		conn, err := c.Websocket(resp.Operation, fds["0"].(string))
 		if err != nil {
 			return -1, err
 		}
@@ -1535,7 +1535,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		conns := make([]*websocket.Conn, 3)
 		dones := make([]chan bool, 3)
 
-		conns[0], err = c.websocket(resp.Operation, fds[strconv.Itoa(0)].(string))
+		conns[0], err = c.Websocket(resp.Operation, fds[strconv.Itoa(0)].(string))
 		if err != nil {
 			return -1, err
 		}
@@ -1545,7 +1545,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 
 		outputs := []io.WriteCloser{stdout, stderr}
 		for i := 1; i < 3; i++ {
-			conns[i], err = c.websocket(resp.Operation, fds[strconv.Itoa(i)].(string))
+			conns[i], err = c.Websocket(resp.Operation, fds[strconv.Itoa(i)].(string))
 			if err != nil {
 				return -1, err
 			}
