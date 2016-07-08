@@ -209,6 +209,11 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 	for i := 0; i < threads; i++ {
 		cStatesWg.Add(1)
 		go func() {
+			d, err := lxd.NewClient(&d.Config, d.Name)
+			if err != nil {
+				return
+			}
+
 			for {
 				cName, more := <-cStatesQueue
 				if !more {
@@ -229,6 +234,11 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 
 		cSnapshotsWg.Add(1)
 		go func() {
+			d, err := lxd.NewClient(&d.Config, d.Name)
+			if err != nil {
+				return
+			}
+
 			for {
 				cName, more := <-cSnapshotsQueue
 				if !more {
