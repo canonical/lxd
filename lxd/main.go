@@ -158,6 +158,8 @@ func run() error {
 		fmt.Printf("        Start a container\n")
 		fmt.Printf("    callhook\n")
 		fmt.Printf("        Call a container hook\n")
+		fmt.Printf("    migratedumpsuccess\n")
+		fmt.Printf("        Indicate that a migration dump was successful\n")
 		fmt.Printf("    netcat\n")
 		fmt.Printf("        Mirror a unix socket to stdin/stdout\n")
 	}
@@ -237,6 +239,8 @@ func run() error {
 			os.Exit(ret)
 		case "netcat":
 			return Netcat(os.Args[1:])
+		case "migratedumpsuccess":
+			return cmdMigrateDumpSuccess(os.Args[1:])
 		}
 	}
 
@@ -1049,4 +1053,23 @@ func printnet() error {
 	fmt.Printf("%s\n", buf)
 
 	return nil
+}
+
+func cmdMigrateDumpSuccess(args []string) error {
+	if len(args) != 3 {
+		return fmt.Errorf("bad migrate dump success args %s", args)
+	}
+
+	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+	if err != nil {
+		return err
+	}
+
+	conn, err := c.Websocket(args[1], args[2])
+	if err != nil {
+		return err
+	}
+	conn.Close()
+
+	return c.WaitForSuccess(args[1])
 }

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -228,7 +229,28 @@ func (s *migrationSourceWs) Connect(op *operation, r *http.Request, w http.Respo
 	return nil
 }
 
-func (s *migrationSourceWs) Do(op *operation) error {
+func writeActionScript(directory string, operation string, secret string) error {
+	script := fmt.Sprintf(`#!/bin/sh -e
+if [ "$CRTOOLS_SCRIPT_ACTION" = "post-dump" ]; then
+	%s migratedumpsuccess %s %s
+fi
+`, execPath, operation, secret)
+
+	f, err := os.Create(filepath.Join(directory, "action.sh"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if err := f.Chmod(0500); err != nil {
+		return err
+	}
+
+	_, err = f.WriteString(script)
+	return err
+}
+
+func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	<-s.allConnected
 
 	criuType := CRIUType_CRIU_RSYNC.Enum()
@@ -326,15 +348,98 @@ func (s *migrationSourceWs) Do(op *operation) error {
 			return abort(fmt.Errorf("Formats other than criu rsync not understood"))
 		}
 
+		/* What happens below is slightly convoluted. Due to various
+		 * complications with networking, there's no easy way for criu
+		 * to exit and leave the container in a frozen state for us to
+		 * somehow resume later.
+		 *
+		 * Instead, we use what criu calls an "action-script", which is
+		 * basically a callback that lets us know when the dump is
+		 * done. (Unfortunately, we can't pass arguments, just an
+		 * executable path, so we write a custom action script with the
+		 * real command we want to run.)
+		 *
+		 * This script then hangs until the migration operation either
+		 * finishes successfully or fails, and exits 1 or 0, which
+		 * causes criu to either leave the container running or kill it
+		 * as we asked.
+		 */
+		dumpDone := make(chan bool, 1)
+		actionScriptOpSecret, err := shared.RandomCryptoString()
+		if err != nil {
+			return abort(err)
+		}
+
+		actionScriptOp, err := operationCreate(
+			operationClassWebsocket,
+			nil,
+			nil,
+			func(op *operation) error {
+				_, err := migrateOp.WaitFinal(-1)
+				if err != nil {
+					return err
+				}
+
+				if migrateOp.status != shared.Success {
+					return fmt.Errorf("restore failed: %s", op.status.String())
+				}
+				return nil
+			},
+			nil,
+			func(op *operation, r *http.Request, w http.ResponseWriter) error {
+				secret := r.FormValue("secret")
+				if secret == "" {
+					return fmt.Errorf("missing secret")
+				}
+
+				if secret != actionScriptOpSecret {
+					return os.ErrPermission
+				}
+
+				c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+				if err != nil {
+					return err
+				}
+
+				dumpDone <- true
+
+				closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+				return c.WriteMessage(websocket.CloseMessage, closeMsg)
+			},
+		)
+		if err != nil {
+			return abort(err)
+		}
+
 		checkpointDir, err := ioutil.TempDir("", "lxd_checkpoint_")
 		if err != nil {
 			return abort(err)
 		}
-		defer os.RemoveAll(checkpointDir)
 
-		err = s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true)
-		if err != nil {
+		if err := writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret); err != nil {
+			os.RemoveAll(checkpointDir)
 			return abort(err)
+		}
+
+		_, err = actionScriptOp.Run()
+		if err != nil {
+			os.RemoveAll(checkpointDir)
+			return abort(err)
+		}
+
+		migrateDone := make(chan error, 1)
+		go func() {
+			defer os.RemoveAll(checkpointDir)
+			migrateDone <- s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, true)
+		}()
+
+		select {
+		/* the checkpoint failed, let's just abort */
+		case err = <-migrateDone:
+			return abort(err)
+		/* the dump finished, let's continue on to the restore */
+		case <-dumpDone:
+			shared.Debugf("Dump finished, continuing with restore...")
 		}
 
 		/*
@@ -361,8 +466,6 @@ func (s *migrationSourceWs) Do(op *operation) error {
 		return err
 	}
 
-	// TODO: should we add some config here about automatically restarting
-	// the container migrate failure? What about the failures above?
 	if !*msg.Success {
 		return fmt.Errorf(*msg.Message)
 	}
@@ -559,7 +662,7 @@ func (c *migrationSink) do() error {
 		}
 
 		if c.live {
-			err = c.container.Migrate(lxc.MIGRATE_RESTORE, imagesDir, "migration", false)
+			err = c.container.Migrate(lxc.MIGRATE_RESTORE, imagesDir, "migration", false, false)
 			if err != nil {
 				restore <- err
 				return
