@@ -953,6 +953,24 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", fmt.Errorf("The container is already running")
 	}
 
+	// Sanity checks for devices
+	for name, m := range c.expandedDevices {
+		switch m["type"] {
+		case "disk":
+			if m["source"] != "" && !shared.PathExists(m["source"]) {
+				return "", fmt.Errorf("Missing source '%s' for disk '%s'", m["source"], name)
+			}
+		case "nic":
+			if m["parent"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["parent"])) {
+				return "", fmt.Errorf("Missing parent '%s' for nic '%s'", m["parent"], name)
+			}
+		case "unix-char", "unix-block":
+			if m["path"] != "" && m["major"] == "" && m["minor"] == "" && !shared.PathExists(m["path"]) {
+				return "", fmt.Errorf("Missing source '%s' for device '%s'", m["path"], name)
+			}
+		}
+	}
+
 	// Load any required kernel modules
 	kernelModules := c.expandedConfig["linux.kernel_modules"]
 	if kernelModules != "" {
