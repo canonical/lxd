@@ -1246,6 +1246,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		c.daemon.lxcpath,
 		configPath).CombinedOutput()
 
+	// Capture debug output
 	if string(out) != "" {
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
 			shared.Debugf("forkstart: %s", line)
@@ -1253,12 +1254,40 @@ func (c *containerLXC) Start(stateful bool) error {
 	}
 
 	if err != nil && !c.IsRunning() {
+		// Attempt to extract the LXC errors
+		log := ""
+		logPath := filepath.Join(c.LogPath(), "lxc.log")
+		if shared.PathExists(logPath) {
+			logContent, err := ioutil.ReadFile(logPath)
+			if err == nil {
+				for _, line := range strings.Split(string(logContent), "\n") {
+					fields := strings.Fields(line)
+					if len(fields) < 4 {
+						continue
+					}
+
+					// We only care about errors
+					if fields[2] != "ERROR" {
+						continue
+					}
+
+					// Prepend the line break
+					if len(log) == 0 {
+						log += "\n"
+					}
+
+					log += fmt.Sprintf("  %s\n", strings.Join(fields[0:], " "))
+				}
+			}
+		}
+
+		// Return the actual error
 		return fmt.Errorf(
-			"Error calling 'lxd forkstart %s %s %s': err='%v'",
+			"Error calling 'lxd forkstart %s %s %s': err='%v'%s",
 			c.name,
 			c.daemon.lxcpath,
 			filepath.Join(c.LogPath(), "lxc.conf"),
-			err)
+			err, log)
 	}
 
 	return nil
