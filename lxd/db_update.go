@@ -39,6 +39,13 @@ func dbUpdateFromV30(db *sql.DB, mockMode bool) error {
 
 	entries, err := ioutil.ReadDir(shared.VarPath("containers"))
 	if err != nil {
+		/* If the directory didn't exist before, the user had never
+		 * started containers, so we don't need to fix up permissions
+		 * on anything.
+		 */
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 
