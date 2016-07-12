@@ -3504,10 +3504,10 @@ func (c *containerLXC) createUnixDevice(name string, m shared.Device) (string, e
 		// If no major and minor are set, use those from the device on the host
 		_, major, minor, err = deviceGetAttributes(srcPath)
 		if err != nil {
-			return "", fmt.Errorf("Failed to get device attributes: %s", err)
+			return "", fmt.Errorf("Failed to get device attributes for %s: %s", m["path"], err)
 		}
 	} else if m["major"] == "" || m["minor"] == "" {
-		return "", fmt.Errorf("Both major and minor must be supplied for devices")
+		return "", fmt.Errorf("Both major and minor must be supplied for device: %s", m["path"])
 	} else {
 		major, err = strconv.Atoi(m["major"])
 		if err != nil {
