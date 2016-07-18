@@ -28,7 +28,7 @@ func main() {
 		case syscall.ECONNREFUSED:
 			msg = i18n.G("Connection refused; is LXD running?")
 		case syscall.EACCES:
-			msg = i18n.G("Permisson denied, are you in the lxd group?")
+			msg = i18n.G("Permission denied, are you in the lxd group?")
 		}
 
 		fmt.Fprintln(os.Stderr, fmt.Sprintf("%s", msg))
