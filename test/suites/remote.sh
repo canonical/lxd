@@ -75,10 +75,10 @@ test_remote_usage() {
   lxc_remote remote add lxd2 "${LXD2_ADDR}" --accept-certificate --password foo
 
   # we need a public image on localhost
-  lxc_remote image export localhost:testimage "${LXD_DIR}/foo.img"
+  img=$(lxc_remote image export localhost:testimage "${LXD_DIR}/foo" | grep -o "foo.*")
   lxc_remote image delete localhost:testimage
-  sum=$(sha256sum "${LXD_DIR}/foo.img" | cut -d' ' -f1)
-  lxc_remote image import "${LXD_DIR}/foo.img" localhost: --public
+  sum=$(sha256sum "${LXD_DIR}/${img}" | cut -d' ' -f1)
+  lxc_remote image import "${LXD_DIR}/${img}" localhost: --public
   lxc_remote image alias create localhost:testimage "${sum}"
 
   lxc_remote image delete "lxd2:${sum}" || true

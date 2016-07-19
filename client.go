@@ -845,56 +845,44 @@ func (c *Client) ExportImage(image string, target string) (string, error) {
 	if target == "-" {
 		wr = os.Stdout
 		destpath = "stdout"
-	} else if fi, err := os.Stat(target); err == nil {
-		// file exists, so check if folder
-		switch mode := fi.Mode(); {
-		case mode.IsDir():
-			// save in directory, header content-disposition can not be null
-			// and will have a filename
-			cd := strings.Split(raw.Header["Content-Disposition"][0], "=")
-
-			// write filename from header
-			destpath = filepath.Join(target, cd[1])
-			f, err := os.Create(destpath)
-			defer f.Close()
-
-			if err != nil {
-				return "", err
-			}
-
-			wr = f
-
-		default:
-			// overwrite file
-			destpath = target
-			f, err := os.OpenFile(destpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-			defer f.Close()
-
-			if err != nil {
-				return "", err
-			}
-
-			wr = f
-		}
 	} else {
-		// write as simple file
-		destpath = target
-		f, err := os.Create(destpath)
-		defer f.Close()
-
-		wr = f
+		_, cdParams, err := mime.ParseMediaType(raw.Header.Get("Content-Disposition"))
 		if err != nil {
 			return "", err
 		}
+		filename, ok := cdParams["filename"]
+		if !ok {
+			return "", fmt.Errorf("No filename in Content-Disposition header.")
+		}
+
+		if shared.IsDir(target) {
+			// The target is a directory, use the filename verbatim from the
+			// Content-Disposition header
+			destpath = filepath.Join(target, filename)
+		} else {
+			// The target is a file, parse the extension from the source filename
+			// and append it to the target filename.
+			ext := filepath.Ext(filename)
+			if strings.HasSuffix(filename, fmt.Sprintf(".tar%s", ext)) {
+				ext = fmt.Sprintf(".tar%s", ext)
+			}
+			destpath = fmt.Sprintf("%s%s", target, ext)
+		}
+
+		f, err := os.OpenFile(destpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		if err != nil {
+			return "", err
+		}
+		defer f.Close()
+
+		wr = f
 	}
 
 	_, err = io.Copy(wr, raw.Body)
-
 	if err != nil {
 		return "", err
 	}
 
-	// it streams to stdout or file, so no response returned
 	return destpath, nil
 }
 
