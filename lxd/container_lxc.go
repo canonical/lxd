@@ -2799,12 +2799,21 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 			script = filepath.Join(stateDir, "action.sh")
 		}
 
+		// TODO: make this configurable? Ultimately I think we don't
+		// want to do that; what we really want to do is have "modes"
+		// of criu operation where one is "make this succeed" and the
+		// other is "make this fast". Anyway, for now, let's choose a
+		// really big size so it almost always succeeds, even if it is
+		// slow.
+		ghostLimit := uint64(256 * 1024 * 1024)
+
 		opts := lxc.MigrateOptions{
 			Stop:            stop,
 			Directory:       stateDir,
 			Verbose:         true,
 			PreservesInodes: preservesInodes,
 			ActionScript:    script,
+			GhostLimit:      ghostLimit,
 		}
 
 		migrateErr = c.c.Migrate(cmd, opts)
