@@ -53,10 +53,15 @@ test_basic_usage() {
   lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage
   rm "${LXD_DIR}/testimage.tar.xz"
 
-  # Test filename for image export (should be "out")
+  # Test filename for image export
   lxc image export testimage "${LXD_DIR}/"
   [ "${sum}" = "$(sha256sum "${LXD_DIR}/testimage.tar.xz" | cut -d' ' -f1)" ]
   rm "${LXD_DIR}/testimage.tar.xz"
+
+  # Test custom filename for image export
+  lxc image export testimage "${LXD_DIR}/foo"
+  [ "${sum}" = "$(sha256sum "${LXD_DIR}/foo.tar.xz" | cut -d' ' -f1)" ]
+  rm "${LXD_DIR}/foo.tar.xz"
 
 
   # Test image export with a split image.
