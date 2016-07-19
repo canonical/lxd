@@ -122,8 +122,17 @@ lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--
 lxc image delete [remote:]<image> [remote:][<image>...]
     Delete one or more images from the LXD image store.
 
-lxc image export [remote:]<image>
+lxc image export [remote:]<image> [target]
     Export an image from the LXD image store into a distributable tarball.
+
+    The output target is optional and defaults to the working directory.
+    The target may be an existing directory, file name, or "-" to specify
+    stdout.  The target MUST be a directory when exporting a split image.
+    If the target is a directory, the image's name (each part's name for
+    split images) as found in the database will be used for the exported
+    image.  If the target is a file (not a directory and not stdout), then
+    the appropriate extension will be appended to the provided file name
+    based on the algorithm used to compress the image. 
 
 lxc image info [remote:]<image>
     Print everything LXD knows about a given image.
