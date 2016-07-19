@@ -130,16 +130,12 @@ func dbProfileCreateDocker(db *sql.DB) error {
 	config := map[string]string{
 		"security.nesting":     "true",
 		"linux.kernel_modules": "overlay, nf_nat"}
-	fusedev := map[string]string{
-		"path": "/dev/fuse",
-		"type": "unix-char",
-	}
 	aadisable := map[string]string{
 		"path":   "/sys/module/apparmor/parameters/enabled",
 		"type":   "disk",
 		"source": "/dev/null",
 	}
-	devices := map[string]shared.Device{"fuse": fusedev, "aadisable": aadisable}
+	devices := map[string]shared.Device{"aadisable": aadisable}
 
 	_, err = dbProfileCreate(db, "docker", "Profile supporting docker in containers", config, devices)
 	return err
