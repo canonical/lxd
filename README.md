@@ -37,7 +37,7 @@ curl --unix-socket /var/lib/lxd/unix.socket \
     -H "Content-Type: application/json" \
     -X POST \
     -d @hello-ubuntu.json \
-    "https://127.0.0.1:8443/1.0/containers"
+    lxd/1.0/containers
 ```
 
 #### via TCP
@@ -46,7 +46,7 @@ TCP requires some additional configuration and is not enabled by default.
 lxc config set core.https_address "[::]:8443"
 ```
 ```bash
-curl -k -L -I \
+curl -k -L \
     --cert ~/.config/lxc/client.crt \
     --key ~/.config/lxc/client.key \
     -H "Content-Type: application/json" \
