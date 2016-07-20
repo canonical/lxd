@@ -603,22 +603,31 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 
+	cleanup := func(err error) error {
+		if zerr := s.zfsDestroy(fs); zerr != nil {
+			err = fmt.Errorf("%s  During cleanup: %s", err, zerr)
+		}
+		if shared.PathExists(subvol) {
+			if oserr := os.Remove(subvol); oserr != nil {
+				err = fmt.Errorf("%s  During cleanup: Failed to remove sub-volume %s, %s", err, subvol, oserr)
+			}
+		}
+		return err
+	}
+
 	err = unpackImage(imagePath, subvol)
 	if err != nil {
-		s.zfsDestroy(fs)
-		return err
+		return cleanup(err)
 	}
 
 	err = s.zfsSet(fs, "readonly", "on")
 	if err != nil {
-		s.zfsDestroy(fs)
-		return err
+		return cleanup(err)
 	}
 
 	err = s.zfsSnapshotCreate(fs, "readonly")
 	if err != nil {
-		s.zfsDestroy(fs)
-		return err
+		return cleanup(err)
 	}
 
 	return nil
