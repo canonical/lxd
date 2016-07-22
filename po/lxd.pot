@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-08-11 11:20-0600\n"
+        "POT-Creation-Date: 2016-08-11 11:22-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -86,7 +86,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/profile.go:226
+#: lxc/profile.go:227
 msgid   "(none)"
 msgstr  ""
 
@@ -98,7 +98,7 @@ msgstr  ""
 msgid   "ARCH"
 msgstr  ""
 
-#: lxc/list.go:378
+#: lxc/list.go:388
 msgid   "ARCHITECTURE"
 msgstr  ""
 
@@ -145,7 +145,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: lxc/list.go:379
+#: lxc/list.go:389
 msgid   "CREATED AT"
 msgstr  ""
 
@@ -159,7 +159,7 @@ msgstr  ""
 msgid   "Can't unset key '%s', it's not currently set."
 msgstr  ""
 
-#: lxc/profile.go:343
+#: lxc/profile.go:344
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -187,7 +187,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:531 lxc/config.go:596 lxc/image.go:687 lxc/profile.go:190
+#: lxc/config.go:531 lxc/config.go:596 lxc/image.go:687 lxc/profile.go:191
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -281,7 +281,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:462
+#: lxc/list.go:472
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -365,11 +365,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:376
+#: lxc/list.go:386
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:377
+#: lxc/list.go:387
 msgid   "IPV6"
 msgstr  ""
 
@@ -523,6 +523,7 @@ msgid   "Manage configuration profiles.\n"
         "lxc profile copy <profile> <remote>            Copy the profile to the specified remote.\n"
         "lxc profile get <profile> <key>                Get profile configuration.\n"
         "lxc profile set <profile> <key> <value>        Set profile configuration.\n"
+        "lxc profile unset <profile> <key>              Unset profile configuration.\n"
         "lxc profile delete <profile>                   Delete a profile.\n"
         "lxc profile edit <profile>\n"
         "    Edit profile, either by launching external editor or reading STDIN.\n"
@@ -713,7 +714,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:380 lxc/remote.go:353
+#: lxc/list.go:390 lxc/remote.go:353
 msgid   "NAME"
 msgstr  ""
 
@@ -759,15 +760,15 @@ msgstr  ""
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:464
+#: lxc/list.go:474
 msgid   "PERSISTENT"
 msgstr  ""
 
-#: lxc/list.go:381
+#: lxc/list.go:391
 msgid   "PID"
 msgstr  ""
 
-#: lxc/list.go:382
+#: lxc/list.go:392
 msgid   "PROFILES"
 msgstr  ""
 
@@ -810,7 +811,7 @@ msgid   "Presents details on how to use LXD.\n"
         "lxd help [--all]"
 msgstr  ""
 
-#: lxc/profile.go:191
+#: lxc/profile.go:192
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -841,17 +842,17 @@ msgstr  ""
 msgid   "Processes: %d"
 msgstr  ""
 
-#: lxc/profile.go:228
+#: lxc/profile.go:229
 #, c-format
 msgid   "Profile %s applied to %s"
 msgstr  ""
 
-#: lxc/profile.go:142
+#: lxc/profile.go:143
 #, c-format
 msgid   "Profile %s created"
 msgstr  ""
 
-#: lxc/profile.go:212
+#: lxc/profile.go:213
 #, c-format
 msgid   "Profile %s deleted"
 msgstr  ""
@@ -910,11 +911,11 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:383
+#: lxc/list.go:393
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:384
+#: lxc/list.go:394
 msgid   "STATE"
 msgstr  ""
 
@@ -1010,7 +1011,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:385
+#: lxc/list.go:395
 msgid   "TYPE"
 msgstr  ""
 
