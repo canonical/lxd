@@ -175,7 +175,15 @@ func containerValidDevices(devices shared.Devices, profile bool, expanded bool) 
 	}
 
 	// Check each device individually
-	for _, m := range devices {
+	for name, m := range devices {
+		if m["type"] == "" {
+			return fmt.Errorf("Missing device type for device '%s'", name)
+		}
+
+		if !shared.StringInSlice(m["type"], []string{"none", "nic", "disk", "unix-char", "unix-block"}) {
+			return fmt.Errorf("Invalid device type for device '%s'", name)
+		}
+
 		for k, _ := range m {
 			if !containerValidDeviceConfigKey(m["type"], k) {
 				return fmt.Errorf("Invalid device configuration key for %s: %s", m["type"], k)
