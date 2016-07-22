@@ -84,6 +84,7 @@ limits.processes                     | integer   | - (max)       | yes          
 linux.kernel\_modules                | string    | -             | yes           | -                                    | Comma separated list of kernel modules to load before starting the container
 raw.apparmor                         | blob      | -             | yes           | -                                    | Apparmor profile entries to be appended to the generated profile
 raw.lxc                              | blob      | -             | no            | -                                    | Raw LXC configuration to be appended to the generated one
+raw.seccomp                          | blob      | -             | no            | container\_syscall\_filtering        | Raw Seccomp configuration
 security.nesting                     | boolean   | false         | yes           | -                                    | Support running lxd (nested) inside the container
 security.privileged                  | boolean   | false         | no            | -                                    | Runs the container in privileged mode
 security.syscalls.blacklist\_default | boolean   | true          | no            | container\_syscall\_filtering        | Enables the default syscall blacklist
