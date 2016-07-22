@@ -3785,10 +3785,18 @@ func (c *containerLXC) createNetworkDevice(name string, m shared.Device) (string
 		}
 
 		if m["nictype"] == "bridged" {
-			err = exec.Command("ip", "link", "set", n1, "master", m["parent"]).Run()
-			if err != nil {
-				deviceRemoveInterface(n2)
-				return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
+			if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", m["parent"])) {
+				err = exec.Command("ip", "link", "set", n1, "master", m["parent"]).Run()
+				if err != nil {
+					deviceRemoveInterface(n2)
+					return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
+				}
+			} else {
+				err = exec.Command("ovs-vsctl", "add-port", m["parent"], n1).Run()
+				if err != nil {
+					deviceRemoveInterface(n2)
+					return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
+				}
 			}
 		}
 
