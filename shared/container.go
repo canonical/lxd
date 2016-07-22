@@ -158,6 +158,23 @@ func isInt64(value string) error {
 	return nil
 }
 
+func isPriority(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	valueInt, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fmt.Errorf("Invalid value for an integer: %s", value)
+	}
+
+	if valueInt < 0 || valueInt > 10 {
+		return fmt.Errorf("Invalid value for a limit '%s'. Must be between 0 and 10.", value)
+	}
+
+	return nil
+}
+
 func isBool(value string) error {
 	if value == "" {
 		return nil
@@ -197,18 +214,18 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 
 	"limits.cpu":           isAny,
 	"limits.cpu.allowance": isAny,
-	"limits.cpu.priority":  isInt64,
+	"limits.cpu.priority":  isPriority,
 
-	"limits.disk.priority": isInt64,
+	"limits.disk.priority": isPriority,
 
 	"limits.memory": isAny,
 	"limits.memory.enforce": func(value string) error {
 		return isOneOf(value, []string{"soft", "hard"})
 	},
 	"limits.memory.swap":          isBool,
-	"limits.memory.swap.priority": isInt64,
+	"limits.memory.swap.priority": isPriority,
 
-	"limits.network.priority": isInt64,
+	"limits.network.priority": isPriority,
 
 	"limits.processes": isInt64,
 
