@@ -196,20 +196,27 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"boot.host_shutdown_timeout": isInt64,
 
 	"limits.cpu":           isAny,
+	"limits.cpu.allowance": isAny,
+	"limits.cpu.priority":  isInt64,
+
 	"limits.disk.priority": isInt64,
-	"limits.memory":        isAny,
+
+	"limits.memory": isAny,
 	"limits.memory.enforce": func(value string) error {
 		return isOneOf(value, []string{"soft", "hard"})
 	},
 	"limits.memory.swap":          isBool,
 	"limits.memory.swap.priority": isInt64,
-	"limits.network.priority":     isInt64,
-	"limits.processes":            isInt64,
+
+	"limits.network.priority": isInt64,
+
+	"limits.processes": isInt64,
 
 	"linux.kernel_modules": isAny,
 
-	"security.privileged":                 isBool,
-	"security.nesting":                    isBool,
+	"security.nesting":    isBool,
+	"security.privileged": isBool,
+
 	"security.syscalls.blacklist_default": isBool,
 	"security.syscalls.blacklist_compat":  isBool,
 	"security.syscalls.blacklist":         isAny,
