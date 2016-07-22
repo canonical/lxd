@@ -636,7 +636,13 @@ func (c *containerLXC) initLXC() error {
 				return err
 			}
 
-			err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.weight", fmt.Sprintf("%d", priorityInt*100))
+			// Minimum valid value is 10
+			priority := priorityInt * 100
+			if priority == 0 {
+				priority = 10
+			}
+
+			err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.weight", fmt.Sprintf("%d", priority))
 			if err != nil {
 				return err
 			}
@@ -2231,7 +2237,13 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					}
 				}
 
-				err = c.CGroupSet("blkio.weight", fmt.Sprintf("%d", priorityInt*100))
+				// Minimum valid value is 10
+				priority := priorityInt * 100
+				if priority == 0 {
+					priority = 10
+				}
+
+				err = c.CGroupSet("blkio.weight", fmt.Sprintf("%d", priority))
 				if err != nil {
 					return err
 				}
