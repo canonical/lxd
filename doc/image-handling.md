@@ -128,3 +128,6 @@ The "create\_only" key can be set to have LXD only only create missing files but
 As a general rule, you should never template a file which is owned by a
 package or is otherwise expected to be overwritten by normal operation
 of the container.
+
+For convenience the following functions are exported to pongo templates:
+ - config\_get("user.foo", "bar") => Returns the value of "user.foo" or "bar" if unset.
