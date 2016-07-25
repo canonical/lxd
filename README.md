@@ -90,7 +90,7 @@ backend. Installing these tools adds a bit to initramfs and may slow down your
 host boot, but are needed if you'd like to use a particular backend:
 
     sudo apt-get install lvm2 thin-provisioning-tools
-    sudo apt-get install btrfs-tools
+    sudo apt-get install btrfs-tools squashfs-tools
 
 To run the testsuite, you'll also need:
 
