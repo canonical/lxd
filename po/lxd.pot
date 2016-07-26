@@ -297,7 +297,7 @@ msgstr  ""
 msgid   "Enables verbose mode."
 msgstr  ""
 
-#: lxc/help.go:68
+#: lxc/help.go:69
 msgid   "Environment:"
 msgstr  ""
 
@@ -678,7 +678,7 @@ msgstr  ""
 msgid   "Memory (peak)"
 msgstr  ""
 
-#: lxc/help.go:86
+#: lxc/help.go:87
 msgid   "Missing summary."
 msgstr  ""
 
@@ -788,11 +788,11 @@ msgstr  ""
 msgid   "Packets sent"
 msgstr  ""
 
-#: lxc/help.go:69
+#: lxc/help.go:70
 msgid   "Path to an alternate client configuration directory."
 msgstr  ""
 
-#: lxc/help.go:70
+#: lxc/help.go:71
 msgid   "Path to an alternate server directory."
 msgstr  ""
 
@@ -962,6 +962,10 @@ msgstr  ""
 
 #: lxc/help.go:32
 msgid   "Show all commands (not just interesting ones)"
+msgstr  ""
+
+#: lxc/help.go:67
+msgid   "Show client version."
 msgstr  ""
 
 #: lxc/info.go:36
