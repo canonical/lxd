@@ -104,9 +104,14 @@ func unpack(file string, path string) error {
 
 	output, err := exec.Command(command, args...).CombinedOutput()
 	if err != nil {
+		co := string(output)
 		shared.Debugf("Unpacking failed")
-		shared.Debugf(string(output))
-		return err
+		shared.Debugf(co)
+
+		// Truncate the output to a single line for inclusion in the error
+		// message.  The first line isn't guaranteed to pinpoint the issue,
+		// but it's better than nothing and better than a multi-line message.
+		return fmt.Errorf("Unpack failed, %s.  %s", err, strings.SplitN(co, "\n", 2)[0])
 	}
 
 	return nil
