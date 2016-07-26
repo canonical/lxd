@@ -123,11 +123,9 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 				if fingerprint == "" {
 					if item.LXDHashSha256SquashFs != "" {
 						fingerprint = item.LXDHashSha256SquashFs
-					}
-					if item.LXDHashSha256RootXz != "" {
+					} else if item.LXDHashSha256RootXz != "" {
 						fingerprint = item.LXDHashSha256RootXz
-					}
-					if item.LXDHashSha256 != "" {
+					} else if item.LXDHashSha256 != "" {
 						fingerprint = item.LXDHashSha256
 					}
 				}
