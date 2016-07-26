@@ -83,14 +83,14 @@ via the LXD PPA:
     sudo apt-get install software-properties-common
     sudo add-apt-repository ppa:ubuntu-lxc/lxd-git-master
     sudo apt-get update
-    sudo apt-get install golang lxc lxc-dev mercurial git pkg-config protobuf-compiler golang-goprotobuf-dev xz-utils tar acl make
+    sudo apt-get install acl git golang liblxc1 lxc-dev make pkg-config rsync squashfs-tools tar xz-utils
 
 There are a few storage backends for LXD besides the default "directory"
 backend. Installing these tools adds a bit to initramfs and may slow down your
 host boot, but are needed if you'd like to use a particular backend:
 
     sudo apt-get install lvm2 thin-provisioning-tools
-    sudo apt-get install btrfs-tools squashfs-tools
+    sudo apt-get install btrfs-tools
 
 To run the testsuite, you'll also need:
 
