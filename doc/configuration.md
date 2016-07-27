@@ -23,6 +23,7 @@ core.https\_address             | string    | -         | -                     
 core.https\_allowed\_origin     | string    | -         | -                                 | Access-Control-Allow-Origin http header value
 core.https\_allowed\_methods    | string    | -         | -                                 | Access-Control-Allow-Methods http header value
 core.https\_allowed\_headers    | string    | -         | -                                 | Access-Control-Allow-Headers http header value
+core.https\_allow\_credentials  | bool      | -         | -                                 | Access-Control-Allow-Credentials http header value, default: false
 core.proxy\_https               | string    | -         | -                                 | https proxy to use, if any (falls back to HTTPS\_PROXY environment variable)
 core.proxy\_http                | string    | -         | -                                 | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
 core.proxy\_ignore\_hosts       | string    | -         | -                                 | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)

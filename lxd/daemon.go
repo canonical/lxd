@@ -1249,6 +1249,11 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
 	}
 
+	allowCredentials := daemonConfig["core.https_allow_credentials"].GetBool()
+	if allowCredentials {
+		rw.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
+
 	// OPTIONS request don't need any further processing
 	if req.Method == "OPTIONS" {
 		return
