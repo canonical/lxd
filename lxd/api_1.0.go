@@ -61,6 +61,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"auth_pki",
 			"container_last_used_at",
 			"etag",
+			"patch",
 		},
 
 		"api_status":  "stable",
