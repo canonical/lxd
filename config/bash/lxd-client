@@ -37,7 +37,7 @@ _have lxc && {
       list move profile publish remote restart restore snapshot start stop \
       version"
 
-    global_keys="core.https_address core.https_allowd_origin \
+    global_keys="core.https_address core.https_allowed_origin \
       core.https_allowed_methods core.https_allowed_headers core.proxy_https \
       core.proxy_http core.proxy_ignore_host core.trust_password \
       storage.lvm_vg_name storage.lvm_thinpool_name storage.lvm_fstype \
