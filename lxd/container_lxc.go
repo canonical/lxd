@@ -641,7 +641,13 @@ func (c *containerLXC) initLXC() error {
 				return err
 			}
 
-			err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.weight", fmt.Sprintf("%d", priorityInt*100))
+			// Minimum valid value is 10
+			priority := priorityInt * 100
+			if priority == 0 {
+				priority = 10
+			}
+
+			err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.weight", fmt.Sprintf("%d", priority))
 			if err != nil {
 				return err
 			}
@@ -2247,7 +2253,13 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					}
 				}
 
-				err = c.CGroupSet("blkio.weight", fmt.Sprintf("%d", priorityInt*100))
+				// Minimum valid value is 10
+				priority := priorityInt * 100
+				if priority == 0 {
+					priority = 10
+				}
+
+				err = c.CGroupSet("blkio.weight", fmt.Sprintf("%d", priority))
 				if err != nil {
 					return err
 				}
@@ -3773,10 +3785,18 @@ func (c *containerLXC) createNetworkDevice(name string, m shared.Device) (string
 		}
 
 		if m["nictype"] == "bridged" {
-			err = exec.Command("ip", "link", "set", n1, "master", m["parent"]).Run()
-			if err != nil {
-				deviceRemoveInterface(n2)
-				return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
+			if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", m["parent"])) {
+				err = exec.Command("ip", "link", "set", n1, "master", m["parent"]).Run()
+				if err != nil {
+					deviceRemoveInterface(n2)
+					return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
+				}
+			} else {
+				err = exec.Command("ovs-vsctl", "add-port", m["parent"], n1).Run()
+				if err != nil {
+					deviceRemoveInterface(n2)
+					return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
+				}
 			}
 		}
 

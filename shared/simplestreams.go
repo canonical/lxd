@@ -120,15 +120,12 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 				}
 				found += 1
 
-				size += item.Size
 				if fingerprint == "" {
 					if item.LXDHashSha256SquashFs != "" {
 						fingerprint = item.LXDHashSha256SquashFs
-					}
-					if item.LXDHashSha256RootXz != "" {
+					} else if item.LXDHashSha256RootXz != "" {
 						fingerprint = item.LXDHashSha256RootXz
-					}
-					if item.LXDHashSha256 != "" {
+					} else if item.LXDHashSha256 != "" {
 						fingerprint = item.LXDHashSha256
 					}
 				}
@@ -138,6 +135,8 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 					filename = fields[len(fields)-1]
 					metaPath = item.Path
 					metaHash = item.HashSha256
+
+					size += item.Size
 				}
 
 				if rootfsPath == "" || rootfsHash == "" {
@@ -150,6 +149,8 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 						rootfsPath = item.Path
 						rootfsHash = item.HashSha256
 					}
+
+					size += item.Size
 				}
 			}
 
