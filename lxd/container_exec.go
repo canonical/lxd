@@ -14,6 +14,8 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type commandPostContent struct {
@@ -329,7 +331,12 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		}
 		defer nullDev.Close()
 
-		_, cmdErr := c.Exec(post.Command, env, nil, nil, nil)
+		cmdResult, cmdErr := c.Exec(post.Command, env, nil, nil, nil)
+		metadata := shared.Jmap{"return": cmdResult}
+		err = op.UpdateMetadata(metadata)
+		if err != nil {
+			shared.Log.Error("error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
+		}
 		return cmdErr
 	}
 
