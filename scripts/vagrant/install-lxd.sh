@@ -9,7 +9,7 @@ sudo apt-get -y install xz-utils tar acl curl gettext \
 
 # install build dependencies
 sudo apt-get -y install lxc lxc-dev mercurial git pkg-config \
-    protobuf-compiler golang-goprotobuf-dev
+    protobuf-compiler golang-goprotobuf-dev squashfs-tools
 
 # setup env 
 [ -e uid_gid_setup ] || \

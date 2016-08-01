@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-07-19 12:41-0700\n"
+        "POT-Creation-Date: 2016-07-26 14:46+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -86,7 +86,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/profile.go:253
+#: lxc/profile.go:254
 msgid   "(none)"
 msgstr  ""
 
@@ -159,7 +159,7 @@ msgstr  ""
 msgid   "Can't unset key '%s', it's not currently set."
 msgstr  ""
 
-#: lxc/profile.go:419
+#: lxc/profile.go:420
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -187,7 +187,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:531 lxc/config.go:596 lxc/image.go:729 lxc/profile.go:217
+#: lxc/config.go:531 lxc/config.go:596 lxc/image.go:729 lxc/profile.go:218
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -297,7 +297,7 @@ msgstr  ""
 msgid   "Enables verbose mode."
 msgstr  ""
 
-#: lxc/help.go:68
+#: lxc/help.go:69
 msgid   "Environment:"
 msgstr  ""
 
@@ -547,6 +547,7 @@ msgid   "Manage configuration profiles.\n"
         "lxc profile copy <profile> <remote>            Copy the profile to the specified remote.\n"
         "lxc profile get <profile> <key>                Get profile configuration.\n"
         "lxc profile set <profile> <key> <value>        Set profile configuration.\n"
+        "lxc profile unset <profile> <key>              Unset profile configuration.\n"
         "lxc profile delete <profile>                   Delete a profile.\n"
         "lxc profile edit <profile>\n"
         "    Edit profile, either by launching external editor or reading STDIN.\n"
@@ -715,7 +716,7 @@ msgstr  ""
 msgid   "Memory (peak)"
 msgstr  ""
 
-#: lxc/help.go:86
+#: lxc/help.go:87
 msgid   "Missing summary."
 msgstr  ""
 
@@ -825,16 +826,16 @@ msgstr  ""
 msgid   "Packets sent"
 msgstr  ""
 
-#: lxc/help.go:69
+#: lxc/help.go:70
 msgid   "Path to an alternate client configuration directory."
 msgstr  ""
 
-#: lxc/help.go:70
+#: lxc/help.go:71
 msgid   "Path to an alternate server directory."
 msgstr  ""
 
 #: lxc/main.go:31
-msgid   "Permisson denied, are you in the lxd group?"
+msgid   "Permission denied, are you in the lxd group?"
 msgstr  ""
 
 #: lxc/info.go:103
@@ -848,7 +849,7 @@ msgid   "Presents details on how to use LXD.\n"
         "lxd help [--all]"
 msgstr  ""
 
-#: lxc/profile.go:218
+#: lxc/profile.go:219
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -879,22 +880,22 @@ msgstr  ""
 msgid   "Processes: %d"
 msgstr  ""
 
-#: lxc/profile.go:274
+#: lxc/profile.go:275
 #, c-format
 msgid   "Profile %s added to %s"
 msgstr  ""
 
-#: lxc/profile.go:169
+#: lxc/profile.go:170
 #, c-format
 msgid   "Profile %s created"
 msgstr  ""
 
-#: lxc/profile.go:239
+#: lxc/profile.go:240
 #, c-format
 msgid   "Profile %s deleted"
 msgstr  ""
 
-#: lxc/profile.go:305
+#: lxc/profile.go:306
 #, c-format
 msgid   "Profile %s removed from %s"
 msgstr  ""
@@ -903,7 +904,7 @@ msgstr  ""
 msgid   "Profile to apply to the new container"
 msgstr  ""
 
-#: lxc/profile.go:255
+#: lxc/profile.go:256
 #, c-format
 msgid   "Profiles %s applied to %s"
 msgstr  ""
@@ -1009,6 +1010,10 @@ msgstr  ""
 
 #: lxc/help.go:32
 msgid   "Show all commands (not just interesting ones)"
+msgstr  ""
+
+#: lxc/help.go:67
+msgid   "Show client version."
 msgstr  ""
 
 #: lxc/info.go:36
