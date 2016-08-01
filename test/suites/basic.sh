@@ -259,6 +259,10 @@ test_basic_usage() {
   lxc exec --env BEST_BAND=meshuggah foo env | grep meshuggah
   lxc exec foo ip link show | grep eth0
 
+  # check that we can get the return code for a non- wait-for-websocket exec
+  op=$(my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["sleep", "1"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)
+  [ "$(my_curl "https://${LXD_ADDR}${op}/wait" | jq -r .metadata.metadata.return)" != "null" ]
+
   # test file transfer
   echo abc > "${LXD_DIR}/in"
 
