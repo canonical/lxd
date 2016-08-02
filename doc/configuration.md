@@ -136,6 +136,8 @@ Those includes:
  - /dev/tty (character device)
  - /dev/random (character device)
  - /dev/urandom (character device)
+ - /dev/net/tun (character device)
+ - /dev/fuse (character device)
  - lo (network interface)
 
 Anything else has to be defined in the container configuration or in one
