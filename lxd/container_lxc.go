@@ -1079,7 +1079,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	for k, m := range c.expandedDevices {
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			// Unix device
-			devPath, err := c.createUnixDevice(k, m)
+			devPath, err := c.createUnixDevice(m)
 			if err != nil {
 				return "", err
 			}
@@ -2409,7 +2409,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		// Live update the devices
 		for k, m := range removeDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-				err = c.removeUnixDevice(k, m)
+				err = c.removeUnixDevice(m)
 				if err != nil {
 					return err
 				}
@@ -3501,7 +3501,7 @@ func (c *containerLXC) removeMount(mount string) error {
 }
 
 // Unix devices handling
-func (c *containerLXC) createUnixDevice(name string, m shared.Device) (string, error) {
+func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	var err error
 	var major, minor int
 
@@ -3613,7 +3613,7 @@ func (c *containerLXC) insertUnixDevice(name string, m shared.Device) error {
 	}
 
 	// Create the device on the host
-	devPath, err := c.createUnixDevice(name, m)
+	devPath, err := c.createUnixDevice(m)
 	if err != nil {
 		return fmt.Errorf("Failed to setup device: %s", err)
 	}
@@ -3638,7 +3638,7 @@ func (c *containerLXC) insertUnixDevice(name string, m shared.Device) error {
 	return nil
 }
 
-func (c *containerLXC) removeUnixDevice(name string, m shared.Device) error {
+func (c *containerLXC) removeUnixDevice(m shared.Device) error {
 	// Check that the container is running
 	pid := c.InitPID()
 	if pid == -1 {
