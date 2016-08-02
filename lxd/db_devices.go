@@ -21,6 +21,8 @@ func dbDeviceTypeToString(t int) (string, error) {
 		return "unix-char", nil
 	case 4:
 		return "unix-block", nil
+	case 5:
+		return "usb", nil
 	default:
 		return "", fmt.Errorf("Invalid device type %d", t)
 	}
@@ -38,6 +40,8 @@ func dbDeviceTypeToInt(t string) (int, error) {
 		return 3, nil
 	case "unix-block":
 		return 4, nil
+	case "usb":
+		return 5, nil
 	default:
 		return -1, fmt.Errorf("Invalid device type %s", t)
 	}
