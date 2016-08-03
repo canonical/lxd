@@ -463,6 +463,7 @@ func deviceUSBEvent(d *Daemon, usb usbDevice) {
 		shared.Log.Error("problem loading containers list", log.Ctx{"err": err})
 		return
 	}
+
 	for _, name := range containers {
 		containerIf, err := containerLoadByName(d, name)
 		if err != nil {
