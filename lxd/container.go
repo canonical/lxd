@@ -140,6 +140,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "uid":
 			return true
+		case "required":
+			return true
 		default:
 			return false
 		}
