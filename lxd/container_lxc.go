@@ -1126,7 +1126,7 @@ func (c *containerLXC) startCommon() (string, error) {
 				/* it's ok to fail, the device might be hot plugged later */
 				_, err := c.createUnixDevice(m)
 				if err != nil {
-					shared.Log.Warn("failed to create usb device", log.Ctx{"err": err, "device": k})
+					shared.Log.Debug("failed to create usb device", log.Ctx{"err": err, "device": k})
 					continue
 				}
 
