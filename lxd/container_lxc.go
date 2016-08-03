@@ -1109,6 +1109,8 @@ func (c *containerLXC) startCommon() (string, error) {
 				}
 			}
 
+			created := false
+
 			for _, usb := range usbs {
 				if usb.vendor != m["vendorid"] || (m["productid"] != "" && usb.product != m["productid"]) {
 					continue
@@ -1130,6 +1132,8 @@ func (c *containerLXC) startCommon() (string, error) {
 					continue
 				}
 
+				created = true
+
 				/* if the create was successful, let's bind mount it */
 				srcPath := usb.path
 				tgtPath := strings.TrimPrefix(srcPath, "/")
@@ -1139,6 +1143,10 @@ func (c *containerLXC) startCommon() (string, error) {
 				if err != nil {
 					return "", err
 				}
+			}
+
+			if !created && shared.IsTrue(m["required"]) {
+				return "", fmt.Errorf("couldn't create usb device %s", k)
 			}
 		} else if m["type"] == "disk" {
 			// Disk device
