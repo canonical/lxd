@@ -736,13 +736,13 @@ func cmdInit() error {
 
 		if *argStorageBackend == "dir" {
 			if *argStorageCreateLoop != -1 || *argStorageCreateDevice != "" || *argStoragePool != "" {
-				return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-pool may be used with the 'dir' backend.")
+				return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-loop may be used with the 'dir' backend.")
 			}
 		}
 
 		if *argStorageBackend == "zfs" {
 			if *argStorageCreateLoop != -1 && *argStorageCreateDevice != "" {
-				return fmt.Errorf("Only one of --storage-create-device or --storage-create-pool can be specified with the 'zfs' backend.")
+				return fmt.Errorf("Only one of --storage-create-device or --storage-create-loop can be specified with the 'zfs' backend.")
 			}
 
 			if *argStoragePool == "" {
