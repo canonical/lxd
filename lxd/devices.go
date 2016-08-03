@@ -1009,6 +1009,11 @@ func deviceLoadUsb() ([]usbDevice, error) {
 
 	ents, err := ioutil.ReadDir(USB_PATH)
 	if err != nil {
+		/* if there are no USB devices, let's render an empty list,
+		 * i.e. no usb devices */
+		if os.IsNotExist(err) {
+			return result, nil
+		}
 		return nil, err
 	}
 
