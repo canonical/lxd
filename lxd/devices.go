@@ -203,6 +203,10 @@ func deviceTaskBalance(d *Daemon) {
 
 	// Iterate through the containers
 	containers, err := dbContainersList(d.db, cTypeRegular)
+	if err != nil {
+		shared.Log.Error("problem loading containers list", log.Ctx{"err": err})
+		return
+	}
 	fixedContainers := map[int][]container{}
 	balancedContainers := map[container]int{}
 	for _, name := range containers {
