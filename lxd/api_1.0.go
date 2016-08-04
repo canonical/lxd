@@ -62,6 +62,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"container_last_used_at",
 			"etag",
 			"patch",
+			"usb_devices",
 		},
 
 		"api_status":  "stable",

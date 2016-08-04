@@ -128,6 +128,23 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		default:
 			return false
 		}
+	case "usb":
+		switch k {
+		case "vendorid":
+			return true
+		case "productid":
+			return true
+		case "mode":
+			return true
+		case "gid":
+			return true
+		case "uid":
+			return true
+		case "required":
+			return true
+		default:
+			return false
+		}
 	case "none":
 		return false
 	default:
@@ -180,7 +197,7 @@ func containerValidDevices(devices shared.Devices, profile bool, expanded bool) 
 			return fmt.Errorf("Missing device type for device '%s'", name)
 		}
 
-		if !shared.StringInSlice(m["type"], []string{"none", "nic", "disk", "unix-char", "unix-block"}) {
+		if !shared.StringInSlice(m["type"], []string{"none", "nic", "disk", "unix-char", "unix-block", "usb"}) {
 			return fmt.Errorf("Invalid device type for device '%s'", name)
 		}
 
@@ -225,6 +242,10 @@ func containerValidDevices(devices shared.Devices, profile bool, expanded bool) 
 		} else if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			if m["path"] == "" {
 				return fmt.Errorf("Unix device entry is missing the required \"path\" property.")
+			}
+		} else if m["type"] == "usb" {
+			if m["productid"] == "" {
+				return fmt.Errorf("Missing productid for USB device.")
 			}
 		} else if m["type"] == "none" {
 			continue
