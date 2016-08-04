@@ -1,5 +1,9 @@
 package shared
 
+import (
+	"sort"
+)
+
 type Device map[string]string
 type Devices map[string]Device
 
@@ -101,4 +105,16 @@ func (newBaseDevices Devices) ExtendFromProfile(currentFullDevices Devices, newD
 	}
 
 	return nil
+}
+
+/* DeviceNames returns the device names for this Devices in sorted order */
+func (devices Devices) DeviceNames() []string {
+	sorted := sort.StringSlice([]string{})
+	for k, _ := range devices {
+		sorted = append(sorted, k)
+	}
+
+	sort.Sort(sorted)
+
+	return sorted
 }
