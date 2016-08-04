@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"os/exec"
@@ -43,7 +44,51 @@ func (c deviceTaskCPUs) Len() int           { return len(c) }
 func (c deviceTaskCPUs) Less(i, j int) bool { return *c[i].count < *c[j].count }
 func (c deviceTaskCPUs) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
-func deviceNetlinkListener() (chan []string, chan []string, error) {
+type usbDevice struct {
+	action string
+
+	vendor  string
+	product string
+
+	path  string
+	major int
+	minor int
+}
+
+func createUSBDevice(action string, vendor string, product string, major string, minor string, busnum string, devnum string) (usbDevice, error) {
+	majorInt, err := strconv.Atoi(minor)
+	if err != nil {
+		return usbDevice{}, err
+	}
+
+	minorInt, err := strconv.Atoi(major)
+	if err != nil {
+		return usbDevice{}, err
+	}
+
+	busnumInt, err := strconv.Atoi(busnum)
+	if err != nil {
+		return usbDevice{}, err
+	}
+
+	devnumInt, err := strconv.Atoi(devnum)
+	if err != nil {
+		return usbDevice{}, err
+	}
+
+	path := fmt.Sprintf("/dev/bus/usb/%03d/%03d", busnumInt, devnumInt)
+
+	return usbDevice{
+		action,
+		vendor,
+		product,
+		path,
+		majorInt,
+		minorInt,
+	}, nil
+}
+
+func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, error) {
 	NETLINK_KOBJECT_UEVENT := 15
 	UEVENT_BUFFER_SIZE := 2048
 
@@ -53,7 +98,7 @@ func deviceNetlinkListener() (chan []string, chan []string, error) {
 	)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	nl := syscall.SockaddrNetlink{
@@ -64,13 +109,14 @@ func deviceNetlinkListener() (chan []string, chan []string, error) {
 
 	err = syscall.Bind(fd, &nl)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	chCPU := make(chan []string, 1)
 	chNetwork := make(chan []string, 0)
+	chUSB := make(chan usbDevice)
 
-	go func(chCPU chan []string, chNetwork chan []string) {
+	go func(chCPU chan []string, chNetwork chan []string, chUSB chan usbDevice) {
 		b := make([]byte, UEVENT_BUFFER_SIZE*2)
 		for {
 			_, err := syscall.Read(fd, b)
@@ -126,10 +172,63 @@ func deviceNetlinkListener() (chan []string, chan []string, error) {
 				// Network balancing is interface specific, so queue everything
 				chNetwork <- []string{props["INTERFACE"], props["ACTION"]}
 			}
-		}
-	}(chCPU, chNetwork)
 
-	return chCPU, chNetwork, nil
+			if props["SUBSYSTEM"] == "usb" {
+				if props["ACTION"] != "add" && props["ACTION"] != "remove" {
+					continue
+				}
+
+				parts := strings.Split(props["PRODUCT"], "/")
+				if len(parts) < 2 {
+					continue
+				}
+
+				major, ok := props["MAJOR"]
+				if !ok {
+					continue
+				}
+				minor, ok := props["MINOR"]
+				if !ok {
+					continue
+				}
+				busnum, ok := props["BUSNUM"]
+				if !ok {
+					continue
+				}
+				devnum, ok := props["DEVNUM"]
+				if !ok {
+					continue
+				}
+
+				zeroPad := func(s string, l int) string {
+					return strings.Repeat("0", l-len(s)) + s
+				}
+
+				usb, err := createUSBDevice(
+					props["ACTION"],
+					/* udev doesn't zero pad these, while
+					 * everything else does, so let's zero pad them
+					 * for consistency
+					 */
+					zeroPad(parts[0], 4),
+					zeroPad(parts[1], 4),
+					major,
+					minor,
+					busnum,
+					devnum,
+				)
+				if err != nil {
+					shared.Log.Error("error reading usb device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
+					continue
+				}
+
+				chUSB <- usb
+			}
+
+		}
+	}(chCPU, chNetwork, chUSB)
+
+	return chCPU, chNetwork, chUSB, nil
 }
 
 func parseCpuset(cpu string) ([]int, error) {
@@ -358,8 +457,64 @@ func deviceNetworkPriority(d *Daemon, netif string) {
 	return
 }
 
+func deviceUSBEvent(d *Daemon, usb usbDevice) {
+	containers, err := dbContainersList(d.db, cTypeRegular)
+	if err != nil {
+		shared.Log.Error("problem loading containers list", log.Ctx{"err": err})
+		return
+	}
+
+	for _, name := range containers {
+		containerIf, err := containerLoadByName(d, name)
+		if err != nil {
+			continue
+		}
+
+		c, ok := containerIf.(*containerLXC)
+		if !ok {
+			shared.Log.Error("got device event on non-LXC container?")
+			return
+		}
+
+		if !c.IsRunning() {
+			continue
+		}
+
+		for _, m := range c.ExpandedDevices() {
+			if m["type"] != "usb" {
+				continue
+			}
+
+			if m["vendorid"] != usb.vendor || (m["productid"] != "" && m["productid"] != usb.product) {
+				continue
+			}
+
+			m["major"] = fmt.Sprintf("%d", usb.major)
+			m["minor"] = fmt.Sprintf("%d", usb.minor)
+			m["path"] = usb.path
+
+			if usb.action == "add" {
+				err := c.insertUnixDevice("unused", m)
+				if err != nil {
+					shared.Log.Error("failed to create usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+					return
+				}
+			} else if usb.action == "remove" {
+				err := c.removeUnixDevice(m)
+				if err != nil {
+					shared.Log.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+					return
+				}
+			} else {
+				shared.Log.Error("unknown action for usb device", log.Ctx{"usb": usb})
+				continue
+			}
+		}
+	}
+}
+
 func deviceEventListener(d *Daemon) {
-	chNetlinkCPU, chNetlinkNetwork, err := deviceNetlinkListener()
+	chNetlinkCPU, chNetlinkNetwork, chUSB, err := deviceNetlinkListener()
 	if err != nil {
 		shared.Log.Error("scheduler: couldn't setup netlink listener")
 		return
@@ -391,6 +546,8 @@ func deviceEventListener(d *Daemon) {
 
 			shared.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
 			deviceNetworkPriority(d, e[0])
+		case e := <-chUSB:
+			deviceUSBEvent(d, e)
 		case e := <-deviceSchedRebalance:
 			if len(e) != 3 {
 				shared.Log.Error("Scheduler: received an invalid rebalance event")
@@ -822,4 +979,77 @@ func deviceParseDiskLimit(readSpeed string, writeSpeed string) (int64, int64, in
 	}
 
 	return readBps, readIops, writeBps, writeIops, nil
+}
+
+const USB_PATH = "/sys/bus/usb/devices"
+
+func loadRawValues(p string) (map[string]string, error) {
+	values := map[string]string{
+		"idVendor":  "",
+		"idProduct": "",
+		"dev":       "",
+		"busnum":    "",
+		"devnum":    "",
+	}
+
+	for k, _ := range values {
+		v, err := ioutil.ReadFile(path.Join(p, k))
+		if err != nil {
+			return nil, err
+		}
+
+		values[k] = strings.TrimSpace(string(v))
+	}
+
+	return values, nil
+}
+
+func deviceLoadUsb() ([]usbDevice, error) {
+	result := []usbDevice{}
+
+	ents, err := ioutil.ReadDir(USB_PATH)
+	if err != nil {
+		/* if there are no USB devices, let's render an empty list,
+		 * i.e. no usb devices */
+		if os.IsNotExist(err) {
+			return result, nil
+		}
+		return nil, err
+	}
+
+	for _, ent := range ents {
+		values, err := loadRawValues(path.Join(USB_PATH, ent.Name()))
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return []usbDevice{}, err
+		}
+
+		parts := strings.Split(values["dev"], ":")
+		if len(parts) != 2 {
+			return []usbDevice{}, fmt.Errorf("invalid device value %s", values["dev"])
+		}
+
+		usb, err := createUSBDevice(
+			"add",
+			values["idVendor"],
+			values["idProduct"],
+			parts[0],
+			parts[1],
+			values["busnum"],
+			values["devnum"],
+		)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+
+		result = append(result, usb)
+	}
+
+	return result, nil
 }

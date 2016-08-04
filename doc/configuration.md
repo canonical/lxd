@@ -256,6 +256,21 @@ uid         | int       | 0                 | no        | UID of the device owne
 gid         | int       | 0                 | no        | GID of the device owner in the container
 mode        | int       | 0660              | no        | Mode of the device in the container
 
+### Type: usb
+USB device entries simply make the requested USB device appear in the
+container.
+
+The following properties exist:
+
+Key         | Type      | Default           | Required  | Description
+:--         | :--       | :--               | :--       | :--
+productid   | string    | -                 | yes       | The product id of the USB device.
+vendorid    | string    | -                 | no        | The vendor id of the USB device.
+uid         | int       | 0                 | no        | UID of the device owner in the container
+gid         | int       | 0                 | no        | GID of the device owner in the container
+mode        | int       | 0660              | no        | Mode of the device in the container
+required    | boolean   | false             | no        | Whether or not this device is required to start the container. (The default is no, and all devices are hot-pluggable.)
+
 ## Profiles
 Profiles can store any configuration that a container can (key/value or devices)
 and any number of profiles can be applied to a container.

@@ -1080,6 +1080,8 @@ func (c *containerLXC) startCommon() (string, error) {
 	c.removeUnixDevices()
 	c.removeDiskDevices()
 
+	var usbs []usbDevice
+
 	// Create the devices
 	for k, m := range c.expandedDevices {
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
@@ -1098,6 +1100,53 @@ func (c *containerLXC) startCommon() (string, error) {
 			err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
 			if err != nil {
 				return "", fmt.Errorf("Failed to add cgroup rule for device")
+			}
+		} else if m["type"] == "usb" {
+			if usbs == nil {
+				usbs, err = deviceLoadUsb()
+				if err != nil {
+					return "", err
+				}
+			}
+
+			created := false
+
+			for _, usb := range usbs {
+				if usb.vendor != m["vendorid"] || (m["productid"] != "" && usb.product != m["productid"]) {
+					continue
+				}
+
+				err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", usb.major, usb.minor))
+				if err != nil {
+					return "", err
+				}
+
+				m["major"] = fmt.Sprintf("%d", usb.major)
+				m["minor"] = fmt.Sprintf("%d", usb.minor)
+				m["path"] = usb.path
+
+				/* it's ok to fail, the device might be hot plugged later */
+				_, err := c.createUnixDevice(m)
+				if err != nil {
+					shared.Log.Debug("failed to create usb device", log.Ctx{"err": err, "device": k})
+					continue
+				}
+
+				created = true
+
+				/* if the create was successful, let's bind mount it */
+				srcPath := usb.path
+				tgtPath := strings.TrimPrefix(srcPath, "/")
+				devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
+				devPath := filepath.Join(c.DevicesPath(), devName)
+				err = lxcSetConfigItem(c.c, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath))
+				if err != nil {
+					return "", err
+				}
+			}
+
+			if !created && shared.IsTrue(m["required"]) {
+				return "", fmt.Errorf("couldn't create usb device %s", k)
 			}
 		} else if m["type"] == "disk" {
 			// Disk device
@@ -2422,6 +2471,8 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			}
 		}
 
+		var usbs []usbDevice
+
 		// Live update the devices
 		for k, m := range removeDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
@@ -2438,6 +2489,29 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				err = c.removeNetworkDevice(k, m)
 				if err != nil {
 					return err
+				}
+			} else if m["type"] == "usb" {
+				if usbs == nil {
+					usbs, err = deviceLoadUsb()
+					if err != nil {
+						return err
+					}
+				}
+
+				/* if the device isn't present, we don't need to remove it */
+				for _, usb := range usbs {
+					if usb.vendor != m["vendorid"] || (m["productid"] != "" && usb.product != m["productid"]) {
+						continue
+					}
+
+					m["major"] = fmt.Sprintf("%d", usb.major)
+					m["minor"] = fmt.Sprintf("%d", usb.minor)
+					m["path"] = usb.path
+
+					err = c.removeUnixDevice(m)
+					if err != nil {
+						shared.Log.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+					}
 				}
 			}
 		}
@@ -2457,6 +2531,28 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				err = c.insertNetworkDevice(k, m)
 				if err != nil {
 					return err
+				}
+			} else if m["type"] == "usb" {
+				if usbs == nil {
+					usbs, err = deviceLoadUsb()
+					if err != nil {
+						return err
+					}
+				}
+
+				for _, usb := range usbs {
+					if usb.vendor != m["vendorid"] || (m["productid"] != "" && usb.product != m["productid"]) {
+						continue
+					}
+
+					m["major"] = fmt.Sprintf("%d", usb.major)
+					m["minor"] = fmt.Sprintf("%d", usb.minor)
+					m["path"] = usb.path
+
+					err = c.insertUnixDevice(k, m)
+					if err != nil {
+						shared.Log.Error("failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+					}
 				}
 			}
 		}
