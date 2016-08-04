@@ -117,7 +117,8 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 
 	// Look for a rootfs entry
 	rootfs := false
-	for _, m := range c.expandedDevices {
+	for _, name := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[name]
 		if m["type"] == "disk" && m["path"] == "/" {
 			rootfs = true
 			break
@@ -649,7 +650,8 @@ func (c *containerLXC) initLXC() error {
 		}
 
 		hasDiskLimits := false
-		for _, m := range c.expandedDevices {
+		for _, name := range c.expandedDevices.DeviceNames() {
+			m := c.expandedDevices[name]
 			if m["type"] != "disk" {
 				continue
 			}
@@ -715,7 +717,8 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup devices
-	for k, m := range c.expandedDevices {
+	for _, k := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[k]
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			// Prepare all the paths
 			srcPath := m["path"]
@@ -960,7 +963,8 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	// Sanity checks for devices
-	for name, m := range c.expandedDevices {
+	for _, name := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[name]
 		switch m["type"] {
 		case "disk":
 			if m["source"] != "" && !shared.PathExists(m["source"]) {
@@ -1076,7 +1080,8 @@ func (c *containerLXC) startCommon() (string, error) {
 	c.removeDiskDevices()
 
 	// Create the devices
-	for k, m := range c.expandedDevices {
+	for _, k := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[k]
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			// Unix device
 			devPath, err := c.createUnixDevice(m)
@@ -1123,7 +1128,8 @@ func (c *containerLXC) startCommon() (string, error) {
 
 	// Cleanup any leftover volatile entries
 	netNames := []string{}
-	for k, v := range c.expandedDevices {
+	for _, k := range c.expandedDevices.DeviceNames() {
+		v := c.expandedDevices[k]
 		if v["type"] == "nic" {
 			netNames = append(netNames, k)
 		}
@@ -1344,7 +1350,8 @@ func (c *containerLXC) OnStart() error {
 	}
 
 	// Apply network limits
-	for name, m := range c.expandedDevices {
+	for _, name := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[name]
 		if m["type"] != "nic" {
 			continue
 		}
@@ -2194,7 +2201,8 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 
 		var newRootfs shared.Device
-		for _, m := range c.expandedDevices {
+		for _, name := range c.expandedDevices.DeviceNames() {
+			m := c.expandedDevices[name]
 			if m["type"] == "disk" && m["path"] == "/" {
 				newRootfs = m
 				break
@@ -3177,7 +3185,8 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 func (c *containerLXC) diskState() map[string]shared.ContainerStateDisk {
 	disk := map[string]shared.ContainerStateDisk{}
 
-	for name, d := range c.expandedDevices {
+	for _, name := range c.expandedDevices.DeviceNames() {
+		d := c.expandedDevices[name]
 		if d["type"] != "disk" {
 			continue
 		}
@@ -3809,7 +3818,8 @@ func (c *containerLXC) fillNetworkDevice(name string, m shared.Device) (shared.D
 		devNames := []string{}
 
 		// Include all static interface names
-		for _, v := range c.expandedDevices {
+		for _, k := range c.expandedDevices.DeviceNames() {
+			v := c.expandedDevices[k]
 			if v["name"] != "" && !shared.StringInSlice(v["name"], devNames) {
 				devNames = append(devNames, v["name"])
 			}
@@ -4207,7 +4217,8 @@ func (c *containerLXC) getDiskLimits() (map[string]deviceBlockLimit, error) {
 
 	// Process all the limits
 	blockLimits := map[string][]deviceBlockLimit{}
-	for _, m := range c.expandedDevices {
+	for _, k := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[k]
 		if m["type"] != "disk" {
 			continue
 		}
@@ -4381,7 +4392,8 @@ func (c *containerLXC) getHostInterface(name string) string {
 		}
 	}
 
-	for k, dev := range c.expandedDevices {
+	for _, k := range c.expandedDevices.DeviceNames() {
+		dev := c.expandedDevices[k]
 		if dev["type"] != "nic" {
 			continue
 		}
