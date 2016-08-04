@@ -480,7 +480,9 @@ func deviceUSBEvent(d *Daemon, usb usbDevice) {
 			continue
 		}
 
-		for _, m := range c.ExpandedDevices() {
+		devices := c.ExpandedDevices()
+		for _, name := range devices.DeviceNames() {
+			m := devices[name]
 			if m["type"] != "usb" {
 				continue
 			}
