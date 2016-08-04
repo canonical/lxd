@@ -63,6 +63,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"etag",
 			"patch",
 			"usb_devices",
+			"https_allowed_credentials",
 		},
 
 		"api_status":  "stable",
