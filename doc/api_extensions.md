@@ -64,3 +64,13 @@ object in the mean time.
 Add support for the HTTP PATCH method.
 
 PATCH allows for partial update of an object in place of PUT.
+
+## https\_allowed\_credentials
+To use LXD API with all Web Browsers (via SPAs) you must send credentials
+(certificate) with each XHR (in order for this to happen, you should set
+["withCredentials=true"](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/withCredentials)
+flag to each XHR Request).
+
+Some browsers like Firefox and Safari can't accept server response without
+`Access-Control-Allow-Credentials: true` header. To ensure that the server will
+return a response with that header, set `core.https_allowed_credentials=true`.
