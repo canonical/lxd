@@ -621,11 +621,14 @@ func cmdInit() error {
 
 	reader := bufio.NewReader(os.Stdin)
 
-	askBool := func(question string) bool {
+	askBool := func(question string, default_ string) bool {
 		for {
 			fmt.Printf(question)
 			input, _ := reader.ReadString('\n')
 			input = strings.TrimSuffix(input, "\n")
+			if input == "" {
+				input = default_
+			}
 			if shared.StringInSlice(strings.ToLower(input), []string{"yes", "y"}) {
 				return true
 			} else if shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
@@ -636,11 +639,14 @@ func cmdInit() error {
 		}
 	}
 
-	askChoice := func(question string, choices []string) string {
+	askChoice := func(question string, choices []string, default_ string) string {
 		for {
 			fmt.Printf(question)
 			input, _ := reader.ReadString('\n')
 			input = strings.TrimSuffix(input, "\n")
+			if input == "" {
+				input = default_
+			}
 			if shared.StringInSlice(input, choices) {
 				return input
 			}
@@ -649,11 +655,14 @@ func cmdInit() error {
 		}
 	}
 
-	askInt := func(question string, min int64, max int64) int64 {
+	askInt := func(question string, min int64, max int64, default_ string) int64 {
 		for {
 			fmt.Printf(question)
 			input, _ := reader.ReadString('\n')
 			input = strings.TrimSuffix(input, "\n")
+			if input == "" {
+				input = default_
+			}
 			intInput, err := strconv.ParseInt(input, 10, 64)
 
 			if err == nil && (min == -1 || intInput >= min) && (max == -1 || intInput <= max) {
@@ -664,11 +673,21 @@ func cmdInit() error {
 		}
 	}
 
-	askString := func(question string) string {
+	askString := func(question string, default_ string, validate func(string) string) string {
 		for {
 			fmt.Printf(question)
 			input, _ := reader.ReadString('\n')
 			input = strings.TrimSuffix(input, "\n")
+			if input == "" {
+				input = default_
+			}
+			if validate != nil {
+				result := validate(input)
+				if result != "" {
+					fmt.Printf("Invalid input: %s\n\n", result)
+					continue
+				}
+			}
 			if len(input) != 0 {
 				return input
 			}
@@ -780,7 +799,7 @@ func cmdInit() error {
 			return fmt.Errorf("Init configuration is only valid with --auto")
 		}
 
-		storageBackend = askChoice("Name of the storage backend to use (dir or zfs): ", backendsSupported)
+		storageBackend = askChoice("Name of the storage backend to use (dir or zfs) [default=zfs]: ", backendsSupported, "zfs")
 
 		if !shared.StringInSlice(storageBackend, backendsSupported) {
 			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
@@ -791,17 +810,23 @@ func cmdInit() error {
 		}
 
 		if storageBackend == "zfs" {
-			if askBool("Create a new ZFS pool (yes/no)? ") {
-				storagePool = askString("Name of the new ZFS pool: ")
-				if askBool("Would you like to use an existing block device (yes/no)? ") {
-					storageDevice = askString("Path to the existing block device: ")
+			if askBool("Create a new ZFS pool (yes/no) [defualt=yes]? ", "yes") {
+				storagePool = askString("Name of the new ZFS pool [default=lxd]: ", "lxd", nil)
+				if askBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
+					deviceExists := func(path string) string {
+						if !shared.IsBlockdevPath(path) {
+							return fmt.Sprintf("'%s' is not a block device", path)
+						}
+						return ""
+					}
+					storageDevice = askString("Path to the existing block device: ", "", deviceExists)
 					storageMode = "device"
 				} else {
-					storageLoopSize = askInt("Size in GB of the new loop device (1GB minimum): ", 1, -1)
+					storageLoopSize = askInt("Size in GB of the new loop device (1GB minimum) [default=10GB]: ", 1, -1, "10")
 					storageMode = "loop"
 				}
 			} else {
-				storagePool = askString("Name of the existing ZFS pool or dataset: ")
+				storagePool = askString("Name of the existing ZFS pool or dataset: ", "", nil)
 				storageMode = "existing"
 			}
 		}
@@ -818,16 +843,23 @@ in theory attack their parent container and gain more privileges than
 they otherwise would.
 
 `)
-			if askBool("Would you like to have your containers share their parent's allocation (yes/no)? ") {
+			if askBool("Would you like to have your containers share their parent's allocation (yes/no) [default=yes]? ", "yes") {
 				defaultPrivileged = 1
 			} else {
 				defaultPrivileged = 0
 			}
 		}
 
-		if askBool("Would you like LXD to be available over the network (yes/no)? ") {
-			networkAddress = askString("Address to bind LXD to (not including port): ")
-			networkPort = askInt("Port to bind LXD to (8443 recommended): ", 1, 65535)
+		if askBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
+			isIPAddress := func(s string) string {
+				if net.ParseIP(s) == nil {
+					return fmt.Sprintf("'%s' is not an IP address", s)
+				}
+				return ""
+			}
+
+			networkAddress = askString("Address to bind LXD to (not including port) [default=0.0.0.0]: ", "0.0.0.0", isIPAddress)
+			networkPort = askInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
 			trustPassword = askPassword("Trust password for new clients: ")
 		}
 	}
