@@ -107,14 +107,58 @@ func (newBaseDevices Devices) ExtendFromProfile(currentFullDevices Devices, newD
 	return nil
 }
 
-/* DeviceNames returns the device names for this Devices in sorted order */
-func (devices Devices) DeviceNames() []string {
-	sorted := sort.StringSlice([]string{})
-	for k, _ := range devices {
-		sorted = append(sorted, k)
+type namedDevice struct {
+	name   string
+	device Device
+}
+type sortableDevices []namedDevice
+
+func (devices Devices) toSortable() sortableDevices {
+	named := []namedDevice{}
+	for k, d := range devices {
+		named = append(named, namedDevice{k, d})
 	}
 
-	sort.Sort(sorted)
+	return named
+}
 
-	return sorted
+func (devices sortableDevices) Len() int {
+	return len(devices)
+}
+
+func (devices sortableDevices) Less(i, j int) bool {
+	a := devices[i]
+	b := devices[j]
+
+	if a.device["type"] == "disk" && b.device["type"] == "disk" {
+		if a.device["path"] == b.device["path"] {
+			return a.name < b.name
+		}
+
+		return a.device["path"] < b.device["path"]
+	}
+
+	return a.name < b.name
+}
+
+func (devices sortableDevices) Swap(i, j int) {
+	tmp := devices[i]
+	devices[i] = devices[j]
+	devices[j] = tmp
+}
+
+func (devices sortableDevices) Names() []string {
+	result := []string{}
+	for _, d := range devices {
+		result = append(result, d.name)
+	}
+
+	return result
+}
+
+/* DeviceNames returns the device names for this Devices in sorted order */
+func (devices Devices) DeviceNames() []string {
+	sortable := devices.toSortable()
+	sort.Sort(sortable)
+	return sortable.Names()
 }
