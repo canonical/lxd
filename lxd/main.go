@@ -859,6 +859,9 @@ they otherwise would.
 			}
 
 			networkAddress = askString("Address to bind LXD to (not including port) [default=0.0.0.0]: ", "0.0.0.0", isIPAddress)
+			if net.ParseIP(networkAddress).To4() == nil {
+				networkAddress = fmt.Sprintf("[%s]", networkAddress)
+			}
 			networkPort = askInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
 			trustPassword = askPassword("Trust password for new clients: ")
 		}
