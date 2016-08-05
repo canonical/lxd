@@ -810,7 +810,7 @@ func cmdInit() error {
 		}
 
 		if storageBackend == "zfs" {
-			if askBool("Create a new ZFS pool (yes/no) [defualt=yes]? ", "yes") {
+			if askBool("Create a new ZFS pool (yes/no) [default=yes]? ", "yes") {
 				storagePool = askString("Name of the new ZFS pool [default=lxd]: ", "lxd", nil)
 				if askBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
 					deviceExists := func(path string) string {
