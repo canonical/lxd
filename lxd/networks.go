@@ -54,7 +54,10 @@ type network struct {
 }
 
 func isOnBridge(c container, bridge string) bool {
-	for _, device := range c.ExpandedDevices() {
+	devices := c.ExpandedDevices()
+	for _, name := range devices.DeviceNames() {
+		device := devices[name]
+
 		if device["type"] != "nic" {
 			continue
 		}
