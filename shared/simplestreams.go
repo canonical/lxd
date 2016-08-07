@@ -180,6 +180,7 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 			}
 
 			// Attempt to parse the EOL
+			image.ExpiryDate = time.Unix(0, 0).UTC()
 			if product.SupportedEOL != "" {
 				eolDate, err := time.Parse(eolLayout, product.SupportedEOL)
 				if err == nil {
