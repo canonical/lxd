@@ -160,6 +160,12 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 			}
 
 			// Generate the actual image entry
+			description := fmt.Sprintf("%s %s %s", product.OperatingSystem, product.ReleaseTitle, product.Architecture)
+			if version.Label != "" {
+				description = fmt.Sprintf("%s (%s)", description, version.Label)
+			}
+			description = fmt.Sprintf("%s (%s)", description, name)
+
 			image := ImageInfo{}
 			image.Architecture = architectureName
 			image.Public = true
@@ -176,7 +182,7 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 				"architecture": product.Architecture,
 				"label":        version.Label,
 				"serial":       name,
-				"description":  fmt.Sprintf("%s %s %s (%s) (%s)", product.OperatingSystem, product.ReleaseTitle, product.Architecture, version.Label, name),
+				"description":  description,
 			}
 
 			// Attempt to parse the EOL
