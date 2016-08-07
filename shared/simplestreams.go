@@ -502,8 +502,15 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 		}
 		defer out.Close()
 
-		resp, err := s.http.Get(url)
+		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
+			return err
+		}
+		req.Header.Set("User-Agent", UserAgent)
+
+		resp, err := s.http.Do(req)
+		if err != nil {
+			return err
 		}
 		defer resp.Body.Close()
 
