@@ -52,8 +52,9 @@ var LocalRemote = RemoteConfig{
 	Public: false}
 
 var ImagesRemote = RemoteConfig{
-	Addr:   "https://images.linuxcontainers.org",
-	Public: true}
+	Addr:     "https://images.linuxcontainers.org",
+	Public:   true,
+	Protocol: "simplestreams"}
 
 var UbuntuRemote = RemoteConfig{
 	Addr:     "https://cloud-images.ubuntu.com/releases",
