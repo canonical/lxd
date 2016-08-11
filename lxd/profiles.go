@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
+	"strings"
 
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
@@ -66,6 +67,14 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	// Sanity checks
 	if req.Name == "" {
 		return BadRequest(fmt.Errorf("No name provided"))
+	}
+
+	if strings.Contains(req.Name, "/") {
+		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
+	}
+
+	if shared.StringInSlice(req.Name, []string{".", ".."}) {
+		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
 	err := containerValidConfig(d, req.Config, true, false)
@@ -323,6 +332,14 @@ func profilePost(d *Daemon, r *http.Request) Response {
 	// Sanity checks
 	if req.Name == "" {
 		return BadRequest(fmt.Errorf("No name provided"))
+	}
+
+	if strings.Contains(req.Name, "/") {
+		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
+	}
+
+	if shared.StringInSlice(req.Name, []string{".", ".."}) {
+		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
 	err := dbProfileUpdate(d.db, name, req.Name)
