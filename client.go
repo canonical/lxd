@@ -2168,9 +2168,14 @@ func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, er
 		return nil, err
 	}
 
-	delete(st.Devices, devname)
+	for n, _ := range st.Devices {
+		if n == devname {
+			delete(st.Devices, n)
+			return c.put(fmt.Sprintf("containers/%s", container), st, Async)
+		}
+	}
 
-	return c.put(fmt.Sprintf("containers/%s", container), st, Async)
+	return nil, fmt.Errorf("Device doesn't exist.")
 }
 
 func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []string) (*Response, error) {
@@ -2237,10 +2242,11 @@ func (c *Client) ProfileDeviceDelete(profile, devname string) (*Response, error)
 	for n, _ := range st.Devices {
 		if n == devname {
 			delete(st.Devices, n)
+			return c.put(fmt.Sprintf("profiles/%s", profile), st, Sync)
 		}
 	}
 
-	return c.put(fmt.Sprintf("profiles/%s", profile), st, Sync)
+	return nil, fmt.Errorf("Device doesn't exist.")
 }
 
 func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []string) (*Response, error) {
