@@ -1,7 +1,11 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 /* Patches are one-time actions that are sometimes needed to update
@@ -21,7 +25,9 @@ import (
    Only append to the patches list, never remove entries and never re-order them.
 */
 
-var patches = []patch{}
+var patches = []patch{
+	patch{name: "invalid_profile_names", run: patchInvalidProfileNames},
+}
 
 type patch struct {
 	name string
@@ -65,3 +71,21 @@ func patchesApplyAll(d *Daemon) error {
 }
 
 // Patches begin here
+func patchInvalidProfileNames(name string, d *Daemon) error {
+	profiles, err := dbProfiles(d.db)
+	if err != nil {
+		return err
+	}
+
+	for _, profile := range profiles {
+		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
+			shared.Log.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
+			err := dbProfileDelete(d.db, profile)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
