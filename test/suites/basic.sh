@@ -7,12 +7,7 @@ test_basic_usage() {
   # Test image export
   sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
   lxc image export testimage "${LXD_DIR}/"
-  if [ -e "${LXD_TEST_IMAGE:-}" ]; then
-    name=$(basename "${LXD_TEST_IMAGE}")
-  else
-    name=${sum}.tar.xz
-  fi
-  [ "${sum}" = "$(sha256sum "${LXD_DIR}/${name}" | cut -d' ' -f1)" ]
+  [ "${sum}" = "$(sha256sum "${LXD_DIR}/${sum}.tar.xz" | cut -d' ' -f1)" ]
   
   # Test an alias with slashes
   lxc image show "${sum}"
@@ -44,14 +39,14 @@ test_basic_usage() {
   my_curl -f -X GET "https://${LXD_ADDR}/1.0/containers"
 
   # Re-import the image
-  mv "${LXD_DIR}/${name}" "${LXD_DIR}/testimage.tar.xz"
+  mv "${LXD_DIR}/${sum}.tar.xz" "${LXD_DIR}/testimage.tar.xz"
   lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage
   rm "${LXD_DIR}/testimage.tar.xz"
 
   # Test filename for image export
   lxc image export testimage "${LXD_DIR}/"
-  [ "${sum}" = "$(sha256sum "${LXD_DIR}/testimage.tar.xz" | cut -d' ' -f1)" ]
-  rm "${LXD_DIR}/testimage.tar.xz"
+  [ "${sum}" = "$(sha256sum "${LXD_DIR}/${sum}.tar.xz" | cut -d' ' -f1)" ]
+  rm "${LXD_DIR}/${sum}.tar.xz"
 
   # Test custom filename for image export
   lxc image export testimage "${LXD_DIR}/foo"
@@ -78,11 +73,11 @@ test_basic_usage() {
   deps/import-busybox --split --filename --alias splitimage
 
   lxc image export splitimage "${LXD_DIR}"
-  [ "${sum}" = "$(cat "${LXD_DIR}/meta-busybox.tar.xz" "${LXD_DIR}/busybox.tar.xz" | sha256sum | cut -d' ' -f1)" ]
+  [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar.xz" "${LXD_DIR}/${sum}.tar.xz" | sha256sum | cut -d' ' -f1)" ]
   
   # Delete the split image and exported files
-  rm "${LXD_DIR}/busybox.tar.xz"
-  rm "${LXD_DIR}/meta-busybox.tar.xz"
+  rm "${LXD_DIR}/${sum}.tar.xz"
+  rm "${LXD_DIR}/meta-${sum}.tar.xz"
   lxc image delete splitimage
 
 
