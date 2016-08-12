@@ -18,11 +18,13 @@ type ServerStateEnvironment struct {
 }
 
 type ServerState struct {
-	APICompat   int                    `json:"api_compat"`
-	Auth        string                 `json:"auth"`
-	Environment ServerStateEnvironment `json:"environment"`
-	Config      map[string]interface{} `json:"config"`
-	Public      bool                   `json:"public"`
+	APIExtensions []string               `json:"api_extensions"`
+	APIStatus     string                 `json:"api_status"`
+	APIVersion    string                 `json:"api_version"`
+	Auth          string                 `json:"auth"`
+	Environment   ServerStateEnvironment `json:"environment"`
+	Config        map[string]interface{} `json:"config"`
+	Public        bool                   `json:"public"`
 }
 
 type BriefServerState struct {
