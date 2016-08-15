@@ -408,7 +408,8 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if imageFile == "" {
-			return errArgs
+			imageFile = args[1]
+			properties = properties[1:]
 		}
 
 		d, err := lxd.NewClient(config, remote)
@@ -428,7 +429,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 				fmt.Printf(i18n.G("Importing the image: %s")+"\r", progress)
 			}
 
-			fingerprint, err = d.PostImageURL(imageFile, c.publicImage, c.addAliases, progressHandler)
+			fingerprint, err = d.PostImageURL(imageFile, properties, c.publicImage, c.addAliases, progressHandler)
 		} else if strings.HasPrefix(imageFile, "http://") {
 			return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
 		} else {
