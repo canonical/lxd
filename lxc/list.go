@@ -233,6 +233,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 		go func() {
 			d, err := lxd.NewClient(&d.Config, d.Name)
 			if err != nil {
+				cStatesWg.Done()
 				return
 			}
 
@@ -258,6 +259,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 		go func() {
 			d, err := lxd.NewClient(&d.Config, d.Name)
 			if err != nil {
+				cSnapshotsWg.Done()
 				return
 			}
 
@@ -281,33 +283,37 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []shared.ContainerInfo, f
 	}
 
 	for _, cInfo := range cinfos {
-		cStatesLock.Lock()
-		cSnapshotsLock.Lock()
 		for _, column := range columns {
 			if column.NeedsState && cInfo.IsActive() {
+				cStatesLock.Lock()
 				_, ok := cStates[cInfo.Name]
+				cStatesLock.Unlock()
 				if ok {
 					continue
 				}
 
+				cStatesLock.Lock()
 				cStates[cInfo.Name] = nil
+				cStatesLock.Unlock()
 
 				cStatesQueue <- cInfo.Name
 			}
 
 			if column.NeedsSnapshots {
+				cSnapshotsLock.Lock()
 				_, ok := cSnapshots[cInfo.Name]
+				cSnapshotsLock.Unlock()
 				if ok {
 					continue
 				}
 
+				cSnapshotsLock.Lock()
 				cSnapshots[cInfo.Name] = nil
+				cSnapshotsLock.Unlock()
 
 				cSnapshotsQueue <- cInfo.Name
 			}
 		}
-		cStatesLock.Unlock()
-		cSnapshotsLock.Unlock()
 	}
 
 	close(cStatesQueue)
