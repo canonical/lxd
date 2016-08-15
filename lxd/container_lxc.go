@@ -1096,15 +1096,17 @@ func (c *containerLXC) startCommon() (string, error) {
 				return "", err
 			}
 
-			// Add the new device cgroup rule
-			dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
-			if err != nil {
-				return "", err
-			}
+			if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+				// Add the new device cgroup rule
+				dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
+				if err != nil {
+					return "", err
+				}
 
-			err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
-			if err != nil {
-				return "", fmt.Errorf("Failed to add cgroup rule for device")
+				err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
+				if err != nil {
+					return "", fmt.Errorf("Failed to add cgroup rule for device")
+				}
 			}
 		} else if m["type"] == "usb" {
 			if usbs == nil {
@@ -1121,9 +1123,11 @@ func (c *containerLXC) startCommon() (string, error) {
 					continue
 				}
 
-				err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", usb.major, usb.minor))
-				if err != nil {
-					return "", err
+				if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+					err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", usb.major, usb.minor))
+					if err != nil {
+						return "", err
+					}
 				}
 
 				m["major"] = fmt.Sprintf("%d", usb.major)
@@ -3657,6 +3661,15 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
+	// Extra checks for nesting
+	if runningInUserns {
+		for key, value := range m {
+			if shared.StringInSlice(key, []string{"major", "minor", "mode", "uid", "gid"}) && value != "" {
+				return "", fmt.Errorf("The \"%s\" property may not be set when adding a device to a nested container", key)
+			}
+		}
+	}
+
 	// Get the major/minor of the device we want to create
 	if m["major"] == "" && m["minor"] == "" {
 		// If no major and minor are set, use those from the device on the host
@@ -3722,6 +3735,10 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 
 	// Clean any existing entry
 	if shared.PathExists(devPath) {
+		if runningInUserns {
+			syscall.Unmount(devPath, syscall.MNT_DETACH)
+		}
+
 		err = os.Remove(devPath)
 		if err != nil {
 			return "", fmt.Errorf("Failed to remove existing entry: %s", err)
@@ -3729,23 +3746,36 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	}
 
 	// Create the new entry
-	if err := syscall.Mknod(devPath, uint32(mode), minor|(major<<8)); err != nil {
-		return "", fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
-	}
+	if !runningInUserns {
+		if err := syscall.Mknod(devPath, uint32(mode), minor|(major<<8)); err != nil {
+			return "", fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
+		}
 
-	if err := os.Chown(devPath, uid, gid); err != nil {
-		return "", fmt.Errorf("Failed to chown device %s: %s", devPath, err)
-	}
+		if err := os.Chown(devPath, uid, gid); err != nil {
+			return "", fmt.Errorf("Failed to chown device %s: %s", devPath, err)
+		}
 
-	// Needed as mknod respects the umask
-	if err := os.Chmod(devPath, mode); err != nil {
-		return "", fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
-	}
+		// Needed as mknod respects the umask
+		if err := os.Chmod(devPath, mode); err != nil {
+			return "", fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
+		}
 
-	if c.idmapset != nil {
-		if err := c.idmapset.ShiftFile(devPath); err != nil {
-			// uidshift failing is weird, but not a big problem.  Log and proceed
-			shared.Debugf("Failed to uidshift device %s: %s\n", m["path"], err)
+		if c.idmapset != nil {
+			if err := c.idmapset.ShiftFile(devPath); err != nil {
+				// uidshift failing is weird, but not a big problem.  Log and proceed
+				shared.Debugf("Failed to uidshift device %s: %s\n", m["path"], err)
+			}
+		}
+	} else {
+		f, err := os.Create(devPath)
+		if err != nil {
+			return "", err
+		}
+		f.Close()
+
+		err = deviceMountDisk(srcPath, devPath, false, false)
+		if err != nil {
+			return "", err
 		}
 	}
 
@@ -3777,8 +3807,10 @@ func (c *containerLXC) insertUnixDevice(name string, m shared.Device) error {
 		return fmt.Errorf("Failed to get device attributes: %s", err)
 	}
 
-	if err := c.CGroupSet("devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor)); err != nil {
-		return fmt.Errorf("Failed to add cgroup rule for device")
+	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+		if err := c.CGroupSet("devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor)); err != nil {
+			return fmt.Errorf("Failed to add cgroup rule for device")
+		}
 	}
 
 	return nil
@@ -3803,9 +3835,11 @@ func (c *containerLXC) removeUnixDevice(m shared.Device) error {
 		return err
 	}
 
-	err = c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
-	if err != nil {
-		return err
+	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+		err = c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
+		if err != nil {
+			return err
+		}
 	}
 
 	// Remove the bind-mount from the container
@@ -3824,6 +3858,10 @@ func (c *containerLXC) removeUnixDevice(m shared.Device) error {
 	}
 
 	// Remove the host side
+	if runningInUserns {
+		syscall.Unmount(devPath, syscall.MNT_DETACH)
+	}
+
 	err = os.Remove(devPath)
 	if err != nil {
 		return err
