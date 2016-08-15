@@ -11,7 +11,9 @@ import (
 )
 
 type copyCmd struct {
-	ephem bool
+	profArgs profileList
+	confArgs configList
+	ephem    bool
 }
 
 func (c *copyCmd) showByDefault() bool {
@@ -22,10 +24,14 @@ func (c *copyCmd) usage() string {
 	return i18n.G(
 		`Copy containers within or in between lxd instances.
 
-lxc copy [remote:]<source container> [[remote:]<destination container>] [--ephemeral|e]`)
+lxc copy [remote:]<source container> [[remote:]<destination container>] [--ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...]`)
 }
 
 func (c *copyCmd) flags() {
+	gnuflag.Var(&c.confArgs, "config", i18n.G("Config key/value to apply to the new container"))
+	gnuflag.Var(&c.confArgs, "c", i18n.G("Config key/value to apply to the new container"))
+	gnuflag.Var(&c.profArgs, "profile", i18n.G("Profile to apply to the new container"))
+	gnuflag.Var(&c.profArgs, "p", i18n.G("Profile to apply to the new container"))
 	gnuflag.BoolVar(&c.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
 	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
 }
@@ -81,6 +87,16 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		status.Devices = result.Devices
 		status.Config = result.Config
 		status.Profiles = result.Profiles
+	}
+
+	if c.profArgs != nil {
+		status.Profiles = append(status.Profiles, c.profArgs...)
+	}
+
+	if configMap != nil {
+		for key, value := range configMap {
+			status.Config[key] = value
+		}
 	}
 
 	baseImage = status.Config["volatile.base_image"]
