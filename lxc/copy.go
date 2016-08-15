@@ -22,7 +22,7 @@ func (c *copyCmd) usage() string {
 	return i18n.G(
 		`Copy containers within or in between lxd instances.
 
-lxc copy [remote:]<source container> [remote:]<destination container> [--ephemeral|e]`)
+lxc copy [remote:]<source container> [[remote:]<destination container>] [--ephemeral|e]`)
 }
 
 func (c *copyCmd) flags() {
@@ -38,7 +38,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		return fmt.Errorf(i18n.G("you must specify a source container name"))
 	}
 
-	if destName == "" {
+	if destName == "" && destResource != "" {
 		destName = sourceName
 	}
 
@@ -104,7 +104,27 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 			return err
 		}
 
-		return source.WaitForSuccess(cp.Operation)
+		err = source.WaitForSuccess(cp.Operation)
+		if err != nil {
+			return err
+		}
+
+		if destResource == "" {
+			op, err := cp.MetadataAsOperation()
+			if err != nil {
+				return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+			}
+
+			containers, ok := op.Resources["containers"]
+			if !ok || len(containers) == 0 {
+				return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+			}
+
+			fields := strings.Split(containers[0], "/")
+			fmt.Printf(i18n.G("Container name is: %s")+"\n", fields[len(fields)-1])
+		}
+
+		return nil
 	}
 
 	dest, err := lxd.NewClient(config, destRemote)
@@ -177,6 +197,21 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 			return err
 		}
 
+		if destResource == "" {
+			op, err := migration.MetadataAsOperation()
+			if err != nil {
+				return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+			}
+
+			containers, ok := op.Resources["containers"]
+			if !ok || len(containers) == 0 {
+				return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+			}
+
+			fields := strings.Split(containers[0], "/")
+			fmt.Printf(i18n.G("Container name is: %s")+"\n", fields[len(fields)-1])
+		}
+
 		return nil
 	}
 
@@ -184,13 +219,17 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 }
 
 func (c *copyCmd) run(config *lxd.Config, args []string) error {
-	if len(args) != 2 {
+	if len(args) < 1 {
 		return errArgs
 	}
 
 	ephem := 0
 	if c.ephem {
 		ephem = 1
+	}
+
+	if len(args) < 2 {
+		return c.copyContainer(config, args[0], "", false, ephem)
 	}
 
 	return c.copyContainer(config, args[0], args[1], false, ephem)
