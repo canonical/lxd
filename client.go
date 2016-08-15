@@ -886,21 +886,68 @@ func (c *Client) ExportImage(image string, target string) (string, error) {
 	return destpath, nil
 }
 
-func (c *Client) PostImageURL(imageFile string, public bool, aliases []string) (string, error) {
+func (c *Client) PostImageURL(imageFile string, properties []string, public bool, aliases []string, progressHandler func(progress string)) (string, error) {
 	if c.Remote.Public {
 		return "", fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	imgProperties := map[string]string{}
+	for _, entry := range properties {
+		fields := strings.SplitN(entry, "=", 2)
+		if len(fields) != 2 {
+			return "", fmt.Errorf("Invalid image property: %s", entry)
+		}
+
+		imgProperties[fields[0]] = fields[1]
 	}
 
 	source := shared.Jmap{
 		"type": "url",
 		"mode": "pull",
 		"url":  imageFile}
-	body := shared.Jmap{"public": public, "source": source}
+	body := shared.Jmap{"public": public, "properties": imgProperties, "source": source}
+
+	operation := ""
+	handler := func(msg interface{}) {
+		if msg == nil {
+			return
+		}
+
+		event := msg.(map[string]interface{})
+		if event["type"].(string) != "operation" {
+			return
+		}
+
+		if event["metadata"] == nil {
+			return
+		}
+
+		md := event["metadata"].(map[string]interface{})
+		if !strings.HasSuffix(operation, md["id"].(string)) {
+			return
+		}
+
+		if md["metadata"] == nil {
+			return
+		}
+
+		opMd := md["metadata"].(map[string]interface{})
+		_, ok := opMd["download_progress"]
+		if ok {
+			progressHandler(opMd["download_progress"].(string))
+		}
+	}
+
+	if progressHandler != nil {
+		go c.Monitor([]string{"operation"}, handler)
+	}
 
 	resp, err := c.post("images", body, Async)
 	if err != nil {
 		return "", err
 	}
+
+	operation = resp.Operation
 
 	op, err := c.WaitFor(resp.Operation)
 	if err != nil {
