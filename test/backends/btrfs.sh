@@ -1,7 +1,9 @@
 #!/bin/sh
 
 btrfs_setup() {
+  # shellcheck disable=2039
   local LXD_DIR
+
   LXD_DIR=$1
 
   echo "==> Setting up btrfs backend in ${LXD_DIR}"
@@ -17,14 +19,18 @@ btrfs_setup() {
 }
 
 btrfs_configure() {
+  # shellcheck disable=2039
   local LXD_DIR
+
   LXD_DIR=$1
 
   echo "==> Configuring btrfs backend in ${LXD_DIR}"
 }
 
 btrfs_teardown() {
+  # shellcheck disable=2039
   local LXD_DIR
+
   LXD_DIR=$1
 
   echo "==> Tearing down btrfs backend in ${LXD_DIR}"
