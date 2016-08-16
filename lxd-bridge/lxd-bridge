@@ -27,6 +27,7 @@ LXD_IPV6_NETWORK=""
 LXD_IPV6_NAT="false"
 LXD_IPV6_PROXY="true"
 
+# shellcheck disable=SC1090
 [ ! -f "${config}" ] || . "${config}"
 
 use_iptables_lock="-w"
@@ -39,7 +40,7 @@ HAS_IPV6=false
 _netmask2cidr ()
 {
     # Assumes there's no "255." after a non-255 byte in the mask
-    local x=${1##*255.}
+    x=${1##*255.}
     set -- "0^^^128^192^224^240^248^252^254^" "$(( (${#1} - ${#x})*2 ))" "${x%%.*}"
     x=${1%%${3}*}
     echo $(( ${2} + (${#x}/4) ))
@@ -164,7 +165,7 @@ start() {
 
     if [ -n "${LXD_IPV4_ADDR}" ] || [ -n "${LXD_IPV6_ADDR}" ]; then
         # shellcheck disable=SC2086
-        dnsmasq ${LXD_CONFILE_ARG} ${LXD_DOMAIN_ARG} -u "${DNSMASQ_USER}" --strict-order --bind-interfaces --pid-file="${varrun}/dnsmasq.pid" --dhcp-no-override --except-interface=lo --interface="${LXD_BRIDGE}" --dhcp-leasefile="${varlib}/dnsmasq.${LXD_BRIDGE}.leases" --dhcp-authoritative ${LXD_IPV4_ARG} ${LXD_IPV6_ARG} || cleanup
+        dnsmasq ${LXD_CONFILE_ARG} ${LXD_DOMAIN_ARG} -u "${DNSMASQ_USER}" --strict-order --bind-interfaces --pid-file="${varrun}/dnsmasq.pid" --dhcp-no-override --except-interface=lo --interface="${LXD_BRIDGE}" --dhcp-leasefile="${varlib}/dnsmasq.${LXD_BRIDGE}.leases" --dhcp-authoritative ${LXD_IPV4_ARG} ${LXD_IPV6_ARG}
     fi
 
     if [ "${HAS_IPV6}" = "true" ] && [ "${LXD_IPV6_PROXY}" = "true" ]; then

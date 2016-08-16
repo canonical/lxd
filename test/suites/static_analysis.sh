@@ -1,7 +1,7 @@
 #!/bin/sh
 
 safe_pot_hash() {
-  sed -e "/Project-Id-Version/,/Content-Transfer-Encoding/d" -e "/^#/d" "po/lxd.pot" | tee /tmp/foo | md5sum | cut -f1 -d" "
+  sed -e "/Project-Id-Version/,/Content-Transfer-Encoding/d" -e "/^#/d" "po/lxd.pot" | md5sum | cut -f1 -d" "
 }
 
 test_static_analysis() {
