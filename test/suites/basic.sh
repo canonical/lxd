@@ -19,7 +19,7 @@ test_basic_usage() {
   sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
   lxc image export testimage "${LXD_DIR}/"
   [ "${sum}" = "$(sha256sum "${LXD_DIR}/${sum}.tar.xz" | cut -d' ' -f1)" ]
-  
+
   # Test an alias with slashes
   lxc image show "${sum}"
   lxc image alias create a/b/ "${sum}"
@@ -183,6 +183,7 @@ test_basic_usage() {
   # Test "nonetype" container creation with an LXC config
   wait_for "${LXD_ADDR}" my_curl -X POST "https://${LXD_ADDR}/1.0/containers" \
         -d "{\"name\":\"configtest\",\"config\":{\"raw.lxc\":\"lxc.hook.clone=/bin/true\"},\"source\":{\"type\":\"none\"}}"
+  # shellcheck disable=SC2102
   [ "$(my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
   lxc delete configtest
 

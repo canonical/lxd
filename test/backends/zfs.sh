@@ -1,7 +1,9 @@
 #!/bin/sh
 
 zfs_setup() {
+  # shellcheck disable=2039
   local LXD_DIR
+
   LXD_DIR=$1
 
   echo "==> Setting up ZFS backend in ${LXD_DIR}"
@@ -17,7 +19,9 @@ zfs_setup() {
 }
 
 zfs_configure() {
+  # shellcheck disable=2039
   local LXD_DIR
+
   LXD_DIR=$1
 
   echo "==> Configuring ZFS backend in ${LXD_DIR}"
@@ -26,7 +30,9 @@ zfs_configure() {
 }
 
 zfs_teardown() {
+  # shellcheck disable=2039
   local LXD_DIR
+
   LXD_DIR=$1
 
   echo "==> Tearing down ZFS backend in ${LXD_DIR}"

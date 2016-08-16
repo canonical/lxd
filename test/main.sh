@@ -39,6 +39,7 @@ local_tcp_port() {
 
 # import all the backends
 for backend in backends/*.sh; do
+  # shellcheck disable=SC1090
   . "${backend}"
 done
 
@@ -50,6 +51,8 @@ spawn_lxd() {
   set +x
   # LXD_DIR is local here because since $(lxc) is actually a function, it
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
+
+  # shellcheck disable=2039
   local LXD_DIR
 
   lxddir=${1}
@@ -176,7 +179,10 @@ check_empty_table() {
 kill_lxd() {
   # LXD_DIR is local here because since $(lxc) is actually a function, it
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
+
+  # shellcheck disable=2039
   local LXD_DIR
+
   daemon_dir=${1}
   LXD_DIR=${daemon_dir}
   daemon_pid=$(cat "${daemon_dir}/lxd.pid")
@@ -263,13 +269,13 @@ cleanup() {
     echo "Tests Completed (${TEST_RESULT}): hit enter to continue"
 
     # shellcheck disable=SC2034
-    read nothing
+    read -r nothing
   fi
 
   echo "==> Cleaning up"
 
   # Kill all the LXD instances
-  while read daemon_dir; do
+  while read -r daemon_dir; do
     kill_lxd "${daemon_dir}"
   done < "${TEST_DIR}/daemons"
 
@@ -293,12 +299,12 @@ wipe() {
   fi
 
   # shellcheck disable=SC2009
-  ps aux | grep lxc-monitord | grep "${1}" | awk '{print $2}' | while read pid; do
+  ps aux | grep lxc-monitord | grep "${1}" | awk '{print $2}' | while read -r pid; do
     kill -9 "${pid}"
   done
 
   if [ -f "${TEST_DIR}/loops" ]; then
-    while read line; do
+    while read -r line; do
       losetup -d "${line}" || true
     done < "${TEST_DIR}/loops"
   fi
@@ -317,6 +323,7 @@ trap cleanup EXIT HUP INT TERM
 
 # Import all the testsuites
 for suite in suites/*.sh; do
+  # shellcheck disable=SC1090
  . "${suite}"
 done
 
