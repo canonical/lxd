@@ -5,7 +5,9 @@
 
 # Any necessary backend-specific setup
 dir_setup() {
+  # shellcheck disable=2039
   local LXD_DIR
+
   LXD_DIR=$1
 
   echo "==> Setting up directory backend in ${LXD_DIR}"
@@ -13,14 +15,18 @@ dir_setup() {
 
 # Do the API voodoo necessary to configure LXD to use this backend
 dir_configure() {
+  # shellcheck disable=2039
   local LXD_DIR
+
   LXD_DIR=$1
 
   echo "==> Configuring directory backend in ${LXD_DIR}"
 }
 
 dir_teardown() {
+  # shellcheck disable=2039
   local LXD_DIR
+
   LXD_DIR=$1
 
   echo "==> Tearing down directory backend in ${LXD_DIR}"
