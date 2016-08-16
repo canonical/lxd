@@ -3,8 +3,10 @@
 test_devlxd() {
   ensure_import_testimage
 
+  # shellcheck disable=SC2164
   cd "${TEST_DIR}"
   go build -tags netgo -a -installsuffix devlxd ../deps/devlxd-client.go
+  # shellcheck disable=SC2164
   cd -
 
   lxc launch testimage devlxd
