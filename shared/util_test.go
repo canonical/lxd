@@ -104,7 +104,7 @@ func TestReadLastNLines(t *testing.T) {
 }
 
 func TestReaderToChannel(t *testing.T) {
-	buf := make([]byte, 64*1024*1024)
+	buf := make([]byte, 1*1024*1024)
 	rand.Read(buf)
 
 	offset := 0
