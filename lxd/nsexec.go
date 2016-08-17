@@ -162,6 +162,18 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 	if (is_put && stat(container, &st) < 0)
 		exists = 0;
 
+	if (is_put) {
+		char *pos = strrchr(container, '/');
+		if (pos) {
+			*pos = 0;
+			if (mkdir_p(container, 0755) < 0) {
+				error("failed to mkdir -p");
+				goto close_host;
+			}
+			*pos = '/';
+		}
+	}
+
 	umask(0);
 	container_fd = open(container, container_open_flags, 0);
 	if (container_fd < 0) {

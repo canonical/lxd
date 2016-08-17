@@ -232,6 +232,12 @@ test_basic_usage() {
   lxc list | grep foo | grep RUNNING
   lxc stop foo --force  # stop is hanging
 
+  # check that we can put files in nonexistent directories in stopped
+  # containers
+  lxc file push /etc/hosts foo/mkdir/p/this/dir/hosts
+  lxc file pull foo/mkdir/p/this/dir/hosts "$TEST_DIR"/hosts
+  diff "$TEST_DIR"/hosts /etc/hosts
+
   # cycle it a few times
   lxc start foo
   mac1=$(lxc exec foo cat /sys/class/net/eth0/address)
