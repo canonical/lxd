@@ -95,13 +95,7 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	env := map[string]string{"HOME": "/root", "USER": "root"}
-	myEnv := os.Environ()
-	for _, ent := range myEnv {
-		if strings.HasPrefix(ent, "TERM=") {
-			env["TERM"] = ent[len("TERM="):]
-		}
-	}
+	env := map[string]string{"HOME": "/root", "USER": "root", "TERM": os.Getenv("TERM")}
 
 	for _, arg := range c.envArgs {
 		pieces := strings.SplitN(arg, "=", 2)
