@@ -81,7 +81,7 @@ lxc config trust remove [remote] [hostname|fingerprint]                     Remo
 
 Examples:
 To mount host's /share/c1 onto /opt in the container:
-   lxc config device add [remote:]container1 <device-name> disk source=/share/c1 path=opt
+    lxc config device add [remote:]container1 <device-name> disk source=/share/c1 path=opt
 
 To set an lxc config value:
     lxc config set [remote:]<container> raw.lxc 'lxc.aa_allow_incomplete = 1'
