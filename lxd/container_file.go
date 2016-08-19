@@ -49,8 +49,8 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 	}
 	defer temp.Close()
 
-	// Pul the file from the container
-	uid, gid, mode, err := c.FilePull(path, temp.Name())
+	// Pull the file from the container
+	uid, gid, mode, type_, dirEnts, err := c.FilePull(path, temp.Name())
 	if err != nil {
 		return SmartError(err)
 	}
@@ -59,41 +59,58 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 		"X-LXD-uid":  fmt.Sprintf("%d", uid),
 		"X-LXD-gid":  fmt.Sprintf("%d", gid),
 		"X-LXD-mode": fmt.Sprintf("%04o", mode),
+		"X-LXD-type": type_,
 	}
 
-	// Make a file response struct
-	files := make([]fileResponseEntry, 1)
-	files[0].identifier = filepath.Base(path)
-	files[0].path = temp.Name()
-	files[0].filename = filepath.Base(path)
+	if type_ == "file" {
+		// Make a file response struct
+		files := make([]fileResponseEntry, 1)
+		files[0].identifier = filepath.Base(path)
+		files[0].path = temp.Name()
+		files[0].filename = filepath.Base(path)
 
-	return FileResponse(r, files, headers, true)
+		return FileResponse(r, files, headers, true)
+	} else if type_ == "directory" {
+		return SyncResponseHeaders(true, dirEnts, headers)
+	} else {
+		return InternalError(fmt.Errorf("bad file type %s", type_))
+	}
 }
 
 func containerFilePut(c container, path string, r *http.Request) Response {
 	// Extract file ownership and mode from headers
-	uid, gid, mode := shared.ParseLXDFileHeaders(r.Header)
+	uid, gid, mode, type_ := shared.ParseLXDFileHeaders(r.Header)
 
-	// Write file content to a tempfile
-	temp, err := ioutil.TempFile("", "lxd_forkputfile_")
-	if err != nil {
-		return InternalError(err)
+	if type_ == "file" {
+		// Write file content to a tempfile
+		temp, err := ioutil.TempFile("", "lxd_forkputfile_")
+		if err != nil {
+			return InternalError(err)
+		}
+		defer func() {
+			temp.Close()
+			os.Remove(temp.Name())
+		}()
+
+		_, err = io.Copy(temp, r.Body)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		// Transfer the file into the container
+		err = c.FilePush(temp.Name(), path, uid, gid, mode)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		return EmptySyncResponse
+	} else if type_ == "directory" {
+		err := c.FilePush("", path, uid, gid, mode)
+		if err != nil {
+			return InternalError(err)
+		}
+		return EmptySyncResponse
+	} else {
+		return InternalError(fmt.Errorf("bad file type %s", type_))
 	}
-	defer func() {
-		temp.Close()
-		os.Remove(temp.Name())
-	}()
-
-	_, err = io.Copy(temp, r.Body)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	// Transfer the file into the container
-	err = c.FilePush(temp.Name(), path, uid, gid, mode)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	return EmptySyncResponse
 }

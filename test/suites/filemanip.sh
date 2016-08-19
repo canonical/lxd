@@ -15,5 +15,17 @@ test_filemanip() {
   err=$(my_curl -o /dev/null -w "%{http_code}" -X GET "https://${LXD_ADDR}/1.0/containers/filemanip/files?path=/tmp/foo")
   [ "${err}" -eq "404" ]
 
+  # lxc {push|pull} -r
+  mkdir "${TEST_DIR}"/source
+  echo "foo" > "${TEST_DIR}"/source/foo
+  echo "bar" > "${TEST_DIR}"/source/bar
+
+  lxc file push -r "${TEST_DIR}"/source filemanip/tmp
+  mkdir "${TEST_DIR}"/dest
+  lxc file pull -r filemanip/tmp/source "${TEST_DIR}"/dest
+
+  [ "$(cat "${TEST_DIR}"/dest/source/foo)" = "foo" ]
+  [ "$(cat "${TEST_DIR}"/dest/source/bar)" = "bar" ]
+
   lxc delete filemanip -f
 }
