@@ -65,6 +65,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"usb_devices",
 			"https_allowed_credentials",
 			"image_compression_algorithm",
+			"directory_manipulation",
 		},
 
 		"api_status":  "stable",

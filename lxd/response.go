@@ -42,6 +42,7 @@ type syncResponse struct {
 	etag     interface{}
 	metadata interface{}
 	location string
+	headers  map[string]string
 }
 
 func (r *syncResponse) Render(w http.ResponseWriter) error {
@@ -57,6 +58,12 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	status := shared.Success
 	if !r.success {
 		status = shared.Failure
+	}
+
+	if r.headers != nil {
+		for h, v := range r.headers {
+			w.Header().Set(h, v)
+		}
 	}
 
 	if r.location != "" {
@@ -86,6 +93,10 @@ func SyncResponseETag(success bool, metadata interface{}, etag interface{}) Resp
 
 func SyncResponseLocation(success bool, metadata interface{}, location string) Response {
 	return &syncResponse{success: success, metadata: metadata, location: location}
+}
+
+func SyncResponseHeaders(success bool, metadata interface{}, headers map[string]string) Response {
+	return &syncResponse{success: success, metadata: metadata, headers: headers}
 }
 
 var EmptySyncResponse = &syncResponse{success: true, metadata: make(map[string]interface{})}
