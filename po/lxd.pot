@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-08-15 17:37-0400\n"
+        "POT-Creation-Date: 2016-08-19 09:51-0600\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -98,7 +98,7 @@ msgstr  ""
 msgid   "ARCH"
 msgstr  ""
 
-#: lxc/list.go:419
+#: lxc/list.go:425
 msgid   "ARCHITECTURE"
 msgstr  ""
 
@@ -145,7 +145,7 @@ msgstr  ""
 msgid   "COMMON NAME"
 msgstr  ""
 
-#: lxc/list.go:420
+#: lxc/list.go:426
 msgid   "CREATED AT"
 msgstr  ""
 
@@ -281,7 +281,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/list.go:564
+#: lxc/list.go:570
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -365,11 +365,11 @@ msgstr  ""
 msgid   "Generating a client certificate. This may take a minute..."
 msgstr  ""
 
-#: lxc/list.go:417
+#: lxc/list.go:423
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:418
+#: lxc/list.go:424
 msgid   "IPV6"
 msgstr  ""
 
@@ -448,7 +448,7 @@ msgstr  ""
 msgid   "Keep the image up to date after initial copy"
 msgstr  ""
 
-#: lxc/list.go:421
+#: lxc/list.go:427
 msgid   "LAST USED AT"
 msgstr  ""
 
@@ -610,7 +610,7 @@ msgid   "Manage configuration.\n"
         "\n"
         "Examples:\n"
         "To mount host's /share/c1 onto /opt in the container:\n"
-        "   lxc config device add [remote:]container1 <device-name> disk source=/share/c1 path=opt\n"
+        "    lxc config device add [remote:]container1 <device-name> disk source=/share/c1 path=opt\n"
         "\n"
         "To set an lxc config value:\n"
         "    lxc config set [remote:]<container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n"
@@ -757,7 +757,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:422 lxc/remote.go:376
+#: lxc/list.go:428 lxc/remote.go:376
 msgid   "NAME"
 msgstr  ""
 
@@ -803,15 +803,15 @@ msgstr  ""
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:566
+#: lxc/list.go:572
 msgid   "PERSISTENT"
 msgstr  ""
 
-#: lxc/list.go:423
+#: lxc/list.go:429
 msgid   "PID"
 msgstr  ""
 
-#: lxc/list.go:424
+#: lxc/list.go:430
 msgid   "PROFILES"
 msgstr  ""
 
@@ -964,11 +964,11 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:425
+#: lxc/list.go:431
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/list.go:426
+#: lxc/list.go:432
 msgid   "STATE"
 msgstr  ""
 
@@ -1068,7 +1068,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:427
+#: lxc/list.go:433
 msgid   "TYPE"
 msgstr  ""
 
