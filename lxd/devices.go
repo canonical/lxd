@@ -507,6 +507,12 @@ func deviceUSBEvent(d *Daemon, usb usbDevice) {
 					shared.Log.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
 				}
+
+				/* ok to fail here, there may be other usb
+				 * devices on this bus still left in the
+				 * container
+				 */
+				os.Remove(filepath.Dir(usb.path))
 			} else {
 				shared.Log.Error("unknown action for usb device", log.Ctx{"usb": usb})
 				continue
