@@ -394,7 +394,23 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Name == "" {
-		req.Name = strings.ToLower(petname.Generate(2, "-"))
+		cs, err := dbContainersList(d.db, cTypeRegular)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		i := 0
+		for {
+			i++
+			req.Name = strings.ToLower(petname.Generate(2, "-"))
+			if !shared.StringInSlice(req.Name, cs) {
+				break
+			}
+
+			if i > 100 {
+				return InternalError(fmt.Errorf("couldn't generate a new unique name after 100 tries"))
+			}
+		}
 		shared.Debugf("No name provided, creating %s", req.Name)
 	}
 
