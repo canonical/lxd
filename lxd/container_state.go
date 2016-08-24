@@ -115,11 +115,16 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 					return err
 				}
 			} else {
+				if c.IsFrozen() {
+					return fmt.Errorf("container is not running")
+				}
+
 				err = c.Shutdown(time.Duration(raw.Timeout) * time.Second)
 				if err != nil {
 					return err
 				}
 			}
+
 			err = c.Start(false)
 			if err != nil {
 				return err
