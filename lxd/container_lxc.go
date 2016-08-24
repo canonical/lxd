@@ -2524,6 +2524,12 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					if err != nil {
 						shared.Log.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					}
+
+					/* ok to fail here, there may be other usb
+					 * devices on this bus still left in the
+					 * container
+					 */
+					os.Remove(filepath.Dir(usb.path))
 				}
 			}
 		}
