@@ -1130,12 +1130,17 @@ func (c *containerLXC) startCommon() (string, error) {
 					}
 				}
 
-				m["major"] = fmt.Sprintf("%d", usb.major)
-				m["minor"] = fmt.Sprintf("%d", usb.minor)
-				m["path"] = usb.path
+				temp := shared.Device{}
+				if err := shared.DeepCopy(&m, &temp); err != nil {
+					return "", err
+				}
+
+				temp["major"] = fmt.Sprintf("%d", usb.major)
+				temp["minor"] = fmt.Sprintf("%d", usb.minor)
+				temp["path"] = usb.path
 
 				/* it's ok to fail, the device might be hot plugged later */
-				_, err := c.createUnixDevice(m)
+				_, err := c.createUnixDevice(temp)
 				if err != nil {
 					shared.Log.Debug("failed to create usb device", log.Ctx{"err": err, "device": k})
 					continue
@@ -2516,27 +2521,17 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						continue
 					}
 
-					m["major"] = fmt.Sprintf("%d", usb.major)
-					m["minor"] = fmt.Sprintf("%d", usb.minor)
-					m["path"] = usb.path
-
-					err = c.removeUnixDevice(m)
+					err := c.removeUSBDevice(m, usb)
 					if err != nil {
-						shared.Log.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+						return err
 					}
-
-					/* ok to fail here, there may be other usb
-					 * devices on this bus still left in the
-					 * container
-					 */
-					os.Remove(filepath.Dir(usb.path))
 				}
 			}
 		}
 
 		for k, m := range addDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-				err = c.insertUnixDevice(k, m)
+				err = c.insertUnixDevice(m)
 				if err != nil {
 					return err
 				}
@@ -2563,11 +2558,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						continue
 					}
 
-					m["major"] = fmt.Sprintf("%d", usb.major)
-					m["minor"] = fmt.Sprintf("%d", usb.minor)
-					m["path"] = usb.path
-
-					err = c.insertUnixDevice(k, m)
+					err = c.insertUSBDevice(m, usb)
 					if err != nil {
 						shared.Log.Error("failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					}
@@ -3788,7 +3779,7 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	return devPath, nil
 }
 
-func (c *containerLXC) insertUnixDevice(name string, m shared.Device) error {
+func (c *containerLXC) insertUnixDevice(m shared.Device) error {
 	// Check that the container is running
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't insert device into stopped container")
@@ -3820,6 +3811,19 @@ func (c *containerLXC) insertUnixDevice(name string, m shared.Device) error {
 	}
 
 	return nil
+}
+
+func (c *containerLXC) insertUSBDevice(m shared.Device, usb usbDevice) error {
+	temp := shared.Device{}
+	if err := shared.DeepCopy(&m, &temp); err != nil {
+		return err
+	}
+
+	temp["major"] = fmt.Sprintf("%d", usb.major)
+	temp["minor"] = fmt.Sprintf("%d", usb.minor)
+	temp["path"] = usb.path
+
+	return c.insertUnixDevice(temp)
 }
 
 func (c *containerLXC) removeUnixDevice(m shared.Device) error {
@@ -3873,6 +3877,36 @@ func (c *containerLXC) removeUnixDevice(m shared.Device) error {
 		return err
 	}
 
+	return nil
+}
+
+func (c *containerLXC) removeUSBDevice(m shared.Device, usb usbDevice) error {
+	pid := c.InitPID()
+	if pid == -1 {
+		return fmt.Errorf("Can't remove device from stopped container")
+	}
+
+	temp := shared.Device{}
+	if err := shared.DeepCopy(&m, &temp); err != nil {
+		return err
+	}
+
+	temp["major"] = fmt.Sprintf("%d", usb.major)
+	temp["minor"] = fmt.Sprintf("%d", usb.minor)
+	temp["path"] = usb.path
+
+	err := c.removeUnixDevice(temp)
+	if err != nil {
+		shared.Log.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+		return err
+	}
+
+	/* ok to fail here, there may be other usb
+	 * devices on this bus still left in the
+	 * container
+	 */
+	dir := fmt.Sprintf("/proc/%d/root/%s", pid, filepath.Dir(usb.path))
+	os.Remove(dir)
 	return nil
 }
 
