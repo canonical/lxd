@@ -95,9 +95,20 @@ func (u *dbUpdate) apply(currentVersion int, d *Daemon) error {
 func dbUpdatesApplyAll(d *Daemon) error {
 	currentVersion := dbGetSchema(d.db)
 
+	backup := false
 	for _, update := range dbUpdates {
 		if update.version <= currentVersion {
 			continue
+		}
+
+		if !backup {
+			shared.Log.Info("Updating the LXD database schema. Backup made as \"lxd.db.bak\"")
+			err := shared.FileCopy(shared.VarPath("lxd.db"), shared.VarPath("lxd.db.bak"))
+			if err != nil {
+				return err
+			}
+
+			backup = true
 		}
 
 		err := update.apply(currentVersion, d)
