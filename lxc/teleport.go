@@ -26,9 +26,11 @@ lxd teleport [remote:]container [there=:<port> here=<host>:<port>]
 func (c *teleportCmd) flags() {
 }
 
-func (c *teleportCmd) forward(conn net.Conn) {
+func (c *teleportCmd) forward(conn net.Conn, client *lxd.Client) {
 	fmt.Printf("New connection from: %s\n", conn.RemoteAddr())
 	defer conn.Close()
+
+	// [ ] if no signal, write debug message
 	conn.Write([]byte("No signal from remote\n"))
 }
 
@@ -39,13 +41,14 @@ func (c *teleportCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	remote, name := config.ParseRemoteAndContainer(args[0])
-	// client provides websocket to container
+
+	// create new client to get websocket connection
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
 	fmt.Println(`New client: ` + d.Name)
-	fmt.Println("Connecting to: " + name)
+	fmt.Println("Container: " + name)
 
 	// creating local server for listening on specified port
 	// [ ] no hardcoded value
@@ -62,7 +65,7 @@ func (c *teleportCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 		// [ ] go handle forward request
-		go c.forward(conn)
+		go c.forward(conn, d)
 	}
 
 	return nil
