@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -32,12 +33,32 @@ func (c *teleportCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	remote, name := config.ParseRemoteAndContainer(args[0])
+	// client provides websocket to container
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {
 		return err
 	}
 	fmt.Println(`New client: ` + d.Name)
-	fmt.Println("Teleporting: " + name)
+	fmt.Println("Connecting to: " + name)
+
+	// creating local server for listening on specified port
+	// [ ] no hardcoded value
+	listenon := "localhost:1337"
+	fmt.Println("Listening on: " + listenon)
+	acceptor, err := net.Listen("tcp", listenon)
+	if err != nil {
+		return err
+	}
+	for {
+		conn, err := acceptor.Accept()
+		if err != nil {
+			// [ ] doesn't seem to be the right strategy
+			return err
+		}
+		// [ ] go handle forward request
+		//handle(conn)
+		fmt.Printf("New connection from: %s\n", conn.RemoteAddr())
+	}
 
 	return nil
 }

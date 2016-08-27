@@ -2,7 +2,7 @@
  * [ ] passing teleport parameters
    * [ ] parsing and setting port number
  * [ ] client-side command handler
-   * [ ] accepting local connections
+   * [x] accepting local connections
    * [ ] getting back result 
    * [ ] handle errors
    * [ ] handle multiple connections simultaneously (or limit them)
