@@ -3,7 +3,7 @@
    * [ ] parsing and setting port number
  * [ ] client-side command handler
    * [x] accepting local connections
-   * [ ] getting back result 
+   * [x] getting back result 
    * [ ] handle errors
    * [ ] handle multiple connections simultaneously (or limit them)
    * [ ] wrap request over websocket to the server side

@@ -31,7 +31,8 @@ func (c *teleportCmd) forward(conn net.Conn, client *lxd.Client) {
 	defer conn.Close()
 
 	// [ ] if no signal, write debug message
-	conn.Write([]byte("No signal from remote\n"))
+	out, _ := client.Teleport()
+	conn.Write([]byte(out))
 }
 
 func (c *teleportCmd) run(config *lxd.Config, args []string) error {
