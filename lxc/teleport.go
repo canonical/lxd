@@ -26,6 +26,10 @@ lxd teleport [remote:]container [there=:<port> here=<host>:<port>]
 func (c *teleportCmd) flags() {
 }
 
+func (c *teleportCmd) forward(conn net.Conn) {
+	fmt.Printf("New connection from: %s\n", conn.RemoteAddr())
+}
+
 func (c *teleportCmd) run(config *lxd.Config, args []string) error {
 	// [ ] param parsing
 	if len(args) < 1 {
@@ -56,8 +60,7 @@ func (c *teleportCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 		// [ ] go handle forward request
-		//handle(conn)
-		fmt.Printf("New connection from: %s\n", conn.RemoteAddr())
+		go c.forward(conn)
 	}
 
 	return nil
