@@ -28,6 +28,8 @@ func (c *teleportCmd) flags() {
 
 func (c *teleportCmd) forward(conn net.Conn) {
 	fmt.Printf("New connection from: %s\n", conn.RemoteAddr())
+	defer conn.Close()
+	conn.Write([]byte("No signal from remote\n"))
 }
 
 func (c *teleportCmd) run(config *lxd.Config, args []string) error {
