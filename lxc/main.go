@@ -65,7 +65,9 @@ func run() error {
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
 		os.Args[1] = "version"
 	}
-
+	if len(os.Args) == 2 && os.Args[1] == "--manpage" {
+		os.Args[1] = "manpage"
+	}
 	if len(os.Args) < 2 {
 		commands["help"].run(nil, nil)
 		os.Exit(1)
@@ -199,6 +201,7 @@ var commands = map[string]command{
 		timeout:    -1,
 	},
 	"version": &versionCmd{},
+	"manpage": &manpageCmd{},
 }
 
 // defaultAliases contains LXC's built-in command line aliases.  The built-in
