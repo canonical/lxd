@@ -65,6 +65,7 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 		fmt.Println("  --debug            " + i18n.G("Print debug information."))
 		fmt.Println("  --verbose          " + i18n.G("Print verbose information."))
 		fmt.Println("  --version          " + i18n.G("Show client version."))
+		fmt.Println("  --manpage          " + i18n.G("Show lxc manpage."))
 		fmt.Println()
 		fmt.Println(i18n.G("Environment:"))
 		fmt.Println("  LXD_CONF           " + i18n.G("Path to an alternate client configuration directory."))
