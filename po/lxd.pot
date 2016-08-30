@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-08-19 09:51-0600\n"
+        "POT-Creation-Date: 2016-08-30 17:59-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -377,7 +377,7 @@ msgstr  ""
 msgid   "ISSUE DATE"
 msgstr  ""
 
-#: lxc/main.go:132
+#: lxc/main.go:136
 msgid   "If this is your first time using LXD, you should also run: sudo lxd init"
 msgstr  ""
 
@@ -790,7 +790,7 @@ msgstr  ""
 msgid   "Only https:// is supported for remote image import."
 msgstr  ""
 
-#: lxc/help.go:63 lxc/main.go:108
+#: lxc/help.go:63 lxc/main.go:112
 msgid   "Options:"
 msgstr  ""
 
@@ -872,6 +872,10 @@ msgstr  ""
 
 #: lxc/help.go:66
 msgid   "Print verbose information."
+msgstr  ""
+
+#: lxc/manpage.go:18
+msgid   "Prints all the subcommands help."
 msgstr  ""
 
 #: lxc/version.go:18
@@ -1089,7 +1093,7 @@ msgstr  ""
 msgid   "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr  ""
 
-#: lxc/main.go:175
+#: lxc/main.go:180
 msgid   "The opposite of `lxc pause` is `lxc start`."
 msgstr  ""
 
@@ -1105,7 +1109,7 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
-#: lxc/main.go:133
+#: lxc/main.go:137
 msgid   "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr  ""
 
@@ -1144,7 +1148,7 @@ msgstr  ""
 msgid   "Uploaded: %s"
 msgstr  ""
 
-#: lxc/main.go:108
+#: lxc/main.go:112
 #, c-format
 msgid   "Usage: %s"
 msgstr  ""
@@ -1209,12 +1213,12 @@ msgstr  ""
 msgid   "enabled"
 msgstr  ""
 
-#: lxc/main.go:22 lxc/main.go:144
+#: lxc/main.go:22 lxc/main.go:148
 #, c-format
 msgid   "error: %v"
 msgstr  ""
 
-#: lxc/help.go:40 lxc/main.go:103
+#: lxc/help.go:40 lxc/main.go:107
 #, c-format
 msgid   "error: unknown command: %s"
 msgstr  ""
@@ -1235,7 +1239,7 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/main.go:297 lxc/main.go:301
+#: lxc/main.go:302 lxc/main.go:306
 #, c-format
 msgid   "processing aliases failed %s\n"
 msgstr  ""
@@ -1273,11 +1277,11 @@ msgstr  ""
 msgid   "taken at %s"
 msgstr  ""
 
-#: lxc/exec.go:166
+#: lxc/exec.go:163
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:229
+#: lxc/main.go:234
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 
