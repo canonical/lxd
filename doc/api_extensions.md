@@ -2,14 +2,14 @@
 
 The changes below were introduced to the LXD API after the 1.0 API was finalized.
 
-They are all backward compatible and can be detected by client tools by  
+They are all backward compatible and can be detected by client tools by
 looking at the api\_extensions field in GET /1.0/.
 
 
 ## storage\_zfs\_remove\_snapshots
 A storage.zfs\_remove\_snapshots daemon configuration key was introduced.
 
-It's a boolean that defaults to false and that when set to true instructs LXD  
+It's a boolean that defaults to false and that when set to true instructs LXD
 to remove any needed snapshot when attempting to restore another.
 
 This is needed as ZFS will only let you restore the latest snapshot.
@@ -17,7 +17,7 @@ This is needed as ZFS will only let you restore the latest snapshot.
 ## container\_host\_shutdown\_timeout
 A boot.host\_shutdown\_timeout container configuration key was introduced.
 
-It's an integer which indicates how long LXD should wait for the container  
+It's an integer which indicates how long LXD should wait for the container
 to stop before killing it.
 
 Its value is only used on clean LXD daemon shutdown. It defaults to 30s.
@@ -58,7 +58,7 @@ And adds support for the following HTTP header on PUT requests:
 
 This makes it possible to GET a LXD object, modify it and PUT it without
 risking to hit a race condition where LXD or another client modified the
-object in the mean time.
+object in the meantime.
 
 ## patch
 Add support for the HTTP PATCH method.

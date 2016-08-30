@@ -1,12 +1,11 @@
 # Introduction
-So you've made it past trying out [LXD live online](https://linuxcontainers.org/lxd/try-it/), 
-or on a server scavanged from random parts. You like what you see, 
+So you've made it past trying out [LXD live online](https://linuxcontainers.org/lxd/try-it/),
+or on a server scavenged from random parts. You like what you see,
 and now you want to try doing some serious work with LXD.
 
-With the vanilla installation of Ubuntu Server 16.04, there will 
-need to be some modifications to the server configuration to avoid 
-common pitfalls when using containers that require tens of thousands 
-of file operations.
+With the vanilla installation of Ubuntu Server 16.04, some modifications
+to the server configuration will be needed, to avoid common pitfalls when
+using containers that require tens of thousands of file operations.
 
 
 ## Common errors that may be encountered
