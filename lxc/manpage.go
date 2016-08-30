@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"sort"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -13,7 +16,7 @@ func (c *manpageCmd) showByDefault() bool {
 
 func (c *manpageCmd) usage() string {
 	return i18n.G(
-		`Prints all subcommands help to create a lxd manpage`)
+		`Prints all the subcommands help.`)
 }
 
 func (c *manpageCmd) flags() {
@@ -23,8 +26,23 @@ func (c *manpageCmd) run(_ *lxd.Config, args []string) error {
 	if len(args) > 0 {
 		return errArgs
 	}
+
+	keys := []string{}
 	for k, _ := range commands {
-		commands["help"].run(nil, []string{k})
+		keys = append(keys, k)
 	}
+	sort.Strings(keys)
+
+	header := false
+	for _, k := range keys {
+		if header {
+			fmt.Printf("\n\n")
+		}
+
+		fmt.Printf("### lxc %s\n", k)
+		commands["help"].run(nil, []string{k})
+		header = true
+	}
+
 	return nil
 }
