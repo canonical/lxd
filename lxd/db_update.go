@@ -67,6 +67,7 @@ var dbUpdates = []dbUpdate{
 	dbUpdate{version: 31, run: dbUpdateFromV30},
 	dbUpdate{version: 32, run: dbUpdateFromV31},
 	dbUpdate{version: 33, run: dbUpdateFromV32},
+	dbUpdate{version: 34, run: dbUpdateFromV33},
 }
 
 type dbUpdate struct {
@@ -123,6 +124,25 @@ func dbUpdatesApplyAll(d *Daemon) error {
 }
 
 // Schema updates begin here
+func dbUpdateFromV33(currentVersion int, version int, d *Daemon) error {
+	stmt := `
+CREATE TABLE IF NOT EXISTS networks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    UNIQUE (name)
+);
+CREATE TABLE IF NOT EXISTS networks_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (network_id, key),
+    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE
+);`
+	_, err := d.db.Exec(stmt)
+	return err
+}
+
 func dbUpdateFromV32(currentVersion int, version int, d *Daemon) error {
 	_, err := d.db.Exec("ALTER TABLE containers ADD COLUMN last_use_date DATETIME;")
 	return err

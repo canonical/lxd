@@ -3,6 +3,9 @@
 test_migration() {
   ensure_import_testimage
 
+  # workaround for kernel/criu
+  umount /sys/kernel/debug >/dev/null 2>&1 || true
+
   if ! lxc_remote remote list | grep -q l1; then
     lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
   fi
