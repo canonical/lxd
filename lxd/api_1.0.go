@@ -69,6 +69,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"container_cpu_time",
 			"storage_zfs_use_refquota",
 			"storage_lvm_mount_options",
+			"network",
 		},
 
 		"api_status":  "stable",

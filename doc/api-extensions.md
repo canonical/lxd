@@ -101,3 +101,16 @@ considered as part of the container's disk space usage.
 Adds a new "storage.lvm\_mount\_options" daemon configuration option
 which defaults to "discard" and allows the user to set addition mount
 options for the filesystem used by the LVM LV.
+
+## network
+Network management API for LXD.
+
+This includes:
+ * Addition of the "managed" property on /1.0/networks entries
+ * All the network configuration options (see configuration.md for details)
+ * POST /1.0/networks (see rest-api.md for details)
+ * PUT /1.0/networks/<entry> (see rest-api.md for details)
+ * PATCH /1.0/networks/<entry> (see rest-api.md for details)
+ * DELETE /1.0/networks/<entry> (see rest-api.md for details)
+ * ipv4.address property on "nic" type devices (when nictype is "bridged")
+ * ipv6.address property on "nic" type devices (when nictype is "bridged")
