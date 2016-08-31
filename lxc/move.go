@@ -22,6 +22,8 @@ lxc move [remote:]<source container> [remote:]<destination container>
 
 lxc move <old name> <new name>
     Rename a local container.
+lxc rename <old name> <new name>
+    Rename a local container.
 `)
 }
 
