@@ -49,7 +49,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 	}
 
 	resultString := []string{}
-	resultMap := []network{}
+	resultMap := []shared.NetworkConfig{}
 	for _, iface := range ifs {
 		if recursion == 0 {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))
@@ -72,12 +72,6 @@ func networksGet(d *Daemon, r *http.Request) Response {
 
 var networksCmd = Command{name: "networks", get: networksGet}
 
-type network struct {
-	Name   string   `json:"name"`
-	Type   string   `json:"type"`
-	UsedBy []string `json:"used_by"`
-}
-
 func networkGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
@@ -89,27 +83,28 @@ func networkGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, &n)
 }
 
-func doNetworkGet(d *Daemon, name string) (network, error) {
+func doNetworkGet(d *Daemon, name string) (shared.NetworkConfig, error) {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
-		return network{}, err
+		return shared.NetworkConfig{}, err
 	}
 
 	// Prepare the response
-	n := network{}
+	n := shared.NetworkConfig{}
 	n.Name = iface.Name
 	n.UsedBy = []string{}
+	n.Config = map[string]string{}
 
 	// Look for containers using the interface
 	cts, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
-		return network{}, err
+		return shared.NetworkConfig{}, err
 	}
 
 	for _, ct := range cts {
 		c, err := containerLoadByName(d, ct)
 		if err != nil {
-			return network{}, err
+			return shared.NetworkConfig{}, err
 		}
 
 		if networkIsInUse(c, n.Name) {
@@ -121,6 +116,13 @@ func doNetworkGet(d *Daemon, name string) (network, error) {
 	if shared.IsLoopback(iface) {
 		n.Type = "loopback"
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
+		// Look for a DB entry
+		_, dbNetwork, err := dbNetworkGet(d.db, name)
+		if err == nil {
+			n.Managed = true
+			n.Config = dbNetwork.Config
+		}
+
 		n.Type = "bridge"
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device", n.Name)) {
 		n.Type = "physical"
