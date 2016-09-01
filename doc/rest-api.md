@@ -1445,9 +1445,27 @@ Input (none at present):
  * Return: list of URLs for networks that are current defined on the host
 
     [
-        "/1.0/networks/eth0",,
+        "/1.0/networks/eth0",
         "/1.0/networks/lxdbr0"
     ]
+
+### POST
+ * Description: define a new network
+ * Introduced: with API extension "network"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "name": "my-network",
+        "config": {
+            "ipv4.address": "none",
+            "ipv6.address": "2001:470:b368:4242::1/64",
+            "ipv6.nat": "true"
+        }
+    }
 
 ## /1.0/networks/\<name\>
 ### GET
@@ -1457,12 +1475,83 @@ Input (none at present):
  * Return: dict representing a network
 
     {
+        "config": {},
         "name": "lxdbr0",
+        "managed": false,
         "type": "bridge",
         "used_by": [
             "/1.0/containers/blah"
         ]
     }
+
+### POST
+ * Description: rename a network
+ * Introduced: with API extension "network"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (rename a network):
+
+    {
+        "name": "new-name"
+    }
+
+
+HTTP return value must be 204 (No content) and Location must point to
+the renamed resource.
+
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
+
+### PUT (ETag supported)
+ * Description: replace the network information
+ * Introduced: with API extension "network"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "config": {
+            "bridge.driver": "openvswitch",
+            "ipv4.address": "10.0.3.1/24",
+            "ipv6.address": "fd1:6997:4939:495d::1/64"
+        }
+    }
+
+Same dict as used for initial creation and coming from GET. Only the
+config is used, everything else is ignored.
+
+### PATCH (ETag supported)
+ * Description: update the network information
+ * Introduced: with API extension "network"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "config": {
+            "dns.mode": "dynamic"
+        }
+    }
+
+
+### DELETE
+ * Description: remove a network
+ * Introduced: with API extension "network"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+    {
+    }
+
+HTTP code for this should be 202 (Accepted).
 
 ## /1.0/operations
 ### GET
