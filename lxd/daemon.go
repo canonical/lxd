@@ -24,7 +24,6 @@ import (
 
 	"golang.org/x/crypto/scrypt"
 
-	"github.com/coreos/go-systemd/activation"
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/syndtr/gocapability/capability"
@@ -840,11 +839,7 @@ func (d *Daemon) Init() error {
 		NotFound.Render(w)
 	})
 
-	listeners, err := activation.Listeners(false)
-	if err != nil {
-		return err
-	}
-
+	listeners := d.GetListeners()
 	if len(listeners) > 0 {
 		shared.Log.Info("LXD is socket activated")
 
@@ -921,7 +916,7 @@ func (d *Daemon) Init() error {
 			shared.Log.Error("cannot listen on https socket, skipping...", log.Ctx{"err": err})
 		} else {
 			if d.TCPSocket != nil {
-				shared.Log.Info("Replacing systemd TCP socket by configure one")
+				shared.Log.Info("Replacing inherited TCP socket with configured one")
 				d.TCPSocket.Socket.Close()
 			}
 			d.TCPSocket = &Socket{Socket: tcpl, CloseOnExit: true}
@@ -1202,6 +1197,43 @@ func (d *Daemon) ExpireLogs() error {
 	}
 
 	return nil
+}
+
+func (d *Daemon) GetListeners() []net.Listener {
+	defer func() {
+		os.Unsetenv("LISTEN_PID")
+		os.Unsetenv("LISTEN_FDS")
+	}()
+
+	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
+	if err != nil {
+		return nil
+	}
+
+	if pid != os.Getpid() {
+		return nil
+	}
+
+	fds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
+	if err != nil {
+		return nil
+	}
+
+	listeners := []net.Listener{}
+
+	for i := 3; i < 3+fds; i++ {
+		syscall.CloseOnExec(i)
+
+		file := os.NewFile(uintptr(i), fmt.Sprintf("inherited-fd%d", i))
+		listener, err := net.FileListener(file)
+		if err != nil {
+			continue
+		}
+
+		listeners = append(listeners, listener)
+	}
+
+	return listeners
 }
 
 type lxdHttpServer struct {
