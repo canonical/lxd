@@ -55,28 +55,14 @@ func (a SortImage) Less(i, j int) bool {
 }
 
 type aliasList []string
-type algorithm []string
 
 func (f *aliasList) String() string {
-	return fmt.Sprint(*f)
-}
-
-func (f *algorithm) String() string {
 	return fmt.Sprint(*f)
 }
 
 func (f *aliasList) Set(value string) error {
 	if f == nil {
 		*f = make(aliasList, 1)
-	} else {
-		*f = append(*f, value)
-	}
-	return nil
-}
-
-func (f *algorithm) Set(value string) error {
-	if f == nil {
-		*f = make(algorithm, 1)
 	} else {
 		*f = append(*f, value)
 	}

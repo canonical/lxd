@@ -2414,11 +2414,11 @@ func (c *Client) AsyncWaitMeta(resp *Response) (*shared.Jmap, error) {
 	return op.Metadata, nil
 }
 
-func (c *Client) ImageFromContainer(cname string, public bool, aliases []string, properties map[string]string) (string, error) {
+func (c *Client) ImageFromContainer(cname string, public bool, aliases []string, properties map[string]string, compression_algorithm string) (string, error) {
 	if c.Remote.Public {
 		return "", fmt.Errorf("This function isn't supported by public remotes.")
 	}
-	source := shared.Jmap{"type": "container", "name": cname, "compression": properties["compression"]}
+	source := shared.Jmap{"type": "container", "name": cname, "compression_algorithm": compression_algorithm}
 	if shared.IsSnapshot(cname) {
 		source["type"] = "snapshot"
 	}
