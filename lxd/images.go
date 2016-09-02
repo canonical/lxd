@@ -203,6 +203,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	info.Properties = map[string]string{}
 	name := req.Source["name"]
 	ctype := req.Source["type"]
+
 	if ctype == "" || name == "" {
 		return info, fmt.Errorf("No source provided")
 	}
@@ -247,7 +248,14 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	tarfile.Close()
 
 	var compressedPath string
-	compress := daemonConfig["images.compression_algorithm"].Get()
+	var compress string
+
+	if compression_algorithm, ok := req.Source["compression"]; ok {
+		compress = compression_algorithm
+	} else {
+		compress = daemonConfig["images.compression_algorithm"].Get()
+	}
+
 	if compress != "none" {
 		compressedPath, err = compressFile(tarfile.Name(), compress)
 		if err != nil {

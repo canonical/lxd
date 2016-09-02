@@ -12,9 +12,10 @@ import (
 )
 
 type publishCmd struct {
-	pAliases   aliasList // aliasList defined in lxc/image.go
-	makePublic bool
-	Force      bool
+	pAliases    aliasList // aliasList defined in lxc/image.go
+	Compression algorithm
+	makePublic  bool
+	Force       bool
 }
 
 func (c *publishCmd) showByDefault() bool {
@@ -33,6 +34,7 @@ func (c *publishCmd) flags() {
 	gnuflag.Var(&c.pAliases, "alias", i18n.G("New alias to define at target"))
 	gnuflag.BoolVar(&c.Force, "force", false, i18n.G("Stop the container if currently running"))
 	gnuflag.BoolVar(&c.Force, "f", false, i18n.G("Stop the container if currently running"))
+	gnuflag.Var(&c.Compression, "compression", i18n.G("Define a compression algorithm: for image or none"))
 }
 
 func (c *publishCmd) run(config *lxd.Config, args []string) error {
@@ -129,6 +131,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		}
 		properties[entry[0]] = entry[1]
 	}
+	properties["compression"] = c.Compression[0]
 
 	var fp string
 
