@@ -64,6 +64,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"patch",
 			"usb_devices",
 			"https_allowed_credentials",
+			"image_compression",
 		},
 
 		"api_status":  "stable",
