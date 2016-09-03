@@ -822,7 +822,7 @@ func cmdInit() error {
 					storageDevice = askString("Path to the existing block device: ", "", deviceExists)
 					storageMode = "device"
 				} else {
-					storageLoopSize = askInt("Size in GB of the new loop device (1GB minimum) [default=10GB]: ", 1, -1, "10")
+					storageLoopSize = askInt("Size in GB of the new loop device (1GB minimum) [default=10]: ", 1, -1, "10")
 					storageMode = "loop"
 				}
 			} else {
