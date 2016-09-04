@@ -795,7 +795,12 @@ func cmdInit() error {
 			return fmt.Errorf("Init configuration is only valid with --auto")
 		}
 
-		storageBackend = askChoice("Name of the storage backend to use (dir or zfs) [default=zfs]: ", backendsSupported, "zfs")
+		defaultStorage := "dir"
+		if shared.StringInSlice("zfs", backendsAvailable) {
+			defaultStorage = "zfs"
+		}
+
+		storageBackend = askChoice(fmt.Sprintf("Name of the storage backend to use (dir or zfs) [default=%s]: ", defaultStorage), backendsSupported, defaultStorage)
 
 		if !shared.StringInSlice(storageBackend, backendsSupported) {
 			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
