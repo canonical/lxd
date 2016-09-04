@@ -799,7 +799,12 @@ func cmdInit() error {
 			return fmt.Errorf("Init configuration is only valid with --auto")
 		}
 
-		storageBackend = askChoice("Name of the storage backend to use (dir or zfs) [default=zfs]: ", backendsSupported, "zfs")
+		defaultStorage := "dir"
+		if shared.StringInSlice("zfs", backendsAvailable) {
+			defaultStorage = "zfs"
+		}
+
+		storageBackend = askChoice(fmt.Sprintf("Name of the storage backend to use (dir or zfs) [default=%s]: ", defaultStorage), backendsSupported, defaultStorage)
 
 		if !shared.StringInSlice(storageBackend, backendsSupported) {
 			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
@@ -822,7 +827,7 @@ func cmdInit() error {
 					storageDevice = askString("Path to the existing block device: ", "", deviceExists)
 					storageMode = "device"
 				} else {
-					storageLoopSize = askInt("Size in GB of the new loop device (1GB minimum) [default=10GB]: ", 1, -1, "10")
+					storageLoopSize = askInt("Size in GB of the new loop device (1GB minimum) [default=10]: ", 1, -1, "10")
 					storageMode = "loop"
 				}
 			} else {

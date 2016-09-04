@@ -2192,11 +2192,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
-	err = c.initLXC()
-	if err != nil {
-		return err
-	}
-
 	// Diff the configurations
 	changedConfig := []string{}
 	for key, _ := range oldExpandedConfig {
@@ -2646,6 +2641,14 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	if err := txCommit(tx); err != nil {
+		return err
+	}
+
+	// Invalidate the go-lxc cache
+	c.c = nil
+
+	err = c.initLXC()
+	if err != nil {
 		return err
 	}
 
