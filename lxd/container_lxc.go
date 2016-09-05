@@ -28,9 +28,55 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-// Global variables
-var lxcStoppingContainersLock sync.Mutex
-var lxcStoppingContainers map[int]*sync.WaitGroup = make(map[int]*sync.WaitGroup)
+// Operation locking
+type lxcContainerOperation struct {
+	action   string
+	chanDone chan error
+	err      error
+	id       int
+	timeout  int
+}
+
+func (op *lxcContainerOperation) Create(id int, action string, timeout int) *lxcContainerOperation {
+	op.id = id
+	op.action = action
+	op.timeout = timeout
+	op.chanDone = make(chan error, 0)
+
+	if timeout > 1 {
+		go func(op *lxcContainerOperation) {
+			time.Sleep(time.Second * time.Duration(op.timeout))
+			op.Done(fmt.Errorf("Container %s operation timed out after %d seconds", op.action, op.timeout))
+		}(op)
+	}
+
+	return op
+}
+
+func (op *lxcContainerOperation) Wait() error {
+	<-op.chanDone
+
+	return op.err
+}
+
+func (op *lxcContainerOperation) Done(err error) {
+	lxcContainerOperationsLock.Lock()
+	defer lxcContainerOperationsLock.Unlock()
+
+	// Check if already done
+	runningOp, ok := lxcContainerOperations[op.id]
+	if !ok || runningOp != op {
+		return
+	}
+
+	op.err = err
+	close(op.chanDone)
+
+	delete(lxcContainerOperations, op.id)
+}
+
+var lxcContainerOperationsLock sync.Mutex
+var lxcContainerOperations map[int]*lxcContainerOperation = make(map[int]*lxcContainerOperation)
 
 // Helper functions
 func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
@@ -243,6 +289,51 @@ type containerLXC struct {
 	daemon   *Daemon
 	idmapset *shared.IdmapSet
 	storage  storage
+}
+
+func (c *containerLXC) createOperation(action string, timeout int) (*lxcContainerOperation, error) {
+	op, _ := c.getOperation("")
+	if op != nil {
+		return nil, fmt.Errorf("Container is already running a %s operation", op.action)
+	}
+
+	lxcContainerOperationsLock.Lock()
+	defer lxcContainerOperationsLock.Unlock()
+
+	op = &lxcContainerOperation{}
+	op.Create(c.id, action, timeout)
+	lxcContainerOperations[c.id] = op
+
+	return lxcContainerOperations[c.id], nil
+}
+
+func (c *containerLXC) getOperation(action string) (*lxcContainerOperation, error) {
+	lxcContainerOperationsLock.Lock()
+	defer lxcContainerOperationsLock.Unlock()
+
+	op := lxcContainerOperations[c.id]
+
+	if op == nil {
+		return nil, fmt.Errorf("No running %s container operation", action)
+	}
+
+	if action != "" && op.action != action {
+		return nil, fmt.Errorf("Container is running a %s operation, not a %s operation", op.action, action)
+	}
+
+	return op, nil
+}
+
+func (c *containerLXC) waitOperation() error {
+	op, _ := c.getOperation("")
+	if op != nil {
+		err := op.Wait()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *containerLXC) init() error {
@@ -1195,15 +1286,15 @@ func (c *containerLXC) startCommon() (string, error) {
 }
 
 func (c *containerLXC) Start(stateful bool) error {
-	// Wait for container tear down to finish
-	lxcStoppingContainersLock.Lock()
-	wgStopping, stopping := lxcStoppingContainers[c.id]
-	lxcStoppingContainersLock.Unlock()
-	if stopping {
-		wgStopping.Wait()
+	// Setup a new operation
+	op, err := c.createOperation("start", 30)
+	if err != nil {
+		return err
 	}
+	defer op.Done(nil)
 
-	if err := setupSharedMounts(); err != nil {
+	err = setupSharedMounts()
+	if err != nil {
 		return fmt.Errorf("Daemon failed to setup shared mounts base: %s.\nDoes security.nesting need to be turned on?", err)
 	}
 
@@ -1374,35 +1465,14 @@ func (c *containerLXC) OnStart() error {
 	return nil
 }
 
-// Container shutdown locking
-func (c *containerLXC) setupStopping() *sync.WaitGroup {
-	// Handle locking
-	lxcStoppingContainersLock.Lock()
-	defer lxcStoppingContainersLock.Unlock()
-
-	// Existing entry
-	wg, stopping := lxcStoppingContainers[c.id]
-	if stopping {
-		return wg
-	}
-
-	// Setup new entry
-	lxcStoppingContainers[c.id] = &sync.WaitGroup{}
-
-	go func(wg *sync.WaitGroup, id int) {
-		wg.Wait()
-
-		lxcStoppingContainersLock.Lock()
-		defer lxcStoppingContainersLock.Unlock()
-
-		delete(lxcStoppingContainers, id)
-	}(lxcStoppingContainers[c.id], c.id)
-
-	return lxcStoppingContainers[c.id]
-}
-
 // Stop functions
 func (c *containerLXC) Stop(stateful bool) error {
+	// Setup a new operation
+	op, err := c.createOperation("stop", 30)
+	if err != nil {
+		return err
+	}
+
 	// Handle stateful stop
 	if stateful {
 		// Cleanup any existing state
@@ -1411,85 +1481,73 @@ func (c *containerLXC) Stop(stateful bool) error {
 
 		err := os.MkdirAll(stateDir, 0700)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 
 		// Checkpoint
 		err = c.Migrate(lxc.MIGRATE_DUMP, stateDir, "snapshot", true)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 
 		c.stateful = true
 		err = dbContainerSetStateful(c.daemon.db, c.id, true)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 
+		op.Done(nil)
 		return nil
 	}
 
 	// Load the go-lxc struct
-	err := c.initLXC()
+	err = c.initLXC()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Attempt to freeze the container first, helps massively with fork bombs
 	c.Freeze()
 
-	// Handle locking
-	wg := c.setupStopping()
-
-	// Stop the container
-	wg.Add(1)
 	if err := c.c.Stop(); err != nil {
-		wg.Done()
+		op.Done(err)
 		return err
 	}
 
-	// Mark ourselves as done
-	wg.Done()
-
-	// Wait for any other teardown routines to finish
-	wg.Wait()
-
-	return nil
+	return op.Wait()
 }
 
 func (c *containerLXC) Shutdown(timeout time.Duration) error {
-	// Load the go-lxc struct
-	err := c.initLXC()
+	// Setup a new operation
+	op, err := c.createOperation("shutdown", 30)
 	if err != nil {
 		return err
 	}
 
-	// Handle locking
-	wg := c.setupStopping()
-
-	// Shutdown the container
-	wg.Add(1)
-	if err := c.c.Shutdown(timeout); err != nil {
-		wg.Done()
+	// Load the go-lxc struct
+	err = c.initLXC()
+	if err != nil {
+		op.Done(err)
 		return err
 	}
 
-	// Mark ourselves as done
-	wg.Done()
+	if err := c.c.Shutdown(timeout); err != nil {
+		op.Done(err)
+		return err
+	}
 
-	// Wait for any other teardown routines to finish
-	wg.Wait()
-
-	return nil
+	return op.Wait()
 }
 
 func (c *containerLXC) OnStop(target string) error {
-	// Get locking
-	lxcStoppingContainersLock.Lock()
-	wg, stopping := lxcStoppingContainers[c.id]
-	lxcStoppingContainersLock.Unlock()
-	if wg != nil {
-		wg.Add(1)
+	// Get operation
+	op, _ := c.getOperation("")
+	if op != nil && !shared.StringInSlice(op.action, []string{"stop", "shutdown"}) {
+		return fmt.Errorf("Container is already running a %s operation", op.action)
 	}
 
 	// Make sure we can't call go-lxc functions by mistake
@@ -1498,7 +1556,10 @@ func (c *containerLXC) OnStop(target string) error {
 	// Stop the storage for this container
 	err := c.StorageStop()
 	if err != nil {
-		wg.Done()
+		if op != nil {
+			op.Done(err)
+		}
+
 		return err
 	}
 
@@ -1506,15 +1567,15 @@ func (c *containerLXC) OnStop(target string) error {
 	AAUnloadProfile(c)
 
 	// FIXME: The go routine can go away once we can rely on LXC_TARGET
-	go func(c *containerLXC, target string, wg *sync.WaitGroup) {
+	go func(c *containerLXC, target string, op *lxcContainerOperation) {
 		c.fromHook = false
 
 		// Unlock on return
-		if wg != nil {
-			defer wg.Done()
+		if op != nil {
+			defer op.Done(nil)
 		}
 
-		if target == "unknown" && stopping {
+		if target == "unknown" && op != nil {
 			target = "stop"
 		}
 
@@ -1577,7 +1638,7 @@ func (c *containerLXC) OnStop(target string) error {
 		if c.ephemeral {
 			c.Delete()
 		}
-	}(c, target, wg)
+	}(c, target, op)
 
 	return nil
 }
