@@ -67,6 +67,11 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
+	_, profile, _ := dbProfileGet(d.db, req.Name)
+	if profile != nil {
+		return BadRequest(fmt.Errorf("The profile already exists"))
+	}
+
 	if strings.Contains(req.Name, "/") {
 		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
