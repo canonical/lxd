@@ -115,6 +115,8 @@ start() {
         echo 1 > /proc/sys/net/ipv4/ip_forward
         if [ "${LXD_IPV4_NAT}" = "true" ]; then
             iptables "${use_iptables_lock}" -t nat -A POSTROUTING -s "${LXD_IPV4_NETWORK}" ! -d "${LXD_IPV4_NETWORK}" -j MASQUERADE -m comment --comment "managed by lxd-bridge"
+            iptables "${use_iptables_lock}" -I FORWARD -i "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
+            iptables "${use_iptables_lock}" -I FORWARD -o "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
         fi
         LXD_IPV4_ARG="--listen-address ${LXD_IPV4_ADDR} --dhcp-range ${LXD_IPV4_DHCP_RANGE} --dhcp-lease-max=${LXD_IPV4_DHCP_MAX}"
     fi
@@ -141,8 +143,6 @@ start() {
     iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p tcp --dport 67 -j ACCEPT -m comment --comment "managed by lxd-bridge"
     iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p udp --dport 53 -j ACCEPT -m comment --comment "managed by lxd-bridge"
     iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p tcp --dport 53 -j ACCEPT -m comment --comment "managed by lxd-bridge"
-    iptables "${use_iptables_lock}" -I FORWARD -i "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
-    iptables "${use_iptables_lock}" -I FORWARD -o "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
     iptables "${use_iptables_lock}" -t mangle -A POSTROUTING -o "${LXD_BRIDGE}" -p udp -m udp --dport 68 -j CHECKSUM --checksum-fill -m comment --comment "managed by lxd-bridge"
 
     LXD_DOMAIN_ARG=""
