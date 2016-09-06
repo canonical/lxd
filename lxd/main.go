@@ -859,7 +859,11 @@ they otherwise would.
 				return ""
 			}
 
-			networkAddress = askString("Address to bind LXD to (not including port) [default=0.0.0.0]: ", "0.0.0.0", isIPAddress)
+			networkAddress = askString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
+			if networkAddress == "all" {
+				networkAddress = "::"
+			}
+
 			if net.ParseIP(networkAddress).To4() == nil {
 				networkAddress = fmt.Sprintf("[%s]", networkAddress)
 			}
