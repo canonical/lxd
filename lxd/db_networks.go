@@ -179,3 +179,23 @@ func dbNetworkDelete(db *sql.DB, name string) error {
 
 	return txCommit(tx)
 }
+
+func dbNetworkRename(db *sql.DB, oldName string, newName string) error {
+	id, _, err := dbNetworkGet(db, oldName)
+	if err != nil {
+		return err
+	}
+
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE networks SET name=? WHERE id=?", newName, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return txCommit(tx)
+}
