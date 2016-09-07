@@ -174,7 +174,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	case "GET":
 		return snapshotGet(sc, snapshotName)
 	case "POST":
-		return snapshotPost(r, sc, containerName)
+		return snapshotPost(d, r, sc, containerName)
 	case "DELETE":
 		return snapshotDelete(sc, snapshotName)
 	default:
@@ -191,7 +191,7 @@ func snapshotGet(sc container, name string) Response {
 	return SyncResponse(true, render.(*shared.SnapshotInfo))
 }
 
-func snapshotPost(r *http.Request, sc container, containerName string) Response {
+func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string) Response {
 	raw := shared.Jmap{}
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		return BadRequest(err)
@@ -220,8 +220,16 @@ func snapshotPost(r *http.Request, sc container, containerName string) Response 
 		return BadRequest(err)
 	}
 
+	fullName := containerName + shared.SnapshotDelimiter + newName
+
+	// Check that the name isn't already in use
+	id, _ := dbContainerId(d.db, fullName)
+	if id > 0 {
+		return Conflict
+	}
+
 	rename := func(op *operation) error {
-		return sc.Rename(containerName + shared.SnapshotDelimiter + newName)
+		return sc.Rename(fullName)
 	}
 
 	resources := map[string][]string{}
