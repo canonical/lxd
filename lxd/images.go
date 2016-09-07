@@ -1203,6 +1203,12 @@ func aliasPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	// Check that the name isn't already in use
+	id, _, _ := dbImageAliasGet(d.db, req.Name, true)
+	if id > 0 {
+		return Conflict
+	}
+
 	id, _, err := dbImageAliasGet(d.db, name, true)
 	if err != nil {
 		return SmartError(err)
