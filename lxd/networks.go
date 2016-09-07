@@ -324,6 +324,43 @@ func networkPut(d *Daemon, r *http.Request) Response {
 	return doNetworkUpdate(d, name, dbInfo.Config, req.Config)
 }
 
+func networkPatch(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+
+	// Get the existing network
+	_, dbInfo, _ := dbNetworkGet(d.db, name)
+	if dbInfo == nil {
+		return NotFound
+	}
+
+	// Validate the ETag
+	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Config}
+
+	err := etagCheck(r, etag)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
+
+	req := shared.NetworkConfig{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	// Config stacking
+	if req.Config == nil {
+		req.Config = map[string]string{}
+	}
+
+	for k, v := range dbInfo.Config {
+		_, ok := req.Config[k]
+		if !ok {
+			req.Config[k] = v
+		}
+	}
+
+	return doNetworkUpdate(d, name, dbInfo.Config, req.Config)
+}
+
 func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newConfig map[string]string) Response {
 	err := dbNetworkUpdate(d.db, name, newConfig)
 	if err != nil {
@@ -333,4 +370,4 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newCon
 	return EmptySyncResponse
 }
 
-var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: networkDelete, post: networkPost, put: networkPut}
+var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: networkDelete, post: networkPost, put: networkPut, patch: networkPatch}
