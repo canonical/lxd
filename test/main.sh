@@ -202,6 +202,7 @@ kill_lxd() {
   daemon_dir=${1}
   LXD_DIR=${daemon_dir}
   daemon_pid=$(cat "${daemon_dir}/lxd.pid")
+  check_leftovers="false"
   echo "==> Killing LXD at ${daemon_dir}"
 
   if [ -e "${daemon_dir}/unix.socket" ]; then
@@ -233,6 +234,8 @@ kill_lxd() {
 
     # Cleanup shmounts (needed due to the forceful kill)
     find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
+
+    check_leftovers="true"
   fi
 
   if [ -n "${LXD_LOGS:-}" ]; then
@@ -242,34 +245,36 @@ kill_lxd() {
     cp "${daemon_dir}/lxd.log" "${LXD_LOGS}/${daemon_pid}/"
   fi
 
-  echo "==> Checking for leftover files"
-  rm -f "${daemon_dir}/containers/lxc-monitord.log"
-  rm -f "${daemon_dir}/security/apparmor/cache/.features"
-  check_empty "${daemon_dir}/containers/"
-  check_empty "${daemon_dir}/devices/"
-  check_empty "${daemon_dir}/images/"
-  # FIXME: Once container logging rework is done, uncomment
-  # check_empty "${daemon_dir}/logs/"
-  check_empty "${daemon_dir}/security/apparmor/cache/"
-  check_empty "${daemon_dir}/security/apparmor/profiles/"
-  check_empty "${daemon_dir}/security/seccomp/"
-  check_empty "${daemon_dir}/shmounts/"
-  check_empty "${daemon_dir}/snapshots/"
+  if [ "${check_leftovers}" = "true" ]; then
+    echo "==> Checking for leftover files"
+    rm -f "${daemon_dir}/containers/lxc-monitord.log"
+    rm -f "${daemon_dir}/security/apparmor/cache/.features"
+    check_empty "${daemon_dir}/containers/"
+    check_empty "${daemon_dir}/devices/"
+    check_empty "${daemon_dir}/images/"
+    # FIXME: Once container logging rework is done, uncomment
+    # check_empty "${daemon_dir}/logs/"
+    check_empty "${daemon_dir}/security/apparmor/cache/"
+    check_empty "${daemon_dir}/security/apparmor/profiles/"
+    check_empty "${daemon_dir}/security/seccomp/"
+    check_empty "${daemon_dir}/shmounts/"
+    check_empty "${daemon_dir}/snapshots/"
 
-  echo "==> Checking for leftover DB entries"
-  check_empty_table "${daemon_dir}/lxd.db" "containers"
-  check_empty_table "${daemon_dir}/lxd.db" "containers_config"
-  check_empty_table "${daemon_dir}/lxd.db" "containers_devices"
-  check_empty_table "${daemon_dir}/lxd.db" "containers_devices_config"
-  check_empty_table "${daemon_dir}/lxd.db" "containers_profiles"
-  check_empty_table "${daemon_dir}/lxd.db" "images"
-  check_empty_table "${daemon_dir}/lxd.db" "images_aliases"
-  check_empty_table "${daemon_dir}/lxd.db" "images_properties"
-  check_empty_table "${daemon_dir}/lxd.db" "images_source"
-  check_empty_table "${daemon_dir}/lxd.db" "profiles"
-  check_empty_table "${daemon_dir}/lxd.db" "profiles_config"
-  check_empty_table "${daemon_dir}/lxd.db" "profiles_devices"
-  check_empty_table "${daemon_dir}/lxd.db" "profiles_devices_config"
+    echo "==> Checking for leftover DB entries"
+    check_empty_table "${daemon_dir}/lxd.db" "containers"
+    check_empty_table "${daemon_dir}/lxd.db" "containers_config"
+    check_empty_table "${daemon_dir}/lxd.db" "containers_devices"
+    check_empty_table "${daemon_dir}/lxd.db" "containers_devices_config"
+    check_empty_table "${daemon_dir}/lxd.db" "containers_profiles"
+    check_empty_table "${daemon_dir}/lxd.db" "images"
+    check_empty_table "${daemon_dir}/lxd.db" "images_aliases"
+    check_empty_table "${daemon_dir}/lxd.db" "images_properties"
+    check_empty_table "${daemon_dir}/lxd.db" "images_source"
+    check_empty_table "${daemon_dir}/lxd.db" "profiles"
+    check_empty_table "${daemon_dir}/lxd.db" "profiles_config"
+    check_empty_table "${daemon_dir}/lxd.db" "profiles_devices"
+    check_empty_table "${daemon_dir}/lxd.db" "profiles_devices_config"
+  fi
 
   # teardown storage
   "$LXD_BACKEND"_teardown "${daemon_dir}"
