@@ -13,6 +13,26 @@ import (
 )
 
 // Helper functions
+func networkGetInterfaces(d *Daemon) ([]string, error) {
+	networks, err := dbNetworks(d.db)
+	if err != nil {
+		return nil, err
+	}
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, iface := range ifaces {
+		if !shared.StringInSlice(iface.Name, networks) {
+			networks = append(networks, iface.Name)
+		}
+	}
+
+	return networks, nil
+}
+
 func networkIsInUse(c container, name string) bool {
 	for _, d := range c.ExpandedDevices() {
 		if d["type"] != "nic" {
@@ -43,7 +63,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 		recursion = 0
 	}
 
-	ifs, err := net.Interfaces()
+	ifs, err := networkGetInterfaces(d)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -52,14 +72,13 @@ func networksGet(d *Daemon, r *http.Request) Response {
 	resultMap := []shared.NetworkConfig{}
 	for _, iface := range ifs {
 		if recursion == 0 {
-			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))
+			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface))
 		} else {
-			net, err := doNetworkGet(d, iface.Name)
+			net, err := doNetworkGet(d, iface)
 			if err != nil {
 				continue
 			}
 			resultMap = append(resultMap, net)
-
 		}
 	}
 

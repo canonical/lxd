@@ -9,6 +9,24 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+func dbNetworks(db *sql.DB) ([]string, error) {
+	q := fmt.Sprintf("SELECT name FROM networks")
+	inargs := []interface{}{}
+	var name string
+	outfmt := []interface{}{name}
+	result, err := dbQueryScan(db, q, inargs, outfmt)
+	if err != nil {
+		return []string{}, err
+	}
+
+	response := []string{}
+	for _, r := range result {
+		response = append(response, r[0].(string))
+	}
+
+	return response, nil
+}
+
 func dbNetworkGet(db *sql.DB, network string) (int64, *shared.NetworkConfig, error) {
 	id := int64(-1)
 
