@@ -200,4 +200,27 @@ func doNetworkGet(d *Daemon, name string) (shared.NetworkConfig, error) {
 	return n, nil
 }
 
-var networkCmd = Command{name: "networks/{name}", get: networkGet}
+func networkDelete(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+
+	// Get the existing network
+	_, dbInfo, _ := dbNetworkGet(d.db, name)
+	if dbInfo == nil {
+		return NotFound
+	}
+
+	// Sanity checks
+	if len(dbInfo.UsedBy) != 0 {
+		return BadRequest(fmt.Errorf("Network is currently in use)"))
+	}
+
+	// Remove the network
+	err := dbNetworkDelete(d.db, name)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
+}
+
+var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: networkDelete}

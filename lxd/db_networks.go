@@ -144,3 +144,38 @@ func dbNetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 
 	return nil
 }
+
+func dbNetworkConfigClear(tx *sql.Tx, id int64) error {
+	_, err := tx.Exec("DELETE FROM networks_config WHERE network_id=?", id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func dbNetworkDelete(db *sql.DB, name string) error {
+	id, _, err := dbNetworkGet(db, name)
+	if err != nil {
+		return err
+	}
+
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM networks WHERE id=?", id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = dbNetworkConfigClear(tx, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return txCommit(tx)
+}
