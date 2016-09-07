@@ -47,6 +47,12 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		return OperationResponse(op)
 	}
 
+	// Check that the name isn't already in use
+	id, _ := dbContainerId(d.db, body.Name)
+	if id > 0 {
+		return Conflict
+	}
+
 	run := func(*operation) error {
 		return c.Rename(body.Name)
 	}
