@@ -176,9 +176,11 @@ test_basic_usage() {
   printf "  cp: list\n" >> "${LXD_CONF}/config.yml"
   [ "$(lxc ls)" = "$(lxc cp)" ]
   #   7. User-defined aliases override commands and don't recurse
-  LXC_LIST_DEBUG=$(lxc list --debug 2>&1 | grep -o "Raw.*")
-  printf "  list: list --debug\n" >> "${LXD_CONF}/config.yml"
-  [ "$(lxc list  2>&1 | grep -o 'Raw.*')" = "$LXC_LIST_DEBUG" ]
+  lxc init testimage foo
+  LXC_CONFIG_SHOW=$(lxc config show foo --expanded)
+  printf "  config show: config show --expanded\n" >> "${LXD_CONF}/config.yml"
+  [ "$(lxc config show foo)" = "$LXC_CONFIG_SHOW" ]
+  lxc delete foo
 
   # Restore the config to remove the aliases
   mv "${LXD_CONF}/config.yml.bak" "${LXD_CONF}/config.yml"

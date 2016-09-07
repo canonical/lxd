@@ -11,6 +11,10 @@ test_cpu_profiling() {
   echo top5 | go tool pprof "$(which lxd)" "${LXD3_DIR}/cpu.out"
   echo ""
 
+  # Cleanup following manual kill
+  rm -f "${LXD3_DIR}/unix.socket"
+  find "${LXD3_DIR}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
+
   kill_lxd "${LXD3_DIR}"
 }
 
