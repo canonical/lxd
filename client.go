@@ -2418,11 +2418,16 @@ func (c *Client) ImageFromContainer(cname string, public bool, aliases []string,
 	if c.Remote.Public {
 		return "", fmt.Errorf("This function isn't supported by public remotes.")
 	}
-	source := shared.Jmap{"type": "container", "name": cname, "compression_algorithm": compression_algorithm}
+	source := shared.Jmap{"type": "container", "name": cname}
 	if shared.IsSnapshot(cname) {
 		source["type"] = "snapshot"
 	}
+
 	body := shared.Jmap{"public": public, "source": source, "properties": properties}
+
+	if compression_algorithm != "" {
+		body["compression_algorithm"] = compression_algorithm
+	}
 
 	resp, err := c.post("images", body, Async)
 	if err != nil {
