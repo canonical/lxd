@@ -93,3 +93,54 @@ func dbNetworkConfigGet(db *sql.DB, id int64) (map[string]string, error) {
 
 	return config, nil
 }
+
+func dbNetworkCreate(db *sql.DB, name string, config map[string]string) (int64, error) {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return -1, err
+	}
+
+	result, err := tx.Exec("INSERT INTO networks (name) VALUES (?)", name)
+	if err != nil {
+		tx.Rollback()
+		return -1, err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return -1, err
+	}
+
+	err = dbNetworkConfigAdd(tx, id, config)
+	if err != nil {
+		tx.Rollback()
+		return -1, err
+	}
+
+	err = txCommit(tx)
+	if err != nil {
+		return -1, err
+	}
+
+	return id, nil
+}
+
+func dbNetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
+	str := fmt.Sprintf("INSERT INTO networks_config (network_id, key, value) VALUES(?, ?, ?)")
+	stmt, err := tx.Prepare(str)
+	defer stmt.Close()
+
+	for k, v := range config {
+		if v == "" {
+			continue
+		}
+
+		_, err = stmt.Exec(id, k, v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
