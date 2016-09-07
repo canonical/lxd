@@ -187,19 +187,33 @@ func dbProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 }
 
 func dbProfileDelete(db *sql.DB, name string) error {
+	id, _, err := dbProfileGet(db, name)
+	if err != nil {
+		return err
+	}
+
 	tx, err := dbBegin(db)
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec("DELETE FROM profiles WHERE name=?", name)
+
+	_, err = tx.Exec("DELETE FROM profiles WHERE id=?", id)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = txCommit(tx)
+	err = dbProfileConfigClear(tx, id)
+	if err != nil {
+		return err
+	}
 
-	return err
+	_, err = tx.Exec("DELETE FROM containers_profiles WHERE profile_id=?", id)
+	if err != nil {
+		return err
+	}
+
+	return txCommit(tx)
 }
 
 func dbProfileUpdate(db *sql.DB, name string, newName string) error {

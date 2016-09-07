@@ -201,6 +201,12 @@ kill_lxd() {
       lxc image delete "${image}" --force-local || true
     done
 
+    # Delete all profiles
+    echo "==> Deleting all profiles"
+    for profile in $(lxc profile list --force-local); do
+      lxc profile delete "${profile}" --force-local || true
+    done
+
     echo "==> Checking for locked DB tables"
     for table in $(echo .tables | sqlite3 "${daemon_dir}/lxd.db"); do
       echo "SELECT * FROM ${table};" | sqlite3 "${daemon_dir}/lxd.db" >/dev/null
@@ -243,6 +249,11 @@ kill_lxd() {
   check_empty_table "${daemon_dir}/lxd.db" "images"
   check_empty_table "${daemon_dir}/lxd.db" "images_aliases"
   check_empty_table "${daemon_dir}/lxd.db" "images_properties"
+  check_empty_table "${daemon_dir}/lxd.db" "images_source"
+  check_empty_table "${daemon_dir}/lxd.db" "profiles"
+  check_empty_table "${daemon_dir}/lxd.db" "profiles_config"
+  check_empty_table "${daemon_dir}/lxd.db" "profiles_devices"
+  check_empty_table "${daemon_dir}/lxd.db" "profiles_devices_config"
 
   # teardown storage
   "$LXD_BACKEND"_teardown "${daemon_dir}"
