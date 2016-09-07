@@ -135,7 +135,6 @@ Code  | Meaning
 400   | Failure
 401   | Cancelled
 
-
 # Recursion
 To optimize queries of large lists, recursion is implemented for collections.
 A "recursion" argument can be passed to a GET query against a collection.
@@ -460,7 +459,6 @@ Input (using a public remote image):
                    "alias": "ubuntu/devel"},                                # Name of the alias
     }
 
-
 Input (using a private remote image after having obtained a secret for that image):
 
     {
@@ -519,7 +517,6 @@ Input (using a local container):
                    "source": "my-old-container"}                                        # Name of the source container
     }
 
-
 ## /1.0/containers/\<name\>
 ### GET
  * Description: Container information
@@ -571,7 +568,6 @@ Output:
         "status_code": 103
     }
 
-
 ### PUT (ETag supported)
  * Description: replaces container configuration or restore snapshot
  * Authentication: trusted
@@ -598,7 +594,6 @@ Input (update container configuration):
             "default"
         ]
     }
-
 
 Takes the same structure as that returned by GET but doesn't allow name
 changes (see POST below) or changes to the status sub-dict (since that's
@@ -629,7 +624,6 @@ Input:
         },
         "ephemeral": true
     }
-
 
 ### POST
  * Description: used to rename/migrate the container
@@ -823,7 +817,6 @@ Output:
             "processes": 32
         }
     }
-
 
 ### PUT
  * Description: change the container state
@@ -1046,7 +1039,6 @@ Return (with wait-for-websocket=true and interactive=true):
         }
     }
 
-
 When the exec command finishes, its exit status is available from the
 operation's metadata:
 
@@ -1123,7 +1115,6 @@ This never returns. Each notification is sent as a separate JSON dict:
             "message": "handling"
         }
     }
-
 
 ## /1.0/images
 ### GET
@@ -1208,7 +1199,6 @@ In the remote image URL case, the following dict must be used:
             "url": "https://www.some-server.com/image"  # URL for the image
         }
     }
-
 
 After the input is received by LXD, a background operation is started
 which will add the image to the store and possibly do some backend
@@ -1318,7 +1308,6 @@ client will POST to /1.0/images/\<fingerprint\>/export to get a secret
 token which it'll then pass to the target LXD. That target LXD will then
 GET the image as a guest, passing the secret token.
 
-
 ## /1.0/images/\<fingerprint\>/secret
 ### POST
  * Description: Generate a random token and tell LXD to expect it be used by a guest
@@ -1412,7 +1401,6 @@ Input:
     {
         "description": "New description"
     }
-
 
 ### POST
  * Description: rename an alias
@@ -1557,7 +1545,6 @@ Return:
         "/1.0/profiles/default"
     ]
 
-
 ### POST
  * Description: define a new profile
  * Authentication: trusted
@@ -1660,12 +1647,10 @@ Input (rename a profile):
         "name": "new-name"
     }
 
-
 HTTP return value must be 204 (No content) and Location must point to
 the renamed resource.
 
 Renaming to an existing name must return the 409 (Conflict) HTTP code.
-
 
 ### DELETE
  * Description: remove a profile
