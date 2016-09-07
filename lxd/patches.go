@@ -27,6 +27,7 @@ import (
 
 var patches = []patch{
 	patch{name: "invalid_profile_names", run: patchInvalidProfileNames},
+	patch{name: "leftover_profile_config", run: patchLeftoverProfileConfig},
 }
 
 type patch struct {
@@ -71,6 +72,21 @@ func patchesApplyAll(d *Daemon) error {
 }
 
 // Patches begin here
+func patchLeftoverProfileConfig(name string, d *Daemon) error {
+	stmt := `
+DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);
+DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
+DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FROM profiles_devices);
+`
+
+	_, err := d.db.Exec(stmt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func patchInvalidProfileNames(name string, d *Daemon) error {
 	profiles, err := dbProfiles(d.db)
 	if err != nil {

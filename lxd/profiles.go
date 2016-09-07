@@ -364,6 +364,11 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	clist := getRunningContainersWithProfile(d, name)
+	if len(clist) != 0 {
+		return BadRequest(fmt.Errorf("Profile is currently in use"))
+	}
+
 	err = dbProfileDelete(d.db, name)
 	if err != nil {
 		return SmartError(err)
