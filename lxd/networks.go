@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -89,7 +90,44 @@ func networksGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, resultMap)
 }
 
-var networksCmd = Command{name: "networks", get: networksGet}
+func networksPost(d *Daemon, r *http.Request) Response {
+	req := shared.NetworkConfig{}
+
+	// Parse the request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	// Sanity checks
+	if req.Name == "" {
+		return BadRequest(fmt.Errorf("No name provided"))
+	}
+
+	if req.Type != "" && req.Type != "bridge" {
+		return BadRequest(fmt.Errorf("Only 'bridge' type networks can be created"))
+	}
+
+	networks, err := networkGetInterfaces(d)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if shared.StringInSlice(req.Name, networks) {
+		return BadRequest(fmt.Errorf("The network already exists"))
+	}
+
+	// Create the database entry
+	_, err = dbNetworkCreate(d.db, req.Name, req.Config)
+	if err != nil {
+		return InternalError(
+			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
+	}
+
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, req.Name))
+}
+
+var networksCmd = Command{name: "networks", get: networksGet, post: networksPost}
 
 func networkGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
