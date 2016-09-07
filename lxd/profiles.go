@@ -69,6 +69,11 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
+	_, profile, _ := dbProfileGet(d.db, req.Name)
+	if profile != nil {
+		return BadRequest(fmt.Errorf("The profile already exists"))
+	}
+
 	if strings.Contains(req.Name, "/") {
 		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
@@ -357,6 +362,11 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 	_, err := doProfileGet(d, name)
 	if err != nil {
 		return SmartError(err)
+	}
+
+	clist := getRunningContainersWithProfile(d, name)
+	if len(clist) != 0 {
+		return BadRequest(fmt.Errorf("Profile is currently in use"))
 	}
 
 	err = dbProfileDelete(d.db, name)
