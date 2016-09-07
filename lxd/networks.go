@@ -223,4 +223,48 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: networkDelete}
+func networkPost(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	req := shared.NetworkConfig{}
+
+	// Parse the request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	// Get the existing network
+	_, dbInfo, _ := dbNetworkGet(d.db, name)
+	if dbInfo == nil {
+		return NotFound
+	}
+
+	// Sanity checks
+	if len(dbInfo.UsedBy) != 0 {
+		return BadRequest(fmt.Errorf("Network is currently in use)"))
+	}
+
+	if req.Name == "" {
+		return BadRequest(fmt.Errorf("No name provided"))
+	}
+
+	// Check that the name isn't already in use
+	networks, err := networkGetInterfaces(d)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if shared.StringInSlice(req.Name, networks) {
+		return Conflict
+	}
+
+	// Rename the database entry
+	err = dbNetworkRename(d.db, name, req.Name)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, req.Name))
+}
+
+var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: networkDelete, post: networkPost}
