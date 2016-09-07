@@ -110,6 +110,13 @@ test_basic_usage() {
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
   lxc image delete foo-image
 
+# Test image compression on publish
+  lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
+  lxc image show foo-image-compressed | grep val1
+  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
+  lxc image delete foo-image-compressed
+
+
   # Test privileged container publish
   lxc profile create priv
   lxc profile set priv security.privileged true

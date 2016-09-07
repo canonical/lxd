@@ -1183,13 +1183,14 @@ In the source image case, the following dict must be used:
 In the source container case, the following dict must be used:
 
     {
-        "filename": filename,     # Used for export (optional)
-        "public":   true,         # Whether the image can be downloaded by untrusted users  (defaults to false)
-        "properties": {           # Image properties (optional)
+        "compression_algorithm": "xz",  # Override the compression algorithm for the image (optional)
+        "filename": filename,           # Used for export (optional)
+        "public":   true,               # Whether the image can be downloaded by untrusted users (defaults to false)
+        "properties": {                 # Image properties (optional)
             "os": "Ubuntu"
         },
         "source": {
-            "type": "container",  # One of "container" or "snapshot"
+            "type": "container",        # One of "container" or "snapshot"
             "name": "abc"
         }
     }
