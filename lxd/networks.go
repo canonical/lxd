@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 
@@ -134,21 +135,25 @@ func networkGet(d *Daemon, r *http.Request) Response {
 
 	n, err := doNetworkGet(d, name)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return SyncResponse(true, &n)
 }
 
 func doNetworkGet(d *Daemon, name string) (shared.NetworkConfig, error) {
-	iface, err := net.InterfaceByName(name)
-	if err != nil {
-		return shared.NetworkConfig{}, err
+	// Get some information
+	osInfo, _ := net.InterfaceByName(name)
+	_, dbInfo, _ := dbNetworkGet(d.db, name)
+
+	// Sanity check
+	if osInfo == nil && dbInfo == nil {
+		return shared.NetworkConfig{}, os.ErrNotExist
 	}
 
 	// Prepare the response
 	n := shared.NetworkConfig{}
-	n.Name = iface.Name
+	n.Name = name
 	n.UsedBy = []string{}
 	n.Config = map[string]string{}
 
@@ -170,14 +175,12 @@ func doNetworkGet(d *Daemon, name string) (shared.NetworkConfig, error) {
 	}
 
 	// Set the device type as needed
-	if shared.IsLoopback(iface) {
+	if osInfo != nil && shared.IsLoopback(osInfo) {
 		n.Type = "loopback"
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
-		// Look for a DB entry
-		_, dbNetwork, err := dbNetworkGet(d.db, name)
-		if err == nil {
+	} else if dbInfo != nil || shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
+		if dbInfo != nil {
 			n.Managed = true
-			n.Config = dbNetwork.Config
+			n.Config = dbInfo.Config
 		}
 
 		n.Type = "bridge"
