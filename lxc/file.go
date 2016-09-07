@@ -24,6 +24,8 @@ type fileCmd struct {
 	mode string
 
 	recursive bool
+
+	mkdirs bool
 }
 
 func (c *fileCmd) showByDefault() bool {
@@ -35,7 +37,7 @@ func (c *fileCmd) usage() string {
 		`Manage files on a container.
 
 lxc file pull [-r|--recursive] <source> [<source>...] <target>
-lxc file push [-r|--recursive] [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
+lxc file push [-r|--recursive] [-p|create-dirs] [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
 lxc file edit <file>
 
 <source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>
@@ -56,6 +58,8 @@ func (c *fileCmd) flags() {
 	gnuflag.StringVar(&c.mode, "mode", "", i18n.G("Set the file's perms on push"))
 	gnuflag.BoolVar(&c.recursive, "recusrive", false, i18n.G("Recursively push or pull files"))
 	gnuflag.BoolVar(&c.recursive, "r", false, i18n.G("Recursively push or pull files"))
+	gnuflag.BoolVar(&c.mkdirs, "create-dirs", false, i18n.G("Create any directories necessary"))
+	gnuflag.BoolVar(&c.mkdirs, "p", false, i18n.G("Create any directories necessary"))
 }
 
 func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) error {
@@ -85,20 +89,6 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		}
 	}
 
-	if c.recursive {
-		if c.uid != -1 || c.gid != -1 || c.mode != "" {
-			return fmt.Errorf(i18n.G("can't supply uid/gid/mode in recursive mode"))
-		}
-
-		for _, fname := range sourcefilenames {
-			if err := d.RecursivePushFile(container, fname, pathSpec[1]); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-
 	mode := os.FileMode(0755)
 	if c.mode != "" {
 		if len(c.mode) == 3 {
@@ -110,6 +100,26 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 			return err
 		}
 		mode = os.FileMode(m)
+	}
+
+	if c.recursive {
+		if c.uid != -1 || c.gid != -1 || c.mode != "" {
+			return fmt.Errorf(i18n.G("can't supply uid/gid/mode in recursive mode"))
+		}
+
+		for _, fname := range sourcefilenames {
+			if c.mkdirs {
+				if err := d.MkdirP(container, fname, mode); err != nil {
+					return err
+				}
+			}
+
+			if err := d.RecursivePushFile(container, fname, pathSpec[1]); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
 	uid := 0
@@ -150,6 +160,12 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		fpath := targetPath
 		if targetfilename == "" {
 			fpath = path.Join(fpath, path.Base(f.Name()))
+		}
+
+		if c.mkdirs {
+			if err := d.MkdirP(container, filepath.Dir(fpath), mode); err != nil {
+				return err
+			}
 		}
 
 		if send_file_perms {

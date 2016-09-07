@@ -1827,6 +1827,39 @@ func (c *Client) Mkdir(container string, p string, mode os.FileMode) error {
 	return err
 }
 
+func (c *Client) MkdirP(container string, p string, mode os.FileMode) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	parts := strings.Split(p, "/")
+	i := len(parts)
+
+	for ; i >= 1; i-- {
+		cur := filepath.Join(parts[:i]...)
+		_, _, _, type_, _, _, err := c.PullFile(container, cur)
+		if err != nil {
+			continue
+		}
+
+		if type_ != "directory" {
+			return fmt.Errorf("%s is not a directory", cur)
+		}
+
+		i++
+		break
+	}
+
+	for ; i <= len(parts); i++ {
+		cur := filepath.Join(parts[:i]...)
+		if err := c.Mkdir(container, cur, mode); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *Client) RecursivePushFile(container string, source string, target string) error {
 	if c.Remote.Public {
 		return fmt.Errorf("This function isn't supported by public remotes.")
