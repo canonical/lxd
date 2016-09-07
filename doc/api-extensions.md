@@ -74,3 +74,8 @@ flag to each XHR Request).
 Some browsers like Firefox and Safari can't accept server response without
 `Access-Control-Allow-Credentials: true` header. To ensure that the server will
 return a response with that header, set `core.https_allowed_credentials=true`.
+
+## image\_compression\_algorithm
+This adds support for a compression\_algorithm property when creating an image (POST to /1.0/images).
+
+Setting this property overrides the server default value (images.compression\_algorithm).
