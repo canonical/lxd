@@ -126,6 +126,32 @@ func dbNetworkCreate(db *sql.DB, name string, config map[string]string) (int64, 
 	return id, nil
 }
 
+func dbNetworkUpdate(db *sql.DB, name string, config map[string]string) error {
+	id, _, err := dbNetworkGet(db, name)
+	if err != nil {
+		return err
+	}
+
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	err = dbNetworkConfigClear(tx, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = dbNetworkConfigAdd(tx, id, config)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return txCommit(tx)
+}
+
 func dbNetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO networks_config (network_id, key, value) VALUES(?, ?, ?)")
 	stmt, err := tx.Prepare(str)
