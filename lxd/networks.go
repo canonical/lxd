@@ -138,7 +138,9 @@ func networkGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponse(true, &n)
+	etag := []interface{}{n.Name, n.Managed, n.Type, n.Config}
+
+	return SyncResponseETag(true, &n, etag)
 }
 
 func doNetworkGet(d *Daemon, name string) (shared.NetworkConfig, error) {
