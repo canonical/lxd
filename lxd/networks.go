@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -57,6 +58,25 @@ func networkIsInUse(c container, name string) bool {
 	return false
 }
 
+func networkValidateName(name string) error {
+	// Validate the length
+	if len(name) < 2 {
+		return fmt.Errorf("Interface name is too short (minimum 2 characters)")
+	}
+
+	if len(name) > 15 {
+		return fmt.Errorf("Interface name is too long (maximum 15 characters)")
+	}
+
+	// Validate the character set
+	match, _ := regexp.MatchString("^[-a-zA-Z0-9]*$", name)
+	if !match {
+		return fmt.Errorf("Interface name contains invalid characters")
+	}
+
+	return nil
+}
+
 // API endpoints
 func networksGet(d *Daemon, r *http.Request) Response {
 	recursionStr := r.FormValue("recursion")
@@ -103,6 +123,11 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	// Sanity checks
 	if req.Name == "" {
 		return BadRequest(fmt.Errorf("No name provided"))
+	}
+
+	err = networkValidateName(req.Name)
+	if err != nil {
+		return BadRequest(err)
 	}
 
 	if req.Type != "" && req.Type != "bridge" {
@@ -248,6 +273,11 @@ func networkPost(d *Daemon, r *http.Request) Response {
 
 	if req.Name == "" {
 		return BadRequest(fmt.Errorf("No name provided"))
+	}
+
+	err = networkValidateName(req.Name)
+	if err != nil {
+		return BadRequest(err)
 	}
 
 	// Check that the name isn't already in use
