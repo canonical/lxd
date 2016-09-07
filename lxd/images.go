@@ -178,11 +178,12 @@ type templateEntry struct {
 }
 
 type imagePostReq struct {
-	Filename   string            `json:"filename"`
-	Public     bool              `json:"public"`
-	Source     map[string]string `json:"source"`
-	Properties map[string]string `json:"properties"`
-	AutoUpdate bool              `json:"auto_update"`
+	Filename             string            `json:"filename"`
+	Public               bool              `json:"public"`
+	Source               map[string]string `json:"source"`
+	Properties           map[string]string `json:"properties"`
+	AutoUpdate           bool              `json:"auto_update"`
+	CompressionAlgorithm string            `json:"compression_algorithm"`
 }
 
 type imageMetadata struct {
@@ -203,7 +204,6 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	info.Properties = map[string]string{}
 	name := req.Source["name"]
 	ctype := req.Source["type"]
-	compression_algorithm := req.Source["compression_algorithm"]
 	if ctype == "" || name == "" {
 		return info, fmt.Errorf("No source provided")
 	}
@@ -250,8 +250,8 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	var compressedPath string
 	var compress string
 
-	if compression_algorithm != "" {
-		compress = compression_algorithm
+	if req.CompressionAlgorithm != "" {
+		compress = req.CompressionAlgorithm
 	} else {
 		compress = daemonConfig["images.compression_algorithm"].Get()
 	}
