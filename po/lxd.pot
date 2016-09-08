@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-09-07 18:58-0600\n"
+        "POT-Creation-Date: 2016-09-08 23:48+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,15 +16,19 @@ msgstr  "Project-Id-Version: lxd\n"
         "Content-Type: text/plain; charset=CHARSET\n"
         "Content-Transfer-Encoding: 8bit\n"
 
+#: lxc/info.go:151
+msgid   "  CPU usage:"
+msgstr  ""
+
 #: lxc/info.go:140
 msgid   "  Disk usage:"
 msgstr  ""
 
-#: lxc/info.go:163
+#: lxc/info.go:174
 msgid   "  Memory usage:"
 msgstr  ""
 
-#: lxc/info.go:180
+#: lxc/info.go:191
 msgid   "  Network usage:"
 msgstr  ""
 
@@ -133,16 +137,20 @@ msgstr  ""
 msgid   "Available commands:"
 msgstr  ""
 
-#: lxc/info.go:172
+#: lxc/info.go:183
 msgid   "Bytes received"
 msgstr  ""
 
-#: lxc/info.go:173
+#: lxc/info.go:184
 msgid   "Bytes sent"
 msgstr  ""
 
 #: lxc/config.go:274
 msgid   "COMMON NAME"
+msgstr  ""
+
+#: lxc/info.go:147
+msgid   "CPU usage (in seconds)"
 msgstr  ""
 
 #: lxc/list.go:426
@@ -539,7 +547,7 @@ msgid   "Lists the available resources.\n"
         "Example: lxc list -c n,volatile.base_image:\"BASE IMAGE\":0,s46,volatile.eth0.hwaddr:MAC\n"
 msgstr  ""
 
-#: lxc/info.go:225
+#: lxc/info.go:236
 msgid   "Log:"
 msgstr  ""
 
@@ -729,11 +737,11 @@ msgid   "Manipulate container images.\n"
         "    List the aliases. Filters may be part of the image hash or part of the image alias name.\n"
 msgstr  ""
 
-#: lxc/info.go:147
+#: lxc/info.go:158
 msgid   "Memory (current)"
 msgstr  ""
 
-#: lxc/info.go:151
+#: lxc/info.go:162
 msgid   "Memory (peak)"
 msgstr  ""
 
@@ -839,11 +847,11 @@ msgstr  ""
 msgid   "PUBLIC"
 msgstr  ""
 
-#: lxc/info.go:174
+#: lxc/info.go:185
 msgid   "Packets received"
 msgstr  ""
 
-#: lxc/info.go:175
+#: lxc/info.go:186
 msgid   "Packets sent"
 msgstr  ""
 
@@ -1054,7 +1062,7 @@ msgstr  ""
 msgid   "Size: %.2fMB"
 msgstr  ""
 
-#: lxc/info.go:194
+#: lxc/info.go:205
 msgid   "Snapshots:"
 msgstr  ""
 
@@ -1084,11 +1092,11 @@ msgstr  ""
 msgid   "Store the container state (only for stop)."
 msgstr  ""
 
-#: lxc/info.go:155
+#: lxc/info.go:166
 msgid   "Swap (current)"
 msgstr  ""
 
-#: lxc/info.go:159
+#: lxc/info.go:170
 msgid   "Swap (peak)"
 msgstr  ""
 
@@ -1296,15 +1304,15 @@ msgstr  ""
 msgid   "remote %s is static and cannot be modified"
 msgstr  ""
 
-#: lxc/info.go:205
+#: lxc/info.go:216
 msgid   "stateful"
 msgstr  ""
 
-#: lxc/info.go:207
+#: lxc/info.go:218
 msgid   "stateless"
 msgstr  ""
 
-#: lxc/info.go:201
+#: lxc/info.go:212
 #, c-format
 msgid   "taken at %s"
 msgstr  ""

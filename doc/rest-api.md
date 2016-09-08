@@ -686,6 +686,9 @@ Output:
         "metadata": {
             "status": "Running",
             "status_code": 103,
+	    "cpu": {
+	        "usage": 4986019722
+	    },
             "disk": {
                 "root": {
                     "usage": 422330368
