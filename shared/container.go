@@ -10,6 +10,7 @@ import (
 type ContainerState struct {
 	Status     string                           `json:"status"`
 	StatusCode StatusCode                       `json:"status_code"`
+	CPU        ContainerStateCPU                `json:"cpu"`
 	Disk       map[string]ContainerStateDisk    `json:"disk"`
 	Memory     ContainerStateMemory             `json:"memory"`
 	Network    map[string]ContainerStateNetwork `json:"network"`
@@ -18,6 +19,10 @@ type ContainerState struct {
 }
 
 type ContainerStateDisk struct {
+	Usage int64 `json:"usage"`
+}
+
+type ContainerStateCPU struct {
 	Usage int64 `json:"usage"`
 }
 
