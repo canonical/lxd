@@ -85,3 +85,6 @@ Setting this property overrides the server default value (images.compression\_al
 This allows for creating and listing directories via the LXD API, and exports
 the file type via the X-LXD-type header, which can be either "file" or
 "directory" right now.
+
+## container\_cpu\_time
+This adds support for retrieving cpu time for a running container.
