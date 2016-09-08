@@ -56,7 +56,7 @@ func (c *fileCmd) flags() {
 	gnuflag.IntVar(&c.uid, "uid", -1, i18n.G("Set the file's uid on push"))
 	gnuflag.IntVar(&c.gid, "gid", -1, i18n.G("Set the file's gid on push"))
 	gnuflag.StringVar(&c.mode, "mode", "", i18n.G("Set the file's perms on push"))
-	gnuflag.BoolVar(&c.recursive, "recusrive", false, i18n.G("Recursively push or pull files"))
+	gnuflag.BoolVar(&c.recursive, "recursive", false, i18n.G("Recursively push or pull files"))
 	gnuflag.BoolVar(&c.recursive, "r", false, i18n.G("Recursively push or pull files"))
 	gnuflag.BoolVar(&c.mkdirs, "create-dirs", false, i18n.G("Create any directories necessary"))
 	gnuflag.BoolVar(&c.mkdirs, "p", false, i18n.G("Create any directories necessary"))
