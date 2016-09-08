@@ -160,8 +160,25 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 	}
 
 	if (is_put && is_dir_manip) {
+		if (mode == -1) {
+			mode = defaultMode;
+		}
+
+		if (uid == -1) {
+			uid = defaultUid;
+		}
+
+		if (gid == -1) {
+			gid = defaultGid;
+		}
+
 		if (mkdir(container, mode) < 0 && errno != EEXIST) {
 			error("error: mkdir");
+			return -1;
+		}
+
+		if (chown(container, uid, gid) < 0) {
+			error("error: chown");
 			return -1;
 		}
 
