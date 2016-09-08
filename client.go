@@ -96,6 +96,15 @@ func (r *Response) MetadataAsOperation() (*shared.Operation, error) {
 	return &op, nil
 }
 
+func (r *Response) MetadataAsStringSlice() ([]string, error) {
+	sl := []string{}
+	if err := json.Unmarshal(r.Metadata, &sl); err != nil {
+		return nil, err
+	}
+
+	return sl, nil
+}
+
 // ParseResponse parses a lxd style response out of an http.Response. Note that
 // this does _not_ automatically convert error responses to golang errors. To
 // do that, use ParseError. Internal client library uses should probably use
@@ -1771,6 +1780,7 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode str
 		return err
 	}
 	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("X-LXD-type", "file")
 
 	if mode != "" {
 		req.Header.Set("X-LXD-mode", mode)
@@ -1791,9 +1801,101 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode str
 	return err
 }
 
-func (c *Client) PullFile(container string, p string) (int, int, int, io.ReadCloser, error) {
+func (c *Client) Mkdir(container string, p string, mode os.FileMode) error {
 	if c.Remote.Public {
-		return 0, 0, 0, nil, fmt.Errorf("This function isn't supported by public remotes.")
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	query := url.Values{"path": []string{p}}
+	uri := c.url(shared.APIVersion, "containers", container, "files") + "?" + query.Encode()
+
+	req, err := http.NewRequest("POST", uri, nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("X-LXD-type", "directory")
+	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode.Perm()))
+
+	raw, err := c.Http.Do(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = HoistResponse(raw, Sync)
+	return err
+}
+
+func (c *Client) MkdirP(container string, p string, mode os.FileMode) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	parts := strings.Split(p, "/")
+	i := len(parts)
+
+	for ; i >= 1; i-- {
+		cur := filepath.Join(parts[:i]...)
+		_, _, _, type_, _, _, err := c.PullFile(container, cur)
+		if err != nil {
+			continue
+		}
+
+		if type_ != "directory" {
+			return fmt.Errorf("%s is not a directory", cur)
+		}
+
+		i++
+		break
+	}
+
+	for ; i <= len(parts); i++ {
+		cur := filepath.Join(parts[:i]...)
+		if err := c.Mkdir(container, cur, mode); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Client) RecursivePushFile(container string, source string, target string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	sourceDir := filepath.Dir(source)
+
+	sendFile := func(p string, fInfo os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("got error sending path %s: %s", p, err)
+		}
+
+		targetPath := path.Join(target, p[len(sourceDir):])
+		if fInfo.IsDir() {
+			return c.Mkdir(container, targetPath, fInfo.Mode())
+		}
+
+		f, err := os.Open(p)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		mode := fInfo.Mode()
+		uid := int(fInfo.Sys().(*syscall.Stat_t).Uid)
+		gid := int(fInfo.Sys().(*syscall.Stat_t).Gid)
+
+		return c.PushFile(container, targetPath, gid, uid, fmt.Sprintf("0%o", mode), f)
+	}
+
+	return filepath.Walk(source, sendFile)
+}
+
+func (c *Client) PullFile(container string, p string) (int, int, int, string, io.ReadCloser, []string, error) {
+	if c.Remote.Public {
+		return 0, 0, 0, "", nil, nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
 	uri := c.url(shared.APIVersion, "containers", container, "files")
@@ -1801,12 +1903,73 @@ func (c *Client) PullFile(container string, p string) (int, int, int, io.ReadClo
 
 	r, err := c.getRaw(uri + "?" + query.Encode())
 	if err != nil {
-		return 0, 0, 0, nil, err
+		return 0, 0, 0, "", nil, nil, err
 	}
 
-	uid, gid, mode := shared.ParseLXDFileHeaders(r.Header)
+	uid, gid, mode, type_ := shared.ParseLXDFileHeaders(r.Header)
+	if type_ == "directory" {
+		resp, err := HoistResponse(r, Sync)
+		if err != nil {
+			return 0, 0, 0, "", nil, nil, err
+		}
 
-	return uid, gid, mode, r.Body, nil
+		entries, err := resp.MetadataAsStringSlice()
+		if err != nil {
+			return 0, 0, 0, "", nil, nil, err
+		}
+
+		return uid, gid, mode, type_, nil, entries, nil
+	} else if type_ == "file" {
+		return uid, gid, mode, type_, r.Body, nil, nil
+	} else {
+		return 0, 0, 0, "", nil, nil, fmt.Errorf("unknown file type '%s'", type_)
+	}
+}
+
+func (c *Client) RecursivePullFile(container string, p string, targetDir string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	_, _, mode, type_, buf, entries, err := c.PullFile(container, p)
+	if err != nil {
+		return err
+	}
+
+	target := filepath.Join(targetDir, filepath.Base(p))
+
+	if type_ == "directory" {
+		if err := os.Mkdir(target, os.FileMode(mode)); err != nil {
+			return err
+		}
+
+		for _, ent := range entries {
+			nextP := path.Join(p, ent)
+			if err := c.RecursivePullFile(container, nextP, target); err != nil {
+				return err
+			}
+		}
+	} else if type_ == "file" {
+		f, err := os.Create(target)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		err = f.Chmod(os.FileMode(mode))
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(f, buf)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("unknown file type '%s'", type_)
+	}
+
+	return nil
 }
 
 func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {

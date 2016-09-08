@@ -835,15 +835,18 @@ Input:
 
 ## /1.0/containers/\<name\>/files
 ### GET (?path=/path/inside/the/container)
- * Description: download a file from the container
+ * Description: download a file or directory listing from the container
  * Authentication: trusted
  * Operation: sync
- * Return: Raw file or standard error
+ * Return: if the type of the file is a directory, the return is a sync
+   response with a list of the directory contents as metadata, otherwise it is
+   the raw contents of the file.
 
 The following headers will be set (on top of standard size and mimetype headers):
  * X-LXD-uid: 0
  * X-LXD-gid: 0
  * X-LXD-mode: 0700
+ * X-LXD-type: one of "directory" or "file"
 
 This is designed to be easily usable from the command line or even a web
 browser.

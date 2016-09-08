@@ -22,6 +22,10 @@ type fileCmd struct {
 	uid  int
 	gid  int
 	mode string
+
+	recursive bool
+
+	mkdirs bool
 }
 
 func (c *fileCmd) showByDefault() bool {
@@ -32,17 +36,30 @@ func (c *fileCmd) usage() string {
 	return i18n.G(
 		`Manage files on a container.
 
-lxc file pull <source> [<source>...] <target>
-lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
+lxc file pull [-r|--recursive] <source> [<source>...] <target>
+lxc file push [-r|--recursive] [-p|create-dirs] [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
 lxc file edit <file>
 
-<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>`)
+<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>
+
+Examples:
+
+To push /etc/hosts into the container foo:
+  lxc file push /etc/hosts foo/etc/hosts
+
+To pull /etc/hosts from the container:
+  lxc file pull foo/etc/hosts .
+`)
 }
 
 func (c *fileCmd) flags() {
 	gnuflag.IntVar(&c.uid, "uid", -1, i18n.G("Set the file's uid on push"))
 	gnuflag.IntVar(&c.gid, "gid", -1, i18n.G("Set the file's gid on push"))
 	gnuflag.StringVar(&c.mode, "mode", "", i18n.G("Set the file's perms on push"))
+	gnuflag.BoolVar(&c.recursive, "recursive", false, i18n.G("Recursively push or pull files"))
+	gnuflag.BoolVar(&c.recursive, "r", false, i18n.G("Recursively push or pull files"))
+	gnuflag.BoolVar(&c.mkdirs, "create-dirs", false, i18n.G("Create any directories necessary"))
+	gnuflag.BoolVar(&c.mkdirs, "p", false, i18n.G("Create any directories necessary"))
 }
 
 func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) error {
@@ -65,6 +82,13 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		return err
 	}
 
+	var sourcefilenames []string
+	for _, fname := range args[:len(args)-1] {
+		if !strings.HasPrefix(fname, "--") {
+			sourcefilenames = append(sourcefilenames, fname)
+		}
+	}
+
 	mode := os.FileMode(0755)
 	if c.mode != "" {
 		if len(c.mode) == 3 {
@@ -78,6 +102,26 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		mode = os.FileMode(m)
 	}
 
+	if c.recursive {
+		if c.uid != -1 || c.gid != -1 || c.mode != "" {
+			return fmt.Errorf(i18n.G("can't supply uid/gid/mode in recursive mode"))
+		}
+
+		for _, fname := range sourcefilenames {
+			if c.mkdirs {
+				if err := d.MkdirP(container, fname, mode); err != nil {
+					return err
+				}
+			}
+
+			if err := d.RecursivePushFile(container, fname, pathSpec[1]); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
 	uid := 0
 	if c.uid >= 0 {
 		uid = c.uid
@@ -89,13 +133,6 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 	}
 
 	_, targetfilename := filepath.Split(targetPath)
-
-	var sourcefilenames []string
-	for _, fname := range args[:len(args)-1] {
-		if !strings.HasPrefix(fname, "--") {
-			sourcefilenames = append(sourcefilenames, fname)
-		}
-	}
 
 	if (targetfilename != "") && (len(sourcefilenames) > 1) {
 		return errArgs
@@ -123,6 +160,12 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		fpath := targetPath
 		if targetfilename == "" {
 			fpath = path.Join(fpath, path.Base(f.Name()))
+		}
+
+		if c.mkdirs {
+			if err := d.MkdirP(container, filepath.Dir(fpath), mode); err != nil {
+				return err
+			}
 		}
 
 		if send_file_perms {
@@ -201,9 +244,21 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		_, _, _, buf, err := d.PullFile(container, pathSpec[1])
+		if c.recursive {
+			if err := d.RecursivePullFile(container, pathSpec[1], target); err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		_, _, mode, type_, buf, _, err := d.PullFile(container, pathSpec[1])
 		if err != nil {
 			return err
+		}
+
+		if type_ == "directory" {
+			return fmt.Errorf(i18n.G("can't pull a directory without --recursive"))
 		}
 
 		var targetPath string
@@ -222,6 +277,11 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 				return err
 			}
 			defer f.Close()
+
+			err = f.Chmod(os.FileMode(mode))
+			if err != nil {
+				return err
+			}
 		}
 
 		_, err = io.Copy(f, buf)
@@ -236,6 +296,10 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 	if len(args) != 1 {
 		return errArgs
+	}
+
+	if c.recursive {
+		return fmt.Errorf(i18n.G("recursive edit doesn't make sense :("))
 	}
 
 	// If stdin isn't a terminal, read text from it
