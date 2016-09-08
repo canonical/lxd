@@ -143,6 +143,11 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("The network already exists"))
 	}
 
+	err = networkValidateConfig(req.Config)
+	if err != nil {
+		return BadRequest(err)
+	}
+
 	// Create the database entry
 	_, err = dbNetworkCreate(d.db, req.Name, req.Config)
 	if err != nil {
@@ -362,7 +367,12 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 }
 
 func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newConfig map[string]string) Response {
-	err := dbNetworkUpdate(d.db, name, newConfig)
+	err := networkValidateConfig(newConfig)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	err = dbNetworkUpdate(d.db, name, newConfig)
 	if err != nil {
 		return InternalError(err)
 	}
