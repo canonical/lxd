@@ -148,6 +148,27 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	// Set some default values where needed
+	if req.Config["bridge.mode"] == "fan" {
+		if req.Config["fan.underlay_subnet"] == "" {
+			req.Config["fan.underlay_subnet"] = "auto"
+		}
+	} else {
+		if req.Config["ipv4.address"] == "" {
+			req.Config["ipv4.address"] = "auto"
+			if req.Config["ipv4.nat"] == "" {
+				req.Config["ipv4.nat"] = "true"
+			}
+		}
+
+		if req.Config["ipv6.address"] == "" {
+			req.Config["ipv6.address"] = "auto"
+			if req.Config["ipv6.nat"] == "" {
+				req.Config["ipv6.nat"] = "true"
+			}
+		}
+	}
+
 	// Create the database entry
 	_, err = dbNetworkCreate(d.db, req.Name, req.Config)
 	if err != nil {
@@ -370,6 +391,12 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newCon
 	err := networkValidateConfig(newConfig)
 	if err != nil {
 		return BadRequest(err)
+	}
+
+	if newConfig["bridge.mode"] == "fan" {
+		if newConfig["fan.underlay_subnet"] == "" {
+			newConfig["fan.underlay_subnet"] = "auto"
+		}
 	}
 
 	err = dbNetworkUpdate(d.db, name, newConfig)
