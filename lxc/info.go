@@ -141,6 +141,17 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 			fmt.Printf(diskInfo)
 		}
 
+		// CPU usage
+		cpuInfo := ""
+		if cs.CPU.Usage != 0 {
+			cpuInfo += fmt.Sprintf("    %s: %v\n", i18n.G("CPU usage (in seconds)"), cs.CPU.Usage/1000000000)
+		}
+
+		if cpuInfo != "" {
+			fmt.Println(i18n.G("  CPU usage:"))
+			fmt.Printf(cpuInfo)
+		}
+
 		// Memory usage
 		memoryInfo := ""
 		if cs.Memory.Usage != 0 {
