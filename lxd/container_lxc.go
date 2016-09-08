@@ -3163,12 +3163,12 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 	return nil
 }
 
-func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.FileMode, error) {
+func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.FileMode, string, []string, error) {
 	// Setup container storage if needed
 	if !c.IsRunning() {
 		err := c.StorageStart()
 		if err != nil {
-			return -1, -1, 0, err
+			return -1, -1, 0, "", nil, err
 		}
 	}
 
@@ -3186,13 +3186,15 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 	if !c.IsRunning() {
 		err := c.StorageStop()
 		if err != nil {
-			return -1, -1, 0, err
+			return -1, -1, 0, "", nil, err
 		}
 	}
 
 	uid := -1
 	gid := -1
 	mode := -1
+	type_ := "unknown"
+	var dirEnts []string
 
 	var errStr string
 
@@ -3211,16 +3213,16 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 		if strings.HasPrefix(line, "errno: ") {
 			errno := strings.TrimPrefix(line, "errno: ")
 			if errno == "2" {
-				return -1, -1, 0, os.ErrNotExist
+				return -1, -1, 0, "", nil, os.ErrNotExist
 			}
-			return -1, -1, 0, fmt.Errorf(errStr)
+			return -1, -1, 0, "", nil, fmt.Errorf(errStr)
 		}
 
 		// Extract the uid
 		if strings.HasPrefix(line, "uid: ") {
 			uid, err = strconv.Atoi(strings.TrimPrefix(line, "uid: "))
 			if err != nil {
-				return -1, -1, 0, err
+				return -1, -1, 0, "", nil, err
 			}
 
 			continue
@@ -3230,7 +3232,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 		if strings.HasPrefix(line, "gid: ") {
 			gid, err = strconv.Atoi(strings.TrimPrefix(line, "gid: "))
 			if err != nil {
-				return -1, -1, 0, err
+				return -1, -1, 0, "", nil, err
 			}
 
 			continue
@@ -3240,9 +3242,21 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 		if strings.HasPrefix(line, "mode: ") {
 			mode, err = strconv.Atoi(strings.TrimPrefix(line, "mode: "))
 			if err != nil {
-				return -1, -1, 0, err
+				return -1, -1, 0, "", nil, err
 			}
 
+			continue
+		}
+
+		if strings.HasPrefix(line, "type: ") {
+			type_ = strings.TrimPrefix(line, "type: ")
+			continue
+		}
+
+		if strings.HasPrefix(line, "entry: ") {
+			ent := strings.TrimPrefix(line, "entry: ")
+			ent = strings.Replace(ent, "\x00", "\n", -1)
+			dirEnts = append(dirEnts, ent)
 			continue
 		}
 
@@ -3250,7 +3264,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 	}
 
 	if err != nil {
-		return -1, -1, 0, fmt.Errorf(
+		return -1, -1, 0, "", nil, fmt.Errorf(
 			"Error calling 'lxd forkgetfile %s %d %s': err='%v'",
 			dstpath,
 			c.InitPID(),
@@ -3261,14 +3275,14 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 	// Unmap uid and gid if needed
 	idmapset, err := c.LastIdmapSet()
 	if err != nil {
-		return -1, -1, 0, err
+		return -1, -1, 0, "", nil, err
 	}
 
 	if idmapset != nil {
 		uid, gid = idmapset.ShiftFromNs(uid, gid)
 	}
 
-	return uid, gid, os.FileMode(mode), nil
+	return uid, gid, os.FileMode(mode), type_, dirEnts, nil
 }
 
 func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error {

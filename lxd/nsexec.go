@@ -37,6 +37,7 @@ package main
 #include <alloca.h>
 #include <libgen.h>
 #include <ifaddrs.h>
+#include <dirent.h>
 
 // This expects:
 //  ./lxd forkputfile /source/path <pid> /target/path
@@ -126,21 +127,20 @@ int dosetns(int pid, char *nstype) {
 }
 
 int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode) {
-	int host_fd, container_fd;
+	int host_fd = -1, container_fd = -1;
 	int ret = -1;
 	int container_open_flags;
 	struct stat st;
 	int exists = 1;
+	bool is_dir_manip = !strcmp(host, "");
 
-	host_fd = open(host, O_RDWR);
-	if (host_fd < 0) {
-		error("error: open");
-		return -1;
+	if (!is_dir_manip) {
+		host_fd = open(host, O_RDWR);
+		if (host_fd < 0) {
+			error("error: open");
+			return -1;
+		}
 	}
-
-	container_open_flags = O_RDWR;
-	if (is_put)
-		container_open_flags |= O_CREAT;
 
 	if (pid > 0) {
 		if (dosetns(pid, "mnt") < 0) {
@@ -159,8 +159,41 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		}
 	}
 
-	if (is_put && stat(container, &st) < 0)
+	if (is_put && is_dir_manip) {
+		if (mode == -1) {
+			mode = defaultMode;
+		}
+
+		if (uid == -1) {
+			uid = defaultUid;
+		}
+
+		if (gid == -1) {
+			gid = defaultGid;
+		}
+
+		if (mkdir(container, mode) < 0 && errno != EEXIST) {
+			error("error: mkdir");
+			return -1;
+		}
+
+		if (chown(container, uid, gid) < 0) {
+			error("error: chown");
+			return -1;
+		}
+
+		return 0;
+	}
+
+	if (stat(container, &st) < 0)
 		exists = 0;
+
+	container_open_flags = O_RDWR;
+	if (is_put)
+		container_open_flags |= O_CREAT;
+
+	if (exists && S_ISDIR(st.st_mode))
+		container_open_flags = O_DIRECTORY;
 
 	umask(0);
 	container_fd = open(container, container_open_flags, 0);
@@ -198,10 +231,8 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 			error("error: chown");
 			goto close_container;
 		}
-
 		ret = 0;
 	} else {
-		ret = copy(host_fd, container_fd);
 
 		if (fstat(container_fd, &st) < 0) {
 			error("error: stat");
@@ -211,6 +242,43 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
 		fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
 		fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+		if (S_ISDIR(st.st_mode)) {
+			DIR *fdir;
+			struct dirent *de;
+
+			fdir = fdopendir(container_fd);
+			if (!fdir) {
+				error("error: fdopendir");
+				goto close_container;
+			}
+
+			fprintf(stderr, "type: directory\n");
+
+			while((de = readdir(fdir))) {
+				int len, i;
+
+				if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+					continue;
+
+				fprintf(stderr, "entry: ");
+
+				// swap \n to \0 since we split this output by line
+				for (i = 0, len = strlen(de->d_name); i < len; i++) {
+					if (*(de->d_name + i) == '\n')
+						putc(0, stderr);
+					else
+						putc(*(de->d_name + i), stderr);
+				}
+				fprintf(stderr, "\n");
+			}
+
+			// container_fd is dead now that we fopendir'd it
+			goto close_host;
+		} else {
+			fprintf(stderr, "type: file\n");
+			ret = copy(host_fd, container_fd);
+		}
+		fprintf(stderr, "type: %s", S_ISDIR(st.st_mode) ? "directory" : "file");
 	}
 
 close_container:
