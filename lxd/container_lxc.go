@@ -1826,6 +1826,7 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 
 	if c.IsRunning() {
 		pid := c.InitPID()
+		status.CPU = c.cpuState()
 		status.Disk = c.diskState()
 		status.Memory = c.memoryState()
 		status.Network = c.networkState()
@@ -3396,6 +3397,25 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	}
 
 	return 0, nil
+}
+
+func (c *containerLXC) cpuState() shared.ContainerStateCPU {
+	cpu := shared.ContainerStateCPU{}
+
+	if !cgCpuacctController {
+		return cpu
+	}
+
+	// CPU usage in seconds
+	value, err := c.CGroupGet("cpuacct.usage")
+	valueInt, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		valueInt = -1
+	}
+
+	cpu.Usage = valueInt
+
+	return cpu
 }
 
 func (c *containerLXC) diskState() map[string]shared.ContainerStateDisk {
