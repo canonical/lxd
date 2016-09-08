@@ -44,6 +44,7 @@ var aaConfined = false
 // CGroup
 var cgBlkioController = false
 var cgCpuController = false
+var cgCpuacctController = false
 var cgCpusetController = false
 var cgDevicesController = false
 var cgMemoryController = false
@@ -634,6 +635,11 @@ func (d *Daemon) Init() error {
 	cgCpuController = shared.PathExists("/sys/fs/cgroup/cpu/")
 	if !cgCpuController {
 		shared.Log.Warn("Couldn't find the CGroup CPU controller, CPU time limits will be ignored.")
+	}
+
+	cgCpuacctController = shared.PathExists("/sys/fs/cgroup/cpuacct/")
+	if !cgCpuacctController {
+		shared.Log.Warn("Couldn't find the CGroup CPUacct controller, CPU accounting will not be available.")
 	}
 
 	cgCpusetController = shared.PathExists("/sys/fs/cgroup/cpuset/")
