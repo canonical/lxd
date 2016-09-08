@@ -66,6 +66,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"https_allowed_credentials",
 			"image_compression_algorithm",
 			"directory_manipulation",
+			"container_cpu_time",
 		},
 
 		"api_status":  "stable",
