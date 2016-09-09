@@ -600,10 +600,12 @@ func cmdInit() error {
 	var networkAddress string // Address
 	var networkPort int64     // Port
 	var trustPassword string  // Trust password
+	var imagesAutoUpdate bool // controls whether we set images.auto_update_interval to 0
 
 	// Detect userns
 	defaultPrivileged = -1
 	runningInUserns = shared.RunningInUserNS()
+	imagesAutoUpdate = true
 
 	// Only root should run this
 	if os.Geteuid() != 0 {
@@ -874,6 +876,10 @@ they otherwise would.
 			networkPort = askInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
 			trustPassword = askPassword("Trust password for new clients: ")
 		}
+
+		if !askBool("Would you like stale cached images to be updated automatically? (yes/no) [default=yes]? ", "yes") {
+			imagesAutoUpdate = false
+		}
 	}
 
 	if !shared.StringInSlice(storageBackend, []string{"dir", "zfs"}) {
@@ -944,6 +950,24 @@ they otherwise would.
 	} else if defaultPrivileged == 1 {
 		err = c.SetProfileConfigItem("default", "security.privileged", "true")
 		if err != nil {
+		}
+	}
+
+	if imagesAutoUpdate {
+		ss, err := c.ServerStatus()
+		if err != nil {
+			return err
+		}
+		if val, ok := ss.Config["images.auto_update_interval"]; ok && val == "0" {
+			_, err = c.SetServerConfig("images.auto_update_interval", "")
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		_, err = c.SetServerConfig("images.auto_update_interval", "0")
+		if err != nil {
+			return err
 		}
 	}
 
