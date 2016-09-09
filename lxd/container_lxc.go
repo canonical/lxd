@@ -3447,7 +3447,12 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 		}
 	}
 
-	// TODO: handle xattrs
+	// Handle xattrs.
+	hdr.Xattrs, err = shared.GetAllXattr(path)
+	if err != nil {
+		return err
+	}
+
 	if err := tw.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("error writing header: %s", err)
 	}
