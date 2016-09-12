@@ -6,8 +6,10 @@ package shared
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -383,4 +385,101 @@ func SetSize(fd int, width int, height int) (err error) {
 		return err
 	}
 	return nil
+}
+
+// This uses ssize_t llistxattr(const char *path, char *list, size_t size); to
+// handle symbolic links (should it in the future be possible to set extended
+// attributed on symlinks): If path is a symbolic link the extended attributes
+// associated with the link itself are retrieved.
+func llistxattr(path string, list []byte) (sz int, err error) {
+	var _p0 *byte
+	_p0, err = unix.BytePtrFromString(path)
+	if err != nil {
+		return
+	}
+	var _p1 unsafe.Pointer
+	if len(list) > 0 {
+		_p1 = unsafe.Pointer(&list[0])
+	} else {
+		_p1 = unsafe.Pointer(nil)
+	}
+	r0, _, e1 := unix.Syscall(unix.SYS_LLISTXATTR, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(list)))
+	sz = int(r0)
+	if e1 != 0 {
+		err = e1
+	}
+	return
+}
+
+// GetAllXattr retrieves all extended attributes associated with a file,
+// directory or symbolic link.
+func GetAllXattr(path string) (xattrs map[string]string, err error) {
+	e1 := fmt.Errorf("Extended attributes changed during retrieval.")
+
+	// Call llistxattr() twice: First, to determine the size of the buffer
+	// we need to allocate to store the extended attributes, second, to
+	// actually store the extended attributes in the buffer. Also, check if
+	// the size/number of extended attributes hasn't changed between the two
+	// calls.
+	pre, err := llistxattr(path, nil)
+	if err != nil || pre < 0 {
+		return nil, err
+	}
+	if pre == 0 {
+		return nil, nil
+	}
+
+	dest := make([]byte, pre)
+
+	post, err := llistxattr(path, dest)
+	if err != nil || post < 0 {
+		return nil, err
+	}
+	if post != pre {
+		return nil, e1
+	}
+
+	split := strings.Split(string(dest), "\x00")
+	if split == nil {
+		return nil, fmt.Errorf("No valid extended attribute key found.")
+	}
+	// *listxattr functions return a list of  names  as  an unordered array
+	// of null-terminated character strings (attribute names are separated
+	// by null bytes ('\0')), like this: user.name1\0system.name1\0user.name2\0
+	// Since we split at the '\0'-byte the last element of the slice will be
+	// the empty string. We remove it:
+	if split[len(split)-1] == "" {
+		split = split[:len(split)-1]
+	}
+
+	xattrs = make(map[string]string, len(split))
+
+	for _, x := range split {
+		xattr := string(x)
+		// Call Getxattr() twice: First, to determine the size of the
+		// buffer we need to allocate to store the extended attributes,
+		// second, to actually store the extended attributes in the
+		// buffer. Also, check if the size of the extended attribute
+		// hasn't changed between the two calls.
+		pre, err = unix.Getxattr(path, xattr, nil)
+		if err != nil || pre < 0 {
+			return nil, err
+		}
+		if pre == 0 {
+			return nil, fmt.Errorf("No valid extended attribute value found.")
+		}
+
+		dest = make([]byte, pre)
+		post, err = unix.Getxattr(path, xattr, dest)
+		if err != nil || post < 0 {
+			return nil, err
+		}
+		if post != pre {
+			return nil, e1
+		}
+
+		xattrs[xattr] = string(dest)
+	}
+
+	return xattrs, nil
 }
