@@ -829,7 +829,23 @@ func cmdInit() error {
 					storageDevice = askString("Path to the existing block device: ", "", deviceExists)
 					storageMode = "device"
 				} else {
-					storageLoopSize = askInt("Size in GB of the new loop device (1GB minimum) [default=10]: ", 1, -1, "10")
+					st := syscall.Statfs_t{}
+					err := syscall.Statfs(shared.VarPath(), &st)
+					if err != nil {
+						return fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
+					}
+
+					/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
+					def := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
+					if def > 100 {
+						def = 100
+					}
+					if def < 15 {
+						def = 15
+					}
+
+					q := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%d]: ", def)
+					storageLoopSize = askInt(q, 1, -1, fmt.Sprintf("%d", def))
 					storageMode = "loop"
 				}
 			} else {
