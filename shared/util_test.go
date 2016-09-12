@@ -35,11 +35,21 @@ func TestGetAllXattr(t *testing.T) {
 	defer os.Remove(xattrDir)
 
 	for k, v := range testxattr {
-		if err = unix.Setxattr(xattrFile.Name(), k, []byte(v), 0); err != nil {
+		err = unix.Setxattr(xattrFile.Name(), k, []byte(v), 0)
+		if err == unix.ENOTSUP {
+			t.Log(err)
+			return
+		}
+		if err != nil {
 			t.Error(err)
 			return
 		}
-		if err = unix.Setxattr(xattrDir, k, []byte(v), 0); err != nil {
+		err = unix.Setxattr(xattrDir, k, []byte(v), 0)
+		if err == unix.ENOTSUP {
+			t.Log(err)
+			return
+		}
+		if err != nil {
 			t.Error(err)
 			return
 		}
