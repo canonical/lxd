@@ -81,10 +81,18 @@ This adds support for a compression\_algorithm property when creating an image (
 Setting this property overrides the server default value (images.compression\_algorithm).
 
 ## directory\_manipulation
-
 This allows for creating and listing directories via the LXD API, and exports
 the file type via the X-LXD-type header, which can be either "file" or
 "directory" right now.
 
 ## container\_cpu\_time
 This adds support for retrieving cpu time for a running container.
+
+## storage\_zfs\_use\_refquota
+Introduces a new server property "storage.zfs\_use\_refquota" which instructs LXD
+to set the "refquota" property instead of "quota" when setting a size limit
+on a container. LXD will also then use "usedbydataset" in place of "used"
+when being queried about disk utilization.
+
+This effectively controls whether disk usage by snapshots should be
+considered as part of the container's disk space usage.

@@ -418,10 +418,15 @@ func (s *storageZfs) ContainerSetQuota(container container, size int64) error {
 
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
+	property := "quota"
+	if daemonConfig["storage.zfs_use_refquota"].GetBool() {
+		property = "refquota"
+	}
+
 	if size > 0 {
-		err = s.zfsSet(fs, "quota", fmt.Sprintf("%d", size))
+		err = s.zfsSet(fs, property, fmt.Sprintf("%d", size))
 	} else {
-		err = s.zfsSet(fs, "quota", "none")
+		err = s.zfsSet(fs, property, "none")
 	}
 
 	if err != nil {
@@ -436,7 +441,12 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
-	value, err := s.zfsGet(fs, "used")
+	property := "used"
+	if daemonConfig["storage.zfs_use_refquota"].GetBool() {
+		property = "usedbydataset"
+	}
+
+	value, err := s.zfsGet(fs, property)
 	if err != nil {
 		return -1, err
 	}
