@@ -102,8 +102,8 @@ func (s *storageDir) ContainerDelete(container container) error {
 func (s *storageDir) ContainerCopy(
 	container container, sourceContainer container) error {
 
-	oldPath := sourceContainer.RootfsPath()
-	newPath := container.RootfsPath()
+	oldPath := sourceContainer.Path()
+	newPath := container.Path()
 
 	/*
 	 * Copy by using rsync
