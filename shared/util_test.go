@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
-	"golang.org/x/sys/unix"
 	"io/ioutil"
 	"os"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -35,8 +35,8 @@ func TestGetAllXattr(t *testing.T) {
 	defer os.Remove(xattrDir)
 
 	for k, v := range testxattr {
-		err = unix.Setxattr(xattrFile.Name(), k, []byte(v), 0)
-		if err == unix.ENOTSUP {
+		err = syscall.Setxattr(xattrFile.Name(), k, []byte(v), 0)
+		if err == syscall.ENOTSUP {
 			t.Log(err)
 			return
 		}
@@ -44,8 +44,8 @@ func TestGetAllXattr(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		err = unix.Setxattr(xattrDir, k, []byte(v), 0)
-		if err == unix.ENOTSUP {
+		err = syscall.Setxattr(xattrDir, k, []byte(v), 0)
+		if err == syscall.ENOTSUP {
 			t.Log(err)
 			return
 		}
