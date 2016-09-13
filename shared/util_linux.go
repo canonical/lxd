@@ -6,7 +6,6 @@ package shared
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
 	"strings"
@@ -393,7 +392,7 @@ func SetSize(fd int, width int, height int) (err error) {
 // associated with the link itself are retrieved.
 func llistxattr(path string, list []byte) (sz int, err error) {
 	var _p0 *byte
-	_p0, err = unix.BytePtrFromString(path)
+	_p0, err = syscall.BytePtrFromString(path)
 	if err != nil {
 		return
 	}
@@ -403,7 +402,7 @@ func llistxattr(path string, list []byte) (sz int, err error) {
 	} else {
 		_p1 = unsafe.Pointer(nil)
 	}
-	r0, _, e1 := unix.Syscall(unix.SYS_LLISTXATTR, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(list)))
+	r0, _, e1 := syscall.Syscall(syscall.SYS_LLISTXATTR, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(list)))
 	sz = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -461,7 +460,7 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 		// second, to actually store the extended attributes in the
 		// buffer. Also, check if the size of the extended attribute
 		// hasn't changed between the two calls.
-		pre, err = unix.Getxattr(path, xattr, nil)
+		pre, err = syscall.Getxattr(path, xattr, nil)
 		if err != nil || pre < 0 {
 			return nil, err
 		}
@@ -470,7 +469,7 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 		}
 
 		dest = make([]byte, pre)
-		post, err = unix.Getxattr(path, xattr, dest)
+		post, err = syscall.Getxattr(path, xattr, dest)
 		if err != nil || post < 0 {
 			return nil, err
 		}
