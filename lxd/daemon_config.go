@@ -185,6 +185,7 @@ func daemonConfigInit(db *sql.DB) error {
 		"storage.lvm_volume_size":      &daemonConfigKey{valueType: "string", defaultValue: "10GiB"},
 		"storage.zfs_pool_name":        &daemonConfigKey{valueType: "string", validator: storageZFSValidatePoolName, setter: daemonConfigSetStorage},
 		"storage.zfs_remove_snapshots": &daemonConfigKey{valueType: "bool"},
+		"storage.zfs_use_refquota":     &daemonConfigKey{valueType: "bool"},
 	}
 
 	// Load the values from the DB

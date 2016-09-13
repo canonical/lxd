@@ -67,6 +67,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"image_compression_algorithm",
 			"directory_manipulation",
 			"container_cpu_time",
+			"storage_zfs_use_refquota",
 		},
 
 		"api_status":  "stable",
