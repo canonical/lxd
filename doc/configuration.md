@@ -34,6 +34,7 @@ storage.lvm\_fstype             | string    | ext4      | -                     
 storage.lvm\_volume\_size       | string    | 10GiB     | -                                 | Size of the logical volume
 storage.zfs\_pool\_name         | string    | -         | -                                 | ZFS pool name
 storage.zfs\_remove\_snapshots  | boolean   | false     | storage\_zfs\_remove\_snapshots   | Automatically remove any needed snapshot when attempting a container restore
+storage.zfs\_use\_refquota      | boolean   | false     | storage\_zfs\_use\_refquota       | Don't include snapshots as part of container quota (size property) or in reported disk usage
 images.compression\_algorithm   | string    | gzip      | -                                 | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
 images.remote\_cache\_expiry    | integer   | 10        | -                                 | Number of days after which an unused cached remote image will be flushed
 images.auto\_update\_interval   | integer   | 6         | -                                 | Interval in hours at which to look for update to cached images (0 disables it)
