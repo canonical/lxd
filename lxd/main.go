@@ -875,7 +875,7 @@ they otherwise would.
 
 		if askBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
 			isIPAddress := func(s string) string {
-				if net.ParseIP(s) == nil {
+				if s != "all" && net.ParseIP(s) == nil {
 					return fmt.Sprintf("'%s' is not an IP address", s)
 				}
 				return ""
