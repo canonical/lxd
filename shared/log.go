@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	log "gopkg.in/inconshreveable/log15.v2"
 	"runtime"
 )
 
@@ -25,6 +26,37 @@ func (nl nullLogger) Crit(msg string, ctx ...interface{})  {}
 
 func init() {
 	Log = nullLogger{}
+}
+
+// Wrapper function for functions in the Logger interface.
+func LogDebug(msg string, ctx map[string]interface{}) {
+	if Log != nil {
+		Log.Warn(msg, log.Ctx(ctx))
+	}
+}
+
+func LogInfo(msg string, ctx map[string]interface{}) {
+	if Log != nil {
+		Log.Info(msg, log.Ctx(ctx))
+	}
+}
+
+func LogWarn(msg string, ctx map[string]interface{}) {
+	if Log != nil {
+		Log.Warn(msg, log.Ctx(ctx))
+	}
+}
+
+func LogError(msg string, ctx map[string]interface{}) {
+	if Log != nil {
+		Log.Error(msg, log.Ctx(ctx))
+	}
+}
+
+func LogCrit(msg string, ctx map[string]interface{}) {
+	if Log != nil {
+		Log.Crit(msg, log.Ctx(ctx))
+	}
 }
 
 // Logf sends to the logger registered via SetLogger the string resulting
