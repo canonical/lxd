@@ -34,7 +34,7 @@ func (c *publishCmd) flags() {
 	gnuflag.Var(&c.pAliases, "alias", i18n.G("New alias to define at target"))
 	gnuflag.BoolVar(&c.Force, "force", false, i18n.G("Stop the container if currently running"))
 	gnuflag.BoolVar(&c.Force, "f", false, i18n.G("Stop the container if currently running"))
-	gnuflag.StringVar(&c.compression_algorithm, "compression", "gzip", i18n.G("Define a compression algorithm: for image or none"))
+	gnuflag.StringVar(&c.compression_algorithm, "compression", "", i18n.G("Define a compression algorithm: for image or none"))
 }
 
 func (c *publishCmd) run(config *lxd.Config, args []string) error {
