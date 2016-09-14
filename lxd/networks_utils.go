@@ -244,6 +244,70 @@ func networkRandomSubnetV6() string {
 	return cidr
 }
 
+func networkDefaultGatewaySubnetV4() (*net.IPNet, error) {
+	file, err := os.Open("/proc/net/route")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	ifaceName := ""
+
+	scanner := bufio.NewReader(file)
+	for {
+		line, _, err := scanner.ReadLine()
+		if err != nil {
+			break
+		}
+
+		fields := strings.Fields(string(line))
+
+		if fields[1] == "00000000" && fields[7] == "00000000" {
+			ifaceName = fields[0]
+			break
+		}
+	}
+
+	if ifaceName == "" {
+		return nil, fmt.Errorf("No default gateway for IPv4")
+	}
+
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return nil, err
+	}
+
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil, err
+	}
+
+	var subnet *net.IPNet
+
+	for _, addr := range addrs {
+		addrIP, addrNet, err := net.ParseCIDR(addr.String())
+		if err != nil {
+			return nil, err
+		}
+
+		if addrIP.To4() == nil {
+			continue
+		}
+
+		if subnet != nil {
+			return nil, fmt.Errorf("More than one IPv4 subnet on default interface")
+		}
+
+		subnet = addrNet
+	}
+
+	if subnet == nil {
+		return nil, fmt.Errorf("No IPv4 subnet on default interface")
+	}
+
+	return subnet, nil
+}
+
 func networkValidName(value string) error {
 	// Validate the length
 	if len(value) < 2 {
