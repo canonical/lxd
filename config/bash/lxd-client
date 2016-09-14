@@ -42,7 +42,7 @@ _have lxc && {
       core.https_allowed_credentials core.proxy_https \
       core.proxy_http core.proxy_ignore_host core.trust_password \
       storage.lvm_vg_name storage.lvm_thinpool_name storage.lvm_fstype \
-      storage.lvm_volume_size storage.zfs_pool_name
+      storage.lvm_mount_options storage.lvm_volume_size storage.zfs_pool_name \
       storage.zfs_remove_snapshots images.compression_algorithm \
       images.remot_cache_expiry images.auto_update_interval \
       images.auto_update_cached"

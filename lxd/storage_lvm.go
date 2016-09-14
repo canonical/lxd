@@ -322,7 +322,8 @@ func (s *storageLvm) ContainerCreateFromImage(
 		}
 	}
 
-	err = tryMount(lvpath, destPath, fstype, 0, "discard")
+	mountOptions := daemonConfig["storage.lvm_mount_options"].Get()
+	err = tryMount(lvpath, destPath, fstype, 0, mountOptions)
 	if err != nil {
 		s.ContainerDelete(container)
 		return fmt.Errorf("Error mounting snapshot LV: %v", err)
@@ -430,7 +431,8 @@ func (s *storageLvm) ContainerStart(container container) error {
 	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvName)
 	fstype := daemonConfig["storage.lvm_fstype"].Get()
 
-	err := tryMount(lvpath, container.Path(), fstype, 0, "discard")
+	mountOptions := daemonConfig["storage.lvm_mount_options"].Get()
+	err := tryMount(lvpath, container.Path(), fstype, 0, mountOptions)
 	if err != nil {
 		return fmt.Errorf(
 			"Error mounting snapshot LV path='%s': %v",
@@ -675,7 +677,8 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 		}
 	}
 
-	err = tryMount(lvpath, container.Path(), fstype, 0, "discard")
+	mountOptions := daemonConfig["storage.lvm_mount_options"].Get()
+	err = tryMount(lvpath, container.Path(), fstype, 0, mountOptions)
 	if err != nil {
 		return fmt.Errorf(
 			"Error mounting snapshot LV path='%s': %v",
@@ -730,7 +733,8 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	}()
 
 	fstype := daemonConfig["storage.lvm_fstype"].Get()
-	err = tryMount(lvpath, tempLVMountPoint, fstype, 0, "discard")
+	mountOptions := daemonConfig["storage.lvm_mount_options"].Get()
+	err = tryMount(lvpath, tempLVMountPoint, fstype, 0, mountOptions)
 	if err != nil {
 		shared.Logf("Error mounting image LV for unpacking: %v", err)
 		return fmt.Errorf("Error mounting image LV: %v", err)
