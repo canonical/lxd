@@ -31,6 +31,7 @@ core.trust\_password            | string    | -         | -                     
 storage.lvm\_vg\_name           | string    | -         | -                                 | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
 storage.lvm\_thinpool\_name     | string    | "LXDPool" | -                                 | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
 storage.lvm\_fstype             | string    | ext4      | -                                 | Format LV with filesystem, for now it's value can be only ext4 (default) or xfs.
+storage.lvm\_mount\_options     | string    | discard   | -                                 | Mount options for LV.
 storage.lvm\_volume\_size       | string    | 10GiB     | -                                 | Size of the logical volume
 storage.zfs\_pool\_name         | string    | -         | -                                 | ZFS pool name
 storage.zfs\_remove\_snapshots  | boolean   | false     | storage\_zfs\_remove\_snapshots   | Automatically remove any needed snapshot when attempting a container restore
