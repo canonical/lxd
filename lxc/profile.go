@@ -16,7 +16,6 @@ import (
 )
 
 type profileCmd struct {
-	httpAddr string
 }
 
 func (c *profileCmd) showByDefault() bool {

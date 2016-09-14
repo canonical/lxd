@@ -21,7 +21,6 @@ import (
 )
 
 type configCmd struct {
-	httpAddr string
 	expanded bool
 }
 
