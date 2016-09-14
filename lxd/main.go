@@ -935,7 +935,7 @@ they otherwise would.
 			output, err := exec.Command(
 				"zpool",
 				"create", storagePool, storageDevice,
-				"-f", "-m", "none").CombinedOutput()
+				"-f", "-m", "none", "-O", "compression=on").CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 			}
