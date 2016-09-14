@@ -151,3 +151,24 @@ func networkValidateConfig(config map[string]string) error {
 
 	return nil
 }
+
+func networkFillAuto(config map[string]string) error {
+	if config["ipv4.address"] == "auto" {
+		config["ipv4.address"] = networkRandomSubnetV4()
+	}
+
+	if config["ipv6.address"] == "auto" {
+		config["ipv6.address"] = networkRandomSubnetV6()
+	}
+
+	if config["fan.underlay_subnet"] == "auto" {
+		subnet, err := networkDefaultGatewaySubnetV4()
+		if err != nil {
+			return err
+		}
+
+		config["fan.underlay_subnet"] = subnet.String()
+	}
+
+	return nil
+}
