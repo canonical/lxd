@@ -174,6 +174,7 @@ var commands = map[string]command{
 	"manpage": &manpageCmd{},
 	"monitor": &monitorCmd{},
 	"move":    &moveCmd{},
+	"network": &networkCmd{},
 	"pause": &actionCmd{
 		action:         shared.Freeze,
 		name:           "pause",
