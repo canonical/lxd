@@ -42,17 +42,20 @@ _have lxc && {
       core.https_allowed_credentials core.proxy_https \
       core.proxy_http core.proxy_ignore_host core.trust_password \
       storage.lvm_vg_name storage.lvm_thinpool_name storage.lvm_fstype \
-      storage.lvm_volume_size storage.zfs_pool_name
-      storage.zfs_remove_snapshots images.compression_algorithm \
-      images.remot_cache_expiry images.auto_update_interval \
+      storage.lvm_volume_size storage.zfs_pool_name \
+      storage.zfs_remove_snapshots storage.zfs_use_refquota \
+      images.compression_algorithm \
+      images.remote_cache_expiry images.auto_update_interval \
       images.auto_update_cached"
 
     container_keys="boot.autostart boot.autostart.delay boot.autostart.priority \
       boot.host_shutdown_timeout limits.cpu limits.cpu.allowance limits.cpu.priority \
       limits.disk.priority limits.memory limits.memory.enforce limits.memory.swap \
       limits.memory.swap.priority limits.network.priority limits.processes \
-      linux.kernel_modules raw.apparmor raw.lxc security.nesting \
-      security.privileged volatile.apply_template volatile.base_image \
+      linux.kernel_modules raw.apparmor raw.lxc raw.seccomp security.nesting \
+      security.privileged security.syscalls.blacklist_default \
+      security.syscalls.blacklist_compat security.syscalls.blacklist \
+      security.syscalls.whitelist volatile.apply_template volatile.base_image \
       volatile.last_state.idmap volatile.last_state.power user.network_mode \
       user.meta-data user.user-data user.vendor-data"
 
