@@ -153,6 +153,12 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
+	// Replace "auto" by actual values
+	err = networkFillAuto(req.Config)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	// Create the database entry
 	_, err = dbNetworkCreate(d.db, req.Name, req.Config)
 	if err != nil {
@@ -372,6 +378,7 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 }
 
 func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newConfig map[string]string) Response {
+	// Validate the configuration
 	err := networkValidateConfig(newConfig)
 	if err != nil {
 		return BadRequest(err)
@@ -381,6 +388,12 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newCon
 		if newConfig["fan.underlay_subnet"] == "" {
 			newConfig["fan.underlay_subnet"] = "auto"
 		}
+	}
+
+	// Replace "auto" by actual values
+	err = networkFillAuto(newConfig)
+	if err != nil {
+		return InternalError(err)
 	}
 
 	err = dbNetworkUpdate(d.db, name, newConfig)
