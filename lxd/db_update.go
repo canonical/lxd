@@ -234,7 +234,7 @@ func dbUpdateFromV18(db *sql.DB) error {
 		// Deal with completely broken values
 		_, err = shared.ParseByteSizeString(value)
 		if err != nil {
-			shared.Debugf("Invalid container memory limit, id=%d value=%s, removing.", id, value)
+			shared.LogDebugf("Invalid container memory limit, id=%d value=%s, removing.", id, value)
 			_, err = db.Exec("DELETE FROM containers_config WHERE id=?;", id)
 			if err != nil {
 				return err
@@ -271,7 +271,7 @@ func dbUpdateFromV18(db *sql.DB) error {
 		// Deal with completely broken values
 		_, err = shared.ParseByteSizeString(value)
 		if err != nil {
-			shared.Debugf("Invalid profile memory limit, id=%d value=%s, removing.", id, value)
+			shared.LogDebugf("Invalid profile memory limit, id=%d value=%s, removing.", id, value)
 			_, err = db.Exec("DELETE FROM profiles_config WHERE id=?;", id)
 			if err != nil {
 				return err
@@ -507,7 +507,7 @@ func dbUpdateFromV10(d *Daemon) error {
 			return err
 		}
 
-		shared.Debugf("Restarting all the containers following directory rename")
+		shared.LogDebugf("Restarting all the containers following directory rename")
 		containersShutdown(d)
 		containersRestart(d)
 	}
