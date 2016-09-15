@@ -1104,7 +1104,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	if !reflect.DeepEqual(idmap, lastIdmap) {
-		shared.Debugf("Container idmap changed, remapping")
+		shared.LogDebugf("Container idmap changed, remapping")
 
 		err := c.StorageStart()
 		if err != nil {
@@ -1343,7 +1343,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	// Capture debug output
 	if string(out) != "" {
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-			shared.Debugf("forkstart: %s", line)
+			shared.LogDebugf("forkstart: %s", line)
 		}
 	}
 
@@ -2646,7 +2646,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 
 	writeToTar := func(path string, fi os.FileInfo, err error) error {
 		if err := c.tarStoreFile(linkmap, offset, tw, path, fi); err != nil {
-			shared.Debugf("Error tarring up %s: %s", path, err)
+			shared.LogDebugf("Error tarring up %s: %s", path, err)
 			return err
 		}
 		return nil
@@ -2708,7 +2708,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 
 		tmpOffset := len(path.Dir(f.Name())) + 1
 		if err := c.tarStoreFile(linkmap, tmpOffset, tw, f.Name(), fi); err != nil {
-			shared.Debugf("Error writing to tarfile: %s", err)
+			shared.LogDebugf("Error writing to tarfile: %s", err)
 			tw.Close()
 			return err
 		}
@@ -2718,13 +2718,13 @@ func (c *containerLXC) Export(w io.Writer) error {
 		// Include metadata.yaml in the tarball
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			shared.Debugf("Error statting %s during export", fnam)
+			shared.LogDebugf("Error statting %s during export", fnam)
 			tw.Close()
 			return err
 		}
 
 		if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
-			shared.Debugf("Error writing to tarfile: %s", err)
+			shared.LogDebugf("Error writing to tarfile: %s", err)
 			tw.Close()
 			return err
 		}
@@ -2834,7 +2834,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 
 		if string(out) != "" {
 			for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-				shared.Debugf("forkmigrate: %s", line)
+				shared.LogDebugf("forkmigrate: %s", line)
 			}
 		}
 
@@ -3110,7 +3110,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 			continue
 		}
 
-		shared.Debugf("forkgetfile: %s", line)
+		shared.LogDebugf("forkgetfile: %s", line)
 	}
 
 	if err != nil {
@@ -3189,7 +3189,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 		}
 
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-			shared.Debugf("forkgetfile: %s", line)
+			shared.LogDebugf("forkgetfile: %s", line)
 		}
 	}
 
@@ -3535,7 +3535,7 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 
 	if string(out) != "" {
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-			shared.Debugf("forkmount: %s", line)
+			shared.LogDebugf("forkmount: %s", line)
 		}
 	}
 
@@ -3565,7 +3565,7 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	if string(out) != "" {
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-			shared.Debugf("forkumount: %s", line)
+			shared.LogDebugf("forkumount: %s", line)
 		}
 	}
 
@@ -3693,7 +3693,7 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 		if c.idmapset != nil {
 			if err := c.idmapset.ShiftFile(devPath); err != nil {
 				// uidshift failing is weird, but not a big problem.  Log and proceed
-				shared.Debugf("Failed to uidshift device %s: %s\n", m["path"], err)
+				shared.LogDebugf("Failed to uidshift device %s: %s\n", m["path"], err)
 			}
 		}
 	} else {
