@@ -5,6 +5,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/shared"
+
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
@@ -138,6 +140,6 @@ func (s *storageMock) PreservesInodes() bool {
 func (s *storageMock) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-func (s *storageMock) MigrationSink(live bool, container container, snapshots []container, conn *websocket.Conn) error {
+func (s *storageMock) MigrationSink(live bool, container container, snapshots []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
 	return nil
 }

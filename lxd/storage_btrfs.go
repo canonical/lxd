@@ -985,9 +985,9 @@ func (s *storageBtrfs) MigrationSource(c container) (MigrationStorageSourceDrive
 	return driver, nil
 }
 
-func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []container, conn *websocket.Conn) error {
+func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
 	if runningInUserns {
-		return rsyncMigrationSink(live, container, snapshots, conn)
+		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap)
 	}
 
 	cName := container.Name()
@@ -1057,7 +1057,28 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 	}
 
 	for _, snap := range snapshots {
-		if err := btrfsRecv(containerPath(cName, true), snap.Path(), true); err != nil {
+		// TODO: we need to propagate snapshot configurations
+		// as well. Right now the container configuration is
+		// done through the initial migration post. Should we
+		// post the snapshots and their configs as well, or do
+		// it some other way?
+		name := container.Name() + shared.SnapshotDelimiter + snap
+		args := containerArgs{
+			Ctype:        cTypeSnapshot,
+			Config:       container.LocalConfig(),
+			Profiles:     container.Profiles(),
+			Ephemeral:    container.IsEphemeral(),
+			Architecture: container.Architecture(),
+			Devices:      container.LocalDevices(),
+			Name:         name,
+		}
+
+		s, err := containerCreateEmptySnapshot(container.Daemon(), args)
+		if err != nil {
+			return err
+		}
+
+		if err := btrfsRecv(containerPath(cName, true), s.Path(), true); err != nil {
 			return err
 		}
 	}

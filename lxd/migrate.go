@@ -582,32 +582,6 @@ func (c *migrationSink) do() error {
 		imagesDir := ""
 		srcIdmap := new(shared.IdmapSet)
 
-		snapshots := []container{}
-		for _, snap := range header.Snapshots {
-			// TODO: we need to propagate snapshot configurations
-			// as well. Right now the container configuration is
-			// done through the initial migration post. Should we
-			// post the snapshots and their configs as well, or do
-			// it some other way?
-			name := c.container.Name() + shared.SnapshotDelimiter + snap
-			args := containerArgs{
-				Ctype:        cTypeSnapshot,
-				Config:       c.container.LocalConfig(),
-				Profiles:     c.container.Profiles(),
-				Ephemeral:    c.container.IsEphemeral(),
-				Architecture: c.container.Architecture(),
-				Devices:      c.container.LocalDevices(),
-				Name:         name,
-			}
-
-			ct, err := containerCreateEmptySnapshot(c.container.Daemon(), args)
-			if err != nil {
-				restore <- err
-				return
-			}
-			snapshots = append(snapshots, ct)
-		}
-
 		for _, idmap := range header.Idmap {
 			e := shared.IdmapEntry{
 				Isuid:    *idmap.Isuid,
@@ -626,7 +600,7 @@ func (c *migrationSink) do() error {
 		 */
 		fsTransfer := make(chan error)
 		go func() {
-			if err := mySink(c.live, c.container, snapshots, c.fsConn); err != nil {
+			if err := mySink(c.live, c.container, header.Snapshots, c.fsConn, srcIdmap); err != nil {
 				fsTransfer <- err
 				return
 			}
@@ -668,13 +642,6 @@ func (c *migrationSink) do() error {
 				return
 			}
 
-		}
-
-		for _, snap := range snapshots {
-			if err := ShiftIfNecessary(snap, srcIdmap); err != nil {
-				restore <- err
-				return
-			}
 		}
 
 		restore <- nil

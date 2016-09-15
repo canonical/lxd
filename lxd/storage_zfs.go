@@ -79,18 +79,44 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 
 // Things we don't need to care about
 func (s *storageZfs) ContainerStart(container container) error {
-	fs := fmt.Sprintf("containers/%s", container.Name())
 
-	// Just in case the container filesystem got unmounted
-	if !shared.IsMountPoint(shared.VarPath(fs)) {
-		s.zfsMount(fs)
+	if !container.IsSnapshot() {
+		fs := fmt.Sprintf("containers/%s", container.Name())
+
+		// Just in case the container filesystem got unmounted
+		if !shared.IsMountPoint(shared.VarPath(fs)) {
+			s.zfsMount(fs)
+		}
+	} else {
+		/* the zfs CLI tool doesn't support mounting snapshots, but we
+		 * can mount them with the syscall directly...
+		 */
+		fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
+		if len(fields) != 2 {
+			return fmt.Errorf("invalid snapshot name %s", container.Name())
+		}
+
+		src := fmt.Sprintf("containers/%s@%s", fields[0], fields[1])
+		dest := shared.VarPath("snapshots", fields[0], fields[1])
+
+		return tryMount(src, dest, "zfs", 0, "")
 	}
 
 	return nil
 }
 
 func (s *storageZfs) ContainerStop(container container) error {
-	return nil
+	if !container.IsSnapshot() {
+		return nil
+	}
+
+	fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
+	if len(fields) != 2 {
+		return fmt.Errorf("invalid snapshot name %s", container.Name())
+	}
+
+	p := shared.VarPath("snapshots", fields[0], fields[1])
+	return tryUnmount(p, 0)
 }
 
 // Things we do have to care about
@@ -1373,7 +1399,7 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 	return &driver, nil
 }
 
-func (s *storageZfs) MigrationSink(live bool, container container, snapshots []container, conn *websocket.Conn) error {
+func (s *storageZfs) MigrationSink(live bool, container container, snapshots []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
 	zfsRecv := func(zfsName string) error {
 		zfsFsName := fmt.Sprintf("%s/%s", s.zfsPool, zfsName)
 		args := []string{"receive", "-F", "-u", zfsFsName}
@@ -1420,18 +1446,38 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []c
 	}
 
 	for _, snap := range snapshots {
-		fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
-		name := fmt.Sprintf("containers/%s@snapshot-%s", fields[0], fields[1])
-		if err := zfsRecv(name); err != nil {
-			return err
+		// TODO: we need to propagate snapshot configurations
+		// as well. Right now the container configuration is
+		// done through the initial migration post. Should we
+		// post the snapshots and their configs as well, or do
+		// it some other way?
+		snapName := container.Name() + shared.SnapshotDelimiter + snap
+		args := containerArgs{
+			Ctype:        cTypeSnapshot,
+			Config:       container.LocalConfig(),
+			Profiles:     container.Profiles(),
+			Ephemeral:    container.IsEphemeral(),
+			Architecture: container.Architecture(),
+			Devices:      container.LocalDevices(),
+			Name:         snapName,
 		}
 
-		err := os.MkdirAll(shared.VarPath(fmt.Sprintf("snapshots/%s", fields[0])), 0700)
+		_, err := containerCreateEmptySnapshot(container.Daemon(), args)
 		if err != nil {
 			return err
 		}
 
-		err = os.Symlink("on-zfs", shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", fields[0], fields[1])))
+		name := fmt.Sprintf("containers/%s@snapshot-%s", container.Name(), snap)
+		if err := zfsRecv(name); err != nil {
+			return err
+		}
+
+		err = os.MkdirAll(shared.VarPath(fmt.Sprintf("snapshots/%s", container.Name())), 0700)
+		if err != nil {
+			return err
+		}
+
+		err = os.Symlink("on-zfs", shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", container.Name(), snap)))
 		if err != nil {
 			return err
 		}

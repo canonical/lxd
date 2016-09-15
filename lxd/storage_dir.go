@@ -282,6 +282,6 @@ func (s *storageDir) MigrationSource(container container) (MigrationStorageSourc
 	return rsyncMigrationSource(container)
 }
 
-func (s *storageDir) MigrationSink(live bool, container container, snapshots []container, conn *websocket.Conn) error {
-	return rsyncMigrationSink(live, container, snapshots, conn)
+func (s *storageDir) MigrationSink(live bool, container container, snapshots []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap)
 }

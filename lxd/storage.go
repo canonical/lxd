@@ -192,7 +192,7 @@ type storage interface {
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
 	MigrationSource(container container) (MigrationStorageSourceDriver, error)
-	MigrationSink(live bool, container container, objects []container, conn *websocket.Conn) error
+	MigrationSink(live bool, container container, objects []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error
 }
 
 func newStorage(d *Daemon, sType storageType) (storage, error) {
@@ -556,19 +556,15 @@ func (lw *storageLogWrapper) MigrationSource(container container) (MigrationStor
 	return lw.w.MigrationSource(container)
 }
 
-func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []container, conn *websocket.Conn) error {
-	objNames := []string{}
-	for _, obj := range objects {
-		objNames = append(objNames, obj.Name())
-	}
-
+func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
 	lw.log.Debug("MigrationSink", log.Ctx{
 		"live":      live,
 		"container": container.Name(),
-		"objects":   objNames,
+		"objects":   objects,
+		"srcIdmap":  *srcIdmap,
 	})
 
-	return lw.w.MigrationSink(live, container, objects, conn)
+	return lw.w.MigrationSink(live, container, objects, conn, srcIdmap)
 }
 
 func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
@@ -608,9 +604,17 @@ func (s rsyncStorageSourceDriver) Snapshots() []container {
 }
 
 func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
-	toSend := append([]container{s.container}, s.snapshots...)
+	toSend := []container{}
+	toSend = append(toSend, s.snapshots...)
+	toSend = append(toSend, s.container)
 
 	for _, send := range toSend {
+		if send.IsSnapshot() {
+			if err := send.StorageStart(); err != nil {
+				return err
+			}
+			defer send.StorageStop()
+		}
 		path := send.Path()
 		if err := RsyncSend(shared.AddSlash(path), conn); err != nil {
 			return err
@@ -638,21 +642,83 @@ func rsyncMigrationSource(container container) (MigrationStorageSourceDriver, er
 	return rsyncStorageSourceDriver{container, snapshots}, nil
 }
 
-func rsyncMigrationSink(live bool, container container, snapshots []container, conn *websocket.Conn) error {
-	/* the first object is the actual container */
-	if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
-		return err
-	}
+func rsyncMigrationSink(live bool, container container, snapshots []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
 
-	if len(snapshots) > 0 {
-		err := os.MkdirAll(shared.VarPath(fmt.Sprintf("snapshots/%s", container.Name())), 0700)
-		if err != nil {
+	if isDirBackend {
+		if len(snapshots) > 0 {
+			err := os.MkdirAll(shared.VarPath(fmt.Sprintf("snapshots/%s", container.Name())), 0700)
+			if err != nil {
+				return err
+			}
+		}
+		for _, snap := range snapshots {
+			// TODO: we need to propagate snapshot configurations
+			// as well. Right now the container configuration is
+			// done through the initial migration post. Should we
+			// post the snapshots and their configs as well, or do
+			// it some other way?
+			name := container.Name() + shared.SnapshotDelimiter + snap
+			args := containerArgs{
+				Ctype:        cTypeSnapshot,
+				Config:       container.LocalConfig(),
+				Profiles:     container.Profiles(),
+				Ephemeral:    container.IsEphemeral(),
+				Architecture: container.Architecture(),
+				Devices:      container.LocalDevices(),
+				Name:         name,
+			}
+
+			s, err := containerCreateEmptySnapshot(container.Daemon(), args)
+			if err != nil {
+				return err
+			}
+
+			if err := RsyncRecv(shared.AddSlash(s.Path()), conn); err != nil {
+				return err
+			}
+
+			if err := ShiftIfNecessary(container, srcIdmap); err != nil {
+				return err
+			}
+		}
+
+		if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
 			return err
 		}
-	}
+	} else {
+		for _, snap := range snapshots {
+			if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
+				return err
+			}
 
-	for _, snap := range snapshots {
-		if err := RsyncRecv(shared.AddSlash(snap.Path()), conn); err != nil {
+			if err := ShiftIfNecessary(container, srcIdmap); err != nil {
+				return err
+			}
+
+			// TODO: we need to propagate snapshot configurations
+			// as well. Right now the container configuration is
+			// done through the initial migration post. Should we
+			// post the snapshots and their configs as well, or do
+			// it some other way?
+			name := container.Name() + shared.SnapshotDelimiter + snap
+			args := containerArgs{
+				Ctype:        cTypeSnapshot,
+				Config:       container.LocalConfig(),
+				Profiles:     container.Profiles(),
+				Ephemeral:    container.IsEphemeral(),
+				Architecture: container.Architecture(),
+				Devices:      container.LocalDevices(),
+				Name:         name,
+			}
+
+			_, err := containerCreateAsSnapshot(container.Daemon(), args, container)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
 			return err
 		}
 	}
@@ -662,6 +728,10 @@ func rsyncMigrationSink(live bool, container container, snapshots []container, c
 		if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
 			return err
 		}
+	}
+
+	if err := ShiftIfNecessary(container, srcIdmap); err != nil {
+		return err
 	}
 
 	return nil
