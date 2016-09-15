@@ -140,6 +140,6 @@ func (s *storageMock) PreservesInodes() bool {
 func (s *storageMock) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-func (s *storageMock) MigrationSink(live bool, container container, snapshots []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func (s *storageMock) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
 	return nil
 }

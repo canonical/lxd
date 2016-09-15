@@ -250,6 +250,37 @@ fi
 	return err
 }
 
+func snapshotToProtobuf(c container) *Snapshot {
+	config := []*Config{}
+	for k, v := range c.LocalConfig() {
+		kCopy := string(k)
+		vCopy := string(v)
+		config = append(config, &Config{Key: &kCopy, Value: &vCopy})
+	}
+
+	devices := []*Device{}
+	for name, d := range c.LocalDevices() {
+		props := []*Config{}
+		for k, v := range d {
+			kCopy := string(k)
+			vCopy := string(v)
+			props = append(props, &Config{Key: &kCopy, Value: &vCopy})
+		}
+
+		devices = append(devices, &Device{Name: &name, Config: props})
+	}
+
+	parts := strings.SplitN(c.Name(), shared.SnapshotDelimiter, 2)
+	isEphemeral := c.IsEphemeral()
+	return &Snapshot{
+		Name:      &parts[len(parts)-1],
+		Config:    config,
+		Profiles:  c.Profiles(),
+		Ephemeral: &isEphemeral,
+		Devices:   devices,
+	}
+}
+
 func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	<-s.allConnected
 
@@ -286,11 +317,11 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	/* the protocol says we have to send a header no matter what, so let's
 	 * do that, but then immediately send an error.
 	 */
-	snapshots := []string{}
+	snapshots := []*Snapshot{}
 	if fsErr == nil {
 		fullSnaps := driver.Snapshots()
 		for _, snap := range fullSnaps {
-			snapshots = append(snapshots, shared.ExtractSnapshotName(snap.Name()))
+			snapshots = append(snapshots, snapshotToProtobuf(snap))
 		}
 	}
 
@@ -600,6 +631,22 @@ func (c *migrationSink) do() error {
 		 */
 		fsTransfer := make(chan error)
 		go func() {
+			snapshots := []*Snapshot{}
+
+			/* Legacy: we only sent the snapshot names, so we just
+			 * copy the container's config over, same as we used to
+			 * do.
+			 */
+			if len(header.SnapshotNames) > 0 {
+				for _, name := range header.SnapshotNames {
+					base := snapshotToProtobuf(c.container)
+					base.Name = &name
+					snapshots = append(snapshots, base)
+				}
+			} else {
+				snapshots = header.Snapshots
+			}
+
 			if err := mySink(c.live, c.container, header.Snapshots, c.fsConn, srcIdmap); err != nil {
 				fsTransfer <- err
 				return

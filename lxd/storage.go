@@ -192,7 +192,7 @@ type storage interface {
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
 	MigrationSource(container container) (MigrationStorageSourceDriver, error)
-	MigrationSink(live bool, container container, objects []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error
+	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error
 }
 
 func newStorage(d *Daemon, sType storageType) (storage, error) {
@@ -556,11 +556,16 @@ func (lw *storageLogWrapper) MigrationSource(container container) (MigrationStor
 	return lw.w.MigrationSource(container)
 }
 
-func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+	objNames := []string{}
+	for _, obj := range objects {
+		objNames = append(objNames, obj.GetName())
+	}
+
 	lw.log.Debug("MigrationSink", log.Ctx{
 		"live":      live,
 		"container": container.Name(),
-		"objects":   objects,
+		"objects":   objNames,
 		"srcIdmap":  *srcIdmap,
 	})
 
@@ -642,7 +647,35 @@ func rsyncMigrationSource(container container) (MigrationStorageSourceDriver, er
 	return rsyncStorageSourceDriver{container, snapshots}, nil
 }
 
-func rsyncMigrationSink(live bool, container container, snapshots []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) containerArgs {
+	config := map[string]string{}
+
+	for _, ent := range snap.Config {
+		config[ent.GetKey()] = ent.GetValue()
+	}
+
+	devices := shared.Devices{}
+	for _, ent := range snap.Devices {
+		props := map[string]string{}
+		for _, prop := range ent.Config {
+			props[prop.GetKey()] = prop.GetValue()
+		}
+
+		devices[ent.GetName()] = props
+	}
+
+	name := containerName + shared.SnapshotDelimiter + snap.GetName()
+	return containerArgs{
+		Name:      name,
+		Ctype:     cTypeSnapshot,
+		Config:    config,
+		Profiles:  snap.Profiles,
+		Ephemeral: snap.GetEphemeral(),
+		Devices:   devices,
+	}
+}
+
+func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
 	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
 
 	if isDirBackend {
@@ -653,22 +686,7 @@ func rsyncMigrationSink(live bool, container container, snapshots []string, conn
 			}
 		}
 		for _, snap := range snapshots {
-			// TODO: we need to propagate snapshot configurations
-			// as well. Right now the container configuration is
-			// done through the initial migration post. Should we
-			// post the snapshots and their configs as well, or do
-			// it some other way?
-			name := container.Name() + shared.SnapshotDelimiter + snap
-			args := containerArgs{
-				Ctype:        cTypeSnapshot,
-				Config:       container.LocalConfig(),
-				Profiles:     container.Profiles(),
-				Ephemeral:    container.IsEphemeral(),
-				Architecture: container.Architecture(),
-				Devices:      container.LocalDevices(),
-				Name:         name,
-			}
-
+			args := snapshotProtobufToContainerArgs(container.Name(), snap)
 			s, err := containerCreateEmptySnapshot(container.Daemon(), args)
 			if err != nil {
 				return err
@@ -696,22 +714,7 @@ func rsyncMigrationSink(live bool, container container, snapshots []string, conn
 				return err
 			}
 
-			// TODO: we need to propagate snapshot configurations
-			// as well. Right now the container configuration is
-			// done through the initial migration post. Should we
-			// post the snapshots and their configs as well, or do
-			// it some other way?
-			name := container.Name() + shared.SnapshotDelimiter + snap
-			args := containerArgs{
-				Ctype:        cTypeSnapshot,
-				Config:       container.LocalConfig(),
-				Profiles:     container.Profiles(),
-				Ephemeral:    container.IsEphemeral(),
-				Architecture: container.Architecture(),
-				Devices:      container.LocalDevices(),
-				Name:         name,
-			}
-
+			args := snapshotProtobufToContainerArgs(container.Name(), snap)
 			_, err := containerCreateAsSnapshot(container.Daemon(), args, container)
 			if err != nil {
 				return err
