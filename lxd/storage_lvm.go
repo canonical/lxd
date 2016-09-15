@@ -732,7 +732,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	fstype := daemonConfig["storage.lvm_fstype"].Get()
 	err = tryMount(lvpath, tempLVMountPoint, fstype, 0, "discard")
 	if err != nil {
-		shared.Logf("Error mounting image LV for unpacking: %v", err)
+		shared.LogInfof("Error mounting image LV for unpacking: %v", err)
 		return fmt.Errorf("Error mounting image LV: %v", err)
 	}
 
