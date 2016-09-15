@@ -55,13 +55,6 @@ If you have at least 1GbE NIC on your lxd host with a lot of local activity (con
 You need to change `txqueuelen` of your real NIC to 10000 (not sure about the best possible value for you), and change and change lxdbr0 interface `txqueuelen` to 10000.  
 In Debian-based distros you can change `txqueuelen` permanently in `/etc/network/interfaces`  
 You can add for ex.: `up ip link set eth0 txqueuelen 10000` to your interface configuration to set txqueuelen value on boot.  
-For permanent lxdbr0 txqueuelen value change I prefer edit `/usr/lib/lxd/lxd-bridge`. You can add `ifconfig lxdbr0 txqueuelen 10000` in start section, just after iptables rules. For ex.:
-```bash
-iptables "${use_iptables_lock}" -I FORWARD -o "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
-iptables "${use_iptables_lock}" -t mangle -A POSTROUTING -o "${LXD_BRIDGE}" -p udp -m udp --dport 68 -j CHECKSUM --checksum-fill -m comment --comment "managed by lxd-bridge"
-ifconfig lxdbr0 txqueuelen 10000
-```
-If you use lxd master in production or find this inappropriate you can set in `rc.local` or in another way you like.
 You could set it txqueuelen temporary (for test purpose) with `ifconfig interfacename# txqueuelen 10000`
 
 #### /etc/sysctl.conf
