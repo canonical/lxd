@@ -492,7 +492,7 @@ func cmdActivateIfNeeded() error {
 	// Look for network socket
 	value := daemonConfig["core.https_address"].Get()
 	if value != "" {
-		shared.Debugf("Daemon has core.https_address set, activating...")
+		shared.LogDebugf("Daemon has core.https_address set, activating...")
 		_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
 		return err
 	}
@@ -519,19 +519,19 @@ func cmdActivateIfNeeded() error {
 		autoStart := config["boot.autostart"]
 
 		if c.IsRunning() {
-			shared.Debugf("Daemon has running containers, activating...")
+			shared.LogDebugf("Daemon has running containers, activating...")
 			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
 			return err
 		}
 
 		if lastState == "RUNNING" || lastState == "Running" || shared.IsTrue(autoStart) {
-			shared.Debugf("Daemon has auto-started containers, activating...")
+			shared.LogDebugf("Daemon has auto-started containers, activating...")
 			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
 			return err
 		}
 	}
 
-	shared.Debugf("No need to start the daemon now.")
+	shared.LogDebugf("No need to start the daemon now.")
 	return nil
 }
 
