@@ -386,7 +386,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 }
 
 func containersPost(d *Daemon, r *http.Request) Response {
-	shared.Debugf("Responding to container create")
+	shared.LogDebugf("Responding to container create")
 
 	req := containerPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -411,7 +411,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 				return InternalError(fmt.Errorf("couldn't generate a new unique name after 100 tries"))
 			}
 		}
-		shared.Debugf("No name provided, creating %s", req.Name)
+		shared.LogDebugf("No name provided, creating %s", req.Name)
 	}
 
 	if req.Devices == nil {
