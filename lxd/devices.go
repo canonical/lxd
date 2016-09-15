@@ -530,7 +530,7 @@ func deviceEventListener(d *Daemon) {
 				continue
 			}
 
-			shared.Debugf("Scheduler: cpu: %s is now %s: re-balancing", e[0], e[1])
+			shared.LogDebugf("Scheduler: cpu: %s is now %s: re-balancing", e[0], e[1])
 			deviceTaskBalance(d)
 		case e := <-chNetlinkNetwork:
 			if len(e) != 2 {
@@ -542,7 +542,7 @@ func deviceEventListener(d *Daemon) {
 				continue
 			}
 
-			shared.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
+			shared.LogDebugf("Scheduler: network: %s has been added: updating network priorities", e[0])
 			deviceNetworkPriority(d, e[0])
 		case e := <-chUSB:
 			deviceUSBEvent(d, e)
@@ -556,7 +556,7 @@ func deviceEventListener(d *Daemon) {
 				continue
 			}
 
-			shared.Debugf("Scheduler: %s %s %s: re-balancing", e[0], e[1], e[2])
+			shared.LogDebugf("Scheduler: %s %s %s: re-balancing", e[0], e[1], e[2])
 			deviceTaskBalance(d)
 		}
 	}
