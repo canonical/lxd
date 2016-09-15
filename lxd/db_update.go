@@ -77,7 +77,7 @@ type dbUpdate struct {
 func (u *dbUpdate) apply(currentVersion int, d *Daemon) error {
 	// Get the current schema version
 
-	shared.Debugf("Updating DB schema from %d to %d", currentVersion, u.version)
+	shared.LogDebugf("Updating DB schema from %d to %d", currentVersion, u.version)
 
 	err := u.run(currentVersion, u.version, d)
 	if err != nil {
@@ -315,7 +315,7 @@ func dbUpdateFromV18(currentVersion int, version int, d *Daemon) error {
 		// Deal with completely broken values
 		_, err = shared.ParseByteSizeString(value)
 		if err != nil {
-			shared.Debugf("Invalid container memory limit, id=%d value=%s, removing.", id, value)
+			shared.LogDebugf("Invalid container memory limit, id=%d value=%s, removing.", id, value)
 			_, err = d.db.Exec("DELETE FROM containers_config WHERE id=?;", id)
 			if err != nil {
 				return err
@@ -352,7 +352,7 @@ func dbUpdateFromV18(currentVersion int, version int, d *Daemon) error {
 		// Deal with completely broken values
 		_, err = shared.ParseByteSizeString(value)
 		if err != nil {
-			shared.Debugf("Invalid profile memory limit, id=%d value=%s, removing.", id, value)
+			shared.LogDebugf("Invalid profile memory limit, id=%d value=%s, removing.", id, value)
 			_, err = d.db.Exec("DELETE FROM profiles_config WHERE id=?;", id)
 			if err != nil {
 				return err
@@ -576,7 +576,7 @@ func dbUpdateFromV10(currentVersion int, version int, d *Daemon) error {
 			return err
 		}
 
-		shared.Debugf("Restarting all the containers following directory rename")
+		shared.LogDebugf("Restarting all the containers following directory rename")
 		containersShutdown(d)
 		containersRestart(d)
 	}

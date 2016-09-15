@@ -87,7 +87,7 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 	eventListeners[listener.id] = &listener
 	eventsLock.Unlock()
 
-	shared.Debugf("New events listener: %s", listener.id)
+	shared.LogDebugf("New events listener: %s", listener.id)
 
 	<-listener.active
 
@@ -96,7 +96,7 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 	eventsLock.Unlock()
 
 	listener.connection.Close()
-	shared.Debugf("Disconnected events listener: %s", listener.id)
+	shared.LogDebugf("Disconnected events listener: %s", listener.id)
 
 	return nil
 }

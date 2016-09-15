@@ -53,7 +53,7 @@ func filesystemDetect(path string) (string, error) {
 	case filesystemSuperMagicNfs:
 		return "nfs", nil
 	default:
-		shared.Debugf("Unknown backing filesystem type: 0x%x", fs.Type)
+		shared.LogDebugf("Unknown backing filesystem type: 0x%x", fs.Type)
 		return string(fs.Type), nil
 	}
 }
@@ -320,7 +320,7 @@ func (ss *storageShared) shiftRootfs(c container) error {
 
 	err := idmapset.ShiftRootfs(rpath)
 	if err != nil {
-		shared.Debugf("Shift of rootfs %s failed: %s", rpath, err)
+		shared.LogDebugf("Shift of rootfs %s failed: %s", rpath, err)
 		return err
 	}
 
