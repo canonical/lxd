@@ -150,7 +150,7 @@ type ProfileConfig struct {
 	Devices     Devices           `json:"devices"`
 }
 
-func isInt64(value string) error {
+func IsInt64(value string) error {
 	if value == "" {
 		return nil
 	}
@@ -163,7 +163,7 @@ func isInt64(value string) error {
 	return nil
 }
 
-func isPriority(value string) error {
+func IsPriority(value string) error {
 	if value == "" {
 		return nil
 	}
@@ -180,7 +180,7 @@ func isPriority(value string) error {
 	return nil
 }
 
-func isBool(value string) error {
+func IsBool(value string) error {
 	if value == "" {
 		return nil
 	}
@@ -192,7 +192,7 @@ func isBool(value string) error {
 	return nil
 }
 
-func isOneOf(value string, valid []string) error {
+func IsOneOf(value string, valid []string) error {
 	if value == "" {
 		return nil
 	}
@@ -204,7 +204,7 @@ func isOneOf(value string, valid []string) error {
 	return nil
 }
 
-func isAny(value string) error {
+func IsAny(value string) error {
 	return nil
 }
 
@@ -212,47 +212,47 @@ func isAny(value string) error {
 // to an appropriate checker function, which validates whether or not a
 // given value is syntactically legal.
 var KnownContainerConfigKeys = map[string]func(value string) error{
-	"boot.autostart":             isBool,
-	"boot.autostart.delay":       isInt64,
-	"boot.autostart.priority":    isInt64,
-	"boot.host_shutdown_timeout": isInt64,
+	"boot.autostart":             IsBool,
+	"boot.autostart.delay":       IsInt64,
+	"boot.autostart.priority":    IsInt64,
+	"boot.host_shutdown_timeout": IsInt64,
 
-	"limits.cpu":           isAny,
-	"limits.cpu.allowance": isAny,
-	"limits.cpu.priority":  isPriority,
+	"limits.cpu":           IsAny,
+	"limits.cpu.allowance": IsAny,
+	"limits.cpu.priority":  IsPriority,
 
-	"limits.disk.priority": isPriority,
+	"limits.disk.priority": IsPriority,
 
-	"limits.memory": isAny,
+	"limits.memory": IsAny,
 	"limits.memory.enforce": func(value string) error {
-		return isOneOf(value, []string{"soft", "hard"})
+		return IsOneOf(value, []string{"soft", "hard"})
 	},
-	"limits.memory.swap":          isBool,
-	"limits.memory.swap.priority": isPriority,
+	"limits.memory.swap":          IsBool,
+	"limits.memory.swap.priority": IsPriority,
 
-	"limits.network.priority": isPriority,
+	"limits.network.priority": IsPriority,
 
-	"limits.processes": isInt64,
+	"limits.processes": IsInt64,
 
-	"linux.kernel_modules": isAny,
+	"linux.kernel_modules": IsAny,
 
-	"security.nesting":    isBool,
-	"security.privileged": isBool,
+	"security.nesting":    IsBool,
+	"security.privileged": IsBool,
 
-	"security.syscalls.blacklist_default": isBool,
-	"security.syscalls.blacklist_compat":  isBool,
-	"security.syscalls.blacklist":         isAny,
-	"security.syscalls.whitelist":         isAny,
+	"security.syscalls.blacklist_default": IsBool,
+	"security.syscalls.blacklist_compat":  IsBool,
+	"security.syscalls.blacklist":         IsAny,
+	"security.syscalls.whitelist":         IsAny,
 
 	// Caller is responsible for full validation of any raw.* value
-	"raw.apparmor": isAny,
-	"raw.lxc":      isAny,
-	"raw.seccomp":  isAny,
+	"raw.apparmor": IsAny,
+	"raw.lxc":      IsAny,
+	"raw.seccomp":  IsAny,
 
-	"volatile.apply_template":   isAny,
-	"volatile.base_image":       isAny,
-	"volatile.last_state.idmap": isAny,
-	"volatile.last_state.power": isAny,
+	"volatile.apply_template":   IsAny,
+	"volatile.base_image":       IsAny,
+	"volatile.last_state.idmap": IsAny,
+	"volatile.last_state.power": IsAny,
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
@@ -268,20 +268,20 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 
 	if strings.HasPrefix(key, "volatile.") {
 		if strings.HasSuffix(key, ".hwaddr") {
-			return isAny, nil
+			return IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".name") {
-			return isAny, nil
+			return IsAny, nil
 		}
 	}
 
 	if strings.HasPrefix(key, "environment.") {
-		return isAny, nil
+		return IsAny, nil
 	}
 
 	if strings.HasPrefix(key, "user.") {
-		return isAny, nil
+		return IsAny, nil
 	}
 
 	return nil, fmt.Errorf("Bad key: %s", key)

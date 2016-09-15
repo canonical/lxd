@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os/exec"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -124,8 +125,15 @@ func doNetworkGet(d *Daemon, name string) (network, error) {
 		n.Type = "bridge"
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device", n.Name)) {
 		n.Type = "physical"
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bonding", n.Name)) {
+		n.Type = "bond"
 	} else {
-		n.Type = "unknown"
+		_, err := exec.Command("ovs-vsctl", "br-exists", n.Name).CombinedOutput()
+		if err == nil {
+			n.Type = "bridge"
+		} else {
+			n.Type = "unknown"
+		}
 	}
 
 	return n, nil

@@ -6,7 +6,6 @@ import (
 )
 
 type moveCmd struct {
-	httpAddr string
 }
 
 func (c *moveCmd) showByDefault() bool {

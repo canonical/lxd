@@ -24,7 +24,6 @@ import (
 )
 
 type remoteCmd struct {
-	httpAddr   string
 	acceptCert bool
 	password   string
 	public     bool
