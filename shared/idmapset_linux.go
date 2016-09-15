@@ -223,11 +223,13 @@ func GetOwner(path string) (int, int, error) {
 }
 
 func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how string) error {
-	// Expand any symlink in dir and cleanup resulting path
-	dir, err := filepath.EvalSymlinks(dir)
+	// Expand any symlink before the final path component
+	tmp := filepath.Dir(dir)
+	tmp, err := filepath.EvalSymlinks(tmp)
 	if err != nil {
 		return err
 	}
+	dir = filepath.Join(tmp, filepath.Base(dir))
 	dir = strings.TrimRight(dir, "/")
 
 	convert := func(path string, fi os.FileInfo, err error) (e error) {
