@@ -101,8 +101,8 @@ func dbUpdatesApplyAll(d *Daemon) error {
 			continue
 		}
 
-		if !backup {
-			shared.LogInfof("Updating the LXD database schema. Backup made as \"lxd.db.bak\"")
+		if !d.MockMode && !backup {
+			shared.Log.Info("Updating the LXD database schema. Backup made as \"lxd.db.bak\"")
 			err := shared.FileCopy(shared.VarPath("lxd.db"), shared.VarPath("lxd.db.bak"))
 			if err != nil {
 				return err
