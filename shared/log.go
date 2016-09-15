@@ -28,7 +28,7 @@ func init() {
 	Log = nullLogger{}
 }
 
-// Wrapper function for functions in the Logger interface.
+// General wrappers around Logger interface functions.
 func LogDebug(msg string, ctx map[string]interface{}) {
 	if Log != nil {
 		Log.Warn(msg, log.Ctx(ctx))
@@ -59,25 +59,40 @@ func LogCrit(msg string, ctx map[string]interface{}) {
 	}
 }
 
-// Logf sends to the logger registered via SetLogger the string resulting
-// from running format and args through Sprintf.
-func Logf(format string, args ...interface{}) {
+// Wrappers around Logger interface functions that send a string to the Logger
+// by running it through fmt.Sprintf().
+func LogInfof(format string, args ...interface{}) {
 	if Log != nil {
 		Log.Info(fmt.Sprintf(format, args...))
 	}
 }
 
-// Debugf sends to the logger registered via SetLogger the string resulting
-// from running format and args through Sprintf, but only if debugging was
-// enabled via SetDebug.
-func Debugf(format string, args ...interface{}) {
+func LogDebugf(format string, args ...interface{}) {
 	if Log != nil {
 		Log.Debug(fmt.Sprintf(format, args...))
+	}
+}
+
+func LogWarnf(format string, args ...interface{}) {
+	if Log != nil {
+		Log.Warn(fmt.Sprintf(format, args...))
+	}
+}
+
+func LogErrorf(format string, args ...interface{}) {
+	if Log != nil {
+		Log.Error(fmt.Sprintf(format, args...))
+	}
+}
+
+func LogCritf(format string, args ...interface{}) {
+	if Log != nil {
+		Log.Crit(fmt.Sprintf(format, args...))
 	}
 }
 
 func PrintStack() {
 	buf := make([]byte, 1<<16)
 	runtime.Stack(buf, true)
-	Debugf("%s", buf)
+	LogDebugf("%s", buf)
 }
