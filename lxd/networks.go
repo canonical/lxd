@@ -125,6 +125,8 @@ func doNetworkGet(d *Daemon, name string) (network, error) {
 		n.Type = "bridge"
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device", n.Name)) {
 		n.Type = "physical"
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bonding", n.Name)) {
+		n.Type = "bond"
 	} else {
 		_, err := exec.Command("ovs-vsctl", "br-exists", n.Name).CombinedOutput()
 		if err == nil {
