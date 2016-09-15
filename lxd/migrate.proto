@@ -1,35 +1,53 @@
 package main;
 
 enum MigrationFSType {
-  RSYNC     = 0;
-  BTRFS     = 1;
-  ZFS       = 2;
+	RSYNC		= 0;
+	BTRFS		= 1;
+	ZFS		= 2;
 }
 
 enum CRIUType {
-  CRIU_RSYNC    = 0;
-  PHAUL         = 1;
+	CRIU_RSYNC	= 0;
+	PHAUL		= 1;
 }
 
 message IDMapType {
-  required bool   isuid       = 1;
-  required bool   isgid       = 2;
-  required int32  hostid      = 3;
-  required int32  nsid        = 4;
-  required int32  maprange    = 5;
+	required bool	isuid			= 1;
+	required bool	isgid			= 2;
+	required int32	hostid			= 3;
+	required int32	nsid			= 4;
+	required int32	maprange		= 5;
+}
+
+message Config {
+	required string		key	= 1;
+	required string		value	= 2;
+}
+
+message Device {
+	required string		name	= 1;
+	repeated Config		config	= 2;
+}
+
+message Snapshot {
+	required string			name		= 1;
+	repeated Config 		config		= 2;
+	repeated string			profiles	= 3;
+	required bool			ephemeral	= 4;
+	repeated Device			devices		= 5;
 }
 
 message MigrationHeader {
-  required MigrationFSType  fs        = 1;
-  optional CRIUType         criu      = 2;
-  repeated IDMapType        idmap     = 3;
-
-  repeated string           snapshots = 4;
+	required MigrationFSType		fs		= 1;
+	optional CRIUType			criu		= 2;
+	repeated IDMapType	 		idmap		= 3;
+	repeated string				snapshotNames	= 4;
+	repeated Snapshot			snapshots	= 5;
 }
 
 message MigrationControl {
-  required bool     success     = 1;
+	required bool		success		= 1;
 
-  /* optional failure message if sending a failure */
-  optional string   message     = 2;
+	/* optional failure message if sending a failure */
+	optional string		message		= 2;
 }
