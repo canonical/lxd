@@ -1367,7 +1367,7 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 	return &driver, nil
 }
 
-func (s *storageZfs) MigrationSink(live bool, container container, snapshots []string, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
 	zfsRecv := func(zfsName string) error {
 		zfsFsName := fmt.Sprintf("%s/%s", s.zfsPool, zfsName)
 		args := []string{"receive", "-F", "-u", zfsFsName}
@@ -1414,22 +1414,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []s
 	}
 
 	for _, snap := range snapshots {
-		// TODO: we need to propagate snapshot configurations
-		// as well. Right now the container configuration is
-		// done through the initial migration post. Should we
-		// post the snapshots and their configs as well, or do
-		// it some other way?
-		snapName := container.Name() + shared.SnapshotDelimiter + snap
-		args := containerArgs{
-			Ctype:        cTypeSnapshot,
-			Config:       container.LocalConfig(),
-			Profiles:     container.Profiles(),
-			Ephemeral:    container.IsEphemeral(),
-			Architecture: container.Architecture(),
-			Devices:      container.LocalDevices(),
-			Name:         snapName,
-		}
-
+		args := snapshotProtobufToContainerArgs(container.Name(), snap)
 		_, err := containerCreateEmptySnapshot(container.Daemon(), args)
 		if err != nil {
 			return err
