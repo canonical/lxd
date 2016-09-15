@@ -112,7 +112,7 @@ func ParseResponse(r *http.Response) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	shared.Debugf("Raw response: %s", string(s))
+	shared.LogDebugf("Raw response: %s", string(s))
 
 	if err := json.Unmarshal(s, &ret); err != nil {
 		return nil, err
@@ -376,7 +376,7 @@ func (c *Client) put(base string, args interface{}, rtype ResponseType) (*Respon
 		return nil, err
 	}
 
-	shared.Debugf("Putting %s to %s", buf.String(), uri)
+	shared.LogDebugf("Putting %s to %s", buf.String(), uri)
 
 	req, err := http.NewRequest("PUT", uri, &buf)
 	if err != nil {
@@ -402,7 +402,7 @@ func (c *Client) post(base string, args interface{}, rtype ResponseType) (*Respo
 		return nil, err
 	}
 
-	shared.Debugf("Posting %s to %s", buf.String(), uri)
+	shared.LogDebugf("Posting %s to %s", buf.String(), uri)
 
 	req, err := http.NewRequest("POST", uri, &buf)
 	if err != nil {
@@ -452,7 +452,7 @@ func (c *Client) delete(base string, args interface{}, rtype ResponseType) (*Res
 		return nil, err
 	}
 
-	shared.Debugf("Deleting %s to %s", buf.String(), uri)
+	shared.LogDebugf("Deleting %s to %s", buf.String(), uri)
 
 	req, err := http.NewRequest("DELETE", uri, &buf)
 	if err != nil {
@@ -561,7 +561,7 @@ func (c *Client) AmTrusted() bool {
 		return false
 	}
 
-	shared.Debugf("%s", resp)
+	shared.LogDebugf("%s", resp)
 
 	jmap, err := resp.MetadataAsMap()
 	if err != nil {
@@ -582,7 +582,7 @@ func (c *Client) IsPublic() bool {
 		return false
 	}
 
-	shared.Debugf("%s", resp)
+	shared.LogDebugf("%s", resp)
 
 	jmap, err := resp.MetadataAsMap()
 	if err != nil {
@@ -1869,7 +1869,7 @@ func (c *Client) WaitFor(waitURL string) (*shared.Operation, error) {
 	 * "/<version>/operations/" in it; we chop off the leading / and pass
 	 * it to url directly.
 	 */
-	shared.Debugf(path.Join(waitURL[1:], "wait"))
+	shared.LogDebugf(path.Join(waitURL[1:], "wait"))
 	resp, err := c.baseGet(c.url(waitURL, "wait"))
 	if err != nil {
 		return nil, err
@@ -2122,7 +2122,7 @@ func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 
 	st, err := c.ProfileConfig(profile)
 	if err != nil {
-		shared.Debugf("Error getting profile %s to update", profile)
+		shared.LogDebugf("Error getting profile %s to update", profile)
 		return err
 	}
 
