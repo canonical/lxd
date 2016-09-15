@@ -134,7 +134,7 @@ func (c *migrationFields) controlChannel() <-chan MigrationControl {
 		msg := MigrationControl{}
 		err := c.recv(&msg)
 		if err != nil {
-			shared.Debugf("Got error reading migration control socket %s", err)
+			shared.LogDebugf("Got error reading migration control socket %s", err)
 			close(ch)
 			return
 		}
@@ -595,7 +595,7 @@ func (c *migrationSink) do() error {
 				// The source can only tell us it failed (e.g. if
 				// checkpointing failed). We have to tell the source
 				// whether or not the restore was successful.
-				shared.Debugf("Unknown message %v from source", msg)
+				shared.LogDebugf("Unknown message %v from source", msg)
 			}
 		}
 	}
