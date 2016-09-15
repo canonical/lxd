@@ -99,6 +99,13 @@ func unpack(file string, path string) error {
 	} else if strings.HasPrefix(extension, ".squashfs") {
 		command = "unsquashfs"
 		args = append(args, "-f", "-d", path, "-n")
+
+		mem, err := deviceTotalMemory()
+		mem = mem / 1024 / 1024 / 10
+		if err == nil && mem < 256 {
+			args = append(args, "-da", fmt.Sprintf("%d", mem), "-fr", fmt.Sprintf("%d", mem), "-p", "1")
+		}
+
 		args = append(args, file)
 	} else {
 		return fmt.Errorf("Unsupported image format: %s", extension)
