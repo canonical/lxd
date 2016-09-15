@@ -104,14 +104,7 @@ func dbProfileCreateDefault(db *sql.DB) error {
 		return nil
 	}
 
-	// TODO: We should scan for bridges and use the best available as default.
-	devices := shared.Devices{
-		"eth0": shared.Device{
-			"name":    "eth0",
-			"type":    "nic",
-			"nictype": "bridged",
-			"parent":  "lxdbr0"}}
-	id, err := dbProfileCreate(db, "default", "Default LXD profile", map[string]string{}, devices)
+	id, err := dbProfileCreate(db, "default", "Default LXD profile", map[string]string{}, shared.Devices{})
 	if err != nil {
 		return err
 	}
