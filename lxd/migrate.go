@@ -318,19 +318,22 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	 * do that, but then immediately send an error.
 	 */
 	snapshots := []*Snapshot{}
+	snapshotNames := []string{}
 	if fsErr == nil {
 		fullSnaps := driver.Snapshots()
 		for _, snap := range fullSnaps {
 			snapshots = append(snapshots, snapshotToProtobuf(snap))
+			snapshotNames = append(snapshotNames, shared.ExtractSnapshotName(snap.Name()))
 		}
 	}
 
 	myType := s.container.Storage().MigrationType()
 	header := MigrationHeader{
-		Fs:        &myType,
-		Criu:      criuType,
-		Idmap:     idmaps,
-		Snapshots: snapshots,
+		Fs:            &myType,
+		Criu:          criuType,
+		Idmap:         idmaps,
+		SnapshotNames: snapshotNames,
+		Snapshots:     snapshots,
 	}
 
 	if err := s.send(&header); err != nil {
@@ -637,7 +640,7 @@ func (c *migrationSink) do() error {
 			 * copy the container's config over, same as we used to
 			 * do.
 			 */
-			if len(header.SnapshotNames) > 0 {
+			if len(header.SnapshotNames) != len(header.Snapshots) {
 				for _, name := range header.SnapshotNames {
 					base := snapshotToProtobuf(c.container)
 					base.Name = &name
