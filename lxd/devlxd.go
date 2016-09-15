@@ -217,7 +217,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	case http.StateNew:
 		cred, err := getCred(unixConn)
 		if err != nil {
-			shared.Debugf("Error getting ucred for conn %s", err)
+			shared.LogDebugf("Error getting ucred for conn %s", err)
 		} else {
 			m.m[unixConn] = cred
 		}
@@ -238,7 +238,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	case http.StateClosed:
 		delete(m.m, unixConn)
 	default:
-		shared.Debugf("Unknown state for connection %s", state)
+		shared.LogDebugf("Unknown state for connection %s", state)
 	}
 }
 

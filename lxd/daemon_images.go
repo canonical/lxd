@@ -50,7 +50,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			entry = &imageStreamCacheEntry{ss: ss, expiry: time.Now().Add(time.Hour)}
 			imageStreamCache[server] = entry
 		} else {
-			shared.Debugf("Using SimpleStreams cache entry for %s, expires at %s", server, entry.expiry)
+			shared.LogDebugf("Using SimpleStreams cache entry for %s, expires at %s", server, entry.expiry)
 			ss = entry.ss
 		}
 		imageStreamCacheLock.Unlock()

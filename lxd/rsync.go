@@ -37,13 +37,13 @@ func rsyncWebsocket(path string, cmd *exec.Cmd, conn *websocket.Conn) error {
 	readDone, writeDone := shared.WebsocketMirror(conn, stdin, stdout)
 	data, err2 := ioutil.ReadAll(stderr)
 	if err2 != nil {
-		shared.Debugf("error reading rsync stderr: %s", err2)
+		shared.LogDebugf("error reading rsync stderr: %s", err2)
 		return err2
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.Debugf("rsync recv error for path %s: %s: %s", path, err, string(data))
+		shared.LogDebugf("rsync recv error for path %s: %s: %s", path, err, string(data))
 	}
 
 	<-readDone
@@ -139,12 +139,12 @@ func RsyncSend(path string, conn *websocket.Conn) error {
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		shared.Debugf("problem reading rsync stderr %s", err)
+		shared.LogDebugf("problem reading rsync stderr %s", err)
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.Debugf("problem with rsync send of %s: %s: %s", path, err, string(output))
+		shared.LogDebugf("problem with rsync send of %s: %s: %s", path, err, string(output))
 	}
 
 	<-readDone

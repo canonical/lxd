@@ -367,21 +367,21 @@ func (d *Daemon) SetupStorageDriver() error {
 	if lvmVgName != "" {
 		d.Storage, err = newStorage(d, storageTypeLvm)
 		if err != nil {
-			shared.Logf("Could not initialize storage type LVM: %s - falling back to dir", err)
+			shared.LogInfof("Could not initialize storage type LVM: %s - falling back to dir", err)
 		} else {
 			return nil
 		}
 	} else if zfsPoolName != "" {
 		d.Storage, err = newStorage(d, storageTypeZfs)
 		if err != nil {
-			shared.Logf("Could not initialize storage type ZFS: %s - falling back to dir", err)
+			shared.LogInfof("Could not initialize storage type ZFS: %s - falling back to dir", err)
 		} else {
 			return nil
 		}
 	} else if d.BackingFs == "btrfs" {
 		d.Storage, err = newStorage(d, storageTypeBtrfs)
 		if err != nil {
-			shared.Logf("Could not initialize storage type btrfs: %s - falling back to dir", err)
+			shared.LogInfof("Could not initialize storage type btrfs: %s - falling back to dir", err)
 		} else {
 			return nil
 		}
@@ -772,14 +772,14 @@ func (d *Daemon) Init() error {
 	go func() {
 		t := time.NewTicker(24 * time.Hour)
 		for {
-			shared.Debugf("Expiring log files")
+			shared.LogDebugf("Expiring log files")
 
 			err := d.ExpireLogs()
 			if err != nil {
 				shared.Log.Error("Failed to expire logs", log.Ctx{"err": err})
 			}
 
-			shared.Debugf("Done expiring log files")
+			shared.LogDebugf("Done expiring log files")
 			<-t.C
 		}
 	}()
@@ -1098,7 +1098,7 @@ func (d *Daemon) Stop() error {
 
 		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
 	} else {
-		shared.Debugf("Not unmounting shmounts (containers are still running)")
+		shared.LogDebugf("Not unmounting shmounts (containers are still running)")
 	}
 
 	shared.Log.Debug("Closing the database")
