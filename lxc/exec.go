@@ -61,7 +61,7 @@ func (c *execCmd) sendTermSize(control *websocket.Conn) error {
 		return err
 	}
 
-	shared.Debugf("Window size is now: %dx%d", width, height)
+	shared.LogDebugf("Window size is now: %dx%d", width, height)
 
 	w, err := control.NextWriter(websocket.TextMessage)
 	if err != nil {
