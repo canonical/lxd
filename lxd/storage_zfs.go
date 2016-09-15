@@ -1361,7 +1361,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []c
 
 		output, err := ioutil.ReadAll(stderr)
 		if err != nil {
-			shared.Debugf("problem reading zfs recv stderr %s", "err", err)
+			shared.LogDebugf("problem reading zfs recv stderr %s", "err", err)
 		}
 
 		err = cmd.Wait()
