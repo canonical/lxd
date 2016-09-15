@@ -107,8 +107,8 @@ func unpack(file string, path string) error {
 	output, err := exec.Command(command, args...).CombinedOutput()
 	if err != nil {
 		co := string(output)
-		shared.Debugf("Unpacking failed")
-		shared.Debugf(co)
+		shared.LogDebugf("Unpacking failed")
+		shared.LogDebugf(co)
 
 		// Truncate the output to a single line for inclusion in the error
 		// message.  The first line isn't guaranteed to pinpoint the issue,
@@ -654,7 +654,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		}
 
 		if err := os.RemoveAll(path); err != nil {
-			shared.Debugf("Error deleting temporary directory \"%s\": %s", path, err)
+			shared.LogDebugf("Error deleting temporary directory \"%s\": %s", path, err)
 		}
 	}
 
@@ -836,7 +836,7 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
 
 func autoUpdateImages(d *Daemon) {
-	shared.Debugf("Updating images")
+	shared.LogDebugf("Updating images")
 
 	images, err := dbImagesGet(d.db, false)
 	if err != nil {
@@ -895,11 +895,11 @@ func autoUpdateImages(d *Daemon) {
 		}
 	}
 
-	shared.Debugf("Done updating images")
+	shared.LogDebugf("Done updating images")
 }
 
 func pruneExpiredImages(d *Daemon) {
-	shared.Debugf("Pruning expired images")
+	shared.LogDebugf("Pruning expired images")
 
 	// Get the list of expires images
 	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
@@ -916,7 +916,7 @@ func pruneExpiredImages(d *Daemon) {
 		}
 	}
 
-	shared.Debugf("Done pruning expired images")
+	shared.LogDebugf("Done pruning expired images")
 }
 
 func doDeleteImage(d *Daemon, fingerprint string) error {
@@ -942,7 +942,7 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
-			shared.Debugf("Error deleting image file %s: %s", fname, err)
+			shared.LogDebugf("Error deleting image file %s: %s", fname, err)
 		}
 	}
 
@@ -951,7 +951,7 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
-			shared.Debugf("Error deleting image file %s: %s", fname, err)
+			shared.LogDebugf("Error deleting image file %s: %s", fname, err)
 		}
 	}
 
