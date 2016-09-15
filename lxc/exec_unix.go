@@ -25,11 +25,11 @@ func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {
 	for {
 		sig := <-ch
 
-		shared.Debugf("Received '%s signal', updating window geometry.", sig)
+		shared.LogDebugf("Received '%s signal', updating window geometry.", sig)
 
 		err := c.sendTermSize(control)
 		if err != nil {
-			shared.Debugf("error setting term size %s", err)
+			shared.LogDebugf("error setting term size %s", err)
 			break
 		}
 	}
