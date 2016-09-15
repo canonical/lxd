@@ -36,7 +36,7 @@ type patch struct {
 }
 
 func (p *patch) apply(d *Daemon) error {
-	shared.Debugf("Applying patch: %s", p.name)
+	shared.LogDebugf("Applying patch: %s", p.name)
 
 	err := p.run(p.name, d)
 	if err != nil {
