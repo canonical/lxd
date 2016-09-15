@@ -285,8 +285,7 @@ In any case, resource-specific configuration always overrides that
 coming from the profiles.
 
 
-If not present, LXD will create a "default" profile which comes with a
-network interface connected to LXD's default bridge (lxdbr0).
+If not present, LXD will create a "default" profile.
 
 The "default" profile is set for any new container created which doesn't
 specify a different profiles list.

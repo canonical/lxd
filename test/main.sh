@@ -92,6 +92,9 @@ spawn_lxd() {
     set -x
   fi
 
+  echo "==> Setting up networking"
+  LXD_DIR="${lxddir}" lxc network attach-profile lxdbr0 default eth0
+
   echo "==> Configuring storage backend"
   "$LXD_BACKEND"_configure "${lxddir}"
 }

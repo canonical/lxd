@@ -22,7 +22,7 @@ const DB_FIXTURES string = `
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
     INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'thekey', 'thevalue');
     INSERT INTO profiles_devices (profile_id, name, type) VALUES (3, 'devicename', 1);
-    INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (3, 'devicekey', 'devicevalue');
+    INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (2, 'devicekey', 'devicevalue');
     `
 
 //  This Helper will initialize a test in-memory DB.
