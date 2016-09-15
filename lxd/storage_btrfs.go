@@ -1020,7 +1020,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 		output, err := ioutil.ReadAll(stderr)
 		if err != nil {
-			shared.Debugf("problem reading btrfs receive stderr %s", err)
+			shared.LogDebugf("problem reading btrfs receive stderr %s", err)
 		}
 
 		err = cmd.Wait()
