@@ -758,14 +758,14 @@ func (d *Daemon) Init() error {
 	go func() {
 		t := time.NewTicker(24 * time.Hour)
 		for {
-			shared.Debugf("Expiring log files")
+			shared.LogDebugf("Expiring log files")
 
 			err := d.ExpireLogs()
 			if err != nil {
 				shared.Log.Error("Failed to expire logs", log.Ctx{"err": err})
 			}
 
-			shared.Debugf("Done expiring log files")
+			shared.LogDebugf("Done expiring log files")
 			<-t.C
 		}
 	}()
@@ -1069,7 +1069,7 @@ func (d *Daemon) Stop() error {
 
 		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
 	} else {
-		shared.Debugf("Not unmounting shmounts (containers are still running)")
+		shared.LogDebugf("Not unmounting shmounts (containers are still running)")
 	}
 
 	shared.Log.Debug("Closing the database")
