@@ -41,7 +41,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 		} else {
 			profile, err := doProfileGet(d, name)
 			if err != nil {
-				shared.Log.Error("Failed to get profile", log.Ctx{"profile": name})
+				shared.LogError("Failed to get profile", log.Ctx{"profile": name})
 				continue
 			}
 			resultMap[i] = profile
@@ -132,7 +132,7 @@ func getRunningContainersWithProfile(d *Daemon, profile string) []container {
 	for _, name := range output {
 		c, err := containerLoadByName(d, name)
 		if err != nil {
-			shared.Log.Error("Failed opening container", log.Ctx{"container": name})
+			shared.LogError("Failed opening container", log.Ctx{"container": name})
 			continue
 		}
 		results = append(results, c)
