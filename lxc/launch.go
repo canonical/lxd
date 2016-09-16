@@ -121,6 +121,8 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
+	c.init.checkNetwork(d, name)
+
 	fmt.Printf(i18n.G("Starting %s")+"\n", name)
 	resp, err = d.Action(name, shared.Start, -1, false, false)
 	if err != nil {

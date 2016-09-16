@@ -210,6 +210,9 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 			fmt.Printf(i18n.G("Container name is: %s")+"\n", fields[len(fields)-1])
 		}
 	}
+
+	c.checkNetwork(d, name)
+
 	return nil
 }
 
@@ -276,4 +279,21 @@ func (c *initCmd) guessImage(config *lxd.Config, d *lxd.Client, remote string, i
 
 	fmt.Fprintf(os.Stderr, i18n.G("The local image '%s' couldn't be found, trying '%s:' instead.")+"\n", image, image)
 	return image, "default"
+}
+
+func (c *initCmd) checkNetwork(d *lxd.Client, name string) {
+	ct, err := d.ContainerInfo(name)
+	if err != nil {
+		return
+	}
+
+	for _, d := range ct.ExpandedDevices {
+		if d["type"] == "nic" {
+			return
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "\n"+i18n.G("The container you are starting doesn’t have any network attached to it.")+"\n")
+	fmt.Fprintf(os.Stderr, "  "+i18n.G("To create a new network, use: lxc network create")+"\n")
+	fmt.Fprintf(os.Stderr, "  "+i18n.G("To assign a network to a container, use: lxc network assign")+"\n\n")
 }

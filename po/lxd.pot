@@ -1055,7 +1055,7 @@ msgstr  ""
 msgid   "Resources:"
 msgstr  ""
 
-#: lxc/init.go:247
+#: lxc/init.go:250
 #, c-format
 msgid   "Retrieving image: %s"
 msgstr  ""
@@ -1138,7 +1138,7 @@ msgstr  ""
 msgid   "Source:"
 msgstr  ""
 
-#: lxc/launch.go:124
+#: lxc/launch.go:126
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
@@ -1180,11 +1180,15 @@ msgstr  ""
 msgid   "The container is currently running. Use --force to have it stopped and restarted."
 msgstr  ""
 
+#: lxc/init.go:296
+msgid   "The container you are starting doesn’t have any network attached to it."
+msgstr  ""
+
 #: lxc/config.go:675 lxc/config.go:687 lxc/config.go:720 lxc/config.go:738 lxc/config.go:776 lxc/config.go:794
 msgid   "The device doesn't exist"
 msgstr  ""
 
-#: lxc/init.go:277
+#: lxc/init.go:280
 #, c-format
 msgid   "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr  ""
@@ -1213,6 +1217,14 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
+#: lxc/init.go:298
+msgid   "To assign a network to a container, use: lxc network assign"
+msgstr  ""
+
+#: lxc/init.go:297
+msgid   "To create a new network, use: lxc network create"
+msgstr  ""
+
 #: lxc/main.go:137
 msgid   "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr  ""
@@ -1222,7 +1234,7 @@ msgstr  ""
 msgid   "Transferring image: %d%%"
 msgstr  ""
 
-#: lxc/action.go:99 lxc/launch.go:137
+#: lxc/action.go:99 lxc/launch.go:139
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
