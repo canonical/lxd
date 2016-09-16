@@ -272,12 +272,16 @@ func snapshotToProtobuf(c container) *Snapshot {
 
 	parts := strings.SplitN(c.Name(), shared.SnapshotDelimiter, 2)
 	isEphemeral := c.IsEphemeral()
+	arch := int32(c.Architecture())
+	stateful := c.IsStateful()
 	return &Snapshot{
-		Name:      &parts[len(parts)-1],
-		Config:    config,
-		Profiles:  c.Profiles(),
-		Ephemeral: &isEphemeral,
-		Devices:   devices,
+		Name:         &parts[len(parts)-1],
+		LocalConfig:  config,
+		Profiles:     c.Profiles(),
+		Ephemeral:    &isEphemeral,
+		LocalDevices: devices,
+		Architecture: &arch,
+		Stateful:     &stateful,
 	}
 }
 
