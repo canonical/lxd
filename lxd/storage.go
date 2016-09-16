@@ -309,7 +309,7 @@ func (ss *storageShared) shiftRootfs(c container) error {
 	dpath := c.Path()
 	rpath := c.RootfsPath()
 
-	shared.Log.Debug("Shifting root filesystem",
+	shared.LogDebug("Shifting root filesystem",
 		log.Ctx{"container": c.Name(), "rootfs": rpath})
 
 	idmapset := c.IdmapSet()

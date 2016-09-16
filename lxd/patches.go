@@ -95,7 +95,7 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 
 	for _, profile := range profiles {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
-			shared.Log.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
+			shared.LogInfo("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
 			err := dbProfileDelete(d.db, profile)
 			if err != nil {
 				return err
