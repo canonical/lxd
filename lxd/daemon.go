@@ -218,7 +218,7 @@ func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, er
 func readMyCert() (string, string, error) {
 	certf := shared.VarPath("server.crt")
 	keyf := shared.VarPath("server.key")
-	shared.LogInfo("Looking for existing certificates", log.Ctx{"cert": certf, "key": keyf})
+	shared.LogDebug("Looking for existing certificates", log.Ctx{"cert": certf, "key": keyf})
 	err := shared.FindOrGenCert(certf, keyf)
 
 	return certf, keyf, err
@@ -277,15 +277,15 @@ func (d *Daemon) createCmd(version string, c Command) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if d.isTrustedClient(r) {
-			shared.LogInfo(
+			shared.LogDebug(
 				"handling",
 				log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if r.Method == "GET" && c.untrustedGet {
-			shared.LogInfo(
+			shared.LogDebug(
 				"allowing untrusted GET",
 				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if r.Method == "POST" && c.untrustedPost {
-			shared.LogInfo(
+			shared.LogDebug(
 				"allowing untrusted POST",
 				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
@@ -367,21 +367,21 @@ func (d *Daemon) SetupStorageDriver() error {
 	if lvmVgName != "" {
 		d.Storage, err = newStorage(d, storageTypeLvm)
 		if err != nil {
-			shared.LogInfof("Could not initialize storage type LVM: %s - falling back to dir", err)
+			shared.LogDebugf("Could not initialize storage type LVM: %s - falling back to dir", err)
 		} else {
 			return nil
 		}
 	} else if zfsPoolName != "" {
 		d.Storage, err = newStorage(d, storageTypeZfs)
 		if err != nil {
-			shared.LogInfof("Could not initialize storage type ZFS: %s - falling back to dir", err)
+			shared.LogDebugf("Could not initialize storage type ZFS: %s - falling back to dir", err)
 		} else {
 			return nil
 		}
 	} else if d.BackingFs == "btrfs" {
 		d.Storage, err = newStorage(d, storageTypeBtrfs)
 		if err != nil {
-			shared.LogInfof("Could not initialize storage type btrfs: %s - falling back to dir", err)
+			shared.LogDebugf("Could not initialize storage type btrfs: %s - falling back to dir", err)
 		} else {
 			return nil
 		}
@@ -573,13 +573,13 @@ func (d *Daemon) Init() error {
 
 	/* Print welcome message */
 	if d.MockMode {
-		shared.LogInfo("LXD is starting in mock mode",
+		shared.LogDebug("LXD is starting in mock mode",
 			log.Ctx{"path": shared.VarPath("")})
 	} else if d.SetupMode {
-		shared.LogInfo("LXD is starting in setup mode",
+		shared.LogDebug("LXD is starting in setup mode",
 			log.Ctx{"path": shared.VarPath("")})
 	} else {
-		shared.LogInfo("LXD is starting in normal mode",
+		shared.LogDebug("LXD is starting in normal mode",
 			log.Ctx{"path": shared.VarPath("")})
 	}
 
@@ -736,9 +736,9 @@ func (d *Daemon) Init() error {
 		shared.LogWarn("Error reading idmap", log.Ctx{"err": err.Error()})
 		shared.LogWarnf("Only privileged containers will be able to run")
 	} else {
-		shared.LogInfof("Default uid/gid map:")
+		shared.LogDebugf("Default uid/gid map:")
 		for _, lxcmap := range d.IdmapSet.ToLxcString() {
-			shared.LogInfof(strings.TrimRight(" - "+lxcmap, "\n"))
+			shared.LogDebugf(strings.TrimRight(" - "+lxcmap, "\n"))
 		}
 	}
 
@@ -835,7 +835,7 @@ func (d *Daemon) Init() error {
 			tlsConfig.RootCAs = caPool
 			tlsConfig.ClientCAs = caPool
 
-			shared.LogInfof("LXD is in CA mode, only CA-signed certificates will be allowed")
+			shared.LogDebugf("LXD is in CA mode, only CA-signed certificates will be allowed")
 		}
 
 		tlsConfig.BuildNameToCertificate()
@@ -870,7 +870,7 @@ func (d *Daemon) Init() error {
 
 	listeners := d.GetListeners()
 	if len(listeners) > 0 {
-		shared.LogInfof("LXD is socket activated")
+		shared.LogDebugf("LXD is socket activated")
 
 		for _, listener := range listeners {
 			if shared.PathExists(listener.Addr().String()) {
@@ -881,7 +881,7 @@ func (d *Daemon) Init() error {
 			}
 		}
 	} else {
-		shared.LogInfof("LXD isn't socket activated")
+		shared.LogDebugf("LXD isn't socket activated")
 
 		localSocketPath := shared.VarPath("unix.socket")
 
@@ -945,7 +945,7 @@ func (d *Daemon) Init() error {
 			shared.LogError("cannot listen on https socket, skipping...", log.Ctx{"err": err})
 		} else {
 			if d.TCPSocket != nil {
-				shared.LogInfof("Replacing inherited TCP socket with configured one")
+				shared.LogDebugf("Replacing inherited TCP socket with configured one")
 				d.TCPSocket.Socket.Close()
 			}
 			d.TCPSocket = &Socket{Socket: tcpl, CloseOnExit: true}
@@ -953,14 +953,14 @@ func (d *Daemon) Init() error {
 	}
 
 	d.tomb.Go(func() error {
-		shared.LogInfof("REST API daemon:")
+		shared.LogDebugf("REST API daemon:")
 		if d.UnixSocket != nil {
-			shared.LogInfo(" - binding Unix socket", log.Ctx{"socket": d.UnixSocket.Socket.Addr()})
+			shared.LogDebug(" - binding Unix socket", log.Ctx{"socket": d.UnixSocket.Socket.Addr()})
 			d.tomb.Go(func() error { return http.Serve(d.UnixSocket.Socket, &lxdHttpServer{d.mux, d}) })
 		}
 
 		if d.TCPSocket != nil {
-			shared.LogInfo(" - binding TCP socket", log.Ctx{"socket": d.TCPSocket.Socket.Addr()})
+			shared.LogDebug(" - binding TCP socket", log.Ctx{"socket": d.TCPSocket.Socket.Addr()})
 			d.tomb.Go(func() error { return http.Serve(d.TCPSocket.Socket, &lxdHttpServer{d.mux, d}) })
 		}
 
@@ -1078,17 +1078,17 @@ func (d *Daemon) Stop() error {
 	forceStop := false
 
 	d.tomb.Kill(errStop)
-	shared.LogInfof("Stopping REST API handler:")
+	shared.LogDebugf("Stopping REST API handler:")
 	for _, socket := range []*Socket{d.TCPSocket, d.UnixSocket} {
 		if socket == nil {
 			continue
 		}
 
 		if socket.CloseOnExit {
-			shared.LogInfo(" - closing socket", log.Ctx{"socket": socket.Socket.Addr()})
+			shared.LogDebug(" - closing socket", log.Ctx{"socket": socket.Socket.Addr()})
 			socket.Socket.Close()
 		} else {
-			shared.LogInfo(" - skipping socket-activated socket", log.Ctx{"socket": socket.Socket.Addr()})
+			shared.LogDebug(" - skipping socket-activated socket", log.Ctx{"socket": socket.Socket.Addr()})
 			forceStop = true
 		}
 	}
