@@ -20,7 +20,7 @@ import (
 func storageLVMCheckVolumeGroup(vgName string) error {
 	output, err := exec.Command("vgdisplay", "-s", vgName).CombinedOutput()
 	if err != nil {
-		shared.Log.Debug("vgdisplay failed to find vg", log.Ctx{"output": string(output)})
+		shared.LogDebug("vgdisplay failed to find vg", log.Ctx{"output": string(output)})
 		return fmt.Errorf("LVM volume group '%s' not found", vgName)
 	}
 
@@ -557,7 +557,7 @@ func (s *storageLvm) createSnapshotContainer(
 
 	srcName := containerNameToLVName(sourceContainer.Name())
 	destName := containerNameToLVName(snapshotContainer.Name())
-	shared.Log.Debug(
+	shared.LogDebug(
 		"Creating snapshot",
 		log.Ctx{"srcName": srcName, "destName": destName})
 
@@ -649,7 +649,7 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 	srcName := containerNameToLVName(container.Name())
 	destName := containerNameToLVName(container.Name() + "/rw")
 
-	shared.Log.Debug(
+	shared.LogDebug(
 		"Creating snapshot",
 		log.Ctx{"srcName": srcName, "destName": destName})
 

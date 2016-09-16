@@ -218,7 +218,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 					devnum,
 				)
 				if err != nil {
-					shared.Log.Error("error reading usb device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
+					shared.LogError("error reading usb device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
 					continue
 				}
 
@@ -286,24 +286,24 @@ func deviceTaskBalance(d *Daemon) {
 		// Older kernel - use cpuset.cpus
 		effectiveCpus, err = cGroupGet("cpuset", "/", "cpuset.cpus")
 		if err != nil {
-			shared.Log.Error("Error reading host's cpuset.cpus")
+			shared.LogErrorf("Error reading host's cpuset.cpus")
 			return
 		}
 	}
 	err = cGroupSet("cpuset", "/lxc", "cpuset.cpus", effectiveCpus)
 	if err != nil && shared.PathExists("/sys/fs/cgroup/cpuset/lxc") {
-		shared.Log.Warn("Error setting lxd's cpuset.cpus", log.Ctx{"err": err})
+		shared.LogWarn("Error setting lxd's cpuset.cpus", log.Ctx{"err": err})
 	}
 	cpus, err := parseCpuset(effectiveCpus)
 	if err != nil {
-		shared.Log.Error("Error parsing host's cpu set", log.Ctx{"cpuset": effectiveCpus, "err": err})
+		shared.LogError("Error parsing host's cpu set", log.Ctx{"cpuset": effectiveCpus, "err": err})
 		return
 	}
 
 	// Iterate through the containers
 	containers, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
-		shared.Log.Error("problem loading containers list", log.Ctx{"err": err})
+		shared.LogError("problem loading containers list", log.Ctx{"err": err})
 		return
 	}
 	fixedContainers := map[int][]container{}
@@ -367,7 +367,7 @@ func deviceTaskBalance(d *Daemon) {
 	for cpu, ctns := range fixedContainers {
 		c, ok := usage[cpu]
 		if !ok {
-			shared.Log.Error("Internal error: container using unavailable cpu")
+			shared.LogErrorf("Internal error: container using unavailable cpu")
 			continue
 		}
 		id := c.strId
@@ -416,7 +416,7 @@ func deviceTaskBalance(d *Daemon) {
 		sort.Strings(set)
 		err := ctn.CGroupSet("cpuset.cpus", strings.Join(set, ","))
 		if err != nil {
-			shared.Log.Error("balance: Unable to set cpuset", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
+			shared.LogError("balance: Unable to set cpuset", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
 		}
 	}
 }
@@ -460,7 +460,7 @@ func deviceNetworkPriority(d *Daemon, netif string) {
 func deviceUSBEvent(d *Daemon, usb usbDevice) {
 	containers, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
-		shared.Log.Error("problem loading containers list", log.Ctx{"err": err})
+		shared.LogError("problem loading containers list", log.Ctx{"err": err})
 		return
 	}
 
@@ -472,7 +472,7 @@ func deviceUSBEvent(d *Daemon, usb usbDevice) {
 
 		c, ok := containerIf.(*containerLXC)
 		if !ok {
-			shared.Log.Error("got device event on non-LXC container?")
+			shared.LogErrorf("got device event on non-LXC container?")
 			return
 		}
 
@@ -494,17 +494,17 @@ func deviceUSBEvent(d *Daemon, usb usbDevice) {
 			if usb.action == "add" {
 				err := c.insertUSBDevice(m, usb)
 				if err != nil {
-					shared.Log.Error("failed to create usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+					shared.LogError("failed to create usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
 				}
 			} else if usb.action == "remove" {
 				err := c.removeUSBDevice(m, usb)
 				if err != nil {
-					shared.Log.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+					shared.LogError("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
 				}
 			} else {
-				shared.Log.Error("unknown action for usb device", log.Ctx{"usb": usb})
+				shared.LogError("unknown action for usb device", log.Ctx{"usb": usb})
 				continue
 			}
 		}
@@ -514,7 +514,7 @@ func deviceUSBEvent(d *Daemon, usb usbDevice) {
 func deviceEventListener(d *Daemon) {
 	chNetlinkCPU, chNetlinkNetwork, chUSB, err := deviceNetlinkListener()
 	if err != nil {
-		shared.Log.Error("scheduler: couldn't setup netlink listener")
+		shared.LogErrorf("scheduler: couldn't setup netlink listener")
 		return
 	}
 
@@ -522,7 +522,7 @@ func deviceEventListener(d *Daemon) {
 		select {
 		case e := <-chNetlinkCPU:
 			if len(e) != 2 {
-				shared.Log.Error("Scheduler: received an invalid cpu hotplug event")
+				shared.LogErrorf("Scheduler: received an invalid cpu hotplug event")
 				continue
 			}
 
@@ -534,7 +534,7 @@ func deviceEventListener(d *Daemon) {
 			deviceTaskBalance(d)
 		case e := <-chNetlinkNetwork:
 			if len(e) != 2 {
-				shared.Log.Error("Scheduler: received an invalid network hotplug event")
+				shared.LogErrorf("Scheduler: received an invalid network hotplug event")
 				continue
 			}
 
@@ -548,7 +548,7 @@ func deviceEventListener(d *Daemon) {
 			deviceUSBEvent(d, e)
 		case e := <-deviceSchedRebalance:
 			if len(e) != 3 {
-				shared.Log.Error("Scheduler: received an invalid rebalance event")
+				shared.LogErrorf("Scheduler: received an invalid rebalance event")
 				continue
 			}
 
