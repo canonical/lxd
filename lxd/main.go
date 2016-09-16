@@ -667,7 +667,7 @@ func cmdInit() error {
 		}
 	}
 
-	askString := func(question string, default_ string, validate func(string) string) string {
+	askString := func(question string, default_ string, validate func(string) error) string {
 		for {
 			fmt.Printf(question)
 			input, _ := reader.ReadString('\n')
@@ -677,7 +677,7 @@ func cmdInit() error {
 			}
 			if validate != nil {
 				result := validate(input)
-				if result != "" {
+				if result != nil {
 					fmt.Printf("Invalid input: %s\n\n", result)
 					continue
 				}
@@ -812,11 +812,11 @@ func cmdInit() error {
 			if askBool("Create a new ZFS pool (yes/no) [default=yes]? ", "yes") {
 				storagePool = askString("Name of the new ZFS pool [default=lxd]: ", "lxd", nil)
 				if askBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
-					deviceExists := func(path string) string {
+					deviceExists := func(path string) error {
 						if !shared.IsBlockdevPath(path) {
-							return fmt.Sprintf("'%s' is not a block device", path)
+							return fmt.Errorf("'%s' is not a block device", path)
 						}
-						return ""
+						return nil
 					}
 					storageDevice = askString("Path to the existing block device: ", "", deviceExists)
 					storageMode = "device"
@@ -866,11 +866,11 @@ they otherwise would.
 		}
 
 		if askBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
-			isIPAddress := func(s string) string {
+			isIPAddress := func(s string) error {
 				if s != "all" && net.ParseIP(s) == nil {
-					return fmt.Sprintf("'%s' is not an IP address", s)
+					return fmt.Errorf("'%s' is not an IP address", s)
 				}
-				return ""
+				return nil
 			}
 
 			networkAddress = askString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
