@@ -1451,7 +1451,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 			return err
 		}
 
-		name := fmt.Sprintf("containers/%s@snapshot-%s", container.Name(), snap)
+		name := fmt.Sprintf("containers/%s@snapshot-%s", container.Name(), snap.GetName())
 		if err := zfsRecv(name); err != nil {
 			return err
 		}
@@ -1461,7 +1461,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 			return err
 		}
 
-		err = os.Symlink("on-zfs", shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", container.Name(), snap)))
+		err = os.Symlink("on-zfs", shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", container.Name(), snap.GetName())))
 		if err != nil {
 			return err
 		}
