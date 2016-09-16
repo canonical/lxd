@@ -1233,7 +1233,7 @@ func (c *containerLXC) startCommon() (string, error) {
 				/* it's ok to fail, the device might be hot plugged later */
 				_, err := c.createUnixDevice(temp)
 				if err != nil {
-					shared.Log.Debug("failed to create usb device", log.Ctx{"err": err, "device": k})
+					shared.LogDebug("failed to create usb device", log.Ctx{"err": err, "device": k})
 					continue
 				}
 
@@ -1504,7 +1504,7 @@ func (c *containerLXC) OnStart() error {
 			c.fromHook = false
 			err := c.setNetworkPriority()
 			if err != nil {
-				shared.Log.Error("Failed to apply network priority", log.Ctx{"container": c.name, "err": err})
+				shared.LogError("Failed to apply network priority", log.Ctx{"container": c.name, "err": err})
 			}
 		}(c)
 	}
@@ -1524,7 +1524,7 @@ func (c *containerLXC) OnStart() error {
 			c.fromHook = false
 			err = c.setNetworkLimits(name, m)
 			if err != nil {
-				shared.Log.Error("Failed to apply network limits", log.Ctx{"container": c.name, "err": err})
+				shared.LogError("Failed to apply network limits", log.Ctx{"container": c.name, "err": err})
 			}
 		}(c, name, m)
 	}
@@ -1666,13 +1666,13 @@ func (c *containerLXC) OnStop(target string) error {
 		// Clean all the unix devices
 		err = c.removeUnixDevices()
 		if err != nil {
-			shared.Log.Error("Unable to remove unix devices", log.Ctx{"err": err})
+			shared.LogError("Unable to remove unix devices", log.Ctx{"err": err})
 		}
 
 		// Clean all the disk devices
 		err = c.removeDiskDevices()
 		if err != nil {
-			shared.Log.Error("Unable to remove disk devices", log.Ctx{"err": err})
+			shared.LogError("Unable to remove disk devices", log.Ctx{"err": err})
 		}
 
 		// Reboot the container
@@ -1879,7 +1879,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	if c.IsRunning() {
 		wasRunning = true
 		if err := c.Stop(false); err != nil {
-			shared.Log.Error(
+			shared.LogError(
 				"Could not stop container",
 				log.Ctx{
 					"container": c.Name(),
@@ -1891,7 +1891,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	// Restore the rootfs
 	err = c.storage.ContainerRestore(c, sourceContainer)
 	if err != nil {
-		shared.Log.Error("Restoring the filesystem failed",
+		shared.LogError("Restoring the filesystem failed",
 			log.Ctx{
 				"source":      sourceContainer.Name(),
 				"destination": c.Name()})
@@ -1909,7 +1909,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 
 	err = c.Update(args, false)
 	if err != nil {
-		shared.Log.Error("Restoring the configuration failed",
+		shared.LogError("Restoring the configuration failed",
 			log.Ctx{
 				"source":      sourceContainer.Name(),
 				"destination": c.Name()})
@@ -1928,7 +1928,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 		// this in snapshots.
 		err2 := os.RemoveAll(c.StatePath())
 		if err2 != nil {
-			shared.Log.Error("failed to delete snapshot state", "path", c.StatePath(), "err", err2)
+			shared.LogError("failed to delete snapshot state", log.Ctx{"path": c.StatePath(), "err": err2})
 		}
 
 		if err != nil {
@@ -1966,12 +1966,12 @@ func (c *containerLXC) Delete() error {
 	if c.IsSnapshot() {
 		// Remove the snapshot
 		if err := c.storage.ContainerSnapshotDelete(c); err != nil {
-			shared.Log.Warn("failed to delete snapshot", "name", c.Name(), "err", err)
+			shared.LogWarn("failed to delete snapshot", log.Ctx{"name": c.Name(), "err": err})
 		}
 	} else {
 		// Remove all snapshot
 		if err := containerDeleteSnapshots(c.daemon, c.Name()); err != nil {
-			shared.Log.Warn("failed to delete snapshots", "name", c.Name(), "err", err)
+			shared.LogWarn("failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
 		}
 
 		// Clean things up
@@ -2617,7 +2617,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 					err = c.insertUSBDevice(m, usb)
 					if err != nil {
-						shared.Log.Error("failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+						shared.LogError("failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					}
 				}
 			}
@@ -2905,7 +2905,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		prettyCmd = "restore"
 	default:
 		prettyCmd = "unknown"
-		shared.Log.Warn("unknown migrate call", log.Ctx{"cmd": cmd})
+		shared.LogWarn("unknown migrate call", log.Ctx{"cmd": cmd})
 	}
 
 	preservesInodes := c.storage.PreservesInodes()
@@ -3003,7 +3003,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 
 	collectErr := collectCRIULogFile(c, stateDir, function, prettyCmd)
 	if collectErr != nil {
-		shared.Log.Error("Error collecting checkpoint log file", log.Ctx{"err": collectErr})
+		shared.LogError("Error collecting checkpoint log file", log.Ctx{"err": collectErr})
 	}
 
 	if migrateErr != nil {
@@ -3505,7 +3505,7 @@ func (c *containerLXC) networkState() map[string]shared.ContainerStateNetwork {
 
 	// Process forkgetnet response
 	if err != nil {
-		shared.Log.Error("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "output": string(out), "pid": pid})
+		shared.LogError("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "output": string(out), "pid": pid})
 		return result
 	}
 
@@ -3513,7 +3513,7 @@ func (c *containerLXC) networkState() map[string]shared.ContainerStateNetwork {
 
 	err = json.Unmarshal(out, &networks)
 	if err != nil {
-		shared.Log.Error("Failure to read forkgetnet json", log.Ctx{"container": c.name, "err": err})
+		shared.LogError("Failure to read forkgetnet json", log.Ctx{"container": c.name, "err": err})
 		return result
 	}
 
@@ -4000,7 +4000,7 @@ func (c *containerLXC) removeUSBDevice(m shared.Device, usb usbDevice) error {
 
 	err := c.removeUnixDevice(temp)
 	if err != nil {
-		shared.Log.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+		shared.LogError("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 		return err
 	}
 
@@ -4036,7 +4036,7 @@ func (c *containerLXC) removeUnixDevices() error {
 		devicePath := filepath.Join(c.DevicesPath(), f.Name())
 		err := os.Remove(devicePath)
 		if err != nil {
-			shared.Log.Error("failed removing unix device", log.Ctx{"err": err, "path": devicePath})
+			shared.LogError("failed removing unix device", log.Ctx{"err": err, "path": devicePath})
 		}
 	}
 
@@ -4496,7 +4496,7 @@ func (c *containerLXC) removeDiskDevices() error {
 		diskPath := filepath.Join(c.DevicesPath(), f.Name())
 		err := os.Remove(diskPath)
 		if err != nil {
-			shared.Log.Error("Failed to remove disk device path", log.Ctx{"err": err, "path": diskPath})
+			shared.LogError("Failed to remove disk device path", log.Ctx{"err": err, "path": diskPath})
 		}
 	}
 
