@@ -187,24 +187,24 @@ func deviceTaskBalance(d *Daemon) {
 		// Older kernel - use cpuset.cpus
 		effectiveCpus, err = cGroupGet("cpuset", "/", "cpuset.cpus")
 		if err != nil {
-			shared.Log.Error("Error reading host's cpuset.cpus")
+			shared.LogErrorf("Error reading host's cpuset.cpus")
 			return
 		}
 	}
 	err = cGroupSet("cpuset", "/lxc", "cpuset.cpus", effectiveCpus)
 	if err != nil && shared.PathExists("/sys/fs/cgroup/cpuset/lxc") {
-		shared.Log.Warn("Error setting lxd's cpuset.cpus", log.Ctx{"err": err})
+		shared.LogWarn("Error setting lxd's cpuset.cpus", log.Ctx{"err": err})
 	}
 	cpus, err := parseCpuset(effectiveCpus)
 	if err != nil {
-		shared.Log.Error("Error parsing host's cpu set", log.Ctx{"cpuset": effectiveCpus, "err": err})
+		shared.LogError("Error parsing host's cpu set", log.Ctx{"cpuset": effectiveCpus, "err": err})
 		return
 	}
 
 	// Iterate through the containers
 	containers, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
-		shared.Log.Error("problem loading containers list", log.Ctx{"err": err})
+		shared.LogError("problem loading containers list", log.Ctx{"err": err})
 		return
 	}
 	fixedContainers := map[int][]container{}
@@ -268,7 +268,7 @@ func deviceTaskBalance(d *Daemon) {
 	for cpu, ctns := range fixedContainers {
 		c, ok := usage[cpu]
 		if !ok {
-			shared.Log.Error("Internal error: container using unavailable cpu")
+			shared.LogErrorf("Internal error: container using unavailable cpu")
 			continue
 		}
 		id := c.strId
@@ -317,7 +317,7 @@ func deviceTaskBalance(d *Daemon) {
 		sort.Strings(set)
 		err := ctn.CGroupSet("cpuset.cpus", strings.Join(set, ","))
 		if err != nil {
-			shared.Log.Error("balance: Unable to set cpuset", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
+			shared.LogError("balance: Unable to set cpuset", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
 		}
 	}
 }
@@ -361,7 +361,7 @@ func deviceNetworkPriority(d *Daemon, netif string) {
 func deviceEventListener(d *Daemon) {
 	chNetlinkCPU, chNetlinkNetwork, err := deviceNetlinkListener()
 	if err != nil {
-		shared.Log.Error("scheduler: couldn't setup netlink listener")
+		shared.LogErrorf("scheduler: couldn't setup netlink listener")
 		return
 	}
 
@@ -369,7 +369,7 @@ func deviceEventListener(d *Daemon) {
 		select {
 		case e := <-chNetlinkCPU:
 			if len(e) != 2 {
-				shared.Log.Error("Scheduler: received an invalid cpu hotplug event")
+				shared.LogErrorf("Scheduler: received an invalid cpu hotplug event")
 				continue
 			}
 
@@ -381,7 +381,7 @@ func deviceEventListener(d *Daemon) {
 			deviceTaskBalance(d)
 		case e := <-chNetlinkNetwork:
 			if len(e) != 2 {
-				shared.Log.Error("Scheduler: received an invalid network hotplug event")
+				shared.LogErrorf("Scheduler: received an invalid network hotplug event")
 				continue
 			}
 
@@ -393,7 +393,7 @@ func deviceEventListener(d *Daemon) {
 			deviceNetworkPriority(d, e[0])
 		case e := <-deviceSchedRebalance:
 			if len(e) != 3 {
-				shared.Log.Error("Scheduler: received an invalid rebalance event")
+				shared.LogErrorf("Scheduler: received an invalid rebalance event")
 				continue
 			}
 
