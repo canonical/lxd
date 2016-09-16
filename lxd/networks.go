@@ -166,6 +166,18 @@ func networksPost(d *Daemon, r *http.Request) Response {
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
+	// Start the network
+	n, err := networkLoadByName(d, req.Name)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	err = n.Start()
+	if err != nil {
+		n.Delete()
+		return InternalError(err)
+	}
+
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, req.Name))
 }
 
@@ -247,18 +259,13 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, _ := dbNetworkGet(d.db, name)
-	if dbInfo == nil {
+	n, err := networkLoadByName(d, name)
+	if err != nil {
 		return NotFound
 	}
 
-	// Sanity checks
-	if len(dbInfo.UsedBy) != 0 {
-		return BadRequest(fmt.Errorf("Network is currently in use)"))
-	}
-
-	// Remove the network
-	err := dbNetworkDelete(d.db, name)
+	// Attempt to delete the network
+	err = n.Delete()
 	if err != nil {
 		return SmartError(err)
 	}
@@ -277,16 +284,12 @@ func networkPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Get the existing network
-	_, dbInfo, _ := dbNetworkGet(d.db, name)
-	if dbInfo == nil {
+	n, err := networkLoadByName(d, name)
+	if err != nil {
 		return NotFound
 	}
 
 	// Sanity checks
-	if len(dbInfo.UsedBy) != 0 {
-		return BadRequest(fmt.Errorf("Network is currently in use)"))
-	}
-
 	if req.Name == "" {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
@@ -306,8 +309,8 @@ func networkPost(d *Daemon, r *http.Request) Response {
 		return Conflict
 	}
 
-	// Rename the database entry
-	err = dbNetworkRename(d.db, name, req.Name)
+	// Rename it
+	err = n.Rename(req.Name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -384,24 +387,234 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newCon
 		return BadRequest(err)
 	}
 
+	// When switching to a fan bridge, auto-detect the underlay
 	if newConfig["bridge.mode"] == "fan" {
 		if newConfig["fan.underlay_subnet"] == "" {
 			newConfig["fan.underlay_subnet"] = "auto"
 		}
 	}
 
-	// Replace "auto" by actual values
-	err = networkFillAuto(newConfig)
+	// Load the network
+	n, err := networkLoadByName(d, name)
 	if err != nil {
-		return InternalError(err)
+		return NotFound
 	}
 
-	err = dbNetworkUpdate(d.db, name, newConfig)
+	err = n.Update(shared.NetworkConfig{Config: newConfig})
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return EmptySyncResponse
 }
 
 var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: networkDelete, post: networkPost, put: networkPut, patch: networkPatch}
+
+// The network structs and functions
+func networkLoadByName(d *Daemon, name string) (*network, error) {
+	id, dbInfo, err := dbNetworkGet(d.db, name)
+	if err != nil {
+		return nil, err
+	}
+
+	n := network{d: d, id: id, name: name, config: dbInfo.Config}
+
+	return &n, nil
+}
+
+type network struct {
+	// Properties
+	d    *Daemon
+	id   int64
+	name string
+
+	// config
+	config map[string]string
+}
+
+func (n *network) Config() map[string]string {
+	return n.config
+}
+
+func (n *network) IsRunning() bool {
+	return shared.PathExists(fmt.Sprintf("/sys/class/net/%s", n.name))
+}
+
+func (n *network) IsUsed() bool {
+	// Look for containers using the interface
+	cts, err := dbContainersList(n.d.db, cTypeRegular)
+	if err != nil {
+		return true
+	}
+
+	for _, ct := range cts {
+		c, err := containerLoadByName(n.d, ct)
+		if err != nil {
+			return true
+		}
+
+		if networkIsInUse(c, n.name) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (n *network) Delete() error {
+	// Sanity checks
+	if n.IsUsed() {
+		return fmt.Errorf("The network is currently in use")
+	}
+
+	// Bring the network down
+	if n.IsRunning() {
+		err := n.Stop()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Remove the network from the database
+	err := dbNetworkDelete(n.d.db, n.name)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *network) Rename(name string) error {
+	// Sanity checks
+	if n.IsUsed() {
+		return fmt.Errorf("The network is currently in use")
+	}
+
+	// Bring the network down
+	if n.IsRunning() {
+		err := n.Stop()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Rename the database entry
+	err := dbNetworkRename(n.d.db, n.name, name)
+	if err != nil {
+		return err
+	}
+
+	// Bring the network up
+	err = n.Start()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *network) Start() error {
+	if n.IsRunning() {
+		return fmt.Errorf("The network is already running")
+	}
+
+	return nil
+}
+
+func (n *network) Stop() error {
+	if !n.IsRunning() {
+		return fmt.Errorf("The network is already stopped")
+	}
+
+	return nil
+}
+
+func (n *network) Update(newNetwork shared.NetworkConfig) error {
+	err := networkFillAuto(newNetwork.Config)
+	if err != nil {
+		return err
+	}
+	newConfig := newNetwork.Config
+
+	// Backup the current state
+	oldConfig := map[string]string{}
+	err = shared.DeepCopy(&n.config, &oldConfig)
+	if err != nil {
+		return err
+	}
+
+	// Define a function which reverts everything.  Defer this function
+	// so that it doesn't need to be explicitly called in every failing
+	// return path.  Track whether or not we want to undo the changes
+	// using a closure.
+	undoChanges := true
+	defer func() {
+		if undoChanges {
+			n.config = oldConfig
+		}
+	}()
+
+	// Diff the configurations
+	changedConfig := []string{}
+	userOnly := true
+	for key, _ := range oldConfig {
+		if oldConfig[key] != newConfig[key] {
+			if !strings.HasPrefix(key, "user.") {
+				userOnly = false
+			}
+
+			if !shared.StringInSlice(key, changedConfig) {
+				changedConfig = append(changedConfig, key)
+			}
+		}
+	}
+
+	for key, _ := range newConfig {
+		if oldConfig[key] != newConfig[key] {
+			if !strings.HasPrefix(key, "user.") {
+				userOnly = false
+			}
+
+			if !shared.StringInSlice(key, changedConfig) {
+				changedConfig = append(changedConfig, key)
+			}
+		}
+	}
+
+	// Skip on no change
+	if len(changedConfig) == 0 {
+		return nil
+	}
+
+	// Update the network
+	if !userOnly {
+		if shared.StringInSlice("bridge.driver", changedConfig) && n.IsRunning() {
+			err = n.Stop()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Apply the new configuration
+	n.config = newConfig
+
+	// Update the database
+	err = dbNetworkUpdate(n.d.db, n.name, n.config)
+	if err != nil {
+		return err
+	}
+
+	// Restart the network
+	if !userOnly {
+		err = n.Start()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Success, update the closure to mark that the changes should be kept.
+	undoChanges = false
+
+	return nil
+}
