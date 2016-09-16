@@ -346,7 +346,7 @@ func dbContainerRename(db *sql.DB, oldName string, newName string) error {
 	}
 	defer stmt.Close()
 
-	shared.Log.Debug(
+	shared.LogDebug(
 		"Calling SQL Query",
 		log.Ctx{
 			"query":   "UPDATE containers SET name = ? WHERE name = ?",
