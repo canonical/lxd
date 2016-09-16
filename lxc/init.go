@@ -63,6 +63,7 @@ type initCmd struct {
 	profArgs profileList
 	confArgs configList
 	ephem    bool
+	network  string
 }
 
 func (c *initCmd) showByDefault() bool {
@@ -73,7 +74,7 @@ func (c *initCmd) usage() string {
 	return i18n.G(
 		`Initialize a container from a particular image.
 
-lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
+lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>]
 
 Initializes a container using the specified image and name.
 
@@ -137,6 +138,8 @@ func (c *initCmd) flags() {
 	gnuflag.Var(&c.profArgs, "p", i18n.G("Profile to apply to the new container"))
 	gnuflag.BoolVar(&c.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
 	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
+	gnuflag.StringVar(&c.network, "network", "", i18n.G("Network name"))
+	gnuflag.StringVar(&c.network, "n", "", i18n.G("Network name"))
 }
 
 func (c *initCmd) run(config *lxd.Config, args []string) error {
@@ -179,10 +182,24 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 
 	iremote, image = c.guessImage(config, d, remote, iremote, image)
 
+	devicesMap := map[string]shared.Device{}
+	if c.network != "" {
+		network, err := d.NetworkGet(c.network)
+		if err != nil {
+			return err
+		}
+
+		if network.Type == "bridge" {
+			devicesMap[c.network] = shared.Device{"type": "nic", "nictype": "bridge", "parent": c.network}
+		} else {
+			devicesMap[c.network] = shared.Device{"type": "nic", "nictype": "macvlan", "parent": c.network}
+		}
+	}
+
 	if !initRequestedEmptyProfiles && len(profiles) == 0 {
-		resp, err = d.Init(name, iremote, image, nil, configMap, nil, c.ephem)
+		resp, err = d.Init(name, iremote, image, nil, configMap, devicesMap, c.ephem)
 	} else {
-		resp, err = d.Init(name, iremote, image, &profiles, configMap, nil, c.ephem)
+		resp, err = d.Init(name, iremote, image, &profiles, configMap, devicesMap, c.ephem)
 	}
 	if err != nil {
 		return err
