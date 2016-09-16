@@ -79,7 +79,6 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 
 // Things we don't need to care about
 func (s *storageZfs) ContainerStart(container container) error {
-
 	if !container.IsSnapshot() {
 		fs := fmt.Sprintf("containers/%s", container.Name())
 
