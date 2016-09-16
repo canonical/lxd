@@ -96,3 +96,8 @@ when being queried about disk utilization.
 
 This effectively controls whether disk usage by snapshots should be
 considered as part of the container's disk space usage.
+
+## storage\_lvm\_mount\_options
+Adds a new "storage.lvm\_mount\_options" daemon configuration option
+which defaults to "discard" and allows the user to set addition mount
+options for the filesystem used by the LVM LV.

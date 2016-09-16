@@ -180,6 +180,7 @@ func daemonConfigInit(db *sql.DB) error {
 		"images.remote_cache_expiry":   &daemonConfigKey{valueType: "int", defaultValue: "10", trigger: daemonConfigTriggerExpiry},
 
 		"storage.lvm_fstype":           &daemonConfigKey{valueType: "string", defaultValue: "ext4", validValues: []string{"ext4", "xfs"}},
+		"storage.lvm_mount_options":    &daemonConfigKey{valueType: "string", defaultValue: "discard"},
 		"storage.lvm_thinpool_name":    &daemonConfigKey{valueType: "string", defaultValue: "LXDPool", validator: storageLVMValidateThinPoolName},
 		"storage.lvm_vg_name":          &daemonConfigKey{valueType: "string", validator: storageLVMValidateVolumeGroupName, setter: daemonConfigSetStorage},
 		"storage.lvm_volume_size":      &daemonConfigKey{valueType: "string", defaultValue: "10GiB"},
