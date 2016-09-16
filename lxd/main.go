@@ -599,6 +599,9 @@ func cmdInit() error {
 	var networkPort int64     // Port
 	var trustPassword string  // Trust password
 	var imagesAutoUpdate bool // controls whether we set images.auto_update_interval to 0
+	var bridgeName string     // Bridge name
+	var bridgeIPv4 string     // IPv4 address
+	var bridgeIPv6 string     // IPv6 address
 
 	// Detect userns
 	defaultPrivileged = -1
@@ -894,6 +897,23 @@ they otherwise would.
 		if !askBool("Would you like stale cached images to be updated automatically? (yes/no) [default=yes]? ", "yes") {
 			imagesAutoUpdate = false
 		}
+
+		if askBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
+			bridgeName = askString("What should the new bridge be called [default=lxdbr0]? ", "lxdbr0", networkValidName)
+			bridgeIPv4 = askString("What IPv4 subnet should be used (CIDR notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
+				if shared.StringInSlice(value, []string{"auto", "none"}) {
+					return nil
+				}
+				return networkValidAddressV4(value)
+			})
+
+			bridgeIPv6 = askString("What IPv4 subnet should be used (CIDR notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
+				if shared.StringInSlice(value, []string{"auto", "none"}) {
+					return nil
+				}
+				return networkValidAddressV6(value)
+			})
+		}
 	}
 
 	if !shared.StringInSlice(storageBackend, []string{"dir", "zfs"}) {
@@ -996,6 +1016,17 @@ they otherwise would.
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	if bridgeName != "" {
+		bridgeConfig := map[string]string{}
+		bridgeConfig["ipv4.address"] = bridgeIPv4
+		bridgeConfig["ipv6.address"] = bridgeIPv6
+
+		err = c.NetworkCreate(bridgeName, bridgeConfig)
+		if err != nil {
+			return err
 		}
 	}
 
