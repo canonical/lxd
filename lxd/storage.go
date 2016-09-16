@@ -372,7 +372,7 @@ func (lw *storageLogWrapper) Init(config map[string]interface{}) (storage, error
 		log.Ctx{"driver": fmt.Sprintf("storage/%s", lw.w.GetStorageTypeName())},
 	)
 
-	lw.log.Info("Init")
+	lw.log.Debug("Init")
 	return lw, err
 }
 
