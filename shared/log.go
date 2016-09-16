@@ -31,7 +31,7 @@ func init() {
 // General wrappers around Logger interface functions.
 func LogDebug(msg string, ctx map[string]interface{}) {
 	if Log != nil {
-		Log.Warn(msg, log.Ctx(ctx))
+		Log.Debug(msg, log.Ctx(ctx))
 	}
 }
 
