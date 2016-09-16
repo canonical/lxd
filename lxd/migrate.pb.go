@@ -192,10 +192,12 @@ func (m *Device) GetConfig() []*Config {
 
 type Snapshot struct {
 	Name             *string   `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Config           []*Config `protobuf:"bytes,2,rep,name=config" json:"config,omitempty"`
+	LocalConfig      []*Config `protobuf:"bytes,2,rep,name=localConfig" json:"localConfig,omitempty"`
 	Profiles         []string  `protobuf:"bytes,3,rep,name=profiles" json:"profiles,omitempty"`
 	Ephemeral        *bool     `protobuf:"varint,4,req,name=ephemeral" json:"ephemeral,omitempty"`
-	Devices          []*Device `protobuf:"bytes,5,rep,name=devices" json:"devices,omitempty"`
+	LocalDevices     []*Device `protobuf:"bytes,5,rep,name=localDevices" json:"localDevices,omitempty"`
+	Architecture     *int32    `protobuf:"varint,6,req,name=architecture" json:"architecture,omitempty"`
+	Stateful         *bool     `protobuf:"varint,7,req,name=stateful" json:"stateful,omitempty"`
 	XXX_unrecognized []byte    `json:"-"`
 }
 
@@ -210,9 +212,9 @@ func (m *Snapshot) GetName() string {
 	return ""
 }
 
-func (m *Snapshot) GetConfig() []*Config {
+func (m *Snapshot) GetLocalConfig() []*Config {
 	if m != nil {
-		return m.Config
+		return m.LocalConfig
 	}
 	return nil
 }
@@ -231,11 +233,25 @@ func (m *Snapshot) GetEphemeral() bool {
 	return false
 }
 
-func (m *Snapshot) GetDevices() []*Device {
+func (m *Snapshot) GetLocalDevices() []*Device {
 	if m != nil {
-		return m.Devices
+		return m.LocalDevices
 	}
 	return nil
+}
+
+func (m *Snapshot) GetArchitecture() int32 {
+	if m != nil && m.Architecture != nil {
+		return *m.Architecture
+	}
+	return 0
+}
+
+func (m *Snapshot) GetStateful() bool {
+	if m != nil && m.Stateful != nil {
+		return *m.Stateful
+	}
+	return false
 }
 
 type MigrationHeader struct {

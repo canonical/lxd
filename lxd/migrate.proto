@@ -31,10 +31,12 @@ message Device {
 
 message Snapshot {
 	required string			name		= 1;
-	repeated Config 		config		= 2;
+	repeated Config 		localConfig	= 2;
 	repeated string			profiles	= 3;
 	required bool			ephemeral	= 4;
-	repeated Device			devices		= 5;
+	repeated Device			localDevices	= 5;
+	required int32			architecture	= 6;
+	required bool			stateful	= 7;
 }
 
 message MigrationHeader {

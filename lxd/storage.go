@@ -645,12 +645,12 @@ func rsyncMigrationSource(container container) (MigrationStorageSourceDriver, er
 func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) containerArgs {
 	config := map[string]string{}
 
-	for _, ent := range snap.Config {
+	for _, ent := range snap.LocalConfig {
 		config[ent.GetKey()] = ent.GetValue()
 	}
 
 	devices := shared.Devices{}
-	for _, ent := range snap.Devices {
+	for _, ent := range snap.LocalDevices {
 		props := map[string]string{}
 		for _, prop := range ent.Config {
 			props[prop.GetKey()] = prop.GetValue()
@@ -661,12 +661,14 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) conta
 
 	name := containerName + shared.SnapshotDelimiter + snap.GetName()
 	return containerArgs{
-		Name:      name,
-		Ctype:     cTypeSnapshot,
-		Config:    config,
-		Profiles:  snap.Profiles,
-		Ephemeral: snap.GetEphemeral(),
-		Devices:   devices,
+		Name:         name,
+		Ctype:        cTypeSnapshot,
+		Config:       config,
+		Profiles:     snap.Profiles,
+		Ephemeral:    snap.GetEphemeral(),
+		Devices:      devices,
+		Architecture: int(snap.GetArchitecture()),
+		Stateful:     snap.GetStateful(),
 	}
 }
 
