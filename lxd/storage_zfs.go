@@ -1373,7 +1373,7 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 	return &driver, nil
 }
 
-func (s *storageZfs) MigrationSink(live bool, container container, snapshots []container, conn *websocket.Conn) error {
+func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
 	zfsRecv := func(zfsName string) error {
 		zfsFsName := fmt.Sprintf("%s/%s", s.zfsPool, zfsName)
 		args := []string{"receive", "-F", "-u", zfsFsName}
@@ -1420,18 +1420,23 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []c
 	}
 
 	for _, snap := range snapshots {
-		fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
-		name := fmt.Sprintf("containers/%s@snapshot-%s", fields[0], fields[1])
-		if err := zfsRecv(name); err != nil {
-			return err
-		}
-
-		err := os.MkdirAll(shared.VarPath(fmt.Sprintf("snapshots/%s", fields[0])), 0700)
+		args := snapshotProtobufToContainerArgs(container.Name(), snap)
+		_, err := containerCreateEmptySnapshot(container.Daemon(), args)
 		if err != nil {
 			return err
 		}
 
-		err = os.Symlink("on-zfs", shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", fields[0], fields[1])))
+		name := fmt.Sprintf("containers/%s@snapshot-%s", container.Name(), snap.GetName())
+		if err := zfsRecv(name); err != nil {
+			return err
+		}
+
+		err = os.MkdirAll(shared.VarPath(fmt.Sprintf("snapshots/%s", container.Name())), 0700)
+		if err != nil {
+			return err
+		}
+
+		err = os.Symlink("on-zfs", shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", container.Name(), snap.GetName())))
 		if err != nil {
 			return err
 		}

@@ -12,8 +12,12 @@ test_migration() {
 
   lxc_remote init testimage nonlive
   # test moving snapshots
+  lxc_remote config set l1:nonlive user.tester foo
   lxc_remote snapshot l1:nonlive
+  lxc_remote config unset l1:nonlive user.tester
   lxc_remote move l1:nonlive l2:
+  lxc_remote config show l2:nonlive/snap0 | grep user.tester | grep foo
+
   # FIXME: make this backend agnostic
   if [ "${LXD_BACKEND}" != "lvm" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive/rootfs" ]

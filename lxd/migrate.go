@@ -250,6 +250,41 @@ fi
 	return err
 }
 
+func snapshotToProtobuf(c container) *Snapshot {
+	config := []*Config{}
+	for k, v := range c.LocalConfig() {
+		kCopy := string(k)
+		vCopy := string(v)
+		config = append(config, &Config{Key: &kCopy, Value: &vCopy})
+	}
+
+	devices := []*Device{}
+	for name, d := range c.LocalDevices() {
+		props := []*Config{}
+		for k, v := range d {
+			kCopy := string(k)
+			vCopy := string(v)
+			props = append(props, &Config{Key: &kCopy, Value: &vCopy})
+		}
+
+		devices = append(devices, &Device{Name: &name, Config: props})
+	}
+
+	parts := strings.SplitN(c.Name(), shared.SnapshotDelimiter, 2)
+	isEphemeral := c.IsEphemeral()
+	arch := int32(c.Architecture())
+	stateful := c.IsStateful()
+	return &Snapshot{
+		Name:         &parts[len(parts)-1],
+		LocalConfig:  config,
+		Profiles:     c.Profiles(),
+		Ephemeral:    &isEphemeral,
+		LocalDevices: devices,
+		Architecture: &arch,
+		Stateful:     &stateful,
+	}
+}
+
 func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	<-s.allConnected
 
@@ -286,20 +321,23 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	/* the protocol says we have to send a header no matter what, so let's
 	 * do that, but then immediately send an error.
 	 */
-	snapshots := []string{}
+	snapshots := []*Snapshot{}
+	snapshotNames := []string{}
 	if fsErr == nil {
 		fullSnaps := driver.Snapshots()
 		for _, snap := range fullSnaps {
-			snapshots = append(snapshots, shared.ExtractSnapshotName(snap.Name()))
+			snapshots = append(snapshots, snapshotToProtobuf(snap))
+			snapshotNames = append(snapshotNames, shared.ExtractSnapshotName(snap.Name()))
 		}
 	}
 
 	myType := s.container.Storage().MigrationType()
 	header := MigrationHeader{
-		Fs:        &myType,
-		Criu:      criuType,
-		Idmap:     idmaps,
-		Snapshots: snapshots,
+		Fs:            &myType,
+		Criu:          criuType,
+		Idmap:         idmaps,
+		SnapshotNames: snapshotNames,
+		Snapshots:     snapshots,
 	}
 
 	if err := s.send(&header); err != nil {
@@ -582,32 +620,6 @@ func (c *migrationSink) do() error {
 		imagesDir := ""
 		srcIdmap := new(shared.IdmapSet)
 
-		snapshots := []container{}
-		for _, snap := range header.Snapshots {
-			// TODO: we need to propagate snapshot configurations
-			// as well. Right now the container configuration is
-			// done through the initial migration post. Should we
-			// post the snapshots and their configs as well, or do
-			// it some other way?
-			name := c.container.Name() + shared.SnapshotDelimiter + snap
-			args := containerArgs{
-				Ctype:        cTypeSnapshot,
-				Config:       c.container.LocalConfig(),
-				Profiles:     c.container.Profiles(),
-				Ephemeral:    c.container.IsEphemeral(),
-				Architecture: c.container.Architecture(),
-				Devices:      c.container.LocalDevices(),
-				Name:         name,
-			}
-
-			ct, err := containerCreateEmptySnapshot(c.container.Daemon(), args)
-			if err != nil {
-				restore <- err
-				return
-			}
-			snapshots = append(snapshots, ct)
-		}
-
 		for _, idmap := range header.Idmap {
 			e := shared.IdmapEntry{
 				Isuid:    *idmap.Isuid,
@@ -626,7 +638,23 @@ func (c *migrationSink) do() error {
 		 */
 		fsTransfer := make(chan error)
 		go func() {
-			if err := mySink(c.live, c.container, snapshots, c.fsConn); err != nil {
+			snapshots := []*Snapshot{}
+
+			/* Legacy: we only sent the snapshot names, so we just
+			 * copy the container's config over, same as we used to
+			 * do.
+			 */
+			if len(header.SnapshotNames) != len(header.Snapshots) {
+				for _, name := range header.SnapshotNames {
+					base := snapshotToProtobuf(c.container)
+					base.Name = &name
+					snapshots = append(snapshots, base)
+				}
+			} else {
+				snapshots = header.Snapshots
+			}
+
+			if err := mySink(c.live, c.container, header.Snapshots, c.fsConn, srcIdmap); err != nil {
 				fsTransfer <- err
 				return
 			}
@@ -668,13 +696,6 @@ func (c *migrationSink) do() error {
 				return
 			}
 
-		}
-
-		for _, snap := range snapshots {
-			if err := ShiftIfNecessary(snap, srcIdmap); err != nil {
-				restore <- err
-				return
-			}
 		}
 
 		restore <- nil

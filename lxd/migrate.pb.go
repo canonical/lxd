@@ -10,6 +10,9 @@ It is generated from these files:
 
 It has these top-level messages:
 	IDMapType
+	Config
+	Device
+	Snapshot
 	MigrationHeader
 	MigrationControl
 */
@@ -139,11 +142,124 @@ func (m *IDMapType) GetMaprange() int32 {
 	return 0
 }
 
+type Config struct {
+	Key              *string `protobuf:"bytes,1,req,name=key" json:"key,omitempty"`
+	Value            *string `protobuf:"bytes,2,req,name=value" json:"value,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *Config) Reset()         { *m = Config{} }
+func (m *Config) String() string { return proto.CompactTextString(m) }
+func (*Config) ProtoMessage()    {}
+
+func (m *Config) GetKey() string {
+	if m != nil && m.Key != nil {
+		return *m.Key
+	}
+	return ""
+}
+
+func (m *Config) GetValue() string {
+	if m != nil && m.Value != nil {
+		return *m.Value
+	}
+	return ""
+}
+
+type Device struct {
+	Name             *string   `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
+	Config           []*Config `protobuf:"bytes,2,rep,name=config" json:"config,omitempty"`
+	XXX_unrecognized []byte    `json:"-"`
+}
+
+func (m *Device) Reset()         { *m = Device{} }
+func (m *Device) String() string { return proto.CompactTextString(m) }
+func (*Device) ProtoMessage()    {}
+
+func (m *Device) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
+	}
+	return ""
+}
+
+func (m *Device) GetConfig() []*Config {
+	if m != nil {
+		return m.Config
+	}
+	return nil
+}
+
+type Snapshot struct {
+	Name             *string   `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
+	LocalConfig      []*Config `protobuf:"bytes,2,rep,name=localConfig" json:"localConfig,omitempty"`
+	Profiles         []string  `protobuf:"bytes,3,rep,name=profiles" json:"profiles,omitempty"`
+	Ephemeral        *bool     `protobuf:"varint,4,req,name=ephemeral" json:"ephemeral,omitempty"`
+	LocalDevices     []*Device `protobuf:"bytes,5,rep,name=localDevices" json:"localDevices,omitempty"`
+	Architecture     *int32    `protobuf:"varint,6,req,name=architecture" json:"architecture,omitempty"`
+	Stateful         *bool     `protobuf:"varint,7,req,name=stateful" json:"stateful,omitempty"`
+	XXX_unrecognized []byte    `json:"-"`
+}
+
+func (m *Snapshot) Reset()         { *m = Snapshot{} }
+func (m *Snapshot) String() string { return proto.CompactTextString(m) }
+func (*Snapshot) ProtoMessage()    {}
+
+func (m *Snapshot) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
+	}
+	return ""
+}
+
+func (m *Snapshot) GetLocalConfig() []*Config {
+	if m != nil {
+		return m.LocalConfig
+	}
+	return nil
+}
+
+func (m *Snapshot) GetProfiles() []string {
+	if m != nil {
+		return m.Profiles
+	}
+	return nil
+}
+
+func (m *Snapshot) GetEphemeral() bool {
+	if m != nil && m.Ephemeral != nil {
+		return *m.Ephemeral
+	}
+	return false
+}
+
+func (m *Snapshot) GetLocalDevices() []*Device {
+	if m != nil {
+		return m.LocalDevices
+	}
+	return nil
+}
+
+func (m *Snapshot) GetArchitecture() int32 {
+	if m != nil && m.Architecture != nil {
+		return *m.Architecture
+	}
+	return 0
+}
+
+func (m *Snapshot) GetStateful() bool {
+	if m != nil && m.Stateful != nil {
+		return *m.Stateful
+	}
+	return false
+}
+
 type MigrationHeader struct {
 	Fs               *MigrationFSType `protobuf:"varint,1,req,name=fs,enum=main.MigrationFSType" json:"fs,omitempty"`
 	Criu             *CRIUType        `protobuf:"varint,2,opt,name=criu,enum=main.CRIUType" json:"criu,omitempty"`
 	Idmap            []*IDMapType     `protobuf:"bytes,3,rep,name=idmap" json:"idmap,omitempty"`
-	Snapshots        []string         `protobuf:"bytes,4,rep,name=snapshots" json:"snapshots,omitempty"`
+	SnapshotNames    []string         `protobuf:"bytes,4,rep,name=snapshotNames" json:"snapshotNames,omitempty"`
+	Snapshots        []*Snapshot      `protobuf:"bytes,5,rep,name=snapshots" json:"snapshots,omitempty"`
 	XXX_unrecognized []byte           `json:"-"`
 }
 
@@ -172,7 +288,14 @@ func (m *MigrationHeader) GetIdmap() []*IDMapType {
 	return nil
 }
 
-func (m *MigrationHeader) GetSnapshots() []string {
+func (m *MigrationHeader) GetSnapshotNames() []string {
+	if m != nil {
+		return m.SnapshotNames
+	}
+	return nil
+}
+
+func (m *MigrationHeader) GetSnapshots() []*Snapshot {
 	if m != nil {
 		return m.Snapshots
 	}
