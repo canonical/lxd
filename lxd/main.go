@@ -374,8 +374,7 @@ func cmdDaemon() error {
 		signal.Notify(ch, syscall.SIGPWR)
 		sig := <-ch
 
-		shared.Log.Info(
-			fmt.Sprintf("Received '%s signal', shutting down containers.", sig))
+		shared.LogInfof("Received '%s signal', shutting down containers.", sig)
 
 		containersShutdown(d)
 
@@ -386,8 +385,7 @@ func cmdDaemon() error {
 	go func() {
 		<-d.shutdownChan
 
-		shared.Log.Info(
-			fmt.Sprintf("Asked to shutdown by API, shutting down containers."))
+		shared.LogInfof("Asked to shutdown by API, shutting down containers.")
 
 		containersShutdown(d)
 
@@ -402,7 +400,7 @@ func cmdDaemon() error {
 		signal.Notify(ch, syscall.SIGTERM)
 		sig := <-ch
 
-		shared.Log.Info(fmt.Sprintf("Received '%s signal', exiting.", sig))
+		shared.LogInfof("Received '%s signal', exiting.", sig)
 		ret = d.Stop()
 		wg.Done()
 	}()
