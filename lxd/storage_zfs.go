@@ -79,43 +79,18 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 
 // Things we don't need to care about
 func (s *storageZfs) ContainerStart(container container) error {
-	if !container.IsSnapshot() {
-		fs := fmt.Sprintf("containers/%s", container.Name())
+	fs := fmt.Sprintf("containers/%s", container.Name())
 
-		// Just in case the container filesystem got unmounted
-		if !shared.IsMountPoint(shared.VarPath(fs)) {
-			s.zfsMount(fs)
-		}
-	} else {
-		/* the zfs CLI tool doesn't support mounting snapshots, but we
-		 * can mount them with the syscall directly...
-		 */
-		fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
-		if len(fields) != 2 {
-			return fmt.Errorf("invalid snapshot name %s", container.Name())
-		}
-
-		src := fmt.Sprintf("containers/%s@%s", fields[0], fields[1])
-		dest := shared.VarPath("snapshots", fields[0], fields[1])
-
-		return tryMount(src, dest, "zfs", 0, "")
+	// Just in case the container filesystem got unmounted
+	if !shared.IsMountPoint(shared.VarPath(fs)) {
+		s.zfsMount(fs)
 	}
 
 	return nil
 }
 
 func (s *storageZfs) ContainerStop(container container) error {
-	if !container.IsSnapshot() {
-		return nil
-	}
-
-	fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
-	if len(fields) != 2 {
-		return fmt.Errorf("invalid snapshot name %s", container.Name())
-	}
-
-	p := shared.VarPath("snapshots", fields[0], fields[1])
-	return tryUnmount(p, 0)
+	return nil
 }
 
 // Things we do have to care about
