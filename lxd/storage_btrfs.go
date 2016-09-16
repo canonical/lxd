@@ -1033,7 +1033,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 		err = cmd.Wait()
 		if err != nil {
-			shared.Log.Error("problem with btrfs receive", log.Ctx{"output": string(output)})
+			shared.LogError("problem with btrfs receive", log.Ctx{"output": string(output)})
 			return err
 		}
 
@@ -1042,13 +1042,13 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 			err := s.subvolSnapshot(cPath, targetPath, false)
 			if err != nil {
-				shared.Log.Error("problem with btrfs snapshot", log.Ctx{"err": err})
+				shared.LogError("problem with btrfs snapshot", log.Ctx{"err": err})
 				return err
 			}
 
 			err = s.subvolsDelete(cPath)
 			if err != nil {
-				shared.Log.Error("problem with btrfs delete", log.Ctx{"err": err})
+				shared.LogError("problem with btrfs delete", log.Ctx{"err": err})
 				return err
 			}
 		}
