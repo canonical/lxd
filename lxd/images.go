@@ -857,14 +857,14 @@ func autoUpdateImages(d *Daemon) {
 
 	images, err := dbImagesGet(d.db, false)
 	if err != nil {
-		shared.Log.Error("Unable to retrieve the list of images", log.Ctx{"err": err})
+		shared.LogError("Unable to retrieve the list of images", log.Ctx{"err": err})
 		return
 	}
 
 	for _, fp := range images {
 		id, info, err := dbImageGet(d.db, fp, false, true)
 		if err != nil {
-			shared.Log.Error("Error loading image", log.Ctx{"err": err, "fp": fp})
+			shared.LogError("Error loading image", log.Ctx{"err": err, "fp": fp})
 			continue
 		}
 
@@ -877,38 +877,38 @@ func autoUpdateImages(d *Daemon) {
 			continue
 		}
 
-		shared.Log.Debug("Processing image", log.Ctx{"fp": fp, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
+		shared.LogDebug("Processing image", log.Ctx{"fp": fp, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
 
 		hash, err := d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true)
 		if hash == fp {
-			shared.Log.Debug("Already up to date", log.Ctx{"fp": fp})
+			shared.LogDebug("Already up to date", log.Ctx{"fp": fp})
 			continue
 		} else if err != nil {
-			shared.Log.Error("Failed to update the image", log.Ctx{"err": err, "fp": fp})
+			shared.LogError("Failed to update the image", log.Ctx{"err": err, "fp": fp})
 			continue
 		}
 
 		newId, _, err := dbImageGet(d.db, hash, false, true)
 		if err != nil {
-			shared.Log.Error("Error loading image", log.Ctx{"err": err, "fp": hash})
+			shared.LogError("Error loading image", log.Ctx{"err": err, "fp": hash})
 			continue
 		}
 
 		err = dbImageLastAccessUpdate(d.db, hash, info.LastUsedDate)
 		if err != nil {
-			shared.Log.Error("Error setting last use date", log.Ctx{"err": err, "fp": hash})
+			shared.LogError("Error setting last use date", log.Ctx{"err": err, "fp": hash})
 			continue
 		}
 
 		err = dbImageAliasesMove(d.db, id, newId)
 		if err != nil {
-			shared.Log.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
+			shared.LogError("Error moving aliases", log.Ctx{"err": err, "fp": hash})
 			continue
 		}
 
 		err = doDeleteImage(d, fp)
 		if err != nil {
-			shared.Log.Error("Error deleting image", log.Ctx{"err": err, "fp": fp})
+			shared.LogError("Error deleting image", log.Ctx{"err": err, "fp": fp})
 		}
 	}
 
@@ -922,14 +922,14 @@ func pruneExpiredImages(d *Daemon) {
 	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
 	images, err := dbImagesGetExpired(d.db, expiry)
 	if err != nil {
-		shared.Log.Error("Unable to retrieve the list of expired images", log.Ctx{"err": err})
+		shared.LogError("Unable to retrieve the list of expired images", log.Ctx{"err": err})
 		return
 	}
 
 	// Delete them
 	for _, fp := range images {
 		if err := doDeleteImage(d, fp); err != nil {
-			shared.Log.Error("Error deleting image", log.Ctx{"err": err, "fp": fp})
+			shared.LogError("Error deleting image", log.Ctx{"err": err, "fp": fp})
 		}
 	}
 
@@ -946,11 +946,11 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 	// look at the path
 	s, err := storageForImage(d, imgInfo)
 	if err != nil {
-		shared.Log.Error("error detecting image storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
+		shared.LogError("error detecting image storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
 	} else {
 		// Remove the image from storage backend
 		if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {
-			shared.Log.Error("error deleting the image from storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
+			shared.LogError("error deleting the image from storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
 		}
 	}
 

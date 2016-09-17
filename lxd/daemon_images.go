@@ -82,17 +82,13 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		return fp, nil
 	}
 
-	shared.LogInfo(
-		"Image not in the db, downloading it",
-		log.Ctx{"image": fp, "server": server})
-
 	// Now check if we already downloading the image
 	d.imagesDownloadingLock.RLock()
 	if waitChannel, ok := d.imagesDownloading[fp]; ok {
 		// We already download the image
 		d.imagesDownloadingLock.RUnlock()
 
-		shared.LogInfo(
+		shared.LogDebug(
 			"Already downloading the image, waiting for it to succeed",
 			log.Ctx{"image": fp})
 
@@ -109,7 +105,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			return "", fmt.Errorf("Previous download didn't succeed")
 		}
 
-		shared.LogInfo(
+		shared.LogDebug(
 			"Previous download succeeded",
 			log.Ctx{"image": fp})
 
@@ -119,8 +115,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	d.imagesDownloadingLock.RUnlock()
 
 	shared.LogInfo(
-		"Downloading the image",
-		log.Ctx{"image": fp})
+		"Downloading image",
+		log.Ctx{"trigger": op.url, "image": fp, "operation": op.id, "alias": alias, "server": server})
 
 	// Add the download to the queue
 	d.imagesDownloadingLock.Lock()
@@ -236,6 +232,10 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 				return "", err
 			}
 		}
+
+		shared.LogInfo(
+			"Image downloaded",
+			log.Ctx{"image": fp, "fingerprint": fp, "operation": op.id, "alias": alias, "server": server})
 
 		if forContainer {
 			return fp, dbImageLastAccessInit(d.db, fp)
@@ -402,8 +402,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	shared.LogInfo(
-		"Download succeeded",
-		log.Ctx{"image": fp})
+		"Image downloaded",
+		log.Ctx{"image": fp, "operation": op.id, "alias": alias, "server": server})
 
 	if forContainer {
 		return fp, dbImageLastAccessInit(d.db, fp)

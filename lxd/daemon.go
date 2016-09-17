@@ -218,7 +218,7 @@ func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, er
 func readMyCert() (string, string, error) {
 	certf := shared.VarPath("server.crt")
 	keyf := shared.VarPath("server.key")
-	shared.LogInfo("Looking for existing certificates", log.Ctx{"cert": certf, "key": keyf})
+	shared.LogDebug("Looking for existing certificates", log.Ctx{"cert": certf, "key": keyf})
 	err := shared.FindOrGenCert(certf, keyf)
 
 	return certf, keyf, err
@@ -277,15 +277,15 @@ func (d *Daemon) createCmd(version string, c Command) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if d.isTrustedClient(r) {
-			shared.LogInfo(
+			shared.LogDebug(
 				"handling",
 				log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if r.Method == "GET" && c.untrustedGet {
-			shared.LogInfo(
+			shared.LogDebug(
 				"allowing untrusted GET",
 				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if r.Method == "POST" && c.untrustedPost {
-			shared.LogInfo(
+			shared.LogDebug(
 				"allowing untrusted POST",
 				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
@@ -367,21 +367,21 @@ func (d *Daemon) SetupStorageDriver() error {
 	if lvmVgName != "" {
 		d.Storage, err = newStorage(d, storageTypeLvm)
 		if err != nil {
-			shared.LogInfof("Could not initialize storage type LVM: %s - falling back to dir", err)
+			shared.LogErrorf("Could not initialize storage type LVM: %s - falling back to dir", err)
 		} else {
 			return nil
 		}
 	} else if zfsPoolName != "" {
 		d.Storage, err = newStorage(d, storageTypeZfs)
 		if err != nil {
-			shared.LogInfof("Could not initialize storage type ZFS: %s - falling back to dir", err)
+			shared.LogErrorf("Could not initialize storage type ZFS: %s - falling back to dir", err)
 		} else {
 			return nil
 		}
 	} else if d.BackingFs == "btrfs" {
 		d.Storage, err = newStorage(d, storageTypeBtrfs)
 		if err != nil {
-			shared.LogInfof("Could not initialize storage type btrfs: %s - falling back to dir", err)
+			shared.LogErrorf("Could not initialize storage type btrfs: %s - falling back to dir", err)
 		} else {
 			return nil
 		}
@@ -779,7 +779,7 @@ func (d *Daemon) Init() error {
 				shared.LogError("Failed to expire logs", log.Ctx{"err": err})
 			}
 
-			shared.LogDebugf("Done expiring log files")
+			shared.LogInfof("Done expiring log files")
 			<-t.C
 		}
 	}()
@@ -863,7 +863,7 @@ func (d *Daemon) Init() error {
 	}
 
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		shared.LogDebug("Sending top level 404", log.Ctx{"url": r.URL})
+		shared.LogInfo("Sending top level 404", log.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")
 		NotFound.Render(w)
 	})
