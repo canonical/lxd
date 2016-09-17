@@ -36,6 +36,25 @@ func networkAttachInterface(netName string, devName string) error {
 	return nil
 }
 
+func networkDetachInterface(netName string, devName string) error {
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
+		err := shared.RunCommand("ip", "link", "set", devName, "nomaster")
+		if err != nil {
+			return err
+		}
+	} else {
+		err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
+		if err == nil {
+			err := shared.RunCommand("ovs-vsctl", "del-port", netName, devName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func networkGetInterfaces(d *Daemon) ([]string, error) {
 	networks, err := dbNetworks(d.db)
 	if err != nil {
