@@ -422,6 +422,29 @@ func networkLoadByName(d *Daemon, name string) (*network, error) {
 	return &n, nil
 }
 
+func networkStartup(d *Daemon) error {
+	// Get a list of managed networks
+	networks, err := dbNetworks(d.db)
+	if err != nil {
+		return err
+	}
+
+	// Bring them all up
+	for _, name := range networks {
+		n, err := networkLoadByName(d, name)
+		if err != nil {
+			return err
+		}
+
+		err = n.Start()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 type network struct {
 	// Properties
 	d    *Daemon
