@@ -16,7 +16,25 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lxc/lxd/shared"
 )
+
+func networkAttachInterface(netName string, devName string) error {
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
+		err := exec.Command("ip", "link", "set", devName, "master", netName).Run()
+		if err != nil {
+			return fmt.Errorf("Failed to add interface to bridge: %s", err)
+		}
+	} else {
+		err := exec.Command("ovs-vsctl", "add-port", netName, devName).Run()
+		if err != nil {
+			return fmt.Errorf("Failed to add interface to bridge: %s", err)
+		}
+	}
+
+	return nil
+}
 
 func networkGetInterfaces(d *Daemon) ([]string, error) {
 	networks, err := dbNetworks(d.db)
