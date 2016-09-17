@@ -418,11 +418,11 @@ func dbUpdateFromV15(currentVersion int, version int, d *Daemon) error {
 		newLVName = strings.Replace(newLVName, shared.SnapshotDelimiter, "-", -1)
 
 		if cName == newLVName {
-			shared.Log.Debug("No need to rename, skipping", log.Ctx{"cName": cName, "newLVName": newLVName})
+			shared.LogDebug("No need to rename, skipping", log.Ctx{"cName": cName, "newLVName": newLVName})
 			continue
 		}
 
-		shared.Log.Debug("About to rename cName in lv upgrade", log.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
+		shared.LogDebug("About to rename cName in lv upgrade", log.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
 
 		output, err := exec.Command("lvrename", vgName, cName, newLVName).CombinedOutput()
 		if err != nil {
@@ -508,7 +508,7 @@ func dbUpdateFromV11(currentVersion int, version int, d *Daemon) error {
 		oldPath := shared.VarPath("containers", snappieces[0], "snapshots", snappieces[1])
 		newPath := shared.VarPath("snapshots", snappieces[0], snappieces[1])
 		if shared.PathExists(oldPath) && !shared.PathExists(newPath) {
-			shared.Log.Info(
+			shared.LogInfo(
 				"Moving snapshot",
 				log.Ctx{
 					"snapshot": cName,
@@ -521,7 +521,7 @@ func dbUpdateFromV11(currentVersion int, version int, d *Daemon) error {
 			// snapshots/<container>/<snap0>
 			output, err := storageRsyncCopy(oldPath, newPath)
 			if err != nil {
-				shared.Log.Error(
+				shared.LogError(
 					"Failed rsync snapshot",
 					log.Ctx{
 						"snapshot": cName,
@@ -533,7 +533,7 @@ func dbUpdateFromV11(currentVersion int, version int, d *Daemon) error {
 
 			// Remove containers/<container>/snapshots/<snap0>
 			if err := os.RemoveAll(oldPath); err != nil {
-				shared.Log.Error(
+				shared.LogError(
 					"Failed to remove the old snapshot path",
 					log.Ctx{
 						"snapshot": cName,
