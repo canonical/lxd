@@ -854,12 +854,12 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		shared.Log.Error("problem reading btrfs send stderr", "err", err)
+		shared.LogError("problem reading btrfs send stderr", log.Ctx{"err": err})
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.Log.Error("problem with btrfs send", "output", string(output))
+		shared.LogError("problem with btrfs send", log.Ctx{"output": string(output)})
 	}
 	return err
 }
