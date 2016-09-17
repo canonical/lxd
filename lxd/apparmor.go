@@ -325,7 +325,7 @@ func runApparmor(command string, c container) error {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		shared.Log.Error("Running apparmor",
+		shared.LogError("Running apparmor",
 			log.Ctx{"action": command, "output": string(output), "err": err})
 	}
 
