@@ -758,3 +758,12 @@ func (pt *TransferProgress) Read(p []byte) (int, error) {
 
 	return n, err
 }
+
+func RunCommand(name string, arg ...string) error {
+	output, err := exec.Command(name, arg...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(output)))
+	}
+
+	return nil
+}
