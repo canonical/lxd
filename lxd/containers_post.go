@@ -291,7 +291,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		err = sink()
 		if err != nil {
 			c.StorageStop()
-			shared.Log.Error("Error during migration sink", "err", err)
+			shared.LogError("Error during migration sink", log.Ctx{"err": err})
 			c.Delete()
 			return fmt.Errorf("Error transferring container data: %s", err)
 		}
@@ -336,7 +336,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 
 	for key, value := range sourceConfig {
 		if len(key) > 8 && key[0:8] == "volatile" && key[9:] != "base_image" {
-			shared.Log.Debug("Skipping volatile key from copy source",
+			shared.LogDebug("Skipping volatile key from copy source",
 				log.Ctx{"key": key})
 			continue
 		}
