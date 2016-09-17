@@ -92,7 +92,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		// We already download the image
 		d.imagesDownloadingLock.RUnlock()
 
-		shared.LogInfo(
+		shared.LogDebug(
 			"Already downloading the image, waiting for it to succeed",
 			log.Ctx{"image": fp})
 
@@ -109,7 +109,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			return "", fmt.Errorf("Previous download didn't succeed")
 		}
 
-		shared.LogInfo(
+		shared.LogDebug(
 			"Previous download succeeded",
 			log.Ctx{"image": fp})
 
@@ -401,7 +401,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 	}
 
-	shared.LogInfo(
+	shared.LogDebug(
 		"Download succeeded",
 		log.Ctx{"image": fp})
 
