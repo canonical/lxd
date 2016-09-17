@@ -335,7 +335,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		metadata := shared.Jmap{"return": cmdResult}
 		err = op.UpdateMetadata(metadata)
 		if err != nil {
-			shared.Log.Error("error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
+			shared.LogError("error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
 		}
 		return cmdErr
 	}
