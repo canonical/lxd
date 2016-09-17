@@ -15,49 +15,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// Helper functions
-func networkGetInterfaces(d *Daemon) ([]string, error) {
-	networks, err := dbNetworks(d.db)
-	if err != nil {
-		return nil, err
-	}
-
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, iface := range ifaces {
-		if !shared.StringInSlice(iface.Name, networks) {
-			networks = append(networks, iface.Name)
-		}
-	}
-
-	return networks, nil
-}
-
-func networkIsInUse(c container, name string) bool {
-	for _, d := range c.ExpandedDevices() {
-		if d["type"] != "nic" {
-			continue
-		}
-
-		if !shared.StringInSlice(d["nictype"], []string{"bridged", "macvlan"}) {
-			continue
-		}
-
-		if d["parent"] == "" {
-			continue
-		}
-
-		if d["parent"] == name {
-			return true
-		}
-	}
-
-	return false
-}
-
 // API endpoints
 func networksGet(d *Daemon, r *http.Request) Response {
 	recursionStr := r.FormValue("recursion")

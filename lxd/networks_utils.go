@@ -18,6 +18,48 @@ import (
 	"time"
 )
 
+func networkGetInterfaces(d *Daemon) ([]string, error) {
+	networks, err := dbNetworks(d.db)
+	if err != nil {
+		return nil, err
+	}
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, iface := range ifaces {
+		if !shared.StringInSlice(iface.Name, networks) {
+			networks = append(networks, iface.Name)
+		}
+	}
+
+	return networks, nil
+}
+
+func networkIsInUse(c container, name string) bool {
+	for _, d := range c.ExpandedDevices() {
+		if d["type"] != "nic" {
+			continue
+		}
+
+		if !shared.StringInSlice(d["nictype"], []string{"bridged", "macvlan"}) {
+			continue
+		}
+
+		if d["parent"] == "" {
+			continue
+		}
+
+		if d["parent"] == name {
+			return true
+		}
+	}
+
+	return false
+}
+
 func networkGetIP(subnet *net.IPNet, host int64) net.IP {
 	// Convert IP to a big int
 	bigIP := big.NewInt(0)
