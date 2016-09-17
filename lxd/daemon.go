@@ -1048,17 +1048,17 @@ func (d *Daemon) Stop() error {
 	forceStop := false
 
 	d.tomb.Kill(errStop)
-	shared.LogDebugf("Stopping REST API handler:")
+	shared.LogInfof("Stopping REST API handler:")
 	for _, socket := range []*Socket{d.TCPSocket, d.UnixSocket} {
 		if socket == nil {
 			continue
 		}
 
 		if socket.CloseOnExit {
-			shared.LogDebug(" - closing socket", log.Ctx{"socket": socket.Socket.Addr()})
+			shared.LogInfo(" - closing socket", log.Ctx{"socket": socket.Socket.Addr()})
 			socket.Socket.Close()
 		} else {
-			shared.LogDebug(" - skipping socket-activated socket", log.Ctx{"socket": socket.Socket.Addr()})
+			shared.LogInfo(" - skipping socket-activated socket", log.Ctx{"socket": socket.Socket.Addr()})
 			forceStop = true
 		}
 	}
