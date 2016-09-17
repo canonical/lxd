@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -494,8 +495,54 @@ func (n *network) Rename(name string) error {
 }
 
 func (n *network) Start() error {
-	if n.IsRunning() {
-		return fmt.Errorf("The network is already running")
+	// Create the bridge interface
+	if !n.IsRunning() {
+		if n.config["bridge.driver"] == "openvswitch" {
+			err := shared.RunCommand("ovs-vsctl", "add-br", n.name)
+			if err != nil {
+				return err
+			}
+		} else {
+			err := shared.RunCommand("ip", "link", "add", n.name, "type", "bridge")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Set the MTU
+	if n.config["bridge.mtu"] != "" {
+		err := shared.RunCommand("ip", "link", "set", n.name, "mtu", n.config["bridge.mtu"])
+		if err != nil {
+			return err
+		}
+	}
+
+	// Bring it up
+	err := shared.RunCommand("ip", "link", "set", n.name, "up")
+	if err != nil {
+		return err
+	}
+
+	// Add any listed existing external interface
+	if n.config["bridge.external_interfaces"] != "" {
+		for _, entry := range strings.Split(n.config["bridge.external_interfaces"], ",") {
+			entry = strings.TrimSpace(entry)
+			iface, err := net.InterfaceByName(entry)
+			if err != nil {
+				continue
+			}
+
+			addrs, err := iface.Addrs()
+			if err == nil && len(addrs) != 0 {
+				return fmt.Errorf("Only unconfigured network interfaces can be bridged")
+			}
+
+			err = networkAttachInterface(n.name, entry)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -504,6 +551,19 @@ func (n *network) Start() error {
 func (n *network) Stop() error {
 	if !n.IsRunning() {
 		return fmt.Errorf("The network is already stopped")
+	}
+
+	// Destroy the bridge interface
+	if n.config["bridge.driver"] == "openvswitch" {
+		err := shared.RunCommand("ovs-vsctl", "del-br", n.name)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := shared.RunCommand("ip", "link", "del", n.name)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -572,6 +632,28 @@ func (n *network) Update(newNetwork shared.NetworkConfig) error {
 			err = n.Stop()
 			if err != nil {
 				return err
+			}
+		}
+
+		if shared.StringInSlice("bridge.external_interfaces", changedConfig) && n.IsRunning() {
+			devices := []string{}
+			for _, dev := range strings.Split(newConfig["bridge.external_interfaces"], ",") {
+				dev = strings.TrimSpace(dev)
+				devices = append(devices, dev)
+			}
+
+			for _, dev := range strings.Split(oldConfig["bridge.external_interfaces"], ",") {
+				dev = strings.TrimSpace(dev)
+				if dev == "" {
+					continue
+				}
+
+				if !shared.StringInSlice(dev, devices) && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", dev)) {
+					err = networkDetachInterface(n.name, dev)
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
