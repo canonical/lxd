@@ -563,13 +563,13 @@ func (d *Daemon) Init() error {
 
 	/* Print welcome message */
 	if d.MockMode {
-		shared.LogDebug("LXD is starting in mock mode",
+		shared.LogInfo("LXD is starting in mock mode",
 			log.Ctx{"path": shared.VarPath("")})
 	} else if d.SetupMode {
-		shared.LogDebug("LXD is starting in setup mode",
+		shared.LogInfo("LXD is starting in setup mode",
 			log.Ctx{"path": shared.VarPath("")})
 	} else {
-		shared.LogDebug("LXD is starting in normal mode",
+		shared.LogInfo("LXD is starting in normal mode",
 			log.Ctx{"path": shared.VarPath("")})
 	}
 
@@ -721,9 +721,9 @@ func (d *Daemon) Init() error {
 		shared.LogWarn("Error reading idmap", log.Ctx{"err": err.Error()})
 		shared.LogWarnf("Only privileged containers will be able to run")
 	} else {
-		shared.LogDebugf("Default uid/gid map:")
+		shared.LogInfof("Default uid/gid map:")
 		for _, lxcmap := range d.IdmapSet.ToLxcString() {
-			shared.LogDebugf(strings.TrimRight(" - "+lxcmap, "\n"))
+			shared.LogInfof(strings.TrimRight(" - "+lxcmap, "\n"))
 		}
 	}
 
@@ -764,7 +764,7 @@ func (d *Daemon) Init() error {
 				shared.LogError("Failed to expire logs", log.Ctx{"err": err})
 			}
 
-			shared.LogDebugf("Done expiring log files")
+			shared.LogInfof("Done expiring log files")
 			<-t.C
 		}
 	}()
@@ -833,14 +833,14 @@ func (d *Daemon) Init() error {
 	}
 
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		shared.LogDebug("Sending top level 404", log.Ctx{"url": r.URL})
+		shared.LogInfo("Sending top level 404", log.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")
 		NotFound.Render(w)
 	})
 
 	listeners := d.GetListeners()
 	if len(listeners) > 0 {
-		shared.LogDebugf("LXD is socket activated")
+		shared.LogInfof("LXD is socket activated")
 
 		for _, listener := range listeners {
 			if shared.PathExists(listener.Addr().String()) {
@@ -851,7 +851,7 @@ func (d *Daemon) Init() error {
 			}
 		}
 	} else {
-		shared.LogDebugf("LXD isn't socket activated")
+		shared.LogInfof("LXD isn't socket activated")
 
 		localSocketPath := shared.VarPath("unix.socket")
 
@@ -915,7 +915,7 @@ func (d *Daemon) Init() error {
 			shared.LogError("cannot listen on https socket, skipping...", log.Ctx{"err": err})
 		} else {
 			if d.TCPSocket != nil {
-				shared.LogDebugf("Replacing inherited TCP socket with configured one")
+				shared.LogInfof("Replacing inherited TCP socket with configured one")
 				d.TCPSocket.Socket.Close()
 			}
 			d.TCPSocket = &Socket{Socket: tcpl, CloseOnExit: true}
@@ -923,14 +923,14 @@ func (d *Daemon) Init() error {
 	}
 
 	d.tomb.Go(func() error {
-		shared.LogDebugf("REST API daemon:")
+		shared.LogInfof("REST API daemon:")
 		if d.UnixSocket != nil {
-			shared.LogDebug(" - binding Unix socket", log.Ctx{"socket": d.UnixSocket.Socket.Addr()})
+			shared.LogInfo(" - binding Unix socket", log.Ctx{"socket": d.UnixSocket.Socket.Addr()})
 			d.tomb.Go(func() error { return http.Serve(d.UnixSocket.Socket, &lxdHttpServer{d.mux, d}) })
 		}
 
 		if d.TCPSocket != nil {
-			shared.LogDebug(" - binding TCP socket", log.Ctx{"socket": d.TCPSocket.Socket.Addr()})
+			shared.LogInfo(" - binding TCP socket", log.Ctx{"socket": d.TCPSocket.Socket.Addr()})
 			d.tomb.Go(func() error { return http.Serve(d.TCPSocket.Socket, &lxdHttpServer{d.mux, d}) })
 		}
 
