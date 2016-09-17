@@ -20,6 +20,16 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+func networkAutoAttach(d *Daemon, devName string) error {
+	_, dbInfo, err := dbNetworkGetInterface(d.db, devName)
+	if err != nil {
+		// No match found, move on
+		return nil
+	}
+
+	return networkAttachInterface(dbInfo.Name, devName)
+}
+
 func networkAttachInterface(netName string, devName string) error {
 	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
 		err := exec.Command("ip", "link", "set", devName, "master", netName).Run()

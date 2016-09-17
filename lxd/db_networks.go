@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -45,6 +46,47 @@ func dbNetworkGet(db *sql.DB, network string) (int64, *shared.NetworkConfig, err
 
 	return id, &shared.NetworkConfig{
 		Name:    network,
+		Managed: true,
+		Type:    "bridge",
+		Config:  config,
+	}, nil
+}
+
+func dbNetworkGetInterface(db *sql.DB, devName string) (int64, *shared.NetworkConfig, error) {
+	id := int64(-1)
+	name := ""
+	value := ""
+
+	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\""
+	arg1 := []interface{}{}
+	arg2 := []interface{}{id, name, value}
+	result, err := dbQueryScan(db, q, arg1, arg2)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	for _, r := range result {
+		for _, entry := range strings.Split(r[2].(string), ",") {
+			entry = strings.TrimSpace(entry)
+
+			if entry == devName {
+				id = r[0].(int64)
+				name = r[1].(string)
+			}
+		}
+	}
+
+	if id == -1 {
+		return -1, nil, fmt.Errorf("No network found for interface: %s", devName)
+	}
+
+	config, err := dbNetworkConfigGet(db, id)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	return id, &shared.NetworkConfig{
+		Name:    name,
 		Managed: true,
 		Type:    "bridge",
 		Config:  config,
