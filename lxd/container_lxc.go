@@ -1485,11 +1485,20 @@ func (c *containerLXC) OnStart() error {
 
 // Stop functions
 func (c *containerLXC) Stop(stateful bool) error {
+	var ctxMap log.Ctx
 	// Setup a new operation
 	op, err := c.createOperation("stop", 30)
 	if err != nil {
 		return err
 	}
+
+	ctxMap = log.Ctx{"name": c.name,
+		"action":        op.action,
+		"creation date": c.creationDate,
+		"ephemeral":     c.ephemeral,
+		"stateful":      stateful}
+
+	shared.LogInfo("Stopping container", ctxMap)
 
 	// Handle stateful stop
 	if stateful {
@@ -1500,6 +1509,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		err := os.MkdirAll(stateDir, 0700)
 		if err != nil {
 			op.Done(err)
+			shared.LogError("Failed stopping container", ctxMap)
 			return err
 		}
 
@@ -1507,6 +1517,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		err = c.Migrate(lxc.MIGRATE_DUMP, stateDir, "snapshot", true, false)
 		if err != nil {
 			op.Done(err)
+			shared.LogError("Failed stopping container", ctxMap)
 			return err
 		}
 
@@ -1514,10 +1525,12 @@ func (c *containerLXC) Stop(stateful bool) error {
 		err = dbContainerSetStateful(c.daemon.db, c.id, true)
 		if err != nil {
 			op.Done(err)
+			shared.LogError("Failed stopping container", ctxMap)
 			return err
 		}
 
 		op.Done(nil)
+		shared.LogInfo("Stopped container", ctxMap)
 		return nil
 	}
 
@@ -1525,6 +1538,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 	err = c.initLXC()
 	if err != nil {
 		op.Done(err)
+		shared.LogError("Failed stopping container", ctxMap)
 		return err
 	}
 
@@ -1533,10 +1547,18 @@ func (c *containerLXC) Stop(stateful bool) error {
 
 	if err := c.c.Stop(); err != nil {
 		op.Done(err)
+		shared.LogError("Failed stopping container", ctxMap)
 		return err
 	}
 
-	return op.Wait()
+	err = op.Wait()
+	if err != nil {
+		shared.LogError("Failed stopping container", ctxMap)
+		return err
+	}
+
+	shared.LogInfo("Stopped container", ctxMap)
+	return err
 }
 
 func (c *containerLXC) Shutdown(timeout time.Duration) error {
