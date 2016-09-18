@@ -1895,11 +1895,6 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	if c.IsRunning() {
 		wasRunning = true
 		if err := c.Stop(false); err != nil {
-			shared.LogError(
-				"Could not stop container",
-				log.Ctx{
-					"container": c.Name(),
-					"err":       err})
 			return err
 		}
 	}
