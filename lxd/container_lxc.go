@@ -2108,6 +2108,13 @@ func (c *containerLXC) Delete() error {
 
 func (c *containerLXC) Rename(newName string) error {
 	oldName := c.Name()
+	ctxMap := log.Ctx{"name": c.name,
+		"creation date": c.creationDate,
+		"ephemeral":     c.ephemeral,
+		"last used":     c.lastUsedDate,
+		"newname":       newName}
+
+	shared.LogInfo("Renaming container", ctxMap)
 
 	// Sanity checks
 	if !c.IsSnapshot() && !shared.ValidHostname(newName) {
@@ -2115,7 +2122,7 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	if c.IsRunning() {
-		return fmt.Errorf("renaming of running container not allowed")
+		return fmt.Errorf("Renaming of running container not allowed")
 	}
 
 	// Clean things up
@@ -2126,6 +2133,7 @@ func (c *containerLXC) Rename(newName string) error {
 	if shared.PathExists(c.LogPath()) {
 		err := os.Rename(c.LogPath(), shared.LogPath(newName))
 		if err != nil {
+			shared.LogError("Failed renaming container", ctxMap)
 			return err
 		}
 	}
@@ -2133,16 +2141,19 @@ func (c *containerLXC) Rename(newName string) error {
 	// Rename the storage entry
 	if c.IsSnapshot() {
 		if err := c.storage.ContainerSnapshotRename(c, newName); err != nil {
+			shared.LogError("Failed renaming container", ctxMap)
 			return err
 		}
 	} else {
 		if err := c.storage.ContainerRename(c, newName); err != nil {
+			shared.LogError("Failed renaming container", ctxMap)
 			return err
 		}
 	}
 
 	// Rename the database entry
 	if err := dbContainerRename(c.daemon.db, oldName, newName); err != nil {
+		shared.LogError("Failed renaming container", ctxMap)
 		return err
 	}
 
@@ -2150,6 +2161,7 @@ func (c *containerLXC) Rename(newName string) error {
 		// Rename all the snapshots
 		results, err := dbContainerGetSnapshots(c.daemon.db, oldName)
 		if err != nil {
+			shared.LogError("Failed renaming container", ctxMap)
 			return err
 		}
 
@@ -2158,6 +2170,7 @@ func (c *containerLXC) Rename(newName string) error {
 			baseSnapName := filepath.Base(sname)
 			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
 			if err := dbContainerRename(c.daemon.db, sname, newSnapshotName); err != nil {
+				shared.LogError("Failed renaming container", ctxMap)
 				return err
 			}
 		}
@@ -2168,6 +2181,8 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Invalidate the go-lxc cache
 	c.c = nil
+
+	shared.LogInfo("Renamed container", ctxMap)
 
 	return nil
 }
