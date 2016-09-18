@@ -1562,25 +1562,45 @@ func (c *containerLXC) Stop(stateful bool) error {
 }
 
 func (c *containerLXC) Shutdown(timeout time.Duration) error {
+	var ctxMap log.Ctx
+
 	// Setup a new operation
 	op, err := c.createOperation("shutdown", 30)
 	if err != nil {
 		return err
 	}
 
+	ctxMap = log.Ctx{"name": c.name,
+		"action":        op.action,
+		"creation date": c.creationDate,
+		"ephemeral":     c.ephemeral,
+		"timeout":       timeout}
+
+	shared.LogInfo("Shutting down container", ctxMap)
+
 	// Load the go-lxc struct
 	err = c.initLXC()
 	if err != nil {
 		op.Done(err)
+		shared.LogError("Failed shutting down container", ctxMap)
 		return err
 	}
 
 	if err := c.c.Shutdown(timeout); err != nil {
 		op.Done(err)
+		shared.LogError("Failed shutting down container", ctxMap)
 		return err
 	}
 
-	return op.Wait()
+	err = op.Wait()
+	if err != nil {
+		shared.LogError("Failed shutting down container", ctxMap)
+		return err
+	}
+
+	shared.LogInfo("Shut down container", ctxMap)
+
+	return err
 }
 
 func (c *containerLXC) OnStop(target string) error {
