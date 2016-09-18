@@ -29,6 +29,7 @@ var imageStreamCacheLock sync.Mutex
 func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool) (string, error) {
 	var err error
 	var ss *shared.SimpleStreams
+	var ctxMap log.Ctx
 
 	if protocol == "" {
 		protocol = "lxd"
@@ -114,9 +115,13 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	d.imagesDownloadingLock.RUnlock()
 
-	shared.LogInfo(
-		"Downloading image",
-		log.Ctx{"trigger": op.url, "image": fp, "operation": op.id, "alias": alias, "server": server})
+	if op == nil {
+		ctxMap = log.Ctx{"alias": alias, "server": server}
+	} else {
+		ctxMap = log.Ctx{"trigger": op.url, "image": fp, "operation": op.id, "alias": alias, "server": server}
+	}
+
+	shared.LogInfo("Downloading image", ctxMap)
 
 	// Add the download to the queue
 	d.imagesDownloadingLock.Lock()
@@ -233,9 +238,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			}
 		}
 
-		shared.LogInfo(
-			"Image downloaded",
-			log.Ctx{"image": fp, "fingerprint": fp, "operation": op.id, "alias": alias, "server": server})
+		shared.LogInfo("Image downloaded", ctxMap)
 
 		if forContainer {
 			return fp, dbImageLastAccessInit(d.db, fp)
@@ -401,9 +404,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 	}
 
-	shared.LogInfo(
-		"Image downloaded",
-		log.Ctx{"image": fp, "operation": op.id, "alias": alias, "server": server})
+	shared.LogInfo("Image downloaded", ctxMap)
 
 	if forContainer {
 		return fp, dbImageLastAccessInit(d.db, fp)
