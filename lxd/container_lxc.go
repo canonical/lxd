@@ -1353,6 +1353,8 @@ func (c *containerLXC) startCommon() (string, error) {
 }
 
 func (c *containerLXC) Start(stateful bool) error {
+	var ctxMap log.Ctx
+
 	// Setup a new operation
 	op, err := c.createOperation("start", 30)
 	if err != nil {
@@ -1371,6 +1373,15 @@ func (c *containerLXC) Start(stateful bool) error {
 		return err
 	}
 
+	ctxMap = log.Ctx{"name": c.name,
+		"action":        op.action,
+		"creation date": c.creationDate,
+		"ephemeral":     c.ephemeral,
+		"last used":     c.lastUsedDate,
+		"stateful":      stateful}
+
+	shared.LogInfo("Starting container", ctxMap)
+
 	// If stateful, restore now
 	if stateful {
 		if !c.stateful {
@@ -1384,7 +1395,16 @@ func (c *containerLXC) Start(stateful bool) error {
 
 		os.RemoveAll(c.StatePath())
 		c.stateful = false
-		return dbContainerSetStateful(c.daemon.db, c.id, false)
+
+		err = dbContainerSetStateful(c.daemon.db, c.id, false)
+		if err != nil {
+			shared.LogError("Failed starting container", ctxMap)
+			return err
+		}
+
+		shared.LogInfo("Started container", ctxMap)
+
+		return err
 	} else if c.stateful {
 		/* stateless start required when we have state, let's delete it */
 		err := os.RemoveAll(c.StatePath())
@@ -1398,13 +1418,6 @@ func (c *containerLXC) Start(stateful bool) error {
 			return err
 		}
 	}
-
-	shared.LogInfo("Starting container",
-		log.Ctx{"name": c.name,
-			"action":        op.action,
-			"creation date": c.creationDate,
-			"ephemeral":     c.ephemeral,
-			"last used":     c.lastUsedDate})
 
 	// Start the LXC container
 	out, err := exec.Command(
@@ -1449,12 +1462,7 @@ func (c *containerLXC) Start(stateful bool) error {
 			}
 		}
 
-		shared.LogError("Failed starting container",
-			log.Ctx{"name": c.name,
-				"action":        op.action,
-				"creation date": c.creationDate,
-				"ephemeral":     c.ephemeral,
-				"last used":     c.lastUsedDate})
+		shared.LogError("Failed starting container", ctxMap)
 
 		// Return the actual error
 		return fmt.Errorf(
@@ -1465,12 +1473,7 @@ func (c *containerLXC) Start(stateful bool) error {
 			err, lxcLog)
 	}
 
-	shared.LogInfo("Started container",
-		log.Ctx{"name": c.name,
-			"action":        op.action,
-			"creation date": c.creationDate,
-			"ephemeral":     c.ephemeral,
-			"last used":     c.lastUsedDate})
+	shared.LogInfo("Started container", ctxMap)
 
 	return nil
 }
