@@ -1730,13 +1730,27 @@ func (c *containerLXC) Freeze() error {
 }
 
 func (c *containerLXC) Unfreeze() error {
+	ctxMap := log.Ctx{"name": c.name,
+		"creation date": c.creationDate,
+		"ephemeral":     c.ephemeral}
+
+	shared.LogInfo("Unfreezing container", ctxMap)
+
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
+		shared.LogError("Failed unfreezing container", ctxMap)
 		return err
 	}
 
-	return c.c.Unfreeze()
+	err = c.c.Unfreeze()
+	if err != nil {
+		shared.LogError("Failed unfreezing container", ctxMap)
+	}
+
+	shared.LogInfo("Unfroze container", ctxMap)
+
+	return err
 }
 
 var LxcMonitorStateError = fmt.Errorf("Monitor is hung")
