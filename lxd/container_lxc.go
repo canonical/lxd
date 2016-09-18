@@ -1332,6 +1332,12 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 	}
 
+	shared.LogInfo("Starting container",
+		log.Ctx{"name": c.name,
+			"action":        op.action,
+			"creation date": c.creationDate,
+			"ephemeral":     c.ephemeral})
+
 	// Start the LXC container
 	out, err := exec.Command(
 		execPath,
@@ -1349,7 +1355,7 @@ func (c *containerLXC) Start(stateful bool) error {
 
 	if err != nil && !c.IsRunning() {
 		// Attempt to extract the LXC errors
-		log := ""
+		lxcLog := ""
 		logPath := filepath.Join(c.LogPath(), "lxc.log")
 		if shared.PathExists(logPath) {
 			logContent, err := ioutil.ReadFile(logPath)
@@ -1366,14 +1372,20 @@ func (c *containerLXC) Start(stateful bool) error {
 					}
 
 					// Prepend the line break
-					if len(log) == 0 {
-						log += "\n"
+					if len(lxcLog) == 0 {
+						lxcLog += "\n"
 					}
 
-					log += fmt.Sprintf("  %s\n", strings.Join(fields[0:], " "))
+					lxcLog += fmt.Sprintf("  %s\n", strings.Join(fields[0:], " "))
 				}
 			}
 		}
+
+		shared.LogError("Failed starting container",
+			log.Ctx{"name": c.name,
+				"action":        op.action,
+				"creation date": c.creationDate,
+				"ephemeral":     c.ephemeral})
 
 		// Return the actual error
 		return fmt.Errorf(
@@ -1381,8 +1393,14 @@ func (c *containerLXC) Start(stateful bool) error {
 			c.name,
 			c.daemon.lxcpath,
 			filepath.Join(c.LogPath(), "lxc.conf"),
-			err, log)
+			err, lxcLog)
 	}
+
+	shared.LogInfo("Started container",
+		log.Ctx{"name": c.name,
+			"action":        op.action,
+			"creation date": c.creationDate,
+			"ephemeral":     c.ephemeral})
 
 	return nil
 }
