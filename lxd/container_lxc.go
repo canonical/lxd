@@ -1667,7 +1667,7 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	err = op.Wait()
 	if err != nil {
 		shared.LogError("Failed shutting down container", ctxMap)
-                return err
+		return err
 	}
 
 	shared.LogInfo("Shut down container", ctxMap)
@@ -1803,13 +1803,28 @@ func (c *containerLXC) Freeze() error {
 }
 
 func (c *containerLXC) Unfreeze() error {
+	ctxMap := log.Ctx{"name": c.name,
+		"creation date": c.creationDate,
+		"ephemeral":     c.ephemeral,
+		"last used":     c.lastUsedDate}
+
+	shared.LogInfo("Unfreezing container", ctxMap)
+
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
+		shared.LogError("Failed unfreezing container", ctxMap)
 		return err
 	}
 
-	return c.c.Unfreeze()
+	err = c.c.Unfreeze()
+	if err != nil {
+		shared.LogError("Failed unfreezing container", ctxMap)
+	}
+
+	shared.LogInfo("Unfroze container", ctxMap)
+
+	return err
 }
 
 var LxcMonitorStateError = fmt.Errorf("Monitor is hung")
