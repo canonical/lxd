@@ -1986,15 +1986,21 @@ func (c *containerLXC) cleanup() {
 }
 
 func (c *containerLXC) Delete() error {
+	ctxMap := log.Ctx{"name": c.name,
+		"creation date": c.creationDate,
+		"ephemeral":     c.ephemeral}
+
+	shared.LogInfo("Deleting container", ctxMap)
+
 	if c.IsSnapshot() {
 		// Remove the snapshot
 		if err := c.storage.ContainerSnapshotDelete(c); err != nil {
-			shared.LogWarn("failed to delete snapshot", log.Ctx{"name": c.Name(), "err": err})
+			shared.LogWarn("Failed to delete snapshot", log.Ctx{"name": c.Name(), "err": err})
 		}
 	} else {
 		// Remove all snapshot
 		if err := containerDeleteSnapshots(c.daemon, c.Name()); err != nil {
-			shared.LogWarn("failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
+			shared.LogWarn("Failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
 		}
 
 		// Clean things up
@@ -2003,6 +2009,7 @@ func (c *containerLXC) Delete() error {
 		// Delete the container from disk
 		if shared.PathExists(c.Path()) {
 			if err := c.storage.ContainerDelete(c); err != nil {
+				shared.LogError("Failed deleting container", ctxMap)
 				return err
 			}
 		}
@@ -2010,8 +2017,11 @@ func (c *containerLXC) Delete() error {
 
 	// Remove the database record
 	if err := dbContainerRemove(c.daemon.db, c.Name()); err != nil {
+		shared.LogError("Failed deleting container", ctxMap)
 		return err
 	}
+
+	shared.LogInfo("Deleted container", ctxMap)
 
 	return nil
 }
