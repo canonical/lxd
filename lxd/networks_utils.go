@@ -468,27 +468,6 @@ func networkValidAddressV6(value string) error {
 	return nil
 }
 
-func networkValidNetworkV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip, net, err := net.ParseCIDR(value)
-	if err != nil {
-		return err
-	}
-
-	if ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 network: %s", value)
-	}
-
-	if ip.String() != net.IP.String() {
-		return fmt.Errorf("Not an IPv6 network address: %s", value)
-	}
-
-	return nil
-}
-
 func networkValidAddressV4(value string) error {
 	if value == "" {
 		return nil
