@@ -550,6 +550,22 @@ func (n *network) Start() error {
 		}
 	}
 
+	// Remove any existing IPv4 iptables rules
+	err = networkIptablesClear("ipv4", n.name, "")
+	if err != nil {
+		return err
+	}
+
+	err = networkIptablesClear("ipv4", n.name, "mangle")
+	if err != nil {
+		return err
+	}
+
+	err = networkIptablesClear("ipv4", n.name, "nat")
+	if err != nil {
+		return err
+	}
+
 	// Flush all IPv4 addresses
 	err = shared.RunCommand("ip", "-4", "addr", "flush", "dev", n.name, "scope", "global")
 	if err != nil {
@@ -558,11 +574,80 @@ func (n *network) Start() error {
 
 	// Configure IPv4
 	if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
+		// Parse the subnet
+		_, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
+		if err != nil {
+			return err
+		}
+
+		// Setup basic iptables overrides
+		err = networkIptablesPrepend("ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "67", "-j", "ACCEPT")
+		if err != nil {
+			return err
+		}
+
+		err = networkIptablesPrepend("ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "67", "-j", "ACCEPT")
+		if err != nil {
+			return err
+		}
+
+		err = networkIptablesPrepend("ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "53", "-j", "ACCEPT")
+		if err != nil {
+			return err
+		}
+
+		err = networkIptablesPrepend("ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT")
+		if err != nil {
+			return err
+		}
+
+		// Allow forwarding
+		if n.config["ipv4.routing"] == "" || shared.IsTrue(n.config["ipv4.routing"]) {
+			err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
+			if err != nil {
+				return err
+			}
+
+			err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-o", n.name, "-j", "ACCEPT")
+			if err != nil {
+				return err
+			}
+		} else {
+			err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "REJECT")
+			if err != nil {
+				return err
+			}
+
+			err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-o", n.name, "-j", "REJECT")
+			if err != nil {
+				return err
+			}
+		}
+
 		// Add the address
 		err = shared.RunCommand("ip", "-4", "addr", "add", "dev", n.name, n.config["ipv4.address"])
 		if err != nil {
 			return err
 		}
+
+		// Configure NAT
+		if shared.IsTrue(n.config["ipv4.nat"]) {
+			err = networkIptablesPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Remove any existing IPv6 iptables rules
+	err = networkIptablesClear("ipv6", n.name, "")
+	if err != nil {
+		return err
+	}
+
+	err = networkIptablesClear("ipv6", n.name, "nat")
+	if err != nil {
+		return err
 	}
 
 	// Flush all IPv6 addresses
@@ -573,10 +658,68 @@ func (n *network) Start() error {
 
 	// Configure IPv6
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+		// Parse the subnet
+		_, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
+		if err != nil {
+			return err
+		}
+
+		// Setup basic iptables overrides
+		err = networkIptablesPrepend("ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "546", "-j", "ACCEPT")
+		if err != nil {
+			return err
+		}
+
+		err = networkIptablesPrepend("ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "546", "-j", "ACCEPT")
+		if err != nil {
+			return err
+		}
+
+		err = networkIptablesPrepend("ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "53", "-j", "ACCEPT")
+		if err != nil {
+			return err
+		}
+
+		err = networkIptablesPrepend("ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT")
+		if err != nil {
+			return err
+		}
+
+		// Allow forwarding
+		if n.config["ipv6.routing"] == "" || shared.IsTrue(n.config["ipv6.routing"]) {
+			err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
+			if err != nil {
+				return err
+			}
+
+			err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-o", n.name, "-j", "ACCEPT")
+			if err != nil {
+				return err
+			}
+		} else {
+			err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "REJECT")
+			if err != nil {
+				return err
+			}
+
+			err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-o", n.name, "-j", "REJECT")
+			if err != nil {
+				return err
+			}
+		}
+
 		// Add the address
 		err = shared.RunCommand("ip", "-6", "addr", "add", "dev", n.name, n.config["ipv6.address"])
 		if err != nil {
 			return err
+		}
+
+		// Configure NAT
+		if shared.IsTrue(n.config["ipv6.nat"]) {
+			err = networkIptablesPrepend("ipv6", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -599,6 +742,32 @@ func (n *network) Stop() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Cleanup iptables
+	err := networkIptablesClear("ipv4", n.name, "")
+	if err != nil {
+		return err
+	}
+
+	err = networkIptablesClear("ipv4", n.name, "mangle")
+	if err != nil {
+		return err
+	}
+
+	err = networkIptablesClear("ipv4", n.name, "nat")
+	if err != nil {
+		return err
+	}
+
+	err = networkIptablesClear("ipv6", n.name, "")
+	if err != nil {
+		return err
+	}
+
+	err = networkIptablesClear("ipv6", n.name, "nat")
+	if err != nil {
+		return err
 	}
 
 	return nil
