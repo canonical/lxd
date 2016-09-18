@@ -516,6 +516,11 @@ func (n *network) Start() error {
 		if err != nil {
 			return err
 		}
+	} else {
+		err := shared.RunCommand("ip", "link", "set", n.name, "mtu", "1500")
+		if err != nil {
+			return err
+		}
 	}
 
 	// Bring it up
@@ -542,6 +547,36 @@ func (n *network) Start() error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	// Flush all IPv4 addresses
+	err = shared.RunCommand("ip", "-4", "addr", "flush", "dev", n.name, "scope", "global")
+	if err != nil {
+		return err
+	}
+
+	// Configure IPv4
+	if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
+		// Add the address
+		err = shared.RunCommand("ip", "-4", "addr", "add", "dev", n.name, n.config["ipv4.address"])
+		if err != nil {
+			return err
+		}
+	}
+
+	// Flush all IPv6 addresses
+	err = shared.RunCommand("ip", "-6", "addr", "flush", "dev", n.name, "scope", "global")
+	if err != nil {
+		return err
+	}
+
+	// Configure IPv6
+	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+		// Add the address
+		err = shared.RunCommand("ip", "-6", "addr", "add", "dev", n.name, n.config["ipv6.address"])
+		if err != nil {
+			return err
 		}
 	}
 
