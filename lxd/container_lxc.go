@@ -1705,13 +1705,28 @@ func (c *containerLXC) OnStop(target string) error {
 
 // Freezer functions
 func (c *containerLXC) Freeze() error {
+	ctxMap := log.Ctx{"name": c.name,
+		"creation date": c.creationDate,
+		"ephemeral":     c.ephemeral}
+
+	shared.LogInfo("Freezing container", ctxMap)
+
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
+		shared.LogError("Failed freezing container", ctxMap)
 		return err
 	}
 
-	return c.c.Freeze()
+	err = c.c.Freeze()
+	if err != nil {
+		shared.LogError("Failed freezing container", ctxMap)
+		return err
+	}
+
+	shared.LogInfo("Froze container", ctxMap)
+
+	return err
 }
 
 func (c *containerLXC) Unfreeze() error {
