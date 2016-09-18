@@ -1958,6 +1958,8 @@ func (c *containerLXC) Snapshots() ([]container, error) {
 }
 
 func (c *containerLXC) Restore(sourceContainer container) error {
+	var ctxMap log.Ctx
+
 	// Check if we can restore the container
 	err := c.storage.ContainerCanRestore(c, sourceContainer)
 	if err != nil {
@@ -1982,13 +1984,18 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 		}
 	}
 
+	ctxMap = log.Ctx{"name": c.name,
+		"creation date":    c.creationDate,
+		"ephemeral":        c.ephemeral,
+		"last used":        c.lastUsedDate,
+		"source container": sourceContainer.Name()}
+
+	shared.LogInfo("Restoring container", ctxMap)
+
 	// Restore the rootfs
 	err = c.storage.ContainerRestore(c, sourceContainer)
 	if err != nil {
-		shared.LogError("Restoring the filesystem failed",
-			log.Ctx{
-				"source":      sourceContainer.Name(),
-				"destination": c.Name()})
+		shared.LogError("Failed restoring container filesystem", ctxMap)
 		return err
 	}
 
@@ -2003,11 +2010,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 
 	err = c.Update(args, false)
 	if err != nil {
-		shared.LogError("Restoring the configuration failed",
-			log.Ctx{
-				"source":      sourceContainer.Name(),
-				"destination": c.Name()})
-
+		shared.LogError("Failed restoring container configuration", ctxMap)
 		return err
 	}
 
@@ -2022,20 +2025,25 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 		// this in snapshots.
 		err2 := os.RemoveAll(c.StatePath())
 		if err2 != nil {
-			shared.LogError("failed to delete snapshot state", log.Ctx{"path": c.StatePath(), "err": err2})
+			shared.LogError("Failed to delete snapshot state", log.Ctx{"path": c.StatePath(), "err": err2})
 		}
 
 		if err != nil {
+			shared.LogInfo("Failed restoring container", ctxMap)
 			return err
 		}
 
+		shared.LogInfo("Restored container", ctxMap)
 		return nil
 	}
 
 	// Restart the container
 	if wasRunning {
+		shared.LogInfo("Restored container", ctxMap)
 		return c.Start(false)
 	}
+
+	shared.LogInfo("Restored container", ctxMap)
 
 	return nil
 }
