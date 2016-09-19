@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -162,9 +163,12 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		}
 
 		if req.Config["ipv6.address"] == "" {
-			req.Config["ipv6.address"] = "auto"
-			if req.Config["ipv6.nat"] == "" {
-				req.Config["ipv6.nat"] = "true"
+			content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
+			if err == nil && string(content) == "0\n" {
+				req.Config["ipv6.address"] = "auto"
+				if req.Config["ipv6.nat"] == "" {
+					req.Config["ipv6.nat"] = "true"
+				}
 			}
 		}
 	}
