@@ -1353,6 +1353,8 @@ func (c *containerLXC) startCommon() (string, error) {
 }
 
 func (c *containerLXC) Start(stateful bool) error {
+	var ctxMap log.Ctx
+
 	// Setup a new operation
 	op, err := c.createOperation("start", 30)
 	if err != nil {
@@ -1371,6 +1373,15 @@ func (c *containerLXC) Start(stateful bool) error {
 		return err
 	}
 
+	ctxMap = log.Ctx{"name": c.name,
+		"action":    op.action,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"stateful":  stateful}
+
+	shared.LogInfo("Starting container", ctxMap)
+
 	// If stateful, restore now
 	if stateful {
 		if !c.stateful {
@@ -1384,7 +1395,16 @@ func (c *containerLXC) Start(stateful bool) error {
 
 		os.RemoveAll(c.StatePath())
 		c.stateful = false
-		return dbContainerSetStateful(c.daemon.db, c.id, false)
+
+		err = dbContainerSetStateful(c.daemon.db, c.id, false)
+		if err != nil {
+			shared.LogError("Failed starting container", ctxMap)
+			return err
+		}
+
+		shared.LogInfo("Started container", ctxMap)
+
+		return err
 	} else if c.stateful {
 		/* stateless start required when we have state, let's delete it */
 		err := os.RemoveAll(c.StatePath())
@@ -1398,13 +1418,6 @@ func (c *containerLXC) Start(stateful bool) error {
 			return err
 		}
 	}
-
-	shared.LogInfo("Starting container",
-		log.Ctx{"name": c.name,
-			"action":        op.action,
-			"creation date": c.creationDate,
-			"ephemeral":     c.ephemeral,
-			"last used":     c.lastUsedDate})
 
 	// Start the LXC container
 	out, err := exec.Command(
@@ -1449,12 +1462,7 @@ func (c *containerLXC) Start(stateful bool) error {
 			}
 		}
 
-		shared.LogError("Failed starting container",
-			log.Ctx{"name": c.name,
-				"action":        op.action,
-				"creation date": c.creationDate,
-				"ephemeral":     c.ephemeral,
-				"last used":     c.lastUsedDate})
+		shared.LogError("Failed starting container", ctxMap)
 
 		// Return the actual error
 		return fmt.Errorf(
@@ -1465,12 +1473,7 @@ func (c *containerLXC) Start(stateful bool) error {
 			err, lxcLog)
 	}
 
-	shared.LogInfo("Started container",
-		log.Ctx{"name": c.name,
-			"action":        op.action,
-			"creation date": c.creationDate,
-			"ephemeral":     c.ephemeral,
-			"last used":     c.lastUsedDate})
+	shared.LogInfo("Started container", ctxMap)
 
 	return nil
 }
@@ -1555,11 +1558,21 @@ func (c *containerLXC) OnStart() error {
 
 // Stop functions
 func (c *containerLXC) Stop(stateful bool) error {
+	var ctxMap log.Ctx
 	// Setup a new operation
 	op, err := c.createOperation("stop", 30)
 	if err != nil {
 		return err
 	}
+
+	ctxMap = log.Ctx{"name": c.name,
+		"action":    op.action,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"stateful":  stateful}
+
+	shared.LogInfo("Stopping container", ctxMap)
 
 	// Handle stateful stop
 	if stateful {
@@ -1570,6 +1583,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		err := os.MkdirAll(stateDir, 0700)
 		if err != nil {
 			op.Done(err)
+			shared.LogError("Failed stopping container", ctxMap)
 			return err
 		}
 
@@ -1577,6 +1591,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		err = c.Migrate(lxc.MIGRATE_DUMP, stateDir, "snapshot", true, false)
 		if err != nil {
 			op.Done(err)
+			shared.LogError("Failed stopping container", ctxMap)
 			return err
 		}
 
@@ -1584,10 +1599,12 @@ func (c *containerLXC) Stop(stateful bool) error {
 		err = dbContainerSetStateful(c.daemon.db, c.id, true)
 		if err != nil {
 			op.Done(err)
+			shared.LogError("Failed stopping container", ctxMap)
 			return err
 		}
 
 		op.Done(nil)
+		shared.LogInfo("Stopped container", ctxMap)
 		return nil
 	}
 
@@ -1595,6 +1612,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 	err = c.initLXC()
 	if err != nil {
 		op.Done(err)
+		shared.LogError("Failed stopping container", ctxMap)
 		return err
 	}
 
@@ -1603,32 +1621,61 @@ func (c *containerLXC) Stop(stateful bool) error {
 
 	if err := c.c.Stop(); err != nil {
 		op.Done(err)
+		shared.LogError("Failed stopping container", ctxMap)
 		return err
 	}
 
-	return op.Wait()
+	err = op.Wait()
+	if err != nil {
+		shared.LogError("Failed stopping container", ctxMap)
+		return err
+	}
+
+	shared.LogInfo("Stopped container", ctxMap)
+	return err
 }
 
 func (c *containerLXC) Shutdown(timeout time.Duration) error {
+	var ctxMap log.Ctx
+
 	// Setup a new operation
 	op, err := c.createOperation("shutdown", 30)
 	if err != nil {
 		return err
 	}
 
+	ctxMap = log.Ctx{"name": c.name,
+		"action":    op.action,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"timeout":   timeout}
+
+	shared.LogInfo("Shutting down container", ctxMap)
+
 	// Load the go-lxc struct
 	err = c.initLXC()
 	if err != nil {
 		op.Done(err)
+		shared.LogError("Failed shutting down container", ctxMap)
 		return err
 	}
 
 	if err := c.c.Shutdown(timeout); err != nil {
 		op.Done(err)
+		shared.LogError("Failed shutting down container", ctxMap)
 		return err
 	}
 
-	return op.Wait()
+	err = op.Wait()
+	if err != nil {
+		shared.LogError("Failed shutting down container", ctxMap)
+		return err
+	}
+
+	shared.LogInfo("Shut down container", ctxMap)
+
+	return err
 }
 
 func (c *containerLXC) OnStop(target string) error {
@@ -1733,23 +1780,54 @@ func (c *containerLXC) OnStop(target string) error {
 
 // Freezer functions
 func (c *containerLXC) Freeze() error {
+	ctxMap := log.Ctx{"name": c.name,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate}
+
+	shared.LogInfo("Freezing container", ctxMap)
+
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
+		shared.LogError("Failed freezing container", ctxMap)
 		return err
 	}
 
-	return c.c.Freeze()
+	err = c.c.Freeze()
+	if err != nil {
+		shared.LogError("Failed freezing container", ctxMap)
+		return err
+	}
+
+	shared.LogInfo("Froze container", ctxMap)
+
+	return err
 }
 
 func (c *containerLXC) Unfreeze() error {
+	ctxMap := log.Ctx{"name": c.name,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate}
+
+	shared.LogInfo("Unfreezing container", ctxMap)
+
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
+		shared.LogError("Failed unfreezing container", ctxMap)
 		return err
 	}
 
-	return c.c.Unfreeze()
+	err = c.c.Unfreeze()
+	if err != nil {
+		shared.LogError("Failed unfreezing container", ctxMap)
+	}
+
+	shared.LogInfo("Unfroze container", ctxMap)
+
+	return err
 }
 
 var LxcMonitorStateError = fmt.Errorf("Monitor is hung")
@@ -1880,6 +1958,8 @@ func (c *containerLXC) Snapshots() ([]container, error) {
 }
 
 func (c *containerLXC) Restore(sourceContainer container) error {
+	var ctxMap log.Ctx
+
 	// Check if we can restore the container
 	err := c.storage.ContainerCanRestore(c, sourceContainer)
 	if err != nil {
@@ -1900,22 +1980,22 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	if c.IsRunning() {
 		wasRunning = true
 		if err := c.Stop(false); err != nil {
-			shared.LogError(
-				"Could not stop container",
-				log.Ctx{
-					"container": c.Name(),
-					"err":       err})
 			return err
 		}
 	}
 
+	ctxMap = log.Ctx{"name": c.name,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"source":    sourceContainer.Name()}
+
+	shared.LogInfo("Restoring container", ctxMap)
+
 	// Restore the rootfs
 	err = c.storage.ContainerRestore(c, sourceContainer)
 	if err != nil {
-		shared.LogError("Restoring the filesystem failed",
-			log.Ctx{
-				"source":      sourceContainer.Name(),
-				"destination": c.Name()})
+		shared.LogError("Failed restoring container filesystem", ctxMap)
 		return err
 	}
 
@@ -1930,11 +2010,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 
 	err = c.Update(args, false)
 	if err != nil {
-		shared.LogError("Restoring the configuration failed",
-			log.Ctx{
-				"source":      sourceContainer.Name(),
-				"destination": c.Name()})
-
+		shared.LogError("Failed restoring container configuration", ctxMap)
 		return err
 	}
 
@@ -1949,20 +2025,25 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 		// this in snapshots.
 		err2 := os.RemoveAll(c.StatePath())
 		if err2 != nil {
-			shared.LogError("failed to delete snapshot state", log.Ctx{"path": c.StatePath(), "err": err2})
+			shared.LogError("Failed to delete snapshot state", log.Ctx{"path": c.StatePath(), "err": err2})
 		}
 
 		if err != nil {
+			shared.LogInfo("Failed restoring container", ctxMap)
 			return err
 		}
 
+		shared.LogInfo("Restored container", ctxMap)
 		return nil
 	}
 
 	// Restart the container
 	if wasRunning {
+		shared.LogInfo("Restored container", ctxMap)
 		return c.Start(false)
 	}
+
+	shared.LogInfo("Restored container", ctxMap)
 
 	return nil
 }
@@ -1984,15 +2065,22 @@ func (c *containerLXC) cleanup() {
 }
 
 func (c *containerLXC) Delete() error {
+	ctxMap := log.Ctx{"name": c.name,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate}
+
+	shared.LogInfo("Deleting container", ctxMap)
+
 	if c.IsSnapshot() {
 		// Remove the snapshot
 		if err := c.storage.ContainerSnapshotDelete(c); err != nil {
-			shared.LogWarn("failed to delete snapshot", log.Ctx{"name": c.Name(), "err": err})
+			shared.LogWarn("Failed to delete snapshot", log.Ctx{"name": c.Name(), "err": err})
 		}
 	} else {
 		// Remove all snapshot
 		if err := containerDeleteSnapshots(c.daemon, c.Name()); err != nil {
-			shared.LogWarn("failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
+			shared.LogWarn("Failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
 		}
 
 		// Clean things up
@@ -2001,6 +2089,7 @@ func (c *containerLXC) Delete() error {
 		// Delete the container from disk
 		if shared.PathExists(c.Path()) {
 			if err := c.storage.ContainerDelete(c); err != nil {
+				shared.LogError("Failed deleting container", ctxMap)
 				return err
 			}
 		}
@@ -2008,14 +2097,24 @@ func (c *containerLXC) Delete() error {
 
 	// Remove the database record
 	if err := dbContainerRemove(c.daemon.db, c.Name()); err != nil {
+		shared.LogError("Failed deleting container", ctxMap)
 		return err
 	}
+
+	shared.LogInfo("Deleted container", ctxMap)
 
 	return nil
 }
 
 func (c *containerLXC) Rename(newName string) error {
 	oldName := c.Name()
+	ctxMap := log.Ctx{"name": c.name,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"newname":   newName}
+
+	shared.LogInfo("Renaming container", ctxMap)
 
 	// Sanity checks
 	if !c.IsSnapshot() && !shared.ValidHostname(newName) {
@@ -2023,7 +2122,7 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	if c.IsRunning() {
-		return fmt.Errorf("renaming of running container not allowed")
+		return fmt.Errorf("Renaming of running container not allowed")
 	}
 
 	// Clean things up
@@ -2034,6 +2133,7 @@ func (c *containerLXC) Rename(newName string) error {
 	if shared.PathExists(c.LogPath()) {
 		err := os.Rename(c.LogPath(), shared.LogPath(newName))
 		if err != nil {
+			shared.LogError("Failed renaming container", ctxMap)
 			return err
 		}
 	}
@@ -2041,16 +2141,19 @@ func (c *containerLXC) Rename(newName string) error {
 	// Rename the storage entry
 	if c.IsSnapshot() {
 		if err := c.storage.ContainerSnapshotRename(c, newName); err != nil {
+			shared.LogError("Failed renaming container", ctxMap)
 			return err
 		}
 	} else {
 		if err := c.storage.ContainerRename(c, newName); err != nil {
+			shared.LogError("Failed renaming container", ctxMap)
 			return err
 		}
 	}
 
 	// Rename the database entry
 	if err := dbContainerRename(c.daemon.db, oldName, newName); err != nil {
+		shared.LogError("Failed renaming container", ctxMap)
 		return err
 	}
 
@@ -2058,6 +2161,7 @@ func (c *containerLXC) Rename(newName string) error {
 		// Rename all the snapshots
 		results, err := dbContainerGetSnapshots(c.daemon.db, oldName)
 		if err != nil {
+			shared.LogError("Failed renaming container", ctxMap)
 			return err
 		}
 
@@ -2066,6 +2170,7 @@ func (c *containerLXC) Rename(newName string) error {
 			baseSnapName := filepath.Base(sname)
 			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
 			if err := dbContainerRename(c.daemon.db, sname, newSnapshotName); err != nil {
+				shared.LogError("Failed renaming container", ctxMap)
 				return err
 			}
 		}
@@ -2076,6 +2181,8 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Invalidate the go-lxc cache
 	c.c = nil
+
+	shared.LogInfo("Renamed container", ctxMap)
 
 	return nil
 }
@@ -2742,13 +2849,21 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 }
 
 func (c *containerLXC) Export(w io.Writer) error {
+	ctxMap := log.Ctx{"name": c.name,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate}
+
 	if c.IsRunning() {
 		return fmt.Errorf("Cannot export a running container as an image")
 	}
 
+	shared.LogInfo("Exporting container", ctxMap)
+
 	// Start the storage
 	err := c.StorageStart()
 	if err != nil {
+		shared.LogError("Failed exporting container", ctxMap)
 		return err
 	}
 	defer c.StorageStop()
@@ -2756,11 +2871,13 @@ func (c *containerLXC) Export(w io.Writer) error {
 	// Unshift the container
 	idmap, err := c.LastIdmapSet()
 	if err != nil {
+		shared.LogError("Failed exporting container", ctxMap)
 		return err
 	}
 
 	if idmap != nil {
 		if err := idmap.UnshiftRootfs(c.RootfsPath()); err != nil {
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
@@ -2792,6 +2909,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 		f, err := ioutil.TempFile("", "lxd_lxd_metadata_")
 		if err != nil {
 			tw.Close()
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 		defer os.Remove(f.Name())
@@ -2803,6 +2921,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 			parent, err := containerLoadByName(c.daemon, parentName)
 			if err != nil {
 				tw.Close()
+				shared.LogError("Failed exporting container", ctxMap)
 				return err
 			}
 
@@ -2814,6 +2933,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 		if arch == "" {
 			arch, err = shared.ArchitectureName(c.daemon.architectures[0])
 			if err != nil {
+				shared.LogError("Failed exporting container", ctxMap)
 				return err
 			}
 		}
@@ -2826,6 +2946,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
 			tw.Close()
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
@@ -2836,13 +2957,15 @@ func (c *containerLXC) Export(w io.Writer) error {
 		fi, err := os.Lstat(f.Name())
 		if err != nil {
 			tw.Close()
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
 		tmpOffset := len(path.Dir(f.Name())) + 1
 		if err := c.tarStoreFile(linkmap, tmpOffset, tw, f.Name(), fi); err != nil {
-			shared.LogDebugf("Error writing to tarfile: %s", err)
 			tw.Close()
+			shared.LogDebugf("Error writing to tarfile: %s", err)
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
@@ -2851,14 +2974,16 @@ func (c *containerLXC) Export(w io.Writer) error {
 		// Include metadata.yaml in the tarball
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			shared.LogDebugf("Error statting %s during export", fnam)
 			tw.Close()
+			shared.LogDebugf("Error statting %s during export", fnam)
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
 		if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
-			shared.LogDebugf("Error writing to tarfile: %s", err)
 			tw.Close()
+			shared.LogDebugf("Error writing to tarfile: %s", err)
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 	}
@@ -2873,7 +2998,13 @@ func (c *containerLXC) Export(w io.Writer) error {
 		filepath.Walk(fnam, writeToTar)
 	}
 
-	return tw.Close()
+	err = tw.Close()
+	if err != nil {
+		shared.LogError("Failed exporting container", ctxMap)
+	}
+
+	shared.LogInfo("Exported container", ctxMap)
+	return err
 }
 
 func collectCRIULogFile(c container, imagesDir string, function string, method string) error {
@@ -2912,9 +3043,19 @@ func findCriu(host string) error {
 }
 
 func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop bool, actionScript bool) error {
+	ctxMap := log.Ctx{"name": c.name,
+		"created":      c.creationDate,
+		"ephemeral":    c.ephemeral,
+		"used":         c.lastUsedDate,
+		"statedir":     stateDir,
+		"actionscript": actionScript,
+		"stop":         stop}
+
 	if err := findCriu(function); err != nil {
 		return err
 	}
+
+	shared.LogInfo("Migrating container", ctxMap)
 
 	prettyCmd := ""
 	switch cmd {
@@ -3030,9 +3171,12 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 	if migrateErr != nil {
 		log, err2 := getCRIULogErrors(stateDir, prettyCmd)
 		if err2 == nil {
+			shared.LogInfo("Failed migrating container", ctxMap)
 			migrateErr = fmt.Errorf("%s %s failed\n%s", function, prettyCmd, log)
 		}
 	}
+
+	shared.LogInfo("Migrated container", ctxMap)
 
 	return migrateErr
 }
@@ -3404,19 +3548,24 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
+	shared.LogInfo("Executing command", log.Ctx{"environment": envSlice, "args": args})
+
 	err := cmd.Run()
 	if err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if ok {
 			status, ok := exitErr.Sys().(syscall.WaitStatus)
 			if ok {
+				shared.LogInfo("Executed command", log.Ctx{"environment": envSlice, "args": args, "exit_status": status.ExitStatus()})
 				return status.ExitStatus(), nil
 			}
 		}
 
+		shared.LogInfo("Failed executing command", log.Ctx{"environment": envSlice, "args": args, "err": err})
 		return -1, err
 	}
 
+	shared.LogInfo("Executed command", log.Ctx{"environment": envSlice, "args": args})
 	return 0, nil
 }
 
