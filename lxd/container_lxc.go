@@ -3548,19 +3548,24 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
+	shared.LogInfo("Executing command", log.Ctx{"environment": envSlice, "args": args})
+
 	err := cmd.Run()
 	if err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if ok {
 			status, ok := exitErr.Sys().(syscall.WaitStatus)
 			if ok {
+				shared.LogInfo("Executed command", log.Ctx{"environment": envSlice, "args": args, "exit_status": status.ExitStatus()})
 				return status.ExitStatus(), nil
 			}
 		}
 
+		shared.LogInfo("Failed executing command", log.Ctx{"environment": envSlice, "args": args, "err": err})
 		return -1, err
 	}
 
+	shared.LogInfo("Executed command", log.Ctx{"environment": envSlice, "args": args})
 	return 0, nil
 }
 
