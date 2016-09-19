@@ -87,6 +87,9 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 	const layout = "2006/01/02 15:04 UTC"
 
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
+	if d.Remote != nil && d.Remote.Addr != "" {
+		fmt.Printf(i18n.G("Remote: %s")+"\n", d.Remote.Addr)
+	}
 	fmt.Printf(i18n.G("Architecture: %s")+"\n", ct.Architecture)
 	if ct.CreationDate.UTC().Unix() != 0 {
 		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreationDate.UTC().Format(layout))
