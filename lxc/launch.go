@@ -129,7 +129,12 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 
 	err = d.WaitForSuccess(resp.Operation)
 	if err != nil {
-		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, name)
+		prettyName := name
+		if remote != "" {
+			prettyName = fmt.Sprintf("%s:%s", remote, name)
+		}
+
+		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, prettyName)
 	}
 
 	return nil
