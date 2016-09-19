@@ -2729,13 +2729,20 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 }
 
 func (c *containerLXC) Export(w io.Writer) error {
+	ctxMap := log.Ctx{"name": c.name,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral}
+
 	if c.IsRunning() {
 		return fmt.Errorf("Cannot export a running container as an image")
 	}
 
+	shared.LogInfo("Exporting container", ctxMap)
+
 	// Start the storage
 	err := c.StorageStart()
 	if err != nil {
+		shared.LogError("Failed exporting container", ctxMap)
 		return err
 	}
 	defer c.StorageStop()
@@ -2743,11 +2750,13 @@ func (c *containerLXC) Export(w io.Writer) error {
 	// Unshift the container
 	idmap, err := c.LastIdmapSet()
 	if err != nil {
+		shared.LogError("Failed exporting container", ctxMap)
 		return err
 	}
 
 	if idmap != nil {
 		if err := idmap.UnshiftRootfs(c.RootfsPath()); err != nil {
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
@@ -2779,6 +2788,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 		f, err := ioutil.TempFile("", "lxd_lxd_metadata_")
 		if err != nil {
 			tw.Close()
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 		defer os.Remove(f.Name())
@@ -2790,6 +2800,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 			parent, err := containerLoadByName(c.daemon, parentName)
 			if err != nil {
 				tw.Close()
+				shared.LogError("Failed exporting container", ctxMap)
 				return err
 			}
 
@@ -2801,6 +2812,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 		if arch == "" {
 			arch, err = shared.ArchitectureName(c.daemon.architectures[0])
 			if err != nil {
+				shared.LogError("Failed exporting container", ctxMap)
 				return err
 			}
 		}
@@ -2813,6 +2825,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
 			tw.Close()
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
@@ -2823,13 +2836,15 @@ func (c *containerLXC) Export(w io.Writer) error {
 		fi, err := os.Lstat(f.Name())
 		if err != nil {
 			tw.Close()
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
 		tmpOffset := len(path.Dir(f.Name())) + 1
 		if err := c.tarStoreFile(linkmap, tmpOffset, tw, f.Name(), fi); err != nil {
-			shared.LogDebugf("Error writing to tarfile: %s", err)
 			tw.Close()
+			shared.LogDebugf("Error writing to tarfile: %s", err)
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
@@ -2838,14 +2853,16 @@ func (c *containerLXC) Export(w io.Writer) error {
 		// Include metadata.yaml in the tarball
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			shared.LogDebugf("Error statting %s during export", fnam)
 			tw.Close()
+			shared.LogDebugf("Error statting %s during export", fnam)
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
 		if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
-			shared.LogDebugf("Error writing to tarfile: %s", err)
 			tw.Close()
+			shared.LogDebugf("Error writing to tarfile: %s", err)
+			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 	}
@@ -2860,7 +2877,13 @@ func (c *containerLXC) Export(w io.Writer) error {
 		filepath.Walk(fnam, writeToTar)
 	}
 
-	return tw.Close()
+	err = tw.Close()
+	if err != nil {
+		shared.LogError("Failed exporting container", ctxMap)
+	}
+
+	shared.LogInfo("Exported container", ctxMap)
+	return err
 }
 
 func collectCRIULogFile(c container, imagesDir string, function string, method string) error {
