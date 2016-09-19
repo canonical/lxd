@@ -510,6 +510,19 @@ func (n *network) Start() error {
 		}
 	}
 
+	// IPv6 bridge configuration
+	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+		err := ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/autoconf", n.name), []byte("0"), 0)
+		if err != nil {
+			return err
+		}
+
+		err = ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/accept_dad", n.name), []byte("0"), 0)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Set the MTU
 	if n.config["bridge.mtu"] != "" {
 		err := shared.RunCommand("ip", "link", "set", n.name, "mtu", n.config["bridge.mtu"])
@@ -603,6 +616,11 @@ func (n *network) Start() error {
 
 		// Allow forwarding
 		if n.config["ipv4.routing"] == "" || shared.IsTrue(n.config["ipv4.routing"]) {
+			err = ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0)
+			if err != nil {
+				return err
+			}
+
 			err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
 			if err != nil {
 				return err
@@ -687,6 +705,24 @@ func (n *network) Start() error {
 
 		// Allow forwarding
 		if n.config["ipv6.routing"] == "" || shared.IsTrue(n.config["ipv6.routing"]) {
+			// Get a list of proc entries
+			entries, err := ioutil.ReadDir("/proc/sys/net/ipv6/conf/")
+			if err != nil {
+				return err
+			}
+
+			for _, entry := range entries {
+				err := ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/accept_ra", entry.Name()), []byte("2"), 0000)
+				if err != nil {
+					return err
+				}
+
+				err = ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/forwarding", entry.Name()), []byte("1"), 0000)
+				if err != nil {
+					return err
+				}
+			}
+
 			err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
 			if err != nil {
 				return err
