@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -529,6 +530,18 @@ func (n *network) Start() error {
 		if err != nil {
 			return err
 		}
+	} else if n.config["bridge.mode"] == "fan" {
+		if n.config["fan.type"] == "ipip" {
+			err := shared.RunCommand("ip", "link", "set", n.name, "mtu", "1480")
+			if err != nil {
+				return err
+			}
+		} else {
+			err := shared.RunCommand("ip", "link", "set", n.name, "mtu", "1450")
+			if err != nil {
+				return err
+			}
+		}
 	} else {
 		err := shared.RunCommand("ip", "link", "set", n.name, "mtu", "1500")
 		if err != nil {
@@ -585,14 +598,8 @@ func (n *network) Start() error {
 		return err
 	}
 
-	// Configure IPv4
-	if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
-		// Parse the subnet
-		_, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
-		if err != nil {
-			return err
-		}
-
+	// Configure IPv4 firewall (includes fan)
+	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
 		// Setup basic iptables overrides
 		err = networkIptablesPrepend("ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "67", "-j", "ACCEPT")
 		if err != nil {
@@ -615,7 +622,7 @@ func (n *network) Start() error {
 		}
 
 		// Allow forwarding
-		if n.config["ipv4.routing"] == "" || shared.IsTrue(n.config["ipv4.routing"]) {
+		if n.config["bridge.mode"] == "fan" || n.config["ipv4.routing"] == "" || shared.IsTrue(n.config["ipv4.routing"]) {
 			err = ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0)
 			if err != nil {
 				return err
@@ -640,6 +647,15 @@ func (n *network) Start() error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	// Configure IPv4
+	if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
+		// Parse the subnet
+		_, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
+		if err != nil {
+			return err
 		}
 
 		// Add the address
@@ -759,6 +775,103 @@ func (n *network) Start() error {
 		}
 	}
 
+	// Cleanup an existing FAN tunnel
+	tunName := fmt.Sprintf("%s-fan", n.name)
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", tunName)) {
+		err = shared.RunCommand("ip", "link", "del", tunName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Configure the fan
+	if n.config["bridge.mode"] == "fan" {
+		// Parse the underlay
+		underlay := n.config["fan.underlay_subnet"]
+		_, underlaySubnet, err := net.ParseCIDR(underlay)
+		if err != nil {
+			return nil
+		}
+
+		// Parse the overlay
+		overlay := n.config["fan.overlay_subnet"]
+		if overlay == "" {
+			overlay = "240.0.0.0/8"
+		}
+
+		_, overlaySubnet, err := net.ParseCIDR(overlay)
+		if err != nil {
+			return err
+		}
+
+		// Get the address
+		fanAddress, devName, devAddr, err := networkFanAddress(underlaySubnet, overlaySubnet)
+		if err != nil {
+			return err
+		}
+
+		if n.config["fan.type"] == "ipip" {
+			fanAddress = strings.Replace(fanAddress, "/8", "/24", 1)
+		}
+
+		// Add the address
+		err = shared.RunCommand("ip", "-4", "addr", "add", "dev", n.name, fanAddress)
+		if err != nil {
+			return err
+		}
+
+		// Setup the tunnel
+		if n.config["fan.type"] == "ipip" {
+			err = shared.RunCommand("ip", "-4", "route", "flush", "dev", "tunl0")
+			if err != nil {
+				return err
+			}
+
+			err = shared.RunCommand("ip", "link", "set", "tunl0", "up")
+			if err != nil {
+				return err
+			}
+
+			// Fails if the map is already set
+			shared.RunCommand("ip", "link", "change", "tunl0", "type", "ipip", "fan-map", fmt.Sprintf("%s:%s", overlay, underlay))
+
+			addr := strings.Split(fanAddress, "/")
+
+			err = shared.RunCommand("ip", "route", "add", overlay, "dev", "tunl0", "src", addr[0])
+			if err != nil {
+				return err
+			}
+		} else {
+			vxlanID := fmt.Sprintf("%d", binary.BigEndian.Uint32(overlaySubnet.IP.To4())>>8)
+
+			err = shared.RunCommand("ip", "link", "add", tunName, "type", "vxlan", "id", vxlanID, "dev", devName, "dstport", "0", "local", devAddr, "fan-map", fmt.Sprintf("%s:%s", overlay, underlay))
+			if err != nil {
+				return err
+			}
+
+			err = networkAttachInterface(n.name, tunName)
+			if err != nil {
+				return err
+			}
+
+			err = shared.RunCommand("ip", "link", "set", tunName, "up")
+			if err != nil {
+				return err
+			}
+
+			err = shared.RunCommand("ip", "link", "set", n.name, "up")
+			if err != nil {
+				return err
+			}
+		}
+
+		// Configure NAT
+		err = networkIptablesPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", underlaySubnet.String(), "!", "-d", underlaySubnet.String(), "-j", "MASQUERADE")
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -804,6 +917,15 @@ func (n *network) Stop() error {
 	err = networkIptablesClear("ipv6", n.name, "nat")
 	if err != nil {
 		return err
+	}
+
+	// Cleanup an existing fan tunnel
+	tunName := fmt.Sprintf("%s-fan", n.name)
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", tunName)) {
+		err = shared.RunCommand("ip", "link", "del", tunName)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
