@@ -368,6 +368,9 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
 			case int:
 				integer := 0
 				ptrargs[i] = &integer
+			case int64:
+				integer := int64(0)
+				ptrargs[i] = &integer
 			default:
 				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s", t)
 			}
@@ -383,6 +386,8 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
 				newargs[i] = *ptrargs[i].(*string)
 			case int:
 				newargs[i] = *ptrargs[i].(*int)
+			case int64:
+				newargs[i] = *ptrargs[i].(*int64)
 			default:
 				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s", t)
 			}
