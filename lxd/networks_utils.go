@@ -32,14 +32,17 @@ func networkAutoAttach(d *Daemon, devName string) error {
 
 func networkAttachInterface(netName string, devName string) error {
 	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
-		err := exec.Command("ip", "link", "set", devName, "master", netName).Run()
+		err := shared.RunCommand("ip", "link", "set", devName, "master", netName)
 		if err != nil {
-			return fmt.Errorf("Failed to add interface to bridge: %s", err)
+			return err
 		}
 	} else {
-		err := exec.Command("ovs-vsctl", "add-port", netName, devName).Run()
+		err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
 		if err != nil {
-			return fmt.Errorf("Failed to add interface to bridge: %s", err)
+			err := shared.RunCommand("ovs-vsctl", "add-port", netName, devName)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -508,4 +511,75 @@ func networkValidNetworkV4(value string) error {
 	}
 
 	return nil
+}
+
+func networkAddressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return net.IP{}, "", err
+	}
+
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			ip, _, err := net.ParseCIDR(addr.String())
+			if err != nil {
+				continue
+			}
+
+			if subnet.Contains(ip) {
+				return ip, iface.Name, nil
+			}
+		}
+	}
+
+	return net.IP{}, "", fmt.Errorf("No address found in subnet")
+}
+
+func networkFanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string, string, error) {
+	// Sanity checks
+	underlaySize, _ := underlay.Mask.Size()
+	if underlaySize != 16 && underlaySize != 24 {
+		return "", "", "", fmt.Errorf("Only /16 or /24 underlays are supported at this time")
+	}
+
+	overlaySize, _ := overlay.Mask.Size()
+	if overlaySize != 8 && overlaySize != 16 {
+		return "", "", "", fmt.Errorf("Only /8 or /16 overlays are supported at this time")
+	}
+
+	if overlaySize+(32-underlaySize)+8 > 32 {
+		return "", "", "", fmt.Errorf("Underlay or overlay networks too large to accomodate the FAN")
+	}
+
+	// Get the IP
+	ip, dev, err := networkAddressForSubnet(underlay)
+	if err != nil {
+		return "", "", "", err
+	}
+	ipStr := ip.String()
+
+	// Force into IPv4 format
+	ipBytes := ip.To4()
+	if ipBytes == nil {
+		return "", "", "", fmt.Errorf("Invalid IPv4: %s", ip)
+	}
+
+	// Compute the IP
+	ipBytes[0] = overlay.IP[0]
+	if overlaySize == 16 {
+		ipBytes[1] = overlay.IP[1]
+	} else if underlaySize == 24 {
+		ipBytes[1] = 0
+	} else if underlaySize == 16 {
+		ipBytes[1] = ipBytes[2]
+	}
+	ipBytes[2] = ipBytes[3]
+	ipBytes[3] = 1
+
+	return fmt.Sprintf("%s/%d", ipBytes.String(), overlaySize), dev, ipStr, err
 }

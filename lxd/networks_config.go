@@ -39,6 +39,9 @@ var networkConfigKeys = map[string]func(value string) error{
 
 		return networkValidNetworkV4(value)
 	},
+	"fan.type": func(value string) error {
+		return shared.IsOneOf(value, []string{"vxlan", "ipip"})
+	},
 
 	"tunnel.TARGET.protocol": func(value string) error {
 		return shared.IsOneOf(value, []string{"gre", "vxlan"})
@@ -143,8 +146,16 @@ func networkValidateConfig(config map[string]string) error {
 				return fmt.Errorf("The minimum MTU for an IPv4 network is 68")
 			}
 
-			if config["bridge.mode"] == "fan" && mtu > 1450 {
-				return fmt.Errorf("Maximum MTU for a FAN bridge is 1450")
+			if config["bridge.mode"] == "fan" {
+				if config["fan.type"] == "ipip" {
+					if mtu > 1480 {
+						return fmt.Errorf("Maximum MTU for an IPIP FAN bridge is 1480")
+					}
+				} else {
+					if mtu > 1450 {
+						return fmt.Errorf("Maximum MTU for a VXLAN FAN bridge is 1450")
+					}
+				}
 			}
 		}
 	}
