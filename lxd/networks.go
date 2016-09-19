@@ -14,23 +14,20 @@ import (
 
 // Helper functions
 func networkIsInUse(c container, name string) bool {
-	devices := c.ExpandedDevices()
-	for _, name := range devices.DeviceNames() {
-		device := devices[name]
-
-		if device["type"] != "nic" {
+	for _, d := range c.ExpandedDevices() {
+		if d["type"] != "nic" {
 			continue
 		}
 
-		if !shared.StringInSlice(device["nictype"], []string{"bridged", "macvlan"}) {
+		if !shared.StringInSlice(d["nictype"], []string{"bridged", "macvlan"}) {
 			continue
 		}
 
-		if device["parent"] == "" {
+		if d["parent"] == "" {
 			continue
 		}
 
-		if device["parent"] == name {
+		if d["parent"] == name {
 			return true
 		}
 	}
