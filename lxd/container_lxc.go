@@ -1374,11 +1374,11 @@ func (c *containerLXC) Start(stateful bool) error {
 	}
 
 	ctxMap = log.Ctx{"name": c.name,
-		"action":        op.action,
-		"creation date": c.creationDate,
-		"ephemeral":     c.ephemeral,
-		"last used":     c.lastUsedDate,
-		"stateful":      stateful}
+		"action":    op.action,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"stateful":  stateful}
 
 	shared.LogInfo("Starting container", ctxMap)
 
@@ -1566,11 +1566,11 @@ func (c *containerLXC) Stop(stateful bool) error {
 	}
 
 	ctxMap = log.Ctx{"name": c.name,
-		"action":        op.action,
-		"creation date": c.creationDate,
-		"ephemeral":     c.ephemeral,
-		"last used":     c.lastUsedDate,
-		"stateful":      stateful}
+		"action":    op.action,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"stateful":  stateful}
 
 	shared.LogInfo("Stopping container", ctxMap)
 
@@ -1645,11 +1645,11 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	}
 
 	ctxMap = log.Ctx{"name": c.name,
-		"action":        op.action,
-		"creation date": c.creationDate,
-		"ephemeral":     c.ephemeral,
-		"last used":     c.lastUsedDate,
-		"timeout":       timeout}
+		"action":    op.action,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"timeout":   timeout}
 
 	shared.LogInfo("Shutting down container", ctxMap)
 
@@ -1781,9 +1781,9 @@ func (c *containerLXC) OnStop(target string) error {
 // Freezer functions
 func (c *containerLXC) Freeze() error {
 	ctxMap := log.Ctx{"name": c.name,
-		"creation date": c.creationDate,
-		"ephemeral":     c.ephemeral,
-		"last used":     c.lastUsedDate}
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate}
 
 	shared.LogInfo("Freezing container", ctxMap)
 
@@ -1807,9 +1807,9 @@ func (c *containerLXC) Freeze() error {
 
 func (c *containerLXC) Unfreeze() error {
 	ctxMap := log.Ctx{"name": c.name,
-		"creation date": c.creationDate,
-		"ephemeral":     c.ephemeral,
-		"last used":     c.lastUsedDate}
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate}
 
 	shared.LogInfo("Unfreezing container", ctxMap)
 
@@ -1985,10 +1985,10 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	}
 
 	ctxMap = log.Ctx{"name": c.name,
-		"creation date":    c.creationDate,
-		"ephemeral":        c.ephemeral,
-		"last used":        c.lastUsedDate,
-		"source container": sourceContainer.Name()}
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"source":    sourceContainer.Name()}
 
 	shared.LogInfo("Restoring container", ctxMap)
 
@@ -2066,9 +2066,9 @@ func (c *containerLXC) cleanup() {
 
 func (c *containerLXC) Delete() error {
 	ctxMap := log.Ctx{"name": c.name,
-		"creation date": c.creationDate,
-		"ephemeral":     c.ephemeral,
-		"last used":     c.lastUsedDate}
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate}
 
 	shared.LogInfo("Deleting container", ctxMap)
 
@@ -2109,10 +2109,10 @@ func (c *containerLXC) Delete() error {
 func (c *containerLXC) Rename(newName string) error {
 	oldName := c.Name()
 	ctxMap := log.Ctx{"name": c.name,
-		"creation date": c.creationDate,
-		"ephemeral":     c.ephemeral,
-		"last used":     c.lastUsedDate,
-		"newname":       newName}
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"newname":   newName}
 
 	shared.LogInfo("Renaming container", ctxMap)
 
