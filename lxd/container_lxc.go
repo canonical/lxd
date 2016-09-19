@@ -2922,9 +2922,18 @@ func findCriu(host string) error {
 }
 
 func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop bool, actionScript bool) error {
+	ctxMap := log.Ctx{"name": c.name,
+		"created":      c.creationDate,
+		"ephemeral":    c.ephemeral,
+		"statedir":     stateDir,
+		"actionscript": actionScript,
+		"stop":         stop}
+
 	if err := findCriu(function); err != nil {
 		return err
 	}
+
+	shared.LogInfo("Migrating container", ctxMap)
 
 	prettyCmd := ""
 	switch cmd {
@@ -3040,9 +3049,12 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 	if migrateErr != nil {
 		log, err2 := getCRIULogErrors(stateDir, prettyCmd)
 		if err2 == nil {
+			shared.LogInfo("Failed migrating container", ctxMap)
 			migrateErr = fmt.Errorf("%s %s failed\n%s", function, prettyCmd, log)
 		}
 	}
+
+	shared.LogInfo("Migrated container", ctxMap)
 
 	return migrateErr
 }
