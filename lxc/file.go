@@ -245,6 +245,10 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 		}
 
 		if c.recursive {
+			if err := os.MkdirAll(target, 0755); err != nil && !os.IsExist(err) {
+				return err
+			}
+
 			if err := d.RecursivePullFile(container, pathSpec[1], target); err != nil {
 				return err
 			}
