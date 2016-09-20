@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -397,7 +398,8 @@ func networkStartup(d *Daemon) error {
 
 		err = n.Start()
 		if err != nil {
-			return err
+			// Don't cause LXD to fail to start entirely on network bring up failure
+			shared.LogError("Failed to bring up network", log.Ctx{"err": err, "name": name})
 		}
 	}
 
