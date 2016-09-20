@@ -46,8 +46,8 @@ var networkConfigKeys = map[string]func(value string) error{
 	"tunnel.TARGET.protocol": func(value string) error {
 		return shared.IsOneOf(value, []string{"gre", "vxlan"})
 	},
-	"tunnel.TARGET.local":  networkValidAddress,
-	"tunnel.TARGET.remote": networkValidAddress,
+	"tunnel.TARGET.local":  networkValidAddressV4,
+	"tunnel.TARGET.remote": networkValidAddressV4,
 	"tunnel.TARGET.port":   networkValidPort,
 	"tunnel.TARGET.id":     shared.IsInt64,
 
@@ -56,7 +56,7 @@ var networkConfigKeys = map[string]func(value string) error{
 			return nil
 		}
 
-		return networkValidAddressV4(value)
+		return networkValidAddressCIDRV4(value)
 	},
 	"ipv4.nat":         shared.IsBool,
 	"ipv4.dhcp":        shared.IsBool,
@@ -68,7 +68,7 @@ var networkConfigKeys = map[string]func(value string) error{
 			return nil
 		}
 
-		return networkValidAddressV6(value)
+		return networkValidAddressCIDRV6(value)
 	},
 	"ipv6.nat":           shared.IsBool,
 	"ipv6.dhcp":          shared.IsBool,

@@ -904,14 +904,14 @@ they otherwise would.
 				if shared.StringInSlice(value, []string{"auto", "none"}) {
 					return nil
 				}
-				return networkValidAddressV4(value)
+				return networkValidAddressCIDRV4(value)
 			})
 
 			bridgeIPv6 = askString("What IPv4 subnet should be used (CIDR notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
 				if shared.StringInSlice(value, []string{"auto", "none"}) {
 					return nil
 				}
-				return networkValidAddressV6(value)
+				return networkValidAddressCIDRV6(value)
 			})
 		}
 	}
