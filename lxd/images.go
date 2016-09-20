@@ -845,7 +845,7 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
 
 func autoUpdateImages(d *Daemon) {
-	shared.LogDebugf("Updating images")
+	shared.LogInfof("Updating images")
 
 	images, err := dbImagesGet(d.db, false)
 	if err != nil {
@@ -904,11 +904,11 @@ func autoUpdateImages(d *Daemon) {
 		}
 	}
 
-	shared.LogDebugf("Done updating images")
+	shared.LogInfof("Done updating images")
 }
 
 func pruneExpiredImages(d *Daemon) {
-	shared.LogDebugf("Pruning expired images")
+	shared.LogInfof("Pruning expired images")
 
 	// Get the list of expires images
 	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
@@ -925,7 +925,7 @@ func pruneExpiredImages(d *Daemon) {
 		}
 	}
 
-	shared.LogDebugf("Done pruning expired images")
+	shared.LogInfof("Done pruning expired images")
 }
 
 func doDeleteImage(d *Daemon, fingerprint string) error {
