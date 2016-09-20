@@ -772,7 +772,7 @@ func (d *Daemon) Init() error {
 	go func() {
 		t := time.NewTicker(24 * time.Hour)
 		for {
-			shared.LogDebugf("Expiring log files")
+			shared.LogInfof("Expiring log files")
 
 			err := d.ExpireLogs()
 			if err != nil {
@@ -792,6 +792,7 @@ func (d *Daemon) Init() error {
 	)
 
 	/* Setup /dev/lxd */
+	shared.LogInfof("Starting /dev/lxd handler")
 	d.devlxd, err = createAndBindDevLxd()
 	if err != nil {
 		return err
@@ -1094,18 +1095,21 @@ func (d *Daemon) Stop() error {
 	}
 
 	if n, err := d.numRunningContainers(); err != nil || n == 0 {
-		shared.LogDebugf("Unmounting shmounts")
+		shared.LogInfof("Unmounting shmounts")
 
 		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
+
+		shared.LogInfof("Done unmounting shmounts")
 	} else {
 		shared.LogDebugf("Not unmounting shmounts (containers are still running)")
 	}
 
-	shared.LogDebugf("Closing the database")
+	shared.LogInfof("Closing the database")
 	d.db.Close()
 
-	shared.LogDebugf("Stopping /dev/lxd handler")
+	shared.LogInfof("Stopping /dev/lxd handler")
 	d.devlxd.Close()
+	shared.LogInfof("Stopped /dev/lxd handler")
 
 	if d.MockMode || forceStop {
 		return nil
