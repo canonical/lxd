@@ -84,7 +84,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("The network already exists"))
 	}
 
-	err = networkValidateConfig(req.Config)
+	err = networkValidateConfig(req.Name, req.Config)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -342,7 +342,7 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 
 func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newConfig map[string]string) Response {
 	// Validate the configuration
-	err := networkValidateConfig(newConfig)
+	err := networkValidateConfig(name, newConfig)
 	if err != nil {
 		return BadRequest(err)
 	}
