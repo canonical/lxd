@@ -519,6 +519,9 @@ func (n *network) Start() error {
 		return err
 	}
 
+	// Get a list of tunnels
+	tunnels := networkGetTunnels(n.config)
+
 	// IPv6 bridge configuration
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
 		err := ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/autoconf", n.name), []byte("0"), 0)
@@ -536,6 +539,8 @@ func (n *network) Start() error {
 	mtu := "1500"
 	if n.config["bridge.mtu"] != "" {
 		mtu = n.config["bridge.mtu"]
+	} else if len(tunnels) > 0 {
+		mtu = "1400"
 	} else if n.config["bridge.mode"] == "fan" {
 		if n.config["fan.type"] == "ipip" {
 			mtu = "1480"
@@ -875,6 +880,87 @@ func (n *network) Start() error {
 		}
 	}
 
+	// Configure tunnels
+	for _, tunnel := range tunnels {
+		getConfig := func(key string) string {
+			return n.config[fmt.Sprintf("tunnel.%s.%s", tunnel, key)]
+		}
+
+		tunProtocol := getConfig("protocol")
+		tunLocal := getConfig("local")
+		tunRemote := getConfig("remote")
+		tunName := fmt.Sprintf("%s-%s", n.name, tunnel)
+
+		// Configure the tunnel
+		cmd := []string{"ip", "link", "add", tunName}
+		if tunProtocol == "gre" {
+			// Skip partial configs
+			if tunProtocol == "" || tunLocal == "" || tunRemote == "" {
+				continue
+			}
+
+			cmd = append(cmd, []string{"type", "gretap", "local", tunLocal, "remote", tunRemote}...)
+		} else if tunProtocol == "vxlan" {
+			tunGroup := getConfig("group")
+
+			// Skip partial configs
+			if tunProtocol == "" {
+				continue
+			}
+
+			cmd = append(cmd, []string{"type", "vxlan"}...)
+
+			if tunLocal != "" && tunRemote != "" {
+				cmd = append(cmd, []string{"local", tunLocal, "remote", tunRemote}...)
+			} else {
+				if tunGroup == "" {
+					tunGroup = "239.0.0.1"
+				}
+
+				_, devName, err := networkDefaultGatewaySubnetV4()
+				if err != nil {
+					return err
+				}
+
+				cmd = append(cmd, []string{"group", tunGroup, "dev", devName}...)
+			}
+
+			tunPort := getConfig("port")
+			if tunPort == "" {
+				tunPort = "0"
+			}
+			cmd = append(cmd, []string{"dstport", tunPort}...)
+
+			tunId := getConfig("id")
+			if tunId == "" {
+				tunId = "1"
+			}
+			cmd = append(cmd, []string{"id", tunId}...)
+		}
+
+		// Create the interface
+		err = shared.RunCommand(cmd[0], cmd[1:]...)
+		if err != nil {
+			return err
+		}
+
+		// Bridge it and bring up
+		err = networkAttachInterface(n.name, tunName)
+		if err != nil {
+			return err
+		}
+
+		err = shared.RunCommand("ip", "link", "set", tunName, "up")
+		if err != nil {
+			return err
+		}
+
+		err = shared.RunCommand("ip", "link", "set", n.name, "up")
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -922,12 +1008,19 @@ func (n *network) Stop() error {
 		return err
 	}
 
-	// Cleanup an existing fan tunnel
-	tunName := fmt.Sprintf("%s-fan", n.name)
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", tunName)) {
-		err = shared.RunCommand("ip", "link", "del", tunName)
-		if err != nil {
-			return err
+	// Get a list of interfaces
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return err
+	}
+
+	// Cleanup any existing tunnel device
+	for _, iface := range ifaces {
+		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
+			err = shared.RunCommand("ip", "link", "del", iface.Name)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

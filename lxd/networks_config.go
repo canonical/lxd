@@ -49,6 +49,7 @@ var networkConfigKeys = map[string]func(value string) error{
 	"tunnel.TARGET.local":  networkValidAddressV4,
 	"tunnel.TARGET.remote": networkValidAddressV4,
 	"tunnel.TARGET.port":   networkValidPort,
+	"tunnel.TARGET.group":  networkValidAddressV4,
 	"tunnel.TARGET.id":     shared.IsInt64,
 
 	"ipv4.address": func(value string) error {
@@ -106,6 +107,10 @@ func networkValidateConfig(name string, config map[string]string) error {
 				return fmt.Errorf("Invalid network configuration key: %s", k)
 			}
 
+			if len(name)+len(fields[1]) > 14 {
+				return fmt.Errorf("Network name too long for tunnel interface: %s-%s", name, fields[1])
+			}
+
 			key = fmt.Sprintf("tunnel.TARGET.%s", fields[2])
 		}
 
@@ -161,6 +166,11 @@ func networkValidateConfig(name string, config map[string]string) error {
 					}
 				}
 			}
+
+			tunnels := networkGetTunnels(config)
+			if len(tunnels) > 0 && mtu > 1400 {
+				return fmt.Errorf("Maximum MTU when using tunnels is 1400")
+			}
 		}
 	}
 
@@ -177,7 +187,7 @@ func networkFillAuto(config map[string]string) error {
 	}
 
 	if config["fan.underlay_subnet"] == "auto" {
-		subnet, err := networkDefaultGatewaySubnetV4()
+		subnet, _, err := networkDefaultGatewaySubnetV4()
 		if err != nil {
 			return err
 		}
