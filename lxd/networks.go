@@ -513,6 +513,12 @@ func (n *network) Start() error {
 		}
 	}
 
+	// Get a list of interfaces
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return err
+	}
+
 	// IPv6 bridge configuration
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
 		err := ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/autoconf", n.name), []byte("0"), 0)
@@ -538,7 +544,7 @@ func (n *network) Start() error {
 		}
 	}
 
-	err := shared.RunCommand("ip", "link", "set", n.name, "mtu", mtu)
+	err = shared.RunCommand("ip", "link", "set", n.name, "mtu", mtu)
 	if err != nil {
 		return err
 	}
@@ -769,17 +775,20 @@ func (n *network) Start() error {
 		}
 	}
 
-	// Cleanup an existing FAN tunnel
-	tunName := fmt.Sprintf("%s-fan", n.name)
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", tunName)) {
-		err = shared.RunCommand("ip", "link", "del", tunName)
-		if err != nil {
-			return err
+	// Cleanup any existing tunnel device
+	for _, iface := range ifaces {
+		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
+			err = shared.RunCommand("ip", "link", "del", iface.Name)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	// Configure the fan
 	if n.config["bridge.mode"] == "fan" {
+		tunName := fmt.Sprintf("%s-fan", n.name)
+
 		// Parse the underlay
 		underlay := n.config["fan.underlay_subnet"]
 		_, underlaySubnet, err := net.ParseCIDR(underlay)
