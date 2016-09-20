@@ -527,32 +527,24 @@ func (n *network) Start() error {
 	}
 
 	// Set the MTU
+	mtu := "1500"
 	if n.config["bridge.mtu"] != "" {
-		err := shared.RunCommand("ip", "link", "set", n.name, "mtu", n.config["bridge.mtu"])
-		if err != nil {
-			return err
-		}
+		mtu = n.config["bridge.mtu"]
 	} else if n.config["bridge.mode"] == "fan" {
 		if n.config["fan.type"] == "ipip" {
-			err := shared.RunCommand("ip", "link", "set", n.name, "mtu", "1480")
-			if err != nil {
-				return err
-			}
+			mtu = "1480"
 		} else {
-			err := shared.RunCommand("ip", "link", "set", n.name, "mtu", "1450")
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		err := shared.RunCommand("ip", "link", "set", n.name, "mtu", "1500")
-		if err != nil {
-			return err
+			mtu = "1450"
 		}
 	}
 
+	err := shared.RunCommand("ip", "link", "set", n.name, "mtu", mtu)
+	if err != nil {
+		return err
+	}
+
 	// Bring it up
-	err := shared.RunCommand("ip", "link", "set", n.name, "up")
+	err = shared.RunCommand("ip", "link", "set", n.name, "up")
 	if err != nil {
 		return err
 	}
