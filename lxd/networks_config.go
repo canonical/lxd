@@ -84,8 +84,12 @@ var networkConfigKeys = map[string]func(value string) error{
 	"raw.dnsmasq": shared.IsAny,
 }
 
-func networkValidateConfig(config map[string]string) error {
+func networkValidateConfig(name string, config map[string]string) error {
 	bridgeMode := config["bridge.mode"]
+
+	if bridgeMode == "fan" && len(name) > 11 {
+		return fmt.Errorf("Network name too long to use with the FAN (must be 11 characters or less)")
+	}
 
 	for k, v := range config {
 		key := k
