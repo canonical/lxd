@@ -145,6 +145,23 @@ func networkGetIP(subnet *net.IPNet, host int64) net.IP {
 	return newIp
 }
 
+func networkGetTunnels(config map[string]string) []string {
+	tunnels := []string{}
+
+	for k, _ := range config {
+		if !strings.HasPrefix(k, "tunnel.") {
+			continue
+		}
+
+		fields := strings.Split(k, ".")
+		if !shared.StringInSlice(fields[1], tunnels) {
+			tunnels = append(tunnels, fields[1])
+		}
+	}
+
+	return tunnels
+}
+
 func networkPingSubnet(subnet *net.IPNet) bool {
 	var fail bool
 	var failLock sync.Mutex
@@ -336,10 +353,10 @@ func networkRandomSubnetV6() string {
 	return cidr
 }
 
-func networkDefaultGatewaySubnetV4() (*net.IPNet, error) {
+func networkDefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 	file, err := os.Open("/proc/net/route")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer file.Close()
 
@@ -361,17 +378,17 @@ func networkDefaultGatewaySubnetV4() (*net.IPNet, error) {
 	}
 
 	if ifaceName == "" {
-		return nil, fmt.Errorf("No default gateway for IPv4")
+		return nil, "", fmt.Errorf("No default gateway for IPv4")
 	}
 
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	addrs, err := iface.Addrs()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	var subnet *net.IPNet
@@ -379,7 +396,7 @@ func networkDefaultGatewaySubnetV4() (*net.IPNet, error) {
 	for _, addr := range addrs {
 		addrIP, addrNet, err := net.ParseCIDR(addr.String())
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		if addrIP.To4() == nil {
@@ -387,17 +404,17 @@ func networkDefaultGatewaySubnetV4() (*net.IPNet, error) {
 		}
 
 		if subnet != nil {
-			return nil, fmt.Errorf("More than one IPv4 subnet on default interface")
+			return nil, "", fmt.Errorf("More than one IPv4 subnet on default interface")
 		}
 
 		subnet = addrNet
 	}
 
 	if subnet == nil {
-		return nil, fmt.Errorf("No IPv4 subnet on default interface")
+		return nil, "", fmt.Errorf("No IPv4 subnet on default interface")
 	}
 
-	return subnet, nil
+	return subnet, ifaceName, nil
 }
 
 func networkValidName(value string) error {
