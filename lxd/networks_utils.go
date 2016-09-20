@@ -436,21 +436,7 @@ func networkValidPort(value string) error {
 	return nil
 }
 
-func networkValidAddress(value string) error {
-	err := networkValidAddressV4(value)
-	if err == nil {
-		return nil
-	}
-
-	err = networkValidAddressV6(value)
-	if err == nil {
-		return nil
-	}
-
-	return fmt.Errorf("Not a valid address: %s", value)
-}
-
-func networkValidAddressV6(value string) error {
+func networkValidAddressCIDRV6(value string) error {
 	if value == "" {
 		return nil
 	}
@@ -471,7 +457,7 @@ func networkValidAddressV6(value string) error {
 	return nil
 }
 
-func networkValidAddressV4(value string) error {
+func networkValidAddressCIDRV4(value string) error {
 	if value == "" {
 		return nil
 	}
@@ -487,6 +473,19 @@ func networkValidAddressV4(value string) error {
 
 	if ip.String() == net.IP.String() {
 		return fmt.Errorf("Not a usable IPv4 address: %s", value)
+	}
+
+	return nil
+}
+
+func networkValidAddressV4(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip := net.ParseIP(value)
+	if ip == nil {
+		return fmt.Errorf("Not an IPv4 address: %s", value)
 	}
 
 	return nil
