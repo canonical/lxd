@@ -337,7 +337,7 @@ func cmdDaemon() error {
 		go memProfiler(*argMemProfile)
 	}
 
-	neededPrograms := []string{"setfacl", "rsync", "tar", "unsquashfs", "xz"}
+	neededPrograms := []string{"dnsmasq", "setfacl", "rsync", "tar", "unsquashfs", "xz"}
 	for _, p := range neededPrograms {
 		_, err := exec.LookPath(p)
 		if err != nil {

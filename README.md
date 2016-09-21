@@ -83,7 +83,7 @@ via the LXD PPA:
     sudo apt-get install software-properties-common
     sudo add-apt-repository ppa:ubuntu-lxc/lxd-git-master
     sudo apt-get update
-    sudo apt-get install acl git golang liblxc1 lxc-dev make pkg-config rsync squashfs-tools tar xz-utils
+    sudo apt-get install acl dnsmasq-base git golang liblxc1 lxc-dev make pkg-config rsync squashfs-tools tar xz-utils
 
 There are a few storage backends for LXD besides the default "directory"
 backend. Installing these tools adds a bit to initramfs and may slow down your

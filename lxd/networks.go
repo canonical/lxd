@@ -230,6 +230,11 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	// Cleanup storage
+	if shared.PathExists(shared.VarPath("networks", n.name)) {
+		os.RemoveAll(shared.VarPath("networks", n.name))
+	}
+
 	return EmptySyncResponse
 }
 
@@ -482,6 +487,18 @@ func (n *network) Rename(name string) error {
 		}
 	}
 
+	// Rename directory
+	if shared.PathExists(shared.VarPath("networks", name)) {
+		os.RemoveAll(shared.VarPath("networks", name))
+	}
+
+	if shared.PathExists(shared.VarPath("networks", n.name)) {
+		err := os.Rename(shared.VarPath("networks", n.name), shared.VarPath("networks", name))
+		if err != nil {
+			return err
+		}
+	}
+
 	// Rename the database entry
 	err := dbNetworkRename(n.d.db, n.name, name)
 	if err != nil {
@@ -498,6 +515,14 @@ func (n *network) Rename(name string) error {
 }
 
 func (n *network) Start() error {
+	// Create directory
+	if !shared.PathExists(shared.VarPath("networks", n.name)) {
+		err := os.MkdirAll(shared.VarPath("networks", n.name), 0700)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Create the bridge interface
 	if !n.IsRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
@@ -678,12 +703,35 @@ func (n *network) Start() error {
 		}
 	}
 
+	// Start building the dnsmasq command line
+	dnsmasqCmd := []string{"dnsmasq", "-u", "root", "--strict-order", "--bind-interfaces",
+		fmt.Sprintf("--pid-file=%s", shared.VarPath("networks", n.name, "dnsmasq.pid")),
+		"--except-interface=lo",
+		fmt.Sprintf("--interface=%s", n.name)}
+
 	// Configure IPv4
 	if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
 		// Parse the subnet
-		_, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
+		ip, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
 		if err != nil {
 			return err
+		}
+
+		// Update the dnsmasq config
+		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--listen-address=%s", ip.String()))
+		if n.config["ipv4.dhcp"] == "" || shared.IsTrue(n.config["ipv4.dhcp"]) {
+			if !shared.StringInSlice("--dhcp-no-override", dnsmasqCmd) {
+				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
+			}
+
+			if n.config["ipv4.dhcp.ranges"] != "" {
+				for _, dhcpRange := range strings.Split(n.config["ipv4.dhcp.ranges"], ",") {
+					dhcpRange = strings.TrimSpace(dhcpRange)
+					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", strings.Replace(dhcpRange, "-", ",", -1)}...)
+				}
+			} else {
+				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s", networkGetIP(subnet, 2).String(), networkGetIP(subnet, -2).String())}...)
+			}
 		}
 
 		// Add the address
@@ -721,9 +769,35 @@ func (n *network) Start() error {
 	// Configure IPv6
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
 		// Parse the subnet
-		_, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
+		ip, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
 		if err != nil {
 			return err
+		}
+
+		// Update the dnsmasq config
+		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--listen-address=%s", ip.String()))
+		if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
+			if !shared.StringInSlice("--dhcp-no-override", dnsmasqCmd) {
+				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
+			}
+
+			flags := ""
+			if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
+				if !shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
+					flags = ",ra-stateless,ra-names"
+				}
+			} else {
+				flags = ",ra-only"
+			}
+
+			if n.config["ipv6.dhcp.ranges"] != "" {
+				for _, dhcpRange := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
+					dhcpRange = strings.TrimSpace(dhcpRange)
+					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s%s", strings.Replace(dhcpRange, "-", ",", -1), flags)}...)
+				}
+			} else {
+				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s%s", networkGetIP(subnet, 2), networkGetIP(subnet, -1), flags)}...)
+			}
 		}
 
 		// Setup basic iptables overrides
@@ -974,6 +1048,48 @@ func (n *network) Start() error {
 		}
 	}
 
+	// Kill any existing dnsmasq daemon for this network
+	err = networkKillDnsmasq(n.name, false)
+	if err != nil {
+		return err
+	}
+
+	// Configure dnsmasq
+	if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) || !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+		dnsDomain := n.config["dns.domain"]
+		if dnsDomain == "" {
+			dnsDomain = "lxd"
+		}
+
+		// Setup the dnsmasq domain
+		if n.config["dns.mode"] != "none" {
+			dnsmasqCmd = append(dnsmasqCmd, []string{"-s", dnsDomain, "-S", fmt.Sprintf("/%s/", dnsDomain)}...)
+		}
+
+		// Create raw config file
+		if n.config["raw.dnsmasq"] != "" {
+			err = ioutil.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(fmt.Sprintf("%s\n", n.config["raw.dnsmasq"])), 0)
+			if err != nil {
+				return err
+			}
+			dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--conf-file=%s", shared.VarPath("networks", n.name, "dnsmasq.raw")))
+		}
+
+		// Create DHCP hosts file
+		if !shared.PathExists(shared.VarPath("networks", n.name, "dnsmasq.hosts")) {
+			err = ioutil.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.hosts"), []byte(""), 0)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Start dnsmasq (occasionaly races, try a few times)
+		output, err := tryExec(dnsmasqCmd[0], dnsmasqCmd[1:]...)
+		if err != nil {
+			return fmt.Errorf("Failed to run: %s: %s", strings.Join(dnsmasqCmd, " "), strings.TrimSpace(string(output)))
+		}
+	}
+
 	return nil
 }
 
@@ -1017,6 +1133,12 @@ func (n *network) Stop() error {
 	}
 
 	err = networkIptablesClear("ipv6", n.name, "nat")
+	if err != nil {
+		return err
+	}
+
+	// Kill any existing dnsmasq daemon for this network
+	err = networkKillDnsmasq(n.name, false)
 	if err != nil {
 		return err
 	}
