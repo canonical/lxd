@@ -513,12 +513,6 @@ func (n *network) Start() error {
 		}
 	}
 
-	// Get a list of interfaces
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return err
-	}
-
 	// Get a list of tunnels
 	tunnels := networkGetTunnels(n.config)
 
@@ -535,8 +529,24 @@ func (n *network) Start() error {
 		}
 	}
 
+	// Get a list of interfaces
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return err
+	}
+
+	// Cleanup any existing tunnel device
+	for _, iface := range ifaces {
+		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
+			err = shared.RunCommand("ip", "link", "del", iface.Name)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// Set the MTU
-	mtu := "1500"
+	mtu := ""
 	if n.config["bridge.mtu"] != "" {
 		mtu = n.config["bridge.mtu"]
 	} else if len(tunnels) > 0 {
@@ -547,6 +557,19 @@ func (n *network) Start() error {
 		} else {
 			mtu = "1450"
 		}
+	}
+
+	// Attempt to add a dummy device to the bridge to force the MTU
+	if mtu != "" && n.config["bridge.driver"] != "openvswitch" {
+		err = shared.RunCommand("ip", "link", "add", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu, "type", "dummy")
+		if err == nil {
+			networkAttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
+		}
+	}
+
+	// Now, set a default MTU
+	if mtu == "" {
+		mtu = "1500"
 	}
 
 	err = shared.RunCommand("ip", "link", "set", n.name, "mtu", mtu)
@@ -780,16 +803,6 @@ func (n *network) Start() error {
 		}
 	}
 
-	// Cleanup any existing tunnel device
-	for _, iface := range ifaces {
-		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			err = shared.RunCommand("ip", "link", "del", iface.Name)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	// Configure the fan
 	if n.config["bridge.mode"] == "fan" {
 		tunName := fmt.Sprintf("%s-fan", n.name)
@@ -862,7 +875,7 @@ func (n *network) Start() error {
 				return err
 			}
 
-			err = shared.RunCommand("ip", "link", "set", tunName, "up")
+			err = shared.RunCommand("ip", "link", "set", tunName, "mtu", mtu, "up")
 			if err != nil {
 				return err
 			}
@@ -950,7 +963,7 @@ func (n *network) Start() error {
 			return err
 		}
 
-		err = shared.RunCommand("ip", "link", "set", tunName, "up")
+		err = shared.RunCommand("ip", "link", "set", tunName, "mtu", mtu, "up")
 		if err != nil {
 			return err
 		}
