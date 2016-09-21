@@ -3,6 +3,8 @@ The LXD client and daemon respect some environment variables to adapt to
 the user's environment and to turn some advanced features on and off.
 
 # Common
+Name                            | Description
+:---                            | :----
 LXD\_DIR                        | The LXD data directory
 PATH                            | List of paths to look into when resolving binaries
 http\_proxy                     | Proxy server URL for HTTP
