@@ -5,16 +5,19 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"math/big"
 	"math/rand"
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/lxc/lxd/shared"
@@ -598,4 +601,76 @@ func networkFanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string,
 	ipBytes[3] = 1
 
 	return fmt.Sprintf("%s/%d", ipBytes.String(), overlaySize), dev, ipStr, err
+}
+
+func networkKillDnsmasq(name string, reload bool) error {
+	// Check if we have a running dnsmasq at all
+	pidPath := shared.VarPath("networks", name, "dnsmasq.pid")
+	if !shared.PathExists(pidPath) {
+		if reload {
+			return fmt.Errorf("dnsmasq isn't running")
+		}
+
+		return nil
+	}
+
+	// Grab the PID
+	content, err := ioutil.ReadFile(pidPath)
+	if err != nil {
+		return err
+	}
+	pid := strings.TrimSpace(string(content))
+
+	// Check if the process still exists
+	if !shared.PathExists(fmt.Sprintf("/proc/%s", pid)) {
+		os.Remove(pidPath)
+
+		if reload {
+			return fmt.Errorf("dnsmasq isn't running")
+		}
+
+		return nil
+	}
+
+	// Check if it's dnsmasq
+	cmdPath, err := os.Readlink(fmt.Sprintf("/proc/%s/exe", pid))
+	if err != nil {
+		return err
+	}
+
+	// Deal with deleted paths
+	cmdName := filepath.Base(strings.Split(cmdPath, " ")[0])
+	if cmdName != "dnsmasq" {
+		if reload {
+			return fmt.Errorf("dnsmasq isn't running")
+		}
+
+		os.Remove(pidPath)
+		return nil
+	}
+
+	// Parse the pid
+	pidInt, err := strconv.Atoi(pid)
+	if err != nil {
+		return err
+	}
+
+	// Actually kill the process
+	if reload {
+		err = syscall.Kill(pidInt, syscall.SIGHUP)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	err = syscall.Kill(pidInt, syscall.SIGKILL)
+	if err != nil {
+		return err
+	}
+
+	// Cleanup
+	os.Remove(pidPath)
+	return nil
 }
