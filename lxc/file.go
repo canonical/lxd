@@ -215,17 +215,18 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 
 	/*
 	 * If the path exists, just use it. If it doesn't exist, it might be a
-	 * directory in one of two cases:
+	 * directory in one of three cases:
 	 *   1. Someone explicitly put "/" at the end
 	 *   2. Someone provided more than one source. In this case the target
 	 *      should be a directory so we can save all the files into it.
+	 *   3. We are dealing with recursive copy
 	 */
 	if err == nil {
 		targetIsDir = sb.IsDir()
 		if !targetIsDir && len(args)-1 > 1 {
 			return fmt.Errorf(i18n.G("More than one file to download, but target is not a directory"))
 		}
-	} else if strings.HasSuffix(target, string(os.PathSeparator)) || len(args)-1 > 1 {
+	} else if strings.HasSuffix(target, string(os.PathSeparator)) || len(args)-1 > 1 || c.recursive {
 		if err := os.MkdirAll(target, 0755); err != nil {
 			return err
 		}
@@ -245,10 +246,6 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 		}
 
 		if c.recursive {
-			if err := os.MkdirAll(target, 0755); err != nil && !os.IsExist(err) {
-				return err
-			}
-
 			if err := d.RecursivePullFile(container, pathSpec[1], target); err != nil {
 				return err
 			}
