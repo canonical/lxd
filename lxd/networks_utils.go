@@ -461,7 +461,7 @@ func networkValidAddressCIDRV6(value string) error {
 		return nil
 	}
 
-	ip, net, err := net.ParseCIDR(value)
+	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
 	}
@@ -470,7 +470,7 @@ func networkValidAddressCIDRV6(value string) error {
 		return fmt.Errorf("Not an IPv6 address: %s", value)
 	}
 
-	if ip.String() == net.IP.String() {
+	if ip.String() == subnet.IP.String() {
 		return fmt.Errorf("Not a usable IPv6 address: %s", value)
 	}
 
@@ -482,7 +482,7 @@ func networkValidAddressCIDRV4(value string) error {
 		return nil
 	}
 
-	ip, net, err := net.ParseCIDR(value)
+	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
 	}
@@ -491,7 +491,7 @@ func networkValidAddressCIDRV4(value string) error {
 		return fmt.Errorf("Not an IPv4 address: %s", value)
 	}
 
-	if ip.String() == net.IP.String() {
+	if ip.String() == subnet.IP.String() {
 		return fmt.Errorf("Not a usable IPv4 address: %s", value)
 	}
 
@@ -516,7 +516,7 @@ func networkValidNetworkV4(value string) error {
 		return nil
 	}
 
-	ip, net, err := net.ParseCIDR(value)
+	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
 	}
@@ -525,7 +525,7 @@ func networkValidNetworkV4(value string) error {
 		return fmt.Errorf("Not an IPv4 network: %s", value)
 	}
 
-	if ip.String() != net.IP.String() {
+	if ip.String() != subnet.IP.String() {
 		return fmt.Errorf("Not an IPv4 network address: %s", value)
 	}
 
