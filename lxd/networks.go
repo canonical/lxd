@@ -382,7 +382,7 @@ func networkLoadByName(d *Daemon, name string) (*network, error) {
 		return nil, err
 	}
 
-	n := network{d: d, id: id, name: name, config: dbInfo.Config}
+	n := network{daemon: d, id: id, name: name, config: dbInfo.Config}
 
 	return &n, nil
 }
@@ -413,9 +413,9 @@ func networkStartup(d *Daemon) error {
 
 type network struct {
 	// Properties
-	d    *Daemon
-	id   int64
-	name string
+	daemon *Daemon
+	id     int64
+	name   string
 
 	// config
 	config map[string]string
@@ -431,13 +431,13 @@ func (n *network) IsRunning() bool {
 
 func (n *network) IsUsed() bool {
 	// Look for containers using the interface
-	cts, err := dbContainersList(n.d.db, cTypeRegular)
+	cts, err := dbContainersList(n.daemon.db, cTypeRegular)
 	if err != nil {
 		return true
 	}
 
 	for _, ct := range cts {
-		c, err := containerLoadByName(n.d, ct)
+		c, err := containerLoadByName(n.daemon, ct)
 		if err != nil {
 			return true
 		}
@@ -465,7 +465,7 @@ func (n *network) Delete() error {
 	}
 
 	// Remove the network from the database
-	err := dbNetworkDelete(n.d.db, n.name)
+	err := dbNetworkDelete(n.daemon.db, n.name)
 	if err != nil {
 		return err
 	}
@@ -500,7 +500,7 @@ func (n *network) Rename(name string) error {
 	}
 
 	// Rename the database entry
-	err := dbNetworkRename(n.d.db, n.name, name)
+	err := dbNetworkRename(n.daemon.db, n.name, name)
 	if err != nil {
 		return err
 	}
@@ -1090,7 +1090,7 @@ func (n *network) Start() error {
 		}
 
 		// Update the static leases
-		err = networkUpdateStatic(n.d)
+		err = networkUpdateStatic(n.daemon)
 		if err != nil {
 			return err
 		}
@@ -1261,7 +1261,7 @@ func (n *network) Update(newNetwork shared.NetworkConfig) error {
 	n.config = newConfig
 
 	// Update the database
-	err = dbNetworkUpdate(n.d.db, n.name, n.config)
+	err = dbNetworkUpdate(n.daemon.db, n.name, n.config)
 	if err != nil {
 		return err
 	}
