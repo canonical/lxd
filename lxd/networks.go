@@ -287,15 +287,15 @@ func networkPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, _ := dbNetworkGet(d.db, name)
-	if dbInfo == nil {
-		return NotFound
+	_, dbInfo, err := dbNetworkGet(d.db, name)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	// Validate the ETag
 	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Config}
 
-	err := etagCheck(r, etag)
+	err = etagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -312,15 +312,15 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, _ := dbNetworkGet(d.db, name)
-	if dbInfo == nil {
-		return NotFound
+	_, dbInfo, err := dbNetworkGet(d.db, name)
+	if dbInfo != nil {
+		return SmartError(err)
 	}
 
 	// Validate the ETag
 	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Config}
 
-	err := etagCheck(r, etag)
+	err = etagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
