@@ -179,11 +179,21 @@ func networkValidateConfig(name string, config map[string]string) error {
 
 func networkFillAuto(config map[string]string) error {
 	if config["ipv4.address"] == "auto" {
-		config["ipv4.address"] = networkRandomSubnetV4()
+		subnet, err := networkRandomSubnetV4()
+		if err != nil {
+			return err
+		}
+
+		config["ipv4.address"] = subnet
 	}
 
 	if config["ipv6.address"] == "auto" {
-		config["ipv6.address"] = networkRandomSubnetV6()
+		subnet, err := networkRandomSubnetV6()
+		if err != nil {
+			return err
+		}
+
+		config["ipv6.address"] = subnet
 	}
 
 	if config["fan.underlay_subnet"] == "auto" {
