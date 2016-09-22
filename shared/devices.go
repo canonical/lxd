@@ -78,7 +78,7 @@ func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device
 			continue
 		}
 
-		for _, k := range []string{"limits.max", "limits.read", "limits.write", "limits.egress", "limits.ingress"} {
+		for _, k := range []string{"limits.max", "limits.read", "limits.write", "limits.egress", "limits.ingress", "ipv4.address", "ipv6.address"} {
 			delete(oldDevice, k)
 			delete(newDevice, k)
 		}

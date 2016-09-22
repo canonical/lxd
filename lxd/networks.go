@@ -1088,6 +1088,12 @@ func (n *network) Start() error {
 		if err != nil {
 			return fmt.Errorf("Failed to run: %s: %s", strings.Join(dnsmasqCmd, " "), strings.TrimSpace(string(output)))
 		}
+
+		// Update the static leases
+		err = networkUpdateStatic(n.d)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

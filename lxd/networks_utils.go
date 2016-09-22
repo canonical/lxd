@@ -674,3 +674,114 @@ func networkKillDnsmasq(name string, reload bool) error {
 	os.Remove(pidPath)
 	return nil
 }
+
+func networkUpdateStatic(d *Daemon) error {
+	// Get all the containers
+	containers, err := dbContainersList(d.db, cTypeRegular)
+	if err != nil {
+		return err
+	}
+
+	// Get all the networks
+	networks, err := dbNetworks(d.db)
+	if err != nil {
+		return err
+	}
+
+	// Build a list of dhcp host entries
+	entries := map[string][][]string{}
+	for _, name := range containers {
+		// Load the container
+		c, err := containerLoadByName(d, name)
+		if err != nil {
+			continue
+		}
+
+		// Go through all its devices (including profiles
+		for k, d := range c.ExpandedDevices() {
+			// Skip uninteresting entries
+			if d["type"] != "nic" || d["nictype"] != "bridged" || !shared.StringInSlice(d["parent"], networks) {
+				continue
+			}
+
+			// Fill in the hwaddr from volatile
+			d, err = c.(*containerLXC).fillNetworkDevice(k, d)
+			if err != nil {
+				continue
+			}
+
+			// Add the new host entries
+			_, ok := entries[d["parent"]]
+			if !ok {
+				entries[d["parent"]] = [][]string{}
+			}
+
+			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], name, d["ipv4.address"], d["ipv6.address"]})
+		}
+	}
+
+	// Update the host files
+	for _, network := range networks {
+		entries, _ := entries[network]
+
+		// Skip networks we don't manage (or don't have DHCP enabled)
+		if !shared.PathExists(shared.VarPath("networks", network, "dnsmasq.hosts")) {
+			continue
+		}
+
+		n, err := networkLoadByName(d, network)
+		if err != nil {
+			return err
+		}
+		config := n.Config()
+
+		// Update the file
+		if entries == nil {
+			err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts"), []byte(""), 0)
+			if err != nil {
+				return err
+			}
+		} else {
+			lines := []string{}
+			for _, entry := range entries {
+				hwaddr := entry[0]
+				name := entry[1]
+				ipv4Address := entry[2]
+				ipv6Address := entry[3]
+
+				line := hwaddr
+
+				if ipv4Address != "" {
+					line += fmt.Sprintf(",id:*,%s", ipv4Address)
+				}
+
+				if ipv6Address != "" {
+					line += fmt.Sprintf(",[%s]", ipv6Address)
+				}
+
+				if config["dns.mode"] == "" || config["dns.mode"] == "managed" {
+					line += fmt.Sprintf(",%s", name)
+				}
+
+				if line == hwaddr {
+					continue
+				}
+
+				lines = append(lines, line)
+			}
+
+			err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts"), []byte(strings.Join(lines, "\n")+"\n"), 0)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Signal dnsmasq
+		err = networkKillDnsmasq(network, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
