@@ -273,6 +273,7 @@ Input (replaces any existing config with the provided one):
 
 ### PATCH (ETag supported)
  * Description: Updates the server configuration or other properties
+ * Introduced: with API extension "patch"
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
@@ -605,8 +606,9 @@ Input (restore snapshot):
         "restore": "snapshot-name"
     }
 
-### PATCH
+### PATCH (ETag supported)
  * Description: update container configuration
+ * Introduced: with API extension "patch"
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
@@ -1283,8 +1285,9 @@ Input:
         "public": true,
     }
 
-### PATCH
+### PATCH (ETag supported)
  * Description: Updates the image properties, update information and visibility
+ * Introduced: with API extension "patch"
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
@@ -1396,8 +1399,9 @@ Input:
         "target": "54c8caac1f61901ed86c68f24af5f5d3672bdc62c71d04f06df3a59e95684473"
     }
 
-### PATCH
+### PATCH (ETag supported)
  * Description: Updates the alias target or description
+ * Introduced: with API extension "patch"
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
@@ -1620,8 +1624,9 @@ Input:
 Same dict as used for initial creation and coming from GET. The name
 property can't be changed (see POST for that).
 
-### PATCH
+### PATCH (ETag supported)
  * Description: update the profile information
+ * Introduced: with API extension "patch"
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
