@@ -308,11 +308,9 @@ func networkInRoutingTable(subnet *net.IPNet) bool {
 	return false
 }
 
-func networkRandomSubnetV4() string {
-	var cidr string
-
-	for {
-		cidr = fmt.Sprintf("10.%d.%d.1/24", rand.Intn(255), rand.Intn(255))
+func networkRandomSubnetV4() (string, error) {
+	for i := 0; i < 100; i++ {
+		cidr := fmt.Sprintf("10.%d.%d.1/24", rand.Intn(255), rand.Intn(255))
 		_, subnet, err := net.ParseCIDR(cidr)
 		if err != nil {
 			continue
@@ -326,17 +324,15 @@ func networkRandomSubnetV4() string {
 			continue
 		}
 
-		break
+		return cidr, nil
 	}
 
-	return cidr
+	return "", fmt.Errorf("Unable to find a free IPv4 subnet")
 }
 
-func networkRandomSubnetV6() string {
-	var cidr string
-
-	for {
-		cidr = fmt.Sprintf("fd00:%x:%x:%x::1/64", rand.Intn(65535), rand.Intn(65535), rand.Intn(65535))
+func networkRandomSubnetV6() (string, error) {
+	for i := 0; i < 100; i++ {
+		cidr := fmt.Sprintf("fd42:%x:%x:%x::1/64", rand.Intn(65535), rand.Intn(65535), rand.Intn(65535))
 		_, subnet, err := net.ParseCIDR(cidr)
 		if err != nil {
 			continue
@@ -350,10 +346,10 @@ func networkRandomSubnetV6() string {
 			continue
 		}
 
-		break
+		return cidr, nil
 	}
 
-	return cidr
+	return "", fmt.Errorf("Unable to find a free IPv6 subnet")
 }
 
 func networkDefaultGatewaySubnetV4() (*net.IPNet, string, error) {
