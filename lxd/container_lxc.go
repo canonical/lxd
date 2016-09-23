@@ -232,6 +232,9 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
+	// Update lease files
+	networkUpdateStatic(d)
+
 	return c, nil
 }
 
@@ -2101,6 +2104,9 @@ func (c *containerLXC) Delete() error {
 		return err
 	}
 
+	// Update lease files
+	networkUpdateStatic(c.daemon)
+
 	shared.LogInfo("Deleted container", ctxMap)
 
 	return nil
@@ -2756,6 +2762,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			if m["type"] == "disk" {
 				updateDiskLimit = true
 			} else if m["type"] == "nic" {
+				// Refresh tc limits
 				err = c.setNetworkLimits(k, m)
 				if err != nil {
 					return err
@@ -2832,6 +2839,19 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 	if err := txCommit(tx); err != nil {
 		return err
+	}
+
+	// Update network leases
+	needsUpdate := false
+	for _, m := range updateDevices {
+		if m["type"] == "nic" && m["nictype"] == "bridged" {
+			needsUpdate = true
+			break
+		}
+	}
+
+	if needsUpdate {
+		networkUpdateStatic(c.daemon)
 	}
 
 	// Invalidate the go-lxc cache
@@ -4241,18 +4261,10 @@ func (c *containerLXC) createNetworkDevice(name string, m shared.Device) (string
 		}
 
 		if m["nictype"] == "bridged" {
-			if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", m["parent"])) {
-				err = exec.Command("ip", "link", "set", n1, "master", m["parent"]).Run()
-				if err != nil {
-					deviceRemoveInterface(n2)
-					return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
-				}
-			} else {
-				err = exec.Command("ovs-vsctl", "add-port", m["parent"], n1).Run()
-				if err != nil {
-					deviceRemoveInterface(n2)
-					return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
-				}
+			err = networkAttachInterface(m["parent"], n1)
+			if err != nil {
+				deviceRemoveInterface(n2)
+				return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
 			}
 		}
 

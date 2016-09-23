@@ -22,7 +22,7 @@ func (c *launchCmd) usage() string {
 	return i18n.G(
 		`Launch a container from a particular image.
 
-lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
+lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>]
 
 Launches a container using the specified image and name.
 
@@ -43,6 +43,8 @@ func (c *launchCmd) flags() {
 	gnuflag.Var(&c.init.profArgs, "p", i18n.G("Profile to apply to the new container"))
 	gnuflag.BoolVar(&c.init.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
 	gnuflag.BoolVar(&c.init.ephem, "e", false, i18n.G("Ephemeral container"))
+	gnuflag.StringVar(&c.init.network, "network", "", i18n.G("Network name"))
+	gnuflag.StringVar(&c.init.network, "n", "", i18n.G("Network name"))
 }
 
 func (c *launchCmd) run(config *lxd.Config, args []string) error {
@@ -77,10 +79,24 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 
 	iremote, image = c.init.guessImage(config, d, remote, iremote, image)
 
+	devicesMap := map[string]shared.Device{}
+	if c.init.network != "" {
+		network, err := d.NetworkGet(c.init.network)
+		if err != nil {
+			return err
+		}
+
+		if network.Type == "bridge" {
+			devicesMap[c.init.network] = shared.Device{"type": "nic", "nictype": "bridge", "parent": c.init.network}
+		} else {
+			devicesMap[c.init.network] = shared.Device{"type": "nic", "nictype": "macvlan", "parent": c.init.network}
+		}
+	}
+
 	if !initRequestedEmptyProfiles && len(profiles) == 0 {
-		resp, err = d.Init(name, iremote, image, nil, configMap, nil, c.init.ephem)
+		resp, err = d.Init(name, iremote, image, nil, configMap, devicesMap, c.init.ephem)
 	} else {
-		resp, err = d.Init(name, iremote, image, &profiles, configMap, nil, c.init.ephem)
+		resp, err = d.Init(name, iremote, image, &profiles, configMap, devicesMap, c.init.ephem)
 	}
 
 	if err != nil {
@@ -120,6 +136,8 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 	if err = d.WaitForSuccess(resp.Operation); err != nil {
 		return err
 	}
+
+	c.init.checkNetwork(d, name)
 
 	fmt.Printf(i18n.G("Starting %s")+"\n", name)
 	resp, err = d.Action(name, shared.Start, -1, false, false)

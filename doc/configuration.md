@@ -195,17 +195,19 @@ LXD supports different kind of network devices:
 
 Different network interface types have different additional properties, the current list is:
 
-Key             | Type      | Default           | Required  | Used by                       | Description
-:--             | :--       | :--               | :--       | :--                           | :--
-nictype         | string    | -                 | yes       | all                           | The device type, one of "physical", "bridged", "macvlan" or "p2p"
-limits.ingress  | string    | -                 | no        | bridged, p2p                  | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
-limits.egress   | string    | -                 | no        | bridged, p2p                  | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
-limits.max      | string    | -                 | no        | bridged, p2p                  | Same as modifying both limits.read and limits.write
-name            | string    | kernel assigned   | no        | all                           | The name of the interface inside the container
-host\_name      | string    | randomly assigned | no        | bridged, p2p, macvlan         | The name of the interface inside the host
-hwaddr          | string    | randomly assigned | no        | all                           | The MAC address of the new interface
-mtu             | integer   | parent MTU        | no        | all                           | The MTU of the new interface
-parent          | string    | -                 | yes       | physical, bridged, macvlan    | The name of the host device or bridge
+Key             | Type      | Default           | Required  | Used by                       | API extension | Description
+:--             | :--       | :--               | :--       | :--                           | :--           | :--
+nictype         | string    | -                 | yes       | all                           | -             | The device type, one of "physical", "bridged", "macvlan" or "p2p"
+limits.ingress  | string    | -                 | no        | bridged, p2p                  | -             | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
+limits.egress   | string    | -                 | no        | bridged, p2p                  | -             | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
+limits.max      | string    | -                 | no        | bridged, p2p                  | -             | Same as modifying both limits.read and limits.write
+name            | string    | kernel assigned   | no        | all                           | -             | The name of the interface inside the container
+host\_name      | string    | randomly assigned | no        | bridged, p2p, macvlan         | -             | The name of the interface inside the host
+hwaddr          | string    | randomly assigned | no        | all                           | -             | The MAC address of the new interface
+mtu             | integer   | parent MTU        | no        | all                           | -             | The MTU of the new interface
+parent          | string    | -                 | yes       | physical, bridged, macvlan    | -             | The name of the host device or bridge
+ipv4.address    | string    | -                 | no        | bridged                       | network       | An IPv4 address to assign to the container through DHCP
+ipv6.address    | string    | -                 | no        | bridged                       | network       | An IPv6 address to assign to the container through DHCP
 
 ### Type: disk
 Disk entries are essentially mountpoints inside the container. They can
@@ -285,8 +287,62 @@ In any case, resource-specific configuration always overrides that
 coming from the profiles.
 
 
-If not present, LXD will create a "default" profile which comes with a
-network interface connected to LXD's default bridge (lxdbr0).
+If not present, LXD will create a "default" profile.
 
 The "default" profile is set for any new container created which doesn't
 specify a different profiles list.
+
+# Network configuration
+LXD supports creating and managing bridges, below is a list of the
+configuration options supported for those bridges.
+
+Note that this feature was introduced as part of API extension "network".
+
+The key/value configuration is namespaced with the following namespaces
+currently supported:
+ - bridge (L2 interface configuration)
+ - fan (configuration specific to the Ubuntu FAN overlay)
+ - tunnel (cross-host tunneling configuration)
+ - ipv4 (L3 IPv4 configuration)
+ - ipv6 (L3 IPv6 configuration)
+ - dns (DNS server and resolution configuration)
+ - raw (raw configuration file content)
+ - user (free form key/value for user metadata)
+
+It is expected that IP addresses and subnets are given using CIDR notation (1.1.1.1/24 or fd80:1234::1/64).
+The exception being tunnel local and remote addresses which are just plain addresses (1.1.1.1 or fd80:1234::1).
+
+Key                             | Type      | Condition             | Default                   | Description
+:--                             | :--       | :--                   | :--                       | :--
+bridge.driver                   | string    | -                     | native                    | Bridge driver ("native" or "openvswitch")
+bridge.external\_interfaces     | string    | -                     | -                         | Comma separate list of unconfigured network interfaces to include in the bridge
+bridge.mtu                      | integer   | -                     | 1500                      | Bridge MTU (default varies if tunnel or fan setup)
+bridge.mode                     | string    | -                     | standard                  | Bridge operation mode ("standard" or "fan")
+fan.underlay\_subnet            | string    | fan mode              | default gateway subnet    | Subnet to use as the underlay for the FAN (CIDR notation)
+fan.overlay\_subnet             | string    | fan mode              | 240.0.0.0/8               | Subnet to use as the overlay for the FAN (CIDR notation)
+fan.type                        | string    | fan mode              | vxlan                     | The tunneling type for the FAN ("vxlan" or "ipip")
+tunnel.NAME.protocol            | string    | standard mode         | -                         | Tunneling protocol ("vxlan" or "gre")
+tunnel.NAME.local               | string    | gre or vxlan          | -                         | Local address for the tunnel (not necessary for multicast vxlan)
+tunnel.NAME.remote              | string    | gre or vxlan          | -                         | Remote address for the tunnel (not necessary for multicast vxlan)
+tunnel.NAME.group               | string    | vxlan                 | 239.0.0.1                 | Multicast address for vxlan (used if local and remote aren't set)
+tunnel.NAME.port                | integer   | vxlan                 | 0                         | Specific port to use for the vxlan tunnel
+tunnel.NAME.id                  | integer   | vxlan                 | 0                         | Specific tunnel ID to use for the vxlan tunnel
+ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
+ipv4.nat                        | boolean   | ipv4 address          | false                     | Whether to NAT (will default to true if unset and a random ipv4.address is generated)
+ipv4.dhcp                       | boolean   | ipv4 address          | true                      | Whether to allocate addresses using DHCP
+ipv4.dhcp.ranges                | string    | ipv4 dhcp             | all addresses             | Comma separated list of IP ranges to use for DHCP (FIRST-LAST format)
+ipv4.routing                    | boolean   | ipv4 address          | true                      | Whether to route traffic in and out of the bridge
+ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
+ipv6.nat                        | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
+ipv6.dhcp                       | boolean   | ipv6 address          | true                      | Whether to provide additional network configuration over DHCP
+ipv6.dhcp.stateful              | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
+ipv6.dhcp.ranges                | string    | ipv6 stateful dhcp    | all addresses             | Comma separated list of IPv6 ranges to use for DHCP (FIRST-LAST format)
+ipv6.routing                    | boolean   | ipv6 address          | true                      | Whether to route traffic in and out of the bridge
+dns.domain                      | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
+dns.mode                        | string    | -                     | managed                   | DNS registration mode ("none" for no DNS record, "managed" for LXD generated static records or "dynamic" for client generated records)
+raw.dnsmasq                     | string    | -                     | -                         | Additional dnsmasq configuration to append to the configuration
+
+
+Those keys can be set using the lxc tool with:
+
+    lxc network set <network> <key> <value>

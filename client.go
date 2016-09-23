@@ -2618,3 +2618,73 @@ func (c *Client) ImageFromContainer(cname string, public bool, aliases []string,
 
 	return fingerprint, nil
 }
+
+// Network functions
+func (c *Client) NetworkCreate(name string, config map[string]string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	body := shared.Jmap{"name": name, "config": config}
+
+	_, err := c.post("networks", body, Sync)
+	return err
+}
+
+func (c *Client) NetworkGet(name string) (shared.NetworkConfig, error) {
+	if c.Remote.Public {
+		return shared.NetworkConfig{}, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	resp, err := c.get(fmt.Sprintf("networks/%s", name))
+	if err != nil {
+		return shared.NetworkConfig{}, err
+	}
+
+	network := shared.NetworkConfig{}
+	if err := json.Unmarshal(resp.Metadata, &network); err != nil {
+		return shared.NetworkConfig{}, err
+	}
+
+	return network, nil
+}
+
+func (c *Client) NetworkPut(name string, network shared.NetworkConfig) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	if network.Name != name {
+		return fmt.Errorf("Cannot change network name")
+	}
+
+	_, err := c.put(fmt.Sprintf("networks/%s", name), network, Sync)
+	return err
+}
+
+func (c *Client) NetworkDelete(name string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	_, err := c.delete(fmt.Sprintf("networks/%s", name), nil, Sync)
+	return err
+}
+
+func (c *Client) ListNetworks() ([]shared.NetworkConfig, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	resp, err := c.get("networks?recursion=1")
+	if err != nil {
+		return nil, err
+	}
+
+	networks := []shared.NetworkConfig{}
+	if err := json.Unmarshal(resp.Metadata, &networks); err != nil {
+		return nil, err
+	}
+
+	return networks, nil
+}

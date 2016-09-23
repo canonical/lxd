@@ -544,6 +544,7 @@ func deviceEventListener(d *Daemon) {
 
 			shared.LogDebugf("Scheduler: network: %s has been added: updating network priorities", e[0])
 			deviceNetworkPriority(d, e[0])
+			networkAutoAttach(d, e[0])
 		case e := <-chUSB:
 			deviceUSBEvent(d, e)
 		case e := <-deviceSchedRebalance:

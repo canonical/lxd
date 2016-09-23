@@ -92,6 +92,9 @@ spawn_lxd() {
     set -x
   fi
 
+  echo "==> Setting up networking"
+  LXD_DIR="${lxddir}" lxc network attach-profile lxdbr0 default eth0
+
   echo "==> Configuring storage backend"
   "$LXD_BACKEND"_configure "${lxddir}"
 }
@@ -311,6 +314,15 @@ cleanup() {
     kill_lxd "${daemon_dir}"
   done < "${TEST_DIR}/daemons"
 
+  # Cleanup leftover networks
+  # shellcheck disable=SC2009
+  ps aux | grep "interface=lxdt$$ " | grep -v grep | awk '{print $2}' | while read line; do
+    kill -9 "${line}"
+  done
+  if [ -e "/sys/class/net/lxdt$$" ]; then
+    ip link del lxdt$$
+  fi
+
   # Wipe the test environment
   wipe "${TEST_DIR}"
 
@@ -457,6 +469,10 @@ test_server_config
 echo "==> TEST: filemanip"
 TEST_CURRENT=test_filemanip
 test_filemanip
+
+echo "==> TEST: network"
+TEST_CURRENT=test_network
+test_network
 
 echo "==> TEST: devlxd"
 TEST_CURRENT=test_devlxd
