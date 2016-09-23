@@ -781,3 +781,16 @@ func networkUpdateStatic(d *Daemon) error {
 
 	return nil
 }
+
+func networkSysctl(path string, value string) error {
+	content, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/net/%s", path))
+	if err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(string(content)) == value {
+		return nil
+	}
+
+	return ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/%s", path), []byte(value), 0)
+}
