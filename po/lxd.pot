@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-09-22 01:40-0400\n"
+        "POT-Creation-Date: 2016-09-22 02:02-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -59,6 +59,25 @@ msgid   "### This is a yaml representation of the image properties.\n"
         "### Each property is represented by a single line:\n"
         "### An example would be:\n"
         "###  description: My custom image"
+msgstr  ""
+
+#: lxc/network.go:28
+msgid   "### This is a yaml representation of the network.\n"
+        "### Any line starting with a '# will be ignored.\n"
+        "###\n"
+        "### A network consists of a set of configuration items.\n"
+        "###\n"
+        "### An example would look like:\n"
+        "### name: lxdbr0\n"
+        "### config:\n"
+        "###   ipv4.address: 10.62.42.1/24\n"
+        "###   ipv4.nat: true\n"
+        "###   ipv6.address: fd00:56ad:9f7a:9800::1/64\n"
+        "###   ipv6.nat: true\n"
+        "### managed: true\n"
+        "### type: bridge\n"
+        "###\n"
+        "### Note that only the configuration can be changed."
 msgstr  ""
 
 #: lxc/profile.go:26
@@ -167,7 +186,7 @@ msgstr  ""
 msgid   "Can't unset key '%s', it's not currently set."
 msgstr  ""
 
-#: lxc/profile.go:419
+#: lxc/network.go:386 lxc/profile.go:419
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -191,11 +210,11 @@ msgstr  ""
 msgid   "Columns"
 msgstr  ""
 
-#: lxc/copy.go:31 lxc/copy.go:32 lxc/init.go:134 lxc/init.go:135 lxc/launch.go:40 lxc/launch.go:41
+#: lxc/copy.go:31 lxc/copy.go:32 lxc/init.go:135 lxc/init.go:136 lxc/launch.go:40 lxc/launch.go:41
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:530 lxc/config.go:595 lxc/image.go:734 lxc/profile.go:217
+#: lxc/config.go:530 lxc/config.go:595 lxc/image.go:734 lxc/network.go:342 lxc/profile.go:217
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -208,7 +227,7 @@ msgstr  ""
 msgid   "Container name is mandatory"
 msgstr  ""
 
-#: lxc/copy.go:140 lxc/copy.go:228 lxc/init.go:210
+#: lxc/copy.go:140 lxc/copy.go:228 lxc/init.go:227
 #, c-format
 msgid   "Container name is: %s"
 msgstr  ""
@@ -262,12 +281,12 @@ msgstr  ""
 msgid   "Created: %s"
 msgstr  ""
 
-#: lxc/init.go:177 lxc/launch.go:118
+#: lxc/init.go:180 lxc/launch.go:134
 #, c-format
 msgid   "Creating %s"
 msgstr  ""
 
-#: lxc/init.go:175
+#: lxc/init.go:178
 msgid   "Creating the container"
 msgstr  ""
 
@@ -317,7 +336,7 @@ msgstr  ""
 msgid   "Environment:"
 msgstr  ""
 
-#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:138 lxc/init.go:139 lxc/launch.go:44 lxc/launch.go:45
+#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:139 lxc/init.go:140 lxc/launch.go:44 lxc/launch.go:45
 msgid   "Ephemeral container"
 msgstr  ""
 
@@ -419,10 +438,10 @@ msgstr  ""
 msgid   "Importing the image: %s"
 msgstr  ""
 
-#: lxc/init.go:73
+#: lxc/init.go:74
 msgid   "Initialize a container from a particular image.\n"
         "\n"
-        "lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]\n"
+        "lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>]\n"
         "\n"
         "Initializes a container using the specified image and name.\n"
         "\n"
@@ -446,7 +465,7 @@ msgstr  ""
 msgid   "Invalid configuration key"
 msgstr  ""
 
-#: lxc/file.go:238
+#: lxc/file.go:239
 #, c-format
 msgid   "Invalid source %s"
 msgstr  ""
@@ -475,7 +494,7 @@ msgstr  ""
 #: lxc/launch.go:22
 msgid   "Launch a container from a particular image.\n"
         "\n"
-        "lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]\n"
+        "lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>]\n"
         "\n"
         "Launches a container using the specified image and name.\n"
         "\n"
@@ -549,6 +568,10 @@ msgstr  ""
 
 #: lxc/info.go:239
 msgid   "Log:"
+msgstr  ""
+
+#: lxc/network.go:424
+msgid   "MANAGED"
 msgstr  ""
 
 #: lxc/image.go:165
@@ -654,6 +677,28 @@ msgid   "Manage files on a container.\n"
         "\n"
         "To pull /etc/hosts from the container:\n"
         "  lxc file pull foo/etc/hosts .\n"
+msgstr  ""
+
+#: lxc/network.go:48
+msgid   "Manage networks.\n"
+        "\n"
+        "lxc network list                               List available networks.\n"
+        "lxc network show <network>                     Show details of a network.\n"
+        "lxc network create <network> [key=value]...    Create a network.\n"
+        "lxc network get <network> <key>                Get network configuration.\n"
+        "lxc network set <network> <key> <value>        Set network configuration.\n"
+        "lxc network unset <network> <key>              Unset network configuration.\n"
+        "lxc network delete <network>                   Delete a network.\n"
+        "lxc network edit <network>\n"
+        "    Edit network, either by launching external editor or reading STDIN.\n"
+        "    Example: lxc network edit <network> # launch editor\n"
+        "             cat network.yml | lxc network edit <network> # read from network.yml\n"
+        "\n"
+        "lxc network attach <network> <container> [device name]\n"
+        "lxc network attach-profile <network> <profile> [device name]\n"
+        "\n"
+        "lxc network detach <network> <container> [device name]\n"
+        "lxc network detach-profile <network> <container> [device name]\n"
 msgstr  ""
 
 #: lxc/remote.go:38
@@ -763,7 +808,11 @@ msgid   "Monitor activity on the LXD server.\n"
         "lxc monitor --type=logging"
 msgstr  ""
 
-#: lxc/file.go:226
+#: lxc/network.go:216 lxc/network.go:265
+msgid   "More than one device matches, specify the device name."
+msgstr  ""
+
+#: lxc/file.go:227
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
@@ -781,11 +830,11 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:428 lxc/remote.go:375
+#: lxc/list.go:428 lxc/network.go:422 lxc/remote.go:375
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/remote.go:349 lxc/remote.go:354
+#: lxc/network.go:408 lxc/remote.go:349 lxc/remote.go:354
 msgid   "NO"
 msgstr  ""
 
@@ -794,12 +843,30 @@ msgstr  ""
 msgid   "Name: %s"
 msgstr  ""
 
+#: lxc/network.go:190
+#, c-format
+msgid   "Network %s created"
+msgstr  ""
+
+#: lxc/network.go:293
+#, c-format
+msgid   "Network %s deleted"
+msgstr  ""
+
+#: lxc/init.go:141 lxc/init.go:142 lxc/launch.go:46 lxc/launch.go:47
+msgid   "Network name"
+msgstr  ""
+
 #: lxc/image.go:168 lxc/publish.go:34
 msgid   "New alias to define at target"
 msgstr  ""
 
 #: lxc/config.go:284
 msgid   "No certificate provided to add"
+msgstr  ""
+
+#: lxc/network.go:225 lxc/network.go:274
+msgid   "No device found for this network"
 msgstr  ""
 
 #: lxc/config.go:307
@@ -878,7 +945,7 @@ msgid   "Presents details on how to use LXD.\n"
         "lxd help [--all]"
 msgstr  ""
 
-#: lxc/profile.go:218
+#: lxc/network.go:343 lxc/profile.go:218
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -933,7 +1000,7 @@ msgstr  ""
 msgid   "Profile %s removed from %s"
 msgstr  ""
 
-#: lxc/copy.go:33 lxc/copy.go:34 lxc/init.go:136 lxc/init.go:137 lxc/launch.go:42 lxc/launch.go:43
+#: lxc/copy.go:33 lxc/copy.go:34 lxc/init.go:137 lxc/init.go:138 lxc/launch.go:42 lxc/launch.go:43
 msgid   "Profile to apply to the new container"
 msgstr  ""
 
@@ -992,7 +1059,7 @@ msgstr  ""
 msgid   "Resources:"
 msgstr  ""
 
-#: lxc/init.go:247
+#: lxc/init.go:267
 #, c-format
 msgid   "Retrieving image: %s"
 msgstr  ""
@@ -1075,7 +1142,7 @@ msgstr  ""
 msgid   "Source:"
 msgstr  ""
 
-#: lxc/launch.go:124
+#: lxc/launch.go:142
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
@@ -1105,7 +1172,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:433
+#: lxc/list.go:433 lxc/network.go:423
 msgid   "TYPE"
 msgstr  ""
 
@@ -1117,17 +1184,29 @@ msgstr  ""
 msgid   "The container is currently running. Use --force to have it stopped and restarted."
 msgstr  ""
 
+#: lxc/init.go:313
+msgid   "The container you are starting doesn’t have any network attached to it."
+msgstr  ""
+
 #: lxc/config.go:675 lxc/config.go:687 lxc/config.go:720 lxc/config.go:738 lxc/config.go:776 lxc/config.go:794
 msgid   "The device doesn't exist"
 msgstr  ""
 
-#: lxc/init.go:277
+#: lxc/init.go:297
 #, c-format
 msgid   "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr  ""
 
-#: lxc/main.go:180
+#: lxc/main.go:181
 msgid   "The opposite of `lxc pause` is `lxc start`."
+msgstr  ""
+
+#: lxc/network.go:230 lxc/network.go:279
+msgid   "The specified device doesn't exist"
+msgstr  ""
+
+#: lxc/network.go:234 lxc/network.go:283
+msgid   "The specified device doesn't match the network"
 msgstr  ""
 
 #: lxc/publish.go:64
@@ -1142,6 +1221,14 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
+#: lxc/init.go:315
+msgid   "To assign a network to a container, use: lxc network assign"
+msgstr  ""
+
+#: lxc/init.go:314
+msgid   "To create a new network, use: lxc network create"
+msgstr  ""
+
 #: lxc/main.go:137
 msgid   "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr  ""
@@ -1151,7 +1238,7 @@ msgstr  ""
 msgid   "Transferring image: %d%%"
 msgstr  ""
 
-#: lxc/action.go:99 lxc/launch.go:137
+#: lxc/action.go:99 lxc/launch.go:155
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -1170,6 +1257,10 @@ msgstr  ""
 
 #: lxc/remote.go:376
 msgid   "URL"
+msgstr  ""
+
+#: lxc/network.go:425
+msgid   "USED BY"
 msgstr  ""
 
 #: lxc/remote.go:96
@@ -1206,7 +1297,7 @@ msgstr  ""
 msgid   "Whether to show the expanded configuration"
 msgstr  ""
 
-#: lxc/remote.go:351 lxc/remote.go:356
+#: lxc/network.go:410 lxc/remote.go:351 lxc/remote.go:356
 msgid   "YES"
 msgstr  ""
 
@@ -1214,7 +1305,7 @@ msgstr  ""
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
-#: lxc/launch.go:111
+#: lxc/launch.go:127
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
@@ -1226,7 +1317,7 @@ msgstr  ""
 msgid   "can't copy to the same container name"
 msgstr  ""
 
-#: lxc/file.go:261
+#: lxc/file.go:262
 msgid   "can't pull a directory without --recursive"
 msgstr  ""
 
@@ -1242,7 +1333,7 @@ msgstr  ""
 msgid   "default"
 msgstr  ""
 
-#: lxc/copy.go:131 lxc/copy.go:136 lxc/copy.go:219 lxc/copy.go:224 lxc/init.go:200 lxc/init.go:205 lxc/launch.go:95 lxc/launch.go:100
+#: lxc/copy.go:131 lxc/copy.go:136 lxc/copy.go:219 lxc/copy.go:224 lxc/init.go:217 lxc/init.go:222 lxc/launch.go:111 lxc/launch.go:116
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
@@ -1264,7 +1355,7 @@ msgstr  ""
 msgid   "error: unknown command: %s"
 msgstr  ""
 
-#: lxc/launch.go:115
+#: lxc/launch.go:131
 msgid   "got bad version"
 msgstr  ""
 
@@ -1280,12 +1371,12 @@ msgstr  ""
 msgid   "ok (y/n)?"
 msgstr  ""
 
-#: lxc/main.go:303 lxc/main.go:307
+#: lxc/main.go:304 lxc/main.go:308
 #, c-format
 msgid   "processing aliases failed %s\n"
 msgstr  ""
 
-#: lxc/file.go:302
+#: lxc/file.go:303
 msgid   "recursive edit doesn't make sense :("
 msgstr  ""
 
@@ -1326,7 +1417,7 @@ msgstr  ""
 msgid   "unreachable return reached"
 msgstr  ""
 
-#: lxc/main.go:235
+#: lxc/main.go:236
 msgid   "wrong number of subcommand arguments"
 msgstr  ""
 

@@ -150,6 +150,14 @@ type ProfileConfig struct {
 	Devices     Devices           `json:"devices"`
 }
 
+type NetworkConfig struct {
+	Name    string            `json:"name"`
+	Config  map[string]string `json:"config"`
+	Managed bool              `json:"managed"`
+	Type    string            `json:"type"`
+	UsedBy  []string          `json:"used_by"`
+}
+
 func IsInt64(value string) error {
 	if value == "" {
 		return nil

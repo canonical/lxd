@@ -67,6 +67,7 @@ var dbUpdates = []dbUpdate{
 	dbUpdate{version: 31, run: dbUpdateFromV30},
 	dbUpdate{version: 32, run: dbUpdateFromV31},
 	dbUpdate{version: 33, run: dbUpdateFromV32},
+	dbUpdate{version: 34, run: dbUpdateFromV33},
 }
 
 type dbUpdate struct {
@@ -123,6 +124,25 @@ func dbUpdatesApplyAll(d *Daemon) error {
 }
 
 // Schema updates begin here
+func dbUpdateFromV33(currentVersion int, version int, d *Daemon) error {
+	stmt := `
+CREATE TABLE IF NOT EXISTS networks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    UNIQUE (name)
+);
+CREATE TABLE IF NOT EXISTS networks_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (network_id, key),
+    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE
+);`
+	_, err := d.db.Exec(stmt)
+	return err
+}
+
 func dbUpdateFromV32(currentVersion int, version int, d *Daemon) error {
 	_, err := d.db.Exec("ALTER TABLE containers ADD COLUMN last_use_date DATETIME;")
 	return err
@@ -853,12 +873,7 @@ CREATE TABLE IF NOT EXISTS config (
 
 func dbUpdateFromV3(currentVersion int, version int, d *Daemon) error {
 	// Attempt to create a default profile (but don't fail if already there)
-	stmt := `INSERT INTO profiles (name) VALUES ("default");
-INSERT INTO profiles_devices (profile_id, name, type) SELECT id, "eth0", "nic" FROM profiles WHERE profiles.name="default";
-INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "nictype", "bridged" FROM profiles_devices LEFT JOIN profiles ON profiles.id=profiles_devices.profile_id WHERE profiles.name == "default";
-INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, 'name', "eth0" FROM profiles_devices LEFT JOIN profiles ON profiles.id=profiles_devices.profile_id WHERE profiles.name == "default";
-INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "parent", "lxdbr0" FROM profiles_devices LEFT JOIN profiles ON profiles.id=profiles_devices.profile_id WHERE profiles.name == "default";`
-	d.db.Exec(stmt)
+	d.db.Exec("INSERT INTO profiles (name) VALUES (\"default\");")
 
 	return nil
 }

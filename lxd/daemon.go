@@ -766,6 +766,12 @@ func (d *Daemon) Init() error {
 		if err != nil {
 			return err
 		}
+
+		/* Setup the networks */
+		err = networkStartup(d)
+		if err != nil {
+			return err
+		}
 	}
 
 	/* Log expiry */
