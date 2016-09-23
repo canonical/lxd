@@ -543,12 +543,12 @@ func (n *network) Start() error {
 
 	// IPv6 bridge configuration
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
-		err := ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/autoconf", n.name), []byte("0"), 0)
+		err := networkSysctl(fmt.Sprintf("ipv6/conf/%s/autoconf", n.name), "0")
 		if err != nil {
 			return err
 		}
 
-		err = ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/accept_dad", n.name), []byte("0"), 0)
+		err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/accept_dad", n.name), "0")
 		if err != nil {
 			return err
 		}
@@ -676,7 +676,7 @@ func (n *network) Start() error {
 
 		// Allow forwarding
 		if n.config["bridge.mode"] == "fan" || n.config["ipv4.routing"] == "" || shared.IsTrue(n.config["ipv4.routing"]) {
-			err = ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0)
+			err = networkSysctl("ipv4/ip_forward", "1")
 			if err != nil {
 				return err
 			}
@@ -830,12 +830,16 @@ func (n *network) Start() error {
 			}
 
 			for _, entry := range entries {
-				err := ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/accept_ra", entry.Name()), []byte("2"), 0000)
+				if entry.Name() == "all" || entry.Name() == "default" {
+					continue
+				}
+
+				err := networkSysctl(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
 				if err != nil {
 					return err
 				}
 
-				err = ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/forwarding", entry.Name()), []byte("1"), 0000)
+				err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
 				if err != nil {
 					return err
 				}
