@@ -7,7 +7,7 @@ _have lxc && {
       local keys=$2
       
       local cmd="lxc list --fast"
-      [ -n "$state" ] && cmd="$cmd | grep $state"
+      [ -n "$state" ] && cmd="$cmd | grep -E '$state'"
 
       COMPREPLY=( $( compgen -W \
         "$( eval $cmd | grep -Ev '(+--|NAME)' | awk '{print $2}' ) $keys" "$cur" )
@@ -188,7 +188,7 @@ _have lxc && {
         _lxd_names
         ;;
       "start")
-        _lxd_names "STOPPED"
+        _lxd_names "STOPPED|FROZEN"
         ;;
       "stop")
         _lxd_names "RUNNING"
