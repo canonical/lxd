@@ -6,6 +6,7 @@ import lxc
 import os
 import subprocess
 from pylxd.client import Client
+from pylxd import exceptions
 
 
 # Fetch a config key as a list
@@ -110,7 +111,7 @@ def convert_container(container_name, args):
         lxd.containers.get(container_name)
         print("Container already exists, skipping...")
         return False
-    except NameError:
+    except (NameError, exceptions.LXDAPIException):
         pass
 
     # Validate lxc.utsname
