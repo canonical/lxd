@@ -3,8 +3,14 @@ _have lxc && {
   {
     _lxd_names()
     {
+      local state=$1
+      local keys=$2
+      
+      local cmd="lxc list --fast"
+      [ -n "$state" ] && cmd="$cmd | grep $state"
+
       COMPREPLY=( $( compgen -W \
-        "$( lxc list --fast | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' ) $1" "$cur" )
+        "$( eval $cmd | grep -Ev '(+--|NAME)' | awk '{print $2}' ) $keys" "$cur" )
       )
     }
 
@@ -87,7 +93,7 @@ _have lxc && {
                 _lxd_names
                 ;;
               "get"|"set"|"unset")
-                _lxd_names "$global_keys"
+                _lxd_names "" "$global_keys"
                 ;;
             esac
             ;;
@@ -115,7 +121,7 @@ _have lxc && {
         _lxd_names
         ;;
       "exec")
-        _lxd_names
+        _lxd_names "RUNNING"
         ;;
       "file")
         COMPREPLY=( $(compgen -W "pull push edit" -- $cur) )
@@ -182,12 +188,10 @@ _have lxc && {
         _lxd_names
         ;;
       "start")
-        # should check if containers are stopped
-        _lxd_names
+        _lxd_names "STOPPED"
         ;;
       "stop")
-        # should check if containers are started
-        _lxd_names
+        _lxd_names "RUNNING"
         ;;
       *)
         ;;
