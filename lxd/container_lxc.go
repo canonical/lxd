@@ -2904,7 +2904,7 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 	ret := []string{}
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, "Error") {
+		if strings.Contains(line, "Error") || strings.Contains(line, "Warn") {
 			ret = append(ret, scanner.Text())
 		}
 	}
