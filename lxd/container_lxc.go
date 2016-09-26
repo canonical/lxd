@@ -873,8 +873,16 @@ func (c *containerLXC) initLXC() error {
 			}
 
 			// Host Virtual NIC name
+			vethName := ""
 			if m["host_name"] != "" {
-				err = lxcSetConfigItem(cc, "lxc.network.veth.pair", m["host_name"])
+				vethName = m["host_name"]
+			} else if shared.IsTrue(m["security.mac_filtering"]) {
+				// We need a known device name for MAC filtering
+				vethName = deviceNextVeth()
+			}
+
+			if vethName != "" {
+				err = lxcSetConfigItem(cc, "lxc.network.veth.pair", vethName)
 				if err != nil {
 					return err
 				}
@@ -1177,6 +1185,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	// Cleanup any existing leftover devices
 	c.removeUnixDevices()
 	c.removeDiskDevices()
+	c.removeNetworkFilters()
 
 	var usbs []usbDevice
 
@@ -1260,6 +1269,44 @@ func (c *containerLXC) startCommon() (string, error) {
 			// Disk device
 			if m["path"] != "/" {
 				_, err := c.createDiskDevice(k, m)
+				if err != nil {
+					return "", err
+				}
+			}
+		} else if m["type"] == "nic" {
+			if m["nictype"] == "bridged" && shared.IsTrue(m["security.mac_filtering"]) {
+				m, err = c.fillNetworkDevice(k, m)
+				if err != nil {
+					return "", err
+				}
+
+				// Read device name from config
+				vethName := ""
+				for i := 0; i < len(c.c.ConfigItem("lxc.network")); i++ {
+					val := c.c.ConfigItem(fmt.Sprintf("lxc.network.%d.hwaddr", i))
+					if len(val) == 0 || val[0] != m["hwaddr"] {
+						continue
+					}
+
+					val = c.c.ConfigItem(fmt.Sprintf("lxc.network.%d.link", i))
+					if len(val) == 0 || val[0] != m["parent"] {
+						continue
+					}
+
+					val = c.c.ConfigItem(fmt.Sprintf("lxc.network.%d.veth.pair", i))
+					if len(val) == 0 {
+						continue
+					}
+
+					vethName = val[0]
+					break
+				}
+
+				if vethName == "" {
+					return "", fmt.Errorf("Failed to find device name for mac_filtering")
+				}
+
+				err = c.createNetworkFilter(vethName, m["parent"], m["hwaddr"])
 				if err != nil {
 					return "", err
 				}
@@ -1746,6 +1793,12 @@ func (c *containerLXC) OnStop(target string) error {
 			shared.LogError("Unable to remove disk devices", log.Ctx{"err": err})
 		}
 
+		// Clean all network filters
+		err = c.removeNetworkFilters()
+		if err != nil {
+			shared.LogError("Unable to remove network filters", log.Ctx{"err": err})
+		}
+
 		// Reboot the container
 		if target == "reboot" {
 
@@ -2055,6 +2108,7 @@ func (c *containerLXC) cleanup() {
 	// Unmount any leftovers
 	c.removeUnixDevices()
 	c.removeDiskDevices()
+	c.removeNetworkFilters()
 
 	// Remove the security profiles
 	AADeleteProfile(c)
@@ -4303,6 +4357,14 @@ func (c *containerLXC) createNetworkDevice(name string, m shared.Device) (string
 		return "", fmt.Errorf("Failed to bring up the interface: %s", err)
 	}
 
+	// Set the filter
+	if m["nictype"] == "bridged" && shared.IsTrue(m["security.mac_filtering"]) {
+		err = c.createNetworkFilter(dev, m["parent"], m["hwaddr"])
+		if err != nil {
+			return "", err
+		}
+	}
+
 	return dev, nil
 }
 
@@ -4441,6 +4503,70 @@ func (c *containerLXC) fillNetworkDevice(name string, m shared.Device) (shared.D
 	return newDevice, nil
 }
 
+func (c *containerLXC) createNetworkFilter(name string, bridge string, hwaddr string) error {
+	err := shared.RunCommand("ebtables", "-A", "FORWARD", "-s", "!", hwaddr, "-i", name, "-o", bridge, "-j", "DROP")
+	if err != nil {
+		return err
+	}
+
+	err = shared.RunCommand("ebtables", "-A", "INPUT", "-s", "!", hwaddr, "-i", name, "-j", "DROP")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *containerLXC) removeNetworkFilter(hwaddr string, bridge string) error {
+	out, err := exec.Command("ebtables", "-L", "--Lmac2", "--Lx").Output()
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		fields := strings.Fields(line)
+
+		if len(fields) == 12 {
+			match := []string{"ebtables", "-t", "filter", "-A", "INPUT", "-s", "!", hwaddr, "-i", fields[9], "-j", "DROP"}
+			if reflect.DeepEqual(fields, match) {
+				fields[3] = "-D"
+				err = shared.RunCommand(fields[0], fields[1:]...)
+				if err != nil {
+					return err
+				}
+			}
+		} else if len(fields) == 14 {
+			match := []string{"ebtables", "-t", "filter", "-A", "FORWARD", "-s", "!", hwaddr, "-i", fields[9], "-o", bridge, "-j", "DROP"}
+			if reflect.DeepEqual(fields, match) {
+				fields[3] = "-D"
+				err = shared.RunCommand(fields[0], fields[1:]...)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *containerLXC) removeNetworkFilters() error {
+	for k, m := range c.expandedDevices {
+		m, err := c.fillNetworkDevice(k, m)
+		if err != nil {
+			return err
+		}
+
+		if m["type"] != "nic" || m["nictype"] != "bridged" {
+			continue
+		}
+
+		err = c.removeNetworkFilter(m["hwaddr"], m["parent"])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *containerLXC) insertNetworkDevice(name string, m shared.Device) error {
 	// Load the go-lxc struct
 	err := c.initLXC()
@@ -4519,6 +4645,14 @@ func (c *containerLXC) removeNetworkDevice(name string, m shared.Device) error {
 	// If a veth, destroy it
 	if m["nictype"] != "physical" {
 		deviceRemoveInterface(hostName)
+	}
+
+	// Remove any filter
+	if m["nictype"] == "bridged" {
+		err = c.removeNetworkFilter(m["hwaddr"], m["parent"])
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
