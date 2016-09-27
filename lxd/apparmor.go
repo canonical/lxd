@@ -338,6 +338,9 @@ func getAAProfileContent(c container) string {
 `
 			profile += fmt.Sprintf("  change_profile -> \":%s://*\",\n", AANamespace(c))
 		}
+	} else {
+		profile += "\n  ### Feature: apparmor stacking (not present)\n"
+		profile += "  deny /sys/k*{,/**} rwklx,\n"
 	}
 
 	if c.IsNesting() {
