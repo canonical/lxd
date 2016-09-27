@@ -388,7 +388,12 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Base config
-	err = lxcSetConfigItem(cc, "lxc.cap.drop", "mac_admin mac_override sys_time sys_module sys_rawio")
+	toDrop := "sys_time sys_module sys_rawio"
+	if !aaStacking || c.IsPrivileged() {
+		toDrop = toDrop + " mac_admin mac_override"
+	}
+
+	err = lxcSetConfigItem(cc, "lxc.cap.drop", toDrop)
 	if err != nil {
 		return err
 	}
@@ -587,7 +592,20 @@ func (c *containerLXC) initLXC() error {
 			}
 		} else {
 			// If not currently confined, use the container's profile
-			err := lxcSetConfigItem(cc, "lxc.aa_profile", AAProfileFull(c))
+			profile := AAProfileFull(c)
+
+			/* In the nesting case, we want to enable the inside
+			 * LXD to load its profile. Unprivileged containers can
+			 * load profiles, but privileged containers cannot, so
+			 * let's not use a namespace so they can fall back to
+			 * the old way of nesting, i.e. using the parent's
+			 * profile.
+			 */
+			if aaStacking && (!c.IsNesting() || !c.IsPrivileged()) {
+				profile = fmt.Sprintf("%s//&:%s:", profile, AANamespace(c))
+			}
+
+			err := lxcSetConfigItem(cc, "lxc.aa_profile", profile)
 			if err != nil {
 				return err
 			}
@@ -1702,7 +1720,9 @@ func (c *containerLXC) OnStop(target string) error {
 	}
 
 	// Unload the apparmor profile
-	AAUnloadProfile(c)
+	if err := AADestroy(c); err != nil {
+		shared.LogError("failed to destroy apparmor namespace", log.Ctx{"container": c.Name(), "err": err})
+	}
 
 	// FIXME: The go routine can go away once we can rely on LXC_TARGET
 	go func(c *containerLXC, target string, op *lxcContainerOperation) {
