@@ -114,3 +114,4 @@ This includes:
  * DELETE /1.0/networks/<entry> (see rest-api.md for details)
  * ipv4.address property on "nic" type devices (when nictype is "bridged")
  * ipv6.address property on "nic" type devices (when nictype is "bridged")
+ * security.mac\_filtering property on "nic" type devices (when nictype is "bridged")

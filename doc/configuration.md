@@ -195,19 +195,20 @@ LXD supports different kind of network devices:
 
 Different network interface types have different additional properties, the current list is:
 
-Key             | Type      | Default           | Required  | Used by                       | API extension | Description
-:--             | :--       | :--               | :--       | :--                           | :--           | :--
-nictype         | string    | -                 | yes       | all                           | -             | The device type, one of "physical", "bridged", "macvlan" or "p2p"
-limits.ingress  | string    | -                 | no        | bridged, p2p                  | -             | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
-limits.egress   | string    | -                 | no        | bridged, p2p                  | -             | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
-limits.max      | string    | -                 | no        | bridged, p2p                  | -             | Same as modifying both limits.read and limits.write
-name            | string    | kernel assigned   | no        | all                           | -             | The name of the interface inside the container
-host\_name      | string    | randomly assigned | no        | bridged, p2p, macvlan         | -             | The name of the interface inside the host
-hwaddr          | string    | randomly assigned | no        | all                           | -             | The MAC address of the new interface
-mtu             | integer   | parent MTU        | no        | all                           | -             | The MTU of the new interface
-parent          | string    | -                 | yes       | physical, bridged, macvlan    | -             | The name of the host device or bridge
-ipv4.address    | string    | -                 | no        | bridged                       | network       | An IPv4 address to assign to the container through DHCP
-ipv6.address    | string    | -                 | no        | bridged                       | network       | An IPv6 address to assign to the container through DHCP
+Key                     | Type      | Default           | Required  | Used by                       | API extension | Description
+:--                     | :--       | :--               | :--       | :--                           | :--           | :--
+nictype                 | string    | -                 | yes       | all                           | -             | The device type, one of "physical", "bridged", "macvlan" or "p2p"
+limits.ingress          | string    | -                 | no        | bridged, p2p                  | -             | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
+limits.egress           | string    | -                 | no        | bridged, p2p                  | -             | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
+limits.max              | string    | -                 | no        | bridged, p2p                  | -             | Same as modifying both limits.read and limits.write
+name                    | string    | kernel assigned   | no        | all                           | -             | The name of the interface inside the container
+host\_name              | string    | randomly assigned | no        | bridged, p2p, macvlan         | -             | The name of the interface inside the host
+hwaddr                  | string    | randomly assigned | no        | all                           | -             | The MAC address of the new interface
+mtu                     | integer   | parent MTU        | no        | all                           | -             | The MTU of the new interface
+parent                  | string    | -                 | yes       | physical, bridged, macvlan    | -             | The name of the host device or bridge
+ipv4.address            | string    | -                 | no        | bridged                       | network       | An IPv4 address to assign to the container through DHCP
+ipv6.address            | string    | -                 | no        | bridged                       | network       | An IPv6 address to assign to the container through DHCP
+security.mac\_filtering | boolean   | false             | no        | bridged                       | network       | Prevent the container from spoofing another's MAC address
 
 ### Type: disk
 Disk entries are essentially mountpoints inside the container. They can
