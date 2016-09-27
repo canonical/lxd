@@ -250,6 +250,22 @@ const AA_PROFILE_NESTING = `
   mount options=bind /var/lib/lxd/shmounts/** -> /var/lib/lxd/**,
 `
 
+const AA_PROFILE_UNPRIVILEGED = `
+  pivot_root,
+
+  mount options=(rw,make-slave) -> **,
+  mount options=(rw,make-rslave) -> **,
+  mount options=(rw,make-shared) -> **,
+  mount options=(rw,make-rshared) -> **,
+  mount options=(rw,make-private) -> **,
+  mount options=(rw,make-rprivate) -> **,
+  mount options=(rw,make-unbindable) -> **,
+  mount options=(rw,make-runbindable) -> **,
+
+  mount options=(rw,bind),
+  mount options=(rw,rbind),
+`
+
 func mkApparmorName(name string) string {
 	if len(name)+7 >= 253 {
 		hash := sha256.New()
@@ -350,6 +366,12 @@ func getAAProfileContent(c container) string {
 		if !aaStacking || c.IsPrivileged() {
 			profile += fmt.Sprintf("  change_profile -> \"%s\",\n", AAProfileFull(c))
 		}
+	}
+
+	if !c.IsPrivileged() {
+		// Apply unprivileged bits
+		profile += "\n  ### Configuration: unprivileged containers\n"
+		profile += strings.TrimLeft(AA_PROFILE_UNPRIVILEGED, "\n")
 	}
 
 	// Append raw.apparmor
