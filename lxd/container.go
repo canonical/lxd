@@ -106,6 +106,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "ipv6.address":
 			return true
+		case "security.mac_filtering":
+			return true
 		default:
 			return false
 		}
