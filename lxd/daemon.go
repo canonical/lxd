@@ -646,7 +646,8 @@ func (d *Daemon) Init() error {
 			content := string(contentBytes)
 
 			parts := strings.Split(strings.TrimSpace(content), ".")
-			if len(parts) != 2 {
+
+			if len(parts) == 0 {
 				shared.LogWarn("unknown apparmor domain version", log.Ctx{"version": content})
 				return false
 			}
@@ -657,13 +658,16 @@ func (d *Daemon) Init() error {
 				return false
 			}
 
-			minor, err := strconv.Atoi(parts[1])
-			if err != nil {
-				shared.LogWarn("unknown apparmor domain version", log.Ctx{"version": content})
-				return false
+			minor := 0
+			if len(parts) == 2 {
+				minor, err = strconv.Atoi(parts[1])
+				if err != nil {
+					shared.LogWarn("unknown apparmor domain version", log.Ctx{"version": content})
+					return false
+				}
 			}
 
-			return major >= 1 && minor >= 1
+			return major >= 1 && minor >= 2
 		}
 
 		aaStacking = canStack()
