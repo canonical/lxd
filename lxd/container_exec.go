@@ -282,6 +282,14 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
+	_, ok := env["PATH"]
+	if !ok {
+		env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+		if shared.PathExists(fmt.Sprintf("%s/snap/bin", c.RootfsPath())) {
+			env["PATH"] = fmt.Sprintf("%s:/snap/bin", env["PATH"])
+		}
+	}
+
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
