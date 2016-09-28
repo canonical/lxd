@@ -568,7 +568,7 @@ func networkFanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string,
 	}
 
 	if overlaySize+(32-underlaySize)+8 > 32 {
-		return "", "", "", fmt.Errorf("Underlay or overlay networks too large to accomodate the FAN")
+		return "", "", "", fmt.Errorf("Underlay or overlay networks too large to accommodate the FAN")
 	}
 
 	// Get the IP
