@@ -1028,6 +1028,12 @@ they otherwise would.
 		if err != nil {
 			return err
 		}
+
+		props := []string{"nictype=bridged", fmt.Sprintf("parent=%s", bridgeName)}
+		_, err = c.ProfileDeviceAdd("default", "eth0", "nic", props)
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Printf("LXD has been successfully configured.\n")
