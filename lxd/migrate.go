@@ -512,7 +512,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 }
 
 type migrationSink struct {
-	migrationFields
+	// We are pulling the container from src in pull mode.
+	src migrationFields
 
 	url    string
 	dialer websocket.Dialer
@@ -525,32 +526,32 @@ type MigrationSinkArgs struct {
 	Secrets   map[string]string
 }
 
-func NewMigrationSink(args *MigrationSinkArgs) (func() error, error) {
+func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		migrationFields{container: args.Container},
-		args.Url,
-		args.Dialer,
+		src:    migrationFields{container: args.Container},
+		url:    args.Url,
+		dialer: args.Dialer,
 	}
 
 	var ok bool
-	sink.controlSecret, ok = args.Secrets["control"]
+	sink.src.controlSecret, ok = args.Secrets["control"]
 	if !ok {
 		return nil, fmt.Errorf("Missing control secret")
 	}
 
-	sink.fsSecret, ok = args.Secrets["fs"]
+	sink.src.fsSecret, ok = args.Secrets["fs"]
 	if !ok {
 		return nil, fmt.Errorf("Missing fs secret")
 	}
 
-	sink.criuSecret, ok = args.Secrets["criu"]
-	sink.live = ok
+	sink.src.criuSecret, ok = args.Secrets["criu"]
+	sink.src.live = ok
 
-	if err := findCriu("destination"); sink.live && err != nil {
+	if err := findCriu("destination"); sink.src.live && err != nil {
 		return nil, err
 	}
 
-	return sink.do, nil
+	return &sink, nil
 }
 
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
@@ -562,41 +563,49 @@ func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error
 	return lxd.WebsocketDial(c.dialer, wsUrl)
 }
 
-func (c *migrationSink) do() error {
+func (c *migrationSink) Do(migrateOp *operation) error {
 	var err error
-	c.controlConn, err = c.connectWithSecret(c.controlSecret)
+
+	// Start the storage for this container (LVM mount/umount)
+	c.src.container.StorageStart()
+
+	c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
 	if err != nil {
+		c.src.container.StorageStop()
 		return err
 	}
-	defer c.disconnect()
+	defer c.src.disconnect()
 
-	c.fsConn, err = c.connectWithSecret(c.fsSecret)
+	c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
 	if err != nil {
-		c.sendControl(err)
+		c.src.container.StorageStop()
+		c.src.sendControl(err)
 		return err
 	}
 
-	if c.live {
-		c.criuConn, err = c.connectWithSecret(c.criuSecret)
+	if c.src.live {
+		c.src.criuConn, err = c.connectWithSecret(c.src.criuSecret)
 		if err != nil {
-			c.sendControl(err)
+			c.src.container.StorageStop()
+			c.src.sendControl(err)
 			return err
 		}
 	}
 
 	header := MigrationHeader{}
-	if err := c.recv(&header); err != nil {
-		c.sendControl(err)
+	if err := c.src.recv(&header); err != nil {
+		c.src.container.StorageStop()
+		c.src.sendControl(err)
 		return err
 	}
 
 	criuType := CRIUType_CRIU_RSYNC.Enum()
-	if !c.live {
+	if !c.src.live {
 		criuType = nil
 	}
 
-	mySink := c.container.Storage().MigrationSink
-	myType := c.container.Storage().MigrationType()
+	mySink := c.src.container.Storage().MigrationSink
+	myType := c.src.container.Storage().MigrationType()
 	resp := MigrationHeader{
 		Fs:   &myType,
 		Criu: criuType,
@@ -610,8 +619,9 @@ func (c *migrationSink) do() error {
 		resp.Fs = &myType
 	}
 
-	if err := c.send(&resp); err != nil {
-		c.sendControl(err)
+	if err := c.src.send(&resp); err != nil {
+		c.src.container.StorageStop()
+		c.src.sendControl(err)
 		return err
 	}
 
@@ -646,7 +656,7 @@ func (c *migrationSink) do() error {
 			 */
 			if len(header.SnapshotNames) != len(header.Snapshots) {
 				for _, name := range header.SnapshotNames {
-					base := snapshotToProtobuf(c.container)
+					base := snapshotToProtobuf(c.src.container)
 					base.Name = &name
 					snapshots = append(snapshots, base)
 				}
@@ -654,12 +664,12 @@ func (c *migrationSink) do() error {
 				snapshots = header.Snapshots
 			}
 
-			if err := mySink(c.live, c.container, header.Snapshots, c.fsConn, srcIdmap); err != nil {
+			if err := mySink(c.src.live, c.src.container, header.Snapshots, c.src.fsConn, srcIdmap); err != nil {
 				fsTransfer <- err
 				return
 			}
 
-			if err := ShiftIfNecessary(c.container, srcIdmap); err != nil {
+			if err := ShiftIfNecessary(c.src.container, srcIdmap); err != nil {
 				fsTransfer <- err
 				return
 			}
@@ -667,7 +677,7 @@ func (c *migrationSink) do() error {
 			fsTransfer <- nil
 		}()
 
-		if c.live {
+		if c.src.live {
 			var err error
 			imagesDir, err = ioutil.TempDir("", "lxd_restore_")
 			if err != nil {
@@ -677,7 +687,7 @@ func (c *migrationSink) do() error {
 
 			defer os.RemoveAll(imagesDir)
 
-			if err := RsyncRecv(shared.AddSlash(imagesDir), c.criuConn); err != nil {
+			if err := RsyncRecv(shared.AddSlash(imagesDir), c.src.criuConn); err != nil {
 				restore <- err
 				return
 			}
@@ -689,8 +699,8 @@ func (c *migrationSink) do() error {
 			return
 		}
 
-		if c.live {
-			err = c.container.Migrate(lxc.MIGRATE_RESTORE, imagesDir, "migration", false, false)
+		if c.src.live {
+			err = c.src.container.Migrate(lxc.MIGRATE_RESTORE, imagesDir, "migration", false, false)
 			if err != nil {
 				restore <- err
 				return
@@ -701,26 +711,32 @@ func (c *migrationSink) do() error {
 		restore <- nil
 	}(c)
 
-	source := c.controlChannel()
+	source := c.src.controlChannel()
+
+	defer c.src.container.StorageStop()
 
 	for {
 		select {
 		case err = <-restore:
-			c.sendControl(err)
+			c.src.sendControl(err)
 			return err
 		case msg, ok := <-source:
 			if !ok {
-				c.disconnect()
+				c.src.disconnect()
 				return fmt.Errorf("Got error reading source")
 			}
 			if !*msg.Success {
-				c.disconnect()
+				c.src.disconnect()
 				return fmt.Errorf(*msg.Message)
 			} else {
 				// The source can only tell us it failed (e.g. if
 				// checkpointing failed). We have to tell the source
 				// whether or not the restore was successful.
 				shared.LogDebugf("Unknown message %v from source", msg)
+				err = c.src.container.TemplateApply("copy")
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
