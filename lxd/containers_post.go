@@ -210,106 +210,83 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		architecture = 0
 	}
 
-	run := func(op *operation) error {
-		args := containerArgs{
-			Architecture: architecture,
-			BaseImage:    req.Source.BaseImage,
-			Config:       req.Config,
-			Ctype:        cTypeRegular,
-			Devices:      req.Devices,
-			Ephemeral:    req.Ephemeral,
-			Name:         req.Name,
-			Profiles:     req.Profiles,
-		}
+	args := containerArgs{
+		Architecture: architecture,
+		BaseImage:    req.Source.BaseImage,
+		Config:       req.Config,
+		Ctype:        cTypeRegular,
+		Devices:      req.Devices,
+		Ephemeral:    req.Ephemeral,
+		Name:         req.Name,
+		Profiles:     req.Profiles,
+	}
 
-		var c container
-		_, _, err := dbImageGet(d.db, req.Source.BaseImage, false, true)
+	var c container
+	_, _, err = dbImageGet(d.db, req.Source.BaseImage, false, true)
 
-		/* Only create a container from an image if we're going to
-		 * rsync over the top of it. In the case of a better file
-		 * transfer mechanism, let's just use that.
-		 *
-		 * TODO: we could invent some negotiation here, where if the
-		 * source and sink both have the same image, we can clone from
-		 * it, but we have to know before sending the snapshot that
-		 * we're sending the whole thing or just a delta from the
-		 * image, so one extra negotiation round trip is needed. An
-		 * alternative is to move actual container object to a later
-		 * point and just negotiate it over the migration control
-		 * socket. Anyway, it'll happen later :)
-		 */
-		if err == nil && d.Storage.MigrationType() == MigrationFSType_RSYNC {
-			c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
-			if err != nil {
-				return err
-			}
-		} else {
-			c, err = containerCreateAsEmpty(d, args)
-			if err != nil {
-				return err
-			}
-		}
-
-		var cert *x509.Certificate
-		if req.Source.Certificate != "" {
-			certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
-			if certBlock == nil {
-				return fmt.Errorf("Invalid certificate")
-			}
-
-			cert, err = x509.ParseCertificate(certBlock.Bytes)
-			if err != nil {
-				return err
-			}
-		}
-
-		config, err := shared.GetTLSConfig("", "", "", cert)
+	/* Only create a container from an image if we're going to
+	 * rsync over the top of it. In the case of a better file
+	 * transfer mechanism, let's just use that.
+	 *
+	 * TODO: we could invent some negotiation here, where if the
+	 * source and sink both have the same image, we can clone from
+	 * it, but we have to know before sending the snapshot that
+	 * we're sending the whole thing or just a delta from the
+	 * image, so one extra negotiation round trip is needed. An
+	 * alternative is to move actual container object to a later
+	 * point and just negotiate it over the migration control
+	 * socket. Anyway, it'll happen later :)
+	 */
+	if err == nil && d.Storage.MigrationType() == MigrationFSType_RSYNC {
+		c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
 		if err != nil {
-			c.Delete()
-			return err
+			return InternalError(err)
 		}
-
-		migrationArgs := MigrationSinkArgs{
-			Url: req.Source.Operation,
-			Dialer: websocket.Dialer{
-				TLSClientConfig: config,
-				NetDial:         shared.RFC3493Dialer},
-			Container: c,
-			Secrets:   req.Source.Websockets,
-		}
-
-		sink, err := NewMigrationSink(&migrationArgs)
+	} else {
+		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
-			c.Delete()
-			return err
+			return InternalError(err)
+		}
+	}
+
+	var cert *x509.Certificate
+	if req.Source.Certificate != "" {
+		certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
+		if certBlock == nil {
+			return InternalError(fmt.Errorf("Invalid certificate"))
 		}
 
-		// Start the storage for this container (LVM mount/umount)
-		c.StorageStart()
-
-		// And finaly run the migration.
-		err = sink()
+		cert, err = x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			c.StorageStop()
-			shared.LogError("Error during migration sink", log.Ctx{"err": err})
-			c.Delete()
-			return fmt.Errorf("Error transferring container data: %s", err)
+			return InternalError(err)
 		}
+	}
 
-		defer c.StorageStop()
+	config, err := shared.GetTLSConfig("", "", "", cert)
+	if err != nil {
+		c.Delete()
+		return InternalError(err)
+	}
 
-		err = c.TemplateApply("copy")
-		if err != nil {
-			return err
-		}
+	migrationArgs := MigrationSinkArgs{
+		Url: req.Source.Operation,
+		Dialer: websocket.Dialer{
+			TLSClientConfig: config,
+			NetDial:         shared.RFC3493Dialer},
+		Container: c,
+		Secrets:   req.Source.Websockets,
+	}
 
-		return nil
+	sink, err := NewMigrationSink(&migrationArgs)
+	if err != nil {
+		c.Delete()
+		return InternalError(err)
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(operationClassTask, resources, nil, sink.Do, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
