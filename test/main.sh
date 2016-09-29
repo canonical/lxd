@@ -4,6 +4,9 @@
 # Don't translate lxc output for parsing in it in tests.
 export "LC_ALL=C"
 
+# Force UTC for consistency
+export "TZ=UTC"
+
 if [ -n "${LXD_DEBUG:-}" ]; then
   set -x
   DEBUG="--debug"
