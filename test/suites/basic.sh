@@ -279,7 +279,15 @@ test_basic_usage() {
   # check that an apparmor profile is created for this container, that it is
   # unloaded on stop, and that it is deleted when the container is deleted
   lxc launch testimage lxd-apparmor-test
+
+  MAJOR=0
+  MINOR=0
   if [ -f /sys/kernel/security/apparmor/features/domain/version ]; then
+    MAJOR=$(awk -F. '{print $1}' < /sys/kernel/security/apparmor/features/domain/version)
+    MINOR=$(awk -F. '{print $2}' < /sys/kernel/security/apparmor/features/domain/version)
+  fi
+
+  if [ "${MAJOR}" -gt "1" ] || ([ "${MAJOR}" = "1" ] && [ "${MINOR}" -ge "2" ]); then
     aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
     aa-status | grep ":${aa_namespace}://unconfined"
     lxc stop lxd-apparmor-test --force
