@@ -84,6 +84,10 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("The network already exists"))
 	}
 
+	if req.Config == nil {
+		req.Config = map[string]string{}
+	}
+
 	err = networkValidateConfig(req.Name, req.Config)
 	if err != nil {
 		return BadRequest(err)
