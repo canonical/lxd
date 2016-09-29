@@ -907,7 +907,7 @@ they otherwise would.
 				return networkValidAddressCIDRV4(value)
 			})
 
-			bridgeIPv6 = askString("What IPv4 subnet should be used (CIDR notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
+			bridgeIPv6 = askString("What IPv6 subnet should be used (CIDR notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
 				if shared.StringInSlice(value, []string{"auto", "none"}) {
 					return nil
 				}
@@ -1025,6 +1025,12 @@ they otherwise would.
 		bridgeConfig["ipv6.address"] = bridgeIPv6
 
 		err = c.NetworkCreate(bridgeName, bridgeConfig)
+		if err != nil {
+			return err
+		}
+
+		props := []string{"nictype=bridged", fmt.Sprintf("parent=%s", bridgeName)}
+		_, err = c.ProfileDeviceAdd("default", "eth0", "nic", props)
 		if err != nil {
 			return err
 		}
