@@ -514,9 +514,15 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 type migrationSink struct {
 	// We are pulling the container from src in pull mode.
 	src migrationFields
+	// The container is pushed to dest in push mode. Note that websocket
+	// connections are not set in push mode. Only the secret fields are
+	// used since the client will connect to the sockets.
+	dest migrationFields
 
-	url    string
-	dialer websocket.Dialer
+	url          string
+	dialer       websocket.Dialer
+	allConnected chan bool
+	push         bool
 }
 
 type MigrationSinkArgs struct {
