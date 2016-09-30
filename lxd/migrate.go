@@ -595,6 +595,19 @@ func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error
 	return lxd.WebsocketDial(c.dialer, wsUrl)
 }
 
+func (s *migrationSink) Metadata() interface{} {
+	secrets := shared.Jmap{
+		"control": s.dest.controlSecret,
+		"fs":      s.dest.fsSecret,
+	}
+
+	if s.dest.criuSecret != "" {
+		secrets["criu"] = s.dest.criuSecret
+	}
+
+	return secrets
+}
+
 func (c *migrationSink) Do(migrateOp *operation) error {
 	var err error
 
