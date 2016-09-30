@@ -201,7 +201,7 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 }
 
 func createFromMigration(d *Daemon, req *containerPostReq) Response {
-	if req.Source.Mode != "pull" {
+	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return NotImplemented
 	}
 
@@ -268,6 +268,11 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return InternalError(err)
 	}
 
+	push := false
+	if req.Source.Mode == "push" {
+		push = true
+	}
+
 	migrationArgs := MigrationSinkArgs{
 		Url: req.Source.Operation,
 		Dialer: websocket.Dialer{
@@ -275,6 +280,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 			NetDial:         shared.RFC3493Dialer},
 		Container: c,
 		Secrets:   req.Source.Websockets,
+		Push:      push,
 	}
 
 	sink, err := NewMigrationSink(&migrationArgs)
@@ -283,12 +289,43 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return InternalError(err)
 	}
 
+	run := func(op *operation) error {
+		// Start the storage for this container (LVM mount/umount)
+		c.StorageStart()
+
+		// And finaly run the migration.
+		err = sink.Do(op)
+		if err != nil {
+			c.StorageStop()
+			shared.LogError("Error during migration sink", log.Ctx{"err": err})
+			c.Delete()
+			return fmt.Errorf("Error transferring container data: %s", err)
+		}
+
+		defer c.StorageStop()
+
+		err = c.TemplateApply("copy")
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, sink.Do, nil, nil)
-	if err != nil {
-		return InternalError(err)
+	var op *operation
+	if push {
+		op, err = operationCreate(operationClassWebsocket, resources, sink.Metadata(), run, nil, sink.Connect)
+		if err != nil {
+			return InternalError(err)
+		}
+	} else {
+		op, err = operationCreate(operationClassTask, resources, nil, run, nil, nil)
+		if err != nil {
+			return InternalError(err)
+		}
 	}
 
 	return OperationResponse(op)
