@@ -530,6 +530,7 @@ type MigrationSinkArgs struct {
 	Dialer    websocket.Dialer
 	Container container
 	Secrets   map[string]string
+	Push      bool
 }
 
 func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
