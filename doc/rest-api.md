@@ -518,6 +518,30 @@ Input (using a local container):
                    "source": "my-old-container"}                                        # Name of the source container
     }
 
+Input (using a remote container, in push mode sent over the migration websocket via client proxying):
+
+    {
+        "name": "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
+        "architecture": "x86_64",
+        "profiles": ["default"],                                                        # List of profiles
+        "ephemeral": true,                                                              # Whether to destroy the container on shutdown
+        "config": {"limits.cpu": "2"},                                                  # Config override.
+        "devices": {                                                                    # optional list of devices the container should have
+            "rootfs": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            },
+        },
+        "source": {"type": "migration",                                                 # Can be: "image", "migration", "copy" or "none"
+                   "mode": "push",                                                      # Only "pull" is supported for now
+                   "operation": "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation
+                   "certificate": "PEM certificate",                                    # Optional PEM certificate. If not mentioned, system CA is used.
+                   "base-image": "<fingerprint>",                                       # Optional, the base image the container was created from
+                   "secrets": {"control": "my-secret-string",                           # Secrets to use when talking to the migration source
+                               "criu":    "my-other-secret",
+                               "fs":      "my third secret"},
+    }
+
 ## /1.0/containers/\<name\>
 ### GET
  * Description: Container information
