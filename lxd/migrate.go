@@ -514,9 +514,9 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 type migrationSink struct {
 	// We are pulling the container from src in pull mode.
 	src migrationFields
-	// The container is pushed to dest in push mode. Note that websocket
-	// connections are not set in push mode. Only the secret fields are
-	// used since the client will connect to the sockets.
+	// The container is pushed from src to dest in push mode. Note that
+	// websocket connections are not set in push mode. Only the secret
+	// fields are used since the client will connect to the sockets.
 	dest migrationFields
 
 	url          string
@@ -538,21 +538,46 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 		src:    migrationFields{container: args.Container},
 		url:    args.Url,
 		dialer: args.Dialer,
+		push:   args.Push,
+	}
+
+	if sink.push {
+		sink.allConnected = make(chan bool, 1)
 	}
 
 	var ok bool
+	var err error
 	sink.src.controlSecret, ok = args.Secrets["control"]
 	if !ok {
 		return nil, fmt.Errorf("Missing control secret")
+	}
+	if sink.push {
+		sink.dest.controlSecret, err = shared.RandomCryptoString()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	sink.src.fsSecret, ok = args.Secrets["fs"]
 	if !ok {
 		return nil, fmt.Errorf("Missing fs secret")
 	}
+	if sink.push {
+		sink.dest.fsSecret, err = shared.RandomCryptoString()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	sink.src.criuSecret, ok = args.Secrets["criu"]
 	sink.src.live = ok
+	if sink.push && ok {
+		sink.dest.criuSecret, err = shared.RandomCryptoString()
+		if err != nil {
+			return nil, err
+		}
+		sink.dest.live = ok
+	}
 
 	if err := findCriu("destination"); sink.src.live && err != nil {
 		return nil, err
