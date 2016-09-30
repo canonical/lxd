@@ -839,12 +839,12 @@ func (n *network) Start() error {
 				}
 
 				err := networkSysctl(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
-				if err != nil {
+				if err != nil && err != os.ErrNotExist {
 					return err
 				}
 
 				err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
-				if err != nil {
+				if err != nil && err != os.ErrNotExist {
 					return err
 				}
 			}
