@@ -210,13 +210,20 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		var migration *lxd.Response
 
 		sourceWSUrl := "https://" + addr + sourceWSResponse.Operation
-		migration, err = dest.MigrateFrom(destName, sourceWSUrl, source.Certificate, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1)
+		migration, err = dest.MigrateFrom(destName, sourceWSUrl, source.Certificate, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1, false, source, sourceWSResponse.Operation)
 		if err != nil {
 			continue
 		}
 
-		if err = dest.WaitForSuccess(migration.Operation); err != nil {
+		migMap, err := migration.MetadataAsMap()
+		if err != nil {
 			return err
+		}
+
+		if v, ok := (*migMap)["mode"]; ok && v == "pull" {
+			if err = dest.WaitForSuccess(migration.Operation); err != nil {
+				return err
+			}
 		}
 
 		if destResource == "" {
