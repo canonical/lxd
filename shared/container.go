@@ -148,6 +148,7 @@ type ProfileConfig struct {
 	Config      map[string]string `json:"config"`
 	Description string            `json:"description"`
 	Devices     Devices           `json:"devices"`
+	UsedBy      []string          `json:"used_by"`
 }
 
 type NetworkConfig struct {

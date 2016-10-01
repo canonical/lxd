@@ -1686,7 +1686,10 @@ Output:
                 "path": "/dev/kvm",
                 "type": "unix-char"
             }
-        }
+        },
+        "used_by": [
+            "/1.0/containers/blah"
+        ]
     }
 
 ### PUT (ETag supported)
