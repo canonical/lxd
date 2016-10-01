@@ -841,7 +841,7 @@ func (n *network) Start() error {
 				}
 
 				err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
-				if err != nil && err != os.ErrNotExist {
+				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
 			}
@@ -849,7 +849,7 @@ func (n *network) Start() error {
 			// Then set forwarding for all of them
 			for _, entry := range entries {
 				err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
-				if err != nil && err != os.ErrNotExist {
+				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
 			}
