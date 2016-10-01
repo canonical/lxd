@@ -608,6 +608,41 @@ func (s *migrationSink) Metadata() interface{} {
 	return secrets
 }
 
+func (s *migrationSink) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+	secret := r.FormValue("secret")
+	if secret == "" {
+		return fmt.Errorf("missing secret")
+	}
+
+	var conn **websocket.Conn
+
+	switch secret {
+	case s.dest.controlSecret:
+		conn = &s.dest.controlConn
+	case s.dest.criuSecret:
+		conn = &s.dest.criuConn
+	case s.dest.fsSecret:
+		conn = &s.dest.fsConn
+	default:
+		/* If we didn't find the right secret, the user provided a bad one,
+		 * which 403, not 404, since this operation actually exists */
+		return os.ErrPermission
+	}
+
+	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return err
+	}
+
+	*conn = c
+
+	if s.dest.controlConn != nil && (!s.dest.live || s.dest.criuConn != nil) && s.dest.fsConn != nil {
+		s.allConnected <- true
+	}
+
+	return nil
+}
+
 func (c *migrationSink) Do(migrateOp *operation) error {
 	var err error
 
