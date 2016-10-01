@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-func GetOwner(fInfo os.FileInfo) (os.FileMode, int, int) {
+func GetOwnerMode(fInfo os.FileInfo) (os.FileMode, int, int) {
 	mode := fInfo.Mode()
 	uid := int(fInfo.Sys().(*syscall.Stat_t).Uid)
 	gid := int(fInfo.Sys().(*syscall.Stat_t).Gid)
