@@ -214,7 +214,7 @@ kill_lxd() {
   if [ -e "${daemon_dir}/unix.socket" ]; then
     # Delete all containers
     echo "==> Deleting all containers"
-    for container in $(lxc list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
+    for container in $(lxc list --fast --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
       lxc delete "${container}" --force-local -f || true
     done
 
