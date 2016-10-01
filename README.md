@@ -9,6 +9,7 @@ To easily see what LXD is about, you can [try it online](https://linuxcontainers
 ## CI status
 
  * Travis: [![Build Status](https://travis-ci.org/lxc/lxd.svg?branch=master)](https://travis-ci.org/lxc/lxd)
+ * AppVeyor: [![Build Status](https://ci.appveyor.com/api/projects/status/rb4141dsi2xm3n0x/branch/master?svg=true)](https://ci.appveyor.com/project/lxc/lxd)
  * Jenkins: [![Build Status](https://jenkins.linuxcontainers.org/job/lxd-github-commit/badge/icon)](https://jenkins.linuxcontainers.org/job/lxd-github-commit/)
 
 ## Getting started with LXD
