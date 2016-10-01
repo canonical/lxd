@@ -833,16 +833,21 @@ func (n *network) Start() error {
 				return err
 			}
 
+			// First set accept_ra to 2 for everything
 			for _, entry := range entries {
-				if entry.Name() == "all" || entry.Name() == "default" {
+				content, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/accept_ra", entry.Name()))
+				if err == nil && string(content) != "1\n" {
 					continue
 				}
 
-				err := networkSysctl(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
+				err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
 				if err != nil && err != os.ErrNotExist {
 					return err
 				}
+			}
 
+			// Then set forwarding for all of them
+			for _, entry := range entries {
 				err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
 				if err != nil && err != os.ErrNotExist {
 					return err
