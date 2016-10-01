@@ -1883,7 +1883,7 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 		}
 		defer f.Close()
 
-		mode, uid, gid := shared.GetOwner(fInfo)
+		mode, uid, gid := shared.GetOwnerMode(fInfo)
 
 		return c.PushFile(container, targetPath, gid, uid, fmt.Sprintf("0%o", mode), f)
 	}
