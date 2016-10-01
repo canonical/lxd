@@ -322,6 +322,13 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	return
 }
 
+func GetOwner(fInfo os.FileInfo) (os.FileMode, int, int) {
+	mode := fInfo.Mode()
+	uid := int(fInfo.Sys().(*syscall.Stat_t).Uid)
+	gid := int(fInfo.Sys().(*syscall.Stat_t).Gid)
+	return mode, uid, gid
+}
+
 func IsMountPoint(name string) bool {
 	_, err := exec.LookPath("mountpoint")
 	if err == nil {
