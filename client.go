@@ -2327,45 +2327,22 @@ func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
 	return err
 }
 
-func (c *Client) ListProfiles() ([]string, error) {
+func (c *Client) ListProfiles() ([]shared.ProfileConfig, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	resp, err := c.get("profiles")
+	resp, err := c.get("profiles?recursion=1")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []string
-
-	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+	profiles := []shared.ProfileConfig{}
+	if err := json.Unmarshal(resp.Metadata, &profiles); err != nil {
 		return nil, err
 	}
 
-	names := []string{}
-
-	for _, url := range result {
-		toScan := strings.Replace(url, "/", " ", -1)
-		version := ""
-		name := ""
-		count, err := fmt.Sscanf(toScan, " %s profiles %s", &version, &name)
-		if err != nil {
-			return nil, err
-		}
-
-		if count != 2 {
-			return nil, fmt.Errorf("bad profile url %s", url)
-		}
-
-		if version != shared.APIVersion {
-			return nil, fmt.Errorf("bad version in profile url")
-		}
-
-		names = append(names, name)
-	}
-
-	return names, nil
+	return profiles, nil
 }
 
 func (c *Client) AssignProfile(container, profile string) (*Response, error) {
