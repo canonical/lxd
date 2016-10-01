@@ -1883,9 +1883,7 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 		}
 		defer f.Close()
 
-		mode := fInfo.Mode()
-		uid := int(fInfo.Sys().(*syscall.Stat_t).Uid)
-		gid := int(fInfo.Sys().(*syscall.Stat_t).Gid)
+		mode, uid, gid := shared.GetOwner(fInfo)
 
 		return c.PushFile(container, targetPath, gid, uid, fmt.Sprintf("0%o", mode), f)
 	}
