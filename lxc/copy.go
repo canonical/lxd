@@ -149,9 +149,15 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 	}
 
 	sourceProfs := shared.NewStringSet(status.Profiles)
-	destProfs, err := dest.ListProfiles()
+	destProfs := []string{}
+
+	profiles, err := dest.ListProfiles()
 	if err != nil {
 		return err
+	}
+
+	for _, profile := range profiles {
+		destProfs = append(destProfs, profile.Name)
 	}
 
 	if !sourceProfs.IsSubset(shared.NewStringSet(destProfs)) {

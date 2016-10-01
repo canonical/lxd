@@ -226,7 +226,7 @@ kill_lxd() {
 
     # Delete all profiles
     echo "==> Deleting all profiles"
-    for profile in $(lxc profile list --force-local); do
+    for profile in $(lxc profile list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
       lxc profile delete "${profile}" --force-local || true
     done
 
