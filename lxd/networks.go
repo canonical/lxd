@@ -772,6 +772,12 @@ func (n *network) Start() error {
 
 	// Configure IPv6
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+		// Enable IPv6 for the subnet
+		err := networkSysctl(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", n.name), "0")
+		if err != nil {
+			return err
+		}
+
 		// Parse the subnet
 		ip, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
 		if err != nil {
