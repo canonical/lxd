@@ -65,7 +65,7 @@ func generateClientCertificate(config *lxd.Config) error {
 	if !shared.PathExists(certf) || !shared.PathExists(keyf) {
 		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
 
-		return shared.FindOrGenCert(certf, keyf)
+		return shared.FindOrGenCert(certf, keyf, true)
 	}
 	return nil
 }
