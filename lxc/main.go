@@ -123,7 +123,7 @@ func run() error {
 	if !*forceLocal && os.Args[0] != "help" && os.Args[0] != "version" && (!shared.PathExists(certf) || !shared.PathExists(keyf)) {
 		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
 
-		err = shared.FindOrGenCert(certf, keyf)
+		err = shared.FindOrGenCert(certf, keyf, true)
 		if err != nil {
 			return err
 		}
