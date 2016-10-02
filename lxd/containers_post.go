@@ -43,6 +43,8 @@ type containerImageSource struct {
 
 	/* for "copy" type */
 	Source string `json:"source"`
+	/* for "migration" type. Whether the migration is live. */
+	Live bool `json:"live"`
 }
 
 type containerPostReq struct {
@@ -281,6 +283,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		Container: c,
 		Secrets:   req.Source.Websockets,
 		Push:      push,
+		Live:      req.Source.Live,
 	}
 
 	sink, err := NewMigrationSink(&migrationArgs)
