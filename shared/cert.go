@@ -64,14 +64,14 @@ func mynames() ([]string, error) {
 	return ret, nil
 }
 
-func FindOrGenCert(certf string, keyf string) error {
+func FindOrGenCert(certf string, keyf string, certtype bool) error {
 	if PathExists(certf) && PathExists(keyf) {
 		return nil
 	}
 
 	/* If neither stat succeeded, then this is our first run and we
 	 * need to generate cert and privkey */
-	err := GenCert(certf, keyf)
+	err := GenCert(certf, keyf, certtype)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func FindOrGenCert(certf string, keyf string) error {
 }
 
 // GenCert will create and populate a certificate file and a key file
-func GenCert(certf string, keyf string) error {
+func GenCert(certf string, keyf string, certtype bool) error {
 	/* Create the basenames if needed */
 	dir := path.Dir(certf)
 	err := os.MkdirAll(dir, 0750)
@@ -93,7 +93,7 @@ func GenCert(certf string, keyf string) error {
 		return err
 	}
 
-	certBytes, keyBytes, err := GenerateMemCert()
+	certBytes, keyBytes, err := GenerateMemCert(certtype)
 	if err != nil {
 		return err
 	}
@@ -116,9 +116,9 @@ func GenCert(certf string, keyf string) error {
 	return nil
 }
 
-// GenerateMemCert creates a certificate and key pair, returning them as byte
-// arrays in memory.
-func GenerateMemCert() ([]byte, []byte, error) {
+// GenerateMemCert creates client or server certificate and key pair,
+// returning them as byte arrays in memory.
+func GenerateMemCert(client bool) ([]byte, []byte, error) {
 	privk, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		log.Fatalf("failed to generate key")
@@ -167,8 +167,13 @@ func GenerateMemCert() ([]byte, []byte, error) {
 		NotAfter:  validTo,
 
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
+	}
+
+	if client {
+		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	} else {
+		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	}
 
 	for _, h := range hosts {

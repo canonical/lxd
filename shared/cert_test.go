@@ -9,7 +9,7 @@ func TestGenerateMemCert(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping cert generation in short mode")
 	}
-	cert, key, err := GenerateMemCert()
+	cert, key, err := GenerateMemCert(false)
 	if err != nil {
 		t.Error(err)
 		return

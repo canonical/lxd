@@ -220,7 +220,7 @@ func readMyCert() (string, string, error) {
 	certf := shared.VarPath("server.crt")
 	keyf := shared.VarPath("server.key")
 	shared.LogDebug("Looking for existing certificates", log.Ctx{"cert": certf, "key": keyf})
-	err := shared.FindOrGenCert(certf, keyf)
+	err := shared.FindOrGenCert(certf, keyf, false)
 
 	return certf, keyf, err
 }
