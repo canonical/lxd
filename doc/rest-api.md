@@ -497,7 +497,7 @@ Input (using a remote container, sent over the migration websocket):
             },
         },
         "source": {"type": "migration",                                                 # Can be: "image", "migration", "copy" or "none"
-                   "mode": "pull",                                                      # Only "pull" is supported for now
+                   "mode": "pull",                                                      # "pull" and "push" is supported for now
                    "operation": "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
                    "certificate": "PEM certificate",                                    # Optional PEM certificate. If not mentioned, system CA is used.
                    "base-image": "<fingerprint>",                                       # Optional, the base image the container was created from
@@ -533,13 +533,9 @@ Input (using a remote container, in push mode sent over the migration websocket 
             },
         },
         "source": {"type": "migration",                                                 # Can be: "image", "migration", "copy" or "none"
-                   "mode": "push",                                                      # Only "pull" is supported for now
-                   "operation": "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation
-                   "certificate": "PEM certificate",                                    # Optional PEM certificate. If not mentioned, system CA is used.
+                   "mode": "push",                                                      # "pull" and "push" are supported
                    "base-image": "<fingerprint>",                                       # Optional, the base image the container was created from
-                   "secrets": {"control": "my-secret-string",                           # Secrets to use when talking to the migration source
-                               "criu":    "my-other-secret",
-                               "fs":      "my third secret"},
+                   "live": true                                                         # Whether migration is performed live
     }
 
 ## /1.0/containers/\<name\>
