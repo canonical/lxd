@@ -531,6 +531,7 @@ type MigrationSinkArgs struct {
 	Container container
 	Secrets   map[string]string
 	Push      bool
+	Live      bool
 }
 
 func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
@@ -547,39 +548,43 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 
 	var ok bool
 	var err error
-	sink.src.controlSecret, ok = args.Secrets["control"]
-	if !ok {
-		return nil, fmt.Errorf("Missing control secret")
-	}
 	if sink.push {
 		sink.dest.controlSecret, err = shared.RandomCryptoString()
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	sink.src.fsSecret, ok = args.Secrets["fs"]
-	if !ok {
-		return nil, fmt.Errorf("Missing fs secret")
-	}
-	if sink.push {
 		sink.dest.fsSecret, err = shared.RandomCryptoString()
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	sink.src.criuSecret, ok = args.Secrets["criu"]
-	sink.src.live = ok
-	if sink.push && ok {
-		sink.dest.criuSecret, err = shared.RandomCryptoString()
-		if err != nil {
-			return nil, err
+		sink.dest.live = args.Live
+		if sink.dest.live {
+			sink.dest.criuSecret, err = shared.RandomCryptoString()
+			if err != nil {
+				return nil, err
+			}
 		}
-		sink.dest.live = ok
+	} else {
+		sink.src.controlSecret, ok = args.Secrets["control"]
+		if !ok {
+			return nil, fmt.Errorf("Missing control secret")
+		}
+
+		sink.src.fsSecret, ok = args.Secrets["fs"]
+		if !ok {
+			return nil, fmt.Errorf("Missing fs secret")
+		}
+
+		sink.src.criuSecret, ok = args.Secrets["criu"]
+		sink.src.live = ok
 	}
 
-	if err := findCriu("destination"); sink.src.live && err != nil {
+	err = findCriu("destination")
+	if sink.push && sink.dest.live && err != nil {
+		return nil, err
+	} else if sink.src.live && err != nil {
 		return nil, err
 	}
 
@@ -700,8 +705,13 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		return err
 	}
 
+	live := c.src.live
+	if c.push {
+		live = c.dest.live
+	}
+
 	criuType := CRIUType_CRIU_RSYNC.Enum()
-	if !c.src.live {
+	if !live {
 		criuType = nil
 	}
 
@@ -764,11 +774,13 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				snapshots = header.Snapshots
 			}
 
-			fsConn := c.src.fsConn
+			var fsConn *websocket.Conn
 			if c.push {
 				fsConn = c.dest.fsConn
+			} else {
+				fsConn = c.src.fsConn
 			}
-			if err := mySink(c.src.live, c.src.container, header.Snapshots, fsConn, srcIdmap); err != nil {
+			if err := mySink(live, c.src.container, header.Snapshots, fsConn, srcIdmap); err != nil {
 				fsTransfer <- err
 				return
 			}
@@ -781,7 +793,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			fsTransfer <- nil
 		}()
 
-		if c.src.live {
+		if live {
 			var err error
 			imagesDir, err = ioutil.TempDir("", "lxd_restore_")
 			if err != nil {
@@ -791,9 +803,11 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 			defer os.RemoveAll(imagesDir)
 
-			criuConn := c.src.criuConn
+			var criuConn *websocket.Conn
 			if c.push {
 				criuConn = c.dest.criuConn
+			} else {
+				criuConn = c.src.criuConn
 			}
 			if err := RsyncRecv(shared.AddSlash(imagesDir), criuConn); err != nil {
 				restore <- err
@@ -807,7 +821,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			return
 		}
 
-		if c.src.live {
+		if live {
 			err = c.src.container.Migrate(lxc.MIGRATE_RESTORE, imagesDir, "migration", false, false)
 			if err != nil {
 				restore <- err
