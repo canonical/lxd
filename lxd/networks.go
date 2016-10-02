@@ -101,19 +101,19 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	} else {
 		if req.Config["ipv4.address"] == "" {
 			req.Config["ipv4.address"] = "auto"
-			if req.Config["ipv4.nat"] == "" {
-				req.Config["ipv4.nat"] = "true"
-			}
+		}
+		if req.Config["ipv4.address"] == "auto" && req.Config["ipv4.nat"] == "" {
+			req.Config["ipv4.nat"] = "true"
 		}
 
 		if req.Config["ipv6.address"] == "" {
 			content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
 			if err == nil && string(content) == "0\n" {
 				req.Config["ipv6.address"] = "auto"
-				if req.Config["ipv6.nat"] == "" {
-					req.Config["ipv6.nat"] = "true"
-				}
 			}
+		}
+		if req.Config["ipv6.address"] == "auto" && req.Config["ipv6.nat"] == "" {
+			req.Config["ipv6.nat"] = "true"
 		}
 	}
 
