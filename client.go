@@ -2000,14 +2000,20 @@ func (c *Client) MigrateFrom(name string, operation string, certificate string,
 
 	source := shared.Jmap{
 		"type":       "migration",
-		"secrets":    sourceSecrets,
 		"base-image": baseImage,
 	}
 
 	if push {
 		source["mode"] = "push"
+		source["live"] = false
+		// If the criu secret is present we know that live migration is
+		// required.
+		if _, ok := sourceSecrets["criu"]; ok {
+			source["live"] = true
+		}
 	} else {
 		source["mode"] = "pull"
+		source["secrets"] = sourceSecrets
 		source["operation"] = operation
 		source["certificate"] = certificate
 	}
