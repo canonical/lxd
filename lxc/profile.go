@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
+	"sort"
 	"syscall"
 
+	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
@@ -431,6 +432,23 @@ func (c *profileCmd) doProfileList(config *lxd.Config, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s\n", strings.Join(profiles, "\n"))
+
+	data := [][]string{}
+	for _, profile := range profiles {
+		strUsedBy := fmt.Sprintf("%d", len(profile.UsedBy))
+		data = append(data, []string{profile.Name, strUsedBy})
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetRowLine(true)
+	table.SetHeader([]string{
+		i18n.G("NAME"),
+		i18n.G("USED BY")})
+	sort.Sort(byName(data))
+	table.AppendBulk(data)
+	table.Render()
+
 	return nil
 }

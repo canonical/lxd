@@ -101,19 +101,19 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	} else {
 		if req.Config["ipv4.address"] == "" {
 			req.Config["ipv4.address"] = "auto"
-			if req.Config["ipv4.nat"] == "" {
-				req.Config["ipv4.nat"] = "true"
-			}
+		}
+		if req.Config["ipv4.address"] == "auto" && req.Config["ipv4.nat"] == "" {
+			req.Config["ipv4.nat"] = "true"
 		}
 
 		if req.Config["ipv6.address"] == "" {
 			content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
 			if err == nil && string(content) == "0\n" {
 				req.Config["ipv6.address"] = "auto"
-				if req.Config["ipv6.nat"] == "" {
-					req.Config["ipv6.nat"] = "true"
-				}
 			}
+		}
+		if req.Config["ipv6.address"] == "auto" && req.Config["ipv6.nat"] == "" {
+			req.Config["ipv6.nat"] = "true"
 		}
 	}
 
@@ -772,6 +772,12 @@ func (n *network) Start() error {
 
 	// Configure IPv6
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+		// Enable IPv6 for the subnet
+		err := networkSysctl(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", n.name), "0")
+		if err != nil {
+			return err
+		}
+
 		// Parse the subnet
 		ip, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
 		if err != nil {
@@ -841,7 +847,7 @@ func (n *network) Start() error {
 				}
 
 				err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
-				if err != nil && err != os.ErrNotExist {
+				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
 			}
@@ -849,7 +855,7 @@ func (n *network) Start() error {
 			// Then set forwarding for all of them
 			for _, entry := range entries {
 				err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
-				if err != nil && err != os.ErrNotExist {
+				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
 			}

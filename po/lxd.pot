@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-09-22 02:02-0400\n"
+        "POT-Creation-Date: 2016-09-30 22:18-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -80,7 +80,7 @@ msgid   "### This is a yaml representation of the network.\n"
         "### Note that only the configuration can be changed."
 msgstr  ""
 
-#: lxc/profile.go:26
+#: lxc/profile.go:27
 msgid   "### This is a yaml representation of the profile.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -109,7 +109,7 @@ msgstr  ""
 msgid   "'/' not allowed in snapshot name"
 msgstr  ""
 
-#: lxc/profile.go:253
+#: lxc/profile.go:254
 msgid   "(none)"
 msgstr  ""
 
@@ -186,7 +186,7 @@ msgstr  ""
 msgid   "Can't unset key '%s', it's not currently set."
 msgstr  ""
 
-#: lxc/network.go:386 lxc/profile.go:419
+#: lxc/network.go:386 lxc/profile.go:420
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -214,7 +214,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:530 lxc/config.go:595 lxc/image.go:734 lxc/network.go:342 lxc/profile.go:217
+#: lxc/config.go:530 lxc/config.go:595 lxc/image.go:734 lxc/network.go:342 lxc/profile.go:218
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -227,7 +227,7 @@ msgstr  ""
 msgid   "Container name is mandatory"
 msgstr  ""
 
-#: lxc/copy.go:140 lxc/copy.go:228 lxc/init.go:227
+#: lxc/copy.go:140 lxc/copy.go:234 lxc/init.go:227
 #, c-format
 msgid   "Container name is: %s"
 msgstr  ""
@@ -582,7 +582,7 @@ msgstr  ""
 msgid   "Make the image public"
 msgstr  ""
 
-#: lxc/profile.go:47
+#: lxc/profile.go:48
 msgid   "Manage configuration profiles.\n"
         "\n"
         "lxc profile list [filters]                     List available profiles.\n"
@@ -830,7 +830,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:428 lxc/network.go:422 lxc/remote.go:375
+#: lxc/list.go:428 lxc/network.go:422 lxc/profile.go:447 lxc/remote.go:375
 msgid   "NAME"
 msgstr  ""
 
@@ -945,7 +945,7 @@ msgid   "Presents details on how to use LXD.\n"
         "lxd help [--all]"
 msgstr  ""
 
-#: lxc/network.go:343 lxc/profile.go:218
+#: lxc/network.go:343 lxc/profile.go:219
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -980,22 +980,22 @@ msgstr  ""
 msgid   "Processes: %d"
 msgstr  ""
 
-#: lxc/profile.go:274
+#: lxc/profile.go:275
 #, c-format
 msgid   "Profile %s added to %s"
 msgstr  ""
 
-#: lxc/profile.go:169
+#: lxc/profile.go:170
 #, c-format
 msgid   "Profile %s created"
 msgstr  ""
 
-#: lxc/profile.go:239
+#: lxc/profile.go:240
 #, c-format
 msgid   "Profile %s deleted"
 msgstr  ""
 
-#: lxc/profile.go:305
+#: lxc/profile.go:306
 #, c-format
 msgid   "Profile %s removed from %s"
 msgstr  ""
@@ -1004,7 +1004,7 @@ msgstr  ""
 msgid   "Profile to apply to the new container"
 msgstr  ""
 
-#: lxc/profile.go:255
+#: lxc/profile.go:256
 #, c-format
 msgid   "Profiles %s applied to %s"
 msgstr  ""
@@ -1259,7 +1259,7 @@ msgstr  ""
 msgid   "URL"
 msgstr  ""
 
-#: lxc/network.go:425
+#: lxc/network.go:425 lxc/profile.go:448
 msgid   "USED BY"
 msgstr  ""
 
@@ -1333,7 +1333,7 @@ msgstr  ""
 msgid   "default"
 msgstr  ""
 
-#: lxc/copy.go:131 lxc/copy.go:136 lxc/copy.go:219 lxc/copy.go:224 lxc/init.go:217 lxc/init.go:222 lxc/launch.go:111 lxc/launch.go:116
+#: lxc/copy.go:131 lxc/copy.go:136 lxc/copy.go:225 lxc/copy.go:230 lxc/init.go:217 lxc/init.go:222 lxc/launch.go:111 lxc/launch.go:116
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
@@ -1363,7 +1363,7 @@ msgstr  ""
 msgid   "no"
 msgstr  ""
 
-#: lxc/copy.go:158
+#: lxc/copy.go:164
 msgid   "not all the profiles from the source exist on the target"
 msgstr  ""
 

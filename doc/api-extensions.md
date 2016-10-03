@@ -115,3 +115,6 @@ This includes:
  * ipv4.address property on "nic" type devices (when nictype is "bridged")
  * ipv6.address property on "nic" type devices (when nictype is "bridged")
  * security.mac\_filtering property on "nic" type devices (when nictype is "bridged")
+
+## profile\_usedby
+Adds a new used\_by field to profile entries listing the containers that are using it.

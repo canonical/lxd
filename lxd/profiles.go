@@ -109,7 +109,22 @@ var profilesCmd = Command{
 
 func doProfileGet(d *Daemon, name string) (*shared.ProfileConfig, error) {
 	_, profile, err := dbProfileGet(d.db, name)
-	return profile, err
+	if err != nil {
+		return nil, err
+	}
+
+	cts, err := dbProfileContainersGet(d.db, name)
+	if err != nil {
+		return nil, err
+	}
+
+	usedBy := []string{}
+	for _, ct := range cts {
+		usedBy = append(usedBy, fmt.Sprintf("/%s/containers/%s", shared.APIVersion, ct))
+	}
+	profile.UsedBy = usedBy
+
+	return profile, nil
 }
 
 func profileGet(d *Daemon, r *http.Request) Response {
