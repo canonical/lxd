@@ -74,6 +74,18 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 		return s, fmt.Errorf("The 'zfs' tool isn't working properly")
 	}
 
+	output, err = exec.Command("zfs", "get", "mountpoint", "-H", "-o", "source", s.zfsPool).CombinedOutput()
+	if err != nil {
+		return s, fmt.Errorf("Unable to query ZFS mountpoint")
+	}
+
+	if strings.TrimSpace(string(output)) != "local" {
+		err = shared.RunCommand("zfs", "set", "mountpoint=none", s.zfsPool)
+		if err != nil {
+			return s, err
+		}
+	}
+
 	return s, nil
 }
 
@@ -1190,6 +1202,17 @@ func storageZFSValidatePoolName(d *Daemon, key string, value string) error {
 		if err != nil {
 			return fmt.Errorf("Invalid ZFS pool: %v", err)
 		}
+	}
+
+	// Confirm that the new pool is empty
+	s.zfsPool = value
+	subvols, err := s.zfsListSubvolumes("")
+	if err != nil {
+		return err
+	}
+
+	if len(subvols) > 0 {
+		return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
 	}
 
 	// Confirm the old pool isn't in use anymore
