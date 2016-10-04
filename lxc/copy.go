@@ -215,15 +215,11 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 			continue
 		}
 
-		migMap, err := migration.MetadataAsMap()
-		if err != nil {
+		// If push mode is implemented then MigrateFrom will return a
+		// non-waitable operation. So this needs to be conditionalized
+		// on pull mode.
+		if err = dest.WaitForSuccess(migration.Operation); err != nil {
 			return err
-		}
-
-		if v, ok := (*migMap)["mode"]; ok && v == "pull" {
-			if err = dest.WaitForSuccess(migration.Operation); err != nil {
-				return err
-			}
 		}
 
 		if destResource == "" {
