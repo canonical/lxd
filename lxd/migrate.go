@@ -386,98 +386,102 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			return abort(fmt.Errorf("Formats other than criu rsync not understood"))
 		}
 
-		/* What happens below is slightly convoluted. Due to various
-		 * complications with networking, there's no easy way for criu
-		 * to exit and leave the container in a frozen state for us to
-		 * somehow resume later.
-		 *
-		 * Instead, we use what criu calls an "action-script", which is
-		 * basically a callback that lets us know when the dump is
-		 * done. (Unfortunately, we can't pass arguments, just an
-		 * executable path, so we write a custom action script with the
-		 * real command we want to run.)
-		 *
-		 * This script then hangs until the migration operation either
-		 * finishes successfully or fails, and exits 1 or 0, which
-		 * causes criu to either leave the container running or kill it
-		 * as we asked.
-		 */
-		dumpDone := make(chan bool, 1)
-		actionScriptOpSecret, err := shared.RandomCryptoString()
-		if err != nil {
-			return abort(err)
-		}
-
-		actionScriptOp, err := operationCreate(
-			operationClassWebsocket,
-			nil,
-			nil,
-			func(op *operation) error {
-				_, err := migrateOp.WaitFinal(-1)
-				if err != nil {
-					return err
-				}
-
-				if migrateOp.status != shared.Success {
-					return fmt.Errorf("restore failed: %s", op.status.String())
-				}
-				return nil
-			},
-			nil,
-			func(op *operation, r *http.Request, w http.ResponseWriter) error {
-				secret := r.FormValue("secret")
-				if secret == "" {
-					return fmt.Errorf("missing secret")
-				}
-
-				if secret != actionScriptOpSecret {
-					return os.ErrPermission
-				}
-
-				c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
-				if err != nil {
-					return err
-				}
-
-				dumpDone <- true
-
-				closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-				return c.WriteMessage(websocket.CloseMessage, closeMsg)
-			},
-		)
-		if err != nil {
-			return abort(err)
-		}
-
 		checkpointDir, err := ioutil.TempDir("", "lxd_checkpoint_")
 		if err != nil {
 			return abort(err)
 		}
+		defer os.RemoveAll(checkpointDir)
 
-		if err := writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret); err != nil {
-			os.RemoveAll(checkpointDir)
-			return abort(err)
-		}
+		if lxc.VersionAtLeast(2, 0, 4) {
+			/* What happens below is slightly convoluted. Due to various
+			 * complications with networking, there's no easy way for criu
+			 * to exit and leave the container in a frozen state for us to
+			 * somehow resume later.
+			 *
+			 * Instead, we use what criu calls an "action-script", which is
+			 * basically a callback that lets us know when the dump is
+			 * done. (Unfortunately, we can't pass arguments, just an
+			 * executable path, so we write a custom action script with the
+			 * real command we want to run.)
+			 *
+			 * This script then hangs until the migration operation either
+			 * finishes successfully or fails, and exits 1 or 0, which
+			 * causes criu to either leave the container running or kill it
+			 * as we asked.
+			 */
+			dumpDone := make(chan bool, 1)
+			actionScriptOpSecret, err := shared.RandomCryptoString()
+			if err != nil {
+				return abort(err)
+			}
 
-		_, err = actionScriptOp.Run()
-		if err != nil {
-			os.RemoveAll(checkpointDir)
-			return abort(err)
-		}
+			actionScriptOp, err := operationCreate(
+				operationClassWebsocket,
+				nil,
+				nil,
+				func(op *operation) error {
+					_, err := migrateOp.WaitFinal(-1)
+					if err != nil {
+						return err
+					}
 
-		migrateDone := make(chan error, 1)
-		go func() {
-			defer os.RemoveAll(checkpointDir)
-			migrateDone <- s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, true)
-		}()
+					if migrateOp.status != shared.Success {
+						return fmt.Errorf("restore failed: %s", op.status.String())
+					}
+					return nil
+				},
+				nil,
+				func(op *operation, r *http.Request, w http.ResponseWriter) error {
+					secret := r.FormValue("secret")
+					if secret == "" {
+						return fmt.Errorf("missing secret")
+					}
 
-		select {
-		/* the checkpoint failed, let's just abort */
-		case err = <-migrateDone:
-			return abort(err)
-		/* the dump finished, let's continue on to the restore */
-		case <-dumpDone:
-			shared.LogDebugf("Dump finished, continuing with restore...")
+					if secret != actionScriptOpSecret {
+						return os.ErrPermission
+					}
+
+					c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+					if err != nil {
+						return err
+					}
+
+					dumpDone <- true
+
+					closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+					return c.WriteMessage(websocket.CloseMessage, closeMsg)
+				},
+			)
+			if err != nil {
+				return abort(err)
+			}
+
+			if err := writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret); err != nil {
+				return abort(err)
+			}
+
+			_, err = actionScriptOp.Run()
+			if err != nil {
+				return abort(err)
+			}
+
+			migrateDone := make(chan error, 1)
+			go func() {
+				migrateDone <- s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, true)
+			}()
+
+			select {
+			/* the checkpoint failed, let's just abort */
+			case err = <-migrateDone:
+				return abort(err)
+			/* the dump finished, let's continue on to the restore */
+			case <-dumpDone:
+				shared.LogDebugf("Dump finished, continuing with restore...")
+			}
+		} else {
+			if err := s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, false); err != nil {
+				return abort(err)
+			}
 		}
 
 		/*
