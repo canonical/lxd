@@ -512,10 +512,17 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 }
 
 type migrationSink struct {
-	migrationFields
+	// We are pulling the container from src in pull mode.
+	src migrationFields
+	// The container is pushed from src to dest in push mode. Note that
+	// websocket connections are not set in push mode. Only the secret
+	// fields are used since the client will connect to the sockets.
+	dest migrationFields
 
-	url    string
-	dialer websocket.Dialer
+	url          string
+	dialer       websocket.Dialer
+	allConnected chan bool
+	push         bool
 }
 
 type MigrationSinkArgs struct {
@@ -523,34 +530,65 @@ type MigrationSinkArgs struct {
 	Dialer    websocket.Dialer
 	Container container
 	Secrets   map[string]string
+	Push      bool
+	Live      bool
 }
 
-func NewMigrationSink(args *MigrationSinkArgs) (func() error, error) {
+func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		migrationFields{container: args.Container},
-		args.Url,
-		args.Dialer,
+		src:    migrationFields{container: args.Container},
+		url:    args.Url,
+		dialer: args.Dialer,
+		push:   args.Push,
+	}
+
+	if sink.push {
+		sink.allConnected = make(chan bool, 1)
 	}
 
 	var ok bool
-	sink.controlSecret, ok = args.Secrets["control"]
-	if !ok {
-		return nil, fmt.Errorf("Missing control secret")
+	var err error
+	if sink.push {
+		sink.dest.controlSecret, err = shared.RandomCryptoString()
+		if err != nil {
+			return nil, err
+		}
+
+		sink.dest.fsSecret, err = shared.RandomCryptoString()
+		if err != nil {
+			return nil, err
+		}
+
+		sink.dest.live = args.Live
+		if sink.dest.live {
+			sink.dest.criuSecret, err = shared.RandomCryptoString()
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		sink.src.controlSecret, ok = args.Secrets["control"]
+		if !ok {
+			return nil, fmt.Errorf("Missing control secret")
+		}
+
+		sink.src.fsSecret, ok = args.Secrets["fs"]
+		if !ok {
+			return nil, fmt.Errorf("Missing fs secret")
+		}
+
+		sink.src.criuSecret, ok = args.Secrets["criu"]
+		sink.src.live = ok
 	}
 
-	sink.fsSecret, ok = args.Secrets["fs"]
-	if !ok {
-		return nil, fmt.Errorf("Missing fs secret")
-	}
-
-	sink.criuSecret, ok = args.Secrets["criu"]
-	sink.live = ok
-
-	if err := findCriu("destination"); sink.live && err != nil {
+	err = findCriu("destination")
+	if sink.push && sink.dest.live && err != nil {
+		return nil, err
+	} else if sink.src.live && err != nil {
 		return nil, err
 	}
 
-	return sink.do, nil
+	return &sink, nil
 }
 
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
@@ -562,41 +600,123 @@ func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error
 	return lxd.WebsocketDial(c.dialer, wsUrl)
 }
 
-func (c *migrationSink) do() error {
+func (s *migrationSink) Metadata() interface{} {
+	secrets := shared.Jmap{
+		"control": s.dest.controlSecret,
+		"fs":      s.dest.fsSecret,
+	}
+
+	if s.dest.criuSecret != "" {
+		secrets["criu"] = s.dest.criuSecret
+	}
+
+	return secrets
+}
+
+func (s *migrationSink) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+	secret := r.FormValue("secret")
+	if secret == "" {
+		return fmt.Errorf("missing secret")
+	}
+
+	var conn **websocket.Conn
+
+	switch secret {
+	case s.dest.controlSecret:
+		conn = &s.dest.controlConn
+	case s.dest.criuSecret:
+		conn = &s.dest.criuConn
+	case s.dest.fsSecret:
+		conn = &s.dest.fsConn
+	default:
+		/* If we didn't find the right secret, the user provided a bad one,
+		 * which 403, not 404, since this operation actually exists */
+		return os.ErrPermission
+	}
+
+	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return err
+	}
+
+	*conn = c
+
+	if s.dest.controlConn != nil && (!s.dest.live || s.dest.criuConn != nil) && s.dest.fsConn != nil {
+		s.allConnected <- true
+	}
+
+	return nil
+}
+
+func (c *migrationSink) Do(migrateOp *operation) error {
 	var err error
-	c.controlConn, err = c.connectWithSecret(c.controlSecret)
-	if err != nil {
-		return err
-	}
-	defer c.disconnect()
 
-	c.fsConn, err = c.connectWithSecret(c.fsSecret)
-	if err != nil {
-		c.sendControl(err)
-		return err
+	if c.push {
+		<-c.allConnected
 	}
 
-	if c.live {
-		c.criuConn, err = c.connectWithSecret(c.criuSecret)
+	disconnector := c.src.disconnect
+	if c.push {
+		disconnector = c.dest.disconnect
+	}
+
+	if c.push {
+		defer disconnector()
+	} else {
+		c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
 		if err != nil {
-			c.sendControl(err)
 			return err
+		}
+		defer c.src.disconnect()
+
+		c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
+		if err != nil {
+			c.src.sendControl(err)
+			return err
+		}
+
+		if c.src.live {
+			c.src.criuConn, err = c.connectWithSecret(c.src.criuSecret)
+			if err != nil {
+				c.src.sendControl(err)
+				return err
+			}
 		}
 	}
 
+	receiver := c.src.recv
+	if c.push {
+		receiver = c.dest.recv
+	}
+
+	sender := c.src.send
+	if c.push {
+		sender = c.dest.send
+	}
+
+	controller := c.src.sendControl
+	if c.push {
+		controller = c.dest.sendControl
+	}
+
 	header := MigrationHeader{}
-	if err := c.recv(&header); err != nil {
-		c.sendControl(err)
+	if err := receiver(&header); err != nil {
+		controller(err)
 		return err
 	}
 
+	live := c.src.live
+	if c.push {
+		live = c.dest.live
+	}
+
 	criuType := CRIUType_CRIU_RSYNC.Enum()
-	if !c.live {
+	if !live {
 		criuType = nil
 	}
 
-	mySink := c.container.Storage().MigrationSink
-	myType := c.container.Storage().MigrationType()
+	mySink := c.src.container.Storage().MigrationSink
+	myType := c.src.container.Storage().MigrationType()
 	resp := MigrationHeader{
 		Fs:   &myType,
 		Criu: criuType,
@@ -610,8 +730,8 @@ func (c *migrationSink) do() error {
 		resp.Fs = &myType
 	}
 
-	if err := c.send(&resp); err != nil {
-		c.sendControl(err)
+	if err := sender(&resp); err != nil {
+		controller(err)
 		return err
 	}
 
@@ -646,7 +766,7 @@ func (c *migrationSink) do() error {
 			 */
 			if len(header.SnapshotNames) != len(header.Snapshots) {
 				for _, name := range header.SnapshotNames {
-					base := snapshotToProtobuf(c.container)
+					base := snapshotToProtobuf(c.src.container)
 					base.Name = &name
 					snapshots = append(snapshots, base)
 				}
@@ -654,12 +774,18 @@ func (c *migrationSink) do() error {
 				snapshots = header.Snapshots
 			}
 
-			if err := mySink(c.live, c.container, header.Snapshots, c.fsConn, srcIdmap); err != nil {
+			var fsConn *websocket.Conn
+			if c.push {
+				fsConn = c.dest.fsConn
+			} else {
+				fsConn = c.src.fsConn
+			}
+			if err := mySink(live, c.src.container, header.Snapshots, fsConn, srcIdmap); err != nil {
 				fsTransfer <- err
 				return
 			}
 
-			if err := ShiftIfNecessary(c.container, srcIdmap); err != nil {
+			if err := ShiftIfNecessary(c.src.container, srcIdmap); err != nil {
 				fsTransfer <- err
 				return
 			}
@@ -667,7 +793,7 @@ func (c *migrationSink) do() error {
 			fsTransfer <- nil
 		}()
 
-		if c.live {
+		if live {
 			var err error
 			imagesDir, err = ioutil.TempDir("", "lxd_restore_")
 			if err != nil {
@@ -677,7 +803,13 @@ func (c *migrationSink) do() error {
 
 			defer os.RemoveAll(imagesDir)
 
-			if err := RsyncRecv(shared.AddSlash(imagesDir), c.criuConn); err != nil {
+			var criuConn *websocket.Conn
+			if c.push {
+				criuConn = c.dest.criuConn
+			} else {
+				criuConn = c.src.criuConn
+			}
+			if err := RsyncRecv(shared.AddSlash(imagesDir), criuConn); err != nil {
 				restore <- err
 				return
 			}
@@ -689,8 +821,8 @@ func (c *migrationSink) do() error {
 			return
 		}
 
-		if c.live {
-			err = c.container.Migrate(lxc.MIGRATE_RESTORE, imagesDir, "migration", false, false)
+		if live {
+			err = c.src.container.Migrate(lxc.MIGRATE_RESTORE, imagesDir, "migration", false, false)
 			if err != nil {
 				restore <- err
 				return
@@ -701,20 +833,25 @@ func (c *migrationSink) do() error {
 		restore <- nil
 	}(c)
 
-	source := c.controlChannel()
+	var source <-chan MigrationControl
+	if c.push {
+		source = c.dest.controlChannel()
+	} else {
+		source = c.src.controlChannel()
+	}
 
 	for {
 		select {
 		case err = <-restore:
-			c.sendControl(err)
+			controller(err)
 			return err
 		case msg, ok := <-source:
 			if !ok {
-				c.disconnect()
+				disconnector()
 				return fmt.Errorf("Got error reading source")
 			}
 			if !*msg.Success {
-				c.disconnect()
+				disconnector()
 				return fmt.Errorf(*msg.Message)
 			} else {
 				// The source can only tell us it failed (e.g. if

@@ -118,3 +118,9 @@ This includes:
 
 ## profile\_usedby
 Adds a new used\_by field to profile entries listing the containers that are using it.
+
+## container\_push
+When a container is created in push mode, the client serves as a proxy between
+the source and target server. This is useful in cases where the target server
+is behind a NAT or firewall and cannot directly communicate with the source
+server and operate in pull mode.
