@@ -47,10 +47,12 @@ test_static_analysis() {
       done
     fi
 
-    OUT=$(godeps . ./shared | cut -f1)
-    if [ "${OUT}" != "$(printf "github.com/gorilla/websocket\ngopkg.in/yaml.v2\n")" ]; then
-      echo "ERROR: you added a new dependency to the client or shared; please make sure this is what you want"
-      echo "${OUT}"
+    if which godeps >/dev/null 2>&1; then
+      OUT=$(godeps . ./shared | cut -f1)
+      if [ "${OUT}" != "$(printf "github.com/gorilla/websocket\ngopkg.in/yaml.v2\n")" ]; then
+        echo "ERROR: you added a new dependency to the client or shared; please make sure this is what you want"
+        echo "${OUT}"
+      fi
     fi
 
     # Skip the tests which require git
