@@ -40,7 +40,7 @@ _have lxc && {
     fi
 
     lxc_cmds="config copy delete exec file help image info init launch \
-      list move profile publish remote restart restore snapshot start stop \
+      list move profile publish remote restart restore shell snapshot start stop \
       version"
 
     global_keys="core.https_address core.https_allowd_origin \
@@ -187,6 +187,9 @@ _have lxc && {
         ;;
       "restore")
         _lxd_names
+        ;;
+      "shell")
+        _lxd_names "RUNNING"
         ;;
       "snapshot")
         _lxd_names
