@@ -2,7 +2,6 @@ package shared
 
 import (
 	"fmt"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"runtime"
 )
 
@@ -29,33 +28,33 @@ func init() {
 }
 
 // General wrappers around Logger interface functions.
-func LogDebug(msg string, ctx map[string]interface{}) {
+func LogDebug(msg string, ctx interface{}) {
 	if Log != nil {
-		Log.Debug(msg, log.Ctx(ctx))
+		Log.Debug(msg, ctx)
 	}
 }
 
-func LogInfo(msg string, ctx map[string]interface{}) {
+func LogInfo(msg string, ctx interface{}) {
 	if Log != nil {
-		Log.Info(msg, log.Ctx(ctx))
+		Log.Info(msg, ctx)
 	}
 }
 
-func LogWarn(msg string, ctx map[string]interface{}) {
+func LogWarn(msg string, ctx interface{}) {
 	if Log != nil {
-		Log.Warn(msg, log.Ctx(ctx))
+		Log.Warn(msg, ctx)
 	}
 }
 
-func LogError(msg string, ctx map[string]interface{}) {
+func LogError(msg string, ctx interface{}) {
 	if Log != nil {
-		Log.Error(msg, log.Ctx(ctx))
+		Log.Error(msg, ctx)
 	}
 }
 
-func LogCrit(msg string, ctx map[string]interface{}) {
+func LogCrit(msg string, ctx interface{}) {
 	if Log != nil {
-		Log.Crit(msg, log.Ctx(ctx))
+		Log.Crit(msg, ctx)
 	}
 }
 

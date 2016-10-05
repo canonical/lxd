@@ -45,6 +45,7 @@ protobuf:
 
 .PHONY: check
 check: default
+	go get -v -x github.com/rogpeppe/godeps
 	go get -v -x github.com/remyoudompheng/go-misc/deadcode
 	go test -v ./...
 	cd test && ./main.sh
