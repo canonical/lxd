@@ -69,7 +69,7 @@ int mkdir_p(const char *dir, mode_t mode)
 		makeme = strndup(orig, dir - orig);
 		if (*makeme) {
 			if (mkdir(makeme, mode) && errno != EEXIST) {
-				fprintf(stderr, "failed to create directory '%s'", makeme);
+				fprintf(stderr, "failed to create directory '%s': %s\n", makeme, strerror(errno));
 				free(makeme);
 				return -1;
 			}
