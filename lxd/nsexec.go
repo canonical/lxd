@@ -300,8 +300,42 @@ void create(char *src, char *dest) {
 void forkmount(char *buf, char *cur, ssize_t size) {
 	char *src, *dest, *opts;
 
+	char nspath[PATH_MAX];
+	char userns_source[PATH_MAX];
+	char userns_target[PATH_MAX];
+
 	ADVANCE_ARG_REQUIRED();
 	int pid = atoi(cur);
+
+	sprintf(nspath, "/proc/%d/ns/user", pid);
+	if (access(nspath, F_OK) == 0) {
+		if (readlink("/proc/self/ns/user", userns_source, 18) < 0) {
+			fprintf(stderr, "Failed readlink of source namespace: %s\n", strerror(errno));
+			_exit(1);
+		}
+
+		if (readlink(nspath, userns_target, PATH_MAX) < 0) {
+			fprintf(stderr, "Failed readlink of target namespace: %s\n", strerror(errno));
+			_exit(1);
+		}
+
+		if (strncmp(userns_source, userns_target, PATH_MAX) != 0) {
+			if (dosetns(pid, "user") < 0) {
+				fprintf(stderr, "Failed setns to container user namespace: %s\n", strerror(errno));
+				_exit(1);
+			}
+
+			if (setuid(0) < 0) {
+				fprintf(stderr, "Failed setuid to container root user: %s\n", strerror(errno));
+				_exit(1);
+			}
+
+			if (setgid(0) < 0) {
+				fprintf(stderr, "Failed setgid to container root group: %s\n", strerror(errno));
+				_exit(1);
+			}
+		}
+	}
 
 	if (dosetns(pid, "mnt") < 0) {
 		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
