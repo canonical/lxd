@@ -250,8 +250,8 @@ func containerValidDevices(devices shared.Devices, profile bool, expanded bool) 
 				return fmt.Errorf("Unix device entry is missing the required \"path\" property.")
 			}
 		} else if m["type"] == "usb" {
-			if m["productid"] == "" {
-				return fmt.Errorf("Missing productid for USB device.")
+			if m["vendorid"] == "" {
+				return fmt.Errorf("Missing vendorid for USB device.")
 			}
 		} else if m["type"] == "none" {
 			continue
