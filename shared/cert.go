@@ -177,8 +177,10 @@ func GenerateMemCert(client bool) ([]byte, []byte, error) {
 	}
 
 	for _, h := range hosts {
-		if ip := net.ParseIP(h); ip != nil {
-			template.IPAddresses = append(template.IPAddresses, ip)
+		if ip, _, err := net.ParseCIDR(h); err == nil {
+			if !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() {
+				template.IPAddresses = append(template.IPAddresses, ip)
+			}
 		} else {
 			template.DNSNames = append(template.DNSNames, h)
 		}
