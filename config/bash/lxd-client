@@ -30,7 +30,7 @@ _have lxc && {
 
     _lxd_profiles()
     {
-      COMPREPLY=( $( compgen -W "$( lxc profile list )" "$cur" ) )
+      COMPREPLY=( $( compgen -W "$( lxc profile list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" ) )
     }
 
     _lxd_networks()
