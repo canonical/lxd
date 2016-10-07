@@ -85,7 +85,7 @@ _have lxc && {
     local no_dashargs
     cur=${COMP_WORDS[COMP_CWORD]}
 
-    no_dashargs=(${COMP_WORDS[@]//-*})
+    no_dashargs=(${COMP_WORDS[@]// -*})
     pos=$((COMP_CWORD - (${#COMP_WORDS[@]} - ${#no_dashargs[@]})))
     if [ -z "$cur" ]; then
       pos=$(($pos + 1))
