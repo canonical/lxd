@@ -2805,13 +2805,13 @@ func (c *containerLXC) Export(w io.Writer) error {
 	fnam := filepath.Join(cDir, "metadata.yaml")
 	if !shared.PathExists(fnam) {
 		// Generate a new metadata.yaml
-		f, err := ioutil.TempFile("", "lxd_lxd_metadata_")
+		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 		if err != nil {
 			tw.Close()
 			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
-		defer os.Remove(f.Name())
+		defer os.RemoveAll(tempDir)
 
 		// Get the container's architecture
 		var arch string
@@ -2850,25 +2850,28 @@ func (c *containerLXC) Export(w io.Writer) error {
 		}
 
 		// Write the actual file
-		f.Write(data)
-		f.Close()
-
-		fi, err := os.Lstat(f.Name())
+		fnam = filepath.Join(tempDir, "metadata.yaml")
+		err = ioutil.WriteFile(fnam, data, 0644)
 		if err != nil {
 			tw.Close()
 			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
 
-		tmpOffset := len(path.Dir(f.Name())) + 1
-		if err := c.tarStoreFile(linkmap, tmpOffset, tw, f.Name(), fi); err != nil {
+		fi, err := os.Lstat(fnam)
+		if err != nil {
+			tw.Close()
+			shared.LogError("Failed exporting container", ctxMap)
+			return err
+		}
+
+		tmpOffset := len(path.Dir(fnam)) + 1
+		if err := c.tarStoreFile(linkmap, tmpOffset, tw, fnam, fi); err != nil {
 			tw.Close()
 			shared.LogDebugf("Error writing to tarfile: %s", err)
 			shared.LogError("Failed exporting container", ctxMap)
 			return err
 		}
-
-		fnam = f.Name()
 	} else {
 		// Include metadata.yaml in the tarball
 		fi, err := os.Lstat(fnam)
