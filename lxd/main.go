@@ -620,7 +620,7 @@ func cmdInit() error {
 
 	// Detect zfs
 	out, err := exec.LookPath("zfs")
-	if err == nil && len(out) != 0 {
+	if err == nil && len(out) != 0 && !runningInUserns {
 		backendsAvailable = append(backendsAvailable, "zfs")
 	}
 
