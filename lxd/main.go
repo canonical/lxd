@@ -621,7 +621,12 @@ func cmdInit() error {
 	// Detect zfs
 	out, err := exec.LookPath("zfs")
 	if err == nil && len(out) != 0 && !runningInUserns {
-		backendsAvailable = append(backendsAvailable, "zfs")
+		_ = shared.RunCommand("modprobe", "zfs")
+
+		err := shared.RunCommand("zpool", "list")
+		if err == nil {
+			backendsAvailable = append(backendsAvailable, "zfs")
+		}
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -944,8 +949,6 @@ they otherwise would.
 	}
 
 	if storageBackend == "zfs" {
-		_ = exec.Command("modprobe", "zfs").Run()
-
 		if storageMode == "loop" {
 			storageDevice = shared.VarPath("zfs.img")
 			f, err := os.Create(storageDevice)
