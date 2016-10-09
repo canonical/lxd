@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -76,7 +77,7 @@ func detectCompression(fname string) ([]string, string, error) {
 
 }
 
-func unpack(file string, path string) error {
+func unpack(d *Daemon, file string, path string) error {
 	extractArgs, extension, err := detectCompression(file)
 	if err != nil {
 		return err
@@ -115,6 +116,23 @@ func unpack(file string, path string) error {
 
 	output, err := exec.Command(command, args...).CombinedOutput()
 	if err != nil {
+		// Check if we ran out of space
+		fs := syscall.Statfs_t{}
+
+		err1 := syscall.Statfs(path, &fs)
+		if err1 != nil {
+			return err1
+		}
+
+		// Check if we're running out of space
+		if int64(fs.Bfree) < int64(2*fs.Bsize) {
+			if d.Storage.GetStorageType() == storageTypeLvm {
+				return fmt.Errorf("Unable to unpack image, run out of disk space (consider increasing storage.lvm_volume_size).")
+			} else {
+				return fmt.Errorf("Unable to unpack image, run out of disk space.")
+			}
+		}
+
 		co := string(output)
 		shared.LogDebugf("Unpacking failed")
 		shared.LogDebugf(co)
@@ -128,8 +146,8 @@ func unpack(file string, path string) error {
 	return nil
 }
 
-func unpackImage(imagefname string, destpath string) error {
-	err := unpack(imagefname, destpath)
+func unpackImage(d *Daemon, imagefname string, destpath string) error {
+	err := unpack(d, imagefname, destpath)
 	if err != nil {
 		return err
 	}
@@ -141,7 +159,7 @@ func unpackImage(imagefname string, destpath string) error {
 			return fmt.Errorf("Error creating rootfs directory")
 		}
 
-		err = unpack(imagefname+".rootfs", rootfsPath)
+		err = unpack(d, imagefname+".rootfs", rootfsPath)
 		if err != nil {
 			return err
 		}
