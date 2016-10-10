@@ -332,6 +332,43 @@ func dbContainersList(db *sql.DB, cType containerType) ([]string, error) {
 	return ret, nil
 }
 
+func dbContainerSetState(db *sql.DB, id int, state string) error {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	// Clear any existing entry
+	str := fmt.Sprintf("DELETE FROM containers_config WHERE container_id = ? AND key = 'volatile.last_state.power'")
+	stmt, err := tx.Prepare(str)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.Exec(id); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Insert the new one
+	str = fmt.Sprintf("INSERT INTO containers_config (container_id, key, value) VALUES (?, 'volatile.last_state.power', ?)")
+	stmt, err = tx.Prepare(str)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+
+	if _, err = stmt.Exec(id, state); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return txCommit(tx)
+}
+
 func dbContainerRename(db *sql.DB, oldName string, newName string) error {
 	tx, err := dbBegin(db)
 	if err != nil {
