@@ -69,7 +69,7 @@ The currently supported keys are:
 
 Key                                  | Type      | Default       | Live update   | API extension                        | Description
 :--                                  | :---      | :------       | :----------   | :------------                        | :----------
-boot.autostart                       | boolean   | false         | n/a           | -                                    | Always start the container when LXD starts
+boot.autostart                       | boolean   | -             | n/a           | -                                    | Always start the container when LXD starts (if not set, restore last state)
 boot.autostart.delay                 | integer   | 0             | n/a           | -                                    | Number of seconds to wait after the container started before starting the next one
 boot.autostart.priority              | integer   | 0             | n/a           | -                                    | What order to start the containers in (starting with highest)
 boot.host\_shutdown\_timeout         | integer   | 30            | yes           | container\_host\_shutdown\_timeout   | Seconds to wait for container to shutdown before it is force stopped
