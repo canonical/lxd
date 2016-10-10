@@ -65,7 +65,7 @@ The currently supported keys are:
 
 Key                         | Type      | Default       | Live update   | Description
 :--                         | :---      | :------       | :----------   | :----------
-boot.autostart              | boolean   | false         | n/a           | Always start the container when LXD starts
+boot.autostart              | boolean   | -             | n/a           | Always start the container when LXD starts (if not set, restore last state)
 boot.autostart.delay        | integer   | 0             | n/a           | Number of seconds to wait after the container started before starting the next one
 boot.autostart.priority     | integer   | 0             | n/a           | What order to start the containers in (starting with highest)
 environment.\*              | string    | -             | yes (exec)    | key/value environment variables to export to the container and set on exec

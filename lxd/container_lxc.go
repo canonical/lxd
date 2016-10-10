@@ -1503,6 +1503,12 @@ func (c *containerLXC) OnStart() error {
 		}(c, name, m)
 	}
 
+	// Record current state
+	err = dbContainerSetState(c.daemon.db, c.id, "RUNNING")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1718,6 +1724,12 @@ func (c *containerLXC) OnStop(target string) error {
 
 		// Trigger a rebalance
 		deviceTaskSchedulerTrigger("container", c.name, "stopped")
+
+		// Record current state
+		err = dbContainerSetState(c.daemon.db, c.id, "STOPPED")
+		if err != nil {
+			return
+		}
 
 		// Destroy ephemeral containers
 		if c.ephemeral {
