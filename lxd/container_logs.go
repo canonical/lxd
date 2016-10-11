@@ -34,6 +34,10 @@ func containerLogsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	for _, f := range dents {
+		if !validLogFileName(f.Name()) {
+			continue
+		}
+
 		result = append(result, fmt.Sprintf("/%s/containers/%s/logs/%s", shared.APIVersion, name, f.Name()))
 	}
 
