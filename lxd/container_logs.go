@@ -34,6 +34,10 @@ func containerLogsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	for _, f := range dents {
+		if !validLogFileName(f.Name()) {
+			continue
+		}
+
 		result = append(result, fmt.Sprintf("/%s/containers/%s/logs/%s", shared.APIVersion, name, f.Name()))
 	}
 
@@ -52,7 +56,8 @@ func validLogFileName(fname string) bool {
 	return fname == "lxc.log" ||
 		fname == "lxc.conf" ||
 		strings.HasPrefix(fname, "migration_") ||
-		strings.HasPrefix(fname, "snapshot_")
+		strings.HasPrefix(fname, "snapshot_") ||
+		strings.HasPrefix(fname, "exec_")
 }
 
 func containerLogGet(d *Daemon, r *http.Request) Response {
