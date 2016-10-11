@@ -124,3 +124,14 @@ When a container is created in push mode, the client serves as a proxy between
 the source and target server. This is useful in cases where the target server
 is behind a NAT or firewall and cannot directly communicate with the source
 server and operate in pull mode.
+
+## container\_exec\_recording
+Introduces a new boolean "record-output", parameter to
+/1.0/containers/<name>/exec which when set to "true" and combined with
+with "wait-for-websocket" set to false, will record stdout and stderr to
+disk and make them available through the logs interface.
+
+The URL to the recorded output is included in the operation metadata
+once the command is done running.
+
+That output will expire similarly to other log files, typically after 48 hours.

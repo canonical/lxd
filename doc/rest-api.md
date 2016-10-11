@@ -1028,6 +1028,7 @@ Input (run bash):
         "command": ["/bin/bash"],       # Command and arguments
         "environment": {},              # Optional extra environment variables to set
         "wait-for-websocket": false,    # Whether to wait for a connection before starting the process
+        "record-output": false,         # Whether to store stdout and stderr (only valid with wait-for-websocket set to false)
         "interactive": true,            # Whether to allocate a pts device instead of PIPEs
         "width": 80,                    # Initial width of the terminal (optional)
         "height": 25,                   # Initial height of the terminal (optional)
@@ -1035,7 +1036,11 @@ Input (run bash):
 
 `wait-for-websocket` indicates whether the operation should block and wait for
 a websocket connection to start (so that users can pass stdin and read
-stdout), or simply run to completion with /dev/null as stdin and stdout.
+stdout), or start immediately.
+
+If starting immediately, /dev/null will be used for stdin, stdout and
+stderr. That's unless record-output is set to true, in which case,
+stdout and stderr will be redirected to a log file.
 
 If interactive is set to true, a single websocket is returned and is mapped to a
 pts device for stdin, stdout and stderr of the execed process.
