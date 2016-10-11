@@ -72,6 +72,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"network",
 			"profile_usedby",
 			"container_push",
+			"container_exec_recording",
 		},
 
 		"api_status":  "stable",

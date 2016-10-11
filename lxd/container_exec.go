@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,12 +20,13 @@ import (
 )
 
 type commandPostContent struct {
-	Command     []string          `json:"command"`
-	WaitForWS   bool              `json:"wait-for-websocket"`
-	Interactive bool              `json:"interactive"`
-	Environment map[string]string `json:"environment"`
-	Width       int               `json:"width"`
-	Height      int               `json:"height"`
+	Command      []string          `json:"command"`
+	WaitForWS    bool              `json:"wait-for-websocket"`
+	RecordOutput bool              `json:"record-output"`
+	Interactive  bool              `json:"interactive"`
+	Environment  map[string]string `json:"environment"`
+	Width        int               `json:"width"`
+	Height       int               `json:"height"`
 }
 
 type execWs struct {
@@ -333,12 +335,43 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	}
 
 	run := func(op *operation) error {
-		cmdResult, cmdErr := c.Exec(post.Command, env, nil, nil, nil)
-		metadata := shared.Jmap{"return": cmdResult}
+		var cmdErr error
+		var cmdResult int
+		metadata := shared.Jmap{}
+
+		if post.RecordOutput {
+			// Prepare stdout and stderr recording
+			stdout, err := os.OpenFile(filepath.Join(c.LogPath(), fmt.Sprintf("exec_%s.stdout", op.id)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			if err != nil {
+				return err
+			}
+			defer stdout.Close()
+
+			stderr, err := os.OpenFile(filepath.Join(c.LogPath(), fmt.Sprintf("exec_%s.stderr", op.id)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			if err != nil {
+				return err
+			}
+			defer stderr.Close()
+
+			// Run the command
+			cmdResult, cmdErr = c.Exec(post.Command, env, nil, stdout, stderr)
+
+			// Update metadata with the right URLs
+			metadata["return"] = cmdResult
+			metadata["output"] = shared.Jmap{
+				"1": fmt.Sprintf("/%s/containers/%s/logs/%s", shared.APIVersion, c.Name(), filepath.Base(stdout.Name())),
+				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", shared.APIVersion, c.Name(), filepath.Base(stderr.Name())),
+			}
+		} else {
+			cmdResult, cmdErr = c.Exec(post.Command, env, nil, nil, nil)
+			metadata["return"] = cmdResult
+		}
+
 		err = op.UpdateMetadata(metadata)
 		if err != nil {
 			shared.LogError("error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
 		}
+
 		return cmdErr
 	}
 
