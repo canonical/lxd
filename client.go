@@ -250,7 +250,10 @@ func connectViaUnix(c *Client, remote *RemoteConfig) error {
 		}
 		return net.DialUnix("unix", nil, raddr)
 	}
-	c.Http.Transport = &http.Transport{Dial: uDial}
+	c.Http.Transport = &http.Transport{
+		Dial:              uDial,
+		DisableKeepAlives: true,
+	}
 	c.websocketDialer.NetDial = uDial
 	c.Remote = remote
 
@@ -269,9 +272,10 @@ func connectViaHttp(c *Client, remote *RemoteConfig, clientCert, clientKey, serv
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: tlsconfig,
-		Dial:            shared.RFC3493Dialer,
-		Proxy:           shared.ProxyFromEnvironment,
+		TLSClientConfig:   tlsconfig,
+		Dial:              shared.RFC3493Dialer,
+		Proxy:             shared.ProxyFromEnvironment,
+		DisableKeepAlives: true,
 	}
 
 	c.websocketDialer.NetDial = shared.RFC3493Dialer
