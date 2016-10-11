@@ -129,9 +129,10 @@ func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, err
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: tlsConfig,
-		Dial:            shared.RFC3493Dialer,
-		Proxy:           d.proxy,
+		TLSClientConfig:   tlsConfig,
+		Dial:              shared.RFC3493Dialer,
+		Proxy:             d.proxy,
+		DisableKeepAlives: true,
 	}
 
 	myhttp := http.Client{
@@ -184,9 +185,10 @@ func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, er
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: tlsConfig,
-		Dial:            shared.RFC3493Dialer,
-		Proxy:           d.proxy,
+		TLSClientConfig:   tlsConfig,
+		Dial:              shared.RFC3493Dialer,
+		Proxy:             d.proxy,
+		DisableKeepAlives: true,
 	}
 	myhttp := http.Client{
 		Transport: tr,
