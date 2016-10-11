@@ -84,6 +84,36 @@ func containerValidConfigKey(key string, value string) error {
 	case "limits.cpu":
 		return nil
 	case "limits.cpu.allowance":
+		if value == "" {
+			return nil
+		}
+
+		if strings.HasSuffix(value, "%") {
+			// Percentage based allocation
+			_, err := strconv.Atoi(strings.TrimSuffix(value, "%"))
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		// Time based allocation
+		fields := strings.SplitN(value, "/", 2)
+		if len(fields) != 2 {
+			return fmt.Errorf("Invalid allowance: %s", value)
+		}
+
+		_, err := strconv.Atoi(strings.TrimSuffix(fields[0], "ms"))
+		if err != nil {
+			return err
+		}
+
+		_, err = strconv.Atoi(strings.TrimSuffix(fields[1], "ms"))
+		if err != nil {
+			return err
+		}
+
 		return nil
 	case "limits.cpu.priority":
 		return isInt64(key, value)
