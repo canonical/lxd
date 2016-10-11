@@ -54,7 +54,7 @@ func containerValidConfigKey(d *Daemon, key string, value string) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("security.syscalls.blacklist_compat is only valid on x86_64")
+		return fmt.Errorf("security.syscalls.blacklist_compat isn't supported on this architecture")
 	}
 	return nil
 }
