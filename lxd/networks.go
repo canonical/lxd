@@ -785,29 +785,26 @@ func (n *network) Start() error {
 		}
 
 		// Update the dnsmasq config
-		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--listen-address=%s", ip.String()))
+		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ip.String()), "--enable-ra"}...)
 		if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
 			if !shared.StringInSlice("--dhcp-no-override", dnsmasqCmd) {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
 			}
 
-			flags := ""
-			if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
-				if !shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
-					flags = ",ra-stateless,ra-names"
+			if shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
+				if n.config["ipv6.dhcp.ranges"] != "" {
+					for _, dhcpRange := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
+						dhcpRange = strings.TrimSpace(dhcpRange)
+						dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s", strings.Replace(dhcpRange, "-", ",", -1))}...)
+					}
+				} else {
+					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s", networkGetIP(subnet, 2), networkGetIP(subnet, -1))}...)
 				}
 			} else {
-				flags = ",ra-only"
+				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("::,constructor:%s,ra-stateless,ra-names", n.name)}...)
 			}
-
-			if n.config["ipv6.dhcp.ranges"] != "" {
-				for _, dhcpRange := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
-					dhcpRange = strings.TrimSpace(dhcpRange)
-					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s%s", strings.Replace(dhcpRange, "-", ",", -1), flags)}...)
-				}
-			} else {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s%s", networkGetIP(subnet, 2), networkGetIP(subnet, -1), flags)}...)
-			}
+		} else {
+			dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("::,constructor:%s,ra-only", n.name)}...)
 		}
 
 		// Setup basic iptables overrides
