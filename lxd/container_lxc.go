@@ -2310,6 +2310,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			c.localConfig = oldLocalConfig
 			c.localDevices = oldLocalDevices
 			c.profiles = oldProfiles
+			c.c = nil
 			c.initLXC()
 			deviceTaskSchedulerTrigger("container", c.name, "changed")
 		}
@@ -2362,6 +2363,13 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 	// Do some validation of the devices diff
 	err = containerValidDevices(c.expandedDevices, false, true)
+	if err != nil {
+		return err
+	}
+
+	// Run through initLXC to catch anything we missed
+	c.c = nil
+	err = c.initLXC()
 	if err != nil {
 		return err
 	}
@@ -2743,14 +2751,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	if err := txCommit(tx); err != nil {
-		return err
-	}
-
-	// Invalidate the go-lxc cache
-	c.c = nil
-
-	err = c.initLXC()
-	if err != nil {
 		return err
 	}
 
