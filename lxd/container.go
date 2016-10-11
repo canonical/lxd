@@ -90,6 +90,24 @@ func containerValidConfigKey(key string, value string) error {
 	case "limits.disk.priority":
 		return isInt64(key, value)
 	case "limits.memory":
+		if value == "" {
+			return nil
+		}
+
+		if strings.HasSuffix(value, "%") {
+			_, err := strconv.ParseInt(strings.TrimSuffix(value, "%"), 10, 64)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		_, err := shared.ParseByteSizeString(value)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	case "limits.memory.enforce":
 		return isOneOf(key, value, []string{"soft", "hard"})
