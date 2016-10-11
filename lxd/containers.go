@@ -86,6 +86,7 @@ func (slice containerAutostartList) Swap(i, j int) {
 }
 
 func containersRestart(d *Daemon) error {
+	// Get all the containers
 	result, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return err
@@ -104,6 +105,7 @@ func containersRestart(d *Daemon) error {
 
 	sort.Sort(containerAutostartList(containers))
 
+	// Restart the containers
 	for _, c := range containers {
 		config := c.ExpandedConfig()
 		lastState := config["volatile.last_state.power"]
@@ -111,7 +113,7 @@ func containersRestart(d *Daemon) error {
 		autoStart := config["boot.autostart"]
 		autoStartDelay := config["boot.autostart.delay"]
 
-		if lastState == "RUNNING" || shared.IsTrue(autoStart) {
+		if shared.IsTrue(autoStart) || (autoStart == "" && lastState == "RUNNING") {
 			if c.IsRunning() {
 				continue
 			}
@@ -125,44 +127,62 @@ func containersRestart(d *Daemon) error {
 		}
 	}
 
+	// Reset the recorded state (to ensure it's up to date)
 	_, err = dbExec(d.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
 	if err != nil {
 		return err
+	}
+
+	for _, c := range containers {
+		err = c.ConfigKeySet("volatile.last_state.power", c.State())
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func containersShutdown(d *Daemon) error {
+	var wg sync.WaitGroup
+
+	// Get all the containers
 	results, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return err
 	}
 
-	var wg sync.WaitGroup
+	// Reset all container states
+	_, err = dbExec(d.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	if err != nil {
+		return err
+	}
 
 	for _, r := range results {
+		// Load the container
 		c, err := containerLoadByName(d, r)
 		if err != nil {
 			return err
 		}
 
+		// Record the current state
 		err = c.ConfigKeySet("volatile.last_state.power", c.State())
-
 		if err != nil {
 			return err
 		}
 
-		var timeoutSeconds int
-
-		value, ok := c.ExpandedConfig()["boot.host_shutdown_timeout"]
-		if ok {
-			timeoutSeconds, _ = strconv.Atoi(value)
-		} else {
-			timeoutSeconds = 30
-		}
-
+		// Stop the container
 		if c.IsRunning() {
+			// Determinate how long to wait for the container to shutdown cleanly
+			var timeoutSeconds int
+			value, ok := c.ExpandedConfig()["boot.host_shutdown_timeout"]
+			if ok {
+				timeoutSeconds, _ = strconv.Atoi(value)
+			} else {
+				timeoutSeconds = 30
+			}
+
+			// Stop the container
 			wg.Add(1)
 			go func() {
 				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
