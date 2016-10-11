@@ -333,12 +333,6 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	}
 
 	run := func(op *operation) error {
-		nullDev, err := os.OpenFile(os.DevNull, os.O_RDWR, 0666)
-		if err != nil {
-			return err
-		}
-		defer nullDev.Close()
-
 		cmdResult, cmdErr := c.Exec(post.Command, env, nil, nil, nil)
 		metadata := shared.Jmap{"return": cmdResult}
 		err = op.UpdateMetadata(metadata)
