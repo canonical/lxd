@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-10-04 15:54+0200\n"
+        "POT-Creation-Date: 2016-10-10 23:45-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -704,8 +704,8 @@ msgstr  ""
 #: lxc/remote.go:38
 msgid   "Manage remote LXD servers.\n"
         "\n"
-        "lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD]\n"
-        "                            [--public] [--protocol=PROTOCOL]                Add the remote <name> at <url>.\n"
+        "lxc remote add [<name>] <IP|FQDN|URL> [--accept-certificate] [--password=PASSWORD]\n"
+        "                                      [--public] [--protocol=PROTOCOL]      Add the remote <name> at <url>.\n"
         "lxc remote remove <name>                                                    Remove the remote <name>.\n"
         "lxc remote list                                                             List all remotes.\n"
         "lxc remote rename <old> <new>                                               Rename remote <old> to <new>.\n"
@@ -830,11 +830,11 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:428 lxc/network.go:422 lxc/profile.go:447 lxc/remote.go:375
+#: lxc/list.go:428 lxc/network.go:422 lxc/profile.go:447 lxc/remote.go:381
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/network.go:408 lxc/remote.go:349 lxc/remote.go:354
+#: lxc/network.go:408 lxc/remote.go:355 lxc/remote.go:360
 msgid   "NO"
 msgstr  ""
 
@@ -906,11 +906,11 @@ msgstr  ""
 msgid   "PROFILES"
 msgstr  ""
 
-#: lxc/remote.go:377
+#: lxc/remote.go:383
 msgid   "PROTOCOL"
 msgstr  ""
 
-#: lxc/image.go:640 lxc/remote.go:378
+#: lxc/image.go:640 lxc/remote.go:384
 msgid   "PUBLIC"
 msgstr  ""
 
@@ -1076,7 +1076,7 @@ msgstr  ""
 msgid   "STATE"
 msgstr  ""
 
-#: lxc/remote.go:379
+#: lxc/remote.go:385
 msgid   "STATIC"
 msgstr  ""
 
@@ -1255,7 +1255,7 @@ msgstr  ""
 msgid   "UPLOAD DATE"
 msgstr  ""
 
-#: lxc/remote.go:376
+#: lxc/remote.go:382
 msgid   "URL"
 msgstr  ""
 
@@ -1297,7 +1297,7 @@ msgstr  ""
 msgid   "Whether to show the expanded configuration"
 msgstr  ""
 
-#: lxc/network.go:410 lxc/remote.go:351 lxc/remote.go:356
+#: lxc/network.go:410 lxc/remote.go:357 lxc/remote.go:362
 msgid   "YES"
 msgstr  ""
 
@@ -1321,7 +1321,7 @@ msgstr  ""
 msgid   "can't pull a directory without --recursive"
 msgstr  ""
 
-#: lxc/remote.go:339
+#: lxc/remote.go:345
 msgid   "can't remove the default remote"
 msgstr  ""
 
@@ -1329,7 +1329,7 @@ msgstr  ""
 msgid   "can't supply uid/gid/mode in recursive mode"
 msgstr  ""
 
-#: lxc/remote.go:365
+#: lxc/remote.go:371
 msgid   "default"
 msgstr  ""
 
@@ -1380,22 +1380,22 @@ msgstr  ""
 msgid   "recursive edit doesn't make sense :("
 msgstr  ""
 
-#: lxc/remote.go:401
+#: lxc/remote.go:407
 #, c-format
 msgid   "remote %s already exists"
 msgstr  ""
 
-#: lxc/remote.go:331 lxc/remote.go:393 lxc/remote.go:428 lxc/remote.go:444
+#: lxc/remote.go:337 lxc/remote.go:399 lxc/remote.go:434 lxc/remote.go:450
 #, c-format
 msgid   "remote %s doesn't exist"
 msgstr  ""
 
-#: lxc/remote.go:314
+#: lxc/remote.go:320
 #, c-format
 msgid   "remote %s exists as <%s>"
 msgstr  ""
 
-#: lxc/remote.go:335 lxc/remote.go:397 lxc/remote.go:432
+#: lxc/remote.go:341 lxc/remote.go:403 lxc/remote.go:438
 #, c-format
 msgid   "remote %s is static and cannot be modified"
 msgstr  ""

@@ -38,8 +38,8 @@ func (c *remoteCmd) usage() string {
 	return i18n.G(
 		`Manage remote LXD servers.
 
-lxc remote add <name> <url> [--accept-certificate] [--password=PASSWORD]
-                            [--public] [--protocol=PROTOCOL]                Add the remote <name> at <url>.
+lxc remote add [<name>] <IP|FQDN|URL> [--accept-certificate] [--password=PASSWORD]
+                                      [--public] [--protocol=PROTOCOL]      Add the remote <name> at <url>.
 lxc remote remove <name>                                                    Remove the remote <name>.
 lxc remote list                                                             List all remotes.
 lxc remote rename <old> <new>                                               Rename remote <old> to <new>.
@@ -306,18 +306,24 @@ func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 
 	switch args[0] {
 	case "add":
-		if len(args) < 3 {
+		if len(args) < 2 {
 			return errArgs
 		}
 
-		if rc, ok := config.Remotes[args[1]]; ok {
-			return fmt.Errorf(i18n.G("remote %s exists as <%s>"), args[1], rc.Addr)
+		remote := args[1]
+		fqdn := args[1]
+		if len(args) > 2 {
+			fqdn = args[2]
 		}
 
-		err := c.addServer(config, args[1], args[2], c.acceptCert, c.password, c.public, c.protocol)
+		if rc, ok := config.Remotes[remote]; ok {
+			return fmt.Errorf(i18n.G("remote %s exists as <%s>"), remote, rc.Addr)
+		}
+
+		err := c.addServer(config, remote, fqdn, c.acceptCert, c.password, c.public, c.protocol)
 		if err != nil {
-			delete(config.Remotes, args[1])
-			c.removeCertificate(config, args[1])
+			delete(config.Remotes, remote)
+			c.removeCertificate(config, remote)
 			return err
 		}
 
