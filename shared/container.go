@@ -226,9 +226,41 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"boot.autostart.priority":    IsInt64,
 	"boot.host_shutdown_timeout": IsInt64,
 
-	"limits.cpu":           IsAny,
-	"limits.cpu.allowance": IsAny,
-	"limits.cpu.priority":  IsPriority,
+	"limits.cpu": IsAny,
+	"limits.cpu.allowance": func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		if strings.HasSuffix(value, "%") {
+			// Percentage based allocation
+			_, err := strconv.Atoi(strings.TrimSuffix(value, "%"))
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		// Time based allocation
+		fields := strings.SplitN(value, "/", 2)
+		if len(fields) != 2 {
+			return fmt.Errorf("Invalid allowance: %s", value)
+		}
+
+		_, err := strconv.Atoi(strings.TrimSuffix(fields[0], "ms"))
+		if err != nil {
+			return err
+		}
+
+		_, err = strconv.Atoi(strings.TrimSuffix(fields[1], "ms"))
+		if err != nil {
+			return err
+		}
+
+		return nil
+	},
+	"limits.cpu.priority": IsPriority,
 
 	"limits.disk.priority": IsPriority,
 
