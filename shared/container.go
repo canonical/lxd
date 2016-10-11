@@ -232,7 +232,27 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 
 	"limits.disk.priority": IsPriority,
 
-	"limits.memory": IsAny,
+	"limits.memory": func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		if strings.HasSuffix(value, "%") {
+			_, err := strconv.ParseInt(strings.TrimSuffix(value, "%"), 10, 64)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		_, err := ParseByteSizeString(value)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	},
 	"limits.memory.enforce": func(value string) error {
 		return IsOneOf(value, []string{"soft", "hard"})
 	},
