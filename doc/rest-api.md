@@ -636,6 +636,249 @@ Input (none at present):
 
 HTTP code for this should be 202 (Accepted).
 
+## /1.0/containers/\<name\>/exec
+### POST
+ * Description: run a remote command
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation + optional websocket information or standard error
+
+Input (run bash):
+
+    {
+        "command": ["/bin/bash"],       # Command and arguments
+        "environment": {},              # Optional extra environment variables to set
+        "wait-for-websocket": false,    # Whether to wait for a connection before starting the process
+        "interactive": true,            # Whether to allocate a pts device instead of PIPEs
+        "width": 80,                    # Initial width of the terminal (optional)
+        "height": 25,                   # Initial height of the terminal (optional)
+    }
+
+`wait-for-websocket` indicates whether the operation should block and wait for
+a websocket connection to start (so that users can pass stdin and read
+stdout), or simply run to completion with /dev/null as stdin and stdout.
+
+If interactive is set to true, a single websocket is returned and is mapped to a
+pts device for stdin, stdout and stderr of the execed process.
+
+If interactive is set to false (default), three pipes will be setup, one
+for each of stdin, stdout and stderr.
+
+Depending on the state of the interactive flag, one or three different
+websocket/secret pairs will be returned, which are valid for connecting to this
+operations /websocket endpoint.
+
+Return (with wait-for-websocket=true and interactive=false):
+
+    {
+        "fds": {
+            "0": "f5b6c760c0aa37a6430dd2a00c456430282d89f6e1661a077a926ed1bf3d1c21",
+            "1": "464dcf9f8fdce29d0d6478284523a9f26f4a31ae365d94cd38bac41558b797cf",
+            "2": "25b70415b686360e3b03131e33d6d94ee85a7f19b0f8d141d6dca5a1fc7b00eb",
+            "control": "20c479d9532ab6d6c3060f6cdca07c1f177647c9d96f0c143ab61874160bd8a5"
+        }
+    }
+
+Return (with wait-for-websocket=true and interactive=true):
+
+    {
+        "fds": {
+            "0": "f5b6c760c0aa37a6430dd2a00c456430282d89f6e1661a077a926ed1bf3d1c21",
+            "control": "20c479d9532ab6d6c3060f6cdca07c1f177647c9d96f0c143ab61874160bd8a5"
+        }
+    }
+
+When the exec command finishes, its exit status is available from the
+operation's metadata:
+
+    {
+        "return": 0
+    }
+
+## /1.0/containers/\<name\>/files
+### GET (?path=/path/inside/the/container)
+ * Description: download a file from the container
+ * Authentication: trusted
+ * Operation: sync
+ * Return: Raw file or standard error
+
+The following headers will be set (on top of standard size and mimetype headers):
+ * X-LXD-uid: 0
+ * X-LXD-gid: 0
+ * X-LXD-mode: 0700
+
+This is designed to be easily usable from the command line or even a web
+browser.
+
+### POST (?path=/path/inside/the/container)
+ * Description: upload a file to the container
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+ * Standard http file upload
+
+The following headers may be set by the client:
+ * X-LXD-uid: 0
+ * X-LXD-gid: 0
+ * X-LXD-mode: 0700
+
+This is designed to be easily usable from the command line or even a web
+browser.
+
+## /1.0/containers/\<name\>/logs
+### GET
+* Description: Returns a list of the log files available for this container.
+  Note that this works on containers that have been deleted (or were never
+  created) to enable people to get logs for failed creations.
+* Authentication: trusted
+* Operation: Sync
+* Return: a list of the available log files
+
+Return:
+
+    [
+        "/1.0/containers/blah/logs/forkstart.log",
+        "/1.0/containers/blah/logs/lxc.conf",
+        "/1.0/containers/blah/logs/lxc.log"
+    ]
+
+## /1.0/containers/\<name\>/logs/\<logfile\>
+### GET
+* Description: returns the contents of a particular log file.
+* Authentication: trusted
+* Operation: N/A
+* Return: the contents of the log file
+
+### DELETE
+* Description: delete a particular log file.
+* Authentication: trusted
+* Operation: Sync
+* Return: empty response or standard error
+
+## /1.0/containers/\<name\>/snapshots
+### GET
+ * Description: List of snapshots
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs for snapshots for this container
+
+Return value:
+
+    [
+        "/1.0/containers/blah/snapshots/snap0"
+    ]
+
+### POST
+ * Description: create a new snapshot
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input:
+
+    {
+        "name": "my-snapshot",          # Name of the snapshot
+        "stateful": true                # Whether to include state too
+    }
+
+## /1.0/containers/\<name\>/snapshots/\<name\>
+### GET
+ * Description: Snapshot information
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the snapshot
+
+Return:
+
+    {
+        "architecture": "x86_64",
+        "config": {
+            "security.nesting": "true",
+            "volatile.base_image": "a49d26ce5808075f5175bf31f5cb90561f5023dcd408da8ac5e834096d46b2d8",
+            "volatile.eth0.hwaddr": "00:16:3e:ec:65:a8",
+            "volatile.last_state.idmap": "[{\"Isuid\":true,\"Isgid\":false,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536},{\"Isuid\":false,\"Isgid\":true,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536}]",
+        },
+        "created_at": "2016-03-08T23:55:08Z",
+        "devices": {
+            "eth0": {
+                "name": "eth0",
+                "nictype": "bridged",
+                "parent": "lxdbr0",
+                "type": "nic"
+            },
+            "root": {
+                "path": "/",
+                "type": "disk"
+            },
+        },
+        "ephemeral": false,
+        "expanded_config": {
+            "security.nesting": "true",
+            "volatile.base_image": "a49d26ce5808075f5175bf31f5cb90561f5023dcd408da8ac5e834096d46b2d8",
+            "volatile.eth0.hwaddr": "00:16:3e:ec:65:a8",
+            "volatile.last_state.idmap": "[{\"Isuid\":true,\"Isgid\":false,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536},{\"Isuid\":false,\"Isgid\":true,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536}]",
+        },
+        "expanded_devices": {
+            "eth0": {
+                "name": "eth0",
+                "nictype": "bridged",
+                "parent": "lxdbr0",
+                "type": "nic"
+            },
+            "root": {
+                "path": "/",
+                "type": "disk"
+            },
+        },
+        "name": "zerotier/blah",
+        "profiles": [
+            "default"
+        ],
+        "stateful": false
+    }
+
+### POST
+ * Description: used to rename/migrate the snapshot
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input (rename the snapshot):
+
+    {
+        "name": "new-name"
+    }
+
+Input (setup the migration source):
+
+    {
+        "migration": true,
+    }
+
+Return (with migration=true):
+
+    {
+        "control": "secret1",       # Migration control socket
+        "fs": "secret3"             # Filesystem transfer socket
+    }
+
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
+
+### DELETE
+ * Description: remove the snapshot
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input (none at present):
+
+    {
+    }
+
+HTTP code for this should be 202 (Accepted).
+
 ## /1.0/containers/\<name\>/state
 ### GET
  * Description: current state
@@ -798,249 +1041,6 @@ Input:
         "force": true,          # Force the state change (currently only valid for stop and restart where it means killing the container)
         "stateful": true        # Whether to store or restore runtime state before stopping or startiong (only valid for stop and start, defaults to false)
     }
-
-## /1.0/containers/\<name\>/files
-### GET (?path=/path/inside/the/container)
- * Description: download a file from the container
- * Authentication: trusted
- * Operation: sync
- * Return: Raw file or standard error
-
-The following headers will be set (on top of standard size and mimetype headers):
- * X-LXD-uid: 0
- * X-LXD-gid: 0
- * X-LXD-mode: 0700
-
-This is designed to be easily usable from the command line or even a web
-browser.
-
-### POST (?path=/path/inside/the/container)
- * Description: upload a file to the container
- * Authentication: trusted
- * Operation: sync
- * Return: standard return value or standard error
-
-Input:
- * Standard http file upload
-
-The following headers may be set by the client:
- * X-LXD-uid: 0
- * X-LXD-gid: 0
- * X-LXD-mode: 0700
-
-This is designed to be easily usable from the command line or even a web
-browser.
-
-## /1.0/containers/\<name\>/snapshots
-### GET
- * Description: List of snapshots
- * Authentication: trusted
- * Operation: sync
- * Return: list of URLs for snapshots for this container
-
-Return value:
-
-    [
-        "/1.0/containers/blah/snapshots/snap0"
-    ]
-
-### POST
- * Description: create a new snapshot
- * Authentication: trusted
- * Operation: async
- * Return: background operation or standard error
-
-Input:
-
-    {
-        "name": "my-snapshot",          # Name of the snapshot
-        "stateful": true                # Whether to include state too
-    }
-
-## /1.0/containers/\<name\>/snapshots/\<name\>
-### GET
- * Description: Snapshot information
- * Authentication: trusted
- * Operation: sync
- * Return: dict representing the snapshot
-
-Return:
-
-    {
-        "architecture": "x86_64",
-        "config": {
-            "security.nesting": "true",
-            "volatile.base_image": "a49d26ce5808075f5175bf31f5cb90561f5023dcd408da8ac5e834096d46b2d8",
-            "volatile.eth0.hwaddr": "00:16:3e:ec:65:a8",
-            "volatile.last_state.idmap": "[{\"Isuid\":true,\"Isgid\":false,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536},{\"Isuid\":false,\"Isgid\":true,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536}]",
-        },
-        "created_at": "2016-03-08T23:55:08Z",
-        "devices": {
-            "eth0": {
-                "name": "eth0",
-                "nictype": "bridged",
-                "parent": "lxdbr0",
-                "type": "nic"
-            },
-            "root": {
-                "path": "/",
-                "type": "disk"
-            },
-        },
-        "ephemeral": false,
-        "expanded_config": {
-            "security.nesting": "true",
-            "volatile.base_image": "a49d26ce5808075f5175bf31f5cb90561f5023dcd408da8ac5e834096d46b2d8",
-            "volatile.eth0.hwaddr": "00:16:3e:ec:65:a8",
-            "volatile.last_state.idmap": "[{\"Isuid\":true,\"Isgid\":false,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536},{\"Isuid\":false,\"Isgid\":true,\"Hostid\":100000,\"Nsid\":0,\"Maprange\":65536}]",
-        },
-        "expanded_devices": {
-            "eth0": {
-                "name": "eth0",
-                "nictype": "bridged",
-                "parent": "lxdbr0",
-                "type": "nic"
-            },
-            "root": {
-                "path": "/",
-                "type": "disk"
-            },
-        },
-        "name": "zerotier/blah",
-        "profiles": [
-            "default"
-        ],
-        "stateful": false
-    }
-
-### POST
- * Description: used to rename/migrate the snapshot
- * Authentication: trusted
- * Operation: async
- * Return: background operation or standard error
-
-Input (rename the snapshot):
-
-    {
-        "name": "new-name"
-    }
-
-Input (setup the migration source):
-
-    {
-        "migration": true,
-    }
-
-Return (with migration=true):
-
-    {
-        "control": "secret1",       # Migration control socket
-        "fs": "secret3"             # Filesystem transfer socket
-    }
-
-Renaming to an existing name must return the 409 (Conflict) HTTP code.
-
-### DELETE
- * Description: remove the snapshot
- * Authentication: trusted
- * Operation: async
- * Return: background operation or standard error
-
-Input (none at present):
-
-    {
-    }
-
-HTTP code for this should be 202 (Accepted).
-
-## /1.0/containers/\<name\>/exec
-### POST
- * Description: run a remote command
- * Authentication: trusted
- * Operation: async
- * Return: background operation + optional websocket information or standard error
-
-Input (run bash):
-
-    {
-        "command": ["/bin/bash"],       # Command and arguments
-        "environment": {},              # Optional extra environment variables to set
-        "wait-for-websocket": false,    # Whether to wait for a connection before starting the process
-        "interactive": true,            # Whether to allocate a pts device instead of PIPEs
-        "width": 80,                    # Initial width of the terminal (optional)
-        "height": 25,                   # Initial height of the terminal (optional)
-    }
-
-`wait-for-websocket` indicates whether the operation should block and wait for
-a websocket connection to start (so that users can pass stdin and read
-stdout), or simply run to completion with /dev/null as stdin and stdout.
-
-If interactive is set to true, a single websocket is returned and is mapped to a
-pts device for stdin, stdout and stderr of the execed process.
-
-If interactive is set to false (default), three pipes will be setup, one
-for each of stdin, stdout and stderr.
-
-Depending on the state of the interactive flag, one or three different
-websocket/secret pairs will be returned, which are valid for connecting to this
-operations /websocket endpoint.
-
-Return (with wait-for-websocket=true and interactive=false):
-
-    {
-        "fds": {
-            "0": "f5b6c760c0aa37a6430dd2a00c456430282d89f6e1661a077a926ed1bf3d1c21",
-            "1": "464dcf9f8fdce29d0d6478284523a9f26f4a31ae365d94cd38bac41558b797cf",
-            "2": "25b70415b686360e3b03131e33d6d94ee85a7f19b0f8d141d6dca5a1fc7b00eb",
-            "control": "20c479d9532ab6d6c3060f6cdca07c1f177647c9d96f0c143ab61874160bd8a5"
-        }
-    }
-
-Return (with wait-for-websocket=true and interactive=true):
-
-    {
-        "fds": {
-            "0": "f5b6c760c0aa37a6430dd2a00c456430282d89f6e1661a077a926ed1bf3d1c21",
-            "control": "20c479d9532ab6d6c3060f6cdca07c1f177647c9d96f0c143ab61874160bd8a5"
-        }
-    }
-
-When the exec command finishes, its exit status is available from the
-operation's metadata:
-
-    {
-        "return": 0
-    }
-
-## /1.0/containers/\<name\>/logs
-### GET
-* Description: Returns a list of the log files available for this container.
-  Note that this works on containers that have been deleted (or were never
-  created) to enable people to get logs for failed creations.
-* Authentication: trusted
-* Operation: Sync
-* Return: a list of the available log files
-
-Return:
-
-    [
-        "/1.0/containers/blah/logs/forkstart.log",
-        "/1.0/containers/blah/logs/lxc.conf",
-        "/1.0/containers/blah/logs/lxc.log"
-    ]
-
-## /1.0/containers/\<name\>/logs/\<logfile\>
-### GET
-* Description: returns the contents of a particular log file.
-* Authentication: trusted
-* Operation: N/A
-* Return: the contents of the log file
-
-### DELETE
-* Description: delete a particular log file.
-* Authentication: trusted
-* Operation: Sync
-* Return: empty response or standard error
 
 ## /1.0/events
 This URL isn't a real REST API endpoint, instead doing a GET query on it
