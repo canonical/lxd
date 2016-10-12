@@ -3679,6 +3679,12 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	return 0, nil
 }
 
+func (c *containerLXC) ExecNoWait(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, pidPipe *os.File) (*exec.Cmd, error) {
+	_, cmd := c.prepareExec(false, command, env, stdin, stdout, stderr)
+	cmd.ExtraFiles = []*os.File{pidPipe}
+	return cmd, nil
+}
+
 func (c *containerLXC) cpuState() shared.ContainerStateCPU {
 	cpu := shared.ContainerStateCPU{}
 
