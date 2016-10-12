@@ -1210,19 +1210,6 @@ Output:
         "uploaded_at": "2016-02-16T00:44:47Z"
     }
 
-### DELETE
- * Description: Remove an image
- * Authentication: trusted
- * Operation: async
- * Return: background operaton or standard error
-
-Input (none at present):
-
-    {
-    }
-
-HTTP code for this should be 202 (Accepted).
-
 ### PUT
  * Description: Updates the image properties
  * Authentication: trusted
@@ -1241,6 +1228,19 @@ Input:
         },
         "public": true,
     }
+
+### DELETE
+ * Description: Remove an image
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operaton or standard error
+
+Input (none at present):
+
+    {
+    }
+
+HTTP code for this should be 202 (Accepted).
 
 ## /1.0/images/\<fingerprint\>/export
 ### GET (optional ?secret=SECRET)
