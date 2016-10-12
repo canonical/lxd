@@ -1278,19 +1278,6 @@ Output:
         "uploaded_at": "2016-02-16T00:44:47Z"
     }
 
-### DELETE
- * Description: Remove an image
- * Authentication: trusted
- * Operation: async
- * Return: background operaton or standard error
-
-Input (none at present):
-
-    {
-    }
-
-HTTP code for this should be 202 (Accepted).
-
 ### PUT (ETag supported)
  * Description: Replaces the image properties, update information and visibility
  * Authentication: trusted
@@ -1326,6 +1313,19 @@ Input:
         },
         "public": true,
     }
+
+### DELETE
+ * Description: Remove an image
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operaton or standard error
+
+Input (none at present):
+
+    {
+    }
+
+HTTP code for this should be 202 (Accepted).
 
 ## /1.0/images/\<fingerprint\>/export
 ### GET (optional ?secret=SECRET)
@@ -1509,25 +1509,6 @@ Input:
         ]
     }
 
-### POST
- * Description: rename a network
- * Introduced: with API extension "network"
- * Authentication: trusted
- * Operation: sync
- * Return: standard return value or standard error
-
-Input (rename a network):
-
-    {
-        "name": "new-name"
-    }
-
-
-HTTP return value must be 204 (No content) and Location must point to
-the renamed resource.
-
-Renaming to an existing name must return the 409 (Conflict) HTTP code.
-
 ### PUT (ETag supported)
  * Description: replace the network information
  * Introduced: with API extension "network"
@@ -1563,6 +1544,23 @@ Input:
         }
     }
 
+### POST
+ * Description: rename a network
+ * Introduced: with API extension "network"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (rename a network):
+
+    {
+        "name": "new-name"
+    }
+
+HTTP return value must be 204 (No content) and Location must point to
+the renamed resource.
+
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
 
 ### DELETE
  * Description: remove a network
