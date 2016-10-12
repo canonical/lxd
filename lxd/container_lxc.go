@@ -1751,12 +1751,14 @@ func (c *containerLXC) Freeze() error {
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
+		ctxMap["err"] = err
 		shared.LogError("Failed freezing container", ctxMap)
 		return err
 	}
 
 	err = c.c.Freeze()
 	if err != nil {
+		ctxMap["err"] = err
 		shared.LogError("Failed freezing container", ctxMap)
 		return err
 	}
