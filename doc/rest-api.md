@@ -692,170 +692,68 @@ Input (none at present):
 
 HTTP code for this should be 202 (Accepted).
 
-## /1.0/containers/\<name\>/state
-### GET
- * Description: current state
+## /1.0/containers/\<name\>/exec
+### POST
+ * Description: run a remote command
  * Authentication: trusted
- * Operation: sync
- * Return: dict representing current state
+ * Operation: async
+ * Return: background operation + optional websocket information or standard error
 
-Output:
+Input (run bash):
 
     {
-        "type": "sync",
-        "status": "Success",
-        "status_code": 200,
-        "metadata": {
-            "status": "Running",
-            "status_code": 103,
-	    "cpu": {
-	        "usage": 4986019722
-	    },
-            "disk": {
-                "root": {
-                    "usage": 422330368
-                }
-            },
-            "memory": {
-                "usage": 51126272,
-                "usage_peak": 70246400,
-                "swap_usage": 0,
-                "swap_usage_peak": 0
-            },
-            "network": {
-                "eth0": {
-                    "addresses": [
-                        {
-                            "family": "inet",
-                            "address": "10.0.3.27",
-                            "netmask": "24",
-                            "scope": "global"
-                        },
-                        {
-                            "family": "inet6",
-                            "address": "fe80::216:3eff:feec:65a8",
-                            "netmask": "64",
-                            "scope": "link"
-                        }
-                    ],
-                    "counters": {
-                        "bytes_received": 33942,
-                        "bytes_sent": 30810,
-                        "packets_received": 402,
-                        "packets_sent": 178
-                    },
-                    "hwaddr": "00:16:3e:ec:65:a8",
-                    "host_name": "vethBWTSU5",
-                    "mtu": 1500,
-                    "state": "up",
-                    "type": "broadcast"
-                },
-                "lo": {
-                    "addresses": [
-                        {
-                            "family": "inet",
-                            "address": "127.0.0.1",
-                            "netmask": "8",
-                            "scope": "local"
-                        },
-                        {
-                            "family": "inet6",
-                            "address": "::1",
-                            "netmask": "128",
-                            "scope": "local"
-                        }
-                    ],
-                    "counters": {
-                        "bytes_received": 86816,
-                        "bytes_sent": 86816,
-                        "packets_received": 1226,
-                        "packets_sent": 1226
-                    },
-                    "hwaddr": "",
-                    "host_name": "",
-                    "mtu": 65536,
-                    "state": "up",
-                    "type": "loopback"
-                },
-                "lxdbr0": {
-                    "addresses": [
-                        {
-                            "family": "inet",
-                            "address": "10.0.3.1",
-                            "netmask": "24",
-                            "scope": "global"
-                        },
-                        {
-                            "family": "inet6",
-                            "address": "fe80::68d4:87ff:fe40:7769",
-                            "netmask": "64",
-                            "scope": "link"
-                        }
-                    ],
-                    "counters": {
-                        "bytes_received": 0,
-                        "bytes_sent": 570,
-                        "packets_received": 0,
-                        "packets_sent": 7
-                    },
-                    "hwaddr": "6a:d4:87:40:77:69",
-                    "host_name": "",
-                    "mtu": 1500,
-                    "state": "up",
-                    "type": "broadcast"
-               },
-               "zt0": {
-                    "addresses": [
-                        {
-                            "family": "inet",
-                            "address": "29.17.181.59",
-                            "netmask": "7",
-                            "scope": "global"
-                        },
-                        {
-                            "family": "inet6",
-                            "address": "fd80:56c2:e21c:0:199:9379:e711:b3e1",
-                            "netmask": "88",
-                            "scope": "global"
-                        },
-                        {
-                            "family": "inet6",
-                            "address": "fe80::79:e7ff:fe0d:5123",
-                            "netmask": "64",
-                            "scope": "link"
-                        }
-                    ],
-                    "counters": {
-                        "bytes_received": 0,
-                        "bytes_sent": 806,
-                        "packets_received": 0,
-                        "packets_sent": 9
-                    },
-                    "hwaddr": "02:79:e7:0d:51:23",
-                    "host_name": "",
-                    "mtu": 2800,
-                    "state": "up",
-                    "type": "broadcast"
-                }
-            },
-            "pid": 13663,
-            "processes": 32
+        "command": ["/bin/bash"],       # Command and arguments
+        "environment": {},              # Optional extra environment variables to set
+        "wait-for-websocket": false,    # Whether to wait for a connection before starting the process
+        "record-output": false,         # Whether to store stdout and stderr (only valid with wait-for-websocket set to false)
+        "interactive": true,            # Whether to allocate a pts device instead of PIPEs
+        "width": 80,                    # Initial width of the terminal (optional)
+        "height": 25,                   # Initial height of the terminal (optional)
+    }
+
+`wait-for-websocket` indicates whether the operation should block and wait for
+a websocket connection to start (so that users can pass stdin and read
+stdout), or start immediately.
+
+If starting immediately, /dev/null will be used for stdin, stdout and
+stderr. That's unless record-output is set to true, in which case,
+stdout and stderr will be redirected to a log file.
+
+If interactive is set to true, a single websocket is returned and is mapped to a
+pts device for stdin, stdout and stderr of the execed process.
+
+If interactive is set to false (default), three pipes will be setup, one
+for each of stdin, stdout and stderr.
+
+Depending on the state of the interactive flag, one or three different
+websocket/secret pairs will be returned, which are valid for connecting to this
+operations /websocket endpoint.
+
+Return (with wait-for-websocket=true and interactive=false):
+
+    {
+        "fds": {
+            "0": "f5b6c760c0aa37a6430dd2a00c456430282d89f6e1661a077a926ed1bf3d1c21",
+            "1": "464dcf9f8fdce29d0d6478284523a9f26f4a31ae365d94cd38bac41558b797cf",
+            "2": "25b70415b686360e3b03131e33d6d94ee85a7f19b0f8d141d6dca5a1fc7b00eb",
+            "control": "20c479d9532ab6d6c3060f6cdca07c1f177647c9d96f0c143ab61874160bd8a5"
         }
     }
 
-### PUT
- * Description: change the container state
- * Authentication: trusted
- * Operation: async
- * Return: background operation or standard error
-
-Input:
+Return (with wait-for-websocket=true and interactive=true):
 
     {
-        "action": "stop",       # State change action (stop, start, restart, freeze or unfreeze)
-        "timeout": 30,          # A timeout after which the state change is considered as failed
-        "force": true,          # Force the state change (currently only valid for stop and restart where it means killing the container)
-        "stateful": true        # Whether to store or restore runtime state before stopping or startiong (only valid for stop and start, defaults to false)
+        "fds": {
+            "0": "f5b6c760c0aa37a6430dd2a00c456430282d89f6e1661a077a926ed1bf3d1c21",
+            "control": "20c479d9532ab6d6c3060f6cdca07c1f177647c9d96f0c143ab61874160bd8a5"
+        }
+    }
+
+When the exec command finishes, its exit status is available from the
+operation's metadata:
+
+    {
+        "return": 0
     }
 
 ## /1.0/containers/\<name\>/files
@@ -1015,68 +913,170 @@ Input (none at present):
 
 HTTP code for this should be 202 (Accepted).
 
-## /1.0/containers/\<name\>/exec
-### POST
- * Description: run a remote command
+## /1.0/containers/\<name\>/state
+### GET
+ * Description: current state
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing current state
+
+Output:
+
+    {
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "metadata": {
+            "status": "Running",
+            "status_code": 103,
+            "cpu": {
+                "usage": 4986019722
+            },
+            "disk": {
+                "root": {
+                    "usage": 422330368
+                }
+            },
+            "memory": {
+                "usage": 51126272,
+                "usage_peak": 70246400,
+                "swap_usage": 0,
+                "swap_usage_peak": 0
+            },
+            "network": {
+                "eth0": {
+                    "addresses": [
+                        {
+                            "family": "inet",
+                            "address": "10.0.3.27",
+                            "netmask": "24",
+                            "scope": "global"
+                        },
+                        {
+                            "family": "inet6",
+                            "address": "fe80::216:3eff:feec:65a8",
+                            "netmask": "64",
+                            "scope": "link"
+                        }
+                    ],
+                    "counters": {
+                        "bytes_received": 33942,
+                        "bytes_sent": 30810,
+                        "packets_received": 402,
+                        "packets_sent": 178
+                    },
+                    "hwaddr": "00:16:3e:ec:65:a8",
+                    "host_name": "vethBWTSU5",
+                    "mtu": 1500,
+                    "state": "up",
+                    "type": "broadcast"
+                },
+                "lo": {
+                    "addresses": [
+                        {
+                            "family": "inet",
+                            "address": "127.0.0.1",
+                            "netmask": "8",
+                            "scope": "local"
+                        },
+                        {
+                            "family": "inet6",
+                            "address": "::1",
+                            "netmask": "128",
+                            "scope": "local"
+                        }
+                    ],
+                    "counters": {
+                        "bytes_received": 86816,
+                        "bytes_sent": 86816,
+                        "packets_received": 1226,
+                        "packets_sent": 1226
+                    },
+                    "hwaddr": "",
+                    "host_name": "",
+                    "mtu": 65536,
+                    "state": "up",
+                    "type": "loopback"
+                },
+                "lxdbr0": {
+                    "addresses": [
+                        {
+                            "family": "inet",
+                            "address": "10.0.3.1",
+                            "netmask": "24",
+                            "scope": "global"
+                        },
+                        {
+                            "family": "inet6",
+                            "address": "fe80::68d4:87ff:fe40:7769",
+                            "netmask": "64",
+                            "scope": "link"
+                        }
+                    ],
+                    "counters": {
+                        "bytes_received": 0,
+                        "bytes_sent": 570,
+                        "packets_received": 0,
+                        "packets_sent": 7
+                    },
+                    "hwaddr": "6a:d4:87:40:77:69",
+                    "host_name": "",
+                    "mtu": 1500,
+                    "state": "up",
+                    "type": "broadcast"
+               },
+               "zt0": {
+                    "addresses": [
+                        {
+                            "family": "inet",
+                            "address": "29.17.181.59",
+                            "netmask": "7",
+                            "scope": "global"
+                        },
+                        {
+                            "family": "inet6",
+                            "address": "fd80:56c2:e21c:0:199:9379:e711:b3e1",
+                            "netmask": "88",
+                            "scope": "global"
+                        },
+                        {
+                            "family": "inet6",
+                            "address": "fe80::79:e7ff:fe0d:5123",
+                            "netmask": "64",
+                            "scope": "link"
+                        }
+                    ],
+                    "counters": {
+                        "bytes_received": 0,
+                        "bytes_sent": 806,
+                        "packets_received": 0,
+                        "packets_sent": 9
+                    },
+                    "hwaddr": "02:79:e7:0d:51:23",
+                    "host_name": "",
+                    "mtu": 2800,
+                    "state": "up",
+                    "type": "broadcast"
+                }
+            },
+            "pid": 13663,
+            "processes": 32
+        }
+    }
+
+### PUT
+ * Description: change the container state
  * Authentication: trusted
  * Operation: async
- * Return: background operation + optional websocket information or standard error
+ * Return: background operation or standard error
 
-Input (run bash):
-
-    {
-        "command": ["/bin/bash"],       # Command and arguments
-        "environment": {},              # Optional extra environment variables to set
-        "wait-for-websocket": false,    # Whether to wait for a connection before starting the process
-        "record-output": false,         # Whether to store stdout and stderr (only valid with wait-for-websocket set to false)
-        "interactive": true,            # Whether to allocate a pts device instead of PIPEs
-        "width": 80,                    # Initial width of the terminal (optional)
-        "height": 25,                   # Initial height of the terminal (optional)
-    }
-
-`wait-for-websocket` indicates whether the operation should block and wait for
-a websocket connection to start (so that users can pass stdin and read
-stdout), or start immediately.
-
-If starting immediately, /dev/null will be used for stdin, stdout and
-stderr. That's unless record-output is set to true, in which case,
-stdout and stderr will be redirected to a log file.
-
-If interactive is set to true, a single websocket is returned and is mapped to a
-pts device for stdin, stdout and stderr of the execed process.
-
-If interactive is set to false (default), three pipes will be setup, one
-for each of stdin, stdout and stderr.
-
-Depending on the state of the interactive flag, one or three different
-websocket/secret pairs will be returned, which are valid for connecting to this
-operations /websocket endpoint.
-
-Return (with wait-for-websocket=true and interactive=false):
+Input:
 
     {
-        "fds": {
-            "0": "f5b6c760c0aa37a6430dd2a00c456430282d89f6e1661a077a926ed1bf3d1c21",
-            "1": "464dcf9f8fdce29d0d6478284523a9f26f4a31ae365d94cd38bac41558b797cf",
-            "2": "25b70415b686360e3b03131e33d6d94ee85a7f19b0f8d141d6dca5a1fc7b00eb",
-            "control": "20c479d9532ab6d6c3060f6cdca07c1f177647c9d96f0c143ab61874160bd8a5"
-        }
-    }
-
-Return (with wait-for-websocket=true and interactive=true):
-
-    {
-        "fds": {
-            "0": "f5b6c760c0aa37a6430dd2a00c456430282d89f6e1661a077a926ed1bf3d1c21",
-            "control": "20c479d9532ab6d6c3060f6cdca07c1f177647c9d96f0c143ab61874160bd8a5"
-        }
-    }
-
-When the exec command finishes, its exit status is available from the
-operation's metadata:
-
-    {
-        "return": 0
+        "action": "stop",       # State change action (stop, start, restart, freeze or unfreeze)
+        "timeout": 30,          # A timeout after which the state change is considered as failed
+        "force": true,          # Force the state change (currently only valid for stop and restart where it means killing the container)
+        "stateful": true        # Whether to store or restore runtime state before stopping or startiong (only valid for stop and start, defaults to false)
     }
 
 ## /1.0/containers/\<name\>/logs
@@ -1278,19 +1278,6 @@ Output:
         "uploaded_at": "2016-02-16T00:44:47Z"
     }
 
-### DELETE
- * Description: Remove an image
- * Authentication: trusted
- * Operation: async
- * Return: background operaton or standard error
-
-Input (none at present):
-
-    {
-    }
-
-HTTP code for this should be 202 (Accepted).
-
 ### PUT (ETag supported)
  * Description: Replaces the image properties, update information and visibility
  * Authentication: trusted
@@ -1326,6 +1313,19 @@ Input:
         },
         "public": true,
     }
+
+### DELETE
+ * Description: Remove an image
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operaton or standard error
+
+Input (none at present):
+
+    {
+    }
+
+HTTP code for this should be 202 (Accepted).
 
 ## /1.0/images/\<fingerprint\>/export
 ### GET (optional ?secret=SECRET)
@@ -1509,25 +1509,6 @@ Input:
         ]
     }
 
-### POST
- * Description: rename a network
- * Introduced: with API extension "network"
- * Authentication: trusted
- * Operation: sync
- * Return: standard return value or standard error
-
-Input (rename a network):
-
-    {
-        "name": "new-name"
-    }
-
-
-HTTP return value must be 204 (No content) and Location must point to
-the renamed resource.
-
-Renaming to an existing name must return the 409 (Conflict) HTTP code.
-
 ### PUT (ETag supported)
  * Description: replace the network information
  * Introduced: with API extension "network"
@@ -1563,6 +1544,23 @@ Input:
         }
     }
 
+### POST
+ * Description: rename a network
+ * Introduced: with API extension "network"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (rename a network):
+
+    {
+        "name": "new-name"
+    }
+
+HTTP return value must be 204 (No content) and Location must point to
+the renamed resource.
+
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
 
 ### DELETE
  * Description: remove a network
