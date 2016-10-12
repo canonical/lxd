@@ -6,10 +6,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -216,33 +218,76 @@ func (s *execWs) Do(op *operation) error {
 		}
 	}
 
-	cmdResult, cmdErr := s.container.Exec(s.command, s.env, stdin, stdout, stderr)
-
-	for _, tty := range ttys {
-		tty.Close()
-	}
-
-	if s.conns[-1] == nil {
-		if s.interactive {
-			controlExit <- true
+	finisher := func(cmdResult int, cmdErr error) error {
+		for _, tty := range ttys {
+			tty.Close()
 		}
-	} else {
-		s.conns[-1].Close()
+
+		if s.conns[-1] == nil {
+			if s.interactive {
+				controlExit <- true
+			}
+		} else {
+			s.conns[-1].Close()
+		}
+
+		wgEOF.Wait()
+
+		for _, pty := range ptys {
+			pty.Close()
+		}
+
+		metadata := shared.Jmap{"return": cmdResult}
+		err = op.UpdateMetadata(metadata)
+		if err != nil {
+			return err
+		}
+
+		return cmdErr
 	}
 
-	wgEOF.Wait()
-
-	for _, pty := range ptys {
-		pty.Close()
-	}
-
-	metadata := shared.Jmap{"return": cmdResult}
-	err = op.UpdateMetadata(metadata)
+	r, w, err := shared.Pipe()
+	defer r.Close()
 	if err != nil {
+		shared.LogErrorf("s", err)
 		return err
 	}
 
-	return cmdErr
+	cmd, err := s.container.ExecNoWait(s.command, s.env, stdin, stdout, stderr, w)
+	if err != nil {
+		w.Close()
+		return err
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		w.Close()
+		return err
+	}
+	w.Close()
+
+	attachedPid := -1
+	if err := json.NewDecoder(r).Decode(&attachedPid); err != nil {
+		shared.LogErrorf("Failed to retrieve PID of executing child process: %s", err)
+		return finisher(-1, err)
+	}
+
+	if s.interactive {
+		receivePid <- attachedPid
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		exitErr, ok := err.(*exec.ExitError)
+		if ok {
+			status, ok := exitErr.Sys().(syscall.WaitStatus)
+			if ok {
+				return finisher(status.ExitStatus(), nil)
+			}
+		}
+	}
+
+	return finisher(0, nil)
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
