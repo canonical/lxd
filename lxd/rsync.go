@@ -198,22 +198,14 @@ func Netcat(args []string) error {
 
 	go func() {
 		io.Copy(os.Stdout, conn)
-		f, _ := os.Create("/tmp/done_stdout")
-		f.Close()
 		conn.Close()
-		f, _ = os.Create("/tmp/done_close")
-		f.Close()
 		wg.Done()
 	}()
 
 	go func() {
 		io.Copy(conn, os.Stdin)
-		f, _ := os.Create("/tmp/done_stdin")
-		f.Close()
 	}()
 
-	f, _ := os.Create("/tmp/done_spawning_goroutines")
-	f.Close()
 	wg.Wait()
 
 	return nil
