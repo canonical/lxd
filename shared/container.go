@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -60,6 +61,7 @@ type ContainerStateNetworkCounters struct {
 type ContainerExecControl struct {
 	Command string            `json:"command"`
 	Args    map[string]string `json:"args"`
+	Signal  syscall.Signal    `json:"signal"`
 }
 
 type SnapshotInfo struct {
