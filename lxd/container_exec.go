@@ -137,11 +137,13 @@ func (s *execWs) Do(op *operation) error {
 	}
 
 	controlExit := make(chan bool)
+	receivePid := make(chan int)
 	var wgEOF sync.WaitGroup
 
 	if s.interactive {
 		wgEOF.Add(1)
 		go func() {
+			receivedPid := <-receivePid
 			select {
 			case <-s.controlConnected:
 				break
@@ -192,6 +194,12 @@ func (s *execWs) Do(op *operation) error {
 						shared.LogDebugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
 						continue
 					}
+				} else if command.Command == "signal" {
+					if err := syscall.Kill(receivedPid, command.Signal); err != nil {
+						shared.LogDebugf("Failed forwarding signal '%s' to PID %d.", command.Signal, receivedPid)
+						continue
+					}
+					shared.LogDebugf("Forwarded signal '%s' to PID %d.", command.Signal, receivedPid)
 				}
 			}
 		}()
