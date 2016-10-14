@@ -1753,6 +1753,12 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 }
 
 func (c *containerLXC) OnStop(target string) error {
+	// Validate target
+	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
+		shared.LogError("Container sent invalid target to OnStop", log.Ctx{"container": c.Name(), "target": target})
+		return fmt.Errorf("Invalid stop target: %s", target)
+	}
+
 	// Get operation
 	op, _ := c.getOperation("")
 	if op != nil && !shared.StringInSlice(op.action, []string{"stop", "shutdown"}) {
@@ -1772,79 +1778,58 @@ func (c *containerLXC) OnStop(target string) error {
 		return err
 	}
 
-	// Unload the apparmor profile
-	if err := AADestroy(c); err != nil {
-		shared.LogError("failed to destroy apparmor namespace", log.Ctx{"container": c.Name(), "err": err})
+	// Log user actions
+	if op == nil {
+		ctxMap := log.Ctx{"name": c.name,
+			"action":    target,
+			"created":   c.creationDate,
+			"ephemeral": c.ephemeral,
+			"used":      c.lastUsedDate,
+			"stateful":  false}
+
+		shared.LogInfo(fmt.Sprintf("Container initiated %s", target), ctxMap)
 	}
 
-	// FIXME: The go routine can go away once we can rely on LXC_TARGET
 	go func(c *containerLXC, target string, op *lxcContainerOperation) {
 		c.fromHook = false
+		err = nil
 
 		// Unlock on return
 		if op != nil {
-			defer op.Done(nil)
+			defer op.Done(err)
 		}
 
-		if target == "unknown" && op != nil {
-			target = "stop"
-		}
+		// Wait for other post-stop actions to be done
+		c.IsRunning()
 
-		if target == "unknown" {
-			time.Sleep(5 * time.Second)
-
-			newContainer, err := containerLoadByName(c.daemon, c.Name())
-			if err != nil {
-				return
-			}
-
-			if newContainer.Id() != c.id {
-				return
-			}
-
-			if newContainer.IsRunning() {
-				return
-			}
+		// Unload the apparmor profile
+		err = AADestroy(c)
+		if err != nil {
+			shared.LogError("Failed to destroy apparmor namespace", log.Ctx{"container": c.Name(), "err": err})
 		}
 
 		// Clean all the unix devices
 		err = c.removeUnixDevices()
 		if err != nil {
-			shared.LogError("Unable to remove unix devices", log.Ctx{"err": err})
+			shared.LogError("Unable to remove unix devices", log.Ctx{"container": c.Name(), "err": err})
 		}
 
 		// Clean all the disk devices
 		err = c.removeDiskDevices()
 		if err != nil {
-			shared.LogError("Unable to remove disk devices", log.Ctx{"err": err})
+			shared.LogError("Unable to remove disk devices", log.Ctx{"container": c.Name(), "err": err})
 		}
 
 		// Clean all network filters
 		err = c.removeNetworkFilters()
 		if err != nil {
-			shared.LogError("Unable to remove network filters", log.Ctx{"err": err})
+			shared.LogError("Unable to remove network filters", log.Ctx{"container": c.Name(), "err": err})
 		}
 
 		// Reboot the container
 		if target == "reboot" {
-
-			/* This part is a hack to workaround a LXC bug where a
-			   failure from a post-stop script doesn't prevent the container to restart. */
-			ephemeral := c.ephemeral
-			args := containerArgs{
-				Architecture: c.Architecture(),
-				Config:       c.LocalConfig(),
-				Devices:      c.LocalDevices(),
-				Ephemeral:    false,
-				Profiles:     c.Profiles(),
-			}
-			c.Update(args, false)
-			c.Stop(false)
-			args.Ephemeral = ephemeral
-			c.Update(args, true)
-
 			// Start the container again
-			c.Start(false)
+			err = c.Start(false)
 			return
 		}
 
@@ -1854,12 +1839,12 @@ func (c *containerLXC) OnStop(target string) error {
 		// Record current state
 		err = dbContainerSetState(c.daemon.db, c.id, "STOPPED")
 		if err != nil {
-			return
+			shared.LogError("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 		}
 
 		// Destroy ephemeral containers
 		if c.ephemeral {
-			c.Delete()
+			err = c.Delete()
 		}
 	}(c, target, op)
 
