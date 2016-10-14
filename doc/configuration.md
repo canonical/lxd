@@ -310,8 +310,8 @@ currently supported:
  - raw (raw configuration file content)
  - user (free form key/value for user metadata)
 
-It is expected that IP addresses and subnets are given using CIDR notation (1.1.1.1/24 or fd80:1234::1/64).
-The exception being tunnel local and remote addresses which are just plain addresses (1.1.1.1 or fd80:1234::1).
+It is expected that IP addresses and subnets are given using CIDR notation (`1.1.1.1/24` or `fd80:1234::1/64`).
+The exception being tunnel local and remote addresses which are just plain addresses (`1.1.1.1` or `fd80:1234::1`).
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
