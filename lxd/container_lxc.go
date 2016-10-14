@@ -1792,10 +1792,11 @@ func (c *containerLXC) OnStop(target string) error {
 
 	go func(c *containerLXC, target string, op *lxcContainerOperation) {
 		c.fromHook = false
+		err = nil
 
 		// Unlock on return
 		if op != nil {
-			defer op.Done(nil)
+			defer op.Done(err)
 		}
 
 		// Wait for other post-stop actions to be done
@@ -1828,7 +1829,7 @@ func (c *containerLXC) OnStop(target string) error {
 		// Reboot the container
 		if target == "reboot" {
 			// Start the container again
-			c.Start(false)
+			err = c.Start(false)
 			return
 		}
 
@@ -1836,11 +1837,14 @@ func (c *containerLXC) OnStop(target string) error {
 		deviceTaskSchedulerTrigger("container", c.name, "stopped")
 
 		// Record current state
-		dbContainerSetState(c.daemon.db, c.id, "STOPPED")
+		err = dbContainerSetState(c.daemon.db, c.id, "STOPPED")
+		if err != nil {
+			shared.LogError("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
+		}
 
 		// Destroy ephemeral containers
 		if c.ephemeral {
-			c.Delete()
+			err = c.Delete()
 		}
 	}(c, target, op)
 
