@@ -26,6 +26,7 @@ import (
 type CertInfo struct {
 	Certificate string `json:"certificate"`
 	Fingerprint string `json:"fingerprint"`
+	Name        string `json:"name"`
 	Type        string `json:"type"`
 }
 

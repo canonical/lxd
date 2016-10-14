@@ -189,6 +189,7 @@ func doCertificateGet(d *Daemon, fingerprint string) (shared.CertInfo, error) {
 
 	resp.Fingerprint = dbCertInfo.Fingerprint
 	resp.Certificate = dbCertInfo.Certificate
+	resp.Name = dbCertInfo.Name
 	if dbCertInfo.Type == 1 {
 		resp.Type = "client"
 	} else {
