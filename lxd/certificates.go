@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -168,7 +169,7 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponse(true, cert)
+	return SyncResponseETag(true, cert, cert)
 }
 
 func doCertificateGet(d *Daemon, fingerprint string) (shared.CertInfo, error) {
@@ -181,6 +182,7 @@ func doCertificateGet(d *Daemon, fingerprint string) (shared.CertInfo, error) {
 
 	resp.Fingerprint = dbCertInfo.Fingerprint
 	resp.Certificate = dbCertInfo.Certificate
+	resp.Name = dbCertInfo.Name
 	if dbCertInfo.Type == 1 {
 		resp.Type = "client"
 	} else {
@@ -188,6 +190,76 @@ func doCertificateGet(d *Daemon, fingerprint string) (shared.CertInfo, error) {
 	}
 
 	return resp, nil
+}
+
+func certificateFingerprintPut(d *Daemon, r *http.Request) Response {
+	fingerprint := mux.Vars(r)["fingerprint"]
+
+	oldEntry, err := doCertificateGet(d, fingerprint)
+	if err != nil {
+		return SmartError(err)
+	}
+	fingerprint = oldEntry.Fingerprint
+
+	err = etagCheck(r, oldEntry)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
+
+	req := shared.CertInfo{}
+	if err := shared.ReadToJSON(r.Body, &req); err != nil {
+		return BadRequest(err)
+	}
+
+	return doCertificateUpdate(d, fingerprint, req)
+}
+
+func certificateFingerprintPatch(d *Daemon, r *http.Request) Response {
+	fingerprint := mux.Vars(r)["fingerprint"]
+
+	oldEntry, err := doCertificateGet(d, fingerprint)
+	if err != nil {
+		return SmartError(err)
+	}
+	fingerprint = oldEntry.Fingerprint
+
+	err = etagCheck(r, oldEntry)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
+
+	req := oldEntry
+	reqRaw := shared.Jmap{}
+	if err := json.NewDecoder(r.Body).Decode(&reqRaw); err != nil {
+		return BadRequest(err)
+	}
+
+	// Get name
+	value, err := reqRaw.GetString("name")
+	if err == nil {
+		req.Name = value
+	}
+
+	// Get type
+	value, err = reqRaw.GetString("type")
+	if err == nil {
+		req.Type = value
+	}
+
+	return doCertificateUpdate(d, fingerprint, req)
+}
+
+func doCertificateUpdate(d *Daemon, fingerprint string, req shared.CertInfo) Response {
+	if req.Type != "client" {
+		return BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
+	}
+
+	err := dbCertUpdate(d.db, fingerprint, req.Name, 1)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return EmptySyncResponse
 }
 
 func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
@@ -207,4 +279,4 @@ func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var certificateFingerprintCmd = Command{name: "certificates/{fingerprint}", get: certificateFingerprintGet, delete: certificateFingerprintDelete}
+var certificateFingerprintCmd = Command{name: "certificates/{fingerprint}", get: certificateFingerprintGet, delete: certificateFingerprintDelete, put: certificateFingerprintPut, patch: certificateFingerprintPatch}
