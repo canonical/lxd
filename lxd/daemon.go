@@ -748,6 +748,9 @@ func (d *Daemon) Init() error {
 	d.lxcpath = shared.VarPath("containers")
 
 	/* Make sure all our directories are available */
+	if err := os.MkdirAll(shared.CachePath(), 0700); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(shared.VarPath("containers"), 0711); err != nil {
 		return err
 	}
@@ -818,6 +821,12 @@ func (d *Daemon) Init() error {
 
 		/* Setup the networks */
 		err = networkStartup(d)
+		if err != nil {
+			return err
+		}
+
+		/* Restore simplestreams cache */
+		err = imageLoadStreamCache(d)
 		if err != nil {
 			return err
 		}
@@ -1165,6 +1174,10 @@ func (d *Daemon) Stop() error {
 	shared.LogInfof("Stopping /dev/lxd handler")
 	d.devlxd.Close()
 	shared.LogInfof("Stopped /dev/lxd handler")
+
+	shared.LogInfof("Saving simplestreams cache")
+	imageSaveStreamCache()
+	shared.LogInfof("Saved simplestreams cache")
 
 	if d.MockMode || forceStop {
 		return nil

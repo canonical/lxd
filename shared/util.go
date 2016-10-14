@@ -93,6 +93,19 @@ func VarPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
+// CachePath returns the directory that LXD should its cache under. If LXD_DIR is
+// set, this path is $LXD_DIR/cache, otherwise it is /var/cache/lxd.
+func CachePath(path ...string) string {
+	varDir := os.Getenv("LXD_DIR")
+	logDir := "/var/cache/lxd"
+	if varDir != "" {
+		logDir = filepath.Join(varDir, "cache")
+	}
+	items := []string{logDir}
+	items = append(items, path...)
+	return filepath.Join(items...)
+}
+
 // LogPath returns the directory that LXD should put logs under. If LXD_DIR is
 // set, this path is $LXD_DIR/logs, otherwise it is /var/log/lxd.
 func LogPath(path ...string) string {
