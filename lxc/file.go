@@ -107,13 +107,13 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 			return fmt.Errorf(i18n.G("can't supply uid/gid/mode in recursive mode"))
 		}
 
-		for _, fname := range sourcefilenames {
-			if c.mkdirs {
-				if err := d.MkdirP(container, fname, mode); err != nil {
-					return err
-				}
+		if c.mkdirs {
+			if err := d.MkdirP(container, pathSpec[1], mode); err != nil {
+				return err
 			}
+		}
 
+		for _, fname := range sourcefilenames {
 			if err := d.RecursivePushFile(container, fname, pathSpec[1]); err != nil {
 				return err
 			}
