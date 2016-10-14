@@ -4,25 +4,78 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+// Simplestream cache
 type imageStreamCacheEntry struct {
-	ss     *shared.SimpleStreams
-	expiry time.Time
+	Aliases      shared.ImageAliases `yaml:"aliases"`
+	Fingerprints []string            `yaml:"fingerprints"`
+	expiry       time.Time
+	ss           *shared.SimpleStreams
 }
 
 var imageStreamCache = map[string]*imageStreamCacheEntry{}
 var imageStreamCacheLock sync.Mutex
+
+func imageSaveStreamCache() error {
+	data, err := yaml.Marshal(&imageStreamCache)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(shared.CachePath("simplestreams.yaml"), data, 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func imageLoadStreamCache(d *Daemon) error {
+	imageStreamCacheLock.Lock()
+	defer imageStreamCacheLock.Unlock()
+
+	if !shared.PathExists(shared.CachePath("simplestreams.yaml")) {
+		return nil
+	}
+
+	content, err := ioutil.ReadFile(shared.CachePath("simplestreams.yaml"))
+	if err != nil {
+		return err
+	}
+
+	err = yaml.Unmarshal(content, imageStreamCache)
+	if err != nil {
+		return err
+	}
+
+	for url, entry := range imageStreamCache {
+		if entry.ss == nil {
+			ss, err := shared.SimpleStreamsClient(url, d.proxy)
+			if err != nil {
+				return err
+			}
+
+			entry.ss = ss
+		}
+	}
+
+	return nil
+}
 
 // ImageDownload checks if we have that Image Fingerprint else
 // downloads the image from a remote server.
@@ -42,34 +95,79 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		imageStreamCacheLock.Lock()
 		entry, _ := imageStreamCache[server]
 		if entry == nil || entry.expiry.Before(time.Now()) {
-			ss, err = shared.SimpleStreamsClient(server, d.proxy)
-			if err != nil {
+			refresh := func() (*imageStreamCacheEntry, error) {
+				// Setup simplestreams client
+				ss, err = shared.SimpleStreamsClient(server, d.proxy)
+				if err != nil {
+					return nil, err
+				}
+
+				// Get all aliases
+				aliases, err := ss.ListAliases()
+				if err != nil {
+					return nil, err
+				}
+
+				// Get all fingerprints
+				images, err := ss.ListImages()
+				if err != nil {
+					return nil, err
+				}
+
+				fingerprints := []string{}
+				for _, image := range images {
+					fingerprints = append(fingerprints, image.Fingerprint)
+				}
+
+				// Generate cache entry
+				entry = &imageStreamCacheEntry{ss: ss, Aliases: aliases, Fingerprints: fingerprints, expiry: time.Now().Add(time.Hour)}
+				imageStreamCache[server] = entry
+				imageSaveStreamCache()
+
+				return entry, nil
+			}
+
+			newEntry, err := refresh()
+			if err == nil {
+				// Cache refreshed
+				entry = newEntry
+			} else if entry != nil {
+				// Failed to fetch entry but existing cache
+				shared.LogWarn("Unable to refresh cache, using stale entry", log.Ctx{"server": server})
+				entry.expiry = time.Now().Add(time.Hour)
+			} else {
+				// Failed to fetch entry and nothing in cache
 				imageStreamCacheLock.Unlock()
 				return "", err
 			}
-
-			entry = &imageStreamCacheEntry{ss: ss, expiry: time.Now().Add(time.Hour)}
-			imageStreamCache[server] = entry
 		} else {
-			shared.LogDebugf("Using SimpleStreams cache entry for %s, expires at %s", server, entry.expiry)
+			shared.LogDebug("Using SimpleStreams cache entry", log.Ctx{"server": server, "expiry": entry.expiry})
 			ss = entry.ss
 		}
 		imageStreamCacheLock.Unlock()
 
-		target := ss.GetAlias(fp)
-		if target != "" {
-			fp = target
+		// Expand aliases
+		for _, alias := range entry.Aliases {
+			if alias.Name != fp {
+				continue
+			}
+
+			fp = alias.Target
+			break
 		}
 
-		image, err := ss.GetImageInfo(fp)
-		if err != nil {
-			return "", err
-		}
+		// Expand fingerprint
+		for _, fingerprint := range entry.Fingerprints {
+			if !strings.HasPrefix(fingerprint, fp) {
+				continue
+			}
 
-		if fp == alias {
-			alias = image.Fingerprint
+			if fp == alias {
+				alias = fingerprint
+			}
+			fp = fingerprint
+			break
 		}
-		fp = image.Fingerprint
 	} else if protocol == "lxd" {
 		target, err := remoteGetImageFingerprint(d, server, certificate, fp)
 		if err == nil && target != "" {
