@@ -135,3 +135,9 @@ The URL to the recorded output is included in the operation metadata
 once the command is done running.
 
 That output will expire similarly to other log files, typically after 48 hours.
+
+## certificate\_update
+Adds the following to the REST API:
+ * ETag header on GET of a certificate
+ * PUT of certificate entries
+ * PATCH of certificate entries

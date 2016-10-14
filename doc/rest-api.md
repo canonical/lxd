@@ -330,6 +330,34 @@ Output:
         "fingerprint": "SHA256 Hash of the raw certificate"
     }
 
+### PUT (ETag supported)
+ * Description: Replaces the certificate properties
+ * Introduced: with API extension "certificate\_update"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "type": "client",
+        "name": "bar"
+    }
+
+### PATCH (ETag supported)
+ * Description: Updates the certificate properties
+ * Introduced: with API extension "certificate\_update"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "name": "baz"
+    }
+
+
 ### DELETE
  * Description: Remove a trusted certificate
  * Authentication: trusted

@@ -118,3 +118,20 @@ func dbCertDelete(db *sql.DB, fingerprint string) error {
 
 	return err
 }
+
+func dbCertUpdate(db *sql.DB, fingerprint string, certName string, certType int) error {
+	tx, err := dbBegin(db)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE certificates SET name=?, type=? WHERE fingerprint=?", certName, certType, fingerprint)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = txCommit(tx)
+
+	return err
+}
