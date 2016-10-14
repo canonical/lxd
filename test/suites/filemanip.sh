@@ -20,14 +20,14 @@ test_filemanip() {
   echo "foo" > "${TEST_DIR}"/source/foo
   echo "bar" > "${TEST_DIR}"/source/bar
 
-  lxc file push -r "${TEST_DIR}"/source filemanip/tmp
+  lxc file push -p -r "${TEST_DIR}"/source filemanip/tmp/ptest
 
-  [ "$(lxc exec filemanip -- stat -c "%u" /tmp/source)" = "$(id -u)" ]
-  [ "$(lxc exec filemanip -- stat -c "%g" /tmp/source)" = "$(id -g)" ]
-  [ "$(lxc exec filemanip -- stat -c "%a" /tmp/source)" = "755" ]
+  [ "$(lxc exec filemanip -- stat -c "%u" /tmp/ptest/source)" = "$(id -u)" ]
+  [ "$(lxc exec filemanip -- stat -c "%g" /tmp/ptest/source)" = "$(id -g)" ]
+  [ "$(lxc exec filemanip -- stat -c "%a" /tmp/ptest/source)" = "755" ]
 
   mkdir "${TEST_DIR}"/dest
-  lxc file pull -r filemanip/tmp/source "${TEST_DIR}"/dest
+  lxc file pull -r filemanip/tmp/ptest/source "${TEST_DIR}"/dest
 
   [ "$(cat "${TEST_DIR}"/dest/source/foo)" = "foo" ]
   [ "$(cat "${TEST_DIR}"/dest/source/bar)" = "bar" ]
