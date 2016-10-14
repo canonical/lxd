@@ -37,7 +37,7 @@ func (c *fileCmd) usage() string {
 		`Manage files on a container.
 
 lxc file pull [-r|--recursive] <source> [<source>...] <target>
-lxc file push [-r|--recursive] [-p|create-dirs] [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
+lxc file push [-r|--recursive] [-p|--create-dirs] [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
 lxc file edit <file>
 
 <source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>
