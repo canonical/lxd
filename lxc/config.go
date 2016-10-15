@@ -72,7 +72,7 @@ lxc config show [remote:][container] [--expanded]                           Show
 lxc config edit [remote:][container]                                        Edit container or server configuration in external editor.
     Edit configuration, either by launching external editor or reading STDIN.
     Example: lxc config edit <container> # launch editor
-             cat config.yml | lxc config edit <config> # read from config.yml
+             cat config.yaml | lxc config edit <config> # read from config.yaml
 
 lxc config trust list [remote]                                              List all trusted certs.
 lxc config trust add [remote] <certfile.crt>                                Add certfile.crt to trusted hosts.

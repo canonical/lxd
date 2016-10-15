@@ -58,7 +58,7 @@ lxc profile delete <profile>                   Delete a profile.
 lxc profile edit <profile>
     Edit profile, either by launching external editor or reading STDIN.
     Example: lxc profile edit <profile> # launch editor
-             cat profile.yml | lxc profile edit <profile> # read from profile.yml
+             cat profile.yaml | lxc profile edit <profile> # read from profile.yaml
 lxc profile apply <container> <profiles>
     Apply a comma-separated list of profiles to a container, in order.
     All profiles passed in this call (and only those) will be applied
