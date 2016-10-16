@@ -658,24 +658,21 @@ func (n *network) Start() error {
 	// Configure IPv4 firewall (includes fan)
 	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
 		// Setup basic iptables overrides
-		err = networkIptablesPrepend("ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "67", "-j", "ACCEPT")
-		if err != nil {
-			return err
-		}
+		rules := [][]string{
+			[]string{"ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "67", "-j", "ACCEPT"},
+			[]string{"ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "67", "-j", "ACCEPT"},
+			[]string{"ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
+			[]string{"ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
+			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "67", "-j", "ACCEPT"},
+			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "67", "-j", "ACCEPT"},
+			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
+			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
 
-		err = networkIptablesPrepend("ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "67", "-j", "ACCEPT")
-		if err != nil {
-			return err
-		}
-
-		err = networkIptablesPrepend("ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "53", "-j", "ACCEPT")
-		if err != nil {
-			return err
-		}
-
-		err = networkIptablesPrepend("ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT")
-		if err != nil {
-			return err
+		for _, rule := range rules {
+			err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Allow forwarding
@@ -808,24 +805,21 @@ func (n *network) Start() error {
 		}
 
 		// Setup basic iptables overrides
-		err = networkIptablesPrepend("ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "546", "-j", "ACCEPT")
-		if err != nil {
-			return err
-		}
+		rules := [][]string{
+			[]string{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "546", "-j", "ACCEPT"},
+			[]string{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "546", "-j", "ACCEPT"},
+			[]string{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
+			[]string{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
+			[]string{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "546", "-j", "ACCEPT"},
+			[]string{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "546", "-j", "ACCEPT"},
+			[]string{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
+			[]string{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
 
-		err = networkIptablesPrepend("ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "546", "-j", "ACCEPT")
-		if err != nil {
-			return err
-		}
-
-		err = networkIptablesPrepend("ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "53", "-j", "ACCEPT")
-		if err != nil {
-			return err
-		}
-
-		err = networkIptablesPrepend("ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT")
-		if err != nil {
-			return err
+		for _, rule := range rules {
+			err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Allow forwarding
