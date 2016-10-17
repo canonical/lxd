@@ -148,7 +148,7 @@ lxc image show [remote:]<image>
 lxc image edit [remote:]<image>
     Edit image, either by launching external editor or reading STDIN.
     Example: lxc image edit <image> # launch editor
-             cat image.yml | lxc image edit <image> # read from image.yml
+             cat image.yaml | lxc image edit <image> # read from image.yaml
 
 lxc image alias create [remote:]<alias> <fingerprint>
     Create a new alias for an existing image.

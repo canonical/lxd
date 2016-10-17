@@ -58,7 +58,7 @@ lxc network delete <network>                   Delete a network.
 lxc network edit <network>
     Edit network, either by launching external editor or reading STDIN.
     Example: lxc network edit <network> # launch editor
-             cat network.yml | lxc network edit <network> # read from network.yml
+             cat network.yaml | lxc network edit <network> # read from network.yaml
 
 lxc network attach <network> <container> [device name]
 lxc network attach-profile <network> <profile> [device name]
