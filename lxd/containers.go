@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -281,9 +282,13 @@ func execContainer(args []string) (int, error) {
 		return -1, fmt.Errorf("Bad arguments: %q", args)
 	}
 
-	name := args[1]
-	lxcpath := args[2]
-	configPath := args[3]
+	wait := true
+	if args[1] == "nowait" {
+		wait = false
+	}
+	name := args[2]
+	lxcpath := args[3]
+	configPath := args[4]
 
 	c, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
@@ -351,9 +356,55 @@ func execContainer(args []string) (int, error) {
 
 	opts.Env = env
 
-	status, err := c.RunCommandStatus(cmd, opts)
-	if err != nil {
-		return -1, fmt.Errorf("Failed running command: %q", err)
+	var status int
+	if wait {
+		status, err = c.RunCommandStatus(cmd, opts)
+		if err != nil {
+			return -1, fmt.Errorf("Failed running command and waiting for it to exit: %q", err)
+		}
+	} else {
+		status, err = c.RunCommandNoWait(cmd, opts)
+		if err != nil {
+			return -1, fmt.Errorf("Failed running command: %q", err)
+		}
+		// Send the PID of the executing process.
+		w := os.NewFile(uintptr(3), "attachedPid")
+		defer w.Close()
+
+		err = json.NewEncoder(w).Encode(status)
+		if err != nil {
+			return -1, fmt.Errorf("Failed sending PID of executing command: %q", err)
+		}
+
+		proc, err := os.FindProcess(status)
+		if err != nil {
+			return -1, fmt.Errorf("Failed finding process: %q", err)
+		}
+
+		procState, err := proc.Wait()
+		if err != nil {
+			return -1, fmt.Errorf("Failed waiting on process %d: %q", status, err)
+		}
+
+		if procState.Success() {
+			return 0, nil
+		}
+
+		status, ok := procState.Sys().(syscall.WaitStatus)
+		if ok {
+			if status.Exited() {
+				return status.ExitStatus(), nil
+			}
+			// Backwards compatible behavior. Report success when we exited
+			// due to a signal. Otherwise this may break Jenkins, e.g. when
+			// lxc exec foo reboot receives SIGTERM and status.Exitstats()
+			// would report -1.
+			if status.Signaled() {
+				return 0, nil
+			}
+		}
+
+		return -1, fmt.Errorf("Command failed")
 	}
 
 	return status >> 8, nil
