@@ -390,7 +390,6 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		if err != nil {
 			return abort(err)
 		}
-		defer os.RemoveAll(checkpointDir)
 
 		if lxc.VersionAtLeast(2, 0, 4) {
 			/* What happens below is slightly convoluted. Due to various
@@ -412,6 +411,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			dumpDone := make(chan bool, 1)
 			actionScriptOpSecret, err := shared.RandomCryptoString()
 			if err != nil {
+				os.RemoveAll(checkpointDir)
 				return abort(err)
 			}
 
@@ -453,21 +453,25 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				},
 			)
 			if err != nil {
+				os.RemoveAll(checkpointDir)
 				return abort(err)
 			}
 
 			if err := writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret); err != nil {
+				os.RemoveAll(checkpointDir)
 				return abort(err)
 			}
 
 			_, err = actionScriptOp.Run()
 			if err != nil {
+				os.RemoveAll(checkpointDir)
 				return abort(err)
 			}
 
 			migrateDone := make(chan error, 1)
 			go func() {
 				migrateDone <- s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, true)
+				os.RemoveAll(checkpointDir)
 			}()
 
 			select {
@@ -479,6 +483,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				shared.LogDebugf("Dump finished, continuing with restore...")
 			}
 		} else {
+			defer os.RemoveAll(checkpointDir)
 			if err := s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, false); err != nil {
 				return abort(err)
 			}
