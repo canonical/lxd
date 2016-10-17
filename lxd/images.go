@@ -468,14 +468,14 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 	sha256 := sha256.New()
 	var size int64
 
-	// Create a temporary file for the image tarball
-	imageTarf, err := ioutil.TempFile(builddir, "lxd_tar_")
-	if err != nil {
-		return info, err
-	}
-	defer os.Remove(imageTarf.Name())
-
 	if ctype == "multipart/form-data" {
+		// Create a temporary file for the image tarball
+		imageTarf, err := ioutil.TempFile(builddir, "lxd_tar_")
+		if err != nil {
+			return info, err
+		}
+		defer os.Remove(imageTarf.Name())
+
 		// Parse the POST data
 		post.Seek(0, 0)
 		mr := multipart.NewReader(post, ctypeParams["boundary"])
@@ -577,9 +577,8 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		}
 	} else {
 		post.Seek(0, 0)
-		size, err = io.Copy(io.MultiWriter(imageTarf, sha256), post)
+		size, err = io.Copy(sha256, post)
 		info.Size = size
-		imageTarf.Close()
 		logger.Debug("Tar size", log.Ctx{"size": size})
 		if err != nil {
 			logger.Error(
@@ -605,7 +604,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 			return info, err
 		}
 
-		imageMeta, err = getImageMetadata(imageTarf.Name())
+		imageMeta, err = getImageMetadata(post.Name())
 		if err != nil {
 			logger.Error(
 				"Failed to get image metadata",
@@ -614,13 +613,13 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		}
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
-		err = shared.FileMove(imageTarf.Name(), imgfname)
+		err = shared.FileMove(post.Name(), imgfname)
 		if err != nil {
 			logger.Error(
 				"Failed to move the tarfile",
 				log.Ctx{
 					"err":    err,
-					"source": imageTarf.Name(),
+					"source": post.Name(),
 					"dest":   imgfname})
 			return info, err
 		}
