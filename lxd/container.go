@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -328,8 +329,16 @@ type container interface {
 	FilePull(srcpath string, dstpath string) (int, int, os.FileMode, string, []string, error)
 	FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error
 
-	// Command execution
+	// Command execution: Execute command and wait for it to exit.
 	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error)
+
+	// Command execution: Returns a command. If called as exec.Cmd.Start()
+	// ExecNoWait() does not wait for the process to exit. Callers are
+	// expected to pass the write end of a pipe to the pidPipe argument. So
+	// they can read the PID of the executing process from the read end. The
+	// PID read cannot be directly waited upon since it is a child of lxd
+	// forkexec. It can however be used to e.g. send signals.
+	ExecNoWait(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, pidPipe *os.File) (*exec.Cmd, error)
 
 	// Status
 	Render() (interface{}, interface{}, error)

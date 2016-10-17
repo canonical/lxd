@@ -141,3 +141,9 @@ Adds the following to the REST API:
  * ETag header on GET of a certificate
  * PUT of certificate entries
  * PATCH of certificate entries
+
+## container\_exec\_signal_handling
+Adds support /1.0/containers/<name>/exec for forwarding signals sent to the
+client to the processes executing in the container. Currently SIGTERM and
+SIGHUP are forwarded. Further signals that can be forwarded might be added
+later.
