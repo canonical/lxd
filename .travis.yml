@@ -4,8 +4,8 @@ os:
   - osx
 
 go:
-  - 1.5
   - 1.6
+  - 1.7
   - tip
 
 matrix:
@@ -19,6 +19,9 @@ install:
 
 script:
   - "make client"
+  - "go test ./"
+  - "go test ./shared"
+  - "go test ./lxc"
 
 notifications:
   webhooks: https://linuxcontainers.org/webhook-lxcbot/
