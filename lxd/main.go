@@ -621,7 +621,7 @@ func cmdInit() error {
 	// Detect zfs
 	out, err := exec.LookPath("zfs")
 	if err == nil && len(out) != 0 && !runningInUserns {
-		_ = shared.RunCommand("modprobe", "zfs")
+		_ = loadModule("zfs")
 
 		err := shared.RunCommand("zpool", "list")
 		if err == nil {
