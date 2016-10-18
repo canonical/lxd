@@ -215,6 +215,10 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 			continue
 		}
 
+		if err := source.WaitForSuccess(sourceWSResponse.Operation); err != nil {
+			return err
+		}
+
 		// If push mode is implemented then MigrateFrom will return a
 		// non-waitable operation. So this needs to be conditionalized
 		// on pull mode.
