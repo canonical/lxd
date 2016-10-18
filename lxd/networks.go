@@ -666,7 +666,8 @@ func (n *network) Start() error {
 			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "67", "-j", "ACCEPT"},
 			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "67", "-j", "ACCEPT"},
 			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
-			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
+			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"},
+			[]string{"ipv4", n.name, "mangle", "POSTROUTING", "-o", n.name, "-p", "udp", "--dport", "68", "-j", "CHECKSUM", "--checksum-fill"}}
 
 		for _, rule := range rules {
 			err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
