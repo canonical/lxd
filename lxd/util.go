@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -26,4 +27,12 @@ func WriteJSON(w http.ResponseWriter, body interface{}) error {
 	}
 
 	return err
+}
+
+func loadModule(module string) error {
+	if shared.PathExists(fmt.Sprintf("/sys/module/%s", module)) {
+		return nil
+	}
+
+	return shared.RunCommand("modprobe", module)
 }

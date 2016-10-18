@@ -1095,9 +1095,9 @@ func (c *containerLXC) startCommon() (string, error) {
 	if kernelModules != "" {
 		for _, module := range strings.Split(kernelModules, ",") {
 			module = strings.TrimPrefix(module, " ")
-			out, err := exec.Command("modprobe", module).CombinedOutput()
+			err := loadModule(module)
 			if err != nil {
-				return "", fmt.Errorf("Failed to load kernel module '%s': %s", module, out)
+				return "", fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
 			}
 		}
 	}
@@ -2430,9 +2430,9 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			} else if key == "linux.kernel_modules" && value != "" {
 				for _, module := range strings.Split(value, ",") {
 					module = strings.TrimPrefix(module, " ")
-					out, err := exec.Command("modprobe", module).CombinedOutput()
+					err := loadModule(module)
 					if err != nil {
-						return fmt.Errorf("Failed to load kernel module '%s': %s", module, out)
+						return fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
 					}
 				}
 			} else if key == "limits.disk.priority" {
