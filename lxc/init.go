@@ -190,7 +190,7 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if network.Type == "bridge" {
-			devicesMap[c.network] = shared.Device{"type": "nic", "nictype": "bridge", "parent": c.network}
+			devicesMap[c.network] = shared.Device{"type": "nic", "nictype": "bridged", "parent": c.network}
 		} else {
 			devicesMap[c.network] = shared.Device{"type": "nic", "nictype": "macvlan", "parent": c.network}
 		}
