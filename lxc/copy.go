@@ -173,6 +173,10 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 			continue
 		}
 
+		if err := source.WaitForSuccess(sourceWSResponse.Operation); err != nil {
+			return err
+		}
+
 		if err = dest.WaitForSuccess(migration.Operation); err != nil {
 			return err
 		}
