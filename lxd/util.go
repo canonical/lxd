@@ -57,3 +57,11 @@ func etagCheck(r *http.Request, data interface{}) error {
 
 	return nil
 }
+
+func loadModule(module string) error {
+	if shared.PathExists(fmt.Sprintf("/sys/module/%s", module)) {
+		return nil
+	}
+
+	return shared.RunCommand("modprobe", module)
+}
