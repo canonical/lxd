@@ -55,7 +55,7 @@ type usbDevice struct {
 	minor int
 }
 
-func createUSBDevice(action string, vendor string, product string, major string, minor string, devname string) (usbDevice, error) {
+func createUSBDevice(action string, vendor string, product string, major string, minor string, busnum string, devnum string, devname string) (usbDevice, error) {
 	majorInt, err := strconv.Atoi(major)
 	if err != nil {
 		return usbDevice{}, err
@@ -67,8 +67,21 @@ func createUSBDevice(action string, vendor string, product string, major string,
 	}
 
 	path := devname
-	if !filepath.IsAbs(devname) {
-		path = fmt.Sprintf("/dev/%s", devname)
+	if devname == "" {
+		busnumInt, err := strconv.Atoi(busnum)
+		if err != nil {
+			return usbDevice{}, err
+		}
+
+		devnumInt, err := strconv.Atoi(devnum)
+		if err != nil {
+			return usbDevice{}, err
+		}
+		path = fmt.Sprintf("/dev/bus/usb/%03d/%03d", busnumInt, devnumInt)
+	} else {
+		if !filepath.IsAbs(devname) {
+			path = fmt.Sprintf("/dev/%s", devname)
+		}
 	}
 
 	return usbDevice{
@@ -180,11 +193,20 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 				if !ok {
 					continue
 				}
+
 				minor, ok := props["MINOR"]
 				if !ok {
 					continue
 				}
+
 				devname, ok := props["DEVNAME"]
+
+				busnum, ok := props["BUSNUM"]
+				if !ok {
+					continue
+				}
+
+				devnum, ok := props["DEVNUM"]
 				if !ok {
 					continue
 				}
@@ -203,6 +225,8 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 					zeroPad(parts[1], 4),
 					major,
 					minor,
+					busnum,
+					devnum,
 					devname,
 				)
 				if err != nil {
@@ -1025,6 +1049,8 @@ func deviceLoadUsb() ([]usbDevice, error) {
 			values["idProduct"],
 			parts[0],
 			parts[1],
+			values["busnum"],
+			values["devnum"],
 			values["devname"],
 		)
 		if err != nil {
