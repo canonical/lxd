@@ -73,7 +73,7 @@ lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]
 The filters are:
 * A single keyword like "web" which will list any container with a name starting by "web".
 * A regular expression on the container name. (e.g. .*web.*01$)
-* A key/value pair referring to a configuration item. For those, the namespace can be abreviated to the smallest unambiguous identifier:
+* A key/value pair referring to a configuration item. For those, the namespace can be abbreviated to the smallest unambiguous identifier:
  * "user.blah=abc" will list all containers with the "blah" user property set to "abc".
  * "u.blah=abc" will do the same
  * "security.privileged=1" will list all privileged containers
