@@ -28,6 +28,10 @@ func (c *execCmd) getStdout() io.WriteCloser {
 	return &WrappedWriteCloser{os.Stdout, colorable.NewColorableStdout()}
 }
 
+func (c *execCmd) getTERM() (string, bool) {
+	return "dumb", true
+}
+
 func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {
 	// TODO: figure out what the equivalent of signal.SIGWINCH is on
 	// windows and use that; for now if you resize your terminal it just

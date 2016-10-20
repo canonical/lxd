@@ -96,7 +96,7 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	env := map[string]string{"HOME": "/root", "USER": "root"}
-	if myTerm, ok := os.LookupEnv("TERM"); ok {
+	if myTerm, ok := c.getTERM(); ok {
 		env["TERM"] = myTerm
 	}
 

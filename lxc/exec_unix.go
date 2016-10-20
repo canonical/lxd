@@ -18,6 +18,10 @@ func (c *execCmd) getStdout() io.WriteCloser {
 	return os.Stdout
 }
 
+func (c *execCmd) getTERM() (string, bool) {
+	return os.LookupEnv("TERM")
+}
+
 func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGWINCH)
