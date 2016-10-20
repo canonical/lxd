@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2016-10-15 00:03-0400\n"
+"POT-Creation-Date: 2016-10-19 22:44-0400\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -301,7 +301,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:140 lxc/copy.go:237 lxc/init.go:227
+#: lxc/copy.go:140 lxc/copy.go:241 lxc/init.go:227
 #, c-format
 msgid "Container name is: %s"
 msgstr ""
@@ -673,7 +673,7 @@ msgid ""
 "starting by \"web\".\n"
 "* A regular expression on the container name. (e.g. .*web.*01$)\n"
 "* A key/value pair referring to a configuration item. For those, the "
-"namespace can be abreviated to the smallest unambiguous identifier:\n"
+"namespace can be abbreviated to the smallest unambiguous identifier:\n"
 " * \"user.blah=abc\" will list all containers with the \"blah\" user "
 "property set to \"abc\".\n"
 " * \"u.blah=abc\" will do the same\n"
@@ -936,7 +936,7 @@ msgid ""
 "Manage files on a container.\n"
 "\n"
 "lxc file pull [-r|--recursive] <source> [<source>...] <target>\n"
-"lxc file push [-r|--recursive] [-p|create-dirs] [--uid=UID] [--gid=GID] [--"
+"lxc file push [-r|--recursive] [-p|--create-dirs] [--uid=UID] [--gid=GID] [--"
 "mode=MODE] <source> [<source>...] <target>\n"
 "lxc file edit <file>\n"
 "\n"
@@ -1697,7 +1697,7 @@ msgstr ""
 msgid "default"
 msgstr ""
 
-#: lxc/copy.go:131 lxc/copy.go:136 lxc/copy.go:228 lxc/copy.go:233
+#: lxc/copy.go:131 lxc/copy.go:136 lxc/copy.go:232 lxc/copy.go:237
 #: lxc/init.go:217 lxc/init.go:222 lxc/launch.go:111 lxc/launch.go:116
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr ""
@@ -1779,7 +1779,7 @@ msgstr ""
 msgid "taken at %s"
 msgstr ""
 
-#: lxc/exec.go:163
+#: lxc/exec.go:185
 msgid "unreachable return reached"
 msgstr ""
 
