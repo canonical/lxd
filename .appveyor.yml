@@ -1,32 +1,25 @@
 version: '{branch}.{build}'
-image: Visual Studio 2015
 clone_folder: c:\gopath\src\github.com\lxc\lxd
 environment:
   GOPATH: c:\gopath
+
 install:
-- cmd: >-
+- cmd: |-
     echo %PATH%
-
     echo %GOPATH%
-
     set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
-
     go version
-
     go env
+
 build_script:
-- cmd: >-
+- cmd: |-
     go get -t -v -d ./...
-
     go install -v ./lxc
+
 test_script:
-- cmd: >-
+- cmd: |-
     cd c:\gopath\src\github.com\lxc\lxd
-
     go test ./
-
     go test ./shared
-
     go test ./lxc
-
     lxc version
