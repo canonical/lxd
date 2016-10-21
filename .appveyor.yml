@@ -21,11 +21,13 @@ test_script:
     go test -v ./
     go test -v ./shared
     go test -v ./lxc
-    lxc version
 
 after_test:
-- cmd: |-
-    copy c:\gopath\bin\lxc.exe .
+  # powershell capture command output into environment variable
+  - ps: $env:VERSION = lxc version
+  - echo %VERSION%
+  # pack lxc as an artifact for upload
+  - 7z a lxc-%VERSION%-windows-amd64.zip c:\gopath\bin\lxc.exe
 
 artifacts:
-- path: lxc.exe
+- path: "*.zip"
