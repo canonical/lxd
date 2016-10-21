@@ -1283,6 +1283,127 @@ func (c *containerLXC) startCommon() (string, error) {
 			if !created && shared.IsTrue(m["required"]) {
 				return "", fmt.Errorf("couldn't create usb device %s", k)
 			}
+		} else if m["type"] == "gpu" {
+			gpus, nvidiaDevices, err := deviceLoadGpu()
+			if err != nil {
+				return "", err
+			}
+
+			sawNvidia := false
+			for _, gpu := range gpus {
+				if (m["vendorid"] != "" && gpu.vendorid != m["vendorid"]) ||
+					(m["pci"] != "" && gpu.pci != m["pci"]) ||
+					(m["productid"] != "" && gpu.productid != m["productid"]) ||
+					(m["id"] != "" && gpu.id != m["id"]) {
+					continue
+				}
+
+				if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+					err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", gpu.major, gpu.minor))
+					if err != nil {
+						return "", err
+					}
+				}
+
+				temp := shared.Device{}
+				if err := shared.DeepCopy(&m, &temp); err != nil {
+					return "", err
+				}
+
+				temp["major"] = fmt.Sprintf("%d", gpu.major)
+				temp["minor"] = fmt.Sprintf("%d", gpu.minor)
+				temp["path"] = gpu.path
+
+				_, err := c.createUnixDevice(temp)
+				if err != nil {
+					shared.LogDebug("failed to create gpu device", log.Ctx{"err": err, "device": k})
+					continue
+				}
+
+				/* if the create was successful, let's bind mount it */
+				srcPath := gpu.path
+				tgtPath := strings.TrimPrefix(srcPath, "/")
+				devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
+				devPath := filepath.Join(c.DevicesPath(), devName)
+				err = lxcSetConfigItem(c.c, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath))
+				if err != nil {
+					return "", err
+				}
+
+				if gpu.nvidia.path == "" {
+					continue
+				}
+
+				if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+					err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", gpu.nvidia.major, gpu.nvidia.minor))
+					if err != nil {
+						return "", err
+					}
+				}
+
+				temp = shared.Device{}
+				if err := shared.DeepCopy(&m, &temp); err != nil {
+					return "", err
+				}
+
+				temp["major"] = fmt.Sprintf("%d", gpu.nvidia.major)
+				temp["minor"] = fmt.Sprintf("%d", gpu.nvidia.minor)
+				temp["path"] = gpu.nvidia.path
+
+				_, err = c.createUnixDevice(temp)
+				if err != nil {
+					shared.LogDebug("failed to create gpu device", log.Ctx{"err": err, "device": k})
+					continue
+				}
+
+				sawNvidia = true
+
+				/* if the create was successful, let's bind mount it */
+				srcPath = gpu.nvidia.path
+				tgtPath = strings.TrimPrefix(srcPath, "/")
+				devName = fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
+				devPath = filepath.Join(c.DevicesPath(), devName)
+				err = lxcSetConfigItem(c.c, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath))
+				if err != nil {
+					return "", err
+				}
+			}
+
+			if sawNvidia {
+				for _, gpu := range nvidiaDevices {
+					if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+						err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", gpu.major, gpu.minor))
+						if err != nil {
+							return "", err
+						}
+					}
+
+					temp := shared.Device{}
+					if err := shared.DeepCopy(&m, &temp); err != nil {
+						return "", err
+					}
+
+					temp["major"] = fmt.Sprintf("%d", gpu.major)
+					temp["minor"] = fmt.Sprintf("%d", gpu.minor)
+					temp["path"] = gpu.path
+
+					_, err := c.createUnixDevice(temp)
+					if err != nil {
+						shared.LogDebug("failed to create gpu device", log.Ctx{"err": err, "device": k})
+						continue
+					}
+
+					/* if the create was successful, let's bind mount it */
+					srcPath := gpu.path
+					tgtPath := strings.TrimPrefix(srcPath, "/")
+					devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
+					devPath := filepath.Join(c.DevicesPath(), devName)
+					err = lxcSetConfigItem(c.c, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath))
+					if err != nil {
+						return "", err
+					}
+				}
+			}
 		} else if m["type"] == "disk" {
 			// Disk device
 			if m["path"] != "/" {
@@ -2793,7 +2914,40 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						continue
 					}
 
-					err := c.removeUSBDevice(m, usb)
+					err := c.removeUnixDeviceNum(m, usb.major, usb.minor, usb.path)
+					if err != nil {
+						return err
+					}
+				}
+			} else if m["type"] == "gpu" {
+				gpus, nvidiaDevices, err := deviceLoadGpu()
+				if err != nil {
+					return err
+				}
+
+				for _, gpu := range gpus {
+					if (m["vendorid"] != "" && gpu.vendorid != m["vendorid"]) ||
+						(m["pci"] != "" && gpu.pci != m["pci"]) ||
+						(m["productid"] != "" && gpu.productid != m["productid"]) ||
+						(m["id"] != "" && gpu.id != m["id"]) {
+						continue
+					}
+
+					err := c.removeUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+					if err != nil {
+						return err
+					}
+					if gpu.nvidia.path != "" {
+						err := c.removeUnixDeviceNum(m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
+						if err != nil {
+							return err
+						}
+					}
+				}
+
+				/* if the device isn't present, we don't need to remove it */
+				for _, gpu := range nvidiaDevices {
+					err := c.removeUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
 					if err != nil {
 						return err
 					}
@@ -2830,9 +2984,40 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						continue
 					}
 
-					err = c.insertUSBDevice(m, usb)
+					err = c.insertUnixDeviceNum(m, usb.major, usb.minor, usb.path)
 					if err != nil {
 						shared.LogError("failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+					}
+				}
+			} else if m["type"] == "gpu" {
+				gpus, nvidiaDevices, err := deviceLoadGpu()
+				if err != nil {
+					return err
+				}
+
+				for _, gpu := range gpus {
+					if (m["vendorid"] != "" && gpu.vendorid != m["vendorid"]) ||
+						(m["pci"] != "" && gpu.pci != m["pci"]) ||
+						(m["productid"] != "" && gpu.productid != m["productid"]) ||
+						(m["id"] != "" && gpu.id != m["id"]) {
+						continue
+					}
+
+					err = c.insertUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+					if err != nil {
+						shared.LogError("failed to insert gpu device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+					}
+					if gpu.nvidia.path != "" {
+						err = c.insertUnixDeviceNum(m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
+						if err != nil {
+							shared.LogError("failed to insert gpu device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						}
+					}
+				}
+				for _, gpu := range nvidiaDevices {
+					err = c.insertUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+					if err != nil {
+						shared.LogError("failed to insert gpu device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 					}
 				}
 			}
@@ -4202,15 +4387,15 @@ func (c *containerLXC) insertUnixDevice(m shared.Device) error {
 	return nil
 }
 
-func (c *containerLXC) insertUSBDevice(m shared.Device, usb usbDevice) error {
+func (c *containerLXC) insertUnixDeviceNum(m shared.Device, major int, minor int, path string) error {
 	temp := shared.Device{}
 	if err := shared.DeepCopy(&m, &temp); err != nil {
 		return err
 	}
 
-	temp["major"] = fmt.Sprintf("%d", usb.major)
-	temp["minor"] = fmt.Sprintf("%d", usb.minor)
-	temp["path"] = usb.path
+	temp["major"] = fmt.Sprintf("%d", major)
+	temp["minor"] = fmt.Sprintf("%d", minor)
+	temp["path"] = path
 
 	return c.insertUnixDevice(temp)
 }
@@ -4269,7 +4454,7 @@ func (c *containerLXC) removeUnixDevice(m shared.Device) error {
 	return nil
 }
 
-func (c *containerLXC) removeUSBDevice(m shared.Device, usb usbDevice) error {
+func (c *containerLXC) removeUnixDeviceNum(m shared.Device, major int, minor int, path string) error {
 	pid := c.InitPID()
 	if pid == -1 {
 		return fmt.Errorf("Can't remove device from stopped container")
@@ -4280,21 +4465,17 @@ func (c *containerLXC) removeUSBDevice(m shared.Device, usb usbDevice) error {
 		return err
 	}
 
-	temp["major"] = fmt.Sprintf("%d", usb.major)
-	temp["minor"] = fmt.Sprintf("%d", usb.minor)
-	temp["path"] = usb.path
+	temp["major"] = fmt.Sprintf("%d", major)
+	temp["minor"] = fmt.Sprintf("%d", minor)
+	temp["path"] = path
 
 	err := c.removeUnixDevice(temp)
 	if err != nil {
-		shared.LogError("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+		shared.LogError("failed to remove gpu device", log.Ctx{"err": err, "gpu": path, "container": c.Name()})
 		return err
 	}
 
-	/* ok to fail here, there may be other usb
-	 * devices on this bus still left in the
-	 * container
-	 */
-	dir := fmt.Sprintf("/proc/%d/root/%s", pid, filepath.Dir(usb.path))
+	dir := fmt.Sprintf("/proc/%d/root/%s", pid, filepath.Dir(path))
 	os.Remove(dir)
 	return nil
 }
