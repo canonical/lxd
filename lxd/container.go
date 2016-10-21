@@ -152,6 +152,25 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		default:
 			return false
 		}
+	case "gpu":
+		switch k {
+		case "vendorid":
+			return true
+		case "productid":
+			return true
+		case "id":
+			return true
+		case "pci":
+			return true
+		case "mode":
+			return true
+		case "gid":
+			return true
+		case "uid":
+			return true
+		default:
+			return false
+		}
 	case "none":
 		return false
 	default:
@@ -204,7 +223,7 @@ func containerValidDevices(devices shared.Devices, profile bool, expanded bool) 
 			return fmt.Errorf("Missing device type for device '%s'", name)
 		}
 
-		if !shared.StringInSlice(m["type"], []string{"none", "nic", "disk", "unix-char", "unix-block", "usb"}) {
+		if !shared.StringInSlice(m["type"], []string{"none", "nic", "disk", "unix-char", "unix-block", "usb", "gpu"}) {
 			return fmt.Errorf("Invalid device type for device '%s'", name)
 		}
 
@@ -254,6 +273,9 @@ func containerValidDevices(devices shared.Devices, profile bool, expanded bool) 
 			if m["vendorid"] == "" {
 				return fmt.Errorf("Missing vendorid for USB device.")
 			}
+		} else if m["type"] == "gpu" {
+			// Probably no checks needed, since we allow users to
+			// pass in all GPUs.
 		} else if m["type"] == "none" {
 			continue
 		} else {
