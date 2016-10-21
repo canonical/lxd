@@ -147,3 +147,6 @@ Adds support /1.0/containers/<name>/exec for forwarding signals sent to the
 client to the processes executing in the container. Currently SIGTERM and
 SIGHUP are forwarded. Further signals that can be forwarded might be added
 later.
+
+## gpu\_devices
+Enables adding GPUs to a container.

@@ -277,6 +277,21 @@ gid         | int       | 0                 | no        | GID of the device owne
 mode        | int       | 0660              | no        | Mode of the device in the container
 required    | boolean   | false             | no        | Whether or not this device is required to start the container. (The default is no, and all devices are hot-pluggable.)
 
+### Type: gpu
+GPU device entries simply make the requested gpu device appear in the
+container.
+
+The following properties exist:
+
+Key         | Type      | Default           | Required  | Description
+:--         | :--       | :--               | :--       | :--
+vendorid    | string    | -                 | no        | The vendor id of the GPU device.
+productid   | string    | -                 | no        | The product id of the GPU device.
+id          | string    | -                 | no        | The card id of the GPU device.
+uid         | int       | 0                 | no        | UID of the device owner in the container
+gid         | int       | 0                 | no        | GID of the device owner in the container
+mode        | int       | 0660              | no        | Mode of the device in the container
+
 ## Profiles
 Profiles can store any configuration that a container can (key/value or devices)
 and any number of profiles can be applied to a container.
