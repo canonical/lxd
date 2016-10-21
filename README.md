@@ -29,6 +29,15 @@ shell you're going to interact with lxd from.
 After you've got LXD installed and a session with the right permissions, you
 can take your [first steps](#first-steps).
 
+#### Getting started with LXD on Windows
+
+LXD server is not available on Windows, but it is possible to use
+[`lxc` client](https://ci.appveyor.com/project/lxc/lxd/branch/master/artifacts)
+with
+[some limitations](https://github.com/lxc/lxd/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aopen%20windows)
+to control remote containers.
+
+
 ## Using the REST API
 The LXD REST API can be used locally via unauthenticated Unix socket or remotely via SSL encapsulated TCP.
 
