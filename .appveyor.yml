@@ -19,7 +19,7 @@ build_script:
 test_script:
 - cmd: |-
     cd c:\gopath\src\github.com\lxc\lxd
-    go test ./
-    go test ./shared
-    go test ./lxc
+    go test -v ./
+    go test -v ./shared
+    go test -v ./lxc
     lxc version
