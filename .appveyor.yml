@@ -1,32 +1,33 @@
 version: '{branch}.{build}'
-image: Visual Studio 2015
 clone_folder: c:\gopath\src\github.com\lxc\lxd
 environment:
   GOPATH: c:\gopath
+
 install:
-- cmd: >-
+- cmd: |-
     echo %PATH%
-
     echo %GOPATH%
-
     set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
-
     go version
-
     go env
+
 build_script:
-- cmd: >-
+- cmd: |-
     go get -t -v -d ./...
-
     go install -v ./lxc
+
 test_script:
-- cmd: >-
-    cd c:\gopath\src\github.com\lxc\lxd
+- cmd: |-
+    go test -v ./
+    go test -v ./shared
+    go test -v ./lxc
 
-    go test ./
+after_test:
+  # powershell capture command output into environment variable
+  - ps: $env:VERSION = lxc version
+  - echo %VERSION%
+  # pack lxc as an artifact for upload
+  - 7z a lxc-%VERSION%-windows-amd64.zip c:\gopath\bin\lxc.exe
 
-    go test ./shared
-
-    go test ./lxc
-
-    lxc version
+artifacts:
+- path: "*.zip"
