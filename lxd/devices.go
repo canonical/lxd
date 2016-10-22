@@ -107,9 +107,9 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 	ents, err := ioutil.ReadDir(DRI_PATH)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return gpus, nvidiaDevices, nil
+			return nil, nil, nil
 		}
-		return gpus, nvidiaDevices, err
+		return nil, nil, err
 	}
 
 	isNvidia := false
@@ -186,7 +186,7 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 			tmpGpu.major = majorInt
 			tmpGpu.minor = minorInt
 
-			isCard, err := regexp.MatchString("^card", drmEnt.Name())
+			isCard, err := regexp.MatchString("^card[0-9]+", drmEnt.Name())
 			if isCard {
 				// If it is a card it's minor number will be its id.
 				tmpGpu.id = strconv.Itoa(minorInt)
@@ -222,12 +222,12 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 		nvidiaEnts, err := ioutil.ReadDir("/dev")
 		if err != nil {
 			if os.IsNotExist(err) {
-				return []gpuDevice{}, []nvidiaGpuDevices{}, err
+				return nil, nil, err
 			}
 		}
 		validNvidia, err := regexp.Compile(`^nvidia[^0-9]+`)
 		if err != nil {
-			return gpus, nil, nil
+			return nil, nil, err
 		}
 		for _, nvidiaEnt := range nvidiaEnts {
 			if !validNvidia.MatchString(nvidiaEnt.Name()) {
@@ -252,9 +252,9 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 	// Since we'll give users to ability to specify and id we need to group
 	// devices on the same PCI that belong to the same card by id.
 	for _, card := range cards {
-		for _, gpu := range gpus {
-			if gpu.pci == card.pci {
-				gpu.id = card.id
+		for i := 0; i < len(gpus); i++ {
+			if gpus[i].pci == card.pci {
+				gpus[i].id = card.id
 			}
 		}
 	}
