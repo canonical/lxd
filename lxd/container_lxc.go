@@ -1074,7 +1074,9 @@ func (c *containerLXC) expandDevices() error {
 	return nil
 }
 
-func (c *containerLXC) setupUnixDeviceCommon(devType string, dev shared.Device, major int, minor int, path string, createMustSucceed bool) error {
+// setupUnixDevice() creates the unix device and sets up the necessary low-level
+// liblxc configuration items.
+func (c *containerLXC) setupUnixDevice(devType string, dev shared.Device, major int, minor int, path string, createMustSucceed bool) error {
 	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
 		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
 		if err != nil {
@@ -1091,7 +1093,7 @@ func (c *containerLXC) setupUnixDeviceCommon(devType string, dev shared.Device, 
 	temp["minor"] = fmt.Sprintf("%d", minor)
 	temp["path"] = path
 
-	_, err := c.createUnixDevice(temp)
+	paths, err := c.createUnixDevice(temp)
 	if err != nil {
 		shared.LogDebug("failed to create device", log.Ctx{"err": err, "device": devType})
 		if createMustSucceed {
@@ -1099,12 +1101,9 @@ func (c *containerLXC) setupUnixDeviceCommon(devType string, dev shared.Device, 
 		}
 		return nil
 	}
+	devPath := paths[0]
+	tgtPath := paths[1]
 
-	/* If the create was successful, let's bind mount it */
-	srcPath := path
-	tgtPath := strings.TrimPrefix(srcPath, "/")
-	devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
-	devPath := filepath.Join(c.DevicesPath(), devName)
 	err = lxcSetConfigItem(c.c, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath))
 	if err != nil {
 		return err
@@ -1252,10 +1251,11 @@ func (c *containerLXC) startCommon() (string, error) {
 		m := c.expandedDevices[k]
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			// Unix device
-			devPath, err := c.createUnixDevice(m)
+			paths, err := c.createUnixDevice(m)
 			if err != nil {
 				return "", err
 			}
+			devPath := paths[0]
 
 			if c.IsPrivileged() && !runningInUserns && cgDevicesController {
 				// Add the new device cgroup rule
@@ -1282,7 +1282,7 @@ func (c *containerLXC) startCommon() (string, error) {
 					continue
 				}
 
-				err := c.setupUnixDeviceCommon(k, m, usb.major, usb.minor, usb.path, shared.IsTrue(m["required"]))
+				err := c.setupUnixDevice(k, m, usb.major, usb.minor, usb.path, shared.IsTrue(m["required"]))
 				if err != nil {
 					return "", err
 				}
@@ -1304,7 +1304,7 @@ func (c *containerLXC) startCommon() (string, error) {
 					continue
 				}
 
-				err := c.setupUnixDeviceCommon(k, m, gpu.major, gpu.minor, gpu.path, true)
+				err := c.setupUnixDevice(k, m, gpu.major, gpu.minor, gpu.path, true)
 				if err != nil {
 					return "", err
 				}
@@ -1313,7 +1313,7 @@ func (c *containerLXC) startCommon() (string, error) {
 					continue
 				}
 
-				err = c.setupUnixDeviceCommon(k, m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path, true)
+				err = c.setupUnixDevice(k, m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path, true)
 				if err != nil {
 					return "", err
 				}
@@ -1323,7 +1323,7 @@ func (c *containerLXC) startCommon() (string, error) {
 
 			if sawNvidia {
 				for _, gpu := range nvidiaDevices {
-					err := c.setupUnixDeviceCommon(k, m, gpu.major, gpu.minor, gpu.path, true)
+					err := c.setupUnixDevice(k, m, gpu.major, gpu.minor, gpu.path, true)
 					if err != nil {
 						return "", err
 					}
@@ -4190,6 +4190,7 @@ func (c *containerLXC) removeMount(mount string) error {
 	return nil
 }
 
+// Check if the unix device already exists.
 func (c *containerLXC) deviceExists(path string) bool {
 	tgtPath := strings.TrimPrefix(path, "/")
 	devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
@@ -4198,7 +4199,7 @@ func (c *containerLXC) deviceExists(path string) bool {
 }
 
 // Unix devices handling
-func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
+func (c *containerLXC) createUnixDevice(m shared.Device) ([]string, error) {
 	var err error
 	var major, minor int
 
@@ -4212,7 +4213,7 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	if runningInUserns {
 		for key, value := range m {
 			if shared.StringInSlice(key, []string{"major", "minor", "mode", "uid", "gid"}) && value != "" {
-				return "", fmt.Errorf("The \"%s\" property may not be set when adding a device to a nested container", key)
+				return nil, fmt.Errorf("The \"%s\" property may not be set when adding a device to a nested container", key)
 			}
 		}
 	}
@@ -4222,19 +4223,19 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 		// If no major and minor are set, use those from the device on the host
 		_, major, minor, err = deviceGetAttributes(srcPath)
 		if err != nil {
-			return "", fmt.Errorf("Failed to get device attributes for %s: %s", m["path"], err)
+			return nil, fmt.Errorf("Failed to get device attributes for %s: %s", m["path"], err)
 		}
 	} else if m["major"] == "" || m["minor"] == "" {
-		return "", fmt.Errorf("Both major and minor must be supplied for device: %s", m["path"])
+		return nil, fmt.Errorf("Both major and minor must be supplied for device: %s", m["path"])
 	} else {
 		major, err = strconv.Atoi(m["major"])
 		if err != nil {
-			return "", fmt.Errorf("Bad major %s in device %s", m["major"], m["path"])
+			return nil, fmt.Errorf("Bad major %s in device %s", m["major"], m["path"])
 		}
 
 		minor, err = strconv.Atoi(m["minor"])
 		if err != nil {
-			return "", fmt.Errorf("Bad minor %s in device %s", m["minor"], m["path"])
+			return nil, fmt.Errorf("Bad minor %s in device %s", m["minor"], m["path"])
 		}
 	}
 
@@ -4243,7 +4244,7 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	if m["mode"] != "" {
 		tmp, err := deviceModeOct(m["mode"])
 		if err != nil {
-			return "", fmt.Errorf("Bad mode %s in device %s", m["mode"], m["path"])
+			return nil, fmt.Errorf("Bad mode %s in device %s", m["mode"], m["path"])
 		}
 		mode = os.FileMode(tmp)
 	}
@@ -4261,14 +4262,14 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	if m["uid"] != "" {
 		uid, err = strconv.Atoi(m["uid"])
 		if err != nil {
-			return "", fmt.Errorf("Invalid uid %s in device %s", m["uid"], m["path"])
+			return nil, fmt.Errorf("Invalid uid %s in device %s", m["uid"], m["path"])
 		}
 	}
 
 	if m["gid"] != "" {
 		gid, err = strconv.Atoi(m["gid"])
 		if err != nil {
-			return "", fmt.Errorf("Invalid gid %s in device %s", m["gid"], m["path"])
+			return nil, fmt.Errorf("Invalid gid %s in device %s", m["gid"], m["path"])
 		}
 	}
 
@@ -4276,7 +4277,7 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	if !shared.PathExists(c.DevicesPath()) {
 		os.Mkdir(c.DevicesPath(), 0711)
 		if err != nil {
-			return "", fmt.Errorf("Failed to create devices path: %s", err)
+			return nil, fmt.Errorf("Failed to create devices path: %s", err)
 		}
 	}
 
@@ -4288,23 +4289,23 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 
 		err = os.Remove(devPath)
 		if err != nil {
-			return "", fmt.Errorf("Failed to remove existing entry: %s", err)
+			return nil, fmt.Errorf("Failed to remove existing entry: %s", err)
 		}
 	}
 
 	// Create the new entry
 	if !runningInUserns {
 		if err := syscall.Mknod(devPath, uint32(mode), minor|(major<<8)); err != nil {
-			return "", fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
+			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
 		}
 
 		if err := os.Chown(devPath, uid, gid); err != nil {
-			return "", fmt.Errorf("Failed to chown device %s: %s", devPath, err)
+			return nil, fmt.Errorf("Failed to chown device %s: %s", devPath, err)
 		}
 
 		// Needed as mknod respects the umask
 		if err := os.Chmod(devPath, mode); err != nil {
-			return "", fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
+			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
 		}
 
 		if c.idmapset != nil {
@@ -4316,17 +4317,17 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	} else {
 		f, err := os.Create(devPath)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		f.Close()
 
 		err = deviceMountDisk(srcPath, devPath, false, false)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
-	return devPath, nil
+	return []string{devPath, tgtPath}, nil
 }
 
 func (c *containerLXC) insertUnixDevice(m shared.Device) error {
@@ -4336,13 +4337,14 @@ func (c *containerLXC) insertUnixDevice(m shared.Device) error {
 	}
 
 	// Create the device on the host
-	devPath, err := c.createUnixDevice(m)
+	paths, err := c.createUnixDevice(m)
 	if err != nil {
 		return fmt.Errorf("Failed to setup device: %s", err)
 	}
+	devPath := paths[0]
+	tgtPath := paths[1]
 
 	// Bind-mount it into the container
-	tgtPath := strings.TrimSuffix(m["path"], "/")
 	err = c.insertMount(devPath, tgtPath, "none", syscall.MS_BIND)
 	if err != nil {
 		return fmt.Errorf("Failed to add mount for device: %s", err)
