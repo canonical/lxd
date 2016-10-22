@@ -2864,6 +2864,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 					err := c.removeUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
 					if err != nil {
+						shared.LogError("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
 					}
 
@@ -2873,6 +2874,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 					err = c.removeUnixDeviceNum(m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
 					if err != nil {
+						shared.LogError("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
 					}
 				}
@@ -2894,7 +2896,8 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						}
 						err = c.removeUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
 						if err != nil {
-							shared.LogError("failed to remove gpu device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+							shared.LogError("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+							return err
 						}
 					}
 				}
@@ -2954,7 +2957,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 					err = c.insertUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
 					if err != nil {
-						shared.LogError("failed to insert gpu device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						shared.LogError("Failed to insert GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
 					}
 
@@ -2964,7 +2967,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 					err = c.insertUnixDeviceNum(m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
 					if err != nil {
-						shared.LogError("failed to insert gpu device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						shared.LogError("Failed to insert GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
 					}
 
@@ -2978,7 +2981,8 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						}
 						err = c.insertUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
 						if err != nil {
-							shared.LogError("failed to insert gpu device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+							shared.LogError("failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+							return err
 						}
 					}
 				}
