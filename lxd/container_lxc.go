@@ -2943,6 +2943,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					}
 				}
 
+				sawNvidia := false
 				for _, gpu := range gpus {
 					if (m["vendorid"] != "" && gpu.vendorid != m["vendorid"]) ||
 						(m["pci"] != "" && gpu.pci != m["pci"]) ||
@@ -2966,19 +2967,11 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						shared.LogError("failed to insert gpu device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
 					}
+
+					sawNvidia = true
 				}
 
-				nvidiaExists := false
-				for _, gpu := range gpus {
-					if gpu.nvidia.path != "" {
-						if c.deviceExists(gpu.path) {
-							nvidiaExists = true
-							break
-						}
-					}
-				}
-
-				if nvidiaExists {
+				if sawNvidia {
 					for _, gpu := range nvidiaDevices {
 						if c.deviceExists(gpu.path) {
 							continue

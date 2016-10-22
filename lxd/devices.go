@@ -89,8 +89,8 @@ type gpuDevice struct {
 	minor int
 }
 
-func isNvidiaGpu(vendorId string) bool {
-	return strings.EqualFold(vendorId, "10de")
+func (g *gpuDevice) isNvidiaGpu() bool {
+	return strings.EqualFold(g.vendorid, "10de")
 }
 
 type cardIds struct {
@@ -197,7 +197,7 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 				cards = append(cards, tmp)
 			}
 			// Find matching /dev/nvidia* entry for /dev/dri/card*
-			if isNvidiaGpu(tmpGpu.vendorid) && isCard {
+			if tmpGpu.isNvidiaGpu() && isCard {
 				if !isNvidia {
 					isNvidia = true
 				}
