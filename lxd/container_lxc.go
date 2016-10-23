@@ -4388,13 +4388,39 @@ func (c *containerLXC) removeUnixDevice(m shared.Device) error {
 	devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
-	// Remove the device cgroup rule
-	dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
-	if err != nil {
-		return err
+	// Check if we've been passed major and minor numbers already.
+	var tmp int
+	var err error
+	dMajor := -1
+	if m["major"] != "" {
+		tmp, err = strconv.Atoi(m["major"])
+		if err == nil {
+			dMajor = tmp
+		}
+	}
+
+	dMinor := -1
+	if m["minor"] != "" {
+		tmp, err = strconv.Atoi(m["minor"])
+		if err == nil {
+			dMinor = tmp
+		}
+	}
+
+	dType := ""
+	if m["type"] != "" {
+		dType = m["type"]
+	}
+
+	if dType == "" || dMajor < 0 || dMinor < 0 {
+		dType, dMajor, dMinor, err = deviceGetAttributes(devPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+		// Remove the device cgroup rule
 		err = c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
 		if err != nil {
 			return err
