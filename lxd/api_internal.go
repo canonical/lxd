@@ -6,6 +6,10 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+
+	"github.com/lxc/lxd/shared"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 var apiInternal = []Command{
@@ -55,6 +59,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 
 	err = c.OnStart()
 	if err != nil {
+		shared.Log.Error("start hook failed", log.Ctx{"container": c.Name(), "err": err})
 		return SmartError(err)
 	}
 
@@ -79,6 +84,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 
 	err = c.OnStop(target)
 	if err != nil {
+		shared.Log.Error("stop hook failed", log.Ctx{"container": c.Name(), "err": err})
 		return SmartError(err)
 	}
 
