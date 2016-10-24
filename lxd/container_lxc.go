@@ -1451,6 +1451,7 @@ func (c *containerLXC) OnStart() error {
 		// Run any template that needs running
 		err = c.templateApplyNow(c.localConfig[key])
 		if err != nil {
+			AADestroy(c)
 			c.StorageStop()
 			return err
 		}
@@ -1458,6 +1459,7 @@ func (c *containerLXC) OnStart() error {
 		// Remove the volatile key from the DB
 		err := dbContainerConfigRemove(c.daemon.db, c.id, key)
 		if err != nil {
+			AADestroy(c)
 			c.StorageStop()
 			return err
 		}
@@ -1465,6 +1467,7 @@ func (c *containerLXC) OnStart() error {
 
 	err = c.templateApplyNow("start")
 	if err != nil {
+		AADestroy(c)
 		c.StorageStop()
 		return err
 	}
