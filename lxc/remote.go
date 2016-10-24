@@ -112,7 +112,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 	/* Complex remote URL parsing */
 	remoteURL, err := url.Parse(addr)
 	if err != nil {
-		return err
+		remoteURL = &url.URL{Host: addr}
 	}
 
 	// Fast track simplestreams
