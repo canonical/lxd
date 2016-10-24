@@ -65,6 +65,9 @@ Add support for the HTTP PATCH method.
 
 PATCH allows for partial update of an object in place of PUT.
 
+## usb\_devices
+Add support for USB hotplug.
+
 ## https\_allowed\_credentials
 To use LXD API with all Web Browsers (via SPAs) you must send credentials
 (certificate) with each XHR (in order for this to happen, you should set
@@ -147,3 +150,6 @@ Adds support /1.0/containers/<name>/exec for forwarding signals sent to the
 client to the processes executing in the container. Currently SIGTERM and
 SIGHUP are forwarded. Further signals that can be forwarded might be added
 later.
+
+## gpu\_devices
+Enables adding GPUs to a container.

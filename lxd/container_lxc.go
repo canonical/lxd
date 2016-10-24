@@ -1074,6 +1074,43 @@ func (c *containerLXC) expandDevices() error {
 	return nil
 }
 
+// setupUnixDevice() creates the unix device and sets up the necessary low-level
+// liblxc configuration items.
+func (c *containerLXC) setupUnixDevice(devType string, dev shared.Device, major int, minor int, path string, createMustSucceed bool) error {
+	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
+		if err != nil {
+			return err
+		}
+	}
+
+	temp := shared.Device{}
+	if err := shared.DeepCopy(&dev, &temp); err != nil {
+		return err
+	}
+
+	temp["major"] = fmt.Sprintf("%d", major)
+	temp["minor"] = fmt.Sprintf("%d", minor)
+	temp["path"] = path
+
+	paths, err := c.createUnixDevice(temp)
+	if err != nil {
+		shared.LogDebug("failed to create device", log.Ctx{"err": err, "device": devType})
+		if createMustSucceed {
+			return err
+		}
+		return nil
+	}
+	devPath := paths[0]
+	tgtPath := paths[1]
+
+	err = lxcSetConfigItem(c.c, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Start functions
 func (c *containerLXC) startCommon() (string, error) {
 	// Load the go-lxc struct
@@ -1206,16 +1243,19 @@ func (c *containerLXC) startCommon() (string, error) {
 	c.removeNetworkFilters()
 
 	var usbs []usbDevice
+	var gpus []gpuDevice
+	var nvidiaDevices []nvidiaGpuDevices
 
 	// Create the devices
 	for _, k := range c.expandedDevices.DeviceNames() {
 		m := c.expandedDevices[k]
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			// Unix device
-			devPath, err := c.createUnixDevice(m)
+			paths, err := c.createUnixDevice(m)
 			if err != nil {
 				return "", err
 			}
+			devPath := paths[0]
 
 			if c.IsPrivileged() && !runningInUserns && cgDevicesController {
 				// Add the new device cgroup rule
@@ -1237,51 +1277,57 @@ func (c *containerLXC) startCommon() (string, error) {
 				}
 			}
 
-			created := false
-
 			for _, usb := range usbs {
 				if usb.vendor != m["vendorid"] || (m["productid"] != "" && usb.product != m["productid"]) {
 					continue
 				}
 
-				if c.IsPrivileged() && !runningInUserns && cgDevicesController {
-					err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", usb.major, usb.minor))
-					if err != nil {
-						return "", err
-					}
-				}
-
-				temp := shared.Device{}
-				if err := shared.DeepCopy(&m, &temp); err != nil {
+				err := c.setupUnixDevice(k, m, usb.major, usb.minor, usb.path, shared.IsTrue(m["required"]))
+				if err != nil {
 					return "", err
 				}
-
-				temp["major"] = fmt.Sprintf("%d", usb.major)
-				temp["minor"] = fmt.Sprintf("%d", usb.minor)
-				temp["path"] = usb.path
-
-				/* it's ok to fail, the device might be hot plugged later */
-				_, err := c.createUnixDevice(temp)
-				if err != nil {
-					shared.LogDebug("failed to create usb device", log.Ctx{"err": err, "device": k})
-					continue
-				}
-
-				created = true
-
-				/* if the create was successful, let's bind mount it */
-				srcPath := usb.path
-				tgtPath := strings.TrimPrefix(srcPath, "/")
-				devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
-				devPath := filepath.Join(c.DevicesPath(), devName)
-				err = lxcSetConfigItem(c.c, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath))
+			}
+		} else if m["type"] == "gpu" {
+			if gpus == nil {
+				gpus, nvidiaDevices, err = deviceLoadGpu()
 				if err != nil {
 					return "", err
 				}
 			}
 
-			if !created && shared.IsTrue(m["required"]) {
-				return "", fmt.Errorf("couldn't create usb device %s", k)
+			sawNvidia := false
+			for _, gpu := range gpus {
+				if (m["vendorid"] != "" && gpu.vendorid != m["vendorid"]) ||
+					(m["pci"] != "" && gpu.pci != m["pci"]) ||
+					(m["productid"] != "" && gpu.productid != m["productid"]) ||
+					(m["id"] != "" && gpu.id != m["id"]) {
+					continue
+				}
+
+				err := c.setupUnixDevice(k, m, gpu.major, gpu.minor, gpu.path, true)
+				if err != nil {
+					return "", err
+				}
+
+				if gpu.nvidia.path == "" {
+					continue
+				}
+
+				err = c.setupUnixDevice(k, m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path, true)
+				if err != nil {
+					return "", err
+				}
+
+				sawNvidia = true
+			}
+
+			if sawNvidia {
+				for _, gpu := range nvidiaDevices {
+					err := c.setupUnixDevice(k, m, gpu.major, gpu.minor, gpu.path, true)
+					if err != nil {
+						return "", err
+					}
+				}
 			}
 		} else if m["type"] == "disk" {
 			// Disk device
@@ -2764,6 +2810,8 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 
 		var usbs []usbDevice
+		var gpus []gpuDevice
+		var nvidiaDevices []nvidiaGpuDevices
 
 		// Live update the devices
 		for k, m := range removeDevices {
@@ -2796,9 +2844,64 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						continue
 					}
 
-					err := c.removeUSBDevice(m, usb)
+					err := c.removeUnixDeviceNum(m, usb.major, usb.minor, usb.path)
 					if err != nil {
 						return err
+					}
+				}
+			} else if m["type"] == "gpu" {
+				if gpus == nil {
+					gpus, nvidiaDevices, err = deviceLoadGpu()
+					if err != nil {
+						return err
+					}
+				}
+
+				for _, gpu := range gpus {
+					if (m["vendorid"] != "" && gpu.vendorid != m["vendorid"]) ||
+						(m["pci"] != "" && gpu.pci != m["pci"]) ||
+						(m["productid"] != "" && gpu.productid != m["productid"]) ||
+						(m["id"] != "" && gpu.id != m["id"]) {
+						continue
+					}
+
+					err := c.removeUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+					if err != nil {
+						shared.LogError("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						return err
+					}
+
+					if gpu.nvidia.path == "" {
+						continue
+					}
+
+					err = c.removeUnixDeviceNum(m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
+					if err != nil {
+						shared.LogError("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						return err
+					}
+				}
+
+				nvidiaExists := false
+				for _, gpu := range gpus {
+					if gpu.nvidia.path != "" {
+						if c.deviceExists(gpu.path) {
+							nvidiaExists = true
+							break
+						}
+					}
+				}
+
+				if !nvidiaExists {
+					for _, gpu := range nvidiaDevices {
+						if !c.deviceExists(gpu.path) {
+							continue
+						}
+						err = c.removeUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+						if err != nil {
+							shared.LogError("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+							return err
+						}
 					}
 				}
 			}
@@ -2833,9 +2936,57 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 						continue
 					}
 
-					err = c.insertUSBDevice(m, usb)
+					err = c.insertUnixDeviceNum(m, usb.major, usb.minor, usb.path)
 					if err != nil {
 						shared.LogError("failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+					}
+				}
+			} else if m["type"] == "gpu" {
+				if gpus == nil {
+					gpus, nvidiaDevices, err = deviceLoadGpu()
+					if err != nil {
+						return err
+					}
+				}
+
+				sawNvidia := false
+				for _, gpu := range gpus {
+					if (m["vendorid"] != "" && gpu.vendorid != m["vendorid"]) ||
+						(m["pci"] != "" && gpu.pci != m["pci"]) ||
+						(m["productid"] != "" && gpu.productid != m["productid"]) ||
+						(m["id"] != "" && gpu.id != m["id"]) {
+						continue
+					}
+
+					err = c.insertUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+					if err != nil {
+						shared.LogError("Failed to insert GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						return err
+					}
+
+					if gpu.nvidia.path == "" {
+						continue
+					}
+
+					err = c.insertUnixDeviceNum(m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
+					if err != nil {
+						shared.LogError("Failed to insert GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						return err
+					}
+
+					sawNvidia = true
+				}
+
+				if sawNvidia {
+					for _, gpu := range nvidiaDevices {
+						if c.deviceExists(gpu.path) {
+							continue
+						}
+						err = c.insertUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+						if err != nil {
+							shared.LogError("failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+							return err
+						}
 					}
 				}
 			}
@@ -4039,8 +4190,16 @@ func (c *containerLXC) removeMount(mount string) error {
 	return nil
 }
 
+// Check if the unix device already exists.
+func (c *containerLXC) deviceExists(path string) bool {
+	tgtPath := strings.TrimPrefix(path, "/")
+	devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
+	devPath := filepath.Join(c.DevicesPath(), devName)
+	return shared.PathExists(devPath)
+}
+
 // Unix devices handling
-func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
+func (c *containerLXC) createUnixDevice(m shared.Device) ([]string, error) {
 	var err error
 	var major, minor int
 
@@ -4054,7 +4213,7 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	if runningInUserns {
 		for key, value := range m {
 			if shared.StringInSlice(key, []string{"major", "minor", "mode", "uid", "gid"}) && value != "" {
-				return "", fmt.Errorf("The \"%s\" property may not be set when adding a device to a nested container", key)
+				return nil, fmt.Errorf("The \"%s\" property may not be set when adding a device to a nested container", key)
 			}
 		}
 	}
@@ -4064,19 +4223,19 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 		// If no major and minor are set, use those from the device on the host
 		_, major, minor, err = deviceGetAttributes(srcPath)
 		if err != nil {
-			return "", fmt.Errorf("Failed to get device attributes for %s: %s", m["path"], err)
+			return nil, fmt.Errorf("Failed to get device attributes for %s: %s", m["path"], err)
 		}
 	} else if m["major"] == "" || m["minor"] == "" {
-		return "", fmt.Errorf("Both major and minor must be supplied for device: %s", m["path"])
+		return nil, fmt.Errorf("Both major and minor must be supplied for device: %s", m["path"])
 	} else {
 		major, err = strconv.Atoi(m["major"])
 		if err != nil {
-			return "", fmt.Errorf("Bad major %s in device %s", m["major"], m["path"])
+			return nil, fmt.Errorf("Bad major %s in device %s", m["major"], m["path"])
 		}
 
 		minor, err = strconv.Atoi(m["minor"])
 		if err != nil {
-			return "", fmt.Errorf("Bad minor %s in device %s", m["minor"], m["path"])
+			return nil, fmt.Errorf("Bad minor %s in device %s", m["minor"], m["path"])
 		}
 	}
 
@@ -4085,7 +4244,7 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	if m["mode"] != "" {
 		tmp, err := deviceModeOct(m["mode"])
 		if err != nil {
-			return "", fmt.Errorf("Bad mode %s in device %s", m["mode"], m["path"])
+			return nil, fmt.Errorf("Bad mode %s in device %s", m["mode"], m["path"])
 		}
 		mode = os.FileMode(tmp)
 	}
@@ -4103,14 +4262,14 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	if m["uid"] != "" {
 		uid, err = strconv.Atoi(m["uid"])
 		if err != nil {
-			return "", fmt.Errorf("Invalid uid %s in device %s", m["uid"], m["path"])
+			return nil, fmt.Errorf("Invalid uid %s in device %s", m["uid"], m["path"])
 		}
 	}
 
 	if m["gid"] != "" {
 		gid, err = strconv.Atoi(m["gid"])
 		if err != nil {
-			return "", fmt.Errorf("Invalid gid %s in device %s", m["gid"], m["path"])
+			return nil, fmt.Errorf("Invalid gid %s in device %s", m["gid"], m["path"])
 		}
 	}
 
@@ -4118,7 +4277,7 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	if !shared.PathExists(c.DevicesPath()) {
 		os.Mkdir(c.DevicesPath(), 0711)
 		if err != nil {
-			return "", fmt.Errorf("Failed to create devices path: %s", err)
+			return nil, fmt.Errorf("Failed to create devices path: %s", err)
 		}
 	}
 
@@ -4130,23 +4289,23 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 
 		err = os.Remove(devPath)
 		if err != nil {
-			return "", fmt.Errorf("Failed to remove existing entry: %s", err)
+			return nil, fmt.Errorf("Failed to remove existing entry: %s", err)
 		}
 	}
 
 	// Create the new entry
 	if !runningInUserns {
 		if err := syscall.Mknod(devPath, uint32(mode), minor|(major<<8)); err != nil {
-			return "", fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
+			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
 		}
 
 		if err := os.Chown(devPath, uid, gid); err != nil {
-			return "", fmt.Errorf("Failed to chown device %s: %s", devPath, err)
+			return nil, fmt.Errorf("Failed to chown device %s: %s", devPath, err)
 		}
 
 		// Needed as mknod respects the umask
 		if err := os.Chmod(devPath, mode); err != nil {
-			return "", fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
+			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
 		}
 
 		if c.idmapset != nil {
@@ -4158,17 +4317,17 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	} else {
 		f, err := os.Create(devPath)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		f.Close()
 
 		err = deviceMountDisk(srcPath, devPath, false, false)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
-	return devPath, nil
+	return []string{devPath, tgtPath}, nil
 }
 
 func (c *containerLXC) insertUnixDevice(m shared.Device) error {
@@ -4178,13 +4337,14 @@ func (c *containerLXC) insertUnixDevice(m shared.Device) error {
 	}
 
 	// Create the device on the host
-	devPath, err := c.createUnixDevice(m)
+	paths, err := c.createUnixDevice(m)
 	if err != nil {
 		return fmt.Errorf("Failed to setup device: %s", err)
 	}
+	devPath := paths[0]
+	tgtPath := paths[1]
 
 	// Bind-mount it into the container
-	tgtPath := strings.TrimSuffix(m["path"], "/")
 	err = c.insertMount(devPath, tgtPath, "none", syscall.MS_BIND)
 	if err != nil {
 		return fmt.Errorf("Failed to add mount for device: %s", err)
@@ -4205,15 +4365,15 @@ func (c *containerLXC) insertUnixDevice(m shared.Device) error {
 	return nil
 }
 
-func (c *containerLXC) insertUSBDevice(m shared.Device, usb usbDevice) error {
+func (c *containerLXC) insertUnixDeviceNum(m shared.Device, major int, minor int, path string) error {
 	temp := shared.Device{}
 	if err := shared.DeepCopy(&m, &temp); err != nil {
 		return err
 	}
 
-	temp["major"] = fmt.Sprintf("%d", usb.major)
-	temp["minor"] = fmt.Sprintf("%d", usb.minor)
-	temp["path"] = usb.path
+	temp["major"] = fmt.Sprintf("%d", major)
+	temp["minor"] = fmt.Sprintf("%d", minor)
+	temp["path"] = path
 
 	return c.insertUnixDevice(temp)
 }
@@ -4231,13 +4391,39 @@ func (c *containerLXC) removeUnixDevice(m shared.Device) error {
 	devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
-	// Remove the device cgroup rule
-	dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
-	if err != nil {
-		return err
+	// Check if we've been passed major and minor numbers already.
+	var tmp int
+	var err error
+	dMajor := -1
+	if m["major"] != "" {
+		tmp, err = strconv.Atoi(m["major"])
+		if err == nil {
+			dMajor = tmp
+		}
+	}
+
+	dMinor := -1
+	if m["minor"] != "" {
+		tmp, err = strconv.Atoi(m["minor"])
+		if err == nil {
+			dMinor = tmp
+		}
+	}
+
+	dType := ""
+	if m["type"] != "" {
+		dType = m["type"]
+	}
+
+	if dType == "" || dMajor < 0 || dMinor < 0 {
+		dType, dMajor, dMinor, err = deviceGetAttributes(devPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+		// Remove the device cgroup rule
 		err = c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
 		if err != nil {
 			return err
@@ -4272,7 +4458,7 @@ func (c *containerLXC) removeUnixDevice(m shared.Device) error {
 	return nil
 }
 
-func (c *containerLXC) removeUSBDevice(m shared.Device, usb usbDevice) error {
+func (c *containerLXC) removeUnixDeviceNum(m shared.Device, major int, minor int, path string) error {
 	pid := c.InitPID()
 	if pid == -1 {
 		return fmt.Errorf("Can't remove device from stopped container")
@@ -4283,21 +4469,17 @@ func (c *containerLXC) removeUSBDevice(m shared.Device, usb usbDevice) error {
 		return err
 	}
 
-	temp["major"] = fmt.Sprintf("%d", usb.major)
-	temp["minor"] = fmt.Sprintf("%d", usb.minor)
-	temp["path"] = usb.path
+	temp["major"] = fmt.Sprintf("%d", major)
+	temp["minor"] = fmt.Sprintf("%d", minor)
+	temp["path"] = path
 
 	err := c.removeUnixDevice(temp)
 	if err != nil {
-		shared.LogError("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+		shared.LogError("failed to remove device", log.Ctx{"err": err, "gpu": path, "container": c.Name()})
 		return err
 	}
 
-	/* ok to fail here, there may be other usb
-	 * devices on this bus still left in the
-	 * container
-	 */
-	dir := fmt.Sprintf("/proc/%d/root/%s", pid, filepath.Dir(usb.path))
+	dir := fmt.Sprintf("/proc/%d/root/%s", pid, filepath.Dir(path))
 	os.Remove(dir)
 	return nil
 }
