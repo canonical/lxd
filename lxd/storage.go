@@ -702,6 +702,11 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 			return err
 		}
 	} else {
+		if err := container.StorageStart(); err != nil {
+			return err
+		}
+		defer container.StorageStop()
+
 		for _, snap := range snapshots {
 			if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
 				return err

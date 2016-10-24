@@ -580,19 +580,14 @@ func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error
 func (c *migrationSink) Do(migrateOp *operation) error {
 	var err error
 
-	// Start the storage for this container (LVM mount/umount)
-	c.src.container.StorageStart()
-
 	c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
 	if err != nil {
-		c.src.container.StorageStop()
 		return err
 	}
 	defer c.src.disconnect()
 
 	c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
 	if err != nil {
-		c.src.container.StorageStop()
 		c.src.sendControl(err)
 		return err
 	}
@@ -600,7 +595,6 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	if c.src.live {
 		c.src.criuConn, err = c.connectWithSecret(c.src.criuSecret)
 		if err != nil {
-			c.src.container.StorageStop()
 			c.src.sendControl(err)
 			return err
 		}
@@ -608,7 +602,6 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 	header := MigrationHeader{}
 	if err := c.src.recv(&header); err != nil {
-		c.src.container.StorageStop()
 		c.src.sendControl(err)
 		return err
 	}
@@ -634,7 +627,6 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	}
 
 	if err := c.src.send(&resp); err != nil {
-		c.src.container.StorageStop()
 		c.src.sendControl(err)
 		return err
 	}
@@ -726,8 +718,6 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	}(c)
 
 	source := c.src.controlChannel()
-
-	defer c.src.container.StorageStop()
 
 	for {
 		select {
