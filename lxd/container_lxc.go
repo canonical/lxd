@@ -4482,7 +4482,7 @@ func (c *containerLXC) removeUnixDeviceNum(m shared.Device, major int, minor int
 
 	err := c.removeUnixDevice(temp)
 	if err != nil {
-		shared.LogError("failed to remove device", log.Ctx{"err": err, "gpu": path, "container": c.Name()})
+		shared.LogError("failed to remove device", log.Ctx{"err": err, m["type"]: path, "container": c.Name()})
 		return err
 	}
 
