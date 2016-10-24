@@ -293,19 +293,13 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	}
 
 	run := func(op *operation) error {
-		// Start the storage for this container (LVM mount/umount)
-		c.StorageStart()
-
 		// And finaly run the migration.
 		err = sink.Do(op)
 		if err != nil {
-			c.StorageStop()
 			shared.LogError("Error during migration sink", log.Ctx{"err": err})
 			c.Delete()
 			return fmt.Errorf("Error transferring container data: %s", err)
 		}
-
-		defer c.StorageStop()
 
 		err = c.TemplateApply("copy")
 		if err != nil {
