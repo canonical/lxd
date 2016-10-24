@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -53,6 +54,212 @@ type usbDevice struct {
 	path  string
 	major int
 	minor int
+}
+
+// /dev/nvidia[0-9]+
+type nvidiaGpuCards struct {
+	path  string
+	major int
+	minor int
+	id    string
+}
+
+// {/dev/nvidiactl, /dev/nvidia-uvm, ...}
+type nvidiaGpuDevices struct {
+	path  string
+	major int
+	minor int
+}
+
+// /dev/dri/card0. If we detect that vendor == nvidia, then nvidia will contain
+// the corresponding nvidia car, e.g. {/dev/dri/card1 --> /dev/nvidia1}.
+type gpuDevice struct {
+	vendorid  string
+	productid string
+	id        string // card id e.g. 0
+	// If related devices have the same PCI address as the GPU we should
+	// mount them all. Meaning if we detect /dev/dri/card0,
+	// /dev/dri/controlD64, and /dev/dri/renderD128 with the same PCI
+	// address, then they should all be made available in the container.
+	pci    string
+	nvidia nvidiaGpuCards
+
+	path  string
+	major int
+	minor int
+}
+
+func (g *gpuDevice) isNvidiaGpu() bool {
+	return strings.EqualFold(g.vendorid, "10de")
+}
+
+type cardIds struct {
+	id  string
+	pci string
+}
+
+func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
+	const DRI_PATH = "/sys/bus/pci/devices"
+	var gpus []gpuDevice
+	var nvidiaDevices []nvidiaGpuDevices
+	var cards []cardIds
+
+	ents, err := ioutil.ReadDir(DRI_PATH)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, err
+	}
+
+	isNvidia := false
+	for _, ent := range ents {
+		// The pci address == the name of the directory. So let's use
+		// this cheap way of retrieving it.
+		pciAddr := ent.Name()
+
+		// Make sure that we are dealing with a GPU by looking whether
+		// the "drm" subfolder exists.
+		drm := filepath.Join(DRI_PATH, pciAddr, "drm")
+		drmEnts, err := ioutil.ReadDir(drm)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+		}
+
+		// Retrieve vendor ID.
+		vendorIdPath := filepath.Join(DRI_PATH, pciAddr, "vendor")
+		vendorId, err := ioutil.ReadFile(vendorIdPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+		}
+
+		// Retrieve device ID.
+		productIdPath := filepath.Join(DRI_PATH, pciAddr, "device")
+		productId, err := ioutil.ReadFile(productIdPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+		}
+
+		// Store all associated subdevices, e.g. controlD64, renderD128.
+		// The name of the directory == the last part of the
+		// /dev/dri/controlD64 path. So ent.Name() will give us
+		// controlD64.
+		for _, drmEnt := range drmEnts {
+			vendorTmp := strings.TrimSpace(string(vendorId))
+			productTmp := strings.TrimSpace(string(productId))
+			vendorTmp = strings.TrimPrefix(vendorTmp, "0x")
+			productTmp = strings.TrimPrefix(productTmp, "0x")
+			tmpGpu := gpuDevice{
+				pci:       pciAddr,
+				vendorid:  vendorTmp,
+				productid: productTmp,
+				path:      filepath.Join("/dev/dri", drmEnt.Name()),
+			}
+
+			majMinPath := filepath.Join(drm, drmEnt.Name(), "dev")
+			majMinByte, err := ioutil.ReadFile(majMinPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+			}
+			majMin := strings.TrimSpace(string(majMinByte))
+			majMinSlice := strings.Split(string(majMin), ":")
+			if len(majMinSlice) != 2 {
+				continue
+			}
+			majorInt, err := strconv.Atoi(majMinSlice[0])
+			if err != nil {
+				continue
+			}
+			minorInt, err := strconv.Atoi(majMinSlice[1])
+			if err != nil {
+				continue
+			}
+
+			tmpGpu.major = majorInt
+			tmpGpu.minor = minorInt
+
+			isCard, err := regexp.MatchString("^card[0-9]+", drmEnt.Name())
+			if isCard {
+				// If it is a card it's minor number will be its id.
+				tmpGpu.id = strconv.Itoa(minorInt)
+				tmp := cardIds{
+					id:  tmpGpu.id,
+					pci: tmpGpu.pci,
+				}
+				cards = append(cards, tmp)
+			}
+			// Find matching /dev/nvidia* entry for /dev/dri/card*
+			if tmpGpu.isNvidiaGpu() && isCard {
+				if !isNvidia {
+					isNvidia = true
+				}
+				nvidiaPath := "/dev/nvidia" + strconv.Itoa(tmpGpu.minor)
+				stat := syscall.Stat_t{}
+				err := syscall.Stat(nvidiaPath, &stat)
+				if err != nil {
+					continue
+				}
+				tmpGpu.nvidia.path = nvidiaPath
+				tmpGpu.nvidia.major = int(stat.Rdev / 256)
+				tmpGpu.nvidia.minor = int(stat.Rdev % 256)
+				tmpGpu.nvidia.id = strconv.Itoa(tmpGpu.nvidia.minor)
+			}
+			gpus = append(gpus, tmpGpu)
+		}
+	}
+
+	// We detected a Nvidia card, so let's collect all other nvidia devices
+	// that are not /dev/nvidia[0-9]+.
+	if isNvidia {
+		nvidiaEnts, err := ioutil.ReadDir("/dev")
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil, nil, err
+			}
+		}
+		validNvidia, err := regexp.Compile(`^nvidia[^0-9]+`)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, nvidiaEnt := range nvidiaEnts {
+			if !validNvidia.MatchString(nvidiaEnt.Name()) {
+				continue
+			}
+			nvidiaPath := filepath.Join("/dev", nvidiaEnt.Name())
+			stat := syscall.Stat_t{}
+			err = syscall.Stat(nvidiaPath, &stat)
+			if err != nil {
+				continue
+			}
+			tmpNividiaGpu := nvidiaGpuDevices{
+				path:  nvidiaPath,
+				major: int(stat.Rdev / 256),
+				minor: int(stat.Rdev % 256),
+			}
+			nvidiaDevices = append(nvidiaDevices, tmpNividiaGpu)
+		}
+
+	}
+
+	// Since we'll give users to ability to specify and id we need to group
+	// devices on the same PCI that belong to the same card by id.
+	for _, card := range cards {
+		for i := 0; i < len(gpus); i++ {
+			if gpus[i].pci == card.pci {
+				gpus[i].id = card.id
+			}
+		}
+	}
+
+	return gpus, nvidiaDevices, nil
 }
 
 func createUSBDevice(action string, vendor string, product string, major string, minor string, busnum string, devnum string, devname string) (usbDevice, error) {
@@ -504,13 +711,13 @@ func deviceUSBEvent(d *Daemon, usb usbDevice) {
 			}
 
 			if usb.action == "add" {
-				err := c.insertUSBDevice(m, usb)
+				err := c.insertUnixDeviceNum(m, usb.major, usb.minor, usb.path)
 				if err != nil {
 					shared.LogError("failed to create usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
 				}
 			} else if usb.action == "remove" {
-				err := c.removeUSBDevice(m, usb)
+				err := c.removeUnixDeviceNum(m, usb.major, usb.minor, usb.path)
 				if err != nil {
 					shared.LogError("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
