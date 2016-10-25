@@ -109,6 +109,30 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		}
 	case shared.Restart:
 		do = func(op *operation) error {
+			ephemeral := c.IsEphemeral()
+
+			if ephemeral {
+				// Unset ephemeral flag
+				args := containerArgs{
+					Architecture: c.Architecture(),
+					Config:       c.LocalConfig(),
+					Devices:      c.LocalDevices(),
+					Ephemeral:    false,
+					Profiles:     c.Profiles(),
+				}
+
+				err := c.Update(args, false)
+				if err != nil {
+					return err
+				}
+
+				// On function return, set the flag back on
+				defer func() {
+					args.Ephemeral = ephemeral
+					c.Update(args, true)
+				}()
+			}
+
 			if raw.Timeout == 0 || raw.Force {
 				err = c.Stop(false)
 				if err != nil {
