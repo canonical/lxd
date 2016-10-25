@@ -40,5 +40,8 @@ test_filemanip() {
   lxc file pull filemanip/tmp/this/is/a/nonexistent/directory/foo "${TEST_DIR}"
   [ "$(cat "${TEST_DIR}"/foo)" = "foo" ]
 
+  lxc file push -p "${TEST_DIR}"/source/foo filemanip/.
+  [ "$(lxc exec filemanip cat /foo)" = "foo" ]
+
   lxc delete filemanip -f
 }
