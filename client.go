@@ -1836,6 +1836,11 @@ func (c *Client) MkdirP(container string, p string, mode os.FileMode) error {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
+	/* special case, every container has a /, we don't need to do anything */
+	if p == "/" {
+		return nil
+	}
+
 	parts := strings.Split(p, "/")
 	i := len(parts)
 
