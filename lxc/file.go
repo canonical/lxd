@@ -115,13 +115,13 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		}
 
 		if c.mkdirs {
-			if err := d.MkdirP(container, pathSpec[1], mode); err != nil {
+			if err := d.MkdirP(container, targetPath, mode); err != nil {
 				return err
 			}
 		}
 
 		for _, fname := range sourcefilenames {
-			if err := d.RecursivePushFile(container, fname, pathSpec[1]); err != nil {
+			if err := d.RecursivePushFile(container, fname, targetPath); err != nil {
 				return err
 			}
 		}
