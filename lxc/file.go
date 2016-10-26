@@ -74,16 +74,7 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		return fmt.Errorf(i18n.G("Invalid target %s"), target)
 	}
 
-	/* Fix up the path. Let's:
-	 * 1. re-add the leading / that got stripped from the SplitN
-	 * 2. clean it and remove any /./, /../, /////, etc.
-	 * 3. keep the trailing slash if it had one, since we use it via
-	 *    filepath.Split below
-	 */
-	pathSpec[1] = filepath.Clean("/" + pathSpec[1])
-	if target[len(target)-1] == '/' {
-		pathSpec[1] = pathSpec[1] + "/"
-	}
+	pathSpec[1] = c.normalize(pathSpec[1], target)
 
 	targetPath := pathSpec[1]
 	remote, container := config.ParseRemoteAndContainer(pathSpec[0])
