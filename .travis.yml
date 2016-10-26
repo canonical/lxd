@@ -22,6 +22,7 @@ script:
   - "go test ./"
   - "go test ./shared"
   - "go test ./lxc"
+  - "cd test && make.sh"
 
 notifications:
   webhooks: https://linuxcontainers.org/webhook-lxcbot/
