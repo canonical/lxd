@@ -340,7 +340,7 @@ type container interface {
 	Update(newConfig containerArgs, userRequested bool) error
 
 	Delete() error
-	Export(w io.Writer) error
+	Export(w io.Writer, properties map[string]string) error
 
 	// Live configuration
 	CGroupGet(key string) (string, error)

@@ -3102,7 +3102,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	return nil
 }
 
-func (c *containerLXC) Export(w io.Writer) error {
+func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 	ctxMap := log.Ctx{"name": c.name,
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
@@ -3196,6 +3196,7 @@ func (c *containerLXC) Export(w io.Writer) error {
 		meta := imageMetadata{}
 		meta.Architecture = arch
 		meta.CreationDate = time.Now().UTC().Unix()
+		meta.Properties = properties
 
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
@@ -3228,6 +3229,50 @@ func (c *containerLXC) Export(w io.Writer) error {
 			return err
 		}
 	} else {
+		if properties != nil {
+			// Parse the metadata
+			content, err := ioutil.ReadFile(fnam)
+			if err != nil {
+				tw.Close()
+				shared.LogError("Failed exporting container", ctxMap)
+				return err
+			}
+
+			metadata := new(imageMetadata)
+			err = yaml.Unmarshal(content, &metadata)
+			if err != nil {
+				tw.Close()
+				shared.LogError("Failed exporting container", ctxMap)
+				return err
+			}
+			metadata.Properties = properties
+
+			// Generate a new metadata.yaml
+			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
+			if err != nil {
+				tw.Close()
+				shared.LogError("Failed exporting container", ctxMap)
+				return err
+			}
+			defer os.RemoveAll(tempDir)
+
+			data, err := yaml.Marshal(&metadata)
+			if err != nil {
+				tw.Close()
+				shared.LogError("Failed exporting container", ctxMap)
+				return err
+			}
+
+			// Write the actual file
+			fnam = filepath.Join(tempDir, "metadata.yaml")
+			err = ioutil.WriteFile(fnam, data, 0644)
+			if err != nil {
+				tw.Close()
+				shared.LogError("Failed exporting container", ctxMap)
+				return err
+			}
+		}
+
 		// Include metadata.yaml in the tarball
 		fi, err := os.Lstat(fnam)
 		if err != nil {
@@ -3237,7 +3282,13 @@ func (c *containerLXC) Export(w io.Writer) error {
 			return err
 		}
 
-		if err := c.tarStoreFile(linkmap, offset, tw, fnam, fi); err != nil {
+		if properties != nil {
+			tmpOffset := len(path.Dir(fnam)) + 1
+			err = c.tarStoreFile(linkmap, tmpOffset, tw, fnam, fi)
+		} else {
+			err = c.tarStoreFile(linkmap, offset, tw, fnam, fi)
+		}
+		if err != nil {
 			tw.Close()
 			shared.LogDebugf("Error writing to tarfile: %s", err)
 			shared.LogError("Failed exporting container", ctxMap)

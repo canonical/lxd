@@ -270,7 +270,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	}
 	defer os.Remove(tarfile.Name())
 
-	if err := c.Export(tarfile); err != nil {
+	if err := c.Export(tarfile, req.Properties); err != nil {
 		tarfile.Close()
 		return info, err
 	}
