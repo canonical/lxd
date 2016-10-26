@@ -134,6 +134,14 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 
 	var fp string
 
+	// We should only set the properties field if there actually are any.
+	// Otherwise we will only delete any existing properties on publish.
+	// This is something which only direct callers of the API are allowed to
+	// do.
+	if len(properties) == 0 {
+		properties = nil
+	}
+
 	// Optimized local publish
 	if cRemote == iRemote {
 		fp, err = d.ImageFromContainer(cName, c.makePublic, c.pAliases, properties, c.compression_algorithm)
