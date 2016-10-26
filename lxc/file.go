@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -168,7 +167,7 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		}
 
 		if c.mkdirs {
-			if err := d.MkdirP(container, filepath.Dir(fpath), mode); err != nil {
+			if err := d.MkdirP(container, path.Dir(fpath), mode); err != nil {
 				return err
 			}
 		}
