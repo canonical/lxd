@@ -85,7 +85,7 @@ The `hello-ubuntu.json` file referenced above could contain something like:
 
 ## Building from source
 
-We recommend having the latest versions of liblxc (>= 1.1 required) and CRIU
+We recommend having the latest versions of liblxc (>= 2.0.0 required) and CRIU
 (>= 1.7 recommended) available for LXD development. Additionally, LXD requires
 Golang 1.5 or later to work. All the right versions dependencies are available
 via the LXD PPA:
