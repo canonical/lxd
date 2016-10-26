@@ -77,9 +77,10 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 	remote, container := config.ParseRemoteAndContainer(pathSpec[0])
 
 	targetIsDir := strings.HasSuffix(target, "/")
-
-	pathSpec[1] = c.normalize(pathSpec[1], target)
-	targetPath := pathSpec[1]
+	// re-add leading / that got stripped by the SplitN
+	targetPath := "/" + pathSpec[1]
+	// clean various /./, /../, /////, etc. that users add (#2557)
+	targetPath = path.Clean(targetPath)
 
 	shared.LogDebugf("Pushing to: %s  (isdir: %t)", targetPath, targetIsDir)
 
