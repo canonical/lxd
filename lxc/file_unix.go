@@ -20,13 +20,3 @@ func (c *fileCmd) getOwner(f *os.File) (os.FileMode, int, int, error) {
 
 	return mode, uid, gid, nil
 }
-
-func (c *fileCmd) normalize(path string, target string) string {
-	/* Fix up the path. Let's:
-	 * 1. re-add the leading / that got stripped from the SplitN
-	 * 2. clean it and remove any /./, /../, /////, etc.
-	 */
-	path = filepath.Clean("/" + path)
-
-	return path
-}
