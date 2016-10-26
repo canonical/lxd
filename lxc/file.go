@@ -74,10 +74,10 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		return fmt.Errorf(i18n.G("Invalid target %s"), target)
 	}
 
-	pathSpec[1] = c.normalize(pathSpec[1], target)
-
-	targetPath := pathSpec[1]
 	remote, container := config.ParseRemoteAndContainer(pathSpec[0])
+
+	pathSpec[1] = c.normalize(pathSpec[1], target)
+	targetPath := pathSpec[1]
 
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {
