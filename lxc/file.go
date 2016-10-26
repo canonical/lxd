@@ -76,8 +76,12 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 
 	remote, container := config.ParseRemoteAndContainer(pathSpec[0])
 
+	targetIsDir := strings.HasSuffix(target, "/")
+
 	pathSpec[1] = c.normalize(pathSpec[1], target)
 	targetPath := pathSpec[1]
+
+	shared.LogDebugf("Pushing to: %s  (isdir: %t)", targetPath, targetIsDir)
 
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {
@@ -134,9 +138,7 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		gid = c.gid
 	}
 
-	_, targetfilename := filepath.Split(targetPath)
-
-	if (targetfilename != "") && (len(sourcefilenames) > 1) {
+	if (len(sourcefilenames) > 1) && !targetIsDir {
 		return errArgs
 	}
 
@@ -160,7 +162,7 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 
 	for _, f := range files {
 		fpath := targetPath
-		if targetfilename == "" {
+		if targetIsDir {
 			fpath = path.Join(fpath, path.Base(f.Name()))
 		}
 
