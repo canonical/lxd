@@ -45,7 +45,7 @@ connection tools for authentication and encryption.
 
 Examining certificate. In case you are curious:
 
-    openssl.exe x509 -in client.crt -purpose
+    openssl x509 -in client.crt -purpose
 
 Among the lines you should see:
 
