@@ -80,6 +80,10 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 	targetPath := "/" + pathSpec[1]
 	// clean various /./, /../, /////, etc. that users add (#2557)
 	targetPath = path.Clean(targetPath)
+	// normalization may reveal that path is still a dir, e.g. /.
+	if strings.HasSuffix(targetPath, "/") {
+		targetIsDir = true
+	}
 
 	shared.LogDebugf("Pushing to: %s  (isdir: %t)", targetPath, targetIsDir)
 
