@@ -3058,8 +3058,19 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		 * namespace.
 		 */
 		if !c.IsPrivileged() {
-			if err := c.IdmapSet().ShiftRootfs(stateDir); err != nil {
+			err = c.StorageStart()
+			if err != nil {
 				return err
+			}
+
+			err = c.IdmapSet().ShiftRootfs(stateDir)
+			err2 := c.StorageStop()
+			if err != nil {
+				return err
+			}
+
+			if err2 != nil {
+				return err2
 			}
 		}
 
