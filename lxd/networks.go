@@ -916,8 +916,15 @@ func (n *network) Start() error {
 			return err
 		}
 
+		addr := strings.Split(fanAddress, "/")
 		if n.config["fan.type"] == "ipip" {
-			fanAddress = strings.Replace(fanAddress, "/8", "/24", 1)
+			fanAddress = fmt.Sprintf("%s/24", addr[0])
+		}
+
+		// Parse the host subnet
+		_, hostSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/24", addr[0]))
+		if err != nil {
+			return err
 		}
 
 		// Add the address
@@ -925,6 +932,14 @@ func (n *network) Start() error {
 		if err != nil {
 			return err
 		}
+
+		// Update the dnsmasq config
+		dnsmasqCmd = append(dnsmasqCmd, []string{
+			fmt.Sprintf("--listen-address=%s", addr[0]),
+			"--dhcp-no-override", "--dhcp-authoritative",
+			fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")),
+			fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts")),
+			"--dhcp-range", fmt.Sprintf("%s,%s", networkGetIP(hostSubnet, 2).String(), networkGetIP(hostSubnet, -2).String())}...)
 
 		// Setup the tunnel
 		if n.config["fan.type"] == "ipip" {
@@ -940,8 +955,6 @@ func (n *network) Start() error {
 
 			// Fails if the map is already set
 			shared.RunCommand("ip", "link", "change", "tunl0", "type", "ipip", "fan-map", fmt.Sprintf("%s:%s", overlay, underlay))
-
-			addr := strings.Split(fanAddress, "/")
 
 			err = shared.RunCommand("ip", "route", "add", overlay, "dev", "tunl0", "src", addr[0])
 			if err != nil {
@@ -1066,7 +1079,7 @@ func (n *network) Start() error {
 	}
 
 	// Configure dnsmasq
-	if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) || !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) || !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
 		dnsDomain := n.config["dns.domain"]
 		if dnsDomain == "" {
 			dnsDomain = "lxd"
