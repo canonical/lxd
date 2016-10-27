@@ -238,6 +238,9 @@ def convert_container(container_name, args):
         # Deal with optional mounts
         if "optional" in mount[3].split(","):
             device['optional'] = "true"
+        elif not os.path.exists(mount[0]):
+            print("Invalid mount configuration, source path doesn't exist.")
+            return False
 
         # Set the source
         device['source'] = mount[0]
