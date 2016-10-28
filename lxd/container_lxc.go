@@ -99,6 +99,9 @@ func lxcValidConfig(rawLxc string) error {
 			continue
 		}
 
+		// Skip whitespace {"\t", " "}
+		line = strings.TrimLeft(line, "\t ")
+
 		// Ignore comments
 		if strings.HasPrefix(line, "#") {
 			continue
