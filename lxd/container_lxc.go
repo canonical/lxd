@@ -4009,13 +4009,38 @@ func (c *containerLXC) insertUnixDevice(name string, m shared.Device) error {
 		return fmt.Errorf("Failed to add mount for device: %s", err)
 	}
 
-	// Add the new device cgroup rule
-	dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
-	if err != nil {
-		return fmt.Errorf("Failed to get device attributes: %s", err)
+	// Check if we've been passed major and minor numbers already.
+	var tmp int
+	dMajor := -1
+	if m["major"] != "" {
+		tmp, err = strconv.Atoi(m["major"])
+		if err == nil {
+			dMajor = tmp
+		}
+	}
+
+	dMinor := -1
+	if m["minor"] != "" {
+		tmp, err = strconv.Atoi(m["minor"])
+		if err == nil {
+			dMinor = tmp
+		}
+	}
+
+	dType := ""
+	if m["type"] != "" {
+		dType = m["type"]
+	}
+
+	if dType == "" || dMajor < 0 || dMinor < 0 {
+		dType, dMajor, dMinor, err = deviceGetAttributes(devPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+		// Add the new device cgroup rule
 		if err := c.CGroupSet("devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor)); err != nil {
 			return fmt.Errorf("Failed to add cgroup rule for device")
 		}
