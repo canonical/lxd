@@ -289,6 +289,7 @@ Key         | Type      | Default           | Required  | Description
 vendorid    | string    | -                 | no        | The vendor id of the GPU device.
 productid   | string    | -                 | no        | The product id of the GPU device.
 id          | string    | -                 | no        | The card id of the GPU device.
+pci         | string    | -                 | no        | The pci address of the GPU device.
 uid         | int       | 0                 | no        | UID of the device owner in the container
 gid         | int       | 0                 | no        | GID of the device owner in the container
 mode        | int       | 0660              | no        | Mode of the device in the container
