@@ -537,6 +537,7 @@ func (c *containerLXC) initLXC() error {
 
 	logLevel := "warn"
 	if debug {
+		logLevel = "debug"
 	} else if verbose {
 		logLevel = "info"
 	} else {
