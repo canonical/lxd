@@ -531,12 +531,11 @@ func (c *containerLXC) initLXC() error {
 
 	logLevel := "warn"
 	if debug {
-		logLevel = "debug"
+		logLevel = "trace"
 	} else if verbose {
 		logLevel = "info"
-	} else {
-		logLevel = "trace"
 	}
+
 	err = lxcSetConfigItem(cc, "lxc.loglevel", logLevel)
 	if err != nil {
 		return err
