@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -351,16 +350,18 @@ type container interface {
 	FilePull(srcpath string, dstpath string) (int, int, os.FileMode, string, []string, error)
 	FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error
 
-	// Command execution: Execute command and wait for it to exit.
-	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error)
-
-	// Command execution: Returns a command. If called as exec.Cmd.Start()
-	// ExecNoWait() does not wait for the process to exit. Callers are
-	// expected to pass the write end of a pipe to the pidPipe argument. So
-	// they can read the PID of the executing process from the read end. The
-	// PID read cannot be directly waited upon since it is a child of lxd
-	// forkexec. It can however be used to e.g. send signals.
-	ExecNoWait(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, pidPipe *os.File) (*exec.Cmd, error)
+	/* Command execution:
+	 * 1. passing in nil for attachedPid
+	 *    - equivalent to calling cmd.Run()
+	 * 2. passing in non-nil for attachedPid
+	 *    - return PID of the lxd forkexec command and store the PID of the
+	 *      executing process in attachedPid. It's the callers
+	 *      responsibility to wait on the command. (Note. The PID returned
+	 *      in attachedPid can not be waited upon since it's a child of the
+	 *      lxd forkexec command. It can however be used to e.g. forward
+	 *      signals.)
+	 */
+	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, attachedPid *int) (int, error)
 
 	// Status
 	Render() (interface{}, interface{}, error)

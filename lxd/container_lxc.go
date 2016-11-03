@@ -3846,24 +3846,14 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 	return nil
 }
 
-func (c *containerLXC) prepareExec(waitOnPid bool, command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) ([]string, *exec.Cmd) {
+func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, attachedPid *int) (int, error) {
 	envSlice := []string{}
 
 	for k, v := range env {
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// Setting "wait"/"nowait" as the second argument in cmd.Args allows us
-	// to tell execContainer() that it should call an appropriate go-lxc
-	// wrapper for c->attach() that executes the command we requested in the
-	// container and, depending on whether we passed "wait" or "nowait" does
-	// wait or not wait for it to exit.
-	var args []string
-	if waitOnPid {
-		args = []string{execPath, "forkexec", "wait", c.name, c.daemon.lxcpath, filepath.Join(c.LogPath(), "lxc.conf")}
-	} else {
-		args = []string{execPath, "forkexec", "nowait", c.name, c.daemon.lxcpath, filepath.Join(c.LogPath(), "lxc.conf")}
-	}
+	args := []string{execPath, "forkexec", c.name, c.daemon.lxcpath, filepath.Join(c.LogPath(), "lxc.conf")}
 
 	args = append(args, "--")
 	args = append(args, "env")
@@ -3880,35 +3870,45 @@ func (c *containerLXC) prepareExec(waitOnPid bool, command []string, env map[str
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
-	shared.LogInfo("Executing command", log.Ctx{"environment": envSlice, "args": args})
-	return envSlice, &cmd
-}
+	r, w, err := shared.Pipe()
+	defer r.Close()
+	if err != nil {
+		shared.LogErrorf("s", err)
+		return -1, err
+	}
 
-func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File) (int, error) {
-	envSlice, cmd := c.prepareExec(true, command, env, stdin, stdout, stderr)
-	err := cmd.Run()
+	cmd.ExtraFiles = []*os.File{w}
+	err = cmd.Start()
+	if err != nil {
+		w.Close()
+		return -1, err
+	}
+	w.Close()
+	pid := -1
+	if err := json.NewDecoder(r).Decode(&pid); err != nil {
+		shared.LogErrorf("Failed to retrieve PID of executing child process: %s", err)
+		return -1, err
+	}
+
+	// It's the callers responsibility to wait or not wait.
+	if attachedPid != nil {
+		*attachedPid = pid
+		return cmd.Process.Pid, nil
+	}
+
+	err = cmd.Wait()
 	if err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if ok {
 			status, ok := exitErr.Sys().(syscall.WaitStatus)
 			if ok {
-				shared.LogInfo("Executed command", log.Ctx{"environment": envSlice, "args": cmd.Args, "exit_status": status.ExitStatus()})
 				return status.ExitStatus(), nil
 			}
 		}
-
-		shared.LogInfo("Failed executing command", log.Ctx{"environment": envSlice, "args": cmd.Args, "err": err})
 		return -1, err
 	}
 
-	shared.LogInfo("Executed command", log.Ctx{"environment": envSlice, "args": cmd.Args})
 	return 0, nil
-}
-
-func (c *containerLXC) ExecNoWait(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, pidPipe *os.File) (*exec.Cmd, error) {
-	_, cmd := c.prepareExec(false, command, env, stdin, stdout, stderr)
-	cmd.ExtraFiles = []*os.File{pidPipe}
-	return cmd, nil
 }
 
 func (c *containerLXC) cpuState() shared.ContainerStateCPU {

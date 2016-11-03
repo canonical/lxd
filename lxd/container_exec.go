@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -254,48 +253,45 @@ func (s *execWs) Do(op *operation) error {
 		return cmdErr
 	}
 
-	r, w, err := shared.Pipe()
-	defer r.Close()
-	if err != nil {
-		shared.LogErrorf("s", err)
-		return err
-	}
-
-	cmd, err := s.container.ExecNoWait(s.command, s.env, stdin, stdout, stderr, w)
-	if err != nil {
-		w.Close()
-		return err
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		w.Close()
-		return err
-	}
-	w.Close()
-
 	attachedPid := -1
-	if err := json.NewDecoder(r).Decode(&attachedPid); err != nil {
-		shared.LogErrorf("Failed to retrieve PID of executing child process: %s", err)
-		return finisher(-1, err)
+	pid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, &attachedPid)
+	if err != nil {
+		return err
 	}
 
 	if s.interactive {
 		receivePid <- attachedPid
 	}
 
-	err = cmd.Wait()
+	proc, err := os.FindProcess(pid)
 	if err != nil {
-		exitErr, ok := err.(*exec.ExitError)
-		if ok {
-			status, ok := exitErr.Sys().(syscall.WaitStatus)
-			if ok {
-				return finisher(status.ExitStatus(), nil)
-			}
+		return finisher(-1, fmt.Errorf("Failed finding process: %q", err))
+	}
+
+	procState, err := proc.Wait()
+	if err != nil {
+		return finisher(-1, fmt.Errorf("Failed waiting on process %d: %q", pid, err))
+	}
+
+	if procState.Success() {
+		return finisher(0, nil)
+	}
+
+	status, ok := procState.Sys().(syscall.WaitStatus)
+	if ok {
+		if status.Exited() {
+			return finisher(status.ExitStatus(), nil)
+		}
+		// Backwards compatible behavior. Report success when we exited
+		// due to a signal. Otherwise this may break Jenkins, e.g. when
+		// lxc exec foo reboot receives SIGTERM and status.Exitstats()
+		// would report -1.
+		if status.Signaled() {
+			return finisher(0, nil)
 		}
 	}
 
-	return finisher(0, nil)
+	return finisher(-1, nil)
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
@@ -407,7 +403,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			defer stderr.Close()
 
 			// Run the command
-			cmdResult, cmdErr = c.Exec(post.Command, env, nil, stdout, stderr)
+			cmdResult, cmdErr = c.Exec(post.Command, env, nil, stdout, stderr, nil)
 
 			// Update metadata with the right URLs
 			metadata["return"] = cmdResult
@@ -416,7 +412,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", shared.APIVersion, c.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
-			cmdResult, cmdErr = c.Exec(post.Command, env, nil, nil, nil)
+			cmdResult, cmdErr = c.Exec(post.Command, env, nil, nil, nil, nil)
 			metadata["return"] = cmdResult
 		}
 
