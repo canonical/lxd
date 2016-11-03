@@ -253,8 +253,7 @@ func (s *execWs) Do(op *operation) error {
 		return cmdErr
 	}
 
-	attachedPid := -1
-	pid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, &attachedPid)
+	pid, attachedPid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, false)
 	if err != nil {
 		return err
 	}
@@ -403,7 +402,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			defer stderr.Close()
 
 			// Run the command
-			cmdResult, cmdErr = c.Exec(post.Command, env, nil, stdout, stderr, nil)
+			cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, stdout, stderr, true)
 
 			// Update metadata with the right URLs
 			metadata["return"] = cmdResult
@@ -412,7 +411,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", shared.APIVersion, c.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
-			cmdResult, cmdErr = c.Exec(post.Command, env, nil, nil, nil, nil)
+			cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, nil, nil, true)
 			metadata["return"] = cmdResult
 		}
 

@@ -351,17 +351,18 @@ type container interface {
 	FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error
 
 	/* Command execution:
-	 * 1. passing in nil for attachedPid
-	 *    - equivalent to calling cmd.Run()
-	 * 2. passing in non-nil for attachedPid
-	 *    - return PID of the lxd forkexec command and store the PID of the
-	 *      executing process in attachedPid. It's the callers
-	 *      responsibility to wait on the command. (Note. The PID returned
-	 *      in attachedPid can not be waited upon since it's a child of the
-	 *      lxd forkexec command. It can however be used to e.g. forward
-	 *      signals.)
-	 */
-	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, attachedPid *int) (int, error)
+		 * 1. passing in false for wait
+		 *    - equivalent to calling cmd.Run()
+		 * 2. passing in true for wait
+	         *    - start the command and return its PID in the first return
+	         *      argument and the PID of the attached process in the second
+	         *      argument. It's the callers responsibility to wait on the
+	         *      command. (Note. The returned PID of the attached process can not
+	         *      be waited upon since it's a child of the lxd forkexec command
+	         *      (the PID returned in the first return argument). It can however
+	         *      be used to e.g. forward signals.)
+	*/
+	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool) (int, int, error)
 
 	// Status
 	Render() (interface{}, interface{}, error)

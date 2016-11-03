@@ -3846,7 +3846,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 	return nil
 }
 
-func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, attachedPid *int) (int, error) {
+func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool) (int, int, error) {
 	envSlice := []string{}
 
 	for k, v := range env {
@@ -3874,26 +3874,25 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	defer r.Close()
 	if err != nil {
 		shared.LogErrorf("s", err)
-		return -1, err
+		return -1, -1, err
 	}
 
 	cmd.ExtraFiles = []*os.File{w}
 	err = cmd.Start()
 	if err != nil {
 		w.Close()
-		return -1, err
+		return -1, -1, err
 	}
 	w.Close()
-	pid := -1
-	if err := json.NewDecoder(r).Decode(&pid); err != nil {
+	attachedPid := -1
+	if err := json.NewDecoder(r).Decode(&attachedPid); err != nil {
 		shared.LogErrorf("Failed to retrieve PID of executing child process: %s", err)
-		return -1, err
+		return -1, -1, err
 	}
 
 	// It's the callers responsibility to wait or not wait.
-	if attachedPid != nil {
-		*attachedPid = pid
-		return cmd.Process.Pid, nil
+	if !wait {
+		return cmd.Process.Pid, attachedPid, nil
 	}
 
 	err = cmd.Wait()
@@ -3902,13 +3901,13 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 		if ok {
 			status, ok := exitErr.Sys().(syscall.WaitStatus)
 			if ok {
-				return status.ExitStatus(), nil
+				return status.ExitStatus(), attachedPid, nil
 			}
 		}
-		return -1, err
+		return -1, -1, err
 	}
 
-	return 0, nil
+	return 0, attachedPid, nil
 }
 
 func (c *containerLXC) cpuState() shared.ContainerStateCPU {
