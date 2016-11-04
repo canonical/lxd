@@ -1585,7 +1585,17 @@ func (c *containerLXC) Stop(stateful bool) error {
 	}
 
 	// Attempt to freeze the container first, helps massively with fork bombs
-	c.Freeze()
+	freezer := make(chan bool, 1)
+	go func() {
+		c.Freeze()
+		freezer <- true
+	}()
+
+	select {
+	case <-freezer:
+	case <-time.After(time.Second * 5):
+		c.Unfreeze()
+	}
 
 	if err := c.c.Stop(); err != nil {
 		op.Done(err)
