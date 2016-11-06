@@ -1069,8 +1069,13 @@ func (d *Daemon) Ready() error {
 	/* Auto-update images */
 	d.resetAutoUpdateChan = make(chan bool)
 	go func() {
-		autoUpdateImages(d)
+		// Initial image sync
+		interval := daemonConfig["images.auto_update_interval"].GetInt64()
+		if interval > 0 {
+			autoUpdateImages(d)
+		}
 
+		// Background image sync
 		for {
 			interval := daemonConfig["images.auto_update_interval"].GetInt64()
 			if interval > 0 {
