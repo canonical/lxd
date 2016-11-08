@@ -88,6 +88,8 @@ func run() error {
 		fmt.Printf("        Perform a clean shutdown of LXD and all running containers\n")
 		fmt.Printf("    waitready [--timeout=15]\n")
 		fmt.Printf("        Wait until LXD is ready to handle requests\n")
+		fmt.Printf("    import <container name>\n")
+		fmt.Printf("        Import a pre-existing container from storage\n")
 
 		fmt.Printf("\n\nCommon options:\n")
 		fmt.Printf("    --debug\n")
@@ -223,6 +225,8 @@ func run() error {
 			return cmdShutdown()
 		case "waitready":
 			return cmdWaitReady()
+		case "import":
+			return cmdImport(os.Args[1:])
 
 		// Internal commands
 		case "forkgetnet":
@@ -1217,4 +1221,28 @@ func cmdMigrateDumpSuccess(args []string) error {
 	conn.Close()
 
 	return c.WaitForSuccess(args[1])
+}
+
+func cmdImport(args []string) error {
+	name := args[1]
+
+	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("%s/internal/containers?target=%s", c.BaseURL, name)
+
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return err
+	}
+
+	raw, err := c.Http.Do(req)
+	_, err = lxd.HoistResponse(raw, lxd.Sync)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
