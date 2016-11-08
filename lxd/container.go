@@ -660,7 +660,12 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	args.CreationDate = dbArgs.CreationDate
 	args.LastUsedDate = dbArgs.LastUsedDate
 
-	return containerLXCCreate(d, args)
+	c, err := containerLXCCreate(d, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }
 
 func containerConfigureInternal(c container) error {
@@ -681,6 +686,11 @@ func containerConfigureInternal(c container) error {
 		}
 
 		break
+	}
+
+	err := writeSlurpFile(c)
+	if err != nil {
+		return err
 	}
 
 	return nil

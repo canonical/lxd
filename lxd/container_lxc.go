@@ -2511,6 +2511,14 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 		return err
 	}
 
+	// The old slurp file may be out of date (e.g. it doesn't have all the
+	// current snapshots of the container listed); let's write a new one to
+	// be safe.
+	err = writeSlurpFile(c)
+	if err != nil {
+		return err
+	}
+
 	// If the container wasn't running but was stateful, should we restore
 	// it as running?
 	if shared.PathExists(c.StatePath()) {
@@ -2736,6 +2744,65 @@ func (c *containerLXC) ConfigKeySet(key string, value string) error {
 	}
 
 	return c.Update(args, false)
+}
+
+type slurpFile struct {
+	Container *shared.ContainerInfo  `yaml:"container"`
+	Snapshots []*shared.SnapshotInfo `yaml:"snapshots"`
+}
+
+func writeSlurpFile(c container) error {
+	/* we only write slurp files out for actual containers */
+	if c.IsSnapshot() {
+		return nil
+	}
+
+	ci, _, err := c.Render()
+	if err != nil {
+		return err
+	}
+
+	snapshots, err := c.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	var sis []*shared.SnapshotInfo
+
+	for _, s := range snapshots {
+		si, _, err := s.Render()
+		if err != nil {
+			return err
+		}
+
+		sis = append(sis, si.(*shared.SnapshotInfo))
+	}
+
+	data, err := yaml.Marshal(&slurpFile{
+		Container: ci.(*shared.ContainerInfo),
+		Snapshots: sis,
+	})
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(shared.VarPath("containers", c.Name(), "backup.yaml"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	err = f.Chmod(0400)
+	if err != nil {
+		return err
+	}
+
+	err = shared.WriteAll(f, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
@@ -3483,6 +3550,14 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	if err := txCommit(tx); err != nil {
+		return err
+	}
+
+	/* we can call Update in some cases when the directory doesn't exist
+	 * yet before container creation; this is okay, because at the end of
+	 * container creation we write the slurp file, so let's not worry about
+	 * ENOENT. */
+	if err := writeSlurpFile(c); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
