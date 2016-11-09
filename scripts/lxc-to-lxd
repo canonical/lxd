@@ -318,7 +318,7 @@ def convert_container(container_name, args):
            'profiles': ["default"]}
 
     # Set the container architecture if set in LXC
-    print("Converting container architecture configuration")
+    print("Processing container architecture configuration")
     arches = {'i686': "i686",
               'x86_64': "x86_64",
               'armhf': "armv7l",
