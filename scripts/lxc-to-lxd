@@ -282,8 +282,7 @@ def convert_container(container_name, args):
         if value[0] == "lxc-container-default-with-nesting":
             config['security.nesting'] = "true"
         elif value[0] != "lxc-container-default":
-            print("Unsupported custom apparmor profile, skipping...")
-            return False
+            config["raw.lxc"] = "lxc.aa_profile=%s" % value[0]
 
     # Convert seccomp
     print("Processing container seccomp configuration")
