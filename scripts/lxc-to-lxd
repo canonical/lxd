@@ -417,8 +417,13 @@ if not os.geteuid() == 0:
 if (not args.containers and not args.all) or (args.containers and args.all):
     parser.error("You must either pass container names or --all")
 
+count = 0
 for container_name in lxc.list_containers(config_path=args.lxcpath):
     if args.containers and container_name not in args.containers:
         continue
 
+    if count > 0:
+        print("")
+
     convert_container(container_name, args)
+    count += 1
