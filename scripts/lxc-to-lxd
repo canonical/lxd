@@ -5,6 +5,7 @@ import json
 import lxc
 import os
 import subprocess
+import sys
 from pylxd.client import Client
 from pylxd import exceptions
 
@@ -85,10 +86,6 @@ def convert_container(container_name, args):
         container = lxc.Container(container_name, args.lxcpath)
     except:
         print("Invalid container configuration, skipping...")
-        return False
-
-    if container.running:
-        print("Only stopped containers can be migrated, skipping...")
         return False
 
     # As some keys can't be queried over the API, parse the config ourselves
@@ -282,8 +279,7 @@ def convert_container(container_name, args):
         if value[0] == "lxc-container-default-with-nesting":
             config['security.nesting'] = "true"
         elif value[0] != "lxc-container-default":
-            print("Unsupported custom apparmor profile, skipping...")
-            return False
+            config["raw.lxc"] = "lxc.aa_profile=%s" % value[0]
 
     # Convert seccomp
     print("Processing container seccomp configuration")
@@ -319,7 +315,7 @@ def convert_container(container_name, args):
            'profiles': ["default"]}
 
     # Set the container architecture if set in LXC
-    print("Converting container architecture configuration")
+    print("Processing container architecture configuration")
     arches = {'i686': "i686",
               'x86_64': "x86_64",
               'armhf': "armv7l",
@@ -347,6 +343,10 @@ def convert_container(container_name, args):
 
     if args.dry_run:
         return True
+
+    if container.running:
+        print("Only stopped containers can be migrated, skipping...")
+        return False
 
     try:
         print("Creating the container")
@@ -418,8 +418,27 @@ if not os.geteuid() == 0:
 if (not args.containers and not args.all) or (args.containers and args.all):
     parser.error("You must either pass container names or --all")
 
+# Run migration
+results = {}
+count = 0
 for container_name in lxc.list_containers(config_path=args.lxcpath):
     if args.containers and container_name not in args.containers:
         continue
 
-    convert_container(container_name, args)
+    if count > 0:
+        print("")
+
+    results[container_name] = convert_container(container_name, args)
+    count += 1
+
+# Print summary
+print("")
+print("==> Migration summary")
+for name, result in results.items():
+    if result:
+        print("%s: SUCCESS" % name)
+    else:
+        print("%s: FAILURE" % name)
+
+if False in results.values():
+    sys.exit(1)
