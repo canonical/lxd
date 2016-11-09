@@ -88,10 +88,6 @@ def convert_container(container_name, args):
         print("Invalid container configuration, skipping...")
         return False
 
-    if container.running:
-        print("Only stopped containers can be migrated, skipping...")
-        return False
-
     # As some keys can't be queried over the API, parse the config ourselves
     print("Parsing LXC configuration")
     lxc_config = config_parse(container.config_file_name)
@@ -347,6 +343,10 @@ def convert_container(container_name, args):
 
     if args.dry_run:
         return True
+
+    if container.running:
+        print("Only stopped containers can be migrated, skipping...")
+        return False
 
     try:
         print("Creating the container")
