@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -69,6 +70,19 @@ func containerValidConfigKey(key string, value string) error {
 
 		if !shared.StringInSlice(value, valid) {
 			return fmt.Errorf("Invalid value: %s (not one of %s)", value, valid)
+		}
+
+		return nil
+	}
+
+	isUint32 := func(key string, value string) error {
+		if value == "" {
+			return nil
+		}
+
+		_, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid value for uint32: %s: %v", value, err)
 		}
 
 		return nil
@@ -155,6 +169,10 @@ func containerValidConfigKey(key string, value string) error {
 		return isBool(key, value)
 	case "security.nesting":
 		return isBool(key, value)
+	case "security.idmap.size":
+		return isUint32(key, value)
+	case "security.idmap.isolated":
+		return isBool(key, value)
 	case "raw.apparmor":
 		return nil
 	case "raw.lxc":
@@ -166,6 +184,10 @@ func containerValidConfigKey(key string, value string) error {
 	case "volatile.last_state.idmap":
 		return nil
 	case "volatile.last_state.power":
+		return nil
+	case "volatile.idmap.next":
+		return nil
+	case "volatile.idmap.base":
 		return nil
 	}
 
@@ -682,6 +704,28 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 
 	// Wipe any existing log for this container name
 	os.RemoveAll(shared.LogPath(args.Name))
+
+	idmap, base, err := findIdmap(
+		d,
+		args.Name,
+		args.Config["security.idmap.isolated"],
+		args.Config["security.idmap.size"],
+	)
+	if err != nil {
+		return nil, err
+	}
+	var jsonIdmap string
+	if idmap != nil {
+		idmapBytes, err := json.Marshal(idmap.Idmap)
+		if err != nil {
+			return nil, err
+		}
+		jsonIdmap = string(idmapBytes)
+	} else {
+		jsonIdmap = "[]"
+	}
+	args.Config["volatile.idmap.next"] = jsonIdmap
+	args.Config["volatile.idmap.base"] = fmt.Sprintf("%v", base)
 
 	// Create the container entry
 	id, err := dbContainerCreate(d.db, args)

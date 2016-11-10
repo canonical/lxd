@@ -123,6 +123,20 @@ func (e *IdmapEntry) shift_from_ns(id int) (int, error) {
 	return id - e.Hostid + e.Nsid, nil
 }
 
+type ByHostid []*IdmapEntry
+
+func (s ByHostid) Len() int {
+	return len(s)
+}
+
+func (s ByHostid) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s ByHostid) Less(i, j int) bool {
+	return s[i].Hostid < s[j].Hostid
+}
+
 /* taken from http://blog.golang.org/slices (which is under BSD licence) */
 func Extend(slice []IdmapEntry, element IdmapEntry) []IdmapEntry {
 	n := len(slice)

@@ -45,9 +45,21 @@ var api10 = []Command{
 
 func api10Get(d *Daemon, r *http.Request) Response {
 	body := shared.Jmap{
-		"api_extensions": []string{},
-		"api_status":     "stable",
-		"api_version":    shared.APIVersion,
+		/* List of API extensions in the order they were added.
+		 *
+		 * The following kind of changes require an addition to api_extensions:
+		 *  - New configuration key
+		 *  - New valid values for a configuration key
+		 *  - New REST API endpoint
+		 *  - New argument inside an existing REST API call
+		 *  - New HTTPs authentication mechanisms or protocols
+		 */
+		"api_extensions": []string{
+			"id_map",
+		},
+
+		"api_status":  "stable",
+		"api_version": shared.APIVersion,
 	}
 
 	if d.isTrustedClient(r) {
