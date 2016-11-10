@@ -3313,6 +3313,54 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 	return nil
 }
 
+func (c *containerLXC) FileExists(path string) error {
+	// Setup container storage if needed
+	if !c.IsRunning() {
+		err := c.StorageStart()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Check if the file exists in the container
+	out, err := exec.Command(
+		execPath,
+		"forkcheckfile",
+		c.RootfsPath(),
+		fmt.Sprintf("%d", c.InitPID()),
+		path,
+	).CombinedOutput()
+
+	// Tear down container storage if needed
+	if !c.IsRunning() {
+		err := c.StorageStop()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Process forkcheckfile response
+	if string(out) != "" {
+		if strings.HasPrefix(string(out), "error:") {
+			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(string(out), "\n"), "error: "))
+		}
+
+		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+			shared.LogDebugf("forkcheckfile: %s", line)
+		}
+	}
+
+	if err != nil {
+		return fmt.Errorf(
+			"Error calling 'lxd forkcheckfile %s %d': err='%v'",
+			path,
+			c.InitPID(),
+			err)
+	}
+
+	return nil
+}
+
 func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.FileMode, error) {
 	// Setup container storage if needed
 	if !c.IsRunning() {
@@ -3409,13 +3457,15 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 	}
 
 	// Unmap uid and gid if needed
-	idmapset, err := c.LastIdmapSet()
-	if err != nil {
-		return -1, -1, 0, err
-	}
+	if !c.IsRunning() {
+		idmapset, err := c.LastIdmapSet()
+		if err != nil {
+			return -1, -1, 0, err
+		}
 
-	if idmapset != nil {
-		uid, gid = idmapset.ShiftFromNs(uid, gid)
+		if idmapset != nil {
+			uid, gid = idmapset.ShiftFromNs(uid, gid)
+		}
 	}
 
 	return uid, gid, os.FileMode(mode), nil
@@ -3426,14 +3476,16 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 	var rootGid = 0
 
 	// Map uid and gid if needed
-	idmapset, err := c.LastIdmapSet()
-	if err != nil {
-		return err
-	}
+	if !c.IsRunning() {
+		idmapset, err := c.LastIdmapSet()
+		if err != nil {
+			return err
+		}
 
-	if idmapset != nil {
-		uid, gid = idmapset.ShiftIntoNs(uid, gid)
-		rootUid, rootGid = idmapset.ShiftIntoNs(0, 0)
+		if idmapset != nil {
+			uid, gid = idmapset.ShiftIntoNs(uid, gid)
+			rootUid, rootGid = idmapset.ShiftIntoNs(0, 0)
+		}
 	}
 
 	// Setup container storage if needed
@@ -3488,6 +3540,54 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 			uid,
 			gid,
 			mode,
+			err)
+	}
+
+	return nil
+}
+
+func (c *containerLXC) FileRemove(path string) error {
+	// Setup container storage if needed
+	if !c.IsRunning() {
+		err := c.StorageStart()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Remove the file from the container
+	out, err := exec.Command(
+		execPath,
+		"forkremovefile",
+		c.RootfsPath(),
+		fmt.Sprintf("%d", c.InitPID()),
+		path,
+	).CombinedOutput()
+
+	// Tear down container storage if needed
+	if !c.IsRunning() {
+		err := c.StorageStop()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Process forkremovefile response
+	if string(out) != "" {
+		if strings.HasPrefix(string(out), "error:") {
+			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(string(out), "\n"), "error: "))
+		}
+
+		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+			shared.LogDebugf("forkremovefile: %s", line)
+		}
+	}
+
+	if err != nil {
+		return fmt.Errorf(
+			"Error calling 'lxd forkremovefile %s %d': err='%v'",
+			path,
+			c.InitPID(),
 			err)
 	}
 
@@ -4115,15 +4215,13 @@ func (c *containerLXC) removeUnixDevice(m shared.Device) error {
 	}
 
 	// Remove the bind-mount from the container
-	ctnPath := fmt.Sprintf("/proc/%d/root/%s", pid, tgtPath)
-
-	if shared.PathExists(ctnPath) {
+	if c.FileExists(tgtPath) == nil {
 		err = c.removeMount(m["path"])
 		if err != nil {
 			return fmt.Errorf("Error unmounting the device: %s", err)
 		}
 
-		err = os.Remove(ctnPath)
+		err = c.FileRemove(tgtPath)
 		if err != nil {
 			return fmt.Errorf("Error removing the device: %s", err)
 		}
@@ -4575,9 +4673,7 @@ func (c *containerLXC) removeDiskDevice(name string, m shared.Device) error {
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	// Remove the bind-mount from the container
-	ctnPath := fmt.Sprintf("/proc/%d/root/%s", pid, tgtPath)
-
-	if shared.PathExists(ctnPath) {
+	if c.FileExists(tgtPath) == nil {
 		err := c.removeMount(m["path"])
 		if err != nil {
 			return fmt.Errorf("Error unmounting the device: %s", err)
