@@ -126,6 +126,42 @@ int dosetns(int pid, char *nstype) {
 	return 0;
 }
 
+void attach_userns(int pid) {
+	char nspath[PATH_MAX];
+	char userns_source[PATH_MAX];
+	char userns_target[PATH_MAX];
+
+	sprintf(nspath, "/proc/%d/ns/user", pid);
+	if (access(nspath, F_OK) == 0) {
+		if (readlink("/proc/self/ns/user", userns_source, 18) < 0) {
+			fprintf(stderr, "Failed readlink of source namespace: %s\n", strerror(errno));
+			_exit(1);
+		}
+
+		if (readlink(nspath, userns_target, PATH_MAX) < 0) {
+			fprintf(stderr, "Failed readlink of target namespace: %s\n", strerror(errno));
+			_exit(1);
+		}
+
+		if (strncmp(userns_source, userns_target, PATH_MAX) != 0) {
+			if (dosetns(pid, "user") < 0) {
+				fprintf(stderr, "Failed setns to container user namespace: %s\n", strerror(errno));
+				_exit(1);
+			}
+
+			if (setuid(0) < 0) {
+				fprintf(stderr, "Failed setuid to container root user: %s\n", strerror(errno));
+				_exit(1);
+			}
+
+			if (setgid(0) < 0) {
+				fprintf(stderr, "Failed setgid to container root group: %s\n", strerror(errno));
+				_exit(1);
+			}
+		}
+	}
+}
+
 int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode) {
 	int host_fd = -1, container_fd = -1;
 	int ret = -1;
@@ -143,6 +179,8 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 	}
 
 	if (pid > 0) {
+		attach_userns(pid);
+
 		if (dosetns(pid, "mnt") < 0) {
 			error("error: setns");
 			goto close_host;
@@ -368,42 +406,10 @@ void create(char *src, char *dest) {
 void forkmount(char *buf, char *cur, ssize_t size) {
 	char *src, *dest, *opts;
 
-	char nspath[PATH_MAX];
-	char userns_source[PATH_MAX];
-	char userns_target[PATH_MAX];
-
 	ADVANCE_ARG_REQUIRED();
 	int pid = atoi(cur);
 
-	sprintf(nspath, "/proc/%d/ns/user", pid);
-	if (access(nspath, F_OK) == 0) {
-		if (readlink("/proc/self/ns/user", userns_source, 18) < 0) {
-			fprintf(stderr, "Failed readlink of source namespace: %s\n", strerror(errno));
-			_exit(1);
-		}
-
-		if (readlink(nspath, userns_target, PATH_MAX) < 0) {
-			fprintf(stderr, "Failed readlink of target namespace: %s\n", strerror(errno));
-			_exit(1);
-		}
-
-		if (strncmp(userns_source, userns_target, PATH_MAX) != 0) {
-			if (dosetns(pid, "user") < 0) {
-				fprintf(stderr, "Failed setns to container user namespace: %s\n", strerror(errno));
-				_exit(1);
-			}
-
-			if (setuid(0) < 0) {
-				fprintf(stderr, "Failed setuid to container root user: %s\n", strerror(errno));
-				_exit(1);
-			}
-
-			if (setgid(0) < 0) {
-				fprintf(stderr, "Failed setgid to container root group: %s\n", strerror(errno));
-				_exit(1);
-			}
-		}
-	}
+	attach_userns(pid);
 
 	if (dosetns(pid, "mnt") < 0) {
 		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
@@ -506,6 +512,99 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, uid, gid, mode, defaultUid, defaultGid, defaultMode));
 }
 
+void forkcheckfile(char *buf, char *cur, bool is_put, ssize_t size) {
+	char *command = cur, *rootfs = NULL, *path = NULL;
+	pid_t pid;
+
+	ADVANCE_ARG_REQUIRED();
+	rootfs = cur;
+
+	ADVANCE_ARG_REQUIRED();
+	pid = atoi(cur);
+
+	ADVANCE_ARG_REQUIRED();
+	path = cur;
+
+	if (pid > 0) {
+		attach_userns(pid);
+
+		if (dosetns(pid, "mnt") < 0) {
+			error("error: setns");
+			_exit(1);
+		}
+	} else {
+		if (chroot(rootfs) < 0) {
+			error("error: chroot");
+			_exit(1);
+		}
+
+		if (chdir("/") < 0) {
+			error("error: chdir");
+			_exit(1);
+		}
+	}
+
+	if (access(path, F_OK) < 0) {
+		fprintf(stderr, "Path doesn't exist: %s\n", strerror(errno));
+		_exit(1);
+	}
+
+	_exit(0);
+}
+
+void forkremovefile(char *buf, char *cur, bool is_put, ssize_t size) {
+	char *command = cur, *rootfs = NULL, *path = NULL;
+	pid_t pid;
+	struct stat sb;
+
+	ADVANCE_ARG_REQUIRED();
+	rootfs = cur;
+
+	ADVANCE_ARG_REQUIRED();
+	pid = atoi(cur);
+
+	ADVANCE_ARG_REQUIRED();
+	path = cur;
+
+	if (pid > 0) {
+		attach_userns(pid);
+
+		if (dosetns(pid, "mnt") < 0) {
+			error("error: setns");
+			_exit(1);
+		}
+	} else {
+		if (chroot(rootfs) < 0) {
+			error("error: chroot");
+			_exit(1);
+		}
+
+		if (chdir("/") < 0) {
+			error("error: chdir");
+			_exit(1);
+		}
+	}
+
+	if (stat(path, &sb) < 0) {
+		error("error: stat");
+		_exit(1);
+	}
+
+	if ((sb.st_mode & S_IFMT) == S_IFDIR) {
+		if (rmdir(path) < 0) {
+			fprintf(stderr, "Failed to remove %s: %s\n", path, strerror(errno));
+			_exit(1);
+		}
+	} else {
+		if (unlink(path) < 0) {
+			fprintf(stderr, "Failed to remove %s: %s\n", path, strerror(errno));
+			_exit(1);
+		}
+	}
+
+	_exit(0);
+}
+
 void forkgetnet(char *buf, char *cur, ssize_t size) {
 	ADVANCE_ARG_REQUIRED();
 	int pid = atoi(cur);
@@ -550,6 +649,10 @@ __attribute__((constructor)) void init(void) {
 		forkdofile(buf, cur, true, size);
 	} else if (strcmp(cur, "forkgetfile") == 0) {
 		forkdofile(buf, cur, false, size);
+	} else if (strcmp(cur, "forkcheckfile") == 0) {
+		forkcheckfile(buf, cur, false, size);
+	} else if (strcmp(cur, "forkremovefile") == 0) {
+		forkremovefile(buf, cur, false, size);
 	} else if (strcmp(cur, "forkmount") == 0) {
 		forkmount(buf, cur, size);
 	} else if (strcmp(cur, "forkumount") == 0) {
