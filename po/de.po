@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2016-10-19 22:44-0400\n"
+"POT-Creation-Date: 2016-11-04 21:31-0400\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -306,7 +306,7 @@ msgstr ""
 msgid "Container name is: %s"
 msgstr ""
 
-#: lxc/publish.go:143 lxc/publish.go:158
+#: lxc/publish.go:151 lxc/publish.go:166
 #, fuzzy, c-format
 msgid "Container published with fingerprint: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
@@ -356,7 +356,7 @@ msgid ""
 "lxc snapshot u1 snap0"
 msgstr ""
 
-#: lxc/file.go:61 lxc/file.go:62
+#: lxc/file.go:60 lxc/file.go:61
 msgid "Create any directories necessary"
 msgstr ""
 
@@ -589,12 +589,12 @@ msgstr "Akzeptiere Zertifikat"
 msgid "Invalid configuration key"
 msgstr ""
 
-#: lxc/file.go:239
+#: lxc/file.go:247
 #, c-format
 msgid "Invalid source %s"
 msgstr "Ungültige Quelle %s"
 
-#: lxc/file.go:74
+#: lxc/file.go:73
 #, c-format
 msgid "Invalid target %s"
 msgstr "Ungültiges Ziel %s"
@@ -930,7 +930,7 @@ msgstr ""
 "Um das Server Passwort zur authentifizierung zu setzen:\n"
 "\tlxc config set core.trust_password blah\n"
 
-#: lxc/file.go:36
+#: lxc/file.go:35
 #, fuzzy
 msgid ""
 "Manage files on a container.\n"
@@ -1127,7 +1127,7 @@ msgstr ""
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
-#: lxc/file.go:227
+#: lxc/file.go:235
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Mehr als eine Datei herunterzuladen, aber das Ziel ist kein Verzeichnis"
@@ -1375,7 +1375,7 @@ msgid ""
 "value]..."
 msgstr ""
 
-#: lxc/file.go:59 lxc/file.go:60
+#: lxc/file.go:58 lxc/file.go:59
 msgid "Recursively push or pull files"
 msgstr ""
 
@@ -1449,15 +1449,15 @@ msgid ""
 "lxc restore u1 snap0 # restore the snapshot"
 msgstr ""
 
-#: lxc/file.go:57
+#: lxc/file.go:56
 msgid "Set the file's gid on push"
 msgstr "Setzt die gid der Datei beim Übertragen"
 
-#: lxc/file.go:58
+#: lxc/file.go:57
 msgid "Set the file's perms on push"
 msgstr "Setzt die Dateiberechtigungen beim Übertragen"
 
-#: lxc/file.go:56
+#: lxc/file.go:55
 msgid "Set the file's uid on push"
 msgstr "Setzt die uid der Datei beim Übertragen"
 
@@ -1574,7 +1574,7 @@ msgid "Timestamps:"
 msgstr "Zeitstempel:\n"
 
 #: lxc/init.go:315
-msgid "To assign a network to a container, use: lxc network assign"
+msgid "To attach a network to a container, use: lxc network attach"
 msgstr ""
 
 #: lxc/init.go:314
@@ -1681,7 +1681,7 @@ msgstr ""
 msgid "can't copy to the same container name"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:262
+#: lxc/file.go:270
 msgid "can't pull a directory without --recursive"
 msgstr ""
 
@@ -1689,7 +1689,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/file.go:107
+#: lxc/file.go:117
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -1742,7 +1742,7 @@ msgstr "OK (y/n)? "
 msgid "processing aliases failed %s\n"
 msgstr ""
 
-#: lxc/file.go:303
+#: lxc/file.go:311
 msgid "recursive edit doesn't make sense :("
 msgstr ""
 

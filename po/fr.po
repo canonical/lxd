@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2016-10-19 22:44-0400\n"
+"POT-Creation-Date: 2016-11-04 21:31-0400\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -240,7 +240,7 @@ msgstr ""
 msgid "Container name is: %s"
 msgstr ""
 
-#: lxc/publish.go:143 lxc/publish.go:158
+#: lxc/publish.go:151 lxc/publish.go:166
 #, fuzzy, c-format
 msgid "Container published with fingerprint: %s"
 msgstr "Empreinte du certificat: % x\n"
@@ -286,7 +286,7 @@ msgid ""
 "lxc snapshot u1 snap0"
 msgstr ""
 
-#: lxc/file.go:61 lxc/file.go:62
+#: lxc/file.go:60 lxc/file.go:61
 msgid "Create any directories necessary"
 msgstr ""
 
@@ -496,12 +496,12 @@ msgstr "Gérer la configuration.\n"
 msgid "Invalid configuration key"
 msgstr "Gérer la configuration.\n"
 
-#: lxc/file.go:239
+#: lxc/file.go:247
 #, c-format
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:74
+#: lxc/file.go:73
 #, c-format
 msgid "Invalid target %s"
 msgstr "Destination invalide %s"
@@ -735,7 +735,7 @@ msgid ""
 "    lxc config set core.trust_password blah"
 msgstr ""
 
-#: lxc/file.go:36
+#: lxc/file.go:35
 msgid ""
 "Manage files on a container.\n"
 "\n"
@@ -906,7 +906,7 @@ msgstr ""
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
-#: lxc/file.go:227
+#: lxc/file.go:235
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger mais la destination n'est pas un dossier"
@@ -1142,7 +1142,7 @@ msgid ""
 "value]..."
 msgstr ""
 
-#: lxc/file.go:59 lxc/file.go:60
+#: lxc/file.go:58 lxc/file.go:59
 msgid "Recursively push or pull files"
 msgstr ""
 
@@ -1215,15 +1215,15 @@ msgid ""
 "lxc restore u1 snap0 # restore the snapshot"
 msgstr ""
 
-#: lxc/file.go:57
+#: lxc/file.go:56
 msgid "Set the file's gid on push"
 msgstr "Définit le gid lors de l'envoi"
 
-#: lxc/file.go:58
+#: lxc/file.go:57
 msgid "Set the file's perms on push"
 msgstr "Définit les permissions lors de l'envoi"
 
-#: lxc/file.go:56
+#: lxc/file.go:55
 msgid "Set the file's uid on push"
 msgstr "Définit le uid lors de l'envoi"
 
@@ -1339,7 +1339,7 @@ msgid "Timestamps:"
 msgstr ""
 
 #: lxc/init.go:315
-msgid "To assign a network to a container, use: lxc network assign"
+msgid "To attach a network to a container, use: lxc network attach"
 msgstr ""
 
 #: lxc/init.go:314
@@ -1449,7 +1449,7 @@ msgstr "mauvais type de réponse pour l'action!"
 msgid "can't copy to the same container name"
 msgstr ""
 
-#: lxc/file.go:262
+#: lxc/file.go:270
 msgid "can't pull a directory without --recursive"
 msgstr ""
 
@@ -1457,7 +1457,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/file.go:107
+#: lxc/file.go:117
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -1511,7 +1511,7 @@ msgstr "ok (y/n)?"
 msgid "processing aliases failed %s\n"
 msgstr ""
 
-#: lxc/file.go:303
+#: lxc/file.go:311
 msgid "recursive edit doesn't make sense :("
 msgstr ""
 
