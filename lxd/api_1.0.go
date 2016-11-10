@@ -78,6 +78,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"gpu_devices",
 			"container_image_properties",
 			"migration_progress",
+			"id_map",
 		},
 
 		"api_status":  "stable",
