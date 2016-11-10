@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/lxc/lxd/shared"
 )
 
 func mockStartDaemon() (*Daemon, error) {
@@ -20,6 +22,11 @@ func mockStartDaemon() (*Daemon, error) {
 	if err := d.Init(); err != nil {
 		return nil, err
 	}
+
+	d.IdmapSet = &shared.IdmapSet{Idmap: []shared.IdmapEntry{
+		shared.IdmapEntry{Isuid: true, Hostid: 100000, Nsid: 0, Maprange: 500000},
+		shared.IdmapEntry{Isgid: true, Hostid: 100000, Nsid: 0, Maprange: 500000},
+	}}
 
 	// Call this after Init so we have a log object.
 	storageConfig := make(map[string]interface{})
