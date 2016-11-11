@@ -480,6 +480,11 @@ func cmdActivateIfNeeded() error {
 		lxcpath:               shared.VarPath("containers"),
 	}
 
+	if !shared.PathExists(shared.VarPath("lxd.db")) {
+		shared.LogDebugf("No DB, so no need to start the daemon now.")
+		return nil
+	}
+
 	err := initializeDbObject(d, shared.VarPath("lxd.db"))
 	if err != nil {
 		return err
