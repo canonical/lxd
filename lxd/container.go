@@ -347,8 +347,10 @@ type container interface {
 	ConfigKeySet(key string, value string) error
 
 	// File handling
+	FileExists(path string) error
 	FilePull(srcpath string, dstpath string) (int, int, os.FileMode, string, []string, error)
 	FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error
+	FileRemove(path string) error
 
 	/* Command execution:
 		 * 1. passing in false for wait
