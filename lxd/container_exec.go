@@ -335,7 +335,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	_, ok := env["PATH"]
 	if !ok {
 		env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-		if shared.PathExists(fmt.Sprintf("%s/snap", c.RootfsPath())) {
+		if c.FileExists("/snap") == nil {
 			env["PATH"] = fmt.Sprintf("%s:/snap/bin", env["PATH"])
 		}
 	}
