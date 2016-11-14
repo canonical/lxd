@@ -59,6 +59,7 @@ The key/value configuration is namespaced with the following namespaces
 currently supported:
  - boot (boot related options, timing, dependencies, ...)
  - environment (environment variables)
+ - image (copy of the image properties at time of creation)
  - limits (resource limits)
  - raw (raw container configuration overrides)
  - security (security policies)
