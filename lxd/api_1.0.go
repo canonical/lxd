@@ -76,6 +76,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"certificate_update",
 			"container_exec_signal_handling",
 			"gpu_devices",
+			"container_image_properties",
 		},
 
 		"api_status":  "stable",
