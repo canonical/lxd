@@ -2435,17 +2435,25 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 	}
 
-	// Check that volatile wasn't modified
+	// Check that volatile and image keys weren't modified
 	if userRequested {
 		for k, v := range args.Config {
 			if strings.HasPrefix(k, "volatile.") && c.localConfig[k] != v {
 				return fmt.Errorf("Volatile keys are read-only.")
+			}
+
+			if strings.HasPrefix(k, "image.") && c.localConfig[k] != v {
+				return fmt.Errorf("Image keys are read-only.")
 			}
 		}
 
 		for k, v := range c.localConfig {
 			if strings.HasPrefix(k, "volatile.") && args.Config[k] != v {
 				return fmt.Errorf("Volatile keys are read-only.")
+			}
+
+			if strings.HasPrefix(k, "image.") && args.Config[k] != v {
+				return fmt.Errorf("Image keys are read-only.")
 			}
 		}
 	}

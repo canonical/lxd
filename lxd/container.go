@@ -187,6 +187,10 @@ func containerValidConfig(d *Daemon, config map[string]string, profile bool, exp
 			return fmt.Errorf("Volatile keys can only be set on containers.")
 		}
 
+		if profile && strings.HasPrefix(k, "image.") {
+			return fmt.Errorf("Image keys can only be set on containers.")
+		}
+
 		err := containerValidConfigKey(d, k, v)
 		if err != nil {
 			return err
@@ -454,6 +458,19 @@ func containerCreateEmptySnapshot(d *Daemon, args containerArgs) (container, err
 }
 
 func containerCreateFromImage(d *Daemon, args containerArgs, hash string) (container, error) {
+	// Get the image properties
+	_, img, err := dbImageGet(d.db, hash, false, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the "image.*" keys
+	if img.Properties != nil {
+		for k, v := range img.Properties {
+			args.Config[fmt.Sprintf("image.%s", k)] = v
+		}
+	}
+
 	// Create the container
 	c, err := containerCreateInternal(d, args)
 	if err != nil {

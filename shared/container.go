@@ -347,5 +347,9 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 		return IsAny, nil
 	}
 
+	if strings.HasPrefix(key, "image.") {
+		return IsAny, nil
+	}
+
 	return nil, fmt.Errorf("Bad key: %s", key)
 }

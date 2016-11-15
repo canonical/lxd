@@ -59,6 +59,7 @@ The key/value configuration is namespaced with the following namespaces
 currently supported:
  - boot (boot related options, timing, dependencies, ...)
  - environment (environment variables)
+ - image (copy of the image properties at time of creation)
  - limits (resource limits)
  - raw (raw container configuration overrides)
  - security (security policies)
@@ -94,7 +95,7 @@ security.syscalls.blacklist\_default | boolean   | true          | no           
 security.syscalls.blacklist\_compat  | boolean   | false         | no            | container\_syscall\_filtering        | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
 security.syscalls.blacklist          | string    | -             | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to blacklist
 security.syscalls.whitelist          | string    | -             | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
-user.\*                              | string    | -             | n/a           | -                                    |Free form user key/value storage (can be used in search)
+user.\*                              | string    | -             | n/a           | -                                    | Free form user key/value storage (can be used in search)
 
 The following volatile keys are currently internally used by LXD:
 
