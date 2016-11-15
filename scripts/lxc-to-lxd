@@ -391,7 +391,7 @@ def convert_container(lxd_socket, container_name, args):
         return False
 
     # Transfer the filesystem
-    lxd_rootfs = os.path.join("/var/lib/lxd/", "containers",
+    lxd_rootfs = os.path.join(args.lxdpath, "containers",
                               container_name, "rootfs")
 
     if args.copy_rootfs:
@@ -440,7 +440,7 @@ parser.add_argument("--copy-rootfs", action="store_true", default=False,
                     help="Copy the container rootfs rather than moving it")
 parser.add_argument("--lxcpath", type=str, default=False,
                     help="Alternate LXC path")
-parser.add_argument("--lxdpath", type=str, default=False,
+parser.add_argument("--lxdpath", type=str, default="/var/lib/lxd",
                     help="Alternate LXD path")
 parser.add_argument(dest='containers', metavar="CONTAINER", type=str,
                     help="Container to import", nargs="*")
@@ -454,10 +454,7 @@ if (not args.containers and not args.all) or (args.containers and args.all):
     parser.error("You must either pass container names or --all")
 
 # Connect to LXD
-if args.lxdpath:
-    lxd_socket = args.lxdpath
-else:
-    lxd_socket = "/var/lib/lxd/unix.socket"
+lxd_socket = os.path.join(args.lxdpath, "unix.socket")
 
 if not os.path.exists(lxd_socket):
     print("LXD isn't running.")
