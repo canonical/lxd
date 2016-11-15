@@ -1470,7 +1470,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	// Update time container was last started
 	err = dbContainerLastUsedUpdate(c.daemon.db, c.id, time.Now().UTC())
 	if err != nil {
-		fmt.Printf("Error updating last used: %v", err)
+		return "", fmt.Errorf("Error updating last used: %v", err)
 	}
 
 	return configPath, nil
