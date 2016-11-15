@@ -475,6 +475,10 @@ for container_name in lxc.list_containers(config_path=args.lxcpath):
     count += 1
 
 # Print summary
+if not results:
+    print("No container to migrate")
+    sys.exit(0)
+
 print("")
 print("==> Migration summary")
 for name, result in results.items():
