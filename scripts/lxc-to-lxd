@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
-
 import argparse
+import http.client
 import json
 import lxc
 import os
+import socket
 import subprocess
 import sys
-from pylxd.client import Client
-from pylxd import exceptions
+
+
+# Unix connection to LXD
+class UnixHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, path):
+        http.client.HTTPConnection.__init__(self, 'localhost')
+        self.path = path
+
+    def connect(self):
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect(self.path)
+        self.sock = sock
 
 
 # Fetch a config key as a list
@@ -72,13 +83,39 @@ def config_parse(path):
     return config
 
 
-# Convert a LXC container to a LXD one
-def convert_container(container_name, args):
-    # Connect to LXD
-    if args.lxdpath:
-        os.environ['LXD_DIR'] = args.lxdpath
-    lxd = Client()
+def container_exists(lxd_socket, container_name):
+    lxd = UnixHTTPConnection(lxd_socket)
+    lxd.request("GET", "/1.0/containers/%s" % container_name)
+    if lxd.getresponse().status == 404:
+        return False
 
+    return True
+
+
+def container_create(lxd_socket, args):
+    # Define the container
+    lxd = UnixHTTPConnection(lxd_socket)
+    lxd.request("POST", "/1.0/containers", json.dumps(args))
+    r = lxd.getresponse()
+
+    # Decode the response
+    resp = json.loads(r.read().decode())
+    if resp["type"] == "error":
+        raise Exception("Failed to define container: %s" % resp["error"])
+
+    # Wait for result
+    lxd = UnixHTTPConnection(lxd_socket)
+    lxd.request("GET", "%s/wait" % resp["operation"])
+    r = lxd.getresponse()
+
+    # Decode the response
+    resp = json.loads(r.read().decode())
+    if resp["type"] == "error":
+        raise Exception("Failed to define container: %s" % resp["error"])
+
+
+# Convert a LXC container to a LXD one
+def convert_container(lxd_socket, container_name, args):
     print("==> Processing container: %s" % container_name)
 
     # Load the container
@@ -104,12 +141,9 @@ def convert_container(container_name, args):
 
     # Make sure we don't have a conflict
     print("Checking for existing containers")
-    try:
-        lxd.containers.get(container_name)
+    if container_exists(lxd_socket, container_name):
         print("Container already exists, skipping...")
         return False
-    except (NameError, exceptions.LXDAPIException):
-        pass
 
     # Validate lxc.utsname
     print("Validating container name")
@@ -350,14 +384,14 @@ def convert_container(container_name, args):
 
     try:
         print("Creating the container")
-        lxd.containers.create(new, wait=True)
+        container_create(lxd_socket, new)
     except Exception as e:
         raise
         print("Failed to create the container: %s" % e)
         return False
 
     # Transfer the filesystem
-    lxd_rootfs = os.path.join("/var/lib/lxd/", "containers",
+    lxd_rootfs = os.path.join(args.lxdpath, "containers",
                               container_name, "rootfs")
 
     if args.copy_rootfs:
@@ -389,6 +423,7 @@ def convert_container(container_name, args):
     with open(container.config_file_name, "a") as fd:
         fd.write("lxd.migrated=true\n")
     print("Container is ready to use")
+    return True
 
 
 # Argument parsing
@@ -405,7 +440,7 @@ parser.add_argument("--copy-rootfs", action="store_true", default=False,
                     help="Copy the container rootfs rather than moving it")
 parser.add_argument("--lxcpath", type=str, default=False,
                     help="Alternate LXC path")
-parser.add_argument("--lxdpath", type=str, default=False,
+parser.add_argument("--lxdpath", type=str, default="/var/lib/lxd",
                     help="Alternate LXD path")
 parser.add_argument(dest='containers', metavar="CONTAINER", type=str,
                     help="Container to import", nargs="*")
@@ -418,6 +453,13 @@ if not os.geteuid() == 0:
 if (not args.containers and not args.all) or (args.containers and args.all):
     parser.error("You must either pass container names or --all")
 
+# Connect to LXD
+lxd_socket = os.path.join(args.lxdpath, "unix.socket")
+
+if not os.path.exists(lxd_socket):
+    print("LXD isn't running.")
+    sys.exit(1)
+
 # Run migration
 results = {}
 count = 0
@@ -428,10 +470,15 @@ for container_name in lxc.list_containers(config_path=args.lxcpath):
     if count > 0:
         print("")
 
-    results[container_name] = convert_container(container_name, args)
+    results[container_name] = convert_container(lxd_socket,
+                                                container_name, args)
     count += 1
 
 # Print summary
+if not results:
+    print("No container to migrate")
+    sys.exit(0)
+
 print("")
 print("==> Migration summary")
 for name, result in results.items():
