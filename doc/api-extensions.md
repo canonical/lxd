@@ -153,3 +153,6 @@ later.
 
 ## gpu\_devices
 Enables adding GPUs to a container.
+
+## container\_image\_properties
+Introduces a new "image" config key space. Read-only, includes the properties of the parent image.
