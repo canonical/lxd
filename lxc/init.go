@@ -188,9 +188,11 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	c.initProgressTracker(d, resp.Operation)
+	progress := ProgressRenderer{}
+	c.initProgressTracker(d, &progress, resp.Operation)
 
 	err = d.WaitForSuccess(resp.Operation)
+	progress.Done("")
 
 	if err != nil {
 		return err
@@ -213,7 +215,8 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 	return nil
 }
 
-func (c *initCmd) initProgressTracker(d *lxd.Client, operation string) {
+func (c *initCmd) initProgressTracker(d *lxd.Client, progress *ProgressRenderer, operation string) {
+	progress.Format = i18n.G("Retrieving image: %s")
 	handler := func(msg interface{}) {
 		if msg == nil {
 			return
@@ -244,11 +247,7 @@ func (c *initCmd) initProgressTracker(d *lxd.Client, operation string) {
 		opMd := md["metadata"].(map[string]interface{})
 		_, ok := opMd["download_progress"]
 		if ok {
-			fmt.Printf(i18n.G("Retrieving image: %s")+"\r", opMd["download_progress"].(string))
-		}
-
-		if opMd["download_progress"].(string) == "100%" {
-			fmt.Printf("\n")
+			progress.Update(opMd["download_progress"].(string))
 		}
 	}
 	go d.Monitor([]string{"operation"}, handler)

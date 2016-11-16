@@ -273,14 +273,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		progressHandler := func(progress string) {
-			fmt.Printf(i18n.G("Copying the image: %s")+"\r", progress)
+		progress := ProgressRenderer{Format: i18n.G("Copying the image: %s")}
+		err = d.CopyImage(inName, dest, c.copyAliases, c.addAliases, c.publicImage, c.autoUpdate, progress.Update)
+		if err == nil {
+			progress.Done(i18n.G("Image copied successfully!"))
 		}
 
-		err = d.CopyImage(inName, dest, c.copyAliases, c.addAliases, c.publicImage, c.autoUpdate, progressHandler)
-		if err == nil {
-			fmt.Println(i18n.G("Image copied successfully!"))
-		}
 		return err
 
 	case "delete":
@@ -408,29 +406,29 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		handler := func(percent int) {
-			fmt.Printf(i18n.G("Transferring image: %d%%")+"\r", percent)
-			if percent == 100 {
-				fmt.Printf("\n")
-			}
-		}
-
 		if strings.HasPrefix(imageFile, "https://") {
-			progressHandler := func(progress string) {
-				fmt.Printf(i18n.G("Importing the image: %s")+"\r", progress)
+			progress := ProgressRenderer{Format: i18n.G("Importing the image: %s")}
+			fingerprint, err = d.PostImageURL(imageFile, properties, c.publicImage, c.addAliases, progress.Update)
+			if err == nil {
+				progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
 			}
-
-			fingerprint, err = d.PostImageURL(imageFile, properties, c.publicImage, c.addAliases, progressHandler)
 		} else if strings.HasPrefix(imageFile, "http://") {
 			return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
 		} else {
+			progress := ProgressRenderer{Format: i18n.G("Transferring image: %s")}
+			handler := func(percent int) {
+				progress.Update(fmt.Sprintf("%d%%", percent))
+			}
+
 			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, c.publicImage, c.addAliases, handler)
+			if err == nil {
+				progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
+			}
 		}
 
 		if err != nil {
 			return err
 		}
-		fmt.Printf(i18n.G("Image imported with fingerprint: %s")+"\n", fingerprint)
 
 		return nil
 
