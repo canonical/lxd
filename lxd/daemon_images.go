@@ -247,7 +247,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		d.Storage.ImageDelete(fp)
 	}
 
-	progress := func(progressInt int) {
+	progress := func(progressInt int, speedInt int) {
 		if op == nil {
 			return
 		}
@@ -257,7 +257,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			meta = make(map[string]interface{})
 		}
 
-		progress := fmt.Sprintf("%d%%", progressInt)
+		progress := fmt.Sprintf("%d%% (%s/s)", progressInt, shared.GetByteSizeString(int64(speedInt)))
 
 		if meta["download_progress"] != progress {
 			meta["download_progress"] = progress

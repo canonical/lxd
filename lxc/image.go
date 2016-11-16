@@ -429,8 +429,8 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
 		} else {
 			progress := ProgressRenderer{Format: i18n.G("Transferring image: %s")}
-			handler := func(percent int) {
-				progress.Update(fmt.Sprintf("%d%%", percent))
+			handler := func(percent int, speed int) {
+				progress.Update(fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(int64(speed))))
 			}
 
 			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, c.publicImage, c.addAliases, handler)
