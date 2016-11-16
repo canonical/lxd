@@ -44,7 +44,7 @@ func (e *IdmapEntry) Intersects(i IdmapEntry) bool {
 			return true
 		case is_between(e.Hostid+e.Maprange, i.Hostid, i.Hostid+i.Maprange):
 			return true
-		case is_between(i.Hostid+e.Maprange, e.Hostid, e.Hostid+e.Maprange):
+		case is_between(i.Hostid+i.Maprange, e.Hostid, e.Hostid+e.Maprange):
 			return true
 		case is_between(e.Nsid, i.Nsid, i.Nsid+i.Maprange):
 			return true
@@ -52,7 +52,7 @@ func (e *IdmapEntry) Intersects(i IdmapEntry) bool {
 			return true
 		case is_between(e.Nsid+e.Maprange, i.Nsid, i.Nsid+i.Maprange):
 			return true
-		case is_between(i.Nsid+e.Maprange, e.Nsid, e.Nsid+e.Maprange):
+		case is_between(i.Nsid+i.Maprange, e.Nsid, e.Nsid+e.Maprange):
 			return true
 		}
 	}
