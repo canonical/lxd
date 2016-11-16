@@ -324,7 +324,7 @@ Yes. The easiest way to do that is using a privileged container:
 1.a) create a container.
 
     lxc launch ubuntu privilegedContainerName -c security.privileged=true
-    
+
 1.b) or, if your container already exists.
 
         lxc config set privilegedContainerName security.privileged true
@@ -342,5 +342,9 @@ apply the docker profile to your container.
 
 Note that the docker profile does not provide a network interface, so the
 common case will want to compose the default and docker profiles.
+
+Also note that Docker coming from [upstream](https://apt.dockerproject.org/repo) doesn't currently run as is inside the lxd container. Look at issue [#2621](https://github.com/lxc/lxd/issues/2621) for more details. You need to download the docker coming from Ubuntu (docker.io package) to get this working. So once you are in the lxd container run
+
+    sudo apt-get install -y docker.io runc containerd
 
 The container must be using the Ubuntu 1.10.2-0ubuntu4 or newer docker package.
