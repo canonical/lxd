@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -1246,7 +1247,7 @@ func (s *zfsMigrationSourceDriver) Snapshots() []container {
 	return s.snapshots
 }
 
-func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zfsParent string) error {
+func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zfsParent string, readWrapper func(io.ReadCloser) io.ReadCloser) error {
 	fields := strings.SplitN(s.container.Name(), shared.SnapshotDelimiter, 2)
 	args := []string{"send", fmt.Sprintf("%s/containers/%s@%s", s.zfs.zfsPool, fields[0], zfsName)}
 	if zfsParent != "" {
@@ -1260,6 +1261,11 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 		return err
 	}
 
+	readPipe := io.ReadCloser(stdout)
+	if readWrapper != nil {
+		readPipe = readWrapper(stdout)
+	}
+
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return err
@@ -1269,7 +1275,7 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 		return err
 	}
 
-	<-shared.WebsocketSendStream(conn, stdout, 4*1024*1024)
+	<-shared.WebsocketSendStream(conn, readPipe, 4*1024*1024)
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
@@ -1284,11 +1290,12 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 	return err
 }
 
-func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
+func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
 	if s.container.IsSnapshot() {
 		fields := strings.SplitN(s.container.Name(), shared.SnapshotDelimiter, 2)
 		snapshotName := fmt.Sprintf("snapshot-%s", fields[1])
-		return s.send(conn, snapshotName, "")
+		wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
+		return s.send(conn, snapshotName, "", wrapper)
 	}
 
 	lastSnap := ""
@@ -1301,7 +1308,8 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) error 
 
 		lastSnap = snap
 
-		if err := s.send(conn, snap, prev); err != nil {
+		wrapper := StorageProgressReader(op, "fs_progress", snap)
+		if err := s.send(conn, snap, prev, wrapper); err != nil {
 			return err
 		}
 	}
@@ -1311,7 +1319,8 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) error 
 		return err
 	}
 
-	if err := s.send(conn, s.runningSnapName, lastSnap); err != nil {
+	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
+	if err := s.send(conn, s.runningSnapName, lastSnap, wrapper); err != nil {
 		return err
 	}
 
@@ -1324,7 +1333,7 @@ func (s *zfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) err
 		return err
 	}
 
-	if err := s.send(conn, s.stoppedSnapName, s.runningSnapName); err != nil {
+	if err := s.send(conn, s.stoppedSnapName, s.runningSnapName, nil); err != nil {
 		return err
 	}
 
@@ -1396,8 +1405,8 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 	return &driver, nil
 }
 
-func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
-	zfsRecv := func(zfsName string) error {
+func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
+	zfsRecv := func(zfsName string, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 		zfsFsName := fmt.Sprintf("%s/%s", s.zfsPool, zfsName)
 		args := []string{"receive", "-F", "-u", zfsFsName}
 		cmd := exec.Command("zfs", args...)
@@ -1416,7 +1425,12 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 			return err
 		}
 
-		<-shared.WebsocketRecvStream(stdin, conn)
+		writePipe := io.WriteCloser(stdin)
+		if writeWrapper != nil {
+			writePipe = writeWrapper(stdin)
+		}
+
+		<-shared.WebsocketRecvStream(writePipe, conn)
 
 		output, err := ioutil.ReadAll(stderr)
 		if err != nil {
@@ -1449,8 +1463,9 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 			return err
 		}
 
+		wrapper := StorageProgressWriter(op, "fs_progress", snap.GetName())
 		name := fmt.Sprintf("containers/%s@snapshot-%s", container.Name(), snap.GetName())
-		if err := zfsRecv(name); err != nil {
+		if err := zfsRecv(name, wrapper); err != nil {
 			return err
 		}
 
@@ -1484,13 +1499,15 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	}()
 
 	/* finally, do the real container */
-	if err := zfsRecv(zfsName); err != nil {
+	wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
+	if err := zfsRecv(zfsName, wrapper); err != nil {
 		return err
 	}
 
 	if live {
 		/* and again for the post-running snapshot if this was a live migration */
-		if err := zfsRecv(zfsName); err != nil {
+		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
+		if err := zfsRecv(zfsName, wrapper); err != nil {
 			return err
 		}
 	}
