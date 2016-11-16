@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const SnapshotDelimiter = "/"
@@ -742,8 +743,10 @@ type TransferProgress struct {
 	percentage float64
 	total      int64
 
+	start *time.Time
+
 	Length  int64
-	Handler func(int)
+	Handler func(int, int)
 }
 
 func (pt *TransferProgress) Read(p []byte) (int, error) {
@@ -753,19 +756,32 @@ func (pt *TransferProgress) Read(p []byte) (int, error) {
 		return n, err
 	}
 
+	if pt.start == nil {
+		cur := time.Now()
+		pt.start = &cur
+	}
+
 	if n > 0 {
 		pt.total += int64(n)
 		percentage := float64(pt.total) / float64(pt.Length) * float64(100)
 
 		if percentage-pt.percentage > 0.9 {
+			// Determine percentage
 			pt.percentage = percentage
-
 			progressInt := 1 - (int(percentage) % 1) + int(percentage)
 			if progressInt > 100 {
 				progressInt = 100
 			}
 
-			pt.Handler(progressInt)
+			// Determine speed
+			speedInt := int(0)
+			duration := time.Since(*pt.start).Seconds()
+			if duration > 0 {
+				speed := float64(pt.total) / duration
+				speedInt = int(speed)
+			}
+
+			pt.Handler(progressInt, speedInt)
 		}
 	}
 
