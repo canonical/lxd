@@ -88,7 +88,7 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 
 // RsyncSend sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func RsyncSend(path string, conn *websocket.Conn) error {
+func RsyncSend(path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser) error {
 	cmd, dataSocket, stderr, err := rsyncSendSetup(path)
 	if dataSocket != nil {
 		defer dataSocket.Close()
@@ -97,7 +97,12 @@ func RsyncSend(path string, conn *websocket.Conn) error {
 		return err
 	}
 
-	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, dataSocket)
+	readPipe := io.ReadCloser(dataSocket)
+	if readWrapper != nil {
+		readPipe = readWrapper(dataSocket)
+	}
+
+	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, readPipe)
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
@@ -118,7 +123,7 @@ func RsyncSend(path string, conn *websocket.Conn) error {
 // RsyncRecv sets up the receiving half of the websocket to rsync (the other
 // half set up by RsyncSend), putting the contents in the directory specified
 // by path.
-func RsyncRecv(path string, conn *websocket.Conn) error {
+func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 	cmd := exec.Command("rsync",
 		"--server",
 		"-vlogDtpre.iLsfx",
@@ -147,7 +152,12 @@ func RsyncRecv(path string, conn *websocket.Conn) error {
 		return err
 	}
 
-	readDone, writeDone := shared.WebsocketMirror(conn, stdin, stdout)
+	writePipe := io.WriteCloser(stdin)
+	if writeWrapper != nil {
+		writePipe = writeWrapper(stdin)
+	}
+
+	readDone, writeDone := shared.WebsocketMirror(conn, writePipe, stdout)
 	data, err2 := ioutil.ReadAll(stderr)
 	if err2 != nil {
 		shared.LogDebugf("error reading rsync stderr: %s", err2)

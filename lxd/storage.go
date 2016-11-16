@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -117,7 +118,7 @@ type MigrationStorageSourceDriver interface {
 	/* send any bits of the container/snapshots that are possible while the
 	 * container is still running.
 	 */
-	SendWhileRunning(conn *websocket.Conn) error
+	SendWhileRunning(conn *websocket.Conn, op *operation) error
 
 	/* send the final bits (e.g. a final delta snapshot for zfs, btrfs, or
 	 * do a final rsync) of the fs after the container has been
@@ -192,7 +193,7 @@ type storage interface {
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
 	MigrationSource(container container) (MigrationStorageSourceDriver, error)
-	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error
+	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error
 }
 
 func newStorage(d *Daemon, sType storageType) (storage, error) {
@@ -556,7 +557,7 @@ func (lw *storageLogWrapper) MigrationSource(container container) (MigrationStor
 	return lw.w.MigrationSource(container)
 }
 
-func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
 	objNames := []string{}
 	for _, obj := range objects {
 		objNames = append(objNames, obj.GetName())
@@ -567,9 +568,10 @@ func (lw *storageLogWrapper) MigrationSink(live bool, container container, objec
 		"container": container.Name(),
 		"objects":   objNames,
 		"srcIdmap":  *srcIdmap,
+		"op":        op,
 	})
 
-	return lw.w.MigrationSink(live, container, objects, conn, srcIdmap)
+	return lw.w.MigrationSink(live, container, objects, conn, srcIdmap, op)
 }
 
 func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
@@ -608,7 +610,7 @@ func (s rsyncStorageSourceDriver) Snapshots() []container {
 	return s.snapshots
 }
 
-func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
+func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
 	for _, send := range s.snapshots {
 		if err := send.StorageStart(); err != nil {
 			return err
@@ -616,17 +618,19 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
 		defer send.StorageStop()
 
 		path := send.Path()
-		if err := RsyncSend(shared.AddSlash(path), conn); err != nil {
+		wrapper := StorageProgressReader(op, "fs_progress", send.Name())
+		if err := RsyncSend(shared.AddSlash(path), conn, wrapper); err != nil {
 			return err
 		}
 	}
 
-	return RsyncSend(shared.AddSlash(s.container.Path()), conn)
+	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
+	return RsyncSend(shared.AddSlash(s.container.Path()), conn, wrapper)
 }
 
 func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
 	/* resync anything that changed between our first send and the checkpoint */
-	return RsyncSend(shared.AddSlash(s.container.Path()), conn)
+	return RsyncSend(shared.AddSlash(s.container.Path()), conn, nil)
 }
 
 func (s rsyncStorageSourceDriver) Cleanup() {
@@ -672,7 +676,7 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) conta
 	}
 }
 
-func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
 	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
 
 	if isDirBackend {
@@ -689,7 +693,8 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 				return err
 			}
 
-			if err := RsyncRecv(shared.AddSlash(s.Path()), conn); err != nil {
+			wrapper := StorageProgressWriter(op, "fs_progress", s.Name())
+			if err := RsyncRecv(shared.AddSlash(s.Path()), conn, wrapper); err != nil {
 				return err
 			}
 
@@ -698,7 +703,8 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 			}
 		}
 
-		if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
+		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
+		if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
 			return err
 		}
 	} else {
@@ -708,7 +714,9 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 		defer container.StorageStop()
 
 		for _, snap := range snapshots {
-			if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
+			args := snapshotProtobufToContainerArgs(container.Name(), snap)
+			wrapper := StorageProgressWriter(op, "fs_progress", snap.GetName())
+			if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
 				return err
 			}
 
@@ -716,21 +724,22 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 				return err
 			}
 
-			args := snapshotProtobufToContainerArgs(container.Name(), snap)
 			_, err := containerCreateAsSnapshot(container.Daemon(), args, container)
 			if err != nil {
 				return err
 			}
 		}
 
-		if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
+		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
+		if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
 			return err
 		}
 	}
 
 	if live {
 		/* now receive the final sync */
-		if err := RsyncRecv(shared.AddSlash(container.Path()), conn); err != nil {
+		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
+		if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
 			return err
 		}
 	}
@@ -795,4 +804,63 @@ func tryUnmount(path string, flags int) error {
 	}
 
 	return nil
+}
+
+func progressWrapperRender(op *operation, key string, description string, progressInt int64, speedInt int64) {
+	meta := op.metadata
+	if meta == nil {
+		meta = make(map[string]interface{})
+	}
+
+	progress := fmt.Sprintf("%s (%s/s)", shared.GetByteSizeString(progressInt), shared.GetByteSizeString(speedInt))
+	if description != "" {
+		progress = fmt.Sprintf("%s: %s (%s/s)", description, shared.GetByteSizeString(progressInt), shared.GetByteSizeString(speedInt))
+	}
+
+	if meta[key] != progress {
+		meta[key] = progress
+		op.UpdateMetadata(meta)
+	}
+}
+
+func StorageProgressReader(op *operation, key string, description string) func(io.ReadCloser) io.ReadCloser {
+	return func(reader io.ReadCloser) io.ReadCloser {
+		if op == nil {
+			return reader
+		}
+
+		progress := func(progressInt int64, speedInt int64) {
+			progressWrapperRender(op, key, description, progressInt, speedInt)
+		}
+
+		readPipe := &shared.ProgressReader{
+			ReadCloser: reader,
+			Tracker: &shared.ProgressTracker{
+				Handler: progress,
+			},
+		}
+
+		return readPipe
+	}
+}
+
+func StorageProgressWriter(op *operation, key string, description string) func(io.WriteCloser) io.WriteCloser {
+	return func(writer io.WriteCloser) io.WriteCloser {
+		if op == nil {
+			return writer
+		}
+
+		progress := func(progressInt int64, speedInt int64) {
+			progressWrapperRender(op, key, description, progressInt, speedInt)
+		}
+
+		writePipe := &shared.ProgressWriter{
+			WriteCloser: writer,
+			Tracker: &shared.ProgressTracker{
+				Handler: progress,
+			},
+		}
+
+		return writePipe
+	}
 }
