@@ -939,7 +939,7 @@ func (c *Client) PostImageURL(imageFile string, properties []string, public bool
 	return fingerprint, nil
 }
 
-func (c *Client) PostImage(imageFile string, rootfsFile string, properties []string, public bool, aliases []string, progressHandler func(int, int)) (string, error) {
+func (c *Client) PostImage(imageFile string, rootfsFile string, properties []string, public bool, aliases []string, progressHandler func(int64, int64)) (string, error) {
 	if c.Remote.Public {
 		return "", fmt.Errorf("This function isn't supported by public remotes.")
 	}

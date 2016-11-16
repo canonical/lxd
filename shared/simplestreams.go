@@ -511,7 +511,7 @@ func (s *SimpleStreams) getPaths(fingerprint string) ([][]string, error) {
 	return nil, fmt.Errorf("Couldn't find the requested image")
 }
 
-func (s *SimpleStreams) downloadFile(path string, hash string, target string, progress func(int, int)) error {
+func (s *SimpleStreams) downloadFile(path string, hash string, target string, progress func(int64, int64)) error {
 	download := func(url string, hash string, target string) error {
 		out, err := os.Create(target)
 		if err != nil {
@@ -640,7 +640,7 @@ func (s *SimpleStreams) ExportImage(image string, target string) (string, error)
 	return target, nil
 }
 
-func (s *SimpleStreams) Download(image string, file string, target string, progress func(int, int)) error {
+func (s *SimpleStreams) Download(image string, file string, target string, progress func(int64, int64)) error {
 	paths, err := s.getPaths(image)
 	if err != nil {
 		return err
