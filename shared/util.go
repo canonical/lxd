@@ -744,46 +744,75 @@ type TransferProgress struct {
 	total      int64
 
 	start *time.Time
+	last  *time.Time
 
 	Length  int64
-	Handler func(int, int)
+	Handler func(int64, int64)
 }
 
 func (pt *TransferProgress) Read(p []byte) (int, error) {
+	// Do normal reader tasks
 	n, err := pt.Reader.Read(p)
+	pt.total += int64(n)
 
+	// Skip the rest if no handler attached
 	if pt.Handler == nil {
 		return n, err
 	}
 
+	// Initialize start time if needed
 	if pt.start == nil {
 		cur := time.Now()
 		pt.start = &cur
+		pt.last = pt.start
 	}
 
-	if n > 0 {
-		pt.total += int64(n)
-		percentage := float64(pt.total) / float64(pt.Length) * float64(100)
+	// Skip if no data to count
+	if n <= 0 {
+		return n, err
+	}
 
-		if percentage-pt.percentage > 0.9 {
-			// Determine percentage
-			pt.percentage = percentage
-			progressInt := 1 - (int(percentage) % 1) + int(percentage)
-			if progressInt > 100 {
-				progressInt = 100
-			}
-
-			// Determine speed
-			speedInt := int(0)
-			duration := time.Since(*pt.start).Seconds()
-			if duration > 0 {
-				speed := float64(pt.total) / duration
-				speedInt = int(speed)
-			}
-
-			pt.Handler(progressInt, speedInt)
+	// Update interval handling
+	var percentage float64
+	if pt.Length > 0 {
+		// If running in relative mode, check that we increased by at least 1%
+		percentage = float64(pt.total) / float64(pt.Length) * float64(100)
+		if percentage-pt.percentage < 0.9 {
+			return n, err
+		}
+	} else {
+		// If running in absolute mode, check that at least a second elapsed
+		interval := time.Since(*pt.last).Seconds()
+		if interval < 1 {
+			return n, err
 		}
 	}
+
+	// Determine speed
+	speedInt := int64(0)
+	duration := time.Since(*pt.start).Seconds()
+	if duration > 0 {
+		speed := float64(pt.total) / duration
+		speedInt = int64(speed)
+	}
+
+	// Determine progress
+	progressInt := int64(0)
+	if pt.Length > 0 {
+		pt.percentage = percentage
+		progressInt = int64(1 - (int(percentage) % 1) + int(percentage))
+		if progressInt > 100 {
+			progressInt = 100
+		}
+	} else {
+		progressInt = pt.total
+
+		// Update timestamp
+		cur := time.Now()
+		pt.last = &cur
+	}
+
+	pt.Handler(progressInt, speedInt)
 
 	return n, err
 }
