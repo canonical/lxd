@@ -719,7 +719,7 @@ func GetByteSizeString(input int64) string {
 }
 
 type TransferProgress struct {
-	io.Reader
+	io.ReadCloser
 	percentage float64
 	total      int64
 
@@ -732,7 +732,7 @@ type TransferProgress struct {
 
 func (pt *TransferProgress) Read(p []byte) (int, error) {
 	// Do normal reader tasks
-	n, err := pt.Reader.Read(p)
+	n, err := pt.ReadCloser.Read(p)
 	pt.total += int64(n)
 
 	// Skip the rest if no handler attached
