@@ -82,6 +82,9 @@ limits.processes            | integer   | - (max)       | yes           | Maximu
 linux.kernel\_modules       | string    | -             | yes           | Comma separated list of kernel modules to load before starting the container
 raw.apparmor                | blob      | -             | yes           | Apparmor profile entries to be appended to the generated profile
 raw.lxc                     | blob      | -             | no            | Raw LXC configuration to be appended to the generated one
+raw.idmap                   | blob      | -             | no            | Raw idmap configuration (e.g. "both 1000 1000")
+security.idmap.isolated     | boolean   | false         | no            | Use an idmap for this container that is unique among containers with isolated set.
+security.idmap.size         | integer   | -             | no            | The size of the idmap to use
 security.nesting            | boolean   | false         | yes           | Support running lxd (nested) inside the container
 security.privileged         | boolean   | false         | no            | Runs the container in privileged mode
 user.\*                     | string    | -             | n/a           | Free form user key/value storage (can be used in search)
@@ -94,6 +97,8 @@ volatile.\<name\>.hwaddr    | string    | -             | Network device MAC add
 volatile.\<name\>.name      | string    | -             | Network device name (when no name propery is set on the device itself)
 volatile.apply\_template    | string    | -             | The name of a template hook which should be triggered upon next startup
 volatile.base\_image        | string    | -             | The hash of the image the container was created from, if any.
+volatile.idmap.base         | integer   | -             | The first id in the container's primary idmap range
+volatile.idmap.next         | string    | -             | The idmap to use next time the container starts
 volatile.last\_state.idmap  | string    | -             | Serialized container uid/gid map
 volatile.last\_state.power  | string    | -             | Container state as of last host shutdown
 
