@@ -651,6 +651,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 		args.Name,
 		args.Config["security.idmap.isolated"],
 		args.Config["security.idmap.size"],
+		args.Config["raw.idmap"],
 	)
 	if err != nil {
 		return nil, err

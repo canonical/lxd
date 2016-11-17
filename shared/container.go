@@ -327,6 +327,7 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"raw.apparmor": IsAny,
 	"raw.lxc":      IsAny,
 	"raw.seccomp":  IsAny,
+	"raw.idmap":    IsAny,
 
 	"volatile.apply_template":   IsAny,
 	"volatile.base_image":       IsAny,
