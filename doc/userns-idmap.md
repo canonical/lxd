@@ -47,3 +47,40 @@ as its default map.
 # Varying ranges between hosts
 The source map is sent when moving containers between hosts so that they
 can be remapped on the receiving host.
+
+# Different idmaps per container
+LXD supports using different idmaps per container, to further isolate
+containers from each other. This is controlled with two per-container
+configuration keys, `security.idmap.isolated` and `security.idmap.size`.
+
+Containers with `security.idmap.isolated` will have a unique id range computed
+for them among the other containers with `security.idmap.isolated` set (if none
+is available, setting this key will simply fail).
+
+Containers with `security.idmap.size` set will have their id range set to this
+size. Isolated containers without this property set default to a id range of
+size 65536; this allows for POSIX compliance and a "nobody" user inside the
+container.
+
+These properties require a container reboot to take effect.
+
+# Custom idmaps
+LXD also supports customizing bits of the idmap, e.g. to allow users to bind
+mount parts of the host's filesystem into a container without the need for any
+uid-shifting filesystem. The per-container configuration key for this is
+`raw.idmap`, and looks like:
+
+    both 1000 1000
+    uid 50-60 500-510
+    gid 10000-110000 10000-20000
+
+The first line configures both the uid and gid 1000 on the host to map to uid
+1000 inside the container (this can be used for example to bind mount a user's
+home directory into a container).
+
+The second and third lines map only the uid or gid ranges into the container,
+respectively. The second entry per line is the source id, i.e. the id on the
+host, and the third entry is the range inside the container. These ranges must
+be the same size.
+
+This property requires a container reboot to take effect.
