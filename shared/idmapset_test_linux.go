@@ -81,3 +81,12 @@ func TestIdmapSetAddSafe_upper(t *testing.T) {
 		return
 	}
 }
+
+func TestIdmapSetIntersects(t *testing.T) {
+	orig := IdmapSet{Idmap: []IdmapEntry{IdmapEntry{Isuid: true, Hostid: 165536, Nsid: 0, Maprange: 65536}}}
+
+	if orig.Intersects(IdmapEntry{Isuid: true, Hostid: 231072, Nsid: 0, Maprange: 65536}) {
+		t.Error("ranges don't intersect")
+		return
+	}
+}
