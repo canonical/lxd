@@ -174,6 +174,19 @@ func IsInt64(value string) error {
 	return nil
 }
 
+func IsUint32(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseInt(value, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid value for uint32: %s: %v", value, err)
+	}
+
+	return nil
+}
+
 func IsPriority(value string) error {
 	if value == "" {
 		return nil
@@ -302,6 +315,9 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"security.nesting":    IsBool,
 	"security.privileged": IsBool,
 
+	"security.idmap.size":     IsUint32,
+	"security.idmap.isolated": IsBool,
+
 	"security.syscalls.blacklist_default": IsBool,
 	"security.syscalls.blacklist_compat":  IsBool,
 	"security.syscalls.blacklist":         IsAny,
@@ -311,11 +327,14 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"raw.apparmor": IsAny,
 	"raw.lxc":      IsAny,
 	"raw.seccomp":  IsAny,
+	"raw.idmap":    IsAny,
 
 	"volatile.apply_template":   IsAny,
 	"volatile.base_image":       IsAny,
 	"volatile.last_state.idmap": IsAny,
 	"volatile.last_state.power": IsAny,
+	"volatile.idmap.next":       IsAny,
+	"volatile.idmap.base":       IsAny,
 }
 
 // ConfigKeyChecker returns a function that will check whether or not

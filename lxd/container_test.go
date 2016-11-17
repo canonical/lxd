@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/lxc/lxd/shared"
 )
 
@@ -219,4 +221,163 @@ func (suite *lxdTestSuite) TestContainer_Rename() {
 
 	suite.Req.Nil(c.Rename("testFoo2"), "Failed to rename the container.")
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.Path())
+}
+
+func (suite *lxdTestSuite) TestContainer_findIdmap_isolated() {
+	c1, err := containerCreateInternal(suite.d, containerArgs{
+		Ctype: cTypeRegular,
+		Name:  "isol-1",
+		Config: map[string]string{
+			"security.idmap.isolated": "true",
+		},
+	})
+	suite.Req.Nil(err)
+	defer c1.Delete()
+
+	c2, err := containerCreateInternal(suite.d, containerArgs{
+		Ctype: cTypeRegular,
+		Name:  "isol-2",
+		Config: map[string]string{
+			"security.idmap.isolated": "true",
+		},
+	})
+	suite.Req.Nil(err)
+	defer c2.Delete()
+
+	map1, err := c1.(*containerLXC).NextIdmapSet()
+	suite.Req.Nil(err)
+	map2, err := c2.(*containerLXC).NextIdmapSet()
+	suite.Req.Nil(err)
+
+	host := suite.d.IdmapSet.Idmap[0]
+
+	for i := 0; i < 2; i++ {
+		suite.Req.Equal(host.Hostid+65536+1, map1.Idmap[i].Hostid, "hostids don't match %d", i)
+		suite.Req.Equal(0, map1.Idmap[i].Nsid, "nsid nonzero")
+		suite.Req.Equal(65536, map1.Idmap[i].Maprange, "incorrect maprange")
+	}
+
+	for i := 0; i < 2; i++ {
+		suite.Req.Equal(host.Hostid+(65536+1)*2, map2.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(0, map2.Idmap[i].Nsid, "nsid nonzero")
+		suite.Req.Equal(65536, map2.Idmap[i].Maprange, "incorrect maprange")
+	}
+}
+
+func (suite *lxdTestSuite) TestContainer_findIdmap_mixed() {
+	c1, err := containerCreateInternal(suite.d, containerArgs{
+		Ctype: cTypeRegular,
+		Name:  "isol-1",
+		Config: map[string]string{
+			"security.idmap.isolated": "false",
+		},
+	})
+	suite.Req.Nil(err)
+	defer c1.Delete()
+
+	c2, err := containerCreateInternal(suite.d, containerArgs{
+		Ctype: cTypeRegular,
+		Name:  "isol-2",
+		Config: map[string]string{
+			"security.idmap.isolated": "true",
+		},
+	})
+	suite.Req.Nil(err)
+	defer c2.Delete()
+
+	map1, err := c1.(*containerLXC).NextIdmapSet()
+	suite.Req.Nil(err)
+	map2, err := c2.(*containerLXC).NextIdmapSet()
+	suite.Req.Nil(err)
+
+	host := suite.d.IdmapSet.Idmap[0]
+
+	for i := 0; i < 2; i++ {
+		suite.Req.Equal(host.Hostid, map1.Idmap[i].Hostid, "hostids don't match %d", i)
+		suite.Req.Equal(0, map1.Idmap[i].Nsid, "nsid nonzero")
+		suite.Req.Equal(host.Maprange, map1.Idmap[i].Maprange, "incorrect maprange")
+	}
+
+	for i := 0; i < 2; i++ {
+		suite.Req.Equal(host.Hostid+65536+1, map2.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(0, map2.Idmap[i].Nsid, "nsid nonzero")
+		suite.Req.Equal(65536, map2.Idmap[i].Maprange, "incorrect maprange")
+	}
+}
+
+func (suite *lxdTestSuite) TestContainer_findIdmap_raw() {
+	c1, err := containerCreateInternal(suite.d, containerArgs{
+		Ctype: cTypeRegular,
+		Name:  "isol-1",
+		Config: map[string]string{
+			"security.idmap.isolated": "false",
+			"raw.idmap":               "both 1000 1000",
+		},
+	})
+	suite.Req.Nil(err)
+	defer c1.Delete()
+
+	map1, err := c1.(*containerLXC).NextIdmapSet()
+	suite.Req.Nil(err)
+
+	host := suite.d.IdmapSet.Idmap[0]
+
+	for _, i := range []int{0, 3} {
+		suite.Req.Equal(host.Hostid, map1.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(0, map1.Idmap[i].Nsid, "nsid nonzero")
+		suite.Req.Equal(1000, map1.Idmap[i].Maprange, "incorrect maprange")
+	}
+
+	for _, i := range []int{1, 4} {
+		suite.Req.Equal(1000, map1.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(1000, map1.Idmap[i].Nsid, "invalid nsid")
+		suite.Req.Equal(1, map1.Idmap[i].Maprange, "incorrect maprange")
+	}
+
+	for _, i := range []int{2, 5} {
+		suite.Req.Equal(host.Hostid+1001, map1.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(1001, map1.Idmap[i].Nsid, "invalid nsid")
+		suite.Req.Equal(host.Maprange-1000-1, map1.Idmap[i].Maprange, "incorrect maprange")
+	}
+}
+
+func (suite *lxdTestSuite) TestContainer_findIdmap_maxed() {
+	maps := []*shared.IdmapSet{}
+
+	for i := 0; i < 7; i++ {
+		c, err := containerCreateInternal(suite.d, containerArgs{
+			Ctype: cTypeRegular,
+			Name:  fmt.Sprintf("isol-%d", i),
+			Config: map[string]string{
+				"security.idmap.isolated": "true",
+			},
+		})
+
+		/* we should fail if there are no ids left */
+		if i != 6 {
+			suite.Req.Nil(err)
+		} else {
+			suite.Req.NotNil(err)
+			return
+		}
+
+		defer c.Delete()
+
+		m, err := c.(*containerLXC).NextIdmapSet()
+		suite.Req.Nil(err)
+
+		maps = append(maps, m)
+	}
+
+	for i, m1 := range maps {
+		for j, m2 := range maps {
+			if m1 == m2 {
+				continue
+			}
+
+			for _, e := range m2.Idmap {
+				suite.Req.False(m1.HostidsIntersect(e), "%d and %d's idmaps intersect %v %v", i, j, m1, m2)
+			}
+		}
+	}
 }
