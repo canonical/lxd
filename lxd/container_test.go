@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/lxc/lxd/shared"
 )
 
@@ -336,5 +338,46 @@ func (suite *lxdTestSuite) TestContainer_findIdmap_raw() {
 		suite.Req.Equal(host.Hostid+1001, map1.Idmap[i].Hostid, "hostids don't match")
 		suite.Req.Equal(1001, map1.Idmap[i].Nsid, "invalid nsid")
 		suite.Req.Equal(host.Maprange-1000-1, map1.Idmap[i].Maprange, "incorrect maprange")
+	}
+}
+
+func (suite *lxdTestSuite) TestContainer_findIdmap_maxed() {
+	maps := []*shared.IdmapSet{}
+
+	for i := 0; i < 7; i++ {
+		c, err := containerCreateInternal(suite.d, containerArgs{
+			Ctype: cTypeRegular,
+			Name:  fmt.Sprintf("isol-%d", i),
+			Config: map[string]string{
+				"security.idmap.isolated": "true",
+			},
+		})
+
+		/* we should fail if there are no ids left */
+		if i != 6 {
+			suite.Req.Nil(err)
+		} else {
+			suite.Req.NotNil(err)
+			return
+		}
+
+		defer c.Delete()
+
+		m, err := c.(*containerLXC).NextIdmapSet()
+		suite.Req.Nil(err)
+
+		maps = append(maps, m)
+	}
+
+	for i, m1 := range maps {
+		for j, m2 := range maps {
+			if m1 == m2 {
+				continue
+			}
+
+			for _, e := range m2.Idmap {
+				suite.Req.False(m1.HostidsIntersect(e), "%d and %d's idmaps intersect %v %v", i, j, m1, m2)
+			}
+		}
 	}
 }

@@ -180,6 +180,16 @@ func (m IdmapSet) Len() int {
 func (m IdmapSet) Intersects(i IdmapEntry) bool {
 	for _, e := range m.Idmap {
 		if i.Intersects(e) {
+			fmt.Printf("%v and %v intersect\n", i, e)
+			return true
+		}
+	}
+	return false
+}
+
+func (m IdmapSet) HostidsIntersect(i IdmapEntry) bool {
+	for _, e := range m.Idmap {
+		if i.HostidsIntersect(e) {
 			return true
 		}
 	}
