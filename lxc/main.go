@@ -323,9 +323,10 @@ func (p *ProgressRenderer) Done(msg string) {
 	if len(msg) > p.maxLength {
 		p.maxLength = len(msg)
 	} else {
-		fmt.Printf("%s\r", strings.Repeat(" ", p.maxLength))
+		fmt.Printf("\r%s", strings.Repeat(" ", p.maxLength))
 	}
 
+	fmt.Print("\r")
 	fmt.Print(msg)
 }
 
@@ -335,13 +336,12 @@ func (p *ProgressRenderer) Update(status string) {
 		msg = p.Format
 	}
 
-	msg = fmt.Sprintf(msg, status)
-	msg += "\r"
+	msg = fmt.Sprintf("\r"+msg, status)
 
 	if len(msg) > p.maxLength {
 		p.maxLength = len(msg)
 	} else {
-		fmt.Printf("%s\r", strings.Repeat(" ", p.maxLength))
+		fmt.Printf("\r%s", strings.Repeat(" ", p.maxLength))
 	}
 
 	fmt.Print(msg)

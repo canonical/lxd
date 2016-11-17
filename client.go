@@ -988,7 +988,7 @@ func (c *Client) PostImageURL(imageFile string, properties []string, public bool
 	return fingerprint, nil
 }
 
-func (c *Client) PostImage(imageFile string, rootfsFile string, properties []string, public bool, aliases []string, progressHandler func(int, int)) (string, error) {
+func (c *Client) PostImage(imageFile string, rootfsFile string, properties []string, public bool, aliases []string, progressHandler func(int64, int64)) (string, error) {
 	if c.Remote.Public {
 		return "", fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1055,7 +1055,13 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 			return "", err
 		}
 
-		progress := &shared.TransferProgress{Reader: body, Length: size, Handler: progressHandler}
+		progress := &shared.ProgressReader{
+			ReadCloser: body,
+			Tracker: &shared.ProgressTracker{
+				Length:  size,
+				Handler: progressHandler,
+			},
+		}
 
 		req, err = http.NewRequest("POST", uri, progress)
 		req.Header.Set("Content-Type", w.FormDataContentType())
@@ -1071,7 +1077,13 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 			return "", err
 		}
 
-		progress := &shared.TransferProgress{Reader: fImage, Length: stat.Size(), Handler: progressHandler}
+		progress := &shared.ProgressReader{
+			ReadCloser: fImage,
+			Tracker: &shared.ProgressTracker{
+				Length:  stat.Size(),
+				Handler: progressHandler,
+			},
+		}
 
 		req, err = http.NewRequest("POST", uri, progress)
 		req.Header.Set("X-LXD-filename", filepath.Base(imageFile))
