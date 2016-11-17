@@ -17,11 +17,6 @@ running as uid 100000.
 Allocations should always be of at least 65536 uids and gids to cover
 the POSIX range including root (0) and nobody (65534).
 
-
-To simplify things, at this point, we will only deal with identical
-allocations for uids and gids and only support a single contiguous range
-per container.
-
 # Kernel support
 User namespaces require a kernel >= 3.12, LXD will start even on older
 kernels but will refuse to start containers.
@@ -35,7 +30,7 @@ If the range is shorter than 65536 (which includes no range at all),
 then LXD will fail to create or start any container until this is corrected.
 
 If some but not all of /etc/subuid, /etc/subgid, newuidmap (path lookup)
-and newgidmap (path lookup) can't be found on the system, LXD will fail
+and newgidmap (path lookup) can be found on the system, LXD will fail
 the startup of any container until this is corrected as this shows a
 broken shadow setup.
 
