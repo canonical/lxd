@@ -14,44 +14,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func rsyncWebsocket(path string, cmd *exec.Cmd, conn *websocket.Conn) error {
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	readDone, writeDone := shared.WebsocketMirror(conn, stdin, stdout)
-	data, err2 := ioutil.ReadAll(stderr)
-	if err2 != nil {
-		shared.LogDebugf("error reading rsync stderr: %s", err2)
-		return err2
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		shared.LogDebugf("rsync recv error for path %s: %s: %s", path, err, string(data))
-	}
-
-	<-readDone
-	<-writeDone
-
-	return err
-}
-
 func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	/*
 	 * It's sort of unfortunate, but there's no library call to get a
@@ -126,7 +88,7 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 
 // RsyncSend sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func RsyncSend(path string, conn *websocket.Conn) error {
+func RsyncSend(path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser) error {
 	cmd, dataSocket, stderr, err := rsyncSendSetup(path)
 	if dataSocket != nil {
 		defer dataSocket.Close()
@@ -135,7 +97,12 @@ func RsyncSend(path string, conn *websocket.Conn) error {
 		return err
 	}
 
-	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, dataSocket)
+	readPipe := io.ReadCloser(dataSocket)
+	if readWrapper != nil {
+		readPipe = readWrapper(dataSocket)
+	}
+
+	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, readPipe)
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
@@ -153,8 +120,11 @@ func RsyncSend(path string, conn *websocket.Conn) error {
 	return err
 }
 
-func rsyncRecvCmd(path string) *exec.Cmd {
-	return exec.Command("rsync",
+// RsyncRecv sets up the receiving half of the websocket to rsync (the other
+// half set up by RsyncSend), putting the contents in the directory specified
+// by path.
+func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
+	cmd := exec.Command("rsync",
 		"--server",
 		"-vlogDtpre.iLsfx",
 		"--numeric-ids",
@@ -162,13 +132,47 @@ func rsyncRecvCmd(path string) *exec.Cmd {
 		"--partial",
 		".",
 		path)
-}
 
-// RsyncRecv sets up the receiving half of the websocket to rsync (the other
-// half set up by RsyncSend), putting the contents in the directory specified
-// by path.
-func RsyncRecv(path string, conn *websocket.Conn) error {
-	return rsyncWebsocket(path, rsyncRecvCmd(path), conn)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	writePipe := io.WriteCloser(stdin)
+	if writeWrapper != nil {
+		writePipe = writeWrapper(stdin)
+	}
+
+	readDone, writeDone := shared.WebsocketMirror(conn, writePipe, stdout)
+	data, err2 := ioutil.ReadAll(stderr)
+	if err2 != nil {
+		shared.LogDebugf("error reading rsync stderr: %s", err2)
+		return err2
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		shared.LogDebugf("rsync recv error for path %s: %s: %s", path, err, string(data))
+	}
+
+	<-readDone
+	<-writeDone
+
+	return err
 }
 
 // Netcat is called with:

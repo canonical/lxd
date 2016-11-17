@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -828,7 +829,7 @@ func (s *btrfsMigrationSourceDriver) Snapshots() []container {
 	return s.snapshots
 }
 
-func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string, btrfsParent string) error {
+func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string, btrfsParent string, readWrapper func(io.ReadCloser) io.ReadCloser) error {
 	args := []string{"send", btrfsPath}
 	if btrfsParent != "" {
 		args = append(args, "-p", btrfsParent)
@@ -841,6 +842,11 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 		return err
 	}
 
+	readPipe := io.ReadCloser(stdout)
+	if readWrapper != nil {
+		readPipe = readWrapper(stdout)
+	}
+
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return err
@@ -850,7 +856,7 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 		return err
 	}
 
-	<-shared.WebsocketSendStream(conn, stdout, 4*1024*1024)
+	<-shared.WebsocketSendStream(conn, readPipe, 4*1024*1024)
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
@@ -864,7 +870,7 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 	return err
 }
 
-func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
+func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
 	if s.container.IsSnapshot() {
 		tmpPath := containerPath(fmt.Sprintf("%s/.migration-send-%s", s.container.Name(), uuid.NewRandom().String()), true)
 		err := os.MkdirAll(tmpPath, 0700)
@@ -879,7 +885,8 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) erro
 
 		defer s.btrfs.subvolDelete(btrfsPath)
 
-		return s.send(conn, btrfsPath, "")
+		wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
+		return s.send(conn, btrfsPath, "", wrapper)
 	}
 
 	for i, snap := range s.snapshots {
@@ -888,7 +895,8 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) erro
 			prev = s.snapshots[i-1].Path()
 		}
 
-		if err := s.send(conn, snap.Path(), prev); err != nil {
+		wrapper := StorageProgressReader(op, "fs_progress", snap.Name())
+		if err := s.send(conn, snap.Path(), prev, wrapper); err != nil {
 			return err
 		}
 	}
@@ -912,7 +920,8 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) erro
 		btrfsParent = s.btrfsSnapshotNames[len(s.btrfsSnapshotNames)-1]
 	}
 
-	return s.send(conn, s.runningSnapName, btrfsParent)
+	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
+	return s.send(conn, s.runningSnapName, btrfsParent, wrapper)
 }
 
 func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
@@ -927,7 +936,7 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) e
 		return err
 	}
 
-	return s.send(conn, s.stoppedSnapName, s.runningSnapName)
+	return s.send(conn, s.stoppedSnapName, s.runningSnapName, nil)
 }
 
 func (s *btrfsMigrationSourceDriver) Cleanup() {
@@ -985,9 +994,9 @@ func (s *storageBtrfs) MigrationSource(c container) (MigrationStorageSourceDrive
 	return driver, nil
 }
 
-func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
 	if runningInUserns {
-		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap)
+		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op)
 	}
 
 	cName := container.Name()
@@ -1000,7 +1009,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		}
 	}
 
-	btrfsRecv := func(btrfsPath string, targetPath string, isSnapshot bool) error {
+	btrfsRecv := func(btrfsPath string, targetPath string, isSnapshot bool, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 		args := []string{"receive", "-e", btrfsPath}
 		cmd := exec.Command("btrfs", args...)
 
@@ -1024,7 +1033,12 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			return err
 		}
 
-		<-shared.WebsocketRecvStream(stdin, conn)
+		writePipe := io.WriteCloser(stdin)
+		if writeWrapper != nil {
+			writePipe = writeWrapper(stdin)
+		}
+
+		<-shared.WebsocketRecvStream(writePipe, conn)
 
 		output, err := ioutil.ReadAll(stderr)
 		if err != nil {
@@ -1063,18 +1077,21 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			return err
 		}
 
-		if err := btrfsRecv(containerPath(cName, true), s.Path(), true); err != nil {
+		wrapper := StorageProgressWriter(op, "fs_progress", snap.GetName())
+		if err := btrfsRecv(containerPath(cName, true), s.Path(), true, wrapper); err != nil {
 			return err
 		}
 	}
 
 	/* finally, do the real container */
-	if err := btrfsRecv(containerPath(cName, true), container.Path(), false); err != nil {
+	wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
+	if err := btrfsRecv(containerPath(cName, true), container.Path(), false, wrapper); err != nil {
 		return err
 	}
 
 	if live {
-		if err := btrfsRecv(containerPath(cName, true), container.Path(), false); err != nil {
+		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
+		if err := btrfsRecv(containerPath(cName, true), container.Path(), false, wrapper); err != nil {
 			return err
 		}
 	}

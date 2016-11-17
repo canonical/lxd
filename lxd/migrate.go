@@ -375,7 +375,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		return err
 	}
 
-	if err := driver.SendWhileRunning(s.fsConn); err != nil {
+	if err := driver.SendWhileRunning(s.fsConn, migrateOp); err != nil {
 		return abort(err)
 	}
 
@@ -493,7 +493,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		 * no reason to do these in parallel. In the future when we're using
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
-		if err := RsyncSend(shared.AddSlash(checkpointDir), s.criuConn); err != nil {
+		if err := RsyncSend(shared.AddSlash(checkpointDir), s.criuConn, nil); err != nil {
 			return abort(err)
 		}
 
@@ -794,7 +794,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			} else {
 				fsConn = c.src.fsConn
 			}
-			if err := mySink(live, c.src.container, header.Snapshots, fsConn, srcIdmap); err != nil {
+			if err := mySink(live, c.src.container, header.Snapshots, fsConn, srcIdmap, migrateOp); err != nil {
 				fsTransfer <- err
 				return
 			}
@@ -823,7 +823,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			} else {
 				criuConn = c.src.criuConn
 			}
-			if err := RsyncRecv(shared.AddSlash(imagesDir), criuConn); err != nil {
+			if err := RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil); err != nil {
 				restore <- err
 				return
 			}

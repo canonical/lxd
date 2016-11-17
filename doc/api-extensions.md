@@ -156,3 +156,7 @@ Enables adding GPUs to a container.
 
 ## container\_image\_properties
 Introduces a new "image" config key space. Read-only, includes the properties of the parent image.
+
+## migration\_progress
+Transfer progress is now exported as part of the operation, on both sending and receiving ends.
+This shows up as a "fs\_progress" attribute in the operation metadata.

@@ -247,7 +247,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		d.Storage.ImageDelete(fp)
 	}
 
-	progress := func(progressInt int, speedInt int) {
+	progress := func(progressInt int64, speedInt int64) {
 		if op == nil {
 			return
 		}
@@ -257,7 +257,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			meta = make(map[string]interface{})
 		}
 
-		progress := fmt.Sprintf("%d%% (%s/s)", progressInt, shared.GetByteSizeString(int64(speedInt)))
+		progress := fmt.Sprintf("%d%% (%s/s)", progressInt, shared.GetByteSizeString(speedInt))
 
 		if meta["download_progress"] != progress {
 			meta["download_progress"] = progress
@@ -359,7 +359,13 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		ctype = "application/octet-stream"
 	}
 
-	body := &shared.TransferProgress{Reader: raw.Body, Length: raw.ContentLength, Handler: progress}
+	body := &shared.ProgressReader{
+		ReadCloser: raw.Body,
+		Tracker: &shared.ProgressTracker{
+			Length:  raw.ContentLength,
+			Handler: progress,
+		},
+	}
 
 	if ctype == "multipart/form-data" {
 		// Parse the POST data
