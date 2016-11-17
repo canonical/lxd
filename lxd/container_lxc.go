@@ -398,14 +398,107 @@ func idmapSize(daemon *Daemon, isolatedStr string, size string) (int, error) {
 
 var idmapLock sync.Mutex
 
-func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize string) (*shared.IdmapSet, int, error) {
+func parseRawIdmap(value string) ([]shared.IdmapEntry, error) {
+	getRange := func(r string) (int, int, error) {
+		entries := strings.Split(r, "-")
+		if len(entries) > 2 {
+			return -1, -1, fmt.Errorf("invalid raw.idmap range %s", r)
+		}
+
+		base, err := strconv.Atoi(entries[0])
+		if err != nil {
+			return -1, -1, err
+		}
+
+		size := 1
+		if len(entries) > 1 {
+			size, err = strconv.Atoi(entries[1])
+			if err != nil {
+				return -1, -1, err
+			}
+
+			size -= base
+		}
+
+		return base, size, nil
+	}
+
+	ret := shared.IdmapSet{}
+
+	for _, line := range strings.Split(value, "\n") {
+		if line == "" {
+			continue
+		}
+
+		entries := strings.Split(line, " ")
+		if len(entries) != 3 {
+			return nil, fmt.Errorf("invalid raw.idmap line %s", line)
+		}
+
+		outsideBase, outsideSize, err := getRange(entries[1])
+		if err != nil {
+			return nil, err
+		}
+
+		insideBase, insideSize, err := getRange(entries[2])
+		if err != nil {
+			return nil, err
+		}
+
+		if insideSize != outsideSize {
+			return nil, fmt.Errorf("idmap ranges of different sizes %s", line)
+		}
+
+		entry := shared.IdmapEntry{
+			Hostid:   outsideBase,
+			Nsid:     insideBase,
+			Maprange: insideSize,
+		}
+
+		switch entries[0] {
+		case "both":
+			entry.Isuid = true
+			ret.AddSafe(entry)
+			ret.AddSafe(shared.IdmapEntry{
+				Isgid:    true,
+				Hostid:   entry.Hostid,
+				Nsid:     entry.Nsid,
+				Maprange: entry.Maprange,
+			})
+		case "uid":
+			entry.Isuid = true
+			ret.AddSafe(entry)
+		case "gid":
+			entry.Isgid = true
+			ret.AddSafe(entry)
+		default:
+			return nil, fmt.Errorf("invalid raw.idmap type %s", line)
+		}
+	}
+
+	return ret.Idmap, nil
+}
+
+func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize string, rawIdmap string) (*shared.IdmapSet, int, error) {
 	isolated := false
 	if isolatedStr == "true" {
 		isolated = true
 	}
 
+	rawMaps, err := parseRawIdmap(rawIdmap)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	if !isolated {
-		return daemon.IdmapSet, 0, nil
+		newIdmapset := shared.IdmapSet{Idmap: make([]shared.IdmapEntry, len(daemon.IdmapSet.Idmap))}
+		copy(newIdmapset.Idmap, daemon.IdmapSet.Idmap)
+
+		for _, ent := range rawMaps {
+			newIdmapset.AddSafe(ent)
+		}
+
+		return &newIdmapset, 0, nil
 	}
 
 	idmapLock.Lock()
@@ -453,6 +546,19 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 
 	sort.Sort(mapentries)
 
+	mkIdmap := func(offset int, size int) *shared.IdmapSet {
+		set := &shared.IdmapSet{Idmap: []shared.IdmapEntry{
+			shared.IdmapEntry{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
+			shared.IdmapEntry{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
+		}}
+
+		for _, ent := range rawMaps {
+			set.AddSafe(ent)
+		}
+
+		return set
+	}
+
 	for i := range mapentries {
 		if i == 0 {
 			if mapentries[0].Hostid < offset+size {
@@ -460,12 +566,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 				continue
 			}
 
-			set := &shared.IdmapSet{Idmap: []shared.IdmapEntry{
-				shared.IdmapEntry{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
-				shared.IdmapEntry{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
-			}}
-
-			return set, offset, nil
+			return mkIdmap(offset, size), offset, nil
 		}
 
 		if mapentries[i-1].Hostid+mapentries[i-1].Maprange > offset {
@@ -474,22 +575,12 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 
 		offset = mapentries[i-1].Hostid + mapentries[i-1].Maprange
 		if offset+size < mapentries[i].Nsid {
-			set := &shared.IdmapSet{Idmap: []shared.IdmapEntry{
-				shared.IdmapEntry{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
-				shared.IdmapEntry{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
-			}}
-
-			return set, offset, nil
+			return mkIdmap(offset, size), offset, nil
 		}
 	}
 
 	if offset+size < daemon.IdmapSet.Idmap[0].Hostid+daemon.IdmapSet.Idmap[0].Maprange {
-		set := &shared.IdmapSet{Idmap: []shared.IdmapEntry{
-			shared.IdmapEntry{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
-			shared.IdmapEntry{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
-		}}
-
-		return set, offset, nil
+		return mkIdmap(offset, size), offset, nil
 	}
 
 	return nil, 0, fmt.Errorf("no map range available")
@@ -2522,6 +2613,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		c.Name(),
 		args.Config["security.idmap.isolated"],
 		args.Config["security.idmap.size"],
+		args.Config["raw.idmap"],
 	)
 	if err != nil {
 		return err
