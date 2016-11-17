@@ -359,7 +359,13 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		ctype = "application/octet-stream"
 	}
 
-	body := &shared.TransferProgress{ReadCloser: raw.Body, Length: raw.ContentLength, Handler: progress}
+	body := &shared.ProgressReader{
+		ReadCloser: raw.Body,
+		Tracker: &shared.ProgressTracker{
+			Length:  raw.ContentLength,
+			Handler: progress,
+		},
+	}
 
 	if ctype == "multipart/form-data" {
 		// Parse the POST data

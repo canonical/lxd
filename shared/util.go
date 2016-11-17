@@ -738,26 +738,20 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 	return s
 }
 
-type TransferProgress struct {
-	io.ReadCloser
-	percentage float64
-	total      int64
-
-	start *time.Time
-	last  *time.Time
-
+type ProgressTracker struct {
 	Length  int64
 	Handler func(int64, int64)
+
+	percentage float64
+	total      int64
+	start      *time.Time
+	last       *time.Time
 }
 
-func (pt *TransferProgress) Read(p []byte) (int, error) {
-	// Do normal reader tasks
-	n, err := pt.ReadCloser.Read(p)
-	pt.total += int64(n)
-
+func (pt *ProgressTracker) Update(n int) {
 	// Skip the rest if no handler attached
 	if pt.Handler == nil {
-		return n, err
+		return
 	}
 
 	// Initialize start time if needed
@@ -769,7 +763,7 @@ func (pt *TransferProgress) Read(p []byte) (int, error) {
 
 	// Skip if no data to count
 	if n <= 0 {
-		return n, err
+		return
 	}
 
 	// Update interval handling
@@ -778,13 +772,13 @@ func (pt *TransferProgress) Read(p []byte) (int, error) {
 		// If running in relative mode, check that we increased by at least 1%
 		percentage = float64(pt.total) / float64(pt.Length) * float64(100)
 		if percentage-pt.percentage < 0.9 {
-			return n, err
+			return
 		}
 	} else {
 		// If running in absolute mode, check that at least a second elapsed
 		interval := time.Since(*pt.last).Seconds()
 		if interval < 1 {
-			return n, err
+			return
 		}
 	}
 
@@ -813,6 +807,40 @@ func (pt *TransferProgress) Read(p []byte) (int, error) {
 	}
 
 	pt.Handler(progressInt, speedInt)
+}
+
+type ProgressReader struct {
+	io.ReadCloser
+	Tracker *ProgressTracker
+}
+
+func (pt *ProgressReader) Read(p []byte) (int, error) {
+	// Do normal reader tasks
+	n, err := pt.ReadCloser.Read(p)
+
+	// Do the actual progress tracking
+	if pt.Tracker != nil {
+		pt.Tracker.total += int64(n)
+		pt.Tracker.Update(n)
+	}
+
+	return n, err
+}
+
+type ProgressWriter struct {
+	io.WriteCloser
+	Tracker *ProgressTracker
+}
+
+func (pt *ProgressWriter) Write(p []byte) (int, error) {
+	// Do normal writer tasks
+	n, err := pt.WriteCloser.Write(p)
+
+	// Do the actual progress tracking
+	if pt.Tracker != nil {
+		pt.Tracker.total += int64(n)
+		pt.Tracker.Update(n)
+	}
 
 	return n, err
 }

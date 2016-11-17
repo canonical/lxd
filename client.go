@@ -1055,7 +1055,13 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 			return "", err
 		}
 
-		progress := &shared.TransferProgress{ReadCloser: body, Length: size, Handler: progressHandler}
+		progress := &shared.ProgressReader{
+			ReadCloser: body,
+			Tracker: &shared.ProgressTracker{
+				Length:  size,
+				Handler: progressHandler,
+			},
+		}
 
 		req, err = http.NewRequest("POST", uri, progress)
 		req.Header.Set("Content-Type", w.FormDataContentType())
@@ -1071,7 +1077,13 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 			return "", err
 		}
 
-		progress := &shared.TransferProgress{ReadCloser: fImage, Length: stat.Size(), Handler: progressHandler}
+		progress := &shared.ProgressReader{
+			ReadCloser: fImage,
+			Tracker: &shared.ProgressTracker{
+				Length:  stat.Size(),
+				Handler: progressHandler,
+			},
+		}
 
 		req, err = http.NewRequest("POST", uri, progress)
 		req.Header.Set("X-LXD-filename", filepath.Base(imageFile))
