@@ -555,13 +555,15 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 		}
 
 		if mapentries[i-1].Hostid+mapentries[i-1].Maprange > offset {
+			offset = mapentries[i-1].Hostid + mapentries[i-1].Maprange
 			continue
 		}
 
 		offset = mapentries[i-1].Hostid + mapentries[i-1].Maprange
-		if offset+size < mapentries[i].Nsid {
+		if offset+size < mapentries[i].Hostid {
 			return mkIdmap(offset, size), offset, nil
 		}
+		offset = mapentries[i].Hostid + mapentries[i].Maprange
 	}
 
 	if offset+size < daemon.IdmapSet.Idmap[0].Hostid+daemon.IdmapSet.Idmap[0].Maprange {
