@@ -518,7 +518,13 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 			return fmt.Errorf("invalid simplestreams source: got %d looking for %s", resp.StatusCode, path)
 		}
 
-		body := &TransferProgress{ReadCloser: resp.Body, Length: resp.ContentLength, Handler: progress}
+		body := &ProgressReader{
+			ReadCloser: resp.Body,
+			Tracker: &ProgressTracker{
+				Length:  resp.ContentLength,
+				Handler: progress,
+			},
+		}
 
 		sha256 := sha256.New()
 		_, err = io.Copy(io.MultiWriter(out, sha256), body)
