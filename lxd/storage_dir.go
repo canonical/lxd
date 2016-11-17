@@ -195,13 +195,37 @@ func (s *storageDir) ContainerSnapshotCreate(
 	/*
 	 * Copy by using rsync
 	 */
-	output, err := storageRsyncCopy(oldPath, newPath)
-	if err != nil {
-		s.ContainerDelete(snapshotContainer)
-		s.log.Error("ContainerSnapshotCreate: rsync failed",
-			log.Ctx{"output": string(output)})
+	rsync := func(snapshotContainer container, oldPath string, newPath string) error {
+		output, err := storageRsyncCopy(oldPath, newPath)
+		if err != nil {
+			s.ContainerDelete(snapshotContainer)
+			s.log.Error("ContainerSnapshotCreate: rsync failed",
+				log.Ctx{"output": string(output)})
 
-		return fmt.Errorf("rsync failed: %s", string(output))
+			return fmt.Errorf("rsync failed: %s", string(output))
+		}
+		return nil
+	}
+
+	if err := rsync(snapshotContainer, oldPath, newPath); err != nil {
+		return err
+	}
+
+	if sourceContainer.IsRunning() {
+		/* This is done to ensure consistency when snapshotting. But we
+		 * probably shouldn't fail just because of that.
+		 */
+		s.log.Debug("ContainerSnapshotCreate: trying to freeze and rsync again to ensure consistency.")
+		if err := sourceContainer.Freeze(); err != nil {
+			s.log.Warn("ContainerSnapshotCreate: trying to freeze and rsync again failed.")
+			return nil
+		}
+
+		if err := rsync(snapshotContainer, oldPath, newPath); err != nil {
+			return err
+		}
+
+		defer sourceContainer.Unfreeze()
 	}
 
 	return nil
