@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -644,6 +645,29 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 
 	// Wipe any existing log for this container name
 	os.RemoveAll(shared.LogPath(args.Name))
+
+	idmap, base, err := findIdmap(
+		d,
+		args.Name,
+		args.Config["security.idmap.isolated"],
+		args.Config["security.idmap.size"],
+		args.Config["raw.idmap"],
+	)
+	if err != nil {
+		return nil, err
+	}
+	var jsonIdmap string
+	if idmap != nil {
+		idmapBytes, err := json.Marshal(idmap.Idmap)
+		if err != nil {
+			return nil, err
+		}
+		jsonIdmap = string(idmapBytes)
+	} else {
+		jsonIdmap = "[]"
+	}
+	args.Config["volatile.idmap.next"] = jsonIdmap
+	args.Config["volatile.idmap.base"] = fmt.Sprintf("%v", base)
 
 	// Create the container entry
 	id, err := dbContainerCreate(d.db, args)

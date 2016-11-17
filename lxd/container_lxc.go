@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -235,6 +236,12 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
+	err = c.ConfigKeySet("volatile.idmap.next", jsonIdmap)
+	if err != nil {
+		c.Delete()
+		return nil, err
+	}
+
 	// Update lease files
 	networkUpdateStatic(d)
 
@@ -345,6 +352,227 @@ func (c *containerLXC) waitOperation() error {
 	return nil
 }
 
+func idmapSize(daemon *Daemon, isolatedStr string, size string) (int, error) {
+	isolated := false
+	if isolatedStr == "true" {
+		isolated = true
+	}
+
+	var idMapSize int
+	if size == "" || size == "auto" {
+		if isolated {
+			idMapSize = 65536
+		} else {
+			if len(daemon.IdmapSet.Idmap) != 2 {
+				return 0, fmt.Errorf("bad initial idmap: %v", daemon.IdmapSet)
+			}
+
+			idMapSize = daemon.IdmapSet.Idmap[0].Maprange
+		}
+	} else {
+		size, err := strconv.ParseInt(size, 10, 32)
+		if err != nil {
+			return 0, err
+		}
+
+		idMapSize = int(size)
+	}
+
+	return idMapSize, nil
+}
+
+var idmapLock sync.Mutex
+
+func parseRawIdmap(value string) ([]shared.IdmapEntry, error) {
+	getRange := func(r string) (int, int, error) {
+		entries := strings.Split(r, "-")
+		if len(entries) > 2 {
+			return -1, -1, fmt.Errorf("invalid raw.idmap range %s", r)
+		}
+
+		base, err := strconv.Atoi(entries[0])
+		if err != nil {
+			return -1, -1, err
+		}
+
+		size := 1
+		if len(entries) > 1 {
+			size, err = strconv.Atoi(entries[1])
+			if err != nil {
+				return -1, -1, err
+			}
+
+			size -= base
+		}
+
+		return base, size, nil
+	}
+
+	ret := shared.IdmapSet{}
+
+	for _, line := range strings.Split(value, "\n") {
+		if line == "" {
+			continue
+		}
+
+		entries := strings.Split(line, " ")
+		if len(entries) != 3 {
+			return nil, fmt.Errorf("invalid raw.idmap line %s", line)
+		}
+
+		outsideBase, outsideSize, err := getRange(entries[1])
+		if err != nil {
+			return nil, err
+		}
+
+		insideBase, insideSize, err := getRange(entries[2])
+		if err != nil {
+			return nil, err
+		}
+
+		if insideSize != outsideSize {
+			return nil, fmt.Errorf("idmap ranges of different sizes %s", line)
+		}
+
+		entry := shared.IdmapEntry{
+			Hostid:   outsideBase,
+			Nsid:     insideBase,
+			Maprange: insideSize,
+		}
+
+		switch entries[0] {
+		case "both":
+			entry.Isuid = true
+			ret.AddSafe(entry)
+			ret.AddSafe(shared.IdmapEntry{
+				Isgid:    true,
+				Hostid:   entry.Hostid,
+				Nsid:     entry.Nsid,
+				Maprange: entry.Maprange,
+			})
+		case "uid":
+			entry.Isuid = true
+			ret.AddSafe(entry)
+		case "gid":
+			entry.Isgid = true
+			ret.AddSafe(entry)
+		default:
+			return nil, fmt.Errorf("invalid raw.idmap type %s", line)
+		}
+	}
+
+	return ret.Idmap, nil
+}
+
+func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize string, rawIdmap string) (*shared.IdmapSet, int, error) {
+	isolated := false
+	if isolatedStr == "true" {
+		isolated = true
+	}
+
+	rawMaps, err := parseRawIdmap(rawIdmap)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if !isolated {
+		newIdmapset := shared.IdmapSet{Idmap: make([]shared.IdmapEntry, len(daemon.IdmapSet.Idmap))}
+		copy(newIdmapset.Idmap, daemon.IdmapSet.Idmap)
+
+		for _, ent := range rawMaps {
+			newIdmapset.AddSafe(ent)
+		}
+
+		return &newIdmapset, 0, nil
+	}
+
+	idmapLock.Lock()
+	defer idmapLock.Unlock()
+
+	cs, err := dbContainersList(daemon.db, cTypeRegular)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	offset := daemon.IdmapSet.Idmap[0].Hostid + 65536 + 1
+	size, err := idmapSize(daemon, isolatedStr, configSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	mapentries := shared.ByHostid{}
+	for _, name := range cs {
+		/* Don't change our map Just Because. */
+		if name == cName {
+			continue
+		}
+
+		container, err := containerLoadByName(daemon, name)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		if container.ExpandedConfig()["security.idmap.isolated"] != "true" {
+			continue
+		}
+
+		cBase, err := strconv.ParseInt(container.ExpandedConfig()["volatile.idmap.base"], 10, 32)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		cSize, err := idmapSize(daemon, container.ExpandedConfig()["security.idmap.isolated"], container.ExpandedConfig()["security.idmap.size"])
+		if err != nil {
+			return nil, 0, err
+		}
+
+		mapentries = append(mapentries, &shared.IdmapEntry{Hostid: int(cBase), Maprange: cSize})
+	}
+
+	sort.Sort(mapentries)
+
+	mkIdmap := func(offset int, size int) *shared.IdmapSet {
+		set := &shared.IdmapSet{Idmap: []shared.IdmapEntry{
+			shared.IdmapEntry{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
+			shared.IdmapEntry{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
+		}}
+
+		for _, ent := range rawMaps {
+			set.AddSafe(ent)
+		}
+
+		return set
+	}
+
+	for i := range mapentries {
+		if i == 0 {
+			if mapentries[0].Hostid < offset+size {
+				offset = mapentries[0].Hostid + mapentries[0].Maprange + 1
+				continue
+			}
+
+			return mkIdmap(offset, size), offset, nil
+		}
+
+		if mapentries[i-1].Hostid+mapentries[i-1].Maprange > offset {
+			offset = mapentries[i-1].Hostid + mapentries[i-1].Maprange + 1
+			continue
+		}
+
+		offset = mapentries[i-1].Hostid + mapentries[i-1].Maprange + 1
+		if offset+size < mapentries[i].Hostid {
+			return mkIdmap(offset, size), offset, nil
+		}
+		offset = mapentries[i].Hostid + mapentries[i].Maprange + 1
+	}
+
+	if offset+size < daemon.IdmapSet.Idmap[0].Hostid+daemon.IdmapSet.Idmap[0].Maprange {
+		return mkIdmap(offset, size), offset, nil
+	}
+
+	return nil, 0, fmt.Errorf("no map range available")
+}
+
 func (c *containerLXC) init() error {
 	// Compute the expanded config and device list
 	err := c.expandConfig()
@@ -362,7 +590,11 @@ func (c *containerLXC) init() error {
 		if c.daemon.IdmapSet == nil {
 			return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
 		}
-		c.idmapset = c.daemon.IdmapSet
+
+		c.idmapset, err = c.NextIdmapSet()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -2520,6 +2752,30 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			deviceTaskSchedulerTrigger("container", c.name, "changed")
 		}
 	}()
+
+	// update the idmap
+	idmap, base, err := findIdmap(
+		c.daemon,
+		c.Name(),
+		args.Config["security.idmap.isolated"],
+		args.Config["security.idmap.size"],
+		args.Config["raw.idmap"],
+	)
+	if err != nil {
+		return err
+	}
+	var jsonIdmap string
+	if idmap != nil {
+		idmapBytes, err := json.Marshal(idmap.Idmap)
+		if err != nil {
+			return err
+		}
+		jsonIdmap = string(idmapBytes)
+	} else {
+		jsonIdmap = "[]"
+	}
+	args.Config["volatile.idmap.next"] = jsonIdmap
+	args.Config["volatile.idmap.base"] = fmt.Sprintf("%v", base)
 
 	// Apply the various changes
 	c.architecture = args.Architecture
@@ -5648,8 +5904,8 @@ func (c *containerLXC) LocalDevices() shared.Devices {
 	return c.localDevices
 }
 
-func (c *containerLXC) LastIdmapSet() (*shared.IdmapSet, error) {
-	lastJsonIdmap := c.LocalConfig()["volatile.last_state.idmap"]
+func (c *containerLXC) idmapsetFromConfig(k string) (*shared.IdmapSet, error) {
+	lastJsonIdmap := c.LocalConfig()[k]
 
 	if lastJsonIdmap == "" {
 		return c.IdmapSet(), nil
@@ -5666,6 +5922,15 @@ func (c *containerLXC) LastIdmapSet() (*shared.IdmapSet, error) {
 	}
 
 	return lastIdmap, nil
+}
+
+func (c *containerLXC) NextIdmapSet() (*shared.IdmapSet, error) {
+	return c.idmapsetFromConfig("volatile.idmap.next")
+
+}
+
+func (c *containerLXC) LastIdmapSet() (*shared.IdmapSet, error) {
+	return c.idmapsetFromConfig("volatile.last_state.idmap")
 }
 
 func (c *containerLXC) Daemon() *Daemon {

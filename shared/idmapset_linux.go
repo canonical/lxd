@@ -35,6 +35,23 @@ func is_between(x, low, high int) bool {
 	return x >= low && x < high
 }
 
+func (e *IdmapEntry) HostidsIntersect(i IdmapEntry) bool {
+	if (e.Isuid && i.Isuid) || (e.Isgid && i.Isgid) {
+		switch {
+		case is_between(e.Hostid, i.Hostid, i.Hostid+i.Maprange):
+			return true
+		case is_between(i.Hostid, e.Hostid, e.Hostid+e.Maprange):
+			return true
+		case is_between(e.Hostid+e.Maprange, i.Hostid, i.Hostid+i.Maprange):
+			return true
+		case is_between(i.Hostid+i.Maprange, e.Hostid, e.Hostid+e.Maprange):
+			return true
+		}
+	}
+
+	return false
+}
+
 func (e *IdmapEntry) Intersects(i IdmapEntry) bool {
 	if (e.Isuid && i.Isuid) || (e.Isgid && i.Isgid) {
 		switch {
@@ -123,6 +140,20 @@ func (e *IdmapEntry) shift_from_ns(id int) (int, error) {
 	return id - e.Hostid + e.Nsid, nil
 }
 
+type ByHostid []*IdmapEntry
+
+func (s ByHostid) Len() int {
+	return len(s)
+}
+
+func (s ByHostid) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s ByHostid) Less(i, j int) bool {
+	return s[i].Hostid < s[j].Hostid
+}
+
 /* taken from http://blog.golang.org/slices (which is under BSD licence) */
 func Extend(slice []IdmapEntry, element IdmapEntry) []IdmapEntry {
 	n := len(slice)
@@ -149,10 +180,71 @@ func (m IdmapSet) Len() int {
 func (m IdmapSet) Intersects(i IdmapEntry) bool {
 	for _, e := range m.Idmap {
 		if i.Intersects(e) {
+			fmt.Printf("%v and %v intersect\n", i, e)
 			return true
 		}
 	}
 	return false
+}
+
+func (m IdmapSet) HostidsIntersect(i IdmapEntry) bool {
+	for _, e := range m.Idmap {
+		if i.HostidsIntersect(e) {
+			return true
+		}
+	}
+	return false
+}
+
+/* AddSafe adds an entry to the idmap set, breaking apart any ranges that the
+ * new idmap intersects with in the process.
+ */
+func (m *IdmapSet) AddSafe(i IdmapEntry) error {
+	result := []IdmapEntry{}
+	added := false
+	for _, e := range m.Idmap {
+		if !e.Intersects(i) {
+			result = append(result, e)
+			continue
+		}
+
+		if e.HostidsIntersect(i) {
+			return fmt.Errorf("can't map the same host UID twice")
+		}
+
+		added = true
+
+		lower := IdmapEntry{
+			Isuid:    e.Isuid,
+			Isgid:    e.Isgid,
+			Hostid:   e.Hostid,
+			Nsid:     e.Nsid,
+			Maprange: i.Nsid - e.Nsid,
+		}
+
+		upper := IdmapEntry{
+			Isuid:    e.Isuid,
+			Isgid:    e.Isgid,
+			Hostid:   e.Hostid + lower.Maprange + i.Maprange,
+			Nsid:     i.Nsid + i.Maprange,
+			Maprange: e.Maprange - i.Maprange - lower.Maprange,
+		}
+
+		if lower.Maprange > 0 {
+			result = append(result, lower)
+		}
+		result = append(result, i)
+		if upper.Maprange > 0 {
+			result = append(result, upper)
+		}
+	}
+
+	if !added {
+		result = append(result, i)
+	}
+
+	m.Idmap = result
+	return nil
 }
 
 func (m IdmapSet) ToLxcString() []string {

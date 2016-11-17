@@ -160,3 +160,7 @@ Introduces a new "image" config key space. Read-only, includes the properties of
 ## migration\_progress
 Transfer progress is now exported as part of the operation, on both sending and receiving ends.
 This shows up as a "fs\_progress" attribute in the operation metadata.
+
+## id\_map
+Enables setting the `security.idmap.isolated` and `security.idmap.isolated`,
+`security.idmap.size`, and `raw.id_map` fields.
