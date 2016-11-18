@@ -23,7 +23,7 @@ func (c *deleteCmd) showByDefault() bool {
 
 func (c *deleteCmd) usage() string {
 	return i18n.G(
-		`Delete containers or container snapshots.
+		`Delete containers or snapshots.
 
 lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/<snapshot>]...]
 
