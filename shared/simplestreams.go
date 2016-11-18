@@ -175,7 +175,6 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 			image.Filename = filename
 			image.Fingerprint = fingerprint
 			image.Properties = map[string]string{
-				"aliases":      product.Aliases,
 				"os":           product.OperatingSystem,
 				"release":      product.Release,
 				"version":      product.Version,
@@ -183,6 +182,21 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 				"label":        version.Label,
 				"serial":       name,
 				"description":  description,
+			}
+
+			// Add the provided aliases
+			if product.Aliases != "" {
+				image.Aliases = []ImageAlias{}
+				for _, entry := range strings.Split(product.Aliases, ",") {
+					image.Aliases = append(image.Aliases, ImageAlias{Name: entry})
+				}
+			}
+
+			// Clear unset properties
+			for k, v := range image.Properties {
+				if v == "" {
+					delete(image.Properties, k)
+				}
 			}
 
 			// Attempt to parse the EOL
@@ -380,19 +394,22 @@ func (s *SimpleStreams) applyAliases(images []ImageInfo) ([]ImageInfo, map[strin
 
 	newImages := []ImageInfo{}
 	for _, image := range images {
-		if image.Properties["aliases"] != "" {
-			aliases := strings.Split(image.Properties["aliases"], ",")
+		if image.Aliases != nil {
+			// Build a new list of aliases from the provided ones
+			aliases := image.Aliases
+			image.Aliases = nil
+
 			for _, entry := range aliases {
 				// Short
 				if image.Architecture == architectureName {
-					alias := addAlias(fmt.Sprintf("%s", entry), image.Fingerprint)
+					alias := addAlias(fmt.Sprintf("%s", entry.Name), image.Fingerprint)
 					if alias != nil {
 						image.Aliases = append(image.Aliases, *alias)
 					}
 				}
 
 				// Medium
-				alias := addAlias(fmt.Sprintf("%s/%s", entry, image.Properties["architecture"]), image.Fingerprint)
+				alias := addAlias(fmt.Sprintf("%s/%s", entry.Name, image.Properties["architecture"]), image.Fingerprint)
 				if alias != nil {
 					image.Aliases = append(image.Aliases, *alias)
 				}
