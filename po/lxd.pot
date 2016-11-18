@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-11-16 12:13-0500\n"
+        "POT-Creation-Date: 2016-11-18 19:32+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -299,7 +299,7 @@ msgid   "Define a compression algorithm: for image or none"
 msgstr  ""
 
 #: lxc/delete.go:25
-msgid   "Delete containers or container snapshots.\n"
+msgid   "Delete containers or snapshots.\n"
         "\n"
         "lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/<snapshot>]...]\n"
         "\n"
