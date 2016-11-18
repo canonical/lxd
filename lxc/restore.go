@@ -19,7 +19,7 @@ func (c *restoreCmd) showByDefault() bool {
 
 func (c *restoreCmd) usage() string {
 	return i18n.G(
-		`Set the current state of a resource back to a snapshot.
+		`Set the current state of a container back to a snapshot.
 
 lxc restore [remote:]<container> <snapshot name> [--stateful]
 
