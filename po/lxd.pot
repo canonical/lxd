@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-11-16 12:13-0500\n"
+        "POT-Creation-Date: 2016-11-18 19:37+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -202,6 +202,12 @@ msgid   "Changes state of one or more containers to %s.\n"
         "lxc %s <name> [<name>...]%s"
 msgstr  ""
 
+#: lxc/finger.go:15
+msgid   "Check if the LXD instance is up.\n"
+        "\n"
+        "lxc finger <remote>"
+msgstr  ""
+
 #: lxc/remote.go:291
 msgid   "Client certificate stored at server: "
 msgstr  ""
@@ -299,7 +305,7 @@ msgid   "Define a compression algorithm: for image or none"
 msgstr  ""
 
 #: lxc/delete.go:25
-msgid   "Delete containers or container snapshots.\n"
+msgid   "Delete containers or snapshots.\n"
         "\n"
         "lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/<snapshot>]...]\n"
         "\n"
@@ -372,12 +378,6 @@ msgstr  ""
 #: lxc/image.go:344
 #, c-format
 msgid   "Fingerprint: %s"
-msgstr  ""
-
-#: lxc/finger.go:15
-msgid   "Fingers the LXD instance to check if it is up and working.\n"
-        "\n"
-        "lxc finger <remote>"
 msgstr  ""
 
 #: lxc/action.go:42 lxc/action.go:43
@@ -1093,7 +1093,7 @@ msgid   "Server protocol (lxd or simplestreams)"
 msgstr  ""
 
 #: lxc/restore.go:21
-msgid   "Set the current state of a resource back to a snapshot.\n"
+msgid   "Set the current state of a container back to a snapshot.\n"
         "\n"
         "lxc restore [remote:]<container> <snapshot name> [--stateful]\n"
         "\n"
