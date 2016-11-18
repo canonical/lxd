@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-11-18 19:35+0100\n"
+        "POT-Creation-Date: 2016-11-18 19:37+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1093,7 +1093,7 @@ msgid   "Server protocol (lxd or simplestreams)"
 msgstr  ""
 
 #: lxc/restore.go:21
-msgid   "Set the current state of a resource back to a snapshot.\n"
+msgid   "Set the current state of a container back to a snapshot.\n"
         "\n"
         "lxc restore [remote:]<container> <snapshot name> [--stateful]\n"
         "\n"
