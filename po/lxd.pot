@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-11-22 23:12-0500\n"
+        "POT-Creation-Date: 2016-11-22 23:13-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -175,6 +175,12 @@ msgid   "Changes state of one or more containers to %s.\n"
         "lxc %s <name> [<name>...]%s"
 msgstr  ""
 
+#: lxc/finger.go:15
+msgid   "Check if the LXD instance is up.\n"
+        "\n"
+        "lxc finger <remote>"
+msgstr  ""
+
 #: lxc/remote.go:268
 msgid   "Client certificate stored at server: "
 msgstr  ""
@@ -337,12 +343,6 @@ msgstr  ""
 #: lxc/image.go:335
 #, c-format
 msgid   "Fingerprint: %s"
-msgstr  ""
-
-#: lxc/finger.go:15
-msgid   "Fingers the LXD instance to check if it is up and working.\n"
-        "\n"
-        "lxc finger <remote>"
 msgstr  ""
 
 #: lxc/action.go:42 lxc/action.go:43

@@ -13,7 +13,7 @@ func (c *fingerCmd) showByDefault() bool {
 
 func (c *fingerCmd) usage() string {
 	return i18n.G(
-		`Fingers the LXD instance to check if it is up and working.
+		`Check if the LXD instance is up.
 
 lxc finger <remote>`)
 }
