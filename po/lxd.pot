@@ -955,7 +955,7 @@ msgid   "Server protocol (lxd or simplestreams)"
 msgstr  ""
 
 #: lxc/restore.go:21
-msgid   "Set the current state of a resource back to a snapshot.\n"
+msgid   "Set the current state of a container back to a snapshot.\n"
         "\n"
         "lxc restore [remote:]<container> <snapshot name> [--stateful]\n"
         "\n"
