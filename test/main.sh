@@ -51,11 +51,7 @@ if [ -z "${LXD_BACKEND:-}" ]; then
 fi
 
 spawn_lxd() {
-  # Don't trace internal functions
   set +x
-  OLD_DEBUG=${LXD_DEBUG:-}
-  LXD_DEBUG=""
-
   # LXD_DIR is local here because since $(lxc) is actually a function, it
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
@@ -95,47 +91,27 @@ spawn_lxd() {
 
   echo "==> Setting trust password"
   LXD_DIR="${lxddir}" lxc config set core.trust_password foo
+  if [ -n "${LXD_DEBUG:-}" ]; then
+    set -x
+  fi
 
   echo "==> Setting up networking"
   LXD_DIR="${lxddir}" lxc network attach-profile lxdbr0 default eth0
 
   echo "==> Configuring storage backend"
   "$LXD_BACKEND"_configure "${lxddir}"
-
-  # Trace everything again
-  if [ -n "${OLD_DEBUG:-}" ]; then
-    LXD_DEBUG="${OLD_DEBUG}"
-    set -x
-  fi
 }
 
 lxc() {
-  # Don't trace internal functions
-  set +x
-  OLD_DEBUG=${LXD_DEBUG:-}
-  LXD_DEBUG=""
-
-  # Call lxc_remote
   LXC_LOCAL=1
   lxc_remote "$@"
   RET=$?
   unset LXC_LOCAL
-
-  # Trace everything again
-  if [ -n "${OLD_DEBUG:-}" ]; then
-    LXD_DEBUG="${OLD_DEBUG}"
-    set -x
-  fi
-
   return ${RET}
 }
 
 lxc_remote() {
-  # Don't trace internal functions
   set +x
-  OLD_DEBUG=${LXD_DEBUG:-}
-  LXD_DEBUG=""
-
   injected=0
   cmd=$(which lxc)
 
@@ -156,16 +132,10 @@ lxc_remote() {
   if [ "${injected}" = "0" ]; then
     cmd="${cmd} ${DEBUG-}"
   fi
-  eval "${cmd}"
-  RET=$?
-
-  # Trace everything again
-  if [ -n "${OLD_DEBUG:-}" ]; then
-    LXD_DEBUG="${OLD_DEBUG}"
+  if [ -n "${LXD_DEBUG:-}" ]; then
     set -x
   fi
-
-  return ${RET}
+  eval "${cmd}"
 }
 
 gen_cert() {
@@ -229,11 +199,6 @@ check_empty_table() {
 }
 
 kill_lxd() {
-  # Don't trace internal functions
-  set +x
-  OLD_DEBUG=${LXD_DEBUG:-}
-  LXD_DEBUG=""
-
   # LXD_DIR is local here because since $(lxc) is actually a function, it
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
@@ -325,22 +290,12 @@ kill_lxd() {
 
   # Remove the daemon from the list
   sed "\|^${daemon_dir}|d" -i "${TEST_DIR}/daemons"
-
-  # Trace everything again
-  if [ -n "${OLD_DEBUG:-}" ]; then
-    LXD_DEBUG="${OLD_DEBUG}"
-    set -x
-  fi
 }
 
 cleanup() {
-  # Don't trace internal functions
-  set +x
-  OLD_DEBUG=${LXD_DEBUG:-}
-  LXD_DEBUG=""
-
-  # Allow for failures during cleanup
-  set +e
+  # Allow for failures and stop tracing everything
+  set +ex
+  LXD_DEBUG=
 
   # Allow for inspection
   if [ -n "${LXD_INSPECT:-}" ]; then
@@ -381,12 +336,6 @@ cleanup() {
   echo "==> Test result: ${TEST_RESULT}"
   if [ "${TEST_RESULT}" != "success" ]; then
     echo "failed test: ${TEST_CURRENT}"
-  fi
-
-  # Trace everything again
-  if [ -n "${OLD_DEBUG:-}" ]; then
-    LXD_DEBUG="${OLD_DEBUG}"
-    set -x
   fi
 }
 
