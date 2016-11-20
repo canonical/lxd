@@ -2466,7 +2466,7 @@ func (c *containerLXC) Delete() error {
 		// Delete the container from disk
 		if shared.PathExists(c.Path()) {
 			if err := c.storage.ContainerDelete(c); err != nil {
-				shared.LogError("Failed deleting container", ctxMap)
+				shared.LogError("Failed deleting container storage", ctxMap)
 				return err
 			}
 		}
@@ -2474,7 +2474,7 @@ func (c *containerLXC) Delete() error {
 
 	// Remove the database record
 	if err := dbContainerRemove(c.daemon.db, c.Name()); err != nil {
-		shared.LogError("Failed deleting container", ctxMap)
+		shared.LogError("Failed deleting container entry", ctxMap)
 		return err
 	}
 
