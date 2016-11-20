@@ -1528,6 +1528,12 @@ func (c *containerLXC) OnStart() error {
 // Stop functions
 func (c *containerLXC) Stop(stateful bool) error {
 	var ctxMap log.Ctx
+
+	// Check that we're not already stopped
+	if !c.IsRunning() {
+		return fmt.Errorf("The container is already stopped")
+	}
+
 	// Setup a new operation
 	op, err := c.createOperation("stop", 30)
 	if err != nil {
@@ -1615,6 +1621,11 @@ func (c *containerLXC) Stop(stateful bool) error {
 
 func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	var ctxMap log.Ctx
+
+	// Check that we're not already stopped
+	if !c.IsRunning() {
+		return fmt.Errorf("The container is already stopped")
+	}
 
 	// Setup a new operation
 	op, err := c.createOperation("shutdown", 30)
@@ -1753,6 +1764,16 @@ func (c *containerLXC) Freeze() error {
 		"creation date": c.creationDate,
 		"ephemeral":     c.ephemeral}
 
+	// Check that we're not already frozen
+	if c.IsFrozen() {
+		return fmt.Errorf("The container is already frozen")
+	}
+
+	// Check that we're running
+	if !c.IsRunning() {
+		return fmt.Errorf("The container isn't running")
+	}
+
 	shared.LogInfo("Freezing container", ctxMap)
 
 	// Load the go-lxc struct
@@ -1779,6 +1800,16 @@ func (c *containerLXC) Unfreeze() error {
 	ctxMap := log.Ctx{"name": c.name,
 		"creation date": c.creationDate,
 		"ephemeral":     c.ephemeral}
+
+	// Check that we're frozen
+	if !c.IsFrozen() {
+		return fmt.Errorf("The container is already running")
+	}
+
+	// Check that we're running
+	if !c.IsRunning() {
+		return fmt.Errorf("The container isn't running")
+	}
 
 	shared.LogInfo("Unfreezing container", ctxMap)
 
