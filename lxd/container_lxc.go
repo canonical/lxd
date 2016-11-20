@@ -31,27 +31,43 @@ import (
 
 // Operation locking
 type lxcContainerOperation struct {
-	action   string
-	chanDone chan error
-	err      error
-	id       int
-	timeout  int
+	action    string
+	chanDone  chan error
+	chanReset chan bool
+	err       error
+	id        int
+	reusable  bool
 }
 
-func (op *lxcContainerOperation) Create(id int, action string, timeout int) *lxcContainerOperation {
+func (op *lxcContainerOperation) Create(id int, action string, reusable bool) *lxcContainerOperation {
 	op.id = id
 	op.action = action
-	op.timeout = timeout
+	op.reusable = reusable
 	op.chanDone = make(chan error, 0)
+	op.chanReset = make(chan bool, 0)
 
-	if timeout > 1 {
-		go func(op *lxcContainerOperation) {
-			time.Sleep(time.Second * time.Duration(op.timeout))
-			op.Done(fmt.Errorf("Container %s operation timed out after %d seconds", op.action, op.timeout))
-		}(op)
-	}
+	go func(op *lxcContainerOperation) {
+		for {
+			select {
+			case <-op.chanReset:
+				continue
+			case <-time.After(time.Second * 30):
+				op.Done(fmt.Errorf("Container %s operation timed out after 30 seconds", op.action))
+				return
+			}
+		}
+	}(op)
 
 	return op
+}
+
+func (op *lxcContainerOperation) Reset() error {
+	if !op.reusable {
+		return fmt.Errorf("Can't reset a non-reusable operation")
+	}
+
+	op.chanReset <- true
+	return nil
 }
 
 func (op *lxcContainerOperation) Wait() error {
@@ -307,17 +323,22 @@ type containerLXC struct {
 	storage  storage
 }
 
-func (c *containerLXC) createOperation(action string, timeout int) (*lxcContainerOperation, error) {
+func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
 	op, _ := c.getOperation("")
 	if op != nil {
-		return nil, fmt.Errorf("Container is already running a %s operation", op.action)
+		if reuse && op.reusable {
+			op.Reset()
+			return op, nil
+		}
+
+		return nil, fmt.Errorf("Container is busy running a %s operation", op.action)
 	}
 
 	lxcContainerOperationsLock.Lock()
 	defer lxcContainerOperationsLock.Unlock()
 
 	op = &lxcContainerOperation{}
-	op.Create(c.id, action, timeout)
+	op.Create(c.id, action, reusable)
 	lxcContainerOperations[c.id] = op
 
 	return lxcContainerOperations[c.id], nil
@@ -1712,7 +1733,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Setup a new operation
-	op, err := c.createOperation("start", 30)
+	op, err := c.createOperation("start", false, false)
 	if err != nil {
 		return err
 	}
@@ -1924,8 +1945,14 @@ func (c *containerLXC) OnStart() error {
 // Stop functions
 func (c *containerLXC) Stop(stateful bool) error {
 	var ctxMap log.Ctx
+
+	// Check that we're not already stopped
+	if !c.IsRunning() {
+		return fmt.Errorf("The container is already stopped")
+	}
+
 	// Setup a new operation
-	op, err := c.createOperation("stop", 30)
+	op, err := c.createOperation("stop", false, true)
 	if err != nil {
 		return err
 	}
@@ -2001,26 +2028,31 @@ func (c *containerLXC) Stop(stateful bool) error {
 	}
 
 	err = op.Wait()
-	if err != nil {
+	if err != nil && c.IsRunning() {
 		shared.LogError("Failed stopping container", ctxMap)
 		return err
 	}
 
 	shared.LogInfo("Stopped container", ctxMap)
-	return err
+	return nil
 }
 
 func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	var ctxMap log.Ctx
 
+	// Check that we're not already stopped
+	if !c.IsRunning() {
+		return fmt.Errorf("The container is already stopped")
+	}
+
 	// Setup a new operation
-	op, err := c.createOperation("shutdown", 30)
+	op, err := c.createOperation("stop", true, true)
 	if err != nil {
 		return err
 	}
 
 	ctxMap = log.Ctx{"name": c.name,
-		"action":    op.action,
+		"action":    "shutdown",
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate,
@@ -2043,14 +2075,14 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	}
 
 	err = op.Wait()
-	if err != nil {
+	if err != nil && c.IsRunning() {
 		shared.LogError("Failed shutting down container", ctxMap)
 		return err
 	}
 
 	shared.LogInfo("Shut down container", ctxMap)
 
-	return err
+	return nil
 }
 
 func (c *containerLXC) OnStop(target string) error {
@@ -2062,7 +2094,7 @@ func (c *containerLXC) OnStop(target string) error {
 
 	// Get operation
 	op, _ := c.getOperation("")
-	if op != nil && !shared.StringInSlice(op.action, []string{"stop", "shutdown"}) {
+	if op != nil && op.action != "stop" {
 		return fmt.Errorf("Container is already running a %s operation", op.action)
 	}
 
@@ -2159,6 +2191,16 @@ func (c *containerLXC) Freeze() error {
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate}
 
+	// Check that we're not already frozen
+	if c.IsFrozen() {
+		return fmt.Errorf("The container is already frozen")
+	}
+
+	// Check that we're running
+	if !c.IsRunning() {
+		return fmt.Errorf("The container isn't running")
+	}
+
 	shared.LogInfo("Freezing container", ctxMap)
 
 	// Load the go-lxc struct
@@ -2186,6 +2228,16 @@ func (c *containerLXC) Unfreeze() error {
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate}
+
+	// Check that we're frozen
+	if !c.IsFrozen() {
+		return fmt.Errorf("The container is already running")
+	}
+
+	// Check that we're running
+	if !c.IsRunning() {
+		return fmt.Errorf("The container isn't running")
+	}
 
 	shared.LogInfo("Unfreezing container", ctxMap)
 
@@ -2466,7 +2518,7 @@ func (c *containerLXC) Delete() error {
 		// Delete the container from disk
 		if shared.PathExists(c.Path()) {
 			if err := c.storage.ContainerDelete(c); err != nil {
-				shared.LogError("Failed deleting container", ctxMap)
+				shared.LogError("Failed deleting container storage", ctxMap)
 				return err
 			}
 		}
@@ -2474,7 +2526,7 @@ func (c *containerLXC) Delete() error {
 
 	// Remove the database record
 	if err := dbContainerRemove(c.daemon.db, c.Name()); err != nil {
-		shared.LogError("Failed deleting container", ctxMap)
+		shared.LogError("Failed deleting container entry", ctxMap)
 		return err
 	}
 
