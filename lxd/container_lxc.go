@@ -310,7 +310,7 @@ type containerLXC struct {
 func (c *containerLXC) createOperation(action string, timeout int) (*lxcContainerOperation, error) {
 	op, _ := c.getOperation("")
 	if op != nil {
-		return nil, fmt.Errorf("Container is already running a %s operation", op.action)
+		return nil, fmt.Errorf("Container is busy running a %s operation", op.action)
 	}
 
 	lxcContainerOperationsLock.Lock()
@@ -2001,13 +2001,13 @@ func (c *containerLXC) Stop(stateful bool) error {
 	}
 
 	err = op.Wait()
-	if err != nil {
+	if err != nil && c.IsRunning() {
 		shared.LogError("Failed stopping container", ctxMap)
 		return err
 	}
 
 	shared.LogInfo("Stopped container", ctxMap)
-	return err
+	return nil
 }
 
 func (c *containerLXC) Shutdown(timeout time.Duration) error {
@@ -2020,7 +2020,7 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	}
 
 	ctxMap = log.Ctx{"name": c.name,
-		"action":    op.action,
+		"action":    "shutdown",
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate,
@@ -2043,14 +2043,14 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	}
 
 	err = op.Wait()
-	if err != nil {
+	if err != nil && c.IsRunning() {
 		shared.LogError("Failed shutting down container", ctxMap)
 		return err
 	}
 
 	shared.LogInfo("Shut down container", ctxMap)
 
-	return err
+	return nil
 }
 
 func (c *containerLXC) OnStop(target string) error {
