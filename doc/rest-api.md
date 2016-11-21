@@ -733,7 +733,7 @@ Input (run bash):
         "command": ["/bin/bash"],       # Command and arguments
         "environment": {},              # Optional extra environment variables to set
         "wait-for-websocket": false,    # Whether to wait for a connection before starting the process
-        "record-output": false,         # Whether to store stdout and stderr (only valid with wait-for-websocket set to false)
+        "record-output": false,         # Whether to store stdout and stderr (only valid with wait-for-websocket=false) (requires API extension container_exec_recording)
         "interactive": true,            # Whether to allocate a pts device instead of PIPEs
         "width": 80,                    # Initial width of the terminal (optional)
         "height": 25,                   # Initial height of the terminal (optional)
