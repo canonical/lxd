@@ -369,7 +369,7 @@ func (c *containerLXC) waitOperation() error {
 
 func idmapSize(daemon *Daemon, isolatedStr string, size string) (int, error) {
 	isolated := false
-	if isolatedStr == "true" {
+	if shared.IsTrue(isolatedStr) {
 		isolated = true
 	}
 
@@ -481,7 +481,7 @@ func parseRawIdmap(value string) ([]shared.IdmapEntry, error) {
 
 func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize string, rawIdmap string) (*shared.IdmapSet, int, error) {
 	isolated := false
-	if isolatedStr == "true" {
+	if shared.IsTrue(isolatedStr) {
 		isolated = true
 	}
 
@@ -527,7 +527,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 			return nil, 0, err
 		}
 
-		if container.ExpandedConfig()["security.idmap.isolated"] != "true" {
+		if !shared.IsTrue(container.ExpandedConfig()["security.idmap.isolated"]) {
 			continue
 		}
 
