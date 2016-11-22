@@ -2805,30 +2805,6 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 	}()
 
-	// update the idmap
-	idmap, base, err := findIdmap(
-		c.daemon,
-		c.Name(),
-		args.Config["security.idmap.isolated"],
-		args.Config["security.idmap.size"],
-		args.Config["raw.idmap"],
-	)
-	if err != nil {
-		return err
-	}
-	var jsonIdmap string
-	if idmap != nil {
-		idmapBytes, err := json.Marshal(idmap.Idmap)
-		if err != nil {
-			return err
-		}
-		jsonIdmap = string(idmapBytes)
-	} else {
-		jsonIdmap = "[]"
-	}
-	args.Config["volatile.idmap.next"] = jsonIdmap
-	args.Config["volatile.idmap.base"] = fmt.Sprintf("%v", base)
-
 	// Apply the various changes
 	c.architecture = args.Architecture
 	c.ephemeral = args.Ephemeral
@@ -2887,13 +2863,40 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
-	// If apparmor changed, re-validate the apparmor profile
 	for _, key := range changedConfig {
-		if key == "raw.apparmor" || key == "security.nesting" {
+		// If apparmor changed, re-validate the apparmor profile
+		if shared.StringInSlice(key, []string{"raw.apparmor", "security.nesting"}) {
 			err = AAParseProfile(c)
 			if err != nil {
 				return err
 			}
+		}
+
+		if shared.StringInSlice(key, []string{"security.idmap.isolated", "security.idmap.size", "raw.idmap"}) {
+			// update the idmap
+			idmap, base, err := findIdmap(
+				c.daemon,
+				c.Name(),
+				c.expandedConfig["security.idmap.isolated"],
+				c.expandedConfig["security.idmap.size"],
+				c.expandedConfig["raw.idmap"],
+			)
+			if err != nil {
+				return err
+			}
+
+			var jsonIdmap string
+			if idmap != nil {
+				idmapBytes, err := json.Marshal(idmap.Idmap)
+				if err != nil {
+					return err
+				}
+				jsonIdmap = string(idmapBytes)
+			} else {
+				jsonIdmap = "[]"
+			}
+			c.localConfig["volatile.idmap.next"] = jsonIdmap
+			c.localConfig["volatile.idmap.base"] = fmt.Sprintf("%v", base)
 		}
 	}
 
