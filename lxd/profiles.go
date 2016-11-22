@@ -121,7 +121,7 @@ func profileGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, resp)
 }
 
-func getRunningContainersWithProfile(d *Daemon, profile string) []container {
+func getContainersWithProfile(d *Daemon, profile string) []container {
 	results := []container{}
 
 	output, err := dbProfileContainersGet(d.db, profile)
@@ -137,6 +137,7 @@ func getRunningContainersWithProfile(d *Daemon, profile string) []container {
 		}
 		results = append(results, c)
 	}
+
 	return results
 }
 
@@ -159,16 +160,8 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	// Get the running container list
-	clist := getRunningContainersWithProfile(d, name)
-	var containers []container
-	for _, c := range clist {
-		if !c.IsRunning() {
-			continue
-		}
-
-		containers = append(containers, c)
-	}
+	// Get the container list
+	containers := getContainersWithProfile(d, name)
 
 	// Update the database
 	id, profile, err := dbProfileGet(d.db, name)
@@ -293,7 +286,7 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	clist := getRunningContainersWithProfile(d, name)
+	clist := getContainersWithProfile(d, name)
 	if len(clist) != 0 {
 		return BadRequest(fmt.Errorf("Profile is currently in use"))
 	}
