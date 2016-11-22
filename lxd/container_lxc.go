@@ -268,10 +268,13 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
-	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
-	if err != nil {
-		c.Delete()
-		return nil, err
+	// Set last_state to the map we have on disk
+	if c.localConfig["volatile.last_state.idmap"] == "" {
+		err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
+		if err != nil {
+			c.Delete()
+			return nil, err
+		}
 	}
 
 	// Re-run init to update the idmap
