@@ -24,11 +24,19 @@ type IdmapEntry struct {
 	Maprange int
 }
 
-func (e *IdmapEntry) ToLxcString() string {
-	if e.Isuid {
-		return fmt.Sprintf("u %d %d %d", e.Nsid, e.Hostid, e.Maprange)
+func (e *IdmapEntry) ToLxcString() []string {
+	if e.Isuid && e.Isgid {
+		return []string{
+			fmt.Sprintf("u %d %d %d", e.Nsid, e.Hostid, e.Maprange),
+			fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange),
+		}
 	}
-	return fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange)
+
+	if e.Isuid {
+		return []string{fmt.Sprintf("u %d %d %d", e.Nsid, e.Hostid, e.Maprange)}
+	}
+
+	return []string{fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange)}
 }
 
 func is_between(x, low, high int) bool {
@@ -250,7 +258,11 @@ func (m *IdmapSet) AddSafe(i IdmapEntry) error {
 func (m IdmapSet) ToLxcString() []string {
 	var lines []string
 	for _, e := range m.Idmap {
-		lines = append(lines, e.ToLxcString()+"\n")
+		for _, l := range e.ToLxcString() {
+			if !StringInSlice(l+"\n", lines) {
+				lines = append(lines, l+"\n")
+			}
+		}
 	}
 	return lines
 }
