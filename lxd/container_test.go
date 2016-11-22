@@ -252,13 +252,13 @@ func (suite *lxdTestSuite) TestContainer_findIdmap_isolated() {
 	host := suite.d.IdmapSet.Idmap[0]
 
 	for i := 0; i < 2; i++ {
-		suite.Req.Equal(host.Hostid+65536+1, map1.Idmap[i].Hostid, "hostids don't match %d", i)
+		suite.Req.Equal(host.Hostid+65536, map1.Idmap[i].Hostid, "hostids don't match %d", i)
 		suite.Req.Equal(0, map1.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(65536, map1.Idmap[i].Maprange, "incorrect maprange")
 	}
 
 	for i := 0; i < 2; i++ {
-		suite.Req.Equal(host.Hostid+(65536+1)*2, map2.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(host.Hostid+65536*2, map2.Idmap[i].Hostid, "hostids don't match")
 		suite.Req.Equal(0, map2.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(65536, map2.Idmap[i].Maprange, "incorrect maprange")
 	}
@@ -299,7 +299,7 @@ func (suite *lxdTestSuite) TestContainer_findIdmap_mixed() {
 	}
 
 	for i := 0; i < 2; i++ {
-		suite.Req.Equal(host.Hostid+65536+1, map2.Idmap[i].Hostid, "hostids don't match")
+		suite.Req.Equal(host.Hostid+65536, map2.Idmap[i].Hostid, "hostids don't match")
 		suite.Req.Equal(0, map2.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(65536, map2.Idmap[i].Maprange, "incorrect maprange")
 	}
