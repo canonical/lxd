@@ -2890,41 +2890,39 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
-	for _, key := range changedConfig {
-		// If apparmor changed, re-validate the apparmor profile
-		if shared.StringInSlice(key, []string{"raw.apparmor", "security.nesting"}) {
-			err = AAParseProfile(c)
+	// If apparmor changed, re-validate the apparmor profile
+	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
+		err = AAParseProfile(c)
+		if err != nil {
+			return err
+		}
+	}
+
+	if shared.StringInSlice("security.idmap.isolated", changedConfig) || shared.StringInSlice("security.idmap.size", changedConfig) || shared.StringInSlice("raw.idmap", changedConfig) {
+		// update the idmap
+		idmap, base, err := findIdmap(
+			c.daemon,
+			c.Name(),
+			c.expandedConfig["security.idmap.isolated"],
+			c.expandedConfig["security.idmap.size"],
+			c.expandedConfig["raw.idmap"],
+		)
+		if err != nil {
+			return err
+		}
+
+		var jsonIdmap string
+		if idmap != nil {
+			idmapBytes, err := json.Marshal(idmap.Idmap)
 			if err != nil {
 				return err
 			}
+			jsonIdmap = string(idmapBytes)
+		} else {
+			jsonIdmap = "[]"
 		}
-
-		if shared.StringInSlice(key, []string{"security.idmap.isolated", "security.idmap.size", "raw.idmap"}) {
-			// update the idmap
-			idmap, base, err := findIdmap(
-				c.daemon,
-				c.Name(),
-				c.expandedConfig["security.idmap.isolated"],
-				c.expandedConfig["security.idmap.size"],
-				c.expandedConfig["raw.idmap"],
-			)
-			if err != nil {
-				return err
-			}
-
-			var jsonIdmap string
-			if idmap != nil {
-				idmapBytes, err := json.Marshal(idmap.Idmap)
-				if err != nil {
-					return err
-				}
-				jsonIdmap = string(idmapBytes)
-			} else {
-				jsonIdmap = "[]"
-			}
-			c.localConfig["volatile.idmap.next"] = jsonIdmap
-			c.localConfig["volatile.idmap.base"] = fmt.Sprintf("%v", base)
-		}
+		c.localConfig["volatile.idmap.next"] = jsonIdmap
+		c.localConfig["volatile.idmap.base"] = fmt.Sprintf("%v", base)
 	}
 
 	// Apply disk quota changes
