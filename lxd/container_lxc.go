@@ -232,7 +232,18 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Setup initial idmap config
-	idmap := c.IdmapSet()
+	idmap, base, err := findIdmap(
+		d,
+		args.Name,
+		c.expandedConfig["security.idmap.isolated"],
+		c.expandedConfig["security.idmap.size"],
+		c.expandedConfig["raw.idmap"],
+	)
+	if err != nil {
+		c.Delete()
+		return nil, err
+	}
+
 	var jsonIdmap string
 	if idmap != nil {
 		idmapBytes, err := json.Marshal(idmap.Idmap)
@@ -245,13 +256,26 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		jsonIdmap = "[]"
 	}
 
+	err = c.ConfigKeySet("volatile.idmap.next", jsonIdmap)
+	if err != nil {
+		c.Delete()
+		return nil, err
+	}
+
+	err = c.ConfigKeySet("volatile.idmap.base", fmt.Sprintf("%v", base))
+	if err != nil {
+		c.Delete()
+		return nil, err
+	}
+
 	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
 	if err != nil {
 		c.Delete()
 		return nil, err
 	}
 
-	err = c.ConfigKeySet("volatile.idmap.next", jsonIdmap)
+	// Re-run init to update the idmap
+	err = c.init()
 	if err != nil {
 		c.Delete()
 		return nil, err
