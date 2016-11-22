@@ -453,9 +453,9 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 	}
 
 	umin := 1000000
-	urange := 100000
+	urange := 1000000000
 	gmin := 1000000
-	grange := 100000
+	grange := 1000000000
 
 	newuidmap, _ := exec.LookPath("newuidmap")
 	newgidmap, _ := exec.LookPath("newgidmap")
