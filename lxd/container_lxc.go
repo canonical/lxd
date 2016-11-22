@@ -536,7 +536,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 		return nil, 0, err
 	}
 
-	offset := daemon.IdmapSet.Idmap[0].Hostid + 65536 + 1
+	offset := daemon.IdmapSet.Idmap[0].Hostid + 65536
 	size, err := idmapSize(daemon, isolatedStr, configSize)
 	if err != nil {
 		return nil, 0, err
@@ -589,7 +589,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 	for i := range mapentries {
 		if i == 0 {
 			if mapentries[0].Hostid < offset+size {
-				offset = mapentries[0].Hostid + mapentries[0].Maprange + 1
+				offset = mapentries[0].Hostid + mapentries[0].Maprange
 				continue
 			}
 
@@ -597,15 +597,15 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 		}
 
 		if mapentries[i-1].Hostid+mapentries[i-1].Maprange > offset {
-			offset = mapentries[i-1].Hostid + mapentries[i-1].Maprange + 1
+			offset = mapentries[i-1].Hostid + mapentries[i-1].Maprange
 			continue
 		}
 
-		offset = mapentries[i-1].Hostid + mapentries[i-1].Maprange + 1
+		offset = mapentries[i-1].Hostid + mapentries[i-1].Maprange
 		if offset+size < mapentries[i].Hostid {
 			return mkIdmap(offset, size), offset, nil
 		}
-		offset = mapentries[i].Hostid + mapentries[i].Maprange + 1
+		offset = mapentries[i].Hostid + mapentries[i].Maprange
 	}
 
 	if offset+size < daemon.IdmapSet.Idmap[0].Hostid+daemon.IdmapSet.Idmap[0].Maprange {
