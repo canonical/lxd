@@ -445,6 +445,7 @@ func parseRawIdmap(value string) ([]shared.IdmapEntry, error) {
 			}
 
 			size -= base
+			size += 1
 		}
 
 		return base, size, nil
