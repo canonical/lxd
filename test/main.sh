@@ -454,6 +454,10 @@ echo "==> TEST: filemanip"
 TEST_CURRENT=test_filemanip
 test_filemanip
 
+echo "==> TEST: idmap"
+TEST_CURRENT=test_idmap
+test_idmap
+
 echo "==> TEST: devlxd"
 TEST_CURRENT=test_devlxd
 test_devlxd
