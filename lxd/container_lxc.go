@@ -451,6 +451,7 @@ func parseRawIdmap(value string) ([]shared.IdmapEntry, error) {
 			}
 
 			size -= base
+			size += 1
 		}
 
 		return base, size, nil
@@ -491,19 +492,23 @@ func parseRawIdmap(value string) ([]shared.IdmapEntry, error) {
 		switch entries[0] {
 		case "both":
 			entry.Isuid = true
-			ret.AddSafe(entry)
-			ret.AddSafe(shared.IdmapEntry{
-				Isgid:    true,
-				Hostid:   entry.Hostid,
-				Nsid:     entry.Nsid,
-				Maprange: entry.Maprange,
-			})
+			entry.Isgid = true
+			err := ret.AddSafe(entry)
+			if err != nil {
+				return nil, err
+			}
 		case "uid":
 			entry.Isuid = true
-			ret.AddSafe(entry)
+			err := ret.AddSafe(entry)
+			if err != nil {
+				return nil, err
+			}
 		case "gid":
 			entry.Isgid = true
-			ret.AddSafe(entry)
+			err := ret.AddSafe(entry)
+			if err != nil {
+				return nil, err
+			}
 		default:
 			return nil, fmt.Errorf("invalid raw.idmap type %s", line)
 		}

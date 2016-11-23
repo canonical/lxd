@@ -50,5 +50,6 @@ test_filemanip() {
   if [ "${LXD_BACKEND}" != "lvm" ]; then
     lxc launch testimage idmap -c "raw.idmap=\"both 0 0\""
     [ "$(stat -c %u "${LXD_DIR}/containers/idmap/rootfs")" = "0" ]
+    lxc delete idmap --force
   fi
 }
