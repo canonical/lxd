@@ -18,5 +18,5 @@ test_devlxd() {
   lxc config set devlxd user.foo bar
   lxc exec devlxd devlxd-client user.foo | grep bar
 
-  lxc stop devlxd --force
+  lxc delete devlxd --force
 }
