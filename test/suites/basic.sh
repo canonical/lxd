@@ -66,7 +66,7 @@ test_basic_usage() {
 
   lxc image export splitimage "${LXD_DIR}"
   [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar.xz" "${LXD_DIR}/${sum}.tar.xz" | sha256sum | cut -d' ' -f1)" ]
-  
+
   # Delete the split image and exported files
   rm "${LXD_DIR}/${sum}.tar.xz"
   rm "${LXD_DIR}/meta-${sum}.tar.xz"
@@ -79,7 +79,7 @@ test_basic_usage() {
 
   lxc image export splitimage "${LXD_DIR}"
   [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar.xz" "${LXD_DIR}/${sum}.tar.xz" | sha256sum | cut -d' ' -f1)" ]
-  
+
   # Delete the split image and exported files
   rm "${LXD_DIR}/${sum}.tar.xz"
   rm "${LXD_DIR}/meta-${sum}.tar.xz"

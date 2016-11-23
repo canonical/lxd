@@ -44,6 +44,7 @@ test_migration() {
   if [ "${LXD_BACKEND}" != "lvm" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive3/rootfs/bin" ]
   fi
+  lxc_remote delete l2:nonlive3 --force
 
   lxc_remote copy l2:nonlive l2:nonlive2
   # should have the same base image tag
@@ -57,11 +58,11 @@ test_migration() {
 
   lxc_remote start l1:nonlive2
   lxc_remote list l1: | grep RUNNING | grep nonlive2
-  lxc_remote stop l1:nonlive2 --force
+  lxc_remote delete l1:nonlive2 l2:nonlive2 --force
 
   lxc_remote start l2:nonlive
   lxc_remote list l2: | grep RUNNING | grep nonlive
-  lxc_remote stop l2:nonlive --force
+  lxc_remote delete l2:nonlive --force
 
   if ! which criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
@@ -75,5 +76,5 @@ test_migration() {
 
   lxc_remote stop --stateful l1:migratee
   lxc_remote start l1:migratee
-  lxc_remote stop --force l1:migratee
+  lxc_remote delete --force l1:migratee
 }
