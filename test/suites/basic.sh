@@ -61,7 +61,7 @@ test_basic_usage() {
 
   lxc image export splitimage "${LXD_DIR}"
   [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar.xz" "${LXD_DIR}/${sum}.tar.xz" | sha256sum | cut -d' ' -f1)" ]
-  
+
   # Delete the split image and exported files
   rm "${LXD_DIR}/${sum}.tar.xz"
   rm "${LXD_DIR}/meta-${sum}.tar.xz"
@@ -74,7 +74,7 @@ test_basic_usage() {
 
   lxc image export splitimage "${LXD_DIR}"
   [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar.xz" "${LXD_DIR}/${sum}.tar.xz" | sha256sum | cut -d' ' -f1)" ]
-  
+
   # Delete the split image and exported files
   rm "${LXD_DIR}/${sum}.tar.xz"
   rm "${LXD_DIR}/meta-${sum}.tar.xz"
@@ -110,7 +110,7 @@ test_basic_usage() {
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
   lxc image delete foo-image
 
-# Test image compression on publish
+  # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
   lxc image show foo-image-compressed | grep val1
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
@@ -258,6 +258,7 @@ test_basic_usage() {
   lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep '1970-01-01T00:00:00Z'
   lxc start last-used-at-test
   lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep -v '1970-01-01T00:00:00Z'
+  lxc delete last-used-at-test --force
 
   # check that we can set the environment
   lxc exec foo pwd | grep /root
@@ -342,7 +343,7 @@ test_basic_usage() {
   lxc start lxd-seccomp-test
   init=$(lxc info lxd-seccomp-test | grep Pid | cut -f2 -d" ")
   [ "$(grep Seccomp "/proc/${init}/status" | cut -f2)" -eq "0" ]
-  lxc stop --force lxd-seccomp-test
+  lxc delete --force lxd-seccomp-test
 
   # make sure that privileged containers are not world-readable
   lxc profile create unconfined
