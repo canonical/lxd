@@ -24,11 +24,19 @@ type IdmapEntry struct {
 	Maprange int
 }
 
-func (e *IdmapEntry) ToLxcString() string {
-	if e.Isuid {
-		return fmt.Sprintf("u %d %d %d", e.Nsid, e.Hostid, e.Maprange)
+func (e *IdmapEntry) ToLxcString() []string {
+	if e.Isuid && e.Isgid {
+		return []string{
+			fmt.Sprintf("u %d %d %d", e.Nsid, e.Hostid, e.Maprange),
+			fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange),
+		}
 	}
-	return fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange)
+
+	if e.Isuid {
+		return []string{fmt.Sprintf("u %d %d %d", e.Nsid, e.Hostid, e.Maprange)}
+	}
+
+	return []string{fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange)}
 }
 
 func is_between(x, low, high int) bool {
@@ -55,21 +63,21 @@ func (e *IdmapEntry) HostidsIntersect(i IdmapEntry) bool {
 func (e *IdmapEntry) Intersects(i IdmapEntry) bool {
 	if (e.Isuid && i.Isuid) || (e.Isgid && i.Isgid) {
 		switch {
-		case is_between(e.Hostid, i.Hostid, i.Hostid+i.Maprange):
+		case is_between(e.Hostid, i.Hostid, i.Hostid+i.Maprange-1):
 			return true
-		case is_between(i.Hostid, e.Hostid, e.Hostid+e.Maprange):
+		case is_between(i.Hostid, e.Hostid, e.Hostid+e.Maprange-1):
 			return true
-		case is_between(e.Hostid+e.Maprange, i.Hostid, i.Hostid+i.Maprange):
+		case is_between(e.Hostid+e.Maprange-1, i.Hostid, i.Hostid+i.Maprange-1):
 			return true
-		case is_between(i.Hostid+i.Maprange, e.Hostid, e.Hostid+e.Maprange):
+		case is_between(i.Hostid+i.Maprange-1, e.Hostid, e.Hostid+e.Maprange-1):
 			return true
-		case is_between(e.Nsid, i.Nsid, i.Nsid+i.Maprange):
+		case is_between(e.Nsid, i.Nsid, i.Nsid+i.Maprange-1):
 			return true
-		case is_between(i.Nsid, e.Nsid, e.Nsid+e.Maprange):
+		case is_between(i.Nsid, e.Nsid, e.Nsid+e.Maprange-1):
 			return true
-		case is_between(e.Nsid+e.Maprange, i.Nsid, i.Nsid+i.Maprange):
+		case is_between(e.Nsid+e.Maprange-1, i.Nsid, i.Nsid+i.Maprange-1):
 			return true
-		case is_between(i.Nsid+i.Maprange, e.Nsid, e.Nsid+e.Maprange):
+		case is_between(i.Nsid+i.Maprange-1, e.Nsid, e.Nsid+e.Maprange-1):
 			return true
 		}
 	}
@@ -209,7 +217,7 @@ func (m *IdmapSet) AddSafe(i IdmapEntry) error {
 		}
 
 		if e.HostidsIntersect(i) {
-			return fmt.Errorf("can't map the same host UID twice")
+			return fmt.Errorf("can't map the same host ID twice")
 		}
 
 		added = true
@@ -250,7 +258,11 @@ func (m *IdmapSet) AddSafe(i IdmapEntry) error {
 func (m IdmapSet) ToLxcString() []string {
 	var lines []string
 	for _, e := range m.Idmap {
-		lines = append(lines, e.ToLxcString()+"\n")
+		for _, l := range e.ToLxcString() {
+			if !StringInSlice(l+"\n", lines) {
+				lines = append(lines, l+"\n")
+			}
+		}
 	}
 	return lines
 }
