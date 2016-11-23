@@ -479,6 +479,10 @@ echo "==> TEST: network"
 TEST_CURRENT=test_network
 test_network
 
+echo "==> TEST: idmap"
+TEST_CURRENT=test_idmap
+test_idmap
+
 echo "==> TEST: devlxd"
 TEST_CURRENT=test_devlxd
 test_devlxd
