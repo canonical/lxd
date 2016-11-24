@@ -3514,6 +3514,8 @@ func (c *containerLXC) TemplateApply(trigger string) error {
 		if err != nil {
 			return err
 		}
+
+		return nil
 	}
 
 	return c.templateApplyNow(trigger)
