@@ -1470,7 +1470,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	if !reflect.DeepEqual(idmap, lastIdmap) {
-		shared.LogDebugf("Container idmap changed, remapping")
+		shared.LogDebugf("Container idmap changed, remapping: %s => %s", lastIdmap, idmap)
 
 		err := c.StorageStart()
 		if err != nil {
@@ -6012,8 +6012,15 @@ func (c *containerLXC) idmapsetFromConfig(k string) (*shared.IdmapSet, error) {
 }
 
 func (c *containerLXC) NextIdmapSet() (*shared.IdmapSet, error) {
-	return c.idmapsetFromConfig("volatile.idmap.next")
+	if c.localConfig["volatile.idmap.next"] != "" {
+		return c.idmapsetFromConfig("volatile.idmap.next")
+	} else if c.IsPrivileged() {
+		return nil, nil
+	} else if c.daemon.IdmapSet != nil {
+		return c.daemon.IdmapSet, nil
+	}
 
+	return nil, fmt.Errorf("Unable to determine the idmap")
 }
 
 func (c *containerLXC) LastIdmapSet() (*shared.IdmapSet, error) {
