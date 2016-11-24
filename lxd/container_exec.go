@@ -82,11 +82,15 @@ func (s *execWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) 
 				return nil
 			}
 
+			s.connsLock.Lock()
 			for i, c := range s.conns {
 				if i != -1 && c == nil {
+					s.connsLock.Unlock()
 					return nil
 				}
 			}
+			s.connsLock.Unlock()
+
 			s.allConnected <- true
 			return nil
 		}
