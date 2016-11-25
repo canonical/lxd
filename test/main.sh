@@ -490,6 +490,10 @@ echo "==> TEST: idmap"
 TEST_CURRENT=test_idmap
 test_idmap
 
+echo "==> TEST: template"
+TEST_CURRENT=test_template
+test_template
+
 echo "==> TEST: devlxd"
 TEST_CURRENT=test_devlxd
 test_devlxd
