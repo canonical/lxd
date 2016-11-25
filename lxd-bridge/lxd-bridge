@@ -19,6 +19,7 @@ LXD_IPV4_NETWORK=""
 LXD_IPV4_DHCP_RANGE=""
 LXD_IPV4_DHCP_MAX=""
 LXD_IPV4_NAT="false"
+LXD_IPV4_FIREWALL="true"
 
 # IPv6
 LXD_IPV6_ADDR=""
@@ -140,8 +141,10 @@ start() {
     iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p udp --dport 67 -j ACCEPT -m comment --comment "managed by lxd-bridge"
     iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p udp --dport 53 -j ACCEPT -m comment --comment "managed by lxd-bridge"
     iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p tcp --dport 53 -j ACCEPT -m comment --comment "managed by lxd-bridge"
-    iptables "${use_iptables_lock}" -I FORWARD -i "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
-    iptables "${use_iptables_lock}" -I FORWARD -o "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
+    if [ "${LXD_IPV4_FIREWALL}" = "true" ]; then
+        iptables "${use_iptables_lock}" -I FORWARD -i "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
+        iptables "${use_iptables_lock}" -I FORWARD -o "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
+    fi
     iptables "${use_iptables_lock}" -t mangle -A POSTROUTING -o "${LXD_BRIDGE}" -p udp -m udp --dport 68 -j CHECKSUM --checksum-fill -m comment --comment "managed by lxd-bridge"
 
     LXD_DOMAIN_ARG=""
@@ -185,8 +188,10 @@ stop() {
         iptables ${use_iptables_lock} -D INPUT -i ${LXD_BRIDGE} -p udp --dport 67 -j ACCEPT -m comment --comment "managed by lxd-bridge"
         iptables ${use_iptables_lock} -D INPUT -i ${LXD_BRIDGE} -p udp --dport 53 -j ACCEPT -m comment --comment "managed by lxd-bridge"
         iptables ${use_iptables_lock} -D INPUT -i ${LXD_BRIDGE} -p tcp --dport 53 -j ACCEPT -m comment --comment "managed by lxd-bridge"
-        iptables ${use_iptables_lock} -D FORWARD -i ${LXD_BRIDGE} -j ACCEPT -m comment --comment "managed by lxd-bridge"
-        iptables ${use_iptables_lock} -D FORWARD -o ${LXD_BRIDGE} -j ACCEPT -m comment --comment "managed by lxd-bridge"
+        if [ "${LXD_IPV4_FIREWALL}" = "true" ]; then
+            iptables ${use_iptables_lock} -D FORWARD -i ${LXD_BRIDGE} -j ACCEPT -m comment --comment "managed by lxd-bridge"
+            iptables ${use_iptables_lock} -D FORWARD -o ${LXD_BRIDGE} -j ACCEPT -m comment --comment "managed by lxd-bridge"
+        fi
         iptables ${use_iptables_lock} -t mangle -D POSTROUTING -o ${LXD_BRIDGE} -p udp -m udp --dport 68 -j CHECKSUM --checksum-fill -m comment --comment "managed by lxd-bridge"
 
         if [ -n "${LXD_IPV4_NETWORK}" ] && [ "${LXD_IPV4_NAT}" = "true" ]; then
