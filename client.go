@@ -352,16 +352,24 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 func (c *Client) Addresses() ([]string, error) {
 	addresses := make([]string, 0)
 
-	serverStatus, err := c.ServerStatus()
-	if err != nil {
-		return nil, err
-	}
-
 	if c.Transport == "unix" {
+		serverStatus, err := c.ServerStatus()
+		if err != nil {
+			return nil, err
+		}
+
 		addresses = serverStatus.Environment.Addresses
 	} else if c.Transport == "https" {
 		addresses = append(addresses, c.BaseURL[8:])
-		addresses = append(addresses, serverStatus.Environment.Addresses...)
+
+		if !c.Remote.Public {
+			serverStatus, err := c.ServerStatus()
+			if err != nil {
+				return nil, err
+			}
+
+			addresses = append(addresses, serverStatus.Environment.Addresses...)
+		}
 	} else {
 		return nil, fmt.Errorf("unknown transport type: %s", c.Transport)
 	}
