@@ -79,6 +79,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"container_image_properties",
 			"migration_progress",
 			"id_map",
+			"network_firewall_filtering",
 		},
 
 		"api_status":  "stable",
