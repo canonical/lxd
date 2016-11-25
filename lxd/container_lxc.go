@@ -137,6 +137,14 @@ func lxcValidConfig(rawLxc string) error {
 			return fmt.Errorf("Setting lxc.logfile is not allowed")
 		}
 
+		if key == "lxc.syslog" {
+			return fmt.Errorf("Setting lxc.syslog is not allowed")
+		}
+
+		if key == "lxc.ephemeral" {
+			return fmt.Errorf("Setting lxc.ephemeral is not allowed")
+		}
+
 		if strings.HasPrefix(key, "lxc.network.") {
 			fields := strings.Split(key, ".")
 			if len(fields) == 4 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) {
