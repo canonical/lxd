@@ -582,12 +582,14 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 	c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
 	if err != nil {
+		c.src.container.Delete()
 		return err
 	}
 	defer c.src.disconnect()
 
 	c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
 	if err != nil {
+		c.src.container.Delete()
 		c.src.sendControl(err)
 		return err
 	}
@@ -595,6 +597,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	if c.src.live {
 		c.src.criuConn, err = c.connectWithSecret(c.src.criuSecret)
 		if err != nil {
+			c.src.container.Delete()
 			c.src.sendControl(err)
 			return err
 		}
@@ -602,6 +605,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 	header := MigrationHeader{}
 	if err := c.src.recv(&header); err != nil {
+		c.src.container.Delete()
 		c.src.sendControl(err)
 		return err
 	}
@@ -627,6 +631,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	}
 
 	if err := c.src.send(&resp); err != nil {
+		c.src.container.Delete()
 		c.src.sendControl(err)
 		return err
 	}
@@ -723,14 +728,20 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		select {
 		case err = <-restore:
 			c.src.sendControl(err)
-			return err
+			if err != nil {
+				c.src.container.Delete()
+				return err
+			}
+			return nil
 		case msg, ok := <-source:
 			if !ok {
 				c.src.disconnect()
+				c.src.container.Delete()
 				return fmt.Errorf("Got error reading source")
 			}
 			if !*msg.Success {
 				c.src.disconnect()
+				c.src.container.Delete()
 				return fmt.Errorf(*msg.Message)
 			} else {
 				// The source can only tell us it failed (e.g. if
@@ -739,6 +750,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				shared.LogDebugf("Unknown message %v from source", msg)
 				err = c.src.container.TemplateApply("copy")
 				if err != nil {
+					c.src.container.Delete()
 					return err
 				}
 			}
