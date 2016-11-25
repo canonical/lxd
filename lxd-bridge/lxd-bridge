@@ -138,7 +138,6 @@ start() {
     fi
 
     iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p udp --dport 67 -j ACCEPT -m comment --comment "managed by lxd-bridge"
-    iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p tcp --dport 67 -j ACCEPT -m comment --comment "managed by lxd-bridge"
     iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p udp --dport 53 -j ACCEPT -m comment --comment "managed by lxd-bridge"
     iptables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p tcp --dport 53 -j ACCEPT -m comment --comment "managed by lxd-bridge"
     iptables "${use_iptables_lock}" -I FORWARD -i "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
@@ -184,7 +183,6 @@ stop() {
     if [ -d /sys/class/net/${LXD_BRIDGE} ]; then
         ifdown ${LXD_BRIDGE}
         iptables ${use_iptables_lock} -D INPUT -i ${LXD_BRIDGE} -p udp --dport 67 -j ACCEPT -m comment --comment "managed by lxd-bridge"
-        iptables ${use_iptables_lock} -D INPUT -i ${LXD_BRIDGE} -p tcp --dport 67 -j ACCEPT -m comment --comment "managed by lxd-bridge"
         iptables ${use_iptables_lock} -D INPUT -i ${LXD_BRIDGE} -p udp --dport 53 -j ACCEPT -m comment --comment "managed by lxd-bridge"
         iptables ${use_iptables_lock} -D INPUT -i ${LXD_BRIDGE} -p tcp --dport 53 -j ACCEPT -m comment --comment "managed by lxd-bridge"
         iptables ${use_iptables_lock} -D FORWARD -i ${LXD_BRIDGE} -j ACCEPT -m comment --comment "managed by lxd-bridge"
