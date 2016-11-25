@@ -572,9 +572,12 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 			continue
 		}
 
-		cBase, err := strconv.ParseInt(container.ExpandedConfig()["volatile.idmap.base"], 10, 32)
-		if err != nil {
-			return nil, 0, err
+		cBase := int64(0)
+		if container.ExpandedConfig()["volatile.idmap.base"] != "" {
+			cBase, err = strconv.ParseInt(container.ExpandedConfig()["volatile.idmap.base"], 10, 32)
+			if err != nil {
+				return nil, 0, err
+			}
 		}
 
 		cSize, err := idmapSize(daemon, container.ExpandedConfig()["security.idmap.isolated"], container.ExpandedConfig()["security.idmap.size"])
