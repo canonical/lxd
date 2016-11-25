@@ -666,14 +666,21 @@ func (n *network) Start() error {
 			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "67", "-j", "ACCEPT"},
 			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "67", "-j", "ACCEPT"},
 			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
-			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"},
-			[]string{"ipv4", n.name, "mangle", "POSTROUTING", "-o", n.name, "-p", "udp", "--dport", "68", "-j", "CHECKSUM", "--checksum-fill"}}
+			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
 
-		for _, rule := range rules {
-			err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
-			if err != nil {
-				return err
+		if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
+			for _, rule := range rules {
+				err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+				if err != nil {
+					return err
+				}
 			}
+		}
+
+		// Workaround for broken DHCP clients
+		err = networkIptablesPrepend("ipv4", n.name, "mangle", "POSTROUTING", "-o", n.name, "-p", "udp", "--dport", "68", "-j", "CHECKSUM", "--checksum-fill")
+		if err != nil {
+			return err
 		}
 
 		// Allow forwarding
@@ -683,24 +690,28 @@ func (n *network) Start() error {
 				return err
 			}
 
-			err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
-			if err != nil {
-				return err
-			}
+			if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
+				err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
+				if err != nil {
+					return err
+				}
 
-			err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-o", n.name, "-j", "ACCEPT")
-			if err != nil {
-				return err
+				err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-o", n.name, "-j", "ACCEPT")
+				if err != nil {
+					return err
+				}
 			}
 		} else {
-			err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "REJECT")
-			if err != nil {
-				return err
-			}
+			if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
+				err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "REJECT")
+				if err != nil {
+					return err
+				}
 
-			err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-o", n.name, "-j", "REJECT")
-			if err != nil {
-				return err
+				err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-o", n.name, "-j", "REJECT")
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -816,10 +827,12 @@ func (n *network) Start() error {
 			[]string{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
 			[]string{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
 
-		for _, rule := range rules {
-			err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
-			if err != nil {
-				return err
+		if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
+			for _, rule := range rules {
+				err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -852,24 +865,28 @@ func (n *network) Start() error {
 				}
 			}
 
-			err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
-			if err != nil {
-				return err
-			}
+			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
+				err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
+				if err != nil {
+					return err
+				}
 
-			err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-o", n.name, "-j", "ACCEPT")
-			if err != nil {
-				return err
+				err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-o", n.name, "-j", "ACCEPT")
+				if err != nil {
+					return err
+				}
 			}
 		} else {
-			err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "REJECT")
-			if err != nil {
-				return err
-			}
+			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
+				err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "REJECT")
+				if err != nil {
+					return err
+				}
 
-			err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-o", n.name, "-j", "REJECT")
-			if err != nil {
-				return err
+				err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-o", n.name, "-j", "REJECT")
+				if err != nil {
+					return err
+				}
 			}
 		}
 
