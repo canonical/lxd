@@ -8,8 +8,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-const DEFAULT_SECCOMP_POLICY = `
-2
+const DEFAULT_SECCOMP_POLICY = `2
 blacklist
 reject_force_umount  # comment this to allow umount -f;  not recommended
 [all]
