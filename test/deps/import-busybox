@@ -175,7 +175,7 @@ class Busybox(object):
         if self.workdir:
             shutil.rmtree(self.workdir)
 
-    def create_tarball(self, split=False):
+    def create_tarball(self, split=False, template=[]):
         xz = "pxz" if find_on_path("pxz") else "xz"
 
         destination_tar = os.path.join(self.workdir, "busybox.tar")
@@ -238,6 +238,33 @@ class Busybox(object):
             else:
                 directory_file.name = "rootfs/%s" % path
                 target_tarball.addfile(directory_file)
+
+        # Deal with templating
+        if template:
+            metadata["templates"] = {
+                "/template": {
+                    "when": template,
+                    "template": "template.tpl"}}
+
+            directory_file = tarfile.TarInfo()
+            directory_file.type = tarfile.DIRTYPE
+            directory_file.name = "templates"
+            target_tarball.addfile(directory_file)
+
+            template = """name: {{ container.name }}
+architecture: {{ container.architecture }}
+privileged: {{ container.privileged }}
+ephemeral: {{ container.ephemeral }}
+trigger: {{ trigger }}
+path: {{ path }}
+user.foo: {{ config_get("user.foo", "_unset_") }}
+"""
+
+            template_file = tarfile.TarInfo()
+            template_file.size = len(template)
+            template_file.name = "templates/template.tpl"
+            target_tarball.addfile(template_file,
+                                   io.BytesIO(template.encode()))
 
         # Add the metadata file
         metadata_yaml = json.dumps(metadata, sort_keys=True,
@@ -304,7 +331,9 @@ if __name__ == "__main__":
         busybox = Busybox()
 
         if args.split:
-            meta_path, rootfs_path = busybox.create_tarball(split=True)
+            meta_path, rootfs_path = busybox.create_tarball(
+                split=True,
+                template=args.template.split(","))
 
             with open(meta_path, "rb") as meta_fd:
                 with open(rootfs_path, "rb") as rootfs_fd:
@@ -321,7 +350,7 @@ if __name__ == "__main__":
                 r = lxd.images_upload((meta_path, rootfs_path), args.public)
             print("Image imported as: %s" % r['fingerprint'])
         else:
-            path = busybox.create_tarball()
+            path = busybox.create_tarball(template=args.template.split(","))
 
             with open(path, "rb") as fd:
                 fingerprint = hashlib.sha256(fd.read()).hexdigest()
@@ -343,6 +372,8 @@ if __name__ == "__main__":
                         default=False, help="Whether to create a split image")
     parser.add_argument("--filename", action="store_true",
                         default=False, help="Set the split image's filename")
+    parser.add_argument("--template", type=str,
+                        default="", help="Trigger test template")
     parser.set_defaults(func=import_busybox)
 
     # Call the function
