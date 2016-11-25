@@ -233,16 +233,21 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Setup initial idmap config
-	idmap, base, err := findIdmap(
-		d,
-		args.Name,
-		c.expandedConfig["security.idmap.isolated"],
-		c.expandedConfig["security.idmap.size"],
-		c.expandedConfig["raw.idmap"],
-	)
-	if err != nil {
-		c.Delete()
-		return nil, err
+	var idmap *shared.IdmapSet
+	base := 0
+	if !c.IsPrivileged() {
+		idmap, base, err = findIdmap(
+			d,
+			args.Name,
+			c.expandedConfig["security.idmap.isolated"],
+			c.expandedConfig["security.idmap.size"],
+			c.expandedConfig["raw.idmap"],
+		)
+
+		if err != nil {
+			c.Delete()
+			return nil, err
+		}
 	}
 
 	var jsonIdmap string
@@ -565,13 +570,20 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 			return nil, 0, err
 		}
 
+		if container.IsPrivileged() {
+			continue
+		}
+
 		if !shared.IsTrue(container.ExpandedConfig()["security.idmap.isolated"]) {
 			continue
 		}
 
-		cBase, err := strconv.ParseInt(container.ExpandedConfig()["volatile.idmap.base"], 10, 32)
-		if err != nil {
-			return nil, 0, err
+		cBase := int64(0)
+		if container.ExpandedConfig()["volatile.idmap.base"] != "" {
+			cBase, err = strconv.ParseInt(container.ExpandedConfig()["volatile.idmap.base"], 10, 32)
+			if err != nil {
+				return nil, 0, err
+			}
 		}
 
 		cSize, err := idmapSize(daemon, container.ExpandedConfig()["security.idmap.isolated"], container.ExpandedConfig()["security.idmap.size"])
@@ -2903,17 +2915,21 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 	}
 
-	if shared.StringInSlice("security.idmap.isolated", changedConfig) || shared.StringInSlice("security.idmap.size", changedConfig) || shared.StringInSlice("raw.idmap", changedConfig) {
-		// update the idmap
-		idmap, base, err := findIdmap(
-			c.daemon,
-			c.Name(),
-			c.expandedConfig["security.idmap.isolated"],
-			c.expandedConfig["security.idmap.size"],
-			c.expandedConfig["raw.idmap"],
-		)
-		if err != nil {
-			return err
+	if shared.StringInSlice("security.idmap.isolated", changedConfig) || shared.StringInSlice("security.idmap.size", changedConfig) || shared.StringInSlice("raw.idmap", changedConfig) || shared.StringInSlice("security.privileged", changedConfig) {
+		var idmap *shared.IdmapSet
+		base := 0
+		if !c.IsPrivileged() {
+			// update the idmap
+			idmap, base, err = findIdmap(
+				c.daemon,
+				c.Name(),
+				c.expandedConfig["security.idmap.isolated"],
+				c.expandedConfig["security.idmap.size"],
+				c.expandedConfig["raw.idmap"],
+			)
+			if err != nil {
+				return err
+			}
 		}
 
 		var jsonIdmap string

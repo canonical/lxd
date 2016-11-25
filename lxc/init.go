@@ -309,7 +309,7 @@ func (c *initCmd) checkNetwork(d *lxd.Client, name string) {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "\n"+i18n.G("The container you are starting doesn’t have any network attached to it.")+"\n")
+	fmt.Fprintf(os.Stderr, "\n"+i18n.G("The container you are starting doesn't have any network attached to it.")+"\n")
 	fmt.Fprintf(os.Stderr, "  "+i18n.G("To create a new network, use: lxc network create")+"\n")
 	fmt.Fprintf(os.Stderr, "  "+i18n.G("To attach a network to a container, use: lxc network attach")+"\n\n")
 }
