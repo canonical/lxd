@@ -660,20 +660,16 @@ func (n *network) Start() error {
 		// Setup basic iptables overrides
 		rules := [][]string{
 			[]string{"ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "67", "-j", "ACCEPT"},
-			[]string{"ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "67", "-j", "ACCEPT"},
 			[]string{"ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
 			[]string{"ipv4", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
 			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "67", "-j", "ACCEPT"},
-			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "67", "-j", "ACCEPT"},
 			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
 			[]string{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
 
-		if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-			for _, rule := range rules {
-				err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
-				if err != nil {
-					return err
-				}
+		for _, rule := range rules {
+			err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+			if err != nil {
+				return err
 			}
 		}
 
@@ -819,20 +815,16 @@ func (n *network) Start() error {
 		// Setup basic iptables overrides
 		rules := [][]string{
 			[]string{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "546", "-j", "ACCEPT"},
-			[]string{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "546", "-j", "ACCEPT"},
 			[]string{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
 			[]string{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
 			[]string{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "546", "-j", "ACCEPT"},
-			[]string{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "546", "-j", "ACCEPT"},
 			[]string{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
 			[]string{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
 
-		if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-			for _, rule := range rules {
-				err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
-				if err != nil {
-					return err
-				}
+		for _, rule := range rules {
+			err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+			if err != nil {
+				return err
 			}
 		}
 
