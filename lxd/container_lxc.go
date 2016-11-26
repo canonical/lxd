@@ -180,6 +180,11 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		localDevices: args.Devices,
 	}
 
+	ctxMap := log.Ctx{"name": c.name,
+		"ephemeral": c.ephemeral}
+
+	shared.LogInfo("Creating container", ctxMap)
+
 	// No need to detect storage here, its a new container.
 	c.storage = d.Storage
 
@@ -187,6 +192,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	err := c.init()
 	if err != nil {
 		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
 		return nil, err
 	}
 
@@ -223,6 +229,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		err = c.Update(updateArgs, false)
 		if err != nil {
 			c.Delete()
+			shared.LogError("Failed creating container", ctxMap)
 			return nil, err
 		}
 	}
@@ -231,12 +238,14 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	err = containerValidConfig(d, c.expandedConfig, false, true)
 	if err != nil {
 		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
 		return nil, err
 	}
 
 	err = containerValidDevices(c.expandedDevices, false, true)
 	if err != nil {
 		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
 		return nil, err
 	}
 
@@ -254,6 +263,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 
 		if err != nil {
 			c.Delete()
+			shared.LogError("Failed creating container", ctxMap)
 			return nil, err
 		}
 	}
@@ -263,6 +273,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		idmapBytes, err := json.Marshal(idmap.Idmap)
 		if err != nil {
 			c.Delete()
+			shared.LogError("Failed creating container", ctxMap)
 			return nil, err
 		}
 		jsonIdmap = string(idmapBytes)
@@ -273,12 +284,14 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	err = c.ConfigKeySet("volatile.idmap.next", jsonIdmap)
 	if err != nil {
 		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
 		return nil, err
 	}
 
 	err = c.ConfigKeySet("volatile.idmap.base", fmt.Sprintf("%v", base))
 	if err != nil {
 		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
 		return nil, err
 	}
 
@@ -287,6 +300,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
 		if err != nil {
 			c.Delete()
+			shared.LogError("Failed creating container", ctxMap)
 			return nil, err
 		}
 	}
@@ -295,11 +309,14 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	err = c.init()
 	if err != nil {
 		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
 		return nil, err
 	}
 
 	// Update lease files
 	networkUpdateStatic(d)
+
+	shared.LogInfo("Created container", ctxMap)
 
 	return c, nil
 }
