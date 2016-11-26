@@ -52,6 +52,7 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 	// Pull the file from the container
 	uid, gid, mode, type_, dirEnts, err := c.FilePull(path, temp.Name())
 	if err != nil {
+		os.Remove(temp.Name())
 		return SmartError(err)
 	}
 
@@ -71,8 +72,10 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 
 		return FileResponse(r, files, headers, true)
 	} else if type_ == "directory" {
+		os.Remove(temp.Name())
 		return SyncResponseHeaders(true, dirEnts, headers)
 	} else {
+		os.Remove(temp.Name())
 		return InternalError(fmt.Errorf("bad file type %s", type_))
 	}
 }
