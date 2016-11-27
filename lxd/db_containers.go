@@ -224,6 +224,15 @@ func dbContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error
 	return nil
 }
 
+func dbContainerConfigGet(db *sql.DB, id int, key string) (string, error) {
+	q := "SELECT value FROM containers_config WHERE container_id=? AND key=?"
+	value := ""
+	arg1 := []interface{}{id, key}
+	arg2 := []interface{}{&value}
+	err := dbQueryRowScan(db, q, arg1, arg2)
+	return value, err
+}
+
 func dbContainerConfigRemove(db *sql.DB, id int, name string) error {
 	_, err := dbExec(db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
 	return err
