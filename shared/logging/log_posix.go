@@ -7,16 +7,16 @@ import (
 )
 
 // getSystemHandler on Linux writes messages to syslog.
-func getSystemHandler(syslog string, debug bool) log.Handler {
+func getSystemHandler(syslog string, debug bool, format log.Format) log.Handler {
 	// SyslogHandler
 	if syslog != "" {
 		if !debug {
 			return log.LvlFilterHandler(
 				log.LvlInfo,
-				log.Must.SyslogHandler(syslog, log.LogfmtFormat()),
+				log.Must.SyslogHandler(syslog, format),
 			)
 		} else {
-			return log.Must.SyslogHandler(syslog, log.LogfmtFormat())
+			return log.Must.SyslogHandler(syslog, format)
 		}
 	}
 
