@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/lxc/lxd/shared"
+	"gopkg.in/inconshreveable/log15.v2/term"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -15,11 +16,16 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 	Log := log.New()
 
 	var handlers []log.Handler
-
 	var syshandler log.Handler
 
+	// Format handler
+	format := LogfmtFormat()
+	if term.IsTty(os.Stderr.Fd()) {
+		format = TerminalFormat()
+	}
+
 	// System specific handler
-	syshandler = getSystemHandler(syslog, debug)
+	syshandler = getSystemHandler(syslog, debug, format)
 	if syshandler != nil {
 		handlers = append(handlers, syshandler)
 	}
@@ -35,11 +41,11 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 				handlers,
 				log.LvlFilterHandler(
 					log.LvlInfo,
-					log.Must.FileHandler(logfile, log.LogfmtFormat()),
+					log.Must.FileHandler(logfile, format),
 				),
 			)
 		} else {
-			handlers = append(handlers, log.Must.FileHandler(logfile, log.LogfmtFormat()))
+			handlers = append(handlers, log.Must.FileHandler(logfile, format))
 		}
 	}
 
@@ -50,18 +56,18 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 				handlers,
 				log.LvlFilterHandler(
 					log.LvlInfo,
-					log.StderrHandler,
+					log.StreamHandler(os.Stderr, format),
 				),
 			)
 		} else {
-			handlers = append(handlers, log.StderrHandler)
+			handlers = append(handlers, log.StreamHandler(os.Stderr, format))
 		}
 	} else {
 		handlers = append(
 			handlers,
 			log.LvlFilterHandler(
 				log.LvlWarn,
-				log.StderrHandler,
+				log.StreamHandler(os.Stderr, format),
 			),
 		)
 	}
