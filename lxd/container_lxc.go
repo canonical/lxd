@@ -4799,6 +4799,26 @@ func (c *containerLXC) fillNetworkDevice(name string, m shared.Device) (shared.D
 		}
 	}
 
+	updateKey := func(key string, value string) error {
+		tx, err := dbBegin(c.daemon.db)
+		if err != nil {
+			return err
+		}
+
+		err = dbContainerConfigInsert(tx, c.id, map[string]string{key: value})
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		err = txCommit(tx)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	// Fill in the MAC address
 	if m["nictype"] != "physical" && m["hwaddr"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
@@ -4810,24 +4830,20 @@ func (c *containerLXC) fillNetworkDevice(name string, m shared.Device) (shared.D
 				return nil, err
 			}
 
-			c.localConfig[configKey] = volatileHwaddr
-			c.expandedConfig[configKey] = volatileHwaddr
-
 			// Update the database
-			tx, err := dbBegin(c.daemon.db)
+			err = updateKey(configKey, volatileHwaddr)
 			if err != nil {
-				return nil, err
-			}
+				// Check if something else filled it in behind our back
+				value, err1 := dbContainerConfigGet(c.daemon.db, c.id, configKey)
+				if err1 != nil || value == "" {
+					return nil, err
+				}
 
-			err = dbContainerConfigInsert(tx, c.id, map[string]string{configKey: volatileHwaddr})
-			if err != nil {
-				tx.Rollback()
-				return nil, err
-			}
-
-			err = txCommit(tx)
-			if err != nil {
-				return nil, err
+				c.localConfig[configKey] = value
+				c.expandedConfig[configKey] = value
+			} else {
+				c.localConfig[configKey] = volatileHwaddr
+				c.expandedConfig[configKey] = volatileHwaddr
 			}
 		}
 		newDevice["hwaddr"] = volatileHwaddr
@@ -4844,24 +4860,20 @@ func (c *containerLXC) fillNetworkDevice(name string, m shared.Device) (shared.D
 				return nil, err
 			}
 
-			c.localConfig[configKey] = volatileName
-			c.expandedConfig[configKey] = volatileName
-
 			// Update the database
-			tx, err := dbBegin(c.daemon.db)
+			err = updateKey(configKey, volatileName)
 			if err != nil {
-				return nil, err
-			}
+				// Check if something else filled it in behind our back
+				value, err1 := dbContainerConfigGet(c.daemon.db, c.id, configKey)
+				if err1 != nil || value == "" {
+					return nil, err
+				}
 
-			err = dbContainerConfigInsert(tx, c.id, map[string]string{configKey: volatileName})
-			if err != nil {
-				tx.Rollback()
-				return nil, err
-			}
-
-			err = txCommit(tx)
-			if err != nil {
-				return nil, err
+				c.localConfig[configKey] = value
+				c.expandedConfig[configKey] = value
+			} else {
+				c.localConfig[configKey] = volatileName
+				c.expandedConfig[configKey] = volatileName
 			}
 		}
 		newDevice["name"] = volatileName
