@@ -172,11 +172,11 @@ func (s *storageBtrfs) ContainerCopy(container container, sourceContainer contai
 	return container.TemplateApply("copy")
 }
 
-func (s *storageBtrfs) ContainerStart(container container) error {
+func (s *storageBtrfs) ContainerStart(name string, path string) error {
 	return nil
 }
 
-func (s *storageBtrfs) ContainerStop(container container) error {
+func (s *storageBtrfs) ContainerStop(name string, path string) error {
 	return nil
 }
 
