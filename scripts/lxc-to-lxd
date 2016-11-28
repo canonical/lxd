@@ -233,7 +233,7 @@ def convert_container(lxd_socket, container_name, args):
             device['parent'] = dev.link
 
         if dev.mtu:
-            device['mtu'] = int(dev.mtu)
+            device['mtu'] = dev.mtu
 
         if dev.name:
             device['name'] = dev.name
