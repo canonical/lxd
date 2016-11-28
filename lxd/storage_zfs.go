@@ -91,8 +91,8 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 }
 
 // Things we don't need to care about
-func (s *storageZfs) ContainerStart(container container) error {
-	fs := fmt.Sprintf("containers/%s", container.Name())
+func (s *storageZfs) ContainerStart(name string, path string) error {
+	fs := fmt.Sprintf("containers/%s", name)
 
 	// Just in case the container filesystem got unmounted
 	if !shared.IsMountPoint(shared.VarPath(fs)) {
@@ -102,7 +102,7 @@ func (s *storageZfs) ContainerStart(container container) error {
 	return nil
 }
 
-func (s *storageZfs) ContainerStop(container container) error {
+func (s *storageZfs) ContainerStop(name string, path string) error {
 	return nil
 }
 

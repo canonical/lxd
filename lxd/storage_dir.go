@@ -123,11 +123,11 @@ func (s *storageDir) ContainerCopy(
 	return container.TemplateApply("copy")
 }
 
-func (s *storageDir) ContainerStart(container container) error {
+func (s *storageDir) ContainerStart(name string, path string) error {
 	return nil
 }
 
-func (s *storageDir) ContainerStop(container container) error {
+func (s *storageDir) ContainerStop(name string, path string) error {
 	return nil
 }
 
