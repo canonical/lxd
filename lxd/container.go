@@ -634,22 +634,22 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 		}
 	}
 
-	path := containerPath(args.Name, args.Ctype == cTypeSnapshot)
-	if shared.PathExists(path) {
-		if shared.IsSnapshot(args.Name) {
-			return nil, fmt.Errorf("Snapshot '%s' already exists", args.Name)
+	// Create the container entry
+	id, err := dbContainerCreate(d.db, args)
+	if err != nil {
+		if err == DbErrAlreadyDefined {
+			thing := "Container"
+			if shared.IsSnapshot(args.Name) {
+				thing = "Snapshot"
+			}
+			return nil, fmt.Errorf("%s '%s' already exists", thing, args.Name)
 		}
-		return nil, fmt.Errorf("The container already exists")
+		return nil, err
 	}
 
 	// Wipe any existing log for this container name
 	os.RemoveAll(shared.LogPath(args.Name))
 
-	// Create the container entry
-	id, err := dbContainerCreate(d.db, args)
-	if err != nil {
-		return nil, err
-	}
 	args.Id = id
 
 	// Read the timestamp from the database
