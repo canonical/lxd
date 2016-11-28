@@ -404,7 +404,7 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 			return err
 		}
 
-		if err := s.ContainerStart(container); err != nil {
+		if err := s.ContainerStart(container.Name(), container.Path()); err != nil {
 			s.log.Error("Error starting/mounting container", log.Ctx{"err": err, "container": container.Name()})
 			s.ContainerDelete(container)
 			return err
@@ -419,36 +419,36 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 			return fmt.Errorf("rsync failed: %s", string(output))
 		}
 
-		if err := s.ContainerStop(container); err != nil {
+		if err := s.ContainerStop(container.Name(), container.Path()); err != nil {
 			return err
 		}
 	}
 	return container.TemplateApply("copy")
 }
 
-func (s *storageLvm) ContainerStart(container container) error {
-	lvName := containerNameToLVName(container.Name())
+func (s *storageLvm) ContainerStart(name string, path string) error {
+	lvName := containerNameToLVName(name)
 	lvpath := fmt.Sprintf("/dev/%s/%s", s.vgName, lvName)
 	fstype := daemonConfig["storage.lvm_fstype"].Get()
 
 	mountOptions := daemonConfig["storage.lvm_mount_options"].Get()
-	err := tryMount(lvpath, container.Path(), fstype, 0, mountOptions)
+	err := tryMount(lvpath, path, fstype, 0, mountOptions)
 	if err != nil {
 		return fmt.Errorf(
 			"Error mounting snapshot LV path='%s': %v",
-			container.Path(),
+			path,
 			err)
 	}
 
 	return nil
 }
 
-func (s *storageLvm) ContainerStop(container container) error {
-	err := tryUnmount(container.Path(), 0)
+func (s *storageLvm) ContainerStop(name string, path string) error {
+	err := tryUnmount(path, 0)
 	if err != nil {
 		return fmt.Errorf(
 			"failed to unmount container path '%s'.\nError: %v",
-			container.Path(),
+			path,
 			err)
 	}
 
@@ -690,7 +690,7 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 }
 
 func (s *storageLvm) ContainerSnapshotStop(container container) error {
-	err := s.ContainerStop(container)
+	err := s.ContainerStop(container.Name(), container.Path())
 	if err != nil {
 		return err
 	}

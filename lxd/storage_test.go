@@ -61,11 +61,11 @@ func (s *storageMock) ContainerCopy(
 	return nil
 }
 
-func (s *storageMock) ContainerStart(container container) error {
+func (s *storageMock) ContainerStart(name string, path string) error {
 	return nil
 }
 
-func (s *storageMock) ContainerStop(container container) error {
+func (s *storageMock) ContainerStop(name string, path string) error {
 	return nil
 }
 
