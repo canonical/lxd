@@ -4663,7 +4663,7 @@ func (c *containerLXC) StorageStart() error {
 		return c.storage.ContainerSnapshotStart(c)
 	}
 
-	return c.storage.ContainerStart(c)
+	return c.storage.ContainerStart(c.Name(), c.Path())
 }
 
 func (c *containerLXC) StorageStop() error {
@@ -4671,7 +4671,7 @@ func (c *containerLXC) StorageStop() error {
 		return c.storage.ContainerSnapshotStop(c)
 	}
 
-	return c.storage.ContainerStop(c)
+	return c.storage.ContainerStop(c.Name(), c.Path())
 }
 
 // Mount handling
