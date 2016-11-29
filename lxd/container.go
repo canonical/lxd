@@ -566,6 +566,12 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 		return nil, err
 	}
 
+	err = writeSlurpFile(sourceContainer)
+	if err != nil {
+		c.Delete()
+		return nil, err
+	}
+
 	// Once we're done, remove the state directory
 	if args.Stateful {
 		os.RemoveAll(sourceContainer.StatePath())
