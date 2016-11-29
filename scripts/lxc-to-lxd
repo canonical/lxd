@@ -2,11 +2,16 @@
 import argparse
 import http.client
 import json
-import lxc
 import os
 import socket
 import subprocess
 import sys
+
+try:
+    import lxc
+except ImportError:
+    print("You must have python3-lxc installed for this script to work.")
+    sys.exit(1)
 
 
 # Unix connection to LXD
@@ -228,7 +233,7 @@ def convert_container(lxd_socket, container_name, args):
             device['parent'] = dev.link
 
         if dev.mtu:
-            device['mtu'] = int(dev.mtu)
+            device['mtu'] = dev.mtu
 
         if dev.name:
             device['name'] = dev.name
