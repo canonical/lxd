@@ -26,6 +26,7 @@ test_migration() {
     lxc_remote init testimage backup
     lxc_remote snapshot backup
     sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='backup'"
+    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='backup/snap0'"
     lxd import backup
     lxc_remote info backup | grep snap0
   fi
