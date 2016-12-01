@@ -4167,9 +4167,10 @@ func (c *containerLXC) FileExists(path string) error {
 
 	if err != nil {
 		return fmt.Errorf(
-			"Error calling 'lxd forkcheckfile %s %d': err='%v'",
-			path,
+			"Error calling 'lxd forkcheckfile %s %d %s': err='%v'",
+			c.RootfsPath(),
 			c.InitPID(),
+			path,
 			err)
 	}
 
@@ -4208,7 +4209,6 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 	mode := -1
 	type_ := "unknown"
 	var dirEnts []string
-
 	var errStr string
 
 	// Process forkgetfile response
@@ -4228,6 +4228,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 			if errno == "2" {
 				return -1, -1, 0, "", nil, os.ErrNotExist
 			}
+
 			return -1, -1, 0, "", nil, fmt.Errorf(errStr)
 		}
 
@@ -4278,9 +4279,10 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 
 	if err != nil {
 		return -1, -1, 0, "", nil, fmt.Errorf(
-			"Error calling 'lxd forkgetfile %s %d %s': err='%v'",
-			dstpath,
+			"Error calling 'lxd forkgetfile %s %d %s %s': err='%v'",
+			c.RootfsPath(),
 			c.InitPID(),
+			dstpath,
 			srcpath,
 			err)
 	}
@@ -4303,6 +4305,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error {
 	var rootUid = 0
 	var rootGid = 0
+	var errStr string
 
 	// Map uid and gid if needed
 	if !c.IsRunning() {
@@ -4349,26 +4352,41 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 		}
 	}
 
-	// Process forkputfile response
-	if string(out) != "" {
-		if strings.HasPrefix(string(out), "error:") {
-			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(string(out), "\n"), "error: "))
+	// Process forkgetfile response
+	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+		if line == "" {
+			continue
 		}
 
-		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-			shared.LogDebugf("forkgetfile: %s", line)
+		// Extract errors
+		if strings.HasPrefix(line, "error: ") {
+			errStr = strings.TrimPrefix(line, "error: ")
+			continue
+		}
+
+		if strings.HasPrefix(line, "errno: ") {
+			errno := strings.TrimPrefix(line, "errno: ")
+			if errno == "2" {
+				return os.ErrNotExist
+			}
+
+			return fmt.Errorf(errStr)
 		}
 	}
 
 	if err != nil {
 		return fmt.Errorf(
-			"Error calling 'lxd forkputfile %s %d %s %d %d %d': err='%v'",
-			srcpath,
+			"Error calling 'lxd forkputfile %s %d %s %s %d %d %d %d %d %d': err='%v'",
+			c.RootfsPath(),
 			c.InitPID(),
+			srcpath,
 			dstpath,
 			uid,
 			gid,
 			mode,
+			rootUid,
+			rootGid,
+			int(os.FileMode(0640)&os.ModePerm),
 			err)
 	}
 
@@ -4414,9 +4432,10 @@ func (c *containerLXC) FileRemove(path string) error {
 
 	if err != nil {
 		return fmt.Errorf(
-			"Error calling 'lxd forkremovefile %s %d': err='%v'",
-			path,
+			"Error calling 'lxd forkremovefile %s %d %s': err='%v'",
+			c.RootfsPath(),
 			c.InitPID(),
+			path,
 			err)
 	}
 
