@@ -403,7 +403,7 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 	return HoistResponse(resp, Sync)
 }
 
-func (c *Client) put(base string, args interface{}, rtype ResponseType) (*Response, error) {
+func (c *Client) doUpdateMethod(method string, base string, args interface{}, rtype ResponseType) (*Response, error) {
 	uri := c.url(shared.APIVersion, base)
 
 	buf := bytes.Buffer{}
@@ -412,9 +412,9 @@ func (c *Client) put(base string, args interface{}, rtype ResponseType) (*Respon
 		return nil, err
 	}
 
-	shared.LogDebugf("Putting %s to %s", buf.String(), uri)
+	shared.LogDebugf("%s %s to %s", method, buf.String(), uri)
 
-	req, err := http.NewRequest("PUT", uri, &buf)
+	req, err := http.NewRequest(method, uri, &buf)
 	if err != nil {
 		return nil, err
 	}
@@ -429,30 +429,20 @@ func (c *Client) put(base string, args interface{}, rtype ResponseType) (*Respon
 	return HoistResponse(resp, rtype)
 }
 
+func (c *Client) put(base string, args interface{}, rtype ResponseType) (*Response, error) {
+	return c.doUpdateMethod("PUT", base, args, rtype)
+}
+
+func (c *Client) patch(base string, args interface{}, rtype ResponseType) (*Response, error) {
+	return c.doUpdateMethod("PATCH", base, args, rtype)
+}
+
 func (c *Client) post(base string, args interface{}, rtype ResponseType) (*Response, error) {
-	uri := c.url(shared.APIVersion, base)
+	return c.doUpdateMethod("POST", base, args, rtype)
+}
 
-	buf := bytes.Buffer{}
-	err := json.NewEncoder(&buf).Encode(args)
-	if err != nil {
-		return nil, err
-	}
-
-	shared.LogDebugf("Posting %s to %s", buf.String(), uri)
-
-	req, err := http.NewRequest("POST", uri, &buf)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", shared.UserAgent)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.Http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	return HoistResponse(resp, rtype)
+func (c *Client) delete(base string, args interface{}, rtype ResponseType) (*Response, error) {
+	return c.doUpdateMethod("DELETE", base, args, rtype)
 }
 
 func (c *Client) getRaw(uri string) (*http.Response, error) {
@@ -477,32 +467,6 @@ func (c *Client) getRaw(uri string) (*http.Response, error) {
 	}
 
 	return raw, nil
-}
-
-func (c *Client) delete(base string, args interface{}, rtype ResponseType) (*Response, error) {
-	uri := c.url(shared.APIVersion, base)
-
-	buf := bytes.Buffer{}
-	err := json.NewEncoder(&buf).Encode(args)
-	if err != nil {
-		return nil, err
-	}
-
-	shared.LogDebugf("Deleting %s to %s", buf.String(), uri)
-
-	req, err := http.NewRequest("DELETE", uri, &buf)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", shared.UserAgent)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.Http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	return HoistResponse(resp, rtype)
 }
 
 func (c *Client) Websocket(operation string, secret string) (*websocket.Conn, error) {
