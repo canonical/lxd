@@ -3736,9 +3736,10 @@ func (c *containerLXC) FileExists(path string) error {
 
 	if err != nil {
 		return fmt.Errorf(
-			"Error calling 'lxd forkcheckfile %s %d': err='%v'",
-			path,
+			"Error calling 'lxd forkcheckfile %s %d %s': err='%v'",
+			c.RootfsPath(),
 			c.InitPID(),
+			path,
 			err)
 	}
 
@@ -3833,9 +3834,10 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 
 	if err != nil {
 		return -1, -1, 0, fmt.Errorf(
-			"Error calling 'lxd forkgetfile %s %d %s': err='%v'",
-			dstpath,
+			"Error calling 'lxd forkgetfile %s %d %s %s': err='%v'",
+			c.RootfsPath(),
 			c.InitPID(),
+			dstpath,
 			srcpath,
 			err)
 	}
@@ -3929,13 +3931,17 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 
 	if err != nil {
 		return fmt.Errorf(
-			"Error calling 'lxd forkputfile %s %d %s %d %d %d': err='%v'",
-			srcpath,
+			"Error calling 'lxd forkputfile %s %d %s %s %d %d %d %d %d %d': err='%v'",
+			c.RootfsPath(),
 			c.InitPID(),
+			srcpath,
 			dstpath,
 			uid,
 			gid,
 			mode,
+			rootUid,
+			rootGid,
+			int(os.FileMode(0640)&os.ModePerm),
 			err)
 	}
 
@@ -3981,9 +3987,10 @@ func (c *containerLXC) FileRemove(path string) error {
 
 	if err != nil {
 		return fmt.Errorf(
-			"Error calling 'lxd forkremovefile %s %d': err='%v'",
-			path,
+			"Error calling 'lxd forkremovefile %s %d %s': err='%v'",
+			c.RootfsPath(),
 			c.InitPID(),
+			path,
 			err)
 	}
 
