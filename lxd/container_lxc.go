@@ -3775,7 +3775,6 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 	uid := -1
 	gid := -1
 	mode := -1
-
 	var errStr string
 
 	// Process forkgetfile response
@@ -3795,6 +3794,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 			if errno == "2" {
 				return -1, -1, 0, os.ErrNotExist
 			}
+
 			return -1, -1, 0, fmt.Errorf(errStr)
 		}
 
@@ -3858,6 +3858,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error {
 	var rootUid = 0
 	var rootGid = 0
+	var errStr string
 
 	// Map uid and gid if needed
 	if !c.IsRunning() {
@@ -3904,14 +3905,25 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 		}
 	}
 
-	// Process forkputfile response
-	if string(out) != "" {
-		if strings.HasPrefix(string(out), "error:") {
-			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(string(out), "\n"), "error: "))
+	// Process forkgetfile response
+	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+		if line == "" {
+			continue
 		}
 
-		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-			shared.LogDebugf("forkgetfile: %s", line)
+		// Extract errors
+		if strings.HasPrefix(line, "error: ") {
+			errStr = strings.TrimPrefix(line, "error: ")
+			continue
+		}
+
+		if strings.HasPrefix(line, "errno: ") {
+			errno := strings.TrimPrefix(line, "errno: ")
+			if errno == "2" {
+				return os.ErrNotExist
+			}
+
+			return fmt.Errorf(errStr)
 		}
 	}
 
