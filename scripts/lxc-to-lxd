@@ -346,6 +346,27 @@ def convert_container(lxd_socket, container_name, args):
         print("Custom capabilities aren't supported, skipping...")
         return False
 
+    # Skip ephemeral
+    print("Processing container ephemeral configuration")
+    value = config_get(lxc_config, "lxc.ephemeral")
+    if value:
+        print("Setting lxc.ephemeral is not supported, skipping...")
+        return False
+
+    # Skip syslog
+    print("Processing container syslog configuration")
+    value = config_get(lxc_config, "lxc.syslog")
+    if value:
+        print("Setting lxc.syslog is not supported, skipping...")
+        return False
+
+    # Skip logfile
+    print("Processing container syslog configuration")
+    value = config_get(lxc_config, "lxc.logfile")
+    if value:
+        print("Setting lxc.logfile is not supported, skipping...")
+        return False
+
     # Setup the container creation request
     new = {'name': container_name,
            'source': {'type': 'none'},
