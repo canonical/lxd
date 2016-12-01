@@ -52,6 +52,12 @@ void error(char *msg)
 {
 	int old_errno = errno;
 
+	if (old_errno == 0) {
+		fprintf(stderr, "%s\n", msg);
+		fprintf(stderr, "errno: 0\n");
+		return;
+	}
+
 	perror(msg);
 	fprintf(stderr, "errno: %d\n", old_errno);
 }
@@ -199,6 +205,11 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 
 	if (is_put && stat(container, &st) < 0)
 		exists = 0;
+
+	if (is_put && exists && S_ISDIR(st.st_mode)) {
+		error("error: Path already exists as a directory");
+		goto close_host;
+	}
 
 	umask(0);
 	container_fd = open(container, container_open_flags, 0);
