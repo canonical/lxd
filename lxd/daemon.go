@@ -566,13 +566,13 @@ func (d *Daemon) Init() error {
 
 	/* Print welcome message */
 	if d.MockMode {
-		shared.LogInfo("LXD is starting in mock mode",
+		shared.LogInfo(fmt.Sprintf("LXD %s is starting in mock mode", shared.Version),
 			log.Ctx{"path": shared.VarPath("")})
 	} else if d.SetupMode {
-		shared.LogInfo("LXD is starting in setup mode",
+		shared.LogInfo(fmt.Sprintf("LXD %s is starting in setup mode", shared.Version),
 			log.Ctx{"path": shared.VarPath("")})
 	} else {
-		shared.LogInfo("LXD is starting in normal mode",
+		shared.LogInfo(fmt.Sprintf("LXD %s is starting in normal mode", shared.Version),
 			log.Ctx{"path": shared.VarPath("")})
 	}
 
