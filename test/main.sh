@@ -494,6 +494,10 @@ echo "==> TEST: template"
 TEST_CURRENT=test_template
 test_template
 
+echo "==> TEST: pki"
+TEST_CURRENT=test_pki
+test_pki
+
 echo "==> TEST: devlxd"
 TEST_CURRENT=test_devlxd
 test_devlxd
