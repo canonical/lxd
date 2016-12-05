@@ -145,6 +145,7 @@ func (s *execWs) Do(op *operation) error {
 
 	if s.interactive {
 		wgEOF.Add(1)
+		windowSizeSet := make(chan bool, 1)
 		go func() {
 			receivedPid := <-receivePid
 			select {
@@ -193,6 +194,7 @@ func (s *execWs) Do(op *operation) error {
 					}
 
 					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
+					windowSizeSet <- true
 					if err != nil {
 						shared.LogDebugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
 						continue
@@ -206,6 +208,9 @@ func (s *execWs) Do(op *operation) error {
 				}
 			}
 		}()
+
+		<-windowSizeSet
+
 		go func() {
 			readDone, writeDone := shared.WebsocketMirror(s.conns[0], ptys[0], ptys[0])
 			<-readDone
