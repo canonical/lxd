@@ -187,8 +187,9 @@ test_basic_usage() {
   [ "$(my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
   lxc delete configtest
 
-  # Test socket activation
+  # Test activateifneeded/shutdown
   LXD_ACTIVATION_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ACTIVATION_DIR}"
   spawn_lxd "${LXD_ACTIVATION_DIR}"
   (
     set -e
@@ -202,7 +203,27 @@ test_basic_usage() {
     lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
     lxc config set autostart boot.autostart true --force-local
     lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
-    lxc delete autostart --force-local
+
+    lxc config unset autostart boot.autostart --force-local
+    lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
+
+    lxc start autostart --force-local
+    PID=$(lxc info autostart --force-local | grep ^Pid | awk '{print $2}')
+    lxd shutdown
+    [ -d "/proc/${PID}" ] && false
+
+    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
+
+    # shellcheck disable=SC2086
+    lxd --logfile "${LXD_DIR}/lxd.log" ${DEBUG-} "$@" 2>&1 &
+    LXD_PID=$!
+    echo "${LXD_PID}" > "${LXD_DIR}/lxd.pid"
+    echo "${LXD_DIR}" >> "${TEST_DIR}/daemons"
+    lxd waitready --timeout=300
+
+    lxc list --force-local autostart | grep -q RUNNING
+
+    lxc delete autostart --force --force-local
   )
   # shellcheck disable=SC2031
   LXD_DIR=${LXD_DIR}
