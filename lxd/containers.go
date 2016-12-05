@@ -165,10 +165,7 @@ func containersShutdown(d *Daemon) error {
 		}
 
 		// Record the current state
-		err = c.ConfigKeySet("volatile.last_state.power", c.State())
-		if err != nil {
-			return err
-		}
+		lastState := c.State()
 
 		// Stop the container
 		if c.IsRunning() {
@@ -176,8 +173,12 @@ func containersShutdown(d *Daemon) error {
 			go func() {
 				c.Shutdown(time.Second * 30)
 				c.Stop(false)
+				c.ConfigKeySet("volatile.last_state.power", lastState)
+
 				wg.Done()
 			}()
+		} else {
+			c.ConfigKeySet("volatile.last_state.power", lastState)
 		}
 	}
 	wg.Wait()
