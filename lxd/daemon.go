@@ -1098,7 +1098,7 @@ func (d *Daemon) Ready() error {
 	}()
 
 	/* Restore containers */
-	go containersRestart(d)
+	containersRestart(d)
 
 	/* Re-balance in case things changed while LXD was down */
 	deviceTaskBalance(d)
