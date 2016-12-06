@@ -306,10 +306,10 @@ cleanup() {
 
   # Allow for inspection
   if [ -n "${LXD_INSPECT:-}" ]; then
-    echo "==> Test result: ${TEST_RESULT}"
     if [ "${TEST_RESULT}" != "success" ]; then
-      echo "failed test: ${TEST_CURRENT}"
+      echo "==> TEST DONE: ${TEST_DESCRIPTION}"
     fi
+    echo "==> Test result: ${TEST_RESULT}"
 
     # shellcheck disable=SC2086
     printf "To poke around, use:\n LXD_DIR=%s LXD_CONF=%s sudo -E %s/bin/lxc COMMAND\n" "${LXD_DIR}" "${LXD_CONF}" ${GOPATH:-}
@@ -340,10 +340,10 @@ cleanup() {
 
   echo ""
   echo ""
-  echo "==> Test result: ${TEST_RESULT}"
   if [ "${TEST_RESULT}" != "success" ]; then
-    echo "failed test: ${TEST_CURRENT}"
+    echo "==> TEST DONE: ${TEST_DESCRIPTION}"
   fi
+  echo "==> Test result: ${TEST_RESULT}"
 }
 
 wipe() {
@@ -409,129 +409,48 @@ spawn_lxd "${LXD2_DIR}"
 LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 export LXD2_ADDR
 
+
+run_test() {
+  TEST_CURRENT=${1}
+  TEST_CURRENT_DESCRIPTION=${2:-${1}}
+
+  echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
+  ${TEST_CURRENT}
+  echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION}"
+}
+
 # allow for running a specific set of tests
 if [ "$#" -gt 0 ]; then
-  "test_${1}"
+  run_test "test_${1}"
   TEST_RESULT=success
   exit
 fi
 
-echo "==> TEST: doing static analysis of commits"
-TEST_CURRENT=test_static_analysis
-test_static_analysis
-
-echo "==> TEST: checking dependencies"
-TEST_CURRENT=test_check_deps
-test_check_deps
-
-echo "==> TEST: Database schema update"
-TEST_CURRENT=test_database_update
-test_database_update
-
-echo "==> TEST: lxc remote url"
-TEST_CURRENT=test_remote_url
-test_remote_url
-
-echo "==> TEST: lxc remote administration"
-TEST_CURRENT=test_remote_admin
-test_remote_admin
-
-echo "==> TEST: basic usage"
-TEST_CURRENT=test_basic_usage
-test_basic_usage
-
-echo "==> TEST: security"
-TEST_CURRENT=test_security
-test_security
-
-echo "==> TEST: images (and cached image expiry)"
-TEST_CURRENT=test_image_expiry
-test_image_expiry
-
-if [ -n "${LXD_CONCURRENT:-}" ]; then
-  echo "==> TEST: concurrent exec"
-  TEST_CURRENT=test_concurrent_exec
-  test_concurrent_exec
-
-  echo "==> TEST: concurrent startup"
-  TEST_CURRENT=test_concurrent
-  test_concurrent
-fi
-
-echo "==> TEST: lxc remote usage"
-TEST_CURRENT=test_remote_usage
-test_remote_usage
-
-echo "==> TEST: snapshots"
-TEST_CURRENT=test_snapshots
-test_snapshots
-
-echo "==> TEST: snapshot restore"
-TEST_CURRENT=test_snap_restore
-test_snap_restore
-
-echo "==> TEST: profiles, devices and configuration"
-TEST_CURRENT=test_config_profiles
-test_config_profiles
-
-echo "==> TEST: server config"
-TEST_CURRENT=test_server_config
-test_server_config
-
-echo "==> TEST: filemanip"
-TEST_CURRENT=test_filemanip
-test_filemanip
-
-echo "==> TEST: network"
-TEST_CURRENT=test_network
-test_network
-
-echo "==> TEST: idmap"
-TEST_CURRENT=test_idmap
-test_idmap
-
-echo "==> TEST: template"
-TEST_CURRENT=test_template
-test_template
-
-echo "==> TEST: pki"
-TEST_CURRENT=test_pki
-test_pki
-
-echo "==> TEST: devlxd"
-TEST_CURRENT=test_devlxd
-test_devlxd
-
-if which fuidshift >/dev/null 2>&1; then
-  echo "==> TEST: uidshift"
-  TEST_CURRENT=test_fuidshift
-  test_fuidshift
-else
-  echo "==> SKIP: fuidshift (binary missing)"
-fi
-
-echo "==> TEST: migration"
-TEST_CURRENT=test_migration
-test_migration
-
-curversion=$(dpkg -s lxc | awk '/^Version/ { print $2 }')
-if dpkg --compare-versions "${curversion}" gt 1.1.2-0ubuntu3; then
-  echo "==> TEST: fdleak"
-  TEST_CURRENT=test_fdleak
-  test_fdleak
-else
-  # We temporarily skip the fdleak test because a bug in lxc is
-  # known to make it # fail without lxc commit
-  # 858377e: # logs: introduce a thread-local 'current' lxc_config (v2)
-  echo "==> SKIPPING TEST: fdleak"
-fi
-
-echo "==> TEST: cpu profiling"
-TEST_CURRENT=test_cpu_profiling
-test_cpu_profiling
-
-echo "==> TEST: memory profiling"
-TEST_CURRENT=test_mem_profiling
-test_mem_profiling
+run_test test_check_deps "checking dependencies"
+run_test test_static_analysis "static analysis"
+run_test test_database_update "database schema updates"
+run_test test_remote_url "remote  url handling"
+run_test test_remote_admin "remote administration"
+run_test test_remote_usage "remote usage"
+run_test test_basic_usage "basic usage"
+run_test test_security "security features"
+run_test test_image_expiry "image expiry"
+run_test test_concurrent_exec "concurrent exec"
+run_test test_concurrent "concurrent startup"
+run_test test_snapshots "container snapshots"
+run_test test_snap_restore "snapshot restores"
+run_test test_config_profiles "profiles, devices and configuration"
+run_test test_server_config "server configuration"
+run_test test_filemanip "file manipulations"
+run_test test_network "network management"
+run_test test_idmap "id mapping"
+run_test test_template "file templating"
+run_test test_pki "PKI mode"
+run_test test_devlxd "/dev/lxd"
+run_test test_fuidshift "fuidshift"
+run_test test_migration "migration"
+run_test test_fdleak "fd leak"
+run_test test_cpu_profiling "CPU profiling"
+run_test test_mem_profiling "memory profiling"
 
 TEST_RESULT=success
