@@ -1,6 +1,11 @@
 #!/bin/sh
 
 test_concurrent_exec() {
+  if [ -z "${LXD_CONCURRENT:-}" ]; then
+    echo "==> SKIP: LXD_CONCURRENT isn't set"
+    return
+  fi
+
   ensure_import_testimage
 
   name=x1

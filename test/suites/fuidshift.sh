@@ -48,6 +48,11 @@ test_root_fuidshift() {
 }
 
 test_fuidshift() {
+  if ! which fuidshift >/dev/null 2>&1; then
+    echo "==> SKIP: No fuidshift binary could be found"
+    return
+  fi
+
   if [ "$(id -u)" -ne 0 ]; then
     test_nonroot_fuidshift
   else
