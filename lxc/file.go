@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -79,7 +80,10 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 	// re-add leading / that got stripped by the SplitN
 	targetPath := "/" + pathSpec[1]
 	// clean various /./, /../, /////, etc. that users add (#2557)
-	targetPath = path.Clean(targetPath)
+	targetPath, err := filepath.Abs(targetPath)
+	if err != nil {
+		return fmt.Errorf(i18n.G("Could not sanitize path %s"), targetPath)
+	}
 	// normalization may reveal that path is still a dir, e.g. /.
 	if strings.HasSuffix(targetPath, "/") {
 		targetIsDir = true
