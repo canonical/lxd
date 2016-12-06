@@ -19,6 +19,7 @@ test_filemanip() {
 
   # lxc {push|pull} -r
   mkdir "${TEST_DIR}"/source
+  mkdir "${TEST_DIR}"/source/another_level
   echo "foo" > "${TEST_DIR}"/source/foo
   echo "bar" > "${TEST_DIR}"/source/bar
 
@@ -27,6 +28,34 @@ test_filemanip() {
   [ "$(lxc exec filemanip -- stat -c "%u" /tmp/ptest/source)" = "$(id -u)" ]
   [ "$(lxc exec filemanip -- stat -c "%g" /tmp/ptest/source)" = "$(id -g)" ]
   [ "$(lxc exec filemanip -- stat -c "%a" /tmp/ptest/source)" = "755" ]
+
+  lxc exec filemanip -- rm -rf /tmp/ptest/source
+
+  # Special case where we are in the same directory as the one we are currently
+  # created.
+  oldcwd=$(pwd)
+  cd "${TEST_DIR}"
+
+  lxc file push -r source filemanip/tmp/ptest
+
+  [ "$(lxc exec filemanip -- stat -c "%u" /tmp/ptest/source)" = "$(id -u)" ]
+  [ "$(lxc exec filemanip -- stat -c "%g" /tmp/ptest/source)" = "$(id -g)" ]
+  [ "$(lxc exec filemanip -- stat -c "%a" /tmp/ptest/source)" = "755" ]
+
+  lxc exec filemanip -- rm -rf /tmp/ptest/source
+
+  # Special case where we are in the same directory as the one we are currently
+  # created.
+  cd source
+
+  lxc file push -r ../source filemanip/tmp/ptest
+
+  [ "$(lxc exec filemanip -- stat -c "%u" /tmp/ptest/source)" = "$(id -u)" ]
+  [ "$(lxc exec filemanip -- stat -c "%g" /tmp/ptest/source)" = "$(id -g)" ]
+  [ "$(lxc exec filemanip -- stat -c "%a" /tmp/ptest/source)" = "755" ]
+
+  # Switch back to old working directory.
+  cd "${oldcwd}"
 
   mkdir "${TEST_DIR}"/dest
   lxc file pull -r filemanip/tmp/ptest/source "${TEST_DIR}"/dest

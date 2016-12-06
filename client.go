@@ -1903,7 +1903,12 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 			return fmt.Errorf("got error sending path %s: %s", p, err)
 		}
 
-		targetPath := path.Join(target, p[len(sourceDir):])
+		appendLen := len(sourceDir)
+		if sourceDir == "." {
+			appendLen--
+		}
+
+		targetPath := path.Join(target, p[appendLen:])
 		if fInfo.IsDir() {
 			return c.Mkdir(container, targetPath, fInfo.Mode())
 		}
