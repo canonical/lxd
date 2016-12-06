@@ -132,9 +132,9 @@ test_remote_usage() {
   lxc_remote delete lxd2:c1
 
   # Test that local and public servers can be accessed without a client cert
-	mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
+  mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
   mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
-  
+
   # testimage should still exist on the local server.  Count the number of
   # matches so the output isn't polluted with the results.
   lxc_remote image list local: | grep -c testimage

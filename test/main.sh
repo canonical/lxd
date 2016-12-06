@@ -307,7 +307,7 @@ cleanup() {
   # Allow for inspection
   if [ -n "${LXD_INSPECT:-}" ]; then
     if [ "${TEST_RESULT}" != "success" ]; then
-      echo "==> TEST DONE: ${TEST_DESCRIPTION}"
+      echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION}"
     fi
     echo "==> Test result: ${TEST_RESULT}"
 
@@ -341,7 +341,7 @@ cleanup() {
   echo ""
   echo ""
   if [ "${TEST_RESULT}" != "success" ]; then
-    echo "==> TEST DONE: ${TEST_DESCRIPTION}"
+    echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION}"
   fi
   echo "==> Test result: ${TEST_RESULT}"
 }
@@ -439,7 +439,7 @@ run_test test_concurrent_exec "concurrent exec"
 run_test test_concurrent "concurrent startup"
 run_test test_snapshots "container snapshots"
 run_test test_snap_restore "snapshot restores"
-run_test test_config_profiles "profiles, devices and configuration"
+run_test test_config_profiles "profiles and configuration"
 run_test test_server_config "server configuration"
 run_test test_filemanip "file manipulations"
 run_test test_network "network management"
