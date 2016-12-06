@@ -80,6 +80,9 @@ test_remote_admin() {
 }
 
 test_remote_usage() {
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
   lxc_remote remote add lxd2 "${LXD2_ADDR}" --accept-certificate --password foo
 
   # we need a public image on localhost
