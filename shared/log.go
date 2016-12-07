@@ -93,5 +93,5 @@ func LogCritf(format string, args ...interface{}) {
 func PrintStack() {
 	buf := make([]byte, 1<<16)
 	runtime.Stack(buf, true)
-	LogDebugf("%s", buf)
+	LogErrorf("%s", buf)
 }
