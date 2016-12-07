@@ -1184,17 +1184,17 @@ func storageZFSValidatePoolName(d *Daemon, key string, value string) error {
 		if err != nil {
 			return fmt.Errorf("Invalid ZFS pool: %v", err)
 		}
-	}
 
-	// Confirm that the new pool is empty
-	s.zfsPool = value
-	subvols, err := s.zfsListSubvolumes("")
-	if err != nil {
-		return err
-	}
+		// Confirm that the new pool is empty
+		s.zfsPool = value
+		subvols, err := s.zfsListSubvolumes("")
+		if err != nil {
+			return err
+		}
 
-	if len(subvols) > 0 {
-		return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
+		if len(subvols) > 0 {
+			return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
+		}
 	}
 
 	// Confirm the old pool isn't in use anymore
