@@ -49,8 +49,17 @@ func (k *daemonConfigKey) name() string {
 }
 
 func (k *daemonConfigKey) Validate(d *Daemon, value string) error {
-	// No need to validate when unsetting
+	// Handle unsetting
 	if value == "" {
+		value = k.defaultValue
+
+		if k.validator != nil {
+			err := k.validator(d, k.name(), value)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}
 
