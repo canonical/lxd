@@ -80,6 +80,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"migration_progress",
 			"id_map",
 			"network_firewall_filtering",
+			"network_routes",
 		},
 
 		"api_status":  "stable",

@@ -173,3 +173,6 @@ rules will still be added so long as the matching "ipv4.nat" or
 
 Rules necessary for dnsmasq to work (DHCP/DNS) will always be applied if
 dnsmasq is enabled on the bridge.
+
+## network\_routes
+Introduces "ipv4.routes" and "ipv6.routes" which allow routing additional subnets to a LXD bridge.

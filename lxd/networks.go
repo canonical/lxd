@@ -649,8 +649,13 @@ func (n *network) Start() error {
 		return err
 	}
 
-	// Flush all IPv4 addresses
+	// Flush all IPv4 addresses and routes
 	err = shared.RunCommand("ip", "-4", "addr", "flush", "dev", n.name, "scope", "global")
+	if err != nil {
+		return err
+	}
+
+	err = shared.RunCommand("ip", "-4", "route", "flush", "dev", n.name, "proto", "static")
 	if err != nil {
 		return err
 	}
@@ -756,6 +761,17 @@ func (n *network) Start() error {
 				return err
 			}
 		}
+
+		// Add additional routes
+		if n.config["ipv4.routes"] != "" {
+			for _, route := range strings.Split(n.config["ipv4.routes"], ",") {
+				route = strings.TrimSpace(route)
+				err = shared.RunCommand("ip", "-4", "route", "add", "dev", n.name, route, "proto", "static")
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	// Remove any existing IPv6 iptables rules
@@ -769,8 +785,13 @@ func (n *network) Start() error {
 		return err
 	}
 
-	// Flush all IPv6 addresses
+	// Flush all IPv6 addresses and routes
 	err = shared.RunCommand("ip", "-6", "addr", "flush", "dev", n.name, "scope", "global")
+	if err != nil {
+		return err
+	}
+
+	err = shared.RunCommand("ip", "-6", "route", "flush", "dev", n.name, "proto", "static")
 	if err != nil {
 		return err
 	}
@@ -893,6 +914,17 @@ func (n *network) Start() error {
 			err = networkIptablesPrepend("ipv6", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
 			if err != nil {
 				return err
+			}
+		}
+
+		// Add additional routes
+		if n.config["ipv6.routes"] != "" {
+			for _, route := range strings.Split(n.config["ipv6.routes"], ",") {
+				route = strings.TrimSpace(route)
+				err = shared.RunCommand("ip", "-6", "route", "add", "dev", n.name, route, "proto", "static")
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
