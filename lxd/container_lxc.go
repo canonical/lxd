@@ -1789,6 +1789,23 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", err
 	}
 
+	// Update the backup.yaml file (as storage is guaranteed to be mountable now)
+	err = c.StorageStart()
+	if err != nil {
+		return "", err
+	}
+
+	err = writeBackupFile(c)
+	if err != nil {
+		c.StorageStop()
+		return "", err
+	}
+
+	err = c.StorageStop()
+	if err != nil {
+		return "", err
+	}
+
 	// Update time container was last started
 	err = dbContainerLastUsedUpdate(c.daemon.db, c.id, time.Now().UTC())
 	if err != nil {
@@ -2754,6 +2771,17 @@ type backupFile struct {
 func writeBackupFile(c container) error {
 	/* we only write backup files out for actual containers */
 	if c.IsSnapshot() {
+		return nil
+	}
+
+	/* immediately return if the container directory doesn't exist yet */
+	if !shared.PathExists(c.Path()) {
+		return os.ErrNotExist
+	}
+
+	/* deal with the container occasionaly not being monuted */
+	if !shared.PathExists(c.RootfsPath()) {
+		shared.LogWarn("Unable to update backup.yaml at this time.", log.Ctx{"name": c.Name()})
 		return nil
 	}
 
