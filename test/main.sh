@@ -1,4 +1,5 @@
 #!/bin/sh -eu
+echo "New code is running"
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
