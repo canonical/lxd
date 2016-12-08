@@ -204,84 +204,101 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 	return ch
 }
 
+func defaultReader(conn *websocket.Conn, r io.ReadCloser, readDone chan<- bool) {
+	/* For now, we don't need to adjust buffer sizes in
+	* WebsocketMirror, since it's used for interactive things like
+	* exec.
+	 */
+	in := ReaderToChannel(r, -1)
+	for {
+		buf, ok := <-in
+		if !ok {
+			r.Close()
+			LogDebugf("sending write barrier")
+			conn.WriteMessage(websocket.TextMessage, []byte{})
+			readDone <- true
+			return
+		}
+		w, err := conn.NextWriter(websocket.BinaryMessage)
+		if err != nil {
+			LogDebugf("Got error getting next writer %s", err)
+			break
+		}
+
+		_, err = w.Write(buf)
+		w.Close()
+		if err != nil {
+			LogDebugf("Got err writing %s", err)
+			break
+		}
+	}
+	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+	conn.WriteMessage(websocket.CloseMessage, closeMsg)
+	readDone <- true
+	r.Close()
+}
+
+func defaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool) {
+	for {
+		mt, r, err := conn.NextReader()
+		if err != nil {
+			LogDebugf("Got error getting next reader %s, %s", err, w)
+			break
+		}
+
+		if mt == websocket.CloseMessage {
+			LogDebugf("Got close message for reader")
+			break
+		}
+
+		if mt == websocket.TextMessage {
+			LogDebugf("Got message barrier, resetting stream")
+			break
+		}
+
+		buf, err := ioutil.ReadAll(r)
+		if err != nil {
+			LogDebugf("Got error writing to writer %s", err)
+			break
+		}
+		i, err := w.Write(buf)
+		if i != len(buf) {
+			LogDebugf("Didn't write all of buf")
+			break
+		}
+		if err != nil {
+			LogDebugf("Error writing buf %s", err)
+			break
+		}
+	}
+	writeDone <- true
+	w.Close()
+}
+
 // WebsocketMirror allows mirroring a reader to a websocket and taking the
 // result and writing it to a writer. This function allows for multiple
 // mirrorings and correctly negotiates stream endings. However, it means any
 // websocket.Conns passed to it are live when it returns, and must be closed
 // explicitly.
-func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser) (chan bool, chan bool) {
+type WebSocketMirrorReader func(conn *websocket.Conn, r io.ReadCloser, readDone chan<- bool)
+type WebSocketMirrorWriter func(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool)
+
+func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser, Reader WebSocketMirrorReader, Writer WebSocketMirrorWriter) (chan bool, chan bool) {
 	readDone := make(chan bool, 1)
 	writeDone := make(chan bool, 1)
-	go func(conn *websocket.Conn, w io.WriteCloser) {
-		for {
-			mt, r, err := conn.NextReader()
-			if err != nil {
-				LogDebugf("Got error getting next reader %s, %s", err, w)
-				break
-			}
 
-			if mt == websocket.CloseMessage {
-				LogDebugf("Got close message for reader")
-				break
-			}
+	ReadFunc := Reader
+	if ReadFunc == nil {
+		ReadFunc = defaultReader
+	}
 
-			if mt == websocket.TextMessage {
-				LogDebugf("Got message barrier, resetting stream")
-				break
-			}
+	WriteFunc := Writer
+	if WriteFunc == nil {
+		WriteFunc = defaultWriter
+	}
 
-			buf, err := ioutil.ReadAll(r)
-			if err != nil {
-				LogDebugf("Got error writing to writer %s", err)
-				break
-			}
-			i, err := w.Write(buf)
-			if i != len(buf) {
-				LogDebugf("Didn't write all of buf")
-				break
-			}
-			if err != nil {
-				LogDebugf("Error writing buf %s", err)
-				break
-			}
-		}
-		writeDone <- true
-		w.Close()
-	}(conn, w)
-
-	go func(conn *websocket.Conn, r io.ReadCloser) {
-		/* For now, we don't need to adjust buffer sizes in
-		 * WebsocketMirror, since it's used for interactive things like
-		 * exec.
-		 */
-		in := ReaderToChannel(r, -1)
-		for {
-			buf, ok := <-in
-			if !ok {
-				r.Close()
-				LogDebugf("sending write barrier")
-				conn.WriteMessage(websocket.TextMessage, []byte{})
-				readDone <- true
-				return
-			}
-			w, err := conn.NextWriter(websocket.BinaryMessage)
-			if err != nil {
-				LogDebugf("Got error getting next writer %s", err)
-				break
-			}
-
-			_, err = w.Write(buf)
-			w.Close()
-			if err != nil {
-				LogDebugf("Got err writing %s", err)
-				break
-			}
-		}
-		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		conn.WriteMessage(websocket.CloseMessage, closeMsg)
-		readDone <- true
-		r.Close()
-	}(conn, r)
+	go ReadFunc(conn, r, readDone)
+	go WriteFunc(conn, w, writeDone)
 
 	return readDone, writeDone
 }

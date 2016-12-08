@@ -201,7 +201,7 @@ func (s *execWs) Do(op *operation) error {
 		}()
 
 		go func() {
-			readDone, writeDone := shared.WebsocketMirror(s.conns[0], ptys[0], ptys[0])
+			readDone, writeDone := shared.WebsocketExecMirror(s.conns[0], ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 			<-readDone
 			<-writeDone
 			s.conns[0].Close()

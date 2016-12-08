@@ -96,7 +96,7 @@ func RsyncSend(path string, conn *websocket.Conn) error {
 		return err
 	}
 
-	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, dataSocket)
+	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, dataSocket, nil, nil)
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
@@ -146,7 +146,7 @@ func RsyncRecv(path string, conn *websocket.Conn) error {
 		return err
 	}
 
-	readDone, writeDone := shared.WebsocketMirror(conn, stdin, stdout)
+	readDone, writeDone := shared.WebsocketMirror(conn, stdin, stdout, nil, nil)
 	data, err2 := ioutil.ReadAll(stderr)
 	if err2 != nil {
 		shared.LogDebugf("error reading rsync stderr: %s", err2)
