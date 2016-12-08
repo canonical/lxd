@@ -141,6 +141,7 @@ func (s *execWs) Do(op *operation) error {
 
 	controlExit := make(chan bool)
 	receivePid := make(chan int)
+	attachedChildIsDead := make(chan bool, 1)
 	var wgEOF sync.WaitGroup
 
 	if s.interactive {
@@ -206,13 +207,15 @@ func (s *execWs) Do(op *operation) error {
 				}
 			}
 		}()
+
 		go func() {
-			readDone, writeDone := shared.WebsocketMirror(s.conns[0], ptys[0], ptys[0])
+			readDone, writeDone := shared.WebsocketExecMirror(s.conns[0], ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 			<-readDone
 			<-writeDone
 			s.conns[0].Close()
 			wgEOF.Done()
 		}()
+
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
@@ -241,6 +244,8 @@ func (s *execWs) Do(op *operation) error {
 		} else {
 			s.conns[-1].Close()
 		}
+
+		attachedChildIsDead <- true
 
 		wgEOF.Wait()
 
