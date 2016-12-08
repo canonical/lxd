@@ -25,6 +25,7 @@ import (
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <poll.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -181,8 +182,49 @@ int shiftowner(char *basepath, char *path, int uid, int gid) {
 	close(fd);
 	return 0;
 }
+
+int get_poll_revents(int lfd, int timeout, int flags, int *revents, int *saved_errno)
+{
+	int ret;
+	struct pollfd pfd = {lfd, flags, 0};
+
+again:
+	ret = poll(&pfd, 1, timeout);
+	if (ret < 0) {
+		if (errno == EINTR)
+			goto again;
+
+		*saved_errno = errno;
+		fprintf(stderr, "Failed to poll() on file descriptor.\n");
+		return -1;
+	}
+
+	*revents = pfd.revents;
+
+	return ret;
+}
 */
 import "C"
+
+const POLLIN int = C.POLLIN
+const POLLPRI int = C.POLLPRI
+const POLLNVAL int = C.POLLNVAL
+const POLLERR int = C.POLLERR
+const POLLHUP int = C.POLLHUP
+const POLLRDHUP int = C.POLLRDHUP
+
+func GetPollRevents(fd int, timeout int, flags int) (int, int, error) {
+	var err error
+	revents := C.int(0)
+	saved_errno := C.int(0)
+
+	ret := C.get_poll_revents(C.int(fd), C.int(timeout), C.int(flags), &revents, &saved_errno)
+	if int(ret) < 0 {
+		err = syscall.Errno(saved_errno)
+	}
+
+	return int(ret), int(revents), err
+}
 
 func ShiftOwner(basepath string, path string, uid int, gid int) error {
 	cbasepath := C.CString(basepath)
