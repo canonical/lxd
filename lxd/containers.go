@@ -128,19 +128,6 @@ func containersRestart(d *Daemon) error {
 		}
 	}
 
-	// Reset the recorded state (to ensure it's up to date)
-	_, err = dbExec(d.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
-	if err != nil {
-		return err
-	}
-
-	for _, c := range containers {
-		err = c.ConfigKeySet("volatile.last_state.power", c.State())
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
