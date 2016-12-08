@@ -2511,10 +2511,10 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 		return err
 	}
 
-	// The old slurp file may be out of date (e.g. it doesn't have all the
+	// The old backup file may be out of date (e.g. it doesn't have all the
 	// current snapshots of the container listed); let's write a new one to
 	// be safe.
-	err = writeSlurpFile(c)
+	err = writeBackupFile(c)
 	if err != nil {
 		return err
 	}
@@ -2746,13 +2746,13 @@ func (c *containerLXC) ConfigKeySet(key string, value string) error {
 	return c.Update(args, false)
 }
 
-type slurpFile struct {
+type backupFile struct {
 	Container *shared.ContainerInfo  `yaml:"container"`
 	Snapshots []*shared.SnapshotInfo `yaml:"snapshots"`
 }
 
-func writeSlurpFile(c container) error {
-	/* we only write slurp files out for actual containers */
+func writeBackupFile(c container) error {
+	/* we only write backup files out for actual containers */
 	if c.IsSnapshot() {
 		return nil
 	}
@@ -2778,7 +2778,7 @@ func writeSlurpFile(c container) error {
 		sis = append(sis, si.(*shared.SnapshotInfo))
 	}
 
-	data, err := yaml.Marshal(&slurpFile{
+	data, err := yaml.Marshal(&backupFile{
 		Container: ci.(*shared.ContainerInfo),
 		Snapshots: sis,
 	})
@@ -3555,9 +3555,9 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 	/* we can call Update in some cases when the directory doesn't exist
 	 * yet before container creation; this is okay, because at the end of
-	 * container creation we write the slurp file, so let's not worry about
+	 * container creation we write the backup file, so let's not worry about
 	 * ENOENT. */
-	if err := writeSlurpFile(c); err != nil && !os.IsNotExist(err) {
+	if err := writeBackupFile(c); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 

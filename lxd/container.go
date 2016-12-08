@@ -566,7 +566,7 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 		return nil, err
 	}
 
-	err = writeSlurpFile(sourceContainer)
+	err = writeBackupFile(sourceContainer)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -694,7 +694,7 @@ func containerConfigureInternal(c container) error {
 		break
 	}
 
-	err := writeSlurpFile(c)
+	err := writeBackupFile(c)
 	if err != nil {
 		return err
 	}
