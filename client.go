@@ -2,7 +2,6 @@ package lxd
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -1638,10 +1637,10 @@ func (c *Client) ServerStatus() (*shared.ServerState, error) {
 
 	// Fill in certificate fingerprint if not provided
 	if ss.Environment.CertificateFingerprint == "" && ss.Environment.Certificate != "" {
-		pemCertificate, _ := pem.Decode([]byte(ss.Environment.Certificate))
-		if pemCertificate != nil {
-			digest := sha256.Sum256(pemCertificate.Bytes)
-			ss.Environment.CertificateFingerprint = fmt.Sprintf("%x", digest)
+		var err error
+		ss.Environment.CertificateFingerprint, err = shared.CertFingerprint(ss.Environment.Certificate)
+		if err != nil {
+			return nil, err
 		}
 	}
 
