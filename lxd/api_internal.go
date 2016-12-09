@@ -100,13 +100,13 @@ var internalReadyCmd = Command{name: "ready", put: internalReady, get: internalW
 var internalContainerOnStartCmd = Command{name: "containers/{id}/onstart", get: internalContainerOnStart}
 var internalContainerOnStopCmd = Command{name: "containers/{id}/onstop", get: internalContainerOnStop}
 
-func slurpSlurpFile(path string) (*slurpFile, error) {
+func slurpBackupFile(path string) (*backupFile, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	sf := slurpFile{}
+	sf := backupFile{}
 
 	if err := yaml.Unmarshal(data, &sf); err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	defer d.Storage.ContainerStop(name, path)
 
-	sf, err := slurpSlurpFile(shared.VarPath("containers", name, "backup.yaml"))
+	sf, err := slurpBackupFile(shared.VarPath("containers", name, "backup.yaml"))
 	if err != nil {
 		return SmartError(err)
 	}
