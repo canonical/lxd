@@ -4544,8 +4544,10 @@ func (c *containerLXC) insertUnixDevice(name string, m shared.Device) error {
 	}
 
 	dType := ""
-	if m["type"] != "" {
-		dType = m["type"]
+	if m["type"] == "unix-char" {
+		dType = "c"
+	} else if m["type"] == "unix-block" {
+		dType = "b"
 	}
 
 	if dType == "" || dMajor < 0 || dMinor < 0 {
