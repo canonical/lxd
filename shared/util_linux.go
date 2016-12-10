@@ -25,6 +25,7 @@ import (
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <poll.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -181,8 +182,24 @@ int shiftowner(char *basepath, char *path, int uid, int gid) {
 	close(fd);
 	return 0;
 }
+
+int fd_has_data(int lfd)
+{
+	struct pollfd pfd = {lfd, POLLIN, 0};
+	int ret;
+
+	ret = poll(&pfd, 1, 0);
+	if (ret < 0)
+		fprintf(stderr, "Failed to poll() on file descriptor.\n");
+
+	return ret;
+}
 */
 import "C"
+
+func FdHasData(fd int) int {
+	return int(C.fd_has_data(C.int(fd)))
+}
 
 func ShiftOwner(basepath string, path string, uid int, gid int) error {
 	cbasepath := C.CString(basepath)
