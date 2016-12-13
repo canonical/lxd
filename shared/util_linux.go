@@ -537,15 +537,12 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 	}
 
 	ch := make(chan ([]byte))
-	mutex := &sync.Mutex{}
-	chanClosed := false
-	onReturn := func() {
-		mutex.Lock()
-		if !chanClosed {
-			chanClosed = true
-			close(ch)
-		}
-		mutex.Unlock()
+
+	// Takes care that the closeChannel() function is exactly executed once.
+	// This allows us to avoid using a mutex.
+	var once sync.Once
+	closeChannel := func() {
+		close(ch)
 	}
 
 	// COMMENT(brauner):
@@ -577,7 +574,7 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 			}
 		} else if ret == 0 {
 			LogDebugf("No data in stdout: exiting.")
-			onReturn()
+			once.Do(closeChannel)
 			return
 		}
 	}()
@@ -588,7 +585,7 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 		buf := make([]byte, bufferSize)
 		avoidAtomicLoad := false
 
-		defer onReturn()
+		defer once.Do(closeChannel)
 		for {
 			nr := 0
 			var err error
