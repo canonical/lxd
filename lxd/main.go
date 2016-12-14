@@ -225,7 +225,7 @@ func run() error {
 		case "forkmigrate":
 			return cmdForkMigrate(os.Args[1:])
 		case "forkstart":
-			return startContainer(os.Args[1:])
+			return cmdForkStart(os.Args[1:])
 		case "forkexec":
 			ret, err := cmdForkExec(os.Args[1:])
 			if err != nil {
