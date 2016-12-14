@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -13,10 +12,6 @@ import (
 
 	"github.com/lxc/lxd/shared"
 )
-
-func certGenerateFingerprint(cert *x509.Certificate) string {
-	return fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
-}
 
 func certificatesGet(d *Daemon, r *http.Request) Response {
 	recursion := d.isRecursionRequest(r)
@@ -44,7 +39,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 
 	body := []string{}
 	for _, cert := range d.clientCerts {
-		fingerprint := fmt.Sprintf("/%s/certificates/%s", shared.APIVersion, certGenerateFingerprint(&cert))
+		fingerprint := fmt.Sprintf("/%s/certificates/%s", shared.APIVersion, shared.CertFingerprint(&cert))
 		body = append(body, fingerprint)
 	}
 
@@ -85,7 +80,7 @@ func readSavedClientCAList(d *Daemon) {
 
 func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 	baseCert := new(dbCertInfo)
-	baseCert.Fingerprint = certGenerateFingerprint(cert)
+	baseCert.Fingerprint = shared.CertFingerprint(cert)
 	baseCert.Type = 1
 	baseCert.Name = host
 	baseCert.Certificate = string(
@@ -141,9 +136,9 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
 
-	fingerprint := certGenerateFingerprint(cert)
+	fingerprint := shared.CertFingerprint(cert)
 	for _, existingCert := range d.clientCerts {
-		if fingerprint == certGenerateFingerprint(&existingCert) {
+		if fingerprint == shared.CertFingerprint(&existingCert) {
 			return BadRequest(fmt.Errorf("Certificate already in trust store"))
 		}
 	}
