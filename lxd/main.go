@@ -229,7 +229,7 @@ func run() error {
 			}
 			os.Exit(ret)
 		case "netcat":
-			return Netcat(os.Args[1:])
+			return cmdNetcat(os.Args[1:])
 		case "migratedumpsuccess":
 			return cmdMigrateDumpSuccess(os.Args[1:])
 		}
