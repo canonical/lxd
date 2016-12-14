@@ -1577,6 +1577,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	var usbs []usbDevice
 	var gpus []gpuDevice
 	var nvidiaDevices []nvidiaGpuDevices
+	diskDevices := map[string]shared.Device{}
 
 	// Create the devices
 	for _, k := range c.expandedDevices.DeviceNames() {
@@ -1662,12 +1663,8 @@ func (c *containerLXC) startCommon() (string, error) {
 				}
 			}
 		} else if m["type"] == "disk" {
-			// Disk device
 			if m["path"] != "/" {
-				_, err := c.createDiskDevice(k, m)
-				if err != nil {
-					return "", err
-				}
+				diskDevices[k] = m
 			}
 		} else if m["type"] == "nic" {
 			if m["nictype"] == "bridged" && shared.IsTrue(m["security.mac_filtering"]) {
@@ -1708,6 +1705,14 @@ func (c *containerLXC) startCommon() (string, error) {
 				}
 			}
 		}
+	}
+
+	err = c.addDiskDevices(diskDevices, func(name string, d shared.Device) error {
+		_, err := c.createDiskDevice(name, d)
+		return err
+	})
+	if err != nil {
+		return "", err
 	}
 
 	// Create any missing directory
@@ -3412,6 +3417,8 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			}
 		}
 
+		diskDevices := map[string]shared.Device{}
+
 		for k, m := range addDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 				err = c.insertUnixDevice(m)
@@ -3419,10 +3426,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					return err
 				}
 			} else if m["type"] == "disk" && m["path"] != "/" {
-				err = c.insertDiskDevice(k, m)
-				if err != nil {
-					return err
-				}
+				diskDevices[k] = m
 			} else if m["type"] == "nic" {
 				err = c.insertNetworkDevice(k, m)
 				if err != nil {
@@ -3495,6 +3499,11 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					}
 				}
 			}
+		}
+
+		err = c.addDiskDevices(diskDevices, c.insertDiskDevice)
+		if err != nil {
+			return err
 		}
 
 		updateDiskLimit := false
@@ -5702,6 +5711,38 @@ func (c *containerLXC) insertDiskDevice(name string, m shared.Device) error {
 	err = c.insertMount(devPath, tgtPath, "none", flags)
 	if err != nil {
 		return fmt.Errorf("Failed to add mount for device: %s", err)
+	}
+
+	return nil
+}
+
+type byPath []shared.Device
+
+func (a byPath) Len() int {
+	return len(a)
+}
+
+func (a byPath) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a byPath) Less(i, j int) bool {
+	return a[i]["path"] < a[j]["path"]
+}
+
+func (c *containerLXC) addDiskDevices(devices map[string]shared.Device, handler func(string, shared.Device) error) error {
+	ordered := byPath{}
+
+	for _, d := range devices {
+		ordered = append(ordered, d)
+	}
+
+	sort.Sort(ordered)
+	for _, d := range ordered {
+		err := handler(d["path"], d)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
