@@ -227,7 +227,7 @@ func run() error {
 		case "forkgetnet":
 			return cmdForkGetNet()
 		case "forkmigrate":
-			return MigrateContainer(os.Args[1:])
+			return cmdForkMigrate(os.Args[1:])
 		case "forkstart":
 			return startContainer(os.Args[1:])
 		case "forkexec":
