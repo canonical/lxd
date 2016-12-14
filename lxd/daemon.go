@@ -748,7 +748,10 @@ func (d *Daemon) Init() error {
 	d.lxcpath = shared.VarPath("containers")
 
 	/* Make sure all our directories are available */
-	if err := os.MkdirAll(shared.CachePath(), 0711); err != nil {
+	if err := os.MkdirAll(shared.VarPath(), 0711); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(shared.CachePath(), 0700); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(shared.VarPath("containers"), 0711); err != nil {
