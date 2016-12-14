@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -213,7 +212,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 
 	if certificate != nil {
 		if !acceptCert {
-			digest := sha256.Sum256(certificate.Raw)
+			digest := shared.CertFingerprint(certificate)
 
 			fmt.Printf(i18n.G("Certificate fingerprint: %x")+"\n", digest)
 			fmt.Printf(i18n.G("ok (y/n)?") + " ")
