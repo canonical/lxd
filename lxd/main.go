@@ -227,7 +227,7 @@ func run() error {
 		case "forkstart":
 			return startContainer(os.Args[1:])
 		case "forkexec":
-			ret, err := execContainer(os.Args[1:])
+			ret, err := cmdForkExec(os.Args[1:])
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			}
