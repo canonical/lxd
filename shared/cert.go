@@ -8,6 +8,7 @@ package shared
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -210,4 +211,22 @@ func ReadCert(fpath string) (*x509.Certificate, error) {
 	}
 
 	return x509.ParseCertificate(certBlock.Bytes)
+}
+
+func CertFingerprint(cert *x509.Certificate) string {
+	return fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
+}
+
+func CertFingerprintStr(c string) (string, error) {
+	pemCertificate, _ := pem.Decode([]byte(c))
+	if pemCertificate == nil {
+		return "", fmt.Errorf("invalid certificate")
+	}
+
+	cert, err := x509.ParseCertificate(pemCertificate.Bytes)
+	if err != nil {
+		return "", err
+	}
+
+	return CertFingerprint(cert), nil
 }
