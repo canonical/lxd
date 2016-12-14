@@ -1676,7 +1676,7 @@ func (c *Client) ServerStatus() (*shared.ServerState, error) {
 	// Fill in certificate fingerprint if not provided
 	if ss.Environment.CertificateFingerprint == "" && ss.Environment.Certificate != "" {
 		var err error
-		ss.Environment.CertificateFingerprint, err = shared.CertFingerprint(ss.Environment.Certificate)
+		ss.Environment.CertificateFingerprint, err = shared.CertFingerprintStr(ss.Environment.Certificate)
 		if err != nil {
 			return nil, err
 		}

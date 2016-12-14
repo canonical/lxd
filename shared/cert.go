@@ -213,12 +213,20 @@ func ReadCert(fpath string) (*x509.Certificate, error) {
 	return x509.ParseCertificate(certBlock.Bytes)
 }
 
-func CertFingerprint(c string) (string, error) {
+func CertFingerprint(cert *x509.Certificate) string {
+	return fmt.Sprintf("%x", sha256.Sum256(cert.Raw))
+}
+
+func CertFingerprintStr(c string) (string, error) {
 	pemCertificate, _ := pem.Decode([]byte(c))
-	if pemCertificate != nil {
-		digest := sha256.Sum256(pemCertificate.Bytes)
-		return fmt.Sprintf("%x", digest), nil
+	if pemCertificate == nil {
+		return "", fmt.Errorf("invalid certificate")
 	}
 
-	return "", fmt.Errorf("invalid certificate")
+	cert, err := x509.ParseCertificate(pemCertificate.Bytes)
+	if err != nil {
+		return "", err
+	}
+
+	return CertFingerprint(cert), nil
 }
