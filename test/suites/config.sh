@@ -79,6 +79,24 @@ testloopmounts() {
   sed -i "\|^${lpath}|d" "${TEST_DIR}/loops"
 }
 
+test_mount_order() {
+  mkdir -p "${TEST_DIR}/order/empty"
+  mkdir -p "${TEST_DIR}/order/full"
+  touch "${TEST_DIR}/order/full/filler"
+
+  # The idea here is that sometimes (depending on how golang randomizes the
+  # config) the empty dir will have the contents of full in it, but sometimes
+  # it won't depending on whether the devices below are processed in order or
+  # not. This should not be racy, and they should *always* be processed in path
+  # order, so the filler file should always be there.
+  lxc config device add foo order disk source="${TEST_DIR}/order" path=/mnt
+  lxc config device add foo orderFull disk source="${TEST_DIR}/order/full" path=/mnt/empty
+
+  lxc start foo
+  lxc exec foo -- cat /mnt/empty/filler
+  lxc stop foo --force
+}
+
 test_config_profiles() {
   ensure_import_testimage
 
@@ -184,6 +202,8 @@ test_config_profiles() {
   testunixdevs
 
   testloopmounts
+
+  test_mount_order
 
   lxc delete foo
 
