@@ -140,13 +140,14 @@ func (s *execWs) Do(op *operation) error {
 	}
 
 	controlExit := make(chan bool)
-	receivePid := make(chan int)
+	attachedChildIsBorn := make(chan int)
+	attachedChildIsDead := make(chan bool, 1)
 	var wgEOF sync.WaitGroup
 
 	if s.interactive {
 		wgEOF.Add(1)
 		go func() {
-			receivedPid := <-receivePid
+			attachedChildPid := <-attachedChildIsBorn
 			select {
 			case <-s.controlConnected:
 				break
@@ -198,21 +199,23 @@ func (s *execWs) Do(op *operation) error {
 						continue
 					}
 				} else if command.Command == "signal" {
-					if err := syscall.Kill(receivedPid, command.Signal); err != nil {
-						shared.LogDebugf("Failed forwarding signal '%s' to PID %d.", command.Signal, receivedPid)
+					if err := syscall.Kill(attachedChildPid, command.Signal); err != nil {
+						shared.LogDebugf("Failed forwarding signal '%s' to PID %d.", command.Signal, attachedChildPid)
 						continue
 					}
-					shared.LogDebugf("Forwarded signal '%s' to PID %d.", command.Signal, receivedPid)
+					shared.LogDebugf("Forwarded signal '%s' to PID %d.", command.Signal, attachedChildPid)
 				}
 			}
 		}()
+
 		go func() {
-			readDone, writeDone := shared.WebsocketMirror(s.conns[0], ptys[0], ptys[0])
+			readDone, writeDone := shared.WebsocketExecMirror(s.conns[0], ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 			<-readDone
 			<-writeDone
 			s.conns[0].Close()
 			wgEOF.Done()
 		}()
+
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
@@ -242,6 +245,8 @@ func (s *execWs) Do(op *operation) error {
 			s.conns[-1].Close()
 		}
 
+		attachedChildIsDead <- true
+
 		wgEOF.Wait()
 
 		for _, pty := range ptys {
@@ -263,7 +268,7 @@ func (s *execWs) Do(op *operation) error {
 	}
 
 	if s.interactive {
-		receivePid <- attachedPid
+		attachedChildIsBorn <- attachedPid
 	}
 
 	proc, err := os.FindProcess(pid)
