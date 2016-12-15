@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -89,10 +90,46 @@ func cmdForkExec(args []string) (int, error) {
 
 	opts.Env = env
 
-	status, err := c.RunCommandStatus(cmd, opts)
+	status, err := c.RunCommandNoWait(cmd, opts)
 	if err != nil {
 		return -1, fmt.Errorf("Failed running command: %q", err)
 	}
+	// Send the PID of the executing process.
+	w := os.NewFile(uintptr(3), "attachedPid")
+	defer w.Close()
 
-	return status >> 8, nil
+	err = json.NewEncoder(w).Encode(status)
+	if err != nil {
+		return -1, fmt.Errorf("Failed sending PID of executing command: %q", err)
+	}
+
+	proc, err := os.FindProcess(status)
+	if err != nil {
+		return -1, fmt.Errorf("Failed finding process: %q", err)
+	}
+
+	procState, err := proc.Wait()
+	if err != nil {
+		return -1, fmt.Errorf("Failed waiting on process %d: %q", status, err)
+	}
+
+	if procState.Success() {
+		return 0, nil
+	}
+
+	exCode, ok := procState.Sys().(syscall.WaitStatus)
+	if ok {
+		if exCode.Exited() {
+			return exCode.ExitStatus(), nil
+		}
+		// Backwards compatible behavior. Report success when we exited
+		// due to a signal. Otherwise this may break Jenkins, e.g. when
+		// lxc exec foo reboot receives SIGTERM and exCode.Exitstats()
+		// would report -1.
+		if exCode.Signaled() {
+			return 0, nil
+		}
+	}
+
+	return -1, fmt.Errorf("Command failed")
 }
