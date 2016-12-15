@@ -37,6 +37,7 @@ package main
 #include <alloca.h>
 #include <libgen.h>
 #include <ifaddrs.h>
+#include <grp.h>
 
 // This expects:
 //  ./lxd forkputfile /source/path <pid> /target/path
@@ -154,8 +155,8 @@ void attach_userns(int pid) {
 				_exit(1);
 			}
 
-			if (setuid(0) < 0) {
-				fprintf(stderr, "Failed setuid to container root user: %s\n", strerror(errno));
+			if (setgroups(0, NULL) < 0) {
+				fprintf(stderr, "Failed setgroups to container root groups: %s\n", strerror(errno));
 				_exit(1);
 			}
 
@@ -163,6 +164,12 @@ void attach_userns(int pid) {
 				fprintf(stderr, "Failed setgid to container root group: %s\n", strerror(errno));
 				_exit(1);
 			}
+
+			if (setuid(0) < 0) {
+				fprintf(stderr, "Failed setuid to container root user: %s\n", strerror(errno));
+				_exit(1);
+			}
+
 		}
 	}
 }
