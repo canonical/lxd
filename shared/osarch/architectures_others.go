@@ -1,6 +1,6 @@
 // +build !linux
 
-package shared
+package osarch
 
 func ArchitectureGetLocal() (string, error) {
 	return ArchitectureDefault, nil

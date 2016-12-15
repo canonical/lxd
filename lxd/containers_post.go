@@ -10,7 +10,9 @@ import (
 
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -139,7 +141,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 
 		hash = imgInfo.Fingerprint
 
-		architecture, err := shared.ArchitectureId(imgInfo.Architecture)
+		architecture, err := osarch.ArchitectureId(imgInfo.Architecture)
 		if err != nil {
 			architecture = 0
 		}
@@ -171,7 +173,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 }
 
 func createFromNone(d *Daemon, req *containerPostReq) Response {
-	architecture, err := shared.ArchitectureId(req.Architecture)
+	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
 		architecture = 0
 	}
@@ -207,7 +209,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		return NotImplemented
 	}
 
-	architecture, err := shared.ArchitectureId(req.Architecture)
+	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
 		architecture = 0
 	}
