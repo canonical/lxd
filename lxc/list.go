@@ -65,9 +65,9 @@ func (c *listCmd) showByDefault() bool {
 
 func (c *listCmd) usage() string {
 	return i18n.G(
-		`Lists the available resources.
+		`Lists the containers.
 
-lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]
+lxc list [<remote>:] [filters] [--format table|json] [-c <columns>] [--fast]
 
 The filters are:
 * A single keyword like "web" which will list any container with a name starting by "web".
