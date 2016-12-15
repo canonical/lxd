@@ -15,7 +15,7 @@ func (c *fingerCmd) usage() string {
 	return i18n.G(
 		`Check if the LXD instance is up.
 
-lxc finger <remote>`)
+lxc finger [<remote>:]`)
 }
 
 func (c *fingerCmd) flags() {}
