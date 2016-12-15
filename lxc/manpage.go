@@ -16,7 +16,7 @@ func (c *manpageCmd) showByDefault() bool {
 
 func (c *manpageCmd) usage() string {
 	return i18n.G(
-		`Prints all the subcommands help.`)
+		`Print all the subcommands help.`)
 }
 
 func (c *manpageCmd) flags() {
