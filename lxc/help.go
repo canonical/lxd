@@ -23,9 +23,9 @@ func (c *helpCmd) showByDefault() bool {
 
 func (c *helpCmd) usage() string {
 	return i18n.G(
-		`Presents details on how to use LXD.
+		`Help page for the LXD client.
 
-lxd help [--all]`)
+lxc help [--all]`)
 }
 
 func (c *helpCmd) flags() {
@@ -45,7 +45,7 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 		return nil
 	}
 
-	fmt.Println(i18n.G("Usage: lxc [subcommand] [options]"))
+	fmt.Println(i18n.G("Usage: lxc <command> [options]"))
 	fmt.Println(i18n.G("Available commands:"))
 	var names []string
 	for name := range commands {
@@ -61,14 +61,14 @@ func (c *helpCmd) run(_ *lxd.Config, args []string) error {
 	if !c.showAll {
 		fmt.Println()
 		fmt.Println(i18n.G("Options:"))
-		fmt.Println("  --all              " + i18n.G("Print less common commands."))
-		fmt.Println("  --debug            " + i18n.G("Print debug information."))
-		fmt.Println("  --verbose          " + i18n.G("Print verbose information."))
-		fmt.Println("  --version          " + i18n.G("Show client version."))
+		fmt.Println("  --all              " + i18n.G("Print less common commands"))
+		fmt.Println("  --debug            " + i18n.G("Print debug information"))
+		fmt.Println("  --verbose          " + i18n.G("Print verbose information"))
+		fmt.Println("  --version          " + i18n.G("Show client version"))
 		fmt.Println()
 		fmt.Println(i18n.G("Environment:"))
-		fmt.Println("  LXD_CONF           " + i18n.G("Path to an alternate client configuration directory."))
-		fmt.Println("  LXD_DIR            " + i18n.G("Path to an alternate server directory."))
+		fmt.Println("  LXD_CONF           " + i18n.G("Path to an alternate client configuration directory"))
+		fmt.Println("  LXD_DIR            " + i18n.G("Path to an alternate server directory"))
 	}
 	return nil
 }
