@@ -25,6 +25,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/simplestreams"
 )
 
 // Client can talk to a LXD daemon.
@@ -39,7 +40,7 @@ type Client struct {
 
 	Http            http.Client
 	websocketDialer websocket.Dialer
-	simplestreams   *shared.SimpleStreams
+	simplestreams   *simplestreams.SimpleStreams
 }
 
 type ResponseType string
@@ -316,7 +317,7 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 	}
 
 	if info.RemoteConfig.Protocol == "simplestreams" {
-		ss, err := shared.SimpleStreamsClient(c.Remote.Addr, shared.ProxyFromEnvironment)
+		ss, err := simplestreams.SimpleStreamsClient(c.Remote.Addr, shared.ProxyFromEnvironment)
 		if err != nil {
 			return nil, err
 		}
