@@ -375,22 +375,12 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 		return fmt.Errorf("Missing URL")
 	}
 
-	// Resolve the image URL
-	tlsConfig, err := shared.GetTLSConfig("", "", "", nil)
+	myhttp, err := d.httpClient("")
 	if err != nil {
 		return err
 	}
 
-	tr := &http.Transport{
-		TLSClientConfig: tlsConfig,
-		Dial:            shared.RFC3493Dialer,
-		Proxy:           d.proxy,
-	}
-
-	myhttp := http.Client{
-		Transport: tr,
-	}
-
+	// Resolve the image URL
 	head, err := http.NewRequest("HEAD", req.Source["url"], nil)
 	if err != nil {
 		return err
