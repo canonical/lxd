@@ -671,24 +671,29 @@ func networkKillDnsmasq(name string, reload bool) error {
 	return nil
 }
 
-func networkUpdateStatic(d *Daemon) error {
+func networkUpdateStatic(d *Daemon, name string) error {
 	// Get all the containers
 	containers, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return err
 	}
 
-	// Get all the networks
-	networks, err := dbNetworks(d.db)
-	if err != nil {
-		return err
+	networks := []string{}
+	if name == "" {
+		// Get all the networks
+		networks, err = dbNetworks(d.db)
+		if err != nil {
+			return err
+		}
+	} else {
+		networks = []string{name}
 	}
 
 	// Build a list of dhcp host entries
 	entries := map[string][][]string{}
-	for _, name := range containers {
+	for _, cName := range containers {
 		// Load the container
-		c, err := containerLoadByName(d, name)
+		c, err := containerLoadByName(d, cName)
 		if err != nil {
 			continue
 		}
@@ -712,7 +717,7 @@ func networkUpdateStatic(d *Daemon) error {
 				entries[d["parent"]] = [][]string{}
 			}
 
-			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], name, d["ipv4.address"], d["ipv6.address"]})
+			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], cName, d["ipv4.address"], d["ipv6.address"]})
 		}
 	}
 
@@ -741,7 +746,7 @@ func networkUpdateStatic(d *Daemon) error {
 			lines := []string{}
 			for _, entry := range entries {
 				hwaddr := entry[0]
-				name := entry[1]
+				cName := entry[1]
 				ipv4Address := entry[2]
 				ipv6Address := entry[3]
 
@@ -756,7 +761,7 @@ func networkUpdateStatic(d *Daemon) error {
 				}
 
 				if config["dns.mode"] == "" || config["dns.mode"] == "managed" {
-					line += fmt.Sprintf(",%s", name)
+					line += fmt.Sprintf(",%s", cName)
 				}
 
 				if line == hwaddr {
