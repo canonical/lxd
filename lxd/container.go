@@ -11,6 +11,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 // Helper functions
@@ -689,7 +690,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Validate architecture
-	_, err = shared.ArchitectureName(args.Architecture)
+	_, err = osarch.ArchitectureName(args.Architecture)
 	if err != nil {
 		return nil, err
 	}

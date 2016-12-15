@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 type ssSortImage []shared.ImageInfo
@@ -85,12 +86,12 @@ func (s *SimpleStreamsManifest) ToLXD() ([]shared.ImageInfo, map[string][][]stri
 
 	for _, product := range s.Products {
 		// Skip unsupported architectures
-		architecture, err := shared.ArchitectureId(product.Architecture)
+		architecture, err := osarch.ArchitectureId(product.Architecture)
 		if err != nil {
 			continue
 		}
 
-		architectureName, err := shared.ArchitectureName(architecture)
+		architectureName, err := osarch.ArchitectureName(architecture)
 		if err != nil {
 			continue
 		}
@@ -393,7 +394,7 @@ func (s *SimpleStreams) applyAliases(images []shared.ImageInfo) ([]shared.ImageI
 		return &shared.ImageAlias{Name: name}
 	}
 
-	architectureName, _ := shared.ArchitectureGetLocal()
+	architectureName, _ := osarch.ArchitectureGetLocal()
 
 	newImages := []shared.ImageInfo{}
 	for _, image := range images {
