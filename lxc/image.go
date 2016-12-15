@@ -110,19 +110,19 @@ Images can be referenced by their full hash, shortest unique partial
 hash or alias name (if one is set).
 
 
-lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--alias=ALIAS].. [prop=value]
+lxc image import <tarball> [<rootfs tarball>|<URL>] [<remote>:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--alias=ALIAS...] [prop=value]
     Import an image tarball (or tarballs) into the LXD image store.
 
-lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public] [--auto-update]
+lxc image copy [<remote>:]<image> <remote>: [--alias=ALIAS...] [--copy-aliases] [--public] [--auto-update]
     Copy an image from one LXD daemon to another over the network.
 
     The auto-update flag instructs the server to keep this image up to
     date. It requires the source to be an alias and for it to be public.
 
-lxc image delete [remote:]<image> [remote:][<image>...]
+lxc image delete [<remote>:]<image> [[<remote>:]<image>...]
     Delete one or more images from the LXD image store.
 
-lxc image export [remote:]<image> [target]
+lxc image export [<remote>:]<image> [target]
     Export an image from the LXD image store into a distributable tarball.
 
     The output target is optional and defaults to the working directory.
@@ -134,31 +134,30 @@ lxc image export [remote:]<image> [target]
     the appropriate extension will be appended to the provided file name
     based on the algorithm used to compress the image. 
 
-lxc image info [remote:]<image>
+lxc image info [<remote>:]<image>
     Print everything LXD knows about a given image.
 
-lxc image list [remote:] [filter] [--format table|json]
+lxc image list [<remote>:] [filter] [--format table|json]
     List images in the LXD image store. Filters may be of the
     <key>=<value> form for property based filtering, or part of the image
     hash or part of the image alias name.
 
-lxc image show [remote:]<image>
+lxc image show [<remote>:]<image>
     Yaml output of the user modifiable properties of an image.
 
-lxc image edit [remote:]<image>
+lxc image edit [<remote>:]<image>
     Edit image, either by launching external editor or reading STDIN.
     Example: lxc image edit <image> # launch editor
              cat image.yaml | lxc image edit <image> # read from image.yaml
 
-lxc image alias create [remote:]<alias> <fingerprint>
+lxc image alias create [<remote>:]<alias> <fingerprint>
     Create a new alias for an existing image.
 
-lxc image alias delete [remote:]<alias>
+lxc image alias delete [<remote>:]<alias>
     Delete an alias.
 
-lxc image alias list [remote:] [filter]
-    List the aliases. Filters may be part of the image hash or part of the image alias name.
-`)
+lxc image alias list [<remote>:] [filter]
+    List the aliases. Filters may be part of the image hash or part of the image alias name.`)
 }
 
 func (c *imageCmd) flags() {

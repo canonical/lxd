@@ -41,7 +41,7 @@ func (c *monitorCmd) usage() string {
 	return i18n.G(
 		`Monitor activity on the LXD server.
 
-lxc monitor [remote:] [--type=TYPE...]
+lxc monitor [<remote>:] [--type=TYPE...]
 
 Connects to the monitoring interface of the specified LXD server.
 
@@ -49,7 +49,7 @@ By default will listen to all message types.
 Specific types to listen to can be specified with --type.
 
 Example:
-lxc monitor --type=logging`)
+    lxc monitor --type=logging`)
 }
 
 func (c *monitorCmd) flags() {

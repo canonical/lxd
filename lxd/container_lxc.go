@@ -314,7 +314,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Update lease files
-	networkUpdateStatic(d)
+	networkUpdateStatic(d, "")
 
 	shared.LogInfo("Created container", ctxMap)
 
@@ -2630,7 +2630,7 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Update lease files
-	networkUpdateStatic(c.daemon)
+	networkUpdateStatic(c.daemon, "")
 
 	shared.LogInfo("Deleted container", ctxMap)
 
@@ -3608,7 +3608,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	if needsUpdate {
-		networkUpdateStatic(c.daemon)
+		networkUpdateStatic(c.daemon, "")
 	}
 
 	// Success, update the closure to mark that the changes should be kept.

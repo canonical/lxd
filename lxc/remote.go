@@ -37,13 +37,13 @@ func (c *remoteCmd) usage() string {
 	return i18n.G(
 		`Manage remote LXD servers.
 
-lxc remote add [<name>] <IP|FQDN|URL> [--accept-certificate] [--password=PASSWORD]
-                                      [--public] [--protocol=PROTOCOL]      Add the remote <name> at <url>.
-lxc remote remove <name>                                                    Remove the remote <name>.
+lxc remote add [<remote>] <IP|FQDN|URL> [--accept-certificate] [--password=PASSWORD]
+                                        [--public] [--protocol=PROTOCOL]    Add the remote <name> at <url>.
+lxc remote remove <remote>                                                  Remove the remote <name>.
 lxc remote list                                                             List all remotes.
-lxc remote rename <old> <new>                                               Rename remote <old> to <new>.
-lxc remote set-url <name> <url>                                             Update <name>'s url to <url>.
-lxc remote set-default <name>                                               Set the default remote.
+lxc remote rename <old name> <new name>                                     Rename remote <old> to <new>.
+lxc remote set-url <remote> <url>                                           Update <name>'s url to <url>.
+lxc remote set-default <remote>                                             Set the default remote.
 lxc remote get-default                                                      Print the default remote.`)
 }
 

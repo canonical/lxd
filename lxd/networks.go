@@ -1155,7 +1155,7 @@ func (n *network) Start() error {
 		}
 
 		// Update the static leases
-		err = networkUpdateStatic(n.daemon)
+		err = networkUpdateStatic(n.daemon, n.name)
 		if err != nil {
 			return err
 		}

@@ -48,24 +48,23 @@ func (c *networkCmd) usage() string {
 	return i18n.G(
 		`Manage networks.
 
-lxc network list                               List available networks.
-lxc network show <network>                     Show details of a network.
-lxc network create <network> [key=value]...    Create a network.
-lxc network get <network> <key>                Get network configuration.
-lxc network set <network> <key> <value>        Set network configuration.
-lxc network unset <network> <key>              Unset network configuration.
-lxc network delete <network>                   Delete a network.
-lxc network edit <network>
+lxc network list [<remote>:]                              List available networks.
+lxc network show [<remote>:]<network>                     Show details of a network.
+lxc network create [<remote>:]<network> [key=value...]    Create a network.
+lxc network get [<remote>:]<network> <key>                Get network configuration.
+lxc network set [<remote>:]<network> <key> <value>        Set network configuration.
+lxc network unset [<remote>:]<network> <key>              Unset network configuration.
+lxc network delete [<remote>:]<network>                   Delete a network.
+lxc network edit [<remote>:]<network>
     Edit network, either by launching external editor or reading STDIN.
     Example: lxc network edit <network> # launch editor
              cat network.yaml | lxc network edit <network> # read from network.yaml
 
-lxc network attach <network> <container> [device name]
-lxc network attach-profile <network> <profile> [device name]
+lxc network attach [<remote>:]<network> <container> [device name]
+lxc network attach-profile [<remote>:]<network> <profile> [device name]
 
-lxc network detach <network> <container> [device name]
-lxc network detach-profile <network> <container> [device name]
-`)
+lxc network detach [<remote>:]<network> <container> [device name]
+lxc network detach-profile [<remote>:]<network> <container> [device name]`)
 }
 
 func (c *networkCmd) flags() {}
