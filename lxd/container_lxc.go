@@ -25,6 +25,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -870,9 +871,9 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup architecture
-	personality, err := shared.ArchitecturePersonality(c.architecture)
+	personality, err := osarch.ArchitecturePersonality(c.architecture)
 	if err != nil {
-		personality, err = shared.ArchitecturePersonality(c.daemon.architectures[0])
+		personality, err = osarch.ArchitecturePersonality(c.daemon.architectures[0])
 		if err != nil {
 			return err
 		}
@@ -2380,7 +2381,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	}
 
 	// Ignore err as the arch string on error is correct (unknown)
-	architectureName, _ := shared.ArchitectureName(c.architecture)
+	architectureName, _ := osarch.ArchitectureName(c.architecture)
 
 	// Prepare the ETag
 	etag := []interface{}{c.architecture, c.localConfig, c.localDevices, c.ephemeral, c.profiles}
@@ -2882,7 +2883,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 	// Validate the new architecture
 	if args.Architecture != 0 {
-		_, err = shared.ArchitectureName(args.Architecture)
+		_, err = osarch.ArchitectureName(args.Architecture)
 		if err != nil {
 			return fmt.Errorf("Invalid architecture id: %s", err)
 		}
@@ -3694,13 +3695,13 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 				return err
 			}
 
-			arch, _ = shared.ArchitectureName(parent.Architecture())
+			arch, _ = osarch.ArchitectureName(parent.Architecture())
 		} else {
-			arch, _ = shared.ArchitectureName(c.architecture)
+			arch, _ = osarch.ArchitectureName(c.architecture)
 		}
 
 		if arch == "" {
-			arch, err = shared.ArchitectureName(c.daemon.architectures[0])
+			arch, err = osarch.ArchitectureName(c.daemon.architectures[0])
 			if err != nil {
 				shared.LogError("Failed exporting container", ctxMap)
 				return err
@@ -4118,9 +4119,9 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		}
 
 		// Figure out the architecture
-		arch, err := shared.ArchitectureName(c.architecture)
+		arch, err := osarch.ArchitectureName(c.architecture)
 		if err != nil {
-			arch, err = shared.ArchitectureName(c.daemon.architectures[0])
+			arch, err = osarch.ArchitectureName(c.daemon.architectures[0])
 			if err != nil {
 				return err
 			}

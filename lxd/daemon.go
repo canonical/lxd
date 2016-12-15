@@ -32,6 +32,7 @@ import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
+	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -712,18 +713,18 @@ func (d *Daemon) Init() error {
 	/* Get the list of supported architectures */
 	var architectures = []int{}
 
-	architectureName, err := shared.ArchitectureGetLocal()
+	architectureName, err := osarch.ArchitectureGetLocal()
 	if err != nil {
 		return err
 	}
 
-	architecture, err := shared.ArchitectureId(architectureName)
+	architecture, err := osarch.ArchitectureId(architectureName)
 	if err != nil {
 		return err
 	}
 	architectures = append(architectures, architecture)
 
-	personalities, err := shared.ArchitecturePersonalities(architecture)
+	personalities, err := osarch.ArchitecturePersonalities(architecture)
 	if err != nil {
 		return err
 	}

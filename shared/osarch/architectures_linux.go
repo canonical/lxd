@@ -1,6 +1,6 @@
 // +build linux
 
-package shared
+package osarch
 
 import (
 	"syscall"

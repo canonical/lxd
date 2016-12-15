@@ -24,6 +24,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
+	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -319,7 +320,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		return info, err
 	}
 
-	info.Architecture, _ = shared.ArchitectureName(c.Architecture())
+	info.Architecture, _ = osarch.ArchitectureName(c.Architecture())
 	info.Properties = req.Properties
 
 	return info, nil
@@ -804,7 +805,7 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 		return nil, fmt.Errorf("Could not parse %s: %v", metadataName, err)
 	}
 
-	_, err = shared.ArchitectureId(metadata.Architecture)
+	_, err = osarch.ArchitectureId(metadata.Architecture)
 	if err != nil {
 		return nil, err
 	}
