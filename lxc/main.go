@@ -37,10 +37,10 @@ func main() {
 }
 
 func run() error {
-	verbose := gnuflag.Bool("verbose", false, i18n.G("Enables verbose mode."))
-	debug := gnuflag.Bool("debug", false, i18n.G("Enables debug mode."))
-	forceLocal := gnuflag.Bool("force-local", false, i18n.G("Force using the local unix socket."))
-	noAlias := gnuflag.Bool("no-alias", false, i18n.G("Ignore aliases when determining what command to run."))
+	verbose := gnuflag.Bool("verbose", false, i18n.G("Enable verbose mode"))
+	debug := gnuflag.Bool("debug", false, i18n.G("Enable debug mode"))
+	forceLocal := gnuflag.Bool("force-local", false, i18n.G("Force using the local unix socket"))
+	noAlias := gnuflag.Bool("no-alias", false, i18n.G("Ignore aliases when determining what command to run"))
 
 	configDir := "$HOME/.config/lxc"
 	if os.Getenv("LXD_CONF") != "" {
