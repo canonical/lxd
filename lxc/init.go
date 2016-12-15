@@ -73,7 +73,7 @@ func (c *initCmd) usage() string {
 	return i18n.G(
 		`Initialize a container from a particular image.
 
-lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
+lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
 
 Initializes a container using the specified image and name.
 
@@ -81,7 +81,7 @@ Not specifying -p will result in the default profile.
 Specifying "-p" with no argument will result in no profile.
 
 Example:
-lxc init ubuntu u1`)
+    lxc init ubuntu u1`)
 }
 
 func (c *initCmd) is_ephem(s string) bool {
