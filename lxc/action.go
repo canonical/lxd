@@ -31,19 +31,19 @@ func (c *actionCmd) usage() string {
 	}
 
 	return fmt.Sprintf(i18n.G(
-		`Changes state of one or more containers to %s.
+		`Change state of one or more containers to %s.
 
-lxc %s <name> [<name>...]%s`), c.name, c.name, c.additionalHelp)
+lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s`), c.name, c.name, c.additionalHelp)
 }
 
 func (c *actionCmd) flags() {
 	if c.hasTimeout {
-		gnuflag.IntVar(&c.timeout, "timeout", -1, i18n.G("Time to wait for the container before killing it."))
-		gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the container to shutdown."))
-		gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the container to shutdown."))
+		gnuflag.IntVar(&c.timeout, "timeout", -1, i18n.G("Time to wait for the container before killing it"))
+		gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the container to shutdown"))
+		gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the container to shutdown"))
 	}
-	gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Store the container state (only for stop)."))
-	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Ignore the container state (only for start)."))
+	gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Store the container state (only for stop)"))
+	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Ignore the container state (only for start)"))
 }
 
 func (c *actionCmd) run(config *lxd.Config, args []string) error {
