@@ -26,10 +26,10 @@ func (c *infoCmd) usage() string {
 		`List information on LXD servers and containers.
 
 For a container:
- lxc info [<remote>:]container [--show-log]
+    lxc info [<remote:>]<container> [--show-log]
 
 For a server:
- lxc info [<remote>:]`)
+    lxc info [<remote:>]`)
 }
 
 func (c *infoCmd) flags() {
