@@ -67,7 +67,12 @@ func imageLoadStreamCache(d *Daemon) error {
 
 	for url, entry := range imageStreamCache {
 		if entry.ss == nil {
-			ss, err := simplestreams.SimpleStreamsClient(url, d.proxy)
+			myhttp, err := d.httpClient("")
+			if err != nil {
+				return err
+			}
+
+			ss, err := simplestreams.NewClient(url, *myhttp)
 			if err != nil {
 				return err
 			}
@@ -99,7 +104,12 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		if entry == nil || entry.expiry.Before(time.Now()) {
 			refresh := func() (*imageStreamCacheEntry, error) {
 				// Setup simplestreams client
-				ss, err = simplestreams.SimpleStreamsClient(server, d.proxy)
+				myhttp, err := d.httpClient(certificate)
+				if err != nil {
+					return nil, err
+				}
+
+				ss, err = simplestreams.NewClient(server, *myhttp)
 				if err != nil {
 					return nil, err
 				}
