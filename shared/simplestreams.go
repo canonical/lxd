@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/lxc/lxd/shared/ioprogress"
 )
 
 type ssSortImage []ImageInfo
@@ -535,9 +537,9 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 			return fmt.Errorf("invalid simplestreams source: got %d looking for %s", resp.StatusCode, path)
 		}
 
-		body := &ProgressReader{
+		body := &ioprogress.ProgressReader{
 			ReadCloser: resp.Body,
-			Tracker: &ProgressTracker{
+			Tracker: &ioprogress.ProgressTracker{
 				Length:  resp.ContentLength,
 				Handler: progress,
 			},
