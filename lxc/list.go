@@ -66,9 +66,9 @@ func (c *listCmd) showByDefault() bool {
 
 func (c *listCmd) usage() string {
 	return i18n.G(
-		`Lists the available resources.
+		`Lists the containers.
 
-lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]
+lxc list [<remote>:] [filters] [--format table|json] [-c <columns>] [--fast]
 
 The filters are:
 * A single keyword like "web" which will list any container with a name starting by "web".
@@ -113,8 +113,8 @@ Config key syntax: key[:name][:maxWidth]
 Default column layout: ns46tS
 Fast column layout: nsacPt
 
-Example: lxc list -c n,volatile.base_image:"BASE IMAGE":0,s46,volatile.eth0.hwaddr:MAC
-`)
+Example:
+    lxc list -c n,volatile.base_image:"BASE IMAGE":0,s46,volatile.eth0.hwaddr:MAC`)
 }
 
 func (c *listCmd) flags() {

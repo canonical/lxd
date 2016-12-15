@@ -25,16 +25,16 @@ func (c *deleteCmd) usage() string {
 	return i18n.G(
 		`Delete containers or snapshots.
 
-lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/<snapshot>]...]
+lxc delete [<remote>:]<container>[/<snapshot>] [[<remote>:]<container>[/<snapshot>]...]
 
 Destroy containers or snapshots with any attached data (configuration, snapshots, ...).`)
 }
 
 func (c *deleteCmd) flags() {
-	gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the removal of stopped containers."))
-	gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the removal of stopped containers."))
-	gnuflag.BoolVar(&c.interactive, "i", false, i18n.G("Require user confirmation."))
-	gnuflag.BoolVar(&c.interactive, "interactive", false, i18n.G("Require user confirmation."))
+	gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the removal of stopped containers"))
+	gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the removal of stopped containers"))
+	gnuflag.BoolVar(&c.interactive, "i", false, i18n.G("Require user confirmation"))
+	gnuflag.BoolVar(&c.interactive, "interactive", false, i18n.G("Require user confirmation"))
 }
 
 func (c *deleteCmd) promptDelete(name string) error {
