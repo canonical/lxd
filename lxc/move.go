@@ -16,12 +16,14 @@ func (c *moveCmd) usage() string {
 	return i18n.G(
 		`Move containers within or in between lxd instances.
 
-lxc move [remote:]<source container> [remote:]<destination container>
+lxc move [<remote>:]<source container> [<remote>:][<destination container>]
     Move a container between two hosts, renaming it if destination name differs.
 
 lxc move <old name> <new name>
     Rename a local container.
-`)
+
+lxc move <container>/<old snapshot name> <container>/<new snapshot name>
+    Rename a snapshot.`)
 }
 
 func (c *moveCmd) flags() {}
