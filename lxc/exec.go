@@ -45,13 +45,13 @@ func (c *execCmd) usage() string {
 	return i18n.G(
 		`Execute the specified command in a container.
 
-lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... [--] <command line>
+lxc exec [<remote>:]<container> [--mode=auto|interactive|non-interactive] [--env KEY=VALUE...] [--] <command line>
 
 Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`)
 }
 
 func (c *execCmd) flags() {
-	gnuflag.Var(&c.envArgs, "env", i18n.G("An environment variable of the form HOME=/home/foo"))
+	gnuflag.Var(&c.envArgs, "env", i18n.G("Environment variable to set (e.g. HOME=/home/foo)"))
 	gnuflag.StringVar(&c.modeFlag, "mode", "auto", i18n.G("Override the terminal mode (auto, interactive or non-interactive)"))
 }
 
