@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/ioprogress"
 )
 
 // Client can talk to a LXD daemon.
@@ -1006,9 +1007,9 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 			return "", err
 		}
 
-		progress := &shared.ProgressReader{
+		progress := &ioprogress.ProgressReader{
 			ReadCloser: body,
-			Tracker: &shared.ProgressTracker{
+			Tracker: &ioprogress.ProgressTracker{
 				Length:  size,
 				Handler: progressHandler,
 			},
@@ -1028,9 +1029,9 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 			return "", err
 		}
 
-		progress := &shared.ProgressReader{
+		progress := &ioprogress.ProgressReader{
 			ReadCloser: fImage,
-			Tracker: &shared.ProgressTracker{
+			Tracker: &ioprogress.ProgressTracker{
 				Length:  stat.Size(),
 				Handler: progressHandler,
 			},

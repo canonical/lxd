@@ -16,6 +16,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/ioprogress"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -359,9 +360,9 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		ctype = "application/octet-stream"
 	}
 
-	body := &shared.ProgressReader{
+	body := &ioprogress.ProgressReader{
 		ReadCloser: raw.Body,
-		Tracker: &shared.ProgressTracker{
+		Tracker: &ioprogress.ProgressTracker{
 			Length:  raw.ContentLength,
 			Handler: progress,
 		},
