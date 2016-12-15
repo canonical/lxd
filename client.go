@@ -317,7 +317,20 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 	}
 
 	if info.RemoteConfig.Protocol == "simplestreams" {
-		ss, err := simplestreams.SimpleStreamsClient(c.Remote.Addr, shared.ProxyFromEnvironment)
+		tlsconfig, err := shared.GetTLSConfig("", "", nil)
+		if err != nil {
+			return nil, err
+		}
+
+		tr := &http.Transport{
+			TLSClientConfig:   tlsconfig,
+			Dial:              shared.RFC3493Dialer,
+			Proxy:             shared.ProxyFromEnvironment,
+			DisableKeepAlives: true,
+		}
+		c.Http.Transport = tr
+
+		ss, err := simplestreams.NewClient(c.Remote.Addr, c.Http)
 		if err != nil {
 			return nil, err
 		}
