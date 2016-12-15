@@ -30,13 +30,20 @@ func (c *fileCmd) showByDefault() bool {
 
 func (c *fileCmd) usage() string {
 	return i18n.G(
-		`Manage files on a container.
+		`Manage files in a container.
 
-lxc file pull <source> [<source>...] <target>
-lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>
-lxc file edit <file>
+lxc file pull [<remote>:]<container> [[<remote>:]<container>...] <target path>
+lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source path> [<source path>...] [<remote>:]<container>
+lxc file edit [<remote>:]<container>/<path>
 
-<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>`)
+<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>
+
+Examples:
+To push /etc/hosts into the container foo:
+    lxc file push /etc/hosts foo/etc/hosts
+
+To pull /etc/hosts from the container:
+    lxc file pull foo/etc/hosts .`)
 }
 
 func (c *fileCmd) flags() {
