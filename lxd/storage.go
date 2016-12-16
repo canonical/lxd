@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logging"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -273,7 +274,7 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 	return newStorageWithConfig(d, storageType, config)
 }
 
-func storageForImage(d *Daemon, imgInfo *shared.ImageInfo) (storage, error) {
+func storageForImage(d *Daemon, imgInfo *api.Image) (storage, error) {
 	imageFilename := shared.VarPath("images", imgInfo.Fingerprint)
 	return storageForFilename(d, imageFilename)
 }

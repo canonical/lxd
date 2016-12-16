@@ -23,6 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
@@ -208,14 +209,6 @@ type templateEntry struct {
 	Properties map[string]string `yaml:"properties"`
 }
 
-type imagePostReq struct {
-	Filename   string            `json:"filename"`
-	Public     bool              `json:"public"`
-	Source     map[string]string `json:"source"`
-	Properties map[string]string `json:"properties"`
-	AutoUpdate bool              `json:"auto_update"`
-}
-
 type imageMetadata struct {
 	Architecture string                    `yaml:"architecture"`
 	CreationDate int64                     `yaml:"creation_date"`
@@ -228,8 +221,8 @@ type imageMetadata struct {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
-	builddir string) (info shared.ImageInfo, err error) {
+func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost,
+	builddir string) (info api.Image, err error) {
 
 	info.Properties = map[string]string{}
 	name := req.Source["name"]
@@ -319,7 +312,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 	return info, nil
 }
 
-func imgPostRemoteInfo(d *Daemon, req imagePostReq, op *operation) error {
+func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) error {
 	var err error
 	var hash string
 
@@ -348,7 +341,7 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq, op *operation) error {
 
 	// Update the DB record if needed
 	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-		err = dbImageUpdate(d.db, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreationDate, info.ExpiryDate, info.Properties)
+		err = dbImageUpdate(d.db, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 		if err != nil {
 			return err
 		}
@@ -362,7 +355,7 @@ func imgPostRemoteInfo(d *Daemon, req imagePostReq, op *operation) error {
 	return nil
 }
 
-func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
+func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) error {
 	var err error
 
 	if req.Source["url"] == "" {
@@ -421,7 +414,7 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 	}
 
 	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-		err = dbImageUpdate(d.db, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreationDate, info.ExpiryDate, info.Properties)
+		err = dbImageUpdate(d.db, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 		if err != nil {
 			return err
 		}
@@ -436,7 +429,7 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 }
 
 func getImgPostInfo(d *Daemon, r *http.Request,
-	builddir string, post *os.File) (info shared.ImageInfo, err error) {
+	builddir string, post *os.File) (info api.Image, err error) {
 
 	var imageMeta *imageMetadata
 	logger := logging.AddContext(shared.Log, log.Ctx{"function": "getImgPostInfo"})
@@ -610,8 +603,8 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 	}
 
 	info.Architecture = imageMeta.Architecture
-	info.CreationDate = time.Unix(imageMeta.CreationDate, 0)
-	info.ExpiryDate = time.Unix(imageMeta.ExpiryDate, 0)
+	info.CreatedAt = time.Unix(imageMeta.CreationDate, 0)
+	info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
 
 	info.Properties = imageMeta.Properties
 	if len(propHeaders) > 0 {
@@ -626,7 +619,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 	return info, nil
 }
 
-func imageBuildFromInfo(d *Daemon, info shared.ImageInfo) (metadata map[string]string, err error) {
+func imageBuildFromInfo(d *Daemon, info api.Image) (metadata map[string]string, err error) {
 	err = d.Storage.ImageCreate(info.Fingerprint)
 	if err != nil {
 		os.Remove(shared.VarPath("images", info.Fingerprint))
@@ -643,8 +636,8 @@ func imageBuildFromInfo(d *Daemon, info shared.ImageInfo) (metadata map[string]s
 		info.Public,
 		info.AutoUpdate,
 		info.Architecture,
-		info.CreationDate,
-		info.ExpiryDate,
+		info.CreatedAt,
+		info.ExpiresAt,
 		info.Properties)
 	if err != nil {
 		return metadata, err
@@ -694,7 +687,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	decoder := json.NewDecoder(post)
 	imageUpload := false
 
-	req := imagePostReq{}
+	req := api.ImagesPost{}
 	err = decoder.Decode(&req)
 	if err != nil {
 		if r.Header.Get("Content-Type") == "application/json" {
@@ -710,7 +703,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	// Begin background operation
 	run := func(op *operation) error {
-		var info shared.ImageInfo
+		var info api.Image
 
 		// Setup the cleanup function
 		defer cleanup(builddir, post)
@@ -817,7 +810,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 	}
 
 	resultString := make([]string, len(results))
-	resultMap := make([]*shared.ImageInfo, len(results))
+	resultMap := make([]*api.Image, len(results))
 	i := 0
 	for _, name := range results {
 		if !recursion {
@@ -895,7 +888,7 @@ func autoUpdateImages(d *Daemon) {
 			continue
 		}
 
-		err = dbImageLastAccessUpdate(d.db, hash, info.LastUsedDate)
+		err = dbImageLastAccessUpdate(d.db, hash, info.LastUsedAt)
 		if err != nil {
 			shared.LogError("Error setting last use date", log.Ctx{"err": err, "fp": hash})
 			continue
@@ -999,7 +992,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func doImageGet(d *Daemon, fingerprint string, public bool) (*shared.ImageInfo, Response) {
+func doImageGet(d *Daemon, fingerprint string, public bool) (*api.Image, Response) {
 	_, imgInfo, err := dbImageGet(d.db, fingerprint, public, false)
 	if err != nil {
 		return nil, SmartError(err)
@@ -1055,16 +1048,10 @@ func imageGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, info)
 }
 
-type imagePutReq struct {
-	Properties map[string]string `json:"properties"`
-	Public     bool              `json:"public"`
-	AutoUpdate bool              `json:"auto_update"`
-}
-
 func imagePut(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	req := imagePutReq{}
+	req := api.ImagePut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
@@ -1074,7 +1061,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = dbImageUpdate(d.db, id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreationDate, info.ExpiryDate, req.Properties)
+	err = dbImageUpdate(d.db, id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1084,19 +1071,8 @@ func imagePut(d *Daemon, r *http.Request) Response {
 
 var imageCmd = Command{name: "images/{fingerprint}", untrustedGet: true, get: imageGet, put: imagePut, delete: imageDelete}
 
-type aliasPostReq struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Target      string `json:"target"`
-}
-
-type aliasPutReq struct {
-	Description string `json:"description"`
-	Target      string `json:"target"`
-}
-
 func aliasesPost(d *Daemon, r *http.Request) Response {
-	req := aliasPostReq{}
+	req := api.ImageAliasesPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
@@ -1136,7 +1112,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 	responseStr := []string{}
-	responseMap := shared.ImageAliases{}
+	responseMap := []api.ImageAliasesEntry{}
 	for _, res := range results {
 		name = res[0].(string)
 		if !recursion {
@@ -1188,7 +1164,7 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 func aliasPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	req := aliasPutReq{}
+	req := api.ImageAliasesEntryPut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
@@ -1218,7 +1194,7 @@ func aliasPut(d *Daemon, r *http.Request) Response {
 func aliasPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	req := aliasPostReq{}
+	req := api.ImageAliasesEntryPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}

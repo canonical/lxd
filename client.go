@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/simplestreams"
 	"github.com/lxc/lxd/shared/version"
@@ -1122,7 +1123,7 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 	return fingerprint, nil
 }
 
-func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
+func (c *Client) GetImageInfo(image string) (*api.Image, error) {
 	if c.Remote.Protocol == "simplestreams" && c.simplestreams != nil {
 		return c.simplestreams.GetImageInfo(image)
 	}
@@ -1132,7 +1133,7 @@ func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
 		return nil, err
 	}
 
-	info := shared.ImageInfo{}
+	info := api.Image{}
 	if err := json.Unmarshal(resp.Metadata, &info); err != nil {
 		return nil, err
 	}
@@ -1140,7 +1141,7 @@ func (c *Client) GetImageInfo(image string) (*shared.ImageInfo, error) {
 	return &info, nil
 }
 
-func (c *Client) PutImageInfo(name string, p shared.BriefImageInfo) error {
+func (c *Client) PutImageInfo(name string, p api.ImagePut) error {
 	if c.Remote.Public {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1149,7 +1150,7 @@ func (c *Client) PutImageInfo(name string, p shared.BriefImageInfo) error {
 	return err
 }
 
-func (c *Client) ListImages() ([]shared.ImageInfo, error) {
+func (c *Client) ListImages() ([]api.Image, error) {
 	if c.Remote.Protocol == "simplestreams" && c.simplestreams != nil {
 		return c.simplestreams.ListImages()
 	}
@@ -1159,7 +1160,7 @@ func (c *Client) ListImages() ([]shared.ImageInfo, error) {
 		return nil, err
 	}
 
-	var result []shared.ImageInfo
+	var result []api.Image
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
 	}
@@ -1201,7 +1202,7 @@ func (c *Client) DeleteAlias(alias string) error {
 	return err
 }
 
-func (c *Client) ListAliases() (shared.ImageAliases, error) {
+func (c *Client) ListAliases() ([]api.ImageAliasesEntry, error) {
 	if c.Remote.Protocol == "simplestreams" && c.simplestreams != nil {
 		return c.simplestreams.ListAliases()
 	}
@@ -1211,7 +1212,7 @@ func (c *Client) ListAliases() (shared.ImageAliases, error) {
 		return nil, err
 	}
 
-	var result shared.ImageAliases
+	var result []api.ImageAliasesEntry
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
@@ -1294,7 +1295,7 @@ func (c *Client) GetAlias(alias string) string {
 		return ""
 	}
 
-	var result shared.ImageAliasesEntry
+	var result api.ImageAliasesEntry
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return ""
 	}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
@@ -351,12 +352,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		fmt.Printf(i18n.G("Public: %s")+"\n", public)
 		fmt.Printf(i18n.G("Timestamps:") + "\n")
 		const layout = "2006/01/02 15:04 UTC"
-		if info.CreationDate.UTC().Unix() != 0 {
-			fmt.Printf("    "+i18n.G("Created: %s")+"\n", info.CreationDate.UTC().Format(layout))
+		if info.CreatedAt.UTC().Unix() != 0 {
+			fmt.Printf("    "+i18n.G("Created: %s")+"\n", info.CreatedAt.UTC().Format(layout))
 		}
-		fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", info.UploadDate.UTC().Format(layout))
-		if info.ExpiryDate.UTC().Unix() != 0 {
-			fmt.Printf("    "+i18n.G("Expires: %s")+"\n", info.ExpiryDate.UTC().Format(layout))
+		fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", info.UploadedAt.UTC().Format(layout))
+		if info.ExpiresAt.UTC().Unix() != 0 {
+			fmt.Printf("    "+i18n.G("Expires: %s")+"\n", info.ExpiresAt.UTC().Format(layout))
 		} else {
 			fmt.Printf("    " + i18n.G("Expires: never") + "\n")
 		}
@@ -374,11 +375,11 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			fmt.Printf("    - %s\n", alias.Name)
 		}
 		fmt.Printf(i18n.G("Auto update: %s")+"\n", autoUpdate)
-		if info.Source != nil {
+		if info.UpdateSource != nil {
 			fmt.Println(i18n.G("Source:"))
-			fmt.Printf("    Server: %s\n", info.Source.Server)
-			fmt.Printf("    Protocol: %s\n", info.Source.Protocol)
-			fmt.Printf("    Alias: %s\n", info.Source.Alias)
+			fmt.Printf("    Server: %s\n", info.UpdateSource.Server)
+			fmt.Printf("    Protocol: %s\n", info.UpdateSource.Protocol)
+			fmt.Printf("    Alias: %s\n", info.UpdateSource.Alias)
 		}
 		return nil
 
@@ -558,7 +559,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		properties := info.Brief()
+		properties := info.Writable()
 
 		data, err := yaml.Marshal(&properties)
 		fmt.Printf("%s", data)
@@ -577,7 +578,7 @@ func (c *imageCmd) dereferenceAlias(d *lxd.Client, inName string) string {
 	return result
 }
 
-func (c *imageCmd) shortestAlias(list []shared.ImageAlias) string {
+func (c *imageCmd) shortestAlias(list []api.ImageAlias) string {
 	shortest := ""
 	for _, l := range list {
 		if shortest == "" {
@@ -601,7 +602,7 @@ func (c *imageCmd) findDescription(props map[string]string) string {
 	return ""
 }
 
-func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error {
+func (c *imageCmd) showImages(images []api.Image, filters []string) error {
 	data := [][]string{}
 	for _, image := range images {
 		if !c.imageShouldShow(filters, &image) {
@@ -621,7 +622,7 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 		}
 
 		const layout = "Jan 2, 2006 at 3:04pm (MST)"
-		uploaded := image.UploadDate.UTC().Format(layout)
+		uploaded := image.UploadedAt.UTC().Format(layout)
 		size := fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
 		data = append(data, []string{shortest, fp, public, description, image.Architecture, size, uploaded})
 	}
@@ -645,7 +646,7 @@ func (c *imageCmd) showImages(images []shared.ImageInfo, filters []string) error
 	return nil
 }
 
-func (c *imageCmd) showAliases(aliases shared.ImageAliases, filters []string) error {
+func (c *imageCmd) showAliases(aliases []api.ImageAliasesEntry, filters []string) error {
 	data := [][]string{}
 	for _, alias := range aliases {
 		if !c.aliasShouldShow(filters, &alias) {
@@ -678,7 +679,7 @@ func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 			return err
 		}
 
-		newdata := shared.BriefImageInfo{}
+		newdata := api.ImagePut{}
 		err = yaml.Unmarshal(contents, &newdata)
 		if err != nil {
 			return err
@@ -692,7 +693,7 @@ func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 		return err
 	}
 
-	brief := config.Brief()
+	brief := config.Writable()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err
@@ -706,7 +707,7 @@ func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 
 	for {
 		// Parse the text received from the editor
-		newdata := shared.BriefImageInfo{}
+		newdata := api.ImagePut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
 			err = client.PutImageInfo(image, newdata)
@@ -733,7 +734,7 @@ func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 	return nil
 }
 
-func (c *imageCmd) imageShouldShow(filters []string, state *shared.ImageInfo) bool {
+func (c *imageCmd) imageShouldShow(filters []string, state *api.Image) bool {
 	if len(filters) == 0 {
 		return true
 	}
@@ -792,7 +793,7 @@ func (c *imageCmd) imageShouldShow(filters []string, state *shared.ImageInfo) bo
 	return true
 }
 
-func (c *imageCmd) aliasShouldShow(filters []string, state *shared.ImageAliasesEntry) bool {
+func (c *imageCmd) aliasShouldShow(filters []string, state *api.ImageAliasesEntry) bool {
 	if len(filters) == 0 {
 		return true
 	}
