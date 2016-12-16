@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -89,7 +90,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 			return InternalError(err)
 		}
 
-		var image *shared.ImageInfo
+		var image *api.Image
 
 		for _, hash := range hashes {
 			_, img, err := dbImageGet(d.db, hash, false, true)
@@ -97,7 +98,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 				continue
 			}
 
-			if image != nil && img.CreationDate.Before(image.CreationDate) {
+			if image != nil && img.CreatedAt.Before(image.CreatedAt) {
 				continue
 			}
 

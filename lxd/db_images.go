@@ -7,7 +7,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
@@ -76,27 +76,27 @@ func dbImageSourceInsert(db *sql.DB, imageId int, server string, protocol string
 	return err
 }
 
-func dbImageSourceGet(db *sql.DB, imageId int) (int, shared.ImageSource, error) {
+func dbImageSourceGet(db *sql.DB, imageId int) (int, api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
 
 	id := 0
 	protocolInt := -1
-	result := shared.ImageSource{}
+	result := api.ImageSource{}
 
 	arg1 := []interface{}{imageId}
 	arg2 := []interface{}{&id, &result.Server, &protocolInt, &result.Certificate, &result.Alias}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, shared.ImageSource{}, NoSuchObjectError
+			return -1, api.ImageSource{}, NoSuchObjectError
 		}
 
-		return -1, shared.ImageSource{}, err
+		return -1, api.ImageSource{}, err
 	}
 
 	protocol, found := dbImageSourceProtocol[protocolInt]
 	if !found {
-		return -1, shared.ImageSource{}, fmt.Errorf("Invalid protocol: %d", protocolInt)
+		return -1, api.ImageSource{}, fmt.Errorf("Invalid protocol: %d", protocolInt)
 	}
 
 	result.Protocol = protocol
@@ -110,12 +110,12 @@ func dbImageSourceGet(db *sql.DB, imageId int) (int, shared.ImageSource, error) 
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) (int, *shared.ImageInfo, error) {
+func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
 	var err error
 	var create, expire, used, upload *time.Time // These hold the db-returned times
 
 	// The object we'll actually return
-	image := shared.ImageInfo{}
+	image := api.Image{}
 	id := -1
 	arch := -1
 
@@ -159,27 +159,27 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 
 	// Some of the dates can be nil in the DB, let's process them.
 	if create != nil {
-		image.CreationDate = *create
+		image.CreatedAt = *create
 	} else {
-		image.CreationDate = time.Time{}
+		image.CreatedAt = time.Time{}
 	}
 
 	if expire != nil {
-		image.ExpiryDate = *expire
+		image.ExpiresAt = *expire
 	} else {
-		image.ExpiryDate = time.Time{}
+		image.ExpiresAt = time.Time{}
 	}
 
 	if used != nil {
-		image.LastUsedDate = *used
+		image.LastUsedAt = *used
 	} else {
-		image.LastUsedDate = time.Time{}
+		image.LastUsedAt = time.Time{}
 	}
 
 	image.Architecture, _ = osarch.ArchitectureName(arch)
 
 	// The upload date is enforced by NOT NULL in the schema, so it can never be nil.
-	image.UploadDate = *upload
+	image.UploadedAt = *upload
 
 	// Get the properties
 	q := "SELECT key, value FROM images_properties where image_id=?"
@@ -209,11 +209,11 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 		return -1, nil, err
 	}
 
-	aliases := []shared.ImageAlias{}
+	aliases := []api.ImageAlias{}
 	for _, r := range results {
 		name = r[0].(string)
 		desc = r[0].(string)
-		a := shared.ImageAlias{Name: name, Description: desc}
+		a := api.ImageAlias{Name: name, Description: desc}
 		aliases = append(aliases, a)
 	}
 
@@ -221,7 +221,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 
 	_, source, err := dbImageSourceGet(db, id)
 	if err == nil {
-		image.Source = &source
+		image.UpdateSource = &source
 	}
 
 	return id, &image, nil
@@ -245,7 +245,7 @@ func dbImageDelete(db *sql.DB, id int) error {
 	return nil
 }
 
-func dbImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, shared.ImageAliasesEntry, error) {
+func dbImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	q := `SELECT images_aliases.id, images.fingerprint, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
@@ -257,19 +257,24 @@ func dbImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, shared
 
 	var fingerprint, description string
 	id := -1
+	entry := api.ImageAliasesEntry{}
 
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id, &fingerprint, &description}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, shared.ImageAliasesEntry{}, NoSuchObjectError
+			return -1, entry, NoSuchObjectError
 		}
 
-		return -1, shared.ImageAliasesEntry{}, err
+		return -1, entry, err
 	}
 
-	return id, shared.ImageAliasesEntry{Name: name, Target: fingerprint, Description: description}, nil
+	entry.Name = name
+	entry.Target = fingerprint
+	entry.Description = description
+
+	return id, entry, nil
 }
 
 func dbImageAliasRename(db *sql.DB, id int, name string) error {
@@ -312,7 +317,7 @@ func dbImageLastAccessInit(db *sql.DB, fingerprint string) error {
 	return err
 }
 
-func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
+func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -340,7 +345,7 @@ func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, auto
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(fname, sz, publicInt, autoUpdateInt, arch, creationDate, expiryDate, id)
+	_, err = stmt.Exec(fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, id)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -369,7 +374,7 @@ func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, auto
 	return nil
 }
 
-func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
+func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -397,7 +402,7 @@ func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, a
 	}
 	defer stmt.Close()
 
-	result, err := stmt.Exec(fp, fname, sz, publicInt, autoUpdateInt, arch, creationDate, expiryDate)
+	result, err := stmt.Exec(fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt)
 	if err != nil {
 		tx.Rollback()
 		return err
