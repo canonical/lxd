@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -392,9 +393,9 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 		architecturesStr = append(architecturesStr, fmt.Sprintf("%d", arch))
 	}
 
-	head.Header.Set("User-Agent", shared.UserAgent)
+	head.Header.Set("User-Agent", version.UserAgent)
 	head.Header.Set("LXD-Server-Architectures", strings.Join(architecturesStr, ", "))
-	head.Header.Set("LXD-Server-Version", shared.Version)
+	head.Header.Set("LXD-Server-Version", version.Version)
 
 	raw, err := myhttp.Do(head)
 	if err != nil {
@@ -828,7 +829,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 	i := 0
 	for _, name := range results {
 		if !recursion {
-			url := fmt.Sprintf("/%s/images/%s", shared.APIVersion, name)
+			url := fmt.Sprintf("/%s/images/%s", version.APIVersion, name)
 			resultString[i] = url
 		} else {
 			image, response := doImageGet(d, name, public)
@@ -1202,7 +1203,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, req.Name))
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, req.Name))
 }
 
 func aliasesGet(d *Daemon, r *http.Request) Response {
@@ -1221,7 +1222,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	for _, res := range results {
 		name = res[0].(string)
 		if !recursion {
-			url := fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, name)
+			url := fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, name)
 			responseStr = append(responseStr, url)
 
 		} else {
@@ -1378,7 +1379,7 @@ func aliasPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", shared.APIVersion, req.Name))
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, req.Name))
 }
 
 func imageExport(d *Daemon, r *http.Request) Response {

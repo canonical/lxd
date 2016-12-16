@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 )
 
 func containersGet(d *Daemon, r *http.Request) Response {
@@ -42,7 +43,7 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 
 	for _, container := range result {
 		if !recursion {
-			url := fmt.Sprintf("/%s/containers/%s", shared.APIVersion, container)
+			url := fmt.Sprintf("/%s/containers/%s", version.APIVersion, container)
 			resultString = append(resultString, url)
 		} else {
 			c, err := doContainerGet(d, container)

@@ -13,6 +13,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -38,7 +39,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 	i := 0
 	for _, name := range results {
 		if !recursion {
-			url := fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, name)
+			url := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, name)
 			resultString[i] = url
 		} else {
 			profile, err := doProfileGet(d, name)
@@ -99,7 +100,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, req.Name))
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
 
 var profilesCmd = Command{
@@ -120,7 +121,7 @@ func doProfileGet(d *Daemon, name string) (*shared.ProfileConfig, error) {
 
 	usedBy := []string{}
 	for _, ct := range cts {
-		usedBy = append(usedBy, fmt.Sprintf("/%s/containers/%s", shared.APIVersion, ct))
+		usedBy = append(usedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
 	}
 	profile.UsedBy = usedBy
 
@@ -366,7 +367,7 @@ func profilePost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, req.Name))
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
 
 // The handler for the delete operation.
