@@ -762,7 +762,7 @@ func (c *containerLXC) initLXC() error {
 		"/sys/firmware/efi/efivars",
 		"/sys/fs/fuse/connections",
 		"/sys/fs/pstore",
-		"/sys/kernel/state.Debug",
+		"/sys/kernel/debug",
 		"/sys/kernel/security"}
 
 	if c.IsPrivileged() && !runningInUserns {
