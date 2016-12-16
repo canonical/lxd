@@ -7,7 +7,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -45,7 +47,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	architecture, err := shared.ArchitectureId(configRaw.Architecture)
+	architecture, err := osarch.ArchitectureId(configRaw.Architecture)
 	if err != nil {
 		architecture = 0
 	}

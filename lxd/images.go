@@ -24,6 +24,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
+	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -319,7 +320,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req imagePostReq,
 		return info, err
 	}
 
-	info.Architecture, _ = shared.ArchitectureName(c.Architecture())
+	info.Architecture, _ = osarch.ArchitectureName(c.Architecture())
 	info.Properties = req.Properties
 
 	return info, nil
@@ -375,22 +376,12 @@ func imgPostURLInfo(d *Daemon, req imagePostReq, op *operation) error {
 		return fmt.Errorf("Missing URL")
 	}
 
-	// Resolve the image URL
-	tlsConfig, err := shared.GetTLSConfig("", "", "", nil)
+	myhttp, err := d.httpClient("")
 	if err != nil {
 		return err
 	}
 
-	tr := &http.Transport{
-		TLSClientConfig: tlsConfig,
-		Dial:            shared.RFC3493Dialer,
-		Proxy:           d.proxy,
-	}
-
-	myhttp := http.Client{
-		Transport: tr,
-	}
-
+	// Resolve the image URL
 	head, err := http.NewRequest("HEAD", req.Source["url"], nil)
 	if err != nil {
 		return err
@@ -814,7 +805,7 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 		return nil, fmt.Errorf("Could not parse %s: %v", metadataName, err)
 	}
 
-	_, err = shared.ArchitectureId(metadata.Architecture)
+	_, err = osarch.ArchitectureId(metadata.Architecture)
 	if err != nil {
 		return nil, err
 	}

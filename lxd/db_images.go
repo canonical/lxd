@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 var dbImageSourceProtocol = map[int]string{
@@ -175,7 +176,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 		image.LastUsedDate = time.Time{}
 	}
 
-	image.Architecture, _ = shared.ArchitectureName(arch)
+	image.Architecture, _ = osarch.ArchitectureName(arch)
 
 	// The upload date is enforced by NOT NULL in the schema, so it can never be nil.
 	image.UploadDate = *upload
@@ -312,7 +313,7 @@ func dbImageLastAccessInit(db *sql.DB, fingerprint string) error {
 }
 
 func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
-	arch, err := shared.ArchitectureId(architecture)
+	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
 	}
@@ -369,7 +370,7 @@ func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, auto
 }
 
 func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, creationDate time.Time, expiryDate time.Time, properties map[string]string) error {
-	arch, err := shared.ArchitectureId(architecture)
+	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
 	}

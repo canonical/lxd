@@ -11,6 +11,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 var api10 = []Command{
@@ -139,7 +140,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		architectures := []string{}
 
 		for _, architecture := range d.architectures {
-			architectureName, err := shared.ArchitectureName(architecture)
+			architectureName, err := osarch.ArchitectureName(architecture)
 			if err != nil {
 				return InternalError(err)
 			}

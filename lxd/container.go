@@ -10,6 +10,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 // Helper functions
@@ -48,9 +49,9 @@ func containerValidConfigKey(d *Daemon, key string, value string) error {
 	}
 	if key == "security.syscalls.blacklist_compat" {
 		for _, arch := range d.architectures {
-			if arch == shared.ARCH_64BIT_INTEL_X86 ||
-				arch == shared.ARCH_64BIT_ARMV8_LITTLE_ENDIAN ||
-				arch == shared.ARCH_64BIT_POWERPC_BIG_ENDIAN {
+			if arch == osarch.ARCH_64BIT_INTEL_X86 ||
+				arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN ||
+				arch == osarch.ARCH_64BIT_POWERPC_BIG_ENDIAN {
 				return nil
 			}
 		}
@@ -623,7 +624,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Validate architecture
-	_, err = shared.ArchitectureName(args.Architecture)
+	_, err = osarch.ArchitectureName(args.Architecture)
 	if err != nil {
 		return nil, err
 	}

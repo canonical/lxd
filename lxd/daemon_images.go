@@ -16,6 +16,8 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/simplestreams"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -25,7 +27,7 @@ type imageStreamCacheEntry struct {
 	Aliases      shared.ImageAliases `yaml:"aliases"`
 	Fingerprints []string            `yaml:"fingerprints"`
 	expiry       time.Time
-	ss           *shared.SimpleStreams
+	ss           *simplestreams.SimpleStreams
 }
 
 var imageStreamCache = map[string]*imageStreamCacheEntry{}
@@ -65,7 +67,12 @@ func imageLoadStreamCache(d *Daemon) error {
 
 	for url, entry := range imageStreamCache {
 		if entry.ss == nil {
-			ss, err := shared.SimpleStreamsClient(url, d.proxy)
+			myhttp, err := d.httpClient("")
+			if err != nil {
+				return err
+			}
+
+			ss, err := simplestreams.NewClient(url, *myhttp)
 			if err != nil {
 				return err
 			}
@@ -81,7 +88,7 @@ func imageLoadStreamCache(d *Daemon) error {
 // downloads the image from a remote server.
 func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool) (string, error) {
 	var err error
-	var ss *shared.SimpleStreams
+	var ss *simplestreams.SimpleStreams
 	var ctxMap log.Ctx
 
 	if protocol == "" {
@@ -97,7 +104,12 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		if entry == nil || entry.expiry.Before(time.Now()) {
 			refresh := func() (*imageStreamCacheEntry, error) {
 				// Setup simplestreams client
-				ss, err = shared.SimpleStreamsClient(server, d.proxy)
+				myhttp, err := d.httpClient(certificate)
+				if err != nil {
+					return nil, err
+				}
+
+				ss, err = simplestreams.NewClient(server, *myhttp)
 				if err != nil {
 					return nil, err
 				}
@@ -359,9 +371,9 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		ctype = "application/octet-stream"
 	}
 
-	body := &shared.ProgressReader{
+	body := &ioprogress.ProgressReader{
 		ReadCloser: raw.Body,
-		Tracker: &shared.ProgressTracker{
+		Tracker: &ioprogress.ProgressTracker{
 			Length:  raw.ContentLength,
 			Handler: progress,
 		},
