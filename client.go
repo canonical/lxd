@@ -24,6 +24,8 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/simplestreams"
 )
 
 // Client can talk to a LXD daemon.
@@ -38,7 +40,7 @@ type Client struct {
 
 	Http            http.Client
 	websocketDialer websocket.Dialer
-	simplestreams   *shared.SimpleStreams
+	simplestreams   *simplestreams.SimpleStreams
 }
 
 type ResponseType string
@@ -337,7 +339,20 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 	}
 
 	if info.RemoteConfig.Protocol == "simplestreams" {
-		ss, err := shared.SimpleStreamsClient(c.Remote.Addr, shared.ProxyFromEnvironment)
+		tlsconfig, err := shared.GetTLSConfig("", "", "", nil)
+		if err != nil {
+			return nil, err
+		}
+
+		tr := &http.Transport{
+			TLSClientConfig:   tlsconfig,
+			Dial:              shared.RFC3493Dialer,
+			Proxy:             shared.ProxyFromEnvironment,
+			DisableKeepAlives: true,
+		}
+		c.Http.Transport = tr
+
+		ss, err := simplestreams.NewClient(c.Remote.Addr, c.Http)
 		if err != nil {
 			return nil, err
 		}
@@ -1028,9 +1043,9 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 			return "", err
 		}
 
-		progress := &shared.ProgressReader{
+		progress := &ioprogress.ProgressReader{
 			ReadCloser: body,
-			Tracker: &shared.ProgressTracker{
+			Tracker: &ioprogress.ProgressTracker{
 				Length:  size,
 				Handler: progressHandler,
 			},
@@ -1050,9 +1065,9 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 			return "", err
 		}
 
-		progress := &shared.ProgressReader{
+		progress := &ioprogress.ProgressReader{
 			ReadCloser: fImage,
-			Tracker: &shared.ProgressTracker{
+			Tracker: &ioprogress.ProgressTracker{
 				Length:  stat.Size(),
 				Handler: progressHandler,
 			},

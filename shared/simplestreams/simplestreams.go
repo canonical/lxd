@@ -1,4 +1,4 @@
-package shared
+package simplestreams
 
 import (
 	"crypto/sha256"
@@ -7,15 +7,18 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
-type ssSortImage []ImageInfo
+type ssSortImage []shared.ImageInfo
 
 func (a ssSortImage) Len() int {
 	return len(a)
@@ -73,21 +76,21 @@ type SimpleStreamsManifest struct {
 	Products map[string]SimpleStreamsManifestProduct `json:"products"`
 }
 
-func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
+func (s *SimpleStreamsManifest) ToLXD() ([]shared.ImageInfo, map[string][][]string) {
 	downloads := map[string][][]string{}
 
-	images := []ImageInfo{}
+	images := []shared.ImageInfo{}
 	nameLayout := "20060102"
 	eolLayout := "2006-01-02"
 
 	for _, product := range s.Products {
 		// Skip unsupported architectures
-		architecture, err := ArchitectureId(product.Architecture)
+		architecture, err := osarch.ArchitectureId(product.Architecture)
 		if err != nil {
 			continue
 		}
 
-		architectureName, err := ArchitectureName(architecture)
+		architectureName, err := osarch.ArchitectureName(architecture)
 		if err != nil {
 			continue
 		}
@@ -115,7 +118,7 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 			found := 0
 			for _, item := range version.Items {
 				// Skip the files we don't care about
-				if !StringInSlice(item.FileType, []string{"root.tar.xz", "lxd.tar.xz", "squashfs"}) {
+				if !shared.StringInSlice(item.FileType, []string{"root.tar.xz", "lxd.tar.xz", "squashfs"}) {
 					continue
 				}
 				found += 1
@@ -166,7 +169,7 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 			}
 			description = fmt.Sprintf("%s (%s)", description, name)
 
-			image := ImageInfo{}
+			image := shared.ImageInfo{}
 			image.Architecture = architectureName
 			image.Public = true
 			image.Size = size
@@ -186,9 +189,9 @@ func (s *SimpleStreamsManifest) ToLXD() ([]ImageInfo, map[string][][]string) {
 
 			// Add the provided aliases
 			if product.Aliases != "" {
-				image.Aliases = []ImageAlias{}
+				image.Aliases = []shared.ImageAlias{}
 				for _, entry := range strings.Split(product.Aliases, ",") {
-					image.Aliases = append(image.Aliases, ImageAlias{Name: entry})
+					image.Aliases = append(image.Aliases, shared.ImageAlias{Name: entry})
 				}
 			}
 
@@ -259,25 +262,9 @@ type SimpleStreamsIndexStream struct {
 	Products []string `json:"products"`
 }
 
-func SimpleStreamsClient(url string, proxy func(*http.Request) (*url.URL, error)) (*SimpleStreams, error) {
-	// Setup a http client
-	tlsConfig, err := GetTLSConfig("", "", "", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	tr := &http.Transport{
-		TLSClientConfig: tlsConfig,
-		Dial:            RFC3493Dialer,
-		Proxy:           proxy,
-	}
-
-	myHttp := http.Client{
-		Transport: tr,
-	}
-
+func NewClient(url string, httpClient http.Client) (*SimpleStreams, error) {
 	return &SimpleStreams{
-		http:           &myHttp,
+		http:           &httpClient,
 		url:            url,
 		cachedManifest: map[string]*SimpleStreamsManifest{}}, nil
 }
@@ -288,8 +275,8 @@ type SimpleStreams struct {
 
 	cachedIndex    *SimpleStreamsIndex
 	cachedManifest map[string]*SimpleStreamsManifest
-	cachedImages   []ImageInfo
-	cachedAliases  map[string]*ImageAliasesEntry
+	cachedImages   []shared.ImageInfo
+	cachedAliases  map[string]*shared.ImageAliasesEntry
 }
 
 func (s *SimpleStreams) parseIndex() (*SimpleStreamsIndex, error) {
@@ -301,7 +288,7 @@ func (s *SimpleStreams) parseIndex() (*SimpleStreamsIndex, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("User-Agent", shared.UserAgent)
 
 	r, err := s.http.Do(req)
 	if err != nil {
@@ -335,7 +322,7 @@ func (s *SimpleStreams) parseManifest(path string) (*SimpleStreamsManifest, erro
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("User-Agent", shared.UserAgent)
 
 	r, err := s.http.Do(req)
 	if err != nil {
@@ -360,8 +347,8 @@ func (s *SimpleStreams) parseManifest(path string) (*SimpleStreamsManifest, erro
 	return &ssManifest, nil
 }
 
-func (s *SimpleStreams) applyAliases(images []ImageInfo) ([]ImageInfo, map[string]*ImageAliasesEntry, error) {
-	aliases := map[string]*ImageAliasesEntry{}
+func (s *SimpleStreams) applyAliases(images []shared.ImageInfo) ([]shared.ImageInfo, map[string]*shared.ImageAliasesEntry, error) {
+	aliases := map[string]*shared.ImageAliasesEntry{}
 
 	sort.Sort(ssSortImage(images))
 
@@ -373,7 +360,7 @@ func (s *SimpleStreams) applyAliases(images []ImageInfo) ([]ImageInfo, map[strin
 		}
 	}
 
-	addAlias := func(name string, fingerprint string) *ImageAlias {
+	addAlias := func(name string, fingerprint string) *shared.ImageAlias {
 		if defaultOS != "" {
 			name = strings.TrimPrefix(name, fmt.Sprintf("%s/", defaultOS))
 		}
@@ -382,17 +369,17 @@ func (s *SimpleStreams) applyAliases(images []ImageInfo) ([]ImageInfo, map[strin
 			return nil
 		}
 
-		alias := ImageAliasesEntry{}
+		alias := shared.ImageAliasesEntry{}
 		alias.Name = name
 		alias.Target = fingerprint
 		aliases[name] = &alias
 
-		return &ImageAlias{Name: name}
+		return &shared.ImageAlias{Name: name}
 	}
 
-	architectureName, _ := ArchitectureGetLocal()
+	architectureName, _ := osarch.ArchitectureGetLocal()
 
-	newImages := []ImageInfo{}
+	newImages := []shared.ImageInfo{}
 	for _, image := range images {
 		if image.Aliases != nil {
 			// Build a new list of aliases from the provided ones
@@ -422,12 +409,12 @@ func (s *SimpleStreams) applyAliases(images []ImageInfo) ([]ImageInfo, map[strin
 	return newImages, aliases, nil
 }
 
-func (s *SimpleStreams) getImages() ([]ImageInfo, map[string]*ImageAliasesEntry, error) {
+func (s *SimpleStreams) getImages() ([]shared.ImageInfo, map[string]*shared.ImageAliasesEntry, error) {
 	if s.cachedImages != nil && s.cachedAliases != nil {
 		return s.cachedImages, s.cachedAliases, nil
 	}
 
-	images := []ImageInfo{}
+	images := []shared.ImageInfo{}
 
 	// Load the main index
 	ssIndex, err := s.parseIndex()
@@ -523,7 +510,7 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 		if err != nil {
 			return err
 		}
-		req.Header.Set("User-Agent", UserAgent)
+		req.Header.Set("User-Agent", shared.UserAgent)
 
 		resp, err := s.http.Do(req)
 		if err != nil {
@@ -535,9 +522,9 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 			return fmt.Errorf("invalid simplestreams source: got %d looking for %s", resp.StatusCode, path)
 		}
 
-		body := &ProgressReader{
+		body := &ioprogress.ProgressReader{
 			ReadCloser: resp.Body,
-			Tracker: &ProgressTracker{
+			Tracker: &ioprogress.ProgressTracker{
 				Length:  resp.ContentLength,
 				Handler: progress,
 			},
@@ -574,13 +561,13 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 	return nil
 }
 
-func (s *SimpleStreams) ListAliases() (ImageAliases, error) {
+func (s *SimpleStreams) ListAliases() (shared.ImageAliases, error) {
 	_, aliasesMap, err := s.getImages()
 	if err != nil {
 		return nil, err
 	}
 
-	aliases := ImageAliases{}
+	aliases := shared.ImageAliases{}
 
 	for _, alias := range aliasesMap {
 		aliases = append(aliases, *alias)
@@ -589,7 +576,7 @@ func (s *SimpleStreams) ListAliases() (ImageAliases, error) {
 	return aliases, nil
 }
 
-func (s *SimpleStreams) ListImages() ([]ImageInfo, error) {
+func (s *SimpleStreams) ListImages() ([]shared.ImageInfo, error) {
 	images, _, err := s.getImages()
 	return images, err
 }
@@ -608,7 +595,7 @@ func (s *SimpleStreams) GetAlias(name string) string {
 	return alias.Target
 }
 
-func (s *SimpleStreams) GetImageInfo(fingerprint string) (*ImageInfo, error) {
+func (s *SimpleStreams) GetImageInfo(fingerprint string) (*shared.ImageInfo, error) {
 	images, _, err := s.getImages()
 	if err != nil {
 		return nil, err
@@ -624,7 +611,7 @@ func (s *SimpleStreams) GetImageInfo(fingerprint string) (*ImageInfo, error) {
 }
 
 func (s *SimpleStreams) ExportImage(image string, target string) (string, error) {
-	if !IsDir(target) {
+	if !shared.IsDir(target) {
 		return "", fmt.Errorf("Split images can only be written to a directory.")
 	}
 

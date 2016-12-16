@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -141,7 +142,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	arch, err := shared.ArchitectureId(sf.Container.Architecture)
+	arch, err := osarch.ArchitectureId(sf.Container.Architecture)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -170,7 +171,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			}
 		}
 
-		arch, err := shared.ArchitectureId(snap.Architecture)
+		arch, err := osarch.ArchitectureId(snap.Architecture)
 		if err != nil {
 			return SmartError(err)
 		}

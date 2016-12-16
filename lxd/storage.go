@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logging"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -833,9 +834,9 @@ func StorageProgressReader(op *operation, key string, description string) func(i
 			progressWrapperRender(op, key, description, progressInt, speedInt)
 		}
 
-		readPipe := &shared.ProgressReader{
+		readPipe := &ioprogress.ProgressReader{
 			ReadCloser: reader,
-			Tracker: &shared.ProgressTracker{
+			Tracker: &ioprogress.ProgressTracker{
 				Handler: progress,
 			},
 		}
@@ -854,9 +855,9 @@ func StorageProgressWriter(op *operation, key string, description string) func(i
 			progressWrapperRender(op, key, description, progressInt, speedInt)
 		}
 
-		writePipe := &shared.ProgressWriter{
+		writePipe := &ioprogress.ProgressWriter{
 			WriteCloser: writer,
-			Tracker: &shared.ProgressTracker{
+			Tracker: &ioprogress.ProgressTracker{
 				Handler: progress,
 			},
 		}
