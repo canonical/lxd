@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -416,8 +417,8 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			// Update metadata with the right URLs
 			metadata["return"] = cmdResult
 			metadata["output"] = shared.Jmap{
-				"1": fmt.Sprintf("/%s/containers/%s/logs/%s", shared.APIVersion, c.Name(), filepath.Base(stdout.Name())),
-				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", shared.APIVersion, c.Name(), filepath.Base(stderr.Name())),
+				"1": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, c.Name(), filepath.Base(stdout.Name())),
+				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, c.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
 			cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, nil, nil, true)

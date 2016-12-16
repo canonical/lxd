@@ -16,6 +16,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // API endpoints
@@ -35,7 +36,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 	resultMap := []shared.NetworkConfig{}
 	for _, iface := range ifs {
 		if recursion == 0 {
-			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface))
+			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, iface))
 		} else {
 			net, err := doNetworkGet(d, iface)
 			if err != nil {
@@ -142,7 +143,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, req.Name))
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name))
 }
 
 var networksCmd = Command{name: "networks", get: networksGet, post: networksPost}
@@ -189,7 +190,7 @@ func doNetworkGet(d *Daemon, name string) (shared.NetworkConfig, error) {
 		}
 
 		if networkIsInUse(c, n.Name) {
-			n.UsedBy = append(n.UsedBy, fmt.Sprintf("/%s/containers/%s", shared.APIVersion, ct))
+			n.UsedBy = append(n.UsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
 		}
 	}
 
@@ -284,7 +285,7 @@ func networkPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, req.Name))
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name))
 }
 
 func networkPut(d *Daemon, r *http.Request) Response {

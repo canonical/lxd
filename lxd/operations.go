@@ -12,6 +12,7 @@ import (
 	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var operationsLock sync.Mutex
@@ -252,7 +253,7 @@ func (op *operation) Render() (string, *shared.Operation, error) {
 		for key, value := range resources {
 			var values []string
 			for _, c := range value {
-				values = append(values, fmt.Sprintf("/%s/%s/%s", shared.APIVersion, key, c))
+				values = append(values, fmt.Sprintf("/%s/%s/%s", version.APIVersion, key, c))
 			}
 			tmpResources[key] = values
 		}
@@ -365,7 +366,7 @@ func operationCreate(opClass operationClass, opResources map[string][]string, op
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
 	op.status = shared.Pending
-	op.url = fmt.Sprintf("/%s/operations/%s", shared.APIVersion, op.id)
+	op.url = fmt.Sprintf("/%s/operations/%s", version.APIVersion, op.id)
 	op.resources = opResources
 	op.chanDone = make(chan error)
 
