@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2016-11-04 21:31-0400\n"
+"POT-Creation-Date: 2016-12-15 13:20-0500\n"
 "PO-Revision-Date: 2016-11-09 19:45+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -104,7 +104,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/image.go:617
+#: lxc/image.go:614
 #, c-format
 msgid "%s (%d more)"
 msgstr ""
@@ -113,15 +113,15 @@ msgstr ""
 msgid "'/' not allowed in snapshot name"
 msgstr "'/' はスナップショットの名前には使用できません。"
 
-#: lxc/profile.go:254
+#: lxc/profile.go:253
 msgid "(none)"
 msgstr ""
 
-#: lxc/image.go:638 lxc/image.go:680
+#: lxc/image.go:635 lxc/image.go:677
 msgid "ALIAS"
 msgstr ""
 
-#: lxc/image.go:642
+#: lxc/image.go:639
 msgid "ARCH"
 msgstr ""
 
@@ -129,29 +129,25 @@ msgstr ""
 msgid "ARCHITECTURE"
 msgstr ""
 
-#: lxc/remote.go:52
+#: lxc/remote.go:51
 msgid "Accept certificate"
 msgstr "証明書を受け入れます"
 
-#: lxc/remote.go:268
+#: lxc/remote.go:267
 #, c-format
 msgid "Admin password for %s: "
 msgstr "%s の管理者パスワード: "
 
-#: lxc/image.go:365
+#: lxc/image.go:362
 msgid "Aliases:"
 msgstr "エイリアス:"
 
-#: lxc/exec.go:54
-msgid "An environment variable of the form HOME=/home/foo"
-msgstr "環境変数を HOME=/home/foo の形式で指定します"
-
-#: lxc/image.go:348 lxc/info.go:93
+#: lxc/image.go:345 lxc/info.go:93
 #, c-format
 msgid "Architecture: %s"
 msgstr "アーキテクチャ: %s"
 
-#: lxc/image.go:369
+#: lxc/image.go:366
 #, c-format
 msgid "Auto update: %s"
 msgstr "自動更新: %s"
@@ -190,27 +186,38 @@ msgstr "標準入力から読み込めません: %s"
 msgid "Can't unset key '%s', it's not currently set."
 msgstr "キー '%s' が指定されていないので削除できません。"
 
-#: lxc/network.go:386 lxc/profile.go:420
+#: lxc/network.go:385 lxc/profile.go:419
 msgid "Cannot provide container name to list"
 msgstr "コンテナ名を取得できません"
 
-#: lxc/remote.go:218
+#: lxc/remote.go:217
 #, c-format
 msgid "Certificate fingerprint: %x"
 msgstr "証明書のフィンガープリント: %x"
 
 #: lxc/action.go:33
-#, c-format
+#, fuzzy, c-format
 msgid ""
-"Changes state of one or more containers to %s.\n"
+"Change state of one or more containers to %s.\n"
 "\n"
-"lxc %s <name> [<name>...]%s"
+"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 msgstr ""
 "1つまたは複数のコンテナの状態を %s に変更します。\n"
 "\n"
 "lxc %s <name> [<name>...]%s"
 
-#: lxc/remote.go:291
+#: lxc/finger.go:15
+#, fuzzy
+msgid ""
+"Check if the LXD instance is up.\n"
+"\n"
+"lxc finger [<remote>:]"
+msgstr ""
+"LXDインスタンスが稼働中かを確認します。\n"
+"\n"
+"lxc finger <remote>"
+
+#: lxc/remote.go:290
 msgid "Client certificate stored at server: "
 msgstr "クライアント証明書がサーバに格納されました: "
 
@@ -223,8 +230,8 @@ msgstr "カラムレイアウト"
 msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
-#: lxc/config.go:530 lxc/config.go:595 lxc/image.go:734 lxc/network.go:342
-#: lxc/profile.go:218
+#: lxc/config.go:530 lxc/config.go:595 lxc/image.go:731 lxc/network.go:341
+#: lxc/profile.go:217
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -237,7 +244,7 @@ msgstr "接続が拒否されました。LXDが実行されていますか?"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/copy.go:140 lxc/copy.go:241 lxc/init.go:227
+#: lxc/copy.go:140 lxc/copy.go:241 lxc/init.go:229
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -247,15 +254,16 @@ msgstr "コンテナ名: %s"
 msgid "Container published with fingerprint: %s"
 msgstr "コンテナは以下のフィンガープリントで publish されます: %s"
 
-#: lxc/image.go:166
+#: lxc/image.go:165
 msgid "Copy aliases from source"
 msgstr "ソースからエイリアスをコピーしました"
 
 #: lxc/copy.go:24
+#, fuzzy
 msgid ""
-"Copy containers within or in between lxd instances.\n"
+"Copy containers within or in between LXD instances.\n"
 "\n"
-"lxc copy [remote:]<source container> [[remote:]<destination container>] [--"
+"lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] [--"
 "ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...]"
 msgstr ""
 "LXDインスタンス内もしくはLXDインスタンス間でコンテナをコピーします。\n"
@@ -263,20 +271,26 @@ msgstr ""
 "lxc copy [remote:]<source container> [remote:]<destination container>\n"
 "[--ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...]"
 
-#: lxc/image.go:280
+#: lxc/image.go:278
 #, c-format
 msgid "Copying the image: %s"
 msgstr "イメージのコピー中: %s"
 
-#: lxc/remote.go:233
+#: lxc/remote.go:232
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません。"
 
+#: lxc/file.go:83
+#, c-format
+msgid "Could not sanitize path %s"
+msgstr ""
+
 #: lxc/snapshot.go:21
+#, fuzzy
 msgid ""
 "Create a read-only snapshot of a container.\n"
 "\n"
-"lxc snapshot [remote:]<source> <snapshot name> [--stateful]\n"
+"lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
 "\n"
 "Creates a snapshot of the container (optionally with the container's memory\n"
 "state). When --stateful is used, LXD attempts to checkpoint the container's\n"
@@ -289,7 +303,7 @@ msgid ""
 "successfully).\n"
 "\n"
 "Example:\n"
-"lxc snapshot u1 snap0"
+"    lxc snapshot u1 snap0"
 msgstr ""
 "コンテナの読み取り専用のスナップショットを作成します。\n"
 "\n"
@@ -304,16 +318,16 @@ msgstr ""
 "例:\n"
 "lxc snapshot u1 snap0"
 
-#: lxc/file.go:60 lxc/file.go:61
+#: lxc/file.go:59 lxc/file.go:60
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
-#: lxc/image.go:353 lxc/info.go:95
+#: lxc/image.go:350 lxc/info.go:95
 #, c-format
 msgid "Created: %s"
 msgstr "作成日時: %s"
 
-#: lxc/init.go:180 lxc/launch.go:134
+#: lxc/init.go:180 lxc/launch.go:135
 #, c-format
 msgid "Creating %s"
 msgstr "%s を作成中"
@@ -322,7 +336,7 @@ msgstr "%s を作成中"
 msgid "Creating the container"
 msgstr "コンテナを作成中"
 
-#: lxc/image.go:641 lxc/image.go:682
+#: lxc/image.go:638 lxc/image.go:679
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -331,10 +345,11 @@ msgid "Define a compression algorithm: for image or none"
 msgstr "圧縮アルゴリズムを指定します: 圧縮アルゴリズム名 or none"
 
 #: lxc/delete.go:25
+#, fuzzy
 msgid ""
-"Delete containers or container snapshots.\n"
+"Delete containers or snapshots.\n"
 "\n"
-"lxc delete [remote:]<container>[/<snapshot>] [remote:][<container>[/"
+"lxc delete [<remote>:]<container>[/<snapshot>] [[<remote>:]<container>[/"
 "<snapshot>]...]\n"
 "\n"
 "Destroy containers or snapshots with any attached data (configuration, "
@@ -367,12 +382,19 @@ msgid "EXPIRY DATE"
 msgstr ""
 
 #: lxc/main.go:41
-msgid "Enables debug mode."
+#, fuzzy
+msgid "Enable debug mode"
 msgstr "デバッグモードを有効にします。"
 
 #: lxc/main.go:40
-msgid "Enables verbose mode."
+#, fuzzy
+msgid "Enable verbose mode"
 msgstr "詳細モードを有効にします。"
+
+#: lxc/exec.go:54
+#, fuzzy
+msgid "Environment variable to set (e.g. HOME=/home/foo)"
+msgstr "環境変数を HOME=/home/foo の形式で指定します"
 
 #: lxc/help.go:69
 msgid "Environment:"
@@ -388,32 +410,34 @@ msgid "Event type to listen for"
 msgstr "Listenするイベントタイプ"
 
 #: lxc/exec.go:45
+#, fuzzy
 msgid ""
 "Execute the specified command in a container.\n"
 "\n"
-"lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env "
-"EDITOR=/usr/bin/vim]... [--] <command line>\n"
+"lxc exec [<remote>:]<container> [--mode=auto|interactive|non-interactive] [--"
+"env KEY=VALUE...] [--] <command line>\n"
 "\n"
 "Mode defaults to non-interactive, interactive mode is selected if both stdin "
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
 "指定したコマンドをコンテナ内で実行します。\n"
 "\n"
-"lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env EDITOR=/usr/bin/vim]... [--] <command line>\n"
+"lxc exec [remote:]container [--mode=auto|interactive|non-interactive] [--env "
+"EDITOR=/usr/bin/vim]... [--] <command line>\n"
 "\n"
 "デフォルトのモードは non-interactive です。もし標準入出力が両方ともターミナ\n"
 "ルの場合は interactive モードが選択されます (標準エラー出力は無視されます)。"
 
-#: lxc/image.go:357
+#: lxc/image.go:354
 #, c-format
 msgid "Expires: %s"
 msgstr "失効日時: %s"
 
-#: lxc/image.go:359
+#: lxc/image.go:356
 msgid "Expires: never"
 msgstr "失効日時: 失効しない"
 
-#: lxc/config.go:272 lxc/image.go:639 lxc/image.go:681
+#: lxc/config.go:272 lxc/image.go:636 lxc/image.go:678
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -421,40 +445,44 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt"
 msgstr "Fast モード (--columns=nsacPt と同じ)"
 
-#: lxc/image.go:346
+#: lxc/image.go:343
 #, c-format
 msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
-#: lxc/finger.go:15
-msgid ""
-"Fingers the LXD instance to check if it is up and working.\n"
-"\n"
-"lxc finger <remote>"
-msgstr ""
-"LXDインスタンスが稼働中かを確認します。\n"
-"\n"
-"lxc finger <remote>"
-
 #: lxc/action.go:42 lxc/action.go:43
-msgid "Force the container to shutdown."
+#, fuzzy
+msgid "Force the container to shutdown"
 msgstr "コンテナを強制シャットダウンします。"
 
 #: lxc/delete.go:34 lxc/delete.go:35
-msgid "Force the removal of stopped containers."
+#, fuzzy
+msgid "Force the removal of stopped containers"
 msgstr "停止したコンテナを強制的に削除します。"
 
 #: lxc/main.go:42
-msgid "Force using the local unix socket."
+#, fuzzy
+msgid "Force using the local unix socket"
 msgstr "強制的にローカルのUNIXソケットを使います。"
 
-#: lxc/image.go:169 lxc/list.go:123
+#: lxc/image.go:168 lxc/list.go:123
 msgid "Format"
 msgstr ""
 
-#: lxc/remote.go:66
+#: lxc/remote.go:65
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
+
+#: lxc/help.go:25
+#, fuzzy
+msgid ""
+"Help page for the LXD client.\n"
+"\n"
+"lxc help [--all]"
+msgstr ""
+"LXDの使い方の詳細を表示します。\n"
+"\n"
+"lxd help [--all]"
 
 #: lxc/list.go:423
 msgid "IPV4"
@@ -474,33 +502,36 @@ msgid ""
 msgstr "初めて LXD を使う場合、sudo lxd init と実行する必要があります"
 
 #: lxc/main.go:43
-msgid "Ignore aliases when determining what command to run."
+#, fuzzy
+msgid "Ignore aliases when determining what command to run"
 msgstr "どのコマンドを実行するか決める際にエイリアスを無視します。"
 
 #: lxc/action.go:46
-msgid "Ignore the container state (only for start)."
+#, fuzzy
+msgid "Ignore the container state (only for start)"
 msgstr "コンテナの状態を無視します (startのみ)。"
 
-#: lxc/image.go:285
+#: lxc/image.go:281
 msgid "Image copied successfully!"
 msgstr "イメージのコピーが成功しました!"
 
-#: lxc/image.go:442
+#: lxc/image.go:421 lxc/image.go:433
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr "イメージは以下のフィンガープリントでインポートされました: %s"
 
-#: lxc/image.go:429
+#: lxc/image.go:418
 #, c-format
 msgid "Importing the image: %s"
 msgstr "イメージのインポート中: %s"
 
 #: lxc/init.go:74
+#, fuzzy
 msgid ""
 "Initialize a container from a particular image.\n"
 "\n"
-"lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p "
-"<profile>...] [--config|-c <key=value>...] [--network|-n <network>]\n"
+"lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-"
+"p <profile>...] [--config|-c <key=value>...] [--network|-n <network>]\n"
 "\n"
 "Initializes a container using the specified image and name.\n"
 "\n"
@@ -508,11 +539,12 @@ msgid ""
 "Specifying \"-p\" with no argument will result in no profile.\n"
 "\n"
 "Example:\n"
-"lxc init ubuntu u1"
+"    lxc init ubuntu u1"
 msgstr ""
 "指定したイメージからコンテナを初期化します。\n"
 "\n"
-"lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>]\n"
+"lxc init [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p "
+"<profile>...] [--config|-c <key=value>...] [--network|-n <network>]\n"
 "\n"
 "指定したイメージとコンテナ名を使ってコンテナを初期化します。\n"
 "\n"
@@ -522,7 +554,7 @@ msgstr ""
 "例:\n"
 "lxc init ubuntu u1"
 
-#: lxc/remote.go:136
+#: lxc/remote.go:135
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
@@ -535,12 +567,12 @@ msgstr "不正な証明書です"
 msgid "Invalid configuration key"
 msgstr "正しくない設定項目 (key) です"
 
-#: lxc/file.go:247
+#: lxc/file.go:249
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:73
+#: lxc/file.go:72
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -549,7 +581,7 @@ msgstr "不正な送り先 %s"
 msgid "Ips:"
 msgstr "IPアドレス:"
 
-#: lxc/image.go:167
+#: lxc/image.go:166
 msgid "Keep the image up to date after initial copy"
 msgstr "最初にコピーした後も常にイメージを最新の状態に保つ"
 
@@ -562,11 +594,13 @@ msgid "LXD socket not found; is LXD installed and running?"
 msgstr "LXD のソケットが見つかりません。LXD が実行されていますか?"
 
 #: lxc/launch.go:22
+#, fuzzy
 msgid ""
 "Launch a container from a particular image.\n"
 "\n"
-"lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p "
-"<profile>...] [--config|-c <key=value>...] [--network|-n <network>]\n"
+"lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--"
+"profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n "
+"<network>]\n"
 "\n"
 "Launches a container using the specified image and name.\n"
 "\n"
@@ -574,11 +608,12 @@ msgid ""
 "Specifying \"-p\" with no argument will result in no profile.\n"
 "\n"
 "Example:\n"
-"lxc launch ubuntu:16.04 u1"
+"    lxc launch ubuntu:16.04 u1"
 msgstr ""
 "指定したイメージからコンテナを起動します。\n"
 "\n"
-"lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>]\n"
+"lxc launch [remote:]<image> [remote:][<name>] [--ephemeral|-e] [--profile|-p "
+"<profile>...] [--config|-c <key=value>...] [--network|-n <network>]\n"
 "\n"
 "指定したイメージと名前を使ってコンテナを起動します。\n"
 "\n"
@@ -589,14 +624,15 @@ msgstr ""
 "lxc launch ubuntu:16.04 u1"
 
 #: lxc/info.go:25
+#, fuzzy
 msgid ""
 "List information on LXD servers and containers.\n"
 "\n"
 "For a container:\n"
-" lxc info [<remote>:]container [--show-log]\n"
+"    lxc info [<remote:>]<container> [--show-log]\n"
 "\n"
 "For a server:\n"
-" lxc info [<remote>:]"
+"    lxc info [<remote:>]"
 msgstr ""
 "LXD サーバとコンテナの情報を一覧表示します。\n"
 "\n"
@@ -607,10 +643,12 @@ msgstr ""
 " lxc info [<remote>:]"
 
 #: lxc/list.go:68
+#, fuzzy
 msgid ""
-"Lists the available resources.\n"
+"Lists the containers.\n"
 "\n"
-"lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]\n"
+"lxc list [<remote>:] [filters] [--format table|json] [-c <columns>] [--"
+"fast]\n"
 "\n"
 "The filters are:\n"
 "* A single keyword like \"web\" which will list any container with a name "
@@ -659,20 +697,24 @@ msgid ""
 "Default column layout: ns46tS\n"
 "Fast column layout: nsacPt\n"
 "\n"
-"Example: lxc list -c n,volatile.base_image:\"BASE IMAGE\":0,s46,volatile."
-"eth0.hwaddr:MAC\n"
+"Example:\n"
+"    lxc list -c n,volatile.base_image:\"BASE IMAGE\":0,s46,volatile.eth0."
+"hwaddr:MAC"
 msgstr ""
 "利用可能なリソースを一覧表示します。\n"
 "\n"
 "lxc list [resource] [filters] [--format table|json] [-c columns] [--fast]\n"
 "\n"
 "フィルタの指定:\n"
-"* 単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるコンテ\n"
+"* 単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるコ"
+"ンテ\n"
 "  ナが一覧表示されます。\n"
 "* コンテナ名の正規表現 (例: .*web.*01$)\n"
-"* 設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することがで\n"
+"* 設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することが"
+"で\n"
 "  きます:\n"
-" * \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定されている\n"
+" * \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定され"
+"ている\n"
 "  コンテナをすべて一覧表示します。\n"
 " * \"u.blah=abc\" は上記と同じ意味になります。\n"
 " * \"security.privileged=1\" は特権コンテナをすべて一覧表示します。\n"
@@ -713,17 +755,18 @@ msgstr ""
 "Fast モードのカラムレイアウト: nsacPt\n"
 "\n"
 "例:\n"
-"lxc list -c n,volatile.base_image:\"BASE IMAGE\":0,s46,volatile.eth0.hwaddr:MAC\n"
+"lxc list -c n,volatile.base_image:\"BASE IMAGE\":0,s46,volatile.eth0.hwaddr:"
+"MAC\n"
 
 #: lxc/info.go:239
 msgid "Log:"
 msgstr "ログ:"
 
-#: lxc/network.go:424
+#: lxc/network.go:423
 msgid "MANAGED"
 msgstr ""
 
-#: lxc/image.go:165
+#: lxc/image.go:164
 msgid "Make image public"
 msgstr "イメージを public にする"
 
@@ -732,25 +775,33 @@ msgid "Make the image public"
 msgstr "イメージを public にする"
 
 #: lxc/profile.go:48
+#, fuzzy
 msgid ""
 "Manage configuration profiles.\n"
 "\n"
-"lxc profile list [filters]                     List available profiles.\n"
-"lxc profile show <profile>                     Show details of a profile.\n"
-"lxc profile create <profile>                   Create a profile.\n"
-"lxc profile copy <profile> <remote>            Copy the profile to the "
-"specified remote.\n"
-"lxc profile get <profile> <key>                Get profile configuration.\n"
-"lxc profile set <profile> <key> <value>        Set profile configuration.\n"
-"lxc profile unset <profile> <key>              Unset profile configuration.\n"
-"lxc profile delete <profile>                   Delete a profile.\n"
-"lxc profile edit <profile>\n"
+"lxc profile list [<remote>:]                                    List "
+"available profiles.\n"
+"lxc profile show [<remote>:]<profile>                           Show details "
+"of a profile.\n"
+"lxc profile create [<remote>:]<profile>                         Create a "
+"profile.\n"
+"lxc profile copy [<remote>:]<profile> [<remote>:]<profile>      Copy the "
+"profile.\n"
+"lxc profile get [<remote>:]<profile> <key>                      Get profile "
+"configuration.\n"
+"lxc profile set [<remote>:]<profile> <key> <value>              Set profile "
+"configuration.\n"
+"lxc profile unset [<remote>:]<profile> <key>                    Unset "
+"profile configuration.\n"
+"lxc profile delete [<remote>:]<profile>                         Delete a "
+"profile.\n"
+"lxc profile edit [<remote>:]<profile>\n"
 "    Edit profile, either by launching external editor or reading STDIN.\n"
 "    Example: lxc profile edit <profile> # launch editor\n"
 "             cat profile.yaml | lxc profile edit <profile> # read from "
 "profile.yaml\n"
 "\n"
-"lxc profile assign <container> <profiles>\n"
+"lxc profile assign [<remote>:]<container> <profiles>\n"
 "    Assign a comma-separated list of profiles to a container, in order.\n"
 "    All profiles passed in this call (and only those) will be applied\n"
 "    to the specified container, i.e. it sets the list of profiles exactly "
@@ -762,27 +813,27 @@ msgid ""
 "             lxc profile assign foo default # Only default is active\n"
 "             lxc profile assign '' # no profiles are applied anymore\n"
 "             lxc profile assign bar,default # Apply default second now\n"
-"lxc profile add <container> <profile> # add a profile to a container\n"
-"lxc profile remove <container> <profile> # remove the profile from a "
+"lxc profile add [<remote>:]<container> <profile> # add a profile to a "
 "container\n"
+"lxc profile remove [<remote>:]<container> <profile> # remove the profile "
+"from a container\n"
 "\n"
 "Devices:\n"
-"lxc profile device list <profile>                                   List "
-"devices in the given profile.\n"
-"lxc profile device show <profile>                                   Show "
-"full device details in the given profile.\n"
-"lxc profile device remove <profile> <name>                          Remove a "
-"device from a profile.\n"
-"lxc profile device get <[remote:]profile> <name> <key>              Get a "
-"device property.\n"
-"lxc profile device set <[remote:]profile> <name> <key> <value>      Set a "
-"device property.\n"
-"lxc profile device unset <[remote:]profile> <name> <key>            Unset a "
-"device property.\n"
-"lxc profile device add <profile name> <device name> <device type> "
-"[key=value]...\n"
-"    Add a profile device, such as a disk or a nic, to the containers\n"
-"    using the specified profile."
+"lxc profile device list [<remote>:]<profile>                                "
+"List devices in the given profile.\n"
+"lxc profile device show [<remote>:]<profile>                                "
+"Show full device details in the given profile.\n"
+"lxc profile device remove [<remote>:]<profile> <name>                       "
+"Remove a device from a profile.\n"
+"lxc profile device get [<remote>:]<profile> <name> <key>                    "
+"Get a device property.\n"
+"lxc profile device set [<remote>:]<profile> <name> <key> <value>            "
+"Set a device property.\n"
+"lxc profile device unset [<remote>:]<profile> <name> <key>                  "
+"Unset a device property.\n"
+"lxc profile device add [<remote>:]<profile> <device> <type> [key=value...]\n"
+"    Add a profile device, such as a disk or a nic, to the containers using "
+"the specified profile."
 msgstr ""
 "設定プロファイルを管理します。\n"
 "\n"
@@ -805,12 +856,14 @@ msgstr ""
 "lxc profile edit <profile>\n"
 "    プロファイルを編集します。外部エディタもしくはSTDINから読み込みます。\n"
 "    例: lxc profile edit <profile> # エディタの起動\n"
-"        cat profile.yaml | lxc profile edit <profile> # profile.yaml から読み込み\n"
+"        cat profile.yaml | lxc profile edit <profile> # profile.yaml から読み"
+"込み\n"
 "\n"
 "lxc profile assign <container> <profiles>\n"
 "    プロファイルのコンマ区切りのリストをコンテナに順番に割り当てます。\n"
 "    このコマンドで指定したプロファイルだけが対象のコンテナに適用されます。\n"
-"    つまり、コマンドで指定したコンテナに正確にプロファイルのリストを設定します。\n"
+"    つまり、コマンドで指定したコンテナに正確にプロファイルのリストを設定しま"
+"す。\n"
 "    コンテナから特定のプロファイルを追加したり削除したりするには、この\n"
 "    後の {add|remove} を使います。\n"
 "    例: lxc profile assign foo default,bar # defaultとbarを適用\n"
@@ -835,59 +888,68 @@ msgstr ""
 "    デバイスプロパティを設定します\n"
 "lxc profile device unset <[remote:]profile> <name> <key>\n"
 "    デバイスプロパティを削除します\n"
-"lxc profile device add <profile name> <device name> <device type> [key=value]...\n"
+"lxc profile device add <profile name> <device name> <device type> "
+"[key=value]...\n"
 "    ディスクやNICのようなプロファイルデバイスを指定したプロファイルを使って\n"
 "    コンテナに追加します。"
 
 #: lxc/config.go:57
+#, fuzzy
 msgid ""
 "Manage configuration.\n"
 "\n"
-"lxc config device add <[remote:]container> <name> <type> [key=value]...     "
-"Add a device to a container.\n"
-"lxc config device get <[remote:]container> <name> <key>                     "
-"Get a device property.\n"
-"lxc config device set <[remote:]container> <name> <key> <value>             "
-"Set a device property.\n"
-"lxc config device unset <[remote:]container> <name> <key>                   "
-"Unset a device property.\n"
-"lxc config device list <[remote:]container>                                 "
-"List devices for container.\n"
-"lxc config device show <[remote:]container>                                 "
-"Show full device details for container.\n"
-"lxc config device remove <[remote:]container> <name>                        "
-"Remove device from container.\n"
+"lxc config device add [<remote>:]<container> <device> <type> "
+"[key=value...]   Add a device to a container.\n"
+"lxc config device get [<remote>:]<container> <device> "
+"<key>                   Get a device property.\n"
+"lxc config device set [<remote>:]<container> <device> <key> "
+"<value>           Set a device property.\n"
+"lxc config device unset [<remote>:]<container> <device> "
+"<key>                 Unset a device property.\n"
+"lxc config device list "
+"[<remote>:]<container>                                 List devices for "
+"container.\n"
+"lxc config device show "
+"[<remote>:]<container>                                 Show full device "
+"details for container.\n"
+"lxc config device remove [<remote>:]<container> "
+"<name>                        Remove device from container.\n"
 "\n"
-"lxc config get [remote:][container] <key>                                   "
-"Get container or server configuration key.\n"
-"lxc config set [remote:][container] <key> <value>                           "
-"Set container or server configuration key.\n"
-"lxc config unset [remote:][container] <key>                                 "
-"Unset container or server configuration key.\n"
-"lxc config show [remote:][container] [--expanded]                           "
-"Show container or server configuration.\n"
-"lxc config edit [remote:][container]                                        "
-"Edit container or server configuration in external editor.\n"
+"lxc config get [<remote>:][container] "
+"<key>                                   Get container or server "
+"configuration key.\n"
+"lxc config set [<remote>:][container] <key> "
+"<value>                           Set container or server configuration "
+"key.\n"
+"lxc config unset [<remote>:][container] "
+"<key>                                 Unset container or server "
+"configuration key.\n"
+"lxc config show [<remote>:][container] [--"
+"expanded]                           Show container or server configuration.\n"
+"lxc config edit [<remote>:]"
+"[container]                                        Edit container or server "
+"configuration in external editor.\n"
 "    Edit configuration, either by launching external editor or reading "
 "STDIN.\n"
 "    Example: lxc config edit <container> # launch editor\n"
-"             cat config.yaml | lxc config edit <config> # read from config."
-"yaml\n"
+"             cat config.yaml | lxc config edit <container> # read from "
+"config.yaml\n"
 "\n"
-"lxc config trust list [remote]                                              "
-"List all trusted certs.\n"
-"lxc config trust add [remote] <certfile.crt>                                "
-"Add certfile.crt to trusted hosts.\n"
-"lxc config trust remove [remote] [hostname|fingerprint]                     "
-"Remove the cert from trusted hosts.\n"
+"lxc config trust list "
+"[<remote>:]                                             List all trusted "
+"certs.\n"
+"lxc config trust add [<remote>:] <certfile."
+"crt>                               Add certfile.crt to trusted hosts.\n"
+"lxc config trust remove [<remote>:] [hostname|"
+"fingerprint]                    Remove the cert from trusted hosts.\n"
 "\n"
 "Examples:\n"
 "To mount host's /share/c1 onto /opt in the container:\n"
-"    lxc config device add [remote:]container1 <device-name> disk source=/"
+"    lxc config device add [<remote>:]container1 <device-name> disk source=/"
 "share/c1 path=opt\n"
 "\n"
 "To set an lxc config value:\n"
-"    lxc config set [remote:]<container> raw.lxc 'lxc.aa_allow_incomplete = "
+"    lxc config set [<remote>:]<container> raw.lxc 'lxc.aa_allow_incomplete = "
 "1'\n"
 "\n"
 "To listen on IPv4 and IPv6 port 8443 (you can omit the 8443 its the "
@@ -924,9 +986,11 @@ msgstr ""
 "    コンテナもしくはサーバの設定を表示します。\n"
 "lxc config edit [remote:][container]\n"
 "    コンテナもしくはサーバの設定を外部エディタで編集します。\n"
-"    設定の編集は外部エディタを起動するか、標準入力からの読み込みで行います。\n"
+"    設定の編集は外部エディタを起動するか、標準入力からの読み込みで行いま"
+"す。\n"
 "    例: lxc config edit <container> # エディタの起動\n"
-"        cat config.yaml | lxc config edit <config> # config.yamlから読み込み\n"
+"        cat config.yaml | lxc config edit <config> # config.yamlから読み込"
+"み\n"
 "\n"
 "lxc config trust list [remote]\n"
 "    信頼する証明書を全て表示します。\n"
@@ -937,10 +1001,12 @@ msgstr ""
 "\n"
 "例:\n"
 "ホストの /share/c1 をコンテナ内の /opt にマウントするには:\n"
-"    lxc config device add [remote:]container1 <device-name> disk source=/share/c1 path=opt\n"
+"    lxc config device add [remote:]container1 <device-name> disk source=/"
+"share/c1 path=opt\n"
 "\n"
 "lxc 設定項目に値を設定するには:\n"
-"    lxc config set [remote:]<container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n"
+"    lxc config set [remote:]<container> raw.lxc 'lxc.aa_allow_incomplete = "
+"1'\n"
 "\n"
 "IPv4 と IPv6 のポート 8443 で Listen するには\n"
 "(8443 はデフォルトなので省略できます):\n"
@@ -949,30 +1015,32 @@ msgstr ""
 "サーバのパスワードを設定するには:\n"
 "    lxc config set core.trust_password blah"
 
-#: lxc/file.go:35
+#: lxc/file.go:36
+#, fuzzy
 msgid ""
-"Manage files on a container.\n"
+"Manage files in a container.\n"
 "\n"
-"lxc file pull [-r|--recursive] <source> [<source>...] <target>\n"
+"lxc file pull [-r|--recursive] [<remote>:]<container> "
+"[[<remote>:]<container>...] <target path>\n"
 "lxc file push [-r|--recursive] [-p|--create-dirs] [--uid=UID] [--gid=GID] [--"
-"mode=MODE] <source> [<source>...] <target>\n"
-"lxc file edit <file>\n"
+"mode=MODE] <source path> [<source path>...] [<remote>:]<container>\n"
+"lxc file edit [<remote>:]<container>/<path>\n"
 "\n"
 "<source> in the case of pull, <target> in the case of push and <file> in the "
 "case of edit are <container name>/<path>\n"
 "\n"
 "Examples:\n"
-"\n"
 "To push /etc/hosts into the container foo:\n"
-"  lxc file push /etc/hosts foo/etc/hosts\n"
+"    lxc file push /etc/hosts foo/etc/hosts\n"
 "\n"
 "To pull /etc/hosts from the container:\n"
-"  lxc file pull foo/etc/hosts .\n"
+"    lxc file pull foo/etc/hosts ."
 msgstr ""
 "コンテナ上のファイルを管理します。\n"
 "\n"
 "lxc file pull [-r|--recursive] <source> [<source>...] <target>\n"
-"lxc file push [-r|--recursive] [-p|--create-dirs] [--uid=UID] [--gid=GID] [--mode=MODE] <source> [<source>...] <target>\n"
+"lxc file push [-r|--recursive] [-p|--create-dirs] [--uid=UID] [--gid=GID] [--"
+"mode=MODE] <source> [<source>...] <target>\n"
 "lxc file edit <file>\n"
 "\n"
 "pull の場合の <source>、push の場合の <target>、edit の場合の <file> は、い\n"
@@ -987,41 +1055,52 @@ msgstr ""
 "  lxc file pull foo/etc/hosts\n"
 
 #: lxc/network.go:48
+#, fuzzy
 msgid ""
 "Manage networks.\n"
 "\n"
-"lxc network list                               List available networks.\n"
-"lxc network show <network>                     Show details of a network.\n"
-"lxc network create <network> [key=value]...    Create a network.\n"
-"lxc network get <network> <key>                Get network configuration.\n"
-"lxc network set <network> <key> <value>        Set network configuration.\n"
-"lxc network unset <network> <key>              Unset network configuration.\n"
-"lxc network delete <network>                   Delete a network.\n"
-"lxc network edit <network>\n"
+"lxc network list [<remote>:]                              List available "
+"networks.\n"
+"lxc network show [<remote>:]<network>                     Show details of a "
+"network.\n"
+"lxc network create [<remote>:]<network> [key=value...]    Create a network.\n"
+"lxc network get [<remote>:]<network> <key>                Get network "
+"configuration.\n"
+"lxc network set [<remote>:]<network> <key> <value>        Set network "
+"configuration.\n"
+"lxc network unset [<remote>:]<network> <key>              Unset network "
+"configuration.\n"
+"lxc network delete [<remote>:]<network>                   Delete a network.\n"
+"lxc network edit [<remote>:]<network>\n"
 "    Edit network, either by launching external editor or reading STDIN.\n"
 "    Example: lxc network edit <network> # launch editor\n"
 "             cat network.yaml | lxc network edit <network> # read from "
 "network.yaml\n"
 "\n"
-"lxc network attach <network> <container> [device name]\n"
-"lxc network attach-profile <network> <profile> [device name]\n"
+"lxc network attach [<remote>:]<network> <container> [device name]\n"
+"lxc network attach-profile [<remote>:]<network> <profile> [device name]\n"
 "\n"
-"lxc network detach <network> <container> [device name]\n"
-"lxc network detach-profile <network> <container> [device name]\n"
+"lxc network detach [<remote>:]<network> <container> [device name]\n"
+"lxc network detach-profile [<remote>:]<network> <container> [device name]"
 msgstr ""
 "ネットワークを管理します。<\n"
 "\n"
-"lxc network list                                利用できるネットワークを一覧します\n"
-"lxc network show <network>                      ネットワークの詳細を表示します\n"
+"lxc network list                                利用できるネットワークを一覧"
+"します\n"
+"lxc network show <network>                      ネットワークの詳細を表示しま"
+"す\n"
 "lxc network create <network> [key=value]...     ネットワークを作成します\n"
-"lxc network get <network> <key>                 ネットワークの設定を取得します\n"
+"lxc network get <network> <key>                 ネットワークの設定を取得しま"
+"す\n"
 "lxc network set <network> <key> <value>         ネットワークを設定します\n"
-"lxc network unset <network> <key>               ネットワークの設定を削除します\n"
+"lxc network unset <network> <key>               ネットワークの設定を削除しま"
+"す\n"
 "lxc network delete <network>                    ネットワークを削除します\n"
 "lxc network edit <network>\n"
 "    ネットワークを編集します。外部エディタもしくはSTDINから読み込みます。\n"
 "    例: lxc network edit <network> # エディタの起動\n"
-"        cat network.yaml | lxc network edit <network> # network.yaml から読み込み\n"
+"        cat network.yaml | lxc network edit <network> # network.yaml から読み"
+"込み\n"
 "\n"
 "lxc network attach <network> <container> [device name]\n"
 "lxc network attach-profile <network> <profile> [device name]\n"
@@ -1029,23 +1108,24 @@ msgstr ""
 "lxc network detach <network> <container> [device name]\n"
 "lxc network detach-profile <network> <container> [device name]\n"
 
-#: lxc/remote.go:38
+#: lxc/remote.go:37
+#, fuzzy
 msgid ""
 "Manage remote LXD servers.\n"
 "\n"
-"lxc remote add [<name>] <IP|FQDN|URL> [--accept-certificate] [--"
+"lxc remote add [<remote>] <IP|FQDN|URL> [--accept-certificate] [--"
 "password=PASSWORD]\n"
-"                                      [--public] [--protocol=PROTOCOL]      "
+"                                        [--public] [--protocol=PROTOCOL]    "
 "Add the remote <name> at <url>.\n"
-"lxc remote remove <name>                                                    "
+"lxc remote remove <remote>                                                  "
 "Remove the remote <name>.\n"
 "lxc remote list                                                             "
 "List all remotes.\n"
-"lxc remote rename <old> <new>                                               "
+"lxc remote rename <old name> <new name>                                     "
 "Rename remote <old> to <new>.\n"
-"lxc remote set-url <name> <url>                                             "
+"lxc remote set-url <remote> <url>                                           "
 "Update <name>'s url to <url>.\n"
-"lxc remote set-default <name>                                               "
+"lxc remote set-default <remote>                                             "
 "Set the default remote.\n"
 "lxc remote get-default                                                      "
 "Print the default remote."
@@ -1070,6 +1150,7 @@ msgstr ""
 "    デフォルトに設定されているリモートホストを表示します。"
 
 #: lxc/image.go:95
+#, fuzzy
 msgid ""
 "Manipulate container images.\n"
 "\n"
@@ -1088,22 +1169,22 @@ msgid ""
 "hash or alias name (if one is set).\n"
 "\n"
 "\n"
-"lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--"
-"created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--"
-"alias=ALIAS].. [prop=value]\n"
+"lxc image import <tarball> [<rootfs tarball>|<URL>] [<remote>:] [--public] "
+"[--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] "
+"[--alias=ALIAS...] [prop=value]\n"
 "    Import an image tarball (or tarballs) into the LXD image store.\n"
 "\n"
-"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] "
-"[--public] [--auto-update]\n"
+"lxc image copy [<remote>:]<image> <remote>: [--alias=ALIAS...] [--copy-"
+"aliases] [--public] [--auto-update]\n"
 "    Copy an image from one LXD daemon to another over the network.\n"
 "\n"
 "    The auto-update flag instructs the server to keep this image up to\n"
 "    date. It requires the source to be an alias and for it to be public.\n"
 "\n"
-"lxc image delete [remote:]<image> [remote:][<image>...]\n"
+"lxc image delete [<remote>:]<image> [[<remote>:]<image>...]\n"
 "    Delete one or more images from the LXD image store.\n"
 "\n"
-"lxc image export [remote:]<image> [target]\n"
+"lxc image export [<remote>:]<image> [target]\n"
 "    Export an image from the LXD image store into a distributable tarball.\n"
 "\n"
 "    The output target is optional and defaults to the working directory.\n"
@@ -1115,31 +1196,31 @@ msgid ""
 "    the appropriate extension will be appended to the provided file name\n"
 "    based on the algorithm used to compress the image. \n"
 "\n"
-"lxc image info [remote:]<image>\n"
+"lxc image info [<remote>:]<image>\n"
 "    Print everything LXD knows about a given image.\n"
 "\n"
-"lxc image list [remote:] [filter] [--format table|json]\n"
+"lxc image list [<remote>:] [filter] [--format table|json]\n"
 "    List images in the LXD image store. Filters may be of the\n"
 "    <key>=<value> form for property based filtering, or part of the image\n"
 "    hash or part of the image alias name.\n"
 "\n"
-"lxc image show [remote:]<image>\n"
+"lxc image show [<remote>:]<image>\n"
 "    Yaml output of the user modifiable properties of an image.\n"
 "\n"
-"lxc image edit [remote:]<image>\n"
+"lxc image edit [<remote>:]<image>\n"
 "    Edit image, either by launching external editor or reading STDIN.\n"
 "    Example: lxc image edit <image> # launch editor\n"
 "             cat image.yaml | lxc image edit <image> # read from image.yaml\n"
 "\n"
-"lxc image alias create [remote:]<alias> <fingerprint>\n"
+"lxc image alias create [<remote>:]<alias> <fingerprint>\n"
 "    Create a new alias for an existing image.\n"
 "\n"
-"lxc image alias delete [remote:]<alias>\n"
+"lxc image alias delete [<remote>:]<alias>\n"
 "    Delete an alias.\n"
 "\n"
-"lxc image alias list [remote:] [filter]\n"
+"lxc image alias list [<remote>:] [filter]\n"
 "    List the aliases. Filters may be part of the image hash or part of the "
-"image alias name.\n"
+"image alias name."
 msgstr ""
 "コンテナイメージを操作します。\n"
 "\n"
@@ -1156,11 +1237,14 @@ msgstr ""
 "る場合は) エイリアスで参照できます。\n"
 "\n"
 "\n"
-"lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--alias=ALIAS].. [prop=value]\n"
+"lxc image import <tarball> [rootfs tarball|URL] [remote:] [--public] [--"
+"created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--"
+"alias=ALIAS].. [prop=value]\n"
 "    イメージの tarball (複数も可能) を LXD のイメージストアにインポートしま\n"
 "    す。\n"
 "\n"
-"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] [--public] [--auto-update]\n"
+"lxc image copy [remote:]<image> <remote>: [--alias=ALIAS].. [--copy-aliases] "
+"[--public] [--auto-update]\n"
 "    ネットワーク経由である LXD デーモンから他の LXD デーモンへイメージを\n"
 "    コピーします。\n"
 "\n"
@@ -1206,7 +1290,8 @@ msgstr ""
 "    エイリアスを削除します。\n"
 "\n"
 "lxc image alias list [remote:] [filter]\n"
-"    エイリアスを一覧表示します。イメージハッシュの一部やイメージのエイリアス\n"
+"    エイリアスを一覧表示します。イメージハッシュの一部やイメージのエイリア"
+"ス\n"
 "    名の一部をフィルタとして指定できます。\n"
 
 #: lxc/info.go:161
@@ -1222,10 +1307,11 @@ msgid "Missing summary."
 msgstr "サマリーはありません。"
 
 #: lxc/monitor.go:41
+#, fuzzy
 msgid ""
 "Monitor activity on the LXD server.\n"
 "\n"
-"lxc monitor [remote:] [--type=TYPE...]\n"
+"lxc monitor [<remote>:] [--type=TYPE...]\n"
 "\n"
 "Connects to the monitoring interface of the specified LXD server.\n"
 "\n"
@@ -1233,7 +1319,7 @@ msgid ""
 "Specific types to listen to can be specified with --type.\n"
 "\n"
 "Example:\n"
-"lxc monitor --type=logging"
+"    lxc monitor --type=logging"
 msgstr ""
 "LXD サーバの動作をモニタリングします。\n"
 "\n"
@@ -1247,26 +1333,30 @@ msgstr ""
 "例:\n"
 "lxc monitor --type=logging"
 
-#: lxc/network.go:216 lxc/network.go:265
+#: lxc/network.go:215 lxc/network.go:264
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
 
-#: lxc/file.go:235
+#: lxc/file.go:237
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
 "せん。"
 
 #: lxc/move.go:16
+#, fuzzy
 msgid ""
 "Move containers within or in between lxd instances.\n"
 "\n"
-"lxc move [remote:]<source container> [remote:]<destination container>\n"
+"lxc move [<remote>:]<source container> [<remote>:][<destination container>]\n"
 "    Move a container between two hosts, renaming it if destination name "
 "differs.\n"
 "\n"
 "lxc move <old name> <new name>\n"
 "    Rename a local container.\n"
+"\n"
+"lxc move <container>/<old snapshot name> <container>/<new snapshot name>\n"
+"    Rename a snapshot."
 msgstr ""
 "LXD ホスト内、もしくは LXD ホスト間でコンテナを移動します。\n"
 "\n"
@@ -1281,11 +1371,11 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
-#: lxc/list.go:428 lxc/network.go:422 lxc/profile.go:447 lxc/remote.go:381
+#: lxc/list.go:428 lxc/network.go:421 lxc/profile.go:446 lxc/remote.go:380
 msgid "NAME"
 msgstr ""
 
-#: lxc/network.go:408 lxc/remote.go:355 lxc/remote.go:360
+#: lxc/network.go:407 lxc/remote.go:354 lxc/remote.go:359
 msgid "NO"
 msgstr ""
 
@@ -1294,12 +1384,12 @@ msgstr ""
 msgid "Name: %s"
 msgstr "コンテナ名: %s"
 
-#: lxc/network.go:190
+#: lxc/network.go:189
 #, c-format
 msgid "Network %s created"
 msgstr "ネットワーク %s を作成しました"
 
-#: lxc/network.go:293
+#: lxc/network.go:292
 #, c-format
 msgid "Network %s deleted"
 msgstr "ネットワーク %s を削除しました"
@@ -1308,7 +1398,7 @@ msgstr "ネットワーク %s を削除しました"
 msgid "Network name"
 msgstr "ネットワーク名:"
 
-#: lxc/image.go:168 lxc/publish.go:34
+#: lxc/image.go:167 lxc/publish.go:34
 msgid "New alias to define at target"
 msgstr "新しいエイリアスを定義する"
 
@@ -1316,7 +1406,7 @@ msgstr "新しいエイリアスを定義する"
 msgid "No certificate provided to add"
 msgstr "追加すべき証明書が提供されていません"
 
-#: lxc/network.go:225 lxc/network.go:274
+#: lxc/network.go:224 lxc/network.go:273
 msgid "No device found for this network"
 msgstr "このネットワークに対するデバイスがありません"
 
@@ -1324,11 +1414,11 @@ msgstr "このネットワークに対するデバイスがありません"
 msgid "No fingerprint specified."
 msgstr "フィンガープリントが指定されていません。"
 
-#: lxc/remote.go:121
+#: lxc/remote.go:120
 msgid "Only https URLs are supported for simplestreams"
 msgstr "simplestreams は https の URL のみサポートします"
 
-#: lxc/image.go:434
+#: lxc/image.go:424
 msgid "Only https:// is supported for remote image import."
 msgstr "リモートイメージのインポートは https:// のみをサポートします。"
 
@@ -1336,7 +1426,7 @@ msgstr "リモートイメージのインポートは https:// のみをサポ�
 msgid "Options:"
 msgstr "オプション:"
 
-#: lxc/image.go:538
+#: lxc/image.go:535
 #, c-format
 msgid "Output is in %s"
 msgstr "%s に出力されます"
@@ -1357,11 +1447,11 @@ msgstr ""
 msgid "PROFILES"
 msgstr ""
 
-#: lxc/remote.go:383
+#: lxc/remote.go:382
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:640 lxc/remote.go:384
+#: lxc/image.go:637 lxc/remote.go:383
 msgid "PUBLIC"
 msgstr ""
 
@@ -1374,11 +1464,13 @@ msgid "Packets sent"
 msgstr "送信パケット"
 
 #: lxc/help.go:70
-msgid "Path to an alternate client configuration directory."
+#, fuzzy
+msgid "Path to an alternate client configuration directory"
 msgstr "別のクライアント用設定ディレクトリ"
 
 #: lxc/help.go:71
-msgid "Path to an alternate server directory."
+#, fuzzy
+msgid "Path to an alternate server directory"
 msgstr "別のサーバ用設定ディレクトリ"
 
 #: lxc/main.go:31
@@ -1390,39 +1482,33 @@ msgstr "アクセスが拒否されました。lxd グループに所属して�
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/help.go:25
-msgid ""
-"Presents details on how to use LXD.\n"
-"\n"
-"lxd help [--all]"
-msgstr ""
-"LXDの使い方の詳細を表示します。\n"
-"\n"
-"lxd help [--all]"
-
-#: lxc/network.go:343 lxc/profile.go:219
+#: lxc/network.go:342 lxc/profile.go:218
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
-#: lxc/config.go:531 lxc/config.go:596 lxc/image.go:735
+#: lxc/config.go:531 lxc/config.go:596 lxc/image.go:732
 msgid "Press enter to start the editor again"
 msgstr "再度エディタを起動するには Enter キーを押します"
 
+#: lxc/manpage.go:18
+#, fuzzy
+msgid "Print all the subcommands help."
+msgstr "全てのサブコマンドのヘルプを表示します。"
+
 #: lxc/help.go:65
-msgid "Print debug information."
+#, fuzzy
+msgid "Print debug information"
 msgstr "デバッグ情報を表示します。"
 
 #: lxc/help.go:64
-msgid "Print less common commands."
+#, fuzzy
+msgid "Print less common commands"
 msgstr "全てのコマンドを表示します (主なコマンドだけではなく)。"
 
 #: lxc/help.go:66
-msgid "Print verbose information."
+#, fuzzy
+msgid "Print verbose information"
 msgstr "詳細情報を表示します。"
-
-#: lxc/manpage.go:18
-msgid "Prints all the subcommands help."
-msgstr "全てのサブコマンドのヘルプを表示します。"
 
 #: lxc/version.go:18
 msgid ""
@@ -1439,22 +1525,22 @@ msgstr ""
 msgid "Processes: %d"
 msgstr "プロセス数: %d"
 
-#: lxc/profile.go:275
+#: lxc/profile.go:274
 #, c-format
 msgid "Profile %s added to %s"
 msgstr "プロファイル %s が %s に追加されました"
 
-#: lxc/profile.go:170
+#: lxc/profile.go:169
 #, c-format
 msgid "Profile %s created"
 msgstr "プロファイル %s を作成しました"
 
-#: lxc/profile.go:240
+#: lxc/profile.go:239
 #, c-format
 msgid "Profile %s deleted"
 msgstr "プロファイル %s を削除しました"
 
-#: lxc/profile.go:306
+#: lxc/profile.go:305
 #, c-format
 msgid "Profile %s removed from %s"
 msgstr "プロファイル %s が %s から削除されました"
@@ -1464,7 +1550,7 @@ msgstr "プロファイル %s が %s から削除されました"
 msgid "Profile to apply to the new container"
 msgstr "新しいコンテナに適用するプロファイル"
 
-#: lxc/profile.go:256
+#: lxc/profile.go:255
 #, c-format
 msgid "Profiles %s applied to %s"
 msgstr "プロファイル %s が %s に追加されました"
@@ -1474,36 +1560,37 @@ msgstr "プロファイル %s が %s に追加されました"
 msgid "Profiles: %s"
 msgstr "プロファイル: %s"
 
-#: lxc/image.go:361
+#: lxc/image.go:358
 msgid "Properties:"
 msgstr "プロパティ:"
 
-#: lxc/remote.go:55
+#: lxc/remote.go:54
 msgid "Public image server"
 msgstr "Public なイメージサーバとして設定します"
 
-#: lxc/image.go:349
+#: lxc/image.go:346
 #, c-format
 msgid "Public: %s"
 msgstr ""
 
 #: lxc/publish.go:26
+#, fuzzy
 msgid ""
 "Publish containers as images.\n"
 "\n"
-"lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-"
-"value]..."
+"lxc publish [<remote>:]<container>[/<snapshot>] [<remote>:] [--"
+"alias=ALIAS...] [prop-key=prop-value...]"
 msgstr ""
 "イメージとしてコンテナを publish します。\n"
 "\n"
 "lxc publish [remote:]container [remote:] [--alias=ALIAS]... [prop-key=prop-"
 "value]..."
 
-#: lxc/file.go:58 lxc/file.go:59
+#: lxc/file.go:57 lxc/file.go:58
 msgid "Recursively push or pull files"
 msgstr "再帰的にファイルをpush/pullします"
 
-#: lxc/remote.go:53
+#: lxc/remote.go:52
 msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
 
@@ -1518,58 +1605,30 @@ msgid "Remove %s (yes/no): "
 msgstr "%s を消去しますか (yes/no): "
 
 #: lxc/delete.go:36 lxc/delete.go:37
-msgid "Require user confirmation."
+#, fuzzy
+msgid "Require user confirmation"
 msgstr "ユーザの確認を要求する。"
 
 #: lxc/info.go:127
 msgid "Resources:"
 msgstr "リソース:"
 
-#: lxc/init.go:267
-#, c-format
-msgid "Retrieving image: %s"
-msgstr "イメージの取得中: %s"
-
-#: lxc/image.go:643
-msgid "SIZE"
-msgstr ""
-
-#: lxc/list.go:431
-msgid "SNAPSHOTS"
-msgstr ""
-
-#: lxc/list.go:432
-msgid "STATE"
-msgstr ""
-
-#: lxc/remote.go:385
-msgid "STATIC"
-msgstr ""
-
-#: lxc/remote.go:226
-msgid "Server certificate NACKed by user"
-msgstr "ユーザによりサーバ証明書が拒否されました"
-
-#: lxc/remote.go:288
-msgid "Server doesn't trust us after adding our cert"
-msgstr "サーバが我々の証明書を追加した後我々を信頼していません"
-
-#: lxc/remote.go:54
-msgid "Server protocol (lxd or simplestreams)"
-msgstr "サーバのプロトコル (lxd or simplestreams)"
-
 #: lxc/restore.go:21
+#, fuzzy
 msgid ""
-"Set the current state of a resource back to a snapshot.\n"
+"Restore a container's state to a previous snapshot.\n"
 "\n"
-"lxc restore [remote:]<container> <snapshot name> [--stateful]\n"
+"lxc restore [<remote>:]<container> <snapshot> [--stateful]\n"
 "\n"
 "Restores a container from a snapshot (optionally with running state, see\n"
 "snapshot help for details).\n"
 "\n"
-"For example:\n"
-"lxc snapshot u1 snap0 # create the snapshot\n"
-"lxc restore u1 snap0 # restore the snapshot"
+"Examples:\n"
+"Create the snapshot:\n"
+"    lxc snapshot u1 snap0\n"
+"\n"
+"Restore the snapshot:\n"
+"    lxc restore u1 snap0"
 msgstr ""
 "リソースの現在の状態をスナップショット時点の状態に設定します。\n"
 "\n"
@@ -1582,15 +1641,48 @@ msgstr ""
 "lxc snapshot u1 snap0 # スナップショットの作成\n"
 "lxc restore u1 snap0 # スナップショットからリストア"
 
-#: lxc/file.go:56
+#: lxc/init.go:239
+#, c-format
+msgid "Retrieving image: %s"
+msgstr "イメージの取得中: %s"
+
+#: lxc/image.go:640
+msgid "SIZE"
+msgstr ""
+
+#: lxc/list.go:431
+msgid "SNAPSHOTS"
+msgstr ""
+
+#: lxc/list.go:432
+msgid "STATE"
+msgstr ""
+
+#: lxc/remote.go:384
+msgid "STATIC"
+msgstr ""
+
+#: lxc/remote.go:225
+msgid "Server certificate NACKed by user"
+msgstr "ユーザによりサーバ証明書が拒否されました"
+
+#: lxc/remote.go:287
+msgid "Server doesn't trust us after adding our cert"
+msgstr "サーバが我々の証明書を追加した後我々を信頼していません"
+
+#: lxc/remote.go:53
+msgid "Server protocol (lxd or simplestreams)"
+msgstr "サーバのプロトコル (lxd or simplestreams)"
+
+#: lxc/file.go:55
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:57
+#: lxc/file.go:56
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:55
+#: lxc/file.go:54
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
@@ -1599,14 +1691,20 @@ msgid "Show all commands (not just interesting ones)"
 msgstr "全てコマンドを表示します (主なコマンドだけではなく)"
 
 #: lxc/help.go:67
-msgid "Show client version."
+#, fuzzy
+msgid "Show client version"
 msgstr "クライアントのバージョンを表示します。"
 
 #: lxc/info.go:36
 msgid "Show the container's last 100 log lines?"
 msgstr "コンテナログの最後の 100 行を表示しますか?"
 
-#: lxc/image.go:347
+#: lxc/config.go:32
+#, fuzzy
+msgid "Show the expanded configuration"
+msgstr "拡張した設定を表示するかどうか"
+
+#: lxc/image.go:344
 #, c-format
 msgid "Size: %.2fMB"
 msgstr "サイズ: %.2fMB"
@@ -1615,11 +1713,11 @@ msgstr "サイズ: %.2fMB"
 msgid "Snapshots:"
 msgstr "スナップショット:"
 
-#: lxc/image.go:371
+#: lxc/image.go:368
 msgid "Source:"
 msgstr "取得元:"
 
-#: lxc/launch.go:142
+#: lxc/launch.go:144
 #, c-format
 msgid "Starting %s"
 msgstr "%s を起動中"
@@ -1638,7 +1736,8 @@ msgid "Stopping container failed!"
 msgstr "コンテナの停止に失敗しました！"
 
 #: lxc/action.go:45
-msgid "Store the container state (only for stop)."
+#, fuzzy
+msgid "Store the container state (only for stop)"
 msgstr "コンテナの状態を保存します (stopのみ)。"
 
 #: lxc/info.go:169
@@ -1649,7 +1748,7 @@ msgstr "Swap (現在値)"
 msgid "Swap (peak)"
 msgstr "Swap (ピーク)"
 
-#: lxc/list.go:433 lxc/network.go:423
+#: lxc/list.go:433 lxc/network.go:422
 msgid "TYPE"
 msgstr ""
 
@@ -1665,8 +1764,9 @@ msgstr ""
 "コンテナは現在実行中です。停止して、再起動するために --force を使用してくだ\n"
 "さい。"
 
-#: lxc/init.go:313
-msgid "The container you are starting doesn’t have any network attached to it."
+#: lxc/init.go:312
+#, fuzzy
+msgid "The container you are starting doesn't have any network attached to it."
 msgstr "起動しようとしたコンテナに接続されているネットワークがありません。"
 
 #: lxc/config.go:675 lxc/config.go:687 lxc/config.go:720 lxc/config.go:738
@@ -1674,7 +1774,7 @@ msgstr "起動しようとしたコンテナに接続されているネットワ
 msgid "The device doesn't exist"
 msgstr "デバイスが存在しません"
 
-#: lxc/init.go:297
+#: lxc/init.go:296
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -1684,11 +1784,11 @@ msgstr ""
 msgid "The opposite of `lxc pause` is `lxc start`."
 msgstr "`lxc pause` の反対のコマンドは `lxc start` です。"
 
-#: lxc/network.go:230 lxc/network.go:279
+#: lxc/network.go:229 lxc/network.go:278
 msgid "The specified device doesn't exist"
 msgstr "指定したデバイスが存在しません"
 
-#: lxc/network.go:234 lxc/network.go:283
+#: lxc/network.go:233 lxc/network.go:282
 msgid "The specified device doesn't match the network"
 msgstr "指定したデバイスはネットワークとマッチしません"
 
@@ -1700,20 +1800,23 @@ msgstr ""
 "さい。"
 
 #: lxc/action.go:41
-msgid "Time to wait for the container before killing it."
+#, fuzzy
+msgid "Time to wait for the container before killing it"
 msgstr "コンテナを強制停止するまでの時間"
 
-#: lxc/image.go:350
+#: lxc/image.go:347
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
-#: lxc/init.go:315
-msgid "To attach a network to a container, use: lxc network attach"
-msgstr "コンテナにネットワークを接続するには、lxc network attach を使用してください。"
-
 #: lxc/init.go:314
+msgid "To attach a network to a container, use: lxc network attach"
+msgstr ""
+"コンテナにネットワークを接続するには、lxc network attach を使用してください。"
+
+#: lxc/init.go:313
 msgid "To create a new network, use: lxc network create"
-msgstr "新しいネットワークを作成するには、lxc network create を使用してください。"
+msgstr ""
+"新しいネットワークを作成するには、lxc network create を使用してください。"
 
 #: lxc/main.go:137
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
@@ -1722,12 +1825,12 @@ msgstr ""
 "だ\n"
 "さい。"
 
-#: lxc/image.go:421
-#, c-format
-msgid "Transferring image: %d%%"
+#: lxc/image.go:426
+#, fuzzy, c-format
+msgid "Transferring image: %s"
 msgstr "イメージを転送中: %d%%"
 
-#: lxc/action.go:99 lxc/launch.go:155
+#: lxc/action.go:99 lxc/launch.go:157
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
@@ -1740,23 +1843,23 @@ msgstr "タイプ: ephemeral"
 msgid "Type: persistent"
 msgstr "タイプ: persistent"
 
-#: lxc/image.go:644
+#: lxc/image.go:641
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/remote.go:382
+#: lxc/remote.go:381
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:425 lxc/profile.go:448
+#: lxc/network.go:424 lxc/profile.go:447
 msgid "USED BY"
 msgstr ""
 
-#: lxc/remote.go:96
+#: lxc/remote.go:95
 msgid "Unable to read remote TLS certificate"
 msgstr "リモートの TLS 証明書を読めません"
 
-#: lxc/image.go:355
+#: lxc/image.go:352
 #, c-format
 msgid "Uploaded: %s"
 msgstr "アップロード日時: %s"
@@ -1767,14 +1870,15 @@ msgid "Usage: %s"
 msgstr "使い方: %s"
 
 #: lxc/help.go:48
-msgid "Usage: lxc [subcommand] [options]"
+#, fuzzy
+msgid "Usage: lxc <command> [options]"
 msgstr "使い方: lxc [サブコマンド] [オプション]"
 
 #: lxc/delete.go:46
 msgid "User aborted delete operation."
 msgstr "ユーザが削除操作を中断しました。"
 
-#: lxc/restore.go:35
+#: lxc/restore.go:38
 msgid ""
 "Whether or not to restore the container's running state from snapshot (if "
 "available)"
@@ -1785,11 +1889,7 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
 
-#: lxc/config.go:32
-msgid "Whether to show the expanded configuration"
-msgstr "拡張した設定を表示するかどうか"
-
-#: lxc/network.go:410 lxc/remote.go:357 lxc/remote.go:362
+#: lxc/network.go:409 lxc/remote.go:356 lxc/remote.go:361
 msgid "YES"
 msgstr ""
 
@@ -1797,7 +1897,7 @@ msgstr ""
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr "`lxc config profile` は廃止されました。`lxc profile` を使ってください"
 
-#: lxc/launch.go:127
+#: lxc/launch.go:128
 msgid "bad number of things scanned from image, container or snapshot"
 msgstr ""
 "イメージ、コンテナ、スナップショットのいずれかからスキャンされた数が不正"
@@ -1810,34 +1910,35 @@ msgstr "アクションからの結果タイプが不正です"
 msgid "can't copy to the same container name"
 msgstr "同じコンテナ名へはコピーできません"
 
-#: lxc/file.go:270
+#: lxc/file.go:272
 msgid "can't pull a directory without --recursive"
-msgstr "ディレクトリを pull する場合は --recursive オプションを使用してください。"
+msgstr ""
+"ディレクトリを pull する場合は --recursive オプションを使用してください。"
 
-#: lxc/remote.go:345
+#: lxc/remote.go:344
 msgid "can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
-#: lxc/file.go:117
+#: lxc/file.go:119
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません。"
 
-#: lxc/remote.go:371
+#: lxc/remote.go:370
 msgid "default"
 msgstr ""
 
 #: lxc/copy.go:131 lxc/copy.go:136 lxc/copy.go:232 lxc/copy.go:237
-#: lxc/init.go:217 lxc/init.go:222 lxc/launch.go:111 lxc/launch.go:116
+#: lxc/init.go:219 lxc/init.go:224 lxc/launch.go:112 lxc/launch.go:117
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr ""
 "サーバから変更されたイメージ、コンテナ、スナップショットを取得できませんで\n"
 "した"
 
-#: lxc/image.go:341
+#: lxc/image.go:338
 msgid "disabled"
 msgstr "無効"
 
-#: lxc/image.go:343
+#: lxc/image.go:340
 msgid "enabled"
 msgstr "有効"
 
@@ -1851,11 +1952,11 @@ msgstr "エラー: %v"
 msgid "error: unknown command: %s"
 msgstr "エラー: 未知のコマンド: %s"
 
-#: lxc/launch.go:131
+#: lxc/launch.go:132
 msgid "got bad version"
 msgstr "不正なバージョンを得ました"
 
-#: lxc/image.go:336 lxc/image.go:620
+#: lxc/image.go:333 lxc/image.go:617
 msgid "no"
 msgstr ""
 
@@ -1863,7 +1964,7 @@ msgstr ""
 msgid "not all the profiles from the source exist on the target"
 msgstr "コピー元の全てのプロファイルがターゲットに存在しません"
 
-#: lxc/remote.go:219
+#: lxc/remote.go:218
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
@@ -1872,26 +1973,26 @@ msgstr "ok (y/n)?"
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
 
-#: lxc/file.go:311
+#: lxc/file.go:313
 msgid "recursive edit doesn't make sense :("
 msgstr "再帰的な edit は意味がありません :("
 
-#: lxc/remote.go:407
+#: lxc/remote.go:406
 #, c-format
 msgid "remote %s already exists"
 msgstr "リモート %s は既に存在します"
 
-#: lxc/remote.go:337 lxc/remote.go:399 lxc/remote.go:434 lxc/remote.go:450
+#: lxc/remote.go:336 lxc/remote.go:398 lxc/remote.go:433 lxc/remote.go:449
 #, c-format
 msgid "remote %s doesn't exist"
 msgstr "リモート %s は存在しません"
 
-#: lxc/remote.go:320
+#: lxc/remote.go:319
 #, c-format
 msgid "remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"
 
-#: lxc/remote.go:341 lxc/remote.go:403 lxc/remote.go:438
+#: lxc/remote.go:340 lxc/remote.go:402 lxc/remote.go:437
 #, c-format
 msgid "remote %s is static and cannot be modified"
 msgstr "リモート %s は static ですので変更できません"
@@ -1917,7 +2018,7 @@ msgstr "到達しないはずのreturnに到達しました"
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
-#: lxc/delete.go:45 lxc/image.go:338 lxc/image.go:624
+#: lxc/delete.go:45 lxc/image.go:335 lxc/image.go:621
 msgid "yes"
 msgstr ""
 
