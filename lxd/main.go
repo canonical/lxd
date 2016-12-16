@@ -9,6 +9,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/logging"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Global arguments
@@ -166,7 +167,7 @@ func run() error {
 
 	// Deal with --version right here
 	if *argVersion {
-		fmt.Println(shared.Version)
+		fmt.Println(version.Version)
 		return nil
 	}
 

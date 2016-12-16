@@ -33,6 +33,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -149,7 +150,7 @@ func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, err
 		return nil, err
 	}
 
-	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("User-Agent", version.UserAgent)
 
 	myhttp, err := d.httpClient(certificate)
 	if err != nil {
@@ -186,7 +187,7 @@ func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, er
 		return nil, err
 	}
 
-	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("User-Agent", version.UserAgent)
 
 	raw, err := myhttp.Do(req)
 	if err != nil {
@@ -555,13 +556,13 @@ func (d *Daemon) Init() error {
 
 	/* Print welcome message */
 	if d.MockMode {
-		shared.LogInfo(fmt.Sprintf("LXD %s is starting in mock mode", shared.Version),
+		shared.LogInfo(fmt.Sprintf("LXD %s is starting in mock mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
 	} else if d.SetupMode {
-		shared.LogInfo(fmt.Sprintf("LXD %s is starting in setup mode", shared.Version),
+		shared.LogInfo(fmt.Sprintf("LXD %s is starting in setup mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
 	} else {
-		shared.LogInfo(fmt.Sprintf("LXD %s is starting in normal mode", shared.Version),
+		shared.LogInfo(fmt.Sprintf("LXD %s is starting in normal mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
 	}
 

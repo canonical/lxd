@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Helper functions
@@ -52,7 +53,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 	resultMap := []network{}
 	for _, iface := range ifs {
 		if recursion == 0 {
-			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, iface.Name))
+			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, iface.Name))
 		} else {
 			net, err := doNetworkGet(d, iface.Name)
 			if err != nil {
@@ -113,7 +114,7 @@ func doNetworkGet(d *Daemon, name string) (network, error) {
 		}
 
 		if networkIsInUse(c, n.Name) {
-			n.UsedBy = append(n.UsedBy, fmt.Sprintf("/%s/containers/%s", shared.APIVersion, ct))
+			n.UsedBy = append(n.UsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
 		}
 	}
 
