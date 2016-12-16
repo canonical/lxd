@@ -9,28 +9,30 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-func containerPatch(d *Daemon, r *http.Request) Response {
+func containerPatch(d *Daemon, r *http.Request) response.Response {
 	// Get the container
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return NotFound
+		return response.NotFound
 	}
 
 	// Validate the ETag
 	etag := []interface{}{c.Architecture(), c.LocalConfig(), c.LocalDevices(), c.IsEphemeral(), c.Profiles()}
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
@@ -38,16 +40,16 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 
 	reqRaw := shared.Jmap{}
 	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	req := containerPutReq{}
 	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if req.Restore != "" {
-		return BadRequest(fmt.Errorf("Can't call PATCH in restore mode."))
+		return response.BadRequest(fmt.Errorf("Can't call PATCH in restore mode."))
 	}
 
 	// Check if architecture was passed
@@ -107,8 +109,8 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 
 	err = c.Update(args, false)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }

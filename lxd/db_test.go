@@ -476,8 +476,8 @@ func Test_dbImageAliasGet_alias_does_not_exists(t *testing.T) {
 
 	_, _, err = dbImageAliasGet(db, "whatever", true)
 
-	if err != NoSuchObjectError {
-		t.Fatal("Error should be NoSuchObjectError")
+	if err != util.NoSuchObjectError {
+		t.Fatal("Error should be util.NoSuchObjectError")
 	}
 }
 

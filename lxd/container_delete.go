@@ -5,30 +5,33 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/response"
 )
 
-func containerDelete(d *Daemon, r *http.Request) Response {
+func containerDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if c.IsRunning() {
-		return BadRequest(fmt.Errorf("container is running"))
+		return response.BadRequest(fmt.Errorf("container is running"))
 	}
 
-	rmct := func(op *operation) error {
+	rmct := func(op *operation.Operation) error {
 		return c.Delete()
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, rmct, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, rmct, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }

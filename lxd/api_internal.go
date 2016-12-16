@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 
@@ -24,57 +25,57 @@ var apiInternal = []Command{
 	internalContainersCmd,
 }
 
-func internalReady(d *Daemon, r *http.Request) Response {
+func internalReady(d *Daemon, r *http.Request) response.Response {
 	if !d.SetupMode {
-		return InternalError(fmt.Errorf("The server isn't currently in setup mode"))
+		return response.InternalError(fmt.Errorf("The server isn't currently in setup mode"))
 	}
 
 	err := d.Ready()
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	d.SetupMode = false
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func internalWaitReady(d *Daemon, r *http.Request) Response {
+func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 	<-d.readyChan
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func internalShutdown(d *Daemon, r *http.Request) Response {
+func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	d.shutdownChan <- true
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func internalContainerOnStart(d *Daemon, r *http.Request) Response {
+func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	c, err := containerLoadById(d, id)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	err = c.OnStart()
 	if err != nil {
 		shared.Log.Error("start hook failed", log.Ctx{"container": c.Name(), "err": err})
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func internalContainerOnStop(d *Daemon, r *http.Request) Response {
+func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	target := r.FormValue("target")
@@ -84,16 +85,16 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 
 	c, err := containerLoadById(d, id)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	err = c.OnStop(target)
 	if err != nil {
 		shared.Log.Error("stop hook failed", log.Ctx{"container": c.Name(), "err": err})
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 var internalShutdownCmd = Command{name: "shutdown", put: internalShutdown}
@@ -116,23 +117,23 @@ func slurpBackupFile(path string) (*backupFile, error) {
 	return &sf, nil
 }
 
-func internalImport(d *Daemon, r *http.Request) Response {
+func internalImport(d *Daemon, r *http.Request) response.Response {
 	name := r.FormValue("target")
 	if name == "" {
-		return BadRequest(fmt.Errorf("target is required"))
+		return response.BadRequest(fmt.Errorf("target is required"))
 	}
 
 	path := containerPath(name, false)
 	err := d.Storage.ContainerStart(name, path)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	defer d.Storage.ContainerStop(name, path)
 
 	sf, err := slurpBackupFile(shared.VarPath("containers", name, "backup.yaml"))
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	baseImage := sf.Container.Config["volatile.base_image"]
@@ -144,7 +145,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	arch, err := osarch.ArchitectureId(sf.Container.Architecture)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	_, err = containerCreateInternal(d, containerArgs{
 		Architecture: arch,
@@ -160,7 +161,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		Stateful:     sf.Container.Stateful,
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	for _, snap := range sf.Snapshots {
@@ -173,7 +174,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 		arch, err := osarch.ArchitectureId(snap.Architecture)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		_, err = containerCreateInternal(d, containerArgs{
@@ -190,11 +191,11 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			Stateful:     snap.Stateful,
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 var internalContainersCmd = Command{name: "containers", post: internalImport}

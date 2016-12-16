@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/lxc/lxd/lxd/events"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/logging"
@@ -32,18 +34,8 @@ var argTrustPassword = gnuflag.String("trust-password", "", "")
 var argVerbose = gnuflag.Bool("verbose", false, "")
 var argVersion = gnuflag.Bool("version", false, "")
 
-// Global variables
-var debug bool
-var verbose bool
-var execPath string
-
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
-	absPath, err := os.Readlink("/proc/self/exe")
-	if err != nil {
-		absPath = "bad-exec-path"
-	}
-	execPath = absPath
 }
 
 func main() {
@@ -155,8 +147,8 @@ func run() error {
 	gnuflag.Parse(true)
 
 	// Set the global variables
-	debug = *argDebug
-	verbose = *argVerbose
+	state.Debug = *argDebug
+	state.Verbose = *argVerbose
 
 	if *argHelp {
 		// The user asked for help via --help, so we shouldn't print to
@@ -182,7 +174,7 @@ func run() error {
 		syslog = "lxd"
 	}
 
-	handler := eventsHandler{}
+	handler := events.EventsHandler{}
 	var err error
 	shared.Log, err = logging.GetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
 	if err != nil {

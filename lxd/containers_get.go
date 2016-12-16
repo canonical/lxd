@@ -6,17 +6,19 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/shared"
+
+	"github.com/lxc/lxd/lxd/response"
 )
 
-func containersGet(d *Daemon, r *http.Request) Response {
+func containersGet(d *Daemon, r *http.Request) response.Response {
 	for i := 0; i < 100; i++ {
 		result, err := doContainersGet(d, d.isRecursionRequest(r))
 		if err == nil {
-			return SyncResponse(true, result)
+			return response.SyncResponse(true, result)
 		}
 		if !isDbLockedError(err) {
 			shared.LogDebugf("DBERR: containersGet: error %q", err)
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 		// 1 s may seem drastic, but we really don't want to thrash
 		// perhaps we should use a random amount
@@ -25,7 +27,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 
 	shared.LogDebugf("DBERR: containersGet, db is locked")
 	shared.PrintStack()
-	return InternalError(fmt.Errorf("DB is locked"))
+	return response.InternalError(fmt.Errorf("DB is locked"))
 }
 
 func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {

@@ -9,6 +9,9 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/response"
 )
 
 type containerStatePutReq struct {
@@ -18,22 +21,22 @@ type containerStatePutReq struct {
 	Stateful bool   `json:"stateful"`
 }
 
-func containerState(d *Daemon, r *http.Request) Response {
+func containerState(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	state, err := c.RenderState()
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return SyncResponse(true, state)
+	return response.SyncResponse(true, state)
 }
 
-func containerStatePut(d *Daemon, r *http.Request) Response {
+func containerStatePut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	raw := containerStatePutReq{}
@@ -43,7 +46,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	raw.Timeout = -1
 
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Don't mess with containers while in setup mode
@@ -51,13 +54,13 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	var do func(*operation) error
+	var do func(*operation.Operation) error
 	switch shared.ContainerAction(raw.Action) {
 	case shared.Start:
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			if err = c.Start(raw.Stateful); err != nil {
 				return err
 			}
@@ -65,7 +68,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		}
 	case shared.Stop:
 		if raw.Stateful {
-			do = func(op *operation) error {
+			do = func(op *operation.Operation) error {
 				err := c.Stop(raw.Stateful)
 				if err != nil {
 					return err
@@ -74,7 +77,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 				return nil
 			}
 		} else if raw.Timeout == 0 || raw.Force {
-			do = func(op *operation) error {
+			do = func(op *operation.Operation) error {
 				err = c.Stop(false)
 				if err != nil {
 					return err
@@ -83,7 +86,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 				return nil
 			}
 		} else {
-			do = func(op *operation) error {
+			do = func(op *operation.Operation) error {
 				if c.IsFrozen() {
 					err := c.Unfreeze()
 					if err != nil {
@@ -100,7 +103,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			}
 		}
 	case shared.Restart:
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			ephemeral := c.IsEphemeral()
 
 			if ephemeral {
@@ -149,24 +152,24 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			return nil
 		}
 	case shared.Freeze:
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			return c.Freeze()
 		}
 	case shared.Unfreeze:
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			return c.Unfreeze()
 		}
 	default:
-		return BadRequest(fmt.Errorf("unknown action %s", raw.Action))
+		return response.BadRequest(fmt.Errorf("unknown action %s", raw.Action))
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, do, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, do, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }

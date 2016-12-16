@@ -9,6 +9,7 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -644,7 +645,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	// Create the container entry
 	id, err := dbContainerCreate(d.db, args)
 	if err != nil {
-		if err == DbErrAlreadyDefined {
+		if err == util.DbErrAlreadyDefined {
 			thing := "Container"
 			if shared.IsSnapshot(args.Name) {
 				thing = "Snapshot"

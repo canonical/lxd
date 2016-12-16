@@ -10,19 +10,20 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 )
 
-func containerFileHandler(d *Daemon, r *http.Request) Response {
+func containerFileHandler(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	path := r.FormValue("path")
 	if path == "" {
-		return BadRequest(fmt.Errorf("missing path argument"))
+		return response.BadRequest(fmt.Errorf("missing path argument"))
 	}
 
 	switch r.Method {
@@ -31,11 +32,11 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	case "POST":
 		return containerFilePut(c, path, r)
 	default:
-		return NotFound
+		return response.NotFound
 	}
 }
 
-func containerFileGet(c container, path string, r *http.Request) Response {
+func containerFileGet(c container, path string, r *http.Request) response.Response {
 	/*
 	 * Copy out of the ns to a temporary file, and then use that to serve
 	 * the request from. This prevents us from having to worry about stuff
@@ -45,7 +46,7 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 	 */
 	temp, err := ioutil.TempFile("", "lxd_forkgetfile_")
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	defer temp.Close()
 
@@ -53,7 +54,7 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 	uid, gid, mode, type_, dirEnts, err := c.FilePull(path, temp.Name())
 	if err != nil {
 		os.Remove(temp.Name())
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	headers := map[string]string{
@@ -65,22 +66,22 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 
 	if type_ == "file" {
 		// Make a file response struct
-		files := make([]fileResponseEntry, 1)
-		files[0].identifier = filepath.Base(path)
-		files[0].path = temp.Name()
-		files[0].filename = filepath.Base(path)
+		files := make([]response.FileResponseEntry, 1)
+		files[0].Identifier = filepath.Base(path)
+		files[0].Path = temp.Name()
+		files[0].Filename = filepath.Base(path)
 
-		return FileResponse(r, files, headers, true)
+		return response.FileResponse(r, files, headers, true)
 	} else if type_ == "directory" {
 		os.Remove(temp.Name())
-		return SyncResponseHeaders(true, dirEnts, headers)
+		return response.SyncResponseHeaders(true, dirEnts, headers)
 	} else {
 		os.Remove(temp.Name())
-		return InternalError(fmt.Errorf("bad file type %s", type_))
+		return response.InternalError(fmt.Errorf("bad file type %s", type_))
 	}
 }
 
-func containerFilePut(c container, path string, r *http.Request) Response {
+func containerFilePut(c container, path string, r *http.Request) response.Response {
 	// Extract file ownership and mode from headers
 	uid, gid, mode, type_ := shared.ParseLXDFileHeaders(r.Header)
 
@@ -88,7 +89,7 @@ func containerFilePut(c container, path string, r *http.Request) Response {
 		// Write file content to a tempfile
 		temp, err := ioutil.TempFile("", "lxd_forkputfile_")
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 		defer func() {
 			temp.Close()
@@ -97,23 +98,23 @@ func containerFilePut(c container, path string, r *http.Request) Response {
 
 		_, err = io.Copy(temp, r.Body)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		// Transfer the file into the container
 		err = c.FilePush(temp.Name(), path, uid, gid, mode)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	} else if type_ == "directory" {
 		err := c.FilePush("", path, uid, gid, mode)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	} else {
-		return InternalError(fmt.Errorf("bad file type %s", type_))
+		return response.InternalError(fmt.Errorf("bad file type %s", type_))
 	}
 }

@@ -20,6 +20,8 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -193,7 +195,7 @@ func (s *migrationSourceWs) Metadata() interface{} {
 	return secrets
 }
 
-func (s *migrationSourceWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+func (s *migrationSourceWs) Connect(op *operation.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -210,7 +212,7 @@ func (s *migrationSourceWs) Connect(op *operation, r *http.Request, w http.Respo
 		conn = &s.fsConn
 	default:
 		/* If we didn't find the right secret, the user provided a bad one,
-		 * which 403, not 404, since this operation actually exists */
+		 * which 403, not 404, since this operation.Operation actually exists */
 		return os.ErrPermission
 	}
 
@@ -233,7 +235,7 @@ func writeActionScript(directory string, operation string, secret string) error 
 if [ "$CRTOOLS_SCRIPT_ACTION" = "post-dump" ]; then
 	%s migratedumpsuccess %s %s
 fi
-`, execPath, operation, secret)
+`, state.ExecPath, operation, secret)
 
 	f, err := os.Create(filepath.Join(directory, "action.sh"))
 	if err != nil {
@@ -284,7 +286,7 @@ func snapshotToProtobuf(c container) *Snapshot {
 	}
 }
 
-func (s *migrationSourceWs) Do(migrateOp *operation) error {
+func (s *migrationSourceWs) Do(migrateOp *operation.Operation) error {
 	<-s.allConnected
 
 	criuType := CRIUType_CRIU_RSYNC.Enum()
@@ -404,7 +406,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			 * executable path, so we write a custom action script with the
 			 * real command we want to run.)
 			 *
-			 * This script then hangs until the migration operation either
+			 * This script then hangs until the migration operation.Operation either
 			 * finishes successfully or fails, and exits 1 or 0, which
 			 * causes criu to either leave the container running or kill it
 			 * as we asked.
@@ -416,11 +418,11 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
-			actionScriptOp, err := operationCreate(
-				operationClassWebsocket,
+			actionScriptOp, err := operation.Create(
+				operation.ClassWebsocket,
 				nil,
 				nil,
-				func(op *operation) error {
+				func(op *operation.Operation) error {
 					result := <-restoreSuccess
 					if !result {
 						return fmt.Errorf("restore failed, failing CRIU")
@@ -428,7 +430,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 					return nil
 				},
 				nil,
-				func(op *operation, r *http.Request, w http.ResponseWriter) error {
+				func(op *operation.Operation, r *http.Request, w http.ResponseWriter) error {
 					secret := r.FormValue("secret")
 					if secret == "" {
 						return fmt.Errorf("missing secret")
@@ -454,7 +456,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
-			if err := writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret); err != nil {
+			if err := writeActionScript(checkpointDir, actionScriptOp.Url(), actionScriptOpSecret); err != nil {
 				os.RemoveAll(checkpointDir)
 				return abort(err)
 			}
@@ -607,7 +609,7 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
 	query := url.Values{"secret": []string{secret}}
 
-	// The URL is a https URL to the operation, mangle to be a wss URL to the secret
+	// The URL is a https URL to the operation.Operation, mangle to be a wss URL to the secret
 	wsUrl := fmt.Sprintf("wss://%s/websocket?%s", strings.TrimPrefix(c.url, "https://"), query.Encode())
 
 	return lxd.WebsocketDial(c.dialer, wsUrl)
@@ -626,7 +628,7 @@ func (s *migrationSink) Metadata() interface{} {
 	return secrets
 }
 
-func (s *migrationSink) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+func (s *migrationSink) Connect(op *operation.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -643,7 +645,7 @@ func (s *migrationSink) Connect(op *operation, r *http.Request, w http.ResponseW
 		conn = &s.dest.fsConn
 	default:
 		/* If we didn't find the right secret, the user provided a bad one,
-		 * which 403, not 404, since this operation actually exists */
+		 * which 403, not 404, since this operation.Operation actually exists */
 		return os.ErrPermission
 	}
 
@@ -661,7 +663,7 @@ func (s *migrationSink) Connect(op *operation, r *http.Request, w http.ResponseW
 	return nil
 }
 
-func (c *migrationSink) Do(migrateOp *operation) error {
+func (c *migrationSink) Do(migrateOp *operation.Operation) error {
 	var err error
 
 	if c.push {

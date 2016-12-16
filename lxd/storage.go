@@ -13,6 +13,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logging"
@@ -67,7 +69,7 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 	}
 
 	rsyncVerbosity := "-q"
-	if debug {
+	if state.Debug {
 		rsyncVerbosity = "-vi"
 	}
 
@@ -119,7 +121,7 @@ type MigrationStorageSourceDriver interface {
 	/* send any bits of the container/snapshots that are possible while the
 	 * container is still running.
 	 */
-	SendWhileRunning(conn *websocket.Conn, op *operation) error
+	SendWhileRunning(conn *websocket.Conn, op *operation.Operation) error
 
 	/* send the final bits (e.g. a final delta snapshot for zfs, btrfs, or
 	 * do a final rsync) of the fs after the container has been
@@ -194,7 +196,7 @@ type storage interface {
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
 	MigrationSource(container container) (MigrationStorageSourceDriver, error)
-	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error
+	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation.Operation) error
 }
 
 func newStorage(d *Daemon, sType storageType) (storage, error) {
@@ -558,7 +560,7 @@ func (lw *storageLogWrapper) MigrationSource(container container) (MigrationStor
 	return lw.w.MigrationSource(container)
 }
 
-func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
+func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation.Operation) error {
 	objNames := []string{}
 	for _, obj := range objects {
 		objNames = append(objNames, obj.GetName())
@@ -611,7 +613,7 @@ func (s rsyncStorageSourceDriver) Snapshots() []container {
 	return s.snapshots
 }
 
-func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
+func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation.Operation) error {
 	for _, send := range s.snapshots {
 		if err := send.StorageStart(); err != nil {
 			return err
@@ -677,7 +679,7 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) conta
 	}
 }
 
-func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
+func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation.Operation) error {
 	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
 
 	if isDirBackend {
@@ -807,8 +809,8 @@ func tryUnmount(path string, flags int) error {
 	return nil
 }
 
-func progressWrapperRender(op *operation, key string, description string, progressInt int64, speedInt int64) {
-	meta := op.metadata
+func progressWrapperRender(op *operation.Operation, key string, description string, progressInt int64, speedInt int64) {
+	meta := op.Metadata
 	if meta == nil {
 		meta = make(map[string]interface{})
 	}
@@ -824,7 +826,7 @@ func progressWrapperRender(op *operation, key string, description string, progre
 	}
 }
 
-func StorageProgressReader(op *operation, key string, description string) func(io.ReadCloser) io.ReadCloser {
+func StorageProgressReader(op *operation.Operation, key string, description string) func(io.ReadCloser) io.ReadCloser {
 	return func(reader io.ReadCloser) io.ReadCloser {
 		if op == nil {
 			return reader
@@ -845,7 +847,7 @@ func StorageProgressReader(op *operation, key string, description string) func(i
 	}
 }
 
-func StorageProgressWriter(op *operation, key string, description string) func(io.WriteCloser) io.WriteCloser {
+func StorageProgressWriter(op *operation.Operation, key string, description string) func(io.WriteCloser) io.WriteCloser {
 	return func(writer io.WriteCloser) io.WriteCloser {
 		if op == nil {
 			return writer

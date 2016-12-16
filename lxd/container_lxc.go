@@ -24,6 +24,8 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 
@@ -760,7 +762,7 @@ func (c *containerLXC) initLXC() error {
 		"/sys/firmware/efi/efivars",
 		"/sys/fs/fuse/connections",
 		"/sys/fs/pstore",
-		"/sys/kernel/debug",
+		"/sys/kernel/state.Debug",
 		"/sys/kernel/security"}
 
 	if c.IsPrivileged() && !runningInUserns {
@@ -859,9 +861,9 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	logLevel := "warn"
-	if debug {
+	if state.Debug {
 		logLevel = "trace"
-	} else if verbose {
+	} else if state.Verbose {
 		logLevel = "info"
 	}
 
@@ -885,12 +887,12 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup the hooks
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", execPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", state.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", execPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", state.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
@@ -1481,7 +1483,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	if kernelModules != "" {
 		for _, module := range strings.Split(kernelModules, ",") {
 			module = strings.TrimPrefix(module, " ")
-			err := loadModule(module)
+			err := util.LoadModule(module)
 			if err != nil {
 				return "", fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
 			}
@@ -1890,13 +1892,13 @@ func (c *containerLXC) Start(stateful bool) error {
 
 	// Start the LXC container
 	out, err := exec.Command(
-		execPath,
+		state.ExecPath,
 		"forkstart",
 		c.name,
 		c.daemon.lxcpath,
 		configPath).CombinedOutput()
 
-	// Capture debug output
+	// Capture state.Debug output
 	if string(out) != "" {
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
 			shared.LogDebugf("forkstart: %s", line)
@@ -3132,7 +3134,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			} else if key == "linux.kernel_modules" && value != "" {
 				for _, module := range strings.Split(value, ",") {
 					module = strings.TrimPrefix(module, " ")
-					err := loadModule(module)
+					err := util.LoadModule(module)
 					if err != nil {
 						return fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
 					}
@@ -3942,7 +3944,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 
 		var out []byte
 		out, migrateErr = exec.Command(
-			execPath,
+			state.ExecPath,
 			"forkmigrate",
 			c.name,
 			c.daemon.lxcpath,
@@ -4177,7 +4179,7 @@ func (c *containerLXC) FileExists(path string) error {
 
 	// Check if the file exists in the container
 	out, err := exec.Command(
-		execPath,
+		state.ExecPath,
 		"forkcheckfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4226,7 +4228,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 
 	// Get the file from the container
 	out, err := exec.Command(
-		execPath,
+		state.ExecPath,
 		"forkgetfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4368,7 +4370,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 
 	// Push the file to the container
 	out, err := exec.Command(
-		execPath,
+		state.ExecPath,
 		"forkputfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4442,7 +4444,7 @@ func (c *containerLXC) FileRemove(path string) error {
 
 	// Remove the file from the container
 	out, err := exec.Command(
-		execPath,
+		state.ExecPath,
 		"forkremovefile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4487,7 +4489,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	args := []string{execPath, "forkexec", c.name, c.daemon.lxcpath, filepath.Join(c.LogPath(), "lxc.conf")}
+	args := []string{state.ExecPath, "forkexec", c.name, c.daemon.lxcpath, filepath.Join(c.LogPath(), "lxc.conf")}
 
 	args = append(args, "--")
 	args = append(args, "env")
@@ -4498,7 +4500,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	args = append(args, command...)
 
 	cmd := exec.Cmd{}
-	cmd.Path = execPath
+	cmd.Path = state.ExecPath
 	cmd.Args = args
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
@@ -4644,7 +4646,7 @@ func (c *containerLXC) networkState() map[string]shared.ContainerStateNetwork {
 
 	// Get the network state from the container
 	out, err := exec.Command(
-		execPath,
+		state.ExecPath,
 		"forkgetnet",
 		fmt.Sprintf("%d", pid)).CombinedOutput()
 
@@ -4846,7 +4848,7 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	out, err := exec.Command(execPath, "forkmount", pidStr, mntsrc, target).CombinedOutput()
+	out, err := exec.Command(state.ExecPath, "forkmount", pidStr, mntsrc, target).CombinedOutput()
 
 	if string(out) != "" {
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
@@ -4876,7 +4878,7 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	// Remove the mount from the container
 	pidStr := fmt.Sprintf("%d", pid)
-	out, err := exec.Command(execPath, "forkumount", pidStr, mount).CombinedOutput()
+	out, err := exec.Command(state.ExecPath, "forkumount", pidStr, mount).CombinedOutput()
 
 	if string(out) != "" {
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {

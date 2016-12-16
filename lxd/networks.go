@@ -15,11 +15,13 @@ import (
 	"github.com/gorilla/mux"
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
 // API endpoints
-func networksGet(d *Daemon, r *http.Request) Response {
+func networksGet(d *Daemon, r *http.Request) response.Response {
 	recursionStr := r.FormValue("recursion")
 	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
@@ -28,7 +30,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 
 	ifs, err := networkGetInterfaces(d)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	resultString := []string{}
@@ -46,42 +48,42 @@ func networksGet(d *Daemon, r *http.Request) Response {
 	}
 
 	if recursion == 0 {
-		return SyncResponse(true, resultString)
+		return response.SyncResponse(true, resultString)
 	}
 
-	return SyncResponse(true, resultMap)
+	return response.SyncResponse(true, resultMap)
 }
 
-func networksPost(d *Daemon, r *http.Request) Response {
+func networksPost(d *Daemon, r *http.Request) response.Response {
 	req := shared.NetworkConfig{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks
 	if req.Name == "" {
-		return BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
 	err = networkValidName(req.Name)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if req.Type != "" && req.Type != "bridge" {
-		return BadRequest(fmt.Errorf("Only 'bridge' type networks can be created"))
+		return response.BadRequest(fmt.Errorf("Only 'bridge' type networks can be created"))
 	}
 
 	networks, err := networkGetInterfaces(d)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	if shared.StringInSlice(req.Name, networks) {
-		return BadRequest(fmt.Errorf("The network already exists"))
+		return response.BadRequest(fmt.Errorf("The network already exists"))
 	}
 
 	if req.Config == nil {
@@ -90,7 +92,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 
 	err = networkValidateConfig(req.Name, req.Config)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Set some default values where needed
@@ -120,44 +122,44 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	// Replace "auto" by actual values
 	err = networkFillAuto(req.Config)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// Create the database entry
 	_, err = dbNetworkCreate(d.db, req.Name, req.Config)
 	if err != nil {
-		return InternalError(
+		return response.InternalError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
 	// Start the network
 	n, err := networkLoadByName(d, req.Name)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	err = n.Start()
 	if err != nil {
 		n.Delete()
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, req.Name))
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, req.Name))
 }
 
 var networksCmd = Command{name: "networks", get: networksGet, post: networksPost}
 
-func networkGet(d *Daemon, r *http.Request) Response {
+func networkGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	n, err := doNetworkGet(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	etag := []interface{}{n.Name, n.Managed, n.Type, n.Config}
 
-	return SyncResponseETag(true, &n, etag)
+	return response.SyncResponseETag(true, &n, etag)
 }
 
 func doNetworkGet(d *Daemon, name string) (shared.NetworkConfig, error) {
@@ -219,19 +221,19 @@ func doNetworkGet(d *Daemon, name string) (shared.NetworkConfig, error) {
 	return n, nil
 }
 
-func networkDelete(d *Daemon, r *http.Request) Response {
+func networkDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
 	n, err := networkLoadByName(d, name)
 	if err != nil {
-		return NotFound
+		return response.NotFound
 	}
 
 	// Attempt to delete the network
 	err = n.Delete()
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Cleanup storage
@@ -239,99 +241,99 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 		os.RemoveAll(shared.VarPath("networks", n.name))
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func networkPost(d *Daemon, r *http.Request) Response {
+func networkPost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	req := shared.NetworkConfig{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Get the existing network
 	n, err := networkLoadByName(d, name)
 	if err != nil {
-		return NotFound
+		return response.NotFound
 	}
 
 	// Sanity checks
 	if req.Name == "" {
-		return BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
 	err = networkValidName(req.Name)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Check that the name isn't already in use
 	networks, err := networkGetInterfaces(d)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	if shared.StringInSlice(req.Name, networks) {
-		return Conflict
+		return response.Conflict
 	}
 
 	// Rename it
 	err = n.Rename(req.Name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, req.Name))
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", shared.APIVersion, req.Name))
 }
 
-func networkPut(d *Daemon, r *http.Request) Response {
+func networkPut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
 	_, dbInfo, err := dbNetworkGet(d.db, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Validate the ETag
 	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Config}
 
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	req := shared.NetworkConfig{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	return doNetworkUpdate(d, name, dbInfo.Config, req.Config)
 }
 
-func networkPatch(d *Daemon, r *http.Request) Response {
+func networkPatch(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
 	_, dbInfo, err := dbNetworkGet(d.db, name)
 	if dbInfo != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Validate the ETag
 	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Config}
 
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	req := shared.NetworkConfig{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Config stacking
@@ -349,11 +351,11 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 	return doNetworkUpdate(d, name, dbInfo.Config, req.Config)
 }
 
-func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newConfig map[string]string) Response {
+func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newConfig map[string]string) response.Response {
 	// Validate the configuration
 	err := networkValidateConfig(name, newConfig)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// When switching to a fan bridge, auto-detect the underlay
@@ -366,15 +368,15 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newCon
 	// Load the network
 	n, err := networkLoadByName(d, name)
 	if err != nil {
-		return NotFound
+		return response.NotFound
 	}
 
 	err = n.Update(shared.NetworkConfig{Config: newConfig})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: networkDelete, post: networkPost, put: networkPut, patch: networkPatch}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -124,7 +125,7 @@ func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
 func dbContainerCreate(db *sql.DB, args containerArgs) (int, error) {
 	id, err := dbContainerId(db, args.Name)
 	if err == nil {
-		return 0, DbErrAlreadyDefined
+		return 0, util.DbErrAlreadyDefined
 	}
 
 	tx, err := dbBegin(db)
@@ -308,7 +309,7 @@ func dbContainerConfig(db *sql.DB, containerId int) (map[string]string, error) {
 	// Results is already a slice here, not db Rows anymore.
 	results, err := dbQueryScan(db, q, inargs, outfmt)
 	if err != nil {
-		return nil, err //SmartError will wrap this and make "not found" errors pretty
+		return nil, err //response.SmartError will wrap this and make "not found" errors pretty
 	}
 
 	config := map[string]string{}

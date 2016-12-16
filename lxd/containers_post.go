@@ -11,6 +11,8 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 
@@ -59,7 +61,7 @@ type containerPostReq struct {
 	Source       containerImageSource `json:"source"`
 }
 
-func createFromImage(d *Daemon, req *containerPostReq) Response {
+func createFromImage(d *Daemon, req *containerPostReq) response.Response {
 	var hash string
 	var err error
 
@@ -71,7 +73,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		} else {
 			_, alias, err := dbImageAliasGet(d.db, req.Source.Alias, true)
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 
 			hash = alias.Target
@@ -80,12 +82,12 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		hash = req.Source.Fingerprint
 	} else if req.Source.Properties != nil {
 		if req.Source.Server != "" {
-			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
+			return response.BadRequest(fmt.Errorf("Property match is only supported for local images"))
 		}
 
 		hashes, err := dbImagesGet(d.db, false)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		var image *shared.ImageInfo
@@ -116,15 +118,15 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 		}
 
 		if image == nil {
-			return BadRequest(fmt.Errorf("No matching image could be found"))
+			return response.BadRequest(fmt.Errorf("No matching image could be found"))
 		}
 
 		hash = image.Fingerprint
 	} else {
-		return BadRequest(fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image"))
+		return response.BadRequest(fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image"))
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operation.Operation) error {
 		if req.Source.Server != "" {
 			hash, err = d.ImageDownload(
 				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret,
@@ -164,15 +166,15 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
-func createFromNone(d *Daemon, req *containerPostReq) Response {
+func createFromNone(d *Daemon, req *containerPostReq) response.Response {
 	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
 		architecture = 0
@@ -188,7 +190,7 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 		Profiles:     req.Profiles,
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operation.Operation) error {
 		_, err := containerCreateAsEmpty(d, args)
 		return err
 	}
@@ -196,17 +198,17 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
-func createFromMigration(d *Daemon, req *containerPostReq) Response {
+func createFromMigration(d *Daemon, req *containerPostReq) response.Response {
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
-		return NotImplemented
+		return response.NotImplemented
 	}
 
 	architecture, err := osarch.ArchitectureId(req.Architecture)
@@ -244,12 +246,12 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	if err == nil && d.Storage.MigrationType() == MigrationFSType_RSYNC {
 		c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	} else {
 		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
@@ -258,20 +260,20 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 		certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
 		if certBlock == nil {
 			c.Delete()
-			return InternalError(fmt.Errorf("Invalid certificate"))
+			return response.InternalError(fmt.Errorf("Invalid certificate"))
 		}
 
 		cert, err = x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
 			c.Delete()
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
 	config, err := shared.GetTLSConfig("", "", "", cert)
 	if err != nil {
 		c.Delete()
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	push := false
@@ -293,10 +295,10 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	sink, err := NewMigrationSink(&migrationArgs)
 	if err != nil {
 		c.Delete()
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operation.Operation) error {
 		// And finaly run the migration.
 		err = sink.Do(op)
 		if err != nil {
@@ -317,30 +319,30 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	var op *operation
+	var op *operation.Operation
 	if push {
-		op, err = operationCreate(operationClassWebsocket, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operation.Create(operation.ClassWebsocket, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	} else {
-		op, err = operationCreate(operationClassTask, resources, nil, run, nil, nil)
+		op, err = operation.Create(operation.ClassTask, resources, nil, run, nil, nil)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
-func createFromCopy(d *Daemon, req *containerPostReq) Response {
+func createFromCopy(d *Daemon, req *containerPostReq) response.Response {
 	if req.Source.Source == "" {
-		return BadRequest(fmt.Errorf("must specify a source container"))
+		return response.BadRequest(fmt.Errorf("must specify a source container"))
 	}
 
 	source, err := containerLoadByName(d, req.Source.Source)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Config override
@@ -381,7 +383,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 		Profiles:     req.Profiles,
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operation.Operation) error {
 		_, err := containerCreateAsCopy(d, args, source)
 		if err != nil {
 			return err
@@ -393,26 +395,26 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name, req.Source.Source}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
-func containersPost(d *Daemon, r *http.Request) Response {
+func containersPost(d *Daemon, r *http.Request) response.Response {
 	shared.LogDebugf("Responding to container create")
 
 	req := containerPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if req.Name == "" {
 		cs, err := dbContainersList(d.db, cTypeRegular)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		i := 0
@@ -424,7 +426,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 			}
 
 			if i > 100 {
-				return InternalError(fmt.Errorf("couldn't generate a new unique name after 100 tries"))
+				return response.InternalError(fmt.Errorf("couldn't generate a new unique name after 100 tries"))
 			}
 		}
 		shared.LogDebugf("No name provided, creating %s", req.Name)
@@ -439,7 +441,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
-		return BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
+		return response.BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
 	}
 
 	switch req.Source.Type {
@@ -452,6 +454,6 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	case "copy":
 		return createFromCopy(d, &req)
 	default:
-		return BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
+		return response.BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
 	}
 }

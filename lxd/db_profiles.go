@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -163,7 +164,7 @@ func dbProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 		}
 
 		if len(results) == 0 {
-			return nil, NoSuchObjectError
+			return nil, util.NoSuchObjectError
 		}
 	}
 
