@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
 )
