@@ -8,7 +8,7 @@ import (
 )
 
 func eventsGet(d *Daemon, r *http.Request) response.Response {
-	return &events.EventsServe{r}
+	return &events.EventsServe{Req: r}
 }
 
 var eventsCmd = Command{name: "events", get: eventsGet}
