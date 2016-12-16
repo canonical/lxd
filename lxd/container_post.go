@@ -6,6 +6,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/response"
 )
 
 type containerPostBody struct {
@@ -13,57 +16,57 @@ type containerPostBody struct {
 	Name      string `json:"name"`
 }
 
-func containerPost(d *Daemon, r *http.Request) Response {
+func containerPost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	body := containerPostBody{}
 	if err := json.Unmarshal(buf, &body); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if body.Migration {
 		ws, err := NewMigrationSource(c)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		resources := map[string][]string{}
 		resources["containers"] = []string{name}
 
-		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operation.Create(operation.ClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
-		return OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	// Check that the name isn't already in use
 	id, _ := dbContainerId(d.db, body.Name)
 	if id > 0 {
-		return Conflict
+		return response.Conflict
 	}
 
-	run := func(*operation) error {
+	run := func(*operation.Operation) error {
 		return c.Rename(body.Name)
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }

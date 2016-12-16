@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -116,7 +117,7 @@ func hoistReq(f func(container, *http.Request) *devLxdResponse, d *Daemon) func(
 			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
 		} else if resp.ctype == "json" {
 			w.Header().Set("Content-Type", "application/json")
-			WriteJSON(w, resp.content)
+			util.WriteJSON(w, resp.content)
 		} else {
 			w.Header().Set("Content-Type", "application/octet-stream")
 			fmt.Fprintf(w, resp.content.(string))

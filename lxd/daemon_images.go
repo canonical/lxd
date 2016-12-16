@@ -15,6 +15,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/simplestreams"
@@ -86,7 +87,7 @@ func imageLoadStreamCache(d *Daemon) error {
 
 // ImageDownload checks if we have that Image Fingerprint else
 // downloads the image from a remote server.
-func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool) (string, error) {
+func (d *Daemon) ImageDownload(op *operation.Operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool) (string, error) {
 	var err error
 	var ss *simplestreams.SimpleStreams
 	var ctxMap log.Ctx
@@ -228,7 +229,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	if op == nil {
 		ctxMap = log.Ctx{"alias": alias, "server": server}
 	} else {
-		ctxMap = log.Ctx{"trigger": op.url, "image": fp, "operation": op.id, "alias": alias, "server": server}
+		ctxMap = log.Ctx{"trigger": op.Url(), "image": fp, "operation": op.Id(), "alias": alias, "server": server}
 	}
 
 	shared.LogInfo("Downloading image", ctxMap)
@@ -264,7 +265,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			return
 		}
 
-		meta := op.metadata
+		meta := op.Metadata
 		if meta == nil {
 			meta = make(map[string]interface{})
 		}

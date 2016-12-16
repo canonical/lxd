@@ -30,6 +30,8 @@ import (
 	"gopkg.in/tomb.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
@@ -101,11 +103,11 @@ type Command struct {
 	name          string
 	untrustedGet  bool
 	untrustedPost bool
-	get           func(d *Daemon, r *http.Request) Response
-	put           func(d *Daemon, r *http.Request) Response
-	post          func(d *Daemon, r *http.Request) Response
-	delete        func(d *Daemon, r *http.Request) Response
-	patch         func(d *Daemon, r *http.Request) Response
+	get           func(d *Daemon, r *http.Request) response.Response
+	put           func(d *Daemon, r *http.Request) response.Response
+	post          func(d *Daemon, r *http.Request) response.Response
+	delete        func(d *Daemon, r *http.Request) response.Response
+	patch         func(d *Daemon, r *http.Request) response.Response
 }
 
 func (d *Daemon) httpClient(certificate string) (*http.Client, error) {
@@ -284,16 +286,16 @@ func (d *Daemon) createCmd(version string, c Command) {
 			shared.LogWarn(
 				"rejecting request from untrusted client",
 				log.Ctx{"ip": r.RemoteAddr})
-			Forbidden.Render(w)
+			response.Forbidden.Render(w)
 			return
 		}
 
-		if debug && r.Method != "GET" && isJSONRequest(r) {
+		if state.Debug && r.Method != "GET" && isJSONRequest(r) {
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
 			if _, err := io.Copy(multiW, r.Body); err != nil {
-				InternalError(err).Render(w)
+				response.InternalError(err).Render(w)
 				return
 			}
 
@@ -301,8 +303,8 @@ func (d *Daemon) createCmd(version string, c Command) {
 			shared.DebugJson(captured)
 		}
 
-		var resp Response
-		resp = NotImplemented
+		var resp response.Response
+		resp = response.NotImplemented
 
 		switch r.Method {
 		case "GET":
@@ -326,11 +328,11 @@ func (d *Daemon) createCmd(version string, c Command) {
 				resp = c.patch(d, r)
 			}
 		default:
-			resp = NotFound
+			resp = response.NotFound
 		}
 
 		if err := resp.Render(w); err != nil {
-			err := InternalError(err).Render(w)
+			err := response.InternalError(err).Render(w)
 			if err != nil {
 				shared.LogErrorf("Failed writing error for error, giving up")
 			}
@@ -907,7 +909,7 @@ func (d *Daemon) Init() error {
 
 	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		SyncResponse(true, []string{"/1.0"}).Render(w)
+		response.SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
 	for _, c := range api10 {
@@ -921,7 +923,7 @@ func (d *Daemon) Init() error {
 	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		shared.LogInfo("Sending top level 404", log.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")
-		NotFound.Render(w)
+		response.NotFound.Render(w)
 	})
 
 	listeners := d.GetListeners()

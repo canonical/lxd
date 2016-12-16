@@ -15,6 +15,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -60,7 +62,7 @@ func (s *execWs) Metadata() interface{} {
 	return shared.Jmap{"fds": fds}
 }
 
-func (s *execWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+func (s *execWs) Connect(op *operation.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -97,11 +99,11 @@ func (s *execWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) 
 	}
 
 	/* If we didn't find the right secret, the user provided a bad one,
-	 * which 403, not 404, since this operation actually exists */
+	 * which 403, not 404, since this operation.Operation actually exists */
 	return os.ErrPermission
 }
 
-func (s *execWs) Do(op *operation) error {
+func (s *execWs) Do(op *operation.Operation) error {
 	<-s.allConnected
 
 	var err error
@@ -302,29 +304,29 @@ func (s *execWs) Do(op *operation) error {
 	return finisher(-1, nil)
 }
 
-func containerExecPost(d *Daemon, r *http.Request) Response {
+func containerExecPost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if !c.IsRunning() {
-		return BadRequest(fmt.Errorf("Container is not running."))
+		return response.BadRequest(fmt.Errorf("Container is not running."))
 	}
 
 	if c.IsFrozen() {
-		return BadRequest(fmt.Errorf("Container is frozen."))
+		return response.BadRequest(fmt.Errorf("Container is frozen."))
 	}
 
 	post := commandPostContent{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if err := json.Unmarshal(buf, &post); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	env := map[string]string{}
@@ -369,7 +371,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		for i := -1; i < len(ws.conns)-1; i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 		}
 
@@ -383,28 +385,28 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		resources := map[string][]string{}
 		resources["containers"] = []string{ws.container.Name()}
 
-		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operation.Create(operation.ClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
-		return OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operation.Operation) error {
 		var cmdErr error
 		var cmdResult int
 		metadata := shared.Jmap{}
 
 		if post.RecordOutput {
 			// Prepare stdout and stderr recording
-			stdout, err := os.OpenFile(filepath.Join(c.LogPath(), fmt.Sprintf("exec_%s.stdout", op.id)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stdout, err := os.OpenFile(filepath.Join(c.LogPath(), fmt.Sprintf("exec_%s.stdout", op.Id())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
 			defer stdout.Close()
 
-			stderr, err := os.OpenFile(filepath.Join(c.LogPath(), fmt.Sprintf("exec_%s.stderr", op.id)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stderr, err := os.OpenFile(filepath.Join(c.LogPath(), fmt.Sprintf("exec_%s.stderr", op.Id())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
@@ -435,10 +437,10 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }

@@ -13,6 +13,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 
 	"github.com/pborman/uuid"
@@ -54,7 +56,7 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 	err = s.zfsCheckPool(s.zfsPool)
 	if err != nil {
 		if shared.PathExists(shared.VarPath("zfs.img")) {
-			_ = loadModule("zfs")
+			_ = util.LoadModule("zfs")
 
 			output, err := exec.Command("zpool", "import",
 				"-d", shared.VarPath(), s.zfsPool).CombinedOutput()
@@ -1304,7 +1306,7 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 	return err
 }
 
-func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
+func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation.Operation) error {
 	if s.container.IsSnapshot() {
 		fields := strings.SplitN(s.container.Name(), shared.SnapshotDelimiter, 2)
 		snapshotName := fmt.Sprintf("snapshot-%s", fields[1])
@@ -1419,7 +1421,7 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 	return &driver, nil
 }
 
-func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
+func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation.Operation) error {
 	zfsRecv := func(zfsName string, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 		zfsFsName := fmt.Sprintf("%s/%s", s.zfsPool, zfsName)
 		args := []string{"receive", "-F", "-u", zfsFsName}

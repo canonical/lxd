@@ -12,6 +12,8 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -25,10 +27,10 @@ type profilesPostReq struct {
 	Devices     shared.Devices    `json:"devices"`
 }
 
-func profilesGet(d *Daemon, r *http.Request) Response {
+func profilesGet(d *Daemon, r *http.Request) response.Response {
 	results, err := dbProfiles(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	recursion := d.isRecursionRequest(r)
@@ -52,54 +54,54 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 	}
 
 	if !recursion {
-		return SyncResponse(true, resultString)
+		return response.SyncResponse(true, resultString)
 	}
 
-	return SyncResponse(true, resultMap)
+	return response.SyncResponse(true, resultMap)
 }
 
-func profilesPost(d *Daemon, r *http.Request) Response {
+func profilesPost(d *Daemon, r *http.Request) response.Response {
 	req := profilesPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks
 	if req.Name == "" {
-		return BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
 	_, profile, _ := dbProfileGet(d.db, req.Name)
 	if profile != nil {
-		return BadRequest(fmt.Errorf("The profile already exists"))
+		return response.BadRequest(fmt.Errorf("The profile already exists"))
 	}
 
 	if strings.Contains(req.Name, "/") {
-		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
+		return response.BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
 
 	if shared.StringInSlice(req.Name, []string{".", ".."}) {
-		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
+		return response.BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
 	err := containerValidConfig(d, req.Config, true, false)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	err = containerValidDevices(req.Devices, true, false)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Update DB entry
 	_, err = dbProfileCreate(d.db, req.Name, req.Description, req.Config, req.Devices)
 	if err != nil {
-		return InternalError(
+		return response.InternalError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, req.Name))
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, req.Name))
 }
 
 var profilesCmd = Command{
@@ -127,15 +129,15 @@ func doProfileGet(d *Daemon, name string) (*shared.ProfileConfig, error) {
 	return profile, nil
 }
 
-func profileGet(d *Daemon, r *http.Request) Response {
+func profileGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	resp, err := doProfileGet(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponseETag(true, resp, resp)
+	return response.SyncResponseETag(true, resp, resp)
 }
 
 func getContainersWithProfile(d *Daemon, profile string) []container {
@@ -158,45 +160,45 @@ func getContainersWithProfile(d *Daemon, profile string) []container {
 	return results
 }
 
-func profilePut(d *Daemon, r *http.Request) Response {
+func profilePut(d *Daemon, r *http.Request) response.Response {
 	// Get the profile
 	name := mux.Vars(r)["name"]
 	id, profile, err := dbProfileGet(d.db, name)
 	if err != nil {
-		return InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
+		return response.InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
 	}
 
 	// Validate the ETag
-	err = etagCheck(r, profile)
+	err = util.EtagCheck(r, profile)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	req := profilesPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	return doProfileUpdate(d, name, id, profile, req)
 }
 
-func profilePatch(d *Daemon, r *http.Request) Response {
+func profilePatch(d *Daemon, r *http.Request) response.Response {
 	// Get the profile
 	name := mux.Vars(r)["name"]
 	id, profile, err := dbProfileGet(d.db, name)
 	if err != nil {
-		return InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
+		return response.InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
 	}
 
 	// Validate the ETag
-	err = etagCheck(r, profile)
+	err = util.EtagCheck(r, profile)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
@@ -204,12 +206,12 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 
 	reqRaw := shared.Jmap{}
 	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	req := profilesPostReq{}
 	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Get Description
@@ -245,16 +247,16 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 	return doProfileUpdate(d, name, id, profile, req)
 }
 
-func doProfileUpdate(d *Daemon, name string, id int64, profile *shared.ProfileConfig, req profilesPostReq) Response {
+func doProfileUpdate(d *Daemon, name string, id int64, profile *shared.ProfileConfig, req profilesPostReq) response.Response {
 	// Sanity checks
 	err := containerValidConfig(d, req.Config, true, false)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	err = containerValidDevices(req.Devices, true, false)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Get the container list
@@ -263,14 +265,14 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *shared.ProfileCo
 	// Update the database
 	tx, err := dbBegin(d.db)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	if profile.Description != req.Description {
 		err = dbProfileDescriptionUpdate(tx, id, req.Description)
 		if err != nil {
 			tx.Rollback()
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
@@ -278,33 +280,33 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *shared.ProfileCo
 	if reflect.DeepEqual(profile.Config, req.Config) && reflect.DeepEqual(profile.Devices, req.Devices) {
 		err = txCommit(tx)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	}
 
 	err = dbProfileConfigClear(tx, id)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	err = dbProfileConfigAdd(tx, id, req.Config)
 	if err != nil {
 		tx.Rollback()
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	err = dbDevicesAdd(tx, "profile", id, req.Devices)
 	if err != nil {
 		tx.Rollback()
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	err = txCommit(tx)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// Update all the containers using the profile. Must be done after txCommit due to DB lock.
@@ -327,68 +329,68 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *shared.ProfileCo
 		for cname, err := range failures {
 			msg += fmt.Sprintf(" - %s: %s\n", cname, err)
 		}
-		return InternalError(fmt.Errorf("%s", msg))
+		return response.InternalError(fmt.Errorf("%s", msg))
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 // The handler for the post operation.
-func profilePost(d *Daemon, r *http.Request) Response {
+func profilePost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	req := profilesPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks
 	if req.Name == "" {
-		return BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
 	// Check that the name isn't already in use
 	id, _, _ := dbProfileGet(d.db, req.Name)
 	if id > 0 {
-		return Conflict
+		return response.Conflict
 	}
 
 	if strings.Contains(req.Name, "/") {
-		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
+		return response.BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
 
 	if shared.StringInSlice(req.Name, []string{".", ".."}) {
-		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
+		return response.BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
 	err := dbProfileUpdate(d.db, name, req.Name)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, req.Name))
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", shared.APIVersion, req.Name))
 }
 
 // The handler for the delete operation.
-func profileDelete(d *Daemon, r *http.Request) Response {
+func profileDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	_, err := doProfileGet(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	clist := getContainersWithProfile(d, name)
 	if len(clist) != 0 {
-		return BadRequest(fmt.Errorf("Profile is currently in use"))
+		return response.BadRequest(fmt.Errorf("Profile is currently in use"))
 	}
 
 	err = dbProfileDelete(d.db, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 var profileCmd = Command{name: "profiles/{name}", get: profileGet, put: profilePut, delete: profileDelete, post: profilePost, patch: profilePatch}

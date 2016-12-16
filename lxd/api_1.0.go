@@ -10,6 +10,8 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -44,7 +46,7 @@ var api10 = []Command{
 	profileCmd,
 }
 
-func api10Get(d *Daemon, r *http.Request) Response {
+func api10Get(d *Daemon, r *http.Request) response.Response {
 	body := shared.Jmap{
 		/* List of API extensions in the order they were added.
 		 *
@@ -100,7 +102,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		 */
 		uname := syscall.Utsname{}
 		if err := syscall.Uname(&uname); err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		kernel := ""
@@ -129,7 +131,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 		addresses, err := d.ListenAddresses()
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		var certificate string
@@ -142,7 +144,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		for _, architecture := range d.architectures {
 			architectureName, err := osarch.ArchitectureName(architecture)
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 			architectures = append(architectures, architectureName)
 		}
@@ -170,50 +172,50 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		body["public"] = false
 	}
 
-	return SyncResponseETag(true, body, body["config"])
+	return response.SyncResponseETag(true, body, body["config"])
 }
 
 type apiPut struct {
 	Config shared.Jmap `json:"config"`
 }
 
-func api10Put(d *Daemon, r *http.Request) Response {
+func api10Put(d *Daemon, r *http.Request) response.Response {
 	oldConfig, err := dbConfigValuesGet(d.db)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	err = etagCheck(r, oldConfig)
+	err = util.EtagCheck(r, oldConfig)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	req := apiPut{}
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	return doApi10Update(d, oldConfig, req)
 }
 
-func api10Patch(d *Daemon, r *http.Request) Response {
+func api10Patch(d *Daemon, r *http.Request) response.Response {
 	oldConfig, err := dbConfigValuesGet(d.db)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	err = etagCheck(r, oldConfig)
+	err = util.EtagCheck(r, oldConfig)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	req := apiPut{}
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if req.Config == nil {
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	}
 
 	for k, v := range oldConfig {
@@ -226,7 +228,7 @@ func api10Patch(d *Daemon, r *http.Request) Response {
 	return doApi10Update(d, oldConfig, req)
 }
 
-func doApi10Update(d *Daemon, oldConfig map[string]string, req apiPut) Response {
+func doApi10Update(d *Daemon, oldConfig map[string]string, req apiPut) response.Response {
 	// Deal with special keys
 	for k, v := range req.Config {
 		config := daemonConfig[k]
@@ -256,23 +258,23 @@ func doApi10Update(d *Daemon, oldConfig map[string]string, req apiPut) Response 
 
 		s := reflect.ValueOf(valueRaw)
 		if !s.IsValid() || s.Kind() != reflect.String {
-			return BadRequest(fmt.Errorf("Invalid value type for '%s'", key))
+			return response.BadRequest(fmt.Errorf("Invalid value type for '%s'", key))
 		}
 
 		value := valueRaw.(string)
 
 		confKey, ok := daemonConfig[key]
 		if !ok {
-			return BadRequest(fmt.Errorf("Bad server config key: '%s'", key))
+			return response.BadRequest(fmt.Errorf("Bad server config key: '%s'", key))
 		}
 
 		err := confKey.Set(d, value)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 var api10Cmd = Command{name: "", untrustedGet: true, get: api10Get, put: api10Put, patch: api10Patch}

@@ -8,6 +8,9 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 
@@ -27,24 +30,24 @@ type containerPutReq struct {
  * Update configuration, or, if 'restore:snapshot-name' is present, restore
  * the named snapshot
  */
-func containerPut(d *Daemon, r *http.Request) Response {
+func containerPut(d *Daemon, r *http.Request) response.Response {
 	// Get the container
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return NotFound
+		return response.NotFound
 	}
 
 	// Validate the ETag
 	etag := []interface{}{c.Architecture(), c.LocalConfig(), c.LocalDevices(), c.IsEphemeral(), c.Profiles()}
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	configRaw := containerPutReq{}
 	if err := json.NewDecoder(r.Body).Decode(&configRaw); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	architecture, err := osarch.ArchitectureId(configRaw.Architecture)
@@ -52,11 +55,11 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		architecture = 0
 	}
 
-	var do = func(*operation) error { return nil }
+	var do = func(*operation.Operation) error { return nil }
 
 	if configRaw.Restore == "" {
 		// Update container configuration
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			args := containerArgs{
 				Architecture: architecture,
 				Config:       configRaw.Config,
@@ -74,7 +77,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		}
 	} else {
 		// Snapshot Restore
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			return containerSnapRestore(d, name, configRaw.Restore)
 		}
 	}
@@ -82,12 +85,12 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, do, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, do, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func containerSnapRestore(d *Daemon, name string, snap string) error {

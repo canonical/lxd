@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -49,7 +50,7 @@ func cmdInit() error {
 	// Detect zfs
 	out, err := exec.LookPath("zfs")
 	if err == nil && len(out) != 0 && !runningInUserns {
-		_ = loadModule("zfs")
+		_ = util.LoadModule("zfs")
 
 		err := shared.RunCommand("zpool", "list")
 		if err == nil {

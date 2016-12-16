@@ -1,4 +1,4 @@
-package main
+package response
 
 import (
 	"bytes"
@@ -13,6 +13,9 @@ import (
 	"github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -48,7 +51,7 @@ type syncResponse struct {
 func (r *syncResponse) Render(w http.ResponseWriter) error {
 	// Set an appropriate ETag header
 	if r.etag != nil {
-		etag, err := etagHash(r.etag)
+		etag, err := util.EtagHash(r.etag)
 		if err == nil {
 			w.Header().Set("ETag", etag)
 		}
@@ -72,7 +75,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	}
 
 	resp := syncResp{Type: lxd.Sync, Status: status.String(), StatusCode: status, Metadata: r.metadata}
-	return WriteJSON(w, resp)
+	return util.WriteJSON(w, resp)
 }
 
 func (r *syncResponse) String() string {
@@ -102,15 +105,15 @@ func SyncResponseHeaders(success bool, metadata interface{}, headers map[string]
 var EmptySyncResponse = &syncResponse{success: true, metadata: make(map[string]interface{})}
 
 // File transfer response
-type fileResponseEntry struct {
-	identifier string
-	path       string
-	filename   string
+type FileResponseEntry struct {
+	Identifier string
+	Path       string
+	Filename   string
 }
 
 type fileResponse struct {
 	req              *http.Request
-	files            []fileResponseEntry
+	files            []FileResponseEntry
 	headers          map[string]string
 	removeAfterServe bool
 }
@@ -129,7 +132,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 	// For a single file, return it inline
 	if len(r.files) == 1 {
-		f, err := os.Open(r.files[0].path)
+		f, err := os.Open(r.files[0].Path)
 		if err != nil {
 			return err
 		}
@@ -142,11 +145,11 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", fi.Size()))
-		w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.files[0].filename))
+		w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.files[0].Filename))
 
-		http.ServeContent(w, r.req, r.files[0].filename, fi.ModTime(), f)
+		http.ServeContent(w, r.req, r.files[0].Filename, fi.ModTime(), f)
 		if r.removeAfterServe {
-			err = os.Remove(r.files[0].path)
+			err = os.Remove(r.files[0].Path)
 			if err != nil {
 				return err
 			}
@@ -160,13 +163,13 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 	mw := multipart.NewWriter(body)
 
 	for _, entry := range r.files {
-		fd, err := os.Open(entry.path)
+		fd, err := os.Open(entry.Path)
 		if err != nil {
 			return err
 		}
 		defer fd.Close()
 
-		fw, err := mw.CreateFormFile(entry.identifier, entry.filename)
+		fw, err := mw.CreateFormFile(entry.Identifier, entry.Filename)
 		if err != nil {
 			return err
 		}
@@ -189,13 +192,13 @@ func (r *fileResponse) String() string {
 	return fmt.Sprintf("%d files", len(r.files))
 }
 
-func FileResponse(r *http.Request, files []fileResponseEntry, headers map[string]string, removeAfterServe bool) Response {
+func FileResponse(r *http.Request, files []FileResponseEntry, headers map[string]string, removeAfterServe bool) Response {
 	return &fileResponse{r, files, headers, removeAfterServe}
 }
 
 // Operation response
 type operationResponse struct {
-	op *operation
+	op *operation.Operation
 }
 
 func (r *operationResponse) Render(w http.ResponseWriter) error {
@@ -219,7 +222,7 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 	w.Header().Set("Location", url)
 	w.WriteHeader(202)
 
-	return WriteJSON(w, body)
+	return util.WriteJSON(w, body)
 }
 
 func (r *operationResponse) String() string {
@@ -231,7 +234,7 @@ func (r *operationResponse) String() string {
 	return md.Id
 }
 
-func OperationResponse(op *operation) Response {
+func OperationResponse(op *operation.Operation) Response {
 	return &operationResponse{op}
 }
 
@@ -251,7 +254,7 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 	buf := &bytes.Buffer{}
 	output = buf
 	var captured *bytes.Buffer
-	if debug {
+	if state.Debug {
 		captured = &bytes.Buffer{}
 		output = io.MultiWriter(buf, captured)
 	}
@@ -262,7 +265,7 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 		return err
 	}
 
-	if debug {
+	if state.Debug {
 		shared.DebugJson(captured)
 	}
 
@@ -303,11 +306,11 @@ func SmartError(err error) Response {
 		return NotFound
 	case sql.ErrNoRows:
 		return NotFound
-	case NoSuchObjectError:
+	case util.NoSuchObjectError:
 		return NotFound
 	case os.ErrPermission:
 		return Forbidden
-	case DbErrAlreadyDefined:
+	case util.DbErrAlreadyDefined:
 		return Conflict
 	case sqlite3.ErrConstraintUnique:
 		return Conflict

@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -16,7 +17,7 @@ func WriteJSON(w http.ResponseWriter, body interface{}) error {
 	var captured *bytes.Buffer
 
 	output = w
-	if debug {
+	if state.Debug {
 		captured = &bytes.Buffer{}
 		output = io.MultiWriter(w, captured)
 	}
@@ -30,7 +31,7 @@ func WriteJSON(w http.ResponseWriter, body interface{}) error {
 	return err
 }
 
-func etagHash(data interface{}) (string, error) {
+func EtagHash(data interface{}) (string, error) {
 	etag := sha256.New()
 	err := json.NewEncoder(etag).Encode(data)
 	if err != nil {
@@ -40,13 +41,13 @@ func etagHash(data interface{}) (string, error) {
 	return fmt.Sprintf("%x", etag.Sum(nil)), nil
 }
 
-func etagCheck(r *http.Request, data interface{}) error {
+func EtagCheck(r *http.Request, data interface{}) error {
 	match := r.Header.Get("If-Match")
 	if match == "" {
 		return nil
 	}
 
-	hash, err := etagHash(data)
+	hash, err := EtagHash(data)
 	if err != nil {
 		return err
 	}
@@ -58,7 +59,7 @@ func etagCheck(r *http.Request, data interface{}) error {
 	return nil
 }
 
-func loadModule(module string) error {
+func LoadModule(module string) error {
 	if shared.PathExists(fmt.Sprintf("/sys/module/%s", module)) {
 		return nil
 	}

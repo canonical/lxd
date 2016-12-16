@@ -10,6 +10,9 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+
+	"github.com/lxc/lxd/lxd/operation"
+	"github.com/lxc/lxd/lxd/response"
 )
 
 type containerSnapshotPostReq struct {
@@ -17,7 +20,7 @@ type containerSnapshotPostReq struct {
 	Stateful bool   `json:"stateful"`
 }
 
-func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
+func containerSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	recursionStr := r.FormValue("recursion")
 	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
@@ -27,12 +30,12 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	cname := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, cname)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	snaps, err := c.Snapshots()
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	resultString := []string{}
@@ -54,10 +57,10 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	if recursion == 0 {
-		return SyncResponse(true, resultString)
+		return response.SyncResponse(true, resultString)
 	}
 
-	return SyncResponse(true, resultMap)
+	return response.SyncResponse(true, resultMap)
 }
 
 /*
@@ -96,7 +99,7 @@ func nextSnapshot(d *Daemon, name string) int {
 	return max
 }
 
-func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
+func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	/*
@@ -107,12 +110,12 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	 */
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	req := containerSnapshotPostReq{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if req.Name == "" {
@@ -125,7 +128,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		shared.SnapshotDelimiter +
 		req.Name
 
-	snapshot := func(op *operation) error {
+	snapshot := func(op *operation.Operation) error {
 		args := containerArgs{
 			Name:         fullName,
 			Ctype:        cTypeSnapshot,
@@ -149,15 +152,15 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, snapshot, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, snapshot, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
-func snapshotHandler(d *Daemon, r *http.Request) Response {
+func snapshotHandler(d *Daemon, r *http.Request) response.Response {
 	containerName := mux.Vars(r)["name"]
 	snapshotName := mux.Vars(r)["snapshotName"]
 
@@ -167,7 +170,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 			shared.SnapshotDelimiter+
 			snapshotName)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	switch r.Method {
@@ -178,46 +181,46 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	case "DELETE":
 		return snapshotDelete(sc, snapshotName)
 	default:
-		return NotFound
+		return response.NotFound
 	}
 }
 
-func snapshotGet(sc container, name string) Response {
+func snapshotGet(sc container, name string) response.Response {
 	render, _, err := sc.Render()
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponse(true, render.(*shared.SnapshotInfo))
+	return response.SyncResponse(true, render.(*shared.SnapshotInfo))
 }
 
-func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string) Response {
+func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string) response.Response {
 	raw := shared.Jmap{}
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	migration, err := raw.GetBool("migration")
 	if err == nil && migration {
 		ws, err := NewMigrationSource(sc)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		resources := map[string][]string{}
 		resources["containers"] = []string{containerName}
 
-		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operation.Create(operation.ClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
-		return OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	newName, err := raw.GetString("name")
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	fullName := containerName + shared.SnapshotDelimiter + newName
@@ -225,36 +228,36 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	// Check that the name isn't already in use
 	id, _ := dbContainerId(d.db, fullName)
 	if id > 0 {
-		return Conflict
+		return response.Conflict
 	}
 
-	rename := func(op *operation) error {
+	rename := func(op *operation.Operation) error {
 		return sc.Rename(fullName)
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{containerName}
 
-	op, err := operationCreate(operationClassTask, resources, nil, rename, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, rename, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
-func snapshotDelete(sc container, name string) Response {
-	remove := func(op *operation) error {
+func snapshotDelete(sc container, name string) response.Response {
+	remove := func(op *operation.Operation) error {
 		return sc.Delete()
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{sc.Name()}
 
-	op, err := operationCreate(operationClassTask, resources, nil, remove, nil, nil)
+	op, err := operation.Create(operation.ClassTask, resources, nil, remove, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return response.OperationResponse(op)
 }

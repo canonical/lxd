@@ -4,19 +4,21 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"github.com/lxc/lxd/lxd/response"
 )
 
-func containerGet(d *Daemon, r *http.Request) Response {
+func containerGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	state, etag, err := c.Render()
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return SyncResponseETag(true, state, etag)
+	return response.SyncResponseETag(true, state, etag)
 }

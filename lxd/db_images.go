@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -88,7 +89,7 @@ func dbImageSourceGet(db *sql.DB, imageId int) (int, shared.ImageSource, error) 
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, shared.ImageSource{}, NoSuchObjectError
+			return -1, shared.ImageSource{}, util.NoSuchObjectError
 		}
 
 		return -1, shared.ImageSource{}, err
@@ -263,7 +264,7 @@ func dbImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, shared
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, shared.ImageAliasesEntry{}, NoSuchObjectError
+			return -1, shared.ImageAliasesEntry{}, util.NoSuchObjectError
 		}
 
 		return -1, shared.ImageAliasesEntry{}, err

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -55,7 +56,7 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	 * command (i.e. the command to run on --server). However, we're
 	 * hardcoding that at the other end, so we can just ignore it.
 	 */
-	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s\"", execPath, f.Name())
+	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s\"", state.ExecPath, f.Name())
 	cmd := exec.Command(
 		"rsync",
 		"-arvP",
