@@ -352,11 +352,7 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 		}
 		c.Http.Transport = tr
 
-		ss, err := simplestreams.NewClient(c.Remote.Addr, c.Http)
-		if err != nil {
-			return nil, err
-		}
-
+		ss := simplestreams.NewClient(c.Remote.Addr, c.Http, shared.UserAgent)
 		c.simplestreams = ss
 	}
 

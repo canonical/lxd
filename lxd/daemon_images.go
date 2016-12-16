@@ -72,11 +72,7 @@ func imageLoadStreamCache(d *Daemon) error {
 				return err
 			}
 
-			ss, err := simplestreams.NewClient(url, *myhttp)
-			if err != nil {
-				return err
-			}
-
+			ss := simplestreams.NewClient(url, *myhttp, shared.UserAgent)
 			entry.ss = ss
 		}
 	}
@@ -109,10 +105,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 					return nil, err
 				}
 
-				ss, err = simplestreams.NewClient(server, *myhttp)
-				if err != nil {
-					return nil, err
-				}
+				ss = simplestreams.NewClient(server, *myhttp, shared.UserAgent)
 
 				// Get all aliases
 				aliases, err := ss.ListAliases()
