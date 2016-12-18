@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 )
 
 type containerSnapshotPostReq struct {
@@ -41,7 +42,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	for _, snap := range snaps {
 		snapName := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)[1]
 		if recursion == 0 {
-			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", shared.APIVersion, cname, snapName)
+			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
 		} else {
 			render, _, err := snap.Render()

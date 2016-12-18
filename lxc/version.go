@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/version"
 )
 
 type versionCmd struct{}
@@ -28,6 +28,6 @@ func (c *versionCmd) run(_ *lxd.Config, args []string) error {
 	if len(args) > 0 {
 		return errArgs
 	}
-	fmt.Println(shared.Version)
+	fmt.Println(version.Version)
 	return nil
 }

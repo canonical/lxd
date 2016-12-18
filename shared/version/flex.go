@@ -1,7 +1,7 @@
 /* This is a FLEXible file which can be used by both client and daemon.
  * Teehee.
  */
-package shared
+package version
 
 var Version = "2.6.2"
 var UserAgent = "LXD " + Version

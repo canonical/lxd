@@ -262,16 +262,19 @@ type SimpleStreamsIndexStream struct {
 	Products []string `json:"products"`
 }
 
-func NewClient(url string, httpClient http.Client) (*SimpleStreams, error) {
+func NewClient(url string, httpClient http.Client, useragent string) *SimpleStreams {
 	return &SimpleStreams{
 		http:           &httpClient,
 		url:            url,
-		cachedManifest: map[string]*SimpleStreamsManifest{}}, nil
+		cachedManifest: map[string]*SimpleStreamsManifest{},
+		useragent:      useragent,
+	}
 }
 
 type SimpleStreams struct {
-	http *http.Client
-	url  string
+	http      *http.Client
+	url       string
+	useragent string
 
 	cachedIndex    *SimpleStreamsIndex
 	cachedManifest map[string]*SimpleStreamsManifest
@@ -288,7 +291,10 @@ func (s *SimpleStreams) parseIndex() (*SimpleStreamsIndex, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", shared.UserAgent)
+
+	if s.useragent != "" {
+		req.Header.Set("User-Agent", s.useragent)
+	}
 
 	r, err := s.http.Do(req)
 	if err != nil {
@@ -322,7 +328,10 @@ func (s *SimpleStreams) parseManifest(path string) (*SimpleStreamsManifest, erro
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", shared.UserAgent)
+
+	if s.useragent != "" {
+		req.Header.Set("User-Agent", s.useragent)
+	}
 
 	r, err := s.http.Do(req)
 	if err != nil {
@@ -510,7 +519,10 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 		if err != nil {
 			return err
 		}
-		req.Header.Set("User-Agent", shared.UserAgent)
+
+		if s.useragent != "" {
+			req.Header.Set("User-Agent", s.useragent)
+		}
 
 		resp, err := s.http.Do(req)
 		if err != nil {

@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/simplestreams"
+	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -72,11 +73,7 @@ func imageLoadStreamCache(d *Daemon) error {
 				return err
 			}
 
-			ss, err := simplestreams.NewClient(url, *myhttp)
-			if err != nil {
-				return err
-			}
-
+			ss := simplestreams.NewClient(url, *myhttp, version.UserAgent)
 			entry.ss = ss
 		}
 	}
@@ -109,10 +106,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 					return nil, err
 				}
 
-				ss, err = simplestreams.NewClient(server, *myhttp)
-				if err != nil {
-					return nil, err
-				}
+				ss = simplestreams.NewClient(server, *myhttp, version.UserAgent)
 
 				// Get all aliases
 				aliases, err := ss.ListAliases()
@@ -283,9 +277,9 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		if secret != "" {
 			url = fmt.Sprintf(
 				"%s/%s/images/%s?secret=%s",
-				server, shared.APIVersion, fp, secret)
+				server, version.APIVersion, fp, secret)
 		} else {
-			url = fmt.Sprintf("%s/%s/images/%s", server, shared.APIVersion, fp)
+			url = fmt.Sprintf("%s/%s/images/%s", server, version.APIVersion, fp)
 		}
 
 		resp, err := d.httpGetSync(url, certificate)
@@ -305,12 +299,12 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		if secret != "" {
 			exporturl = fmt.Sprintf(
 				"%s/%s/images/%s/export?secret=%s",
-				server, shared.APIVersion, fp, secret)
+				server, version.APIVersion, fp, secret)
 
 		} else {
 			exporturl = fmt.Sprintf(
 				"%s/%s/images/%s/export",
-				server, shared.APIVersion, fp)
+				server, version.APIVersion, fp)
 		}
 	} else if protocol == "simplestreams" {
 		err := ss.Download(fp, "meta", destName, nil)

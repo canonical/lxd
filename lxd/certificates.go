@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 )
 
 func certificatesGet(d *Daemon, r *http.Request) Response {
@@ -40,7 +41,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 
 	body := []string{}
 	for _, cert := range d.clientCerts {
-		fingerprint := fmt.Sprintf("/%s/certificates/%s", shared.APIVersion, shared.CertFingerprint(&cert))
+		fingerprint := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, shared.CertFingerprint(&cert))
 		body = append(body, fingerprint)
 	}
 
@@ -151,7 +152,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 
 	d.clientCerts = append(d.clientCerts, *cert)
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", shared.APIVersion, fingerprint))
+	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 }
 
 var certificatesCmd = Command{name: "certificates", untrustedPost: true, get: certificatesGet, post: certificatesPost}

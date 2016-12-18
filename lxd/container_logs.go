@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 )
 
 func containerLogsGet(d *Daemon, r *http.Request) Response {
@@ -38,7 +39,7 @@ func containerLogsGet(d *Daemon, r *http.Request) Response {
 			continue
 		}
 
-		result = append(result, fmt.Sprintf("/%s/containers/%s/logs/%s", shared.APIVersion, name, f.Name()))
+		result = append(result, fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, name, f.Name()))
 	}
 
 	return SyncResponse(true, result)
