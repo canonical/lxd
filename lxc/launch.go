@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/version"
 )
 
 type launchCmd struct {
@@ -117,9 +118,9 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
 		}
 
-		var version string
+		var restVersion string
 		toScan := strings.Replace(containers[0], "/", " ", -1)
-		count, err := fmt.Sscanf(toScan, " %s containers %s", &version, &name)
+		count, err := fmt.Sscanf(toScan, " %s containers %s", &restVersion, &name)
 		if err != nil {
 			return err
 		}
@@ -128,7 +129,7 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 			return fmt.Errorf(i18n.G("bad number of things scanned from image, container or snapshot"))
 		}
 
-		if version != shared.APIVersion {
+		if restVersion != version.APIVersion {
 			return fmt.Errorf(i18n.G("got bad version"))
 		}
 	}

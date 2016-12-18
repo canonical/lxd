@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var api10 = []Command{
@@ -85,7 +86,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		},
 
 		"api_status":  "stable",
-		"api_version": shared.APIVersion,
+		"api_version": version.APIVersion,
 	}
 
 	if d.isTrustedClient(r) {
@@ -160,7 +161,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_version":     d.Storage.GetStorageTypeVersion(),
 			"server":              "lxd",
 			"server_pid":          os.Getpid(),
-			"server_version":      shared.Version}
+			"server_version":      version.Version}
 
 		body["environment"] = env
 		body["public"] = false

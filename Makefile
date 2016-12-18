@@ -7,7 +7,7 @@ POTFILE=po/$(DOMAIN).pot
 # dist is primarily for use when packaging; for development we still manage
 # dependencies via `go get` explicitly.
 # TODO: use git describe for versioning
-VERSION=$(shell grep "var Version" shared/flex.go | cut -d'"' -f2)
+VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
 ARCHIVE=lxd-$(VERSION).tar
 
 .PHONY: default
@@ -56,20 +56,29 @@ gccgo:
 
 .PHONY: dist
 dist:
+	# Cleanup
+	rm -Rf $(ARCHIVE).gz
+	
+	# Create build dir
 	$(eval TMP := $(shell mktemp -d))
-	rm -Rf lxd-$(VERSION) $(ARCHIVE) $(ARCHIVE).gz
-	mkdir -p lxd-$(VERSION)/
-	-GOPATH=$(TMP) go get -t -v -d ./...
-	-GOPATH=$(TMP) go get -t -v -d ./...
-	-GOPATH=$(TMP) go get -t -v -d ./...
-	GOPATH=$(TMP) go get -t -v -d ./...
-	rm -rf $(TMP)/src/github.com/lxc/lxd
-	ln -s ../../../.. $(TMP)/src/github.com/lxc/lxd
-	mv $(TMP)/ lxd-$(VERSION)/dist
-	git archive --prefix=lxd-$(VERSION)/ --output=$(ARCHIVE) HEAD
-	tar -uf $(ARCHIVE) --exclude-vcs lxd-$(VERSION)/
-	gzip -9 $(ARCHIVE)
-	rm -Rf lxd-$(VERSION) $(ARCHIVE)
+	git archive --prefix=lxd-$(VERSION)/ HEAD | tar -x -C $(TMP)
+	mkdir -p $(TMP)/dist/src/github.com/lxc
+	ln -s ../../../../lxd-$(VERSION) $(TMP)/dist/src/github.com/lxc/lxd
+	
+	# Download dependencies
+	-cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -t -v -d ./...
+	-cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -t -v -d ./...
+	-cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -t -v -d ./...
+	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -t -v -d ./...
+	
+	# Assemble tarball
+	rm $(TMP)/dist/src/github.com/lxc/lxd
+	ln -s ../../../../ $(TMP)/dist/src/github.com/lxc/lxd
+	mv $(TMP)/dist $(TMP)/lxd-$(VERSION)/
+	tar --exclude-vcs -C $(TMP) -zcf $(ARCHIVE).gz lxd-$(VERSION)/
+	
+	# Cleanup
+	rm -Rf $(TMP)
 
 .PHONY: i18n update-po update-pot build-mo static-analysis
 i18n: update-pot

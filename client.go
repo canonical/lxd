@@ -26,6 +26,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/simplestreams"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Client can talk to a LXD daemon.
@@ -352,11 +353,7 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 		}
 		c.Http.Transport = tr
 
-		ss, err := simplestreams.NewClient(c.Remote.Addr, c.Http)
-		if err != nil {
-			return nil, err
-		}
-
+		ss := simplestreams.NewClient(c.Remote.Addr, c.Http, version.UserAgent)
 		c.simplestreams = ss
 	}
 
@@ -396,7 +393,7 @@ func (c *Client) Addresses() ([]string, error) {
 }
 
 func (c *Client) get(base string) (*Response, error) {
-	uri := c.url(shared.APIVersion, base)
+	uri := c.url(version.APIVersion, base)
 
 	return c.baseGet(uri)
 }
@@ -407,7 +404,7 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 		return nil, err
 	}
 
-	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("User-Agent", version.UserAgent)
 
 	resp, err := c.Http.Do(req)
 	if err != nil {
@@ -418,7 +415,7 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 }
 
 func (c *Client) doUpdateMethod(method string, base string, args interface{}, rtype ResponseType) (*Response, error) {
-	uri := c.url(shared.APIVersion, base)
+	uri := c.url(version.APIVersion, base)
 
 	buf := bytes.Buffer{}
 	err := json.NewEncoder(&buf).Encode(args)
@@ -432,7 +429,7 @@ func (c *Client) doUpdateMethod(method string, base string, args interface{}, rt
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("User-Agent", version.UserAgent)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.Http.Do(req)
@@ -464,7 +461,7 @@ func (c *Client) getRaw(uri string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("User-Agent", version.UserAgent)
 
 	raw, err := c.Http.Do(req)
 	if err != nil {
@@ -525,7 +522,7 @@ func (c *Client) GetServerConfig() (*Response, error) {
 		return nil, fmt.Errorf("This function isn't supported by simplestreams remote.")
 	}
 
-	return c.baseGet(c.url(shared.APIVersion))
+	return c.baseGet(c.url(version.APIVersion))
 }
 
 // GetLocalLXDErr determines whether or not an error is likely due to a
@@ -773,7 +770,7 @@ func (c *Client) ExportImage(image string, target string) (string, error) {
 		return c.simplestreams.ExportImage(image, target)
 	}
 
-	uri := c.url(shared.APIVersion, "images", image, "export")
+	uri := c.url(version.APIVersion, "images", image, "export")
 	raw, err := c.getRaw(uri)
 	if err != nil {
 		return "", err
@@ -981,7 +978,7 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		return "", fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	uri := c.url(shared.APIVersion, "images")
+	uri := c.url(version.APIVersion, "images")
 
 	var err error
 	var fImage *os.File
@@ -1081,7 +1078,7 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("User-Agent", version.UserAgent)
 
 	if public {
 		req.Header.Set("X-LXD-public", "1")
@@ -1743,7 +1740,7 @@ func (c *Client) GetLog(container string, log string) (io.Reader, error) {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	uri := c.url(shared.APIVersion, "containers", container, "logs", log)
+	uri := c.url(version.APIVersion, "containers", container, "logs", log)
 	resp, err := c.getRaw(uri)
 	if err != nil {
 		return nil, err
@@ -1777,13 +1774,13 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode str
 	}
 
 	query := url.Values{"path": []string{p}}
-	uri := c.url(shared.APIVersion, "containers", container, "files") + "?" + query.Encode()
+	uri := c.url(version.APIVersion, "containers", container, "files") + "?" + query.Encode()
 
 	req, err := http.NewRequest("POST", uri, buf)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("User-Agent", version.UserAgent)
 	req.Header.Set("X-LXD-type", "file")
 
 	if mode != "" {
@@ -1811,14 +1808,14 @@ func (c *Client) Mkdir(container string, p string, mode os.FileMode) error {
 	}
 
 	query := url.Values{"path": []string{p}}
-	uri := c.url(shared.APIVersion, "containers", container, "files") + "?" + query.Encode()
+	uri := c.url(version.APIVersion, "containers", container, "files") + "?" + query.Encode()
 
 	req, err := http.NewRequest("POST", uri, nil)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("User-Agent", shared.UserAgent)
+	req.Header.Set("User-Agent", version.UserAgent)
 	req.Header.Set("X-LXD-type", "directory")
 	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode.Perm()))
 
@@ -1910,7 +1907,7 @@ func (c *Client) PullFile(container string, p string) (int, int, int, string, io
 		return 0, 0, 0, "", nil, nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	uri := c.url(shared.APIVersion, "containers", container, "files")
+	uri := c.url(version.APIVersion, "containers", container, "files")
 	query := url.Values{"path": []string{p}}
 
 	r, err := c.getRaw(uri + "?" + query.Encode())
