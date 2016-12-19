@@ -2788,31 +2788,27 @@ func (c *Client) NetworkCreate(name string, config map[string]string) error {
 	return err
 }
 
-func (c *Client) NetworkGet(name string) (shared.NetworkConfig, error) {
+func (c *Client) NetworkGet(name string) (api.Network, error) {
 	if c.Remote.Public {
-		return shared.NetworkConfig{}, fmt.Errorf("This function isn't supported by public remotes.")
+		return api.Network{}, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
 	resp, err := c.get(fmt.Sprintf("networks/%s", name))
 	if err != nil {
-		return shared.NetworkConfig{}, err
+		return api.Network{}, err
 	}
 
-	network := shared.NetworkConfig{}
+	network := api.Network{}
 	if err := json.Unmarshal(resp.Metadata, &network); err != nil {
-		return shared.NetworkConfig{}, err
+		return api.Network{}, err
 	}
 
 	return network, nil
 }
 
-func (c *Client) NetworkPut(name string, network shared.NetworkConfig) error {
+func (c *Client) NetworkPut(name string, network api.NetworkPut) error {
 	if c.Remote.Public {
 		return fmt.Errorf("This function isn't supported by public remotes.")
-	}
-
-	if network.Name != name {
-		return fmt.Errorf("Cannot change network name")
 	}
 
 	_, err := c.put(fmt.Sprintf("networks/%s", name), network, Sync)
@@ -2828,7 +2824,7 @@ func (c *Client) NetworkDelete(name string) error {
 	return err
 }
 
-func (c *Client) ListNetworks() ([]shared.NetworkConfig, error) {
+func (c *Client) ListNetworks() ([]api.Network, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -2838,7 +2834,7 @@ func (c *Client) ListNetworks() ([]shared.NetworkConfig, error) {
 		return nil, err
 	}
 
-	networks := []shared.NetworkConfig{}
+	networks := []api.Network{}
 	if err := json.Unmarshal(resp.Metadata, &networks); err != nil {
 		return nil, err
 	}
