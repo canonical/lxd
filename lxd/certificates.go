@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -19,14 +20,14 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 	recursion := d.isRecursionRequest(r)
 
 	if recursion {
-		certResponses := []shared.CertInfo{}
+		certResponses := []api.Certificate{}
 
 		baseCerts, err := dbCertsGet(d.db)
 		if err != nil {
 			return SmartError(err)
 		}
 		for _, baseCert := range baseCerts {
-			resp := shared.CertInfo{}
+			resp := api.Certificate{}
 			resp.Fingerprint = baseCert.Fingerprint
 			resp.Certificate = baseCert.Certificate
 			if baseCert.Type == 1 {
@@ -46,13 +47,6 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 	}
 
 	return SyncResponse(true, body)
-}
-
-type certificatesPostBody struct {
-	Type        string `json:"type"`
-	Certificate string `json:"certificate"`
-	Name        string `json:"name"`
-	Password    string `json:"password"`
 }
 
 func readSavedClientCAList(d *Daemon) {
@@ -94,7 +88,7 @@ func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 
 func certificatesPost(d *Daemon, r *http.Request) Response {
 	// Parse the request
-	req := certificatesPostBody{}
+	req := api.CertificatesPost{}
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
 		return BadRequest(err)
 	}
@@ -168,8 +162,8 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, cert, cert)
 }
 
-func doCertificateGet(d *Daemon, fingerprint string) (shared.CertInfo, error) {
-	resp := shared.CertInfo{}
+func doCertificateGet(d *Daemon, fingerprint string) (api.Certificate, error) {
+	resp := api.Certificate{}
 
 	dbCertInfo, err := dbCertGet(d.db, fingerprint)
 	if err != nil {
@@ -202,7 +196,7 @@ func certificateFingerprintPut(d *Daemon, r *http.Request) Response {
 		return PreconditionFailed(err)
 	}
 
-	req := shared.CertInfo{}
+	req := api.CertificatePut{}
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
 		return BadRequest(err)
 	}
@@ -242,10 +236,10 @@ func certificateFingerprintPatch(d *Daemon, r *http.Request) Response {
 		req.Type = value
 	}
 
-	return doCertificateUpdate(d, fingerprint, req)
+	return doCertificateUpdate(d, fingerprint, req.Writable())
 }
 
-func doCertificateUpdate(d *Daemon, fingerprint string, req shared.CertInfo) Response {
+func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) Response {
 	if req.Type != "client" {
 		return BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
 	}
