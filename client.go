@@ -1221,7 +1221,7 @@ func (c *Client) ListAliases() ([]api.ImageAliasesEntry, error) {
 	return result, nil
 }
 
-func (c *Client) CertificateList() ([]shared.CertInfo, error) {
+func (c *Client) CertificateList() ([]api.Certificate, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1231,7 +1231,7 @@ func (c *Client) CertificateList() ([]shared.CertInfo, error) {
 		return nil, err
 	}
 
-	var result []shared.CertInfo
+	var result []api.Certificate
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
 	}
