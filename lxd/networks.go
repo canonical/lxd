@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -50,7 +51,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 	}
 
 	resultString := []string{}
-	resultMap := []network{}
+	resultMap := []api.Network{}
 	for _, iface := range ifs {
 		if recursion == 0 {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, iface.Name))
@@ -73,12 +74,6 @@ func networksGet(d *Daemon, r *http.Request) Response {
 
 var networksCmd = Command{name: "networks", get: networksGet}
 
-type network struct {
-	Name   string   `json:"name"`
-	Type   string   `json:"type"`
-	UsedBy []string `json:"used_by"`
-}
-
 func networkGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
@@ -90,27 +85,27 @@ func networkGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, &n)
 }
 
-func doNetworkGet(d *Daemon, name string) (network, error) {
+func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
-		return network{}, err
+		return api.Network{}, err
 	}
 
 	// Prepare the response
-	n := network{}
+	n := api.Network{}
 	n.Name = iface.Name
 	n.UsedBy = []string{}
 
 	// Look for containers using the interface
 	cts, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
-		return network{}, err
+		return api.Network{}, err
 	}
 
 	for _, ct := range cts {
 		c, err := containerLoadByName(d, ct)
 		if err != nil {
-			return network{}, err
+			return api.Network{}, err
 		}
 
 		if networkIsInUse(c, n.Name) {
