@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
 )
@@ -303,7 +304,7 @@ func (c *networkCmd) doNetworkEdit(client *lxd.Client, name string) error {
 			return err
 		}
 
-		newdata := shared.NetworkConfig{}
+		newdata := api.NetworkPut{}
 		err = yaml.Unmarshal(contents, &newdata)
 		if err != nil {
 			return err
@@ -330,7 +331,7 @@ func (c *networkCmd) doNetworkEdit(client *lxd.Client, name string) error {
 
 	for {
 		// Parse the text received from the editor
-		newdata := shared.NetworkConfig{}
+		newdata := api.NetworkPut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
 			err = client.NetworkPut(name, newdata)
@@ -458,7 +459,7 @@ func (c *networkCmd) doNetworkSet(client *lxd.Client, name string, args []string
 
 	network.Config[key] = value
 
-	return client.NetworkPut(name, network)
+	return client.NetworkPut(name, network.Writable())
 }
 
 func (c *networkCmd) doNetworkShow(client *lxd.Client, name string) error {
