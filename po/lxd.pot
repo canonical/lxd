@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-12-15 13:20-0500\n"
+        "POT-Creation-Date: 2016-12-20 17:29+0000\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -212,7 +212,7 @@ msgstr  ""
 msgid   "Columns"
 msgstr  ""
 
-#: lxc/copy.go:31 lxc/copy.go:32 lxc/init.go:135 lxc/init.go:136 lxc/launch.go:40 lxc/launch.go:41
+#: lxc/copy.go:31 lxc/copy.go:32 lxc/init.go:135 lxc/init.go:136
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
@@ -288,7 +288,7 @@ msgstr  ""
 msgid   "Created: %s"
 msgstr  ""
 
-#: lxc/init.go:180 lxc/launch.go:135
+#: lxc/init.go:180 lxc/launch.go:126
 #, c-format
 msgid   "Creating %s"
 msgstr  ""
@@ -347,7 +347,7 @@ msgstr  ""
 msgid   "Environment:"
 msgstr  ""
 
-#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:139 lxc/init.go:140 lxc/launch.go:44 lxc/launch.go:45
+#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:139 lxc/init.go:140
 msgid   "Ephemeral container"
 msgstr  ""
 
@@ -460,7 +460,7 @@ msgid   "Initialize a container from a particular image.\n"
         "Specifying \"-p\" with no argument will result in no profile.\n"
         "\n"
         "Example:\n"
-        "    lxc init ubuntu u1"
+        "    lxc init ubuntu:16.04 u1"
 msgstr  ""
 
 #: lxc/remote.go:135
@@ -866,7 +866,7 @@ msgstr  ""
 msgid   "Network %s deleted"
 msgstr  ""
 
-#: lxc/init.go:141 lxc/init.go:142 lxc/launch.go:46 lxc/launch.go:47
+#: lxc/init.go:141 lxc/init.go:142
 msgid   "Network name"
 msgstr  ""
 
@@ -1007,7 +1007,7 @@ msgstr  ""
 msgid   "Profile %s removed from %s"
 msgstr  ""
 
-#: lxc/copy.go:33 lxc/copy.go:34 lxc/init.go:137 lxc/init.go:138 lxc/launch.go:42 lxc/launch.go:43
+#: lxc/copy.go:33 lxc/copy.go:34 lxc/init.go:137 lxc/init.go:138
 msgid   "Profile to apply to the new container"
 msgstr  ""
 
@@ -1156,7 +1156,7 @@ msgstr  ""
 msgid   "Source:"
 msgstr  ""
 
-#: lxc/launch.go:144
+#: lxc/launch.go:135
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
@@ -1252,7 +1252,7 @@ msgstr  ""
 msgid   "Transferring image: %s"
 msgstr  ""
 
-#: lxc/action.go:99 lxc/launch.go:157
+#: lxc/action.go:99 lxc/launch.go:148
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -1315,7 +1315,7 @@ msgstr  ""
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
-#: lxc/launch.go:128
+#: lxc/launch.go:119
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
@@ -1343,7 +1343,7 @@ msgstr  ""
 msgid   "default"
 msgstr  ""
 
-#: lxc/copy.go:131 lxc/copy.go:136 lxc/copy.go:232 lxc/copy.go:237 lxc/init.go:219 lxc/init.go:224 lxc/launch.go:112 lxc/launch.go:117
+#: lxc/copy.go:131 lxc/copy.go:136 lxc/copy.go:232 lxc/copy.go:237 lxc/init.go:219 lxc/init.go:224 lxc/launch.go:103 lxc/launch.go:108
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
@@ -1365,7 +1365,7 @@ msgstr  ""
 msgid   "error: unknown command: %s"
 msgstr  ""
 
-#: lxc/launch.go:132
+#: lxc/launch.go:123
 msgid   "got bad version"
 msgstr  ""
 
