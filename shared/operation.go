@@ -1,15 +1,8 @@
 package shared
 
 import (
-	"net/http"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
-
-var WebsocketUpgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
-}
 
 type Operation struct {
 	Id         string              `json:"id"`

@@ -47,22 +47,3 @@ func (o StatusCode) String() string {
 func (o StatusCode) IsFinal() bool {
 	return int(o) >= 200
 }
-
-/*
- * Create a StatusCode from an lxc.State code. N.B.: we accept an int instead
- * of a lxc.State so that the shared code doesn't depend on lxc, which depends
- * on liblxc, etc.
- */
-func FromLXCState(state int) StatusCode {
-	return map[int]StatusCode{
-		1: Stopped,
-		2: Starting,
-		3: Running,
-		4: Stopping,
-		5: Aborting,
-		6: Freezing,
-		7: Frozen,
-		8: Thawed,
-		9: Error,
-	}[state]
-}
