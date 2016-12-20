@@ -1643,11 +1643,11 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		return -1, err
 	}
 
-	if op.StatusCode == shared.Failure {
+	if op.StatusCode == api.Failure {
 		return -1, fmt.Errorf(op.Err)
 	}
 
-	if op.StatusCode != shared.Success {
+	if op.StatusCode != api.Success {
 		return -1, fmt.Errorf("got bad op status %s", op.Status)
 	}
 
@@ -2241,7 +2241,7 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 		return err
 	}
 
-	if op.StatusCode == shared.Success {
+	if op.StatusCode == api.Success {
 		return nil
 	}
 
@@ -2254,7 +2254,7 @@ func (c *Client) WaitForSuccessOp(waitURL string) (*shared.Operation, error) {
 		return nil, err
 	}
 
-	if op.StatusCode == shared.Success {
+	if op.StatusCode == api.Success {
 		return op, nil
 	}
 
@@ -2723,11 +2723,11 @@ func (c *Client) AsyncWaitMeta(resp *Response) (*shared.Jmap, error) {
 		return nil, err
 	}
 
-	if op.StatusCode == shared.Failure {
+	if op.StatusCode == api.Failure {
 		return nil, fmt.Errorf(op.Err)
 	}
 
-	if op.StatusCode != shared.Success {
+	if op.StatusCode != api.Success {
 		return nil, fmt.Errorf("got bad op status %s", op.Status)
 	}
 

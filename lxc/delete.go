@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -87,7 +88,7 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		if ct.StatusCode != 0 && ct.StatusCode != shared.Stopped {
+		if ct.StatusCode != 0 && ct.StatusCode != api.Stopped {
 			if !c.force {
 				return fmt.Errorf(i18n.G("The container is currently running, stop it first or pass --force."))
 			}
@@ -102,7 +103,7 @@ func (c *deleteCmd) run(config *lxd.Config, args []string) error {
 				return err
 			}
 
-			if op.StatusCode == shared.Failure {
+			if op.StatusCode == api.Failure {
 				return fmt.Errorf(i18n.G("Stopping container failed!"))
 			}
 
