@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2016-12-15 14:19-0500\n"
+        "POT-Creation-Date: 2017-01-03 12:39-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -185,7 +185,7 @@ msgstr  ""
 msgid   "Columns"
 msgstr  ""
 
-#: lxc/init.go:134 lxc/init.go:135 lxc/launch.go:40 lxc/launch.go:41
+#: lxc/init.go:134 lxc/init.go:135
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
@@ -252,7 +252,7 @@ msgstr  ""
 msgid   "Created: %s"
 msgstr  ""
 
-#: lxc/init.go:177 lxc/launch.go:119
+#: lxc/init.go:177 lxc/launch.go:112
 #, c-format
 msgid   "Creating %s"
 msgstr  ""
@@ -307,7 +307,7 @@ msgstr  ""
 msgid   "Environment:"
 msgstr  ""
 
-#: lxc/copy.go:29 lxc/copy.go:30 lxc/init.go:138 lxc/init.go:139 lxc/launch.go:44 lxc/launch.go:45
+#: lxc/copy.go:29 lxc/copy.go:30 lxc/init.go:138 lxc/init.go:139
 msgid   "Ephemeral container"
 msgstr  ""
 
@@ -420,7 +420,7 @@ msgid   "Initialize a container from a particular image.\n"
         "Specifying \"-p\" with no argument will result in no profile.\n"
         "\n"
         "Example:\n"
-        "    lxc init ubuntu u1"
+        "    lxc init ubuntu:16.04 u1"
 msgstr  ""
 
 #: lxc/remote.go:120
@@ -880,7 +880,7 @@ msgstr  ""
 msgid   "Profile %s deleted"
 msgstr  ""
 
-#: lxc/init.go:136 lxc/init.go:137 lxc/launch.go:42 lxc/launch.go:43
+#: lxc/init.go:136 lxc/init.go:137
 msgid   "Profile to apply to the new container"
 msgstr  ""
 
@@ -1020,7 +1020,7 @@ msgstr  ""
 msgid   "Source:"
 msgstr  ""
 
-#: lxc/launch.go:126
+#: lxc/launch.go:119
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
@@ -1096,7 +1096,7 @@ msgstr  ""
 msgid   "Transferring image: %s"
 msgstr  ""
 
-#: lxc/action.go:99 lxc/launch.go:139
+#: lxc/action.go:99 lxc/launch.go:132
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -1155,7 +1155,7 @@ msgstr  ""
 msgid   "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr  ""
 
-#: lxc/launch.go:112
+#: lxc/launch.go:105
 msgid   "bad number of things scanned from image, container or snapshot"
 msgstr  ""
 
@@ -1175,7 +1175,7 @@ msgstr  ""
 msgid   "default"
 msgstr  ""
 
-#: lxc/init.go:202 lxc/init.go:207 lxc/launch.go:96 lxc/launch.go:101
+#: lxc/init.go:202 lxc/init.go:207 lxc/launch.go:89 lxc/launch.go:94
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
@@ -1197,7 +1197,7 @@ msgstr  ""
 msgid   "error: unknown command: %s"
 msgstr  ""
 
-#: lxc/launch.go:116
+#: lxc/launch.go:109
 msgid   "got bad version"
 msgstr  ""
 
