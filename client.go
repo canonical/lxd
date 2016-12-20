@@ -1691,8 +1691,8 @@ func (c *Client) Delete(name string) (*Response, error) {
 	return c.delete(url, nil, Async)
 }
 
-func (c *Client) ServerStatus() (*shared.ServerState, error) {
-	ss := shared.ServerState{}
+func (c *Client) ServerStatus() (*api.Server, error) {
+	ss := api.Server{}
 
 	resp, err := c.GetServerConfig()
 	if err != nil {
@@ -2362,7 +2362,7 @@ func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
 	return c.put("", ss, Sync)
 }
 
-func (c *Client) UpdateServerConfig(ss shared.BriefServerState) (*Response, error) {
+func (c *Client) UpdateServerConfig(ss api.ServerPut) (*Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
