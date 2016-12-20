@@ -226,7 +226,7 @@ func (r *operationResponse) String() string {
 		return fmt.Sprintf("error: %s", err)
 	}
 
-	return md.Id
+	return md.ID
 }
 
 func OperationResponse(op *operation) Response {
