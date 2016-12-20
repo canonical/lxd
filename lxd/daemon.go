@@ -514,7 +514,7 @@ func (d *Daemon) UpdateHTTPsPort(newAddress string) error {
 			return fmt.Errorf("cannot listen on https socket: %v", err)
 		}
 
-		d.tomb.Go(func() error { return http.Serve(tcpl, d.mux) })
+		d.tomb.Go(func() error { return http.Serve(tcpl, &lxdHttpServer{d.mux, d}) })
 		d.TCPSocket = &Socket{Socket: tcpl, CloseOnExit: true}
 	}
 
