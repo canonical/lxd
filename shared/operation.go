@@ -2,6 +2,8 @@ package shared
 
 import (
 	"time"
+
+	"github.com/lxc/lxd/shared/api"
 )
 
 type Operation struct {
@@ -10,7 +12,7 @@ type Operation struct {
 	CreatedAt  time.Time           `json:"created_at"`
 	UpdatedAt  time.Time           `json:"updated_at"`
 	Status     string              `json:"status"`
-	StatusCode StatusCode          `json:"status_code"`
+	StatusCode api.StatusCode      `json:"status_code"`
 	Resources  map[string][]string `json:"resources"`
 	Metadata   *Jmap               `json:"metadata"`
 	MayCancel  bool                `json:"may_cancel"`

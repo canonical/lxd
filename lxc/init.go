@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -241,7 +241,7 @@ func (c *initCmd) initProgressTracker(d *lxd.Client, progress *ProgressRenderer,
 			return
 		}
 
-		if shared.StatusCode(md["status_code"].(float64)).IsFinal() {
+		if api.StatusCode(md["status_code"].(float64)).IsFinal() {
 			return
 		}
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -50,8 +51,8 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 			if err != nil {
 				c = &shared.ContainerInfo{
 					Name:       container,
-					Status:     shared.Error.String(),
-					StatusCode: shared.Error}
+					Status:     api.Error.String(),
+					StatusCode: api.Error}
 			}
 			resultList = append(resultList, c)
 		}
