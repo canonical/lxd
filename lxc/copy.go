@@ -189,7 +189,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		return err
 	}
 
-	for k, v := range *op.Metadata {
+	for k, v := range op.Metadata {
 		secrets[k] = v.(string)
 	}
 
