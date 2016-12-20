@@ -82,7 +82,7 @@ Not specifying -p will result in the default profile.
 Specifying "-p" with no argument will result in no profile.
 
 Example:
-    lxc init ubuntu u1`)
+    lxc init ubuntu:16.04 u1`)
 }
 
 func (c *initCmd) is_ephem(s string) bool {
