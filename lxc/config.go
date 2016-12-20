@@ -15,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
@@ -341,7 +342,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 				return err
 			}
 
-			brief := config.Brief()
+			brief := config.Writable()
 			data, err = yaml.Marshal(&brief)
 		} else {
 			var brief shared.BriefContainerInfo
@@ -554,7 +555,7 @@ func (c *configCmd) doDaemonConfigEdit(client *lxd.Client) error {
 			return err
 		}
 
-		newdata := shared.BriefServerState{}
+		newdata := api.ServerPut{}
 		err = yaml.Unmarshal(contents, &newdata)
 		if err != nil {
 			return err
@@ -570,7 +571,7 @@ func (c *configCmd) doDaemonConfigEdit(client *lxd.Client) error {
 		return err
 	}
 
-	brief := config.Brief()
+	brief := config.Writable()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err
@@ -584,7 +585,7 @@ func (c *configCmd) doDaemonConfigEdit(client *lxd.Client) error {
 
 	for {
 		// Parse the text received from the editor
-		newdata := shared.BriefServerState{}
+		newdata := api.ServerPut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
 			_, err = client.UpdateServerConfig(newdata)
