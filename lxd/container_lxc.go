@@ -163,6 +163,20 @@ func lxcValidConfig(rawLxc string) error {
 	return nil
 }
 
+func lxcStatusCode(state lxc.State) shared.StatusCode {
+	return map[int]shared.StatusCode{
+		1: shared.Stopped,
+		2: shared.Starting,
+		3: shared.Running,
+		4: shared.Stopping,
+		5: shared.Aborting,
+		6: shared.Freezing,
+		7: shared.Frozen,
+		8: shared.Thawed,
+		9: shared.Error,
+	}[int(state)]
+}
+
 // Loader functions
 func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	// Create the container struct
@@ -2406,7 +2420,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		statusCode := shared.FromLXCState(int(cState))
+		statusCode := lxcStatusCode(cState)
 
 		return &shared.ContainerInfo{
 			Architecture:    architectureName,
@@ -2437,7 +2451,7 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 	if err != nil {
 		return nil, err
 	}
-	statusCode := shared.FromLXCState(int(cState))
+	statusCode := lxcStatusCode(cState)
 	status := shared.ContainerState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
