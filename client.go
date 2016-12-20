@@ -90,8 +90,8 @@ func (r *Response) MetadataAsMap() (*shared.Jmap, error) {
 	return &ret, nil
 }
 
-func (r *Response) MetadataAsOperation() (*shared.Operation, error) {
-	op := shared.Operation{}
+func (r *Response) MetadataAsOperation() (*api.Operation, error) {
+	op := api.Operation{}
 	if err := json.Unmarshal(r.Metadata, &op); err != nil {
 		return nil, err
 	}
@@ -660,7 +660,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 			return err
 		}
 
-		secret, err = op.Metadata.GetString("secret")
+		secret, err = shared.Jmap(op.Metadata).GetString("secret")
 		if err != nil {
 			return err
 		}
@@ -730,7 +730,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		}
 
 		if op.Metadata != nil {
-			value, err := op.Metadata.GetString("fingerprint")
+			value, err := shared.Jmap(op.Metadata).GetString("fingerprint")
 			if err == nil {
 				fingerprint = value
 			}
@@ -957,7 +957,7 @@ func (c *Client) PostImageURL(imageFile string, properties []string, public bool
 		return "", fmt.Errorf("Missing operation metadata")
 	}
 
-	fingerprint, err := op.Metadata.GetString("fingerprint")
+	fingerprint, err := shared.Jmap(op.Metadata).GetString("fingerprint")
 	if err != nil {
 		return "", err
 	}
@@ -1115,12 +1115,12 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		return "", err
 	}
 
-	jmap, err := c.AsyncWaitMeta(resp)
+	meta, err := c.AsyncWaitMeta(resp)
 	if err != nil {
 		return "", err
 	}
 
-	fingerprint, err := jmap.GetString("fingerprint")
+	fingerprint, err := shared.Jmap(meta).GetString("fingerprint")
 	if err != nil {
 		return "", err
 	}
@@ -1376,7 +1376,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 					return nil, err
 				}
 
-				secret, err = op.Metadata.GetString("secret")
+				secret, err = shared.Jmap(op.Metadata).GetString("secret")
 				if err != nil {
 					return nil, err
 				}
@@ -1568,7 +1568,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		return -1, err
 	}
 
-	fds, err = op.Metadata.GetMap("fds")
+	fds, err = shared.Jmap(op.Metadata).GetMap("fds")
 	if err != nil {
 		return -1, err
 	}
@@ -1655,7 +1655,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		return -1, fmt.Errorf("no metadata received")
 	}
 
-	return op.Metadata.GetInt("return")
+	return shared.Jmap(op.Metadata).GetInt("return")
 }
 
 func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool, stateful bool) (*Response, error) {
@@ -2104,7 +2104,8 @@ func (c *Client) MigrateFrom(name string, operation string, certificate string,
 		if err != nil {
 			return nil, err
 		}
-		for k, v := range *op.Metadata {
+
+		for k, v := range op.Metadata {
 			destSecrets[k] = v.(string)
 		}
 
@@ -2216,7 +2217,7 @@ func (c *Client) Rename(name string, newName string) (*Response, error) {
 }
 
 /* Wait for an operation */
-func (c *Client) WaitFor(waitURL string) (*shared.Operation, error) {
+func (c *Client) WaitFor(waitURL string) (*api.Operation, error) {
 	if len(waitURL) < 1 {
 		return nil, fmt.Errorf("invalid wait url %s", waitURL)
 	}
@@ -2248,7 +2249,7 @@ func (c *Client) WaitForSuccess(waitURL string) error {
 	return fmt.Errorf(op.Err)
 }
 
-func (c *Client) WaitForSuccessOp(waitURL string) (*shared.Operation, error) {
+func (c *Client) WaitForSuccessOp(waitURL string) (*api.Operation, error) {
 	op, err := c.WaitFor(waitURL)
 	if err != nil {
 		return nil, err
@@ -2717,7 +2718,7 @@ func (c *Client) ProfileCopy(name, newname string, dest *Client) error {
 	return err
 }
 
-func (c *Client) AsyncWaitMeta(resp *Response) (*shared.Jmap, error) {
+func (c *Client) AsyncWaitMeta(resp *Response) (map[string]interface{}, error) {
 	op, err := c.WaitFor(resp.Operation)
 	if err != nil {
 		return nil, err
@@ -2754,12 +2755,12 @@ func (c *Client) ImageFromContainer(cname string, public bool, aliases []string,
 		return "", err
 	}
 
-	jmap, err := c.AsyncWaitMeta(resp)
+	meta, err := c.AsyncWaitMeta(resp)
 	if err != nil {
 		return "", err
 	}
 
-	fingerprint, err := jmap.GetString("fingerprint")
+	fingerprint, err := shared.Jmap(meta).GetString("fingerprint")
 	if err != nil {
 		return "", err
 	}

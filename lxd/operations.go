@@ -246,7 +246,7 @@ func (op *operation) mayCancel() bool {
 	return op.onCancel != nil || op.class == operationClassToken
 }
 
-func (op *operation) Render() (string, *shared.Operation, error) {
+func (op *operation) Render() (string, *api.Operation, error) {
 	// Setup the resource URLs
 	resources := op.resources
 	if resources != nil {
@@ -261,9 +261,7 @@ func (op *operation) Render() (string, *shared.Operation, error) {
 		resources = tmpResources
 	}
 
-	md := shared.Jmap(op.metadata)
-
-	return op.url, &shared.Operation{
+	return op.url, &api.Operation{
 		Id:         op.id,
 		Class:      op.class.String(),
 		CreatedAt:  op.createdAt,
@@ -271,7 +269,7 @@ func (op *operation) Render() (string, *shared.Operation, error) {
 		Status:     op.status.String(),
 		StatusCode: op.status,
 		Resources:  resources,
-		Metadata:   &md,
+		Metadata:   op.metadata,
 		MayCancel:  op.mayCancel(),
 		Err:        op.err,
 	}, nil
@@ -473,7 +471,7 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 		_, ok := md[status]
 		if !ok {
 			if recursion {
-				md[status] = make([]*shared.Operation, 0)
+				md[status] = make([]*api.Operation, 0)
 			} else {
 				md[status] = make([]string, 0)
 			}
@@ -489,7 +487,7 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 			continue
 		}
 
-		md[status] = append(md[status].([]*shared.Operation), body)
+		md[status] = append(md[status].([]*api.Operation), body)
 	}
 
 	return SyncResponse(true, md)
