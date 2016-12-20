@@ -6,7 +6,6 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -36,14 +35,7 @@ Example:
 
 func (c *launchCmd) flags() {
 	c.init = initCmd{}
-
-	c.init.massage_args()
-	gnuflag.Var(&c.init.confArgs, "config", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&c.init.confArgs, "c", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&c.init.profArgs, "profile", i18n.G("Profile to apply to the new container"))
-	gnuflag.Var(&c.init.profArgs, "p", i18n.G("Profile to apply to the new container"))
-	gnuflag.BoolVar(&c.init.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
-	gnuflag.BoolVar(&c.init.ephem, "e", false, i18n.G("Ephemeral container"))
+	c.init.flags()
 }
 
 func (c *launchCmd) run(config *lxd.Config, args []string) error {
