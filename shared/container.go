@@ -6,11 +6,13 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/lxc/lxd/shared/api"
 )
 
 type ContainerState struct {
 	Status     string                           `json:"status"`
-	StatusCode StatusCode                       `json:"status_code"`
+	StatusCode api.StatusCode                   `json:"status_code"`
 	CPU        ContainerStateCPU                `json:"cpu"`
 	Disk       map[string]ContainerStateDisk    `json:"disk"`
 	Memory     ContainerStateMemory             `json:"memory"`
@@ -91,14 +93,14 @@ type ContainerInfo struct {
 	Profiles        []string                     `json:"profiles"`
 	Stateful        bool                         `json:"stateful"`
 	Status          string                       `json:"status"`
-	StatusCode      StatusCode                   `json:"status_code"`
+	StatusCode      api.StatusCode               `json:"status_code"`
 }
 
 func (c ContainerInfo) IsActive() bool {
 	switch c.StatusCode {
-	case Stopped:
+	case api.Stopped:
 		return false
-	case Error:
+	case api.Error:
 		return false
 	default:
 		return true

@@ -15,21 +15,22 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 type syncResp struct {
-	Type       lxd.ResponseType  `json:"type"`
-	Status     string            `json:"status"`
-	StatusCode shared.StatusCode `json:"status_code"`
-	Metadata   interface{}       `json:"metadata"`
+	Type       lxd.ResponseType `json:"type"`
+	Status     string           `json:"status"`
+	StatusCode api.StatusCode   `json:"status_code"`
+	Metadata   interface{}      `json:"metadata"`
 }
 
 type asyncResp struct {
-	Type       lxd.ResponseType  `json:"type"`
-	Status     string            `json:"status"`
-	StatusCode shared.StatusCode `json:"status_code"`
-	Metadata   interface{}       `json:"metadata"`
-	Operation  string            `json:"operation"`
+	Type       lxd.ResponseType `json:"type"`
+	Status     string           `json:"status"`
+	StatusCode api.StatusCode   `json:"status_code"`
+	Metadata   interface{}      `json:"metadata"`
+	Operation  string           `json:"operation"`
 }
 
 type Response interface {
@@ -56,9 +57,9 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	}
 
 	// Prepare the JSON response
-	status := shared.Success
+	status := api.Success
 	if !r.success {
-		status = shared.Failure
+		status = api.Failure
 	}
 
 	if r.headers != nil {
@@ -233,8 +234,8 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 
 	body := asyncResp{
 		Type:       lxd.Async,
-		Status:     shared.OperationCreated.String(),
-		StatusCode: shared.OperationCreated,
+		Status:     api.OperationCreated.String(),
+		StatusCode: api.OperationCreated,
 		Operation:  url,
 		Metadata:   md}
 

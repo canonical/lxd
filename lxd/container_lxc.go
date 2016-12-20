@@ -26,6 +26,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -164,17 +165,17 @@ func lxcValidConfig(rawLxc string) error {
 	return nil
 }
 
-func lxcStatusCode(state lxc.State) shared.StatusCode {
-	return map[int]shared.StatusCode{
-		1: shared.Stopped,
-		2: shared.Starting,
-		3: shared.Running,
-		4: shared.Stopping,
-		5: shared.Aborting,
-		6: shared.Freezing,
-		7: shared.Frozen,
-		8: shared.Thawed,
-		9: shared.Error,
+func lxcStatusCode(state lxc.State) api.StatusCode {
+	return map[int]api.StatusCode{
+		1: api.Stopped,
+		2: api.Starting,
+		3: api.Running,
+		4: api.Stopping,
+		5: api.Aborting,
+		6: api.Freezing,
+		7: api.Frozen,
+		8: api.Thawed,
+		9: api.Error,
 	}[int(state)]
 }
 
@@ -6278,12 +6279,12 @@ func (c *containerLXC) State() string {
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
-		return "BROKEN"
+		return "Broken"
 	}
 
 	state, err := c.getLxcState()
 	if err != nil {
-		return shared.Error.String()
+		return api.Error.String()
 	}
 	return state.String()
 }
