@@ -430,7 +430,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		} else {
 			progress := ProgressRenderer{Format: i18n.G("Transferring image: %s")}
 			handler := func(percent int64, speed int64) {
-				progress.Update(fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed)))
+				progress.Update(fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2)))
 			}
 
 			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, c.publicImage, c.addAliases, handler)
