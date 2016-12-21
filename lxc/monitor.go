@@ -84,5 +84,5 @@ func (c *monitorCmd) run(config *lxd.Config, args []string) error {
 		fmt.Printf("%s\n\n", render)
 	}
 
-	return d.Monitor(c.typeArgs, handler)
+	return d.Monitor(c.typeArgs, handler, nil)
 }

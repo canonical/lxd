@@ -705,7 +705,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 	}
 
 	if progressHandler != nil {
-		go dest.Monitor([]string{"operation"}, handler)
+		go dest.Monitor([]string{"operation"}, handler, nil)
 	}
 
 	fingerprint := info.Fingerprint
@@ -937,7 +937,7 @@ func (c *Client) PostImageURL(imageFile string, properties []string, public bool
 	}
 
 	if progressHandler != nil {
-		go c.Monitor([]string{"operation"}, handler)
+		go c.Monitor([]string{"operation"}, handler, nil)
 	}
 
 	resp, err := c.post("images", body, Async)
@@ -1479,7 +1479,7 @@ func (c *Client) LocalCopy(source string, name string, config map[string]string,
 	return c.post("containers", body, Async)
 }
 
-func (c *Client) Monitor(types []string, handler func(interface{})) error {
+func (c *Client) Monitor(types []string, handler func(interface{}), done chan bool) error {
 	if c.Remote.Public {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1495,20 +1495,37 @@ func (c *Client) Monitor(types []string, handler func(interface{})) error {
 	}
 	defer conn.Close()
 
+	readCh := make(chan []byte)
+	errCh := make(chan error)
+
+	go func() {
+		for {
+			_, data, err := conn.ReadMessage()
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			readCh <- data
+		}
+	}()
+
 	for {
-		message := make(map[string]interface{})
+		select {
+		case <-done:
+			return nil
+		case data := <-readCh:
+			message := make(map[string]interface{})
 
-		_, data, err := conn.ReadMessage()
-		if err != nil {
+			err = json.Unmarshal(data, &message)
+			if err != nil {
+				return err
+			}
+
+			handler(message)
+		case err := <-errCh:
 			return err
 		}
-
-		err = json.Unmarshal(data, &message)
-		if err != nil {
-			return err
-		}
-
-		handler(message)
 	}
 }
 
