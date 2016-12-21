@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -36,7 +37,7 @@ func (suite *lxdTestSuite) TestContainer_ProfilesMulti() {
 		"unprivileged",
 		"unprivileged",
 		map[string]string{"security.privileged": "true"},
-		shared.Devices{})
+		types.Devices{})
 
 	suite.Req.Nil(err, "Failed to create the unprivileged profile.")
 	defer func() {
@@ -70,8 +71,8 @@ func (suite *lxdTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
-		Devices: shared.Devices{
-			"eth0": shared.Device{
+		Devices: types.Devices{
+			"eth0": types.Device{
 				"type":    "nic",
 				"nictype": "bridged",
 				"parent":  "unknownbr0"}},
@@ -100,8 +101,8 @@ func (suite *lxdTestSuite) TestContainer_LoadFromDB() {
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
-		Devices: shared.Devices{
-			"eth0": shared.Device{
+		Devices: types.Devices{
+			"eth0": types.Device{
 				"type":    "nic",
 				"nictype": "bridged",
 				"parent":  "unknownbr0"}},
