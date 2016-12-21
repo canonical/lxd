@@ -1,11 +1,13 @@
-package shared
+package types
 
 import (
 	"sort"
+
+	"github.com/lxc/lxd/shared"
 )
 
 type Device map[string]string
-type Devices map[string]Device
+type Devices map[string]map[string]string
 
 func (list Devices) ContainsName(k string) bool {
 	if list[k] != nil {
@@ -66,14 +68,14 @@ func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device
 	for key, d := range addlist {
 		srcOldDevice := rmlist[key]
 		var oldDevice Device
-		err := DeepCopy(&srcOldDevice, &oldDevice)
+		err := shared.DeepCopy(&srcOldDevice, &oldDevice)
 		if err != nil {
 			continue
 		}
 
 		srcNewDevice := newlist[key]
 		var newDevice Device
-		err = DeepCopy(&srcNewDevice, &newDevice)
+		err = shared.DeepCopy(&srcNewDevice, &newDevice)
 		if err != nil {
 			continue
 		}

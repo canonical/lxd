@@ -10,6 +10,7 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -309,7 +310,7 @@ func containerValidConfig(config map[string]string, profile bool, expanded bool)
 	return nil
 }
 
-func containerValidDevices(devices shared.Devices, profile bool, expanded bool) error {
+func containerValidDevices(devices types.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -401,7 +402,7 @@ type containerArgs struct {
 	Config       map[string]string
 	CreationDate time.Time
 	Ctype        containerType
-	Devices      shared.Devices
+	Devices      types.Devices
 	Ephemeral    bool
 	Name         string
 	Profiles     []string
@@ -478,9 +479,9 @@ type container interface {
 	Architecture() int
 	CreationDate() time.Time
 	ExpandedConfig() map[string]string
-	ExpandedDevices() shared.Devices
+	ExpandedDevices() types.Devices
 	LocalConfig() map[string]string
-	LocalDevices() shared.Devices
+	LocalDevices() types.Devices
 	Profiles() []string
 	InitPID() int
 	State() string
@@ -662,7 +663,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	if args.Devices == nil {
-		args.Devices = shared.Devices{}
+		args.Devices = types.Devices{}
 	}
 
 	if args.Architecture == 0 {

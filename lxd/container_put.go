@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 
@@ -17,7 +18,7 @@ import (
 type containerPutReq struct {
 	Architecture string            `json:"architecture"`
 	Config       map[string]string `json:"config"`
-	Devices      shared.Devices    `json:"devices"`
+	Devices      types.Devices     `json:"devices"`
 	Ephemeral    bool              `json:"ephemeral"`
 	Profiles     []string          `json:"profiles"`
 	Restore      string            `json:"restore"`

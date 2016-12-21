@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
 
@@ -21,7 +22,7 @@ type profilesPostReq struct {
 	Name        string            `json:"name"`
 	Config      map[string]string `json:"config"`
 	Description string            `json:"description"`
-	Devices     shared.Devices    `json:"devices"`
+	Devices     types.Devices     `json:"devices"`
 }
 
 func profilesGet(d *Daemon, r *http.Request) Response {

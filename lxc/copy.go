@@ -49,7 +49,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 
 	var status struct {
 		Architecture string
-		Devices      shared.Devices
+		Devices      map[string]map[string]string
 		Config       map[string]string
 		Profiles     []string
 	}

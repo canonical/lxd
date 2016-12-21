@@ -24,6 +24,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 
@@ -230,7 +231,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 			deviceName += "_"
 		}
 
-		c.localDevices[deviceName] = shared.Device{"type": "disk", "path": "/"}
+		c.localDevices[deviceName] = types.Device{"type": "disk", "path": "/"}
 
 		updateArgs := containerArgs{
 			Architecture: c.architecture,
@@ -376,10 +377,10 @@ type containerLXC struct {
 
 	// Config
 	expandedConfig  map[string]string
-	expandedDevices shared.Devices
+	expandedDevices types.Devices
 	fromHook        bool
 	localConfig     map[string]string
-	localDevices    shared.Devices
+	localDevices    types.Devices
 	profiles        []string
 
 	// Cache
@@ -1382,7 +1383,7 @@ func (c *containerLXC) expandConfig() error {
 }
 
 func (c *containerLXC) expandDevices() error {
-	devices := shared.Devices{}
+	devices := types.Devices{}
 
 	// Apply all the profiles
 	for _, p := range c.profiles {
@@ -1535,7 +1536,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	c.removeUnixDevices()
 	c.removeDiskDevices()
 
-	diskDevices := map[string]shared.Device{}
+	diskDevices := map[string]types.Device{}
 
 	// Create the devices
 	for _, k := range c.expandedDevices.DeviceNames() {
@@ -1566,7 +1567,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 	}
 
-	err = c.addDiskDevices(diskDevices, func(name string, d shared.Device) error {
+	err = c.addDiskDevices(diskDevices, func(name string, d types.Device) error {
 		_, err := c.createDiskDevice(name, d)
 		return err
 	})
@@ -1850,7 +1851,7 @@ func (c *containerLXC) OnStart() error {
 			continue
 		}
 
-		go func(c *containerLXC, name string, m shared.Device) {
+		go func(c *containerLXC, name string, m types.Device) {
 			c.fromHook = false
 			err = c.setNetworkLimits(name, m)
 			if err != nil {
@@ -2582,7 +2583,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	if args.Devices == nil {
-		args.Devices = shared.Devices{}
+		args.Devices = types.Devices{}
 	}
 
 	if args.Profiles == nil {
@@ -2649,7 +2650,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
-	oldExpandedDevices := shared.Devices{}
+	oldExpandedDevices := types.Devices{}
 	err = shared.DeepCopy(&c.expandedDevices, &oldExpandedDevices)
 	if err != nil {
 		return err
@@ -2661,7 +2662,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
-	oldLocalDevices := shared.Devices{}
+	oldLocalDevices := types.Devices{}
 	err = shared.DeepCopy(&c.localDevices, &oldLocalDevices)
 	if err != nil {
 		return err
@@ -2822,7 +2823,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	// Apply the live changes
 	if c.IsRunning() {
 		// Confirm that the rootfs source didn't change
-		var oldRootfs shared.Device
+		var oldRootfs types.Device
 		for _, m := range oldExpandedDevices {
 			if m["type"] == "disk" && m["path"] == "/" {
 				oldRootfs = m
@@ -2830,7 +2831,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			}
 		}
 
-		var newRootfs shared.Device
+		var newRootfs types.Device
 		for _, name := range c.expandedDevices.DeviceNames() {
 			m := c.expandedDevices[name]
 			if m["type"] == "disk" && m["path"] == "/" {
@@ -3064,7 +3065,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			}
 		}
 
-		diskDevices := map[string]shared.Device{}
+		diskDevices := map[string]types.Device{}
 
 		for k, m := range addDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
@@ -4419,7 +4420,7 @@ func (c *containerLXC) removeMount(mount string) error {
 }
 
 // Unix devices handling
-func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
+func (c *containerLXC) createUnixDevice(m types.Device) (string, error) {
 	var err error
 	var major, minor int
 
@@ -4550,7 +4551,7 @@ func (c *containerLXC) createUnixDevice(m shared.Device) (string, error) {
 	return devPath, nil
 }
 
-func (c *containerLXC) insertUnixDevice(name string, m shared.Device) error {
+func (c *containerLXC) insertUnixDevice(name string, m types.Device) error {
 	// Check that the container is running
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't insert device into stopped container")
@@ -4611,7 +4612,7 @@ func (c *containerLXC) insertUnixDevice(name string, m shared.Device) error {
 	return nil
 }
 
-func (c *containerLXC) removeUnixDevice(m shared.Device) error {
+func (c *containerLXC) removeUnixDevice(m types.Device) error {
 	// Check that the container is running
 	pid := c.InitPID()
 	if pid == -1 {
@@ -4720,7 +4721,7 @@ func (c *containerLXC) removeUnixDevices() error {
 }
 
 // Network device handling
-func (c *containerLXC) createNetworkDevice(name string, m shared.Device) (string, error) {
+func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string, error) {
 	var dev, n1 string
 
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p", "macvlan"}) {
@@ -4800,8 +4801,8 @@ func (c *containerLXC) createNetworkDevice(name string, m shared.Device) (string
 	return dev, nil
 }
 
-func (c *containerLXC) fillNetworkDevice(name string, m shared.Device) (shared.Device, error) {
-	newDevice := shared.Device{}
+func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Device, error) {
+	newDevice := types.Device{}
 	err := shared.DeepCopy(&m, &newDevice)
 	if err != nil {
 		return nil, err
@@ -4947,7 +4948,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m shared.Device) (shared.D
 	return newDevice, nil
 }
 
-func (c *containerLXC) insertNetworkDevice(name string, m shared.Device) error {
+func (c *containerLXC) insertNetworkDevice(name string, m types.Device) error {
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
@@ -4984,7 +4985,7 @@ func (c *containerLXC) insertNetworkDevice(name string, m shared.Device) error {
 	return nil
 }
 
-func (c *containerLXC) removeNetworkDevice(name string, m shared.Device) error {
+func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
@@ -5031,7 +5032,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m shared.Device) error {
 }
 
 // Disk device handling
-func (c *containerLXC) createDiskDevice(name string, m shared.Device) (string, error) {
+func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, error) {
 	// Prepare all the paths
 	srcPath := m["source"]
 	tgtPath := strings.TrimPrefix(m["path"], "/")
@@ -5092,7 +5093,7 @@ func (c *containerLXC) createDiskDevice(name string, m shared.Device) (string, e
 	return devPath, nil
 }
 
-func (c *containerLXC) insertDiskDevice(name string, m shared.Device) error {
+func (c *containerLXC) insertDiskDevice(name string, m types.Device) error {
 	// Check that the container is running
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't insert device into stopped container")
@@ -5121,7 +5122,7 @@ func (c *containerLXC) insertDiskDevice(name string, m shared.Device) error {
 	return nil
 }
 
-type byPath []shared.Device
+type byPath []types.Device
 
 func (a byPath) Len() int {
 	return len(a)
@@ -5135,7 +5136,7 @@ func (a byPath) Less(i, j int) bool {
 	return a[i]["path"] < a[j]["path"]
 }
 
-func (c *containerLXC) addDiskDevices(devices map[string]shared.Device, handler func(string, shared.Device) error) error {
+func (c *containerLXC) addDiskDevices(devices map[string]types.Device, handler func(string, types.Device) error) error {
 	ordered := byPath{}
 
 	for _, d := range devices {
@@ -5153,7 +5154,7 @@ func (c *containerLXC) addDiskDevices(devices map[string]shared.Device, handler 
 	return nil
 }
 
-func (c *containerLXC) removeDiskDevice(name string, m shared.Device) error {
+func (c *containerLXC) removeDiskDevice(name string, m types.Device) error {
 	// Check that the container is running
 	pid := c.InitPID()
 	if pid == -1 {
@@ -5449,7 +5450,7 @@ func (c *containerLXC) getHostInterface(name string) string {
 	return ""
 }
 
-func (c *containerLXC) setNetworkLimits(name string, m shared.Device) error {
+func (c *containerLXC) setNetworkLimits(name string, m types.Device) error {
 	// We can only do limits on some network type
 	if m["nictype"] != "bridged" && m["nictype"] != "p2p" {
 		return fmt.Errorf("Network limits are only supported on bridged and p2p interfaces")
@@ -5581,7 +5582,7 @@ func (c *containerLXC) ExpandedConfig() map[string]string {
 	return c.expandedConfig
 }
 
-func (c *containerLXC) ExpandedDevices() shared.Devices {
+func (c *containerLXC) ExpandedDevices() types.Devices {
 	return c.expandedDevices
 }
 
@@ -5607,7 +5608,7 @@ func (c *containerLXC) LocalConfig() map[string]string {
 	return c.localConfig
 }
 
-func (c *containerLXC) LocalDevices() shared.Devices {
+func (c *containerLXC) LocalDevices() types.Devices {
 	return c.localDevices
 }
 

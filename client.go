@@ -1829,7 +1829,7 @@ func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
 	return c.post(url, body, Async)
 }
 
-func (c *Client) MigrateFrom(name string, operation string, certificate string, secrets map[string]string, architecture string, config map[string]string, devices shared.Devices, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
+func (c *Client) MigrateFrom(name string, operation string, certificate string, secrets map[string]string, architecture string, config map[string]string, devices map[string]map[string]string, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -2253,7 +2253,7 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 		return nil, err
 	}
 
-	newdev := shared.Device{}
+	newdev := map[string]string{}
 	for _, p := range props {
 		results := strings.SplitN(p, "=", 2)
 		if len(results) != 2 {
@@ -2264,13 +2264,13 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 		newdev[k] = v
 	}
 
-	if st.Devices != nil && st.Devices.ContainsName(devname) {
+	if st.Devices != nil && st.Devices[devname] != nil {
 		return nil, fmt.Errorf("device already exists")
 	}
 
 	newdev["type"] = devtype
 	if st.Devices == nil {
-		st.Devices = shared.Devices{}
+		st.Devices = map[string]map[string]string{}
 	}
 
 	st.Devices[devname] = newdev
@@ -2324,7 +2324,7 @@ func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []stri
 		return nil, err
 	}
 
-	newdev := shared.Device{}
+	newdev := map[string]string{}
 	for _, p := range props {
 		results := strings.SplitN(p, "=", 2)
 		if len(results) != 2 {
@@ -2334,13 +2334,16 @@ func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []stri
 		v := results[1]
 		newdev[k] = v
 	}
-	if st.Devices != nil && st.Devices.ContainsName(devname) {
+
+	if st.Devices != nil && st.Devices[devname] != nil {
 		return nil, fmt.Errorf("device already exists")
 	}
+
 	newdev["type"] = devtype
 	if st.Devices == nil {
-		st.Devices = shared.Devices{}
+		st.Devices = map[string]map[string]string{}
 	}
+
 	st.Devices[devname] = newdev
 
 	return c.put(fmt.Sprintf("profiles/%s", profile), st, Sync)

@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -59,7 +60,7 @@ func dbProfileGet(db *sql.DB, profile string) (int64, *shared.ProfileConfig, err
 }
 
 func dbProfileCreate(db *sql.DB, profile string, description string, config map[string]string,
-	devices shared.Devices) (int64, error) {
+	devices types.Devices) (int64, error) {
 
 	tx, err := dbBegin(db)
 	if err != nil {
@@ -105,8 +106,8 @@ func dbProfileCreateDefault(db *sql.DB) error {
 	}
 
 	// TODO: We should scan for bridges and use the best available as default.
-	devices := shared.Devices{
-		"eth0": shared.Device{
+	devices := map[string]map[string]string{
+		"eth0": map[string]string{
 			"name":    "eth0",
 			"type":    "nic",
 			"nictype": "bridged",
@@ -135,7 +136,7 @@ func dbProfileCreateDocker(db *sql.DB) error {
 		"type":   "disk",
 		"source": "/dev/null",
 	}
-	devices := map[string]shared.Device{"aadisable": aadisable}
+	devices := map[string]map[string]string{"aadisable": aadisable}
 
 	_, err = dbProfileCreate(db, "docker", "Profile supporting docker in containers", config, devices)
 	return err

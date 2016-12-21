@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
 
@@ -649,7 +650,7 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) conta
 		config[ent.GetKey()] = ent.GetValue()
 	}
 
-	devices := shared.Devices{}
+	devices := types.Devices{}
 	for _, ent := range snap.LocalDevices {
 		props := map[string]string{}
 		for _, prop := range ent.Config {

@@ -55,31 +55,31 @@ type ContainerExecControl struct {
 }
 
 type SnapshotInfo struct {
-	Architecture    string            `json:"architecture"`
-	Config          map[string]string `json:"config"`
-	CreationDate    time.Time         `json:"created_at"`
-	Devices         Devices           `json:"devices"`
-	Ephemeral       bool              `json:"ephemeral"`
-	ExpandedConfig  map[string]string `json:"expanded_config"`
-	ExpandedDevices Devices           `json:"expanded_devices"`
-	Name            string            `json:"name"`
-	Profiles        []string          `json:"profiles"`
-	Stateful        bool              `json:"stateful"`
+	Architecture    string                       `json:"architecture"`
+	Config          map[string]string            `json:"config"`
+	CreationDate    time.Time                    `json:"created_at"`
+	Devices         map[string]map[string]string `json:"devices"`
+	Ephemeral       bool                         `json:"ephemeral"`
+	ExpandedConfig  map[string]string            `json:"expanded_config"`
+	ExpandedDevices map[string]map[string]string `json:"expanded_devices"`
+	Name            string                       `json:"name"`
+	Profiles        []string                     `json:"profiles"`
+	Stateful        bool                         `json:"stateful"`
 }
 
 type ContainerInfo struct {
-	Architecture    string            `json:"architecture"`
-	Config          map[string]string `json:"config"`
-	CreationDate    time.Time         `json:"created_at"`
-	Devices         Devices           `json:"devices"`
-	Ephemeral       bool              `json:"ephemeral"`
-	ExpandedConfig  map[string]string `json:"expanded_config"`
-	ExpandedDevices Devices           `json:"expanded_devices"`
-	Name            string            `json:"name"`
-	Profiles        []string          `json:"profiles"`
-	Stateful        bool              `json:"stateful"`
-	Status          string            `json:"status"`
-	StatusCode      StatusCode        `json:"status_code"`
+	Architecture    string                       `json:"architecture"`
+	Config          map[string]string            `json:"config"`
+	CreationDate    time.Time                    `json:"created_at"`
+	Devices         map[string]map[string]string `json:"devices"`
+	Ephemeral       bool                         `json:"ephemeral"`
+	ExpandedConfig  map[string]string            `json:"expanded_config"`
+	ExpandedDevices map[string]map[string]string `json:"expanded_devices"`
+	Name            string                       `json:"name"`
+	Profiles        []string                     `json:"profiles"`
+	Stateful        bool                         `json:"stateful"`
+	Status          string                       `json:"status"`
+	StatusCode      StatusCode                   `json:"status_code"`
 }
 
 func (c ContainerInfo) IsActive() bool {
@@ -98,11 +98,11 @@ func (c ContainerInfo) IsActive() bool {
  * ContainerState, namely those which a user may update
  */
 type BriefContainerInfo struct {
-	Name      string            `json:"name"`
-	Profiles  []string          `json:"profiles"`
-	Config    map[string]string `json:"config"`
-	Devices   Devices           `json:"devices"`
-	Ephemeral bool              `json:"ephemeral"`
+	Name      string                       `json:"name"`
+	Profiles  []string                     `json:"profiles"`
+	Config    map[string]string            `json:"config"`
+	Devices   map[string]map[string]string `json:"devices"`
+	Ephemeral bool                         `json:"ephemeral"`
 }
 
 func (c *ContainerInfo) Brief() BriefContainerInfo {
@@ -134,8 +134,8 @@ const (
 )
 
 type ProfileConfig struct {
-	Name        string            `json:"name"`
-	Config      map[string]string `json:"config"`
-	Description string            `json:"description"`
-	Devices     Devices           `json:"devices"`
+	Name        string                       `json:"name"`
+	Config      map[string]string            `json:"config"`
+	Description string                       `json:"description"`
+	Devices     map[string]map[string]string `json:"devices"`
 }
