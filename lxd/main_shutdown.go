@@ -34,7 +34,7 @@ func cmdShutdown() error {
 
 	monitor := make(chan error, 1)
 	go func() {
-		monitor <- c.Monitor(nil, func(m interface{}) {})
+		monitor <- c.Monitor(nil, func(m interface{}) {}, nil)
 	}()
 
 	select {
