@@ -134,7 +134,7 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		if cs.Disk != nil {
 			for entry, disk := range cs.Disk {
 				if disk.Usage != 0 {
-					diskInfo += fmt.Sprintf("    %s: %s\n", entry, shared.GetByteSizeString(disk.Usage))
+					diskInfo += fmt.Sprintf("    %s: %s\n", entry, shared.GetByteSizeString(disk.Usage, 2))
 				}
 			}
 		}
@@ -158,19 +158,19 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		// Memory usage
 		memoryInfo := ""
 		if cs.Memory.Usage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), shared.GetByteSizeString(cs.Memory.Usage))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), shared.GetByteSizeString(cs.Memory.Usage, 2))
 		}
 
 		if cs.Memory.UsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), shared.GetByteSizeString(cs.Memory.UsagePeak))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), shared.GetByteSizeString(cs.Memory.UsagePeak, 2))
 		}
 
 		if cs.Memory.SwapUsage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), shared.GetByteSizeString(cs.Memory.SwapUsage))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), shared.GetByteSizeString(cs.Memory.SwapUsage, 2))
 		}
 
 		if cs.Memory.SwapUsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), shared.GetByteSizeString(cs.Memory.SwapUsagePeak))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), shared.GetByteSizeString(cs.Memory.SwapUsagePeak, 2))
 		}
 
 		if memoryInfo != "" {
@@ -183,8 +183,8 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		if cs.Network != nil {
 			for netName, net := range cs.Network {
 				networkInfo += fmt.Sprintf("    %s:\n", netName)
-				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), shared.GetByteSizeString(net.Counters.BytesReceived))
-				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), shared.GetByteSizeString(net.Counters.BytesSent))
+				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), shared.GetByteSizeString(net.Counters.BytesReceived, 2))
+				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), shared.GetByteSizeString(net.Counters.BytesSent, 2))
 				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets received"), net.Counters.PacketsReceived)
 				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets sent"), net.Counters.PacketsSent)
 			}
