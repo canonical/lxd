@@ -872,7 +872,7 @@ func (c *configCmd) deviceShow(config *lxd.Config, which string, args []string) 
 		return err
 	}
 
-	var devices map[string]shared.Device
+	var devices map[string]map[string]string
 	if which == "profile" {
 		resp, err := client.ProfileConfig(name)
 		if err != nil {

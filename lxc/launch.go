@@ -70,7 +70,7 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 
 	iremote, image = c.init.guessImage(config, d, remote, iremote, image)
 
-	devicesMap := map[string]shared.Device{}
+	devicesMap := map[string]map[string]string{}
 	if c.init.network != "" {
 		network, err := d.NetworkGet(c.init.network)
 		if err != nil {
@@ -78,9 +78,9 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if network.Type == "bridge" {
-			devicesMap[c.init.network] = shared.Device{"type": "nic", "nictype": "bridged", "parent": c.init.network}
+			devicesMap[c.init.network] = map[string]string{"type": "nic", "nictype": "bridged", "parent": c.init.network}
 		} else {
-			devicesMap[c.init.network] = shared.Device{"type": "nic", "nictype": "macvlan", "parent": c.init.network}
+			devicesMap[c.init.network] = map[string]string{"type": "nic", "nictype": "macvlan", "parent": c.init.network}
 		}
 	}
 
