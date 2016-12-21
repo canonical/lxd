@@ -270,7 +270,7 @@ func (c *initCmd) initProgressTracker(d *lxd.Client, progress *ProgressRenderer,
 			progress.Update(opMd["download_progress"].(string))
 		}
 	}
-	go d.Monitor([]string{"operation"}, handler)
+	go d.Monitor([]string{"operation"}, handler, nil)
 }
 
 func (c *initCmd) guessImage(config *lxd.Config, d *lxd.Client, remote string, iremote string, image string) (string, string) {
