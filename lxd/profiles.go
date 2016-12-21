@@ -10,21 +10,14 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 /* This is used for both profiles post and profile put */
-type profilesPostReq struct {
-	Name        string            `json:"name"`
-	Config      map[string]string `json:"config"`
-	Description string            `json:"description"`
-	Devices     types.Devices     `json:"devices"`
-}
-
 func profilesGet(d *Daemon, r *http.Request) Response {
 	results, err := dbProfiles(d.db)
 	if err != nil {
@@ -34,7 +27,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 	recursion := d.isRecursionRequest(r)
 
 	resultString := make([]string, len(results))
-	resultMap := make([]*shared.ProfileConfig, len(results))
+	resultMap := make([]*api.Profile, len(results))
 	i := 0
 	for _, name := range results {
 		if !recursion {
@@ -59,7 +52,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 }
 
 func profilesPost(d *Daemon, r *http.Request) Response {
-	req := profilesPostReq{}
+	req := api.ProfilesPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
@@ -107,7 +100,7 @@ var profilesCmd = Command{
 	get:  profilesGet,
 	post: profilesPost}
 
-func doProfileGet(d *Daemon, name string) (*shared.ProfileConfig, error) {
+func doProfileGet(d *Daemon, name string) (*api.Profile, error) {
 	_, profile, err := dbProfileGet(d.db, name)
 	return profile, err
 }
@@ -146,7 +139,7 @@ func getContainersWithProfile(d *Daemon, profile string) []container {
 func profilePut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	req := profilesPostReq{}
+	req := api.ProfilePut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
@@ -247,7 +240,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 func profilePost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	req := profilesPostReq{}
+	req := api.ProfilePost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}

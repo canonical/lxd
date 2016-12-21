@@ -134,10 +134,3 @@ const (
 	Freeze   ContainerAction = "freeze"
 	Unfreeze ContainerAction = "unfreeze"
 )
-
-type ProfileConfig struct {
-	Name        string                       `json:"name"`
-	Config      map[string]string            `json:"config"`
-	Description string                       `json:"description"`
-	Devices     map[string]map[string]string `json:"devices"`
-}

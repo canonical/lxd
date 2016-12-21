@@ -1749,12 +1749,12 @@ func (c *Client) GetLog(container string, log string) (io.Reader, error) {
 	return resp.Body, nil
 }
 
-func (c *Client) ProfileConfig(name string) (*shared.ProfileConfig, error) {
+func (c *Client) ProfileConfig(name string) (*api.Profile, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	ct := shared.ProfileConfig{}
+	ct := api.Profile{}
 
 	resp, err := c.get(fmt.Sprintf("profiles/%s", name))
 	if err != nil {
@@ -2163,13 +2163,9 @@ func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 	return err
 }
 
-func (c *Client) PutProfile(name string, profile shared.ProfileConfig) error {
+func (c *Client) PutProfile(name string, profile api.ProfilePut) error {
 	if c.Remote.Public {
 		return fmt.Errorf("This function isn't supported by public remotes.")
-	}
-
-	if profile.Name != name {
-		return fmt.Errorf("Cannot change profile name")
 	}
 
 	_, err := c.put(fmt.Sprintf("profiles/%s", name), profile, Sync)
