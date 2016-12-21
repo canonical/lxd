@@ -147,14 +147,6 @@ const (
 	Unfreeze ContainerAction = "unfreeze"
 )
 
-type ProfileConfig struct {
-	Name        string                       `json:"name"`
-	Config      map[string]string            `json:"config"`
-	Description string                       `json:"description"`
-	Devices     map[string]map[string]string `json:"devices"`
-	UsedBy      []string                     `json:"used_by"`
-}
-
 func IsInt64(value string) error {
 	if value == "" {
 		return nil

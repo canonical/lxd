@@ -7,7 +7,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/types"
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // dbProfiles returns a string list of profiles.
@@ -29,34 +29,37 @@ func dbProfiles(db *sql.DB) ([]string, error) {
 	return response, nil
 }
 
-func dbProfileGet(db *sql.DB, profile string) (int64, *shared.ProfileConfig, error) {
+func dbProfileGet(db *sql.DB, name string) (int64, *api.Profile, error) {
 	id := int64(-1)
 	description := sql.NullString{}
 
 	q := "SELECT id, description FROM profiles WHERE name=?"
-	arg1 := []interface{}{profile}
+	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id, &description}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	config, err := dbProfileConfig(db, profile)
+	config, err := dbProfileConfig(db, name)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	devices, err := dbDevices(db, profile, true)
+	devices, err := dbDevices(db, name, true)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	return id, &shared.ProfileConfig{
-		Name:        profile,
-		Config:      config,
-		Description: description.String,
-		Devices:     devices,
-	}, nil
+	profile := api.Profile{
+		Name: name,
+	}
+
+	profile.Config = config
+	profile.Description = description.String
+	profile.Devices = devices
+
+	return id, &profile, nil
 }
 
 func dbProfileCreate(db *sql.DB, profile string, description string, config map[string]string,
