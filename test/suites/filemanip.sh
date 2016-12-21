@@ -1,6 +1,8 @@
 #!/bin/sh
 
 test_filemanip() {
+  # Workaround for shellcheck getting confused by "cd"
+  set -e
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
