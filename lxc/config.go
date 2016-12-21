@@ -724,7 +724,7 @@ func (c *configCmd) deviceSet(config *lxd.Config, which string, args []string) e
 		dev[key] = value
 		st.Devices[devname] = dev
 
-		err = client.PutProfile(name, *st)
+		err = client.PutProfile(name, st.Writable())
 		if err != nil {
 			return err
 		}
@@ -780,7 +780,7 @@ func (c *configCmd) deviceUnset(config *lxd.Config, which string, args []string)
 		delete(dev, key)
 		st.Devices[devname] = dev
 
-		err = client.PutProfile(name, *st)
+		err = client.PutProfile(name, st.Writable())
 		if err != nil {
 			return err
 		}
