@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
@@ -460,7 +461,7 @@ type container interface {
 
 	// Status
 	Render() (interface{}, error)
-	RenderState() (*shared.ContainerState, error)
+	RenderState() (*api.ContainerState, error)
 	IsPrivileged() bool
 	IsRunning() bool
 	IsFrozen() bool

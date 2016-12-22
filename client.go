@@ -587,7 +587,7 @@ func (c *Client) IsPublic() bool {
 	return public
 }
 
-func (c *Client) ListContainers() ([]shared.ContainerInfo, error) {
+func (c *Client) ListContainers() ([]api.Container, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -597,7 +597,7 @@ func (c *Client) ListContainers() ([]shared.ContainerInfo, error) {
 		return nil, err
 	}
 
-	var result []shared.ContainerInfo
+	var result []api.Container
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
@@ -1697,12 +1697,12 @@ func (c *Client) ServerStatus() (*api.Server, error) {
 	return &ss, nil
 }
 
-func (c *Client) ContainerInfo(name string) (*shared.ContainerInfo, error) {
+func (c *Client) ContainerInfo(name string) (*api.Container, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	ct := shared.ContainerInfo{}
+	ct := api.Container{}
 
 	resp, err := c.get(fmt.Sprintf("containers/%s", name))
 	if err != nil {
@@ -1716,12 +1716,12 @@ func (c *Client) ContainerInfo(name string) (*shared.ContainerInfo, error) {
 	return &ct, nil
 }
 
-func (c *Client) ContainerState(name string) (*shared.ContainerState, error) {
+func (c *Client) ContainerState(name string) (*api.ContainerState, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	ct := shared.ContainerState{}
+	ct := api.ContainerState{}
 
 	resp, err := c.get(fmt.Sprintf("containers/%s/state", name))
 	if err != nil {
@@ -1949,7 +1949,7 @@ func (c *Client) Snapshot(container string, snapshotName string, stateful bool) 
 	return c.post(fmt.Sprintf("containers/%s/snapshots", container), body, Async)
 }
 
-func (c *Client) ListSnapshots(container string) ([]shared.SnapshotInfo, error) {
+func (c *Client) ListSnapshots(container string) ([]api.ContainerSnapshot, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1960,7 +1960,7 @@ func (c *Client) ListSnapshots(container string) ([]shared.SnapshotInfo, error) 
 		return nil, err
 	}
 
-	var result []shared.SnapshotInfo
+	var result []api.ContainerSnapshot
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
@@ -1969,7 +1969,7 @@ func (c *Client) ListSnapshots(container string) ([]shared.SnapshotInfo, error) 
 	return result, nil
 }
 
-func (c *Client) SnapshotInfo(snapName string) (*shared.SnapshotInfo, error) {
+func (c *Client) SnapshotInfo(snapName string) (*api.ContainerSnapshot, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1985,7 +1985,7 @@ func (c *Client) SnapshotInfo(snapName string) (*shared.SnapshotInfo, error) {
 		return nil, err
 	}
 
-	var result shared.SnapshotInfo
+	var result api.ContainerSnapshot
 
 	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
 		return nil, err
@@ -2096,7 +2096,7 @@ func (c *Client) SetContainerConfig(container, key, value string) error {
 	return c.WaitForSuccess(resp.Operation)
 }
 
-func (c *Client) UpdateContainerConfig(container string, st shared.BriefContainerInfo) error {
+func (c *Client) UpdateContainerConfig(container string, st api.ContainerPut) error {
 	if c.Remote.Public {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}

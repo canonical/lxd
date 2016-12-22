@@ -19,47 +19,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-type containerImageSource struct {
-	Type        string `json:"type"`
-	Certificate string `json:"certificate"`
-
-	/* for "image" type */
-	Alias       string            `json:"alias"`
-	Fingerprint string            `json:"fingerprint"`
-	Properties  map[string]string `json:"properties"`
-	Server      string            `json:"server"`
-	Secret      string            `json:"secret"`
-	Protocol    string            `json:"protocol"`
-
-	/*
-	 * for "migration" and "copy" types, as an optimization users can
-	 * provide an image hash to extract before the filesystem is rsync'd,
-	 * potentially cutting down filesystem transfer time. LXD will not go
-	 * and fetch this image, it will simply use it if it exists in the
-	 * image store.
-	 */
-	BaseImage string `json:"base-image"`
-
-	/* for "migration" type */
-	Mode       string            `json:"mode"`
-	Operation  string            `json:"operation"`
-	Websockets map[string]string `json:"secrets"`
-
-	/* for "copy" type */
-	Source string `json:"source"`
-}
-
-type containerPostReq struct {
-	Architecture string               `json:"architecture"`
-	Config       map[string]string    `json:"config"`
-	Devices      types.Devices        `json:"devices"`
-	Ephemeral    bool                 `json:"ephemeral"`
-	Name         string               `json:"name"`
-	Profiles     []string             `json:"profiles"`
-	Source       containerImageSource `json:"source"`
-}
-
-func createFromImage(d *Daemon, req *containerPostReq) Response {
+func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 	var hash string
 	var err error
 
@@ -172,7 +132,7 @@ func createFromImage(d *Daemon, req *containerPostReq) Response {
 	return OperationResponse(op)
 }
 
-func createFromNone(d *Daemon, req *containerPostReq) Response {
+func createFromNone(d *Daemon, req *api.ContainersPost) Response {
 	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
 		architecture = 0
@@ -204,7 +164,7 @@ func createFromNone(d *Daemon, req *containerPostReq) Response {
 	return OperationResponse(op)
 }
 
-func createFromMigration(d *Daemon, req *containerPostReq) Response {
+func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	if req.Source.Mode != "pull" {
 		return NotImplemented
 	}
@@ -300,7 +260,7 @@ func createFromMigration(d *Daemon, req *containerPostReq) Response {
 	return OperationResponse(op)
 }
 
-func createFromCopy(d *Daemon, req *containerPostReq) Response {
+func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	if req.Source.Source == "" {
 		return BadRequest(fmt.Errorf("must specify a source container"))
 	}
@@ -371,7 +331,7 @@ func createFromCopy(d *Daemon, req *containerPostReq) Response {
 func containersPost(d *Daemon, r *http.Request) Response {
 	shared.LogDebugf("Responding to container create")
 
-	req := containerPostReq{}
+	req := api.ContainersPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}

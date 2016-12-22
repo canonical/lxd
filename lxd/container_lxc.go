@@ -2209,7 +2209,7 @@ func (c *containerLXC) Render() (interface{}, error) {
 	architectureName, _ := osarch.ArchitectureName(c.architecture)
 
 	if c.IsSnapshot() {
-		return &shared.SnapshotInfo{
+		return &api.ContainerSnapshot{
 			Architecture:    architectureName,
 			Config:          c.localConfig,
 			CreationDate:    c.creationDate,
@@ -2229,24 +2229,27 @@ func (c *containerLXC) Render() (interface{}, error) {
 		}
 		statusCode := lxcStatusCode(cState)
 
-		return &shared.ContainerInfo{
-			Architecture:    architectureName,
-			Config:          c.localConfig,
-			CreationDate:    c.creationDate,
-			Devices:         c.localDevices,
-			Ephemeral:       c.ephemeral,
+		ct := api.Container{
 			ExpandedConfig:  c.expandedConfig,
 			ExpandedDevices: c.expandedDevices,
 			Name:            c.name,
-			Profiles:        c.profiles,
 			Status:          statusCode.String(),
 			StatusCode:      statusCode,
 			Stateful:        c.stateful,
-		}, nil
+		}
+
+		ct.Architecture = architectureName
+		ct.Config = c.localConfig
+		ct.CreatedAt = c.creationDate
+		ct.Devices = c.localDevices
+		ct.Ephemeral = c.ephemeral
+		ct.Profiles = c.profiles
+
+		return &ct, nil
 	}
 }
 
-func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
+func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
@@ -2258,7 +2261,7 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 		return nil, err
 	}
 	statusCode := lxcStatusCode(cState)
-	status := shared.ContainerState{
+	status := api.ContainerState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
 	}
@@ -4088,8 +4091,8 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	return 0, attachedPid, nil
 }
 
-func (c *containerLXC) diskState() map[string]shared.ContainerStateDisk {
-	disk := map[string]shared.ContainerStateDisk{}
+func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
+	disk := map[string]api.ContainerStateDisk{}
 
 	for _, name := range c.expandedDevices.DeviceNames() {
 		d := c.expandedDevices[name]
@@ -4106,14 +4109,14 @@ func (c *containerLXC) diskState() map[string]shared.ContainerStateDisk {
 			continue
 		}
 
-		disk[name] = shared.ContainerStateDisk{Usage: usage}
+		disk[name] = api.ContainerStateDisk{Usage: usage}
 	}
 
 	return disk
 }
 
-func (c *containerLXC) memoryState() shared.ContainerStateMemory {
-	memory := shared.ContainerStateMemory{}
+func (c *containerLXC) memoryState() api.ContainerStateMemory {
+	memory := api.ContainerStateMemory{}
 
 	if !cgMemoryController {
 		return memory
@@ -4159,8 +4162,8 @@ func (c *containerLXC) memoryState() shared.ContainerStateMemory {
 	return memory
 }
 
-func (c *containerLXC) networkState() map[string]shared.ContainerStateNetwork {
-	result := map[string]shared.ContainerStateNetwork{}
+func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
+	result := map[string]api.ContainerStateNetwork{}
 
 	pid := c.InitPID()
 	if pid < 1 {
@@ -4179,7 +4182,7 @@ func (c *containerLXC) networkState() map[string]shared.ContainerStateNetwork {
 		return result
 	}
 
-	networks := map[string]shared.ContainerStateNetwork{}
+	networks := map[string]api.ContainerStateNetwork{}
 
 	err = json.Unmarshal(out, &networks)
 	if err != nil {

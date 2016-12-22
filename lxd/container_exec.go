@@ -15,18 +15,10 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
-
-type commandPostContent struct {
-	Command     []string          `json:"command"`
-	WaitForWS   bool              `json:"wait-for-websocket"`
-	Interactive bool              `json:"interactive"`
-	Environment map[string]string `json:"environment"`
-	Width       int               `json:"width"`
-	Height      int               `json:"height"`
-}
 
 type execWs struct {
 	command   []string
@@ -171,7 +163,7 @@ func (s *execWs) Do(op *operation) error {
 					break
 				}
 
-				command := shared.ContainerExecControl{}
+				command := api.ContainerExecControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
 					shared.LogDebugf("Failed to unmarshal control socket command: %s", err)
@@ -309,7 +301,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Container is frozen."))
 	}
 
-	post := commandPostContent{}
+	post := api.ContainerExecPost{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return BadRequest(err)

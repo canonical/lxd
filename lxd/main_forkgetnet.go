@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func cmdForkGetNet() error {
-	networks := map[string]shared.ContainerStateNetwork{}
+	networks := map[string]api.ContainerStateNetwork{}
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
@@ -75,9 +75,9 @@ func cmdForkGetNet() error {
 			netState = "up"
 		}
 
-		network := shared.ContainerStateNetwork{
-			Addresses: []shared.ContainerStateNetworkAddress{},
-			Counters:  shared.ContainerStateNetworkCounters{},
+		network := api.ContainerStateNetwork{
+			Addresses: []api.ContainerStateNetworkAddress{},
+			Counters:  api.ContainerStateNetworkCounters{},
 			Hwaddr:    netIf.HardwareAddr.String(),
 			Mtu:       netIf.MTU,
 			State:     netState,
@@ -114,7 +114,7 @@ func cmdForkGetNet() error {
 					scope = "link"
 				}
 
-				address := shared.ContainerStateNetworkAddress{}
+				address := api.ContainerStateNetworkAddress{}
 				address.Family = family
 				address.Address = fields[0]
 				address.Netmask = fields[1]
