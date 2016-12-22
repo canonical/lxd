@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/mattn/go-sqlite3"
 
@@ -81,6 +82,7 @@ type fileResponseEntry struct {
 	identifier string
 	path       string
 	filename   string
+	buffer     []byte /* either a path or a buffer must be provided */
 }
 
 type fileResponse struct {
@@ -104,24 +106,38 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 	// For a single file, return it inline
 	if len(r.files) == 1 {
-		f, err := os.Open(r.files[0].path)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
+		var rs io.ReadSeeker
+		var mt time.Time
+		var sz int64
 
-		fi, err := f.Stat()
-		if err != nil {
-			return err
+		if r.files[0].path == "" {
+			rs = bytes.NewReader(r.files[0].buffer)
+			mt = time.Now()
+			sz = int64(len(r.files[0].buffer))
+		} else {
+			f, err := os.Open(r.files[0].path)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			fi, err := f.Stat()
+			if err != nil {
+				return err
+			}
+
+			mt = fi.ModTime()
+			sz = fi.Size()
+			rs = f
 		}
 
 		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", fi.Size()))
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", sz))
 		w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.files[0].filename))
 
-		http.ServeContent(w, r.req, r.files[0].filename, fi.ModTime(), f)
-		if r.removeAfterServe {
-			err = os.Remove(r.files[0].path)
+		http.ServeContent(w, r.req, r.files[0].filename, mt, rs)
+		if r.files[0].path != "" && r.removeAfterServe {
+			err := os.Remove(r.files[0].path)
 			if err != nil {
 				return err
 			}
@@ -135,18 +151,24 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 	mw := multipart.NewWriter(body)
 
 	for _, entry := range r.files {
-		fd, err := os.Open(entry.path)
-		if err != nil {
-			return err
+		var rd io.Reader
+		if entry.path != "" {
+			fd, err := os.Open(entry.path)
+			if err != nil {
+				return err
+			}
+			defer fd.Close()
+			rd = fd
+		} else {
+			rd = bytes.NewReader(entry.buffer)
 		}
-		defer fd.Close()
 
 		fw, err := mw.CreateFormFile(entry.identifier, entry.filename)
 		if err != nil {
 			return err
 		}
 
-		_, err = io.Copy(fw, fd)
+		_, err = io.Copy(fw, rd)
 		if err != nil {
 			return err
 		}
