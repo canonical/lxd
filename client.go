@@ -45,14 +45,6 @@ type Client struct {
 	simplestreams   *simplestreams.SimpleStreams
 }
 
-type ResponseType string
-
-const (
-	Sync  ResponseType = "sync"
-	Async ResponseType = "async"
-	Error ResponseType = "error"
-)
-
 var (
 	// LXDErrors are special errors; the client library hoists error codes
 	// to these errors internally so that user code can compare against
@@ -64,52 +56,17 @@ var (
 	}
 )
 
-type Response struct {
-	Type ResponseType `json:"type"`
-
-	/* Valid only for Sync responses */
-	Status     string `json:"status"`
-	StatusCode int    `json:"status_code"`
-
-	/* Valid only for Async responses */
-	Operation string `json:"operation"`
-
-	/* Valid only for Error responses */
-	Code  int    `json:"error_code"`
-	Error string `json:"error"`
-
-	/* Valid for Sync and Error responses */
-	Metadata json.RawMessage `json:"metadata"`
-}
-
-func (r *Response) MetadataAsMap() (*shared.Jmap, error) {
-	ret := shared.Jmap{}
-	if err := json.Unmarshal(r.Metadata, &ret); err != nil {
-		return nil, err
-	}
-	return &ret, nil
-}
-
-func (r *Response) MetadataAsOperation() (*api.Operation, error) {
-	op := api.Operation{}
-	if err := json.Unmarshal(r.Metadata, &op); err != nil {
-		return nil, err
-	}
-
-	return &op, nil
-}
-
 // ParseResponse parses a lxd style response out of an http.Response. Note that
 // this does _not_ automatically convert error responses to golang errors. To
 // do that, use ParseError. Internal client library uses should probably use
 // HoistResponse, unless they are interested in accessing the underlying Error
 // response (e.g. to inspect the error code).
-func ParseResponse(r *http.Response) (*Response, error) {
+func ParseResponse(r *http.Response) (*api.Response, error) {
 	if r == nil {
 		return nil, fmt.Errorf("no response!")
 	}
 	defer r.Body.Close()
-	ret := Response{}
+	ret := api.Response{}
 
 	s, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -126,13 +83,13 @@ func ParseResponse(r *http.Response) (*Response, error) {
 
 // HoistResponse hoists a regular http response into a response of type rtype
 // or returns a golang error.
-func HoistResponse(r *http.Response, rtype ResponseType) (*Response, error) {
+func HoistResponse(r *http.Response, rtype api.ResponseType) (*api.Response, error) {
 	resp, err := ParseResponse(r)
 	if err != nil {
 		return nil, err
 	}
 
-	if resp.Type == Error {
+	if resp.Type == api.ErrorResponse {
 		// Try and use a known error if we have one for this code.
 		err, ok := LXDErrors[resp.Code]
 		if !ok {
@@ -371,13 +328,13 @@ func (c *Client) Addresses() ([]string, error) {
 	return addresses, nil
 }
 
-func (c *Client) get(base string) (*Response, error) {
+func (c *Client) get(base string) (*api.Response, error) {
 	uri := c.url(version.APIVersion, base)
 
 	return c.baseGet(uri)
 }
 
-func (c *Client) baseGet(getUrl string) (*Response, error) {
+func (c *Client) baseGet(getUrl string) (*api.Response, error) {
 	req, err := http.NewRequest("GET", getUrl, nil)
 	if err != nil {
 		return nil, err
@@ -390,10 +347,10 @@ func (c *Client) baseGet(getUrl string) (*Response, error) {
 		return nil, err
 	}
 
-	return HoistResponse(resp, Sync)
+	return HoistResponse(resp, api.SyncResponse)
 }
 
-func (c *Client) doUpdateMethod(method string, base string, args interface{}, rtype ResponseType) (*Response, error) {
+func (c *Client) doUpdateMethod(method string, base string, args interface{}, rtype api.ResponseType) (*api.Response, error) {
 	uri := c.url(version.APIVersion, base)
 
 	buf := bytes.Buffer{}
@@ -419,19 +376,19 @@ func (c *Client) doUpdateMethod(method string, base string, args interface{}, rt
 	return HoistResponse(resp, rtype)
 }
 
-func (c *Client) put(base string, args interface{}, rtype ResponseType) (*Response, error) {
+func (c *Client) put(base string, args interface{}, rtype api.ResponseType) (*api.Response, error) {
 	return c.doUpdateMethod("PUT", base, args, rtype)
 }
 
-func (c *Client) patch(base string, args interface{}, rtype ResponseType) (*Response, error) {
+func (c *Client) patch(base string, args interface{}, rtype api.ResponseType) (*api.Response, error) {
 	return c.doUpdateMethod("PATCH", base, args, rtype)
 }
 
-func (c *Client) post(base string, args interface{}, rtype ResponseType) (*Response, error) {
+func (c *Client) post(base string, args interface{}, rtype api.ResponseType) (*api.Response, error) {
 	return c.doUpdateMethod("POST", base, args, rtype)
 }
 
-func (c *Client) delete(base string, args interface{}, rtype ResponseType) (*Response, error) {
+func (c *Client) delete(base string, args interface{}, rtype api.ResponseType) (*api.Response, error) {
 	return c.doUpdateMethod("DELETE", base, args, rtype)
 }
 
@@ -449,7 +406,7 @@ func (c *Client) getRaw(uri string) (*http.Response, error) {
 
 	// because it is raw data, we need to check for http status
 	if raw.StatusCode != 200 {
-		resp, err := HoistResponse(raw, Sync)
+		resp, err := HoistResponse(raw, api.SyncResponse)
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +453,7 @@ func (c *Client) url(elem ...string) string {
 	return strings.TrimSuffix(uri, "/")
 }
 
-func (c *Client) GetServerConfig() (*Response, error) {
+func (c *Client) GetServerConfig() (*api.Response, error) {
 	if c.Remote.Protocol == "simplestreams" {
 		return nil, fmt.Errorf("This function isn't supported by simplestreams remote.")
 	}
@@ -553,12 +510,12 @@ func (c *Client) AmTrusted() bool {
 
 	shared.LogDebugf("%s", resp)
 
-	jmap, err := resp.MetadataAsMap()
+	meta, err := resp.MetadataAsMap()
 	if err != nil {
 		return false
 	}
 
-	auth, err := jmap.GetString("auth")
+	auth, err := shared.Jmap(meta).GetString("auth")
 	if err != nil {
 		return false
 	}
@@ -574,12 +531,12 @@ func (c *Client) IsPublic() bool {
 
 	shared.LogDebugf("%s", resp)
 
-	jmap, err := resp.MetadataAsMap()
+	meta, err := resp.MetadataAsMap()
 	if err != nil {
 		return false
 	}
 
-	public, err := jmap.GetBool("public")
+	public, err := shared.Jmap(meta).GetBool("public")
 	if err != nil {
 		return false
 	}
@@ -599,7 +556,7 @@ func (c *Client) ListContainers() ([]api.Container, error) {
 
 	var result []api.Container
 
-	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+	if err := resp.MetadataAsStruct(&result); err != nil {
 		return nil, err
 	}
 
@@ -628,7 +585,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 	if c.Remote.Protocol != "simplestreams" && !info.Public {
 		var secret string
 
-		resp, err := c.post("images/"+image+"/secret", nil, Async)
+		resp, err := c.post("images/"+image+"/secret", nil, api.AsyncResponse)
 		if err != nil {
 			return err
 		}
@@ -695,7 +652,7 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 		source["server"] = sourceUrl
 		body := shared.Jmap{"public": public, "auto_update": autoUpdate, "source": source}
 
-		resp, err := dest.post("images", body, Async)
+		resp, err := dest.post("images", body, api.AsyncResponse)
 		if err != nil {
 			continue
 		}
@@ -919,7 +876,7 @@ func (c *Client) PostImageURL(imageFile string, properties []string, public bool
 		go c.Monitor([]string{"operation"}, handler, nil)
 	}
 
-	resp, err := c.post("images", body, Async)
+	resp, err := c.post("images", body, api.AsyncResponse)
 	if err != nil {
 		return "", err
 	}
@@ -1096,7 +1053,7 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		return "", err
 	}
 
-	resp, err := HoistResponse(raw, Async)
+	resp, err := HoistResponse(raw, api.AsyncResponse)
 	if err != nil {
 		return "", err
 	}
@@ -1134,7 +1091,7 @@ func (c *Client) GetImageInfo(image string) (*api.Image, error) {
 	}
 
 	info := api.Image{}
-	if err := json.Unmarshal(resp.Metadata, &info); err != nil {
+	if err := resp.MetadataAsStruct(&info); err != nil {
 		return nil, err
 	}
 
@@ -1146,7 +1103,7 @@ func (c *Client) PutImageInfo(name string, p api.ImagePut) error {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	_, err := c.put(fmt.Sprintf("images/%s", name), p, Sync)
+	_, err := c.put(fmt.Sprintf("images/%s", name), p, api.SyncResponse)
 	return err
 }
 
@@ -1161,7 +1118,7 @@ func (c *Client) ListImages() ([]api.Image, error) {
 	}
 
 	var result []api.Image
-	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+	if err := resp.MetadataAsStruct(&result); err != nil {
 		return nil, err
 	}
 
@@ -1173,7 +1130,7 @@ func (c *Client) DeleteImage(image string) error {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	resp, err := c.delete(fmt.Sprintf("images/%s", image), nil, Async)
+	resp, err := c.delete(fmt.Sprintf("images/%s", image), nil, api.AsyncResponse)
 
 	if err != nil {
 		return err
@@ -1189,7 +1146,7 @@ func (c *Client) PostAlias(alias string, desc string, target string) error {
 
 	body := shared.Jmap{"description": desc, "target": target, "name": alias}
 
-	_, err := c.post("images/aliases", body, Sync)
+	_, err := c.post("images/aliases", body, api.SyncResponse)
 	return err
 }
 
@@ -1198,7 +1155,7 @@ func (c *Client) DeleteAlias(alias string) error {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	_, err := c.delete(fmt.Sprintf("images/aliases/%s", alias), nil, Sync)
+	_, err := c.delete(fmt.Sprintf("images/aliases/%s", alias), nil, api.SyncResponse)
 	return err
 }
 
@@ -1214,7 +1171,7 @@ func (c *Client) ListAliases() ([]api.ImageAliasesEntry, error) {
 
 	var result []api.ImageAliasesEntry
 
-	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+	if err := resp.MetadataAsStruct(&result); err != nil {
 		return nil, err
 	}
 
@@ -1232,7 +1189,7 @@ func (c *Client) CertificateList() ([]api.Certificate, error) {
 	}
 
 	var result []api.Certificate
-	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+	if err := resp.MetadataAsStruct(&result); err != nil {
 		return nil, err
 	}
 
@@ -1246,7 +1203,7 @@ func (c *Client) AddMyCertToServer(pwd string) error {
 
 	body := shared.Jmap{"type": "client", "password": pwd}
 
-	_, err := c.post("certificates", body, Sync)
+	_, err := c.post("certificates", body, api.SyncResponse)
 	return err
 }
 
@@ -1256,7 +1213,7 @@ func (c *Client) CertificateAdd(cert *x509.Certificate, name string) error {
 	}
 
 	b64 := base64.StdEncoding.EncodeToString(cert.Raw)
-	_, err := c.post("certificates", shared.Jmap{"type": "client", "certificate": b64, "name": name}, Sync)
+	_, err := c.post("certificates", shared.Jmap{"type": "client", "certificate": b64, "name": name}, api.SyncResponse)
 	return err
 }
 
@@ -1265,7 +1222,7 @@ func (c *Client) CertificateRemove(fingerprint string) error {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	_, err := c.delete(fmt.Sprintf("certificates/%s", fingerprint), nil, Sync)
+	_, err := c.delete(fmt.Sprintf("certificates/%s", fingerprint), nil, api.SyncResponse)
 	return err
 }
 
@@ -1291,12 +1248,12 @@ func (c *Client) GetAlias(alias string) string {
 		return ""
 	}
 
-	if resp.Type == Error {
+	if resp.Type == api.ErrorResponse {
 		return ""
 	}
 
 	var result api.ImageAliasesEntry
-	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+	if err := resp.MetadataAsStruct(&result); err != nil {
 		return ""
 	}
 	return result.Target
@@ -1304,7 +1261,7 @@ func (c *Client) GetAlias(alias string) string {
 
 // Init creates a container from either a fingerprint or an alias; you must
 // provide at least one.
-func (c *Client) Init(name string, imgremote string, image string, profiles *[]string, config map[string]string, ephem bool) (*Response, error) {
+func (c *Client) Init(name string, imgremote string, image string, profiles *[]string, config map[string]string, ephem bool) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1352,7 +1309,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 
 				image = target
 
-				resp, err := tmpremote.post("images/"+image+"/secret", nil, Async)
+				resp, err := tmpremote.post("images/"+image+"/secret", nil, api.AsyncResponse)
 				if err != nil {
 					return nil, err
 				}
@@ -1410,7 +1367,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		body["ephemeral"] = ephem
 	}
 
-	var resp *Response
+	var resp *api.Response
 
 	if imgremote != c.Name {
 		var addresses []string
@@ -1422,7 +1379,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 		for _, addr := range addresses {
 			body["source"].(shared.Jmap)["server"] = "https://" + addr
 
-			resp, err = c.post("containers", body, Async)
+			resp, err = c.post("containers", body, api.AsyncResponse)
 			if err != nil {
 				continue
 			}
@@ -1430,7 +1387,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 			break
 		}
 	} else {
-		resp, err = c.post("containers", body, Async)
+		resp, err = c.post("containers", body, api.AsyncResponse)
 	}
 
 	if err != nil {
@@ -1443,7 +1400,7 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 	return resp, nil
 }
 
-func (c *Client) LocalCopy(source string, name string, config map[string]string, profiles []string, ephemeral bool) (*Response, error) {
+func (c *Client) LocalCopy(source string, name string, config map[string]string, profiles []string, ephemeral bool) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1459,7 +1416,7 @@ func (c *Client) LocalCopy(source string, name string, config map[string]string,
 		"ephemeral": ephemeral,
 	}
 
-	return c.post("containers", body, Async)
+	return c.post("containers", body, api.AsyncResponse)
 }
 
 func (c *Client) Monitor(types []string, handler func(interface{}), done chan bool) error {
@@ -1538,7 +1495,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 		body["height"] = height
 	}
 
-	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body, Async)
+	resp, err := c.post(fmt.Sprintf("containers/%s/exec", name), body, api.AsyncResponse)
 	if err != nil {
 		return -1, err
 	}
@@ -1640,7 +1597,7 @@ func (c *Client) Exec(name string, cmd []string, env map[string]string,
 	return shared.Jmap(op.Metadata).GetInt("return")
 }
 
-func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool, stateful bool) (*Response, error) {
+func (c *Client) Action(name string, action shared.ContainerAction, timeout int, force bool, stateful bool) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1654,10 +1611,10 @@ func (c *Client) Action(name string, action shared.ContainerAction, timeout int,
 		body["stateful"] = stateful
 	}
 
-	return c.put(fmt.Sprintf("containers/%s/state", name), body, Async)
+	return c.put(fmt.Sprintf("containers/%s/state", name), body, api.AsyncResponse)
 }
 
-func (c *Client) Delete(name string) (*Response, error) {
+func (c *Client) Delete(name string) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1670,7 +1627,7 @@ func (c *Client) Delete(name string) (*Response, error) {
 		url = fmt.Sprintf("containers/%s", name)
 	}
 
-	return c.delete(url, nil, Async)
+	return c.delete(url, nil, api.AsyncResponse)
 }
 
 func (c *Client) ServerStatus() (*api.Server, error) {
@@ -1681,7 +1638,7 @@ func (c *Client) ServerStatus() (*api.Server, error) {
 		return nil, err
 	}
 
-	if err := json.Unmarshal(resp.Metadata, &ss); err != nil {
+	if err := resp.MetadataAsStruct(&ss); err != nil {
 		return nil, err
 	}
 
@@ -1709,7 +1666,7 @@ func (c *Client) ContainerInfo(name string) (*api.Container, error) {
 		return nil, err
 	}
 
-	if err := json.Unmarshal(resp.Metadata, &ct); err != nil {
+	if err := resp.MetadataAsStruct(&ct); err != nil {
 		return nil, err
 	}
 
@@ -1728,7 +1685,7 @@ func (c *Client) ContainerState(name string) (*api.ContainerState, error) {
 		return nil, err
 	}
 
-	if err := json.Unmarshal(resp.Metadata, &ct); err != nil {
+	if err := resp.MetadataAsStruct(&ct); err != nil {
 		return nil, err
 	}
 
@@ -1761,7 +1718,7 @@ func (c *Client) ProfileConfig(name string) (*api.Profile, error) {
 		return nil, err
 	}
 
-	if err := json.Unmarshal(resp.Metadata, &ct); err != nil {
+	if err := resp.MetadataAsStruct(&ct); err != nil {
 		return nil, err
 	}
 
@@ -1797,7 +1754,7 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode str
 		return err
 	}
 
-	_, err = HoistResponse(raw, Sync)
+	_, err = HoistResponse(raw, api.SyncResponse)
 	return err
 }
 
@@ -1819,7 +1776,7 @@ func (c *Client) PullFile(container string, p string) (int, int, int, io.ReadClo
 	return uid, gid, mode, r.Body, nil
 }
 
-func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
+func (c *Client) GetMigrationSourceWS(container string) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1835,10 +1792,10 @@ func (c *Client) GetMigrationSourceWS(container string) (*Response, error) {
 		url = fmt.Sprintf("containers/%s/snapshots/%s", pieces[0], pieces[1])
 	}
 
-	return c.post(url, body, Async)
+	return c.post(url, body, api.AsyncResponse)
 }
 
-func (c *Client) MigrateFrom(name string, operation string, certificate string, secrets map[string]string, architecture string, config map[string]string, devices map[string]map[string]string, profiles []string, baseImage string, ephemeral bool) (*Response, error) {
+func (c *Client) MigrateFrom(name string, operation string, certificate string, secrets map[string]string, architecture string, config map[string]string, devices map[string]map[string]string, profiles []string, baseImage string, ephemeral bool) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1861,10 +1818,10 @@ func (c *Client) MigrateFrom(name string, operation string, certificate string, 
 		"source":       source,
 	}
 
-	return c.post("containers", body, Async)
+	return c.post("containers", body, api.AsyncResponse)
 }
 
-func (c *Client) Rename(name string, newName string) (*Response, error) {
+func (c *Client) Rename(name string, newName string) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1876,13 +1833,13 @@ func (c *Client) Rename(name string, newName string) (*Response, error) {
 	}
 	if len(oldNameParts) == 1 {
 		body := shared.Jmap{"name": newName}
-		return c.post(fmt.Sprintf("containers/%s", name), body, Async)
+		return c.post(fmt.Sprintf("containers/%s", name), body, api.AsyncResponse)
 	}
 	if oldNameParts[0] != newNameParts[0] {
 		return nil, fmt.Errorf("Attempting to rename snapshot of one container into a snapshot of another container.")
 	}
 	body := shared.Jmap{"name": newNameParts[1]}
-	return c.post(fmt.Sprintf("containers/%s/snapshots/%s", oldNameParts[0], oldNameParts[1]), body, Async)
+	return c.post(fmt.Sprintf("containers/%s/snapshots/%s", oldNameParts[0], oldNameParts[1]), body, api.AsyncResponse)
 }
 
 /* Wait for an operation */
@@ -1931,22 +1888,22 @@ func (c *Client) WaitForSuccessOp(waitURL string) (*api.Operation, error) {
 	return op, fmt.Errorf(op.Err)
 }
 
-func (c *Client) RestoreSnapshot(container string, snapshotName string, stateful bool) (*Response, error) {
+func (c *Client) RestoreSnapshot(container string, snapshotName string, stateful bool) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
 	body := shared.Jmap{"restore": snapshotName, "stateful": stateful}
-	return c.put(fmt.Sprintf("containers/%s", container), body, Async)
+	return c.put(fmt.Sprintf("containers/%s", container), body, api.AsyncResponse)
 }
 
-func (c *Client) Snapshot(container string, snapshotName string, stateful bool) (*Response, error) {
+func (c *Client) Snapshot(container string, snapshotName string, stateful bool) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
 	body := shared.Jmap{"name": snapshotName, "stateful": stateful}
-	return c.post(fmt.Sprintf("containers/%s/snapshots", container), body, Async)
+	return c.post(fmt.Sprintf("containers/%s/snapshots", container), body, api.AsyncResponse)
 }
 
 func (c *Client) ListSnapshots(container string) ([]api.ContainerSnapshot, error) {
@@ -1962,7 +1919,7 @@ func (c *Client) ListSnapshots(container string) ([]api.ContainerSnapshot, error
 
 	var result []api.ContainerSnapshot
 
-	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+	if err := resp.MetadataAsStruct(&result); err != nil {
 		return nil, err
 	}
 
@@ -1987,7 +1944,7 @@ func (c *Client) SnapshotInfo(snapName string) (*api.ContainerSnapshot, error) {
 
 	var result api.ContainerSnapshot
 
-	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+	if err := resp.MetadataAsStruct(&result); err != nil {
 		return nil, err
 	}
 
@@ -2017,7 +1974,7 @@ func (c *Client) GetServerConfigString() ([]string, error) {
 	return resp, nil
 }
 
-func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
+func (c *Client) SetServerConfig(key string, value string) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -2029,15 +1986,15 @@ func (c *Client) SetServerConfig(key string, value string) (*Response, error) {
 
 	ss.Config[key] = value
 
-	return c.put("", ss, Sync)
+	return c.put("", ss, api.SyncResponse)
 }
 
-func (c *Client) UpdateServerConfig(ss api.ServerPut) (*Response, error) {
+func (c *Client) UpdateServerConfig(ss api.ServerPut) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	return c.put("", ss, Sync)
+	return c.put("", ss, api.SyncResponse)
 }
 
 /*
@@ -2088,7 +2045,7 @@ func (c *Client) SetContainerConfig(container, key, value string) error {
 	 * snapshot), we expect config to be a sync operation, so let's just
 	 * handle it here.
 	 */
-	resp, err := c.put(fmt.Sprintf("containers/%s", container), st, Async)
+	resp, err := c.put(fmt.Sprintf("containers/%s", container), st, api.AsyncResponse)
 	if err != nil {
 		return err
 	}
@@ -2101,7 +2058,7 @@ func (c *Client) UpdateContainerConfig(container string, st api.ContainerPut) er
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	resp, err := c.put(fmt.Sprintf("containers/%s", container), st, Async)
+	resp, err := c.put(fmt.Sprintf("containers/%s", container), st, api.AsyncResponse)
 	if err != nil {
 		return err
 	}
@@ -2116,7 +2073,7 @@ func (c *Client) ProfileCreate(p string) error {
 
 	body := shared.Jmap{"name": p}
 
-	_, err := c.post("profiles", body, Sync)
+	_, err := c.post("profiles", body, api.SyncResponse)
 	return err
 }
 
@@ -2125,7 +2082,7 @@ func (c *Client) ProfileDelete(p string) error {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	_, err := c.delete(fmt.Sprintf("profiles/%s", p), nil, Sync)
+	_, err := c.delete(fmt.Sprintf("profiles/%s", p), nil, api.SyncResponse)
 	return err
 }
 
@@ -2159,7 +2116,7 @@ func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 		st.Config[key] = value
 	}
 
-	_, err = c.put(fmt.Sprintf("profiles/%s", profile), st, Sync)
+	_, err = c.put(fmt.Sprintf("profiles/%s", profile), st, api.SyncResponse)
 	return err
 }
 
@@ -2168,7 +2125,7 @@ func (c *Client) PutProfile(name string, profile api.ProfilePut) error {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	_, err := c.put(fmt.Sprintf("profiles/%s", name), profile, Sync)
+	_, err := c.put(fmt.Sprintf("profiles/%s", name), profile, api.SyncResponse)
 	return err
 }
 
@@ -2184,7 +2141,7 @@ func (c *Client) ListProfiles() ([]string, error) {
 
 	var result []string
 
-	if err := json.Unmarshal(resp.Metadata, &result); err != nil {
+	if err := resp.MetadataAsStruct(&result); err != nil {
 		return nil, err
 	}
 
@@ -2213,7 +2170,7 @@ func (c *Client) ListProfiles() ([]string, error) {
 	return names, nil
 }
 
-func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
+func (c *Client) ApplyProfile(container, profile string) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -2225,10 +2182,10 @@ func (c *Client) ApplyProfile(container, profile string) (*Response, error) {
 
 	st.Profiles = strings.Split(profile, ",")
 
-	return c.put(fmt.Sprintf("containers/%s", container), st, Async)
+	return c.put(fmt.Sprintf("containers/%s", container), st, api.AsyncResponse)
 }
 
-func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, error) {
+func (c *Client) ContainerDeviceDelete(container, devname string) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -2241,14 +2198,14 @@ func (c *Client) ContainerDeviceDelete(container, devname string) (*Response, er
 	for n, _ := range st.Devices {
 		if n == devname {
 			delete(st.Devices, n)
-			return c.put(fmt.Sprintf("containers/%s", container), st, Async)
+			return c.put(fmt.Sprintf("containers/%s", container), st, api.AsyncResponse)
 		}
 	}
 
 	return nil, fmt.Errorf("Device doesn't exist.")
 }
 
-func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []string) (*Response, error) {
+func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []string) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -2280,7 +2237,7 @@ func (c *Client) ContainerDeviceAdd(container, devname, devtype string, props []
 
 	st.Devices[devname] = newdev
 
-	return c.put(fmt.Sprintf("containers/%s", container), st, Async)
+	return c.put(fmt.Sprintf("containers/%s", container), st, api.AsyncResponse)
 }
 
 func (c *Client) ContainerListDevices(container string) ([]string, error) {
@@ -2299,7 +2256,7 @@ func (c *Client) ContainerListDevices(container string) ([]string, error) {
 	return devs, nil
 }
 
-func (c *Client) ProfileDeviceDelete(profile, devname string) (*Response, error) {
+func (c *Client) ProfileDeviceDelete(profile, devname string) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -2312,14 +2269,14 @@ func (c *Client) ProfileDeviceDelete(profile, devname string) (*Response, error)
 	for n, _ := range st.Devices {
 		if n == devname {
 			delete(st.Devices, n)
-			return c.put(fmt.Sprintf("profiles/%s", profile), st, Sync)
+			return c.put(fmt.Sprintf("profiles/%s", profile), st, api.SyncResponse)
 		}
 	}
 
 	return nil, fmt.Errorf("Device doesn't exist.")
 }
 
-func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []string) (*Response, error) {
+func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []string) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -2351,7 +2308,7 @@ func (c *Client) ProfileDeviceAdd(profile, devname, devtype string, props []stri
 
 	st.Devices[devname] = newdev
 
-	return c.put(fmt.Sprintf("profiles/%s", profile), st, Sync)
+	return c.put(fmt.Sprintf("profiles/%s", profile), st, api.SyncResponse)
 }
 
 func (c *Client) ProfileListDevices(profile string) ([]string, error) {
@@ -2375,7 +2332,7 @@ func (c *Client) ProfileListDevices(profile string) ([]string, error) {
 func WebsocketDial(dialer websocket.Dialer, url string) (*websocket.Conn, error) {
 	conn, raw, err := dialer.Dial(url, http.Header{})
 	if err != nil {
-		_, err2 := HoistResponse(raw, Error)
+		_, err2 := HoistResponse(raw, api.ErrorResponse)
 		if err2 != nil {
 			/* The response isn't one we understand, so return
 			 * whatever the original error was. */
@@ -2398,11 +2355,11 @@ func (c *Client) ProfileCopy(name, newname string, dest *Client) error {
 	}
 
 	body := shared.Jmap{"config": st.Config, "name": newname, "devices": st.Devices}
-	_, err = dest.post("profiles", body, Sync)
+	_, err = dest.post("profiles", body, api.SyncResponse)
 	return err
 }
 
-func (c *Client) AsyncWaitMeta(resp *Response) (map[string]interface{}, error) {
+func (c *Client) AsyncWaitMeta(resp *api.Response) (map[string]interface{}, error) {
 	op, err := c.WaitFor(resp.Operation)
 	if err != nil {
 		return nil, err
@@ -2430,7 +2387,7 @@ func (c *Client) ImageFromContainer(cname string, public bool, aliases []string,
 	}
 	body := shared.Jmap{"public": public, "source": source, "properties": properties}
 
-	resp, err := c.post("images", body, Async)
+	resp, err := c.post("images", body, api.AsyncResponse)
 	if err != nil {
 		return "", err
 	}
