@@ -267,7 +267,7 @@ func (c *profileCmd) doProfileAdd(client *lxd.Client, d string, p string) error 
 
 	ct.Profiles = append(ct.Profiles, p)
 
-	err = client.UpdateContainerConfig(d, ct.Brief())
+	err = client.UpdateContainerConfig(d, ct.Writable())
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (c *profileCmd) doProfileRemove(client *lxd.Client, d string, p string) err
 
 	ct.Profiles = profiles
 
-	err = client.UpdateContainerConfig(d, ct.Brief())
+	err = client.UpdateContainerConfig(d, ct.Writable())
 	if err != nil {
 		return err
 	}

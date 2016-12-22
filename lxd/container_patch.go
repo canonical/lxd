@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
@@ -41,7 +42,7 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	req := containerPutReq{}
+	req := api.ContainerPut{}
 	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
 		return BadRequest(err)
 	}

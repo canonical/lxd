@@ -94,7 +94,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 
 			if ct.Ephemeral {
 				ct.Ephemeral = false
-				err := s.UpdateContainerConfig(cName, ct.Brief())
+				err := s.UpdateContainerConfig(cName, ct.Writable())
 				if err != nil {
 					return err
 				}
@@ -117,7 +117,7 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 
 			if wasEphemeral {
 				ct.Ephemeral = true
-				err := s.UpdateContainerConfig(cName, ct.Brief())
+				err := s.UpdateContainerConfig(cName, ct.Writable())
 				if err != nil {
 					return err
 				}
