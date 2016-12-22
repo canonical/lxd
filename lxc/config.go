@@ -345,21 +345,21 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			brief := config.Writable()
 			data, err = yaml.Marshal(&brief)
 		} else {
-			var brief shared.BriefContainerInfo
+			var brief api.ContainerPut
 			if shared.IsSnapshot(container) {
 				config, err := d.SnapshotInfo(container)
 				if err != nil {
 					return err
 				}
 
-				brief = shared.BriefContainerInfo{
+				brief = api.ContainerPut{
 					Profiles:  config.Profiles,
 					Config:    config.Config,
 					Devices:   config.Devices,
 					Ephemeral: config.Ephemeral,
 				}
 				if c.expanded {
-					brief = shared.BriefContainerInfo{
+					brief = api.ContainerPut{
 						Profiles:  config.Profiles,
 						Config:    config.ExpandedConfig,
 						Devices:   config.ExpandedDevices,
@@ -372,9 +372,10 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 					return err
 				}
 
-				brief = config.Brief()
+				brief = config.Writable()
 				if c.expanded {
-					brief = config.BriefExpanded()
+					brief.Config = config.ExpandedConfig
+					brief.Devices = config.ExpandedDevices
 				}
 			}
 
@@ -492,7 +493,7 @@ func (c *configCmd) doContainerConfigEdit(client *lxd.Client, cont string) error
 			return err
 		}
 
-		newdata := shared.BriefContainerInfo{}
+		newdata := api.ContainerPut{}
 		err = yaml.Unmarshal(contents, &newdata)
 		if err != nil {
 			return err
@@ -506,7 +507,7 @@ func (c *configCmd) doContainerConfigEdit(client *lxd.Client, cont string) error
 		return err
 	}
 
-	brief := config.Brief()
+	brief := config.Writable()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err
@@ -520,7 +521,7 @@ func (c *configCmd) doContainerConfigEdit(client *lxd.Client, cont string) error
 
 	for {
 		// Parse the text received from the editor
-		newdata := shared.BriefContainerInfo{}
+		newdata := api.ContainerPut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
 			err = client.UpdateContainerConfig(cont, newdata)
@@ -742,7 +743,7 @@ func (c *configCmd) deviceSet(config *lxd.Config, which string, args []string) e
 		dev[key] = value
 		st.Devices[devname] = dev
 
-		err = client.UpdateContainerConfig(name, st.Brief())
+		err = client.UpdateContainerConfig(name, st.Writable())
 		if err != nil {
 			return err
 		}
@@ -798,7 +799,7 @@ func (c *configCmd) deviceUnset(config *lxd.Config, which string, args []string)
 		delete(dev, key)
 		st.Devices[devname] = dev
 
-		err = client.UpdateContainerConfig(name, st.Brief())
+		err = client.UpdateContainerConfig(name, st.Writable())
 		if err != nil {
 			return err
 		}
