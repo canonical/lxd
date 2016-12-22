@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -292,7 +291,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			return "", err
 		}
 
-		if err := json.Unmarshal(resp.Metadata, &info); err != nil {
+		if err := resp.MetadataAsStruct(&info); err != nil {
 			return "", err
 		}
 
