@@ -633,7 +633,7 @@ func (c *configCmd) deviceAdd(config *lxd.Config, which string, args []string) e
 		props = []string{}
 	}
 
-	var resp *lxd.Response
+	var resp *api.Response
 	if which == "profile" {
 		resp, err = client.ProfileDeviceAdd(name, devname, devtype, props)
 	} else {
@@ -820,7 +820,7 @@ func (c *configCmd) deviceRm(config *lxd.Config, which string, args []string) er
 	}
 
 	devname := args[3]
-	var resp *lxd.Response
+	var resp *api.Response
 	if which == "profile" {
 		resp, err = client.ProfileDeviceDelete(name, devname)
 	} else {

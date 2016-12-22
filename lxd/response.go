@@ -13,25 +13,9 @@ import (
 
 	"github.com/mattn/go-sqlite3"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
-
-type syncResp struct {
-	Type       lxd.ResponseType `json:"type"`
-	Status     string           `json:"status"`
-	StatusCode api.StatusCode   `json:"status_code"`
-	Metadata   interface{}      `json:"metadata"`
-}
-
-type asyncResp struct {
-	Type       lxd.ResponseType `json:"type"`
-	Status     string           `json:"status"`
-	StatusCode api.StatusCode   `json:"status_code"`
-	Metadata   interface{}      `json:"metadata"`
-	Operation  string           `json:"operation"`
-}
 
 type Response interface {
 	Render(w http.ResponseWriter) error
@@ -73,7 +57,14 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 		w.WriteHeader(201)
 	}
 
-	resp := syncResp{Type: lxd.Sync, Status: status.String(), StatusCode: status, Metadata: r.metadata}
+	resp := api.ResponseRaw{
+		Response: api.Response{
+			Type:       api.SyncResponse,
+			Status:     status.String(),
+			StatusCode: int(status)},
+		Metadata: r.metadata,
+	}
+
 	return WriteJSON(w, resp)
 }
 
@@ -232,12 +223,15 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 		return err
 	}
 
-	body := asyncResp{
-		Type:       lxd.Async,
-		Status:     api.OperationCreated.String(),
-		StatusCode: api.OperationCreated,
-		Operation:  url,
-		Metadata:   md}
+	body := api.ResponseRaw{
+		Response: api.Response{
+			Type:       api.AsyncResponse,
+			Status:     api.OperationCreated.String(),
+			StatusCode: int(api.OperationCreated),
+			Operation:  url,
+		},
+		Metadata: md,
+	}
 
 	w.Header().Set("Location", url)
 	w.WriteHeader(202)
@@ -251,7 +245,7 @@ func (r *operationResponse) String() string {
 		return fmt.Sprintf("error: %s", err)
 	}
 
-	return md.Id
+	return md.ID
 }
 
 func OperationResponse(op *operation) Response {
@@ -279,7 +273,7 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 		output = io.MultiWriter(buf, captured)
 	}
 
-	err := json.NewEncoder(output).Encode(shared.Jmap{"type": lxd.Error, "error": r.msg, "error_code": r.code})
+	err := json.NewEncoder(output).Encode(shared.Jmap{"type": api.ErrorResponse, "error": r.msg, "error_code": r.code})
 
 	if err != nil {
 		return err

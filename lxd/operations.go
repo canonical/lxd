@@ -262,7 +262,7 @@ func (op *operation) Render() (string, *api.Operation, error) {
 	}
 
 	return op.url, &api.Operation{
-		Id:         op.id,
+		ID:         op.id,
 		Class:      op.class.String(),
 		CreatedAt:  op.createdAt,
 		UpdatedAt:  op.updatedAt,
@@ -543,7 +543,7 @@ func (r *operationWebSocket) String() string {
 		return fmt.Sprintf("error: %s", err)
 	}
 
-	return md.Id
+	return md.ID
 }
 
 func operationAPIWebsocketGet(d *Daemon, r *http.Request) Response {

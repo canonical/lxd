@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func cmdWaitReady() error {
@@ -38,7 +39,7 @@ func cmdWaitReady() error {
 				continue
 			}
 
-			_, err = lxd.HoistResponse(raw, lxd.Sync)
+			_, err = lxd.HoistResponse(raw, api.SyncResponse)
 			if err != nil {
 				time.Sleep(500 * time.Millisecond)
 				continue

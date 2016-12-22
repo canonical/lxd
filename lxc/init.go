@@ -173,7 +173,7 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		profiles = append(profiles, p)
 	}
 
-	var resp *lxd.Response
+	var resp *api.Response
 	if name == "" {
 		fmt.Printf(i18n.G("Creating the container") + "\n")
 	} else {

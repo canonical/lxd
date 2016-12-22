@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func cmdImport(args []string) error {
@@ -23,7 +24,7 @@ func cmdImport(args []string) error {
 	}
 
 	raw, err := c.Http.Do(req)
-	_, err = lxd.HoistResponse(raw, lxd.Sync)
+	_, err = lxd.HoistResponse(raw, api.SyncResponse)
 	if err != nil {
 		return err
 	}

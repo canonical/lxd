@@ -92,7 +92,7 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		if resp.Type != lxd.Async {
+		if resp.Type != api.AsyncResponse {
 			return fmt.Errorf(i18n.G("bad result type from action"))
 		}
 

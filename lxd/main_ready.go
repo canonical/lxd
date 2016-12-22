@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func cmdReady() error {
@@ -22,7 +23,7 @@ func cmdReady() error {
 		return err
 	}
 
-	_, err = lxd.HoistResponse(raw, lxd.Sync)
+	_, err = lxd.HoistResponse(raw, api.SyncResponse)
 	if err != nil {
 		return err
 	}

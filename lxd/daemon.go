@@ -31,6 +31,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
@@ -144,7 +145,7 @@ func (d *Daemon) httpClient(certificate string) (*http.Client, error) {
 	return &myhttp, nil
 }
 
-func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, error) {
+func (d *Daemon) httpGetSync(url string, certificate string) (*api.Response, error) {
 	var err error
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -169,7 +170,7 @@ func (d *Daemon) httpGetSync(url string, certificate string) (*lxd.Response, err
 		return nil, err
 	}
 
-	if resp.Type != lxd.Sync {
+	if resp.Type != api.SyncResponse {
 		return nil, fmt.Errorf("unexpected non-sync response")
 	}
 
@@ -197,7 +198,7 @@ func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, er
 	}
 
 	if raw.StatusCode != 200 {
-		_, err := lxd.HoistResponse(raw, lxd.Error)
+		_, err := lxd.HoistResponse(raw, api.ErrorResponse)
 		if err != nil {
 			return nil, err
 		}
