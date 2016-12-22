@@ -11,6 +11,7 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 
@@ -52,7 +53,7 @@ type containerImageSource struct {
 type containerPostReq struct {
 	Architecture string               `json:"architecture"`
 	Config       map[string]string    `json:"config"`
-	Devices      shared.Devices       `json:"devices"`
+	Devices      types.Devices        `json:"devices"`
 	Ephemeral    bool                 `json:"ephemeral"`
 	Name         string               `json:"name"`
 	Profiles     []string             `json:"profiles"`
@@ -431,7 +432,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Devices == nil {
-		req.Devices = shared.Devices{}
+		req.Devices = types.Devices{}
 	}
 
 	if req.Config == nil {

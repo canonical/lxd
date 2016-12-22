@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
 )
@@ -580,9 +581,9 @@ func Test_dbContainerProfiles(t *testing.T) {
 func Test_dbDevices_profiles(t *testing.T) {
 	var db *sql.DB
 	var err error
-	var result shared.Devices
-	var subresult shared.Device
-	var expected shared.Device
+	var result types.Devices
+	var subresult types.Device
+	var expected types.Device
 
 	db = createTestDb(t)
 	defer db.Close()
@@ -592,7 +593,7 @@ func Test_dbDevices_profiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected = shared.Device{"type": "nic", "devicekey": "devicevalue"}
+	expected = types.Device{"type": "nic", "devicekey": "devicevalue"}
 	subresult = result["devicename"]
 
 	for key, value := range expected {
@@ -606,9 +607,9 @@ func Test_dbDevices_profiles(t *testing.T) {
 func Test_dbDevices_containers(t *testing.T) {
 	var db *sql.DB
 	var err error
-	var result shared.Devices
-	var subresult shared.Device
-	var expected shared.Device
+	var result types.Devices
+	var subresult types.Device
+	var expected types.Device
 
 	db = createTestDb(t)
 	defer db.Close()
@@ -618,7 +619,7 @@ func Test_dbDevices_containers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected = shared.Device{"type": "nic", "configkey": "configvalue"}
+	expected = types.Device{"type": "nic", "configkey": "configvalue"}
 	subresult = result["somename"]
 
 	for key, value := range expected {
