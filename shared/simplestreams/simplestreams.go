@@ -14,11 +14,12 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-type ssSortImage []shared.ImageInfo
+type ssSortImage []api.Image
 
 func (a ssSortImage) Len() int {
 	return len(a)
@@ -31,15 +32,15 @@ func (a ssSortImage) Swap(i, j int) {
 func (a ssSortImage) Less(i, j int) bool {
 	if a[i].Properties["os"] == a[j].Properties["os"] {
 		if a[i].Properties["release"] == a[j].Properties["release"] {
-			if a[i].CreationDate.UTC().Unix() == 0 {
+			if a[i].CreatedAt.UTC().Unix() == 0 {
 				return true
 			}
 
-			if a[j].CreationDate.UTC().Unix() == 0 {
+			if a[j].CreatedAt.UTC().Unix() == 0 {
 				return false
 			}
 
-			return a[i].CreationDate.UTC().Unix() > a[j].CreationDate.UTC().Unix()
+			return a[i].CreatedAt.UTC().Unix() > a[j].CreatedAt.UTC().Unix()
 		}
 
 		if a[i].Properties["release"] == "" {
@@ -76,10 +77,10 @@ type SimpleStreamsManifest struct {
 	Products map[string]SimpleStreamsManifestProduct `json:"products"`
 }
 
-func (s *SimpleStreamsManifest) ToLXD() ([]shared.ImageInfo, map[string][][]string) {
+func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 	downloads := map[string][][]string{}
 
-	images := []shared.ImageInfo{}
+	images := []api.Image{}
 	nameLayout := "20060102"
 	eolLayout := "2006-01-02"
 
@@ -169,12 +170,12 @@ func (s *SimpleStreamsManifest) ToLXD() ([]shared.ImageInfo, map[string][][]stri
 			}
 			description = fmt.Sprintf("%s (%s)", description, name)
 
-			image := shared.ImageInfo{}
+			image := api.Image{}
 			image.Architecture = architectureName
 			image.Public = true
 			image.Size = size
-			image.CreationDate = creationDate
-			image.UploadDate = creationDate
+			image.CreatedAt = creationDate
+			image.UploadedAt = creationDate
 			image.Filename = filename
 			image.Fingerprint = fingerprint
 			image.Properties = map[string]string{
@@ -189,9 +190,9 @@ func (s *SimpleStreamsManifest) ToLXD() ([]shared.ImageInfo, map[string][][]stri
 
 			// Add the provided aliases
 			if product.Aliases != "" {
-				image.Aliases = []shared.ImageAlias{}
+				image.Aliases = []api.ImageAlias{}
 				for _, entry := range strings.Split(product.Aliases, ",") {
-					image.Aliases = append(image.Aliases, shared.ImageAlias{Name: entry})
+					image.Aliases = append(image.Aliases, api.ImageAlias{Name: entry})
 				}
 			}
 
@@ -203,11 +204,11 @@ func (s *SimpleStreamsManifest) ToLXD() ([]shared.ImageInfo, map[string][][]stri
 			}
 
 			// Attempt to parse the EOL
-			image.ExpiryDate = time.Unix(0, 0).UTC()
+			image.ExpiresAt = time.Unix(0, 0).UTC()
 			if product.SupportedEOL != "" {
 				eolDate, err := time.Parse(eolLayout, product.SupportedEOL)
 				if err == nil {
-					image.ExpiryDate = eolDate
+					image.ExpiresAt = eolDate
 				}
 			}
 
@@ -278,8 +279,8 @@ type SimpleStreams struct {
 
 	cachedIndex    *SimpleStreamsIndex
 	cachedManifest map[string]*SimpleStreamsManifest
-	cachedImages   []shared.ImageInfo
-	cachedAliases  map[string]*shared.ImageAliasesEntry
+	cachedImages   []api.Image
+	cachedAliases  map[string]*api.ImageAliasesEntry
 }
 
 func (s *SimpleStreams) parseIndex() (*SimpleStreamsIndex, error) {
@@ -356,8 +357,8 @@ func (s *SimpleStreams) parseManifest(path string) (*SimpleStreamsManifest, erro
 	return &ssManifest, nil
 }
 
-func (s *SimpleStreams) applyAliases(images []shared.ImageInfo) ([]shared.ImageInfo, map[string]*shared.ImageAliasesEntry, error) {
-	aliases := map[string]*shared.ImageAliasesEntry{}
+func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[string]*api.ImageAliasesEntry, error) {
+	aliases := map[string]*api.ImageAliasesEntry{}
 
 	sort.Sort(ssSortImage(images))
 
@@ -369,7 +370,7 @@ func (s *SimpleStreams) applyAliases(images []shared.ImageInfo) ([]shared.ImageI
 		}
 	}
 
-	addAlias := func(name string, fingerprint string) *shared.ImageAlias {
+	addAlias := func(name string, fingerprint string) *api.ImageAlias {
 		if defaultOS != "" {
 			name = strings.TrimPrefix(name, fmt.Sprintf("%s/", defaultOS))
 		}
@@ -378,17 +379,17 @@ func (s *SimpleStreams) applyAliases(images []shared.ImageInfo) ([]shared.ImageI
 			return nil
 		}
 
-		alias := shared.ImageAliasesEntry{}
+		alias := api.ImageAliasesEntry{}
 		alias.Name = name
 		alias.Target = fingerprint
 		aliases[name] = &alias
 
-		return &shared.ImageAlias{Name: name}
+		return &api.ImageAlias{Name: name}
 	}
 
 	architectureName, _ := osarch.ArchitectureGetLocal()
 
-	newImages := []shared.ImageInfo{}
+	newImages := []api.Image{}
 	for _, image := range images {
 		if image.Aliases != nil {
 			// Build a new list of aliases from the provided ones
@@ -418,12 +419,12 @@ func (s *SimpleStreams) applyAliases(images []shared.ImageInfo) ([]shared.ImageI
 	return newImages, aliases, nil
 }
 
-func (s *SimpleStreams) getImages() ([]shared.ImageInfo, map[string]*shared.ImageAliasesEntry, error) {
+func (s *SimpleStreams) getImages() ([]api.Image, map[string]*api.ImageAliasesEntry, error) {
 	if s.cachedImages != nil && s.cachedAliases != nil {
 		return s.cachedImages, s.cachedAliases, nil
 	}
 
-	images := []shared.ImageInfo{}
+	images := []api.Image{}
 
 	// Load the main index
 	ssIndex, err := s.parseIndex()
@@ -573,13 +574,13 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 	return nil
 }
 
-func (s *SimpleStreams) ListAliases() (shared.ImageAliases, error) {
+func (s *SimpleStreams) ListAliases() ([]api.ImageAliasesEntry, error) {
 	_, aliasesMap, err := s.getImages()
 	if err != nil {
 		return nil, err
 	}
 
-	aliases := shared.ImageAliases{}
+	aliases := []api.ImageAliasesEntry{}
 
 	for _, alias := range aliasesMap {
 		aliases = append(aliases, *alias)
@@ -588,7 +589,7 @@ func (s *SimpleStreams) ListAliases() (shared.ImageAliases, error) {
 	return aliases, nil
 }
 
-func (s *SimpleStreams) ListImages() ([]shared.ImageInfo, error) {
+func (s *SimpleStreams) ListImages() ([]api.Image, error) {
 	images, _, err := s.getImages()
 	return images, err
 }
@@ -607,7 +608,7 @@ func (s *SimpleStreams) GetAlias(name string) string {
 	return alias.Target
 }
 
-func (s *SimpleStreams) GetImageInfo(fingerprint string) (*shared.ImageInfo, error) {
+func (s *SimpleStreams) GetImageInfo(fingerprint string) (*api.Image, error) {
 	images, _, err := s.getImages()
 	if err != nil {
 		return nil, err

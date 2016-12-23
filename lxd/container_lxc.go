@@ -26,6 +26,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -164,17 +165,17 @@ func lxcValidConfig(rawLxc string) error {
 	return nil
 }
 
-func lxcStatusCode(state lxc.State) shared.StatusCode {
-	return map[int]shared.StatusCode{
-		1: shared.Stopped,
-		2: shared.Starting,
-		3: shared.Running,
-		4: shared.Stopping,
-		5: shared.Aborting,
-		6: shared.Freezing,
-		7: shared.Frozen,
-		8: shared.Thawed,
-		9: shared.Error,
+func lxcStatusCode(state lxc.State) api.StatusCode {
+	return map[int]api.StatusCode{
+		1: api.Stopped,
+		2: api.Starting,
+		3: api.Running,
+		4: api.Stopping,
+		5: api.Aborting,
+		6: api.Freezing,
+		7: api.Frozen,
+		8: api.Thawed,
+		9: api.Error,
 	}[int(state)]
 }
 
@@ -2402,7 +2403,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	etag := []interface{}{c.architecture, c.localConfig, c.localDevices, c.ephemeral, c.profiles}
 
 	if c.IsSnapshot() {
-		return &shared.SnapshotInfo{
+		return &api.ContainerSnapshot{
 			Architecture:    architectureName,
 			Config:          c.localConfig,
 			CreationDate:    c.creationDate,
@@ -2423,25 +2424,28 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 		}
 		statusCode := lxcStatusCode(cState)
 
-		return &shared.ContainerInfo{
-			Architecture:    architectureName,
-			Config:          c.localConfig,
-			CreationDate:    c.creationDate,
-			Devices:         c.localDevices,
-			Ephemeral:       c.ephemeral,
+		ct := api.Container{
 			ExpandedConfig:  c.expandedConfig,
 			ExpandedDevices: c.expandedDevices,
-			LastUsedDate:    c.lastUsedDate,
 			Name:            c.name,
-			Profiles:        c.profiles,
 			Status:          statusCode.String(),
 			StatusCode:      statusCode,
 			Stateful:        c.stateful,
-		}, etag, nil
+		}
+
+		ct.Architecture = architectureName
+		ct.Config = c.localConfig
+		ct.CreatedAt = c.creationDate
+		ct.Devices = c.localDevices
+		ct.Ephemeral = c.ephemeral
+		ct.LastUsedAt = c.lastUsedDate
+		ct.Profiles = c.profiles
+
+		return &ct, etag, nil
 	}
 }
 
-func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
+func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
@@ -2453,7 +2457,7 @@ func (c *containerLXC) RenderState() (*shared.ContainerState, error) {
 		return nil, err
 	}
 	statusCode := lxcStatusCode(cState)
-	status := shared.ContainerState{
+	status := api.ContainerState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
 	}
@@ -2785,8 +2789,8 @@ func (c *containerLXC) ConfigKeySet(key string, value string) error {
 }
 
 type backupFile struct {
-	Container *shared.ContainerInfo  `yaml:"container"`
-	Snapshots []*shared.SnapshotInfo `yaml:"snapshots"`
+	Container *api.Container           `yaml:"container"`
+	Snapshots []*api.ContainerSnapshot `yaml:"snapshots"`
 }
 
 func writeBackupFile(c container) error {
@@ -2816,7 +2820,7 @@ func writeBackupFile(c container) error {
 		return err
 	}
 
-	var sis []*shared.SnapshotInfo
+	var sis []*api.ContainerSnapshot
 
 	for _, s := range snapshots {
 		si, _, err := s.Render()
@@ -2824,11 +2828,11 @@ func writeBackupFile(c container) error {
 			return err
 		}
 
-		sis = append(sis, si.(*shared.SnapshotInfo))
+		sis = append(sis, si.(*api.ContainerSnapshot))
 	}
 
 	data, err := yaml.Marshal(&backupFile{
-		Container: ci.(*shared.ContainerInfo),
+		Container: ci.(*api.Container),
 		Snapshots: sis,
 	})
 	if err != nil {
@@ -4559,8 +4563,8 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	return 0, attachedPid, nil
 }
 
-func (c *containerLXC) cpuState() shared.ContainerStateCPU {
-	cpu := shared.ContainerStateCPU{}
+func (c *containerLXC) cpuState() api.ContainerStateCPU {
+	cpu := api.ContainerStateCPU{}
 
 	if !cgCpuacctController {
 		return cpu
@@ -4578,8 +4582,8 @@ func (c *containerLXC) cpuState() shared.ContainerStateCPU {
 	return cpu
 }
 
-func (c *containerLXC) diskState() map[string]shared.ContainerStateDisk {
-	disk := map[string]shared.ContainerStateDisk{}
+func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
+	disk := map[string]api.ContainerStateDisk{}
 
 	for _, name := range c.expandedDevices.DeviceNames() {
 		d := c.expandedDevices[name]
@@ -4596,14 +4600,14 @@ func (c *containerLXC) diskState() map[string]shared.ContainerStateDisk {
 			continue
 		}
 
-		disk[name] = shared.ContainerStateDisk{Usage: usage}
+		disk[name] = api.ContainerStateDisk{Usage: usage}
 	}
 
 	return disk
 }
 
-func (c *containerLXC) memoryState() shared.ContainerStateMemory {
-	memory := shared.ContainerStateMemory{}
+func (c *containerLXC) memoryState() api.ContainerStateMemory {
+	memory := api.ContainerStateMemory{}
 
 	if !cgMemoryController {
 		return memory
@@ -4649,8 +4653,8 @@ func (c *containerLXC) memoryState() shared.ContainerStateMemory {
 	return memory
 }
 
-func (c *containerLXC) networkState() map[string]shared.ContainerStateNetwork {
-	result := map[string]shared.ContainerStateNetwork{}
+func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
+	result := map[string]api.ContainerStateNetwork{}
 
 	pid := c.InitPID()
 	if pid < 1 {
@@ -4669,7 +4673,7 @@ func (c *containerLXC) networkState() map[string]shared.ContainerStateNetwork {
 		return result
 	}
 
-	networks := map[string]shared.ContainerStateNetwork{}
+	networks := map[string]api.ContainerStateNetwork{}
 
 	err = json.Unmarshal(out, &networks)
 	if err != nil {
@@ -6278,12 +6282,12 @@ func (c *containerLXC) State() string {
 	// Load the go-lxc struct
 	err := c.initLXC()
 	if err != nil {
-		return "BROKEN"
+		return "Broken"
 	}
 
 	state, err := c.getLxcState()
 	if err != nil {
-		return shared.Error.String()
+		return api.Error.String()
 	}
 	return state.String()
 }

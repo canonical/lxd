@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -189,7 +190,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		return err
 	}
 
-	for k, v := range *op.Metadata {
+	for k, v := range op.Metadata {
 		secrets[k] = v.(string)
 	}
 
@@ -207,7 +208,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 	 * report that.
 	 */
 	for _, addr := range addresses {
-		var migration *lxd.Response
+		var migration *api.Response
 
 		sourceWSUrl := "https://" + addr + sourceWSResponse.Operation
 		migration, err = dest.MigrateFrom(destName, sourceWSUrl, source.Certificate, secrets, status.Architecture, status.Config, status.Devices, status.Profiles, baseImage, ephemeral == 1, false, source, sourceWSResponse.Operation)

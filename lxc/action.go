@@ -5,6 +5,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -76,7 +77,7 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 			}
 
 			// "start" for a frozen container means "unfreeze"
-			if current.StatusCode == shared.Frozen {
+			if current.StatusCode == api.Frozen {
 				c.action = shared.Unfreeze
 			}
 
@@ -91,7 +92,7 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 			return err
 		}
 
-		if resp.Type != lxd.Async {
+		if resp.Type != api.AsyncResponse {
 			return fmt.Errorf(i18n.G("bad result type from action"))
 		}
 

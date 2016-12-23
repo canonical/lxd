@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,6 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/simplestreams"
 	"github.com/lxc/lxd/shared/version"
@@ -25,8 +25,8 @@ import (
 
 // Simplestream cache
 type imageStreamCacheEntry struct {
-	Aliases      shared.ImageAliases `yaml:"aliases"`
-	Fingerprints []string            `yaml:"fingerprints"`
+	Aliases      []api.ImageAliasesEntry `yaml:"aliases"`
+	Fingerprints []string                `yaml:"fingerprints"`
 	expiry       time.Time
 	ss           *simplestreams.SimpleStreams
 }
@@ -244,7 +244,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	exporturl := server
 
-	var info shared.ImageInfo
+	var info api.Image
 	info.Fingerprint = fp
 
 	destDir := shared.VarPath("images")
@@ -291,7 +291,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			return "", err
 		}
 
-		if err := json.Unmarshal(resp.Metadata, &info); err != nil {
+		if err := resp.MetadataAsStruct(&info); err != nil {
 			return "", err
 		}
 
@@ -481,8 +481,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 
 		info.Architecture = imageMeta.Architecture
-		info.CreationDate = time.Unix(imageMeta.CreationDate, 0)
-		info.ExpiryDate = time.Unix(imageMeta.ExpiryDate, 0)
+		info.CreatedAt = time.Unix(imageMeta.CreationDate, 0)
+		info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
 		info.Properties = imageMeta.Properties
 	}
 
