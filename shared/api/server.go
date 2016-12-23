@@ -34,8 +34,8 @@ type ServerUntrusted struct {
 
 // Server represents a LXD server
 type Server struct {
-	ServerPut
-	ServerUntrusted
+	ServerPut       `yaml:",inline"`
+	ServerUntrusted `yaml:",inline"`
 
 	Environment ServerEnvironment `json:"environment"`
 }
