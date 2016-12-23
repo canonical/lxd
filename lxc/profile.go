@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
 )
@@ -179,7 +180,7 @@ func (c *profileCmd) doProfileEdit(client *lxd.Client, p string) error {
 			return err
 		}
 
-		newdata := shared.ProfileConfig{}
+		newdata := api.ProfilePut{}
 		err = yaml.Unmarshal(contents, &newdata)
 		if err != nil {
 			return err
@@ -206,7 +207,7 @@ func (c *profileCmd) doProfileEdit(client *lxd.Client, p string) error {
 
 	for {
 		// Parse the text received from the editor
-		newdata := shared.ProfileConfig{}
+		newdata := api.ProfilePut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
 			err = client.PutProfile(p, newdata)
@@ -266,7 +267,7 @@ func (c *profileCmd) doProfileAdd(client *lxd.Client, d string, p string) error 
 
 	ct.Profiles = append(ct.Profiles, p)
 
-	err = client.UpdateContainerConfig(d, ct.Brief())
+	err = client.UpdateContainerConfig(d, ct.Writable())
 	if err != nil {
 		return err
 	}
@@ -297,7 +298,7 @@ func (c *profileCmd) doProfileRemove(client *lxd.Client, d string, p string) err
 
 	ct.Profiles = profiles
 
-	err = client.UpdateContainerConfig(d, ct.Brief())
+	err = client.UpdateContainerConfig(d, ct.Writable())
 	if err != nil {
 		return err
 	}

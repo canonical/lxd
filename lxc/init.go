@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -173,7 +173,7 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		profiles = append(profiles, p)
 	}
 
-	var resp *lxd.Response
+	var resp *api.Response
 	if name == "" {
 		fmt.Printf(i18n.G("Creating the container") + "\n")
 	} else {
@@ -260,7 +260,7 @@ func (c *initCmd) initProgressTracker(d *lxd.Client, progress *ProgressRenderer,
 			return
 		}
 
-		if shared.StatusCode(md["status_code"].(float64)).IsFinal() {
+		if api.StatusCode(md["status_code"].(float64)).IsFinal() {
 			return
 		}
 

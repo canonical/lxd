@@ -1,10 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -18,8 +17,8 @@ func remoteGetImageFingerprint(d *Daemon, server string, certificate string, ali
 		return "", err
 	}
 
-	var result shared.ImageAliasesEntry
-	if err = json.Unmarshal(resp.Metadata, &result); err != nil {
+	var result api.ImageAliasesEntry
+	if err = resp.MetadataAsStruct(&result); err != nil {
 		return "", fmt.Errorf("Error reading alias")
 	}
 

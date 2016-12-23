@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func cmdCallHook(args []string) error {
@@ -52,7 +53,7 @@ func cmdCallHook(args []string) error {
 			return
 		}
 
-		_, err = lxd.HoistResponse(raw, lxd.Sync)
+		_, err = lxd.HoistResponse(raw, api.SyncResponse)
 		if err != nil {
 			hook <- err
 			return

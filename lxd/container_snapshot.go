@@ -10,13 +10,9 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
-
-type containerSnapshotPostReq struct {
-	Name     string `json:"name"`
-	Stateful bool   `json:"stateful"`
-}
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	recursionStr := r.FormValue("recursion")
@@ -37,7 +33,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	resultString := []string{}
-	resultMap := []*shared.SnapshotInfo{}
+	resultMap := []*api.ContainerSnapshot{}
 
 	for _, snap := range snaps {
 		snapName := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)[1]
@@ -50,7 +46,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 				continue
 			}
 
-			resultMap = append(resultMap, render.(*shared.SnapshotInfo))
+			resultMap = append(resultMap, render.(*api.ContainerSnapshot))
 		}
 	}
 
@@ -111,7 +107,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	req := containerSnapshotPostReq{}
+	req := api.ContainerSnapshotsPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
@@ -189,7 +185,7 @@ func snapshotGet(sc container, name string) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponse(true, render.(*shared.SnapshotInfo))
+	return SyncResponse(true, render.(*api.ContainerSnapshot))
 }
 
 func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string) Response {

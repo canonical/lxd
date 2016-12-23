@@ -91,8 +91,8 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		fmt.Printf(i18n.G("Remote: %s")+"\n", d.Remote.Addr)
 	}
 	fmt.Printf(i18n.G("Architecture: %s")+"\n", ct.Architecture)
-	if ct.CreationDate.UTC().Unix() != 0 {
-		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreationDate.UTC().Format(layout))
+	if ct.CreatedAt.UTC().Unix() != 0 {
+		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreatedAt.UTC().Format(layout))
 	}
 
 	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status)
