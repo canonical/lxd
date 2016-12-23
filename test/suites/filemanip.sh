@@ -22,6 +22,7 @@ test_filemanip() {
   # lxc {push|pull} -r
   mkdir "${TEST_DIR}"/source
   mkdir "${TEST_DIR}"/source/another_level
+  chown 1000:1000 "${TEST_DIR}"/source/another_level
   echo "foo" > "${TEST_DIR}"/source/foo
   echo "bar" > "${TEST_DIR}"/source/bar
 
@@ -29,6 +30,8 @@ test_filemanip() {
 
   [ "$(lxc exec filemanip -- stat -c "%u" /tmp/ptest/source)" = "$(id -u)" ]
   [ "$(lxc exec filemanip -- stat -c "%g" /tmp/ptest/source)" = "$(id -g)" ]
+  [ "$(lxc exec filemanip -- stat -c "%u" /tmp/ptest/source/another_level)" = "1000" ]
+  [ "$(lxc exec filemanip -- stat -c "%g" /tmp/ptest/source/another_level)" = "1000" ]
   [ "$(lxc exec filemanip -- stat -c "%a" /tmp/ptest/source)" = "755" ]
 
   lxc exec filemanip -- rm -rf /tmp/ptest/source
