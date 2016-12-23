@@ -2,7 +2,7 @@ package api
 
 // ProfilesPost represents the fields of a new LXD profile
 type ProfilesPost struct {
-	ProfilePut
+	ProfilePut `yaml:",inline"`
 
 	Name string `json:"name"`
 }
@@ -21,7 +21,7 @@ type ProfilePut struct {
 
 // Profile represents a LXD profile
 type Profile struct {
-	ProfilePut
+	ProfilePut `yaml:",inline"`
 
 	Name string `json:"name"`
 }

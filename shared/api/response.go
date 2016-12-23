@@ -6,7 +6,7 @@ import (
 
 // ResponseRaw represents a LXD operation in its original form
 type ResponseRaw struct {
-	Response
+	Response `yaml:",inline"`
 
 	Metadata interface{} `json:"metadata"`
 }
