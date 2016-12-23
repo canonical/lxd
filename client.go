@@ -1768,7 +1768,7 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode str
 	return err
 }
 
-func (c *Client) Mkdir(container string, p string, mode os.FileMode) error {
+func (c *Client) Mkdir(container string, p string, mode os.FileMode, uid int, gid int) error {
 	if c.Remote.Public {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1784,6 +1784,12 @@ func (c *Client) Mkdir(container string, p string, mode os.FileMode) error {
 	req.Header.Set("User-Agent", version.UserAgent)
 	req.Header.Set("X-LXD-type", "directory")
 	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", mode.Perm()))
+	if uid != -1 {
+		req.Header.Set("X-LXD-uid", strconv.FormatUint(uint64(uid), 10))
+	}
+	if gid != -1 {
+		req.Header.Set("X-LXD-gid", strconv.FormatUint(uint64(gid), 10))
+	}
 
 	raw, err := c.Http.Do(req)
 	if err != nil {
@@ -1794,7 +1800,7 @@ func (c *Client) Mkdir(container string, p string, mode os.FileMode) error {
 	return err
 }
 
-func (c *Client) MkdirP(container string, p string, mode os.FileMode) error {
+func (c *Client) MkdirP(container string, p string, mode os.FileMode, uid int, gid int) error {
 	if c.Remote.Public {
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -1824,7 +1830,7 @@ func (c *Client) MkdirP(container string, p string, mode os.FileMode) error {
 
 	for ; i <= len(parts); i++ {
 		cur := filepath.Join(parts[:i]...)
-		if err := c.Mkdir(container, cur, mode); err != nil {
+		if err := c.Mkdir(container, cur, mode, uid, gid); err != nil {
 			return err
 		}
 	}
@@ -1851,7 +1857,8 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 
 		targetPath := path.Join(target, p[appendLen:])
 		if fInfo.IsDir() {
-			return c.Mkdir(container, targetPath, fInfo.Mode())
+			mode, uid, gid := shared.GetOwnerMode(fInfo)
+			return c.Mkdir(container, targetPath, mode, uid, gid)
 		}
 
 		f, err := os.Open(p)

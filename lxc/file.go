@@ -120,7 +120,18 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		}
 
 		if c.mkdirs {
-			if err := d.MkdirP(container, targetPath, mode); err != nil {
+			f, err := os.Open(args[0])
+			if err != nil {
+				return err
+			}
+			finfo, err := f.Stat()
+			f.Close()
+			if err != nil {
+				return err
+			}
+
+			mode, uid, gid := shared.GetOwnerMode(finfo)
+			if err := d.MkdirP(container, targetPath, mode, uid, gid); err != nil {
 				return err
 			}
 		}
@@ -173,14 +184,39 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		}
 
 		if c.mkdirs {
-			if err := d.MkdirP(container, path.Dir(fpath), mode); err != nil {
+			finfo, err := f.Stat()
+			if err != nil {
+				return err
+			}
+
+			if c.mode == "" || c.uid == -1 || c.gid == -1 {
+				dMode, dUid, dGid := shared.GetOwnerMode(finfo)
+				if c.mode == "" {
+					mode = dMode
+				}
+
+				if c.uid == -1 {
+					uid = dUid
+				}
+
+				if c.gid == -1 {
+					gid = dGid
+				}
+			}
+
+			if err := d.MkdirP(container, path.Dir(fpath), mode, uid, gid); err != nil {
 				return err
 			}
 		}
 
 		if send_file_perms {
 			if c.mode == "" || c.uid == -1 || c.gid == -1 {
-				fMode, fUid, fGid, err := c.getOwner(f)
+				finfo, err := f.Stat()
+				if err != nil {
+					return err
+				}
+
+				fMode, fUid, fGid := shared.GetOwnerMode(finfo)
 				if err != nil {
 					return err
 				}
