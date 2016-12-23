@@ -2,7 +2,7 @@ package api
 
 // NetworksPost represents the fields of a new LXD network
 type NetworksPost struct {
-	NetworkPut
+	NetworkPut `yaml:",inline"`
 
 	Managed bool   `json:"managed"`
 	Name    string `json:"name"`
@@ -21,7 +21,7 @@ type NetworkPut struct {
 
 // Network represents a LXD network
 type Network struct {
-	NetworkPut
+	NetworkPut `yaml:",inline"`
 
 	Managed bool     `json:"managed"`
 	Name    string   `json:"name"`

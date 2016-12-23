@@ -2,7 +2,7 @@ package api
 
 // CertificatesPost represents the fields of a new LXD certificate
 type CertificatesPost struct {
-	CertificatePut
+	CertificatePut `yaml:",inline"`
 
 	Certificate string `json:"certificate"`
 	Password    string `json:"password"`
@@ -16,7 +16,7 @@ type CertificatePut struct {
 
 // Certificate represents a LXD certificate
 type Certificate struct {
-	CertificatePut
+	CertificatePut `yaml:",inline"`
 
 	Certificate string `json:"certificate"`
 	Fingerprint string `json:"fingerprint"`
