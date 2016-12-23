@@ -6,7 +6,7 @@ import (
 
 // ContainersPost represents the fields available for a new LXD container
 type ContainersPost struct {
-	ContainerPut
+	ContainerPut `yaml:",inline"`
 
 	Name   string          `json:"name"`
 	Source ContainerSource `json:"source"`
@@ -30,7 +30,7 @@ type ContainerPut struct {
 
 // Container represents a LXD container
 type Container struct {
-	ContainerPut
+	ContainerPut `yaml:",inline"`
 
 	CreatedAt       time.Time                    `json:"created_at"`
 	ExpandedConfig  map[string]string            `json:"expanded_config"`

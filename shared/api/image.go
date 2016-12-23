@@ -6,7 +6,7 @@ import (
 
 // ImagesPost represents the fields available for a new LXD image
 type ImagesPost struct {
-	ImagePut
+	ImagePut `yaml:",inline"`
 
 	CompressionAlgorithm string            `json:"compression_algorithm"`
 	Filename             string            `json:"filename"`
@@ -22,7 +22,7 @@ type ImagePut struct {
 
 // Image represents a LXD image
 type Image struct {
-	ImagePut
+	ImagePut `yaml:",inline"`
 
 	Aliases      []ImageAlias `json:"aliases"`
 	Architecture string       `json:"architecture"`
@@ -59,7 +59,7 @@ type ImageSource struct {
 
 // ImageAliasesPost represents a new LXD image alias
 type ImageAliasesPost struct {
-	ImageAliasesEntry
+	ImageAliasesEntry `yaml:",inline"`
 }
 
 // ImageAliasesEntryPost represents the required fields to rename a LXD image alias
@@ -75,7 +75,7 @@ type ImageAliasesEntryPut struct {
 
 // ImageAliasesEntry represents a LXD image alias
 type ImageAliasesEntry struct {
-	ImageAliasesEntryPut
+	ImageAliasesEntryPut `yaml:",inline"`
 
 	Name string `json:"name"`
 }
