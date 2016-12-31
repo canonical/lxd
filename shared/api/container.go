@@ -25,7 +25,7 @@ type ContainerPut struct {
 	Devices      map[string]map[string]string `json:"devices"`
 	Ephemeral    bool                         `json:"ephemeral"`
 	Profiles     []string                     `json:"profiles"`
-	Restore      string                       `json:"restore,omitempty"`
+	Restore      string                       `json:"restore,omitempty" yaml:"restore,omitempty"`
 }
 
 // Container represents a LXD container
