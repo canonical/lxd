@@ -8,9 +8,11 @@ import (
 type ImagesPost struct {
 	ImagePut `yaml:",inline"`
 
-	CompressionAlgorithm string            `json:"compression_algorithm"`
-	Filename             string            `json:"filename"`
-	Source               map[string]string `json:"source"`
+	Filename string            `json:"filename"`
+	Source   map[string]string `json:"source"`
+
+	// API extension: image_compression_algorithm
+	CompressionAlgorithm string `json:"compression_algorithm"`
 }
 
 // ImagePut represents the modifiable fields of a LXD image

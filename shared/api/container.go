@@ -35,11 +35,13 @@ type Container struct {
 	CreatedAt       time.Time                    `json:"created_at"`
 	ExpandedConfig  map[string]string            `json:"expanded_config"`
 	ExpandedDevices map[string]map[string]string `json:"expanded_devices"`
-	LastUsedAt      time.Time                    `json:"last_used_at"`
 	Name            string                       `json:"name"`
 	Stateful        bool                         `json:"stateful"`
 	Status          string                       `json:"status"`
 	StatusCode      StatusCode                   `json:"status_code"`
+
+	// API extension: container_last_used_at
+	LastUsedAt time.Time `json:"last_used_at"`
 }
 
 // Writable converts a full Container struct into a ContainerPut struct (filters read-only fields)
@@ -64,7 +66,7 @@ type ContainerSource struct {
 	Type        string `json:"type"`
 	Certificate string `json:"certificate"`
 
-	/* For "image" type */
+	// For "image" type
 	Alias       string            `json:"alias,omitempty"`
 	Fingerprint string            `json:"fingerprint,omitempty"`
 	Properties  map[string]string `json:"properties,omitempty"`
@@ -72,15 +74,17 @@ type ContainerSource struct {
 	Secret      string            `json:"secret,omitempty"`
 	Protocol    string            `json:"protocol,omitempty"`
 
-	/* For "migration" and "copy" types */
+	// For "migration" and "copy" types
 	BaseImage string `json:"base-image,omitempty"`
 
-	/* For "migration" type */
+	// For "migration" type
 	Mode       string            `json:"mode,omitempty"`
 	Operation  string            `json:"operation,omitempty"`
 	Websockets map[string]string `json:"secrets,omitempty"`
-	Live       bool              `json:"live,omitempty"`
 
-	/* For "copy" type */
+	// API extension: container_push
+	Live bool `json:"live,omitempty"`
+
+	// For "copy" type
 	Source string `json:"source,omitempty"`
 }

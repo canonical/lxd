@@ -23,7 +23,9 @@ type ProfilePut struct {
 type Profile struct {
 	ProfilePut `yaml:",inline"`
 
-	Name   string   `json:"name"`
+	Name string `json:"name"`
+
+	// API extension: profile_usedby
 	UsedBy []string `json:"used_by"`
 }
 

@@ -12,12 +12,14 @@ type ContainerStatePut struct {
 type ContainerState struct {
 	Status     string                           `json:"status"`
 	StatusCode StatusCode                       `json:"status_code"`
-	CPU        ContainerStateCPU                `json:"cpu"`
 	Disk       map[string]ContainerStateDisk    `json:"disk"`
 	Memory     ContainerStateMemory             `json:"memory"`
 	Network    map[string]ContainerStateNetwork `json:"network"`
 	Pid        int64                            `json:"pid"`
 	Processes  int64                            `json:"processes"`
+
+	// API extension: container_cpu_time
+	CPU ContainerStateCPU `json:"cpu"`
 }
 
 // ContainerStateDisk represents the disk information section of a LXD container's state
