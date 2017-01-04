@@ -63,7 +63,7 @@ type ContainerSource struct {
 	Type        string `json:"type"`
 	Certificate string `json:"certificate"`
 
-	/* For "image" type */
+	// For "image" type
 	Alias       string            `json:"alias,omitempty"`
 	Fingerprint string            `json:"fingerprint,omitempty"`
 	Properties  map[string]string `json:"properties,omitempty"`
@@ -71,14 +71,14 @@ type ContainerSource struct {
 	Secret      string            `json:"secret,omitempty"`
 	Protocol    string            `json:"protocol,omitempty"`
 
-	/* For "migration" and "copy" types */
+	// For "migration" and "copy" types
 	BaseImage string `json:"base-image,omitempty"`
 
-	/* For "migration" type */
+	// For "migration" type
 	Mode       string            `json:"mode,omitempty"`
 	Operation  string            `json:"operation,omitempty"`
 	Websockets map[string]string `json:"secrets,omitempty"`
 
-	/* For "copy" type */
+	// For "copy" type
 	Source string `json:"source,omitempty"`
 }

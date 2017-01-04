@@ -15,18 +15,18 @@ type ResponseRaw struct {
 type Response struct {
 	Type ResponseType `json:"type"`
 
-	/* Valid only for Sync responses */
+	// Valid only for Sync responses
 	Status     string `json:"status"`
 	StatusCode int    `json:"status_code"`
 
-	/* Valid only for Async responses */
+	// Valid only for Async responses
 	Operation string `json:"operation"`
 
-	/* Valid only for Error responses */
+	// Valid only for Error responses
 	Code  int    `json:"error_code"`
 	Error string `json:"error"`
 
-	/* Valid for Sync and Error responses */
+	// Valid for Sync and Error responses
 	Metadata json.RawMessage `json:"metadata"`
 }
 
