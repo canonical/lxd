@@ -10,11 +10,15 @@ type NetworksPost struct {
 }
 
 // NetworkPost represents the fields required to rename a LXD network
+//
+// API extension: network
 type NetworkPost struct {
 	Name string `json:"name"`
 }
 
 // NetworkPut represents the modifiable fields of a LXD network
+//
+// API extension: network
 type NetworkPut struct {
 	Config map[string]string `json:"config"`
 }
@@ -23,10 +27,12 @@ type NetworkPut struct {
 type Network struct {
 	NetworkPut `yaml:",inline"`
 
-	Managed bool     `json:"managed"`
-	Name    string   `json:"name"`
-	Type    string   `json:"type"`
-	UsedBy  []string `json:"used_by"`
+	Name   string   `json:"name"`
+	Type   string   `json:"type"`
+	UsedBy []string `json:"used_by"`
+
+	// API extension: network
+	Managed bool `json:"managed"`
 }
 
 // Writable converts a full Network struct into a NetworkPut struct (filters read-only fields)

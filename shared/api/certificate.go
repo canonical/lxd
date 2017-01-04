@@ -9,6 +9,8 @@ type CertificatesPost struct {
 }
 
 // CertificatePut represents the modifiable fields of a LXD certificate
+//
+// API extension: certificate_update
 type CertificatePut struct {
 	Name string `json:"name"`
 	Type string `json:"type"`

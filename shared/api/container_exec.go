@@ -9,11 +9,13 @@ type ContainerExecControl struct {
 
 // ContainerExecPost represents a LXD container exec request
 type ContainerExecPost struct {
-	Command      []string          `json:"command"`
-	WaitForWS    bool              `json:"wait-for-websocket"`
-	RecordOutput bool              `json:"record-output"`
-	Interactive  bool              `json:"interactive"`
-	Environment  map[string]string `json:"environment"`
-	Width        int               `json:"width"`
-	Height       int               `json:"height"`
+	Command     []string          `json:"command"`
+	WaitForWS   bool              `json:"wait-for-websocket"`
+	Interactive bool              `json:"interactive"`
+	Environment map[string]string `json:"environment"`
+	Width       int               `json:"width"`
+	Height      int               `json:"height"`
+
+	// API extension: container_exec_recording
+	RecordOutput bool `json:"record-output"`
 }
