@@ -35,11 +35,13 @@ type Container struct {
 	CreatedAt       time.Time                    `json:"created_at"`
 	ExpandedConfig  map[string]string            `json:"expanded_config"`
 	ExpandedDevices map[string]map[string]string `json:"expanded_devices"`
-	LastUsedAt      time.Time                    `json:"last_used_at"`
 	Name            string                       `json:"name"`
 	Stateful        bool                         `json:"stateful"`
 	Status          string                       `json:"status"`
 	StatusCode      StatusCode                   `json:"status_code"`
+
+	// API extension: container_last_used_at
+	LastUsedAt time.Time `json:"last_used_at"`
 }
 
 // Writable converts a full Container struct into a ContainerPut struct (filters read-only fields)
@@ -79,7 +81,9 @@ type ContainerSource struct {
 	Mode       string            `json:"mode,omitempty"`
 	Operation  string            `json:"operation,omitempty"`
 	Websockets map[string]string `json:"secrets,omitempty"`
-	Live       bool              `json:"live,omitempty"`
+
+	// API extension: container_push
+	Live bool `json:"live,omitempty"`
 
 	// For "copy" type
 	Source string `json:"source,omitempty"`
