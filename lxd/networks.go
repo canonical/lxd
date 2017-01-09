@@ -720,7 +720,7 @@ func (n *network) Start() error {
 	}
 
 	// Start building the dnsmasq command line
-	dnsmasqCmd := []string{"dnsmasq", "-u", "root", "--strict-order", "--bind-interfaces",
+	dnsmasqCmd := []string{"dnsmasq", "-u", "nobody", "--strict-order", "--bind-interfaces",
 		fmt.Sprintf("--pid-file=%s", shared.VarPath("networks", n.name, "dnsmasq.pid")),
 		"--except-interface=lo",
 		fmt.Sprintf("--interface=%s", n.name)}
