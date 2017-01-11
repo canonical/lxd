@@ -674,7 +674,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				snapshots = header.Snapshots
 			}
 
-			if err := mySink(c.src.live, c.src.container, header.Snapshots, c.src.fsConn, srcIdmap); err != nil {
+			if err := mySink(c.src.live, c.src.container, snapshots, c.src.fsConn, srcIdmap); err != nil {
 				fsTransfer <- err
 				return
 			}
