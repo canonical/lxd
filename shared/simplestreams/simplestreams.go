@@ -212,7 +212,7 @@ func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 				}
 			}
 
-			downloads[fingerprint] = [][]string{[]string{metaPath, metaHash, "meta"}, []string{rootfsPath, rootfsHash, "root"}}
+			downloads[fingerprint] = [][]string{{metaPath, metaHash, "meta"}, {rootfsPath, rootfsHash, "root"}}
 			images = append(images, image)
 		}
 	}

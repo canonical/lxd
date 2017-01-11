@@ -43,7 +43,7 @@ type devLxdHandler struct {
 
 var configGet = devLxdHandler{"/1.0/config", func(c container, r *http.Request) *devLxdResponse {
 	filtered := []string{}
-	for k, _ := range c.ExpandedConfig() {
+	for k := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "user.") {
 			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
 		}
@@ -71,10 +71,10 @@ var metadataGet = devLxdHandler{"/1.0/meta-data", func(c container, r *http.Requ
 }}
 
 var handlers = []devLxdHandler{
-	devLxdHandler{"/", func(c container, r *http.Request) *devLxdResponse {
+	{"/", func(c container, r *http.Request) *devLxdResponse {
 		return okResponse([]string{"/1.0"}, "json")
 	}},
-	devLxdHandler{"/1.0", func(c container, r *http.Request) *devLxdResponse {
+	{"/1.0", func(c container, r *http.Request) *devLxdResponse {
 		return okResponse(shared.Jmap{"api_version": version.APIVersion}, "json")
 	}},
 	configGet,

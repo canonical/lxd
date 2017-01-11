@@ -173,25 +173,25 @@ func (k *daemonConfigKey) GetInt64() int64 {
 func daemonConfigInit(db *sql.DB) error {
 	// Set all the keys
 	daemonConfig = map[string]*daemonConfigKey{
-		"core.https_address":         &daemonConfigKey{valueType: "string", setter: daemonConfigSetAddress},
-		"core.https_allowed_headers": &daemonConfigKey{valueType: "string"},
-		"core.https_allowed_methods": &daemonConfigKey{valueType: "string"},
-		"core.https_allowed_origin":  &daemonConfigKey{valueType: "string"},
-		"core.proxy_http":            &daemonConfigKey{valueType: "string", setter: daemonConfigSetProxy},
-		"core.proxy_https":           &daemonConfigKey{valueType: "string", setter: daemonConfigSetProxy},
-		"core.proxy_ignore_hosts":    &daemonConfigKey{valueType: "string", setter: daemonConfigSetProxy},
-		"core.trust_password":        &daemonConfigKey{valueType: "string", hiddenValue: true, setter: daemonConfigSetPassword},
+		"core.https_address":         {valueType: "string", setter: daemonConfigSetAddress},
+		"core.https_allowed_headers": {valueType: "string"},
+		"core.https_allowed_methods": {valueType: "string"},
+		"core.https_allowed_origin":  {valueType: "string"},
+		"core.proxy_http":            {valueType: "string", setter: daemonConfigSetProxy},
+		"core.proxy_https":           {valueType: "string", setter: daemonConfigSetProxy},
+		"core.proxy_ignore_hosts":    {valueType: "string", setter: daemonConfigSetProxy},
+		"core.trust_password":        {valueType: "string", hiddenValue: true, setter: daemonConfigSetPassword},
 
-		"images.auto_update_cached":    &daemonConfigKey{valueType: "bool", defaultValue: "true"},
-		"images.auto_update_interval":  &daemonConfigKey{valueType: "int", defaultValue: "6"},
-		"images.compression_algorithm": &daemonConfigKey{valueType: "string", validator: daemonConfigValidateCompression, defaultValue: "gzip"},
-		"images.remote_cache_expiry":   &daemonConfigKey{valueType: "int", defaultValue: "10", trigger: daemonConfigTriggerExpiry},
+		"images.auto_update_cached":    {valueType: "bool", defaultValue: "true"},
+		"images.auto_update_interval":  {valueType: "int", defaultValue: "6"},
+		"images.compression_algorithm": {valueType: "string", validator: daemonConfigValidateCompression, defaultValue: "gzip"},
+		"images.remote_cache_expiry":   {valueType: "int", defaultValue: "10", trigger: daemonConfigTriggerExpiry},
 
-		"storage.lvm_fstype":        &daemonConfigKey{valueType: "string", defaultValue: "ext4", validValues: []string{"ext4", "xfs"}},
-		"storage.lvm_thinpool_name": &daemonConfigKey{valueType: "string", defaultValue: "LXDPool", validator: storageLVMValidateThinPoolName},
-		"storage.lvm_vg_name":       &daemonConfigKey{valueType: "string", validator: storageLVMValidateVolumeGroupName, setter: daemonConfigSetStorage},
-		"storage.lvm_volume_size":   &daemonConfigKey{valueType: "string", defaultValue: "10GiB"},
-		"storage.zfs_pool_name":     &daemonConfigKey{valueType: "string", validator: storageZFSValidatePoolName, setter: daemonConfigSetStorage},
+		"storage.lvm_fstype":        {valueType: "string", defaultValue: "ext4", validValues: []string{"ext4", "xfs"}},
+		"storage.lvm_thinpool_name": {valueType: "string", defaultValue: "LXDPool", validator: storageLVMValidateThinPoolName},
+		"storage.lvm_vg_name":       {valueType: "string", validator: storageLVMValidateVolumeGroupName, setter: daemonConfigSetStorage},
+		"storage.lvm_volume_size":   {valueType: "string", defaultValue: "10GiB"},
+		"storage.zfs_pool_name":     {valueType: "string", validator: storageZFSValidatePoolName, setter: daemonConfigSetStorage},
 	}
 
 	// Load the values from the DB
@@ -307,7 +307,7 @@ func daemonConfigSetProxy(d *Daemon, key string, value string) (string, error) {
 
 	// Clear the simplestreams cache as it's tied to the old proxy config
 	imageStreamCacheLock.Lock()
-	for k, _ := range imageStreamCache {
+	for k := range imageStreamCache {
 		delete(imageStreamCache, k)
 	}
 	imageStreamCacheLock.Unlock()

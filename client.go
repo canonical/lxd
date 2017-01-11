@@ -2195,7 +2195,7 @@ func (c *Client) ContainerDeviceDelete(container, devname string) (*api.Response
 		return nil, err
 	}
 
-	for n, _ := range st.Devices {
+	for n := range st.Devices {
 		if n == devname {
 			delete(st.Devices, n)
 			return c.put(fmt.Sprintf("containers/%s", container), st, api.AsyncResponse)
@@ -2266,7 +2266,7 @@ func (c *Client) ProfileDeviceDelete(profile, devname string) (*api.Response, er
 		return nil, err
 	}
 
-	for n, _ := range st.Devices {
+	for n := range st.Devices {
 		if n == devname {
 			delete(st.Devices, n)
 			return c.put(fmt.Sprintf("profiles/%s", profile), st, api.SyncResponse)

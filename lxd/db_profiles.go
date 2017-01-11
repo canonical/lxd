@@ -110,7 +110,7 @@ func dbProfileCreateDefault(db *sql.DB) error {
 
 	// TODO: We should scan for bridges and use the best available as default.
 	devices := map[string]map[string]string{
-		"eth0": map[string]string{
+		"eth0": {
 			"name":    "eth0",
 			"type":    "nic",
 			"nictype": "bridged",

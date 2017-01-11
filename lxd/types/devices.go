@@ -33,13 +33,13 @@ func (list Devices) Contains(k string, d Device) bool {
 
 func deviceEquals(old Device, d Device) bool {
 	// Check for any difference and addition/removal of properties
-	for k, _ := range d {
+	for k := range d {
 		if d[k] != old[k] {
 			return false
 		}
 	}
 
-	for k, _ := range old {
+	for k := range old {
 		if d[k] != old[k] {
 			return false
 		}
