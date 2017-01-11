@@ -115,7 +115,7 @@ func dbProfileCreateDefault(db *sql.DB) error {
 			"type":    "nic",
 			"nictype": "bridged",
 			"parent":  "lxdbr0"}}
-	id, err := dbProfileCreate(db, "default", "Default LXD profile", map[string]string{}, devices)
+	_, err := dbProfileCreate(db, "default", "Default LXD profile", map[string]string{}, devices)
 	if err != nil {
 		return err
 	}
