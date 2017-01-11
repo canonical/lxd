@@ -477,6 +477,10 @@ func (c *networkCmd) doNetworkShow(client *lxd.Client, name string) error {
 	}
 
 	data, err := yaml.Marshal(&network)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("%s", data)
 
 	return nil
