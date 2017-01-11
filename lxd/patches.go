@@ -26,8 +26,8 @@ import (
 */
 
 var patches = []patch{
-	patch{name: "invalid_profile_names", run: patchInvalidProfileNames},
-	patch{name: "leftover_profile_config", run: patchLeftoverProfileConfig},
+	{name: "invalid_profile_names", run: patchInvalidProfileNames},
+	{name: "leftover_profile_config", run: patchLeftoverProfileConfig},
 }
 
 type patch struct {

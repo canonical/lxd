@@ -1210,7 +1210,7 @@ func loadRawValues(p string) (map[string]string, error) {
 		"devnum":    "",
 	}
 
-	for k, _ := range values {
+	for k := range values {
 		v, err := ioutil.ReadFile(path.Join(p, k))
 		if err != nil {
 			return nil, err

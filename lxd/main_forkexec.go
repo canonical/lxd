@@ -63,7 +63,7 @@ func cmdForkExec(args []string) (int, error) {
 	cmd := []string{}
 
 	section := ""
-	for _, arg := range args[5:len(args)] {
+	for _, arg := range args[5:] {
 		// The "cmd" section must come last as it may contain a --
 		if arg == "--" && section != "cmd" {
 			section = ""

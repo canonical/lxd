@@ -116,7 +116,7 @@ func LoadConfig(path string) (*Config, error) {
 
 // SaveConfig writes the provided configuration to the config file.
 func SaveConfig(c *Config, fname string) error {
-	for k, _ := range StaticRemotes {
+	for k := range StaticRemotes {
 		delete(c.Remotes, k)
 	}
 
