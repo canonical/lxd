@@ -1027,6 +1027,10 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		}
 
 		req, err = http.NewRequest("POST", uri, progress)
+		if err != nil {
+			return "", err
+		}
+
 		req.Header.Set("Content-Type", w.FormDataContentType())
 	} else {
 		fImage, err = os.Open(imageFile)
@@ -1049,6 +1053,10 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		}
 
 		req, err = http.NewRequest("POST", uri, progress)
+		if err != nil {
+			return "", err
+		}
+
 		req.Header.Set("X-LXD-filename", filepath.Base(imageFile))
 		req.Header.Set("Content-Type", "application/octet-stream")
 	}
