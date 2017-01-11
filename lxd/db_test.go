@@ -98,6 +98,9 @@ func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
 	// Make sure there are 0 containers_devices_config entries left.
 	statements = `SELECT count(*) FROM containers_devices_config;`
 	err = db.QueryRow(statements).Scan(&count)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if count != 0 {
 		t.Errorf("Deleting a container didn't delete the associated container_devices_config! There are %d left", count)
@@ -150,6 +153,9 @@ func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
 	// Make sure there are 0 profiles_devices_config entries left.
 	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 4;`
 	err = db.QueryRow(statements).Scan(&count)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if count != 0 {
 		t.Errorf("Deleting a profile didn't delete the related profiles_devices_config! There are %d left", count)
@@ -185,6 +191,9 @@ func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
 	// Make sure there are 0 images_properties entries left.
 	statements = `SELECT count(*) FROM images_properties;`
 	err = db.QueryRow(statements).Scan(&count)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if count != 0 {
 		t.Errorf("Deleting an image didn't delete the related images_properties! There are %d left", count)
@@ -284,6 +293,9 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles;`
 	err = d.db.QueryRow(statements).Scan(&count)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if count != 0 {
 		t.Errorf("Deleting a container didn't delete the profile association! There are %d left", count)
@@ -391,6 +403,9 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	// Make sure there are 0 containers_config entries left.
 	statements = `SELECT count(*) FROM containers_config;`
 	err = db.QueryRow(statements).Scan(&count)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if count != 0 {
 		t.Fatal("updateDb did not delete orphaned child entries after adding ON DELETE CASCADE!")
