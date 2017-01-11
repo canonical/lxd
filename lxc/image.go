@@ -360,6 +360,11 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		} else {
 			fmt.Printf("    " + i18n.G("Expires: never") + "\n")
 		}
+		if info.LastUsedAt.UTC().Unix() != 0 {
+			fmt.Printf("    "+i18n.G("Last used: %s")+"\n", info.LastUsedAt.UTC().Format(layout))
+		} else {
+			fmt.Printf("    " + i18n.G("Last used: never") + "\n")
+		}
 		fmt.Println(i18n.G("Properties:"))
 		for key, value := range info.Properties {
 			fmt.Printf("    %s: %s\n", key, value)
