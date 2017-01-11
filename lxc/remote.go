@@ -38,11 +38,11 @@ func (c *remoteCmd) usage() string {
 		`Manage remote LXD servers.
 
 lxc remote add [<remote>] <IP|FQDN|URL> [--accept-certificate] [--password=PASSWORD]
-                                        [--public] [--protocol=PROTOCOL]    Add the remote <name> at <url>.
-lxc remote remove <remote>                                                  Remove the remote <name>.
+                                        [--public] [--protocol=PROTOCOL]    Add the remote <remote> at <url>.
+lxc remote remove <remote>                                                  Remove the remote <remote>.
 lxc remote list                                                             List all remotes.
-lxc remote rename <old name> <new name>                                     Rename remote <old> to <new>.
-lxc remote set-url <remote> <url>                                           Update <name>'s url to <url>.
+lxc remote rename <old name> <new name>                                     Rename remote <old name> to <new name>.
+lxc remote set-url <remote> <url>                                           Update <remote>'s url to <url>.
 lxc remote set-default <remote>                                             Set the default remote.
 lxc remote get-default                                                      Print the default remote.`)
 }
