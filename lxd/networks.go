@@ -1150,7 +1150,7 @@ func (n *network) Start() error {
 			}
 		}
 
-		// Start dnsmasq (occasionaly races, try a few times)
+		// Start dnsmasq (occasionally races, try a few times)
 		output, err := tryExec(dnsmasqCmd[0], dnsmasqCmd[1:]...)
 		if err != nil {
 			return fmt.Errorf("Failed to run: %s: %s", strings.Join(dnsmasqCmd, " "), strings.TrimSpace(string(output)))

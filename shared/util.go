@@ -726,7 +726,7 @@ func GetByteSizeString(input int64, precision uint) string {
 }
 
 // RemoveDuplicatesFromString removes all duplicates of the string 'sep'
-// from the specified string 's'.  Leading and trailing occurences of sep
+// from the specified string 's'.  Leading and trailing occurrences of sep
 // are NOT removed (duplicate leading/trailing are).  Performs poorly if
 // there are multiple consecutive redundant separators.
 func RemoveDuplicatesFromString(s string, sep string) string {

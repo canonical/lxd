@@ -2804,7 +2804,7 @@ func writeBackupFile(c container) error {
 		return os.ErrNotExist
 	}
 
-	/* deal with the container occasionaly not being monuted */
+	/* deal with the container occasionally not being monuted */
 	if !shared.PathExists(c.RootfsPath()) {
 		shared.LogWarn("Unable to update backup.yaml at this time.", log.Ctx{"name": c.Name()})
 		return nil

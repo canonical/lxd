@@ -35,7 +35,7 @@ import (
    The CPU and I/O load of publish is such that running multiple ones in
    parallel takes longer than running them serially.
 
-   Additionaly, publishing the same container or container snapshot
+   Additionally, publishing the same container or container snapshot
    twice would lead to storage problem, not to mention a conflict at the
    end for whichever finishes last. */
 var imagePublishLock sync.Mutex
