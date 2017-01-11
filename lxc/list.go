@@ -134,7 +134,7 @@ func (c *listCmd) dotPrefixMatch(short string, full string) bool {
 		return false
 	}
 
-	for i, _ := range fullMembs {
+	for i := range fullMembs {
 		if !strings.HasPrefix(fullMembs[i], shortMembs[i]) {
 			return false
 		}
@@ -422,17 +422,17 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 
 func (c *listCmd) parseColumns() ([]column, error) {
 	columnsShorthandMap := map[rune]column{
-		'4': column{i18n.G("IPV4"), c.IP4ColumnData, true, false},
-		'6': column{i18n.G("IPV6"), c.IP6ColumnData, true, false},
-		'a': column{i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
-		'c': column{i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
-		'l': column{i18n.G("LAST USED AT"), c.LastUsedColumnData, false, false},
-		'n': column{i18n.G("NAME"), c.nameColumnData, false, false},
-		'p': column{i18n.G("PID"), c.PIDColumnData, true, false},
-		'P': column{i18n.G("PROFILES"), c.ProfilesColumnData, false, false},
-		'S': column{i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
-		's': column{i18n.G("STATE"), c.statusColumnData, false, false},
-		't': column{i18n.G("TYPE"), c.typeColumnData, false, false},
+		'4': {i18n.G("IPV4"), c.IP4ColumnData, true, false},
+		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
+		'a': {i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
+		'c': {i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
+		'l': {i18n.G("LAST USED AT"), c.LastUsedColumnData, false, false},
+		'n': {i18n.G("NAME"), c.nameColumnData, false, false},
+		'p': {i18n.G("PID"), c.PIDColumnData, true, false},
+		'P': {i18n.G("PROFILES"), c.ProfilesColumnData, false, false},
+		'S': {i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
+		's': {i18n.G("STATE"), c.statusColumnData, false, false},
+		't': {i18n.G("TYPE"), c.typeColumnData, false, false},
 	}
 
 	if c.fast {

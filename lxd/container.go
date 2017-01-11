@@ -233,7 +233,7 @@ func containerValidDevices(devices types.Devices, profile bool, expanded bool) e
 			return fmt.Errorf("Invalid device type for device '%s'", name)
 		}
 
-		for k, _ := range m {
+		for k := range m {
 			if !containerValidDeviceConfigKey(m["type"], k) {
 				return fmt.Errorf("Invalid device configuration key for %s: %s", m["type"], k)
 			}

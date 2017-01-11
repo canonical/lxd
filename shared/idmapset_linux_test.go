@@ -6,7 +6,7 @@ import (
 )
 
 func TestIdmapSetAddSafe_split(t *testing.T) {
-	orig := IdmapSet{Idmap: []IdmapEntry{IdmapEntry{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
+	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
 
 	if err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 500, Nsid: 500, Maprange: 10}); err != nil {
 		t.Error(err)
@@ -35,7 +35,7 @@ func TestIdmapSetAddSafe_split(t *testing.T) {
 }
 
 func TestIdmapSetAddSafe_lower(t *testing.T) {
-	orig := IdmapSet{Idmap: []IdmapEntry{IdmapEntry{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
+	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
 
 	if err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 500, Nsid: 0, Maprange: 10}); err != nil {
 		t.Error(err)
@@ -59,7 +59,7 @@ func TestIdmapSetAddSafe_lower(t *testing.T) {
 }
 
 func TestIdmapSetAddSafe_upper(t *testing.T) {
-	orig := IdmapSet{Idmap: []IdmapEntry{IdmapEntry{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
+	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
 
 	if err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 500, Nsid: 995, Maprange: 10}); err != nil {
 		t.Error(err)
@@ -83,7 +83,7 @@ func TestIdmapSetAddSafe_upper(t *testing.T) {
 }
 
 func TestIdmapSetIntersects(t *testing.T) {
-	orig := IdmapSet{Idmap: []IdmapEntry{IdmapEntry{Isuid: true, Hostid: 165536, Nsid: 0, Maprange: 65536}}}
+	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 165536, Nsid: 0, Maprange: 65536}}}
 
 	if !orig.Intersects(IdmapEntry{Isuid: true, Hostid: 231071, Nsid: 0, Maprange: 65536}) {
 		t.Error("ranges don't intersect")

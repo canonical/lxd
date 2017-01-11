@@ -413,7 +413,7 @@ func ReadLastNLines(f *os.File, lines int) (string, error) {
 		}
 
 		if lines < 0 {
-			return string(data[i+1 : len(data)]), nil
+			return string(data[i+1:]), nil
 		}
 	}
 

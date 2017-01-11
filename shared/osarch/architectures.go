@@ -28,13 +28,13 @@ var architectureNames = map[int]string{
 }
 
 var architectureAliases = map[int][]string{
-	ARCH_32BIT_INTEL_X86:             []string{"i386"},
-	ARCH_64BIT_INTEL_X86:             []string{"amd64"},
-	ARCH_32BIT_ARMV7_LITTLE_ENDIAN:   []string{"armel", "armhf"},
-	ARCH_64BIT_ARMV8_LITTLE_ENDIAN:   []string{"arm64"},
-	ARCH_32BIT_POWERPC_BIG_ENDIAN:    []string{"powerpc"},
-	ARCH_64BIT_POWERPC_BIG_ENDIAN:    []string{"powerpc64"},
-	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: []string{"ppc64el"},
+	ARCH_32BIT_INTEL_X86:             {"i386"},
+	ARCH_64BIT_INTEL_X86:             {"amd64"},
+	ARCH_32BIT_ARMV7_LITTLE_ENDIAN:   {"armel", "armhf"},
+	ARCH_64BIT_ARMV8_LITTLE_ENDIAN:   {"arm64"},
+	ARCH_32BIT_POWERPC_BIG_ENDIAN:    {"powerpc"},
+	ARCH_64BIT_POWERPC_BIG_ENDIAN:    {"powerpc64"},
+	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: {"ppc64el"},
 }
 
 var architecturePersonalities = map[int]string{
@@ -49,14 +49,14 @@ var architecturePersonalities = map[int]string{
 }
 
 var architectureSupportedPersonalities = map[int][]int{
-	ARCH_32BIT_INTEL_X86:             []int{},
-	ARCH_64BIT_INTEL_X86:             []int{ARCH_32BIT_INTEL_X86},
-	ARCH_32BIT_ARMV7_LITTLE_ENDIAN:   []int{},
-	ARCH_64BIT_ARMV8_LITTLE_ENDIAN:   []int{ARCH_32BIT_ARMV7_LITTLE_ENDIAN},
-	ARCH_32BIT_POWERPC_BIG_ENDIAN:    []int{},
-	ARCH_64BIT_POWERPC_BIG_ENDIAN:    []int{ARCH_32BIT_POWERPC_BIG_ENDIAN},
-	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: []int{},
-	ARCH_64BIT_S390_BIG_ENDIAN:       []int{},
+	ARCH_32BIT_INTEL_X86:             {},
+	ARCH_64BIT_INTEL_X86:             {ARCH_32BIT_INTEL_X86},
+	ARCH_32BIT_ARMV7_LITTLE_ENDIAN:   {},
+	ARCH_64BIT_ARMV8_LITTLE_ENDIAN:   {ARCH_32BIT_ARMV7_LITTLE_ENDIAN},
+	ARCH_32BIT_POWERPC_BIG_ENDIAN:    {},
+	ARCH_64BIT_POWERPC_BIG_ENDIAN:    {ARCH_32BIT_POWERPC_BIG_ENDIAN},
+	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: {},
+	ARCH_64BIT_S390_BIG_ENDIAN:       {},
 }
 
 const ArchitectureDefault = "x86_64"
