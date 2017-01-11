@@ -318,6 +318,10 @@ func (c *networkCmd) doNetworkEdit(client *lxd.Client, name string) error {
 		return err
 	}
 
+	if !network.Managed {
+		return fmt.Errorf(i18n.G("Only managed networks can be modified."))
+	}
+
 	data, err := yaml.Marshal(&network)
 	if err != nil {
 		return err
@@ -441,6 +445,10 @@ func (c *networkCmd) doNetworkSet(client *lxd.Client, name string, args []string
 		return err
 	}
 
+	if !network.Managed {
+		return fmt.Errorf(i18n.G("Only managed networks can be modified."))
+	}
+
 	key := args[0]
 	var value string
 	if len(args) < 2 {
@@ -452,7 +460,7 @@ func (c *networkCmd) doNetworkSet(client *lxd.Client, name string, args []string
 	if !termios.IsTerminal(int(syscall.Stdin)) && value == "-" {
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			return fmt.Errorf("Can't read from stdin: %s", err)
+			return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
 		}
 		value = string(buf[:])
 	}
