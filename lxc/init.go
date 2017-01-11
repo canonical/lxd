@@ -125,6 +125,7 @@ func (c *initCmd) massage_args() {
 		initRequestedEmptyProfiles = true
 		newargs := os.Args[0 : l-2]
 		newargs = append(newargs, os.Args[l-1])
+		os.Args = newargs
 		return
 	}
 }
