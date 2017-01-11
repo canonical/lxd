@@ -187,6 +187,10 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 			tmpGpu.minor = minorInt
 
 			isCard, err := regexp.MatchString("^card[0-9]+", drmEnt.Name())
+			if err != nil {
+				continue
+			}
+
 			if isCard {
 				// If it is a card it's minor number will be its id.
 				tmpGpu.id = strconv.Itoa(minorInt)
