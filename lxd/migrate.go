@@ -793,7 +793,8 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			} else {
 				fsConn = c.src.fsConn
 			}
-			if err := mySink(live, c.src.container, header.Snapshots, fsConn, srcIdmap, migrateOp); err != nil {
+
+			if err := mySink(live, c.src.container, snapshots, fsConn, srcIdmap, migrateOp); err != nil {
 				fsTransfer <- err
 				return
 			}
