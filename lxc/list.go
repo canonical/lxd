@@ -495,7 +495,7 @@ func (c *listCmd) parseColumns() ([]column, error) {
 			column.Data = func(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 				v, ok := cInfo.Config[k]
 				if !ok {
-					v, ok = cInfo.ExpandedConfig[k]
+					v, _ = cInfo.ExpandedConfig[k]
 				}
 
 				// Truncate the data according to the max width.  A negative max width
