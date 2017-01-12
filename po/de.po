@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-01-11 17:32+0200\n"
+"POT-Creation-Date: 2017-01-24 18:22-0500\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -420,7 +420,7 @@ msgstr "Gerät %s wurde zu %s hinzugefügt\n"
 msgid "Device %s removed from %s"
 msgstr "Gerät %s wurde von %s entfernt\n"
 
-#: lxc/list.go:572
+#: lxc/list.go:574
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -1274,7 +1274,7 @@ msgstr ""
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
-#: lxc/list.go:574
+#: lxc/list.go:576
 msgid "PERSISTENT"
 msgstr ""
 

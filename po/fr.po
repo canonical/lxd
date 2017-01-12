@@ -7,14 +7,17 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-01-11 17:32+0200\n"
-"PO-Revision-Date: 2016-12-21 11:37+0100\n"
-"Last-Translator: Olivier Le Monnier <olm@unicaen.fr>\n"
-"Language-Team: French <fr@li.org>\n"
-"Language: French\n"
+"POT-Creation-Date: 2017-01-24 18:22-0500\n"
+"PO-Revision-Date: 2017-01-12 17:32+0000\n"
+"Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
+"Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
+"lxd/fr/>\n"
+"Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+"X-Generator: Weblate 2.11-dev\n"
 
 #: lxc/info.go:154
 msgid "  CPU usage:"
@@ -428,7 +431,7 @@ msgstr "Périphérique %s ajouté à %s"
 msgid "Device %s removed from %s"
 msgstr "Périphérique %s retiré de %s"
 
-#: lxc/list.go:572
+#: lxc/list.go:574
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
@@ -573,7 +576,6 @@ msgid "Importing the image: %s"
 msgstr "Import de l'image : %s"
 
 #: lxc/init.go:74
-#, fuzzy
 msgid ""
 "Initialize a container from a particular image.\n"
 "\n"
@@ -599,7 +601,7 @@ msgstr ""
 "Utiliser \"-p\" sans argument résultera en aucun profil.\n"
 "\n"
 "Exemple :\n"
-"    lxc init ubuntu u1"
+"    lxc init ubuntu:16.04 u1"
 
 #: lxc/remote.go:135
 #, c-format
@@ -641,13 +643,13 @@ msgid "LXD socket not found; is LXD installed and running?"
 msgstr "Socket LXD introuvable ; LXD est-il installé et actif ?"
 
 #: lxc/image.go:360
-#, fuzzy, c-format
+#, c-format
 msgid "Last used: %s"
-msgstr "État : %s"
+msgstr "Dernière utilisation : %s"
 
 #: lxc/image.go:362
 msgid "Last used: never"
-msgstr ""
+msgstr "Dernière utilisation : jamais"
 
 #: lxc/launch.go:23
 msgid ""
@@ -1168,7 +1170,6 @@ msgstr ""
 "lxc network detach-profile [<remote>:]<network> <container> [device name]"
 
 #: lxc/remote.go:37
-#, fuzzy
 msgid ""
 "Manage remote LXD servers.\n"
 "\n"
@@ -1455,7 +1456,7 @@ msgstr "Le réseau %s a été créé"
 #: lxc/network.go:293
 #, c-format
 msgid "Network %s deleted"
-msgstr "Le réseau % a été supprimé"
+msgstr "Le réseau %s a été supprimé"
 
 #: lxc/init.go:142 lxc/init.go:143
 msgid "Network name"
@@ -1487,7 +1488,7 @@ msgstr "Seul https:// est supporté par l'import d'images distantes."
 
 #: lxc/network.go:322 lxc/network.go:449
 msgid "Only managed networks can be modified."
-msgstr ""
+msgstr "Seuls les réseaux gérés par LXD peuvent être modifiés."
 
 #: lxc/help.go:63 lxc/main.go:112
 msgid "Options:"
@@ -1502,7 +1503,7 @@ msgstr "Le résultat est dans %s"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "Surcharger le mode terminal (auto, interactif ou non-interactif)"
 
-#: lxc/list.go:574
+#: lxc/list.go:576
 msgid "PERSISTENT"
 msgstr "PERSISTANT"
 
@@ -1631,7 +1632,7 @@ msgstr "Serveur d'images public"
 #: lxc/image.go:347
 #, c-format
 msgid "Public: %s"
-msgstr "Public :"
+msgstr "Public : %s"
 
 #: lxc/publish.go:27
 msgid ""
