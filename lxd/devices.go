@@ -187,6 +187,10 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 			tmpGpu.minor = minorInt
 
 			isCard, err := regexp.MatchString("^card[0-9]+", drmEnt.Name())
+			if err != nil {
+				continue
+			}
+
 			if isCard {
 				// If it is a card it's minor number will be its id.
 				tmpGpu.id = strconv.Itoa(minorInt)
@@ -1210,7 +1214,7 @@ func loadRawValues(p string) (map[string]string, error) {
 		"devnum":    "",
 	}
 
-	for k, _ := range values {
+	for k := range values {
 		v, err := ioutil.ReadFile(path.Join(p, k))
 		if err != nil {
 			return nil, err

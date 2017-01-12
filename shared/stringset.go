@@ -5,7 +5,7 @@ package shared
 type StringSet map[string]bool
 
 func (ss StringSet) IsSubset(oss StringSet) bool {
-	for k, _ := range map[string]bool(ss) {
+	for k := range map[string]bool(ss) {
 		if _, ok := map[string]bool(oss)[k]; !ok {
 			return false
 		}

@@ -315,6 +315,10 @@ func (c *profileCmd) doProfileShow(client *lxd.Client, p string) error {
 	}
 
 	data, err := yaml.Marshal(&profile)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("%s", data)
 
 	return nil

@@ -257,7 +257,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	run := func(op *operation) error {
-		// And finaly run the migration.
+		// And finally run the migration.
 		err = sink.Do(op)
 		if err != nil {
 			shared.LogError("Error during migration sink", log.Ctx{"err": err})

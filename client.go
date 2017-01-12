@@ -998,6 +998,10 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		}
 
 		req, err = http.NewRequest("POST", uri, progress)
+		if err != nil {
+			return "", err
+		}
+
 		req.Header.Set("Content-Type", w.FormDataContentType())
 	} else {
 		fImage, err = os.Open(imageFile)
@@ -1020,6 +1024,10 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 		}
 
 		req, err = http.NewRequest("POST", uri, progress)
+		if err != nil {
+			return "", err
+		}
+
 		req.Header.Set("X-LXD-filename", filepath.Base(imageFile))
 		req.Header.Set("Content-Type", "application/octet-stream")
 	}
@@ -2505,7 +2513,7 @@ func (c *Client) ContainerDeviceDelete(container, devname string) (*api.Response
 		return nil, err
 	}
 
-	for n, _ := range st.Devices {
+	for n := range st.Devices {
 		if n == devname {
 			delete(st.Devices, n)
 			return c.put(fmt.Sprintf("containers/%s", container), st, api.AsyncResponse)
@@ -2576,7 +2584,7 @@ func (c *Client) ProfileDeviceDelete(profile, devname string) (*api.Response, er
 		return nil, err
 	}
 
-	for n, _ := range st.Devices {
+	for n := range st.Devices {
 		if n == devname {
 			delete(st.Devices, n)
 			return c.put(fmt.Sprintf("profiles/%s", profile), st, api.SyncResponse)

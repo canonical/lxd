@@ -344,6 +344,9 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 			brief := config.Writable()
 			data, err = yaml.Marshal(&brief)
+			if err != nil {
+				return err
+			}
 		} else {
 			var brief api.ContainerPut
 			if shared.IsSnapshot(container) {
