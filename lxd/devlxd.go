@@ -43,7 +43,7 @@ type devLxdHandler struct {
 
 var configGet = devLxdHandler{"/1.0/config", func(c container, r *http.Request) *devLxdResponse {
 	filtered := []string{}
-	for k, _ := range c.ExpandedConfig() {
+	for k := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "user.") {
 			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
 		}
@@ -71,10 +71,10 @@ var metadataGet = devLxdHandler{"/1.0/meta-data", func(c container, r *http.Requ
 }}
 
 var handlers = []devLxdHandler{
-	devLxdHandler{"/", func(c container, r *http.Request) *devLxdResponse {
+	{"/", func(c container, r *http.Request) *devLxdResponse {
 		return okResponse([]string{"/1.0"}, "json")
 	}},
-	devLxdHandler{"/1.0", func(c container, r *http.Request) *devLxdResponse {
+	{"/1.0", func(c container, r *http.Request) *devLxdResponse {
 		return okResponse(shared.Jmap{"api_version": version.APIVersion}, "json")
 	}},
 	configGet,
@@ -269,7 +269,7 @@ func getCred(conn *net.UnixConn) (*ucred, error) {
 /*
  * As near as I can tell, there is no nice way of extracting an underlying
  * net.Conn (or in our case, net.UnixConn) from an http.Request or
- * ResponseWriter without hijacking it [1]. Since we want to send and recieve
+ * ResponseWriter without hijacking it [1]. Since we want to send and receive
  * unix creds to figure out which container this request came from, we need to
  * do this.
  *
@@ -301,7 +301,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 	 *    an lxc monitor process and extract its name from there.
 	 *
 	 * 2. If this fails, it may be that someone did an `lxc exec foo bash`,
-	 *    so the process isn't actually a decendant of the container's
+	 *    so the process isn't actually a descendant of the container's
 	 *    init. In this case we just look through all the containers until
 	 *    we find an init with a matching pid namespace. This is probably
 	 *    uncommon, so hopefully the slowness won't hurt us.

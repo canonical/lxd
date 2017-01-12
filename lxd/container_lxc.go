@@ -640,8 +640,8 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 
 	mkIdmap := func(offset int, size int) *shared.IdmapSet {
 		set := &shared.IdmapSet{Idmap: []shared.IdmapEntry{
-			shared.IdmapEntry{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
-			shared.IdmapEntry{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
+			{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
+			{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
 		}}
 
 		for _, ent := range rawMaps {
@@ -1757,7 +1757,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 	}
 
-	for k, _ := range c.localConfig {
+	for k := range c.localConfig {
 		// We only care about volatile
 		if !strings.HasPrefix(k, "volatile.") {
 			continue
@@ -2804,7 +2804,7 @@ func writeBackupFile(c container) error {
 		return os.ErrNotExist
 	}
 
-	/* deal with the container occasionaly not being monuted */
+	/* deal with the container occasionally not being monuted */
 	if !shared.PathExists(c.RootfsPath()) {
 		shared.LogWarn("Unable to update backup.yaml at this time.", log.Ctx{"name": c.Name()})
 		return nil
@@ -3014,7 +3014,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 	// Diff the configurations
 	changedConfig := []string{}
-	for key, _ := range oldExpandedConfig {
+	for key := range oldExpandedConfig {
 		if oldExpandedConfig[key] != c.expandedConfig[key] {
 			if !shared.StringInSlice(key, changedConfig) {
 				changedConfig = append(changedConfig, key)
@@ -3022,7 +3022,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 	}
 
-	for key, _ := range c.expandedConfig {
+	for key := range c.expandedConfig {
 		if oldExpandedConfig[key] != c.expandedConfig[key] {
 			if !shared.StringInSlice(key, changedConfig) {
 				changedConfig = append(changedConfig, key)

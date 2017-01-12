@@ -151,7 +151,7 @@ func networkGetIP(subnet *net.IPNet, host int64) net.IP {
 func networkGetTunnels(config map[string]string) []string {
 	tunnels := []string{}
 
-	for k, _ := range config {
+	for k := range config {
 		if !strings.HasPrefix(k, "tunnel.") {
 			continue
 		}

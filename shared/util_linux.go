@@ -413,7 +413,7 @@ func ReadLastNLines(f *os.File, lines int) (string, error) {
 		}
 
 		if lines < 0 {
-			return string(data[i+1 : len(data)]), nil
+			return string(data[i+1:]), nil
 		}
 	}
 
@@ -642,7 +642,7 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 					// still be handling a pure POLLIN event from a write prior to the childs
 					// exit. But the child might have exited right before and performed
 					// atomic.StoreInt32() to update attachedChildIsDead before we
-					// performed our atomic.LoadInt32(). This means we accidently hit this
+					// performed our atomic.LoadInt32(). This means we accidentally hit this
 					// codepath and are misinformed about the available poll() events. So we
 					// need to perform a non-blocking poll() again to exclude that case:
 					//

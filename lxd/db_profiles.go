@@ -108,7 +108,7 @@ func dbProfileCreateDefault(db *sql.DB) error {
 		return nil
 	}
 
-	id, err := dbProfileCreate(db, "default", "Default LXD profile", map[string]string{}, types.Devices{})
+	_, err := dbProfileCreate(db, "default", "Default LXD profile", map[string]string{}, types.Devices{})
 	if err != nil {
 		return err
 	}

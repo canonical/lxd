@@ -40,15 +40,15 @@ func TestExpandAliases(t *testing.T) {
 	}
 
 	testcases := []aliasTestcase{
-		aliasTestcase{
+		{
 			input:    []string{"lxc", "list"},
 			expected: []string{"lxc", "list"},
 		},
-		aliasTestcase{
+		{
 			input:    []string{"lxc", "tester", "12"},
 			expected: []string{"lxc", "list", "--no-alias"},
 		},
-		aliasTestcase{
+		{
 			input:    []string{"lxc", "foo", "asdf"},
 			expected: []string{"lxc", "list", "--no-alias", "asdf", "-c", "n"},
 		},
