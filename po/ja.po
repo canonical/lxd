@@ -7,11 +7,12 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-01-11 17:32+0200\n"
-"PO-Revision-Date: 2017-01-11 20:52+0900\n"
+"POT-Creation-Date: 2017-01-24 18:22-0500\n"
+"PO-Revision-Date: 2017-01-16 11:29+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
-"Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
-"Language: Japanese\n"
+"Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
+"containers/lxd/ja/>\n"
+"Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -113,7 +114,7 @@ msgstr ""
 
 #: lxc/snapshot.go:61
 msgid "'/' not allowed in snapshot name"
-msgstr "'/' はスナップショットの名前には使用できません。"
+msgstr "'/' はスナップショットの名前には使用できません"
 
 #: lxc/profile.go:254
 msgid "(none)"
@@ -277,7 +278,7 @@ msgstr "イメージのコピー中: %s"
 
 #: lxc/remote.go:232
 msgid "Could not create server cert dir"
-msgstr "サーバ証明書格納用のディレクトリを作成できません。"
+msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
 #: lxc/file.go:83
 #, c-format
@@ -370,7 +371,7 @@ msgstr "デバイス %s が %s に追加されました"
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
-#: lxc/list.go:572
+#: lxc/list.go:574
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -380,11 +381,11 @@ msgstr ""
 
 #: lxc/main.go:41
 msgid "Enable debug mode"
-msgstr "デバッグモードを有効にします。"
+msgstr "デバッグモードを有効にします"
 
 #: lxc/main.go:40
 msgid "Enable verbose mode"
-msgstr "詳細モードを有効にします。"
+msgstr "詳細モードを有効にします"
 
 #: lxc/exec.go:55
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
@@ -579,9 +580,9 @@ msgid "LXD socket not found; is LXD installed and running?"
 msgstr "LXD のソケットが見つかりません。LXD が実行されていますか?"
 
 #: lxc/image.go:360
-#, fuzzy, c-format
+#, c-format
 msgid "Last used: %s"
-msgstr "状態: %s"
+msgstr "最終使用: %s"
 
 #: lxc/image.go:362
 msgid "Last used: never"
@@ -1033,8 +1034,8 @@ msgstr ""
 "mode=MODE] <source path> [<source path>...] [<remote>:]<container>\n"
 "lxc file edit [<remote>:]<container>/<path>\n"
 "\n"
-"pull の場合の <source>、push の場合の <target>、edit の場合の <file> は、い\n"
-"ずれも <container name>/<path> の形式です。\n"
+"pull の場合の <source>、push の場合の <target>、edit の場合の <file> は、いず"
+"れも <container name>/<path> の形式です\n"
 "\n"
 "例:\n"
 "\n"
@@ -1330,7 +1331,7 @@ msgstr "複数のデバイスとマッチします。デバイス名を指定し
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
-"せん。"
+"せん"
 
 #: lxc/move.go:16
 msgid ""
@@ -1430,7 +1431,7 @@ msgstr "%s に出力されます"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "ターミナルモードを上書きします (auto, interactive, non-interactive)"
 
-#: lxc/list.go:574
+#: lxc/list.go:576
 msgid "PERSISTENT"
 msgstr ""
 
@@ -1778,8 +1779,7 @@ msgstr "指定したデバイスはネットワークとマッチしません"
 #: lxc/publish.go:65
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
-"publish 先にはイメージ名は指定できません。\"--alias\" オプションを使ってく"
-"だ\n"
+"publish 先にはイメージ名は指定できません。\"--alias\" オプションを使ってくだ"
 "さい。"
 
 #: lxc/action.go:42
@@ -1793,19 +1793,18 @@ msgstr "タイムスタンプ:"
 #: lxc/init.go:315
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr ""
-"コンテナにネットワークを接続するには、lxc network attach を使用してください。"
+"コンテナにネットワークを接続するには、lxc network attach を使用してください"
 
 #: lxc/init.go:314
 msgid "To create a new network, use: lxc network create"
 msgstr ""
-"新しいネットワークを作成するには、lxc network create を使用してください。"
+"新しいネットワークを作成するには、lxc network create を使用してください"
 
 #: lxc/main.go:137
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
-"初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてく"
-"だ\n"
-"さい。"
+"初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
+"さい"
 
 #: lxc/image.go:432
 #, c-format
@@ -1894,7 +1893,7 @@ msgstr "同じコンテナ名へはコピーできません"
 #: lxc/file.go:308
 msgid "can't pull a directory without --recursive"
 msgstr ""
-"ディレクトリを pull する場合は --recursive オプションを使用してください。"
+"ディレクトリを pull する場合は --recursive オプションを使用してください"
 
 #: lxc/remote.go:344
 msgid "can't remove the default remote"
@@ -1902,7 +1901,7 @@ msgstr "デフォルトのリモートは削除できません"
 
 #: lxc/file.go:119
 msgid "can't supply uid/gid/mode in recursive mode"
-msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません。"
+msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
 #: lxc/remote.go:370
 msgid "default"
