@@ -394,6 +394,15 @@ func IntInSlice(key int, list []int) bool {
 	return false
 }
 
+func Int64InSlice(key int64, list []int64) bool {
+	for _, entry := range list {
+		if entry == key {
+			return true
+		}
+	}
+	return false
+}
+
 func IsTrue(value string) bool {
 	if StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"}) {
 		return true
