@@ -537,6 +537,7 @@ func (c *listCmd) IP4ColumnData(cInfo api.Container, cState *api.ContainerState,
 				}
 			}
 		}
+		sort.Sort(sort.Reverse(sort.StringSlice(ipv4s)))
 		return strings.Join(ipv4s, "\n")
 	} else {
 		return ""
@@ -561,6 +562,7 @@ func (c *listCmd) IP6ColumnData(cInfo api.Container, cState *api.ContainerState,
 				}
 			}
 		}
+		sort.Sort(sort.Reverse(sort.StringSlice(ipv6s)))
 		return strings.Join(ipv6s, "\n")
 	} else {
 		return ""
