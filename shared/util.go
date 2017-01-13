@@ -634,11 +634,24 @@ func ParseByteSizeString(input string) (int64, error) {
 		return -1, fmt.Errorf("Invalid value: %s", input)
 	}
 
+	isInBytes := strings.HasSuffix(strings.ToUpper(input), "BYTES")
+
 	// Extract the suffix
 	suffix := input[len(input)-2:]
+	if isInBytes {
+		suffix = input[len(input)-len("BYTES"):]
+	}
 
 	// Extract the value
 	value := input[0 : len(input)-2]
+	if isInBytes {
+		value = input[0 : len(input)-len("BYTES")]
+	}
+
+	// COMMENT(brauner): Remove any whitespace that might have been left
+	// between the value and the unit.
+	value = strings.TrimRight(value, " ")
+
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return -1, fmt.Errorf("Invalid integer: %s", input)
@@ -648,10 +661,14 @@ func ParseByteSizeString(input string) (int64, error) {
 		return -1, fmt.Errorf("Invalid value: %d", valueInt)
 	}
 
+	if isInBytes {
+		return valueInt, nil
+	}
+
 	// Figure out the multiplicator
 	multiplicator := int64(0)
-	switch suffix {
-	case "kB":
+	switch strings.ToUpper(suffix) {
+	case "KB":
 		multiplicator = 1024
 	case "MB":
 		multiplicator = 1024 * 1024
