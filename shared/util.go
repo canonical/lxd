@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 const SnapshotDelimiter = "/"
@@ -611,6 +612,18 @@ func ParseMetadata(metadata interface{}) (map[string]interface{}, error) {
 func ParseByteSizeString(input string) (int64, error) {
 	if input == "" {
 		return 0, nil
+	}
+
+	// COMMENT(brauner): In case the last character is a number we assume
+	// that we are passed a simple integer which we interpret as being in
+	// bytes. So we parse it directly and return.
+	if unicode.IsNumber(rune(input[len(input)-1])) {
+		valueInt, err := strconv.ParseInt(input, 10, 64)
+		if err != nil {
+			return -1, fmt.Errorf("Invalid integer: %s", input)
+		}
+
+		return valueInt, nil
 	}
 
 	if len(input) < 3 {
