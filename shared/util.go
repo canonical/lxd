@@ -703,6 +703,11 @@ func ParseBitSizeString(input string) (int64, error) {
 
 	// Extract the value
 	value := input[0 : len(input)-4]
+
+	// COMMENT(brauner): Remove any whitespace that might have been left
+	// between the value and the unit.
+	value = strings.TrimRight(value, " ")
+
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return -1, fmt.Errorf("Invalid integer: %s", input)
@@ -714,18 +719,18 @@ func ParseBitSizeString(input string) (int64, error) {
 
 	// Figure out the multiplicator
 	multiplicator := int64(0)
-	switch suffix {
-	case "kbit":
+	switch strings.ToUpper(suffix) {
+	case "KBIT":
 		multiplicator = 1000
-	case "Mbit":
+	case "MBIT":
 		multiplicator = 1000 * 1000
-	case "Gbit":
+	case "GBIT":
 		multiplicator = 1000 * 1000 * 1000
-	case "Tbit":
+	case "TBIT":
 		multiplicator = 1000 * 1000 * 1000 * 1000
-	case "Pbit":
+	case "PBIT":
 		multiplicator = 1000 * 1000 * 1000 * 1000 * 1000
-	case "Ebit":
+	case "EBIT":
 		multiplicator = 1000 * 1000 * 1000 * 1000 * 1000 * 1000
 	default:
 		return -1, fmt.Errorf("Unsupported suffix: %s", suffix)
