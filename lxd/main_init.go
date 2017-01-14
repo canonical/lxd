@@ -335,7 +335,7 @@ they otherwise would.
 
 		if askBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
 			bridgeName = askString("What should the new bridge be called [default=lxdbr0]? ", "lxdbr0", networkValidName)
-			bridgeIPv4 = askString("What IPv4 subnet should be used (CIDR notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
+			bridgeIPv4 = askString("What IPv4 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
 				if shared.StringInSlice(value, []string{"auto", "none"}) {
 					return nil
 				}
@@ -346,7 +346,7 @@ they otherwise would.
 				bridgeIPv4Nat = askBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]? ", "yes")
 			}
 
-			bridgeIPv6 = askString("What IPv6 subnet should be used (CIDR notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
+			bridgeIPv6 = askString("What IPv6 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
 				if shared.StringInSlice(value, []string{"auto", "none"}) {
 					return nil
 				}
