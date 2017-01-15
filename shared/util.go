@@ -395,6 +395,15 @@ func IntInSlice(key int, list []int) bool {
 	return false
 }
 
+func Int64InSlice(key int64, list []int64) bool {
+	for _, entry := range list {
+		if entry == key {
+			return true
+		}
+	}
+	return false
+}
+
 func IsTrue(value string) bool {
 	if StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"}) {
 		return true
@@ -638,11 +647,24 @@ func ParseByteSizeString(input string) (int64, error) {
 		return -1, fmt.Errorf("Invalid value: %s", input)
 	}
 
+	isInBytes := strings.HasSuffix(strings.ToUpper(input), "BYTES")
+
 	// Extract the suffix
 	suffix := input[len(input)-2:]
+	if isInBytes {
+		suffix = input[len(input)-len("BYTES"):]
+	}
 
 	// Extract the value
 	value := input[0 : len(input)-2]
+	if isInBytes {
+		value = input[0 : len(input)-len("BYTES")]
+	}
+
+	// COMMENT(brauner): Remove any whitespace that might have been left
+	// between the value and the unit.
+	value = strings.TrimRight(value, " ")
+
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return -1, fmt.Errorf("Invalid integer: %s", input)
@@ -652,10 +674,14 @@ func ParseByteSizeString(input string) (int64, error) {
 		return -1, fmt.Errorf("Invalid value: %d", valueInt)
 	}
 
+	if isInBytes {
+		return valueInt, nil
+	}
+
 	// Figure out the multiplicator
 	multiplicator := int64(0)
-	switch suffix {
-	case "kB":
+	switch strings.ToUpper(suffix) {
+	case "KB":
 		multiplicator = 1024
 	case "MB":
 		multiplicator = 1024 * 1024
@@ -690,6 +716,11 @@ func ParseBitSizeString(input string) (int64, error) {
 
 	// Extract the value
 	value := input[0 : len(input)-4]
+
+	// COMMENT(brauner): Remove any whitespace that might have been left
+	// between the value and the unit.
+	value = strings.TrimRight(value, " ")
+
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return -1, fmt.Errorf("Invalid integer: %s", input)
@@ -701,18 +732,18 @@ func ParseBitSizeString(input string) (int64, error) {
 
 	// Figure out the multiplicator
 	multiplicator := int64(0)
-	switch suffix {
-	case "kbit":
+	switch strings.ToUpper(suffix) {
+	case "KBIT":
 		multiplicator = 1000
-	case "Mbit":
+	case "MBIT":
 		multiplicator = 1000 * 1000
-	case "Gbit":
+	case "GBIT":
 		multiplicator = 1000 * 1000 * 1000
-	case "Tbit":
+	case "TBIT":
 		multiplicator = 1000 * 1000 * 1000 * 1000
-	case "Pbit":
+	case "PBIT":
 		multiplicator = 1000 * 1000 * 1000 * 1000 * 1000
-	case "Ebit":
+	case "EBIT":
 		multiplicator = 1000 * 1000 * 1000 * 1000 * 1000 * 1000
 	default:
 		return -1, fmt.Errorf("Unsupported suffix: %s", suffix)
