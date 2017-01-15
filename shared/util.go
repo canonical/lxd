@@ -627,31 +627,32 @@ func ParseMetadata(metadata interface{}) (map[string]interface{}, error) {
 // Parse a size string in bytes (e.g. 200kB or 5GB) into the number of bytes it
 // represents. Supports suffixes up to EB. "" == 0.
 func ParseByteSizeString(input string) (int64, error) {
+	suffixLen := 2
+
 	if input == "" {
 		return 0, nil
 	}
 
-	// COMMENT(brauner): In case the last character is a number we assume
-	// that we are passed a simple integer which we interpret as being in
-	// bytes. So we parse it directly and return.
 	if unicode.IsNumber(rune(input[len(input)-1])) {
-		valueInt, err := strconv.ParseInt(input, 10, 64)
-		if err != nil {
-			return -1, fmt.Errorf("Invalid integer: %s", input)
-		}
-
-		return valueInt, nil
-	}
-
-	if len(input) < 3 {
+		// COMMENT(brauner): No suffix --> bytes.
+		suffixLen = 0
+	} else if (len(input) >= 2) && (input[len(input)-1] == 'B') && unicode.IsNumber(rune(input[len(input)-2])) {
+		// COMMENT(brauner): "B" suffix --> bytes.
+		suffixLen = 1
+	} else if strings.HasSuffix(input, " bytes") {
+		// COMMENT(brauner): Backward compatible behaviour in case we
+		// talk to a LXD that still uses GetByteSizeString() that
+		// returns "n bytes".
+		suffixLen = 6
+	} else if (len(input) < 3) && (suffixLen == 2) {
 		return -1, fmt.Errorf("Invalid value: %s", input)
 	}
 
 	// Extract the suffix
-	suffix := input[len(input)-2:]
+	suffix := input[len(input)-suffixLen:]
 
 	// Extract the value
-	value := input[0 : len(input)-2]
+	value := input[0 : len(input)-suffixLen]
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return -1, fmt.Errorf("Invalid integer: %s", input)
@@ -659,6 +660,11 @@ func ParseByteSizeString(input string) (int64, error) {
 
 	if valueInt < 0 {
 		return -1, fmt.Errorf("Invalid value: %d", valueInt)
+	}
+
+	// COMMENT(brauner): The value is already in bytes.
+	if suffixLen != 2 {
+		return valueInt, nil
 	}
 
 	// Figure out the multiplicator
@@ -732,7 +738,7 @@ func ParseBitSizeString(input string) (int64, error) {
 
 func GetByteSizeString(input int64, precision uint) string {
 	if input < 1024 {
-		return fmt.Sprintf("%d bytes", input)
+		return fmt.Sprintf("%dB", input)
 	}
 
 	value := float64(input)
