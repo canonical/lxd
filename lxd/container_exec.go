@@ -274,12 +274,9 @@ func (s *execWs) Do(op *operation) error {
 		if status.Exited() {
 			return finisher(status.ExitStatus(), nil)
 		}
-		// Backwards compatible behavior. Report success when we exited
-		// due to a signal. Otherwise this may break Jenkins, e.g. when
-		// lxc exec foo reboot receives SIGTERM and status.Exitstats()
-		// would report -1.
+
 		if status.Signaled() {
-			return finisher(0, nil)
+			return finisher(-1, nil)
 		}
 	}
 
