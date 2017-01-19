@@ -122,12 +122,9 @@ func cmdForkExec(args []string) (int, error) {
 		if exCode.Exited() {
 			return exCode.ExitStatus(), nil
 		}
-		// Backwards compatible behavior. Report success when we exited
-		// due to a signal. Otherwise this may break Jenkins, e.g. when
-		// lxc exec foo reboot receives SIGTERM and exCode.Exitstats()
-		// would report -1.
+
 		if exCode.Signaled() {
-			return 0, nil
+			return -1, nil
 		}
 	}
 
