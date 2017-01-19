@@ -12,13 +12,13 @@ dounixdevtest() {
     lxc start foo
     lxc config device add foo tty unix-char "$@"
     lxc exec foo -- stat /dev/ttyS0
-    lxc exec foo reboot
+    lxc restart foo
     lxc exec foo -- stat /dev/ttyS0
     lxc restart foo --force
     lxc exec foo -- stat /dev/ttyS0
     lxc config device remove foo tty
     ensure_removed "was not hot-removed"
-    lxc exec foo reboot
+    lxc restart foo
     ensure_removed "removed device re-appeared after container reboot"
     lxc restart foo --force
     ensure_removed "removed device re-appaared after lxc reboot"
@@ -70,7 +70,7 @@ testloopmounts() {
   lxc exec foo stat /mnt/hello
   lxc config device remove foo mnt
   ensure_fs_unmounted "fs should have been hot-unmounted"
-  lxc exec foo reboot
+  lxc restart foo
   ensure_fs_unmounted "removed fs re-appeared after reboot"
   lxc restart foo --force
   ensure_fs_unmounted "removed fs re-appeared after restart"
