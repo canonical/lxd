@@ -4084,6 +4084,11 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 			if ok {
 				return status.ExitStatus(), attachedPid, nil
 			}
+
+			if status.Signaled() {
+				// COMMENT(brauner): 128 + n == Fatal error signal "n"
+				return 128 + int(status.Signal()), attachedPid, nil
+			}
 		}
 		return -1, -1, err
 	}
