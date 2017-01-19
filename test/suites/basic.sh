@@ -333,7 +333,7 @@ test_basic_usage() {
   lxc launch testimage foo -e
 
   OLD_INIT=$(lxc info foo | grep ^Pid)
-  lxc exec foo reboot
+  lxc exec foo reboot || true
 
   REBOOTED="false"
 
