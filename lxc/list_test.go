@@ -3,7 +3,6 @@ package main
 import (
 	"testing"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
