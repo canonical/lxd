@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2017-01-23 16:16-0500\n"
+        "POT-Creation-Date: 2017-01-23 16:34-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -155,7 +155,7 @@ msgstr  ""
 msgid   "Can't unset key '%s', it's not currently set."
 msgstr  ""
 
-#: lxc/profile.go:343
+#: lxc/profile.go:347
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -189,7 +189,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:532 lxc/config.go:597 lxc/image.go:718 lxc/profile.go:190
+#: lxc/config.go:535 lxc/config.go:600 lxc/image.go:718 lxc/profile.go:190
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -273,12 +273,12 @@ msgid   "Delete containers or snapshots.\n"
         "Destroy containers or snapshots with any attached data (configuration, snapshots, ...)."
 msgstr  ""
 
-#: lxc/config.go:649
+#: lxc/config.go:652
 #, c-format
 msgid   "Device %s added to %s"
 msgstr  ""
 
-#: lxc/config.go:836
+#: lxc/config.go:839
 #, c-format
 msgid   "Device %s removed from %s"
 msgstr  ""
@@ -628,11 +628,11 @@ msgstr  ""
 msgid   "Manage remote LXD servers.\n"
         "\n"
         "lxc remote add <remote> <IP|FQDN|URL> [--accept-certificate] [--password=PASSWORD]\n"
-        "                                      [--public] [--protocol=PROTOCOL]      Add the remote <name> at <url>.\n"
-        "lxc remote remove <remote>                                                  Remove the remote <name>.\n"
+        "                                      [--public] [--protocol=PROTOCOL]      Add the remote <remote> at <url>.\n"
+        "lxc remote remove <remote>                                                  Remove the remote <remote>.\n"
         "lxc remote list                                                             List all remotes.\n"
-        "lxc remote rename <old name> <new name>                                     Rename remote <old> to <new>.\n"
-        "lxc remote set-url <remote> <url>                                           Update <name>'s url to <url>.\n"
+        "lxc remote rename <old name> <new name>                                     Rename remote <old name> to <new name>.\n"
+        "lxc remote set-url <remote> <url>                                           Update <remote>'s url to <url>.\n"
         "lxc remote set-default <remote>                                             Set the default remote.\n"
         "lxc remote get-default                                                      Print the default remote."
 msgstr  ""
@@ -847,7 +847,7 @@ msgstr  ""
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
-#: lxc/config.go:533 lxc/config.go:598 lxc/image.go:719
+#: lxc/config.go:536 lxc/config.go:601 lxc/image.go:719
 msgid   "Press enter to start the editor again"
 msgstr  ""
 
@@ -1071,7 +1071,7 @@ msgstr  ""
 msgid   "The container is currently running. Use --force to have it stopped and restarted."
 msgstr  ""
 
-#: lxc/config.go:677 lxc/config.go:689 lxc/config.go:722 lxc/config.go:740 lxc/config.go:778 lxc/config.go:796
+#: lxc/config.go:680 lxc/config.go:692 lxc/config.go:725 lxc/config.go:743 lxc/config.go:781 lxc/config.go:799
 msgid   "The device doesn't exist"
 msgstr  ""
 
