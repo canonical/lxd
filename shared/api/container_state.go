@@ -28,6 +28,8 @@ type ContainerStateDisk struct {
 }
 
 // ContainerStateCPU represents the cpu information section of a LXD container's state
+//
+// API extension: container_cpu_time
 type ContainerStateCPU struct {
 	Usage int64 `json:"usage"`
 }
