@@ -187,6 +187,11 @@ func createDb(db *sql.DB) (err error) {
 		return err
 	}
 
+	// Mark all existing patches as applied
+	for _, p := range patches {
+		dbPatchesMarkApplied(db, p.name)
+	}
+
 	err = dbProfileCreateDefault(db)
 	if err != nil {
 		return err
