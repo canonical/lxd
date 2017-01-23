@@ -1,6 +1,8 @@
 package api
 
 // NetworksPost represents the fields of a new LXD network
+//
+// API extension: network
 type NetworksPost struct {
 	NetworkPut `yaml:",inline"`
 
