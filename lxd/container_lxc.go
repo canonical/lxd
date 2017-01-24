@@ -2649,8 +2649,20 @@ func (c *containerLXC) Delete() error {
 		return err
 	}
 
-	// Update lease files
+	// Update network files
 	networkUpdateStatic(c.daemon, "")
+	for k, m := range c.expandedDevices {
+		if m["type"] != "nic" || m["nictype"] != "bridged" || (m["ipv4.address"] == "" && m["ipv6.address"] == "") {
+			continue
+		}
+
+		m, err := c.fillNetworkDevice(k, m)
+		if err != nil {
+			continue
+		}
+
+		networkClearLease(c.daemon, m["parent"], m["hwaddr"])
+	}
 
 	shared.LogInfo("Deleted container", ctxMap)
 
