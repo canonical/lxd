@@ -255,6 +255,12 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 		if err != nil {
 			return nil, fmt.Errorf("couldn't detect filesystem for '%s': %v", filename, err)
 		}
+
+		if filesystem == "btrfs" {
+			if !(*storageBtrfs).isSubvolume(nil, filename) {
+				filesystem = ""
+			}
+		}
 	}
 
 	if shared.PathExists(filename + ".lv") {
