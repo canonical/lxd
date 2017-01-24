@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 
 	"github.com/lxc/lxd/shared"
@@ -28,6 +29,7 @@ import (
 var patches = []patch{
 	{name: "invalid_profile_names", run: patchInvalidProfileNames},
 	{name: "leftover_profile_config", run: patchLeftoverProfileConfig},
+	{name: "network_permissions", run: patchNetworkPermissions},
 }
 
 type patch struct {
@@ -97,6 +99,40 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
 			shared.LogInfo("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
 			err := dbProfileDelete(d.db, profile)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func patchNetworkPermissions(name string, d *Daemon) error {
+	// Get the list of networks
+	networks, err := dbNetworks(d.db)
+	if err != nil {
+		return err
+	}
+
+	// Fix the permissions
+	err = os.Chmod(shared.VarPath("networks"), 0711)
+	if err != nil {
+		return err
+	}
+
+	for _, network := range networks {
+		if !shared.PathExists(shared.VarPath("networks", network)) {
+			continue
+		}
+
+		err = os.Chmod(shared.VarPath("networks", network), 0711)
+		if err != nil {
+			return err
+		}
+
+		if shared.PathExists(shared.VarPath("networks", network, "dnsmasq.hosts")) {
+			err = os.Chmod(shared.VarPath("networks", network, "dnsmasq.hosts"), 0644)
 			if err != nil {
 				return err
 			}

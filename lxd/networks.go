@@ -525,7 +525,7 @@ func (n *network) Rename(name string) error {
 func (n *network) Start() error {
 	// Create directory
 	if !shared.PathExists(shared.VarPath("networks", n.name)) {
-		err := os.MkdirAll(shared.VarPath("networks", n.name), 0700)
+		err := os.MkdirAll(shared.VarPath("networks", n.name), 0711)
 		if err != nil {
 			return err
 		}
@@ -722,7 +722,7 @@ func (n *network) Start() error {
 	}
 
 	// Start building the dnsmasq command line
-	dnsmasqCmd := []string{"dnsmasq", "-u", "nobody", "--strict-order", "--bind-interfaces",
+	dnsmasqCmd := []string{"dnsmasq", "--strict-order", "--bind-interfaces",
 		fmt.Sprintf("--pid-file=%s", shared.VarPath("networks", n.name, "dnsmasq.pid")),
 		"--except-interface=lo",
 		fmt.Sprintf("--interface=%s", n.name)}
@@ -1125,12 +1125,12 @@ func (n *network) Start() error {
 
 	// Configure dnsmasq
 	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) || !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+		// Setup the dnsmasq domain
 		dnsDomain := n.config["dns.domain"]
 		if dnsDomain == "" {
 			dnsDomain = "lxd"
 		}
 
-		// Setup the dnsmasq domain
 		if n.config["dns.mode"] != "none" {
 			dnsmasqCmd = append(dnsmasqCmd, []string{"-s", dnsDomain, "-S", fmt.Sprintf("/%s/", dnsDomain)}...)
 		}
@@ -1146,10 +1146,21 @@ func (n *network) Start() error {
 
 		// Create DHCP hosts file
 		if !shared.PathExists(shared.VarPath("networks", n.name, "dnsmasq.hosts")) {
-			err = ioutil.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.hosts"), []byte(""), 0)
+			err = ioutil.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.hosts"), []byte(""), 0644)
 			if err != nil {
 				return err
 			}
+		}
+
+		// Attempt to drop privileges
+		for _, user := range []string{"lxd", "nobody"} {
+			_, err := shared.UserId(user)
+			if err != nil {
+				continue
+			}
+
+			dnsmasqCmd = append(dnsmasqCmd, []string{"-u", user}...)
+			break
 		}
 
 		// Start dnsmasq (occasionally races, try a few times)
