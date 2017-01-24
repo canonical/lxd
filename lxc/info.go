@@ -91,7 +91,7 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		fmt.Printf(i18n.G("Remote: %s")+"\n", d.Remote.Addr)
 	}
 	fmt.Printf(i18n.G("Architecture: %s")+"\n", ct.Architecture)
-	if ct.CreatedAt.UTC().Unix() != 0 {
+	if shared.TimeIsSet(ct.CreatedAt) {
 		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreatedAt.UTC().Format(layout))
 	}
 
@@ -200,7 +200,7 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		fields := strings.Split(snap.Name, shared.SnapshotDelimiter)
 		fmt.Printf("  %s", fields[len(fields)-1])
 
-		if snap.CreationDate.UTC().Unix() != 0 {
+		if shared.TimeIsSet(snap.CreationDate) {
 			fmt.Printf(" ("+i18n.G("taken at %s")+")", snap.CreationDate.UTC().Format(layout))
 		}
 

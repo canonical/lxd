@@ -512,7 +512,7 @@ func (c *listCmd) ProfilesColumnData(cInfo api.Container, cState *api.ContainerS
 func (c *listCmd) CreatedColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	layout := "2006/01/02 15:04 UTC"
 
-	if cInfo.CreatedAt.UTC().Unix() != 0 {
+	if shared.TimeIsSet(cInfo.CreatedAt) {
 		return cInfo.CreatedAt.UTC().Format(layout)
 	}
 
