@@ -188,10 +188,10 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	// Now check if we already downloading the image
-	d.imagesDownloadingLock.RLock()
+	d.imagesDownloadingLock.Lock()
 	if waitChannel, ok := d.imagesDownloading[fp]; ok {
 		// We already download the image
-		d.imagesDownloadingLock.RUnlock()
+		d.imagesDownloadingLock.Unlock()
 
 		shared.LogDebug(
 			"Already downloading the image, waiting for it to succeed",
@@ -217,18 +217,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		return fp, nil
 	}
 
-	d.imagesDownloadingLock.RUnlock()
-
-	if op == nil {
-		ctxMap = log.Ctx{"alias": alias, "server": server}
-	} else {
-		ctxMap = log.Ctx{"trigger": op.url, "image": fp, "operation": op.id, "alias": alias, "server": server}
-	}
-
-	shared.LogInfo("Downloading image", ctxMap)
-
 	// Add the download to the queue
-	d.imagesDownloadingLock.Lock()
 	d.imagesDownloading[fp] = make(chan bool)
 	d.imagesDownloadingLock.Unlock()
 
@@ -241,6 +230,15 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 		d.imagesDownloadingLock.Unlock()
 	}()
+
+	// Begin downloading
+	if op == nil {
+		ctxMap = log.Ctx{"alias": alias, "server": server}
+	} else {
+		ctxMap = log.Ctx{"trigger": op.url, "image": fp, "operation": op.id, "alias": alias, "server": server}
+	}
+
+	shared.LogInfo("Downloading image", ctxMap)
 
 	exporturl := server
 

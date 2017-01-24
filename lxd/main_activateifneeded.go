@@ -11,7 +11,7 @@ func cmdActivateIfNeeded() error {
 	// Don't start a full daemon, we just need DB access
 	d := &Daemon{
 		imagesDownloading:     map[string]chan bool{},
-		imagesDownloadingLock: sync.RWMutex{},
+		imagesDownloadingLock: sync.Mutex{},
 		lxcpath:               shared.VarPath("containers"),
 	}
 
