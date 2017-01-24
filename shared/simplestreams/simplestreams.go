@@ -32,11 +32,11 @@ func (a ssSortImage) Swap(i, j int) {
 func (a ssSortImage) Less(i, j int) bool {
 	if a[i].Properties["os"] == a[j].Properties["os"] {
 		if a[i].Properties["release"] == a[j].Properties["release"] {
-			if a[i].CreatedAt.UTC().Unix() == 0 {
+			if !shared.TimeIsSet(a[i].CreatedAt) {
 				return true
 			}
 
-			if a[j].CreatedAt.UTC().Unix() == 0 {
+			if !shared.TimeIsSet(a[j].CreatedAt) {
 				return false
 			}
 

@@ -347,16 +347,16 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		fmt.Printf(i18n.G("Public: %s")+"\n", public)
 		fmt.Printf(i18n.G("Timestamps:") + "\n")
 		const layout = "2006/01/02 15:04 UTC"
-		if info.CreatedAt.UTC().Unix() != 0 {
+		if shared.TimeIsSet(info.CreatedAt) {
 			fmt.Printf("    "+i18n.G("Created: %s")+"\n", info.CreatedAt.UTC().Format(layout))
 		}
 		fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", info.UploadedAt.UTC().Format(layout))
-		if info.ExpiresAt.UTC().Unix() != 0 {
+		if shared.TimeIsSet(info.ExpiresAt) {
 			fmt.Printf("    "+i18n.G("Expires: %s")+"\n", info.ExpiresAt.UTC().Format(layout))
 		} else {
 			fmt.Printf("    " + i18n.G("Expires: never") + "\n")
 		}
-		if info.LastUsedAt.UTC().Unix() != 0 {
+		if shared.TimeIsSet(info.LastUsedAt) {
 			fmt.Printf("    "+i18n.G("Last used: %s")+"\n", info.LastUsedAt.UTC().Format(layout))
 		} else {
 			fmt.Printf("    " + i18n.G("Last used: never") + "\n")
