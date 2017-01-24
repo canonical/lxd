@@ -91,7 +91,7 @@ type Daemon struct {
 	SetupMode bool
 
 	imagesDownloading     map[string]chan bool
-	imagesDownloadingLock sync.RWMutex
+	imagesDownloadingLock sync.Mutex
 
 	tlsConfig *tls.Config
 
