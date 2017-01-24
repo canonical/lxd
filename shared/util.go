@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -772,4 +773,16 @@ func RunCommand(name string, arg ...string) error {
 	}
 
 	return nil
+}
+
+func TimeIsSet(ts time.Time) bool {
+	if ts.Unix() <= 0 {
+		return false
+	}
+
+	if ts.UTC().Unix() <= 0 {
+		return false
+	}
+
+	return true
 }
