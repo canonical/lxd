@@ -749,7 +749,7 @@ func networkUpdateStatic(d *Daemon, name string) error {
 
 		// Update the file
 		if entries == nil {
-			err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts"), []byte(""), 0)
+			err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts"), []byte(""), 0644)
 			if err != nil {
 				return err
 			}

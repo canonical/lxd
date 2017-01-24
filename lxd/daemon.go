@@ -769,6 +769,9 @@ func (d *Daemon) Init() error {
 	if err := os.MkdirAll(shared.VarPath("snapshots"), 0700); err != nil {
 		return err
 	}
+	if err := os.MkdirAll(shared.VarPath("networks"), 0711); err != nil {
+		return err
+	}
 
 	/* Detect the filesystem */
 	d.BackingFs, err = filesystemDetect(d.lxcpath)
