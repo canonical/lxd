@@ -3376,21 +3376,30 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 
 	// Include all the rootfs files
 	fnam = c.RootfsPath()
-	filepath.Walk(fnam, writeToTar)
+	err = filepath.Walk(fnam, writeToTar)
+	if err != nil {
+		shared.LogError("Failed exporting container", ctxMap)
+		return err
+	}
 
 	// Include all the templates
 	fnam = c.TemplatesPath()
 	if shared.PathExists(fnam) {
-		filepath.Walk(fnam, writeToTar)
+		err = filepath.Walk(fnam, writeToTar)
+		if err != nil {
+			shared.LogError("Failed exporting container", ctxMap)
+			return err
+		}
 	}
 
 	err = tw.Close()
 	if err != nil {
 		shared.LogError("Failed exporting container", ctxMap)
+		return err
 	}
 
 	shared.LogInfo("Exported container", ctxMap)
-	return err
+	return nil
 }
 
 func collectCRIULogFile(c container, imagesDir string, function string, method string) error {
@@ -4253,13 +4262,15 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 	if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
 		link, err = os.Readlink(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to resolve symlink: %s", err)
 		}
 	}
+
 	hdr, err := tar.FileInfoHeader(fi, link)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create tar info header: %s", err)
 	}
+
 	hdr.Name = path[offset:]
 	if fi.IsDir() || fi.Mode()&os.ModeSymlink == os.ModeSymlink {
 		hdr.Size = 0
@@ -4269,7 +4280,7 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 
 	hdr.Uid, hdr.Gid, major, minor, ino, nlink, err = shared.GetFileStat(path)
 	if err != nil {
-		return fmt.Errorf("error getting file info: %s", err)
+		return fmt.Errorf("failed to get file stat: %s", err)
 	}
 
 	// Unshift the id under /rootfs/ for unpriv containers
@@ -4279,6 +4290,7 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 			return nil
 		}
 	}
+
 	if major != -1 {
 		hdr.Devmajor = int64(major)
 		hdr.Devminor = int64(minor)
@@ -4298,23 +4310,25 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 	// Handle xattrs.
 	hdr.Xattrs, err = shared.GetAllXattr(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read xattr: %s", err)
 	}
 
 	if err := tw.WriteHeader(hdr); err != nil {
-		return fmt.Errorf("error writing header: %s", err)
+		return fmt.Errorf("failed to write tar header: %s", err)
 	}
 
 	if hdr.Typeflag == tar.TypeReg {
 		f, err := os.Open(path)
 		if err != nil {
-			return fmt.Errorf("tarStoreFile: error opening file: %s", err)
+			return fmt.Errorf("failed to open the file: %s", err)
 		}
 		defer f.Close()
+
 		if _, err := io.Copy(tw, f); err != nil {
-			return fmt.Errorf("error copying file %s", err)
+			return fmt.Errorf("failed to copy file content: %s", err)
 		}
 	}
+
 	return nil
 }
 
