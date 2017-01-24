@@ -617,6 +617,17 @@ func networkKillDnsmasq(name string, reload bool) error {
 	}
 	pid := strings.TrimSpace(string(content))
 
+	// Check for empty string
+	if pid == "" {
+		os.Remove(pidPath)
+
+		if reload {
+			return fmt.Errorf("dnsmasq isn't running")
+		}
+
+		return nil
+	}
+
 	// Check if the process still exists
 	if !shared.PathExists(fmt.Sprintf("/proc/%s", pid)) {
 		os.Remove(pidPath)
