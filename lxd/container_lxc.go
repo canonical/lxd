@@ -4307,10 +4307,12 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 		}
 	}
 
-	// Handle xattrs.
-	hdr.Xattrs, err = shared.GetAllXattr(path)
-	if err != nil {
-		return fmt.Errorf("failed to read xattr: %s", err)
+	// Handle xattrs (for real files only)
+	if link == "" {
+		hdr.Xattrs, err = shared.GetAllXattr(path)
+		if err != nil {
+			return fmt.Errorf("failed to read xattr: %s", err)
+		}
 	}
 
 	if err := tw.WriteHeader(hdr); err != nil {
