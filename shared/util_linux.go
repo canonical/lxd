@@ -19,18 +19,19 @@ import (
 // #cgo LDFLAGS: -lutil -lpthread
 /*
 #define _GNU_SOURCE
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <grp.h>
-#include <pty.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <limits.h>
 #include <poll.h>
-#include <string.h>
+#include <pty.h>
+#include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #ifndef AT_SYMLINK_FOLLOW
 #define AT_SYMLINK_FOLLOW    0x400
@@ -277,36 +278,36 @@ func Pipe() (master *os.File, slave *os.File, err error) {
 	return master, slave, nil
 }
 
-// GroupName is an adaption from https://codereview.appspot.com/4589049.
-func GroupName(gid int) (string, error) {
-	var grp C.struct_group
-	var result *C.struct_group
+// UserId is an adaption from https://codereview.appspot.com/4589049.
+func UserId(name string) (int, error) {
+	var pw C.struct_passwd
+	var result *C.struct_passwd
 
-	bufSize := C.size_t(C.sysconf(C._SC_GETGR_R_SIZE_MAX))
+	bufSize := C.size_t(C.sysconf(C._SC_GETPW_R_SIZE_MAX))
 	buf := C.malloc(bufSize)
 	if buf == nil {
-		return "", fmt.Errorf("allocation failed")
+		return -1, fmt.Errorf("allocation failed")
 	}
 	defer C.free(buf)
 
-	// mygetgrgid_r is a wrapper around getgrgid_r to
-	// to avoid using gid_t because C.gid_t(gid) for
-	// unknown reasons doesn't work on linux.
-	rv := C.mygetgrgid_r(C.int(gid),
-		&grp,
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+
+	rv := C.getpwnam_r(cname,
+		&pw,
 		(*C.char)(buf),
 		bufSize,
 		&result)
 
 	if rv != 0 {
-		return "", fmt.Errorf("failed group lookup: %s", syscall.Errno(rv))
+		return -1, fmt.Errorf("failed user lookup: %s", syscall.Errno(rv))
 	}
 
 	if result == nil {
-		return "", fmt.Errorf("unknown group %d", gid)
+		return -1, fmt.Errorf("unknown user %s", name)
 	}
 
-	return C.GoString(result.gr_name), nil
+	return int(C.int(result.pw_uid)), nil
 }
 
 // GroupId is an adaption from https://codereview.appspot.com/4589049.
@@ -321,9 +322,6 @@ func GroupId(name string) (int, error) {
 	}
 	defer C.free(buf)
 
-	// mygetgrgid_r is a wrapper around getgrgid_r to
-	// to avoid using gid_t because C.gid_t(gid) for
-	// unknown reasons doesn't work on linux.
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 
