@@ -810,3 +810,59 @@ func networkSysctl(path string, value string) error {
 
 	return ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/%s", path), []byte(value), 0)
 }
+
+func networkClearLease(d *Daemon, network string, hwaddr string) error {
+	leaseFile := shared.VarPath("networks", network, "dnsmasq.leases")
+
+	// Check that we are in fact running a dnsmasq for the network
+	if !shared.PathExists(leaseFile) {
+		return nil
+	}
+
+	// Restart the network when we're done here
+	n, err := networkLoadByName(d, network)
+	if err != nil {
+		return err
+	}
+	defer n.Start()
+
+	// Stop dnsmasq
+	err = networkKillDnsmasq(network, false)
+	if err != nil {
+		return err
+	}
+
+	// Mangle the lease file
+	leases, err := ioutil.ReadFile(leaseFile)
+	if err != nil {
+		return err
+	}
+
+	fd, err := os.Create(leaseFile)
+	if err != nil {
+		return err
+	}
+
+	for _, lease := range strings.Split(string(leases), "\n") {
+		if lease == "" {
+			continue
+		}
+
+		fields := strings.Fields(lease)
+		if len(fields) > 2 && strings.ToLower(fields[1]) == strings.ToLower(hwaddr) {
+			continue
+		}
+
+		_, err := fd.WriteString(fmt.Sprintf("%s\n", lease))
+		if err != nil {
+			return err
+		}
+	}
+
+	err = fd.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

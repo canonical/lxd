@@ -2649,8 +2649,20 @@ func (c *containerLXC) Delete() error {
 		return err
 	}
 
-	// Update lease files
+	// Update network files
 	networkUpdateStatic(c.daemon, "")
+	for k, m := range c.expandedDevices {
+		if m["type"] != "nic" || m["nictype"] != "bridged" || (m["ipv4.address"] == "" && m["ipv6.address"] == "") {
+			continue
+		}
+
+		m, err := c.fillNetworkDevice(k, m)
+		if err != nil {
+			continue
+		}
+
+		networkClearLease(c.daemon, m["parent"], m["hwaddr"])
+	}
 
 	shared.LogInfo("Deleted container", ctxMap)
 
@@ -4798,10 +4810,12 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 		}
 	}
 
-	// Handle xattrs.
-	hdr.Xattrs, err = shared.GetAllXattr(path)
-	if err != nil {
-		return fmt.Errorf("failed to read xattr: %s", err)
+	// Handle xattrs (for real files only)
+	if link == "" {
+		hdr.Xattrs, err = shared.GetAllXattr(path)
+		if err != nil {
+			return fmt.Errorf("failed to read xattr: %s", err)
+		}
 	}
 
 	if err := tw.WriteHeader(hdr); err != nil {
