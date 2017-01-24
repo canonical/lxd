@@ -16,7 +16,7 @@ func mockStartDaemon() (*Daemon, error) {
 	d := &Daemon{
 		MockMode:              true,
 		imagesDownloading:     map[string]chan bool{},
-		imagesDownloadingLock: sync.RWMutex{},
+		imagesDownloadingLock: sync.Mutex{},
 	}
 
 	if err := d.Init(); err != nil {
