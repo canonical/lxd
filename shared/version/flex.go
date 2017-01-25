@@ -3,7 +3,7 @@
  */
 package version
 
-var Version = "2.7"
+var Version = "2.8"
 var UserAgent = "LXD " + Version
 
 /*
