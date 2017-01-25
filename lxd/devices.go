@@ -692,7 +692,7 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 		// Accessible zfs filesystems
 		poolName := strings.Split(device[1], "/")[0]
 
-		output, err := exec.Command("zpool", "status", poolName).CombinedOutput()
+		output, err := exec.Command("zpool", "status", "-P", "-L", poolName).CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %s", device[1], output)
 		}
@@ -727,12 +727,6 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 						devices = append(devices, dev)
 					}
 				}
-			} else if deviceIsBlockdev(fmt.Sprintf("/dev/%s", fields[0])) {
-				path = fmt.Sprintf("/dev/%s", fields[0])
-			} else if deviceIsBlockdev(fmt.Sprintf("/dev/disk/by-id/%s", fields[0])) {
-				path = fmt.Sprintf("/dev/disk/by-id/%s", fields[0])
-			} else if deviceIsBlockdev(fmt.Sprintf("/dev/mapper/%s", fields[0])) {
-				path = fmt.Sprintf("/dev/mapper/%s", fields[0])
 			} else {
 				continue
 			}
