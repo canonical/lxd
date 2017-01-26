@@ -5925,6 +5925,11 @@ func (c *containerLXC) getDiskLimits() (map[string]deviceBlockLimit, error) {
 			source = c.RootfsPath()
 		}
 
+		// Don't try to resolve the block device behind a non-existing path
+		if !shared.PathExists(source) {
+			continue
+		}
+
 		// Get the backing block devices (major:minor)
 		blocks, err := deviceGetParentBlocks(source)
 		if err != nil {
