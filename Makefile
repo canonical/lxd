@@ -9,6 +9,7 @@ POTFILE=po/$(DOMAIN).pot
 # TODO: use git describe for versioning
 VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
 ARCHIVE=lxd-$(VERSION).tar
+TAGS=$(shell test -e /usr/include/sqlite3.h && echo "-tags libsqlite3")
 
 .PHONY: default
 default:
@@ -16,7 +17,7 @@ default:
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
-	go install -v $(DEBUG) ./...
+	go install -v $(TAGS) $(DEBUG) ./...
 	@echo "LXD built successfully"
 
 .PHONY: client
@@ -25,7 +26,7 @@ client:
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
 	-go get -t -v -d ./...
-	go install -v $(DEBUG) ./lxc
+	go install -v $(TAGS) $(DEBUG) ./lxc
 	@echo "LXD client built successfully"
 
 .PHONY: update
@@ -47,11 +48,11 @@ protobuf:
 check: default
 	go get -v -x github.com/rogpeppe/godeps
 	go get -v -x github.com/remyoudompheng/go-misc/deadcode
-	go test -v ./...
+	go test -v $(TAGS) $(DEBUG) ./...
 	cd test && ./main.sh
 
 gccgo:
-	go build -compiler gccgo ./...
+	go build -v $(TAGS) $(DEBUG) -compiler gccgo ./...
 	@echo "LXD built successfully with gccgo"
 
 .PHONY: dist
@@ -98,7 +99,6 @@ update-po:
 update-pot:
 	go get -v -x github.com/snapcore/snapd/i18n/xgettext-go/
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxc-devel@lists.linuxcontainers.org --keyword=i18n.G --keyword-plural=i18n.NG *.go shared/*.go lxc/*.go lxd/*.go
-
 
 build-mo: $(MOFILES)
 
