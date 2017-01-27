@@ -287,7 +287,7 @@ func isNoMatchError(err error) bool {
 }
 
 func dbBegin(db *sql.DB) (*sql.Tx, error) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		tx, err := db.Begin()
 		if err == nil {
 			return tx, nil
@@ -296,7 +296,7 @@ func dbBegin(db *sql.DB) (*sql.Tx, error) {
 			shared.LogDebugf("DbBegin: error %q", err)
 			return nil, err
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 	}
 
 	shared.LogDebugf("DbBegin: DB still locked")
@@ -305,7 +305,7 @@ func dbBegin(db *sql.DB) (*sql.Tx, error) {
 }
 
 func txCommit(tx *sql.Tx) error {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		err := tx.Commit()
 		if err == nil {
 			return nil
@@ -314,7 +314,7 @@ func txCommit(tx *sql.Tx) error {
 			shared.LogDebugf("Txcommit: error %q", err)
 			return err
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 	}
 
 	shared.LogDebugf("Txcommit: db still locked")
@@ -323,7 +323,7 @@ func txCommit(tx *sql.Tx) error {
 }
 
 func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) error {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		err := db.QueryRow(q, args...).Scan(outargs...)
 		if err == nil {
 			return nil
@@ -334,7 +334,7 @@ func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 		if !isDbLockedError(err) {
 			return err
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 	}
 
 	shared.LogDebugf("DbQueryRowScan: query %q args %q, DB still locked", q, args)
@@ -343,7 +343,7 @@ func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 }
 
 func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		result, err := db.Query(q, args...)
 		if err == nil {
 			return result, nil
@@ -352,7 +352,7 @@ func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 			shared.LogDebugf("DbQuery: query %q error %q", q, err)
 			return nil, err
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 	}
 
 	shared.LogDebugf("DbQuery: query %q args %q, DB still locked", q, args)
@@ -423,7 +423,7 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
  * of interfaces, containing pointers to the actual output arguments.
  */
 func dbQueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		result, err := doDbQueryScan(db, q, inargs, outfmt)
 		if err == nil {
 			return result, nil
@@ -432,7 +432,7 @@ func dbQueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{
 			shared.LogDebugf("DbQuery: query %q error %q", q, err)
 			return nil, err
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 	}
 
 	shared.LogDebugf("DbQueryscan: query %q inargs %q, DB still locked", q, inargs)
@@ -441,7 +441,7 @@ func dbQueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{
 }
 
 func dbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		result, err := db.Exec(q, args...)
 		if err == nil {
 			return result, nil
@@ -450,7 +450,7 @@ func dbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 			shared.LogDebugf("DbExec: query %q error %q", q, err)
 			return nil, err
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 	}
 
 	shared.LogDebugf("DbExec: query %q args %q, DB still locked", q, args)
