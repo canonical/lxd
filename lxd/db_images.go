@@ -152,9 +152,24 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 	}
 
 	err = dbQueryRowScan(db, query, inargs, outfmt)
-
 	if err != nil {
 		return -1, nil, err // Likely: there are no rows for this fingerprint
+	}
+
+	// Validate we only have a single match
+	if !strictMatching {
+		query = "SELECT COUNT(id) FROM images WHERE fingerprint LIKE ?"
+		count := 0
+		outfmt := []interface{}{&count}
+
+		err = dbQueryRowScan(db, query, inargs, outfmt)
+		if err != nil {
+			return -1, nil, err
+		}
+
+		if count > 1 {
+			return -1, nil, fmt.Errorf("Partial fingerprint matches more than one image")
+		}
 	}
 
 	// Some of the dates can be nil in the DB, let's process them.
