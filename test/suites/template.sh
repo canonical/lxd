@@ -85,5 +85,5 @@ test_template() {
 
   # Cleanup
   lxc image delete template-test
-  lxc delete template --force
+  lxc delete template template1 --force
 }
