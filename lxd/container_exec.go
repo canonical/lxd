@@ -323,12 +323,31 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
+	// Set default value for PATH
 	_, ok := env["PATH"]
 	if !ok {
 		env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 		if c.FileExists("/snap") == nil {
 			env["PATH"] = fmt.Sprintf("%s:/snap/bin", env["PATH"])
 		}
+	}
+
+	// Set default value for HOME
+	_, ok = env["HOME"]
+	if !ok {
+		env["HOME"] = "/root"
+	}
+
+	// Set default value for USER
+	_, ok = env["USER"]
+	if !ok {
+		env["USER"] = "root"
+	}
+
+	// Set default value for USER
+	_, ok = env["LANG"]
+	if !ok {
+		env["LANG"] = "C.UTF-8"
 	}
 
 	if post.WaitForWS {
