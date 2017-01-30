@@ -107,58 +107,60 @@ func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 				continue
 			}
 
-			size := int64(0)
-			filename := ""
-			fingerprint := ""
+			var meta SimpleStreamsManifestProductVersionItem
+			var rootTar SimpleStreamsManifestProductVersionItem
+			var rootSquash SimpleStreamsManifestProductVersionItem
 
-			metaPath := ""
-			metaHash := ""
-			rootfsPath := ""
-			rootfsHash := ""
-
-			found := 0
 			for _, item := range version.Items {
 				// Skip the files we don't care about
 				if !shared.StringInSlice(item.FileType, []string{"root.tar.xz", "lxd.tar.xz", "squashfs"}) {
 					continue
 				}
-				found += 1
-
-				if fingerprint == "" {
-					if item.LXDHashSha256SquashFs != "" {
-						fingerprint = item.LXDHashSha256SquashFs
-					} else if item.LXDHashSha256RootXz != "" {
-						fingerprint = item.LXDHashSha256RootXz
-					} else if item.LXDHashSha256 != "" {
-						fingerprint = item.LXDHashSha256
-					}
-				}
 
 				if item.FileType == "lxd.tar.xz" {
-					fields := strings.Split(item.Path, "/")
-					filename = fields[len(fields)-1]
-					metaPath = item.Path
-					metaHash = item.HashSha256
-
-					size += item.Size
-				}
-
-				if rootfsPath == "" || rootfsHash == "" {
-					if item.FileType == "squashfs" {
-						rootfsPath = item.Path
-						rootfsHash = item.HashSha256
-					}
-
-					if item.FileType == "root.tar.xz" {
-						rootfsPath = item.Path
-						rootfsHash = item.HashSha256
-					}
-
-					size += item.Size
+					meta = item
+				} else if item.FileType == "squashfs" {
+					rootSquash = item
+				} else if item.FileType == "root.tar.xz" {
+					rootTar = item
 				}
 			}
 
-			if found < 2 || size == 0 || filename == "" || fingerprint == "" {
+			if meta.FileType == "" || (rootTar.FileType == "" && rootSquash.FileType == "") {
+				// Invalid image
+				continue
+			}
+
+			metaPath := meta.Path
+			metaHash := meta.HashSha256
+			rootfsPath := ""
+			rootfsHash := ""
+			fields := strings.Split(meta.Path, "/")
+			filename := fields[len(fields)-1]
+			size := meta.Size
+			fingerprint := ""
+
+			if rootSquash.FileType != "" {
+				if meta.LXDHashSha256SquashFs != "" {
+					fingerprint = meta.LXDHashSha256SquashFs
+				} else {
+					fingerprint = meta.LXDHashSha256
+				}
+				size += rootSquash.Size
+				rootfsPath = rootSquash.Path
+				rootfsHash = rootSquash.HashSha256
+			} else {
+				if meta.LXDHashSha256RootXz != "" {
+					fingerprint = meta.LXDHashSha256RootXz
+				} else {
+					fingerprint = meta.LXDHashSha256
+				}
+				size += rootTar.Size
+				rootfsPath = rootTar.Path
+				rootfsHash = rootTar.HashSha256
+			}
+
+			if size == 0 || filename == "" || fingerprint == "" {
 				// Invalid image
 				continue
 			}
