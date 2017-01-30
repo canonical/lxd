@@ -118,6 +118,9 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
+	/* FIXME: Default values for HOME and USER are now handled by LXD.
+	   This code should be removed after most users upgraded.
+	*/
 	env := map[string]string{"HOME": "/root", "USER": "root"}
 	if myTerm, ok := c.getTERM(); ok {
 		env["TERM"] = myTerm
