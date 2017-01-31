@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -694,38 +695,14 @@ func (s *storageBtrfs) subvolsSnapshot(
  * else false.
  */
 func (s *storageBtrfs) isSubvolume(subvolPath string) bool {
-	if runningInUserns {
-		// subvolume show is restricted to real root, use a workaround
-
-		fs := syscall.Statfs_t{}
-		err := syscall.Statfs(subvolPath, &fs)
-		if err != nil {
-			return false
-		}
-
-		if fs.Type != filesystemSuperMagicBtrfs {
-			return false
-		}
-
-		parentFs := syscall.Statfs_t{}
-		err = syscall.Statfs(path.Dir(subvolPath), &parentFs)
-		if err != nil {
-			return false
-		}
-
-		if fs.Fsid == parentFs.Fsid {
-			return false
-		}
-
-		return true
+	fs := syscall.Stat_t{}
+	err := syscall.Lstat(subvolPath, &fs)
+	if err != nil {
+		return false
 	}
 
-	output, err := exec.Command(
-		"btrfs",
-		"subvolume",
-		"show",
-		subvolPath).CombinedOutput()
-	if err != nil || strings.HasPrefix(string(output), "ERROR: ") {
+	// Check if BTRFS_FIRST_FREE_OBJECTID
+	if fs.Ino != 256 {
 		return false
 	}
 
@@ -736,82 +713,36 @@ func (s *storageBtrfs) isSubvolume(subvolPath string) bool {
 func (s *storageBtrfs) getSubVolumes(path string) ([]string, error) {
 	result := []string{}
 
-	if runningInUserns {
-		if !strings.HasSuffix(path, "/") {
-			path = path + "/"
-		}
+	if !strings.HasSuffix(path, "/") {
+		path = path + "/"
+	}
 
-		// Unprivileged users can't get to fs internals
-		filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
-			if strings.TrimRight(fpath, "/") == strings.TrimRight(path, "/") {
-				return nil
-			}
-
-			if err != nil {
-				return nil
-			}
-
-			if !fi.IsDir() {
-				return nil
-			}
-
-			if s.isSubvolume(fpath) {
-				result = append(result, strings.TrimPrefix(fpath, path))
-			}
+	// Unprivileged users can't get to fs internals
+	filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
+		// Skip walk errors
+		if err != nil {
 			return nil
-		})
-
-		return result, nil
-	}
-
-	out, err := exec.Command(
-		"btrfs",
-		"inspect-internal",
-		"rootid",
-		path).CombinedOutput()
-	if err != nil {
-		return result, fmt.Errorf(
-			"Unable to get btrfs rootid, path='%s', err='%s'",
-			path,
-			err)
-	}
-	rootid := strings.TrimRight(string(out), "\n")
-
-	out, err = exec.Command(
-		"btrfs",
-		"inspect-internal",
-		"subvolid-resolve",
-		rootid, path).CombinedOutput()
-	if err != nil {
-		return result, fmt.Errorf(
-			"Unable to resolve btrfs rootid, path='%s', err='%s'",
-			path,
-			err)
-	}
-	basePath := strings.TrimRight(string(out), "\n")
-
-	out, err = exec.Command(
-		"btrfs",
-		"subvolume",
-		"list",
-		"-o",
-		path).CombinedOutput()
-	if err != nil {
-		return result, fmt.Errorf(
-			"Unable to list subvolumes, path='%s', err='%s'",
-			path,
-			err)
-	}
-
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
 		}
 
-		cols := strings.Fields(line)
-		result = append(result, cols[8][len(basePath):])
-	}
+		// Ignore the base path
+		if strings.TrimRight(fpath, "/") == strings.TrimRight(path, "/") {
+			return nil
+		}
+
+		// Subvolumes can only be directories
+		if !fi.IsDir() {
+			return nil
+		}
+
+		// Check if a btrfs subvolume
+		if s.isSubvolume(fpath) {
+			result = append(result, strings.TrimPrefix(fpath, path))
+		}
+
+		return nil
+	})
+
+	sort.Sort(sort.Reverse(sort.StringSlice(result)))
 
 	return result, nil
 }
