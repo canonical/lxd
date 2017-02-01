@@ -4042,11 +4042,13 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 			shared.LogInfo("Failed migrating container", ctxMap)
 			migrateErr = fmt.Errorf("%s %s failed\n%s", function, prettyCmd, log)
 		}
+
+		return migrateErr
 	}
 
 	shared.LogInfo("Migrated container", ctxMap)
 
-	return migrateErr
+	return nil
 }
 
 func (c *containerLXC) TemplateApply(trigger string) error {
