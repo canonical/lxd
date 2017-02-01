@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -599,15 +600,16 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 	// Deal with state
 	if args.Stateful {
 		if !sourceContainer.IsRunning() {
-			return nil, fmt.Errorf("Container not running, cannot do stateful snapshot")
+			return nil, fmt.Errorf("Unable to create a stateful snapshot. The container isn't running.")
 		}
 
-		if err := findCriu("snapshot"); err != nil {
-			return nil, err
+		_, err := exec.LookPath("criu")
+		if err != nil {
+			return nil, fmt.Errorf("Unable to create a stateful snapshot. CRIU isn't installed.")
 		}
 
 		stateDir := sourceContainer.StatePath()
-		err := os.MkdirAll(stateDir, 0700)
+		err = os.MkdirAll(stateDir, 0700)
 		if err != nil {
 			return nil, err
 		}
