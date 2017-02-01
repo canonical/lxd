@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -166,8 +167,9 @@ func NewMigrationSource(c container) (*migrationSourceWs, error) {
 	}
 
 	if c.IsRunning() {
-		if err := findCriu("source"); err != nil {
-			return nil, err
+		_, err := exec.LookPath("criu")
+		if err != nil {
+			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server.")
 		}
 
 		ret.live = true
@@ -594,11 +596,11 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 		sink.src.live = ok
 	}
 
-	err = findCriu("destination")
+	_, err = exec.LookPath("criu")
 	if sink.push && sink.dest.live && err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server.")
 	} else if sink.src.live && err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server.")
 	}
 
 	return &sink, nil

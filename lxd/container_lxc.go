@@ -2509,8 +2509,9 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	 * filesystem manipulations
 	 */
 	if shared.PathExists(c.StatePath()) {
-		if err := findCriu("snapshot"); err != nil {
-			return err
+		_, err := exec.LookPath("criu")
+		if err != nil {
+			return fmt.Errorf("Failed to restore container state. CRIU isn't installed.")
 		}
 	}
 
@@ -3897,15 +3898,6 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 	return strings.Join(ret, "\n"), nil
 }
 
-func findCriu(host string) error {
-	_, err := exec.LookPath("criu")
-	if err != nil {
-		return fmt.Errorf("CRIU is required for live migration but its binary couldn't be found on the %s server. Is it installed in LXD's path?", host)
-	}
-
-	return nil
-}
-
 func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop bool, actionScript bool) error {
 	ctxMap := log.Ctx{"name": c.name,
 		"created":      c.creationDate,
@@ -3915,8 +3907,9 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		"actionscript": actionScript,
 		"stop":         stop}
 
-	if err := findCriu(function); err != nil {
-		return err
+	_, err := exec.LookPath("criu")
+	if err != nil {
+		return fmt.Errorf("Unable to perform container live migration. CRIU isn't installed.")
 	}
 
 	shared.LogInfo("Migrating container", ctxMap)
