@@ -55,21 +55,25 @@ The list of tables is:
  * containers\_devices\_config
  * containers\_profiles
  * images
- * images\_properties
  * images\_aliases
+ * images\_properties
  * images\_source
+ * networks
+ * networks\_config
+ * patches
  * profiles
  * profiles\_config
  * profiles\_devices
  * profiles\_devices\_config
  * schema
 
-You'll notice that compared to the REST API, there are three main differences:
+You'll notice that compared to the REST API, there are a few differences:
 
  1. The extra "\*\_config" tables which are there for key/value config storage.
  2. The extra "images\_properties" table which is there for key/value property storage.
  3. The extra "schema" table whish is used for database schema version tracking.
- 4. There is no "snapshots" table. That's because snapshots are a copy
+ 4. The extra "patches" table used for data migration and other non-schema changes on upgrades.
+ 5. There is no "snapshots" table. That's because snapshots are a copy
     of a container at a given point in time, including its configuration and
     on-disk state. So having snapshots in a separate table would only be needless duplication.
 
@@ -104,15 +108,16 @@ Index: UNIQUE ON id AND key
 
 ## containers
 
-Column          | Type          | Default       | Constraint        | Description
-:-----          | :---          | :------       | :---------        | :----------
-id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
-name            | VARCHAR(255)  | -             | NOT NULL          | Container name
-architecture    | INTEGER       | -             | NOT NULL          | Container architecture
-type            | INTEGER       | 0             | NOT NULL          | Container type (0 = container, 1 = container snapshot)
-ephemeral       | INTEGER       | 0             | NOT NULL          | Whether the container is ephemeral (0 = persistent, 1 = ephemeral)
-stateful        | INTEGER       | 0             | NOT NULL          | Whether the snapshot contains state (snapshot only)
-creation\_date  | DATETIME      | -             |                   | Image creation date (user supplied, 0 = unknown)
+Column            | Type          | Default       | Constraint        | Description
+:-----            | :---          | :------       | :---------        | :----------
+id                | INTEGER       | SERIAL        | NOT NULL          | SERIAL
+name              | VARCHAR(255)  | -             | NOT NULL          | Container name
+architecture      | INTEGER       | -             | NOT NULL          | Container architecture
+type              | INTEGER       | 0             | NOT NULL          | Container type (0 = container, 1 = container snapshot)
+ephemeral         | INTEGER       | 0             | NOT NULL          | Whether the container is ephemeral (0 = persistent, 1 = ephemeral)
+stateful          | INTEGER       | 0             | NOT NULL          | Whether the snapshot contains state (snapshot only)
+creation\_date    | DATETIME      | -             |                   | Container creation date
+last\_use\_date   | DATETIME      | -             |                   | Last container action
 
 Index: UNIQUE ON id AND name
 
@@ -229,12 +234,44 @@ id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
 image\_id       | INTEGER       | -             | NOT NULL          | images.id FK
 server          | TEXT          | -             | NOT NULL          | Server URL
 protocol        | INTEGER       | 0             | NOT NULL          | Protocol to access the remote (0 = lxd, 1 = direct, 2 = simplestreams)
-alias           | VARCHAR(255)  | -             | NOT NULL          | What remote alias to use as the source
 certificate     | TEXT          | -             |                   | PEM encoded certificate of the server
+alias           | VARCHAR(255)  | -             | NOT NULL          | What remote alias to use as the source
 
 Index: UNIQUE ON id
 
 Foreign keys: image\_id REFERENCES images(id)
+
+## networks
+
+Column          | Type          | Default       | Constraint        | Description
+:-----          | :---          | :------       | :---------        | :----------
+id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
+name            | VARCHAR(255)  | -             | NOT NULL          | Profile name
+
+Index: UNIQUE on id AND name
+
+## networks\_config
+
+Column          | Type          | Default       | Constraint        | Description
+:-----          | :---          | :------       | :---------        | :----------
+id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
+network\_id     | INTEGER       | -             | NOT NULL          | networks.id FK
+key             | VARCHAR(255)  | -             | NOT NULL          | Configuration key
+value           | TEXT          | -             |                   | Configuration value (NULL for unset)
+
+Index: UNIQUE ON id AND network\_id + key
+
+Foreign keys: network\_id REFERENCES networks(id)
+
+## patches
+
+Column          | Type          | Default       | Constraint        | Description
+:-----          | :---          | :------       | :---------        | :----------
+id              | INTEGER       | SERIAL        | NOT NULL          | SERIAL
+name            | VARCHAR(255)  | -             | NOT NULL          | Patch name
+applied\_at     | DATETIME      | -             | NOT NULL          | When the patch was applied
+
+Index: UNIQUE ON id AND name
 
 ## profiles
 
