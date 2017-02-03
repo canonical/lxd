@@ -167,6 +167,15 @@ CREATE TABLE IF NOT EXISTS schema (
     UNIQUE (version)
 );`
 
+func enableForeignKeys(conn *sqlite3.SQLiteConn) error {
+	_, err := conn.Exec("PRAGMA foreign_keys=ON;", nil)
+	return err
+}
+
+func init() {
+	sql.Register("sqlite3_with_fk", &sqlite3.SQLiteDriver{ConnectHook: enableForeignKeys})
+}
+
 // Create the initial (current) schema for a given SQLite DB connection.
 func createDb(db *sql.DB) (err error) {
 	latestVersion := dbGetSchema(db)
@@ -226,7 +235,7 @@ func initializeDbObject(d *Daemon, path string) (err error) {
 	openPath = fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", path, timeout*1000)
 
 	// Open the database. If the file doesn't exist it is created.
-	d.db, err = sql.Open("sqlite3", openPath)
+	d.db, err = sql.Open("sqlite3_with_fk", openPath)
 	if err != nil {
 		return err
 	}
@@ -236,9 +245,6 @@ func initializeDbObject(d *Daemon, path string) (err error) {
 	if err != nil {
 		return fmt.Errorf("Error creating database: %s", err)
 	}
-
-	// Run PRAGMA statements now since they are *per-connection*.
-	d.db.Exec("PRAGMA foreign_keys=ON;") // This allows us to use ON DELETE CASCADE
 
 	// Apply any update
 	err = dbUpdatesApplyAll(d)
