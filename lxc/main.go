@@ -204,6 +204,7 @@ var commands = map[string]command{
 		name:       "stop",
 		timeout:    -1,
 	},
+	"teleport": &teleportCmd{},
 	"version": &versionCmd{},
 }
 

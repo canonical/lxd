@@ -2801,3 +2801,11 @@ func (c *Client) ListNetworks() ([]api.Network, error) {
 
 	return networks, nil
 }
+
+func (c *Client) Teleport() (string, error) {
+	if c.Remote.Public {
+		return "", fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	return "No signal from remote\n", nil
+}
