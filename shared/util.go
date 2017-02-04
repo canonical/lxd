@@ -294,7 +294,12 @@ func FileCopy(source string, dest string) error {
 	defer d.Close()
 
 	_, err = io.Copy(d, s)
-	return err
+	if err != nil {
+		return err
+	}
+
+	_, uid, gid := GetOwnerMode(fi)
+	return d.Chown(uid, gid)
 }
 
 type BytesReadCloser struct {
