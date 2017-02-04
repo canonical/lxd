@@ -275,10 +275,15 @@ func FileCopy(source string, dest string) error {
 	}
 	defer s.Close()
 
+	fi, err := s.Stat()
+	if err != nil {
+		return err
+	}
+
 	d, err := os.Create(dest)
 	if err != nil {
 		if os.IsExist(err) {
-			d, err = os.OpenFile(dest, os.O_WRONLY, 0700)
+			d, err = os.OpenFile(dest, os.O_WRONLY, fi.Mode())
 			if err != nil {
 				return err
 			}
