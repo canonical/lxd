@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -298,8 +299,13 @@ func FileCopy(source string, dest string) error {
 		return err
 	}
 
-	_, uid, gid := GetOwnerMode(fi)
-	return d.Chown(uid, gid)
+	/* chown not supported on windows */
+	if runtime.GOOS != "windows" {
+		_, uid, gid := GetOwnerMode(fi)
+		return d.Chown(uid, gid)
+	}
+
+	return nil
 }
 
 type BytesReadCloser struct {
