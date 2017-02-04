@@ -235,6 +235,12 @@ kill_lxd() {
       lxc image delete "${image}" --force-local || true
     done
 
+    # Delete all networks
+    echo "==> Deleting all networks"
+    for network in $(lxc network list --force-local | grep YES | grep "^| " | cut -d' ' -f2); do
+      lxc network delete "${network}" --force-local || true
+    done
+
     # Delete all profiles
     echo "==> Deleting all profiles"
     for profile in $(lxc profile list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
@@ -283,6 +289,8 @@ kill_lxd() {
     check_empty_table "${daemon_dir}/lxd.db" "containers_devices"
     check_empty_table "${daemon_dir}/lxd.db" "containers_devices_config"
     check_empty_table "${daemon_dir}/lxd.db" "containers_profiles"
+    check_empty_table "${daemon_dir}/lxd.db" "networks"
+    check_empty_table "${daemon_dir}/lxd.db" "networks_config"
     check_empty_table "${daemon_dir}/lxd.db" "images"
     check_empty_table "${daemon_dir}/lxd.db" "images_aliases"
     check_empty_table "${daemon_dir}/lxd.db" "images_properties"
