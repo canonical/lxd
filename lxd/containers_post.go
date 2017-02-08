@@ -36,8 +36,6 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 			hash = alias.Target
 		}
-	} else if req.Source.Fingerprint != "" {
-		hash = req.Source.Fingerprint
 	} else if req.Source.Properties != nil {
 		if req.Source.Server != "" {
 			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
