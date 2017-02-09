@@ -27,6 +27,10 @@ zfs_configure() {
   echo "==> Configuring ZFS backend in ${LXD_DIR}"
 
   lxc config set storage.zfs_pool_name "lxdtest-$(basename "${LXD_DIR}")"
+
+  # Avoid a zfs bug in "-p" handling during concurent create
+  zfs create -p -o mountpoint=none "lxdtest-$(basename "${LXD_DIR}")/containers"
+  zfs create -p -o mountpoint=none "lxdtest-$(basename "${LXD_DIR}")/images"
 }
 
 zfs_teardown() {
