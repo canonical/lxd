@@ -62,7 +62,7 @@ test_static_analysis() {
 
     # go fmt
     git add -u :/
-    go fmt ./...
+    gofmt -w -s ./
     git diff --exit-code
 
     # make sure the .pot is updated
