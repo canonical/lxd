@@ -110,11 +110,10 @@ func dbCertSave(db *sql.DB, cert *dbCertInfo) error {
 
 // dbCertDelete deletes a certificate from the db.
 func dbCertDelete(db *sql.DB, fingerprint string) error {
-	_, err := dbExec(
-		db,
-		"DELETE FROM certificates WHERE fingerprint=?",
-		fingerprint,
-	)
+	_, err := dbExec(db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return nil
 }

@@ -243,14 +243,8 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 }
 
 func dbImageDelete(db *sql.DB, id int) error {
-	tx, err := dbBegin(db)
+	_, err := dbExec(db, "DELETE FROM images WHERE id=?", id)
 	if err != nil {
-		return err
-	}
-
-	_, _ = tx.Exec("DELETE FROM images WHERE id=?", id)
-
-	if err := txCommit(tx); err != nil {
 		return err
 	}
 
