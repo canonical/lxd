@@ -5323,6 +5323,11 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 				deviceRemoveInterface(n2)
 				return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
 			}
+
+			// Attempt to disable IPv6 on the host side interface
+			if shared.PathExists(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", n1)) {
+				ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", n1), []byte("1"), 0644)
+			}
 		}
 
 		dev = n2
