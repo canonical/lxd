@@ -232,24 +232,12 @@ func dbNetworkDelete(db *sql.DB, name string) error {
 		return err
 	}
 
-	tx, err := dbBegin(db)
+	_, err = dbExec(db, "DELETE FROM networks WHERE id=?", id)
 	if err != nil {
 		return err
 	}
 
-	_, err = tx.Exec("DELETE FROM networks WHERE id=?", id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = dbNetworkConfigClear(tx, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return txCommit(tx)
+	return nil
 }
 
 func dbNetworkRename(db *sql.DB, oldName string, newName string) error {

@@ -24,24 +24,12 @@ func dbContainerRemove(db *sql.DB, name string) error {
 		return err
 	}
 
-	tx, err := dbBegin(db)
+	_, err = dbExec(db, "DELETE FROM containers WHERE id=?", id)
 	if err != nil {
 		return err
 	}
 
-	err = dbContainerConfigClear(tx, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = tx.Exec("DELETE FROM containers WHERE id=?", id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return txCommit(tx)
+	return nil
 }
 
 func dbContainerName(db *sql.DB, id int) (string, error) {
