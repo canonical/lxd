@@ -41,6 +41,11 @@ func networkIptablesPrepend(protocol string, netName string, table string, chain
 }
 
 func networkIptablesClear(protocol string, netName string, table string) error {
+	// Detect kernels that lack IPv6 support
+	if !shared.PathExists("/proc/sys/net/ipv6") && protocol == "ipv6" {
+		return nil
+	}
+
 	cmd := "iptables"
 	if protocol == "ipv6" {
 		cmd = "ip6tables"
