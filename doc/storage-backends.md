@@ -38,7 +38,7 @@ rsync is used to transfer the container content across.
 
  - The btrfs backend is automatically used if /var/lib/lxd is on a btrfs filesystem.
  - Uses a subvolume per container, image and snapshot, creating btrfs snapshots when creating a new object.
- - When using for nesting, the host btrfs filesystem must be mounted with the "user\_subvol\_rm\_allowed" mount option.
+ - When using for nesting, the host btrfs filesystem must be mounted with the "user\_subvol\_rm\_allowed" mount option or the "storage.dir\_force\_usage" flag of the nesting container needs to be set to "true"
 
 ### LVM
 

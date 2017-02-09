@@ -355,6 +355,12 @@ func (d *Daemon) createCmd(version string, c Command) {
 func (d *Daemon) SetupStorageDriver() error {
 	var err error
 
+	dirForceUsage := daemonConfig["storage.dir_force_usage"].GetBool()
+	if dirForceUsage == true {
+		d.Storage, err = newStorage(d, storageTypeDir)
+		return err
+	}
+
 	lvmVgName := daemonConfig["storage.lvm_vg_name"].Get()
 	zfsPoolName := daemonConfig["storage.zfs_pool_name"].Get()
 

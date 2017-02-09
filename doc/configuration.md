@@ -28,6 +28,7 @@ core.proxy\_https               | string    | -         | -                     
 core.proxy\_http                | string    | -         | -                                 | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
 core.proxy\_ignore\_hosts       | string    | -         | -                                 | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)
 core.trust\_password            | string    | -         | -                                 | Password to be provided by clients to setup a trust
+storage.dir\_force\_usage       | boolean   | false     | -                                 | Flag to force usage of storage backend "dir".
 storage.lvm\_vg\_name           | string    | -         | -                                 | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
 storage.lvm\_thinpool\_name     | string    | "LXDPool" | -                                 | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
 storage.lvm\_fstype             | string    | ext4      | -                                 | Format LV with filesystem, for now it's value can be only ext4 (default) or xfs.

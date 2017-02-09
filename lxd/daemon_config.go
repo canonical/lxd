@@ -188,6 +188,7 @@ func daemonConfigInit(db *sql.DB) error {
 		"images.compression_algorithm": {valueType: "string", validator: daemonConfigValidateCompression, defaultValue: "gzip"},
 		"images.remote_cache_expiry":   {valueType: "int", defaultValue: "10", trigger: daemonConfigTriggerExpiry},
 
+		"storage.dir_force_usage":      {valueType: "bool", defaultValue: "false", setter: daemonConfigSetStorage},
 		"storage.lvm_fstype":           {valueType: "string", defaultValue: "ext4", validValues: []string{"ext4", "xfs"}},
 		"storage.lvm_mount_options":    {valueType: "string", defaultValue: "discard"},
 		"storage.lvm_thinpool_name":    {valueType: "string", defaultValue: "LXDPool", validator: storageLVMValidateThinPoolName},
