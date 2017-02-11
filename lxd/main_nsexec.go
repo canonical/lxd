@@ -328,7 +328,8 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 				fprintf(stderr, "\n");
 			}
 
-			// container_fd is dead now that we fopendir'd it
+			closedir(fdir);
+			// container_fd is dead now that we fdopendir'd it
 			goto close_host;
 		} else {
 			fprintf(stderr, "type: file\n");
