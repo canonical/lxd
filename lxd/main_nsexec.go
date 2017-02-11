@@ -328,7 +328,8 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 				fprintf(stderr, "\n");
 			}
 
-			// container_fd is dead now that we fopendir'd it
+			closedir(fdir);
+			// container_fd is dead now that we fdopendir'd it
 			goto close_host;
 		} else {
 			fprintf(stderr, "type: file\n");
@@ -393,21 +394,27 @@ void ensure_file(char *dest) {
 }
 
 void create(char *src, char *dest) {
+	char *dirdup;
 	char *destdirname;
+
 	struct stat sb;
 	if (stat(src, &sb) < 0) {
 		fprintf(stderr, "source %s does not exist\n", src);
 		_exit(1);
 	}
 
-	destdirname = strdup(dest);
-	destdirname = dirname(destdirname);
+	dirdup = strdup(dest);
+	if (!dirdup)
+		_exit(1);
+
+	destdirname = dirname(dirdup);
 
 	if (mkdir_p(destdirname, 0755) < 0) {
 		fprintf(stderr, "failed to create path: %s\n", destdirname);
-		free(destdirname);
+		free(dirdup);
 		_exit(1);
 	}
+	free(dirdup);
 
 	switch (sb.st_mode & S_IFMT) {
 	case S_IFDIR:
@@ -417,8 +424,6 @@ void create(char *src, char *dest) {
 		ensure_file(dest);
 		return;
 	}
-
-	free(destdirname);
 }
 
 void forkmount(char *buf, char *cur, ssize_t size) {
