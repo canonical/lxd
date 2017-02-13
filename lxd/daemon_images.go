@@ -34,6 +34,9 @@ type imageStreamCacheEntry struct {
 var imageStreamCache = map[string]*imageStreamCacheEntry{}
 var imageStreamCacheLock sync.Mutex
 
+var imagesDownloading = map[string]chan bool{}
+var imagesDownloadingLock sync.Mutex
+
 func imageSaveStreamCache() error {
 	data, err := yaml.Marshal(&imageStreamCache)
 	if err != nil {
@@ -188,10 +191,10 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	// Now check if we already downloading the image
-	d.imagesDownloadingLock.Lock()
-	if waitChannel, ok := d.imagesDownloading[fp]; ok {
+	imagesDownloadingLock.Lock()
+	if waitChannel, ok := imagesDownloading[fp]; ok {
 		// We already download the image
-		d.imagesDownloadingLock.Unlock()
+		imagesDownloadingLock.Unlock()
 
 		shared.LogDebug(
 			"Already downloading the image, waiting for it to succeed",
@@ -218,17 +221,17 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	// Add the download to the queue
-	d.imagesDownloading[fp] = make(chan bool)
-	d.imagesDownloadingLock.Unlock()
+	imagesDownloading[fp] = make(chan bool)
+	imagesDownloadingLock.Unlock()
 
 	// Unlock once this func ends.
 	defer func() {
-		d.imagesDownloadingLock.Lock()
-		if waitChannel, ok := d.imagesDownloading[fp]; ok {
+		imagesDownloadingLock.Lock()
+		if waitChannel, ok := imagesDownloading[fp]; ok {
 			close(waitChannel)
-			delete(d.imagesDownloading, fp)
+			delete(imagesDownloading, fp)
 		}
-		d.imagesDownloadingLock.Unlock()
+		imagesDownloadingLock.Unlock()
 	}()
 
 	// Begin downloading

@@ -3,7 +3,6 @@ package main
 import (
 	"io/ioutil"
 	"os"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,9 +13,7 @@ import (
 
 func mockStartDaemon() (*Daemon, error) {
 	d := &Daemon{
-		MockMode:              true,
-		imagesDownloading:     map[string]chan bool{},
-		imagesDownloadingLock: sync.Mutex{},
+		MockMode: true,
 	}
 
 	if err := d.Init(); err != nil {
