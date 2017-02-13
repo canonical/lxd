@@ -1,8 +1,6 @@
 package main
 
 import (
-	"sync"
-
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 )
@@ -10,9 +8,7 @@ import (
 func cmdActivateIfNeeded() error {
 	// Don't start a full daemon, we just need DB access
 	d := &Daemon{
-		imagesDownloading:     map[string]chan bool{},
-		imagesDownloadingLock: sync.Mutex{},
-		lxcpath:               shared.VarPath("containers"),
+		lxcpath: shared.VarPath("containers"),
 	}
 
 	if !shared.PathExists(shared.VarPath("lxd.db")) {
