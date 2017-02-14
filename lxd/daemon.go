@@ -402,35 +402,28 @@ var sharedMounted bool
 var sharedMountsLock sync.Mutex
 
 func setupSharedMounts() error {
+	// Check if we already went through this
 	if sharedMounted {
 		return nil
 	}
 
+	// Get a lock to prevent races
 	sharedMountsLock.Lock()
 	defer sharedMountsLock.Unlock()
 
-	if sharedMounted {
-		return nil
-	}
-
+	// Check if already setup
 	path := shared.VarPath("shmounts")
-
-	isShared, err := shared.IsOnSharedMount(path)
-	if err != nil {
-		return err
-	}
-
-	if isShared {
-		// / may already be ms-shared, or shmounts may have
-		// been mounted by a previous lxd run
+	if shared.IsMountPoint(path) {
 		sharedMounted = true
 		return nil
 	}
 
-	if err := syscall.Mount(path, path, "none", syscall.MS_BIND, ""); err != nil {
+	// Mount a new tmpfs
+	if err := syscall.Mount("tmpfs", path, "tmpfs", 0, "size=100k,mode=0711"); err != nil {
 		return err
 	}
 
+	// Mark as MS_SHARED and MS_REC
 	var flags uintptr = syscall.MS_SHARED | syscall.MS_REC
 	if err := syscall.Mount(path, path, "none", flags, ""); err != nil {
 		return err
