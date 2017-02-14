@@ -3983,6 +3983,8 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 }
 
 func (c *containerLXC) FileRemove(path string) error {
+	var errStr string
+
 	// Setup container storage if needed
 	if !c.IsRunning() {
 		err := c.StorageStart()
@@ -4009,13 +4011,24 @@ func (c *containerLXC) FileRemove(path string) error {
 	}
 
 	// Process forkremovefile response
-	if string(out) != "" {
-		if strings.HasPrefix(string(out), "error:") {
-			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(string(out), "\n"), "error: "))
+	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+		if line == "" {
+			continue
 		}
 
-		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-			shared.LogDebugf("forkremovefile: %s", line)
+		// Extract errors
+		if strings.HasPrefix(line, "error: ") {
+			errStr = strings.TrimPrefix(line, "error: ")
+			continue
+		}
+
+		if strings.HasPrefix(line, "errno: ") {
+			errno := strings.TrimPrefix(line, "errno: ")
+			if errno == "2" {
+				return os.ErrNotExist
+			}
+
+			return fmt.Errorf(errStr)
 		}
 	}
 
