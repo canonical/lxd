@@ -123,7 +123,7 @@ func LogPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
-func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode int, type_ string) {
+func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode int, type_ string, write string) {
 	uid, err := strconv.Atoi(headers.Get("X-LXD-uid"))
 	if err != nil {
 		uid = -1
@@ -152,7 +152,15 @@ func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode int, type_
 		type_ = "file"
 	}
 
-	return uid, gid, mode, type_
+	write = headers.Get("X-LXD-write")
+	/* backwards compat: before "write" was introduced, we could only
+	 * overwrite files
+	 */
+	if write == "" {
+		write = "overwrite"
+	}
+
+	return uid, gid, mode, type_, write
 }
 
 func ReadToJSON(r io.Reader, req interface{}) error {

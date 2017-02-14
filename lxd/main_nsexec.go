@@ -87,13 +87,18 @@ int mkdir_p(const char *dir, mode_t mode)
 	return 0;
 }
 
-int copy(int target, int source)
+int copy(int target, int source, bool append)
 {
 	ssize_t n;
 	char buf[1024];
 
-	if (ftruncate(target, 0) < 0) {
+	if (!append && ftruncate(target, 0) < 0) {
 		error("error: truncate");
+		return -1;
+	}
+
+	if (append && lseek(target, 0, SEEK_END) < 0) {
+		error("error: seek");
 		return -1;
 	}
 
@@ -175,7 +180,7 @@ void attach_userns(int pid) {
 	}
 }
 
-int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode) {
+int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
 	int host_fd = -1, container_fd = -1;
 	int ret = -1;
 	int container_open_flags;
@@ -273,7 +278,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 			}
 		}
 
-		if (copy(container_fd, host_fd) < 0) {
+		if (copy(container_fd, host_fd, append) < 0) {
 			error("error: copy");
 			goto close_container;
 		}
@@ -333,7 +338,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 			goto close_host;
 		} else {
 			fprintf(stderr, "type: file\n");
-			ret = copy(host_fd, container_fd);
+			ret = copy(host_fd, container_fd, false);
 		}
 		fprintf(stderr, "type: %s", S_ISDIR(st.st_mode) ? "directory" : "file");
 	}
@@ -497,8 +502,9 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 	uid_t defaultUid = 0;
 	gid_t defaultGid = 0;
 	mode_t defaultMode = 0;
-	char *command = cur, *rootfs = NULL, *source = NULL, *target = NULL;
+	char *command = cur, *rootfs = NULL, *source = NULL, *target = NULL, *writeMode = NULL;
 	pid_t pid;
+	bool append = false;
 
 	ADVANCE_ARG_REQUIRED();
 	rootfs = cur;
@@ -530,9 +536,14 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 
 		ADVANCE_ARG_REQUIRED();
 		defaultMode = atoi(cur);
+
+		ADVANCE_ARG_REQUIRED();
+		if (strcmp(cur, "append") == 0) {
+			append = true;
+		}
 	}
 
-	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, uid, gid, mode, defaultUid, defaultGid, defaultMode));
+	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
 }
 
 void forkcheckfile(char *buf, char *cur, bool is_put, ssize_t size) {

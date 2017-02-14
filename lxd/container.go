@@ -370,7 +370,7 @@ type container interface {
 	// File handling
 	FileExists(path string) error
 	FilePull(srcpath string, dstpath string) (int, int, os.FileMode, string, []string, error)
-	FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error
+	FilePush(srcpath string, dstpath string, uid int, gid int, mode int, write string) error
 	FileRemove(path string) error
 
 	/* Command execution:
