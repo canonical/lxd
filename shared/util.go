@@ -421,42 +421,6 @@ func IsTrue(value string) bool {
 	return false
 }
 
-func IsOnSharedMount(pathName string) (bool, error) {
-	file, err := os.Open("/proc/self/mountinfo")
-	if err != nil {
-		return false, err
-	}
-	defer file.Close()
-
-	absPath, err := filepath.Abs(pathName)
-	if err != nil {
-		return false, err
-	}
-
-	expPath, err := os.Readlink(absPath)
-	if err != nil {
-		expPath = absPath
-	}
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		rows := strings.Fields(line)
-
-		if rows[4] != expPath {
-			continue
-		}
-
-		if strings.HasPrefix(rows[6], "shared:") {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
-
-	return false, nil
-}
-
 func IsBlockdev(fm os.FileMode) bool {
 	return ((fm&os.ModeDevice != 0) && (fm&os.ModeCharDevice == 0))
 }
