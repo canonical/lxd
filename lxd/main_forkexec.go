@@ -120,7 +120,7 @@ func cmdForkExec(args []string) (int, error) {
 	exCode, ok := procState.Sys().(syscall.WaitStatus)
 	if ok {
 		if exCode.Signaled() {
-			// COMMENT(brauner): 128 + n == Fatal error signal "n"
+			// 128 + n == Fatal error signal "n"
 			return 128 + int(exCode.Signal()), nil
 		}
 
