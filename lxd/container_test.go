@@ -119,6 +119,8 @@ func (suite *lxdTestSuite) TestContainer_LoadFromDB() {
 	c2, err := containerLoadByName(suite.d, "testFoo")
 	c2.IsRunning()
 	suite.Req.Nil(err)
+	err = c2.StorageStart()
+	suite.Req.Nil(err)
 
 	suite.Exactly(
 		c,
@@ -188,7 +190,6 @@ func (suite *lxdTestSuite) TestContainer_IsPrivileged_Privileged() {
 
 	c, err := containerCreateInternal(suite.d, args)
 	suite.Req.Nil(err)
-	defer c.Delete()
 
 	suite.Req.True(c.IsPrivileged(), "This container should be privileged.")
 	suite.Req.Nil(c.Delete(), "Failed to delete the container.")
@@ -204,7 +205,6 @@ func (suite *lxdTestSuite) TestContainer_IsPrivileged_Unprivileged() {
 
 	c, err := containerCreateInternal(suite.d, args)
 	suite.Req.Nil(err)
-	defer c.Delete()
 
 	suite.Req.False(c.IsPrivileged(), "This container should be unprivileged.")
 	suite.Req.Nil(c.Delete(), "Failed to delete the container.")
