@@ -21,6 +21,9 @@ dir_configure() {
   LXD_DIR=$1
 
   echo "==> Configuring directory backend in ${LXD_DIR}"
+
+  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" dir
+  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 }
 
 dir_teardown() {

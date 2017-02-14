@@ -86,7 +86,7 @@ func imageLoadStreamCache(d *Daemon) error {
 
 // ImageDownload checks if we have that Image Fingerprint else
 // downloads the image from a remote server.
-func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool) (string, error) {
+func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool, storagePool string) (string, error) {
 	var err error
 	var ss *simplestreams.SimpleStreams
 	var ctxMap log.Ctx
@@ -184,9 +184,46 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 	}
 
-	if _, _, err := dbImageGet(d.db, fp, false, false); err == nil {
+	// Check if the image already exists on any storage pool.
+	_, imgInfo, err := dbImageGet(d.db, fp, false, false)
+	if err == nil {
 		shared.LogDebug("Image already exists in the db", log.Ctx{"image": fp})
-		// already have it
+
+		if storagePool == "" {
+			return fp, nil
+		}
+
+		// Get the ID of the storage pool on which a storage volume for
+		// the image needs to exist.
+		poolID, err := dbStoragePoolGetID(d.db, storagePool)
+		if err != nil {
+			return "", err
+		}
+
+		// Get the IDs of all storage pools on which a storage volume
+		// for the requested image currently exists.
+		poolIDs, err := dbImageGetPools(d.db, imgInfo.Fingerprint)
+		if err != nil {
+			return "", err
+		}
+
+		// Check if the image already exists on the current storage
+		// pool.
+		if shared.Int64InSlice(poolID, poolIDs) {
+			shared.LogDebugf("Image already exists on storage pool \"%s\".", storagePool)
+			return fp, nil
+		}
+
+		shared.LogDebugf("Image does not exist on storage pool \"%s\".", storagePool)
+
+		// Create a duplicate entry for the image.
+		err = imageCreateInPool(d, imgInfo, storagePool)
+		if err != nil {
+			shared.LogDebugf("Failed to create image on storage pool \"%s\": %s.", storagePool, err)
+			return "", err
+		}
+
+		shared.LogDebugf("Created image on storage pool \"%s\".", storagePool)
 		return fp, nil
 	}
 
@@ -251,7 +288,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	destDir := shared.VarPath("images")
 	destName := filepath.Join(destDir, fp)
 	if shared.PathExists(destName) {
-		d.Storage.ImageDelete(fp)
+		os.Remove(filepath.Join(destDir, fp))
+		os.Remove(filepath.Join(destDir, fp+".root"))
 	}
 
 	progress := func(progressInt int64, speedInt int64) {
@@ -326,7 +364,14 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		info.Public = false
 		info.AutoUpdate = autoUpdate
 
-		_, err = imageBuildFromInfo(d, *info)
+		if storagePool != "" {
+			err = imageCreateInPool(d, info, storagePool)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		_, err = imageBuildFromInfo(d, info)
 		if err != nil {
 			return "", err
 		}
@@ -494,7 +539,14 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		info.AutoUpdate = autoUpdate
 	}
 
-	_, err = imageBuildFromInfo(d, info)
+	if storagePool != "" {
+		err = imageCreateInPool(d, &info, storagePool)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	_, err = imageBuildFromInfo(d, &info)
 	if err != nil {
 		shared.LogError(
 			"Failed to create image",

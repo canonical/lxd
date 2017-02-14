@@ -60,10 +60,11 @@ func (f *profileList) Set(value string) error {
 var initRequestedEmptyProfiles bool
 
 type initCmd struct {
-	profArgs profileList
-	confArgs configList
-	ephem    bool
-	network  string
+	profArgs    profileList
+	confArgs    configList
+	ephem       bool
+	network     string
+	storagePool string
 }
 
 func (c *initCmd) showByDefault() bool {
@@ -74,7 +75,7 @@ func (c *initCmd) usage() string {
 	return i18n.G(
 		`Initialize a container from a particular image.
 
-lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>]
+lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>]
 
 Initializes a container using the specified image and name.
 
@@ -141,6 +142,8 @@ func (c *initCmd) flags() {
 	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
 	gnuflag.StringVar(&c.network, "network", "", i18n.G("Network name"))
 	gnuflag.StringVar(&c.network, "n", "", i18n.G("Network name"))
+	gnuflag.StringVar(&c.storagePool, "storage", "", i18n.G("Storage pool name"))
+	gnuflag.StringVar(&c.storagePool, "s", "", i18n.G("Storage pool name"))
 }
 
 func (c *initCmd) run(config *lxd.Config, args []string) error {
@@ -194,6 +197,19 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 			devicesMap[c.network] = map[string]string{"type": "nic", "nictype": "bridged", "parent": c.network}
 		} else {
 			devicesMap[c.network] = map[string]string{"type": "nic", "nictype": "macvlan", "parent": c.network}
+		}
+	}
+
+	// Check if the specified storage pool exists.
+	if c.storagePool != "" {
+		_, err := d.StoragePoolGet(c.storagePool)
+		if err != nil {
+			return err
+		}
+		devicesMap["root"] = map[string]string{
+			"type": "disk",
+			"path": "/",
+			"pool": c.storagePool,
 		}
 	}
 

@@ -188,14 +188,15 @@ func daemonConfigInit(db *sql.DB) error {
 		"images.compression_algorithm": {valueType: "string", validator: daemonConfigValidateCompression, defaultValue: "gzip"},
 		"images.remote_cache_expiry":   {valueType: "int", defaultValue: "10", trigger: daemonConfigTriggerExpiry},
 
-		"storage.lvm_fstype":           {valueType: "string", defaultValue: "ext4", validValues: []string{"ext4", "xfs"}},
-		"storage.lvm_mount_options":    {valueType: "string", defaultValue: "discard"},
-		"storage.lvm_thinpool_name":    {valueType: "string", defaultValue: "LXDPool", validator: storageLVMValidateThinPoolName},
-		"storage.lvm_vg_name":          {valueType: "string", validator: storageLVMValidateVolumeGroupName, setter: daemonConfigSetStorage},
-		"storage.lvm_volume_size":      {valueType: "string", defaultValue: "10GiB"},
-		"storage.zfs_pool_name":        {valueType: "string", validator: storageZFSValidatePoolName, setter: daemonConfigSetStorage},
-		"storage.zfs_remove_snapshots": {valueType: "bool"},
-		"storage.zfs_use_refquota":     {valueType: "bool"},
+		// Keys deprecated since the implementation of the storage api.
+		"storage.lvm_fstype":           {valueType: "string", defaultValue: "ext4", validValues: []string{"ext4", "xfs"}, validator: storageDeprecatedKeys},
+		"storage.lvm_mount_options":    {valueType: "string", defaultValue: "discard", validator: storageDeprecatedKeys},
+		"storage.lvm_thinpool_name":    {valueType: "string", defaultValue: "LXDPool", validator: storageDeprecatedKeys},
+		"storage.lvm_vg_name":          {valueType: "string", validator: storageDeprecatedKeys},
+		"storage.lvm_volume_size":      {valueType: "string", defaultValue: "10GiB", validator: storageDeprecatedKeys},
+		"storage.zfs_pool_name":        {valueType: "string", validator: storageDeprecatedKeys},
+		"storage.zfs_remove_snapshots": {valueType: "bool", validator: storageDeprecatedKeys},
+		"storage.zfs_use_refquota":     {valueType: "bool", validator: storageDeprecatedKeys},
 	}
 
 	// Load the values from the DB
@@ -260,28 +261,6 @@ func daemonConfigSetPassword(d *Daemon, key string, value string) (string, error
 	return value, nil
 }
 
-func daemonConfigSetStorage(d *Daemon, key string, value string) (string, error) {
-	// The storage driver looks at daemonConfig so just set it temporarily
-	daemonConfigLock.Lock()
-	oldValue := daemonConfig[key].Get()
-	daemonConfig[key].currentValue = value
-	daemonConfigLock.Unlock()
-
-	defer func() {
-		daemonConfigLock.Lock()
-		daemonConfig[key].currentValue = oldValue
-		daemonConfigLock.Unlock()
-	}()
-
-	// Update the current storage driver
-	err := d.SetupStorageDriver()
-	if err != nil {
-		return "", err
-	}
-
-	return value, nil
-}
-
 func daemonConfigSetAddress(d *Daemon, key string, value string) (string, error) {
 	// Update the current https address
 	err := d.UpdateHTTPsPort(value)
@@ -331,4 +310,8 @@ func daemonConfigValidateCompression(d *Daemon, key string, value string) error 
 
 	_, err := exec.LookPath(value)
 	return err
+}
+
+func storageDeprecatedKeys(d *Daemon, key string, value string) error {
+	return fmt.Errorf("Setting the key \"%s\" is deprecated in favor of storage pool configuration.", key)
 }

@@ -179,6 +179,36 @@ CREATE TABLE IF NOT EXISTS schema (
     version INTEGER NOT NULL,
     updated_at DATETIME NOT NULL,
     UNIQUE (version)
+);
+CREATE TABLE IF NOT EXISTS storage_pools (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    driver VARCHAR(255) NOT NULL,
+    UNIQUE (name)
+);
+CREATE TABLE IF NOT EXISTS storage_pools_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (storage_pool_id, key),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS storage_volumes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    UNIQUE (storage_pool_id, name, type),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS storage_volumes_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (storage_volume_id, key),
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );`
 
 func enableForeignKeys(conn *sqlite3.SQLiteConn) error {

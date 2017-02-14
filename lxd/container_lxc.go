@@ -202,9 +202,6 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 
 	shared.LogInfo("Creating container", ctxMap)
 
-	// No need to detect storage here, its a new container.
-	c.storage = d.Storage
-
 	// Load the config
 	err := c.init()
 	if err != nil {
@@ -213,43 +210,37 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
-	// Look for a rootfs entry
-	rootfs := false
-	for _, name := range c.expandedDevices.DeviceNames() {
-		m := c.expandedDevices[name]
-		if m["type"] == "disk" && m["path"] == "/" {
-			rootfs = true
-			break
-		}
+	storagePool := c.StoragePool()
+	// Get the storage pool ID for the container.
+	poolID, pool, err := dbStoragePoolGet(d.db, storagePool)
+	if err != nil {
+		c.Delete()
+		return nil, err
 	}
 
-	if !rootfs {
-		deviceName := "root"
-		for {
-			if c.expandedDevices[deviceName] == nil {
-				break
-			}
-
-			deviceName += "_"
-		}
-
-		c.localDevices[deviceName] = types.Device{"type": "disk", "path": "/"}
-
-		updateArgs := containerArgs{
-			Architecture: c.architecture,
-			Config:       c.localConfig,
-			Devices:      c.localDevices,
-			Ephemeral:    c.ephemeral,
-			Profiles:     c.profiles,
-		}
-
-		err = c.Update(updateArgs, false)
-		if err != nil {
-			c.Delete()
-			shared.LogError("Failed creating container", ctxMap)
-			return nil, err
-		}
+	// Validate the requested storage volume configuration.
+	volumeConfig := map[string]string{}
+	err = storageVolumeValidateConfig(storagePool, volumeConfig, pool)
+	if err != nil {
+		c.Delete()
+		return nil, err
 	}
+
+	// Create a new database entry for the container's storage volume.
+	_, err = dbStoragePoolVolumeCreate(d.db, args.Name, storagePoolVolumeTypeContainer, poolID, volumeConfig)
+	if err != nil {
+		c.Delete()
+		return nil, err
+	}
+
+	// Initialize the container storage.
+	cStorage, err := storagePoolVolumeContainerCreateInit(d, c.storagePool, args.Name)
+	if err != nil {
+		c.Delete()
+		shared.LogError("Failed to initialize container storage", ctxMap)
+		return nil, err
+	}
+	c.storage = cStorage
 
 	// Validate expanded config
 	err = containerValidConfig(d, c.expandedConfig, false, true)
@@ -352,17 +343,11 @@ func containerLXCLoad(d *Daemon, args containerArgs) (container, error) {
 		profiles:     args.Profiles,
 		localConfig:  args.Config,
 		localDevices: args.Devices,
-		stateful:     args.Stateful}
-
-	// Detect the storage backend
-	s, err := storageForFilename(d, shared.VarPath("containers", strings.Split(c.name, "/")[0]))
-	if err != nil {
-		return nil, err
+		stateful:     args.Stateful,
 	}
-	c.storage = s
 
 	// Load the config
-	err = c.init()
+	err := c.init()
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +379,10 @@ type containerLXC struct {
 	c        *lxc.Container
 	daemon   *Daemon
 	idmapset *shared.IdmapSet
-	storage  storage
+
+	// Storage
+	storagePool string
+	storage     storage
 }
 
 func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
@@ -1289,7 +1277,14 @@ func (c *containerLXC) initLXC() error {
 			isOptional := shared.IsTrue(m["optional"])
 			isReadOnly := shared.IsTrue(m["readonly"])
 			isRecursive := shared.IsTrue(m["recursive"])
-			isFile := !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
+
+			// If we want to mount a storage volume from a storage
+			// pool we created via our storage api, we are always
+			// mounting a directory.
+			isFile := false
+			if m["pool"] == "" {
+				isFile = !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
+			}
 
 			// Deal with a rootfs
 			if tgtPath == "" {
@@ -1374,6 +1369,35 @@ func (c *containerLXC) initLXC() error {
 	return nil
 }
 
+// Initialize storage interface for this container.
+func (c *containerLXC) initStorage() error {
+	if c.storage != nil {
+		return nil
+	}
+
+	s, err := storagePoolVolumeContainerLoadInit(c.daemon, c.Name())
+	if err != nil {
+		return err
+	}
+
+	// args.StoragePool can be empty here. In that case we simply set
+	// c.storagePool to the storage pool we detected based on the containers
+	// name. (Container names are globally unique.)
+	storagePool := s.ContainerPoolGet()
+	if c.storagePool == "" {
+		c.storagePool = storagePool
+	} else if c.storagePool != storagePool {
+		// If the storage pool passed in does not match the storage pool
+		// we reverse engineered based on the containers name we know
+		// something is messed up.
+		return fmt.Errorf("Container is supposed to exist on storage pool \"%s\", but it actually exists on \"%s\".", c.storagePool, storagePool)
+	}
+
+	c.storage = s
+
+	return nil
+}
+
 // Config handling
 func (c *containerLXC) expandConfig() error {
 	config := map[string]string{}
@@ -1402,6 +1426,9 @@ func (c *containerLXC) expandConfig() error {
 func (c *containerLXC) expandDevices() error {
 	devices := types.Devices{}
 
+	rootDevices := 0
+	profileStoragePool := ""
+
 	// Apply all the profiles
 	for _, p := range c.profiles {
 		profileDevices, err := dbDevices(c.daemon.db, p, true)
@@ -1409,17 +1436,40 @@ func (c *containerLXC) expandDevices() error {
 			return err
 		}
 
+		// Check all pools specified in the container's profiles.
 		for k, v := range profileDevices {
 			devices[k] = v
+
+			if v["type"] == "disk" && v["path"] == "/" {
+				rootDevices++
+				profileStoragePool = v["pool"]
+			}
+
 		}
 	}
 
 	// Stick local devices on top
 	for k, v := range c.localDevices {
 		devices[k] = v
+
+		if v["type"] == "disk" && v["path"] == "/" {
+			c.storagePool = v["pool"]
+		}
+	}
+
+	if rootDevices > 1 {
+		return fmt.Errorf("Failed to detect unique root device: Multiple root devices detected.")
+	}
+
+	if c.storagePool == "" {
+		if profileStoragePool == "" {
+			return fmt.Errorf("No storage pool specified.")
+		}
+		c.storagePool = profileStoragePool
 	}
 
 	c.expandedDevices = devices
+
 	return nil
 }
 
@@ -1478,7 +1528,12 @@ func (c *containerLXC) startCommon() (string, error) {
 		m := c.expandedDevices[name]
 		switch m["type"] {
 		case "disk":
-			if m["source"] != "" && !shared.PathExists(m["source"]) {
+			// When we want to attach a storage volume created via
+			// the storage api m["source"] only contains the name of
+			// the storage volume, not the path where it is mounted.
+			// So do only check for the existence of m["source"]
+			// when m["pool"] is empty.
+			if m["pool"] == "" && m["source"] != "" && !shared.PathExists(m["source"]) {
 				return "", fmt.Errorf("Missing source '%s' for disk '%s'", m["source"], name)
 			}
 		case "nic":
@@ -1803,6 +1858,12 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 	}
 
+	// Storage is guaranteed to be mountable now.
+	err = c.StorageStart()
+	if err != nil {
+		return "", err
+	}
+
 	// Generate the LXC config
 	configPath := filepath.Join(c.LogPath(), "lxc.conf")
 	err = c.c.SaveConfigFile(configPath)
@@ -1811,12 +1872,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", err
 	}
 
-	// Update the backup.yaml file (as storage is guaranteed to be mountable now)
-	err = c.StorageStart()
-	if err != nil {
-		return "", err
-	}
-
+	// Update the backup.yaml file
 	err = writeBackupFile(c)
 	if err != nil {
 		c.StorageStop()
@@ -1854,6 +1910,12 @@ func (c *containerLXC) Start(stateful bool) error {
 
 	// Run the shared start code
 	configPath, err := c.startCommon()
+	if err != nil {
+		return err
+	}
+
+	// Ensure that the container storage volume is mounted.
+	err = c.StorageStart()
 	if err != nil {
 		return err
 	}
@@ -2499,8 +2561,14 @@ func (c *containerLXC) Snapshots() ([]container, error) {
 func (c *containerLXC) Restore(sourceContainer container) error {
 	var ctxMap log.Ctx
 
+	// Initialize storage interface for the container.
+	err := c.initStorage()
+	if err != nil {
+		return err
+	}
+
 	// Check if we can restore the container
-	err := c.storage.ContainerCanRestore(c, sourceContainer)
+	err = c.storage.ContainerCanRestore(c, sourceContainer)
 	if err != nil {
 		return err
 	}
@@ -2621,6 +2689,12 @@ func (c *containerLXC) Delete() error {
 
 	shared.LogInfo("Deleting container", ctxMap)
 
+	// Initialize storage interface for the container.
+	err := c.initStorage()
+	if err != nil {
+		return err
+	}
+
 	if c.IsSnapshot() {
 		// Remove the snapshot
 		if err := c.storage.ContainerSnapshotDelete(c); err != nil {
@@ -2645,8 +2719,18 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Remove the database record
-	if err := dbContainerRemove(c.daemon.db, c.Name()); err != nil {
+	if err = dbContainerRemove(c.daemon.db, c.Name()); err != nil {
 		shared.LogError("Failed deleting container entry", ctxMap)
+		return err
+	}
+
+	// Get the name of the storage pool the container is attached to. This
+	// reverse-engineering works because container names are globally
+	// unique.
+	poolID := c.storage.ContainerPoolIDGet()
+	// Remove volume from storage pool.
+	err = dbStoragePoolVolumeDelete(c.daemon.db, c.Name(), storagePoolVolumeTypeContainer, poolID)
+	if err != nil {
 		return err
 	}
 
@@ -2680,6 +2764,12 @@ func (c *containerLXC) Rename(newName string) error {
 
 	shared.LogInfo("Renaming container", ctxMap)
 
+	// Initialize storage interface for the container.
+	err := c.initStorage()
+	if err != nil {
+		return err
+	}
+
 	// Sanity checks
 	if !c.IsSnapshot() && !shared.ValidHostname(newName) {
 		return fmt.Errorf("Invalid container name")
@@ -2704,20 +2794,31 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Rename the storage entry
 	if c.IsSnapshot() {
-		if err := c.storage.ContainerSnapshotRename(c, newName); err != nil {
+		err := c.storage.ContainerSnapshotRename(c, newName)
+		if err != nil {
 			shared.LogError("Failed renaming container", ctxMap)
 			return err
 		}
 	} else {
-		if err := c.storage.ContainerRename(c, newName); err != nil {
+		err := c.storage.ContainerRename(c, newName)
+		if err != nil {
 			shared.LogError("Failed renaming container", ctxMap)
 			return err
 		}
 	}
 
 	// Rename the database entry
-	if err := dbContainerRename(c.daemon.db, oldName, newName); err != nil {
+	err = dbContainerRename(c.daemon.db, oldName, newName)
+	if err != nil {
 		shared.LogError("Failed renaming container", ctxMap)
+		return err
+	}
+
+	// Rename storage volume for the container.
+	poolID := c.storage.ContainerPoolIDGet()
+	err = dbStoragePoolVolumeRename(c.daemon.db, oldName, newName, storagePoolVolumeTypeContainer, poolID)
+	if err != nil {
+		shared.LogError("Failed renaming storage volume", ctxMap)
 		return err
 	}
 
@@ -2733,8 +2834,16 @@ func (c *containerLXC) Rename(newName string) error {
 			// Rename the snapshot
 			baseSnapName := filepath.Base(sname)
 			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
-			if err := dbContainerRename(c.daemon.db, sname, newSnapshotName); err != nil {
+			err := dbContainerRename(c.daemon.db, sname, newSnapshotName)
+			if err != nil {
 				shared.LogError("Failed renaming container", ctxMap)
+				return err
+			}
+
+			// Rename storage volume for the snapshot.
+			err = dbStoragePoolVolumeRename(c.daemon.db, sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
+			if err != nil {
+				shared.LogError("Failed renaming storage volume", ctxMap)
 				return err
 			}
 		}
@@ -2742,6 +2851,11 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Set the new name in the struct
 	c.name = newName
+
+	// Update the storage volume name in the storage interface.
+	sNew := c.storage.GetStoragePoolVolumeWritable()
+	sNew.Name = newName
+	c.storage.SetStoragePoolVolumeWritable(&sNew)
 
 	// Invalidate the go-lxc cache
 	c.c = nil
@@ -3065,6 +3179,12 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
+	// Initialize storage interface for the container.
+	err = c.initStorage()
+	if err != nil {
+		return err
+	}
+
 	// If apparmor changed, re-validate the apparmor profile
 	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
 		err = AAParseProfile(c)
@@ -3127,26 +3247,30 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 	}
 
+	// Confirm that the storage pool didn't change.
+	var oldRootfs types.Device
+	for _, m := range oldExpandedDevices {
+		if m["type"] == "disk" && m["path"] == "/" {
+			oldRootfs = m
+			break
+		}
+	}
+
+	var newRootfs types.Device
+	for _, name := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[name]
+		if m["type"] == "disk" && m["path"] == "/" {
+			newRootfs = m
+			break
+		}
+	}
+
+	if oldRootfs["pool"] != "" && (oldRootfs["pool"] != newRootfs["pool"]) {
+		return fmt.Errorf("Changing the storage pool of a container is not yet implemented.")
+	}
+
 	// Apply the live changes
 	if c.IsRunning() {
-		// Confirm that the rootfs source didn't change
-		var oldRootfs types.Device
-		for _, m := range oldExpandedDevices {
-			if m["type"] == "disk" && m["path"] == "/" {
-				oldRootfs = m
-				break
-			}
-		}
-
-		var newRootfs types.Device
-		for _, name := range c.expandedDevices.DeviceNames() {
-			m := c.expandedDevices[name]
-			if m["type"] == "disk" && m["path"] == "/" {
-				newRootfs = m
-				break
-			}
-		}
-
 		if oldRootfs["source"] != newRootfs["source"] {
 			return fmt.Errorf("Cannot change the rootfs path of a running container")
 		}
@@ -3914,6 +4038,12 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 
 	shared.LogInfo("Migrating container", ctxMap)
 
+	// Initialize storage interface for the container.
+	err = c.initStorage()
+	if err != nil {
+		return err
+	}
+
 	prettyCmd := ""
 	switch cmd {
 	case lxc.MIGRATE_PRE_DUMP:
@@ -4574,7 +4704,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 			}
 
 			if status.Signaled() {
-				// COMMENT(brauner): 128 + n == Fatal error signal "n"
+				// 128 + n == Fatal error signal "n"
 				return 128 + int(status.Signal()), attachedPid, nil
 			}
 		}
@@ -4605,6 +4735,12 @@ func (c *containerLXC) cpuState() api.ContainerStateCPU {
 
 func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
 	disk := map[string]api.ContainerStateDisk{}
+
+	// Initialize storage interface for the container.
+	err := c.initStorage()
+	if err != nil {
+		return disk
+	}
 
 	for _, name := range c.expandedDevices.DeviceNames() {
 		d := c.expandedDevices[name]
@@ -4838,19 +4974,39 @@ func (c *containerLXC) Storage() storage {
 }
 
 func (c *containerLXC) StorageStart() error {
+	// Initialize storage interface for the container.
+	err := c.initStorage()
+	if err != nil {
+		return err
+	}
+
 	if c.IsSnapshot() {
 		return c.storage.ContainerSnapshotStart(c)
 	}
 
-	return c.storage.ContainerStart(c.Name(), c.Path())
+	_, err = c.storage.ContainerMount(c.Name(), c.Path())
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *containerLXC) StorageStop() error {
+	// Initialize storage interface for the container.
+	err := c.initStorage()
+	if err != nil {
+		return err
+	}
+
 	if c.IsSnapshot() {
 		return c.storage.ContainerSnapshotStop(c)
 	}
 
-	return c.storage.ContainerStop(c.Name(), c.Path())
+	_, err = c.storage.ContainerUmount(c.Name(), c.Path())
+	if err != nil {
+		return err
+	}
+	return err
 }
 
 // Mount handling
@@ -5690,7 +5846,47 @@ func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, er
 	isOptional := shared.IsTrue(m["optional"])
 	isReadOnly := shared.IsTrue(m["readonly"])
 	isRecursive := shared.IsTrue(m["recursive"])
-	isFile := !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
+
+	isFile := false
+	if m["pool"] == "" {
+		isFile = !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
+	}
+
+	// Deal with mounting storage volumes created via the storage api.
+	if m["pool"] != "" {
+		// Extract the name of the storage volume that we are supposed
+		// to attach. We assume that the only syntactically valid ways
+		// of specifying a storage volume are:
+		// - vol1
+		// - storage_type/vol1
+		volumeName := filepath.Clean(m["source"])
+		slash := strings.Index(volumeName, "/")
+		if (slash > 0) && (len(volumeName) > slash) {
+			volumeName = volumeName[(slash + 1):]
+		}
+
+		// Check if it is the rootfs of another container that we're
+		// supposed to mount. If not it must be a custom volume.
+		volumeType := storagePoolVolumeTypeCustom
+		if strings.HasSuffix(m["source"], storagePoolVolumeApiEndpointContainers+"/") {
+			volumeType = storagePoolVolumeTypeContainer
+			srcPath = shared.VarPath("storage-pools", m["pool"], m["source"])
+		} else {
+			srcPath = shared.VarPath("storage-pools", m["pool"], storagePoolVolumeApiEndpointCustom, m["source"])
+		}
+
+		// Initialize a new storage interface and check if the
+		// pool/volume is mounted. If it is not, mount it.
+		s, err := storagePoolVolumeInit(c.daemon, m["pool"], volumeName, volumeType)
+		if err != nil && !isOptional {
+			return "", fmt.Errorf("Failed to initialize storage volume \"%s\" on storage pool \"%s\": %s.", volumeName, m["pool"], err)
+		} else if err == nil {
+			_, err := s.StoragePoolVolumeMount()
+			if err != nil {
+				shared.LogWarnf("Could not mount storage volume \"%s\" on storage pool \"%s\": %s.", volumeName, m["pool"], err)
+			}
+		}
+	}
 
 	// Check if the source exists
 	if !shared.PathExists(srcPath) {
@@ -6365,4 +6561,8 @@ func (c *containerLXC) StatePath() string {
 		return oldStatePath
 	}
 	return filepath.Join(c.Path(), "state")
+}
+
+func (c *containerLXC) StoragePool() string {
+	return c.storagePool
 }

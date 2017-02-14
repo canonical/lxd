@@ -3,7 +3,7 @@
 test_fdleak() {
   LXD_FDLEAK_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_FDLEAK_DIR}"
-  spawn_lxd "${LXD_FDLEAK_DIR}"
+  spawn_lxd "${LXD_FDLEAK_DIR}" true
   pid=$(cat "${LXD_FDLEAK_DIR}/lxd.pid")
 
   beforefds=$(/bin/ls "/proc/${pid}/fd" | wc -l)

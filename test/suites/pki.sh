@@ -26,7 +26,7 @@ test_pki() {
   cat "${TEST_DIR}/pki/keys/127.0.0.1.crt" "${TEST_DIR}/pki/keys/ca.crt" > "${LXD5_DIR}/server.crt"
   cp "${TEST_DIR}/pki/keys/127.0.0.1.key" "${LXD5_DIR}/server.key"
   cp "${TEST_DIR}/pki/keys/ca.crt" "${LXD5_DIR}/server.ca"
-  spawn_lxd "${LXD5_DIR}"
+  spawn_lxd "${LXD5_DIR}" true
   LXD5_ADDR=$(cat "${LXD5_DIR}/lxd.addr")
 
   # Setup the client

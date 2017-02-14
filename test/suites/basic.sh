@@ -218,7 +218,7 @@ test_basic_usage() {
   # Test activateifneeded/shutdown
   LXD_ACTIVATION_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_ACTIVATION_DIR}"
-  spawn_lxd "${LXD_ACTIVATION_DIR}"
+  spawn_lxd "${LXD_ACTIVATION_DIR}" true
   (
     set -e
     # shellcheck disable=SC2030
@@ -369,7 +369,7 @@ test_basic_usage() {
   # make sure that privileged containers are not world-readable
   lxc profile create unconfined
   lxc profile set unconfined security.privileged true
-  lxc init testimage foo2 -p unconfined
+  lxc init testimage foo2 -p unconfined -s "lxdtest-$(basename "${LXD_DIR}")"
   [ "$(stat -L -c "%a" "${LXD_DIR}/containers/foo2")" = "700" ]
   lxc delete foo2
   lxc profile delete unconfined
