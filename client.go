@@ -1962,6 +1962,20 @@ func (c *Client) RecursivePullFile(container string, p string, targetDir string)
 	return nil
 }
 
+func (c *Client) DeleteFile(container string, p string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	query := url.Values{"path": []string{p}}
+	_, err := c.delete(fmt.Sprintf("containers/%s/files?%s", container, query.Encode()), nil, api.SyncResponse)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *Client) GetMigrationSourceWS(container string) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")

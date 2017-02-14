@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2017-02-14 16:58-0500\n"
+        "POT-Creation-Date: 2017-02-14 17:45-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -275,7 +275,7 @@ msgstr  ""
 msgid   "Could not create server cert dir"
 msgstr  ""
 
-#: lxc/file.go:83
+#: lxc/file.go:84
 #, c-format
 msgid   "Could not sanitize path %s"
 msgstr  ""
@@ -296,7 +296,7 @@ msgid   "Create a read-only snapshot of a container.\n"
         "    lxc snapshot u1 snap0"
 msgstr  ""
 
-#: lxc/file.go:59 lxc/file.go:60
+#: lxc/file.go:60 lxc/file.go:61
 msgid   "Create any directories necessary"
 msgstr  ""
 
@@ -501,12 +501,17 @@ msgstr  ""
 msgid   "Invalid configuration key"
 msgstr  ""
 
-#: lxc/file.go:285
+#: lxc/file.go:352
+#, c-format
+msgid   "Invalid path %s"
+msgstr  ""
+
+#: lxc/file.go:286
 #, c-format
 msgid   "Invalid source %s"
 msgstr  ""
 
-#: lxc/file.go:72
+#: lxc/file.go:73
 #, c-format
 msgid   "Invalid target %s"
 msgstr  ""
@@ -712,6 +717,7 @@ msgid   "Manage files in a container.\n"
         "\n"
         "lxc file pull [-r|--recursive] [<remote>:]<container> [[<remote>:]<container>...] <target path>\n"
         "lxc file push [-r|--recursive] [-p|--create-dirs] [--uid=UID] [--gid=GID] [--mode=MODE] <source path> [<source path>...] [<remote>:]<container>\n"
+        "lxc file delete [<remote>:]<container> [[<remote>:]<container>...]\n"
         "lxc file edit [<remote>:]<container>/<path>\n"
         "\n"
         "<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>\n"
@@ -895,7 +901,7 @@ msgstr  ""
 msgid   "More than one device matches, specify the device name."
 msgstr  ""
 
-#: lxc/file.go:273
+#: lxc/file.go:274
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
@@ -1125,7 +1131,7 @@ msgid   "Publish containers as images.\n"
         "lxc publish [<remote>:]<container>[/<snapshot>] [<remote>:] [--alias=ALIAS...] [prop-key=prop-value...]"
 msgstr  ""
 
-#: lxc/file.go:57 lxc/file.go:58
+#: lxc/file.go:58 lxc/file.go:59
 msgid   "Recursively push or pull files"
 msgstr  ""
 
@@ -1208,15 +1214,15 @@ msgstr  ""
 msgid   "Server protocol (lxd or simplestreams)"
 msgstr  ""
 
-#: lxc/file.go:55
+#: lxc/file.go:56
 msgid   "Set the file's gid on push"
 msgstr  ""
 
-#: lxc/file.go:56
+#: lxc/file.go:57
 msgid   "Set the file's perms on push"
 msgstr  ""
 
-#: lxc/file.go:54
+#: lxc/file.go:55
 msgid   "Set the file's uid on push"
 msgstr  ""
 
@@ -1444,7 +1450,7 @@ msgstr  ""
 msgid   "can't copy to the same container name"
 msgstr  ""
 
-#: lxc/file.go:308
+#: lxc/file.go:309
 msgid   "can't pull a directory without --recursive"
 msgstr  ""
 
@@ -1452,7 +1458,7 @@ msgstr  ""
 msgid   "can't remove the default remote"
 msgstr  ""
 
-#: lxc/file.go:119
+#: lxc/file.go:120
 msgid   "can't supply uid/gid/mode in recursive mode"
 msgstr  ""
 
@@ -1503,7 +1509,7 @@ msgstr  ""
 msgid   "processing aliases failed %s\n"
 msgstr  ""
 
-#: lxc/file.go:349
+#: lxc/file.go:376
 msgid   "recursive edit doesn't make sense :("
 msgstr  ""
 

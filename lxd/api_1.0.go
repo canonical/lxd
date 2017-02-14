@@ -105,6 +105,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"network_firewall_filtering",
 			"network_routes",
 			"storage",
+			"file_delete",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

@@ -819,6 +819,18 @@ The following headers may be set by the client:
 This is designed to be easily usable from the command line or even a web
 browser.
 
+### DELETE (?path=/path/inside/the/container)
+ * Description: delete a file in the container
+ * Introduced: with API extension "file\_delete"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+    {
+    }
+
 ## /1.0/containers/\<name\>/snapshots
 ### GET
  * Description: List of snapshots

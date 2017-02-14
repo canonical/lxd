@@ -30,6 +30,8 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 		return containerFileGet(c, path, r)
 	case "POST":
 		return containerFilePut(c, path, r)
+	case "DELETE":
+		return containerFileDelete(c, path, r)
 	default:
 		return NotFound
 	}
@@ -116,4 +118,13 @@ func containerFilePut(c container, path string, r *http.Request) Response {
 	} else {
 		return InternalError(fmt.Errorf("bad file type %s", type_))
 	}
+}
+
+func containerFileDelete(c container, path string, r *http.Request) Response {
+	err := c.FileRemove(path)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
 }
