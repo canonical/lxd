@@ -1896,7 +1896,7 @@ func (c *Client) PullFile(container string, p string) (int, int, int, string, io
 		return 0, 0, 0, "", nil, nil, err
 	}
 
-	uid, gid, mode, type_ := shared.ParseLXDFileHeaders(r.Header)
+	uid, gid, mode, type_, _ := shared.ParseLXDFileHeaders(r.Header)
 	if type_ == "directory" {
 		resp, err := HoistResponse(r, api.SyncResponse)
 		if err != nil {
@@ -1957,6 +1957,20 @@ func (c *Client) RecursivePullFile(container string, p string, targetDir string)
 		}
 	} else {
 		return fmt.Errorf("unknown file type '%s'", type_)
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteFile(container string, p string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	query := url.Values{"path": []string{p}}
+	_, err := c.delete(fmt.Sprintf("containers/%s/files?%s", container, query.Encode()), nil, api.SyncResponse)
+	if err != nil {
+		return err
 	}
 
 	return nil

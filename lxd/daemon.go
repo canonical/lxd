@@ -402,35 +402,28 @@ var sharedMounted bool
 var sharedMountsLock sync.Mutex
 
 func setupSharedMounts() error {
+	// Check if we already went through this
 	if sharedMounted {
 		return nil
 	}
 
+	// Get a lock to prevent races
 	sharedMountsLock.Lock()
 	defer sharedMountsLock.Unlock()
 
-	if sharedMounted {
-		return nil
-	}
-
+	// Check if already setup
 	path := shared.VarPath("shmounts")
-
-	isShared, err := shared.IsOnSharedMount(path)
-	if err != nil {
-		return err
-	}
-
-	if isShared {
-		// / may already be ms-shared, or shmounts may have
-		// been mounted by a previous lxd run
+	if shared.IsMountPoint(path) {
 		sharedMounted = true
 		return nil
 	}
 
-	if err := syscall.Mount(path, path, "none", syscall.MS_BIND, ""); err != nil {
+	// Mount a new tmpfs
+	if err := syscall.Mount("tmpfs", path, "tmpfs", 0, "size=100k,mode=0711"); err != nil {
 		return err
 	}
 
+	// Mark as MS_SHARED and MS_REC
 	var flags uintptr = syscall.MS_SHARED | syscall.MS_REC
 	if err := syscall.Mount(path, path, "none", flags, ""); err != nil {
 		return err
@@ -861,6 +854,17 @@ func (d *Daemon) Init() error {
 		daemonConfig["core.proxy_ignore_hosts"].Get(),
 	)
 
+	/* Setup some mounts (nice to have) */
+	if !d.MockMode {
+		// Attempt to mount the shmounts tmpfs
+		setupSharedMounts()
+
+		// Attempt to Mount the devlxd tmpfs
+		if !shared.IsMountPoint(shared.VarPath("devlxd")) {
+			syscall.Mount("tmpfs", shared.VarPath("devlxd"), "tmpfs", 0, "size=100k,mode=0755")
+		}
+	}
+
 	/* Setup /dev/lxd */
 	shared.LogInfof("Starting /dev/lxd handler")
 	d.devlxd, err = createAndBindDevLxd()
@@ -1168,22 +1172,23 @@ func (d *Daemon) Stop() error {
 		}
 	}
 
-	if n, err := d.numRunningContainers(); err != nil || n == 0 {
-		shared.LogInfof("Unmounting shmounts")
+	shared.LogInfof("Stopping /dev/lxd handler")
+	d.devlxd.Close()
+	shared.LogInfof("Stopped /dev/lxd handler")
 
+	if n, err := d.numRunningContainers(); err != nil || n == 0 {
+		shared.LogInfof("Unmounting temporary filesystems")
+
+		syscall.Unmount(shared.VarPath("devlxd"), syscall.MNT_DETACH)
 		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
 
-		shared.LogInfof("Done unmounting shmounts")
+		shared.LogInfof("Done unmounting temporary filesystems")
 	} else {
-		shared.LogDebugf("Not unmounting shmounts (containers are still running)")
+		shared.LogDebugf("Not unmounting temporary filesystems (containers are still running)")
 	}
 
 	shared.LogInfof("Closing the database")
 	d.db.Close()
-
-	shared.LogInfof("Stopping /dev/lxd handler")
-	d.devlxd.Close()
-	shared.LogInfof("Stopped /dev/lxd handler")
 
 	shared.LogInfof("Saving simplestreams cache")
 	imageSaveStreamCache()

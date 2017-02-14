@@ -33,9 +33,10 @@ var containerStateCmd = Command{
 }
 
 var containerFileCmd = Command{
-	name: "containers/{name}/files",
-	get:  containerFileHandler,
-	post: containerFileHandler,
+	name:   "containers/{name}/files",
+	get:    containerFileHandler,
+	post:   containerFileHandler,
+	delete: containerFileHandler,
 }
 
 var containerSnapshotsCmd = Command{

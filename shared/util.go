@@ -123,7 +123,7 @@ func LogPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
-func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode int, type_ string) {
+func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode int, type_ string, write string) {
 	uid, err := strconv.Atoi(headers.Get("X-LXD-uid"))
 	if err != nil {
 		uid = -1
@@ -152,7 +152,15 @@ func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode int, type_
 		type_ = "file"
 	}
 
-	return uid, gid, mode, type_
+	write = headers.Get("X-LXD-write")
+	/* backwards compat: before "write" was introduced, we could only
+	 * overwrite files
+	 */
+	if write == "" {
+		write = "overwrite"
+	}
+
+	return uid, gid, mode, type_, write
 }
 
 func ReadToJSON(r io.Reader, req interface{}) error {
@@ -428,42 +436,6 @@ func IsTrue(value string) bool {
 	}
 
 	return false
-}
-
-func IsOnSharedMount(pathName string) (bool, error) {
-	file, err := os.Open("/proc/self/mountinfo")
-	if err != nil {
-		return false, err
-	}
-	defer file.Close()
-
-	absPath, err := filepath.Abs(pathName)
-	if err != nil {
-		return false, err
-	}
-
-	expPath, err := os.Readlink(absPath)
-	if err != nil {
-		expPath = absPath
-	}
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		rows := strings.Fields(line)
-
-		if rows[4] != expPath {
-			continue
-		}
-
-		if strings.HasPrefix(rows[6], "shared:") {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
-
-	return false, nil
 }
 
 func IsBlockdev(fm os.FileMode) bool {
