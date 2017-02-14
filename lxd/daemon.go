@@ -90,9 +90,6 @@ type Daemon struct {
 	MockMode  bool
 	SetupMode bool
 
-	imagesDownloading     map[string]chan bool
-	imagesDownloadingLock sync.Mutex
-
 	tlsConfig *tls.Config
 
 	proxy func(req *http.Request) (*url.URL, error)
@@ -545,8 +542,6 @@ func haveMacAdmin() bool {
 
 func (d *Daemon) Init() error {
 	/* Initialize some variables */
-	d.imagesDownloading = map[string]chan bool{}
-
 	d.readyChan = make(chan bool)
 	d.shutdownChan = make(chan bool)
 
