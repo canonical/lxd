@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -123,12 +124,50 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	path := containerPath(name, false)
-	err := d.Storage.ContainerStart(name, path)
+	containerMntPoint, err := os.Readlink(path)
 	if err != nil {
-		return SmartError(err)
+		return InternalError(err)
 	}
 
-	defer d.Storage.ContainerStop(name, path)
+	if !shared.IsMountPoint(path) {
+		poolIdx := strings.Index(containerMntPoint, "/storage-pools/")
+		containerSubString := fmt.Sprintf("/containers/%s", name)
+		containersIdx := strings.Index(containerMntPoint, containerSubString)
+		if (poolIdx < 0) || (containersIdx < 0) || (containersIdx <= poolIdx) {
+			return InternalError(fmt.Errorf("Symlink does not point to a valid container mountpoint."))
+		}
+		poolName := containerMntPoint[poolIdx+len("/storage-pools/") : containersIdx]
+		if strings.Contains(poolName, "/") {
+			return InternalError(fmt.Errorf("Symlink target does not contain a valid storage pool name."))
+		}
+
+		_, pool, err := dbStoragePoolGet(d.db, poolName)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		switch pool.Driver {
+		case "zfs":
+			err = zfsMount(poolName, containerSubString[1:])
+			if err != nil {
+				return InternalError(err)
+			}
+			defer zfsUmount(poolName, containerSubString[1:])
+		case "lvm":
+			containerLvmName := containerNameToLVName(name)
+			containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, containerLvmName)
+			err := tryMount(containerLvmPath, containerMntPoint, "", 0, "")
+			if err != nil {
+				return InternalError(err)
+			}
+			defer tryUnmount(containerLvmPath, 0)
+		case "dir":
+			// noop: There is nothing to mount.
+		case "btrfs":
+			// noop: The btrfs storage pool should never be
+			// unmounted.
+		}
+	}
 
 	sf, err := slurpBackupFile(shared.VarPath("containers", name, "backup.yaml"))
 	if err != nil {
