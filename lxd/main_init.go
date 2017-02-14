@@ -18,8 +18,8 @@ import (
 
 func cmdInit() error {
 	var defaultPrivileged int // controls whether we set security.privileged=true
+	var storageSetup bool     // dir or zfs
 	var storageBackend string // dir or zfs
-	var storageMode string    // existing, loop or device
 	var storageLoopSize int64 // Size in GB
 	var storageDevice string  // Path
 	var storagePool string    // pool name
@@ -216,15 +216,6 @@ func cmdInit() error {
 			}
 		}
 
-		// Set the local variables
-		if *argStorageCreateDevice != "" {
-			storageMode = "device"
-		} else if *argStorageCreateLoop != -1 {
-			storageMode = "loop"
-		} else {
-			storageMode = "existing"
-		}
-
 		storageBackend = *argStorageBackend
 		storageLoopSize = *argStorageCreateLoop
 		storageDevice = *argStorageCreateDevice
@@ -232,6 +223,7 @@ func cmdInit() error {
 		networkAddress = *argNetworkAddress
 		networkPort = *argNetworkPort
 		trustPassword = *argTrustPassword
+		storageSetup = true
 	} else {
 		if *argStorageBackend != "" || *argStorageCreateDevice != "" || *argStorageCreateLoop != -1 || *argStoragePool != "" || *argNetworkAddress != "" || *argNetworkPort != -1 || *argTrustPassword != "" {
 			return fmt.Errorf("Init configuration is only valid with --auto")
@@ -242,19 +234,22 @@ func cmdInit() error {
 			defaultStorage = "zfs"
 		}
 
-		storageBackend = askChoice(fmt.Sprintf("Name of the storage backend to use (dir or zfs) [default=%s]: ", defaultStorage), backendsSupported, defaultStorage)
+		storageSetup = askBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes")
+		if storageSetup {
+			storagePool = askString("Name of the new storage pool [default=default]: ", "default", nil)
+			storageBackend = askChoice(fmt.Sprintf("Name of the storage backend to use (dir or zfs) [default=%s]: ", defaultStorage), backendsSupported, defaultStorage)
 
-		if !shared.StringInSlice(storageBackend, backendsSupported) {
-			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
+			if !shared.StringInSlice(storageBackend, backendsSupported) {
+				return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
+			}
+
+			if !shared.StringInSlice(storageBackend, backendsAvailable) {
+				return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", storageBackend)
+			}
 		}
 
-		if !shared.StringInSlice(storageBackend, backendsAvailable) {
-			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", storageBackend)
-		}
-
-		if storageBackend == "zfs" {
+		if storageSetup && storageBackend == "zfs" {
 			if askBool("Create a new ZFS pool (yes/no) [default=yes]? ", "yes") {
-				storagePool = askString("Name of the new ZFS pool [default=lxd]: ", "lxd", nil)
 				if askBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
 					deviceExists := func(path string) error {
 						if !shared.IsBlockdevPath(path) {
@@ -263,7 +258,6 @@ func cmdInit() error {
 						return nil
 					}
 					storageDevice = askString("Path to the existing block device: ", "", deviceExists)
-					storageMode = "device"
 				} else {
 					st := syscall.Statfs_t{}
 					err := syscall.Statfs(shared.VarPath(), &st)
@@ -280,13 +274,11 @@ func cmdInit() error {
 						def = 15
 					}
 
-					q := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%d]: ", def)
+					q := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", def)
 					storageLoopSize = askInt(q, 1, -1, fmt.Sprintf("%d", def))
-					storageMode = "loop"
 				}
 			} else {
 				storagePool = askString("Name of the existing ZFS pool or dataset: ", "", nil)
-				storageMode = "existing"
 			}
 		}
 
@@ -359,55 +351,34 @@ they otherwise would.
 		}
 	}
 
-	// Unset all storage keys, core.https_address and core.trust_password
-	for _, key := range []string{"storage.zfs_pool_name", "core.https_address", "core.trust_password"} {
-		_, err = c.SetServerConfig(key, "")
+	if storageSetup {
+		// Unset all storage keys, core.https_address and core.trust_password
+		for _, key := range []string{"storage.zfs_pool_name", "core.https_address", "core.trust_password"} {
+			_, err = c.SetServerConfig(key, "")
+			if err != nil {
+				return err
+			}
+		}
+
+		// Destroy any existing loop device
+		for _, file := range []string{"zfs.img"} {
+			os.Remove(shared.VarPath(file))
+		}
+
+		storageConfig := map[string]string{}
+		storageConfig["source"] = storageDevice
+		if storageBackend != "dir" {
+			storageConfig["size"] = strconv.FormatInt(storageLoopSize, 10) + "GB"
+		}
+
+		// Create the requested storage pool.
+		err := c.StoragePoolCreate(storagePool, storageBackend, storageConfig)
 		if err != nil {
 			return err
 		}
-	}
 
-	// Destroy any existing loop device
-	for _, file := range []string{"zfs.img"} {
-		os.Remove(shared.VarPath(file))
-	}
-
-	if storageBackend == "zfs" {
-		if storageMode == "loop" {
-			storageDevice = shared.VarPath("zfs.img")
-			f, err := os.Create(storageDevice)
-			if err != nil {
-				return fmt.Errorf("Failed to open %s: %s", storageDevice, err)
-			}
-
-			err = f.Chmod(0600)
-			if err != nil {
-				return fmt.Errorf("Failed to chmod %s: %s", storageDevice, err)
-			}
-
-			err = f.Truncate(int64(storageLoopSize * 1024 * 1024 * 1024))
-			if err != nil {
-				return fmt.Errorf("Failed to create sparse file %s: %s", storageDevice, err)
-			}
-
-			err = f.Close()
-			if err != nil {
-				return fmt.Errorf("Failed to close %s: %s", storageDevice, err)
-			}
-		}
-
-		if shared.StringInSlice(storageMode, []string{"loop", "device"}) {
-			output, err := exec.Command(
-				"zpool",
-				"create", storagePool, storageDevice,
-				"-f", "-m", "none", "-O", "compression=on").CombinedOutput()
-			if err != nil {
-				return fmt.Errorf("Failed to create the ZFS pool: %s", output)
-			}
-		}
-
-		// Configure LXD to use the pool
-		_, err = c.SetServerConfig("storage.zfs_pool_name", storagePool)
+		props := []string{"path=/", fmt.Sprintf("pool=%s", storagePool)}
+		_, err = c.ProfileDeviceAdd("default", "root", "disk", props)
 		if err != nil {
 			return err
 		}
