@@ -189,7 +189,7 @@ msgstr  ""
 msgid   "CREATED AT"
 msgstr  ""
 
-#: lxc/config.go:114 lxc/network.go:463
+#: lxc/config.go:114 lxc/network.go:471
 #, c-format
 msgid   "Can't read from stdin: %s"
 msgstr  ""
@@ -199,7 +199,7 @@ msgstr  ""
 msgid   "Can't unset key '%s', it's not currently set."
 msgstr  ""
 
-#: lxc/network.go:390 lxc/profile.go:424 lxc/storage.go:522
+#: lxc/network.go:398 lxc/profile.go:424 lxc/storage.go:522
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -233,7 +233,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:535 lxc/config.go:600 lxc/image.go:737 lxc/network.go:346 lxc/profile.go:218 lxc/storage.go:478 lxc/storage.go:824
+#: lxc/config.go:535 lxc/config.go:600 lxc/image.go:737 lxc/network.go:354 lxc/profile.go:218 lxc/storage.go:478 lxc/storage.go:824
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -617,7 +617,7 @@ msgstr  ""
 msgid   "Log:"
 msgstr  ""
 
-#: lxc/network.go:428
+#: lxc/network.go:436
 msgid   "MANAGED"
 msgstr  ""
 
@@ -739,8 +739,8 @@ msgid   "Manage networks.\n"
         "    Example: lxc network edit <network> # launch editor\n"
         "             cat network.yaml | lxc network edit <network> # read from network.yaml\n"
         "\n"
-        "lxc network attach [<remote>:]<network> <container> [device name]\n"
-        "lxc network attach-profile [<remote>:]<network> <profile> [device name]\n"
+        "lxc network attach [<remote>:]<network> <container> [device name] [interface name]\n"
+        "lxc network attach-profile [<remote>:]<network> <profile> [device name] [interface name]\n"
         "\n"
         "lxc network detach [<remote>:]<network> <container> [device name]\n"
         "lxc network detach-profile [<remote>:]<network> <container> [device name]"
@@ -891,7 +891,7 @@ msgid   "Monitor activity on the LXD server.\n"
         "    lxc monitor --type=logging"
 msgstr  ""
 
-#: lxc/network.go:216 lxc/network.go:265 lxc/storage.go:309 lxc/storage.go:405
+#: lxc/network.go:224 lxc/network.go:273 lxc/storage.go:309 lxc/storage.go:405
 msgid   "More than one device matches, specify the device name."
 msgstr  ""
 
@@ -916,11 +916,11 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:431 lxc/network.go:426 lxc/profile.go:451 lxc/remote.go:380 lxc/storage.go:550 lxc/storage.go:640 lxc/storage.go:673
+#: lxc/list.go:431 lxc/network.go:434 lxc/profile.go:451 lxc/remote.go:380 lxc/storage.go:550 lxc/storage.go:640 lxc/storage.go:673
 msgid   "NAME"
 msgstr  ""
 
-#: lxc/network.go:412 lxc/remote.go:354 lxc/remote.go:359
+#: lxc/network.go:420 lxc/remote.go:354 lxc/remote.go:359
 msgid   "NO"
 msgstr  ""
 
@@ -929,12 +929,12 @@ msgstr  ""
 msgid   "Name: %s"
 msgstr  ""
 
-#: lxc/network.go:190
+#: lxc/network.go:198
 #, c-format
 msgid   "Network %s created"
 msgstr  ""
 
-#: lxc/network.go:293
+#: lxc/network.go:301
 #, c-format
 msgid   "Network %s deleted"
 msgstr  ""
@@ -955,7 +955,7 @@ msgstr  ""
 msgid   "No certificate provided to add"
 msgstr  ""
 
-#: lxc/network.go:225 lxc/network.go:274
+#: lxc/network.go:233 lxc/network.go:282
 msgid   "No device found for this network"
 msgstr  ""
 
@@ -975,7 +975,7 @@ msgstr  ""
 msgid   "Only https:// is supported for remote image import."
 msgstr  ""
 
-#: lxc/network.go:322 lxc/network.go:449
+#: lxc/network.go:330 lxc/network.go:457
 msgid   "Only managed networks can be modified."
 msgstr  ""
 
@@ -1037,7 +1037,7 @@ msgstr  ""
 msgid   "Pid: %d"
 msgstr  ""
 
-#: lxc/network.go:347 lxc/profile.go:219 lxc/storage.go:479 lxc/storage.go:825
+#: lxc/network.go:355 lxc/profile.go:219 lxc/storage.go:479 lxc/storage.go:825
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -1303,7 +1303,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:436 lxc/network.go:427 lxc/storage.go:641 lxc/storage.go:674
+#: lxc/list.go:436 lxc/network.go:435 lxc/storage.go:641 lxc/storage.go:674
 msgid   "TYPE"
 msgstr  ""
 
@@ -1332,11 +1332,11 @@ msgstr  ""
 msgid   "The opposite of `lxc pause` is `lxc start`."
 msgstr  ""
 
-#: lxc/network.go:230 lxc/network.go:279 lxc/storage.go:323 lxc/storage.go:419
+#: lxc/network.go:238 lxc/network.go:287 lxc/storage.go:323 lxc/storage.go:419
 msgid   "The specified device doesn't exist"
 msgstr  ""
 
-#: lxc/network.go:234 lxc/network.go:283
+#: lxc/network.go:242 lxc/network.go:291
 msgid   "The specified device doesn't match the network"
 msgstr  ""
 
@@ -1390,7 +1390,7 @@ msgstr  ""
 msgid   "URL"
 msgstr  ""
 
-#: lxc/network.go:429 lxc/profile.go:452 lxc/storage.go:553 lxc/storage.go:642 lxc/storage.go:675
+#: lxc/network.go:437 lxc/profile.go:452 lxc/storage.go:553 lxc/storage.go:642 lxc/storage.go:675
 msgid   "USED BY"
 msgstr  ""
 
@@ -1424,7 +1424,7 @@ msgstr  ""
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
-#: lxc/network.go:414 lxc/remote.go:356 lxc/remote.go:361
+#: lxc/network.go:422 lxc/remote.go:356 lxc/remote.go:361
 msgid   "YES"
 msgstr  ""
 
