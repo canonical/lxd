@@ -208,3 +208,6 @@ Implements DELETE in /1.0/containers/\<name\>/files
 
 ## file\_append
 Implements the X-LXD-write header which can be one of "overwrite" or "append".
+
+## network\_dhcp\_expiry
+Introduces "ipv4.dhcp.expiry" and "ipv6.dhcp.expiry" allowing to set the DHCP lease expiry time.
