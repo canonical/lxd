@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -134,6 +135,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		case "source":
 			return true
 		case "recursive":
+			return true
+		case "pool":
 			return true
 		default:
 			return false
@@ -272,6 +275,16 @@ func containerValidDevices(devices types.Devices, profile bool, expanded bool) e
 			if (m["path"] == "/" || !shared.IsDir(m["source"])) && m["recursive"] != "" {
 				return fmt.Errorf("The recursive option is only supported for additional bind-mounted paths.")
 			}
+
+			if m["pool"] != "" {
+				if storageValidName(m["pool"]) != nil {
+					return fmt.Errorf("The specified storage pool name is not valid.")
+				}
+				if filepath.IsAbs(m["source"]) {
+					return fmt.Errorf("Storage volumes cannot be specified as absolute paths.")
+				}
+			}
+
 		} else if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			if m["path"] == "" {
 				return fmt.Errorf("Unix device entry is missing the required \"path\" property.")
@@ -410,6 +423,8 @@ type container interface {
 	StatePath() string
 	LogFilePath() string
 	LogPath() string
+
+	StoragePool() string
 
 	// FIXME: Those should be internal functions
 	StorageStart() error

@@ -100,7 +100,7 @@ test_mount_order() {
 test_config_profiles() {
   ensure_import_testimage
 
-  lxc init testimage foo
+  lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
   lxc profile list | grep default
 
   # let's check that 'lxc config profile' still works while it's deprecated
@@ -207,7 +207,7 @@ test_config_profiles() {
 
   lxc delete foo
 
-  lxc init testimage foo
+  lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
   lxc profile assign foo onenic,unconfined
   lxc start foo
 

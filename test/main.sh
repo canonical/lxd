@@ -68,6 +68,9 @@ spawn_lxd() {
   lxddir=${1}
   shift
 
+  storage=${1}
+  shift
+
   # Copy pre generated Certs
   cp deps/server.crt "${lxddir}"
   cp deps/server.key "${lxddir}"
@@ -109,8 +112,10 @@ spawn_lxd() {
     LXD_DIR="${lxddir}" lxc network attach-profile lxdbr0 default eth0
   fi
 
-  echo "==> Configuring storage backend"
-  "$LXD_BACKEND"_configure "${lxddir}"
+  if [ "${storage}" = true ]; then
+    echo "==> Configuring storage backend"
+    "$LXD_BACKEND"_configure "${lxddir}"
+  fi
 }
 
 lxc() {
@@ -247,6 +252,11 @@ kill_lxd() {
       lxc profile delete "${profile}" --force-local || true
     done
 
+    echo "==> Deleting all storage pools"
+    for storage in $(lxc storage list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
+      lxc storage delete "${storage}" --force-local || true
+    done
+
     echo "==> Checking for locked DB tables"
     for table in $(echo .tables | sqlite3 "${daemon_dir}/lxd.db"); do
       echo "SELECT * FROM ${table};" | sqlite3 "${daemon_dir}/lxd.db" >/dev/null
@@ -299,6 +309,10 @@ kill_lxd() {
     check_empty_table "${daemon_dir}/lxd.db" "profiles_config"
     check_empty_table "${daemon_dir}/lxd.db" "profiles_devices"
     check_empty_table "${daemon_dir}/lxd.db" "profiles_devices_config"
+    check_empty_table "${daemon_dir}/lxd.db" "storage_pools"
+    check_empty_table "${daemon_dir}/lxd.db" "storage_pools_config"
+    check_empty_table "${daemon_dir}/lxd.db" "storage_volumes"
+    check_empty_table "${daemon_dir}/lxd.db" "storage_volumes_config"
   fi
 
   # teardown storage
@@ -410,14 +424,14 @@ export LXD_CONF
 LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
 export LXD_DIR
 chmod +x "${LXD_DIR}"
-spawn_lxd "${LXD_DIR}"
+spawn_lxd "${LXD_DIR}" true
 LXD_ADDR=$(cat "${LXD_DIR}/lxd.addr")
 export LXD_ADDR
 
 # Setup the second LXD
 LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
 chmod +x "${LXD2_DIR}"
-spawn_lxd "${LXD2_DIR}"
+spawn_lxd "${LXD2_DIR}" true
 LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 export LXD2_ADDR
 
@@ -464,5 +478,6 @@ run_test test_migration "migration"
 run_test test_fdleak "fd leak"
 run_test test_cpu_profiling "CPU profiling"
 run_test test_mem_profiling "memory profiling"
+run_test test_storage "storage"
 
 TEST_RESULT=success

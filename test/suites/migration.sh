@@ -27,6 +27,8 @@ test_migration() {
     lxc_remote snapshot backup
     sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='backup'"
     sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='backup/snap0'"
+    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM storage_volumes WHERE name='backup'"
+    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM storage_volumes WHERE name='backup/snap0'"
     lxd import backup
     lxc_remote info backup | grep snap0
   fi
@@ -35,6 +37,7 @@ test_migration() {
   if [ "${LXD_BACKEND}" != "lvm" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive/rootfs" ]
   fi
+
   [ ! -d "${LXD_DIR}/containers/nonlive" ]
   # FIXME: make this backend agnostic
   if [ "${LXD_BACKEND}" = "dir" ]; then
@@ -42,11 +45,15 @@ test_migration() {
   fi
 
   lxc_remote copy l2:nonlive l1:nonlive2
+  # This line exists so that the container's storage volume is mounted when we
+  # perform existence check for various files.
+  lxc_remote start l2:nonlive
   [ -d "${LXD_DIR}/containers/nonlive2" ]
   # FIXME: make this backend agnostic
   if [ "${LXD_BACKEND}" != "lvm" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive/rootfs/bin" ]
   fi
+
   # FIXME: make this backend agnostic
   if [ "${LXD_BACKEND}" = "dir" ]; then
     [ -d "${LXD_DIR}/snapshots/nonlive2/snap0/rootfs/bin" ]
@@ -59,6 +66,7 @@ test_migration() {
   fi
   lxc_remote delete l2:nonlive3 --force
 
+  lxc_remote stop l2:nonlive
   lxc_remote copy l2:nonlive l2:nonlive2
   # should have the same base image tag
   [ "$(lxc_remote config get l2:nonlive volatile.base_image)" = "$(lxc_remote config get l2:nonlive2 volatile.base_image)" ]

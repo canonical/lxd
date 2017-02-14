@@ -25,13 +25,6 @@ func mockStartDaemon() (*Daemon, error) {
 		{Isgid: true, Hostid: 100000, Nsid: 0, Maprange: 500000},
 	}}
 
-	// Call this after Init so we have a log object.
-	storageConfig := make(map[string]interface{})
-	d.Storage = &storageLogWrapper{w: &storageMock{d: d}}
-	if _, err := d.Storage.Init(storageConfig); err != nil {
-		return nil, err
-	}
-
 	return d, nil
 }
 
@@ -41,6 +34,8 @@ type lxdTestSuite struct {
 	Req    *require.Assertions
 	tmpdir string
 }
+
+const lxdTestSuiteDefaultStoragePool string = "lxdTestrunPool"
 
 func (suite *lxdTestSuite) SetupSuite() {
 	tmpdir, err := ioutil.TempDir("", "lxd_testrun_")
@@ -54,6 +49,45 @@ func (suite *lxdTestSuite) SetupSuite() {
 	}
 
 	suite.d, err = mockStartDaemon()
+	if err != nil {
+		os.Exit(1)
+	}
+
+	// Create default storage pool. Make sure that we don't pass a nil to
+	// the next function.
+	poolConfig := map[string]string{}
+
+	mockStorage, _ := storageTypeToString(storageTypeMock)
+	// Create the database entry for the storage pool.
+	_, err = dbStoragePoolCreate(suite.d.db, lxdTestSuiteDefaultStoragePool, mockStorage, poolConfig)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	rootDev := map[string]string{}
+	rootDev["type"] = "disk"
+	rootDev["path"] = "/"
+	rootDev["pool"] = lxdTestSuiteDefaultStoragePool
+	devicesMap := map[string]map[string]string{}
+	devicesMap["root"] = rootDev
+
+	defaultID, _, err := dbProfileGet(suite.d.db, "default")
+	if err != nil {
+		os.Exit(1)
+	}
+
+	tx, err := dbBegin(suite.d.db)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	err = dbDevicesAdd(tx, "profile", defaultID, devicesMap)
+	if err != nil {
+		tx.Rollback()
+		os.Exit(1)
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		os.Exit(1)
 	}

@@ -80,7 +80,7 @@ func detectCompression(fname string) ([]string, string, error) {
 
 }
 
-func unpack(d *Daemon, file string, path string) error {
+func unpack(d *Daemon, file string, path string, sType storageType) error {
 	extractArgs, extension, err := detectCompression(file)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func unpack(d *Daemon, file string, path string) error {
 
 		// Check if we're running out of space
 		if int64(fs.Bfree) < int64(2*fs.Bsize) {
-			if d.Storage.GetStorageType() == storageTypeLvm {
+			if sType == storageTypeLvm {
 				return fmt.Errorf("Unable to unpack image, run out of disk space (consider increasing storage.lvm_volume_size).")
 			} else {
 				return fmt.Errorf("Unable to unpack image, run out of disk space.")
@@ -149,8 +149,8 @@ func unpack(d *Daemon, file string, path string) error {
 	return nil
 }
 
-func unpackImage(d *Daemon, imagefname string, destpath string) error {
-	err := unpack(d, imagefname, destpath)
+func unpackImage(d *Daemon, imagefname string, destpath string, sType storageType) error {
+	err := unpack(d, imagefname, destpath, sType)
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func unpackImage(d *Daemon, imagefname string, destpath string) error {
 			return fmt.Errorf("Error creating rootfs directory")
 		}
 
-		err = unpack(d, imagefname+".rootfs", rootfsPath)
+		err = unpack(d, imagefname+".rootfs", rootfsPath, sType)
 		if err != nil {
 			return err
 		}
@@ -331,7 +331,7 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) error {
 		return fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	hash, err = d.ImageDownload(op, req.Source["server"], req.Source["protocol"], req.Source["certificate"], req.Source["secret"], hash, false, req.AutoUpdate)
+	hash, err = d.ImageDownload(op, req.Source["server"], req.Source["protocol"], req.Source["certificate"], req.Source["secret"], hash, false, req.AutoUpdate, "")
 	if err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) error {
 	}
 
 	// Import the image
-	hash, err = d.ImageDownload(op, url, "direct", "", "", hash, false, req.AutoUpdate)
+	hash, err = d.ImageDownload(op, url, "direct", "", "", hash, false, req.AutoUpdate, "")
 	if err != nil {
 		return err
 	}
@@ -626,15 +626,32 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 	return info, nil
 }
 
-func imageBuildFromInfo(d *Daemon, info api.Image) (metadata map[string]string, err error) {
-	err = d.Storage.ImageCreate(info.Fingerprint)
-	if err != nil {
-		os.Remove(shared.VarPath("images", info.Fingerprint))
-		os.Remove(shared.VarPath("images", info.Fingerprint) + ".rootfs")
-
-		return metadata, err
+// imageCreateInPool() creates a new storage volume in a given storage pool for
+// the image. No entry in the images database will be created. This implies that
+// imageCreateinPool() should only be called when an image already exists in the
+// database and hence has already a storage volume in at least one storage pool.
+func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
+	if storagePool == "" {
+		return fmt.Errorf("No storage pool specified.")
 	}
 
+	// Initialize a new storage interface.
+	s, err := storagePoolInit(d, storagePool)
+	if err != nil {
+		return err
+	}
+
+	// Create the storage volume for the image on the requested storage
+	// pool.
+	err = s.ImageCreate(info.Fingerprint)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func imageBuildFromInfo(d *Daemon, info *api.Image) (metadata map[string]string, err error) {
 	err = dbImageInsert(
 		d.db,
 		info.Fingerprint,
@@ -750,7 +767,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			imagePublishLock.Unlock()
 		}
 
-		metadata, err := imageBuildFromInfo(d, info)
+		metadata, err := imageBuildFromInfo(d, &info)
 		if err != nil {
 			return err
 		}
@@ -878,38 +895,77 @@ func autoUpdateImages(d *Daemon) {
 			continue
 		}
 
+		// Get the IDs of all storage pools on which a storage volume
+		// for the requested image currently exists.
+		poolIDs, err := dbImageGetPools(d.db, fp)
+		if err != nil {
+			continue
+		}
+
+		// Translate the IDs to poolNames.
+		poolNames, err := dbImageGetPoolNamesFromIDs(d.db, poolIDs)
+		if err != nil {
+			continue
+		}
+
 		shared.LogDebug("Processing image", log.Ctx{"fp": fp, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
 
-		hash, err := d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true)
-		if hash == fp {
-			shared.LogDebug("Already up to date", log.Ctx{"fp": fp})
-			continue
-		} else if err != nil {
-			shared.LogError("Failed to update the image", log.Ctx{"err": err, "fp": fp})
-			continue
+		// Update the image on each pool where it currently exists.
+		for _, poolName := range poolNames {
+			hash, err := d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true, poolName)
+			if hash == fp {
+				shared.LogDebug("Already up to date", log.Ctx{"fp": fp})
+				continue
+			} else if err != nil {
+				shared.LogError("Failed to update the image", log.Ctx{"err": err, "fp": fp})
+				continue
+			}
+
+			newId, _, err := dbImageGet(d.db, hash, false, true)
+			if err != nil {
+				shared.LogError("Error loading image", log.Ctx{"err": err, "fp": hash})
+				continue
+			}
+
+			err = dbImageLastAccessUpdate(d.db, hash, info.LastUsedAt)
+			if err != nil {
+				shared.LogError("Error setting last use date", log.Ctx{"err": err, "fp": hash})
+				continue
+			}
+
+			err = dbImageAliasesMove(d.db, id, newId)
+			if err != nil {
+				shared.LogError("Error moving aliases", log.Ctx{"err": err, "fp": hash})
+				continue
+			}
+
+			err = doDeleteImageFromPool(d, fp, poolName)
+			if err != nil {
+				shared.LogError("Error deleting image", log.Ctx{"err": err, "fp": fp})
+			}
 		}
 
-		newId, _, err := dbImageGet(d.db, hash, false, true)
-		if err != nil {
-			shared.LogError("Error loading image", log.Ctx{"err": err, "fp": hash})
-			continue
+		// Remove main image file.
+		fname := shared.VarPath("images", fp)
+		if shared.PathExists(fname) {
+			err = os.Remove(fname)
+			if err != nil {
+				shared.LogDebugf("Error deleting image file %s: %s", fname, err)
+			}
 		}
 
-		err = dbImageLastAccessUpdate(d.db, hash, info.LastUsedAt)
-		if err != nil {
-			shared.LogError("Error setting last use date", log.Ctx{"err": err, "fp": hash})
-			continue
+		// Remove the rootfs file for the image.
+		fname = shared.VarPath("images", fp) + ".rootfs"
+		if shared.PathExists(fname) {
+			err = os.Remove(fname)
+			if err != nil {
+				shared.LogDebugf("Error deleting image file %s: %s", fname, err)
+			}
 		}
 
-		err = dbImageAliasesMove(d.db, id, newId)
-		if err != nil {
-			shared.LogError("Error moving aliases", log.Ctx{"err": err, "fp": hash})
-			continue
-		}
-
-		err = doDeleteImage(d, fp)
-		if err != nil {
-			shared.LogError("Error deleting image", log.Ctx{"err": err, "fp": fp})
+		// Remove the database entry for the image.
+		if err = dbImageDelete(d.db, id); err != nil {
+			shared.LogDebugf("Error deleting image from database %s: %s", fname, err)
 		}
 	}
 
@@ -919,7 +975,7 @@ func autoUpdateImages(d *Daemon) {
 func pruneExpiredImages(d *Daemon) {
 	shared.LogInfof("Pruning expired images")
 
-	// Get the list of expires images
+	// Get the list of expired images.
 	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
 	images, err := dbImagesGetExpired(d.db, expiry)
 	if err != nil {
@@ -929,52 +985,69 @@ func pruneExpiredImages(d *Daemon) {
 
 	// Delete them
 	for _, fp := range images {
-		if err := doDeleteImage(d, fp); err != nil {
-			shared.LogError("Error deleting image", log.Ctx{"err": err, "fp": fp})
+		// Get the IDs of all storage pools on which a storage volume
+		// for the requested image currently exists.
+		poolIDs, err := dbImageGetPools(d.db, fp)
+		if err != nil {
+			continue
+		}
+
+		// Translate the IDs to poolNames.
+		poolNames, err := dbImageGetPoolNamesFromIDs(d.db, poolIDs)
+		if err != nil {
+			continue
+		}
+
+		for _, pool := range poolNames {
+			err := doDeleteImageFromPool(d, fp, pool)
+			if err != nil {
+				shared.LogDebugf("Error deleting image %s from storage pool %: %s", fp, pool, err)
+				continue
+			}
+		}
+
+		// Remove main image file.
+		fname := shared.VarPath("images", fp)
+		if shared.PathExists(fname) {
+			err = os.Remove(fname)
+			if err != nil {
+				shared.LogDebugf("Error deleting image file %s: %s", fname, err)
+			}
+		}
+
+		// Remove the rootfs file for the image.
+		fname = shared.VarPath("images", fp) + ".rootfs"
+		if shared.PathExists(fname) {
+			err = os.Remove(fname)
+			if err != nil {
+				shared.LogDebugf("Error deleting image file %s: %s", fname, err)
+			}
+		}
+
+		imgID, _, err := dbImageGet(d.db, fp, false, false)
+		if err != nil {
+			shared.LogDebugf("Error retrieving image info %s: %s", fp, err)
+		}
+
+		// Remove the database entry for the image.
+		if err = dbImageDelete(d.db, imgID); err != nil {
+			shared.LogDebugf("Error deleting image %s from database: %s", fp, err)
 		}
 	}
 
 	shared.LogInfof("Done pruning expired images")
 }
 
-func doDeleteImage(d *Daemon, fingerprint string) error {
-	id, imgInfo, err := dbImageGet(d.db, fingerprint, false, false)
+func doDeleteImageFromPool(d *Daemon, fingerprint string, storagePool string) error {
+	// Initialize a new storage interface.
+	s, err := storagePoolVolumeImageInit(d, storagePool, fingerprint)
 	if err != nil {
 		return err
 	}
 
-	// get storage before deleting images/$fp because we need to
-	// look at the path
-	s, err := storageForImage(d, imgInfo)
+	// Delete the storage volume for the image from the storage pool.
+	err = s.ImageDelete(fingerprint)
 	if err != nil {
-		shared.LogError("error detecting image storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
-	} else {
-		// Remove the image from storage backend
-		if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {
-			shared.LogError("error deleting the image from storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
-		}
-	}
-
-	// Remove main image file
-	fname := shared.VarPath("images", imgInfo.Fingerprint)
-	if shared.PathExists(fname) {
-		err = os.Remove(fname)
-		if err != nil {
-			shared.LogDebugf("Error deleting image file %s: %s", fname, err)
-		}
-	}
-
-	// Remove the rootfs file
-	fname = shared.VarPath("images", imgInfo.Fingerprint) + ".rootfs"
-	if shared.PathExists(fname) {
-		err = os.Remove(fname)
-		if err != nil {
-			shared.LogDebugf("Error deleting image file %s: %s", fname, err)
-		}
-	}
-
-	// Remove the DB entry
-	if err = dbImageDelete(d.db, id); err != nil {
 		return err
 	}
 
@@ -984,8 +1057,55 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 func imageDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
+	deleteFromAllPools := func() error {
+		// Use the fingerprint we received in a LIKE query and use the full
+		// fingerprint we receive from the database in all further queries.
+		imgID, imgInfo, err := dbImageGet(d.db, fingerprint, false, false)
+		if err != nil {
+			return err
+		}
+
+		poolIDs, err := dbImageGetPools(d.db, imgInfo.Fingerprint)
+		if err != nil {
+			return err
+		}
+
+		pools, err := dbImageGetPoolNamesFromIDs(d.db, poolIDs)
+		if err != nil {
+			return err
+		}
+
+		for _, pool := range pools {
+			err := doDeleteImageFromPool(d, imgInfo.Fingerprint, pool)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Remove main image file.
+		fname := shared.VarPath("images", imgInfo.Fingerprint)
+		if shared.PathExists(fname) {
+			err = os.Remove(fname)
+			if err != nil {
+				shared.LogDebugf("Error deleting image file %s: %s", fname, err)
+			}
+		}
+
+		// Remove the rootfs file for the image.
+		fname = shared.VarPath("images", imgInfo.Fingerprint) + ".rootfs"
+		if shared.PathExists(fname) {
+			err = os.Remove(fname)
+			if err != nil {
+				shared.LogDebugf("Error deleting image file %s: %s", fname, err)
+			}
+		}
+
+		// Remove the database entry for the image.
+		return dbImageDelete(d.db, imgID)
+	}
+
 	rmimg := func(op *operation) error {
-		return doDeleteImage(d, fingerprint)
+		return deleteFromAllPools()
 	}
 
 	resources := map[string][]string{}

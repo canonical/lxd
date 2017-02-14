@@ -2801,3 +2801,166 @@ func (c *Client) ListNetworks() ([]api.Network, error) {
 
 	return networks, nil
 }
+
+// Storage functions
+func (c *Client) ListStoragePools() ([]api.StoragePool, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	resp, err := c.get("storage-pools?recursion=1")
+	if err != nil {
+		return nil, err
+	}
+
+	pools := []api.StoragePool{}
+	if err := json.Unmarshal(resp.Metadata, &pools); err != nil {
+		return nil, err
+	}
+
+	return pools, nil
+}
+
+func (c *Client) StoragePoolCreate(name string, driver string, config map[string]string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	body := shared.Jmap{"name": name, "driver": driver, "config": config}
+
+	_, err := c.post("storage-pools", body, api.SyncResponse)
+	return err
+}
+
+func (c *Client) StoragePoolDelete(name string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	_, err := c.delete(fmt.Sprintf("storage-pools/%s", name), nil, api.SyncResponse)
+	return err
+}
+
+func (c *Client) StoragePoolGet(name string) (api.StoragePool, error) {
+	if c.Remote.Public {
+		return api.StoragePool{}, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	resp, err := c.get(fmt.Sprintf("storage-pools/%s", name))
+	if err != nil {
+		return api.StoragePool{}, err
+	}
+
+	pools := api.StoragePool{}
+	if err := json.Unmarshal(resp.Metadata, &pools); err != nil {
+		return api.StoragePool{}, err
+	}
+
+	return pools, nil
+}
+
+func (c *Client) StoragePoolPut(name string, pool api.StoragePool) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	if pool.Name != name {
+		return fmt.Errorf("Cannot change storage pool name")
+	}
+
+	_, err := c.put(fmt.Sprintf("storage-pools/%s", name), pool, api.SyncResponse)
+	return err
+}
+
+// /1.0/storage-pools/{name}/volumes
+func (c *Client) StoragePoolVolumesList(pool string) ([]api.StorageVolume, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	resp, err := c.get(fmt.Sprintf("storage-pools/%s/volumes?recursion=1", pool))
+	if err != nil {
+		return nil, err
+	}
+
+	volumes := []api.StorageVolume{}
+	if err := json.Unmarshal(resp.Metadata, &volumes); err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}
+
+// /1.0/storage-pools/{name}/volumes/{type}
+func (c *Client) StoragePoolVolumesTypeList(pool string, volumeType string) ([]api.StorageVolume, error) {
+	if c.Remote.Public {
+		return nil, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	resp, err := c.get(fmt.Sprintf("storage-pools/%s/volumes/%s?recursion=1", pool, volumeType))
+	if err != nil {
+		return nil, err
+	}
+
+	volumes := []api.StorageVolume{}
+	if err := json.Unmarshal(resp.Metadata, &volumes); err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}
+
+// /1.0/storage-pools/{pool}/volumes/{volume_type}
+func (c *Client) StoragePoolVolumeTypeCreate(pool string, volume string, volumeType string, config map[string]string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	body := shared.Jmap{"pool": pool, "name": volume, "type": volumeType, "config": config}
+
+	_, err := c.post(fmt.Sprintf("storage-pools/%s/volumes/%s", pool, volumeType), body, api.SyncResponse)
+	return err
+}
+
+// /1.0/storage-pools/{pool}/volumes/{type}/{name}
+func (c *Client) StoragePoolVolumeTypeGet(pool string, volume string, volumeType string) (api.StorageVolume, error) {
+	if c.Remote.Public {
+		return api.StorageVolume{}, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	resp, err := c.get(fmt.Sprintf("storage-pools/%s/volumes/%s/%s", pool, volumeType, volume))
+	if err != nil {
+		return api.StorageVolume{}, err
+	}
+
+	vol := api.StorageVolume{}
+	if err := json.Unmarshal(resp.Metadata, &vol); err != nil {
+		return api.StorageVolume{}, err
+	}
+
+	return vol, nil
+}
+
+// /1.0/storage-pools/{pool}/volumes/{type}/{name}
+func (c *Client) StoragePoolVolumeTypePut(pool string, volume string, volumeType string, volumeConfig api.StorageVolume) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	if volumeConfig.Name != volume {
+		return fmt.Errorf("Cannot change storage volume name")
+	}
+
+	_, err := c.put(fmt.Sprintf("storage-pools/%s/volumes/%s/%s", pool, volumeType, volume), volumeConfig, api.SyncResponse)
+	return err
+}
+
+// /1.0/storage-pools/{pool}/volumes/{type}/{name}
+func (c *Client) StoragePoolVolumeTypeDelete(pool string, volume string, volumeType string) error {
+	if c.Remote.Public {
+		return fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	_, err := c.delete(fmt.Sprintf("storage-pools/%s/volumes/%s/%s", pool, volumeType, volume), nil, api.SyncResponse)
+	return err
+}

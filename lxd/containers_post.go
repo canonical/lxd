@@ -83,10 +83,24 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	run := func(op *operation) error {
+		args := containerArgs{
+			BaseImage: hash,
+			Config:    req.Config,
+			Ctype:     cTypeRegular,
+			Devices:   req.Devices,
+			Ephemeral: req.Ephemeral,
+			Name:      req.Name,
+			Profiles:  req.Profiles,
+		}
+
 		if req.Source.Server != "" {
+			if args.Profiles == nil {
+				args.Profiles = []string{"default"}
+			}
+
 			hash, err = d.ImageDownload(
 				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret,
-				hash, true, daemonConfig["images.auto_update_cached"].GetBool())
+				hash, true, daemonConfig["images.auto_update_cached"].GetBool(), "")
 			if err != nil {
 				return err
 			}
@@ -103,17 +117,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		if err != nil {
 			architecture = 0
 		}
-
-		args := containerArgs{
-			Architecture: architecture,
-			BaseImage:    hash,
-			Config:       req.Config,
-			Ctype:        cTypeRegular,
-			Devices:      req.Devices,
-			Ephemeral:    req.Ephemeral,
-			Name:         req.Name,
-			Profiles:     req.Profiles,
-		}
+		args.Architecture = architecture
 
 		_, err = containerCreateFromImage(d, args, hash)
 		return err
@@ -199,15 +203,37 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
-	if err == nil && d.Storage.MigrationType() == MigrationFSType_RSYNC {
-		c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
+	if err != nil {
+		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
 			return InternalError(err)
 		}
 	} else {
-		c, err = containerCreateAsEmpty(d, args)
+		cM, err := containerLXCLoad(d, args)
 		if err != nil {
 			return InternalError(err)
+		}
+
+		ps, err := storagePoolInit(d, cM.StoragePool())
+		if err != nil {
+			return InternalError(err)
+		}
+
+		err = ps.StoragePoolCheck()
+		if err != nil {
+			return InternalError(err)
+		}
+
+		if ps.MigrationType() == MigrationFSType_RSYNC {
+			c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
+			if err != nil {
+				return InternalError(err)
+			}
+		} else {
+			c, err = containerCreateAsEmpty(d, args)
+			if err != nil {
+				return InternalError(err)
+			}
 		}
 	}
 
@@ -365,6 +391,16 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	req := api.ContainersPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
+	}
+
+	// If no storage pool is found, error out.
+	pools, err := dbStoragePools(d.db)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if len(pools) == 0 {
+		return BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool."))
 	}
 
 	if req.Name == "" {
