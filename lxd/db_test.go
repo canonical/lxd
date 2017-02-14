@@ -27,7 +27,7 @@ const DB_FIXTURES string = `
     INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (2, 'devicekey', 'devicevalue');
     `
 
-//  This Helper will initialize a test in-memory DB.
+// This Helper will initialize a test in-memory DB.
 func createTestDb(t *testing.T) (db *sql.DB) {
 	// Setup logging if main() hasn't been called/when testing
 	if shared.Log == nil {
