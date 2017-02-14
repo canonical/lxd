@@ -23,7 +23,7 @@ func (c *launchCmd) usage() string {
 	return i18n.G(
 		`Launch a container from a particular image.
 
-lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>]
+lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>]
 
 Launches a container using the specified image and name.
 
@@ -85,12 +85,24 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		}
 	}
 
+	// Check if the specified storage pool exists.
+	if c.init.storagePool != "" {
+		_, err := d.StoragePoolGet(c.init.storagePool)
+		if err != nil {
+			return err
+		}
+		devicesMap["root"] = map[string]string{
+			"type": "disk",
+			"path": "/",
+			"pool": c.init.storagePool,
+		}
+	}
+
 	if !initRequestedEmptyProfiles && len(profiles) == 0 {
 		resp, err = d.Init(name, iremote, image, nil, configMap, devicesMap, c.init.ephem)
 	} else {
 		resp, err = d.Init(name, iremote, image, &profiles, configMap, devicesMap, c.init.ephem)
 	}
-
 	if err != nil {
 		return err
 	}

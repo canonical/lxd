@@ -91,6 +91,7 @@ Pre-defined shorthand chars:
 * 4 - IPv4 address
 * 6 - IPv6 address
 * a - architecture
+* b - storage pool
 * c - creation date
 * l - last used date
 * n - name
@@ -433,6 +434,7 @@ func (c *listCmd) parseColumns() ([]column, error) {
 		'S': {i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
 		's': {i18n.G("STATE"), c.statusColumnData, false, false},
 		't': {i18n.G("TYPE"), c.typeColumnData, false, false},
+		'b': {i18n.G("STORAGE POOL"), c.StoragePoolColumnData, false, false},
 	}
 
 	if c.fast {
@@ -595,6 +597,16 @@ func (c *listCmd) PIDColumnData(cInfo api.Container, cState *api.ContainerState,
 
 func (c *listCmd) ArchitectureColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	return cInfo.Architecture
+}
+
+func (c *listCmd) StoragePoolColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+	for _, v := range cInfo.ExpandedDevices {
+		if v["type"] == "disk" && v["path"] == "/" {
+			return v["pool"]
+		}
+	}
+
+	return ""
 }
 
 func (c *listCmd) ProfilesColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
