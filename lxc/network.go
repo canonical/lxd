@@ -61,8 +61,8 @@ lxc network edit [<remote>:]<network>
     Example: lxc network edit <network> # launch editor
              cat network.yaml | lxc network edit <network> # read from network.yaml
 
-lxc network attach [<remote>:]<network> <container> [device name]
-lxc network attach-profile [<remote>:]<network> <profile> [device name]
+lxc network attach [<remote>:]<network> <container> [device name] [interface name]
+lxc network attach-profile [<remote>:]<network> <profile> [device name] [interface name]
 
 lxc network detach [<remote>:]<network> <container> [device name]
 lxc network detach-profile [<remote>:]<network> <container> [device name]`)
@@ -118,7 +118,7 @@ func (c *networkCmd) run(config *lxd.Config, args []string) error {
 }
 
 func (c *networkCmd) doNetworkAttach(client *lxd.Client, name string, args []string) error {
-	if len(args) < 1 || len(args) > 2 {
+	if len(args) < 1 || len(args) > 3 {
 		return errArgs
 	}
 
@@ -139,6 +139,10 @@ func (c *networkCmd) doNetworkAttach(client *lxd.Client, name string, args []str
 	}
 
 	props := []string{fmt.Sprintf("nictype=%s", nicType), fmt.Sprintf("parent=%s", name)}
+	if len(args) > 2 {
+		props = append(props, fmt.Sprintf("name=%s", args[2]))
+	}
+
 	resp, err := client.ContainerDeviceAdd(container, devName, "nic", props)
 	if err != nil {
 		return err
@@ -148,7 +152,7 @@ func (c *networkCmd) doNetworkAttach(client *lxd.Client, name string, args []str
 }
 
 func (c *networkCmd) doNetworkAttachProfile(client *lxd.Client, name string, args []string) error {
-	if len(args) < 1 || len(args) > 2 {
+	if len(args) < 1 || len(args) > 3 {
 		return errArgs
 	}
 
@@ -169,6 +173,10 @@ func (c *networkCmd) doNetworkAttachProfile(client *lxd.Client, name string, arg
 	}
 
 	props := []string{fmt.Sprintf("nictype=%s", nicType), fmt.Sprintf("parent=%s", name)}
+	if len(args) > 2 {
+		props = append(props, fmt.Sprintf("name=%s", args[2]))
+	}
+
 	_, err = client.ProfileDeviceAdd(profile, devName, "nic", props)
 	return err
 }
