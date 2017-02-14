@@ -284,7 +284,7 @@ func (s *execWs) Do(op *operation) error {
 		}
 
 		if status.Signaled() {
-			// COMMENT(brauner): 128 + n == Fatal error signal "n"
+			// 128 + n == Fatal error signal "n"
 			return finisher(128+int(status.Signal()), nil)
 		}
 	}
