@@ -6,35 +6,107 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
-
-	log "gopkg.in/inconshreveable/log15.v2"
+	"github.com/lxc/lxd/shared/api"
 )
 
 type storageMock struct {
-	d     *Daemon
-	sType storageType
-	log   log.Logger
-
 	storageShared
 }
 
-func (s *storageMock) Init(config map[string]interface{}) (storage, error) {
-	s.sType = storageTypeMock
-	s.sTypeName = storageTypeToString(storageTypeMock)
+func (s *storageMock) StorageCoreInit() (*storageCore, error) {
+	sCore := storageCore{}
+	sCore.sType = storageTypeMock
+	typeName, err := storageTypeToString(sCore.sType)
+	if err != nil {
+		return nil, err
+	}
+	sCore.sTypeName = typeName
 
-	if err := s.initShared(); err != nil {
+	err = sCore.initShared()
+	if err != nil {
+		return nil, err
+	}
+
+	s.storageCore = sCore
+
+	return &sCore, nil
+}
+
+func (s *storageMock) StoragePoolInit(config map[string]interface{}) (storage, error) {
+	_, err := s.StorageCoreInit()
+	if err != nil {
 		return s, err
 	}
 
 	return s, nil
 }
 
-func (s *storageMock) GetStorageType() storageType {
-	return s.sType
+func (s *storageMock) StoragePoolCheck() error {
+	return nil
 }
 
-func (s *storageMock) GetStorageTypeName() string {
-	return s.sTypeName
+func (s *storageMock) StoragePoolCreate() error {
+	return nil
+}
+
+func (s *storageMock) StoragePoolDelete() error {
+	return nil
+}
+
+func (s *storageMock) StoragePoolMount() (bool, error) {
+	return true, nil
+}
+
+func (s *storageMock) StoragePoolUmount() (bool, error) {
+	return true, nil
+}
+
+func (s *storageMock) GetStoragePoolWritable() api.StoragePoolPut {
+	return s.pool.StoragePoolPut
+}
+
+func (s *storageMock) GetStoragePoolVolumeWritable() api.StorageVolumePut {
+	return api.StorageVolumePut{}
+}
+
+func (s *storageMock) SetStoragePoolWritable(writable *api.StoragePoolPut) {
+	s.pool.StoragePoolPut = *writable
+}
+
+func (s *storageMock) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut) {
+	s.volume.StorageVolumePut = *writable
+}
+
+func (s *storageMock) ContainerPoolGet() string {
+	return s.pool.Name
+}
+
+func (s *storageMock) ContainerPoolIDGet() int64 {
+	return s.poolID
+}
+
+func (s *storageMock) StoragePoolVolumeCreate() error {
+	return nil
+}
+
+func (s *storageMock) StoragePoolVolumeDelete() error {
+	return nil
+}
+
+func (s *storageMock) StoragePoolVolumeMount() (bool, error) {
+	return true, nil
+}
+
+func (s *storageMock) StoragePoolVolumeUmount() (bool, error) {
+	return true, nil
+}
+
+func (s *storageMock) StoragePoolVolumeUpdate(changedConfig []string) error {
+	return nil
+}
+
+func (s *storageMock) StoragePoolUpdate(changedConfig []string) error {
+	return nil
 }
 
 func (s *storageMock) ContainerCreate(container container) error {
@@ -61,12 +133,12 @@ func (s *storageMock) ContainerCopy(
 	return nil
 }
 
-func (s *storageMock) ContainerStart(name string, path string) error {
-	return nil
+func (s *storageMock) ContainerMount(name string, path string) (bool, error) {
+	return true, nil
 }
 
-func (s *storageMock) ContainerStop(name string, path string) error {
-	return nil
+func (s *storageMock) ContainerUmount(name string, path string) (bool, error) {
+	return true, nil
 }
 
 func (s *storageMock) ContainerRename(
@@ -127,6 +199,14 @@ func (s *storageMock) ImageCreate(fingerprint string) error {
 
 func (s *storageMock) ImageDelete(fingerprint string) error {
 	return nil
+}
+
+func (s *storageMock) ImageMount(fingerprint string) (bool, error) {
+	return true, nil
+}
+
+func (s *storageMock) ImageUmount(fingerprint string) (bool, error) {
+	return true, nil
 }
 
 func (s *storageMock) MigrationType() MigrationFSType {
