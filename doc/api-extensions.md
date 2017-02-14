@@ -205,3 +205,6 @@ This includes:
 
 ## file\_delete
 Implements DELETE in /1.0/containers/\<name\>/files
+
+## file\_append
+Implements the X-LXD-write header which can be one of "overwrite" or "append".

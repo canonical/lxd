@@ -106,6 +106,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"network_routes",
 			"storage",
 			"file_delete",
+			"file_append",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

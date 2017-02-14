@@ -1896,7 +1896,7 @@ func (c *Client) PullFile(container string, p string) (int, int, int, string, io
 		return 0, 0, 0, "", nil, nil, err
 	}
 
-	uid, gid, mode, type_ := shared.ParseLXDFileHeaders(r.Header)
+	uid, gid, mode, type_, _ := shared.ParseLXDFileHeaders(r.Header)
 	if type_ == "directory" {
 		resp, err := HoistResponse(r, api.SyncResponse)
 		if err != nil {
