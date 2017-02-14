@@ -176,3 +176,29 @@ dnsmasq is enabled on the bridge.
 
 ## network\_routes
 Introduces "ipv4.routes" and "ipv6.routes" which allow routing additional subnets to a LXD bridge.
+
+## storage
+Storage management API for LXD.
+
+This includes:
+* GET /1.0/storage-pools
+* POST /1.0/storage-pools (see rest-api.md for details)
+
+* GET /1.0/storage-pools/<name> (see rest-api.md for details)
+* POST /1.0/storage-pools/<name> (see rest-api.md for details)
+* PUT /1.0/storage-pools/<name> (see rest-api.md for details)
+* PATCH /1.0/storage-pools/<name> (see rest-api.md for details)
+* DELETE /1.0/storage-pools/<name> (see rest-api.md for details)
+
+* GET /1.0/storage-pools/<name>/volumes (see rest-api.md for details)
+
+* GET /1.0/storage-pools/<name>/volumes/<volume_type> (see rest-api.md for details)
+* POST /1.0/storage-pools/<name>/volumes/<volume_type> (see rest-api.md for details)
+
+* GET /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
+* POST /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
+* PUT /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
+* PATCH /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
+* DELETE /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
+
+- All storage configuration options (see configuration.md for details)

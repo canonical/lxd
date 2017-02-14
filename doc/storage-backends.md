@@ -18,6 +18,9 @@ Nesting support                             | yes       | yes   | no    | no
 Restore from older snapshots (not latest)   | yes       | yes   | yes   | no
 Storage quotas                              | no        | yes   | no    | yes
 
+With the implementation of the new storage api it is possible to use multiple
+storage drivers (e.g. BTRFS and ZFS) at the same time.
+
 ## Mixed storage
 When switching storage backend after some containers or images already exist, LXD will create any new container  
 using the new backend and converting older images to the new backend as needed.
@@ -29,29 +32,22 @@ rsync is used to transfer the container content across.
 ## Notes
 ### Directory
 
- - The directory backend is the fallback backend when nothing else is configured or detected.
  - While this backend is fully functional, it's also much slower than
    all the others due to it having to unpack images or do instant copies of
    containers, snapshots and images.
 
 ### Btrfs
 
- - The btrfs backend is automatically used if /var/lib/lxd is on a btrfs filesystem.
  - Uses a subvolume per container, image and snapshot, creating btrfs snapshots when creating a new object.
  - When using for nesting, the host btrfs filesystem must be mounted with the "user\_subvol\_rm\_allowed" mount option.
 
 ### LVM
 
- - A LVM VG must be created and then storage.lvm\_vg\_name set to point to it.
- - If a thinpool doesn't already exist, one will be created, the name of the thinpool can be set with storage.lvm\_thinpool\_name .
  - Uses LVs for images, then LV snapshots for containers and container snapshots.
  - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
- - LVs are created with a default size of 10GiB (can be configured through).
 
 ### ZFS
 
- - LXD can use any zpool or part of a zpool. storage.zfs\_pool\_name must be set to the path to be used.
- - ZFS doesn't have to (and shouldn't be) mounted on /var/lib/lxd
  - Uses ZFS filesystems for images, then snapshots and clones to create containers and snapshots.
  - Due to the way copy-on-write works in ZFS, parent filesystems can't
    be removed until all children are gone. As a result, LXD will

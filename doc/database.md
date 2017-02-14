@@ -335,3 +335,38 @@ version         | INTEGER       | -             | NOT NULL          | Schema ver
 updated\_at     | DATETIME      | -             | NOT NULL          | When the schema update was done
 
 Index: UNIQUE ON id AND version
+
+## storage\_pools
+
+Column                  | Type          | Default       | Constraint        | Description
+:-----                  | :---          | :------       | :---------        | :----------
+id                      | INTEGER       | SERIAL        | NOT NULL          | SERIAL
+name                    | VARCHAR(255)  | -             | NOT NULL          | storage pool name
+driver                  | VARCHAR(255)  | -             | NOT NULL          | storage pool driver
+
+## storage\_pools\_config
+
+Column                  | Type          | Default       | Constraint        | Description
+:-----                  | :---          | :------       | :---------        | :----------
+id                      | INTEGER       | SERIAL        | NOT NULL          | SERIAL
+storage\_pool\_id       | INTEGER       | -             | NOT NULL          | storage\_pools.id FK
+key                     | VARCHAR(255)  | -             | NOT NULL          | Configuration key
+value                   | TEXT          | -             |                   | Configuration value (NULL for unset)
+
+## storage\_volumes
+
+Column                  | Type          | Default       | Constraint        | Description
+:-----                  | :---          | :------       | :---------        | :----------
+id                      | INTEGER       | SERIAL        | NOT NULL          | SERIAL
+storage\_pool\_id       | INTEGER       | -             | NOT NULL          | storage\_pools.id FK
+name                    | VARCHAR(255)  | -             | NOT NULL          | storage volume name
+type                    | INTEGER       | -             | NOT NULL          | storage volume type
+
+## storage\_volumes\_config
+
+Column                  | Type          | Default       | Constraint        | Description
+:-----                  | :---          | :------       | :---------        | :----------
+id                      | INTEGER       | SERIAL        | NOT NULL          | SERIAL
+storage\_volume\_id     | INTEGER       | -             | NOT NULL          | storage\_volumes.id FK
+key                     | VARCHAR(255)  | -             | NOT NULL          | Configuration key
+value                   | TEXT          | -             |                   | Configuration value (NULL for unset)

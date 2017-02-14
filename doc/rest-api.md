@@ -1818,3 +1818,309 @@ Input (none at present):
     }
 
 HTTP code for this should be 202 (Accepted).
+
+## /1.0/storage-pools
+### GET
+ * Description: list of storage pools
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of storage pools that are currently defined on the host
+
+    [
+        "/1.0/storage-pools/default",
+        "/1.0/storage-pools/pool1"
+        "/1.0/storage-pools/pool2"
+        "/1.0/storage-pools/pool3"
+        "/1.0/storage-pools/pool4"
+    ]
+
+### POST
+ * Description: create a new storage pool
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "config": {
+            "size": "10GB"
+        },
+        "driver": "zfs",
+        "name": "pool1"
+    }
+
+## /1.0/storage-pools/<name>
+### GET
+ * Description: information about a storage pool
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing a storage pool
+
+    {
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "operation": "",
+        "error_code": 0,
+        "error": "",
+        "metadata": {
+            "name": "default",
+            "driver": "zfs",
+            "used_by": [
+                "/1.0/containers/alp1",
+                "/1.0/containers/alp10",
+                "/1.0/containers/alp11",
+                "/1.0/containers/alp12",
+                "/1.0/containers/alp13",
+                "/1.0/containers/alp14",
+                "/1.0/containers/alp15",
+                "/1.0/containers/alp16",
+                "/1.0/containers/alp17",
+                "/1.0/containers/alp18",
+                "/1.0/containers/alp19",
+                "/1.0/containers/alp2",
+                "/1.0/containers/alp20",
+                "/1.0/containers/alp3",
+                "/1.0/containers/alp4",
+                "/1.0/containers/alp5",
+                "/1.0/containers/alp6",
+                "/1.0/containers/alp7",
+                "/1.0/containers/alp8",
+                "/1.0/containers/alp9",
+                "/1.0/images/62e850a334bb9d99cac00b2e618e0291e5e7bb7db56c4246ecaf8e46fa0631a6"
+            ],
+            "config": {
+                "size": "61203283968",
+                "source": "/home/chb/mnt/l2/disks/default.img",
+                "volume.size": "0",
+                "zfs.pool_name": "default"
+            }
+        }
+    }
+
+### PUT (ETag supported)
+ * Description: replace the storage pool information
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+ Input:
+
+    {
+        "config": {
+            "size": "15032385536",
+            "source": "pool1",
+            "volume.block.filesystem": "xfs",
+            "volume.block.mount_options": "discard",
+            "volume.lvm.thinpool_name": "LXDPool",
+            "volume.size": "10737418240"
+        }
+    }
+
+### PATCH
+ * Description: update the storage pool configuration
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "config": {
+            "volume.block.filesystem": "xfs",
+        }
+    }
+
+### DELETE
+ * Description: delete a storage pool
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+    {
+    }
+
+## /1.0/storage-pools/<name>/volumes
+### GET
+ * Description: list of storage volumes
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of storage volumes that currently exist on a given storage pool
+
+    [
+        "/1.0/storage-pools/default/volumes/containers/alp1",
+        "/1.0/storage-pools/default/volumes/containers/alp10",
+        "/1.0/storage-pools/default/volumes/containers/alp11",
+        "/1.0/storage-pools/default/volumes/containers/alp12",
+        "/1.0/storage-pools/default/volumes/containers/alp13",
+        "/1.0/storage-pools/default/volumes/containers/alp14",
+        "/1.0/storage-pools/default/volumes/containers/alp15",
+        "/1.0/storage-pools/default/volumes/containers/alp16",
+        "/1.0/storage-pools/default/volumes/containers/alp17",
+        "/1.0/storage-pools/default/volumes/containers/alp18",
+        "/1.0/storage-pools/default/volumes/containers/alp19",
+        "/1.0/storage-pools/default/volumes/containers/alp2",
+        "/1.0/storage-pools/default/volumes/containers/alp20",
+        "/1.0/storage-pools/default/volumes/containers/alp3",
+        "/1.0/storage-pools/default/volumes/containers/alp4",
+        "/1.0/storage-pools/default/volumes/containers/alp5",
+        "/1.0/storage-pools/default/volumes/containers/alp6",
+        "/1.0/storage-pools/default/volumes/containers/alp7",
+        "/1.0/storage-pools/default/volumes/containers/alp8",
+        "/1.0/storage-pools/default/volumes/containers/alp9",
+        "/1.0/storage-pools/default/volumes/images/62e850a334bb9d99cac00b2e618e0291e5e7bb7db56c4246ecaf8e46fa0631a6"
+    ]
+
+## /1.0/storage-pools/<pool>/volumes
+### GET
+ * Description: list all storage volumes on a storage pool
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+    {
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "error_code": 0,
+        "error": "",
+        "metadata": [
+            {
+                "type": "container",
+                "used_by": [],
+                "name": "alp1",
+                "config": {
+                "size": "0"
+                }
+            },
+            {
+                "type": "container",
+                "used_by": [],
+                "name": "alp1/snap0",
+                "config": {
+                    "size": "0"
+                }
+            },
+            {
+                "type": "image",
+                "used_by": [],
+                "name": "ade3a9bcd7ba27456673611304238c424ced1772f69d7c6b031356831d94e8ee",
+                "config": {
+                    "size": "0"
+                }
+            },
+            {
+                "type": "custom",
+                "used_by": [],
+                "name": "bla",
+                "config": {
+                    "size": "0"
+                }
+            }
+        ]
+    }
+
+
+### POST
+ * Description: create a new storage volume on a given storage pool
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "config": {},
+        "pool": "pool1",
+        "name": "vol1",
+        "type": "custom"
+    }
+
+
+## /1.0/storage-pools/<pool>/volumes/<type>/<name>
+### GET
+ * Description: information about a storage volume of a given type on a storage pool
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing a storage volume
+
+    {
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "error_code": 0,
+        "error": "",
+        "metadata": {
+            "type": "custom",
+            "used_by": [],
+            "name": "vol1",
+            "config": {
+                "block.filesystem": "ext4",
+                "block.mount_options": "discard",
+                "lvm.thinpool_name": "LXDPool",
+                "size": "10737418240"
+            }
+        }
+    }
+
+
+### PUT (ETag supported)
+ * Description: replace the storage volume information
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+ Input:
+
+    {
+        "config": {
+            "size": "15032385536",
+            "source": "pool1",
+            "used_by": "",
+            "volume.block.filesystem": "xfs",
+            "volume.block.mount_options": "discard",
+            "volume.lvm.thinpool_name": "LXDPool",
+            "volume.size": "10737418240"
+        }
+    }
+
+### PATCH (ETag supported)
+ * Description: update the storage volume information
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+ Input:
+
+    {
+        "config": {
+            "volume.block.mount_options": "",
+        }
+    }
+
+### DELETE
+ * Description: delete a storage volume of a given type on a given storage pool
+ * Introduced: with API extension "storage"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+    {
+    }
