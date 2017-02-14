@@ -255,6 +255,14 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	// Get the container list
 	containers := getContainersWithProfile(d, name)
 
+	// Check that we only change the root disk device for profiles that do
+	// not have any containers currently using it.
+	for _, v := range req.Devices {
+		if v["type"] == "disk" && v["path"] == "/" && v["source"] == "" && len(containers) > 0 {
+			return BadRequest(fmt.Errorf("Cannot change root disk device of a profile if containers are still using it."))
+		}
+	}
+
 	// Update the database
 	tx, err := dbBegin(d.db)
 	if err != nil {
