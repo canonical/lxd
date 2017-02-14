@@ -140,7 +140,7 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		}
 
 		if diskInfo != "" {
-			fmt.Println(i18n.G("  Disk usage:"))
+			fmt.Println(fmt.Sprintf("  %s", i18n.G("Disk usage:")))
 			fmt.Printf(diskInfo)
 		}
 
@@ -163,7 +163,7 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		}
 
 		if memoryInfo != "" {
-			fmt.Println(i18n.G("  Memory usage:"))
+			fmt.Println(fmt.Sprintf("  %s", i18n.G("Memory usage:")))
 			fmt.Printf(memoryInfo)
 		}
 
@@ -180,7 +180,7 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 		}
 
 		if networkInfo != "" {
-			fmt.Println(i18n.G("  Network usage:"))
+			fmt.Println(fmt.Sprintf("  %s", i18n.G("Network usage:")))
 			fmt.Printf(networkInfo)
 		}
 	}
