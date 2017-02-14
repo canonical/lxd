@@ -107,6 +107,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage",
 			"file_delete",
 			"file_append",
+			"network_dhcp_expiry",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
