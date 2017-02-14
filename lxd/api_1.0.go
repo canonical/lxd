@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"syscall"
 
 	"gopkg.in/lxc/go-lxc.v2"
@@ -15,6 +17,19 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 )
+
+var storagePoolDriversCacheInitialized bool
+var storagePoolDriversCacheVal atomic.Value
+var storagePoolDriversCacheLock sync.Mutex
+
+func readStoragePoolDriversCache() []string {
+	drivers := storagePoolDriversCacheVal.Load()
+	if drivers == nil {
+		return []string{}
+	}
+
+	return drivers.([]string)
+}
 
 var api10 = []Command{
 	containersCmd,
@@ -44,6 +59,11 @@ var api10 = []Command{
 	certificateFingerprintCmd,
 	profilesCmd,
 	profileCmd,
+	storagePoolsCmd,
+	storagePoolCmd,
+	storagePoolVolumesCmd,
+	storagePoolVolumesTypeCmd,
+	storagePoolVolumeTypeCmd,
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {
@@ -84,6 +104,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"id_map",
 			"network_firewall_filtering",
 			"network_routes",
+			"storage",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
@@ -163,11 +184,32 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		Kernel:             kernel,
 		KernelArchitecture: kernelArchitecture,
 		KernelVersion:      kernelVersion,
-		Storage:            d.Storage.GetStorageTypeName(),
-		StorageVersion:     d.Storage.GetStorageTypeVersion(),
 		Server:             "lxd",
 		ServerPid:          os.Getpid(),
 		ServerVersion:      version.Version}
+
+	drivers := readStoragePoolDriversCache()
+	for _, driver := range drivers {
+		// Initialize a core storage interface for the given driver.
+		sCore, err := storagePoolCoreInit(driver)
+		if err != nil {
+			continue
+		}
+
+		if env.Storage != "" {
+			env.Storage = env.Storage + " | " + driver
+		} else {
+			env.Storage = driver
+		}
+
+		// Get the version of the storage drivers in use.
+		sVersion := sCore.GetStorageTypeVersion()
+		if env.StorageVersion != "" {
+			env.StorageVersion = env.StorageVersion + " | " + sVersion
+		} else {
+			env.StorageVersion = sVersion
+		}
+	}
 
 	fullSrv := api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
