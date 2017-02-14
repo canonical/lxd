@@ -30,6 +30,8 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 		return containerFileGet(c, path, r)
 	case "POST":
 		return containerFilePut(c, path, r)
+	case "DELETE":
+		return containerFileDelete(c, path, r)
 	default:
 		return NotFound
 	}
@@ -82,7 +84,11 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 
 func containerFilePut(c container, path string, r *http.Request) Response {
 	// Extract file ownership and mode from headers
-	uid, gid, mode, type_ := shared.ParseLXDFileHeaders(r.Header)
+	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
+
+	if !shared.StringInSlice(write, []string{"overwrite", "append"}) {
+		return BadRequest(fmt.Errorf("Bad file write mode: %s", write))
+	}
 
 	if type_ == "file" {
 		// Write file content to a tempfile
@@ -101,19 +107,28 @@ func containerFilePut(c container, path string, r *http.Request) Response {
 		}
 
 		// Transfer the file into the container
-		err = c.FilePush(temp.Name(), path, uid, gid, mode)
+		err = c.FilePush(temp.Name(), path, uid, gid, mode, write)
 		if err != nil {
 			return InternalError(err)
 		}
 
 		return EmptySyncResponse
 	} else if type_ == "directory" {
-		err := c.FilePush("", path, uid, gid, mode)
+		err := c.FilePush("", path, uid, gid, mode, write)
 		if err != nil {
 			return InternalError(err)
 		}
 		return EmptySyncResponse
 	} else {
-		return InternalError(fmt.Errorf("bad file type %s", type_))
+		return BadRequest(fmt.Errorf("Bad file type: %s", type_))
 	}
+}
+
+func containerFileDelete(c container, path string, r *http.Request) Response {
+	err := c.FileRemove(path)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
 }

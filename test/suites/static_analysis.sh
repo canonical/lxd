@@ -25,15 +25,18 @@ test_static_analysis() {
     fi
 
     ## go vet, if it exists
-    have_go_vet=1
-    go help vet > /dev/null 2>&1 || have_go_vet=0
-    if [ "${have_go_vet}" -eq 1 ]; then
+    if go help vet >/dev/null 2>&1; then
       go vet ./...
     fi
 
     ## vet
     if which vet >/dev/null 2>&1; then
       vet --all .
+    fi
+
+    ## golint
+    if which golint >/dev/null 2>&1; then
+      golint -set_exit_status shared/api/
     fi
 
     ## deadcode

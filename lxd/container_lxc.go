@@ -4505,7 +4505,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 	return uid, gid, os.FileMode(mode), type_, dirEnts, nil
 }
 
-func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error {
+func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int, mode int, write string) error {
 	var rootUid = 0
 	var rootGid = 0
 	var errStr string
@@ -4545,6 +4545,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 		fmt.Sprintf("%d", rootUid),
 		fmt.Sprintf("%d", rootGid),
 		fmt.Sprintf("%d", int(os.FileMode(0640)&os.ModePerm)),
+		write,
 	).CombinedOutput()
 
 	// Tear down container storage if needed
@@ -4579,7 +4580,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 
 	if err != nil {
 		return fmt.Errorf(
-			"Error calling 'lxd forkputfile %s %d %s %s %d %d %d %d %d %d': err='%v'",
+			"Error calling 'lxd forkputfile %s %d %s %s %d %d %d %d %d %d %s': err='%v'",
 			c.RootfsPath(),
 			c.InitPID(),
 			srcpath,
@@ -4590,6 +4591,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 			rootUid,
 			rootGid,
 			int(os.FileMode(0640)&os.ModePerm),
+			write,
 			err)
 	}
 
@@ -4597,6 +4599,8 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int
 }
 
 func (c *containerLXC) FileRemove(path string) error {
+	var errStr string
+
 	// Setup container storage if needed
 	if !c.IsRunning() {
 		err := c.StorageStart()
@@ -4623,13 +4627,24 @@ func (c *containerLXC) FileRemove(path string) error {
 	}
 
 	// Process forkremovefile response
-	if string(out) != "" {
-		if strings.HasPrefix(string(out), "error:") {
-			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(string(out), "\n"), "error: "))
+	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+		if line == "" {
+			continue
 		}
 
-		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-			shared.LogDebugf("forkremovefile: %s", line)
+		// Extract errors
+		if strings.HasPrefix(line, "error: ") {
+			errStr = strings.TrimPrefix(line, "error: ")
+			continue
+		}
+
+		if strings.HasPrefix(line, "errno: ") {
+			errno := strings.TrimPrefix(line, "errno: ")
+			if errno == "2" {
+				return os.ErrNotExist
+			}
+
+			return fmt.Errorf(errStr)
 		}
 	}
 

@@ -161,6 +161,21 @@ It's recommended that the client always subscribes to the operations
 notification type before triggering remote operations so that it doesn't
 have to then poll for their status.
 
+# PUT vs PATCH
+The LXD API supports both PUT and PATCH to modify existing objects.
+
+PUT replaces the entire object with a new definition, it's typically
+called after the current object state was retrieved through GET.
+
+To avoid race conditions, the Etag header should be read from the GET
+response and sent as If-Match for the PUT request. This will cause LXD
+to fail the request if the object was modified between GET and PUT.
+
+PATCH can be used to modify a single field inside an object by only
+specifying the property that you want to change. To unset a key, setting
+it to empty will usually do the trick, but there are cases where PATCH
+won't work and PUT needs to be used instead.
+
 # API structure
  * /
    * /1.0
@@ -815,9 +830,22 @@ The following headers may be set by the client:
  * X-LXD-uid: 0
  * X-LXD-gid: 0
  * X-LXD-mode: 0700
+ * X-LXD-write: overwrite (or append, introduced with API extension "file\_append")
 
 This is designed to be easily usable from the command line or even a web
 browser.
+
+### DELETE (?path=/path/inside/the/container)
+ * Description: delete a file in the container
+ * Introduced: with API extension "file\_delete"
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+    {
+    }
 
 ## /1.0/containers/\<name\>/snapshots
 ### GET
