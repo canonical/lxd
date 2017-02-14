@@ -21,7 +21,6 @@ lvm_setup() {
   echo "${pvloopdev}" > "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg"
 
   pvcreate "${pvloopdev}"
-  vgcreate "lxdtest-$(basename "${LXD_DIR}")" "${pvloopdev}"
 }
 
 lvm_configure() {
@@ -32,8 +31,8 @@ lvm_configure() {
 
   echo "==> Configuring lvm backend in ${LXD_DIR}"
 
-  lxc config set storage.lvm_volume_size "10Mib"
-  lxc config set storage.lvm_vg_name "lxdtest-$(basename "${LXD_DIR}")"
+  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" lvm source="$(cat "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg")" volume.size=10MB
+  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 }
 
 lvm_teardown() {
@@ -47,7 +46,6 @@ lvm_teardown() {
   SUCCESS=0
   # shellcheck disable=SC2034
   for i in $(seq 10); do
-    vgremove -f "lxdtest-$(basename "${LXD_DIR}")" >/dev/null 2>&1 || true
     pvremove -f "$(cat "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg")" >/dev/null 2>&1 || true
     if losetup -d "$(cat "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg")"; then
       SUCCESS=1
