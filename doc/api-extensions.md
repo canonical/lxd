@@ -202,3 +202,6 @@ This includes:
 * DELETE /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
 
 - All storage configuration options (see configuration.md for details)
+
+## file\_delete
+Implements DELETE in /1.0/containers/\<name\>/files
