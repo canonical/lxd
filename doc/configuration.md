@@ -17,29 +17,29 @@ currently supported:
  - images (image configuration)
  - storage (storage configuration)
 
-Key                             | Type      | Default   | API extension                     | Description
-:--                             | :---      | :------   | :------------                     | :----------
-core.https\_address             | string    | -         | -                                 | Address to bind for the remote API
-core.https\_allowed\_origin     | string    | -         | -                                 | Access-Control-Allow-Origin http header value
-core.https\_allowed\_methods    | string    | -         | -                                 | Access-Control-Allow-Methods http header value
-core.https\_allowed\_headers    | string    | -         | -                                 | Access-Control-Allow-Headers http header value
-core.https\_allowed\_credentials| boolean   | -         | -                                 | Whether to set Access-Control-Allow-Credentials http header value to "true"
-core.proxy\_https               | string    | -         | -                                 | https proxy to use, if any (falls back to HTTPS\_PROXY environment variable)
-core.proxy\_http                | string    | -         | -                                 | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
-core.proxy\_ignore\_hosts       | string    | -         | -                                 | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)
-core.trust\_password            | string    | -         | -                                 | Password to be provided by clients to setup a trust
-storage.lvm\_vg\_name           | string    | -         | -                                 | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
-storage.lvm\_thinpool\_name     | string    | "LXDPool" | -                                 | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
-storage.lvm\_fstype             | string    | ext4      | -                                 | Format LV with filesystem, for now it's value can be only ext4 (default) or xfs.
-storage.lvm\_mount\_options     | string    | discard   | storage\_lvm\_mount\_options      | Mount options for the LV filesystem
-storage.lvm\_volume\_size       | string    | 10GiB     | -                                 | Size of the logical volume
-storage.zfs\_pool\_name         | string    | -         | -                                 | ZFS pool name
-storage.zfs\_remove\_snapshots  | boolean   | false     | storage\_zfs\_remove\_snapshots   | Automatically remove any needed snapshot when attempting a container restore
-storage.zfs\_use\_refquota      | boolean   | false     | storage\_zfs\_use\_refquota       | Don't include snapshots as part of container quota (size property) or in reported disk usage
-images.compression\_algorithm   | string    | gzip      | -                                 | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
-images.remote\_cache\_expiry    | integer   | 10        | -                                 | Number of days after which an unused cached remote image will be flushed
-images.auto\_update\_interval   | integer   | 6         | -                                 | Interval in hours at which to look for update to cached images (0 disables it)
-images.auto\_update\_cached     | boolean   | true      | -                                 | Whether to automatically update any image that LXD caches
+Key                             | Type      | Default   | API extension                     | Deprecated                                    | Description
+:--                             | :---      | :------   | :------------                     | :---------                                    | :----------
+core.https\_address             | string    | -         | -                                 |                                               | Address to bind for the remote API
+core.https\_allowed\_origin     | string    | -         | -                                 |                                               | Access-Control-Allow-Origin http header value
+core.https\_allowed\_methods    | string    | -         | -                                 |                                               | Access-Control-Allow-Methods http header value
+core.https\_allowed\_headers    | string    | -         | -                                 |                                               | Access-Control-Allow-Headers http header value
+core.https\_allowed\_credentials| boolean   | -         | -                                 |                                               | Whether to set Access-Control-Allow-Credentials http header value to "true"
+core.proxy\_https               | string    | -         | -                                 |                                               | https proxy to use, if any (falls back to HTTPS\_PROXY environment variable)
+core.proxy\_http                | string    | -         | -                                 |                                               | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
+core.proxy\_ignore\_hosts       | string    | -         | -                                 |                                               | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)
+core.trust\_password            | string    | -         | -                                 |                                               | Password to be provided by clients to setup a trust
+storage.lvm\_vg\_name           | string    | -         | -                                 | by pool source property                       | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
+storage.lvm\_thinpool\_name     | string    | "LXDPool" | -                                 | by volume.lvm.thinpool\_name pool property    | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
+storage.lvm\_fstype             | string    | ext4      | -                                 | by volume.block.filesystem pool property      | Format LV with filesystem, for now it's value can be only ext4 (default) or xfs.
+storage.lvm\_mount\_options     | string    | discard   | storage\_lvm\_mount\_options      | by volume.block.mount\_options pool property  | Mount options for the LV filesystem
+storage.lvm\_volume\_size       | string    | 10GiB     | -                                 | by volume.size pool property                  | Size of the logical volume
+storage.zfs\_pool\_name         | string    | -         | -                                 | by pool source property                       | ZFS pool name
+storage.zfs\_remove\_snapshots  | boolean   | false     | storage\_zfs\_remove\_snapshots   | by volume.zfs.remove\_snapshots pool property | Automatically remove any needed snapshot when attempting a container restore
+storage.zfs\_use\_refquota      | boolean   | false     | storage\_zfs\_use\_refquota       | by volume.zfs.use\_refquota pool property     | Don't include snapshots as part of container quota (size property) or in reported disk usage
+images.compression\_algorithm   | string    | gzip      | -                                 |                                               | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
+images.remote\_cache\_expiry    | integer   | 10        | -                                 |                                               | Number of days after which an unused cached remote image will be flushed
+images.auto\_update\_interval   | integer   | 6         | -                                 |                                               | Interval in hours at which to look for update to cached images (0 disables it)
+images.auto\_update\_cached     | boolean   | true      | -                                 |                                               | Whether to automatically update any image that LXD caches
 
 Those keys can be set using the lxc tool with:
 
