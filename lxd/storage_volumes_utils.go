@@ -175,7 +175,7 @@ func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volu
 	return nil
 }
 
-func storagePoolVolumeUsedByGet(d *Daemon, volumeName string) ([]string, error) {
+func storagePoolVolumeUsedByGet(d *Daemon, volumeName string, volumeTypeName string) ([]string, error) {
 	// Look for containers using the interface
 	cts, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
@@ -184,10 +184,9 @@ func storagePoolVolumeUsedByGet(d *Daemon, volumeName string) ([]string, error) 
 
 	volumeUsedBy := []string{}
 	for _, ct := range cts {
-		// We're not accessing any storage here.
 		c, err := containerLoadByName(d, ct)
 		if err != nil {
-			return []string{}, err
+			continue
 		}
 
 		for _, d := range c.LocalDevices() {
@@ -195,8 +194,21 @@ func storagePoolVolumeUsedByGet(d *Daemon, volumeName string) ([]string, error) 
 				continue
 			}
 
-			containerAsVolume := fmt.Sprintf("%s/%s", storagePoolVolumeApiEndpointContainers, volumeName)
-			if (d["source"] == volumeName) || (d["source"] == containerAsVolume) {
+			apiEndpoint, err := storagePoolVolumeTypeNameToApiEndpoint(volumeTypeName)
+			if err != nil {
+				return []string{}, err
+			}
+
+			mustBeEqualTo := ""
+			switch apiEndpoint {
+			case storagePoolVolumeApiEndpointImages:
+				mustBeEqualTo = fmt.Sprintf("%s/%s", apiEndpoint, volumeName)
+			case storagePoolVolumeApiEndpointContainers:
+				mustBeEqualTo = fmt.Sprintf("%s/%s", apiEndpoint, volumeName)
+			default:
+				mustBeEqualTo = volumeName
+			}
+			if d["source"] == mustBeEqualTo {
 				volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
 			}
 		}

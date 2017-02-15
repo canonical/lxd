@@ -47,7 +47,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 		if recursion == 0 {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, apiEndpoint, volume.Name))
 		} else {
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volume.Name)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volume.Name, volume.Type)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -119,7 +119,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 				continue
 			}
 
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d, vol.Name)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d, vol.Name, vol.Type)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -269,7 +269,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volume.Name)
+	volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volume.Name, volume.Type)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -433,6 +433,15 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
 		return BadRequest(fmt.Errorf("Invalid storage volume type %s.", volumeTypeName))
+	}
+
+	volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volumeName, volumeTypeName)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if len(volumeUsedBy) > 0 {
+		return BadRequest(fmt.Errorf("The storage volume is in use by containers."))
 	}
 
 	s, err := storagePoolVolumeInit(d, poolName, volumeName, volumeType)

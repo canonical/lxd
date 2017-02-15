@@ -80,22 +80,11 @@ func (s *storageZfs) StoragePoolInit(config map[string]interface{}) (storage, er
 		return s, err
 	}
 
-	if s.pool.Name == "" {
-		if config["zfsPool"] == nil {
-			zfsPool := daemonConfig["storage.zfs_pool_name"].Get()
-			if zfsPool == "" {
-				return s, fmt.Errorf("ZFS isn't enabled")
-			}
-
-			s.pool.Name = zfsPool
-		} else {
-			s.pool.Name = config["zfsPool"].(string)
-		}
-	}
-
+	// Detect whether we have been given a zfs dataset as source.
 	vdev := s.pool.Config["source"]
 	if vdev != "" {
 		if !filepath.IsAbs(vdev) {
+			s.log.Debug(fmt.Sprintf("Treating the source \"%s\" of this storage pool as a ZFS dataset.", vdev))
 			s.dataset = vdev
 		}
 	}
