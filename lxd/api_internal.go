@@ -123,6 +123,18 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("target is required"))
 	}
 
+	// The following code likely requires some explanation. When an existing
+	// container accidently got removed from the containers database || the
+	// storage volumes database and the storage volume for for the container
+	// got unmounted but we want to import it again, we need to
+	// detect the storage information for the container:
+	// - check if the symlink of the container points to a valid mountpoint.
+	// - If it does not read the link and parse out the pool the container
+	//   existed on.
+	// - Check the driver of the storage pool the container existed on and
+	//   if it is an appropriate driver, do something smart on how to
+	//   temporarily remount the containers storage volume to retrieve the
+	//   backup.yaml file for it.
 	path := containerPath(name, false)
 	containerMntPoint, err := os.Readlink(path)
 	if err != nil {
