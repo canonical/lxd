@@ -458,4 +458,4 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var storagePoolVolumeTypeCmd = Command{name: "storage-pools/{pool}/volumes/{type}/{name}", get: storagePoolVolumeTypeGet, put: storagePoolVolumeTypePut, patch: storagePoolVolumeTypePatch, delete: storagePoolVolumeTypeDelete}
+var storagePoolVolumeTypeCmd = Command{name: "storage-pools/{pool}/volumes/{type}/{name:.*}", get: storagePoolVolumeTypeGet, put: storagePoolVolumeTypePut, patch: storagePoolVolumeTypePatch, delete: storagePoolVolumeTypeDelete}
