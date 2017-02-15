@@ -77,7 +77,7 @@ lxc storage edit [<remote>:]<pool>
              cat pool.yaml | lxc storage edit [<remote>:]<pool> # read from pool.yaml
 
 lxc storage volume list [<remote>:]<pool>                              List available storage volumes on a storage pool.
-lxc storage volume show [<remote>:]<pool> <volume>			Show details of a storage volume on a storage pool.
+lxc storage volume show [<remote>:]<pool> <volume>                     Show details of a storage volume on a storage pool.
 lxc storage volume create [<remote>:]<pool> <volume> [key=value]...    Create a storage volume on a storage pool.
 lxc storage volume get [<remote>:]<pool> <volume> <key>                Get storage volume configuration on a storage pool.
 lxc storage volume set [<remote>:]<pool> <volume> <key> <value>        Set storage volume configuration on a storage pool.
