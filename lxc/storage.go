@@ -616,13 +616,7 @@ func (c *storageCmd) doStoragePoolVolumesList(config *lxd.Config, remote string,
 	data := [][]string{}
 	for _, volume := range volumes {
 		usedby := strconv.Itoa(len(volume.UsedBy))
-
-		shortName := volume.Name
-		if volume.Type == "image" {
-			shortName = volume.Name[0:12]
-		}
-
-		data = append(data, []string{shortName, volume.Type, usedby})
+		data = append(data, []string{volume.Name, volume.Type, usedby})
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
