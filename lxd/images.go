@@ -130,7 +130,7 @@ func unpack(d *Daemon, file string, path string, sType storageType) error {
 		// Check if we're running out of space
 		if int64(fs.Bfree) < int64(2*fs.Bsize) {
 			if sType == storageTypeLvm {
-				return fmt.Errorf("Unable to unpack image, run out of disk space (consider increasing storage.lvm_volume_size).")
+				return fmt.Errorf("Unable to unpack image, run out of disk space (consider increasing your pool's volume.size).")
 			} else {
 				return fmt.Errorf("Unable to unpack image, run out of disk space.")
 			}

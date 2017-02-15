@@ -282,7 +282,7 @@ Input (replaces any existing config with the provided one):
     {
         "config": {
             "core.trust_password": "my-new-password",
-            "storage.zfs_pool_name": "lxd"
+            "core.https_address": "1.2.3.4:8443"
         }
     }
 
