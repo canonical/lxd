@@ -121,7 +121,7 @@ test_storage() {
     ARCH=$(getconf LONG_BIT)
     BACKEND=btrfs
     if [ "${ARCH}" = "64" ]; then
-	    BACKEND=zfs
+      BACKEND=zfs
     fi
 
     # Create loop file zfs pool.

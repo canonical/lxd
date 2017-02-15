@@ -8,26 +8,26 @@ import (
 type ResponseRaw struct {
 	Response `yaml:",inline"`
 
-	Metadata interface{} `json:"metadata"`
+	Metadata interface{} `json:"metadata" yaml:"metadata"`
 }
 
 // Response represents a LXD operation
 type Response struct {
-	Type ResponseType `json:"type"`
+	Type ResponseType `json:"type" yaml:"type"`
 
 	// Valid only for Sync responses
-	Status     string `json:"status"`
-	StatusCode int    `json:"status_code"`
+	Status     string `json:"status" yaml:"status"`
+	StatusCode int    `json:"status_code" yaml:"status_code"`
 
 	// Valid only for Async responses
-	Operation string `json:"operation"`
+	Operation string `json:"operation" yaml:"operation"`
 
 	// Valid only for Error responses
-	Code  int    `json:"error_code"`
-	Error string `json:"error"`
+	Code  int    `json:"error_code" yaml:"error_code"`
+	Error string `json:"error" yaml:"error"`
 
 	// Valid for Sync and Error responses
-	Metadata json.RawMessage `json:"metadata"`
+	Metadata json.RawMessage `json:"metadata" yaml:"metadata"`
 }
 
 // MetadataAsMap parses the Response metadata into a map

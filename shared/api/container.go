@@ -8,23 +8,23 @@ import (
 type ContainersPost struct {
 	ContainerPut `yaml:",inline"`
 
-	Name   string          `json:"name"`
-	Source ContainerSource `json:"source"`
+	Name   string          `json:"name" yaml:"name"`
+	Source ContainerSource `json:"source" yaml:"source"`
 }
 
 // ContainerPost represents the fields required to rename/move a LXD container
 type ContainerPost struct {
-	Migration bool   `json:"migration"`
-	Name      string `json:"name"`
+	Migration bool   `json:"migration" yaml:"migration"`
+	Name      string `json:"name" yaml:"name"`
 }
 
 // ContainerPut represents the modifiable fields of a LXD container
 type ContainerPut struct {
-	Architecture string                       `json:"architecture"`
-	Config       map[string]string            `json:"config"`
-	Devices      map[string]map[string]string `json:"devices"`
-	Ephemeral    bool                         `json:"ephemeral"`
-	Profiles     []string                     `json:"profiles"`
+	Architecture string                       `json:"architecture" yaml:"architecture"`
+	Config       map[string]string            `json:"config" yaml:"config"`
+	Devices      map[string]map[string]string `json:"devices" yaml:"devices"`
+	Ephemeral    bool                         `json:"ephemeral" yaml:"ephemeral"`
+	Profiles     []string                     `json:"profiles" yaml:"profiles"`
 	Restore      string                       `json:"restore,omitempty" yaml:"restore,omitempty"`
 }
 
@@ -32,16 +32,16 @@ type ContainerPut struct {
 type Container struct {
 	ContainerPut `yaml:",inline"`
 
-	CreatedAt       time.Time                    `json:"created_at"`
-	ExpandedConfig  map[string]string            `json:"expanded_config"`
-	ExpandedDevices map[string]map[string]string `json:"expanded_devices"`
-	Name            string                       `json:"name"`
-	Stateful        bool                         `json:"stateful"`
-	Status          string                       `json:"status"`
-	StatusCode      StatusCode                   `json:"status_code"`
+	CreatedAt       time.Time                    `json:"created_at" yaml:"created_at"`
+	ExpandedConfig  map[string]string            `json:"expanded_config" yaml:"expanded_config"`
+	ExpandedDevices map[string]map[string]string `json:"expanded_devices" yaml:"expanded_devices"`
+	Name            string                       `json:"name" yaml:"name"`
+	Stateful        bool                         `json:"stateful" yaml:"stateful"`
+	Status          string                       `json:"status" yaml:"status"`
+	StatusCode      StatusCode                   `json:"status_code" yaml:"status_code"`
 
 	// API extension: container_last_used_at
-	LastUsedAt time.Time `json:"last_used_at"`
+	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at"`
 }
 
 // Writable converts a full Container struct into a ContainerPut struct (filters read-only fields)
@@ -63,28 +63,28 @@ func (c Container) IsActive() bool {
 
 // ContainerSource represents the creation source for a new container
 type ContainerSource struct {
-	Type        string `json:"type"`
-	Certificate string `json:"certificate"`
+	Type        string `json:"type" yaml:"type"`
+	Certificate string `json:"certificate" yaml:"certificate"`
 
 	// For "image" type
-	Alias       string            `json:"alias,omitempty"`
-	Fingerprint string            `json:"fingerprint,omitempty"`
-	Properties  map[string]string `json:"properties,omitempty"`
-	Server      string            `json:"server,omitempty"`
-	Secret      string            `json:"secret,omitempty"`
-	Protocol    string            `json:"protocol,omitempty"`
+	Alias       string            `json:"alias,omitempty" yaml:"alias,omitempty"`
+	Fingerprint string            `json:"fingerprint,omitempty" yaml:"fingerprint,omitempty"`
+	Properties  map[string]string `json:"properties,omitempty" yaml:"properties,omitempty"`
+	Server      string            `json:"server,omitempty" yaml:"server,omitempty"`
+	Secret      string            `json:"secret,omitempty" yaml:"secret,omitempty"`
+	Protocol    string            `json:"protocol,omitempty" yaml:"protocol,omitempty"`
 
 	// For "migration" and "copy" types
-	BaseImage string `json:"base-image,omitempty"`
+	BaseImage string `json:"base-image,omitempty" yaml:"base-image,omitempty"`
 
 	// For "migration" type
-	Mode       string            `json:"mode,omitempty"`
-	Operation  string            `json:"operation,omitempty"`
-	Websockets map[string]string `json:"secrets,omitempty"`
+	Mode       string            `json:"mode,omitempty" yaml:"mode,omitempty"`
+	Operation  string            `json:"operation,omitempty" yaml:"operation,omitempty"`
+	Websockets map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 
 	// API extension: container_push
-	Live bool `json:"live,omitempty"`
+	Live bool `json:"live,omitempty" yaml:"live,omitempty"`
 
 	// For "copy" type
-	Source string `json:"source,omitempty"`
+	Source string `json:"source,omitempty" yaml:"source,omitempty"`
 }
