@@ -90,6 +90,16 @@ lxc storage volume attach-profile [<remote:>]<pool> <volume> <profile> [device n
 
 lxc storage volume detach [<remote>:]<pool> <volume> <container> [device name]
 lxc storage volume detach-profile [<remote:>]<pool> <volume> <profile> [device name]
+
+
+Unless specified through a prefix, all volume operations affect "custom" (user created) volumes.
+
+Examples:
+To show the properties of a custom volume called "data" in the "default" pool:
+    lxc storage volume show default data
+
+To show the properties of the filesystem for a container called "data" in the "default" pool:
+    lxc storage volume show default container/data
 `)
 }
 
