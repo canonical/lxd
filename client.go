@@ -2914,25 +2914,6 @@ func (c *Client) StoragePoolVolumesList(pool string) ([]api.StorageVolume, error
 	return volumes, nil
 }
 
-// /1.0/storage-pools/{name}/volumes/{type}
-func (c *Client) StoragePoolVolumesTypeList(pool string, volumeType string) ([]api.StorageVolume, error) {
-	if c.Remote.Public {
-		return nil, fmt.Errorf("This function isn't supported by public remotes.")
-	}
-
-	resp, err := c.get(fmt.Sprintf("storage-pools/%s/volumes/%s?recursion=1", pool, volumeType))
-	if err != nil {
-		return nil, err
-	}
-
-	volumes := []api.StorageVolume{}
-	if err := json.Unmarshal(resp.Metadata, &volumes); err != nil {
-		return nil, err
-	}
-
-	return volumes, nil
-}
-
 // /1.0/storage-pools/{pool}/volumes/{volume_type}
 func (c *Client) StoragePoolVolumeTypeCreate(pool string, volume string, volumeType string, config map[string]string) error {
 	if c.Remote.Public {

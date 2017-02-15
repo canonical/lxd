@@ -149,7 +149,11 @@ func (s *execWs) Do(op *operation) error {
 			}
 
 			for {
-				mt, r, err := s.conns[-1].NextReader()
+				s.connsLock.Lock()
+				conn := s.conns[-1]
+				s.connsLock.Unlock()
+
+				mt, r, err := conn.NextReader()
 				if mt == websocket.CloseMessage {
 					break
 				}
@@ -201,10 +205,16 @@ func (s *execWs) Do(op *operation) error {
 		}()
 
 		go func() {
-			readDone, writeDone := shared.WebsocketExecMirror(s.conns[0], ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+			s.connsLock.Lock()
+			conn := s.conns[0]
+			s.connsLock.Unlock()
+
+			readDone, writeDone := shared.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+
 			<-readDone
 			<-writeDone
-			s.conns[0].Close()
+
+			conn.Close()
 			wgEOF.Done()
 		}()
 
@@ -213,10 +223,18 @@ func (s *execWs) Do(op *operation) error {
 		for i := 0; i < len(ttys); i++ {
 			go func(i int) {
 				if i == 0 {
-					<-shared.WebsocketRecvStream(ttys[i], s.conns[i])
+					s.connsLock.Lock()
+					conn := s.conns[i]
+					s.connsLock.Unlock()
+
+					<-shared.WebsocketRecvStream(ttys[i], conn)
 					ttys[i].Close()
 				} else {
-					<-shared.WebsocketSendStream(s.conns[i], ptys[i], -1)
+					s.connsLock.Lock()
+					conn := s.conns[i]
+					s.connsLock.Unlock()
+
+					<-shared.WebsocketSendStream(conn, ptys[i], -1)
 					ptys[i].Close()
 					wgEOF.Done()
 				}
@@ -229,12 +247,16 @@ func (s *execWs) Do(op *operation) error {
 			tty.Close()
 		}
 
-		if s.conns[-1] == nil {
+		s.connsLock.Lock()
+		conn := s.conns[-1]
+		s.connsLock.Unlock()
+
+		if conn == nil {
 			if s.interactive {
 				controlExit <- true
 			}
 		} else {
-			s.conns[-1].Close()
+			conn.Close()
 		}
 
 		attachedChildIsDead <- true
