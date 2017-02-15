@@ -17,30 +17,29 @@ currently supported:
  - images (image configuration)
  - storage (storage configuration)
 
-Key                             | Type      | Default   | API extension                     | Description
-:--                             | :---      | :------   | :------------                     | :----------
-core.https\_address             | string    | -         | -                                 | Address to bind for the remote API
-core.https\_allowed\_origin     | string    | -         | -                                 | Access-Control-Allow-Origin http header value
-core.https\_allowed\_methods    | string    | -         | -                                 | Access-Control-Allow-Methods http header value
-core.https\_allowed\_headers    | string    | -         | -                                 | Access-Control-Allow-Headers http header value
-core.https\_allowed\_credentials| boolean   | -         | -                                 | Whether to set Access-Control-Allow-Credentials http header value to "true"
-core.proxy\_https               | string    | -         | -                                 | https proxy to use, if any (falls back to HTTPS\_PROXY environment variable)
-core.proxy\_http                | string    | -         | -                                 | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
-core.proxy\_ignore\_hosts       | string    | -         | -                                 | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)
-core.trust\_password            | string    | -         | -                                 | Password to be provided by clients to setup a trust
-storage.lvm\_vg\_name           | string    | -         | -                                 | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
-storage.lvm\_thinpool\_name     | string    | "LXDPool" | -                                 | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
-storage.lvm\_fstype             | string    | ext4      | -                                 | Format LV with filesystem, for now it's value can be only ext4 (default) or xfs.
-storage.lvm\_mount\_options     | string    | discard   | storage\_lvm\_mount\_options      | Mount options for the LV filesystem
-storage.lvm\_volume\_size       | string    | 10GiB     | -                                 | Size of the logical volume
-storage.zfs\_pool\_name         | string    | -         | -                                 | ZFS pool name
-storage.zfs\_remove\_snapshots  | boolean   | false     | storage\_zfs\_remove\_snapshots   | Automatically remove any needed snapshot when attempting a container restore
-storage.zfs\_use\_refquota      | boolean   | false     | storage\_zfs\_use\_refquota       | Don't include snapshots as part of container quota (size property) or in reported disk usage
-storage.default_pool            | string    | -         | storage                           | The default storage pool on which to create containers.
-images.compression\_algorithm   | string    | gzip      | -                                 | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
-images.remote\_cache\_expiry    | integer   | 10        | -                                 | Number of days after which an unused cached remote image will be flushed
-images.auto\_update\_interval   | integer   | 6         | -                                 | Interval in hours at which to look for update to cached images (0 disables it)
-images.auto\_update\_cached     | boolean   | true      | -                                 | Whether to automatically update any image that LXD caches
+Key                             | Type      | Default   | API extension                     | Deprecated                                    | Description
+:--                             | :---      | :------   | :------------                     | :---------                                    | :----------
+core.https\_address             | string    | -         | -                                 |                                               | Address to bind for the remote API
+core.https\_allowed\_origin     | string    | -         | -                                 |                                               | Access-Control-Allow-Origin http header value
+core.https\_allowed\_methods    | string    | -         | -                                 |                                               | Access-Control-Allow-Methods http header value
+core.https\_allowed\_headers    | string    | -         | -                                 |                                               | Access-Control-Allow-Headers http header value
+core.https\_allowed\_credentials| boolean   | -         | -                                 |                                               | Whether to set Access-Control-Allow-Credentials http header value to "true"
+core.proxy\_https               | string    | -         | -                                 |                                               | https proxy to use, if any (falls back to HTTPS\_PROXY environment variable)
+core.proxy\_http                | string    | -         | -                                 |                                               | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
+core.proxy\_ignore\_hosts       | string    | -         | -                                 |                                               | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)
+core.trust\_password            | string    | -         | -                                 |                                               | Password to be provided by clients to setup a trust
+storage.lvm\_vg\_name           | string    | -         | -                                 | by pool source property                       | LVM Volume Group name to be used for container and image storage. A default Thin Pool is created using 100% of the free space in the Volume Group, unless `storage.lvm_thinpool_name` is set.
+storage.lvm\_thinpool\_name     | string    | "LXDPool" | -                                 | by volume.lvm.thinpool\_name pool property    | LVM Thin Pool to use within the Volume Group specified in `storage.lvm_vg_name`, if the default pool parameters are undesirable.
+storage.lvm\_fstype             | string    | ext4      | -                                 | by volume.block.filesystem pool property      | Format LV with filesystem, for now it's value can be only ext4 (default) or xfs.
+storage.lvm\_mount\_options     | string    | discard   | storage\_lvm\_mount\_options      | by volume.block.mount\_options pool property  | Mount options for the LV filesystem
+storage.lvm\_volume\_size       | string    | 10GiB     | -                                 | by volume.size pool property                  | Size of the logical volume
+storage.zfs\_pool\_name         | string    | -         | -                                 | by pool source property                       | ZFS pool name
+storage.zfs\_remove\_snapshots  | boolean   | false     | storage\_zfs\_remove\_snapshots   | by volume.zfs.remove\_snapshots pool property | Automatically remove any needed snapshot when attempting a container restore
+storage.zfs\_use\_refquota      | boolean   | false     | storage\_zfs\_use\_refquota       | by volume.zfs.use\_refquota pool property     | Don't include snapshots as part of container quota (size property) or in reported disk usage
+images.compression\_algorithm   | string    | gzip      | -                                 |                                               | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
+images.remote\_cache\_expiry    | integer   | 10        | -                                 |                                               | Number of days after which an unused cached remote image will be flushed
+images.auto\_update\_interval   | integer   | 6         | -                                 |                                               | Interval in hours at which to look for update to cached images (0 disables it)
+images.auto\_update\_cached     | boolean   | true      | -                                 |                                               | Whether to automatically update any image that LXD caches
 
 Those keys can be set using the lxc tool with:
 
@@ -386,17 +385,17 @@ overridden on a per-volume basis.
 
 ## Storage pool configuration
 
-Key                         | Type   | Condition                     | Default          | Description
-:--                         | :--    | :--                           | :--              | :--
-size                        | string | appropriate driver and source | 0                | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and zfs.)
-source                      | string | -                             | -                | Path to block device or loop file or filesystem entry
-volume.block.filesystem     | string | block based driver (lvm)      | ext4             | Filesystem to use for new volumes
-volume.block.mount_options  | string | block based driver (lvm)      | discard          | Mount options for block devices
-volume.lvm.thinpool_name    | string | lvm driver                    | LXDPool          | Thin pool where images and containers are created.
-volume.size                 | string | appropriate driver            | 0                | Default volume size
-volume.zfs.remove_snapshots | bool   | zfs driver                    | false            | Remove snapshots as needed
-volume.zfs.use_refquota     | bool   | zfs driver                    | false            | Use refquota instead of quota for space.
-zfs.pool_name               | string | zfs driver                    | name of the pool | Name of the zpool
+Key                             | Type      | Condition                         | Default           | Description
+:--                             | :--       | :--                               | :--               | :--
+size                            | string    | appropriate driver and source     | 0                 | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and zfs.)
+source                          | string    | -                                 | -                 | Path to block device or loop file or filesystem entry
+volume.block.filesystem         | string    | block based driver (lvm)          | ext4              | Filesystem to use for new volumes
+volume.block.mount\_options     | string    | block based driver (lvm)          | discard           | Mount options for block devices
+volume.lvm.thinpool\_name       | string    | lvm driver                        | LXDPool           | Thin pool where images and containers are created.
+volume.size                     | string    | appropriate driver                | 0                 | Default volume size
+volume.zfs.remove\_snapshots    | bool      | zfs driver                        | false             | Remove snapshots as needed
+volume.zfs.use\_refquota        | bool      | zfs driver                        | false             | Use refquota instead of quota for space.
+zfs.pool\_name                  | string    | zfs driver                        | name of the pool  | Name of the zpool
 
 Storage pool configuration keys can be set using the lxc tool with:
 
@@ -404,13 +403,13 @@ Storage pool configuration keys can be set using the lxc tool with:
 
 ## Storage volume configuration
 
-Key                  | Type   | Condition                | Default                             | Description
-:--                  | :--    | :--                      | :--                                 | :--
-size                 | string | appropriate driver       | 0                                   | Mount options for block devices
-block.filesystem     | string | block based driver (lvm) | ext4                                | Path to block device or loop file or filesystem entry
-block.mount_options  | string |                          | discard                             | Name of the storage driver (btrfs, dir, lvm, zfs)
-zfs.remove_snapshots | string | zfs driver               | same as volume.zfs.remove_snapshots | Default volume size
-zfs.use_refquota     | string | zfs driver               | same as volume.zfs.zfs_requota      | Filesystem to use for new volumes
+Key                     | Type      | Condition                 | Default                               | Description
+:--                     | :--       | :--                       | :--                                   | :--
+size                    | string    | appropriate driver        | 0                                     | Mount options for block devices
+block.filesystem        | string    | block based driver (lvm)  | ext4                                  | Path to block device or loop file or filesystem entry
+block.mount\_options    | string    |                           | discard                               | Name of the storage driver (btrfs, dir, lvm, zfs)
+zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | Default volume size
+zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | Filesystem to use for new volumes
 
 Storage volume configuration keys can be set using the lxc tool with:
 

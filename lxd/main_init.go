@@ -352,8 +352,8 @@ they otherwise would.
 	}
 
 	if storageSetup {
-		// Unset all storage keys, core.https_address and core.trust_password
-		for _, key := range []string{"storage.zfs_pool_name", "core.https_address", "core.trust_password"} {
+		// Unset core.https_address and core.trust_password
+		for _, key := range []string{"core.https_address", "core.trust_password"} {
 			_, err = c.SetServerConfig(key, "")
 			if err != nil {
 				return err

@@ -10,8 +10,8 @@ test_static_analysis() {
 
     cd ../
     # Python3 static analysis
-    pep8 test/deps/import-busybox scripts/lxd-setup-lvm-storage
-    pyflakes3 test/deps/import-busybox scripts/lxd-setup-lvm-storage
+    pep8 test/deps/import-busybox
+    pyflakes3 test/deps/import-busybox
 
     # Shell static analysis
     shellcheck test/main.sh test/suites/* test/backends/*

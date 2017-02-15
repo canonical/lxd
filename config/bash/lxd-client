@@ -74,8 +74,8 @@ _have lxc && {
 
     networks_keys="bridge.driver bridge.external_interfaces bridge.mtu bridge.mode \
       fan.underlay_subnet fan.overlay_subnet fan.type ipv4.address ipv4.nat ipv4.dhcp \
-      ipv4.dhcp.ranges ipv4.routing ipv6.address ipv6.nat ipv6.dhcp ipv6.dhcp.stateful \
-      ipv6.dhcp.ranges ipv6.routing dns.domain dns.mode raw.dnsmasq"
+      ipv4.dhcp.expiry ipv4.dhcp.ranges ipv4.routing ipv6.address ipv6.nat ipv6.dhcp ipv6.dhcp.stateful \
+      ipv6.dhcp.expiry ipv6.dhcp.ranges ipv6.routing dns.domain dns.mode raw.dnsmasq"
 
     if [ $COMP_CWORD -eq 1 ]; then
       COMPREPLY=( $(compgen -W "$lxc_cmds" -- ${COMP_WORDS[COMP_CWORD]}) )
@@ -140,7 +140,7 @@ _have lxc && {
         _lxd_names "RUNNING"
         ;;
       "file")
-        COMPREPLY=( $(compgen -W "pull push edit" -- $cur) )
+        COMPREPLY=( $(compgen -W "pull push edit delete" -- $cur) )
         ;;
       "help")
         COMPREPLY=( $(compgen -W "$lxc_cmds" -- $cur) )
