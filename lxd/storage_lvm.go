@@ -41,10 +41,6 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 	results := []string{}
 
-	if daemonConfig["storage.lvm_vg_name"].Get() == "" {
-		return results, nil
-	}
-
 	cNames, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return results, err
