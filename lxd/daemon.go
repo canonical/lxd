@@ -137,6 +137,14 @@ func (d *Daemon) httpClient(certificate string) (*http.Client, error) {
 		Transport: tr,
 	}
 
+	// Setup redirect policy
+	myhttp.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		// Replicate the headers
+		req.Header = via[len(via)-1].Header
+
+		return nil
+	}
+
 	return &myhttp, nil
 }
 

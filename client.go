@@ -265,6 +265,15 @@ func NewClientFromInfo(info ConnectInfo) (*Client, error) {
 		},
 	}
 	c.Name = info.Name
+
+	// Setup redirect policy
+	c.Http.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		// Replicate the headers
+		req.Header = via[len(via)-1].Header
+
+		return nil
+	}
+
 	var err error
 	if strings.HasPrefix(info.RemoteConfig.Addr, "unix:") {
 		err = connectViaUnix(c, &info.RemoteConfig)
