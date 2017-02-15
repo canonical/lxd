@@ -19,9 +19,6 @@ import (
 	"github.com/lxc/lxd/shared/termios"
 )
 
-// This command is only allowed to create custom storage volumes.
-const defaultStoragePoolVolumeType = "custom"
-
 type storageCmd struct {
 }
 
@@ -244,6 +241,17 @@ func (c *storageCmd) run(config *lxd.Config, args []string) error {
 	}
 }
 
+func (c *storageCmd) parseVolume(name string) (string, string) {
+	defaultType := "custom"
+
+	fields := strings.SplitN(name, "/", 2)
+	if len(fields) == 1 {
+		return fields[0], defaultType
+	}
+
+	return fields[1], fields[0]
+}
+
 func (c *storageCmd) doStoragePoolVolumeAttach(client *lxd.Client, pool string, volume string, args []string) error {
 	if len(args) < 2 || len(args) > 3 {
 		return errArgs
@@ -262,9 +270,14 @@ func (c *storageCmd) doStoragePoolVolumeAttach(client *lxd.Client, pool string, 
 		devPath = args[2]
 	}
 
+	volName, volType := c.parseVolume(volume)
+	if volType != "custom" {
+		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to containers."))
+	}
+
 	// Check if the requested storage volume actually
 	// exists on the requested storage pool.
-	vol, err := client.StoragePoolVolumeTypeGet(pool, volume, defaultStoragePoolVolumeType)
+	vol, err := client.StoragePoolVolumeTypeGet(pool, volName, volType)
 	if err != nil {
 		return err
 	}
@@ -342,9 +355,14 @@ func (c *storageCmd) doStoragePoolVolumeAttachProfile(client *lxd.Client, pool s
 		devPath = args[2]
 	}
 
+	volName, volType := c.parseVolume(volume)
+	if volType != "custom" {
+		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to containers."))
+	}
+
 	// Check if the requested storage volume actually
 	// exists on the requested storage pool.
-	vol, err := client.StoragePoolVolumeTypeGet(pool, volume, defaultStoragePoolVolumeType)
+	vol, err := client.StoragePoolVolumeTypeGet(pool, volName, volType)
 	if err != nil {
 		return err
 	}
@@ -645,7 +663,8 @@ func (c *storageCmd) doStoragePoolVolumeCreate(client *lxd.Client, pool string, 
 		config[entry[0]] = entry[1]
 	}
 
-	err := client.StoragePoolVolumeTypeCreate(pool, volume, defaultStoragePoolVolumeType, config)
+	volName, volType := c.parseVolume(volume)
+	err := client.StoragePoolVolumeTypeCreate(pool, volName, volType, config)
 	if err == nil {
 		fmt.Printf(i18n.G("Storage volume %s created")+"\n", volume)
 	}
@@ -654,7 +673,8 @@ func (c *storageCmd) doStoragePoolVolumeCreate(client *lxd.Client, pool string, 
 }
 
 func (c *storageCmd) doStoragePoolVolumeDelete(client *lxd.Client, pool string, volume string) error {
-	err := client.StoragePoolVolumeTypeDelete(pool, volume, defaultStoragePoolVolumeType)
+	volName, volType := c.parseVolume(volume)
+	err := client.StoragePoolVolumeTypeDelete(pool, volName, volType)
 	if err == nil {
 		fmt.Printf(i18n.G("Storage volume %s deleted")+"\n", volume)
 	}
@@ -668,7 +688,8 @@ func (c *storageCmd) doStoragePoolVolumeGet(client *lxd.Client, pool string, vol
 		return errArgs
 	}
 
-	resp, err := client.StoragePoolVolumeTypeGet(pool, volume, defaultStoragePoolVolumeType)
+	volName, volType := c.parseVolume(volume)
+	resp, err := client.StoragePoolVolumeTypeGet(pool, volName, volType)
 	if err != nil {
 		return err
 	}
@@ -687,7 +708,8 @@ func (c *storageCmd) doStoragePoolVolumeSet(client *lxd.Client, pool string, vol
 		return errArgs
 	}
 
-	volumeConfig, err := client.StoragePoolVolumeTypeGet(pool, volume, defaultStoragePoolVolumeType)
+	volName, volType := c.parseVolume(volume)
+	volumeConfig, err := client.StoragePoolVolumeTypeGet(pool, volName, volType)
 	if err != nil {
 		return err
 	}
@@ -710,11 +732,12 @@ func (c *storageCmd) doStoragePoolVolumeSet(client *lxd.Client, pool string, vol
 
 	volumeConfig.Config[key] = value
 
-	return client.StoragePoolVolumeTypePut(pool, volume, defaultStoragePoolVolumeType, volumeConfig)
+	return client.StoragePoolVolumeTypePut(pool, volName, volType, volumeConfig)
 }
 
 func (c *storageCmd) doStoragePoolVolumeShow(client *lxd.Client, pool string, volume string) error {
-	volumeStruct, err := client.StoragePoolVolumeTypeGet(pool, volume, defaultStoragePoolVolumeType)
+	volName, volType := c.parseVolume(volume)
+	volumeStruct, err := client.StoragePoolVolumeTypeGet(pool, volName, volType)
 	if err != nil {
 		return err
 	}
@@ -733,6 +756,8 @@ func (c *storageCmd) doStoragePoolVolumeShow(client *lxd.Client, pool string, vo
 }
 
 func (c *storageCmd) doStoragePoolVolumeEdit(client *lxd.Client, pool string, volume string) error {
+	volName, volType := c.parseVolume(volume)
+
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -745,11 +770,12 @@ func (c *storageCmd) doStoragePoolVolumeEdit(client *lxd.Client, pool string, vo
 		if err != nil {
 			return err
 		}
-		return client.StoragePoolVolumeTypePut(pool, volume, defaultStoragePoolVolumeType, newdata)
+
+		return client.StoragePoolVolumeTypePut(pool, volName, volType, newdata)
 	}
 
 	// Extract the current value
-	vol, err := client.StoragePoolVolumeTypeGet(pool, volume, defaultStoragePoolVolumeType)
+	vol, err := client.StoragePoolVolumeTypeGet(pool, volName, volType)
 	if err != nil {
 		return err
 	}
@@ -770,7 +796,7 @@ func (c *storageCmd) doStoragePoolVolumeEdit(client *lxd.Client, pool string, vo
 		newdata := api.StorageVolume{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.StoragePoolVolumeTypePut(pool, volume, defaultStoragePoolVolumeType, newdata)
+			err = client.StoragePoolVolumeTypePut(pool, volName, volType, newdata)
 		}
 
 		// Respawn the editor
