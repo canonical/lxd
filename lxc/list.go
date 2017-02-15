@@ -345,8 +345,8 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 type listContainerItem struct {
 	*api.Container
 
-	State     *api.ContainerState
-	Snapshots []api.ContainerSnapshot
+	State     *api.ContainerState     `json:"state" yaml:"state"`
+	Snapshots []api.ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
 }
 
 func (c *listCmd) run(config *lxd.Config, args []string) error {
