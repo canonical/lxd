@@ -223,85 +223,30 @@ certificate from `.config/lxc/client.crt` to the server and adding it with:
     lxc config trust add client.crt
 
 
-#### How do I configure alternative storage backends for LXD?
+#### How do I configure LXD storage?
 
-LXD supports various storage backends; below are instructions on how to
-configure some of them. By default, we use a simple directory backed storage
-mechanism, but we recommend using ZFS for best results.
+LXD supports btrfs, directory, lvm and zfs based storage.
 
-###### ZFS
+First make sure you have the relevant tools for your filesystem of
+choice installed on the machine (btrfs-progs, lvm2 or zfsutils-linux).
 
-First, you need to install the ZFS tooling. On Wily and above this is just:
+By default, LXD comes with no configured network or storage.
+You can get a basic configuration done with:
 
-    sudo apt-get install zfsutils-linux
+    sudo lxd init
 
-ZFS has many different ways to procure a zpool, which is what you need to feed
-LXD. For example, if you have an extra block device laying around, you can
-just:
+"lxd init" supports both directory based storage and ZFS.
+If you want something else, you'll need to use the "lxc storage" command:
 
-    sudo zpool create lxd /dev/sdc6 -m none
+    lxc storage create default BACKEND [OPTIONS...]
+    lxc profile device add default root disk path=/ pool=default
 
-However, if you want to test things out on a laptop or don't have an extra disk
-laying around, ZFS has its own loopback driver and can be used directly on a
-(sparse) file. To do this, first create the sparse file:
+BACKEND is one of "btrfs", "dir", "lvm" or "zfs".
 
-    sudo truncate -s 100G /var/lib/lxd.img
+Unless specified otherwise, LXD will setup loop based storage with a sane default size.
 
-then,
-
-    sudo zpool create lxd /var/lib/lxd.img -m none
-
-Finally, whichever method you used to create your zpool, you need to tell LXD
-to use it:
-
-    lxc config set storage.zfs_pool_name lxd
-
-###### BTRFS
-
-The setup for btrfs is fairly simple, just mount /var/lib/lxd (or whatever your
-chosen `LXD_DIR` is) as a btrfs filesystem before you start LXD, and you're
-good to go. First install the btrfs userspace tools,
-
-    sudo apt-get install btrfs-tools
-
-Now, you need to create a btrfs filesystem. If you don't have an extra disk
-laying around, you'll have to create your own loopback device manually:
-
-    sudo truncate -s 100G /var/lib/lxd.img
-    sudo losetup /dev/loop0 /var/lib/lxd.img
-
-Once you've got a loopback device (or an actual device), you can create the
-btrfs filesystem and mount it:
-
-    sudo mkfs.btrfs /dev/loop0 # or your real device
-    sudo mount /dev/loop0 /var/lib/lxd
-
-###### LVM
-
-To set up LVM, the instructions are similar to the above. First, install the
-userspace tools:
-
-    sudo apt-get install lvm2 thin-provisioning-tools
-
-Then, if you have a block device laying around:
-
-    sudo pvcreate /dev/sdc6
-    sudo vgcreate lxd /dev/sdc6
-    lxc config set storage.lvm_vg_name lxd
-
-Alternatively, if you want to try it via a loopback device, there is a script
-provided in
-[/scripts/lxd-setup-lvm-storage](https://raw.githubusercontent.com/lxc/lxd/master/scripts/lxd-setup-lvm-storage)
-which will do it for you. It can be run via:
-
-    sudo apt-get install lvm2
-    ./scripts/lxd-setup-lvm-storage -s 10G
-
-And it has a --destroy argument to clean up the bits as well:
-
-    ./scripts/lxd-setup-lvm-storage --destroy
-
-
+For production environments, you should be using block backed storage
+instead both for performance and reliability reasons.
 
 #### How can I live migrate a container using LXD?
 
