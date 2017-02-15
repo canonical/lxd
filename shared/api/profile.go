@@ -4,29 +4,29 @@ package api
 type ProfilesPost struct {
 	ProfilePut `yaml:",inline"`
 
-	Name string `json:"name"`
+	Name string `json:"name" yaml:"name"`
 }
 
 // ProfilePost represents the fields required to rename a LXD profile
 type ProfilePost struct {
-	Name string `json:"name"`
+	Name string `json:"name" yaml:"name"`
 }
 
 // ProfilePut represents the modifiable fields of a LXD profile
 type ProfilePut struct {
-	Config      map[string]string            `json:"config"`
-	Description string                       `json:"description"`
-	Devices     map[string]map[string]string `json:"devices"`
+	Config      map[string]string            `json:"config" yaml:"config"`
+	Description string                       `json:"description" yaml:"description"`
+	Devices     map[string]map[string]string `json:"devices" yaml:"devices"`
 }
 
 // Profile represents a LXD profile
 type Profile struct {
 	ProfilePut `yaml:",inline"`
 
-	Name string `json:"name"`
+	Name string `json:"name" yaml:"name"`
 
 	// API extension: profile_usedby
-	UsedBy []string `json:"used_by"`
+	UsedBy []string `json:"used_by" yaml:"used_by"`
 }
 
 // Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields)
