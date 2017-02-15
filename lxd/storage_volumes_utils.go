@@ -184,10 +184,9 @@ func storagePoolVolumeUsedByGet(d *Daemon, volumeName string) ([]string, error) 
 
 	volumeUsedBy := []string{}
 	for _, ct := range cts {
-		// We're not accessing any storage here.
 		c, err := containerLoadByName(d, ct)
 		if err != nil {
-			return []string{}, err
+			continue
 		}
 
 		for _, d := range c.LocalDevices() {
