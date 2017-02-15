@@ -945,6 +945,15 @@ func autoUpdateImages(d *Daemon) {
 			}
 		}
 
+		nImg, err := dbImageGetPools(d.db, fp)
+		if err != nil {
+			continue
+		}
+
+		if len(nImg) > 0 {
+			continue
+		}
+
 		// Remove main image file.
 		fname := shared.VarPath("images", fp)
 		if shared.PathExists(fname) {

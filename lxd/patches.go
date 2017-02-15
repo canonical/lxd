@@ -210,6 +210,7 @@ func patchStorageApi(name string, d *Daemon) error {
 		return nil
 	}
 
+	poolName := defaultPoolName
 	switch preStorageApiStorageType {
 	case storageTypeBtrfs:
 		err = upgradeFromStorageTypeBtrfs(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
@@ -218,6 +219,9 @@ func patchStorageApi(name string, d *Daemon) error {
 	case storageTypeLvm:
 		err = upgradeFromStorageTypeLvm(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
 	case storageTypeZfs:
+		if strings.Contains(defaultPoolName, "/") {
+			poolName = "default"
+		}
 		err = upgradeFromStorageTypeZfs(name, d, defaultPoolName, defaultStorageTypeName, cRegular, []string{}, imgPublic, imgPrivate)
 	default: // Shouldn't happen.
 		return fmt.Errorf("Invalid storage type. Upgrading not possible.")
@@ -231,7 +235,7 @@ func patchStorageApi(name string, d *Daemon) error {
 		foundRoot := false
 		for k, v := range defaultProfile.Devices {
 			if v["type"] == "disk" && v["path"] == "/" && v["source"] == "" {
-				defaultProfile.Devices[k]["pool"] = defaultPoolName
+				defaultProfile.Devices[k]["pool"] = poolName
 				foundRoot = true
 			}
 		}
@@ -240,29 +244,41 @@ func patchStorageApi(name string, d *Daemon) error {
 			rootDev := map[string]string{}
 			rootDev["type"] = "disk"
 			rootDev["path"] = "/"
-			rootDev["pool"] = defaultPoolName
+			rootDev["pool"] = poolName
 			if defaultProfile.Devices == nil {
 				defaultProfile.Devices = map[string]map[string]string{}
 			}
 			defaultProfile.Devices["root"] = rootDev
 		}
-	}
 
-	tx, err := dbBegin(d.db)
-	if err != nil {
-		return err
-	}
+		tx, err := dbBegin(d.db)
+		if err != nil {
+			return err
+		}
 
-	err = dbDevicesAdd(tx, "profile", defaultID, defaultProfile.Devices)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		err = dbProfileConfigClear(tx, defaultID)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return err
+		err = dbProfileConfigAdd(tx, defaultID, defaultProfile.Config)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		err = dbDevicesAdd(tx, "profile", defaultID, defaultProfile.Devices)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		err = tx.Commit()
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	// Unset deprecated storage keys.
@@ -783,6 +799,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, defaultStorageTypeName string, cRegular []string, cSnapshots []string, imgPublic []string, imgPrivate []string) error {
 	poolConfig := map[string]string{}
 	oldLoopFilePath := shared.VarPath("zfs.img")
+	poolName := defaultPoolName
 	if shared.PathExists(oldLoopFilePath) {
 		// This is a loop file pool.
 		poolConfig["source"] = shared.VarPath("disks", defaultPoolName+".img")
@@ -791,18 +808,24 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 	} else {
+		if strings.Contains(defaultPoolName, "/") {
+			poolName = "default"
+		}
 		// This is a block device pool.
 		poolConfig["source"] = defaultPoolName
 	}
-	output, err := exec.Command("zpool", "get", "size", "-p", "-H", defaultPoolName).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("Failed to set ZFS config: %s", output)
-	}
-	lidx := strings.LastIndex(string(output), "\t")
-	fidx := strings.LastIndex(string(output)[:lidx-1], "\t")
-	poolConfig["size"] = string(output)[fidx+1 : lidx]
 
-	poolID, err := dbStoragePoolCreate(d.db, defaultPoolName, defaultStorageTypeName, poolConfig)
+	if poolName == defaultPoolName {
+		output, err := exec.Command("zpool", "get", "size", "-p", "-H", defaultPoolName).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed to set ZFS config: %s", output)
+		}
+		lidx := strings.LastIndex(string(output), "\t")
+		fidx := strings.LastIndex(string(output)[:lidx-1], "\t")
+		poolConfig["size"] = string(output)[fidx+1 : lidx]
+	}
+
+	poolID, err := dbStoragePoolCreate(d.db, poolName, defaultStorageTypeName, poolConfig)
 	if err != nil {
 		return err
 	}
@@ -811,7 +834,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	volumeConfig := map[string]string{}
 
 	if len(cRegular) > 0 {
-		containersSubvolumePath := getContainerMountPoint(defaultPoolName, "")
+		containersSubvolumePath := getContainerMountPoint(poolName, "")
 		err := os.MkdirAll(containersSubvolumePath, 0711)
 		if err != nil {
 			return err
@@ -851,7 +874,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// Changing the mountpoint property should have actually created
 		// the path but in case it somehow didn't let's do it ourselves.
 		doesntMatter := false
-		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
+		newContainerMntPoint := getContainerMountPoint(poolName, ct)
 		err = createContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
 			return err
@@ -887,7 +910,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 			// Create the new mountpoint for snapshots in the new
 			// storage api.
-			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, cs)
+			newSnapshotMntPoint := getSnapshotMountPoint(poolName, cs)
 			err = os.MkdirAll(newSnapshotMntPoint, 0711)
 			if err != nil {
 				return err
@@ -898,7 +921,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 		// Create a symlink for this container's snapshots.
 		if len(ctSnapshots) != 0 {
-			newSnapshotsMntPoint := getSnapshotMountPoint(defaultPoolName, ct)
+			newSnapshotsMntPoint := getSnapshotMountPoint(poolName, ct)
 			err := os.Symlink(newSnapshotsMntPoint, snapshotsPath)
 			if err != nil {
 				return err
@@ -916,7 +939,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			continue
 		}
 
-		imageMntPoint := getImageMountPoint(defaultPoolName, img)
+		imageMntPoint := getImageMountPoint(poolName, img)
 		err = os.MkdirAll(imageMntPoint, 0700)
 		if err != nil {
 			return err

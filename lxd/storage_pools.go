@@ -82,10 +82,8 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 
 	// Check that the storage pool does not already exist.
 	_, err = dbStoragePoolGetID(d.db, req.Name)
-	if err != nil {
-		if err != NoSuchObjectError {
-			return InternalError(err)
-		}
+	if err == nil {
+		return BadRequest(fmt.Errorf("The storage pool already exists"))
 	}
 
 	// Make sure that we don't pass a nil to the next function.
