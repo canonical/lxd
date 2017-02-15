@@ -36,7 +36,6 @@ storage.lvm\_volume\_size       | string    | 10GiB     | -                     
 storage.zfs\_pool\_name         | string    | -         | -                                 | ZFS pool name
 storage.zfs\_remove\_snapshots  | boolean   | false     | storage\_zfs\_remove\_snapshots   | Automatically remove any needed snapshot when attempting a container restore
 storage.zfs\_use\_refquota      | boolean   | false     | storage\_zfs\_use\_refquota       | Don't include snapshots as part of container quota (size property) or in reported disk usage
-storage.default_pool            | string    | -         | storage                           | The default storage pool on which to create containers.
 images.compression\_algorithm   | string    | gzip      | -                                 | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
 images.remote\_cache\_expiry    | integer   | 10        | -                                 | Number of days after which an unused cached remote image will be flushed
 images.auto\_update\_interval   | integer   | 6         | -                                 | Interval in hours at which to look for update to cached images (0 disables it)
@@ -386,17 +385,17 @@ overridden on a per-volume basis.
 
 ## Storage pool configuration
 
-Key                         | Type   | Condition                     | Default          | Description
-:--                         | :--    | :--                           | :--              | :--
-size                        | string | appropriate driver and source | 0                | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and zfs.)
-source                      | string | -                             | -                | Path to block device or loop file or filesystem entry
-volume.block.filesystem     | string | block based driver (lvm)      | ext4             | Filesystem to use for new volumes
-volume.block.mount_options  | string | block based driver (lvm)      | discard          | Mount options for block devices
-volume.lvm.thinpool_name    | string | lvm driver                    | LXDPool          | Thin pool where images and containers are created.
-volume.size                 | string | appropriate driver            | 0                | Default volume size
-volume.zfs.remove_snapshots | bool   | zfs driver                    | false            | Remove snapshots as needed
-volume.zfs.use_refquota     | bool   | zfs driver                    | false            | Use refquota instead of quota for space.
-zfs.pool_name               | string | zfs driver                    | name of the pool | Name of the zpool
+Key                             | Type      | Condition                         | Default           | Description
+:--                             | :--       | :--                               | :--               | :--
+size                            | string    | appropriate driver and source     | 0                 | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and zfs.)
+source                          | string    | -                                 | -                 | Path to block device or loop file or filesystem entry
+volume.block.filesystem         | string    | block based driver (lvm)          | ext4              | Filesystem to use for new volumes
+volume.block.mount\_options     | string    | block based driver (lvm)          | discard           | Mount options for block devices
+volume.lvm.thinpool\_name       | string    | lvm driver                        | LXDPool           | Thin pool where images and containers are created.
+volume.size                     | string    | appropriate driver                | 0                 | Default volume size
+volume.zfs.remove\_snapshots    | bool      | zfs driver                        | false             | Remove snapshots as needed
+volume.zfs.use\_refquota        | bool      | zfs driver                        | false             | Use refquota instead of quota for space.
+zfs.pool\_name                  | string    | zfs driver                        | name of the pool  | Name of the zpool
 
 Storage pool configuration keys can be set using the lxc tool with:
 
@@ -404,13 +403,13 @@ Storage pool configuration keys can be set using the lxc tool with:
 
 ## Storage volume configuration
 
-Key                  | Type   | Condition                | Default                             | Description
-:--                  | :--    | :--                      | :--                                 | :--
-size                 | string | appropriate driver       | 0                                   | Mount options for block devices
-block.filesystem     | string | block based driver (lvm) | ext4                                | Path to block device or loop file or filesystem entry
-block.mount_options  | string |                          | discard                             | Name of the storage driver (btrfs, dir, lvm, zfs)
-zfs.remove_snapshots | string | zfs driver               | same as volume.zfs.remove_snapshots | Default volume size
-zfs.use_refquota     | string | zfs driver               | same as volume.zfs.zfs_requota      | Filesystem to use for new volumes
+Key                     | Type      | Condition                 | Default                               | Description
+:--                     | :--       | :--                       | :--                                   | :--
+size                    | string    | appropriate driver        | 0                                     | Mount options for block devices
+block.filesystem        | string    | block based driver (lvm)  | ext4                                  | Path to block device or loop file or filesystem entry
+block.mount\_options    | string    |                           | discard                               | Name of the storage driver (btrfs, dir, lvm, zfs)
+zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | Default volume size
+zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | Filesystem to use for new volumes
 
 Storage volume configuration keys can be set using the lxc tool with:
 
