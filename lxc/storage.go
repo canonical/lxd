@@ -283,7 +283,6 @@ func (c *storageCmd) doStoragePoolVolumeAttach(client *lxd.Client, pool string, 
 	}
 
 	props := []string{fmt.Sprintf("pool=%s", pool), fmt.Sprintf("path=%s", devPath), fmt.Sprintf("source=%s", vol.Name)}
-	fmt.Println(props)
 	resp, err := client.ContainerDeviceAdd(container, devName, "disk", props)
 	if err != nil {
 		return err
@@ -368,7 +367,6 @@ func (c *storageCmd) doStoragePoolVolumeAttachProfile(client *lxd.Client, pool s
 	}
 
 	props := []string{fmt.Sprintf("pool=%s", pool), fmt.Sprintf("path=%s", devPath), fmt.Sprintf("source=%s", vol.Name)}
-	fmt.Println(props)
 
 	_, err = client.ProfileDeviceAdd(profile, devName, "disk", props)
 	return err
