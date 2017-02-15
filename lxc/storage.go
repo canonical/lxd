@@ -223,13 +223,6 @@ func (c *storageCmd) run(config *lxd.Config, args []string) error {
 				return errArgs
 			}
 			return c.doStoragePoolGet(client, pool, args[2:])
-		case "list":
-			if len(args) != 4 {
-				return errArgs
-			}
-			pool := args[2]
-			volumeType := args[3]
-			return c.doStoragePoolVolumesTypeList(config, remote, pool, volumeType, args)
 		case "set":
 			if len(args) < 2 {
 				return errArgs
@@ -630,39 +623,6 @@ func (c *storageCmd) doStoragePoolVolumesList(config *lxd.Config, remote string,
 		}
 
 		data = append(data, []string{shortName, volume.Type, usedby})
-	}
-
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
-	table.SetHeader([]string{
-		i18n.G("NAME"),
-		i18n.G("TYPE"),
-		i18n.G("USED BY")})
-	sort.Sort(byName(data))
-	table.AppendBulk(data)
-	table.Render()
-
-	return nil
-}
-
-func (c *storageCmd) doStoragePoolVolumesTypeList(config *lxd.Config, remote string, pool string, volumeType string, args []string) error {
-	client, err := lxd.NewClient(config, remote)
-	if err != nil {
-		return err
-	}
-
-	volumes, err := client.StoragePoolVolumesTypeList(pool, volumeType)
-	if err != nil {
-		return err
-	}
-
-	data := [][]string{}
-	for _, volume := range volumes {
-		usedby := strconv.Itoa(len(volume.UsedBy))
-
-		data = append(data, []string{volume.Name, volume.Type, usedby})
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
