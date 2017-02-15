@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-02-14 22:39-0500\n"
+"POT-Creation-Date: 2017-02-15 01:06-0500\n"
 "PO-Revision-Date: 2017-02-14 09:54+0000\n"
 "Last-Translator: Vyacheslav Razykov <v.razykov@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -20,7 +20,7 @@ msgstr ""
 "%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
 "X-Generator: Weblate 2.12-dev\n"
 
-#: lxc/storage.go:33
+#: lxc/storage.go:30
 #, fuzzy
 msgid ""
 "### This is a yaml representation of a storage pool.\n"
@@ -54,7 +54,7 @@ msgstr ""
 "###\n"
 "### Обратите внимание, что только конфигурация может быть изменена."
 
-#: lxc/storage.go:50
+#: lxc/storage.go:47
 msgid ""
 "### This is a yaml representation of a storage volume.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -277,7 +277,7 @@ msgstr "Невозможно прочитать из стандартного в
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
 
-#: lxc/network.go:398 lxc/profile.go:424 lxc/storage.go:522
+#: lxc/network.go:398 lxc/profile.go:424 lxc/storage.go:541
 msgid "Cannot provide container name to list"
 msgstr "Невозможно добавить имя контейнера в список"
 
@@ -320,7 +320,7 @@ msgid "Config key/value to apply to the new container"
 msgstr ""
 
 #: lxc/config.go:535 lxc/config.go:600 lxc/image.go:737 lxc/network.go:354
-#: lxc/profile.go:218 lxc/storage.go:478 lxc/storage.go:824
+#: lxc/profile.go:218 lxc/storage.go:497 lxc/storage.go:812
 #, c-format
 msgid "Config parsing error: %s"
 msgstr ""
@@ -415,7 +415,7 @@ msgstr ""
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/storage.go:551
+#: lxc/storage.go:570
 msgid "DRIVER"
 msgstr ""
 
@@ -956,7 +956,7 @@ msgid ""
 "Print the default remote."
 msgstr ""
 
-#: lxc/storage.go:64
+#: lxc/storage.go:61
 msgid ""
 "Manage storage.\n"
 "\n"
@@ -983,8 +983,8 @@ msgid ""
 "\n"
 "lxc storage volume list [<remote>:]<pool>                              List "
 "available storage volumes on a storage pool.\n"
-"lxc storage volume show [<remote>:]<pool> <volume>\t\t\tShow details of a "
-"storage volume on a storage pool.\n"
+"lxc storage volume show [<remote>:]<pool> <volume>                     Show "
+"details of a storage volume on a storage pool.\n"
 "lxc storage volume create [<remote>:]<pool> <volume> [key=value]...    "
 "Create a storage volume on a storage pool.\n"
 "lxc storage volume get [<remote>:]<pool> <volume> <key>                Get "
@@ -1012,6 +1012,19 @@ msgid ""
 "name]\n"
 "lxc storage volume detach-profile [<remote:>]<pool> <volume> <profile> "
 "[device name]\n"
+"\n"
+"\n"
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes.\n"
+"\n"
+"Examples:\n"
+"To show the properties of a custom volume called \"data\" in the \"default\" "
+"pool:\n"
+"    lxc storage volume show default data\n"
+"\n"
+"To show the properties of the filesystem for a container called \"data\" in "
+"the \"default\" pool:\n"
+"    lxc storage volume show default container/data\n"
 msgstr ""
 
 #: lxc/image.go:96
@@ -1119,7 +1132,7 @@ msgid ""
 "    lxc monitor --type=logging"
 msgstr ""
 
-#: lxc/network.go:224 lxc/network.go:273 lxc/storage.go:309 lxc/storage.go:405
+#: lxc/network.go:224 lxc/network.go:273 lxc/storage.go:324 lxc/storage.go:424
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
@@ -1147,7 +1160,7 @@ msgid "Must supply container name for: "
 msgstr ""
 
 #: lxc/list.go:431 lxc/network.go:434 lxc/profile.go:451 lxc/remote.go:380
-#: lxc/storage.go:550 lxc/storage.go:640 lxc/storage.go:673
+#: lxc/storage.go:569 lxc/storage.go:653
 msgid "NAME"
 msgstr ""
 
@@ -1191,12 +1204,16 @@ msgstr ""
 msgid "No device found for this network"
 msgstr ""
 
-#: lxc/storage.go:318 lxc/storage.go:414
+#: lxc/storage.go:333 lxc/storage.go:433
 msgid "No device found for this storage volume."
 msgstr ""
 
 #: lxc/config.go:308
 msgid "No fingerprint specified."
+msgstr ""
+
+#: lxc/storage.go:285 lxc/storage.go:369
+msgid "Only \"custom\" volumes can be attached to containers."
 msgstr ""
 
 #: lxc/remote.go:120
@@ -1269,7 +1286,7 @@ msgstr ""
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/network.go:355 lxc/profile.go:219 lxc/storage.go:479 lxc/storage.go:825
+#: lxc/network.go:355 lxc/profile.go:219 lxc/storage.go:498 lxc/storage.go:813
 msgid "Press enter to open the editor again"
 msgstr ""
 
@@ -1416,7 +1433,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:552
+#: lxc/storage.go:571
 msgid "SOURCE"
 msgstr ""
 
@@ -1503,12 +1520,12 @@ msgstr ""
 msgid "Stopping container failed!"
 msgstr ""
 
-#: lxc/storage.go:379
+#: lxc/storage.go:398
 #, c-format
 msgid "Storage pool %s created"
 msgstr ""
 
-#: lxc/storage.go:429
+#: lxc/storage.go:448
 #, c-format
 msgid "Storage pool %s deleted"
 msgstr ""
@@ -1517,12 +1534,12 @@ msgstr ""
 msgid "Storage pool name"
 msgstr ""
 
-#: lxc/storage.go:696
+#: lxc/storage.go:677
 #, c-format
 msgid "Storage volume %s created"
 msgstr ""
 
-#: lxc/storage.go:705
+#: lxc/storage.go:687
 #, c-format
 msgid "Storage volume %s deleted"
 msgstr ""
@@ -1539,7 +1556,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:436 lxc/network.go:435 lxc/storage.go:641 lxc/storage.go:674
+#: lxc/list.go:436 lxc/network.go:435 lxc/storage.go:654
 msgid "TYPE"
 msgstr ""
 
@@ -1571,7 +1588,7 @@ msgstr ""
 msgid "The opposite of `lxc pause` is `lxc start`."
 msgstr ""
 
-#: lxc/network.go:238 lxc/network.go:287 lxc/storage.go:323 lxc/storage.go:419
+#: lxc/network.go:238 lxc/network.go:287 lxc/storage.go:338 lxc/storage.go:438
 msgid "The specified device doesn't exist"
 msgstr ""
 
@@ -1629,8 +1646,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:437 lxc/profile.go:452 lxc/storage.go:553 lxc/storage.go:642
-#: lxc/storage.go:675
+#: lxc/network.go:437 lxc/profile.go:452 lxc/storage.go:572 lxc/storage.go:655
 msgid "USED BY"
 msgstr ""
 
