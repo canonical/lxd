@@ -593,7 +593,7 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 	}
 
 	if snaps[len(snaps)-1].Name() != sourceContainer.Name() {
-		if !daemonConfig["storage.zfs_remove_snapshots"].GetBool() {
+		if !shared.IsTrue(s.volume.Config["zfs.remove_snapshots"]) {
 			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead.")
 		}
 
@@ -902,7 +902,7 @@ func (s *storageZfs) ContainerSetQuota(container container, size int64) error {
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
 	property := "quota"
-	if daemonConfig["storage.zfs_use_refquota"].GetBool() {
+	if shared.IsTrue(s.volume.Config["zfs.use_refquota"]) {
 		property = "refquota"
 	}
 
@@ -925,7 +925,7 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
 	property := "used"
-	if daemonConfig["storage.zfs_use_refquota"].GetBool() {
+	if shared.IsTrue(s.volume.Config["zfs.use_refquota"]) {
 		property = "usedbydataset"
 	}
 
