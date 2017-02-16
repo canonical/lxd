@@ -571,23 +571,28 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	// ${LXD_DIR}/images/<fingerprint>
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	imageStoragePoolLockID := fmt.Sprintf("%s/%s", s.pool.Name, fingerprint)
-	imageCreationInPoolLock.Lock()
-	if waitChannel, ok := imageCreationInPool[imageStoragePoolLockID]; ok {
-		imageCreationInPoolLock.Unlock()
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[imageStoragePoolLockID]; ok {
+		lxdStorageLock.Unlock()
 		if _, ok := <-waitChannel; ok {
 			shared.LogWarnf("Value transmitted over image lock semaphore?")
 		}
 	} else {
-		imageCreationInPool[imageStoragePoolLockID] = make(chan bool)
+		lxdStorageLockMap[imageStoragePoolLockID] = make(chan bool)
+		lxdStorageLock.Unlock()
+
 		var imgerr error
 		if !shared.PathExists(imageMntPoint) || !s.isBtrfsPoolVolume(imageMntPoint) {
 			imgerr = s.ImageCreate(fingerprint)
 		}
-		if waitChannel, ok := imageCreationInPool[imageStoragePoolLockID]; ok {
+
+		lxdStorageLock.Lock()
+		if waitChannel, ok := lxdStorageLockMap[imageStoragePoolLockID]; ok {
 			close(waitChannel)
-			delete(imageCreationInPool, imageStoragePoolLockID)
+			delete(lxdStorageLockMap, imageStoragePoolLockID)
 		}
-		imageCreationInPoolLock.Unlock()
+		lxdStorageLock.Unlock()
+
 		if imgerr != nil {
 			return imgerr
 		}

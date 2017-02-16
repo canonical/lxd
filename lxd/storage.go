@@ -22,8 +22,8 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-var imageCreationInPool = map[string]chan bool{}
-var imageCreationInPoolLock sync.Mutex
+var lxdStorageLockMap = map[string]chan bool{}
+var lxdStorageLock sync.Mutex
 
 /* Some interesting filesystems */
 const (

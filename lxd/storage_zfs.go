@@ -198,7 +198,7 @@ func (s *storageZfs) StoragePoolDelete() error {
 	// If the user gave us a dataset we don't know the pool it belongs to,
 	// so we simply remove it from our database and delete the mountpoint.
 	// The rest is in the hands of the user.
-	if s.dataset == "" {
+	if s.dataset == "" || (s.dataset != "" && !strings.Contains(s.dataset, "/")) {
 		err := s.zfsPoolDelete()
 		if err != nil {
 			return err
@@ -398,33 +398,80 @@ func (s *storageZfs) ContainerMount(name string, path string) (bool, error) {
 	fs := fmt.Sprintf("containers/%s", name)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, name)
 
-	// Just in case the container filesystem got unmounted
-	if shared.IsMountPoint(containerPoolVolumeMntPoint) {
+	containerMountLockID := fmt.Sprintf("mount/%s/%s", s.pool.Name, name)
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[containerMountLockID]; ok {
+		lxdStorageLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			shared.LogWarnf("Value transmitted over image lock semaphore?")
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in mounting the storage volume.
 		return false, nil
 	}
 
-	err := s.zfsPoolVolumeMount(fs)
-	if err != nil {
-		return false, err
+	lxdStorageLockMap[containerMountLockID] = make(chan bool)
+	lxdStorageLock.Unlock()
+
+	var imgerr error
+	ourMount := false
+	if !shared.IsMountPoint(containerPoolVolumeMntPoint) {
+		imgerr = s.zfsPoolVolumeMount(fs)
+		ourMount = true
 	}
 
-	return true, nil
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[containerMountLockID]; ok {
+		close(waitChannel)
+		delete(lxdStorageLockMap, containerMountLockID)
+	}
+	lxdStorageLock.Unlock()
+
+	if imgerr != nil {
+		return false, imgerr
+	}
+
+	return ourMount, nil
 }
 
 func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 	fs := fmt.Sprintf("containers/%s", name)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, name)
 
-	if !shared.IsMountPoint(containerPoolVolumeMntPoint) {
+	containerUmountLockID := fmt.Sprintf("umount/%s/%s", s.pool.Name, name)
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[containerUmountLockID]; ok {
+		lxdStorageLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			shared.LogWarnf("Value transmitted over image lock semaphore?")
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in unmounting the storage volume.
 		return false, nil
 	}
 
-	err := s.zfsPoolVolumeUmount(fs)
-	if err != nil {
-		return false, err
+	lxdStorageLockMap[containerUmountLockID] = make(chan bool)
+	lxdStorageLock.Unlock()
+
+	var imgerr error
+	ourUmount := false
+	if shared.IsMountPoint(containerPoolVolumeMntPoint) {
+		imgerr = s.zfsPoolVolumeUmount(fs)
+		ourUmount = true
 	}
 
-	return true, nil
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[containerUmountLockID]; ok {
+		close(waitChannel)
+		delete(lxdStorageLockMap, containerUmountLockID)
+	}
+	lxdStorageLock.Unlock()
+
+	if imgerr != nil {
+		return false, imgerr
+	}
+
+	return ourUmount, nil
 }
 
 // Things we do have to care about
@@ -477,23 +524,28 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	fsImage := fmt.Sprintf("images/%s", fingerprint)
 
 	imageStoragePoolLockID := fmt.Sprintf("%s/%s", s.pool.Name, fingerprint)
-	imageCreationInPoolLock.Lock()
-	if waitChannel, ok := imageCreationInPool[imageStoragePoolLockID]; ok {
-		imageCreationInPoolLock.Unlock()
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[imageStoragePoolLockID]; ok {
+		lxdStorageLock.Unlock()
 		if _, ok := <-waitChannel; ok {
 			shared.LogWarnf("Value transmitted over image lock semaphore?")
 		}
 	} else {
-		imageCreationInPool[imageStoragePoolLockID] = make(chan bool)
+		lxdStorageLockMap[imageStoragePoolLockID] = make(chan bool)
+		lxdStorageLock.Unlock()
+
 		var imgerr error
 		if !s.zfsPoolVolumeExists(fsImage) {
 			imgerr = s.ImageCreate(fingerprint)
 		}
-		if waitChannel, ok := imageCreationInPool[imageStoragePoolLockID]; ok {
+
+		lxdStorageLock.Lock()
+		if waitChannel, ok := lxdStorageLockMap[imageStoragePoolLockID]; ok {
 			close(waitChannel)
-			delete(imageCreationInPool, imageStoragePoolLockID)
+			delete(lxdStorageLockMap, imageStoragePoolLockID)
 		}
-		imageCreationInPoolLock.Unlock()
+		lxdStorageLock.Unlock()
+
 		if imgerr != nil {
 			return imgerr
 		}
@@ -541,7 +593,7 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 	}
 
 	if snaps[len(snaps)-1].Name() != sourceContainer.Name() {
-		if !daemonConfig["storage.zfs_remove_snapshots"].GetBool() {
+		if !shared.IsTrue(s.volume.Config["zfs.remove_snapshots"]) {
 			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead.")
 		}
 
@@ -850,7 +902,7 @@ func (s *storageZfs) ContainerSetQuota(container container, size int64) error {
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
 	property := "quota"
-	if daemonConfig["storage.zfs_use_refquota"].GetBool() {
+	if shared.IsTrue(s.volume.Config["zfs.use_refquota"]) {
 		property = "refquota"
 	}
 
@@ -873,7 +925,7 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
 	property := "used"
-	if daemonConfig["storage.zfs_use_refquota"].GetBool() {
+	if shared.IsTrue(s.volume.Config["zfs.use_refquota"]) {
 		property = "usedbydataset"
 	}
 
@@ -1467,16 +1519,11 @@ func (s *storageZfs) zfsPoolVolumeCreate(path string) error {
 }
 
 func (s *storageZfs) zfsPoolDelete() error {
-	poolName := s.pool.Name
-	if s.dataset != "" {
-		poolName = s.dataset
-	}
-
 	output, err := exec.Command(
 		"zpool",
 		"destroy",
 		"-f",
-		poolName).CombinedOutput()
+		s.pool.Name).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Failed to delete the ZFS pool: %s", output)
 	}

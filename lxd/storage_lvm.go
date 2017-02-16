@@ -41,10 +41,6 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 	results := []string{}
 
-	if daemonConfig["storage.lvm_vg_name"].Get() == "" {
-		return results, nil
-	}
-
 	cNames, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return results, err
@@ -547,23 +543,28 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	imageLvmDevPath := getLvmDevPath(s.pool.Name, storagePoolVolumeApiEndpointImages, fingerprint)
 
 	imageStoragePoolLockID := fmt.Sprintf("%s/%s", s.pool.Name, fingerprint)
-	imageCreationInPoolLock.Lock()
-	if waitChannel, ok := imageCreationInPool[imageStoragePoolLockID]; ok {
-		imageCreationInPoolLock.Unlock()
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[imageStoragePoolLockID]; ok {
+		lxdStorageLock.Unlock()
 		if _, ok := <-waitChannel; ok {
 			shared.LogWarnf("Value transmitted over image lock semaphore?")
 		}
 	} else {
-		imageCreationInPool[imageStoragePoolLockID] = make(chan bool)
+		lxdStorageLockMap[imageStoragePoolLockID] = make(chan bool)
+		lxdStorageLock.Unlock()
+
 		var imgerr error
 		if !shared.PathExists(imageMntPoint) || !shared.PathExists(imageLvmDevPath) {
 			imgerr = s.ImageCreate(fingerprint)
 		}
-		if waitChannel, ok := imageCreationInPool[imageStoragePoolLockID]; ok {
+
+		lxdStorageLock.Lock()
+		if waitChannel, ok := lxdStorageLockMap[imageStoragePoolLockID]; ok {
 			close(waitChannel)
-			delete(imageCreationInPool, imageStoragePoolLockID)
+			delete(lxdStorageLockMap, imageStoragePoolLockID)
 		}
-		imageCreationInPoolLock.Unlock()
+		lxdStorageLock.Unlock()
+
 		if imgerr != nil {
 			return imgerr
 		}
@@ -759,31 +760,79 @@ func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 	mountOptions := s.volume.Config["block.mount_options"]
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 
-	if shared.IsMountPoint(containerMntPoint) {
+	containerMountLockID := fmt.Sprintf("mount/%s/%s", s.pool.Name, name)
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[containerMountLockID]; ok {
+		lxdStorageLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			shared.LogWarnf("Value transmitted over image lock semaphore?")
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in mounting the storage volume.
 		return false, nil
 	}
 
-	err := tryMount(containerLvmPath, containerMntPoint, lvFsType, 0, mountOptions)
-	if err != nil {
-		return false, fmt.Errorf("Error mounting snapshot LV path='%s': %s", path, err)
+	lxdStorageLockMap[containerMountLockID] = make(chan bool)
+	lxdStorageLock.Unlock()
+
+	var imgerr error
+	ourMount := false
+	if !shared.IsMountPoint(containerMntPoint) {
+		imgerr = tryMount(containerLvmPath, containerMntPoint, lvFsType, 0, mountOptions)
+		ourMount = true
 	}
 
-	return true, nil
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[containerMountLockID]; ok {
+		close(waitChannel)
+		delete(lxdStorageLockMap, containerMountLockID)
+	}
+	lxdStorageLock.Unlock()
+
+	if imgerr != nil {
+		return false, imgerr
+	}
+
+	return ourMount, nil
 }
 
 func (s *storageLvm) ContainerUmount(name string, path string) (bool, error) {
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 
-	if !shared.IsMountPoint(containerMntPoint) {
+	containerUmountLockID := fmt.Sprintf("umount/%s/%s", s.pool.Name, name)
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[containerUmountLockID]; ok {
+		lxdStorageLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			shared.LogWarnf("Value transmitted over image lock semaphore?")
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in unmounting the storage volume.
 		return false, nil
 	}
 
-	err := tryUnmount(containerMntPoint, 0)
-	if err != nil {
-		return false, fmt.Errorf("failed to unmount container path '%s': %s", path, err)
+	lxdStorageLockMap[containerUmountLockID] = make(chan bool)
+	lxdStorageLock.Unlock()
+
+	var imgerr error
+	ourUmount := false
+	if shared.IsMountPoint(containerMntPoint) {
+		imgerr = tryUnmount(containerMntPoint, 0)
+		ourUmount = true
 	}
 
-	return true, nil
+	lxdStorageLock.Lock()
+	if waitChannel, ok := lxdStorageLockMap[containerUmountLockID]; ok {
+		close(waitChannel)
+		delete(lxdStorageLockMap, containerUmountLockID)
+	}
+	lxdStorageLock.Unlock()
+
+	if imgerr != nil {
+		return false, imgerr
+	}
+
+	return ourUmount, nil
 }
 
 func (s *storageLvm) ContainerRename(container container, newContainerName string) error {
