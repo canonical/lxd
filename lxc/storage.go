@@ -87,13 +87,13 @@ func (c *storageCmd) usage() string {
 	return i18n.G(
 		`Manage storage.
 
-lxc storage list [<remote>:]                           List available storage pools.
-lxc storage show [<remote>:]<pool>                     Show details of a storage pool.
-lxc storage create [<remote>:]<pool> [key=value]...    Create a storage pool.
-lxc storage get [<remote>:]<pool> <key>                Get storage pool configuration.
-lxc storage set [<remote>:]<pool> <key> <value>        Set storage pool configuration.
-lxc storage unset [<remote>:]<pool> <key>              Unset storage pool configuration.
-lxc storage delete [<remote>:]<pool>                   Delete a storage pool.
+lxc storage list [<remote>:]                                    List available storage pools.
+lxc storage show [<remote>:]<pool>                              Show details of a storage pool.
+lxc storage create [<remote>:]<pool> <driver> [key=value]...    Create a storage pool.
+lxc storage get [<remote>:]<pool> <key>                         Get storage pool configuration.
+lxc storage set [<remote>:]<pool> <key> <value>                 Set storage pool configuration.
+lxc storage unset [<remote>:]<pool> <key>                       Unset storage pool configuration.
+lxc storage delete [<remote>:]<pool>                            Delete a storage pool.
 lxc storage edit [<remote>:]<pool>
     Edit storage pool, either by launching external editor or reading STDIN.
     Example: lxc storage edit [<remote>:]<pool> # launch editor
@@ -245,7 +245,7 @@ func (c *storageCmd) run(config *lxd.Config, args []string) error {
 			if len(args) < 3 {
 				return errArgs
 			}
-			driver := strings.Join(args[2:3], "")
+			driver := args[2]
 			return c.doStoragePoolCreate(client, pool, driver, args[3:])
 		case "delete":
 			return c.doStoragePoolDelete(client, pool)

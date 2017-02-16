@@ -22,10 +22,40 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-var lxdStorageLockMap = map[string]chan bool{}
-var lxdStorageLock sync.Mutex
+// lxdStorageLockMap is a hashmap that allows functions to check whether the
+// operation they are about to perform is already in progress. If it is the
+// channel can be used to wait for the operation to finish. If it is not, the
+// function that wants to perform the operation should store its code in the
+// hashmap.
+// Note that any access to this map must be done while holding a lock.
+var lxdStorageOngoingOperationMap = map[string]chan bool{}
 
-/* Some interesting filesystems */
+// lxdStorageMapLock is used to access lxdStorageOngoingOperationMap.
+var lxdStorageMapLock sync.Mutex
+
+// The following functions are used to construct simple operation codes that are
+// unique.
+func getPoolMountLockID(poolName string) string {
+	return fmt.Sprintf("mount/pool/%s", poolName)
+}
+
+func getPoolUmountLockID(poolName string) string {
+	return fmt.Sprintf("umount/pool/%s", poolName)
+}
+
+func getImageCreateLockID(poolName string, fingerprint string) string {
+	return fmt.Sprintf("create/image/%s/%s", poolName, fingerprint)
+}
+
+func getContainerMountLockID(poolName string, containerName string) string {
+	return fmt.Sprintf("mount/container/%s/%s", poolName, containerName)
+}
+
+func getContainerUmountLockID(poolName string, containerName string) string {
+	return fmt.Sprintf("umount/container/%s/%s", poolName, containerName)
+}
+
+// Filesystem magic numbers
 const (
 	filesystemSuperMagicTmpfs = 0x01021994
 	filesystemSuperMagicExt4  = 0xEF53
@@ -34,10 +64,7 @@ const (
 	filesystemSuperMagicZfs   = 0x2fc12fc1
 )
 
-/*
- * filesystemDetect returns the filesystem on which
- * the passed-in path sits
- */
+// filesystemDetect returns the filesystem on which the passed-in path sits.
 func filesystemDetect(path string) (string, error) {
 	fs := syscall.Statfs_t{}
 
