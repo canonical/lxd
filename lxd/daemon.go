@@ -820,6 +820,12 @@ func (d *Daemon) Init() error {
 	}
 
 	if !d.MockMode {
+		/* Read the storage pools */
+		err = d.SetupStorageDriver()
+		if err != nil {
+			return err
+		}
+
 		/* Apply all patches */
 		err = patchesApplyAll(d)
 		if err != nil {
