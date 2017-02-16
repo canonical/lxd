@@ -542,28 +542,28 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	imageLvmDevPath := getLvmDevPath(s.pool.Name, storagePoolVolumeApiEndpointImages, fingerprint)
 
-	imageStoragePoolLockID := fmt.Sprintf("%s/%s", s.pool.Name, fingerprint)
-	lxdStorageLock.Lock()
-	if waitChannel, ok := lxdStorageLockMap[imageStoragePoolLockID]; ok {
-		lxdStorageLock.Unlock()
+	imageStoragePoolLockID := getImageCreateLockID(s.pool.Name, fingerprint)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
+		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Value transmitted over image lock semaphore?")
+			s.log.Warn("Received value over semaphore. This should not have happened.")
 		}
 	} else {
-		lxdStorageLockMap[imageStoragePoolLockID] = make(chan bool)
-		lxdStorageLock.Unlock()
+		lxdStorageOngoingOperationMap[imageStoragePoolLockID] = make(chan bool)
+		lxdStorageMapLock.Unlock()
 
 		var imgerr error
 		if !shared.PathExists(imageMntPoint) || !shared.PathExists(imageLvmDevPath) {
 			imgerr = s.ImageCreate(fingerprint)
 		}
 
-		lxdStorageLock.Lock()
-		if waitChannel, ok := lxdStorageLockMap[imageStoragePoolLockID]; ok {
+		lxdStorageMapLock.Lock()
+		if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
 			close(waitChannel)
-			delete(lxdStorageLockMap, imageStoragePoolLockID)
+			delete(lxdStorageOngoingOperationMap, imageStoragePoolLockID)
 		}
-		lxdStorageLock.Unlock()
+		lxdStorageMapLock.Unlock()
 
 		if imgerr != nil {
 			return imgerr
@@ -760,20 +760,20 @@ func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 	mountOptions := s.volume.Config["block.mount_options"]
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 
-	containerMountLockID := fmt.Sprintf("mount/%s/%s", s.pool.Name, name)
-	lxdStorageLock.Lock()
-	if waitChannel, ok := lxdStorageLockMap[containerMountLockID]; ok {
-		lxdStorageLock.Unlock()
+	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[containerMountLockID]; ok {
+		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Value transmitted over image lock semaphore?")
+			s.log.Warn("Received value over semaphore. This should not have happened.")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in mounting the storage volume.
 		return false, nil
 	}
 
-	lxdStorageLockMap[containerMountLockID] = make(chan bool)
-	lxdStorageLock.Unlock()
+	lxdStorageOngoingOperationMap[containerMountLockID] = make(chan bool)
+	lxdStorageMapLock.Unlock()
 
 	var imgerr error
 	ourMount := false
@@ -782,12 +782,12 @@ func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 		ourMount = true
 	}
 
-	lxdStorageLock.Lock()
-	if waitChannel, ok := lxdStorageLockMap[containerMountLockID]; ok {
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[containerMountLockID]; ok {
 		close(waitChannel)
-		delete(lxdStorageLockMap, containerMountLockID)
+		delete(lxdStorageOngoingOperationMap, containerMountLockID)
 	}
-	lxdStorageLock.Unlock()
+	lxdStorageMapLock.Unlock()
 
 	if imgerr != nil {
 		return false, imgerr
@@ -799,20 +799,20 @@ func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 func (s *storageLvm) ContainerUmount(name string, path string) (bool, error) {
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 
-	containerUmountLockID := fmt.Sprintf("umount/%s/%s", s.pool.Name, name)
-	lxdStorageLock.Lock()
-	if waitChannel, ok := lxdStorageLockMap[containerUmountLockID]; ok {
-		lxdStorageLock.Unlock()
+	containerUmountLockID := getContainerUmountLockID(s.pool.Name, name)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[containerUmountLockID]; ok {
+		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Value transmitted over image lock semaphore?")
+			s.log.Warn("Received value over semaphore. This should not have happened.")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in unmounting the storage volume.
 		return false, nil
 	}
 
-	lxdStorageLockMap[containerUmountLockID] = make(chan bool)
-	lxdStorageLock.Unlock()
+	lxdStorageOngoingOperationMap[containerUmountLockID] = make(chan bool)
+	lxdStorageMapLock.Unlock()
 
 	var imgerr error
 	ourUmount := false
@@ -821,12 +821,12 @@ func (s *storageLvm) ContainerUmount(name string, path string) (bool, error) {
 		ourUmount = true
 	}
 
-	lxdStorageLock.Lock()
-	if waitChannel, ok := lxdStorageLockMap[containerUmountLockID]; ok {
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[containerUmountLockID]; ok {
 		close(waitChannel)
-		delete(lxdStorageLockMap, containerUmountLockID)
+		delete(lxdStorageOngoingOperationMap, containerUmountLockID)
 	}
-	lxdStorageLock.Unlock()
+	lxdStorageMapLock.Unlock()
 
 	if imgerr != nil {
 		return false, imgerr
@@ -971,7 +971,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 	targetContainerName := snapshotContainer.Name()
 	sourceContainerLvmName := containerNameToLVName(sourceContainerName)
 	targetContainerLvmName := containerNameToLVName(targetContainerName)
-	shared.LogDebug("Creating snapshot", log.Ctx{"srcName": sourceContainerName, "destName": targetContainerName})
+	s.log.Debug("Creating snapshot", log.Ctx{"srcName": sourceContainerName, "destName": targetContainerName})
 
 	_, err := s.createSnapshotLV(s.pool.Name, sourceContainerLvmName, storagePoolVolumeApiEndpointContainers, targetContainerLvmName, storagePoolVolumeApiEndpointContainers, readonly)
 	if err != nil {
@@ -1056,7 +1056,7 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 
 	tmpTargetLvmName := getTmpSnapshotName(targetLvmName)
 
-	shared.LogDebug("Creating snapshot", log.Ctx{"srcName": sourceLvmName, "destName": targetLvmName})
+	s.log.Debug("Creating snapshot", log.Ctx{"srcName": sourceLvmName, "destName": targetLvmName})
 
 	lvpath, err := s.createSnapshotLV(s.pool.Name, sourceLvmName, storagePoolVolumeApiEndpointContainers, tmpTargetLvmName, storagePoolVolumeApiEndpointContainers, false)
 	if err != nil {
@@ -1218,7 +1218,7 @@ func (s *storageLvm) ImageMount(fingerprint string) (bool, error) {
 
 	err := tryMount(lvmVolumePath, imageMntPoint, lvmFstype, 0, lvmMountOptions)
 	if err != nil {
-		shared.LogInfof("Error mounting image LV for unpacking: %s", err)
+		s.log.Info(fmt.Sprintf("Error mounting image LV for unpacking: %s", err))
 		return false, fmt.Errorf("Error mounting image LV: %v", err)
 	}
 
