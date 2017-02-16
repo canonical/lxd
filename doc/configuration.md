@@ -235,6 +235,7 @@ optional        | boolean   | false             | no        | Controls whether t
 readonly        | boolean   | false             | no        | Controls whether to make the mount read-only
 size            | string    | -                 | no        | Disk size in bytes (supports kB, MB, GB, TB, PB and EB suffixes). This is only supported for the rootfs (/).
 recursive       | boolean   | false             | no        | Whether or not to recursively mount the source path
+pool            | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD.
 
 If multiple disks, backed by the same block device, have I/O limits set,
 the average of the limits will be used.
