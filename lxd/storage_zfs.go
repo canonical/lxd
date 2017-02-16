@@ -403,7 +403,7 @@ func (s *storageZfs) ContainerMount(name string, path string) (bool, error) {
 	if waitChannel, ok := lxdStorageOngoingOperationMap[containerMountLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Value transmitted over image lock semaphore?")
+			s.log.Warn("Received value over semaphore. This should not have happened.")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in mounting the storage volume.
@@ -443,7 +443,7 @@ func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 	if waitChannel, ok := lxdStorageOngoingOperationMap[containerUmountLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Value transmitted over image lock semaphore?")
+			s.log.Warn("Received value over semaphore. This should not have happened.")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in unmounting the storage volume.
@@ -528,7 +528,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Value transmitted over image lock semaphore?")
+			s.log.Warn("Received value over semaphore. This should not have happened.")
 		}
 	} else {
 		lxdStorageOngoingOperationMap[imageStoragePoolLockID] = make(chan bool)
@@ -2035,12 +2035,12 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		shared.LogError("problem reading zfs send stderr", log.Ctx{"err": err})
+		shared.LogErrorf("Problem reading zfs send stderr: %s.", err)
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.LogError("problem with zfs send", log.Ctx{"output": string(output)})
+		shared.LogErrorf("Problem with zfs send: %s.", string(output))
 	}
 
 	return err
@@ -2194,12 +2194,12 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 
 		output, err := ioutil.ReadAll(stderr)
 		if err != nil {
-			shared.LogDebug("problem reading zfs recv stderr %s", log.Ctx{"err": err})
+			s.log.Debug("problem reading zfs recv stderr %s", log.Ctx{"err": err})
 		}
 
 		err = cmd.Wait()
 		if err != nil {
-			shared.LogError("problem with zfs recv", log.Ctx{"output": string(output)})
+			s.log.Error("problem with zfs recv", log.Ctx{"output": string(output)})
 		}
 		return err
 	}
@@ -2261,7 +2261,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 		/* clean up our migration-send snapshots that we got from recv. */
 		zfsSnapshots, err := s.zfsPoolListSnapshots(fmt.Sprintf("containers/%s", container.Name()))
 		if err != nil {
-			shared.LogError("failed listing snapshots post migration", log.Ctx{"err": err})
+			s.log.Error("failed listing snapshots post migration", log.Ctx{"err": err})
 			return
 		}
 
