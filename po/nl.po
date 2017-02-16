@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-02-15 01:06-0500\n"
+"POT-Creation-Date: 2017-02-15 20:56-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -16,7 +16,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lxc/storage.go:30
+#: lxc/storage.go:56
 msgid ""
 "### This is a yaml representation of a storage pool.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -33,7 +33,7 @@ msgid ""
 "###   zfs.pool_name: default"
 msgstr ""
 
-#: lxc/storage.go:47
+#: lxc/storage.go:73
 msgid ""
 "### This is a yaml representation of a storage volume.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -205,7 +205,7 @@ msgstr ""
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
 
-#: lxc/network.go:398 lxc/profile.go:424 lxc/storage.go:541
+#: lxc/network.go:398 lxc/profile.go:424 lxc/storage.go:567
 msgid "Cannot provide container name to list"
 msgstr ""
 
@@ -242,7 +242,7 @@ msgid "Config key/value to apply to the new container"
 msgstr ""
 
 #: lxc/config.go:535 lxc/config.go:600 lxc/image.go:737 lxc/network.go:354
-#: lxc/profile.go:218 lxc/storage.go:497 lxc/storage.go:812
+#: lxc/profile.go:218 lxc/storage.go:523 lxc/storage.go:838
 #, c-format
 msgid "Config parsing error: %s"
 msgstr ""
@@ -333,7 +333,7 @@ msgstr ""
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/storage.go:570
+#: lxc/storage.go:596
 msgid "DRIVER"
 msgstr ""
 
@@ -873,7 +873,7 @@ msgid ""
 "Print the default remote."
 msgstr ""
 
-#: lxc/storage.go:61
+#: lxc/storage.go:87
 msgid ""
 "Manage storage.\n"
 "\n"
@@ -1048,7 +1048,7 @@ msgid ""
 "    lxc monitor --type=logging"
 msgstr ""
 
-#: lxc/network.go:224 lxc/network.go:273 lxc/storage.go:324 lxc/storage.go:424
+#: lxc/network.go:224 lxc/network.go:273 lxc/storage.go:350 lxc/storage.go:450
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
@@ -1076,7 +1076,7 @@ msgid "Must supply container name for: "
 msgstr ""
 
 #: lxc/list.go:431 lxc/network.go:434 lxc/profile.go:451 lxc/remote.go:380
-#: lxc/storage.go:569 lxc/storage.go:653
+#: lxc/storage.go:595 lxc/storage.go:680
 msgid "NAME"
 msgstr ""
 
@@ -1119,7 +1119,7 @@ msgstr ""
 msgid "No device found for this network"
 msgstr ""
 
-#: lxc/storage.go:333 lxc/storage.go:433
+#: lxc/storage.go:359 lxc/storage.go:459
 msgid "No device found for this storage volume."
 msgstr ""
 
@@ -1127,7 +1127,7 @@ msgstr ""
 msgid "No fingerprint specified."
 msgstr ""
 
-#: lxc/storage.go:285 lxc/storage.go:369
+#: lxc/storage.go:311 lxc/storage.go:395
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr ""
 
@@ -1201,7 +1201,7 @@ msgstr ""
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/network.go:355 lxc/profile.go:219 lxc/storage.go:498 lxc/storage.go:813
+#: lxc/network.go:355 lxc/profile.go:219 lxc/storage.go:524 lxc/storage.go:839
 msgid "Press enter to open the editor again"
 msgstr ""
 
@@ -1348,7 +1348,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:571
+#: lxc/storage.go:597
 msgid "SOURCE"
 msgstr ""
 
@@ -1435,12 +1435,12 @@ msgstr ""
 msgid "Stopping container failed!"
 msgstr ""
 
-#: lxc/storage.go:398
+#: lxc/storage.go:424
 #, c-format
 msgid "Storage pool %s created"
 msgstr ""
 
-#: lxc/storage.go:448
+#: lxc/storage.go:474
 #, c-format
 msgid "Storage pool %s deleted"
 msgstr ""
@@ -1449,12 +1449,12 @@ msgstr ""
 msgid "Storage pool name"
 msgstr ""
 
-#: lxc/storage.go:677
+#: lxc/storage.go:703
 #, c-format
 msgid "Storage volume %s created"
 msgstr ""
 
-#: lxc/storage.go:687
+#: lxc/storage.go:713
 #, c-format
 msgid "Storage volume %s deleted"
 msgstr ""
@@ -1471,7 +1471,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:436 lxc/network.go:435 lxc/storage.go:654
+#: lxc/list.go:436 lxc/network.go:435 lxc/storage.go:679
 msgid "TYPE"
 msgstr ""
 
@@ -1503,7 +1503,7 @@ msgstr ""
 msgid "The opposite of `lxc pause` is `lxc start`."
 msgstr ""
 
-#: lxc/network.go:238 lxc/network.go:287 lxc/storage.go:338 lxc/storage.go:438
+#: lxc/network.go:238 lxc/network.go:287 lxc/storage.go:364 lxc/storage.go:464
 msgid "The specified device doesn't exist"
 msgstr ""
 
@@ -1561,7 +1561,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:437 lxc/profile.go:452 lxc/storage.go:572 lxc/storage.go:655
+#: lxc/network.go:437 lxc/profile.go:452 lxc/storage.go:598 lxc/storage.go:681
 msgid "USED BY"
 msgstr ""
 
