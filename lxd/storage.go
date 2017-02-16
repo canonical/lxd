@@ -43,12 +43,8 @@ func getPoolUmountLockID(poolName string) string {
 	return fmt.Sprintf("umount/pool/%s", poolName)
 }
 
-func getImageMountLockID(poolName string, fingerprint string) string {
-	return fmt.Sprintf("mount/image/%s/%s", poolName, fingerprint)
-}
-
-func getImageUmountLockID(poolName string, fingerprint string) string {
-	return fmt.Sprintf("umount/image/%s/%s", poolName, fingerprint)
+func getImageCreateLockID(poolName string, fingerprint string) string {
+	return fmt.Sprintf("create/image/%s/%s", poolName, fingerprint)
 }
 
 func getContainerMountLockID(poolName string, containerName string) string {

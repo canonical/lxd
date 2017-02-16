@@ -304,7 +304,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 
-	poolMountLockID := fmt.Sprintf("mount/pool/%s", s.pool.Name)
+	poolMountLockID := getPoolMountLockID(s.pool.Name)
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[poolMountLockID]; ok {
 		lxdStorageMapLock.Unlock()
@@ -386,7 +386,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 func (s *storageBtrfs) StoragePoolUmount() (bool, error) {
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 
-	poolUmountLockID := fmt.Sprintf("umount/pool/%s", s.pool.Name)
+	poolUmountLockID := getPoolUmountLockID(s.pool.Name)
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[poolUmountLockID]; ok {
 		lxdStorageMapLock.Unlock()
@@ -622,7 +622,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	// Mountpoint of the image:
 	// ${LXD_DIR}/images/<fingerprint>
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
-	imageStoragePoolLockID := fmt.Sprintf("%s/%s", s.pool.Name, fingerprint)
+	imageStoragePoolLockID := getImageCreateLockID(s.pool.Name, fingerprint)
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
 		lxdStorageMapLock.Unlock()
