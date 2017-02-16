@@ -542,7 +542,7 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	imageLvmDevPath := getLvmDevPath(s.pool.Name, storagePoolVolumeApiEndpointImages, fingerprint)
 
-	imageStoragePoolLockID := fmt.Sprintf("%s/%s", s.pool.Name, fingerprint)
+	imageStoragePoolLockID := getImageCreateLockID(s.pool.Name, fingerprint)
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
 		lxdStorageMapLock.Unlock()
@@ -760,7 +760,7 @@ func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 	mountOptions := s.volume.Config["block.mount_options"]
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 
-	containerMountLockID := fmt.Sprintf("mount/%s/%s", s.pool.Name, name)
+	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[containerMountLockID]; ok {
 		lxdStorageMapLock.Unlock()
@@ -799,7 +799,7 @@ func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 func (s *storageLvm) ContainerUmount(name string, path string) (bool, error) {
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 
-	containerUmountLockID := fmt.Sprintf("umount/%s/%s", s.pool.Name, name)
+	containerUmountLockID := getContainerUmountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[containerUmountLockID]; ok {
 		lxdStorageMapLock.Unlock()
