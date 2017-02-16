@@ -127,6 +127,21 @@ test_storage() {
     # Create loop file zfs pool.
     lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" "${BACKEND}"
 
+    if [ "${BACKEND}" = "zfs" ]; then
+	# Let LXD use an already existing dataset.
+	zfs create -p -o mountpoint=none "lxdtest-$(basename "${LXD_DIR}")-pool1/existing-dataset-as-pool"
+	lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool7" "${BACKEND}" source="lxdtest-$(basename "${LXD_DIR}")-pool1/existing-dataset-as-pool"
+
+	# Let LXD use an already existing storage pool.
+	configure_loop_device loop_file_4 loop_device_4
+	# shellcheck disable=SC2154
+	zpool create "lxdtest-$(basename "${LXD_DIR}")-pool9-existing-pool" "${loop_device_4}" -f -m none -O compression=on
+	lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool9" "${BACKEND}" source="lxdtest-$(basename "${LXD_DIR}")-pool9-existing-pool"
+
+	# Let LXD create a new dataset and use as pool.
+	lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool8" "${BACKEND}" source="lxdtest-$(basename "${LXD_DIR}")-pool1/non-existing-dataset-as-pool"
+    fi
+
     # Create device backed zfs pool
     configure_loop_device loop_file_1 loop_device_1
     # shellcheck disable=SC2154
@@ -185,6 +200,17 @@ test_storage() {
     lxc launch testimage c12pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
     lxc list -c b c12pool6 | grep "lxdtest-$(basename "${LXD_DIR}")-pool6"
 
+    if [ "${BACKEND}" = "zfs" ]; then
+	lxc launch testimage c13pool7 -s "lxdtest-$(basename "${LXD_DIR}")-pool7"
+	lxc launch testimage c14pool7 -s "lxdtest-$(basename "${LXD_DIR}")-pool7"
+
+	lxc launch testimage c15pool8 -s "lxdtest-$(basename "${LXD_DIR}")-pool8"
+	lxc launch testimage c16pool8 -s "lxdtest-$(basename "${LXD_DIR}")-pool8"
+
+	lxc launch testimage c17pool9 -s "lxdtest-$(basename "${LXD_DIR}")-pool9"
+	lxc launch testimage c18pool9 -s "lxdtest-$(basename "${LXD_DIR}")-pool9"
+    fi
+
     lxc delete -f c1pool1
     lxc delete -f c2pool2
 
@@ -203,7 +229,26 @@ test_storage() {
     lxc delete -f c11pool5
     lxc delete -f c12pool6
 
+    if [ "${BACKEND}" = "zfs" ]; then
+	lxc delete -f c13pool7
+	lxc delete -f c14pool7
+
+	lxc delete -f c15pool8
+	lxc delete -f c16pool8
+
+	lxc delete -f c17pool9
+	lxc delete -f c18pool9
+    fi
+
     lxc image delete testimage
+
+    if [ "${BACKEND}" = "zfs" ]; then
+	lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool7"
+	lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool8"
+	lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool9"
+	# shellcheck disable=SC2154
+	deconfigure_loop_device "${loop_file_4}" "${loop_device_4}"
+    fi
 
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"
     # shellcheck disable=SC2154
