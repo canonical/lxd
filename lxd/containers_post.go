@@ -395,11 +395,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 
 	// If no storage pool is found, error out.
 	pools, err := dbStoragePools(d.db)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	if len(pools) == 0 {
+	if err != nil || len(pools) == 0 {
 		return BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool."))
 	}
 
