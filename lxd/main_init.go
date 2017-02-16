@@ -23,6 +23,7 @@ func cmdInit() error {
 	var storageLoopSize int64 // Size in GB
 	var storageDevice string  // Path
 	var storagePool string    // pool name
+	var storageDataset string // existing ZFS pool name
 	var networkAddress string // Address
 	var networkPort int64     // Port
 	var trustPassword string  // Trust password
@@ -192,7 +193,7 @@ func cmdInit() error {
 		}
 
 		if *argStorageBackend == "dir" {
-			if *argStorageCreateLoop != -1 || *argStorageCreateDevice != "" || *argStoragePool != "" {
+			if *argStorageCreateLoop != -1 || *argStorageCreateDevice != "" || *argStorageDataset != "" {
 				return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-loop may be used with the 'dir' backend.")
 			}
 		}
@@ -202,7 +203,7 @@ func cmdInit() error {
 				return fmt.Errorf("Only one of --storage-create-device or --storage-create-loop can be specified with the 'zfs' backend.")
 			}
 
-			if *argStoragePool == "" {
+			if *argStorageDataset == "" {
 				return fmt.Errorf("--storage-pool must be specified with the 'zfs' backend.")
 			}
 		}
@@ -219,13 +220,14 @@ func cmdInit() error {
 		storageBackend = *argStorageBackend
 		storageLoopSize = *argStorageCreateLoop
 		storageDevice = *argStorageCreateDevice
-		storagePool = *argStoragePool
+		storageDataset = *argStorageDataset
 		networkAddress = *argNetworkAddress
 		networkPort = *argNetworkPort
 		trustPassword = *argTrustPassword
+		storagePool = "default"
 		storageSetup = true
 	} else {
-		if *argStorageBackend != "" || *argStorageCreateDevice != "" || *argStorageCreateLoop != -1 || *argStoragePool != "" || *argNetworkAddress != "" || *argNetworkPort != -1 || *argTrustPassword != "" {
+		if *argStorageBackend != "" || *argStorageCreateDevice != "" || *argStorageCreateLoop != -1 || *argStorageDataset != "" || *argNetworkAddress != "" || *argNetworkPort != -1 || *argTrustPassword != "" {
 			return fmt.Errorf("Init configuration is only valid with --auto")
 		}
 
@@ -278,7 +280,7 @@ func cmdInit() error {
 					storageLoopSize = askInt(q, 1, -1, fmt.Sprintf("%d", def))
 				}
 			} else {
-				storagePool = askString("Name of the existing ZFS pool or dataset: ", "", nil)
+				storageDataset = askString("Name of the existing ZFS pool or dataset: ", "", nil)
 			}
 		}
 
@@ -360,14 +362,15 @@ they otherwise would.
 			}
 		}
 
-		// Destroy any existing loop device
-		for _, file := range []string{"zfs.img"} {
-			os.Remove(shared.VarPath(file))
+		// Pool configuration
+		storageConfig := map[string]string{}
+		if storageDevice != "" {
+			storageConfig["source"] = storageDevice
+		} else if storageDataset != "" {
+			storageConfig["source"] = storageDataset
 		}
 
-		storageConfig := map[string]string{}
-		storageConfig["source"] = storageDevice
-		if storageBackend != "dir" {
+		if storageBackend != "dir" && storageLoopSize != 0 {
 			storageConfig["size"] = strconv.FormatInt(storageLoopSize, 10) + "GB"
 		}
 
