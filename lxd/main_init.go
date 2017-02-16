@@ -202,10 +202,6 @@ func cmdInit() error {
 			if *argStorageCreateLoop != -1 && *argStorageCreateDevice != "" {
 				return fmt.Errorf("Only one of --storage-create-device or --storage-create-loop can be specified with the 'zfs' backend.")
 			}
-
-			if *argStorageDataset == "" {
-				return fmt.Errorf("--storage-pool must be specified with the 'zfs' backend.")
-			}
 		}
 
 		if *argNetworkAddress == "" {
@@ -251,6 +247,7 @@ func cmdInit() error {
 		}
 
 		if storageSetup && storageBackend == "zfs" {
+			storageLoopSize = -1
 			if askBool("Create a new ZFS pool (yes/no) [default=yes]? ", "yes") {
 				if askBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
 					deviceExists := func(path string) error {
@@ -366,11 +363,21 @@ they otherwise would.
 		storageConfig := map[string]string{}
 		if storageDevice != "" {
 			storageConfig["source"] = storageDevice
-		} else if storageDataset != "" {
+			// The user probably wants to give the storage pool a
+			// custom name.
+			if storageDataset != "" {
+				storagePool = storageDataset
+			}
+		} else if storageDataset != "" && storageBackend == "zfs" && storageLoopSize < 0 {
 			storageConfig["source"] = storageDataset
 		}
 
-		if storageBackend != "dir" && storageLoopSize != 0 {
+		if storageBackend != "dir" && storageLoopSize > 0 {
+			// The user probably wants to give the storage pool a
+			// custom name.
+			if storageDataset != "" {
+				storagePool = storageDataset
+			}
 			storageConfig["size"] = strconv.FormatInt(storageLoopSize, 10) + "GB"
 		}
 
