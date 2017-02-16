@@ -198,7 +198,7 @@ func (s *storageZfs) StoragePoolDelete() error {
 	// If the user gave us a dataset we don't know the pool it belongs to,
 	// so we simply remove it from our database and delete the mountpoint.
 	// The rest is in the hands of the user.
-	if s.dataset == "" {
+	if s.dataset == "" || (s.dataset != "" && !strings.Contains(s.dataset, "/")) {
 		err := s.zfsPoolDelete()
 		if err != nil {
 			return err
@@ -1519,16 +1519,11 @@ func (s *storageZfs) zfsPoolVolumeCreate(path string) error {
 }
 
 func (s *storageZfs) zfsPoolDelete() error {
-	poolName := s.pool.Name
-	if s.dataset != "" {
-		poolName = s.dataset
-	}
-
 	output, err := exec.Command(
 		"zpool",
 		"destroy",
 		"-f",
-		poolName).CombinedOutput()
+		s.pool.Name).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Failed to delete the ZFS pool: %s", output)
 	}
