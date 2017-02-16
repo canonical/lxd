@@ -188,10 +188,10 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		// we granted it above. So try to call btrfs filesystem show and
 		// parse it out. (I __hate__ this!)
 		if devUUID == "" {
-			shared.LogWarnf("Failed to detect UUID by looking at /dev/disk/by-uuid.")
+			s.log.Warn("Failed to detect UUID by looking at /dev/disk/by-uuid.")
 			devUUID, err1 = s.btrfsLookupFsUUID(source)
 			if err1 != nil {
-				shared.LogErrorf("Failed to detect UUID by parsing filesystem info.")
+				s.log.Error("Failed to detect UUID by parsing filesystem info.")
 				return err1
 			}
 		}
@@ -309,7 +309,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	if waitChannel, ok := lxdStorageOngoingOperationMap[poolMountLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Value transmitted over image lock semaphore?")
+			s.log.Warn("Received value over semaphore. This should not have happened.")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in mounting the storage pool.
@@ -391,7 +391,7 @@ func (s *storageBtrfs) StoragePoolUmount() (bool, error) {
 	if waitChannel, ok := lxdStorageOngoingOperationMap[poolUmountLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Value transmitted over image lock semaphore?")
+			s.log.Warn("Received value over semaphore. This should not have happened.")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in unmounting the storage pool.
@@ -627,7 +627,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Value transmitted over image lock semaphore?")
+			s.log.Warn("Received value over semaphore. This should not have happened.")
 		}
 	} else {
 		lxdStorageOngoingOperationMap[imageStoragePoolLockID] = make(chan bool)
@@ -1613,12 +1613,12 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		shared.LogError("problem reading btrfs send stderr", log.Ctx{"err": err})
+		shared.LogErrorf("Problem reading btrfs send stderr: %s.")
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.LogError("problem with btrfs send", log.Ctx{"output": string(output)})
+		shared.LogErrorf("Problem with btrfs send: %s.", string(output))
 	}
 	return err
 }
@@ -1806,12 +1806,12 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 		output, err := ioutil.ReadAll(stderr)
 		if err != nil {
-			shared.LogDebugf("problem reading btrfs receive stderr %s", err)
+			s.log.Debug(fmt.Sprintf("problem reading btrfs receive stderr %s", err))
 		}
 
 		err = cmd.Wait()
 		if err != nil {
-			shared.LogError("problem with btrfs receive", log.Ctx{"output": string(output)})
+			s.log.Error("problem with btrfs receive", log.Ctx{"output": string(output)})
 			return err
 		}
 
@@ -1823,13 +1823,13 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			err = s.btrfsPoolVolumeSnapshot(btrfsPath, targetPath, true)
 		}
 		if err != nil {
-			shared.LogError("problem with btrfs snapshot", log.Ctx{"err": err})
+			s.log.Error("problem with btrfs snapshot", log.Ctx{"err": err})
 			return err
 		}
 
 		err = s.btrfsPoolVolumesDelete(btrfsPath)
 		if err != nil {
-			shared.LogError("problem with btrfs delete", log.Ctx{"err": err})
+			s.log.Error("problem with btrfs delete", log.Ctx{"err": err})
 			return err
 		}
 
