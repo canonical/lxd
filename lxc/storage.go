@@ -245,7 +245,7 @@ func (c *storageCmd) run(config *lxd.Config, args []string) error {
 			if len(args) < 3 {
 				return errArgs
 			}
-			driver := strings.Join(args[2:3], "")
+			driver := args[2]
 			return c.doStoragePoolCreate(client, pool, driver, args[3:])
 		case "delete":
 			return c.doStoragePoolDelete(client, pool)
