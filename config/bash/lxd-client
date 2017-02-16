@@ -40,6 +40,20 @@ _have lxc && {
       )
     }
 
+    _lxd_storage_pools()
+    {
+      COMPREPLY=( $( compgen -W \
+        "$( lxc storage list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
+      )
+    }
+
+    _lxd_storage_volumes()
+    {
+      COMPREPLY=( $( compgen -W \
+        "$( lxc storage volume list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
+      )
+    }
+
     COMPREPLY=()
     # ignore special --foo args
     if [[ ${COMP_WORDS[COMP_CWORD]} == -* ]]; then
@@ -48,15 +62,12 @@ _have lxc && {
 
     lxc_cmds="config copy delete exec file help image info init launch \
       list move network profile publish remote restart restore shell snapshot \
-      start stop version"
+      start stop storage version"
 
     global_keys="core.https_address core.https_allowd_origin \
       core.https_allowed_methods core.https_allowed_headers  \
       core.https_allowed_credentials core.proxy_https \
       core.proxy_http core.proxy_ignore_host core.trust_password \
-      storage.lvm_vg_name storage.lvm_thinpool_name storage.lvm_fstype \
-      storage.lvm_volume_size storage.lvm_mount_options storage.zfs_pool_name \
-      storage.zfs_remove_snapshots storage.zfs_use_refquota \
       images.compression_algorithm \
       images.remote_cache_expiry images.auto_update_interval \
       images.auto_update_cached"
@@ -76,6 +87,13 @@ _have lxc && {
       fan.underlay_subnet fan.overlay_subnet fan.type ipv4.address ipv4.nat ipv4.dhcp \
       ipv4.dhcp.expiry ipv4.dhcp.ranges ipv4.routing ipv6.address ipv6.nat ipv6.dhcp ipv6.dhcp.stateful \
       ipv6.dhcp.expiry ipv6.dhcp.ranges ipv6.routing dns.domain dns.mode raw.dnsmasq"
+
+    storage_pool_keys="source size volume.block.mount_options
+    volume.block.filesystem volume.size volume.zfs.use_refquota
+    volume.zfs.remove_snapshots volume.lvm.thinpool_name zfs.pool_name"
+
+    storage_volume_keys="block.mount_options block.filesystem size
+    zfs.use_refquota zfs.remove_snapshots"
 
     if [ $COMP_CWORD -eq 1 ]; then
       COMPREPLY=( $(compgen -W "$lxc_cmds" -- ${COMP_WORDS[COMP_CWORD]}) )
@@ -237,6 +255,52 @@ _have lxc && {
         ;;
       "stop")
         _lxd_names "RUNNING"
+        ;;
+      "storage_pools")
+        case $pos in
+          2)
+            COMPREPLY=( $(compgen -W "list show create get set unset delete edit" -- $cur) )
+            ;;
+          3)
+            case ${no_dashargs[2]} in
+              "show"|"get"|"set"|"unset"|"delete"|"edit")
+                _lxd_storage_pools
+                ;;
+            esac
+            ;;
+          4)
+            case ${no_dashargs[2]} in
+              "get"|"set"|"unset")
+                COMPREPLY=( $(compgen -W "$storage_pool_keys" -- $cur) )
+                ;;
+            esac
+        esac
+        ;;
+      "storage_volumes")
+        case $pos in
+          2)
+            COMPREPLY=( $(compgen -W "list show create get set unset delete edit attach attach-profile detach detach-profile" -- $cur) )
+            ;;
+          3)
+            case ${no_dashargs[2]} in
+              "show"|"get"|"set"|"unset"|"delete"|"edit"|"attach"|"attach-profile"|"detach"|"detach-profile")
+                _lxd_storage_volumes
+                ;;
+            esac
+            ;;
+          4)
+            case ${no_dashargs[2]} in
+              "get"|"set"|"unset")
+                COMPREPLY=( $(compgen -W "$storage_volume_keys" -- $cur) )
+                ;;
+              "attach"|"detach"|"detach-profile")
+                _lxd_names
+                ;;
+              "attach-profile")
+                _lxd_profiles
+                ;;
+            esac
+        esac
         ;;
       *)
         ;;
