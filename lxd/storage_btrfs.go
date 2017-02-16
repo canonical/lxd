@@ -304,6 +304,32 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 
+	poolMountLockID := fmt.Sprintf("mount/pool/%s", s.pool.Name)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[poolMountLockID]; ok {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			shared.LogWarnf("Value transmitted over image lock semaphore?")
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in mounting the storage pool.
+		return false, nil
+	}
+
+	lxdStorageOngoingOperationMap[poolMountLockID] = make(chan bool)
+	lxdStorageMapLock.Unlock()
+
+	removeLockFromMap := func() {
+		lxdStorageMapLock.Lock()
+		if waitChannel, ok := lxdStorageOngoingOperationMap[poolMountLockID]; ok {
+			close(waitChannel)
+			delete(lxdStorageOngoingOperationMap, poolMountLockID)
+		}
+		lxdStorageMapLock.Unlock()
+	}
+
+	defer removeLockFromMap()
+
 	// Check whether the mount poolMntPoint exits.
 	if !shared.PathExists(poolMntPoint) {
 		err := os.MkdirAll(poolMntPoint, 0711)
@@ -359,6 +385,32 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 
 func (s *storageBtrfs) StoragePoolUmount() (bool, error) {
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+
+	poolUmountLockID := fmt.Sprintf("umount/pool/%s", s.pool.Name)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[poolUmountLockID]; ok {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			shared.LogWarnf("Value transmitted over image lock semaphore?")
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in unmounting the storage pool.
+		return false, nil
+	}
+
+	lxdStorageOngoingOperationMap[poolUmountLockID] = make(chan bool)
+	lxdStorageMapLock.Unlock()
+
+	removeLockFromMap := func() {
+		lxdStorageMapLock.Lock()
+		if waitChannel, ok := lxdStorageOngoingOperationMap[poolUmountLockID]; ok {
+			close(waitChannel)
+			delete(lxdStorageOngoingOperationMap, poolUmountLockID)
+		}
+		lxdStorageMapLock.Unlock()
+	}
+
+	defer removeLockFromMap()
 
 	if shared.IsMountPoint(poolMntPoint) {
 		err := syscall.Unmount(poolMntPoint, 0)
@@ -571,27 +623,27 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	// ${LXD_DIR}/images/<fingerprint>
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	imageStoragePoolLockID := fmt.Sprintf("%s/%s", s.pool.Name, fingerprint)
-	lxdStorageLock.Lock()
-	if waitChannel, ok := lxdStorageLockMap[imageStoragePoolLockID]; ok {
-		lxdStorageLock.Unlock()
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
+		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
 			shared.LogWarnf("Value transmitted over image lock semaphore?")
 		}
 	} else {
-		lxdStorageLockMap[imageStoragePoolLockID] = make(chan bool)
-		lxdStorageLock.Unlock()
+		lxdStorageOngoingOperationMap[imageStoragePoolLockID] = make(chan bool)
+		lxdStorageMapLock.Unlock()
 
 		var imgerr error
 		if !shared.PathExists(imageMntPoint) || !s.isBtrfsPoolVolume(imageMntPoint) {
 			imgerr = s.ImageCreate(fingerprint)
 		}
 
-		lxdStorageLock.Lock()
-		if waitChannel, ok := lxdStorageLockMap[imageStoragePoolLockID]; ok {
+		lxdStorageMapLock.Lock()
+		if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
 			close(waitChannel)
-			delete(lxdStorageLockMap, imageStoragePoolLockID)
+			delete(lxdStorageOngoingOperationMap, imageStoragePoolLockID)
 		}
-		lxdStorageLock.Unlock()
+		lxdStorageMapLock.Unlock()
 
 		if imgerr != nil {
 			return imgerr
