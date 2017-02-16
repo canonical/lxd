@@ -210,6 +210,7 @@ func patchStorageApi(name string, d *Daemon) error {
 		return nil
 	}
 
+	// If any of these are actually called, there's no way back.
 	poolName := defaultPoolName
 	switch preStorageApiStorageType {
 	case storageTypeBtrfs:
@@ -219,6 +220,14 @@ func patchStorageApi(name string, d *Daemon) error {
 	case storageTypeLvm:
 		err = upgradeFromStorageTypeLvm(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
 	case storageTypeZfs:
+		// The user is using a zfs dataset. This case needs to be
+		// handled with care:
+
+		// - The pool name that is used in the storage backends needs
+		//   to be set to a sane name that doesn't contain a slash "/".
+		//   This is what this snippet is for.
+		// - The full dataset name <pool_name>/<volume_name> needs to be
+		//   set as the source value.
 		if strings.Contains(defaultPoolName, "/") {
 			poolName = "default"
 		}
@@ -230,11 +239,18 @@ func patchStorageApi(name string, d *Daemon) error {
 		return err
 	}
 
+	// The new storage api enforces that the default storage pool on which
+	// containers are created is set in the default profile. If it isn't
+	// set, then LXD will refuse to create a container until either an
+	// appropriate device including a pool is added to the default profile
+	// or the user explicitly passes the pool the container's storage volume
+	// is supposed to be created on.
 	defaultID, defaultProfile, err := dbProfileGet(d.db, "default")
 	if err == nil {
 		foundRoot := false
 		for k, v := range defaultProfile.Devices {
 			if v["type"] == "disk" && v["path"] == "/" && v["source"] == "" {
+				// Add the default storage pool.
 				defaultProfile.Devices[k]["pool"] = poolName
 				foundRoot = true
 			}
@@ -251,6 +267,9 @@ func patchStorageApi(name string, d *Daemon) error {
 			defaultProfile.Devices["root"] = rootDev
 		}
 
+		// This is nasty, but we need to clear the profiles config and
+		// devices in order to add the new root device including the
+		// newly added storage pool.
 		tx, err := dbBegin(d.db)
 		if err != nil {
 			return err
