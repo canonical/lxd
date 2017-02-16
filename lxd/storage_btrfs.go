@@ -1335,6 +1335,9 @@ func (s *storageBtrfs) btrfsPoolVolumeDelete(subvol string) error {
 		}
 	}
 
+	// Attempt to make the subvolume writable
+	exec.Command("btrfs", "property", "set", subvol, "ro", "false").CombinedOutput()
+
 	// Delete the subvolume itself
 	output, err := exec.Command(
 		"btrfs",
