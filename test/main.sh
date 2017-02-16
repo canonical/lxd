@@ -344,6 +344,58 @@ wipe() {
   rm -Rf "${1}"
 }
 
+configure_loop_device() {
+  lv_loop_file=$(mktemp -p "${TEST_DIR}" XXXX.img)
+  truncate -s 10G "${lv_loop_file}"
+  pvloopdev=$(losetup --show -f "${lv_loop_file}")
+  if [ ! -e "${pvloopdev}" ]; then
+    echo "failed to setup loop"
+    false
+  fi
+
+  # The following code enables to return a value from a shell function by
+  # calling the function as: fun VAR1
+
+  # shellcheck disable=2039
+  local  __tmp1="${1}"
+  # shellcheck disable=2039
+  local  res1="${lv_loop_file}"
+  if [ "${__tmp1}" ]; then
+      eval "${__tmp1}='${res1}'"
+  fi
+
+  # shellcheck disable=2039
+  local  __tmp2="${2}"
+  # shellcheck disable=2039
+  local  res2="${pvloopdev}"
+  if [ "${__tmp2}" ]; then
+      eval "${__tmp2}='${res2}'"
+  fi
+}
+
+deconfigure_loop_device() {
+  lv_loop_file="${1}"
+  loopdev="${2}"
+
+  SUCCESS=0
+  # shellcheck disable=SC2034
+  for i in $(seq 10); do
+    if losetup -d "${loopdev}"; then
+      SUCCESS=1
+      break
+    fi
+
+    sleep 0.5
+  done
+
+  if [ "${SUCCESS}" = "0" ]; then
+    echo "Failed to tear down loop device"
+    false
+  fi
+
+  rm -f "${lv_loop_file}"
+}
+
 # Must be set before cleanup()
 TEST_CURRENT=setup
 TEST_RESULT=failure
@@ -423,5 +475,6 @@ run_test test_migration "migration"
 run_test test_fdleak "fd leak"
 run_test test_cpu_profiling "CPU profiling"
 run_test test_mem_profiling "memory profiling"
+run_test test_lxd_autoinit "lxd init auto"
 
 TEST_RESULT=success
