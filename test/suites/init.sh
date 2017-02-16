@@ -28,11 +28,14 @@ test_lxd_autoinit() {
     chmod +x "${LXD_INIT_DIR}"
     spawn_lxd "${LXD_INIT_DIR}" false
 
+    # shellcheck disable=SC2154
     configure_loop_device loop_file_1 loop_device_1
+    # shellcheck disable=SC2154
     zpool create "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}" -m none -O compression=on
     LXD_DIR=${LXD_INIT_DIR} lxd init --auto --storage-backend zfs --storage-pool "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool"
 
     kill_lxd "${LXD_INIT_DIR}"
+    # shellcheck disable=SC2154
     deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
   fi
 
@@ -43,11 +46,13 @@ test_lxd_autoinit() {
     spawn_lxd "${LXD_INIT_DIR}" false
 
     configure_loop_device loop_file_1 loop_device_1
+    # shellcheck disable=SC2154
     zpool create "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}" -m none -O compression=on
     LXD_DIR=${LXD_INIT_DIR} lxd init --auto --storage-backend zfs --storage-pool "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool/non-existing-dataset"
 
     kill_lxd "${LXD_INIT_DIR}"
     deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
+    # shellcheck disable=SC2154
     zpool destroy -f "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool"
   fi
 
@@ -58,12 +63,14 @@ test_lxd_autoinit() {
     spawn_lxd "${LXD_INIT_DIR}" false
 
     configure_loop_device loop_file_1 loop_device_1
+    # shellcheck disable=SC2154
     zpool create "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}" -f -m none -O compression=on
     zfs create -p -o mountpoint=none "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool/existing-dataset"
     LXD_DIR=${LXD_INIT_DIR} lxd init --auto --storage-backend zfs --storage-pool "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool/existing-dataset"
 
     kill_lxd "${LXD_INIT_DIR}"
     deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
+    # shellcheck disable=SC2154
     zpool destroy -f "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool"
   fi
 
