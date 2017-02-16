@@ -313,5 +313,9 @@ func daemonConfigValidateCompression(d *Daemon, key string, value string) error 
 }
 
 func storageDeprecatedKeys(d *Daemon, key string, value string) error {
+	if value == "" {
+		return nil
+	}
+
 	return fmt.Errorf("Setting the key \"%s\" is deprecated in favor of storage pool configuration.", key)
 }
