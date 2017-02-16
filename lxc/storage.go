@@ -19,6 +19,32 @@ import (
 	"github.com/lxc/lxd/shared/termios"
 )
 
+type byNameAndType [][]string
+
+func (a byNameAndType) Len() int {
+	return len(a)
+}
+
+func (a byNameAndType) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a byNameAndType) Less(i, j int) bool {
+	if a[i][0] != a[j][0] {
+		return a[i][0] < a[j][0]
+	}
+
+	if a[i][1] == "" {
+		return false
+	}
+
+	if a[j][1] == "" {
+		return true
+	}
+
+	return a[i][1] < a[j][1]
+}
+
 type storageCmd struct {
 }
 
@@ -642,7 +668,7 @@ func (c *storageCmd) doStoragePoolVolumesList(config *lxd.Config, remote string,
 	data := [][]string{}
 	for _, volume := range volumes {
 		usedby := strconv.Itoa(len(volume.UsedBy))
-		data = append(data, []string{volume.Name, volume.Type, usedby})
+		data = append(data, []string{volume.Type, volume.Name, usedby})
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -650,10 +676,10 @@ func (c *storageCmd) doStoragePoolVolumesList(config *lxd.Config, remote string,
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowLine(true)
 	table.SetHeader([]string{
-		i18n.G("NAME"),
 		i18n.G("TYPE"),
+		i18n.G("NAME"),
 		i18n.G("USED BY")})
-	sort.Sort(byName(data))
+	sort.Sort(byNameAndType(data))
 	table.AppendBulk(data)
 	table.Render()
 
