@@ -61,6 +61,9 @@ dist:
 	# Download dependencies
 	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -t -v -d ./...
 	
+	# Workaround for gorilla/mux on Go < 1.7
+	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -v -d github.com/gorilla/context
+	
 	# Assemble tarball
 	rm $(TMP)/dist/src/github.com/lxc/lxd
 	ln -s ../../../../ $(TMP)/dist/src/github.com/lxc/lxd
