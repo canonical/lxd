@@ -227,6 +227,7 @@ func containerValidDevices(devices types.Devices, profile bool, expanded bool) e
 		return nil
 	}
 
+	var diskDevicePaths []string
 	// Check each device individually
 	for name, m := range devices {
 		if m["type"] == "" {
@@ -256,6 +257,12 @@ func containerValidDevices(devices types.Devices, profile bool, expanded bool) e
 				return fmt.Errorf("Missing parent for %s type nic.", m["nictype"])
 			}
 		} else if m["type"] == "disk" {
+			if !expanded && !shared.StringInSlice(m["path"], diskDevicePaths) {
+				diskDevicePaths = append(diskDevicePaths, m["path"])
+			} else if !expanded {
+				return fmt.Errorf("More than one disk device uses the same path: %s.", m["path"])
+			}
+
 			if m["path"] == "" {
 				return fmt.Errorf("Disk entry is missing the required \"path\" property.")
 			}
