@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-02-28 18:22-0500\n"
-"PO-Revision-Date: 2017-02-02 08:46+0000\n"
-"Last-Translator: anonymous <>\n"
+"POT-Creation-Date: 2017-02-28 23:20-0500\n"
+"PO-Revision-Date: 2017-02-24 23:43+0000\n"
+"Last-Translator: Christophe CHAUVET <christophe.chauvet@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/fr/>\n"
 "Language: fr\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2.11\n"
+"X-Generator: Weblate 2.12-dev\n"
 
 #: lxc/storage.go:30
 #, fuzzy
@@ -272,9 +272,8 @@ msgid "CPU usage (in seconds)"
 msgstr "CPU utilisé (en secondes)"
 
 #: lxc/info.go:154
-#, fuzzy
 msgid "CPU usage:"
-msgstr "  CPU utilisé :"
+msgstr "CPU utilisé :"
 
 #: lxc/list.go:407
 msgid "CREATED AT"
@@ -352,7 +351,7 @@ msgstr "Le nom du conteneur est obligatoire"
 msgid "Container name is: %s"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/publish.go:152 lxc/publish.go:167
+#: lxc/publish.go:160 lxc/publish.go:175
 #, c-format
 msgid "Container published with fingerprint: %s"
 msgstr "Conteneur publié avec l'empreinte : %s"
@@ -446,7 +445,7 @@ msgstr "DESCRIPTION"
 
 #: lxc/storage.go:570
 msgid "DRIVER"
-msgstr ""
+msgstr "PILOTE"
 
 #: lxc/publish.go:38
 msgid "Define a compression algorithm: for image or none"
@@ -1636,7 +1635,7 @@ msgstr "Aucune empreinte n'a été indiquée."
 
 #: lxc/storage.go:285 lxc/storage.go:369
 msgid "Only \"custom\" volumes can be attached to containers."
-msgstr ""
+msgstr "Seul les volumes \"custom\" peuvent être attaché aux conteneurs."
 
 #: lxc/remote.go:120
 msgid "Only https URLs are supported for simplestreams"
@@ -1877,7 +1876,7 @@ msgstr "INSTANTANÉS"
 
 #: lxc/storage.go:571
 msgid "SOURCE"
-msgstr ""
+msgstr "SOURCE"
 
 #: lxc/list.go:413
 msgid "STATE"

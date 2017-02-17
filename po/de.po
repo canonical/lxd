@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-02-28 18:22-0500\n"
+"POT-Creation-Date: 2017-02-28 23:20-0500\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -360,7 +360,7 @@ msgstr ""
 msgid "Container name is: %s"
 msgstr ""
 
-#: lxc/publish.go:152 lxc/publish.go:167
+#: lxc/publish.go:160 lxc/publish.go:175
 #, fuzzy, c-format
 msgid "Container published with fingerprint: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
