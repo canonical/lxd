@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-02-28 18:22-0500\n"
-"PO-Revision-Date: 2017-01-16 11:29+0000\n"
+"POT-Creation-Date: 2017-02-28 23:20-0500\n"
+"PO-Revision-Date: 2017-02-17 15:34+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 2.11-dev\n"
+"X-Generator: Weblate 2.12-dev\n"
 
 #: lxc/storage.go:30
 msgid ""
@@ -191,9 +191,8 @@ msgid "CPU usage (in seconds)"
 msgstr "CPU使用量（秒）"
 
 #: lxc/info.go:154
-#, fuzzy
 msgid "CPU usage:"
-msgstr "  CPU使用量:"
+msgstr "CPU使用量:"
 
 #: lxc/list.go:407
 msgid "CREATED AT"
@@ -270,7 +269,7 @@ msgstr "コンテナ名を指定する必要があります"
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
 
-#: lxc/publish.go:152 lxc/publish.go:167
+#: lxc/publish.go:160 lxc/publish.go:175
 #, c-format
 msgid "Container published with fingerprint: %s"
 msgstr "コンテナは以下のフィンガープリントで publish されます: %s"
@@ -396,9 +395,8 @@ msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
 #: lxc/info.go:143
-#, fuzzy
 msgid "Disk usage:"
-msgstr "  ディスク使用量:"
+msgstr "ディスク使用量:"
 
 #: lxc/list.go:554
 msgid "EPHEMERAL"
@@ -542,7 +540,6 @@ msgid "Importing the image: %s"
 msgstr "イメージのインポート中: %s"
 
 #: lxc/init.go:75
-#, fuzzy
 msgid ""
 "Initialize a container from a particular image.\n"
 "\n"
@@ -561,7 +558,8 @@ msgstr ""
 "指定したイメージからコンテナを初期化します。\n"
 "\n"
 "lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-"
-"p <profile>...] [--config|-c <key=value>...] [--network|-n <network>]\n"
+"p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--"
+"storage|-s <pool>]\n"
 "\n"
 "指定したイメージとコンテナ名を使ってコンテナを初期化します。\n"
 "\n"
@@ -585,9 +583,9 @@ msgid "Invalid configuration key"
 msgstr "正しくない設定項目 (key) です"
 
 #: lxc/file.go:352
-#, fuzzy, c-format
+#, c-format
 msgid "Invalid path %s"
-msgstr "不正な送り先 %s"
+msgstr "不正なパス %s"
 
 #: lxc/file.go:286
 #, c-format
@@ -625,7 +623,6 @@ msgid "Last used: never"
 msgstr ""
 
 #: lxc/launch.go:23
-#, fuzzy
 msgid ""
 "Launch a container from a particular image.\n"
 "\n"
@@ -645,7 +642,7 @@ msgstr ""
 "\n"
 "lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--"
 "profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n "
-"<network>]\n"
+"<network>] [--storage|-s <pool>]\n"
 "\n"
 "指定したイメージと名前を使ってコンテナを起動します。\n"
 "\n"
@@ -674,7 +671,6 @@ msgstr ""
 "    lxc info [<remote>:]"
 
 #: lxc/list.go:47
-#, fuzzy
 msgid ""
 "Lists the containers.\n"
 "\n"
@@ -764,6 +760,7 @@ msgstr ""
 "* 4 - IPv4 アドレス\n"
 "* 6 - IPv6 アドレス\n"
 "* a - アーキテクチャ\n"
+"* b - ストレージプール\n"
 "* c - 作成日\n"
 "* l - 最終使用日\n"
 "* n - 名前\n"
@@ -1046,7 +1043,6 @@ msgstr ""
 "    lxc config set core.trust_password blah"
 
 #: lxc/file.go:36
-#, fuzzy
 msgid ""
 "Manage files in a container.\n"
 "\n"
@@ -1073,6 +1069,7 @@ msgstr ""
 "[[<remote>:]<container>...] <target path>\n"
 "lxc file push [-r|--recursive] [-p|--create-dirs] [--uid=UID] [--gid=GID] [--"
 "mode=MODE] <source path> [<source path>...] [<remote>:]<container>\n"
+"lxc file delete [<remote>:]<container> [[<remote>:]<container>...]\n"
 "lxc file edit [<remote>:]<container>/<path>\n"
 "\n"
 "pull の場合の <source>、push の場合の <target>、edit の場合の <file> は、いず"
@@ -1084,10 +1081,9 @@ msgstr ""
 "    lxc file push /etc/hosts foo/etc/hosts\n"
 "\n"
 "/etc/hosts をコンテナから pull するには:\n"
-"    lxc file pull foo/etc/hosts"
+"    lxc file pull foo/etc/hosts ."
 
 #: lxc/network.go:49
-#, fuzzy
 msgid ""
 "Manage networks.\n"
 "\n"
@@ -1139,8 +1135,10 @@ msgstr ""
 "        cat network.yaml | lxc network edit <network> # network.yaml から読み"
 "込み\n"
 "\n"
-"lxc network attach [<remote>:]<network> <container> [device name]\n"
-"lxc network attach-profile [<remote>:]<network> <profile> [device name]\n"
+"lxc network attach [<remote>:]<network> <container> [device name] [interface "
+"name]\n"
+"lxc network attach-profile [<remote>:]<network> <profile> [device name] "
+"[interface name]\n"
 "\n"
 "lxc network detach [<remote>:]<network> <container> [device name]\n"
 "lxc network detach-profile [<remote>:]<network> <container> [device name]"
@@ -1409,9 +1407,8 @@ msgid "Memory (peak)"
 msgstr "メモリ (ピーク)"
 
 #: lxc/info.go:177
-#, fuzzy
 msgid "Memory usage:"
-msgstr "  メモリ消費量:"
+msgstr "メモリ消費量:"
 
 #: lxc/help.go:87
 msgid "Missing summary."
@@ -1512,9 +1509,8 @@ msgid "Network name"
 msgstr "ネットワーク名:"
 
 #: lxc/info.go:194
-#, fuzzy
 msgid "Network usage:"
-msgstr "  ネットワーク使用状況:"
+msgstr "ネットワーク使用状況:"
 
 #: lxc/image.go:134 lxc/publish.go:35
 msgid "New alias to define at target"
@@ -1529,9 +1525,8 @@ msgid "No device found for this network"
 msgstr "このネットワークに対するデバイスがありません"
 
 #: lxc/storage.go:333 lxc/storage.go:433
-#, fuzzy
 msgid "No device found for this storage volume."
-msgstr "このネットワークに対するデバイスがありません"
+msgstr "このストレージボリュームに対するデバイスがありません。"
 
 #: lxc/config.go:308
 msgid "No fingerprint specified."
@@ -1607,7 +1602,7 @@ msgid "Permission denied, are you in the lxd group?"
 msgstr "アクセスが拒否されました。lxd グループに所属していますか?"
 
 #: lxc/info.go:106
-#, fuzzy, c-format
+#, c-format
 msgid "Pid: %d"
 msgstr "Pid: %d"
 
@@ -1870,29 +1865,28 @@ msgid "Stopping container failed!"
 msgstr "コンテナの停止に失敗しました！"
 
 #: lxc/storage.go:398
-#, fuzzy, c-format
+#, c-format
 msgid "Storage pool %s created"
-msgstr "ネットワーク %s を作成しました"
+msgstr "ストレージプール %s を作成しました"
 
 #: lxc/storage.go:448
-#, fuzzy, c-format
+#, c-format
 msgid "Storage pool %s deleted"
-msgstr "ネットワーク %s を削除しました"
+msgstr "ストレージプール %s を削除しました"
 
 #: lxc/init.go:145 lxc/init.go:146
-#, fuzzy
 msgid "Storage pool name"
-msgstr "プロファイル名を変更できません"
+msgstr "ストレージプール名"
 
 #: lxc/storage.go:672
-#, fuzzy, c-format
+#, c-format
 msgid "Storage volume %s created"
-msgstr "プロファイル %s を作成しました"
+msgstr "ストレージボリューム %s を作成しました"
 
 #: lxc/storage.go:682
-#, fuzzy, c-format
+#, c-format
 msgid "Storage volume %s deleted"
-msgstr "プロファイル %s を削除しました"
+msgstr "ストレージボリューム %s を削除しました"
 
 #: lxc/action.go:48
 msgid "Store the container state (only for stop)"
