@@ -312,6 +312,24 @@ func containerValidConfig(config map[string]string, profile bool, expanded bool)
 	return nil
 }
 
+func isRootDiskDevice(device types.Device) bool {
+	if device["type"] == "disk" && device["path"] == "/" && device["source"] == "" {
+		return true
+	}
+
+	return false
+}
+
+func containerGetRootDiskDevice(devices types.Devices) (string, types.Device) {
+	for devName, dev := range devices {
+		if isRootDiskDevice(dev) {
+			return devName, dev
+		}
+	}
+
+	return "", types.Device{}
+}
+
 func containerValidDevices(devices types.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
@@ -405,14 +423,8 @@ func containerValidDevices(devices types.Devices, profile bool, expanded bool) e
 
 	// Checks on the expanded config
 	if expanded {
-		foundRootfs := false
-		for _, m := range devices {
-			if m["type"] == "disk" && m["path"] == "/" {
-				foundRootfs = true
-			}
-		}
-
-		if !foundRootfs {
+		k, _ := containerGetRootDiskDevice(devices)
+		if k == "" {
 			return fmt.Errorf("Container is lacking rootfs entry")
 		}
 	}
@@ -734,6 +746,29 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	for _, profile := range args.Profiles {
 		if !shared.StringInSlice(profile, profiles) {
 			return nil, fmt.Errorf("Requested profile '%s' doesn't exist", profile)
+		}
+	}
+
+	// Check that there are no contradicting root disk devices.
+	var profileRootDiskDevices []string
+	for _, pName := range args.Profiles {
+		_, p, err := dbProfileGet(d.db, pName)
+		if err != nil {
+			return nil, fmt.Errorf("Could not load profile '%s'.", pName)
+		}
+
+		k, v := containerGetRootDiskDevice(p.Devices)
+		if k != "" && !shared.StringInSlice(v["pool"], profileRootDiskDevices) {
+			profileRootDiskDevices = append(profileRootDiskDevices, v["pool"])
+		}
+	}
+
+	_, newLocalRootDiskDevice := containerGetRootDiskDevice(args.Devices)
+	if newLocalRootDiskDevice["pool"] == "" {
+		if len(profileRootDiskDevices) == 0 {
+			return nil, fmt.Errorf("Container relies on profile's root disk device but none was found")
+		} else if len(profileRootDiskDevices) > 1 {
+			return nil, fmt.Errorf("Container relies on profile's root disk device but conflicting devices were found")
 		}
 	}
 
