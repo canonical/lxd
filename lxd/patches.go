@@ -35,7 +35,7 @@ var patches = []patch{
 	{name: "leftover_profile_config", run: patchLeftoverProfileConfig},
 	{name: "network_permissions", run: patchNetworkPermissions},
 	{name: "storage_api", run: patchStorageApi},
-	{name: "storage_api_1", run: patchStorageApi},
+	{name: "storage_api_v1", run: patchStorageApiV1},
 }
 
 type patch struct {
@@ -247,150 +247,10 @@ func patchStorageApi(name string, d *Daemon) error {
 	// appropriate device including a pool is added to the default profile
 	// or the user explicitly passes the pool the container's storage volume
 	// is supposed to be created on.
-	profiles, err := dbProfiles(d.db)
-	if err == nil {
-		for _, pName := range profiles {
-			pID, p, err := dbProfileGet(d.db, pName)
-			if err != nil {
-				shared.LogErrorf("Could not query database: %s.", err)
-				return err
-			}
-
-			// Check for a root disk device entry
-			k, _ := containerGetRootDiskDevice(p.Devices)
-			if k != "" {
-				// If found, set the pool property
-				p.Devices[k]["pool"] = poolName
-			} else if k == "" && pName == "default" {
-				// The default profile should have a valid root
-				// disk device entry.
-				rootDev := map[string]string{}
-				rootDev["type"] = "disk"
-				rootDev["path"] = "/"
-				rootDev["pool"] = poolName
-				if p.Devices == nil {
-					p.Devices = map[string]map[string]string{}
-				}
-
-				// Make sure that we do not overwrite a device the user
-				// is currently using under the name "root".
-				rootDevName := "root"
-				for i := 0; i < 100; i++ {
-					if p.Devices[rootDevName] == nil {
-						break
-					}
-					rootDevName = fmt.Sprintf("root%d", i)
-					continue
-				}
-				p.Devices["root"] = rootDev
-			}
-
-			// This is nasty, but we need to clear the profiles config and
-			// devices in order to add the new root device including the
-			// newly added storage pool.
-			tx, err := dbBegin(d.db)
-			if err != nil {
-				return err
-			}
-
-			err = dbProfileConfigClear(tx, pID)
-			if err != nil {
-				shared.LogErrorf("Failed to clear old profile configuration: %s.", err)
-				tx.Rollback()
-				continue
-			}
-
-			err = dbProfileConfigAdd(tx, pID, p.Config)
-			if err != nil {
-				shared.LogErrorf("Failed to add new profile configuration: %s.", err)
-				tx.Rollback()
-				continue
-			}
-
-			err = dbDevicesAdd(tx, "profile", pID, p.Devices)
-			if err != nil {
-				shared.LogErrorf("Failed to add new profile profile root disk device: %s.", err)
-				tx.Rollback()
-				continue
-			}
-
-			err = tx.Commit()
-			if err != nil {
-				shared.LogErrorf("Failed to commit database transaction: %s.", err)
-				tx.Rollback()
-				continue
-			}
-		}
-	}
-
-	// When no default profile is detected or some containers do not rely on
-	// the default profile for their root disk device, these containers will
-	// be given a valid local root disk device."
 	allcontainers := append(cRegular, cSnapshots...)
-	for _, ct := range allcontainers {
-		c, err := containerLoadByName(d, ct)
-		if err != nil {
-			continue
-		}
-
-		args := containerArgs{
-			Architecture: c.Architecture(),
-			Config:       c.LocalConfig(),
-			Ephemeral:    c.IsEphemeral(),
-			CreationDate: c.CreationDate(),
-			LastUsedDate: c.LastUsedDate(),
-			Name:         c.Name(),
-			Profiles:     c.Profiles(),
-		}
-
-		if c.IsSnapshot() {
-			args.Ctype = cTypeSnapshot
-		} else {
-			args.Ctype = cTypeRegular
-		}
-
-		// Check expanded devices for a valid root entry. If it exists,
-		// we skip this container.
-		expandedDevices := c.ExpandedDevices()
-		k, _ := containerGetRootDiskDevice(expandedDevices)
-		if k != "" && expandedDevices[k]["pool"] != "" {
-			// On partial upgrade the container might already have a
-			// valid root disk device entry.
-			if expandedDevices[k]["pool"] == poolName {
-				continue
-			}
-		}
-
-		// Check for a local root disk device entry and set the pool
-		// property.
-		localDevices := c.LocalDevices()
-		k, _ = containerGetRootDiskDevice(localDevices)
-		if k != "" {
-			localDevices[k]["pool"] = poolName
-			args.Devices = localDevices
-		} else {
-			rootDev := map[string]string{}
-			rootDev["type"] = "disk"
-			rootDev["path"] = "/"
-			rootDev["pool"] = poolName
-
-			// Make sure that we do not overwrite a device the user
-			// is currently using under the name "root".
-			rootDevName := "root"
-			for i := 0; i < 100; i++ {
-				if localDevices[rootDevName] == nil {
-					break
-				}
-				rootDevName = fmt.Sprintf("root%d", i)
-				continue
-			}
-			localDevices[rootDevName] = rootDev
-		}
-
-		err = c.Update(args, false)
-		if err != nil {
-			continue
-		}
+	err = updatePoolPropertyForAllObjects(d, poolName, allcontainers)
+	if err != nil {
+		return err
 	}
 
 	// Unset deprecated storage keys.
@@ -689,20 +549,21 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	// Get size of the volume group.
 	output, err := tryExec("vgs", "--nosuffix", "--units", "g", "--noheadings", "-o", "size", defaultPoolName)
-	if err == nil {
-		tmp := string(output)
-		tmp = strings.TrimSpace(tmp)
-		szFloat, err := strconv.ParseFloat(tmp, 32)
-		if err != nil {
-			return err
-		}
-		szInt64 := shared.Round(szFloat)
-		poolConfig["size"] = fmt.Sprintf("%dGB", szInt64)
+	if err != nil {
+		return err
+	}
+	tmp := string(output)
+	tmp = strings.TrimSpace(tmp)
+	szFloat, err := strconv.ParseFloat(tmp, 32)
+	if err != nil {
+		return err
+	}
+	szInt64 := shared.Round(szFloat)
+	poolConfig["size"] = fmt.Sprintf("%dGB", szInt64)
 
-		err = storagePoolValidateConfig(defaultPoolName, "lvm", poolConfig)
-		if err != nil {
-			return err
-		}
+	err = storagePoolValidateConfig(defaultPoolName, "lvm", poolConfig)
+	if err != nil {
+		return err
 	}
 
 	// Peek into the storage pool database to see whether any storage pools
@@ -758,10 +619,19 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	// Insert storage volumes for containers into the database.
 	for _, ct := range cRegular {
-		_, err := dbStoragePoolVolumeCreate(d.db, ct, storagePoolVolumeTypeContainer, poolID, volumeConfig)
-		if err != nil {
-			shared.LogWarnf("Could not insert a storage volume for container \"%s\".", ct)
-			continue
+		_, err := dbStoragePoolVolumeGetTypeID(d.db, ct, storagePoolVolumeTypeContainer, poolID)
+		if err == nil {
+			shared.LogWarnf("Storage volumes database already contains an entry for the container.")
+		} else if err == NoSuchObjectError {
+			// Insert storage volumes for containers into the database.
+			_, err := dbStoragePoolVolumeCreate(d.db, ct, storagePoolVolumeTypeContainer, poolID, volumeConfig)
+			if err != nil {
+				shared.LogErrorf("Could not insert a storage volume for container \"%s\".", ct)
+				return err
+			}
+		} else {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
 		}
 
 		// Unmount the logical volume.
@@ -821,20 +691,33 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		for _, cs := range ctSnapshots {
-			// Insert storage volumes for snapshots.
-			_, err := dbStoragePoolVolumeCreate(d.db, cs, storagePoolVolumeTypeContainer, poolID, volumeConfig)
-			if err != nil {
-				shared.LogWarnf("Could not insert a storage volume for snapshot \"%s\".", cs)
-				continue
+			// Insert storage volumes for snapshots into the
+			// database. Note that snapshots have already been moved
+			// and symlinked above. So no need to do any work here.
+			_, err := dbStoragePoolVolumeGetTypeID(d.db, cs, storagePoolVolumeTypeContainer, poolID)
+			if err == nil {
+				shared.LogWarnf("Storage volumes database already contains an entry for the container.")
+			} else if err == NoSuchObjectError {
+				// Insert storage volumes for containers into the database.
+				_, err := dbStoragePoolVolumeCreate(d.db, cs, storagePoolVolumeTypeContainer, poolID, volumeConfig)
+				if err != nil {
+					shared.LogErrorf("Could not insert a storage volume for snapshot \"%s\".", cs)
+					return err
+				}
+			} else {
+				shared.LogErrorf("Failed to query database: %s", err)
+				return err
 			}
 
 			// Create the snapshots directory in the new storage
 			// pool:
 			// ${LXD_DIR}/storage-pools/<pool>/snapshots
 			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, cs)
-			err = os.MkdirAll(newSnapshotMntPoint, 0700)
-			if err != nil {
-				return err
+			if !shared.PathExists(newSnapshotMntPoint) {
+				err := os.MkdirAll(newSnapshotMntPoint, 0700)
+				if err != nil {
+					return err
+				}
 			}
 
 			// Unmount the logical volume.
@@ -848,15 +731,14 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 			// Rename the snapshot mountpoint to preserve acl's and
 			// so on.
-			err = os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
-			if err != nil {
-				return err
+			if shared.PathExists(oldSnapshotMntPoint) {
+				err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
+				if err != nil {
+					return err
+				}
 			}
 
-			err = os.Remove(oldSnapshotMntPoint + ".lv")
-			if err != nil {
-				return err
-			}
+			os.Remove(oldSnapshotMntPoint + ".lv")
 
 			// Make sure we use a valid lv name.
 			csLvName := containerNameToLVName(cs)
@@ -881,9 +763,11 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					return err
 				}
 			}
-			err = os.Symlink(newSnapshotsPath, snapshotsPath)
-			if err != nil {
-				return err
+			if !shared.PathExists(snapshotsPath) {
+				err = os.Symlink(newSnapshotsPath, snapshotsPath)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -899,10 +783,19 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	for _, img := range images {
-		_, err := dbStoragePoolVolumeCreate(d.db, img, storagePoolVolumeTypeImage, poolID, volumeConfig)
-		if err != nil {
-			shared.LogWarnf("Could not insert a storage volume for image \"%s\".", img)
-			continue
+		_, err := dbStoragePoolVolumeGetTypeID(d.db, img, storagePoolVolumeTypeImage, poolID)
+		if err == nil {
+			shared.LogWarnf("Storage volumes database already contains an entry for the container.")
+		} else if err == NoSuchObjectError {
+			// Insert storage volumes for containers into the database.
+			_, err := dbStoragePoolVolumeCreate(d.db, img, storagePoolVolumeTypeImage, poolID, volumeConfig)
+			if err != nil {
+				shared.LogWarnf("Could not insert a storage volume for image \"%s\".", img)
+				return err
+			}
+		} else {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
 		}
 
 		// Unmount the logical volume.
@@ -922,9 +815,11 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		newImageMntPoint := getImageMountPoint(defaultPoolName, img)
-		err = os.MkdirAll(newImageMntPoint, 0700)
-		if err != nil {
-			return err
+		if !shared.PathExists(newImageMntPoint) {
+			err := os.MkdirAll(newImageMntPoint, 0700)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Rename the logical volume device.
@@ -1027,8 +922,6 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			// Insert storage volumes for containers into the database.
 			_, err := dbStoragePoolVolumeCreate(d.db, ct, storagePoolVolumeTypeContainer, poolID, volumeConfig)
 			if err != nil {
-				// In case we're on a LXD instance where a a partial
-				// upgrade took place, we should still proceed.
 				shared.LogErrorf("Could not insert a storage volume for container \"%s\".", ct)
 				return err
 			}
@@ -1053,13 +946,9 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			}
 		}
 
-		if shared.PathExists(oldContainerMntPoint) {
-			os.Remove(oldContainerMntPoint)
-		}
+		os.Remove(oldContainerMntPoint)
 
-		if shared.PathExists(oldContainerMntPoint + ".zfs") {
-			os.Remove(oldContainerMntPoint + ".zfs")
-		}
+		os.Remove(oldContainerMntPoint + ".zfs")
 
 		// Changing the mountpoint property should have actually created
 		// the path but in case it somehow didn't let's do it ourselves.
@@ -1104,8 +993,6 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 				// Insert storage volumes for containers into the database.
 				_, err := dbStoragePoolVolumeCreate(d.db, cs, storagePoolVolumeTypeContainer, poolID, volumeConfig)
 				if err != nil {
-					// In case we're on a LXD instance where a a partial
-					// upgrade took place, we should still proceed.
 					shared.LogErrorf("Could not insert a storage volume for snapshot \"%s\".", cs)
 					return err
 				}
@@ -1127,9 +1014,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			}
 		}
 
-		if shared.PathExists(snapshotsPath) {
-			os.RemoveAll(snapshotsPath)
-		}
+		os.RemoveAll(snapshotsPath)
 
 		// Create a symlink for this container's snapshots.
 		if len(ctSnapshots) != 0 {
@@ -1154,8 +1039,6 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			// Insert storage volumes for containers into the database.
 			_, err := dbStoragePoolVolumeCreate(d.db, img, storagePoolVolumeTypeImage, poolID, volumeConfig)
 			if err != nil {
-				// In case we're on a LXD instance where a a partial
-				// upgrade took place, we should still proceed.
 				shared.LogWarnf("Could not insert a storage volume for image \"%s\".", img)
 				return err
 			}
@@ -1201,4 +1084,201 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	return finalErr
+}
+
+func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers []string) error {
+	// The new storage api enforces that the default storage pool on which
+	// containers are created is set in the default profile. If it isn't
+	// set, then LXD will refuse to create a container until either an
+	// appropriate device including a pool is added to the default profile
+	// or the user explicitly passes the pool the container's storage volume
+	// is supposed to be created on.
+	profiles, err := dbProfiles(d.db)
+	if err == nil {
+		for _, pName := range profiles {
+			pID, p, err := dbProfileGet(d.db, pName)
+			if err != nil {
+				shared.LogErrorf("Could not query database: %s.", err)
+				return err
+			}
+
+			// Check for a root disk device entry
+			k, _ := containerGetRootDiskDevice(p.Devices)
+			if k != "" {
+				if p.Devices[k]["pool"] != "" {
+					continue
+				}
+				p.Devices[k]["pool"] = poolName
+			} else if k == "" && pName == "default" {
+				// The default profile should have a valid root
+				// disk device entry.
+				rootDev := map[string]string{}
+				rootDev["type"] = "disk"
+				rootDev["path"] = "/"
+				rootDev["pool"] = poolName
+				if p.Devices == nil {
+					p.Devices = map[string]map[string]string{}
+				}
+
+				// Make sure that we do not overwrite a device the user
+				// is currently using under the name "root".
+				rootDevName := "root"
+				for i := 0; i < 100; i++ {
+					if p.Devices[rootDevName] == nil {
+						break
+					}
+					rootDevName = fmt.Sprintf("root%d", i)
+					continue
+				}
+				p.Devices["root"] = rootDev
+			}
+
+			// This is nasty, but we need to clear the profiles config and
+			// devices in order to add the new root device including the
+			// newly added storage pool.
+			tx, err := dbBegin(d.db)
+			if err != nil {
+				return err
+			}
+
+			err = dbProfileConfigClear(tx, pID)
+			if err != nil {
+				shared.LogErrorf("Failed to clear old profile configuration for profile %s: %s.", pName, err)
+				tx.Rollback()
+				continue
+			}
+
+			err = dbProfileConfigAdd(tx, pID, p.Config)
+			if err != nil {
+				shared.LogErrorf("Failed to add new profile configuration: %s: %s.", pName, err)
+				tx.Rollback()
+				continue
+			}
+
+			err = dbDevicesAdd(tx, "profile", pID, p.Devices)
+			if err != nil {
+				shared.LogErrorf("Failed to add new profile profile root disk device: %s: %s.", pName, err)
+				tx.Rollback()
+				continue
+			}
+
+			err = tx.Commit()
+			if err != nil {
+				shared.LogErrorf("Failed to commit database transaction: %s: %s.", pName, err)
+				tx.Rollback()
+				continue
+			}
+		}
+	}
+
+	// When no default profile is detected or some containers do not rely on
+	// the default profile for their root disk device, these containers will
+	// be given a valid local root disk device."
+	for _, ct := range allcontainers {
+		c, err := containerLoadByName(d, ct)
+		if err != nil {
+			continue
+		}
+
+		args := containerArgs{
+			Architecture: c.Architecture(),
+			Config:       c.LocalConfig(),
+			Ephemeral:    c.IsEphemeral(),
+			CreationDate: c.CreationDate(),
+			LastUsedDate: c.LastUsedDate(),
+			Name:         c.Name(),
+			Profiles:     c.Profiles(),
+		}
+
+		if c.IsSnapshot() {
+			args.Ctype = cTypeSnapshot
+		} else {
+			args.Ctype = cTypeRegular
+		}
+
+		// Check expanded devices for a valid root entry. If it exists,
+		// we skip this container.
+		expandedDevices := c.ExpandedDevices()
+		k, _ := containerGetRootDiskDevice(expandedDevices)
+		if k != "" && expandedDevices[k]["pool"] != "" {
+			// On partial upgrade the container might already have a
+			// valid root disk device entry.
+			if expandedDevices[k]["pool"] == poolName {
+				continue
+			}
+		}
+
+		// Check for a local root disk device entry and set the pool
+		// property.
+		localDevices := c.LocalDevices()
+		k, _ = containerGetRootDiskDevice(localDevices)
+		if k != "" {
+			if localDevices[k]["pool"] != "" {
+				continue
+			}
+			localDevices[k]["pool"] = poolName
+			args.Devices = localDevices
+		} else {
+			rootDev := map[string]string{}
+			rootDev["type"] = "disk"
+			rootDev["path"] = "/"
+			rootDev["pool"] = poolName
+
+			// Make sure that we do not overwrite a device the user
+			// is currently using under the name "root".
+			rootDevName := "root"
+			for i := 0; i < 100; i++ {
+				if localDevices[rootDevName] == nil {
+					break
+				}
+				rootDevName = fmt.Sprintf("root%d", i)
+				continue
+			}
+			localDevices[rootDevName] = rootDev
+		}
+
+		err = c.Update(args, false)
+		if err != nil {
+			continue
+		}
+	}
+
+	return nil
+}
+
+func patchStorageApiV1(name string, d *Daemon) error {
+	pools, err := dbStoragePools(d.db)
+	if err != nil && err == NoSuchObjectError {
+		// No pool was configured in the previous update. So we're on a
+		// pristine LXD instance.
+		return nil
+	} else if err != nil {
+		// Database is screwed.
+		shared.LogErrorf("Failed to query database: %s", err)
+		return err
+	}
+
+	if len(pools) != 1 {
+		shared.LogWarnf("More than one storage pool found. Not rerunning upgrade.")
+		return nil
+	}
+
+	cRegular, err := dbContainersList(d.db, cTypeRegular)
+	if err != nil {
+		return err
+	}
+
+	// Get list of existing snapshots.
+	cSnapshots, err := dbContainersList(d.db, cTypeSnapshot)
+	if err != nil {
+		return err
+	}
+
+	allcontainers := append(cRegular, cSnapshots...)
+	err = updatePoolPropertyForAllObjects(d, pools[0], allcontainers)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
