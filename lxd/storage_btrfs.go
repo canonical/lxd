@@ -210,6 +210,13 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		return err1
 	}
 
+	// Enable quotas
+	output, err = exec.Command(
+		"btrfs", "quota", "enable", poolMntPoint).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
+	}
+
 	// Create default subvolumes.
 	dummyDir := getContainerMountPoint(s.pool.Name, "")
 	err = s.btrfsPoolVolumeCreate(dummyDir)
