@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/lxc/lxd/shared"
 
@@ -34,6 +35,7 @@ var patches = []patch{
 	{name: "leftover_profile_config", run: patchLeftoverProfileConfig},
 	{name: "network_permissions", run: patchNetworkPermissions},
 	{name: "storage_api", run: patchStorageApi},
+	{name: "storage_api_1", run: patchStorageApi},
 }
 
 type patch struct {
@@ -250,8 +252,8 @@ func patchStorageApi(name string, d *Daemon) error {
 		for _, pName := range profiles {
 			pID, p, err := dbProfileGet(d.db, pName)
 			if err != nil {
-				// Do not fail.
-				continue
+				shared.LogErrorf("Could not query database: %s.", err)
+				return err
 			}
 
 			// Check for a root disk device entry
@@ -293,34 +295,37 @@ func patchStorageApi(name string, d *Daemon) error {
 
 			err = dbProfileConfigClear(tx, pID)
 			if err != nil {
+				shared.LogErrorf("Failed to clear old profile configuration: %s.", err)
 				tx.Rollback()
-				return err
+				continue
 			}
 
 			err = dbProfileConfigAdd(tx, pID, p.Config)
 			if err != nil {
+				shared.LogErrorf("Failed to add new profile configuration: %s.", err)
 				tx.Rollback()
-				return err
+				continue
 			}
 
 			err = dbDevicesAdd(tx, "profile", pID, p.Devices)
 			if err != nil {
+				shared.LogErrorf("Failed to add new profile profile root disk device: %s.", err)
 				tx.Rollback()
-				return err
+				continue
 			}
 
 			err = tx.Commit()
 			if err != nil {
+				shared.LogErrorf("Failed to commit database transaction: %s.", err)
 				tx.Rollback()
-				return err
+				continue
 			}
 		}
 	}
 
-	// When the either no default profile is not detected or some containers
-	// do not use the default profile, give these containers a valid local
-	// root disk device with a pool property set.
-	// Needs to be done for all containers.
+	// When no default profile is detected or some containers do not rely on
+	// the default profile for their root disk device, these containers will
+	// be given a valid local root disk device."
 	allcontainers := append(cRegular, cSnapshots...)
 	for _, ct := range allcontainers {
 		c, err := containerLoadByName(d, ct)
@@ -684,32 +689,58 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	// Get size of the volume group.
 	output, err := tryExec("vgs", "--nosuffix", "--units", "g", "--noheadings", "-o", "size", defaultPoolName)
-	if err != nil {
-		return err
-	}
-	tmp := string(output)
-	tmp = strings.TrimSpace(tmp)
-	szFloat, err := strconv.ParseFloat(tmp, 32)
-	if err != nil {
-		return err
-	}
-	szInt64 := shared.Round(szFloat)
-	poolConfig["size"] = fmt.Sprintf("%dGB", szInt64)
+	if err == nil {
+		tmp := string(output)
+		tmp = strings.TrimSpace(tmp)
+		szFloat, err := strconv.ParseFloat(tmp, 32)
+		if err != nil {
+			return err
+		}
+		szInt64 := shared.Round(szFloat)
+		poolConfig["size"] = fmt.Sprintf("%dGB", szInt64)
 
-	err = storagePoolValidateConfig(defaultPoolName, "lvm", poolConfig)
-	if err != nil {
-		return err
+		err = storagePoolValidateConfig(defaultPoolName, "lvm", poolConfig)
+		if err != nil {
+			return err
+		}
 	}
 
-	poolID, err := dbStoragePoolCreate(d.db, defaultPoolName, defaultStorageTypeName, poolConfig)
-	if err != nil {
+	// Peek into the storage pool database to see whether any storage pools
+	// are already configured. If so, we can assume that a partial upgrade
+	// has been performed and can skip the next steps.
+	poolID := int64(-1)
+	pools, err := dbStoragePools(d.db)
+	if err == nil { // Already exist valid storage pools.
+		// Check if the storage pool already has a db entry.
+		if shared.StringInSlice(defaultPoolName, pools) {
+			shared.LogWarnf("Database already contains a valid entry for the storage pool: %s.", defaultPoolName)
+		}
+
+		// Get the pool ID as we need it for storage volume creation.
+		// (Use a tmp variable as Go's scoping is freaking me out.)
+		tmp, err := dbStoragePoolGetID(d.db, defaultPoolName)
+		if err != nil {
+			shared.LogErrorf("Failed to query database: %s.", err)
+			return err
+		}
+		poolID = tmp
+	} else if err == NoSuchObjectError { // Likely a pristine upgrade.
+		tmp, err := dbStoragePoolCreate(d.db, defaultPoolName, defaultStorageTypeName, poolConfig)
+		if err != nil {
+			return err
+		}
+		poolID = tmp
+	} else { // Shouldn't happen.
+		shared.LogErrorf("Failed to query database: %s.", err)
 		return err
 	}
 
 	poolMntPoint := getStoragePoolMountPoint(defaultPoolName)
-	err = os.MkdirAll(poolMntPoint, 0711)
-	if err != nil {
-		return err
+	if !shared.PathExists(poolMntPoint) {
+		err = os.MkdirAll(poolMntPoint, 0711)
+		if err != nil {
+			shared.LogWarnf("Failed to create pool mountpoint: %s", poolMntPoint)
+		}
 	}
 
 	// Create storage volumes in the database.
@@ -717,9 +748,11 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	if len(cRegular) > 0 {
 		newContainersMntPoint := getContainerMountPoint(defaultPoolName, "")
-		err = os.MkdirAll(newContainersMntPoint, 0711)
-		if err != nil {
-			return err
+		if !shared.PathExists(newContainersMntPoint) {
+			err = os.MkdirAll(newContainersMntPoint, 0711)
+			if err != nil {
+				shared.LogWarnf("Failed to create containers mountpoint: %s", newContainersMntPoint)
+			}
 		}
 	}
 
@@ -744,9 +777,11 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// new storage api. We do os.Rename() here to preserve
 		// permissions and ownership.
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
-		err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
-		if err != nil {
-			return err
+		if !shared.PathExists(newContainerMntPoint) {
+			err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
+			if err != nil {
+				return err
+			}
 		}
 
 		if shared.PathExists(oldContainerMntPoint + ".lv") {
@@ -907,34 +942,67 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	poolConfig := map[string]string{}
 	oldLoopFilePath := shared.VarPath("zfs.img")
 	poolName := defaultPoolName
-	if shared.PathExists(oldLoopFilePath) {
-		// This is a loop file pool.
-		poolConfig["source"] = shared.VarPath("disks", defaultPoolName+".img")
-		err := os.Rename(oldLoopFilePath, poolConfig["source"])
-		if err != nil {
-			return err
-		}
-	} else {
+
+	// Peek into the storage pool database to see whether any storage pools
+	// are already configured. If so, we can assume that a partial upgrade
+	// has been performed and can skip the next steps. Otherwise we might
+	// run into problems. For example, the "zfs.img" file might have already
+	// been moved into ${LXD_DIR}/disks and we might therefore falsely
+	// conclude that we're using an existing storage pool.
+	poolID := int64(-1)
+	pools, err := dbStoragePools(d.db)
+	if err == nil { // Already exist valid storage pools.
 		if strings.Contains(defaultPoolName, "/") {
 			poolName = "default"
 		}
-		// This is a block device pool.
-		poolConfig["source"] = defaultPoolName
-	}
 
-	if poolName == defaultPoolName {
-		output, err := exec.Command("zpool", "get", "size", "-p", "-H", defaultPoolName).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("Failed to set ZFS config: %s", output)
+		// Check if the storage pool already has a db entry.
+		if shared.StringInSlice(poolName, pools) {
+			shared.LogWarnf("Database already contains a valid entry for the storage pool: %s.", poolName)
 		}
-		lidx := strings.LastIndex(string(output), "\t")
-		fidx := strings.LastIndex(string(output)[:lidx-1], "\t")
-		poolConfig["size"] = string(output)[fidx+1 : lidx]
-	}
 
-	poolID, err := dbStoragePoolCreate(d.db, poolName, defaultStorageTypeName, poolConfig)
-	if err != nil {
-		shared.LogWarnf("Storage pool already exists in the database. Proceeding...")
+		// Get the pool ID as we need it for storage volume creation.
+		// (Use a tmp variable as Go's scoping is freaking me out.)
+		tmp, err := dbStoragePoolGetID(d.db, poolName)
+		if err != nil {
+			shared.LogErrorf("Failed to query database: %s.", err)
+			return err
+		}
+		poolID = tmp
+	} else if err == NoSuchObjectError { // Likely a pristine upgrade.
+		if shared.PathExists(oldLoopFilePath) {
+			// This is a loop file pool.
+			poolConfig["source"] = shared.VarPath("disks", defaultPoolName+".img")
+			err := os.Rename(oldLoopFilePath, poolConfig["source"])
+			if err != nil {
+				return err
+			}
+		} else {
+			if strings.Contains(defaultPoolName, "/") {
+				poolName = "default"
+			}
+			// This is a block device pool.
+			poolConfig["source"] = defaultPoolName
+		}
+
+		if poolName == defaultPoolName {
+			output, err := exec.Command("zpool", "get", "size", "-p", "-H", defaultPoolName).CombinedOutput()
+			if err == nil {
+				lidx := strings.LastIndex(string(output), "\t")
+				fidx := strings.LastIndex(string(output)[:lidx-1], "\t")
+				poolConfig["size"] = string(output)[fidx+1 : lidx]
+			}
+		}
+
+		// (Use a tmp variable as Go's scoping is freaking me out.)
+		tmp, err := dbStoragePoolCreate(d.db, poolName, defaultStorageTypeName, poolConfig)
+		if err != nil {
+			shared.LogWarnf("Storage pool already exists in the database. Proceeding...")
+		}
+		poolID = tmp
+	} else { // Shouldn't happen.
+		shared.LogErrorf("Failed to query database: %s.", err)
+		return err
 	}
 
 	// Create storage volumes in the database.
@@ -945,18 +1013,28 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		if !shared.PathExists(containersSubvolumePath) {
 			err := os.MkdirAll(containersSubvolumePath, 0711)
 			if err != nil {
-				return err
+				shared.LogWarnf("Failed to create path: %s.", containersSubvolumePath)
 			}
 		}
 	}
 
+	failedUpgradeEntities := []string{}
 	for _, ct := range cRegular {
-		// Insert storage volumes for containers into the database.
-		_, err := dbStoragePoolVolumeCreate(d.db, ct, storagePoolVolumeTypeContainer, poolID, volumeConfig)
-		if err != nil {
-			// In case we're on a LXD instance where a a partial
-			// upgrade took place, we should still proceed.
-			shared.LogWarnf("Could not insert a storage volume for container \"%s\".", ct)
+		_, err := dbStoragePoolVolumeGetTypeID(d.db, ct, storagePoolVolumeTypeContainer, poolID)
+		if err == nil {
+			shared.LogWarnf("Storage volumes database already contains an entry for the container.")
+		} else if err == NoSuchObjectError {
+			// Insert storage volumes for containers into the database.
+			_, err := dbStoragePoolVolumeCreate(d.db, ct, storagePoolVolumeTypeContainer, poolID, volumeConfig)
+			if err != nil {
+				// In case we're on a LXD instance where a a partial
+				// upgrade took place, we should still proceed.
+				shared.LogErrorf("Could not insert a storage volume for container \"%s\".", ct)
+				return err
+			}
+		} else {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
 		}
 
 		// Unmount the container zfs doesn't really seem to care if we
@@ -966,10 +1044,11 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		if shared.IsMountPoint(oldContainerMntPoint) {
 			_, err := tryExec("zfs", "unmount", "-f", ctDataset)
 			if err != nil {
-				shared.LogWarnf("Failed to unmount ZFS filesystem via zfs unmount. Retrying with umount -l...")
-				output, err := tryExec("umount", "-l", oldContainerMntPoint)
+				shared.LogWarnf("Failed to unmount ZFS filesystem via zfs unmount. Trying lazy umount (MNT_DETACH)...")
+				err := tryUnmount(oldContainerMntPoint, syscall.MNT_DETACH)
 				if err != nil {
-					return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
+					failedUpgradeEntities = append(failedUpgradeEntities, fmt.Sprintf("containers/%s: Failed to umount zfs filesystem.", ct))
+					continue
 				}
 			}
 		}
@@ -988,7 +1067,9 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		newContainerMntPoint := getContainerMountPoint(poolName, ct)
 		err = createContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
-			return err
+			shared.LogWarnf("Failed to create mountpoint for the container: %s.", newContainerMntPoint)
+			failedUpgradeEntities = append(failedUpgradeEntities, fmt.Sprintf("containers/%s: Failed to create container mountpoint: %s", ct, err))
+			continue
 		}
 
 		// Set new mountpoint for the container's dataset it will be
@@ -1000,12 +1081,15 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			ctDataset).CombinedOutput()
 		if err != nil {
 			shared.LogWarnf("Failed to set new ZFS mountpoint: %s.", output)
+			failedUpgradeEntities = append(failedUpgradeEntities, fmt.Sprintf("containers/%s: Failed to set new zfs mountpoint: %s", ct, err))
+			continue
 		}
 
 		// Check if we need to account for snapshots for this container.
 		ctSnapshots, err := dbContainerGetSnapshots(d.db, ct)
 		if err != nil {
-			continue
+			shared.LogErrorf("Failed to query database")
+			return err
 		}
 
 		snapshotsPath := shared.VarPath("snapshots", ct)
@@ -1013,9 +1097,21 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			// Insert storage volumes for snapshots into the
 			// database. Note that snapshots have already been moved
 			// and symlinked above. So no need to do any work here.
-			_, err := dbStoragePoolVolumeCreate(d.db, cs, storagePoolVolumeTypeContainer, poolID, volumeConfig)
-			if err != nil {
-				shared.LogWarnf("Could not insert a storage volume for snapshot \"%s\".", cs)
+			_, err := dbStoragePoolVolumeGetTypeID(d.db, cs, storagePoolVolumeTypeContainer, poolID)
+			if err == nil {
+				shared.LogWarnf("Storage volumes database already contains an entry for the container.")
+			} else if err == NoSuchObjectError {
+				// Insert storage volumes for containers into the database.
+				_, err := dbStoragePoolVolumeCreate(d.db, cs, storagePoolVolumeTypeContainer, poolID, volumeConfig)
+				if err != nil {
+					// In case we're on a LXD instance where a a partial
+					// upgrade took place, we should still proceed.
+					shared.LogErrorf("Could not insert a storage volume for snapshot \"%s\".", cs)
+					return err
+				}
+			} else {
+				shared.LogErrorf("Failed to query database: %s", err)
+				return err
 			}
 
 			// Create the new mountpoint for snapshots in the new
@@ -1024,7 +1120,9 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			if !shared.PathExists(newSnapshotMntPoint) {
 				err = os.MkdirAll(newSnapshotMntPoint, 0711)
 				if err != nil {
-					return err
+					shared.LogWarnf("Failed to create mountpoint for snapshot: %s.", newSnapshotMntPoint)
+					failedUpgradeEntities = append(failedUpgradeEntities, fmt.Sprintf("snapshots/%s: Failed to create mountpoint for snapshot.", cs))
+					continue
 				}
 			}
 		}
@@ -1039,7 +1137,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			if !shared.PathExists(newSnapshotsMntPoint) {
 				err := os.Symlink(newSnapshotsMntPoint, snapshotsPath)
 				if err != nil {
-					return err
+					shared.LogWarnf("Failed to create symlink for snapshots: %s -> %s.", snapshotsPath, newSnapshotsMntPoint)
 				}
 			}
 		}
@@ -1049,39 +1147,44 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	// move. The tarballs remain in their original location.
 	images := append(imgPublic, imgPrivate...)
 	for _, img := range images {
-		_, err := dbStoragePoolVolumeCreate(d.db, img, storagePoolVolumeTypeImage, poolID, volumeConfig)
-		if err != nil {
-			// In case we're on a LXD instance where a a partial
-			// upgrade took place, we should still proceed.
-			shared.LogWarnf("Could not insert a storage volume for image \"%s\".", img)
+		_, err := dbStoragePoolVolumeGetTypeID(d.db, img, storagePoolVolumeTypeImage, poolID)
+		if err == nil {
+			shared.LogWarnf("Storage volumes database already contains an entry for the container.")
+		} else if err == NoSuchObjectError {
+			// Insert storage volumes for containers into the database.
+			_, err := dbStoragePoolVolumeCreate(d.db, img, storagePoolVolumeTypeImage, poolID, volumeConfig)
+			if err != nil {
+				// In case we're on a LXD instance where a a partial
+				// upgrade took place, we should still proceed.
+				shared.LogWarnf("Could not insert a storage volume for image \"%s\".", img)
+				return err
+			}
+		} else {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
 		}
 
 		imageMntPoint := getImageMountPoint(poolName, img)
 		if !shared.PathExists(imageMntPoint) {
 			err := os.MkdirAll(imageMntPoint, 0700)
 			if err != nil {
-				return err
+				shared.LogWarnf("Failed to create image mountpoint. Proceeding...")
 			}
 		}
 
 		oldImageMntPoint := shared.VarPath("images", img+".zfs")
 		imageDataset := fmt.Sprintf("%s/images/%s", defaultPoolName, img)
-		if shared.PathExists(oldImageMntPoint) {
-			if shared.IsMountPoint(oldImageMntPoint) {
-				_, err := tryExec("zfs", "unmount", "-f", imageDataset)
+		if shared.PathExists(oldImageMntPoint) && shared.IsMountPoint(oldImageMntPoint) {
+			_, err := tryExec("zfs", "unmount", "-f", imageDataset)
+			if err != nil {
+				shared.LogWarnf("Failed to unmount ZFS filesystem via zfs unmount. Trying lazy umount (MNT_DETACH)...")
+				err := tryUnmount(oldImageMntPoint, syscall.MNT_DETACH)
 				if err != nil {
-					shared.LogWarnf("Failed to unmount ZFS filesystem via zfs unmount. Retrying with umount -l...")
-					output, err := tryExec("umount", "-l", oldImageMntPoint)
-					if err != nil {
-						return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
-					}
+					shared.LogWarnf("Failed to unmount ZFS filesystem: %s", err)
 				}
 			}
 
-			err = os.Remove(oldImageMntPoint)
-			if err != nil {
-				return err
-			}
+			os.Remove(oldImageMntPoint)
 		}
 
 		// Set new mountpoint for the container's dataset it will be
@@ -1092,5 +1195,10 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		}
 	}
 
-	return nil
+	var finalErr error
+	if len(failedUpgradeEntities) > 0 {
+		finalErr = fmt.Errorf(strings.Join(failedUpgradeEntities, "\n"))
+	}
+
+	return finalErr
 }
