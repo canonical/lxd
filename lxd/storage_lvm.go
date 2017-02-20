@@ -86,7 +86,7 @@ func storageLVMValidateThinPoolName(d *Daemon, vgName string, value string) erro
 
 	if value != "" {
 		if vgName == "" {
-			return fmt.Errorf("Can not set lvm_thinpool_name without lvm_vg_name set.")
+			return fmt.Errorf("Can not set lvm.thinpool_name without lvm.vg_name set.")
 		}
 
 		poolExists, err := storageLVMThinpoolExists(vgName, value)
@@ -311,7 +311,7 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 	tryUndo := true
 
 	vgName := s.pool.Name
-	thinPoolName := s.volume.Config["lvm.thinpool_name"]
+	thinPoolName := s.pool.Config["lvm.thinpool_name"]
 	lvFsType := s.volume.Config["block.filesystem"]
 	lvSize := s.volume.Config["size"]
 
@@ -467,8 +467,12 @@ func (s *storageLvm) StoragePoolUpdate(changedConfig []string) error {
 		// noop
 	}
 
-	if shared.StringInSlice("volume.lvm.thinpool_name", changedConfig) {
-		return fmt.Errorf("The \"volume.lvm.thinpool_name\" property cannot be changed.")
+	if shared.StringInSlice("lvm.thinpool_name", changedConfig) {
+		return fmt.Errorf("The \"lvm.thinpool_name\" property cannot be changed.")
+	}
+
+	if shared.StringInSlice("lvm.vg_name", changedConfig) {
+		return fmt.Errorf("The \"lvm.vg_name\" property cannot be changed.")
 	}
 
 	return nil
@@ -489,7 +493,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 
 	containerName := container.Name()
 	containerLvmName := containerNameToLVName(containerName)
-	thinPoolName := s.volume.Config["lvm.thinpool_name"]
+	thinPoolName := s.pool.Config["lvm.thinpool_name"]
 	lvFsType := s.volume.Config["block.filesystem"]
 	lvSize := s.volume.Config["size"]
 
@@ -1124,7 +1128,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	tryUndo := true
 
 	vgName := s.pool.Name
-	thinPoolName := s.volume.Config["lvm.thinpool_name"]
+	thinPoolName := s.pool.Config["lvm.thinpool_name"]
 	lvFsType := s.volume.Config["block.filesystem"]
 	lvSize := s.volume.Config["size"]
 
