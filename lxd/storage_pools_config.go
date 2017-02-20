@@ -35,6 +35,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"volume.zfs.use_refquota":     shared.IsBool,
 	"volume.zfs.remove_snapshots": shared.IsBool,
 	"lvm.thinpool_name":           shared.IsAny,
+	"lvm.vg_name":                 shared.IsAny,
 	"zfs.pool_name":               shared.IsAny,
 }
 
@@ -148,6 +149,10 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 	}
 
 	if driver == "lvm" {
+		if config["lvm.vg_name"] == "" {
+			config["lvm.vg_name"] == "LXDVGroup"
+		}
+
 		if config["lvm.thinpool_name"] == "" {
 			config["lvm.thinpool_name"] = "LXDThinpool"
 		}
