@@ -214,6 +214,11 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 			return InternalError(err)
 		}
 
+		_, err = cM.GetStoragePoolFromDevices()
+		if err != nil {
+			return InternalError(err)
+		}
+
 		ps, err := storagePoolInit(d, cM.StoragePool())
 		if err != nil {
 			return InternalError(err)
