@@ -446,6 +446,8 @@ type container interface {
 	StoragePool() string
 
 	// FIXME: Those should be internal functions
+	// Needed for migration for now.
+	GetStoragePoolFromDevices() (string, error)
 	StorageStart() error
 	StorageStop() error
 	Storage() storage
@@ -688,13 +690,21 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 		}
 
 		k, v := containerGetRootDiskDevice(p.Devices)
-		if k != "" && !shared.StringInSlice(v["pool"], profileRootDiskDevices) {
-			profileRootDiskDevices = append(profileRootDiskDevices, v["pool"])
+		if k != "" && v["pool"] == "" {
+			return nil, fmt.Errorf("A root disk device must have the \"pool\" property set.")
+		} else if k != "" && !shared.StringInSlice(k, profileRootDiskDevices) {
+			profileRootDiskDevices = append(profileRootDiskDevices, k)
 		}
 	}
 
-	_, newLocalRootDiskDevice := containerGetRootDiskDevice(args.Devices)
-	if newLocalRootDiskDevice["pool"] == "" {
+	k, newLocalRootDiskDevice := containerGetRootDiskDevice(args.Devices)
+	// Check whether container has a local root device with a "pool"
+	// property set.
+	if k != "" && newLocalRootDiskDevice["pool"] == "" {
+		return nil, fmt.Errorf("A root disk device must have the \"pool\" property set.")
+	} else if k == "" {
+		// Check whether the container's profiles provide a unique root
+		// device.
 		if len(profileRootDiskDevices) == 0 {
 			return nil, fmt.Errorf("Container relies on profile's root disk device but none was found")
 		} else if len(profileRootDiskDevices) > 1 {
