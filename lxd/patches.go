@@ -245,58 +245,146 @@ func patchStorageApi(name string, d *Daemon) error {
 	// appropriate device including a pool is added to the default profile
 	// or the user explicitly passes the pool the container's storage volume
 	// is supposed to be created on.
-	defaultID, defaultProfile, err := dbProfileGet(d.db, "default")
+	profiles, err := dbProfiles(d.db)
 	if err == nil {
-		foundRoot := false
-		for k, v := range defaultProfile.Devices {
-			if v["type"] == "disk" && v["path"] == "/" && v["source"] == "" {
-				// Add the default storage pool.
-				defaultProfile.Devices[k]["pool"] = poolName
-				foundRoot = true
+		for _, pName := range profiles {
+			pID, p, err := dbProfileGet(d.db, pName)
+			if err != nil {
+				// Do not fail.
+				continue
+			}
+
+			// Check for a root disk device entry
+			k, _ := containerGetRootDiskDevice(p.Devices)
+			if k != "" {
+				// If found, set the pool property
+				p.Devices[k]["pool"] = poolName
+			} else if k == "" && pName == "default" {
+				// The default profile should have a valid root
+				// disk device entry.
+				rootDev := map[string]string{}
+				rootDev["type"] = "disk"
+				rootDev["path"] = "/"
+				rootDev["pool"] = poolName
+				if p.Devices == nil {
+					p.Devices = map[string]map[string]string{}
+				}
+
+				// Make sure that we do not overwrite a device the user
+				// is currently using under the name "root".
+				rootDevName := "root"
+				for i := 0; i < 100; i++ {
+					if p.Devices[rootDevName] == nil {
+						break
+					}
+					rootDevName = fmt.Sprintf("root%d", i)
+					continue
+				}
+				p.Devices["root"] = rootDev
+			}
+
+			// This is nasty, but we need to clear the profiles config and
+			// devices in order to add the new root device including the
+			// newly added storage pool.
+			tx, err := dbBegin(d.db)
+			if err != nil {
+				return err
+			}
+
+			err = dbProfileConfigClear(tx, pID)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			err = dbProfileConfigAdd(tx, pID, p.Config)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			err = dbDevicesAdd(tx, "profile", pID, p.Devices)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			err = tx.Commit()
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+
+	// When the either no default profile is not detected or some containers
+	// do not use the default profile, give these containers a valid local
+	// root disk device with a pool property set.
+	// Needs to be done for all containers.
+	allcontainers := append(cRegular, cSnapshots...)
+	for _, ct := range allcontainers {
+		c, err := containerLoadByName(d, ct)
+		if err != nil {
+			continue
+		}
+
+		args := containerArgs{
+			Architecture: c.Architecture(),
+			Config:       c.LocalConfig(),
+			Ephemeral:    c.IsEphemeral(),
+			CreationDate: c.CreationDate(),
+			LastUsedDate: c.LastUsedDate(),
+			Name:         c.Name(),
+			Profiles:     c.Profiles(),
+		}
+
+		if c.IsSnapshot() {
+			args.Ctype = cTypeSnapshot
+		} else {
+			args.Ctype = cTypeRegular
+		}
+
+		// Check expanded devices for a valid root entry. If it exists,
+		// we skip this container.
+		expandedDevices := c.ExpandedDevices()
+		k, _ := containerGetRootDiskDevice(expandedDevices)
+		if k != "" && expandedDevices[k]["pool"] != "" {
+			// On partial upgrade the container might already have a
+			// valid root disk device entry.
+			if expandedDevices[k]["pool"] == poolName {
+				continue
 			}
 		}
 
-		if !foundRoot {
+		// Check for a local root disk device entry and set the pool
+		// property.
+		localDevices := c.LocalDevices()
+		k, _ = containerGetRootDiskDevice(localDevices)
+		if k != "" {
+			localDevices[k]["pool"] = poolName
+			args.Devices = localDevices
+		} else {
 			rootDev := map[string]string{}
 			rootDev["type"] = "disk"
 			rootDev["path"] = "/"
 			rootDev["pool"] = poolName
-			if defaultProfile.Devices == nil {
-				defaultProfile.Devices = map[string]map[string]string{}
+
+			// Make sure that we do not overwrite a device the user
+			// is currently using under the name "root".
+			rootDevName := "root"
+			for i := 0; i < 100; i++ {
+				if localDevices[rootDevName] == nil {
+					break
+				}
+				rootDevName = fmt.Sprintf("root%d", i)
+				continue
 			}
-			defaultProfile.Devices["root"] = rootDev
+			localDevices[rootDevName] = rootDev
 		}
 
-		// This is nasty, but we need to clear the profiles config and
-		// devices in order to add the new root device including the
-		// newly added storage pool.
-		tx, err := dbBegin(d.db)
+		err = c.Update(args, false)
 		if err != nil {
-			return err
-		}
-
-		err = dbProfileConfigClear(tx, defaultID)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		err = dbProfileConfigAdd(tx, defaultID, defaultProfile.Config)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		err = dbDevicesAdd(tx, "profile", defaultID, defaultProfile.Devices)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		err = tx.Commit()
-		if err != nil {
-			tx.Rollback()
-			return err
+			continue
 		}
 	}
 
@@ -846,7 +934,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 	poolID, err := dbStoragePoolCreate(d.db, poolName, defaultStorageTypeName, poolConfig)
 	if err != nil {
-		return err
+		shared.LogWarnf("Storage pool already exists in the database. Proceeding...")
 	}
 
 	// Create storage volumes in the database.
@@ -854,19 +942,21 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 	if len(cRegular) > 0 {
 		containersSubvolumePath := getContainerMountPoint(poolName, "")
-		err := os.MkdirAll(containersSubvolumePath, 0711)
-		if err != nil {
-			return err
+		if !shared.PathExists(containersSubvolumePath) {
+			err := os.MkdirAll(containersSubvolumePath, 0711)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	for _, ct := range cRegular {
-
 		// Insert storage volumes for containers into the database.
 		_, err := dbStoragePoolVolumeCreate(d.db, ct, storagePoolVolumeTypeContainer, poolID, volumeConfig)
 		if err != nil {
+			// In case we're on a LXD instance where a a partial
+			// upgrade took place, we should still proceed.
 			shared.LogWarnf("Could not insert a storage volume for container \"%s\".", ct)
-			continue
 		}
 
 		// Unmount the container zfs doesn't really seem to care if we
@@ -874,20 +964,22 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		ctDataset := fmt.Sprintf("%s/containers/%s", defaultPoolName, ct)
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		if shared.IsMountPoint(oldContainerMntPoint) {
-			output, err := tryExec("zfs", "unmount", "-f", ctDataset)
+			_, err := tryExec("zfs", "unmount", "-f", ctDataset)
 			if err != nil {
-				return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
+				shared.LogWarnf("Failed to unmount ZFS filesystem via zfs unmount. Retrying with umount -l...")
+				output, err := tryExec("umount", "-l", oldContainerMntPoint)
+				if err != nil {
+					return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
+				}
 			}
 		}
 
-		err = os.Remove(oldContainerMntPoint)
-		if err != nil {
-			return err
+		if shared.PathExists(oldContainerMntPoint) {
+			os.Remove(oldContainerMntPoint)
 		}
 
-		err = os.Remove(oldContainerMntPoint + ".zfs")
-		if err != nil {
-			return err
+		if shared.PathExists(oldContainerMntPoint + ".zfs") {
+			os.Remove(oldContainerMntPoint + ".zfs")
 		}
 
 		// Changing the mountpoint property should have actually created
@@ -907,13 +999,13 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			fmt.Sprintf("mountpoint=%s", newContainerMntPoint),
 			ctDataset).CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("Failed to set new ZFS mountpoint: %s.", output)
+			shared.LogWarnf("Failed to set new ZFS mountpoint: %s.", output)
 		}
 
 		// Check if we need to account for snapshots for this container.
 		ctSnapshots, err := dbContainerGetSnapshots(d.db, ct)
 		if err != nil {
-			return err
+			continue
 		}
 
 		snapshotsPath := shared.VarPath("snapshots", ct)
@@ -924,26 +1016,31 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			_, err := dbStoragePoolVolumeCreate(d.db, cs, storagePoolVolumeTypeContainer, poolID, volumeConfig)
 			if err != nil {
 				shared.LogWarnf("Could not insert a storage volume for snapshot \"%s\".", cs)
-				continue
 			}
 
 			// Create the new mountpoint for snapshots in the new
 			// storage api.
 			newSnapshotMntPoint := getSnapshotMountPoint(poolName, cs)
-			err = os.MkdirAll(newSnapshotMntPoint, 0711)
-			if err != nil {
-				return err
+			if !shared.PathExists(newSnapshotMntPoint) {
+				err = os.MkdirAll(newSnapshotMntPoint, 0711)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
-		os.RemoveAll(snapshotsPath)
+		if shared.PathExists(snapshotsPath) {
+			os.RemoveAll(snapshotsPath)
+		}
 
 		// Create a symlink for this container's snapshots.
 		if len(ctSnapshots) != 0 {
 			newSnapshotsMntPoint := getSnapshotMountPoint(poolName, ct)
-			err := os.Symlink(newSnapshotsMntPoint, snapshotsPath)
-			if err != nil {
-				return err
+			if !shared.PathExists(newSnapshotsMntPoint) {
+				err := os.Symlink(newSnapshotsMntPoint, snapshotsPath)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -954,23 +1051,30 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	for _, img := range images {
 		_, err := dbStoragePoolVolumeCreate(d.db, img, storagePoolVolumeTypeImage, poolID, volumeConfig)
 		if err != nil {
+			// In case we're on a LXD instance where a a partial
+			// upgrade took place, we should still proceed.
 			shared.LogWarnf("Could not insert a storage volume for image \"%s\".", img)
-			continue
 		}
 
 		imageMntPoint := getImageMountPoint(poolName, img)
-		err = os.MkdirAll(imageMntPoint, 0700)
-		if err != nil {
-			return err
+		if !shared.PathExists(imageMntPoint) {
+			err := os.MkdirAll(imageMntPoint, 0700)
+			if err != nil {
+				return err
+			}
 		}
 
 		oldImageMntPoint := shared.VarPath("images", img+".zfs")
 		imageDataset := fmt.Sprintf("%s/images/%s", defaultPoolName, img)
 		if shared.PathExists(oldImageMntPoint) {
 			if shared.IsMountPoint(oldImageMntPoint) {
-				output, err := tryExec("zfs", "unmount", "-f", imageDataset)
+				_, err := tryExec("zfs", "unmount", "-f", imageDataset)
 				if err != nil {
-					return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
+					shared.LogWarnf("Failed to unmount ZFS filesystem via zfs unmount. Retrying with umount -l...")
+					output, err := tryExec("umount", "-l", oldImageMntPoint)
+					if err != nil {
+						return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
+					}
 				}
 			}
 
@@ -984,7 +1088,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// automatically mounted.
 		output, err := exec.Command("zfs", "set", "mountpoint=none", imageDataset).CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("Failed to set new ZFS mountpoint: %s.", output)
+			shared.LogWarnf("Failed to set new ZFS mountpoint: %s.", output)
 		}
 	}
 
