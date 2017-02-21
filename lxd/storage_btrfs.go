@@ -22,6 +22,8 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+var btrfsMntOptions = "user_subvol_rm_allowed"
+
 type storageBtrfs struct {
 	storageShared
 }
@@ -44,26 +46,6 @@ func (s *storageBtrfs) getImageSubvolumePath(poolName string) string {
 // ${LXD_DIR}/storage-pools/<pool>/custom
 func (s *storageBtrfs) getCustomSubvolumePath(poolName string) string {
 	return shared.VarPath("storage-pools", poolName, "custom")
-}
-
-// subvol=containers/<container_name>
-func (s *storageBtrfs) getContainerMntOptions(name string) string {
-	return fmt.Sprintf("subvol=containers/%s", name)
-}
-
-// subvol=snapshots/<snapshot_name>
-func (s *storageBtrfs) getSnapshotMntOptions(name string) string {
-	return fmt.Sprintf("subvol=snapshots/%s", name)
-}
-
-// subvol=images/<fingerprint>
-func (s *storageBtrfs) getImageMntOptions(imageFingerprint string) string {
-	return fmt.Sprintf("subvol=images/%s", imageFingerprint)
-}
-
-// subvol=custom/<custom_name>
-func (s *storageBtrfs) getCustomMntOptions() string {
-	return fmt.Sprintf("subvol=custom/%s", s.volume.Name)
 }
 
 func (s *storageBtrfs) StorageCoreInit() (*storageCore, error) {
@@ -202,7 +184,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		// cannot call StoragePoolMount() since it will try to do the
 		// reverse operation. So instead we shamelessly mount using the
 		// block device path at the time of pool creation.
-		err1 = syscall.Mount(source, poolMntPoint, "btrfs", 0, "")
+		err1 = syscall.Mount(source, poolMntPoint, "btrfs", 0, btrfsMntOptions)
 	} else {
 		_, err1 = s.StoragePoolMount()
 	}
@@ -349,7 +331,6 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		return false, nil
 	}
 
-	poolMntOptions := "user_subvol_rm_allowed"
 	mountSource := source
 	if filepath.IsAbs(source) {
 		if !shared.IsBlockdevPath(source) && s.d.BackingFs != "btrfs" {
@@ -382,7 +363,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	}
 
 	// This is a block device.
-	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", 0, poolMntOptions)
+	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", 0, btrfsMntOptions)
 	if err != nil {
 		return false, err
 	}
@@ -500,53 +481,16 @@ func (s *storageBtrfs) StoragePoolVolumeDelete() error {
 }
 
 func (s *storageBtrfs) StoragePoolVolumeMount() (bool, error) {
-	source := s.pool.Config["source"]
-	if source == "" {
-		return false, fmt.Errorf("No \"source\" property found for the storage pool.")
-	}
-
-	// Check if the storage volume is already mounted.
-	customMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	if shared.IsMountPoint(customMntPoint) {
-		return false, nil
-	}
-
-	// Mount the storage volume on its mountpoint.
-	customMntOptions := ""
-	if !shared.IsBlockdevPath(source) {
-		// mount("/dev/loop<n>", "/path/to/target", "btrfs", 0, "subvol=subvol/name")
-		loopF, err := prepareLoopDev(source)
-		if err != nil {
-			return false, fmt.Errorf("Could not prepare loop device.")
-		}
-		loopDev := loopF.Name()
-		defer loopF.Close()
-
-		// Pass the btrfs subvolume name as mountoption.
-		customMntOptions = s.getCustomMntOptions()
-		err = syscall.Mount(loopDev, customMntPoint, "btrfs", 0, customMntOptions)
-		if err != nil {
-			return false, err
-		}
-	} else {
-		err := syscall.Mount(source, customMntPoint, "btrfs", 0, customMntOptions)
-		if err != nil {
-			return false, err
-		}
+	// The storage pool must be mounted.
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return false, err
 	}
 
 	return true, nil
 }
 
 func (s *storageBtrfs) StoragePoolVolumeUmount() (bool, error) {
-	customMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	if shared.IsMountPoint(customMntPoint) {
-		err := syscall.Unmount(customMntPoint, 0)
-		if err != nil {
-			return false, err
-		}
-	}
-
 	return true, nil
 }
 
