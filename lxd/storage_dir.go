@@ -635,6 +635,11 @@ func (s *storageDir) ImageCreate(fingerprint string) error {
 }
 
 func (s *storageDir) ImageDelete(fingerprint string) error {
+	err := s.deleteImageDbPoolVolume(fingerprint)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
