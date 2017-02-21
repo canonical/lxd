@@ -587,5 +587,6 @@ run_test test_cpu_profiling "CPU profiling"
 run_test test_mem_profiling "memory profiling"
 run_test test_storage "storage"
 run_test test_lxd_autoinit "lxd init auto"
+run_test test_storage_profiles "storage profiles"
 
 TEST_RESULT=success
