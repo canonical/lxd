@@ -1945,7 +1945,8 @@ Input:
             "source": "pool1",
             "volume.block.filesystem": "xfs",
             "volume.block.mount_options": "discard",
-            "volume.lvm.thinpool_name": "LXDPool",
+            "lvm.thinpool_name": "LXDPool",
+            "lvm.vg_name": "pool1",
             "volume.size": "10737418240"
         }
     }
@@ -2098,7 +2099,6 @@ Input:
             "config": {
                 "block.filesystem": "ext4",
                 "block.mount_options": "discard",
-                "lvm.thinpool_name": "LXDPool",
                 "size": "10737418240"
             }
         }
@@ -2121,7 +2121,8 @@ Input:
             "used_by": "",
             "volume.block.filesystem": "xfs",
             "volume.block.mount_options": "discard",
-            "volume.lvm.thinpool_name": "LXDPool",
+            "lvm.thinpool_name": "LXDPool",
+            "lvm.vg_name": "pool1",
             "volume.size": "10737418240"
         }
     }
