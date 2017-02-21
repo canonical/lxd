@@ -432,18 +432,35 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 	poolConfig := map[string]string{}
 	poolConfig["source"] = shared.VarPath("storage-pools", defaultPoolName)
 
-	poolID, err := dbStoragePoolCreate(d.db, defaultPoolName, defaultStorageTypeName, poolConfig)
-	if err != nil {
-		return err
-	}
+	poolID := int64(-1)
+	_, err := dbStoragePools(d.db)
+	if err == nil { // Already exist valid storage pools.
+		// Get the pool ID as we need it for storage volume creation.
+		// (Use a tmp variable as Go's scoping is freaking me out.)
+		tmp, err := dbStoragePoolGetID(d.db, defaultPoolName)
+		if err != nil {
+			shared.LogErrorf("Failed to query database: %s.", err)
+			return err
+		}
+		poolID = tmp
+	} else if err == NoSuchObjectError { // Likely a pristine upgrade.
+		tmp, err := dbStoragePoolCreate(d.db, defaultPoolName, defaultStorageTypeName, poolConfig)
+		if err != nil {
+			return err
+		}
+		poolID = tmp
 
-	s, err := storagePoolInit(d, defaultPoolName)
-	if err != nil {
-		return err
-	}
+		s, err := storagePoolInit(d, defaultPoolName)
+		if err != nil {
+			return err
+		}
 
-	err = s.StoragePoolCreate()
-	if err != nil {
+		err = s.StoragePoolCreate()
+		if err != nil {
+			return err
+		}
+	} else { // Shouldn't happen.
+		shared.LogErrorf("Failed to query database: %s.", err)
 		return err
 	}
 
@@ -451,26 +468,39 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 	volumeConfig := map[string]string{}
 	// Insert storage volumes for containers into the database.
 	for _, ct := range cRegular {
-		_, err := dbStoragePoolVolumeCreate(d.db, ct, storagePoolVolumeTypeContainer, poolID, volumeConfig)
-		if err != nil {
-			shared.LogWarnf("Could not insert a storage volume for container \"%s\".", ct)
-			continue
+		_, err := dbStoragePoolVolumeGetTypeID(d.db, ct, storagePoolVolumeTypeContainer, poolID)
+		if err == nil {
+			shared.LogWarnf("Storage volumes database already contains an entry for the container.")
+		} else if err == NoSuchObjectError {
+			// Insert storage volumes for containers into the database.
+			_, err := dbStoragePoolVolumeCreate(d.db, ct, storagePoolVolumeTypeContainer, poolID, volumeConfig)
+			if err != nil {
+				shared.LogErrorf("Could not insert a storage volume for container \"%s\".", ct)
+				return err
+			}
+		} else {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
 		}
 
 		// Create the new path where containers will be located on the
 		// new storage api.
 		containersMntPoint := getContainerMountPoint(defaultPoolName, "")
-		err = os.MkdirAll(containersMntPoint, 0711)
-		if err != nil {
-			return err
+		if !shared.PathExists(containersMntPoint) {
+			err := os.MkdirAll(containersMntPoint, 0711)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Simply rename the container when they are directories.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
-		err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
-		if err != nil {
-			return err
+		if shared.PathExists(oldContainerMntPoint) {
+			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
+			if err != nil {
+				return err
+			}
 		}
 
 		doesntMatter := false
@@ -496,16 +526,20 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		// Create the new path where snapshots will be located on the
 		// new storage api.
 		snapshotsMntPoint := shared.VarPath("storage-pools", defaultPoolName, "snapshots")
-		err = os.MkdirAll(snapshotsMntPoint, 0711)
-		if err != nil {
-			return err
+		if !shared.PathExists(snapshotsMntPoint) {
+			err := os.MkdirAll(snapshotsMntPoint, 0711)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Now simply rename the snapshots directory as well.
 		newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, ct)
-		err = os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
-		if err != nil {
-			return err
+		if shared.PathExists(oldSnapshotMntPoint) {
+			err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Create a symlink for this container.  snapshots.
@@ -519,10 +553,22 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 	// snapshots have already been moved and symlinked above. So no need to
 	// do any work here.
 	for _, cs := range cSnapshots {
-		_, err := dbStoragePoolVolumeCreate(d.db, cs, storagePoolVolumeTypeContainer, poolID, volumeConfig)
-		if err != nil {
-			shared.LogWarnf("Could not insert a storage volume for snapshot \"%s\".", cs)
-			continue
+		// Insert storage volumes for snapshots into the
+		// database. Note that snapshots have already been moved
+		// and symlinked above. So no need to do any work here.
+		_, err := dbStoragePoolVolumeGetTypeID(d.db, cs, storagePoolVolumeTypeContainer, poolID)
+		if err == nil {
+			shared.LogWarnf("Storage volumes database already contains an entry for the container.")
+		} else if err == NoSuchObjectError {
+			// Insert storage volumes for containers into the database.
+			_, err := dbStoragePoolVolumeCreate(d.db, cs, storagePoolVolumeTypeContainer, poolID, volumeConfig)
+			if err != nil {
+				shared.LogErrorf("Could not insert a storage volume for snapshot \"%s\".", cs)
+				return err
+			}
+		} else {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
 		}
 	}
 
@@ -530,10 +576,19 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 	// move. The tarballs remain in their original location.
 	images := append(imgPublic, imgPrivate...)
 	for _, img := range images {
-		_, err := dbStoragePoolVolumeCreate(d.db, img, storagePoolVolumeTypeImage, poolID, volumeConfig)
-		if err != nil {
-			shared.LogWarnf("Could not insert a storage volume for image \"%s\".", img)
-			continue
+		_, err := dbStoragePoolVolumeGetTypeID(d.db, img, storagePoolVolumeTypeImage, poolID)
+		if err == nil {
+			shared.LogWarnf("Storage volumes database already contains an entry for the container.")
+		} else if err == NoSuchObjectError {
+			// Insert storage volumes for containers into the database.
+			_, err := dbStoragePoolVolumeCreate(d.db, img, storagePoolVolumeTypeImage, poolID, volumeConfig)
+			if err != nil {
+				shared.LogWarnf("Could not insert a storage volume for image \"%s\".", img)
+				return err
+			}
+		} else {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
 		}
 	}
 
