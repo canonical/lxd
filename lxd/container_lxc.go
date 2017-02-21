@@ -210,9 +210,16 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
-	storagePool := c.StoragePool()
+	// Retrieve the storage pool we've been given from the container's
+	// devices.
+	storagePool, err := c.GetStoragePoolFromDevices()
+	if err != nil {
+		return nil, err
+	}
+	c.storagePool = storagePool
+
 	// Get the storage pool ID for the container.
-	poolID, pool, err := dbStoragePoolGet(d.db, storagePool)
+	poolID, pool, err := dbStoragePoolGet(d.db, c.storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -220,7 +227,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 
 	// Validate the requested storage volume configuration.
 	volumeConfig := map[string]string{}
-	err = storageVolumeValidateConfig(storagePool, volumeConfig, pool)
+	err = storageVolumeValidateConfig(c.storagePool, volumeConfig, pool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -346,7 +353,7 @@ func containerLXCLoad(d *Daemon, args containerArgs) (container, error) {
 		stateful:     args.Stateful,
 	}
 
-	// Load the config
+	// Load the config.
 	err := c.init()
 	if err != nil {
 		return nil, err
@@ -691,6 +698,11 @@ func (c *containerLXC) init() error {
 			return err
 		}
 	}
+
+	// Try to retrieve the container's storage pool from the storage volumes
+	// database but do not fail so that users can recover from storage
+	// breakage.
+	c.initStoragePool()
 
 	return nil
 }
@@ -1369,8 +1381,41 @@ func (c *containerLXC) initLXC() error {
 	return nil
 }
 
+// Initialize the storage pool for this container: The devices of the container
+// are inspected for a suitable storage pool. This function is called by
+// containerLXCCreate() to detect a suitable storage pool.
+func (c *containerLXC) GetStoragePoolFromDevices() (string, error) {
+	_, rootDiskDevice := containerGetRootDiskDevice(c.localDevices)
+	if rootDiskDevice["pool"] == "" {
+		_, rootDiskDevice = containerGetRootDiskDevice(c.expandedDevices)
+	}
+	if rootDiskDevice["pool"] == "" {
+		return "", fmt.Errorf("No storage pool found in the containers devices.")
+	}
+
+	c.storagePool = rootDiskDevice["pool"]
+	return c.storagePool, nil
+}
+
+// This function is called on all non-create operations where an entry for the
+// container's storage volume will already exist in the database and so we can
+// retrieve it.
+func (c *containerLXC) initStoragePool() error {
+	if c.storagePool != "" {
+		return nil
+	}
+
+	poolName, err := dbContainerPool(c.daemon.db, c.Name())
+	if err != nil {
+		return err
+	}
+	c.storagePool = poolName
+
+	return nil
+}
+
 // Initialize storage interface for this container.
-func (c *containerLXC) initStorage() error {
+func (c *containerLXC) initStorageInterface() error {
 	if c.storage != nil {
 		return nil
 	}
@@ -1426,9 +1471,6 @@ func (c *containerLXC) expandConfig() error {
 func (c *containerLXC) expandDevices() error {
 	devices := types.Devices{}
 
-	rootDevices := 0
-	profileStoragePool := ""
-
 	// Apply all the profiles
 	for _, p := range c.profiles {
 		profileDevices, err := dbDevices(c.daemon.db, p, true)
@@ -1436,40 +1478,17 @@ func (c *containerLXC) expandDevices() error {
 			return err
 		}
 
-		// Check all pools specified in the container's profiles.
 		for k, v := range profileDevices {
 			devices[k] = v
-
-			if v["type"] == "disk" && v["path"] == "/" {
-				rootDevices++
-				profileStoragePool = v["pool"]
-			}
-
 		}
 	}
 
 	// Stick local devices on top
 	for k, v := range c.localDevices {
 		devices[k] = v
-
-		if v["type"] == "disk" && v["path"] == "/" {
-			c.storagePool = v["pool"]
-		}
-	}
-
-	if rootDevices > 1 {
-		return fmt.Errorf("Failed to detect unique root device: Multiple root devices detected.")
-	}
-
-	if c.storagePool == "" {
-		if profileStoragePool == "" {
-			return fmt.Errorf("No storage pool specified.")
-		}
-		c.storagePool = profileStoragePool
 	}
 
 	c.expandedDevices = devices
-
 	return nil
 }
 
@@ -2562,7 +2581,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	var ctxMap log.Ctx
 
 	// Initialize storage interface for the container.
-	err := c.initStorage()
+	err := c.initStorageInterface()
 	if err != nil {
 		return err
 	}
@@ -2690,7 +2709,7 @@ func (c *containerLXC) Delete() error {
 	shared.LogInfo("Deleting container", ctxMap)
 
 	// Initialize storage interface for the container.
-	err := c.initStorage()
+	err := c.initStorageInterface()
 	if err != nil {
 		return err
 	}
@@ -2765,7 +2784,7 @@ func (c *containerLXC) Rename(newName string) error {
 	shared.LogInfo("Renaming container", ctxMap)
 
 	// Initialize storage interface for the container.
-	err := c.initStorage()
+	err := c.initStorageInterface()
 	if err != nil {
 		return err
 	}
@@ -3180,7 +3199,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Initialize storage interface for the container.
-	err = c.initStorage()
+	err = c.initStorageInterface()
 	if err != nil {
 		return err
 	}
@@ -3224,57 +3243,83 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		c.localConfig["volatile.idmap.base"] = fmt.Sprintf("%v", base)
 	}
 
+	// Retrieve old root disk devices.
+	oldLocalRootDiskDeviceKey, oldLocalRootDiskDevice := containerGetRootDiskDevice(oldLocalDevices)
+	var oldProfileRootDiskDevices []string
+	for k, v := range oldExpandedDevices {
+		if isRootDiskDevice(v) && k != oldLocalRootDiskDeviceKey && !shared.StringInSlice(k, oldProfileRootDiskDevices) {
+			oldProfileRootDiskDevices = append(oldProfileRootDiskDevices, k)
+		}
+	}
+
+	// Retrieve new root disk devices.
+	newLocalRootDiskDeviceKey, newLocalRootDiskDevice := containerGetRootDiskDevice(c.localDevices)
+	var newProfileRootDiskDevices []string
+	for k, v := range c.expandedDevices {
+		if isRootDiskDevice(v) && k != newLocalRootDiskDeviceKey && !shared.StringInSlice(k, newProfileRootDiskDevices) {
+			newProfileRootDiskDevices = append(newProfileRootDiskDevices, k)
+		}
+	}
+
+	// Verify root disk devices. (Be specific with error messages.)
+	var oldRootDiskDeviceKey string
+	var newRootDiskDeviceKey string
+	if oldLocalRootDiskDevice["pool"] != "" {
+		oldRootDiskDeviceKey = oldLocalRootDiskDeviceKey
+		newRootDiskDeviceKey = newLocalRootDiskDeviceKey
+
+		if newLocalRootDiskDevice["pool"] == "" {
+			if len(newProfileRootDiskDevices) == 0 {
+				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but none was found.")
+			} else if len(newProfileRootDiskDevices) > 1 {
+				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but conflicting devices were found.")
+			} else if c.expandedDevices[newProfileRootDiskDevices[0]]["pool"] != oldLocalRootDiskDevice["pool"] {
+				newRootDiskDeviceKey = newProfileRootDiskDevices[0]
+				return fmt.Errorf("Using the profile's root disk device would change the storage pool of the container.")
+			}
+		}
+	} else {
+		// This branch should allow us to cover cases where a container
+		// didn't have root disk device before for whatever reason. As
+		// long as there is a root disk device in one of the local or
+		// profile devices we're good.
+		if newLocalRootDiskDevice["pool"] != "" {
+			newRootDiskDeviceKey = newLocalRootDiskDeviceKey
+
+			if len(oldProfileRootDiskDevices) > 0 {
+				oldRootDiskDeviceKey = oldProfileRootDiskDevices[0]
+				if oldExpandedDevices[oldRootDiskDeviceKey]["pool"] != newLocalRootDiskDevice["pool"] {
+					return fmt.Errorf("The new local root disk device would change the storage pool of the container.")
+				}
+			}
+		} else {
+			if len(newProfileRootDiskDevices) == 0 {
+				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but none was found.")
+			} else if len(newProfileRootDiskDevices) > 1 {
+				return fmt.Errorf("Using the profile's root disk device would change the storage pool of the container.")
+			}
+			newRootDiskDeviceKey = newProfileRootDiskDevices[0]
+		}
+	}
+
+	oldRootDiskDeviceSize := oldExpandedDevices[oldRootDiskDeviceKey]["size"]
+	newRootDiskDeviceSize := c.expandedDevices[newRootDiskDeviceKey]["size"]
+
 	// Apply disk quota changes
-	for _, m := range addDevices {
-		var oldRootfsSize string
-		for _, m := range oldExpandedDevices {
-			if m["type"] == "disk" && m["path"] == "/" {
-				oldRootfsSize = m["size"]
-				break
-			}
+	if newRootDiskDeviceSize != oldRootDiskDeviceSize {
+		size, err := shared.ParseByteSizeString(newRootDiskDeviceSize)
+		if err != nil {
+			return err
 		}
 
-		if m["size"] != oldRootfsSize {
-			size, err := shared.ParseByteSizeString(m["size"])
-			if err != nil {
-				return err
-			}
-
-			err = c.storage.ContainerSetQuota(c, size)
-			if err != nil {
-				return err
-			}
+		err = c.storage.ContainerSetQuota(c, size)
+		if err != nil {
+			return err
 		}
-	}
-
-	// Confirm that the storage pool didn't change.
-	var oldRootfs types.Device
-	for _, m := range oldExpandedDevices {
-		if m["type"] == "disk" && m["path"] == "/" {
-			oldRootfs = m
-			break
-		}
-	}
-
-	var newRootfs types.Device
-	for _, name := range c.expandedDevices.DeviceNames() {
-		m := c.expandedDevices[name]
-		if m["type"] == "disk" && m["path"] == "/" {
-			newRootfs = m
-			break
-		}
-	}
-
-	if oldRootfs["pool"] != "" && (oldRootfs["pool"] != newRootfs["pool"]) {
-		return fmt.Errorf("Changing the storage pool of a container is not yet implemented.")
 	}
 
 	// Apply the live changes
 	if c.IsRunning() {
-		if oldRootfs["source"] != newRootfs["source"] {
-			return fmt.Errorf("Cannot change the rootfs path of a running container")
-		}
-
 		// Live update the container config
 		for _, key := range changedConfig {
 			value := c.expandedConfig[key]
@@ -4039,7 +4084,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 	shared.LogInfo("Migrating container", ctxMap)
 
 	// Initialize storage interface for the container.
-	err = c.initStorage()
+	err = c.initStorageInterface()
 	if err != nil {
 		return err
 	}
@@ -4752,7 +4797,7 @@ func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
 	disk := map[string]api.ContainerStateDisk{}
 
 	// Initialize storage interface for the container.
-	err := c.initStorage()
+	err := c.initStorageInterface()
 	if err != nil {
 		return disk
 	}
@@ -4990,7 +5035,7 @@ func (c *containerLXC) Storage() storage {
 
 func (c *containerLXC) StorageStart() error {
 	// Initialize storage interface for the container.
-	err := c.initStorage()
+	err := c.initStorageInterface()
 	if err != nil {
 		return err
 	}
@@ -5008,7 +5053,7 @@ func (c *containerLXC) StorageStart() error {
 
 func (c *containerLXC) StorageStop() error {
 	// Initialize storage interface for the container.
-	err := c.initStorage()
+	err := c.initStorageInterface()
 	if err != nil {
 		return err
 	}

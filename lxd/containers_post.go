@@ -203,6 +203,83 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
+
+	localRootDiskDeviceKey, v := containerGetRootDiskDevice(req.Devices)
+	poolForCopyOrMove := ""
+	// Handle copying/moving between two storage-api LXD instances.
+	// FIXME(brauner): Atm, we do not let users target a specific pool to
+	// move to. So when we receive an invalid/non-existing storage pool, we
+	// simply set it to "" and perform the same pool-searching algorithm as
+	// in the non-storage-api to storage-api LXD instance case seen below.
+	// the container will receive on the remote.
+	if localRootDiskDeviceKey != "" && v["pool"] != "" {
+		_, err := dbStoragePoolGetID(d.db, v["pool"])
+		if err == NoSuchObjectError {
+			v["pool"] = ""
+		}
+	}
+
+	// Handle copying or moving containers between a non-storage-api and a
+	// storage-api LXD instance.
+	if localRootDiskDeviceKey == "" || localRootDiskDeviceKey != "" && v["pool"] == "" {
+		// Request came without a root disk device or without the pool
+		// property set. Try to retrieve this information from a
+		// profile. (No need to check for conflicting storage pool
+		// properties in the profiles. This will be handled by
+		// containerCreateInternal().)
+		for _, pName := range req.Profiles {
+			_, p, err := dbProfileGet(d.db, pName)
+			if err != nil {
+				return InternalError(err)
+			}
+
+			k, v := containerGetRootDiskDevice(p.Devices)
+			if k != "" && v["pool"] != "" {
+				poolForCopyOrMove = v["pool"]
+				break
+			}
+		}
+		if poolForCopyOrMove == "" {
+			pools, err := dbStoragePools(d.db)
+			if err != nil {
+				return InternalError(err)
+			}
+
+			if len(pools) != 1 {
+				return InternalError(fmt.Errorf("No unique storage pool found."))
+			}
+
+			poolForCopyOrMove = pools[0]
+		}
+	}
+
+	if localRootDiskDeviceKey == "" {
+		// Give the container it's own local root disk device with a
+		// pool property.
+		rootDev := map[string]string{}
+		rootDev["type"] = "disk"
+		rootDev["path"] = "/"
+		rootDev["pool"] = poolForCopyOrMove
+		if args.Devices == nil {
+			args.Devices = map[string]map[string]string{}
+		}
+
+		// Make sure that we do not overwrite a device the user
+		// is currently using under the name "root".
+		rootDevName := "root"
+		for i := 0; i < 100; i++ {
+			if args.Devices[rootDevName] == nil {
+				break
+			}
+			rootDevName = fmt.Sprintf("root%d", i)
+			continue
+		}
+		args.Devices["root"] = rootDev
+	} else if args.Devices[localRootDiskDeviceKey]["pool"] == "" {
+		// Give the container's root disk device a pool property.
+		args.Devices[localRootDiskDeviceKey]["pool"] = poolForCopyOrMove
+	}
+
 	if err != nil {
 		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
@@ -210,6 +287,11 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		}
 	} else {
 		cM, err := containerLXCLoad(d, args)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		_, err = cM.GetStoragePoolFromDevices()
 		if err != nil {
 			return InternalError(err)
 		}
