@@ -22,6 +22,8 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+var btrfsMntOptions = "user_subvol_rm_allowed"
+
 type storageBtrfs struct {
 	storageShared
 }
@@ -202,7 +204,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		// cannot call StoragePoolMount() since it will try to do the
 		// reverse operation. So instead we shamelessly mount using the
 		// block device path at the time of pool creation.
-		err1 = syscall.Mount(source, poolMntPoint, "btrfs", 0, "")
+		err1 = syscall.Mount(source, poolMntPoint, "btrfs", 0, btrfsMntOptions)
 	} else {
 		_, err1 = s.StoragePoolMount()
 	}
@@ -349,7 +351,6 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		return false, nil
 	}
 
-	poolMntOptions := "user_subvol_rm_allowed"
 	mountSource := source
 	if filepath.IsAbs(source) {
 		if !shared.IsBlockdevPath(source) && s.d.BackingFs != "btrfs" {
@@ -382,7 +383,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	}
 
 	// This is a block device.
-	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", 0, poolMntOptions)
+	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", 0, btrfsMntOptions)
 	if err != nil {
 		return false, err
 	}
