@@ -657,7 +657,7 @@ func (s *storageLvm) ContainerDelete(container container) error {
 	if shared.IsMountPoint(containerMntPoint) {
 		err := tryUnmount(containerMntPoint, 0)
 		if err != nil {
-			return fmt.Errorf("failed to unmount container path '%s': %s", containerMntPoint, err)
+			return fmt.Errorf("Failed to unmount container path '%s': %s", containerMntPoint, err)
 		}
 	}
 
@@ -672,12 +672,14 @@ func (s *storageLvm) ContainerDelete(container container) error {
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = deleteSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		if err != nil {
+			return err
+		}
 	} else {
-		err = tryUnmount(containerMntPoint, 0)
 		err = deleteContainerMountpoint(containerMntPoint, container.Path(), s.GetStorageTypeName())
-	}
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
