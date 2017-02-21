@@ -392,7 +392,8 @@ size                            | string    | appropriate driver and source     
 source                          | string    | -                                 | -                 | Path to block device or loop file or filesystem entry
 volume.block.filesystem         | string    | block based driver (lvm)          | ext4              | Filesystem to use for new volumes
 volume.block.mount\_options     | string    | block based driver (lvm)          | discard           | Mount options for block devices
-volume.lvm.thinpool\_name       | string    | lvm driver                        | LXDPool           | Thin pool where images and containers are created.
+lvm.thinpool\_name              | string    | lvm driver                        | LXDPool           | Thin pool where images and containers are created.
+lvm.vg\_name                    | string    | lvm driver                        | name of the pool  | Name of the volume group to create.
 volume.size                     | string    | appropriate driver                | 0                 | Default volume size
 volume.zfs.remove\_snapshots    | bool      | zfs driver                        | false             | Remove snapshots as needed
 volume.zfs.use\_refquota        | bool      | zfs driver                        | false             | Use refquota instead of quota for space.
