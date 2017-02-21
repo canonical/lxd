@@ -36,6 +36,7 @@ var patches = []patch{
 	{name: "network_permissions", run: patchNetworkPermissions},
 	{name: "storage_api", run: patchStorageApi},
 	{name: "storage_api_v1", run: patchStorageApiV1},
+	{name: "storage_api_dir_cleanup", run: patchStorageApiDirCleanup},
 }
 
 type patch struct {
@@ -1276,6 +1277,15 @@ func patchStorageApiV1(name string, d *Daemon) error {
 
 	allcontainers := append(cRegular, cSnapshots...)
 	err = updatePoolPropertyForAllObjects(d, pools[0], allcontainers)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func patchStorageApiDirCleanup(name string, d *Daemon) error {
+	_, err := dbExec(d.db, "DELETE FROM storage_volumes WHERE type=? AND name NOT IN (SELECT fingerprint FROM images);", storagePoolVolumeTypeImage)
 	if err != nil {
 		return err
 	}
