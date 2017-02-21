@@ -52,7 +52,7 @@ test_storage() {
       # Create lvm pool.
       configure_lvm_loop_device loop_file_3 loop_device_3
       # shellcheck disable=SC2154
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" volume.size=10MB
     fi
 
     # Set default storage pool for image import.
