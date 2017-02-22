@@ -81,20 +81,19 @@ func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, 
 		return []string{}, err
 	}
 
-	poolUsedBy := make([]string, len(poolVolumes))
-
+	poolUsedBy := []string{}
 	for i := 0; i < len(poolVolumes); i++ {
 		apiEndpoint, _ := storagePoolVolumeTypeNameToApiEndpoint(poolVolumes[i].Type)
 		switch apiEndpoint {
 		case storagePoolVolumeApiEndpointContainers:
 			if strings.Index(poolVolumes[i].Name, shared.SnapshotDelimiter) > 0 {
 				fields := strings.SplitN(poolVolumes[i].Name, shared.SnapshotDelimiter, 2)
-				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, fields[0], fields[1])
+				poolUsedBy = append(poolUsedBy, fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, fields[0], fields[1]))
 			} else {
-				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s", version.APIVersion, poolVolumes[i].Name)
+				poolUsedBy = append(poolUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, poolVolumes[i].Name))
 			}
 		case storagePoolVolumeApiEndpointImages:
-			poolUsedBy[i] = fmt.Sprintf("/%s/images/%s", version.APIVersion, poolVolumes[i].Name)
+			poolUsedBy = append(poolUsedBy, fmt.Sprintf("/%s/images/%s", version.APIVersion, poolVolumes[i].Name))
 		case storagePoolVolumeApiEndpointCustom:
 			// noop
 		default:
