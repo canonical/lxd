@@ -37,6 +37,7 @@ var patches = []patch{
 	{name: "storage_api", run: patchStorageApi},
 	{name: "storage_api_v1", run: patchStorageApiV1},
 	{name: "storage_api_dir_cleanup", run: patchStorageApiDirCleanup},
+	{name: "storage_api_lvm_keys", run: patchStorageApiLvmKeys},
 }
 
 type patch struct {
@@ -1395,6 +1396,20 @@ func patchStorageApiV1(name string, d *Daemon) error {
 
 func patchStorageApiDirCleanup(name string, d *Daemon) error {
 	_, err := dbExec(d.db, "DELETE FROM storage_volumes WHERE type=? AND name NOT IN (SELECT fingerprint FROM images);", storagePoolVolumeTypeImage)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func patchStorageApiLvmKeys(name string, d *Daemon) error {
+	_, err := dbExec(d.db, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
+	if err != nil {
+		return err
+	}
+
+	_, err = dbExec(d.db, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
 	if err != nil {
 		return err
 	}

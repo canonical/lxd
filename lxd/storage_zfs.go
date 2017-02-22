@@ -307,8 +307,12 @@ func (s *storageZfs) StoragePoolUpdate(changedConfig []string) error {
 		return fmt.Errorf("The \"volume.block.filesystem\" property cannot be changed.")
 	}
 
-	if shared.StringInSlice("volume.lvm.thinpool_name", changedConfig) {
-		return fmt.Errorf("The \"volume.lvm.thinpool_name\" property cannot be changed.")
+	if shared.StringInSlice("lvm.thinpool_name", changedConfig) {
+		return fmt.Errorf("The \"lvm.thinpool_name\" property cannot be changed.")
+	}
+
+	if shared.StringInSlice("lvm.vg_name", changedConfig) {
+		return fmt.Errorf("The \"lvm.vg_name\" property cannot be changed.")
 	}
 
 	if shared.StringInSlice("volume.zfs.use_refquota", changedConfig) {
