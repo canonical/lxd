@@ -43,12 +43,13 @@ func cmdActivateIfNeeded() error {
 		return err
 	}
 
-	// Look for auto-started or previously started containers
+	// Load the idmap for unprivileged containers
 	d.IdmapSet, err = shared.DefaultIdmapSet()
 	if err != nil {
 		return err
 	}
 
+	// Look for auto-started or previously started containers
 	result, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return err
