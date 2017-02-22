@@ -576,6 +576,7 @@ func (s *storageBtrfs) subvolsDelete(subvol string) error {
 	if err != nil {
 		return err
 	}
+	sort.Sort(sort.Reverse(sort.StringSlice(subsubvols)))
 
 	for _, subsubvol := range subsubvols {
 		s.log.Debug(
@@ -659,6 +660,7 @@ func (s *storageBtrfs) subvolsSnapshot(
 	if err != nil {
 		return err
 	}
+	sort.Sort(sort.StringSlice(subsubvols))
 
 	if len(subsubvols) > 0 && readonly {
 		// A root with subvolumes can never be readonly,
@@ -677,11 +679,10 @@ func (s *storageBtrfs) subvolsSnapshot(
 
 	// Now snapshot all subvolumes of the root.
 	for _, subsubvol := range subsubvols {
-		if err := s.subvolSnapshot(
-			path.Join(source, subsubvol),
-			path.Join(dest, subsubvol),
-			readonly); err != nil {
+		// Clear the target for the subvol to use
+		os.Remove(path.Join(dest, subsubvol))
 
+		if err := s.subvolSnapshot(path.Join(source, subsubvol), path.Join(dest, subsubvol), readonly); err != nil {
 			return err
 		}
 	}
@@ -740,8 +741,6 @@ func (s *storageBtrfs) getSubVolumes(path string) ([]string, error) {
 
 		return nil
 	})
-
-	sort.Sort(sort.Reverse(sort.StringSlice(result)))
 
 	return result, nil
 }
