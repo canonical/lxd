@@ -97,6 +97,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	// Fill in the defaults
+	err = storagePoolFillDefault(req.Name, req.Driver, req.Config)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	// Create the database entry for the storage pool.
 	_, err = dbStoragePoolCreate(d.db, req.Name, req.Driver, req.Config)
 	if err != nil {

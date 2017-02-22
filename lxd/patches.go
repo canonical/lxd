@@ -677,6 +677,11 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		return err
 	}
 
+	err = storagePoolFillDefault(defaultPoolName, "lvm", poolConfig)
+	if err != nil {
+		return err
+	}
+
 	// Peek into the storage pool database to see whether any storage pools
 	// are already configured. If so, we can assume that a partial upgrade
 	// has been performed and can skip the next steps.
