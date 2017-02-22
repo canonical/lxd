@@ -555,9 +555,18 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
 		if shared.PathExists(oldContainerMntPoint) {
+			// First try to rename.
 			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
-				return err
+				output, err := storageRsyncCopy(oldContainerMntPoint, newContainerMntPoint)
+				if err != nil {
+					shared.LogErrorf("Failed to rsync: %s: %s.", output, err)
+					return err
+				}
+				err = os.RemoveAll(oldContainerMntPoint)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -596,7 +605,15 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		if shared.PathExists(oldSnapshotMntPoint) {
 			err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 			if err != nil {
-				return err
+				output, err := storageRsyncCopy(oldSnapshotMntPoint, newSnapshotMntPoint)
+				if err != nil {
+					shared.LogErrorf("Failed to rsync: %s: %s.", output, err)
+					return err
+				}
+				err = os.RemoveAll(oldSnapshotMntPoint)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -986,7 +1003,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		if shared.PathExists(oldLoopFilePath) {
 			// This is a loop file pool.
 			poolConfig["source"] = shared.VarPath("disks", defaultPoolName+".img")
-			err := os.Rename(oldLoopFilePath, poolConfig["source"])
+			err := shared.FileMove(oldLoopFilePath, poolConfig["source"])
 			if err != nil {
 				return err
 			}
