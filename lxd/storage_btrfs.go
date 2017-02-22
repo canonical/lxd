@@ -100,7 +100,8 @@ func (s *storageBtrfs) StoragePoolCheck() error {
 func (s *storageBtrfs) StoragePoolCreate() error {
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		source = filepath.Join(shared.VarPath("disks"), s.pool.Name)
+		s.pool.Config["source"] = source
 	}
 
 	if !filepath.IsAbs(source) {
