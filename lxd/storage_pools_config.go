@@ -105,11 +105,6 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		}
 	}
 
-	err = storagePoolFillDefault(name, driver, config)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
