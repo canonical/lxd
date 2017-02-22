@@ -16,6 +16,10 @@ test_storage() {
     # Create loop file zfs pool.
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" zfs
 
+      # Check that we can't create a loop file in a non-LXD owned location.
+      INVALID_LOOP_FILE="$(mktemp -p "${LXD_DIR}" XXXXXXXXX)-invalid-loop-file"
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" zfs source="${INVALID_LOOP_FILE}"
+
       # Let LXD use an already existing dataset.
       zfs create -p -o mountpoint=none "lxdtest-$(basename "${LXD_DIR}")-pool1/existing-dataset-as-pool"
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool7" zfs source="lxdtest-$(basename "${LXD_DIR}")-pool1/existing-dataset-as-pool"

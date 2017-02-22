@@ -89,45 +89,16 @@ func (s *storageZfs) StoragePoolInit(config map[string]interface{}) (storage, er
 	}
 
 	// Detect whether we have been given a zfs dataset as source.
-	vdev := s.pool.Config["source"]
-	if vdev != "" {
-		if !filepath.IsAbs(vdev) {
-			s.dataset = vdev
-		}
+	if s.pool.Config["zfs.pool_name"] != "" {
+		s.dataset = s.pool.Config["zfs.pool_name"]
 	}
 
 	return s, nil
 }
 
 func (s *storageZfs) StoragePoolCheck() error {
-	poolName := s.getOnDiskPoolName()
-	err := s.zfsPoolCheck(poolName)
-	if err != nil {
-		source := s.pool.Config["source"]
-		if filepath.IsAbs(source) && shared.PathExists(source) {
-			_ = loadModule("zfs")
-
-			output, err := exec.Command("zpool", "import", source, poolName).CombinedOutput()
-			if err != nil {
-				return fmt.Errorf("Unable to import the ZFS pool: %s", output)
-			}
-		} else {
-			return err
-		}
-	}
-
-	output, err := exec.Command("zfs", "get", "mountpoint", "-H", "-o", "source", poolName).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("Unable to query ZFS mountpoint")
-	}
-
-	if strings.TrimSpace(string(output)) != "local" {
-		err = shared.RunCommand("zfs", "set", "mountpoint=none", poolName)
-		if err != nil {
-			return err
-		}
-	}
-
+	// Make noop for now until we figure out something useful to do for all
+	// supported use cases.
 	return nil
 }
 
@@ -592,7 +563,8 @@ func (s *storageZfs) ContainerDelete(container container) error {
 			if err != nil {
 				return err
 			}
-			origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", s.pool.Name))
+			poolName := s.getOnDiskPoolName()
+			origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", poolName))
 
 			err = s.zfsPoolVolumeDestroy(fs)
 			if err != nil {
@@ -1335,75 +1307,34 @@ func (s *storageZfs) zfsPoolCheck(pool string) error {
 }
 
 func (s *storageZfs) zfsPoolCreate() error {
+	zpoolName := s.getOnDiskPoolName()
 	vdev := s.pool.Config["source"]
 	if vdev == "" {
-		vdev = filepath.Join(shared.VarPath("disks"), s.pool.Name)
-	}
+		vdev = filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
+		s.pool.Config["source"] = vdev
 
-	if !filepath.IsAbs(vdev) {
-		err := s.zfsPoolCheck(vdev)
-		// This is a pre-existing dataset.
-		if err == nil {
-			// Confirm that the pool is empty.
-			subvols, err := s.zfsPoolListSubvolumes(vdev)
-			if err != nil {
-				return err
-			}
-
-			if len(subvols) > 0 {
-				return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
-			}
-		} else {
-			output, err := exec.Command(
-				"zfs",
-				"create",
-				"-p",
-				"-o",
-				"mountpoint=none",
-				vdev).CombinedOutput()
-			if err != nil {
-				s.log.Error("zfs create failed", log.Ctx{"output": string(output)})
-				return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
-			}
-		}
-	} else {
-		if !shared.IsBlockdevPath(vdev) {
-			vdev = vdev + ".img"
-			s.pool.Config["source"] = vdev
-			// This is likely a loop file.
-			f, err := os.Create(vdev)
-			if err != nil {
-				return fmt.Errorf("Failed to open %s: %s", vdev, err)
-			}
-			defer f.Close()
-
-			err = f.Chmod(0600)
-			if err != nil {
-				return fmt.Errorf("Failed to chmod %s: %s", vdev, err)
-			}
-
-			size, err := strconv.ParseInt(s.pool.Config["size"], 10, 64)
-			if err != nil {
-				return err
-			}
-			err = f.Truncate(size)
-			if err != nil {
-				return fmt.Errorf("Failed to create sparse file %s: %s", vdev, err)
-			}
-		} else {
-			// This is a block device. Note, that we do not store the
-			// block device path or UUID or PARTUUID or similar in
-			// the database. All of those might change or might be
-			// used in a special way (For example, zfs uses a single
-			// UUID in a multi-device pool for all devices.). The
-			// safest way is to just store the name of the zfs pool
-			// we create.
-			s.pool.Config["source"] = s.pool.Name
+		if s.pool.Config["zfs.pool_name"] == "" {
+			s.pool.Config["zfs.pool_name"] = zpoolName
 		}
 
-		zpoolName := s.pool.Config["zfs.pool_name"]
-		if zpoolName == "" {
-			zpoolName = s.pool.Name
+		f, err := os.Create(vdev)
+		if err != nil {
+			return fmt.Errorf("Failed to open %s: %s", vdev, err)
+		}
+		defer f.Close()
+
+		err = f.Chmod(0600)
+		if err != nil {
+			return fmt.Errorf("Failed to chmod %s: %s", vdev, err)
+		}
+
+		size, err := strconv.ParseInt(s.pool.Config["size"], 10, 64)
+		if err != nil {
+			return err
+		}
+		err = f.Truncate(size)
+		if err != nil {
+			return fmt.Errorf("Failed to create sparse file %s: %s", vdev, err)
 		}
 
 		output, err := exec.Command(
@@ -1412,6 +1343,69 @@ func (s *storageZfs) zfsPoolCreate() error {
 			"-f", "-m", "none", "-O", "compression=on").CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("Failed to create the ZFS pool: %s", output)
+		}
+	} else {
+		if filepath.IsAbs(vdev) {
+			if !shared.IsBlockdevPath(vdev) {
+				return fmt.Errorf("Custom loop file locations are not supported.")
+			}
+
+			if s.pool.Config["zfs.pool_name"] == "" {
+				s.pool.Config["zfs.pool_name"] = zpoolName
+			}
+
+			// This is a block device. Note, that we do not store the
+			// block device path or UUID or PARTUUID or similar in
+			// the database. All of those might change or might be
+			// used in a special way (For example, zfs uses a single
+			// UUID in a multi-device pool for all devices.). The
+			// safest way is to just store the name of the zfs pool
+			// we create.
+			s.pool.Config["source"] = zpoolName
+			output, err := exec.Command(
+				"zpool",
+				"create", zpoolName, vdev,
+				"-f", "-m", "none", "-O", "compression=on").CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("Failed to create the ZFS pool: %s", output)
+			}
+		} else {
+			if s.pool.Config["zfs.pool_name"] != "" {
+				return fmt.Errorf("Invalid request.")
+			}
+			s.pool.Config["zfs.pool_name"] = vdev
+			s.dataset = vdev
+
+			if strings.Contains(vdev, "/") {
+				ok := s.zfsFilesystemEntityExists(vdev, false)
+				if !ok {
+					output, err := exec.Command(
+						"zfs",
+						"create",
+						"-p",
+						"-o",
+						"mountpoint=none",
+						vdev).CombinedOutput()
+					if err != nil {
+						s.log.Error("zfs create failed", log.Ctx{"output": string(output)})
+						return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
+					}
+				}
+			} else {
+				err := s.zfsPoolCheck(vdev)
+				if err != nil {
+					return err
+				}
+
+				subvols, err := s.zfsPoolListSubvolumes(vdev)
+				if err != nil {
+					return err
+				}
+
+				if len(subvols) > 0 {
+					return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
+				}
+			}
 		}
 	}
 
@@ -1613,7 +1607,8 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 				if err != nil {
 					return err
 				}
-				origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", s.pool.Name))
+				poolName := s.getOnDiskPoolName()
+				origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", poolName))
 
 				err = s.zfsPoolVolumeDestroy(path)
 				if err != nil {
@@ -1867,7 +1862,8 @@ func (s *storageZfs) zfsPoolListSubvolumes(path string) ([]string, error) {
 			continue
 		}
 
-		children = append(children, strings.TrimPrefix(entry, fmt.Sprintf("%s/", s.pool.Name)))
+		poolName := s.getOnDiskPoolName()
+		children = append(children, strings.TrimPrefix(entry, fmt.Sprintf("%s/", poolName)))
 	}
 
 	return children, nil
