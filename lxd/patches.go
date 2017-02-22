@@ -405,24 +405,13 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// readonly snapshots.
 			oldSnapshotMntPoint := shared.VarPath("snapshots", cs)
 			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, cs)
-			err = exec.Command(
-				"btrfs",
-				"subvolume",
-				"snapshot",
-				"-r",
-				oldSnapshotMntPoint,
-				newSnapshotMntPoint).Run()
+			err = btrfsSnapshot(oldSnapshotMntPoint, newSnapshotMntPoint, true)
 			if err != nil {
 				return err
 			}
 
 			// Delete the old subvolume.
-			err = exec.Command(
-				"btrfs",
-				"subvolume",
-				"delete",
-				oldSnapshotMntPoint,
-			).Run()
+			err = btrfsSubVolumesDelete(oldSnapshotMntPoint)
 			if err != nil {
 				return err
 			}
