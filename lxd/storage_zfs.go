@@ -1125,6 +1125,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() {
 			if !revert {
 				return
@@ -1132,7 +1133,9 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 			s.ImageDelete(fingerprint)
 		}()
 
-		err = s.zfsPoolVolumeSet(fs, "mountpoint", imageMntPoint)
+		// In case this is an image from an older lxd instance, wipe the
+		// mountpoint.
+		err = s.zfsPoolVolumeSet(fs, "mountpoint", "none")
 		if err != nil {
 			return err
 		}
@@ -1187,30 +1190,22 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		s.zfsPoolVolumeMount(fs)
 	}
 
-	// Register a cleanup function.
-	cleanup := func(err error) error {
-		if zerr := s.zfsPoolVolumeDestroy(fs); zerr != nil {
-			err = fmt.Errorf("%s  During cleanup: %s", err, zerr)
-		}
-		return err
-	}
-
 	// Unpack the image into the temporary mountpoint.
 	err = unpackImage(s.d, imagePath, tmpImageDir, storageTypeZfs)
 	if err != nil {
-		return cleanup(err)
+		return err
 	}
 
 	// Mark the new storage volume for the image as readonly.
 	err = s.zfsPoolVolumeSet(fs, "readonly", "on")
 	if err != nil {
-		return cleanup(err)
+		return err
 	}
 
 	// Remove the temporary mountpoint from the image storage volume.
 	err = s.zfsPoolVolumeSet(fs, "mountpoint", "none")
 	if err != nil {
-		return cleanup(err)
+		return err
 	}
 
 	// Make sure that the image actually got unmounted.
@@ -1222,7 +1217,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 	// container creation.
 	err = s.zfsPoolVolumeSnapshotCreate(fs, "readonly")
 	if err != nil {
-		return cleanup(err)
+		return err
 	}
 
 	revert = false
