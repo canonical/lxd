@@ -53,6 +53,33 @@ test_storage() {
       configure_lvm_loop_device loop_file_3 loop_device_3
       # shellcheck disable=SC2154
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" volume.size=10MB
+
+      configure_lvm_loop_device loop_file_5 loop_device_5
+      # shellcheck disable=SC2154
+      pvcreate "${loop_device_5}"
+      # Should fail if vg does not exist, since we have no way of knowing where
+      # to create the vg without a block device path set.
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool10" lvm source=dummy_vg_1
+
+      configure_lvm_loop_device loop_file_6 loop_device_6
+      # shellcheck disable=SC2154
+      pvcreate "${loop_device_6}"
+      vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool11-dummy_vg_2" "${loop_device_6}"
+      # Reuse existing volume group "dummy_vg_2" on existing physical volume.
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool11" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool11-dummy_vg_2"
+
+      configure_lvm_loop_device loop_file_7 loop_device_7
+      # shellcheck disable=SC2154
+      pvcreate "${loop_device_7}"
+      vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3" "${loop_device_7}"
+      # Reuse existing volume group "dummy_vg_3" on existing physical volume.
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3"
+
+      configure_lvm_loop_device loop_file_8 loop_device_8
+      # shellcheck disable=SC2154
+      pvcreate "${loop_device_8}"
+      # Create new volume group "dummy_vg_4" on existing physical volume.
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool13" lvm source="${loop_device_8}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool13-dummy_vg_4"
     fi
 
     # Set default storage pool for image import.
@@ -100,6 +127,24 @@ test_storage() {
 
       lxc launch testimage c12pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
       lxc list -c b c12pool6 | grep "lxdtest-$(basename "${LXD_DIR}")-pool6"
+
+      lxc init testimage c10pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
+      lxc list -c b c10pool11 | grep "lxdtest-$(basename "${LXD_DIR}")-pool11"
+
+      lxc launch testimage c12pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
+      lxc list -c b c12pool11 | grep "lxdtest-$(basename "${LXD_DIR}")-pool11"
+
+      lxc init testimage c10pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12"
+      lxc list -c b c10pool12 | grep "lxdtest-$(basename "${LXD_DIR}")-pool12"
+
+      lxc launch testimage c12pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12"
+      lxc list -c b c12pool12 | grep "lxdtest-$(basename "${LXD_DIR}")-pool12"
+
+      lxc init testimage c10pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
+      lxc list -c b c10pool13 | grep "lxdtest-$(basename "${LXD_DIR}")-pool13"
+
+      lxc launch testimage c12pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
+      lxc list -c b c12pool13 | grep "lxdtest-$(basename "${LXD_DIR}")-pool13"
     fi
 
     if which zfs >/dev/null 2>&1; then
@@ -135,6 +180,15 @@ test_storage() {
     if which lvdisplay >/dev/null 2>&1; then
       lxc delete -f c10pool6
       lxc delete -f c12pool6
+
+      lxc delete -f c10pool11
+      lxc delete -f c12pool11
+
+      lxc delete -f c10pool12
+      lxc delete -f c12pool12
+
+      lxc delete -f c10pool13
+      lxc delete -f c12pool13
     fi
 
     if which zfs >/dev/null 2>&1; then
@@ -157,6 +211,8 @@ test_storage() {
       # shellcheck disable=SC2154
       deconfigure_loop_device "${loop_file_4}" "${loop_device_4}"
 
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
+
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"
       # shellcheck disable=SC2154
       deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
@@ -172,6 +228,21 @@ test_storage() {
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool6"
       # shellcheck disable=SC2154
       deconfigure_lvm_loop_device "${loop_file_3}" "${loop_device_3}"
+
+      # shellcheck disable=SC2154
+      deconfigure_lvm_loop_device "${loop_file_5}" "${loop_device_5}"
+
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool11"
+      # shellcheck disable=SC2154
+      deconfigure_lvm_loop_device "${loop_file_6}" "${loop_device_6}"
+
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool12"
+      # shellcheck disable=SC2154
+      deconfigure_lvm_loop_device "${loop_file_7}" "${loop_device_7}"
+
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool13"
+      # shellcheck disable=SC2154
+      deconfigure_lvm_loop_device "${loop_file_8}" "${loop_device_8}"
     fi
   )
 

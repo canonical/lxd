@@ -121,13 +121,6 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 		if config["block.mount_options"] == "" && config["block.filesystem"] == "ext4" {
 			config["block.mount_options"] = "discard"
 		}
-
-		if config["lvm.thinpool_name"] == "" {
-			config["lvm.thinpool_name"] = parentPool.Config["volume.lvm.thinpool_name"]
-			if config["lvm.thinpool_name"] == "" {
-				config["lvm.thinpool_name"] = "LXDThinPool"
-			}
-		}
 	}
 
 	return nil
