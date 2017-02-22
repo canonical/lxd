@@ -92,7 +92,6 @@ func (s *storageZfs) StoragePoolInit(config map[string]interface{}) (storage, er
 	vdev := s.pool.Config["source"]
 	if vdev != "" {
 		if !filepath.IsAbs(vdev) {
-			s.log.Debug(fmt.Sprintf("Treating the source \"%s\" of this storage pool as a ZFS dataset.", vdev))
 			s.dataset = vdev
 		}
 	}
