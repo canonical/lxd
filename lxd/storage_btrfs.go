@@ -415,7 +415,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 	}
 
 	if err := unpackImage(s.d, imagePath, subvol); err != nil {
-		s.subvolDelete(subvol)
+		s.subvolsDelete(subvol)
 		return err
 	}
 
@@ -804,11 +804,11 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) erro
 		}
 
 		btrfsPath := fmt.Sprintf("%s/.root", tmpPath)
-		if err := s.btrfs.subvolSnapshot(s.container.Path(), btrfsPath, true); err != nil {
+		if err := s.btrfs.subvolsSnapshot(s.container.Path(), btrfsPath, true); err != nil {
 			return err
 		}
 
-		defer s.btrfs.subvolDelete(btrfsPath)
+		defer s.btrfs.subvolsDelete(btrfsPath)
 
 		return s.send(conn, btrfsPath, "")
 	}
@@ -834,7 +834,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) erro
 	}
 
 	s.runningSnapName = fmt.Sprintf("%s/.root", tmpPath)
-	if err := s.btrfs.subvolSnapshot(s.container.Path(), s.runningSnapName, true); err != nil {
+	if err := s.btrfs.subvolsSnapshot(s.container.Path(), s.runningSnapName, true); err != nil {
 		return err
 	}
 
@@ -854,7 +854,7 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) e
 	}
 
 	s.stoppedSnapName = fmt.Sprintf("%s/.root", tmpPath)
-	if err := s.btrfs.subvolSnapshot(s.container.Path(), s.stoppedSnapName, true); err != nil {
+	if err := s.btrfs.subvolsSnapshot(s.container.Path(), s.stoppedSnapName, true); err != nil {
 		return err
 	}
 
@@ -863,11 +863,11 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) e
 
 func (s *btrfsMigrationSourceDriver) Cleanup() {
 	if s.stoppedSnapName != "" {
-		s.btrfs.subvolDelete(s.stoppedSnapName)
+		s.btrfs.subvolsDelete(s.stoppedSnapName)
 	}
 
 	if s.runningSnapName != "" {
-		s.btrfs.subvolDelete(s.runningSnapName)
+		s.btrfs.subvolsDelete(s.runningSnapName)
 	}
 }
 
@@ -971,7 +971,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		if !isSnapshot {
 			cPath := containerPath(fmt.Sprintf("%s/.root", cName), true)
 
-			err := s.subvolSnapshot(cPath, targetPath, false)
+			err := s.subvolsSnapshot(cPath, targetPath, false)
 			if err != nil {
 				shared.LogError("problem with btrfs snapshot", log.Ctx{"err": err})
 				return err
