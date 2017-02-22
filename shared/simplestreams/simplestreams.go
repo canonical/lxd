@@ -40,6 +40,10 @@ func (a ssSortImage) Less(i, j int) bool {
 				return false
 			}
 
+			if a[i].CreatedAt == a[j].CreatedAt {
+				return a[i].Properties["serial"] > a[j].Properties["serial"]
+			}
+
 			return a[i].CreatedAt.UTC().Unix() > a[j].CreatedAt.UTC().Unix()
 		}
 
