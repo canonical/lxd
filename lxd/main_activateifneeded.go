@@ -1,11 +1,19 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 )
 
 func cmdActivateIfNeeded() error {
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
+
 	// Don't start a full daemon, we just need DB access
 	d := &Daemon{
 		lxcpath: shared.VarPath("containers"),
@@ -35,12 +43,13 @@ func cmdActivateIfNeeded() error {
 		return err
 	}
 
-	// Look for auto-started or previously started containers
+	// Load the idmap for unprivileged containers
 	d.IdmapSet, err = shared.DefaultIdmapSet()
 	if err != nil {
 		return err
 	}
 
+	// Look for auto-started or previously started containers
 	result, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
 		return err

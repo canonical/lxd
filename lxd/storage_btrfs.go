@@ -235,16 +235,16 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 
 	// Delete default subvolumes.
 	dummyDir := getContainerMountPoint(s.pool.Name, "")
-	s.btrfsPoolVolumeDelete(dummyDir)
+	s.btrfsPoolVolumesDelete(dummyDir)
 
 	dummyDir = getSnapshotMountPoint(s.pool.Name, "")
-	s.btrfsPoolVolumeDelete(dummyDir)
+	s.btrfsPoolVolumesDelete(dummyDir)
 
 	dummyDir = getImageMountPoint(s.pool.Name, "")
-	s.btrfsPoolVolumeDelete(dummyDir)
+	s.btrfsPoolVolumesDelete(dummyDir)
 
 	dummyDir = getStoragePoolVolumeMountPoint(s.pool.Name, "")
-	s.btrfsPoolVolumeDelete(dummyDir)
+	s.btrfsPoolVolumesDelete(dummyDir)
 
 	_, err := s.StoragePoolUmount()
 	if err != nil {
@@ -269,7 +269,7 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 	} else {
 		var err error
 		if s.d.BackingFs == "btrfs" {
-			err = s.btrfsPoolVolumeDelete(source)
+			err = s.btrfsPoolVolumesDelete(source)
 		} else {
 			// This is a loop file --> simply remove it.
 			err = os.Remove(source)
@@ -464,7 +464,7 @@ func (s *storageBtrfs) StoragePoolVolumeDelete() error {
 
 	// Delete subvolume.
 	customSubvolumeName := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	err = s.btrfsPoolVolumeDelete(customSubvolumeName)
+	err = s.btrfsPoolVolumesDelete(customSubvolumeName)
 	if err != nil {
 		return err
 	}
@@ -641,7 +641,7 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 
 	// Delete the subvolume.
 	containerSubvolumeName := getContainerMountPoint(s.pool.Name, container.Name())
-	err = s.btrfsPoolVolumeDelete(containerSubvolumeName)
+	err = s.btrfsPoolVolumesDelete(containerSubvolumeName)
 	if err != nil {
 		return err
 	}
@@ -970,7 +970,7 @@ func (s *storageBtrfs) ContainerSnapshotDelete(snapshotContainer container) erro
 	}
 
 	snapshotSubvolumeName := getSnapshotMountPoint(s.pool.Name, snapshotContainer.Name())
-	err = s.btrfsPoolVolumeDelete(snapshotSubvolumeName)
+	err = s.btrfsPoolVolumesDelete(snapshotSubvolumeName)
 	if err != nil {
 		return err
 	}
@@ -1143,7 +1143,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 	undo := true
 	defer func() {
 		if undo {
-			s.btrfsPoolVolumeDelete(tmpImageSubvolumeName)
+			s.btrfsPoolVolumesDelete(tmpImageSubvolumeName)
 		}
 	}()
 
@@ -1157,18 +1157,18 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 	// Now create a read-only snapshot of the subvolume.
 	// The path with which we do this is
 	// ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>.
-	err = s.btrfsPoolVolumeSnapshot(tmpImageSubvolumeName, imageSubvolumeName, true)
+	err = s.btrfsPoolVolumesSnapshot(tmpImageSubvolumeName, imageSubvolumeName, true)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		if undo {
-			s.btrfsPoolVolumeDelete(imageSubvolumeName)
+			s.btrfsPoolVolumesDelete(imageSubvolumeName)
 		}
 	}()
 
-	err = s.btrfsPoolVolumeDelete(tmpImageSubvolumeName)
+	err = s.btrfsPoolVolumesDelete(tmpImageSubvolumeName)
 	if err != nil {
 		return err
 	}
@@ -1187,7 +1187,7 @@ func (s *storageBtrfs) ImageDelete(fingerprint string) error {
 	// Delete the btrfs subvolume. The path with which we
 	// do this is ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>.
 	imageSubvolumeName := getImageMountPoint(s.pool.Name, fingerprint)
-	err = s.btrfsPoolVolumeDelete(imageSubvolumeName)
+	err = s.btrfsPoolVolumesDelete(imageSubvolumeName)
 	if err != nil {
 		return err
 	}
@@ -1367,6 +1367,7 @@ func (s *storageBtrfs) btrfsPoolVolumesDelete(subvol string) error {
 	if err != nil {
 		return err
 	}
+	sort.Sort(sort.Reverse(sort.StringSlice(subsubvols)))
 
 	for _, subsubvol := range subsubvols {
 		s.log.Debug(
@@ -1434,6 +1435,7 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 	if err != nil {
 		return err
 	}
+	sort.Sort(sort.StringSlice(subsubvols))
 
 	if len(subsubvols) > 0 && readonly {
 		// A root with subvolumes can never be readonly,
@@ -1452,10 +1454,10 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 
 	// Now snapshot all subvolumes of the root.
 	for _, subsubvol := range subsubvols {
-		if err := s.btrfsPoolVolumeSnapshot(
-			path.Join(source, subsubvol),
-			path.Join(dest, subsubvol),
-			readonly); err != nil {
+		// Clear the target for the subvol to use
+		os.Remove(path.Join(dest, subsubvol))
+
+		if err := s.btrfsPoolVolumeSnapshot(path.Join(source, subsubvol), path.Join(dest, subsubvol), readonly); err != nil {
 			return err
 		}
 	}
@@ -1514,8 +1516,6 @@ func (s *storageBtrfs) btrfsPoolVolumesGet(path string) ([]string, error) {
 
 		return nil
 	})
-
-	sort.Sort(sort.Reverse(sort.StringSlice(result)))
 
 	return result, nil
 }
@@ -1601,11 +1601,11 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 		snapshotMntPoint := getSnapshotMountPoint(containerPool, containerName)
 		if s.container.IsSnapshot() {
 		}
-		err = s.btrfs.btrfsPoolVolumeSnapshot(snapshotMntPoint, migrationSendSnapshot, true)
+		err = s.btrfs.btrfsPoolVolumesSnapshot(snapshotMntPoint, migrationSendSnapshot, true)
 		if err != nil {
 			return err
 		}
-		defer s.btrfs.btrfsPoolVolumeDelete(migrationSendSnapshot)
+		defer s.btrfs.btrfsPoolVolumesDelete(migrationSendSnapshot)
 
 		wrapper := StorageProgressReader(op, "fs_progress", containerName)
 		return s.send(conn, migrationSendSnapshot, "", wrapper)
@@ -1639,11 +1639,11 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 	containerMntPoint := getContainerMountPoint(containerPool, sourceName)
 	if s.container.IsSnapshot() {
 	}
-	err = s.btrfs.btrfsPoolVolumeSnapshot(containerMntPoint, migrationSendSnapshot, true)
+	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPoint, migrationSendSnapshot, true)
 	if err != nil {
 		return err
 	}
-	defer s.btrfs.btrfsPoolVolumeDelete(migrationSendSnapshot)
+	defer s.btrfs.btrfsPoolVolumesDelete(migrationSendSnapshot)
 
 	wrapper := StorageProgressReader(op, "fs_progress", containerName)
 	return s.send(conn, migrationSendSnapshot, "", wrapper)
@@ -1657,7 +1657,7 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) e
 	}
 
 	s.stoppedSnapName = fmt.Sprintf("%s/.root", tmpPath)
-	if err := s.btrfs.btrfsPoolVolumeSnapshot(s.container.Path(), s.stoppedSnapName, true); err != nil {
+	if err := s.btrfs.btrfsPoolVolumesSnapshot(s.container.Path(), s.stoppedSnapName, true); err != nil {
 		return err
 	}
 
@@ -1666,11 +1666,11 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) e
 
 func (s *btrfsMigrationSourceDriver) Cleanup() {
 	if s.stoppedSnapName != "" {
-		s.btrfs.btrfsPoolVolumeDelete(s.stoppedSnapName)
+		s.btrfs.btrfsPoolVolumesDelete(s.stoppedSnapName)
 	}
 
 	if s.runningSnapName != "" {
-		s.btrfs.btrfsPoolVolumeDelete(s.runningSnapName)
+		s.btrfs.btrfsPoolVolumesDelete(s.runningSnapName)
 	}
 }
 
@@ -1768,10 +1768,10 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 		if !isSnapshot {
 			btrfsPath = fmt.Sprintf("%s/.migration-send", btrfsPath)
-			err = s.btrfsPoolVolumeSnapshot(btrfsPath, targetPath, false)
+			err = s.btrfsPoolVolumesSnapshot(btrfsPath, targetPath, false)
 		} else {
 			btrfsPath = fmt.Sprintf("%s/%s", btrfsPath, snapName)
-			err = s.btrfsPoolVolumeSnapshot(btrfsPath, targetPath, true)
+			err = s.btrfsPoolVolumesSnapshot(btrfsPath, targetPath, true)
 		}
 		if err != nil {
 			s.log.Error("problem with btrfs snapshot", log.Ctx{"err": err})

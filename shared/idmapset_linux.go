@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/user"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -384,111 +383,205 @@ func (set *IdmapSet) ShiftFile(p string) error {
 	return set.ShiftRootfs(p)
 }
 
-const (
-	minIDRange = 65536
-)
-
 /*
  * get a uid or gid mapping from /etc/subxid
  */
-func getFromMap(fname string, username string) (int, int, error) {
+func getFromShadow(fname string, username string) ([][]int, error) {
+	entries := [][]int{}
+
 	f, err := os.Open(fname)
-	var min int
-	var idrange int
 	if err != nil {
-		return 0, 0, err
+		return nil, err
 	}
 	defer f.Close()
+
 	scanner := bufio.NewScanner(f)
-	min = 0
-	idrange = 0
 	for scanner.Scan() {
-		/*
-		 * /etc/sub{gu}id allow comments in the files, so ignore
-		 * everything after a '#'
-		 */
+		// Skip comments
 		s := strings.Split(scanner.Text(), "#")
 		if len(s[0]) == 0 {
 			continue
 		}
 
+		// Validate format
 		s = strings.Split(s[0], ":")
 		if len(s) < 3 {
-			return 0, 0, fmt.Errorf("unexpected values in %q: %q", fname, s)
+			return nil, fmt.Errorf("Unexpected values in %q: %q", fname, s)
 		}
+
 		if strings.EqualFold(s[0], username) {
-			bigmin, err := strconv.ParseUint(s[1], 10, 32)
+			// Get range start
+			entryStart, err := strconv.ParseUint(s[1], 10, 32)
 			if err != nil {
 				continue
 			}
-			bigIdrange, err := strconv.ParseUint(s[2], 10, 32)
+
+			// Get range size
+			entrySize, err := strconv.ParseUint(s[2], 10, 32)
 			if err != nil {
 				continue
 			}
-			min = int(bigmin)
-			idrange = int(bigIdrange)
-			if idrange < minIDRange {
-				continue
-			}
-			return min, idrange, nil
+
+			entries = append(entries, []int{int(entryStart), int(entrySize)})
 		}
 	}
 
-	return 0, 0, fmt.Errorf("User %q has no %ss.", username, path.Base(fname))
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("User %q has no %ss.", username, path.Base(fname))
+	}
+
+	return entries, nil
 }
 
 /*
- * Get current username
+ * get a uid or gid mapping from /proc/self/{g,u}id_map
  */
-func getUsername() (string, error) {
-	me, err := user.Current()
-	if err == nil {
-		return me.Username, nil
-	} else {
-		/* user.Current() requires cgo */
-		username := os.Getenv("USER")
-		if username == "" {
-			return "", err
-		}
-		return username, nil
+func getFromProc(fname string) ([][]int, error) {
+	entries := [][]int{}
+
+	f, err := os.Open(fname)
+	if err != nil {
+		return nil, err
 	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		// Skip comments
+		s := strings.Split(scanner.Text(), "#")
+		if len(s[0]) == 0 {
+			continue
+		}
+
+		// Validate format
+		s = strings.Fields(s[0])
+		if len(s) < 3 {
+			return nil, fmt.Errorf("Unexpected values in %q: %q", fname, s)
+		}
+
+		// Get range start
+		entryStart, err := strconv.ParseUint(s[0], 10, 32)
+		if err != nil {
+			continue
+		}
+
+		// Get range size
+		entryHost, err := strconv.ParseUint(s[1], 10, 32)
+		if err != nil {
+			continue
+		}
+
+		// Get range size
+		entrySize, err := strconv.ParseUint(s[2], 10, 32)
+		if err != nil {
+			continue
+		}
+
+		entries = append(entries, []int{int(entryStart), int(entryHost), int(entrySize)})
+	}
+
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("Namespace doesn't have any map set")
+	}
+
+	return entries, nil
 }
 
 /*
  * Create a new default idmap
  */
 func DefaultIdmapSet() (*IdmapSet, error) {
-	myname, err := getUsername()
-	if err != nil {
-		return nil, err
-	}
+	idmapset := new(IdmapSet)
 
-	umin := 1000000
-	urange := 1000000000
-	gmin := 1000000
-	grange := 1000000000
-
+	// Check if shadow's uidmap tools are installed
 	newuidmap, _ := exec.LookPath("newuidmap")
 	newgidmap, _ := exec.LookPath("newgidmap")
-
 	if newuidmap != "" && newgidmap != "" && PathExists("/etc/subuid") && PathExists("/etc/subgid") {
-		umin, urange, err = getFromMap("/etc/subuid", myname)
+		// Parse the shadow uidmap
+		entries, err := getFromShadow("/etc/subuid", "root")
 		if err != nil {
 			return nil, err
 		}
 
-		gmin, grange, err = getFromMap("/etc/subgid", myname)
+		for _, entry := range entries {
+			// Check that it's big enough to be useful
+			if int(entry[1]) < 65536 {
+				continue
+			}
+
+			e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
+			idmapset.Idmap = Extend(idmapset.Idmap, e)
+
+			// NOTE: Remove once LXD can deal with multiple shadow maps
+			break
+		}
+
+		// Parse the shadow gidmap
+		entries, err = getFromShadow("/etc/subgid", "root")
 		if err != nil {
 			return nil, err
 		}
+
+		for _, entry := range entries {
+			// Check that it's big enough to be useful
+			if int(entry[1]) < 65536 {
+				continue
+			}
+
+			e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
+			idmapset.Idmap = Extend(idmapset.Idmap, e)
+
+			// NOTE: Remove once LXD can deal with multiple shadow maps
+			break
+		}
+	} else {
+		// Fallback map
+		e := IdmapEntry{Isuid: true, Isgid: true, Nsid: 0, Hostid: 1000000, Maprange: 1000000000}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
 	}
 
-	m := new(IdmapSet)
+	return idmapset, nil
+}
 
-	e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: umin, Maprange: urange}
-	m.Idmap = Extend(m.Idmap, e)
-	e = IdmapEntry{Isgid: true, Nsid: 0, Hostid: gmin, Maprange: grange}
-	m.Idmap = Extend(m.Idmap, e)
+/*
+ * Create an idmap of the current allocation
+ */
+func CurrentIdmapSet() (*IdmapSet, error) {
+	idmapset := new(IdmapSet)
 
-	return m, nil
+	if PathExists("/proc/self/uid_map") {
+		// Parse the uidmap
+		entries, err := getFromProc("/proc/self/uid_map")
+		if err != nil {
+			return nil, err
+		}
+
+		for _, entry := range entries {
+			e := IdmapEntry{Isuid: true, Nsid: entry[0], Hostid: entry[1], Maprange: entry[2]}
+			idmapset.Idmap = Extend(idmapset.Idmap, e)
+		}
+	} else {
+		// Fallback map
+		e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: 0, Maprange: 0}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+	}
+
+	if PathExists("/proc/self/gid_map") {
+		// Parse the gidmap
+		entries, err := getFromProc("/proc/self/gid_map")
+		if err != nil {
+			return nil, err
+		}
+
+		for _, entry := range entries {
+			e := IdmapEntry{Isgid: true, Nsid: entry[0], Hostid: entry[1], Maprange: entry[2]}
+			idmapset.Idmap = Extend(idmapset.Idmap, e)
+		}
+	} else {
+		// Fallback map
+		e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: 0, Maprange: 0}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+	}
+
+	return idmapset, nil
 }
