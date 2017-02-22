@@ -73,7 +73,7 @@ test_storage() {
       pvcreate "${loop_device_7}"
       vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3" "${loop_device_7}"
       # Reuse existing volume group "dummy_vg_3" on existing physical volume.
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3" volume.size=25MB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm source="${loop_device_7}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3"
 
       configure_lvm_loop_device loop_file_8 loop_device_8
       # shellcheck disable=SC2154
