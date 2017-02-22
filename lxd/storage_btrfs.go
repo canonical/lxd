@@ -98,69 +98,69 @@ func (s *storageBtrfs) StoragePoolCheck() error {
 }
 
 func (s *storageBtrfs) StoragePoolCreate() error {
+	isBlockDev := false
 	source := s.pool.Config["source"]
 	if source == "" {
-		source = filepath.Join(shared.VarPath("disks"), s.pool.Name)
+		source = filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
 		s.pool.Config["source"] = source
-	}
 
-	if !filepath.IsAbs(source) {
-		return fmt.Errorf("Only absolute paths are allowed for now.")
-	}
+		f, err := os.Create(source)
+		if err != nil {
+			return fmt.Errorf("Failed to open %s: %s", source, err)
+		}
+		defer f.Close()
 
-	// Create the mountpoint for the storage pool.
-	isBlockDev := shared.IsBlockdevPath(source)
-	if !isBlockDev {
-		if s.d.BackingFs == "btrfs" {
-			// Deal with the case where the backing fs is a btrfs
-			// pool itself.
-			// FIXME(brauner): Figure out a way to let users create a
-			// loop file even if the backing fs is btrfs.
-			err := s.btrfsPoolVolumeCreate(source)
-			if err != nil {
-				return err
+		err = f.Chmod(0600)
+		if err != nil {
+			return fmt.Errorf("Failed to chmod %s: %s", source, err)
+		}
+
+		size, err := strconv.ParseInt(s.pool.Config["size"], 10, 64)
+		if err != nil {
+			return err
+		}
+		err = f.Truncate(size)
+		if err != nil {
+			return fmt.Errorf("Failed to create sparse file %s: %s", source, err)
+		}
+
+		output, err := exec.Command(
+			"mkfs.btrfs",
+			"-L", s.pool.Name, source).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
+		}
+	} else {
+		if filepath.IsAbs(source) {
+			isBlockDev = shared.IsBlockdevPath(source)
+			if isBlockDev {
+				output, err := exec.Command(
+					"mkfs.btrfs",
+					"-L", s.pool.Name, source).CombinedOutput()
+				if err != nil {
+					return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
+				}
+			} else {
+				if s.isBtrfsPoolVolume(source) || s.d.BackingFs == "btrfs" {
+					err := s.btrfsPoolVolumeCreate(source)
+					if err != nil {
+						return err
+					}
+				} else {
+					return fmt.Errorf("Custom loop file locations are not supported.")
+				}
 			}
-			return nil
 		} else {
-			source = source + ".img"
-			s.pool.Config["source"] = source
-
-			// This is likely a loop file.
-			f, err := os.Create(source)
-			if err != nil {
-				return fmt.Errorf("Failed to open %s: %s", source, err)
-			}
-			defer f.Close()
-
-			err = f.Chmod(0600)
-			if err != nil {
-				return fmt.Errorf("Failed to chmod %s: %s", source, err)
-			}
-
-			size, err := strconv.ParseInt(s.pool.Config["size"], 10, 64)
-			if err != nil {
-				return err
-			}
-
-			err = f.Truncate(size)
-			if err != nil {
-				return fmt.Errorf("Failed to create sparse file %s: %s", source, err)
-			}
+			return fmt.Errorf("Invalid \"source\" property.")
 		}
 	}
 
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
-	err := os.MkdirAll(poolMntPoint, 0711)
-	if err != nil {
-		return err
-	}
-
-	// Create a btrfs filesystem.
-	output, err := exec.Command(
-		"mkfs.btrfs",
-		"-L", s.pool.Name, source).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
+	if !shared.PathExists(poolMntPoint) {
+		err := os.MkdirAll(poolMntPoint, 0711)
+		if err != nil {
+			return err
+		}
 	}
 
 	var err1 error
@@ -194,7 +194,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 	}
 
 	// Enable quotas
-	output, err = exec.Command(
+	output, err := exec.Command(
 		"btrfs", "quota", "enable", poolMntPoint).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
