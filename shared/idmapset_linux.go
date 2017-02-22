@@ -434,6 +434,60 @@ func getFromShadow(fname string, username string) ([][]int, error) {
 }
 
 /*
+ * get a uid or gid mapping from /proc/self/{g,u}id_map
+ */
+func getFromProc(fname string) ([][]int, error) {
+	entries := [][]int{}
+
+	f, err := os.Open(fname)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		// Skip comments
+		s := strings.Split(scanner.Text(), "#")
+		if len(s[0]) == 0 {
+			continue
+		}
+
+		// Validate format
+		s = strings.Fields(s[0])
+		if len(s) < 3 {
+			return nil, fmt.Errorf("Unexpected values in %q: %q", fname, s)
+		}
+
+		// Get range start
+		entryStart, err := strconv.ParseUint(s[0], 10, 32)
+		if err != nil {
+			continue
+		}
+
+		// Get range size
+		entryHost, err := strconv.ParseUint(s[1], 10, 32)
+		if err != nil {
+			continue
+		}
+
+		// Get range size
+		entrySize, err := strconv.ParseUint(s[2], 10, 32)
+		if err != nil {
+			continue
+		}
+
+		entries = append(entries, []int{int(entryStart), int(entryHost), int(entrySize)})
+	}
+
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("Namespace doesn't have any map set")
+	}
+
+	return entries, nil
+}
+
+/*
  * Create a new default idmap
  */
 func DefaultIdmapSet() (*IdmapSet, error) {
@@ -483,6 +537,49 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 	} else {
 		// Fallback map
 		e := IdmapEntry{Isuid: true, Isgid: true, Nsid: 0, Hostid: 1000000, Maprange: 1000000000}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+	}
+
+	return idmapset, nil
+}
+
+/*
+ * Create an idmap of the current allocation
+ */
+func CurrentIdmapSet() (*IdmapSet, error) {
+	idmapset := new(IdmapSet)
+
+	if PathExists("/proc/self/uid_map") {
+		// Parse the uidmap
+		entries, err := getFromProc("/proc/self/uid_map")
+		if err != nil {
+			return nil, err
+		}
+
+		for _, entry := range entries {
+			e := IdmapEntry{Isuid: true, Nsid: entry[0], Hostid: entry[1], Maprange: entry[2]}
+			idmapset.Idmap = Extend(idmapset.Idmap, e)
+		}
+	} else {
+		// Fallback map
+		e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: 0, Maprange: 0}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+	}
+
+	if PathExists("/proc/self/gid_map") {
+		// Parse the gidmap
+		entries, err := getFromProc("/proc/self/gid_map")
+		if err != nil {
+			return nil, err
+		}
+
+		for _, entry := range entries {
+			e := IdmapEntry{Isgid: true, Nsid: entry[0], Hostid: entry[1], Maprange: entry[2]}
+			idmapset.Idmap = Extend(idmapset.Idmap, e)
+		}
+	} else {
+		// Fallback map
+		e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: 0, Maprange: 0}
 		idmapset.Idmap = Extend(idmapset.Idmap, e)
 	}
 
