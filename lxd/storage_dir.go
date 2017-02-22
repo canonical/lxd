@@ -197,6 +197,12 @@ func (s *storageDir) StoragePoolVolumeUpdate(changedConfig []string) error {
 	return fmt.Errorf("Dir storage properties cannot be changed.")
 }
 
+func (s *storageDir) ContainerStorageReady(name string) bool {
+	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	ok, _ := shared.PathIsEmpty(containerMntPoint)
+	return !ok
+}
+
 func (s *storageDir) ContainerCreate(container container) error {
 	source := s.pool.Config["source"]
 	if source == "" {

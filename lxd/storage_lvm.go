@@ -611,6 +611,14 @@ func (s *storageLvm) StoragePoolVolumeUpdate(changedConfig []string) error {
 	return nil
 }
 
+func (s *storageLvm) ContainerStorageReady(name string) bool {
+	containerLvmName := containerNameToLVName(name)
+	poolName := s.getOnDiskPoolName()
+	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, containerLvmName)
+	ok, _ := storageLVExists(containerLvmPath)
+	return ok
+}
+
 func (s *storageLvm) ContainerCreate(container container) error {
 	tryUndo := true
 
