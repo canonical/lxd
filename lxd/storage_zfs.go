@@ -21,6 +21,9 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
+var zfsUseRefquota = "false"
+var zfsRemoveSnapshots = "false"
+
 type storageZfs struct {
 	dataset string
 	storageShared
@@ -285,10 +288,6 @@ func (s *storageZfs) StoragePoolUpdate(changedConfig []string) error {
 		return fmt.Errorf("The \"lvm.vg_name\" property cannot be changed.")
 	}
 
-	if shared.StringInSlice("volume.zfs.remove_snapshots", changedConfig) {
-		return fmt.Errorf("The \"volume.zfs.remove_snapshots\" property cannot be changed.")
-	}
-
 	if shared.StringInSlice("zfs.pool_name", changedConfig) {
 		return fmt.Errorf("The \"zfs.pool_name\" property cannot be changed.")
 	}
@@ -307,10 +306,6 @@ func (s *storageZfs) StoragePoolVolumeUpdate(changedConfig []string) error {
 
 	if shared.StringInSlice("size", changedConfig) {
 		return fmt.Errorf("The \"size\" property cannot be changed.")
-	}
-
-	if shared.StringInSlice("zfs.remove_snapshots", changedConfig) {
-		return fmt.Errorf("The \"zfs.remove_snapshots\" property cannot be changed.")
 	}
 
 	return nil
@@ -522,7 +517,13 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 	}
 
 	if snaps[len(snaps)-1].Name() != sourceContainer.Name() {
-		if !shared.IsTrue(s.volume.Config["zfs.remove_snapshots"]) {
+		if s.pool.Config["volume.zfs.remove_snapshots"] != "" {
+			zfsRemoveSnapshots = s.pool.Config["volume.zfs.remove_snapshots"]
+		}
+		if s.volume.Config["zfs.remove_snapshots"] != "" {
+			zfsRemoveSnapshots = s.volume.Config["zfs.remove_snapshots"]
+		}
+		if !shared.IsTrue(zfsRemoveSnapshots) {
 			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead.")
 		}
 
@@ -832,7 +833,15 @@ func (s *storageZfs) ContainerSetQuota(container container, size int64) error {
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
 	property := "quota"
-	if shared.IsTrue(s.pool.Config["volume.zfs.use_refquota"]) {
+
+	if s.pool.Config["volume.zfs.use_refquota"] != "" {
+		zfsUseRefquota = s.pool.Config["volume.zfs.use_refquota"]
+	}
+	if s.volume.Config["zfs.use_refquota"] != "" {
+		zfsUseRefquota = s.volume.Config["zfs.use_refquota"]
+	}
+
+	if shared.IsTrue(zfsUseRefquota) {
 		property = "refquota"
 	}
 
@@ -855,7 +864,15 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
 	property := "used"
-	if shared.IsTrue(s.volume.Config["zfs.use_refquota"]) {
+
+	if s.pool.Config["volume.zfs.use_refquota"] != "" {
+		zfsUseRefquota = s.pool.Config["volume.zfs.use_refquota"]
+	}
+	if s.volume.Config["zfs.use_refquota"] != "" {
+		zfsUseRefquota = s.volume.Config["zfs.use_refquota"]
+	}
+
+	if shared.IsTrue(zfsUseRefquota) {
 		property = "usedbydataset"
 	}
 
@@ -1364,7 +1381,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 			}
 		} else {
 			if s.pool.Config["zfs.pool_name"] != "" {
-				return fmt.Errorf("Invalid request.")
+				return fmt.Errorf("Invalid combination of \"source\" and \"zfs.pool_name\" property.")
 			}
 			s.pool.Config["zfs.pool_name"] = vdev
 			s.dataset = vdev
