@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/user"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -438,53 +437,34 @@ func getFromMap(fname string, username string) (int, int, error) {
 }
 
 /*
- * Get current username
- */
-func getUsername() (string, error) {
-	me, err := user.Current()
-	if err == nil {
-		return me.Username, nil
-	} else {
-		/* user.Current() requires cgo */
-		username := os.Getenv("USER")
-		if username == "" {
-			return "", err
-		}
-		return username, nil
-	}
-}
-
-/*
  * Create a new default idmap
  */
 func DefaultIdmapSet() (*IdmapSet, error) {
-	myname, err := getUsername()
-	if err != nil {
-		return nil, err
-	}
+	var err error
 
+	// Fallback values
 	umin := 1000000
 	urange := 1000000000
 	gmin := 1000000
 	grange := 1000000000
 
+	// Check if shadow's uidmap tools are installed
 	newuidmap, _ := exec.LookPath("newuidmap")
 	newgidmap, _ := exec.LookPath("newgidmap")
-
 	if newuidmap != "" && newgidmap != "" && PathExists("/etc/subuid") && PathExists("/etc/subgid") {
-		umin, urange, err = getFromMap("/etc/subuid", myname)
+		umin, urange, err = getFromMap("/etc/subuid", "root")
 		if err != nil {
 			return nil, err
 		}
 
-		gmin, grange, err = getFromMap("/etc/subgid", myname)
+		gmin, grange, err = getFromMap("/etc/subgid", "root")
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	// Generate the map
 	m := new(IdmapSet)
-
 	e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: umin, Maprange: urange}
 	m.Idmap = Extend(m.Idmap, e)
 	e = IdmapEntry{Isgid: true, Nsid: 0, Hostid: gmin, Maprange: grange}
