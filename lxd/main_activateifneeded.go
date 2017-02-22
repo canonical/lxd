@@ -1,11 +1,19 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 )
 
 func cmdActivateIfNeeded() error {
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
+
 	// Don't start a full daemon, we just need DB access
 	d := &Daemon{
 		lxcpath: shared.VarPath("containers"),
