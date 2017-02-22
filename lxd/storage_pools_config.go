@@ -135,12 +135,6 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 		config["size"] = strconv.FormatUint(uint64(size), 10)
 	}
 
-	if driver == "zfs" {
-		if val, ok := config["zfs.pool_name"]; !ok || val == "" {
-			config["zfs.pool_name"] = name
-		}
-	}
-
 	if driver == "lvm" {
 		if config["lvm.thinpool_name"] == "" {
 			config["lvm.thinpool_name"] = "LXDThinpool"
