@@ -14,6 +14,11 @@ import (
 )
 
 func cmdDaemon() error {
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
+
 	if *argCPUProfile != "" {
 		f, err := os.Create(*argCPUProfile)
 		if err != nil {
