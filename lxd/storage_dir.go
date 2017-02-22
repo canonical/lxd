@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -55,7 +56,8 @@ func (s *storageDir) StoragePoolCheck() error {
 func (s *storageDir) StoragePoolCreate() error {
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		source = filepath.Join(shared.VarPath("storage-pools"), s.pool.Name)
+		s.pool.Config["source"] = source
 	}
 
 	err := os.MkdirAll(source, 0711)
