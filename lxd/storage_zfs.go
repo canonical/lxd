@@ -285,10 +285,6 @@ func (s *storageZfs) StoragePoolUpdate(changedConfig []string) error {
 		return fmt.Errorf("The \"lvm.vg_name\" property cannot be changed.")
 	}
 
-	if shared.StringInSlice("volume.zfs.use_refquota", changedConfig) {
-		return fmt.Errorf("The \"volume.zfs.use_refquota\" property cannot be changed.")
-	}
-
 	if shared.StringInSlice("volume.zfs.remove_snapshots", changedConfig) {
 		return fmt.Errorf("The \"volume.zfs.remove_snapshots\" property cannot be changed.")
 	}
@@ -311,10 +307,6 @@ func (s *storageZfs) StoragePoolVolumeUpdate(changedConfig []string) error {
 
 	if shared.StringInSlice("size", changedConfig) {
 		return fmt.Errorf("The \"size\" property cannot be changed.")
-	}
-
-	if shared.StringInSlice("zfs.use_refquota", changedConfig) {
-		return fmt.Errorf("The \"zfs.use_refquota\" property cannot be changed.")
 	}
 
 	if shared.StringInSlice("zfs.remove_snapshots", changedConfig) {
@@ -840,7 +832,7 @@ func (s *storageZfs) ContainerSetQuota(container container, size int64) error {
 	fs := fmt.Sprintf("containers/%s", container.Name())
 
 	property := "quota"
-	if shared.IsTrue(s.volume.Config["zfs.use_refquota"]) {
+	if shared.IsTrue(s.pool.Config["volume.zfs.use_refquota"]) {
 		property = "refquota"
 	}
 
