@@ -50,8 +50,6 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 	if config["source"] == "" {
 		if driver == "dir" {
 			config["source"] = filepath.Join(shared.VarPath("storage-pools"), name)
-		} else if driver != "lvm" {
-			config["source"] = filepath.Join(shared.VarPath("disks"), name)
 		}
 	}
 
@@ -144,11 +142,6 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 	}
 
 	if driver == "lvm" {
-		if config["lvm.vg_name"] == "" {
-			// Default is to set this to the pool name if empty.
-			config["lvm.vg_name"] = name
-		}
-
 		if config["lvm.thinpool_name"] == "" {
 			config["lvm.thinpool_name"] = "LXDThinpool"
 		}
