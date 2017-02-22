@@ -508,6 +508,11 @@ func (s *storageBtrfs) SetStoragePoolVolumeWritable(writable *api.StorageVolumeP
 }
 
 // Functions dealing with container storage.
+func (s *storageBtrfs) ContainerStorageReady(name string) bool {
+	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	return isBtrfsSubVolume(containerMntPoint)
+}
+
 func (s *storageBtrfs) ContainerCreate(container container) error {
 	_, err := s.StoragePoolMount()
 	if err != nil {

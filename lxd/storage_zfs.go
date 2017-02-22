@@ -406,6 +406,12 @@ func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 }
 
 // Things we do have to care about
+func (s *storageZfs) ContainerStorageReady(name string) bool {
+	poolName := s.getOnDiskPoolName()
+	fs := fmt.Sprintf("%s/containers/%s", poolName, name)
+	return s.zfsFilesystemEntityExists(fs, false)
+}
+
 func (s *storageZfs) ContainerCreate(container container) error {
 	containerPath := container.Path()
 	containerName := container.Name()
