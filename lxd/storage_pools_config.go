@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -45,12 +44,6 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 	}(driver)
 	if err != nil {
 		return err
-	}
-
-	if config["source"] == "" {
-		if driver == "dir" {
-			config["source"] = filepath.Join(shared.VarPath("storage-pools"), name)
-		}
 	}
 
 	for key, val := range config {
