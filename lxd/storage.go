@@ -243,6 +243,7 @@ type storage interface {
 	ContainerGetUsage(container container) (int64, error)
 	ContainerPoolGet() string
 	ContainerPoolIDGet() int64
+	ContainerStorageReady(name string) bool
 
 	ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error
 	ContainerSnapshotDelete(snapshotContainer container) error
@@ -835,6 +836,10 @@ func (lw *storageLogWrapper) ContainerPoolGet() string {
 
 func (lw *storageLogWrapper) ContainerPoolIDGet() int64 {
 	return lw.w.ContainerPoolIDGet()
+}
+
+func (lw *storageLogWrapper) ContainerStorageReady(name string) bool {
+	return lw.w.ContainerStorageReady(name)
 }
 
 func (lw *storageLogWrapper) ContainerCreate(container container) error {

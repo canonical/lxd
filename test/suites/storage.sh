@@ -16,6 +16,10 @@ test_storage() {
     # Create loop file zfs pool.
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" zfs
 
+      # Check that we can't create a loop file in a non-LXD owned location.
+      INVALID_LOOP_FILE="$(mktemp -p "${LXD_DIR}" XXXXXXXXX)-invalid-loop-file"
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" zfs source="${INVALID_LOOP_FILE}"
+
       # Let LXD use an already existing dataset.
       zfs create -p -o mountpoint=none "lxdtest-$(basename "${LXD_DIR}")-pool1/existing-dataset-as-pool"
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool7" zfs source="lxdtest-$(basename "${LXD_DIR}")-pool1/existing-dataset-as-pool"
@@ -73,7 +77,7 @@ test_storage() {
       pvcreate "${loop_device_7}"
       vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3" "${loop_device_7}"
       # Reuse existing volume group "dummy_vg_3" on existing physical volume.
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3" volume.size=25MB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm source="${loop_device_7}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3"
 
       configure_lvm_loop_device loop_file_8 loop_device_8
       # shellcheck disable=SC2154

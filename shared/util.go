@@ -264,11 +264,13 @@ func WriteAllBuf(w io.Writer, buf *bytes.Buffer) error {
 // FileMove tries to move a file by using os.Rename,
 // if that fails it tries to copy the file and remove the source.
 func FileMove(oldPath string, newPath string) error {
-	if err := os.Rename(oldPath, newPath); err == nil {
+	err := os.Rename(oldPath, newPath)
+	if err == nil {
 		return nil
 	}
 
-	if err := FileCopy(oldPath, newPath); err != nil {
+	err = FileCopy(oldPath, newPath)
+	if err != nil {
 		return err
 	}
 

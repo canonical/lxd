@@ -748,22 +748,24 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 
 func containerConfigureInternal(c container) error {
 	// Find the root device
-	for _, m := range c.ExpandedDevices() {
-		if m["type"] != "disk" || m["path"] != "/" || m["size"] == "" {
-			continue
-		}
+	localDevices := c.LocalDevices()
+	_, rootDiskDevice := containerGetRootDiskDevice(localDevices)
+	if rootDiskDevice["pool"] == "" {
+		expandedDevices := c.ExpandedDevices()
+		_, rootDiskDevice = containerGetRootDiskDevice(expandedDevices)
+	}
 
-		size, err := shared.ParseByteSizeString(m["size"])
+	if rootDiskDevice["size"] != "" {
+		size, err := shared.ParseByteSizeString(rootDiskDevice["size"])
 		if err != nil {
 			return err
 		}
 
+		// Storage is guaranteed to be ready.
 		err = c.Storage().ContainerSetQuota(c, size)
 		if err != nil {
 			return err
 		}
-
-		break
 	}
 
 	err := writeBackupFile(c)
