@@ -55,6 +55,14 @@ func getContainerUmountLockID(poolName string, containerName string) string {
 	return fmt.Sprintf("umount/container/%s/%s", poolName, containerName)
 }
 
+func getCustomMountLockID(poolName string, volumeName string) string {
+	return fmt.Sprintf("mount/custom/%s/%s", poolName, volumeName)
+}
+
+func getCustomUmountLockID(poolName string, volumeName string) string {
+	return fmt.Sprintf("umount/custom/%s/%s", poolName, volumeName)
+}
+
 // Filesystem magic numbers
 const (
 	filesystemSuperMagicTmpfs = 0x01021994
