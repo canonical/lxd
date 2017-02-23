@@ -182,7 +182,7 @@ func (s *storageLvm) getLvmBlockMountOptions() string {
 		return s.pool.Config["volume.block.mount_options"]
 	}
 
-	return ""
+	return "discard"
 }
 
 func (s *storageLvm) getLvmFilesystem() string {
