@@ -80,6 +80,7 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 			config["block.filesystem"] = parentPool.Config["volume.block.filesystem"]
 		}
 		if config["block.filesystem"] == "" {
+			// Unchangeable volume property: Set unconditionally.
 			config["block.filesystem"] = "ext4"
 		}
 
@@ -88,6 +89,7 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 		}
 
 		if config["size"] == "0" || config["size"] == "" {
+			// Unchangeable volume property: Set unconditionally.
 			sz, err := shared.ParseByteSizeString("10GB")
 			if err != nil {
 				return err
@@ -105,9 +107,6 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 			config["size"] = strconv.FormatUint(uint64(size), 10)
 		}
 
-		if config["size"] == "" {
-			config["size"] = parentPool.Config["volume.size"]
-		}
 	}
 
 	return nil
