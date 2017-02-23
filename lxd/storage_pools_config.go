@@ -129,29 +129,13 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 	}
 
 	if driver == "lvm" {
-		if config["lvm.thinpool_name"] == "" {
-			config["lvm.thinpool_name"] = "LXDThinpool"
-		}
-
-		if config["volume.block.filesystem"] == "" {
-			config["volume.block.filesystem"] = "ext4"
-		}
-
-		if config["volume.block.mount_options"] == "" {
-			config["volume.block.mount_options"] = "discard"
-		}
-	}
-
-	if config["volume.size"] == "" {
-		if driver == "lvm" {
-			sz, err := shared.ParseByteSizeString("10GB")
+		if config["volume.size"] != "" {
+			sz, err := shared.ParseByteSizeString(config["size"])
 			if err != nil {
 				return err
 			}
 			size := uint64(sz)
 			config["volume.size"] = strconv.FormatUint(uint64(size), 10)
-		} else {
-			config["volume.size"] = "0"
 		}
 	}
 

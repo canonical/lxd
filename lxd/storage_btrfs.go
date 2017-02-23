@@ -131,6 +131,9 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 			return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
 		}
 	} else {
+		// Unset size property since it doesn't make sense.
+		s.pool.Config["size"] = ""
+
 		if filepath.IsAbs(source) {
 			isBlockDev = shared.IsBlockdevPath(source)
 			if isBlockDev {
