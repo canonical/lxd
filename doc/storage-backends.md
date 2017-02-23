@@ -36,15 +36,66 @@ rsync is used to transfer the container content across.
    all the others due to it having to unpack images or do instant copies of
    containers, snapshots and images.
 
+#### The following commands can be used to create directory storage pools
+
+- Create a new directory pool called "pool1".
+
+```
+lxc storage create pool1 dir
+```
+
 ### Btrfs
 
  - Uses a subvolume per container, image and snapshot, creating btrfs snapshots when creating a new object.
  - When using for nesting, the host btrfs filesystem must be mounted with the "user\_subvol\_rm\_allowed" mount option.
 
+#### The following commands can be used to create BTRFS storage pools
+
+- Create loop-backed pool named "pool1".
+
+```
+lxc storage create pool1 btrfs
+```
+
+- Create a btrfs subvolume named "pool1" on the btrfs filesystem "/some/path" and use as pool.
+
+```
+lxc storage create pool1 btrfs source=/some/path
+```
+
+
+- Create a new pool called "pool1" on "/dev/sdX".
+
+```
+lxc storage create pool1 zfs source=/dev/sdX
+```
+
+
+
 ### LVM
 
  - Uses LVs for images, then LV snapshots for containers and container snapshots.
  - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
+
+#### The following commands can be used to create LVM storage pools
+
+- Use the existing volume group "my-pool"
+
+```
+lxc storage create pool1 lvm source=my-pool
+```
+
+- Create new pool named "pool1" on "/dev/sdX".
+
+```
+lxc storage create pool1 lvm source=/dev/sdX
+```
+
+- Create new pool on "/dev/sdX" with the volume group name "my-pool".
+
+```
+lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
+```
 
 ### ZFS
 
@@ -71,3 +122,41 @@ rsync is used to transfer the container content across.
  - Note that LXD will assume it has full control over the zfs pool or dataset.
    It is recommended to not maintain any non-LXD owned filesystem entities in
    a LXD zfs pool or dataset since LXD might delete them.
+
+#### The following commands can be used to create ZFS storage pools
+
+- Create a loop-backed pool named "pool1".
+
+```
+lxc storage create pool1 zfs
+```
+
+- Create a loop-backed pool named "pool1" with the on-disk name "my-tank".
+
+```
+lxc storage create pool1 zfs zfs.pool_name=my-tank
+```
+
+- Use the existing pool "my-tank".
+
+```
+lxc storage create pool1 zfs source=my-tank
+```
+
+- Use the existing dataset "my-tank/slice".
+
+```
+lxc storage create pool1 zfs source=my-tank/slice
+```
+
+- Create a new pool called "pool1" on "/dev/sdX".
+
+```
+lxc storage create pool1 zfs source=/dev/sdX
+```
+
+- Create a new pool on "/dev/sdX" with the on-disk name "my-tank".
+
+```
+lxc storage create pool1 zfs source=/dev/sdX zfs.pool_name=my-tank
+```
