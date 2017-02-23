@@ -40,6 +40,7 @@ var patches = []patch{
 	{name: "storage_api_dir_cleanup", run: patchStorageApiDirCleanup},
 	{name: "storage_api_lvm_keys", run: patchStorageApiLvmKeys},
 	{name: "storage_api_keys", run: patchStorageApiKeys},
+	{name: "storage_api_update_storage_configs", run: patchStorageApiUpdateStorageConfigs},
 }
 
 type patch struct {
@@ -1719,6 +1720,156 @@ func patchStorageApiKeys(name string, d *Daemon) error {
 		err = dbStoragePoolUpdate(d.db, poolName, pool.Config)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// In case any of the objects images/containers/snapshots are missing storage
+// volume configuration entries, let's add the defaults.
+func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
+	pools, err := dbStoragePools(d.db)
+	if err != nil {
+		if err == NoSuchObjectError {
+			return nil
+		}
+		shared.LogErrorf("Failed to query database: %s", err)
+		return err
+	}
+
+	for _, poolName := range pools {
+		poolID, pool, err := dbStoragePoolGet(d.db, poolName)
+		if err != nil {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
+		}
+
+		// Make sure that config is not empty.
+		if pool.Config == nil {
+			pool.Config = map[string]string{}
+		}
+
+		// Insert default values.
+		err = storagePoolFillDefault(poolName, pool.Driver, pool.Config)
+		if err != nil {
+			return err
+		}
+
+		// Manually check for erroneously set keys.
+		switch pool.Driver {
+		case "btrfs":
+			// Unset "size" property on non loop-backed pools.
+			if pool.Config["size"] != "" {
+				// Unset if either not an absolute path or not a
+				// loop file.
+				if !filepath.IsAbs(pool.Config["source"]) ||
+					(filepath.IsAbs(pool.Config["source"]) &&
+						!strings.HasSuffix(pool.Config["source"], ".img")) {
+					pool.Config["size"] = ""
+				}
+			}
+		case "dir":
+			// Unset "size" property for all dir backed pools.
+			if pool.Config["size"] != "" {
+				pool.Config["size"] = ""
+			}
+		case "lvm":
+			// Unset "size" property for volume-group level.
+			if pool.Config["size"] != "" {
+				pool.Config["size"] = ""
+			}
+
+			// Unset default values.
+			if pool.Config["volume.block.mount_options"] == "discard" {
+				pool.Config["volume.block.mount_options"] = ""
+			}
+
+			if pool.Config["volume.block.filesystem"] == "ext4" {
+				pool.Config["volume.block.filesystem"] = ""
+			}
+		case "zfs":
+			// Unset default values.
+			if !shared.IsTrue(pool.Config["volume.zfs.use_refquota"]) {
+				pool.Config["volume.zfs.use_refquota"] = ""
+			}
+
+			if !shared.IsTrue(pool.Config["volume.zfs.remove_snapshots"]) {
+				pool.Config["volume.zfs.remove_snapshots"] = ""
+			}
+
+			// Unset "size" property on non loop-backed pools.
+			if pool.Config["size"] != "" && !filepath.IsAbs(pool.Config["source"]) {
+				pool.Config["size"] = ""
+			}
+		}
+
+		// Update the storage pool config.
+		err = dbStoragePoolUpdate(d.db, poolName, pool.Config)
+		if err != nil {
+			return err
+		}
+
+		// Get all storage volumes on the storage pool.
+		volumes, err := dbStoragePoolVolumesGet(d.db, poolID)
+		if err != nil {
+			if err == NoSuchObjectError {
+				continue
+			}
+			return err
+		}
+
+		for _, volume := range volumes {
+			// Make sure that config is not empty.
+			if volume.Config == nil {
+				volume.Config = map[string]string{}
+			}
+
+			// Insert default values.
+			err := storageVolumeFillDefault(volume.Name, volume.Config, pool)
+			if err != nil {
+				return err
+			}
+
+			// Manually check for erroneously set keys.
+			switch pool.Driver {
+			case "btrfs":
+				// Unset "size" property.
+				if volume.Config["size"] != "" {
+					volume.Config["size"] = ""
+				}
+			case "dir":
+				// Unset "size" property for all dir backed pools.
+				if volume.Config["size"] != "" {
+					volume.Config["size"] = ""
+				}
+			case "lvm":
+				// Unset default values.
+				if volume.Config["block.mount_options"] == "discard" {
+					volume.Config["block.mount_options"] = ""
+				}
+			case "zfs":
+				// Unset default values.
+				if !shared.IsTrue(volume.Config["zfs.use_refquota"]) {
+					volume.Config["zfs.use_refquota"] = ""
+				}
+				if !shared.IsTrue(volume.Config["zfs.remove_snapshots"]) {
+					volume.Config["zfs.remove_snapshots"] = ""
+				}
+				// Unset "size" property.
+				if volume.Config["size"] != "" {
+					volume.Config["size"] = ""
+				}
+			}
+
+			// It shouldn't be possible that false volume types
+			// exist in the db, so it's safe to ignore the error.
+			volumeType, _ := storagePoolVolumeTypeNameToType(volume.Type)
+			// Update the volume config.
+			err = dbStoragePoolVolumeUpdate(d.db, volume.Name, volumeType, poolID, volume.Config)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
