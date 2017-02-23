@@ -13,12 +13,12 @@ test_storage_profiles() {
 
     HAS_ZFS="dir"
     if which zfs >/dev/null 2>&1; then
-	    HAS_ZFS="zfs"
+      HAS_ZFS="zfs"
     fi
 
     HAS_BTRFS="dir"
     if which zfs >/dev/null 2>&1; then
-	    HAS_BTRFS="btrfs"
+      HAS_BTRFS="btrfs"
     fi
 
     # shellcheck disable=SC1009
