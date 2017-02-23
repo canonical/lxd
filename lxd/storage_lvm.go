@@ -539,39 +539,88 @@ func (s *storageLvm) StoragePoolVolumeDelete() error {
 
 func (s *storageLvm) StoragePoolVolumeMount() (bool, error) {
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	if shared.IsMountPoint(customPoolVolumeMntPoint) {
-		return false, nil
-	}
-
+	poolName := s.getOnDiskPoolName()
+	mountOptions := s.getLvmBlockMountOptions()
 	lvFsType := s.getLvmFilesystem()
 	volumeType, err := storagePoolVolumeTypeNameToApiEndpoint(s.volume.Type)
 	if err != nil {
 		return false, err
 	}
-
-	poolName := s.getOnDiskPoolName()
 	lvmVolumePath := getLvmDevPath(poolName, volumeType, s.volume.Name)
-	mountOptions := s.getLvmBlockMountOptions()
-	err = tryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, 0, mountOptions)
-	if err != nil {
-		return false, err
+
+	customMountLockID := getCustomMountLockID(s.pool.Name, s.volume.Name)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[customMountLockID]; ok {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			s.log.Warn("Received value over semaphore. This should not have happened.")
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in mounting the storage volume.
+		return false, nil
 	}
 
-	return true, nil
+	lxdStorageOngoingOperationMap[customMountLockID] = make(chan bool)
+	lxdStorageMapLock.Unlock()
+
+	var customerr error
+	ourMount := false
+	if !shared.IsMountPoint(customPoolVolumeMntPoint) {
+		customerr = tryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, 0, mountOptions)
+		ourMount = true
+	}
+
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[customMountLockID]; ok {
+		close(waitChannel)
+		delete(lxdStorageOngoingOperationMap, customMountLockID)
+	}
+	lxdStorageMapLock.Unlock()
+
+	if customerr != nil {
+		return false, customerr
+	}
+
+	return ourMount, nil
 }
 
 func (s *storageLvm) StoragePoolVolumeUmount() (bool, error) {
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	if !shared.IsMountPoint(customPoolVolumeMntPoint) {
+
+	customUmountLockID := getCustomUmountLockID(s.pool.Name, s.volume.Name)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[customUmountLockID]; ok {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			s.log.Warn("Received value over semaphore. This should not have happened.")
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in unmounting the storage volume.
 		return false, nil
 	}
 
-	err := tryUnmount(customPoolVolumeMntPoint, 0)
-	if err != nil {
-		return false, err
+	lxdStorageOngoingOperationMap[customUmountLockID] = make(chan bool)
+	lxdStorageMapLock.Unlock()
+
+	var customerr error
+	ourUmount := false
+	if shared.IsMountPoint(customPoolVolumeMntPoint) {
+		customerr = tryUnmount(customPoolVolumeMntPoint, 0)
+		ourUmount = true
 	}
 
-	return true, nil
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[customUmountLockID]; ok {
+		close(waitChannel)
+		delete(lxdStorageOngoingOperationMap, customUmountLockID)
+	}
+	lxdStorageMapLock.Unlock()
+
+	if customerr != nil {
+		return false, customerr
+	}
+
+	return ourUmount, nil
 }
 
 func (s *storageLvm) GetStoragePoolWritable() api.StoragePoolPut {
