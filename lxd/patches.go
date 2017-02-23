@@ -534,9 +534,24 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 	poolConfig := map[string]string{}
 	poolConfig["source"] = shared.VarPath("storage-pools", defaultPoolName)
 
+	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig)
+	if err != nil {
+		return err
+	}
+
+	err = storagePoolFillDefault(defaultPoolName, defaultStorageTypeName, poolConfig)
+	if err != nil {
+		return err
+	}
+
 	poolID := int64(-1)
-	_, err := dbStoragePools(d.db)
+	pools, err := dbStoragePools(d.db)
 	if err == nil { // Already exist valid storage pools.
+		// Check if the storage pool already has a db entry.
+		if shared.StringInSlice(defaultPoolName, pools) {
+			shared.LogWarnf("Database already contains a valid entry for the storage pool: %s.", defaultPoolName)
+		}
+
 		// Get the pool ID as we need it for storage volume creation.
 		// (Use a tmp variable as Go's scoping is freaking me out.)
 		tmp, err := dbStoragePoolGetID(d.db, defaultPoolName)
@@ -545,6 +560,14 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 		poolID = tmp
+
+		// Update the pool configuration on a post LXD 2.9.1 instance
+		// that still runs this upgrade code because of a partial
+		// upgrade.
+		err = dbStoragePoolUpdate(d.db, defaultPoolName, poolConfig)
+		if err != nil {
+			return err
+		}
 	} else if err == NoSuchObjectError { // Likely a pristine upgrade.
 		tmp, err := dbStoragePoolCreate(d.db, defaultPoolName, defaultStorageTypeName, poolConfig)
 		if err != nil {
