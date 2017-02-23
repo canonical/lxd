@@ -167,15 +167,20 @@ func createFromNone(d *Daemon, req *api.ContainersPost) Response {
 }
 
 func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
+	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return NotImplemented
 	}
 
+	var c container
+
+	// Parse the architecture name
 	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
-		architecture = 0
+		return BadRequest(err)
 	}
 
+	// Prepare the container creation request
 	args := containerArgs{
 		Architecture: architecture,
 		BaseImage:    req.Source.BaseImage,
@@ -187,79 +192,63 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		Profiles:     req.Profiles,
 	}
 
-	var c container
-	_, _, err = dbImageGet(d.db, req.Source.BaseImage, false, true)
+	// Grab the container's root device if one is specified
+	storagePool := ""
+	storagePoolProfile := ""
 
-	/* Only create a container from an image if we're going to
-	 * rsync over the top of it. In the case of a better file
-	 * transfer mechanism, let's just use that.
-	 *
-	 * TODO: we could invent some negotiation here, where if the
-	 * source and sink both have the same image, we can clone from
-	 * it, but we have to know before sending the snapshot that
-	 * we're sending the whole thing or just a delta from the
-	 * image, so one extra negotiation round trip is needed. An
-	 * alternative is to move actual container object to a later
-	 * point and just negotiate it over the migration control
-	 * socket. Anyway, it'll happen later :)
-	 */
+	localRootDiskDeviceKey, localRootDiskDevice, _ := containerGetRootDiskDevice(req.Devices)
+	if localRootDiskDeviceKey != "" {
+		storagePool = localRootDiskDevice["pool"]
+	}
 
-	localRootDiskDeviceKey, v := containerGetRootDiskDevice(req.Devices)
-	poolForCopyOrMove := ""
 	// Handle copying/moving between two storage-api LXD instances.
-	// FIXME(brauner): Atm, we do not let users target a specific pool to
-	// move to. So when we receive an invalid/non-existing storage pool, we
-	// simply set it to "" and perform the same pool-searching algorithm as
-	// in the non-storage-api to storage-api LXD instance case seen below.
-	// the container will receive on the remote.
-	if localRootDiskDeviceKey != "" && v["pool"] != "" {
-		_, err := dbStoragePoolGetID(d.db, v["pool"])
+	if storagePool != "" {
+		_, err := dbStoragePoolGetID(d.db, storagePool)
 		if err == NoSuchObjectError {
-			v["pool"] = ""
+			storagePool = ""
 		}
 	}
 
-	// Handle copying or moving containers between a non-storage-api and a
-	// storage-api LXD instance.
-	if localRootDiskDeviceKey == "" || localRootDiskDeviceKey != "" && v["pool"] == "" {
-		// Request came without a root disk device or without the pool
-		// property set. Try to retrieve this information from a
-		// profile. (No need to check for conflicting storage pool
-		// properties in the profiles. This will be handled by
-		// containerCreateInternal().)
+	// If we don't have a valid pool yet, look through profiles
+	if storagePool == "" {
 		for _, pName := range req.Profiles {
 			_, p, err := dbProfileGet(d.db, pName)
 			if err != nil {
 				return InternalError(err)
 			}
 
-			k, v := containerGetRootDiskDevice(p.Devices)
+			k, v, _ := containerGetRootDiskDevice(p.Devices)
 			if k != "" && v["pool"] != "" {
-				poolForCopyOrMove = v["pool"]
-				break
+				// Keep going as we want the last one in the profile chain
+				storagePool = v["pool"]
+				storagePoolProfile = pName
 			}
-		}
-		if poolForCopyOrMove == "" {
-			pools, err := dbStoragePools(d.db)
-			if err != nil {
-				return InternalError(err)
-			}
-
-			if len(pools) != 1 {
-				return InternalError(fmt.Errorf("No unique storage pool found."))
-			}
-
-			poolForCopyOrMove = pools[0]
 		}
 	}
 
-	if localRootDiskDeviceKey == "" {
+	// If there is just a single pool in the database, use that
+	if storagePool == "" {
+		pools, err := dbStoragePools(d.db)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		if len(pools) == 1 {
+			storagePool = pools[0]
+		}
+	}
+
+	if storagePool == "" {
+		return BadRequest(fmt.Errorf("Can't find a storage pool for the container to use"))
+	}
+
+	if localRootDiskDeviceKey == "" && storagePoolProfile == "" {
 		// Give the container it's own local root disk device with a
 		// pool property.
 		rootDev := map[string]string{}
 		rootDev["type"] = "disk"
 		rootDev["path"] = "/"
-		rootDev["pool"] = poolForCopyOrMove
+		rootDev["pool"] = storagePool
 		if args.Devices == nil {
 			args.Devices = map[string]map[string]string{}
 		}
@@ -274,29 +263,50 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 			rootDevName = fmt.Sprintf("root%d", i)
 			continue
 		}
+
 		args.Devices["root"] = rootDev
-	} else if args.Devices[localRootDiskDeviceKey]["pool"] == "" {
-		// Give the container's root disk device a pool property.
-		args.Devices[localRootDiskDeviceKey]["pool"] = poolForCopyOrMove
+	} else if localRootDiskDeviceKey != "" && localRootDiskDevice["pool"] == "" {
+		args.Devices[localRootDiskDeviceKey]["pool"] = storagePool
 	}
 
+	/* Only create a container from an image if we're going to
+	 * rsync over the top of it. In the case of a better file
+	 * transfer mechanism, let's just use that.
+	 *
+	 * TODO: we could invent some negotiation here, where if the
+	 * source and sink both have the same image, we can clone from
+	 * it, but we have to know before sending the snapshot that
+	 * we're sending the whole thing or just a delta from the
+	 * image, so one extra negotiation round trip is needed. An
+	 * alternative is to move actual container object to a later
+	 * point and just negotiate it over the migration control
+	 * socket. Anyway, it'll happen later :)
+	 */
+	_, _, err = dbImageGet(d.db, req.Source.BaseImage, false, true)
 	if err != nil {
 		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
 			return InternalError(err)
 		}
 	} else {
+		// Retrieve the future storage pool
 		cM, err := containerLXCLoad(d, args)
 		if err != nil {
 			return InternalError(err)
 		}
 
-		_, err = cM.GetStoragePoolFromDevices()
+		_, rootDiskDevice, err := containerGetRootDiskDevice(cM.ExpandedDevices())
 		if err != nil {
 			return InternalError(err)
 		}
 
-		ps, err := storagePoolInit(d, cM.StoragePool())
+		if rootDiskDevice["pool"] == "" {
+			return BadRequest(fmt.Errorf("The container's root device is missing the pool property."))
+		}
+
+		storagePool = rootDiskDevice["pool"]
+
+		ps, err := storagePoolInit(d, storagePool)
 		if err != nil {
 			return InternalError(err)
 		}

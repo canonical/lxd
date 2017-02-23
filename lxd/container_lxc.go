@@ -210,42 +210,42 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
-	// Retrieve the storage pool we've been given from the container's
-	// devices.
-	storagePool, err := c.GetStoragePoolFromDevices()
+	// Retrieve the container's storage pool
+	_, rootDiskDevice, err := containerGetRootDiskDevice(c.expandedDevices)
 	if err != nil {
+		c.Delete()
 		return nil, err
 	}
-	c.storagePool = storagePool
 
-	// Get the storage pool ID for the container.
+	if rootDiskDevice["pool"] == "" {
+		c.Delete()
+		return nil, fmt.Errorf("The container's root device is missing the pool property.")
+	}
+
+	c.storagePool = rootDiskDevice["pool"]
+
+	// Get the storage pool ID for the container
 	poolID, pool, err := dbStoragePoolGet(d.db, c.storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
 	}
 
-	// Validate the requested storage volume configuration.
+	// Fill in any default volume config
 	volumeConfig := map[string]string{}
-	err = storageVolumeValidateConfig(c.storagePool, volumeConfig, pool)
-	if err != nil {
-		c.Delete()
-		return nil, err
-	}
-
 	err = storageVolumeFillDefault(c.storagePool, volumeConfig, pool)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create a new database entry for the container's storage volume.
+	// Create a new database entry for the container's storage volume
 	_, err = dbStoragePoolVolumeCreate(d.db, args.Name, storagePoolVolumeTypeContainer, poolID, volumeConfig)
 	if err != nil {
 		c.Delete()
 		return nil, err
 	}
 
-	// Initialize the container storage.
+	// Initialize the container storage
 	cStorage, err := storagePoolVolumeContainerCreateInit(d, c.storagePool, args.Name)
 	if err != nil {
 		c.Delete()
@@ -253,21 +253,6 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 	c.storage = cStorage
-
-	// Validate expanded config
-	err = containerValidConfig(d, c.expandedConfig, false, true)
-	if err != nil {
-		c.Delete()
-		shared.LogError("Failed creating container", ctxMap)
-		return nil, err
-	}
-
-	err = containerValidDevices(c.expandedDevices, false, true)
-	if err != nil {
-		c.Delete()
-		shared.LogError("Failed creating container", ctxMap)
-		return nil, err
-	}
 
 	// Setup initial idmap config
 	var idmap *shared.IdmapSet
@@ -1384,22 +1369,6 @@ func (c *containerLXC) initLXC() error {
 	c.c = cc
 
 	return nil
-}
-
-// Initialize the storage pool for this container: The devices of the container
-// are inspected for a suitable storage pool. This function is called by
-// containerLXCCreate() to detect a suitable storage pool.
-func (c *containerLXC) GetStoragePoolFromDevices() (string, error) {
-	_, rootDiskDevice := containerGetRootDiskDevice(c.localDevices)
-	if rootDiskDevice["pool"] == "" {
-		_, rootDiskDevice = containerGetRootDiskDevice(c.expandedDevices)
-	}
-	if rootDiskDevice["pool"] == "" {
-		return "", fmt.Errorf("No storage pool found in the containers devices.")
-	}
-
-	c.storagePool = rootDiskDevice["pool"]
-	return c.storagePool, nil
 }
 
 // This function is called on all non-create operations where an entry for the
@@ -2713,16 +2682,15 @@ func (c *containerLXC) Delete() error {
 
 	shared.LogInfo("Deleting container", ctxMap)
 
-	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
-	if err != nil {
-		return err
-	}
+	// Attempt to initialize storage interface for the container.
+	c.initStorageInterface()
 
 	if c.IsSnapshot() {
 		// Remove the snapshot
-		if err := c.storage.ContainerSnapshotDelete(c); err != nil {
-			shared.LogWarn("Failed to delete snapshot", log.Ctx{"name": c.Name(), "err": err})
+		if c.storage != nil {
+			if err := c.storage.ContainerSnapshotDelete(c); err != nil {
+				shared.LogWarn("Failed to delete snapshot", log.Ctx{"name": c.Name(), "err": err})
+			}
 		}
 	} else {
 		// Remove all snapshot
@@ -2734,7 +2702,7 @@ func (c *containerLXC) Delete() error {
 		c.cleanup()
 
 		// Delete the container from disk
-		if shared.PathExists(c.Path()) {
+		if shared.PathExists(c.Path()) && c.storage != nil {
 			if err := c.storage.ContainerDelete(c); err != nil {
 				shared.LogError("Failed deleting container storage", ctxMap)
 				return err
@@ -2743,19 +2711,23 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Remove the database record
-	if err = dbContainerRemove(c.daemon.db, c.Name()); err != nil {
+	if err := dbContainerRemove(c.daemon.db, c.Name()); err != nil {
 		shared.LogError("Failed deleting container entry", ctxMap)
 		return err
 	}
 
-	// Get the name of the storage pool the container is attached to. This
-	// reverse-engineering works because container names are globally
-	// unique.
-	poolID := c.storage.ContainerPoolIDGet()
-	// Remove volume from storage pool.
-	err = dbStoragePoolVolumeDelete(c.daemon.db, c.Name(), storagePoolVolumeTypeContainer, poolID)
-	if err != nil {
-		return err
+	// Remove the database entry for the pool device
+	if c.storage != nil {
+		// Get the name of the storage pool the container is attached to. This
+		// reverse-engineering works because container names are globally
+		// unique.
+		poolID := c.storage.ContainerPoolIDGet()
+
+		// Remove volume from storage pool.
+		err := dbStoragePoolVolumeDelete(c.daemon.db, c.Name(), storagePoolVolumeTypeContainer, poolID)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Update network files
@@ -3249,7 +3221,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Retrieve old root disk devices.
-	oldLocalRootDiskDeviceKey, oldLocalRootDiskDevice := containerGetRootDiskDevice(oldLocalDevices)
+	oldLocalRootDiskDeviceKey, oldLocalRootDiskDevice, _ := containerGetRootDiskDevice(oldLocalDevices)
 	var oldProfileRootDiskDevices []string
 	for k, v := range oldExpandedDevices {
 		if isRootDiskDevice(v) && k != oldLocalRootDiskDeviceKey && !shared.StringInSlice(k, oldProfileRootDiskDevices) {
@@ -3258,7 +3230,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Retrieve new root disk devices.
-	newLocalRootDiskDeviceKey, newLocalRootDiskDevice := containerGetRootDiskDevice(c.localDevices)
+	newLocalRootDiskDeviceKey, newLocalRootDiskDevice, _ := containerGetRootDiskDevice(c.localDevices)
 	var newProfileRootDiskDevices []string
 	for k, v := range c.expandedDevices {
 		if isRootDiskDevice(v) && k != newLocalRootDiskDeviceKey && !shared.StringInSlice(k, newProfileRootDiskDevices) {

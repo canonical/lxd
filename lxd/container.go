@@ -229,14 +229,28 @@ func isRootDiskDevice(device types.Device) bool {
 	return false
 }
 
-func containerGetRootDiskDevice(devices types.Devices) (string, types.Device) {
-	for devName, dev := range devices {
-		if isRootDiskDevice(dev) {
-			return devName, dev
+func containerGetRootDiskDevice(devices types.Devices) (string, types.Device, error) {
+	var devName string
+	var dev types.Device
+
+	count := 0
+	for n, d := range devices {
+		if isRootDiskDevice(d) {
+			count += 1
+			devName = n
+			dev = d
 		}
 	}
 
-	return "", types.Device{}
+	if count == 1 {
+		return devName, dev, nil
+	}
+
+	if count > 1 {
+		return "", types.Device{}, fmt.Errorf("More than one root device found.")
+	}
+
+	return "", types.Device{}, fmt.Errorf("No root device could be found.")
 }
 
 func containerValidDevices(devices types.Devices, profile bool, expanded bool) error {
@@ -330,9 +344,9 @@ func containerValidDevices(devices types.Devices, profile bool, expanded bool) e
 
 	// Checks on the expanded config
 	if expanded {
-		k, _ := containerGetRootDiskDevice(devices)
-		if k == "" {
-			return fmt.Errorf("Container is lacking rootfs entry")
+		_, _, err := containerGetRootDiskDevice(devices)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -447,7 +461,6 @@ type container interface {
 
 	// FIXME: Those should be internal functions
 	// Needed for migration for now.
-	GetStoragePoolFromDevices() (string, error)
 	StorageStart() error
 	StorageStop() error
 	Storage() storage
@@ -681,37 +694,6 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 		}
 	}
 
-	// Check that there are no contradicting root disk devices.
-	var profileRootDiskDevices []string
-	for _, pName := range args.Profiles {
-		_, p, err := dbProfileGet(d.db, pName)
-		if err != nil {
-			return nil, fmt.Errorf("Could not load profile '%s'.", pName)
-		}
-
-		k, v := containerGetRootDiskDevice(p.Devices)
-		if k != "" && v["pool"] == "" {
-			return nil, fmt.Errorf("A root disk device must have the \"pool\" property set.")
-		} else if k != "" && !shared.StringInSlice(k, profileRootDiskDevices) {
-			profileRootDiskDevices = append(profileRootDiskDevices, k)
-		}
-	}
-
-	k, newLocalRootDiskDevice := containerGetRootDiskDevice(args.Devices)
-	// Check whether container has a local root device with a "pool"
-	// property set.
-	if k != "" && newLocalRootDiskDevice["pool"] == "" {
-		return nil, fmt.Errorf("A root disk device must have the \"pool\" property set.")
-	} else if k == "" {
-		// Check whether the container's profiles provide a unique root
-		// device.
-		if len(profileRootDiskDevices) == 0 {
-			return nil, fmt.Errorf("Container relies on profile's root disk device but none was found")
-		} else if len(profileRootDiskDevices) > 1 {
-			return nil, fmt.Errorf("Container relies on profile's root disk device but conflicting devices were found")
-		}
-	}
-
 	// Create the container entry
 	id, err := dbContainerCreate(d.db, args)
 	if err != nil {
@@ -738,6 +720,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	args.CreationDate = dbArgs.CreationDate
 	args.LastUsedDate = dbArgs.LastUsedDate
 
+	// Setup the container struct and finish creation (storage and idmap)
 	c, err := containerLXCCreate(d, args)
 	if err != nil {
 		return nil, err
@@ -748,11 +731,9 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 
 func containerConfigureInternal(c container) error {
 	// Find the root device
-	localDevices := c.LocalDevices()
-	_, rootDiskDevice := containerGetRootDiskDevice(localDevices)
-	if rootDiskDevice["pool"] == "" {
-		expandedDevices := c.ExpandedDevices()
-		_, rootDiskDevice = containerGetRootDiskDevice(expandedDevices)
+	_, rootDiskDevice, err := containerGetRootDiskDevice(c.ExpandedDevices())
+	if err != nil {
+		return err
 	}
 
 	if rootDiskDevice["size"] != "" {
@@ -768,7 +749,7 @@ func containerConfigureInternal(c container) error {
 		}
 	}
 
-	err := writeBackupFile(c)
+	err = writeBackupFile(c)
 	if err != nil {
 		return err
 	}
