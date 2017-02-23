@@ -233,6 +233,11 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
+	err = storageVolumeFillDefault(c.storagePool, volumeConfig, pool)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create a new database entry for the container's storage volume.
 	_, err = dbStoragePoolVolumeCreate(d.db, args.Name, storagePoolVolumeTypeContainer, poolID, volumeConfig)
 	if err != nil {

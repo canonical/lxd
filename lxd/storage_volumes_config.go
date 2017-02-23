@@ -69,11 +69,6 @@ func storageVolumeValidateConfig(name string, config map[string]string, parentPo
 		}
 	}
 
-	err := storageVolumeFillDefault(name, config, parentPool)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
