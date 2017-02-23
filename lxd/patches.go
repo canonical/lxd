@@ -1227,11 +1227,12 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 			}
 
 			// Check for a root disk device entry
-			k, _ := containerGetRootDiskDevice(p.Devices)
+			k, _, _ := containerGetRootDiskDevice(p.Devices)
 			if k != "" {
 				if p.Devices[k]["pool"] != "" {
 					continue
 				}
+
 				p.Devices[k]["pool"] = poolName
 			} else if k == "" && pName == "default" {
 				// The default profile should have a valid root
@@ -1295,9 +1296,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 		}
 	}
 
-	// When no default profile is detected or some containers do not rely on
-	// the default profile for their root disk device, these containers will
-	// be given a valid local root disk device."
+	// Make sure all containers and snapshots have a valid disk configuration
 	for _, ct := range allcontainers {
 		c, err := containerLoadByName(d, ct)
 		if err != nil {
@@ -1320,26 +1319,17 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 			args.Ctype = cTypeRegular
 		}
 
-		// Check expanded devices for a valid root entry. If it exists,
-		// we skip this container.
+		// Check if the container already has a valid root device entry (profile or previous upgrade)
 		expandedDevices := c.ExpandedDevices()
-		k, _ := containerGetRootDiskDevice(expandedDevices)
-		if k != "" && expandedDevices[k]["pool"] != "" {
-			// On partial upgrade the container might already have a
-			// valid root disk device entry.
-			if expandedDevices[k]["pool"] == poolName {
-				continue
-			}
+		k, d, _ := containerGetRootDiskDevice(expandedDevices)
+		if k != "" && d["pool"] != "" {
+			continue
 		}
 
-		// Check for a local root disk device entry and set the pool
-		// property.
+		// Look for a local root device entry
 		localDevices := c.LocalDevices()
-		k, _ = containerGetRootDiskDevice(localDevices)
+		k, d, _ = containerGetRootDiskDevice(localDevices)
 		if k != "" {
-			if localDevices[k]["pool"] != "" {
-				continue
-			}
 			localDevices[k]["pool"] = poolName
 			args.Devices = localDevices
 		} else {
@@ -1352,12 +1342,14 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 			// is currently using under the name "root".
 			rootDevName := "root"
 			for i := 0; i < 100; i++ {
-				if localDevices[rootDevName] == nil {
+				if expandedDevices[rootDevName] == nil {
 					break
 				}
+
 				rootDevName = fmt.Sprintf("root%d", i)
 				continue
 			}
+
 			localDevices[rootDevName] = rootDev
 		}
 
