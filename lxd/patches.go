@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -38,6 +39,7 @@ var patches = []patch{
 	{name: "storage_api_v1", run: patchStorageApiV1},
 	{name: "storage_api_dir_cleanup", run: patchStorageApiDirCleanup},
 	{name: "storage_api_lvm_keys", run: patchStorageApiLvmKeys},
+	{name: "storage_api_keys", run: patchStorageApiKeys},
 }
 
 type patch struct {
@@ -403,24 +405,13 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// readonly snapshots.
 			oldSnapshotMntPoint := shared.VarPath("snapshots", cs)
 			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, cs)
-			err = exec.Command(
-				"btrfs",
-				"subvolume",
-				"snapshot",
-				"-r",
-				oldSnapshotMntPoint,
-				newSnapshotMntPoint).Run()
+			err = btrfsSnapshot(oldSnapshotMntPoint, newSnapshotMntPoint, true)
 			if err != nil {
 				return err
 			}
 
 			// Delete the old subvolume.
-			err = exec.Command(
-				"btrfs",
-				"subvolume",
-				"delete",
-				oldSnapshotMntPoint,
-			).Run()
+			err = btrfsSubVolumesDelete(oldSnapshotMntPoint)
 			if err != nil {
 				return err
 			}
@@ -553,9 +544,18 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
 		if shared.PathExists(oldContainerMntPoint) {
+			// First try to rename.
 			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
-				return err
+				output, err := storageRsyncCopy(oldContainerMntPoint, newContainerMntPoint)
+				if err != nil {
+					shared.LogErrorf("Failed to rsync: %s: %s.", output, err)
+					return err
+				}
+				err = os.RemoveAll(oldContainerMntPoint)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -594,7 +594,15 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		if shared.PathExists(oldSnapshotMntPoint) {
 			err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 			if err != nil {
-				return err
+				output, err := storageRsyncCopy(oldSnapshotMntPoint, newSnapshotMntPoint)
+				if err != nil {
+					shared.LogErrorf("Failed to rsync: %s: %s.", output, err)
+					return err
+				}
+				err = os.RemoveAll(oldSnapshotMntPoint)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -984,7 +992,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		if shared.PathExists(oldLoopFilePath) {
 			// This is a loop file pool.
 			poolConfig["source"] = shared.VarPath("disks", defaultPoolName+".img")
-			err := os.Rename(oldLoopFilePath, poolConfig["source"])
+			err := shared.FileMove(oldLoopFilePath, poolConfig["source"])
 			if err != nil {
 				return err
 			}
@@ -1417,6 +1425,54 @@ func patchStorageApiLvmKeys(name string, d *Daemon) error {
 	_, err = dbExec(d.db, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func patchStorageApiKeys(name string, d *Daemon) error {
+	pools, err := dbStoragePools(d.db)
+	if err != nil && err == NoSuchObjectError {
+		// No pool was configured in the previous update. So we're on a
+		// pristine LXD instance.
+		return nil
+	} else if err != nil {
+		// Database is screwed.
+		shared.LogErrorf("Failed to query database: %s", err)
+		return err
+	}
+
+	for _, poolName := range pools {
+		_, pool, err := dbStoragePoolGet(d.db, poolName)
+		if err != nil {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
+		}
+
+		// We only care about zfs and lvm.
+		if pool.Driver != "zfs" && pool.Driver != "lvm" {
+			continue
+		}
+
+		// This is a loop backed pool.
+		if filepath.IsAbs(pool.Config["source"]) {
+			continue
+		}
+
+		// Ensure that the source and the zfs.pool_name or lvm.vg_name
+		// are lined up. After creation of the pool they should never
+		// differ except in the loop backed case.
+		if pool.Driver == "zfs" {
+			pool.Config["zfs.pool_name"] = pool.Config["source"]
+		} else if pool.Driver == "lvm" {
+			pool.Config["lvm.vg_name"] = pool.Config["source"]
+		}
+
+		// Update the config in the database.
+		err = dbStoragePoolUpdate(d.db, poolName, pool.Config)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

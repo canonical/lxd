@@ -109,6 +109,10 @@ func (s *storageMock) StoragePoolUpdate(changedConfig []string) error {
 	return nil
 }
 
+func (s *storageMock) ContainerStorageReady(name string) bool {
+	return true
+}
+
 func (s *storageMock) ContainerCreate(container container) error {
 	return nil
 }

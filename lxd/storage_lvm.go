@@ -238,23 +238,33 @@ func (s *storageLvm) StoragePoolInit(config map[string]interface{}) (storage, er
 	}
 
 	source := s.pool.Config["source"]
-	s.vgName = s.pool.Config["lvm.vg_name"]
 	s.thinPoolName = s.pool.Config["lvm.thinpool_name"]
+	if s.thinPoolName == "" {
+		// Should actually always be set. But let's be sure.
+		s.thinPoolName = "LXDThinpool"
+	}
+
+	if s.pool.Config["lvm.vg_name"] != "" {
+		s.vgName = s.pool.Config["lvm.vg_name"]
+	}
+
 	if source == "" {
-		// Source property is empty, so the user wants us to reuse an
-		// already existing volume group.
-		s.log.Debug(fmt.Sprintf("Source property of this lvm storage pool empty: Checking that volume group \"lvm.vg_name=%s\" already exists.", s.vgName))
-		ok, err := storageVGExists(s.vgName)
-		if err != nil {
-			// Internal error.
-			return s, err
-		} else if !ok {
-			// Volume group does not exist.
-			return s, fmt.Errorf("The \"source\" property of the storage pool is empty and the \"lvm.vg_name=%s\" volume group does not exist.", s.vgName)
+		return s, fmt.Errorf("Loop backed lvm storage pools are not supported.")
+	} else {
+		if filepath.IsAbs(source) {
+			if !shared.IsBlockdevPath(source) {
+				return s, fmt.Errorf("Loop backed lvm storage pools are not supported.")
+			}
+		} else {
+			ok, err := storageVGExists(source)
+			if err != nil {
+				// Internal error.
+				return s, err
+			} else if !ok {
+				// Volume group does not exist.
+				return s, fmt.Errorf("The requested volume group \"%s\" does not exist.", source)
+			}
 		}
-		s.log.Debug(fmt.Sprintf("Source property of this lvm storage pool empty: Detected that volume group \"lvm.vg_name=%s\" already exists.", s.vgName))
-	} else if filepath.IsAbs(source) && !shared.IsBlockdevPath(source) {
-		return s, fmt.Errorf("Loop backed lvm storage volumes are currently not supported.")
 	}
 
 	return s, nil
@@ -309,8 +319,6 @@ func (s *storageLvm) lvmVersionIsAtLeast(versionString string) (bool, error) {
 func (s *storageLvm) StoragePoolCreate() error {
 	tryUndo := true
 
-	source := s.pool.Config["source"]
-
 	// Create the mountpoint for the storage pool.
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 	err := os.MkdirAll(poolMntPoint, 0711)
@@ -324,65 +332,62 @@ func (s *storageLvm) StoragePoolCreate() error {
 	}()
 
 	poolName := s.getOnDiskPoolName()
-	if filepath.IsAbs(source) {
-		// Check whether we have been given a block device.
-		if !shared.IsBlockdevPath(source) {
-			return fmt.Errorf("Loop backed lvm storage volumes are currently not supported.")
-		}
-
-		// Check if the physical volume already exists.
-		ok, err := storagePVExists(source)
-		if err == nil && !ok {
-			// Create a new lvm physical volume.
-			output, err := exec.Command("pvcreate", source).CombinedOutput()
-			if err != nil {
-				return fmt.Errorf("Failed to create the physical volume for the lvm storage pool: %s.", output)
-			}
-			defer func() {
-				if tryUndo {
-					exec.Command("pvremove", source).Run()
-				}
-			}()
-		}
-
-		ok, err = storageVGExists(poolName)
-		if err == nil && !ok {
-			// Create a volume group on the physical volume.
-			output, err := exec.Command("vgcreate", poolName, source).CombinedOutput()
-			if err != nil {
-				return fmt.Errorf("Failed to create the volume group for the lvm storage pool: %s.", output)
-			}
-		}
-
-		// Set source to volume group name.
-		s.pool.Config["source"] = s.pool.Name
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("Loop backed lvm storage pools are not supported.")
 	} else {
-		vgToCreateOrCheck := ""
-		// The user wants us to reuse an already existing volume group.
-		if source == "" || source == s.vgName && s.vgName != "" && s.thinPoolName != "" {
-			// The user wants us to reuse an already existing volume
-			// group.
-			vgToCreateOrCheck = s.vgName
-			s.pool.Config["source"] = s.vgName
-		} else if source != "" {
-			vgToCreateOrCheck = source
-			// Set lvm.vg_name to the name of the source.
-			s.pool.Config["lvm.vg_name"] = source
-		} else {
-			// Shouldn't happen.
-			return fmt.Errorf("Invalid LVM pool creation request: source=%s, lvm.vg_name=%s, lvm.thinpool_name=%s.",
-				s.pool.Config["source"],
-				s.pool.Config["lvm.vg_name"],
-				s.pool.Config["lvm.thinpool_name"])
-		}
+		if filepath.IsAbs(source) {
+			if !shared.IsBlockdevPath(source) {
+				return fmt.Errorf("Loop backed lvm storage pools are not supported.")
+			}
 
-		ok, err := storageVGExists(vgToCreateOrCheck)
-		if err != nil {
-			// Internal error.
-			return err
-		} else if !ok {
-			// Volume group does not exist.
-			return fmt.Errorf("The requested volume group \"%s\" does not exist.", vgToCreateOrCheck)
+			if s.pool.Config["lvm.vg_name"] == "" {
+				s.pool.Config["lvm.vg_name"] = poolName
+			}
+
+			// Set source to volume group name.
+			s.pool.Config["source"] = poolName
+
+			// Check if the physical volume already exists.
+			ok, err := storagePVExists(source)
+			if err == nil && !ok {
+				// Create a new lvm physical volume.
+				output, err := exec.Command("pvcreate", source).CombinedOutput()
+				if err != nil {
+					return fmt.Errorf("Failed to create the physical volume for the lvm storage pool: %s.", output)
+				}
+				defer func() {
+					if tryUndo {
+						exec.Command("pvremove", source).Run()
+					}
+				}()
+			}
+
+			// Check if the volume group already exists.
+			ok, err = storageVGExists(poolName)
+			if err == nil && !ok {
+				// Create a volume group on the physical volume.
+				output, err := exec.Command("vgcreate", poolName, source).CombinedOutput()
+				if err != nil {
+					return fmt.Errorf("Failed to create the volume group for the lvm storage pool: %s.", output)
+				}
+			}
+		} else {
+			if s.pool.Config["lvm.vg_name"] != "" {
+				// User gave us something weird.
+				return fmt.Errorf("Invalid combination of \"source\" and \"zfs.pool_name\" property.")
+			}
+			s.pool.Config["lvm.vg_name"] = source
+			s.vgName = source
+
+			ok, err := storageVGExists(source)
+			if err != nil {
+				// Internal error.
+				return err
+			} else if !ok {
+				// Volume group does not exist.
+				return fmt.Errorf("The requested volume group \"%s\" does not exist.", source)
+			}
 		}
 	}
 
@@ -604,6 +609,14 @@ func (s *storageLvm) StoragePoolVolumeUpdate(changedConfig []string) error {
 	}
 
 	return nil
+}
+
+func (s *storageLvm) ContainerStorageReady(name string) bool {
+	containerLvmName := containerNameToLVName(name)
+	poolName := s.getOnDiskPoolName()
+	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, containerLvmName)
+	ok, _ := storageLVExists(containerLvmPath)
+	return ok
 }
 
 func (s *storageLvm) ContainerCreate(container container) error {
