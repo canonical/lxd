@@ -163,15 +163,20 @@ func createFromNone(d *Daemon, req *api.ContainersPost) Response {
 }
 
 func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
+	// Validate migration mode
 	if req.Source.Mode != "pull" {
 		return NotImplemented
 	}
 
+	var c container
+
+	// Parse the architecture name
 	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
-		architecture = 0
+		return BadRequest(err)
 	}
 
+	// Prepare the container creation request
 	args := containerArgs{
 		Architecture: architecture,
 		BaseImage:    req.Source.BaseImage,
@@ -182,9 +187,6 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		Name:         req.Name,
 		Profiles:     req.Profiles,
 	}
-
-	var c container
-	_, _, err = dbImageGet(d.db, req.Source.BaseImage, false, true)
 
 	/* Only create a container from an image if we're going to
 	 * rsync over the top of it. In the case of a better file
@@ -199,6 +201,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
+	_, _, err = dbImageGet(d.db, req.Source.BaseImage, false, true)
 	if err == nil && d.Storage.MigrationType() == MigrationFSType_RSYNC {
 		c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
 		if err != nil {
