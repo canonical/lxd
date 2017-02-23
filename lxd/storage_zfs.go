@@ -1355,6 +1355,9 @@ func (s *storageZfs) zfsPoolCreate() error {
 			return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 		}
 	} else {
+		// Unset size property since it doesn't make sense.
+		s.pool.Config["size"] = ""
+
 		if filepath.IsAbs(vdev) {
 			if !shared.IsBlockdevPath(vdev) {
 				return fmt.Errorf("Custom loop file locations are not supported.")
