@@ -31,7 +31,7 @@ lvm_configure() {
 
   echo "==> Configuring lvm backend in ${LXD_DIR}"
 
-  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" lvm source="$(cat "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg")" volume.size=10MB
+  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" lvm source="$(cat "${TEST_DIR}/$(basename "${LXD_DIR}").lvm.vg")" volume.size=25MB
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 }
 
