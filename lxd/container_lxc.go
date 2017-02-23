@@ -1572,7 +1572,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	if !reflect.DeepEqual(idmap, lastIdmap) {
-		shared.LogDebugf("Container idmap changed, remapping: %s => %s", lastIdmap, idmap)
+		shared.LogDebugf("Container idmap changed, remapping")
 
 		err := c.StorageStart()
 		if err != nil {
