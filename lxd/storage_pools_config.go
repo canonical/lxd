@@ -130,7 +130,7 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 
 	if driver == "lvm" {
 		if config["volume.size"] != "" {
-			sz, err := shared.ParseByteSizeString(config["size"])
+			sz, err := shared.ParseByteSizeString(config["volume.size"])
 			if err != nil {
 				return err
 			}
