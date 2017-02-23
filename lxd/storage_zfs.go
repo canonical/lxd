@@ -1338,7 +1338,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 			return fmt.Errorf("Failed to chmod %s: %s", vdev, err)
 		}
 
-		size, err := strconv.ParseInt(s.pool.Config["size"], 10, 64)
+		size, err := shared.ParseByteSizeString(s.pool.Config["size"])
 		if err != nil {
 			return err
 		}

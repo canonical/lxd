@@ -182,7 +182,7 @@ func (s *storageLvm) getLvmBlockMountOptions() string {
 		return s.pool.Config["volume.block.mount_options"]
 	}
 
-	return ""
+	return "discard"
 }
 
 func (s *storageLvm) getLvmFilesystem() string {
@@ -197,9 +197,12 @@ func (s *storageLvm) getLvmFilesystem() string {
 	return "ext4"
 }
 
-func (s *storageLvm) getLvmVolumeSize() string {
-	// Will never be empty.
-	return s.volume.Config["size"]
+func (s *storageLvm) getLvmVolumeSize() (string, error) {
+	sz, err := shared.ParseByteSizeString(s.volume.Config["size"])
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%d", sz), nil
 }
 
 func (s *storageLvm) getLvmThinpoolName() string {
@@ -469,7 +472,10 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 	poolName := s.getOnDiskPoolName()
 	thinPoolName := s.getLvmThinpoolName()
 	lvFsType := s.getLvmFilesystem()
-	lvSize := s.getLvmVolumeSize()
+	lvSize, err := s.getLvmVolumeSize()
+	if lvSize == "" {
+		return err
+	}
 
 	volumeType, err := storagePoolVolumeTypeNameToApiEndpoint(s.volume.Type)
 	if err != nil {
@@ -661,10 +667,13 @@ func (s *storageLvm) ContainerCreate(container container) error {
 	containerLvmName := containerNameToLVName(containerName)
 	thinPoolName := s.getLvmThinpoolName()
 	lvFsType := s.getLvmFilesystem()
-	lvSize := s.getLvmVolumeSize()
+	lvSize, err := s.getLvmVolumeSize()
+	if lvSize == "" {
+		return err
+	}
 
 	poolName := s.getOnDiskPoolName()
-	err := s.createThinLV(poolName, thinPoolName, containerLvmName, lvFsType, lvSize, storagePoolVolumeApiEndpointContainers)
+	err = s.createThinLV(poolName, thinPoolName, containerLvmName, lvFsType, lvSize, storagePoolVolumeApiEndpointContainers)
 	if err != nil {
 		return err
 	}
@@ -1305,9 +1314,12 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	poolName := s.getOnDiskPoolName()
 	thinPoolName := s.getLvmThinpoolName()
 	lvFsType := s.getLvmFilesystem()
-	lvSize := s.getLvmVolumeSize()
+	lvSize, err := s.getLvmVolumeSize()
+	if lvSize == "" {
+		return err
+	}
 
-	err := s.createImageDbPoolVolume(fingerprint)
+	err = s.createImageDbPoolVolume(fingerprint)
 	if err != nil {
 		return err
 	}

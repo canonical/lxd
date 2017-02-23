@@ -641,11 +641,6 @@ func (c *storageCmd) doStoragePoolShow(client *lxd.Client, name string) error {
 		return err
 	}
 
-	sz, err := strconv.ParseUint(pool.Config["size"], 10, 64)
-	if err == nil {
-		pool.Config["size"] = shared.GetByteSizeString(int64(sz), 0)
-	}
-
 	sort.Strings(pool.UsedBy)
 
 	data, err := yaml.Marshal(&pool)
@@ -774,11 +769,6 @@ func (c *storageCmd) doStoragePoolVolumeShow(client *lxd.Client, pool string, vo
 	volumeStruct, err := client.StoragePoolVolumeTypeGet(pool, volName, volType)
 	if err != nil {
 		return err
-	}
-
-	sz, err := strconv.ParseUint(volumeStruct.Config["size"], 10, 64)
-	if err == nil {
-		volumeStruct.Config["size"] = shared.GetByteSizeString(int64(sz), 0)
 	}
 
 	sort.Strings(volumeStruct.UsedBy)
