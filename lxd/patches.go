@@ -1152,6 +1152,19 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	// run into problems. For example, the "zfs.img" file might have already
 	// been moved into ${LXD_DIR}/disks and we might therefore falsely
 	// conclude that we're using an existing storage pool.
+	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig)
+	if err != nil {
+		return err
+	}
+
+	err = storagePoolFillDefault(defaultPoolName, defaultStorageTypeName, poolConfig)
+	if err != nil {
+		return err
+	}
+
+	// Peek into the storage pool database to see whether any storage pools
+	// are already configured. If so, we can assume that a partial upgrade
+	// has been performed and can skip the next steps.
 	poolID := int64(-1)
 	pools, err := dbStoragePools(d.db)
 	if err == nil { // Already exist valid storage pools.
@@ -1172,6 +1185,14 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 		poolID = tmp
+
+		// Update the pool configuration on a post LXD 2.9.1 instance
+		// that still runs this upgrade code because of a partial
+		// upgrade.
+		err = dbStoragePoolUpdate(d.db, defaultPoolName, poolConfig)
+		if err != nil {
+			return err
+		}
 	} else if err == NoSuchObjectError { // Likely a pristine upgrade.
 		if shared.PathExists(oldLoopFilePath) {
 			// This is a loop file pool.
