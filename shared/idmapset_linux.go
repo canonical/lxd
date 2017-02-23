@@ -319,11 +319,6 @@ func (m IdmapSet) ShiftFromNs(uid int, gid int) (int, int) {
 	return m.doShiftIntoNs(uid, gid, "out")
 }
 
-func GetOwner(path string) (int, int, error) {
-	uid, gid, _, _, _, _, err := GetFileStat(path)
-	return uid, gid, err
-}
-
 func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how string) error {
 	// Expand any symlink before the final path component
 	tmp := filepath.Dir(dir)
@@ -335,7 +330,7 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	dir = strings.TrimRight(dir, "/")
 
 	convert := func(path string, fi os.FileInfo, err error) (e error) {
-		uid, gid, err := GetOwner(path)
+		uid, gid, _, _, _, _, err := GetFileStat(path)
 		if err != nil {
 			return err
 		}
