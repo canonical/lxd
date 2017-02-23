@@ -105,6 +105,11 @@ test_storage() {
 
       lxc launch testimage c4pool2 -s "lxdtest-$(basename "${LXD_DIR}")-pool2"
       lxc list -c b c4pool2 | grep "lxdtest-$(basename "${LXD_DIR}")-pool2"
+
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool2" c3pool1
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2
     fi
 
     if which btrfs >/dev/null 2>&1; then
@@ -117,6 +122,11 @@ test_storage() {
       lxc list -c b c7pool3 | grep "lxdtest-$(basename "${LXD_DIR}")-pool3"
       lxc launch testimage c8pool4 -s "lxdtest-$(basename "${LXD_DIR}")-pool4"
       lxc list -c b c8pool4 | grep "lxdtest-$(basename "${LXD_DIR}")-pool4"
+
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool3" c5pool3
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool4" c6pool4
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool3" c7pool3
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4
     fi
 
     lxc init testimage c9pool5 -s "lxdtest-$(basename "${LXD_DIR}")-pool5"
@@ -124,6 +134,9 @@ test_storage() {
 
     lxc launch testimage c11pool5 -s "lxdtest-$(basename "${LXD_DIR}")-pool5"
     lxc list -c b c11pool5 | grep "lxdtest-$(basename "${LXD_DIR}")-pool5"
+
+    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5
+    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5
 
     if which lvdisplay >/dev/null 2>&1; then
       lxc init testimage c10pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
@@ -149,6 +162,15 @@ test_storage() {
 
       lxc launch testimage c12pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
       lxc list -c b c12pool13 | grep "lxdtest-$(basename "${LXD_DIR}")-pool13"
+
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool11" c12pool11
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool12" c10pool12
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool12" c12pool12
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool13" c10pool13
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13
     fi
 
     if which zfs >/dev/null 2>&1; then
@@ -160,6 +182,13 @@ test_storage() {
 
       lxc launch testimage c17pool9 -s "lxdtest-$(basename "${LXD_DIR}")-pool9"
       lxc launch testimage c18pool9 -s "lxdtest-$(basename "${LXD_DIR}")-pool9"
+
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool7" c13pool7
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool7" c14pool7
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool8" c15pool8
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool8" c16pool8
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool9" c17pool9
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9
     fi
 
     if which zfs >/dev/null 2>&1; then
@@ -168,6 +197,11 @@ test_storage() {
 
       lxc delete -f c4pool2
       lxc delete -f c2pool2
+
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool2" c3pool1
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2
     fi
 
     if which btrfs >/dev/null 2>&1; then
@@ -176,10 +210,18 @@ test_storage() {
 
       lxc delete -f c8pool4
       lxc delete -f c6pool4
+
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool3" c5pool3
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool4" c6pool4
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool3" c7pool3
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4
     fi
 
     lxc delete -f c9pool5
     lxc delete -f c11pool5
+
+    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5
+    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5
 
     if which lvdisplay >/dev/null 2>&1; then
       lxc delete -f c10pool6
@@ -193,6 +235,15 @@ test_storage() {
 
       lxc delete -f c10pool13
       lxc delete -f c12pool13
+
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool6"  c12pool6
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool11" c12pool11
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool12" c10pool12
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool12" c12pool12
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool13" c10pool13
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13
     fi
 
     if which zfs >/dev/null 2>&1; then
@@ -204,6 +255,13 @@ test_storage() {
 
       lxc delete -f c17pool9
       lxc delete -f c18pool9
+
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool7" c13pool7
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool7" c14pool7
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool8" c15pool8
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool8" c16pool8
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool9" c17pool9
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9
     fi
 
     lxc image delete testimage
