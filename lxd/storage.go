@@ -716,6 +716,7 @@ func (ss *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	volumeConfig := map[string]string{}
 	_, err := dbStoragePoolVolumeCreate(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID, volumeConfig)
 	if err != nil {
+		dbStoragePoolVolumeDelete(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID)
 		return err
 	}
 
