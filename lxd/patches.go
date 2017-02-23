@@ -662,9 +662,22 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, defaultStorageTypeName string, cRegular []string, cSnapshots []string, imgPublic []string, imgPrivate []string) error {
 	poolConfig := map[string]string{}
 	poolConfig["source"] = defaultPoolName
-	poolConfig["volume.lvm.thinpool_name"] = daemonConfig["storage.lvm_thinpool_name"].Get()
-	poolConfig["volume.block.filesystem"] = daemonConfig["storage.lvm_fstype"].Get()
-	poolConfig["volume.block.mount_options"] = daemonConfig["storage.lvm_mount_options"].Get()
+
+	// Set it only if it is not the default value.
+	fsType := daemonConfig["storage.lvm_fstype"].Get()
+	if fsType != "" && fsType != "ext4" {
+		poolConfig["volume.block.filesystem"] = fsType
+	}
+
+	// Set it only if it is not the default value.
+	fsMntOpts := daemonConfig["storage.lvm_mount_options"].Get()
+	if fsMntOpts != "" && fsMntOpts != "discard" {
+		poolConfig["volume.block.mount_options"] = fsMntOpts
+	}
+
+	poolConfig["volume.size"] = daemonConfig["storage.lvm_volume_size"].Get()
+	poolConfig["lvm.thinpool_name"] = daemonConfig["storage.lvm_thinpool_name"].Get()
+	poolConfig["lvm.vg_name"] = daemonConfig["storage.lvm_vg_name"].Get()
 
 	// Get size of the volume group.
 	output, err := tryExec("vgs", "--nosuffix", "--units", "g", "--noheadings", "-o", "size", defaultPoolName)
@@ -680,12 +693,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	szInt64 := shared.Round(szFloat)
 	poolConfig["size"] = fmt.Sprintf("%dGB", szInt64)
 
-	err = storagePoolValidateConfig(defaultPoolName, "lvm", poolConfig)
+	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig)
 	if err != nil {
 		return err
 	}
 
-	err = storagePoolFillDefault(defaultPoolName, "lvm", poolConfig)
+	err = storagePoolFillDefault(defaultPoolName, defaultStorageTypeName, poolConfig)
 	if err != nil {
 		return err
 	}
@@ -709,6 +722,14 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 		poolID = tmp
+
+		// Update the pool configuration on a post LXD 2.9.1 instance
+		// that still runs this upgrade code because of a partial
+		// upgrade.
+		err = dbStoragePoolUpdate(d.db, defaultPoolName, poolConfig)
+		if err != nil {
+			return err
+		}
 	} else if err == NoSuchObjectError { // Likely a pristine upgrade.
 		tmp, err := dbStoragePoolCreate(d.db, defaultPoolName, defaultStorageTypeName, poolConfig)
 		if err != nil {
