@@ -324,21 +324,19 @@ func containerGetRootDiskDevice(devices types.Devices) (string, types.Device, er
 	var devName string
 	var dev types.Device
 
-	count := 0
 	for n, d := range devices {
 		if isRootDiskDevice(d) {
-			count += 1
+			if devName != "" {
+				return "", types.Device{}, fmt.Errorf("More than one root device found.")
+			}
+
 			devName = n
 			dev = d
 		}
 	}
 
-	if count == 1 {
+	if devName != "" {
 		return devName, dev, nil
-	}
-
-	if count > 1 {
-		return "", types.Device{}, fmt.Errorf("More than one root device found.")
 	}
 
 	return "", types.Device{}, fmt.Errorf("No root device could be found.")
