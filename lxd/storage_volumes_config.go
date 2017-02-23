@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/lxc/lxd/shared"
@@ -90,21 +89,19 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 
 		if config["size"] == "0" || config["size"] == "" {
 			// Unchangeable volume property: Set unconditionally.
-			sz, err := shared.ParseByteSizeString("10GB")
+			_, err := shared.ParseByteSizeString("10GB")
 			if err != nil {
 				return err
 			}
-			size := uint64(sz)
-			config["size"] = strconv.FormatUint(uint64(size), 10)
+			config["size"] = "10GB"
 		}
 	} else {
 		if config["size"] != "" {
-			sz, err := shared.ParseByteSizeString("10GB")
+			_, err := shared.ParseByteSizeString("10GB")
 			if err != nil {
 				return err
 			}
-			size := uint64(sz)
-			config["size"] = strconv.FormatUint(uint64(size), 10)
+			config["size"] = "10GB"
 		}
 
 	}

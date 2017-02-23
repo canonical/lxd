@@ -101,7 +101,6 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 
 func storagePoolFillDefault(name string, driver string, config map[string]string) error {
 	if driver != "dir" {
-		var size uint64
 		if config["size"] == "" {
 			st := syscall.Statfs_t{}
 			err := syscall.Statfs(shared.VarPath(), &st)
@@ -110,22 +109,20 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 			}
 
 			/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
-			gb := uint64(1024 * 1024 * 1024)
-			size = uint64(st.Frsize) * st.Blocks / 5
-			if (size / gb) > 100 {
-				size = 100 * gb
+			size := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
+			if size > 100 {
+				size = 100
 			}
-			if (size / gb) < 15 {
-				size = 15 * gb
+			if size < 15 {
+				size = 15
 			}
+			config["size"] = strconv.FormatUint(uint64(size), 10) + "GB"
 		} else {
-			sz, err := shared.ParseByteSizeString(config["size"])
+			_, err := shared.ParseByteSizeString(config["size"])
 			if err != nil {
 				return err
 			}
-			size = uint64(sz)
 		}
-		config["size"] = strconv.FormatUint(uint64(size), 10)
 	}
 
 	if driver == "lvm" {
@@ -135,12 +132,10 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 		}
 
 		if config["volume.size"] != "" {
-			sz, err := shared.ParseByteSizeString(config["volume.size"])
+			_, err := shared.ParseByteSizeString(config["volume.size"])
 			if err != nil {
 				return err
 			}
-			size := uint64(sz)
-			config["volume.size"] = strconv.FormatUint(uint64(size), 10)
 		}
 	}
 
