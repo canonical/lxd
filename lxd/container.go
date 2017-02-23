@@ -377,6 +377,25 @@ func containerValidDevices(devices types.Devices, profile bool, expanded bool) e
 			if m["path"] == "" {
 				return fmt.Errorf("Unix device entry is missing the required \"path\" property.")
 			}
+
+			if m["major"] == "" || m["minor"] == "" {
+				if !shared.PathExists(m["path"]) {
+					return fmt.Errorf("The device path doesn't exist on the host and major/minor wasn't specified.")
+				}
+
+				dType, _, _, err := deviceGetAttributes(m["path"])
+				if err != nil {
+					return err
+				}
+
+				if m["type"] == "unix-char" && dType != "c" {
+					return fmt.Errorf("Path specified for unix-char device is a block device.")
+				}
+
+				if m["type"] == "unix-block" && dType != "b" {
+					return fmt.Errorf("Path specified for unix-block device is a character device.")
+				}
+			}
 		} else if m["type"] == "none" {
 			continue
 		} else {
