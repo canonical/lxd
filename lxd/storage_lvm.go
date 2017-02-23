@@ -173,6 +173,43 @@ type storageLvm struct {
 	storageShared
 }
 
+func (s *storageLvm) getLvmBlockMountOptions() string {
+	if s.volume.Config["block.mount_options"] != "" {
+		return s.volume.Config["block.mount_options"]
+	}
+
+	if s.pool.Config["volume.block.mount_options"] != "" {
+		return s.pool.Config["volume.block.mount_options"]
+	}
+
+	return ""
+}
+
+func (s *storageLvm) getLvmFilesystem() string {
+	if s.volume.Config["block.filesystem"] != "" {
+		return s.volume.Config["block.filesystem"]
+	}
+
+	if s.pool.Config["volume.block.filesystem"] != "" {
+		return s.pool.Config["volume.block.filesystem"]
+	}
+
+	return "ext4"
+}
+
+func (s *storageLvm) getLvmVolumeSize() string {
+	// Will never be empty.
+	return s.volume.Config["size"]
+}
+
+func (s *storageLvm) getLvmThinpoolName() string {
+	if s.pool.Config["lvm.thinpool_name"] != "" {
+		return s.pool.Config["lvm.thinpool_name"]
+	}
+
+	return "LXDThinpool"
+}
+
 func (s *storageLvm) getOnDiskPoolName() string {
 	if s.vgName != "" {
 		return s.vgName
@@ -238,11 +275,7 @@ func (s *storageLvm) StoragePoolInit(config map[string]interface{}) (storage, er
 	}
 
 	source := s.pool.Config["source"]
-	s.thinPoolName = s.pool.Config["lvm.thinpool_name"]
-	if s.thinPoolName == "" {
-		// Should actually always be set. But let's be sure.
-		s.thinPoolName = "LXDThinpool"
-	}
+	s.thinPoolName = s.getLvmThinpoolName()
 
 	if s.pool.Config["lvm.vg_name"] != "" {
 		s.vgName = s.pool.Config["lvm.vg_name"]
@@ -331,6 +364,8 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 	}()
 
+	// Clear size as we're currently not using it for LVM.
+	s.pool.Config["size"] = ""
 	poolName := s.getOnDiskPoolName()
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -432,9 +467,9 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 	tryUndo := true
 
 	poolName := s.getOnDiskPoolName()
-	thinPoolName := s.pool.Config["lvm.thinpool_name"]
-	lvFsType := s.volume.Config["block.filesystem"]
-	lvSize := s.volume.Config["size"]
+	thinPoolName := s.getLvmThinpoolName()
+	lvFsType := s.getLvmFilesystem()
+	lvSize := s.getLvmVolumeSize()
 
 	volumeType, err := storagePoolVolumeTypeNameToApiEndpoint(s.volume.Type)
 	if err != nil {
@@ -502,7 +537,7 @@ func (s *storageLvm) StoragePoolVolumeMount() (bool, error) {
 		return false, nil
 	}
 
-	lvFsType := s.volume.Config["block.filesystem"]
+	lvFsType := s.getLvmFilesystem()
 	volumeType, err := storagePoolVolumeTypeNameToApiEndpoint(s.volume.Type)
 	if err != nil {
 		return false, err
@@ -510,7 +545,7 @@ func (s *storageLvm) StoragePoolVolumeMount() (bool, error) {
 
 	poolName := s.getOnDiskPoolName()
 	lvmVolumePath := getLvmDevPath(poolName, volumeType, s.volume.Name)
-	mountOptions := s.volume.Config["block.mount_options"]
+	mountOptions := s.getLvmBlockMountOptions()
 	err = tryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, 0, mountOptions)
 	if err != nil {
 		return false, err
@@ -624,9 +659,9 @@ func (s *storageLvm) ContainerCreate(container container) error {
 
 	containerName := container.Name()
 	containerLvmName := containerNameToLVName(containerName)
-	thinPoolName := s.pool.Config["lvm.thinpool_name"]
-	lvFsType := s.volume.Config["block.filesystem"]
-	lvSize := s.volume.Config["size"]
+	thinPoolName := s.getLvmThinpoolName()
+	lvFsType := s.getLvmFilesystem()
+	lvSize := s.getLvmVolumeSize()
 
 	poolName := s.getOnDiskPoolName()
 	err := s.createThinLV(poolName, thinPoolName, containerLvmName, lvFsType, lvSize, storagePoolVolumeApiEndpointContainers)
@@ -732,7 +767,7 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	}
 
 	// Generate a new xfs's UUID
-	lvFsType := s.volume.Config["block.filesystem"]
+	lvFsType := s.getLvmFilesystem()
 	if lvFsType == "xfs" {
 		err := xfsGenerateNewUUID(containerLvSnapshotPath)
 		if err != nil {
@@ -896,10 +931,10 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 
 func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 	containerLvmName := containerNameToLVName(name)
-	lvFsType := s.volume.Config["block.filesystem"]
+	lvFsType := s.getLvmFilesystem()
 	poolName := s.getOnDiskPoolName()
 	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, containerLvmName)
-	mountOptions := s.volume.Config["block.mount_options"]
+	mountOptions := s.getLvmBlockMountOptions()
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 
 	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
@@ -1213,9 +1248,9 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 		}
 	}()
 
-	lvFsType := s.volume.Config["block.filesystem"]
+	lvFsType := s.getLvmFilesystem()
 	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, tmpTargetLvmName)
-	mountOptions := s.volume.Config["block.mount_options"]
+	mountOptions := s.getLvmBlockMountOptions()
 	containerMntPoint := getSnapshotMountPoint(s.pool.Name, sourceName)
 
 	// Generate a new xfs's UUID
@@ -1268,9 +1303,9 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	tryUndo := true
 
 	poolName := s.getOnDiskPoolName()
-	thinPoolName := s.pool.Config["lvm.thinpool_name"]
-	lvFsType := s.volume.Config["block.filesystem"]
-	lvSize := s.volume.Config["size"]
+	thinPoolName := s.getLvmThinpoolName()
+	lvFsType := s.getLvmFilesystem()
+	lvSize := s.getLvmVolumeSize()
 
 	err := s.createImageDbPoolVolume(fingerprint)
 	if err != nil {
@@ -1350,19 +1385,14 @@ func (s *storageLvm) ImageMount(fingerprint string) (bool, error) {
 	}
 
 	// Shouldn't happen.
-	lvmFstype := s.volume.Config["block.filesystem"]
+	lvmFstype := s.getLvmFilesystem()
 	if lvmFstype == "" {
 		return false, fmt.Errorf("No filesystem type specified.")
 	}
 
 	poolName := s.getOnDiskPoolName()
 	lvmVolumePath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointImages, fingerprint)
-	lvmMountOptions := s.volume.Config["block.mount_options"]
-	// Shouldn't be necessary since it should be validated in the config
-	// checks.
-	if lvmFstype == "ext4" && lvmMountOptions == "" {
-		lvmMountOptions = "discard"
-	}
+	lvmMountOptions := s.getLvmBlockMountOptions()
 
 	err := tryMount(lvmVolumePath, imageMntPoint, lvmFstype, 0, lvmMountOptions)
 	if err != nil {
