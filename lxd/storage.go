@@ -712,10 +712,17 @@ func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
 }
 
 func (ss *storageShared) createImageDbPoolVolume(fingerprint string) error {
-	// Create a db entry for the storage volume of the image.
+	// Fill in any default volume config.
 	volumeConfig := map[string]string{}
-	_, err := dbStoragePoolVolumeCreate(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID, volumeConfig)
+	err := storageVolumeFillDefault(ss.pool.Name, volumeConfig, ss.pool)
 	if err != nil {
+		return err
+	}
+
+	// Create a db entry for the storage volume of the image.
+	_, err = dbStoragePoolVolumeCreate(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID, volumeConfig)
+	if err != nil {
+		// Try to delete the db entry on error.
 		dbStoragePoolVolumeDelete(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID)
 		return err
 	}
