@@ -1229,8 +1229,11 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		return err
 	}
 
-	// Create storage volumes in the database.
-	volumeConfig := map[string]string{}
+	// Get storage pool from the db after having updated it above.
+	_, defaultPool, err := dbStoragePoolGet(d.db, defaultPoolName)
+	if err != nil {
+		return err
+	}
 
 	if len(cRegular) > 0 {
 		containersSubvolumePath := getContainerMountPoint(poolName, "")
@@ -1244,12 +1247,24 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 	failedUpgradeEntities := []string{}
 	for _, ct := range cRegular {
-		_, err := dbStoragePoolVolumeGetTypeID(d.db, ct, storagePoolVolumeTypeContainer, poolID)
+		// Initialize empty storage volume configuration for the
+		// container.
+		containerPoolVolumeConfig := map[string]string{}
+		err = storageVolumeFillDefault(ct, containerPoolVolumeConfig, defaultPool)
+		if err != nil {
+			return err
+		}
+
+		_, err = dbStoragePoolVolumeGetTypeID(d.db, ct, storagePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			shared.LogWarnf("Storage volumes database already contains an entry for the container.")
+			err := dbStoragePoolVolumeUpdate(d.db, ct, storagePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig)
+			if err != nil {
+				return err
+			}
 		} else if err == NoSuchObjectError {
 			// Insert storage volumes for containers into the database.
-			_, err := dbStoragePoolVolumeCreate(d.db, ct, storagePoolVolumeTypeContainer, poolID, volumeConfig)
+			_, err := dbStoragePoolVolumeCreate(d.db, ct, storagePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig)
 			if err != nil {
 				shared.LogErrorf("Could not insert a storage volume for container \"%s\".", ct)
 				return err
@@ -1315,12 +1330,24 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			// Insert storage volumes for snapshots into the
 			// database. Note that snapshots have already been moved
 			// and symlinked above. So no need to do any work here.
-			_, err := dbStoragePoolVolumeGetTypeID(d.db, cs, storagePoolVolumeTypeContainer, poolID)
+			// Initialize empty storage volume configuration for the
+			// container.
+			snapshotPoolVolumeConfig := map[string]string{}
+			err = storageVolumeFillDefault(cs, snapshotPoolVolumeConfig, defaultPool)
+			if err != nil {
+				return err
+			}
+
+			_, err = dbStoragePoolVolumeGetTypeID(d.db, cs, storagePoolVolumeTypeContainer, poolID)
 			if err == nil {
 				shared.LogWarnf("Storage volumes database already contains an entry for the snapshot.")
+				err := dbStoragePoolVolumeUpdate(d.db, cs, storagePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig)
+				if err != nil {
+					return err
+				}
 			} else if err == NoSuchObjectError {
 				// Insert storage volumes for containers into the database.
-				_, err := dbStoragePoolVolumeCreate(d.db, cs, storagePoolVolumeTypeContainer, poolID, volumeConfig)
+				_, err := dbStoragePoolVolumeCreate(d.db, cs, storagePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig)
 				if err != nil {
 					shared.LogErrorf("Could not insert a storage volume for snapshot \"%s\".", cs)
 					return err
@@ -1361,14 +1388,24 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	// move. The tarballs remain in their original location.
 	images := append(imgPublic, imgPrivate...)
 	for _, img := range images {
-		_, err := dbStoragePoolVolumeGetTypeID(d.db, img, storagePoolVolumeTypeImage, poolID)
+		imagePoolVolumeConfig := map[string]string{}
+		err = storageVolumeFillDefault(img, imagePoolVolumeConfig, defaultPool)
+		if err != nil {
+			return err
+		}
+
+		_, err = dbStoragePoolVolumeGetTypeID(d.db, img, storagePoolVolumeTypeImage, poolID)
 		if err == nil {
 			shared.LogWarnf("Storage volumes database already contains an entry for the image.")
+			err := dbStoragePoolVolumeUpdate(d.db, img, storagePoolVolumeTypeImage, poolID, imagePoolVolumeConfig)
+			if err != nil {
+				return err
+			}
 		} else if err == NoSuchObjectError {
 			// Insert storage volumes for containers into the database.
-			_, err := dbStoragePoolVolumeCreate(d.db, img, storagePoolVolumeTypeImage, poolID, volumeConfig)
+			_, err := dbStoragePoolVolumeCreate(d.db, img, storagePoolVolumeTypeImage, poolID, imagePoolVolumeConfig)
 			if err != nil {
-				shared.LogWarnf("Could not insert a storage volume for image \"%s\".", img)
+				shared.LogErrorf("Could not insert a storage volume for image \"%s\".", img)
 				return err
 			}
 		} else {
