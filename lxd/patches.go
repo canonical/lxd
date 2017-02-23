@@ -809,6 +809,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		}
 		szInt64 := shared.Round(szFloat)
 		poolConfig["volume.size"] = fmt.Sprintf("%dGB", szInt64)
+	} else {
+		// In case stuff like GiB is used which
+		// share.dParseByteSizeString() doesn't handle.
+		if strings.Contains(poolConfig["volume.size"], "i") {
+			poolConfig["volume.size"] = strings.Replace(poolConfig["volume.size"], "i", "", 1)
+		}
 	}
 	// On previous upgrade versions, "size" was set instead of
 	// "volume.size", so unset it.
