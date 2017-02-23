@@ -129,6 +129,11 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 	}
 
 	if driver == "lvm" {
+		if config["lvm.thinpool_name"] == "" {
+			// Unchangeable pool property: Set unconditionally.
+			config["lvm.thinpool_name"] = "LXDThinpool"
+		}
+
 		if config["volume.size"] != "" {
 			sz, err := shared.ParseByteSizeString(config["volume.size"])
 			if err != nil {
