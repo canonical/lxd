@@ -67,16 +67,6 @@ func storageVolumeValidateConfig(name string, config map[string]string, parentPo
 				return fmt.Errorf("The key size cannot be used with dir storage volumes.")
 			}
 		}
-
-		if parentPool.Driver == "lvm" {
-			if config["block.filesystem"] == "" {
-				config["block.filesystem"] = parentPool.Config["volume.block.filesystem"]
-			}
-
-			if config["block.mount_options"] == "" {
-				config["block.mount_options"] = parentPool.Config["volume.block.mount_options"]
-			}
-		}
 	}
 
 	err := storageVolumeFillDefault(name, config, parentPool)
@@ -89,8 +79,15 @@ func storageVolumeValidateConfig(name string, config map[string]string, parentPo
 
 func storageVolumeFillDefault(name string, config map[string]string, parentPool *api.StoragePool) error {
 	if parentPool.Driver == "dir" {
-		config["size"] = "0"
+		config["size"] = ""
 	} else if parentPool.Driver == "lvm" {
+		if config["block.filesystem"] == "" {
+			config["block.filesystem"] = parentPool.Config["volume.block.filesystem"]
+		}
+		if config["block.filesystem"] == "" {
+			config["block.filesystem"] = "ext4"
+		}
+
 		if config["size"] == "0" || config["size"] == "" {
 			config["size"] = parentPool.Config["volume.size"]
 		}
@@ -104,22 +101,17 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 			config["size"] = strconv.FormatUint(uint64(size), 10)
 		}
 	} else {
+		if config["size"] != "" {
+			sz, err := shared.ParseByteSizeString("10GB")
+			if err != nil {
+				return err
+			}
+			size := uint64(sz)
+			config["size"] = strconv.FormatUint(uint64(size), 10)
+		}
+
 		if config["size"] == "" {
 			config["size"] = parentPool.Config["volume.size"]
-		}
-
-		if config["size"] == "" {
-			config["size"] = "0"
-		}
-	}
-
-	if parentPool.Driver == "lvm" {
-		if config["block.filesystem"] == "" {
-			config["block.filesystem"] = "ext4"
-		}
-
-		if config["block.mount_options"] == "" && config["block.filesystem"] == "ext4" {
-			config["block.mount_options"] = "discard"
 		}
 	}
 
