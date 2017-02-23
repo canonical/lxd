@@ -206,6 +206,11 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	err = storageVolumeFillDefault(poolName, req.Config, poolStruct)
+	if err != nil {
+		return BadRequest(err)
+	}
+
 	// Create the database entry for the storage volume.
 	_, err = dbStoragePoolVolumeCreate(d.db, req.Name, volumeType, poolID, req.Config)
 	if err != nil {
