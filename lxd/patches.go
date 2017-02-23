@@ -675,23 +675,28 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		poolConfig["volume.block.mount_options"] = fsMntOpts
 	}
 
-	poolConfig["volume.size"] = daemonConfig["storage.lvm_volume_size"].Get()
 	poolConfig["lvm.thinpool_name"] = daemonConfig["storage.lvm_thinpool_name"].Get()
 	poolConfig["lvm.vg_name"] = daemonConfig["storage.lvm_vg_name"].Get()
 
-	// Get size of the volume group.
-	output, err := tryExec("vgs", "--nosuffix", "--units", "g", "--noheadings", "-o", "size", defaultPoolName)
-	if err != nil {
-		return err
+	poolConfig["volume.size"] = daemonConfig["storage.lvm_volume_size"].Get()
+	if poolConfig["volume.size"] == "" {
+		// Get size of the volume group.
+		output, err := tryExec("vgs", "--nosuffix", "--units", "g", "--noheadings", "-o", "size", defaultPoolName)
+		if err != nil {
+			return err
+		}
+		tmp := string(output)
+		tmp = strings.TrimSpace(tmp)
+		szFloat, err := strconv.ParseFloat(tmp, 32)
+		if err != nil {
+			return err
+		}
+		szInt64 := shared.Round(szFloat)
+		poolConfig["volume.size"] = fmt.Sprintf("%dGB", szInt64)
 	}
-	tmp := string(output)
-	tmp = strings.TrimSpace(tmp)
-	szFloat, err := strconv.ParseFloat(tmp, 32)
-	if err != nil {
-		return err
-	}
-	szInt64 := shared.Round(szFloat)
-	poolConfig["size"] = fmt.Sprintf("%dGB", szInt64)
+	// On previous upgrade versions, "size" was set instead of
+	// "volume.size", so unset it.
+	poolConfig["size"] = ""
 
 	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig)
 	if err != nil {
@@ -1478,6 +1483,13 @@ func patchStorageApiKeys(name string, d *Daemon) error {
 		if pool.Driver == "zfs" {
 			pool.Config["zfs.pool_name"] = pool.Config["source"]
 		} else if pool.Driver == "lvm" {
+			// On previous upgrade versions, "size" was set instead
+			// of "volume.size", so transfer the value and then
+			// unset it.
+			if pool.Config["size"] != "" {
+				pool.Config["volume.size"] = pool.Config["size"]
+				pool.Config["size"] = ""
+			}
 			pool.Config["lvm.vg_name"] = pool.Config["source"]
 		}
 
