@@ -27,8 +27,8 @@ type execWs struct {
 	container container
 	env       map[string]string
 
-	rootUid          int
-	rootGid          int
+	rootUid          int64
+	rootGid          int64
 	conns            map[int]*websocket.Conn
 	connsLock        sync.Mutex
 	allConnected     chan bool

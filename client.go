@@ -1892,7 +1892,7 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 	return filepath.Walk(source, sendFile)
 }
 
-func (c *Client) PullFile(container string, p string) (int, int, int, string, io.ReadCloser, []string, error) {
+func (c *Client) PullFile(container string, p string) (int64, int64, int, string, io.ReadCloser, []string, error) {
 	if c.Remote.Public {
 		return 0, 0, 0, "", nil, nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
