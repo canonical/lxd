@@ -26,7 +26,7 @@ func logContextMap(ctx []interface{}) map[string]string {
 		if key == "" {
 			key = entry.(string)
 		} else {
-			ctxMap[key] = fmt.Sprintf("%s", entry)
+			ctxMap[key] = fmt.Sprintf("%v", entry)
 			key = ""
 		}
 	}
