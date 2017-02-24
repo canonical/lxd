@@ -15,11 +15,11 @@ import (
 type IdRange struct {
 	Isuid   bool
 	Isgid   bool
-	Startid int
-	Endid   int
+	Startid int64
+	Endid   int64
 }
 
-func (i *IdRange) Contains(id int) bool {
+func (i *IdRange) Contains(id int64) bool {
 	return id >= i.Startid && id <= i.Endid
 }
 
@@ -30,9 +30,9 @@ func (i *IdRange) Contains(id int) bool {
 type IdmapEntry struct {
 	Isuid    bool
 	Isgid    bool
-	Hostid   int // id as seen on the host - i.e. 100000
-	Nsid     int // id as seen in the ns - i.e. 0
-	Maprange int
+	Hostid   int64 // id as seen on the host - i.e. 100000
+	Nsid     int64 // id as seen in the ns - i.e. 0
+	Maprange int64
 }
 
 func (e *IdmapEntry) ToLxcString() []string {
@@ -50,7 +50,7 @@ func (e *IdmapEntry) ToLxcString() []string {
 	return []string{fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange)}
 }
 
-func is_between(x, low, high int) bool {
+func is_between(x, low, high int64) bool {
 	return x >= low && x < high
 }
 
@@ -132,9 +132,11 @@ func (e *IdmapEntry) Usable() error {
 func (e *IdmapEntry) parse(s string) error {
 	split := strings.Split(s, ":")
 	var err error
+
 	if len(split) != 4 {
 		return fmt.Errorf("Bad idmap: %q", s)
 	}
+
 	switch split[0] {
 	case "u":
 		e.Isuid = true
@@ -146,18 +148,24 @@ func (e *IdmapEntry) parse(s string) error {
 	default:
 		return fmt.Errorf("Bad idmap type in %q", s)
 	}
-	e.Nsid, err = strconv.Atoi(split[1])
+
+	nsid, err := strconv.ParseUint(split[1], 10, 32)
 	if err != nil {
 		return err
 	}
-	e.Hostid, err = strconv.Atoi(split[2])
+	e.Nsid = int64(nsid)
+
+	hostid, err := strconv.ParseUint(split[2], 10, 32)
 	if err != nil {
 		return err
 	}
-	e.Maprange, err = strconv.Atoi(split[3])
+	e.Hostid = int64(hostid)
+
+	maprange, err := strconv.ParseUint(split[3], 10, 32)
 	if err != nil {
 		return err
 	}
+	e.Maprange = int64(maprange)
 
 	// wraparound
 	if e.Hostid+e.Maprange < e.Hostid || e.Nsid+e.Maprange < e.Nsid {
@@ -171,10 +179,10 @@ func (e *IdmapEntry) parse(s string) error {
  * Shift a uid from the host into the container
  * I.e. 0 -> 1000 -> 101000
  */
-func (e *IdmapEntry) shift_into_ns(id int) (int, error) {
+func (e *IdmapEntry) shift_into_ns(id int64) (int64, error) {
 	if id < e.Nsid || id >= e.Nsid+e.Maprange {
 		// this mapping doesn't apply
-		return 0, fmt.Errorf("N/A")
+		return 0, fmt.Errorf("ID mapping doesn't apply.")
 	}
 
 	return id - e.Nsid + e.Hostid, nil
@@ -184,10 +192,10 @@ func (e *IdmapEntry) shift_into_ns(id int) (int, error) {
  * Shift a uid from the container back to the host
  * I.e. 101000 -> 1000
  */
-func (e *IdmapEntry) shift_from_ns(id int) (int, error) {
+func (e *IdmapEntry) shift_from_ns(id int64) (int64, error) {
 	if id < e.Hostid || id >= e.Hostid+e.Maprange {
 		// this mapping doesn't apply
-		return 0, fmt.Errorf("N/A")
+		return 0, fmt.Errorf("ID mapping doesn't apply.")
 	}
 
 	return id - e.Hostid + e.Nsid, nil
@@ -391,12 +399,13 @@ func (m IdmapSet) Append(s string) (IdmapSet, error) {
 	return m, nil
 }
 
-func (m IdmapSet) doShiftIntoNs(uid int, gid int, how string) (int, int) {
-	u := -1
-	g := -1
+func (m IdmapSet) doShiftIntoNs(uid int64, gid int64, how string) (int64, int64) {
+	u := int64(-1)
+	g := int64(-1)
+
 	for _, e := range m.Idmap {
 		var err error
-		var tmpu, tmpg int
+		var tmpu, tmpg int64
 		if e.Isuid && u == -1 {
 			switch how {
 			case "in":
@@ -404,10 +413,12 @@ func (m IdmapSet) doShiftIntoNs(uid int, gid int, how string) (int, int) {
 			case "out":
 				tmpu, err = e.shift_from_ns(uid)
 			}
+
 			if err == nil {
 				u = tmpu
 			}
 		}
+
 		if e.Isgid && g == -1 {
 			switch how {
 			case "in":
@@ -415,6 +426,7 @@ func (m IdmapSet) doShiftIntoNs(uid int, gid int, how string) (int, int) {
 			case "out":
 				tmpg, err = e.shift_from_ns(gid)
 			}
+
 			if err == nil {
 				g = tmpg
 			}
@@ -424,11 +436,11 @@ func (m IdmapSet) doShiftIntoNs(uid int, gid int, how string) (int, int) {
 	return u, g
 }
 
-func (m IdmapSet) ShiftIntoNs(uid int, gid int) (int, int) {
+func (m IdmapSet) ShiftIntoNs(uid int64, gid int64) (int64, int64) {
 	return m.doShiftIntoNs(uid, gid, "in")
 }
 
-func (m IdmapSet) ShiftFromNs(uid int, gid int) (int, int) {
+func (m IdmapSet) ShiftFromNs(uid int64, gid int64) (int64, int64) {
 	return m.doShiftIntoNs(uid, gid, "out")
 }
 
@@ -443,17 +455,21 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	dir = strings.TrimRight(dir, "/")
 
 	convert := func(path string, fi os.FileInfo, err error) (e error) {
-		uid, gid, _, _, _, _, err := GetFileStat(path)
+		intUid, intGid, _, _, _, _, err := GetFileStat(path)
 		if err != nil {
 			return err
 		}
-		var newuid, newgid int
+		uid := int64(intUid)
+		gid := int64(intGid)
+
+		var newuid, newgid int64
 		switch how {
 		case "in":
 			newuid, newgid = set.ShiftIntoNs(uid, gid)
 		case "out":
 			newuid, newgid = set.ShiftFromNs(uid, gid)
 		}
+
 		if testmode {
 			fmt.Printf("I would shift %q to %d %d\n", path, newuid, newgid)
 		} else {
@@ -494,8 +510,8 @@ func (set *IdmapSet) ShiftFile(p string) error {
 /*
  * get a uid or gid mapping from /etc/subxid
  */
-func getFromShadow(fname string, username string) ([][]int, error) {
-	entries := [][]int{}
+func getFromShadow(fname string, username string) ([][]int64, error) {
+	entries := [][]int64{}
 
 	f, err := os.Open(fname)
 	if err != nil {
@@ -530,7 +546,7 @@ func getFromShadow(fname string, username string) ([][]int, error) {
 				continue
 			}
 
-			entries = append(entries, []int{int(entryStart), int(entrySize)})
+			entries = append(entries, []int64{int64(entryStart), int64(entrySize)})
 		}
 	}
 
@@ -544,8 +560,8 @@ func getFromShadow(fname string, username string) ([][]int, error) {
 /*
  * get a uid or gid mapping from /proc/self/{g,u}id_map
  */
-func getFromProc(fname string) ([][]int, error) {
-	entries := [][]int{}
+func getFromProc(fname string) ([][]int64, error) {
+	entries := [][]int64{}
 
 	f, err := os.Open(fname)
 	if err != nil {
@@ -585,7 +601,7 @@ func getFromProc(fname string) ([][]int, error) {
 			continue
 		}
 
-		entries = append(entries, []int{int(entryStart), int(entryHost), int(entrySize)})
+		entries = append(entries, []int64{int64(entryStart), int64(entryHost), int64(entrySize)})
 	}
 
 	if len(entries) == 0 {
