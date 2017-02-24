@@ -13,13 +13,9 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/logging"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // lxdStorageLockMap is a hashmap that allows functions to check whether the
@@ -173,35 +169,6 @@ func storageStringToType(sName string) (storageType, error) {
 	return -1, fmt.Errorf("Invalid storage type name.")
 }
 
-type MigrationStorageSourceDriver interface {
-	/* snapshots for this container, if any */
-	Snapshots() []container
-
-	/* send any bits of the container/snapshots that are possible while the
-	 * container is still running.
-	 */
-	SendWhileRunning(conn *websocket.Conn, op *operation) error
-
-	/* send the final bits (e.g. a final delta snapshot for zfs, btrfs, or
-	 * do a final rsync) of the fs after the container has been
-	 * checkpointed. This will only be called when a container is actually
-	 * being live migrated.
-	 */
-	SendAfterCheckpoint(conn *websocket.Conn) error
-
-	/* Called after either success or failure of a migration, can be used
-	 * to clean up any temporary snapshots, etc.
-	 */
-	Cleanup()
-}
-
-type storageCoreInfo interface {
-	StorageCoreInit() (*storageCore, error)
-	GetStorageType() storageType
-	GetStorageTypeName() string
-	GetStorageTypeVersion() string
-}
-
 // FIXME(brauner): Split up this interace into sub-interfaces, that can be
 // combined into this single big interface but can also be individually
 // initialized. Suggestion:
@@ -294,9 +261,7 @@ type storage interface {
 	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error
 }
 
-func storageWrapperInit(d *Daemon, poolName string, volumeName string, volumeType int) (*storageLogWrapper, error) {
-	var s storageLogWrapper
-
+func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {
 	// Load the storage pool.
 	poolID, pool, err := dbStoragePoolGet(d.db, poolName)
 	if err != nil {
@@ -331,84 +296,49 @@ func storageWrapperInit(d *Daemon, poolName string, volumeName string, volumeTyp
 		btrfs.pool = pool
 		btrfs.volume = volume
 		btrfs.d = d
-		s = storageLogWrapper{w: &btrfs}
-	case storageTypeZfs:
-		zfs := storageZfs{}
-		zfs.poolID = poolID
-		zfs.pool = pool
-		zfs.volume = volume
-		zfs.d = d
-		s = storageLogWrapper{w: &zfs}
-	case storageTypeLvm:
-		lvm := storageLvm{}
-		lvm.poolID = poolID
-		lvm.pool = pool
-		lvm.volume = volume
-		lvm.d = d
-		s = storageLogWrapper{w: &lvm}
+		return &btrfs, nil
 	case storageTypeDir:
 		dir := storageDir{}
 		dir.poolID = poolID
 		dir.pool = pool
 		dir.volume = volume
 		dir.d = d
-		s = storageLogWrapper{w: &dir}
+		return &dir, nil
+	case storageTypeLvm:
+		lvm := storageLvm{}
+		lvm.poolID = poolID
+		lvm.pool = pool
+		lvm.volume = volume
+		lvm.d = d
+		return &lvm, nil
 	case storageTypeMock:
 		mock := storageMock{}
 		mock.poolID = poolID
 		mock.pool = pool
 		mock.volume = volume
 		mock.d = d
-		s = storageLogWrapper{w: &mock}
+		return &mock, nil
+	case storageTypeZfs:
+		zfs := storageZfs{}
+		zfs.poolID = poolID
+		zfs.pool = pool
+		zfs.volume = volume
+		zfs.d = d
+		return &zfs, nil
 	}
 
-	return &s, nil
+	return nil, fmt.Errorf("Invalid storage type.")
 }
 
 func storagePoolInit(d *Daemon, poolName string) (storage, error) {
 	var config map[string]interface{}
 
-	wrapper, err := storageWrapperInit(d, poolName, "", -1)
+	s, err := storageInit(d, poolName, "", -1)
 	if err != nil {
 		return nil, err
 	}
 
-	storage, err := wrapper.StoragePoolInit(config)
-	if err != nil {
-		return nil, err
-	}
-
-	return storage, nil
-}
-
-func storagePoolCoreInit(poolDriver string) (*storageCore, error) {
-	sType, err := storageStringToType(poolDriver)
-	if err != nil {
-		return nil, err
-	}
-
-	var s storage
-	switch sType {
-	case storageTypeBtrfs:
-		btrfs := storageBtrfs{}
-		s = &storageLogWrapper{w: &btrfs}
-	case storageTypeZfs:
-		zfs := storageZfs{}
-		s = &storageLogWrapper{w: &zfs}
-	case storageTypeLvm:
-		lvm := storageLvm{}
-		s = &storageLogWrapper{w: &lvm}
-	case storageTypeDir:
-		dir := storageDir{}
-		s = &storageLogWrapper{w: &dir}
-	case storageTypeMock:
-		mock := storageMock{}
-		s = &storageLogWrapper{w: &mock}
-	default:
-		return nil, fmt.Errorf("Unknown storage pool driver \"%s\".", poolDriver)
-	}
-
-	return s.StorageCoreInit()
+	return s.StoragePoolInit(config)
 }
 
 func storagePoolVolumeImageInit(d *Daemon, poolName string, imageFingerprint string) (storage, error) {
@@ -433,12 +363,12 @@ func storagePoolVolumeInit(d *Daemon, poolName string, volumeName string, volume
 	var config map[string]interface{}
 
 	// No need to detect storage here, its a new container.
-	wrapper, err := storageWrapperInit(d, poolName, volumeName, volumeType)
+	s, err := storageInit(d, poolName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
 	}
 
-	storage, err := wrapper.StoragePoolInit(config)
+	storage, err := s.StoragePoolInit(config)
 	if err != nil {
 		return nil, err
 	}
@@ -449,58 +379,6 @@ func storagePoolVolumeInit(d *Daemon, poolName string, volumeName string, volume
 	}
 
 	return storage, nil
-}
-
-type storageCore struct {
-	sType        storageType
-	sTypeName    string
-	sTypeVersion string
-	log          shared.Logger
-}
-
-func (sc *storageCore) initShared() error {
-	sc.log = logging.AddContext(
-		shared.Log,
-		log.Ctx{"driver": fmt.Sprintf("storage/%s", sc.sTypeName)},
-	)
-	return nil
-}
-
-// Return a storageCore struct that implements a storageCore interface. This
-// minimal interface only allows to retrieve basic information about the storage
-// type in question.
-func (lw *storageLogWrapper) StorageCoreInit() (*storageCore, error) {
-	sCore, err := lw.w.StorageCoreInit()
-	lw.log = logging.AddContext(
-		shared.Log,
-		log.Ctx{"driver": fmt.Sprintf("storage/%s", sCore.GetStorageTypeName())},
-	)
-
-	lw.log.Debug("StorageCoreInit")
-	return sCore, err
-}
-
-func (sc *storageCore) GetStorageType() storageType {
-	return sc.sType
-}
-
-func (sc *storageCore) GetStorageTypeName() string {
-	return sc.sTypeName
-}
-
-func (sc *storageCore) GetStorageTypeVersion() string {
-	return sc.sTypeVersion
-}
-
-type storageShared struct {
-	storageCore
-
-	d *Daemon
-
-	poolID int64
-	pool   *api.StoragePool
-
-	volume *api.StorageVolume
 }
 
 // {LXD_DIR}/storage-pools/<pool>
@@ -664,392 +542,6 @@ func deleteSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget 
 	return nil
 }
 
-func (ss *storageShared) shiftRootfs(c container) error {
-	dpath := c.Path()
-	rpath := c.RootfsPath()
-
-	shared.LogDebug("Shifting root filesystem",
-		log.Ctx{"name": c.Name(), "rootfs": rpath})
-
-	idmapset := c.IdmapSet()
-
-	if idmapset == nil {
-		return fmt.Errorf("IdmapSet of container '%s' is nil", c.Name())
-	}
-
-	err := idmapset.ShiftRootfs(rpath)
-	if err != nil {
-		shared.LogDebugf("Shift of rootfs %s failed: %s", rpath, err)
-		return err
-	}
-
-	/* Set an acl so the container root can descend the container dir */
-	// TODO: i changed this so it calls ss.setUnprivUserAcl, which does
-	// the acl change only if the container is not privileged, think thats right.
-	return ss.setUnprivUserAcl(c, dpath)
-}
-
-func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
-	idmapset := c.IdmapSet()
-
-	// Skip for privileged containers
-	if idmapset == nil {
-		return nil
-	}
-
-	// Make sure the map is valid. Skip if container uid 0 == host uid 0
-	uid, _ := idmapset.ShiftIntoNs(0, 0)
-	switch uid {
-	case -1:
-		return fmt.Errorf("Container doesn't have a uid 0 in its map")
-	case 0:
-		return nil
-	}
-
-	// Attempt to set a POSIX ACL first. Fallback to chmod if the fs doesn't support it.
-	acl := fmt.Sprintf("%d:rx", uid)
-	_, err := exec.Command("setfacl", "-m", acl, destPath).CombinedOutput()
-	if err != nil {
-		_, err := exec.Command("chmod", "+x", destPath).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("Failed to chmod the container path: %s.", err)
-		}
-	}
-
-	return nil
-}
-
-func (ss *storageShared) createImageDbPoolVolume(fingerprint string) error {
-	// Fill in any default volume config.
-	volumeConfig := map[string]string{}
-	err := storageVolumeFillDefault(ss.pool.Name, volumeConfig, ss.pool)
-	if err != nil {
-		return err
-	}
-
-	// Create a db entry for the storage volume of the image.
-	_, err = dbStoragePoolVolumeCreate(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID, volumeConfig)
-	if err != nil {
-		// Try to delete the db entry on error.
-		dbStoragePoolVolumeDelete(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID)
-		return err
-	}
-
-	return nil
-}
-
-func (ss *storageShared) deleteImageDbPoolVolume(fingerprint string) error {
-	err := dbStoragePoolVolumeDelete(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-type storageLogWrapper struct {
-	w   storage
-	log shared.Logger
-}
-
-func (lw *storageLogWrapper) StoragePoolInit(config map[string]interface{}) (storage, error) {
-	_, err := lw.w.StoragePoolInit(config)
-	lw.log = logging.AddContext(
-		shared.Log,
-		log.Ctx{"driver": fmt.Sprintf("storage/%s", lw.w.GetStorageTypeName())},
-	)
-
-	lw.log.Debug("StoragePoolInit")
-	return lw, err
-}
-
-func (lw *storageLogWrapper) StoragePoolCheck() error {
-	lw.log.Debug("StoragePoolCheck")
-	return lw.w.StoragePoolCheck()
-}
-
-func (lw *storageLogWrapper) GetStorageType() storageType {
-	return lw.w.GetStorageType()
-}
-
-func (lw *storageLogWrapper) GetStorageTypeName() string {
-	return lw.w.GetStorageTypeName()
-}
-
-func (lw *storageLogWrapper) GetStorageTypeVersion() string {
-	return lw.w.GetStorageTypeVersion()
-}
-
-func (lw *storageLogWrapper) StoragePoolCreate() error {
-	lw.log.Debug("StoragePoolCreate")
-	return lw.w.StoragePoolCreate()
-}
-
-func (lw *storageLogWrapper) StoragePoolVolumeCreate() error {
-	lw.log.Debug("StoragePoolVolumeCreate")
-	return lw.w.StoragePoolVolumeCreate()
-}
-
-func (lw *storageLogWrapper) StoragePoolVolumeDelete() error {
-	lw.log.Debug("StoragePoolVolumeDelete")
-	return lw.w.StoragePoolVolumeDelete()
-}
-
-func (lw *storageLogWrapper) StoragePoolMount() (bool, error) {
-	lw.log.Debug("StoragePoolMount")
-	return lw.w.StoragePoolMount()
-}
-
-func (lw *storageLogWrapper) StoragePoolUmount() (bool, error) {
-	lw.log.Debug("StoragePoolUmount")
-	return lw.w.StoragePoolUmount()
-}
-
-func (lw *storageLogWrapper) StoragePoolVolumeMount() (bool, error) {
-	lw.log.Debug("StoragePoolVolumeMount")
-	return lw.w.StoragePoolVolumeMount()
-}
-
-func (lw *storageLogWrapper) StoragePoolVolumeUmount() (bool, error) {
-	lw.log.Debug("StoragePoolVolumeUmount")
-	return lw.w.StoragePoolVolumeUmount()
-}
-
-func (lw *storageLogWrapper) StoragePoolDelete() error {
-	lw.log.Debug("StoragePoolDelete")
-	return lw.w.StoragePoolDelete()
-}
-
-func (lw *storageLogWrapper) StoragePoolUpdate(changedConfig []string) error {
-	lw.log.Debug("StoragePoolUpdate")
-	return lw.w.StoragePoolUpdate(changedConfig)
-}
-
-func (lw *storageLogWrapper) StoragePoolVolumeUpdate(changedConfig []string) error {
-	lw.log.Debug("StoragePoolVolumeUpdate")
-	return lw.w.StoragePoolVolumeUpdate(changedConfig)
-}
-
-func (lw *storageLogWrapper) GetStoragePoolWritable() api.StoragePoolPut {
-	return lw.w.GetStoragePoolWritable()
-}
-
-func (lw *storageLogWrapper) GetStoragePoolVolumeWritable() api.StorageVolumePut {
-	return lw.w.GetStoragePoolVolumeWritable()
-}
-
-func (lw *storageLogWrapper) SetStoragePoolWritable(writable *api.StoragePoolPut) {
-	lw.w.SetStoragePoolWritable(writable)
-}
-
-func (lw *storageLogWrapper) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut) {
-	lw.w.SetStoragePoolVolumeWritable(writable)
-}
-
-func (lw *storageLogWrapper) ContainerPoolGet() string {
-	return lw.w.ContainerPoolGet()
-}
-
-func (lw *storageLogWrapper) ContainerPoolIDGet() int64 {
-	return lw.w.ContainerPoolIDGet()
-}
-
-func (lw *storageLogWrapper) ContainerStorageReady(name string) bool {
-	return lw.w.ContainerStorageReady(name)
-}
-
-func (lw *storageLogWrapper) ContainerCreate(container container) error {
-	lw.log.Debug(
-		"ContainerCreate",
-		log.Ctx{
-			"name":       container.Name(),
-			"privileged": container.IsPrivileged()})
-	return lw.w.ContainerCreate(container)
-}
-
-func (lw *storageLogWrapper) ContainerCreateFromImage(
-	container container, imageFingerprint string) error {
-
-	lw.log.Debug(
-		"ContainerCreateFromImage",
-		log.Ctx{
-			"fingerprint": imageFingerprint,
-			"name":        container.Name(),
-			"privileged":  container.IsPrivileged()})
-	return lw.w.ContainerCreateFromImage(container, imageFingerprint)
-}
-
-func (lw *storageLogWrapper) ContainerCanRestore(container container, sourceContainer container) error {
-	lw.log.Debug("ContainerCanRestore", log.Ctx{"name": container.Name()})
-	return lw.w.ContainerCanRestore(container, sourceContainer)
-}
-
-func (lw *storageLogWrapper) ContainerDelete(container container) error {
-	lw.log.Debug("ContainerDelete", log.Ctx{"name": container.Name()})
-	return lw.w.ContainerDelete(container)
-}
-
-func (lw *storageLogWrapper) ContainerCopy(
-	container container, sourceContainer container) error {
-
-	lw.log.Debug(
-		"ContainerCopy",
-		log.Ctx{
-			"target": container.Name(),
-			"source": sourceContainer.Name()})
-	return lw.w.ContainerCopy(container, sourceContainer)
-}
-
-func (lw *storageLogWrapper) ContainerMount(name string, path string) (bool, error) {
-	lw.log.Debug("ContainerMount", log.Ctx{"container": name})
-	return lw.w.ContainerMount(name, path)
-}
-
-func (lw *storageLogWrapper) ContainerUmount(name string, path string) (bool, error) {
-	lw.log.Debug("ContainerUmount", log.Ctx{"name": name})
-	return lw.w.ContainerUmount(name, path)
-}
-
-func (lw *storageLogWrapper) ContainerRename(
-	container container, newName string) error {
-
-	lw.log.Debug(
-		"ContainerRename",
-		log.Ctx{
-			"oldname": container.Name(),
-			"newname": newName})
-	return lw.w.ContainerRename(container, newName)
-}
-
-func (lw *storageLogWrapper) ContainerRestore(
-	container container, sourceContainer container) error {
-
-	lw.log.Debug(
-		"ContainerRestore",
-		log.Ctx{
-			"target": container.Name(),
-			"source": sourceContainer.Name()})
-	return lw.w.ContainerRestore(container, sourceContainer)
-}
-
-func (lw *storageLogWrapper) ContainerSetQuota(
-	container container, size int64) error {
-
-	lw.log.Debug(
-		"ContainerSetQuota",
-		log.Ctx{
-			"name": container.Name(),
-			"size": size})
-	return lw.w.ContainerSetQuota(container, size)
-}
-
-func (lw *storageLogWrapper) ContainerGetUsage(
-	container container) (int64, error) {
-
-	lw.log.Debug(
-		"ContainerGetUsage",
-		log.Ctx{
-			"name": container.Name()})
-	return lw.w.ContainerGetUsage(container)
-}
-
-func (lw *storageLogWrapper) ContainerSnapshotCreate(
-	snapshotContainer container, sourceContainer container) error {
-
-	lw.log.Debug("ContainerSnapshotCreate",
-		log.Ctx{
-			"target": snapshotContainer.Name(),
-			"source": sourceContainer.Name()})
-
-	return lw.w.ContainerSnapshotCreate(snapshotContainer, sourceContainer)
-}
-
-func (lw *storageLogWrapper) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
-	lw.log.Debug("ContainerSnapshotCreateEmpty",
-		log.Ctx{
-			"name": snapshotContainer.Name()})
-
-	return lw.w.ContainerSnapshotCreateEmpty(snapshotContainer)
-}
-
-func (lw *storageLogWrapper) ContainerSnapshotDelete(
-	snapshotContainer container) error {
-
-	lw.log.Debug("ContainerSnapshotDelete",
-		log.Ctx{"name": snapshotContainer.Name()})
-	return lw.w.ContainerSnapshotDelete(snapshotContainer)
-}
-
-func (lw *storageLogWrapper) ContainerSnapshotRename(
-	snapshotContainer container, newName string) error {
-
-	lw.log.Debug("ContainerSnapshotRename",
-		log.Ctx{
-			"oldname": snapshotContainer.Name(),
-			"newname": newName})
-	return lw.w.ContainerSnapshotRename(snapshotContainer, newName)
-}
-
-func (lw *storageLogWrapper) ContainerSnapshotStart(container container) error {
-	lw.log.Debug("ContainerSnapshotStart", log.Ctx{"name": container.Name()})
-	return lw.w.ContainerSnapshotStart(container)
-}
-
-func (lw *storageLogWrapper) ContainerSnapshotStop(container container) error {
-	lw.log.Debug("ContainerSnapshotStop", log.Ctx{"name": container.Name()})
-	return lw.w.ContainerSnapshotStop(container)
-}
-
-func (lw *storageLogWrapper) ImageCreate(fingerprint string) error {
-	lw.log.Debug("ImageCreate", log.Ctx{"fingerprint": fingerprint})
-	return lw.w.ImageCreate(fingerprint)
-}
-
-func (lw *storageLogWrapper) ImageDelete(fingerprint string) error {
-	lw.log.Debug("ImageDelete", log.Ctx{"fingerprint": fingerprint})
-	return lw.w.ImageDelete(fingerprint)
-}
-
-func (lw *storageLogWrapper) ImageMount(fingerprint string) (bool, error) {
-	lw.log.Debug("ImageMount", log.Ctx{"fingerprint": fingerprint})
-	return lw.w.ImageMount(fingerprint)
-}
-
-func (lw *storageLogWrapper) ImageUmount(fingerprint string) (bool, error) {
-	lw.log.Debug("ImageUmount", log.Ctx{"fingerprint": fingerprint})
-	return lw.w.ImageUmount(fingerprint)
-}
-
-func (lw *storageLogWrapper) MigrationType() MigrationFSType {
-	return lw.w.MigrationType()
-}
-
-func (lw *storageLogWrapper) PreservesInodes() bool {
-	return lw.w.PreservesInodes()
-}
-
-func (lw *storageLogWrapper) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
-	lw.log.Debug("MigrationSource", log.Ctx{"name": container.Name()})
-	return lw.w.MigrationSource(container)
-}
-
-func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
-	objNames := []string{}
-	for _, obj := range objects {
-		objNames = append(objNames, obj.GetName())
-	}
-
-	lw.log.Debug("MigrationSink", log.Ctx{
-		"live":         live,
-		"name":         container.Name(),
-		"objects":      objNames,
-		"source idmap": *srcIdmap,
-		"op":           op,
-	})
-
-	return lw.w.MigrationSink(live, container, objects, conn, srcIdmap, op)
-}
-
 func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
 	dstIdmap := container.IdmapSet()
 	if dstIdmap == nil {
@@ -1072,165 +564,6 @@ func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
 		if err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-type rsyncStorageSourceDriver struct {
-	container container
-	snapshots []container
-}
-
-func (s rsyncStorageSourceDriver) Snapshots() []container {
-	return s.snapshots
-}
-
-func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
-	for _, send := range s.snapshots {
-		if err := send.StorageStart(); err != nil {
-			return err
-		}
-		defer send.StorageStop()
-
-		path := send.Path()
-		wrapper := StorageProgressReader(op, "fs_progress", send.Name())
-		if err := RsyncSend(shared.AddSlash(path), conn, wrapper); err != nil {
-			return err
-		}
-	}
-
-	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
-	return RsyncSend(shared.AddSlash(s.container.Path()), conn, wrapper)
-}
-
-func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
-	/* resync anything that changed between our first send and the checkpoint */
-	return RsyncSend(shared.AddSlash(s.container.Path()), conn, nil)
-}
-
-func (s rsyncStorageSourceDriver) Cleanup() {
-	/* no-op */
-}
-
-func rsyncMigrationSource(container container) (MigrationStorageSourceDriver, error) {
-	snapshots, err := container.Snapshots()
-	if err != nil {
-		return nil, err
-	}
-
-	return rsyncStorageSourceDriver{container, snapshots}, nil
-}
-
-func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) containerArgs {
-	config := map[string]string{}
-
-	for _, ent := range snap.LocalConfig {
-		config[ent.GetKey()] = ent.GetValue()
-	}
-
-	devices := types.Devices{}
-	for _, ent := range snap.LocalDevices {
-		props := map[string]string{}
-		for _, prop := range ent.Config {
-			props[prop.GetKey()] = prop.GetValue()
-		}
-
-		devices[ent.GetName()] = props
-	}
-
-	name := containerName + shared.SnapshotDelimiter + snap.GetName()
-	return containerArgs{
-		Name:         name,
-		Ctype:        cTypeSnapshot,
-		Config:       config,
-		Profiles:     snap.Profiles,
-		Ephemeral:    snap.GetEphemeral(),
-		Devices:      devices,
-		Architecture: int(snap.GetArchitecture()),
-		Stateful:     snap.GetStateful(),
-	}
-}
-
-func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
-	if err := container.StorageStart(); err != nil {
-		return err
-	}
-	defer container.StorageStop()
-
-	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
-	if isDirBackend {
-		for _, snap := range snapshots {
-			args := snapshotProtobufToContainerArgs(container.Name(), snap)
-			// Unset the pool of the orginal container and let
-			// containerLXCCreate figure out on which pool to  send
-			// it. Later we might make this more flexible.
-			for k, v := range args.Devices {
-				if v["type"] == "disk" && v["path"] == "/" {
-					args.Devices[k]["pool"] = ""
-				}
-			}
-			s, err := containerCreateEmptySnapshot(container.Daemon(), args)
-			if err != nil {
-				return err
-			}
-
-			wrapper := StorageProgressWriter(op, "fs_progress", s.Name())
-			if err := RsyncRecv(shared.AddSlash(s.Path()), conn, wrapper); err != nil {
-				return err
-			}
-
-			if err := ShiftIfNecessary(container, srcIdmap); err != nil {
-				return err
-			}
-		}
-
-		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
-		if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
-			return err
-		}
-	} else {
-		for _, snap := range snapshots {
-			args := snapshotProtobufToContainerArgs(container.Name(), snap)
-			// Unset the pool of the orginal container and let
-			// containerLXCCreate figure out on which pool to  send
-			// it. Later we might make this more flexible.
-			for k, v := range args.Devices {
-				if v["type"] == "disk" && v["path"] == "/" {
-					args.Devices[k]["pool"] = ""
-				}
-			}
-			wrapper := StorageProgressWriter(op, "fs_progress", snap.GetName())
-			if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
-				return err
-			}
-
-			if err := ShiftIfNecessary(container, srcIdmap); err != nil {
-				return err
-			}
-
-			_, err := containerCreateAsSnapshot(container.Daemon(), args, container)
-			if err != nil {
-				return err
-			}
-		}
-
-		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
-		if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
-			return err
-		}
-	}
-
-	if live {
-		/* now receive the final sync */
-		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
-		if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
-			return err
-		}
-	}
-
-	if err := ShiftIfNecessary(container, srcIdmap); err != nil {
-		return err
 	}
 
 	return nil
