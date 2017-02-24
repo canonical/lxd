@@ -419,8 +419,8 @@ type container interface {
 
 	// File handling
 	FileExists(path string) error
-	FilePull(srcpath string, dstpath string) (int, int, os.FileMode, string, []string, error)
-	FilePush(srcpath string, dstpath string, uid int, gid int, mode int, write string) error
+	FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error)
+	FilePush(srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error
 	FileRemove(path string) error
 
 	/* Command execution:

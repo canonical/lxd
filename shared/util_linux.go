@@ -92,7 +92,7 @@ void configure_pty(int fd) {
 	return;
 }
 
-void create_pty(int *master, int *slave, int uid, int gid) {
+void create_pty(int *master, int *slave, uid_t uid, gid_t gid) {
 	if (openpty(master, slave, NULL, NULL, NULL) < 0) {
 		fprintf(stderr, "Failed to openpty: %s\n", strerror(errno));
 		return;
@@ -245,11 +245,11 @@ func ShiftOwner(basepath string, path string, uid int, gid int) error {
 	return nil
 }
 
-func OpenPty(uid, gid int) (master *os.File, slave *os.File, err error) {
+func OpenPty(uid, gid int64) (master *os.File, slave *os.File, err error) {
 	fd_master := C.int(-1)
 	fd_slave := C.int(-1)
-	rootUid := C.int(uid)
-	rootGid := C.int(gid)
+	rootUid := C.uid_t(uid)
+	rootGid := C.gid_t(gid)
 
 	C.create_pty(&fd_master, &fd_slave, rootUid, rootGid)
 

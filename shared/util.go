@@ -123,13 +123,13 @@ func LogPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
-func ParseLXDFileHeaders(headers http.Header) (uid int, gid int, mode int, type_ string, write string) {
-	uid, err := strconv.Atoi(headers.Get("X-LXD-uid"))
+func ParseLXDFileHeaders(headers http.Header) (uid int64, gid int64, mode int, type_ string, write string) {
+	uid, err := strconv.ParseInt(headers.Get("X-LXD-uid"), 10, 64)
 	if err != nil {
 		uid = -1
 	}
 
-	gid, err = strconv.Atoi(headers.Get("X-LXD-gid"))
+	gid, err = strconv.ParseInt(headers.Get("X-LXD-gid"), 10, 64)
 	if err != nil {
 		gid = -1
 	}
