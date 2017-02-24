@@ -267,7 +267,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 
 	// Setup initial idmap config
 	var idmap *shared.IdmapSet
-	base := 0
+	base := int64(0)
 	if !c.IsPrivileged() {
 		idmap, base, err = findIdmap(
 			d,
@@ -441,13 +441,13 @@ func (c *containerLXC) waitOperation() error {
 	return nil
 }
 
-func idmapSize(daemon *Daemon, isolatedStr string, size string) (int, error) {
+func idmapSize(daemon *Daemon, isolatedStr string, size string) (int64, error) {
 	isolated := false
 	if shared.IsTrue(isolatedStr) {
 		isolated = true
 	}
 
-	var idMapSize int
+	var idMapSize int64
 	if size == "" || size == "auto" {
 		if isolated {
 			idMapSize = 65536
@@ -464,7 +464,7 @@ func idmapSize(daemon *Daemon, isolatedStr string, size string) (int, error) {
 			return 0, err
 		}
 
-		idMapSize = int(size)
+		idMapSize = int64(size)
 	}
 
 	return idMapSize, nil
@@ -473,20 +473,20 @@ func idmapSize(daemon *Daemon, isolatedStr string, size string) (int, error) {
 var idmapLock sync.Mutex
 
 func parseRawIdmap(value string) ([]shared.IdmapEntry, error) {
-	getRange := func(r string) (int, int, error) {
+	getRange := func(r string) (int64, int64, error) {
 		entries := strings.Split(r, "-")
 		if len(entries) > 2 {
 			return -1, -1, fmt.Errorf("invalid raw.idmap range %s", r)
 		}
 
-		base, err := strconv.Atoi(entries[0])
+		base, err := strconv.ParseInt(entries[0], 10, 64)
 		if err != nil {
 			return -1, -1, err
 		}
 
-		size := 1
+		size := int64(1)
 		if len(entries) > 1 {
-			size, err = strconv.Atoi(entries[1])
+			size, err = strconv.ParseInt(entries[1], 10, 64)
 			if err != nil {
 				return -1, -1, err
 			}
@@ -558,7 +558,7 @@ func parseRawIdmap(value string) ([]shared.IdmapEntry, error) {
 	return ret.Idmap, nil
 }
 
-func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize string, rawIdmap string) (*shared.IdmapSet, int, error) {
+func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize string, rawIdmap string) (*shared.IdmapSet, int64, error) {
 	isolated := false
 	if shared.IsTrue(isolatedStr) {
 		isolated = true
@@ -627,12 +627,12 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 			return nil, 0, err
 		}
 
-		mapentries = append(mapentries, &shared.IdmapEntry{Hostid: int(cBase), Maprange: cSize})
+		mapentries = append(mapentries, &shared.IdmapEntry{Hostid: int64(cBase), Maprange: cSize})
 	}
 
 	sort.Sort(mapentries)
 
-	mkIdmap := func(offset int, size int) *shared.IdmapSet {
+	mkIdmap := func(offset int64, size int64) *shared.IdmapSet {
 		set := &shared.IdmapSet{Idmap: []shared.IdmapEntry{
 			{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
 			{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
@@ -1495,8 +1495,8 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 
 		var mode os.FileMode
-		var uid int
-		var gid int
+		var uid int64
+		var gid int64
 
 		if c.IsPrivileged() {
 			mode = 0700
@@ -1512,7 +1512,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			return "", err
 		}
 
-		err = os.Chown(c.Path(), uid, gid)
+		err = os.Chown(c.Path(), int(uid), int(gid))
 		if err != nil {
 			return "", err
 		}
@@ -2775,7 +2775,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 	if shared.StringInSlice("security.idmap.isolated", changedConfig) || shared.StringInSlice("security.idmap.size", changedConfig) || shared.StringInSlice("raw.idmap", changedConfig) || shared.StringInSlice("security.privileged", changedConfig) {
 		var idmap *shared.IdmapSet
-		base := 0
+		base := int64(0)
 		if !c.IsPrivileged() {
 			// update the idmap
 			idmap, base, err = findIdmap(
@@ -3649,8 +3649,8 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 			}
 		} else {
 			// Create a new one
-			uid := 0
-			gid := 0
+			uid := int64(0)
+			gid := int64(0)
 
 			// Get the right uid and gid for the container
 			if !c.IsPrivileged() {
@@ -3658,7 +3658,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 			}
 
 			// Create the directories leading to the file
-			shared.MkdirAllOwner(path.Dir(fullpath), 0755, uid, gid)
+			shared.MkdirAllOwner(path.Dir(fullpath), 0755, int(uid), int(gid))
 
 			// Create the file itself
 			w, err = os.Create(fullpath)
@@ -3668,7 +3668,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 
 			// Fix ownership and mode
 			if !c.IsPrivileged() {
-				w.Chown(uid, gid)
+				w.Chown(int(uid), int(gid))
 			}
 			w.Chmod(0644)
 		}
@@ -3782,7 +3782,7 @@ func (c *containerLXC) FileExists(path string) error {
 	return nil
 }
 
-func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.FileMode, error) {
+func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, error) {
 	// Setup container storage if needed
 	if !c.IsRunning() {
 		err := c.StorageStart()
@@ -3809,8 +3809,8 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 		}
 	}
 
-	uid := -1
-	gid := -1
+	uid := int64(-1)
+	gid := int64(-1)
 	mode := -1
 	var errStr string
 
@@ -3837,7 +3837,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 
 		// Extract the uid
 		if strings.HasPrefix(line, "uid: ") {
-			uid, err = strconv.Atoi(strings.TrimPrefix(line, "uid: "))
+			uid, err = strconv.ParseInt(strings.TrimPrefix(line, "uid: "), 10, 64)
 			if err != nil {
 				return -1, -1, 0, err
 			}
@@ -3847,7 +3847,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 
 		// Extract the gid
 		if strings.HasPrefix(line, "gid: ") {
-			gid, err = strconv.Atoi(strings.TrimPrefix(line, "gid: "))
+			gid, err = strconv.ParseInt(strings.TrimPrefix(line, "gid: "), 10, 64)
 			if err != nil {
 				return -1, -1, 0, err
 			}
@@ -3893,9 +3893,9 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int, int, os.Fi
 	return uid, gid, os.FileMode(mode), nil
 }
 
-func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error {
-	var rootUid = 0
-	var rootGid = 0
+func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid int64, mode int) error {
+	var rootUid int64
+	var rootGid int64
 	var errStr string
 
 	// Map uid and gid if needed
@@ -4295,7 +4295,9 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 
 	// Unshift the id under /rootfs/ for unpriv containers
 	if !c.IsPrivileged() && strings.HasPrefix(hdr.Name, "/rootfs") {
-		hdr.Uid, hdr.Gid = c.idmapset.ShiftFromNs(hdr.Uid, hdr.Gid)
+		huid, hgid := c.idmapset.ShiftFromNs(int64(hdr.Uid), int64(hdr.Gid))
+		hdr.Uid = int(huid)
+		hdr.Gid = int(hgid)
 		if hdr.Uid == -1 || hdr.Gid == -1 {
 			return nil
 		}

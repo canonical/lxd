@@ -467,9 +467,9 @@ type container interface {
 	ConfigKeySet(key string, value string) error
 
 	// File handling
-	FilePull(srcpath string, dstpath string) (int, int, os.FileMode, error)
+	FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, error)
 	FileExists(path string) error
-	FilePush(srcpath string, dstpath string, uid int, gid int, mode int) error
+	FilePush(srcpath string, dstpath string, uid int64, gid int64, mode int) error
 	FileRemove(path string) error
 
 	/* Command execution:

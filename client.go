@@ -1767,7 +1767,7 @@ func (c *Client) PushFile(container string, p string, gid int, uid int, mode str
 	return err
 }
 
-func (c *Client) PullFile(container string, p string) (int, int, int, io.ReadCloser, error) {
+func (c *Client) PullFile(container string, p string) (int64, int64, int, io.ReadCloser, error) {
 	if c.Remote.Public {
 		return 0, 0, 0, nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
