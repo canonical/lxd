@@ -22,10 +22,7 @@ func (s *storageMock) StorageCoreInit() (*storageCore, error) {
 	}
 	sCore.sTypeName = typeName
 
-	err = sCore.initShared()
-	if err != nil {
-		return nil, err
-	}
+	shared.LogInfof("Initializing a MOCK driver.")
 
 	s.storageCore = sCore
 
