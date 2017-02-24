@@ -760,12 +760,36 @@ func (d *Daemon) Init() error {
 	/* Read the uid/gid allocation */
 	d.IdmapSet, err = shared.DefaultIdmapSet()
 	if err != nil {
-		shared.LogWarn("Error reading idmap", log.Ctx{"err": err.Error()})
+		shared.LogWarn("Error reading default idmap", log.Ctx{"err": err.Error()})
 		shared.LogWarnf("Only privileged containers will be able to run")
+		d.IdmapSet = nil
 	} else {
-		shared.LogInfof("Available uid/gid map:")
-		for _, lxcmap := range d.IdmapSet.ToLxcString() {
-			shared.LogInfof(strings.TrimRight(" - "+lxcmap, "\n"))
+		kernelIdmapSet, err := shared.CurrentIdmapSet()
+		if err == nil {
+			shared.LogInfof("Kernel uid/gid map:")
+			for _, lxcmap := range kernelIdmapSet.ToLxcString() {
+				shared.LogInfof(strings.TrimRight(" - "+lxcmap, "\n"))
+			}
+		}
+
+		shared.LogInfof("Configured LXD uid/gid map:")
+		for _, lxcmap := range d.IdmapSet.Idmap {
+			suffix := ""
+
+			if lxcmap.Usable() != nil {
+				suffix = " (unusable)"
+			}
+
+			for _, lxcEntry := range lxcmap.ToLxcString() {
+				shared.LogInfof(" - %s%s", strings.TrimRight(lxcEntry, "\n"), suffix)
+			}
+		}
+
+		err = d.IdmapSet.Usable()
+		if err != nil {
+			shared.LogWarnf("One or more uid/gid map entry isn't usable (typically due to nesting)")
+			shared.LogWarnf("Only privileged containers will be able to run")
+			d.IdmapSet = nil
 		}
 	}
 
