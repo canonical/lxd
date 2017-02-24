@@ -199,7 +199,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 	// Enable quotas
 	output, err := exec.Command(
 		"btrfs", "quota", "enable", poolMntPoint).CombinedOutput()
-	if err != nil {
+	if err != nil && !runningInUserns {
 		return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
 	}
 
