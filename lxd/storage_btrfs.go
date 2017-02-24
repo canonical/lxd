@@ -18,8 +18,6 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 var btrfsMntOptions = "user_subvol_rm_allowed"
@@ -72,10 +70,7 @@ func (s *storageBtrfs) StorageCoreInit() (*storageCore, error) {
 		return nil, fmt.Errorf("The 'btrfs' tool isn't working properly")
 	}
 
-	err = sCore.initShared()
-	if err != nil {
-		return nil, err
-	}
+	shared.LogInfof("Initializing a BTRFS driver.")
 
 	s.storageCore = sCore
 
@@ -174,10 +169,10 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		// we granted it above. So try to call btrfs filesystem show and
 		// parse it out. (I __hate__ this!)
 		if devUUID == "" {
-			s.log.Warn("Failed to detect UUID by looking at /dev/disk/by-uuid.")
+			shared.LogWarnf("Failed to detect UUID by looking at /dev/disk/by-uuid.")
 			devUUID, err1 = s.btrfsLookupFsUUID(source)
 			if err1 != nil {
-				s.log.Error("Failed to detect UUID by parsing filesystem info.")
+				shared.LogErrorf("Failed to detect UUID by parsing filesystem info.")
 				return err1
 			}
 		}
@@ -269,7 +264,7 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 		} else {
 			msg = fmt.Sprintf("Failed to lookup disk device with UUID: %s: %s.", source, err)
 		}
-		s.log.Debug(msg)
+		shared.LogDebugf(msg)
 	} else {
 		var err error
 		if s.d.BackingFs == "btrfs" {
@@ -302,7 +297,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	if waitChannel, ok := lxdStorageOngoingOperationMap[poolMountLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			s.log.Warn("Received value over semaphore. This should not have happened.")
+			shared.LogWarnf("Received value over semaphore. This should not have happened.")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in mounting the storage pool.
@@ -383,7 +378,7 @@ func (s *storageBtrfs) StoragePoolUmount() (bool, error) {
 	if waitChannel, ok := lxdStorageOngoingOperationMap[poolUmountLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			s.log.Warn("Received value over semaphore. This should not have happened.")
+			shared.LogWarnf("Received value over semaphore. This should not have happened.")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in unmounting the storage pool.
@@ -587,7 +582,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			s.log.Warn("Received value over semaphore. This should not have happened.")
+			shared.LogWarnf("Received value over semaphore. This should not have happened.")
 		}
 	} else {
 		lxdStorageOngoingOperationMap[imageStoragePoolLockID] = make(chan bool)
@@ -754,7 +749,7 @@ func (s *storageBtrfs) ContainerCopy(container container, sourceContainer contai
 		output, err := storageRsyncCopy(sourceContainerSubvolumeName, targetContainerSubvolumeName)
 		if err != nil {
 			s.ContainerDelete(container)
-			s.log.Error("ContainerCopy: rsync failed", log.Ctx{"output": string(output)})
+			shared.LogErrorf("ContainerCopy: rsync failed: %s.", string(output))
 			return fmt.Errorf("rsync failed: %s", string(output))
 		}
 	}
@@ -880,7 +875,7 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 			output, err := storageRsyncCopy(sourceContainerSubvolumeName, targetContainerSubvolumeName)
 			if err != nil {
 				s.ContainerDelete(container)
-				s.log.Error("ContainerRestore: rsync failed", log.Ctx{"output": string(output)})
+				shared.LogErrorf("ContainerRestore: rsync failed: %s.", string(output))
 				failure = err
 			}
 		} else {
@@ -1427,9 +1422,7 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 		// also don't make subvolumes readonly.
 		readonly = false
 
-		s.log.Warn(
-			"Subvolumes detected, ignoring ro flag",
-			log.Ctx{"source": source, "dest": dest})
+		shared.LogWarnf("Subvolumes detected, ignoring ro flag.")
 	}
 
 	// First snapshot the root
@@ -1741,12 +1734,12 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 		output, err := ioutil.ReadAll(stderr)
 		if err != nil {
-			s.log.Debug(fmt.Sprintf("problem reading btrfs receive stderr %s", err))
+			shared.LogDebugf("Problem reading btrfs receive stderr %s.", err)
 		}
 
 		err = cmd.Wait()
 		if err != nil {
-			s.log.Error("problem with btrfs receive", log.Ctx{"output": string(output)})
+			shared.LogErrorf("Problem with btrfs receive: %s.", string(output))
 			return err
 		}
 
@@ -1758,13 +1751,13 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			err = s.btrfsPoolVolumesSnapshot(btrfsPath, targetPath, true)
 		}
 		if err != nil {
-			s.log.Error("problem with btrfs snapshot", log.Ctx{"err": err})
+			shared.LogErrorf("Problem with btrfs snapshot: %s.", err)
 			return err
 		}
 
 		err = btrfsSubVolumesDelete(btrfsPath)
 		if err != nil {
-			s.log.Error("problem with btrfs delete", log.Ctx{"err": err})
+			shared.LogErrorf("Problem with btrfs delete: %s.", err)
 			return err
 		}
 
