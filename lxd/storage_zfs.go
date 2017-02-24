@@ -73,10 +73,9 @@ func (s *storageZfs) StorageCoreInit() (*storageCore, error) {
 		return nil, err
 	}
 
-	shared.LogInfof("Initializing a ZFS driver.")
-
 	s.storageCore = sCore
 
+	shared.LogInfof("Initializing a ZFS driver.")
 	return &sCore, nil
 }
 
@@ -98,10 +97,14 @@ func (s *storageZfs) StoragePoolInit(config map[string]interface{}) (storage, er
 func (s *storageZfs) StoragePoolCheck() error {
 	// Make noop for now until we figure out something useful to do for all
 	// supported use cases.
+
+	shared.LogInfof("Checking ZFS storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) StoragePoolCreate() error {
+	shared.LogInfof("Creating ZFS storage pool \"%s\".", s.pool.Name)
+
 	err := s.zfsPoolCreate()
 	if err != nil {
 		return err
@@ -122,10 +125,13 @@ func (s *storageZfs) StoragePoolCreate() error {
 
 	revert = false
 
+	shared.LogInfof("Created ZFS storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) StoragePoolDelete() error {
+	shared.LogInfof("Deleting ZFS storage pool \"%s\".", s.pool.Name)
+
 	err := s.zfsFilesystemEntityDelete()
 	if err != nil {
 		return err
@@ -139,6 +145,7 @@ func (s *storageZfs) StoragePoolDelete() error {
 		}
 	}
 
+	shared.LogInfof("Deleted ZFS storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
@@ -151,6 +158,8 @@ func (s *storageZfs) StoragePoolUmount() (bool, error) {
 }
 
 func (s *storageZfs) StoragePoolVolumeCreate() error {
+	shared.LogInfof("Creating ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	fs := fmt.Sprintf("custom/%s", s.volume.Name)
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
@@ -177,10 +186,13 @@ func (s *storageZfs) StoragePoolVolumeCreate() error {
 
 	revert = false
 
+	shared.LogInfof("Created ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) StoragePoolVolumeDelete() error {
+	shared.LogInfof("Deleting ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	fs := fmt.Sprintf("custom/%s", s.volume.Name)
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
@@ -196,10 +208,13 @@ func (s *storageZfs) StoragePoolVolumeDelete() error {
 		}
 	}
 
+	shared.LogInfof("Deleted ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) StoragePoolVolumeMount() (bool, error) {
+	shared.LogInfof("Mounting ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	fs := fmt.Sprintf("custom/%s", s.volume.Name)
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
@@ -236,10 +251,13 @@ func (s *storageZfs) StoragePoolVolumeMount() (bool, error) {
 		return false, customerr
 	}
 
+	shared.LogInfof("Mounted ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return ourMount, nil
 }
 
 func (s *storageZfs) StoragePoolVolumeUmount() (bool, error) {
+	shared.LogInfof("Unmounting ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	fs := fmt.Sprintf("custom/%s", s.volume.Name)
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
@@ -276,6 +294,7 @@ func (s *storageZfs) StoragePoolVolumeUmount() (bool, error) {
 		return false, customerr
 	}
 
+	shared.LogInfof("Unmounted ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return ourUmount, nil
 }
 
@@ -304,6 +323,8 @@ func (s *storageZfs) ContainerPoolIDGet() int64 {
 }
 
 func (s *storageZfs) StoragePoolUpdate(changedConfig []string) error {
+	shared.LogInfof("Updating ZFS storage pool \"%s\".", s.pool.Name)
+
 	if shared.StringInSlice("size", changedConfig) {
 		return fmt.Errorf("The \"size\" property cannot be changed.")
 	}
@@ -336,10 +357,13 @@ func (s *storageZfs) StoragePoolUpdate(changedConfig []string) error {
 		return fmt.Errorf("The \"zfs.pool_name\" property cannot be changed.")
 	}
 
+	shared.LogInfof("Updated ZFS storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) StoragePoolVolumeUpdate(changedConfig []string) error {
+	shared.LogInfof("Updating ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	if shared.StringInSlice("block.mount_options", changedConfig) {
 		return fmt.Errorf("The \"block.mount_options\" property cannot be changed.")
 	}
@@ -352,11 +376,14 @@ func (s *storageZfs) StoragePoolVolumeUpdate(changedConfig []string) error {
 		return fmt.Errorf("The \"size\" property cannot be changed.")
 	}
 
+	shared.LogInfof("Updated ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 // Things we don't need to care about
 func (s *storageZfs) ContainerMount(name string, path string) (bool, error) {
+	shared.LogInfof("Mounting ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	fs := fmt.Sprintf("containers/%s", name)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, name)
 
@@ -393,10 +420,13 @@ func (s *storageZfs) ContainerMount(name string, path string) (bool, error) {
 		return false, imgerr
 	}
 
+	shared.LogInfof("Mounted ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return ourMount, nil
 }
 
 func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
+	shared.LogInfof("Unmounting ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	fs := fmt.Sprintf("containers/%s", name)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, name)
 
@@ -433,6 +463,7 @@ func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 		return false, imgerr
 	}
 
+	shared.LogInfof("Unmounted ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return ourUmount, nil
 }
 
@@ -444,6 +475,8 @@ func (s *storageZfs) ContainerStorageReady(name string) bool {
 }
 
 func (s *storageZfs) ContainerCreate(container container) error {
+	shared.LogInfof("Creating empty ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	containerPath := container.Path()
 	containerName := container.Name()
 	fs := fmt.Sprintf("containers/%s", containerName)
@@ -480,10 +513,13 @@ func (s *storageZfs) ContainerCreate(container container) error {
 
 	revert = false
 
+	shared.LogInfof("Created empty ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint string) error {
+	shared.LogInfof("Creating ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	containerPath := container.Path()
 	containerName := container.Name()
 	fs := fmt.Sprintf("containers/%s", containerName)
@@ -551,6 +587,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 
 	revert = false
 
+	shared.LogInfof("Created ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
@@ -578,6 +615,8 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 }
 
 func (s *storageZfs) ContainerDelete(container container) error {
+	shared.LogInfof("Deleting ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	containerName := container.Name()
 	fs := fmt.Sprintf("containers/%s", containerName)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
@@ -658,10 +697,13 @@ func (s *storageZfs) ContainerDelete(container container) error {
 		}
 	}
 
+	shared.LogInfof("Deleted ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) ContainerCopy(container container, sourceContainer container) error {
+	shared.LogInfof("Copying ZFS container storage %s -> %s.", sourceContainer.Name(), container.Name())
+
 	sourceContainerName := sourceContainer.Name()
 	sourceContainerPath := sourceContainer.Path()
 
@@ -758,10 +800,13 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 
 	revert = false
 
+	shared.LogInfof("Copied ZFS container storage %s -> %s.", sourceContainer.Name(), container.Name())
 	return nil
 }
 
 func (s *storageZfs) ContainerRename(container container, newName string) error {
+	shared.LogInfof("Renaming ZFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+
 	oldName := container.Name()
 
 	// Unmount the dataset.
@@ -837,10 +882,13 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 
 	revert = false
 
+	shared.LogInfof("Renamed ZFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
 	return nil
 }
 
 func (s *storageZfs) ContainerRestore(container container, sourceContainer container) error {
+	shared.LogInfof("Restoring ZFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
+
 	// Remove any needed snapshot
 	snaps, err := container.Snapshots()
 	if err != nil {
@@ -868,10 +916,13 @@ func (s *storageZfs) ContainerRestore(container container, sourceContainer conta
 		return err
 	}
 
+	shared.LogInfof("Restored ZFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
 	return nil
 }
 
 func (s *storageZfs) ContainerSetQuota(container container, size int64) error {
+	shared.LogInfof("Setting ZFS quota for container \"%s\".", container.Name())
+
 	var err error
 
 	fs := fmt.Sprintf("containers/%s", container.Name())
@@ -899,6 +950,7 @@ func (s *storageZfs) ContainerSetQuota(container container, size int64) error {
 		return err
 	}
 
+	shared.LogInfof("Set ZFS quota for container \"%s\".", container.Name())
 	return nil
 }
 
@@ -934,6 +986,8 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 }
 
 func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
+	shared.LogInfof("Creating ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	snapshotContainerName := snapshotContainer.Name()
 	sourceContainerName := sourceContainer.Name()
 
@@ -973,10 +1027,13 @@ func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, source
 
 	revert = false
 
+	shared.LogInfof("Created ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error {
+	shared.LogInfof("Deleting ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	fields := strings.SplitN(snapshotContainer.Name(), shared.SnapshotDelimiter, 2)
 	sourceContainerName := fields[0]
 	snapName := fmt.Sprintf("snapshot-%s", fields[1])
@@ -1047,10 +1104,13 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 		}
 	}
 
+	shared.LogInfof("Deleted ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newName string) error {
+	shared.LogInfof("Renaming ZFS storage volume for snapshot \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+
 	oldName := snapshotContainer.Name()
 
 	oldFields := strings.SplitN(snapshotContainer.Name(), shared.SnapshotDelimiter, 2)
@@ -1109,10 +1169,13 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 
 	revert = false
 
+	shared.LogInfof("Renamed ZFS storage volume for snapshot \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
 	return nil
 }
 
 func (s *storageZfs) ContainerSnapshotStart(container container) error {
+	shared.LogInfof("Initializing ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
 	if len(fields) < 2 {
 		return fmt.Errorf("Invalid snapshot name: %s", container.Name())
@@ -1130,10 +1193,13 @@ func (s *storageZfs) ContainerSnapshotStart(container container) error {
 		return err
 	}
 
+	shared.LogInfof("Initialized ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) ContainerSnapshotStop(container container) error {
+	shared.LogInfof("Stopping ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
 	if len(fields) < 2 {
 		return fmt.Errorf("Invalid snapshot name: %s", container.Name())
@@ -1149,7 +1215,13 @@ func (s *storageZfs) ContainerSnapshotStop(container container) error {
 
 	/* zfs creates this directory on clone (start), so we need to clean it
 	 * up on stop */
-	return os.RemoveAll(container.Path())
+	shared.LogInfof("Stopped ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	err = os.RemoveAll(container.Path())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
@@ -1165,6 +1237,8 @@ func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 // - remove mountpoint property from zfs volume images/<fingerprint>
 // - create read-write snapshot from zfs volume images/<fingerprint>
 func (s *storageZfs) ImageCreate(fingerprint string) error {
+	shared.LogInfof("Creating ZFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	fs := fmt.Sprintf("images/%s", fingerprint)
 	revert := true
@@ -1283,10 +1357,13 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 
 	revert = false
 
+	shared.LogInfof("Created ZFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) ImageDelete(fingerprint string) error {
+	shared.LogInfof("Deleting ZFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
 	fs := fmt.Sprintf("images/%s", fingerprint)
 
 	if s.zfsFilesystemEntityExists(fs, true) {
@@ -1333,6 +1410,7 @@ func (s *storageZfs) ImageDelete(fingerprint string) error {
 		}
 	}
 
+	shared.LogInfof("Deleted ZFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 

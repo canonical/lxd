@@ -22,10 +22,9 @@ func (s *storageMock) StorageCoreInit() (*storageCore, error) {
 	}
 	sCore.sTypeName = typeName
 
-	shared.LogInfof("Initializing a MOCK driver.")
-
 	s.storageCore = sCore
 
+	shared.LogInfof("Initializing a MOCK driver.")
 	return &sCore, nil
 }
 
@@ -39,14 +38,19 @@ func (s *storageMock) StoragePoolInit(config map[string]interface{}) (storage, e
 }
 
 func (s *storageMock) StoragePoolCheck() error {
+	shared.LogInfof("Checking MOCK storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
 func (s *storageMock) StoragePoolCreate() error {
+	shared.LogInfof("Creating MOCK storage pool \"%s\".", s.pool.Name)
+	shared.LogInfof("Created MOCK storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
 func (s *storageMock) StoragePoolDelete() error {
+	shared.LogInfof("Deleting MOCK storage pool \"%s\".", s.pool.Name)
+	shared.LogInfof("Deleted MOCK storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
@@ -154,9 +158,7 @@ func (s *storageMock) ContainerRestore(
 	return nil
 }
 
-func (s *storageMock) ContainerSetQuota(
-	container container, size int64) error {
-
+func (s *storageMock) ContainerSetQuota(container container, size int64) error {
 	return nil
 }
 
