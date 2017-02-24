@@ -5893,40 +5893,66 @@ func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, er
 	isFile := false
 	if m["pool"] == "" {
 		isFile = !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
-	}
+	} else {
+		// Deal with mounting storage volumes created via the storage
+		// api. Extract the name of the storage volume that we are
+		// supposed to attach. We assume that the only syntactically
+		// valid ways of specifying a storage volume are:
+		// - <volume_name>
+		// - <type>/<volume_name>
+		// Currently, <type> must either be empty or "custom". We do not
+		// yet support container mounts.
 
-	// Deal with mounting storage volumes created via the storage api.
-	if m["pool"] != "" {
-		// Extract the name of the storage volume that we are supposed
-		// to attach. We assume that the only syntactically valid ways
-		// of specifying a storage volume are:
-		// - vol1
-		// - storage_type/vol1
+		if filepath.IsAbs(m["source"]) {
+			return "", fmt.Errorf("When the \"pool\" property is set \"source\" must specify the name of a volume, not a path.")
+		}
+
+		volumeTypeName := ""
 		volumeName := filepath.Clean(m["source"])
 		slash := strings.Index(volumeName, "/")
 		if (slash > 0) && (len(volumeName) > slash) {
-			volumeName = volumeName[(slash + 1):]
+			// Extract volume name.
+			volumeName = m["source"][(slash + 1):]
+			// Extract volume type.
+			volumeTypeName = m["source"][:slash]
 		}
 
-		// Check if it is the rootfs of another container that we're
-		// supposed to mount. If not it must be a custom volume.
-		volumeType := storagePoolVolumeTypeCustom
-		if strings.HasSuffix(m["source"], storagePoolVolumeApiEndpointContainers+"/") {
-			volumeType = storagePoolVolumeTypeContainer
-			srcPath = shared.VarPath("storage-pools", m["pool"], m["source"])
-		} else {
-			srcPath = shared.VarPath("storage-pools", m["pool"], storagePoolVolumeApiEndpointCustom, m["source"])
+		switch volumeTypeName {
+		case storagePoolVolumeTypeNameContainer:
+			return "", fmt.Errorf("Using container storage volumes is not supported.")
+		case "":
+			// We simply received the name of a storage volume.
+			volumeTypeName = storagePoolVolumeTypeNameCustom
+			fallthrough
+		case storagePoolVolumeTypeNameCustom:
+			srcPath = shared.VarPath("storage-pools", m["pool"], volumeTypeName, volumeName)
+		case storagePoolVolumeTypeNameImage:
+			return "", fmt.Errorf("Using image storage volumes is not supported.")
+		default:
+			return "", fmt.Errorf("Unknown storage type prefix \"%s\" found.", volumeTypeName)
 		}
 
 		// Initialize a new storage interface and check if the
 		// pool/volume is mounted. If it is not, mount it.
+		volumeType, _ := storagePoolVolumeTypeNameToType(volumeTypeName)
 		s, err := storagePoolVolumeInit(c.daemon, m["pool"], volumeName, volumeType)
 		if err != nil && !isOptional {
-			return "", fmt.Errorf("Failed to initialize storage volume \"%s\" on storage pool \"%s\": %s.", volumeName, m["pool"], err)
+			return "", fmt.Errorf("Failed to initialize storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s.",
+				volumeName,
+				volumeTypeName,
+				m["pool"], err)
 		} else if err == nil {
-			_, err := s.StoragePoolVolumeMount()
+			_, err = s.StoragePoolVolumeMount()
 			if err != nil {
-				shared.LogWarnf("Could not mount storage volume \"%s\" on storage pool \"%s\": %s.", volumeName, m["pool"], err)
+				msg := fmt.Sprintf("Could not mount storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s.",
+					volumeName,
+					volumeTypeName,
+					m["pool"], err)
+				if !isOptional {
+					shared.LogErrorf(msg)
+					return "", err
+				}
+				shared.LogWarnf(msg)
 			}
 		}
 	}
