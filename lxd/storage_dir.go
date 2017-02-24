@@ -28,10 +28,7 @@ func (s *storageDir) StorageCoreInit() (*storageCore, error) {
 	sCore.sTypeName = typeName
 	sCore.sTypeVersion = "1"
 
-	err = sCore.initShared()
-	if err != nil {
-		return nil, err
-	}
+	shared.LogInfof("Initializing a DIR driver.")
 
 	s.storageCore = sCore
 
@@ -507,11 +504,11 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 	if sourceContainer.IsRunning() {
 		// This is done to ensure consistency when snapshotting. But we
 		// probably shouldn't fail just because of that.
-		s.log.Debug("Trying to freeze and rsync again to ensure consistency.")
+		shared.LogDebugf("Trying to freeze and rsync again to ensure consistency.")
 
 		err := sourceContainer.Freeze()
 		if err != nil {
-			s.log.Warn("Trying to freeze and rsync again failed.")
+			shared.LogWarnf("Trying to freeze and rsync again failed.")
 			return nil
 		}
 
