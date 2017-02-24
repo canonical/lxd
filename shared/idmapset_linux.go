@@ -7,9 +7,21 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
+
+type IdRange struct {
+	Isuid   bool
+	Isgid   bool
+	Startid int
+	Endid   int
+}
+
+func (i *IdRange) Contains(id int) bool {
+	return id >= i.Startid && id <= i.Endid
+}
 
 /*
  * One entry in id mapping set - a single range of either
@@ -81,6 +93,40 @@ func (e *IdmapEntry) Intersects(i IdmapEntry) bool {
 		}
 	}
 	return false
+}
+
+func (e *IdmapEntry) Usable() error {
+	kernelIdmap, err := CurrentIdmapSet()
+	if err != nil {
+		return err
+	}
+
+	kernelRanges, err := kernelIdmap.ValidRanges()
+	if err != nil {
+		return err
+	}
+
+	valid := false
+	for _, kernelRange := range kernelRanges {
+		if kernelRange.Isuid != e.Isuid {
+			continue
+		}
+
+		if kernelRange.Isgid != e.Isgid {
+			continue
+		}
+
+		if kernelRange.Contains(e.Hostid) && kernelRange.Contains(e.Hostid+e.Maprange-1) {
+			valid = true
+			break
+		}
+	}
+
+	if !valid {
+		return fmt.Errorf("The '%s' map can't work in the current user namespace.", e.ToLxcString())
+	}
+
+	return nil
 }
 
 func (e *IdmapEntry) parse(s string) error {
@@ -184,6 +230,22 @@ func (m IdmapSet) Len() int {
 	return len(m.Idmap)
 }
 
+func (m IdmapSet) Swap(i, j int) {
+	m.Idmap[i], m.Idmap[j] = m.Idmap[j], m.Idmap[i]
+}
+
+func (m IdmapSet) Less(i, j int) bool {
+	if m.Idmap[i].Isuid != m.Idmap[j].Isuid {
+		return m.Idmap[i].Isuid == true
+	}
+
+	if m.Idmap[i].Isgid != m.Idmap[j].Isgid {
+		return m.Idmap[i].Isgid == true
+	}
+
+	return m.Idmap[i].Nsid < m.Idmap[j].Nsid
+}
+
 func (m IdmapSet) Intersects(i IdmapEntry) bool {
 	for _, e := range m.Idmap {
 		if i.Intersects(e) {
@@ -200,6 +262,57 @@ func (m IdmapSet) HostidsIntersect(i IdmapEntry) bool {
 		}
 	}
 	return false
+}
+
+func (m IdmapSet) Usable() error {
+	for _, e := range m.Idmap {
+		err := e.Usable()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m IdmapSet) ValidRanges() ([]*IdRange, error) {
+	ranges := []*IdRange{}
+
+	// Sort the map
+	idmap := IdmapSet{}
+	err := DeepCopy(&m, &idmap)
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(idmap)
+
+	for _, mapEntry := range idmap.Idmap {
+		var entry *IdRange
+		for _, idEntry := range ranges {
+			if mapEntry.Isuid != idEntry.Isuid || mapEntry.Isgid != idEntry.Isgid {
+				continue
+			}
+
+			if idEntry.Endid+1 == mapEntry.Nsid {
+				entry = idEntry
+				break
+			}
+		}
+
+		if entry != nil {
+			entry.Endid = entry.Endid + mapEntry.Maprange
+			continue
+		}
+
+		ranges = append(ranges, &IdRange{
+			Isuid:   mapEntry.Isuid,
+			Isgid:   mapEntry.Isgid,
+			Startid: mapEntry.Nsid,
+			Endid:   mapEntry.Nsid + mapEntry.Maprange - 1,
+		})
+	}
+
+	return ranges, nil
 }
 
 /* AddSafe adds an entry to the idmap set, breaking apart any ranges that the
