@@ -293,6 +293,22 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 		req.Config[key] = value
 	}
 
+	// Devices override
+	sourceDevices := source.LocalDevices()
+
+	if req.Devices == nil {
+		req.Devices = make(map[string]map[string]string)
+	}
+
+	for key, value := range sourceDevices {
+		_, exists := req.Devices[key]
+		if exists {
+			continue
+		}
+
+		req.Devices[key] = value
+	}
+
 	// Profiles override
 	if req.Profiles == nil {
 		req.Profiles = source.Profiles()
@@ -303,7 +319,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
 		Ctype:        cTypeRegular,
-		Devices:      source.LocalDevices(),
+		Devices:      req.Devices,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
 		Profiles:     req.Profiles,
