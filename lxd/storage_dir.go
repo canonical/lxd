@@ -30,7 +30,7 @@ func (s *storageDir) StorageCoreInit() (*storageCore, error) {
 
 	s.storageCore = sCore
 
-	shared.LogInfof("Initializing a DIR driver.")
+	shared.LogDebugf("Initializing a DIR driver.")
 	return &sCore, nil
 }
 
@@ -46,7 +46,7 @@ func (s *storageDir) StoragePoolInit(config map[string]interface{}) (storage, er
 
 // Initialize a full storage interface.
 func (s *storageDir) StoragePoolCheck() error {
-	shared.LogInfof("Checking DIR storage pool \"%s\".", s.pool.Name)
+	shared.LogDebugf("Checking DIR storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
@@ -215,7 +215,7 @@ func (s *storageDir) ContainerStorageReady(name string) bool {
 }
 
 func (s *storageDir) ContainerCreate(container container) error {
-	shared.LogInfof("Creating empty DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Creating empty DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -242,12 +242,12 @@ func (s *storageDir) ContainerCreate(container container) error {
 
 	revert = false
 
-	shared.LogInfof("Created empty DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Created empty DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) ContainerCreateFromImage(container container, imageFingerprint string) error {
-	shared.LogInfof("Creating DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Creating DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -289,7 +289,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 
 	revert = false
 
-	shared.LogInfof("Created DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Created DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
@@ -298,7 +298,7 @@ func (s *storageDir) ContainerCanRestore(container container, sourceContainer co
 }
 
 func (s *storageDir) ContainerDelete(container container) error {
-	shared.LogInfof("Deleting DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Deleting DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -344,12 +344,12 @@ func (s *storageDir) ContainerDelete(container container) error {
 		}
 	}
 
-	shared.LogInfof("Deleted DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Deleted DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) ContainerCopy(container container, sourceContainer container) error {
-	shared.LogInfof("Copying DIR container storage %s -> %s.", sourceContainer.Name(), container.Name())
+	shared.LogDebugf("Copying DIR container storage %s -> %s.", sourceContainer.Name(), container.Name())
 
 	err := sourceContainer.StorageStart()
 	if err != nil {
@@ -409,7 +409,7 @@ func (s *storageDir) ContainerCopy(container container, sourceContainer containe
 
 	revert = false
 
-	shared.LogInfof("Copied DIR container storage %s -> %s.", sourceContainer.Name(), container.Name())
+	shared.LogDebugf("Copied DIR container storage %s -> %s.", sourceContainer.Name(), container.Name())
 	return nil
 }
 
@@ -422,7 +422,7 @@ func (s *storageDir) ContainerUmount(name string, path string) (bool, error) {
 }
 
 func (s *storageDir) ContainerRename(container container, newName string) error {
-	shared.LogInfof("Renaming DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+	shared.LogDebugf("Renaming DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
 
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -467,12 +467,12 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 		}
 	}
 
-	shared.LogInfof("Renamed DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+	shared.LogDebugf("Renamed DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
 	return nil
 }
 
 func (s *storageDir) ContainerRestore(container container, sourceContainer container) error {
-	shared.LogInfof("Restoring DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
+	shared.LogDebugf("Restoring DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
 
 	targetPath := container.Path()
 	sourcePath := sourceContainer.Path()
@@ -488,7 +488,7 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 		return err
 	}
 
-	shared.LogInfof("Restored DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
+	shared.LogDebugf("Restored DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
 	return nil
 }
 
@@ -501,7 +501,7 @@ func (s *storageDir) ContainerGetUsage(container container) (int64, error) {
 }
 
 func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
-	shared.LogInfof("Creating DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Creating DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	// Create the path for the snapshot.
 	targetContainerName := snapshotContainer.Name()
@@ -540,7 +540,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 
 		err := sourceContainer.Freeze()
 		if err != nil {
-			shared.LogWarnf("Trying to freeze and rsync again failed.")
+			shared.LogErrorf("Trying to freeze and rsync again failed.")
 			return nil
 		}
 
@@ -564,12 +564,12 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 		}
 	}
 
-	shared.LogInfof("Created DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Created DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
-	shared.LogInfof("Creating empty DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Creating empty DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	// Create the path for the snapshot.
 	targetContainerName := snapshotContainer.Name()
@@ -602,12 +602,12 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 
 	revert = false
 
-	shared.LogInfof("Created empty DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Created empty DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error {
-	shared.LogInfof("Deleting DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Deleting DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -649,12 +649,12 @@ func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error 
 		}
 	}
 
-	shared.LogInfof("Deleted DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Deleted DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) ContainerSnapshotRename(snapshotContainer container, newName string) error {
-	shared.LogInfof("Renaming DIR storage volume for snapshot \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+	shared.LogDebugf("Renaming DIR storage volume for snapshot \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
 
 	// Rename the mountpoint for the snapshot:
 	// ${POOL}/snapshots/<old_snapshot_name> to ${POOL}/snapshots/<new_snapshot_name>
@@ -665,7 +665,7 @@ func (s *storageDir) ContainerSnapshotRename(snapshotContainer container, newNam
 		return err
 	}
 
-	shared.LogInfof("Renamed DIR storage volume for snapshot \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+	shared.LogDebugf("Renamed DIR storage volume for snapshot \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
 	return nil
 }
 
