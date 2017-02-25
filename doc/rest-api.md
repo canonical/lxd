@@ -553,10 +553,15 @@ Input (using a local container):
 
     {
         "name": "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
-        "architecture": "x86_64",
         "profiles": ["default"],                                                        # List of profiles
         "ephemeral": true,                                                              # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                                  # Config override.
+        "devices": {                                                                    # optional list of devices the container should have
+            "kvm": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            },
+        },
         "source": {"type": "copy",                                                      # Can be: "image", "migration", "copy" or "none"
                    "source": "my-old-container"}                                        # Name of the source container
     }
