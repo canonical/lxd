@@ -15,6 +15,31 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+func storageVGActivate(lvmVolumePath string) error {
+	output, err := tryExec("vgchange", "-ay", lvmVolumePath)
+	if err != nil {
+		return fmt.Errorf("Could not activate volume group \"%s\": %s.", lvmVolumePath, string(output))
+	}
+
+	return nil
+}
+
+func storageLVActivate(lvmVolumePath string, readonly bool) error {
+	var output []byte
+	var err error
+	if readonly {
+		output, err = tryExec("lvchange", "-ay", "-pr", lvmVolumePath)
+	} else {
+		output, err = tryExec("lvchange", "-ay", lvmVolumePath)
+	}
+
+	if err != nil {
+		return fmt.Errorf("Could not activate logival volume \"%s\": %s.", lvmVolumePath, string(output))
+	}
+
+	return nil
+}
+
 func storagePVExists(pvName string) (bool, error) {
 	err := exec.Command("pvs", "--noheadings", "-o", "lv_attr", pvName).Run()
 	if err != nil {
@@ -25,7 +50,7 @@ func storagePVExists(pvName string) (bool, error) {
 				return false, nil
 			}
 		}
-		return false, fmt.Errorf("Error checking for volume group '%s'", pvName)
+		return false, fmt.Errorf("Error checking for physical volume \"%s\"", pvName)
 	}
 
 	return true, nil
@@ -41,7 +66,7 @@ func storageVGExists(vgName string) (bool, error) {
 				return false, nil
 			}
 		}
-		return false, fmt.Errorf("Error checking for volume group '%s'", vgName)
+		return false, fmt.Errorf("Error checking for volume group \"%s\"", vgName)
 	}
 
 	return true, nil
@@ -57,7 +82,7 @@ func storageLVExists(lvName string) (bool, error) {
 				return false, nil
 			}
 		}
-		return false, fmt.Errorf("Error checking for volume group '%s'", lvName)
+		return false, fmt.Errorf("Error checking for logical volume \"%s\"", lvName)
 	}
 
 	return true, nil
@@ -302,6 +327,14 @@ func (s *storageLvm) StoragePoolInit(config map[string]interface{}) (storage, er
 
 func (s *storageLvm) StoragePoolCheck() error {
 	shared.LogDebugf("Checking LVM storage pool \"%s\".", s.pool.Name)
+
+	poolName := s.getOnDiskPoolName()
+	err := storageVGActivate(poolName)
+	if err != nil {
+		return err
+	}
+
+	shared.LogDebugf("Checked LVM storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
@@ -425,6 +458,11 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 	}
 
+	err = s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
 	// Deregister cleanup.
 	tryUndo = false
 
@@ -468,6 +506,11 @@ func (s *storageLvm) StoragePoolUmount() (bool, error) {
 
 func (s *storageLvm) StoragePoolVolumeCreate() error {
 	shared.LogInfof("Creating LVM storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
 
 	tryUndo := true
 
@@ -574,7 +617,10 @@ func (s *storageLvm) StoragePoolVolumeMount() (bool, error) {
 	var customerr error
 	ourMount := false
 	if !shared.IsMountPoint(customPoolVolumeMntPoint) {
-		customerr = tryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, 0, mountOptions)
+		customerr = s.StoragePoolCheck()
+		if customerr == nil {
+			customerr = tryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, 0, mountOptions)
+		}
 		ourMount = true
 	}
 
@@ -720,6 +766,11 @@ func (s *storageLvm) StoragePoolVolumeUpdate(changedConfig []string) error {
 }
 
 func (s *storageLvm) ContainerStorageReady(name string) bool {
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return false
+	}
+
 	containerLvmName := containerNameToLVName(name)
 	poolName := s.getOnDiskPoolName()
 	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, containerLvmName)
@@ -729,6 +780,11 @@ func (s *storageLvm) ContainerStorageReady(name string) bool {
 
 func (s *storageLvm) ContainerCreate(container container) error {
 	shared.LogDebugf("Creating empty LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
 
 	tryUndo := true
 
@@ -787,6 +843,11 @@ func (s *storageLvm) ContainerCreate(container container) error {
 
 func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint string) error {
 	shared.LogDebugf("Creating LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
 
 	tryUndo := true
 
@@ -947,9 +1008,14 @@ func (s *storageLvm) ContainerDelete(container container) error {
 func (s *storageLvm) ContainerCopy(container container, sourceContainer container) error {
 	shared.LogDebugf("Copying LVM container storage %s -> %s.", sourceContainer.Name(), container.Name())
 
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
 	tryUndo := true
 
-	err := sourceContainer.StorageStart()
+	err = sourceContainer.StorageStart()
 	if err != nil {
 		return err
 	}
@@ -1020,6 +1086,11 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 	shared.LogDebugf("Mounting LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return false, err
+	}
+
 	containerLvmName := containerNameToLVName(name)
 	lvFsType := s.getLvmFilesystem()
 	poolName := s.getOnDiskPoolName()
@@ -1042,10 +1113,10 @@ func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 	lxdStorageOngoingOperationMap[containerMountLockID] = make(chan bool)
 	lxdStorageMapLock.Unlock()
 
-	var imgerr error
+	var mounterr error
 	ourMount := false
 	if !shared.IsMountPoint(containerMntPoint) {
-		imgerr = tryMount(containerLvmPath, containerMntPoint, lvFsType, 0, mountOptions)
+		mounterr = tryMount(containerLvmPath, containerMntPoint, lvFsType, 0, mountOptions)
 		ourMount = true
 	}
 
@@ -1056,8 +1127,8 @@ func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 	}
 	lxdStorageMapLock.Unlock()
 
-	if imgerr != nil {
-		return false, imgerr
+	if mounterr != nil {
+		return false, mounterr
 	}
 
 	shared.LogDebugf("Mounted LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
@@ -1109,13 +1180,18 @@ func (s *storageLvm) ContainerUmount(name string, path string) (bool, error) {
 func (s *storageLvm) ContainerRename(container container, newContainerName string) error {
 	shared.LogDebugf("Renaming LVM storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newContainerName)
 
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
 	tryUndo := true
 
 	oldName := container.Name()
 	oldLvmName := containerNameToLVName(oldName)
 	newLvmName := containerNameToLVName(newContainerName)
 
-	_, err := s.ContainerUmount(oldName, container.Path())
+	_, err = s.ContainerUmount(oldName, container.Path())
 	if err != nil {
 		return err
 	}
@@ -1253,6 +1329,11 @@ func (s *storageLvm) ContainerSnapshotCreate(snapshotContainer container, source
 func (s *storageLvm) createSnapshotContainer(snapshotContainer container, sourceContainer container, readonly bool) error {
 	tryUndo := true
 
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
 	sourceContainerName := sourceContainer.Name()
 	targetContainerName := snapshotContainer.Name()
 	sourceContainerLvmName := containerNameToLVName(sourceContainerName)
@@ -1260,7 +1341,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 	shared.LogDebugf("Creating snapshot: %s -> %s.", sourceContainerName, targetContainerName)
 
 	poolName := s.getOnDiskPoolName()
-	_, err := s.createSnapshotLV(poolName, sourceContainerLvmName, storagePoolVolumeApiEndpointContainers, targetContainerLvmName, storagePoolVolumeApiEndpointContainers, readonly)
+	_, err = s.createSnapshotLV(poolName, sourceContainerLvmName, storagePoolVolumeApiEndpointContainers, targetContainerLvmName, storagePoolVolumeApiEndpointContainers, readonly)
 	if err != nil {
 		return fmt.Errorf("Error creating snapshot LV: %s", err)
 	}
@@ -1309,6 +1390,11 @@ func (s *storageLvm) ContainerSnapshotDelete(snapshotContainer container) error 
 func (s *storageLvm) ContainerSnapshotRename(snapshotContainer container, newContainerName string) error {
 	shared.LogDebugf("Renaming LVM storage volume for snapshot \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newContainerName)
 
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
 	tryUndo := true
 
 	oldName := snapshotContainer.Name()
@@ -1341,6 +1427,11 @@ func (s *storageLvm) ContainerSnapshotRename(snapshotContainer container, newCon
 
 func (s *storageLvm) ContainerSnapshotStart(container container) error {
 	shared.LogDebugf("Initializing LVM storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
 
 	tryUndo := true
 
@@ -1393,8 +1484,16 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 func (s *storageLvm) ContainerSnapshotStop(container container) error {
 	shared.LogDebugf("Stopping LVM storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
 	name := container.Name()
 	snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, name)
+
+	poolName := s.getOnDiskPoolName()
+	lvName := containerNameToLVName(name)
 
 	if shared.IsMountPoint(snapshotMntPoint) {
 		err := tryUnmount(snapshotMntPoint, 0)
@@ -1403,10 +1502,8 @@ func (s *storageLvm) ContainerSnapshotStop(container container) error {
 		}
 	}
 
-	lvName := containerNameToLVName(name)
 	tmpLvName := getTmpSnapshotName(lvName)
-	poolName := s.getOnDiskPoolName()
-	err := s.removeLV(poolName, storagePoolVolumeApiEndpointContainers, tmpLvName)
+	err = s.removeLV(poolName, storagePoolVolumeApiEndpointContainers, tmpLvName)
 	if err != nil {
 		return err
 	}
@@ -1429,6 +1526,11 @@ func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 
 func (s *storageLvm) ImageCreate(fingerprint string) error {
 	shared.LogDebugf("Creating LVM storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
 
 	tryUndo := true
 
@@ -1487,7 +1589,12 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 func (s *storageLvm) ImageDelete(fingerprint string) error {
 	shared.LogDebugf("Deleting LVM storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
-	_, err := s.ImageUmount(fingerprint)
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
+	_, err = s.ImageUmount(fingerprint)
 	if err != nil {
 		return err
 	}
@@ -1532,7 +1639,6 @@ func (s *storageLvm) ImageMount(fingerprint string) (bool, error) {
 	poolName := s.getOnDiskPoolName()
 	lvmVolumePath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointImages, fingerprint)
 	lvmMountOptions := s.getLvmBlockMountOptions()
-
 	err := tryMount(lvmVolumePath, imageMntPoint, lvmFstype, 0, lvmMountOptions)
 	if err != nil {
 		shared.LogErrorf(fmt.Sprintf("Error mounting image LV for unpacking: %s", err))
@@ -1692,14 +1798,9 @@ func (s *storageLvm) createSnapshotLV(vgName string, origLvName string, origVolu
 	}
 
 	targetLvmVolumePath := getLvmDevPath(vgName, volumeType, lvName)
-	if readonly {
-		output, err = tryExec("lvchange", "-ay", "-pr", targetLvmVolumePath)
-	} else {
-		output, err = tryExec("lvchange", "-ay", targetLvmVolumePath)
-	}
-
+	err = storageLVActivate(targetLvmVolumePath, readonly)
 	if err != nil {
-		return "", fmt.Errorf("Could not activate new snapshot '%s': %v\noutput:%s", lvName, err, string(output))
+		return "", err
 	}
 
 	return targetLvmVolumePath, nil
