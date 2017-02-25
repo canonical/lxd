@@ -24,7 +24,7 @@ func (s *storageMock) StorageCoreInit() (*storageCore, error) {
 
 	s.storageCore = sCore
 
-	shared.LogInfof("Initializing a MOCK driver.")
+	shared.LogDebugf("Initializing a MOCK driver.")
 	return &sCore, nil
 }
 
@@ -38,7 +38,7 @@ func (s *storageMock) StoragePoolInit(config map[string]interface{}) (storage, e
 }
 
 func (s *storageMock) StoragePoolCheck() error {
-	shared.LogInfof("Checking MOCK storage pool \"%s\".", s.pool.Name)
+	shared.LogDebugf("Checking MOCK storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
