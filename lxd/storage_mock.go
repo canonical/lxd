@@ -13,23 +13,20 @@ type storageMock struct {
 	storageShared
 }
 
-func (s *storageMock) StorageCoreInit() (*storageCore, error) {
-	sCore := storageCore{}
-	sCore.sType = storageTypeMock
-	typeName, err := storageTypeToString(sCore.sType)
+func (s *storageMock) StorageCoreInit() error {
+	s.sType = storageTypeMock
+	typeName, err := storageTypeToString(s.sType)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	sCore.sTypeName = typeName
-
-	s.storageCore = sCore
+	s.sTypeName = typeName
 
 	shared.LogDebugf("Initializing a MOCK driver.")
-	return &sCore, nil
+	return nil
 }
 
 func (s *storageMock) StoragePoolInit() error {
-	_, err := s.StorageCoreInit()
+	err := s.StorageCoreInit()
 	if err != nil {
 		return err
 	}

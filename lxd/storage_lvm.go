@@ -257,41 +257,38 @@ func getTmpSnapshotName(snap string) string {
 }
 
 // Only initialize the minimal information we need about a given storage type.
-func (s *storageLvm) StorageCoreInit() (*storageCore, error) {
-	sCore := storageCore{}
-	sCore.sType = storageTypeLvm
-	typeName, err := storageTypeToString(sCore.sType)
+func (s *storageLvm) StorageCoreInit() error {
+	s.sType = storageTypeLvm
+	typeName, err := storageTypeToString(s.sType)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	sCore.sTypeName = typeName
+	s.sTypeName = typeName
 
 	output, err := exec.Command("lvm", "version").CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("Error getting LVM version: %v\noutput:'%s'", err, string(output))
+		return fmt.Errorf("Error getting LVM version: %v\noutput:'%s'", err, string(output))
 	}
 	lines := strings.Split(string(output), "\n")
 
-	sCore.sTypeVersion = ""
+	s.sTypeVersion = ""
 	for idx, line := range lines {
 		fields := strings.SplitAfterN(line, ":", 2)
 		if len(fields) < 2 {
 			continue
 		}
 		if idx > 0 {
-			sCore.sTypeVersion += " / "
+			s.sTypeVersion += " / "
 		}
-		sCore.sTypeVersion += strings.TrimSpace(fields[1])
+		s.sTypeVersion += strings.TrimSpace(fields[1])
 	}
 
-	s.storageCore = sCore
-
 	shared.LogDebugf("Initializing an LVM driver.")
-	return &sCore, nil
+	return nil
 }
 
 func (s *storageLvm) StoragePoolInit() error {
-	_, err := s.StorageCoreInit()
+	err := s.StorageCoreInit()
 	if err != nil {
 		return err
 	}

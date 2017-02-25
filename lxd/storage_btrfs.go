@@ -46,38 +46,35 @@ func (s *storageBtrfs) getCustomSubvolumePath(poolName string) string {
 	return shared.VarPath("storage-pools", poolName, "custom")
 }
 
-func (s *storageBtrfs) StorageCoreInit() (*storageCore, error) {
-	sCore := storageCore{}
-	sCore.sType = storageTypeBtrfs
-	typeName, err := storageTypeToString(sCore.sType)
+func (s *storageBtrfs) StorageCoreInit() error {
+	s.sType = storageTypeBtrfs
+	typeName, err := storageTypeToString(s.sType)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	sCore.sTypeName = typeName
+	s.sTypeName = typeName
 
 	out, err := exec.LookPath("btrfs")
 	if err != nil || len(out) == 0 {
-		return nil, fmt.Errorf("The 'btrfs' tool isn't available")
+		return fmt.Errorf("The 'btrfs' tool isn't available")
 	}
 
 	output, err := exec.Command("btrfs", "version").CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("The 'btrfs' tool isn't working properly")
+		return fmt.Errorf("The 'btrfs' tool isn't working properly")
 	}
 
-	count, err := fmt.Sscanf(strings.SplitN(string(output), " ", 2)[1], "v%s\n", &sCore.sTypeVersion)
+	count, err := fmt.Sscanf(strings.SplitN(string(output), " ", 2)[1], "v%s\n", &s.sTypeVersion)
 	if err != nil || count != 1 {
-		return nil, fmt.Errorf("The 'btrfs' tool isn't working properly")
+		return fmt.Errorf("The 'btrfs' tool isn't working properly")
 	}
-
-	s.storageCore = sCore
 
 	shared.LogDebugf("Initializing a BTRFS driver.")
-	return &sCore, nil
+	return nil
 }
 
 func (s *storageBtrfs) StoragePoolInit() error {
-	_, err := s.StorageCoreInit()
+	err := s.StorageCoreInit()
 	if err != nil {
 		return err
 	}

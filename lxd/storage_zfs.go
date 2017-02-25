@@ -36,7 +36,7 @@ func (s *storageZfs) getOnDiskPoolName() string {
 	return s.pool.Name
 }
 
-func (s *storageZfs) zfsIsEnabled() bool {
+func zfsIsEnabled() bool {
 	out, err := exec.LookPath("zfs")
 	if err != nil || len(out) == 0 {
 		return false
@@ -45,7 +45,7 @@ func (s *storageZfs) zfsIsEnabled() bool {
 	return true
 }
 
-func (s *storageZfs) zfsModuleVersionGet() (string, error) {
+func zfsModuleVersionGet() (string, error) {
 	zfsVersion, err := ioutil.ReadFile("/sys/module/zfs/version")
 	if err != nil {
 		return "", fmt.Errorf("Could not determine ZFS module version.")
@@ -55,33 +55,30 @@ func (s *storageZfs) zfsModuleVersionGet() (string, error) {
 }
 
 // Only initialize the minimal information we need about a given storage type.
-func (s *storageZfs) StorageCoreInit() (*storageCore, error) {
-	sCore := storageCore{}
-	sCore.sType = storageTypeZfs
-	typeName, err := storageTypeToString(sCore.sType)
+func (s *storageZfs) StorageCoreInit() error {
+	s.sType = storageTypeZfs
+	typeName, err := storageTypeToString(s.sType)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	sCore.sTypeName = typeName
+	s.sTypeName = typeName
 
-	if !s.zfsIsEnabled() {
-		return nil, fmt.Errorf("The \"zfs\" tool is not enabled.")
+	if !zfsIsEnabled() {
+		return fmt.Errorf("The \"zfs\" tool is not enabled.")
 	}
 
-	sCore.sTypeVersion, err = s.zfsModuleVersionGet()
+	s.sTypeVersion, err = zfsModuleVersionGet()
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	s.storageCore = sCore
 
 	shared.LogDebugf("Initializing a ZFS driver.")
-	return &sCore, nil
+	return nil
 }
 
 // Functions dealing with storage pools.
 func (s *storageZfs) StoragePoolInit() error {
-	_, err := s.StorageCoreInit()
+	err := s.StorageCoreInit()
 	if err != nil {
 		return err
 	}

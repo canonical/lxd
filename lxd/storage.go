@@ -180,7 +180,10 @@ func storageStringToType(sName string) (storageType, error) {
 // Also, minimize the number of functions needed. Both should be straightforward
 // tasks.
 type storage interface {
-	storageCoreInfo
+	StorageCoreInit() error
+	GetStorageType() storageType
+	GetStorageTypeName() string
+	GetStorageTypeVersion() string
 
 	// Functions dealing with storage pool.
 	StoragePoolInit() error
@@ -262,6 +265,48 @@ type storage interface {
 	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error
 }
 
+func storageCoreInit(driver string) (storage, error) {
+	sType, err := storageStringToType(driver)
+	if err != nil {
+		return nil, err
+	}
+
+	switch sType {
+	case storageTypeBtrfs:
+		btrfs := storageBtrfs{}
+		err = btrfs.StorageCoreInit()
+		if err == nil {
+			return &btrfs, nil
+		}
+	case storageTypeDir:
+		dir := storageDir{}
+		err = dir.StorageCoreInit()
+		if err == nil {
+			return &dir, nil
+		}
+	case storageTypeLvm:
+		lvm := storageLvm{}
+		err = lvm.StorageCoreInit()
+		if err == nil {
+			return &lvm, nil
+		}
+	case storageTypeMock:
+		mock := storageMock{}
+		err = mock.StorageCoreInit()
+		if err == nil {
+			return &mock, nil
+		}
+	case storageTypeZfs:
+		zfs := storageZfs{}
+		err = zfs.StorageCoreInit()
+		if err == nil {
+			return &zfs, nil
+		}
+	}
+
+	return nil, fmt.Errorf("Invalid storage type.")
+}
+
 func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {
 	// Load the storage pool.
 	poolID, pool, err := dbStoragePoolGet(d.db, poolName)
@@ -297,52 +342,57 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		btrfs.pool = pool
 		btrfs.volume = volume
 		btrfs.d = d
-		return &btrfs, nil
+		err = btrfs.StoragePoolInit()
+		if err == nil {
+			return &btrfs, nil
+		}
 	case storageTypeDir:
 		dir := storageDir{}
 		dir.poolID = poolID
 		dir.pool = pool
 		dir.volume = volume
 		dir.d = d
-		return &dir, nil
+		err = dir.StoragePoolInit()
+		if err == nil {
+			return &dir, nil
+		}
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		lvm.poolID = poolID
 		lvm.pool = pool
 		lvm.volume = volume
 		lvm.d = d
-		return &lvm, nil
+		err = lvm.StoragePoolInit()
+		if err == nil {
+			return &lvm, nil
+		}
 	case storageTypeMock:
 		mock := storageMock{}
 		mock.poolID = poolID
 		mock.pool = pool
 		mock.volume = volume
 		mock.d = d
-		return &mock, nil
+		err = mock.StoragePoolInit()
+		if err == nil {
+			return &mock, nil
+		}
 	case storageTypeZfs:
 		zfs := storageZfs{}
 		zfs.poolID = poolID
 		zfs.pool = pool
 		zfs.volume = volume
 		zfs.d = d
-		return &zfs, nil
+		err = zfs.StoragePoolInit()
+		if err == nil {
+			return &zfs, nil
+		}
 	}
 
 	return nil, fmt.Errorf("Invalid storage type.")
 }
 
 func storagePoolInit(d *Daemon, poolName string) (storage, error) {
-	s, err := storageInit(d, poolName, "", -1)
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.StoragePoolInit()
-	if err != nil {
-		return nil, err
-	}
-
-	return s, nil
+	return storageInit(d, poolName, "", -1)
 }
 
 func storagePoolVolumeImageInit(d *Daemon, poolName string, imageFingerprint string) (storage, error) {

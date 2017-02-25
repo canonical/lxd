@@ -18,25 +18,22 @@ type storageDir struct {
 }
 
 // Only initialize the minimal information we need about a given storage type.
-func (s *storageDir) StorageCoreInit() (*storageCore, error) {
-	sCore := storageCore{}
-	sCore.sType = storageTypeDir
-	typeName, err := storageTypeToString(sCore.sType)
+func (s *storageDir) StorageCoreInit() error {
+	s.sType = storageTypeDir
+	typeName, err := storageTypeToString(s.sType)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	sCore.sTypeName = typeName
-	sCore.sTypeVersion = "1"
-
-	s.storageCore = sCore
+	s.sTypeName = typeName
+	s.sTypeVersion = "1"
 
 	shared.LogDebugf("Initializing a DIR driver.")
-	return &sCore, nil
+	return nil
 }
 
 // Initialize a full storage interface.
 func (s *storageDir) StoragePoolInit() error {
-	_, err := s.StorageCoreInit()
+	err := s.StorageCoreInit()
 	if err != nil {
 		return err
 	}
