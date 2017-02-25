@@ -866,6 +866,11 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
+	d.tomb.Go(func() error {
+		server := devLxdServer(d)
+		return server.Serve(d.devlxd)
+	})
+
 	if !d.MockMode {
 		/* Start the scheduler */
 		go deviceEventListener(d)
@@ -921,6 +926,7 @@ func (d *Daemon) Init() error {
 		NotFound.Render(w)
 	})
 
+	// Prepare the list of listeners
 	listeners := d.GetListeners()
 	if len(listeners) > 0 {
 		shared.LogInfof("LXD is socket activated")
@@ -1005,25 +1011,19 @@ func (d *Daemon) Init() error {
 		}
 	}
 
-	d.tomb.Go(func() error {
-		shared.LogInfof("REST API daemon:")
-		if d.UnixSocket != nil {
-			shared.LogInfo(" - binding Unix socket", log.Ctx{"socket": d.UnixSocket.Socket.Addr()})
-			d.tomb.Go(func() error { return http.Serve(d.UnixSocket.Socket, &lxdHttpServer{d.mux, d}) })
-		}
+	// Bind the REST API
+	shared.LogInfof("REST API daemon:")
+	if d.UnixSocket != nil {
+		shared.LogInfo(" - binding Unix socket", log.Ctx{"socket": d.UnixSocket.Socket.Addr()})
+		d.tomb.Go(func() error { return http.Serve(d.UnixSocket.Socket, &lxdHttpServer{d.mux, d}) })
+	}
 
-		if d.TCPSocket != nil {
-			shared.LogInfo(" - binding TCP socket", log.Ctx{"socket": d.TCPSocket.Socket.Addr()})
-			d.tomb.Go(func() error { return http.Serve(d.TCPSocket.Socket, &lxdHttpServer{d.mux, d}) })
-		}
+	if d.TCPSocket != nil {
+		shared.LogInfo(" - binding TCP socket", log.Ctx{"socket": d.TCPSocket.Socket.Addr()})
+		d.tomb.Go(func() error { return http.Serve(d.TCPSocket.Socket, &lxdHttpServer{d.mux, d}) })
+	}
 
-		d.tomb.Go(func() error {
-			server := devLxdServer(d)
-			return server.Serve(d.devlxd)
-		})
-		return nil
-	})
-
+	// Run the post initialization actions
 	if !d.MockMode && !d.SetupMode {
 		err := d.Ready()
 		if err != nil {
