@@ -1152,6 +1152,11 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	poolConfig := map[string]string{}
 	oldLoopFilePath := shared.VarPath("zfs.img")
 	poolName := defaultPoolName
+	// In case we are given a dataset, we need to chose a sensible name.
+	if strings.Contains(defaultPoolName, "/") {
+		// We are given a dataset and need to chose a sensible name.
+		poolName = "default"
+	}
 
 	// Peek into the storage pool database to see whether any storage pools
 	// are already configured. If so, we can assume that a partial upgrade
@@ -1159,12 +1164,12 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	// run into problems. For example, the "zfs.img" file might have already
 	// been moved into ${LXD_DIR}/disks and we might therefore falsely
 	// conclude that we're using an existing storage pool.
-	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig)
+	err := storagePoolValidateConfig(poolName, defaultStorageTypeName, poolConfig)
 	if err != nil {
 		return err
 	}
 
-	err = storagePoolFillDefault(defaultPoolName, defaultStorageTypeName, poolConfig)
+	err = storagePoolFillDefault(poolName, defaultStorageTypeName, poolConfig)
 	if err != nil {
 		return err
 	}
@@ -1175,10 +1180,6 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	poolID := int64(-1)
 	pools, err := dbStoragePools(d.db)
 	if err == nil { // Already exist valid storage pools.
-		if strings.Contains(defaultPoolName, "/") {
-			poolName = "default"
-		}
-
 		// Check if the storage pool already has a db entry.
 		if shared.StringInSlice(poolName, pools) {
 			shared.LogWarnf("Database already contains a valid entry for the storage pool: %s.", poolName)
@@ -1196,26 +1197,28 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// Update the pool configuration on a post LXD 2.9.1 instance
 		// that still runs this upgrade code because of a partial
 		// upgrade.
-		err = dbStoragePoolUpdate(d.db, defaultPoolName, poolConfig)
+		err = dbStoragePoolUpdate(d.db, poolName, poolConfig)
 		if err != nil {
 			return err
 		}
 	} else if err == NoSuchObjectError { // Likely a pristine upgrade.
 		if shared.PathExists(oldLoopFilePath) {
 			// This is a loop file pool.
-			poolConfig["source"] = shared.VarPath("disks", defaultPoolName+".img")
+			poolConfig["source"] = shared.VarPath("disks", poolName+".img")
 			err := shared.FileMove(oldLoopFilePath, poolConfig["source"])
 			if err != nil {
 				return err
 			}
 		} else {
-			if strings.Contains(defaultPoolName, "/") {
-				poolName = "default"
-			}
 			// This is a block device pool.
+			// Here, we need to use "defaultPoolName" since we want
+			// to refer to the on-disk name of the pool in the
+			// "source" propert and not the db name of the pool.
 			poolConfig["source"] = defaultPoolName
 		}
 
+		// Querying the size of a storage pool only makes sense when it
+		// is not a dataset.
 		if poolName == defaultPoolName {
 			output, err := exec.Command("zpool", "get", "size", "-p", "-H", defaultPoolName).CombinedOutput()
 			if err == nil {
@@ -1237,7 +1240,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	// Get storage pool from the db after having updated it above.
-	_, defaultPool, err := dbStoragePoolGet(d.db, defaultPoolName)
+	_, defaultPool, err := dbStoragePoolGet(d.db, poolName)
 	if err != nil {
 		return err
 	}
@@ -1283,6 +1286,9 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 		// Unmount the container zfs doesn't really seem to care if we
 		// do this.
+		// Here "defaultPoolName" must be used since we want to refer to
+		// the on-disk name of the zfs pool when moving the datasets
+		// around.
 		ctDataset := fmt.Sprintf("%s/containers/%s", defaultPoolName, ct)
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		if shared.IsMountPoint(oldContainerMntPoint) {
@@ -1429,6 +1435,9 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		oldImageMntPoint := shared.VarPath("images", img+".zfs")
+		// Here "defaultPoolName" must be used since we want to refer to
+		// the on-disk name of the zfs pool when moving the datasets
+		// around.
 		imageDataset := fmt.Sprintf("%s/images/%s", defaultPoolName, img)
 		if shared.PathExists(oldImageMntPoint) && shared.IsMountPoint(oldImageMntPoint) {
 			_, err := tryExec("zfs", "unmount", "-f", imageDataset)
