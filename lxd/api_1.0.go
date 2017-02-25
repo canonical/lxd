@@ -194,7 +194,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	drivers := readStoragePoolDriversCache()
 	for _, driver := range drivers {
 		// Initialize a core storage interface for the given driver.
-		sCore, err := storagePoolCoreInit(driver)
+		sCore, err := storageCoreInit(driver)
 		if err != nil {
 			continue
 		}
