@@ -415,7 +415,7 @@ Input (container based on a local image with the "ubuntu/devel" alias):
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
         "devices": {                                                        # optional list of devices the container should have
-            "rootfs": {
+            "kvm": {
                 "path": "/dev/kvm",
                 "type": "unix-char"
             },
@@ -433,7 +433,7 @@ Input (container based on a local image identified by its fingerprint):
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
         "devices": {                                                        # optional list of devices the container should have
-            "rootfs": {
+            "kvm": {
                 "path": "/dev/kvm",
                 "type": "unix-char"
             },
@@ -451,7 +451,7 @@ Input (container based on most recent match based on image properties):
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
         "devices": {                                                        # optional list of devices the container should have
-            "rootfs": {
+            "kvm": {
                 "path": "/dev/kvm",
                 "type": "unix-char"
             },
@@ -473,7 +473,7 @@ Input (container without a pre-populated rootfs, useful when attaching to an exi
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
         "devices": {                                                        # optional list of devices the container should have
-            "rootfs": {
+            "kvm": {
                 "path": "/dev/kvm",
                 "type": "unix-char"
             },
@@ -490,7 +490,7 @@ Input (using a public remote image):
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
         "devices": {                                                        # optional list of devices the container should have
-            "rootfs": {
+            "kvm": {
                 "path": "/dev/kvm",
                 "type": "unix-char"
             },
@@ -512,7 +512,7 @@ Input (using a private remote image after having obtained a secret for that imag
         "ephemeral": true,                                                  # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                      # Config override.
         "devices": {                                                        # optional list of devices the container should have
-            "rootfs": {
+            "kvm": {
                 "path": "/dev/kvm",
                 "type": "unix-char"
             },
@@ -534,7 +534,7 @@ Input (using a remote container, sent over the migration websocket):
         "ephemeral": true,                                                              # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                                  # Config override.
         "devices": {                                                                    # optional list of devices the container should have
-            "rootfs": {
+            "kvm": {
                 "path": "/dev/kvm",
                 "type": "unix-char"
             },
@@ -553,10 +553,15 @@ Input (using a local container):
 
     {
         "name": "my-new-container",                                                     # 64 chars max, ASCII, no slash, no colon and no comma
-        "architecture": "x86_64",
         "profiles": ["default"],                                                        # List of profiles
         "ephemeral": true,                                                              # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                                  # Config override.
+        "devices": {                                                                    # optional list of devices the container should have
+            "kvm": {
+                "path": "/dev/kvm",
+                "type": "unix-char"
+            },
+        },
         "source": {"type": "copy",                                                      # Can be: "image", "migration", "copy" or "none"
                    "source": "my-old-container"}                                        # Name of the source container
     }
@@ -570,7 +575,7 @@ Input (using a remote container, in push mode sent over the migration websocket 
         "ephemeral": true,                                                              # Whether to destroy the container on shutdown
         "config": {"limits.cpu": "2"},                                                  # Config override.
         "devices": {                                                                    # optional list of devices the container should have
-            "rootfs": {
+            "kvm": {
                 "path": "/dev/kvm",
                 "type": "unix-char"
             },
