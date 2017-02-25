@@ -80,7 +80,7 @@ func (s *storageZfs) StorageCoreInit() (*storageCore, error) {
 }
 
 // Functions dealing with storage pools.
-func (s *storageZfs) StoragePoolInit(config map[string]interface{}) (storage, error) {
+func (s *storageZfs) StoragePoolInit() (storage, error) {
 	_, err := s.StorageCoreInit()
 	if err != nil {
 		return s, err

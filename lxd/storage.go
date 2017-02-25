@@ -98,7 +98,8 @@ func filesystemDetect(path string) (string, error) {
 
 // storageRsyncCopy copies a directory using rsync (with the --devices option).
 func storageRsyncCopy(source string, dest string) (string, error) {
-	if err := os.MkdirAll(dest, 0755); err != nil {
+	err := os.MkdirAll(dest, 0755)
+	if err != nil {
 		return "", err
 	}
 
@@ -182,7 +183,7 @@ type storage interface {
 	storageCoreInfo
 
 	// Functions dealing with storage pool.
-	StoragePoolInit(config map[string]interface{}) (storage, error)
+	StoragePoolInit() (storage, error)
 	StoragePoolCheck() error
 	StoragePoolCreate() error
 	StoragePoolDelete() error
@@ -331,14 +332,12 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 }
 
 func storagePoolInit(d *Daemon, poolName string) (storage, error) {
-	var config map[string]interface{}
-
 	s, err := storageInit(d, poolName, "", -1)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.StoragePoolInit(config)
+	return s.StoragePoolInit()
 }
 
 func storagePoolVolumeImageInit(d *Daemon, poolName string, imageFingerprint string) (storage, error) {
@@ -360,15 +359,13 @@ func storagePoolVolumeContainerLoadInit(d *Daemon, containerName string) (storag
 }
 
 func storagePoolVolumeInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {
-	var config map[string]interface{}
-
 	// No need to detect storage here, its a new container.
 	s, err := storageInit(d, poolName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
 	}
 
-	storage, err := s.StoragePoolInit(config)
+	storage, err := s.StoragePoolInit()
 	if err != nil {
 		return nil, err
 	}
