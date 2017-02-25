@@ -831,6 +831,13 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		return err
 	}
 
+	// Activate volume group
+	err = storageVGActivate(defaultPoolName)
+	if err != nil {
+		shared.LogErrorf("Could not activate volume group \"%s\". Manual intervention needed.")
+		return err
+	}
+
 	// Peek into the storage pool database to see whether any storage pools
 	// are already configured. If so, we can assume that a partial upgrade
 	// has been performed and can skip the next steps.
