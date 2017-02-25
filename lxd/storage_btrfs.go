@@ -76,7 +76,7 @@ func (s *storageBtrfs) StorageCoreInit() (*storageCore, error) {
 	return &sCore, nil
 }
 
-func (s *storageBtrfs) StoragePoolInit(config map[string]interface{}) (storage, error) {
+func (s *storageBtrfs) StoragePoolInit() (storage, error) {
 	_, err := s.StorageCoreInit()
 	if err != nil {
 		return s, err

@@ -35,7 +35,7 @@ func (s *storageDir) StorageCoreInit() (*storageCore, error) {
 }
 
 // Initialize a full storage interface.
-func (s *storageDir) StoragePoolInit(config map[string]interface{}) (storage, error) {
+func (s *storageDir) StoragePoolInit() (storage, error) {
 	_, err := s.StorageCoreInit()
 	if err != nil {
 		return s, err

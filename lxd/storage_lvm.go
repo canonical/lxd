@@ -290,7 +290,7 @@ func (s *storageLvm) StorageCoreInit() (*storageCore, error) {
 	return &sCore, nil
 }
 
-func (s *storageLvm) StoragePoolInit(config map[string]interface{}) (storage, error) {
+func (s *storageLvm) StoragePoolInit() (storage, error) {
 	_, err := s.StorageCoreInit()
 	if err != nil {
 		return s, err
