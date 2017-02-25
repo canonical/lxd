@@ -28,13 +28,13 @@ func (s *storageMock) StorageCoreInit() (*storageCore, error) {
 	return &sCore, nil
 }
 
-func (s *storageMock) StoragePoolInit() (storage, error) {
+func (s *storageMock) StoragePoolInit() error {
 	_, err := s.StorageCoreInit()
 	if err != nil {
-		return s, err
+		return err
 	}
 
-	return s, nil
+	return nil
 }
 
 func (s *storageMock) StoragePoolCheck() error {

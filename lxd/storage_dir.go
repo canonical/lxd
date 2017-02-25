@@ -35,13 +35,13 @@ func (s *storageDir) StorageCoreInit() (*storageCore, error) {
 }
 
 // Initialize a full storage interface.
-func (s *storageDir) StoragePoolInit() (storage, error) {
+func (s *storageDir) StoragePoolInit() error {
 	_, err := s.StorageCoreInit()
 	if err != nil {
-		return s, err
+		return err
 	}
 
-	return s, nil
+	return nil
 }
 
 // Initialize a full storage interface.

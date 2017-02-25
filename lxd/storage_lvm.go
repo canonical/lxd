@@ -290,10 +290,10 @@ func (s *storageLvm) StorageCoreInit() (*storageCore, error) {
 	return &sCore, nil
 }
 
-func (s *storageLvm) StoragePoolInit() (storage, error) {
+func (s *storageLvm) StoragePoolInit() error {
 	_, err := s.StorageCoreInit()
 	if err != nil {
-		return s, err
+		return err
 	}
 
 	source := s.pool.Config["source"]
@@ -304,25 +304,25 @@ func (s *storageLvm) StoragePoolInit() (storage, error) {
 	}
 
 	if source == "" {
-		return s, fmt.Errorf("Loop backed lvm storage pools are not supported.")
+		return fmt.Errorf("Loop backed lvm storage pools are not supported.")
 	} else {
 		if filepath.IsAbs(source) {
 			if !shared.IsBlockdevPath(source) {
-				return s, fmt.Errorf("Loop backed lvm storage pools are not supported.")
+				return fmt.Errorf("Loop backed lvm storage pools are not supported.")
 			}
 		} else {
 			ok, err := storageVGExists(source)
 			if err != nil {
 				// Internal error.
-				return s, err
+				return err
 			} else if !ok {
 				// Volume group does not exist.
-				return s, fmt.Errorf("The requested volume group \"%s\" does not exist.", source)
+				return fmt.Errorf("The requested volume group \"%s\" does not exist.", source)
 			}
 		}
 	}
 
-	return s, nil
+	return nil
 }
 
 func (s *storageLvm) StoragePoolCheck() error {

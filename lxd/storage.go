@@ -183,7 +183,7 @@ type storage interface {
 	storageCoreInfo
 
 	// Functions dealing with storage pool.
-	StoragePoolInit() (storage, error)
+	StoragePoolInit() error
 	StoragePoolCheck() error
 	StoragePoolCreate() error
 	StoragePoolDelete() error
@@ -337,7 +337,12 @@ func storagePoolInit(d *Daemon, poolName string) (storage, error) {
 		return nil, err
 	}
 
-	return s.StoragePoolInit()
+	err = s.StoragePoolInit()
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
 func storagePoolVolumeImageInit(d *Daemon, poolName string, imageFingerprint string) (storage, error) {
@@ -365,17 +370,17 @@ func storagePoolVolumeInit(d *Daemon, poolName string, volumeName string, volume
 		return nil, err
 	}
 
-	storage, err := s.StoragePoolInit()
+	err = s.StoragePoolInit()
 	if err != nil {
 		return nil, err
 	}
 
-	err = storage.StoragePoolCheck()
+	err = s.StoragePoolCheck()
 	if err != nil {
 		return nil, err
 	}
 
-	return storage, nil
+	return s, nil
 }
 
 // {LXD_DIR}/storage-pools/<pool>

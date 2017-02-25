@@ -80,10 +80,10 @@ func (s *storageZfs) StorageCoreInit() (*storageCore, error) {
 }
 
 // Functions dealing with storage pools.
-func (s *storageZfs) StoragePoolInit() (storage, error) {
+func (s *storageZfs) StoragePoolInit() error {
 	_, err := s.StorageCoreInit()
 	if err != nil {
-		return s, err
+		return err
 	}
 
 	// Detect whether we have been given a zfs dataset as source.
@@ -91,7 +91,7 @@ func (s *storageZfs) StoragePoolInit() (storage, error) {
 		s.dataset = s.pool.Config["zfs.pool_name"]
 	}
 
-	return s, nil
+	return nil
 }
 
 func (s *storageZfs) StoragePoolCheck() error {

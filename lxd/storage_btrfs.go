@@ -76,13 +76,13 @@ func (s *storageBtrfs) StorageCoreInit() (*storageCore, error) {
 	return &sCore, nil
 }
 
-func (s *storageBtrfs) StoragePoolInit() (storage, error) {
+func (s *storageBtrfs) StoragePoolInit() error {
 	_, err := s.StorageCoreInit()
 	if err != nil {
-		return s, err
+		return err
 	}
 
-	return s, nil
+	return nil
 }
 
 func (s *storageBtrfs) StoragePoolCheck() error {
