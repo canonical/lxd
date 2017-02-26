@@ -1730,9 +1730,9 @@ func (s *storageBtrfs) MigrationType() MigrationFSType {
 func (s *storageBtrfs) PreservesInodes() bool {
 	if runningInUserns {
 		return false
-	} else {
-		return true
 	}
+
+	return true
 }
 
 func (s *storageBtrfs) MigrationSource(c container) (MigrationStorageSourceDriver, error) {
