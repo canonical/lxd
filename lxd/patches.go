@@ -798,7 +798,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	poolConfig["volume.size"] = daemonConfig["storage.lvm_volume_size"].Get()
 	if poolConfig["volume.size"] == "" {
 		// Get size of the volume group.
-		output, err := tryExec("vgs", "--nosuffix", "--units", "g", "--noheadings", "-o", "size", defaultPoolName)
+		output, err := tryExec("vgs", "--nosuffix", "--units", "b", "--noheadings", "-o", "size", defaultPoolName)
 		if err != nil {
 			return err
 		}
@@ -828,6 +828,13 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	err = storagePoolFillDefault(defaultPoolName, defaultStorageTypeName, poolConfig)
 	if err != nil {
+		return err
+	}
+
+	// Activate volume group
+	err = storageVGActivate(defaultPoolName)
+	if err != nil {
+		shared.LogErrorf("Could not activate volume group \"%s\". Manual intervention needed.")
 		return err
 	}
 
