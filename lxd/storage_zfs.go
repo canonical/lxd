@@ -311,12 +311,8 @@ func (s *storageZfs) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageZfs) ContainerPoolGet() string {
-	return s.pool.Name
-}
-
-func (s *storageZfs) ContainerPoolIDGet() int64 {
-	return s.poolID
+func (s *storageZfs) GetContainerPoolInfo() (int64, string) {
+	return s.poolID, s.pool.Name
 }
 
 func (s *storageZfs) StoragePoolUpdate(changedConfig []string) error {

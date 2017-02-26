@@ -694,12 +694,8 @@ func (s *storageLvm) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageLvm) ContainerPoolGet() string {
-	return s.pool.Name
-}
-
-func (s *storageLvm) ContainerPoolIDGet() int64 {
-	return s.poolID
+func (s *storageLvm) GetContainerPoolInfo() (int64, string) {
+	return s.poolID, s.pool.Name
 }
 
 func (s *storageLvm) StoragePoolUpdate(changedConfig []string) error {
@@ -1058,7 +1054,7 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 			sourceContainer.Storage().ContainerUmount(sourceContainerName, sourceContainerPath)
 		}
 
-		sourcePool := sourceContainer.Storage().ContainerPoolGet()
+		_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 		sourceContainerMntPoint := getContainerMountPoint(sourcePool, sourceContainerName)
 		targetContainerMntPoint := getContainerMountPoint(s.pool.Name, targetContainerName)
 		output, err := storageRsyncCopy(sourceContainerMntPoint, targetContainerMntPoint)
@@ -1270,7 +1266,8 @@ func (s *storageLvm) ContainerRestore(container container, sourceContainer conta
 	}
 	defer sourceContainer.StorageStop()
 
-	if s.pool.Name != sourceContainer.Storage().ContainerPoolGet() {
+	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
+	if s.pool.Name != sourcePool {
 		return fmt.Errorf("Containers must be on the same pool to be restored.")
 	}
 
@@ -1355,7 +1352,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, targetContainerName)
 		sourceFields := strings.SplitN(sourceContainerName, shared.SnapshotDelimiter, 2)
 		sourceName := sourceFields[0]
-		sourcePool := sourceContainer.Storage().ContainerPoolGet()
+		_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", sourcePool, "snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
