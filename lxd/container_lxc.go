@@ -1402,7 +1402,7 @@ func (c *containerLXC) initStorageInterface() error {
 	// args.StoragePool can be empty here. In that case we simply set
 	// c.storagePool to the storage pool we detected based on the containers
 	// name. (Container names are globally unique.)
-	storagePool := s.ContainerPoolGet()
+	_, storagePool := s.GetContainerPoolInfo()
 	if c.storagePool == "" {
 		c.storagePool = storagePool
 	} else if c.storagePool != storagePool {
@@ -2723,7 +2723,7 @@ func (c *containerLXC) Delete() error {
 		// Get the name of the storage pool the container is attached to. This
 		// reverse-engineering works because container names are globally
 		// unique.
-		poolID := c.storage.ContainerPoolIDGet()
+		poolID, _ := c.storage.GetContainerPoolInfo()
 
 		// Remove volume from storage pool.
 		err := dbStoragePoolVolumeDelete(c.daemon.db, c.Name(), storagePoolVolumeTypeContainer, poolID)
@@ -2813,7 +2813,7 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	// Rename storage volume for the container.
-	poolID := c.storage.ContainerPoolIDGet()
+	poolID, _ := c.storage.GetContainerPoolInfo()
 	err = dbStoragePoolVolumeRename(c.daemon.db, oldName, newName, storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		shared.LogError("Failed renaming storage volume", ctxMap)

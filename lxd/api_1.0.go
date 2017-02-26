@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"os"
 	"reflect"
-	"sync"
-	"sync/atomic"
 	"syscall"
 
 	"gopkg.in/lxc/go-lxc.v2"
@@ -17,19 +15,6 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 )
-
-var storagePoolDriversCacheInitialized bool
-var storagePoolDriversCacheVal atomic.Value
-var storagePoolDriversCacheLock sync.Mutex
-
-func readStoragePoolDriversCache() []string {
-	drivers := storagePoolDriversCacheVal.Load()
-	if drivers == nil {
-		return []string{}
-	}
-
-	return drivers.([]string)
-}
 
 var api10 = []Command{
 	containersCmd,
@@ -194,7 +179,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	drivers := readStoragePoolDriversCache()
 	for _, driver := range drivers {
 		// Initialize a core storage interface for the given driver.
-		sCore, err := storagePoolCoreInit(driver)
+		sCore, err := storageCoreInit(driver)
 		if err != nil {
 			continue
 		}
