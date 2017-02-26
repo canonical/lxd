@@ -430,12 +430,8 @@ func (s *storageBtrfs) SetStoragePoolWritable(writable *api.StoragePoolPut) {
 	s.pool.StoragePoolPut = *writable
 }
 
-func (s *storageBtrfs) ContainerPoolGet() string {
-	return s.pool.Name
-}
-
-func (s *storageBtrfs) ContainerPoolIDGet() int64 {
-	return s.poolID
+func (s *storageBtrfs) GetContainerPoolInfo() (int64, string) {
+	return s.poolID, s.pool.Name
 }
 
 // Functions dealing with storage volumes.
@@ -720,7 +716,7 @@ func (s *storageBtrfs) ContainerCopy(container container, sourceContainer contai
 	}
 	defer sourceContainer.StorageStop()
 
-	sourcePool := sourceContainer.Storage().ContainerPoolGet()
+	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 	sourceContainerSubvolumeName := ""
 	if sourceContainer.IsSnapshot() {
 		sourceContainerSubvolumeName = getSnapshotMountPoint(sourcePool, sourceContainer.Name())
@@ -734,7 +730,8 @@ func (s *storageBtrfs) ContainerCopy(container container, sourceContainer contai
 	} else {
 		targetContainerSubvolumeName = getContainerMountPoint(s.pool.Name, container.Name())
 	}
-	if s.ContainerPoolGet() == sourcePool {
+	_, targetPool := s.GetContainerPoolInfo()
+	if targetPool == sourcePool {
 		// COMMNET(brauner): They are on the same storage pool which
 		// means they both use btrfs. So we can simply create a new
 		// snapshot of the source container. For this we only mount the
@@ -890,7 +887,7 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 
 	// Mount the source container.
 	srcContainerStorage := sourceContainer.Storage()
-	sourcePool := srcContainerStorage.ContainerPoolGet()
+	_, sourcePool := srcContainerStorage.GetContainerPoolInfo()
 	sourceContainerSubvolumeName := ""
 	if sourceContainer.IsSnapshot() {
 		sourceContainerSubvolumeName = getSnapshotMountPoint(sourcePool, sourceContainer.Name())
@@ -899,7 +896,8 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 	}
 
 	var failure error
-	if s.ContainerPoolGet() == sourcePool {
+	_, targetPool := s.GetContainerPoolInfo()
+	if targetPool == sourcePool {
 		// They are on the same storage pool, so we can simply snapshot.
 		err := s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false)
 		if err != nil {
@@ -929,8 +927,9 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 
 	if failure == nil {
 		undo = false
-
-		if s.ContainerPoolGet() == srcContainerStorage.ContainerPoolGet() {
+		_, sourcePool := srcContainerStorage.GetContainerPoolInfo()
+		_, targetPool := s.GetContainerPoolInfo()
+		if targetPool == sourcePool {
 			// Remove the backup, we made
 			return btrfsSubVolumesDelete(backupTargetContainerSubvolumeName)
 		}
@@ -1621,7 +1620,7 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 }
 
 func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
-	containerPool := s.container.Storage().ContainerPoolGet()
+	_, containerPool := s.container.Storage().GetContainerPoolInfo()
 	containerName := s.container.Name()
 	containersPath := getContainerMountPoint(containerPool, "")
 	sourceName := containerName
@@ -1835,7 +1834,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		return nil
 	}
 
-	containerPool := container.Storage().ContainerPoolGet()
+	_, containerPool := container.Storage().GetContainerPoolInfo()
 	containersPath := getSnapshotMountPoint(containerPool, container.Name())
 	if len(snapshots) > 0 {
 		err := os.MkdirAll(containersPath, 0700)

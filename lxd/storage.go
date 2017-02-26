@@ -186,22 +186,16 @@ func storageStringToType(sName string) (storageType, error) {
 	return -1, fmt.Errorf("Invalid storage type name.")
 }
 
-// FIXME(brauner): Split up this interace into sub-interfaces, that can be
-// combined into this single big interface but can also be individually
-// initialized. Suggestion:
-// - type storagePool interface
-// - type storagePoolVolume interface
-// - type storageContainer interface
-// - type storageImage interface
-// Also, minimize the number of functions needed. Both should be straightforward
-// tasks.
+// The storage interface defines the functions needed to implement a storage
+// backend for a given storage driver.
 type storage interface {
+	// Functions dealing with basic driver properties only.
 	StorageCoreInit() error
 	GetStorageType() storageType
 	GetStorageTypeName() string
 	GetStorageTypeVersion() string
 
-	// Functions dealing with storage pool.
+	// Functions dealing with storage pools.
 	StoragePoolInit() error
 	StoragePoolCheck() error
 	StoragePoolCreate() error
@@ -212,7 +206,7 @@ type storage interface {
 	GetStoragePoolWritable() api.StoragePoolPut
 	SetStoragePoolWritable(writable *api.StoragePoolPut)
 
-	// Functions dealing with storage volumes.
+	// Functions dealing with custom storage volumes.
 	StoragePoolVolumeCreate() error
 	StoragePoolVolumeDelete() error
 	StoragePoolVolumeMount() (bool, error)
@@ -221,12 +215,12 @@ type storage interface {
 	GetStoragePoolVolumeWritable() api.StorageVolumePut
 	SetStoragePoolVolumeWritable(writable *api.StorageVolumePut)
 
+	// Functions dealing with container storage volumes.
 	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
 	ContainerCreate(container container) error
 
 	// ContainerCreateFromImage creates a container from a image.
 	ContainerCreateFromImage(container container, imageFingerprint string) error
-
 	ContainerCanRestore(container container, sourceContainer container) error
 	ContainerDelete(container container) error
 	ContainerCopy(container container, sourceContainer container) error
@@ -236,8 +230,7 @@ type storage interface {
 	ContainerRestore(container container, sourceContainer container) error
 	ContainerSetQuota(container container, size int64) error
 	ContainerGetUsage(container container) (int64, error)
-	ContainerPoolGet() string
-	ContainerPoolIDGet() int64
+	GetContainerPoolInfo() (int64, string)
 	ContainerStorageReady(name string) bool
 
 	ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error
@@ -246,18 +239,19 @@ type storage interface {
 	ContainerSnapshotStart(container container) error
 	ContainerSnapshotStop(container container) error
 
-	/* for use in migrating snapshots */
+	// For use in migrating snapshots.
 	ContainerSnapshotCreateEmpty(snapshotContainer container) error
 
+	// Functions dealing with image storage volumes.
 	ImageCreate(fingerprint string) error
 	ImageDelete(fingerprint string) error
 	ImageMount(fingerprint string) (bool, error)
 	ImageUmount(fingerprint string) (bool, error)
 
+	// Functions dealing with migration.
 	MigrationType() MigrationFSType
-	/* does this storage backend preserve inodes when it is moved across
-	 * LXD hosts?
-	 */
+	// Does this storage backend preserve inodes when it is moved across LXD
+	// hosts?
 	PreservesInodes() bool
 
 	// Get the pieces required to migrate the source. This contains a list

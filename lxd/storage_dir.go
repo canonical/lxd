@@ -140,12 +140,8 @@ func (s *storageDir) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageDir) ContainerPoolGet() string {
-	return s.pool.Name
-}
-
-func (s *storageDir) ContainerPoolIDGet() int64 {
-	return s.poolID
+func (s *storageDir) GetContainerPoolInfo() (int64, string) {
+	return s.poolID, s.pool.Name
 }
 
 func (s *storageDir) StoragePoolUpdate(changedConfig []string) error {
@@ -354,7 +350,7 @@ func (s *storageDir) ContainerCopy(container container, sourceContainer containe
 	}
 
 	// Deal with the source container.
-	sourcePool := sourceContainer.Storage().ContainerPoolGet()
+	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 	sourceContainerConfig := sourceContainer.Storage().GetStoragePoolWritable()
 	sourceSource := sourceContainerConfig.Config["source"]
 	if sourceSource == "" {
@@ -522,7 +518,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 		return err
 	}
 
-	sourcePool := sourceContainer.Storage().ContainerPoolGet()
+	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 	sourceContainerName := sourceContainer.Name()
 	sourceContainerMntPoint := getContainerMountPoint(sourcePool, sourceContainerName)
 	err = rsync(snapshotContainer, sourceContainerMntPoint, targetContainerMntPoint)
