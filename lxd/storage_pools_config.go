@@ -101,7 +101,7 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 
 func storagePoolFillDefault(name string, driver string, config map[string]string) error {
 	if driver != "dir" {
-		if config["size"] == "" {
+		if driver != "lvm" && config["size"] == "" {
 			st := syscall.Statfs_t{}
 			err := syscall.Statfs(shared.VarPath(), &st)
 			if err != nil {
