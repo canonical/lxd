@@ -9,7 +9,9 @@ import (
 )
 
 type storageShared struct {
-	storageCore
+	sType        storageType
+	sTypeName    string
+	sTypeVersion string
 
 	d *Daemon
 
@@ -19,7 +21,19 @@ type storageShared struct {
 	volume *api.StorageVolume
 }
 
-func (ss *storageShared) shiftRootfs(c container) error {
+func (s *storageShared) GetStorageType() storageType {
+	return s.sType
+}
+
+func (s *storageShared) GetStorageTypeName() string {
+	return s.sTypeName
+}
+
+func (s *storageShared) GetStorageTypeVersion() string {
+	return s.sTypeVersion
+}
+
+func (s *storageShared) shiftRootfs(c container) error {
 	dpath := c.Path()
 	rpath := c.RootfsPath()
 
@@ -38,12 +52,12 @@ func (ss *storageShared) shiftRootfs(c container) error {
 	}
 
 	/* Set an acl so the container root can descend the container dir */
-	// TODO: i changed this so it calls ss.setUnprivUserAcl, which does
+	// TODO: i changed this so it calls s.setUnprivUserAcl, which does
 	// the acl change only if the container is not privileged, think thats right.
-	return ss.setUnprivUserAcl(c, dpath)
+	return s.setUnprivUserAcl(c, dpath)
 }
 
-func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
+func (s *storageShared) setUnprivUserAcl(c container, destPath string) error {
 	idmapset := c.IdmapSet()
 
 	// Skip for privileged containers
@@ -60,40 +74,45 @@ func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
 		return nil
 	}
 
-	// Attempt to set a POSIX ACL first. Fallback to chmod if the fs doesn't support it.
+	// Attempt to set a POSIX ACL first.
 	acl := fmt.Sprintf("%d:rx", uid)
-	_, err := exec.Command("setfacl", "-m", acl, destPath).CombinedOutput()
+	err := exec.Command("setfacl", "-m", acl, destPath).Run()
+	if err == nil {
+		shared.LogDebugf("Failed to set acl permission on container path: %s", err)
+		return nil
+	}
+
+	// Fallback to chmod if the fs doesn't support it.
+	err = exec.Command("chmod", "+x", destPath).Run()
 	if err != nil {
-		_, err := exec.Command("chmod", "+x", destPath).CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("Failed to chmod the container path: %s.", err)
-		}
+		shared.LogDebugf("Failed to set executable bit on the container path: %s", err)
+		return err
 	}
 
 	return nil
 }
 
-func (ss *storageShared) createImageDbPoolVolume(fingerprint string) error {
+func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	// Fill in any default volume config.
 	volumeConfig := map[string]string{}
-	err := storageVolumeFillDefault(ss.pool.Name, volumeConfig, ss.pool)
+	err := storageVolumeFillDefault(s.pool.Name, volumeConfig, s.pool)
 	if err != nil {
 		return err
 	}
 
 	// Create a db entry for the storage volume of the image.
-	_, err = dbStoragePoolVolumeCreate(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID, volumeConfig)
+	_, err = dbStoragePoolVolumeCreate(s.d.db, fingerprint, storagePoolVolumeTypeImage, s.poolID, volumeConfig)
 	if err != nil {
 		// Try to delete the db entry on error.
-		dbStoragePoolVolumeDelete(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID)
+		s.deleteImageDbPoolVolume(fingerprint)
 		return err
 	}
 
 	return nil
 }
 
-func (ss *storageShared) deleteImageDbPoolVolume(fingerprint string) error {
-	err := dbStoragePoolVolumeDelete(ss.d.db, fingerprint, storagePoolVolumeTypeImage, ss.poolID)
+func (s *storageShared) deleteImageDbPoolVolume(fingerprint string) error {
+	err := dbStoragePoolVolumeDelete(s.d.db, fingerprint, storagePoolVolumeTypeImage, s.poolID)
 	if err != nil {
 		return err
 	}

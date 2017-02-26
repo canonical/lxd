@@ -257,43 +257,40 @@ func getTmpSnapshotName(snap string) string {
 }
 
 // Only initialize the minimal information we need about a given storage type.
-func (s *storageLvm) StorageCoreInit() (*storageCore, error) {
-	sCore := storageCore{}
-	sCore.sType = storageTypeLvm
-	typeName, err := storageTypeToString(sCore.sType)
+func (s *storageLvm) StorageCoreInit() error {
+	s.sType = storageTypeLvm
+	typeName, err := storageTypeToString(s.sType)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	sCore.sTypeName = typeName
+	s.sTypeName = typeName
 
 	output, err := exec.Command("lvm", "version").CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("Error getting LVM version: %v\noutput:'%s'", err, string(output))
+		return fmt.Errorf("Error getting LVM version: %v\noutput:'%s'", err, string(output))
 	}
 	lines := strings.Split(string(output), "\n")
 
-	sCore.sTypeVersion = ""
+	s.sTypeVersion = ""
 	for idx, line := range lines {
 		fields := strings.SplitAfterN(line, ":", 2)
 		if len(fields) < 2 {
 			continue
 		}
 		if idx > 0 {
-			sCore.sTypeVersion += " / "
+			s.sTypeVersion += " / "
 		}
-		sCore.sTypeVersion += strings.TrimSpace(fields[1])
+		s.sTypeVersion += strings.TrimSpace(fields[1])
 	}
 
-	s.storageCore = sCore
-
 	shared.LogDebugf("Initializing an LVM driver.")
-	return &sCore, nil
+	return nil
 }
 
-func (s *storageLvm) StoragePoolInit(config map[string]interface{}) (storage, error) {
-	_, err := s.StorageCoreInit()
+func (s *storageLvm) StoragePoolInit() error {
+	err := s.StorageCoreInit()
 	if err != nil {
-		return s, err
+		return err
 	}
 
 	source := s.pool.Config["source"]
@@ -304,25 +301,25 @@ func (s *storageLvm) StoragePoolInit(config map[string]interface{}) (storage, er
 	}
 
 	if source == "" {
-		return s, fmt.Errorf("Loop backed lvm storage pools are not supported.")
+		return fmt.Errorf("Loop backed lvm storage pools are not supported.")
 	} else {
 		if filepath.IsAbs(source) {
 			if !shared.IsBlockdevPath(source) {
-				return s, fmt.Errorf("Loop backed lvm storage pools are not supported.")
+				return fmt.Errorf("Loop backed lvm storage pools are not supported.")
 			}
 		} else {
 			ok, err := storageVGExists(source)
 			if err != nil {
 				// Internal error.
-				return s, err
+				return err
 			} else if !ok {
 				// Volume group does not exist.
-				return s, fmt.Errorf("The requested volume group \"%s\" does not exist.", source)
+				return fmt.Errorf("The requested volume group \"%s\" does not exist.", source)
 			}
 		}
 	}
 
-	return s, nil
+	return nil
 }
 
 func (s *storageLvm) StoragePoolCheck() error {
@@ -697,12 +694,8 @@ func (s *storageLvm) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageLvm) ContainerPoolGet() string {
-	return s.pool.Name
-}
-
-func (s *storageLvm) ContainerPoolIDGet() int64 {
-	return s.poolID
+func (s *storageLvm) GetContainerPoolInfo() (int64, string) {
+	return s.poolID, s.pool.Name
 }
 
 func (s *storageLvm) StoragePoolUpdate(changedConfig []string) error {
@@ -1061,7 +1054,7 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 			sourceContainer.Storage().ContainerUmount(sourceContainerName, sourceContainerPath)
 		}
 
-		sourcePool := sourceContainer.Storage().ContainerPoolGet()
+		_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 		sourceContainerMntPoint := getContainerMountPoint(sourcePool, sourceContainerName)
 		targetContainerMntPoint := getContainerMountPoint(s.pool.Name, targetContainerName)
 		output, err := storageRsyncCopy(sourceContainerMntPoint, targetContainerMntPoint)
@@ -1273,7 +1266,8 @@ func (s *storageLvm) ContainerRestore(container container, sourceContainer conta
 	}
 	defer sourceContainer.StorageStop()
 
-	if s.pool.Name != sourceContainer.Storage().ContainerPoolGet() {
+	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
+	if s.pool.Name != sourcePool {
 		return fmt.Errorf("Containers must be on the same pool to be restored.")
 	}
 
@@ -1358,7 +1352,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, targetContainerName)
 		sourceFields := strings.SplitN(sourceContainerName, shared.SnapshotDelimiter, 2)
 		sourceName := sourceFields[0]
-		sourcePool := sourceContainer.Storage().ContainerPoolGet()
+		_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", sourcePool, "snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)

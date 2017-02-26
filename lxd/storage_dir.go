@@ -18,30 +18,27 @@ type storageDir struct {
 }
 
 // Only initialize the minimal information we need about a given storage type.
-func (s *storageDir) StorageCoreInit() (*storageCore, error) {
-	sCore := storageCore{}
-	sCore.sType = storageTypeDir
-	typeName, err := storageTypeToString(sCore.sType)
+func (s *storageDir) StorageCoreInit() error {
+	s.sType = storageTypeDir
+	typeName, err := storageTypeToString(s.sType)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	sCore.sTypeName = typeName
-	sCore.sTypeVersion = "1"
-
-	s.storageCore = sCore
+	s.sTypeName = typeName
+	s.sTypeVersion = "1"
 
 	shared.LogDebugf("Initializing a DIR driver.")
-	return &sCore, nil
+	return nil
 }
 
 // Initialize a full storage interface.
-func (s *storageDir) StoragePoolInit(config map[string]interface{}) (storage, error) {
-	_, err := s.StorageCoreInit()
+func (s *storageDir) StoragePoolInit() error {
+	err := s.StorageCoreInit()
 	if err != nil {
-		return s, err
+		return err
 	}
 
-	return s, nil
+	return nil
 }
 
 // Initialize a full storage interface.
@@ -143,12 +140,8 @@ func (s *storageDir) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageDir) ContainerPoolGet() string {
-	return s.pool.Name
-}
-
-func (s *storageDir) ContainerPoolIDGet() int64 {
-	return s.poolID
+func (s *storageDir) GetContainerPoolInfo() (int64, string) {
+	return s.poolID, s.pool.Name
 }
 
 func (s *storageDir) StoragePoolUpdate(changedConfig []string) error {
@@ -357,7 +350,7 @@ func (s *storageDir) ContainerCopy(container container, sourceContainer containe
 	}
 
 	// Deal with the source container.
-	sourcePool := sourceContainer.Storage().ContainerPoolGet()
+	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 	sourceContainerConfig := sourceContainer.Storage().GetStoragePoolWritable()
 	sourceSource := sourceContainerConfig.Config["source"]
 	if sourceSource == "" {
@@ -525,7 +518,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 		return err
 	}
 
-	sourcePool := sourceContainer.Storage().ContainerPoolGet()
+	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 	sourceContainerName := sourceContainer.Name()
 	sourceContainerMntPoint := getContainerMountPoint(sourcePool, sourceContainerName)
 	err = rsync(snapshotContainer, sourceContainerMntPoint, targetContainerMntPoint)

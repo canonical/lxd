@@ -13,28 +13,25 @@ type storageMock struct {
 	storageShared
 }
 
-func (s *storageMock) StorageCoreInit() (*storageCore, error) {
-	sCore := storageCore{}
-	sCore.sType = storageTypeMock
-	typeName, err := storageTypeToString(sCore.sType)
+func (s *storageMock) StorageCoreInit() error {
+	s.sType = storageTypeMock
+	typeName, err := storageTypeToString(s.sType)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	sCore.sTypeName = typeName
-
-	s.storageCore = sCore
+	s.sTypeName = typeName
 
 	shared.LogDebugf("Initializing a MOCK driver.")
-	return &sCore, nil
+	return nil
 }
 
-func (s *storageMock) StoragePoolInit(config map[string]interface{}) (storage, error) {
-	_, err := s.StorageCoreInit()
+func (s *storageMock) StoragePoolInit() error {
+	err := s.StorageCoreInit()
 	if err != nil {
-		return s, err
+		return err
 	}
 
-	return s, nil
+	return nil
 }
 
 func (s *storageMock) StoragePoolCheck() error {
@@ -78,12 +75,8 @@ func (s *storageMock) SetStoragePoolVolumeWritable(writable *api.StorageVolumePu
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageMock) ContainerPoolGet() string {
-	return s.pool.Name
-}
-
-func (s *storageMock) ContainerPoolIDGet() int64 {
-	return s.poolID
+func (s *storageMock) GetContainerPoolInfo() (int64, string) {
+	return s.poolID, s.pool.Name
 }
 
 func (s *storageMock) StoragePoolVolumeCreate() error {

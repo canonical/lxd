@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -59,6 +60,21 @@ func getCustomUmountLockID(poolName string, volumeName string) string {
 	return fmt.Sprintf("umount/custom/%s/%s", poolName, volumeName)
 }
 
+// Simply cache used to storage the activated drivers on this LXD instance. This
+// allows us to avoid querying the database everytime and API call is made.
+var storagePoolDriversCacheInitialized bool
+var storagePoolDriversCacheVal atomic.Value
+var storagePoolDriversCacheLock sync.Mutex
+
+func readStoragePoolDriversCache() []string {
+	drivers := storagePoolDriversCacheVal.Load()
+	if drivers == nil {
+		return []string{}
+	}
+
+	return drivers.([]string)
+}
+
 // Filesystem magic numbers
 const (
 	filesystemSuperMagicTmpfs = 0x01021994
@@ -98,7 +114,8 @@ func filesystemDetect(path string) (string, error) {
 
 // storageRsyncCopy copies a directory using rsync (with the --devices option).
 func storageRsyncCopy(source string, dest string) (string, error) {
-	if err := os.MkdirAll(dest, 0755); err != nil {
+	err := os.MkdirAll(dest, 0755)
+	if err != nil {
 		return "", err
 	}
 
@@ -169,20 +186,17 @@ func storageStringToType(sName string) (storageType, error) {
 	return -1, fmt.Errorf("Invalid storage type name.")
 }
 
-// FIXME(brauner): Split up this interace into sub-interfaces, that can be
-// combined into this single big interface but can also be individually
-// initialized. Suggestion:
-// - type storagePool interface
-// - type storagePoolVolume interface
-// - type storageContainer interface
-// - type storageImage interface
-// Also, minimize the number of functions needed. Both should be straightforward
-// tasks.
+// The storage interface defines the functions needed to implement a storage
+// backend for a given storage driver.
 type storage interface {
-	storageCoreInfo
+	// Functions dealing with basic driver properties only.
+	StorageCoreInit() error
+	GetStorageType() storageType
+	GetStorageTypeName() string
+	GetStorageTypeVersion() string
 
-	// Functions dealing with storage pool.
-	StoragePoolInit(config map[string]interface{}) (storage, error)
+	// Functions dealing with storage pools.
+	StoragePoolInit() error
 	StoragePoolCheck() error
 	StoragePoolCreate() error
 	StoragePoolDelete() error
@@ -192,7 +206,7 @@ type storage interface {
 	GetStoragePoolWritable() api.StoragePoolPut
 	SetStoragePoolWritable(writable *api.StoragePoolPut)
 
-	// Functions dealing with storage volumes.
+	// Functions dealing with custom storage volumes.
 	StoragePoolVolumeCreate() error
 	StoragePoolVolumeDelete() error
 	StoragePoolVolumeMount() (bool, error)
@@ -201,12 +215,12 @@ type storage interface {
 	GetStoragePoolVolumeWritable() api.StorageVolumePut
 	SetStoragePoolVolumeWritable(writable *api.StorageVolumePut)
 
+	// Functions dealing with container storage volumes.
 	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
 	ContainerCreate(container container) error
 
 	// ContainerCreateFromImage creates a container from a image.
 	ContainerCreateFromImage(container container, imageFingerprint string) error
-
 	ContainerCanRestore(container container, sourceContainer container) error
 	ContainerDelete(container container) error
 	ContainerCopy(container container, sourceContainer container) error
@@ -216,8 +230,7 @@ type storage interface {
 	ContainerRestore(container container, sourceContainer container) error
 	ContainerSetQuota(container container, size int64) error
 	ContainerGetUsage(container container) (int64, error)
-	ContainerPoolGet() string
-	ContainerPoolIDGet() int64
+	GetContainerPoolInfo() (int64, string)
 	ContainerStorageReady(name string) bool
 
 	ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error
@@ -226,18 +239,19 @@ type storage interface {
 	ContainerSnapshotStart(container container) error
 	ContainerSnapshotStop(container container) error
 
-	/* for use in migrating snapshots */
+	// For use in migrating snapshots.
 	ContainerSnapshotCreateEmpty(snapshotContainer container) error
 
+	// Functions dealing with image storage volumes.
 	ImageCreate(fingerprint string) error
 	ImageDelete(fingerprint string) error
 	ImageMount(fingerprint string) (bool, error)
 	ImageUmount(fingerprint string) (bool, error)
 
+	// Functions dealing with migration.
 	MigrationType() MigrationFSType
-	/* does this storage backend preserve inodes when it is moved across
-	 * LXD hosts?
-	 */
+	// Does this storage backend preserve inodes when it is moved across LXD
+	// hosts?
 	PreservesInodes() bool
 
 	// Get the pieces required to migrate the source. This contains a list
@@ -259,6 +273,48 @@ type storage interface {
 	// enterprising developer.
 	MigrationSource(container container) (MigrationStorageSourceDriver, error)
 	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error
+}
+
+func storageCoreInit(driver string) (storage, error) {
+	sType, err := storageStringToType(driver)
+	if err != nil {
+		return nil, err
+	}
+
+	switch sType {
+	case storageTypeBtrfs:
+		btrfs := storageBtrfs{}
+		err = btrfs.StorageCoreInit()
+		if err == nil {
+			return &btrfs, nil
+		}
+	case storageTypeDir:
+		dir := storageDir{}
+		err = dir.StorageCoreInit()
+		if err == nil {
+			return &dir, nil
+		}
+	case storageTypeLvm:
+		lvm := storageLvm{}
+		err = lvm.StorageCoreInit()
+		if err == nil {
+			return &lvm, nil
+		}
+	case storageTypeMock:
+		mock := storageMock{}
+		err = mock.StorageCoreInit()
+		if err == nil {
+			return &mock, nil
+		}
+	case storageTypeZfs:
+		zfs := storageZfs{}
+		err = zfs.StorageCoreInit()
+		if err == nil {
+			return &zfs, nil
+		}
+	}
+
+	return nil, fmt.Errorf("Invalid storage type.")
 }
 
 func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {
@@ -296,49 +352,57 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		btrfs.pool = pool
 		btrfs.volume = volume
 		btrfs.d = d
-		return &btrfs, nil
+		err = btrfs.StoragePoolInit()
+		if err == nil {
+			return &btrfs, nil
+		}
 	case storageTypeDir:
 		dir := storageDir{}
 		dir.poolID = poolID
 		dir.pool = pool
 		dir.volume = volume
 		dir.d = d
-		return &dir, nil
+		err = dir.StoragePoolInit()
+		if err == nil {
+			return &dir, nil
+		}
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		lvm.poolID = poolID
 		lvm.pool = pool
 		lvm.volume = volume
 		lvm.d = d
-		return &lvm, nil
+		err = lvm.StoragePoolInit()
+		if err == nil {
+			return &lvm, nil
+		}
 	case storageTypeMock:
 		mock := storageMock{}
 		mock.poolID = poolID
 		mock.pool = pool
 		mock.volume = volume
 		mock.d = d
-		return &mock, nil
+		err = mock.StoragePoolInit()
+		if err == nil {
+			return &mock, nil
+		}
 	case storageTypeZfs:
 		zfs := storageZfs{}
 		zfs.poolID = poolID
 		zfs.pool = pool
 		zfs.volume = volume
 		zfs.d = d
-		return &zfs, nil
+		err = zfs.StoragePoolInit()
+		if err == nil {
+			return &zfs, nil
+		}
 	}
 
 	return nil, fmt.Errorf("Invalid storage type.")
 }
 
 func storagePoolInit(d *Daemon, poolName string) (storage, error) {
-	var config map[string]interface{}
-
-	s, err := storageInit(d, poolName, "", -1)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.StoragePoolInit(config)
+	return storageInit(d, poolName, "", -1)
 }
 
 func storagePoolVolumeImageInit(d *Daemon, poolName string, imageFingerprint string) (storage, error) {
@@ -360,25 +424,23 @@ func storagePoolVolumeContainerLoadInit(d *Daemon, containerName string) (storag
 }
 
 func storagePoolVolumeInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {
-	var config map[string]interface{}
-
 	// No need to detect storage here, its a new container.
 	s, err := storageInit(d, poolName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
 	}
 
-	storage, err := s.StoragePoolInit(config)
+	err = s.StoragePoolInit()
 	if err != nil {
 		return nil, err
 	}
 
-	err = storage.StoragePoolCheck()
+	err = s.StoragePoolCheck()
 	if err != nil {
 		return nil, err
 	}
 
-	return storage, nil
+	return s, nil
 }
 
 // {LXD_DIR}/storage-pools/<pool>
