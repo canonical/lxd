@@ -103,3 +103,27 @@ func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, 
 
 	return poolUsedBy, err
 }
+
+func profilesUsingPoolGetNames(db *sql.DB, poolName string) ([]string, error) {
+	usedBy := []string{}
+
+	profiles, err := dbProfiles(db)
+	if err != nil {
+		return usedBy, err
+	}
+
+	for _, pName := range profiles {
+		_, profile, err := dbProfileGet(db, pName)
+		if err != nil {
+			return usedBy, err
+		}
+
+		for _, v := range profile.Devices {
+			if v["pool"] == poolName {
+				usedBy = append(usedBy, pName)
+			}
+		}
+	}
+
+	return usedBy, nil
+}
