@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -57,6 +58,21 @@ func getCustomMountLockID(poolName string, volumeName string) string {
 
 func getCustomUmountLockID(poolName string, volumeName string) string {
 	return fmt.Sprintf("umount/custom/%s/%s", poolName, volumeName)
+}
+
+// Simply cache used to storage the activated drivers on this LXD instance. This
+// allows us to avoid querying the database everytime and API call is made.
+var storagePoolDriversCacheInitialized bool
+var storagePoolDriversCacheVal atomic.Value
+var storagePoolDriversCacheLock sync.Mutex
+
+func readStoragePoolDriversCache() []string {
+	drivers := storagePoolDriversCacheVal.Load()
+	if drivers == nil {
+		return []string{}
+	}
+
+	return drivers.([]string)
 }
 
 // Filesystem magic numbers
