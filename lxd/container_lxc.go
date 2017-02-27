@@ -237,10 +237,10 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, fmt.Errorf("The container's root device is missing the pool property.")
 	}
 
-	c.storagePool = rootDiskDevice["pool"]
+	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the container
-	poolID, pool, err := dbStoragePoolGet(d.db, c.storagePool)
+	poolID, pool, err := dbStoragePoolGet(d.db, storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -248,7 +248,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 
 	// Fill in any default volume config
 	volumeConfig := map[string]string{}
-	err = storageVolumeFillDefault(c.storagePool, volumeConfig, pool)
+	err = storageVolumeFillDefault(storagePool, volumeConfig, pool)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Initialize the container storage
-	cStorage, err := storagePoolVolumeContainerCreateInit(d, c.storagePool, args.Name)
+	cStorage, err := storagePoolVolumeContainerCreateInit(d, storagePool, args.Name)
 	if err != nil {
 		c.Delete()
 		shared.LogError("Failed to initialize container storage", ctxMap)
@@ -393,7 +393,6 @@ type containerLXC struct {
 	idmapset *shared.IdmapSet
 
 	// Storage
-	storagePool string
 	storage     storage
 }
 
@@ -699,11 +698,6 @@ func (c *containerLXC) init() error {
 			return err
 		}
 	}
-
-	// Try to retrieve the container's storage pool from the storage volumes
-	// database but do not fail so that users can recover from storage
-	// breakage.
-	c.initStoragePool()
 
 	return nil
 }
@@ -1386,16 +1380,6 @@ func (c *containerLXC) initLXC() error {
 // container's storage volume will already exist in the database and so we can
 // retrieve it.
 func (c *containerLXC) initStoragePool() error {
-	if c.storagePool != "" {
-		return nil
-	}
-
-	poolName, err := dbContainerPool(c.daemon.db, c.Name())
-	if err != nil {
-		return err
-	}
-	c.storagePool = poolName
-
 	return nil
 }
 
@@ -1408,19 +1392,6 @@ func (c *containerLXC) initStorageInterface() error {
 	s, err := storagePoolVolumeContainerLoadInit(c.daemon, c.Name())
 	if err != nil {
 		return err
-	}
-
-	// args.StoragePool can be empty here. In that case we simply set
-	// c.storagePool to the storage pool we detected based on the containers
-	// name. (Container names are globally unique.)
-	_, storagePool := s.GetContainerPoolInfo()
-	if c.storagePool == "" {
-		c.storagePool = storagePool
-	} else if c.storagePool != storagePool {
-		// If the storage pool passed in does not match the storage pool
-		// we reverse engineered based on the containers name we know
-		// something is messed up.
-		return fmt.Errorf("Container is supposed to exist on storage pool \"%s\", but it actually exists on \"%s\".", c.storagePool, storagePool)
 	}
 
 	c.storage = s
@@ -6643,6 +6614,11 @@ func (c *containerLXC) StatePath() string {
 	return filepath.Join(c.Path(), "state")
 }
 
-func (c *containerLXC) StoragePool() string {
-	return c.storagePool
+func (c *containerLXC) StoragePool() (string, error) {
+	poolName, err := dbContainerPool(c.daemon.db, c.Name())
+	if err != nil {
+		return "", err
+	}
+
+	return poolName, nil
 }
