@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared/api"
@@ -38,7 +39,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 
 			// Get all users of the storage pool.
 			poolUsedBy, err := storagePoolUsedByGet(d.db, plID, pool)
-			if err != nil && err != NoSuchObjectError {
+			if err != nil {
 				return SmartError(err)
 			}
 			pl.UsedBy = poolUsedBy
@@ -287,6 +288,15 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Storage pool \"%s\" has volumes attached to it.", poolName))
 	}
 
+	// Check if the storage pool is still referenced in any profiles.
+	profiles, err := profilesUsingPoolGetNames(d.db, poolName)
+	if err != nil {
+		return InternalError(err)
+	}
+	if len(profiles) > 0 {
+		return BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
+	}
+
 	s, err := storagePoolInit(d, poolName)
 	if err != nil {
 		return InternalError(err)
@@ -300,48 +310,6 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	err = dbStoragePoolDelete(d.db, poolName)
 	if err != nil {
 		return InternalError(err)
-	}
-
-	// In case we deleted the default storage pool, try to update the
-	// default profile.
-	defaultID, defaultProfile, err := dbProfileGet(d.db, "default")
-	if err != nil {
-		return EmptySyncResponse
-	}
-	for k, v := range defaultProfile.Devices {
-		if v["type"] == "disk" && v["path"] == "/" {
-			if v["pool"] == poolName {
-				defaultProfile.Devices[k]["pool"] = ""
-
-				tx, err := dbBegin(d.db)
-				if err != nil {
-					return EmptySyncResponse
-				}
-
-				err = dbProfileConfigClear(tx, defaultID)
-				if err != nil {
-					tx.Rollback()
-					return EmptySyncResponse
-				}
-
-				err = dbProfileConfigAdd(tx, defaultID, defaultProfile.Config)
-				if err != nil {
-					tx.Rollback()
-					return EmptySyncResponse
-				}
-
-				err = dbDevicesAdd(tx, "profile", defaultID, defaultProfile.Devices)
-				if err != nil {
-					tx.Rollback()
-					return EmptySyncResponse
-				}
-
-				err = txCommit(tx)
-				if err != nil {
-					return EmptySyncResponse
-				}
-			}
-		}
 	}
 
 	return EmptySyncResponse
