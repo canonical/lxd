@@ -694,10 +694,6 @@ func (c *containerLXC) init() error {
 
 	// Setup the Idmap
 	if !c.IsPrivileged() {
-		if c.daemon.IdmapSet == nil {
-			return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
-		}
-
 		c.idmapset, err = c.NextIdmapSet()
 		if err != nil {
 			return err
