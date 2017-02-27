@@ -285,33 +285,38 @@ func storageCoreInit(driver string) (storage, error) {
 	case storageTypeBtrfs:
 		btrfs := storageBtrfs{}
 		err = btrfs.StorageCoreInit()
-		if err == nil {
-			return &btrfs, nil
+		if err != nil {
+			return nil, err
 		}
+		return &btrfs, nil
 	case storageTypeDir:
 		dir := storageDir{}
 		err = dir.StorageCoreInit()
-		if err == nil {
-			return &dir, nil
+		if err != nil {
+			return nil, err
 		}
+		return &dir, nil
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		err = lvm.StorageCoreInit()
-		if err == nil {
-			return &lvm, nil
+		if err != nil {
+			return nil, err
 		}
+		return &lvm, nil
 	case storageTypeMock:
 		mock := storageMock{}
 		err = mock.StorageCoreInit()
-		if err == nil {
-			return &mock, nil
+		if err != nil {
+			return nil, err
 		}
+		return &mock, nil
 	case storageTypeZfs:
 		zfs := storageZfs{}
 		err = zfs.StorageCoreInit()
-		if err == nil {
-			return &zfs, nil
+		if err != nil {
+			return nil, err
 		}
+		return &zfs, nil
 	}
 
 	return nil, fmt.Errorf("Invalid storage type.")
@@ -353,9 +358,10 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		btrfs.volume = volume
 		btrfs.d = d
 		err = btrfs.StoragePoolInit()
-		if err == nil {
-			return &btrfs, nil
+		if err != nil {
+			return nil, err
 		}
+		return &btrfs, nil
 	case storageTypeDir:
 		dir := storageDir{}
 		dir.poolID = poolID
@@ -363,9 +369,10 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		dir.volume = volume
 		dir.d = d
 		err = dir.StoragePoolInit()
-		if err == nil {
-			return &dir, nil
+		if err != nil {
+			return nil, err
 		}
+		return &dir, nil
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		lvm.poolID = poolID
@@ -373,9 +380,10 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		lvm.volume = volume
 		lvm.d = d
 		err = lvm.StoragePoolInit()
-		if err == nil {
-			return &lvm, nil
+		if err != nil {
+			return nil, err
 		}
+		return &lvm, nil
 	case storageTypeMock:
 		mock := storageMock{}
 		mock.poolID = poolID
@@ -383,9 +391,10 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		mock.volume = volume
 		mock.d = d
 		err = mock.StoragePoolInit()
-		if err == nil {
-			return &mock, nil
+		if err != nil {
+			return nil, err
 		}
+		return &mock, nil
 	case storageTypeZfs:
 		zfs := storageZfs{}
 		zfs.poolID = poolID
@@ -393,9 +402,10 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		zfs.volume = volume
 		zfs.d = d
 		err = zfs.StoragePoolInit()
-		if err == nil {
-			return &zfs, nil
+		if err != nil {
+			return nil, err
 		}
+		return &zfs, nil
 	}
 
 	return nil, fmt.Errorf("Invalid storage type.")
