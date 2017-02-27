@@ -446,7 +446,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	if len(volumeUsedBy) > 0 {
-		return BadRequest(fmt.Errorf("The storage volume is in use by containers."))
+		return BadRequest(fmt.Errorf("The storage volume is still in use by containers or profiles."))
 	}
 
 	s, err := storagePoolVolumeInit(d, poolName, volumeName, volumeType)
