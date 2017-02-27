@@ -210,6 +210,21 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
+	// Validate expanded config
+	err = containerValidConfig(d, c.expandedConfig, false, true)
+	if err != nil {
+		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
+		return nil, err
+	}
+
+	err = containerValidDevices(c.expandedDevices, false, true)
+	if err != nil {
+		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
+		return nil, err
+	}
+
 	// Retrieve the container's storage pool
 	_, rootDiskDevice, err := containerGetRootDiskDevice(c.expandedDevices)
 	if err != nil {
