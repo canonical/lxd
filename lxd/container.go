@@ -218,6 +218,10 @@ func containerValidConfig(d *Daemon, config map[string]string, profile bool, exp
 		return fmt.Errorf("security.syscalls.whitelist is mutually exclusive with security.syscalls.blacklist*")
 	}
 
+	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && d.IdmapSet == nil {
+		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
+	}
+
 	return nil
 }
 
