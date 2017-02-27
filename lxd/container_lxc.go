@@ -663,7 +663,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 		return mkIdmap(offset, size), offset, nil
 	}
 
-	return nil, 0, fmt.Errorf("no map range available")
+	return nil, 0, fmt.Errorf("Not enough uid/gid available for the container.")
 }
 
 func (c *containerLXC) init() error {
