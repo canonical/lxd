@@ -478,7 +478,7 @@ type container interface {
 	LogFilePath() string
 	LogPath() string
 
-	StoragePool() string
+	StoragePool() (string, error)
 
 	// FIXME: Those should be internal functions
 	// Needed for migration for now.
