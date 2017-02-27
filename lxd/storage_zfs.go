@@ -1230,7 +1230,7 @@ func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 // - remove mountpoint property from zfs volume images/<fingerprint>
 // - create read-write snapshot from zfs volume images/<fingerprint>
 func (s *storageZfs) ImageCreate(fingerprint string) error {
-	shared.LogDebugf("Creating ZFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Creating ZFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	fs := fmt.Sprintf("images/%s", fingerprint)
@@ -1350,12 +1350,12 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 
 	revert = false
 
-	shared.LogDebugf("Created ZFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Created ZFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) ImageDelete(fingerprint string) error {
-	shared.LogDebugf("Deleting ZFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Deleting ZFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	fs := fmt.Sprintf("images/%s", fingerprint)
 
@@ -1403,7 +1403,7 @@ func (s *storageZfs) ImageDelete(fingerprint string) error {
 		}
 	}
 
-	shared.LogDebugf("Deleted ZFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Deleted ZFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return nil
 }
 
