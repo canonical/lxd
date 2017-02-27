@@ -160,7 +160,23 @@ func (s *execWs) Do(op *operation) error {
 
 				if err != nil {
 					shared.LogDebugf("Got error getting next reader %s", err)
-					break
+					er, ok := err.(*websocket.CloseError)
+					if !ok {
+						break
+					}
+
+					if er.Code != websocket.CloseAbnormalClosure {
+						break
+					}
+
+					// If an abnormal closure occured, kill the attached process.
+					err := syscall.Kill(attachedChildPid, syscall.SIGKILL)
+					if err != nil {
+						shared.LogDebugf("Failed to send SIGKILL to pid %d.", attachedChildPid)
+					} else {
+						shared.LogDebugf("Sent SIGKILL to pid %d.", attachedChildPid)
+					}
+					return
 				}
 
 				buf, err := ioutil.ReadAll(r)
