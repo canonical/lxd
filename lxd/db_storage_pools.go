@@ -273,11 +273,11 @@ func dbStoragePoolVolumesGetNames(db *sql.DB, poolID int64) (int, error) {
 }
 
 // Get all storage volumes attached to a given storage pool.
-func dbStoragePoolVolumesGet(db *sql.DB, poolID int64) ([]*api.StorageVolume, error) {
+func dbStoragePoolVolumesGet(db *sql.DB, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	// Get all storage volumes of all types attached to a given storage
 	// pool.
 	result := []*api.StorageVolume{}
-	for _, volumeType := range supportedVolumeTypes {
+	for _, volumeType := range volumeTypes {
 		volumeNames, err := dbStoragePoolVolumesGetType(db, volumeType, poolID)
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err

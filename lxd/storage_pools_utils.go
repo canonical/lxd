@@ -71,46 +71,55 @@ func storagePoolUpdate(d *Daemon, name string, newConfig map[string]string) erro
 	return nil
 }
 
+// Report all LXD objects that are currently using the given storage pool.
+// Volumes of type "custom" are not reported.
 // /1.0/containers/alp1
 // /1.0/containers/alp1/snapshots/snap0
 // /1.0/images/cedce20b5b236f1071134beba7a5fd2aa923fda49eea4c66454dd559a5d6e906
-// /1.0/storage-pools/pool1/volumes/custom/vol1
+// /1.0/profiles/default
 func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, error) {
-	poolVolumes, err := dbStoragePoolVolumesGet(db, poolID)
+	// Retrieve all non-custom volumes that exist on this storage pool.
+	volumes, err := dbStoragePoolVolumesGet(db, poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage})
 	if err != nil && err != NoSuchObjectError {
 		return []string{}, err
 	}
 
-	poolUsedBy := []string{}
-	for i := 0; i < len(poolVolumes); i++ {
-		apiEndpoint, _ := storagePoolVolumeTypeNameToApiEndpoint(poolVolumes[i].Type)
-		switch apiEndpoint {
-		case storagePoolVolumeApiEndpointContainers:
-			if strings.Index(poolVolumes[i].Name, shared.SnapshotDelimiter) > 0 {
-				fields := strings.SplitN(poolVolumes[i].Name, shared.SnapshotDelimiter, 2)
-				poolUsedBy = append(poolUsedBy, fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, fields[0], fields[1]))
-			} else {
-				poolUsedBy = append(poolUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, poolVolumes[i].Name))
-			}
-		case storagePoolVolumeApiEndpointImages:
-			poolUsedBy = append(poolUsedBy, fmt.Sprintf("/%s/images/%s", version.APIVersion, poolVolumes[i].Name))
-		case storagePoolVolumeApiEndpointCustom:
-			// noop
-		default:
-			shared.LogWarnf("Invalid storage type for storage volume \"%s\".", poolVolumes[i].Name)
-		}
-	}
-
+	// Retrieve all profiles that exist on this storage pool.
 	profiles, err := profilesUsingPoolGetNames(db, poolName)
 	if err != nil {
 		return []string{}, err
 	}
-	if len(profiles) == 0 {
-		return poolUsedBy, err
+
+	slicelen := len(volumes) + len(profiles)
+	if slicelen == 0 {
+		return []string{}, nil
 	}
 
-	for _, p := range profiles {
-		poolUsedBy = append(poolUsedBy, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, p))
+	// Save some allocation cycles by preallocating the correct len.
+	poolUsedBy := make([]string, slicelen)
+	for i := 0; i < len(volumes); i++ {
+		apiEndpoint, _ := storagePoolVolumeTypeNameToApiEndpoint(volumes[i].Type)
+		switch apiEndpoint {
+		case storagePoolVolumeApiEndpointContainers:
+			if strings.Index(volumes[i].Name, shared.SnapshotDelimiter) > 0 {
+				fields := strings.SplitN(volumes[i].Name, shared.SnapshotDelimiter, 2)
+				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, fields[0], fields[1])
+			} else {
+				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s", version.APIVersion, volumes[i].Name)
+			}
+		case storagePoolVolumeApiEndpointImages:
+			poolUsedBy[i] = fmt.Sprintf("/%s/images/%s", version.APIVersion, volumes[i].Name)
+		case storagePoolVolumeApiEndpointCustom:
+			// Bug
+			return []string{}, fmt.Errorf("Database function returned volume type \"%s\" although not queried for it.", volumes[i].Type)
+		default:
+			// If that happens the db is busted, so report an error.
+			return []string{}, fmt.Errorf("Invalid storage type for storage volume \"%s\".", volumes[i].Name)
+		}
+	}
+
+	for i := 0; i < len(profiles); i++ {
+		poolUsedBy[i+len(volumes)] = fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profiles[i])
 	}
 
 	return poolUsedBy, err
@@ -131,6 +140,10 @@ func profilesUsingPoolGetNames(db *sql.DB, poolName string) ([]string, error) {
 		}
 
 		for _, v := range profile.Devices {
+			if v["type"] != "disk" {
+				continue
+			}
+
 			if v["pool"] == poolName {
 				usedBy = append(usedBy, pName)
 			}

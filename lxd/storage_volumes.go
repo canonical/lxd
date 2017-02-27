@@ -32,7 +32,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 
 	// Get all volumes currently attached to the storage pool by ID of the
 	// pool.
-	volumes, err := dbStoragePoolVolumesGet(d.db, poolID)
+	volumes, err := dbStoragePoolVolumesGet(d.db, poolID, supportedVolumeTypes)
 	if err != nil && err != NoSuchObjectError {
 		return SmartError(err)
 	}
