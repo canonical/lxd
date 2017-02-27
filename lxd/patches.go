@@ -1812,7 +1812,7 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 		}
 
 		// Get all storage volumes on the storage pool.
-		volumes, err := dbStoragePoolVolumesGet(d.db, poolID)
+		volumes, err := dbStoragePoolVolumesGet(d.db, poolID, supportedVolumeTypes)
 		if err != nil {
 			if err == NoSuchObjectError {
 				continue
