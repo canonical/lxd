@@ -1163,7 +1163,7 @@ func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container)
 }
 
 func (s *storageBtrfs) ImageCreate(fingerprint string) error {
-	shared.LogDebugf("Creating BTRFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Creating BTRFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	// Create the subvolume.
 	source := s.pool.Config["source"]
@@ -1240,12 +1240,12 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 
 	undo = false
 
-	shared.LogDebugf("Created BTRFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Created BTRFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return nil
 }
 
 func (s *storageBtrfs) ImageDelete(fingerprint string) error {
-	shared.LogDebugf("Deleting BTRFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Deleting BTRFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -1274,12 +1274,12 @@ func (s *storageBtrfs) ImageDelete(fingerprint string) error {
 		}
 	}
 
-	shared.LogDebugf("Deleted BTRFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Deleted BTRFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return nil
 }
 
 func (s *storageBtrfs) ImageMount(fingerprint string) (bool, error) {
-	shared.LogDebugf("Mounting BTRFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Mounting BTRFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	// The storage pool must be mounted.
 	_, err := s.StoragePoolMount()
@@ -1287,7 +1287,7 @@ func (s *storageBtrfs) ImageMount(fingerprint string) (bool, error) {
 		return false, err
 	}
 
-	shared.LogDebugf("Mounted BTRFS storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Mounted BTRFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return true, nil
 }
 
