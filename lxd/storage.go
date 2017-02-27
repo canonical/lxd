@@ -615,7 +615,11 @@ func deleteSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget 
 }
 
 func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
-	dstIdmap := container.IdmapSet()
+	dstIdmap, err := container.IdmapSet()
+	if err != nil {
+		return err
+	}
+
 	if dstIdmap == nil {
 		dstIdmap = new(shared.IdmapSet)
 	}

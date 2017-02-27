@@ -393,7 +393,7 @@ type containerLXC struct {
 	idmapset *shared.IdmapSet
 
 	// Storage
-	storage     storage
+	storage storage
 }
 
 func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
@@ -691,14 +691,6 @@ func (c *containerLXC) init() error {
 		return err
 	}
 
-	// Setup the Idmap
-	if !c.IsPrivileged() {
-		c.idmapset, err = c.NextIdmapSet()
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -965,8 +957,13 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup idmap
-	if c.idmapset != nil {
-		lines := c.idmapset.ToLxcString()
+	idmapset, err := c.IdmapSet()
+	if err != nil {
+		return err
+	}
+
+	if idmapset != nil {
+		lines := idmapset.ToLxcString()
 		for _, line := range lines {
 			err := lxcSetConfigItem(cc, "lxc.id_map", strings.TrimSuffix(line, "\n"))
 			if err != nil {
@@ -1528,7 +1525,10 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	/* Deal with idmap changes */
-	idmap := c.IdmapSet()
+	idmap, err := c.IdmapSet()
+	if err != nil {
+		return "", err
+	}
 
 	lastIdmap, err := c.LastIdmapSet()
 	if err != nil {
@@ -4086,12 +4086,17 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		 * namespace.
 		 */
 		if !c.IsPrivileged() {
+			idmapset, err := c.IdmapSet()
+			if err != nil {
+				return err
+			}
+
 			err = c.StorageStart()
 			if err != nil {
 				return err
 			}
 
-			err = c.IdmapSet().ShiftRootfs(stateDir)
+			err = idmapset.ShiftRootfs(stateDir)
 			err2 := c.StorageStop()
 			if err != nil {
 				return err
@@ -4253,7 +4258,12 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 
 			// Get the right uid and gid for the container
 			if !c.IsPrivileged() {
-				uid, gid = c.idmapset.ShiftIntoNs(0, 0)
+				idmapset, err := c.IdmapSet()
+				if err != nil {
+					return err
+				}
+
+				uid, gid = idmapset.ShiftIntoNs(0, 0)
 			}
 
 			// Create the directories leading to the file
@@ -4935,7 +4945,12 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 
 	// Unshift the id under /rootfs/ for unpriv containers
 	if !c.IsPrivileged() && strings.HasPrefix(hdr.Name, "/rootfs") {
-		huid, hgid := c.idmapset.ShiftFromNs(int64(hdr.Uid), int64(hdr.Gid))
+		idmapset, err := c.IdmapSet()
+		if err != nil {
+			return err
+		}
+
+		huid, hgid := idmapset.ShiftFromNs(int64(hdr.Uid), int64(hdr.Gid))
 		hdr.Uid = int(huid)
 		hdr.Gid = int(hgid)
 		if hdr.Uid == -1 || hdr.Gid == -1 {
@@ -5234,8 +5249,13 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
 		}
 
-		if c.idmapset != nil {
-			if err := c.idmapset.ShiftFile(devPath); err != nil {
+		idmapset, err := c.IdmapSet()
+		if err != nil {
+			return nil, err
+		}
+
+		if idmapset != nil {
+			if err := idmapset.ShiftFile(devPath); err != nil {
 				// uidshift failing is weird, but not a big problem.  Log and proceed
 				shared.LogDebugf("Failed to uidshift device %s: %s\n", m["path"], err)
 			}
@@ -6485,8 +6505,23 @@ func (c *containerLXC) Id() int {
 	return c.id
 }
 
-func (c *containerLXC) IdmapSet() *shared.IdmapSet {
-	return c.idmapset
+func (c *containerLXC) IdmapSet() (*shared.IdmapSet, error) {
+	var err error
+
+	if c.idmapset != nil {
+		return c.idmapset, nil
+	}
+
+	if c.IsPrivileged() {
+		return nil, nil
+	}
+
+	c.idmapset, err = c.NextIdmapSet()
+	if err != nil {
+		return nil, err
+	}
+
+	return c.idmapset, nil
 }
 
 func (c *containerLXC) InitPID() int {
@@ -6511,7 +6546,7 @@ func (c *containerLXC) idmapsetFromConfig(k string) (*shared.IdmapSet, error) {
 	lastJsonIdmap := c.LocalConfig()[k]
 
 	if lastJsonIdmap == "" {
-		return c.IdmapSet(), nil
+		return c.IdmapSet()
 	}
 
 	lastIdmap := new(shared.IdmapSet)
