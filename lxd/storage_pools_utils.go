@@ -77,7 +77,7 @@ func storagePoolUpdate(d *Daemon, name string, newConfig map[string]string) erro
 // /1.0/storage-pools/pool1/volumes/custom/vol1
 func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, error) {
 	poolVolumes, err := dbStoragePoolVolumesGet(db, poolID)
-	if err != nil {
+	if err != nil && err != NoSuchObjectError {
 		return []string{}, err
 	}
 
@@ -99,6 +99,18 @@ func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, 
 		default:
 			shared.LogWarnf("Invalid storage type for storage volume \"%s\".", poolVolumes[i].Name)
 		}
+	}
+
+	profiles, err := profilesUsingPoolGetNames(db, poolName)
+	if err != nil {
+		return []string{}, err
+	}
+	if len(profiles) == 0 {
+		return poolUsedBy, err
+	}
+
+	for _, p := range profiles {
+		poolUsedBy = append(poolUsedBy, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, p))
 	}
 
 	return poolUsedBy, err
