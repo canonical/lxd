@@ -39,7 +39,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 
 			// Get all users of the storage pool.
 			poolUsedBy, err := storagePoolUsedByGet(d.db, plID, pool)
-			if err != nil && err != NoSuchObjectError {
+			if err != nil {
 				return SmartError(err)
 			}
 			pl.UsedBy = poolUsedBy
