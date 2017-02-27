@@ -39,13 +39,16 @@ func (s *storageShared) shiftRootfs(c container) error {
 
 	shared.LogDebugf("Shifting root filesystem \"%s\" for \"%s\".", rpath, c.Name())
 
-	idmapset := c.IdmapSet()
+	idmapset, err := c.IdmapSet()
+	if err != nil {
+		return err
+	}
 
 	if idmapset == nil {
 		return fmt.Errorf("IdmapSet of container '%s' is nil", c.Name())
 	}
 
-	err := idmapset.ShiftRootfs(rpath)
+	err = idmapset.ShiftRootfs(rpath)
 	if err != nil {
 		shared.LogDebugf("Shift of rootfs %s failed: %s", rpath, err)
 		return err
@@ -58,7 +61,10 @@ func (s *storageShared) shiftRootfs(c container) error {
 }
 
 func (s *storageShared) setUnprivUserAcl(c container, destPath string) error {
-	idmapset := c.IdmapSet()
+	idmapset, err := c.IdmapSet()
+	if err != nil {
+		return err
+	}
 
 	// Skip for privileged containers
 	if idmapset == nil {
@@ -76,7 +82,7 @@ func (s *storageShared) setUnprivUserAcl(c container, destPath string) error {
 
 	// Attempt to set a POSIX ACL first.
 	acl := fmt.Sprintf("%d:rx", uid)
-	err := exec.Command("setfacl", "-m", acl, destPath).Run()
+	err = exec.Command("setfacl", "-m", acl, destPath).Run()
 	if err == nil {
 		return nil
 	}

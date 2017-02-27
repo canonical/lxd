@@ -485,7 +485,7 @@ type container interface {
 	StorageStart() error
 	StorageStop() error
 	Storage() storage
-	IdmapSet() *shared.IdmapSet
+	IdmapSet() (*shared.IdmapSet, error)
 	LastIdmapSet() (*shared.IdmapSet, error)
 	TemplateApply(trigger string) error
 	Daemon() *Daemon

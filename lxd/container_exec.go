@@ -383,10 +383,16 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
-		idmapset := c.IdmapSet()
+
+		idmapset, err := c.IdmapSet()
+		if err != nil {
+			return InternalError(err)
+		}
+
 		if idmapset != nil {
 			ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
 		}
+
 		ws.conns = map[int]*websocket.Conn{}
 		ws.conns[-1] = nil
 		ws.conns[0] = nil
