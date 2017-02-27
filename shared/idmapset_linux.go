@@ -658,10 +658,83 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 			// NOTE: Remove once LXD can deal with multiple shadow maps
 			break
 		}
-	} else {
-		// Fallback map
+
+		return idmapset, nil
+	}
+
+	// No shadow available, figure out a default map
+	kernelMap, err := CurrentIdmapSet()
+	if err != nil {
+		// Hardcoded fallback map
 		e := IdmapEntry{Isuid: true, Isgid: true, Nsid: 0, Hostid: 1000000, Maprange: 1000000000}
 		idmapset.Idmap = Extend(idmapset.Idmap, e)
+		return idmapset, nil
+	}
+
+	// Look for mapped ranges
+	kernelRanges, err := kernelMap.ValidRanges()
+	if err != nil {
+		return nil, err
+	}
+
+	// Find a suitable uid range
+	for _, entry := range kernelRanges {
+		// We only care about uids right now
+		if !entry.Isuid {
+			continue
+		}
+
+		// We want a map that's separate from the system's own POSIX allocation
+		if entry.Endid < 100000 {
+			continue
+		}
+
+		// Don't use the first 65536 ids
+		if entry.Startid < 100000 {
+			entry.Startid = 100000
+		}
+
+		// Check if we have enough ids
+		if entry.Endid-entry.Startid < 65536 {
+			continue
+		}
+
+		// Add the map
+		e := IdmapEntry{Isuid: true, Isgid: false, Nsid: 0, Hostid: entry.Startid, Maprange: entry.Endid - entry.Startid + 1}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+
+		// NOTE: Remove once LXD can deal with multiple shadow maps
+		break
+	}
+
+	// Find a suitable gid range
+	for _, entry := range kernelRanges {
+		// We only care about gids right now
+		if !entry.Isgid {
+			continue
+		}
+
+		// We want a map that's separate from the system's own POSIX allocation
+		if entry.Endid < 100000 {
+			continue
+		}
+
+		// Don't use the first 65536 ids
+		if entry.Startid < 100000 {
+			entry.Startid = 100000
+		}
+
+		// Check if we have enough ids
+		if entry.Endid-entry.Startid < 65536 {
+			continue
+		}
+
+		// Add the map
+		e := IdmapEntry{Isuid: false, Isgid: true, Nsid: 0, Hostid: entry.Startid, Maprange: entry.Endid - entry.Startid + 1}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+
+		// NOTE: Remove once LXD can deal with multiple shadow maps
+		break
 	}
 
 	return idmapset, nil
