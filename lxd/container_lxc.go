@@ -1376,8 +1376,8 @@ func (c *containerLXC) initLXC() error {
 	return nil
 }
 
-// Initialize storage interface for this container.
-func (c *containerLXC) initStorageInterface() error {
+// Initialize storage interface for this container
+func (c *containerLXC) initStorage() error {
 	if c.storage != nil {
 		return nil
 	}
@@ -2530,7 +2530,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	var ctxMap log.Ctx
 
 	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
+	err := c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -2658,7 +2658,7 @@ func (c *containerLXC) Delete() error {
 	shared.LogInfo("Deleting container", ctxMap)
 
 	// Attempt to initialize storage interface for the container.
-	c.initStorageInterface()
+	c.initStorage()
 
 	if c.IsSnapshot() {
 		// Remove the snapshot
@@ -2738,7 +2738,7 @@ func (c *containerLXC) Rename(newName string) error {
 	shared.LogInfo("Renaming container", ctxMap)
 
 	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
+	err := c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -3153,7 +3153,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Initialize storage interface for the container.
-	err = c.initStorageInterface()
+	err = c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -4040,7 +4040,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 	shared.LogInfo("Migrating container", ctxMap)
 
 	// Initialize storage interface for the container.
-	err = c.initStorageInterface()
+	err = c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -4753,7 +4753,7 @@ func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
 	disk := map[string]api.ContainerStateDisk{}
 
 	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
+	err := c.initStorage()
 	if err != nil {
 		return disk
 	}
@@ -4993,7 +4993,7 @@ func (c *containerLXC) Storage() storage {
 
 func (c *containerLXC) StorageStart() error {
 	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
+	err := c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -5011,7 +5011,7 @@ func (c *containerLXC) StorageStart() error {
 
 func (c *containerLXC) StorageStop() error {
 	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
+	err := c.initStorage()
 	if err != nil {
 		return err
 	}
