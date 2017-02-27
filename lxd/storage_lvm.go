@@ -1519,7 +1519,7 @@ func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 }
 
 func (s *storageLvm) ImageCreate(fingerprint string) error {
-	shared.LogDebugf("Creating LVM storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Creating LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	err := s.StoragePoolCheck()
 	if err != nil {
@@ -1576,12 +1576,12 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 
 	tryUndo = false
 
-	shared.LogDebugf("Created LVM storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Created LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return nil
 }
 
 func (s *storageLvm) ImageDelete(fingerprint string) error {
-	shared.LogDebugf("Deleting LVM storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Deleting LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	err := s.StoragePoolCheck()
 	if err != nil {
@@ -1612,12 +1612,12 @@ func (s *storageLvm) ImageDelete(fingerprint string) error {
 		}
 	}
 
-	shared.LogDebugf("Deleted LVM storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Deleted LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return nil
 }
 
 func (s *storageLvm) ImageMount(fingerprint string) (bool, error) {
-	shared.LogDebugf("Mounting LVM storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Mounting LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	if shared.IsMountPoint(imageMntPoint) {
@@ -1639,12 +1639,12 @@ func (s *storageLvm) ImageMount(fingerprint string) (bool, error) {
 		return false, fmt.Errorf("Error mounting image LV: %v", err)
 	}
 
-	shared.LogDebugf("Mounted LVM storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Mounted LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return true, nil
 }
 
 func (s *storageLvm) ImageUmount(fingerprint string) (bool, error) {
-	shared.LogDebugf("Unmounting LVM storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Unmounting LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	if !shared.IsMountPoint(imageMntPoint) {
@@ -1656,7 +1656,7 @@ func (s *storageLvm) ImageUmount(fingerprint string) (bool, error) {
 		return false, err
 	}
 
-	shared.LogDebugf("Unmounted LVM storage volume for image \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Unmounted LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return true, nil
 }
 
