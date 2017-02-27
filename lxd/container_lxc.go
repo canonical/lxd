@@ -213,7 +213,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Validate expanded config
-	err = containerValidConfig(c.expandedConfig, false, true)
+	err = containerValidConfig(c.daemon, c.expandedConfig, false, true)
 	if err != nil {
 		c.Delete()
 		shared.LogError("Failed creating container", ctxMap)
@@ -680,10 +680,6 @@ func (c *containerLXC) init() error {
 
 	// Setup the Idmap
 	if !c.IsPrivileged() {
-		if c.daemon.IdmapSet == nil {
-			return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
-		}
-
 		c.idmapset, err = c.NextIdmapSet()
 		if err != nil {
 			return err
@@ -2590,7 +2586,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Validate the new config
-	err := containerValidConfig(args.Config, false, false)
+	err := containerValidConfig(c.daemon, args.Config, false, false)
 	if err != nil {
 		return err
 	}
@@ -2739,7 +2735,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	removeDevices, addDevices, updateDevices := oldExpandedDevices.Update(c.expandedDevices)
 
 	// Do some validation of the config diff
-	err = containerValidConfig(c.expandedConfig, false, true)
+	err = containerValidConfig(c.daemon, c.expandedConfig, false, true)
 	if err != nil {
 		return err
 	}

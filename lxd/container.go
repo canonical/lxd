@@ -293,7 +293,7 @@ func containerValidDeviceConfigKey(t, k string) bool {
 	}
 }
 
-func containerValidConfig(config map[string]string, profile bool, expanded bool) error {
+func containerValidConfig(d *Daemon, config map[string]string, profile bool, expanded bool) error {
 	if config == nil {
 		return nil
 	}
@@ -307,6 +307,10 @@ func containerValidConfig(config map[string]string, profile bool, expanded bool)
 		if err != nil {
 			return err
 		}
+	}
+
+	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && d.IdmapSet == nil {
+		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
 	}
 
 	return nil
@@ -732,7 +736,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Validate container config
-	err := containerValidConfig(args.Config, false, false)
+	err := containerValidConfig(d, args.Config, false, false)
 	if err != nil {
 		return nil, err
 	}

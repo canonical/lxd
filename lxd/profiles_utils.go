@@ -9,7 +9,7 @@ import (
 
 func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req api.ProfilePut) Response {
 	// Sanity checks
-	err := containerValidConfig(req.Config, true, false)
+	err := containerValidConfig(d, req.Config, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
