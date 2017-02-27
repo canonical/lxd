@@ -464,12 +464,12 @@ func idmapSize(daemon *Daemon, isolatedStr string, size string) (int64, error) {
 			idMapSize = daemon.IdmapSet.Idmap[0].Maprange
 		}
 	} else {
-		size, err := strconv.ParseInt(size, 10, 32)
+		size, err := strconv.ParseInt(size, 10, 64)
 		if err != nil {
 			return 0, err
 		}
 
-		idMapSize = int64(size)
+		idMapSize = size
 	}
 
 	return idMapSize, nil
@@ -621,7 +621,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 
 		cBase := int64(0)
 		if container.ExpandedConfig()["volatile.idmap.base"] != "" {
-			cBase, err = strconv.ParseInt(container.ExpandedConfig()["volatile.idmap.base"], 10, 32)
+			cBase, err = strconv.ParseInt(container.ExpandedConfig()["volatile.idmap.base"], 10, 64)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -676,7 +676,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 		return mkIdmap(offset, size), offset, nil
 	}
 
-	return nil, 0, fmt.Errorf("no map range available")
+	return nil, 0, fmt.Errorf("Not enough uid/gid available for the container.")
 }
 
 func (c *containerLXC) init() error {
