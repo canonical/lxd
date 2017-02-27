@@ -78,7 +78,6 @@ func (s *storageShared) setUnprivUserAcl(c container, destPath string) error {
 	acl := fmt.Sprintf("%d:rx", uid)
 	err := exec.Command("setfacl", "-m", acl, destPath).Run()
 	if err == nil {
-		shared.LogDebugf("Failed to set acl permission on container path: %s", err)
 		return nil
 	}
 
