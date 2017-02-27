@@ -218,6 +218,10 @@ func containerValidConfig(d *Daemon, config map[string]string, profile bool, exp
 		return fmt.Errorf("security.syscalls.whitelist is mutually exclusive with security.syscalls.blacklist*")
 	}
 
+	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && d.IdmapSet == nil {
+		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
+	}
+
 	return nil
 }
 
@@ -474,14 +478,14 @@ type container interface {
 	LogFilePath() string
 	LogPath() string
 
-	StoragePool() string
+	StoragePool() (string, error)
 
 	// FIXME: Those should be internal functions
 	// Needed for migration for now.
 	StorageStart() error
 	StorageStop() error
 	Storage() storage
-	IdmapSet() *shared.IdmapSet
+	IdmapSet() (*shared.IdmapSet, error)
 	LastIdmapSet() (*shared.IdmapSet, error)
 	TemplateApply(trigger string) error
 	Daemon() *Daemon

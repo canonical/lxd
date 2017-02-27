@@ -304,7 +304,11 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 	idmaps := make([]*IDMapType, 0)
 
-	idmapset := s.container.IdmapSet()
+	idmapset, err := s.container.IdmapSet()
+	if err != nil {
+		return err
+	}
+
 	if idmapset != nil {
 		for _, ctnIdmap := range idmapset.Idmap {
 			idmap := IDMapType{

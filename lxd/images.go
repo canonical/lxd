@@ -908,11 +908,17 @@ func autoUpdateImages(d *Daemon) {
 			continue
 		}
 
+		// If no optimized pools at least update the base store
+		if len(poolNames) == 0 {
+			poolNames = append(poolNames, "")
+		}
+
 		shared.LogDebug("Processing image", log.Ctx{"fp": fp, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
 
 		// Update the image on each pool where it currently exists.
+		var hash string
 		for _, poolName := range poolNames {
-			hash, err := d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true, poolName)
+			hash, err = d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true, poolName)
 			if hash == fp {
 				shared.LogDebug("Already up to date", log.Ctx{"fp": fp})
 				continue
@@ -945,12 +951,8 @@ func autoUpdateImages(d *Daemon) {
 			}
 		}
 
-		nImg, err := dbImageGetPools(d.db, fp)
-		if err != nil {
-			continue
-		}
-
-		if len(nImg) > 0 {
+		// Image didn't change, move on
+		if hash == fp {
 			continue
 		}
 

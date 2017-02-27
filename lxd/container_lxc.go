@@ -210,6 +210,21 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
+	// Validate expanded config
+	err = containerValidConfig(d, c.expandedConfig, false, true)
+	if err != nil {
+		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
+		return nil, err
+	}
+
+	err = containerValidDevices(c.expandedDevices, false, true)
+	if err != nil {
+		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
+		return nil, err
+	}
+
 	// Retrieve the container's storage pool
 	_, rootDiskDevice, err := containerGetRootDiskDevice(c.expandedDevices)
 	if err != nil {
@@ -222,10 +237,10 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, fmt.Errorf("The container's root device is missing the pool property.")
 	}
 
-	c.storagePool = rootDiskDevice["pool"]
+	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the container
-	poolID, pool, err := dbStoragePoolGet(d.db, c.storagePool)
+	poolID, pool, err := dbStoragePoolGet(d.db, storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -233,7 +248,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 
 	// Fill in any default volume config
 	volumeConfig := map[string]string{}
-	err = storageVolumeFillDefault(c.storagePool, volumeConfig, pool)
+	err = storageVolumeFillDefault(storagePool, volumeConfig, pool)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +261,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Initialize the container storage
-	cStorage, err := storagePoolVolumeContainerCreateInit(d, c.storagePool, args.Name)
+	cStorage, err := storagePoolVolumeContainerCreateInit(d, storagePool, args.Name)
 	if err != nil {
 		c.Delete()
 		shared.LogError("Failed to initialize container storage", ctxMap)
@@ -378,8 +393,7 @@ type containerLXC struct {
 	idmapset *shared.IdmapSet
 
 	// Storage
-	storagePool string
-	storage     storage
+	storage storage
 }
 
 func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
@@ -677,23 +691,6 @@ func (c *containerLXC) init() error {
 		return err
 	}
 
-	// Setup the Idmap
-	if !c.IsPrivileged() {
-		if c.daemon.IdmapSet == nil {
-			return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
-		}
-
-		c.idmapset, err = c.NextIdmapSet()
-		if err != nil {
-			return err
-		}
-	}
-
-	// Try to retrieve the container's storage pool from the storage volumes
-	// database but do not fail so that users can recover from storage
-	// breakage.
-	c.initStoragePool()
-
 	return nil
 }
 
@@ -960,8 +957,13 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup idmap
-	if c.idmapset != nil {
-		lines := c.idmapset.ToLxcString()
+	idmapset, err := c.IdmapSet()
+	if err != nil {
+		return err
+	}
+
+	if idmapset != nil {
+		lines := idmapset.ToLxcString()
 		for _, line := range lines {
 			err := lxcSetConfigItem(cc, "lxc.id_map", strings.TrimSuffix(line, "\n"))
 			if err != nil {
@@ -1371,25 +1373,8 @@ func (c *containerLXC) initLXC() error {
 	return nil
 }
 
-// This function is called on all non-create operations where an entry for the
-// container's storage volume will already exist in the database and so we can
-// retrieve it.
-func (c *containerLXC) initStoragePool() error {
-	if c.storagePool != "" {
-		return nil
-	}
-
-	poolName, err := dbContainerPool(c.daemon.db, c.Name())
-	if err != nil {
-		return err
-	}
-	c.storagePool = poolName
-
-	return nil
-}
-
-// Initialize storage interface for this container.
-func (c *containerLXC) initStorageInterface() error {
+// Initialize storage interface for this container
+func (c *containerLXC) initStorage() error {
 	if c.storage != nil {
 		return nil
 	}
@@ -1397,19 +1382,6 @@ func (c *containerLXC) initStorageInterface() error {
 	s, err := storagePoolVolumeContainerLoadInit(c.daemon, c.Name())
 	if err != nil {
 		return err
-	}
-
-	// args.StoragePool can be empty here. In that case we simply set
-	// c.storagePool to the storage pool we detected based on the containers
-	// name. (Container names are globally unique.)
-	_, storagePool := s.GetContainerPoolInfo()
-	if c.storagePool == "" {
-		c.storagePool = storagePool
-	} else if c.storagePool != storagePool {
-		// If the storage pool passed in does not match the storage pool
-		// we reverse engineered based on the containers name we know
-		// something is messed up.
-		return fmt.Errorf("Container is supposed to exist on storage pool \"%s\", but it actually exists on \"%s\".", c.storagePool, storagePool)
 	}
 
 	c.storage = s
@@ -1553,7 +1525,10 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	/* Deal with idmap changes */
-	idmap := c.IdmapSet()
+	idmap, err := c.IdmapSet()
+	if err != nil {
+		return "", err
+	}
 
 	lastIdmap, err := c.LastIdmapSet()
 	if err != nil {
@@ -2555,7 +2530,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	var ctxMap log.Ctx
 
 	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
+	err := c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -2683,7 +2658,7 @@ func (c *containerLXC) Delete() error {
 	shared.LogInfo("Deleting container", ctxMap)
 
 	// Attempt to initialize storage interface for the container.
-	c.initStorageInterface()
+	c.initStorage()
 
 	if c.IsSnapshot() {
 		// Remove the snapshot
@@ -2763,7 +2738,7 @@ func (c *containerLXC) Rename(newName string) error {
 	shared.LogInfo("Renaming container", ctxMap)
 
 	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
+	err := c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -3178,7 +3153,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Initialize storage interface for the container.
-	err = c.initStorageInterface()
+	err = c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -4065,7 +4040,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 	shared.LogInfo("Migrating container", ctxMap)
 
 	// Initialize storage interface for the container.
-	err = c.initStorageInterface()
+	err = c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -4111,12 +4086,17 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		 * namespace.
 		 */
 		if !c.IsPrivileged() {
+			idmapset, err := c.IdmapSet()
+			if err != nil {
+				return err
+			}
+
 			err = c.StorageStart()
 			if err != nil {
 				return err
 			}
 
-			err = c.IdmapSet().ShiftRootfs(stateDir)
+			err = idmapset.ShiftRootfs(stateDir)
 			err2 := c.StorageStop()
 			if err != nil {
 				return err
@@ -4278,7 +4258,12 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 
 			// Get the right uid and gid for the container
 			if !c.IsPrivileged() {
-				uid, gid = c.idmapset.ShiftIntoNs(0, 0)
+				idmapset, err := c.IdmapSet()
+				if err != nil {
+					return err
+				}
+
+				uid, gid = idmapset.ShiftIntoNs(0, 0)
 			}
 
 			// Create the directories leading to the file
@@ -4778,7 +4763,7 @@ func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
 	disk := map[string]api.ContainerStateDisk{}
 
 	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
+	err := c.initStorage()
 	if err != nil {
 		return disk
 	}
@@ -4960,7 +4945,12 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 
 	// Unshift the id under /rootfs/ for unpriv containers
 	if !c.IsPrivileged() && strings.HasPrefix(hdr.Name, "/rootfs") {
-		huid, hgid := c.idmapset.ShiftFromNs(int64(hdr.Uid), int64(hdr.Gid))
+		idmapset, err := c.IdmapSet()
+		if err != nil {
+			return err
+		}
+
+		huid, hgid := idmapset.ShiftFromNs(int64(hdr.Uid), int64(hdr.Gid))
 		hdr.Uid = int(huid)
 		hdr.Gid = int(hgid)
 		if hdr.Uid == -1 || hdr.Gid == -1 {
@@ -5018,7 +5008,7 @@ func (c *containerLXC) Storage() storage {
 
 func (c *containerLXC) StorageStart() error {
 	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
+	err := c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -5036,7 +5026,7 @@ func (c *containerLXC) StorageStart() error {
 
 func (c *containerLXC) StorageStop() error {
 	// Initialize storage interface for the container.
-	err := c.initStorageInterface()
+	err := c.initStorage()
 	if err != nil {
 		return err
 	}
@@ -5259,8 +5249,13 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
 		}
 
-		if c.idmapset != nil {
-			if err := c.idmapset.ShiftFile(devPath); err != nil {
+		idmapset, err := c.IdmapSet()
+		if err != nil {
+			return nil, err
+		}
+
+		if idmapset != nil {
+			if err := idmapset.ShiftFile(devPath); err != nil {
 				// uidshift failing is weird, but not a big problem.  Log and proceed
 				shared.LogDebugf("Failed to uidshift device %s: %s\n", m["path"], err)
 			}
@@ -6510,8 +6505,23 @@ func (c *containerLXC) Id() int {
 	return c.id
 }
 
-func (c *containerLXC) IdmapSet() *shared.IdmapSet {
-	return c.idmapset
+func (c *containerLXC) IdmapSet() (*shared.IdmapSet, error) {
+	var err error
+
+	if c.idmapset != nil {
+		return c.idmapset, nil
+	}
+
+	if c.IsPrivileged() {
+		return nil, nil
+	}
+
+	c.idmapset, err = c.NextIdmapSet()
+	if err != nil {
+		return nil, err
+	}
+
+	return c.idmapset, nil
 }
 
 func (c *containerLXC) InitPID() int {
@@ -6536,7 +6546,7 @@ func (c *containerLXC) idmapsetFromConfig(k string) (*shared.IdmapSet, error) {
 	lastJsonIdmap := c.LocalConfig()[k]
 
 	if lastJsonIdmap == "" {
-		return c.IdmapSet(), nil
+		return c.IdmapSet()
 	}
 
 	lastIdmap := new(shared.IdmapSet)
@@ -6632,6 +6642,11 @@ func (c *containerLXC) StatePath() string {
 	return filepath.Join(c.Path(), "state")
 }
 
-func (c *containerLXC) StoragePool() string {
-	return c.storagePool
+func (c *containerLXC) StoragePool() (string, error) {
+	poolName, err := dbContainerPool(c.daemon.db, c.Name())
+	if err != nil {
+		return "", err
+	}
+
+	return poolName, nil
 }
