@@ -1376,13 +1376,6 @@ func (c *containerLXC) initLXC() error {
 	return nil
 }
 
-// This function is called on all non-create operations where an entry for the
-// container's storage volume will already exist in the database and so we can
-// retrieve it.
-func (c *containerLXC) initStoragePool() error {
-	return nil
-}
-
 // Initialize storage interface for this container.
 func (c *containerLXC) initStorageInterface() error {
 	if c.storage != nil {
