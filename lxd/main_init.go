@@ -276,7 +276,14 @@ func cmdInit() error {
 			}
 		}
 
-		if runningInUserns {
+		// Detect lack of uid/gid
+		needPrivileged := false
+		idmapset, err := shared.DefaultIdmapSet()
+		if err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil {
+			needPrivileged = true
+		}
+
+		if runningInUserns && needPrivileged {
 			fmt.Printf(`
 We detected that you are running inside an unprivileged container.
 This means that unless you manually configured your host otherwise,
