@@ -34,7 +34,7 @@ func IsUint32(value string) error {
 		return nil
 	}
 
-	_, err := strconv.ParseInt(value, 10, 32)
+	_, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
 		return fmt.Errorf("Invalid value for uint32: %s: %v", value, err)
 	}
