@@ -290,6 +290,11 @@ func initializeDbObject(d *Daemon, path string) (err error) {
 		return fmt.Errorf("Error creating database: %s", err)
 	}
 
+	// Detect LXD downgrades
+	if dbGetSchema(d.db) > dbGetLatestSchema() {
+		return fmt.Errorf("The database schema is more recent than LXD's schema.")
+	}
+
 	// Apply any update
 	err = dbUpdatesApplyAll(d)
 	if err != nil {
