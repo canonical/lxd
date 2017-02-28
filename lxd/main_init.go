@@ -158,19 +158,11 @@ func cmdInit() error {
 		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
 
-	// Check that we have no containers or images in the store
-	containers, err := c.ListContainers()
+	pools, err := c.ListStoragePools()
 	if err != nil {
-		return fmt.Errorf("Unable to list the LXD containers: %s", err)
-	}
-
-	images, err := c.ListImages()
-	if err != nil {
-		return fmt.Errorf("Unable to list the LXD images: %s", err)
-	}
-
-	if len(containers) > 0 || len(images) > 0 {
-		return fmt.Errorf("You have existing containers or images. lxd init requires an empty LXD.")
+		// We should consider this fatal since this means
+		// something's wrong with the daemon.
+		return err
 	}
 
 	if *argAuto {
@@ -216,7 +208,12 @@ func cmdInit() error {
 		networkPort = *argNetworkPort
 		trustPassword = *argTrustPassword
 		storagePool = "default"
-		storageSetup = true
+
+		// FIXME: Allow to configure multiple storage pools on auto init
+		// run if explicit arguments to do so are passed.
+		if len(pools) == 0 {
+			storageSetup = true
+		}
 	} else {
 		if *argStorageBackend != "" || *argStorageCreateDevice != "" || *argStorageCreateLoop != -1 || *argStorageDataset != "" || *argNetworkAddress != "" || *argNetworkPort != -1 || *argTrustPassword != "" {
 			return fmt.Errorf("Init configuration is only valid with --auto")
@@ -227,9 +224,20 @@ func cmdInit() error {
 			defaultStorage = "zfs"
 		}
 
+		// User chose an already existing storage pool name. Ask him
+		// again if he still wants to create one.
+	askForStorageAgain:
 		storageSetup = askBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes")
 		if storageSetup {
 			storagePool = askString("Name of the new storage pool [default=default]: ", "default", nil)
+			_, err := c.StoragePoolGet(storagePool)
+			if err == nil {
+				fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", storagePool)
+				// Ask the user again if hew wants to create a
+				// storage pool.
+				goto askForStorageAgain
+			}
+
 			storageBackend = askChoice(fmt.Sprintf("Name of the storage backend to use (dir or zfs) [default=%s]: ", defaultStorage), backendsSupported, defaultStorage)
 
 			if !shared.StringInSlice(storageBackend, backendsSupported) {
@@ -326,8 +334,18 @@ they otherwise would.
 			imagesAutoUpdate = false
 		}
 
+	askForNetworkAgain:
+		bridgeName = ""
 		if askBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
 			bridgeName = askString("What should the new bridge be called [default=lxdbr0]? ", "lxdbr0", networkValidName)
+			_, err := c.NetworkGet(bridgeName)
+			if err == nil {
+				fmt.Printf("The requested network bridge \"%s\" already exists. Please choose another name.\n", bridgeName)
+				// Ask the user again if hew wants to create a
+				// storage pool.
+				goto askForNetworkAgain
+			}
+
 			bridgeIPv4 = askString("What IPv4 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
 				if shared.StringInSlice(value, []string{"auto", "none"}) {
 					return nil
@@ -389,10 +407,28 @@ they otherwise would.
 			return err
 		}
 
-		props := []string{"path=/", fmt.Sprintf("pool=%s", storagePool)}
-		_, err = c.ProfileDeviceAdd("default", "root", "disk", props)
-		if err != nil {
-			return err
+		// When lxd init is rerun and there are already storage pools
+		// configured, do not try to set a root disk device in the
+		// default profile again. Let the user figure this out.
+		if len(pools) == 0 {
+			// Check if there even is a default profile.
+			profiles, err := c.ListProfiles()
+			if err != nil {
+				return err
+			}
+
+			for _, p := range profiles {
+				if p.Name != "default" {
+					continue
+				}
+
+				props := []string{"path=/", fmt.Sprintf("pool=%s", storagePool)}
+				_, err = c.ProfileDeviceAdd("default", "root", "disk", props)
+				if err != nil {
+					return err
+				}
+				break
+			}
 		}
 	}
 
