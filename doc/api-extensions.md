@@ -211,3 +211,6 @@ Implements the X-LXD-write header which can be one of "overwrite" or "append".
 
 ## network\_dhcp\_expiry
 Introduces "ipv4.dhcp.expiry" and "ipv6.dhcp.expiry" allowing to set the DHCP lease expiry time.
+
+## storage\_lvm\_vg\_rename
+Introduces the ability to rename a volume group by setting "storage.lvm.vg_name".
