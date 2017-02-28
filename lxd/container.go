@@ -703,6 +703,10 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
+	if !shared.IntInSlice(args.Architecture, d.architectures) {
+		return nil, fmt.Errorf("Requested architecture isn't supported by this host")
+	}
+
 	// Validate profiles
 	profiles, err := dbProfiles(d.db)
 	if err != nil {

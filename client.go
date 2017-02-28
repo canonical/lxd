@@ -1864,7 +1864,12 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 
 	sendFile := func(p string, fInfo os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("got error sending path %s: %s", p, err)
+			return fmt.Errorf("Failed to walk path for %s: %s", p, err)
+		}
+
+		// Detect symlinks
+		if !fInfo.Mode().IsRegular() && !fInfo.Mode().IsDir() {
+			return fmt.Errorf("'%s' isn't a regular file or directory.", p)
 		}
 
 		appendLen := len(sourceDir)
