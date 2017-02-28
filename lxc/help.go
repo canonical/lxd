@@ -32,7 +32,7 @@ func (c *helpCmd) flags() {
 	gnuflag.BoolVar(&c.showAll, "all", false, i18n.G("Show all commands (not just interesting ones)"))
 }
 
-func (c *helpCmd) run(_ *lxd.Config, args []string) error {
+func (c *helpCmd) run(config *lxd.Config, args []string) error {
 	if len(args) > 0 {
 		for _, name := range args {
 			cmd, ok := commands[name]
