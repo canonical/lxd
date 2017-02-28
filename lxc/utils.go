@@ -128,3 +128,26 @@ func (a byNameAndType) Less(i, j int) bool {
 
 	return a[i][1] < a[j][1]
 }
+
+// Batch operations
+type batchResult struct {
+	err  error
+	name string
+}
+
+func runBatch(names []string, action func(name string) error) []batchResult {
+	chResult := make(chan batchResult, len(names))
+
+	for _, name := range names {
+		go func(name string) {
+			chResult <- batchResult{action(name), name}
+		}(name)
+	}
+
+	results := []batchResult{}
+	for range names {
+		results = append(results, <-chResult)
+	}
+
+	return results
+}
