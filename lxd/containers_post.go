@@ -99,20 +99,19 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 		hash = imgInfo.Fingerprint
 
-		architecture, err := osarch.ArchitectureId(imgInfo.Architecture)
-		if err != nil {
-			architecture = 0
+		args := containerArgs{
+			BaseImage: hash,
+			Config:    req.Config,
+			Ctype:     cTypeRegular,
+			Devices:   req.Devices,
+			Ephemeral: req.Ephemeral,
+			Name:      req.Name,
+			Profiles:  req.Profiles,
 		}
 
-		args := containerArgs{
-			Architecture: architecture,
-			BaseImage:    hash,
-			Config:       req.Config,
-			Ctype:        cTypeRegular,
-			Devices:      req.Devices,
-			Ephemeral:    req.Ephemeral,
-			Name:         req.Name,
-			Profiles:     req.Profiles,
+		args.Architecture, err = osarch.ArchitectureId(imgInfo.Architecture)
+		if err != nil {
+			return err
 		}
 
 		_, err = containerCreateFromImage(d, args, hash)
@@ -131,19 +130,21 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 }
 
 func createFromNone(d *Daemon, req *api.ContainersPost) Response {
-	architecture, err := osarch.ArchitectureId(req.Architecture)
-	if err != nil {
-		architecture = 0
+	args := containerArgs{
+		Config:    req.Config,
+		Ctype:     cTypeRegular,
+		Devices:   req.Devices,
+		Ephemeral: req.Ephemeral,
+		Name:      req.Name,
+		Profiles:  req.Profiles,
 	}
 
-	args := containerArgs{
-		Architecture: architecture,
-		Config:       req.Config,
-		Ctype:        cTypeRegular,
-		Devices:      req.Devices,
-		Ephemeral:    req.Ephemeral,
-		Name:         req.Name,
-		Profiles:     req.Profiles,
+	if req.Architecture != "" {
+		architecture, err := osarch.ArchitectureId(req.Architecture)
+		if err != nil {
+			return InternalError(err)
+		}
+		args.Architecture = architecture
 	}
 
 	run := func(op *operation) error {

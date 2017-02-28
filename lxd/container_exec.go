@@ -137,7 +137,7 @@ func (s *execWs) Do(op *operation) error {
 	if s.interactive {
 		wgEOF.Add(1)
 		go func() {
-			<-attachedChildIsBorn
+			attachedChildPid := <-attachedChildIsBorn
 			select {
 			case <-s.controlConnected:
 				break
