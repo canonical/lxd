@@ -214,3 +214,6 @@ Introduces "ipv4.dhcp.expiry" and "ipv6.dhcp.expiry" allowing to set the DHCP le
 
 ## storage\_lvm\_vg\_rename
 Introduces the ability to rename a volume group by setting "storage.lvm.vg_name".
+
+## storage\_lvm\_thinpool\_rename
+Introduces the ability to rename a thinpool name by setting "storage.thinpool_name".
