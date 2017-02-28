@@ -88,16 +88,11 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 		}
 
 		if config["size"] == "0" || config["size"] == "" {
-			// Unchangeable volume property: Set unconditionally.
-			_, err := shared.ParseByteSizeString("10GB")
-			if err != nil {
-				return err
-			}
 			config["size"] = "10GB"
 		}
 	} else {
 		if config["size"] != "" {
-			_, err := shared.ParseByteSizeString("10GB")
+			_, err := shared.ParseByteSizeString(config["size"])
 			if err != nil {
 				return err
 			}
