@@ -182,6 +182,15 @@ func lvmVGRename(oldName string, newName string) error {
 	return nil
 }
 
+func lvmLVRename(vgName string, oldName string, newName string) error {
+	output, err := tryExec("lvrename", vgName, oldName, newName)
+	if err != nil {
+		return fmt.Errorf("Could not rename volume group from \"%s\" to \"%s\": %s.", oldName, newName, string(output))
+	}
+
+	return nil
+}
+
 func xfsGenerateNewUUID(lvpath string) error {
 	output, err := exec.Command(
 		"xfs_admin",
@@ -243,6 +252,10 @@ func (s *storageLvm) getLvmThinpoolName() string {
 	}
 
 	return "LXDThinpool"
+}
+
+func (s *storageLvm) setLvmThinpoolName(newThinpoolName string) {
+	s.pool.Config["lvm.thinpool_name"] = newThinpoolName
 }
 
 func (s *storageLvm) getOnDiskPoolName() string {
@@ -752,8 +765,42 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 		// noop
 	}
 
+	// Given a set of changeable pool properties the change should be
+	// "transactional": either the whole update succeeds or none. So try to
+	// revert on error.
+	revert := true
 	if shared.StringInSlice("lvm.thinpool_name", changedConfig) {
-		return fmt.Errorf("The \"lvm.thinpool_name\" property cannot be changed.")
+		newThinpoolName := writable.Config["lvm.thinpool_name"]
+		// Paranoia check
+		if newThinpoolName == "" {
+			return fmt.Errorf("Could not rename volume group: No new name provided.")
+		}
+
+		poolName := s.getOnDiskPoolName()
+		oldThinpoolName := s.getLvmThinpoolName()
+		err := lvmLVRename(poolName, oldThinpoolName, newThinpoolName)
+		if err != nil {
+			return err
+		}
+
+		// Already set the new thinpool name so that any potentially
+		// following operations use the correct on-disk name of the
+		// volume group.
+		s.setLvmThinpoolName(newThinpoolName)
+		defer func() {
+			if !revert {
+				return
+			}
+
+			err = lvmLVRename(poolName, newThinpoolName, oldThinpoolName)
+			if err != nil {
+				shared.LogWarnf("Failed to rename LVM thinpool from \"%s\" to \"%s\": %s. Manual intervention needed.",
+					newThinpoolName,
+					oldThinpoolName,
+					err)
+			}
+			s.setLvmThinpoolName(oldThinpoolName)
+		}()
 	}
 
 	if shared.StringInSlice("lvm.vg_name", changedConfig) {
@@ -774,8 +821,23 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 		// following operations use the correct on-disk name of the
 		// volume group.
 		s.setOnDiskPoolName(newName)
-		return nil
+		defer func() {
+			if !revert {
+				return
+			}
+
+			err := lvmVGRename(newName, oldPoolName)
+			if err != nil {
+				shared.LogWarnf("Failed to rename LVM volume group from \"%s\" to \"%s\": %s. Manual intervention needed.",
+					newName,
+					oldPoolName)
+			}
+			s.setOnDiskPoolName(oldPoolName)
+		}()
 	}
+
+	// Update succeeded.
+	revert = false
 
 	shared.LogInfof("Updated LVM storage pool \"%s\".", s.pool.Name)
 	return nil
@@ -1225,14 +1287,13 @@ func (s *storageLvm) ContainerRename(container container, newContainerName strin
 		return err
 	}
 
-	output, err := s.renameLV(oldLvmName, newLvmName, storagePoolVolumeApiEndpointContainers)
+	err = s.renameLVByPath(oldLvmName, newLvmName, storagePoolVolumeApiEndpointContainers)
 	if err != nil {
-		shared.LogErrorf("Failed to rename a container LV: %s -> %s: %s.", oldLvmName, newLvmName, string(output))
 		return fmt.Errorf("Failed to rename a container LV, oldName='%s', newName='%s', err='%s'", oldLvmName, newLvmName, err)
 	}
 	defer func() {
 		if tryUndo {
-			s.renameLV(newLvmName, oldLvmName, storagePoolVolumeApiEndpointContainers)
+			s.renameLVByPath(newLvmName, oldLvmName, storagePoolVolumeApiEndpointContainers)
 		}
 	}()
 
@@ -1431,14 +1492,13 @@ func (s *storageLvm) ContainerSnapshotRename(snapshotContainer container, newCon
 	oldLvmName := containerNameToLVName(oldName)
 	newLvmName := containerNameToLVName(newContainerName)
 
-	output, err := s.renameLV(oldLvmName, newLvmName, storagePoolVolumeApiEndpointContainers)
+	err = s.renameLVByPath(oldLvmName, newLvmName, storagePoolVolumeApiEndpointContainers)
 	if err != nil {
-		shared.LogErrorf("Failed to rename a snapshot LV: %s -> %s: %s.", oldLvmName, newLvmName, string(output))
 		return fmt.Errorf("Failed to rename a container LV, oldName='%s', newName='%s', err='%s'", oldLvmName, newLvmName, err)
 	}
 	defer func() {
 		if tryUndo {
-			s.renameLV(newLvmName, oldLvmName, storagePoolVolumeApiEndpointContainers)
+			s.renameLVByPath(newLvmName, oldLvmName, storagePoolVolumeApiEndpointContainers)
 		}
 	}()
 
@@ -1836,12 +1896,11 @@ func (s *storageLvm) createSnapshotLV(vgName string, origLvName string, origVolu
 	return targetLvmVolumePath, nil
 }
 
-func (s *storageLvm) renameLV(oldName string, newName string, volumeType string) (string, error) {
+func (s *storageLvm) renameLVByPath(oldName string, newName string, volumeType string) error {
 	oldLvmName := getPrefixedLvName(volumeType, oldName)
 	newLvmName := getPrefixedLvName(volumeType, newName)
 	poolName := s.getOnDiskPoolName()
-	output, err := tryExec("lvrename", poolName, oldLvmName, newLvmName)
-	return string(output), err
+	return lvmLVRename(poolName, oldLvmName, newLvmName)
 }
 
 func (s *storageLvm) MigrationType() MigrationFSType {
