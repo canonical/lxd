@@ -173,6 +173,15 @@ func storageLVMValidateThinPoolName(d *Daemon, vgName string, value string) erro
 	return nil
 }
 
+func lvmVGRename(oldName string, newName string) error {
+	output, err := tryExec("vgrename", oldName, newName)
+	if err != nil {
+		return fmt.Errorf("Could not rename volume group from \"%s\" to \"%s\": %s.", oldName, newName, string(output))
+	}
+
+	return nil
+}
+
 func xfsGenerateNewUUID(lvpath string) error {
 	output, err := exec.Command(
 		"xfs_admin",
@@ -242,6 +251,11 @@ func (s *storageLvm) getOnDiskPoolName() string {
 	}
 
 	return s.pool.Name
+}
+
+func (s *storageLvm) setOnDiskPoolName(newName string) {
+	s.vgName = newName
+	s.pool.Config["source"] = newName
 }
 
 func getLvmDevPath(lvmPool string, volumeType string, lvmVolume string) string {
@@ -743,7 +757,24 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 	}
 
 	if shared.StringInSlice("lvm.vg_name", changedConfig) {
-		return fmt.Errorf("The \"lvm.vg_name\" property cannot be changed.")
+		newName := writable.Config["lvm.vg_name"]
+		// Paranoia check
+		if newName == "" {
+			return fmt.Errorf("Could not rename volume group: No new name provided.")
+		}
+		writable.Config["source"] = newName
+
+		oldPoolName := s.getOnDiskPoolName()
+		err := lvmVGRename(oldPoolName, newName)
+		if err != nil {
+			return err
+		}
+
+		// Already set the new dataset name so that any potentially
+		// following operations use the correct on-disk name of the
+		// volume group.
+		s.setOnDiskPoolName(newName)
+		return nil
 	}
 
 	shared.LogInfof("Updated LVM storage pool \"%s\".", s.pool.Name)
