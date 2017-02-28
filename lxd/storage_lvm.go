@@ -742,28 +742,20 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 	}
 
 	if shared.StringInSlice("volume.zfs.use_refquota", changedConfig) {
-		return fmt.Errorf("The \"volume.zfs.use_refquota\" property cannot be changed.")
+		return fmt.Errorf("The \"volume.zfs.use_refquota\" property does not apply to LVM drivers.")
 	}
 
 	if shared.StringInSlice("volume.zfs.remove_snapshots", changedConfig) {
-		return fmt.Errorf("The \"volume.zfs.remove_snapshots\" property cannot be changed.")
+		return fmt.Errorf("The \"volume.zfs.remove_snapshots\" property does not apply to LVM drivers.")
 	}
 
 	if shared.StringInSlice("zfs.pool_name", changedConfig) {
-		return fmt.Errorf("The \"zfs.pool_name\" property cannot be changed.")
+		return fmt.Errorf("The \"zfs.pool_name\" property does not apply to LVM drivers.")
 	}
 
-	if shared.StringInSlice("volume.block.mount_options", changedConfig) {
-		// noop
-	}
-
-	if shared.StringInSlice("volume.block.filesystem", changedConfig) {
-		// noop
-	}
-
-	if shared.StringInSlice("volume.size", changedConfig) {
-		// noop
-	}
+	// "volume.block.mount_options" requires no on-disk modifications.
+	// "volume.block.filesystem" requires no on-disk modifications.
+	// "volume.size" requires no on-disk modifications.
 
 	// Given a set of changeable pool properties the change should be
 	// "transactional": either the whole update succeeds or none. So try to
