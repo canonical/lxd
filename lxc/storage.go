@@ -19,32 +19,6 @@ import (
 	"github.com/lxc/lxd/shared/termios"
 )
 
-type byNameAndType [][]string
-
-func (a byNameAndType) Len() int {
-	return len(a)
-}
-
-func (a byNameAndType) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a byNameAndType) Less(i, j int) bool {
-	if a[i][0] != a[j][0] {
-		return a[i][0] < a[j][0]
-	}
-
-	if a[i][1] == "" {
-		return false
-	}
-
-	if a[j][1] == "" {
-		return true
-	}
-
-	return a[i][1] < a[j][1]
-}
-
 type storageCmd struct {
 }
 
