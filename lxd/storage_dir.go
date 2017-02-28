@@ -144,7 +144,7 @@ func (s *storageDir) GetContainerPoolInfo() (int64, string) {
 	return s.poolID, s.pool.Name
 }
 
-func (s *storageDir) StoragePoolUpdate(changedConfig []string) error {
+func (s *storageDir) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
 	return fmt.Errorf("Dir storage properties cannot be changed.")
 }
 

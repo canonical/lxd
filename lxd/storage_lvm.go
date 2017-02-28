@@ -698,8 +698,13 @@ func (s *storageLvm) GetContainerPoolInfo() (int64, string) {
 	return s.poolID, s.pool.Name
 }
 
-func (s *storageLvm) StoragePoolUpdate(changedConfig []string) error {
+func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
 	shared.LogInfof("Updating LVM storage pool \"%s\".", s.pool.Name)
+
+	err := s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
 
 	if shared.StringInSlice("size", changedConfig) {
 		return fmt.Errorf("The \"size\" property cannot be changed.")
