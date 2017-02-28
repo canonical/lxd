@@ -42,19 +42,19 @@ func storagePoolUpdate(d *Daemon, name string, newConfig map[string]string) erro
 		return nil
 	}
 
+	newWritable.Config = newConfig
+
 	// Update the storage pool
 	if !userOnly {
 		if shared.StringInSlice("driver", changedConfig) {
 			return fmt.Errorf("The \"driver\" property of a storage pool cannot be changed.")
 		}
 
-		err = s.StoragePoolUpdate(changedConfig)
+		err = s.StoragePoolUpdate(&newWritable, changedConfig)
 		if err != nil {
 			return err
 		}
 	}
-
-	newWritable.Config = newConfig
 
 	// Apply the new configuration
 	s.SetStoragePoolWritable(&newWritable)

@@ -202,7 +202,7 @@ type storage interface {
 	StoragePoolDelete() error
 	StoragePoolMount() (bool, error)
 	StoragePoolUmount() (bool, error)
-	StoragePoolUpdate(changedConfig []string) error
+	StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error
 	GetStoragePoolWritable() api.StoragePoolPut
 	SetStoragePoolWritable(writable *api.StoragePoolPut)
 

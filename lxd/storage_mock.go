@@ -99,7 +99,7 @@ func (s *storageMock) StoragePoolVolumeUpdate(changedConfig []string) error {
 	return nil
 }
 
-func (s *storageMock) StoragePoolUpdate(changedConfig []string) error {
+func (s *storageMock) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
 	return nil
 }
 

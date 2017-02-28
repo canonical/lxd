@@ -418,7 +418,7 @@ func (s *storageBtrfs) StoragePoolUmount() (bool, error) {
 	return true, nil
 }
 
-func (s *storageBtrfs) StoragePoolUpdate(changedConfig []string) error {
+func (s *storageBtrfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
 	return fmt.Errorf("Btrfs storage properties cannot be changed.")
 }
 

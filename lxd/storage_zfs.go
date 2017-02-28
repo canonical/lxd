@@ -315,7 +315,7 @@ func (s *storageZfs) GetContainerPoolInfo() (int64, string) {
 	return s.poolID, s.pool.Name
 }
 
-func (s *storageZfs) StoragePoolUpdate(changedConfig []string) error {
+func (s *storageZfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
 	shared.LogInfof("Updating ZFS storage pool \"%s\".", s.pool.Name)
 
 	if shared.StringInSlice("size", changedConfig) {
