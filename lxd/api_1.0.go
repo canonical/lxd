@@ -93,6 +93,8 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"file_delete",
 			"file_append",
 			"network_dhcp_expiry",
+			"storage_lvm_vg_rename",
+			"storage_lvm_thinpool_rename",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
