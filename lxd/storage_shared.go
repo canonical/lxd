@@ -100,7 +100,7 @@ func (s *storageShared) setUnprivUserAcl(c container, destPath string) error {
 func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	// Fill in any default volume config.
 	volumeConfig := map[string]string{}
-	err := storageVolumeFillDefault(s.pool.Name, volumeConfig, s.pool)
+	err := storageVolumeFillDefault(fingerprint, volumeConfig, s.pool)
 	if err != nil {
 		return err
 	}
