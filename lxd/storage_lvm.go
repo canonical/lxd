@@ -243,6 +243,12 @@ func (s *storageLvm) getLvmVolumeSize() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	// Safety net: Set to default value.
+	if sz == 0 {
+		sz, _ = shared.ParseByteSizeString("10GB")
+	}
+
 	return fmt.Sprintf("%d", sz), nil
 }
 
