@@ -54,7 +54,7 @@ func (c *remoteCmd) flags() {
 	gnuflag.BoolVar(&c.public, "public", false, i18n.G("Public image server"))
 }
 
-func getRemoteCertificate(address string) (*x509.Certificate, error) {
+func (c *remoteCmd) getRemoteCertificate(address string) (*x509.Certificate, error) {
 	// Setup a permissive TLS config
 	tlsConfig, err := shared.GetTLSConfig("", "", nil)
 	if err != nil {
@@ -181,7 +181,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 	_, err = d.GetServerConfig()
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = getRemoteCertificate(addr)
+		certificate, err = c.getRemoteCertificate(addr)
 		if err != nil {
 			return err
 		}
