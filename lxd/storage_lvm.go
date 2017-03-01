@@ -1553,9 +1553,9 @@ func (s *storageLvm) ContainerRestore(container container, sourceContainer conta
 	}
 
 	poolName := s.getOnDiskPoolName()
-	err = s.removeLV(poolName, storagePoolVolumeApiEndpointContainers, destName)
+	err = s.removeLV(poolName, storagePoolVolumeApiEndpointContainers, destLvName)
 	if err != nil {
-		shared.LogErrorf(fmt.Sprintf("Failed to remove \"%s\": %s.", destName, err))
+		shared.LogErrorf(fmt.Sprintf("Failed to remove \"%s\": %s.", destLvName, err))
 	}
 
 	_, err = s.createSnapshotLV(poolName, srcLvName, storagePoolVolumeApiEndpointContainers, destLvName, storagePoolVolumeApiEndpointContainers, false)
