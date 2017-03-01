@@ -197,7 +197,7 @@ on_error:
 	return fd_tmp;
 }
 
-int prepare_loop_dev(const char *source, char *loop_dev)
+int prepare_loop_dev(const char *source, char *loop_dev, int flags)
 {
 	int ret;
 	struct loop_info64 lo64;
@@ -220,7 +220,7 @@ int prepare_loop_dev(const char *source, char *loop_dev)
 		goto on_error;
 
 	memset(&lo64, 0, sizeof(lo64));
-	lo64.lo_flags = LO_FLAGS_AUTOCLEAR;
+	lo64.lo_flags = flags;
 
 	ret = ioctl(fd_loop, LOOP_SET_STATUS64, &lo64);
 	if (ret < 0)
@@ -248,10 +248,12 @@ import (
 	"unsafe"
 )
 
+const LO_FLAGS_AUTOCLEAR int = C.LO_FLAGS_AUTOCLEAR
+
 // prepareLoopDev() detects and sets up a loop device for source. It returns an
 // open file descriptor to the free loop device and the path of the free loop
 // device. It's the callers responsibility to close the open file descriptor.
-func prepareLoopDev(source string) (*os.File, error) {
+func prepareLoopDev(source string, flags int) (*os.File, error) {
 	cLoopDev := C.malloc(C.size_t(C.LO_NAME_SIZE))
 	if cLoopDev == nil {
 		return nil, fmt.Errorf("Failed to allocate memory in C.")
@@ -265,7 +267,7 @@ func prepareLoopDev(source string) (*os.File, error) {
 		return os.NewFile(uintptr(loopFd), C.GoString((*C.char)(cLoopDev))), nil
 	}
 
-	loopFd, err := C.prepare_loop_dev(cSource, (*C.char)(cLoopDev))
+	loopFd, err := C.prepare_loop_dev(cSource, (*C.char)(cLoopDev), C.int(flags))
 	if loopFd < 0 {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to prepare loop device: %s.", err)
