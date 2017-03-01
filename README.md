@@ -233,7 +233,7 @@ choice installed on the machine (btrfs-progs, lvm2 or zfsutils-linux).
 By default, LXD comes with no configured network or storage.
 You can get a basic configuration done with:
 
-    sudo lxd init
+    lxd init
 
 "lxd init" supports both directory based storage and ZFS.
 If you want something else, you'll need to use the "lxc storage" command:
