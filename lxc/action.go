@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
@@ -47,11 +49,7 @@ func (c *actionCmd) flags() {
 	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Ignore the container state (only for start)"))
 }
 
-func (c *actionCmd) run(config *lxd.Config, args []string) error {
-	if len(args) == 0 {
-		return errArgs
-	}
-
+func (c *actionCmd) doAction(config *lxd.Config, nameArg string) error {
 	state := false
 
 	// Only store state if asked to
@@ -59,46 +57,81 @@ func (c *actionCmd) run(config *lxd.Config, args []string) error {
 		state = true
 	}
 
-	for _, nameArg := range args {
-		remote, name := config.ParseRemoteAndContainer(nameArg)
-		d, err := lxd.NewClient(config, remote)
+	remote, name := config.ParseRemoteAndContainer(nameArg)
+	d, err := lxd.NewClient(config, remote)
+	if err != nil {
+		return err
+	}
+
+	if name == "" {
+		return fmt.Errorf(i18n.G("Must supply container name for: ")+"\"%s\"", nameArg)
+	}
+
+	if c.action == shared.Start {
+		current, err := d.ContainerInfo(name)
 		if err != nil {
 			return err
 		}
 
-		if name == "" {
-			return fmt.Errorf(i18n.G("Must supply container name for: ")+"\"%s\"", nameArg)
+		// "start" for a frozen container means "unfreeze"
+		if current.StatusCode == api.Frozen {
+			c.action = shared.Unfreeze
 		}
 
-		if c.action == shared.Start {
-			current, err := d.ContainerInfo(name)
-			if err != nil {
-				return err
-			}
-
-			// "start" for a frozen container means "unfreeze"
-			if current.StatusCode == api.Frozen {
-				c.action = shared.Unfreeze
-			}
-
-			// Always restore state (if present) unless asked not to
-			if c.action == shared.Start && current.Stateful && !c.stateless {
-				state = true
-			}
-		}
-
-		resp, err := d.Action(name, c.action, c.timeout, c.force, state)
-		if err != nil {
-			return err
-		}
-
-		if resp.Type != api.AsyncResponse {
-			return fmt.Errorf(i18n.G("bad result type from action"))
-		}
-
-		if err := d.WaitForSuccess(resp.Operation); err != nil {
-			return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, nameArg)
+		// Always restore state (if present) unless asked not to
+		if c.action == shared.Start && current.Stateful && !c.stateless {
+			state = true
 		}
 	}
+
+	resp, err := d.Action(name, c.action, c.timeout, c.force, state)
+	if err != nil {
+		return err
+	}
+
+	if resp.Type != api.AsyncResponse {
+		return fmt.Errorf(i18n.G("bad result type from action"))
+	}
+
+	if err := d.WaitForSuccess(resp.Operation); err != nil {
+		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, nameArg)
+	}
+
+	return nil
+}
+
+func (c *actionCmd) run(config *lxd.Config, args []string) error {
+	if len(args) == 0 {
+		return errArgs
+	}
+
+	// Run the action for every listed container
+	results := runBatch(args, func(name string) error { return c.doAction(config, name) })
+
+	// Single container is easy
+	if len(results) == 1 {
+		return results[0].err
+	}
+
+	// Do fancier rendering for batches
+	success := true
+
+	for _, result := range results {
+		if result.err == nil {
+			continue
+		}
+
+		success = false
+		msg := fmt.Sprintf(i18n.G("error: %v"), result.err)
+		for _, line := range strings.Split(msg, "\n") {
+			fmt.Fprintln(os.Stderr, fmt.Sprintf("%s: %s", result.name, line))
+		}
+	}
+
+	if !success {
+		fmt.Fprintln(os.Stderr, "")
+		return fmt.Errorf(i18n.G("Some containers failed to %s"), c.name)
+	}
+
 	return nil
 }

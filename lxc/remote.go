@@ -54,7 +54,7 @@ func (c *remoteCmd) flags() {
 	gnuflag.BoolVar(&c.public, "public", false, i18n.G("Public image server"))
 }
 
-func generateClientCertificate(config *lxd.Config) error {
+func (c *remoteCmd) generateClientCertificate(config *lxd.Config) error {
 	// Generate a client certificate if necessary.  The default repositories are
 	// either local or public, neither of which requires a client certificate.
 	// Generation of the cert is delayed to avoid unnecessary overhead, e.g in
@@ -69,7 +69,7 @@ func generateClientCertificate(config *lxd.Config) error {
 	return nil
 }
 
-func getRemoteCertificate(address string) (*x509.Certificate, error) {
+func (c *remoteCmd) getRemoteCertificate(address string) (*x509.Certificate, error) {
 	// Setup a permissive TLS config
 	tlsConfig, err := shared.GetTLSConfig("", "", "", nil)
 	if err != nil {
@@ -179,7 +179,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 	// HTTPS server then we need to ensure we have a client certificate before
 	// adding the remote server.
 	if rScheme != "unix" && !public {
-		err = generateClientCertificate(config)
+		err = c.generateClientCertificate(config)
 		if err != nil {
 			return err
 		}
@@ -204,7 +204,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 	_, err = d.GetServerConfig()
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = getRemoteCertificate(addr)
+		certificate, err = c.getRemoteCertificate(addr)
 		if err != nil {
 			return err
 		}

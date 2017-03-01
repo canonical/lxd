@@ -21,40 +21,6 @@ import (
 	"github.com/lxc/lxd/shared/termios"
 )
 
-type SortImage [][]string
-
-func (a SortImage) Len() int {
-	return len(a)
-}
-
-func (a SortImage) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a SortImage) Less(i, j int) bool {
-	if a[i][0] == a[j][0] {
-		if a[i][3] == "" {
-			return false
-		}
-
-		if a[j][3] == "" {
-			return true
-		}
-
-		return a[i][3] < a[j][3]
-	}
-
-	if a[i][0] == "" {
-		return false
-	}
-
-	if a[j][0] == "" {
-		return true
-	}
-
-	return a[i][0] < a[j][0]
-}
-
 type aliasList []string
 
 func (f *aliasList) String() string {
