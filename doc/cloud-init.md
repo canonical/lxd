@@ -125,7 +125,7 @@ A default cloud-init-network.tpl provided with images from the "ubuntu:" image
 source looks like this:
 
 ```
-{% if config_get("user.network-config", "") == "" %}version: 1
+{% if config\_get("user.network-config", "") == "" %}version: 1
 config:
     - type: physical
       name: eth0
