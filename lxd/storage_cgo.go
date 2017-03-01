@@ -28,6 +28,9 @@ package main
 #define LXD_MAX_LOOP_PATHLEN (2 * sizeof("loop/")) + LXD_NUMSTRLEN64 + sizeof("backing_file") + 1
 
 // If a loop file is already associated with a loop device, find it.
+// This looks at "/sys/block" to avoid having to parse all of "/dev". Also, this
+// allows to retrieve the full name of the backing file even if
+// strlen(backing file) > LO_NAME_SIZE.
 static int find_associated_loop_device(const char *loop_file,
 				       char *loop_dev_name)
 {
@@ -98,6 +101,7 @@ static int find_associated_loop_device(const char *loop_file,
 			continue;
 		}
 
+		// Create path to loop device.
 		ret = snprintf(loop_dev_name, LO_NAME_SIZE, "/dev/%s",
 			       dp->d_name);
 		if (ret < 0 || ret >= LO_NAME_SIZE) {
@@ -105,7 +109,14 @@ static int find_associated_loop_device(const char *loop_file,
 			fd = -1;
 			continue;
 		}
+		close(fd);
 
+		// Open fd to loop device.
+		fd = open(loop_dev_name, O_RDWR);
+		if (fd < 0) {
+			close(fd);
+			fd = -1;
+		}
 		break;
 	}
 
@@ -239,6 +250,20 @@ on_error:
 
 	return fd_loop;
 }
+
+// Note that this does not guarantee to clear the loop device in time so that
+// find_associated_loop_device() will not report that there still is a
+// configured device (udev and so on...). So don't call
+// find_associated_loop_device() after having called
+// set_autoclear_loop_device().
+int set_autoclear_loop_device(int fd_loop)
+{
+	struct loop_info64 lo64;
+
+	memset(&lo64, 0, sizeof(lo64));
+	lo64.lo_flags = LO_FLAGS_AUTOCLEAR;
+	return ioctl(fd_loop, LOOP_SET_STATUS64, &lo64);
+}
 */
 import "C"
 
@@ -276,4 +301,9 @@ func prepareLoopDev(source string, flags int) (*os.File, error) {
 	}
 
 	return os.NewFile(uintptr(loopFd), C.GoString((*C.char)(cLoopDev))), nil
+}
+
+func setAutoclearOnLoopDev(loopFd int) error {
+	_, err := C.set_autoclear_loop_device(C.int(loopFd))
+	return err
 }
