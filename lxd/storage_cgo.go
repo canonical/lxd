@@ -9,15 +9,15 @@ package main
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/loop.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <linux/loop.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
 #ifndef LO_FLAGS_AUTOCLEAR
 #define LO_FLAGS_AUTOCLEAR 4
@@ -38,6 +38,8 @@ static int find_associated_loop_device(const char *loop_file,
 	char buf[LXD_MAXPATH];
 	struct dirent *dp;
 	DIR *dir;
+	const char *delsuffix = " (deleted)";
+	size_t dellen = sizeof(delsuffix);
 	int dfd = -1, fd = -1;
 
 	dir = opendir("/sys/block");
@@ -45,24 +47,21 @@ static int find_associated_loop_device(const char *loop_file,
 		return -1;
 
 	while ((dp = readdir(dir))) {
-		int ret = -1;
+		int ret;
 		size_t totlen;
 		struct stat fstatbuf;
-		char *delsuffix = " (deleted)";
-		size_t dellen = sizeof(delsuffix);
 
 		if (!dp)
 			break;
 
-		if (strncmp(dp->d_name, "loop", 4) != 0)
+		if (strncmp(dp->d_name, "loop", 4))
 			continue;
 
 		dfd = dirfd(dir);
 		if (dfd < 0)
 			continue;
 
-		ret = snprintf(looppath, sizeof(looppath),
-			       "%s/loop/backing_file", dp->d_name);
+		ret = snprintf(looppath, sizeof(looppath), "%s/loop/backing_file", dp->d_name);
 		if (ret < 0 || (size_t)ret >= sizeof(looppath))
 			continue;
 
@@ -79,13 +78,13 @@ static int find_associated_loop_device(const char *loop_file,
 		ret = read(fd, buf, sizeof(buf));
 		if (ret < 0)
 			continue;
+		close(fd);
+		fd = -1;
 
 		totlen = strlen(buf);
-		// Trim newline.
-		if (buf[totlen - 1] == '\n') {
-			buf[totlen - 1] = '\0';
-			totlen--;
-		}
+		// Trim newlines.
+		while (buf[totlen - 1] == '\n')
+			buf[--totlen] = '\0';
 
 		if (totlen > dellen) {
 			char *deleted = &buf[totlen - dellen];
@@ -95,28 +94,17 @@ static int find_associated_loop_device(const char *loop_file,
 				continue;
 		}
 
-		if (strcmp(buf, loop_file)) {
-			close(fd);
-			fd = -1;
+		if (strcmp(buf, loop_file))
 			continue;
-		}
 
 		// Create path to loop device.
 		ret = snprintf(loop_dev_name, LO_NAME_SIZE, "/dev/%s",
 			       dp->d_name);
-		if (ret < 0 || ret >= LO_NAME_SIZE) {
-			close(fd);
-			fd = -1;
+		if (ret < 0 || ret >= LO_NAME_SIZE)
 			continue;
-		}
-		close(fd);
 
 		// Open fd to loop device.
 		fd = open(loop_dev_name, O_RDWR);
-		if (fd < 0) {
-			close(fd);
-			fd = -1;
-		}
 		break;
 	}
 
