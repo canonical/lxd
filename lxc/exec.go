@@ -18,15 +18,15 @@ import (
 	"github.com/lxc/lxd/shared/termios"
 )
 
-type envFlag []string
+type envList []string
 
-func (f *envFlag) String() string {
+func (f *envList) String() string {
 	return fmt.Sprint(*f)
 }
 
-func (f *envFlag) Set(value string) error {
+func (f *envList) Set(value string) error {
 	if f == nil {
-		*f = make(envFlag, 1)
+		*f = make(envList, 1)
 	} else {
 		*f = append(*f, value)
 	}
@@ -35,7 +35,7 @@ func (f *envFlag) Set(value string) error {
 
 type execCmd struct {
 	modeFlag string
-	envArgs  envFlag
+	envArgs  envList
 }
 
 func (c *execCmd) showByDefault() bool {

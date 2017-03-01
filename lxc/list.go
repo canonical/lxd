@@ -28,28 +28,6 @@ type column struct {
 
 type columnData func(api.Container, *api.ContainerState, []api.ContainerSnapshot) string
 
-type byName [][]string
-
-func (a byName) Len() int {
-	return len(a)
-}
-
-func (a byName) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a byName) Less(i, j int) bool {
-	if a[i][0] == "" {
-		return false
-	}
-
-	if a[j][0] == "" {
-		return true
-	}
-
-	return a[i][0] < a[j][0]
-}
-
 const (
 	listFormatTable = "table"
 	listFormatJSON  = "json"
