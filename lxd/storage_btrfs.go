@@ -338,7 +338,10 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	mountSource := source
 	if filepath.IsAbs(source) {
 		if !shared.IsBlockdevPath(source) && s.d.BackingFs != "btrfs" {
-			loopF, err := prepareLoopDev(source)
+			// Since we mount the loop device LO_FLAGS_AUTOCLEAR is
+			// fine since the loop device will be kept around for as
+			// long as the mount exists.
+			loopF, err := prepareLoopDev(source, LO_FLAGS_AUTOCLEAR)
 			if err != nil {
 				return false, fmt.Errorf("Could not prepare loop device.")
 			}
