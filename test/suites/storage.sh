@@ -84,6 +84,8 @@ test_storage() {
       pvcreate "${loop_device_8}"
       # Create new volume group "dummy_vg_4" on existing physical volume.
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool13" lvm source="${loop_device_8}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool13-dummy_vg_4" volume.size=25MB
+
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool14" lvm
     fi
 
     # Set default storage pool for image import.
@@ -235,6 +237,12 @@ test_storage() {
       lxc launch testimage c12pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
       lxc list -c b c12pool13 | grep "lxdtest-$(basename "${LXD_DIR}")-pool13"
 
+      lxc init testimage c10pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14"
+      lxc list -c b c10pool14 | grep "lxdtest-$(basename "${LXD_DIR}")-pool14"
+
+      lxc launch testimage c12pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14"
+      lxc list -c b c12pool14 | grep "lxdtest-$(basename "${LXD_DIR}")-pool14"
+
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice2 /opt
@@ -298,6 +306,22 @@ test_storage() {
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool13" custom/c12pool13 c12pool13 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool13" custom/c12pool13 c12pool13 testDevice2 /opt
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13 c12pool13 testDevice
+
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14
+      lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14 c10pool14 testDevice /opt
+      ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14 c10pool14 testDevice2 /opt
+      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14 c10pool14 testDevice
+      lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" custom/c10pool14 c10pool14 testDevice /opt
+      ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" custom/c10pool14 c10pool14 testDevice2 /opt
+      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14 c10pool14 testDevice
+
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14
+      lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14 c12pool14 testDevice /opt
+      ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14 c12pool14 testDevice2 /opt
+      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14 c12pool14 testDevice
+      lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" custom/c12pool14 c12pool14 testDevice /opt
+      ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" custom/c12pool14 c12pool14 testDevice2 /opt
+      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14 c12pool14 testDevice
     fi
 
     if which zfs >/dev/null 2>&1; then
@@ -404,6 +428,9 @@ test_storage() {
       lxc delete -f c10pool13
       lxc delete -f c12pool13
 
+      lxc delete -f c10pool14
+      lxc delete -f c12pool14
+
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool6"  c12pool6
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11
@@ -412,6 +439,8 @@ test_storage() {
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool12" c12pool12
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool13" c10pool13
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14
     fi
 
     if which zfs >/dev/null 2>&1; then
@@ -473,6 +502,8 @@ test_storage() {
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool13"
       # shellcheck disable=SC2154
       deconfigure_lvm_loop_device "${loop_file_8}" "${loop_device_8}"
+
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool14"
     fi
   )
 
