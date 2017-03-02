@@ -570,10 +570,12 @@ func (s *storageLvm) StoragePoolDelete() error {
 		return err
 	}
 	if s.loopInfo != nil {
-		err := setAutoclearOnLoopDev(int(s.loopInfo.Fd()))
-		if err != nil {
-			shared.LogWarnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s. Manual cleanup needed.", err)
-		}
+		defer func() {
+			err := setAutoclearOnLoopDev(int(s.loopInfo.Fd()))
+			if err != nil {
+				shared.LogWarnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s. Manual cleanup needed.", err)
+			}
+		}()
 		defer s.loopInfo.Close()
 	}
 
@@ -654,19 +656,6 @@ func (s *storageLvm) StoragePoolMount() (bool, error) {
 			return false, fmt.Errorf("Could not prepare loop device: %s", err)
 		}
 		s.loopInfo = loopF
-
-		// Force rescan, since LVM is not working nicely with loop
-		// devices.
-		output, err := tryExec("pvscan")
-		if err != nil {
-			shared.LogWarnf("pvscan failed: %s.", string(output))
-		}
-
-		// See comment above.
-		output, err = tryExec("vgscan")
-		if err != nil {
-			shared.LogWarnf("vgscan failed: %s.", string(output))
-		}
 	}
 
 	return true, nil
@@ -1553,9 +1542,9 @@ func (s *storageLvm) ContainerRestore(container container, sourceContainer conta
 	}
 
 	poolName := s.getOnDiskPoolName()
-	err = s.removeLV(poolName, storagePoolVolumeApiEndpointContainers, destName)
+	err = s.removeLV(poolName, storagePoolVolumeApiEndpointContainers, destLvName)
 	if err != nil {
-		shared.LogErrorf(fmt.Sprintf("Failed to remove \"%s\": %s.", destName, err))
+		shared.LogErrorf(fmt.Sprintf("Failed to remove \"%s\": %s.", destLvName, err))
 	}
 
 	_, err = s.createSnapshotLV(poolName, srcLvName, storagePoolVolumeApiEndpointContainers, destLvName, storagePoolVolumeApiEndpointContainers, false)
