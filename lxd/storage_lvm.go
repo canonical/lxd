@@ -654,19 +654,6 @@ func (s *storageLvm) StoragePoolMount() (bool, error) {
 			return false, fmt.Errorf("Could not prepare loop device: %s", err)
 		}
 		s.loopInfo = loopF
-
-		// Force rescan, since LVM is not working nicely with loop
-		// devices.
-		output, err := tryExec("pvscan")
-		if err != nil {
-			shared.LogWarnf("pvscan failed: %s.", string(output))
-		}
-
-		// See comment above.
-		output, err = tryExec("vgscan")
-		if err != nil {
-			shared.LogWarnf("vgscan failed: %s.", string(output))
-		}
 	}
 
 	return true, nil
