@@ -374,6 +374,7 @@ func (s *storageLvm) StoragePoolCheck() error {
 	}
 	if s.loopInfo != nil {
 		defer s.loopInfo.Close()
+		defer func() { s.loopInfo = nil }()
 	}
 
 	poolName := s.getOnDiskPoolName()
@@ -586,15 +587,6 @@ func (s *storageLvm) StoragePoolDelete() error {
 	if err != nil {
 		return err
 	}
-	if s.loopInfo != nil {
-		defer func() {
-			err := setAutoclearOnLoopDev(int(s.loopInfo.Fd()))
-			if err != nil {
-				shared.LogWarnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s. Manual cleanup needed.", err)
-			}
-		}()
-		defer s.loopInfo.Close()
-	}
 
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -606,6 +598,18 @@ func (s *storageLvm) StoragePoolDelete() error {
 	output, err := exec.Command("vgremove", "-f", poolName).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Failed to destroy the volume group for the lvm storage pool: %s.", output)
+	}
+
+	if s.loopInfo != nil {
+		// Set LO_FLAGS_AUTOCLEAR before we remove the loop file
+		// otherwise we will get EBADF.
+		err = setAutoclearOnLoopDev(int(s.loopInfo.Fd()))
+		if err != nil {
+			shared.LogWarnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s. Manual cleanup needed.", err)
+		}
+
+		defer s.loopInfo.Close()
+		defer func() { s.loopInfo = nil }()
 	}
 
 	if filepath.IsAbs(source) {
