@@ -38,8 +38,6 @@ static int find_associated_loop_device(const char *loop_file,
 	char buf[LXD_MAXPATH];
 	struct dirent *dp;
 	DIR *dir;
-	const char *delsuffix = " (deleted)";
-	size_t dellen = sizeof(delsuffix);
 	int dfd = -1, fd = -1;
 
 	dir = opendir("/sys/block");
@@ -85,14 +83,6 @@ static int find_associated_loop_device(const char *loop_file,
 		// Trim newlines.
 		while (buf[totlen - 1] == '\n')
 			buf[--totlen] = '\0';
-
-		if (totlen > dellen) {
-			char *deleted = &buf[totlen - dellen];
-
-			// Skip deleted loop files.
-			if (!strcmp(deleted, delsuffix))
-				continue;
-		}
 
 		if (strcmp(buf, loop_file))
 			continue;
@@ -250,6 +240,26 @@ int set_autoclear_loop_device(int fd_loop)
 
 	memset(&lo64, 0, sizeof(lo64));
 	lo64.lo_flags = LO_FLAGS_AUTOCLEAR;
+	errno = 0;
+	return ioctl(fd_loop, LOOP_SET_STATUS64, &lo64);
+}
+
+// Unset the LO_FLAGS_AUTOCLEAR flag on the given loop device file descriptor.
+int unset_autoclear_loop_device(int fd_loop)
+{
+	int ret;
+	struct loop_info64 lo64;
+
+	errno = 0;
+	ret = ioctl(fd_loop, LOOP_GET_STATUS64, &lo64);
+	if (ret < 0)
+		return -1;
+
+	if ((lo64.lo_flags & LO_FLAGS_AUTOCLEAR) == 0)
+		return 0;
+
+	lo64.lo_flags &= ~LO_FLAGS_AUTOCLEAR;
+	errno = 0;
 	return ioctl(fd_loop, LOOP_SET_STATUS64, &lo64);
 }
 */
@@ -257,7 +267,9 @@ import "C"
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"strings"
 	"unsafe"
 )
 
@@ -292,6 +304,46 @@ func prepareLoopDev(source string, flags int) (*os.File, error) {
 }
 
 func setAutoclearOnLoopDev(loopFd int) error {
-	_, err := C.set_autoclear_loop_device(C.int(loopFd))
-	return err
+	ret, err := C.set_autoclear_loop_device(C.int(loopFd))
+	if ret < 0 {
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("Failed to set LO_FLAGS_AUTOCLEAR.")
+	}
+
+	return nil
+}
+
+func unsetAutoclearOnLoopDev(loopFd int) error {
+	ret, err := C.unset_autoclear_loop_device(C.int(loopFd))
+	if ret < 0 {
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("Failed to unset LO_FLAGS_AUTOCLEAR.")
+	}
+
+	return nil
+}
+
+func loopDeviceHasBackingFile(loopDevice string, loopFile string) (*os.File, error) {
+	lidx := strings.LastIndex(loopDevice, "/")
+	if lidx < 0 {
+		return nil, fmt.Errorf("Invalid loop device path: \"%s\".", loopDevice)
+	}
+
+	loopName := loopDevice[(lidx + 1):]
+	backingFile := fmt.Sprintf("/sys/block/%s/loop/backing_file", loopName)
+	contents, err := ioutil.ReadFile(backingFile)
+	if err != nil {
+		return nil, err
+	}
+
+	cleanBackingFile := strings.TrimSpace(string(contents))
+	if cleanBackingFile != loopFile {
+		return nil, fmt.Errorf("Loop device has new backing file: \"%s\".", cleanBackingFile)
+	}
+
+	return os.OpenFile(loopDevice, os.O_RDWR, 0660)
 }
