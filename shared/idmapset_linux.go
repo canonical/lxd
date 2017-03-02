@@ -455,10 +455,15 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	dir = strings.TrimRight(dir, "/")
 
 	convert := func(path string, fi os.FileInfo, err error) (e error) {
+		if err != nil {
+			return err
+		}
+
 		intUid, intGid, _, _, _, _, err := GetFileStat(path)
 		if err != nil {
 			return err
 		}
+
 		uid := int64(intUid)
 		gid := int64(intGid)
 
@@ -484,6 +489,7 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	if !PathExists(dir) {
 		return fmt.Errorf("No such file or directory: %q", dir)
 	}
+
 	return filepath.Walk(dir, convert)
 }
 

@@ -3822,7 +3822,12 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 	offset := len(cDir) + 1
 
 	writeToTar := func(path string, fi os.FileInfo, err error) error {
-		if err := c.tarStoreFile(linkmap, offset, tw, path, fi); err != nil {
+		if err != nil {
+			return err
+		}
+
+		err = c.tarStoreFile(linkmap, offset, tw, path, fi)
+		if err != nil {
 			shared.LogDebugf("Error tarring up %s: %s", path, err)
 			return err
 		}
