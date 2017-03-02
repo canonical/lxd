@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-02-28 23:20-0500\n"
+"POT-Creation-Date: 2017-02-28 23:57-0500\n"
 "PO-Revision-Date: 2017-02-17 15:34+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -513,8 +513,8 @@ msgid "ISSUE DATE"
 msgstr ""
 
 #: lxc/main.go:136
-msgid ""
-"If this is your first time using LXD, you should also run: sudo lxd init"
+#, fuzzy
+msgid "If this is your first time using LXD, you should also run: lxd init"
 msgstr "初めて LXD を使う場合、sudo lxd init と実行する必要があります"
 
 #: lxc/main.go:43

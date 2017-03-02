@@ -294,7 +294,8 @@ func (s *SimpleStreams) parseIndex() (*SimpleStreamsIndex, error) {
 		return s.cachedIndex, nil
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/streams/v1/index.json", s.url), nil)
+	url := fmt.Sprintf("%s/streams/v1/index.json", s.url)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -308,6 +309,10 @@ func (s *SimpleStreams) parseIndex() (*SimpleStreamsIndex, error) {
 		return nil, err
 	}
 	defer r.Body.Close()
+
+	if r.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
+	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -331,7 +336,8 @@ func (s *SimpleStreams) parseManifest(path string) (*SimpleStreamsManifest, erro
 		return s.cachedManifest[path], nil
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/%s", s.url, path), nil)
+	url := fmt.Sprintf("%s/%s", s.url, path)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -345,6 +351,10 @@ func (s *SimpleStreams) parseManifest(path string) (*SimpleStreamsManifest, erro
 		return nil, err
 	}
 	defer r.Body.Close()
+
+	if r.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
+	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -531,20 +541,20 @@ func (s *SimpleStreams) downloadFile(path string, hash string, target string, pr
 			req.Header.Set("User-Agent", s.useragent)
 		}
 
-		resp, err := s.http.Do(req)
+		r, err := s.http.Do(req)
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
+		defer r.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("invalid simplestreams source: got %d looking for %s", resp.StatusCode, path)
+		if r.StatusCode != http.StatusOK {
+			return fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
 		}
 
 		body := &ioprogress.ProgressReader{
-			ReadCloser: resp.Body,
+			ReadCloser: r.Body,
 			Tracker: &ioprogress.ProgressTracker{
-				Length:  resp.ContentLength,
+				Length:  r.ContentLength,
 				Handler: progress,
 			},
 		}
@@ -600,21 +610,21 @@ func (s *SimpleStreams) ListImages() ([]api.Image, error) {
 	return images, err
 }
 
-func (s *SimpleStreams) GetAlias(name string) string {
+func (s *SimpleStreams) GetAlias(name string) (*api.ImageAliasesEntry, error) {
 	_, aliasesMap, err := s.getImages()
 	if err != nil {
-		return ""
+		return nil, err
 	}
 
 	alias, ok := aliasesMap[name]
 	if !ok {
-		return ""
+		return nil, fmt.Errorf("Alias '%s' doesn't exist", name)
 	}
 
-	return alias.Target
+	return alias, nil
 }
 
-func (s *SimpleStreams) GetImageInfo(fingerprint string) (*api.Image, error) {
+func (s *SimpleStreams) GetImage(fingerprint string) (*api.Image, error) {
 	images, _, err := s.getImages()
 	if err != nil {
 		return nil, err
