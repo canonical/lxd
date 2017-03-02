@@ -92,10 +92,32 @@ func (s *storageZfs) StoragePoolInit() error {
 }
 
 func (s *storageZfs) StoragePoolCheck() error {
-	// Make noop for now until we figure out something useful to do for all
-	// supported use cases.
-
 	shared.LogDebugf("Checking ZFS storage pool \"%s\".", s.pool.Name)
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("No \"source\" property found for the storage pool.")
+	}
+
+	poolName := s.getOnDiskPoolName()
+	if filepath.IsAbs(source) {
+		if zfsFilesystemEntityExists(poolName) {
+			return nil
+		}
+		shared.LogDebugf("ZFS storage pool \"%s\" does not exist. Trying to import it.", poolName)
+
+		disksPath := shared.VarPath("disks")
+		output, err := exec.Command(
+			"zpool",
+			"import",
+			"-d", disksPath, poolName).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("ZFS storage pool \"%s\" could not be imported: %s.", poolName, string(output))
+		}
+
+		shared.LogDebugf("ZFS storage pool \"%s\" succesfully imported.", poolName)
+	}
+
 	return nil
 }
 
@@ -2093,6 +2115,27 @@ func (s *storageZfs) zfsPoolGetUsers() ([]string, error) {
 	}
 
 	return users, nil
+}
+
+func zfsFilesystemEntityExists(zfsEntity string) bool {
+	output, err := exec.Command(
+		"zfs",
+		"get",
+		"type",
+		"-H",
+		"-o",
+		"name",
+		zfsEntity).CombinedOutput()
+	if err != nil {
+		return false
+	}
+
+	detectedName := strings.TrimSpace(string(output))
+	if detectedName != zfsEntity {
+		return false
+	}
+
+	return true
 }
 
 type zfsMigrationSourceDriver struct {
