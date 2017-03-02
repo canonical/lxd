@@ -85,7 +85,7 @@ test_storage() {
       # Create new volume group "dummy_vg_4" on existing physical volume.
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool13" lvm source="${loop_device_8}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool13-dummy_vg_4" volume.size=25MB
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool14" lvm
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool14" lvm volume.size=25MB
     fi
 
     # Set default storage pool for image import.
