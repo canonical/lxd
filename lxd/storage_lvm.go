@@ -570,10 +570,12 @@ func (s *storageLvm) StoragePoolDelete() error {
 		return err
 	}
 	if s.loopInfo != nil {
-		err := setAutoclearOnLoopDev(int(s.loopInfo.Fd()))
-		if err != nil {
-			shared.LogWarnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s. Manual cleanup needed.", err)
-		}
+		defer func() {
+			err := setAutoclearOnLoopDev(int(s.loopInfo.Fd()))
+			if err != nil {
+				shared.LogWarnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s. Manual cleanup needed.", err)
+			}
+		}()
 		defer s.loopInfo.Close()
 	}
 
