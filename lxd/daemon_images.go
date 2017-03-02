@@ -318,7 +318,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			return "", err
 		}
 
-		info, err := ss.GetImageInfo(fp)
+		info, err := ss.GetImage(fp)
 		if err != nil {
 			return "", err
 		}
