@@ -121,7 +121,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		}
 	}()
 
-	s, err := storagePoolInit(d, req.Name)
+	s, err := storagePoolInit(d, req.Name, false)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -297,7 +297,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
 	}
 
-	s, err := storagePoolInit(d, poolName)
+	s, err := storagePoolInit(d, poolName, true)
 	if err != nil {
 		return InternalError(err)
 	}

@@ -120,6 +120,11 @@ func (s *storageZfs) StoragePoolCreate() error {
 		return err
 	}
 
+	err = s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
 	revert = false
 
 	shared.LogInfof("Created ZFS storage pool \"%s\".", s.pool.Name)
