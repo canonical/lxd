@@ -411,39 +411,13 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 	return nil, fmt.Errorf("Invalid storage type.")
 }
 
-func storagePoolInit(d *Daemon, poolName string, poolExistsOnDisk bool) (storage, error) {
-	s, err := storageInit(d, poolName, "", -1)
-	if err != nil {
-		return nil, err
-	}
-
-	if !poolExistsOnDisk {
-		return s, nil
-	}
-
-	// If the pool already exists on-disk perform the necessary checks to
-	// guarantee correct functionality.
-	err = s.StoragePoolCheck()
-	if err != nil {
-		return nil, err
-	}
-
-	return s, nil
+func storagePoolInit(d *Daemon, poolName string) (storage, error) {
+	return storageInit(d, poolName, "", -1)
 }
 
 func storagePoolVolumeInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {
 	// No need to detect storage here, its a new container.
-	s, err := storageInit(d, poolName, volumeName, volumeType)
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.StoragePoolCheck()
-	if err != nil {
-		return nil, err
-	}
-
-	return s, nil
+	return storageInit(d, poolName, volumeName, volumeType)
 }
 
 func storagePoolVolumeImageInit(d *Daemon, poolName string, imageFingerprint string) (storage, error) {
