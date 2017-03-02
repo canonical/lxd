@@ -78,6 +78,11 @@ func (s *storageDir) StoragePoolCreate() error {
 		}
 	}
 
+	err = s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
 	revert = false
 
 	shared.LogInfof("Created DIR storage pool \"%s\".", s.pool.Name)

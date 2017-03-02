@@ -307,12 +307,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 
 		storagePool = rootDiskDevice["pool"]
 
-		ps, err := storagePoolInit(d, storagePool)
-		if err != nil {
-			return InternalError(err)
-		}
-
-		err = ps.StoragePoolCheck()
+		ps, err := storagePoolInit(d, storagePool, true)
 		if err != nil {
 			return InternalError(err)
 		}

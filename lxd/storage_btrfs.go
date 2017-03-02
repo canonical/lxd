@@ -222,6 +222,11 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
 	}
 
+	err = s.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
 	shared.LogInfof("Created BTRFS storage pool \"%s\".", s.pool.Name)
 	return nil
 }
