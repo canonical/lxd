@@ -601,6 +601,9 @@ func containerCreateEmptySnapshot(d *Daemon, args containerArgs) (container, err
 }
 
 func containerCreateFromImage(d *Daemon, args containerArgs, hash string) (container, error) {
+	// Set the BaseImage field (regardless of previous value)
+	args.BaseImage = hash
+
 	// Create the container
 	c, err := containerCreateInternal(d, args)
 	if err != nil {

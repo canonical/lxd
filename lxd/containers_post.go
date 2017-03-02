@@ -48,8 +48,8 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 		var image *api.Image
 
-		for _, hash := range hashes {
-			_, img, err := dbImageGet(d.db, hash, false, true)
+		for _, imageHash := range hashes {
+			_, img, err := dbImageGet(d.db, imageHash, false, true)
 			if err != nil {
 				continue
 			}
@@ -97,10 +97,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return err
 		}
 
-		hash = imgInfo.Fingerprint
-
 		args := containerArgs{
-			BaseImage: hash,
 			Config:    req.Config,
 			Ctype:     cTypeRegular,
 			Devices:   req.Devices,
@@ -114,7 +111,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return err
 		}
 
-		_, err = containerCreateFromImage(d, args, hash)
+		_, err = containerCreateFromImage(d, args, imgInfo.Fingerprint)
 		return err
 	}
 
