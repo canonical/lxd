@@ -316,7 +316,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		}
 		poolID = tmp
 
-		s, err := storagePoolInit(d, defaultPoolName)
+		s, err := storagePoolInit(d, defaultPoolName, false)
 		if err != nil {
 			return err
 		}
@@ -575,7 +575,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		}
 		poolID = tmp
 
-		s, err := storagePoolInit(d, defaultPoolName)
+		s, err := storagePoolInit(d, defaultPoolName, false)
 		if err != nil {
 			return err
 		}

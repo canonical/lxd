@@ -636,7 +636,7 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 	}
 
 	// Initialize a new storage interface.
-	s, err := storagePoolInit(d, storagePool)
+	s, err := storagePoolInit(d, storagePool, true)
 	if err != nil {
 		return err
 	}
