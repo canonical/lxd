@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-02-28 23:57-0500\n"
+"POT-Creation-Date: 2017-03-05 02:20-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -205,7 +205,7 @@ msgstr ""
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
 
-#: lxc/network.go:398 lxc/profile.go:424 lxc/storage.go:541
+#: lxc/network.go:398 lxc/profile.go:433 lxc/storage.go:541
 msgid "Cannot provide container name to list"
 msgstr ""
 
@@ -1074,7 +1074,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr ""
 
-#: lxc/list.go:409 lxc/network.go:434 lxc/profile.go:451 lxc/remote.go:380
+#: lxc/list.go:409 lxc/network.go:434 lxc/profile.go:460 lxc/remote.go:380
 #: lxc/storage.go:569 lxc/storage.go:649
 msgid "NAME"
 msgstr ""
@@ -1565,7 +1565,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:437 lxc/profile.go:452 lxc/storage.go:572 lxc/storage.go:650
+#: lxc/network.go:437 lxc/profile.go:461 lxc/storage.go:572 lxc/storage.go:650
 msgid "USED BY"
 msgstr ""
 

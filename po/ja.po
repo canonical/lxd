@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-02-28 23:57-0500\n"
-"PO-Revision-Date: 2017-02-17 15:34+0000\n"
+"POT-Creation-Date: 2017-03-05 02:20-0500\n"
+"PO-Revision-Date: 2017-03-02 00:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -208,7 +208,7 @@ msgstr "標準入力から読み込めません: %s"
 msgid "Can't unset key '%s', it's not currently set."
 msgstr "キー '%s' が指定されていないので削除できません。"
 
-#: lxc/network.go:398 lxc/profile.go:424 lxc/storage.go:541
+#: lxc/network.go:398 lxc/profile.go:433 lxc/storage.go:541
 msgid "Cannot provide container name to list"
 msgstr "コンテナ名を取得できません"
 
@@ -1480,7 +1480,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
-#: lxc/list.go:409 lxc/network.go:434 lxc/profile.go:451 lxc/remote.go:380
+#: lxc/list.go:409 lxc/network.go:434 lxc/profile.go:460 lxc/remote.go:380
 #: lxc/storage.go:569 lxc/storage.go:649
 msgid "NAME"
 msgstr ""
@@ -1534,7 +1534,7 @@ msgstr "フィンガープリントが指定されていません。"
 
 #: lxc/storage.go:285 lxc/storage.go:369
 msgid "Only \"custom\" volumes can be attached to containers."
-msgstr ""
+msgstr "\"カスタム\" のボリュームのみがコンテナにアタッチできます。"
 
 #: lxc/remote.go:120
 msgid "Only https URLs are supported for simplestreams"
@@ -1546,7 +1546,7 @@ msgstr "リモートイメージのインポートは https:// のみをサポ�
 
 #: lxc/network.go:330 lxc/network.go:457
 msgid "Only managed networks can be modified."
-msgstr ""
+msgstr "管理対象のネットワークのみ変更できます。"
 
 #: lxc/help.go:63 lxc/main.go:112
 msgid "Options:"
@@ -1838,9 +1838,9 @@ msgid "Snapshots:"
 msgstr "スナップショット:"
 
 #: lxc/action.go:133
-#, fuzzy, c-format
+#, c-format
 msgid "Some containers failed to %s"
-msgstr "コンテナの停止に失敗しました！"
+msgstr "一部のコンテナで %s が失敗しました"
 
 #: lxc/image.go:340
 msgid "Source:"
@@ -1999,7 +1999,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:437 lxc/profile.go:452 lxc/storage.go:572 lxc/storage.go:650
+#: lxc/network.go:437 lxc/profile.go:461 lxc/storage.go:572 lxc/storage.go:650
 msgid "USED BY"
 msgstr ""
 
