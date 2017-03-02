@@ -1730,6 +1730,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	shared.LogDebugf("Creating LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	tryUndo := true
+	trySubUndo := true
 
 	poolName := s.getOnDiskPoolName()
 	thinPoolName := s.getLvmThinpoolName()
@@ -1743,12 +1744,22 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if !trySubUndo {
+			return
+		}
+		err := s.deleteImageDbPoolVolume(fingerprint)
+		if err != nil {
+			shared.LogWarnf("Could not delete image \"%s\" from storage volume database. Manual intervention needed.", fingerprint)
+		}
+	}()
 
 	err = s.createThinLV(poolName, thinPoolName, fingerprint, lvFsType, lvSize, storagePoolVolumeApiEndpointImages)
 	if err != nil {
 		shared.LogErrorf("LVMCreateThinLV: %s.", err)
 		return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
 	}
+	trySubUndo = false
 	defer func() {
 		if tryUndo {
 			s.ImageDelete(fingerprint)
