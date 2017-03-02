@@ -10,7 +10,7 @@ import (
 )
 
 func storagePoolUpdate(d *Daemon, name string, newConfig map[string]string) error {
-	s, err := storagePoolInit(d, name)
+	s, err := storagePoolInit(d, name, true)
 	if err != nil {
 		return err
 	}
