@@ -1104,7 +1104,7 @@ func (c *Client) PostImage(imageFile string, rootfsFile string, properties []str
 
 func (c *Client) GetImageInfo(image string) (*api.Image, error) {
 	if c.Remote.Protocol == "simplestreams" && c.simplestreams != nil {
-		return c.simplestreams.GetImageInfo(image)
+		return c.simplestreams.GetImage(image)
 	}
 
 	resp, err := c.get(fmt.Sprintf("images/%s", image))
@@ -1262,7 +1262,12 @@ func (c *Client) IsAlias(alias string) (bool, error) {
 
 func (c *Client) GetAlias(alias string) string {
 	if c.Remote.Protocol == "simplestreams" && c.simplestreams != nil {
-		return c.simplestreams.GetAlias(alias)
+		alias, err := c.simplestreams.GetAlias(alias)
+		if err != nil {
+			return ""
+		}
+
+		return alias.Target
 	}
 
 	resp, err := c.get(fmt.Sprintf("images/aliases/%s", alias))
