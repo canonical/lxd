@@ -701,6 +701,10 @@ var ObjectFound = fmt.Errorf("Found requested object.")
 func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
 	uuid := ""
 	readUUID := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		if (info.Mode() & os.ModeSymlink) == os.ModeSymlink {
 			link, err := os.Readlink(path)
 			if err != nil {
@@ -737,6 +741,10 @@ func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
 func LookupBlockDevByUUID(uuid string) (string, error) {
 	detectedPath := ""
 	readPath := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		if (info.Mode() & os.ModeSymlink) == os.ModeSymlink {
 			link, err := os.Readlink(path)
 			if err != nil {
