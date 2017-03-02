@@ -545,6 +545,9 @@ func containerCreateFromImage(d *Daemon, args containerArgs, hash string) (conta
 		}
 	}
 
+	// Set the BaseImage field (regardless of previous value)
+	args.BaseImage = hash
+
 	// Create the container
 	c, err := containerCreateInternal(d, args)
 	if err != nil {
