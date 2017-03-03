@@ -80,8 +80,9 @@ static int find_associated_loop_device(const char *loop_file,
 		fd = -1;
 
 		totlen = strlen(buf);
+
 		// Trim newlines.
-		while (buf[totlen - 1] == '\n')
+		while ((totlen > 0) && (buf[totlen - 1] == '\n'))
 			buf[--totlen] = '\0';
 
 		if (strcmp(buf, loop_file))
