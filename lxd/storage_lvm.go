@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/gorilla/websocket"
@@ -15,22 +14,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
-
-// lvmLoopDeviceCache is a hashmap that allows loop-backed LVM pools to store
-// the name of the associated loop device that is currently associated with the
-// loop file for the storage pool. This allows to avoid having to parse
-// "/sys/block" everytime in case we find that the file is still associated with
-// the loop device in question.
-var lvmLoopDeviceCache = map[string]string{}
-
-// lvmLoopDeviceCacheLock is used to access lvmLoopDeviceCache.
-var lvmLoopDeviceCacheLock sync.Mutex
-
-// The following function is used to construct a simple hashmap key that is
-// unique per pool.
-func getLvmPoolLoopDeviceLockID(poolName string) string {
-	return fmt.Sprintf("loop/pool/%s", poolName)
-}
 
 func storageVGActivate(lvmVolumePath string) error {
 	output, err := tryExec("vgchange", "-ay", lvmVolumePath)
@@ -484,6 +467,10 @@ func (s *storageLvm) StoragePoolCreate() error {
 				os.Remove(source)
 			}
 		}()
+		if s.loopInfo != nil {
+			defer s.loopInfo.Close()
+			defer func() { s.loopInfo = nil }()
+		}
 
 		// Check if the physical volume already exists.
 		loopDevicePath := s.loopInfo.Name()
@@ -587,6 +574,10 @@ func (s *storageLvm) StoragePoolDelete() error {
 	if err != nil {
 		return err
 	}
+	if s.loopInfo != nil {
+		defer s.loopInfo.Close()
+		defer func() { s.loopInfo = nil }()
+	}
 
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -672,37 +663,17 @@ func (s *storageLvm) StoragePoolMount() (bool, error) {
 	defer removeLockFromMap()
 
 	if filepath.IsAbs(source) && !shared.IsBlockdevPath(source) {
-		var loopErr error
-		var loopF *os.File
-		poolLoopDeviceLockID := getLvmPoolLoopDeviceLockID(s.pool.Name)
-
-		lvmLoopDeviceCacheLock.Lock()
-		loopDevice, ok := lvmLoopDeviceCache[poolLoopDeviceLockID]
-		if ok {
-			loopF, loopErr = loopDeviceHasBackingFile(loopDevice, source)
-			if loopErr == nil {
-				loopErr = unsetAutoclearOnLoopDev(int(loopF.Fd()))
-			}
-
-			if loopErr == nil {
-				s.loopInfo = loopF
-				lvmLoopDeviceCacheLock.Unlock()
-				return true, nil
-			}
-
-			// Something went wrong, so delete entry from cache.
-			delete(lvmLoopDeviceCache, poolLoopDeviceLockID)
-		}
-
 		// Try to prepare new loop device.
-		loopF, loopErr = prepareLoopDev(source, 0)
+		loopF, loopErr := prepareLoopDev(source, 0)
 		if loopErr != nil {
-			lvmLoopDeviceCacheLock.Unlock()
 			return false, fmt.Errorf("Could not prepare loop device: %s", loopErr)
 		}
-		lvmLoopDeviceCache[poolLoopDeviceLockID] = loopF.Name()
+		// Make sure that LO_FLAGS_AUTOCLEAR is unset.
+		loopErr = unsetAutoclearOnLoopDev(int(loopF.Fd()))
+		if loopErr != nil {
+			return false, loopErr
+		}
 		s.loopInfo = loopF
-		lvmLoopDeviceCacheLock.Unlock()
 	}
 
 	return true, nil
@@ -1730,6 +1701,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	shared.LogDebugf("Creating LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	tryUndo := true
+	trySubUndo := true
 
 	poolName := s.getOnDiskPoolName()
 	thinPoolName := s.getLvmThinpoolName()
@@ -1743,12 +1715,22 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if !trySubUndo {
+			return
+		}
+		err := s.deleteImageDbPoolVolume(fingerprint)
+		if err != nil {
+			shared.LogWarnf("Could not delete image \"%s\" from storage volume database. Manual intervention needed.", fingerprint)
+		}
+	}()
 
 	err = s.createThinLV(poolName, thinPoolName, fingerprint, lvFsType, lvSize, storagePoolVolumeApiEndpointImages)
 	if err != nil {
 		shared.LogErrorf("LVMCreateThinLV: %s.", err)
 		return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
 	}
+	trySubUndo = false
 	defer func() {
 		if tryUndo {
 			s.ImageDelete(fingerprint)
