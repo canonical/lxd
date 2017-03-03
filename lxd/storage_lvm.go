@@ -570,6 +570,11 @@ func (s *storageLvm) StoragePoolCreate() error {
 func (s *storageLvm) StoragePoolDelete() error {
 	shared.LogInfof("Deleting LVM storage pool \"%s\".", s.pool.Name)
 
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("No \"source\" property found for the storage pool.")
+	}
+
 	_, err := s.StoragePoolMount()
 	if err != nil {
 		return err
@@ -577,11 +582,6 @@ func (s *storageLvm) StoragePoolDelete() error {
 	if s.loopInfo != nil {
 		defer s.loopInfo.Close()
 		defer func() { s.loopInfo = nil }()
-	}
-
-	source := s.pool.Config["source"]
-	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
 	}
 
 	poolName := s.getOnDiskPoolName()
@@ -598,9 +598,6 @@ func (s *storageLvm) StoragePoolDelete() error {
 		if err != nil {
 			shared.LogWarnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s. Manual cleanup needed.", err)
 		}
-
-		defer s.loopInfo.Close()
-		defer func() { s.loopInfo = nil }()
 	}
 
 	if filepath.IsAbs(source) {
