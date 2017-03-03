@@ -154,7 +154,7 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 	case "set":
 		return c.doProfileSet(client, profile, args[2:])
 	case "unset":
-		return c.doProfileSet(client, profile, args[2:])
+		return c.doProfileUnset(client, profile, args[2:])
 	case "copy":
 		return c.doProfileCopy(config, client, profile, args[2:])
 	case "show":
@@ -413,6 +413,15 @@ func (c *profileCmd) doProfileSet(client *lxd.Client, p string, args []string) e
 
 	err := client.SetProfileConfigItem(p, key, value)
 	return err
+}
+
+func (c *profileCmd) doProfileUnset(client *lxd.Client, p string, args []string) error {
+	// we shifted @args so so it should read "<key> [<value>]"
+	if len(args) != 1 {
+		return errArgs
+	}
+
+	return c.doProfileSet(client, p, args)
 }
 
 func (c *profileCmd) doProfileList(config *lxd.Config, args []string) error {
