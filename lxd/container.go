@@ -107,6 +107,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "parent":
 			return true
+		case "vlan":
+			return true
 		case "ipv4.address":
 			return true
 		case "ipv6.address":
