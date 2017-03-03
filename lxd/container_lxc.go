@@ -1224,8 +1224,13 @@ func (c *containerLXC) initLXC() error {
 				return err
 			}
 
-			if shared.StringInSlice(m["nictype"], []string{"bridged", "physical", "macvlan"}) {
+			if shared.StringInSlice(m["nictype"], []string{"bridged", "physical"}) {
 				err = lxcSetConfigItem(cc, "lxc.network.link", m["parent"])
+				if err != nil {
+					return err
+				}
+			} else if m["nictype"] == "macvlan" {
+				err = lxcSetConfigItem(cc, "lxc.network.link", networkGetHostDevice(m["parent"], m["vlan"]))
 				if err != nil {
 					return err
 				}
@@ -1489,8 +1494,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	// Sanity checks for devices
-	for _, name := range c.expandedDevices.DeviceNames() {
-		m := c.expandedDevices[name]
+	for name, m := range c.expandedDevices {
 		switch m["type"] {
 		case "disk":
 			// When we want to attach a storage volume created via
@@ -1742,6 +1746,17 @@ func (c *containerLXC) startCommon() (string, error) {
 				err = c.createNetworkFilter(vethName, m["parent"], m["hwaddr"])
 				if err != nil {
 					return "", err
+				}
+			}
+
+			// Create VLAN devices
+			if m["nictype"] == "macvlan" && m["vlan"] != "" {
+				device := networkGetHostDevice(m["parent"], m["vlan"])
+				if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", device)) {
+					err := shared.RunCommand("ip", "link", "add", "link", m["parent"], "name", device, "up", "type", "vlan", "id", m["vlan"])
+					if err != nil {
+						return "", err
+					}
 				}
 			}
 		}
@@ -5539,8 +5554,19 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 
 	// Handle macvlan
 	if m["nictype"] == "macvlan" {
+		// Deal with VLAN
+		device := m["parent"]
+		if m["vlan"] != "" {
+			device = networkGetHostDevice(m["parent"], m["vlan"])
+			if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", device)) {
+				err := shared.RunCommand("ip", "link", "add", "link", m["parent"], "name", device, "up", "type", "vlan", "id", m["vlan"])
+				if err != nil {
+					return "", err
+				}
+			}
+		}
 
-		err := exec.Command("ip", "link", "add", n1, "link", m["parent"], "type", "macvlan", "mode", "bridge").Run()
+		err := exec.Command("ip", "link", "add", n1, "link", device, "type", "macvlan", "mode", "bridge").Run()
 		if err != nil {
 			return "", fmt.Errorf("Failed to create the new macvlan interface: %s", err)
 		}

@@ -213,6 +213,7 @@ host\_name              | string    | randomly assigned | no        | bridged, p
 hwaddr                  | string    | randomly assigned | no        | all                           | -             | The MAC address of the new interface
 mtu                     | integer   | parent MTU        | no        | all                           | -             | The MTU of the new interface
 parent                  | string    | -                 | yes       | physical, bridged, macvlan    | -             | The name of the host device or bridge
+vlan                    | integer   | -                 | no        | macvlan                       | network\_vlan | The VLAN ID to attach to
 ipv4.address            | string    | -                 | no        | bridged                       | network       | An IPv4 address to assign to the container through DHCP
 ipv6.address            | string    | -                 | no        | bridged                       | network       | An IPv6 address to assign to the container through DHCP
 security.mac\_filtering | boolean   | false             | no        | bridged                       | network       | Prevent the container from spoofing another's MAC address
