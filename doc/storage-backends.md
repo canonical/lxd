@@ -75,3 +75,13 @@ rsync is used to transfer the container content across.
  - Note that LXD will assume it has full control over the zfs pool or dataset.
    It is recommended to not maintain any non-LXD owned filesystem entities in
    a LXD zfs pool or dataset since LXD might delete them.
+
+#### Growing a loop backed ZFS pool
+LXD doesn't let you directly grow a loop backed ZFS pool, but you can do so with:
+
+```
+sudo truncate -s +5G /var/lib/lxd/zfs.img
+sudo zpool set autoexpand=on lxd
+sudo zpool online -e lxd /var/lib/lxd/zfs.img
+sudo zpool set autoexpand=off lxd
+```
