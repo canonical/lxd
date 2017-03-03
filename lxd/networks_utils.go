@@ -105,12 +105,52 @@ func networkIsInUse(c container, name string) bool {
 			continue
 		}
 
-		if d["parent"] == name {
+		if networkGetHostDevice(d["parent"], d["vlan"]) == name {
 			return true
 		}
 	}
 
 	return false
+}
+
+func networkGetHostDevice(parent string, vlan string) string {
+	// If no VLAN, just use the raw device
+	if vlan == "" {
+		return parent
+	}
+
+	// If no VLANs are configured, use the default pattern
+	defaultVlan := fmt.Sprintf("%s.%s", parent, vlan)
+	if !shared.PathExists("/proc/net/vlan/config") {
+		return defaultVlan
+	}
+
+	// Look for an existing VLAN
+	f, err := os.Open("/proc/net/vlan/config")
+	if err != nil {
+		return defaultVlan
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		// Only grab the lines we're interested in
+		s := strings.Split(scanner.Text(), "|")
+		if len(s) != 3 {
+			continue
+		}
+
+		vlanIface := strings.TrimSpace(s[0])
+		vlanId := strings.TrimSpace(s[1])
+		vlanParent := strings.TrimSpace(s[2])
+
+		if vlanParent == parent && vlanId == vlan {
+			return vlanIface
+		}
+	}
+
+	// Return the default pattern
+	return defaultVlan
 }
 
 func networkGetIP(subnet *net.IPNet, host int64) net.IP {
