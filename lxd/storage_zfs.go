@@ -115,7 +115,7 @@ func (s *storageZfs) StoragePoolCheck() error {
 			return fmt.Errorf("ZFS storage pool \"%s\" could not be imported: %s.", poolName, string(output))
 		}
 
-		shared.LogDebugf("ZFS storage pool \"%s\" succesfully imported.", poolName)
+		shared.LogDebugf("ZFS storage pool \"%s\" successfully imported.", poolName)
 	}
 
 	return nil
