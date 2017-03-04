@@ -2919,21 +2919,57 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					memory = fmt.Sprintf("%d", valueInt)
 				}
 
+				// Store the old values for revert
+				oldMemswLimit := ""
+				if cgSwapAccounting {
+					oldMemswLimit, err = c.CGroupGet("memory.memsw.limit_in_bytes")
+					if err != nil {
+						oldMemswLimit = ""
+					}
+				}
+
+				oldLimit, err := c.CGroupGet("memory.limit_in_bytes")
+				if err != nil {
+					oldLimit = ""
+				}
+
+				oldSoftLimit, err := c.CGroupGet("memory.soft_limit_in_bytes")
+				if err != nil {
+					oldSoftLimit = ""
+				}
+
+				revertMemory := func() {
+					if oldSoftLimit != "" {
+						c.CGroupSet("memory.soft_limit_in_bytes", oldSoftLimit)
+					}
+
+					if oldLimit != "" {
+						c.CGroupSet("memory.limit_in_bytes", oldLimit)
+					}
+
+					if oldMemswLimit != "" {
+						c.CGroupSet("memory.memsw.limit_in_bytes", oldMemswLimit)
+					}
+				}
+
 				// Reset everything
 				if cgSwapAccounting {
 					err = c.CGroupSet("memory.memsw.limit_in_bytes", "-1")
 					if err != nil {
+						revertMemory()
 						return err
 					}
 				}
 
 				err = c.CGroupSet("memory.limit_in_bytes", "-1")
 				if err != nil {
+					revertMemory()
 					return err
 				}
 
 				err = c.CGroupSet("memory.soft_limit_in_bytes", "-1")
 				if err != nil {
+					revertMemory()
 					return err
 				}
 
@@ -2942,21 +2978,26 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 					// Set new limit
 					err = c.CGroupSet("memory.soft_limit_in_bytes", memory)
 					if err != nil {
+						revertMemory()
 						return err
 					}
 				} else {
 					if cgSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 						err = c.CGroupSet("memory.limit_in_bytes", memory)
 						if err != nil {
+							revertMemory()
 							return err
 						}
+
 						err = c.CGroupSet("memory.memsw.limit_in_bytes", memory)
 						if err != nil {
+							revertMemory()
 							return err
 						}
 					} else {
 						err = c.CGroupSet("memory.limit_in_bytes", memory)
 						if err != nil {
+							revertMemory()
 							return err
 						}
 					}
