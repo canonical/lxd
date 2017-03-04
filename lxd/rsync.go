@@ -89,11 +89,12 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 // directory pointed to by path over the websocket.
 func RsyncSend(path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser) error {
 	cmd, dataSocket, stderr, err := rsyncSendSetup(path)
-	if dataSocket != nil {
-		defer dataSocket.Close()
-	}
 	if err != nil {
 		return err
+	}
+
+	if dataSocket != nil {
+		defer dataSocket.Close()
 	}
 
 	readPipe := io.ReadCloser(dataSocket)
@@ -105,12 +106,12 @@ func RsyncSend(path string, conn *websocket.Conn, readWrapper func(io.ReadCloser
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		shared.LogDebugf("problem reading rsync stderr %s", err)
+		return err
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.LogDebugf("problem with rsync send of %s: %s: %s", path, err, string(output))
+		shared.LogErrorf("Rsync send failed: %s: %s: %s", path, err, string(output))
 	}
 
 	<-readDone
@@ -157,15 +158,14 @@ func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteClos
 	}
 
 	readDone, writeDone := shared.WebsocketMirror(conn, writePipe, stdout, nil, nil)
-	data, err2 := ioutil.ReadAll(stderr)
-	if err2 != nil {
-		shared.LogDebugf("error reading rsync stderr: %s", err2)
-		return err2
+	output, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return err
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.LogDebugf("rsync recv error for path %s: %s: %s", path, err, string(data))
+		shared.LogErrorf("Rsync receive failed: %s: %s: %s", path, err, string(output))
 	}
 
 	<-readDone
