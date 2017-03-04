@@ -160,3 +160,13 @@ lxc storage create pool1 zfs source=/dev/sdX
 ```
 lxc storage create pool1 zfs source=/dev/sdX zfs.pool_name=my-tank
 ```
+
+#### Growing a loop backed ZFS pool
+LXD doesn't let you directly grow a loop backed ZFS pool, but you can do so with:
+
+```
+sudo truncate -s +5G /var/lib/lxd/disks/<POOL>.img
+sudo zpool set autoexpand=on lxd
+sudo zpool online -e lxd /var/lib/lxd/disks/<POOL>.img
+sudo zpool set autoexpand=off lxd
+```
