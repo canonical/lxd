@@ -44,6 +44,12 @@ rsync is used to transfer the container content across.
 lxc storage create pool1 dir
 ```
 
+* Use an existing directory for "pool2".
+
+```
+lxc storage create pool2 dir source=/data/lxd
+```
+
 ### Btrfs
 
  - Uses a subvolume per container, image and snapshot, creating btrfs snapshots when creating a new object.
@@ -63,14 +69,11 @@ lxc storage create pool1 btrfs
 lxc storage create pool1 btrfs source=/some/path
 ```
 
-
 - Create a new pool called "pool1" on "/dev/sdX".
 
 ```
-lxc storage create pool1 zfs source=/dev/sdX
+lxc storage create pool1 btrfs source=/dev/sdX
 ```
-
-
 
 ### LVM
 
@@ -79,19 +82,25 @@ lxc storage create pool1 zfs source=/dev/sdX
 
 #### The following commands can be used to create LVM storage pools
 
-- Use the existing volume group "my-pool"
+- Create a loop-backed pool named "pool1". The LVM Volume Group will also be called "pool1".
+
+```
+lxc storage create pool1 lvm
+```
+
+- Use the existing LVM Volume Group called "my-pool"
 
 ```
 lxc storage create pool1 lvm source=my-pool
 ```
 
-- Create new pool named "pool1" on "/dev/sdX".
+- Create a new pool named "pool1" on "/dev/sdX". The LVM Volume Group will also be called "pool1".
 
 ```
 lxc storage create pool1 lvm source=/dev/sdX
 ```
 
-- Create new pool on "/dev/sdX" with the volume group name "my-pool".
+- Create a new pool called "pool1" using "/dev/sdX" with the LVM Volume Group called "my-pool".
 
 ```
 lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
@@ -125,37 +134,37 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
 
 #### The following commands can be used to create ZFS storage pools
 
-- Create a loop-backed pool named "pool1".
+- Create a loop-backed pool named "pool1". The ZFS Zpool will also be called "pool1".
 
 ```
 lxc storage create pool1 zfs
 ```
 
-- Create a loop-backed pool named "pool1" with the on-disk name "my-tank".
+- Create a loop-backed pool named "pool1" with the ZFS Zpool called "my-tank".
 
 ```
-lxc storage create pool1 zfs zfs.pool_name=my-tank
+lxc storage create pool1 zfs zfs.pool\_name=my-tank
 ```
 
-- Use the existing pool "my-tank".
+- Use the existing ZFS Zpool "my-tank".
 
 ```
 lxc storage create pool1 zfs source=my-tank
 ```
 
-- Use the existing dataset "my-tank/slice".
+- Use the existing ZFS dataset "my-tank/slice".
 
 ```
 lxc storage create pool1 zfs source=my-tank/slice
 ```
 
-- Create a new pool called "pool1" on "/dev/sdX".
+- Create a new pool called "pool1" on "/dev/sdX". The ZFS Zpool will also be called "pool1".
 
 ```
 lxc storage create pool1 zfs source=/dev/sdX
 ```
 
-- Create a new pool on "/dev/sdX" with the on-disk name "my-tank".
+- Create a new pool on "/dev/sdX" with the ZFS Zpool called "my-tank".
 
 ```
 lxc storage create pool1 zfs source=/dev/sdX zfs.pool_name=my-tank
