@@ -109,8 +109,12 @@ func run() error {
 	}
 	cmd.flags()
 	gnuflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, i18n.G("Usage: %s")+"\n\n"+i18n.G("Options:")+"\n\n", strings.TrimSpace(cmd.usage()))
+		fmt.Print(cmd.usage())
+		fmt.Printf("\n\n%s\n", i18n.G("Options:"))
+
+		gnuflag.SetOut(os.Stdout)
 		gnuflag.PrintDefaults()
+		os.Exit(0)
 	}
 
 	os.Args = os.Args[1:]
@@ -145,7 +149,15 @@ func run() error {
 		if !*noAlias {
 			execIfAliases(config, origArgs)
 		}
-		fmt.Fprintf(os.Stderr, "%s\n\n"+i18n.G("error: %v")+"\n", cmd.usage(), err)
+
+		fmt.Fprintf(os.Stderr, i18n.G("error: %v"), err)
+		fmt.Fprintf(os.Stderr, "\n\n")
+		fmt.Fprint(os.Stderr, cmd.usage())
+		fmt.Fprintf(os.Stderr, "\n\n%s\n", i18n.G("Options:"))
+
+		gnuflag.SetOut(os.Stderr)
+		gnuflag.PrintDefaults()
+
 		os.Exit(1)
 	}
 	return err
