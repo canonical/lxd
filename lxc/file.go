@@ -30,20 +30,25 @@ func (c *fileCmd) showByDefault() bool {
 
 func (c *fileCmd) usage() string {
 	return i18n.G(
-		`Manage files in a container.
+		`Usage: lxc file <subcommand> [options]
 
-lxc file pull [<remote>:]<container> [[<remote>:]<container>...] <target path>
-lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source path> [<source path>...] [<remote>:]<container>
+Manage files in containers.
+
+lxc file pull [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...] <target path>
+    Pull files from containers.
+
+lxc file push [--uid=UID] [--gid=GID] [--mode=MODE] <source path> [<source path>...] [<remote>:]<container>/<path>
+    Push files into containers.
+
 lxc file edit [<remote>:]<container>/<path>
+    Edit files in containers using the default text editor.
 
-<source> in the case of pull, <target> in the case of push and <file> in the case of edit are <container name>/<path>
+*Examples*
+lxc file push /etc/hosts foo/etc/hosts
+   To push /etc/hosts into the container "foo".
 
-Examples:
-To push /etc/hosts into the container foo:
-    lxc file push /etc/hosts foo/etc/hosts
-
-To pull /etc/hosts from the container:
-    lxc file pull foo/etc/hosts .`)
+lxc file pull foo/etc/hosts .
+   To pull /etc/hosts from the container and write it to the current directory.`)
 }
 
 func (c *fileCmd) flags() {
@@ -278,7 +283,7 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 
 func (c *fileCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 1 {
-		return errArgs
+		return errUsage
 	}
 
 	switch args[0] {
