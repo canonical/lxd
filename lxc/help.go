@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -23,9 +20,9 @@ func (c *helpCmd) showByDefault() bool {
 
 func (c *helpCmd) usage() string {
 	return i18n.G(
-		`Help page for the LXD client.
+		`Usage: lxc help [--all]
 
-lxc help [--all]`)
+Help page for the LXD client.`)
 }
 
 func (c *helpCmd) flags() {
@@ -46,43 +43,40 @@ func (c *helpCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	fmt.Println(i18n.G("Usage: lxc <command> [options]"))
-	fmt.Println(i18n.G("Available commands:"))
+	fmt.Println()
+	fmt.Println(i18n.G(`This is the LXD command line client.
+
+All of LXD's features can be driven through the various commands below.
+For help with any of those, simply call them with --help.`))
+	fmt.Println()
+
+	fmt.Println(i18n.G("Commands:"))
 	var names []string
 	for name := range commands {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
+		if name == "help" {
+			continue
+		}
+
 		cmd := commands[name]
 		if c.showAll || cmd.showByDefault() {
-			fmt.Printf("\t%-10s - %s\n", name, c.summaryLine(cmd.usage()))
+			fmt.Printf("  %-16s %s\n", name, summaryLine(cmd.usage()))
 		}
 	}
-	if !c.showAll {
-		fmt.Println()
-		fmt.Println(i18n.G("Options:"))
-		fmt.Println("  --all              " + i18n.G("Print less common commands"))
-		fmt.Println("  --debug            " + i18n.G("Print debug information"))
-		fmt.Println("  --verbose          " + i18n.G("Print verbose information"))
-		fmt.Println("  --version          " + i18n.G("Show client version"))
-		fmt.Println()
-		fmt.Println(i18n.G("Environment:"))
-		fmt.Println("  LXD_CONF           " + i18n.G("Path to an alternate client configuration directory"))
-		fmt.Println("  LXD_DIR            " + i18n.G("Path to an alternate server directory"))
-	}
-	return nil
-}
 
-// summaryLine returns the first line of the help text. Conventionally, this
-// should be a one-line command summary, potentially followed by a longer
-// explanation.
-func (c *helpCmd) summaryLine(usage string) string {
-	usage = strings.TrimSpace(usage)
-	s := bufio.NewScanner(bytes.NewBufferString(usage))
-	if s.Scan() {
-		if len(s.Text()) > 1 {
-			return s.Text()
-		}
-	}
-	return i18n.G("Missing summary.")
+	fmt.Println()
+	fmt.Println(i18n.G("Options:"))
+	fmt.Println("  --all            " + i18n.G("Print less common commands"))
+	fmt.Println("  --debug          " + i18n.G("Print debug information"))
+	fmt.Println("  --verbose        " + i18n.G("Print verbose information"))
+	fmt.Println("  --version        " + i18n.G("Show client version"))
+	fmt.Println()
+	fmt.Println(i18n.G("Environment:"))
+	fmt.Println("  LXD_CONF         " + i18n.G("Path to an alternate client configuration directory"))
+	fmt.Println("  LXD_DIR          " + i18n.G("Path to an alternate server directory"))
+
+	return nil
 }
