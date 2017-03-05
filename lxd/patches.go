@@ -40,6 +40,7 @@ var patches = []patch{
 	{name: "storage_api_lvm_keys", run: patchStorageApiLvmKeys},
 	{name: "storage_api_keys", run: patchStorageApiKeys},
 	{name: "storage_api_update_storage_configs", run: patchStorageApiUpdateStorageConfigs},
+	{name: "storage_api_lxd_on_btrfs", run: patchStorageApiLxdOnBtrfs},
 }
 
 type patch struct {
@@ -1872,6 +1873,63 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
+	pools, err := dbStoragePools(d.db)
+	if err != nil {
+		if err == NoSuchObjectError {
+			return nil
+		}
+		shared.LogErrorf("Failed to query database: %s", err)
+		return err
+	}
+
+	for _, poolName := range pools {
+		_, pool, err := dbStoragePoolGet(d.db, poolName)
+		if err != nil {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
+		}
+
+		// Make sure that config is not empty.
+		if pool.Config == nil {
+			pool.Config = map[string]string{}
+
+			// Insert default values.
+			err = storagePoolFillDefault(poolName, pool.Driver, pool.Config)
+			if err != nil {
+				return err
+			}
+		}
+
+		if d.BackingFs != "btrfs" {
+			continue
+		}
+
+		if pool.Driver != "btrfs" {
+			continue
+		}
+
+		source := pool.Config["source"]
+		cleanSource := filepath.Clean(source)
+		loopFilePath := shared.VarPath("disks", poolName+".img")
+		if cleanSource != loopFilePath {
+			continue
+		}
+
+		pool.Config["source"] = getStoragePoolMountPoint(poolName)
+
+		// Update the storage pool config.
+		err = dbStoragePoolUpdate(d.db, poolName, pool.Config)
+		if err != nil {
+			return err
+		}
+
+		os.Remove(loopFilePath)
 	}
 
 	return nil
