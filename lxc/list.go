@@ -44,41 +44,85 @@ func (c *listCmd) showByDefault() bool {
 
 func (c *listCmd) usage() string {
 	return i18n.G(
-		`Lists the containers.
+		`Usage: lxc list [<remote>:] [filters] [--format table|json] [-c <columns>] [--fast]
 
-lxc list [<remote>:] [filters] [--format table|json] [-c <columns>] [--fast]
-
-The filters are:
-* A single keyword like "web" which will list any container with a name starting by "web".
-* A regular expression on the container name. (e.g. .*web.*01$)
-* A key/value pair referring to a configuration item. For those, the namespace can be abbreviated to the smallest unambiguous identifier:
- * "user.blah=abc" will list all containers with the "blah" user property set to "abc".
- * "u.blah=abc" will do the same
- * "security.privileged=1" will list all privileged containers
- * "s.privileged=1" will do the same
-* A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*)
-
-Columns for table format are:
-* 4 - IPv4 address
-* 6 - IPv6 address
-* a - architecture
-* c - creation date
-* n - name
-* p - pid of container init process
-* P - profiles
-* s - state
-* S - number of snapshots
-* t - type (persistent or ephemeral)
+List the existing containers.
 
 Default column layout: ns46tS
-Fast column layout: nsacPt`)
+Fast column layout: nsacPt
+
+*Filters*
+A single keyword like "web" which will list any container with a name starting by "web".
+
+A regular expression on the container name. (e.g. .*web.*01$).
+
+A key/value pair referring to a configuration item. For those, the namespace can be abbreviated to the smallest unambiguous identifier.
+    - "user.blah=abc" will list all containers with the "blah" user property set to "abc".
+
+    - "u.blah=abc" will do the same
+
+    - "security.privileged=1" will list all privileged containers
+
+    - "s.privileged=1" will do the same
+
+A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*).
+
+*Columns*
+The -c option takes a comma separated list of arguments that control
+which container attributes to output when displaying in table format.
+
+Column arguments are either pre-defined shorthand chars (see below),
+or (extended) config keys.
+
+Commas between consecutive shorthand chars are optional.
+
+Pre-defined column shorthand chars:
+
+    4 - IPv4 address
+
+    6 - IPv6 address
+
+    a - Architecture
+
+    c - Creation date
+
+    l - Last used date
+
+    n - Name
+
+    p - PID of the container's init process
+
+    P - Profiles
+
+    s - State
+
+    S - Number of snapshots
+
+    t - Type (persistent or ephemeral)
+
+Custom columns are defined with "key[:name][:maxWidth]":
+
+    KEY: The (extended) config key to display
+
+    NAME: Name to display in the column header.
+    Defaults to the key if not specified or empty.
+
+    MAXWIDTH: Max width of the column (longer results are truncated).
+    Defaults to -1 (unlimited). Use 0 to limit to the column header size.
+
+*Examples*
+lxc list -c n,volatile.base_image:"BASE IMAGE":0,s46,volatile.eth0.hwaddr:MAC
+    Shows a list of containers using the "NAME", "BASE IMAGE", "STATE", "IPV4",
+    "IPV6" and "MAC" columns.
+
+    "BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.`)
 }
 
 func (c *listCmd) flags() {
 	gnuflag.StringVar(&c.chosenColumnRunes, "c", "ns46tS", i18n.G("Columns"))
 	gnuflag.StringVar(&c.chosenColumnRunes, "columns", "ns46tS", i18n.G("Columns"))
 	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format"))
-	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt"))
+	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt)"))
 }
 
 // This seems a little excessive.
