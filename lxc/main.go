@@ -16,8 +16,11 @@ import (
 )
 
 var configPath string
+var execName string
 
 func main() {
+	execName = os.Args[0]
+
 	if err := run(); err != nil {
 		msg := fmt.Sprintf(i18n.G("error: %v"), err)
 
@@ -139,24 +142,35 @@ func run() error {
 	}
 
 	err = cmd.run(config, gnuflag.Args())
-	if err == errArgs {
-		/* If we got an error about invalid arguments, let's try to
-		 * expand this as an alias
-		 */
-		if !*noAlias {
-			execIfAliases(config, origArgs)
+	if err == errArgs || err == errUsage {
+		out := os.Stdout
+		if err == errArgs {
+			/* If we got an error about invalid arguments, let's try to
+			 * expand this as an alias
+			 */
+			if !*noAlias {
+				execIfAliases(config, origArgs)
+			}
+
+			out = os.Stderr
 		}
+		gnuflag.SetOut(out)
 
-		fmt.Fprintf(os.Stderr, i18n.G("error: %v"), err)
-		fmt.Fprintf(os.Stderr, "\n\n")
-		fmt.Fprint(os.Stderr, cmd.usage())
-		fmt.Fprintf(os.Stderr, "\n\n%s\n", i18n.G("Options:"))
+		if err == errArgs {
+			fmt.Fprintf(out, i18n.G("error: %v"), err)
+			fmt.Fprintf(out, "\n\n")
+		}
+		fmt.Fprint(out, cmd.usage())
+		fmt.Fprintf(out, "\n\n%s\n", i18n.G("Options:"))
 
-		gnuflag.SetOut(os.Stderr)
 		gnuflag.PrintDefaults()
 
-		os.Exit(1)
+		if err == errArgs {
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
+
 	return err
 }
 
@@ -183,38 +197,42 @@ var commands = map[string]command{
 	"monitor": &monitorCmd{},
 	"move":    &moveCmd{},
 	"pause": &actionCmd{
-		action:         shared.Freeze,
-		name:           "pause",
-		additionalHelp: i18n.G("The opposite of `lxc pause` is `lxc start`."),
+		action:      shared.Freeze,
+		description: i18n.G("Pause containers."),
+		name:        "pause",
 	},
 	"profile": &profileCmd{},
 	"publish": &publishCmd{},
 	"remote":  &remoteCmd{},
 	"restart": &actionCmd{
-		action:     shared.Restart,
-		hasTimeout: true,
-		visible:    true,
-		name:       "restart",
-		timeout:    -1,
+		action:      shared.Restart,
+		description: i18n.G("Restart containers."),
+		hasTimeout:  true,
+		visible:     true,
+		name:        "restart",
+		timeout:     -1,
 	},
 	"restore":  &restoreCmd{},
 	"snapshot": &snapshotCmd{},
 	"start": &actionCmd{
-		action:  shared.Start,
-		visible: true,
-		name:    "start",
+		action:      shared.Start,
+		description: i18n.G("Start containers."),
+		visible:     true,
+		name:        "start",
 	},
 	"stop": &actionCmd{
-		action:     shared.Stop,
-		hasTimeout: true,
-		visible:    true,
-		name:       "stop",
-		timeout:    -1,
+		action:      shared.Stop,
+		description: i18n.G("Stop containers."),
+		hasTimeout:  true,
+		visible:     true,
+		name:        "stop",
+		timeout:     -1,
 	},
 	"version": &versionCmd{},
 }
 
 var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
+var errUsage = fmt.Errorf("show usage")
 
 func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
 	foundAlias := false

@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
-	"sort"
+	"os"
+	"os/exec"
+	"path/filepath"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -16,32 +18,49 @@ func (c *manpageCmd) showByDefault() bool {
 
 func (c *manpageCmd) usage() string {
 	return i18n.G(
-		`Print all the subcommands help.`)
+		`Usage: lxc manpage <directory>
+
+Generate all the LXD manpages.`)
 }
 
 func (c *manpageCmd) flags() {
 }
 
 func (c *manpageCmd) run(_ *lxd.Config, args []string) error {
-	if len(args) > 0 {
+	if len(args) != 1 {
 		return errArgs
 	}
 
-	keys := []string{}
-	for k := range commands {
-		keys = append(keys, k)
+	_, err := exec.LookPath("help2man")
+	if err != nil {
+		return fmt.Errorf(i18n.G("Unable to find help2man."))
 	}
-	sort.Strings(keys)
 
-	header := false
-	for _, k := range keys {
-		if header {
-			fmt.Printf("\n\n")
+	help2man := func(command string, title string, path string) error {
+		target, err := os.Create(path)
+		if err != nil {
+			return err
 		}
+		defer target.Close()
 
-		fmt.Printf("### lxc %s\n", k)
-		commands["help"].run(nil, []string{k})
-		header = true
+		cmd := exec.Command("help2man", command, "-n", title, "--no-info")
+		cmd.Stdout = target
+
+		return cmd.Run()
+	}
+
+	// Generate the main manpage
+	err = help2man(execName, "LXD - client", filepath.Join(args[0], fmt.Sprintf("lxc.1")))
+	if err != nil {
+		return fmt.Errorf(i18n.G("Failed to generate 'lxc.1': %v"), err)
+	}
+
+	// Generate the pages for the subcommands
+	for k, cmd := range commands {
+		err := help2man(fmt.Sprintf("%s %s", execName, k), summaryLine(cmd.usage()), filepath.Join(args[0], fmt.Sprintf("lxc.%s.1", k)))
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to generate 'lxc.%s.1': %v"), k, err)
+		}
 	}
 
 	return nil
