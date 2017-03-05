@@ -341,8 +341,13 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	}
 
 	mountSource := source
+	isBlockDev := shared.IsBlockdevPath(source)
 	if filepath.IsAbs(source) {
-		if !shared.IsBlockdevPath(source) && s.d.BackingFs != "btrfs" {
+		loopFilePath := shared.VarPath("disks", s.pool.Name+".img")
+		if !isBlockDev && source == loopFilePath {
+			// If source == "${LXD_DIR}"/disks/{pool_name} it is a
+			// loop file we're dealing with.
+			//
 			// Since we mount the loop device LO_FLAGS_AUTOCLEAR is
 			// fine since the loop device will be kept around for as
 			// long as the mount exists.
@@ -352,9 +357,11 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 			}
 			mountSource = loopF.Name()
 			defer loopF.Close()
-		} else {
+		} else if !isBlockDev && s.d.BackingFs == "btrfs" {
+			// User is using btrfs subvolume as pool.
 			return false, nil
 		}
+		// User is using block device path.
 	} else {
 		// Try to lookup the disk device by UUID but don't fail. If we
 		// don't find one this might just mean we have been given the
