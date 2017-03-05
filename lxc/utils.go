@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 // Progress tracking
@@ -150,4 +152,23 @@ func runBatch(names []string, action func(name string) error) []batchResult {
 	}
 
 	return results
+}
+
+// summaryLine returns the first line of the help text. Conventionally, this
+// should be a one-line command summary, potentially followed by a longer
+// explanation.
+func summaryLine(usage string) string {
+	for _, line := range strings.Split(usage, "\n") {
+		if strings.HasPrefix(line, "Usage:") {
+			continue
+		}
+
+		if len(line) == 0 {
+			continue
+		}
+
+		return strings.TrimSuffix(line, ".")
+	}
+
+	return i18n.G("Missing summary.")
 }
