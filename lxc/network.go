@@ -47,32 +47,56 @@ func (c *networkCmd) networkEditHelp() string {
 
 func (c *networkCmd) usage() string {
 	return i18n.G(
-		`Manage networks.
+		`Usage: lxc network <subcommand> [options]
 
-lxc network list [<remote>:]                              List available networks.
-lxc network show [<remote>:]<network>                     Show details of a network.
-lxc network create [<remote>:]<network> [key=value...]    Create a network.
-lxc network get [<remote>:]<network> <key>                Get network configuration.
-lxc network set [<remote>:]<network> <key> <value>        Set network configuration.
-lxc network unset [<remote>:]<network> <key>              Unset network configuration.
-lxc network delete [<remote>:]<network>                   Delete a network.
+Manage and attach containers to networks.
+
+lxc network list [<remote>:]
+    List available networks.
+
+lxc network show [<remote>:]<network>
+    Show details of a network.
+
+lxc network create [<remote>:]<network> [key=value...]
+    Create a network.
+
+lxc network get [<remote>:]<network> <key>
+    Get network configuration.
+
+lxc network set [<remote>:]<network> <key> <value>
+    Set network configuration.
+
+lxc network unset [<remote>:]<network> <key>
+    Unset network configuration.
+
+lxc network delete [<remote>:]<network>
+    Delete a network.
+
 lxc network edit [<remote>:]<network>
     Edit network, either by launching external editor or reading STDIN.
-    Example: lxc network edit <network> # launch editor
-             cat network.yaml | lxc network edit <network> # read from network.yaml
 
 lxc network attach [<remote>:]<network> <container> [device name] [interface name]
+    Attach a network interface connecting the network to a specified container.
+
 lxc network attach-profile [<remote>:]<network> <profile> [device name] [interface name]
+    Attach a network interface connecting the network to a specified profile.
 
 lxc network detach [<remote>:]<network> <container> [device name]
-lxc network detach-profile [<remote>:]<network> <container> [device name]`)
+    Remove a network interface connecting the network to a specified container.
+
+lxc network detach-profile [<remote>:]<network> <container> [device name]
+    Remove a network interface connecting the network to a specified profile.
+
+*Examples*
+cat network.yaml | lxc network edit <network>
+    Update a network using the content of network.yaml`)
 }
 
 func (c *networkCmd) flags() {}
 
 func (c *networkCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 1 {
-		return errArgs
+		return errUsage
 	}
 
 	if args[0] == "list" {
