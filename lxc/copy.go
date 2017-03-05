@@ -21,9 +21,9 @@ func (c *copyCmd) showByDefault() bool {
 
 func (c *copyCmd) usage() string {
 	return i18n.G(
-		`Copy containers within or in between LXD instances.
+		`Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] [--ephemeral|e]
 
-lxc copy [<remote>:]<source>[/<snapshot>] [<remote>:]<destination> [--ephemeral|e]`)
+Copy containers within or in between LXD instances.`)
 }
 
 func (c *copyCmd) flags() {
