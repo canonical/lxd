@@ -16,8 +16,11 @@ import (
 )
 
 var configPath string
+var execName string
 
 func main() {
+	execName = os.Args[0]
+
 	if err := run(); err != nil {
 		msg := fmt.Sprintf(i18n.G("error: %v"), err)
 
@@ -62,12 +65,8 @@ func run() error {
 		os.Args = append(os.Args, "--all")
 	}
 
-	if len(os.Args) == 2 && os.Args[1] == "--version" {
-		os.Args[1] = "version"
-	}
-
-	if len(os.Args) == 2 && os.Args[1] == "--man" {
-		os.Args[1] = "manpage"
+	if shared.StringInSlice("--version", os.Args) {
+		os.Args = []string{os.Args[0], "version"}
 	}
 
 	if len(os.Args) < 2 {
@@ -109,8 +108,12 @@ func run() error {
 	}
 	cmd.flags()
 	gnuflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, i18n.G("Usage: %s")+"\n\n"+i18n.G("Options:")+"\n\n", strings.TrimSpace(cmd.usage()))
+		fmt.Print(cmd.usage())
+		fmt.Printf("\n\n%s\n", i18n.G("Options:"))
+
+		gnuflag.SetOut(os.Stdout)
 		gnuflag.PrintDefaults()
+		os.Exit(0)
 	}
 
 	os.Args = os.Args[1:]
@@ -138,16 +141,35 @@ func run() error {
 	}
 
 	err = cmd.run(config, gnuflag.Args())
-	if err == errArgs {
-		/* If we got an error about invalid arguments, let's try to
-		 * expand this as an alias
-		 */
-		if !*noAlias {
-			execIfAliases(config, origArgs)
+	if err == errArgs || err == errUsage {
+		out := os.Stdout
+		if err == errArgs {
+			/* If we got an error about invalid arguments, let's try to
+			 * expand this as an alias
+			 */
+			if !*noAlias {
+				execIfAliases(config, origArgs)
+			}
+
+			out = os.Stderr
 		}
-		fmt.Fprintf(os.Stderr, "%s\n\n"+i18n.G("error: %v")+"\n", cmd.usage(), err)
-		os.Exit(1)
+		gnuflag.SetOut(out)
+
+		if err == errArgs {
+			fmt.Fprintf(out, i18n.G("error: %v"), err)
+			fmt.Fprintf(out, "\n\n")
+		}
+		fmt.Fprint(out, cmd.usage())
+		fmt.Fprintf(out, "\n\n%s\n", i18n.G("Options:"))
+
+		gnuflag.PrintDefaults()
+
+		if err == errArgs {
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
+
 	return err
 }
 
@@ -176,33 +198,36 @@ var commands = map[string]command{
 	"move":    &moveCmd{},
 	"network": &networkCmd{},
 	"pause": &actionCmd{
-		action:         shared.Freeze,
-		name:           "pause",
-		additionalHelp: i18n.G("The opposite of `lxc pause` is `lxc start`."),
+		action:      shared.Freeze,
+		description: i18n.G("Pause containers."),
+		name:        "pause",
 	},
 	"profile": &profileCmd{},
 	"publish": &publishCmd{},
 	"remote":  &remoteCmd{},
 	"restart": &actionCmd{
-		action:     shared.Restart,
-		hasTimeout: true,
-		visible:    true,
-		name:       "restart",
-		timeout:    -1,
+		action:      shared.Restart,
+		description: i18n.G("Restart containers."),
+		hasTimeout:  true,
+		visible:     true,
+		name:        "restart",
+		timeout:     -1,
 	},
 	"restore":  &restoreCmd{},
 	"snapshot": &snapshotCmd{},
 	"start": &actionCmd{
-		action:  shared.Start,
-		visible: true,
-		name:    "start",
+		action:      shared.Start,
+		description: i18n.G("Start containers."),
+		visible:     true,
+		name:        "start",
 	},
 	"stop": &actionCmd{
-		action:     shared.Stop,
-		hasTimeout: true,
-		visible:    true,
-		name:       "stop",
-		timeout:    -1,
+		action:      shared.Stop,
+		description: i18n.G("Stop containers."),
+		hasTimeout:  true,
+		visible:     true,
+		name:        "stop",
+		timeout:     -1,
 	},
 	"storage": &storageCmd{},
 	"version": &versionCmd{},
@@ -235,6 +260,7 @@ var defaultAliases = map[string]string{
 }
 
 var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
+var errUsage = fmt.Errorf("show usage")
 
 func findAlias(aliases map[string]string, origArgs []string) ([]string, []string, bool) {
 	foundAlias := false

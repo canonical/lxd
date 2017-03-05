@@ -14,7 +14,9 @@ func (c *moveCmd) showByDefault() bool {
 
 func (c *moveCmd) usage() string {
 	return i18n.G(
-		`Move containers within or in between lxd instances.
+		`Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/<snapshot>]]
+
+Move containers within or in between LXD instances.
 
 lxc move [<remote>:]<source container> [<remote>:][<destination container>]
     Move a container between two hosts, renaming it if destination name differs.
