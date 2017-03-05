@@ -56,41 +56,77 @@ func (c *configCmd) configEditHelp() string {
 
 func (c *configCmd) usage() string {
 	return i18n.G(
-		`Manage configuration.
+		`Usage: lxc config <subcommand> [options]
 
-lxc config device add [<remote>:]<container> <device> <type> [key=value...]   Add a device to a container.
-lxc config device get [<remote>:]<container> <device> <key>                   Get a device property.
-lxc config device set [<remote>:]<container> <device> <key> <value>           Set a device property.
-lxc config device unset [<remote>:]<container> <device> <key>                 Unset a device property.
-lxc config device list [<remote>:]<container>                                 List devices for container.
-lxc config device show [<remote>:]<container>                                 Show full device details for container.
-lxc config device remove [<remote>:]<container> <name>                        Remove device from container.
+Change container or server configuration options.
 
-lxc config get [<remote>:][container] <key>                                   Get container or server configuration key.
-lxc config set [<remote>:][container] <key> <value>                           Set container or server configuration key.
-lxc config unset [<remote>:][container] <key>                                 Unset container or server configuration key.
-lxc config show [<remote>:][container] [--expanded]                           Show container or server configuration.
-lxc config edit [<remote>:][container]                                        Edit container or server configuration in external editor.
+*Container configuration*
+
+lxc config get [<remote>:][container] <key>
+    Get container or server configuration key.
+
+lxc config set [<remote>:][container] <key> <value>
+    Set container or server configuration key.
+
+lxc config unset [<remote>:][container] <key>
+    Unset container or server configuration key.
+
+lxc config show [<remote>:][container] [--expanded]
+    Show container or server configuration.
+
+lxc config edit [<remote>:][container]
     Edit configuration, either by launching external editor or reading STDIN.
-    Example: lxc config edit <container> # launch editor
-             cat config.yaml | lxc config edit <container> # read from config.yaml
 
-lxc config trust list [<remote>:]                                             List all trusted certs.
-lxc config trust add [<remote>:] <certfile.crt>                               Add certfile.crt to trusted hosts.
-lxc config trust remove [<remote>:] [hostname|fingerprint]                    Remove the cert from trusted hosts.
+*Device management*
 
-Examples:
-To mount host's /share/c1 onto /opt in the container:
-    lxc config device add [<remote>:]container1 <device-name> disk source=/share/c1 path=opt
+lxc config device add [<remote>:]<container> <device> <type> [key=value...]
+    Add a device to a container.
 
-To set an lxc config value:
-    lxc config set [<remote>:]<container> raw.lxc 'lxc.aa_allow_incomplete = 1'
+lxc config device get [<remote>:]<container> <device> <key>
+    Get a device property.
 
-To listen on IPv4 and IPv6 port 8443 (you can omit the 8443 its the default):
-    lxc config set core.https_address [::]:8443
+lxc config device set [<remote>:]<container> <device> <key> <value>
+    Set a device property.
 
-To set the server trust password:
-    lxc config set core.trust_password blah`)
+lxc config device unset [<remote>:]<container> <device> <key>
+    Unset a device property.
+
+lxc config device list [<remote>:]<container>
+    List devices for container.
+
+lxc config device show [<remote>:]<container>
+    Show full device details for container.
+
+lxc config device remove [<remote>:]<container> <name>
+    Remove device from container.
+
+*Client trust store management*
+
+lxc config trust list [<remote>:]
+    List all trusted certs.
+
+lxc config trust add [<remote>:] <certfile.crt>
+    Add certfile.crt to trusted hosts.
+
+lxc config trust remove [<remote>:] [hostname|fingerprint]
+    Remove the cert from trusted hosts.
+
+*Examples*
+
+cat config.yaml | lxc config edit <container>
+    Update the container configuration from config.yaml.
+
+lxc config device add [<remote>:]container1 <device-name> disk source=/share/c1 path=opt
+    Will mount the host's /share/c1 onto /opt in the container.
+
+lxc config set [<remote>:]<container> limits.cpu 2
+    Will set a CPU limit of "2" for the container.
+
+lxc config set core.https_address [::]:8443
+    Will have LXD listen on IPv4 and IPv6 port 8443.
+
+lxc config set core.trust_password blah
+    Will set the server's trust password to blah.`)
 }
 
 func (c *configCmd) doSet(config *lxd.Config, args []string, unset bool) error {
@@ -133,7 +169,7 @@ func (c *configCmd) doSet(config *lxd.Config, args []string, unset bool) error {
 
 func (c *configCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 1 {
-		return errArgs
+		return errUsage
 	}
 
 	switch args[0] {

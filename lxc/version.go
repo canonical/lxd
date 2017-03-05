@@ -16,9 +16,9 @@ func (c *versionCmd) showByDefault() bool {
 
 func (c *versionCmd) usage() string {
 	return i18n.G(
-		`Prints the version number of this client tool.
+		`Usage: lxc version
 
-lxc version`)
+Print the version number of this client tool.`)
 }
 
 func (c *versionCmd) flags() {

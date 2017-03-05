@@ -21,16 +21,14 @@ func (c *launchCmd) showByDefault() bool {
 
 func (c *launchCmd) usage() string {
 	return i18n.G(
-		`Launch a container from a particular image.
+		`Usage: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>]
 
-lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>]
-
-Launches a container using the specified image and name.
+Create and start containers from images.
 
 Not specifying -p will result in the default profile.
 Specifying "-p" with no argument will result in no profile.
 
-Example:
+Examples:
     lxc launch ubuntu:16.04 u1`)
 }
 

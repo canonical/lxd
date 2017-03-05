@@ -23,13 +23,15 @@ func (c *infoCmd) showByDefault() bool {
 
 func (c *infoCmd) usage() string {
 	return i18n.G(
-		`List information on LXD servers and containers.
+		`Usage: lxc info [<remote>:][<container>] [--show-log]
 
-For a container:
-    lxc info [<remote:>]<container> [--show-log]
+Show container or server information.
 
-For a server:
-    lxc info [<remote:>]`)
+lxc info [<remote>:]<container> [--show-log]
+    For container information.
+
+lxc info [<remote>:]
+    For LXD server information.`)
 }
 
 func (c *infoCmd) flags() {

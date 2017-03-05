@@ -19,19 +19,16 @@ func (c *snapshotCmd) showByDefault() bool {
 
 func (c *snapshotCmd) usage() string {
 	return i18n.G(
-		`Create a read-only snapshot of a container.
+		`Usage: lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]
 
-lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]
+Create container snapshots.
 
-Creates a snapshot of the container (optionally with the container's memory
-state). When --stateful is used, LXD attempts to checkpoint the container's
-running state, including process memory state, TCP connections, etc. so that it
-can be restored (via lxc restore) at a later time (although some things, e.g.
-TCP connections after the TCP timeout window has expired, may not be restored
-successfully).
+When --stateful is used, LXD attempts to checkpoint the container's
+running state, including process memory state, TCP connections, ...
 
-Example:
-    lxc snapshot u1 snap0`)
+*Examples*
+lxc snapshot u1 snap0
+    Create a snapshot of "u1" called "snap0".`)
 }
 
 func (c *snapshotCmd) flags() {

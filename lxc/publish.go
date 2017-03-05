@@ -25,9 +25,9 @@ func (c *publishCmd) showByDefault() bool {
 
 func (c *publishCmd) usage() string {
 	return i18n.G(
-		`Publish containers as images.
+		`Usage: lxc publish [<remote>:]<container>[/<snapshot>] [<remote>:] [--alias=ALIAS...] [prop-key=prop-value...]
 
-lxc publish [<remote>:]<container>[/<snapshot>] [<remote>:] [--alias=ALIAS...] [prop-key=prop-value...]`)
+Publish containers as images.`)
 }
 
 func (c *publishCmd) flags() {
