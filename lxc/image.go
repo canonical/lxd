@@ -58,7 +58,9 @@ func (c *imageCmd) imageEditHelp() string {
 
 func (c *imageCmd) usage() string {
 	return i18n.G(
-		`Manipulate container images.
+		`Usage: lxc image <subcommand> [options]
+
+Manipulate container images.
 
 In LXD containers are created from images. Those images were themselves
 either generated from an existing container or downloaded from an image
@@ -203,7 +205,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 	var remote string
 
 	if len(args) < 1 {
-		return errArgs
+		return errUsage
 	}
 
 	switch args[0] {
