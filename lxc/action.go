@@ -13,15 +13,15 @@ import (
 )
 
 type actionCmd struct {
-	action         shared.ContainerAction
-	hasTimeout     bool
-	visible        bool
-	name           string
-	timeout        int
-	force          bool
-	stateful       bool
-	stateless      bool
-	additionalHelp string
+	action      shared.ContainerAction
+	description string
+	hasTimeout  bool
+	visible     bool
+	name        string
+	timeout     int
+	force       bool
+	stateful    bool
+	stateless   bool
 }
 
 func (c *actionCmd) showByDefault() bool {
@@ -29,14 +29,15 @@ func (c *actionCmd) showByDefault() bool {
 }
 
 func (c *actionCmd) usage() string {
-	if c.additionalHelp != "" {
-		c.additionalHelp = fmt.Sprintf("\n\n%s", c.additionalHelp)
+	extra := ""
+	if c.name == "pause" {
+		extra = "\n" + i18n.G("The opposite of \"lxc pause\" is \"lxc start\".")
 	}
 
 	return fmt.Sprintf(i18n.G(
-		`Change state of one or more containers to %s.
+		`Usage: lxc %s [<remote>:]<container> [[<remote>:]<container>...]
 
-lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s`), c.name, c.name, c.additionalHelp)
+%s%s`), c.name, c.description, extra)
 }
 
 func (c *actionCmd) flags() {
