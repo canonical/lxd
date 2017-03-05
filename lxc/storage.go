@@ -59,55 +59,93 @@ func (c *storageCmd) storagePoolVolumeEditHelp() string {
 
 func (c *storageCmd) usage() string {
 	return i18n.G(
-		`Manage storage.
+		`Usage: lxc storage <subcommand> [options]
 
-lxc storage list [<remote>:]                                    List available storage pools.
-lxc storage show [<remote>:]<pool>                              Show details of a storage pool.
-lxc storage create [<remote>:]<pool> <driver> [key=value]...    Create a storage pool.
-lxc storage get [<remote>:]<pool> <key>                         Get storage pool configuration.
-lxc storage set [<remote>:]<pool> <key> <value>                 Set storage pool configuration.
-lxc storage unset [<remote>:]<pool> <key>                       Unset storage pool configuration.
-lxc storage delete [<remote>:]<pool>                            Delete a storage pool.
+Manage storage pools and volumes.
+
+*Storage pools*
+lxc storage list [<remote>:]
+    List available storage pools.
+
+lxc storage show [<remote>:]<pool>
+    Show details of a storage pool.
+
+lxc storage create [<remote>:]<pool> <driver> [key=value]...
+    Create a storage pool.
+
+lxc storage get [<remote>:]<pool> <key>
+    Get storage pool configuration.
+
+lxc storage set [<remote>:]<pool> <key> <value>
+    Set storage pool configuration.
+
+lxc storage unset [<remote>:]<pool> <key>
+    Unset storage pool configuration.
+
+lxc storage delete [<remote>:]<pool>
+    Delete a storage pool.
+
 lxc storage edit [<remote>:]<pool>
     Edit storage pool, either by launching external editor or reading STDIN.
-    Example: lxc storage edit [<remote>:]<pool> # launch editor
-             cat pool.yaml | lxc storage edit [<remote>:]<pool> # read from pool.yaml
 
-lxc storage volume list [<remote>:]<pool>                              List available storage volumes on a storage pool.
-lxc storage volume show [<remote>:]<pool> <volume>                     Show details of a storage volume on a storage pool.
-lxc storage volume create [<remote>:]<pool> <volume> [key=value]...    Create a storage volume on a storage pool.
-lxc storage volume get [<remote>:]<pool> <volume> <key>                Get storage volume configuration on a storage pool.
-lxc storage volume set [<remote>:]<pool> <volume> <key> <value>        Set storage volume configuration on a storage pool.
-lxc storage volume unset [<remote>:]<pool> <volume> <key>              Unset storage volume configuration on a storage pool.
-lxc storage volume delete [<remote>:]<pool> <volume>                   Delete a storage volume on a storage pool.
+*Storage volumes*
+lxc storage volume list [<remote>:]<pool>
+    List available storage volumes on a storage pool.
+
+lxc storage volume show [<remote>:]<pool> <volume>
+    Show details of a storage volume on a storage pool.
+
+lxc storage volume create [<remote>:]<pool> <volume> [key=value]...
+    Create a storage volume on a storage pool.
+
+lxc storage volume get [<remote>:]<pool> <volume> <key>
+    Get storage volume configuration on a storage pool.
+
+lxc storage volume set [<remote>:]<pool> <volume> <key> <value>
+    Set storage volume configuration on a storage pool.
+
+lxc storage volume unset [<remote>:]<pool> <volume> <key>
+    Unset storage volume configuration on a storage pool.
+
+lxc storage volume delete [<remote>:]<pool> <volume>
+    Delete a storage volume on a storage pool.
+
 lxc storage volume edit [<remote>:]<pool> <volume>
     Edit storage pool, either by launching external editor or reading STDIN.
-    Example: lxc storage volume edit [<remote>:]<pool> <volume> # launch editor
-             cat pool.yaml | lxc storage volume edit [<remote>:]<pool> <volume> # read from pool.yaml
 
 lxc storage volume attach [<remote>:]<pool> <volume> <container> [device name] <path>
+    Attach a storage volume to the specified container.
+
 lxc storage volume attach-profile [<remote:>]<pool> <volume> <profile> [device name] <path>
+    Attach a storage volume to the specified profile.
 
 lxc storage volume detach [<remote>:]<pool> <volume> <container> [device name]
-lxc storage volume detach-profile [<remote:>]<pool> <volume> <profile> [device name]
+    Detach a storage volume from the specified container.
 
+lxc storage volume detach-profile [<remote:>]<pool> <volume> <profile> [device name]
+    Detach a storage volume from the specified profile.
 
 Unless specified through a prefix, all volume operations affect "custom" (user created) volumes.
 
-Examples:
-To show the properties of a custom volume called "data" in the "default" pool:
-    lxc storage volume show default data
+*Examples*
+cat pool.yaml | lxc storage edit [<remote>:]<pool>
+    Update a storage pool using the content of pool.yaml.
 
-To show the properties of the filesystem for a container called "data" in the "default" pool:
-    lxc storage volume show default container/data
-`)
+cat pool.yaml | lxc storage volume edit [<remote>:]<pool> <volume>
+    Update a storage volume using the content of pool.yaml.
+
+lxc storage volume show default data
+    Will show the properties of a custom volume called "data" in the "default" pool.
+
+lxc storage volume show default container/data
+    Will show the properties of the filesystem for a container called "data" in the "default" pool.`)
 }
 
 func (c *storageCmd) flags() {}
 
 func (c *storageCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 1 {
-		return errArgs
+		return errUsage
 	}
 
 	if args[0] == "list" {
