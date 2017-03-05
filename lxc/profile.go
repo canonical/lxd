@@ -46,45 +46,83 @@ func (c *profileCmd) profileEditHelp() string {
 
 func (c *profileCmd) usage() string {
 	return i18n.G(
-		`Manage configuration profiles.
+		`Usage: lxc profile <subcommand> [options]
 
-lxc profile list [<remote>:]                                    List available profiles.
-lxc profile show [<remote>:]<profile>                           Show details of a profile.
-lxc profile create [<remote>:]<profile>                         Create a profile.
-lxc profile copy [<remote>:]<profile> [<remote>:]<profile>      Copy the profile.
-lxc profile get [<remote>:]<profile> <key>                      Get profile configuration.
-lxc profile set [<remote>:]<profile> <key> <value>              Set profile configuration.
-lxc profile unset [<remote>:]<profile> <key>                    Unset profile configuration.
-lxc profile delete [<remote>:]<profile>                         Delete a profile.
+Manage container configuration profiles.
+
+*Profile configuration*
+lxc profile list [<remote>:]
+    List available profiles.
+
+lxc profile show [<remote>:]<profile>
+    Show details of a profile.
+
+lxc profile create [<remote>:]<profile>
+    Create a profile.
+
+lxc profile copy [<remote>:]<profile> [<remote>:]<profile>
+    Copy the profile.
+
+lxc profile get [<remote>:]<profile> <key>
+    Get profile configuration.
+
+lxc profile set [<remote>:]<profile> <key> <value>
+    Set profile configuration.
+
+lxc profile unset [<remote>:]<profile> <key>
+    Unset profile configuration.
+
+lxc profile delete [<remote>:]<profile>
+    Delete a profile.
+
 lxc profile edit [<remote>:]<profile>
     Edit profile, either by launching external editor or reading STDIN.
-    Example: lxc profile edit <profile> # launch editor
-             cat profile.yaml | lxc profile edit <profile> # read from profile.yaml
-lxc profile apply [<remote>:]<container> <profiles>
-    Apply a comma-separated list of profiles to a container, in order.
-    All profiles passed in this call (and only those) will be applied
-    to the specified container.
-    Example: lxc profile apply foo default,bar # Apply default and bar
-             lxc profile apply foo default # Only default is active
-             lxc profile apply '' # no profiles are applied anymore
-             lxc profile apply bar,default # Apply default second now
 
-Devices:
-lxc profile device list [<remote>:]<profile>                                List devices in the given profile.
-lxc profile device show [<remote>:]<profile>                                Show full device details in the given profile.
-lxc profile device remove [<remote>:]<profile> <name>                       Remove a device from a profile.
-lxc profile device get [<remote>:]<profile> <name> <key>                    Get a device property.
-lxc profile device set [<remote>:]<profile> <name> <key> <value>            Set a device property.
-lxc profile device unset [<remote>:]<profile> <name> <key>                  Unset a device property.
+*Profile assignment*
+lxc profile apply [<remote>:]<container> <profiles>
+    Replace the current set of profiles for the container by the one provided.
+
+*Device management*
+lxc profile device list [<remote>:]<profile>
+    List devices in the given profile.
+
+lxc profile device show [<remote>:]<profile>
+    Show full device details in the given profile.
+
+lxc profile device remove [<remote>:]<profile> <name>
+    Remove a device from a profile.
+
+lxc profile device get [<remote>:]<profile> <name> <key>
+    Get a device property.
+
+lxc profile device set [<remote>:]<profile> <name> <key> <value>
+    Set a device property.
+
+lxc profile device unset [<remote>:]<profile> <name> <key>
+    Unset a device property.
+
 lxc profile device add [<remote>:]<profile> <device> <type> [key=value...]
-    Add a profile device, such as a disk or a nic, to the containers using the specified profile.`)
+    Add a profile device, such as a disk or a nic, to the containers using the specified profile.
+
+*Examples*
+cat profile.yaml | lxc profile edit <profile>
+    Update a profile using the content of profile.yaml
+
+lxc profile apply foo default,bar
+    Set the profiles for "foo" to "default" and "bar".
+
+lxc profile apply foo default
+    Reset "foo" to only using the "default" profile.
+
+lxc profile apply foo ''
+    Remove all profile from "foo"`)
 }
 
 func (c *profileCmd) flags() {}
 
 func (c *profileCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 1 {
-		return errArgs
+		return errUsage
 	}
 
 	if args[0] == "list" {
