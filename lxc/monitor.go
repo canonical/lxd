@@ -39,17 +39,17 @@ func (c *monitorCmd) showByDefault() bool {
 
 func (c *monitorCmd) usage() string {
 	return i18n.G(
-		`Monitor activity on the LXD server.
+		`Usage: lxc monitor [<remote>:] [--type=TYPE...]
 
-lxc monitor [<remote>:] [--type=TYPE...]
+Monitor a local or remote LXD server.
 
-Connects to the monitoring interface of the specified LXD server.
+By default the monitor will listen to all message types.
 
-By default will listen to all message types.
-Specific types to listen to can be specified with --type.
+Message types to listen for can be specified with --type.
 
-Example:
-    lxc monitor --type=logging`)
+*Examples*
+lxc monitor --type=logging
+    Only show log message.`)
 }
 
 func (c *monitorCmd) flags() {
