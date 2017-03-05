@@ -13,9 +13,9 @@ func (c *fingerCmd) showByDefault() bool {
 
 func (c *fingerCmd) usage() string {
 	return i18n.G(
-		`Check if the LXD instance is up.
+		`Usage: lxc finger [<remote>:]
 
-lxc finger [<remote>:]`)
+Check if the LXD server is alive.`)
 }
 
 func (c *fingerCmd) flags() {}
