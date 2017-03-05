@@ -35,16 +35,30 @@ func (c *remoteCmd) showByDefault() bool {
 
 func (c *remoteCmd) usage() string {
 	return i18n.G(
-		`Manage remote LXD servers.
+		`Usage: lxc remote <subcommand> [options]
 
-lxc remote add [<remote>] <IP|FQDN|URL> [--accept-certificate] [--password=PASSWORD]
-                                        [--public] [--protocol=PROTOCOL]    Add the remote <remote> at <url>.
-lxc remote remove <remote>                                                  Remove the remote <remote>.
-lxc remote list                                                             List all remotes.
-lxc remote rename <old name> <new name>                                     Rename remote <old name> to <new name>.
-lxc remote set-url <remote> <url>                                           Update <remote>'s url to <url>.
-lxc remote set-default <remote>                                             Set the default remote.
-lxc remote get-default                                                      Print the default remote.`)
+Manage the list of remote LXD servers.
+
+lxc remote add [<remote>] <IP|FQDN|URL> [--accept-certificate] [--password=PASSWORD] [--public] [--protocol=PROTOCOL]
+    Add the remote <remote> at <url>.
+
+lxc remote remove <remote>
+    Remove the remote <remote>.
+
+lxc remote list
+    List all remotes.
+
+lxc remote rename <old name> <new name>
+    Rename remote <old name> to <new name>.
+
+lxc remote set-url <remote> <url>
+    Update <remote>'s url to <url>.
+
+lxc remote set-default <remote>
+    Set the default remote.
+
+lxc remote get-default
+    Print the default remote.`)
 }
 
 func (c *remoteCmd) flags() {
@@ -300,7 +314,7 @@ func (c *remoteCmd) removeCertificate(config *lxd.Config, remote string) {
 
 func (c *remoteCmd) run(config *lxd.Config, args []string) error {
 	if len(args) < 1 {
-		return errArgs
+		return errUsage
 	}
 
 	switch args[0] {
