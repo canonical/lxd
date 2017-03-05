@@ -19,19 +19,18 @@ func (c *restoreCmd) showByDefault() bool {
 
 func (c *restoreCmd) usage() string {
 	return i18n.G(
-		`Restore a container's state to a previous snapshot.
+		`Usage: lxc restore [<remote>:]<container> <snapshot> [--stateful]
 
-lxc restore [<remote>:]<container> <snapshot> [--stateful]
+Restore containers from snapshots.
 
-Restores a container from a snapshot (optionally with running state, see
-snapshot help for details).
+If --stateful is passed, then the running state will be restored too.
 
-Examples:
-Create the snapshot:
-    lxc snapshot u1 snap0
+*Examples*
+lxc snapshot u1 snap0
+    Create the snapshot.
 
-Restore the snapshot:
-    lxc restore u1 snap0`)
+lxc restore u1 snap0
+    Restore the snapshot.`)
 }
 
 func (c *restoreCmd) flags() {
