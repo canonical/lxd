@@ -44,9 +44,9 @@ func (c *execCmd) showByDefault() bool {
 
 func (c *execCmd) usage() string {
 	return i18n.G(
-		`Execute the specified command in a container.
+		`Usage: lxc exec [<remote>:]<container> [--mode=auto|interactive|non-interactive] [--env KEY=VALUE...] [--] <command line>
 
-lxc exec [<remote>:]<container> [--mode=auto|interactive|non-interactive] [--env KEY=VALUE...] [--] <command line>
+Execute commands in containers.
 
 Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`)
 }
