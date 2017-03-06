@@ -480,7 +480,6 @@ func createContainerMountpoint(mountPoint string, mountPointSymlink string, priv
 		if err != nil {
 			return err
 		}
-
 	}
 
 	err = os.Chmod(mountPoint, mode)
