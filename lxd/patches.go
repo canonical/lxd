@@ -1002,9 +1002,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Set to default.
 			mountOptions = "discard"
 		}
-		err = tryMount(containerLvDevPath, newContainerMntPoint, lvFsType, 0, mountOptions)
-		if err != nil {
-			return err
+
+		if !shared.IsMountPoint(newContainerMntPoint) {
+			err := tryMount(containerLvDevPath, newContainerMntPoint, lvFsType, 0, mountOptions)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Check if we need to account for snapshots for this container.
