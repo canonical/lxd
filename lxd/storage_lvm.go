@@ -682,7 +682,7 @@ func (s *storageLvm) StoragePoolMount() (bool, error) {
 		// Try to prepare new loop device.
 		loopF, loopErr := prepareLoopDev(source, 0)
 		if loopErr != nil {
-			return false, fmt.Errorf("Could not prepare loop device: %s", loopErr)
+			return false, loopErr
 		}
 		// Make sure that LO_FLAGS_AUTOCLEAR is unset.
 		loopErr = unsetAutoclearOnLoopDev(int(loopF.Fd()))
