@@ -980,9 +980,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Rename the logical volume device.
 		ctLvName := containerNameToLVName(ct)
 		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointContainers, ctLvName)
-		_, err = tryExec("lvrename", defaultPoolName, ctLvName, newContainerLvName)
-		if err != nil {
-			return err
+		containerLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointContainers, ctLvName)
+		if !shared.PathExists(containerLvDevPath) {
+			_, err := tryExec("lvrename", defaultPoolName, ctLvName, newContainerLvName)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Create the new container mountpoint.
@@ -999,7 +1002,6 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Set to default.
 			mountOptions = "discard"
 		}
-		containerLvDevPath := fmt.Sprintf("/dev/%s/%s_%s", defaultPoolName, storagePoolVolumeApiEndpointContainers, ctLvName)
 		err = tryMount(containerLvDevPath, newContainerMntPoint, lvFsType, 0, mountOptions)
 		if err != nil {
 			return err
@@ -1076,11 +1078,13 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Make sure we use a valid lv name.
 			csLvName := containerNameToLVName(cs)
 			newSnapshotLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointContainers, csLvName)
-			_, err = tryExec("lvrename", defaultPoolName, csLvName, newSnapshotLvName)
-			if err != nil {
-				return err
+			snapshotLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointContainers, csLvName)
+			if !shared.PathExists(snapshotLvDevPath) {
+				_, err := tryExec("lvrename", defaultPoolName, csLvName, newSnapshotLvName)
+				if err != nil {
+					return err
+				}
 			}
-
 		}
 
 		if len(ctSnapshots) > 0 {
@@ -1167,9 +1171,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 		// Rename the logical volume device.
 		newImageLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointImages, img)
-		_, err = tryExec("lvrename", defaultPoolName, img, newImageLvName)
-		if err != nil {
-			return err
+		imageLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointImages, img)
+		if !shared.PathExists(imageLvDevPath) {
+			_, err := tryExec("lvrename", defaultPoolName, img, newImageLvName)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
