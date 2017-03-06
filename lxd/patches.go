@@ -953,7 +953,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Unmount the logical volume.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		if shared.IsMountPoint(oldContainerMntPoint) {
-			err := tryUnmount(oldContainerMntPoint, 0)
+			err := tryUnmount(oldContainerMntPoint, syscall.MNT_DETACH)
 			if err != nil {
 				return err
 			}
@@ -1056,7 +1056,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Unmount the logical volume.
 			oldSnapshotMntPoint := shared.VarPath("snapshots", cs)
 			if shared.IsMountPoint(oldSnapshotMntPoint) {
-				err := tryUnmount(oldSnapshotMntPoint, 0)
+				err := tryUnmount(oldSnapshotMntPoint, syscall.MNT_DETACH)
 				if err != nil {
 					return err
 				}
@@ -1144,7 +1144,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Unmount the logical volume.
 		oldImageMntPoint := shared.VarPath("images", img+".lv")
 		if shared.IsMountPoint(oldImageMntPoint) {
-			err := tryUnmount(oldImageMntPoint, 0)
+			err := tryUnmount(oldImageMntPoint, syscall.MNT_DETACH)
 			if err != nil {
 				return err
 			}
