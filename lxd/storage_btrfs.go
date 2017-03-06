@@ -138,13 +138,32 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 					return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
 				}
 			} else {
-				if isBtrfsSubVolume(source) || s.d.BackingFs == "btrfs" {
+				if isBtrfsSubVolume(source) {
+					subvols, err := btrfsSubVolumesGet(source)
+					if err != nil {
+						return fmt.Errorf("Could not determine if existing BTRFS subvolume ist empty: %s.", err)
+					}
+					if len(subvols) > 0 {
+						return fmt.Errorf("Requested BTRFS subvolume exists but is not empty.")
+					}
+				} else {
+					cleanSource := filepath.Clean(source)
+					lxdDir := shared.VarPath()
+					poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+					if shared.PathExists(source) && !isOnBtrfs(source) {
+						return fmt.Errorf("Existing path is neither a BTRFS subvolume nor does it reside on a BTRFS filesystem.")
+					} else if strings.HasPrefix(cleanSource, lxdDir) {
+						if cleanSource != poolMntPoint {
+							return fmt.Errorf("BTRFS subvolumes requests in LXD directory \"%s\" are only valid under \"%s\"\n(e.g. source=%s)", shared.VarPath(), shared.VarPath("storage-pools"), poolMntPoint)
+						} else if s.d.BackingFs != "btrfs" {
+							return fmt.Errorf("Creation of BTRFS subvolume requested but \"%s\" does not reside on BTRFS filesystem.", source)
+						}
+					}
+
 					err := btrfsSubVolumeCreate(source)
 					if err != nil {
 						return err
 					}
-				} else {
-					return fmt.Errorf("Custom loop file locations are not supported.")
 				}
 			}
 		} else {
@@ -274,11 +293,14 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 		shared.LogDebugf(msg)
 	} else {
 		var err error
-		if s.d.BackingFs == "btrfs" {
-			err = btrfsSubVolumesDelete(source)
-		} else {
+		cleanSource := filepath.Clean(source)
+		sourcePath := shared.VarPath("disks", s.pool.Name)
+		loopFilePath := sourcePath + ".img"
+		if cleanSource == loopFilePath {
 			// This is a loop file --> simply remove it.
 			err = os.Remove(source)
+		} else {
+			err = btrfsSubVolumesDelete(source)
 		}
 		if err != nil {
 			return err
@@ -340,21 +362,33 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		return false, nil
 	}
 
+	mountFlags := uintptr(0)
 	mountSource := source
+	isBlockDev := shared.IsBlockdevPath(source)
 	if filepath.IsAbs(source) {
-		if !shared.IsBlockdevPath(source) && s.d.BackingFs != "btrfs" {
+		cleanSource := filepath.Clean(source)
+		poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+		loopFilePath := shared.VarPath("disks", s.pool.Name+".img")
+		if !isBlockDev && cleanSource == loopFilePath {
+			// If source == "${LXD_DIR}"/disks/{pool_name} it is a
+			// loop file we're dealing with.
+			//
 			// Since we mount the loop device LO_FLAGS_AUTOCLEAR is
 			// fine since the loop device will be kept around for as
 			// long as the mount exists.
-			loopF, err := prepareLoopDev(source, LO_FLAGS_AUTOCLEAR)
-			if err != nil {
-				return false, fmt.Errorf("Could not prepare loop device.")
+			loopF, loopErr := prepareLoopDev(source, LO_FLAGS_AUTOCLEAR)
+			if loopErr != nil {
+				return false, loopErr
 			}
 			mountSource = loopF.Name()
 			defer loopF.Close()
-		} else {
+		} else if !isBlockDev && cleanSource != poolMntPoint {
+			mountSource = source
+			mountFlags = syscall.MS_BIND
+		} else if !isBlockDev && cleanSource == poolMntPoint && s.d.BackingFs == "btrfs" {
 			return false, nil
 		}
+		// User is using block device path.
 	} else {
 		// Try to lookup the disk device by UUID but don't fail. If we
 		// don't find one this might just mean we have been given the
@@ -375,7 +409,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	}
 
 	// This is a block device.
-	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", 0, btrfsMntOptions)
+	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", mountFlags, btrfsMntOptions)
 	if err != nil {
 		return false, err
 	}
@@ -1306,7 +1340,8 @@ func (s *storageBtrfs) ImageUmount(fingerprint string) (bool, error) {
 func btrfsSubVolumeCreate(subvol string) error {
 	parentDestPath := filepath.Dir(subvol)
 	if !shared.PathExists(parentDestPath) {
-		if err := os.MkdirAll(parentDestPath, 0711); err != nil {
+		err := os.MkdirAll(parentDestPath, 0711)
+		if err != nil {
 			return err
 		}
 	}
@@ -1317,11 +1352,8 @@ func btrfsSubVolumeCreate(subvol string) error {
 		"create",
 		subvol).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf(
-			"btrfs subvolume create failed, subvol=%s, output%s",
-			subvol,
-			string(output),
-		)
+		shared.LogErrorf("Failed to create BTRFS subvolume \"%s\": %s.", subvol, string(output))
+		return err
 	}
 
 	return nil
@@ -1519,10 +1551,8 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 	return nil
 }
 
-/*
- * isBtrfsSubVolume returns true if the given Path is a btrfs subvolume
- * else false.
- */
+// isBtrfsSubVolume returns true if the given Path is a btrfs subvolume else
+// false.
 func isBtrfsSubVolume(subvolPath string) bool {
 	fs := syscall.Stat_t{}
 	err := syscall.Lstat(subvolPath, &fs)
@@ -1532,6 +1562,21 @@ func isBtrfsSubVolume(subvolPath string) bool {
 
 	// Check if BTRFS_FIRST_FREE_OBJECTID
 	if fs.Ino != 256 {
+		return false
+	}
+
+	return true
+}
+
+func isOnBtrfs(path string) bool {
+	fs := syscall.Statfs_t{}
+
+	err := syscall.Statfs(path, &fs)
+	if err != nil {
+		return false
+	}
+
+	if fs.Type != filesystemSuperMagicBtrfs {
 		return false
 	}
 

@@ -47,10 +47,21 @@ test_storage() {
       configure_loop_device loop_file_2 loop_device_2
       # shellcheck disable=SC2154
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool4" btrfs source="${loop_device_2}"
+
+      # Check that we cannot create storage pools inside of ${LXD_DIR} other than ${LXD_DIR}/storage-pools/{pool_name}.
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool5_under_lxd_dir" btrfs source="${LXD_DIR}"
     fi
 
     # Create dir pool.
     lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool5" dir
+
+    # Check that we cannot create storage pools inside of ${LXD_DIR} other than ${LXD_DIR}/storage-pools/{pool_name}.
+    ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool5_under_lxd_dir" dir source="${LXD_DIR}" 
+
+    # Check that we can create storage pools inside of ${LXD_DIR}/storage-pools/{pool_name}.
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool5_under_lxd_dir" dir source="${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool5_under_lxd_dir" 
+
+    lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool5_under_lxd_dir"
 
     if which lvdisplay >/dev/null 2>&1; then
       # Create lvm pool.
