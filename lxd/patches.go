@@ -381,7 +381,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		// mv ${LXD_DIR}/containers/<container_name> ${LXD_DIR}/storage-pools/<pool>/<container_name>
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
-		if shared.PathExists(oldContainerMntPoint) {
+		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
 				return err
@@ -451,15 +451,17 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// readonly snapshots.
 			oldSnapshotMntPoint := shared.VarPath("snapshots", cs)
 			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, cs)
-			err = btrfsSnapshot(oldSnapshotMntPoint, newSnapshotMntPoint, true)
-			if err != nil {
-				return err
-			}
+			if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
+				err = btrfsSnapshot(oldSnapshotMntPoint, newSnapshotMntPoint, true)
+				if err != nil {
+					return err
+				}
 
-			// Delete the old subvolume.
-			err = btrfsSubVolumesDelete(oldSnapshotMntPoint)
-			if err != nil {
-				return err
+				// Delete the old subvolume.
+				err = btrfsSubVolumesDelete(oldSnapshotMntPoint)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -478,7 +480,6 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 				}
 			}
 		}
-
 	}
 
 	// Insert storage volumes for images into the database. Images don't
@@ -520,7 +521,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 
 		oldImageMntPoint := shared.VarPath("images", img+".btrfs")
 		newImageMntPoint := getImageMountPoint(defaultPoolName, img)
-		if shared.PathExists(oldImageMntPoint) {
+		if shared.PathExists(oldImageMntPoint) && !shared.PathExists(newImageMntPoint) {
 			err := os.Rename(oldImageMntPoint, newImageMntPoint)
 			if err != nil {
 				return err
