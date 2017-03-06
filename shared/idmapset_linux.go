@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -106,24 +107,42 @@ func (e *IdmapEntry) Usable() error {
 		return err
 	}
 
-	valid := false
-	for _, kernelRange := range kernelRanges {
-		if kernelRange.Isuid != e.Isuid {
-			continue
+	// Validate the uid map
+	if e.Isuid {
+		valid := false
+		for _, kernelRange := range kernelRanges {
+			if !kernelRange.Isuid {
+				continue
+			}
+
+			if kernelRange.Contains(e.Hostid) && kernelRange.Contains(e.Hostid+e.Maprange-1) {
+				valid = true
+				break
+			}
 		}
 
-		if kernelRange.Isgid != e.Isgid {
-			continue
-		}
-
-		if kernelRange.Contains(e.Hostid) && kernelRange.Contains(e.Hostid+e.Maprange-1) {
-			valid = true
-			break
+		if !valid {
+			return fmt.Errorf("The '%s' map can't work in the current user namespace.", e.ToLxcString())
 		}
 	}
 
-	if !valid {
-		return fmt.Errorf("The '%s' map can't work in the current user namespace.", e.ToLxcString())
+	// Validate the gid map
+	if e.Isgid {
+		valid := false
+		for _, kernelRange := range kernelRanges {
+			if !kernelRange.Isgid {
+				continue
+			}
+
+			if kernelRange.Contains(e.Hostid) && kernelRange.Contains(e.Hostid+e.Maprange-1) {
+				valid = true
+				break
+			}
+		}
+
+		if !valid {
+			return fmt.Errorf("The '%s' map can't work in the current user namespace.", e.ToLxcString())
+		}
 	}
 
 	return nil
@@ -681,6 +700,18 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 	kernelRanges, err := kernelMap.ValidRanges()
 	if err != nil {
 		return nil, err
+	}
+
+	// Special case for when we have the full kernel range
+	fullKernelRanges := []*IdRange{
+		{true, false, int64(0), int64(4294967294)},
+		{false, true, int64(0), int64(4294967294)}}
+
+	if reflect.DeepEqual(kernelRanges, fullKernelRanges) {
+		// Hardcoded fallback map
+		e := IdmapEntry{Isuid: true, Isgid: true, Nsid: 0, Hostid: 1000000, Maprange: 1000000000}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+		return idmapset, nil
 	}
 
 	// Find a suitable uid range
