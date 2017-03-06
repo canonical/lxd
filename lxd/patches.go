@@ -384,7 +384,24 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
-				return err
+				err := btrfsSubVolumeCreate(newContainerMntPoint)
+				if err != nil {
+					return err
+				}
+
+				output, err := storageRsyncCopy(oldContainerMntPoint, newContainerMntPoint)
+				if err != nil {
+					shared.LogErrorf("Failed to rsync: %s: %s.", output, err)
+					return err
+				}
+
+				btrfsSubVolumesDelete(oldContainerMntPoint)
+				if shared.PathExists(oldContainerMntPoint) {
+					err = os.RemoveAll(oldContainerMntPoint)
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
 
@@ -454,13 +471,30 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 				err = btrfsSnapshot(oldSnapshotMntPoint, newSnapshotMntPoint, true)
 				if err != nil {
-					return err
-				}
+					err := btrfsSubVolumeCreate(newSnapshotMntPoint)
+					if err != nil {
+						return err
+					}
 
-				// Delete the old subvolume.
-				err = btrfsSubVolumesDelete(oldSnapshotMntPoint)
-				if err != nil {
-					return err
+					output, err := storageRsyncCopy(oldSnapshotMntPoint, newSnapshotMntPoint)
+					if err != nil {
+						shared.LogErrorf("Failed to rsync: %s: %s.", output, err)
+						return err
+					}
+
+					btrfsSubVolumesDelete(oldSnapshotMntPoint)
+					if shared.PathExists(oldSnapshotMntPoint) {
+						err = os.RemoveAll(oldSnapshotMntPoint)
+						if err != nil {
+							return err
+						}
+					}
+				} else {
+					// Delete the old subvolume.
+					err = btrfsSubVolumesDelete(oldSnapshotMntPoint)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
