@@ -1098,7 +1098,9 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			snapshotsPath := shared.VarPath("snapshots", ct)
 			newSnapshotsPath := getSnapshotMountPoint(defaultPoolName, ct)
 			if shared.PathExists(snapshotsPath) {
-				err := os.Remove(snapshotsPath)
+				// On a broken update snapshotsPath will contain
+				// emtpy directories that need to be removed.
+				err := os.RemoveAll(snapshotsPath)
 				if err != nil {
 					return err
 				}
