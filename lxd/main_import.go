@@ -1,47 +1,22 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"net/http"
-
-	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/lxc/lxd/client"
 )
 
 func cmdImport(args []string) error {
 	name := args[1]
-	b := shared.Jmap{
+	req := map[string]interface{}{
 		"name":  name,
 		"force": *argForce,
 	}
 
-	buf := bytes.Buffer{}
-	err := json.NewEncoder(&buf).Encode(b)
+	c, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return err
 	}
 
-	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
-	if err != nil {
-		return err
-	}
-
-	url := fmt.Sprintf("%s/internal/containers", c.BaseURL)
-
-	req, err := http.NewRequest("POST", url, &buf)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("User-Agent", version.UserAgent)
-	req.Header.Set("Content-Type", "application/json")
-
-	raw, err := c.Http.Do(req)
-	_, err = lxd.HoistResponse(raw, api.SyncResponse)
+	_, _, err = c.RawQuery("POST", "/internal/containers", req, "")
 	if err != nil {
 		return err
 	}
