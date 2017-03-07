@@ -1321,7 +1321,11 @@ func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 	poolName := s.getOnDiskPoolName()
 	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, containerLvmName)
 	mountOptions := s.getLvmBlockMountOptions()
+
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	if shared.IsSnapshot(name) {
+		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
+	}
 
 	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
@@ -1364,6 +1368,9 @@ func (s *storageLvm) ContainerUmount(name string, path string) (bool, error) {
 	shared.LogDebugf("Unmounting LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	if shared.IsSnapshot(name) {
+		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
+	}
 
 	containerUmountLockID := getContainerUmountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
