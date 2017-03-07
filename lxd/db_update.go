@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -481,9 +480,9 @@ func dbUpdateFromV15(currentVersion int, version int, d *Daemon) error {
 
 		shared.LogDebug("About to rename cName in lv upgrade", log.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
 
-		output, err := exec.Command("lvrename", vgName, cName, newLVName).CombinedOutput()
+		output, err := shared.RunCommand("lvrename", vgName, cName, newLVName)
 		if err != nil {
-			return fmt.Errorf("Could not rename LV '%s' to '%s': %v\noutput:%s", cName, newLVName, err, string(output))
+			return fmt.Errorf("Could not rename LV '%s' to '%s': %v\noutput:%s", cName, newLVName, err, output)
 		}
 
 		if err := os.Remove(lvLinkPath); err != nil {

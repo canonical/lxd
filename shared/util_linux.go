@@ -369,7 +369,7 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 func IsMountPoint(name string) bool {
 	_, err := exec.LookPath("mountpoint")
 	if err == nil {
-		err = exec.Command("mountpoint", "-q", name).Run()
+		_, err = RunCommand("mountpoint", "-q", name)
 		if err != nil {
 			return false
 		}
