@@ -1322,6 +1322,16 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				return err
 			}
 		}
+
+		if !shared.PathExists(imageLvDevPath) {
+			// This image didn't exist as a logical volume on the
+			// old LXD instance so we need to kick it from the
+			// storage volumes database for this pool.
+			err := dbStoragePoolVolumeDelete(d.db, img, storagePoolVolumeTypeImage, poolID)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
