@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"sort"
@@ -498,7 +497,8 @@ func deviceNextVeth() string {
 }
 
 func deviceRemoveInterface(nic string) error {
-	return exec.Command("ip", "link", "del", nic).Run()
+	_, err := shared.RunCommand("ip", "link", "del", nic)
+	return err
 }
 
 func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bool) error {
@@ -692,13 +692,13 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 		// Accessible zfs filesystems
 		poolName := strings.Split(device[1], "/")[0]
 
-		output, err := exec.Command("zpool", "status", "-P", "-L", poolName).CombinedOutput()
+		output, err := shared.RunCommand("zpool", "status", "-P", "-L", poolName)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %s", device[1], output)
 		}
 
 		header := true
-		for _, line := range strings.Split(string(output), "\n") {
+		for _, line := range strings.Split(output, "\n") {
 			fields := strings.Fields(line)
 			if len(fields) < 5 {
 				continue
@@ -746,12 +746,12 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 		}
 	} else if fs == "btrfs" && shared.PathExists(device[1]) {
 		// Accessible btrfs filesystems
-		output, err := exec.Command("btrfs", "filesystem", "show", device[1]).CombinedOutput()
+		output, err := shared.RunCommand("btrfs", "filesystem", "show", device[1])
 		if err != nil {
 			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %s", device[1], output)
 		}
 
-		for _, line := range strings.Split(string(output), "\n") {
+		for _, line := range strings.Split(output, "\n") {
 			fields := strings.Fields(line)
 			if len(fields) == 0 || fields[0] != "devid" {
 				continue

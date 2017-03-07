@@ -38,7 +38,7 @@ func (s *storageBtrfs) Init(config map[string]interface{}) (storage, error) {
 		return s, fmt.Errorf("The 'btrfs' tool isn't available")
 	}
 
-	output, err := exec.Command("btrfs", "version").CombinedOutput()
+	output, err := shared.RunCommand("btrfs", "version")
 	if err != nil {
 		return s, fmt.Errorf("The 'btrfs' tool isn't working properly")
 	}
@@ -266,12 +266,12 @@ func (s *storageBtrfs) ContainerSetQuota(container container, size int64) error 
 		return err
 	}
 
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"btrfs",
 		"qgroup",
 		"limit",
 		"-e", fmt.Sprintf("%d", size),
-		subvol).CombinedOutput()
+		subvol)
 
 	if err != nil {
 		return fmt.Errorf("Failed to set btrfs quota: %s", output)
@@ -443,11 +443,11 @@ func (s *storageBtrfs) subvolCreate(subvol string) error {
 		}
 	}
 
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"btrfs",
 		"subvolume",
 		"create",
-		subvol).CombinedOutput()
+		subvol)
 	if err != nil {
 		s.log.Debug(
 			"subvolume create failed",
@@ -464,13 +464,13 @@ func (s *storageBtrfs) subvolCreate(subvol string) error {
 }
 
 func (s *storageBtrfs) subvolQGroup(subvol string) (string, error) {
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"btrfs",
 		"qgroup",
 		"show",
 		subvol,
 		"-e",
-		"-f").CombinedOutput()
+		"-f")
 
 	if err != nil {
 		return "", fmt.Errorf("btrfs quotas not supported. Try enabling them with 'btrfs quota enable'.")
@@ -498,13 +498,13 @@ func (s *storageBtrfs) subvolQGroup(subvol string) (string, error) {
 }
 
 func (s *storageBtrfs) subvolQGroupUsage(subvol string) (int64, error) {
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"btrfs",
 		"qgroup",
 		"show",
 		subvol,
 		"-e",
-		"-f").CombinedOutput()
+		"-f")
 
 	if err != nil {
 		return -1, fmt.Errorf("btrfs quotas not supported. Try enabling them with 'btrfs quota enable'.")
@@ -535,12 +535,12 @@ func (s *storageBtrfs) subvolDelete(subvol string) error {
 	// Attempt (but don't fail on) to delete any qgroup on the subvolume
 	qgroup, err := s.subvolQGroup(subvol)
 	if err == nil {
-		output, err := exec.Command(
+		output, err := shared.RunCommand(
 			"btrfs",
 			"qgroup",
 			"destroy",
 			qgroup,
-			subvol).CombinedOutput()
+			subvol)
 
 		if err != nil {
 			s.log.Warn(
@@ -551,12 +551,12 @@ func (s *storageBtrfs) subvolDelete(subvol string) error {
 	}
 
 	// Delete the subvolume itself
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"btrfs",
 		"subvolume",
 		"delete",
 		subvol,
-	).CombinedOutput()
+	)
 
 	if err != nil {
 		s.log.Warn(
@@ -618,23 +618,23 @@ func (s *storageBtrfs) subvolSnapshot(
 		}
 	}
 
-	var output []byte
+	var output string
 	var err error
 	if readonly {
-		output, err = exec.Command(
+		output, err = shared.RunCommand(
 			"btrfs",
 			"subvolume",
 			"snapshot",
 			"-r",
 			source,
-			dest).CombinedOutput()
+			dest)
 	} else {
-		output, err = exec.Command(
+		output, err = shared.RunCommand(
 			"btrfs",
 			"subvolume",
 			"snapshot",
 			source,
-			dest).CombinedOutput()
+			dest)
 	}
 	if err != nil {
 		s.log.Error(

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os/exec"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -125,7 +124,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bonding", n.Name)) {
 		n.Type = "bond"
 	} else {
-		_, err := exec.Command("ovs-vsctl", "br-exists", n.Name).CombinedOutput()
+		_, err := shared.RunCommand("ovs-vsctl", "br-exists", n.Name)
 		if err == nil {
 			n.Type = "bridge"
 		} else {

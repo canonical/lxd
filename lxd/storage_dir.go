@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -99,7 +98,7 @@ func (s *storageDir) ContainerDelete(container container) error {
 	err := os.RemoveAll(cPath)
 	if err != nil {
 		// RemovaAll fails on very long paths, so attempt an rm -Rf
-		output, err := exec.Command("rm", "-Rf", cPath).CombinedOutput()
+		output, err := shared.RunCommand("rm", "-Rf", cPath)
 		if err != nil {
 			s.log.Error("ContainerDelete: failed", log.Ctx{"cPath": cPath, "output": output})
 			return fmt.Errorf("Error cleaning up %s: %s", cPath, string(output))

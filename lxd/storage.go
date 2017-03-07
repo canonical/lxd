@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"syscall"
@@ -71,7 +70,7 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 		rsyncVerbosity = "-vi"
 	}
 
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"rsync",
 		"-a",
 		"-HAX",
@@ -81,7 +80,7 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 		"--numeric-ids",
 		rsyncVerbosity,
 		shared.AddSlash(source),
-		dest).CombinedOutput()
+		dest)
 
 	return string(output), err
 }
@@ -363,9 +362,9 @@ func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
 
 	// Attempt to set a POSIX ACL first. Fallback to chmod if the fs doesn't support it.
 	acl := fmt.Sprintf("%d:rx", uid)
-	_, err = exec.Command("setfacl", "-m", acl, destPath).CombinedOutput()
+	_, err = shared.RunCommand("setfacl", "-m", acl, destPath)
 	if err != nil {
-		_, err := exec.Command("chmod", "+x", destPath).CombinedOutput()
+		_, err := shared.RunCommand("chmod", "+x", destPath)
 		if err != nil {
 			return fmt.Errorf("Failed to chmod the container path.")
 		}
@@ -761,22 +760,6 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 }
 
 // Useful functions for unreliable backends
-func tryExec(name string, arg ...string) ([]byte, error) {
-	var err error
-	var output []byte
-
-	for i := 0; i < 20; i++ {
-		output, err = exec.Command(name, arg...).CombinedOutput()
-		if err == nil {
-			break
-		}
-
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	return output, err
-}
-
 func tryMount(src string, dst string, fs string, flags uintptr, options string) error {
 	var err error
 

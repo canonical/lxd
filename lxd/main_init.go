@@ -44,7 +44,7 @@ func cmdInit() error {
 	if err == nil && len(out) != 0 && !runningInUserns {
 		_ = loadModule("zfs")
 
-		err := shared.RunCommand("zpool", "list")
+		_, err := shared.RunCommand("zpool", "list")
 		if err == nil {
 			backendsAvailable = append(backendsAvailable, "zfs")
 		}
@@ -368,10 +368,10 @@ they otherwise would.
 		}
 
 		if shared.StringInSlice(storageMode, []string{"loop", "device"}) {
-			output, err := exec.Command(
+			output, err := shared.RunCommand(
 				"zpool",
 				"create", storagePool, storageDevice,
-				"-f", "-m", "none", "-O", "compression=on").CombinedOutput()
+				"-f", "-m", "none", "-O", "compression=on")
 			if err != nil {
 				return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 			}

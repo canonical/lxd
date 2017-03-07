@@ -18,7 +18,7 @@ import (
 )
 
 func storageLVMCheckVolumeGroup(vgName string) error {
-	output, err := exec.Command("vgdisplay", "-s", vgName).CombinedOutput()
+	output, err := shared.RunCommand("vgdisplay", "-s", vgName)
 	if err != nil {
 		shared.LogDebug("vgdisplay failed to find vg", log.Ctx{"output": string(output)})
 		return fmt.Errorf("LVM volume group '%s' not found", vgName)
@@ -138,10 +138,10 @@ func storageLVMValidateVolumeGroupName(d *Daemon, key string, value string) erro
 }
 
 func xfsGenerateNewUUID(lvpath string) error {
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"xfs_admin",
 		"-U", "generate",
-		lvpath).CombinedOutput()
+		lvpath)
 	if err != nil {
 		return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, string(output))
 	}
@@ -168,7 +168,7 @@ func (s *storageLvm) Init(config map[string]interface{}) (storage, error) {
 		return s, err
 	}
 
-	output, err := exec.Command("lvm", "version").CombinedOutput()
+	output, err := shared.RunCommand("lvm", "version")
 	if err != nil {
 		return nil, fmt.Errorf("Error getting LVM version: %v\noutput:'%s'", err, string(output))
 	}
@@ -784,16 +784,16 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 	}
 
 	// Create the thin pool
-	var output []byte
+	var output string
 	if isRecent {
-		output, err = tryExec(
+		output, err = shared.TryRunCommand(
 			"lvcreate",
 			"--poolmetadatasize", "1G",
 			"-l", "100%FREE",
 			"--thinpool",
 			fmt.Sprintf("%s/%s", s.vgName, thinPoolName))
 	} else {
-		output, err = tryExec(
+		output, err = shared.TryRunCommand(
 			"lvcreate",
 			"--poolmetadatasize", "1G",
 			"-L", "1G",
@@ -815,7 +815,7 @@ func (s *storageLvm) createDefaultThinPool() (string, error) {
 
 	if !isRecent {
 		// Grow it to the maximum VG size (two step process required by old LVM)
-		output, err = tryExec(
+		output, err = shared.TryRunCommand(
 			"lvextend",
 			"--alloc", "anywhere",
 			"-l", "100%FREE",
@@ -862,7 +862,7 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 
 	lvSize := daemonConfig["storage.lvm_volume_size"].Get()
 
-	output, err := tryExec(
+	output, err := shared.TryRunCommand(
 		"lvcreate",
 		"--thin",
 		"-n", lvname,
@@ -878,12 +878,12 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 	fstype := daemonConfig["storage.lvm_fstype"].Get()
 	switch fstype {
 	case "xfs":
-		output, err = tryExec(
+		output, err = shared.TryRunCommand(
 			"mkfs.xfs",
 			lvpath)
 	default:
 		// default = ext4
-		output, err = tryExec(
+		output, err = shared.TryRunCommand(
 			"mkfs.ext4",
 			"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0",
 			lvpath)
@@ -899,9 +899,9 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 
 func (s *storageLvm) removeLV(lvname string) error {
 	var err error
-	var output []byte
+	var output string
 
-	output, err = tryExec(
+	output, err = shared.TryRunCommand(
 		"lvremove", "-f", fmt.Sprintf("%s/%s", s.vgName, lvname))
 
 	if err != nil {
@@ -918,15 +918,16 @@ func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly
 	if err != nil {
 		return "", fmt.Errorf("Error checking LVM version: %v", err)
 	}
-	var output []byte
+
+	var output string
 	if isRecent {
-		output, err = tryExec(
+		output, err = shared.TryRunCommand(
 			"lvcreate",
 			"-kn",
 			"-n", lvname,
 			"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname))
 	} else {
-		output, err = tryExec(
+		output, err = shared.TryRunCommand(
 			"lvcreate",
 			"-n", lvname,
 			"-s", fmt.Sprintf("/dev/%s/%s", s.vgName, origlvname))
@@ -939,9 +940,9 @@ func (s *storageLvm) createSnapshotLV(lvname string, origlvname string, readonly
 	snapshotFullName := fmt.Sprintf("/dev/%s/%s", s.vgName, lvname)
 
 	if readonly {
-		output, err = tryExec("lvchange", "-ay", "-pr", snapshotFullName)
+		output, err = shared.TryRunCommand("lvchange", "-ay", "-pr", snapshotFullName)
 	} else {
-		output, err = tryExec("lvchange", "-ay", snapshotFullName)
+		output, err = shared.TryRunCommand("lvchange", "-ay", snapshotFullName)
 	}
 
 	if err != nil {
@@ -956,7 +957,7 @@ func (s *storageLvm) isLVMContainer(container container) bool {
 }
 
 func (s *storageLvm) renameLV(oldName string, newName string) (string, error) {
-	output, err := tryExec("lvrename", s.vgName, oldName, newName)
+	output, err := shared.TryRunCommand("lvrename", s.vgName, oldName, newName)
 	return string(output), err
 }
 

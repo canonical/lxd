@@ -34,5 +34,6 @@ func loadModule(module string) error {
 		return nil
 	}
 
-	return shared.RunCommand("modprobe", module)
+	_, err := shared.RunCommand("modprobe", module)
+	return err
 }

@@ -117,7 +117,7 @@ func unpack(d *Daemon, file string, path string) error {
 		return fmt.Errorf("Unsupported image format: %s", extension)
 	}
 
-	output, err := exec.Command(command, args...).CombinedOutput()
+	output, err := shared.RunCommand(command, args...)
 	if err != nil {
 		// Check if we ran out of space
 		fs := syscall.Statfs_t{}
@@ -136,7 +136,7 @@ func unpack(d *Daemon, file string, path string) error {
 			}
 		}
 
-		co := string(output)
+		co := output
 		shared.LogDebugf("Unpacking failed")
 		shared.LogDebugf(co)
 
@@ -777,15 +777,15 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 	args = append(args, fname, metadataName)
 
 	// read the metadata.yaml
-	output, err := exec.Command("tar", args...).CombinedOutput()
+	output, err := shared.RunCommand("tar", args...)
 
 	if err != nil {
-		outputLines := strings.Split(string(output), "\n")
+		outputLines := strings.Split(output, "\n")
 		return nil, fmt.Errorf("Could not extract image %s from tar: %v (%s)", metadataName, err, outputLines[0])
 	}
 
 	metadata := imageMetadata{}
-	err = yaml.Unmarshal(output, &metadata)
+	err = yaml.Unmarshal([]byte(output), &metadata)
 
 	if err != nil {
 		return nil, fmt.Errorf("Could not parse %s: %v", metadataName, err)
