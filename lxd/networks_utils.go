@@ -11,7 +11,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -35,14 +34,14 @@ func networkAutoAttach(d *Daemon, devName string) error {
 
 func networkAttachInterface(netName string, devName string) error {
 	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
-		err := shared.RunCommand("ip", "link", "set", devName, "master", netName)
+		_, err := shared.RunCommand("ip", "link", "set", devName, "master", netName)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
+		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
 		if err != nil {
-			err := shared.RunCommand("ovs-vsctl", "add-port", netName, devName)
+			_, err := shared.RunCommand("ovs-vsctl", "add-port", netName, devName)
 			if err != nil {
 				return err
 			}
@@ -54,14 +53,14 @@ func networkAttachInterface(netName string, devName string) error {
 
 func networkDetachInterface(netName string, devName string) error {
 	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
-		err := shared.RunCommand("ip", "link", "set", devName, "nomaster")
+		_, err := shared.RunCommand("ip", "link", "set", devName, "nomaster")
 		if err != nil {
 			return err
 		}
 	} else {
-		err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
+		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
 		if err == nil {
-			err := shared.RunCommand("ovs-vsctl", "del-port", netName, devName)
+			_, err := shared.RunCommand("ovs-vsctl", "del-port", netName, devName)
 			if err != nil {
 				return err
 			}
@@ -218,7 +217,7 @@ func networkPingSubnet(subnet *net.IPNet) bool {
 			cmd = "ping6"
 		}
 
-		_, err := exec.Command(cmd, "-n", "-q", ip.String(), "-c", "1", "-W", "1").CombinedOutput()
+		_, err := shared.RunCommand(cmd, "-n", "-q", ip.String(), "-c", "1", "-W", "1")
 		if err != nil {
 			// Remote didn't answer
 			return
