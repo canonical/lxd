@@ -59,12 +59,12 @@ func (s *storageBtrfs) StorageCoreInit() error {
 		return fmt.Errorf("The 'btrfs' tool isn't available")
 	}
 
-	output, err := exec.Command("btrfs", "version").CombinedOutput()
+	output, err := shared.RunCommand("btrfs", "version")
 	if err != nil {
 		return fmt.Errorf("The 'btrfs' tool isn't working properly")
 	}
 
-	count, err := fmt.Sscanf(strings.SplitN(string(output), " ", 2)[1], "v%s\n", &s.sTypeVersion)
+	count, err := fmt.Sscanf(strings.SplitN(output, " ", 2)[1], "v%s\n", &s.sTypeVersion)
 	if err != nil || count != 1 {
 		return fmt.Errorf("The 'btrfs' tool isn't working properly")
 	}
@@ -118,9 +118,9 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 			return fmt.Errorf("Failed to create sparse file %s: %s", source, err)
 		}
 
-		output, err := exec.Command(
+		output, err := shared.RunCommand(
 			"mkfs.btrfs",
-			"-L", s.pool.Name, source).CombinedOutput()
+			"-L", s.pool.Name, source)
 		if err != nil {
 			return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
 		}
@@ -131,9 +131,9 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		if filepath.IsAbs(source) {
 			isBlockDev = shared.IsBlockdevPath(source)
 			if isBlockDev {
-				output, err := exec.Command(
+				output, err := shared.RunCommand(
 					"mkfs.btrfs",
-					"-L", s.pool.Name, source).CombinedOutput()
+					"-L", s.pool.Name, source)
 				if err != nil {
 					return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
 				}
@@ -210,8 +210,8 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 	}
 
 	// Enable quotas
-	output, err := exec.Command(
-		"btrfs", "quota", "enable", poolMntPoint).CombinedOutput()
+	output, err := shared.RunCommand(
+		"btrfs", "quota", "enable", poolMntPoint)
 	if err != nil && !runningInUserns {
 		return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
 	}
@@ -992,12 +992,12 @@ func (s *storageBtrfs) ContainerSetQuota(container container, size int64) error 
 		return err
 	}
 
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"btrfs",
 		"qgroup",
 		"limit",
 		"-e", fmt.Sprintf("%d", size),
-		subvol).CombinedOutput()
+		subvol)
 
 	if err != nil {
 		return fmt.Errorf("Failed to set btrfs quota: %s", output)
@@ -1346,13 +1346,13 @@ func btrfsSubVolumeCreate(subvol string) error {
 		}
 	}
 
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"btrfs",
 		"subvolume",
 		"create",
-		subvol).CombinedOutput()
+		subvol)
 	if err != nil {
-		shared.LogErrorf("Failed to create BTRFS subvolume \"%s\": %s.", subvol, string(output))
+		shared.LogErrorf("Failed to create BTRFS subvolume \"%s\": %s.", subvol, output)
 		return err
 	}
 
@@ -1360,20 +1360,20 @@ func btrfsSubVolumeCreate(subvol string) error {
 }
 
 func btrfsSubVolumeQGroup(subvol string) (string, error) {
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"btrfs",
 		"qgroup",
 		"show",
 		subvol,
 		"-e",
-		"-f").CombinedOutput()
+		"-f")
 
 	if err != nil {
 		return "", fmt.Errorf("btrfs quotas not supported. Try enabling them with 'btrfs quota enable'.")
 	}
 
 	var qgroup string
-	for _, line := range strings.Split(string(output), "\n") {
+	for _, line := range strings.Split(output, "\n") {
 		if line == "" || strings.HasPrefix(line, "qgroupid") || strings.HasPrefix(line, "---") {
 			continue
 		}
@@ -1394,19 +1394,19 @@ func btrfsSubVolumeQGroup(subvol string) (string, error) {
 }
 
 func (s *storageBtrfs) btrfsPoolVolumeQGroupUsage(subvol string) (int64, error) {
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"btrfs",
 		"qgroup",
 		"show",
 		subvol,
 		"-e",
-		"-f").CombinedOutput()
+		"-f")
 
 	if err != nil {
 		return -1, fmt.Errorf("btrfs quotas not supported. Try enabling them with 'btrfs quota enable'.")
 	}
 
-	for _, line := range strings.Split(string(output), "\n") {
+	for _, line := range strings.Split(output, "\n") {
 		if line == "" || strings.HasPrefix(line, "qgroupid") || strings.HasPrefix(line, "---") {
 			continue
 		}
@@ -1431,26 +1431,25 @@ func btrfsSubVolumeDelete(subvol string) error {
 	// Attempt (but don't fail on) to delete any qgroup on the subvolume
 	qgroup, err := btrfsSubVolumeQGroup(subvol)
 	if err == nil {
-		exec.Command(
+		shared.RunCommand(
 			"btrfs",
 			"qgroup",
 			"destroy",
 			qgroup,
-			subvol).Run()
+			subvol)
 	}
 
 	// Attempt to make the subvolume writable
-	exec.Command("btrfs", "property", "set", subvol, "ro", "false").CombinedOutput()
+	shared.RunCommand("btrfs", "property", "set", subvol, "ro", "false")
 
 	// Delete the subvolume itself
-	err = exec.Command(
+	_, err = shared.RunCommand(
 		"btrfs",
 		"subvolume",
 		"delete",
-		subvol,
-	).Run()
+		subvol)
 
-	return nil
+	return err
 }
 
 // btrfsPoolVolumesDelete is the recursive variant on btrfsPoolVolumeDelete,
@@ -1483,30 +1482,30 @@ func btrfsSubVolumesDelete(subvol string) error {
  * the result will be readonly if "readonly" is True.
  */
 func btrfsSnapshot(source string, dest string, readonly bool) error {
-	var output []byte
+	var output string
 	var err error
 	if readonly {
-		output, err = exec.Command(
+		output, err = shared.RunCommand(
 			"btrfs",
 			"subvolume",
 			"snapshot",
 			"-r",
 			source,
-			dest).CombinedOutput()
+			dest)
 	} else {
-		output, err = exec.Command(
+		output, err = shared.RunCommand(
 			"btrfs",
 			"subvolume",
 			"snapshot",
 			source,
-			dest).CombinedOutput()
+			dest)
 	}
 	if err != nil {
 		return fmt.Errorf(
 			"subvolume snapshot failed, source=%s, dest=%s, output=%s",
 			source,
 			dest,
-			string(output),
+			output,
 		)
 	}
 
@@ -1967,17 +1966,17 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 }
 
 func (s *storageBtrfs) btrfsLookupFsUUID(fs string) (string, error) {
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"btrfs",
 		"filesystem",
 		"show",
 		"--raw",
-		fs).CombinedOutput()
+		fs)
 	if err != nil {
 		return "", fmt.Errorf("Failed to detect UUID.")
 	}
 
-	outputString := string(output)
+	outputString := output
 	idx := strings.Index(outputString, "uuid: ")
 	outputString = outputString[idx+6:]
 	outputString = strings.TrimSpace(outputString)

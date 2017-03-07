@@ -107,12 +107,12 @@ func (s *storageZfs) StoragePoolCheck() error {
 		shared.LogDebugf("ZFS storage pool \"%s\" does not exist. Trying to import it.", poolName)
 
 		disksPath := shared.VarPath("disks")
-		output, err := exec.Command(
+		output, err := shared.RunCommand(
 			"zpool",
 			"import",
-			"-d", disksPath, poolName).CombinedOutput()
+			"-d", disksPath, poolName)
 		if err != nil {
-			return fmt.Errorf("ZFS storage pool \"%s\" could not be imported: %s.", poolName, string(output))
+			return fmt.Errorf("ZFS storage pool \"%s\" could not be imported: %s.", poolName, output)
 		}
 
 		shared.LogDebugf("ZFS storage pool \"%s\" successfully imported.", poolName)
@@ -1446,13 +1446,13 @@ func (s *storageZfs) ImageUmount(fingerprint string) (bool, error) {
 
 // Helper functions
 func (s *storageZfs) zfsPoolCheck(pool string) error {
-	output, err := exec.Command(
-		"zfs", "get", "type", "-H", "-o", "value", pool).CombinedOutput()
+	output, err := shared.RunCommand(
+		"zfs", "get", "type", "-H", "-o", "value", pool)
 	if err != nil {
-		return fmt.Errorf(strings.Split(string(output), "\n")[0])
+		return fmt.Errorf(strings.Split(output, "\n")[0])
 	}
 
-	poolType := strings.Split(string(output), "\n")[0]
+	poolType := strings.Split(output, "\n")[0]
 	if poolType != "filesystem" {
 		return fmt.Errorf("Unsupported pool type: %s", poolType)
 	}
@@ -1491,10 +1491,10 @@ func (s *storageZfs) zfsPoolCreate() error {
 			return fmt.Errorf("Failed to create sparse file %s: %s", vdev, err)
 		}
 
-		output, err := exec.Command(
+		output, err := shared.RunCommand(
 			"zpool",
 			"create", zpoolName, vdev,
-			"-f", "-m", "none", "-O", "compression=on").CombinedOutput()
+			"-f", "-m", "none", "-O", "compression=on")
 		if err != nil {
 			return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 		}
@@ -1519,10 +1519,10 @@ func (s *storageZfs) zfsPoolCreate() error {
 			// safest way is to just store the name of the zfs pool
 			// we create.
 			s.pool.Config["source"] = zpoolName
-			output, err := exec.Command(
+			output, err := shared.RunCommand(
 				"zpool",
 				"create", zpoolName, vdev,
-				"-f", "-m", "none", "-O", "compression=on").CombinedOutput()
+				"-f", "-m", "none", "-O", "compression=on")
 			if err != nil {
 				return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 			}
@@ -1536,15 +1536,15 @@ func (s *storageZfs) zfsPoolCreate() error {
 			if strings.Contains(vdev, "/") {
 				ok := s.zfsFilesystemEntityExists(vdev, false)
 				if !ok {
-					output, err := exec.Command(
+					output, err := shared.RunCommand(
 						"zfs",
 						"create",
 						"-p",
 						"-o",
 						"mountpoint=none",
-						vdev).CombinedOutput()
+						vdev)
 					if err != nil {
-						shared.LogErrorf("zfs create failed: %s.", string(output))
+						shared.LogErrorf("zfs create failed: %s.", output)
 						return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
 					}
 				}
@@ -1613,15 +1613,15 @@ func (s *storageZfs) zfsPoolCreate() error {
 
 func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string, mountpoint string) error {
 	poolName := s.getOnDiskPoolName()
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"zfs",
 		"clone",
 		"-p",
 		"-o", fmt.Sprintf("mountpoint=%s", mountpoint),
 		fmt.Sprintf("%s/%s@%s", poolName, source, name),
-		fmt.Sprintf("%s/%s", poolName, dest)).CombinedOutput()
+		fmt.Sprintf("%s/%s", poolName, dest))
 	if err != nil {
-		shared.LogErrorf("zfs clone failed: %s.", string(output))
+		shared.LogErrorf("zfs clone failed: %s.", output)
 		return fmt.Errorf("Failed to clone the filesystem: %s", output)
 	}
 
@@ -1643,15 +1643,15 @@ func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string,
 		destSubvol := dest + strings.TrimPrefix(sub, source)
 		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, destSubvol)
 
-		output, err := exec.Command(
+		output, err := shared.RunCommand(
 			"zfs",
 			"clone",
 			"-p",
 			"-o", fmt.Sprintf("mountpoint=%s", snapshotMntPoint),
 			fmt.Sprintf("%s/%s@%s", poolName, sub, name),
-			fmt.Sprintf("%s/%s", poolName, destSubvol)).CombinedOutput()
+			fmt.Sprintf("%s/%s", poolName, destSubvol))
 		if err != nil {
-			shared.LogErrorf("zfs clone failed: %s.", string(output))
+			shared.LogErrorf("zfs clone failed: %s.", output)
 			return fmt.Errorf("Failed to clone the sub-volume: %s", output)
 		}
 	}
@@ -1661,13 +1661,13 @@ func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string,
 
 func (s *storageZfs) zfsPoolVolumeCreate(path string) error {
 	poolName := s.getOnDiskPoolName()
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"zfs",
 		"create",
 		"-p",
-		fmt.Sprintf("%s/%s", poolName, path)).CombinedOutput()
+		fmt.Sprintf("%s/%s", poolName, path))
 	if err != nil {
-		shared.LogErrorf("zfs create failed: %s.", string(output))
+		shared.LogErrorf("zfs create failed: %s.", output)
 		return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
 	}
 
@@ -1675,15 +1675,15 @@ func (s *storageZfs) zfsPoolVolumeCreate(path string) error {
 }
 
 func (s *storageZfs) zfsFilesystemEntityDelete() error {
-	var output []byte
+	var output string
 	var err error
 	poolName := s.getOnDiskPoolName()
 	if strings.Contains(poolName, "/") {
 		// Command to destroy a zfs dataset.
-		output, err = exec.Command("zfs", "destroy", "-r", poolName).CombinedOutput()
+		output, err = shared.RunCommand("zfs", "destroy", "-r", poolName)
 	} else {
 		// Command to destroy a zfs pool.
-		output, err = exec.Command("zpool", "destroy", "-f", poolName).CombinedOutput()
+		output, err = shared.RunCommand("zpool", "destroy", "-f", poolName)
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to delete the ZFS pool: %s", output)
@@ -1714,14 +1714,14 @@ func (s *storageZfs) zfsPoolVolumeDestroy(path string) error {
 
 	poolName := s.getOnDiskPoolName()
 	// Due to open fds or kernel refs, this may fail for a bit, give it 10s
-	output, err := tryExec(
+	output, err := shared.TryRunCommand(
 		"zfs",
 		"destroy",
 		"-r",
 		fmt.Sprintf("%s/%s", poolName, path))
 
 	if err != nil {
-		shared.LogErrorf("zfs destroy failed: %s.", string(output))
+		shared.LogErrorf("zfs destroy failed: %s.", output)
 		return fmt.Errorf("Failed to destroy ZFS filesystem: %s", output)
 	}
 
@@ -1818,33 +1818,33 @@ func (s *storageZfs) zfsFilesystemEntityPropertyGet(path string, key string, pre
 		fsToCheck = fmt.Sprintf("%s/%s", s.getOnDiskPoolName(), path)
 	}
 
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"zfs",
 		"get",
 		"-H",
 		"-p",
 		"-o", "value",
 		key,
-		fsToCheck).CombinedOutput()
+		fsToCheck)
 	if err != nil {
-		return string(output), fmt.Errorf("Failed to get ZFS config: %s", output)
+		return "", fmt.Errorf("Failed to get ZFS config: %s", output)
 	}
 
-	return strings.TrimRight(string(output), "\n"), nil
+	return strings.TrimRight(output, "\n"), nil
 }
 
 func (s *storageZfs) zfsPoolVolumeRename(source string, dest string) error {
 	var err error
-	var output []byte
+	var output string
 
 	poolName := s.getOnDiskPoolName()
 	for i := 0; i < 20; i++ {
-		output, err = exec.Command(
+		output, err = shared.RunCommand(
 			"zfs",
 			"rename",
 			"-p",
 			fmt.Sprintf("%s/%s", poolName, source),
-			fmt.Sprintf("%s/%s", poolName, dest)).CombinedOutput()
+			fmt.Sprintf("%s/%s", poolName, dest))
 
 		// Success
 		if err == nil {
@@ -1860,19 +1860,19 @@ func (s *storageZfs) zfsPoolVolumeRename(source string, dest string) error {
 	}
 
 	// Timeout
-	shared.LogErrorf("zfs rename failed: %s.", string(output))
+	shared.LogErrorf("zfs rename failed: %s.", output)
 	return fmt.Errorf("Failed to rename ZFS filesystem: %s", output)
 }
 
 func (s *storageZfs) zfsPoolVolumeSet(path string, key string, value string) error {
 	poolName := s.getOnDiskPoolName()
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"zfs",
 		"set",
 		fmt.Sprintf("%s=%s", key, value),
-		fmt.Sprintf("%s/%s", poolName, path)).CombinedOutput()
+		fmt.Sprintf("%s/%s", poolName, path))
 	if err != nil {
-		shared.LogErrorf("zfs set failed: %s.", string(output))
+		shared.LogErrorf("zfs set failed: %s.", output)
 		return fmt.Errorf("Failed to set ZFS config: %s", output)
 	}
 
@@ -1881,13 +1881,13 @@ func (s *storageZfs) zfsPoolVolumeSet(path string, key string, value string) err
 
 func (s *storageZfs) zfsPoolVolumeSnapshotCreate(path string, name string) error {
 	poolName := s.getOnDiskPoolName()
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"zfs",
 		"snapshot",
 		"-r",
-		fmt.Sprintf("%s/%s@%s", poolName, path, name)).CombinedOutput()
+		fmt.Sprintf("%s/%s@%s", poolName, path, name))
 	if err != nil {
-		shared.LogErrorf("zfs snapshot failed: %s.", string(output))
+		shared.LogErrorf("zfs snapshot failed: %s.", output)
 		return fmt.Errorf("Failed to create ZFS snapshot: %s", output)
 	}
 
@@ -1896,13 +1896,13 @@ func (s *storageZfs) zfsPoolVolumeSnapshotCreate(path string, name string) error
 
 func (s *storageZfs) zfsPoolVolumeSnapshotDestroy(path string, name string) error {
 	poolName := s.getOnDiskPoolName()
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"zfs",
 		"destroy",
 		"-r",
-		fmt.Sprintf("%s/%s@%s", poolName, path, name)).CombinedOutput()
+		fmt.Sprintf("%s/%s@%s", poolName, path, name))
 	if err != nil {
-		shared.LogErrorf("zfs destroy failed: %s.", string(output))
+		shared.LogErrorf("zfs destroy failed: %s.", output)
 		return fmt.Errorf("Failed to destroy ZFS snapshot: %s", output)
 	}
 
@@ -1911,12 +1911,12 @@ func (s *storageZfs) zfsPoolVolumeSnapshotDestroy(path string, name string) erro
 
 func (s *storageZfs) zfsPoolVolumeSnapshotRestore(path string, name string) error {
 	poolName := s.getOnDiskPoolName()
-	output, err := tryExec(
+	output, err := shared.TryRunCommand(
 		"zfs",
 		"rollback",
 		fmt.Sprintf("%s/%s@%s", poolName, path, name))
 	if err != nil {
-		shared.LogErrorf("zfs rollback failed: %s.", string(output))
+		shared.LogErrorf("zfs rollback failed: %s.", output)
 		return fmt.Errorf("Failed to restore ZFS snapshot: %s", output)
 	}
 
@@ -1935,12 +1935,12 @@ func (s *storageZfs) zfsPoolVolumeSnapshotRestore(path string, name string) erro
 			continue
 		}
 
-		output, err := tryExec(
+		output, err := shared.TryRunCommand(
 			"zfs",
 			"rollback",
 			fmt.Sprintf("%s/%s@%s", poolName, sub, name))
 		if err != nil {
-			shared.LogErrorf("zfs rollback failed: %s.", string(output))
+			shared.LogErrorf("zfs rollback failed: %s.", output)
 			return fmt.Errorf("Failed to restore ZFS sub-volume snapshot: %s", output)
 		}
 	}
@@ -1950,14 +1950,14 @@ func (s *storageZfs) zfsPoolVolumeSnapshotRestore(path string, name string) erro
 
 func (s *storageZfs) zfsPoolVolumeSnapshotRename(path string, oldName string, newName string) error {
 	poolName := s.getOnDiskPoolName()
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"zfs",
 		"rename",
 		"-r",
 		fmt.Sprintf("%s/%s@%s", poolName, path, oldName),
-		fmt.Sprintf("%s/%s@%s", poolName, path, newName)).CombinedOutput()
+		fmt.Sprintf("%s/%s@%s", poolName, path, newName))
 	if err != nil {
-		shared.LogErrorf("zfs snapshot rename failed: %s.", string(output))
+		shared.LogErrorf("zfs snapshot rename failed: %s.", output)
 		return fmt.Errorf("Failed to rename ZFS snapshot: %s", output)
 	}
 
@@ -1965,7 +1965,7 @@ func (s *storageZfs) zfsPoolVolumeSnapshotRename(path string, oldName string, ne
 }
 
 func zfsMount(poolName string, path string) error {
-	output, err := tryExec(
+	output, err := shared.TryRunCommand(
 		"zfs",
 		"mount",
 		fmt.Sprintf("%s/%s", poolName, path))
@@ -1981,7 +1981,7 @@ func (s *storageZfs) zfsPoolVolumeMount(path string) error {
 }
 
 func zfsUmount(poolName string, path string) error {
-	output, err := tryExec(
+	output, err := shared.TryRunCommand(
 		"zfs",
 		"unmount",
 		fmt.Sprintf("%s/%s", poolName, path))
@@ -1997,20 +1997,20 @@ func (s *storageZfs) zfsPoolVolumeUmount(path string) error {
 }
 
 func (s *storageZfs) zfsPoolListSubvolumes(path string) ([]string, error) {
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"zfs",
 		"list",
 		"-t", "filesystem",
 		"-o", "name",
 		"-H",
-		"-r", path).CombinedOutput()
+		"-r", path)
 	if err != nil {
-		shared.LogErrorf("zfs list failed: %s.", string(output))
+		shared.LogErrorf("zfs list failed: %s.", output)
 		return []string{}, fmt.Errorf("Failed to list ZFS filesystems: %s", output)
 	}
 
 	children := []string{}
-	for _, entry := range strings.Split(string(output), "\n") {
+	for _, entry := range strings.Split(output, "\n") {
 		if entry == "" {
 			continue
 		}
@@ -2034,7 +2034,7 @@ func (s *storageZfs) zfsPoolListSnapshots(path string) ([]string, error) {
 		fullPath = fmt.Sprintf("%s/%s", poolName, path)
 	}
 
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"zfs",
 		"list",
 		"-t", "snapshot",
@@ -2042,14 +2042,14 @@ func (s *storageZfs) zfsPoolListSnapshots(path string) ([]string, error) {
 		"-H",
 		"-d", "1",
 		"-s", "creation",
-		"-r", fullPath).CombinedOutput()
+		"-r", fullPath)
 	if err != nil {
-		shared.LogErrorf("zfs list failed: %s.", string(output))
+		shared.LogErrorf("zfs list failed: %s.", output)
 		return []string{}, fmt.Errorf("Failed to list ZFS snapshots: %s", output)
 	}
 
 	children := []string{}
-	for _, entry := range strings.Split(string(output), "\n") {
+	for _, entry := range strings.Split(output, "\n") {
 		if entry == "" {
 			continue
 		}
@@ -2120,19 +2120,19 @@ func (s *storageZfs) zfsPoolGetUsers() ([]string, error) {
 }
 
 func zfsFilesystemEntityExists(zfsEntity string) bool {
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"zfs",
 		"get",
 		"type",
 		"-H",
 		"-o",
 		"name",
-		zfsEntity).CombinedOutput()
+		zfsEntity)
 	if err != nil {
 		return false
 	}
 
-	detectedName := strings.TrimSpace(string(output))
+	detectedName := strings.TrimSpace(output)
 	if detectedName != zfsEntity {
 		return false
 	}

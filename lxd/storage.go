@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -124,7 +123,7 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 		rsyncVerbosity = "-vi"
 	}
 
-	output, err := exec.Command(
+	output, err := shared.RunCommand(
 		"rsync",
 		"-a",
 		"-HAX",
@@ -134,9 +133,9 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 		"--numeric-ids",
 		rsyncVerbosity,
 		shared.AddSlash(source),
-		dest).CombinedOutput()
+		dest)
 
-	return string(output), err
+	return output, err
 }
 
 // storageType defines the type of a storage
@@ -629,22 +628,6 @@ func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
 }
 
 // Useful functions for unreliable backends
-func tryExec(name string, arg ...string) ([]byte, error) {
-	var err error
-	var output []byte
-
-	for i := 0; i < 20; i++ {
-		output, err = exec.Command(name, arg...).CombinedOutput()
-		if err == nil {
-			break
-		}
-
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	return output, err
-}
-
 func tryMount(src string, dst string, fs string, flags uintptr, options string) error {
 	var err error
 

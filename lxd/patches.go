@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -982,7 +981,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointContainers, ctLvName)
 		containerLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointContainers, ctLvName)
 		if !shared.PathExists(containerLvDevPath) {
-			_, err := tryExec("lvrename", defaultPoolName, ctLvName, newContainerLvName)
+			_, err := shared.TryRunCommand("lvrename", defaultPoolName, ctLvName, newContainerLvName)
 			if err != nil {
 				return err
 			}
@@ -1083,7 +1082,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			newSnapshotLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointContainers, csLvName)
 			snapshotLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointContainers, csLvName)
 			if !shared.PathExists(snapshotLvDevPath) {
-				_, err := tryExec("lvrename", defaultPoolName, csLvName, newSnapshotLvName)
+				_, err := shared.TryRunCommand("lvrename", defaultPoolName, csLvName, newSnapshotLvName)
 				if err != nil {
 					return err
 				}
@@ -1180,7 +1179,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		newImageLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointImages, img)
 		imageLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointImages, img)
 		if !shared.PathExists(imageLvDevPath) {
-			_, err := tryExec("lvrename", defaultPoolName, img, newImageLvName)
+			_, err := shared.TryRunCommand("lvrename", defaultPoolName, img, newImageLvName)
 			if err != nil {
 				return err
 			}
@@ -1262,11 +1261,11 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// Querying the size of a storage pool only makes sense when it
 		// is not a dataset.
 		if poolName == defaultPoolName {
-			output, err := exec.Command("zpool", "get", "size", "-p", "-H", defaultPoolName).CombinedOutput()
+			output, err := shared.RunCommand("zpool", "get", "size", "-p", "-H", defaultPoolName)
 			if err == nil {
-				lidx := strings.LastIndex(string(output), "\t")
-				fidx := strings.LastIndex(string(output)[:lidx-1], "\t")
-				poolConfig["size"] = string(output)[fidx+1 : lidx]
+				lidx := strings.LastIndex(output, "\t")
+				fidx := strings.LastIndex(output[:lidx-1], "\t")
+				poolConfig["size"] = output[fidx+1 : lidx]
 			}
 		}
 
@@ -1334,7 +1333,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		ctDataset := fmt.Sprintf("%s/containers/%s", defaultPoolName, ct)
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		if shared.IsMountPoint(oldContainerMntPoint) {
-			_, err := tryExec("zfs", "unmount", "-f", ctDataset)
+			_, err := shared.TryRunCommand("zfs", "unmount", "-f", ctDataset)
 			if err != nil {
 				shared.LogWarnf("Failed to unmount ZFS filesystem via zfs unmount. Trying lazy umount (MNT_DETACH)...")
 				err := tryUnmount(oldContainerMntPoint, syscall.MNT_DETACH)
@@ -1362,11 +1361,11 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 		// Set new mountpoint for the container's dataset it will be
 		// automatically mounted.
-		output, err := exec.Command(
+		output, err := shared.RunCommand(
 			"zfs",
 			"set",
 			fmt.Sprintf("mountpoint=%s", newContainerMntPoint),
-			ctDataset).CombinedOutput()
+			ctDataset)
 		if err != nil {
 			shared.LogWarnf("Failed to set new ZFS mountpoint: %s.", output)
 			failedUpgradeEntities = append(failedUpgradeEntities, fmt.Sprintf("containers/%s: Failed to set new zfs mountpoint: %s", ct, err))
@@ -1482,7 +1481,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// around.
 		imageDataset := fmt.Sprintf("%s/images/%s", defaultPoolName, img)
 		if shared.PathExists(oldImageMntPoint) && shared.IsMountPoint(oldImageMntPoint) {
-			_, err := tryExec("zfs", "unmount", "-f", imageDataset)
+			_, err := shared.TryRunCommand("zfs", "unmount", "-f", imageDataset)
 			if err != nil {
 				shared.LogWarnf("Failed to unmount ZFS filesystem via zfs unmount. Trying lazy umount (MNT_DETACH)...")
 				err := tryUnmount(oldImageMntPoint, syscall.MNT_DETACH)
@@ -1496,7 +1495,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 		// Set new mountpoint for the container's dataset it will be
 		// automatically mounted.
-		output, err := exec.Command("zfs", "set", "mountpoint=none", imageDataset).CombinedOutput()
+		output, err := shared.RunCommand("zfs", "set", "mountpoint=none", imageDataset)
 		if err != nil {
 			shared.LogWarnf("Failed to set new ZFS mountpoint: %s.", output)
 		}

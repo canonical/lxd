@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/lxc/lxd/shared"
@@ -23,7 +22,8 @@ func networkIptablesPrepend(protocol string, netName string, table string, chain
 	args := append(baseArgs, []string{"-C", chain}...)
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for LXD network %s", netName))
-	if shared.RunCommand(cmd, args...) == nil {
+	_, err := shared.RunCommand(cmd, args...)
+	if err == nil {
 		return nil
 	}
 
@@ -32,7 +32,7 @@ func networkIptablesPrepend(protocol string, netName string, table string, chain
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for LXD network %s", netName))
 
-	err := shared.RunCommand(cmd, args...)
+	_, err = shared.RunCommand(cmd, args...)
 	if err != nil {
 		return err
 	}
@@ -58,12 +58,12 @@ func networkIptablesClear(protocol string, netName string, table string) error {
 
 	// List the rules
 	args := append(baseArgs, "-S")
-	output, err := exec.Command(cmd, args...).Output()
+	output, err := shared.RunCommand(cmd, args...)
 	if err != nil {
 		return fmt.Errorf("Failed to list %s rules for %s (table %s)", protocol, netName, table)
 	}
 
-	for _, line := range strings.Split(string(output), "\n") {
+	for _, line := range strings.Split(output, "\n") {
 		if !strings.Contains(line, fmt.Sprintf("generated for LXD network %s", netName)) {
 			continue
 		}
@@ -73,7 +73,7 @@ func networkIptablesClear(protocol string, netName string, table string) error {
 		fields[0] = "-D"
 
 		args = append(baseArgs, fields...)
-		err = shared.RunCommand("sh", "-c", fmt.Sprintf("%s %s", cmd, strings.Join(args, " ")))
+		_, err = shared.RunCommand("sh", "-c", fmt.Sprintf("%s %s", cmd, strings.Join(args, " ")))
 		if err != nil {
 			return err
 		}
