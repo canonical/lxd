@@ -391,8 +391,8 @@ func versionSplit(versionString string) (int, int, int, error) {
 	return maj, min, inc, nil
 }
 
-func (s *storageLvm) lvmVersionIsAtLeast(versionString string) (bool, error) {
-	lvmVersion := strings.Split(s.sTypeVersion, "/")[0]
+func lvmVersionIsAtLeast(sTypeVersion string, versionString string) (bool, error) {
+	lvmVersion := strings.Split(sTypeVersion, "/")[0]
 
 	lvmMaj, lvmMin, lvmInc, err := versionSplit(lvmVersion)
 	if err != nil {
@@ -716,7 +716,12 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 		return err
 	}
 
-	err = s.createThinLV(poolName, thinPoolName, s.volume.Name, lvFsType, lvSize, volumeType)
+	err = lvmCreateThinpool(s.d, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+	if err != nil {
+		return err
+	}
+
+	err = lvmCreateThinLV(poolName, thinPoolName, s.volume.Name, lvFsType, lvSize, volumeType)
 	if err != nil {
 		shared.LogErrorf("LVMCreateThinLV: %s.", err)
 		return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
@@ -1028,7 +1033,12 @@ func (s *storageLvm) ContainerCreate(container container) error {
 	}
 
 	poolName := s.getOnDiskPoolName()
-	err = s.createThinLV(poolName, thinPoolName, containerLvmName, lvFsType, lvSize, storagePoolVolumeApiEndpointContainers)
+	err = lvmCreateThinpool(s.d, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+	if err != nil {
+		return err
+	}
+
+	err = lvmCreateThinLV(poolName, thinPoolName, containerLvmName, lvFsType, lvSize, storagePoolVolumeApiEndpointContainers)
 	if err != nil {
 		return err
 	}
@@ -1311,7 +1321,11 @@ func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
 	poolName := s.getOnDiskPoolName()
 	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, containerLvmName)
 	mountOptions := s.getLvmBlockMountOptions()
+
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	if shared.IsSnapshot(name) {
+		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
+	}
 
 	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
@@ -1354,6 +1368,9 @@ func (s *storageLvm) ContainerUmount(name string, path string) (bool, error) {
 	shared.LogDebugf("Unmounting LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	if shared.IsSnapshot(name) {
+		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
+	}
 
 	containerUmountLockID := getContainerUmountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
@@ -1741,7 +1758,12 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 		}
 	}()
 
-	err = s.createThinLV(poolName, thinPoolName, fingerprint, lvFsType, lvSize, storagePoolVolumeApiEndpointImages)
+	err = lvmCreateThinpool(s.d, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+	if err != nil {
+		return err
+	}
+
+	err = lvmCreateThinLV(poolName, thinPoolName, fingerprint, lvFsType, lvSize, storagePoolVolumeApiEndpointImages)
 	if err != nil {
 		shared.LogErrorf("LVMCreateThinLV: %s.", err)
 		return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
@@ -1856,25 +1878,72 @@ func (s *storageLvm) ImageUmount(fingerprint string) (bool, error) {
 	return true, nil
 }
 
-func (s *storageLvm) createThinLV(vgName string, thinPoolName string, lvName string, lvFsType string, lvSize string, volumeType string) error {
+func createDefaultThinPool(sTypeVersion string, vgName string, thinPoolName string, lvFsType string) error {
+	isRecent, err := lvmVersionIsAtLeast(sTypeVersion, "2.02.99")
+	if err != nil {
+		return fmt.Errorf("Error checking LVM version: %s", err)
+	}
+
+	// Create the thin pool
+	lvmThinPool := fmt.Sprintf("%s/%s", vgName, thinPoolName)
+	var output string
+	if isRecent {
+		output, err = shared.TryRunCommand(
+			"lvcreate",
+			"--poolmetadatasize", "1G",
+			"-l", "100%FREE",
+			"--thinpool", lvmThinPool)
+	} else {
+		output, err = shared.TryRunCommand(
+			"lvcreate",
+			"--poolmetadatasize", "1G",
+			"-L", "1G",
+			"--thinpool", lvmThinPool)
+	}
+
+	if err != nil {
+		shared.LogErrorf("Could not create thin pool \"%s\": %s.", thinPoolName, string(output))
+		return fmt.Errorf("Could not create LVM thin pool named %s", thinPoolName)
+	}
+
+	if !isRecent {
+		// Grow it to the maximum VG size (two step process required by old LVM)
+		output, err = shared.TryRunCommand("lvextend", "--alloc", "anywhere", "-l", "100%FREE", lvmThinPool)
+
+		if err != nil {
+			shared.LogErrorf("Could not grow thin pool: \"%s\": %s.", thinPoolName, string(output))
+			return fmt.Errorf("Could not grow LVM thin pool named %s", thinPoolName)
+		}
+	}
+
+	return nil
+}
+
+func lvmCreateThinpool(d *Daemon, sTypeVersion string, vgName string, thinPoolName string, lvFsType string) error {
 	exists, err := storageLVMThinpoolExists(vgName, thinPoolName)
 	if err != nil {
 		return err
 	}
 
-	if !exists {
-		err := s.createDefaultThinPool(vgName, thinPoolName, lvName, lvFsType)
-		if err != nil {
-			return err
-		}
-
-		err = storageLVMValidateThinPoolName(s.d, vgName, thinPoolName)
-		if err != nil {
-			shared.LogErrorf("Setting thin pool name: %s.", err)
-			return fmt.Errorf("Error setting LVM thin pool config: %v", err)
-		}
+	if exists {
+		return nil
 	}
 
+	err = createDefaultThinPool(sTypeVersion, vgName, thinPoolName, lvFsType)
+	if err != nil {
+		return err
+	}
+
+	err = storageLVMValidateThinPoolName(d, vgName, thinPoolName)
+	if err != nil {
+		shared.LogErrorf("Setting thin pool name: %s.", err)
+		return fmt.Errorf("Error setting LVM thin pool config: %v", err)
+	}
+
+	return nil
+}
+
+func lvmCreateThinLV(vgName string, thinPoolName string, lvName string, lvFsType string, lvSize string, volumeType string) error {
 	lvmThinPoolPath := fmt.Sprintf("%s/%s", vgName, thinPoolName)
 	lvmPoolVolumeName := getPrefixedLvName(volumeType, lvName)
 	output, err := shared.TryRunCommand(
@@ -1907,47 +1976,6 @@ func (s *storageLvm) createThinLV(vgName string, thinPoolName string, lvName str
 	return nil
 }
 
-func (s *storageLvm) createDefaultThinPool(vgName string, thinPoolName string, lvName string, lvFsType string) error {
-	isRecent, err := s.lvmVersionIsAtLeast("2.02.99")
-	if err != nil {
-		return fmt.Errorf("Error checking LVM version: %s", err)
-	}
-
-	// Create the thin pool
-	lvmThinPool := fmt.Sprintf("%s/%s", vgName, thinPoolName)
-	var output string
-	if isRecent {
-		output, err = shared.TryRunCommand(
-			"lvcreate",
-			"--poolmetadatasize", "1G",
-			"-l", "100%FREE",
-			"--thinpool", lvmThinPool)
-	} else {
-		output, err = shared.TryRunCommand(
-			"lvcreate",
-			"--poolmetadatasize", "1G",
-			"-L", "1G",
-			"--thinpool", lvmThinPool)
-	}
-
-	if err != nil {
-		shared.LogErrorf("Could not create thin pool \"%s\": %s.", thinPoolName, output)
-		return fmt.Errorf("Could not create LVM thin pool named %s", thinPoolName)
-	}
-
-	if !isRecent {
-		// Grow it to the maximum VG size (two step process required by old LVM)
-		output, err = shared.TryRunCommand("lvextend", "--alloc", "anywhere", "-l", "100%FREE", lvmThinPool)
-
-		if err != nil {
-			shared.LogErrorf("Could not grow thin pool: \"%s\": %s.", thinPoolName, output)
-			return fmt.Errorf("Could not grow LVM thin pool named %s", thinPoolName)
-		}
-	}
-
-	return nil
-}
-
 func (s *storageLvm) removeLV(vgName string, volumeType string, lvName string) error {
 	lvmVolumePath := getLvmDevPath(vgName, volumeType, lvName)
 	output, err := shared.TryRunCommand("lvremove", "-f", lvmVolumePath)
@@ -1963,7 +1991,7 @@ func (s *storageLvm) removeLV(vgName string, volumeType string, lvName string) e
 func (s *storageLvm) createSnapshotLV(vgName string, origLvName string, origVolumeType string, lvName string, volumeType string, readonly bool) (string, error) {
 	sourceLvmVolumePath := getLvmDevPath(vgName, origVolumeType, origLvName)
 	shared.LogDebugf("in createSnapshotLV: %s.", sourceLvmVolumePath)
-	isRecent, err := s.lvmVersionIsAtLeast("2.02.99")
+	isRecent, err := lvmVersionIsAtLeast(s.sTypeVersion, "2.02.99")
 	if err != nil {
 		return "", fmt.Errorf("Error checking LVM version: %v", err)
 	}
