@@ -673,7 +673,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		// Simply rename the container when they are directories.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
-		if shared.PathExists(oldContainerMntPoint) {
+		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			// First try to rename.
 			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
@@ -721,7 +721,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Now simply rename the snapshots directory as well.
 		newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, ct)
-		if shared.PathExists(oldSnapshotMntPoint) {
+		if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 			err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 			if err != nil {
 				output, err := storageRsyncCopy(oldSnapshotMntPoint, newSnapshotMntPoint)
@@ -953,7 +953,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Unmount the logical volume.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		if shared.IsMountPoint(oldContainerMntPoint) {
-			err := tryUnmount(oldContainerMntPoint, 0)
+			err := tryUnmount(oldContainerMntPoint, syscall.MNT_DETACH)
 			if err != nil {
 				return err
 			}
@@ -963,7 +963,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// new storage api. We do os.Rename() here to preserve
 		// permissions and ownership.
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
-		if !shared.PathExists(newContainerMntPoint) {
+		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
 				return err
@@ -980,9 +980,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Rename the logical volume device.
 		ctLvName := containerNameToLVName(ct)
 		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointContainers, ctLvName)
-		_, err = tryExec("lvrename", defaultPoolName, ctLvName, newContainerLvName)
-		if err != nil {
-			return err
+		containerLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointContainers, ctLvName)
+		if !shared.PathExists(containerLvDevPath) {
+			_, err := tryExec("lvrename", defaultPoolName, ctLvName, newContainerLvName)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Create the new container mountpoint.
@@ -999,10 +1002,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Set to default.
 			mountOptions = "discard"
 		}
-		containerLvDevPath := fmt.Sprintf("/dev/%s/%s_%s", defaultPoolName, storagePoolVolumeApiEndpointContainers, ctLvName)
-		err = tryMount(containerLvDevPath, newContainerMntPoint, lvFsType, 0, mountOptions)
-		if err != nil {
-			return err
+
+		if !shared.IsMountPoint(newContainerMntPoint) {
+			err := tryMount(containerLvDevPath, newContainerMntPoint, lvFsType, 0, mountOptions)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Check if we need to account for snapshots for this container.
@@ -1056,7 +1061,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Unmount the logical volume.
 			oldSnapshotMntPoint := shared.VarPath("snapshots", cs)
 			if shared.IsMountPoint(oldSnapshotMntPoint) {
-				err := tryUnmount(oldSnapshotMntPoint, 0)
+				err := tryUnmount(oldSnapshotMntPoint, syscall.MNT_DETACH)
 				if err != nil {
 					return err
 				}
@@ -1064,7 +1069,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 			// Rename the snapshot mountpoint to preserve acl's and
 			// so on.
-			if shared.PathExists(oldSnapshotMntPoint) {
+			if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 				err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 				if err != nil {
 					return err
@@ -1076,11 +1081,13 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Make sure we use a valid lv name.
 			csLvName := containerNameToLVName(cs)
 			newSnapshotLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointContainers, csLvName)
-			_, err = tryExec("lvrename", defaultPoolName, csLvName, newSnapshotLvName)
-			if err != nil {
-				return err
+			snapshotLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointContainers, csLvName)
+			if !shared.PathExists(snapshotLvDevPath) {
+				_, err := tryExec("lvrename", defaultPoolName, csLvName, newSnapshotLvName)
+				if err != nil {
+					return err
+				}
 			}
-
 		}
 
 		if len(ctSnapshots) > 0 {
@@ -1091,7 +1098,9 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			snapshotsPath := shared.VarPath("snapshots", ct)
 			newSnapshotsPath := getSnapshotMountPoint(defaultPoolName, ct)
 			if shared.PathExists(snapshotsPath) {
-				err := os.Remove(snapshotsPath)
+				// On a broken update snapshotsPath will contain
+				// emtpy directories that need to be removed.
+				err := os.RemoveAll(snapshotsPath)
 				if err != nil {
 					return err
 				}
@@ -1109,9 +1118,11 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	images := append(imgPublic, imgPrivate...)
 	if len(images) > 0 {
 		imagesMntPoint := getImageMountPoint(defaultPoolName, "")
-		err := os.MkdirAll(imagesMntPoint, 0700)
-		if err != nil {
-			return err
+		if !shared.PathExists(imagesMntPoint) {
+			err := os.MkdirAll(imagesMntPoint, 0700)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1144,7 +1155,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Unmount the logical volume.
 		oldImageMntPoint := shared.VarPath("images", img+".lv")
 		if shared.IsMountPoint(oldImageMntPoint) {
-			err := tryUnmount(oldImageMntPoint, 0)
+			err := tryUnmount(oldImageMntPoint, syscall.MNT_DETACH)
 			if err != nil {
 				return err
 			}
@@ -1167,9 +1178,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 		// Rename the logical volume device.
 		newImageLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointImages, img)
-		_, err = tryExec("lvrename", defaultPoolName, img, newImageLvName)
-		if err != nil {
-			return err
+		imageLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointImages, img)
+		if !shared.PathExists(imageLvDevPath) {
+			_, err := tryExec("lvrename", defaultPoolName, img, newImageLvName)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
