@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 
@@ -395,16 +394,15 @@ func runApparmor(command string, c container) error {
 		return nil
 	}
 
-	cmd := exec.Command("apparmor_parser", []string{
+	output, err := shared.RunCommand("apparmor_parser", []string{
 		fmt.Sprintf("-%sWL", command),
 		path.Join(aaPath, "cache"),
 		path.Join(aaPath, "profiles", AAProfileShort(c)),
 	}...)
 
-	output, err := cmd.CombinedOutput()
 	if err != nil {
 		shared.LogError("Running apparmor",
-			log.Ctx{"action": command, "output": string(output), "err": err})
+			log.Ctx{"action": command, "output": output, "err": err})
 	}
 
 	return err
@@ -519,7 +517,7 @@ func aaProfile() string {
 }
 
 func aaParserSupports(feature string) bool {
-	out, err := exec.Command("apparmor_parser", "--version").CombinedOutput()
+	out, err := shared.RunCommand("apparmor_parser", "--version")
 	if err != nil {
 		return false
 	}
@@ -528,7 +526,7 @@ func aaParserSupports(feature string) bool {
 	minor := 0
 	micro := 0
 
-	_, err = fmt.Sscanf(strings.Split(string(out), "\n")[0], "AppArmor parser version %d.%d.%d", &major, &minor, &micro)
+	_, err = fmt.Sscanf(strings.Split(out, "\n")[0], "AppArmor parser version %d.%d.%d", &major, &minor, &micro)
 	if err != nil {
 		return false
 	}

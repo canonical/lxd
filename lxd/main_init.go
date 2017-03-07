@@ -47,7 +47,7 @@ func cmdInit() error {
 	if err == nil && len(out) != 0 && !runningInUserns {
 		_ = loadModule("zfs")
 
-		err := shared.RunCommand("zpool", "list")
+		_, err := shared.RunCommand("zpool", "list")
 		if err == nil {
 			backendsAvailable = append(backendsAvailable, "zfs")
 		}

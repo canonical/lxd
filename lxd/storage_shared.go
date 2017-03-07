@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -82,13 +81,13 @@ func (s *storageShared) setUnprivUserAcl(c container, destPath string) error {
 
 	// Attempt to set a POSIX ACL first.
 	acl := fmt.Sprintf("%d:rx", uid)
-	err = exec.Command("setfacl", "-m", acl, destPath).Run()
+	_, err = shared.RunCommand("setfacl", "-m", acl, destPath)
 	if err == nil {
 		return nil
 	}
 
 	// Fallback to chmod if the fs doesn't support it.
-	err = exec.Command("chmod", "+x", destPath).Run()
+	_, err = shared.RunCommand("chmod", "+x", destPath)
 	if err != nil {
 		shared.LogDebugf("Failed to set executable bit on the container path: %s", err)
 		return err

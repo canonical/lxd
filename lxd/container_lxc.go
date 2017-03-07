@@ -1753,7 +1753,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			if m["nictype"] == "macvlan" && m["vlan"] != "" {
 				device := networkGetHostDevice(m["parent"], m["vlan"])
 				if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", device)) {
-					err := shared.RunCommand("ip", "link", "add", "link", m["parent"], "name", device, "up", "type", "vlan", "id", m["vlan"])
+					_, err := shared.RunCommand("ip", "link", "add", "link", m["parent"], "name", device, "up", "type", "vlan", "id", m["vlan"])
 					if err != nil {
 						return "", err
 					}
@@ -1950,16 +1950,16 @@ func (c *containerLXC) Start(stateful bool) error {
 	}
 
 	// Start the LXC container
-	out, err := exec.Command(
+	out, err := shared.RunCommand(
 		execPath,
 		"forkstart",
 		c.name,
 		c.daemon.lxcpath,
-		configPath).CombinedOutput()
+		configPath)
 
 	// Capture debug output
-	if string(out) != "" {
-		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+	if out != "" {
+		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 			shared.LogDebugf("forkstart: %s", line)
 		}
 	}
@@ -1995,12 +1995,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		shared.LogError("Failed starting container", ctxMap)
 
 		// Return the actual error
-		return fmt.Errorf(
-			"Error calling 'lxd forkstart %s %s %s': err='%v'%s",
-			c.name,
-			c.daemon.lxcpath,
-			filepath.Join(c.LogPath(), "lxc.conf"),
-			err, lxcLog)
+		return err
 	}
 
 	shared.LogInfo("Started container", ctxMap)
@@ -4170,31 +4165,20 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
 
-		var out []byte
-		out, migrateErr = exec.Command(
+		var out string
+		out, migrateErr = shared.RunCommand(
 			execPath,
 			"forkmigrate",
 			c.name,
 			c.daemon.lxcpath,
 			configPath,
 			stateDir,
-			fmt.Sprintf("%v", preservesInodes)).CombinedOutput()
+			fmt.Sprintf("%v", preservesInodes))
 
-		if string(out) != "" {
-			for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+		if out != "" {
+			for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 				shared.LogDebugf("forkmigrate: %s", line)
 			}
-		}
-
-		if migrateErr != nil && !c.IsRunning() {
-			migrateErr = fmt.Errorf(
-				"Error calling 'lxd forkmigrate %s %s %s %s': err='%v' out='%v'",
-				c.name,
-				c.daemon.lxcpath,
-				filepath.Join(c.LogPath(), "lxc.conf"),
-				stateDir,
-				err,
-				string(out))
 		}
 
 	} else {
@@ -4413,13 +4397,13 @@ func (c *containerLXC) FileExists(path string) error {
 	}
 
 	// Check if the file exists in the container
-	out, err := exec.Command(
+	out, err := shared.RunCommand(
 		execPath,
 		"forkcheckfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
 		path,
-	).CombinedOutput()
+	)
 
 	// Tear down container storage if needed
 	if !c.IsRunning() {
@@ -4430,23 +4414,18 @@ func (c *containerLXC) FileExists(path string) error {
 	}
 
 	// Process forkcheckfile response
-	if string(out) != "" {
-		if strings.HasPrefix(string(out), "error:") {
-			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(string(out), "\n"), "error: "))
+	if out != "" {
+		if strings.HasPrefix(out, "error:") {
+			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(out, "\n"), "error: "))
 		}
 
-		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 			shared.LogDebugf("forkcheckfile: %s", line)
 		}
 	}
 
 	if err != nil {
-		return fmt.Errorf(
-			"Error calling 'lxd forkcheckfile %s %d %s': err='%v'",
-			c.RootfsPath(),
-			c.InitPID(),
-			path,
-			err)
+		return err
 	}
 
 	return nil
@@ -4462,14 +4441,14 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	}
 
 	// Get the file from the container
-	out, err := exec.Command(
+	out, err := shared.RunCommand(
 		execPath,
 		"forkgetfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
 		dstpath,
 		srcpath,
-	).CombinedOutput()
+	)
 
 	// Tear down container storage if needed
 	if !c.IsRunning() {
@@ -4487,7 +4466,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	var errStr string
 
 	// Process forkgetfile response
-	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 		if line == "" {
 			continue
 		}
@@ -4553,13 +4532,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	}
 
 	if err != nil {
-		return -1, -1, 0, "", nil, fmt.Errorf(
-			"Error calling 'lxd forkgetfile %s %d %s %s': err='%v'",
-			c.RootfsPath(),
-			c.InitPID(),
-			dstpath,
-			srcpath,
-			err)
+		return -1, -1, 0, "", nil, err
 	}
 
 	// Unmap uid and gid if needed
@@ -4604,7 +4577,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 	}
 
 	// Push the file to the container
-	out, err := exec.Command(
+	out, err := shared.RunCommand(
 		execPath,
 		"forkputfile",
 		c.RootfsPath(),
@@ -4618,7 +4591,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 		fmt.Sprintf("%d", rootGid),
 		fmt.Sprintf("%d", int(os.FileMode(0640)&os.ModePerm)),
 		write,
-	).CombinedOutput()
+	)
 
 	// Tear down container storage if needed
 	if !c.IsRunning() {
@@ -4629,7 +4602,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 	}
 
 	// Process forkgetfile response
-	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 		if line == "" {
 			continue
 		}
@@ -4651,20 +4624,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 	}
 
 	if err != nil {
-		return fmt.Errorf(
-			"Error calling 'lxd forkputfile %s %d %s %s %d %d %d %d %d %d %s': err='%v'",
-			c.RootfsPath(),
-			c.InitPID(),
-			srcpath,
-			dstpath,
-			uid,
-			gid,
-			mode,
-			rootUid,
-			rootGid,
-			int(os.FileMode(0640)&os.ModePerm),
-			write,
-			err)
+		return err
 	}
 
 	return nil
@@ -4682,13 +4642,13 @@ func (c *containerLXC) FileRemove(path string) error {
 	}
 
 	// Remove the file from the container
-	out, err := exec.Command(
+	out, err := shared.RunCommand(
 		execPath,
 		"forkremovefile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
 		path,
-	).CombinedOutput()
+	)
 
 	// Tear down container storage if needed
 	if !c.IsRunning() {
@@ -4699,7 +4659,7 @@ func (c *containerLXC) FileRemove(path string) error {
 	}
 
 	// Process forkremovefile response
-	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 		if line == "" {
 			continue
 		}
@@ -4721,12 +4681,7 @@ func (c *containerLXC) FileRemove(path string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf(
-			"Error calling 'lxd forkremovefile %s %d %s': err='%v'",
-			c.RootfsPath(),
-			c.InitPID(),
-			path,
-			err)
+		return err
 	}
 
 	return nil
@@ -4906,20 +4861,20 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 	}
 
 	// Get the network state from the container
-	out, err := exec.Command(
+	out, err := shared.RunCommand(
 		execPath,
 		"forkgetnet",
-		fmt.Sprintf("%d", pid)).CombinedOutput()
+		fmt.Sprintf("%d", pid))
 
 	// Process forkgetnet response
 	if err != nil {
-		shared.LogError("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "output": string(out), "pid": pid})
+		shared.LogError("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "output": out, "pid": pid})
 		return result
 	}
 
 	networks := map[string]api.ContainerStateNetwork{}
 
-	err = json.Unmarshal(out, &networks)
+	err = json.Unmarshal([]byte(out), &networks)
 	if err != nil {
 		shared.LogError("Failure to read forkgetnet json", log.Ctx{"container": c.name, "err": err})
 		return result
@@ -5143,21 +5098,16 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	out, err := exec.Command(execPath, "forkmount", pidStr, mntsrc, target).CombinedOutput()
+	out, err := shared.RunCommand(execPath, "forkmount", pidStr, mntsrc, target)
 
-	if string(out) != "" {
-		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+	if out != "" {
+		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 			shared.LogDebugf("forkmount: %s", line)
 		}
 	}
 
 	if err != nil {
-		return fmt.Errorf(
-			"Error calling 'lxd forkmount %s %s %s': err='%v'",
-			pidStr,
-			mntsrc,
-			target,
-			err)
+		return err
 	}
 
 	return nil
@@ -5173,20 +5123,16 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	// Remove the mount from the container
 	pidStr := fmt.Sprintf("%d", pid)
-	out, err := exec.Command(execPath, "forkumount", pidStr, mount).CombinedOutput()
+	out, err := shared.RunCommand(execPath, "forkumount", pidStr, mount)
 
-	if string(out) != "" {
-		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+	if out != "" {
+		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 			shared.LogDebugf("forkumount: %s", line)
 		}
 	}
 
 	if err != nil {
-		return fmt.Errorf(
-			"Error calling 'lxd forkumount %s %s': err='%v'",
-			pidStr,
-			mount,
-			err)
+		return err
 	}
 
 	return nil
@@ -5562,12 +5508,12 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 		n2 := deviceNextVeth()
 
-		err := exec.Command("ip", "link", "add", n1, "type", "veth", "peer", "name", n2).Run()
+		_, err := shared.RunCommand("ip", "link", "add", n1, "type", "veth", "peer", "name", n2)
 		if err != nil {
 			return "", fmt.Errorf("Failed to create the veth interface: %s", err)
 		}
 
-		err = exec.Command("ip", "link", "set", n1, "up").Run()
+		_, err = shared.RunCommand("ip", "link", "set", n1, "up")
 		if err != nil {
 			return "", fmt.Errorf("Failed to bring up the veth interface %s: %s", n1, err)
 		}
@@ -5600,14 +5546,14 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		if m["vlan"] != "" {
 			device = networkGetHostDevice(m["parent"], m["vlan"])
 			if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", device)) {
-				err := shared.RunCommand("ip", "link", "add", "link", m["parent"], "name", device, "up", "type", "vlan", "id", m["vlan"])
+				_, err := shared.RunCommand("ip", "link", "add", "link", m["parent"], "name", device, "up", "type", "vlan", "id", m["vlan"])
 				if err != nil {
 					return "", err
 				}
 			}
 		}
 
-		err := exec.Command("ip", "link", "add", n1, "link", device, "type", "macvlan", "mode", "bridge").Run()
+		_, err := shared.RunCommand("ip", "link", "add", n1, "link", device, "type", "macvlan", "mode", "bridge")
 		if err != nil {
 			return "", fmt.Errorf("Failed to create the new macvlan interface: %s", err)
 		}
@@ -5617,7 +5563,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 
 	// Set the MAC address
 	if m["hwaddr"] != "" {
-		err := exec.Command("ip", "link", "set", "dev", dev, "address", m["hwaddr"]).Run()
+		_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "address", m["hwaddr"])
 		if err != nil {
 			deviceRemoveInterface(dev)
 			return "", fmt.Errorf("Failed to set the MAC address: %s", err)
@@ -5625,7 +5571,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	}
 
 	// Bring the interface up
-	err := exec.Command("ip", "link", "set", "dev", dev, "up").Run()
+	_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "up")
 	if err != nil {
 		deviceRemoveInterface(dev)
 		return "", fmt.Errorf("Failed to bring up the interface: %s", err)
@@ -5790,12 +5736,12 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 }
 
 func (c *containerLXC) createNetworkFilter(name string, bridge string, hwaddr string) error {
-	err := shared.RunCommand("ebtables", "-A", "FORWARD", "-s", "!", hwaddr, "-i", name, "-o", bridge, "-j", "DROP")
+	_, err := shared.RunCommand("ebtables", "-A", "FORWARD", "-s", "!", hwaddr, "-i", name, "-o", bridge, "-j", "DROP")
 	if err != nil {
 		return err
 	}
 
-	err = shared.RunCommand("ebtables", "-A", "INPUT", "-s", "!", hwaddr, "-i", name, "-j", "DROP")
+	_, err = shared.RunCommand("ebtables", "-A", "INPUT", "-s", "!", hwaddr, "-i", name, "-j", "DROP")
 	if err != nil {
 		return err
 	}
@@ -5804,8 +5750,8 @@ func (c *containerLXC) createNetworkFilter(name string, bridge string, hwaddr st
 }
 
 func (c *containerLXC) removeNetworkFilter(hwaddr string, bridge string) error {
-	out, err := exec.Command("ebtables", "-L", "--Lmac2", "--Lx").Output()
-	for _, line := range strings.Split(string(out), "\n") {
+	out, err := shared.RunCommand("ebtables", "-L", "--Lmac2", "--Lx")
+	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
 		fields := strings.Fields(line)
 
@@ -5813,7 +5759,7 @@ func (c *containerLXC) removeNetworkFilter(hwaddr string, bridge string) error {
 			match := []string{"ebtables", "-t", "filter", "-A", "INPUT", "-s", "!", hwaddr, "-i", fields[9], "-j", "DROP"}
 			if reflect.DeepEqual(fields, match) {
 				fields[3] = "-D"
-				err = shared.RunCommand(fields[0], fields[1:]...)
+				_, err = shared.RunCommand(fields[0], fields[1:]...)
 				if err != nil {
 					return err
 				}
@@ -5822,7 +5768,7 @@ func (c *containerLXC) removeNetworkFilter(hwaddr string, bridge string) error {
 			match := []string{"ebtables", "-t", "filter", "-A", "FORWARD", "-s", "!", hwaddr, "-i", fields[9], "-o", bridge, "-j", "DROP"}
 			if reflect.DeepEqual(fields, match) {
 				fields[3] = "-D"
-				err = shared.RunCommand(fields[0], fields[1:]...)
+				_, err = shared.RunCommand(fields[0], fields[1:]...)
 				if err != nil {
 					return err
 				}
@@ -6488,34 +6434,34 @@ func (c *containerLXC) setNetworkLimits(name string, m types.Device) error {
 	}
 
 	// Clean any existing entry
-	_ = exec.Command("tc", "qdisc", "del", "dev", veth, "root").Run()
-	_ = exec.Command("tc", "qdisc", "del", "dev", veth, "ingress").Run()
+	shared.RunCommand("tc", "qdisc", "del", "dev", veth, "root")
+	shared.RunCommand("tc", "qdisc", "del", "dev", veth, "ingress")
 
 	// Apply new limits
 	if m["limits.ingress"] != "" {
-		out, err := exec.Command("tc", "qdisc", "add", "dev", veth, "root", "handle", "1:0", "htb", "default", "10").CombinedOutput()
+		out, err := shared.RunCommand("tc", "qdisc", "add", "dev", veth, "root", "handle", "1:0", "htb", "default", "10")
 		if err != nil {
 			return fmt.Errorf("Failed to create root tc qdisc: %s", out)
 		}
 
-		out, err = exec.Command("tc", "class", "add", "dev", veth, "parent", "1:0", "classid", "1:10", "htb", "rate", fmt.Sprintf("%dbit", ingressInt)).CombinedOutput()
+		out, err = shared.RunCommand("tc", "class", "add", "dev", veth, "parent", "1:0", "classid", "1:10", "htb", "rate", fmt.Sprintf("%dbit", ingressInt))
 		if err != nil {
 			return fmt.Errorf("Failed to create limit tc class: %s", out)
 		}
 
-		out, err = exec.Command("tc", "filter", "add", "dev", veth, "parent", "1:0", "protocol", "all", "u32", "match", "u32", "0", "0", "flowid", "1:1").CombinedOutput()
+		out, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "1:0", "protocol", "all", "u32", "match", "u32", "0", "0", "flowid", "1:1")
 		if err != nil {
 			return fmt.Errorf("Failed to create tc filter: %s", out)
 		}
 	}
 
 	if m["limits.egress"] != "" {
-		out, err := exec.Command("tc", "qdisc", "add", "dev", veth, "handle", "ffff:0", "ingress").CombinedOutput()
+		out, err := shared.RunCommand("tc", "qdisc", "add", "dev", veth, "handle", "ffff:0", "ingress")
 		if err != nil {
 			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
 		}
 
-		out, err = exec.Command("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop", "flowid", ":1").CombinedOutput()
+		out, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop", "flowid", ":1")
 		if err != nil {
 			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
 		}

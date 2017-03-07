@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -212,7 +211,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bonding", n.Name)) {
 		n.Type = "bond"
 	} else {
-		_, err := exec.Command("ovs-vsctl", "br-exists", n.Name).CombinedOutput()
+		_, err := shared.RunCommand("ovs-vsctl", "br-exists", n.Name)
 		if err == nil {
 			n.Type = "bridge"
 		} else {
@@ -534,12 +533,12 @@ func (n *network) Start() error {
 	// Create the bridge interface
 	if !n.IsRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
-			err := shared.RunCommand("ovs-vsctl", "add-br", n.name)
+			_, err := shared.RunCommand("ovs-vsctl", "add-br", n.name)
 			if err != nil {
 				return err
 			}
 		} else {
-			err := shared.RunCommand("ip", "link", "add", n.name, "type", "bridge")
+			_, err := shared.RunCommand("ip", "link", "add", n.name, "type", "bridge")
 			if err != nil {
 				return err
 			}
@@ -571,7 +570,7 @@ func (n *network) Start() error {
 	// Cleanup any existing tunnel device
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			err = shared.RunCommand("ip", "link", "del", iface.Name)
+			_, err = shared.RunCommand("ip", "link", "del", iface.Name)
 			if err != nil {
 				return err
 			}
@@ -594,7 +593,7 @@ func (n *network) Start() error {
 
 	// Attempt to add a dummy device to the bridge to force the MTU
 	if mtu != "" && n.config["bridge.driver"] != "openvswitch" {
-		err = shared.RunCommand("ip", "link", "add", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu, "type", "dummy")
+		_, err = shared.RunCommand("ip", "link", "add", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu, "type", "dummy")
 		if err == nil {
 			networkAttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
 		}
@@ -605,13 +604,13 @@ func (n *network) Start() error {
 		mtu = "1500"
 	}
 
-	err = shared.RunCommand("ip", "link", "set", n.name, "mtu", mtu)
+	_, err = shared.RunCommand("ip", "link", "set", n.name, "mtu", mtu)
 	if err != nil {
 		return err
 	}
 
 	// Bring it up
-	err = shared.RunCommand("ip", "link", "set", n.name, "up")
+	_, err = shared.RunCommand("ip", "link", "set", n.name, "up")
 	if err != nil {
 		return err
 	}
@@ -654,12 +653,12 @@ func (n *network) Start() error {
 	}
 
 	// Flush all IPv4 addresses and routes
-	err = shared.RunCommand("ip", "-4", "addr", "flush", "dev", n.name, "scope", "global")
+	_, err = shared.RunCommand("ip", "-4", "addr", "flush", "dev", n.name, "scope", "global")
 	if err != nil {
 		return err
 	}
 
-	err = shared.RunCommand("ip", "-4", "route", "flush", "dev", n.name, "proto", "static")
+	_, err = shared.RunCommand("ip", "-4", "route", "flush", "dev", n.name, "proto", "static")
 	if err != nil {
 		return err
 	}
@@ -758,7 +757,7 @@ func (n *network) Start() error {
 		}
 
 		// Add the address
-		err = shared.RunCommand("ip", "-4", "addr", "add", "dev", n.name, n.config["ipv4.address"])
+		_, err = shared.RunCommand("ip", "-4", "addr", "add", "dev", n.name, n.config["ipv4.address"])
 		if err != nil {
 			return err
 		}
@@ -775,7 +774,7 @@ func (n *network) Start() error {
 		if n.config["ipv4.routes"] != "" {
 			for _, route := range strings.Split(n.config["ipv4.routes"], ",") {
 				route = strings.TrimSpace(route)
-				err = shared.RunCommand("ip", "-4", "route", "add", "dev", n.name, route, "proto", "static")
+				_, err = shared.RunCommand("ip", "-4", "route", "add", "dev", n.name, route, "proto", "static")
 				if err != nil {
 					return err
 				}
@@ -795,12 +794,12 @@ func (n *network) Start() error {
 	}
 
 	// Flush all IPv6 addresses and routes
-	err = shared.RunCommand("ip", "-6", "addr", "flush", "dev", n.name, "scope", "global")
+	_, err = shared.RunCommand("ip", "-6", "addr", "flush", "dev", n.name, "scope", "global")
 	if err != nil {
 		return err
 	}
 
-	err = shared.RunCommand("ip", "-6", "route", "flush", "dev", n.name, "proto", "static")
+	_, err = shared.RunCommand("ip", "-6", "route", "flush", "dev", n.name, "proto", "static")
 	if err != nil {
 		return err
 	}
@@ -918,7 +917,7 @@ func (n *network) Start() error {
 		}
 
 		// Add the address
-		err = shared.RunCommand("ip", "-6", "addr", "add", "dev", n.name, n.config["ipv6.address"])
+		_, err = shared.RunCommand("ip", "-6", "addr", "add", "dev", n.name, n.config["ipv6.address"])
 		if err != nil {
 			return err
 		}
@@ -935,7 +934,7 @@ func (n *network) Start() error {
 		if n.config["ipv6.routes"] != "" {
 			for _, route := range strings.Split(n.config["ipv6.routes"], ",") {
 				route = strings.TrimSpace(route)
-				err = shared.RunCommand("ip", "-6", "route", "add", "dev", n.name, route, "proto", "static")
+				_, err = shared.RunCommand("ip", "-6", "route", "add", "dev", n.name, route, "proto", "static")
 				if err != nil {
 					return err
 				}
@@ -983,7 +982,7 @@ func (n *network) Start() error {
 		}
 
 		// Add the address
-		err = shared.RunCommand("ip", "-4", "addr", "add", "dev", n.name, fanAddress)
+		_, err = shared.RunCommand("ip", "-4", "addr", "add", "dev", n.name, fanAddress)
 		if err != nil {
 			return err
 		}
@@ -998,12 +997,12 @@ func (n *network) Start() error {
 
 		// Setup the tunnel
 		if n.config["fan.type"] == "ipip" {
-			err = shared.RunCommand("ip", "-4", "route", "flush", "dev", "tunl0")
+			_, err = shared.RunCommand("ip", "-4", "route", "flush", "dev", "tunl0")
 			if err != nil {
 				return err
 			}
 
-			err = shared.RunCommand("ip", "link", "set", "tunl0", "up")
+			_, err = shared.RunCommand("ip", "link", "set", "tunl0", "up")
 			if err != nil {
 				return err
 			}
@@ -1011,14 +1010,14 @@ func (n *network) Start() error {
 			// Fails if the map is already set
 			shared.RunCommand("ip", "link", "change", "tunl0", "type", "ipip", "fan-map", fmt.Sprintf("%s:%s", overlay, underlay))
 
-			err = shared.RunCommand("ip", "route", "add", overlay, "dev", "tunl0", "src", addr[0])
+			_, err = shared.RunCommand("ip", "route", "add", overlay, "dev", "tunl0", "src", addr[0])
 			if err != nil {
 				return err
 			}
 		} else {
 			vxlanID := fmt.Sprintf("%d", binary.BigEndian.Uint32(overlaySubnet.IP.To4())>>8)
 
-			err = shared.RunCommand("ip", "link", "add", tunName, "type", "vxlan", "id", vxlanID, "dev", devName, "dstport", "0", "local", devAddr, "fan-map", fmt.Sprintf("%s:%s", overlay, underlay))
+			_, err = shared.RunCommand("ip", "link", "add", tunName, "type", "vxlan", "id", vxlanID, "dev", devName, "dstport", "0", "local", devAddr, "fan-map", fmt.Sprintf("%s:%s", overlay, underlay))
 			if err != nil {
 				return err
 			}
@@ -1028,12 +1027,12 @@ func (n *network) Start() error {
 				return err
 			}
 
-			err = shared.RunCommand("ip", "link", "set", tunName, "mtu", mtu, "up")
+			_, err = shared.RunCommand("ip", "link", "set", tunName, "mtu", mtu, "up")
 			if err != nil {
 				return err
 			}
 
-			err = shared.RunCommand("ip", "link", "set", n.name, "up")
+			_, err = shared.RunCommand("ip", "link", "set", n.name, "up")
 			if err != nil {
 				return err
 			}
@@ -1105,7 +1104,7 @@ func (n *network) Start() error {
 		}
 
 		// Create the interface
-		err = shared.RunCommand(cmd[0], cmd[1:]...)
+		_, err = shared.RunCommand(cmd[0], cmd[1:]...)
 		if err != nil {
 			return err
 		}
@@ -1116,12 +1115,12 @@ func (n *network) Start() error {
 			return err
 		}
 
-		err = shared.RunCommand("ip", "link", "set", tunName, "mtu", mtu, "up")
+		_, err = shared.RunCommand("ip", "link", "set", tunName, "mtu", mtu, "up")
 		if err != nil {
 			return err
 		}
 
-		err = shared.RunCommand("ip", "link", "set", n.name, "up")
+		_, err = shared.RunCommand("ip", "link", "set", n.name, "up")
 		if err != nil {
 			return err
 		}
@@ -1174,9 +1173,9 @@ func (n *network) Start() error {
 		}
 
 		// Start dnsmasq (occasionally races, try a few times)
-		output, err := tryExec(dnsmasqCmd[0], dnsmasqCmd[1:]...)
+		output, err := shared.TryRunCommand(dnsmasqCmd[0], dnsmasqCmd[1:]...)
 		if err != nil {
-			return fmt.Errorf("Failed to run: %s: %s", strings.Join(dnsmasqCmd, " "), strings.TrimSpace(string(output)))
+			return fmt.Errorf("Failed to run: %s: %s", strings.Join(dnsmasqCmd, " "), strings.TrimSpace(output))
 		}
 
 		// Update the static leases
@@ -1196,12 +1195,12 @@ func (n *network) Stop() error {
 
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
-		err := shared.RunCommand("ovs-vsctl", "del-br", n.name)
+		_, err := shared.RunCommand("ovs-vsctl", "del-br", n.name)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := shared.RunCommand("ip", "link", "del", n.name)
+		_, err := shared.RunCommand("ip", "link", "del", n.name)
 		if err != nil {
 			return err
 		}
@@ -1248,7 +1247,7 @@ func (n *network) Stop() error {
 	// Cleanup any existing tunnel device
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			err = shared.RunCommand("ip", "link", "del", iface.Name)
+			_, err = shared.RunCommand("ip", "link", "del", iface.Name)
 			if err != nil {
 				return err
 			}

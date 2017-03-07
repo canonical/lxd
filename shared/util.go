@@ -455,12 +455,12 @@ func IsBlockdevPath(pathName string) bool {
 }
 
 func BlockFsDetect(dev string) (string, error) {
-	out, err := exec.Command("blkid", "-s", "TYPE", "-o", "value", dev).Output()
+	out, err := RunCommand("blkid", "-s", "TYPE", "-o", "value", dev)
 	if err != nil {
-		return "", fmt.Errorf("Failed to run blkid on: %s", dev)
+		return "", err
 	}
 
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
 // DeepCopy copies src to dest by using encoding/gob so its not that fast.
@@ -756,13 +756,29 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 	return s
 }
 
-func RunCommand(name string, arg ...string) error {
+func RunCommand(name string, arg ...string) (string, error) {
 	output, err := exec.Command(name, arg...).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(output)))
+		return string(output), fmt.Errorf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(output)))
 	}
 
-	return nil
+	return string(output), nil
+}
+
+func TryRunCommand(name string, arg ...string) (string, error) {
+	var err error
+	var output string
+
+	for i := 0; i < 20; i++ {
+		output, err = RunCommand(name, arg...)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return output, err
 }
 
 func TimeIsSet(ts time.Time) bool {
