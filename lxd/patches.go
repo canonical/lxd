@@ -673,7 +673,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		// Simply rename the container when they are directories.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
-		if shared.PathExists(oldContainerMntPoint) {
+		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			// First try to rename.
 			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
@@ -721,7 +721,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Now simply rename the snapshots directory as well.
 		newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, ct)
-		if shared.PathExists(oldSnapshotMntPoint) {
+		if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 			err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 			if err != nil {
 				output, err := storageRsyncCopy(oldSnapshotMntPoint, newSnapshotMntPoint)
@@ -963,7 +963,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// new storage api. We do os.Rename() here to preserve
 		// permissions and ownership.
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
-		if !shared.PathExists(newContainerMntPoint) {
+		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
 				return err
@@ -1069,7 +1069,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 			// Rename the snapshot mountpoint to preserve acl's and
 			// so on.
-			if shared.PathExists(oldSnapshotMntPoint) {
+			if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 				err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 				if err != nil {
 					return err
@@ -1116,9 +1116,11 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	images := append(imgPublic, imgPrivate...)
 	if len(images) > 0 {
 		imagesMntPoint := getImageMountPoint(defaultPoolName, "")
-		err := os.MkdirAll(imagesMntPoint, 0700)
-		if err != nil {
-			return err
+		if !shared.PathExists(imagesMntPoint) {
+			err := os.MkdirAll(imagesMntPoint, 0700)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
