@@ -826,7 +826,15 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		poolConfig["volume.block.mount_options"] = fsMntOpts
 	}
 
+	thinPoolName := "LXDPool"
 	poolConfig["lvm.thinpool_name"] = daemonConfig["storage.lvm_thinpool_name"].Get()
+	if poolConfig["lvm.thinpool_name"] != "" {
+		thinPoolName = poolConfig["lvm.thinpool_name"]
+	} else {
+		// If empty we need to set it to the old default.
+		poolConfig["lvm.thinpool_name"] = thinPoolName
+	}
+
 	poolConfig["lvm.vg_name"] = daemonConfig["storage.lvm_vg_name"].Get()
 
 	poolConfig["volume.size"] = daemonConfig["storage.lvm_volume_size"].Get()
@@ -896,6 +904,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		return err
 	}
 
+	// Create pool mountpoint if it doesn't already exist.
 	poolMntPoint := getStoragePoolMountPoint(defaultPoolName)
 	if !shared.PathExists(poolMntPoint) {
 		err = os.MkdirAll(poolMntPoint, 0711)
@@ -905,6 +914,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	if len(cRegular) > 0 {
+		// Create generic containers folder on the storage pool.
 		newContainersMntPoint := getContainerMountPoint(defaultPoolName, "")
 		if !shared.PathExists(newContainersMntPoint) {
 			err = os.MkdirAll(newContainersMntPoint, 0711)
@@ -954,6 +964,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		if shared.IsMountPoint(oldContainerMntPoint) {
 			err := tryUnmount(oldContainerMntPoint, syscall.MNT_DETACH)
 			if err != nil {
+				shared.LogErrorf("Failed to unmount LVM logical volume \"%s\": %s.", oldContainerMntPoint, err)
 				return err
 			}
 		}
@@ -962,28 +973,91 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// new storage api. We do os.Rename() here to preserve
 		// permissions and ownership.
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
-		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
-			err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
-			if err != nil {
-				return err
-			}
-		}
-
-		if shared.PathExists(oldContainerMntPoint + ".lv") {
-			err := os.Remove(oldContainerMntPoint + ".lv")
-			if err != nil {
-				return err
-			}
-		}
-
-		// Rename the logical volume device.
 		ctLvName := containerNameToLVName(ct)
 		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointContainers, ctLvName)
 		containerLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointContainers, ctLvName)
 		if !shared.PathExists(containerLvDevPath) {
-			_, err := shared.TryRunCommand("lvrename", defaultPoolName, ctLvName, newContainerLvName)
-			if err != nil {
-				return err
+			oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, ctLvName)
+			// If the old LVM device path for the logical volume
+			// exists we call lvrename. Otherwise this is likely a
+			// mixed-storage LXD instance which we need to deal
+			// with.
+			if shared.PathExists(oldLvDevPath) {
+				// Rename the logical volume mountpoint.
+				if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
+					err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
+					if err != nil {
+						shared.LogErrorf("Failed to rename LVM container mountpoint from %s to %s: %s.", oldContainerMntPoint, newContainerMntPoint, err)
+						return err
+					}
+				}
+
+				// Remove the old container mountpoint.
+				if shared.PathExists(oldContainerMntPoint + ".lv") {
+					err := os.Remove(oldContainerMntPoint + ".lv")
+					if err != nil {
+						shared.LogErrorf("Failed to remove old LVM container mountpoint %s: %s.", oldContainerMntPoint+".lv", err)
+						return err
+					}
+				}
+
+				// Rename the logical volume.
+				msg, err := shared.TryRunCommand("lvrename", defaultPoolName, ctLvName, newContainerLvName)
+				if err != nil {
+					shared.LogErrorf("Failed to rename LVM logical volume from %s to %s: %s.", ctLvName, newContainerLvName, msg)
+					return err
+				}
+			} else if shared.PathExists(oldContainerMntPoint) && shared.IsDir(oldContainerMntPoint) {
+				// This is a directory backed container and it
+				// means that this was a mixed-storage LXD
+				// instance.
+
+				// Initialize storage interface for the new
+				// container.
+				ctStorage, err := storagePoolVolumeContainerLoadInit(d, ct)
+				if err != nil {
+					shared.LogErrorf("Failed to initialize new storage interface for LVM container %s: %s.", ct, err)
+					return err
+				}
+
+				// Load the container from the database.
+				ctStruct, err := containerLoadByName(d, ct)
+				if err != nil {
+					shared.LogErrorf("Failed to load LVM container %s: %s.", ct, err)
+					return err
+				}
+
+				// Create an empty LVM logical volume for the
+				// container.
+				err = ctStorage.ContainerCreate(ctStruct)
+				if err != nil {
+					shared.LogErrorf("Failed to create empty LVM logical volume for container %s: %s.", ct, err)
+					return err
+				}
+
+				// In case the new LVM logical volume for the
+				// container is not mounted mount it.
+				if !shared.IsMountPoint(newContainerMntPoint) {
+					_, err = ctStorage.ContainerMount(ctStruct.Name(), ctStruct.Path())
+					if err != nil {
+						shared.LogErrorf("Failed to mount new empty LVM logical volume for container %s: %s.", ct, err)
+						return err
+					}
+				}
+
+				// Use rsync to fill the empty volume.
+				output, err := storageRsyncCopy(oldContainerMntPoint, newContainerMntPoint)
+				if err != nil {
+					ctStorage.ContainerDelete(ctStruct)
+					return fmt.Errorf("rsync failed: %s", string(output))
+				}
+
+				// Remove the old container.
+				err = os.RemoveAll(oldContainerMntPoint)
+				if err != nil {
+					shared.LogErrorf("Failed to remove old container %s: %s.", oldContainerMntPoint, err)
+					return err
+				}
 			}
 		}
 
@@ -991,6 +1065,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		doesntMatter := false
 		err = createContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
+			shared.LogErrorf("Failed to create container mountpoint \"%s\" for LVM logical volume: %s.", newContainerMntPoint, err)
 			return err
 		}
 
@@ -1000,13 +1075,6 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		if mountOptions == "" {
 			// Set to default.
 			mountOptions = "discard"
-		}
-
-		if !shared.IsMountPoint(newContainerMntPoint) {
-			err := tryMount(containerLvDevPath, newContainerMntPoint, lvFsType, 0, mountOptions)
-			if err != nil {
-				return err
-			}
 		}
 
 		// Check if we need to account for snapshots for this container.
@@ -1057,24 +1125,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				}
 			}
 
-			// Unmount the logical volume.
 			oldSnapshotMntPoint := shared.VarPath("snapshots", cs)
-			if shared.IsMountPoint(oldSnapshotMntPoint) {
-				err := tryUnmount(oldSnapshotMntPoint, syscall.MNT_DETACH)
-				if err != nil {
-					return err
-				}
-			}
-
-			// Rename the snapshot mountpoint to preserve acl's and
-			// so on.
-			if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
-				err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
-				if err != nil {
-					return err
-				}
-			}
-
 			os.Remove(oldSnapshotMntPoint + ".lv")
 
 			// Make sure we use a valid lv name.
@@ -1082,9 +1133,85 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			newSnapshotLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointContainers, csLvName)
 			snapshotLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointContainers, csLvName)
 			if !shared.PathExists(snapshotLvDevPath) {
-				_, err := shared.TryRunCommand("lvrename", defaultPoolName, csLvName, newSnapshotLvName)
-				if err != nil {
-					return err
+				oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, csLvName)
+				if shared.PathExists(oldLvDevPath) {
+					// Unmount the logical volume.
+					if shared.IsMountPoint(oldSnapshotMntPoint) {
+						err := tryUnmount(oldSnapshotMntPoint, syscall.MNT_DETACH)
+						if err != nil {
+							shared.LogErrorf("Failed to unmount LVM logical volume \"%s\": %s.", oldSnapshotMntPoint, err)
+							return err
+						}
+					}
+
+					// Rename the snapshot mountpoint to preserve acl's and
+					// so on.
+					if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
+						err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
+						if err != nil {
+							shared.LogErrorf("Failed to rename LVM container mountpoint from %s to %s: %s.", oldSnapshotMntPoint, newSnapshotMntPoint, err)
+							return err
+						}
+					}
+
+					// Rename the logical volume.
+					msg, err := shared.TryRunCommand("lvrename", defaultPoolName, csLvName, newSnapshotLvName)
+					if err != nil {
+						shared.LogErrorf("Failed to rename LVM logical volume from %s to %s: %s.", csLvName, newSnapshotLvName, msg)
+						return err
+					}
+				} else if shared.PathExists(oldSnapshotMntPoint) && shared.IsDir(oldSnapshotMntPoint) {
+					// This is a directory backed container
+					// and it means that this was a
+					// mixed-storage LXD instance.
+
+					// Initialize storage interface for the new
+					// snapshot.
+					csStorage, err := storagePoolVolumeContainerLoadInit(d, cs)
+					if err != nil {
+						shared.LogErrorf("Failed to initialize new storage interface for LVM container %s: %s.", cs, err)
+						return err
+					}
+
+					// Load the snapshot from the database.
+					csStruct, err := containerLoadByName(d, cs)
+					if err != nil {
+						shared.LogErrorf("Failed to load LVM container %s: %s.", cs, err)
+						return err
+					}
+
+					// Create an empty LVM logical volume
+					// for the snapshot.
+					err = csStorage.ContainerSnapshotCreateEmpty(csStruct)
+					if err != nil {
+						shared.LogErrorf("Failed to create empty LVM logical volume for container %s: %s.", cs, err)
+						return err
+					}
+
+					// In case the new LVM logical volume
+					// for the snapshot is not mounted mount
+					// it.
+					if !shared.IsMountPoint(newSnapshotMntPoint) {
+						_, err = csStorage.ContainerMount(csStruct.Name(), csStruct.Path())
+						if err != nil {
+							shared.LogErrorf("Failed to mount new empty LVM logical volume for container %s: %s.", cs, err)
+							return err
+						}
+					}
+
+					// Use rsync to fill the empty volume.
+					output, err := storageRsyncCopy(oldSnapshotMntPoint, newSnapshotMntPoint)
+					if err != nil {
+						csStorage.ContainerDelete(csStruct)
+						return fmt.Errorf("rsync failed: %s", string(output))
+					}
+
+					// Remove the old snapshot.
+					err = os.RemoveAll(oldSnapshotMntPoint)
+					if err != nil {
+						shared.LogErrorf("Failed to remove old container %s: %s.", oldSnapshotMntPoint, err)
+						return err
+					}
 				}
 			}
 		}
@@ -1112,6 +1239,13 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			}
 		}
 
+		if !shared.IsMountPoint(newContainerMntPoint) {
+			err := tryMount(containerLvDevPath, newContainerMntPoint, lvFsType, 0, mountOptions)
+			if err != nil {
+				shared.LogErrorf("Failed to mount LVM logical \"%s\" onto \"%s\" : %s.", containerLvDevPath, newContainerMntPoint, err)
+				return err
+			}
+		}
 	}
 
 	images := append(imgPublic, imgPrivate...)
@@ -1178,7 +1312,11 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Rename the logical volume device.
 		newImageLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointImages, img)
 		imageLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointImages, img)
-		if !shared.PathExists(imageLvDevPath) {
+		oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, img)
+		// Only create logical volumes for images that have a logical
+		// volume on the pre-storage-api LXD instance. If not, we don't
+		// care since LXD will create a logical volume on demand.
+		if !shared.PathExists(imageLvDevPath) && shared.PathExists(oldLvDevPath) {
 			_, err := shared.TryRunCommand("lvrename", defaultPoolName, img, newImageLvName)
 			if err != nil {
 				return err
