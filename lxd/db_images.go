@@ -227,7 +227,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 	aliases := []api.ImageAlias{}
 	for _, r := range results {
 		name = r[0].(string)
-		desc = r[0].(string)
+		desc = r[1].(string)
 		a := api.ImageAlias{Name: name, Description: desc}
 		aliases = append(aliases, a)
 	}
