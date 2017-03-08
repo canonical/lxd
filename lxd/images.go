@@ -742,6 +742,24 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			}
 		}
 
+		// Apply any provided alias
+		for _, alias := range req.Aliases {
+			_, _, err := dbImageAliasGet(d.db, alias.Name, true)
+			if err == nil {
+				return fmt.Errorf("Alias already exists: %s", alias.Name)
+			}
+
+			id, _, err := dbImageGet(d.db, info.Fingerprint, false, false)
+			if err != nil {
+				return err
+			}
+
+			err = dbImageAliasAdd(d.db, alias.Name, id, alias.Description)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Set the metadata
 		metadata := make(map[string]string)
 		metadata["fingerprint"] = info.Fingerprint
