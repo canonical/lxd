@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/types"
@@ -110,18 +112,38 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 	}
 	defer container.StorageStop()
 
+	// At this point we have already figured out the parent
+	// container's root disk device so we can simply
+	// retrieve it from the expanded devices.
+	parentStoragePool := ""
+	parentExpandedDevices := container.ExpandedDevices()
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := containerGetRootDiskDevice(parentExpandedDevices)
+	if parentLocalRootDiskDeviceKey != "" {
+		parentStoragePool = parentLocalRootDiskDevice["pool"]
+	}
+
+	// A little neuroticism.
+	if parentStoragePool == "" {
+		return fmt.Errorf("The container's root device is missing the pool property.")
+	}
+
 	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
 	if isDirBackend {
 		for _, snap := range snapshots {
 			args := snapshotProtobufToContainerArgs(container.Name(), snap)
-			// Unset the pool of the orginal container and let
-			// containerLXCCreate figure out on which pool to  send
-			// it. Later we might make this more flexible.
-			for k, v := range args.Devices {
-				if v["type"] == "disk" && v["path"] == "/" {
-					args.Devices[k]["pool"] = ""
+
+			// Ensure that snapshot and parent container have the
+			// same storage pool in their local root disk device.
+			// If the root disk device for the snapshot comes from a
+			// profile on the new instance as well we don't need to
+			// do anything.
+			if args.Devices != nil {
+				snapLocalRootDiskDeviceKey, _, _ := containerGetRootDiskDevice(args.Devices)
+				if snapLocalRootDiskDeviceKey != "" {
+					args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 				}
 			}
+
 			s, err := containerCreateEmptySnapshot(container.Daemon(), args)
 			if err != nil {
 				return err
@@ -144,14 +166,19 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 	} else {
 		for _, snap := range snapshots {
 			args := snapshotProtobufToContainerArgs(container.Name(), snap)
-			// Unset the pool of the orginal container and let
-			// containerLXCCreate figure out on which pool to  send
-			// it. Later we might make this more flexible.
-			for k, v := range args.Devices {
-				if v["type"] == "disk" && v["path"] == "/" {
-					args.Devices[k]["pool"] = ""
+
+			// Ensure that snapshot and parent container have the
+			// same storage pool in their local root disk device.
+			// If the root disk device for the snapshot comes from a
+			// profile on the new instance as well we don't need to
+			// do anything.
+			if args.Devices != nil {
+				snapLocalRootDiskDeviceKey, _, _ := containerGetRootDiskDevice(args.Devices)
+				if snapLocalRootDiskDeviceKey != "" {
+					args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 				}
 			}
+
 			wrapper := StorageProgressWriter(op, "fs_progress", snap.GetName())
 			if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
 				return err
