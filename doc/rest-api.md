@@ -1253,6 +1253,10 @@ In the source image case, the following dict must be used:
         "properties": {                         # Image properties (optional, applied on top of source properties)
             "os": "Ubuntu"
         },
+        "aliases": [                            # Set initial aliases ("image_create_aliases" API extension)
+            {"name": "my-alias",
+             "description: "A description"
+        },
         "source": {
             "type": "image",
             "mode": "pull",                     # Only pull is supported for now
@@ -1274,6 +1278,10 @@ In the source container case, the following dict must be used:
         "properties": {                 # Image properties (optional)
             "os": "Ubuntu"
         },
+        "aliases": [                    # Set initial aliases ("image_create_aliases" API extension)
+            {"name": "my-alias",
+             "description: "A description"
+        },
         "source": {
             "type": "container",        # One of "container" or "snapshot"
             "name": "abc"
@@ -1287,6 +1295,10 @@ In the remote image URL case, the following dict must be used:
         "public":   true,                               # Whether the image can be downloaded by untrusted users  (defaults to false)
         "properties": {                                 # Image properties (optional)
             "os": "Ubuntu"
+        },
+        "aliases": [                                    # Set initial aliases ("image_create_aliases" API extension)
+            {"name": "my-alias",
+             "description: "A description"
         },
         "source": {
             "type": "url",
