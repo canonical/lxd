@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-03-05 02:21-0500\n"
+"POT-Creation-Date: 2017-03-08 15:36-0500\n"
 "PO-Revision-Date: 2017-02-14 09:54+0000\n"
 "Last-Translator: Vyacheslav Razykov <v.razykov@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -190,7 +190,7 @@ msgstr ""
 "###\n"
 "### Обратите внимание, что имя отображается, но не может быть изменено"
 
-#: lxc/image.go:588
+#: lxc/image.go:592
 #, c-format
 msgid "%s (%d more)"
 msgstr ""
@@ -203,11 +203,11 @@ msgstr "Нельзя использовать '/' в имени снимка"
 msgid "(none)"
 msgstr "(пусто)"
 
-#: lxc/image.go:609 lxc/image.go:651
+#: lxc/image.go:613 lxc/image.go:655
 msgid "ALIAS"
 msgstr "ПСЕВДОНИМ"
 
-#: lxc/image.go:613
+#: lxc/image.go:617
 msgid "ARCH"
 msgstr "ARCH"
 
@@ -233,7 +233,7 @@ msgstr "Псевдонимы:"
 msgid "Architecture: %s"
 msgstr "Архитектура: %s"
 
-#: lxc/image.go:340
+#: lxc/image.go:344
 #, c-format
 msgid "Auto update: %s"
 msgstr "Авто-обновление: %s"
@@ -298,7 +298,7 @@ msgstr ""
 msgid "Config key/value to apply to the new container"
 msgstr ""
 
-#: lxc/config.go:571 lxc/config.go:636 lxc/image.go:705 lxc/network.go:378
+#: lxc/config.go:571 lxc/config.go:636 lxc/image.go:709 lxc/network.go:378
 #: lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:840
 #, c-format
 msgid "Config parsing error: %s"
@@ -358,7 +358,7 @@ msgstr ""
 msgid "Creating the container"
 msgstr ""
 
-#: lxc/image.go:612 lxc/image.go:653
+#: lxc/image.go:616 lxc/image.go:657
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -426,7 +426,7 @@ msgstr ""
 msgid "Expires: never"
 msgstr ""
 
-#: lxc/config.go:309 lxc/image.go:610 lxc/image.go:652
+#: lxc/config.go:309 lxc/image.go:614 lxc/image.go:656
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -497,12 +497,12 @@ msgstr ""
 msgid "Image copied successfully!"
 msgstr ""
 
-#: lxc/image.go:395 lxc/image.go:407
+#: lxc/image.go:399 lxc/image.go:411
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr ""
 
-#: lxc/image.go:392
+#: lxc/image.go:396
 #, c-format
 msgid "Importing the image: %s"
 msgstr ""
@@ -666,7 +666,7 @@ msgstr ""
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
-#: lxc/image.go:398
+#: lxc/image.go:402
 msgid "Only https:// is supported for remote image import."
 msgstr ""
 
@@ -678,7 +678,7 @@ msgstr ""
 msgid "Options:"
 msgstr ""
 
-#: lxc/image.go:509
+#: lxc/image.go:513
 #, c-format
 msgid "Output is in %s"
 msgstr ""
@@ -703,7 +703,7 @@ msgstr ""
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:611 lxc/remote.go:397
+#: lxc/image.go:615 lxc/remote.go:397
 msgid "PUBLIC"
 msgstr ""
 
@@ -740,7 +740,7 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:572 lxc/config.go:637 lxc/image.go:706
+#: lxc/config.go:572 lxc/config.go:637 lxc/image.go:710
 msgid "Press enter to start the editor again"
 msgstr ""
 
@@ -843,7 +843,7 @@ msgstr ""
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/image.go:614
+#: lxc/image.go:618
 msgid "SIZE"
 msgstr ""
 
@@ -921,7 +921,7 @@ msgstr ""
 msgid "Some containers failed to %s"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/image.go:342
+#: lxc/image.go:346
 msgid "Source:"
 msgstr ""
 
@@ -1059,7 +1059,7 @@ msgstr ""
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 
-#: lxc/image.go:400
+#: lxc/image.go:404
 #, c-format
 msgid "Transferring image: %s"
 msgstr ""
@@ -1077,7 +1077,7 @@ msgstr ""
 msgid "Type: persistent"
 msgstr ""
 
-#: lxc/image.go:615
+#: lxc/image.go:619
 msgid "UPLOAD DATE"
 msgstr ""
 
@@ -1893,7 +1893,7 @@ msgstr ""
 msgid "got bad version"
 msgstr ""
 
-#: lxc/image.go:302 lxc/image.go:591
+#: lxc/image.go:302 lxc/image.go:595
 msgid "no"
 msgstr ""
 
@@ -1955,7 +1955,7 @@ msgstr ""
 msgid "wrong number of subcommand arguments"
 msgstr ""
 
-#: lxc/delete.go:44 lxc/image.go:304 lxc/image.go:595
+#: lxc/delete.go:44 lxc/image.go:304 lxc/image.go:599
 msgid "yes"
 msgstr ""
 
