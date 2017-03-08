@@ -200,6 +200,9 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		_, err := dbStoragePoolGetID(d.db, storagePool)
 		if err == NoSuchObjectError {
 			storagePool = ""
+			// Unset the local root disk device storage pool if not
+			// found.
+			localRootDiskDevice["pool"] = ""
 		}
 	}
 
