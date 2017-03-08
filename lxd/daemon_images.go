@@ -327,7 +327,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		info.Public = false
 		info.AutoUpdate = autoUpdate
 
-		_, err = imageBuildFromInfo(d, *info)
+		// Create the database entry
+		err = dbImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 		if err != nil {
 			return "", err
 		}
@@ -495,7 +496,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		info.AutoUpdate = autoUpdate
 	}
 
-	_, err = imageBuildFromInfo(d, info)
+	// Create the database entry
+	err = dbImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
 		shared.LogError(
 			"Failed to create image",

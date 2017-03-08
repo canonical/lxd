@@ -221,27 +221,26 @@ type imageMetadata struct {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost,
-	builddir string) (info api.Image, err error) {
-
+func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir string) (*api.Image, error) {
+	info := api.Image{}
 	info.Properties = map[string]string{}
 	name := req.Source["name"]
 	ctype := req.Source["type"]
 	if ctype == "" || name == "" {
-		return info, fmt.Errorf("No source provided")
+		return nil, fmt.Errorf("No source provided")
 	}
 
 	switch ctype {
 	case "snapshot":
 		if !shared.IsSnapshot(name) {
-			return info, fmt.Errorf("Not a snapshot")
+			return nil, fmt.Errorf("Not a snapshot")
 		}
 	case "container":
 		if shared.IsSnapshot(name) {
-			return info, fmt.Errorf("This is a snapshot")
+			return nil, fmt.Errorf("This is a snapshot")
 		}
 	default:
-		return info, fmt.Errorf("Bad type")
+		return nil, fmt.Errorf("Bad type")
 	}
 
 	info.Filename = req.Filename
@@ -254,19 +253,19 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost,
 
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
 
 	// Build the actual image file
 	tarfile, err := ioutil.TempFile(builddir, "lxd_build_tar_")
 	if err != nil {
-		return info, err
+		return nil, err
 	}
 	defer os.Remove(tarfile.Name())
 
 	if err := c.Export(tarfile, req.Properties); err != nil {
 		tarfile.Close()
-		return info, err
+		return nil, err
 	}
 	tarfile.Close()
 
@@ -275,7 +274,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost,
 	if compress != "none" {
 		compressedPath, err = compressFile(tarfile.Name(), compress)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 	} else {
 		compressedPath = tarfile.Name()
@@ -285,34 +284,42 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost,
 	sha256 := sha256.New()
 	tarf, err := os.Open(compressedPath)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
+
 	info.Size, err = io.Copy(sha256, tarf)
 	tarf.Close()
 	if err != nil {
-		return info, err
+		return nil, err
 	}
+
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 
 	_, _, err = dbImageGet(d.db, info.Fingerprint, false, true)
 	if err == nil {
-		return info, fmt.Errorf("The image already exists: %s", info.Fingerprint)
+		return nil, fmt.Errorf("The image already exists: %s", info.Fingerprint)
 	}
 
 	/* rename the the file to the expected name so our caller can use it */
 	finalName := shared.VarPath("images", info.Fingerprint)
 	err = shared.FileMove(compressedPath, finalName)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
 
 	info.Architecture, _ = osarch.ArchitectureName(c.Architecture())
 	info.Properties = req.Properties
 
-	return info, nil
+	// Create the database entry
+	err = dbImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	if err != nil {
+		return nil, err
+	}
+
+	return &info, nil
 }
 
-func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) error {
+func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, error) {
 	var err error
 	var hash string
 
@@ -321,17 +328,17 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) error {
 	} else if req.Source["alias"] != "" {
 		hash = req.Source["alias"]
 	} else {
-		return fmt.Errorf("must specify one of alias or fingerprint for init from image")
+		return nil, fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
 	hash, err = d.ImageDownload(op, req.Source["server"], req.Source["protocol"], req.Source["certificate"], req.Source["secret"], hash, false, req.AutoUpdate)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	id, info, err := dbImageGet(d.db, hash, false, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Allow overriding or adding properties
@@ -343,34 +350,29 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) error {
 	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
 		err = dbImageUpdate(d.db, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	metadata := make(map[string]string)
-	metadata["fingerprint"] = info.Fingerprint
-	metadata["size"] = strconv.FormatInt(info.Size, 10)
-	op.UpdateMetadata(metadata)
-
-	return nil
+	return info, nil
 }
 
-func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) error {
+func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, error) {
 	var err error
 
 	if req.Source["url"] == "" {
-		return fmt.Errorf("Missing URL")
+		return nil, fmt.Errorf("Missing URL")
 	}
 
 	myhttp, err := d.httpClient("")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Resolve the image URL
 	head, err := http.NewRequest("HEAD", req.Source["url"], nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	architecturesStr := []string{}
@@ -384,28 +386,28 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) error {
 
 	raw, err := myhttp.Do(head)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	hash := raw.Header.Get("LXD-Image-Hash")
 	if hash == "" {
-		return fmt.Errorf("Missing LXD-Image-Hash header")
+		return nil, fmt.Errorf("Missing LXD-Image-Hash header")
 	}
 
 	url := raw.Header.Get("LXD-Image-URL")
 	if url == "" {
-		return fmt.Errorf("Missing LXD-Image-URL header")
+		return nil, fmt.Errorf("Missing LXD-Image-URL header")
 	}
 
 	// Import the image
 	hash, err = d.ImageDownload(op, url, "direct", "", "", hash, false, req.AutoUpdate)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	id, info, err := dbImageGet(d.db, hash, false, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Allow overriding or adding properties
@@ -416,21 +418,15 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) error {
 	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
 		err = dbImageUpdate(d.db, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	metadata := make(map[string]string)
-	metadata["fingerprint"] = info.Fingerprint
-	metadata["size"] = strconv.FormatInt(info.Size, 10)
-	op.UpdateMetadata(metadata)
-
-	return nil
+	return info, nil
 }
 
-func getImgPostInfo(d *Daemon, r *http.Request,
-	builddir string, post *os.File) (info api.Image, err error) {
-
+func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) (*api.Image, error) {
+	info := api.Image{}
 	var imageMeta *imageMetadata
 	logger := logging.AddContext(shared.Log, log.Ctx{"function": "getImgPostInfo"})
 
@@ -449,7 +445,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		// Create a temporary file for the image tarball
 		imageTarf, err := ioutil.TempFile(builddir, "lxd_tar_")
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 		defer os.Remove(imageTarf.Name())
 
@@ -460,11 +456,11 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		// Get the metadata tarball
 		part, err := mr.NextPart()
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 
 		if part.FormName() != "metadata" {
-			return info, fmt.Errorf("Invalid multipart image")
+			return nil, fmt.Errorf("Invalid multipart image")
 		}
 
 		size, err = io.Copy(io.MultiWriter(imageTarf, sha256), part)
@@ -475,7 +471,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 			logger.Error(
 				"Failed to copy the image tarfile",
 				log.Ctx{"err": err})
-			return info, err
+			return nil, err
 		}
 
 		// Get the rootfs tarball
@@ -484,20 +480,20 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 			logger.Error(
 				"Failed to get the next part",
 				log.Ctx{"err": err})
-			return info, err
+			return nil, err
 		}
 
 		if part.FormName() != "rootfs" {
 			logger.Error(
 				"Invalid multipart image")
 
-			return info, fmt.Errorf("Invalid multipart image")
+			return nil, fmt.Errorf("Invalid multipart image")
 		}
 
 		// Create a temporary file for the rootfs tarball
 		rootfsTarf, err := ioutil.TempFile(builddir, "lxd_tar_")
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 		defer os.Remove(rootfsTarf.Name())
 
@@ -509,7 +505,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 			logger.Error(
 				"Failed to copy the rootfs tarfile",
 				log.Ctx{"err": err})
-			return info, err
+			return nil, err
 		}
 
 		info.Filename = part.FileName()
@@ -518,7 +514,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
 		if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
 			err = fmt.Errorf("fingerprints don't match, got %s expected %s", info.Fingerprint, expectedFingerprint)
-			return info, err
+			return nil, err
 		}
 
 		imageMeta, err = getImageMetadata(imageTarf.Name())
@@ -526,7 +522,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 			logger.Error(
 				"Failed to get image metadata",
 				log.Ctx{"err": err})
-			return info, err
+			return nil, err
 		}
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
@@ -538,7 +534,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 					"err":    err,
 					"source": imageTarf.Name(),
 					"dest":   imgfname})
-			return info, err
+			return nil, err
 		}
 
 		rootfsfname := shared.VarPath("images", info.Fingerprint+".rootfs")
@@ -550,7 +546,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 					"err":    err,
 					"source": rootfsTarf.Name(),
 					"dest":   imgfname})
-			return info, err
+			return nil, err
 		}
 	} else {
 		post.Seek(0, 0)
@@ -561,7 +557,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 			logger.Error(
 				"Failed to copy the tarfile",
 				log.Ctx{"err": err})
-			return info, err
+			return nil, err
 		}
 
 		info.Filename = r.Header.Get("X-LXD-filename")
@@ -578,7 +574,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 				"fingerprints don't match, got %s expected %s",
 				info.Fingerprint,
 				expectedFingerprint)
-			return info, err
+			return nil, err
 		}
 
 		imageMeta, err = getImageMetadata(post.Name())
@@ -586,7 +582,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 			logger.Error(
 				"Failed to get image metadata",
 				log.Ctx{"err": err})
-			return info, err
+			return nil, err
 		}
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
@@ -598,7 +594,7 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 					"err":    err,
 					"source": post.Name(),
 					"dest":   imgfname})
-			return info, err
+			return nil, err
 		}
 	}
 
@@ -616,38 +612,13 @@ func getImgPostInfo(d *Daemon, r *http.Request,
 		}
 	}
 
-	return info, nil
-}
-
-func imageBuildFromInfo(d *Daemon, info api.Image) (metadata map[string]string, err error) {
-	err = d.Storage.ImageCreate(info.Fingerprint)
+	// Create the database entry
+	err = dbImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
-		os.Remove(shared.VarPath("images", info.Fingerprint))
-		os.Remove(shared.VarPath("images", info.Fingerprint) + ".rootfs")
-
-		return metadata, err
+		return nil, err
 	}
 
-	err = dbImageInsert(
-		d.db,
-		info.Fingerprint,
-		info.Filename,
-		info.Size,
-		info.Public,
-		info.AutoUpdate,
-		info.Architecture,
-		info.CreatedAt,
-		info.ExpiresAt,
-		info.Properties)
-	if err != nil {
-		return metadata, err
-	}
-
-	metadata = make(map[string]string)
-	metadata["fingerprint"] = info.Fingerprint
-	metadata["size"] = strconv.FormatInt(info.Size, 10)
-
-	return metadata, nil
+	return &info, nil
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
@@ -703,51 +674,46 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	// Begin background operation
 	run := func(op *operation) error {
-		var info api.Image
+		var info *api.Image
 
 		// Setup the cleanup function
 		defer cleanup(builddir, post)
 
-		/* Processing image copy from remote */
-		if !imageUpload && req.Source["type"] == "image" {
-			err := imgPostRemoteInfo(d, req, op)
-			if err != nil {
-				return err
+		if !imageUpload {
+			if req.Source["type"] == "image" {
+				/* Processing image copy from remote */
+				info, err = imgPostRemoteInfo(d, req, op)
+				if err != nil {
+					return err
+				}
+			} else if req.Source["type"] == "url" {
+				/* Processing image copy from URL */
+				info, err = imgPostURLInfo(d, req, op)
+				if err != nil {
+					return err
+				}
+			} else {
+				/* Processing image creation from container */
+				imagePublishLock.Lock()
+				info, err = imgPostContInfo(d, r, req, builddir)
+				if err != nil {
+					imagePublishLock.Unlock()
+					return err
+				}
+				imagePublishLock.Unlock()
 			}
-			return nil
-		}
-
-		/* Processing image copy from URL */
-		if !imageUpload && req.Source["type"] == "url" {
-			err := imgPostURLInfo(d, req, op)
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-
-		if imageUpload {
+		} else {
 			/* Processing image upload */
 			info, err = getImgPostInfo(d, r, builddir, post)
 			if err != nil {
 				return err
 			}
-		} else {
-			/* Processing image creation from container */
-			imagePublishLock.Lock()
-			info, err = imgPostContInfo(d, r, req, builddir)
-			if err != nil {
-				imagePublishLock.Unlock()
-				return err
-			}
-			imagePublishLock.Unlock()
 		}
 
-		metadata, err := imageBuildFromInfo(d, info)
-		if err != nil {
-			return err
-		}
-
+		// Set the metadata
+		metadata := make(map[string]string)
+		metadata["fingerprint"] = info.Fingerprint
+		metadata["size"] = strconv.FormatInt(info.Size, 10)
 		op.UpdateMetadata(metadata)
 		return nil
 	}
