@@ -103,30 +103,19 @@ func cmdForkExec(args []string) (int, error) {
 		return -1, fmt.Errorf("Failed sending PID of executing command: %q", err)
 	}
 
-	proc, err := os.FindProcess(status)
-	if err != nil {
+	var ws syscall.WaitStatus
+	wpid, err := syscall.Wait4(status, &ws, 0, nil)
+	if err != nil || wpid != status {
 		return -1, fmt.Errorf("Failed finding process: %q", err)
 	}
 
-	procState, err := proc.Wait()
-	if err != nil {
-		return -1, fmt.Errorf("Failed waiting on process %d: %q", status, err)
+	if ws.Exited() {
+		return ws.ExitStatus(), nil
 	}
 
-	if procState.Success() {
-		return 0, nil
-	}
-
-	exCode, ok := procState.Sys().(syscall.WaitStatus)
-	if ok {
-		if exCode.Signaled() {
-			// 128 + n == Fatal error signal "n"
-			return 128 + int(exCode.Signal()), nil
-		}
-
-		if exCode.Exited() {
-			return exCode.ExitStatus(), nil
-		}
+	if ws.Signaled() {
+		// 128 + n == Fatal error signal "n"
+		return 128 + int(ws.Signal()), nil
 	}
 
 	return -1, fmt.Errorf("Command failed")

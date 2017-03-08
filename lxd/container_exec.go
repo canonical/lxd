@@ -301,30 +301,19 @@ func (s *execWs) Do(op *operation) error {
 		attachedChildIsBorn <- attachedPid
 	}
 
-	proc, err := os.FindProcess(pid)
-	if err != nil {
+	var ws syscall.WaitStatus
+	wpid, err := syscall.Wait4(pid, &ws, 0, nil)
+	if err != nil || wpid != pid {
 		return finisher(-1, fmt.Errorf("Failed finding process: %q", err))
 	}
 
-	procState, err := proc.Wait()
-	if err != nil {
-		return finisher(-1, fmt.Errorf("Failed waiting on process %d: %q", pid, err))
+	if ws.Exited() {
+		return finisher(ws.ExitStatus(), nil)
 	}
 
-	if procState.Success() {
-		return finisher(0, nil)
-	}
-
-	status, ok := procState.Sys().(syscall.WaitStatus)
-	if ok {
-		if status.Exited() {
-			return finisher(status.ExitStatus(), nil)
-		}
-
-		if status.Signaled() {
-			// 128 + n == Fatal error signal "n"
-			return finisher(128+int(status.Signal()), nil)
-		}
+	if ws.Signaled() {
+		// 128 + n == Fatal error signal "n"
+		return finisher(128+int(ws.Signal()), nil)
 	}
 
 	return finisher(-1, nil)
