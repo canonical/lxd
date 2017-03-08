@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var argCount = gnuflag.Int("count", 100, "Number of containers to create")
@@ -32,15 +33,31 @@ func main() {
 
 func run(args []string) error {
 	// Parse command line
-	gnuflag.Parse(true)
-
 	if len(os.Args) == 1 || !shared.StringInSlice(os.Args[1], []string{"spawn", "delete"}) {
-		fmt.Printf("Usage: %s spawn [--count=COUNT] [--image=IMAGE] [--privileged=BOOL] [--parallel=COUNT]\n", os.Args[0])
-		fmt.Printf("       %s delete [--parallel=COUNT]\n\n", os.Args[0])
-		gnuflag.Usage()
-		fmt.Printf("\n")
-		return fmt.Errorf("An action (spawn or delete) must be passed.")
+		if len(os.Args) > 1 && os.Args[1] == "--version" {
+			fmt.Println(version.Version)
+			return nil
+		}
+
+		out := os.Stderr
+		if len(os.Args) > 1 && os.Args[1] == "--help" {
+			out = os.Stdout
+		}
+		gnuflag.SetOut(out)
+
+		fmt.Fprintf(out, "Usage: %s spawn [--count=COUNT] [--image=IMAGE] [--privileged=BOOL] [--parallel=COUNT]\n", os.Args[0])
+		fmt.Fprintf(out, "       %s delete [--parallel=COUNT]\n\n", os.Args[0])
+		gnuflag.PrintDefaults()
+		fmt.Fprintf(out, "\n")
+
+		if len(os.Args) > 1 && os.Args[1] == "--help" {
+			return nil
+		}
+
+		return fmt.Errorf("An valid action (spawn or delete) must be passed.")
 	}
+
+	gnuflag.Parse(true)
 
 	// Connect to LXD
 	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
