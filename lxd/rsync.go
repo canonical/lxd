@@ -78,6 +78,8 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 
 	conn, err := l.Accept()
 	if err != nil {
+		cmd.Process.Kill()
+		cmd.Wait()
 		return nil, nil, nil, err
 	}
 	l.Close()
@@ -106,6 +108,8 @@ func RsyncSend(path string, conn *websocket.Conn, readWrapper func(io.ReadCloser
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
+		cmd.Process.Kill()
+		cmd.Wait()
 		return err
 	}
 
@@ -160,6 +164,8 @@ func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteClos
 	readDone, writeDone := shared.WebsocketMirror(conn, writePipe, stdout, nil, nil)
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
+		cmd.Process.Kill()
+		cmd.Wait()
 		return err
 	}
 
