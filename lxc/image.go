@@ -340,7 +340,11 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 		fmt.Println(i18n.G("Aliases:"))
 		for _, alias := range info.Aliases {
-			fmt.Printf("    - %s\n", alias.Name)
+			if alias.Description != "" {
+				fmt.Printf("    - %s (%s)\n", alias.Name, alias.Description)
+			} else {
+				fmt.Printf("    - %s\n", alias.Name)
+			}
 		}
 		fmt.Printf(i18n.G("Auto update: %s")+"\n", autoUpdate)
 		if info.UpdateSource != nil {
