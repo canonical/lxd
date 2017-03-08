@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -292,7 +293,7 @@ func (s *execWs) Do(op *operation) error {
 		return cmdErr
 	}
 
-	pid, attachedPid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, false)
+	cmd, _, attachedPid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, false)
 	if err != nil {
 		return err
 	}
@@ -301,23 +302,15 @@ func (s *execWs) Do(op *operation) error {
 		attachedChildIsBorn <- attachedPid
 	}
 
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return finisher(-1, fmt.Errorf("Failed finding process: %q", err))
-	}
-
-	procState, err := proc.Wait()
-	if err != nil {
-		return finisher(-1, fmt.Errorf("Failed waiting on process %d: %q", pid, err))
-	}
-
-	if procState.Success() {
+	err = cmd.Wait()
+	if err == nil {
 		return finisher(0, nil)
 	}
 
-	status, ok := procState.Sys().(syscall.WaitStatus)
+	exitErr, ok := err.(*exec.ExitError)
 	if ok {
-		if status.Exited() {
+		status, ok := exitErr.Sys().(syscall.WaitStatus)
+		if ok {
 			return finisher(status.ExitStatus(), nil)
 		}
 
@@ -464,7 +457,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			defer stderr.Close()
 
 			// Run the command
-			cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, stdout, stderr, true)
+			_, cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, stdout, stderr, true)
 
 			// Update metadata with the right URLs
 			metadata["return"] = cmdResult
@@ -473,7 +466,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, c.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
-			cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, nil, nil, true)
+			_, cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, nil, nil, true)
 			metadata["return"] = cmdResult
 		}
 
