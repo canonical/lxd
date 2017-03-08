@@ -40,6 +40,7 @@ var patches = []patch{
 	{name: "storage_api_keys", run: patchStorageApiKeys},
 	{name: "storage_api_update_storage_configs", run: patchStorageApiUpdateStorageConfigs},
 	{name: "storage_api_lxd_on_btrfs", run: patchStorageApiLxdOnBtrfs},
+	{name: "storage_api_lvm_detect_lv_size", run: patchStorageApiDetectLVSize},
 }
 
 type patch struct {
@@ -2126,6 +2127,97 @@ func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
 		}
 
 		os.Remove(loopFilePath)
+	}
+
+	return nil
+}
+
+func patchStorageApiDetectLVSize(name string, d *Daemon) error {
+	pools, err := dbStoragePools(d.db)
+	if err != nil {
+		if err == NoSuchObjectError {
+			return nil
+		}
+		shared.LogErrorf("Failed to query database: %s", err)
+		return err
+	}
+
+	for _, poolName := range pools {
+		poolID, pool, err := dbStoragePoolGet(d.db, poolName)
+		if err != nil {
+			shared.LogErrorf("Failed to query database: %s", err)
+			return err
+		}
+
+		// Make sure that config is not empty.
+		if pool.Config == nil {
+			pool.Config = map[string]string{}
+
+			// Insert default values.
+			err = storagePoolFillDefault(poolName, pool.Driver, pool.Config)
+			if err != nil {
+				return err
+			}
+		}
+
+		// We're only interested in LVM pools.
+		if pool.Driver != "lvm" {
+			continue
+		}
+
+		// Get all storage volumes on the storage pool.
+		volumes, err := dbStoragePoolVolumesGet(d.db, poolID, supportedVolumeTypes)
+		if err != nil {
+			if err == NoSuchObjectError {
+				continue
+			}
+			return err
+		}
+
+		poolName := pool.Config["lvm.vg_name"]
+		if poolName == "" {
+			shared.LogErrorf("The \"lvm.vg_name\" key should not be empty.")
+			return fmt.Errorf("The \"lvm.vg_name\" key should not be empty.")
+		}
+
+		for _, volume := range volumes {
+			// Make sure that config is not empty.
+			if volume.Config == nil {
+				volume.Config = map[string]string{}
+
+				// Insert default values.
+				err := storageVolumeFillDefault(volume.Name, volume.Config, pool)
+				if err != nil {
+					return err
+				}
+			}
+
+			// It shouldn't be possible that false volume types
+			// exist in the db, so it's safe to ignore the error.
+			volumeTypeApiEndpoint, _ := storagePoolVolumeTypeNameToApiEndpoint(volume.Type)
+			lvmName := containerNameToLVName(volume.Name)
+			lvmLvDevPath := getLvmDevPath(poolName, volumeTypeApiEndpoint, lvmName)
+			size, err := lvmGetLVSize(lvmLvDevPath)
+			if err != nil {
+				shared.LogErrorf("Failed to detect size of logical volume: %s.", err)
+				return err
+			}
+
+			if volume.Config["size"] == size {
+				continue
+			}
+
+			volume.Config["size"] = size
+
+			// It shouldn't be possible that false volume types
+			// exist in the db, so it's safe to ignore the error.
+			volumeType, _ := storagePoolVolumeTypeNameToType(volume.Type)
+			// Update the volume config.
+			err = dbStoragePoolVolumeUpdate(d.db, volume.Name, volumeType, poolID, volume.Config)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

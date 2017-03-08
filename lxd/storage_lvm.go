@@ -88,6 +88,24 @@ func storageLVExists(lvName string) (bool, error) {
 	return true, nil
 }
 
+func lvmGetLVSize(lvPath string) (string, error) {
+	msg, err := shared.TryRunCommand("lvs", "--noheadings", "-o", "size", "--nosuffix", "--units", "b", lvPath)
+	if err != nil {
+		return "", fmt.Errorf("Failed to retrieve size of logical volume: %s: %s.", string(msg), err)
+	}
+
+	sizeString := string(msg)
+	sizeString = strings.TrimSpace(sizeString)
+	size, err := strconv.ParseInt(sizeString, 10, 64)
+	if err != nil {
+		return "", err
+	}
+
+	detectedSize := shared.GetByteSizeString(size, 0)
+
+	return detectedSize, nil
+}
+
 func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 	output, err := exec.Command("vgs", "--noheadings", "-o", "lv_attr", fmt.Sprintf("%s/%s", vgName, poolName)).Output()
 	if err != nil {
