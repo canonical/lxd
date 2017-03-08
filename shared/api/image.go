@@ -13,6 +13,9 @@ type ImagesPost struct {
 
 	// API extension: image_compression_algorithm
 	CompressionAlgorithm string `json:"compression_algorithm" yaml:"compression_algorithm"`
+
+	// API extension: image_create_aliases
+	Aliases []ImageAlias `json:"aliases" yaml:"aliases"`
 }
 
 // ImagePut represents the modifiable fields of a LXD image

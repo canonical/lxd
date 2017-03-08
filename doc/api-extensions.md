@@ -225,3 +225,7 @@ When set, this will instruct LXD to attach to the specified VLAN. LXD
 will look for an existing interface for that VLAN on the host. If one
 can't be found it will create one itself and then use that as the
 macvlan parent.
+
+## image\_create\_aliases
+Adds a new "aliases" field to POST /1.0/images allowing for aliases to
+be set at image creation/import time.
