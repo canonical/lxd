@@ -2783,10 +2783,14 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 
 	// Apply disk quota changes
 	for _, m := range addDevices {
+		if m["type"] != "disk" || m["path"] != "/" {
+			continue
+		}
+
 		var oldRootfsSize string
-		for _, m := range oldExpandedDevices {
-			if m["type"] == "disk" && m["path"] == "/" {
-				oldRootfsSize = m["size"]
+		for _, n := range oldExpandedDevices {
+			if n["type"] == "disk" && n["path"] == "/" {
+				oldRootfsSize = n["size"]
 				break
 			}
 		}
