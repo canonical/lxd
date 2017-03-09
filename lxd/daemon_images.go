@@ -26,6 +26,7 @@ import (
 // Simplestream cache
 type imageStreamCacheEntry struct {
 	Aliases      []api.ImageAliasesEntry `yaml:"aliases"`
+	Certificate  string                  `yaml:"certificate"`
 	Fingerprints []string                `yaml:"fingerprints"`
 	expiry       time.Time
 	ss           *simplestreams.SimpleStreams
@@ -71,7 +72,7 @@ func imageLoadStreamCache(d *Daemon) error {
 
 	for url, entry := range imageStreamCache {
 		if entry.ss == nil {
-			myhttp, err := d.httpClient("")
+			myhttp, err := d.httpClient(entry.Certificate)
 			if err != nil {
 				return err
 			}
@@ -129,7 +130,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 				}
 
 				// Generate cache entry
-				entry = &imageStreamCacheEntry{ss: ss, Aliases: aliases, Fingerprints: fingerprints, expiry: time.Now().Add(time.Hour)}
+				entry = &imageStreamCacheEntry{ss: ss, Aliases: aliases, Certificate: certificate, Fingerprints: fingerprints, expiry: time.Now().Add(time.Hour)}
 				imageStreamCache[server] = entry
 				imageSaveStreamCache()
 
