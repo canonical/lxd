@@ -29,9 +29,8 @@ import (
 	"github.com/syndtr/gocapability/capability"
 	"gopkg.in/tomb.v2"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
@@ -146,70 +145,6 @@ func (d *Daemon) httpClient(certificate string) (*http.Client, error) {
 	}
 
 	return &myhttp, nil
-}
-
-func (d *Daemon) httpGetSync(url string, certificate string) (*api.Response, error) {
-	var err error
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("User-Agent", version.UserAgent)
-
-	myhttp, err := d.httpClient(certificate)
-	if err != nil {
-		return nil, err
-	}
-
-	r, err := myhttp.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := lxd.ParseResponse(r)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.Type != api.SyncResponse {
-		return nil, fmt.Errorf("unexpected non-sync response")
-	}
-
-	return resp, nil
-}
-
-func (d *Daemon) httpGetFile(url string, certificate string) (*http.Response, error) {
-	var err error
-
-	myhttp, err := d.httpClient(certificate)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("User-Agent", version.UserAgent)
-
-	raw, err := myhttp.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	if raw.StatusCode != 200 {
-		_, err := lxd.HoistResponse(raw, api.ErrorResponse)
-		if err != nil {
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("non-200 status with no error response?")
-	}
-
-	return raw, nil
 }
 
 func readMyCert() (string, string, error) {
@@ -953,7 +888,7 @@ func (d *Daemon) Init() error {
 		// If the socket exists, let's try to connect to it and see if there's
 		// a lxd running.
 		if shared.PathExists(localSocketPath) {
-			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			_, err := lxd.ConnectLXDUnix("", nil)
 			if err != nil {
 				shared.LogDebugf("Detected stale unix socket, deleting")
 				// Connecting failed, so let's delete the socket and

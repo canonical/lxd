@@ -20,7 +20,6 @@ import (
 	"github.com/gorilla/websocket"
 	"gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -593,7 +592,12 @@ func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error
 	// The URL is a https URL to the operation, mangle to be a wss URL to the secret
 	wsUrl := fmt.Sprintf("wss://%s/websocket?%s", strings.TrimPrefix(c.url, "https://"), query.Encode())
 
-	return lxd.WebsocketDial(c.dialer, wsUrl)
+	conn, _, err := c.dialer.Dial(wsUrl, http.Header{})
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, err
 }
 
 func (c *migrationSink) Do(migrateOp *operation) error {

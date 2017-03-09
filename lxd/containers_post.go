@@ -83,20 +83,6 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	run := func(op *operation) error {
-		if req.Source.Server != "" {
-			hash, err = d.ImageDownload(
-				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret,
-				hash, true, daemonConfig["images.auto_update_cached"].GetBool())
-			if err != nil {
-				return err
-			}
-		}
-
-		_, imgInfo, err := dbImageGet(d.db, hash, false, false)
-		if err != nil {
-			return err
-		}
-
 		args := containerArgs{
 			Config:    req.Config,
 			Ctype:     cTypeRegular,
@@ -106,12 +92,27 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			Profiles:  req.Profiles,
 		}
 
-		args.Architecture, err = osarch.ArchitectureId(imgInfo.Architecture)
+		var info *api.Image
+		if req.Source.Server != "" {
+			info, err = d.ImageDownload(
+				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret,
+				hash, true, daemonConfig["images.auto_update_cached"].GetBool())
+			if err != nil {
+				return err
+			}
+		} else {
+			_, info, err = dbImageGet(d.db, hash, false, false)
+			if err != nil {
+				return err
+			}
+		}
+
+		args.Architecture, err = osarch.ArchitectureId(info.Architecture)
 		if err != nil {
 			return err
 		}
 
-		_, err = containerCreateFromImage(d, args, imgInfo.Fingerprint)
+		_, err = containerCreateFromImage(d, args, info.Fingerprint)
 		return err
 	}
 
