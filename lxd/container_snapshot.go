@@ -64,7 +64,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 func nextSnapshot(d *Daemon, name string) int {
 	base := name + shared.SnapshotDelimiter + "snap"
 	length := len(base)
-	q := fmt.Sprintf("SELECT MAX(name) FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
 	var numstr string
 	inargs := []interface{}{cTypeSnapshot, length, base}
 	outfmt := []interface{}{numstr}
