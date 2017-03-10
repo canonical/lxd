@@ -118,7 +118,10 @@ lxc list -c n,volatile.base_image:"BASE IMAGE":0,s46,volatile.eth0.hwaddr:MAC
     Shows a list of containers using the "NAME", "BASE IMAGE", "STATE", "IPV4",
     "IPV6" and "MAC" columns.
 
-    "BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.`)
+    "BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.
+
+lxc list -c ns,user.comment:comment
+    List images with their running state and user comment. `)
 }
 
 func (c *listCmd) flags() {
