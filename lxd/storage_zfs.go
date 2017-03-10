@@ -1296,6 +1296,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		}
 
 		revert = false
+		subrevert = false
 
 		return nil
 	}

@@ -249,6 +249,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if err == nil {
 			progress.Done(i18n.G("Image copied successfully!"))
 		}
+		progress.Done("")
 
 		return err
 
