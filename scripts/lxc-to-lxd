@@ -576,7 +576,7 @@ parser.add_argument("--all", action="store_true", default=False,
 parser.add_argument("--delete", action="store_true", default=False,
                     help="Delete the source container")
 parser.add_argument("--move-rootfs", action="store_true", default=False,
-                    help="Copy the container rootfs rather than moving it")
+                    help="Move the container rootfs rather than copying it")
 parser.add_argument("--lxcpath", type=str, default=False,
                     help="Alternate LXC path")
 parser.add_argument("--lxdpath", type=str, default="/var/lib/lxd",
