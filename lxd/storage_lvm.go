@@ -506,7 +506,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 			}()
 		}
 
-		msg, err := shared.TryRunCommand("pvscan")
+		msg, err := shared.TryRunCommand("pvscan", "--cache")
 		if err != nil {
 			shared.LogWarnf("Failed to run pvscan: %s.", msg)
 		}
@@ -521,7 +521,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 			}
 		}
 
-		msg, err = shared.TryRunCommand("vgscan")
+		msg, err = shared.TryRunCommand("vgscan", "--cache")
 		if err != nil {
 			shared.LogWarnf("Failed to run vgscan: %s.", msg)
 		}
