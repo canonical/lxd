@@ -366,6 +366,25 @@ func (d *Daemon) SetupStorageDriver() error {
 		return err
 	}
 
+	// In case the daemon got killed during upgrade we will already have a
+	// valid storage pool entry but it might have gotten messed up and so we
+	// cannot perform StoragePoolCheck(). This case can be detected by
+	// looking at the patches db: If we already have a storage pool defined
+	// but the upgrade somehow got messed up then there will be no
+	// "storage_api" entry in the db.
+	if len(pools) > 0 {
+		appliedPatches, err := dbPatches(d.db)
+		if err != nil {
+			return err
+		}
+
+		if !shared.StringInSlice("storage_api", appliedPatches) {
+			shared.LogWarnf("Incorrectly applied \"storage_api\" patch. Skipping storage pool initialization as it might be corrupt.")
+			return nil
+		}
+
+	}
+
 	for _, pool := range pools {
 		shared.LogDebugf("Initializing and checking storage pool \"%s\".", pool)
 		s, err := storagePoolInit(d, pool)
