@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -542,42 +543,45 @@ func (s *storageZfs) ContainerCreate(container container) error {
 func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint string) error {
 	shared.LogDebugf("Creating ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	containerCreateFromImagePoolLockID := getContainerCreateFromImageLockID(s.pool.Name, fingerprint)
+
+	lxdContainerCreationLock.Lock()
+	_, ok := lxdContainerCreationMap[containerCreateFromImagePoolLockID]
+	if !ok {
+		lxdContainerCreationMap[containerCreateFromImagePoolLockID] = &containerCreationStruct{}
+		lxdContainerCreationMap[containerCreateFromImagePoolLockID].lock = &sync.RWMutex{}
+	}
+
+	lxdContainerCreationMap[containerCreateFromImagePoolLockID].ref++
+	lxdContainerCreationLock.Unlock()
+
+	// ImageCreate() does not need to and cannot be placed under the
+	// container lock. Otherwise we'll deadlock.
+	fsImage := fmt.Sprintf("images/%s", fingerprint)
+	err := s.ImageCreate(fingerprint)
+	if err != nil {
+		return err
+	}
+
+	// Protects this specific creation instance from ImageDelete()'s.
+	lxdContainerCreationMap[containerCreateFromImagePoolLockID].lock.RLock()
+	defer lxdContainerCreationMap[containerCreateFromImagePoolLockID].lock.RUnlock()
+
+	defer func() {
+		lxdContainerCreationLock.Lock()
+		lxdContainerCreationMap[containerCreateFromImagePoolLockID].ref--
+		if lxdContainerCreationMap[containerCreateFromImagePoolLockID].ref == 0 {
+			delete(lxdContainerCreationMap, containerCreateFromImagePoolLockID)
+		}
+		lxdContainerCreationLock.Unlock()
+	}()
+
 	containerPath := container.Path()
 	containerName := container.Name()
 	fs := fmt.Sprintf("containers/%s", containerName)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
 
-	fsImage := fmt.Sprintf("images/%s", fingerprint)
-
-	imageStoragePoolLockID := getImageCreateLockID(s.pool.Name, fingerprint)
-	lxdStorageMapLock.Lock()
-	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
-		lxdStorageMapLock.Unlock()
-		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Received value over semaphore. This should not have happened.")
-		}
-	} else {
-		lxdStorageOngoingOperationMap[imageStoragePoolLockID] = make(chan bool)
-		lxdStorageMapLock.Unlock()
-
-		var imgerr error
-		if !s.zfsFilesystemEntityExists(fsImage, true) {
-			imgerr = s.ImageCreate(fingerprint)
-		}
-
-		lxdStorageMapLock.Lock()
-		if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
-			close(waitChannel)
-			delete(lxdStorageOngoingOperationMap, imageStoragePoolLockID)
-		}
-		lxdStorageMapLock.Unlock()
-
-		if imgerr != nil {
-			return imgerr
-		}
-	}
-
-	err := s.zfsPoolVolumeClone(fsImage, "readonly", fs, containerPoolVolumeMntPoint)
+	err = s.zfsPoolVolumeClone(fsImage, "readonly", fs, containerPoolVolumeMntPoint)
 	if err != nil {
 		return err
 	}
@@ -1261,12 +1265,52 @@ func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 func (s *storageZfs) ImageCreate(fingerprint string) error {
 	shared.LogDebugf("Creating ZFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
+	imageCreatePoolLockID := getImageCreateLockID(s.pool.Name, fingerprint)
+	imageDeletePoolLockID := getImageDeleteLockID(s.pool.Name, fingerprint)
+
+	lxdStorageMapLock.Lock()
+	imageCreateChannel, imageCreateOpExists := lxdStorageOngoingOperationMap[imageCreatePoolLockID]
+	if imageCreateOpExists {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-imageCreateChannel; ok {
+			fmt.Println("Received value over semaphore. This should not have happened.")
+		}
+		return nil
+	}
+
+	lxdStorageOngoingOperationMap[imageCreatePoolLockID] = make(chan bool)
+
+	imageDeleteChannel, imageDeleteOpExists := lxdStorageOngoingOperationMap[imageDeletePoolLockID]
+	if imageDeleteOpExists {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-imageDeleteChannel; ok {
+			fmt.Println("Received value over semaphore. This should not have happened.")
+		}
+	} else {
+		lxdStorageMapLock.Unlock()
+	}
+
+	defer func() {
+		lxdStorageMapLock.Lock()
+		waitChannel, ok := lxdStorageOngoingOperationMap[imageCreatePoolLockID]
+		if ok {
+			close(waitChannel)
+			delete(lxdStorageOngoingOperationMap, imageCreatePoolLockID)
+		}
+		lxdStorageMapLock.Unlock()
+	}()
+
+	// Check if image already exists.
+	_, err := dbStoragePoolVolumeGetTypeID(s.d.db, fingerprint, storagePoolVolumeTypeImage, s.poolID)
+	if err == nil {
+		return nil
+	}
+
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	fs := fmt.Sprintf("images/%s", fingerprint)
-	revert := true
 	subrevert := true
 
-	err := s.createImageDbPoolVolume(fingerprint)
+	err = s.createImageDbPoolVolume(fingerprint)
 	if err != nil {
 		return err
 	}
@@ -1283,13 +1327,6 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 			return err
 		}
 
-		defer func() {
-			if !revert {
-				return
-			}
-			s.ImageDelete(fingerprint)
-		}()
-
 		// In case this is an image from an older lxd instance, wipe the
 		// mountpoint.
 		err = s.zfsPoolVolumeSet(fs, "mountpoint", "none")
@@ -1297,7 +1334,6 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 			return err
 		}
 
-		revert = false
 		subrevert = false
 
 		return nil
@@ -1332,12 +1368,6 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 	subrevert = false
-	defer func() {
-		if !revert {
-			return
-		}
-		s.ImageDelete(fingerprint)
-	}()
 
 	// Set a temporary mountpoint for the image.
 	err = s.zfsPoolVolumeSet(fs, "mountpoint", tmpImageDir)
@@ -1380,14 +1410,64 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 
-	revert = false
-
 	shared.LogDebugf("Created ZFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) ImageDelete(fingerprint string) error {
 	shared.LogDebugf("Deleting ZFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
+
+	imageDeletePoolLockID := getImageDeleteLockID(s.pool.Name, fingerprint)
+	imageCreatePoolLockID := getImageCreateLockID(s.pool.Name, fingerprint)
+
+	lxdStorageMapLock.Lock()
+	imageDeleteChannel, imageDeleteOpExists := lxdStorageOngoingOperationMap[imageDeletePoolLockID]
+	if imageDeleteOpExists {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-imageDeleteChannel; ok {
+			fmt.Println("Received value over semaphore. This should not have happened.")
+		}
+		return nil
+	}
+
+	lxdStorageOngoingOperationMap[imageDeletePoolLockID] = make(chan bool)
+
+	imageCreateChannel, imageCreateOpExists := lxdStorageOngoingOperationMap[imageCreatePoolLockID]
+	if imageCreateOpExists {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-imageCreateChannel; ok {
+			fmt.Println("Received value over semaphore. This should not have happened.")
+		}
+	} else {
+		lxdStorageMapLock.Unlock()
+	}
+
+	containerCreateFromImagePoolLockID := getContainerCreateFromImageLockID(s.pool.Name, fingerprint)
+	lxdContainerCreationLock.RLock()
+	seqLock, ok := lxdContainerCreationMap[containerCreateFromImagePoolLockID]
+	if ok {
+		lxdContainerCreationLock.RUnlock()
+		seqLock.lock.Lock()
+		defer seqLock.lock.Unlock()
+	} else {
+		defer lxdContainerCreationLock.RUnlock()
+	}
+
+	defer func() {
+		lxdStorageMapLock.Lock()
+		waitChannel, ok := lxdStorageOngoingOperationMap[imageDeletePoolLockID]
+		if ok {
+			close(waitChannel)
+			delete(lxdStorageOngoingOperationMap, imageDeletePoolLockID)
+		}
+		lxdStorageMapLock.Unlock()
+	}()
+
+	// Check if image already is already deleted.
+	_, err := dbStoragePoolVolumeGetTypeID(s.d.db, fingerprint, storagePoolVolumeTypeImage, s.poolID)
+	if err == NoSuchObjectError {
+		return nil
+	}
 
 	fs := fmt.Sprintf("images/%s", fingerprint)
 
@@ -1403,7 +1483,7 @@ func (s *storageZfs) ImageDelete(fingerprint string) error {
 				return err
 			}
 		} else {
-			err := s.zfsPoolVolumeSet(fs, "mountpoint", "none")
+			err = s.zfsPoolVolumeSet(fs, "mountpoint", "none")
 			if err != nil {
 				return err
 			}
@@ -1415,7 +1495,7 @@ func (s *storageZfs) ImageDelete(fingerprint string) error {
 		}
 	}
 
-	err := s.deleteImageDbPoolVolume(fingerprint)
+	err = s.deleteImageDbPoolVolume(fingerprint)
 	if err != nil {
 		return err
 	}
