@@ -296,7 +296,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 
 		// Get the pool ID as we need it for storage volume creation.
 		// (Use a tmp variable as Go's scoping is freaking me out.)
-		tmp, err := dbStoragePoolGetID(d.db, defaultPoolName)
+		tmp, pool, err := dbStoragePoolGet(d.db, defaultPoolName)
 		if err != nil {
 			shared.LogErrorf("Failed to query database: %s.", err)
 			return err
@@ -306,7 +306,10 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		// Update the pool configuration on a post LXD 2.9.1 instance
 		// that still runs this upgrade code because of a partial
 		// upgrade.
-		err = dbStoragePoolUpdate(d.db, defaultPoolName, poolConfig)
+		if pool.Config == nil {
+			pool.Config = poolConfig
+		}
+		err = dbStoragePoolUpdate(d.db, defaultPoolName, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -590,7 +593,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Get the pool ID as we need it for storage volume creation.
 		// (Use a tmp variable as Go's scoping is freaking me out.)
-		tmp, err := dbStoragePoolGetID(d.db, defaultPoolName)
+		tmp, pool, err := dbStoragePoolGet(d.db, defaultPoolName)
 		if err != nil {
 			shared.LogErrorf("Failed to query database: %s.", err)
 			return err
@@ -600,7 +603,10 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		// Update the pool configuration on a post LXD 2.9.1 instance
 		// that still runs this upgrade code because of a partial
 		// upgrade.
-		err = dbStoragePoolUpdate(d.db, defaultPoolName, poolConfig)
+		if pool.Config == nil {
+			pool.Config = poolConfig
+		}
+		err = dbStoragePoolUpdate(d.db, defaultPoolName, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -880,7 +886,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 		// Get the pool ID as we need it for storage volume creation.
 		// (Use a tmp variable as Go's scoping is freaking me out.)
-		tmp, err := dbStoragePoolGetID(d.db, defaultPoolName)
+		tmp, pool, err := dbStoragePoolGet(d.db, defaultPoolName)
 		if err != nil {
 			shared.LogErrorf("Failed to query database: %s.", err)
 			return err
@@ -890,7 +896,10 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Update the pool configuration on a post LXD 2.9.1 instance
 		// that still runs this upgrade code because of a partial
 		// upgrade.
-		err = dbStoragePoolUpdate(d.db, defaultPoolName, poolConfig)
+		if pool.Config == nil {
+			pool.Config = poolConfig
+		}
+		err = dbStoragePoolUpdate(d.db, defaultPoolName, pool.Config)
 		if err != nil {
 			return err
 		}
