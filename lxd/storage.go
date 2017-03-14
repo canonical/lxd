@@ -149,7 +149,7 @@ const (
 	storageTypeMock
 )
 
-var supportedStorageTypes = []string{"btrfs", "zfs", "lvm", "dir"}
+var supportedStoragePoolDrivers = []string{"btrfs", "dir", "lvm", "zfs"}
 
 func storageTypeToString(sType storageType) (string, error) {
 	switch sType {

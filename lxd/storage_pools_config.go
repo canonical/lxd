@@ -40,7 +40,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 
 func storagePoolValidateConfig(name string, driver string, config map[string]string) error {
 	err := func(value string) error {
-		return shared.IsOneOf(value, supportedStorageTypes)
+		return shared.IsOneOf(value, supportedStoragePoolDrivers)
 	}(driver)
 	if err != nil {
 		return err
