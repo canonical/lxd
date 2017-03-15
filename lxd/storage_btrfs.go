@@ -300,7 +300,9 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 			// This is a loop file --> simply remove it.
 			err = os.Remove(source)
 		} else {
-			err = btrfsSubVolumesDelete(source)
+			if !isBtrfsFilesystem(source) && isBtrfsSubVolume(source) {
+				err = btrfsSubVolumesDelete(source)
+			}
 		}
 		if err != nil {
 			return err
@@ -1464,13 +1466,15 @@ func btrfsSubVolumesDelete(subvol string) error {
 	sort.Sort(sort.Reverse(sort.StringSlice(subsubvols)))
 
 	for _, subsubvol := range subsubvols {
-		if err := btrfsSubVolumeDelete(path.Join(subvol, subsubvol)); err != nil {
+		err := btrfsSubVolumeDelete(path.Join(subvol, subsubvol))
+		if err != nil {
 			return err
 		}
 	}
 
 	// Delete the subvol itself
-	if err := btrfsSubVolumeDelete(subvol); err != nil {
+	err = btrfsSubVolumeDelete(subvol)
+	if err != nil {
 		return err
 	}
 
@@ -1561,6 +1565,15 @@ func isBtrfsSubVolume(subvolPath string) bool {
 
 	// Check if BTRFS_FIRST_FREE_OBJECTID
 	if fs.Ino != 256 {
+		return false
+	}
+
+	return true
+}
+
+func isBtrfsFilesystem(path string) bool {
+	_, err := shared.RunCommand("btrfs", "filesystem", "show", path)
+	if err != nil {
 		return false
 	}
 
