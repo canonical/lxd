@@ -835,6 +835,7 @@ The following headers may be set by the client:
  * X-LXD-uid: 0
  * X-LXD-gid: 0
  * X-LXD-mode: 0700
+ * X-LXD-type: one of "directory" or "file"
  * X-LXD-write: overwrite (or append, introduced with API extension "file\_append")
 
 This is designed to be easily usable from the command line or even a web
