@@ -63,6 +63,8 @@ func (s *storageZfs) StorageCoreInit() error {
 	}
 	s.sTypeName = typeName
 
+	loadModule("zfs")
+
 	if !zfsIsEnabled() {
 		return fmt.Errorf("The \"zfs\" tool is not enabled.")
 	}
