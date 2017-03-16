@@ -305,7 +305,7 @@ func (s *storageZfs) StoragePoolVolumeUmount() (bool, error) {
 	var customerr error
 	ourUmount := false
 	if shared.IsMountPoint(customPoolVolumeMntPoint) {
-		customerr = s.zfsPoolVolumeUmount(fs)
+		customerr = s.zfsPoolVolumeUmount(fs, customPoolVolumeMntPoint)
 		ourUmount = true
 	}
 
@@ -470,7 +470,7 @@ func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 	var imgerr error
 	ourUmount := false
 	if shared.IsMountPoint(containerPoolVolumeMntPoint) {
-		imgerr = s.zfsPoolVolumeUmount(fs)
+		imgerr = s.zfsPoolVolumeUmount(fs, containerPoolVolumeMntPoint)
 		ourUmount = true
 	}
 
@@ -1370,7 +1370,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 
 	// Make sure that the image actually got unmounted.
 	if shared.IsMountPoint(tmpImageDir) {
-		s.zfsPoolVolumeUmount(fs)
+		s.zfsPoolVolumeUmount(fs, tmpImageDir)
 	}
 
 	// Create a snapshot of that image on the storage pool which we clone for
@@ -1983,20 +1983,25 @@ func (s *storageZfs) zfsPoolVolumeMount(path string) error {
 	return zfsMount(s.getOnDiskPoolName(), path)
 }
 
-func zfsUmount(poolName string, path string) error {
+func zfsUmount(poolName string, path string, mountpoint string) error {
 	output, err := shared.TryRunCommand(
 		"zfs",
 		"unmount",
 		fmt.Sprintf("%s/%s", poolName, path))
 	if err != nil {
-		return fmt.Errorf("Failed to unmount ZFS filesystem: %s", output)
+		shared.LogWarnf("Failed to unmount ZFS filesystem via zfs unmount: %s. Trying lazy umount (MNT_DETACH)...", output)
+		err := tryUnmount(mountpoint, syscall.MNT_DETACH)
+		if err != nil {
+			shared.LogWarnf("Failed to unmount ZFS filesystem via lazy umount (MNT_DETACH)...")
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (s *storageZfs) zfsPoolVolumeUmount(path string) error {
-	return zfsUmount(s.getOnDiskPoolName(), path)
+func (s *storageZfs) zfsPoolVolumeUmount(path string, mountpoint string) error {
+	return zfsUmount(s.getOnDiskPoolName(), path, mountpoint)
 }
 
 func (s *storageZfs) zfsPoolListSubvolumes(path string) ([]string, error) {
@@ -2270,7 +2275,7 @@ func (s *storageZfs) PreservesInodes() bool {
 
 func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver, error) {
 	/* If the container is a snapshot, let's just send that; we don't need
-	 * to send anything else, because that's all the user asked for.
+	* to send anything else, because that's all the user asked for.
 	 */
 	if ct.IsSnapshot() {
 		return &zfsMigrationSourceDriver{container: ct, zfs: s}, nil
@@ -2284,8 +2289,8 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 	}
 
 	/* List all the snapshots in order of reverse creation. The idea here
-	 * is that we send the oldest to newest snapshot, hopefully saving on
-	 * xfer costs. Then, after all that, we send the container itself.
+	* is that we send the oldest to newest snapshot, hopefully saving on
+	* xfer costs. Then, after all that, we send the container itself.
 	 */
 	snapshots, err := s.zfsPoolListSnapshots(fmt.Sprintf("containers/%s", ct.Name()))
 	if err != nil {
@@ -2294,9 +2299,9 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 
 	for _, snap := range snapshots {
 		/* In the case of e.g. multiple copies running at the same
-		 * time, we will have potentially multiple migration-send
-		 * snapshots. (Or in the case of the test suite, sometimes one
-		 * will take too long to delete.)
+		* time, we will have potentially multiple migration-send
+		* snapshots. (Or in the case of the test suite, sometimes one
+		* will take too long to delete.)
 		 */
 		if !strings.HasPrefix(snap, "snapshot-") {
 			continue
@@ -2362,7 +2367,8 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	 * unmounted, so we do this before receiving anything.
 	 */
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
-	err := s.zfsPoolVolumeUmount(zfsName)
+	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
+	err := s.zfsPoolVolumeUmount(zfsName, containerMntPoint)
 	if err != nil {
 		return err
 	}
