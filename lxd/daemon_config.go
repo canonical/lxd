@@ -313,7 +313,7 @@ func daemonConfigValidateCompression(d *Daemon, key string, value string) error 
 }
 
 func storageDeprecatedKeys(d *Daemon, key string, value string) error {
-	if value == "" {
+	if value == "" || daemonConfig[key].defaultValue == value {
 		return nil
 	}
 
