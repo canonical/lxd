@@ -164,7 +164,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return InternalError(err)
 			}
-			defer zfsUmount(poolName, containerSubString[1:])
+			defer zfsUmount(poolName, containerSubString[1:], containerMntPoint)
 		case "lvm":
 			containerLvmName := containerNameToLVName(name)
 			containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, containerLvmName)
