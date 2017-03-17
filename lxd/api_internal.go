@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -123,62 +122,33 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("target is required"))
 	}
 
-	// The following code likely requires some explanation. When an existing
-	// container accidently got removed from the containers database || the
-	// storage volumes database and the storage volume for for the container
-	// got unmounted but we want to import it again, we need to
-	// detect the storage information for the container:
-	// - check if the symlink of the container points to a valid mountpoint.
-	// - If it does not read the link and parse out the pool the container
-	//   existed on.
-	// - Check the driver of the storage pool the container existed on and
-	//   if it is an appropriate driver, do something smart on how to
-	//   temporarily remount the containers storage volume to retrieve the
-	//   backup.yaml file for it.
-	path := containerPath(name, false)
-	containerMntPoint, err := os.Readlink(path)
+	storagePoolNames, err := dbStoragePools(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	if !shared.IsMountPoint(path) {
-		poolIdx := strings.Index(containerMntPoint, "/storage-pools/")
-		containerSubString := fmt.Sprintf("/containers/%s", name)
-		containersIdx := strings.Index(containerMntPoint, containerSubString)
-		if (poolIdx < 0) || (containersIdx < 0) || (containersIdx <= poolIdx) {
-			return InternalError(fmt.Errorf("Symlink does not point to a valid container mountpoint."))
+	containerMntPoints := []string{}
+	for _, poolName := range storagePoolNames {
+		containerMntPoint := getContainerMountPoint(poolName, name)
+		if shared.PathExists(containerMntPoint) {
+			containerMntPoints = append(containerMntPoints, containerMntPoint)
 		}
-		poolName := containerMntPoint[poolIdx+len("/storage-pools/") : containersIdx]
-		if strings.Contains(poolName, "/") {
-			return InternalError(fmt.Errorf("Symlink target does not contain a valid storage pool name."))
-		}
+	}
 
-		_, pool, err := dbStoragePoolGet(d.db, poolName)
-		if err != nil {
-			return SmartError(err)
-		}
+	if len(containerMntPoints) > 1 {
+		return BadRequest(fmt.Errorf("The container \"%\" seems to exist on another storage pool.", name))
+	} else if len(containerMntPoints) != 1 {
+		return BadRequest(fmt.Errorf("The container \"%\" does not seem to exist on any storage pool.", name))
+	}
 
-		switch pool.Driver {
-		case "zfs":
-			err = zfsMount(poolName, containerSubString[1:])
-			if err != nil {
-				return InternalError(err)
-			}
-			defer zfsUmount(poolName, containerSubString[1:], containerMntPoint)
-		case "lvm":
-			containerLvmName := containerNameToLVName(name)
-			containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, containerLvmName)
-			err := tryMount(containerLvmPath, containerMntPoint, "", 0, "")
-			if err != nil {
-				return InternalError(err)
-			}
-			defer tryUnmount(containerLvmPath, 0)
-		case "dir":
-			// noop: There is nothing to mount.
-		case "btrfs":
-			// noop: The btrfs storage pool should never be
-			// unmounted.
-		}
+	containerMntPoint := containerMntPoints[0]
+	isEmpty, err := shared.PathIsEmpty(containerMntPoint)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if isEmpty {
+		return BadRequest(fmt.Errorf("The container's directory \"%\" appears to be empty. Please ensure that the container's storage volume is mounted.", containerMntPoint))
 	}
 
 	sf, err := slurpBackupFile(shared.VarPath("containers", name, "backup.yaml"))
