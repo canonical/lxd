@@ -136,9 +136,9 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	if len(containerMntPoints) > 1 {
-		return BadRequest(fmt.Errorf("The container \"%\" seems to exist on another storage pool.", name))
+		return BadRequest(fmt.Errorf("The container \"%s\" seems to exist on another storage pool.", name))
 	} else if len(containerMntPoints) != 1 {
-		return BadRequest(fmt.Errorf("The container \"%\" does not seem to exist on any storage pool.", name))
+		return BadRequest(fmt.Errorf("The container \"%s\" does not seem to exist on any storage pool.", name))
 	}
 
 	containerMntPoint := containerMntPoints[0]
@@ -148,7 +148,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	if isEmpty {
-		return BadRequest(fmt.Errorf("The container's directory \"%\" appears to be empty. Please ensure that the container's storage volume is mounted.", containerMntPoint))
+		return BadRequest(fmt.Errorf("The container's directory \"%s\" appears to be empty. Please ensure that the container's storage volume is mounted.", containerMntPoint))
 	}
 
 	sf, err := slurpBackupFile(shared.VarPath("containers", name, "backup.yaml"))

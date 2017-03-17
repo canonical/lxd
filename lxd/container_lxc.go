@@ -2916,6 +2916,7 @@ func (c *containerLXC) ConfigKeySet(key string, value string) error {
 type backupFile struct {
 	Container *api.Container           `yaml:"container"`
 	Snapshots []*api.ContainerSnapshot `yaml:"snapshots"`
+	Pool      *api.StoragePool         `yaml:"pool"`
 }
 
 func writeBackupFile(c container) error {
@@ -2956,9 +2957,20 @@ func writeBackupFile(c container) error {
 		sis = append(sis, si.(*api.ContainerSnapshot))
 	}
 
+	poolName, err := c.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	_, pool, err := dbStoragePoolGet(c.Daemon().db, poolName)
+	if err != nil {
+		return err
+	}
+
 	data, err := yaml.Marshal(&backupFile{
 		Container: ci.(*api.Container),
 		Snapshots: sis,
+		Pool:      pool,
 	})
 	if err != nil {
 		return err
