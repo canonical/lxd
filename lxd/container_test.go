@@ -119,7 +119,7 @@ func (suite *lxdTestSuite) TestContainer_LoadFromDB() {
 	c2, err := containerLoadByName(suite.d, "testFoo")
 	c2.IsRunning()
 	suite.Req.Nil(err)
-	err = c2.StorageStart()
+	_, err = c2.StorageStart()
 	suite.Req.Nil(err)
 
 	suite.Exactly(

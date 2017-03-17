@@ -754,11 +754,13 @@ func (s *storageBtrfs) ContainerCopy(container container, sourceContainer contai
 		return err
 	}
 
-	err = sourceContainer.StorageStart()
+	ourStart, err := sourceContainer.StorageStart()
 	if err != nil {
 		return err
 	}
-	defer sourceContainer.StorageStop()
+	if ourStart {
+		defer sourceContainer.StorageStop()
+	}
 
 	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 	sourceContainerSubvolumeName := ""
@@ -923,11 +925,13 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 		}
 	}()
 
-	err = sourceContainer.StorageStart()
+	ourStart, err := sourceContainer.StorageStart()
 	if err != nil {
 		return err
 	}
-	defer sourceContainer.StorageStop()
+	if ourStart {
+		defer sourceContainer.StorageStop()
+	}
 
 	// Mount the source container.
 	srcContainerStorage := sourceContainer.Storage()
@@ -1086,60 +1090,62 @@ func (s *storageBtrfs) ContainerSnapshotDelete(snapshotContainer container) erro
 	return nil
 }
 
-func (s *storageBtrfs) ContainerSnapshotStart(container container) error {
+func (s *storageBtrfs) ContainerSnapshotStart(container container) (bool, error) {
 	shared.LogDebugf("Initializing BTRFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	snapshotSubvolumeName := getSnapshotMountPoint(s.pool.Name, container.Name())
 	roSnapshotSubvolumeName := fmt.Sprintf("%s.ro", snapshotSubvolumeName)
 	if shared.PathExists(roSnapshotSubvolumeName) {
-		return fmt.Errorf("The snapshot is already mounted read-write.")
+		shared.LogDebugf("The BTRFS snapshot is already mounted read-write.")
+		return false, nil
 	}
 
 	err = os.Rename(snapshotSubvolumeName, roSnapshotSubvolumeName)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	err = s.btrfsPoolVolumesSnapshot(roSnapshotSubvolumeName, snapshotSubvolumeName, false)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	shared.LogDebugf("Initialized BTRFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
-	return nil
+	return true, nil
 }
 
-func (s *storageBtrfs) ContainerSnapshotStop(container container) error {
+func (s *storageBtrfs) ContainerSnapshotStop(container container) (bool, error) {
 	shared.LogDebugf("Stopping BTRFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	snapshotSubvolumeName := getSnapshotMountPoint(s.pool.Name, container.Name())
 	roSnapshotSubvolumeName := fmt.Sprintf("%s.ro", snapshotSubvolumeName)
 	if !shared.PathExists(roSnapshotSubvolumeName) {
-		return fmt.Errorf("The snapshot isn't currently mounted read-write.")
+		shared.LogDebugf("The BTRFS snapshot is currently not mounted read-write.")
+		return false, nil
 	}
 
 	err = btrfsSubVolumesDelete(snapshotSubvolumeName)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	err = os.Rename(roSnapshotSubvolumeName, snapshotSubvolumeName)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	shared.LogDebugf("Stopped BTRFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
-	return nil
+	return true, nil
 }
 
 // ContainerSnapshotRename renames a snapshot of a container.

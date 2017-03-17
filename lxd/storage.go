@@ -235,8 +235,8 @@ type storage interface {
 	ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error
 	ContainerSnapshotDelete(snapshotContainer container) error
 	ContainerSnapshotRename(snapshotContainer container, newName string) error
-	ContainerSnapshotStart(container container) error
-	ContainerSnapshotStop(container container) error
+	ContainerSnapshotStart(container container) (bool, error)
+	ContainerSnapshotStop(container container) (bool, error)
 
 	// For use in migrating snapshots.
 	ContainerSnapshotCreateEmpty(snapshotContainer container) error

@@ -1195,12 +1195,12 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 	return nil
 }
 
-func (s *storageZfs) ContainerSnapshotStart(container container) error {
+func (s *storageZfs) ContainerSnapshotStart(container container) (bool, error) {
 	shared.LogDebugf("Initializing ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
 	if len(fields) < 2 {
-		return fmt.Errorf("Invalid snapshot name: %s", container.Name())
+		return false, fmt.Errorf("Invalid snapshot name: %s", container.Name())
 	}
 
 	cName := fields[0]
@@ -1212,19 +1212,19 @@ func (s *storageZfs) ContainerSnapshotStart(container container) error {
 	snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, container.Name())
 	err := s.zfsPoolVolumeClone(sourceFs, sourceSnap, destFs, snapshotMntPoint)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	shared.LogDebugf("Initialized ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
-	return nil
+	return true, nil
 }
 
-func (s *storageZfs) ContainerSnapshotStop(container container) error {
+func (s *storageZfs) ContainerSnapshotStop(container container) (bool, error) {
 	shared.LogDebugf("Stopping ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
 	if len(fields) < 2 {
-		return fmt.Errorf("Invalid snapshot name: %s", container.Name())
+		return false, fmt.Errorf("Invalid snapshot name: %s", container.Name())
 	}
 	cName := fields[0]
 	sName := fields[1]
@@ -1232,7 +1232,7 @@ func (s *storageZfs) ContainerSnapshotStop(container container) error {
 
 	err := s.zfsPoolVolumeDestroy(destFs)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	/* zfs creates this directory on clone (start), so we need to clean it
@@ -1240,10 +1240,10 @@ func (s *storageZfs) ContainerSnapshotStop(container container) error {
 	shared.LogDebugf("Stopped ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	err = os.RemoveAll(container.Path())
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }
 
 func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
