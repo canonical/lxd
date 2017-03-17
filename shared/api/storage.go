@@ -1,5 +1,15 @@
 package api
 
+// StoragePoolsPost represents the fields of a new LXD storage pool
+//
+// API extension: storage
+type StoragePoolsPost struct {
+	StoragePoolPut `yaml:",inline"`
+
+	Name   string `json:"name" yaml:"name"`
+	Driver string `json:"driver" yaml:"driver"`
+}
+
 // StoragePool represents the fields of a LXD storage pool.
 //
 // API extension: storage
@@ -18,12 +28,23 @@ type StoragePoolPut struct {
 	Config map[string]string `json:"config" yaml:"config"`
 }
 
+// StorageVolumesPost represents the fields of a new LXD storage pool volume
+//
+// API extension: storage
+type StorageVolumesPost struct {
+	StorageVolumePut `yaml:",inline"`
+
+	Name string `json:"name" yaml:"name"`
+	Type string `json:"type" yaml:"type"`
+}
+
 // StorageVolume represents the fields of a LXD storage volume.
 //
 // API extension: storage
 type StorageVolume struct {
 	StorageVolumePut `yaml:",inline"`
 
+	Name   string   `json:"name" yaml:"name"`
 	Type   string   `json:"type" yaml:"type"`
 	UsedBy []string `json:"used_by" yaml:"used_by"`
 }
@@ -32,7 +53,6 @@ type StorageVolume struct {
 //
 // API extension: storage
 type StorageVolumePut struct {
-	Name   string            `json:"name" yaml:"name"`
 	Config map[string]string `json:"config" yaml:"config"`
 }
 
