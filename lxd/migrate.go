@@ -296,11 +296,13 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 	// Storage needs to start unconditionally now, since we need to
 	// initialize a new storage interface.
-	err := s.container.StorageStart()
+	ourStart, err := s.container.StorageStart()
 	if err != nil {
 		return err
 	}
-	defer s.container.StorageStop()
+	if ourStart {
+		defer s.container.StorageStop()
+	}
 
 	idmaps := make([]*IDMapType, 0)
 

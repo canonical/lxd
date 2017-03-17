@@ -107,20 +107,11 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	// Check whether the container will be mounted exclusively by us or if
-	// it already was by someone else. In the latter case don't unmount it.
-	storagePool, err := c.StoragePool()
-	if err != nil {
-		return SmartError(err)
-	}
-
-	containerPoolVolumeMntPoint := getContainerMountPoint(storagePool, name)
-	mountedBefore := shared.IsMountPoint(containerPoolVolumeMntPoint)
-	err = c.StorageStart()
+	ourStart, err := c.StorageStart()
 	if err != nil {
 		return InternalError(err)
 	}
-	if !mountedBefore || c.IsSnapshot() {
+	if ourStart {
 		defer c.StorageStop()
 	}
 

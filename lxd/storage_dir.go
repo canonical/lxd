@@ -357,9 +357,12 @@ func (s *storageDir) ContainerDelete(container container) error {
 func (s *storageDir) ContainerCopy(container container, sourceContainer container) error {
 	shared.LogDebugf("Copying DIR container storage %s -> %s.", sourceContainer.Name(), container.Name())
 
-	err := sourceContainer.StorageStart()
+	ourStart, err := sourceContainer.StorageStart()
 	if err != nil {
 		return err
+	}
+	if ourStart {
+		defer sourceContainer.StorageStop()
 	}
 
 	// Deal with the source container.
@@ -526,9 +529,12 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 		return nil
 	}
 
-	err = sourceContainer.StorageStart()
+	ourStart, err := sourceContainer.StorageStart()
 	if err != nil {
 		return err
+	}
+	if ourStart {
+		defer sourceContainer.StorageStop()
 	}
 
 	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
@@ -675,12 +681,12 @@ func (s *storageDir) ContainerSnapshotRename(snapshotContainer container, newNam
 	return nil
 }
 
-func (s *storageDir) ContainerSnapshotStart(container container) error {
-	return nil
+func (s *storageDir) ContainerSnapshotStart(container container) (bool, error) {
+	return true, nil
 }
 
-func (s *storageDir) ContainerSnapshotStop(container container) error {
-	return nil
+func (s *storageDir) ContainerSnapshotStop(container container) (bool, error) {
+	return true, nil
 }
 
 func (s *storageDir) ImageCreate(fingerprint string) error {
