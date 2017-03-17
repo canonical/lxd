@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -149,19 +149,59 @@ func cmdInit() error {
 		}
 	}
 
-	// Confirm that LXD is online
-	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+	// Connect to LXD
+	c, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
 
+	setServerConfig := func(key string, value string) error {
+		server, etag, err := c.GetServer()
+		if err != nil {
+			return err
+		}
+
+		if server.Config == nil {
+			server.Config = map[string]interface{}{}
+		}
+
+		server.Config[key] = value
+
+		err = c.UpdateServer(server.Writable(), etag)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	setProfileConfigItem := func(profileName string, key string, value string) error {
+		profile, etag, err := c.GetProfile(profileName)
+		if err != nil {
+			return err
+		}
+
+		if profile.Config == nil {
+			profile.Config = map[string]string{}
+		}
+
+		profile.Config[key] = value
+
+		err = c.UpdateProfile(profileName, profile.Writable(), etag)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	// Check that we have no containers or images in the store
-	containers, err := c.ListContainers()
+	containers, err := c.GetContainerNames()
 	if err != nil {
 		return fmt.Errorf("Unable to list the LXD containers: %s", err)
 	}
 
-	images, err := c.ListImages()
+	images, err := c.GetImageFingerprints()
 	if err != nil {
 		return fmt.Errorf("Unable to list the LXD images: %s", err)
 	}
@@ -332,7 +372,7 @@ they otherwise would.
 
 	// Unset all storage keys, core.https_address and core.trust_password
 	for _, key := range []string{"storage.zfs_pool_name", "core.https_address", "core.trust_password"} {
-		_, err = c.SetServerConfig(key, "")
+		err = setServerConfig(key, "")
 		if err != nil {
 			return err
 		}
@@ -378,31 +418,31 @@ they otherwise would.
 		}
 
 		// Configure LXD to use the pool
-		_, err = c.SetServerConfig("storage.zfs_pool_name", storagePool)
+		err = setServerConfig("storage.zfs_pool_name", storagePool)
 		if err != nil {
 			return err
 		}
 	}
 
 	if defaultPrivileged == 0 {
-		err = c.SetProfileConfigItem("default", "security.privileged", "")
+		err = setProfileConfigItem("default", "security.privileged", "")
 		if err != nil {
 			return err
 		}
 	} else if defaultPrivileged == 1 {
-		err = c.SetProfileConfigItem("default", "security.privileged", "true")
+		err = setProfileConfigItem("default", "security.privileged", "true")
 		if err != nil {
 		}
 	}
 
 	if networkAddress != "" {
-		_, err = c.SetServerConfig("core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
+		err = setServerConfig("core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
 		if err != nil {
 			return err
 		}
 
 		if trustPassword != "" {
-			_, err = c.SetServerConfig("core.trust_password", trustPassword)
+			err = setServerConfig("core.trust_password", trustPassword)
 			if err != nil {
 				return err
 			}
