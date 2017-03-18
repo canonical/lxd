@@ -152,87 +152,26 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	// Check that the name of the new storage volume is valid. (For example.
-	// zfs pools cannot contain "/" in their names.)
-	err = storageValidName(req.Name)
-	if err != nil {
-		return BadRequest(err)
-	}
-
 	// Check that the user gave use a storage volume type for the storage
 	// volume we are about to create.
 	if req.Type == "" {
 		return BadRequest(fmt.Errorf("You must provide a storage volume type of the storage volume."))
 	}
 
-	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePoolVolumeTypeNameToType(req.Type)
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	// We currently only allow to create storage volumes of type
-	// storagePoolVolumeTypeCustom. So check, that nothing else was
-	// requested.
-	if volumeType != storagePoolVolumeTypeCustom {
-		return BadRequest(fmt.Errorf("Currently not allowed to create storage volumes of type %s.", req.Type))
-	}
-
 	// Check if the user gave us a valid pool name in which the new storage
 	// volume is supposed to be created.
 	poolName := mux.Vars(r)["name"]
 
-	// Load storage pool the volume will be attached to.
-	poolID, poolStruct, err := dbStoragePoolGet(d.db, poolName)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	// Check that a storage volume of the same storage volume type does not
-	// already exist.
-	volumeID, _ := dbStoragePoolVolumeGetTypeID(d.db, req.Name, volumeType, poolID)
-	if volumeID > 0 {
-		return BadRequest(fmt.Errorf("A storage volume of type %s does already exist.", req.Type))
-	}
-
-	// Make sure that we don't pass a nil to the next function.
-	if req.Config == nil {
-		req.Config = map[string]string{}
-	}
-
-	// Validate the requested storage volume configuration.
-	err = storageVolumeValidateConfig(poolName, req.Config, poolStruct)
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	err = storageVolumeFillDefault(poolName, req.Config, poolStruct)
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	// Create the database entry for the storage volume.
-	_, err = dbStoragePoolVolumeCreate(d.db, req.Name, volumeType, poolID, req.Config)
-	if err != nil {
-		return InternalError(fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, req.Type, err))
-	}
-
-	s, err := storagePoolVolumeInit(d, poolName, req.Name, volumeType)
+	err = storagePoolVolumeCreateInternal(d, poolName, req.Name, req.Type, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	// Create storage volume.
-	err = s.StoragePoolVolumeCreate()
+	apiEndpoint, err := storagePoolVolumeTypeNameToApiEndpoint(req.Type)
 	if err != nil {
-		dbStoragePoolVolumeDelete(d.db, req.Name, volumeType, poolID)
 		return InternalError(err)
 	}
 
-	apiEndpoint, err := storagePoolVolumeTypeToApiEndpoint(volumeType)
-	if err != nil {
-		return InternalError(err)
-	}
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, apiEndpoint))
 }
 
