@@ -2837,7 +2837,6 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Update the storage volume name in the storage interface.
 	sNew := c.storage.GetStoragePoolVolumeWritable()
-	sNew.Name = newName
 	c.storage.SetStoragePoolVolumeWritable(&sNew)
 
 	// Invalidate the go-lxc cache

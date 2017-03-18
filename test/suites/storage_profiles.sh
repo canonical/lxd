@@ -17,7 +17,7 @@ test_storage_profiles() {
     fi
 
     HAS_BTRFS="dir"
-    if which zfs >/dev/null 2>&1; then
+    if which btrfs >/dev/null 2>&1; then
       HAS_BTRFS="btrfs"
     fi
 
