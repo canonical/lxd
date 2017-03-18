@@ -2917,6 +2917,7 @@ type backupFile struct {
 	Container *api.Container           `yaml:"container"`
 	Snapshots []*api.ContainerSnapshot `yaml:"snapshots"`
 	Pool      *api.StoragePool         `yaml:"pool"`
+	Volume    *api.StorageVolume       `yaml:"volume"`
 }
 
 func writeBackupFile(c container) error {
@@ -2962,7 +2963,13 @@ func writeBackupFile(c container) error {
 		return err
 	}
 
-	_, pool, err := dbStoragePoolGet(c.Daemon().db, poolName)
+	db := c.Daemon().db
+	poolID, pool, err := dbStoragePoolGet(c.Daemon().db, poolName)
+	if err != nil {
+		return err
+	}
+
+	_, volume, err := dbStoragePoolVolumeGetType(db, c.Name(), storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		return err
 	}
@@ -2971,6 +2978,7 @@ func writeBackupFile(c container) error {
 		Container: ci.(*api.Container),
 		Snapshots: sis,
 		Pool:      pool,
+		Volume:    volume,
 	})
 	if err != nil {
 		return err
