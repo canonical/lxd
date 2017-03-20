@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-03-20 14:50-0400\n"
+"POT-Creation-Date: 2017-03-20 19:10-0400\n"
 "PO-Revision-Date: 2017-02-14 09:54+0000\n"
 "Last-Translator: Vyacheslav Razykov <v.razykov@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -600,6 +600,16 @@ msgstr ""
 #, fuzzy
 msgid "Memory usage:"
 msgstr " Использование памяти:"
+
+#: lxc/copy.go:251
+#, c-format
+msgid "Migration failed on source host: %s"
+msgstr ""
+
+#: lxc/copy.go:255
+#, c-format
+msgid "Migration failed on target host: %s"
+msgstr ""
 
 #: lxc/utils.go:173
 msgid "Missing summary."
