@@ -2225,8 +2225,16 @@ func (c *Client) WaitFor(waitURL string) (*api.Operation, error) {
 	 * "/<version>/operations/" in it; we chop off the leading / and pass
 	 * it to url directly.
 	 */
-	shared.LogDebugf(path.Join(waitURL[1:], "wait"))
 	resp, err := c.baseGet(c.url(waitURL, "wait"))
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.MetadataAsOperation()
+}
+
+func (c *Client) GetOperation(url string) (*api.Operation, error) {
+	resp, err := c.baseGet(c.url(url))
 	if err != nil {
 		return nil, err
 	}
