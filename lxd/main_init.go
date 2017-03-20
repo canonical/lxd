@@ -244,11 +244,7 @@ func cmdInit() error {
 				goto askForStorageAgain
 			}
 
-			storagePoolDriverChoiceString := backendsAvailable[0]
-			if len(backendsAvailable) > 1 {
-				storagePoolDriverChoiceString = strings.Join(backendsAvailable, ",")
-			}
-			storageBackend = askChoice(fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", storagePoolDriverChoiceString, defaultStorage), supportedStoragePoolDrivers, defaultStorage)
+			storageBackend = askChoice(fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(backendsAvailable, ", "), defaultStorage), supportedStoragePoolDrivers, defaultStorage)
 
 			if !shared.StringInSlice(storageBackend, supportedStoragePoolDrivers) {
 				return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
