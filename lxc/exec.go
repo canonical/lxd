@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -34,8 +37,11 @@ func (f *envList) Set(value string) error {
 }
 
 type execCmd struct {
-	modeFlag string
-	envArgs  envList
+	modeFlag            string
+	envArgs             envList
+	forceInteractive    bool
+	forceNonInteractive bool
+	disableStdin        bool
 }
 
 func (c *execCmd) showByDefault() bool {
@@ -44,7 +50,7 @@ func (c *execCmd) showByDefault() bool {
 
 func (c *execCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc exec [<remote>:]<container> [--mode=auto|interactive|non-interactive] [--env KEY=VALUE...] [--] <command line>
+		`Usage: lxc exec [<remote>:]<container> [-t] [-T] [-n] [--mode=auto|interactive|non-interactive] [--env KEY=VALUE...] [--] <command line>
 
 Execute commands in containers.
 
@@ -54,6 +60,9 @@ Mode defaults to non-interactive, interactive mode is selected if both stdin AND
 func (c *execCmd) flags() {
 	gnuflag.Var(&c.envArgs, "env", i18n.G("Environment variable to set (e.g. HOME=/home/foo)"))
 	gnuflag.StringVar(&c.modeFlag, "mode", "auto", i18n.G("Override the terminal mode (auto, interactive or non-interactive)"))
+	gnuflag.BoolVar(&c.forceInteractive, "t", false, i18n.G("Force pseudo-terminal allocation"))
+	gnuflag.BoolVar(&c.forceNonInteractive, "T", false, i18n.G("Disable pseudo-terminal allocation"))
+	gnuflag.BoolVar(&c.disableStdin, "n", false, i18n.G("Disable stdin (reads from /dev/null)"))
 }
 
 func (c *execCmd) sendTermSize(control *websocket.Conn) error {
@@ -112,6 +121,14 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
+	if c.forceInteractive && c.forceNonInteractive {
+		return fmt.Errorf(i18n.G("You can't pass -t and -T at the same time"))
+	}
+
+	if c.modeFlag != "auto" && (c.forceInteractive || c.forceNonInteractive) {
+		return fmt.Errorf(i18n.G("You can't pass -t or -T at the same time as --mode"))
+	}
+
 	remote, name := config.ParseRemoteAndContainer(args[0])
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {
@@ -138,9 +155,11 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 	cfd := int(syscall.Stdin)
 
 	var interactive bool
-	if c.modeFlag == "interactive" {
+	if c.disableStdin {
+		interactive = false
+	} else if c.modeFlag == "interactive" || c.forceInteractive {
 		interactive = true
-	} else if c.modeFlag == "non-interactive" {
+	} else if c.modeFlag == "non-interactive" || c.forceNonInteractive {
 		interactive = false
 	} else {
 		interactive = termios.IsTerminal(cfd) && termios.IsTerminal(int(syscall.Stdout))
@@ -168,8 +187,14 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		}
 	}
 
+	var stdin io.ReadCloser
+	stdin = os.Stdin
+	if c.disableStdin {
+		stdin = ioutil.NopCloser(bytes.NewReader(nil))
+	}
+
 	stdout := c.getStdout()
-	ret, err := d.Exec(name, args[1:], env, os.Stdin, stdout, os.Stderr, handler, width, height)
+	ret, err := d.Exec(name, args[1:], env, stdin, stdout, os.Stderr, handler, width, height)
 	if err != nil {
 		return err
 	}
