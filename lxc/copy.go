@@ -37,7 +37,7 @@ func (c *copyCmd) flags() {
 	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
 }
 
-func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int) error {
+func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int, stateful bool) error {
 	sourceRemote, sourceName := config.ParseRemoteAndContainer(sourceResource)
 	destRemote, destName := config.ParseRemoteAndContainer(destResource)
 
@@ -178,7 +178,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		}
 	}
 
-	sourceWSResponse, err := source.GetMigrationSourceWS(sourceName)
+	sourceWSResponse, err := source.GetMigrationSourceWS(sourceName, stateful)
 	if err != nil {
 		return err
 	}
@@ -259,8 +259,8 @@ func (c *copyCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if len(args) < 2 {
-		return c.copyContainer(config, args[0], "", false, ephem)
+		return c.copyContainer(config, args[0], "", false, ephem, false)
 	}
 
-	return c.copyContainer(config, args[0], args[1], false, ephem)
+	return c.copyContainer(config, args[0], args[1], false, ephem, false)
 }

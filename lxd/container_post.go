@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -17,18 +19,33 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	buf, err := ioutil.ReadAll(r.Body)
+	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	body := api.ContainerPost{}
-	if err := json.Unmarshal(buf, &body); err != nil {
+	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
+	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
+
+	reqRaw := shared.Jmap{}
+	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
 		return BadRequest(err)
 	}
 
-	if body.Migration {
-		ws, err := NewMigrationSource(c)
+	req := api.ContainerPost{}
+	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	// Check if stateful (backward compatibility)
+	stateful := true
+	_, err = reqRaw.GetBool("live")
+	if err == nil {
+		stateful = req.Live
+	}
+
+	if req.Migration {
+		ws, err := NewMigrationSource(c, stateful)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -45,13 +62,13 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _ := dbContainerId(d.db, body.Name)
+	id, _ := dbContainerId(d.db, req.Name)
 	if id > 0 {
 		return Conflict
 	}
 
 	run := func(*operation) error {
-		return c.Rename(body.Name)
+		return c.Rename(req.Name)
 	}
 
 	resources := map[string][]string{}
