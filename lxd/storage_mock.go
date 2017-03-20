@@ -177,12 +177,12 @@ func (s *storageMock) ContainerSnapshotRename(
 	return nil
 }
 
-func (s *storageMock) ContainerSnapshotStart(container container) error {
-	return nil
+func (s *storageMock) ContainerSnapshotStart(container container) (bool, error) {
+	return true, nil
 }
 
-func (s *storageMock) ContainerSnapshotStop(container container) error {
-	return nil
+func (s *storageMock) ContainerSnapshotStop(container container) (bool, error) {
+	return true, nil
 }
 
 func (s *storageMock) ContainerSnapshotCreateEmpty(snapshotContainer container) error {

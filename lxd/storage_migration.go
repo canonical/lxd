@@ -42,10 +42,13 @@ func (s rsyncStorageSourceDriver) Snapshots() []container {
 
 func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
 	for _, send := range s.snapshots {
-		if err := send.StorageStart(); err != nil {
+		ourStart, err := send.StorageStart()
+		if err != nil {
 			return err
 		}
-		defer send.StorageStop()
+		if ourStart {
+			defer send.StorageStop()
+		}
 
 		path := send.Path()
 		wrapper := StorageProgressReader(op, "fs_progress", send.Name())
@@ -107,10 +110,13 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) conta
 }
 
 func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
-	if err := container.StorageStart(); err != nil {
+	ourStart, err := container.StorageStart()
+	if err != nil {
 		return err
 	}
-	defer container.StorageStop()
+	if ourStart {
+		defer container.StorageStop()
+	}
 
 	// At this point we have already figured out the parent
 	// container's root disk device so we can simply

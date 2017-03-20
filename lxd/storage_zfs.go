@@ -1008,9 +1008,9 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 }
 
 func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
-	shared.LogDebugf("Creating ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
-
 	snapshotContainerName := snapshotContainer.Name()
+	shared.LogDebugf("Creating ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", snapshotContainerName, s.pool.Name)
+
 	sourceContainerName := sourceContainer.Name()
 
 	fields := strings.SplitN(snapshotContainerName, shared.SnapshotDelimiter, 2)
@@ -1038,7 +1038,7 @@ func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, source
 		}
 	}
 
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", s.volume.Name)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceContainer.Name())
 	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceContainerName)
 	if !shared.PathExists(snapshotMntPointSymlink) {
 		err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -1049,7 +1049,7 @@ func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, source
 
 	revert = false
 
-	shared.LogDebugf("Created ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	shared.LogDebugf("Created ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", snapshotContainerName, s.pool.Name)
 	return nil
 }
 
@@ -1195,12 +1195,12 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 	return nil
 }
 
-func (s *storageZfs) ContainerSnapshotStart(container container) error {
+func (s *storageZfs) ContainerSnapshotStart(container container) (bool, error) {
 	shared.LogDebugf("Initializing ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
 	if len(fields) < 2 {
-		return fmt.Errorf("Invalid snapshot name: %s", container.Name())
+		return false, fmt.Errorf("Invalid snapshot name: %s", container.Name())
 	}
 
 	cName := fields[0]
@@ -1212,19 +1212,19 @@ func (s *storageZfs) ContainerSnapshotStart(container container) error {
 	snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, container.Name())
 	err := s.zfsPoolVolumeClone(sourceFs, sourceSnap, destFs, snapshotMntPoint)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	shared.LogDebugf("Initialized ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
-	return nil
+	return true, nil
 }
 
-func (s *storageZfs) ContainerSnapshotStop(container container) error {
+func (s *storageZfs) ContainerSnapshotStop(container container) (bool, error) {
 	shared.LogDebugf("Stopping ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	fields := strings.SplitN(container.Name(), shared.SnapshotDelimiter, 2)
 	if len(fields) < 2 {
-		return fmt.Errorf("Invalid snapshot name: %s", container.Name())
+		return false, fmt.Errorf("Invalid snapshot name: %s", container.Name())
 	}
 	cName := fields[0]
 	sName := fields[1]
@@ -1232,18 +1232,11 @@ func (s *storageZfs) ContainerSnapshotStop(container container) error {
 
 	err := s.zfsPoolVolumeDestroy(destFs)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	/* zfs creates this directory on clone (start), so we need to clean it
-	 * up on stop */
 	shared.LogDebugf("Stopped ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
-	err = os.RemoveAll(container.Path())
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return true, nil
 }
 
 func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {

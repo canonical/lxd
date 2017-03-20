@@ -21,18 +21,6 @@ test_migration() {
   lxc_remote move l1:nonlive l2:
   lxc_remote config show l2:nonlive/snap0 | grep user.tester | grep foo
 
-  # test `lxd import`
-  if [ "${LXD_BACKEND}" = "zfs" ]; then
-    lxc_remote init testimage backup
-    lxc_remote snapshot backup
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='backup'"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='backup/snap0'"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM storage_volumes WHERE name='backup'"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM storage_volumes WHERE name='backup/snap0'"
-    lxd import backup
-    lxc_remote info backup | grep snap0
-  fi
-
   # FIXME: make this backend agnostic
   if [ "${LXD_BACKEND}" != "lvm" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive/rootfs" ]

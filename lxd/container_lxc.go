@@ -1553,7 +1553,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	if !reflect.DeepEqual(idmap, lastIdmap) {
 		shared.LogDebugf("Container idmap changed, remapping")
 
-		err := c.StorageStart()
+		ourStart, err := c.StorageStart()
 		if err != nil {
 			return "", err
 		}
@@ -1561,7 +1561,9 @@ func (c *containerLXC) startCommon() (string, error) {
 		if lastIdmap != nil {
 			err = lastIdmap.UnshiftRootfs(c.RootfsPath())
 			if err != nil {
-				c.StorageStop()
+				if ourStart {
+					c.StorageStop()
+				}
 				return "", err
 			}
 		}
@@ -1569,7 +1571,9 @@ func (c *containerLXC) startCommon() (string, error) {
 		if idmap != nil {
 			err = idmap.ShiftRootfs(c.RootfsPath())
 			if err != nil {
-				c.StorageStop()
+				if ourStart {
+					c.StorageStop()
+				}
 				return "", err
 			}
 		}
@@ -1597,9 +1601,11 @@ func (c *containerLXC) startCommon() (string, error) {
 			return "", err
 		}
 
-		err = c.StorageStop()
-		if err != nil {
-			return "", err
+		if ourStart {
+			_, err = c.StorageStop()
+			if err != nil {
+				return "", err
+			}
 		}
 	}
 
@@ -1842,7 +1848,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	// Storage is guaranteed to be mountable now.
-	err = c.StorageStart()
+	ourStart, err := c.StorageStart()
 	if err != nil {
 		return "", err
 	}
@@ -1858,11 +1864,13 @@ func (c *containerLXC) startCommon() (string, error) {
 	// Update the backup.yaml file
 	err = writeBackupFile(c)
 	if err != nil {
-		c.StorageStop()
+		if ourStart {
+			c.StorageStop()
+		}
 		return "", err
 	}
 
-	err = c.StorageStop()
+	_, err = c.StorageStop()
 	if err != nil {
 		return "", err
 	}
@@ -1898,7 +1906,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	}
 
 	// Ensure that the container storage volume is mounted.
-	err = c.StorageStart()
+	_, err = c.StorageStart()
 	if err != nil {
 		return err
 	}
@@ -2008,7 +2016,7 @@ func (c *containerLXC) OnStart() error {
 	c.fromHook = true
 
 	// Start the storage for this container
-	err := c.StorageStart()
+	ourStart, err := c.StorageStart()
 	if err != nil {
 		return err
 	}
@@ -2016,7 +2024,9 @@ func (c *containerLXC) OnStart() error {
 	// Load the container AppArmor profile
 	err = AALoadProfile(c)
 	if err != nil {
-		c.StorageStop()
+		if ourStart {
+			c.StorageStop()
+		}
 		return err
 	}
 
@@ -2027,7 +2037,9 @@ func (c *containerLXC) OnStart() error {
 		err = c.templateApplyNow(c.localConfig[key])
 		if err != nil {
 			AADestroy(c)
-			c.StorageStop()
+			if ourStart {
+				c.StorageStop()
+			}
 			return err
 		}
 
@@ -2035,7 +2047,9 @@ func (c *containerLXC) OnStart() error {
 		err := dbContainerConfigRemove(c.daemon.db, c.id, key)
 		if err != nil {
 			AADestroy(c)
-			c.StorageStop()
+			if ourStart {
+				c.StorageStop()
+			}
 			return err
 		}
 	}
@@ -2043,7 +2057,9 @@ func (c *containerLXC) OnStart() error {
 	err = c.templateApplyNow("start")
 	if err != nil {
 		AADestroy(c)
-		c.StorageStop()
+		if ourStart {
+			c.StorageStop()
+		}
 		return err
 	}
 
@@ -2250,7 +2266,7 @@ func (c *containerLXC) OnStop(target string) error {
 	c.fromHook = true
 
 	// Stop the storage for this container
-	err := c.StorageStop()
+	_, err := c.StorageStop()
 	if err != nil {
 		if op != nil {
 			op.Done(err)
@@ -2900,6 +2916,8 @@ func (c *containerLXC) ConfigKeySet(key string, value string) error {
 type backupFile struct {
 	Container *api.Container           `yaml:"container"`
 	Snapshots []*api.ContainerSnapshot `yaml:"snapshots"`
+	Pool      *api.StoragePool         `yaml:"pool"`
+	Volume    *api.StorageVolume       `yaml:"volume"`
 }
 
 func writeBackupFile(c container) error {
@@ -2940,9 +2958,27 @@ func writeBackupFile(c container) error {
 		sis = append(sis, si.(*api.ContainerSnapshot))
 	}
 
+	poolName, err := c.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	db := c.Daemon().db
+	poolID, pool, err := dbStoragePoolGet(c.Daemon().db, poolName)
+	if err != nil {
+		return err
+	}
+
+	_, volume, err := dbStoragePoolVolumeGetType(db, c.Name(), storagePoolVolumeTypeContainer, poolID)
+	if err != nil {
+		return err
+	}
+
 	data, err := yaml.Marshal(&backupFile{
 		Container: ci.(*api.Container),
 		Snapshots: sis,
+		Pool:      pool,
+		Volume:    volume,
 	})
 	if err != nil {
 		return err
@@ -3802,8 +3838,11 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	 * yet before container creation; this is okay, because at the end of
 	 * container creation we write the backup file, so let's not worry about
 	 * ENOENT. */
-	if err := writeBackupFile(c); err != nil && !os.IsNotExist(err) {
-		return err
+	if c.storage.ContainerStorageReady(c.Name()) {
+		err := writeBackupFile(c)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
 	}
 
 	// Update network leases
@@ -3838,12 +3877,14 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 	shared.LogInfo("Exporting container", ctxMap)
 
 	// Start the storage
-	err := c.StorageStart()
+	ourStart, err := c.StorageStart()
 	if err != nil {
 		shared.LogError("Failed exporting container", ctxMap)
 		return err
 	}
-	defer c.StorageStop()
+	if ourStart {
+		defer c.StorageStop()
+	}
 
 	// Unshift the container
 	idmap, err := c.LastIdmapSet()
@@ -4146,19 +4187,21 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 				return err
 			}
 
-			err = c.StorageStart()
+			ourStart, err := c.StorageStart()
 			if err != nil {
 				return err
 			}
 
 			err = idmapset.ShiftRootfs(stateDir)
-			err2 := c.StorageStop()
-			if err != nil {
-				return err
-			}
+			if ourStart {
+				_, err2 := c.StorageStop()
+				if err != nil {
+					return err
+				}
 
-			if err2 != nil {
-				return err2
+				if err2 != nil {
+					return err2
+				}
 			}
 		}
 
@@ -4388,8 +4431,10 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 
 func (c *containerLXC) FileExists(path string) error {
 	// Setup container storage if needed
+	var ourStart bool
+	var err error
 	if !c.IsRunning() {
-		err := c.StorageStart()
+		ourStart, err = c.StorageStart()
 		if err != nil {
 			return err
 		}
@@ -4405,8 +4450,8 @@ func (c *containerLXC) FileExists(path string) error {
 	)
 
 	// Tear down container storage if needed
-	if !c.IsRunning() {
-		err := c.StorageStop()
+	if !c.IsRunning() && ourStart {
+		_, err := c.StorageStop()
 		if err != nil {
 			return err
 		}
@@ -4431,9 +4476,11 @@ func (c *containerLXC) FileExists(path string) error {
 }
 
 func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error) {
+	var ourStart bool
+	var err error
 	// Setup container storage if needed
 	if !c.IsRunning() {
-		err := c.StorageStart()
+		ourStart, err = c.StorageStart()
 		if err != nil {
 			return -1, -1, 0, "", nil, err
 		}
@@ -4450,8 +4497,8 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	)
 
 	// Tear down container storage if needed
-	if !c.IsRunning() {
-		err := c.StorageStop()
+	if !c.IsRunning() && ourStart {
+		_, err := c.StorageStop()
 		if err != nil {
 			return -1, -1, 0, "", nil, err
 		}
@@ -4567,9 +4614,11 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 		}
 	}
 
+	var ourStart bool
+	var err error
 	// Setup container storage if needed
 	if !c.IsRunning() {
-		err := c.StorageStart()
+		ourStart, err = c.StorageStart()
 		if err != nil {
 			return err
 		}
@@ -4593,8 +4642,8 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 	)
 
 	// Tear down container storage if needed
-	if !c.IsRunning() {
-		err := c.StorageStop()
+	if !c.IsRunning() && ourStart {
+		_, err := c.StorageStop()
 		if err != nil {
 			return err
 		}
@@ -4631,10 +4680,12 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 
 func (c *containerLXC) FileRemove(path string) error {
 	var errStr string
+	var ourStart bool
+	var err error
 
 	// Setup container storage if needed
 	if !c.IsRunning() {
-		err := c.StorageStart()
+		ourStart, err = c.StorageStart()
 		if err != nil {
 			return err
 		}
@@ -4650,8 +4701,8 @@ func (c *containerLXC) FileRemove(path string) error {
 	)
 
 	// Tear down container storage if needed
-	if !c.IsRunning() {
-		err := c.StorageStop()
+	if !c.IsRunning() && ourStart {
+		_, err := c.StorageStop()
 		if err != nil {
 			return err
 		}
@@ -5023,40 +5074,38 @@ func (c *containerLXC) Storage() storage {
 	return c.storage
 }
 
-func (c *containerLXC) StorageStart() error {
+func (c *containerLXC) StorageStart() (bool, error) {
 	// Initialize storage interface for the container.
 	err := c.initStorage()
 	if err != nil {
-		return err
+		return false, err
 	}
 
+	isOurOperation := false
 	if c.IsSnapshot() {
-		return c.storage.ContainerSnapshotStart(c)
+		isOurOperation, err = c.storage.ContainerSnapshotStart(c)
+	} else {
+		isOurOperation, err = c.storage.ContainerMount(c.Name(), c.Path())
 	}
 
-	_, err = c.storage.ContainerMount(c.Name(), c.Path())
-	if err != nil {
-		return err
-	}
-	return nil
+	return isOurOperation, err
 }
 
-func (c *containerLXC) StorageStop() error {
+func (c *containerLXC) StorageStop() (bool, error) {
 	// Initialize storage interface for the container.
 	err := c.initStorage()
 	if err != nil {
-		return err
+		return false, err
 	}
 
+	isOurOperation := false
 	if c.IsSnapshot() {
-		return c.storage.ContainerSnapshotStop(c)
+		isOurOperation, err = c.storage.ContainerSnapshotStop(c)
+	} else {
+		isOurOperation, err = c.storage.ContainerUmount(c.Name(), c.Path())
 	}
 
-	_, err = c.storage.ContainerUmount(c.Name(), c.Path())
-	if err != nil {
-		return err
-	}
-	return err
+	return isOurOperation, err
 }
 
 // Mount handling

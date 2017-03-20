@@ -75,85 +75,10 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No driver provided"))
 	}
 
-	// Check if the storage pool name is valid.
-	err = storageValidName(req.Name)
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	// Check that the storage pool does not already exist.
-	_, err = dbStoragePoolGetID(d.db, req.Name)
-	if err == nil {
-		return BadRequest(fmt.Errorf("The storage pool already exists"))
-	}
-
-	// Make sure that we don't pass a nil to the next function.
-	if req.Config == nil {
-		req.Config = map[string]string{}
-	}
-
-	// Validate the requested storage pool configuration.
-	err = storagePoolValidateConfig(req.Name, req.Driver, req.Config)
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	// Fill in the defaults
-	err = storagePoolFillDefault(req.Name, req.Driver, req.Config)
+	err = storagePoolCreateInternal(d, req.Name, req.Driver, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
-
-	// Create the database entry for the storage pool.
-	_, err = dbStoragePoolCreate(d.db, req.Name, req.Driver, req.Config)
-	if err != nil {
-		return InternalError(fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
-	}
-
-	// Define a function which reverts everything.  Defer this function
-	// so that it doesn't need to be explicitly called in every failing
-	// return path. Track whether or not we want to undo the changes
-	// using a closure.
-	tryUndo := true
-	defer func() {
-		if tryUndo {
-			dbStoragePoolDelete(d.db, req.Name)
-		}
-	}()
-
-	s, err := storagePoolInit(d, req.Name)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	err = s.StoragePoolCreate()
-	if err != nil {
-		return InternalError(err)
-	}
-	defer func() {
-		if tryUndo {
-			s.StoragePoolDelete()
-		}
-	}()
-
-	// In case the storage pool config was changed during the pool creation,
-	// we need to update the database to reflect this change. This can e.g.
-	// happen, when we create a loop file image. This means we append ".img"
-	// to the path the user gave us and update the config in the storage
-	// callback. So diff the config here to see if something like this has
-	// happened.
-	postCreateConfig := s.GetStoragePoolWritable().Config
-	configDiff, _ := storageConfigDiff(req.Config, postCreateConfig)
-	if len(configDiff) > 0 {
-		// Create the database entry for the storage pool.
-		err = dbStoragePoolUpdate(d.db, req.Name, postCreateConfig)
-		if err != nil {
-			return InternalError(fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
-		}
-	}
-
-	// Success, update the closure to mark that the changes should be kept.
-	tryUndo = false
 
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, req.Name))
 }

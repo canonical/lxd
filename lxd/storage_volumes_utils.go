@@ -259,3 +259,91 @@ func profilesUsingPoolVolumeGetNames(db *sql.DB, volumeName string, volumeType s
 
 	return usedBy, nil
 }
+
+func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName string, volumeTypeName string, volumeConfig map[string]string) error {
+	// Check that the name of the new storage volume is valid. (For example.
+	// zfs pools cannot contain "/" in their names.)
+	err := storageValidName(volumeName)
+	if err != nil {
+		return err
+	}
+
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	if err != nil {
+		return err
+	}
+
+	// We currently only allow to create storage volumes of type
+	// storagePoolVolumeTypeCustom. So check, that nothing else was
+	// requested.
+	if volumeType != storagePoolVolumeTypeCustom {
+		return fmt.Errorf("Currently not allowed to create storage volumes of type %s.", volumeTypeName)
+	}
+
+	// Load storage pool the volume will be attached to.
+	poolID, poolStruct, err := dbStoragePoolGet(d.db, poolName)
+	if err != nil {
+		return err
+	}
+
+	// Check that a storage volume of the same storage volume type does not
+	// already exist.
+	volumeID, _ := dbStoragePoolVolumeGetTypeID(d.db, volumeName, volumeType, poolID)
+	if volumeID > 0 {
+		return fmt.Errorf("A storage volume of type %s does already exist.", volumeTypeName)
+	}
+
+	// Make sure that we don't pass a nil to the next function.
+	if volumeConfig == nil {
+		volumeConfig = map[string]string{}
+	}
+
+	// Validate the requested storage volume configuration.
+	err = storageVolumeValidateConfig(poolName, volumeConfig, poolStruct)
+	if err != nil {
+		return err
+	}
+
+	err = storageVolumeFillDefault(poolName, volumeConfig, poolStruct)
+	if err != nil {
+		return err
+	}
+
+	// Create the database entry for the storage volume.
+	_, err = dbStoragePoolVolumeCreate(d.db, volumeName, volumeType, poolID, volumeConfig)
+	if err != nil {
+		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
+	}
+
+	return nil
+}
+
+func storagePoolVolumeCreateInternal(d *Daemon, poolName string, volumeName string, volumeTypeName string, volumeConfig map[string]string) error {
+	err := storagePoolVolumeDBCreate(d, poolName, volumeName, volumeTypeName, volumeConfig)
+	if err != nil {
+		return err
+	}
+
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	if err != nil {
+		return err
+	}
+
+	s, err := storagePoolVolumeInit(d, poolName, volumeName, volumeType)
+	if err != nil {
+		return err
+	}
+
+	poolID, _ := s.GetContainerPoolInfo()
+
+	// Create storage volume.
+	err = s.StoragePoolVolumeCreate()
+	if err != nil {
+		dbStoragePoolVolumeDelete(d.db, volumeName, volumeType, poolID)
+		return err
+	}
+
+	return nil
+}
