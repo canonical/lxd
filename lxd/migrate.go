@@ -152,7 +152,7 @@ type migrationSourceWs struct {
 	allConnected chan bool
 }
 
-func NewMigrationSource(c container) (*migrationSourceWs, error) {
+func NewMigrationSource(c container, stateful bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{migrationFields{container: c}, make(chan bool, 1)}
 
 	var err error
@@ -166,7 +166,7 @@ func NewMigrationSource(c container) (*migrationSourceWs, error) {
 		return nil, err
 	}
 
-	if c.IsRunning() {
+	if stateful && c.IsRunning() {
 		_, err := exec.LookPath("criu")
 		if err != nil {
 			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server.")
