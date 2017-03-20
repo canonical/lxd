@@ -484,8 +484,8 @@ type container interface {
 
 	// FIXME: Those should be internal functions
 	// Needed for migration for now.
-	StorageStart() error
-	StorageStop() error
+	StorageStart() (bool, error)
+	StorageStop() (bool, error)
 	Storage() storage
 	IdmapSet() (*shared.IdmapSet, error)
 	LastIdmapSet() (*shared.IdmapSet, error)
@@ -646,6 +646,14 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 		return nil, err
 	}
 
+	ourStart, err := c.StorageStart()
+	if err != nil {
+		return nil, err
+	}
+	if ourStart {
+		defer c.StorageStop()
+	}
+
 	err = writeBackupFile(sourceContainer)
 	if err != nil {
 		c.Delete()
@@ -777,6 +785,14 @@ func containerConfigureInternal(c container) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	ourStart, err := c.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer c.StorageStop()
 	}
 
 	err = writeBackupFile(c)

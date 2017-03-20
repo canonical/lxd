@@ -536,5 +536,6 @@ run_test test_mem_profiling "memory profiling"
 run_test test_storage "storage"
 run_test test_lxd_autoinit "lxd init auto"
 run_test test_storage_profiles "storage profiles"
+run_test test_container_import "container import"
 
 TEST_RESULT=success

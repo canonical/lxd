@@ -152,3 +152,97 @@ func profilesUsingPoolGetNames(db *sql.DB, poolName string) ([]string, error) {
 
 	return usedBy, nil
 }
+
+func storagePoolDBCreate(d *Daemon, poolName string, driver string, config map[string]string) error {
+	// Check if the storage pool name is valid.
+	err := storageValidName(poolName)
+	if err != nil {
+		return err
+	}
+
+	// Check that the storage pool does not already exist.
+	_, err = dbStoragePoolGetID(d.db, poolName)
+	if err == nil {
+		return fmt.Errorf("The storage pool already exists")
+	}
+
+	// Make sure that we don't pass a nil to the next function.
+	if config == nil {
+		config = map[string]string{}
+	}
+
+	// Validate the requested storage pool configuration.
+	err = storagePoolValidateConfig(poolName, driver, config)
+	if err != nil {
+		return err
+	}
+
+	// Fill in the defaults
+	err = storagePoolFillDefault(poolName, driver, config)
+	if err != nil {
+		return err
+	}
+
+	// Create the database entry for the storage pool.
+	_, err = dbStoragePoolCreate(d.db, poolName, driver, config)
+	if err != nil {
+		return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
+	}
+
+	return nil
+}
+
+func storagePoolCreateInternal(d *Daemon, poolName string, driver string, config map[string]string) error {
+	err := storagePoolDBCreate(d, poolName, driver, config)
+	if err != nil {
+		return err
+	}
+	// Define a function which reverts everything.  Defer this function
+	// so that it doesn't need to be explicitly called in every failing
+	// return path. Track whether or not we want to undo the changes
+	// using a closure.
+	tryUndo := true
+	defer func() {
+		if !tryUndo {
+			return
+		}
+		dbStoragePoolDelete(d.db, poolName)
+	}()
+
+	s, err := storagePoolInit(d, poolName)
+	if err != nil {
+		return err
+	}
+
+	err = s.StoragePoolCreate()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if !tryUndo {
+			return
+		}
+		s.StoragePoolDelete()
+	}()
+
+	// In case the storage pool config was changed during the pool creation,
+	// we need to update the database to reflect this change. This can e.g.
+	// happen, when we create a loop file image. This means we append ".img"
+	// to the path the user gave us and update the config in the storage
+	// callback. So diff the config here to see if something like this has
+	// happened.
+	postCreateConfig := s.GetStoragePoolWritable().Config
+	configDiff, _ := storageConfigDiff(config, postCreateConfig)
+	if len(configDiff) > 0 {
+		// Create the database entry for the storage pool.
+		err = dbStoragePoolUpdate(d.db, poolName, postCreateConfig)
+		if err != nil {
+			return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
+		}
+	}
+
+	// Success, update the closure to mark that the changes should be kept.
+	tryUndo = false
+
+	return nil
+}

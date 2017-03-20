@@ -1263,11 +1263,13 @@ func (s *storageLvm) ContainerCopy(container container, sourceContainer containe
 
 	tryUndo := true
 
-	err := sourceContainer.StorageStart()
+	ourStart, err := sourceContainer.StorageStart()
 	if err != nil {
 		return err
 	}
-	defer sourceContainer.StorageStop()
+	if ourStart {
+		defer sourceContainer.StorageStop()
+	}
 
 	if sourceContainer.Storage().GetStorageType() == storageTypeLvm {
 		err := s.createSnapshotContainer(container, sourceContainer, false)
@@ -1511,11 +1513,13 @@ func (s *storageLvm) ContainerRename(container container, newContainerName strin
 func (s *storageLvm) ContainerRestore(container container, sourceContainer container) error {
 	shared.LogDebugf("Restoring LVM storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
 
-	err := sourceContainer.StorageStart()
+	ourStart, err := sourceContainer.StorageStart()
 	if err != nil {
 		return err
 	}
-	defer sourceContainer.StorageStop()
+	if ourStart {
+		defer sourceContainer.StorageStop()
+	}
 
 	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 	if s.pool.Name != sourcePool {
@@ -1659,7 +1663,7 @@ func (s *storageLvm) ContainerSnapshotRename(snapshotContainer container, newCon
 	return nil
 }
 
-func (s *storageLvm) ContainerSnapshotStart(container container) error {
+func (s *storageLvm) ContainerSnapshotStart(container container) (bool, error) {
 	shared.LogDebugf("Initializing LVM storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	tryUndo := true
@@ -1676,7 +1680,7 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 	poolName := s.getOnDiskPoolName()
 	lvpath, err := s.createSnapshotLV(poolName, sourceLvmName, storagePoolVolumeApiEndpointContainers, tmpTargetLvmName, storagePoolVolumeApiEndpointContainers, false)
 	if err != nil {
-		return fmt.Errorf("Error creating snapshot LV: %s", err)
+		return false, fmt.Errorf("Error creating snapshot LV: %s", err)
 	}
 	defer func() {
 		if tryUndo {
@@ -1693,24 +1697,24 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 	if lvFsType == "xfs" {
 		err := xfsGenerateNewUUID(lvpath)
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	if !shared.IsMountPoint(containerMntPoint) {
 		err = tryMount(containerLvmPath, containerMntPoint, lvFsType, 0, mountOptions)
 		if err != nil {
-			return fmt.Errorf("Error mounting snapshot LV path='%s': %s", containerMntPoint, err)
+			return false, fmt.Errorf("Error mounting snapshot LV path='%s': %s", containerMntPoint, err)
 		}
 	}
 
 	tryUndo = false
 
 	shared.LogDebugf("Initialized LVM storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
-	return nil
+	return true, nil
 }
 
-func (s *storageLvm) ContainerSnapshotStop(container container) error {
+func (s *storageLvm) ContainerSnapshotStop(container container) (bool, error) {
 	shared.LogDebugf("Stopping LVM storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	name := container.Name()
@@ -1722,18 +1726,18 @@ func (s *storageLvm) ContainerSnapshotStop(container container) error {
 	if shared.IsMountPoint(snapshotMntPoint) {
 		err := tryUnmount(snapshotMntPoint, 0)
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	tmpLvName := getTmpSnapshotName(lvName)
 	err := s.removeLV(poolName, storagePoolVolumeApiEndpointContainers, tmpLvName)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	shared.LogDebugf("Stopped LVM storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
-	return nil
+	return true, nil
 }
 
 func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
