@@ -14,8 +14,14 @@ type ContainersPost struct {
 
 // ContainerPost represents the fields required to rename/move a LXD container
 type ContainerPost struct {
-	Migration bool   `json:"migration" yaml:"migration"`
-	Name      string `json:"name" yaml:"name"`
+	// Used for renames
+	Name string `json:"name" yaml:"name"`
+
+	// Used for migration
+	Migration bool `json:"migration" yaml:"migration"`
+
+	// API extension: container_stateless_copy
+	Live bool `json:"live" yaml:"live"`
 }
 
 // ContainerPut represents the modifiable fields of a LXD container

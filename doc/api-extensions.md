@@ -229,3 +229,7 @@ macvlan parent.
 ## image\_create\_aliases
 Adds a new "aliases" field to POST /1.0/images allowing for aliases to
 be set at image creation/import time.
+
+## container\_stateless\_copy
+This introduces a new "live" attribute in POST /1.0/containers/NAME.
+Setting it to false tells LXD not to attempt running state transfer.

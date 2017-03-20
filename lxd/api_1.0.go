@@ -97,6 +97,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_lvm_thinpool_rename",
 			"network_vlan",
 			"image_create_aliases",
+			"container_stateless_copy",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
