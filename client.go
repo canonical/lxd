@@ -1995,12 +1995,14 @@ func (c *Client) DeleteFile(container string, p string) error {
 	return nil
 }
 
-func (c *Client) GetMigrationSourceWS(container string) (*api.Response, error) {
+func (c *Client) GetMigrationSourceWS(container string, stateful bool) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	body := shared.Jmap{"migration": true}
+	body := shared.Jmap{
+		"migration": true,
+		"live":      stateful}
 	url := fmt.Sprintf("containers/%s", container)
 	if shared.IsSnapshot(container) {
 		pieces := strings.SplitN(container, shared.SnapshotDelimiter, 2)
