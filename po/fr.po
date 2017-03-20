@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-03-10 14:49-0500\n"
+"POT-Creation-Date: 2017-03-20 14:50-0400\n"
 "PO-Revision-Date: 2017-02-24 23:43+0000\n"
 "Last-Translator: Christophe CHAUVET <christophe.chauvet@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -393,6 +393,14 @@ msgstr "Périphérique %s ajouté à %s"
 msgid "Device %s removed from %s"
 msgstr "Périphérique %s retiré de %s"
 
+#: lxc/exec.go:64
+msgid "Disable pseudo-terminal allocation"
+msgstr ""
+
+#: lxc/exec.go:65
+msgid "Disable stdin (reads from /dev/null)"
+msgstr ""
+
 #: lxc/info.go:145
 #, fuzzy
 msgid "Disk usage:"
@@ -414,7 +422,7 @@ msgstr "Activer le mode de débogage"
 msgid "Enable verbose mode"
 msgstr "Activer le mode verbeux"
 
-#: lxc/exec.go:55
+#: lxc/exec.go:61
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "Variable d'environnement (de la forme HOME=/home/foo) à positionner"
 
@@ -462,6 +470,10 @@ msgstr "Mode rapide (identique à --columns=nsacPt"
 #, c-format
 msgid "Fingerprint: %s"
 msgstr "Empreinte : %s"
+
+#: lxc/exec.go:63
+msgid "Force pseudo-terminal allocation"
+msgstr ""
 
 #: lxc/action.go:46 lxc/action.go:47
 msgid "Force the container to shutdown"
@@ -702,7 +714,7 @@ msgstr "Options :"
 msgid "Output is in %s"
 msgstr "Le résultat est dans %s"
 
-#: lxc/exec.go:56
+#: lxc/exec.go:62
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "Surcharger le mode terminal (auto, interactif ou non-interactif)"
 
@@ -1310,11 +1322,11 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/exec.go:46
+#: lxc/exec.go:52
 #, fuzzy
 msgid ""
-"Usage: lxc exec [<remote>:]<container> [--mode=auto|interactive|non-"
-"interactive] [--env KEY=VALUE...] [--] <command line>\n"
+"Usage: lxc exec [<remote>:]<container> [-t] [-T] [-n] [--mode=auto|"
+"interactive|non-interactive] [--env KEY=VALUE...] [--] <command line>\n"
 "\n"
 "Execute commands in containers.\n"
 "\n"
@@ -2295,6 +2307,15 @@ msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur
 msgid "YES"
 msgstr "OUI"
 
+#: lxc/exec.go:125
+msgid "You can't pass -t and -T at the same time"
+msgstr ""
+
+#: lxc/exec.go:129
+#, fuzzy
+msgid "You can't pass -t or -T at the same time as --mode"
+msgstr "impossible de copier vers le même nom de conteneur"
+
 #: lxc/main.go:55
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
@@ -2410,7 +2431,7 @@ msgstr "sans suivi d'état"
 msgid "taken at %s"
 msgstr "pris à %s"
 
-#: lxc/exec.go:189
+#: lxc/exec.go:214
 msgid "unreachable return reached"
 msgstr "Un retour impossible à été renvoyé"
 

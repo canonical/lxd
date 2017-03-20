@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-03-10 14:49-0500\n"
+"POT-Creation-Date: 2017-03-20 14:50-0400\n"
 "PO-Revision-Date: 2017-03-02 00:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -311,6 +311,14 @@ msgstr "デバイス %s が %s に追加されました"
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
+#: lxc/exec.go:64
+msgid "Disable pseudo-terminal allocation"
+msgstr ""
+
+#: lxc/exec.go:65
+msgid "Disable stdin (reads from /dev/null)"
+msgstr ""
+
 #: lxc/info.go:145
 msgid "Disk usage:"
 msgstr "ディスク使用量:"
@@ -331,7 +339,7 @@ msgstr "デバッグモードを有効にします"
 msgid "Enable verbose mode"
 msgstr "詳細モードを有効にします"
 
-#: lxc/exec.go:55
+#: lxc/exec.go:61
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "環境変数を設定します (例: HOME=/home/foo)"
 
@@ -379,6 +387,10 @@ msgstr "Fast モード (--columns=nsacPt と同じ)"
 #, c-format
 msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
+
+#: lxc/exec.go:63
+msgid "Force pseudo-terminal allocation"
+msgstr ""
 
 #: lxc/action.go:46 lxc/action.go:47
 msgid "Force the container to shutdown"
@@ -615,7 +627,7 @@ msgstr "オプション:"
 msgid "Output is in %s"
 msgstr "%s に出力されます"
 
-#: lxc/exec.go:56
+#: lxc/exec.go:62
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "ターミナルモードを上書きします (auto, interactive, non-interactive)"
 
@@ -1225,11 +1237,11 @@ msgstr ""
 "付属するデータ (設定、スナップショット、...) と一緒にコンテナもしくはコンテ\n"
 "ナのスナップショットを消去します。"
 
-#: lxc/exec.go:46
+#: lxc/exec.go:52
 #, fuzzy
 msgid ""
-"Usage: lxc exec [<remote>:]<container> [--mode=auto|interactive|non-"
-"interactive] [--env KEY=VALUE...] [--] <command line>\n"
+"Usage: lxc exec [<remote>:]<container> [-t] [-T] [-n] [--mode=auto|"
+"interactive|non-interactive] [--env KEY=VALUE...] [--] <command line>\n"
 "\n"
 "Execute commands in containers.\n"
 "\n"
@@ -2200,6 +2212,15 @@ msgstr "コンテナの稼動状態のスナップショットを取得するか
 msgid "YES"
 msgstr ""
 
+#: lxc/exec.go:125
+msgid "You can't pass -t and -T at the same time"
+msgstr ""
+
+#: lxc/exec.go:129
+#, fuzzy
+msgid "You can't pass -t or -T at the same time as --mode"
+msgstr "同じコンテナ名へはコピーできません"
+
 #: lxc/main.go:55
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr "`lxc config profile` は廃止されました。`lxc profile` を使ってください"
@@ -2317,7 +2338,7 @@ msgstr ""
 msgid "taken at %s"
 msgstr "%s に取得しました"
 
-#: lxc/exec.go:189
+#: lxc/exec.go:214
 msgid "unreachable return reached"
 msgstr "到達しないはずのreturnに到達しました"
 
