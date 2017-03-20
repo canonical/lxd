@@ -245,7 +245,14 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		return nil
 	}
 
-	return err
+	// Check for an error at the source
+	sourceOp, sourceErr := source.GetOperation(sourceWSResponse.Operation)
+	if sourceErr == nil && sourceOp.Err != "" {
+		return fmt.Errorf(i18n.G("Migration failed on source host: %s"), sourceOp.Err)
+	}
+
+	// Return the error from destination
+	return fmt.Errorf(i18n.G("Migration failed on target host: %s"), err)
 }
 
 func (c *copyCmd) run(config *lxd.Config, args []string) error {
