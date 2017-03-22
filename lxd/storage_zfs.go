@@ -908,17 +908,35 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	return nil
 }
 
-func (s *storageZfs) ContainerRestore(container container, sourceContainer container) error {
-	shared.LogDebugf("Restoring ZFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
+func (s *storageZfs) ContainerRestore(target container, source container) error {
+	shared.LogDebugf("Restoring ZFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, source.Name(), target.Name())
+
+	// Start storage for source container
+	ourSourceStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourSourceStart {
+		defer source.StorageStop()
+	}
+
+	// Start storage for target container
+	ourTargetStart, err := target.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourTargetStart {
+		defer target.StorageStop()
+	}
 
 	// Remove any needed snapshot
-	snaps, err := container.Snapshots()
+	snaps, err := target.Snapshots()
 	if err != nil {
 		return err
 	}
 
 	for i := len(snaps) - 1; i != 0; i-- {
-		if snaps[i].Name() == sourceContainer.Name() {
+		if snaps[i].Name() == source.Name() {
 			break
 		}
 
@@ -929,7 +947,7 @@ func (s *storageZfs) ContainerRestore(container container, sourceContainer conta
 	}
 
 	// Restore the snapshot
-	fields := strings.SplitN(sourceContainer.Name(), shared.SnapshotDelimiter, 2)
+	fields := strings.SplitN(source.Name(), shared.SnapshotDelimiter, 2)
 	cName := fields[0]
 	snapName := fmt.Sprintf("snapshot-%s", fields[1])
 
@@ -938,7 +956,7 @@ func (s *storageZfs) ContainerRestore(container container, sourceContainer conta
 		return err
 	}
 
-	shared.LogDebugf("Restored ZFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
+	shared.LogDebugf("Restored ZFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, source.Name(), target.Name())
 	return nil
 }
 
