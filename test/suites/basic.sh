@@ -237,17 +237,13 @@ test_basic_usage() {
 
     lxc start autostart --force-local
     PID=$(lxc info autostart --force-local | grep ^Pid | awk '{print $2}')
-    lxd shutdown
+    shutdown_lxd "${LXD_DIR}"
     [ -d "/proc/${PID}" ] && false
 
     lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
 
-    # shellcheck disable=SC2086
-    lxd --logfile "${LXD_DIR}/lxd.log" ${DEBUG-} "$@" 2>&1 &
-    LXD_PID=$!
-    echo "${LXD_PID}" > "${LXD_DIR}/lxd.pid"
-    echo "${LXD_DIR}" >> "${TEST_DIR}/daemons"
-    lxd waitready --timeout=300
+    # shellcheck disable=SC2031
+    respawn_lxd "${LXD_DIR}"
 
     lxc list --force-local autostart | grep -q RUNNING
 
