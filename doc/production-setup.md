@@ -22,12 +22,12 @@ using containers that require tens of thousands of file operations.
 
 Domain  | Type  | Item    | Value     | Default   | Description
 :-----  | :---  | :----   | :-------- | :-------- | :----------
-*       | soft  | nofile  | 1048576   | unset     | maximum number of open files
-*       | hard  | nofile  | 1048576   | unset     | maximum number of open files
+\*      | soft  | nofile  | 1048576   | unset     | maximum number of open files
+\*      | hard  | nofile  | 1048576   | unset     | maximum number of open files
 root    | soft  | nofile  | 1048576   | unset     | maximum number of open files
 root    | hard  | nofile  | 1048576   | unset     | maximum number of open files
-*       | soft  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB)
-*       | hard  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB)
+\*      | soft  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB)
+\*      | hard  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB)
 
 
 ## /etc/sysctl.conf
