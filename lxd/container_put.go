@@ -114,7 +114,8 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 		}
 	}
 
-	if err := c.Restore(source); err != nil {
+	err = c.Restore(source)
+	if err != nil {
 		return err
 	}
 

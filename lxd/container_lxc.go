@@ -2561,6 +2561,14 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 		return err
 	}
 
+	ourStart, err := c.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer c.StorageStop()
+	}
+
 	// Check if we can restore the container
 	err = c.storage.ContainerCanRestore(c, sourceContainer)
 	if err != nil {
@@ -2581,8 +2589,20 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	wasRunning := false
 	if c.IsRunning() {
 		wasRunning = true
-		if err := c.Stop(false); err != nil {
+
+		// This will unmount the container storage.
+		err := c.Stop(false)
+		if err != nil {
 			return err
+		}
+
+		// Ensure that storage is mounted for state path checks.
+		ourStart, err := c.StorageStart()
+		if err != nil {
+			return err
+		}
+		if ourStart {
+			defer c.StorageStop()
 		}
 	}
 
@@ -2627,7 +2647,9 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	// If the container wasn't running but was stateful, should we restore
 	// it as running?
 	if shared.PathExists(c.StatePath()) {
-		if err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false, false); err != nil {
+		shared.LogDebug("Performing stateful restore", ctxMap)
+		err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false, false)
+		if err != nil {
 			return err
 		}
 
@@ -2643,6 +2665,7 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 			return err
 		}
 
+		shared.LogDebug("Performed stateful restore", ctxMap)
 		shared.LogInfo("Restored container", ctxMap)
 		return nil
 	}
