@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func cmdMigrateDumpSuccess(args []string) error {
@@ -11,16 +13,30 @@ func cmdMigrateDumpSuccess(args []string) error {
 		return fmt.Errorf("bad migrate dump success args %s", args)
 	}
 
-	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+	c, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return err
 	}
 
-	conn, err := c.Websocket(args[1], args[2])
+	conn, err := c.RawWebsocket(fmt.Sprintf("/1.0/operations/%s/websocket?%s", args[1], url.Values{"secret": []string{args[2]}}))
 	if err != nil {
 		return err
 	}
 	conn.Close()
 
-	return c.WaitForSuccess(args[1])
+	resp, _, err := c.RawQuery("GET", fmt.Sprintf("/1.0/operations/%s/wait", args[1]), nil, "")
+	if err != nil {
+		return err
+	}
+
+	op, err := resp.MetadataAsOperation()
+	if err != nil {
+		return err
+	}
+
+	if op.StatusCode == api.Success {
+		return nil
+	}
+
+	return fmt.Errorf(op.Err)
 }
