@@ -3502,6 +3502,12 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 							return err
 						}
 					}
+					// Set soft limit to value 10% less than hard limit
+					err = c.CGroupSet("memory.soft_limit_in_bytes", memory*0.9)
+					if err != nil {
+						revertMemory()
+						return err
+					}
 				}
 
 				// Configure the swappiness
