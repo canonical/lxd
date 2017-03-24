@@ -211,8 +211,9 @@ func (s *migrationSourceWs) Connect(op *operation, r *http.Request, w http.Respo
 	case s.fsSecret:
 		conn = &s.fsConn
 	default:
-		/* If we didn't find the right secret, the user provided a bad one,
-		 * which 403, not 404, since this operation actually exists */
+		// If we didn't find the right secret, the user provided a bad
+		// one, which 403, not 404, since this operation actually
+		// exists.
 		return os.ErrPermission
 	}
 
@@ -243,7 +244,8 @@ fi
 	}
 	defer f.Close()
 
-	if err := f.Chmod(0500); err != nil {
+	err = f.Chmod(0500)
+	if err != nil {
 		return err
 	}
 
@@ -275,6 +277,7 @@ func snapshotToProtobuf(c container) *Snapshot {
 	isEphemeral := c.IsEphemeral()
 	arch := int32(c.Architecture())
 	stateful := c.IsStateful()
+
 	return &Snapshot{
 		Name:         &parts[len(parts)-1],
 		LocalConfig:  config,
@@ -336,6 +339,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
+	// The protocol says we have to send a header no matter what, so let's
+	// do that, but then immediately send an error.
 	myType := s.container.Storage().MigrationType()
 	header := MigrationHeader{
 		Fs:            &myType,
@@ -345,7 +350,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		Snapshots:     snapshots,
 	}
 
-	if err := s.send(&header); err != nil {
+	err = s.send(&header)
+	if err != nil {
 		s.sendControl(err)
 		return err
 	}
@@ -355,7 +361,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		return fsErr
 	}
 
-	if err := s.recv(&header); err != nil {
+	err = s.recv(&header)
+	if err != nil {
 		s.sendControl(err)
 		return err
 	}
@@ -380,7 +387,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		return err
 	}
 
-	if err := driver.SendWhileRunning(s.fsConn); err != nil {
+	err = driver.SendWhileRunning(s.fsConn)
+	if err != nil {
 		return abort(err)
 	}
 
@@ -460,7 +468,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
-			if err := writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret); err != nil {
+			err = writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret)
+			if err != nil {
 				os.RemoveAll(checkpointDir)
 				return abort(err)
 			}
@@ -486,7 +495,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			}
 		} else {
 			defer os.RemoveAll(checkpointDir)
-			if err := s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, false); err != nil {
+			err = s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, false)
+			if err != nil {
 				return abort(err)
 			}
 		}
@@ -498,11 +508,13 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		 * no reason to do these in parallel. In the future when we're using
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
-		if err := RsyncSend(shared.AddSlash(checkpointDir), s.criuConn); err != nil {
+		err = RsyncSend(shared.AddSlash(checkpointDir), s.criuConn)
+		if err != nil {
 			return abort(err)
 		}
 
-		if err := driver.SendAfterCheckpoint(s.fsConn); err != nil {
+		err = driver.SendAfterCheckpoint(s.fsConn)
+		if err != nil {
 			return abort(err)
 		}
 	}
@@ -510,7 +522,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	driver.Cleanup()
 
 	msg := MigrationControl{}
-	if err := s.recv(&msg); err != nil {
+	err = s.recv(&msg)
+	if err != nil {
 		s.disconnect()
 		return err
 	}
@@ -636,7 +649,8 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		resp.Fs = &myType
 	}
 
-	if err := c.src.send(&resp); err != nil {
+	err = c.src.send(&resp)
+	if err != nil {
 		c.src.container.Delete()
 		c.src.sendControl(err)
 		return err
@@ -681,12 +695,14 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				snapshots = header.Snapshots
 			}
 
-			if err := mySink(c.src.live, c.src.container, snapshots, c.src.fsConn, srcIdmap); err != nil {
+			err := mySink(c.src.live, c.src.container, snapshots, c.src.fsConn, srcIdmap)
+			if err != nil {
 				fsTransfer <- err
 				return
 			}
 
-			if err := ShiftIfNecessary(c.src.container, srcIdmap); err != nil {
+			err = ShiftIfNecessary(c.src.container, srcIdmap)
+			if err != nil {
 				fsTransfer <- err
 				return
 			}
@@ -704,7 +720,8 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 			defer os.RemoveAll(imagesDir)
 
-			if err := RsyncRecv(shared.AddSlash(imagesDir), c.src.criuConn); err != nil {
+			err = RsyncRecv(shared.AddSlash(imagesDir), c.src.criuConn)
+			if err != nil {
 				restore <- err
 				return
 			}

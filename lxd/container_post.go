@@ -23,7 +23,8 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	body := api.ContainerPost{}
-	if err := json.Unmarshal(buf, &body); err != nil {
+	err = json.Unmarshal(buf, &body)
+	if err != nil {
 		return BadRequest(err)
 	}
 
