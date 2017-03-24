@@ -1543,7 +1543,8 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 	}
 
 	// First snapshot the root
-	if err := s.btrfsPoolVolumeSnapshot(source, dest, readonly); err != nil {
+	err = s.btrfsPoolVolumeSnapshot(source, dest, readonly)
+	if err != nil {
 		return err
 	}
 
@@ -1552,7 +1553,8 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 		// Clear the target for the subvol to use
 		os.Remove(path.Join(dest, subsubvol))
 
-		if err := s.btrfsPoolVolumeSnapshot(path.Join(source, subsubvol), path.Join(dest, subsubvol), readonly); err != nil {
+		err := s.btrfsPoolVolumeSnapshot(path.Join(source, subsubvol), path.Join(dest, subsubvol), readonly)
+		if err != nil {
 			return err
 		}
 	}
@@ -1672,7 +1674,8 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 		return err
 	}
 
-	if err := cmd.Start(); err != nil {
+	err = cmd.Start()
+	if err != nil {
 		return err
 	}
 
@@ -1687,6 +1690,7 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 	if err != nil {
 		shared.LogErrorf("Problem with btrfs send: %s.", string(output))
 	}
+
 	return err
 }
 
@@ -1753,8 +1757,6 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 
 	migrationSendSnapshot := fmt.Sprintf("%s/.migration-send", tmpContainerMntPoint)
 	containerMntPoint := getContainerMountPoint(containerPool, sourceName)
-	if s.container.IsSnapshot() {
-	}
 	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPoint, migrationSendSnapshot, true)
 	if err != nil {
 		return err
@@ -1773,7 +1775,8 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) e
 	}
 
 	s.stoppedSnapName = fmt.Sprintf("%s/.root", tmpPath)
-	if err := s.btrfs.btrfsPoolVolumesSnapshot(s.container.Path(), s.stoppedSnapName, true); err != nil {
+	err = s.btrfs.btrfsPoolVolumesSnapshot(s.container.Path(), s.stoppedSnapName, true)
+	if err != nil {
 		return err
 	}
 
@@ -1793,9 +1796,9 @@ func (s *btrfsMigrationSourceDriver) Cleanup() {
 func (s *storageBtrfs) MigrationType() MigrationFSType {
 	if runningInUserns {
 		return MigrationFSType_RSYNC
-	} else {
-		return MigrationFSType_BTRFS
 	}
+
+	return MigrationFSType_BTRFS
 }
 
 func (s *storageBtrfs) PreservesInodes() bool {
@@ -1847,6 +1850,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		// Remove the existing pre-created subvolume
 		err := btrfsSubVolumesDelete(targetPath)
 		if err != nil {
+			shared.LogErrorf("Failed to delete pre-created BTRFS subvolume: %s.", btrfsPath)
 			return err
 		}
 
@@ -1860,7 +1864,8 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			return err
 		}
 
-		if err := cmd.Start(); err != nil {
+		err = cmd.Start()
+		if err != nil {
 			return err
 		}
 
@@ -1896,7 +1901,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 		err = btrfsSubVolumesDelete(btrfsPath)
 		if err != nil {
-			shared.LogErrorf("Problem with btrfs delete: %s.", err)
+			shared.LogErrorf("Failed to delete BTRFS subvolume \"%s\": %s.", btrfsPath, err)
 			return err
 		}
 
