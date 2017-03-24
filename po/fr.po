@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-03-20 19:10-0400\n"
+"POT-Creation-Date: 2017-03-24 12:16+0100\n"
 "PO-Revision-Date: 2017-02-24 23:43+0000\n"
 "Last-Translator: Christophe CHAUVET <christophe.chauvet@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -307,7 +307,7 @@ msgstr "Colonnes"
 msgid "Commands:"
 msgstr ""
 
-#: lxc/copy.go:32 lxc/copy.go:33 lxc/init.go:135 lxc/init.go:136
+#: lxc/copy.go:33 lxc/copy.go:34 lxc/init.go:135 lxc/init.go:136
 msgid "Config key/value to apply to the new container"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
@@ -325,7 +325,7 @@ msgstr "Connexion refusée ; LXD est-il actif ?"
 msgid "Container name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:141 lxc/copy.go:242 lxc/init.go:244
+#: lxc/copy.go:143 lxc/copy.go:244 lxc/init.go:244
 #, c-format
 msgid "Container name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -338,6 +338,11 @@ msgstr "Conteneur publié avec l'empreinte : %s"
 #: lxc/image.go:134
 msgid "Copy aliases from source"
 msgstr "Copier les alias depuis la source"
+
+#: lxc/copy.go:39
+#, fuzzy
+msgid "Copy the container without its snapshots"
+msgstr "Forcer le conteneur à s'arrêter"
 
 #: lxc/image.go:247
 #, c-format
@@ -430,7 +435,7 @@ msgstr "Variable d'environnement (de la forme HOME=/home/foo) à positionner"
 msgid "Environment:"
 msgstr "Environnement :"
 
-#: lxc/copy.go:36 lxc/copy.go:37 lxc/init.go:139 lxc/init.go:140
+#: lxc/copy.go:37 lxc/copy.go:38 lxc/init.go:139 lxc/init.go:140
 msgid "Ephemeral container"
 msgstr "Conteneur éphémère"
 
@@ -618,12 +623,12 @@ msgstr "Mémoire (pointe)"
 msgid "Memory usage:"
 msgstr "  Mémoire utilisée :"
 
-#: lxc/copy.go:251
+#: lxc/copy.go:253
 #, c-format
 msgid "Migration failed on source host: %s"
 msgstr ""
 
-#: lxc/copy.go:255
+#: lxc/copy.go:257
 #, c-format
 msgid "Migration failed on target host: %s"
 msgstr ""
@@ -640,6 +645,11 @@ msgstr "Plus d'un périphérique correspond, spécifier le nom du périphérique
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger, mais la destination n'est pas un dossier"
+
+#: lxc/move.go:35
+#, fuzzy
+msgid "Move the container without its snapshots"
+msgstr "Forcer le conteneur à s'arrêter"
 
 #: lxc/action.go:68
 msgid "Must supply container name for: "
@@ -823,7 +833,7 @@ msgstr "Profil %s supprimé"
 msgid "Profile %s removed from %s"
 msgstr "Profil %s supprimé de %s"
 
-#: lxc/copy.go:34 lxc/copy.go:35 lxc/init.go:137 lxc/init.go:138
+#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:137 lxc/init.go:138
 msgid "Profile to apply to the new container"
 msgstr "Profil à appliquer au nouveau conteneur"
 
@@ -1303,11 +1313,12 @@ msgstr ""
 "Pour positionner le mot de passe de confiance du serveur :\n"
 "    lxc config set core.trust_password blah"
 
-#: lxc/copy.go:25
+#: lxc/copy.go:26
 #, fuzzy
 msgid ""
 "Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] "
-"[--ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...]\n"
+"[--ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--"
+"container-only]\n"
 "\n"
 "Copy containers within or in between LXD instances."
 msgstr ""
@@ -1820,19 +1831,20 @@ msgstr ""
 "Exemple :\n"
 "lxc monitor --type=logging"
 
-#: lxc/move.go:16
+#: lxc/move.go:19
 #, fuzzy
 msgid ""
 "Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
-"<snapshot>]]\n"
+"<snapshot>]] [--container-only]\n"
 "\n"
 "Move containers within or in between LXD instances.\n"
 "\n"
-"lxc move [<remote>:]<source container> [<remote>:][<destination container>]\n"
+"lxc move [<remote>:]<source container> [<remote>:][<destination container>] "
+"[--container-only]\n"
 "    Move a container between two hosts, renaming it if destination name "
 "differs.\n"
 "\n"
-"lxc move <old name> <new name>\n"
+"lxc move <old name> <new name> [--container-only]\n"
 "    Rename a local container.\n"
 "\n"
 "lxc move <container>/<old snapshot name> <container>/<new snapshot name>\n"
@@ -2340,7 +2352,7 @@ msgstr "mauvais nombre d'éléments dans l'image, conteneur ou instantané"
 msgid "bad result type from action"
 msgstr "mauvais type de réponse renvoyé par l'action !"
 
-#: lxc/copy.go:116
+#: lxc/copy.go:118
 msgid "can't copy to the same container name"
 msgstr "impossible de copier vers le même nom de conteneur"
 
@@ -2360,7 +2372,7 @@ msgstr "impossible de spécifier uid/gid/mode en mode récursif"
 msgid "default"
 msgstr "par défaut"
 
-#: lxc/copy.go:132 lxc/copy.go:137 lxc/copy.go:233 lxc/copy.go:238
+#: lxc/copy.go:134 lxc/copy.go:139 lxc/copy.go:235 lxc/copy.go:240
 #: lxc/init.go:234 lxc/init.go:239 lxc/launch.go:115 lxc/launch.go:121
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr "pas d'image, conteneur ou instantané affecté sur ce serveur"
@@ -2391,7 +2403,7 @@ msgstr "reçu une mauvaise version"
 msgid "no"
 msgstr "non"
 
-#: lxc/copy.go:165
+#: lxc/copy.go:167
 msgid "not all the profiles from the source exist on the target"
 msgstr "tous les profils de la source n'existent pas sur la cible"
 
@@ -2453,7 +2465,7 @@ msgstr "nombre d'arguments incorrect pour la sous-comande"
 msgid "yes"
 msgstr "oui"
 
-#: lxc/copy.go:45
+#: lxc/copy.go:47
 msgid "you must specify a source container name"
 msgstr "vous devez spécifier un nom de conteneur source"
 
