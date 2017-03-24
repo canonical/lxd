@@ -62,12 +62,12 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *ope
 }
 
 func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
-	/* resync anything that changed between our first send and the checkpoint */
+	// resync anything that changed between our first send and the checkpoint
 	return RsyncSend(shared.AddSlash(s.container.Path()), conn, nil)
 }
 
 func (s rsyncStorageSourceDriver) Cleanup() {
-	/* no-op */
+	// noop
 }
 
 func rsyncMigrationSource(container container) (MigrationStorageSourceDriver, error) {
@@ -118,9 +118,8 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 		defer container.StorageStop()
 	}
 
-	// At this point we have already figured out the parent
-	// container's root disk device so we can simply
-	// retrieve it from the expanded devices.
+	// At this point we have already figured out the parent container's root
+	// disk device so we can simply retrieve it from the expanded devices.
 	parentStoragePool := ""
 	parentExpandedDevices := container.ExpandedDevices()
 	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := containerGetRootDiskDevice(parentExpandedDevices)
@@ -160,13 +159,15 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 				return err
 			}
 
-			if err := ShiftIfNecessary(container, srcIdmap); err != nil {
+			err = ShiftIfNecessary(container, srcIdmap)
+			if err != nil {
 				return err
 			}
 		}
 
 		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
-		if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
+		err = RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper)
+		if err != nil {
 			return err
 		}
 	} else {
@@ -186,22 +187,25 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 			}
 
 			wrapper := StorageProgressWriter(op, "fs_progress", snap.GetName())
-			if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
+			err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper)
+			if err != nil {
 				return err
 			}
 
-			if err := ShiftIfNecessary(container, srcIdmap); err != nil {
+			err = ShiftIfNecessary(container, srcIdmap)
+			if err != nil {
 				return err
 			}
 
-			_, err := containerCreateAsSnapshot(container.Daemon(), args, container)
+			_, err = containerCreateAsSnapshot(container.Daemon(), args, container)
 			if err != nil {
 				return err
 			}
 		}
 
 		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
-		if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
+		err = RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper)
+		if err != nil {
 			return err
 		}
 	}
@@ -209,12 +213,14 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 	if live {
 		/* now receive the final sync */
 		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
-		if err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper); err != nil {
+		err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper)
+		if err != nil {
 			return err
 		}
 	}
 
-	if err := ShiftIfNecessary(container, srcIdmap); err != nil {
+	err = ShiftIfNecessary(container, srcIdmap)
+	if err != nil {
 		return err
 	}
 
