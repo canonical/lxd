@@ -224,8 +224,8 @@ type imageMetadata struct {
 func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir string) (*api.Image, error) {
 	info := api.Image{}
 	info.Properties = map[string]string{}
-	name := req.Source["name"]
-	ctype := req.Source["type"]
+	name := req.Source.Name
+	ctype := req.Source.Type
 	if ctype == "" || name == "" {
 		return nil, fmt.Errorf("No source provided")
 	}
@@ -323,15 +323,15 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image
 	var err error
 	var hash string
 
-	if req.Source["fingerprint"] != "" {
-		hash = req.Source["fingerprint"]
-	} else if req.Source["alias"] != "" {
-		hash = req.Source["alias"]
+	if req.Source.Fingerprint != "" {
+		hash = req.Source.Fingerprint
+	} else if req.Source.Alias != "" {
+		hash = req.Source.Alias
 	} else {
 		return nil, fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	hash, err = d.ImageDownload(op, req.Source["server"], req.Source["protocol"], req.Source["certificate"], req.Source["secret"], hash, false, req.AutoUpdate)
+	hash, err = d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, false, req.AutoUpdate)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +360,7 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image
 func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, error) {
 	var err error
 
-	if req.Source["url"] == "" {
+	if req.Source.URL == "" {
 		return nil, fmt.Errorf("Missing URL")
 	}
 
@@ -370,7 +370,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 	}
 
 	// Resolve the image URL
-	head, err := http.NewRequest("HEAD", req.Source["url"], nil)
+	head, err := http.NewRequest("HEAD", req.Source.URL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -667,7 +667,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		imageUpload = true
 	}
 
-	if !imageUpload && !shared.StringInSlice(req.Source["type"], []string{"container", "snapshot", "image", "url"}) {
+	if !imageUpload && !shared.StringInSlice(req.Source.Type, []string{"container", "snapshot", "image", "url"}) {
 		cleanup(builddir, post)
 		return InternalError(fmt.Errorf("Invalid images JSON"))
 	}
@@ -680,13 +680,13 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		defer cleanup(builddir, post)
 
 		if !imageUpload {
-			if req.Source["type"] == "image" {
+			if req.Source.Type == "image" {
 				/* Processing image copy from remote */
 				info, err = imgPostRemoteInfo(d, req, op)
 				if err != nil {
 					return err
 				}
-			} else if req.Source["type"] == "url" {
+			} else if req.Source.Type == "url" {
 				/* Processing image copy from URL */
 				info, err = imgPostURLInfo(d, req, op)
 				if err != nil {
