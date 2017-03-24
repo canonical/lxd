@@ -223,10 +223,14 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		}
 	}
 
+	shared.LogDebugf("No valid storage pool in the container's local root disk device and profiles found.")
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
 		pools, err := dbStoragePools(d.db)
 		if err != nil {
+			if err == NoSuchObjectError {
+				return BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured."))
+			}
 			return InternalError(err)
 		}
 
