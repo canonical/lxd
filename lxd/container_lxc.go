@@ -1017,6 +1017,11 @@ func (c *containerLXC) initLXC() error {
 						return err
 					}
 				}
+				// Set soft limit to value 10% less than hard limit
+				err = lxcSetConfigItem(cc, "lxc.cgroup.memory.soft_limit_in_bytes", fmt.Sprintf("%d", valueInt*0.9))
+				if err != nil {
+					return err
+				}
 			}
 		}
 
