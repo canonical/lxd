@@ -576,27 +576,69 @@ func containerCreateFromImage(d *Daemon, args containerArgs, hash string) (conta
 	return c, nil
 }
 
-func containerCreateAsCopy(d *Daemon, args containerArgs, sourceContainer container) (container, error) {
-	// Create the container
-	c, err := containerCreateInternal(d, args)
+func containerCreateAsCopy(d *Daemon, args containerArgs, sourceContainer container, containerOnly bool) (container, error) {
+	// Create the container.
+	ct, err := containerCreateInternal(d, args)
 	if err != nil {
 		return nil, err
 	}
 
-	// Now clone the storage
-	if err := c.Storage().ContainerCopy(c, sourceContainer); err != nil {
-		c.Delete()
+	csList := []*container{}
+	if !containerOnly {
+		snapshots, err := sourceContainer.Snapshots()
+		if err != nil {
+			return nil, err
+		}
+
+		csList = make([]*container, len(snapshots))
+		for i, snap := range snapshots {
+			fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
+			newSnapName := fmt.Sprintf("%s/%s", ct.Name(), fields[1])
+			csArgs := containerArgs{
+				Architecture: snap.Architecture(),
+				Config:       snap.LocalConfig(),
+				Ctype:        cTypeSnapshot,
+				Devices:      snap.LocalDevices(),
+				Ephemeral:    snap.IsEphemeral(),
+				Name:         newSnapName,
+				Profiles:     snap.Profiles(),
+			}
+
+			// Create the snapshots.
+			cs, err := containerCreateInternal(d, csArgs)
+			if err != nil {
+				return nil, err
+			}
+
+			csList[i] = &cs
+		}
+	}
+
+	// Now clone the storage.
+	if err := ct.Storage().ContainerCopy(ct, sourceContainer, containerOnly); err != nil {
+		ct.Delete()
 		return nil, err
 	}
 
-	// Apply any post-storage configuration
-	err = containerConfigureInternal(c)
+	// Apply any post-storage configuration.
+	err = containerConfigureInternal(ct)
 	if err != nil {
-		c.Delete()
+		ct.Delete()
 		return nil, err
 	}
 
-	return c, nil
+	if !containerOnly {
+		for _, cs := range csList {
+			// Apply any post-storage configuration.
+			err = containerConfigureInternal(*cs)
+			if err != nil {
+				(*cs).Delete()
+				return nil, err
+			}
+		}
+	}
+
+	return ct, nil
 }
 
 func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer container) (container, error) {

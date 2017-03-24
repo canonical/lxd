@@ -1258,78 +1258,108 @@ func (s *storageLvm) ContainerDelete(container container) error {
 	return nil
 }
 
-func (s *storageLvm) ContainerCopy(container container, sourceContainer container) error {
-	shared.LogDebugf("Copying LVM container storage %s -> %s.", sourceContainer.Name(), container.Name())
+func (s *storageLvm) copyContainer(target container, source container) error {
+	targetContainerMntPoint := getContainerMountPoint(s.pool.Name, target.Name())
+	err := createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
 
-	tryUndo := true
+	err = s.createSnapshotContainer(target, source, false)
+	if err != nil {
+		shared.LogErrorf("Error creating snapshot LV for copy: %s.", err)
+		return err
+	}
 
-	ourStart, err := sourceContainer.StorageStart()
+	err = s.setUnprivUserAcl(source, targetContainerMntPoint)
+	if err != nil {
+		return err
+	}
+
+	err = target.TemplateApply("copy")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageLvm) copySnapshot(target container, source container) error {
+	fields := strings.SplitN(target.Name(), shared.SnapshotDelimiter, 2)
+	containersPath := getSnapshotMountPoint(s.pool.Name, fields[0])
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", fields[0])
+	snapshotMntPointSymlink := shared.VarPath("snapshots", fields[0])
+	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	if err != nil {
+		return err
+	}
+
+	err = s.createSnapshotContainer(target, source, true)
+	if err != nil {
+		shared.LogErrorf("Error creating snapshot LV for copy: %s.", err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageLvm) ContainerCopy(target container, source container, containerOnly bool) error {
+	shared.LogDebugf("Copying LVM container storage %s -> %s.", source.Name(), target.Name())
+
+	ourStart, err := source.StorageStart()
 	if err != nil {
 		return err
 	}
 	if ourStart {
-		defer sourceContainer.StorageStop()
+		defer source.StorageStop()
 	}
 
-	if sourceContainer.Storage().GetStorageType() == storageTypeLvm {
-		err := s.createSnapshotContainer(container, sourceContainer, false)
-		if err != nil {
-			shared.LogErrorf("Error creating snapshot LV for copy: %s.", err)
-			return err
-		}
-	} else {
-		sourceContainerName := sourceContainer.Name()
-		targetContainerName := container.Name()
-		shared.LogDebugf("Copy from Non-LVM container: %s -> %s.", sourceContainerName, targetContainerName)
-		err := s.ContainerCreate(container)
-		if err != nil {
-			shared.LogErrorf("Error creating empty container: %s.", err)
-			return err
-		}
-		defer func() {
-			if tryUndo {
-				s.ContainerDelete(container)
-			}
-		}()
-
-		targetContainerPath := container.Path()
-		ourSourceMount, err := s.ContainerMount(targetContainerName, targetContainerPath)
-		if err != nil {
-			shared.LogErrorf("Error starting/mounting container \"%s\": %s.", targetContainerName, err)
-			return err
-		}
-		if ourSourceMount {
-			defer s.ContainerUmount(targetContainerName, targetContainerPath)
-		}
-
-		sourceContainerPath := sourceContainer.Path()
-		ourTargetMount, err := sourceContainer.Storage().ContainerMount(sourceContainerName, sourceContainerPath)
-		if err != nil {
-			return err
-		}
-		if ourTargetMount {
-			sourceContainer.Storage().ContainerUmount(sourceContainerName, sourceContainerPath)
-		}
-
-		_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
-		sourceContainerMntPoint := getContainerMountPoint(sourcePool, sourceContainerName)
-		targetContainerMntPoint := getContainerMountPoint(s.pool.Name, targetContainerName)
-		output, err := storageRsyncCopy(sourceContainerMntPoint, targetContainerMntPoint)
-		if err != nil {
-			shared.LogErrorf("ContainerCopy: rsync failed: %s.", string(output))
-			s.ContainerDelete(container)
-			return fmt.Errorf("rsync failed: %s", string(output))
-		}
+	_, sourcePool := source.Storage().GetContainerPoolInfo()
+	_, targetPool := target.Storage().GetContainerPoolInfo()
+	if sourcePool != targetPool {
+		return fmt.Errorf("Copying containers between different storage pools is not implemented.")
 	}
 
-	err = container.TemplateApply("copy")
+	err = s.copyContainer(target, source)
 	if err != nil {
 		return err
 	}
 
-	tryUndo = false
+	if containerOnly {
+		shared.LogDebugf("Copied LVM container storage %s -> %s.", source.Name(), target.Name())
+		return nil
+	}
 
-	shared.LogDebugf("Copied LVM container storage %s -> %s.", sourceContainer.Name(), container.Name())
+	snapshots, err := source.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	if len(snapshots) == 0 {
+		shared.LogDebugf("Copied LVM container storage %s -> %s.", source.Name(), target.Name())
+		return nil
+	}
+
+	for _, snap := range snapshots {
+		sourceSnapshot, err := containerLoadByName(s.d, snap.Name())
+		if err != nil {
+			return err
+		}
+
+		fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
+		newSnapName := fmt.Sprintf("%s/%s", target.Name(), fields[1])
+		targetSnapshot, err := containerLoadByName(s.d, newSnapName)
+		if err != nil {
+			return err
+		}
+
+		err = s.copySnapshot(targetSnapshot, sourceSnapshot)
+		if err != nil {
+			return err
+		}
+	}
+
+	shared.LogDebugf("Copied LVM container storage %s -> %s.", source.Name(), target.Name())
 	return nil
 }
 
@@ -1602,8 +1632,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, targetContainerName)
 		sourceFields := strings.SplitN(sourceContainerName, shared.SnapshotDelimiter, 2)
 		sourceName := sourceFields[0]
-		_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", sourcePool, "snapshots", sourceName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", poolName, "snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	} else {
@@ -2061,10 +2090,10 @@ func (s *storageLvm) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageLvm) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
-	return rsyncMigrationSource(container)
+func (s *storageLvm) MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error) {
+	return rsyncMigrationSource(container, containerOnly)
 }
 
-func (s *storageLvm) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
-	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op)
+func (s *storageLvm) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
+	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly)
 }

@@ -47,7 +47,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Migration {
-		ws, err := NewMigrationSource(c, stateful)
+		ws, err := NewMigrationSource(c, stateful, req.ContainerOnly)
 		if err != nil {
 			return InternalError(err)
 		}

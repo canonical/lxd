@@ -125,9 +125,7 @@ func (s *storageMock) ContainerDelete(container container) error {
 	return nil
 }
 
-func (s *storageMock) ContainerCopy(
-	container container, sourceContainer container) error {
-
+func (s *storageMock) ContainerCopy(target container, source container, containerOnly bool) error {
 	return nil
 }
 
@@ -213,9 +211,9 @@ func (s *storageMock) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageMock) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
+func (s *storageMock) MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-func (s *storageMock) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
+func (s *storageMock) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
 	return nil
 }

@@ -723,14 +723,12 @@ func (s *storageZfs) ContainerDelete(container container) error {
 	return nil
 }
 
-func (s *storageZfs) ContainerCopy(container container, sourceContainer container) error {
-	shared.LogDebugf("Copying ZFS container storage %s -> %s.", sourceContainer.Name(), container.Name())
+func (s *storageZfs) copyWithoutSnapshots(target container, source container) error {
+	sourceContainerName := source.Name()
+	sourceContainerPath := source.Path()
 
-	sourceContainerName := sourceContainer.Name()
-	sourceContainerPath := sourceContainer.Path()
-
-	targetContainerName := container.Name()
-	targetContainerPath := container.Path()
+	targetContainerName := target.Name()
+	targetContainerPath := target.Path()
 	targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetContainerName)
 
 	sourceZfsDataset := ""
@@ -787,7 +785,7 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 			defer s.ContainerUmount(targetContainerName, targetContainerPath)
 		}
 
-		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, container.IsPrivileged())
+		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
 		if err != nil {
 			return err
 		}
@@ -798,7 +796,7 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 			deleteContainerMountpoint(targetContainerMountPoint, targetContainerPath, s.GetStorageTypeName())
 		}()
 	} else {
-		err := s.ContainerCreate(container)
+		err := s.ContainerCreate(target)
 		if err != nil {
 			return err
 		}
@@ -806,7 +804,7 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 			if !revert {
 				return
 			}
-			s.ContainerDelete(container)
+			s.ContainerDelete(target)
 		}()
 
 		output, err := storageRsyncCopy(sourceContainerPath, targetContainerPath)
@@ -815,14 +813,129 @@ func (s *storageZfs) ContainerCopy(container container, sourceContainer containe
 		}
 	}
 
-	err := container.TemplateApply("copy")
+	err := target.TemplateApply("copy")
 	if err != nil {
 		return err
 	}
 
 	revert = false
 
-	shared.LogDebugf("Copied ZFS container storage %s -> %s.", sourceContainer.Name(), container.Name())
+	return nil
+}
+
+func (s *storageZfs) copyWithSnapshots(target container, source container, parentSnapshot string) error {
+	sourceName := source.Name()
+	fields := strings.SplitN(target.Name(), shared.SnapshotDelimiter, 2)
+	containersPath := getSnapshotMountPoint(s.pool.Name, fields[0])
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", fields[0])
+	snapshotMntPointSymlink := shared.VarPath("snapshots", fields[0])
+	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	if err != nil {
+		return err
+	}
+
+	poolName := s.getOnDiskPoolName()
+	sourceFields := strings.SplitN(sourceName, shared.SnapshotDelimiter, 2)
+	currentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, sourceFields[0], sourceFields[1])
+	args := []string{"send", currentSnapshotDataset}
+	if parentSnapshot != "" {
+		parentFields := strings.SplitN(parentSnapshot, shared.SnapshotDelimiter, 2)
+		parentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, parentFields[0], parentFields[1])
+		args = append(args, "-i", parentSnapshotDataset)
+	}
+
+	zfsSendCmd := exec.Command("zfs", args...)
+	targetSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, fields[0], fields[1])
+	zfsRecvCmd := exec.Command("zfs", "receive", targetSnapshotDataset)
+
+	zfsRecvCmd.Stdin, _ = zfsSendCmd.StdoutPipe()
+	zfsRecvCmd.Stdout = os.Stdout
+	zfsRecvCmd.Stderr = os.Stderr
+
+	err = zfsRecvCmd.Start()
+	if err != nil {
+		return err
+	}
+
+	err = zfsSendCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	err = zfsRecvCmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageZfs) ContainerCopy(target container, source container, containerOnly bool) error {
+	shared.LogDebugf("Copying ZFS container storage %s -> %s.", source.Name(), target.Name())
+
+	ourStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer source.StorageStop()
+	}
+
+	_, sourcePool := source.Storage().GetContainerPoolInfo()
+	_, targetPool := target.Storage().GetContainerPoolInfo()
+	if sourcePool != targetPool {
+		return fmt.Errorf("Copying containers between different storage pools is not implemented.")
+	}
+
+	snapshots, err := source.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	if containerOnly || len(snapshots) == 0 {
+		err = s.copyWithoutSnapshots(target, source)
+	} else {
+		targetContainerName := target.Name()
+		targetContainerPath := target.Path()
+		targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetContainerName)
+		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
+		if err != nil {
+			return err
+		}
+
+		for i, snap := range snapshots {
+			prev := ""
+			if i > 0 {
+				prev = snapshots[i-1].Name()
+			}
+
+			sourceSnapshot, err := containerLoadByName(s.d, snap.Name())
+			if err != nil {
+				return err
+			}
+
+			fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
+			newSnapName := fmt.Sprintf("%s/%s", target.Name(), fields[1])
+			targetSnapshot, err := containerLoadByName(s.d, newSnapName)
+			if err != nil {
+				return err
+			}
+
+			err = s.copyWithSnapshots(targetSnapshot, sourceSnapshot, prev)
+			if err != nil {
+				return err
+			}
+		}
+
+		fs := fmt.Sprintf("containers/%s", target.Name())
+		err = s.zfsPoolVolumeSet(fs, "mountpoint", targetContainerMountPoint)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	shared.LogDebugf("Copied ZFS container storage %s -> %s.", source.Name(), target.Name())
 	return nil
 }
 
@@ -2284,7 +2397,7 @@ func (s *storageZfs) PreservesInodes() bool {
 	return true
 }
 
-func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver, error) {
+func (s *storageZfs) MigrationSource(ct container, containerOnly bool) (MigrationStorageSourceDriver, error) {
 	/* If the container is a snapshot, let's just send that; we don't need
 	* to send anything else, because that's all the user asked for.
 	 */
@@ -2331,7 +2444,7 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 	return &driver, nil
 }
 
-func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
+func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
 	poolName := s.getOnDiskPoolName()
 	zfsRecv := func(zfsName string, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 		zfsFsName := fmt.Sprintf("%s/%s", poolName, zfsName)

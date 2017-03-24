@@ -354,51 +354,16 @@ func (s *storageDir) ContainerDelete(container container) error {
 	return nil
 }
 
-func (s *storageDir) ContainerCopy(container container, sourceContainer container) error {
-	shared.LogDebugf("Copying DIR container storage %s -> %s.", sourceContainer.Name(), container.Name())
+func (s *storageDir) copyContainer(target container, source container) error {
+	sourceContainerMntPoint := getContainerMountPoint(s.pool.Name, source.Name())
+	if source.IsSnapshot() {
+		sourceContainerMntPoint = getSnapshotMountPoint(s.pool.Name, source.Name())
+	}
+	targetContainerMntPoint := getContainerMountPoint(s.pool.Name, target.Name())
 
-	ourStart, err := sourceContainer.StorageStart()
+	err := createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
-	}
-	if ourStart {
-		defer sourceContainer.StorageStop()
-	}
-
-	// Deal with the source container.
-	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
-	sourceContainerConfig := sourceContainer.Storage().GetStoragePoolWritable()
-	sourceSource := sourceContainerConfig.Config["source"]
-	if sourceSource == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
-	}
-
-	targetIsPrivileged := container.IsPrivileged()
-	targetContainerMntPoint := ""
-	if container.IsSnapshot() {
-		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, container.Name())
-	} else {
-		targetContainerMntPoint = getContainerMountPoint(s.pool.Name, container.Name())
-	}
-
-	targetContainerSymlink := container.Path()
-	err = createContainerMountpoint(targetContainerMntPoint, targetContainerSymlink, targetIsPrivileged)
-	if err != nil {
-		return err
-	}
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-		s.ContainerDelete(container)
-	}()
-
-	sourceContainerMntPoint := ""
-	if sourceContainer.IsSnapshot() {
-		sourceContainerMntPoint = getSnapshotMountPoint(sourcePool, sourceContainer.Name())
-	} else {
-		sourceContainerMntPoint = getContainerMountPoint(sourcePool, sourceContainer.Name())
 	}
 
 	output, err := storageRsyncCopy(sourceContainerMntPoint, targetContainerMntPoint)
@@ -406,19 +371,99 @@ func (s *storageDir) ContainerCopy(container container, sourceContainer containe
 		return fmt.Errorf("Failed to rsync container: %s: %s.", string(output), err)
 	}
 
-	err = s.setUnprivUserAcl(sourceContainer, targetContainerMntPoint)
+	err = s.setUnprivUserAcl(source, targetContainerMntPoint)
 	if err != nil {
 		return err
 	}
 
-	err = container.TemplateApply("copy")
+	err = target.TemplateApply("copy")
 	if err != nil {
 		return err
 	}
 
-	revert = false
+	return nil
+}
 
-	shared.LogDebugf("Copied DIR container storage %s -> %s.", sourceContainer.Name(), container.Name())
+func (s *storageDir) copySnapshot(target container, source container) error {
+	sourceName := source.Name()
+	targetName := target.Name()
+	sourceContainerMntPoint := getSnapshotMountPoint(s.pool.Name, sourceName)
+	targetContainerMntPoint := getSnapshotMountPoint(s.pool.Name, targetName)
+
+	fields := strings.SplitN(target.Name(), shared.SnapshotDelimiter, 2)
+	containersPath := getSnapshotMountPoint(s.pool.Name, fields[0])
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", fields[0])
+	snapshotMntPointSymlink := shared.VarPath("snapshots", fields[0])
+	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	if err != nil {
+		return err
+	}
+
+	output, err := storageRsyncCopy(sourceContainerMntPoint, targetContainerMntPoint)
+	if err != nil {
+		return fmt.Errorf("Failed to rsync container: %s: %s.", string(output), err)
+	}
+
+	return nil
+}
+
+func (s *storageDir) ContainerCopy(target container, source container, containerOnly bool) error {
+	shared.LogDebugf("Copying DIR container storage %s -> %s.", source.Name(), target.Name())
+
+	ourStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer source.StorageStop()
+	}
+
+	_, sourcePool := source.Storage().GetContainerPoolInfo()
+	_, targetPool := target.Storage().GetContainerPoolInfo()
+	if sourcePool != targetPool {
+		return fmt.Errorf("Copying containers between different storage pools is not implemented.")
+	}
+
+	err = s.copyContainer(target, source)
+	if err != nil {
+		return err
+	}
+
+	if containerOnly {
+		shared.LogDebugf("Copied DIR container storage %s -> %s.", source.Name(), target.Name())
+		return nil
+	}
+
+	snapshots, err := source.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	if len(snapshots) == 0 {
+		shared.LogDebugf("Copied DIR container storage %s -> %s.", source.Name(), target.Name())
+		return nil
+	}
+
+	for _, snap := range snapshots {
+		sourceSnapshot, err := containerLoadByName(s.d, snap.Name())
+		if err != nil {
+			return err
+		}
+
+		fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
+		newSnapName := fmt.Sprintf("%s/%s", target.Name(), fields[1])
+		targetSnapshot, err := containerLoadByName(s.d, newSnapName)
+		if err != nil {
+			return err
+		}
+
+		err = s.copySnapshot(targetSnapshot, sourceSnapshot)
+		if err != nil {
+			return err
+		}
+	}
+
+	shared.LogDebugf("Copied DIR container storage %s -> %s.", source.Name(), target.Name())
 	return nil
 }
 
@@ -718,10 +763,10 @@ func (s *storageDir) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageDir) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
-	return rsyncMigrationSource(container)
+func (s *storageDir) MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error) {
+	return rsyncMigrationSource(container, containerOnly)
 }
 
-func (s *storageDir) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
-	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op)
+func (s *storageDir) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
+	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly)
 }
