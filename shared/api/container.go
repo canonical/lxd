@@ -22,6 +22,9 @@ type ContainerPost struct {
 
 	// API extension: container_stateless_copy
 	Live bool `json:"live" yaml:"live"`
+
+	// API extension: container_only_migration
+	ContainerOnly bool `json:"container_only" yaml:"container_only"`
 }
 
 // ContainerPut represents the modifiable fields of a LXD container
@@ -93,4 +96,7 @@ type ContainerSource struct {
 
 	// For "copy" type
 	Source string `json:"source,omitempty" yaml:"source,omitempty"`
+
+	// API extension: container_only_migration
+	ContainerOnly bool `json:"container_only,omitempty" yaml:"container_only,omitempty"`
 }

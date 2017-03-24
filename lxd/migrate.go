@@ -27,6 +27,8 @@ import (
 type migrationFields struct {
 	live bool
 
+	containerOnly bool
+
 	controlSecret string
 	controlConn   *websocket.Conn
 	controlLock   sync.Mutex
@@ -152,8 +154,9 @@ type migrationSourceWs struct {
 	allConnected chan bool
 }
 
-func NewMigrationSource(c container, stateful bool) (*migrationSourceWs, error) {
+func NewMigrationSource(c container, stateful bool, containerOnly bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{migrationFields{container: c}, make(chan bool, 1)}
+	ret.containerOnly = containerOnly
 
 	var err error
 	ret.controlSecret, err = shared.RandomCryptoString()
@@ -328,17 +331,18 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
-	driver, fsErr := s.container.Storage().MigrationSource(s.container)
-	/* the protocol says we have to send a header no matter what, so let's
-	 * do that, but then immediately send an error.
-	 */
+	driver, fsErr := s.container.Storage().MigrationSource(s.container, s.containerOnly)
+
 	snapshots := []*Snapshot{}
 	snapshotNames := []string{}
-	if fsErr == nil {
-		fullSnaps := driver.Snapshots()
-		for _, snap := range fullSnaps {
-			snapshots = append(snapshots, snapshotToProtobuf(snap))
-			snapshotNames = append(snapshotNames, shared.ExtractSnapshotName(snap.Name()))
+	// Only send snapshots when requested.
+	if !s.containerOnly {
+		if fsErr == nil {
+			fullSnaps := driver.Snapshots()
+			for _, snap := range fullSnaps {
+				snapshots = append(snapshots, snapshotToProtobuf(snap))
+				snapshotNames = append(snapshotNames, shared.ExtractSnapshotName(snap.Name()))
+			}
 		}
 	}
 
@@ -374,7 +378,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		myType = MigrationFSType_RSYNC
 		header.Fs = &myType
 
-		driver, _ = rsyncMigrationSource(s.container)
+		driver, _ = rsyncMigrationSource(s.container, s.containerOnly)
 	}
 
 	// All failure paths need to do a few things to correctly handle errors before returning.
@@ -561,17 +565,19 @@ type migrationSink struct {
 }
 
 type MigrationSinkArgs struct {
-	Url       string
-	Dialer    websocket.Dialer
-	Container container
-	Secrets   map[string]string
-	Push      bool
-	Live      bool
+	Url           string
+	Dialer        websocket.Dialer
+	Container     container
+	Secrets       map[string]string
+	Push          bool
+	Live          bool
+	ContainerOnly bool
 }
 
 func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:    migrationFields{container: args.Container},
+		src:    migrationFields{container: args.Container, containerOnly: args.ContainerOnly},
+		dest:   migrationFields{containerOnly: args.ContainerOnly},
 		url:    args.Url,
 		dialer: args.Dialer,
 		push:   args.Push,
@@ -817,7 +823,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				fsConn = c.src.fsConn
 			}
 
-			err = mySink(live, c.src.container, snapshots, fsConn, srcIdmap, migrateOp)
+			err = mySink(live, c.src.container, snapshots, fsConn, srcIdmap, migrateOp, c.src.containerOnly)
 			if err != nil {
 				fsTransfer <- err
 				return
