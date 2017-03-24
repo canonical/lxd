@@ -1431,15 +1431,16 @@ func (c *Client) Init(name string, imgremote string, image string, profiles *[]s
 	return resp, nil
 }
 
-func (c *Client) LocalCopy(source string, name string, config map[string]string, profiles []string, ephemeral bool) (*api.Response, error) {
+func (c *Client) LocalCopy(source string, name string, config map[string]string, profiles []string, ephemeral bool, containerOnly bool) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
 	body := shared.Jmap{
 		"source": shared.Jmap{
-			"type":   "copy",
-			"source": source,
+			"type":           "copy",
+			"source":         source,
+			"container_only": containerOnly,
 		},
 		"name":      name,
 		"config":    config,
@@ -1995,7 +1996,7 @@ func (c *Client) DeleteFile(container string, p string) error {
 	return nil
 }
 
-func (c *Client) GetMigrationSourceWS(container string, stateful bool) (*api.Response, error) {
+func (c *Client) GetMigrationSourceWS(container string, stateful bool, containerOnly bool) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
@@ -2011,6 +2012,8 @@ func (c *Client) GetMigrationSourceWS(container string, stateful bool) (*api.Res
 		}
 
 		url = fmt.Sprintf("containers/%s/snapshots/%s", pieces[0], pieces[1])
+	} else {
+		body["container_only"] = containerOnly
 	}
 
 	return c.post(url, body, api.AsyncResponse)
@@ -2020,14 +2023,15 @@ func (c *Client) MigrateFrom(name string, operation string, certificate string,
 	sourceSecrets map[string]string, architecture string, config map[string]string,
 	devices map[string]map[string]string, profiles []string,
 	baseImage string, ephemeral bool, push bool, sourceClient *Client,
-	sourceOperation string) (*api.Response, error) {
+	sourceOperation string, containerOnly bool) (*api.Response, error) {
 	if c.Remote.Public {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
 	source := shared.Jmap{
-		"type":       "migration",
-		"base-image": baseImage,
+		"type":           "migration",
+		"base-image":     baseImage,
+		"container_only": containerOnly,
 	}
 
 	if push {
