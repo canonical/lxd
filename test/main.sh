@@ -534,8 +534,11 @@ run_test() {
   TEST_CURRENT_DESCRIPTION=${2:-${1}}
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
+  START_TIME=$(date +%s)
   ${TEST_CURRENT}
-  echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION}"
+  END_TIME=$(date +%s)
+
+  echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} ($((END_TIME-START_TIME))s)"
 }
 
 # allow for running a specific set of tests
