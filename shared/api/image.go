@@ -9,13 +9,31 @@ type ImagesPost struct {
 	ImagePut `yaml:",inline"`
 
 	Filename string            `json:"filename" yaml:"filename"`
-	Source   map[string]string `json:"source" yaml:"source"`
+	Source   *ImagesPostSource `json:"source" yaml:"source"`
 
 	// API extension: image_compression_algorithm
 	CompressionAlgorithm string `json:"compression_algorithm" yaml:"compression_algorithm"`
 
 	// API extension: image_create_aliases
 	Aliases []ImageAlias `json:"aliases" yaml:"aliases"`
+}
+
+// ImagesPostSource represents the source of a new LXD image
+type ImagesPostSource struct {
+	ImageSource `yaml:",inline"`
+
+	Mode string `json:"mode" yaml:"mode"`
+	Type string `json:"type" yaml:"type"`
+
+	// For protocol "direct"
+	URL string `json:"url" yaml:"url"`
+
+	// For type "container"
+	Name string `json:"name" yaml:"name"`
+
+	// For type "image"
+	Fingerprint string `json:"fingerprint" yaml:"fingerprint"`
+	Secret      string `json:"secret" yaml:"secret"`
 }
 
 // ImagePut represents the modifiable fields of a LXD image
