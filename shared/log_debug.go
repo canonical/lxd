@@ -1,4 +1,4 @@
-// +build !logdebug
+// +build logdebug
 
 package shared
 
@@ -32,30 +32,40 @@ func init() {
 // General wrappers around Logger interface functions.
 func LogDebug(msg string, ctx interface{}) {
 	if Log != nil {
+		pc, fn, line, _ := runtime.Caller(1)
+		msg := fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
 		Log.Debug(msg, ctx)
 	}
 }
 
 func LogInfo(msg string, ctx interface{}) {
 	if Log != nil {
+		pc, fn, line, _ := runtime.Caller(1)
+		msg := fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
 		Log.Info(msg, ctx)
 	}
 }
 
 func LogWarn(msg string, ctx interface{}) {
 	if Log != nil {
+		pc, fn, line, _ := runtime.Caller(1)
+		msg := fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
 		Log.Warn(msg, ctx)
 	}
 }
 
 func LogError(msg string, ctx interface{}) {
 	if Log != nil {
+		pc, fn, line, _ := runtime.Caller(1)
+		msg := fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
 		Log.Error(msg, ctx)
 	}
 }
 
 func LogCrit(msg string, ctx interface{}) {
 	if Log != nil {
+		pc, fn, line, _ := runtime.Caller(1)
+		msg := fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
 		Log.Crit(msg, ctx)
 	}
 }
@@ -64,31 +74,46 @@ func LogCrit(msg string, ctx interface{}) {
 // by running it through fmt.Sprintf().
 func LogInfof(format string, args ...interface{}) {
 	if Log != nil {
-		Log.Info(fmt.Sprintf(format, args...))
+		msg := fmt.Sprintf(format, args...)
+		pc, fn, line, _ := runtime.Caller(1)
+		msg = fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
+		Log.Info(msg)
 	}
 }
 
 func LogDebugf(format string, args ...interface{}) {
 	if Log != nil {
-		Log.Debug(fmt.Sprintf(format, args...))
+		msg := fmt.Sprintf(format, args...)
+		pc, fn, line, _ := runtime.Caller(1)
+		msg = fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
+		Log.Debug(msg)
 	}
 }
 
 func LogWarnf(format string, args ...interface{}) {
 	if Log != nil {
-		Log.Warn(fmt.Sprintf(format, args...))
+		msg := fmt.Sprintf(format, args...)
+		pc, fn, line, _ := runtime.Caller(1)
+		msg = fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
+		Log.Warn(msg)
 	}
 }
 
 func LogErrorf(format string, args ...interface{}) {
 	if Log != nil {
-		Log.Error(fmt.Sprintf(format, args...))
+		msg := fmt.Sprintf(format, args...)
+		pc, fn, line, _ := runtime.Caller(1)
+		msg = fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
+		Log.Error(msg)
 	}
 }
 
 func LogCritf(format string, args ...interface{}) {
 	if Log != nil {
-		Log.Crit(fmt.Sprintf(format, args...))
+		msg := fmt.Sprintf(format, args...)
+		pc, fn, line, _ := runtime.Caller(1)
+		msg = fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
+		Log.Crit(msg)
 	}
 }
 
