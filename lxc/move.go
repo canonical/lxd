@@ -3,9 +3,12 @@ package main
 import (
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/i18n"
+
+	"github.com/lxc/lxd/shared/gnuflag"
 )
 
 type moveCmd struct {
+	containerOnly bool
 }
 
 func (c *moveCmd) showByDefault() bool {
@@ -14,21 +17,23 @@ func (c *moveCmd) showByDefault() bool {
 
 func (c *moveCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/<snapshot>]]
+		`Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/<snapshot>]] [--container-only]
 
 Move containers within or in between LXD instances.
 
-lxc move [<remote>:]<source container> [<remote>:][<destination container>]
+lxc move [<remote>:]<source container> [<remote>:][<destination container>] [--container-only]
     Move a container between two hosts, renaming it if destination name differs.
 
-lxc move <old name> <new name>
+lxc move <old name> <new name> [--container-only]
     Rename a local container.
 
 lxc move <container>/<old snapshot name> <container>/<new snapshot name>
     Rename a snapshot.`)
 }
 
-func (c *moveCmd) flags() {}
+func (c *moveCmd) flags() {
+	gnuflag.BoolVar(&c.containerOnly, "container-only", false, i18n.G("Move the container without its snapshots"))
+}
 
 func (c *moveCmd) run(config *lxd.Config, args []string) error {
 	if len(args) != 2 {
@@ -61,7 +66,7 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the container.
-	if err := cpy.copyContainer(config, args[0], args[1], true, -1, true); err != nil {
+	if err := cpy.copyContainer(config, args[0], args[1], true, -1, true, c.containerOnly); err != nil {
 		return err
 	}
 

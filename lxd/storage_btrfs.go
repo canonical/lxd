@@ -14,7 +14,6 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
-	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -745,8 +744,81 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 	return nil
 }
 
-func (s *storageBtrfs) ContainerCopy(container container, sourceContainer container) error {
-	shared.LogDebugf("Copying BTRFS container storage %s -> %s.", sourceContainer.Name(), container.Name())
+func (s *storageBtrfs) copyContainer(target container, source container) error {
+	sourceContainerSubvolumeName := getContainerMountPoint(s.pool.Name, source.Name())
+	if source.IsSnapshot() {
+		sourceContainerSubvolumeName = getSnapshotMountPoint(s.pool.Name, source.Name())
+	}
+	targetContainerSubvolumeName := getContainerMountPoint(s.pool.Name, target.Name())
+
+	containersPath := getContainerMountPoint(s.pool.Name, "")
+	// Ensure that the directories immediately preceeding the
+	// subvolume directory exist.
+	if !shared.PathExists(containersPath) {
+		err := os.MkdirAll(containersPath, 0700)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false)
+	if err != nil {
+		return err
+	}
+
+	err = createContainerMountpoint(targetContainerSubvolumeName, target.Path(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	err = s.setUnprivUserAcl(source, targetContainerSubvolumeName)
+	if err != nil {
+		s.ContainerDelete(target)
+		return err
+	}
+
+	err = target.TemplateApply("copy")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageBtrfs) copySnapshot(target container, source container) error {
+	sourceName := source.Name()
+	targetName := target.Name()
+	sourceContainerSubvolumeName := getSnapshotMountPoint(s.pool.Name, sourceName)
+	targetContainerSubvolumeName := getSnapshotMountPoint(s.pool.Name, targetName)
+
+	fields := strings.SplitN(target.Name(), shared.SnapshotDelimiter, 2)
+	containersPath := getSnapshotMountPoint(s.pool.Name, fields[0])
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", fields[0])
+	snapshotMntPointSymlink := shared.VarPath("snapshots", fields[0])
+	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that the directories immediately preceeding the
+	// subvolume directory exist.
+	if !shared.PathExists(containersPath) {
+		err := os.MkdirAll(containersPath, 0700)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageBtrfs) ContainerCopy(target container, source container, containerOnly bool) error {
+	shared.LogDebugf("Copying BTRFS container storage %s -> %s.", source.Name(), target.Name())
 
 	// The storage pool needs to be mounted.
 	_, err := s.StoragePoolMount()
@@ -754,86 +826,62 @@ func (s *storageBtrfs) ContainerCopy(container container, sourceContainer contai
 		return err
 	}
 
-	ourStart, err := sourceContainer.StorageStart()
+	ourStart, err := source.StorageStart()
 	if err != nil {
 		return err
 	}
 	if ourStart {
-		defer sourceContainer.StorageStop()
+		defer source.StorageStop()
 	}
 
-	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
-	sourceContainerSubvolumeName := ""
-	if sourceContainer.IsSnapshot() {
-		sourceContainerSubvolumeName = getSnapshotMountPoint(sourcePool, sourceContainer.Name())
-	} else {
-		sourceContainerSubvolumeName = getContainerMountPoint(sourcePool, sourceContainer.Name())
+	_, sourcePool := source.Storage().GetContainerPoolInfo()
+	_, targetPool := target.Storage().GetContainerPoolInfo()
+	if sourcePool != targetPool {
+		return fmt.Errorf("Copying containers between different storage pools is not implemented.")
 	}
 
-	targetContainerSubvolumeName := ""
-	if container.IsSnapshot() {
-		targetContainerSubvolumeName = getSnapshotMountPoint(s.pool.Name, container.Name())
-	} else {
-		targetContainerSubvolumeName = getContainerMountPoint(s.pool.Name, container.Name())
-	}
-	_, targetPool := s.GetContainerPoolInfo()
-	if targetPool == sourcePool {
-		// COMMNET(brauner): They are on the same storage pool which
-		// means they both use btrfs. So we can simply create a new
-		// snapshot of the source container. For this we only mount the
-		// btrfs storage pool and snapshot the subvolume names. No
-		// f*cking around with mounting the containers.
-		ourMount, err := s.StoragePoolMount()
-		if err != nil {
-			return err
-		}
-		if ourMount {
-			defer s.StoragePoolUmount()
-		}
-
-		err = s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false)
-		if err != nil {
-			return err
-		}
-
-		err = createContainerMountpoint(targetContainerSubvolumeName, container.Path(), container.IsPrivileged())
-		if err != nil {
-			return err
-		}
-
-		// Make sure that template apply finds the
-		// container mounted.
-		ourMount, err = s.ContainerMount(container.Name(), container.Path())
-		if err != nil {
-			return err
-		}
-		if ourMount {
-			defer s.ContainerUmount(container.Name(), container.Path())
-		}
-	} else {
-		// Create an empty btrfs storage volume.
-		err = s.ContainerCreate(container)
-		if err != nil {
-			return err
-		}
-
-		// Use rsync to fill the empty volume.
-		output, err := storageRsyncCopy(sourceContainerSubvolumeName, targetContainerSubvolumeName)
-		if err != nil {
-			s.ContainerDelete(container)
-			shared.LogErrorf("ContainerCopy: rsync failed: %s.", string(output))
-			return fmt.Errorf("rsync failed: %s", string(output))
-		}
-	}
-
-	err = s.setUnprivUserAcl(sourceContainer, targetContainerSubvolumeName)
+	err = s.copyContainer(target, source)
 	if err != nil {
-		s.ContainerDelete(container)
 		return err
 	}
 
-	shared.LogDebugf("Copied BTRFS container storage %s -> %s.", sourceContainer.Name(), container.Name())
-	return container.TemplateApply("copy")
+	if containerOnly {
+		shared.LogDebugf("Copied BTRFS container storage %s -> %s.", source.Name(), target.Name())
+		return nil
+	}
+
+	snapshots, err := source.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	if len(snapshots) == 0 {
+		shared.LogDebugf("Copied BTRFS container storage %s -> %s.", source.Name(), target.Name())
+		return nil
+	}
+
+	for _, snap := range snapshots {
+		sourceSnapshot, err := containerLoadByName(s.d, snap.Name())
+		if err != nil {
+			return err
+		}
+
+		fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
+		newSnapName := fmt.Sprintf("%s/%s", target.Name(), fields[1])
+		targetSnapshot, err := containerLoadByName(s.d, newSnapName)
+		if err != nil {
+			shared.LogErrorf("1111: %s", newSnapName)
+			return err
+		}
+
+		err = s.copySnapshot(targetSnapshot, sourceSnapshot)
+		if err != nil {
+			return err
+		}
+	}
+
+	shared.LogDebugf("Copied BTRFS container storage %s -> %s.", source.Name(), target.Name())
+	return nil
 }
 
 func (s *storageBtrfs) ContainerMount(name string, path string) (bool, error) {
@@ -1543,7 +1591,8 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 	}
 
 	// First snapshot the root
-	if err := s.btrfsPoolVolumeSnapshot(source, dest, readonly); err != nil {
+	err = s.btrfsPoolVolumeSnapshot(source, dest, readonly)
+	if err != nil {
 		return err
 	}
 
@@ -1552,7 +1601,8 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 		// Clear the target for the subvol to use
 		os.Remove(path.Join(dest, subsubvol))
 
-		if err := s.btrfsPoolVolumeSnapshot(path.Join(source, subsubvol), path.Join(dest, subsubvol), readonly); err != nil {
+		err := s.btrfsPoolVolumeSnapshot(path.Join(source, subsubvol), path.Join(dest, subsubvol), readonly)
+		if err != nil {
 			return err
 		}
 	}
@@ -1672,7 +1722,8 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 		return err
 	}
 
-	if err := cmd.Start(); err != nil {
+	err = cmd.Start()
+	if err != nil {
 		return err
 	}
 
@@ -1687,6 +1738,7 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 	if err != nil {
 		shared.LogErrorf("Problem with btrfs send: %s.", string(output))
 	}
+
 	return err
 }
 
@@ -1753,27 +1805,31 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 
 	migrationSendSnapshot := fmt.Sprintf("%s/.migration-send", tmpContainerMntPoint)
 	containerMntPoint := getContainerMountPoint(containerPool, sourceName)
-	if s.container.IsSnapshot() {
-	}
 	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPoint, migrationSendSnapshot, true)
 	if err != nil {
 		return err
 	}
 	defer btrfsSubVolumesDelete(migrationSendSnapshot)
 
+	btrfsParent := ""
+	if len(s.btrfsSnapshotNames) > 0 {
+		btrfsParent = s.btrfsSnapshotNames[len(s.btrfsSnapshotNames)-1]
+	}
+
 	wrapper := StorageProgressReader(op, "fs_progress", containerName)
-	return s.send(conn, migrationSendSnapshot, "", wrapper)
+	return s.send(conn, migrationSendSnapshot, btrfsParent, wrapper)
 }
 
 func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
-	tmpPath := containerPath(fmt.Sprintf("%s/.migration-send-%s", s.container.Name(), uuid.NewRandom().String()), true)
+	tmpPath := containerPath(fmt.Sprintf("%s/.migration-send", s.container.Name()), true)
 	err := os.MkdirAll(tmpPath, 0700)
 	if err != nil {
 		return err
 	}
 
 	s.stoppedSnapName = fmt.Sprintf("%s/.root", tmpPath)
-	if err := s.btrfs.btrfsPoolVolumesSnapshot(s.container.Path(), s.stoppedSnapName, true); err != nil {
+	err = s.btrfs.btrfsPoolVolumesSnapshot(s.container.Path(), s.stoppedSnapName, true)
+	if err != nil {
 		return err
 	}
 
@@ -1793,9 +1849,9 @@ func (s *btrfsMigrationSourceDriver) Cleanup() {
 func (s *storageBtrfs) MigrationType() MigrationFSType {
 	if runningInUserns {
 		return MigrationFSType_RSYNC
-	} else {
-		return MigrationFSType_BTRFS
 	}
+
+	return MigrationFSType_BTRFS
 }
 
 func (s *storageBtrfs) PreservesInodes() bool {
@@ -1806,18 +1862,22 @@ func (s *storageBtrfs) PreservesInodes() bool {
 	return true
 }
 
-func (s *storageBtrfs) MigrationSource(c container) (MigrationStorageSourceDriver, error) {
+func (s *storageBtrfs) MigrationSource(c container, containerOnly bool) (MigrationStorageSourceDriver, error) {
 	if runningInUserns {
-		return rsyncMigrationSource(c)
+		return rsyncMigrationSource(c, containerOnly)
 	}
 
 	/* List all the snapshots in order of reverse creation. The idea here
 	 * is that we send the oldest to newest snapshot, hopefully saving on
 	 * xfer costs. Then, after all that, we send the container itself.
 	 */
-	snapshots, err := c.Snapshots()
-	if err != nil {
-		return nil, err
+	var err error
+	var snapshots = []container{}
+	if !containerOnly {
+		snapshots, err = c.Snapshots()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	driver := &btrfsMigrationSourceDriver{
@@ -1827,17 +1887,19 @@ func (s *storageBtrfs) MigrationSource(c container) (MigrationStorageSourceDrive
 		btrfs:              s,
 	}
 
-	for _, snap := range snapshots {
-		btrfsPath := snap.Path()
-		driver.btrfsSnapshotNames = append(driver.btrfsSnapshotNames, btrfsPath)
+	if !containerOnly {
+		for _, snap := range snapshots {
+			btrfsPath := snap.Path()
+			driver.btrfsSnapshotNames = append(driver.btrfsSnapshotNames, btrfsPath)
+		}
 	}
 
 	return driver, nil
 }
 
-func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error {
+func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
 	if runningInUserns {
-		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op)
+		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly)
 	}
 
 	btrfsRecv := func(snapName string, btrfsPath string, targetPath string, isSnapshot bool, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
@@ -1847,6 +1909,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		// Remove the existing pre-created subvolume
 		err := btrfsSubVolumesDelete(targetPath)
 		if err != nil {
+			shared.LogErrorf("Failed to delete pre-created BTRFS subvolume: %s.", btrfsPath)
 			return err
 		}
 
@@ -1860,7 +1923,8 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			return err
 		}
 
-		if err := cmd.Start(); err != nil {
+		err = cmd.Start()
+		if err != nil {
 			return err
 		}
 
@@ -1882,39 +1946,40 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			return err
 		}
 
-		if !isSnapshot {
-			btrfsPath = fmt.Sprintf("%s/.migration-send", btrfsPath)
-			err = s.btrfsPoolVolumesSnapshot(btrfsPath, targetPath, false)
+		receivedSnapshot := fmt.Sprintf("%s/.migration-send", btrfsPath)
+		if isSnapshot {
+			receivedSnapshot = fmt.Sprintf("%s/%s", btrfsPath, snapName)
+			err = s.btrfsPoolVolumesSnapshot(receivedSnapshot, targetPath, true)
 		} else {
-			btrfsPath = fmt.Sprintf("%s/%s", btrfsPath, snapName)
-			err = s.btrfsPoolVolumesSnapshot(btrfsPath, targetPath, true)
+			err = s.btrfsPoolVolumesSnapshot(receivedSnapshot, targetPath, false)
 		}
 		if err != nil {
 			shared.LogErrorf("Problem with btrfs snapshot: %s.", err)
 			return err
 		}
 
-		err = btrfsSubVolumesDelete(btrfsPath)
+		defer os.RemoveAll(btrfsPath)
+
+		err = btrfsSubVolumesDelete(receivedSnapshot)
 		if err != nil {
-			shared.LogErrorf("Problem with btrfs delete: %s.", err)
+			shared.LogErrorf("Failed to delete BTRFS subvolume \"%s\": %s.", btrfsPath, err)
 			return err
 		}
-
-		os.RemoveAll(btrfsPath)
 
 		return nil
 	}
 
+	containerName := container.Name()
 	_, containerPool := container.Storage().GetContainerPoolInfo()
-	containersPath := getSnapshotMountPoint(containerPool, container.Name())
-	if len(snapshots) > 0 {
+	containersPath := getSnapshotMountPoint(containerPool, containerName)
+	if !containerOnly && len(snapshots) > 0 {
 		err := os.MkdirAll(containersPath, 0700)
 		if err != nil {
 			return err
 		}
 
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", containerPool, "snapshots", container.Name())
-		snapshotMntPointSymlink := shared.VarPath("snapshots", container.Name())
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", containerPool, "snapshots", containerName)
+		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
@@ -1938,41 +2003,51 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		return fmt.Errorf("Detected that the container's root device is missing the pool property during BTRFS migration.")
 	}
 
-	for _, snap := range snapshots {
-		args := snapshotProtobufToContainerArgs(container.Name(), snap)
+	if !containerOnly {
+		for _, snap := range snapshots {
+			args := snapshotProtobufToContainerArgs(containerName, snap)
 
-		// Ensure that snapshot and parent container have the
-		// same storage pool in their local root disk device.
-		// If the root disk device for the snapshot comes from a
-		// profile on the new instance as well we don't need to
-		// do anything.
-		if args.Devices != nil {
-			snapLocalRootDiskDeviceKey, _, _ := containerGetRootDiskDevice(args.Devices)
-			if snapLocalRootDiskDeviceKey != "" {
-				args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+			// Ensure that snapshot and parent container have the
+			// same storage pool in their local root disk device.
+			// If the root disk device for the snapshot comes from a
+			// profile on the new instance as well we don't need to
+			// do anything.
+			if args.Devices != nil {
+				snapLocalRootDiskDeviceKey, _, _ := containerGetRootDiskDevice(args.Devices)
+				if snapLocalRootDiskDeviceKey != "" {
+					args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+				}
 			}
-		}
 
-		containerMntPoint := getSnapshotMountPoint(containerPool, args.Name)
-		_, err := containerCreateEmptySnapshot(container.Daemon(), args)
-		if err != nil {
-			return err
-		}
-		tmpContainerMntPoint, err := ioutil.TempDir(containersPath, container.Name())
-		if err != nil {
-			return err
-		}
-		defer os.RemoveAll(tmpContainerMntPoint)
+			snapshotMntPoint := getSnapshotMountPoint(containerPool, args.Name)
+			_, err := containerCreateEmptySnapshot(container.Daemon(), args)
+			if err != nil {
+				return err
+			}
 
-		err = os.Chmod(tmpContainerMntPoint, 0700)
-		if err != nil {
-			return err
-		}
+			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", containerName)
+			snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
+			err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+			if err != nil {
+				return err
+			}
 
-		wrapper := StorageProgressWriter(op, "fs_progress", *snap.Name)
-		err = btrfsRecv(*snap.Name, tmpContainerMntPoint, containerMntPoint, true, wrapper)
-		if err != nil {
-			return err
+			tmpSnapshotMntPoint, err := ioutil.TempDir(containersPath, containerName)
+			if err != nil {
+				return err
+			}
+			defer os.RemoveAll(tmpSnapshotMntPoint)
+
+			err = os.Chmod(tmpSnapshotMntPoint, 0700)
+			if err != nil {
+				return err
+			}
+
+			wrapper := StorageProgressWriter(op, "fs_progress", *snap.Name)
+			err = btrfsRecv(*(snap.Name), tmpSnapshotMntPoint, snapshotMntPoint, true, wrapper)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1983,8 +2058,8 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 	}
 
 	/* finally, do the real container */
-	wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
-	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, container.Name())
+	wrapper := StorageProgressWriter(op, "fs_progress", containerName)
+	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, containerName)
 	if err != nil {
 		return err
 	}
@@ -1995,7 +2070,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		return err
 	}
 
-	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
+	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
 	err = btrfsRecv("", tmpContainerMntPoint, containerMntPoint, false, wrapper)
 	if err != nil {
 		return err

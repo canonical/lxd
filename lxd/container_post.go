@@ -28,12 +28,14 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
 
 	reqRaw := shared.Jmap{}
-	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
+	err = json.NewDecoder(rdr1).Decode(&reqRaw)
+	if err != nil {
 		return BadRequest(err)
 	}
 
 	req := api.ContainerPost{}
-	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
+	err = json.NewDecoder(rdr2).Decode(&req)
+	if err != nil {
 		return BadRequest(err)
 	}
 
@@ -45,7 +47,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Migration {
-		ws, err := NewMigrationSource(c, stateful)
+		ws, err := NewMigrationSource(c, stateful, req.ContainerOnly)
 		if err != nil {
 			return InternalError(err)
 		}
