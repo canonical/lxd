@@ -73,6 +73,58 @@ test_migration() {
   lxc_remote list l2: | grep RUNNING | grep nonlive
   lxc_remote delete l2:nonlive --force
 
+  # Test container only copies
+  lxc init testimage cccp
+  lxc snapshot cccp
+  lxc snapshot cccp
+
+  # Local container only copy.
+  lxc copy cccp udssr --container-only
+  [ "$(lxc info udssr | grep -c snap)" -eq 0 ]
+  lxc delete udssr
+
+  # Local container with snapshots copy.
+  lxc copy cccp udssr
+  [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
+  lxc delete udssr
+
+  # Remote container only copy.
+  lxc_remote copy l1:cccp l2:udssr --container-only
+  [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
+  lxc_remote delete l2:udssr
+
+  # Remote container with snapshots copy.
+  lxc_remote copy l1:cccp l2:udssr
+  [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 2 ]
+  lxc_remote delete l2:udssr
+
+  # Remote container only move.
+  lxc_remote move l1:cccp l2:udssr --container-only
+  ! lxc_remote info l1:cccp
+  [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
+  lxc_remote delete l2:udssr
+
+  lxc_remote init testimage l1:cccp
+  lxc_remote snapshot l1:cccp
+  lxc_remote snapshot l1:cccp
+
+  # Remote container with snapshots move.
+  lxc_remote move l1:cccp l2:udssr
+  ! lxc_remote info l1:cccp
+  [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 2 ]
+  lxc_remote delete l2:udssr
+
+  # Test container only copies
+  lxc init testimage cccp
+  lxc snapshot cccp
+  lxc snapshot cccp
+
+  # Local container with snapshots move.
+  lxc move cccp udssr
+  ! lxc info cccp
+  [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
+  lxc delete udssr
+
   if ! which criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return

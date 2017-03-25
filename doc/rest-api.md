@@ -544,6 +544,7 @@ Input (using a remote container, sent over the migration websocket):
                    "operation": "https://10.0.2.3:8443/1.0/operations/<UUID>",          # Full URL to the remote operation (pull mode only)
                    "certificate": "PEM certificate",                                    # Optional PEM certificate. If not mentioned, system CA is used.
                    "base-image": "<fingerprint>",                                       # Optional, the base image the container was created from
+                   "container_only": "true",                                            # Whether to migrate only the container without snapshots. Can be "true" or "false".
                    "secrets": {"control": "my-secret-string",                           # Secrets to use when talking to the migration source
                                "criu":    "my-other-secret",
                                "fs":      "my third secret"},
@@ -563,6 +564,7 @@ Input (using a local container):
             },
         },
         "source": {"type": "copy",                                                      # Can be: "image", "migration", "copy" or "none"
+                   "container_only": "true",                                            # Whether to copy only the container without snapshots. Can be "true" or "false".
                    "source": "my-old-container"}                                        # Name of the source container
     }
 
@@ -584,6 +586,7 @@ Input (using a remote container, in push mode sent over the migration websocket 
                    "mode": "push",                                                      # "pull" and "push" are supported
                    "base-image": "<fingerprint>",                                       # Optional, the base image the container was created from
                    "live": true                                                         # Whether migration is performed live
+                   "container_only": "true",                                            # Whether to migrate only the container without snapshots. Can be "true" or "false".
     }
 
 ## /1.0/containers/\<name\>

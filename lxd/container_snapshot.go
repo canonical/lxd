@@ -204,7 +204,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 
 	migration, err := raw.GetBool("migration")
 	if err == nil && migration {
-		ws, err := NewMigrationSource(sc, false)
+		ws, err := NewMigrationSource(sc, false, true)
 		if err != nil {
 			return SmartError(err)
 		}

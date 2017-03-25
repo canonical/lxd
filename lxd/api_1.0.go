@@ -98,6 +98,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"network_vlan",
 			"image_create_aliases",
 			"container_stateless_copy",
+			"container_only_migration",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

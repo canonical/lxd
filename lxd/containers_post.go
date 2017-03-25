@@ -356,10 +356,11 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		Dialer: websocket.Dialer{
 			TLSClientConfig: config,
 			NetDial:         shared.RFC3493Dialer},
-		Container: c,
-		Secrets:   req.Source.Websockets,
-		Push:      push,
-		Live:      req.Source.Live,
+		Container:     c,
+		Secrets:       req.Source.Websockets,
+		Push:          push,
+		Live:          req.Source.Live,
+		ContainerOnly: req.Source.ContainerOnly,
 	}
 
 	sink, err := NewMigrationSink(&migrationArgs)
@@ -470,11 +471,10 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	run := func(op *operation) error {
-		_, err := containerCreateAsCopy(d, args, source)
+		_, err := containerCreateAsCopy(d, args, source, req.Source.ContainerOnly)
 		if err != nil {
 			return err
 		}
-
 		return nil
 	}
 

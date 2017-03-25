@@ -222,7 +222,7 @@ type storage interface {
 	ContainerCreateFromImage(container container, imageFingerprint string) error
 	ContainerCanRestore(container container, sourceContainer container) error
 	ContainerDelete(container container) error
-	ContainerCopy(container container, sourceContainer container) error
+	ContainerCopy(target container, source container, containerOnly bool) error
 	ContainerMount(name string, path string) (bool, error)
 	ContainerUmount(name string, path string) (bool, error)
 	ContainerRename(container container, newName string) error
@@ -270,8 +270,8 @@ type storage interface {
 	// We leave sending containers which are snapshots of other containers
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
-	MigrationSource(container container) (MigrationStorageSourceDriver, error)
-	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation) error
+	MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error)
+	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error
 }
 
 func storageCoreInit(driver string) (storage, error) {

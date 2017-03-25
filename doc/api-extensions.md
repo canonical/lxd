@@ -233,3 +233,7 @@ be set at image creation/import time.
 ## container\_stateless\_copy
 This introduces a new "live" attribute in POST /1.0/containers/NAME.
 Setting it to false tells LXD not to attempt running state transfer.
+
+## container\_only\_migration
+Introduces a new boolean "container_only" attribute. When set to true only the
+container will be copied or moved.
