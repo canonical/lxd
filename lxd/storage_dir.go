@@ -36,10 +36,15 @@ func (s *storageDir) ContainerCreate(container container) error {
 		return fmt.Errorf("Error creating containers directory")
 	}
 
+	var mode os.FileMode
 	if container.IsPrivileged() {
-		if err := os.Chmod(cPath, 0700); err != nil {
-			return err
-		}
+		mode = 0700
+	} else {
+		mode = 0755
+	}
+
+	if err := os.Chmod(cPath, mode); err != nil {
+		return err
 	}
 
 	return container.TemplateApply("create")
@@ -53,10 +58,15 @@ func (s *storageDir) ContainerCreateFromImage(
 		return fmt.Errorf("Error creating rootfs directory")
 	}
 
+	var mode os.FileMode
 	if container.IsPrivileged() {
-		if err := os.Chmod(container.Path(), 0700); err != nil {
-			return err
-		}
+		mode = 0700
+	} else {
+		mode = 0755
+	}
+
+	if err := os.Chmod(container.Path(), mode); err != nil {
+		return err
 	}
 
 	imagePath := shared.VarPath("images", imageFingerprint)
