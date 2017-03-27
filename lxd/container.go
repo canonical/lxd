@@ -208,7 +208,7 @@ func containerValidConfig(d *Daemon, config map[string]string, profile bool, exp
 
 	_, rawSeccomp := config["raw.seccomp"]
 	_, whitelist := config["security.syscalls.whitelist"]
-	_, blacklist := config["securtiy.syscalls.blacklist"]
+	_, blacklist := config["security.syscalls.blacklist"]
 	blacklistDefault := shared.IsTrue(config["security.syscalls.blacklist_default"])
 	blacklistCompat := shared.IsTrue(config["security.syscalls.blacklist_compat"])
 
