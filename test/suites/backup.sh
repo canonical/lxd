@@ -19,7 +19,7 @@ test_container_import() {
     lxc snapshot ctImport
     lxc start ctImport
     shutdown_lxd "${LXD_IMPORT_DIR}"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='ctImport'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
     respawn_lxd "${LXD_IMPORT_DIR}"
     ! lxd import ctImport
     lxd import ctImport --force
@@ -30,7 +30,7 @@ test_container_import() {
     lxc snapshot ctImport
     lxc start ctImport
     shutdown_lxd "${LXD_IMPORT_DIR}"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='ctImport/snap0'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
     respawn_lxd "${LXD_IMPORT_DIR}"
     ! lxd import ctImport
     lxd import ctImport --force
@@ -41,9 +41,9 @@ test_container_import() {
     lxc snapshot ctImport
     lxc start ctImport
     shutdown_lxd "${LXD_IMPORT_DIR}"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='ctImport'"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='ctImport/snap0'"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM storage_volumes WHERE name='ctImport'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
     respawn_lxd "${LXD_IMPORT_DIR}"
     ! lxd import ctImport
     lxd import ctImport --force
@@ -54,10 +54,10 @@ test_container_import() {
     lxc snapshot ctImport
     lxc start ctImport
     shutdown_lxd "${LXD_IMPORT_DIR}"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='ctImport'"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM containers WHERE name='ctImport/snap0'"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM storage_volumes WHERE name='ctImport'"
-    sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM storage_volumes WHERE name='ctImport/snap0'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport/snap0'"
     respawn_lxd "${LXD_IMPORT_DIR}"
     lxd import ctImport
     lxd import ctImport --force
@@ -71,7 +71,7 @@ test_container_import() {
       lxc init testimage ctImport
       lxc snapshot ctImport
       shutdown_lxd "${LXD_IMPORT_DIR}"
-      sqlite3 "${LXD_DIR}/lxd.db" "DELETE FROM storage_volumes WHERE name='ctImport/snap0'"
+      sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport/snap0'"
       respawn_lxd "${LXD_IMPORT_DIR}"
       ! lxd import ctImport
       lxd import ctImport --force
