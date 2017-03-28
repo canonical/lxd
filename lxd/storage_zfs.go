@@ -723,7 +723,7 @@ func (s *storageZfs) ContainerDelete(container container) error {
 	return nil
 }
 
-func (s *storageZfs) copyWithoutSnapshots(target container, source container) error {
+func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source container) error {
 	sourceContainerName := source.Name()
 	sourceContainerPath := source.Path()
 
@@ -823,6 +823,93 @@ func (s *storageZfs) copyWithoutSnapshots(target container, source container) er
 	return nil
 }
 
+func (s *storageZfs) copyWithoutSnapshotFull(target container, source container) error {
+	shared.LogDebugf("Creating full ZFS copy \"%s\" -> \"%s\".", source.Name(), target.Name())
+
+	sourceIsSnapshot := source.IsSnapshot()
+	poolName := s.getOnDiskPoolName()
+
+	sourceName := source.Name()
+	sourceDataset := ""
+	snapshotSuffix := ""
+
+	targetName := target.Name()
+	targetDataset := fmt.Sprintf("%s/containers/%s", poolName, targetName)
+	targetSnapshotDataset := targetDataset
+
+	if sourceIsSnapshot {
+		sourceFields := strings.SplitN(source.Name(), shared.SnapshotDelimiter, 2)
+		snapshotSuffix = fmt.Sprintf("snapshot-%s", sourceFields[1])
+		sourceDataset = fmt.Sprintf("%s/containers/%s@%s", poolName, sourceFields[0], snapshotSuffix)
+		targetSnapshotDataset = fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, targetName, sourceFields[1])
+	} else {
+		snapshotSuffix = uuid.NewRandom().String()
+		sourceDataset = fmt.Sprintf("%s/containers/%s@%s", poolName, sourceName, snapshotSuffix)
+		targetSnapshotDataset = fmt.Sprintf("%s/containers/%s@%s", poolName, targetName, snapshotSuffix)
+
+		fs := fmt.Sprintf("containers/%s", sourceName)
+		err := s.zfsPoolVolumeSnapshotCreate(fs, snapshotSuffix)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			err := s.zfsPoolVolumeSnapshotDestroy(fs, snapshotSuffix)
+			if err != nil {
+				shared.LogWarnf("Failed to delete temporary ZFS snapshot \"%s\". Manual cleanup needed.", sourceDataset)
+			}
+		}()
+	}
+
+	zfsSendCmd := exec.Command("zfs", "send", sourceDataset)
+
+	zfsRecvCmd := exec.Command("zfs", "receive", targetDataset)
+
+	zfsRecvCmd.Stdin, _ = zfsSendCmd.StdoutPipe()
+	zfsRecvCmd.Stdout = os.Stdout
+	zfsRecvCmd.Stderr = os.Stderr
+
+	err := zfsRecvCmd.Start()
+	if err != nil {
+		return err
+	}
+
+	err = zfsSendCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	err = zfsRecvCmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	msg, err := shared.RunCommand("zfs", "rollback", "-r", "-R", targetSnapshotDataset)
+	if err != nil {
+		shared.LogErrorf("Failed to rollback ZFS dataset: %s.", msg)
+		return err
+	}
+
+	targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetName)
+	targetfs := fmt.Sprintf("containers/%s", targetName)
+	err = s.zfsPoolVolumeSet(targetfs, "mountpoint", targetContainerMountPoint)
+	if err != nil {
+		return err
+	}
+
+	err = s.zfsPoolVolumeSnapshotDestroy(targetfs, snapshotSuffix)
+	if err != nil {
+		return err
+	}
+
+	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	shared.LogDebugf("Created full ZFS copy \"%s\" -> \"%s\".", source.Name(), target.Name())
+	return nil
+}
+
 func (s *storageZfs) copyWithSnapshots(target container, source container, parentSnapshot string) error {
 	sourceName := source.Name()
 	fields := strings.SplitN(target.Name(), shared.SnapshotDelimiter, 2)
@@ -893,7 +980,11 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 	}
 
 	if containerOnly || len(snapshots) == 0 {
-		err = s.copyWithoutSnapshots(target, source)
+		if s.pool.Config["zfs.clone_copy"] != "" && !shared.IsTrue(s.pool.Config["zfs.clone_copy"]) {
+			err = s.copyWithoutSnapshotFull(target, source)
+		} else {
+			err = s.copyWithoutSnapshotsSparse(target, source)
+		}
 	} else {
 		targetContainerName := target.Name()
 		targetContainerPath := target.Path()
