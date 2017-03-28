@@ -399,6 +399,7 @@ volume.size                     | string    | appropriate driver                
 volume.zfs.remove\_snapshots    | bool      | zfs driver                        | false             | Remove snapshots as needed
 volume.zfs.use\_refquota        | bool      | zfs driver                        | false             | Use refquota instead of quota for space.
 zfs.pool\_name                  | string    | zfs driver                        | name of the pool  | Name of the zpool
+zfs.clone\_copy                 | bool      | zfs driver                        | true              | Whether copying a container will be done using dependent snapshots.
 
 Storage pool configuration keys can be set using the lxc tool with:
 
