@@ -283,23 +283,19 @@ func (op *operation) WaitFinal(timeout int) (bool, error) {
 
 	// Wait indefinitely
 	if timeout == -1 {
-		for {
-			<-op.chanDone
-			return true, nil
-		}
+		<-op.chanDone
+		return true, nil
 	}
 
 	// Wait until timeout
 	if timeout > 0 {
 		timer := time.NewTimer(time.Duration(timeout) * time.Second)
-		for {
-			select {
-			case <-op.chanDone:
-				return false, nil
+		select {
+		case <-op.chanDone:
+			return false, nil
 
-			case <-timer.C:
-				return false, nil
-			}
+		case <-timer.C:
+			return false, nil
 		}
 	}
 
