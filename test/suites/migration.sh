@@ -125,6 +125,27 @@ test_migration() {
   [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
   lxc delete udssr
 
+  if [ "${LXD_BACKEND}" = "zfs" ]; then
+    # Test container only copies when zfs.clone_copy is set to false.
+    lxc storage set "lxdtest-$(basename "${LXD_DIR}")" zfs.clone_copy false
+    lxc init testimage cccp
+    lxc snapshot cccp
+    lxc snapshot cccp
+
+    # Test container only copies when zfs.clone_copy is set to false.
+    lxc copy cccp udssr --container-only
+    [ "$(lxc info udssr | grep -c snap)" -eq 0 ]
+    lxc delete udssr
+
+    # Test container with snapshots copy when zfs.clone_copy is set to false.
+    lxc copy cccp udssr
+    [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
+    lxc delete cccp
+    lxc delete udssr
+
+    lxc storage unset "lxdtest-$(basename "${LXD_DIR}")" zfs.clone_copy
+  fi
+
   if ! which criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return

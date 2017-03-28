@@ -36,6 +36,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"lvm.thinpool_name":           shared.IsAny,
 	"lvm.vg_name":                 shared.IsAny,
 	"zfs.pool_name":               shared.IsAny,
+	"zfs.clone_copy":              shared.IsBool,
 }
 
 func storagePoolValidateConfig(name string, driver string, config map[string]string) error {
@@ -74,6 +75,10 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 
 			if config["zfs.pool_name"] != "" {
 				return fmt.Errorf("The key zfs.pool_name cannot be used with non zfs storage pools.")
+			}
+
+			if config["zfs.clone_copy"] != "" {
+				return fmt.Errorf("The key zfs.clone_copy cannot be used with non zfs storage pools.")
 			}
 		}
 

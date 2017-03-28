@@ -237,3 +237,13 @@ Setting it to false tells LXD not to attempt running state transfer.
 ## container\_only\_migration
 Introduces a new boolean "container_only" attribute. When set to true only the
 container will be copied or moved.
+
+## storage\_zfs\_clone_copy
+Introduces a new boolean "storage_zfs_clone_copy" property for ZFS storage
+pools. When set to false copying a container will be done through zfs send and
+receive. This will make the target container independent of its source
+container thus avoiding the need to keep dependent snapshots in the ZFS pool
+around. However, this also entails less efficient storage usage for the
+affected pool.
+The default value for this property is true, i.e. space-efficient snapshots
+will be used unless explicitly set to "false".
