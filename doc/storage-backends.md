@@ -1,7 +1,6 @@
 # Storage Backends and supported functions
 ## Feature comparison
-
-LXD supports using plain dirs, Btrfs, LVM, and ZFS for storage of images and containers.  
+LXD supports using ZFS, btrfs, LVM or just plain directories for storage of images and containers.  
 Where possible, LXD tries to use the advanced features of each system to optimize operations.
 
 Feature                                     | Directory | Btrfs | LVM   | ZFS
@@ -14,22 +13,59 @@ Optimized container transfer                | no        | yes   | no    | yes
 Copy on write                               | no        | yes   | yes   | yes
 Block based                                 | no        | no    | yes   | no
 Instant cloning                             | no        | yes   | yes   | yes
-Nesting support                             | yes       | yes   | no    | no
+Storage driver usable inside a container    | yes       | yes   | no    | no
 Restore from older snapshots (not latest)   | yes       | yes   | yes   | no
 Storage quotas                              | no        | yes   | no    | yes
 
-With the implementation of the new storage api it is possible to use multiple
-storage drivers (e.g. BTRFS and ZFS) at the same time.
+## Recommended setup
+The two best options for use with LXD are ZFS and btrfs.  
+They have about similar functionalities but ZFS is more reliable if available on your particular platform.
 
-## Mixed storage
-When switching storage backend after some containers or images already exist, LXD will create any new container  
-using the new backend and converting older images to the new backend as needed.
+Whenever possible, you should dedicate a full disk or partition to your LXD storage pool.  
+While LXD will let you create loop based storage, this isn't a recommended for production use.
 
-## Non-optimized container transfer
-When the filesystem on the source and target hosts differs or when there is no faster way,  
-rsync is used to transfer the container content across.
+Similarly, the directory backend is to be considered as a last resort option.  
+It does support all main LXD features, but is terribly slow and inefficient as it can't perform  
+instant copies or snapshots and so needs to copy the entirety of the container's filesystem every time.
 
-## Notes
+## Optimized image storage
+All backends but the directory backend have some kind of optimized image storage format.  
+This is used by LXD to make container creation near instantaneous by simply cloning a pre-made  
+image volume rather than unpack the image tarball from scratch.
+
+As it would be wasteful to prepare such a volume on a storage pool that may never be used with that image,  
+the volume is generated on demand, causing the first container to take longer to create than subsequent ones.
+
+## Optimized container transfer
+ZFS and btrfs both have an internal send/receive mechanism which allows for optimized volume transfer.  
+LXD uses those features to transfer containers and snapshots between servers.
+
+When such capabilities aren't available, either because the storage driver doesn't support it  
+or because the storage backend of the source and target servers differ,  
+LXD will fallback to using rsync to transfer the individual files instead.
+
+## Default storage pool
+There is no concept of a default storage pool in LXD.  
+Instead, the pool to use for the container's root is treated as just another "disk" device in LXD.
+
+The device entry looks like:
+```
+  root:
+    type: disk
+    path: /
+    pool: default
+```
+
+And it can be directly set on a container ("-s" option to "lxc launch" and "lxc init")  
+or it can be set through LXD profiles.
+
+That latter option is what the default LXD setup (through "lxd init") will do for you.  
+The same can be done manually against any profile using (for the "default" profile):
+```
+lxc profile device add default root disk path=/ pool=default
+```
+
+## Notes and examples
 ### Directory
 
  - While this backend is fully functional, it's also much slower than
@@ -38,13 +74,13 @@ rsync is used to transfer the container content across.
 
 #### The following commands can be used to create directory storage pools
 
-- Create a new directory pool called "pool1".
+ - Create a new directory pool called "pool1".
 
 ```
 lxc storage create pool1 dir
 ```
 
-* Use an existing directory for "pool2".
+ - Use an existing directory for "pool2".
 
 ```
 lxc storage create pool2 dir source=/data/lxd
@@ -53,23 +89,23 @@ lxc storage create pool2 dir source=/data/lxd
 ### Btrfs
 
  - Uses a subvolume per container, image and snapshot, creating btrfs snapshots when creating a new object.
- - When using for nesting, the host btrfs filesystem must be mounted with the "user\_subvol\_rm\_allowed" mount option.
+ - btrfs can be used as a storage backend inside a container (nesting), so long as the parent container is itself on btrfs.
 
 #### The following commands can be used to create BTRFS storage pools
 
-- Create loop-backed pool named "pool1".
+ - Create loop-backed pool named "pool1".
 
 ```
 lxc storage create pool1 btrfs
 ```
 
-- Create a btrfs subvolume named "pool1" on the btrfs filesystem "/some/path" and use as pool.
+ - Create a btrfs subvolume named "pool1" on the btrfs filesystem "/some/path" and use as pool.
 
 ```
 lxc storage create pool1 btrfs source=/some/path
 ```
 
-- Create a new pool called "pool1" on "/dev/sdX".
+ - Create a new pool called "pool1" on "/dev/sdX".
 
 ```
 lxc storage create pool1 btrfs source=/dev/sdX
@@ -82,25 +118,25 @@ lxc storage create pool1 btrfs source=/dev/sdX
 
 #### The following commands can be used to create LVM storage pools
 
-- Create a loop-backed pool named "pool1". The LVM Volume Group will also be called "pool1".
+ - Create a loop-backed pool named "pool1". The LVM Volume Group will also be called "pool1".
 
 ```
 lxc storage create pool1 lvm
 ```
 
-- Use the existing LVM Volume Group called "my-pool"
+ - Use the existing LVM Volume Group called "my-pool"
 
 ```
 lxc storage create pool1 lvm source=my-pool
 ```
 
-- Create a new pool named "pool1" on "/dev/sdX". The LVM Volume Group will also be called "pool1".
+ - Create a new pool named "pool1" on "/dev/sdX". The LVM Volume Group will also be called "pool1".
 
 ```
 lxc storage create pool1 lvm source=/dev/sdX
 ```
 
-- Create a new pool called "pool1" using "/dev/sdX" with the LVM Volume Group called "my-pool".
+ - Create a new pool called "pool1" using "/dev/sdX" with the LVM Volume Group called "my-pool".
 
 ```
 lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
@@ -134,37 +170,37 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
 
 #### The following commands can be used to create ZFS storage pools
 
-- Create a loop-backed pool named "pool1". The ZFS Zpool will also be called "pool1".
+ - Create a loop-backed pool named "pool1". The ZFS Zpool will also be called "pool1".
 
 ```
 lxc storage create pool1 zfs
 ```
 
-- Create a loop-backed pool named "pool1" with the ZFS Zpool called "my-tank".
+ - Create a loop-backed pool named "pool1" with the ZFS Zpool called "my-tank".
 
 ```
 lxc storage create pool1 zfs zfs.pool\_name=my-tank
 ```
 
-- Use the existing ZFS Zpool "my-tank".
+ - Use the existing ZFS Zpool "my-tank".
 
 ```
 lxc storage create pool1 zfs source=my-tank
 ```
 
-- Use the existing ZFS dataset "my-tank/slice".
+ - Use the existing ZFS dataset "my-tank/slice".
 
 ```
 lxc storage create pool1 zfs source=my-tank/slice
 ```
 
-- Create a new pool called "pool1" on "/dev/sdX". The ZFS Zpool will also be called "pool1".
+ - Create a new pool called "pool1" on "/dev/sdX". The ZFS Zpool will also be called "pool1".
 
 ```
 lxc storage create pool1 zfs source=/dev/sdX
 ```
 
-- Create a new pool on "/dev/sdX" with the ZFS Zpool called "my-tank".
+ - Create a new pool on "/dev/sdX" with the ZFS Zpool called "my-tank".
 
 ```
 lxc storage create pool1 zfs source=/dev/sdX zfs.pool_name=my-tank
