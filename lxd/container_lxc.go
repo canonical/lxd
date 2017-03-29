@@ -1184,13 +1184,21 @@ func (c *containerLXC) initLXC() error {
 		m := c.expandedDevices[k]
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			// Prepare all the paths
-			srcPath := m["path"]
-			tgtPath := strings.TrimPrefix(srcPath, "/")
-			devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
+			srcPath, exist := m["source"]
+			if !exist {
+				srcPath = m["path"]
+			}
+			relativeSrcPath := strings.TrimPrefix(srcPath, "/")
+			devName := fmt.Sprintf("unix.%s", strings.Replace(relativeSrcPath, "/", "-", -1))
 			devPath := filepath.Join(c.DevicesPath(), devName)
+			tgtPath, exist := m["path"]
+			if !exist {
+				tgtPath = m["source"]
+			}
+			relativeTgtPath := strings.TrimPrefix(tgtPath, "/")
 
 			// Set the bind-mount entry
-			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath))
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, relativeTgtPath))
 			if err != nil {
 				return err
 			}
@@ -1515,8 +1523,12 @@ func (c *containerLXC) startCommon() (string, error) {
 				return "", fmt.Errorf("Missing parent '%s' for nic '%s'", m["parent"], name)
 			}
 		case "unix-char", "unix-block":
-			if m["path"] != "" && m["major"] == "" && m["minor"] == "" && !shared.PathExists(m["path"]) {
-				return "", fmt.Errorf("Missing source '%s' for device '%s'", m["path"], name)
+			srcPath, exist := m["source"]
+			if !exist {
+				srcPath = m["path"]
+			}
+			if m["path"] != "" && m["major"] == "" && m["minor"] == "" && !shared.PathExists(srcPath) {
+				return "", fmt.Errorf("Missing source '%s' for device '%s'", srcPath, name)
 			}
 		}
 	}
@@ -5243,9 +5255,12 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 	var major, minor int
 
 	// Our device paths
-	srcPath := m["path"]
-	tgtPath := strings.TrimPrefix(srcPath, "/")
-	devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
+	srcPath, exist := m["source"]
+	if !exist {
+		srcPath = m["path"]
+	}
+	relativeSrcPath := strings.TrimPrefix(srcPath, "/")
+	devName := fmt.Sprintf("unix.%s", strings.Replace(relativeSrcPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	// Extra checks for nesting
@@ -5371,7 +5386,13 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 		}
 	}
 
-	return []string{devPath, tgtPath}, nil
+	// generate relative target path
+	tgtPath, exist := m["path"]
+	if !exist {
+		tgtPath = m["source"]
+	}
+	relativeTgtPath := strings.TrimPrefix(tgtPath, "/")
+	return []string{devPath, relativeTgtPath}, nil
 }
 
 func (c *containerLXC) insertUnixDevice(m types.Device) error {
@@ -5457,9 +5478,12 @@ func (c *containerLXC) removeUnixDevice(m types.Device) error {
 	}
 
 	// Figure out the paths
-	srcPath := m["path"]
-	tgtPath := strings.TrimPrefix(srcPath, "/")
-	devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
+	srcPath, exist := m["source"]
+	if !exist {
+		srcPath = m["path"]
+	}
+	relativeSrcPath := strings.TrimPrefix(srcPath, "/")
+	devName := fmt.Sprintf("unix.%s", strings.Replace(relativeSrcPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	// Check if we've been passed major and minor numbers already.
@@ -5504,13 +5528,18 @@ func (c *containerLXC) removeUnixDevice(m types.Device) error {
 	}
 
 	// Remove the bind-mount from the container
-	if c.FileExists(tgtPath) == nil {
-		err = c.removeMount(m["path"])
+	tgtPath, exist := m["path"]
+	if !exist {
+		tgtPath = m["source"]
+	}
+	relativeTgtPath := strings.TrimPrefix(tgtPath, "/")
+	if c.FileExists(relativeTgtPath) == nil {
+		err = c.removeMount(tgtPath)
 		if err != nil {
 			return fmt.Errorf("Error unmounting the device: %s", err)
 		}
 
-		err = c.FileRemove(tgtPath)
+		err = c.FileRemove(relativeTgtPath)
 		if err != nil {
 			return fmt.Errorf("Error removing the device: %s", err)
 		}

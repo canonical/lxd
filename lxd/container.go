@@ -80,6 +80,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "mode":
 			return true
+		case "source":
+			return true
 		case "path":
 			return true
 		case "uid":
@@ -331,16 +333,20 @@ func containerValidDevices(d *Daemon, devices types.Devices, profile bool, expan
 			}
 
 		} else if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-			if m["path"] == "" {
-				return fmt.Errorf("Unix device entry is missing the required \"path\" property.")
+			if m["source"] == "" && m["path"] == "" {
+				return fmt.Errorf("Unix device entry is missing the required \"source\" or \"path\" property.")
 			}
 
 			if m["major"] == "" || m["minor"] == "" {
-				if !shared.PathExists(m["path"]) {
+				srcPath, exist := m["source"]
+				if !exist {
+					srcPath = m["path"]
+				}
+				if !shared.PathExists(srcPath) {
 					return fmt.Errorf("The device path doesn't exist on the host and major/minor wasn't specified.")
 				}
 
-				dType, _, _, err := deviceGetAttributes(m["path"])
+				dType, _, _, err := deviceGetAttributes(srcPath)
 				if err != nil {
 					return err
 				}
