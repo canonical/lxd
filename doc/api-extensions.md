@@ -235,11 +235,11 @@ This introduces a new "live" attribute in POST /1.0/containers/NAME.
 Setting it to false tells LXD not to attempt running state transfer.
 
 ## container\_only\_migration
-Introduces a new boolean "container_only" attribute. When set to true only the
+Introduces a new boolean "container\_only" attribute. When set to true only the
 container will be copied or moved.
 
-## storage\_zfs\_clone_copy
-Introduces a new boolean "storage_zfs_clone_copy" property for ZFS storage
+## storage\_zfs\_clone\_copy
+Introduces a new boolean "storage\_zfs\_clone\_copy" property for ZFS storage
 pools. When set to false copying a container will be done through zfs send and
 receive. This will make the target container independent of its source
 container thus avoiding the need to keep dependent snapshots in the ZFS pool
