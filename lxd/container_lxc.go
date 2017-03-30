@@ -2245,12 +2245,14 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 
 	err = op.Wait()
 	if err != nil && c.IsRunning() {
+		op.Done(err)
 		shared.LogError("Failed shutting down container", ctxMap)
 		return err
 	}
 
 	shared.LogInfo("Shut down container", ctxMap)
 
+	op.Done(nil)
 	return nil
 }
 
