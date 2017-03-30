@@ -20,8 +20,9 @@ install:
 script:
   - "make client"
   - "go test ./"
-  - "go test ./shared"
+  - "go test ./client"
   - "go test ./lxc"
+  - "go test ./shared"
 
 notifications:
   webhooks: https://linuxcontainers.org/webhook-lxcbot/
