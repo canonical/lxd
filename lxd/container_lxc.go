@@ -218,7 +218,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
-	err = containerValidDevices(c.expandedDevices, false, true)
+	err = containerValidDevices(d, c.expandedDevices, false, true)
 	if err != nil {
 		c.Delete()
 		shared.LogError("Failed creating container", ctxMap)
@@ -3056,7 +3056,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Validate the new devices
-	err = containerValidDevices(args.Devices, false, false)
+	err = containerValidDevices(c.daemon, args.Devices, false, false)
 	if err != nil {
 		return err
 	}
@@ -3213,7 +3213,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Do some validation of the devices diff
-	err = containerValidDevices(c.expandedDevices, false, true)
+	err = containerValidDevices(c.daemon, c.expandedDevices, false, true)
 	if err != nil {
 		return err
 	}
