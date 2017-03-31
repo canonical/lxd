@@ -409,11 +409,11 @@ Storage pool configuration keys can be set using the lxc tool with:
 
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :--       | :--                       | :--                                   | :--
-size                    | string    | appropriate driver        | 0                                     | Mount options for block devices
-block.filesystem        | string    | block based driver (lvm)  | ext4                                  | Path to block device or loop file or filesystem entry
-block.mount\_options    | string    |                           | discard                               | Name of the storage driver (btrfs, dir, lvm, zfs)
-zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | Default volume size
-zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | Filesystem to use for new volumes
+size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
+block.filesystem        | string    | block based driver (lvm)  | same as volume.block.filesystem       | Filesystem of the storage volume
+block.mount\_options    | string    | block based driver (lvm)  | same as volume.block.mount\_options   | Mount options for block devices
+zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | Remove snapshots as needed
+zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | Use refquota instead of quota for space.
 
 Storage volume configuration keys can be set using the lxc tool with:
 
