@@ -14,7 +14,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 		return BadRequest(err)
 	}
 
-	err = containerValidDevices(req.Devices, true, false)
+	err = containerValidDevices(d, req.Devices, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}

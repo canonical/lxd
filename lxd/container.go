@@ -257,7 +257,7 @@ func containerGetRootDiskDevice(devices types.Devices) (string, types.Device, er
 	return "", types.Device{}, fmt.Errorf("No root device could be found.")
 }
 
-func containerValidDevices(devices types.Devices, profile bool, expanded bool) error {
+func containerValidDevices(d *Daemon, devices types.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -320,11 +320,13 @@ func containerValidDevices(devices types.Devices, profile bool, expanded bool) e
 			}
 
 			if m["pool"] != "" {
-				if storageValidName(m["pool"]) != nil {
-					return fmt.Errorf("The specified storage pool name is not valid.")
-				}
 				if filepath.IsAbs(m["source"]) {
 					return fmt.Errorf("Storage volumes cannot be specified as absolute paths.")
+				}
+
+				_, err := dbStoragePoolGetID(d.db, m["pool"])
+				if err != nil {
+					return fmt.Errorf("The \"%s\" storage pool doesn't exist.", m["pool"])
 				}
 			}
 
@@ -747,7 +749,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Validate container devices
-	err = containerValidDevices(args.Devices, false, false)
+	err = containerValidDevices(d, args.Devices, false, false)
 	if err != nil {
 		return nil, err
 	}
