@@ -19,8 +19,9 @@ build_script:
 test_script:
 - cmd: |-
     go test -v ./
-    go test -v ./shared
+    go test -v ./client
     go test -v ./lxc
+    go test -v ./shared
 
 after_test:
   # powershell capture command output into environment variable

@@ -338,12 +338,12 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image
 		return nil, fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	hash, err = d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, false, req.AutoUpdate, "")
+	info, err := d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, false, req.AutoUpdate, "")
 	if err != nil {
 		return nil, err
 	}
 
-	id, info, err := dbImageGet(d.db, hash, false, false)
+	id, info, err := dbImageGet(d.db, info.Fingerprint, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -407,12 +407,12 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 	}
 
 	// Import the image
-	hash, err = d.ImageDownload(op, url, "direct", "", "", hash, false, req.AutoUpdate, "")
+	info, err := d.ImageDownload(op, url, "direct", "", "", hash, false, req.AutoUpdate, "")
 	if err != nil {
 		return nil, err
 	}
 
-	id, info, err := dbImageGet(d.db, hash, false, false)
+	id, info, err := dbImageGet(d.db, info.Fingerprint, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -908,14 +908,17 @@ func autoUpdateImages(d *Daemon) {
 		shared.LogDebug("Processing image", log.Ctx{"fp": fp, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
 
 		// Update the image on each pool where it currently exists.
-		var hash string
+		hash := fp
 		for _, poolName := range poolNames {
-			hash, err = d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true, poolName)
+			newInfo, err := d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true, poolName)
+			if err != nil {
+				shared.LogError("Failed to update the image", log.Ctx{"err": err, "fp": fp})
+				continue
+			}
+
+			hash = newInfo.Fingerprint
 			if hash == fp {
 				shared.LogDebug("Already up to date", log.Ctx{"fp": fp})
-				continue
-			} else if err != nil {
-				shared.LogError("Failed to update the image", log.Ctx{"err": err, "fp": fp})
 				continue
 			}
 

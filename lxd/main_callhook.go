@@ -2,15 +2,14 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"time"
 
-	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/client"
 )
 
 func cmdCallHook(args []string) error {
+	// Parse the arguments
 	if len(args) < 4 {
 		return fmt.Errorf("Invalid arguments")
 	}
@@ -20,18 +19,14 @@ func cmdCallHook(args []string) error {
 	state := args[3]
 	target := ""
 
-	err := os.Setenv("LXD_DIR", path)
+	// Connect to LXD
+	c, err := lxd.ConnectLXDUnix(fmt.Sprintf("%s/unix.socket", path), nil)
 	if err != nil {
 		return err
 	}
 
-	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
-	if err != nil {
-		return err
-	}
-
-	url := fmt.Sprintf("%s/internal/containers/%s/on%s", c.BaseURL, id, state)
-
+	// Prepare the request URL
+	url := fmt.Sprintf("/internal/containers/%s/on%s", id, state)
 	if state == "stop" {
 		target = os.Getenv("LXC_TARGET")
 		if target == "" {
@@ -40,20 +35,10 @@ func cmdCallHook(args []string) error {
 		url = fmt.Sprintf("%s?target=%s", url, target)
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return err
-	}
-
+	// Setup the request
 	hook := make(chan error, 1)
 	go func() {
-		raw, err := c.Http.Do(req)
-		if err != nil {
-			hook <- err
-			return
-		}
-
-		_, err = lxd.HoistResponse(raw, api.SyncResponse)
+		_, _, err := c.RawQuery("GET", url, nil, "")
 		if err != nil {
 			hook <- err
 			return
@@ -62,6 +47,7 @@ func cmdCallHook(args []string) error {
 		hook <- nil
 	}()
 
+	// Handle the timeout
 	select {
 	case err := <-hook:
 		if err != nil {
