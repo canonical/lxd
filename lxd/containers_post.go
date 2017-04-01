@@ -92,26 +92,27 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			Profiles:  req.Profiles,
 		}
 
+		var info *api.Image
 		if req.Source.Server != "" {
-			hash, err = d.ImageDownload(
+			info, err = d.ImageDownload(
 				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret,
 				hash, true, daemonConfig["images.auto_update_cached"].GetBool(), "")
 			if err != nil {
 				return err
 			}
+		} else {
+			_, info, err = dbImageGet(d.db, hash, false, false)
+			if err != nil {
+				return err
+			}
 		}
 
-		_, imgInfo, err := dbImageGet(d.db, hash, false, false)
+		args.Architecture, err = osarch.ArchitectureId(info.Architecture)
 		if err != nil {
 			return err
 		}
 
-		args.Architecture, err = osarch.ArchitectureId(imgInfo.Architecture)
-		if err != nil {
-			return err
-		}
-
-		_, err = containerCreateFromImage(d, args, imgInfo.Fingerprint)
+		_, err = containerCreateFromImage(d, args, info.Fingerprint)
 		return err
 	}
 

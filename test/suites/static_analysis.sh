@@ -36,6 +36,8 @@ test_static_analysis() {
 
     ## golint
     if which golint >/dev/null 2>&1; then
+      golint -set_exit_status client/
+      golint -set_exit_status lxc/config/
       golint -set_exit_status shared/api/
     fi
 

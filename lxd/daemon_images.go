@@ -1,11 +1,11 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"mime"
-	"mime/multipart"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,10 +14,10 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/simplestreams"
 	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -28,8 +28,9 @@ type imageStreamCacheEntry struct {
 	Aliases      []api.ImageAliasesEntry `yaml:"aliases"`
 	Certificate  string                  `yaml:"certificate"`
 	Fingerprints []string                `yaml:"fingerprints"`
-	expiry       time.Time
-	ss           *simplestreams.SimpleStreams
+
+	expiry time.Time
+	remote lxd.ImageServer
 }
 
 var imageStreamCache = map[string]*imageStreamCacheEntry{}
@@ -71,55 +72,64 @@ func imageLoadStreamCache(d *Daemon) error {
 	}
 
 	for url, entry := range imageStreamCache {
-		if entry.ss == nil {
-			myhttp, err := d.httpClient(entry.Certificate)
+		if entry.remote == nil {
+			remote, err := lxd.ConnectSimpleStreams(url, &lxd.ConnectionArgs{
+				TLSServerCert: entry.Certificate,
+				UserAgent:     version.UserAgent,
+				Proxy:         d.proxy,
+			})
 			if err != nil {
-				return err
+				continue
 			}
 
-			ss := simplestreams.NewClient(url, *myhttp, version.UserAgent)
-			entry.ss = ss
+			entry.remote = remote
 		}
 	}
 
 	return nil
 }
 
-// ImageDownload checks if we have that Image Fingerprint else
-// downloads the image from a remote server.
-func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool, storagePool string) (string, error) {
+// ImageDownload resolves the image fingerprint and if not in the database, downloads it
+func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool, storagePool string) (*api.Image, error) {
 	var err error
-	var ss *simplestreams.SimpleStreams
 	var ctxMap log.Ctx
 
+	var remote lxd.ImageServer
+	var info *api.Image
+
+	// Default protocol is LXD
 	if protocol == "" {
 		protocol = "lxd"
 	}
 
+	// Default the fingerprint to the alias string we received
 	fp := alias
 
-	// Expand aliases
+	// Attempt to resolve the alias
 	if protocol == "simplestreams" {
 		imageStreamCacheLock.Lock()
 		entry, _ := imageStreamCache[server]
 		if entry == nil || entry.expiry.Before(time.Now()) {
+			// Add a new entry to the cache
 			refresh := func() (*imageStreamCacheEntry, error) {
 				// Setup simplestreams client
-				myhttp, err := d.httpClient(certificate)
+				remote, err = lxd.ConnectSimpleStreams(server, &lxd.ConnectionArgs{
+					TLSServerCert: certificate,
+					UserAgent:     version.UserAgent,
+					Proxy:         d.proxy,
+				})
 				if err != nil {
 					return nil, err
 				}
 
-				ss = simplestreams.NewClient(server, *myhttp, version.UserAgent)
-
 				// Get all aliases
-				aliases, err := ss.ListAliases()
+				aliases, err := remote.GetImageAliases()
 				if err != nil {
 					return nil, err
 				}
 
 				// Get all fingerprints
-				images, err := ss.ListImages()
+				images, err := remote.GetImages()
 				if err != nil {
 					return nil, err
 				}
@@ -130,7 +140,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 				}
 
 				// Generate cache entry
-				entry = &imageStreamCacheEntry{ss: ss, Aliases: aliases, Certificate: certificate, Fingerprints: fingerprints, expiry: time.Now().Add(time.Hour)}
+				entry = &imageStreamCacheEntry{remote: remote, Aliases: aliases, Certificate: certificate, Fingerprints: fingerprints, expiry: time.Now().Add(time.Hour)}
 				imageStreamCache[server] = entry
 				imageSaveStreamCache()
 
@@ -148,90 +158,112 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			} else {
 				// Failed to fetch entry and nothing in cache
 				imageStreamCacheLock.Unlock()
-				return "", err
+				return nil, err
 			}
 		} else {
+			// use the existing entry
 			shared.LogDebug("Using SimpleStreams cache entry", log.Ctx{"server": server, "expiry": entry.expiry})
-			ss = entry.ss
+			remote = entry.remote
 		}
 		imageStreamCacheLock.Unlock()
 
-		// Expand aliases
-		for _, alias := range entry.Aliases {
-			if alias.Name != fp {
+		// Look for a matching alias
+		for _, entry := range entry.Aliases {
+			if entry.Name != fp {
 				continue
 			}
 
-			fp = alias.Target
+			fp = entry.Target
 			break
 		}
 
-		// Expand fingerprint
-		for _, fingerprint := range entry.Fingerprints {
-			if !strings.HasPrefix(fingerprint, fp) {
-				continue
+		// Expand partial fingerprints
+		matches := []string{}
+		for _, entry := range entry.Fingerprints {
+			if strings.HasPrefix(entry, fp) {
+				matches = append(matches, entry)
 			}
+		}
 
-			if fp == alias {
-				alias = fingerprint
-			}
-			fp = fingerprint
-			break
+		if len(matches) == 1 {
+			fp = matches[0]
+		} else if len(matches) > 1 {
+			return nil, fmt.Errorf("Provided partial image fingerprint matches more than one image")
 		}
 	} else if protocol == "lxd" {
-		target, err := remoteGetImageFingerprint(d, server, certificate, fp)
-		if err == nil && target != "" {
-			fp = target
+		// Setup LXD client
+		remote, err = lxd.ConnectPublicLXD(server, &lxd.ConnectionArgs{
+			TLSServerCert: certificate,
+			UserAgent:     version.UserAgent,
+			Proxy:         d.proxy,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		// For public images, handle aliases and initial metadata
+		if secret == "" {
+			// Look for a matching alias
+			entry, _, err := remote.GetImageAlias(fp)
+			if err == nil {
+				fp = entry.Target
+			}
+
+			// Expand partial fingerprints
+			info, _, err = remote.GetImage(fp)
+			if err != nil {
+				return nil, err
+			}
+
+			fp = info.Fingerprint
 		}
 	}
 
-	// Check if the image already exists on any storage pool.
-	_, imgInfo, err := dbImageGet(d.db, fp, false, false)
+	// Check if the image already exists (partial hash match)
+	_, imgInfo, err := dbImageGet(d.db, fp, false, true)
 	if err == nil {
 		shared.LogDebug("Image already exists in the db", log.Ctx{"image": fp})
+		info = imgInfo
 
+		// If not requested in a particular pool, we're done.
 		if storagePool == "" {
-			return fp, nil
+			return info, nil
 		}
 
-		// Get the ID of the storage pool on which a storage volume for
-		// the image needs to exist.
+		// Get the ID of the target storage pool
 		poolID, err := dbStoragePoolGetID(d.db, storagePool)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		// Get the IDs of all storage pools on which a storage volume
-		// for the requested image currently exists.
-		poolIDs, err := dbImageGetPools(d.db, imgInfo.Fingerprint)
+		// Check if the image is already in the pool
+		poolIDs, err := dbImageGetPools(d.db, info.Fingerprint)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		// Check if the image already exists on the current storage
-		// pool.
 		if shared.Int64InSlice(poolID, poolIDs) {
 			shared.LogDebugf("Image already exists on storage pool \"%s\".", storagePool)
-			return fp, nil
+			return info, nil
 		}
 
+		// Import the image in the pool
 		shared.LogDebugf("Image does not exist on storage pool \"%s\".", storagePool)
 
-		// Create a duplicate entry for the image.
-		err = imageCreateInPool(d, imgInfo, storagePool)
+		err = imageCreateInPool(d, info, storagePool)
 		if err != nil {
 			shared.LogDebugf("Failed to create image on storage pool \"%s\": %s.", storagePool, err)
-			return "", err
+			return nil, err
 		}
 
 		shared.LogDebugf("Created image on storage pool \"%s\".", storagePool)
-		return fp, nil
+		return info, nil
 	}
 
-	// Now check if we already downloading the image
+	// Deal with parallel downloads
 	imagesDownloadingLock.Lock()
 	if waitChannel, ok := imagesDownloading[fp]; ok {
-		// We already download the image
+		// We are already downloading the image
 		imagesDownloadingLock.Unlock()
 
 		shared.LogDebug(
@@ -239,23 +271,17 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			log.Ctx{"image": fp})
 
 		// Wait until the download finishes (channel closes)
-		if _, ok := <-waitChannel; ok {
-			shared.LogWarnf("Value transmitted over image lock semaphore?")
+		<-waitChannel
+
+		// Grab the database entry
+		_, imgInfo, err := dbImageGet(d.db, fp, false, true)
+		if err != nil {
+			// Other download failed, lets try again
+			shared.LogError("Other image download didn't succeed", log.Ctx{"image": fp})
+		} else {
+			// Other download succeeded, we're done
+			return imgInfo, nil
 		}
-
-		if _, _, err := dbImageGet(d.db, fp, false, true); err != nil {
-			shared.LogError(
-				"Previous download didn't succeed",
-				log.Ctx{"image": fp})
-
-			return "", fmt.Errorf("Previous download didn't succeed")
-		}
-
-		shared.LogDebug(
-			"Previous download succeeded",
-			log.Ctx{"image": fp})
-
-		return fp, nil
 	}
 
 	// Add the download to the queue
@@ -278,22 +304,23 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	} else {
 		ctxMap = log.Ctx{"trigger": op.url, "image": fp, "operation": op.id, "alias": alias, "server": server}
 	}
-
 	shared.LogInfo("Downloading image", ctxMap)
 
-	exporturl := server
-
-	var info api.Image
-	info.Fingerprint = fp
-
+	// Cleanup any leftover from a past attempt
 	destDir := shared.VarPath("images")
 	destName := filepath.Join(destDir, fp)
-	if shared.PathExists(destName) {
-		os.Remove(filepath.Join(destDir, fp))
-		os.Remove(filepath.Join(destDir, fp+".root"))
-	}
 
-	progress := func(progressInt int64, speedInt int64) {
+	failure := true
+	cleanup := func() {
+		if failure {
+			os.Remove(destName)
+			os.Remove(destName + ".rootfs")
+		}
+	}
+	defer cleanup()
+
+	// Setup a progress handler
+	progress := func(progress lxd.ProgressData) {
 		if op == nil {
 			return
 		}
@@ -303,278 +330,174 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			meta = make(map[string]interface{})
 		}
 
-		progress := fmt.Sprintf("%d%% (%s/s)", progressInt, shared.GetByteSizeString(speedInt, 2))
-
-		if meta["download_progress"] != progress {
-			meta["download_progress"] = progress
+		if meta["download_progress"] != progress.Text {
+			meta["download_progress"] = progress.Text
 			op.UpdateMetadata(meta)
 		}
 	}
 
-	if protocol == "lxd" {
-		/* grab the metadata from /1.0/images/%s */
-		var url string
+	if protocol == "lxd" || protocol == "simplestreams" {
+		// Create the target files
+		dest, err := os.Create(destName)
+		if err != nil {
+			return nil, err
+		}
+		defer dest.Close()
+
+		destRootfs, err := os.Create(destName + ".rootfs")
+		if err != nil {
+			return nil, err
+		}
+		defer destRootfs.Close()
+
+		// Get the image information
+		if info == nil {
+			if secret != "" {
+				info, _, err = remote.GetPrivateImage(fp, secret)
+			} else {
+				info, _, err = remote.GetImage(fp)
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Download the image
+		var resp *lxd.ImageFileResponse
+		request := lxd.ImageFileRequest{
+			MetaFile:        io.WriteSeeker(dest),
+			RootfsFile:      io.WriteSeeker(destRootfs),
+			ProgressHandler: progress,
+		}
+
 		if secret != "" {
-			url = fmt.Sprintf(
-				"%s/%s/images/%s?secret=%s",
-				server, version.APIVersion, fp, secret)
+			resp, err = remote.GetPrivateImageFile(fp, secret, request)
 		} else {
-			url = fmt.Sprintf("%s/%s/images/%s", server, version.APIVersion, fp)
+			resp, err = remote.GetImageFile(fp, request)
 		}
-
-		resp, err := d.httpGetSync(url, certificate)
 		if err != nil {
-			shared.LogError(
-				"Failed to download image metadata",
-				log.Ctx{"image": fp, "err": err})
-
-			return "", err
+			return nil, err
 		}
 
-		if err := resp.MetadataAsStruct(&info); err != nil {
-			return "", err
-		}
-
-		/* now grab the actual file from /1.0/images/%s/export */
-		if secret != "" {
-			exporturl = fmt.Sprintf(
-				"%s/%s/images/%s/export?secret=%s",
-				server, version.APIVersion, fp, secret)
-
-		} else {
-			exporturl = fmt.Sprintf(
-				"%s/%s/images/%s/export",
-				server, version.APIVersion, fp)
-		}
-	} else if protocol == "simplestreams" {
-		err := ss.Download(fp, "meta", destName, nil)
-		if err != nil {
-			return "", err
-		}
-
-		err = ss.Download(fp, "root", destName+".rootfs", progress)
-		if err != nil {
-			return "", err
-		}
-
-		info, err := ss.GetImage(fp)
-		if err != nil {
-			return "", err
-		}
-
-		info.Public = false
-		info.AutoUpdate = autoUpdate
-
-		if storagePool != "" {
-			err = imageCreateInPool(d, info, storagePool)
+		// Deal with unified images
+		if resp.RootfsSize == 0 {
+			err := os.Remove(destName + ".rootfs")
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 		}
-
-		// Create the database entry
-		err = dbImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	} else if protocol == "direct" {
+		// Setup HTTP client
+		httpClient, err := d.httpClient(certificate)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		if alias != fp {
-			id, _, err := dbImageGet(d.db, fp, false, true)
-			if err != nil {
-				return "", err
-			}
-
-			err = dbImageSourceInsert(d.db, id, server, protocol, "", alias)
-			if err != nil {
-				return "", err
-			}
-		}
-
-		shared.LogInfo("Image downloaded", ctxMap)
-
-		if forContainer {
-			return fp, dbImageLastAccessInit(d.db, fp)
-		}
-
-		return fp, nil
-	}
-
-	raw, err := d.httpGetFile(exporturl, certificate)
-	if err != nil {
-		shared.LogError(
-			"Failed to download image",
-			log.Ctx{"image": fp, "err": err})
-		return "", err
-	}
-	info.Size = raw.ContentLength
-
-	ctype, ctypeParams, err := mime.ParseMediaType(raw.Header.Get("Content-Type"))
-	if err != nil {
-		ctype = "application/octet-stream"
-	}
-
-	body := &ioprogress.ProgressReader{
-		ReadCloser: raw.Body,
-		Tracker: &ioprogress.ProgressTracker{
-			Length:  raw.ContentLength,
-			Handler: progress,
-		},
-	}
-
-	if ctype == "multipart/form-data" {
-		// Parse the POST data
-		mr := multipart.NewReader(body, ctypeParams["boundary"])
-
-		// Get the metadata tarball
-		part, err := mr.NextPart()
+		req, err := http.NewRequest("GET", server, nil)
 		if err != nil {
-			shared.LogError(
-				"Invalid multipart image",
-				log.Ctx{"image": fp, "err": err})
-
-			return "", err
+			return nil, err
 		}
 
-		if part.FormName() != "metadata" {
-			shared.LogError(
-				"Invalid multipart image",
-				log.Ctx{"image": fp, "err": err})
+		req.Header.Set("User-Agent", version.UserAgent)
 
-			return "", fmt.Errorf("Invalid multipart image")
+		// Make the request
+		raw, err := httpClient.Do(req)
+		if err != nil {
+			return nil, err
 		}
 
-		destName = filepath.Join(destDir, info.Fingerprint)
+		if raw.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("Unable to fetch %s: %s", server, raw.Status)
+		}
+
+		// Progress handler
+		body := &ioprogress.ProgressReader{
+			ReadCloser: raw.Body,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: raw.ContentLength,
+				Handler: func(percent int64, speed int64) {
+					progress(lxd.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+				},
+			},
+		}
+
+		// Create the target files
 		f, err := os.Create(destName)
 		if err != nil {
-			shared.LogError(
-				"Failed to save image",
-				log.Ctx{"image": fp, "err": err})
-
-			return "", err
+			return nil, err
 		}
+		defer f.Close()
 
-		_, err = io.Copy(f, part)
-		f.Close()
+		// Hashing
+		sha256 := sha256.New()
 
+		// Download the image
+		size, err := io.Copy(io.MultiWriter(f, sha256), body)
 		if err != nil {
-			shared.LogError(
-				"Failed to save image",
-				log.Ctx{"image": fp, "err": err})
-
-			return "", err
+			return nil, err
 		}
 
-		// Get the rootfs tarball
-		part, err = mr.NextPart()
-		if err != nil {
-			shared.LogError(
-				"Invalid multipart image",
-				log.Ctx{"image": fp, "err": err})
-
-			return "", err
+		// Validate hash
+		result := fmt.Sprintf("%x", sha256.Sum(nil))
+		if result != fp {
+			return nil, fmt.Errorf("Hash mismatch for %s: %s != %s", server, result, fp)
 		}
 
-		if part.FormName() != "rootfs" {
-			shared.LogError(
-				"Invalid multipart image",
-				log.Ctx{"image": fp})
-			return "", fmt.Errorf("Invalid multipart image")
-		}
-
-		destName = filepath.Join(destDir, info.Fingerprint+".rootfs")
-		f, err = os.Create(destName)
-		if err != nil {
-			shared.LogError(
-				"Failed to save image",
-				log.Ctx{"image": fp, "err": err})
-			return "", err
-		}
-
-		_, err = io.Copy(f, part)
-		f.Close()
-
-		if err != nil {
-			shared.LogError(
-				"Failed to save image",
-				log.Ctx{"image": fp, "err": err})
-			return "", err
-		}
-	} else {
-		destName = filepath.Join(destDir, info.Fingerprint)
-
-		f, err := os.Create(destName)
-		if err != nil {
-			shared.LogError(
-				"Failed to save image",
-				log.Ctx{"image": fp, "err": err})
-
-			return "", err
-		}
-
-		_, err = io.Copy(f, body)
-		f.Close()
-
-		if err != nil {
-			shared.LogError(
-				"Failed to save image",
-				log.Ctx{"image": fp, "err": err})
-			return "", err
-		}
-	}
-
-	if protocol == "direct" {
+		// Parse the image
 		imageMeta, err := getImageMetadata(destName)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
+		info.Size = size
 		info.Architecture = imageMeta.Architecture
 		info.CreatedAt = time.Unix(imageMeta.CreationDate, 0)
 		info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
 		info.Properties = imageMeta.Properties
 	}
 
-	// By default, make all downloaded images private
+	// Override visiblity
 	info.Public = false
-
-	if alias != fp && secret == "" {
-		info.AutoUpdate = autoUpdate
-	}
-
-	if storagePool != "" {
-		err = imageCreateInPool(d, &info, storagePool)
-		if err != nil {
-			return "", err
-		}
-	}
 
 	// Create the database entry
 	err = dbImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
-		shared.LogError(
-			"Failed to create image",
-			log.Ctx{"image": fp, "err": err})
-
-		return "", err
+		return nil, fmt.Errorf("here: %v: %s", err, info.Fingerprint)
 	}
+
+	// Image is in the DB now, don't wipe on-disk files on failure
+	failure = false
 
 	if alias != fp {
 		id, _, err := dbImageGet(d.db, fp, false, true)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		err = dbImageSourceInsert(d.db, id, server, protocol, "", alias)
 		if err != nil {
-			return "", err
+			return nil, err
+		}
+
+		info.AutoUpdate = autoUpdate
+	}
+
+	// Import into the requested storage pool
+	if storagePool != "" {
+		err = imageCreateInPool(d, info, storagePool)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Mark the image as "cached" if downloading for a container
+	if forContainer {
+		err := dbImageLastAccessInit(d.db, fp)
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	shared.LogInfo("Image downloaded", ctxMap)
-
-	if forContainer {
-		return fp, dbImageLastAccessInit(d.db, fp)
-	}
-
-	return fp, nil
+	return info, nil
 }

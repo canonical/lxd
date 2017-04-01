@@ -11,8 +11,9 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func cmdInit() error {
@@ -160,13 +161,78 @@ func cmdInit() error {
 		}
 	}
 
-	// Confirm that LXD is online
-	c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+	// Connect to LXD
+	c, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
 
-	pools, err := c.ListStoragePools()
+	setServerConfig := func(key string, value string) error {
+		server, etag, err := c.GetServer()
+		if err != nil {
+			return err
+		}
+
+		if server.Config == nil {
+			server.Config = map[string]interface{}{}
+		}
+
+		server.Config[key] = value
+
+		err = c.UpdateServer(server.Writable(), etag)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	profileDeviceAdd := func(profileName string, deviceName string, deviceConfig map[string]string) error {
+		profile, etag, err := c.GetProfile(profileName)
+		if err != nil {
+			return err
+		}
+
+		if profile.Devices == nil {
+			profile.Devices = map[string]map[string]string{}
+		}
+
+		_, ok := profile.Devices[deviceName]
+		if ok {
+			return fmt.Errorf("Device already exists: %s", deviceName)
+		}
+
+		profile.Devices[deviceName] = deviceConfig
+
+		err = c.UpdateProfile(profileName, profile.Writable(), etag)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	setProfileConfigItem := func(profileName string, key string, value string) error {
+		profile, etag, err := c.GetProfile(profileName)
+		if err != nil {
+			return err
+		}
+
+		if profile.Config == nil {
+			profile.Config = map[string]string{}
+		}
+
+		profile.Config[key] = value
+
+		err = c.UpdateProfile(profileName, profile.Writable(), etag)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	pools, err := c.GetStoragePoolNames()
 	if err != nil {
 		// We should consider this fatal since this means
 		// something's wrong with the daemon.
@@ -236,8 +302,7 @@ func cmdInit() error {
 		storageSetup = askBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes")
 		if storageSetup {
 			storagePool = askString("Name of the new storage pool [default=default]: ", "default", nil)
-			_, err := c.StoragePoolGet(storagePool)
-			if err == nil {
+			if shared.StringInSlice(storagePool, pools) {
 				fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", storagePool)
 				// Ask the user again if hew wants to create a
 				// storage pool.
@@ -346,7 +411,7 @@ they otherwise would.
 		bridgeName = ""
 		if askBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
 			bridgeName = askString("What should the new bridge be called [default=lxdbr0]? ", "lxdbr0", networkValidName)
-			_, err := c.NetworkGet(bridgeName)
+			_, _, err := c.GetNetwork(bridgeName)
 			if err == nil {
 				fmt.Printf("The requested network bridge \"%s\" already exists. Please choose another name.\n", bridgeName)
 				// Ask the user again if hew wants to create a
@@ -381,7 +446,7 @@ they otherwise would.
 	if storageSetup {
 		// Unset core.https_address and core.trust_password
 		for _, key := range []string{"core.https_address", "core.trust_password"} {
-			_, err = c.SetServerConfig(key, "")
+			err = setServerConfig(key, "")
 			if err != nil {
 				return err
 			}
@@ -408,7 +473,13 @@ they otherwise would.
 		}
 
 		// Create the requested storage pool.
-		err := c.StoragePoolCreate(storagePool, storageBackend, storagePoolConfig)
+		storageStruct := api.StoragePoolsPost{
+			Name:   storagePool,
+			Driver: storageBackend,
+		}
+		storageStruct.Config = storagePoolConfig
+
+		err := c.CreateStoragePool(storageStruct)
 		if err != nil {
 			return err
 		}
@@ -418,7 +489,7 @@ they otherwise would.
 		// default profile again. Let the user figure this out.
 		if len(pools) == 0 {
 			// Check if there even is a default profile.
-			profiles, err := c.ListProfiles()
+			profiles, err := c.GetProfiles()
 			if err != nil {
 				return err
 			}
@@ -441,10 +512,11 @@ they otherwise would.
 						// the default profile it must be empty otherwise it would
 						// not have been possible to delete the storage pool in
 						// the first place.
-						p.ProfilePut.Devices[k]["pool"] = storagePool
+						update := p.Writable()
+						update.Devices[k]["pool"] = storagePool
 
 						// Update profile devices.
-						err := c.PutProfile("default", p.ProfilePut)
+						err := c.UpdateProfile("default", update, "")
 						if err != nil {
 							return err
 						}
@@ -458,11 +530,17 @@ they otherwise would.
 					break
 				}
 
-				props := []string{"path=/", fmt.Sprintf("pool=%s", storagePool)}
-				_, err = c.ProfileDeviceAdd("default", "root", "disk", props)
+				props := map[string]string{
+					"type": "disk",
+					"path": "/",
+					"pool": storagePool,
+				}
+
+				err = profileDeviceAdd("default", "root", props)
 				if err != nil {
 					return err
 				}
+
 				break
 			}
 
@@ -473,42 +551,43 @@ they otherwise would.
 	}
 
 	if defaultPrivileged == 0 {
-		err = c.SetProfileConfigItem("default", "security.privileged", "")
+		err = setProfileConfigItem("default", "security.privileged", "")
 		if err != nil {
 			return err
 		}
 	} else if defaultPrivileged == 1 {
-		err = c.SetProfileConfigItem("default", "security.privileged", "true")
+		err = setProfileConfigItem("default", "security.privileged", "true")
 		if err != nil {
 		}
 	}
 
 	if imagesAutoUpdate {
-		ss, err := c.ServerStatus()
+		ss, _, err := c.GetServer()
 		if err != nil {
 			return err
 		}
+
 		if val, ok := ss.Config["images.auto_update_interval"]; ok && val == "0" {
-			_, err = c.SetServerConfig("images.auto_update_interval", "")
+			err = setServerConfig("images.auto_update_interval", "")
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		_, err = c.SetServerConfig("images.auto_update_interval", "0")
+		err = setServerConfig("images.auto_update_interval", "0")
 		if err != nil {
 			return err
 		}
 	}
 
 	if networkAddress != "" {
-		_, err = c.SetServerConfig("core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
+		err = setServerConfig("core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
 		if err != nil {
 			return err
 		}
 
 		if trustPassword != "" {
-			_, err = c.SetServerConfig("core.trust_password", trustPassword)
+			err = setServerConfig("core.trust_password", trustPassword)
 			if err != nil {
 				return err
 			}
@@ -528,13 +607,22 @@ they otherwise would.
 			bridgeConfig["ipv6.nat"] = "true"
 		}
 
-		err = c.NetworkCreate(bridgeName, bridgeConfig)
+		network := api.NetworksPost{
+			Name: bridgeName}
+		network.Config = bridgeConfig
+
+		err = c.CreateNetwork(network)
 		if err != nil {
 			return err
 		}
 
-		props := []string{"nictype=bridged", fmt.Sprintf("parent=%s", bridgeName)}
-		_, err = c.ProfileDeviceAdd("default", "eth0", "nic", props)
+		props := map[string]string{
+			"type":    "nic",
+			"nictype": "bridged",
+			"parent":  bridgeName,
+		}
+
+		err = profileDeviceAdd("default", "eth0", props)
 		if err != nil {
 			return err
 		}

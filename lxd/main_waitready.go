@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 
-	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/client"
 )
 
 func cmdWaitReady() error {
@@ -21,25 +19,13 @@ func cmdWaitReady() error {
 	finger := make(chan error, 1)
 	go func() {
 		for {
-			c, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			c, err := lxd.ConnectLXDUnix("", nil)
 			if err != nil {
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
-			req, err := http.NewRequest("GET", c.BaseURL+"/internal/ready", nil)
-			if err != nil {
-				time.Sleep(500 * time.Millisecond)
-				continue
-			}
-
-			raw, err := c.Http.Do(req)
-			if err != nil {
-				time.Sleep(500 * time.Millisecond)
-				continue
-			}
-
-			_, err = lxd.HoistResponse(raw, api.SyncResponse)
+			_, _, err = c.RawQuery("GET", "/internal/ready", nil, "")
 			if err != nil {
 				time.Sleep(500 * time.Millisecond)
 				continue

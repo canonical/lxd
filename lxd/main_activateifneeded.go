@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -39,7 +39,7 @@ func cmdActivateIfNeeded() error {
 	value := daemonConfig["core.https_address"].Get()
 	if value != "" {
 		shared.LogDebugf("Daemon has core.https_address set, activating...")
-		_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+		_, err := lxd.ConnectLXDUnix("", nil)
 		return err
 	}
 
@@ -67,13 +67,13 @@ func cmdActivateIfNeeded() error {
 
 		if c.IsRunning() {
 			shared.LogDebugf("Daemon has running containers, activating...")
-			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
 
 		if lastState == "RUNNING" || lastState == "Running" || shared.IsTrue(autoStart) {
 			shared.LogDebugf("Daemon has auto-started containers, activating...")
-			_, err := lxd.NewClient(&lxd.DefaultConfig, "local")
+			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
 	}
