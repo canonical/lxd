@@ -129,7 +129,8 @@ func profileGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponseETag(true, resp, resp)
+	etag := []interface{}{resp.Config, resp.Description, resp.Devices}
+	return SyncResponseETag(true, resp, etag)
 }
 
 func getContainersWithProfile(d *Daemon, profile string) []container {
@@ -161,7 +162,8 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the ETag
-	err = etagCheck(r, profile)
+	etag := []interface{}{profile.Config, profile.Description, profile.Devices}
+	err = etagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -183,7 +185,8 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the ETag
-	err = etagCheck(r, profile)
+	etag := []interface{}{profile.Config, profile.Description, profile.Devices}
+	err = etagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
