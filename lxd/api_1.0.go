@@ -100,6 +100,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"container_stateless_copy",
 			"container_only_migration",
 			"storage_zfs_clone_copy",
+			"unix_device_rename",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

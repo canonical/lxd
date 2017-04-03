@@ -31,6 +31,15 @@ testunixdevs() {
 
   echo "Testing passing char device 4 64"
   dounixdevtest path=/dev/ttyS0 major=4 minor=64
+
+  echo "Testing passing char device source=/dev/ttyS0"
+  dounixdevtest source=/dev/ttyS0
+
+  echo "Testing passing char device path=/dev/ttyS0 source=/dev/ttyS0"
+  dounixdevtest path=/dev/ttyS0 source=/dev/ttyS0
+
+  echo "Testing passing char device path=/dev/ttyS0 source=/dev/ttyS1"
+  dounixdevtest path=/dev/ttyS0 source=/dev/ttyS1
 }
 
 ensure_fs_unmounted() {
