@@ -247,14 +247,15 @@ appear in the container's /dev and allow read/write operations to it.
 
 The following properties exist:
 
-Key         | Type      | Default           | Required  | Description
-:--         | :--       | :--               | :--       | :--
-path        | string    | -                 | yes       | Path inside the container
-major       | int       | device on host    | no        | Device major number
-minor       | int       | device on host    | no        | Device minor number
-uid         | int       | 0                 | no        | UID of the device owner in the container
-gid         | int       | 0                 | no        | GID of the device owner in the container
-mode        | int       | 0660              | no        | Mode of the device in the container
+Key         | Type      | Default           | API extension                     | Required  | Description
+:--         | :--       | :--               | :--                               | :--       | :--
+source      | string    | -                 | unix_device_rename                | no        | Path on the host
+path        | string    | -                 |                                   | no        | Path inside the container(one of "source" and "path" must be set)
+major       | int       | device on host    |                                   | no        | Device major number
+minor       | int       | device on host    |                                   | no        | Device minor number
+uid         | int       | 0                 |                                   | no        | UID of the device owner in the container
+gid         | int       | 0                 |                                   | no        | GID of the device owner in the container
+mode        | int       | 0660              |                                   | no        | Mode of the device in the container
 
 ### Type: unix-block
 Unix block device entries simply make the requested block device
@@ -262,14 +263,15 @@ appear in the container's /dev and allow read/write operations to it.
 
 The following properties exist:
 
-Key         | Type      | Default           | Required  | Description
-:--         | :--       | :--               | :--       | :--
-path        | string    | -                 | yes       | Path inside the container
-major       | int       | device on host    | no        | Device major number
-minor       | int       | device on host    | no        | Device minor number
-uid         | int       | 0                 | no        | UID of the device owner in the container
-gid         | int       | 0                 | no        | GID of the device owner in the container
-mode        | int       | 0660              | no        | Mode of the device in the container
+Key         | Type      | Default           | API extension                     | Required  | Description
+:--         | :--       | :--               | :--                               | :--       | :--
+source      | string    | -                 | unix_device_rename                | no        | Path on the host
+path        | string    | -                 |                                   | no        | Path inside the container(one of "source" and "path" must be set)
+major       | int       | device on host    |                                   | no        | Device major number
+minor       | int       | device on host    |                                   | no        | Device minor number
+uid         | int       | 0                 |                                   | no        | UID of the device owner in the container
+gid         | int       | 0                 |                                   | no        | GID of the device owner in the container
+mode        | int       | 0660              |                                   | no        | Mode of the device in the container
 
 ### Type: usb
 USB device entries simply make the requested USB device appear in the

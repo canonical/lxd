@@ -247,3 +247,11 @@ around. However, this also entails less efficient storage usage for the
 affected pool.
 The default value for this property is true, i.e. space-efficient snapshots
 will be used unless explicitly set to "false".
+
+## unix\_device\_rename
+Introduces the ability to rename the unix-block/unix-char device inside container by setting "path",
+and the "source" attribute is added to specify the device on host.
+If "source" is set without a "path", we should assume that "path" will be the same as "source".
+If "path" is set without "source" and "major/minor" isn't set,
+we should assume that "source" will be the same as "path".
+So at least one of them must be set.
