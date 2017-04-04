@@ -12,6 +12,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -362,7 +363,7 @@ type listContainerItem struct {
 	Snapshots []api.ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
 }
 
-func (c *listCmd) run(config *lxd.Config, args []string) error {
+func (c *listCmd) run(conf *config.Config, args []string) error {
 	var remote string
 	name := ""
 
@@ -371,20 +372,25 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 	if len(args) != 0 {
 		filters = args
 		if strings.Contains(args[0], ":") && !strings.Contains(args[0], "=") {
-			remote, name = config.ParseRemoteAndContainer(args[0])
+			var err error
+			remote, name, err = conf.ParseRemote(args[0])
+			if err != nil {
+				return err
+			}
+
 			filters = args[1:]
 		} else if !strings.Contains(args[0], "=") {
-			remote = config.DefaultRemote
+			remote = conf.DefaultRemote
 			name = args[0]
 		}
 	}
 	filters = append(filters, name)
 
 	if remote == "" {
-		remote = config.DefaultRemote
+		remote = conf.DefaultRemote
 	}
 
-	d, err := lxd.NewClient(config, remote)
+	d, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -31,9 +32,16 @@ func (c *copyCmd) flags() {
 	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
 }
 
-func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int) error {
-	sourceRemote, sourceName := config.ParseRemoteAndContainer(sourceResource)
-	destRemote, destName := config.ParseRemoteAndContainer(destResource)
+func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int) error {
+	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
+	if err != nil {
+		return err
+	}
+
+	destRemote, destName, err := conf.ParseRemote(destResource)
+	if err != nil {
+		return err
+	}
 
 	if sourceName == "" {
 		return fmt.Errorf(i18n.G("you must specify a source container name"))
@@ -43,7 +51,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		destName = sourceName
 	}
 
-	source, err := lxd.NewClient(config, sourceRemote)
+	source, err := lxd.NewClient(conf.Legacy(), sourceRemote)
 	if err != nil {
 		return err
 	}
@@ -108,7 +116,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		return source.WaitForSuccess(cp.Operation)
 	}
 
-	dest, err := lxd.NewClient(config, destRemote)
+	dest, err := lxd.NewClient(conf.Legacy(), destRemote)
 	if err != nil {
 		return err
 	}
@@ -218,7 +226,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 	return fmt.Errorf(i18n.G("Migration failed on target host: %s"), migrationErrFromClient)
 }
 
-func (c *copyCmd) run(config *lxd.Config, args []string) error {
+func (c *copyCmd) run(conf *config.Config, args []string) error {
 	if len(args) != 2 {
 		return errArgs
 	}
@@ -228,5 +236,5 @@ func (c *copyCmd) run(config *lxd.Config, args []string) error {
 		ephem = 1
 	}
 
-	return c.copyContainer(config, args[0], args[1], false, ephem)
+	return c.copyContainer(conf, args[0], args[1], false, ephem)
 }

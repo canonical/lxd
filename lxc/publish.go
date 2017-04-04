@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -36,9 +37,7 @@ func (c *publishCmd) flags() {
 	gnuflag.BoolVar(&c.Force, "f", false, i18n.G("Stop the container if currently running"))
 }
 
-func (c *publishCmd) run(config *lxd.Config, args []string) error {
-	var cRemote string
-	var cName string
+func (c *publishCmd) run(conf *config.Config, args []string) error {
 	iName := ""
 	iRemote := ""
 	properties := map[string]string{}
@@ -48,12 +47,22 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		return errArgs
 	}
 
-	cRemote, cName = config.ParseRemoteAndContainer(args[0])
+	cRemote, cName, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
 	if len(args) >= 2 && !strings.Contains(args[1], "=") {
 		firstprop = 2
-		iRemote, iName = config.ParseRemoteAndContainer(args[1])
+		iRemote, iName, err = conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
 	} else {
-		iRemote, iName = config.ParseRemoteAndContainer("")
+		iRemote, iName, err = conf.ParseRemote("")
+		if err != nil {
+			return err
+		}
 	}
 
 	if cName == "" {
@@ -63,14 +72,14 @@ func (c *publishCmd) run(config *lxd.Config, args []string) error {
 		return fmt.Errorf(i18n.G("There is no \"image name\".  Did you want an alias?"))
 	}
 
-	d, err := lxd.NewClient(config, iRemote)
+	d, err := lxd.NewClient(conf.Legacy(), iRemote)
 	if err != nil {
 		return err
 	}
 
 	s := d
 	if cRemote != iRemote {
-		s, err = lxd.NewClient(config, cRemote)
+		s, err = lxd.NewClient(conf.Legacy(), cRemote)
 		if err != nil {
 			return err
 		}

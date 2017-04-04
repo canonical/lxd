@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -57,7 +58,7 @@ func (c *fileCmd) flags() {
 	gnuflag.StringVar(&c.mode, "mode", "", i18n.G("Set the file's perms on push"))
 }
 
-func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) error {
+func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
@@ -70,9 +71,12 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 	}
 
 	targetPath := pathSpec[1]
-	remote, container := config.ParseRemoteAndContainer(pathSpec[0])
+	remote, container, err := conf.ParseRemote(pathSpec[0])
+	if err != nil {
+		return err
+	}
 
-	d, err := lxd.NewClient(config, remote)
+	d, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -170,7 +174,7 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 	return nil
 }
 
-func (c *fileCmd) pull(config *lxd.Config, args []string) error {
+func (c *fileCmd) pull(conf *config.Config, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
@@ -207,8 +211,12 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 			return fmt.Errorf(i18n.G("Invalid source %s"), f)
 		}
 
-		remote, container := config.ParseRemoteAndContainer(pathSpec[0])
-		d, err := lxd.NewClient(config, remote)
+		remote, container, err := conf.ParseRemote(pathSpec[0])
+		if err != nil {
+			return err
+		}
+
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -245,14 +253,14 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 	return nil
 }
 
-func (c *fileCmd) edit(config *lxd.Config, args []string) error {
+func (c *fileCmd) edit(conf *config.Config, args []string) error {
 	if len(args) != 1 {
 		return errArgs
 	}
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
-		return c.push(config, false, append([]string{os.Stdin.Name()}, args[0]))
+		return c.push(conf, false, append([]string{os.Stdin.Name()}, args[0]))
 	}
 
 	// Create temp file
@@ -263,7 +271,7 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 	defer os.Remove(fname)
 
 	// Extract current value
-	err = c.pull(config, append([]string{args[0]}, fname))
+	err = c.pull(conf, append([]string{args[0]}, fname))
 	if err != nil {
 		return err
 	}
@@ -273,7 +281,7 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	err = c.push(config, false, append([]string{fname}, args[0]))
+	err = c.push(conf, false, append([]string{fname}, args[0]))
 	if err != nil {
 		return err
 	}
@@ -281,18 +289,18 @@ func (c *fileCmd) edit(config *lxd.Config, args []string) error {
 	return nil
 }
 
-func (c *fileCmd) run(config *lxd.Config, args []string) error {
+func (c *fileCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
 		return errUsage
 	}
 
 	switch args[0] {
 	case "push":
-		return c.push(config, true, args[1:])
+		return c.push(conf, true, args[1:])
 	case "pull":
-		return c.pull(config, args[1:])
+		return c.pull(conf, args[1:])
 	case "edit":
-		return c.edit(config, args[1:])
+		return c.edit(conf, args[1:])
 	default:
 		return errArgs
 	}

@@ -2,7 +2,11 @@ package main
 
 import (
 	"fmt"
+	"net"
+	"net/url"
+	"os"
 	"strings"
+	"syscall"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
@@ -191,4 +195,39 @@ func summaryLine(usage string) string {
 	}
 
 	return i18n.G("Missing summary.")
+}
+
+// Used to return a user friendly error
+func getLocalErr(err error) error {
+	t, ok := err.(*url.Error)
+	if !ok {
+		return nil
+	}
+
+	u, ok := t.Err.(*net.OpError)
+	if !ok {
+		return nil
+	}
+
+	if u.Op == "dial" && u.Net == "unix" {
+		var lxdErr error
+
+		sysErr, ok := u.Err.(*os.SyscallError)
+		if ok {
+			lxdErr = sysErr.Err
+		} else {
+			// syscall.Errno may be returned on some systems, e.g. CentOS
+			lxdErr, ok = u.Err.(syscall.Errno)
+			if !ok {
+				return nil
+			}
+		}
+
+		switch lxdErr {
+		case syscall.ENOENT, syscall.ECONNREFUSED, syscall.EACCES:
+			return lxdErr
+		}
+	}
+
+	return nil
 }

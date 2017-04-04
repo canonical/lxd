@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
@@ -37,22 +38,31 @@ func (c *launchCmd) flags() {
 	c.init.flags()
 }
 
-func (c *launchCmd) run(config *lxd.Config, args []string) error {
+func (c *launchCmd) run(conf *config.Config, args []string) error {
 	if len(args) > 2 || len(args) < 1 {
 		return errArgs
 	}
 
-	iremote, image := config.ParseRemoteAndContainer(args[0])
+	iremote, image, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
 
 	var name string
 	var remote string
 	if len(args) == 2 {
-		remote, name = config.ParseRemoteAndContainer(args[1])
+		remote, name, err = conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
 	} else {
-		remote, name = config.ParseRemoteAndContainer("")
+		remote, name, err = conf.ParseRemote("")
+		if err != nil {
+			return err
+		}
 	}
 
-	d, err := lxd.NewClient(config, remote)
+	d, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -67,7 +77,7 @@ func (c *launchCmd) run(config *lxd.Config, args []string) error {
 		profiles = append(profiles, p)
 	}
 
-	iremote, image = c.init.guessImage(config, d, remote, iremote, image)
+	iremote, image = c.init.guessImage(conf, d, remote, iremote, image)
 
 	if !initRequestedEmptyProfiles && len(profiles) == 0 {
 		resp, err = d.Init(name, iremote, image, nil, configMap, c.init.ephem)

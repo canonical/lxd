@@ -5,15 +5,17 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var configPath string
@@ -25,7 +27,7 @@ func main() {
 	if err := run(); err != nil {
 		msg := fmt.Sprintf(i18n.G("error: %v"), err)
 
-		lxdErr := lxd.GetLocalLXDErr(err)
+		lxdErr := getLocalErr(err)
 		switch lxdErr {
 		case syscall.ENOENT:
 			msg = i18n.G("LXD socket not found; is LXD installed and running?")
@@ -74,17 +76,23 @@ func run() error {
 		os.Exit(1)
 	}
 
-	var config *lxd.Config
+	var conf *config.Config
 	var err error
 
 	if *forceLocal {
-		config = &lxd.DefaultConfig
-	} else {
-		config, err = lxd.LoadConfig(configPath)
+		conf = &config.DefaultConfig
+	} else if shared.PathExists(configPath) {
+		conf, err = config.LoadConfig(configPath)
 		if err != nil {
 			return err
 		}
+	} else {
+		conf = &config.DefaultConfig
+		conf.ConfigDir = filepath.Dir(configPath)
 	}
+
+	// Set the user agent
+	conf.UserAgent = version.UserAgent
 
 	// This is quite impolite, but it seems gnuflag needs us to shift our
 	// own exename out of the arguments before parsing them. However, this
@@ -98,7 +106,7 @@ func run() error {
 	 * --no-alias by hand.
 	 */
 	if !shared.StringInSlice("--no-alias", origArgs) {
-		execIfAliases(config, origArgs)
+		execIfAliases(conf, origArgs)
 	}
 	cmd, ok := commands[name]
 	if !ok {
@@ -124,8 +132,8 @@ func run() error {
 		return err
 	}
 
-	certf := config.ConfigPath("client.crt")
-	keyf := config.ConfigPath("client.key")
+	certf := conf.ConfigPath("client.crt")
+	keyf := conf.ConfigPath("client.key")
 
 	if !*forceLocal && os.Args[0] != "help" && os.Args[0] != "version" && (!shared.PathExists(certf) || !shared.PathExists(keyf)) {
 		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
@@ -141,7 +149,7 @@ func run() error {
 		}
 	}
 
-	err = cmd.run(config, gnuflag.Args())
+	err = cmd.run(conf, gnuflag.Args())
 	if err == errArgs || err == errUsage {
 		out := os.Stdout
 		if err == errArgs {
@@ -149,7 +157,7 @@ func run() error {
 			 * expand this as an alias
 			 */
 			if !*noAlias {
-				execIfAliases(config, origArgs)
+				execIfAliases(conf, origArgs)
 			}
 
 			out = os.Stderr
@@ -178,7 +186,7 @@ type command interface {
 	usage() string
 	flags()
 	showByDefault() bool
-	run(config *lxd.Config, args []string) error
+	run(config *config.Config, args []string) error
 }
 
 var commands = map[string]command{
@@ -234,7 +242,7 @@ var commands = map[string]command{
 var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
 var errUsage = fmt.Errorf("show usage")
 
-func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
+func expandAlias(config *config.Config, origArgs []string) ([]string, bool) {
 	foundAlias := false
 	aliasKey := []string{}
 	aliasValue := []string{}
@@ -284,7 +292,7 @@ func expandAlias(config *lxd.Config, origArgs []string) ([]string, bool) {
 	return newArgs, true
 }
 
-func execIfAliases(config *lxd.Config, origArgs []string) {
+func execIfAliases(config *config.Config, origArgs []string) {
 	newArgs, expanded := expandAlias(config, origArgs)
 	if !expanded {
 		return

@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
@@ -26,7 +26,7 @@ Generate all the LXD manpages.`)
 func (c *manpageCmd) flags() {
 }
 
-func (c *manpageCmd) run(_ *lxd.Config, args []string) error {
+func (c *manpageCmd) run(conf *config.Config, args []string) error {
 	if len(args) != 1 {
 		return errArgs
 	}

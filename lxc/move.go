@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
@@ -30,13 +31,20 @@ lxc move <container>/<old snapshot name> <container>/<new snapshot name>
 
 func (c *moveCmd) flags() {}
 
-func (c *moveCmd) run(config *lxd.Config, args []string) error {
+func (c *moveCmd) run(conf *config.Config, args []string) error {
 	if len(args) != 2 {
 		return errArgs
 	}
 
-	sourceRemote, sourceName := config.ParseRemoteAndContainer(args[0])
-	destRemote, destName := config.ParseRemoteAndContainer(args[1])
+	sourceRemote, sourceName, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	destRemote, destName, err := conf.ParseRemote(args[1])
+	if err != nil {
+		return err
+	}
 
 	// As an optimization, if the source an destination are the same, do
 	// this via a simple rename. This only works for containers that aren't
@@ -44,7 +52,7 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 	// course, this changing of hostname isn't supported right now, so this
 	// simply won't work).
 	if sourceRemote == destRemote {
-		source, err := lxd.NewClient(config, sourceRemote)
+		source, err := lxd.NewClient(conf.Legacy(), sourceRemote)
 		if err != nil {
 			return err
 		}
@@ -61,10 +69,10 @@ func (c *moveCmd) run(config *lxd.Config, args []string) error {
 
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the container.
-	err := cpy.copyContainer(config, args[0], args[1], true, -1)
+	err = cpy.copyContainer(conf, args[0], args[1], true, -1)
 	if err != nil {
 		return err
 	}
 
-	return commands["delete"].run(config, args[:1])
+	return commands["delete"].run(conf, args[:1])
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -85,13 +86,17 @@ func (c *execCmd) sendTermSize(control *websocket.Conn) error {
 	return err
 }
 
-func (c *execCmd) run(config *lxd.Config, args []string) error {
+func (c *execCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
 
-	remote, name := config.ParseRemoteAndContainer(args[0])
-	d, err := lxd.NewClient(config, remote)
+	remote, name, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	d, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
