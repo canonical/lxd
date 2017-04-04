@@ -45,7 +45,7 @@ func LoadConfig(path string) (*Config, error) {
 func (c *Config) SaveConfig(path string) error {
 	// Create a new copy for the config file
 	conf := Config{}
-	err := shared.DeepCopy(c, conf)
+	err := shared.DeepCopy(c, &conf)
 	if err != nil {
 		return fmt.Errorf("Unable to copy the configuration: %v", err)
 	}
