@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -35,7 +36,7 @@ func (c *snapshotCmd) flags() {
 	gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Whether or not to snapshot the container's running state"))
 }
 
-func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
+func (c *snapshotCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
 		return errArgs
 	}
@@ -47,8 +48,12 @@ func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
 		snapname = args[1]
 	}
 
-	remote, name := config.ParseRemoteAndContainer(args[0])
-	d, err := lxd.NewClient(config, remote)
+	remote, name, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	d, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}

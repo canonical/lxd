@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
@@ -94,21 +95,25 @@ cat network.yaml | lxc network edit <network>
 
 func (c *networkCmd) flags() {}
 
-func (c *networkCmd) run(config *lxd.Config, args []string) error {
+func (c *networkCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
 		return errUsage
 	}
 
 	if args[0] == "list" {
-		return c.doNetworkList(config, args)
+		return c.doNetworkList(conf, args)
 	}
 
 	if len(args) < 2 {
 		return errArgs
 	}
 
-	remote, network := config.ParseRemoteAndContainer(args[1])
-	client, err := lxd.NewClient(config, remote)
+	remote, network, err := conf.ParseRemote(args[1])
+	if err != nil {
+		return err
+	}
+
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -413,19 +418,25 @@ func (c *networkCmd) doNetworkGet(client *lxd.Client, name string, args []string
 	return nil
 }
 
-func (c *networkCmd) doNetworkList(config *lxd.Config, args []string) error {
+func (c *networkCmd) doNetworkList(conf *config.Config, args []string) error {
 	var remote string
+	var err error
+
 	if len(args) > 1 {
 		var name string
-		remote, name = config.ParseRemoteAndContainer(args[1])
+		remote, name, err = conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if name != "" {
 			return fmt.Errorf(i18n.G("Cannot provide container name to list"))
 		}
 	} else {
-		remote = config.DefaultRemote
+		remote = conf.DefaultRemote
 	}
 
-	client, err := lxd.NewClient(config, remote)
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}

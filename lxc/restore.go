@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -37,15 +38,19 @@ func (c *restoreCmd) flags() {
 	gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Whether or not to restore the container's running state from snapshot (if available)"))
 }
 
-func (c *restoreCmd) run(config *lxd.Config, args []string) error {
+func (c *restoreCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
 
 	var snapname = args[1]
 
-	remote, name := config.ParseRemoteAndContainer(args[0])
-	d, err := lxd.NewClient(config, remote)
+	remote, name, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	d, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}

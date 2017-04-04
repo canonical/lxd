@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -144,22 +145,31 @@ func (c *initCmd) flags() {
 	gnuflag.StringVar(&c.storagePool, "s", "", i18n.G("Storage pool name"))
 }
 
-func (c *initCmd) run(config *lxd.Config, args []string) error {
+func (c *initCmd) run(conf *config.Config, args []string) error {
 	if len(args) > 2 || len(args) < 1 {
 		return errArgs
 	}
 
-	iremote, image := config.ParseRemoteAndContainer(args[0])
+	iremote, image, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
 
 	var name string
 	var remote string
 	if len(args) == 2 {
-		remote, name = config.ParseRemoteAndContainer(args[1])
+		remote, name, err = conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
 	} else {
-		remote, name = config.ParseRemoteAndContainer("")
+		remote, name, err = conf.ParseRemote("")
+		if err != nil {
+			return err
+		}
 	}
 
-	d, err := lxd.NewClient(config, remote)
+	d, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -182,7 +192,7 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 		fmt.Printf(i18n.G("Creating %s")+"\n", name)
 	}
 
-	iremote, image = c.guessImage(config, d, remote, iremote, image)
+	iremote, image = c.guessImage(conf, d, remote, iremote, image)
 
 	devicesMap := map[string]map[string]string{}
 	if c.network != "" {
@@ -287,12 +297,12 @@ func (c *initCmd) initProgressTracker(d *lxd.Client, progress *ProgressRenderer,
 	go d.Monitor([]string{"operation"}, handler, nil)
 }
 
-func (c *initCmd) guessImage(config *lxd.Config, d *lxd.Client, remote string, iremote string, image string) (string, string) {
+func (c *initCmd) guessImage(conf *config.Config, d *lxd.Client, remote string, iremote string, image string) (string, string) {
 	if remote != iremote {
 		return iremote, image
 	}
 
-	_, ok := config.Remotes[image]
+	_, ok := conf.Remotes[image]
 	if !ok {
 		return iremote, image
 	}

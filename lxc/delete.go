@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -57,15 +58,18 @@ func (c *deleteCmd) doDelete(d *lxd.Client, name string) error {
 	return d.WaitForSuccess(resp.Operation)
 }
 
-func (c *deleteCmd) run(config *lxd.Config, args []string) error {
+func (c *deleteCmd) run(conf *config.Config, args []string) error {
 	if len(args) == 0 {
 		return errArgs
 	}
 
 	for _, nameArg := range args {
-		remote, name := config.ParseRemoteAndContainer(nameArg)
+		remote, name, err := conf.ParseRemote(nameArg)
+		if err != nil {
+			return err
+		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}

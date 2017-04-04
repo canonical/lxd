@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
@@ -127,21 +128,25 @@ lxc profile assign foo ''
 
 func (c *profileCmd) flags() {}
 
-func (c *profileCmd) run(config *lxd.Config, args []string) error {
+func (c *profileCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
 		return errUsage
 	}
 
 	if args[0] == "list" {
-		return c.doProfileList(config, args)
+		return c.doProfileList(conf, args)
 	}
 
 	if len(args) < 2 {
 		return errArgs
 	}
 
-	remote, profile := config.ParseRemoteAndContainer(args[1])
-	client, err := lxd.NewClient(config, remote)
+	remote, profile, err := conf.ParseRemote(args[1])
+	if err != nil {
+		return err
+	}
+
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -152,7 +157,7 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 	case "delete":
 		return c.doProfileDelete(client, profile)
 	case "device":
-		return c.doProfileDevice(config, args)
+		return c.doProfileDevice(conf, args)
 	case "edit":
 		return c.doProfileEdit(client, profile)
 	case "apply", "assign":
@@ -195,7 +200,7 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 	case "unset":
 		return c.doProfileUnset(client, profile, args[2:])
 	case "copy":
-		return c.doProfileCopy(config, client, profile, args[2:])
+		return c.doProfileCopy(conf, client, profile, args[2:])
 	case "show":
 		return c.doProfileShow(client, profile)
 	default:
@@ -363,16 +368,21 @@ func (c *profileCmd) doProfileShow(client *lxd.Client, p string) error {
 	return nil
 }
 
-func (c *profileCmd) doProfileCopy(config *lxd.Config, client *lxd.Client, p string, args []string) error {
+func (c *profileCmd) doProfileCopy(conf *config.Config, client *lxd.Client, p string, args []string) error {
 	if len(args) != 1 {
 		return errArgs
 	}
-	remote, newname := config.ParseRemoteAndContainer(args[0])
+
+	remote, newname, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
 	if newname == "" {
 		newname = p
 	}
 
-	dest, err := lxd.NewClient(config, remote)
+	dest, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -380,7 +390,7 @@ func (c *profileCmd) doProfileCopy(config *lxd.Config, client *lxd.Client, p str
 	return client.ProfileCopy(p, newname, dest)
 }
 
-func (c *profileCmd) doProfileDevice(config *lxd.Config, args []string) error {
+func (c *profileCmd) doProfileDevice(conf *config.Config, args []string) error {
 	// device add b1 eth0 nic type=bridged
 	// device list b1
 	// device remove b1 eth0
@@ -392,19 +402,19 @@ func (c *profileCmd) doProfileDevice(config *lxd.Config, args []string) error {
 
 	switch args[1] {
 	case "add":
-		return cfg.deviceAdd(config, "profile", args)
+		return cfg.deviceAdd(conf, "profile", args)
 	case "remove":
-		return cfg.deviceRm(config, "profile", args)
+		return cfg.deviceRm(conf, "profile", args)
 	case "list":
-		return cfg.deviceList(config, "profile", args)
+		return cfg.deviceList(conf, "profile", args)
 	case "show":
-		return cfg.deviceShow(config, "profile", args)
+		return cfg.deviceShow(conf, "profile", args)
 	case "get":
-		return cfg.deviceGet(config, "profile", args)
+		return cfg.deviceGet(conf, "profile", args)
 	case "set":
-		return cfg.deviceSet(config, "profile", args)
+		return cfg.deviceSet(conf, "profile", args)
 	case "unset":
-		return cfg.deviceUnset(config, "profile", args)
+		return cfg.deviceUnset(conf, "profile", args)
 	default:
 		return errArgs
 	}
@@ -463,19 +473,24 @@ func (c *profileCmd) doProfileUnset(client *lxd.Client, p string, args []string)
 	return c.doProfileSet(client, p, args)
 }
 
-func (c *profileCmd) doProfileList(config *lxd.Config, args []string) error {
+func (c *profileCmd) doProfileList(conf *config.Config, args []string) error {
 	var remote string
 	if len(args) > 1 {
 		var name string
-		remote, name = config.ParseRemoteAndContainer(args[1])
+		var err error
+		remote, name, err = conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if name != "" {
 			return fmt.Errorf(i18n.G("Cannot provide container name to list"))
 		}
 	} else {
-		remote = config.DefaultRemote
+		remote = conf.DefaultRemote
 	}
 
-	client, err := lxd.NewClient(config, remote)
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
