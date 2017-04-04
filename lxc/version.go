@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -24,7 +24,7 @@ Print the version number of this client tool.`)
 func (c *versionCmd) flags() {
 }
 
-func (c *versionCmd) run(_ *lxd.Config, args []string) error {
+func (c *versionCmd) run(conf *config.Config, args []string) error {
 	if len(args) > 0 {
 		return errArgs
 	}

@@ -15,6 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -250,8 +251,10 @@ func (c *imageCmd) parseColumns() ([]imageColumn, error) {
 	return columns, nil
 }
 
-func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
+func (c *imageCmd) doImageAlias(conf *config.Config, args []string) error {
 	var remote string
+	var err error
+
 	switch args[1] {
 	case "list":
 		filters := []string{}
@@ -260,12 +263,21 @@ func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
 			result := strings.SplitN(args[2], ":", 2)
 			if len(result) == 1 {
 				filters = append(filters, args[2])
-				remote, _ = config.ParseRemoteAndContainer("")
+				remote, _, err = conf.ParseRemote("")
+				if err != nil {
+					return err
+				}
 			} else {
-				remote, _ = config.ParseRemoteAndContainer(args[2])
+				remote, _, err = conf.ParseRemote(args[2])
+				if err != nil {
+					return err
+				}
 			}
 		} else {
-			remote, _ = config.ParseRemoteAndContainer("")
+			remote, _, err = conf.ParseRemote("")
+			if err != nil {
+				return err
+			}
 		}
 
 		if len(args) > 3 {
@@ -274,7 +286,7 @@ func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
 			}
 		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -292,9 +304,14 @@ func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
 		if len(args) < 4 {
 			return errArgs
 		}
-		remote, alias := config.ParseRemoteAndContainer(args[2])
+
+		remote, alias, err := conf.ParseRemote(args[2])
+		if err != nil {
+			return err
+		}
+
 		target := args[3]
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -306,8 +323,13 @@ func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
 		if len(args) < 3 {
 			return errArgs
 		}
-		remote, alias := config.ParseRemoteAndContainer(args[2])
-		d, err := lxd.NewClient(config, remote)
+
+		remote, alias, err := conf.ParseRemote(args[2])
+		if err != nil {
+			return err
+		}
+
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -317,7 +339,7 @@ func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
 	return errArgs
 }
 
-func (c *imageCmd) run(config *lxd.Config, args []string) error {
+func (c *imageCmd) run(conf *config.Config, args []string) error {
 	var remote string
 
 	if len(args) < 1 {
@@ -329,7 +351,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		if len(args) < 2 {
 			return errArgs
 		}
-		return c.doImageAlias(config, args)
+		return c.doImageAlias(conf, args)
 
 	case "copy":
 		/* copy [<remote>:]<image> [<rmeote>:]<image> */
@@ -337,22 +359,30 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		remote, inName := config.ParseRemoteAndContainer(args[1])
-		if inName == "" {
-			inName = "default"
-		}
-
-		destRemote, outName := config.ParseRemoteAndContainer(args[2])
-		if outName != "" {
-			return errArgs
-		}
-
-		d, err := lxd.NewClient(config, remote)
+		remote, inName, err := conf.ParseRemote(args[1])
 		if err != nil {
 			return err
 		}
 
-		dest, err := lxd.NewClient(config, destRemote)
+		if inName == "" {
+			inName = "default"
+		}
+
+		destRemote, outName, err := conf.ParseRemote(args[2])
+		if err != nil {
+			return err
+		}
+
+		if outName != "" {
+			return errArgs
+		}
+
+		d, err := lxd.NewClient(conf.Legacy(), remote)
+		if err != nil {
+			return err
+		}
+
+		dest, err := lxd.NewClient(conf.Legacy(), destRemote)
 		if err != nil {
 			return err
 		}
@@ -373,12 +403,17 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		for _, arg := range args[1:] {
-			remote, inName := config.ParseRemoteAndContainer(arg)
+			var err error
+			remote, inName, err := conf.ParseRemote(arg)
+			if err != nil {
+				return err
+			}
+
 			if inName == "" {
 				inName = "default"
 			}
 
-			d, err := lxd.NewClient(config, remote)
+			d, err := lxd.NewClient(conf.Legacy(), remote)
 			if err != nil {
 				return err
 			}
@@ -430,12 +465,16 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		remote, inName := config.ParseRemoteAndContainer(args[1])
+		remote, inName, err := conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if inName == "" {
 			inName = "default"
 		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -512,7 +551,11 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			split := strings.Split(arg, "=")
 			if len(split) == 1 || shared.PathExists(arg) {
 				if strings.HasSuffix(arg, ":") {
-					remote = config.ParseRemote(arg)
+					var err error
+					remote, _, err = conf.ParseRemote(arg)
+					if err != nil {
+						return err
+					}
 				} else {
 					if imageFile == "" {
 						imageFile = args[1]
@@ -526,7 +569,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		if remote == "" {
-			remote = config.DefaultRemote
+			remote = conf.DefaultRemote
 		}
 
 		if imageFile == "" {
@@ -534,7 +577,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			properties = properties[1:]
 		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -576,12 +619,22 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			result := strings.SplitN(args[1], ":", 2)
 			if len(result) == 1 {
 				filters = append(filters, args[1])
-				remote, _ = config.ParseRemoteAndContainer("")
+
+				remote, _, err = conf.ParseRemote("")
+				if err != nil {
+					return err
+				}
 			} else {
-				remote, _ = config.ParseRemoteAndContainer(args[1])
+				remote, _, err = conf.ParseRemote(args[1])
+				if err != nil {
+					return err
+				}
 			}
 		} else {
-			remote, _ = config.ParseRemoteAndContainer("")
+			remote, _, err = conf.ParseRemote("")
+			if err != nil {
+				return err
+			}
 		}
 
 		if len(args) > 2 {
@@ -590,7 +643,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			}
 		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -616,12 +669,16 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		remote, inName := config.ParseRemoteAndContainer(args[1])
+		remote, inName, err := conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if inName == "" {
 			inName = "default"
 		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -638,12 +695,16 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		remote, inName := config.ParseRemoteAndContainer(args[1])
+		remote, inName, err := conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if inName == "" {
 			inName = "default"
 		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -670,12 +731,16 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		remote, inName := config.ParseRemoteAndContainer(args[1])
+		remote, inName, err := conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if inName == "" {
 			inName = "default"
 		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -838,12 +903,12 @@ func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 	}
 
 	// Extract the current value
-	config, err := client.GetImageInfo(image)
+	imgInfo, err := client.GetImageInfo(image)
 	if err != nil {
 		return err
 	}
 
-	brief := config.Writable()
+	brief := imgInfo.Writable()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err

@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -38,16 +39,23 @@ func (c *infoCmd) flags() {
 	gnuflag.BoolVar(&c.showLog, "show-log", false, i18n.G("Show the container's last 100 log lines?"))
 }
 
-func (c *infoCmd) run(config *lxd.Config, args []string) error {
+func (c *infoCmd) run(conf *config.Config, args []string) error {
 	var remote string
 	var cName string
+	var err error
 	if len(args) == 1 {
-		remote, cName = config.ParseRemoteAndContainer(args[0])
+		remote, cName, err = conf.ParseRemote(args[0])
+		if err != nil {
+			return err
+		}
 	} else {
-		remote, cName = config.ParseRemoteAndContainer("")
+		remote, cName, err = conf.ParseRemote("")
+		if err != nil {
+			return err
+		}
 	}
 
-	d, err := lxd.NewClient(config, remote)
+	d, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}

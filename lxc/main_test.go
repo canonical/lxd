@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 )
 
 type aliasTestcase struct {
@@ -54,7 +54,7 @@ func TestExpandAliases(t *testing.T) {
 		},
 	}
 
-	conf := &lxd.Config{Aliases: aliases}
+	conf := &config.Config{Aliases: aliases}
 
 	for _, tc := range testcases {
 		result, expanded := expandAlias(conf, tc.input)

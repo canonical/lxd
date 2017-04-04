@@ -14,6 +14,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -129,14 +130,18 @@ lxc config set core.trust_password blah
     Will set the server's trust password to blah.`)
 }
 
-func (c *configCmd) doSet(config *lxd.Config, args []string, unset bool) error {
+func (c *configCmd) doSet(conf *config.Config, args []string, unset bool) error {
 	if len(args) != 4 {
 		return errArgs
 	}
 
 	// [[lxc config]] set dakara:c1 limits.memory 200000
-	remote, container := config.ParseRemoteAndContainer(args[1])
-	d, err := lxd.NewClient(config, remote)
+	remote, container, err := conf.ParseRemote(args[1])
+	if err != nil {
+		return err
+	}
+
+	d, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -167,7 +172,7 @@ func (c *configCmd) doSet(config *lxd.Config, args []string, unset bool) error {
 	return d.SetContainerConfig(container, key, value)
 }
 
-func (c *configCmd) run(config *lxd.Config, args []string) error {
+func (c *configCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
 		return errUsage
 	}
@@ -181,7 +186,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 		// Deal with local server
 		if len(args) == 2 {
-			c, err := lxd.NewClient(config, config.DefaultRemote)
+			c, err := lxd.NewClient(conf.Legacy(), conf.DefaultRemote)
 			if err != nil {
 				return err
 			}
@@ -201,9 +206,13 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		// Deal with remote server
-		remote, container := config.ParseRemoteAndContainer(args[1])
+		remote, container, err := conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if container == "" {
-			c, err := lxd.NewClient(config, remote)
+			c, err := lxd.NewClient(conf.Legacy(), remote)
 			if err != nil {
 				return err
 			}
@@ -224,7 +233,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 		// Deal with container
 		args = append(args, "")
-		return c.doSet(config, args, true)
+		return c.doSet(conf, args, true)
 
 	case "set":
 		if len(args) < 3 {
@@ -233,7 +242,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 
 		// Deal with local server
 		if len(args) == 3 {
-			c, err := lxd.NewClient(config, config.DefaultRemote)
+			c, err := lxd.NewClient(conf.Legacy(), conf.DefaultRemote)
 			if err != nil {
 				return err
 			}
@@ -243,9 +252,13 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		// Deal with remote server
-		remote, container := config.ParseRemoteAndContainer(args[1])
+		remote, container, err := conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if container == "" {
-			c, err := lxd.NewClient(config, remote)
+			c, err := lxd.NewClient(conf.Legacy(), remote)
 			if err != nil {
 				return err
 			}
@@ -255,7 +268,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 		// Deal with container
-		return c.doSet(config, args, false)
+		return c.doSet(conf, args, false)
 
 	case "trust":
 		if len(args) < 2 {
@@ -266,12 +279,16 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		case "list":
 			var remote string
 			if len(args) == 3 {
-				remote = config.ParseRemote(args[2])
+				var err error
+				remote, _, err = conf.ParseRemote(args[2])
+				if err != nil {
+					return err
+				}
 			} else {
-				remote = config.DefaultRemote
+				remote = conf.DefaultRemote
 			}
 
-			d, err := lxd.NewClient(config, remote)
+			d, err := lxd.NewClient(conf.Legacy(), remote)
 			if err != nil {
 				return err
 			}
@@ -320,12 +337,16 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			if len(args) < 3 {
 				return fmt.Errorf(i18n.G("No certificate provided to add"))
 			} else if len(args) == 4 {
-				remote = config.ParseRemote(args[2])
+				var err error
+				remote, _, err = conf.ParseRemote(args[2])
+				if err != nil {
+					return err
+				}
 			} else {
-				remote = config.DefaultRemote
+				remote = conf.DefaultRemote
 			}
 
-			d, err := lxd.NewClient(config, remote)
+			d, err := lxd.NewClient(conf.Legacy(), remote)
 			if err != nil {
 				return err
 			}
@@ -343,12 +364,16 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			if len(args) < 3 {
 				return fmt.Errorf(i18n.G("No fingerprint specified."))
 			} else if len(args) == 4 {
-				remote = config.ParseRemote(args[2])
+				var err error
+				remote, _, err = conf.ParseRemote(args[2])
+				if err != nil {
+					return err
+				}
 			} else {
-				remote = config.DefaultRemote
+				remote = conf.DefaultRemote
 			}
 
-			d, err := lxd.NewClient(config, remote)
+			d, err := lxd.NewClient(conf.Legacy(), remote)
 			if err != nil {
 				return err
 			}
@@ -359,13 +384,17 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 
 	case "show":
-		remote := config.DefaultRemote
+		remote := conf.DefaultRemote
 		container := ""
 		if len(args) > 1 {
-			remote, container = config.ParseRemoteAndContainer(args[1])
+			var err error
+			remote, container, err = conf.ParseRemote(args[1])
+			if err != nil {
+				return err
+			}
 		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -373,12 +402,12 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		var data []byte
 
 		if len(args) == 1 || container == "" {
-			config, err := d.ServerStatus()
+			server, err := d.ServerStatus()
 			if err != nil {
 				return err
 			}
 
-			brief := config.Writable()
+			brief := server.Writable()
 			data, err = yaml.Marshal(&brief)
 			if err != nil {
 				return err
@@ -386,35 +415,35 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		} else {
 			var brief api.ContainerPut
 			if shared.IsSnapshot(container) {
-				config, err := d.SnapshotInfo(container)
+				snap, err := d.SnapshotInfo(container)
 				if err != nil {
 					return err
 				}
 
 				brief = api.ContainerPut{
-					Profiles:  config.Profiles,
-					Config:    config.Config,
-					Devices:   config.Devices,
-					Ephemeral: config.Ephemeral,
+					Profiles:  snap.Profiles,
+					Config:    snap.Config,
+					Devices:   snap.Devices,
+					Ephemeral: snap.Ephemeral,
 				}
 				if c.expanded {
 					brief = api.ContainerPut{
-						Profiles:  config.Profiles,
-						Config:    config.ExpandedConfig,
-						Devices:   config.ExpandedDevices,
-						Ephemeral: config.Ephemeral,
+						Profiles:  snap.Profiles,
+						Config:    snap.ExpandedConfig,
+						Devices:   snap.ExpandedDevices,
+						Ephemeral: snap.Ephemeral,
 					}
 				}
 			} else {
-				config, err := d.ContainerInfo(container)
+				container, err := d.ContainerInfo(container)
 				if err != nil {
 					return err
 				}
 
-				brief = config.Writable()
+				brief = container.Writable()
 				if c.expanded {
-					brief.Config = config.ExpandedConfig
-					brief.Devices = config.ExpandedDevices
+					brief.Config = container.ExpandedConfig
+					brief.Devices = container.ExpandedDevices
 				}
 			}
 
@@ -433,15 +462,19 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		remote := config.DefaultRemote
+		remote := conf.DefaultRemote
 		container := ""
 		key := args[1]
 		if len(args) > 2 {
-			remote, container = config.ParseRemoteAndContainer(args[1])
+			var err error
+			remote, container, err = conf.ParseRemote(args[1])
+			if err != nil {
+				return err
+			}
 			key = args[2]
 		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -478,19 +511,19 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 		}
 		switch args[1] {
 		case "list":
-			return c.deviceList(config, "container", args)
+			return c.deviceList(conf, "container", args)
 		case "add":
-			return c.deviceAdd(config, "container", args)
+			return c.deviceAdd(conf, "container", args)
 		case "remove":
-			return c.deviceRm(config, "container", args)
+			return c.deviceRm(conf, "container", args)
 		case "get":
-			return c.deviceGet(config, "container", args)
+			return c.deviceGet(conf, "container", args)
 		case "set":
-			return c.deviceSet(config, "container", args)
+			return c.deviceSet(conf, "container", args)
 		case "unset":
-			return c.deviceUnset(config, "container", args)
+			return c.deviceUnset(conf, "container", args)
 		case "show":
-			return c.deviceShow(config, "container", args)
+			return c.deviceShow(conf, "container", args)
 		default:
 			return errArgs
 		}
@@ -500,13 +533,17 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 			return errArgs
 		}
 
-		remote := config.DefaultRemote
+		remote := conf.DefaultRemote
 		container := ""
 		if len(args) > 1 {
-			remote, container = config.ParseRemoteAndContainer(args[1])
+			var err error
+			remote, container, err = conf.ParseRemote(args[1])
+			if err != nil {
+				return err
+			}
 		}
 
-		d, err := lxd.NewClient(config, remote)
+		d, err := lxd.NewClient(conf.Legacy(), remote)
 		if err != nil {
 			return err
 		}
@@ -541,12 +578,12 @@ func (c *configCmd) doContainerConfigEdit(client *lxd.Client, cont string) error
 	}
 
 	// Extract the current value
-	config, err := client.ContainerInfo(cont)
+	container, err := client.ContainerInfo(cont)
 	if err != nil {
 		return err
 	}
 
-	brief := config.Writable()
+	brief := container.Writable()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err
@@ -606,12 +643,12 @@ func (c *configCmd) doDaemonConfigEdit(client *lxd.Client) error {
 	}
 
 	// Extract the current value
-	config, err := client.ServerStatus()
+	server, err := client.ServerStatus()
 	if err != nil {
 		return err
 	}
 
-	brief := config.Writable()
+	brief := server.Writable()
 	data, err := yaml.Marshal(&brief)
 	if err != nil {
 		return err
@@ -652,13 +689,17 @@ func (c *configCmd) doDaemonConfigEdit(client *lxd.Client) error {
 	return nil
 }
 
-func (c *configCmd) deviceAdd(config *lxd.Config, which string, args []string) error {
+func (c *configCmd) deviceAdd(conf *config.Config, which string, args []string) error {
 	if len(args) < 5 {
 		return errArgs
 	}
-	remote, name := config.ParseRemoteAndContainer(args[2])
 
-	client, err := lxd.NewClient(config, remote)
+	remote, name, err := conf.ParseRemote(args[2])
+	if err != nil {
+		return err
+	}
+
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -690,14 +731,17 @@ func (c *configCmd) deviceAdd(config *lxd.Config, which string, args []string) e
 	return err
 }
 
-func (c *configCmd) deviceGet(config *lxd.Config, which string, args []string) error {
+func (c *configCmd) deviceGet(conf *config.Config, which string, args []string) error {
 	if len(args) < 5 {
 		return errArgs
 	}
 
-	remote, name := config.ParseRemoteAndContainer(args[2])
+	remote, name, err := conf.ParseRemote(args[2])
+	if err != nil {
+		return err
+	}
 
-	client, err := lxd.NewClient(config, remote)
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -734,14 +778,17 @@ func (c *configCmd) deviceGet(config *lxd.Config, which string, args []string) e
 	return nil
 }
 
-func (c *configCmd) deviceSet(config *lxd.Config, which string, args []string) error {
+func (c *configCmd) deviceSet(conf *config.Config, which string, args []string) error {
 	if len(args) < 6 {
 		return errArgs
 	}
 
-	remote, name := config.ParseRemoteAndContainer(args[2])
+	remote, name, err := conf.ParseRemote(args[2])
+	if err != nil {
+		return err
+	}
 
-	client, err := lxd.NewClient(config, remote)
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -791,14 +838,17 @@ func (c *configCmd) deviceSet(config *lxd.Config, which string, args []string) e
 	return err
 }
 
-func (c *configCmd) deviceUnset(config *lxd.Config, which string, args []string) error {
+func (c *configCmd) deviceUnset(conf *config.Config, which string, args []string) error {
 	if len(args) < 5 {
 		return errArgs
 	}
 
-	remote, name := config.ParseRemoteAndContainer(args[2])
+	remote, name, err := conf.ParseRemote(args[2])
+	if err != nil {
+		return err
+	}
 
-	client, err := lxd.NewClient(config, remote)
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -847,13 +897,17 @@ func (c *configCmd) deviceUnset(config *lxd.Config, which string, args []string)
 	return err
 }
 
-func (c *configCmd) deviceRm(config *lxd.Config, which string, args []string) error {
+func (c *configCmd) deviceRm(conf *config.Config, which string, args []string) error {
 	if len(args) < 4 {
 		return errArgs
 	}
-	remote, name := config.ParseRemoteAndContainer(args[2])
 
-	client, err := lxd.NewClient(config, remote)
+	remote, name, err := conf.ParseRemote(args[2])
+	if err != nil {
+		return err
+	}
+
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -877,13 +931,17 @@ func (c *configCmd) deviceRm(config *lxd.Config, which string, args []string) er
 	return err
 }
 
-func (c *configCmd) deviceList(config *lxd.Config, which string, args []string) error {
+func (c *configCmd) deviceList(conf *config.Config, which string, args []string) error {
 	if len(args) < 3 {
 		return errArgs
 	}
-	remote, name := config.ParseRemoteAndContainer(args[2])
 
-	client, err := lxd.NewClient(config, remote)
+	remote, name, err := conf.ParseRemote(args[2])
+	if err != nil {
+		return err
+	}
+
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -902,13 +960,17 @@ func (c *configCmd) deviceList(config *lxd.Config, which string, args []string) 
 	return nil
 }
 
-func (c *configCmd) deviceShow(config *lxd.Config, which string, args []string) error {
+func (c *configCmd) deviceShow(conf *config.Config, which string, args []string) error {
 	if len(args) < 3 {
 		return errArgs
 	}
-	remote, name := config.ParseRemoteAndContainer(args[2])
 
-	client, err := lxd.NewClient(config, remote)
+	remote, name, err := conf.ParseRemote(args[2])
+	if err != nil {
+		return err
+	}
+
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}

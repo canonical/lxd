@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -39,9 +40,16 @@ func (c *copyCmd) flags() {
 	gnuflag.BoolVar(&c.containerOnly, "container-only", false, i18n.G("Copy the container without its snapshots"))
 }
 
-func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int, stateful bool, containerOnly bool) error {
-	sourceRemote, sourceName := config.ParseRemoteAndContainer(sourceResource)
-	destRemote, destName := config.ParseRemoteAndContainer(destResource)
+func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int, stateful bool, containerOnly bool) error {
+	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
+	if err != nil {
+		return err
+	}
+
+	destRemote, destName, err := conf.ParseRemote(destResource)
+	if err != nil {
+		return err
+	}
 
 	if sourceName == "" {
 		return fmt.Errorf(i18n.G("you must specify a source container name"))
@@ -51,7 +59,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		destName = sourceName
 	}
 
-	source, err := lxd.NewClient(config, sourceRemote)
+	source, err := lxd.NewClient(conf.Legacy(), sourceRemote)
 	if err != nil {
 		return err
 	}
@@ -146,7 +154,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 		return nil
 	}
 
-	dest, err := lxd.NewClient(config, destRemote)
+	dest, err := lxd.NewClient(conf.Legacy(), destRemote)
 	if err != nil {
 		return err
 	}
@@ -280,7 +288,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 	return fmt.Errorf(i18n.G("Migration failed on target host: %s"), migrationErrFromClient)
 }
 
-func (c *copyCmd) run(config *lxd.Config, args []string) error {
+func (c *copyCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
 		return errArgs
 	}
@@ -291,8 +299,8 @@ func (c *copyCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if len(args) < 2 {
-		return c.copyContainer(config, args[0], "", false, ephem, false, c.containerOnly)
+		return c.copyContainer(conf, args[0], "", false, ephem, false, c.containerOnly)
 	}
 
-	return c.copyContainer(config, args[0], args[1], false, ephem, false, c.containerOnly)
+	return c.copyContainer(conf, args[0], args[1], false, ephem, false, c.containerOnly)
 }

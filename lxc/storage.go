@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
@@ -143,21 +144,25 @@ lxc storage volume show default container/data
 
 func (c *storageCmd) flags() {}
 
-func (c *storageCmd) run(config *lxd.Config, args []string) error {
+func (c *storageCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
 		return errUsage
 	}
 
 	if args[0] == "list" {
-		return c.doStoragePoolsList(config, args)
+		return c.doStoragePoolsList(conf, args)
 	}
 
 	if len(args) < 2 {
 		return errArgs
 	}
 
-	remote, sub := config.ParseRemoteAndContainer(args[1])
-	client, err := lxd.NewClient(config, remote)
+	remote, sub, err := conf.ParseRemote(args[1])
+	if err != nil {
+		return err
+	}
+
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -225,7 +230,7 @@ func (c *storageCmd) run(config *lxd.Config, args []string) error {
 				return errArgs
 			}
 			pool := args[2]
-			return c.doStoragePoolVolumesList(config, remote, pool, args)
+			return c.doStoragePoolVolumesList(conf, remote, pool, args)
 		case "set":
 			if len(args) < 4 {
 				return errArgs
@@ -570,19 +575,24 @@ func (c *storageCmd) doStoragePoolGet(client *lxd.Client, name string, args []st
 	return nil
 }
 
-func (c *storageCmd) doStoragePoolsList(config *lxd.Config, args []string) error {
+func (c *storageCmd) doStoragePoolsList(conf *config.Config, args []string) error {
 	var remote string
 	if len(args) > 1 {
 		var name string
-		remote, name = config.ParseRemoteAndContainer(args[1])
+		var err error
+		remote, name, err = conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if name != "" {
 			return fmt.Errorf(i18n.G("Cannot provide container name to list"))
 		}
 	} else {
-		remote = config.DefaultRemote
+		remote = conf.DefaultRemote
 	}
 
-	client, err := lxd.NewClient(config, remote)
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
@@ -670,8 +680,8 @@ func (c *storageCmd) doStoragePoolShow(client *lxd.Client, name string) error {
 	return nil
 }
 
-func (c *storageCmd) doStoragePoolVolumesList(config *lxd.Config, remote string, pool string, args []string) error {
-	client, err := lxd.NewClient(config, remote)
+func (c *storageCmd) doStoragePoolVolumesList(conf *config.Config, remote string, pool string, args []string) error {
+	client, err := lxd.NewClient(conf.Legacy(), remote)
 	if err != nil {
 		return err
 	}
