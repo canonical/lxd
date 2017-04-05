@@ -320,12 +320,7 @@ func getAAProfileContent(c container) string {
 
 	if aaStacking {
 		profile += "\n  ### Feature: apparmor stacking\n"
-
-		if c.IsPrivileged() {
-			profile += "\n  ### Configuration: apparmor loading disabled in privileged containers\n"
-			profile += "  deny /sys/k*{,/**} rwklx,\n"
-		} else {
-			profile += `  ### Configuration: apparmor loading in unprivileged containers
+		profile += `  ### Configuration: apparmor profile loading (in namespace)
   deny /sys/k[^e]*{,/**} wklx,
   deny /sys/ke[^r]*{,/**} wklx,
   deny /sys/ker[^n]*{,/**} wklx,
@@ -351,8 +346,7 @@ func getAAProfileContent(c container) string {
   deny /sys/kernel/security?*{,/**} wklx,
   deny /sys/kernel?*{,/**} wklx,
 `
-			profile += fmt.Sprintf("  change_profile -> \":%s://*\",\n", AANamespace(c))
-		}
+		profile += fmt.Sprintf("  change_profile -> \":%s://*\",\n", AANamespace(c))
 	} else {
 		profile += "\n  ### Feature: apparmor stacking (not present)\n"
 		profile += "  deny /sys/k*{,/**} rwklx,\n"
