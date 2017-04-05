@@ -14,7 +14,6 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -215,7 +214,7 @@ func (c *listCmd) shouldShow(filters []string, state *api.Container) bool {
 	return true
 }
 
-func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters []string, columns []column) error {
+func (c *listCmd) listContainers(conf *config.Config, remote string, cinfos []api.Container, filters []string, columns []column) error {
 	headers := []string{}
 	for _, column := range columns {
 		headers = append(headers, column.Name)
@@ -239,7 +238,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 	for i := 0; i < threads; i++ {
 		cStatesWg.Add(1)
 		go func() {
-			d, err := lxd.NewClient(&d.Config, d.Name)
+			d, err := conf.GetContainerServer(remote)
 			if err != nil {
 				cStatesWg.Done()
 				return
@@ -251,7 +250,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 					break
 				}
 
-				state, err := d.ContainerState(cName)
+				state, _, err := d.GetContainerState(cName)
 				if err != nil {
 					continue
 				}
@@ -265,7 +264,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 
 		cSnapshotsWg.Add(1)
 		go func() {
-			d, err := lxd.NewClient(&d.Config, d.Name)
+			d, err := conf.GetContainerServer(remote)
 			if err != nil {
 				cSnapshotsWg.Done()
 				return
@@ -277,7 +276,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 					break
 				}
 
-				snaps, err := d.ListSnapshots(cName)
+				snaps, err := d.GetContainerSnapshots(cName)
 				if err != nil {
 					continue
 				}
@@ -428,13 +427,13 @@ func (c *listCmd) run(conf *config.Config, args []string) error {
 		remote = conf.DefaultRemote
 	}
 
-	d, err := lxd.NewClient(conf.Legacy(), remote)
+	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
 
 	var cts []api.Container
-	ctslist, err := d.ListContainers()
+	ctslist, err := d.GetContainers()
 	if err != nil {
 		return err
 	}
@@ -452,7 +451,7 @@ func (c *listCmd) run(conf *config.Config, args []string) error {
 		return err
 	}
 
-	return c.listContainers(d, cts, filters, columns)
+	return c.listContainers(conf, remote, cts, filters, columns)
 }
 
 func (c *listCmd) parseColumns() ([]column, error) {
