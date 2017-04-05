@@ -79,6 +79,9 @@ test_filemanip() {
   lxc file push -p "${TEST_DIR}"/source/foo filemanip/.
   [ "$(lxc exec filemanip cat /foo)" = "foo" ]
 
+  lxc file push -p "${TEST_DIR}"/source/foo filemanip/A/B/C/D/
+  [ "$(lxc exec filemanip cat /A/B/C/D/foo)" = "foo" ]
+
   lxc delete filemanip -f
 
   if [ "${LXD_BACKEND}" != "lvm" ]; then
