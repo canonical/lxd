@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -26,25 +25,21 @@ func (c *fingerCmd) run(conf *config.Config, args []string) error {
 		return errArgs
 	}
 
-	var remote string
-	if len(args) == 1 {
+	// Parse the remote
+	remote := conf.DefaultRemote
+	if len(args) > 0 {
 		var err error
 		remote, _, err = conf.ParseRemote(args[0])
 		if err != nil {
 			return err
 		}
-	} else {
-		remote = conf.DefaultRemote
 	}
 
-	// New client may or may not need to connect to the remote host, but
-	// client.ServerStatus will at least request the basic information from
-	// the server.
-	client, err := lxd.NewClient(conf.Legacy(), remote)
+	// Attempt to connect
+	_, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
 
-	_, err = client.ServerStatus()
-	return err
+	return nil
 }
