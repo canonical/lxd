@@ -5,7 +5,6 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -77,7 +76,12 @@ func (c *monitorCmd) run(conf *config.Config, args []string) error {
 		}
 	}
 
-	d, err := lxd.NewClient(conf.Legacy(), remote)
+	d, err := conf.GetContainerServer(remote)
+	if err != nil {
+		return err
+	}
+
+	listener, err := d.GetEvents()
 	if err != nil {
 		return err
 	}
@@ -92,5 +96,10 @@ func (c *monitorCmd) run(conf *config.Config, args []string) error {
 		fmt.Printf("%s\n\n", render)
 	}
 
-	return d.Monitor(c.typeArgs, handler, nil)
+	_, err = listener.AddHandler(c.typeArgs, handler)
+	if err != nil {
+		return err
+	}
+
+	return listener.Wait()
 }
