@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -50,7 +50,7 @@ func (c *restoreCmd) run(conf *config.Config, args []string) error {
 		return err
 	}
 
-	d, err := lxd.NewClient(conf.Legacy(), remote)
+	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
@@ -59,10 +59,15 @@ func (c *restoreCmd) run(conf *config.Config, args []string) error {
 		snapname = fmt.Sprintf("%s/%s", name, snapname)
 	}
 
-	resp, err := d.RestoreSnapshot(name, snapname, c.stateful)
+	req := api.ContainerPut{
+		Restore:  snapname,
+		Stateful: c.stateful,
+	}
+
+	op, err := d.UpdateContainer(name, req, "")
 	if err != nil {
 		return err
 	}
 
-	return d.WaitForSuccess(resp.Operation)
+	return op.Wait()
 }
