@@ -29,6 +29,15 @@ var lxdStorageOngoingOperationMap = map[string]chan bool{}
 // lxdStorageMapLock is used to access lxdStorageOngoingOperationMap.
 var lxdStorageMapLock sync.Mutex
 
+var lxdContainerCreationMap = map[string]*containerCreationStruct{}
+
+type containerCreationStruct struct {
+	ref  int
+	lock *sync.RWMutex
+}
+
+var lxdContainerCreationLock sync.RWMutex
+
 // The following functions are used to construct simple operation codes that are
 // unique.
 func getPoolMountLockID(poolName string) string {
@@ -41,6 +50,14 @@ func getPoolUmountLockID(poolName string) string {
 
 func getImageCreateLockID(poolName string, fingerprint string) string {
 	return fmt.Sprintf("create/image/%s/%s", poolName, fingerprint)
+}
+
+func getImageDeleteLockID(poolName string, fingerprint string) string {
+	return fmt.Sprintf("delete/image/%s/%s", poolName, fingerprint)
+}
+
+func getContainerCreateFromImageLockID(poolName string, containerName string) string {
+	return fmt.Sprintf("createfromimage/container/%s/%s", poolName, containerName)
 }
 
 func getContainerMountLockID(poolName string, containerName string) string {
