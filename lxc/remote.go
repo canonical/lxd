@@ -16,9 +16,9 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/logger"
@@ -202,21 +202,16 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 	}
 	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: protocol}
 
-	d, err := lxd.NewClient(conf.Legacy(), server)
-	if err != nil {
+	// Attempt to connect
+	d, err := conf.GetContainerServer(server)
+
+	// Handle Unix socket connections
+	if strings.HasPrefix(addr, "unix:") {
 		return err
 	}
 
-	if strings.HasPrefix(addr, "unix:") {
-		// NewClient succeeded so there was a lxd there (we fingered
-		// it) so just accept it
-		return nil
-	}
-
+	// Check if the system CA worked for the TLS connection
 	var certificate *x509.Certificate
-
-	/* Attempt to connect using the system root CA */
-	_, err = d.GetServerConfig()
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
 		certificate, err = c.getRemoteCertificate(addr)
@@ -225,6 +220,7 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 		}
 	}
 
+	// Handle certificate prompt
 	if certificate != nil {
 		if !acceptCert {
 			digest := shared.CertFingerprint(certificate)
@@ -241,13 +237,13 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 			}
 		}
 
-		dnam := d.Config.ConfigPath("servercerts")
+		dnam := conf.ConfigPath("servercerts")
 		err := os.MkdirAll(dnam, 0750)
 		if err != nil {
 			return fmt.Errorf(i18n.G("Could not create server cert dir"))
 		}
 
-		certf := fmt.Sprintf("%s/%s.crt", dnam, d.Name)
+		certf := fmt.Sprintf("%s/%s.crt", dnam, server)
 		certOut, err := os.Create(certf)
 		if err != nil {
 			return err
@@ -257,27 +253,30 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 		certOut.Close()
 
 		// Setup a new connection, this time with the remote certificate
-		d, err = lxd.NewClient(conf.Legacy(), server)
+		d, err = conf.GetContainerServer(server)
 		if err != nil {
 			return err
 		}
 	}
 
-	if d.IsPublic() || public {
+	// Get server information
+	srv, _, err := d.GetServer()
+	if err != nil {
+		return err
+	}
+
+	// Detect a public remote
+	if srv.Public || public {
 		conf.Remotes[server] = config.Remote{Addr: addr, Public: true}
-
-		if _, err := d.GetServerConfig(); err != nil {
-			return err
-		}
-
 		return nil
 	}
 
-	if d.AmTrusted() {
-		// server already has our cert, so we're done
+	// Check if our cert is already trusted
+	if srv.Auth == "trusted" {
 		return nil
 	}
 
+	// Prompt for trust password
 	if password == "" {
 		fmt.Printf(i18n.G("Admin password for %s: "), server)
 		pwd, err := terminal.ReadPassword(0)
@@ -293,12 +292,24 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 		password = string(pwd)
 	}
 
-	err = d.AddMyCertToServer(password)
+	// Add client certificate to trust store
+	req := api.CertificatesPost{
+		Password: password,
+	}
+	req.Type = "client"
+
+	err = d.CreateCertificate(req)
 	if err != nil {
 		return err
 	}
 
-	if !d.AmTrusted() {
+	// And check if trusted now
+	srv, _, err = d.GetServer()
+	if err != nil {
+		return err
+	}
+
+	if srv.Auth != "trusted" {
 		return fmt.Errorf(i18n.G("Server doesn't trust us after adding our cert"))
 	}
 
