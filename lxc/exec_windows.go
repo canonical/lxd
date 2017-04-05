@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/mattn/go-colorable"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -32,7 +31,7 @@ func (c *execCmd) getTERM() (string, bool) {
 	return "dumb", true
 }
 
-func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {
+func (c *execCmd) controlSocketHandler(control *websocket.Conn) {
 	// TODO: figure out what the equivalent of signal.SIGWINCH is on
 	// windows and use that; for now if you resize your terminal it just
 	// won't work quite correctly.

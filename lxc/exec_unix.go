@@ -10,7 +10,6 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -22,7 +21,7 @@ func (c *execCmd) getTERM() (string, bool) {
 	return os.LookupEnv("TERM")
 }
 
-func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {
+func (c *execCmd) controlSocketHandler(control *websocket.Conn) {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGWINCH)
 
