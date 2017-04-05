@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -48,25 +48,30 @@ func (c *snapshotCmd) run(conf *config.Config, args []string) error {
 		snapname = args[1]
 	}
 
-	remote, name, err := conf.ParseRemote(args[0])
-	if err != nil {
-		return err
-	}
-
-	d, err := lxd.NewClient(conf.Legacy(), remote)
-	if err != nil {
-		return err
-	}
-
 	// we don't allow '/' in snapshot names
 	if shared.IsSnapshot(snapname) {
 		return fmt.Errorf(i18n.G("'/' not allowed in snapshot name"))
 	}
 
-	resp, err := d.Snapshot(name, snapname, c.stateful)
+	remote, name, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return err
 	}
 
-	return d.WaitForSuccess(resp.Operation)
+	d, err := conf.GetContainerServer(remote)
+	if err != nil {
+		return err
+	}
+
+	req := api.ContainerSnapshotsPost{
+		Name:     snapname,
+		Stateful: c.stateful,
+	}
+
+	op, err := d.CreateContainerSnapshot(name, req)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
 }
