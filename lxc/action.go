@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -64,7 +63,7 @@ func (c *actionCmd) doAction(conf *config.Config, nameArg string) error {
 		return err
 	}
 
-	d, err := lxd.NewClient(conf.Legacy(), remote)
+	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
@@ -74,7 +73,7 @@ func (c *actionCmd) doAction(conf *config.Config, nameArg string) error {
 	}
 
 	if c.action == shared.Start {
-		current, err := d.ContainerInfo(name)
+		current, _, err := d.GetContainer(name)
 		if err != nil {
 			return err
 		}
@@ -90,16 +89,20 @@ func (c *actionCmd) doAction(conf *config.Config, nameArg string) error {
 		}
 	}
 
-	resp, err := d.Action(name, c.action, c.timeout, c.force, state)
+	req := api.ContainerStatePut{
+		Action:   string(c.action),
+		Timeout:  c.timeout,
+		Force:    c.force,
+		Stateful: state,
+	}
+
+	op, err := d.UpdateContainerState(name, req, "")
 	if err != nil {
 		return err
 	}
 
-	if resp.Type != api.AsyncResponse {
-		return fmt.Errorf(i18n.G("bad result type from action"))
-	}
-
-	if err := d.WaitForSuccess(resp.Operation); err != nil {
+	err = op.Wait()
+	if err != nil {
 		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, nameArg)
 	}
 
