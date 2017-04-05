@@ -2228,7 +2228,6 @@ func (c *containerLXC) Render() (interface{}, error) {
 			Name:            c.name,
 			Status:          statusCode.String(),
 			StatusCode:      statusCode,
-			Stateful:        c.stateful,
 		}
 
 		ct.Architecture = architectureName
@@ -2237,6 +2236,7 @@ func (c *containerLXC) Render() (interface{}, error) {
 		ct.Devices = c.localDevices
 		ct.Ephemeral = c.ephemeral
 		ct.Profiles = c.profiles
+		ct.Stateful = c.stateful
 
 		return &ct, nil
 	}
