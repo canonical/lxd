@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -49,13 +49,23 @@ func (c *deleteCmd) promptDelete(name string) error {
 	return nil
 }
 
-func (c *deleteCmd) doDelete(d *lxd.Client, name string) error {
-	resp, err := d.Delete(name)
+func (c *deleteCmd) doDelete(d lxd.ContainerServer, name string) error {
+	var op *lxd.Operation
+	var err error
+
+	if shared.IsSnapshot(name) {
+		// Snapshot delete
+		fields := strings.SplitN(name, shared.SnapshotDelimiter, 2)
+		op, err = d.DeleteContainerSnapshot(fields[0], fields[1])
+	} else {
+		// Container delete
+		op, err = d.DeleteContainer(name)
+	}
 	if err != nil {
 		return err
 	}
 
-	return d.WaitForSuccess(resp.Operation)
+	return op.Wait()
 }
 
 func (c *deleteCmd) run(conf *config.Config, args []string) error {
@@ -69,7 +79,7 @@ func (c *deleteCmd) run(conf *config.Config, args []string) error {
 			return err
 		}
 
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetContainerServer(remote)
 		if err != nil {
 			return err
 		}
@@ -85,7 +95,7 @@ func (c *deleteCmd) run(conf *config.Config, args []string) error {
 			return c.doDelete(d, name)
 		}
 
-		ct, err := d.ContainerInfo(name)
+		ct, _, err := d.GetContainer(name)
 		if err != nil {
 			return err
 		}
@@ -95,18 +105,20 @@ func (c *deleteCmd) run(conf *config.Config, args []string) error {
 				return fmt.Errorf(i18n.G("The container is currently running, stop it first or pass --force."))
 			}
 
-			resp, err := d.Action(name, shared.Stop, -1, true, false)
+			req := api.ContainerStatePut{
+				Action:  "stop",
+				Timeout: -1,
+				Force:   true,
+			}
+
+			op, err := d.UpdateContainerState(name, req, "")
 			if err != nil {
 				return err
 			}
 
-			op, err := d.WaitFor(resp.Operation)
+			err = op.Wait()
 			if err != nil {
-				return err
-			}
-
-			if op.StatusCode == api.Failure {
-				return fmt.Errorf(i18n.G("Stopping container failed!"))
+				return fmt.Errorf(i18n.G("Stopping the container failed: %s"), err)
 			}
 
 			if ct.Ephemeral == true {
