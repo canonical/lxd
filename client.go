@@ -1833,7 +1833,10 @@ func (c *Client) MkdirP(container string, p string, mode os.FileMode, uid int, g
 		return nil
 	}
 
-	parts := strings.Split(p, "/")
+	// Remove trailing "/" e.g. /A/B/C/. Otherwise we will end up with an
+	// empty array entry "" which will confuse the Mkdir() loop below.
+	pclean := filepath.Clean(p)
+	parts := strings.Split(pclean, "/")
 	i := len(parts)
 
 	for ; i >= 1; i-- {
@@ -1853,6 +1856,10 @@ func (c *Client) MkdirP(container string, p string, mode os.FileMode, uid int, g
 
 	for ; i <= len(parts); i++ {
 		cur := filepath.Join(parts[:i]...)
+		if cur == "" {
+			continue
+		}
+
 		if err := c.Mkdir(container, cur, mode, uid, gid); err != nil {
 			return err
 		}
