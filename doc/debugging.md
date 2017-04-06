@@ -6,8 +6,8 @@ Adding `--debug` flag to any client command will give extra information
 about internals. If there is no useful info, it can be added with the
 logging call:
 
-    shared.LogDebugf("Hello: %s", "Debug")
-    
+    logger.Debugf("Hello: %s", "Debug")
+
 #### lxc monitor
 
 This command will monitor messages as they appear on remote server.

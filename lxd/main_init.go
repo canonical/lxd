@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func cmdInit() error {
@@ -520,7 +521,7 @@ they otherwise would.
 						if err != nil {
 							return err
 						}
-						shared.LogDebugf("Set pool property of existing root disk device \"%s\" in profile \"default\" to \"%s\".", storagePool)
+						logger.Debugf("Set pool property of existing root disk device \"%s\" in profile \"default\" to \"%s\".", storagePool)
 
 						break
 					}
@@ -545,7 +546,7 @@ they otherwise would.
 			}
 
 			if !defaultProfileExists {
-				shared.LogWarnf("Did not find profile \"default\" so no default storage pool will be set. Manual intervention needed.")
+				logger.Warnf("Did not find profile \"default\" so no default storage pool will be set. Manual intervention needed.")
 			}
 		}
 	}

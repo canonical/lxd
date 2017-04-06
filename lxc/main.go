@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 )
 
@@ -119,7 +120,7 @@ func run() error {
 	os.Args = os.Args[1:]
 	gnuflag.Parse(true)
 
-	shared.Log, err = logging.GetLogger("", "", *verbose, *debug, nil)
+	logger.Log, err = logging.GetLogger("", "", *verbose, *debug, nil)
 	if err != nil {
 		return err
 	}

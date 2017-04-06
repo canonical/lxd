@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func cmdActivateIfNeeded() error {
@@ -20,7 +21,7 @@ func cmdActivateIfNeeded() error {
 	}
 
 	if !shared.PathExists(shared.VarPath("lxd.db")) {
-		shared.LogDebugf("No DB, so no need to start the daemon now.")
+		logger.Debugf("No DB, so no need to start the daemon now.")
 		return nil
 	}
 
@@ -38,7 +39,7 @@ func cmdActivateIfNeeded() error {
 	// Look for network socket
 	value := daemonConfig["core.https_address"].Get()
 	if value != "" {
-		shared.LogDebugf("Daemon has core.https_address set, activating...")
+		logger.Debugf("Daemon has core.https_address set, activating...")
 		_, err := lxd.ConnectLXDUnix("", nil)
 		return err
 	}
@@ -66,18 +67,18 @@ func cmdActivateIfNeeded() error {
 		autoStart := config["boot.autostart"]
 
 		if c.IsRunning() {
-			shared.LogDebugf("Daemon has running containers, activating...")
+			logger.Debugf("Daemon has running containers, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
 
 		if lastState == "RUNNING" || lastState == "Running" || shared.IsTrue(autoStart) {
-			shared.LogDebugf("Daemon has auto-started containers, activating...")
+			logger.Debugf("Daemon has auto-started containers, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
 	}
 
-	shared.LogDebugf("No need to start the daemon now.")
+	logger.Debugf("No need to start the daemon now.")
 	return nil
 }

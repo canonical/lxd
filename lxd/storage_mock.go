@@ -7,6 +7,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type storageMock struct {
@@ -21,7 +22,7 @@ func (s *storageMock) StorageCoreInit() error {
 	}
 	s.sTypeName = typeName
 
-	shared.LogDebugf("Initializing a MOCK driver.")
+	logger.Debugf("Initializing a MOCK driver.")
 	return nil
 }
 
@@ -35,19 +36,19 @@ func (s *storageMock) StoragePoolInit() error {
 }
 
 func (s *storageMock) StoragePoolCheck() error {
-	shared.LogDebugf("Checking MOCK storage pool \"%s\".", s.pool.Name)
+	logger.Debugf("Checking MOCK storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
 func (s *storageMock) StoragePoolCreate() error {
-	shared.LogInfof("Creating MOCK storage pool \"%s\".", s.pool.Name)
-	shared.LogInfof("Created MOCK storage pool \"%s\".", s.pool.Name)
+	logger.Infof("Creating MOCK storage pool \"%s\".", s.pool.Name)
+	logger.Infof("Created MOCK storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
 func (s *storageMock) StoragePoolDelete() error {
-	shared.LogInfof("Deleting MOCK storage pool \"%s\".", s.pool.Name)
-	shared.LogInfof("Deleted MOCK storage pool \"%s\".", s.pool.Name)
+	logger.Infof("Deleting MOCK storage pool \"%s\".", s.pool.Name)
+	logger.Infof("Deleted MOCK storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // lxdStorageLockMap is a hashmap that allows functions to check whether the
@@ -106,7 +107,7 @@ func filesystemDetect(path string) (string, error) {
 	case filesystemSuperMagicNfs:
 		return "nfs", nil
 	default:
-		shared.LogDebugf("Unknown backing filesystem type: 0x%x", fs.Type)
+		logger.Debugf("Unknown backing filesystem type: 0x%x", fs.Type)
 		return string(fs.Type), nil
 	}
 }
