@@ -14,10 +14,10 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/termios"
 )
 
@@ -71,7 +71,7 @@ func (c *execCmd) sendTermSize(control *websocket.Conn) error {
 		return err
 	}
 
-	shared.LogDebugf("Window size is now: %dx%d", width, height)
+	logger.Debugf("Window size is now: %dx%d", width, height)
 
 	w, err := control.NextWriter(websocket.TextMessage)
 	if err != nil {
@@ -95,7 +95,7 @@ func (c *execCmd) sendTermSize(control *websocket.Conn) error {
 }
 
 func (c *execCmd) forwardSignal(control *websocket.Conn, sig syscall.Signal) error {
-	shared.LogDebugf("Forwarding signal: %s", sig)
+	logger.Debugf("Forwarding signal: %s", sig)
 
 	w, err := control.NextWriter(websocket.TextMessage)
 	if err != nil {

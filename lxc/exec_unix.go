@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func (c *execCmd) getStdout() io.WriteCloser {
@@ -46,94 +46,94 @@ func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {
 		sig := <-ch
 		switch sig {
 		case syscall.SIGWINCH:
-			shared.LogDebugf("Received '%s signal', updating window geometry.", sig)
+			logger.Debugf("Received '%s signal', updating window geometry.", sig)
 			err := c.sendTermSize(control)
 			if err != nil {
-				shared.LogDebugf("error setting term size %s", err)
+				logger.Debugf("error setting term size %s", err)
 				return
 			}
 		case syscall.SIGTERM:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGTERM)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGTERM)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGTERM)
 				return
 			}
 		case syscall.SIGHUP:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGHUP)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGHUP)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGHUP)
 				return
 			}
 		case syscall.SIGINT:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGINT)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGINT)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGINT)
 				return
 			}
 		case syscall.SIGQUIT:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGQUIT)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGQUIT)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGQUIT)
 				return
 			}
 		case syscall.SIGABRT:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGABRT)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGABRT)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGABRT)
 				return
 			}
 		case syscall.SIGTSTP:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGTSTP)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGTSTP)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGTSTP)
 				return
 			}
 		case syscall.SIGTTIN:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGTTIN)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGTTIN)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGTTIN)
 				return
 			}
 		case syscall.SIGTTOU:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGTTOU)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGTTOU)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGTTOU)
 				return
 			}
 		case syscall.SIGUSR1:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGUSR1)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGUSR1)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGUSR1)
 				return
 			}
 		case syscall.SIGUSR2:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGUSR2)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGUSR2)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGUSR2)
 				return
 			}
 		case syscall.SIGSEGV:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGSEGV)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGSEGV)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGSEGV)
 				return
 			}
 		case syscall.SIGCONT:
-			shared.LogDebugf("Received '%s signal', forwarding to executing program.", sig)
+			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
 			err := c.forwardSignal(control, syscall.SIGCONT)
 			if err != nil {
-				shared.LogDebugf("Failed to forward signal '%s'.", syscall.SIGCONT)
+				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGCONT)
 				return
 			}
 		default:

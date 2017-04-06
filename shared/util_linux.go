@@ -15,6 +15,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"unsafe"
+
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // #cgo LDFLAGS: -lutil -lpthread
@@ -565,13 +567,13 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 
 		ret, revents, err := GetPollRevents(fd, 0, (POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP))
 		if ret < 0 {
-			LogErrorf("Failed to poll(POLLIN | POLLPRI | POLLHUP | POLLRDHUP) on file descriptor: %s.", err)
+			logger.Errorf("Failed to poll(POLLIN | POLLPRI | POLLHUP | POLLRDHUP) on file descriptor: %s.", err)
 		} else if ret > 0 {
 			if (revents & POLLERR) > 0 {
-				LogWarnf("Detected poll(POLLERR) event.")
+				logger.Warnf("Detected poll(POLLERR) event.")
 			}
 		} else if ret == 0 {
-			LogDebugf("No data in stdout: exiting.")
+			logger.Debugf("No data in stdout: exiting.")
 			once.Do(closeChannel)
 			return
 		}
@@ -592,7 +594,7 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 			if ret < 0 {
 				// This condition is only reached in cases where we are massively f*cked since we even handle
 				// EINTR in the underlying C wrapper around poll(). So let's exit here.
-				LogErrorf("Failed to poll(POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP) on file descriptor: %s. Exiting.", err)
+				logger.Errorf("Failed to poll(POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP) on file descriptor: %s. Exiting.", err)
 				return
 			}
 
@@ -601,13 +603,13 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 			// keep on reading from the pty file descriptor until we get a simple POLLHUP back.
 			both := ((revents & (POLLIN | POLLPRI)) > 0) && ((revents & (POLLHUP | POLLRDHUP)) > 0)
 			if both {
-				LogDebugf("Detected poll(POLLIN | POLLPRI | POLLHUP | POLLRDHUP) event.")
+				logger.Debugf("Detected poll(POLLIN | POLLPRI | POLLHUP | POLLRDHUP) event.")
 				read := buf[offset : offset+readSize]
 				nr, err = r.Read(read)
 			}
 
 			if (revents & POLLERR) > 0 {
-				LogWarnf("Detected poll(POLLERR) event: exiting.")
+				logger.Warnf("Detected poll(POLLERR) event: exiting.")
 				return
 			}
 
@@ -666,10 +668,10 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 					//   stdout is written out.
 					ret, revents, err := GetPollRevents(fd, 0, (POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP))
 					if ret < 0 {
-						LogErrorf("Failed to poll(POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP) on file descriptor: %s. Exiting.", err)
+						logger.Errorf("Failed to poll(POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP) on file descriptor: %s. Exiting.", err)
 						return
 					} else if (revents & (POLLHUP | POLLRDHUP)) == 0 {
-						LogDebugf("Exiting but background processes are still running.")
+						logger.Debugf("Exiting but background processes are still running.")
 						return
 					}
 				}
@@ -680,7 +682,7 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 			// The attached process has exited and we have read all data that may have
 			// been buffered.
 			if ((revents & (POLLHUP | POLLRDHUP)) > 0) && !both {
-				LogDebugf("Detected poll(POLLHUP) event: exiting.")
+				logger.Debugf("Detected poll(POLLHUP) event: exiting.")
 				return
 			}
 

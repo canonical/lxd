@@ -10,7 +10,7 @@ import (
 	"github.com/mattn/go-colorable"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Windows doesn't process ANSI sequences natively, so we wrap
@@ -38,6 +38,6 @@ func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {
 	// won't work quite correctly.
 	err := c.sendTermSize(control)
 	if err != nil {
-		shared.LogDebugf("error setting term size %s", err)
+		logger.Debugf("error setting term size %s", err)
 	}
 }

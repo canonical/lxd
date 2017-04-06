@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/termios"
 )
 
@@ -95,7 +96,7 @@ func (c *fileCmd) push(config *lxd.Config, send_file_perms bool, args []string) 
 		targetIsDir = true
 	}
 
-	shared.LogDebugf("Pushing to: %s  (isdir: %t)", targetPath, targetIsDir)
+	logger.Debugf("Pushing to: %s  (isdir: %t)", targetPath, targetIsDir)
 
 	d, err := lxd.NewClient(config, remote)
 	if err != nil {

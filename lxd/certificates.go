@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -54,20 +55,20 @@ func readSavedClientCAList(d *Daemon) {
 
 	dbCerts, err := dbCertsGet(d.db)
 	if err != nil {
-		shared.LogInfof("Error reading certificates from database: %s", err)
+		logger.Infof("Error reading certificates from database: %s", err)
 		return
 	}
 
 	for _, dbCert := range dbCerts {
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		if certBlock == nil {
-			shared.LogInfof("Error decoding certificate for %s: %s", dbCert.Name, err)
+			logger.Infof("Error decoding certificate for %s: %s", dbCert.Name, err)
 			continue
 		}
 
 		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			shared.LogInfof("Error reading certificate for %s: %s", dbCert.Name, err)
+			logger.Infof("Error reading certificate for %s: %s", dbCert.Name, err)
 			continue
 		}
 		d.clientCerts = append(d.clientCerts, *cert)

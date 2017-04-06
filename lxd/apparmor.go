@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -395,7 +396,7 @@ func runApparmor(command string, c container) error {
 	}...)
 
 	if err != nil {
-		shared.LogError("Running apparmor",
+		logger.Error("Running apparmor",
 			log.Ctx{"action": command, "output": output, "err": err})
 	}
 
@@ -472,7 +473,7 @@ func AADestroy(c container) error {
 	if aaStacking {
 		p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", AANamespace(c))
 		if err := os.Remove(p); err != nil {
-			shared.LogError("error removing apparmor namespace", log.Ctx{"err": err, "ns": p})
+			logger.Error("error removing apparmor namespace", log.Ctx{"err": err, "ns": p})
 		}
 	}
 
